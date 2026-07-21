@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./async-boundary": {
+      "types": "./dist/async-boundary.d.ts",
+      "import": "./dist/async-boundary.js"
+    },
     "./form-array": {
       "types": "./dist/form-array.d.ts",
       "import": "./dist/form-array.js"

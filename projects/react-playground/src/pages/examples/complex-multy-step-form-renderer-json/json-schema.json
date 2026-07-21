@@ -5,9 +5,7 @@
     "selector": "data-boundary",
     "component": "$component(AsyncBoundary)",
     "componentProps": {
-      "status": "loading",
-      "LoadingComponent": "$dataSource(LoadingState)",
-      "ErrorComponent": "$dataSource(ErrorStateDefault)"
+      "status": "loading"
     },
     "children": [
       {

@@ -226,4 +226,4 @@ function Page({ form, config }: Props) {
 - [02-form-array.md](02-form-array.md) — основы FormArray (compound API, ref-handle).
 - [03-form-navigation.md](03-form-navigation.md) — основы FormWizard (Indicator, Actions, Progress).
 - [04-form-field.md](04-form-field.md) — компоновка одного поля.
-- [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки и пути их обхода.
+- [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки и пути их обхода.

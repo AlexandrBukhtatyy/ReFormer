@@ -11,8 +11,8 @@
 ## Что нового в v7
 
 - **Полный набор shadcn/ui** — 72 компонента (все примитивы shadcn + ReFormer-специфичные:
-  `Box`, `Section`, `FormField`, `FormArraySection`, `FormWizard`, `AsyncBoundary`, `ErrorState`,
-  `LoadingState`, `InputMask`, `InputPassword`, `ExampleCard`).
+  `Box`, `Section`, `FormField`, `FormArraySection`, `FormWizard`, `AsyncBoundary`,
+  `InputMask`, `InputPassword`, `ExampleCard`).
 - **Каталог-на-компонент + «Варианты»** — каждый компонент лежит под `variants/`; `base` — чистый
   shadcn-примитив, функциональные варианты (`async`, `number`, …) — пресеты под юзкейс.
 - **Чистый shadcn + HOC** — примитивы не знают про формы; form-интеграцию добавляет

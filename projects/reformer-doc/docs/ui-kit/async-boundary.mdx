@@ -9,10 +9,23 @@ import { asyncBoundaryDocConfig } from '@site/src/components/demo/examples/async
 
 # AsyncBoundary
 
-ReFormer-специфичный контейнер трёх состояний: `loading` / `error` / `ready`.
-Состояние задаётся снаружи через проп `status`, а слоты `LoadingComponent` и
-`ErrorComponent` — это `ComponentType` без props (для настройки props оберни их в
-тонкий компонент). В состоянии `ready` рендерятся `children`. Это **не**
-Suspense-boundary — ничего не throw'ится, состоянием управляешь сам.
+ReFormer-специфичный контейнер состояний загрузки данных: `idle` / `loading` /
+`ready` / `error`. Передайте `load` — и компонент загрузит данные сам: статус,
+отмена устаревшего запроса при смене `loadKey`, повтор и `ref` с `reload()` /
+`abort()` уже внутри. Без `load` работает в controlled-режиме, где состояние
+задаётся пропом `status`.
+
+Блоки загрузки и ошибки встроены (спиннер, карточка с кнопкой «Повторить») и
+рисуются на токенах темы, а `loadingSlot` / `errorSlot` заменяют их целиком. Текст
+ошибки в controlled-режиме приходит пропом `error` — оборачивать блоки в отдельные
+компоненты не нужно. В состояниях `ready` и `idle` рендерятся `children`.
+
+Доступность обеспечивается контейнером: регион несёт `aria-busy` во время
+загрузки и фонового обновления, блок загрузки — `role="status"` +
+`aria-live="polite"`, блок ошибки — `role="alert"` + `aria-live="assertive"`.
+
+Это **не** Suspense-boundary — ничего не throw'ится.
+Нужен полный контроль над составом состояний — берите headless-версию
+`AsyncBoundary` из [`@reformer/cdk/async-boundary`](../cdk/async-boundary.md).
 
 <ComponentDoc config={asyncBoundaryDocConfig} />

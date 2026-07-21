@@ -116,6 +116,7 @@ const sidebars: SidebarsConfig = {
   // ── CDK: headless-компоненты ───────────────────────────────────────────────
   cdkSidebar: [
     { type: 'doc', id: 'packages/cdk', label: '@reformer/cdk' },
+    'cdk/async-boundary',
     'cdk/form-array',
     'cdk/form-wizard',
     'cdk/form-field',
@@ -228,7 +229,6 @@ const sidebars: SidebarsConfig = {
         'ui-kit/resizable',
         'ui-kit/direction',
         'ui-kit/async-boundary',
-        'ui-kit/state',
         'ui-kit/box',
         'ui-kit/section',
       ],

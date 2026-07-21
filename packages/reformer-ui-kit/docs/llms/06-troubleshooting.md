@@ -222,22 +222,32 @@ overrideнет дефолт `px-3`, но получил оба.
 
 **Причины.**
 
-- В `status` всё ещё `'loading'` или `'error'` — `AsyncBoundary` рендерит
-  `children` только при `'ready'`. Проверь setState внутри `then(...)`.
-- Передан `LoadingComponent={<Spinner />}` (ReactNode) вместо
-  `LoadingComponent={() => <Spinner />}` (`ComponentType`). При первом
-  варианте TS не ругается, но рантайм может выдать «warning: invalid type».
+- В `status` всё ещё `'loading'` или `'error'` — `children` рендерятся только при
+  `'ready'` и `'idle'`. Проверь setState внутри `then(...)`.
+- Забыт `error` при `status: 'error'` — блок ошибки отрисуется, но без текста
+  причины. Передавай сообщение пропом, а не хардкодь в отдельном компоненте.
+- Кнопка «Повторить» не появилась — не передан `onRetry`. Компонент намеренно
+  скрывает контрол, который ничего не делает.
 
 **Решение:**
 
 ```tsx
-<AsyncBoundary
-  status={status}
-  LoadingComponent={() => <Spinner />}
-  ErrorComponent={() => <ErrorBanner />}
->
+<AsyncBoundary status={status} error={error} onRetry={reload}>
   <Content />
 </AsyncBoundary>
+```
+
+Если нужен полный контроль над составом состояний (свой порядок слотов,
+`Empty`, `Idle`, собственная разметка) — headless-версия:
+
+```tsx
+import { AsyncBoundary } from '@reformer/cdk/async-boundary';
+
+<AsyncBoundary.Root status={status} error={error} onRetry={reload}>
+  <AsyncBoundary.Loading>…</AsyncBoundary.Loading>
+  <AsyncBoundary.Error>{({ error, retry }) => …}</AsyncBoundary.Error>
+  <AsyncBoundary.Content>…</AsyncBoundary.Content>
+</AsyncBoundary.Root>;
 ```
 
 ## 10. `InputPassword`: иконка-«глаз» не появляется

@@ -48,8 +48,6 @@ import {
   AsyncBoundary,
   Section,
   Box,
-  ErrorState,
-  LoadingState,
   SelectField,
   CheckboxField,
   InputField,
@@ -57,10 +55,6 @@ import {
   RadioGroupField,
   TextareaField,
 } from '@reformer/ui-kit';
-import { createElement } from 'react';
-
-const ErrorStateDefault = () => createElement(ErrorState, { error: 'Не удалось загрузить заявку' });
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** Лист единой схемы: значение из сигнала модели + UI-компонент + props. */
 const f = (value: unknown, component: unknown, componentProps?: Record<string, unknown>) => ({
@@ -82,9 +76,9 @@ export function buildCreditApplicationSchema(
     selector: 'data-boundary',
     component: AsyncBoundary,
     componentProps: {
-      status: 'loading', // render-behavior подставит loading | error | ready
-      LoadingComponent: LoadingState,
-      ErrorComponent: ErrorStateDefault,
+      // render-behavior подставит status (loading | error | ready) и текст ошибки.
+      // Слот-компоненты больше не нужны: блоки загрузки и ошибки встроены в AsyncBoundary.
+      status: 'loading',
     },
     children: [
       {

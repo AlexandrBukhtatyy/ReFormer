@@ -1,4 +1,48 @@
 // ============================================================================
+// AsyncBoundary - Headless compound component for data-loading UI states
+// ============================================================================
+export {
+  AsyncBoundary,
+  AsyncBoundaryRoot,
+  AsyncBoundaryIdle,
+  AsyncBoundaryLoading,
+  AsyncBoundaryContent,
+  AsyncBoundaryEmpty,
+  AsyncBoundaryError,
+  AsyncBoundaryRetry,
+  useAsyncBoundary,
+  useAsyncResource,
+  asyncResourceReducer,
+  initialAsyncResourceState,
+  defaultToError,
+  AsyncBoundaryContext,
+  useAsyncBoundaryContext,
+} from './components/async-boundary';
+
+export type {
+  AsyncStatus,
+  AsyncBoundaryHandle,
+  AsyncBoundaryRootProps,
+  AsyncBoundarySlotProps,
+  AsyncBoundaryContentProps,
+  AsyncBoundaryEmptyProps,
+  AsyncBoundaryErrorProps,
+  AsyncBoundaryErrorRenderProps,
+  AsyncBoundaryRetryProps,
+  AsyncBoundaryContextValue,
+  AsyncBoundaryIds,
+  UseAsyncBoundaryOptions,
+  UseAsyncBoundaryReturn,
+  AsyncBoundaryRootPropGetters,
+  AsyncBoundaryLoadingPropGetters,
+  AsyncBoundaryErrorPropGetters,
+  UseAsyncResourceOptions,
+  UseAsyncResourceReturn,
+  AsyncResourceState,
+  AsyncResourceAction,
+} from './components/async-boundary';
+
+// ============================================================================
 // FormArray - Headless compound component for managing form arrays
 // ============================================================================
 export {

@@ -189,7 +189,7 @@ function RegistrationPage() {
 | `RadioGroup`                    | Группа радио-кнопок из массива `options`.                  | [03-choice-fields.md](03-choice-fields.md)                    |
 | `Select` (+ 8 sub-компонентов)  | Выпадающий список с inline `options` или async `resource`. | [03-choice-fields.md](03-choice-fields.md)                    |
 | `Button`                        | Кнопка с вариантами (`variant`, `size`, `asChild`).        | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
-| `AsyncBoundary`                 | Контейнер с состояниями `loading`/`error`/`ready`.         | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `AsyncBoundary` (+ `*Loading`, `*Error`, `*Empty`) | Состояния загрузки `idle`/`loading`/`ready`/`error` со встроенными блоками. | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
 | `ExampleCard`                   | Карточка-обёртка для демо в playground.                    | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `cn`                            | Утилита для конкатенации Tailwind-классов.                 | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `FormField`                     | Wrapper «label + control + error + pending» поверх CDK.    | [05-form-field-integration.md](05-form-field-integration.md)  |
@@ -946,83 +946,139 @@ import { PlusIcon } from 'lucide-react';
 
 ## 17. AsyncBoundary
 
-Минималистичный switch на три состояния: `loading` / `error` / `ready`.
-Используется для оборачивания экранов, зависящих от внешних данных
-(profile, dictionaries).
+Контейнер состояний загрузки данных: `idle` / `loading` / `ready` / `error`.
+Стилизованная обёртка над headless `AsyncBoundary` из `@reformer/cdk/async-boundary`.
+Используется для экранов, зависящих от внешних данных (profile, dictionaries, заявка).
+
+Блоки загрузки и ошибки **встроены** — отдельные слот-компоненты создавать не нужно.
+Регион несёт `aria-busy`, блок загрузки — `role="status"` + `aria-live="polite"`,
+блок ошибки — `role="alert"` + `aria-live="assertive"`.
 
 ### API
 
-```typescript
-type AsyncStatus = 'loading' | 'error' | 'ready';
+Два режима: **self-managed** (передан `load` — компонент грузит данные сам, отменяет
+устаревшие запросы и даёт повтор) и **controlled** (`load` не передан — состояние
+приходит через `status`). В self-managed режиме `status` / `error` / `refreshing` /
+`onRetry` игнорируются.
 
-interface AsyncBoundaryProps {
-  status: AsyncStatus;
-  LoadingComponent?: React.ComponentType;
-  ErrorComponent?: React.ComponentType;
+```typescript
+type AsyncStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+interface AsyncBoundaryProps<T = unknown> {
+  // self-managed
+  load?: (signal: AbortSignal) => Promise<T>;
+  loadKey?: unknown;
+  enabled?: boolean;
+  onSuccess?: (data: T) => void;
+  onError?: (error: React.ReactNode) => void;
+  toError?: (e: unknown) => React.ReactNode;
+  // controlled
+  status?: AsyncStatus;
+  error?: React.ReactNode | null;
+  onRetry?: () => void;
+  refreshing?: boolean;
+  delayMs?: number;
+  loadingTitle?: React.ReactNode;
+  loadingSubtitle?: React.ReactNode;
+  errorTitle?: React.ReactNode;
+  retryLabel?: React.ReactNode;
+  loadingSlot?: React.ReactNode;
+  errorSlot?: React.ReactNode | ((p: { error; retry; canRetry }) => React.ReactNode);
   children?: React.ReactNode;
+  className?: string;
 }
 ```
 
-| Prop               | Тип             | Описание                                                                               |
-| ------------------ | --------------- | -------------------------------------------------------------------------------------- |
-| `status`           | `AsyncStatus`   | Текущее состояние. Управляется снаружи.                                                |
-| `LoadingComponent` | `ComponentType` | Рендерится при `status === 'loading'`. Без props. Если не передан — рендерится `null`. |
-| `ErrorComponent`   | `ComponentType` | Рендерится при `status === 'error'`. Без props. Если не передан — `null`.              |
-| `children`         | `ReactNode`     | Рендерится при `status === 'ready'`.                                                   |
+| Prop          | Тип                     | Описание                                                                                       |
+| ------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `load`        | `(signal) => Promise<T>` | Загрузчик. Включает self-managed режим. Прокиньте `signal` в `fetch` — иначе отменённый запрос висит. |
+| `loadKey`     | `unknown`               | Ключ перезапуска (обычно id записи). Сравнение по `Object.is` — передавайте примитив.            |
+| `enabled`     | `boolean`               | `false` → `idle`, загрузка не стартует. Режим создания записи.                                   |
+| `onSuccess`   | `(data: T) => void`     | Побочный эффект после успеха — например `form.patchValue(data)`.                                 |
+| `status`      | `AsyncStatus`           | Состояние в controlled-режиме. `idle` — загрузка не запускалась, показываются children.          |
+| `error`       | `ReactNode \| null`     | Текст ошибки. Идёт во встроенный блок и в render-функцию `errorSlot`.                           |
+| `onRetry`     | `() => void`            | Повтор загрузки. Без него кнопка «Повторить» не рендерится.                                     |
+| `refreshing`  | `boolean`               | Фоновое обновление: контент остаётся на экране, регион помечается `aria-busy`.                  |
+| `delayMs`     | `number`                | Не показывать блок загрузки первые N мс — гасит вспышку спиннера. По умолчанию `0`.             |
+| `loadingSlot` | `ReactNode`             | Полная замена блока загрузки (например скелетон).                                               |
+| `errorSlot`   | `ReactNode \| функция`  | Полная замена блока ошибки; функция получает `error` / `retry` / `canRetry`.                    |
+| `children`    | `ReactNode`             | Рендерится при `status === 'ready'` и `'idle'`.                                                 |
 
-Оба слота — `ComponentType`, не `ReactNode`. Для передачи props (текста ошибки,
-`retry`-callback) — оберни в тонкий компонент:
-
-```tsx
-const Loading = () => <div className="py-12 text-center">Загрузка...</div>;
-const ErrorView = () => (
-  <div className="py-12 text-center text-destructive">
-    Не удалось загрузить данные. <button onClick={retry}>Повторить</button>
-  </div>
-);
-
-<AsyncBoundary status={status} LoadingComponent={Loading} ErrorComponent={ErrorView}>
-  <Profile data={data} />
-</AsyncBoundary>;
-```
+Слоты принимают `ReactNode` (или render-функцию для ошибки), а не `ComponentType` —
+оборачивать блок в отдельный компонент ради текста ошибки больше не нужно.
 
 ### Common Patterns
 
-С хуком загрузки:
+Self-managed — состояние ведёт сам компонент (рекомендуемый способ):
 
 ```tsx
-import { useEffect, useState } from 'react';
-import { AsyncBoundary, type AsyncStatus } from '@reformer/ui-kit';
+import { AsyncBoundary } from '@reformer/ui-kit';
 
-function CountriesPage() {
-  const [status, setStatus] = useState<AsyncStatus>('loading');
-  const [countries, setCountries] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetch('/api/countries')
-      .then((r) => r.json())
-      .then((data) => {
-        setCountries(data);
-        setStatus('ready');
-      })
-      .catch(() => setStatus('error'));
-  }, []);
-
+function ApplicationPage({ applicationId, form }: Props) {
   return (
     <AsyncBoundary
-      status={status}
-      LoadingComponent={() => <p>Загружаем страны...</p>}
-      ErrorComponent={() => <p>Ошибка загрузки</p>}
+      load={(signal) => loadApplication(applicationId, signal)}
+      loadKey={applicationId}
+      enabled={applicationId !== null}
+      onSuccess={(data) => form.patchValue(data)}
+      delayMs={200}
     >
-      <ul>
-        {countries.map((c) => (
-          <li key={c}>{c}</li>
-        ))}
-      </ul>
+      <CreditForm form={form} />
     </AsyncBoundary>
   );
 }
 ```
+
+Ни `useState`, ни `useEffect` не нужны: статус, отмена запроса при смене
+`applicationId`, кнопка «Повторить» и `idle` для режима создания — внутри компонента.
+
+Перезагрузка снаружи — через `ref`:
+
+```tsx
+import { useRef } from 'react';
+import type { AsyncBoundaryHandle } from '@reformer/cdk/async-boundary';
+
+const boundaryRef = useRef<AsyncBoundaryHandle<Application>>(null);
+
+<button onClick={() => boundaryRef.current?.reload()}>Обновить</button>
+<AsyncBoundary ref={boundaryRef} load={loadApplication}>…</AsyncBoundary>;
+```
+
+Controlled — когда загрузкой владеет кто-то другой (behavior рендерера, внешний стор):
+
+```tsx
+<AsyncBoundary status={status} error={error} onRetry={reload}>
+  <CountriesList countries={countries} />
+</AsyncBoundary>
+```
+
+Скелетон вместо спиннера:
+
+```tsx
+<AsyncBoundary
+  status={status}
+  loadingSlot={
+    <div className="space-y-2">
+      {[0, 1, 2].map((i) => (
+        <Skeleton key={i} className="h-9 w-full" />
+      ))}
+    </div>
+  }
+>
+  <DataTable rows={rows} />
+</AsyncBoundary>
+```
+
+### Anti-patterns
+
+- **Не** схлопывать «нечего грузить» в `ready`: для формы создания (`id === null`)
+  используйте `idle`, иначе пустая форма неотличима от успешно загруженной.
+- **Не** сообщать пустой результат через `status: 'error'` — ноль записей это успех.
+  Пустоту рисует `AsyncBoundaryEmpty` внутри `ready`.
+- **Не** рисовать кнопку повтора без рабочего `onRetry`: неработающий контрол ловит
+  фокус и читается скринридером. Компонент скрывает её сам, когда `onRetry` не задан.
+- Нужен полный контроль над составом состояний — берите headless-версию из
+  `@reformer/cdk/async-boundary`, а не копируйте стилизованную.
 
 ### Anti-patterns
 
@@ -1543,22 +1599,32 @@ overrideнет дефолт `px-3`, но получил оба.
 
 **Причины.**
 
-- В `status` всё ещё `'loading'` или `'error'` — `AsyncBoundary` рендерит
-  `children` только при `'ready'`. Проверь setState внутри `then(...)`.
-- Передан `LoadingComponent={<Spinner />}` (ReactNode) вместо
-  `LoadingComponent={() => <Spinner />}` (`ComponentType`). При первом
-  варианте TS не ругается, но рантайм может выдать «warning: invalid type».
+- В `status` всё ещё `'loading'` или `'error'` — `children` рендерятся только при
+  `'ready'` и `'idle'`. Проверь setState внутри `then(...)`.
+- Забыт `error` при `status: 'error'` — блок ошибки отрисуется, но без текста
+  причины. Передавай сообщение пропом, а не хардкодь в отдельном компоненте.
+- Кнопка «Повторить» не появилась — не передан `onRetry`. Компонент намеренно
+  скрывает контрол, который ничего не делает.
 
 **Решение:**
 
 ```tsx
-<AsyncBoundary
-  status={status}
-  LoadingComponent={() => <Spinner />}
-  ErrorComponent={() => <ErrorBanner />}
->
+<AsyncBoundary status={status} error={error} onRetry={reload}>
   <Content />
 </AsyncBoundary>
+```
+
+Если нужен полный контроль над составом состояний (свой порядок слотов,
+`Empty`, `Idle`, собственная разметка) — headless-версия:
+
+```tsx
+import { AsyncBoundary } from '@reformer/cdk/async-boundary';
+
+<AsyncBoundary.Root status={status} error={error} onRetry={reload}>
+  <AsyncBoundary.Loading>…</AsyncBoundary.Loading>
+  <AsyncBoundary.Error>{({ error, retry }) => …}</AsyncBoundary.Error>
+  <AsyncBoundary.Content>…</AsyncBoundary.Content>
+</AsyncBoundary.Root>;
 ```
 
 ## 34. 10. `InputPassword`: иконка-«глаз» не появляется
@@ -2625,67 +2691,197 @@ _Source: src/components/aspect-ratio/variants/base/aspect-ratio-base.tsx_
 
 ### AsyncBoundary
 
-**Kind:** `function`
-
-Контейнер с тремя состояниями (`loading`/`error`/`ready`). В состоянии `ready`
-отображает `children`. Для loading/error используются переданные slot-компоненты
-(`ComponentType`, без props — для кастомизации передай тонкую обёртку).
-
-Это не Suspense-boundary: ничего не throw'ится, состоянием управляешь сам.
+**Kind:** `const`
 
 **Signature:**
 ```typescript
-export function AsyncBoundary({
-  status,
-  LoadingComponent,
-  ErrorComponent,
-  children,
-}: AsyncBoundaryProps): ReactNode
+const AsyncBoundary
 ```
+
+_Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
+
+### AsyncBoundaryEmpty
+
+**Kind:** `function`
+
+Блок «данные загрузились, но их нет» поверх примитивов `Empty*`.
+
+Отдельный от ошибки экран: пустой результат — это успех, а не сбой, объявлять его
+через `role="alert"` нельзя.
+
+**Signature:**
+```typescript
+function AsyncBoundaryEmpty({
+  className,
+  title = 'Нет данных',
+  description,
+  icon,
+  action,
+  ...props
+}: AsyncBoundaryEmptyProps)
+```
+
+**Parameters:**
+- `props` — - См. {@link AsyncBoundaryEmptyProps}.
+
+**Returns:** Разметку пустого состояния.
 
 **Examples:**
 
-Загрузка списка с обработкой ошибки
+Пустой список после успешной загрузки
 ```tsx
-import { useEffect, useState } from 'react';
-import { AsyncBoundary, type AsyncStatus } from '@reformer/ui-kit';
+<AsyncBoundary.Empty when={items.length === 0}>
+<AsyncBoundaryEmpty description="Заявок пока нет" action={<Button>Создать</Button>} />
+</AsyncBoundary.Empty>
+```
 
-function CountriesPage() {
-const [status, setStatus] = useState<AsyncStatus>('loading');
-const [countries, setCountries] = useState<string[]>([]);
+С иконкой
+```tsx
+<AsyncBoundaryEmpty icon={<InboxIcon />} title="Входящих нет" />
+```
 
-useEffect(() => {
-fetch('/api/countries')
-.then((r) => r.json())
-.then((d) => { setCountries(d); setStatus('ready'); })
-.catch(() => setStatus('error'));
-}, []);
+_Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
 
-return (
-<AsyncBoundary
-status={status}
-LoadingComponent={() => <p>Загружаем страны...</p>}
-ErrorComponent={() => <p>Ошибка загрузки</p>}
->
-<ul>{countries.map((c) => <li key={c}>{c}</li>)}</ul>
-</AsyncBoundary>
-);
+### AsyncBoundaryEmptyProps
+
+**Kind:** `interface`
+
+Props {@link AsyncBoundaryEmpty}.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryEmptyProps extends Omit<React.ComponentProps<'div'>, 'title'> {
+  /** Заголовок. @default 'Нет данных' */
+  title?: React.ReactNode;
+  /** Пояснение под заголовком. */
+  description?: React.ReactNode;
+  /** Иконка в медальоне над заголовком. */
+  icon?: React.ReactNode;
+  /** Действие под текстом — например кнопка «Создать». */
+  action?: React.ReactNode;
 }
 ```
 
-Внутри RenderSchema (статус подставляется через `patchProps`)
-```tsx
-import { createRenderSchema } from '@reformer/renderer-react';
-import { AsyncBoundary } from '@reformer/ui-kit';
+_Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
 
-// M1: функция схемы не принимает аргументов — привязка к данным идёт через сигналы модели.
-const schema = createRenderSchema(() => ({
-selector: 'data-boundary',
-component: AsyncBoundary,
-componentProps: { status: 'loading', LoadingComponent: Spinner },
-children: [{ value: model.$.email, component: Input }],
-}));
-// позже: schema.node('data-boundary').patchProps({ status: 'ready' });
+### AsyncBoundaryError
+
+**Kind:** `function`
+
+Блок ошибки — карточка с иконкой, заголовком, текстом ошибки и кнопкой повтора.
+
+Объявляется настойчиво (`role="alert"` + `aria-live="assertive"`): потеря данных должна
+прервать чтение, иначе пользователь продолжит работать с пустым экраном.
+
+**Signature:**
+```typescript
+function AsyncBoundaryError({
+  className,
+  error,
+  title = 'Ошибка загрузки',
+  onRetry,
+  retryLabel = 'Повторить',
+  ...props
+}: AsyncBoundaryErrorProps)
+```
+
+**Parameters:**
+- `props` — - См. {@link AsyncBoundaryErrorProps}.
+
+**Returns:** Разметку блока ошибки.
+
+**Examples:**
+
+Внутри слота, с доступом к самой ошибке
+```tsx
+<AsyncBoundary.Error>
+{({ error, retry }) => <AsyncBoundaryError error={error} onRetry={retry} />}
+</AsyncBoundary.Error>
+```
+
+Самостоятельно, с перезагрузкой страницы
+```tsx
+if (error) return <AsyncBoundaryError error={error} onRetry={() => window.location.reload()} />;
+```
+
+_Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
+
+### AsyncBoundaryErrorProps
+
+**Kind:** `interface`
+
+Props {@link AsyncBoundaryError}.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryErrorProps extends Omit<React.ComponentProps<'div'>, 'title'> {
+  /** Текст ошибки под заголовком. */
+  error?: React.ReactNode;
+  /** Заголовок блока. @default 'Ошибка загрузки' */
+  title?: React.ReactNode;
+  /** Колбэк повтора. Без него кнопка не рендерится. */
+  onRetry?: () => void;
+  /** Подпись кнопки повтора. @default 'Повторить' */
+  retryLabel?: React.ReactNode;
+}
+```
+
+_Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
+
+### AsyncBoundaryLoading
+
+**Kind:** `function`
+
+Блок загрузки — центрированный спиннер с заголовком и подзаголовком.
+
+Объявляется вежливо (`role="status"` + `aria-live="polite"`): появление индикатора
+не должно прерывать чтение текущего контента скринридером.
+
+**Signature:**
+```typescript
+function AsyncBoundaryLoading({
+  className,
+  title = 'Загрузка данных...',
+  subtitle = 'Пожалуйста, подождите',
+  ...props
+}: AsyncBoundaryLoadingProps)
+```
+
+**Parameters:**
+- `props` — - См. {@link AsyncBoundaryLoadingProps}.
+
+**Returns:** Разметку блока загрузки.
+
+**Examples:**
+
+Собственный текст внутри слота
+```tsx
+<AsyncBoundary.Loading>
+<AsyncBoundaryLoading title="Загружаем заявку…" subtitle={null} />
+</AsyncBoundary.Loading>
+```
+
+Самостоятельно, вне контейнера
+```tsx
+if (isLoading) return <AsyncBoundaryLoading />;
+```
+
+_Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
+
+### AsyncBoundaryLoadingProps
+
+**Kind:** `interface`
+
+Props {@link AsyncBoundaryLoading}.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryLoadingProps extends Omit<React.ComponentProps<'div'>, 'title'> {
+  /** Основной текст. @default 'Загрузка данных...' */
+  title?: React.ReactNode;
+  /** Вспомогательный текст под спиннером. @default 'Пожалуйста, подождите' */
+  subtitle?: React.ReactNode;
+}
 ```
 
 _Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
@@ -2694,33 +2890,58 @@ _Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
 
 **Kind:** `interface`
 
-Props компонента {@link AsyncBoundary}.
+Props {@link AsyncBoundary}.
+
+Два режима, взаимоисключающих: **self-managed** (передан `load` — компонент грузит
+данные сам) и **controlled** (`load` не передан — состояние приходит через `status`).
 
 **Signature:**
 ```typescript
-export interface AsyncBoundaryProps {
-  /** Текущее состояние асинхронной операции. Управляется снаружи. */
-  status: AsyncStatus;
-  /** Компонент, рендерящийся при `status === 'loading'`. Без props. Если не передан — `null`. */
-  LoadingComponent?: ComponentType;
-  /** Компонент, рендерящийся при `status === 'error'`. Без props. Если не передан — `null`. */
-  ErrorComponent?: ComponentType;
-  /** Контент, рендерящийся при `status === 'ready'`. */
-  children?: ReactNode;
+export interface AsyncBoundaryProps<T = unknown> {
+  /**
+   * Загрузчик. Получает `AbortSignal` — прокиньте его в `fetch`. Наличие этого пропа
+   * включает self-managed режим: статус, отмена и повтор берутся на себя компонентом.
+   */
+  load?: (signal: AbortSignal) => Promise<T>;
+  /** Ключ перезапуска: при изменении стартует новая загрузка (обычно id записи). */
+  loadKey?: unknown;
+  /** `false` → загрузка не стартует, состояние `idle`. Режим создания записи. @default true */
+  enabled?: boolean;
+  /** Побочный эффект после успеха — например `form.patchValue(data)`. */
+  onSuccess?: (data: T) => void;
+  /** Побочный эффект после ошибки — логирование, тост. */
+  onError?: (error: React.ReactNode) => void;
+  /** Преобразование отказа промиса в отображаемый текст. По умолчанию — сообщение `Error`. */
+  toError?: (e: unknown) => React.ReactNode;
+  /** Текущее состояние. Обязателен в controlled-режиме (когда `load` не передан). */
+  status?: AsyncStatus;
+  /** Текст ошибки — попадает в блок ошибки и в render-функцию `errorSlot`. */
+  error?: React.ReactNode | null;
+  /** Повтор загрузки. Без него кнопка «Повторить» не рендерится. */
+  onRetry?: () => void;
+  /** Фоновое обновление: контент остаётся на экране, регион помечается `aria-busy`. */
+  refreshing?: boolean;
+  /** Не показывать блок загрузки первые N мс — гасит вспышку спиннера. @default 0 */
+  delayMs?: number;
+  /** Заголовок блока загрузки. */
+  loadingTitle?: React.ReactNode;
+  /** Подзаголовок блока загрузки. */
+  loadingSubtitle?: React.ReactNode;
+  /** Заголовок блока ошибки. */
+  errorTitle?: React.ReactNode;
+  /** Подпись кнопки повтора. */
+  retryLabel?: React.ReactNode;
+  /** Полная замена блока загрузки — например скелетон вместо спиннера. */
+  loadingSlot?: React.ReactNode;
+  /** Полная замена блока ошибки. Render-функция получает `error` / `retry` / `canRetry`. */
+  errorSlot?:
+    | React.ReactNode
+    | ((props: AsyncBoundaryErrorRenderProps<React.ReactNode>) => React.ReactNode);
+  /** Контент, видимый при `status === 'ready'` и `'idle'`. */
+  children?: React.ReactNode;
+  /** Класс региона-обёртки. */
+  className?: string;
 }
-```
-
-_Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
-
-### AsyncStatus
-
-**Kind:** `type`
-
-Состояние асинхронной операции, ожидаемое {@link AsyncBoundary}.
-
-**Signature:**
-```typescript
-export type AsyncStatus = 'loading' | 'error' | 'ready';
 ```
 
 _Source: src/components/async-boundary/variants/base/async-boundary-base.tsx_
@@ -4180,64 +4401,6 @@ function EmptyTitle({ className, ...props }: React.ComponentProps<'div'>)
 
 _Source: src/components/empty/variants/base/empty-base.tsx_
 
-### ErrorState
-
-**Kind:** `function`
-
-Состояние ошибки — карточка с иконкой, заголовком, текстом ошибки и
-опциональной кнопкой повтора. Типовое применение — показать вместо формы,
-когда не удалось загрузить данные заявки.
-
-**Signature:**
-```typescript
-export function ErrorState({
-  error,
-  title = 'Ошибка загрузки',
-  onRetry,
-  retryLabel = 'Повторить',
-  className,
-}: ErrorStateProps): ReactNode
-```
-
-**Parameters:**
-- `props` — - Пропсы: `error` (обязателен), `title`, `onRetry`, `retryLabel`, `className`.
-
-**Returns:** Разметку блока ошибки.
-
-**Examples:**
-
-Ошибка загрузки с повтором
-```tsx
-const { error } = useLoadCreditApplication(form, '1');
-if (error) {
-return <ErrorState error={error} onRetry={() => window.location.reload()} />;
-}
-```
-
-_Source: src/components/state/variants/base/error-state.tsx_
-
-### ErrorStateProps
-
-**Kind:** `interface`
-
-**Signature:**
-```typescript
-export interface ErrorStateProps {
-  /** Текст ошибки, показывается под заголовком. */
-  error: string;
-  /** Заголовок блока ошибки. По умолчанию `'Ошибка загрузки'`. */
-  title?: string;
-  /** Колбэк повторной попытки. Если задан — рендерится кнопка «Повторить». */
-  onRetry?: () => void;
-  /** Подпись кнопки повтора. По умолчанию `'Повторить'`. */
-  retryLabel?: string;
-  /** Внешний CSS-класс контейнера. По умолчанию `'w-full'`. */
-  className?: string;
-}
-```
-
-_Source: src/components/state/variants/base/error-state.tsx_
-
 ### ExampleCard
 
 **Kind:** `function`
@@ -5590,57 +5753,6 @@ function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimiti
 ```
 
 _Source: src/components/label/variants/base/label-base.tsx_
-
-### LoadingState
-
-**Kind:** `function`
-
-Состояние загрузки — центрированный спиннер с заголовком и подзаголовком.
-Типовое применение — показать вместо формы, пока грузятся данные заявки.
-
-**Signature:**
-```typescript
-export function LoadingState({
-  title = 'Загрузка данных...',
-  subtitle = 'Пожалуйста, подождите',
-  className,
-}: LoadingStateProps): ReactNode
-```
-
-**Parameters:**
-- `props` — - Пропсы: `title`, `subtitle`, `className` (все опциональны).
-
-**Returns:** Разметку блока загрузки.
-
-**Examples:**
-
-Загрузка перед рендером формы
-```tsx
-const { isLoading } = useLoadCreditApplication(form, '1');
-if (isLoading) {
-return <LoadingState />;
-}
-```
-
-_Source: src/components/state/variants/base/loading-state.tsx_
-
-### LoadingStateProps
-
-**Kind:** `interface`
-
-**Signature:**
-```typescript
-export interface LoadingStateProps {
-  /** Основной текст. По умолчанию `'Загрузка данных...'`. */
-  title?: string;
-  /** Вспомогательный текст под спиннером. По умолчанию `'Пожалуйста, подождите'`. */
-  subtitle?: string;
-  /** Внешний CSS-класс контейнера. По умолчанию центрирует спиннер с отступами. */
-  className?: string;
-}
-```
-
-_Source: src/components/state/variants/base/loading-state.tsx_
 
 ### Marker
 

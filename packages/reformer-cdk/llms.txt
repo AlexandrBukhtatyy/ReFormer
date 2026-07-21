@@ -9,8 +9,9 @@
 - 02-form-array.md — FormArray
 - 03-form-navigation.md — FormWizard
 - 04-form-field.md — FormField
-- 05-recipes.md — Advanced Recipes
-- 06-troubleshooting.md — Troubleshooting / FAQ
+- 05-async-boundary.md — AsyncBoundary
+- 06-recipes.md — Advanced Recipes
+- 07-troubleshooting.md — Troubleshooting / FAQ
 - API Reference (auto-generated from JSDoc)
 
 ## 1. Key Concepts
@@ -22,11 +23,12 @@
 
 ## 2. Components
 
-| Component    | Purpose                                      |
-| ------------ | -------------------------------------------- |
-| `FormArray`  | Manage dynamic form arrays                   |
-| `FormField`  | Accessible field anatomy (label/control/…)   |
-| `FormWizard` | Multi-step form wizard                        |
+| Component       | Purpose                                                    |
+| --------------- | ---------------------------------------------------------- |
+| `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)     |
+| `FormArray`     | Manage dynamic form arrays                                  |
+| `FormField`     | Accessible field anatomy (label/control/…)                  |
+| `FormWizard`    | Multi-step form wizard                                      |
 
 ## 3. Installation
 
@@ -38,9 +40,10 @@ npm install @reformer/cdk @reformer/core
 
 ```typescript
 // All components
-import { FormArray, FormField, FormWizard } from '@reformer/cdk';
+import { AsyncBoundary, FormArray, FormField, FormWizard } from '@reformer/cdk';
 
 // Tree-shaking (recommended)
+import { AsyncBoundary, useAsyncBoundary } from '@reformer/cdk/async-boundary';
 import { FormArray, useFormArray } from '@reformer/cdk/form-array';
 import { FormField, useFormField } from '@reformer/cdk/form-field';
 import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
@@ -656,11 +659,230 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 
 - [01-overview.md](01-overview.md) — общее введение в `@reformer/cdk`.
 - [02-form-array.md](02-form-array.md), [03-form-navigation.md](03-form-navigation.md) — соседние compound-компоненты.
-- [05-recipes.md](05-recipes.md) — продвинутые паттерны (включая собственный wrapper над FormField).
-- [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
+- [06-recipes.md](06-recipes.md) — продвинутые паттерны (включая собственный wrapper над FormField).
+- [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
 - [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.
 
-## 25. Nested FormArray
+## 25. Два режима
+
+| Режим            | Включается         | Кто ведёт состояние                                                                      |
+| ---------------- | ------------------ | ------------------------------------------------------------------------------------------ |
+| **self-managed** | передан `load`     | Компонент: сам грузит, отменяет запрос при смене `loadKey`/размонтировании, даёт повтор.    |
+| **controlled**   | `load` не передан  | Консумент через `status` — например behavior рендерера с `patchProps({ status })`.          |
+
+В self-managed режиме props `status` / `error` / `refreshing` / `onRetry` игнорируются: два источника истины о состоянии — источник багов. Режим выбирается один раз при монтировании, менять его на лету нельзя.
+
+## 26. Purpose
+
+- Забрать загрузку внутрь компонента: снаружи остаются только «как загрузить» (`load`) и «что сделать с ответом» (`onSuccess`), а гонки, отмена и повтор — внутри.
+- Развести четыре взаимоисключающих состояния экрана без цепочки тернарников.
+- Передать в слот ошибки **саму ошибку и колбэк повтора** — чтобы текст сбоя не приходилось хардкодить в отдельном компоненте-обёртке.
+- Отличить «грузить нечего» (`idle`) от «успешно загружено» (`ready`).
+- Погасить вспышку спиннера при быстром ответе (`delayMs`) и сохранить контент при фоновом обновлении (`refreshing`).
+- Выдать корректные `aria-busy` / `role="status"` / `role="alert"` без участия консумента.
+
+## 27. Components
+
+| Component                    | Purpose                                                                                                | Notes                                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `AsyncBoundary.Root`         | Context provider; принимает `status`, `error`, `onRetry`, `refreshing`, `delayMs`, `id`.               | Разметки не рендерит. Без `Root` слоты бросают исключение.                                        |
+| `AsyncBoundary.Idle`         | Содержимое при `status === 'idle'` — загрузка не запускалась.                                          | Форма создания: `id === null` → грузить нечего, но это и не успешная загрузка.                    |
+| `AsyncBoundary.Loading`      | Содержимое во время загрузки.                                                                          | Учитывает `delayMs`: при быстром ответе не показывается вовсе.                                    |
+| `AsyncBoundary.Content`      | Содержимое при `status === 'ready'`.                                                                   | По умолчанию остаётся видимым при `refreshing`; отключается `showWhileRefreshing={false}`.        |
+| `AsyncBoundary.Empty`        | Содержимое, когда данные загружены, но пусты. Предикат приходит пропом `when`.                          | Рендерится только внутри `ready` — пустота это ось поверх статуса, а не пятое его значение.       |
+| `AsyncBoundary.Error`        | Содержимое при `status === 'error'`. Children — узел **или** render-функция `({ error, retry, canRetry })`. | Единственный слот с render-props: без них текст ошибки и `onRetry` теряются.                  |
+| `AsyncBoundary.Retry`        | Кнопка повтора (`<button type="button">` или `asChild`).                                               | Не рендерится без `onRetry` — контрол, который ничего не делает, хуже отсутствующего.             |
+| `useAsyncBoundaryContext<E>()` | Хук для произвольных детей: `status`, флаги, `error`, `retry`, `ids`, наборы пропсов.                 | Бросает `Error` вне `AsyncBoundary.Root`.                                                         |
+| `useAsyncBoundary(options)`  | Standalone hook без compound API. Возвращает флаги, `retry`, `ids` и `rootProps` / `loadingProps` / `errorProps`. | Для случаев, когда разметка пишется вручную.                                             |
+| `useAsyncResource(options)`  | Хук загрузки с отменой и повтором: `load` / `loadKey` / `enabled` → `{ status, data, error, refreshing, reload, abort }`. | То, что `Root` использует внутри в self-managed режиме.                          |
+| `asyncResourceReducer`       | Чистая (React-free) машина состояний загрузки.                                                          | Экспортирована для своих обёрток и юнит-тестов без DOM.                                   |
+
+## 28. Imperative handle
+
+`AsyncBoundary.Root` принимает `ref` типа `AsyncBoundaryHandle<T, E>` — для триггеров вне дерева границы (кнопка «Обновить» в шапке, пункт меню, событие сокета):
+
+```tsx
+import { useRef } from 'react';
+import { AsyncBoundary, type AsyncBoundaryHandle } from '@reformer/cdk/async-boundary';
+
+const boundaryRef = useRef<AsyncBoundaryHandle<Application[]>>(null);
+
+<header>
+  <button onClick={() => boundaryRef.current?.reload()}>Обновить</button>
+  <button onClick={() => boundaryRef.current?.abort()}>Отменить</button>
+</header>
+
+<AsyncBoundary.Root ref={boundaryRef} load={fetchApplications}>…</AsyncBoundary.Root>;
+```
+
+| Поле                                          | Назначение                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------------ |
+| `reload()`                                     | Перезапустить загрузку. В controlled-режиме вызывает `onRetry`.                |
+| `abort()`                                      | Прервать запрос; прерывание не считается ошибкой. В controlled-режиме — no-op. |
+| `status` / `data` / `error` / `isLoading` / `refreshing` | Снимок на момент рендера — для реактивного UI читайте контекст, а не handle. |
+
+## 29. Examples
+
+### Self-managed — загрузка внутри компонента
+
+```tsx
+import { AsyncBoundary } from '@reformer/cdk/async-boundary';
+
+function ApplicationPage({ applicationId, form }: Props) {
+  return (
+    <AsyncBoundary.Root
+      load={(signal) => loadApplication(applicationId, signal)}
+      loadKey={applicationId}
+      enabled={applicationId !== null}
+      onSuccess={(data) => form.patchValue(data)}
+      delayMs={200}
+    >
+      <AsyncBoundary.Idle>
+        <h1>Новая заявка</h1>
+      </AsyncBoundary.Idle>
+
+      <AsyncBoundary.Loading>
+        <p role="status" aria-live="polite">
+          Загрузка заявки…
+        </p>
+      </AsyncBoundary.Loading>
+
+      <AsyncBoundary.Error>
+        {({ error, retry }) => (
+          <div role="alert" aria-live="assertive">
+            <p>{String(error)}</p>
+            <button onClick={retry}>Повторить</button>
+          </div>
+        )}
+      </AsyncBoundary.Error>
+
+      <AsyncBoundary.Content>
+        <CreditForm form={form} />
+      </AsyncBoundary.Content>
+    </AsyncBoundary.Root>
+  );
+}
+```
+
+`load` получает `AbortSignal` — прокиньте его в `fetch`/`axios`, иначе отменённый запрос продолжит висеть в сети. Смена `loadKey` отменяет предыдущий запрос, поэтому ответ на устаревший id не перетрёт свежие данные.
+
+### Controlled — состоянием владеет внешний код
+
+```tsx
+function ApplicationPage({ status, error, reload, form }: Props) {
+  return (
+    <AsyncBoundary.Root status={status} error={error} onRetry={reload} delayMs={200}>
+      <AsyncBoundary.Loading>
+        <p role="status" aria-live="polite">
+          Загрузка заявки…
+        </p>
+      </AsyncBoundary.Loading>
+
+      <AsyncBoundary.Error>
+        {({ error, retry, canRetry }) => (
+          <div role="alert" aria-live="assertive">
+            <p>{String(error)}</p>
+            {canRetry && <button onClick={retry}>Повторить</button>}
+          </div>
+        )}
+      </AsyncBoundary.Error>
+
+      <AsyncBoundary.Content>
+        <CreditForm form={form} />
+      </AsyncBoundary.Content>
+    </AsyncBoundary.Root>
+  );
+}
+```
+
+### Пустой результат
+
+Пустоту считает консумент, поэтому она приходит предикатом, а не статусом:
+
+```tsx
+<AsyncBoundary.Content>
+  <AsyncBoundary.Empty when={items.length === 0}>
+    <p>Ничего не найдено</p>
+  </AsyncBoundary.Empty>
+  {items.map((item) => (
+    <Row key={item.id} {...item} />
+  ))}
+</AsyncBoundary.Content>
+```
+
+### Режим создания — состояние `idle`
+
+```tsx
+// applicationId === null → грузить нечего. Без idle это состояние схлопывается
+// в ready, и пустая форма становится неотличима от успешно загруженной.
+<AsyncBoundary.Root status={applicationId ? status : 'idle'}>
+  <AsyncBoundary.Idle>
+    <h1>Новая заявка</h1>
+  </AsyncBoundary.Idle>
+  <AsyncBoundary.Content>
+    <h1>Заявка №{applicationId}</h1>
+  </AsyncBoundary.Content>
+</AsyncBoundary.Root>
+```
+
+### Без compound-дерева — `useAsyncBoundary`
+
+```tsx
+import { useAsyncBoundary } from '@reformer/cdk/async-boundary';
+
+function Panel({ status, error, reload, children }: Props) {
+  const { isLoading, isError, retry, rootProps, loadingProps, errorProps } = useAsyncBoundary({
+    status,
+    error,
+    onRetry: reload,
+    delayMs: 200,
+  });
+
+  return (
+    <section {...rootProps}>
+      {isLoading && <p {...loadingProps}>Загрузка…</p>}
+      {isError && (
+        <div {...errorProps}>
+          {String(error)}
+          <button onClick={retry}>Повторить</button>
+        </div>
+      )}
+      {!isLoading && !isError && children}
+    </section>
+  );
+}
+```
+
+## 30. Accessibility
+
+Расставляется компонентом, дублировать вручную не нужно:
+
+| Элемент          | Атрибуты                                              | Почему                                                                       |
+| ---------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Регион (`rootProps`) | `aria-busy` при `loading`/`refreshing`, `data-status` | Даёт AT знать, что содержимое обновляется; `data-status` — хук для e2e и CSS. |
+| Загрузка (`loadingProps`) | `role="status"` + `aria-live="polite"`           | Появление индикатора не должно прерывать чтение текущего контента.           |
+| Ошибка (`errorProps`) | `role="alert"` + `aria-live="assertive"`           | Потеря данных должна прервать чтение — иначе работа продолжится вслепую.     |
+
+Булевы `aria-*` / `data-*` выставляются как `true | undefined`, никогда `false`: `false` отрендерился бы строкой `"false"` и сломал селекторы вида `[data-refreshing]`.
+
+## 31. Common Patterns
+
+- **Отложенный спиннер.** `delayMs={200}` — статус остаётся честным (`'loading'`), откладывается только показ слота. Ответ за 120 мс проходит `loading → ready`, а пользователь не видит вспышки.
+- **Stale-while-revalidate.** При обновлении держите `status: 'ready'` и поднимайте `refreshing` — контент остаётся на экране, регион помечается занятым.
+- **Множественная загрузка как одна единица.** Заявка + справочники грузятся `Promise.all`; падение любого — общий `error`. Разные сообщения различают причину.
+
+## 32. Anti-patterns
+
+- **Не** заводить пятый статус `'empty'`: пустоту знает только консумент, а статус пришлось бы пересчитывать на каждое изменение данных. Используйте `AsyncBoundary.Empty` с `when`.
+- **Не** схлопывать «нечего грузить» в `ready` — для этого есть `idle`.
+- **Не** рендерить кнопку повтора без рабочего `onRetry`: она ловит фокус и читается скринридером впустую. `AsyncBoundary.Retry` скрывается сам.
+- **Не** смешивать режимы: если передан `load`, не передавайте ещё и `status` — компонент его игнорирует, а читающий код будет думать, что состояние приходит снаружи.
+- **Не** забывать `AbortSignal` в `load`: без него отменённый запрос доедет до сервера и продолжит держать соединение, а гонку поймает только внутренний guard.
+- **Не** передавать в `loadKey` свежий объект (`{ id }`) — сравнение идёт по `Object.is`, и загрузка перезапустится на каждом рендере. Нужен примитив или мемоизированное значение.
+- **Не** переиспользовать слово `pending` для загрузки данных — в `@reformer/core` оно занято состоянием асинхронного валидатора (`FieldStatus === 'pending'`).
+- **Не** класть в CDK-слоты Tailwind-классы и вёрстку: стилизованные блоки живут в `@reformer/ui-kit` (`AsyncBoundary`, `AsyncBoundaryLoading`, `AsyncBoundaryError`, `AsyncBoundaryEmpty`).
+
+## 33. Nested FormArray
 
 ### Problem
 
@@ -717,7 +939,7 @@ import { FormField } from '@reformer/ui-kit';
 - `useFormArrayItemContext()` внутри вложенного `List` вернёт **внутренний** item (`coOwner`), не внешний. Если нужен индекс внешнего элемента, забирайте его в замыкании render-функции (`index`, `property`).
 - Рендер-проп `FormArray.List` стабилен по identity: вынесите тяжёлые шаги в отдельный компонент, чтобы получить React.memo-эффект.
 
-## 26. Custom AddButton
+## 34. Custom AddButton
 
 ### Problem
 
@@ -757,7 +979,7 @@ function AddPropertyMenu() {
 - Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FormArrayHandle<T>>` + `arrayRef.current?.add(...)`.
 - Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push триггерит ререндер `List` (через `length`-зависимость в `useFormArray`).
 
-## 27. Conditional / dynamic step count in FormWizard
+## 35. Conditional / dynamic step count in FormWizard
 
 ### Problem
 
@@ -827,7 +1049,7 @@ function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
 - `completedSteps` — массив номеров; при изменении общей нумерации логика «можно ли перейти на шаг N» (`step === 1 || completedSteps.includes(step - 1)`) может отметить шаг как доступный без валидации. Скиньте `completedSteps` через перемонтирование `FormWizard` (key={needsVerification}) если важна строгость.
 - Children-формы рендерятся условно `_stepIndex === currentStep` (см. `FormWizardStep.tsx`); неактивные `Step` возвращают `null`, состояние их полей живёт в `form` независимо от рендера.
 
-## 28. Externally-controlled wizard via `useRef<FormWizardHandle>`
+## 36. Externally-controlled wizard via `useRef<FormWizardHandle>`
 
 ### Problem
 
@@ -879,18 +1101,18 @@ function Page({ form, config }: Props) {
 - `goToStep(n)` возвращает `false`, если `n > totalSteps`, `n < 1`, или предыдущий шаг (`n - 1`) не в `completedSteps` (исключение — сам шаг 1). Используйте `await goToNextStep()` чтобы пройти вперёд с валидацией.
 - Ref становится `null` пока компонент не смонтировался. Все вызовы — `navRef.current?.method()` с optional chaining, либо проверка `if (!navRef.current) return`.
 
-## 29. See also
+## 37. See also
 
 - [02-form-array.md](02-form-array.md) — основы FormArray (compound API, ref-handle).
 - [03-form-navigation.md](03-form-navigation.md) — основы FormWizard (Indicator, Actions, Progress).
 - [04-form-field.md](04-form-field.md) — компоновка одного поля.
-- [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки и пути их обхода.
+- [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки и пути их обхода.
 
-## 30. `FormArray.AddButton` не появляется на странице
+## 38. `FormArray.AddButton` не появляется на странице
 
 **Причина.** `FormArray.AddButton` не самостоятельный элемент — он рендерит кнопку только внутри `FormArray.Root`. Если он вынесен наружу или `Root` не отрендерился (например, под условным `if`), кнопки не будет.
 
-**Решение.** Поместите `AddButton` в дерево `Root` либо вызывайте `useFormArrayContext().add()` из своей кнопки (см. [05-recipes.md → Custom AddButton](05-recipes.md)).
+**Решение.** Поместите `AddButton` в дерево `Root` либо вызывайте `useFormArrayContext().add()` из своей кнопки (см. [06-recipes.md → Custom AddButton](06-recipes.md)).
 
 ```tsx
 <FormArray.Root control={form.items}>
@@ -899,7 +1121,7 @@ function Page({ form, config }: Props) {
 </FormArray.Root>
 ```
 
-## 31. `FormArray.List` ререндерит весь массив при изменении одного элемента
+## 39. `FormArray.List` ререндерит весь массив при изменении одного элемента
 
 **Причина.** Render-функция массива возвращает inline JSX, который не мемоизирован. Изменение поля у элемента триггерит ререндер `FormArray.Root` (через `useFormControl(arrayNode)`), а List-children получают новые ссылки.
 
@@ -915,7 +1137,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 
 `useFormArray` мемоизирует `items` по длине массива (см. `useFormArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
 
-## 32. `FormWizardHandle.goToStep` возвращает `false`
+## 40. `FormWizardHandle.goToStep` возвращает `false`
 
 **Причина.** `goToStep(n)` пускает только если `n === 1` или `n - 1` уже в `completedSteps` (см. `FormWizard.tsx:goToStep`). Это защита от пропуска валидации. Также `false` возвращается при `n < 1` или `n > totalSteps`.
 
@@ -925,7 +1147,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 - Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
 - Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
 
-## 33. Шаг без валидации пропускается без проверки
+## 41. Шаг без валидации пропускается без проверки
 
 **Причина.** `validateCurrentStep` вызывает `config.validateStep(currentStep)`. Если колбэк `validateStep` вообще не задан в `config` — выводит `console.warn` и возвращает `true` (шаг считается валидным). Актуальный `FormWizardConfig` — это пара колбэков, а не словарь схем:
 
@@ -955,7 +1177,7 @@ const config: FormWizardConfig = {
 };
 ```
 
-## 34. `useFormArrayContext` бросает исключение
+## 42. `useFormArrayContext` бросает исключение
 
 **Сообщение.** `Error: FormArray.* components must be used within FormArray.Root or RenderSchema FormArray`.
 
@@ -963,7 +1185,7 @@ const config: FormWizardConfig = {
 
 **Решение.** Поместите потребителя внутрь `FormArray.Root`. Для портала — оберните потребителя ещё одним `Root` с тем же `control`, либо используйте ref-handle `FormArrayHandle` снаружи.
 
-## 35. `useFormFieldContext` бросает исключение
+## 43. `useFormFieldContext` бросает исключение
 
 **Сообщение.** `Error: FormField.* components must be used within <FormField.Root>`.
 
@@ -971,7 +1193,7 @@ const config: FormWizardConfig = {
 
 **Решение.** Перепроверьте дерево; если поле условное — выносите всю секцию в `if (!visible) return null;` снаружи `FormField.Root`.
 
-## 36. `FormField.Error` не показывает ошибку, хотя `errors.length > 0`
+## 44. `FormField.Error` не показывает ошибку, хотя `errors.length > 0`
 
 **Причина.** Поле не помечено как touched, `shouldShowError === false`. По умолчанию ReFormer показывает ошибки только после blur/submit.
 
@@ -990,7 +1212,7 @@ const handleSubmit = async () => {
 };
 ```
 
-## 37. `FormField.Description` есть в DOM, но `aria-describedby` пустой
+## 45. `FormField.Description` есть в DOM, но `aria-describedby` пустой
 
 **Причина.** В `FormField.Root` не передан проп `hasDescription`. Без него `Control` не вписывает `descriptionId` в `aria-describedby` (это сделано осознанно — чтобы избежать двойного рендера от динамической регистрации).
 
@@ -1004,7 +1226,7 @@ const handleSubmit = async () => {
 </FormField.Root>
 ```
 
-## 38. Multi-step submit срабатывает раньше валидации последнего шага
+## 46. Multi-step submit срабатывает раньше валидации последнего шага
 
 **Причина.** `FormWizard.Actions` render-prop `submit.onClick` вызывает переданный в `Actions` `onSubmit` сразу при клике. Если в этом обработчике идёт `navRef.current?.submit(...)`, он запустит `config.validateAll?.()` поверх всей формы (а не только последнего шага). Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно, где именно проблема.
 
@@ -1018,7 +1240,7 @@ const handleSubmit = async () => {
 };
 ```
 
-## 39. `FormArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
+## 47. `FormArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
 
 **Причина.** Используется `index` в качестве React-key. После `removeAt(0)` индексы сдвигаются, React переиспользует DOM-узлы для других данных — фокус «переезжает».
 
@@ -1038,26 +1260,835 @@ const handleSubmit = async () => {
 
 Сам `FormArray.List` уже использует `item.id` для ключа `<FormArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
 
-## 40. `FormWizard` показывает «No validateStep callback configured for step N» в консоли
+## 48. `FormWizard` показывает «No validateStep callback configured for step N» в консоли
 
 **Причина.** `validateCurrentStep` warn'ит, если в `config` не задан колбэк `validateStep` (тогда шаг считается валидным без проверки).
 
 **Решение.** Передайте `validateStep(step)` в `config` (см. раздел «Шаг без валидации…» выше). Если конкретный шаг намеренно без валидации, внутри колбэка верните `true` для его номера.
 
-## 41. Ref `FormArrayHandle.length` / `isEmpty` не обновляется
+## 49. Ref `FormArrayHandle.length` / `isEmpty` не обновляется
 
 **Причина.** Эти поля snapshot'ятся в `useImperativeHandle` от `arrayState` и пересоздаются при каждом ререндере. Если вы храните `arrayRef.current` в замыкании или в `useEffect` без зависимостей, можете прочитать устаревшее значение.
 
 **Решение.** Читайте `arrayRef.current.length` непосредственно в обработчике, не кешируйте. Для реактивной длины снаружи используйте `useFormControl(form.items).length` — это даст подписку.
 
-## 42. See also
+## 50. See also
 
-- [01-overview.md](01-overview.md), [04-form-field.md](04-form-field.md), [05-recipes.md](05-recipes.md).
+- [01-overview.md](01-overview.md), [04-form-field.md](04-form-field.md), [06-recipes.md](06-recipes.md).
 - [@reformer/core troubleshooting](../../../reformer/docs/llms/) — общие проблемы с валидацией и behaviors.
 
-## 43. API Reference
+## 51. API Reference
 
 _Auto-generated from JSDoc on public exports._
+
+### AsyncBoundary
+
+**Kind:** `const`
+
+AsyncBoundary — headless compound-компонент состояний асинхронной загрузки.
+
+Разделяет экран на четыре взаимоисключающих состояния (`idle` / `loading` / `ready` /
+`error`) и раздаёт их слотам. Разметки и стилей не навязывает — визуальный слой живёт
+в `@reformer/ui-kit`.
+
+Это НЕ Suspense-boundary: ничего не бросается и не перехватывается, статусом управляет
+консумент. Сам компонент данные не грузит — он их только отображает.
+
+#### Возможности
+- **Headless** — ноль разметки, слоты возвращают голые фрагменты
+- **Ошибка с контекстом** — слот `Error` получает саму ошибку и `retry` через render-функцию
+- **Отложенный спиннер** — `delayMs` гасит вспышку загрузки при быстром ответе
+- **Stale-while-revalidate** — `refreshing` оставляет контент на экране во время обновления
+- **Готовая a11y** — `aria-busy` на регионе, `role="status"`/`role="alert"` на слотах
+
+#### Слоты
+- `AsyncBoundary.Root` — провайдер контекста, принимает `status`
+- `AsyncBoundary.Idle` — загрузка не запускалась
+- `AsyncBoundary.Loading` — идёт загрузка (с учётом `delayMs`)
+- `AsyncBoundary.Content` — данные получены
+- `AsyncBoundary.Empty` — данные получены, но пусты (предикат `when`)
+- `AsyncBoundary.Error` — ошибка; render-функция получает `error` / `retry` / `canRetry`
+- `AsyncBoundary.Retry` — кнопка повтора, скрыта без `onRetry`
+
+**Signature:**
+```typescript
+export const AsyncBoundary
+```
+
+**Examples:**
+
+Полное дерево состояний
+```tsx
+import { AsyncBoundary } from '@reformer/cdk/async-boundary';
+
+function ApplicationPage({ status, error, reload, form }: Props) {
+return (
+<AsyncBoundary.Root status={status} error={error} onRetry={reload} delayMs={200}>
+<AsyncBoundary.Loading>
+<p role="status" aria-live="polite">Загрузка заявки…</p>
+</AsyncBoundary.Loading>
+
+<AsyncBoundary.Error>
+{({ error, retry }) => (
+ <div role="alert" aria-live="assertive">
+   <p>{String(error)}</p>
+   <button onClick={retry}>Повторить</button>
+ </div>
+)}
+</AsyncBoundary.Error>
+
+<AsyncBoundary.Content>
+<CreditForm form={form} />
+</AsyncBoundary.Content>
+</AsyncBoundary.Root>
+);
+}
+```
+
+Список с пустым состоянием и фоновым обновлением
+```tsx
+<AsyncBoundary.Root status={status} refreshing={refreshing}>
+<AsyncBoundary.Loading><Skeleton rows={5} /></AsyncBoundary.Loading>
+<AsyncBoundary.Content>
+<AsyncBoundary.Empty when={items.length === 0}>
+<p>Ничего не найдено</p>
+</AsyncBoundary.Empty>
+{items.map((item) => <Row key={item.id} {...item} />)}
+</AsyncBoundary.Content>
+</AsyncBoundary.Root>
+```
+
+Режим создания: загрузки нет вообще
+```tsx
+// applicationId === null → 'idle', а не мгновенный 'ready':
+// пустая форма и успешно загруженная — разные состояния.
+<AsyncBoundary.Root status={applicationId ? status : 'idle'}>
+<AsyncBoundary.Idle><NewApplicationHint /></AsyncBoundary.Idle>
+<AsyncBoundary.Content><ApplicationSummary /></AsyncBoundary.Content>
+</AsyncBoundary.Root>
+```
+
+**See also:**
+- {@link useAsyncBoundary} — тот же расчёт состояния без compound-дерева.
+
+_Source: src/components/async-boundary/AsyncBoundary.tsx_
+
+### AsyncBoundaryContent
+
+**Kind:** `function`
+
+AsyncBoundary.Content — содержимое, видимое при успешной загрузке (`status === 'ready'`).
+
+По умолчанию остаётся на экране и во время фонового обновления (`refreshing`) —
+это stale-while-revalidate: пользователь не теряет контекст, пока грузится новая порция.
+Передайте `showWhileRefreshing={false}`, если обновление должно скрывать контент.
+
+В self-managed режиме `children` может быть render-функцией: она получает
+загруженные данные (внутри `ready` они гарантированно есть).
+
+**Signature:**
+```typescript
+export function AsyncBoundaryContent<T = unknown>({
+  showWhileRefreshing = true,
+  children,
+}: AsyncBoundaryContentProps<T>)
+```
+
+**Examples:**
+
+Статичный контент
+```tsx
+<AsyncBoundary.Content>
+<CreditForm form={form} />
+</AsyncBoundary.Content>
+```
+
+Render-функция с данными (self-managed режим)
+```tsx
+<AsyncBoundary.Content<Application[]>>
+{(items) => <ApplicationList items={items} />}
+</AsyncBoundary.Content>
+```
+
+Скрывать контент на время обновления
+```tsx
+<AsyncBoundary.Content showWhileRefreshing={false}>
+<DataTable rows={rows} />
+</AsyncBoundary.Content>
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryContent.tsx_
+
+### AsyncBoundaryContentProps
+
+**Kind:** `interface`
+
+Props слота `AsyncBoundary.Content`.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryContentProps<T = unknown> {
+  /**
+   * Показывать контент во время фонового обновления (`refreshing`).
+   * @default true
+   */
+  showWhileRefreshing?: boolean;
+  /**
+   * Содержимое при `status === 'ready'`. В self-managed режиме можно передать
+   * render-функцию — она получит загруженные данные уже суженными до `T`
+   * (внутри `ready` они гарантированно есть).
+   */
+  children: ReactNode | ((data: T) => ReactNode);
+}
+```
+
+_Source: src/components/async-boundary/types.ts_
+
+### AsyncBoundaryContext
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const AsyncBoundaryContext
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryContext.tsx_
+
+### AsyncBoundaryContextValue
+
+**Kind:** `interface`
+
+Значение контекста `AsyncBoundary`. Слоты читают его и решают, рендериться ли им.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryContextValue<T = unknown, E = unknown> {
+  /** Сырой статус из `AsyncBoundary.Root`. */
+  status: AsyncStatus;
+  /**
+   * Загруженные данные — только в self-managed режиме (`load`). В controlled-режиме
+   * всегда `undefined`: там данными владеет консумент.
+   */
+  data: T | undefined;
+  /** `status === 'idle'` — загрузка не запускалась. */
+  isIdle: boolean;
+  /**
+   * Показывать ли индикатор загрузки. Это НЕ `status === 'loading'`: при `delayMs > 0`
+   * первые `delayMs` мс флаг остаётся `false`, чтобы быстрый ответ не вызывал вспышку спиннера.
+   */
+  isLoading: boolean;
+  /** `status === 'ready'` — данные получены. */
+  isReady: boolean;
+  /** `status === 'error'` — запрос упал. */
+  isError: boolean;
+  /** Фоновое обновление поверх уже показанного контента. */
+  refreshing: boolean;
+  /** Ошибка (null, когда её нет). */
+  error: E | null;
+  /** Повторить загрузку. В self-managed режиме перезапускает `load`. */
+  retry: () => void;
+  /** Возможен ли повтор: задан `onRetry` либо работает self-managed режим. */
+  canRetry: boolean;
+  /** Сгенерированные id для a11y-связок. */
+  ids: AsyncBoundaryIds;
+  /**
+   * Пропсы региона-обёртки (`aria-busy`, `data-status`). Лежат в контексте, а не только
+   * в {@link useAsyncBoundary}, чтобы обёртка из ui-kit не пересчитывала ту же логику:
+   * читать их можно только НИЖЕ провайдера, а сам `Root` разметки не рендерит.
+   */
+  rootProps: AsyncBoundaryRootPropGetters;
+  /** Пропсы индикатора загрузки: `role="status"` + `aria-live="polite"`. */
+  loadingProps: AsyncBoundaryLoadingPropGetters;
+  /** Пропсы блока ошибки: `role="alert"` + `aria-live="assertive"`. */
+  errorProps: AsyncBoundaryErrorPropGetters;
+}
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryContext.tsx_
+
+### AsyncBoundaryEmpty
+
+**Kind:** `function`
+
+AsyncBoundary.Empty — «данные загрузились, но их нет».
+
+Пустота — отдельная от статуса ось: сам предикат знает только консумент
+(пустой массив, `totalCount === 0`, отфильтрованная выборка), поэтому он приходит
+пропом `when`, а слот лишь ограничивает его состоянием `ready`. Именно поэтому
+`'empty'` не добавлен в {@link AsyncStatus} — иначе статус пришлось бы пересчитывать
+на каждое изменение данных.
+
+**Signature:**
+```typescript
+export function AsyncBoundaryEmpty({ when, children }: AsyncBoundaryEmptyProps)
+```
+
+**Examples:**
+
+Пустой список после успешной загрузки
+```tsx
+<AsyncBoundary.Content>
+<AsyncBoundary.Empty when={items.length === 0}>
+<p>Ничего не найдено</p>
+</AsyncBoundary.Empty>
+{items.map(renderItem)}
+</AsyncBoundary.Content>
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryEmpty.tsx_
+
+### AsyncBoundaryEmptyProps
+
+**Kind:** `interface`
+
+Props слота `AsyncBoundary.Empty`.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryEmptyProps {
+  /**
+   * Показать вместо контента, когда загрузка успешна, но данных нет.
+   * Пустота — ортогональная статусу ось: предикат считает консумент, а слот
+   * рендерится только внутри `ready`.
+   */
+  when: boolean;
+  /** Содержимое пустого состояния. */
+  children: ReactNode;
+}
+```
+
+_Source: src/components/async-boundary/types.ts_
+
+### AsyncBoundaryError
+
+**Kind:** `function`
+
+AsyncBoundary.Error — содержимое, видимое при `status === 'error'`.
+
+Единственный слот с render-функцией: она получает саму ошибку и `retry`. Именно
+отсутствие этих данных в props-less слотах прежнего API вынуждало консументов
+оборачивать блок ошибки в замыкание с захардкоженным текстом и терять `onRetry`.
+
+**Signature:**
+```typescript
+export function AsyncBoundaryError<E = unknown>({ children }: AsyncBoundaryErrorProps<E>)
+```
+
+**Examples:**
+
+Render-функция с доступом к ошибке и повтору
+```tsx
+<AsyncBoundary.Error>
+{({ error, retry, canRetry }) => (
+<div role="alert" aria-live="assertive">
+<p>{String(error)}</p>
+{canRetry && <button onClick={retry}>Повторить</button>}
+</div>
+)}
+</AsyncBoundary.Error>
+```
+
+Статичное содержимое, когда текст ошибки не нужен
+```tsx
+<AsyncBoundary.Error>
+<p role="alert">Не удалось загрузить заявку</p>
+</AsyncBoundary.Error>
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryError.tsx_
+
+### AsyncBoundaryErrorPropGetters
+
+**Kind:** `interface`
+
+Пропсы блока ошибки.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryErrorPropGetters {
+  id: string;
+  role: 'alert';
+  'aria-live': 'assertive';
+}
+```
+
+_Source: src/components/async-boundary/useAsyncBoundary.ts_
+
+### AsyncBoundaryErrorProps
+
+**Kind:** `interface`
+
+Props слота `AsyncBoundary.Error`.
+
+В отличие от остальных слотов принимает render-функцию: именно потеря `error` и
+`onRetry` в props-less слотах старого `AsyncBoundary` заставляла консументов писать
+обёртки вида `() => <ErrorState error="Не удалось загрузить" />` с захардкоженным текстом.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryErrorProps<E = unknown> {
+  /** Узел или render-функция, получающая `error` / `retry` / `canRetry`. */
+  children: ReactNode | ((props: AsyncBoundaryErrorRenderProps<E>) => ReactNode);
+}
+```
+
+_Source: src/components/async-boundary/types.ts_
+
+### AsyncBoundaryErrorRenderProps
+
+**Kind:** `interface`
+
+Данные, которые `AsyncBoundary.Error` передаёт в render-функцию.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryErrorRenderProps<E = unknown> {
+  /** Ошибка из `AsyncBoundary.Root`. */
+  error: E | null;
+  /** Повторить загрузку (no-op, если `onRetry` не задан). */
+  retry: () => void;
+  /** Задан ли `onRetry` — по нему решают, рисовать ли кнопку повтора. */
+  canRetry: boolean;
+}
+```
+
+_Source: src/components/async-boundary/types.ts_
+
+### AsyncBoundaryHandle
+
+**Kind:** `interface`
+
+Императивный handle `AsyncBoundary`, доступный через `ref`.
+
+Нужен, когда триггер перезагрузки живёт вне дерева границы: тулбар страницы,
+пункт меню «Обновить», WebSocket-событие, кнопка в диалоге. Получают через
+`useRef<AsyncBoundaryHandle<T>>(null)` и передают в `<AsyncBoundary.Root ref={...}>`.
+
+Поля `status` / `data` / `error` / `isLoading` / `refreshing` — снимок на момент
+рендера. Для реактивного UI читайте их из {@link AsyncBoundaryContextValue}
+(через слоты или `useAsyncBoundaryContext()`), а не из handle.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryHandle<T = unknown, E = unknown> {
+  /** Перезапустить загрузку. В controlled-режиме вызывает `onRetry`. */
+  reload: () => void;
+  /** Прервать текущий запрос. Прерывание не считается ошибкой. В controlled-режиме — no-op. */
+  abort: () => void;
+  /** Снимок статуса на момент рендера. */
+  status: AsyncStatus;
+  /** Последние загруженные данные (только self-managed режим). */
+  data: T | undefined;
+  /** Снимок ошибки. */
+  error: E | null;
+  /** Идёт ли загрузка (с учётом `delayMs`). */
+  isLoading: boolean;
+  /** Идёт ли фоновое обновление. */
+  refreshing: boolean;
+}
+```
+
+**Examples:**
+
+Кнопка «Обновить» в шапке страницы
+```tsx
+import { useRef } from 'react';
+import { AsyncBoundary, type AsyncBoundaryHandle } from '@reformer/cdk/async-boundary';
+
+function ApplicationsPage() {
+const boundaryRef = useRef<AsyncBoundaryHandle<Application[]>>(null);
+
+return (
+<>
+<header>
+<button onClick={() => boundaryRef.current?.reload()}>Обновить</button>
+<button onClick={() => boundaryRef.current?.abort()}>Отменить</button>
+</header>
+
+<AsyncBoundary.Root ref={boundaryRef} load={(signal) => fetchApplications(signal)}>
+<AsyncBoundary.Loading>Загрузка…</AsyncBoundary.Loading>
+<AsyncBoundary.Content>{(items) => <List items={items} />}</AsyncBoundary.Content>
+</AsyncBoundary.Root>
+</>
+);
+}
+```
+
+Дозагрузка по событию извне
+```tsx
+useEffect(() => {
+const off = socket.on('application:updated', () => boundaryRef.current?.reload());
+return off;
+}, []);
+```
+
+_Source: src/components/async-boundary/types.ts_
+
+### AsyncBoundaryIdle
+
+**Kind:** `function`
+
+AsyncBoundary.Idle — содержимое, видимое когда загрузка не запускалась (`status === 'idle'`).
+
+Типовой случай — форма создания: записи ещё нет, грузить нечего, но и «успешной
+загрузкой» это состояние называть нельзя. Без отдельного слота консументы схлопывают
+его в `ready` и теряют возможность показать другой заголовок или подсказку.
+
+**Signature:**
+```typescript
+export function AsyncBoundaryIdle({ children }: AsyncBoundarySlotProps)
+```
+
+**Examples:**
+
+Разный заголовок для создания и редактирования
+```tsx
+<AsyncBoundary.Root status={applicationId ? status : 'idle'}>
+<AsyncBoundary.Idle><h1>Новая заявка</h1></AsyncBoundary.Idle>
+<AsyncBoundary.Content><h1>Заявка №{applicationId}</h1></AsyncBoundary.Content>
+</AsyncBoundary.Root>
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryIdle.tsx_
+
+### AsyncBoundaryIds
+
+**Kind:** `interface`
+
+Идентификаторы, которыми связываются регион, индикатор загрузки и сообщение об ошибке.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryIds {
+  /** id региона-обёртки — на него вешается `aria-busy`. */
+  region: string;
+  /** id индикатора загрузки (`role="status"`). */
+  status: string;
+  /** id сообщения об ошибке (`role="alert"`). */
+  error: string;
+}
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryContext.tsx_
+
+### AsyncBoundaryLoading
+
+**Kind:** `function`
+
+AsyncBoundary.Loading — содержимое, видимое во время загрузки.
+
+Учитывает `delayMs` корня: при быстром ответе слот не показывается вовсе.
+Разметку (`role="status"`, `aria-live`) даёт ui-kit — CDK остаётся headless.
+
+**Signature:**
+```typescript
+export function AsyncBoundaryLoading({ children }: AsyncBoundarySlotProps)
+```
+
+**Examples:**
+
+```tsx
+<AsyncBoundary.Loading>
+  <p role="status" aria-live="polite">Загрузка данных…</p>
+</AsyncBoundary.Loading>
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryLoading.tsx_
+
+### AsyncBoundaryLoadingPropGetters
+
+**Kind:** `interface`
+
+Пропсы индикатора загрузки. Политика объявления зафиксирована тестами a11y.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryLoadingPropGetters {
+  id: string;
+  role: 'status';
+  'aria-live': 'polite';
+}
+```
+
+_Source: src/components/async-boundary/useAsyncBoundary.ts_
+
+### AsyncBoundaryRetry
+
+**Kind:** `const`
+
+AsyncBoundary.Retry — кнопка повтора загрузки.
+
+Не рендерится, если `onRetry` не передан в корень: контрол, который ничего не делает,
+хуже отсутствующего — он читается скринридером и ловит фокус впустую.
+
+**Signature:**
+```typescript
+export const AsyncBoundaryRetry
+```
+
+**Examples:**
+
+Кнопка внутри слота ошибки
+```tsx
+<AsyncBoundary.Error>
+<p role="alert">Не удалось загрузить</p>
+<AsyncBoundary.Retry>Повторить</AsyncBoundary.Retry>
+</AsyncBoundary.Error>
+```
+
+Своя кнопка через asChild
+```tsx
+<AsyncBoundary.Retry asChild>
+<Button variant="outline">Повторить</Button>
+</AsyncBoundary.Retry>
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryRetry.tsx_
+
+### AsyncBoundaryRetryProps
+
+**Kind:** `interface`
+
+Props кнопки `AsyncBoundary.Retry`.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryRetryProps
+  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'> {
+  /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`). */
+  asChild?: boolean;
+}
+```
+
+_Source: src/components/async-boundary/types.ts_
+
+### AsyncBoundaryRoot
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+const AsyncBoundaryRoot
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryRoot.tsx_
+
+### AsyncBoundaryRootPropGetters
+
+**Kind:** `interface`
+
+Пропсы региона-обёртки: `aria-busy` + data-атрибуты для CSS и e2e.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryRootPropGetters {
+  id: string;
+  'data-status': AsyncStatus;
+  'data-refreshing'?: true;
+  'aria-busy'?: true;
+}
+```
+
+_Source: src/components/async-boundary/useAsyncBoundary.ts_
+
+### AsyncBoundaryRootProps
+
+**Kind:** `interface`
+
+Props корневого провайдера `AsyncBoundary.Root`.
+
+Два режима, взаимоисключающих:
+
+- **self-managed** — передан `load`: компонент грузит данные сам, ведёт статус,
+  отменяет запросы при смене `loadKey`/размонтировании, а `AsyncBoundary.Retry`
+  и `handle.reload()` перезапускают загрузку. Props `status` / `error` /
+  `refreshing` / `onRetry` в этом режиме игнорируются.
+- **controlled** — `load` не передан: состояние приходит снаружи через `status`.
+  Нужен там, где загрузкой владеет кто-то другой — например behavior рендерера,
+  вызывающий `schema.node('boundary').patchProps({ status })`.
+
+**Signature:**
+```typescript
+export interface AsyncBoundaryRootProps<T = unknown, E = unknown> {
+  // ── self-managed режим ────────────────────────────────────────────────────
+  /**
+   * Загрузчик. Получает `AbortSignal` — прокиньте его в `fetch`, чтобы отменённый
+   * запрос не висел в сети. Наличие этого пропа включает self-managed режим.
+   */
+  load?: (signal: AbortSignal) => Promise<T>;
+  /**
+   * Ключ перезапуска: при изменении стартует новая загрузка (обычно id записи).
+   * Сравнивается по `Object.is` — передавайте примитив, а не свежий объект.
+   */
+  loadKey?: unknown;
+  /**
+   * `false` → загрузка не стартует, состояние `idle`. Режим создания новой записи.
+   * @default true
+   */
+  enabled?: boolean;
+  /** Побочный эффект после успеха — например `form.patchValue(data)`. */
+  onSuccess?: (data: T) => void;
+  /** Побочный эффект после ошибки — логирование, тост. */
+  onError?: (error: E) => void;
+  /** Преобразование отказа промиса в отображаемую ошибку. По умолчанию — сообщение `Error`. */
+  toError?: (e: unknown) => E;
+
+  // ── controlled режим ──────────────────────────────────────────────────────
+  /** Текущее состояние. Обязателен, когда `load` не передан. */
+  status?: AsyncStatus;
+  /** Ошибка, которую получит слот `AsyncBoundary.Error`. */
+  error?: E | null;
+  /**
+   * Идёт фоновое обновление поверх уже показанного контента.
+   * Контент остаётся видимым, `aria-busy` выставляется.
+   * @default false
+   */
+  refreshing?: boolean;
+  /** Повтор загрузки. Без него `AsyncBoundary.Retry` не рендерится, а `canRetry` — `false`. */
+  onRetry?: () => void;
+
+  // ── общее ─────────────────────────────────────────────────────────────────
+  /**
+   * Не показывать слот загрузки первые N мс. Гасит вспышку спиннера, когда
+   * ответ приходит быстрее задержки. Не влияет на `status` — только на `isLoading`.
+   * @default 0
+   */
+  delayMs?: number;
+  /** Явный префикс для генерируемых id (иначе `useId`). */
+  id?: string;
+  /** Слоты `AsyncBoundary.*` и любой другой контент. */
+  children: ReactNode;
+}
+```
+
+_Source: src/components/async-boundary/types.ts_
+
+### AsyncBoundarySlotProps
+
+**Kind:** `interface`
+
+Props слотов, которые просто показывают/скрывают содержимое.
+
+**Signature:**
+```typescript
+export interface AsyncBoundarySlotProps {
+  /** Содержимое слота. */
+  children: ReactNode;
+}
+```
+
+_Source: src/components/async-boundary/types.ts_
+
+### AsyncResourceAction
+
+**Kind:** `type`
+
+Действия машины состояний.
+
+**Signature:**
+```typescript
+export type AsyncResourceAction<T, E> =
+  /** Загрузка отключена (`enabled: false`) — грузить нечего. */
+  | { kind: 'skip' }
+  /** Запрос отправлен. */
+  | { kind: 'load-start' }
+  /** Запрос успешно завершён. */
+  | { kind: 'load-success'; data: T }
+  /** Запрос завершился ошибкой. */
+  | { kind: 'load-error'; error: E }
+  /** Загрузка прервана вручную (`handle.abort()`). */
+  | { kind: 'abort' };
+```
+
+_Source: src/components/async-boundary/async-resource.ts_
+
+### asyncResourceReducer
+
+**Kind:** `function`
+
+Редьюсер загрузки.
+
+Ключевое правило перехода `load-start`: если данные уже есть, состояние остаётся
+`ready` с поднятым `refreshing` (stale-while-revalidate) — иначе при каждом обновлении
+контент подменялся бы спиннером и пользователь терял бы позицию на экране.
+
+**Signature:**
+```typescript
+export function asyncResourceReducer<T, E>(
+  state: AsyncResourceState<T, E>,
+  action: AsyncResourceAction<T, E>
+): AsyncResourceState<T, E>
+```
+
+**Parameters:**
+- `state` — - Текущее состояние.
+- `action` — - Действие.
+
+**Returns:** Новое состояние.
+
+**Examples:**
+
+Перезагрузка поверх данных не роняет экран в loading
+```ts
+let s = initialAsyncResourceState<User, string>();
+s = asyncResourceReducer(s, { kind: 'load-start' });                  // status: 'loading'
+s = asyncResourceReducer(s, { kind: 'load-success', data: user });    // status: 'ready'
+s = asyncResourceReducer(s, { kind: 'load-start' });                  // 'ready' + refreshing
+```
+
+Ошибка не стирает ранее загруженные данные
+```ts
+const failed = asyncResourceReducer(ready, { kind: 'load-error', error: 'timeout' });
+failed.status; // 'error'
+failed.data;   // прежние данные на месте — их можно показать рядом с ошибкой
+```
+
+_Source: src/components/async-boundary/async-resource.ts_
+
+### AsyncResourceState
+
+**Kind:** `interface`
+
+Снимок состояния загрузки.
+
+**Signature:**
+```typescript
+export interface AsyncResourceState<T, E> {
+  /** Текущее состояние операции. */
+  status: AsyncStatus;
+  /** Последние успешно загруженные данные (сохраняются при ошибке и перезагрузке). */
+  data: T | undefined;
+  /** Ошибка последней попытки. */
+  error: E | null;
+  /** Идёт повторная загрузка поверх уже показанных данных. */
+  refreshing: boolean;
+}
+```
+
+_Source: src/components/async-boundary/async-resource.ts_
+
+### AsyncStatus
+
+**Kind:** `type`
+
+Состояние асинхронной операции.
+
+- `'idle'` — загрузка не запускалась и не планируется (создание новой записи, id ещё не выбран).
+  Отдельное состояние нужно, чтобы «пустая форма» не выглядела как успешно загруженные данные.
+- `'loading'` — запрос выполняется, данных ещё нет.
+- `'ready'` — данные получены, показываем контент.
+- `'error'` — запрос завершился ошибкой.
+
+Фоновое обновление поверх уже показанных данных — это не отдельный статус, а флаг
+`refreshing` при `status === 'ready'` (stale-while-revalidate).
+
+**Signature:**
+```typescript
+export type AsyncStatus = 'idle' | 'loading' | 'ready' | 'error';
+```
+
+_Source: src/components/async-boundary/types.ts_
 
 ### createMessageResolver
 
@@ -1123,6 +2154,33 @@ defaultErrorResolver({ code: 'required', message: '' });            // → 'requ
 ```
 
 _Source: src/validation/error-resolver.tsx_
+
+### defaultToError
+
+**Kind:** `function`
+
+Приведение неизвестного отказа промиса к человекочитаемой строке —
+дефолт для `toError`, когда консумент не задал своё преобразование.
+
+**Signature:**
+```typescript
+export function defaultToError(e: unknown): string
+```
+
+**Parameters:**
+- `e` — - Значение, с которым отклонился промис.
+
+**Returns:** Сообщение об ошибке.
+
+**Examples:**
+
+```ts
+defaultToError(new Error('Ошибка загрузки заявки')); // 'Ошибка загрузки заявки'
+defaultToError('boom');                              // 'boom'
+defaultToError({});                                  // 'Неизвестная ошибка'
+```
+
+_Source: src/components/async-boundary/async-resource.ts_
 
 ### FormArray
 
@@ -3225,6 +4283,297 @@ export interface FormWizardSubmitProps extends Omit<
 ```
 
 _Source: src/components/form-wizard/FormWizardSubmit.tsx_
+
+### initialAsyncResourceState
+
+**Kind:** `function`
+
+Начальное состояние: до первого эффекта загрузка ещё не запускалась.
+
+**Signature:**
+```typescript
+export function initialAsyncResourceState<T, E>(): AsyncResourceState<T, E>
+```
+
+_Source: src/components/async-boundary/async-resource.ts_
+
+### useAsyncBoundary
+
+**Kind:** `function`
+
+Headless-хук состояний асинхронной загрузки: нормализует статус, гасит вспышку
+спиннера и отдаёт готовые наборы a11y-пропсов.
+
+Используется самим `AsyncBoundary.Root`, но пригоден и отдельно — когда разметка
+пишется вручную и compound-дерево избыточно.
+
+**Signature:**
+```typescript
+export function useAsyncBoundary<E = unknown>({
+  status,
+  error = null,
+  refreshing = false,
+  onRetry,
+  delayMs = 0,
+  id,
+}: UseAsyncBoundaryOptions<E>): UseAsyncBoundaryReturn<E>
+```
+
+**Parameters:**
+- `options` — - Статус, ошибка, `onRetry`, `delayMs`, `id`.
+
+**Returns:** Разложенный статус, `retry` и три набора пропсов (`rootProps` / `loadingProps` / `errorProps`).
+
+**Examples:**
+
+Ручная разметка без compound-дерева
+```tsx
+import { useAsyncBoundary } from '@reformer/cdk/async-boundary';
+
+function Panel({ status, error, reload, children }: Props) {
+const { isLoading, isError, retry, rootProps, loadingProps, errorProps } =
+useAsyncBoundary({ status, error, onRetry: reload, delayMs: 200 });
+
+return (
+<section {...rootProps}>
+{isLoading && <p {...loadingProps}>Загрузка…</p>}
+{isError && (
+<div {...errorProps}>
+ {error}
+ <button onClick={retry}>Повторить</button>
+</div>
+)}
+{!isLoading && !isError && children}
+</section>
+);
+}
+```
+
+Отложенный спиннер — быстрый ответ не вызывает мигания
+```tsx
+// Ответ за 120 мс: status успевает пройти loading → ready, но isLoading
+// ни разу не станет true, и пользователь не увидит вспышку.
+const { isLoading } = useAsyncBoundary({ status, delayMs: 300 });
+```
+
+_Source: src/components/async-boundary/useAsyncBoundary.ts_
+
+### useAsyncBoundaryContext
+
+**Kind:** `function`
+
+Хук доступа к контексту `AsyncBoundary`. Бросает исключение вне `AsyncBoundary.Root`.
+
+**Signature:**
+```typescript
+export function useAsyncBoundaryContext<T = unknown, E = unknown>(): AsyncBoundaryContextValue<
+  T,
+  E
+>
+```
+
+**Returns:** Текущее {@link AsyncBoundaryContextValue}.
+
+**Examples:**
+
+Своя кнопка повтора вне слота Error
+```tsx
+import { useAsyncBoundaryContext } from '@reformer/cdk/async-boundary';
+
+function ToolbarRetry() {
+const { isError, retry, canRetry } = useAsyncBoundaryContext<string>();
+if (!isError || !canRetry) return null;
+return <button onClick={retry}>Повторить загрузку</button>;
+}
+```
+
+Затемнение контента во время фонового обновления
+```tsx
+function DimWhileRefreshing({ children }: { children: React.ReactNode }) {
+const { refreshing } = useAsyncBoundaryContext();
+return <div style={{ opacity: refreshing ? 0.6 : 1 }}>{children}</div>;
+}
+```
+
+_Source: src/components/async-boundary/AsyncBoundaryContext.tsx_
+
+### UseAsyncBoundaryOptions
+
+**Kind:** `interface`
+
+Опции {@link useAsyncBoundary}. Совпадают с props `AsyncBoundary.Root`.
+
+**Signature:**
+```typescript
+export interface UseAsyncBoundaryOptions<E = unknown> {
+  /** Текущее состояние асинхронной операции. */
+  status: AsyncStatus;
+  /** Полезная нагрузка ошибки. */
+  error?: E | null;
+  /** Фоновое обновление поверх уже показанного контента. @default false */
+  refreshing?: boolean;
+  /** Повтор загрузки. */
+  onRetry?: () => void;
+  /** Задержка перед показом загрузки, мс. @default 0 */
+  delayMs?: number;
+  /** Явный префикс для генерируемых id. */
+  id?: string;
+}
+```
+
+_Source: src/components/async-boundary/useAsyncBoundary.ts_
+
+### UseAsyncBoundaryReturn
+
+**Kind:** `interface`
+
+Возвращаемое значение {@link useAsyncBoundary}.
+
+**Signature:**
+```typescript
+export interface UseAsyncBoundaryReturn<E = unknown> {
+  status: AsyncStatus;
+  isIdle: boolean;
+  /** Учитывает `delayMs` — см. {@link UseAsyncBoundaryOptions.delayMs}. */
+  isLoading: boolean;
+  isReady: boolean;
+  isError: boolean;
+  refreshing: boolean;
+  error: E | null;
+  retry: () => void;
+  canRetry: boolean;
+  ids: AsyncBoundaryIds;
+  rootProps: AsyncBoundaryRootPropGetters;
+  loadingProps: AsyncBoundaryLoadingPropGetters;
+  errorProps: AsyncBoundaryErrorPropGetters;
+}
+```
+
+_Source: src/components/async-boundary/useAsyncBoundary.ts_
+
+### useAsyncResource
+
+**Kind:** `function`
+
+Хук асинхронной загрузки с отменой, повтором и stale-while-revalidate.
+
+Тонкая React-обёртка над чистым редьюсером из `async-resource.ts` — вся логика
+переходов там и тестируется без DOM.
+
+Закрывает три дыры, типичные для рукописных `useEffect`-загрузчиков:
+гонку при быстрой смене `loadKey` (побеждал бы ответ, пришедший последним),
+отсутствие повтора и потерю состояния «грузить нечего».
+
+**Signature:**
+```typescript
+export function useAsyncResource<T, E = string>({
+  load,
+  loadKey,
+  enabled = true,
+  onSuccess,
+  onError,
+  toError,
+}: UseAsyncResourceOptions<T, E>): UseAsyncResourceReturn<T, E>
+```
+
+**Parameters:**
+- `options` — - См. {@link UseAsyncResourceOptions}.
+
+**Returns:** Состояние загрузки плюс `reload` / `abort`.
+
+**Examples:**
+
+Загрузка заявки со справочниками как одна единица
+```tsx
+const { status, error, reload } = useAsyncResource({
+loadKey: applicationId,
+enabled: applicationId !== null,
+load: async (signal) => {
+const [app, dict] = await Promise.all([
+fetchCreditApplication(applicationId!, signal),
+fetchDictionaries(signal),
+]);
+if (app.status !== 200) throw new Error('Ошибка загрузки заявки');
+if (dict.status !== 200) throw new Error('Ошибка загрузки справочников');
+return { app: app.data, dict: dict.data };
+},
+onSuccess: ({ app, dict }) => {
+form.patchValue(app);
+queueMicrotask(() => applyDictionaries(form, dict));
+},
+});
+```
+
+Отмена при уходе со страницы происходит сама
+```tsx
+// Смена userId прерывает предыдущий запрос: ответ на устаревший id
+// отбрасывается и не перетирает свежие данные.
+const { data } = useAsyncResource({
+loadKey: userId,
+load: (signal) => fetch(`/api/users/${userId}`, { signal }).then((r) => r.json()),
+});
+```
+
+_Source: src/components/async-boundary/useAsyncResource.ts_
+
+### UseAsyncResourceOptions
+
+**Kind:** `interface`
+
+Опции {@link useAsyncResource}.
+
+**Signature:**
+```typescript
+export interface UseAsyncResourceOptions<T, E = string> {
+  /**
+   * Загрузчик. Получает `AbortSignal` — прокиньте его в `fetch`, чтобы отменённый
+   * запрос не висел в сети.
+   */
+  load: (signal: AbortSignal) => Promise<T>;
+  /**
+   * Ключ перезапуска: при изменении запускается новая загрузка (обычно id записи).
+   * Сравнивается по `Object.is`, поэтому передавайте примитив, а не свежий объект.
+   */
+  loadKey?: unknown;
+  /**
+   * `false` → загрузка не стартует, состояние `idle`. Режим создания новой записи.
+   * @default true
+   */
+  enabled?: boolean;
+  /**
+   * Побочный эффект после успеха — например `form.patchValue(data)`.
+   *
+   * Вызывается уже вне реактивного контекста (из колбэка промиса). Если внутри вы
+   * пишете и в значения формы, и в `updateComponentProps`, разнесите второе в
+   * `queueMicrotask` — иначе preact бросит «Cycle detected».
+   */
+  onSuccess?: (data: T) => void;
+  /** Побочный эффект после ошибки — логирование, тост. */
+  onError?: (error: E) => void;
+  /** Преобразование отказа промиса в отображаемую ошибку. @default {@link defaultToError} */
+  toError?: (e: unknown) => E;
+}
+```
+
+_Source: src/components/async-boundary/useAsyncResource.ts_
+
+### UseAsyncResourceReturn
+
+**Kind:** `interface`
+
+Возвращаемое значение {@link useAsyncResource}.
+
+**Signature:**
+```typescript
+export interface UseAsyncResourceReturn<T, E = string> extends AsyncResourceState<T, E> {
+  /** Перезапустить загрузку вручную (кнопка «Повторить», внешний триггер). */
+  reload: () => void;
+  /** Прервать текущий запрос. Прерывание не считается ошибкой. */
+  abort: () => void;
+}
+```
+
+_Source: src/components/async-boundary/useAsyncResource.ts_
 
 ### useFormArray
 

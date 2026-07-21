@@ -6,7 +6,7 @@
 
 **Причина.** `FormArray.AddButton` не самостоятельный элемент — он рендерит кнопку только внутри `FormArray.Root`. Если он вынесен наружу или `Root` не отрендерился (например, под условным `if`), кнопки не будет.
 
-**Решение.** Поместите `AddButton` в дерево `Root` либо вызывайте `useFormArrayContext().add()` из своей кнопки (см. [05-recipes.md → Custom AddButton](05-recipes.md)).
+**Решение.** Поместите `AddButton` в дерево `Root` либо вызывайте `useFormArrayContext().add()` из своей кнопки (см. [06-recipes.md → Custom AddButton](06-recipes.md)).
 
 ```tsx
 <FormArray.Root control={form.items}>
@@ -168,5 +168,5 @@ const handleSubmit = async () => {
 
 ## See also
 
-- [01-overview.md](01-overview.md), [04-form-field.md](04-form-field.md), [05-recipes.md](05-recipes.md).
+- [01-overview.md](01-overview.md), [04-form-field.md](04-form-field.md), [06-recipes.md](06-recipes.md).
 - [@reformer/core troubleshooting](../../../reformer/docs/llms/) — общие проблемы с валидацией и behaviors.

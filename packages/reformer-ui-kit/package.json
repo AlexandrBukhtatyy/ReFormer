@@ -272,10 +272,6 @@
       "types": "./dist/spinner.d.ts",
       "import": "./dist/spinner.js"
     },
-    "./state": {
-      "types": "./dist/state.d.ts",
-      "import": "./dist/state.js"
-    },
     "./switch": {
       "types": "./dist/switch.d.ts",
       "import": "./dist/switch.js"

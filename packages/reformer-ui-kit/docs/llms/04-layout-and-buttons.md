@@ -121,83 +121,139 @@ import { PlusIcon } from 'lucide-react';
 
 ## AsyncBoundary
 
-Минималистичный switch на три состояния: `loading` / `error` / `ready`.
-Используется для оборачивания экранов, зависящих от внешних данных
-(profile, dictionaries).
+Контейнер состояний загрузки данных: `idle` / `loading` / `ready` / `error`.
+Стилизованная обёртка над headless `AsyncBoundary` из `@reformer/cdk/async-boundary`.
+Используется для экранов, зависящих от внешних данных (profile, dictionaries, заявка).
+
+Блоки загрузки и ошибки **встроены** — отдельные слот-компоненты создавать не нужно.
+Регион несёт `aria-busy`, блок загрузки — `role="status"` + `aria-live="polite"`,
+блок ошибки — `role="alert"` + `aria-live="assertive"`.
 
 ### API
 
-```typescript
-type AsyncStatus = 'loading' | 'error' | 'ready';
+Два режима: **self-managed** (передан `load` — компонент грузит данные сам, отменяет
+устаревшие запросы и даёт повтор) и **controlled** (`load` не передан — состояние
+приходит через `status`). В self-managed режиме `status` / `error` / `refreshing` /
+`onRetry` игнорируются.
 
-interface AsyncBoundaryProps {
-  status: AsyncStatus;
-  LoadingComponent?: React.ComponentType;
-  ErrorComponent?: React.ComponentType;
+```typescript
+type AsyncStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+interface AsyncBoundaryProps<T = unknown> {
+  // self-managed
+  load?: (signal: AbortSignal) => Promise<T>;
+  loadKey?: unknown;
+  enabled?: boolean;
+  onSuccess?: (data: T) => void;
+  onError?: (error: React.ReactNode) => void;
+  toError?: (e: unknown) => React.ReactNode;
+  // controlled
+  status?: AsyncStatus;
+  error?: React.ReactNode | null;
+  onRetry?: () => void;
+  refreshing?: boolean;
+  delayMs?: number;
+  loadingTitle?: React.ReactNode;
+  loadingSubtitle?: React.ReactNode;
+  errorTitle?: React.ReactNode;
+  retryLabel?: React.ReactNode;
+  loadingSlot?: React.ReactNode;
+  errorSlot?: React.ReactNode | ((p: { error; retry; canRetry }) => React.ReactNode);
   children?: React.ReactNode;
+  className?: string;
 }
 ```
 
-| Prop               | Тип             | Описание                                                                               |
-| ------------------ | --------------- | -------------------------------------------------------------------------------------- |
-| `status`           | `AsyncStatus`   | Текущее состояние. Управляется снаружи.                                                |
-| `LoadingComponent` | `ComponentType` | Рендерится при `status === 'loading'`. Без props. Если не передан — рендерится `null`. |
-| `ErrorComponent`   | `ComponentType` | Рендерится при `status === 'error'`. Без props. Если не передан — `null`.              |
-| `children`         | `ReactNode`     | Рендерится при `status === 'ready'`.                                                   |
+| Prop          | Тип                     | Описание                                                                                       |
+| ------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `load`        | `(signal) => Promise<T>` | Загрузчик. Включает self-managed режим. Прокиньте `signal` в `fetch` — иначе отменённый запрос висит. |
+| `loadKey`     | `unknown`               | Ключ перезапуска (обычно id записи). Сравнение по `Object.is` — передавайте примитив.            |
+| `enabled`     | `boolean`               | `false` → `idle`, загрузка не стартует. Режим создания записи.                                   |
+| `onSuccess`   | `(data: T) => void`     | Побочный эффект после успеха — например `form.patchValue(data)`.                                 |
+| `status`      | `AsyncStatus`           | Состояние в controlled-режиме. `idle` — загрузка не запускалась, показываются children.          |
+| `error`       | `ReactNode \| null`     | Текст ошибки. Идёт во встроенный блок и в render-функцию `errorSlot`.                           |
+| `onRetry`     | `() => void`            | Повтор загрузки. Без него кнопка «Повторить» не рендерится.                                     |
+| `refreshing`  | `boolean`               | Фоновое обновление: контент остаётся на экране, регион помечается `aria-busy`.                  |
+| `delayMs`     | `number`                | Не показывать блок загрузки первые N мс — гасит вспышку спиннера. По умолчанию `0`.             |
+| `loadingSlot` | `ReactNode`             | Полная замена блока загрузки (например скелетон).                                               |
+| `errorSlot`   | `ReactNode \| функция`  | Полная замена блока ошибки; функция получает `error` / `retry` / `canRetry`.                    |
+| `children`    | `ReactNode`             | Рендерится при `status === 'ready'` и `'idle'`.                                                 |
 
-Оба слота — `ComponentType`, не `ReactNode`. Для передачи props (текста ошибки,
-`retry`-callback) — оберни в тонкий компонент:
-
-```tsx
-const Loading = () => <div className="py-12 text-center">Загрузка...</div>;
-const ErrorView = () => (
-  <div className="py-12 text-center text-destructive">
-    Не удалось загрузить данные. <button onClick={retry}>Повторить</button>
-  </div>
-);
-
-<AsyncBoundary status={status} LoadingComponent={Loading} ErrorComponent={ErrorView}>
-  <Profile data={data} />
-</AsyncBoundary>;
-```
+Слоты принимают `ReactNode` (или render-функцию для ошибки), а не `ComponentType` —
+оборачивать блок в отдельный компонент ради текста ошибки больше не нужно.
 
 ### Common Patterns
 
-С хуком загрузки:
+Self-managed — состояние ведёт сам компонент (рекомендуемый способ):
 
 ```tsx
-import { useEffect, useState } from 'react';
-import { AsyncBoundary, type AsyncStatus } from '@reformer/ui-kit';
+import { AsyncBoundary } from '@reformer/ui-kit';
 
-function CountriesPage() {
-  const [status, setStatus] = useState<AsyncStatus>('loading');
-  const [countries, setCountries] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetch('/api/countries')
-      .then((r) => r.json())
-      .then((data) => {
-        setCountries(data);
-        setStatus('ready');
-      })
-      .catch(() => setStatus('error'));
-  }, []);
-
+function ApplicationPage({ applicationId, form }: Props) {
   return (
     <AsyncBoundary
-      status={status}
-      LoadingComponent={() => <p>Загружаем страны...</p>}
-      ErrorComponent={() => <p>Ошибка загрузки</p>}
+      load={(signal) => loadApplication(applicationId, signal)}
+      loadKey={applicationId}
+      enabled={applicationId !== null}
+      onSuccess={(data) => form.patchValue(data)}
+      delayMs={200}
     >
-      <ul>
-        {countries.map((c) => (
-          <li key={c}>{c}</li>
-        ))}
-      </ul>
+      <CreditForm form={form} />
     </AsyncBoundary>
   );
 }
 ```
+
+Ни `useState`, ни `useEffect` не нужны: статус, отмена запроса при смене
+`applicationId`, кнопка «Повторить» и `idle` для режима создания — внутри компонента.
+
+Перезагрузка снаружи — через `ref`:
+
+```tsx
+import { useRef } from 'react';
+import type { AsyncBoundaryHandle } from '@reformer/cdk/async-boundary';
+
+const boundaryRef = useRef<AsyncBoundaryHandle<Application>>(null);
+
+<button onClick={() => boundaryRef.current?.reload()}>Обновить</button>
+<AsyncBoundary ref={boundaryRef} load={loadApplication}>…</AsyncBoundary>;
+```
+
+Controlled — когда загрузкой владеет кто-то другой (behavior рендерера, внешний стор):
+
+```tsx
+<AsyncBoundary status={status} error={error} onRetry={reload}>
+  <CountriesList countries={countries} />
+</AsyncBoundary>
+```
+
+Скелетон вместо спиннера:
+
+```tsx
+<AsyncBoundary
+  status={status}
+  loadingSlot={
+    <div className="space-y-2">
+      {[0, 1, 2].map((i) => (
+        <Skeleton key={i} className="h-9 w-full" />
+      ))}
+    </div>
+  }
+>
+  <DataTable rows={rows} />
+</AsyncBoundary>
+```
+
+### Anti-patterns
+
+- **Не** схлопывать «нечего грузить» в `ready`: для формы создания (`id === null`)
+  используйте `idle`, иначе пустая форма неотличима от успешно загруженной.
+- **Не** сообщать пустой результат через `status: 'error'` — ноль записей это успех.
+  Пустоту рисует `AsyncBoundaryEmpty` внутри `ready`.
+- **Не** рисовать кнопку повтора без рабочего `onRetry`: неработающий контрол ловит
+  фокус и читается скринридером. Компонент скрывает её сам, когда `onRetry` не задан.
+- Нужен полный контроль над составом состояний — берите headless-версию из
+  `@reformer/cdk/async-boundary`, а не копируйте стилизованную.
 
 ### Anti-patterns
 

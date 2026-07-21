@@ -1,13 +1,12 @@
 /**
- * Хук для загрузки данных кредитной заявки
+ * Загрузка данных кредитной заявки.
  *
- * Загружает:
- * - Данные заявки из API
- * - Справочники (банки, города)
- * - Заполняет форму через form.setValue()
+ * Состоянием загрузки владеет `AsyncBoundary` (self-managed режим): он вызывает
+ * `loadCreditApplication` с `AbortSignal`, сам ведёт `loading`/`ready`/`error`,
+ * отменяет устаревшие запросы и даёт кнопку повтора. Здесь остаются только две
+ * чистые части — «сходить в сеть» и «разложить ответ по форме».
  */
 
-import { useEffect, useState } from 'react';
 import type { FormProxy } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application';
 import { fetchCreditApplication, fetchDictionaries, type DictionariesResponse } from '../api';
@@ -18,120 +17,74 @@ import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/Exist
 // Типы
 // ============================================================================
 
-export interface LoadingState {
-  isLoading: boolean;
-  error: string | null;
+/** Всё, что нужно экрану заявки: сама заявка + справочники. */
+export interface CreditApplicationBundle {
+  application: Partial<CreditApplicationForm>;
+  dictionaries: DictionariesResponse;
 }
 
 // ============================================================================
-// Функция заполнения формы данными полученными от сервера - маппинг данных
+// Загрузка
 // ============================================================================
-const patchFormValue = (
-  form: FormProxy<CreditApplicationForm>,
-  data: Partial<CreditApplicationForm>,
-  dictionaries: DictionariesResponse
-) => {
-  // ======================================================================
-  // Заполнение формы через patchValue
-  // ======================================================================
-  // patchValue рекурсивно заполняет все поля, включая вложенные формы и массивы
-  // Использует Partial<T>, поэтому не требует as any
-  form.patchValue(data);
 
-  // ======================================================================
-  // Обновление динамических справочников через updateComponentProps
-  // ======================================================================
-  // ВАЖНО: вызываем через queueMicrotask, чтобы дождаться завершения
-  // всех реактивных эффектов от patchValue и избежать "Cycle detected"
+/**
+ * Загрузить заявку и справочники как одну единицу.
+ *
+ * Оба запроса идут параллельно, и падение любого одинаково фатально для экрана —
+ * поэтому это один `load`, а не два независимых состояния.
+ *
+ * @param applicationId - идентификатор заявки
+ * @param signal - сигнал отмены от AsyncBoundary
+ */
+export async function loadCreditApplication(
+  applicationId: string,
+  signal?: AbortSignal
+): Promise<CreditApplicationBundle> {
+  const [applicationResponse, dictionariesResponse] = await Promise.all([
+    fetchCreditApplication(applicationId, signal),
+    fetchDictionaries(signal),
+  ]);
+
+  // Разные сообщения: пользователь должен понимать, что именно не загрузилось.
+  if (applicationResponse?.status !== 200) throw new Error('Ошибка загрузки заявки');
+  if (dictionariesResponse?.status !== 200) throw new Error('Ошибка загрузки справочников');
+
+  return {
+    application: applicationResponse.data,
+    dictionaries: dictionariesResponse.data,
+  };
+}
+
+// ============================================================================
+// Раскладка ответа по форме
+// ============================================================================
+
+/**
+ * Заполнить форму данными сервера и обновить динамические справочники.
+ *
+ * @param form - корневой FormProxy заявки
+ * @param bundle - результат {@link loadCreditApplication}
+ */
+export function applyCreditApplication(
+  form: FormProxy<CreditApplicationForm>,
+  { application, dictionaries }: CreditApplicationBundle
+): void {
+  // patchValue рекурсивно заполняет вложенные формы и массивы, принимая Partial<T>.
+  form.patchValue(application);
+
+  // updateComponentProps откладываем: вызванный в том же такте, что и patchValue,
+  // он попадает в ещё не отработавшие реактивные эффекты и preact бросает «Cycle detected».
   queueMicrotask(() => {
-    // Обновляем опции городов для адреса регистрации
-    // registrationAddress - это FormProxy<Address> с полем city
-    form.registrationAddress.city.updateComponentProps({
-      options: dictionaries.cities,
-    });
+    form.registrationAddress.city.updateComponentProps({ options: dictionaries.cities });
+    form.residenceAddress?.city.updateComponentProps({ options: dictionaries.cities });
 
-    // Обновляем опции городов для адреса проживания
-    // residenceAddress - это тоже FormProxy<Address>
-    form.residenceAddress?.city.updateComponentProps({
-      options: dictionaries.cities,
-    });
-
-    // Обновляем опции типов имущества для всех элементов массива properties
-    // properties - это ArrayNode<Property>
-    // forEach возвращает GroupNode элементы, а не значения
+    // forEach отдаёт GroupNode элементов массива, а не их значения.
     form.properties?.forEach((propertyNode: FormProxy<Property>) => {
-      propertyNode.type.updateComponentProps({
-        options: dictionaries.propertyTypes,
-      });
+      propertyNode.type.updateComponentProps({ options: dictionaries.propertyTypes });
     });
 
-    // Обновляем опции банков для всех элементов массива existingLoans
-    // existingLoans - это ArrayNode<ExistingLoan>
-    // forEach возвращает GroupNode элементы, а не значения
     form.existingLoans?.forEach((loanNode: FormProxy<ExistingLoan>) => {
-      loanNode.bank.updateComponentProps({
-        options: dictionaries.banks,
-      });
+      loanNode.bank.updateComponentProps({ options: dictionaries.banks });
     });
   });
-};
-
-// ============================================================================
-// Хук загрузки данных
-// ============================================================================
-
-export const useLoadCreditApplication = (
-  form: FormProxy<CreditApplicationForm>,
-  applicationId: string | null
-) => {
-  const [loadingState, setLoadingState] = useState<LoadingState>({
-    isLoading: !!applicationId, // Загружаем только если есть ID
-    error: null,
-  });
-
-  useEffect(() => {
-    // Если нет ID, не загружаем
-    if (!applicationId) {
-      setLoadingState({ isLoading: false, error: null });
-      return;
-    }
-
-    const loadData = async () => {
-      try {
-        setLoadingState({ isLoading: true, error: null });
-
-        // Параллельная загрузка данных и справочников
-        const [applicationResponse, dictionariesResponse] = await Promise.all([
-          fetchCreditApplication(applicationId),
-          fetchDictionaries(),
-        ]);
-
-        // Проверка ошибок
-        if (applicationResponse?.status !== 200) {
-          throw new Error('Ошибка загрузки заявки');
-        }
-
-        if (dictionariesResponse?.status !== 200) {
-          throw new Error('Ошибка загрузки справочников');
-        }
-
-        // Обновляем данные формы и словари
-        patchFormValue(form, applicationResponse.data, dictionariesResponse.data);
-
-        // Успешная загрузка
-        setLoadingState({ isLoading: false, error: null });
-      } catch (error) {
-        console.error('Ошибка загрузки данных:', error);
-        setLoadingState({
-          isLoading: false,
-          error: error instanceof Error ? error.message : 'Неизвестная ошибка',
-        });
-      }
-    };
-
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [applicationId]); // Перезагружаем только при изменении ID (form стабилен)
-
-  return loadingState;
-};
+}
