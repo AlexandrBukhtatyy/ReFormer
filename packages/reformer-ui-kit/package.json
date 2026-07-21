@@ -318,6 +318,9 @@
     "build": "npm run generate:barrels && npm run generate:llms && vite build",
     "build:stackblitz": "npm run generate:barrels && vite build",
     "dev": "vite",
+    "check:dist-deps": "node scripts/check-dist-deps.mjs",
+    "check:subpaths": "node scripts/check-subpaths.mjs",
+    "check:packaging": "npm run check:dist-deps && npm run check:subpaths",
     "test": "node ../../scripts/run-vitest.mjs",
     "test:watch": "vitest watch"
   },
@@ -361,8 +364,54 @@
     "@reformer/cdk": ">=1.0.0",
     "@reformer/core": ">=1.1.0",
     "@reformer/renderer-react": ">=1.0.0",
+    "@shadcn/react": "^0.2.1",
+    "@tanstack/react-table": ">=8",
+    "cmdk": ">=1",
+    "date-fns": ">=4",
+    "embla-carousel-react": ">=8",
+    "input-otp": ">=1.4",
     "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0"
+    "react-day-picker": ">=10",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-resizable-panels": ">=4",
+    "recharts": ">=3",
+    "sonner": ">=2",
+    "vaul": ">=1"
+  },
+  "peerDependenciesMeta": {
+    "@shadcn/react": {
+      "optional": true
+    },
+    "@tanstack/react-table": {
+      "optional": true
+    },
+    "cmdk": {
+      "optional": true
+    },
+    "date-fns": {
+      "optional": true
+    },
+    "embla-carousel-react": {
+      "optional": true
+    },
+    "input-otp": {
+      "optional": true
+    },
+    "react-day-picker": {
+      "optional": true
+    },
+    "react-resizable-panels": {
+      "optional": true
+    },
+    "recharts": {
+      "optional": true
+    },
+    "sonner": {
+      "optional": true
+    },
+    "vaul": {
+      "optional": true
+    }
   },
   "dependencies": {
     "class-variance-authority": "^0.7.0",
@@ -390,6 +439,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
     "embla-carousel-react": "^8.6.0",
+    "es-module-lexer": "^1.7.0",
     "input-otp": "^1.4.2",
     "react": "^19.2.1",
     "react-day-picker": "^10.0.1",

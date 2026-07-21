@@ -55,6 +55,21 @@ jobs:
       - name: Run @reformer/ui-kit tests
         run: npm run test -w @reformer/ui-kit
 
+      - name: Packaging guard @reformer/ui-kit
+        # Две проверки, которых не даёт ни build, ни vitest — обе про то, что видит
+        # ПОТРЕБИТЕЛЬ пакета, а не монорепо:
+        #   check:dist-deps — каждый внешний импорт dist/ объявлен в dependencies или
+        #     peerDependencies. Ловит зависимость, оставленную в devDependencies: локально
+        #     всё зелёное, а из npm subpath падает с ERR_MODULE_NOT_FOUND (так разъехались
+        #     11 heavy-deps: recharts / cmdk / @tanstack/react-table / …).
+        #   check:subpaths — npm pack + установка тарбола в чистый проект в os.tmpdir()
+        #     и динамический импорт всех subpath из exports. Вне репозитория намеренно:
+        #     внутри него недостающий пакет ложно находится в корневом node_modules.
+        #     Заодно проверяет поле "files" (subpath объявлен, а файла в тарболе нет).
+        # Требует собранных core / cdk / renderer-react — они пакуются локальными
+        # тарболами (проверяем текущий код, а не последний релиз в npm).
+        run: npm run check:packaging -w @reformer/ui-kit
+
       - name: Build @reformer/renderer-json
         run: npm run build -w @reformer/renderer-json
 
