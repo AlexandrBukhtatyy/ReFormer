@@ -297,7 +297,7 @@ const SelectAsync = React.forwardRef<
         >
           <SelectTrigger
             ref={triggerRef}
-            className={cn('w-full', className, showClearButton && 'pr-14')}
+            className={cn('w-full', className, showClearButton && 'pr-9')}
             disabled={initialLoading}
             id={id}
             data-testid={dataTestId}
@@ -372,7 +372,7 @@ const SelectAsync = React.forwardRef<
         {showClearButton && (
           <button
             type="button"
-            className="absolute right-8 top-1/2 -translate-y-1/2 transform cursor-pointer border-none bg-transparent p-0 text-muted-foreground transition-colors hover:text-foreground focus:outline-none z-10"
+            className="absolute right-3 top-1/2 -translate-y-1/2 transform cursor-pointer border-none bg-transparent p-0 text-muted-foreground transition-colors hover:text-foreground focus:outline-none z-10"
             onClick={handleClear}
             aria-label="Clear selection"
             tabIndex={-1}
