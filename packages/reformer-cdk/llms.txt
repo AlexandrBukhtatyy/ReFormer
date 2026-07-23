@@ -2557,8 +2557,7 @@ Props `FileUpload.ItemDeleteTrigger`.
 
 **Signature:**
 ```typescript
-export interface FileUploadItemDeleteTriggerProps
-  extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface FileUploadItemDeleteTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** Рендерить собственный элемент вместо `<button>` (пропсы мержатся в него). */
   asChild?: boolean;
 }
@@ -2601,8 +2600,10 @@ Props `FileUpload.ItemGroup`.
 
 **Signature:**
 ```typescript
-export interface FileUploadItemGroupProps
-  extends Omit<HTMLAttributes<HTMLUListElement>, 'children'> {
+export interface FileUploadItemGroupProps extends Omit<
+  HTMLAttributes<HTMLUListElement>,
+  'children'
+> {
   /** Render prop: вызывается для каждого элемента списка (как `FormArray.List`). */
   children: (item: FileUploadItem) => ReactNode;
 }
@@ -2669,8 +2670,10 @@ Props `FileUpload.ItemPreview`.
 
 **Signature:**
 ```typescript
-export interface FileUploadItemPreviewProps
-  extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'children'> {
+export interface FileUploadItemPreviewProps extends Omit<
+  ImgHTMLAttributes<HTMLImageElement>,
+  'src' | 'children'
+> {
   /** Фолбэк для не-изображений (иконка по типу файла и т.п.). */
   children?: ReactNode;
 }
@@ -2710,8 +2713,10 @@ Props `FileUpload.ItemProgress`.
 
 **Signature:**
 ```typescript
-export interface FileUploadItemProgressProps
-  extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+export interface FileUploadItemProgressProps extends Omit<
+  HTMLAttributes<HTMLDivElement>,
+  'children'
+> {
   /** Кастомный рендер (полоса, спиннер). По умолчанию — текст «NN%». */
   children?: (progress: number) => ReactNode;
 }
@@ -2757,8 +2762,7 @@ Props `FileUpload.ItemRetryTrigger`.
 
 **Signature:**
 ```typescript
-export interface FileUploadItemRetryTriggerProps
-  extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface FileUploadItemRetryTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** Рендерить собственный элемент вместо `<button>` (пропсы мержатся в него). */
   asChild?: boolean;
 }
