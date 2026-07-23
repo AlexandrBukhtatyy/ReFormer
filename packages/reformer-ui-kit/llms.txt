@@ -4749,8 +4749,7 @@ export function FileUploadAvatar({
   ref,
   shape = 'circle',
   ...props
-}: FileUploadAvatarProps &
-  Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
+}: FileUploadAvatarProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
 ```
 
 _Source: src/components/file-upload/variants/avatar/file-upload-avatar.tsx_
@@ -4776,11 +4775,10 @@ Props avatar-варианта: single-файл, только изображен�
 
 **Signature:**
 ```typescript
-export interface FileUploadAvatarProps
-  extends Omit<
-    FileUploadBaseProps,
-    'multiple' | 'maxFiles' | 'allowPaste' | 'hint' | 'placeholder'
-  > {
+export interface FileUploadAvatarProps extends Omit<
+  FileUploadBaseProps,
+  'multiple' | 'maxFiles' | 'allowPaste' | 'hint' | 'placeholder'
+> {
   /** Форма превью. @default 'circle' */
   shape?: 'circle' | 'square';
   /** Доступное имя зоны (aria-label; текста у зоны нет). @default 'Загрузить изображение' */
@@ -4821,8 +4819,7 @@ FileUpload (вариант `button`) — компактное поле загр�
 export function FileUploadBase({
   ref,
   ...props
-}: FileUploadBaseProps &
-  Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
+}: FileUploadBaseProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
 ```
 
 _Source: src/components/file-upload/variants/base/file-upload-base.tsx_
@@ -4906,8 +4903,7 @@ FileUpload (вариант `dropzone`) — зона drag-and-drop: рамка с
 export function FileUploadDropzone({
   ref,
   ...props
-}: FileUploadDropzoneProps &
-  Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
+}: FileUploadDropzoneProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
 ```
 
 _Source: src/components/file-upload/variants/dropzone/file-upload-dropzone.tsx_
@@ -4999,8 +4995,7 @@ FileUpload (вариант `input`) — поле в виде текстовог�
 export function FileUploadInput({
   ref,
   ...props
-}: FileUploadInputProps &
-  Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
+}: FileUploadInputProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
 ```
 
 _Source: src/components/file-upload/variants/input/file-upload-input.tsx_
