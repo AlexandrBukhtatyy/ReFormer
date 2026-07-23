@@ -56,7 +56,7 @@ export interface PhoneValidatorOptions extends ValidateOptions {
  * },
  * ```
  */
-export function phone<TForm = unknown, TField extends string | undefined = string>(
+export function phone<TForm = unknown, TField extends string | null | undefined = string>(
   options?: PhoneValidatorOptions
 ): Validator<TForm, TField> {
   const format: PhoneFormat = options?.format ?? 'any';

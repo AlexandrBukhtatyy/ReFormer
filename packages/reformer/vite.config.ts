@@ -39,6 +39,9 @@ export default defineConfig({
         // Декларативный контракт схемы поведения. Импортирует примитивы из index → общий chunk
         // (единый реестр сигнал→нода и единый ambient-сток).
         behaviors: resolve(__dirname, 'src/form/behaviors.ts'),
+        // Декларативный контракт СХЕМЫ ВАЛИДАЦИИ (validateModel + операторы). Импортирует из index →
+        // общий chunk (тот же реестр сигнал→нода, что и у форм/поведения).
+        validation: resolve(__dirname, 'src/form/validation-schema.ts'),
         // Re-export file that imports from index to ensure single module instance.
         validators: resolve(__dirname, 'src/form/validators.ts'),
         // Granular validator exports for tree-shaking

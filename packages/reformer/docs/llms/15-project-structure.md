@@ -91,7 +91,7 @@ forms/
     ├── schema/                   # The form definition
     │   ├── model.ts             # createModel factory + initial values + array-element factories
     │   ├── schema.ts            # createForm schema tree ({ value: model.$.x, component })
-    │   ├── validation.ts        # validation schema + validateFormModel config
+    │   ├── validation.ts        # defineValidationSchema + validateModel config ({ validateStep, validateAll })
     │   ├── behavior.ts          # defineFormBehavior(...)
     │   └── create-form.ts       # Assembly: createForm({ model, schema, behavior })
     │

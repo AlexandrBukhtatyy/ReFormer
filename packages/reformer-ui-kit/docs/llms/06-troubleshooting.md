@@ -143,17 +143,18 @@ const form = createForm<{ accept: boolean }>({ model, schema });
   после `blur` или `markAsTouched`. Если submit-кнопка не вызывает
   `form.markAsTouched()` — пользователь вообще не увидит ошибку.
 
-**Решение.** На submit обязательно помечаем touched и валидируем модель по схеме
-(M1: `validateFormModel(model, schema)` — именно он прогоняет `validators` листьев
-и роутит ошибки в ноды):
+**Решение.** На submit обязательно помечаем touched и валидируем модель по
+validation-схеме (M1: `validateModel(model, validationSchema)` из
+`@reformer/core/validation` — именно он прогоняет правила и роутит ошибки в ноды;
+`form.submit()`/`validate()` schema-валидацию НЕ гоняют):
 
 ```tsx
-import { validateFormModel } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
 
 const onSubmit = async () => {
   form.markAsTouched();
-  const res = await validateFormModel(model, schema);
-  if (!res.valid) return;
+  const ok = await validateModel(model, validationSchema); // Promise<boolean>
+  if (!ok) return;
   // ... отправка (значения — из model.get())
 };
 ```

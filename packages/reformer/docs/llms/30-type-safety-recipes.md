@@ -4,7 +4,8 @@
 
 ### Recipe 1 — Imports (root cause prevention)
 
-- Модель/форма/валидация/хуки/типы/**примитивы behaviors** — из `@reformer/core`.
+- Модель/форма/хуки/типы/**примитивы behaviors** — из `@reformer/core`.
+- Схема валидации (операторы + раннер `validateModel`) — из `@reformer/core/validation`.
 - Чистые фабрики валидаторов — из `@reformer/core/validators`.
 - Декларативный DSL (`defineFormBehavior` + операторы) — из `@reformer/core/behaviors`.
 
@@ -12,12 +13,17 @@
 import {
   createModel,
   createForm,
-  validateFormModel,
   type FormModel,
   type FormProxy,
   type ModelSignals,
-  type ModelValidator,
 } from '@reformer/core';
+import {
+  defineValidationSchema,
+  validate,
+  cross,
+  validateModel,
+  type Rule,
+} from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
 import { defineFormBehavior, compute, enableWhen, onChange } from '@reformer/core/behaviors';
 ```
@@ -47,38 +53,40 @@ export type CreditApplicationForm = {
 ### Recipe 3 — Схема привязана к сигналам модели
 
 `value` поля — это сигнал модели (`model.$.field`), а не литерал. Тип поля выводится из сигнала.
+Layout-схема БЕЗ валидаторов — правила живут в отдельной validation-схеме.
 
 ```typescript
 const model = createModel<CreditApplicationForm>(initial);
 
 const schema = {
-  loanAmount: { value: model.$.loanAmount, component: Input, validators: [required(), min(50000)] },
+  loanAmount: { value: model.$.loanAmount, component: Input },
   // вложенная группа — builder, принимающий ModelSignals<Sub>
   personalData: personalDataNodes(model.$.personalData),
   // массив — { array, item }
   properties: { array: model.properties, item: propertyItem },
 };
+
+// правила — отдельно; типы полей выводятся из сигналов
+const validation = defineValidationSchema<CreditApplicationForm>(({ model }) => {
+  validate(model.$.loanAmount, [required(), min(50000)]);
+});
 ```
 
-### Recipe 4 — Cross-field валидаторы: типизированный `ModelValidator`
+### Recipe 4 — Cross-field валидаторы: `cross` над типизированным снапшотом
 
-Правило — `ModelValidator<TField, TScope, TRoot>`. `root` типизирован формой, соседние поля
-читаются без `as`:
+Правило — обычная функция `(f: Root) => ValidationError | null` над снапшотом `model.get()`.
+Соседние поля читаются без `as`; ошибка вешается на поле-носитель `sig`:
 
 ```typescript
-import type { ModelValidator } from '@reformer/core';
+import type { ValidationError } from '@reformer/core';
 
-const initialPaymentVsProperty: ModelValidator<number, unknown, CreditApplicationForm> = (
-  _value,
-  _scope,
-  root
-) =>
-  root.initialPayment && root.propertyValue && root.initialPayment > root.propertyValue
+const initialPaymentVsProperty = (f: CreditApplicationForm): ValidationError | null =>
+  f.initialPayment && f.propertyValue && f.initialPayment > f.propertyValue
     ? { code: 'tooHigh', message: 'Взнос не может превышать стоимость' }
     : null;
 
-// в схеме:
-initialPayment: { value: model.$.initialPayment, component: Input, validators: [initialPaymentVsProperty] };
+// внутри defineValidationSchema<CreditApplicationForm>(({ model }) => { ... }):
+cross(model.$.initialPayment, initialPaymentVsProperty);
 ```
 
 ### Recipe 5 — `compute` читает модель напрямую (без аннотаций)
@@ -127,18 +135,19 @@ function MyField<T>({ control }: MyFieldProps<T>) {
 
 ### Recipe 8 — Вынос правил в именованные функции
 
-Cross-field и field-правила — именованные `ModelValidator`, схема остаётся плоской:
+Field-правила — именованные `Rule<T>`, validation-схема остаётся плоской:
 
 ```typescript
-const validateAdultAge: ModelValidator<string> = (value) => {
+import type { Rule } from '@reformer/core/validation';
+
+const validateAdultAge: Rule<string | null> = (value) => {
   if (!value) return null;
   const age = new Date().getFullYear() - new Date(value).getFullYear();
   return age < 18 ? { code: 'tooYoung', message: 'Минимум 18 лет' } : null;
 };
 
-const schema = {
-  birthDate: { value: model.$.birthDate, component: Input, validators: [validateAdultAge] },
-};
+// внутри defineValidationSchema<MyForm>(({ model }) => { ... }):
+validate(model.$.birthDate, [validateAdultAge]);
 ```
 
 ### Anti-patterns to avoid

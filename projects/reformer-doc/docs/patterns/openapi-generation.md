@@ -7,12 +7,12 @@ sidebar_position: 2
 Если бэкенд описан спецификацией OpenAPI (Swagger), её удобно использовать как источник **типов**
 формы. Форма в M1 строится вокруг `type`-алиаса ([структура проекта](./project-structure)), поэтому
 готовый тип запроса из OpenAPI-спеки подставляется прямо в `createModel` / `createForm`, а
-ограничения (`required`, `minLength`, `format`) переносятся в валидаторы.
+ограничения (`required`, `minLength`, `format`) переносятся в **отдельную схему валидации**.
 
 :::caution Своего генератора в ReFormer нет
 `@reformer/core` **не содержит** встроенного генератора кода из OpenAPI (типов, сервисов, схем).
 Ниже — подтверждённый паттерн интеграции под M1: типы получаете внешним генератором, а модель,
-схему и валидацию собираете вручную. Полноценная автогенерация схемы/сервисов — в разделе
+layout-схему и схему валидации собираете вручную. Полноценная автогенерация схемы/сервисов — в разделе
 [Планы](#планы) ниже, как не реализованная на данный момент возможность.
 :::
 
@@ -37,14 +37,13 @@ export type CreateUserRequest = {
 генератор выдаёт `interface`, оберните его: `type CreateUserForm = CreateUserRequest;`.
 :::
 
-## Шаг 2. Модель, схема и валидаторы
+## Шаг 2. Модель, layout-схема и схема валидации
 
-Тип задаёт форму модели. Ограничения из OpenAPI (`required`, `minLength`, `format: email`,
-`minimum`) переносятся в валидаторы-фабрики вручную:
+Тип задаёт форму модели. **Layout-схема** привязывает поля к сигналам модели и описывает вёрстку —
+валидаторов её узлы не несут (в M1 это два раздельных слоя):
 
 ```typescript title="form.schema.ts"
 import { createModel, createForm } from '@reformer/core';
-import { required, email, minLength, min } from '@reformer/core/validators';
 import { Input } from '@reformer/ui-kit';
 import type { CreateUserRequest } from './types';
 
@@ -55,29 +54,52 @@ const model = createModel<CreateUserRequest>({
   age: null,
 });
 
+// Только привязка полей и вёрстка — правила корректности живут в отдельной схеме валидации.
 const schema = {
   firstName: {
     value: model.$.firstName,
     component: Input,
     componentProps: { label: 'Имя' },
-    validators: [required(), minLength(2)], // minLength из OpenAPI
+  },
+  lastName: {
+    value: model.$.lastName,
+    component: Input,
+    componentProps: { label: 'Фамилия' },
   },
   email: {
     value: model.$.email,
     component: Input,
     componentProps: { label: 'Email', type: 'email' },
-    validators: [required(), email()], // format: email
   },
   age: {
     value: model.$.age,
     component: Input,
     componentProps: { label: 'Возраст', type: 'number' },
-    validators: [min(18)], // minimum
   },
 };
 
 const form = createForm<CreateUserRequest>({ model, schema });
 ```
+
+Ограничения из OpenAPI (`required`, `minLength`, `format: email`, `minimum`) переносятся вручную в
+**схему валидации** `defineValidationSchema<T>(({ model }) => …)`. Каждое поле проверяется оператором
+`validate(sig, [rules])` над той же моделью:
+
+```typescript title="validation.ts"
+import { validate, defineValidationSchema } from '@reformer/core/validation';
+import { required, email, minLength, min } from '@reformer/core/validators';
+import type { CreateUserRequest } from './types';
+
+export const userValidation = defineValidationSchema<CreateUserRequest>(({ model }) => {
+  validate(model.$.firstName, [required(), minLength(2)]); // required + minLength
+  validate(model.$.lastName, [required()]);
+  validate(model.$.email, [required(), email()]); // format: email
+  validate(model.$.age, [min(18)]); // minimum
+});
+```
+
+Фабрики-валидаторы (`required`/`email`/…) берутся из `@reformer/core/validators` и переиспользуются как
+есть (value-only, пропускают пустые значения). Отображение ограничений OpenAPI на операторы `validate`:
 
 | OpenAPI                   | Валидатор M1                    |
 | ------------------------- | ------------------------------- |
@@ -87,18 +109,29 @@ const form = createForm<CreateUserRequest>({ model, schema });
 | `format: email`           | `email()`                       |
 | `pattern`                 | `pattern(regexp)`               |
 
+:::info Layout и валидация — независимые слои
+Вёрстку (`form.schema.ts`) и правила (`validation.ts`) можно менять порознь: layout приходит хоть с
+сервера, а схема валидации пишется один раз над той же моделью. Cross-field правила из OpenAPI-инвариантов
+объявляются оператором `cross(sig, fn)`, условные ветки — `validateWhen`, элементы массивов — `each`. См.
+[Схему валидации](../core-concepts/schemas/validation-schema).
+:::
+
 ## Шаг 3. Отправка
 
-Снимок модели `model.get()` уже совпадает по форме с request body — его можно отправлять как есть:
+Перед отправкой схему валидации прогоняет внешний раннер `validateModel(model, schema)` — он возвращает
+`Promise<boolean>` и сам разносит ошибки по нодам формы (UI подсветит поля). Снимок модели `model.get()`
+уже совпадает по форме с request body — его можно отправлять как есть:
 
 ```typescript title="api.ts"
-import { validateFormModel, type FormModel, type FormSchema } from '@reformer/core';
+import { validateModel, type ValidationSchema } from '@reformer/core/validation';
+import type { FormModel } from '@reformer/core';
+import type { CreateUserRequest } from './types';
 
 export async function submitUser(
   model: FormModel<CreateUserRequest>,
-  schema: FormSchema<CreateUserRequest>
+  schema: ValidationSchema<CreateUserRequest>
 ) {
-  const { valid } = await validateFormModel(model, schema);
+  const valid = await validateModel(model, schema); // ошибки сами доедут до нод формы
   if (!valid) return;
 
   await fetch('/users', {
@@ -109,6 +142,12 @@ export async function submitUser(
 }
 ```
 
+:::warning Валидация — только через `validateModel`
+`form.validate()` / `form.submit()` **больше не прогоняют** схему валидации: она запускается
+исключительно внешним раннером `validateModel`. `severity: 'warning'` не блокирует отправку
+(`validateModel` вернёт `true`), а устаревшие прогоны той же пары `(model, schema)` отменяются.
+:::
+
 Так тип из OpenAPI-спеки удерживает согласованность формы и API: несовпадение полей формы с request
 body ловится компилятором TypeScript.
 
@@ -117,11 +156,11 @@ body ловится компилятором TypeScript.
 Встроенная автогенерация из OpenAPI пока **не реализована**. В планах:
 
 - генерация `type`-алиасов формы из request/response-моделей;
-- вывод валидаторов из ограничений схемы (`required`, `minLength`, `format`, …);
+- вывод схемы валидации из ограничений (`required`, `minLength`, `format`, …) в операторы `validate`;
 - генерация сервис-функций отправки формы.
 
 До появления этих возможностей используйте паттерн выше: внешний генератор типов + ручная сборка
-модели/схемы/валидации под M1.
+модели, layout-схемы и схемы валидации под M1.
 
 ## Дальше
 

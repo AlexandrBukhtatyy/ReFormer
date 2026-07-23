@@ -1,15 +1,26 @@
 /**
- * Форма регистрации с ReFormer — новая архитектура (M1).
+ * Форма регистрации с ReFormer — контракт `@reformer/core/validation`.
  *
- * Демонстрирует:
- * - FormModel (данные) + единая Schema (component + componentProps + validators)
- * - createForm({ model, schema }) → FormProxy (ноды привязаны к сигналам модели)
- * - validateFormModel(model, schema) на submit (sync + async, контракт (value, model))
- * - рендер через существующий <FormField control={form.x} /> (нода = сигнал модели)
+ * Демонстрирует РАЗДЕЛЕНИЕ render- и validation-слоёв:
+ * - RENDER-схема (`buildSchema`) — только layout: `{ value, component, componentProps }`, без правил.
+ * - VALIDATION-схема (`registrationValidation`) — стабильный module-level `const`
+ *   `defineValidationSchema(({ model }) => …)` с операторами `validate` / `validateAsync` / `cross`.
+ * - createForm({ model, schema }) → FormProxy (ноды привязаны к сигналам модели).
+ * - На submit: `await validateModel(model, registrationValidation)` (sync + async, снапшот по требованию).
+ * - Рендер через существующий <FormField control={form.x} /> (нода = сигнал модели).
  */
 
 import { useMemo, useState } from 'react';
-import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
+import { createModel, createForm, type ValidationError } from '@reformer/core';
+import {
+  validate,
+  validateAsync,
+  cross,
+  defineValidationSchema,
+  validateModel,
+  type Rule,
+  type AsyncRule,
+} from '@reformer/core/validation';
 import { required, email, minLength, pattern } from '@reformer/core/validators';
 import {
   InputField,
@@ -42,27 +53,29 @@ const INITIAL: RegistrationFormData = {
   acceptTerms: false,
 };
 
-// ── Валидаторы слоя данных (value, model) ───────────────────────────────────
-const passwordStrength: ModelValidator<string> = (value) => {
+// ── Кастомные value-only правила (Rule<T> под validate) ──────────────────────
+const passwordStrength: Rule<string> = (value) => {
   if (!value) return null;
   const ok = /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
   return ok ? null : { code: 'weak-password', message: 'Нужны заглавные, строчные буквы и цифры' };
 };
 
-const passwordsMatch: ModelValidator<string, RegistrationFormData> = (value, model) =>
-  value && model.password && value !== model.password
-    ? { code: 'passwords-mismatch', message: 'Пароли не совпадают' }
-    : null;
-
-const captchaCode: ModelValidator<string> = (value) =>
+const captchaCode: Rule<string> = (value) =>
   value !== 'ABC123'
     ? { code: 'invalid-captcha', message: 'Неверная captcha. Попробуйте ABC123' }
     : null;
 
-const termsAccepted: ModelValidator<boolean> = (value) =>
+const termsAccepted: Rule<boolean> = (value) =>
   value ? null : { code: 'terms-required', message: 'Необходимо принять условия' };
 
-const usernameAvailable: ModelValidator<string> = async (value) => {
+// ── Cross-field правило (читает другое поле → через cross) ───────────────────
+const passwordsMatch = (f: RegistrationFormData): ValidationError | null =>
+  f.confirmPassword && f.password && f.confirmPassword !== f.password
+    ? { code: 'passwords-mismatch', message: 'Пароли не совпадают' }
+    : null;
+
+// ── Async-правила (AsyncRule<T> под validateAsync) ───────────────────────────
+const usernameAvailable: AsyncRule<string> = async (value) => {
   if (!value || value.length < 3) return null;
   try {
     await new Promise((r) => setTimeout(r, 300));
@@ -76,7 +89,7 @@ const usernameAvailable: ModelValidator<string> = async (value) => {
   }
 };
 
-const emailAvailable: ModelValidator<string> = async (value) => {
+const emailAvailable: AsyncRule<string> = async (value) => {
   if (!value || !value.includes('@')) return null;
   try {
     await new Promise((r) => setTimeout(r, 300));
@@ -88,7 +101,46 @@ const emailAvailable: ModelValidator<string> = async (value) => {
   }
 };
 
-// ── Единая схема: данные из модели, конфиг поля и валидаторы — здесь ─────────
+// ── Схема валидации (стабильный module-level const) ──────────────────────────
+const registrationValidation = defineValidationSchema<RegistrationFormData>(({ model }) => {
+  validate(model.$.username, [
+    required({ message: 'Имя пользователя обязательно' }),
+    minLength(3, { message: 'Минимум 3 символа' }),
+    pattern(/^[a-zA-Z0-9_]{3,20}$/, { message: 'Латиница, цифры, _ (3-20)' }),
+  ]);
+  validateAsync(model.$.username, [usernameAvailable]);
+
+  validate(model.$.email, [
+    required({ message: 'Email обязателен' }),
+    email({ message: 'Некорректный email' }),
+  ]);
+  validateAsync(model.$.email, [emailAvailable]);
+
+  validate(model.$.password, [
+    required({ message: 'Пароль обязателен' }),
+    minLength(8, { message: 'Минимум 8 символов' }),
+    passwordStrength,
+  ]);
+
+  validate(model.$.confirmPassword, [required({ message: 'Подтвердите пароль' })]);
+  cross(model.$.confirmPassword, passwordsMatch);
+
+  validate(model.$.fullName, [
+    required({ message: 'Полное имя обязательно' }),
+    minLength(2, { message: 'Минимум 2 символа' }),
+  ]);
+
+  validate(model.$.phone, [
+    required({ message: 'Телефон обязателен' }),
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 123-45-67' }),
+  ]);
+
+  validate(model.$.captcha, [required({ message: 'Введите captcha' }), captchaCode]);
+
+  validate(model.$.acceptTerms, [termsAccepted]);
+});
+
+// ── RENDER-схема: только layout (component + componentProps), без правил ─────
 function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>) {
   return {
     children: [
@@ -100,12 +152,6 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
           placeholder: 'Логин (латиница)',
           testId: 'username',
         },
-        validators: [
-          required({ message: 'Имя пользователя обязательно' }),
-          minLength(3, { message: 'Минимум 3 символа' }),
-          pattern(/^[a-zA-Z0-9_]{3,20}$/, { message: 'Латиница, цифры, _ (3-20)' }),
-          usernameAvailable,
-        ],
       },
       {
         value: model.$.email,
@@ -116,21 +162,11 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
           type: 'email',
           testId: 'email',
         },
-        validators: [
-          required({ message: 'Email обязателен' }),
-          email({ message: 'Некорректный email' }),
-          emailAvailable,
-        ],
       },
       {
         value: model.$.password,
         component: InputPasswordField,
         componentProps: { label: 'Пароль', placeholder: 'Минимум 8 символов', testId: 'password' },
-        validators: [
-          required({ message: 'Пароль обязателен' }),
-          minLength(8, { message: 'Минимум 8 символов' }),
-          passwordStrength,
-        ],
       },
       {
         value: model.$.confirmPassword,
@@ -140,16 +176,11 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
           placeholder: 'Повторите пароль',
           testId: 'confirmPassword',
         },
-        validators: [required({ message: 'Подтвердите пароль' }), passwordsMatch],
       },
       {
         value: model.$.fullName,
         component: InputField,
         componentProps: { label: 'Полное имя', placeholder: 'Иван Иванов', testId: 'fullName' },
-        validators: [
-          required({ message: 'Полное имя обязательно' }),
-          minLength(2, { message: 'Минимум 2 символа' }),
-        ],
       },
       {
         value: model.$.phone,
@@ -160,10 +191,6 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
           mask: '+7 (999) 999-99-99',
           testId: 'phone',
         },
-        validators: [
-          required({ message: 'Телефон обязателен' }),
-          pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 123-45-67' }),
-        ],
       },
       {
         value: model.$.captcha,
@@ -173,24 +200,22 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
           placeholder: 'Подсказка: ABC123',
           testId: 'captcha',
         },
-        validators: [required({ message: 'Введите captcha' }), captchaCode],
       },
       {
         value: model.$.acceptTerms,
         component: CheckboxField,
         componentProps: { label: 'Я принимаю условия использования', testId: 'acceptTerms' },
-        validators: [termsAccepted],
       },
     ],
   };
 }
 
 export default function RegistrationForm() {
-  const { model, form, schema } = useMemo(() => {
+  const { model, form } = useMemo(() => {
     const m = createModel<RegistrationFormData>({ ...INITIAL });
     const s = buildSchema(m);
     const f = createForm<RegistrationFormData>({ model: m, schema: s });
-    return { model: m, form: f, schema: s };
+    return { model: m, form: f };
   }, []);
 
   const [pending, setPending] = useState(false);
@@ -199,10 +224,10 @@ export default function RegistrationForm() {
     e.preventDefault();
     form.markAsTouched();
     setPending(true);
-    const res = await validateFormModel(model, schema);
+    const ok = await validateModel(model, registrationValidation);
     setPending(false);
 
-    if (res.valid) {
+    if (ok) {
       try {
         const response = await fetch('/api/v1/auth/register', {
           method: 'POST',

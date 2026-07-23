@@ -93,15 +93,21 @@ aggregateInto(model.$.rows, (rows) => {
 
 ### Array Cross-Validation
 
-Cross-field правило по массиву — `ModelValidator`, читает элементы через `root`:
+Whole-array правило — оператор `cross(sig, (f) => ...)` из `@reformer/core/validation`:
+`f` — снапшот `model.get()`, ошибка вешается на скалярное поле-носитель `sig`. Per-item
+правила — `each(model.<array>, (im) => ...)`.
 
 ```typescript
-import type { ModelValidator } from '@reformer/core';
+import { cross } from '@reformer/core/validation';
+import type { ValidationError } from '@reformer/core';
 
-const percentagesSumTo100: ModelValidator<unknown, unknown, MyForm> = (_v, _s, root) => {
-  const total = root.items.reduce((sum, i) => sum + (i.percentage || 0), 0);
+const percentagesSumTo100 = (f: MyForm): ValidationError | null => {
+  const total = f.items.reduce((sum, i) => sum + (i.percentage || 0), 0);
   return Math.abs(total - 100) > 0.01
     ? { code: 'invalid_total', message: 'Percentages must sum to 100%' }
     : null;
 };
+
+// внутри defineValidationSchema<MyForm>(({ model }) => { ... })
+cross(model.$.totalPercent, percentagesSumTo100); // носитель — скалярное поле формы
 ```

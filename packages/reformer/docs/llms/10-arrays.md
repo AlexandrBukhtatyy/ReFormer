@@ -47,13 +47,16 @@ const form = createForm<MyForm>({ model, schema });
    properties: { array: model.properties, item: propertyItem },
    ```
 
-2. **Validation-схема `validateFormModel`** — секция массива описывается через `componentProps`:
-   `{ componentProps: { control: model.<array>, itemComponent: (item) => subSchema } }`. Движок
-   узнаёт секцию по `componentProps.itemComponent` + `control` и обходит её per-item.
+2. **Validation-схема (`@reformer/core/validation`)** — per-item правила пишутся оператором
+   `each(arr, (im) => {...})` внутри `defineValidationSchema`; `im` — под-модель элемента
+   (`im.$.field` — его сигналы). Запуск — внешним `validateModel(model, schema)`.
 
    ```typescript
-   // узел схемы для validateFormModel(model, schema)
-   { componentProps: { control: model.properties, itemComponent: propertyRules } }
+   // внутри defineValidationSchema<MyForm>(({ model }) => { ... })
+   each(model.properties, (im) => {
+     validate(im.$.description, [required()]);
+     validate(im.$.estimatedValue, [required(), min(1)]);
+   });
    ```
 
 3. **CDK / render** — работают с уже **материализованной** нодой `form.<array>` (`ModelArrayNode`),
@@ -61,9 +64,9 @@ const form = createForm<MyForm>({ model, schema });
    `@reformer/ui-kit` (`control={form.properties}`, `itemComponent`).
 
 > **Не путай форму по движку.** `createForm` принимает **только** `{ array, item }`;
-> `componentProps.{ control, itemComponent }` — это форма validation-схемы; `FormArray.Root
-> control={form.x}` (или `FormArraySection`) — рендер. `control`/`itemComponent` в layout-схеме
-> `createForm` не подхватятся, а `{ array, item }` схема валидации не обходит.
+> per-item валидация — это `each(model.<array>, (im) => ...)` в validation-схеме; `FormArray.Root
+> control={form.x}` (или `FormArraySection`) — рендер. `each` в layout-схеме `createForm`
+> не подхватится, а `{ array, item }` в validation-схеме не обходится.
 
 ### Array operations — на модели
 
@@ -131,23 +134,28 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 
 ### Array Cross-Validation
 
-Cross-field правило по массиву пишется как `ModelValidator`, читает элементы через `root`,
-вешается на поле-носитель ошибки (или на первый элемент). Секции массива в схеме валидации
-обходятся per-item движком `validateFormModel` (см. `03-api-signatures.md`).
+Whole-array правило пишется оператором `cross(sig, (f) => ...)`: `f` — снапшот `model.get()`
+(плоские значения), ошибка вешается на поле-носитель `sig`. Per-item правила — `each`
+(см. выше, оба — из `@reformer/core/validation`).
+
+Носитель — любое **скалярное** поле формы (флаг `hasItems`, итоговая сумма и т.п.), у которого
+есть сигнал `model.$.<field>` и нода в форме:
 
 ```typescript
-import type { ModelValidator } from '@reformer/core';
+import { cross } from '@reformer/core/validation';
 
-// уникальность имён по массиву
-const uniqueNames: ModelValidator<unknown, unknown, MyForm> = (_value, _scope, root) => {
-  const names = root.items.map((i) => i.name);
+type MyForm = { hasItems: boolean; items: Item[] };
+
+// внутри defineValidationSchema<MyForm>(({ model }) => { ... })
+cross(model.$.hasItems, (f: MyForm) => {
+  const names = f.items.map((i) => i.name);
   return names.length !== new Set(names).size
     ? { code: 'duplicate', message: 'Item names must be unique' }
     : null;
-};
+});
 ```
 
 ## See also
 
-- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры нод `form.<array>` / `ModelArray`, per-item обход `validateFormModel`
+- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры нод `form.<array>` / `ModelArray`, per-item валидация `each`
 - CDK / ui-kit form-array (`FormArray.Root`, `FormArraySection`) — `find_recipe(topic="form-array")`

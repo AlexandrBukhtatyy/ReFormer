@@ -73,8 +73,9 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 { selector: 'pwd', value: model.$.password, component: InputPasswordField } // → schema.node('pwd')
 ```
 
-Благодаря `__path` пути из `validateFormModel(model, schema).errors` **напрямую годятся как ключ ref**
-— см. рецепт ниже. Для строк `FormArray` индексы не нужно перечислять в схеме.
+Благодаря `__path` путь модели — **одновременно ключ ref и адрес сигнала** (`model.signalAt(path)`),
+поэтому после `validateModel` ошибки поля читаются по тому же пути — см. рецепт ниже. Для строк
+`FormArray` индексы не нужно перечислять в схеме.
 
 ## Контракты handle
 
@@ -95,20 +96,25 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 
 ## Рецепт: focus первого невалидного поля после submit
 
-Классика UX, реактивно невыразимая. `validateFormModel` возвращает `errors`, ключованные путём
-модели, а путь — готовый ключ ref:
+Классика UX, реактивно невыразимая. `validateModel` роутит ошибки в ноды; нода поля
+резолвится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь —
+готовый ключ ref:
 
 ```tsx
-import { validateFormModel } from '@reformer/core';
+import { getNodeForSignal } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
 import type { FieldHandle } from '@reformer/ui-kit';
 
 const ORDER = ['email', 'password', 'city', 'nickname']; // порядок обхода = порядок полей
 
 async function handleSubmit() {
-  const res = await validateFormModel(model, schema);
-  if (res.valid) return submit();
+  const ok = await validateModel(model, validationSchema); // ошибки уже в нодах
+  if (ok) return submit();
 
-  const firstInvalid = ORDER.find((path) => (res.errors[path]?.length ?? 0) > 0);
+  const firstInvalid = ORDER.find((path) => {
+    const sig = model.signalAt(path); // пути статические — сигнал существует
+    return sig ? (getNodeForSignal(sig)?.errors.value.length ?? 0) > 0 : false;
+  });
   if (!firstInvalid) return;
 
   const ref = schema.node(firstInvalid).getRef<FieldHandle>();

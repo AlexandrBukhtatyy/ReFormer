@@ -4,8 +4,6 @@
     "selector": "prefill-boundary",
     "component": "$component(AsyncBoundary)",
     "componentProps": {
-      "load": "$fn(loadPrefill)",
-      "onSuccess": "$fn(applyPrefill)",
       "delayMs": 0,
       "loadingTitle": "Загружаем данные приглашения…",
       "loadingSubtitle": "Пожалуйста, подождите",
@@ -145,7 +143,6 @@
                     "component": "$component(Button)",
                     "componentProps": {
                       "type": "button",
-                      "onClick": "$fn(submit)",
                       "data-testid": "submit"
                     },
                     "text": "Зарегистрироваться"
@@ -156,7 +153,6 @@
                     "componentProps": {
                       "type": "button",
                       "variant": "secondary",
-                      "onClick": "$fn(reset)",
                       "data-testid": "reset"
                     },
                     "text": "Очистить"

@@ -2,26 +2,41 @@
 
 ### Imports rule (#1 cause of cascading errors — read first)
 
-- Модель/форма/валидация/хуки/типы/**примитивы behaviors** — из `@reformer/core`.
-- Чистые фабрики валидаторов — из `@reformer/core/validators`.
-- Декларативный DSL (`defineFormBehavior` + операторы) — из `@reformer/core/behaviors`.
+- Модель/форма/хуки/типы (`FormModel`, `ValidationError`)/**примитивы behaviors** — из `@reformer/core`.
+- Схема валидации (`defineValidationSchema` + операторы `validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply`) и раннер `validateModel` — из `@reformer/core/validation`.
+- Чистые фабрики валидаторов (`required`/`min`/`email`/…) — из `@reformer/core/validators`.
+- Декларативный DSL поведения (`defineFormBehavior` + операторы) — из `@reformer/core/behaviors`.
 
 ```typescript
 // ✅ CORRECT
 import {
   createModel,
   createForm,
-  validateFormModel,
   useFormControl,
   useFormControlValue,
   type FormProxy,
   type FieldConfig,
-  type ModelValidator,
+  type FormModel,
+  type ValidationError,
 } from '@reformer/core';
+// схема валидации + раннер — отдельный слой:
+import {
+  defineValidationSchema,
+  validate,
+  validateAsync,
+  validateWhen,
+  cross,
+  each,
+  apply,
+  validateModel,
+  type Rule,
+  type AsyncRule,
+  type ValidationSchema,
+} from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
 // либо примитивы behaviors из основного пакета:
 import { computeFrom, enableWhen, copyFrom } from '@reformer/core';
-// либо декларативный DSL:
+// либо декларативный DSL поведения:
 import { defineFormBehavior, compute, onChange } from '@reformer/core/behaviors';
 ```
 
@@ -68,38 +83,56 @@ enableWhen(model.$.city, () => Boolean(model.country), { resetOnDisable: true })
 computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => price * qty);
 ```
 
-### Валидаторы — фабрики в массиве `validators`
+### Валидаторы — оператор `validate`, а не layout-нода
+
+Валидация — **отдельный слой** (`@reformer/core/validation`), а не поле layout-ноды. Layout
+(схема `createForm` / JSON-DSL) больше **не несёт** `validators`: правила живут в `ValidationSchema`,
+а прогоняет их внешний раннер `validateModel`. ⚠️ `form.validate()`/`submit()` schema-валидацию
+**НЕ запускают** — прогон только через `validateModel(model, schema)`.
 
 ```typescript
-// ❌ WRONG - нет операторов validate()/applyWhen(); строка вместо options
-validate(path.email, required(), 'Email is required');
-
-// ✅ CORRECT - фабрика с options, в поле схемы
+// ❌ WRONG - дерево { value, validators } и позиционная строка удалены
 const schema = {
-  email: {
-    value: model.$.email,
-    component: Input,
-    validators: [required({ message: 'Email is required' }), email()],
-  },
+  email: { value: model.$.email, component: Input, validators: [required(), email()] },
 };
+validate(path.email, required(), 'Email is required'); // старая сигнатура validate() — удалена
+
+// ✅ CORRECT - операторы validate/validateAsync внутри defineValidationSchema; фабрики с options
+const emailSchema = defineValidationSchema<MyForm>(({ model }) => {
+  validate(model.$.email, [required({ message: 'Email is required' }), email()]);
+  validateAsync(model.$.email, [
+    async (value, { signal }) => {
+      const res = await fetch(`/api/free?email=${value}`, { signal });
+      return (await res.json()).free ? null : { code: 'taken', message: 'Email занят' };
+    },
+  ]);
+});
+
+// прогон по требованию (submit/шаг): ошибки сами доезжают до нод формы, warnings не блокируют
+const ok = await validateModel(model, emailSchema);
 ```
 
-### Cross-field — через `root`, а не `ctx.form`
+### Cross-field — оператор `cross`, а не `ctx.form`
 
 ```typescript
-// ❌ WRONG - ctx.form / ctx.setFieldValue / value.value — старый API, не существует
+// ❌ WRONG - ctx.form / ctx.setFieldValue / value.value — старый API; ModelValidator(value,scope,root) удалён
 watchField(path.amount, (amount, ctx) => {
   const rate = ctx.form.rate.value.value;
   ctx.setFieldValue('total', amount * rate);
 });
 
-// ✅ CORRECT - compute на сигналах; cross-field validator читает root
+// ✅ CORRECT - compute (поведение) на сигналах; cross-field (валидация) через оператор cross
 compute(model.$.total, () => (model.amount ?? 0) * (model.rate ?? 0));
 
-const amountVsMax: ModelValidator<number, unknown, MyForm> = (value, _s, root) =>
-  value != null && root.maxAmount != null && value > root.maxAmount
+// cross-field правило — обычная функция над снапшотом Root (`model.get()`), навешивается через cross(sig, fn):
+const amountVsMax = (f: MyForm): ValidationError | null =>
+  f.amount != null && f.maxAmount != null && f.amount > f.maxAmount
     ? { code: 'tooBig', message: 'Превышает лимит' }
     : null;
+
+const amountSchema = defineValidationSchema<MyForm>(({ model }) => {
+  cross(model.$.amount, amountVsMax); // fn получает model.get(), вешает ошибку на model.$.amount
+});
 ```
 
 ### Form-shape types — `type` over `interface`

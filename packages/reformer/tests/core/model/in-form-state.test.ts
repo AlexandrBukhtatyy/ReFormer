@@ -1,20 +1,16 @@
 /**
- * Unit tests: state-операции behavior (enableWhen/disableWhen) и in-form роутинг валидации
- * (validateFormModel) — через реестр сигнал→нода (M1, Ф5/Ф4-хвост).
+ * Unit tests: state-операции behavior (enableWhen/disableWhen) через реестр сигнал→нода (M1).
+ * (In-form роутинг валидации теперь тестируется в `validate-model-schema.test.ts` — новый контракт.)
  */
 
 import { describe, it, expect } from 'vitest';
 import { createForm } from '../../../src/form/create-form';
 import { createModel } from '../../../src/state/index';
-import { enableWhen, disableWhen, validateFormModel } from '../../../src/form/index';
-import type { ModelValidator } from '../../../src/form/index';
+import { enableWhen, disableWhen } from '../../../src/form/index';
 
 const InputStub = () => null;
 // микротаск-флаш (enableWhen пишет состояние через runOutsideEffect = queueMicrotask)
 const tick = () => new Promise((r) => setTimeout(r, 0));
-
-const required: ModelValidator<unknown> = (v) =>
-  v === '' || v == null ? { code: 'required', message: 'Обязательно' } : null;
 
 interface LoanForm {
   loanType: 'consumer' | 'mortgage';
@@ -69,26 +65,5 @@ describe('enableWhen / disableWhen (signals + registry)', () => {
     model.loanType = 'mortgage';
     await tick();
     expect(form.propertyValue.disabled.value).toBe(false);
-  });
-});
-
-describe('validateFormModel (in-form роутинг ошибок)', () => {
-  it('роутит ошибки в ноды и очищает при исправлении', async () => {
-    const model = createModel<{ email: string }>({ email: '' });
-    const schema = {
-      children: [{ value: model.$.email, component: InputStub, validators: [required] }],
-    };
-    const form = createForm<{ email: string }>({ model, schema });
-
-    let res = await validateFormModel(model, schema);
-    expect(res.valid).toBe(false);
-    expect(form.email.invalid.value).toBe(true);
-    expect(form.email.errors.value.length).toBeGreaterThan(0);
-
-    model.email = 'a@b.c';
-    res = await validateFormModel(model, schema);
-    expect(res.valid).toBe(true);
-    expect(form.email.invalid.value).toBe(false);
-    expect(form.email.errors.value.length).toBe(0);
   });
 });

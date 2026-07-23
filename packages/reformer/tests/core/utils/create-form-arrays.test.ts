@@ -10,7 +10,6 @@
 import { describe, it, expect } from 'vitest';
 import { createForm } from '../../../src/form/create-form';
 import { createModel } from '../../../src/state/index';
-import { validateFormModel } from '../../../src/form/index';
 import { required } from '../../../src/form/validation/validators/index';
 import type { FormModel } from '../../../src/state/index';
 
@@ -66,22 +65,6 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
       relationship: 'брат',
       monthlyIncome: 120000,
     });
-  });
-
-  it('валидаторы элемента исполняются движком и роутятся в ноды', async () => {
-    const model = createModel<Form>({ loanAmount: 0, coBorrowers: [] });
-    model.coBorrowers.push({ personalData: { lastName: '' }, relationship: '', monthlyIncome: 0 });
-    const item = model.coBorrowers.at(0)!;
-    const s = itemSchema(item);
-    const itemForm = createForm<CoBorrower>({ model: item, schema: s });
-
-    let res = await validateFormModel(item, s);
-    expect(res.valid).toBe(false);
-    expect(itemForm.relationship.invalid.value).toBe(true);
-    item.relationship = 'сестра';
-    res = await validateFormModel(item, s);
-    expect(res.valid).toBe(true);
-    expect(itemForm.relationship.valid.value).toBe(true);
   });
 
   it('сигнал элемента знает полный путь с индексом', () => {

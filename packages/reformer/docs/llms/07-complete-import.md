@@ -1,15 +1,11 @@
 ## Import Patterns
 
 ```typescript
-// Модель, форма, валидация, хуки, типы, примитивы behaviors — из @reformer/core
+// Модель, форма, хуки, типы, примитивы behaviors — из @reformer/core
 import {
   // фабрики
   createModel,
   createForm,
-  // валидация данных (headless)
-  validateModel,
-  validateModelSync,
-  validateFormModel,
   // хуки
   useFormControl,
   useFormControlValue,
@@ -36,14 +32,30 @@ import type {
   ModelArray,       // реактивный массив модели (push/removeAt/at/map/length)
   ModelSignals,     // дерево сигналов ($)
   PathAwareSignal,  // сигнал, знающий свой путь
-  ModelValidator,   // (value, scope, root) => ValidationError | null
   ValidationError,
-  FieldConfig,      // { value, component, componentProps?, validators?, ... }
+  FieldConfig,      // { value, component, componentProps?, ... } — layout, БЕЗ валидаторов
   FormSchema,
   FieldControlState,
 } from '@reformer/core';
 
-// Валидаторы — чистые фабрики из /validators
+// Схема валидации: операторы + раннер — из /validation
+import {
+  defineValidationSchema,
+  validate,
+  validateAsync,
+  validateWhen,
+  cross,
+  each,
+  apply,
+  validateModel, // раннер: validateModel(model, schema) => Promise<boolean>
+} from '@reformer/core/validation';
+import type {
+  Rule,             // (value) => ValidationError | null
+  AsyncRule,        // (value, { signal }) => Promise<ValidationError | null>
+  ValidationSchema,
+} from '@reformer/core/validation';
+
+// Валидаторы — чистые фабрики из /validators (кладутся в validate(sig, [...]))
 import { required, min, max, email, minLength, pattern } from '@reformer/core/validators';
 
 // Декларативный DSL behaviors — из /behaviors

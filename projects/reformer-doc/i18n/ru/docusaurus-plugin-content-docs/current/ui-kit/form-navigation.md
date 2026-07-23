@@ -11,13 +11,10 @@ Headless compound component для multi-step form wizard.
 ```tsx
 import { FormWizard } from '@reformer/cdk/form-wizard';
 
-const config = {
-  stepValidations: {
-    1: step1Schema,
-    2: step2Schema,
-  },
-  fullValidation: fullFormSchema,
-};
+// config — колбэки validateStep / validateAll (см. раздел «Конфигурация»).
+// Валидация — отдельный слой @reformer/core/validation: раннер validateModel
+// прогоняет ValidationSchema и сам разносит ошибки по нодам формы.
+const config = makeValidationConfig(model);
 
 <FormWizard form={form} config={config}>
   <FormWizard.Step component={Step1Form} control={form} />
@@ -243,17 +240,54 @@ const result = await navRef.current?.submit(async (values) => {
 
 ## Конфигурация
 
+Конфиг несёт только колбэки валидации. Валидация — отдельный слой
+(`@reformer/core/validation`), поэтому конфиг от типа формы не зависит:
+
 ```typescript
-interface FormWizardConfig<T> {
-  stepValidations: Record<number, ValidationSchemaFn<T>>;
-  fullValidation: ValidationSchemaFn<T>;
+interface FormWizardConfig {
+  /** Валидация шага (1-based). true → шаг валиден. Нет колбэка → шаг валиден. */
+  validateStep?: (step: number) => boolean | Promise<boolean>;
+  /** Валидация всей формы перед submit. Нет колбэка → submit без блокировки. */
+  validateAll?: () => boolean | Promise<boolean>;
 }
 ```
 
-Валидация происходит автоматически:
+Колбэки собираются раннером `validateModel(model, schema)` над схемами
+`ValidationSchema<T>` (схема — обычная функция `({ model }) => void` из
+`@reformer/core/validation`). Удобно завести фабрику:
 
-- При `next.onClick`: валидируется текущий шаг
-- При `submit.onClick`: валидируется вся форма
+```typescript
+import { type FormModel } from '@reformer/core';
+import {
+  apply,
+  validateModel,
+  defineValidationSchema,
+  type ValidationSchema,
+} from '@reformer/core/validation';
+
+const STEP_SCHEMAS: ValidationSchema<MyForm>[] = [step1, step2, step3];
+// Полная схема = композиция шагов (+ form-level cross-field при необходимости).
+const fullSchema = defineValidationSchema<MyForm>(() => apply(...STEP_SCHEMAS));
+
+function makeValidationConfig(model: FormModel<MyForm>): FormWizardConfig {
+  return {
+    validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1]),
+    validateAll: () => validateModel(model, fullSchema),
+  };
+}
+```
+
+Валидация запускается автоматически:
+
+- При `next.onClick` / `goToNextStep()`: `validateStep(currentStep)`.
+- При `submit.onClick` / `submit()`: `validateAll()`.
+
+Раннер `validateModel` сам разносит ошибки по нодам формы (`setErrors`), гасит
+поля, ставшие валидными, и отменяет устаревшие прогоны. `severity: 'warning'`
+submit не блокирует.
+
+> ⚠️ `form.validate()` / `form.submit()` schema-валидацию больше **не** прогоняют —
+> единственный вход в неё это внешний `validateModel` (здесь — внутри колбэков конфига).
 
 ## Полный пример
 
@@ -266,19 +300,11 @@ const STEPS = [
 
 function MultiStepForm() {
   const navRef = useRef<FormWizardHandle<MyForm>>(null);
-  const form = useMemo(() => createForm(), []);
+  // createForm возвращает { form, model }: model нужен раннеру validateModel.
+  const { form, model } = useMemo(() => createForm(), []);
 
-  const config = useMemo(
-    () => ({
-      stepValidations: {
-        1: basicInfoSchema,
-        2: contactSchema,
-        3: confirmationSchema,
-      },
-      fullValidation: fullSchema,
-    }),
-    []
-  );
+  // config = колбэки validateStep / validateAll (см. раздел «Конфигурация»).
+  const config = useMemo(() => makeValidationConfig(model), [model]);
 
   const handleSubmit = async () => {
     const result = await navRef.current?.submit(async (values) => {

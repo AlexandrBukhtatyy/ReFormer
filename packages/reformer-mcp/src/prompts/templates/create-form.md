@@ -14,7 +14,7 @@ You design and write a new form on `@reformer/*`.
 ## Critical inline rules
 
 - **Architecture M1**: `createModel<T>(initialValues)` holds the data (source of truth); the schema binds each field to a model signal (`value: model.$.field`) plus `component` / `componentProps`; `createForm<T>({ model, schema })` wires nodes to the model's signals. Values live in the model, never in a standalone form config.
-- **FormSchema only declarative**: this prompt does NOT add validation/behavior. Use `add-validation` and `add-behavior` separately. Leave `validators` off the leaves here.
+- **FormSchema only declarative — layout carries NO validators**: this prompt does NOT add validation/behavior. Under the split contract the layout schema has no `validators` key at all — validation is a **separate** `defineValidationSchema<T>(({ model }) => …)` run on demand by `validateModel(model, schema)` (from `@reformer/core/validation`), and behavior is `defineFormBehavior`. Produce those with `add-validation` / `add-behavior` separately; every leaf here stays pure layout (`{ value, component, componentProps }`). A `validators: [...]` array on a leaf is the old shape — do not emit it.
 - **`useMemo`** when creating model + form in a React component: build `model`, then `schema`, then `form` inside one `useMemo(() => { const m = createModel<T>({...}); const s = buildSchema(m); const f = createForm<T>({ model: m, schema: s }); return { model: m, form: f, schema: s }; }, [])`.
 - **FormField** (from `@reformer/ui-kit`) usage: `<FormField control={form.x} testId="step1.x" />`. NOT the cdk compound `FormField.Root/Label/Control/Error` for ordinary fields.
 - **Leaf node shape**: `{ value: model.$.field, component: Input, componentProps: {...} }`. `value` is the model signal (`model.$.field`, a `PathAwareSignal`) — obligatory. Never a plain string field name, never a bare value.
@@ -24,7 +24,7 @@ You design and write a new form on `@reformer/*`.
 - **Spec compliance — literal**: every spec field = separate FormSchema field with the same name and the same step. No merging, no skipping, no moving.
 - **testId convention**: dotted path (`step1.loanAmount`, `step2.passportData.series`), never bare leaf names — collisions inevitable across steps. **NEVER pre-prefix `input-` to the testId value** — renderer auto-prefixes when emitting `data-testid="input-${testId}"`. Pre-prefixed `testId: 'input-step1.X'` produces double-prefixed `data-testid="input-input-step1.X"` → playwright selectors that look for `[data-testid^="input-step1."]` silently miss every field.
 - **User-facing strings**: from spec or in the user's native language. No default English `"Select an option..."` placeholders.
-- **`required(...)` always with `{ message }`**: never default `"Поле обязательно для заполнения"`.
+- **`required(...)` always with `{ message }`**: never default `"Поле обязательно для заполнения"`. (Applies in the separate validation layer — validator factories `required()/min()/…` come from `@reformer/core/validators` and live inside the `defineValidationSchema`, never on layout leaves.)
 - **`componentProps` use camelCase React-style prop names**, not HTML-lowercase. Pass-through to the React leaf component → React DOM rejects the lowercase variant with a console warning. Common offenders: `readOnly` (NOT `readonly`), `htmlFor` (NOT `for`), `tabIndex` (NOT `tabindex`), `autoFocus` (NOT `autofocus`), `maxLength` / `minLength` (NOT `maxlength` / `minlength`). Sub-agents intuitively reach for the HTML attribute name — that spams `Warning: Invalid DOM property '<name>'. Did you mean '<camelCase>'?` on every render.
 
 - **Inside a RenderSchema (`target=renderer-react`) — a leaf carries the MODEL SIGNAL (`value: model.$.x`), NEVER the resolved `form.X` FieldNode.** Under M1 the render tree binds to the model, and the state-node (errors/disabled) is resolved by signal through the registry that `createForm` populates:
@@ -108,7 +108,7 @@ export function MyFormPage() {
 }
 ```
 
-Runtime entities that cannot live in static JSON (a `FormProxy` for a wizard node, a validation config) are injected via the `renderBehavior` prop + `onInit`/`patchProps`, addressing the node by `selector`:
+Runtime entities that cannot live in static JSON (a `FormProxy` for a wizard node, a validation config such as `makeValidationConfig(model) → { validateStep, validateAll }` built on `validateModel`) are injected via the `renderBehavior` prop + `onInit`/`patchProps`, addressing the node by `selector`:
 
 ```tsx
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';

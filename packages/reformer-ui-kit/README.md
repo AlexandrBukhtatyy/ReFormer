@@ -187,19 +187,24 @@ function LoanTypePicker({ value, onChange }: { value: string; onChange: (v: stri
 
 Архитектура M1: сначала модель (`createModel`) — источник истины значений, затем форма
 (`createForm({ model, schema })`), где поле привязано к сигналу модели и несёт `component`
-(**field-версию**) + `componentProps` + `validators`. В JSX — один `<FormField control={form.x} />`.
+(**field-версию**) + `componentProps`. Layout **не несёт валидаторов** — правила живут в отдельной
+`ValidationSchema` и прогоняются внешним раннером `validateModel(model, schema)` из
+[`@reformer/core/validation`](https://www.npmjs.com/package/@reformer/core) (см. пример ниже).
+В JSX — один `<FormField control={form.x} />`.
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { Button, FormField, SelectField, InputField } from '@reformer/ui-kit';
 
 type LoanForm = { loanType: string; amount: number };
 
 function LoanFormExample() {
-  const { model, form, schema } = useMemo(() => {
+  const { model, form, validation } = useMemo(() => {
     const model = createModel<LoanForm>({ loanType: '', amount: 0 });
+    // Layout-схема формы: component + componentProps, БЕЗ валидаторов.
     const schema = {
       loanType: {
         value: model.$.loanType,
@@ -212,24 +217,30 @@ function LoanFormExample() {
             { value: 'mortgage', label: 'Ипотека' },
           ],
         },
-        validators: [required()],
       },
       amount: {
         value: model.$.amount,
         component: InputField,
         componentProps: { label: 'Сумма', type: 'number', min: 0 },
-        validators: [required()],
       },
     };
+    // Валидация — отдельный ambient-контракт (@reformer/core/validation): голые операторы
+    // validate/validateAsync/cross над сигналами модели. Правила required()/… — из /validators.
+    const validation = defineValidationSchema<LoanForm>(({ model }) => {
+      validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
+      validate(model.$.amount, [required({ message: 'Укажите сумму' })]);
+    });
     const form = createForm<LoanForm>({ model, schema });
-    return { model, form, schema };
+    return { model, form, validation };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     form.markAsTouched();
-    const result = await validateFormModel(model, schema);
-    if (!result.valid) return;
+    // form.submit()/validate() больше НЕ прогоняют schema-валидацию — только внешний validateModel.
+    // Раннер разносит ошибки по нодам формы (UI подсветит поля) и возвращает Promise<boolean>.
+    const ok = await validateModel(model, validation);
+    if (!ok) return;
     console.log('Данные:', model.get());
   };
 

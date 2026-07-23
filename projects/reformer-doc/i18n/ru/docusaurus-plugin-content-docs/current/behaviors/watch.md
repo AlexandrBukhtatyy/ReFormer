@@ -84,20 +84,23 @@ const stop = watchField(model.$.country, () => {
 
 ## revalidateWhen
 
-Под M1 валидация — on-demand (`validateFormModel`). Если правило одного поля зависит от **другого**
-поля, изменение этого другого поля само по себе проверку не перезапустит. `revalidateWhen(deps,
-revalidate)` вызывает колбэк ревалидации при изменении любой из зависимостей (не на инициализации).
+Валидация — по требованию (`validateModel(model, schema)`): снапшот модели прогоняется через схему на
+submit/шаге, а не реактивно. Поэтому если правило одного поля зависит от **другого** поля, изменение
+этого другого поля само по себе проверку не перезапустит. `revalidateWhen(deps, revalidate)` — мост
+поведение→валидация: вызывает колбэк ревалидации при изменении любой из зависимостей (не на
+инициализации). Само поведение валидацией не владеет — оно лишь инициирует внешний прогон `validateModel`.
 
 ```typescript
 import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
-import { validateFormModel } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
+import { schema } from './validation'; // defineValidationSchema<RegistrationForm>(({ model }) => …)
 
 type RegistrationForm = { password: string; confirmPassword: string };
 
 const behavior = defineFormBehavior<RegistrationForm>(({ model }) => {
-  // при смене password перевалидируем схему — правило confirmPassword перепроверится
+  // при смене password перегоняем схему — cross-field правило confirmPassword перепроверится
   revalidateWhen([model.$.password], () => {
-    void validateFormModel(model, schema);
+    void validateModel(model, schema); // ошибки сами доедут до нод, устаревший прогон отменится
   });
 });
 ```
@@ -105,11 +108,12 @@ const behavior = defineFormBehavior<RegistrationForm>(({ model }) => {
 :::warning Триггеры — ДРУГИЕ поля
 В `deps` передавай поля, от которых зависит правило, а не само проверяемое поле (оно и так
 валидируется при собственном изменении). И убедись, что правило реально читает триггер — это
-cross-field `ModelValidator`, читающий `root` (см. [Валидацию](../validation/overview)).
+cross-field правило `cross(sig, fn)`, где `fn` читает снапшот всей модели (`model.get()`) и
+сравнивает поля между собой (см. [Валидацию](../validation/overview)).
 :::
 
 ## Дальше
 
 - [Вычисляемые поля](./computed) — `compute` для производных значений (а не ручной `onChange` + запись).
 - [Синхронизация полей](./sync) — `copyFrom`, `syncFields`.
-- [Валидация](../validation/overview) — `validateFormModel` и cross-field правила.
+- [Валидация](../validation/overview) — `validateModel` и cross-field правила (`cross`).

@@ -58,24 +58,41 @@ compute(model.$.b, () => model.a + 1); // расходится → Cycle detecte
 compute(model.$.total, () => model.price * model.qty); // одно направление
 ```
 
-### Cross-field валидация — через `root`
+### Cross-field валидация — через `cross(sig, fn)`
+
+Cross-field живёт в схеме валидации (`@reformer/core/validation`), а не в layout: правило вешается на
+ПОЛЕ-НОСИТЕЛЬ ошибки оператором `cross(sig, fn)`, а `fn` читает снапшот текущего scope (`model.get()`).
 
 ```typescript
-import type { ModelValidator } from '@reformer/core';
+import { defineValidationSchema, validate, cross, validateModel } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import { revalidateWhen, type ValidationError } from '@reformer/core';
 
-// Правило вешается на ПОЛЕ-НОСИТЕЛЬ ошибки. Соседние поля читаются через root.
-const field1LessThanField2: ModelValidator<number, unknown, Form> = (_value, _scope, root) =>
+// ❌ старое (УДАЛЕНО): дерево { value, validators }, ModelValidator (value, scope, root), validateFormModel
+const legacyRule: ModelValidator<number, unknown, Form> = (_value, _scope, root) =>
   root.field1 > root.field2 ? { code: 'error', message: 'Invalid' } : null;
+const legacySchema = { field1: { value: model.$.field1, component: Input, validators: [legacyRule] } };
+validateFormModel(model, legacySchema);
 
-const schema = {
-  field1: { value: model.$.field1, component: Input, validators: [field1LessThanField2] },
-};
+// ✅ новое: cross-правило — обычная функция над снапшотом (model.get()), не читает scope/root
+const field1LessThanField2 = (f: Form): ValidationError | null =>
+  f.field1 > f.field2 ? { code: 'error', message: 'Invalid' } : null;
 
-// Чтобы правило перезапускалось при изменении field2:
-import { revalidateWhen } from '@reformer/core';
-revalidateWhen([model.$.field2], () => validateFormModel(model, schema));
+const schema = defineValidationSchema<Form>(({ model }) => {
+  validate(model.$.field1, [required()]);
+  cross(model.$.field1, field1LessThanField2); // правило на поле-носителе ошибки
+});
+
+// Прогон — ТОЛЬКО внешним раннером; ошибки сами доезжают до нод формы.
+// ⚠️ form.validate()/submit() схему валидации больше НЕ прогоняют.
+await validateModel(model, schema);
+
+// Перезапуск правила при изменении соседнего поля — мост «поведение → валидация»:
+revalidateWhen([model.$.field2], () => void validateModel(model, schema));
 ```
 
-> **Удалённый API.** Операторы `validate`/`validateAsync`/`applyWhen`/`apply` (валидации),
-> `validateGroup`/`validateTree`/`validateForm`, типы `FieldPath`/`ValidationSchemaFn`/`BehaviorSchemaFn`
-> и `ctx.form.*`/`ctx.setFieldValue` — из старой path-based архитектуры и УДАЛЕНЫ. См. `17-nonexistent-api.md`.
+> **Актуальный vs удалённый API.** Операторы валидации `validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply`
+> ТЕПЕРЬ существуют — в `@reformer/core/validation` с новыми сигнатурами (ambient, активны только внутри прогона
+> `validateModel`). УДАЛЕНЫ: `applyWhen`, `validateGroup`/`validateTree`/`validateForm`/`validateFormModel`,
+> типы `FieldPath`/`ValidationSchemaFn`/`BehaviorSchemaFn` и `ctx.form.*`/`ctx.setFieldValue` (наследие
+> path-based архитектуры). См. `17-nonexistent-api.md`.

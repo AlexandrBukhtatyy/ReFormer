@@ -277,12 +277,15 @@ an item does not recreate the `items` array, but `move` / `swap` do (order ref c
 
 ```tsx
 import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
+import { validateModel } from '@reformer/core/validation';
 
 // Config is a pair of validation callbacks — NOT schemas.
 // Each returns boolean | Promise<boolean> (true = valid).
+// validateModel(model, schema) returns Promise<boolean> and routes errors
+// into the form nodes itself — the callback just forwards its result.
 const config: FormWizardConfig = {
-  validateStep: (step) => validateFormModel(model, stepSchema(step)),
-  validateAll: () => validateFormModel(model, fullSchema),
+  validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1]),
+  validateAll: () => validateModel(model, fullSchema),
 };
 
 <FormWizard form={form} config={config}>
@@ -487,21 +490,27 @@ interface FormWizardConfig {
 }
 ```
 
-Typically both wrap `validateFormModel(model, schema)` from `@reformer/core` and
-close over the current step's schema:
+Typically both wrap `validateModel(model, schema)` from `@reformer/core/validation`
+and close over the current step's schema. `validateModel` already returns
+`Promise<boolean>` — it routes each error into the matching form node itself and
+does not count `severity: 'warning'` as blocking — so the callbacks just forward
+its result (no `errors` object to inspect):
 
 ```typescript
+import { validateModel } from '@reformer/core/validation';
+
+// STEP_SCHEMAS[i] and fullSchema are ValidationSchema<Root> built with
+// defineValidationSchema / apply (see @reformer/core validation docs).
 const config: FormWizardConfig = {
-  validateStep: async (step) => {
-    const res = await validateFormModel(model, stepSchemas[step - 1]);
-    return Object.keys(res.errors).length === 0;
-  },
-  validateAll: async () => {
-    const res = await validateFormModel(model, fullSchema);
-    return Object.keys(res.errors).length === 0;
-  },
+  validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1]),
+  validateAll: () => validateModel(model, fullSchema),
 };
 ```
+
+The schemas themselves are plain `defineValidationSchema<Root>(({ model }) => …)`
+functions; `fullSchema` composes the per-step schemas with `apply(...STEP_SCHEMAS)`.
+The wizard config never sees validators directly — layout and validation stay in
+separate layers.
 
 Validation happens automatically:
 
@@ -990,6 +999,7 @@ function AddPropertyMenu() {
 ```tsx
 import { useMemo } from 'react';
 import { useFormControl } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
 import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
 
 function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
@@ -997,22 +1007,18 @@ function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
   const needsVerification = amount > 1_000_000;
 
   // config — пара колбэков validateStep / validateAll (не схемы, не generic).
-  // step (1-based) роутится в нужную схему; при выключенной верификации
-  // нумерация сдвигается — учитываем это в самом колбэке.
+  // step (1-based) роутится в нужную ValidationSchema (@reformer/core/validation);
+  // при выключенной верификации нумерация сдвигается — учитываем это в самом колбэке.
+  // validateModel(model, schema) => Promise<boolean>, ошибки сам роутит в ноды.
   const config = useMemo<FormWizardConfig>(
     () => ({
       validateStep: (step) => {
         const schema = needsVerification
           ? stepSchemas.withVerification[step - 1]
           : stepSchemas.withoutVerification[step - 1];
-        return validateFormModel(form.model, schema ?? { children: [] }).then(
-          (r) => Object.keys(r.errors).length === 0
-        );
+        return schema ? validateModel(form.model, schema) : true; // нет схемы — шаг валиден
       },
-      validateAll: () =>
-        validateFormModel(form.model, fullSchema).then(
-          (r) => Object.keys(r.errors).length === 0
-        ),
+      validateAll: () => validateModel(form.model, fullSchema),
     }),
     [needsVerification, stepSchemas, fullSchema, form]
   );
@@ -1158,22 +1164,23 @@ interface FormWizardConfig {
 }
 ```
 
-**Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную схему. Для чисто информационного шага (например, «Подтверждение») верните `true`.
+**Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную
+`ValidationSchema` (per-step схемы — `defineValidationSchema`, полная — `apply(...steps)`;
+всё из `@reformer/core/validation`). Для чисто информационного шага (например,
+«Подтверждение») верните `true`.
 
 ```typescript
-const stepSchemas = [amountSchema, personalSchema, confirmationSchema];
+import { validateModel } from '@reformer/core/validation';
+
+const stepSchemas = [amountValidation, personalValidation, confirmationValidation];
 
 const config: FormWizardConfig = {
-  validateStep: async (step) => {
+  validateStep: (step) => {
     const schema = stepSchemas[step - 1];
     if (!schema) return true; // нет схемы для шага — считаем валидным
-    const res = await validateFormModel(model, schema);
-    return Object.keys(res.errors).length === 0;
+    return validateModel(model, schema); // Promise<boolean>, ошибки роутятся в ноды
   },
-  validateAll: async () => {
-    const res = await validateFormModel(model, fullSchema);
-    return Object.keys(res.errors).length === 0;
-  },
+  validateAll: () => validateModel(model, fullValidation),
 };
 ```
 
@@ -1854,8 +1861,10 @@ Props кнопки `AsyncBoundary.Retry`.
 
 **Signature:**
 ```typescript
-export interface AsyncBoundaryRetryProps
-  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'> {
+export interface AsyncBoundaryRetryProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick'
+> {
   /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`). */
   asChild?: boolean;
 }

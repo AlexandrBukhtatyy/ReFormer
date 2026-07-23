@@ -8,7 +8,8 @@ import type { FormProxy } from '@reformer/core';
  */
 export interface FormWizardConfig {
   /**
-   * M1: валидация шага (1-based) через колбэк (например, `validateFormModel`).
+   * M1: валидация шага (1-based) через колбэк (обычно — обёртка над
+   * `validateModel(model, stepSchema)` из `@reformer/core/validation`).
    * Возвращает `true`, если шаг валиден. Нет колбэка → шаг считается валидным.
    */
   validateStep?: (step: number) => boolean | Promise<boolean>;

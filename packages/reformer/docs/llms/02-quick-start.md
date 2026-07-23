@@ -9,11 +9,13 @@
 
 Архитектура M1: сначала создаётся **модель данных** (`createModel`), затем **форма**
 (`createForm({ model, schema })`), где схема привязывает поля к сигналам модели
-(`model.$.field`). Валидаторы — чистые фабрики из `@reformer/core/validators`, лежат
-прямо в поле схемы (`validators: [...]`).
+(`model.$.field`). Layout-схема НЕ несёт валидаторов — валидация живёт в отдельной
+схеме `defineValidationSchema` из `@reformer/core/validation` и запускается внешним
+раннером `validateModel(model, schema)`.
 
 ```typescript
-import { createModel, createForm, validateFormModel, type FormProxy } from '@reformer/core';
+import { createModel, createForm, type FormProxy } from '@reformer/core';
+import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
@@ -26,31 +28,37 @@ type ContactForm = {
 // 2. Model (источник истины значений)
 const model = createModel<ContactForm>({ name: '', email: '' });
 
-// 3. Schema: привязка поля к сигналу (model.$.field) + component/componentProps + validators
+// 3. Layout-schema: привязка поля к сигналу (model.$.field) + component/componentProps.
+//    БЕЗ validators — валидация в отдельной схеме (шаг 4).
 const schema = {
   name: {
     value: model.$.name,
     component: Input,
     componentProps: { label: 'Name', placeholder: 'Your name' },
-    validators: [required({ message: 'Name is required' })],
   },
   email: {
     value: model.$.email,
     component: Input,
     componentProps: { label: 'Email', type: 'email' },
-    validators: [required({ message: 'Email is required' }), email({ message: 'Invalid email' })],
   },
 };
 
-// 4. Form — ноды поверх сигналов модели
+// 4. Validation-schema — отдельный слой (@reformer/core/validation)
+const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
+  validate(model.$.name, [required({ message: 'Name is required' })]);
+  validate(model.$.email, [required({ message: 'Email is required' }), email({ message: 'Invalid email' })]);
+});
+
+// 5. Form — ноды поверх сигналов модели
 const form = createForm<ContactForm>({ model, schema });
 
-// 5. Use in React component — thin JSX, FormField does ALL heavy lifting
+// 6. Use in React component — thin JSX, FormField does ALL heavy lifting
 function ContactFormComponent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await validateFormModel(model, schema);
-    if (result.valid) {
+    // form.submit()/validate() НЕ гоняют schema-валидацию — только внешний validateModel
+    const ok = await validateModel(model, contactValidation); // Promise<boolean>, ошибки сам роутит в ноды
+    if (ok) {
       console.log('Form submitted:', model.get());
     }
   };
@@ -64,7 +72,7 @@ function ContactFormComponent() {
   );
 }
 
-// 6. Pass form to child components via props (NOT context!)
+// 7. Pass form to child components via props (NOT context!)
 type FormStepProps = {
   form: FormProxy<ContactForm>;
 };

@@ -110,6 +110,7 @@ function AddPropertyMenu() {
 ```tsx
 import { useMemo } from 'react';
 import { useFormControl } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
 import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
 
 function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
@@ -117,22 +118,18 @@ function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
   const needsVerification = amount > 1_000_000;
 
   // config — пара колбэков validateStep / validateAll (не схемы, не generic).
-  // step (1-based) роутится в нужную схему; при выключенной верификации
-  // нумерация сдвигается — учитываем это в самом колбэке.
+  // step (1-based) роутится в нужную ValidationSchema (@reformer/core/validation);
+  // при выключенной верификации нумерация сдвигается — учитываем это в самом колбэке.
+  // validateModel(model, schema) => Promise<boolean>, ошибки сам роутит в ноды.
   const config = useMemo<FormWizardConfig>(
     () => ({
       validateStep: (step) => {
         const schema = needsVerification
           ? stepSchemas.withVerification[step - 1]
           : stepSchemas.withoutVerification[step - 1];
-        return validateFormModel(form.model, schema ?? { children: [] }).then(
-          (r) => Object.keys(r.errors).length === 0
-        );
+        return schema ? validateModel(form.model, schema) : true; // нет схемы — шаг валиден
       },
-      validateAll: () =>
-        validateFormModel(form.model, fullSchema).then(
-          (r) => Object.keys(r.errors).length === 0
-        ),
+      validateAll: () => validateModel(form.model, fullSchema),
     }),
     [needsVerification, stepSchemas, fullSchema, form]
   );

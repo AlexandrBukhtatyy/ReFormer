@@ -56,7 +56,8 @@ Tailwind в приложении, иначе utility-классы компоне
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
@@ -66,35 +67,41 @@ type RegistrationForm = {
 };
 
 function RegistrationPage() {
-  const { model, form, schema } = useMemo(() => {
+  const { model, form, validationSchema } = useMemo(() => {
     // 1) Модель — источник истины значений.
     const model = createModel<RegistrationForm>({ email: '', password: '' });
-    // 2) Схема: компонент и его props объявляются прямо в ноде.
+    // 2) Layout-схема: компонент и его props объявляются прямо в ноде — БЕЗ валидаторов.
     const schema = {
       children: [
         {
           value: model.$.email,
           component: Input,
           componentProps: { label: 'Email', type: 'email', testId: 'email' },
-          validators: [required({ message: 'Email обязателен' }), email()],
         },
         {
           value: model.$.password,
           component: InputPassword,
           componentProps: { label: 'Пароль', testId: 'password' },
-          validators: [required({ message: 'Пароль обязателен' })],
         },
       ],
     };
-    // 3) createForm привязывает ноды к сигналам модели → FormProxy.
+    // 3) Валидация — отдельный контракт `@reformer/core/validation` (ambient-операторы
+    //    внутри `defineValidationSchema`, ошибки роутятся в ноды формы раннером).
+    const validationSchema = defineValidationSchema<RegistrationForm>(({ model }) => {
+      validate(model.$.email, [required({ message: 'Email обязателен' }), email()]);
+      validate(model.$.password, [required({ message: 'Пароль обязателен' })]);
+    });
+    // 4) createForm привязывает ноды к сигналам модели → FormProxy.
     const form = createForm<RegistrationForm>({ model, schema });
-    return { model, form, schema };
+    return { model, form, validationSchema };
   }, []);
 
   const onSubmit = async () => {
     form.markAsTouched();
-    const res = await validateFormModel(model, schema);
-    if (!res.valid) return;
+    // Внешний раннер: ошибки сами доезжают до нод (UI подсветит поля), warning не блокирует.
+    // ⚠️ form.validate() / form.submit() schema-валидацию больше НЕ прогоняют — только validateModel.
+    const ok = await validateModel(model, validationSchema);
+    if (!ok) return;
     console.log('values', model.get());
   };
 

@@ -229,8 +229,8 @@ type FormWizardCompound = typeof FormWizardForwarded & {
  *
  * Один компонент покрывает TS-flow, renderer-react и renderer-json за счёт
  * полиморфного {@link FormWizardStepBody}. Валидация по шагам и submit-валидация
- * задаются через `config` (`{ validateStep, validateAll }`, обычно из
- * `validateFormModel`). Императивный доступ (submit/навигация снаружи дерева) —
+ * задаются через `config` (`{ validateStep, validateAll }`, обычно обёртки над
+ * `validateModel` из `@reformer/core/validation`). Императивный доступ (submit/навигация снаружи дерева) —
  * через `ref` типа `FormWizardHandle<T>`.
  *
  * Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /

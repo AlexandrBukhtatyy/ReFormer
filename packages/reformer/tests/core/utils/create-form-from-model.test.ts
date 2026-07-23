@@ -3,8 +3,9 @@
  *
  * Проверяет:
  * - дерево нод строится из структуры модели (objects + leaves)
- * - конфиг поля (component/validators) харвестится из схемы по идентичности сигнала
- *   (устойчиво к вложенности: children внутри контейнеров)
+ * - конфиг поля (component/componentProps) харвестится из схемы по идентичности сигнала
+ *   (устойчиво к вложенности: children внутри контейнеров); легаси-`validators` на узле
+ *   срезаются (schema-валидация — внешний `validateModel` из `@reformer/core/validation`)
  * - двусторонняя связь form-node ↔ model
  * - массивы пока дают явную ошибку (следующий шаг)
  */
@@ -12,11 +13,6 @@
 import { describe, it, expect } from 'vitest';
 import { createForm } from '../../../src/form/create-form';
 import { createModel } from '../../../src/state/index';
-import { validateFormModel } from '../../../src/form/index';
-import type { ModelValidator } from '../../../src/form/index';
-
-const required: ModelValidator<string> = (v) =>
-  v === '' || v == null ? { code: 'required', message: 'Обязательно' } : null;
 
 // Заглушки UI-компонентов (просто маркеры идентичности).
 const InputStub = () => null;
@@ -33,7 +29,7 @@ const build = () => {
     component: SectionStub,
     componentProps: { title: 'Root' },
     children: [
-      { value: model.$.email, component: InputStub, validators: [required] },
+      { value: model.$.email, component: InputStub },
       {
         component: SectionStub,
         children: [
@@ -73,17 +69,6 @@ describe('createForm({ model, schema })', () => {
     const { form } = build();
     expect(form.email.component).toBe(InputStub);
     expect(form.profile.name.component).toBe(InputStub);
-  });
-
-  it('валидаторы из схемы исполняются движком и роутятся в ноды', async () => {
-    const { model, form, schema } = build();
-    let res = await validateFormModel(model, schema);
-    expect(res.valid).toBe(false);
-    expect(form.email.invalid.value).toBe(true);
-    model.email = 'ok@mail.com';
-    res = await validateFormModel(model, schema);
-    expect(res.valid).toBe(true);
-    expect(form.email.valid.value).toBe(true);
   });
 
   it('массивы не материализуются в родительской форме (model-owned)', () => {

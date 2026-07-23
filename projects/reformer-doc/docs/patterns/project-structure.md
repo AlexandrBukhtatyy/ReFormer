@@ -29,7 +29,7 @@ forms/
 | `model.ts`         | `createModel<T>(initial)` — источник истины для значений                 |
 | `form.schema.ts`   | привязка полей к сигналам модели, `component` и `componentProps`         |
 | `form.behavior.ts` | реактивные правила: вычисляемые поля, условная доступность, реакции      |
-| `validation.ts`    | все валидаторы + запуск `validateFormModel`                              |
+| `validation.ts`    | `defineValidationSchema` (все правила) + запуск `validateModel`          |
 | `data-sources.ts`  | словари опций и загрузчики (держим их вне схемы)                         |
 | `api.ts`           | отправка и предзаполнение                                                |
 | `index.tsx`        | сборка `createXxxForm()` + разметка                                      |
@@ -61,25 +61,37 @@ export const createCreditApplicationModel = (): FormModel<CreditApplicationForm>
 ```typescript title="forms/credit-application/form.schema.ts"
 import type { FormModel } from '@reformer/core';
 import { Input, Select } from '@reformer/ui-kit';
-import { required, min } from '@reformer/core/validators';
 import { LOAN_TYPES } from './data-sources';
 import type { CreditApplicationForm } from './types';
 
+// Layout-схема: только component/componentProps — без валидаторов
 export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
   loanType: {
     value: model.$.loanType,
     component: Select,
     componentProps: { label: 'Тип кредита', options: LOAN_TYPES },
-    validators: [required()],
   },
   loanAmount: {
     value: model.$.loanAmount,
     component: Input,
     componentProps: { label: 'Сумма', type: 'number' },
-    validators: [required(), min(50000)],
   },
   monthlyPayment: { value: model.$.monthlyPayment, component: Input, disabled: true },
 });
+```
+
+```typescript title="forms/credit-application/validation.ts"
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, min } from '@reformer/core/validators';
+import type { CreditApplicationForm } from './types';
+
+// Отдельная схема валидации; запуск: await validateModel(model, creditApplicationValidation)
+export const creditApplicationValidation = defineValidationSchema<CreditApplicationForm>(
+  ({ model }) => {
+    validate(model.$.loanType, [required()]);
+    validate(model.$.loanAmount, [required(), min(50000)]);
+  }
+);
 ```
 
 ```typescript title="forms/credit-application/form.behavior.ts"

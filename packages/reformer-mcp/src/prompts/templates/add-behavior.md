@@ -30,7 +30,7 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
 3. **`watchField` accepts ONE source signal** (signature: `watchField(model.$.field, callback, options)`). Array-of-signals is NOT supported. For multiple triggers — multiple `watchField` calls on different signals, all calling a shared compute function.
 4. **Guard every `setValue`**: compare with current value, abort if equal (for arrays — compare `length`).
 5. **Guard `enable`/`disable`**: check `field.disabled.value` first — re-disable triggers spurious signal.
-6. **Don't use `revalidateWhen` if `copyFrom` + validators on target already cover it.**
+6. **`revalidateWhen` bridges behavior→validation — its callback runs the separate validation layer: `revalidateWhen([model.$.dep], () => void validateModel(model, schema))`.** Validation is a standalone layer (`@reformer/core/validation`, a `defineValidationSchema(({ model }) => …)` function run by `validateModel`); layout/behavior nodes carry NO validators. Add `revalidateWhen` only when a behavior writes a field the user isn't editing (a `copyFrom`/`compute` target) whose validity must be re-checked — the wizard's `validateStep`/`validateAll` (both `validateModel`) already re-run on submit/step for user-edited fields, so don't double-run.
 7. **`computeFrom` sources are arbitrary model signals** — pass `[model.$.a, model.$.b.c]` from anywhere in the tree (cross-level is fine, signals carry their own path). Values arrive **positionally** in the same order: `computeFrom([model.$.price, model.$.qty], model.$.total, (price, qty) => price * qty)`.
 8. **NEVER `enableWhen` on a whole `ArrayNode` with `resetOnDisable: true`** — verified browser-hang. For conditional array visibility use JSX-conditional (`{form.flag.value.value && <ArrayUI/>}`) or `hideWhen` (renderer).
 9. **NEVER combine raw `effect()` from `@preact/signals-core` with signal-write calls** (`schema.node().setHidden()`, `field.setValue()`, `field.disable()`, etc.) **inside the same callback**. setHidden writes the hidden-signal → effect dependency graph re-runs → infinite loop with «Cycle detected» runtime error.
@@ -224,8 +224,8 @@ For type/status conditional fields **default = Hide, NOT Disable**.
 ```typescript
 // useFormControlValue with deep path
 const v = useFormControlValue(form.step1.foo as never) as string;
-// validateFormModel — cast the model/schema узел when deep-nesting trips TS2589
-await validateFormModel(model, STEP_SCHEMAS[step] as never);
+// validateModel — cast the model/schema узел when deep-nesting trips TS2589
+await validateModel(model, STEP_SCHEMAS[step] as never);
 // DSL behavior — narrow the model param on a single call-site, not the whole callback
 const behavior = defineFormBehavior<MyForm>(({ model }) => {
   compute(model.$.total, () => (model as any).price * (model as any).qty);

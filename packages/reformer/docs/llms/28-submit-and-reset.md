@@ -2,10 +2,13 @@
 
 ## Purpose
 
-Канонический submit-флоу под M1: «запустить полную валидацию данных (`validateFormModel`) →
-проверить `result.valid` → достать снимок (`model.get()`) → сделать запрос → `model.reset()`».
-Валидация — чистая функция ДАННЫХ (модели), она же роутит ошибки в ноды формы, поэтому UI
-подсветит проблемные поля. `model.reset()` возвращает значения к initial-снимку.
+Канонический submit-флоу под M1: «запустить полную валидацию данных (`validateModel`) →
+проверить `boolean`-результат → достать снимок (`model.get()`) → сделать запрос → `model.reset()`».
+Валидация — **отдельный слой** (`@reformer/core/validation`, схема через `defineValidationSchema`), она
+НЕ входит в layout-дерево, которое получает `createForm`. Раннер `validateModel(model, schema)` сам роутит
+ошибки в ноды формы, поэтому UI подсветит проблемные поля, а наружу вернёт лишь `boolean`
+(false = есть блокирующая ошибка; `severity:'warning'` показывается, но submit не блокирует).
+`model.reset()` возвращает значения к initial-снимку.
 
 ## API
 
@@ -20,13 +23,23 @@ interface ModelApi<T> {
   captureInitial(): void;           // зафиксировать текущие как новый initial
 }
 
-// Валидация данных (headless, роутит ошибки в ноды формы):
-validateFormModel<T>(model, schema): Promise<{ valid: boolean; errors: Record<string, ValidationError[]> }>
+// Валидация данных — headless-раннер: находит ноды по сигналам модели, роутит в них ошибки,
+// отменяет устаревшие прогоны той же (model, schema). Возвращает ТОЛЬКО boolean:
+validateModel<T>(model: FormModel<T>, schema: ValidationSchema<T>): Promise<boolean>
+// true  = нет блокирующих ошибок (severity:'warning' не блокирует, но показывается).
+// false = есть блокирующая ошибка; она уже проставлена в ноду → UI подсветит поле.
 
-// Нода поля (для точечной работы с UI-состоянием):
-form.<field>.setErrors([{ code, message }]);
-form.<field>.markAsTouched();
-form.<field>.reset();
+// Схема валидации — отдельный слой над моделью (не смешивается с layout):
+defineValidationSchema<T>(({ model }) => {
+  validate(model.$.field, [rules]);          // синхронные правила поля
+  // validateAsync / validateWhen / cross / each / apply — см. contract-spec
+}): ValidationSchema<T>
+
+// Нода поля/формы (для точечной работы с UI-состоянием):
+form.markAsTouched();                         // тронуть все поля (показать ошибки)
+form.clearErrors();                           // снять ошибки со всех нод
+form.<field>.setErrors([{ code, message }]);  // серверная/бизнес-ошибка в конкретное поле
+form.<field>.clearErrors();
 ```
 
 ## Examples
@@ -35,23 +48,34 @@ form.<field>.reset();
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
+import { required, email, minLength } from '@reformer/core/validators';
 
 type RegistrationFormData = { username: string; email: string; password: string };
 
+// Валидация — отдельная схема над моделью. НЕ входит в layout, который получает createForm.
+// Стабильная module-level `const`-ссылка — чтобы validateModel мог отменять устаревшие прогоны.
+const registrationSchema = defineValidationSchema<RegistrationFormData>(({ model }) => {
+  validate(model.$.username, [required({ message: 'Имя обязательно' }), minLength(3)]);
+  validate(model.$.email, [required({ message: 'Email обязателен' }), email()]);
+  validate(model.$.password, [required({ message: 'Пароль обязателен' }), minLength(8)]);
+});
+
 function RegistrationForm() {
-  const { model, form, schema } = useMemo(() => {
+  const { model, form } = useMemo(() => {
     const m = createModel<RegistrationFormData>({ username: '', email: '', password: '' });
-    const s = buildSchema(m);
-    return { model: m, form: createForm({ model: m, schema: s }), schema: s };
+    // schema здесь — layout-дерево нод (компоненты/раскладка), без валидаторов.
+    return { model: m, form: createForm({ model: m, schema: buildLayout(m) }) };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    form.markAsTouched(); // показать ошибки на всех полях
 
-    // Шаг 1: валидация данных (ошибки автоматически проставятся в ноды → UI подсветит)
-    const result = await validateFormModel(model, schema);
-    if (!result.valid) return;
+    // Шаг 1: прогон валидации данных. Ошибки автоматически проставятся в ноды → UI подсветит.
+    const valid = await validateModel(model, registrationSchema);
+    if (!valid) return;
 
     // Шаг 2: достать чистые данные и отправить
     const payload = model.get();
@@ -81,9 +105,10 @@ function RegistrationForm() {
 ```tsx
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
+  form.markAsTouched();
 
-  const result = await validateFormModel(model, schema);
-  if (!result.valid) return;
+  const valid = await validateModel(model, registrationSchema);
+  if (!valid) return;
 
   try {
     const response = await api.register(model.get());
@@ -127,37 +152,59 @@ function ActionButtons({ model }: { model: FormModel<RegistrationFormData> }) {
 
 ### Использование вне React (server action / Node)
 
-Валидация headless — работает без UI/нод:
+Раннер headless — работает без UI-компонентов, только с моделью и схемой:
 
 ```typescript
-import { createModel, validateModel } from '@reformer/core';
+import { createModel } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
 
 async function processFormPayload(rawData: Partial<MyForm>) {
   const model = createModel<MyForm>(initialValues);
   model.patch(rawData); // частичный load данных
 
-  const result = await validateModel(model, schema); // без нод — просто данные
-  if (!result.valid) return { ok: false, errors: result.errors };
-  return { ok: true, data: model.get() };
+  // validateModel находит ноды по сигналам модели и роутит в них ошибки, возвращая boolean.
+  const valid = await validateModel(model, myFormSchema);
+  if (!valid) return { ok: false as const };
+  return { ok: true as const, data: model.get() };
 }
 ```
 
 ## Anti-patterns
 
 ```typescript
-// ❌ Чтение результата валидации без await
+// ❌ Обращение к .valid: раннер возвращает boolean, а не { valid, errors }
+const result = await validateModel(model, schema);
+if (!result.valid) return; // result — boolean, .valid === undefined → guard никогда не сработает
+
+// ✅ Результат — сам boolean
+const valid = await validateModel(model, schema);
+if (!valid) return;
+```
+
+```typescript
+// ❌ Чтение результата валидации без await — сабмитим по неполному вердикту
 const handleSubmit = (e) => {
   e.preventDefault();
-  validateFormModel(model, schema); // не дождались async-валидаторов
+  validateModel(model, schema); // Promise проигнорирован, async-валидаторы не дождались
   submit(model.get());
 };
 
-// ✅ Дождаться и проверить result.valid
+// ✅ Дождаться и проверить boolean
 const handleSubmit = async (e) => {
   e.preventDefault();
-  const result = await validateFormModel(model, schema);
-  if (result.valid) submit(model.get());
+  if (await validateModel(model, schema)) submit(model.get());
 };
+```
+
+```typescript
+// ❌ Валидаторы в layout-дереве, отдаваемом в createForm — layout не несёт правил
+createForm({ model, schema: { username: { value: '', validators: [required()] } } });
+
+// ✅ Валидация — отдельная схема, прогоняется раннером
+const schema = defineValidationSchema<T>(({ model }) => {
+  validate(model.$.username, [required()]);
+});
+await validateModel(model, schema);
 ```
 
 ```typescript
@@ -186,7 +233,13 @@ model.reset();
 
 **Q: После `reset()` в UI остались старые ошибки.**
 A: `model.reset()` меняет значения; ошибки в нодах чистит валидация. Перезапусти
-`validateFormModel(model, schema)` после reset, либо очисти точечно `form.field.setErrors([])`.
+`validateModel(model, schema)` после reset (валидные поля погаснут сами), либо очисти напрямую —
+`form.clearErrors()` / `form.<field>.clearErrors()`.
+
+**Q: `validateModel` вернул `true`, но в поле висит ошибка.**
+A: Это правило с `severity: 'warning'` — оно показывается, но submit не блокирует, поэтому раннер
+и вернул `true`. Блокируют только ошибки без `severity` (default). Чтобы не пускать submit при
+warning — проверяй его отдельно, вне `validateModel`.
 
 **Q: `reset()` не возвращает данные, загруженные с сервера.**
 A: `reset()` возвращает к initial-снимку (значения на момент `createModel`). `set/patch` НЕ
@@ -200,6 +253,7 @@ A: `model.get()` возвращает значения всех полей. Фи
 ## See also
 
 - [29-async-preload.md](./29-async-preload.md) — initial values и preload через `set`/`patch`
-- [13-multi-step.md](./13-multi-step.md) — пошаговая валидация через `validateFormModel`
-- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры модели и `validateFormModel`
+- [13-multi-step.md](./13-multi-step.md) — пошаговая валидация через `validateModel` (`validateStep`/`validateAll`)
+- [27-revalidate-when.md](./27-revalidate-when.md) — мост «поведение → валидация»: `revalidateWhen([deps], () => void validateModel(model, schema))`
+- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры модели и `validateModel`
 - [05-common-mistakes.md](./05-common-mistakes.md) — типичные ошибки

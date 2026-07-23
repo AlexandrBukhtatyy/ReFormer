@@ -52,22 +52,23 @@ interface FormWizardConfig {
 }
 ```
 
-**Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную схему. Для чисто информационного шага (например, «Подтверждение») верните `true`.
+**Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную
+`ValidationSchema` (per-step схемы — `defineValidationSchema`, полная — `apply(...steps)`;
+всё из `@reformer/core/validation`). Для чисто информационного шага (например,
+«Подтверждение») верните `true`.
 
 ```typescript
-const stepSchemas = [amountSchema, personalSchema, confirmationSchema];
+import { validateModel } from '@reformer/core/validation';
+
+const stepSchemas = [amountValidation, personalValidation, confirmationValidation];
 
 const config: FormWizardConfig = {
-  validateStep: async (step) => {
+  validateStep: (step) => {
     const schema = stepSchemas[step - 1];
     if (!schema) return true; // нет схемы для шага — считаем валидным
-    const res = await validateFormModel(model, schema);
-    return Object.keys(res.errors).length === 0;
+    return validateModel(model, schema); // Promise<boolean>, ошибки роутятся в ноды
   },
-  validateAll: async () => {
-    const res = await validateFormModel(model, fullSchema);
-    return Object.keys(res.errors).length === 0;
-  },
+  validateAll: () => validateModel(model, fullValidation),
 };
 ```
 

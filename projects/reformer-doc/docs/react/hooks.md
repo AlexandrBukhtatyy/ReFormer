@@ -182,47 +182,62 @@ function PhoneList({ form, model }: { form: FormProxy<OrderForm>; model: FormMod
 
 ## Отправка формы
 
-Сабмит в M1 — это три шага, без опоры на агрегированные флаги формы:
+Валидация — **отдельный слой** от layout. Layout-схема (та, что уходит в `createForm`) описывает
+только привязку полей и компоненты и **не несёт валидаторов**. Правила живут в
+[схеме валидации](../core-concepts/schemas/validation-schema) — функции
+`defineValidationSchema(({ model }) => …)` из `@reformer/core/validation`, а прогоняет их по
+требованию внешний раннер `validateModel`.
+
+Сабмит — это три шага, без опоры на агрегированные флаги формы:
 
 1. `form.touchAll()` — пометить все поля тронутыми, чтобы показались ошибки.
-2. `validateFormModel(model, schema)` — headless-валидация данных модели против схемы; ошибки
-   роутятся в ноды для отображения.
+2. `validateModel(model, validation)` — прогнать схему валидации по модели; возвращает
+   `Promise<boolean>` и сам разносит ошибки по нодам для отображения (поля, ставшие валидными,
+   гасятся).
 3. `model.get()` — снимок всех значений для отправки.
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
 type ContactForm = { name: string; email: string };
 
 export function ContactFormView() {
-  const { form, model, schema } = useMemo(() => {
+  const { form, model, validation } = useMemo(() => {
     const model = createModel<ContactForm>({ name: '', email: '' });
+
+    // Layout-схема: привязка полей + компоненты. Валидаторов здесь НЕТ.
     const schema = {
       name: {
         value: model.$.name,
         component: Input,
         componentProps: { label: 'Имя' },
-        validators: [required()],
       },
       email: {
         value: model.$.email,
         component: Input,
         componentProps: { label: 'Email', type: 'email' },
-        validators: [required(), email()],
       },
     };
+
+    // Схема валидации: отдельный слой, прогоняется раннером validateModel по требованию.
+    const validation = defineValidationSchema<ContactForm>(({ model }) => {
+      validate(model.$.name, [required()]);
+      validate(model.$.email, [required(), email()]);
+    });
+
     const form = createForm<ContactForm>({ model, schema });
-    return { form, model, schema };
+    return { form, model, validation };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     form.touchAll();
 
-    const { valid } = await validateFormModel(model, schema);
+    const valid = await validateModel(model, validation);
     if (valid) {
       console.log('Отправка:', model.get());
     }
@@ -238,10 +253,12 @@ export function ContactFormView() {
 }
 ```
 
-:::warning Источник сабмита — валидация модели, не флаги формы
-Валидность для отправки определяет результат `validateFormModel(model, schema)`, а данные —
-`model.get()`. Не полагайтесь на агрегированные флаги формы как на источник сабмита — используйте
-headless-валидацию модели.
+:::warning Источник сабмита — внешний `validateModel`, не флаги формы
+Вердикт на отправку даёт результат `validateModel(model, validation)` из
+`@reformer/core/validation`, а данные — `model.get()`. `form.validate()` и `form.submit()`
+**больше не прогоняют** schema-валидацию — они лишь трогают ноды и читают их агрегированное
+состояние. Единственный источник валидности на submit — внешний прогон `validateModel` по схеме
+валидации; правила с `severity: 'warning'` при этом не блокируют (раннер вернёт `true`).
 :::
 
 ---
@@ -267,6 +284,7 @@ function Form() {
 ## Дальше
 
 - [Свои компоненты полей](./custom-fields) — как построить поле на `useFormControl`.
+- [Схема валидации](../core-concepts/schemas/validation-schema) — отдельный слой правил, прогоняется через `validateModel`.
 - [Ноды и proxy](../core-concepts/nodes) — что форма строит поверх модели.
 - [Модель данных](../core-concepts/model) — массивы модели и `model.get()`.
 - [Примеры](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground) — живая песочница.

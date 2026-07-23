@@ -30,9 +30,10 @@ import { parseDate } from './date-utils';
  * },
  * ```
  */
-export function isDate<TForm = unknown, TField extends string | Date | undefined = string | Date>(
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function isDate<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(options?: ValidateOptions): Validator<TForm, TField> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;

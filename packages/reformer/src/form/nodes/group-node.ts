@@ -55,8 +55,8 @@ function parsePathSegments(path: string): PathSegment[] {
  * GroupNode - узел для группы полей
  *
  * Создаётся из {@link FormSchema} (дерево field-конфигов). Обычно строится через `createForm`
- * (M1: `createForm({ model, schema })`); валидация/behavior живут на слое модели
- * (`validateFormModel`, `computeFrom`/`enableWhen`/…), а не на ноде.
+ * (M1: `createForm({ model, schema })`); schema-валидация/behavior живут на слое модели
+ * (`validateModel` из `@reformer/core/validation`, `computeFrom`/`enableWhen`/…), а не на ноде.
  *
  * @group Nodes
  *
@@ -119,13 +119,6 @@ export class GroupNode<T> extends FormNode<T> {
 
   /** Form-level validation errors */
   private readonly _formErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
-
-  /**
-   * M1: валидация уровня модели/схемы (`validateFormModel(model, schema)`). Привязывается
-   * `createForm({ model, schema })`, т.к. под M1 валидаторы срезаны с FieldNode и живут на слое
-   * модели. Без неё `validate()`/`submit()` пропускали бы все schema-валидаторы. @internal
-   */
-  private _modelValidate?: () => Promise<boolean>;
 
   /**
    * M1: связь листовой ноды-ребёнка → её сигнал модели (тот, что помечает `markDerived`).
@@ -335,17 +328,14 @@ export class GroupNode<T> extends FormNode<T> {
     // Валидация всех полей (legacy-путь: у FieldNode есть собственные валидаторы).
     await Promise.all(Array.from(this._fields.values()).map((field) => field.validate()));
 
-    // M1: schema-валидаторы срезаны с FieldNode и живут на слое модели — прогоняем их через
-    // привязанный validateFormModel(model, schema). Он роутит ошибки в ноды (setErrors), поэтому
-    // итоговая проверка field.valid ниже уже учитывает найденные схемой ошибки. Без этого
-    // submit()/validate() под M1 всегда возвращали true и пропускали невалидные данные.
-    const modelValid = this._modelValidate ? await this._modelValidate() : true;
-
-    // Проверяем, все ли поля валидны
+    // Schema-валидация живёт ВНЕ формы: `validateModel(model, schema)` из `@reformer/core/validation`
+    // прогоняется приложением по требованию и сам роутит ошибки в ноды (setErrors). `validate()`/
+    // `submit()` отражают текущее состояние нод (+ собственные валидаторы FieldNode), а не запускают
+    // schema-валидацию.
     const fieldsValid = Array.from(this._fields.values()).every(
       (field) => field.valid.value || field.disabled.value
     );
-    return modelValid && fieldsValid;
+    return fieldsValid;
   }
 
   /**
@@ -693,16 +683,6 @@ export class GroupNode<T> extends FormNode<T> {
    */
   attachBehaviorCleanup(cleanup: () => void): void {
     this._behaviorCleanup = cleanup;
-  }
-
-  /**
-   * Прикрепить валидацию уровня модели/схемы (M1). Вызывается `createForm({ model, schema })`,
-   * чтобы `validate()`/`submit()` прогоняли schema-валидаторы (`validateFormModel`), а не только
-   * пустые FieldNode. Возвращаемый флаг — валидна ли модель по схеме.
-   * @internal
-   */
-  attachModelValidator(validate: () => Promise<boolean>): void {
-    this._modelValidate = validate;
   }
 
   /**

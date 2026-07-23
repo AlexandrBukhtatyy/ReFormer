@@ -7,7 +7,7 @@ arguments are exact.
 
 Full JSDoc for one public symbol of any `@reformer/*` package: description, signature,
 params, `@returns`, every `@example`, source path.
-- `symbol` (string, required) — e.g. `"createForm"`, `"validateFormModel"`, `"FormArray"`.
+- `symbol` (string, required) — e.g. `"createForm"`, `"validateModel"`, `"FormArray"`.
 - `package` (string, optional) — e.g. `"@reformer/core"`; omit to search all.
 
 Use before writing code against an unfamiliar symbol.
@@ -17,7 +17,11 @@ Use before writing code against an unfamiliar symbol.
 A worked example / how-to for a scenario. Cascade: docs/llms filename → `##` section →
 symbol `@example` → fallback list.
 - `topic` (string, required) — keyword. Aliases resolve intuitive terms: `wizard`→multi-step,
-  `form-array`→arrays, `cycle`→cycle-detection, `cross-field`→sync-fields/copy-from, `json-schema`, etc.
+  `form-array`→arrays, `cycle`→cycle-detection, `copy`→copy-from, `sync`→sync-fields (value
+  propagation between fields — a **behavior**), and the validation contract:
+  `validate`/`validation`/`cross`/`cross-field`/`validate-async`/`validate-when`→`validation`
+  (the `validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply` operators + the external
+  `validateModel(model, schema)` runner), `json-schema`, etc.
 - `package` (string, optional).
 
 Use to copy a correct pattern instead of guessing.

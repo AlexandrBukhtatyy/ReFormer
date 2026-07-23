@@ -11,11 +11,16 @@
  * Покрывает оба способа адресации листа:
  *  - явный `selector` (поле пароля — `'pwd'`);
  *  - неявный `__path` сигнала модели (`email`, `city`, `amount`, `nickname`) — фича Фазы 4,
- *    благодаря которой пути из `validateFormModel().errors` напрямую годятся как ключ ref.
+ *    благодаря которой ошибки из нод (по `__path`: `getNodeForSignal(model.signalAt(path))`)
+ *    адресуют поле по тому же ключу ref.
+ *
+ * Валидация — контракт `@reformer/core/validation`: правила живут в отдельной `ValidationSchema`,
+ * `validateModel` разносит ошибки по нодам; «первое невалидное» находим чтением нод (не картой путей).
  */
 
 import { useMemo } from 'react';
-import { createModel, createForm, validateFormModel, type FormModel } from '@reformer/core';
+import { createModel, createForm, getNodeForSignal, type FormModel } from '@reformer/core';
+import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
 import type { RenderNode, RenderSchemaProxy } from '@reformer/renderer-react';
@@ -65,7 +70,6 @@ function buildSchema(model: FormModel<ImperativeDemoForm>): RenderNode<Imperativ
         value: model.$.email,
         component: InputField,
         componentProps: { label: 'Email', placeholder: 'you@example.com' },
-        validators: [required({ message: 'Укажите email' })],
       },
       {
         // Явный selector — проверяет ветку адресации по селектору (а не по __path).
@@ -93,11 +97,19 @@ function buildSchema(model: FormModel<ImperativeDemoForm>): RenderNode<Imperativ
         value: model.$.nickname,
         component: InputField,
         componentProps: { label: 'Никнейм', placeholder: 'nickname' },
-        validators: [required({ message: 'Укажите никнейм' })],
       },
     ],
   } as unknown as RenderNode<ImperativeDemoForm>;
 }
+
+/**
+ * Слой валидации (отдельно от render-схемы): email и nickname обязательны. Стабильный module-level
+ * `const` — прогоняется по требованию через `validateModel`, ошибки сами доезжают до нод.
+ */
+const imperativeValidation = defineValidationSchema<ImperativeDemoForm>(({ model }) => {
+  validate(model.$.email, [required({ message: 'Укажите email' })]);
+  validate(model.$.nickname, [required({ message: 'Укажите никнейм' })]);
+});
 
 /** Порядок полей для сценария «сфокусировать первое невалидное» (ключи = __path/selector). */
 const FIELD_ORDER: Array<{ path: string; refKey: string }> = [
@@ -132,9 +144,13 @@ function ControlPanel({
     'rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-700 disabled:opacity-50';
 
   const focusFirstInvalid = async () => {
-    const res = await validateFormModel(model, buildSchema(model) as never);
-    if (res.valid) return;
-    const first = FIELD_ORDER.find(({ path }) => (res.errors[path]?.length ?? 0) > 0);
+    const ok = await validateModel(model, imperativeValidation);
+    if (ok) return;
+    // Ошибки после validateModel лежат в НОДАХ; путь → сигнал (signalAt) → нода (getNodeForSignal).
+    const first = FIELD_ORDER.find(({ path }) => {
+      const sig = model.signalAt(path);
+      return sig ? (getNodeForSignal(sig)?.errors.value.length ?? 0) > 0 : false;
+    });
     if (!first) return;
     const ref = schema.node(first.refKey).getRef<FieldHandle>();
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });

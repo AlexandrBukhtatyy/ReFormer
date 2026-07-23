@@ -2,10 +2,10 @@
 // Validation API (M1)
 // ============================================================================
 //
-// После Ф7 в ядре остаётся только M1-движок (`validateModel`/`validateFormModel`,
-// экспортируется из `core/model`) + чистые фабрики валидаторов ниже. Legacy-движок
-// (`validate`/`validateAsync`/`apply`/`applyWhen`/`validateForm`/`ValidationRegistry`/FieldPath)
-// удалён.
+// Здесь живут только чистые фабрики валидаторов (возвращают Rule: (value) => error | null).
+// Раннер и операторы схемы (`validateModel`, `defineValidationSchema`, `validate`/`validateAsync`/
+// `validateWhen`/`cross`/`each`/`apply`) — отдельный сабпат `@reformer/core/validation`.
+// Старые движки (`validateFormModel`-дерево и path-операторы Ф7) удалены.
 
 // Reusable validator factories (чистые: возвращают (value) => error)
 export { required } from './validators/required';

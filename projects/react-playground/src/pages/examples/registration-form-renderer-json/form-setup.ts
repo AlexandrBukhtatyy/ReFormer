@@ -1,33 +1,29 @@
 /**
- * Сборка формы: модель, форма из JSON-схемы, реестр, обработчики, render-behavior.
+ * Сборка формы: модель, форма из JSON-схемы, реестр, обработчики, поведение, render-behavior.
  *
  * Вынесено из компонента, чтобы в TSX остались только `JsonRendererProvider` и
  * `JsonFormRenderer`. Здесь нет ни одного React-хука — это чистая функция сборки,
  * которую компонент вызывает один раз в `useMemo`.
  */
 
-import { createModel, createForm, validateFormModel, type FormProxy } from '@reformer/core';
-import {
-  convertJsonToM1Tree,
-  type ComponentRegistry,
-  type JsonFormSchema,
-} from '@reformer/renderer-json';
-import type { RenderBehaviorFn } from '@reformer/renderer-react';
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+import { signal } from '@reformer/core/signals';
+import { convertJsonToM1Tree, type JsonFormSchema } from '@reformer/renderer-json';
+import { onInit, onComponentEvent, type RenderBehaviorFn } from '@reformer/renderer-react';
 import type { RegistrationFormData } from '../registration-form/RegistrationForm';
-import { buildValidationSchema } from './validation';
-import {
-  createFormUiState,
-  createRegistrationRegistry,
-  type FormActions,
-  type FormUiState,
-} from './registry';
-import { createRegistrationRenderBehavior } from './render-behavior';
-import { registrationBehavior } from './behavior';
+import { makeRegistrationValidator } from './validation';
+import { createRegistrationRegistry, type FormUiState } from './registry';
 import rawJsonSchema from './json-schema.json';
 
 // Операторы в чистом JSON типизируются как `string`, поэтому приведение — это и есть
 // сценарий «схема пришла строкой с сервера».
 export const registrationJsonSchema = rawJsonSchema as unknown as JsonFormSchema;
+
+// Код приглашения, по которому грузится префилл. Локальный: mock (mocks/data/users.ts) держит свой
+// список приглашений независимо — разные слои (клиент знает свой код, сервер — свои записи). Любой
+// код кроме 'RF-2026' даст 404 → в примере видно состояние ошибки AsyncBoundary с «Повторить».
+const INVITE_CODE = 'RF-2026';
 
 const INITIAL: RegistrationFormData = {
   username: '',
@@ -40,34 +36,48 @@ const INITIAL: RegistrationFormData = {
   acceptTerms: false,
 };
 
-export interface RegistrationSetup {
-  model: ReturnType<typeof createModel<RegistrationFormData>>;
-  form: FormProxy<RegistrationFormData>;
-  registry: ComponentRegistry;
-  renderBehavior: RenderBehaviorFn<RegistrationFormData>;
-  ui: FormUiState;
-}
+/**
+ * Реактивность ДАННЫХ (`createForm({ behavior })`): реагирует на изменения модели немедленно,
+ * в отличие от валидации (только на submit). Здесь один сценарий — снятие устаревшей ошибки
+ * «Пароли не совпадают»: `passwordsMatch` роутит её в ноду `confirmPassword` на submit, а правка
+ * первого пароля делает вердикт неактуальным, поэтому ошибку убираем сразу.
+ */
+const registrationBehavior = defineFormBehavior<RegistrationFormData>(({ model, form }) => {
+  onChange(model.$.password, () => {
+    form.confirmPassword.clearErrors();
+  });
+});
 
 /**
- * Канонический submit-флоу: полная валидация данных → снимок → запрос → `reset` только
- * после успеха. Ошибки валидации сами доезжают до нод формы, поэтому UI подсвечивает поля
- * без единой строчки здесь.
+ * Собирает всё, что нужно рендереру. Вызывается один раз (в `useMemo`) — повторный вызов создал бы
+ * новый реестр и новый тип компонента `AsyncBoundary`, из-за чего загрузка префилла стартовала бы
+ * заново.
+ *
+ * Сборка линейна: реестр больше НЕ замыкает обработчики (события висят через `onComponentEvent`),
+ * поэтому цикла `registry → actions → form` нет, и `submit`/`reset`/`loadPrefill`/`applyPrefill`
+ * определяются обычными `const` уже после `form`. Обработчики реализуют канонический submit-флоу:
+ * валидация → снимок → запрос → `reset` только после успеха (ошибки валидации сами доезжают до нод,
+ * UI подсвечивает поля).
  */
-function bindActions(
-  actions: FormActions,
-  setup: Pick<RegistrationSetup, 'model' | 'form' | 'ui'>
-): void {
-  const { model, form, ui } = setup;
-  const validationSchema = buildValidationSchema(model);
+export function createRegistrationSetup() {
+  const ui: FormUiState = { status: signal<string | null>(null), pending: signal(false) };
+  const registry = createRegistrationRegistry(ui);
+  const model = createModel<RegistrationFormData>({ ...INITIAL });
+  const form = createForm<RegistrationFormData>({
+    model,
+    schema: convertJsonToM1Tree(registrationJsonSchema, registry, model),
+    behavior: registrationBehavior,
+  });
+  const validate = makeRegistrationValidator(model);
 
-  actions.submit = async () => {
+  const submit = async (): Promise<void> => {
     if (ui.pending.value) return; // повторный клик во время запроса игнорируем
     form.markAsTouched();
     ui.status.value = null;
     ui.pending.value = true;
     try {
-      const result = await validateFormModel(model, validationSchema);
-      if (!result.valid) {
+      const valid = await validate();
+      if (!valid) {
         ui.status.value = 'Проверьте выделенные поля';
         return;
       }
@@ -94,59 +104,56 @@ function bindActions(
     }
   };
 
-  actions.reset = () => {
+  const reset = (): void => {
     // Тот же guard, что у submit: пока POST /register в полёте, «Очистить» — no-op. Иначе хвост
-    // submit'а (ui.status = «успешно» + повторный model.reset) перетёр бы результат сброса, и
-    // пользователь увидел бы баннер успеха вместо очищенной формы.
+    // submit'а (ui.status = «успешно» + повторный model.reset) перетёр бы результат сброса.
     if (ui.pending.value) return;
-    // Значения принадлежат модели, форма держит UI-состояние — поэтому чистим их порознь.
-    // `form.reset()` здесь был бы неверен: он возвращает НОДЫ к их собственному initial
-    // (пустому, снятому при createForm) и затирает восстановленный моделью префилл.
+    // Значения принадлежат модели, форма держит UI-состояние — чистим их порознь. `form.reset()`
+    // здесь неверен: он вернул бы НОДЫ к пустому initial и затёр восстановленный моделью префилл.
     model.reset();
     form.clearErrors();
     form.markAsUntouched();
     ui.status.value = null;
   };
 
-  // Префилл по приглашению: AsyncBoundary отдаёт загруженные данные в `onSuccess`.
-  actions.applyPrefill = (data) => {
+  // Загрузка префилла (self-managed AsyncBoundary сам ведёт статус и повтор). `signal` из пропса
+  // прокидывается в fetch, чтобы отменённый запрос не висел в сети.
+  const loadPrefill = async (abortSignal: AbortSignal): Promise<Partial<RegistrationFormData>> => {
+    const response = await fetch(
+      `/api/v1/auth/registration-prefill?invite=${encodeURIComponent(INVITE_CODE)}`,
+      { signal: abortSignal }
+    );
+    // 404 приходит с пустым телом — без этой проверки `.json()` упал бы SyntaxError, и в блоке
+    // ошибки вместо человеческого текста оказался бы разбор JSON.
+    if (!response.ok) throw new Error('Приглашение не найдено или больше не действует');
+    return (await response.json()) as Partial<RegistrationFormData>;
+  };
+
+  const applyPrefill = (data: Partial<RegistrationFormData>): void => {
     model.patch(data);
-    // Загруженные данные становятся новой точкой отсчёта, иначе «Очистить» (model.reset())
-    // вернул бы форму к пустому initial-снимку и стёр префилл, которого пользователь не вводил.
+    // Загруженные данные становятся новой точкой отсчёта, иначе «Очистить» (model.reset()) вернул бы
+    // форму к пустому initial-снимку и стёр префилл, которого пользователь не вводил.
     model.captureInitial();
   };
-}
 
-/**
- * Собирает всё, что нужно рендереру. Вызывается один раз (в `useMemo`) — повторный вызов
- * создал бы новый реестр и новый тип компонента `AsyncBoundary`, из-за чего загрузка
- * префилла стартовала бы заново.
- */
-export function createRegistrationSetup(): RegistrationSetup {
-  // Пустые заглушки: реестр замыкает объект, поля дозаполняются после createForm — см. FormActions.
-  const actions: FormActions = {
-    submit: () => {},
-    reset: () => {},
-    applyPrefill: () => {},
+  /**
+   * Render-behavior: инъекция рантайм-сущностей и обработчиков в узлы схемы. JSON выразить их не
+   * может, поэтому:
+   * - `onInit` + `patchProps` доносит `FormProxy` до панели состояния (build-time, до первого рендера;
+   *   узел `form-state` — контейнер с `selector`, без `value`);
+   * - `onComponentEvent` вешает обработчики на события компонентов по `selector` — вместо `$fn` в
+   *   componentProps. `load`/`onSuccess` долетают до AsyncBoundary с первого рендера (render-behavior
+   *   применяется до построения дерева), поэтому self-managed режим включается сразу.
+   */
+  const renderBehavior: RenderBehaviorFn<RegistrationFormData> = (schema) => {
+    onInit(schema.node('form-state'), () => {
+      schema.node('form-state').patchProps({ form });
+    });
+    onComponentEvent(schema.node('submit-button'), 'onClick', submit);
+    onComponentEvent(schema.node('reset-button'), 'onClick', reset);
+    onComponentEvent(schema.node('prefill-boundary'), 'load', loadPrefill);
+    onComponentEvent(schema.node('prefill-boundary'), 'onSuccess', applyPrefill);
   };
-  const ui = createFormUiState();
-  const registry = createRegistrationRegistry(actions, ui);
-  const model = createModel<RegistrationFormData>({ ...INITIAL });
-  // M1: форма строится из ТОЙ ЖЕ JSON-схемы, что рендерится. `behavior` — реактивность данных
-  // (снимает устаревшую ошибку подтверждения пароля), исполняется внутри createForm.
-  const form = createForm<RegistrationFormData>({
-    model,
-    schema: convertJsonToM1Tree(registrationJsonSchema, registry, model),
-    behavior: registrationBehavior,
-  });
 
-  bindActions(actions, { model, form, ui });
-
-  return {
-    model,
-    form,
-    registry,
-    renderBehavior: createRegistrationRenderBehavior(form),
-    ui,
-  };
+  return { model, registry, renderBehavior };
 }

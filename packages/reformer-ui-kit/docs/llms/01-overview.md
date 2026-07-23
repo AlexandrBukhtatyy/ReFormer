@@ -115,12 +115,14 @@ import { Button } from '@reformer/ui-kit/button';
 ## Quick Start
 
 Минимальная форма из двух полей с валидацией и сабмитом (архитектура M1:
-`createModel` → схема → `createForm({ model, schema })` → `validateFormModel`).
-`FormField` самостоятельно подцепляет `value`/`error`/`pending` через `@reformer/cdk`:
+`createModel` → layout-схема → `createForm({ model, schema })`; валидация — отдельная
+`defineValidationSchema`, запускаемая `validateModel`). `FormField` самостоятельно
+подцепляет `value`/`error`/`pending` через `@reformer/cdk`:
 
 ```tsx
 import { useMemo } from 'react';
-import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
@@ -129,37 +131,42 @@ type RegistrationForm = {
   password: string;
 };
 
+// Валидация — отдельный слой (@reformer/core/validation), НЕ в layout-схеме.
+const registrationValidation = defineValidationSchema<RegistrationForm>(({ model }) => {
+  validate(model.$.email, [required({ message: 'Email обязателен' }), email()]);
+  validate(model.$.password, [required({ message: 'Пароль обязателен' }), minLength(8)]);
+});
+
 function RegistrationPage() {
-  const { model, form, schema } = useMemo(() => {
+  const { model, form } = useMemo(() => {
     // 1) Модель — источник истины значений.
     const model = createModel<RegistrationForm>({ email: '', password: '' });
-    // 2) Схема: лист = { value: сигнал модели, component, componentProps?, validators }.
+    // 2) Layout-схема: лист = { value: сигнал модели, component, componentProps? } — без validators.
     const schema = {
       children: [
         {
           value: model.$.email,
           component: Input,
           componentProps: { label: 'Email', type: 'email', testId: 'email' },
-          validators: [required({ message: 'Email обязателен' }), email()],
         },
         {
           value: model.$.password,
           component: InputPassword,
           componentProps: { label: 'Пароль', testId: 'password' },
-          validators: [required({ message: 'Пароль обязателен' }), minLength(8)],
         },
       ],
     };
     // 3) createForm привязывает ноды к сигналам модели → FormProxy.
     const form = createForm<RegistrationForm>({ model, schema });
-    return { model, form, schema };
+    return { model, form };
   }, []);
 
   const onSubmit = async () => {
     form.markAsTouched();
-    // 4) Валидация всей модели по схеме.
-    const res = await validateFormModel(model, schema);
-    if (!res.valid) return;
+    // 4) Валидация модели внешним раннером (ошибки сам роутит в ноды).
+    //    form.submit()/validate() schema-валидацию НЕ гоняют.
+    const ok = await validateModel(model, registrationValidation);
+    if (!ok) return;
     console.log('values', model.get());
   };
 
