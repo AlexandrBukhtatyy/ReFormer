@@ -1,0 +1,51 @@
+---
+id: file-upload
+title: FileUpload
+sidebar_label: FileUpload
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { fileUploadDocConfig } from '@site/src/components/demo/examples/file-upload';
+
+# FileUpload
+
+Поле выбора и загрузки файлов. Значение поля — **атомарный массив**, а не
+форма-массив: `File[] | RemoteFileRef[] | null`; пустой список эмитится как
+`null`, поэтому `required()` работает без изменений. В TS-интерфейсе формы поле
+типизируется union-типом `FileUploadValue` из `@reformer/cdk/file-upload`, а
+начальное значение в модели — `null` (leaf-сигнал).
+
+Два режима значения:
+
+- **deferred** (по умолчанию) — значение `File[]`, файлы уходят на submit формы
+  через `FormData`; сети в компоненте нет;
+- **immediate** — при заданном `uploader(file, { onProgress, signal })` файлы
+  загружаются сразу при выборе (прогресс, повтор, abort при удалении), а
+  значением поля становятся сериализуемые дескрипторы `RemoteFileRef`
+  (`{ id, name, url?, size?, type? }`) — черновики, `renderer-json` и
+  восстановление формы при редактировании работают из коробки.
+
+Отбор кандидатов (`accept` с собственным матчером — нативный `accept` на
+drag-and-drop не действует, `maxFiles`, `maxFileSize`, дубликаты, кастомный
+`validate`) выполняет сам компонент: отклонённые файлы в значение поля не
+попадают, а уходят в `onReject` и показываются под списком; тексты кодов ошибок
+(`fileType`, `maxFileSize`, …) резолвятся через `ValidationMessagesProvider`
+(`createMessageResolver`) из `@reformer/cdk`.
+
+Представления — один контракт значения, одно registry-имя `FileUpload`:
+`variant: 'button' | 'dropzone' | 'input'`. Single-изображение с превью —
+отдельный `FileUploadAvatarField` (значение `File | RemoteFileRef | null`,
+registry-имя `FileUploadAvatar`).
+
+Доступность — из headless-слоя: скрытый настоящий `input[type=file]`, зона —
+кнопка (клик и Enter/Space открывают пикер, drop — не единственный канал),
+`aria-live`-регион статусов, у кнопок удаления `aria-label` с именем файла,
+прогресс — `role="progressbar"`. Невалидное состояние dropzone/input/avatar
+подсвечивают рамкой по `aria-invalid` от FormField (или явному пропу `invalid`);
+вариант button показывает ошибку текстом (`FormField.Error`).
+
+Нужен полный контроль над разметкой — берите headless compound-набор
+`FileUpload` (Root / Trigger / Dropzone / ItemGroup / Item / ItemPreview /
+ItemProgress / …) или хук `useFileUpload` из `@reformer/cdk/file-upload`.
+
+<ComponentDoc config={fileUploadDocConfig} />

@@ -155,6 +155,7 @@ const sidebars: SidebarsConfig = {
         'ui-kit/calendar',
         'ui-kit/combobox',
         'ui-kit/date-picker',
+        'ui-kit/file-upload',
       ],
     },
     {
@@ -247,7 +248,13 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Составные',
       collapsed: false,
-      items: ['ui-kit/table', 'ui-kit/sidebar', 'ui-kit/form-array', 'ui-kit/form-navigation'],
+      items: [
+        'ui-kit/table',
+        'ui-kit/sidebar',
+        'ui-kit/form-field',
+        'ui-kit/form-array',
+        'ui-kit/form-navigation',
+      ],
     },
   ],
 

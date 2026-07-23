@@ -30,6 +30,12 @@ export interface DemoFieldConfig {
    * ложится в ноду.
    */
   touched?: boolean;
+  /**
+   * Презентационная опция обёртки {@link makeFieldVariant}: не ограничивать
+   * поле шириной 380px, а растянуть на всю ширину превью — для широких
+   * контролов (dropzone-зоны FileUpload и т.п.).
+   */
+  fullWidth?: boolean;
 }
 
 /**
