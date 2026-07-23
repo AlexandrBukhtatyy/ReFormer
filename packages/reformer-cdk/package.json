@@ -26,6 +26,10 @@
     "./form-field": {
       "types": "./dist/form-field.d.ts",
       "import": "./dist/form-field.js"
+    },
+    "./file-upload": {
+      "types": "./dist/file-upload.d.ts",
+      "import": "./dist/file-upload.js"
     }
   },
   "sideEffects": false,

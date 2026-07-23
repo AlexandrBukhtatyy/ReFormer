@@ -108,6 +108,72 @@ export type {
 } from './components/form-field';
 
 // ============================================================================
+// FileUpload - Headless compound component for file selection and upload
+// ============================================================================
+export {
+  FileUpload,
+  FileUploadRoot,
+  FileUploadTrigger,
+  FileUploadDropzone,
+  FileUploadItemGroup,
+  FileUploadItem,
+  FileUploadItemPreview,
+  FileUploadItemName,
+  FileUploadItemSize,
+  FileUploadItemProgress,
+  FileUploadItemDeleteTrigger,
+  FileUploadItemRetryTrigger,
+  FileUploadClearTrigger,
+  useFileUpload,
+  FileUploadContext,
+  useFileUploadContext,
+  FileUploadItemContext,
+  useFileUploadItemContext,
+  fileUploadReducer,
+  initialFileUploadState,
+  selectFiles,
+  projectValue,
+  reconcileItems,
+  fileItemKey,
+  formatFileSize,
+  makeFileError,
+} from './components/file-upload';
+
+export type {
+  FileUploadComponent,
+  FileUploadRootProps,
+  FileUploadTriggerProps,
+  FileUploadDropzoneProps,
+  FileUploadItemGroupProps,
+  FileUploadItemProps,
+  FileUploadItemPreviewProps,
+  FileUploadItemNameProps,
+  FileUploadItemSizeProps,
+  FileUploadItemProgressProps,
+  FileUploadItemDeleteTriggerProps,
+  FileUploadItemRetryTriggerProps,
+  FileUploadClearTriggerProps,
+  FileUploadContextValue,
+  FileUploadItemContextValue,
+  FileUploadState,
+  FileUploadAction,
+  SelectFilesOptions,
+  SelectFilesResult,
+  RemoteFileRef,
+  FileError,
+  FileRejection,
+  FileUploadItemData,
+  FileUploadValue,
+  FileUploadUploader,
+  UseFileUploadOptions,
+  FileUploadHandle,
+  UseFileUploadReturn,
+  FileUploadIds,
+  FileUploadRootPropGetters,
+  FileUploadDropzonePropGetters,
+} from './components/file-upload';
+
+// ============================================================================
 // Validation messages - i18n resolver for field error display (code → message)
 // ============================================================================
 export {
