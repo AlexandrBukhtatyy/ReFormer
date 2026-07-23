@@ -11,7 +11,7 @@ export function makeFieldVariant(config: DemoFieldConfig): ComponentType {
   return function FieldVariant() {
     const { control } = useDemoField(config);
     return (
-      <div style={{ maxWidth: 380, width: '100%' }}>
+      <div style={{ maxWidth: config.fullWidth ? undefined : 380, width: '100%' }}>
         <FormField control={control} />
       </div>
     );

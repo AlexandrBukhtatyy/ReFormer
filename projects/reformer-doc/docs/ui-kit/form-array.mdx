@@ -1,0 +1,18 @@
+---
+id: form-array
+title: FormArraySection
+sidebar_label: FormArraySection
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { uiKitFormArrayDocConfig } from '@site/src/components/demo/examples/form-array';
+
+# FormArraySection
+
+Готовая секция динамического массива форм поверх headless `@reformer/cdk/form-array`:
+заголовок, кнопка «Добавить», карточка с меткой на каждый элемент, удаление, перестановка ↑/↓
+и пустое состояние — из коробки. Элемент рендерит `itemComponent` с контрактом
+`ComponentType<{ control: FormProxy<T> }>` (тот же, что у шага FormWizard). Для полностью
+кастомной разметки используйте headless [FormArray](/docs/cdk/form-array) напрямую.
+
+<ComponentDoc config={uiKitFormArrayDocConfig} />

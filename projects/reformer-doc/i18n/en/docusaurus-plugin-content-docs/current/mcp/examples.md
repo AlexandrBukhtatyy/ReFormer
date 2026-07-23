@@ -38,18 +38,31 @@ interface RegistrationForm {
 4. Adds validation:
 
 ```typescript
-import { required, email, minLength, validate } from '@reformer/core/validators';
+import { validate, cross, defineValidationSchema } from '@reformer/core/validation';
+import { required, email, minLength } from '@reformer/core/validators';
+import type { ValidationError } from '@reformer/core';
 
-const validation: ValidationSchemaFn<RegistrationForm> = (v) => ({
-  email: v.field(required(), email()),
-  password: v.field(required(), minLength(8)),
-  confirmPassword: v.field(
-    required(),
-    validate((value, form) => value === form.password.value || 'Passwords do not match')
-  ),
-  agreeToTerms: v.field(validate((value) => value === true || 'Agreement is required')),
+// Password match reads a sibling field → a cross-field rule over the model snapshot.
+const passwordsMatch = (f: RegistrationForm): ValidationError | null =>
+  f.confirmPassword && f.password && f.confirmPassword !== f.password
+    ? { code: 'passwords-mismatch', message: 'Passwords do not match' }
+    : null;
+
+const validationSchema = defineValidationSchema<RegistrationForm>(({ model }) => {
+  validate(model.$.email, [required(), email()]);
+  validate(model.$.password, [required(), minLength(8)]);
+  validate(model.$.confirmPassword, [required()]);
+  cross(model.$.confirmPassword, passwordsMatch);
+  // Inline rule — a plain (value) => ValidationError | null function.
+  validate(model.$.agreeToTerms, [
+    (value) => (value ? null : { code: 'terms-required', message: 'Agreement is required' }),
+  ]);
 });
 ```
+
+The schema lives outside the layout tree. The app runs it on demand (e.g. on submit) with the
+external runner — `await validateModel(model, validationSchema)`. It returns a `boolean` and
+routes errors onto the form nodes itself, so the UI highlights the fields.
 
 5. Checks code via `check_code`
 
@@ -75,30 +88,33 @@ Add validation to the order form:
 3. Generates validation:
 
 ```typescript
-import { required, pattern, validate, when } from '@reformer/core/validators';
+import { validate, validateWhen, defineValidationSchema } from '@reformer/core/validation';
+import { required, pattern } from '@reformer/core/validators';
+import type { ValidationError } from '@reformer/core';
 
-const validation: ValidationSchemaFn<OrderForm> = (v) => ({
-  phone: v.field(
+// Inline rule: delivery date not earlier than tomorrow.
+const notBeforeTomorrow = (value: string): ValidationError | null => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return new Date(value) >= tomorrow
+    ? null
+    : { code: 'deliveryTooSoon', message: 'Select a date no earlier than tomorrow' };
+};
+
+const validationSchema = defineValidationSchema<OrderForm>(({ model }) => {
+  validate(model.$.phone, [
     required(),
-    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, {
-      message: 'Format: +7 (XXX) XXX-XX-XX',
-    })
-  ),
-  deliveryDate: v.field(
-    required(),
-    validate((value) => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      return new Date(value) >= tomorrow || 'Select a date no earlier than tomorrow';
-    })
-  ),
-  deliveryTime: v.field(
-    when(
-      (form) => form.deliveryType.value === 'express',
-      required({ message: 'Specify time for express delivery' })
-    )
-  ),
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Format: +7 (XXX) XXX-XX-XX' }),
+  ]);
+  validate(model.$.deliveryDate, [required(), notBeforeTomorrow]);
+  // Conditional branch: the deliveryTime rule is active only for express delivery,
+  // otherwise it is silenced (its error clears automatically).
+  validateWhen(
+    () => model.deliveryType === 'express',
+    () =>
+      validate(model.$.deliveryTime, [required({ message: 'Specify time for express delivery' })])
+  );
 });
 ```
 

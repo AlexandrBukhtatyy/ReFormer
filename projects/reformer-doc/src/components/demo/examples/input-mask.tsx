@@ -48,7 +48,7 @@ export const inputMaskDocConfig: ComponentDocConfig = {
       id: 'validation',
       title: 'Валидатор required',
       description:
-        'validator прямо в ноде схемы; touched-поле с пустым значением показывает ошибку.',
+        'правило required в validation-схеме (validate из @reformer/core/validation); touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: '',
         component: InputMaskField,
@@ -60,8 +60,10 @@ export const inputMaskDocConfig: ComponentDocConfig = {
   value: model.$.phone,
   component: InputMaskField,
   componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.phone, [required()]);`,
     },
   ],
   api: {
@@ -84,7 +86,9 @@ export const inputMaskDocConfig: ComponentDocConfig = {
     label: 'Телефон',
     mask: '${v.mask}',${v.placeholder ? `\n    placeholder: '${v.placeholder}',` : ''}${v.required ? '\n    required: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

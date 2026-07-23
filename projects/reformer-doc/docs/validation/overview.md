@@ -4,18 +4,22 @@ sidebar_position: 1
 
 # Обзор валидации
 
-Валидация в ReFormer — **декларативная** и **headless**. Правила описываются прямо в схеме поля,
-а сама проверка — чистая функция данных: движок обходит модель по схеме, прогоняет валидаторы и
-раскладывает ошибки по полям. UI подсвечивает их автоматически.
+Валидация в ReFormer — **декларативная**, **headless** и живёт в **отдельном от разметки слое**.
+Layout-схема (дерево `RenderNode` / JSON / привязка компонентов к сигналам) **не несёт валидаторов** —
+правила описываются отдельной **схемой валидации** (обычной функцией над моделью). Сама проверка —
+прогон **по требованию**: внешний раннер обходит модель по схеме, прогоняет правила и раскладывает
+ошибки по полям. UI подсвечивает их автоматически.
 
 ## Как это устроено
 
-Валидаторы кладутся в массив `validators` узла схемы. Это чистые **фабрики**
-(`required()`, `email()`, `min(18)`, …) из `@reformer/core/validators`, возвращающие функцию
-`(value, scope, root) => ValidationError | null`.
+Схема валидации — обычная функция `({ model }) => void`, обёрнутая в `defineValidationSchema<T>`.
+Внутри вызываются свободные операторы из `@reformer/core/validation`; значение поля проверяет
+`validate(sig, [rules])`. Правила — это чистые **фабрики** (`required()`, `email()`, `min(18)`, …)
+из `@reformer/core/validators`, возвращающие функцию `(value) => ValidationError | null`.
 
 ```typescript
-import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Input } from '@reformer/ui-kit';
 
@@ -23,60 +27,76 @@ type ContactForm = { name: string; email: string };
 
 const model = createModel<ContactForm>({ name: '', email: '' });
 
+// Layout-схема несёт только компоновку — привязку сигналов к компонентам, без валидаторов.
 const schema = {
-  name: {
-    value: model.$.name,
-    component: Input,
-    validators: [required(), minLength(2)],
-  },
-  email: {
-    value: model.$.email,
-    component: Input,
-    validators: [required(), email()],
-  },
+  name: { value: model.$.name, component: Input },
+  email: { value: model.$.email, component: Input },
 };
 
 const form = createForm<ContactForm>({ model, schema });
+
+// Валидация — отдельная схема: обычная функция над моделью, обёрнутая в defineValidationSchema.
+const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
+  validate(model.$.name, [required(), minLength(2)]);
+  validate(model.$.email, [required(), email()]);
+});
 ```
 
-:::info Валидаторы — чистые фабрики
-`required()`, `min(50000)`, `email()` возвращают функцию и **вызываются со скобками** прямо в массиве:
-`validators: [required(), min(50000)]`. Валидация запускается движком, а не самим полем.
+Операторы из `@reformer/core/validation` (вызываются только внутри схемы, во время прогона):
+
+- `validate(sig, [rules])` — синхронные правила поля;
+- `validateAsync(sig, [asyncRules])` — асинхронные правила (правило получает `AbortSignal`);
+- `validateWhen(cond, cb)` — условная валидация (см. ниже);
+- `cross(sig, fn)` — cross-field: `fn` получает снапшот модели (`model.get()`);
+- `each(arr, itemFn)` — правила для каждого элемента массива модели;
+- `apply(...schemas)` — композиция под-схем над той же моделью.
+
+:::info Правила — чистые фабрики
+`required()`, `min(50000)`, `email()` возвращают функцию-правило и **вызываются со скобками** прямо
+в массиве оператора: `validate(model.$.amount, [required(), min(50000)])`. Прогон запускает не поле,
+а внешний раннер.
 :::
 
 ## Запуск валидации
 
-Валидация выполняется **по требованию** — обычно на submit — через `validateFormModel(model, schema)`.
-Функция обходит модель по схеме, возвращает `{ valid, errors }` и **роутит ошибки в ноды формы**,
-поэтому поля с ошибками подсветятся в UI.
+Валидация выполняется **по требованию** — обычно на submit или при переходе на следующий шаг — через
+внешний раннер `validateModel(model, schema)`. Он обходит модель по схеме, дожидается async-правил,
+**роутит ошибки в ноды формы** (`getNodeForSignal(sig).setErrors(...)`), поэтому поля с ошибками
+подсветятся в UI, и возвращает `Promise<boolean>`.
 
 ```typescript
-const { valid, errors } = await validateFormModel(model, schema);
-// valid: boolean
-// errors: Record<string, ValidationError[]> — только поля с ошибками, ключ — путь поля
+const ok = await validateModel(model, contactValidation);
+// ok: boolean — false, если есть блокирующие ошибки (severity: 'warning' не блокирует)
+// ошибки уже разнесены по нодам: form.name.errors, form.email.errors — UI подсветит поля
 ```
 
-Канонический submit-флоу — «валидировать → проверить `valid` → взять снимок `model.get()`»:
+Канонический submit-флоу — «валидировать → проверить `ok` → взять снимок `model.get()`»:
 
 ```tsx
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  form.touchAll(); // раскрыть все ошибки в UI
+  form.markAsTouched(); // раскрыть все ошибки в UI
 
-  const { valid } = await validateFormModel(model, schema);
-  if (valid) {
+  const ok = await validateModel(model, contactValidation);
+  if (ok) {
     await api.save(model.get());
   }
 };
 ```
 
-:::tip Три варианта запуска
+:::warning `form.validate()` / `submit()` больше не валидируют по схеме
+Прогон схемы вынесен из формы: узлы больше не хранят валидаторы, поэтому `form.validate()` и
+`submit()` **не запускают правила схемы**. Валидацию инициирует приложение — вызовом
+`validateModel(model, schema)` (напрямую или через конфиг wizard'а).
+:::
 
-- `validateFormModel(model, schema)` — полная проверка (sync + async), **роутит ошибки в ноды формы**.
-- `validateModel(model, schema)` — то же самое, но **без нод** (headless: server action, тест) — только результат.
-- `validateModelSync(model, schema)` — только синхронные валидаторы, без сети; удобно как быстрый
-  gate «можно ли перейти на следующий шаг».
-  :::
+:::tip Один раннер — разные точки вызова
+`validateModel(model, schema)` — единственный вход. Он работает и на клиенте (ошибки доезжают до нод,
+UI подсвечивает), и headless (server action, юнит-тест — тот же вызов, результат `boolean`).
+Пошаговые формы оборачивают его в конфиг: `makeValidationConfig(model)` → `{ validateStep, validateAll }`
+для `FormWizard`. Реактивный мост «поведение инициирует валидацию» — оператор поведения
+`revalidateWhen([deps], () => void validateModel(model, schema))`.
+:::
 
 ## Чтение состояния поля
 
@@ -142,21 +162,27 @@ interface ValidationError {
 
 ## Условная валидация
 
-Правила, применяемые только в части формы, описываются узлом-веткой `{ when, children }`. Когда
-`when` возвращает `false`, поддерево пропускается, а ошибки его полей очищаются.
+Правила, действующие только в части формы, оборачиваются оператором `validateWhen(cond, cb)`. Пока
+`cond()` возвращает `false`, правила внутри `cb` не выполняются, а поля, которых они касаются,
+**гасятся** — их ошибки очищаются.
 
 ```typescript
-const schema = {
-  contactByPhone: { value: model.$.contactByPhone, component: Checkbox },
+const orderValidation = defineValidationSchema<OrderForm>(({ model }) => {
+  validate(model.$.contactMethod, [required()]);
   // Телефон обязателен, только если выбран контакт по телефону:
-  phoneBranch: {
-    when: (_scope, root) => root.contactByPhone === true,
-    children: [{ value: model.$.phone, component: Input, validators: [required()] }],
-  },
-};
+  validateWhen(
+    () => model.contactMethod === 'phone',
+    () => validate(model.$.phone, [required()])
+  );
+});
 
-const { valid } = await validateFormModel(model, schema);
+const ok = await validateModel(model, orderValidation);
 ```
+
+Условие `cond` читает значения напрямую из модели (`model.contactMethod`), а не из сигнала
+(`model.$.contactMethod`) — раннер вычисляет его во время прогона. `validateWhen` управляет только
+активностью правил; включение/сброс самого поля — это уже [поведение](/docs/behaviors/overview)
+(`enableWhen`), отдельный слой.
 
 ## Дальше
 
@@ -165,3 +191,5 @@ const { valid } = await validateFormModel(model, schema);
 - [Асинхронная валидация](/docs/validation/async) — проверки через сервер.
 - [Стратегии валидации](/docs/validation/validation-strategies) — `updateOn`, debounce, пошаговые формы.
 - [Обработка ошибок](/docs/validation/error-handling) — чтение, фильтрация и отображение ошибок.
+  </content>
+  </invoke>

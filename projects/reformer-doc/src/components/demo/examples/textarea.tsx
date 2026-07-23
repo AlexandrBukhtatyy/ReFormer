@@ -32,7 +32,7 @@ export const textareaDocConfig: ComponentDocConfig = {
       id: 'validation',
       title: 'Валидатор required',
       description:
-        'validators прямо в ноде схемы; touched-поле с пустым значением показывает ошибку.',
+        'правило required в validation-схеме (validate из @reformer/core/validation); touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: '',
         component: TextareaField,
@@ -44,8 +44,10 @@ export const textareaDocConfig: ComponentDocConfig = {
   value: model.$.comment,
   component: TextareaField,
   componentProps: { label: 'Комментарий', rows: 4 },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.comment, [required()]);`,
     },
   ],
   api: {
@@ -68,7 +70,9 @@ export const textareaDocConfig: ComponentDocConfig = {
     label: 'Комментарий',
     placeholder: '${v.placeholder}',${v.rows ? `\n    rows: ${v.rows},` : ''}${v.required ? '\n    required: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

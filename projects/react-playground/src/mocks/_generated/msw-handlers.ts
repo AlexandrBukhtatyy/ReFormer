@@ -93,6 +93,16 @@ export const handlers = [
     return HttpResponse.json(result.body, { status: result.status });
   }),
 
+  http.get('/api/v1/auth/registration-prefill', ({ request }) => {
+    const url = new URL(request.url);
+    const invite = url.searchParams.get('invite');
+    const result = resolvers.getRegistrationPrefill(invite);
+    if (result.status === 404) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(result.body, { status: result.status });
+  }),
+
   http.post('/api/v1/auth/register', async ({ request }) => {
     const body = await request.json();
     const result = resolvers.registerUser(body);

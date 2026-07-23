@@ -4,8 +4,29 @@ sidebar_position: 2
 
 # Встроенные валидаторы
 
-Все встроенные валидаторы — **фабрики** из `@reformer/core/validators`. Каждая возвращает
-`Validator<TForm, TField>` и кладётся в массив `validators` узла схемы: `validators: [required(), email()]`.
+Все встроенные валидаторы — **фабрики** из `@reformer/core/validators`. Каждая возвращает чистое
+правило поля (`Rule<TField>`) и передаётся в массив оператора `validate(sig, [...])` схемы валидации:
+`validate(model.$.email, [required(), email()])`.
+
+Схема валидации — отдельная функция `defineValidationSchema(({ model }) => …)` из
+`@reformer/core/validation`; layout-схема (узлы, JSON, `RenderNode`) валидаторов **не несёт**. Правила
+живут в этой функции, а прогон идёт **по требованию** через раннер `validateModel(model, schema)` —
+форма сама схему не запускает (подробнее — [Обзор валидации](/docs/validation/overview)).
+
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, email, minLength } from '@reformer/core/validators';
+
+type ContactForm = { name: string; email: string };
+
+const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
+  validate(model.$.name, [required(), minLength(2)]);
+  validate(model.$.email, [required(), email()]);
+});
+```
+
+Снипеты ниже показывают отдельные фабрики — каждый вызов `validate(...)` подразумевается внутри такой
+`defineValidationSchema`, где оператор `validate` уже в области видимости.
 
 Общие правила:
 
@@ -26,12 +47,8 @@ sidebar_position: 2
 ```typescript
 import { required } from '@reformer/core/validators';
 
-email: { value: model.$.email, component: Input, validators: [required()] },
-agreeToTerms: {
-  value: model.$.agreeToTerms,
-  component: Checkbox,
-  validators: [required({ message: 'Необходимо принять условия' })],
-},
+validate(model.$.email, [required()]);
+validate(model.$.agreeToTerms, [required({ message: 'Необходимо принять условия' })]);
 // Ошибка: { code: 'required', message }
 ```
 
@@ -42,11 +59,7 @@ agreeToTerms: {
 ```typescript
 import { pattern } from '@reformer/core/validators';
 
-code: {
-  value: model.$.code,
-  component: Input,
-  validators: [pattern(/^[A-Z]+$/, { message: 'Только заглавные латинские буквы' })],
-},
+validate(model.$.code, [pattern(/^[A-Z]+$/, { message: 'Только заглавные латинские буквы' })]);
 // Ошибка: { code: 'pattern', params: { pattern: '^[A-Z]+$' } }
 ```
 
@@ -57,7 +70,7 @@ code: {
 ```typescript
 import { required, email } from '@reformer/core/validators';
 
-email: { value: model.$.email, component: Input, validators: [required(), email()] },
+validate(model.$.email, [required(), email()]);
 // Ошибка: { code: 'email' }
 ```
 
@@ -69,12 +82,8 @@ email: { value: model.$.email, component: Input, validators: [required(), email(
 ```typescript
 import { url } from '@reformer/core/validators';
 
-website: { value: model.$.website, component: Input, validators: [url()] },
-homepage: {
-  value: model.$.homepage,
-  component: Input,
-  validators: [url({ requireProtocol: true, allowedProtocols: ['https'] })],
-},
+validate(model.$.website, [url()]);
+validate(model.$.homepage, [url({ requireProtocol: true, allowedProtocols: ['https'] })]);
 // Ошибки: { code: 'url' } либо { code: 'url_protocol', params: { allowedProtocols } }
 ```
 
@@ -89,11 +98,7 @@ type PhoneFormat = 'international' | 'ru' | 'us' | 'any'; // по умолчан
 ```typescript
 import { required, phone } from '@reformer/core/validators';
 
-phone: {
-  value: model.$.phone,
-  component: Input,
-  validators: [required(), phone({ format: 'ru' })],
-},
+validate(model.$.phone, [required(), phone({ format: 'ru' })]);
 // Ошибка: { code: 'phone', params: { format: 'ru' } }
 ```
 
@@ -106,15 +111,15 @@ phone: {
 ```typescript
 import { minLength, maxLength } from '@reformer/core/validators';
 
-name: { value: model.$.name, component: Input, validators: [minLength(2)] },
-bio: { value: model.$.bio, component: Textarea, validators: [maxLength(500)] },
+validate(model.$.name, [minLength(2)]);
+validate(model.$.bio, [maxLength(500)]);
 // minLength → { code: 'minLength', params: { minLength: 2, actualLength: 1 } }
 // maxLength → { code: 'maxLength', params: { maxLength: 500, actualLength: 501 } }
 ```
 
 :::tip Непустой массив
 Требование «хотя бы один элемент» — это `minLength(1)` на поле-массиве:
-`validators: [minLength(1, { message: 'Добавьте хотя бы один элемент' })]`.
+`validate(model.$.tags, [minLength(1, { message: 'Добавьте хотя бы один элемент' })])`.
 :::
 
 ## Числа
@@ -129,8 +134,8 @@ bio: { value: model.$.bio, component: Textarea, validators: [maxLength(500)] },
 ```typescript
 import { min, max } from '@reformer/core/validators';
 
-age: { value: model.$.age, component: Input, validators: [min(18)] },
-discount: { value: model.$.discount, component: Input, validators: [max(50)] },
+validate(model.$.age, [min(18)]);
+validate(model.$.discount, [max(50)]);
 // min → { code: 'min', params: { min: 18, actual: 16 } }
 // max → { code: 'max', params: { max: 50, actual: 75 } }
 ```
@@ -142,7 +147,7 @@ discount: { value: model.$.discount, component: Input, validators: [max(50)] },
 ```typescript
 import { required, isNumber } from '@reformer/core/validators';
 
-amount: { value: model.$.amount, component: Input, validators: [required(), isNumber()] },
+validate(model.$.amount, [required(), isNumber()]);
 // Ошибка: { code: 'isNumber' }
 ```
 
@@ -153,7 +158,7 @@ amount: { value: model.$.amount, component: Input, validators: [required(), isNu
 ```typescript
 import { integer } from '@reformer/core/validators';
 
-count: { value: model.$.count, component: Input, validators: [integer()] },
+validate(model.$.count, [integer()]);
 // Ошибка: { code: 'integer' }
 ```
 
@@ -164,7 +169,7 @@ count: { value: model.$.count, component: Input, validators: [integer()] },
 ```typescript
 import { multipleOf } from '@reformer/core/validators';
 
-rating: { value: model.$.rating, component: Input, validators: [multipleOf(0.5)] },
+validate(model.$.rating, [multipleOf(0.5)]);
 // Ошибка: { code: 'multipleOf', params: { multipleOf: 0.5 } }
 ```
 
@@ -175,23 +180,19 @@ rating: { value: model.$.rating, component: Input, validators: [multipleOf(0.5)]
 ```typescript
 import { nonNegative, nonZero } from '@reformer/core/validators';
 
-balance: { value: model.$.balance, component: Input, validators: [nonNegative()] },
-divisor: { value: model.$.divisor, component: Input, validators: [nonZero()] },
+validate(model.$.balance, [nonNegative()]);
+validate(model.$.divisor, [nonZero()]);
 // nonNegative → { code: 'nonNegative' }
 // nonZero     → { code: 'nonZero' }
 ```
 
 :::info Собирайте числовые проверки из фабрик
-Единой фабрики `number()` больше нет. Составьте нужный набор:
+Единой фабрики `number()` больше нет. Составьте нужный набор в одном `validate(...)`:
 
 ```typescript
 import { isNumber, integer, min, max } from '@reformer/core/validators';
 
-percent: {
-  value: model.$.percent,
-  component: Input,
-  validators: [isNumber(), integer(), min(0), max(100)],
-},
+validate(model.$.percent, [isNumber(), integer(), min(0), max(100)]);
 ```
 
 :::
@@ -208,7 +209,7 @@ percent: {
 ```typescript
 import { required, isDate } from '@reformer/core/validators';
 
-eventDate: { value: model.$.eventDate, component: DatePicker, validators: [required(), isDate()] },
+validate(model.$.eventDate, [required(), isDate()]);
 // Ошибка: { code: 'date_invalid' }
 ```
 
@@ -219,8 +220,8 @@ eventDate: { value: model.$.eventDate, component: DatePicker, validators: [requi
 ```typescript
 import { minDate, maxDate } from '@reformer/core/validators';
 
-startDate: { value: model.$.startDate, component: DatePicker, validators: [minDate(new Date())] },
-birthDate: { value: model.$.birthDate, component: DatePicker, validators: [maxDate(new Date())] },
+validate(model.$.startDate, [minDate(new Date())]);
+validate(model.$.birthDate, [maxDate(new Date())]);
 // minDate → { code: 'date_min', params: { minDate } }
 // maxDate → { code: 'date_max', params: { maxDate } }
 ```
@@ -232,8 +233,8 @@ birthDate: { value: model.$.birthDate, component: DatePicker, validators: [maxDa
 ```typescript
 import { pastDate, futureDate } from '@reformer/core/validators';
 
-birthDate: { value: model.$.birthDate, component: DatePicker, validators: [pastDate()] },
-appointment: { value: model.$.appointment, component: DatePicker, validators: [futureDate()] },
+validate(model.$.birthDate, [pastDate()]);
+validate(model.$.appointment, [futureDate()]);
 // pastDate   → { code: 'date_future' } (дата оказалась в будущем)
 // futureDate → { code: 'date_past' }   (дата оказалась в прошлом)
 ```
@@ -245,32 +246,25 @@ appointment: { value: model.$.appointment, component: DatePicker, validators: [f
 ```typescript
 import { required, minAge, maxAge } from '@reformer/core/validators';
 
-birthDate: {
-  value: model.$.birthDate,
-  component: DatePicker,
-  validators: [required(), minAge(18), maxAge(100)],
-},
+validate(model.$.birthDate, [required(), minAge(18), maxAge(100)]);
 // minAge → { code: 'date_min_age', params: { minAge: 18, currentAge } }
 // maxAge → { code: 'date_max_age', params: { maxAge: 100, currentAge } }
 ```
 
 ## Комбинирование
 
-К одному полю можно применить несколько валидаторов — выполняются все, ошибки собираются в массив:
+К одному полю можно применить несколько правил в одном массиве `validate(...)` — выполняются все,
+ошибки собираются в массив:
 
 ```typescript
 import { required, minLength, pattern } from '@reformer/core/validators';
 
-password: {
-  value: model.$.password,
-  component: Input,
-  validators: [
-    required(),
-    minLength(8),
-    pattern(/[A-Z]/, { message: 'Нужна заглавная буква' }),
-    pattern(/[0-9]/, { message: 'Нужна цифра' }),
-  ],
-},
+validate(model.$.password, [
+  required(),
+  minLength(8),
+  pattern(/[A-Z]/, { message: 'Нужна заглавная буква' }),
+  pattern(/[0-9]/, { message: 'Нужна цифра' }),
+]);
 ```
 
 ## Справочник
@@ -304,3 +298,5 @@ password: {
 - [Кастомные валидаторы](/docs/validation/custom) — свои правила и кросс-полевые проверки.
 - [Асинхронная валидация](/docs/validation/async) — проверки через сервер.
 - [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение ошибок.
+  </content>
+  </invoke>

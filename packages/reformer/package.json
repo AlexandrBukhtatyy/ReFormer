@@ -23,6 +23,10 @@
       "types": "./dist/behaviors.d.ts",
       "import": "./dist/behaviors.js"
     },
+    "./validation": {
+      "types": "./dist/validation.d.ts",
+      "import": "./dist/validation.js"
+    },
     "./validators": {
       "types": "./dist/validators.d.ts",
       "import": "./dist/validators.js"

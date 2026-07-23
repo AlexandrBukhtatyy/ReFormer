@@ -39,7 +39,7 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
  * },
  * ```
  */
-export function pattern<TForm = unknown, TField extends string | undefined = string>(
+export function pattern<TForm = unknown, TField extends string | null | undefined = string>(
   regex: RegExp,
   options?: ValidateOptions
 ): Validator<TForm, TField> {

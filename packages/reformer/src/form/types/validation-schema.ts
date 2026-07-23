@@ -1,9 +1,11 @@
 /**
- * Типы для validation schema.
+ * Типы для validation schema (legacy-поверхность).
  *
- * Валидаторы — чистые функции `(value, scope, root) => error | null`. Не знают про реестр,
- * импортируются как фабрики из `@reformer/core/validators` и кладутся в поле `validators`
- * узла схемы; вызывает их движок M1 (`validateModel`/`validateFormModel`).
+ * Живой контракт валидации — `@reformer/core/validation`: `defineValidationSchema` + операторы
+ * (`validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply`) и раннер
+ * `validateModel(model, schema)`; правила там — `Rule<T> = (value) => error | null`.
+ * Дерево-движок (`validateFormModel`/`validateModel`(tree)), читавший `validators` узлов схемы,
+ * удалён — типы ниже остаются только как совместимость для node-level поверхности.
  *
  * Legacy-движок операторов регистрации (`validate`/`validateAsync`/`applyWhen`/…) удалён после Ф7
  * (см. `core/validation/index.ts`). Типы {@link AsyncValidator}, {@link ConditionFn} и
@@ -22,36 +24,14 @@ import type { FormModel } from '../../state/types';
 // ============================================================================
 
 /**
- * Чистый синхронный валидатор поля.
+ * Чистый синхронный валидатор поля (legacy-сигнатура `(value, scope, root)`).
  *
- * Сигнатура зеркалит то, что реально вызывает движок M1
- * (`validateModel`/`validateFormModel`/`validateModelSync`): `validator(value, scope, root)`.
- * - `value` — значение поля (`TField`);
- * - `scope` — ближайшая scope-**модель** (под-модель элемента массива или корень). Из `TForm`/`TField`
- *   её тип не выводится, поэтому `unknown` — потребитель сужает сам (для типизированного scope
- *   используйте {@link ModelValidator}`<TField, TScope, TForm>`);
- * - `root` — корневая модель формы `FormModel<TForm>` (реактивный value-proxy: `root.field` читает
- *   значение). Возвращает `ValidationError` либо `null`. Не знает про реестр валидации.
- *
- * Совместим с полем `validators` узла схемы (см. `SchemaValidator`) — там же лежат `ModelValidator`
- * и `ValidatorFn`. Встроенные фабрики (`required()`/`email()`/…) возвращают `(value) => …` и
- * дополнительные аргументы игнорируют.
- *
- * @example Кастомный валидатор в массиве `validators` поля схемы
- * ```typescript
- * const isAdult: Validator<MyForm, number> = (value, _scope, root) => {
- *   if (value < 18) return { code: 'tooYoung', message: '18+' };
- *   // root — FormModel<MyForm>: root.someOtherField читается как значение
- *   return null;
- * };
- *
- * // Фабрики и кастомные валидаторы кладутся в `validators: [...]` поля:
- * const schema = {
- *   children: [
- *     { value: model.$.age, component: Input, validators: [required(), isAdult] },
- *   ],
- * };
- * ```
+ * @deprecated Осиротевший остаток удалённого дерево-движка (`validateFormModel`). Живой контракт —
+ * `Rule<T> = (value) => ValidationError | null` из `@reformer/core/validation`: правила
+ * передаются в `validate(sig, [rules])` внутри `defineValidationSchema` и запускаются
+ * `validateModel(model, schema)`. Cross-field — оператор `cross(sig, (f) => …)` над снапшотом
+ * `model.get()` (третий аргумент `root` больше не нужен). Тип экспортируется только ради
+ * обратной совместимости (`SchemaValidator`-union).
  */
 export type Validator<TForm, TField> = (
   value: TField,

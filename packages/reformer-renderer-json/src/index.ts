@@ -25,6 +25,7 @@ export type {
   JsonFieldNode,
   JsonArrayNode,
   JsonContainerNode,
+  JsonText,
 } from './types/json-schema';
 export { isFieldNode, isArrayNode, isContainerNode } from './types/json-schema';
 
@@ -33,6 +34,7 @@ export {
   parseOperator,
   isModelOp,
   isComponentOp,
+  isHtmlOp,
   isDataSourceOp,
   isFnOp,
   isLocaleOp,
@@ -40,12 +42,19 @@ export {
 export type {
   ModelOp,
   ComponentOp,
+  HtmlOp,
   DataSourceOp,
   FnOp,
   LocaleOp,
   JsonOperator,
   ParsedOperator,
 } from './operators';
+
+// ============================================================================
+// HTML-узлы (оператор "$html(tag)"): whitelist тегов и чистка DOM-атрибутов
+// ============================================================================
+
+export { ALLOWED_HTML_TAGS, isAllowedHtmlTag, sanitizeHtmlProps } from './html/html-tags';
 
 // ============================================================================
 // Component Registry

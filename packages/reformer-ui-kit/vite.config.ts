@@ -25,6 +25,10 @@ const entry: Record<string, string> = {
   ...(existsSync(resolve(__dirname, 'src/meta.ts'))
     ? { meta: resolve(__dirname, 'src/meta.ts') }
     : {}),
+  // Слой создания своих полей — отдельный вход под subpath `./fields`.
+  ...(existsSync(resolve(__dirname, 'src/fields/index.ts'))
+    ? { fields: resolve(__dirname, 'src/fields/index.ts') }
+    : {}),
   ...componentEntries(),
 };
 
@@ -51,8 +55,11 @@ const EXTERNAL: RegExp[] = [
   /^@shadcn\/react/,
 ];
 
+// Тесты живут рядом с исходниками — в dist их декларации не нужны и уезжают в npm.
+const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
+
 export default defineConfig({
-  plugins: [react(), dts({ insertTypesEntry: true })],
+  plugins: [react(), dts({ insertTypesEntry: true, exclude: TEST_FILES })],
   build: {
     lib: {
       entry,

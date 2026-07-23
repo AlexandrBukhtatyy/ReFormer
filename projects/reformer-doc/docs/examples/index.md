@@ -8,7 +8,7 @@ sidebar_label: Обзор
 
 Живые примеры запускаются в песочнице [react-playground](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx).
 Интерактивную документацию отдельных компонентов смотрите в разделе
-[@reformer/ui-kit](./packages/ui-kit) (Variants / Examples / API у каждого компонента).
+[@reformer/ui-kit](/docs/ui-kit/overview) (Variants / Examples / API у каждого компонента).
 
 ## Одна форма — три подхода
 

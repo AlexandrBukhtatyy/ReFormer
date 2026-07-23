@@ -41,6 +41,9 @@ const components = existsSync(componentsDir)
 const exportsMap = {
   '.': { types: './dist/index.d.ts', import: './dist/index.js' },
   './meta': { types: './dist/meta.d.ts', import: './dist/meta.js' },
+  // Слой создания своих полей: withFormControl + адаптеры + makeElementFieldHandle.
+  // Фиксированная точка (не компонент) — в FIXED-наборе package-exports.test.ts.
+  './fields': { types: './dist/fields.d.ts', import: './dist/fields.js' },
   './styles': './src/styles/theme.css',
 };
 for (const name of components) {

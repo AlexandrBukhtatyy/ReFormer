@@ -53,7 +53,7 @@ export const FormWizardProgress: FC<FormWizardProgressProps> = ({
   format = defaultFormat,
   ...renderProps
 }) => {
-  const classes = cn('text-center text-sm text-gray-600', className);
+  const classes = cn('text-center text-sm text-muted-foreground', className);
   return (
     <div data-slot="form-wizard-progress" className={classes}>
       {format(renderProps as FormWizardProgressRenderProps)}

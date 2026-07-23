@@ -2,9 +2,10 @@
  * Модуль `form` — доменный слой формы поверх state-субстрата (`model`).
  *
  * Ноды (value/touched/dirty/status/errors/componentProps), сборка формы из модели по идентичности
- * сигнала (`createForm`), state-операции над нодами (`enableWhen`/`disableWhen`), in-form роутинг
- * валидации (`validateFormModel`), submit/статус, React-хуки. Зависит от `model` (form→state
- * разрешено); обратной зависимости нет.
+ * сигнала (`createForm`), state-операции над нодами (`enableWhen`/`disableWhen`), submit/статус,
+ * React-хуки. Schema-валидация — внешний контракт `@reformer/core/validation` (`validateModel`),
+ * роутит ошибки в ноды через реестр сигнал→нода. Зависит от `model` (form→state разрешено);
+ * обратной зависимости нет.
  *
  * @group Form
  * @module form
@@ -23,10 +24,8 @@ export type { ModelArrayControl } from './nodes/model-array-node';
 export { createForm, createFormFromModel } from './create-form';
 export type { CreateFormFromModelArgs } from './create-form';
 
-// Валидация данных: headless-движок (walk по схеме) + in-form роутинг ошибок в ноды.
-export { validateModel, validateModelSync } from './validate-model-core';
-export type { ModelValidator, ModelValidationResult } from './validate-model-core';
-export { validateFormModel } from './validate-model';
+// Валидация: контракт `@reformer/core/validation` (validateModel + операторы) — отдельный сабпат,
+// в root не реэкспортируется. Старый дерево-движок (`validateFormModel`/`validateModel`(tree)) удалён.
 // State-операции над нодами.
 export { enableWhen, disableWhen } from './behaviors-node';
 

@@ -53,7 +53,7 @@ export interface UrlValidatorOptions extends ValidateOptions {
  * },
  * ```
  */
-export function url<TForm = unknown, TField extends string | undefined = string>(
+export function url<TForm = unknown, TField extends string | null | undefined = string>(
   options?: UrlValidatorOptions
 ): Validator<TForm, TField> {
   return (value) => {

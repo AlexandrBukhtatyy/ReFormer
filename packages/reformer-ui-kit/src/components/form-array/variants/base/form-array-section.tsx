@@ -169,7 +169,7 @@ export function FormArraySection<T extends object>({
   reorderable = false,
   maxItems,
   className = 'space-y-3 mt-2',
-  cardClassName = 'mb-4 p-4 bg-white rounded border',
+  cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
 }: FormArraySectionProps<T>): ReactNode {
   const arrayNode = resolveArrayNode<T>(control);
 
@@ -265,10 +265,10 @@ export function FormArraySection<T extends object>({
 
         {length === 0 && emptyMessage ? (
           <FormArray.Empty>
-            <div className="p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600">
+            <div className="p-4 bg-muted border rounded text-center text-muted-foreground">
               {emptyMessage}
               {emptyMessageHint && (
-                <div className="mt-2 text-xs text-gray-500">{emptyMessageHint}</div>
+                <div className="mt-2 text-xs text-muted-foreground/80">{emptyMessageHint}</div>
               )}
             </div>
           </FormArray.Empty>
@@ -280,7 +280,7 @@ export function FormArraySection<T extends object>({
             <FormArray.AddButton
               initialValue={initialValue}
               data-testid="array-add"
-              className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+              className="text-sm text-primary hover:text-primary/80 hover:underline"
             >
               {addButtonLabel}
             </FormArray.AddButton>

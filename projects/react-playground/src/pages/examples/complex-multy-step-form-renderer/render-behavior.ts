@@ -42,12 +42,11 @@ export function createCreditApplicationRenderBehavior(
 
     // ── Загрузка данных заявки: управляет status у AsyncBoundary ─────────────
     const loadApplication = async () => {
-      boundary.patchProps({ status: 'loading' });
+      boundary.patchProps({ status: 'loading', error: null });
       try {
         const [app, dict] = await Promise.all([fetchCreditApplication('1'), fetchDictionaries()]);
-        if (app.status !== 200 || dict.status !== 200) {
-          throw new Error('Ошибка загрузки');
-        }
+        if (app.status !== 200) throw new Error('Ошибка загрузки заявки');
+        if (dict.status !== 200) throw new Error('Ошибка загрузки справочников');
         form.patchValue(app.data);
         // queueMicrotask — дожидаемся завершения реактивных эффектов от patchValue
         queueMicrotask(() => {
@@ -61,8 +60,14 @@ export function createCreditApplicationRenderBehavior(
           );
         });
         boundary.patchProps({ status: 'ready' });
-      } catch {
-        boundary.patchProps({ status: 'error' });
+      } catch (e) {
+        // Текст ошибки уходит прямо в props: раньше он был захардкожен в слот-компоненте,
+        // а причина сбоя (заявка или справочники) до пользователя не доходила.
+        boundary.patchProps({
+          status: 'error',
+          error: e instanceof Error ? e.message : 'Неизвестная ошибка',
+          onRetry: () => void loadApplication(),
+        });
       }
     };
 

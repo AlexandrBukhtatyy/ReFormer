@@ -1,0 +1,84 @@
+{
+  "version": "1.0",
+  "root": {
+    "component": "$html(div)",
+    "componentProps": { "className": "space-y-6" },
+    "children": [
+      {
+        "component": "$html(h2)",
+        "componentProps": { "className": "text-xl font-bold" },
+        "text": "$locale(installment.title)"
+      },
+      {
+        "component": "$html(div)",
+        "componentProps": { "className": "p-4 bg-blue-50 border border-blue-200 rounded-md" },
+        "children": [
+          {
+            "component": "$html(p)",
+            "componentProps": { "className": "text-sm text-blue-800" },
+            "text": "Проценты не начисляются. ",
+            "children": [{ "component": "$html(b)", "text": "Досрочное погашение бесплатно." }]
+          }
+        ]
+      },
+      {
+        "component": "$html(div)",
+        "componentProps": { "className": "space-y-4" },
+        "children": [
+          {
+            "value": "$model(fullName)",
+            "component": "$component(Input)",
+            "componentProps": { "label": "ФИО", "placeholder": "Иванов Иван", "testId": "fullName" }
+          },
+          {
+            "value": "$model(amount)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Сумма (₽)",
+              "type": "number",
+              "step": 1000,
+              "testId": "amount"
+            }
+          },
+          {
+            "value": "$model(months)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Срок (мес.)",
+              "type": "number",
+              "min": 1,
+              "testId": "months"
+            }
+          }
+        ]
+      },
+      { "component": "$html(hr)", "componentProps": { "className": "border-gray-200" } },
+      {
+        "component": "$html(dl)",
+        "componentProps": { "className": "grid grid-cols-2 gap-2 text-sm" },
+        "children": [
+          {
+            "component": "$html(dt)",
+            "componentProps": { "className": "text-gray-500" },
+            "text": "Заявитель"
+          },
+          {
+            "component": "$html(dd)",
+            "componentProps": { "className": "font-medium", "data-testid": "summary-fullName" },
+            "text": "$model(fullName)"
+          },
+          {
+            "component": "$html(dt)",
+            "componentProps": { "className": "text-gray-500" },
+            "text": "Запрошенная сумма"
+          },
+          {
+            "component": "$html(dd)",
+            "componentProps": { "className": "font-medium", "data-testid": "summary-amount" },
+            "text": ["$model(amount)", " ₽ на ", "$model(months)", " мес."]
+          }
+        ]
+      }
+    ]
+  }
+}

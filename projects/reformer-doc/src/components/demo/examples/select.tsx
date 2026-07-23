@@ -1,14 +1,6 @@
-import { useState } from 'react';
-import {
-  SelectField,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  selectAsyncPropsSchema,
-  type ResourceConfig,
-} from '@reformer/ui-kit';
+import { useState, type ReactNode } from 'react';
+import { CheckIcon, ChevronDownIcon } from 'lucide-react';
+import { SelectField, selectAsyncPropsSchema, type ResourceConfig } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -43,45 +35,166 @@ const initials = (name: string) =>
     .join('')
     .toUpperCase();
 
-function CustomItemVariant() {
-  const [value, setValue] = useState<string>('');
+/* ─── Презентационный «раскрытый» Select для variant-карточек ─────────────
+   Настоящий Radix Select — модальный (открыт только один) и лочит скролл
+   страницы, пока открыт. Чтобы в галерее вариантов видеть опции всех селектов
+   разом «не тыкая в каждый», рисуем открытое состояние инлайн (без портала) на
+   токенах ui-kit: все карточки показывают опции одновременно, скролл жив, а клик
+   по опции сразу её выбирает (подсветка + галочка переезжают). */
+interface PreviewOption {
+  value: string;
+  label: string;
+  group?: string;
+  render?: () => ReactNode;
+}
+
+function SelectOpenPreview({
+  label,
+  options,
+  initial,
+}: {
+  label?: string;
+  options: PreviewOption[];
+  initial: string;
+}) {
+  const [selected, setSelected] = useState(initial);
+  const selectedOption = options.find((o) => o.value === selected);
+
+  const groups: { name?: string; items: PreviewOption[] }[] = [];
+  for (const o of options) {
+    let bucket = groups.find((g) => g.name === o.group);
+    if (!bucket) {
+      bucket = { name: o.group, items: [] };
+      groups.push(bucket);
+    }
+    bucket.items.push(o);
+  }
+
   return (
-    <div style={{ maxWidth: 380, width: '100%' }}>
-      <Select value={value} onValueChange={setValue}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Выберите сотрудника" />
-        </SelectTrigger>
-        <SelectContent>
-          {PEOPLE.map((person) => (
-            <SelectItem key={person.value} value={person.value}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                <span
+    <div style={{ maxWidth: 380, width: '100%', fontSize: 14 }}>
+      {label && <div style={{ fontWeight: 500, marginBottom: 6 }}>{label}</div>}
+
+      {/* Триггер с выбранным значением (презентационный). */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          height: 36,
+          padding: '0 12px',
+          borderRadius: 6,
+          border: '1px solid var(--input)',
+        }}
+      >
+        {/* Триггер показывает содержимое выбранной опции целиком (у custom-item — с аватаром). */}
+        <span style={{ display: 'inline-flex', alignItems: 'center', minWidth: 0 }}>
+          {selectedOption
+            ? selectedOption.render
+              ? selectedOption.render()
+              : selectedOption.label
+            : ''}
+        </span>
+        <ChevronDownIcon size={16} style={{ opacity: 0.5, flexShrink: 0 }} />
+      </div>
+
+      {/* Всегда открытый список опций (инлайн, без портала). */}
+      <div
+        style={{
+          marginTop: 4,
+          padding: 4,
+          borderRadius: 6,
+          border: '1px solid var(--border)',
+          background: 'var(--popover)',
+          color: 'var(--popover-foreground)',
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        }}
+      >
+        {groups.map((group, gi) => (
+          <div key={group.name ?? gi}>
+            {group.name && (
+              <div style={{ padding: '6px 8px', fontSize: 12, color: 'var(--muted-foreground)' }}>
+                {group.name}
+              </div>
+            )}
+            {group.items.map((o) => {
+              const active = o.value === selected;
+              return (
+                <div
+                  key={o.value}
+                  role="option"
+                  aria-selected={active}
+                  onClick={() => setSelected(o.value)}
                   style={{
-                    display: 'inline-flex',
+                    position: 'relative',
+                    display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 24,
-                    height: 24,
-                    borderRadius: '50%',
-                    background: person.color,
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    flexShrink: 0,
+                    gap: 8,
+                    padding: '6px 32px 6px 8px',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    background: active ? 'var(--accent)' : undefined,
+                    color: active ? 'var(--accent-foreground)' : undefined,
                   }}
                 >
-                  {initials(person.name)}
-                </span>
-                <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.2 }}>
-                  <span style={{ fontWeight: 500 }}>{person.name}</span>
-                  <span style={{ fontSize: 12, color: '#6b7280' }}>{person.role}</span>
-                </span>
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+                  {o.render ? o.render() : o.label}
+                  {active && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <CheckIcon size={16} />
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
     </div>
+  );
+}
+
+/** Ряд кастомного шаблона (аватар + ФИО + роль). */
+function personRow(person: (typeof PEOPLE)[number]) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          background: person.color,
+          color: '#fff',
+          fontSize: 11,
+          fontWeight: 600,
+          flexShrink: 0,
+        }}
+      >
+        {initials(person.name)}
+      </span>
+      <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.2 }}>
+        <span style={{ fontWeight: 500 }}>{person.name}</span>
+        <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{person.role}</span>
+      </span>
+    </span>
+  );
+}
+
+function CustomItemVariant() {
+  return (
+    <SelectOpenPreview
+      initial="petrov"
+      options={PEOPLE.map((p) => ({ value: p.value, label: p.name, render: () => personRow(p) }))}
+    />
   );
 }
 
@@ -147,12 +260,8 @@ export const selectDocConfig: ComponentDocConfig = {
       id: 'single',
       title: 'Одиночный выбор (options)',
       description:
-        'Плоский список inline-опций через проп options. Значение — строка (value: string | null).',
-      render: makeFieldVariant({
-        initial: null,
-        component: SelectField,
-        componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
-      }),
+        'Плоский список inline-опций через проп options. Значение — строка (value: string | null). В галерее список показан раскрытым — видно все опции сразу.',
+      render: () => <SelectOpenPreview label="Тип кредита" options={LOAN} initial="mortgage" />,
       code: `{
   value: model.$.loanType,
   component: SelectField,
@@ -169,12 +278,9 @@ export const selectDocConfig: ComponentDocConfig = {
     {
       id: 'grouped',
       title: 'Группировка опций (options + group)',
-      description: 'Опции с одинаковым group объединяются под заголовком SelectLabel.',
-      render: makeFieldVariant({
-        initial: null,
-        component: SelectField,
-        componentProps: { label: 'Город', placeholder: 'Выберите город', options: GROUPED },
-      }),
+      description:
+        'Опции с одинаковым group объединяются под заголовком SelectLabel. Список показан раскрытым.',
+      render: () => <SelectOpenPreview label="Город" options={GROUPED} initial="spb" />,
       code: `componentProps: {
   label: 'Город',
   options: [
@@ -296,7 +402,7 @@ componentProps: { label: 'Страна', resource: countries }`,
       id: 'validation',
       title: 'Обязательный выбор (валидатор)',
       description:
-        'validators: [required()] прямо в ноде схемы. touched-поле с пустым значением показывает ошибку.',
+        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
         component: SelectField,
@@ -308,8 +414,10 @@ componentProps: { label: 'Страна', resource: countries }`,
   value: model.$.loanType,
   component: SelectField,
   componentProps: { label: 'Тип кредита', options: LOAN },
-  validators: [required({ message: 'Выберите тип кредита' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);`,
     },
   ],
   api: {
@@ -336,7 +444,9 @@ componentProps: { label: 'Страна', resource: countries }`,
     options: LOAN,
     placeholder: '${v.placeholder}',${v.required ? '\n    required: true,' : ''}${v.clearable ? '\n    clearable: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

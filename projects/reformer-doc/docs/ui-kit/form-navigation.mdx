@@ -1,0 +1,20 @@
+---
+id: form-navigation
+title: FormWizard
+sidebar_label: FormWizard
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { uiKitFormWizardDocConfig } from '@site/src/components/demo/examples/form-wizard';
+
+# FormWizard
+
+Стилизованный многошаговый визард поверх headless `@reformer/cdk/form-wizard`. Шаги задаются
+декларативным массивом `steps` (`{ number, title, icon?, body }`), индикатор шагов и кнопки
+Назад/Далее/Отправить рендерятся автоматически. Пошаговая валидация — `config`
+(`{ validateStep, validateAll }`, обёртки над `validateModel` из `@reformer/core/validation`):
+«Далее» блокируется, пока текущий шаг невалиден. body шага полиморфно — компонент,
+ReactNode или RenderNode. Для кастомной раскладки — headless-слоты
+[FormWizard из CDK](/docs/cdk/form-wizard).
+
+<ComponentDoc config={uiKitFormWizardDocConfig} />

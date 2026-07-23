@@ -7,11 +7,12 @@
 | What                                                                                                   | Where                       |
 | ------------------------------------------------------------------------------------------------------ | --------------------------- |
 | `createModel`, `createForm`                                                                            | `@reformer/core`            |
-| `validateModel`, `validateModelSync`, `validateFormModel`                                              | `@reformer/core`            |
+| `validateModel`, `defineValidationSchema`, `validate`, `validateAsync`, `validateWhen`, `cross`, `each`, `apply` | `@reformer/core/validation` |
+| `Rule`, `AsyncRule`, `ValidationSchema` (типы)                                                         | `@reformer/core/validation` |
 | `useFormControl`, `useFormControlValue`, `useArrayLength`                                              | `@reformer/core`            |
 | `FormModel`, `FormProxy`, `FieldNode`, `GroupNode`, `ArrayNode`, `ModelArrayNode`                     | `@reformer/core`            |
 | `ModelSignals`, `ModelArray`, `ModelValue`, `ModelObject`, `PathAwareSignal`                          | `@reformer/core`            |
-| `ModelValidator`, `ValidationError`, `FieldConfig`, `FormSchema`, `FieldControlState`                 | `@reformer/core`            |
+| `ValidationError`, `FieldConfig`, `FormSchema`, `FieldControlState`                                    | `@reformer/core`            |
 | `computeFrom`, `copyFrom`, `watchField`, `enableWhen`, `disableWhen`                                   | `@reformer/core` (примитивы) |
 | `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen`                                          | `@reformer/core` (примитивы) |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`, `pattern`, `url`, `phone`                | `@reformer/core/validators` |
@@ -27,9 +28,12 @@
 > (`defineFormBehavior` + операторы) экспортируется из `@reformer/core/behaviors`, регистрирует cleanup
 > сам и передаётся в `createForm({ behavior })`. См. `20-compute-vs-watch.md`.
 
-> **Валидаторы — чистые фабрики.** `required()`, `min(50000)`, `email()` возвращают функцию
-> `(value) => ValidationError | null` и кладутся в поле схемы как `validators: [required(), min(50000)]`.
-> Валидация запускается через `validateFormModel(model, schema)` / `validateModel(model, schema)`.
+> **Валидация — отдельный слой.** Layout-схема `createForm` НЕ несёт валидаторов. Правила живут в
+> `defineValidationSchema<T>(({ model }) => { validate(model.$.x, [required(), min(50000)]); ... })`
+> из `@reformer/core/validation`; фабрики `required()`, `min(50000)`, `email()` возвращают
+> `Rule<T> = (value) => ValidationError | null` и передаются массивом в `validate(sig, [...])`.
+> Запуск — только внешним раннером `await validateModel(model, schema)` (`Promise<boolean>`, ошибки
+> сам роутит в ноды; `form.validate()`/`form.submit()` schema-валидацию НЕ гоняют).
 
 ### Type Values
 

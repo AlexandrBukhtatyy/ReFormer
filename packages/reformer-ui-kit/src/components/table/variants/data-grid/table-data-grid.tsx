@@ -13,7 +13,6 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { AsyncBoundary, type AsyncStatus } from '@/components/async-boundary';
-import { ErrorState, LoadingState } from '@/components/state';
 import {
   Pagination,
   PaginationContent,
@@ -29,8 +28,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 // Держит состояние pagination / sorting / column-filters / row-selection, а данные получает
 // из `dataProvider` (server-driven): движок @tanstack/react-table с manual* = true, поэтому
 // сортировка / пагинация / фильтрация НЕ выполняются в памяти — их реализует dataProvider.
-// Состояния loading / error / empty показываются через AsyncBoundary + State (LoadingState /
-// ErrorState); навигация по страницам — через компонент Pagination. Тяжёлая dep
+// Состояния loading / error / empty показываются через AsyncBoundary (его встроенные блоки
+// загрузки и ошибки); навигация по страницам — через компонент Pagination. Тяжёлая dep
 // @tanstack/react-table (optional peer) — компонент живёт вне главного barrel, subpath
 // `@reformer/ui-kit/table`.
 
@@ -264,12 +263,6 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
   const goToPage = (pageIndex: number) =>
     table.setPageIndex(Math.min(Math.max(pageIndex, 0), pageCount - 1));
 
-  const LoadingSlot = React.useCallback(() => <LoadingState />, []);
-  const ErrorSlot = React.useCallback(
-    () => <ErrorState error={errorMsg} onRetry={() => setReloadKey((k) => k + 1)} />,
-    [errorMsg]
-  );
-
   return (
     <div data-slot="data-grid" className={cn('w-full space-y-3', className)}>
       {filterableColumns.length > 0 && (
@@ -292,7 +285,7 @@ export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): Reac
         </div>
       )}
 
-      <AsyncBoundary status={status} LoadingComponent={LoadingSlot} ErrorComponent={ErrorSlot}>
+      <AsyncBoundary status={status} error={errorMsg} onRetry={() => setReloadKey((k) => k + 1)}>
         <div data-slot="data-grid-ready" className="space-y-3">
           <Table>
             <TableHeader>

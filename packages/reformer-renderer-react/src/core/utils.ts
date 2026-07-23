@@ -54,17 +54,18 @@ export function isArrayRenderNode<T>(node: RenderNode<T>): node is ArrayRenderNo
 /**
  * Type guard для ContainerRenderNode
  *
- * Проверяет, что узел является контейнером (Box, Section и т.д.).
+ * Проверяет, что узел является контейнером (Box, Section, `'div'` и т.д.).
  *
- * Принимает любой валидный React component reference:
+ * Принимает любой валидный React element type:
  * - plain function component (`function Foo() {...}`),
  * - `React.memo(...)` / `React.forwardRef(...)` обёртки (объекты с `$$typeof`),
- * - lazy / context provider'ы / прочие React-внутренности.
+ * - lazy / context provider'ы / прочие React-внутренности,
+ * - строку нативного HTML-тега (`'div'`, `'p'`) — см. {@link isHtmlTagRenderNode}.
  *
  * @example
  * ```typescript
  * if (isContainerRenderNode(node)) {
- *   // node.component - React component
+ *   // node.component - React component или строка-тег
  *   // node.children - дочерние узлы
  * }
  * ```
@@ -73,9 +74,52 @@ export function isContainerRenderNode<T>(node: RenderNode<T>): node is Container
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const component = (node as any).component;
   if (typeof component === 'function') return true;
+  // Нативный HTML-тег строкой: `{ component: 'div', children: [...] }`.
+  if (typeof component === 'string') return component.length > 0;
   // memo/forwardRef/lazy components are plain objects carrying `$$typeof`.
   if (component !== null && typeof component === 'object' && component.$$typeof !== undefined) {
     return true;
   }
   return false;
 }
+
+/**
+ * Type guard: узел — нативный HTML-тег (`component` задан строкой), а не React-компонент.
+ * Рендерер различает их, чтобы не пробрасывать `selector` в DOM-атрибуты и не передавать
+ * содержимое void-тегам.
+ *
+ * @param node - Узел {@link RenderNode}
+ * @returns `true`, если `node.component` — строка-тег
+ *
+ * @example
+ * ```typescript
+ * isHtmlTagRenderNode({ component: 'div' }); // true
+ * isHtmlTagRenderNode({ component: Section }); // false
+ * ```
+ */
+export function isHtmlTagRenderNode<T>(node: RenderNode<T>): node is ContainerRenderNode<T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return typeof (node as any).component === 'string';
+}
+
+/**
+ * HTML void-элементы: не имеют содержимого. React бросает
+ * «is a void element tag and must neither have children…», если такому тегу передать children,
+ * поэтому рендерер их содержимое не передаёт вовсе.
+ */
+export const VOID_HTML_TAGS: ReadonlySet<string> = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);

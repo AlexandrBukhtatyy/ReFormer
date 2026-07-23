@@ -11,31 +11,36 @@ sidebar_position: 2
 ## Узел поля
 
 Лист схемы — **узел поля**. Он привязывает поле к сигналу модели (`value: model.$.<field>`) и держит
-его UI-конфиг и валидаторы:
+его UI-конфиг. Валидаторов узел **не несёт**: layout описывает только структуру и вёрстку, а правила
+корректности живут в отдельной [схеме валидации](./validation-schema) и прогоняются раннером
+`validateModel`.
 
 ```typescript
 {
   value: model.$.fieldName,   // сигнал модели (PathAwareSignal) — обязателен
   component: Input,           // React-компонент поля
   componentProps?: object,    // пропсы компонента (label, placeholder, options, type, ...)
-  validators?: [...],         // чистые фабрики / ModelValidator
-  asyncValidators?: [...],    // асинхронные валидаторы
   disabled?: boolean,         // начальное состояние «поле отключено»
   updateOn?: 'change' | 'blur' | 'submit',
-  debounce?: number,          // задержка (мс) перед асинхронной валидацией
 }
 ```
 
-| Поле              | Тип                              | Назначение                                                       |
-| ----------------- | -------------------------------- | ---------------------------------------------------------------- |
-| `value`           | `PathAwareSignal<T>`             | Привязка к сигналу модели (`model.$.<field>`) — обязателен       |
-| `component`       | React-компонент                  | Чем рендерится поле                                              |
-| `componentProps`  | `object`                         | Пропсы компонента (`label`, `placeholder`, `options`, `type`, …) |
-| `validators`      | массив                           | Валидаторы поля (см. [Схему валидации](./validation-schema))     |
-| `asyncValidators` | массив                           | Асинхронные валидаторы                                           |
-| `disabled`        | `boolean`                        | Начальное состояние «отключено»                                  |
-| `updateOn`        | `'change' \| 'blur' \| 'submit'` | Когда обновлять значение из ввода                                |
-| `debounce`        | `number`                         | Задержка перед асинхронной валидацией (мс)                       |
+| Поле             | Тип                              | Назначение                                                       |
+| ---------------- | -------------------------------- | ---------------------------------------------------------------- |
+| `value`          | `PathAwareSignal<T>`             | Привязка к сигналу модели (`model.$.<field>`) — обязателен       |
+| `component`      | React-компонент                  | Чем рендерится поле                                              |
+| `componentProps` | `object`                         | Пропсы компонента (`label`, `placeholder`, `options`, `type`, …) |
+| `disabled`       | `boolean`                        | Начальное состояние «отключено»                                  |
+| `updateOn`       | `'change' \| 'blur' \| 'submit'` | Когда обновлять значение из ввода                                |
+
+:::info Узел не несёт валидаторов
+Правила корректности не хранятся на узле layout-схемы (нет ни `validators`, ни `asyncValidators`). Они
+объявляются **отдельной** функцией `defineValidationSchema<T>(({ model }) => …)` операторами из
+`@reformer/core/validation` и прогоняются по требованию раннером `validateModel(model, schema)` — на
+submit, на шаге wizard'а или по реакции behavior. Layout-схему и схему валидации можно менять
+независимо: вёрстка приходит хоть с сервера, а правила пишутся один раз. См.
+[Схему валидации](./validation-schema).
+:::
 
 :::warning `disabled` узла ≠ `componentProps.disabled`
 `disabled` — это **поле узла** (начальное состояние ноды); дальше состоянием управляют методы
@@ -48,7 +53,6 @@ sidebar_position: 2
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
-import { required } from '@reformer/core/validators';
 import { Input, Select, Checkbox } from '@reformer/ui-kit';
 
 type MyForm = { name: string; age: number | null; agree: boolean; status: string };
@@ -60,7 +64,6 @@ const schema = {
     value: model.$.name,
     component: Input,
     componentProps: { label: 'Имя', placeholder: 'Введите имя' },
-    validators: [required()],
   },
   age: {
     value: model.$.age,
@@ -87,6 +90,10 @@ const schema = {
 
 const form = createForm<MyForm>({ model, schema });
 ```
+
+Правила для этих полей (`required()`, `email()`, …) в узлах не задаются — они пишутся в отдельной схеме
+валидации над той же моделью (`validate(model.$.name, [required()])`) и прогоняются `validateModel`.
+См. [Схему валидации](./validation-schema).
 
 :::info Схема верхнего уровня — именованный объект
 Узлы описываются как именованные ключи объекта (`{ name: {...}, age: {...} }`), а не как массив
@@ -213,6 +220,6 @@ if (isArrayNode(node)) {
 
 ## Дальше
 
-- [Схема валидации](./validation-schema) — правила корректности на узлах.
+- [Схема валидации](./validation-schema) — отдельный слой правил корректности.
 - [Схема behavior](./behavior-schema) — реактивная логика.
 - [Композиция](./composition) — переиспользование схем.

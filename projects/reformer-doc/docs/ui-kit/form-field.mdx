@@ -1,0 +1,20 @@
+---
+id: form-field
+title: FormField
+sidebar_label: FormField
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { uiKitFormFieldDocConfig } from '@site/src/components/demo/examples/form-field';
+
+# FormField
+
+Готовый wrapper поля из `@reformer/ui-kit` поверх headless
+[`@reformer/cdk/form-field`](../cdk/form-field): одним `<FormField control={…} />`
+рисует четыре зоны — **label**, **input**, **hint** (`description`) и
+**validation** (`error`). Схема ниже пунктиром показывает, где что рендерится:
+подпись сверху, поле, светлая подсказка под полем (слева или справа), а ошибка
+валидации — уже после hint. Нужна нестандартная раскладка — спускайтесь на
+уровень cdk-слотов.
+
+<ComponentDoc config={uiKitFormFieldDocConfig} />

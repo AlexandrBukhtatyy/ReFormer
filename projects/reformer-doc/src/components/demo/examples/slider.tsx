@@ -85,7 +85,9 @@ export const sliderDocConfig: ComponentDocConfig = {
     max: ${v.max ?? 100},
     step: ${v.step ?? 1},${v.required ? '\n    required: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.volume, [required()]);`,
   },
 };

@@ -88,14 +88,13 @@ export function MyFormPage() {
 
 ## dataSource-значения и функции { #datasource }
 
-**Problem.** Нужно передать в проп массив options, функцию (`itemLabel: (form, index) => string`) или React-компонент (`LoadingComponent`) — а JSON хранит только примитивы и объекты.
+**Problem.** Нужно передать в проп массив options, функцию (`itemLabel: (form, index) => string`) или React-компонент — а JSON хранит только примитивы и объекты.
 
 **Solution.** Регистрируешь значение через `reg.dataSource('NAME', value)`, в JSON-схеме ссылаешься оператором `'$dataSource(NAME)'`. Конвертер при обходе `componentProps` подставит зарегистрированное значение.
 
 ```typescript
-import { createElement } from 'react';
 import { defineRegistry } from '@reformer/renderer-json';
-import { LoadingState, ErrorState } from '@reformer/ui-kit';
+import { EmptyPlaceholder } from './components/EmptyPlaceholder';
 
 const registry = defineRegistry((reg) => {
   // 1. Константа: массив options.
@@ -104,9 +103,8 @@ const registry = defineRegistry((reg) => {
     { value: 'mortgage', label: 'Ипотека' },
   ]);
 
-  // 2. React-компонент как dataSource (для AsyncBoundary.LoadingComponent).
-  reg.dataSource('LoadingState', LoadingState);
-  reg.dataSource('ErrorStateDefault', () => createElement(ErrorState, { error: 'Ошибка' }));
+  // 2. React-компонент как значение пропа (не как `component` узла!).
+  reg.dataSource('EMPTY_PLACEHOLDER', EmptyPlaceholder);
 
   // 3. Функция: itemLabel для array-секции.
   reg.dataSource('PROPERTY_ITEM_LABEL_SOURCE_FN', (_form, index: number) => `Имущество #${index + 1}`);
@@ -122,9 +120,9 @@ const registry = defineRegistry((reg) => {
   selector: 'data-boundary',
   component: '$component(AsyncBoundary)',
   componentProps: {
+    // AsyncBoundary рисует блоки загрузки и ошибки сам — слот-компоненты регистрировать
+    // не нужно; статус и текст ошибки подставляет behavior через patchProps.
     status: 'loading',
-    LoadingComponent: '$dataSource(LoadingState)',       // → React-компонент
-    ErrorComponent: '$dataSource(ErrorStateDefault)',
   },
   children: [
     { value: '$model(loanType)', component: '$component(Select)',
@@ -139,7 +137,7 @@ const registry = defineRegistry((reg) => {
 
 - Резолв происходит только для строк `'$dataSource(NAME)'`. Голые строки (`label`, `placeholder`) и инлайн-массивы options идут как есть.
 - Если имя не зарегистрировано: без `validate` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validate` — ошибка `unknown dataSource "NAME"`.
-- dataSource нельзя использовать как имя `component` (`component: '$component(LoadingState)'`, где `LoadingState` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
+- dataSource нельзя использовать как имя `component` (`component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
 
 ## Инъекция runtime-сущностей в компонент (form, validation) { #inject-runtime }
 
@@ -219,7 +217,7 @@ function createReadonlyBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 | `{ component: Section, componentProps: { title: 'X' }, children: [...] }`                | `{ component: '$component(Section)', componentProps: { title: 'X' }, children: [...] }`                    |
 | `{ selector: 'mortgage-section', component: Section, ... }`                              | то же — `selector` сохраняется (plain-строка)                                                             |
 | `componentProps: { options: LOAN_TYPES }` (импорт константы)                            | `componentProps: { options: '$dataSource(LOAN_TYPES)' }` + `reg.dataSource('LOAN_TYPES', LOAN_TYPES)`      |
-| `componentProps: { LoadingComponent: LoadingState }`                                     | `componentProps: { LoadingComponent: '$dataSource(LoadingState)' }` + `reg.dataSource('LoadingState', ...)` |
+| `componentProps: { placeholderComponent: EmptyPlaceholder }`                             | `componentProps: { placeholderComponent: '$dataSource(EMPTY_PLACEHOLDER)' }` + `reg.dataSource('EMPTY_PLACEHOLDER', ...)` |
 | `{ array: path.properties, item: (ip) => ({...}), initialValue: () => ({...}) }`         | `{ array: '$model(properties)', item: { $template: {...} }, initialValue: {...} }`                          |
 
 ```typescript
@@ -253,6 +251,73 @@ const registry = defineRegistry((reg) => {
 - В JSON `children` всегда отдельное поле узла (не `componentProps.children`).
 - field/array/container взаимоисключающи: `value` → лист, `array`+`item` → массив, `component`+`children` → контейнер. Дискриминация в конвертере: array → field → container.
 - Поведение (`hideWhen`, `onInit`, lifecycle) **не** переезжает в JSON — остаётся TS-функцией `RenderBehaviorFn<T>` и передаётся пропом `renderBehavior`. В эталоне TS- и JSON-варианты переиспользуют один shared behavior.
+
+## Презентационные блоки без регистрации компонентов { #html-nodes }
+
+**Problem.** Заголовки, инфо-плашки, разделители, блок «Итого» с живыми значениями. Через `$component(...)` под каждый такой блок нужен React-компонент и строка в реестре — реестр разрастается кодом, который ничего не делает, кроме вёрстки.
+
+**Solution.** Оператор `$html(tag)` + поле `text`. В реестре остаются только настоящие компоненты (поля, обёртка поля).
+
+```json
+{
+  "component": "$html(div)",
+  "componentProps": { "className": "space-y-6" },
+  "children": [
+    {
+      "component": "$html(h2)",
+      "componentProps": { "className": "text-xl font-bold" },
+      "text": "$locale(installment.title)"
+    },
+    {
+      "component": "$html(div)",
+      "componentProps": { "className": "p-4 bg-blue-50 border border-blue-200 rounded-md" },
+      "children": [
+        {
+          "component": "$html(p)",
+          "componentProps": { "className": "text-sm text-blue-800" },
+          "text": "Проценты не начисляются. ",
+          "children": [{ "component": "$html(b)", "text": "Досрочное погашение бесплатно." }]
+        }
+      ]
+    },
+    {
+      "value": "$model(amount)",
+      "component": "$component(Input)",
+      "componentProps": { "label": "Сумма (₽)", "type": "number" }
+    },
+    { "component": "$html(hr)" },
+    {
+      "component": "$html(dl)",
+      "componentProps": { "className": "grid grid-cols-2 gap-2 text-sm" },
+      "children": [
+        { "component": "$html(dt)", "text": "Запрошенная сумма" },
+        {
+          "component": "$html(dd)",
+          "componentProps": { "className": "font-medium" },
+          "text": ["$model(amount)", " ₽ на ", "$model(months)", " мес."]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Реестр при этом сводится к:
+
+```typescript
+defineRegistry((reg) => {
+  reg.component('Input', InputField);
+  reg.component(FIELD_WRAPPER, FormField);
+  reg.locale(createLocaleResolver({ 'installment.title': 'Рассрочка' }));
+});
+```
+
+**Notes.**
+
+- `'$model(...)'` в `text` реактивен: рендерер подписывается на сигнал и перерисовывает только текст.
+- Вычисляемых выражений в JSON нет — «платёж = сумма / срок» считается `compute`-поведением над моделью, а `text` показывает уже готовое поле (`"$model(monthlyPayment)"`).
+- Whitelist тегов и чистка `componentProps` (обработчики, `javascript:`-URL) описаны в [02-json-schema.md](02-json-schema.md#html-узлы-html-и-текст).
+- Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/examples/html-nodes/`.
 
 ## See also
 

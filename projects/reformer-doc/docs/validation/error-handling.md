@@ -39,9 +39,9 @@ const weakPassword = (value: string) =>
 ```
 
 :::info Как считается `valid`
-И движок данных (`validateModel`/`validateFormModel`), и статус поля выводят `valid` из наличия
-**блокирующих** ошибок. Ошибки с `severity: 'warning'` в этот расчёт не входят — поэтому поле с одними
-предупреждениями остаётся валидным.
+И раннер `validateModel`, и статус поля выводят `valid` из наличия **блокирующих** ошибок. Ошибки с
+`severity: 'warning'` в этот расчёт не входят — поэтому поле с одними предупреждениями остаётся
+валидным (`validateModel` возвращает `true`, а предупреждение всё равно показывается пользователю).
 :::
 
 ## Чтение ошибок
@@ -65,14 +65,27 @@ function Field() {
 }
 ```
 
-### Из результата валидации
+### После прогона `validateModel`
 
-`validateFormModel` / `validateModel` возвращают ошибки по пути поля:
+Раннер `validateModel(model, schema)` возвращает `Promise<boolean>` (нет блокирующих ошибок), а сами
+ошибки **разносит по нодам формы** — из результата их доставать не нужно, они уже лежат на полях:
 
 ```typescript
-const { valid, errors } = await validateFormModel(model, schema);
-// errors: Record<string, ValidationError[]>
-// { 'email': [{ code: 'emailTaken', message: '…' }], 'password': [ … ] }
+import { validateModel } from '@reformer/core/validation';
+
+const valid = await validateModel(model, schema); // Promise<boolean>
+
+// Ошибки уже на нодах — читаем их с конкретного поля:
+form.email.getErrors(); // ValidationError[] этого поля
+form.email.errors.value; // тот же массив, реактивно
+```
+
+Если ноды формы под рукой нет, а есть только сигнал модели, ту же ноду достаёт `getNodeForSignal`:
+
+```typescript
+import { getNodeForSignal } from '@reformer/core';
+
+getNodeForSignal(model.$.email)?.getErrors(); // ValidationError[] | undefined
 ```
 
 ### Фильтрация — `getErrors(options?)`
@@ -108,7 +121,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   form.touchAll();
 
-  const { valid } = await validateFormModel(model, schema);
+  const valid = await validateModel(model, schema);
   if (!valid) return;
 
   try {
@@ -141,11 +154,12 @@ const handleSubmit = async (e: React.FormEvent) => {
 
 ```typescript
 import { FormErrorHandler, ErrorStrategy } from '@reformer/core';
-import type { AsyncValidatorFn } from '@reformer/core';
+import type { AsyncRule } from '@reformer/core/validation';
 
-const checkUnique: AsyncValidatorFn<string> = async (value, options) => {
+// Регистрируется в схеме через validateAsync(model.$.value, [checkUnique])
+const checkUnique: AsyncRule<string> = async (value, { signal }) => {
   try {
-    const res = await fetch(`/api/check?value=${value}`, { signal: options?.signal });
+    const res = await fetch(`/api/check?value=${value}`, { signal });
     const { available } = (await res.json()) as { available: boolean };
     return available ? null : { code: 'taken', message: 'Значение уже занято' };
   } catch (error) {
@@ -155,12 +169,13 @@ const checkUnique: AsyncValidatorFn<string> = async (value, options) => {
 };
 ```
 
-:::info Встроенная защита async-валидаторов
-Реактивный запуск async-валидаторов уже оборачивает исключения через
-`FormErrorHandler` (`CONVERT`), поэтому упавший запрос превращается в `ValidationError`
-(`code: 'validator_error'`), а не роняет форму. Ручной вызов нужен, когда вы хотите свой `context`
-или другую стратегию. Отмена устаревшего запроса (`AbortError`) при этом обрабатывается отдельно и
-ошибкой не считается.
+:::info Сбой async-правила не блокирует submit
+Раннер `validateModel` дожидается async-правил и **проглатывает** отклонённый промис — брошенное
+исключение или сетевой сбой не роняют форму и `validateModel` не возвращает из-за них `false`. Поэтому
+решение принимаете внутри самого правила: поймайте исключение и верните `null`, если сбой не должен
+мешать отправке, — либо `FormErrorHandler.handle(error, 'checkUnique', ErrorStrategy.CONVERT)`, если ошибку нужно
+показать пользователю как `ValidationError` (`code: 'validator_error'`). Отмену устаревшего прогона
+(`AbortError`) раннер делает сам через `AbortSignal` и ошибкой не считает.
 :::
 
 Вспомогательные методы `FormErrorHandler`:

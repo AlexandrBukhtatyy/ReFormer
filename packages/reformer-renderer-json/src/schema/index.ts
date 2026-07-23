@@ -11,6 +11,7 @@
  */
 
 import metaSchema from './form-schema.schema.json';
+import { ALLOWED_HTML_TAGS } from '../html/html-tags';
 import type { ComponentRegistry } from '../registry/types';
 
 /**
@@ -59,7 +60,7 @@ export function getComponentNames(registry: ComponentRegistry): string[] {
  *
  * @example
  * ```ts
- * getDataSourceNames(registry); // ['LOAN_TYPES', 'GENDERS', 'LoadingState', ...]
+ * getDataSourceNames(registry); // ['LOAN_TYPES', 'GENDERS', 'CURRENT_YEAR', ...]
  * ```
  */
 export function getDataSourceNames(registry: ComponentRegistry): string[] {
@@ -222,6 +223,11 @@ export function buildFormSchemaMetaSchema(
     delete op.pattern;
     op.enum = names.map((n) => `$component(${n})`);
   }
+  // Теги `$html(...)` известны статически (whitelist), поэтому enum ставится всегда — IDE даёт
+  // автодополнение по тегам, а опечатка (`$html(dvi)`) подсвечивается прямо в редакторе.
+  const htmlOp = schema.definitions.htmlOp;
+  delete htmlOp.pattern;
+  htmlOp.enum = [...ALLOWED_HTML_TAGS].map((t) => `$html(${t})`);
   const propSchemas = opts?.propSchemas;
   if (propSchemas && Object.keys(propSchemas).length > 0) {
     const branches = Object.entries(propSchemas).map(([name, ps]) => ({

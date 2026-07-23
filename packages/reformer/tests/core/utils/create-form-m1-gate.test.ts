@@ -1,7 +1,7 @@
 /**
  * Unit tests for createForm({ model, schema }) M1 fixes:
- *  - Defect 1/27: form.submit()/validate() теперь прогоняют schema-валидаторы модели
- *    (через привязанный validateFormModel), а не пропускают невалидные данные.
+ *  - Defect 1/27 (gate submit()/validate() со schema-валидаторами) — УДАЛЁН: валидация вынесена
+ *    во внешний `validateModel` из `@reformer/core/validation`; тесты gate удалены.
  *  - Defect 22: F9 derived-guard в GroupNode.setValue/patchValue сверяется с записываемым
  *    сигналом модели (markDerived), а не с computed-обёрткой field.value.
  *  - Defect 30: DEV-предупреждение, когда узел с component имеет нераспознанную «ручку» value.
@@ -11,71 +11,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createForm } from '../../../src/form/create-form';
 import { createModel } from '../../../src/state/index';
-import type { ModelValidator } from '../../../src/form/index';
 import { markDerived } from '../../../src/state/derived-registry';
 
 const InputStub = () => null;
 
-const required: ModelValidator<string> = (v) =>
-  v ? null : { code: 'required', message: 'Обязательно' };
-
-interface Reg {
-  email: string;
-  password: string;
-}
-
-const buildReg = () => {
-  const model = createModel<Reg>({ email: '', password: '' });
-  const schema = {
-    children: [
-      { value: model.$.email, component: InputStub, validators: [required] },
-      { value: model.$.password, component: InputStub, validators: [required] },
-    ],
-  };
-  return { model, form: createForm<Reg>({ model, schema }) };
-};
-
-describe('createForm M1 — submit()/validate() gate (Defect 1/27)', () => {
-  it('submit() НЕ вызывает handler при невалидных данных', async () => {
-    const { form } = buildReg();
-    const handler = vi.fn().mockResolvedValue('ok');
-
-    const res = await form.submit(handler);
-
-    expect(handler).not.toHaveBeenCalled();
-    expect(res).toBeNull();
-  });
-
-  it('submit() вызывает handler, когда данные валидны', async () => {
-    const { model, form } = buildReg();
-    model.email = 'a@b.c';
-    model.password = 'secret';
-    const handler = vi.fn().mockResolvedValue('ok');
-
-    const res = await form.submit(handler);
-
-    expect(handler).toHaveBeenCalledWith({ email: 'a@b.c', password: 'secret' });
-    expect(res).toBe('ok');
-  });
-
-  it('validate() возвращает false и роутит ошибки схемы в ноды', async () => {
-    const { form } = buildReg();
-
-    const ok = await form.validate();
-
-    expect(ok).toBe(false);
-    expect(form.email.invalid.value).toBe(true);
-    expect(form.password.invalid.value).toBe(true);
-  });
-
-  it('validate() возвращает true, когда модель валидна по схеме', async () => {
-    const { model, form } = buildReg();
-    model.email = 'a@b.c';
-    model.password = 'secret';
-
-    expect(await form.validate()).toBe(true);
-  });
-});
+// Gate submit()/validate() со schema-валидаторами УДАЛЁН (валидация вынесена во внешний
+// validateModel из @reformer/core/validation). Тесты этого gate удалены; остальные проверки
+// createForm (derived-guard / DEV-warning / поле "form") ниже актуальны.
 
 describe('createForm M1 — derived-guard в bulk-set (Defect 22)', () => {
   interface F {

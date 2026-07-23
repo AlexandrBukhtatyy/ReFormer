@@ -20,12 +20,18 @@ import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
 import { makeCreditValidationConfig } from './schemas/validation';
-import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
+import {
+  applyCreditApplication,
+  loadCreditApplication,
+  type CreditApplicationBundle,
+} from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
-import { LoadingState, ErrorState } from '@reformer/ui-kit';
+import { AsyncBoundary } from '@reformer/ui-kit';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { fileUploadMessages } from './constants/file-upload-messages';
 
 export const STEPS: FormWizardStep<CreditApplicationFormType>[] = [
   { number: 1, title: 'Кредит', icon: '💰', body: BasicInfoForm },
@@ -50,12 +56,8 @@ function CreditApplicationForm() {
   // Конфигурация навигации: M1-валидация (validateFormModel) per-step + полная
   const navConfig = useMemo(() => makeCreditValidationConfig(model), [model]);
 
-  // ============================================================================
-  // Загрузка данных
-  // ============================================================================
-
-  //  Загружаем данные заявки (можно передать ID: '1' или '2', или null для пустой формы)
-  const { isLoading, error } = useLoadCreditApplication(form, '1');
+  //  ID заявки: '1' / '2' — редактирование, null — пустая форма (создание).
+  const applicationId: string | null = '1';
 
   // ============================================================================
   // Отправка формы
@@ -85,27 +87,28 @@ function CreditApplicationForm() {
   // Рендер
   // ============================================================================
 
-  if (isLoading) {
-    return <LoadingState />;
-  }
-
-  if (error) {
-    return <ErrorState error={error} onRetry={() => window.location.reload()} />;
-  }
-
-  // ============================================================================
-  // Рендер: Форма с headless compound components
-  // ============================================================================
+  // Загрузкой управляет сам AsyncBoundary (self-managed режим): состояние, отмена
+  // устаревшего запроса при смене id, кнопка «Повторить» и ARIA (aria-busy /
+  // role=status / role=alert) — внутри компонента. Снаружи остаются только
+  // «как загрузить» и «что сделать с ответом».
   return (
-    <div className="w-full">
-      <FormWizard
-        ref={navRef}
-        form={form}
-        config={navConfig}
-        steps={STEPS}
-        onSubmit={submitApplication}
-      />
-    </div>
+    // Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5).
+    <ValidationMessagesProvider resolver={fileUploadMessages}>
+      <AsyncBoundary<CreditApplicationBundle>
+        load={(signal) => loadCreditApplication(applicationId!, signal)}
+        loadKey={applicationId}
+        enabled={applicationId !== null}
+        onSuccess={(bundle) => applyCreditApplication(form, bundle)}
+      >
+        <FormWizard
+          ref={navRef}
+          form={form}
+          config={navConfig}
+          steps={STEPS}
+          onSubmit={submitApplication}
+        />
+      </AsyncBoundary>
+    </ValidationMessagesProvider>
   );
 }
 

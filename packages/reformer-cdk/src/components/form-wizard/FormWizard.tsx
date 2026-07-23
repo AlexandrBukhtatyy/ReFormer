@@ -140,7 +140,7 @@ function FormWizardInner<T extends Record<string, any>>(
   // ============================================================================
 
   const validateCurrentStep = useCallback(async (): Promise<boolean> => {
-    // M1: валидация шага через колбэк (например, validateFormModel).
+    // M1: валидация шага через колбэк (обычно обёртка над validateModel из @reformer/core/validation).
     if (!config.validateStep) {
       console.warn(`No validateStep callback configured for step ${currentStep}`);
       return true;
@@ -240,7 +240,7 @@ function FormWizardInner<T extends Record<string, any>>(
     async <R,>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> => {
       setIsValidating(true);
       try {
-        // Validate entire form: M1 колбэк (validateFormModel). Нет колбэка → submit без блока.
+        // Validate entire form: M1 колбэк (обёртка над validateModel). Нет колбэка → submit без блока.
         const isValid = config.validateAll ? await config.validateAll() : true;
 
         if (!isValid) {

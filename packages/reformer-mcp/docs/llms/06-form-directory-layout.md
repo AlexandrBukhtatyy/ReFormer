@@ -67,8 +67,8 @@ Rules:
   files.
 - Leaves carry the **model signal** (`value: model.$.x`), never `form.X`.
 - **renderer-react / renderer-json**: `RenderNode` / `JsonFieldNode` carry **no `validators`** —
-  value validation is a separate TS schema over the model in `validation.ts` (executed by
-  `validateFormModel`, injected into the wizard as `{ validateStep, validateAll }`).
+  value validation is a separate `defineValidationSchema` over the model in `validation.ts`
+  (executed by `validateModel`, injected into the wizard as `{ validateStep, validateAll }`).
 - Derived fields → `form.behavior.ts`; domain constants/enums → `types.ts`; the two data concerns
   are split: field options + async loaders → `data-sources.ts`, submit/prefill → `api.ts`.
 

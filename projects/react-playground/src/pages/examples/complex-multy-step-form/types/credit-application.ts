@@ -70,6 +70,8 @@ export interface CreditApplicationForm {
   maritalStatus: MaritalStatus;
   dependents: number;
   education: EducationLevel;
+  /** Сканы документов (deferred: File[] уходит на submit через FormData). Опционально. */
+  documents: File[] | null;
   hasProperty: boolean;
   properties: Property[];
   hasExistingLoans: boolean;

@@ -151,6 +151,6 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 
 - [01-overview.md](01-overview.md) — общее введение в `@reformer/cdk`.
 - [02-form-array.md](02-form-array.md), [03-form-navigation.md](03-form-navigation.md) — соседние compound-компоненты.
-- [05-recipes.md](05-recipes.md) — продвинутые паттерны (включая собственный wrapper над FormField).
-- [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
+- [06-recipes.md](06-recipes.md) — продвинутые паттерны (включая собственный wrapper над FormField).
+- [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
 - [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.

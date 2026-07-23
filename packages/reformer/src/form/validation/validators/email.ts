@@ -31,7 +31,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * },
  * ```
  */
-export function email<TForm = unknown, TField extends string | undefined = string>(
+export function email<TForm = unknown, TField extends string | null | undefined = string>(
   options?: ValidateOptions
 ): Validator<TForm, TField> {
   return (value) => {

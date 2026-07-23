@@ -14,7 +14,7 @@ This MCP server gives you everything needed to build a form with the ReFormer li
    wizard → render). It is part of this guide; the whole self-doc is one resource: `reformer://guide`.
 4. **Look things up as you code**:
    - `find_recipe <topic>` — a worked example for a scenario (e.g. `wizard`, `form-array`, `cycle`, `json-schema`).
-   - `get_symbol_docs <name>` — exact signature + `@example` of a function/type (e.g. `createForm`, `validateFormModel`).
+   - `get_symbol_docs <name>` — exact signature + `@example` of a function/type (e.g. `createForm`, `validateModel`).
    - `list_symbols` — the API surface by kind/package when you don't know the name.
 5. **Add features** with the focused prompts: `add-validation`, `add-behavior`, `add-form-array`, `add-wizard`.
 6. **Migrate render target**: `to-renderer` (core → renderer-react), `to-renderer-json` (react → JSON).
@@ -41,6 +41,6 @@ Individual sections are addressable per-heading (slug from the H2 title); enumer
 ## Golden rules
 
 - **M1**: one `createModel` is the source of truth; schema leaves reference its signals (`value: model.$.x`).
-- Validation runs through `validateFormModel(model, schema)`, not `form.validate()`.
-- The removed path-based API (`validate(path.x)`, `RenderSchemaFn = (path) =>`, `ValidationSchemaFn`) is gone — don't use it.
+- Validation is a **separate on-demand schema**, not a schema-leaf concern: run `validateModel(model, schema)` from `@reformer/core/validation` (schema built with `defineValidationSchema(({ model }) => { validate(sig, [rules]); … })`), never `form.validate()`. Ambient operators inside the schema: `validate` / `validateAsync` / `validateWhen` / `cross` / `each` / `apply`; field rules (`required()`/`min()`/…) come from `@reformer/core/validators`. Layout/render leaves carry **no** validators.
+- The old validation contract is gone — don't use `validateFormModel`, schema leaves with `{ value, validators: [...] }`, `ModelValidator(value, scope, root)`, conditional `{ when, children }` nodes, or the path-based `ValidationSchemaFn` / `validate(path.x)`. Use the `@reformer/core/validation` operators above instead.
 - Prefer `createForm({ model, schema })` over legacy overloads.

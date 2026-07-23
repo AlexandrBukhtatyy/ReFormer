@@ -12,7 +12,6 @@
  * в componentProps wizard-а через `onInit` + `schema.node('wizard').patchProps({ form })`.
  */
 
-import { createElement } from 'react';
 import type { FormProxy } from '@reformer/core';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 import {
@@ -23,6 +22,7 @@ import {
   SelectField,
   CheckboxField,
   RadioGroupField,
+  FileUploadField,
   Box,
   Section,
   Collapsible,
@@ -34,7 +34,6 @@ import { Step } from '@reformer/cdk/form-wizard';
 import { RendererFormWizard } from '../../../components/RendererFormWizard';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
-import { LoadingState, ErrorState } from '@reformer/ui-kit';
 import {
   ConfirmationInfoBlock,
   HighPaymentWarning,
@@ -67,6 +66,7 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
     reg.component('Select', SelectField);
     reg.component('Checkbox', CheckboxField);
     reg.component('RadioGroup', RadioGroupField);
+    reg.component('FileUpload', FileUploadField);
 
     reg.component('Box', Box);
     reg.component('Section', Section);
@@ -91,11 +91,8 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
     // Системный компонент
     reg.component(FIELD_WRAPPER, FormField);
 
-    // dataSource-компоненты (ComponentType для AsyncBoundary)
-    reg.dataSource('LoadingState', LoadingState);
-    reg.dataSource('ErrorStateDefault', () =>
-      createElement(ErrorState, { error: 'Не удалось загрузить заявку' })
-    );
+    // Слот-компоненты для AsyncBoundary больше не регистрируются: блоки загрузки и ошибки
+    // встроены в него, а текст ошибки приходит обычным JSON-пропом `error` из behavior.
 
     // dataSource-функции: itemLabel
     reg.dataSource(

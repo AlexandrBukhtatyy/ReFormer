@@ -32,7 +32,7 @@ import { parseDate, getToday, normalizeDate } from './date-utils';
  */
 export function futureDate<
   TForm = unknown,
-  TField extends string | Date | undefined = string | Date,
+  TField extends string | Date | null | undefined = string | Date,
 >(options?: ValidateOptions): Validator<TForm, TField> {
   return (value) => {
     if (value === null || value === undefined || value === '') {

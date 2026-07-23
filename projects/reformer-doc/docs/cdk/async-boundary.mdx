@@ -1,0 +1,43 @@
+---
+id: async-boundary
+title: AsyncBoundary
+sidebar_label: AsyncBoundary
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { cdkAsyncBoundaryDocConfig } from '@site/src/components/demo/examples/cdk-async-boundary';
+
+# AsyncBoundary
+
+Headless-компонент состояний загрузки данных из `@reformer/cdk`: `Root` / `Idle` /
+`Loading` / `Content` / `Empty` / `Error` / `Retry`. Разметки и стилей не навязывает —
+слоты возвращают голые фрагменты, а вёрстку задаёте вы. Готовый визуальный вариант —
+[`AsyncBoundary` из `@reformer/ui-kit`](../ui-kit/async-boundary.mdx).
+
+Работает в двух режимах:
+
+- **self-managed** — передан `load`: компонент грузит данные сам, ведёт статус, отменяет
+  запрос при смене `loadKey` и размонтировании, даёт повтор из коробки. Снаружи остаются
+  только «как загрузить» и «что сделать с ответом» (`onSuccess`).
+- **controlled** — `load` не передан: состояние приходит пропом `status`. Нужен там, где
+  загрузкой владеет кто-то другой — например behavior рендерера с `patchProps({ status })`.
+
+Ключевые отличия от «просто тернарника по статусу»:
+
+- **Слот `Error` получает саму ошибку и `retry`** через render-функцию — текст сбоя
+  не приходится хардкодить в отдельном компоненте-обёртке.
+- **Императивный `ref`** (`AsyncBoundaryHandle`) — `reload()` / `abort()` для триггеров
+  вне дерева границы: кнопки «Обновить» в шапке, пункта меню, события сокета.
+- **`idle` — отдельное состояние**: «грузить нечего» (форма создания, id не выбран) не
+  то же самое, что «успешно загружено».
+- **`delayMs`** откладывает показ слота `Loading`, гася вспышку спиннера при быстром ответе.
+  Подменяется только момент показа UI — сам `status` остаётся честным.
+- **`refreshing`** оставляет контент на экране во время фонового обновления
+  (stale-while-revalidate).
+- **Пустота — не пятый статус**, а предикат `when` у `AsyncBoundary.Empty` внутри `ready`:
+  считать его умеет только консумент.
+
+Это **не** Suspense-boundary: ничего не throw'ится и не перехватывается, статусом
+управляете вы, данные компонент не загружает.
+
+<ComponentDoc config={cdkAsyncBoundaryDocConfig} />

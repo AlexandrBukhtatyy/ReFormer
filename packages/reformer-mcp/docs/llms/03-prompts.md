@@ -35,7 +35,8 @@ FormSchema reference, imports, stack-aware skeleton). Use for the initial form w
 
 - `code` (existing FormSchema, required), `requirements` (required).
 
-Adds validators (built-in, custom cross-field `ModelValidator`, async) to an existing form.
+Adds validation (built-in factories in `validate(sig, [...])`, cross-field `cross`, async
+`validateAsync`) as a standalone `defineValidationSchema` run by `validateModel`.
 
 ## add-behavior
 

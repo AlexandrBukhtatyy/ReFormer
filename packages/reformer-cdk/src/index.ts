@@ -1,4 +1,48 @@
 // ============================================================================
+// AsyncBoundary - Headless compound component for data-loading UI states
+// ============================================================================
+export {
+  AsyncBoundary,
+  AsyncBoundaryRoot,
+  AsyncBoundaryIdle,
+  AsyncBoundaryLoading,
+  AsyncBoundaryContent,
+  AsyncBoundaryEmpty,
+  AsyncBoundaryError,
+  AsyncBoundaryRetry,
+  useAsyncBoundary,
+  useAsyncResource,
+  asyncResourceReducer,
+  initialAsyncResourceState,
+  defaultToError,
+  AsyncBoundaryContext,
+  useAsyncBoundaryContext,
+} from './components/async-boundary';
+
+export type {
+  AsyncStatus,
+  AsyncBoundaryHandle,
+  AsyncBoundaryRootProps,
+  AsyncBoundarySlotProps,
+  AsyncBoundaryContentProps,
+  AsyncBoundaryEmptyProps,
+  AsyncBoundaryErrorProps,
+  AsyncBoundaryErrorRenderProps,
+  AsyncBoundaryRetryProps,
+  AsyncBoundaryContextValue,
+  AsyncBoundaryIds,
+  UseAsyncBoundaryOptions,
+  UseAsyncBoundaryReturn,
+  AsyncBoundaryRootPropGetters,
+  AsyncBoundaryLoadingPropGetters,
+  AsyncBoundaryErrorPropGetters,
+  UseAsyncResourceOptions,
+  UseAsyncResourceReturn,
+  AsyncResourceState,
+  AsyncResourceAction,
+} from './components/async-boundary';
+
+// ============================================================================
 // FormArray - Headless compound component for managing form arrays
 // ============================================================================
 export {
@@ -62,6 +106,72 @@ export type {
   UseFormFieldErrorProps,
   UseFormFieldDescriptionProps,
 } from './components/form-field';
+
+// ============================================================================
+// FileUpload - Headless compound component for file selection and upload
+// ============================================================================
+export {
+  FileUpload,
+  FileUploadRoot,
+  FileUploadTrigger,
+  FileUploadDropzone,
+  FileUploadItemGroup,
+  FileUploadItem,
+  FileUploadItemPreview,
+  FileUploadItemName,
+  FileUploadItemSize,
+  FileUploadItemProgress,
+  FileUploadItemDeleteTrigger,
+  FileUploadItemRetryTrigger,
+  FileUploadClearTrigger,
+  useFileUpload,
+  FileUploadContext,
+  useFileUploadContext,
+  FileUploadItemContext,
+  useFileUploadItemContext,
+  fileUploadReducer,
+  initialFileUploadState,
+  selectFiles,
+  projectValue,
+  reconcileItems,
+  fileItemKey,
+  formatFileSize,
+  makeFileError,
+} from './components/file-upload';
+
+export type {
+  FileUploadComponent,
+  FileUploadRootProps,
+  FileUploadTriggerProps,
+  FileUploadDropzoneProps,
+  FileUploadItemGroupProps,
+  FileUploadItemProps,
+  FileUploadItemPreviewProps,
+  FileUploadItemNameProps,
+  FileUploadItemSizeProps,
+  FileUploadItemProgressProps,
+  FileUploadItemDeleteTriggerProps,
+  FileUploadItemRetryTriggerProps,
+  FileUploadClearTriggerProps,
+  FileUploadContextValue,
+  FileUploadItemContextValue,
+  FileUploadState,
+  FileUploadAction,
+  SelectFilesOptions,
+  SelectFilesResult,
+  RemoteFileRef,
+  FileError,
+  FileRejection,
+  FileUploadItemData,
+  FileUploadValue,
+  FileUploadUploader,
+  UseFileUploadOptions,
+  FileUploadHandle,
+  UseFileUploadReturn,
+  FileUploadIds,
+  FileUploadRootPropGetters,
+  FileUploadDropzonePropGetters,
+} from './components/file-upload';
 
 // ============================================================================
 // Validation messages - i18n resolver for field error display (code → message)

@@ -220,4 +220,58 @@ describe('validateFormSchema', () => {
     // Ровно одна структурная ошибка — по value, без кросс-ветвевой стены.
     expect(errors.filter((e) => e.includes('/root')).length).toBe(1);
   });
+
+  describe('HTML-узлы ($html(tag) + text)', () => {
+    it('принимает html-узел с текстом и вложенными узлами', () => {
+      const schema = {
+        root: {
+          component: '$html(div)',
+          componentProps: { className: 'p-4' },
+          children: [
+            { component: '$html(h3)', text: 'Итого' },
+            { component: '$html(p)', text: ['Платёж: ', '$model(monthlyPayment)', ' ₽'] },
+            { component: '$html(hr)' },
+            { value: '$model(email)', component: '$component(Input)' },
+          ],
+        },
+      };
+      expect(validateFormSchema(schema, opts)).toEqual({ valid: true, errors: [] });
+    });
+
+    it('отвергает тег вне whitelist', () => {
+      const schema = { root: { component: '$html(script)' } };
+      const { valid, errors } = validateFormSchema(schema, opts);
+      expect(valid).toBe(false);
+      expect(errors.join('\n')).toMatch(/not allowed in \$html/i);
+    });
+
+    it('проверяет теги даже без реестра — whitelist статичен', () => {
+      const schema = { root: { component: '$html(iframe)' } };
+      expect(validateFormSchema(schema).valid).toBe(false);
+    });
+
+    it('находит запрещённый тег во вложенном узле', () => {
+      const schema = {
+        root: {
+          component: '$component(Box)',
+          children: [{ component: '$html(div)', children: [{ component: '$html(object)' }] }],
+        },
+      };
+      const { valid, errors } = validateFormSchema(schema, opts);
+      expect(valid).toBe(false);
+      expect(errors.join('\n')).toMatch(/"object"/);
+    });
+
+    it('отвергает text неверного типа', () => {
+      const schema = { root: { component: '$html(p)', text: { some: 'object' } } };
+      expect(validateFormSchema(schema, opts).valid).toBe(false);
+    });
+
+    it('$html не проходит там, где ожидается компонент реестра ($component)', () => {
+      const schema = { root: { component: '$component(html)' } };
+      const { valid, errors } = validateFormSchema(schema, opts);
+      expect(valid).toBe(false);
+      expect(errors.join('\n')).toMatch(/unknown component/i);
+    });
+  });
 });

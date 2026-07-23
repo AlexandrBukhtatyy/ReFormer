@@ -88,15 +88,26 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   'file-organization': ['form-directory-layout', 'project-structure'],
   colocation: ['form-directory-layout', 'project-structure'],
   // conditional fields — visibility/availability (enableWhen, compute/copyFrom { when }),
-  // conditional validation (branch node { when, children }), JSX hiding. Falls back to
+  // conditional validation (validateWhen), JSX hiding. Falls back to
   // api-signatures for the raw signatures if the recipe is somehow unavailable.
   conditional: ['conditional-fields', 'api-signatures'],
   'conditional-fields': ['conditional-fields', 'api-signatures'],
   'conditional-rendering': ['conditional-fields', 'api-signatures'],
   'enable-when': ['conditional-fields', 'api-signatures'],
   enablewhen: ['conditional-fields', 'api-signatures'],
-  'branch-node': ['conditional-fields', 'api-signatures'],
-  'when-children': ['conditional-fields', 'api-signatures'],
+  'validate-when': ['validation', 'conditional-fields'],
+  'conditional-validation': ['validation', 'conditional-fields'],
+  // validation contract (@reformer/core/validation): validate/validateAsync/validateWhen/cross/each/apply
+  // + external runner validateModel(model, schema). Maps to the renderer 06-validation recipe and
+  // core multi-step; async → async-validator-debounce; cross-field → common-patterns.
+  validation: ['validation', 'multi-step'],
+  validate: ['validation', 'multi-step'],
+  validator: ['validation'],
+  'validate-model': ['validation', 'multi-step'],
+  'validate-async': ['validation', 'async-validator-debounce'],
+  'async-validation': ['validation', 'async-validator-debounce'],
+  cross: ['validation', 'common-patterns'],
+  'cross-field': ['validation', 'common-patterns'],
 };
 
 function resolveAliases(topic: string): string[] {

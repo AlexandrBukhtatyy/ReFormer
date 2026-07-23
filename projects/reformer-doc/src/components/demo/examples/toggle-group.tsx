@@ -70,7 +70,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
       id: 'validation',
       title: 'Обязательный выбор (валидатор)',
       description:
-        'validators: [required()] прямо в ноде схемы. touched-поле с пустым значением показывает ошибку.',
+        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
         component: ToggleGroupField,
@@ -82,8 +82,10 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
   value: model.$.gender,
   component: ToggleGroupField,
   componentProps: { label: 'Пол', options: GENDER },
-  validators: [required({ message: 'Выберите пол' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.gender, [required({ message: 'Выберите пол' })]);`,
     },
     {
       id: 'disabled',
@@ -123,7 +125,9 @@ control.disable(); // блокирует всю группу`,
     label: 'Пол',
     options: GENDER,${v.variant ? `\n    variant: '${v.variant}',` : ''}${v.required ? '\n    required: true,' : ''}${v.description ? `\n    description: '${v.description}',` : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

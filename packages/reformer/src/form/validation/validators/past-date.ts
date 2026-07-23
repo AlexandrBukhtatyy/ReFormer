@@ -30,9 +30,10 @@ import { parseDate, getToday, normalizeDate } from './date-utils';
  * },
  * ```
  */
-export function pastDate<TForm = unknown, TField extends string | Date | undefined = string | Date>(
-  options?: ValidateOptions
-): Validator<TForm, TField> {
+export function pastDate<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(options?: ValidateOptions): Validator<TForm, TField> {
   return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;

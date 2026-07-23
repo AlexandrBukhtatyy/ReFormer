@@ -11,7 +11,8 @@ export * from './form/types/index';
 export * from './form/factories/index';
 // State-модуль: модель, value-операции, headless-валидация, producer-флаг, утилиты субстрата.
 export * from './state/index';
-// Form-модуль: ноды, createForm, enableWhen/disableWhen, validateFormModel, submit, хуки.
+// Form-модуль: ноды, createForm, enableWhen/disableWhen, submit, хуки
+// (schema-валидация — отдельный сабпат @reformer/core/validation).
 export * from './form/index';
 // Validators namespace (чистые фабрики).
 export * as validators from './form/validation/index';

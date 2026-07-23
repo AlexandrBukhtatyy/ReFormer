@@ -67,11 +67,13 @@ import { Input } from '@reformer/ui-kit';
 > прокидывается — `onChange` просто не вызывается. Поэтому в форме поле должно
 > иметь тип `number | null`, а не `number`.
 
-Email-валидация на уровне формы (M1: `createModel` → схема с листом
-`{ value: model.$.email, component, validators }` → `createForm({ model, schema })`):
+Email-валидация на уровне формы (M1: `createModel` → layout-схема с листом
+`{ value: model.$.email, component }` → `createForm({ model, schema })`; правила — в
+отдельной `defineValidationSchema`, запуск `validateModel`):
 
 ```tsx
 import { createModel, createForm } from '@reformer/core';
+import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { Input, FormField } from '@reformer/ui-kit';
 
@@ -82,10 +84,12 @@ const schema = {
       value: model.$.email,
       component: Input,
       componentProps: { type: 'email', label: 'Email', testId: 'email' },
-      validators: [required(), email()],
     },
   ],
 };
+const validation = defineValidationSchema<{ email: string }>(({ model }) => {
+  validate(model.$.email, [required(), email()]);
+});
 const form = createForm<{ email: string }>({ model, schema });
 
 // Через FormField значение/ошибки подцепляются автоматически:
@@ -152,7 +156,7 @@ import { InputMask } from '@reformer/ui-kit';
   нужно делать в behavior `transformValue` или при сабмите.
 - Использовать `mask` для сложных правил (валидация диапазонов, контрольные
   суммы) — `InputMask` только направляет ввод, не валидирует. Валидацию вешать
-  через массив `validators` листа схемы (`validateFormModel`).
+  через `validate(model.$.x, [...])` в validation-схеме (запуск `validateModel`).
 
 ## InputPassword
 

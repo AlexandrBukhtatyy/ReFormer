@@ -2,10 +2,10 @@
 // Validation API (M1)
 // ============================================================================
 //
-// После Ф7 в ядре остаётся только M1-движок (`validateModel`/`validateFormModel`,
-// экспортируется из `core/model`) + чистые фабрики валидаторов ниже. Legacy-движок
-// (`validate`/`validateAsync`/`apply`/`applyWhen`/`validateForm`/`ValidationRegistry`/FieldPath)
-// удалён.
+// Здесь живут только чистые фабрики валидаторов (возвращают Rule: (value) => error | null).
+// Раннер и операторы схемы (`validateModel`, `defineValidationSchema`, `validate`/`validateAsync`/
+// `validateWhen`/`cross`/`each`/`apply`) — отдельный сабпат `@reformer/core/validation`.
+// Старые движки (`validateFormModel`-дерево и path-операторы Ф7) удалены.
 
 // Reusable validator factories (чистые: возвращают (value) => error)
 export { required } from './validators/required';
@@ -32,3 +32,12 @@ export { pastDate } from './validators/past-date';
 export { futureDate } from './validators/future-date';
 export { minAge } from './validators/min-age';
 export { maxAge } from './validators/max-age';
+
+// File validator factories
+export { maxFileSize } from './validators/max-file-size';
+export { minFileSize } from './validators/min-file-size';
+export { fileType } from './validators/file-type';
+export { maxFiles } from './validators/max-files';
+export { minFiles } from './validators/min-files';
+export { maxTotalFileSize } from './validators/max-total-file-size';
+export { isFileLike, matchesFileAccept, toFileArray, type FileLike } from './validators/file-utils';

@@ -157,6 +157,27 @@ export default defineConfig({
       testDir: './tests/pages/imperative-handles',
       use: { ...devices['Desktop Chrome'] },
     },
+    // HTML-узлы схемы (нативные теги + реактивный `text`). Unit-тесты рендерят через
+    // renderToStaticMarkup и живую перерисовку по сигналу показать не могут — она проверяется тут.
+    {
+      name: 'html-nodes',
+      testDir: './tests/pages/html-nodes',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // Форма регистрации из JSON-схемы: layout в JSON, правила значений в TS-схеме над моделью,
+    // обработчики кнопок через $fn. Тесты идут по этим границам.
+    {
+      name: 'registration-form-json',
+      testDir: './tests/pages/registration-form-json',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // FileUpload: выбор/drop/paste, immediate upload с прогрессом и retry, preloaded-дескрипторы.
+    // Unit-тесты CDK идут через renderToStaticMarkup — реальный пикер/DnD/загрузка проверяются тут.
+    {
+      name: 'file-upload',
+      testDir: './tests/pages/file-upload',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // ITER abstract test projects — переиспользуют POM + spec файлы
     // complex-multy-step-form для прогона против iter-форм. Активны только
     // когда MCP_ITER_VERSION env установлен. См. docs/iter-prompts/orchestrator.md

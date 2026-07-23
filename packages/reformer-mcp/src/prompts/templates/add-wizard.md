@@ -123,28 +123,26 @@ Step bodies are plain React components rendered conditionally:
 - A1/A2/A3: Wizard's `<Step>` slot or equivalent renders the active step's body — no `setHidden` needed.
 - A4 (manual useState): JSX-conditional `{currentStep === 1 && <Step1Section />}`.
 
-Validation per step: `validateFormModel(model, stepSchema)` — it validates model signals AND routes errors into the form nodes (so fields light up). Cross-step full validation runs in the submit handler.
+Validation per step: `validateModel(model, stepSchema)` (`@reformer/core/validation`) — runs the step's `ValidationSchema<Root>`, routes errors into the form nodes (so fields light up), and returns `Promise<boolean>`. Cross-step full validation runs in the submit handler.
 
-⚠ **`validateFormModel` returns `Promise<{ valid, errors }>`, NOT a plain boolean.** Build the wizard's boolean gate from `.errors` (so `severity: 'warning'` entries don't block) — this is exactly what the canonical `makeValidationConfig(model)` does, exposing `{ validateStep, validateAll }` that each return `Promise<boolean>`:
+⚠ **`validateModel(model, schema)` returns `Promise<boolean>` directly** — `true` when there are no _blocking_ errors. `severity: 'warning'` entries are non-blocking by construction: the runner still routes them into the nodes (the field shows the warning) but keeps the result `true`. So the wizard's boolean gate is just the runner's result — no manual `.errors` inspection, no warning-aware helper. This is exactly what the canonical `makeValidationConfig(model)` wraps, exposing `{ validateStep, validateAll }` (each `Promise<boolean>`):
 
 ```ts
-// helper: warnings don't block navigation
-const noBlocking = (errors: Record<string, { severity?: string }[]>): boolean =>
-  Object.values(errors)
-    .flat()
-    .every((e) => e.severity === 'warning');
+import { validateModel } from '@reformer/core/validation';
 
-const validateStep = async (step: number): Promise<boolean> => {
-  const res = await validateFormModel(model, STEP_SCHEMAS[step - 1]);
-  return noBlocking(res.errors);
-};
+const validateStep = (step: number): Promise<boolean> =>
+  validateModel(model, STEP_SCHEMAS[step - 1]);
 
-// ❌ don't treat the result itself as a boolean — it's { valid, errors }
-if (!(await validateFormModel(model, schema))) return; // always truthy object → never blocks
+// ❌ obsolete contract — the old `validateFormModel` returned `{ valid, errors }`, so people
+//    hand-rolled a warning-aware gate over `.errors`. Both the shape and the helper are gone.
+const res = await validateFormModel(model, schema);
+const ok = Object.values(res.errors)
+  .flat()
+  .every((e) => e.severity === 'warning');
 
-// ✅ read .valid (or route through noBlocking for warning-aware gating)
-const { valid } = await validateFormModel(model, schema);
-if (!valid) return;
+// ✅ `validateModel` already returns the boolean AND already treats warnings as non-blocking
+const ok = await validateModel(model, schema);
+if (!ok) return;
 ```
 
 ### Integration B2 — `target=renderer-react`
@@ -228,8 +226,8 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 
 ## Common to every (A, B) combination
 
-- **Per-step model-schema trees** (`STEP_SCHEMAS[step]` — each a `{ children: [ field(model.$.x, [rules]), … ] }` node) drive `validateStep`; `goNext()` validates only the current step's schema via `validateFormModel(model, STEP_SCHEMAS[step])`.
-- **Full schema** — all step schemas plus form-level cross-field/warnings, runs on submit (share reusable rule-sets as plain helper functions; no duplicates with per-step rules).
+- **Per-step validation schemas** (`STEP_SCHEMAS[step]` — each a `defineValidationSchema<Root>(({ model }) => { validate(model.$.x, [rules]); … })` function; async via `validateAsync`, conditional via `validateWhen`, cross-field via `cross`) drive `validateStep`; `goNext()` validates only the current step's schema via `validateModel(model, STEP_SCHEMAS[step - 1])`.
+- **Full schema** — `defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS, fullExtras))`: all step schemas plus a form-level cross-field/warnings schema (`fullExtras`), runs on submit (share reusable rule-sets as plain helper functions; no duplicates with per-step rules).
 - **`makeValidationConfig(model)`** returns `{ validateStep, validateAll }` (both `Promise<boolean>`) — pass it straight to `FormWizard config`.
 - **Don't rename fields** when grouping by step — only visual grouping.
 - **Conditional steps** — filter `STEPS` array dynamically OR `setCurrentStep(n)` directly (A4) / `useRef<FormWizardHandle>().goToStep(n)` (A3).
@@ -250,7 +248,7 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 
 - **A1 / A2**: read the wrapper's docs (ui-kit `reformer://docs/ui-kit/...` if A1, project README if A2).
 - **A3**: `reformer://docs/cdk/formwizard-indicator`, `reformer://docs/cdk/formwizard-actions`, `reformer://docs/cdk/formwizard-progress`, `reformer://docs/cdk/external-control-via-ref-2`, `reformer://docs/cdk/conditional-dynamic-step-count-in-formwizard`, `reformer://docs/cdk/multi-step-submit`.
-- **A4**: `reformer://docs/core/multi-step-form-validation` for `validateFormModel(model, schema)` semantics.
+- **A4**: `reformer://docs/core/multi-step-form-validation` for `validateModel(model, schema)` semantics (per-step `defineValidationSchema` + `apply(...)` full schema).
 - **B2 / B3**: `reformer://docs/renderer-react/render-schema-proxy` for `schema.node().setHidden()` API.
 - **B3**: `reformer://docs/renderer-json/quick-start` for the M1 mount (`convertJsonToM1Tree` + `JsonRendererProvider`/`JsonFormRenderer`) + `renderBehavior`/`onInit`/`patchProps` injection by `selector`.
 
@@ -260,7 +258,7 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 2. **Pick B** by target.
 3. State both choices in your output ("A=A3 (CDK FormWizard compound), B=B2 (renderer-react setHidden)").
 4. Split existing fields into steps per requirements.
-5. Build per-step model-schema trees + full schema, exposed via `makeValidationConfig(model)` → `{ validateStep, validateAll }`.
+5. Build per-step `defineValidationSchema` functions + a full schema (`apply(...STEP_SCHEMAS, fullExtras)`), exposed via `makeValidationConfig(model)` → `{ validateStep, validateAll }`.
 6. Implement following A's API + B's integration.
 7. Add full visual baseline (or rely on A1/A2 if they ship it).
 
@@ -268,10 +266,10 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 
 - [ ] Stated chosen (A, B) pair AND why each was picked
 - [ ] Read the Prerequisites for both A and B
-- [ ] Per-step model-schema trees cover all step fields; wired via `makeValidationConfig(model)` → `{ validateStep, validateAll }`
-- [ ] Full schema includes cross-step rules
+- [ ] Per-step `defineValidationSchema` functions cover all step fields; wired via `makeValidationConfig(model)` → `{ validateStep, validateAll }`
+- [ ] Full schema (`apply(...STEP_SCHEMAS, fullExtras)`) includes cross-step rules
 - [ ] No duplicate validation between step and full
-- [ ] `validateFormModel` result read as `{ valid, errors }` (not treated as a plain boolean); warnings don't block navigation
+- [ ] Navigation gated on `validateModel(model, schema)` result (a plain `Promise<boolean>`); warnings stay non-blocking via the runner (no hand-rolled `.errors` gate)
 - [ ] Visual baseline present (step indicator strip with icons + en-dashes, card wrap, progress text, nav arrows) — either from A1/A2 or wired manually for A3/A4
 - [ ] testIds present per convention
 - [ ] (B2 / B3) all step containers have `selector: 'stepN'`

@@ -96,7 +96,7 @@ export const inputOtpDocConfig: ComponentDocConfig = {
       id: 'validation',
       title: 'Обязательный полный код (required + minLength)',
       description:
-        'validators прямо в ноде схемы; touched-поле с неполным кодом показывает ошибку до набора всех 6 цифр.',
+        'правила в validation-схеме (validate из @reformer/core/validation); touched-поле с неполным кодом показывает ошибку до набора всех 6 цифр.',
       render: makeFieldVariant({
         initial: '',
         component: InputOTPField,
@@ -111,8 +111,10 @@ export const inputOtpDocConfig: ComponentDocConfig = {
   value: model.$.otp,
   component: InputOTPField,
   componentProps: { label: 'Код подтверждения', maxLength: 6 },
-  validators: [required(), minLength(6)],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.otp, [required(), minLength(6)]);`,
     },
   ],
   api: {
@@ -137,7 +139,9 @@ export const inputOtpDocConfig: ComponentDocConfig = {
     label: 'Код подтверждения',
     maxLength: ${v.maxLength || 6},${v.required ? '\n    required: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

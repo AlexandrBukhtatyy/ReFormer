@@ -474,14 +474,15 @@ describe('W13 · per-row validation', () => {
 /**
  * НАЙДЕННЫЕ ОГРАНИЧЕНИЯ (для развития концепции):
  * F1 — ПО ДИЗАЙНУ (не недостаток): схема поведения НЕ управляет валидацией — это отдельный слой
- *      (validateFormModel + схема валидации), он владеет errors. Крайние случаи behavior-driven
+ *      (defineValidationSchema + validateModel из @reformer/core/validation), он владеет errors.
+ *      Крайние случаи behavior-driven
  *      валидации (cross-field, async-uniqueness) пишутся пользовательским оператором поверх
  *      effect/onChange + node.setErrors (см. W1/W3) — контракт это позволяет, но это исключение.
  * F2 — РЕШЕНО примитивом: onChange отдаёт AbortSignal (аннулируется при следующей смене значения).
  *      Колбэк передаёт signal в fetch или проверяет signal.aborted перед применением → гонки
  *      устаревших ответов устранены. Async-ВАЛИДАЦИЯ намеренно НЕ в behavior (это слой валидации,
  *      F1): behavior даёт только реактивный примитив, «владение валидностью» остаётся за слоем
- *      валидации (async-валидаторы — будущая фича validateFormModel с тем же staleness).
+ *      валидации (async-правила — validateAsync в validateModel, с тем же staleness-механизмом).
  * F3 — Нет throttle (только debounce) — пишется кастомным оператором.
  * F4 — Нет двусторонней конвертации (syncFields = зеркало/однонаправленный transform).
  * F6 — Per-row операции с НОДОЙ строки требуют материализованного массива в форме (applyEach даёт

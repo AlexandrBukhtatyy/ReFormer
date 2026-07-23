@@ -49,6 +49,30 @@ export type RenderSchemaFn<T> = () => RenderNode<T>;
 export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | ContainerRenderNode<T>;
 
 // ============================================================================
+// TEXT CONTENT
+// ============================================================================
+
+/**
+ * Часть текстового содержимого узла: литерал либо сигнал модели (`model.$.<path>`).
+ * Сигнал подписывается точечно — при его изменении перерисовывается только текст,
+ * а не поддерево узла.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RenderTextPart = string | number | Signal<any>;
+
+/**
+ * Текстовое содержимое узла ({@link ContainerRenderNode.text}). Массив склеивается без разделителя —
+ * так собираются строки с подстановкой значений модели.
+ *
+ * @example
+ * ```typescript
+ * { component: 'h3', text: 'Итого' }
+ * { component: 'p', text: ['Платёж: ', model.$.monthlyPayment, ' ₽'] }
+ * ```
+ */
+export type RenderText = RenderTextPart | ReadonlyArray<RenderTextPart>;
+
+// ============================================================================
 // MODEL FIELD / ARRAY RENDER NODE (M1 — единая схема, привязка через сигнал)
 // ============================================================================
 
@@ -149,13 +173,14 @@ export interface ContainerRenderNodeProps {
 }
 
 /**
- * Узел контейнера (Box, Section, Collapsible и т.д.).
+ * Узел контейнера (Box, Section, Collapsible и т.д.) либо нативной HTML-вёрстки (`'div'`, `'p'`,
+ * `'h3'`, `'hr'`) — они различаются только типом `component` и рендерятся одной веткой.
  *
  * **Важно:** `children` — это TOP-LEVEL свойство узла, НЕ часть `componentProps`.
  * Если положить `children` внутрь `componentProps`, то `node.children` будет undefined
  * и рендерер ничего не отрисует (он деструктурирует `const { children } = node`).
  *
- * @example
+ * @example Контейнер-компонент
  * ```typescript
  * {
  *   component: Section,
@@ -169,6 +194,18 @@ export interface ContainerRenderNodeProps {
  *   ],
  * }
  * ```
+ *
+ * @example HTML-тег с текстом (реактивным)
+ * ```typescript
+ * {
+ *   component: 'div',
+ *   componentProps: { className: 'p-4 bg-blue-50 rounded-md' },
+ *   children: [
+ *     { component: 'h3', text: 'Итого' },
+ *     { component: 'p', text: ['Платёж: ', model.$.monthlyPayment, ' ₽'] },
+ *   ],
+ * }
+ * ```
  */
 export interface ContainerRenderNode<T> extends FormSchemaNode {
   /**
@@ -177,12 +214,22 @@ export interface ContainerRenderNode<T> extends FormSchemaNode {
    */
   selector?: string;
 
-  /** React-компонент контейнера (в рендере обязателен). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component: ComponentType<any>;
+  /**
+   * React-компонент контейнера либо нативный HTML-тег строкой (`'div'`, `'section'`, `'p'`).
+   * В рендере обязателен. Для тега `componentProps` — это DOM-атрибуты (`className`, `id`,
+   * `aria-*`), а `selector` в DOM НЕ пробрасывается (он адресует узел, а не элемент).
+   */
+  component: ElementType;
 
   /** Дочерние узлы рендеринга */
   children?: RenderNode<T>[];
+
+  /**
+   * Текстовое содержимое узла — литерал, сигнал модели или массив частей.
+   * Рендерится ПЕРЕД `children` (позволяет `<p>Внимание! <b>…</b></p>` без лишних обёрток).
+   * Void-теги (`hr`, `br`, `img`) содержимого не имеют — `text` для них игнорируется.
+   */
+  text?: RenderText;
 
   /** Props для компонента-контейнера (className, title и т.д.) */
   componentProps?: ContainerRenderNodeProps;

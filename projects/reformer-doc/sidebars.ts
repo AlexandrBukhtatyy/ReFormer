@@ -4,7 +4,6 @@ const sidebars: SidebarsConfig = {
   // ── Core: базовый пакет + вся сквозная база (гайд, концепции, валидация,
   // behaviors, React, паттерны) + Core API Reference (typedoc). ──────────────
   coreSidebar: [
-    { type: 'doc', id: 'packages/core', label: '@reformer/core' },
     'intro',
     {
       type: 'category',
@@ -115,7 +114,8 @@ const sidebars: SidebarsConfig = {
 
   // ── CDK: headless-компоненты ───────────────────────────────────────────────
   cdkSidebar: [
-    { type: 'doc', id: 'packages/cdk', label: '@reformer/cdk' },
+    'cdk/overview',
+    'cdk/async-boundary',
     'cdk/form-array',
     'cdk/form-wizard',
     'cdk/form-field',
@@ -123,7 +123,6 @@ const sidebars: SidebarsConfig = {
 
   // ── UI-Kit: стилизованные компоненты, сгруппированные по семействам ─────────
   uiKitSidebar: [
-    { type: 'doc', id: 'packages/ui-kit', label: '@reformer/ui-kit' },
     'ui-kit/overview',
     // v7-миграция: категории компонентов наполняются оркестратором между волнами
     // (см. docs/plans/jazzy-sniffing-kahan.md).
@@ -156,6 +155,7 @@ const sidebars: SidebarsConfig = {
         'ui-kit/calendar',
         'ui-kit/combobox',
         'ui-kit/date-picker',
+        'ui-kit/file-upload',
       ],
     },
     {
@@ -228,7 +228,6 @@ const sidebars: SidebarsConfig = {
         'ui-kit/resizable',
         'ui-kit/direction',
         'ui-kit/async-boundary',
-        'ui-kit/state',
         'ui-kit/box',
         'ui-kit/section',
       ],
@@ -249,7 +248,13 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Составные',
       collapsed: false,
-      items: ['ui-kit/table', 'ui-kit/sidebar', 'ui-kit/form-array', 'ui-kit/form-navigation'],
+      items: [
+        'ui-kit/table',
+        'ui-kit/sidebar',
+        'ui-kit/form-field',
+        'ui-kit/form-array',
+        'ui-kit/form-navigation',
+      ],
     },
   ],
 
@@ -260,14 +265,7 @@ const sidebars: SidebarsConfig = {
   ],
 
   // ── MCP: сервер для AI-ассистентов ─────────────────────────────────────────
-  mcpSidebar: [
-    { type: 'doc', id: 'packages/mcp', label: '@reformer/mcp' },
-    'mcp/overview',
-    'mcp/quick-start',
-    'mcp/tools',
-    'mcp/prompts',
-    'mcp/examples',
-  ],
+  mcpSidebar: ['mcp/overview', 'mcp/quick-start', 'mcp/tools', 'mcp/prompts', 'mcp/examples'],
 };
 
 export default sidebars;

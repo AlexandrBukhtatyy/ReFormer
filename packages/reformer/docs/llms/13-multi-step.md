@@ -1,51 +1,66 @@
 ## 12. MULTI-STEP FORM VALIDATION
 
-Каждый шаг — своя под-схема валидации (дерево узлов `{ children: [...] }`). Переход к
-следующему шагу проверяется `validateFormModel(model, stepSchema)`; полный submit — по
-общей схеме (объединение шагов). `validateFormModel` роутит ошибки в ноды формы, поэтому
-UI подсветит проблемные поля текущего шага автоматически.
+Каждый шаг — своя `ValidationSchema<Form>` (обычная функция `({ model }) => void`, обёрнутая
+`defineValidationSchema`). Переход к следующему шагу проверяется `validateModel(model, stepSchema)`;
+полный submit — по общей схеме (композиция шагов через `apply(...)`). `validateModel` сам разносит
+ошибки по нодам формы (`getNodeForSignal(sig).setErrors(...)`), поэтому UI подсветит проблемные поля
+текущего шага автоматически. Валидация живёт ОТДЕЛЬНО от layout: сам `RenderNode`/JSON-узел валидаторов
+не несёт — схема инъектируется в рантайме и роутит ошибки по тем же нодам.
 
 ```typescript
-import { validateFormModel, type FormModel } from '@reformer/core';
+import { type FormModel } from '@reformer/core';
+import {
+  validate,
+  apply,
+  defineValidationSchema,
+  validateModel,
+  type ValidationSchema,
+} from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 
-// Под-схема шага: дерево field-узлов { value, validators }
-const step1Schema = (m: FormModel<Form>) => ({
-  children: [
-    { value: m.$.loanType, validators: [required()] },
-    { value: m.$.loanAmount, validators: [required(), min(50000)] },
-  ],
+// Под-схема шага — обычная функция ({ model }) => void. Значения проверяет оператор validate(sig, [rules]).
+const step1Schema = defineValidationSchema<Form>(({ model }) => {
+  validate(model.$.loanType, [required()]);
+  validate(model.$.loanAmount, [required(), min(50000)]);
 });
 
-const step2Schema = (m: FormModel<Form>) => ({
-  children: [
-    { value: m.$.personalData.firstName, validators: [required()] },
-    { value: m.$.personalData.lastName, validators: [required()] },
-  ],
+const step2Schema = defineValidationSchema<Form>(({ model }) => {
+  validate(model.$.personalData.firstName, [required()]);
+  validate(model.$.personalData.lastName, [required()]);
 });
 
-// Карта шагов + полная схема (объединение)
-const STEP_SCHEMAS = [step1Schema, step2Schema];
-const fullSchema = (m: FormModel<Form>) => ({
-  children: STEP_SCHEMAS.map((build) => build(m)),
-});
+// Карта шагов + полная схема (композиция под-схем через apply — заменяет пошаговую группировку деревом)
+const STEP_SCHEMAS: readonly ValidationSchema<Form>[] = [step1Schema, step2Schema];
+const fullSchema = defineValidationSchema<Form>(() => apply(...STEP_SCHEMAS));
 ```
 
 ```typescript
-// Переход к следующему шагу
+// Переход к следующему шагу. validateModel возвращает Promise<boolean> (true = нет блокирующих ошибок;
+// severity:'warning' не блокирует). Устаревшие прогоны той же (model, schema) отменяются автоматически.
 const goToNextStep = async () => {
-  const result = await validateFormModel(model, STEP_SCHEMAS[currentStep - 1](model));
-  if (!result.valid) return; // ошибки уже проставлены в ноды текущего шага
+  const ok = await validateModel(model, STEP_SCHEMAS[currentStep - 1]);
+  if (!ok) return; // ошибки уже проставлены в ноды текущего шага
   setCurrentStep(currentStep + 1);
 };
 
-// Полный submit
+// Полный submit — по общей схеме
 const handleSubmit = async () => {
-  const result = await validateFormModel(model, fullSchema(model));
-  if (result.valid) {
+  const ok = await validateModel(model, fullSchema);
+  if (ok) {
     await onSubmit(model.get());
   }
 };
+```
+
+Слой-потребитель (`FormWizard`) обычно оборачивает это в конфиг с per-step и полной валидацией:
+
+```typescript
+function makeValidationConfig(model: FormModel<Form>) {
+  return {
+    validateStep: (n: number): Promise<boolean> => validateModel(model, STEP_SCHEMAS[n - 1]),
+    validateAll: (): Promise<boolean> => validateModel(model, fullSchema),
+  };
+}
 ```
 
 ### Multi-Step Component Example
@@ -55,8 +70,8 @@ function MultiStepForm() {
   const [step, setStep] = useState(1);
 
   const nextStep = async () => {
-    const result = await validateFormModel(model, STEP_SCHEMAS[step - 1](model));
-    if (result.valid) setStep(step + 1);
+    const ok = await validateModel(model, STEP_SCHEMAS[step - 1]);
+    if (ok) setStep(step + 1);
   };
 
   return (

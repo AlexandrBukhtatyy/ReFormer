@@ -13,7 +13,26 @@
  * @module reformer/renderer-json/types
  */
 
-import { isModelOp, isComponentOp, type ModelOp, type ComponentOp } from '../operators';
+import {
+  isModelOp,
+  isComponentOp,
+  isHtmlOp,
+  type ModelOp,
+  type ComponentOp,
+  type HtmlOp,
+} from '../operators';
+
+/**
+ * Текстовое содержимое узла ({@link JsonContainerNode.text}). Строки могут быть операторами:
+ * `'$model(path)'` даёт реактивное значение модели, `'$locale(key)'` — строку локализации,
+ * остальные строки — литералы. Массив склеивается без разделителя.
+ *
+ * @example
+ * ```json
+ * { "component": "$html(p)", "text": ["Платёж: ", "$model(monthlyPayment)", " ₽"] }
+ * ```
+ */
+export type JsonText = string | number | Array<string | number>;
 
 /** Лист формы: значение из модели (`$model`) + опциональный компонент (`$component`, дефолт — Input). */
 export interface JsonFieldNode {
@@ -46,14 +65,27 @@ export interface JsonArrayNode {
   componentProps?: Record<string, unknown>;
 }
 
-/** Контейнер (Box/Section/Wizard/Step/…) с дочерними узлами. */
+/**
+ * Контейнер (Box/Section/Wizard/Step/…) с дочерними узлами — либо блок нативной вёрстки
+ * (`'$html(div)'`), для которого не нужен зарегистрированный компонент.
+ */
 export interface JsonContainerNode {
   /** Id для render-behavior. */
   selector?: string;
-  /** Компонент-контейнер из реестра: `'$component(Section)'`. */
-  component: ComponentOp;
+  /**
+   * Компонент-контейнер из реестра (`'$component(Section)'`) либо нативный HTML-тег
+   * (`'$html(div)'`). Для тега `componentProps` — DOM-атрибуты, и они проходят чистку
+   * (`sanitizeHtmlProps`): обработчики `on*`, `dangerouslySetInnerHTML` и `javascript:`-URL
+   * отбрасываются.
+   */
+  component: ComponentOp | HtmlOp;
   /** Props компонента; значения могут содержать строки-операторы или вложенные узлы. */
   componentProps?: Record<string, unknown>;
+  /**
+   * Текстовое содержимое узла (литерал, `$model(...)`, `$locale(...)` или массив частей).
+   * Рендерится перед `children`.
+   */
+  text?: JsonText;
   /** Дочерние узлы. */
   children?: JsonNode[];
 }
@@ -128,7 +160,8 @@ export function isFieldNode(node: JsonNode): node is JsonFieldNode {
 }
 
 /**
- * Type-guard: узел — контейнер (`component: '$component(...)'`, без `value`/`array`).
+ * Type-guard: узел — контейнер (`component: '$component(...)'` или `'$html(...)'`,
+ * без `value`/`array`).
  *
  * @param node - Узел JSON-схемы.
  * @returns `true`, если узел — {@link JsonContainerNode}.
@@ -136,13 +169,14 @@ export function isFieldNode(node: JsonNode): node is JsonFieldNode {
  * @example Сузить тип узла перед обходом `children`
  * ```ts
  * if (isContainerNode(node)) {
- *   node.component;   // ComponentOp
+ *   node.component;   // ComponentOp | HtmlOp
  *   node.children?.forEach(walk);
  * }
  * ```
  */
 export function isContainerNode(node: JsonNode): node is JsonContainerNode {
+  const component = (node as JsonContainerNode).component;
   return (
-    isComponentOp((node as JsonContainerNode).component) && !isFieldNode(node) && !isArrayNode(node)
+    (isComponentOp(component) || isHtmlOp(component)) && !isFieldNode(node) && !isArrayNode(node)
   );
 }

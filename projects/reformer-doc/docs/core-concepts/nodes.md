@@ -71,10 +71,20 @@ form.firstName.markAsTouched(); // отметить как «тронутое»
 form.firstName.markAsDirty();
 form.firstName.disable(); // отключить
 form.firstName.enable(); // включить
-form.firstName.validate(); // запустить валидацию ноды
+await form.firstName.validate(); // проверить состояние ноды (schema-валидация — внешняя, см. ниже)
 ```
 
 Изменение значения через ноду отражается в модели (и наоборот) — это одни и те же сигналы.
+
+:::warning `validate()` ноды не запускает схему валидации
+Метод `validate()` (и у поля, и у группы) отражает **собственное** состояние нод и возвращает
+`Promise<boolean>` по текущим ошибкам — он **не** прогоняет схему валидации. Правила формы живут в
+отдельной `ValidationSchema` и запускаются приложением внешним раннером
+[`validateModel(model, schema)`](./schemas/validation-schema) из `@reformer/core/validation`: тот сам
+разносит ошибки по нодам через `setErrors`, после чего они видны в сигнале `errors`. Поэтому
+`form.validate()` / `submit()` больше **не** прогоняют schema-валидаторы (раньше валидаторы жили на
+нодах — теперь layout и валидация разведены по разным каналам).
+:::
 
 ### FieldNode
 

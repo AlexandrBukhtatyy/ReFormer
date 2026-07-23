@@ -8,4 +8,4 @@
 | `enableWhen`/`disableWhen` не срабатывает              | Поле не материализовано в форме (элемент массива)        | Убедись, что поле есть в схеме `createForm`; для per-item — `applyEach` |
 | `Cycle detected`                                       | Взаимные `compute`/`computeFrom` без стабилизации        | Разорви цикл через условие `when` или `peek`; см. 22-cycle-detection.md |
 | Значение поля не пишется                               | Пишем в форму вместо модели                              | Значения принадлежат модели: `model.field = ...` / `model.$.field.value = ...` |
-| Ошибки не появляются после submit                      | Не вызвали `validateFormModel`                           | `await validateFormModel(model, schema)` — он роутит ошибки в ноды |
+| Ошибки не появляются после submit                      | Не вызвали `validateModel` (`form.submit()` НЕ гоняет schema-валидацию) | `await validateModel(model, schema)` из `@reformer/core/validation` — он роутит ошибки в ноды |

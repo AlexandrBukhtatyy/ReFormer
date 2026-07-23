@@ -48,19 +48,14 @@ import {
   AsyncBoundary,
   Section,
   Box,
-  ErrorState,
-  LoadingState,
   SelectField,
   CheckboxField,
   InputField,
   InputMaskField,
   RadioGroupField,
   TextareaField,
+  FileUploadField,
 } from '@reformer/ui-kit';
-import { createElement } from 'react';
-
-const ErrorStateDefault = () => createElement(ErrorState, { error: 'Не удалось загрузить заявку' });
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** Лист единой схемы: значение из сигнала модели + UI-компонент + props. */
 const f = (value: unknown, component: unknown, componentProps?: Record<string, unknown>) => ({
@@ -82,9 +77,9 @@ export function buildCreditApplicationSchema(
     selector: 'data-boundary',
     component: AsyncBoundary,
     componentProps: {
-      status: 'loading', // render-behavior подставит loading | error | ready
-      LoadingComponent: LoadingState,
-      ErrorComponent: ErrorStateDefault,
+      // render-behavior подставит status (loading | error | ready) и текст ошибки.
+      // Слот-компоненты больше не нужны: блоки загрузки и ошибки встроены в AsyncBoundary.
+      status: 'loading',
     },
     children: [
       {
@@ -739,6 +734,17 @@ export function buildCreditApplicationSchema(
                             }),
                           ],
                         },
+                        // Deferred-режим: value = File[]; отбор делает сам компонент.
+                        f(model.$.documents, FileUploadField, {
+                          label: 'Документы',
+                          variant: 'dropzone',
+                          placeholder: 'Перетащите файлы или нажмите для выбора',
+                          hint: 'Паспорт, справка о доходах — изображения или PDF, до 10 МБ, максимум 5 файлов',
+                          accept: 'image/*,.pdf',
+                          multiple: true,
+                          maxFiles: 5,
+                          maxFileSize: 10 * 1024 * 1024,
+                        }),
                       ],
                     },
                     // Имущество

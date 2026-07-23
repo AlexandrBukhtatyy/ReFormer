@@ -35,21 +35,34 @@ interface RegistrationForm {
 
 2. Схему формы с компонентами
 
-3. Валидацию:
+3. Валидацию — отдельный слой (`@reformer/core/validation`), не часть layout-схемы:
 
 ```typescript
-import { required, email, minLength, validate } from '@reformer/core/validators';
+import { validate, cross, defineValidationSchema } from '@reformer/core/validation';
+import { required, email, minLength } from '@reformer/core/validators';
+import type { ValidationError } from '@reformer/core';
 
-const validation: ValidationSchemaFn<RegistrationForm> = (v) => ({
-  email: v.field(required(), email()),
-  password: v.field(required(), minLength(8)),
-  confirmPassword: v.field(
-    required(),
-    validate((value, form) => value === form.password.value || 'Пароли не совпадают')
-  ),
-  agreeToTerms: v.field(validate((value) => value === true || 'Необходимо согласие')),
+// Совпадение паролей читает второе поле → это cross-field (снапшот модели), а не value-only правило.
+const passwordsMatch = (f: RegistrationForm): ValidationError | null =>
+  f.confirmPassword && f.password && f.confirmPassword !== f.password
+    ? { code: 'passwords-mismatch', message: 'Пароли не совпадают' }
+    : null;
+
+const validationSchema = defineValidationSchema<RegistrationForm>(({ model }) => {
+  validate(model.$.email, [required(), email()]);
+  validate(model.$.password, [required(), minLength(8)]);
+  validate(model.$.confirmPassword, [required()]);
+  cross(model.$.confirmPassword, passwordsMatch);
+  // Inline-правило — обычная функция (value) => ValidationError | null.
+  validate(model.$.agreeToTerms, [
+    (value) => (value ? null : { code: 'terms-required', message: 'Необходимо согласие' }),
+  ]);
 });
 ```
+
+Схема — обычная функция над моделью; правила не живут в layout. Приложение прогоняет её по требованию
+(например, на submit) внешним раннером — `await validateModel(model, validationSchema)`. Он возвращает
+`boolean` и сам разносит ошибки по нодам формы, поэтому UI подсветит поля.
 
 4. React-компонент с хуками
 
@@ -69,30 +82,33 @@ const validation: ValidationSchemaFn<RegistrationForm> = (v) => ({
 **Что получите:**
 
 ```typescript
-import { required, pattern, validate, when } from '@reformer/core/validators';
+import { validate, validateWhen, defineValidationSchema } from '@reformer/core/validation';
+import { required, pattern } from '@reformer/core/validators';
+import type { ValidationError } from '@reformer/core';
 
-const validation: ValidationSchemaFn<OrderForm> = (v) => ({
-  phone: v.field(
+// Inline-правило: дата доставки не раньше завтра. Возвращает ValidationError | null.
+const notBeforeTomorrow = (value: string): ValidationError | null => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return new Date(value) >= tomorrow
+    ? null
+    : { code: 'deliveryTooSoon', message: 'Выберите дату не раньше завтра' };
+};
+
+const validationSchema = defineValidationSchema<OrderForm>(({ model }) => {
+  validate(model.$.phone, [
     required(),
-    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, {
-      message: 'Формат: +7 (XXX) XXX-XX-XX',
-    })
-  ),
-  deliveryDate: v.field(
-    required(),
-    validate((value) => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      return new Date(value) >= tomorrow || 'Выберите дату не раньше завтра';
-    })
-  ),
-  deliveryTime: v.field(
-    when(
-      (form) => form.deliveryType.value === 'express',
-      required({ message: 'Укажите время для экспресс-доставки' })
-    )
-  ),
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат: +7 (XXX) XXX-XX-XX' }),
+  ]);
+  validate(model.$.deliveryDate, [required(), notBeforeTomorrow]);
+  // Условная ветка: правило для deliveryTime активно только для экспресс-доставки,
+  // иначе гасится (ошибка снимается автоматически).
+  validateWhen(
+    () => model.deliveryType === 'express',
+    () =>
+      validate(model.$.deliveryTime, [required({ message: 'Укажите время для экспресс-доставки' })])
+  );
 });
 ```
 
@@ -141,17 +157,16 @@ const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
 Моя форма не показывает ошибки валидации. Что не так?
 
 const MyForm = () => {
-  const form = createForm<UserForm>({
-    form: formSchema,
-    validation: validationSchema,
-  });
+  const model = createModel<UserForm>({ email: '', password: '' });
+  const form = createForm<UserForm>({ model, schema: buildSchema(model) });
 
   const email = useFormControl(form.email);
 
+  // validationSchema объявлена, но её никто не запускает
   return (
     <input
       value={email.value}
-      onChange={(e) => email.setValue(e.target.value)}
+      onChange={(e) => form.email.setValue(e.target.value)}
     />
   );
 };
@@ -161,32 +176,48 @@ const MyForm = () => {
 
 AI найдёт проблемы:
 
-- Нет `useMemo` для `createForm`
-- Нет вызова `markAsTouched` при blur
-- Нет отображения ошибок
+- Модель и форма пересоздаются на каждый рендер — нет `useMemo` (ноды и их состояние теряются)
+- Схема-валидация нигде не запускается: по новому контракту её прогоняет приложение через
+  `validateModel(model, schema)`; `createForm`/`form.submit()` правила больше не хранят и не вызывают
+- Нет вызова `markAsTouched` при blur — поле «не тронуто», поэтому ошибка скрыта (`shouldShowError` = false)
+- Ошибки нигде не отображаются (`errors` — массив `ValidationError`, показываем `errors[0].message`)
 
 И предложит исправление:
 
 ```typescript
+import { useMemo } from 'react';
+import { createModel, createForm, useFormControl } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
+
 const MyForm = () => {
-  const form = useMemo(() => createForm<UserForm>({
-    form: formSchema,
-    validation: validationSchema,
-  }), []);
+  // ✅ модель и форма создаются один раз
+  const { model, form } = useMemo(() => {
+    const m = createModel<UserForm>({ email: '', password: '' });
+    return { model: m, form: createForm<UserForm>({ model: m, schema: buildSchema(m) }) };
+  }, []);
 
   const email = useFormControl(form.email);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    form.markAsTouched();
+    // ✅ раннер сам разнесёт ошибки по нодам — UI подсветит поля
+    await validateModel(model, validationSchema);
+  };
+
   return (
-    <div>
+    <form onSubmit={handleSubmit}>
       <input
         value={email.value}
-        onChange={(e) => email.setValue(e.target.value)}
-        onBlur={() => email.markAsTouched()}
+        onChange={(e) => form.email.setValue(e.target.value)}
+        onBlur={() => form.email.markAsTouched()}
+        aria-invalid={email.shouldShowError}
       />
-      {email.touched && email.errors.length > 0 && (
-        <span className="error">{email.errors[0]}</span>
+      {email.shouldShowError && email.errors[0] && (
+        <span className="error">{email.errors[0].message}</span>
       )}
-    </div>
+      <button type="submit">Отправить</button>
+    </form>
   );
 };
 ```

@@ -47,6 +47,8 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           <FormField control={control.dependents} testId="dependents" />
           <FormField control={control.education} testId="education" />
         </div>
+
+        <FormField control={control.documents} testId="documents" />
       </div>
 
       <div className="space-y-4">

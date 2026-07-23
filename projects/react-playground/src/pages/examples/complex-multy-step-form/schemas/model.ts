@@ -94,6 +94,7 @@ export const createInitialCreditApplication = (): CreditApplicationForm =>
     maritalStatus: 'single',
     dependents: 0,
     education: 'higher',
+    documents: null,
     hasProperty: false,
     properties: [],
     hasExistingLoans: false,

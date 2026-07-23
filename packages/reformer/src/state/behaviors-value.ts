@@ -203,13 +203,13 @@ export function syncFields<T>(
 }
 
 /**
- * Вызывает `revalidate()` при изменении зависимостей (не на инициализации). Под M1 валидация
- * on-demand (`validateFormModel`), поэтому ревалидация выражается явным колбэком.
+ * Вызывает `revalidate()` при изменении зависимостей (не на инициализации). Валидация on-demand
+ * (`validateModel` из `@reformer/core/validation`), поэтому ревалидация выражается явным колбэком.
  *
  * @group Model
  * @example
  * ```typescript
- * revalidateWhen([model.$.maxAmount], () => validateFormModel(model, schema));
+ * revalidateWhen([model.$.maxAmount], () => void validateModel(model, schema));
  * ```
  */
 export function revalidateWhen(

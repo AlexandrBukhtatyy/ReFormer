@@ -1,11 +1,13 @@
 /**
  * Тип узла единой схемы (M1).
  *
- * Схема формы под архитектурой M1 — это дерево узлов, которое обходят три места:
+ * Схема формы под архитектурой M1 — это layout-дерево узлов, которое обходят два места:
  *  - `createForm({ model, schema })` (`harvestFieldConfig`) — сбор конфига полей по идентичности
  *    сигнала + item-фабрик массивов;
- *  - `validateModel`/`validateFormModel`/`validateModelSync` (`walk`/`collect`) — валидация данных;
  *  - рендерер (`@reformer/renderer-react`: `RenderNode`) — отрисовка того же дерева.
+ *
+ * Schema-валидация это дерево НЕ обходит: правила живут в отдельной `ValidationSchema`
+ * (`@reformer/core/validation`, раннер `validateModel(model, schema)`).
  *
  * ⚠️ Не путать с {@link FormSchema} — та описывает **data-shaped** конфиг (ключи повторяют структуру
  * данных `T`, `{ field: FieldConfig }`) и служит формой конфига для {@link GroupNode}. `FormSchemaNode`
@@ -22,7 +24,7 @@
  * @module core/types/schema-node
  */
 
-import type { ComponentType } from 'react';
+import type { ElementType } from 'react';
 // type-only импорт из barrel: schema-node реэкспортится из `./index`, поэтому образуется
 // type-only цикл `index ↔ schema-node`, который стирается при emit (рантайм-цикла нет).
 import type { ValidationError } from './contracts';
@@ -30,10 +32,10 @@ import type { ValidationError } from './contracts';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * Валидатор поля схемы. Узел хранит validators гетерогенно: движок `validate*` вызывает их как
- * `(value, scope, root)`, но сюда кладут любой контракт — `ValidatorFn` (value),
- * `Validator` (value, control, root) или `ModelValidator` (value, model, root). Поэтому тип
- * намеренно широкий по параметрам.
+ * Валидатор поля схемы (legacy). Дерево-движок, вызывавший `validators` узла как
+ * `(value, scope, root)`, удалён — живые правила это `Rule<T>` в `validate(sig, [...])`
+ * (`@reformer/core/validation`). Тип остаётся широким по параметрам для совместимости
+ * узлов, всё ещё несущих `validators` (гетерогенные контракты `ValidatorFn`/`Validator`).
  *
  * @group Types
  */
@@ -60,8 +62,8 @@ export interface SchemaArrayControl {
 }
 
 /**
- * Узел единой схемы M1 — дерево, обходимое `createForm({ model, schema })`,
- * `validateModel`/`validateFormModel` и рендерерами.
+ * Узел единой схемы M1 — layout-дерево, обходимое `createForm({ model, schema })`
+ * и рендерерами (schema-валидация живёт отдельно — `@reformer/core/validation`).
  *
  * Узел совмещает несколько ролей (различаются рантаймом по форме):
  *  - **поле** — несёт `value: Signal` (сигнал модели `model.$.x`) + `component`/`validators`;
@@ -81,8 +83,12 @@ export interface FormSchemaNode {
    * `Signal`). Движок разбирает узел как поле рантаймом по `value instanceof Signal`.
    */
   value?: unknown;
-  /** UI-компонент. Опционален: core-часть работает без UI (значение/валидация). */
-  component?: ComponentType<any>;
+  /**
+   * UI-компонент либо нативный HTML-тег (`'div'`, `'p'`, `'h3'`) для презентационной вёрстки
+   * прямо в схеме. Опционален: core-часть работает без UI (значение/валидация) и `component`
+   * не интерпретирует — он доезжает до рендерера как есть.
+   */
+  component?: ElementType;
   /** Props компонента. Также «клапан» для вложенности под-узлов (напр. steps визарда). */
   componentProps?: Record<string, unknown>;
   validators?: SchemaValidator[];

@@ -7,7 +7,6 @@ import { useEffect, useMemo } from 'react';
 import {
   createModel,
   createForm,
-  validateFormModel,
   useFormControl,
   useFormControlValue,
   computeFrom,
@@ -20,8 +19,9 @@ import {
   syncFields,
   revalidateWhen,
   type FieldNode,
-  type ModelValidator,
+  type ValidationError,
 } from '@reformer/core';
+import { validate, cross, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 import { ExampleCard } from '@reformer/ui-kit';
 
@@ -71,25 +71,18 @@ const INITIAL: BehaviorsDemoForm = {
   amount: 0,
 };
 
-// amount не больше maxAmount (cross-field, поэтому revalidateWhen на maxAmount)
-const amountWithinMax: ModelValidator<number, BehaviorsDemoForm> = (v, m) =>
-  v > m.maxAmount ? { code: 'max', message: 'Превышен лимит' } : null;
+// amount не больше maxAmount — cross-field правило (читает снапшот формы),
+// поэтому в поведении навешан revalidateWhen на maxAmount.
+const amountWithinMax = (f: BehaviorsDemoForm): ValidationError | null =>
+  f.amount > f.maxAmount ? { code: 'max', message: 'Превышен лимит' } : null;
 
+// RENDER-схема: только layout ({ value }), без validators — правила живут в amountValidation.
 function buildSchema(model: ReturnType<typeof createModel<BehaviorsDemoForm>>) {
   // Поля рендерятся кастомными компонентами (raw <input>), поэтому component не задаём.
   return {
     children: [
-      {
-        value: model.$.price,
-        validators: [
-          required({ message: 'Укажите цену' }),
-          min(0, { message: 'Не отрицательное' }),
-        ],
-      },
-      {
-        value: model.$.quantity,
-        validators: [required({ message: 'Укажите количество' }), min(1, { message: 'Минимум 1' })],
-      },
+      { value: model.$.price },
+      { value: model.$.quantity },
       { value: model.$.total },
       { value: model.$.country },
       { value: model.$.city },
@@ -107,10 +100,24 @@ function buildSchema(model: ReturnType<typeof createModel<BehaviorsDemoForm>>) {
       { value: model.$.syncField1 },
       { value: model.$.syncField2 },
       { value: model.$.maxAmount },
-      { value: model.$.amount, validators: [amountWithinMax] },
+      { value: model.$.amount },
     ],
   };
 }
+
+// VALIDATION-схема (стабильный module-level const — важно для отмены устаревших прогонов).
+// Прогоняется через validateModel; правила те же, что раньше жили в render-схеме.
+const amountValidation = defineValidationSchema<BehaviorsDemoForm>(({ model }) => {
+  validate(model.$.price, [
+    required({ message: 'Укажите цену' }),
+    min(0, { message: 'Не отрицательное' }),
+  ]);
+  validate(model.$.quantity, [
+    required({ message: 'Укажите количество' }),
+    min(1, { message: 'Минимум 1' }),
+  ]);
+  cross(model.$.amount, amountWithinMax);
+});
 
 // ── Кастомные поля (raw HTML + useFormControl) ──────────────────────────────
 function NumberField({
@@ -275,7 +282,7 @@ export default function BehaviorsExamples() {
       resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' }),
       syncFields(model.$.syncField1, model.$.syncField2),
       revalidateWhen([model.$.maxAmount], () => {
-        void validateFormModel(model, schema);
+        void validateModel(model, amountValidation);
       }),
     ];
     return () => cleanups.forEach((c) => c());
@@ -466,7 +473,7 @@ export default function BehaviorsExamples() {
           title="revalidateWhen"
           description="Перевалидация amount при изменении maxAmount"
           bgColor="bg-white"
-          code={`revalidateWhen([model.$.maxAmount], () => validateFormModel(model, schema))`}
+          code={`revalidateWhen([model.$.maxAmount], () => validateModel(model, amountValidation))`}
         >
           <NumberField control={form.maxAmount} label="Макс. сумма" testId="maxAmount" />
           <NumberField control={form.amount} label="Сумма (≤ макс.)" testId="amount" />

@@ -11,7 +11,14 @@ import { citiesByRegion } from '../data/cities';
 import { brands, cars } from '../data/cars';
 import { MOCK_DICTIONARIES, type DictionariesResponse } from '../data/dictionaries';
 import { MOCK_APPLICATIONS } from '../data/credit-applications';
-import { EXISTING_USERS, REGISTERED_USERS, VALID_CAPTCHA, type User } from '../data/users';
+import {
+  EXISTING_USERS,
+  REGISTERED_USERS,
+  VALID_CAPTCHA,
+  INVITE_PREFILLS,
+  type User,
+  type RegistrationPrefill,
+} from '../data/users';
 import type { Option } from '../../pages/examples/complex-multy-step-form/types/option';
 import type { CreditApplicationForm } from '../../pages/examples/complex-multy-step-form/types/credit-application';
 
@@ -354,6 +361,48 @@ export function validateCaptcha(captcha: string): ResolverResult<CaptchaValidati
       message: 'Неверная captcha',
     },
   };
+}
+
+/**
+ * @openapi
+ * /api/v1/auth/registration-prefill:
+ *   get:
+ *     operationId: getRegistrationPrefill
+ *     summary: Префилл формы регистрации по коду приглашения
+ *     tags: [Auth]
+ *     parameters:
+ *       - name: invite
+ *         in: query
+ *         description: Код приглашения
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Данные для предзаполнения формы
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 username:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 fullName:
+ *                   type: string
+ *                 phone:
+ *                   type: string
+ *       404:
+ *         description: Приглашение не найдено
+ */
+export function getRegistrationPrefill(
+  invite: string | null
+): ResolverResult<RegistrationPrefill | null> {
+  const prefill = invite ? INVITE_PREFILLS[invite] : undefined;
+  // 404 отдаётся пустым телом (см. сгенерированные handlers), поэтому потребитель обязан
+  // проверять `response.ok` до `.json()` — иначе разбор упадёт невнятной SyntaxError.
+  if (!prefill) return { status: 404, body: null };
+  return { status: 200, body: prefill };
 }
 
 /**

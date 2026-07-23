@@ -25,7 +25,6 @@ import { registerSignalNode } from './signal-node-registry';
 import type { FormProxy, GroupNodeConfig, FormSchema, FieldConfig } from './types/index';
 import type { FormSchemaNode } from './types/schema-node';
 import type { FormModel } from '../state/types';
-import { validateFormModel } from './validate-model';
 import type { FormBehavior } from './behaviors';
 
 /**
@@ -72,6 +71,12 @@ function harvestFieldConfig(
   arrayItems: ArrayItemBuilders
 ): void {
   if (schema == null || typeof schema !== 'object') return;
+  // Сигнал — лист обхода, а не узел: спуск внутрь него бессмыслен (у Signal нет `component`/
+  // `children`) и опасен — его внутренние поля (`_targets`/`_node`) образуют двусвязные списки
+  // подписок с обратными ссылками. Сигналы попадают под обход не только как `node.value` (тот
+  // пропускается ниже по ключу), но и под произвольными ключами: `text: model.$.x` у html-узла,
+  // `componentProps.<prop>: '$model(…)'` после резолва в renderer-json.
+  if (schema instanceof Signal) return;
   if (Array.isArray(schema)) {
     for (const child of schema) harvestFieldConfig(child, map, arrayItems);
     return;
@@ -143,9 +148,9 @@ function buildModelConfig<T>(
     }
     const sig = model.signalAt(path) as Signal<unknown> | undefined;
     if (!sig) throw new Error(`createForm({ model }): не найден сигнал для пути "${path}"`);
-    // Валидаторы единой схемы имеют контракт (value, model) и исполняются движком
-    // validateModel/validateFormModel (по схеме), а НЕ нодой (node.validate(value) вызвал бы их
-    // с неверной арностью). Поэтому в FieldNode валидаторы не кладём — только UI/поведенческий конфиг.
+    // Schema-валидация живёт вне layout-дерева (`validateModel` из @reformer/core/validation),
+    // нода правил не исполняет. Встретив легаси-`validators` на узле, срезаем их —
+    // в FieldNode кладём только UI/поведенческий конфиг.
     const harvested = bySignal.get(sig) ?? {};
     const { validators: _v, asyncValidators: _av, ...nodeCfg } = harvested;
     void _v;
@@ -261,16 +266,9 @@ export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormPr
     }
   }
 
-  // M1: schema-валидаторы срезаны с FieldNode и живут на слое модели. Привязываем валидацию модели
-  // к форме, чтобы form.validate()/submit() прогоняли их (validateFormModel роутит ошибки в ноды),
-  // а не пропускали невалидные данные через всегда-true node-gate.
-  if (schema !== undefined) {
-    const validationSchema = schema;
-    groupNode.attachModelValidator(async () => {
-      const res = await validateFormModel(model, validationSchema);
-      return res.valid;
-    });
-  }
+  // Schema-валидация вынесена ВНЕ формы (контракт `@reformer/core/validation`): приложение
+  // прогоняет `validateModel(model, schema)`, который сам роутит ошибки в ноды. `createForm` больше
+  // не привязывает валидацию к `form.validate()`/`submit()` — те отражают текущее состояние нод.
 
   // Декларативное поведение: запускаем ПОСЛЕ заполнения реестра (enableWhen резолвит ноды по сигналу),
   // cleanup отдаём форме — отпишется в groupNode.dispose().
@@ -292,12 +290,13 @@ const isFormModelArgs = <T>(arg: unknown): arg is CreateFormFromModelArgs<T> =>
  *
  * @group Utilities
  *
- * @param args - Модель данных, единая схема (component/componentProps/validators) и (опционально) поведение
+ * @param args - Модель данных, layout-схема (component/componentProps) и (опционально) поведение
  * @returns Типизированная форма с Proxy-доступом к полям
  *
- * @example Архитектура M1: `createModel` + единая схема + `createForm({ model, schema })`
+ * @example Архитектура M1: `createModel` + layout-схема + `createForm({ model, schema })`
  * ```typescript
- * import { createModel, createForm, validateFormModel } from '@reformer/core';
+ * import { createModel, createForm } from '@reformer/core';
+ * import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
  * import { required, email, minLength } from '@reformer/core/validators';
  *
  * interface UserForm {
@@ -307,28 +306,23 @@ const isFormModelArgs = <T>(arg: unknown): arg is CreateFormFromModelArgs<T> =>
  *
  * const model = createModel<UserForm>({ email: '', password: '' });
  *
+ * // Layout-схема НЕ несёт validators — только component/componentProps.
  * const schema = {
  *   children: [
- *     {
- *       value: model.$.email,
- *       component: Input,
- *       validators: [required(), email()],
- *     },
- *     {
- *       value: model.$.password,
- *       component: Input,
- *       validators: [required(), minLength(8)],
- *     },
+ *     { value: model.$.email, component: Input },
+ *     { value: model.$.password, component: Input },
  *   ],
  * };
  *
  * const form = createForm<UserForm>({ model, schema });
- *
- * // TypeScript знает о полях (нода привязана к сигналу модели):
  * form.email.setValue('test@mail.com');
  *
- * // Валидация всей модели по схеме (sync + async):
- * const { valid } = await validateFormModel(model, schema);
+ * // Валидация — ОТДЕЛЬНАЯ схема, прогон внешним раннером (ошибки сами доезжают до нод):
+ * const validation = defineValidationSchema<UserForm>(({ model }) => {
+ *   validate(model.$.email, [required(), email()]);
+ *   validate(model.$.password, [required(), minLength(8)]);
+ * });
+ * const ok = await validateModel(model, validation);
  * ```
  */
 export function createForm<T>(args: CreateFormFromModelArgs<T>): FormProxy<T>;

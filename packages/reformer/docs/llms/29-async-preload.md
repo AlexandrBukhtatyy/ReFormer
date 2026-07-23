@@ -175,7 +175,7 @@ useEffect(() => {
 ## Troubleshooting
 
 **Q: После `set`/`patch` не показываются ошибки.**
-A: `set`/`patch` не запускают валидацию. После загрузки вызови `await validateFormModel(model, schema)`.
+A: `set`/`patch` не запускают валидацию. После загрузки вызови `await validateModel(model, schema)` (внешний раннер из `@reformer/core/validation`).
 
 **Q: Опции в `<Select>` не появляются после `updateComponentProps`.**
 A: (1) Оберни вызов в `queueMicrotask`; (2) убедись, что компонент подписан через `useFormControl`;

@@ -76,7 +76,7 @@ export const radioGroupDocConfig: ComponentDocConfig = {
       id: 'validation',
       title: 'Обязательный выбор (валидатор)',
       description:
-        'validators: [required()] прямо в ноде схемы. touched-поле с пустым значением показывает ошибку.',
+        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
         component: RadioGroupField,
@@ -88,8 +88,10 @@ export const radioGroupDocConfig: ComponentDocConfig = {
   value: model.$.loanType,
   component: RadioGroupField,
   componentProps: { label: 'Тип кредита', options: LOAN },
-  validators: [required({ message: 'Выберите тип кредита' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);`,
     },
     {
       id: 'disabled',
@@ -129,7 +131,9 @@ control.disable(); // блокирует всю группу`,
     label: 'Тип кредита',
     options: LOAN,${v.required ? '\n    required: true,' : ''}${v.description ? `\n    description: '${v.description}',` : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

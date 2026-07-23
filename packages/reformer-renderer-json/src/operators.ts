@@ -5,6 +5,7 @@
  *
  * - `"$model(path)"`        — путь к полю/массиву модели: лист → `model.signalAt(path)`, массив → `model.<path>`.
  * - `"$component(Name)"`    — имя компонента в реестре (`reg.component`).
+ * - `"$html(tag)"`          — нативный HTML-тег для презентационной вёрстки без регистрации компонента.
  * - `"$dataSource(NAME)"`   — имя registry-source (`reg.dataSource`): options/itemLabel/константы/loading-компоненты.
  * - `"$fn(name)"`           — имя функции в реестре (`reg.fn`): форматтеры/компараторы/itemLabel/обработчики.
  * - `"$locale(key)"`        — ключ строки для сервиса локализации (`reg.locale`): резолвится в строку.
@@ -22,6 +23,13 @@ export type ModelOp = `$model(${string})`;
 /** Строка-оператор ссылки на компонент реестра: `` `$component(${name})` ``. */
 export type ComponentOp = `$component(${string})`;
 
+/**
+ * Строка-оператор нативного HTML-тега: `` `$html(${tag})` ``. Позволяет верстать презентационные
+ * блоки (заголовки, абзацы, разделители) прямо в схеме, не регистрируя ради них компонент.
+ * Тег проверяется по whitelist (`isAllowedHtmlTag`) и конвертером, и `validateFormSchema`.
+ */
+export type HtmlOp = `$html(${string})`;
+
 /** Строка-оператор ссылки на registry-source: `` `$dataSource(${name})` ``. */
 export type DataSourceOp = `$dataSource(${string})`;
 
@@ -32,15 +40,15 @@ export type FnOp = `$fn(${string})`;
 export type LocaleOp = `$locale(${string})`;
 
 /** Любой строковый оператор JSON-схемы. */
-export type JsonOperator = ModelOp | ComponentOp | DataSourceOp | FnOp | LocaleOp;
+export type JsonOperator = ModelOp | ComponentOp | HtmlOp | DataSourceOp | FnOp | LocaleOp;
 
-/** Разобранный оператор: тип + аргумент (путь/имя/ключ). */
+/** Разобранный оператор: тип + аргумент (путь/имя/ключ/тег). */
 export interface ParsedOperator {
-  op: 'model' | 'component' | 'dataSource' | 'fn' | 'locale';
+  op: 'model' | 'component' | 'html' | 'dataSource' | 'fn' | 'locale';
   arg: string;
 }
 
-const OPERATOR_RE = /^\$(model|component|dataSource|fn|locale)\((.+)\)$/;
+const OPERATOR_RE = /^\$(model|component|html|dataSource|fn|locale)\((.+)\)$/;
 
 /**
  * Разбор строки-оператора `"$op(arg)"`. Возвращает `null` для не-операторов (обычных строк),
@@ -91,6 +99,21 @@ export const isModelOp = (v: unknown): v is ModelOp => parseOperator(v)?.op === 
  * ```
  */
 export const isComponentOp = (v: unknown): v is ComponentOp => parseOperator(v)?.op === 'component';
+
+/**
+ * Type-guard: строка — оператор `"$html(...)"` (нативный HTML-тег).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link HtmlOp}.
+ *
+ * @example
+ * ```ts
+ * if (isHtmlOp(node.component)) {
+ *   const tag = parseOperator(node.component)!.arg; // 'p'
+ * }
+ * ```
+ */
+export const isHtmlOp = (v: unknown): v is HtmlOp => parseOperator(v)?.op === 'html';
 
 /**
  * Type-guard: строка — оператор `"$dataSource(...)"` (ссылка на registry-source).

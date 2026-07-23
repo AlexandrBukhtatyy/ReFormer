@@ -6,12 +6,15 @@ Headless compound component for multi-step form wizards.
 
 ```tsx
 import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
+import { validateModel } from '@reformer/core/validation';
 
 // Config is a pair of validation callbacks — NOT schemas.
 // Each returns boolean | Promise<boolean> (true = valid).
+// validateModel(model, schema) returns Promise<boolean> and routes errors
+// into the form nodes itself — the callback just forwards its result.
 const config: FormWizardConfig = {
-  validateStep: (step) => validateFormModel(model, stepSchema(step)),
-  validateAll: () => validateFormModel(model, fullSchema),
+  validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1]),
+  validateAll: () => validateModel(model, fullSchema),
 };
 
 <FormWizard form={form} config={config}>
@@ -216,21 +219,27 @@ interface FormWizardConfig {
 }
 ```
 
-Typically both wrap `validateFormModel(model, schema)` from `@reformer/core` and
-close over the current step's schema:
+Typically both wrap `validateModel(model, schema)` from `@reformer/core/validation`
+and close over the current step's schema. `validateModel` already returns
+`Promise<boolean>` — it routes each error into the matching form node itself and
+does not count `severity: 'warning'` as blocking — so the callbacks just forward
+its result (no `errors` object to inspect):
 
 ```typescript
+import { validateModel } from '@reformer/core/validation';
+
+// STEP_SCHEMAS[i] and fullSchema are ValidationSchema<Root> built with
+// defineValidationSchema / apply (see @reformer/core validation docs).
 const config: FormWizardConfig = {
-  validateStep: async (step) => {
-    const res = await validateFormModel(model, stepSchemas[step - 1]);
-    return Object.keys(res.errors).length === 0;
-  },
-  validateAll: async () => {
-    const res = await validateFormModel(model, fullSchema);
-    return Object.keys(res.errors).length === 0;
-  },
+  validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1]),
+  validateAll: () => validateModel(model, fullSchema),
 };
 ```
+
+The schemas themselves are plain `defineValidationSchema<Root>(({ model }) => …)`
+functions; `fullSchema` composes the per-step schemas with `apply(...STEP_SCHEMAS)`.
+The wizard config never sees validators directly — layout and validation stay in
+separate layers.
 
 Validation happens automatically:
 

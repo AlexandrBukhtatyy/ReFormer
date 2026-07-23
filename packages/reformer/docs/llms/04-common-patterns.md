@@ -1,7 +1,8 @@
 ## 3. COMMON PATTERNS
 
-Все паттерны — на архитектуре M1: значения в модели (`model.$.field`), behaviors на сигналах,
-валидация через `validateFormModel`.
+Все паттерны — на архитектуре M1: значения в модели (`model.$.field`), поведение (`defineFormBehavior`)
+на живых сигналах, валидация — отдельной ambient-схемой (`defineValidationSchema`, прогон по требованию
+через `validateModel`). Слои раздельны: layout НЕ несёт validators.
 
 ### Conditional Fields with Auto-Reset
 
@@ -95,64 +96,104 @@ model.get();             // весь объект-снимок
 
 ### Submit + validation
 
+Валидация — отдельная `ValidationSchema<T>` (`defineValidationSchema`), а не часть layout. Раннер
+`validateModel(model, schema)` сам роутит ошибки в ноды формы и возвращает `Promise<boolean>`
+(`false` = есть блокирующая ошибка; `severity: 'warning'` не блокирует).
+
 ```typescript
-import { validateFormModel } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
-  const result = await validateFormModel(model, schema); // ошибки роутятся в ноды формы
-  if (!result.valid) return;                             // result.errors — { path: ValidationError[] }
+  const ok = await validateModel(model, schema); // ошибки сами доезжают до нод формы (UI подсветит)
+  if (!ok) return;                               // false → есть блокирующая ошибка
   await api.send(model.get());
   model.reset(); // к initial-снимку
 }
 ```
 
-Multi-step: держи отдельные под-схемы на шаг и вызывай `validateFormModel(model, stepSchema)`.
-См. `13-multi-step.md`, `28-submit-and-reset.md`.
+Multi-step: держи отдельные под-схемы на шаг и вызывай `validateModel(model, stepSchema)`. Для wizard'а —
+`makeValidationConfig(model)` → `{ validateStep, validateAll }` (`validateAll` прогоняет полную
+`apply(...STEP_SCHEMAS, extras)`). См. `13-multi-step.md`, `28-submit-and-reset.md`.
 
-### Cross-field validation — через `root`
+### Cross-field validation — через `cross`
 
-Cross-field правило — `ModelValidator`, читает соседние поля через `root`, вешается на
-поле-носитель ошибки:
+Cross-field правило — обычная функция над **снапшотом** модели (`fn` получает `model.get()`),
+навешивается оператором `cross(sig, fn)` на поле-носитель ошибки внутри схемы:
 
 ```typescript
-import type { ModelValidator } from '@reformer/core';
+import { defineValidationSchema, validate, cross } from '@reformer/core/validation';
+import { required, min } from '@reformer/core/validators';
+import type { ValidationError } from '@reformer/core';
 
-const initialPaymentVsProperty: ModelValidator<number, unknown, MyForm> = (_value, _scope, root) =>
-  root.initialPayment && root.propertyValue && root.initialPayment > root.propertyValue
+// снапшот формы читается напрямую — без каста, соседние поля доступны как поля объекта
+const initialPaymentVsProperty = (f: MyForm): ValidationError | null =>
+  f.initialPayment && f.propertyValue && f.initialPayment > f.propertyValue
     ? { code: 'tooHigh', message: 'Взнос не может превышать стоимость' }
     : null;
 
-const schema = {
-  initialPayment: { value: model.$.initialPayment, component: Input, validators: [initialPaymentVsProperty] },
-};
+const schema = defineValidationSchema<MyForm>(({ model }) => {
+  validate(model.$.initialPayment, [required(), min(0)]);
+  cross(model.$.initialPayment, initialPaymentVsProperty); // ошибка сядет на initialPayment
+});
 ```
 
-Чтобы правило перезапускалось при изменении зависимости — добавь `revalidateWhen`:
+> Для элемента массива / под-модели захвати нужный снапшот в замыкание (`const item = im.get();
+> cross(im.$.x, () => rule(item))`) — `fn` всегда получает модель ТЕКУЩЕГО scope, а не под-модель.
+
+### Conditional validation — `validateWhen`
+
+Условная валидация — `validateWhen(() => cond, () => { … })`: правила внутри активны, только пока
+условие истинно; при `false` ранее тронутые поля гасятся. Это не `enable` (то — поведение), а
+включение/выключение самих проверок:
 
 ```typescript
-import { revalidateWhen } from '@reformer/core';
-revalidateWhen([model.$.propertyValue], () => validateFormModel(model, schema));
+import { validateWhen, validate, cross } from '@reformer/core/validation';
+
+validateWhen(
+  () => model.loanType === 'mortgage',
+  () => {
+    validate(model.$.propertyValue, [required(), min(1000000)]);
+    cross(model.$.initialPayment, initialPaymentVsProperty);
+  }
+);
+```
+
+### Перезапуск прогона — `revalidateWhen` (мост поведение → валидация)
+
+Схема прогоняется по требованию (submit/шаг). Чтобы перезапустить её при изменении зависимости —
+`revalidateWhen` из **поведения** (единственный мост поведение → валидация):
+
+```typescript
+import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
+import { validateModel } from '@reformer/core/validation';
+
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  revalidateWhen([model.$.propertyValue], () => void validateModel(model, schema));
+});
 ```
 
 ### Extracting named rules
 
-Когда тело кастомного валидатора или behavior-оператора растёт — выноси в именованную
-функцию, типизированную `ModelValidator<TField, TScope, TRoot>`. Схема остаётся плоской и
-читается как оглавление:
+Когда тело правила растёт — выноси в именованную функцию. Field-правило типизируй `Rule<T>`
+(`(value) => ValidationError | null`), cross-field — обычной `(f: Root) => ValidationError | null`.
+Схема остаётся плоской и читается как оглавление:
 
 ```typescript
-import type { ModelValidator } from '@reformer/core';
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import type { Rule } from '@reformer/core/validation';
 
-const validateAdultAge: ModelValidator<string> = (value) => {
+// field-правило: (value) => error
+const validateAdultAge: Rule<string> = (value) => {
   if (!value) return null;
   const age = new Date().getFullYear() - new Date(value).getFullYear();
   return age < 18 ? { code: 'tooYoung', message: 'Минимум 18 лет' } : null;
 };
 
-const schema = {
-  birthDate: { value: model.$.birthDate, component: Input, validators: [validateAdultAge] },
-};
+const schema = defineValidationSchema<MyForm>(({ model }) => {
+  validate(model.$.birthDate, [required(), validateAdultAge]);
+});
 ```
 
 **Naming convention** (camelCase, семантика, не эхо оператора):

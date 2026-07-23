@@ -186,7 +186,10 @@ function FormWizardInner<T extends Record<string, any>>(
         {(indicatorProps) => <StepIndicator {...indicatorProps} className="mb-8" />}
       </FormWizardHeadless.Indicator>
 
-      <div data-slot="form-wizard-body" className="bg-white p-8 rounded-lg shadow-md">
+      <div
+        data-slot="form-wizard-body"
+        className="bg-card text-card-foreground p-8 rounded-lg shadow-md border"
+      >
         {props.steps.map((step) => (
           <FormWizardHeadless.Step key={step.number}>
             {renderStepBody(step.body, props.form)}
@@ -229,8 +232,8 @@ type FormWizardCompound = typeof FormWizardForwarded & {
  *
  * Один компонент покрывает TS-flow, renderer-react и renderer-json за счёт
  * полиморфного {@link FormWizardStepBody}. Валидация по шагам и submit-валидация
- * задаются через `config` (`{ validateStep, validateAll }`, обычно из
- * `validateFormModel`). Императивный доступ (submit/навигация снаружи дерева) —
+ * задаются через `config` (`{ validateStep, validateAll }`, обычно обёртки над
+ * `validateModel` из `@reformer/core/validation`). Императивный доступ (submit/навигация снаружи дерева) —
  * через `ref` типа `FormWizardHandle<T>`.
  *
  * Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /

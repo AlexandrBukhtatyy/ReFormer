@@ -71,8 +71,10 @@ export const switchDocConfig: ComponentDocConfig = {
   value: model.$.agree,
   component: SwitchField,
   componentProps: { label: 'Согласен с условиями' },
-  validators: [required({ message: 'Необходимо принять условия' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.agree, [required({ message: 'Необходимо принять условия' })]);`,
     },
   ],
   api: {

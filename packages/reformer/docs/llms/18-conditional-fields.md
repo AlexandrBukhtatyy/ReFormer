@@ -7,12 +7,13 @@
 
 1. **Видимость / доступность** (поле остаётся в модели, но выключается/включается и не валидируется)
    — behaviors: `enableWhen`, а для условной записи значения — `compute` / `copyFrom` с опцией `{ when }`.
-2. **Условная валидация** (правила применяются только в истинной ветке) — нативный branch-узел
-   схемы `{ when, children }`, исполняется `validateFormModel`.
+2. **Условная валидация** (правила применяются только в истинной ветке) — оператор
+   `validateWhen(() => cond, () => {…})` внутри схемы `defineValidationSchema`, прогоняется раннером `validateModel`.
 3. **Скрытие из разметки** (узел вообще не рендерится) — `useFormControlValue` + условный рендер в JSX.
 
-> Ни `applyWhen`, ни `ValidationSchemaFn` **не экспортируются** из `@reformer/core` — см. раздел
-> [Не экспорт (частая ошибка)](#не-экспорт-частая-ошибка) и `17-nonexistent-api.md`.
+> Условная **валидация** — оператор `validateWhen` из `@reformer/core/validation`; старого branch-узла
+> `{ when, children }` и хелпера `applyWhen` больше нет — см.
+> [Anti-patterns удалённого контракта валидации](#anti-patterns-удалённого-контракта-валидации) и `17-nonexistent-api.md`.
 
 ## Видимость и доступность
 
@@ -68,35 +69,42 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model }) => {
 
 ## Условная валидация
 
-Правила, действующие только при выполнении условия, задаются **нативным branch-узлом**
-`{ when: (scope, root) => boolean, children: [...] }` прямо в дереве схемы. `validateFormModel`
-обходит дерево: при истинном `when` валидирует `children`, при ложном — **поддерево пропускается,
-а ошибки его полей очищаются** (движок вызывает `setErrors([])`). `scope` — ближайшая под-модель
-(элемент массива или корень), `root` — корневая модель формы.
+Правила, действующие только при выполнении условия, оборачиваются оператором
+`validateWhen(() => cond, () => {…})` внутри схемы `defineValidationSchema<T>(({ model }) => …)`.
+Условие `cond` читает модель напрямую (`model.field` — снимок на момент прогона): при истинном условии
+раннер применяет вложенные `validate`/`cross`/…, при ложном — правила ветки **гасятся** (поля,
+затронутые ранее, получают `setErrors([])`). Прогон — внешним раннером
+`validateModel(model, schema): Promise<boolean>` (ошибки сами роутятся в ноды формы).
 
 ```typescript
-import { validateFormModel } from '@reformer/core';
+import {
+  validate,
+  validateWhen,
+  defineValidationSchema,
+  validateModel,
+} from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 
-const schema = {
-  children: [
-    { value: model.$.loanType, validators: [required()] },
-    {
-      // ветка применяется только для ипотеки
-      when: (_scope, root) => root.loanType === 'mortgage',
-      children: [
-        { value: model.$.propertyValue, validators: [required(), min(1_000_000)] },
-        { value: model.$.initialPayment, validators: [required()] },
-      ],
-    },
-  ],
-};
+const schema = defineValidationSchema<CreditForm>(({ model }) => {
+  validate(model.$.loanType, [required()]);
 
-const { valid, errors } = await validateFormModel(model, schema);
+  // ветка применяется только для ипотеки
+  validateWhen(
+    () => model.loanType === 'mortgage',
+    () => {
+      validate(model.$.propertyValue, [required(), min(1_000_000)]);
+      validate(model.$.initialPayment, [required()]);
+    },
+  );
+});
+
+const ok: boolean = await validateModel(model, schema);
 ```
 
 Переключение `loanType` с `mortgage` на другой тип автоматически снимает ошибки `required` с
-`propertyValue`/`initialPayment` — их держать enabled и не валидировать помогает `enableWhen` выше.
+`propertyValue`/`initialPayment` — при ложном условии ветка `validateWhen` гасит их (`setErrors([])`).
+`validateWhen` управляет только **валидацией**; чтобы поля ещё и выпадали из состояния (сброс
+значения), держи их под `enableWhen` из раздела выше — слои независимы.
 
 ## Скрытие в JSX
 
@@ -120,41 +128,56 @@ function MortgageFields({ form }: { form: CreditForm }) {
 ```
 
 Скрытие в JSX — чисто визуальное: если поле должно ещё и **выпадать из валидации/состояния**,
-сочетай его с `enableWhen({ resetOnDisable: true })` (доступность) или branch-узлом (валидация).
+сочетай его с `enableWhen({ resetOnDisable: true })` (доступность) или `validateWhen` (валидация).
 
-## Не экспорт (частая ошибка)
+## Anti-patterns удалённого контракта валидации
 
-- **`applyWhen` — это ЛОКАЛЬНЫЙ typed-хелпер примера, а не экспорт `@reformer/core`.** Он лишь
-  эмитит нативный branch-узел `{ when, children }`. Каноничное определение (см.
-  `complex-multy-step-form/schemas/validation.ts`):
+Условную валидацию раньше собирали иначе; эти формы удалены при переходе на `@reformer/core/validation`.
+Ниже — **как НЕ надо** (чтобы не регрессировать); рабочий вариант — `validateWhen` из раздела выше.
+
+- **Нет branch-узла `{ when, children }` в дереве схемы.** Старая схема была деревом
+  `{ value, validators: [...] }` с ветками `{ when: (scope, root) => boolean, children: [...] }`,
+  которое обходил `validateFormModel`. Теперь схема — функция `({ model }) => void`, а условие —
+  оператор `validateWhen(() => cond, () => {…})`; отдельного объекта-узла нет.
 
   ```typescript
-  // локальный сахар в самом примере — НЕ импорт из библиотеки
-  const applyWhen = (cond: (form: Root) => boolean, children: SchemaNode[]): SchemaNode => ({
-    when: (_scope: unknown, root: unknown) => cond(root as Root),
-    children,
-  });
+  // УДАЛЕНО — так больше нельзя
+  const schema = {
+    children: [
+      { value: model.$.loanType, validators: [required()] },
+      { when: (_s, root) => root.loanType === 'mortgage', children: [ /* … */ ] },
+    ],
+  };
+  await validateFormModel(model, schema); // символа нет
   ```
 
-  Публичный API — сам `validateFormModel(model, schema)` и форма узла `{ when, children }`.
-  Не пиши `import { applyWhen } from '@reformer/core'` — такого символа нет.
+- **`applyWhen` не существует** — ни как экспорт, ни как локальный сахар: он эмитил branch-узел,
+  которого больше нет. Оборачивай условные правила оператором `validateWhen`.
 
-- **`ValidationSchemaFn` не существует** (тип старой path-схемы удалён при переходе на M1). Тип
-  кастомного/cross-field валидатора — **`ModelValidator<TValue, TModel, TRoot>`**:
+- **`ValidationSchemaFn` удалён** (тип старой path-схемы). Тип схемы — `ValidationSchema<T>`
+  (`(ctx: { model: FormModel<T> }) => void`), фабрика-обёртка — `defineValidationSchema<T>(fn)`.
+
+- **Cross-field — обычная функция над снапшотом, а не `ModelValidator (value, scope, root)`.**
+  Соседние поля читаются из снимка модели (`f: Root`, эквивалент `model.get()`), а правило навешивается
+  оператором `cross(sig, fn)`. Каноничное использование — `complex-multy-step-form/schemas/validation.ts`.
 
   ```typescript
-  import type { ModelValidator } from '@reformer/core';
+  import { cross } from '@reformer/core/validation';
+  import type { ValidationError } from '@reformer/core';
 
-  // (value, scope, root) — cross-field читает соседей через root
-  const passwordsMatch: ModelValidator<string, unknown, { password: string }> = (value, _scope, root) =>
-    value && root.password && value !== root.password
+  // (f: Root) => error — сравнение с соседним полем, без scope/root-параметров
+  const passwordsMatch = (f: { password: string; confirmPassword: string }): ValidationError | null =>
+    f.confirmPassword && f.password && f.confirmPassword !== f.password
       ? { code: 'mismatch', message: 'Пароли не совпадают' }
       : null;
+
+  // внутри defineValidationSchema — fn получает снапшот текущего scope (model.get()):
+  cross(model.$.confirmPassword, passwordsMatch);
   ```
 
 ## See also
 
-- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры `enableWhen`/`compute`/`copyFrom`, branch-узел, `ModelValidator`
-- [17-nonexistent-api.md](./17-nonexistent-api.md) — полный список удалённого API (`applyWhen`, `ValidationSchemaFn`, …)
+- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры `enableWhen`/`compute`/`copyFrom` (поведение) и `validate`/`validateWhen`/`cross`/`validateModel` (валидация)
+- [17-nonexistent-api.md](./17-nonexistent-api.md) — полный список удалённого API (`applyWhen`, `ValidationSchemaFn`, `validateFormModel`, …)
 - [25-reset-when.md](./25-reset-when.md) — `resetWhen` как альтернатива, когда поле остаётся enabled
 - [19-reading-values.md](./19-reading-values.md) — `useFormControlValue` и чтение значений в React
