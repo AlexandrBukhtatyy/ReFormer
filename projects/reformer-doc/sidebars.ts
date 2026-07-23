@@ -124,7 +124,6 @@ const sidebars: SidebarsConfig = {
 
   // ── UI-Kit: стилизованные компоненты, сгруппированные по семействам ─────────
   uiKitSidebar: [
-    { type: 'doc', id: 'packages/ui-kit', label: '@reformer/ui-kit' },
     'ui-kit/overview',
     // v7-миграция: категории компонентов наполняются оркестратором между волнами
     // (см. docs/plans/jazzy-sniffing-kahan.md).

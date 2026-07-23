@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Свои компоненты полей
 
-Готовые поля живут в [`@reformer/ui-kit`](../packages/ui-kit): `<FormField control={form.x} />`
+Готовые поля живут в [`@reformer/ui-kit`](../ui-kit/overview): `<FormField control={form.x} />`
 закрывает почти все случаи одной строкой. Свои field-компоненты пишут, **только когда ui-kit не
 подходит** — другая design-система, особый low-level input (маска, комбобокс). При этом остаётся в
 силе главный принцип M1: поле **schema-driven**.

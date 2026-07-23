@@ -76,7 +76,7 @@ const PACKAGES: PackageCard[] = [
   {
     name: '@reformer/ui-kit',
     icon: '🎨',
-    to: '/docs/packages/ui-kit',
+    to: '/docs/ui-kit/overview',
     descId: 'homepage.pkg.uikit',
     descDefault: 'Стилизованные контролы (Tailwind + Radix), привязанные к FieldNode.',
   },
@@ -126,32 +126,37 @@ function PackagesSection(): ReactNode {
   );
 }
 
-const QUICK_START = `import { createModel, createForm, validateFormModel } from '@reformer/core';
+const QUICK_START = `import { createModel, createForm } from '@reformer/core';
+import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
 // 1. Модель — источник истины значений
 const model = createModel<{ email: string }>({ email: '' });
 
-// 2. Схема — привязка поля к сигналу + компонент + валидаторы
+// 2. Layout-схема — привязка поля к сигналу + компонент (без валидаторов)
 const schema = {
   email: {
     value: model.$.email,
     component: Input,
     componentProps: { label: 'Email', type: 'email' },
-    validators: [required(), email()],
   },
 };
 
-// 3. Форма — узлы поверх сигналов модели
+// 3. Валидация — отдельный слой
+const validation = defineValidationSchema<{ email: string }>(({ model }) => {
+  validate(model.$.email, [required(), email()]);
+});
+
+// 4. Форма — узлы поверх сигналов модели
 const form = createForm({ model, schema });
 
-// 4. Тонкий JSX — FormField делает всю работу
+// 5. Тонкий JSX — FormField делает всю работу
 function ContactForm() {
   const onSubmit = async (e) => {
     e.preventDefault();
-    const { valid } = await validateFormModel(model, schema);
-    if (valid) console.log(model.get());
+    const ok = await validateModel(model, validation); // ошибки сами лягут в поля
+    if (ok) console.log(model.get());
   };
   return (
     <form onSubmit={onSubmit}>
