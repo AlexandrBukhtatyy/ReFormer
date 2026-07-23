@@ -27,7 +27,7 @@ function HomepageHeader() {
           </Translate>
         </p>
         <div className={styles.buttons}>
-          <Link className="button button--secondary button--lg" to="/docs/packages/core">
+          <Link className="button button--secondary button--lg" to="/docs/">
             <Translate id="homepage.getStarted">Get Started</Translate>
           </Link>
           <Link
@@ -62,14 +62,14 @@ const PACKAGES: PackageCard[] = [
   {
     name: '@reformer/core',
     icon: '⚡',
-    to: '/docs/packages/core',
+    to: '/docs/',
     descId: 'homepage.pkg.core',
     descDefault: 'Реактивное ядро на сигналах: модель, схема, валидаторы, behaviors, хуки.',
   },
   {
     name: '@reformer/cdk',
     icon: '🧩',
-    to: '/docs/packages/cdk',
+    to: '/docs/cdk/overview',
     descId: 'homepage.pkg.cdk',
     descDefault: 'Headless-компоненты: динамические массивы, визарды, анатомия поля.',
   },
@@ -97,7 +97,7 @@ const PACKAGES: PackageCard[] = [
   {
     name: '@reformer/mcp',
     icon: '🤖',
-    to: '/docs/packages/mcp',
+    to: '/docs/mcp/overview',
     descId: 'homepage.pkg.mcp',
     descDefault: 'MCP-сервер: документация и генерация форм для AI-ассистентов.',
   },

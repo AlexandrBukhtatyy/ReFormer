@@ -8,7 +8,7 @@ sidebar_position: 1
 [shadcn/ui](https://ui.shadcn.com/) (стиль **new-york**, палитра **neutral**, Tailwind CSS v4),
 интегрированный с формами `@reformer/core`.
 
-Там, где [`@reformer/cdk`](../packages/cdk) даёт headless-примитивы без стилей, ui-kit даёт
+Там, где [`@reformer/cdk`](../cdk/overview) даёт headless-примитивы без стилей, ui-kit даёт
 стилизованные, доступные (a11y) контролы и их **form-версии** (`*Field`), которые привязываются
 прямо к ноде формы через один универсальный `<FormField control={form.x} />`.
 
@@ -75,7 +75,7 @@ Tailwind-входе:
 ### 2. Headless-основа: `@reformer/cdk`
 
 Составные form-компоненты кита — это **визуальный слой поверх headless-компонентов
-[`@reformer/cdk`](../packages/cdk)**. Логика (состояние, render-props, контекст) живёт в cdk,
+[`@reformer/cdk`](../cdk/overview)**. Логика (состояние, render-props, контекст) живёт в cdk,
 ui-kit добавляет к ней разметку и стили:
 
 | Компонент ui-kit                    | Headless-основа                | Роль                                            |
@@ -137,4 +137,4 @@ import { defaultPropSchemas } from '@reformer/ui-kit/meta';
 ## Дальше
 
 - Интерактивная документация каждого компонента — в разделах слева (Variants / Examples / API)
-- [`@reformer/cdk`](../packages/cdk) — headless-основа кита
+- [`@reformer/cdk`](../cdk/overview) — headless-основа кита
