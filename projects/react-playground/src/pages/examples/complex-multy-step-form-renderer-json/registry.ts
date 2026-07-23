@@ -22,6 +22,7 @@ import {
   SelectField,
   CheckboxField,
   RadioGroupField,
+  FileUploadField,
   Box,
   Section,
   Collapsible,
@@ -65,6 +66,7 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
     reg.component('Select', SelectField);
     reg.component('Checkbox', CheckboxField);
     reg.component('RadioGroup', RadioGroupField);
+    reg.component('FileUpload', FileUploadField);
 
     reg.component('Box', Box);
     reg.component('Section', Section);

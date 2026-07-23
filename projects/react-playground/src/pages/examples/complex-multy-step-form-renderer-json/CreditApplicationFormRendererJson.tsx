@@ -28,6 +28,8 @@ import type { CreditApplicationForm } from '../complex-multy-step-form/types/cre
 import rawJsonSchema from './json-schema.json';
 import { createCreditApplicationRegistry } from './registry';
 import { createCreditApplicationJsonRenderBehavior } from './render-behavior';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
 
 // Чистый JSON импортируется как данные; операторы-строки (`$model(...)`) типизируются как `string`,
 // поэтому приводим к JsonFormSchema (это и есть сценарий «схема пришла строкой с сервера»).
@@ -69,13 +71,16 @@ export default function CreditApplicationFormRendererJson() {
 
   return (
     <div className="w-full">
-      <JsonRendererProvider settings={{ registry, model }}>
-        <JsonFormRenderer<CreditApplicationForm>
-          schema={creditApplicationJsonSchema}
-          renderBehavior={renderBehavior}
-          validate={import.meta.env.DEV}
-        />
-      </JsonRendererProvider>
+      {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5). */}
+      <ValidationMessagesProvider resolver={fileUploadMessages}>
+        <JsonRendererProvider settings={{ registry, model }}>
+          <JsonFormRenderer<CreditApplicationForm>
+            schema={creditApplicationJsonSchema}
+            renderBehavior={renderBehavior}
+            validate={import.meta.env.DEV}
+          />
+        </JsonRendererProvider>
+      </ValidationMessagesProvider>
     </div>
   );
 }

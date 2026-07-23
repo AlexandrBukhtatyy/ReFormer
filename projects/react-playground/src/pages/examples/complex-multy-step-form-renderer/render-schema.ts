@@ -54,6 +54,7 @@ import {
   InputMaskField,
   RadioGroupField,
   TextareaField,
+  FileUploadField,
 } from '@reformer/ui-kit';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** Лист единой схемы: значение из сигнала модели + UI-компонент + props. */
@@ -733,6 +734,17 @@ export function buildCreditApplicationSchema(
                             }),
                           ],
                         },
+                        // Deferred-режим: value = File[]; отбор делает сам компонент.
+                        f(model.$.documents, FileUploadField, {
+                          label: 'Документы',
+                          variant: 'dropzone',
+                          placeholder: 'Перетащите файлы или нажмите для выбора',
+                          hint: 'Паспорт, справка о доходах — изображения или PDF, до 10 МБ, максимум 5 файлов',
+                          accept: 'image/*,.pdf',
+                          multiple: true,
+                          maxFiles: 5,
+                          maxFileSize: 10 * 1024 * 1024,
+                        }),
                       ],
                     },
                     // Имущество

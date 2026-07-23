@@ -18,6 +18,8 @@ import { creditApplicationBehavior } from '../complex-multy-step-form/schemas/be
 import { FormRenderer } from '@reformer/renderer-react';
 import type { RenderSchemaProxy } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
 import { buildCreditApplicationSchema, createCreditApplicationRenderSchema } from './render-schema';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 
@@ -129,7 +131,10 @@ function CreditApplicationFormRenderer() {
   return (
     <div className="w-full">
       <SchemaControlPanel schema={schema} />
-      <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
+      {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5). */}
+      <ValidationMessagesProvider resolver={fileUploadMessages}>
+        <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
+      </ValidationMessagesProvider>
     </div>
   );
 }

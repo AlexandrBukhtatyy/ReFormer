@@ -30,6 +30,8 @@ import type { CreditApplicationForm as CreditApplicationFormType } from './types
 import { AsyncBoundary } from '@reformer/ui-kit';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
+import { ValidationMessagesProvider } from '@reformer/cdk';
+import { fileUploadMessages } from './constants/file-upload-messages';
 
 export const STEPS: FormWizardStep<CreditApplicationFormType>[] = [
   { number: 1, title: 'Кредит', icon: '💰', body: BasicInfoForm },
@@ -90,20 +92,23 @@ function CreditApplicationForm() {
   // role=status / role=alert) — внутри компонента. Снаружи остаются только
   // «как загрузить» и «что сделать с ответом».
   return (
-    <AsyncBoundary<CreditApplicationBundle>
-      load={(signal) => loadCreditApplication(applicationId!, signal)}
-      loadKey={applicationId}
-      enabled={applicationId !== null}
-      onSuccess={(bundle) => applyCreditApplication(form, bundle)}
-    >
-      <FormWizard
-        ref={navRef}
-        form={form}
-        config={navConfig}
-        steps={STEPS}
-        onSubmit={submitApplication}
-      />
-    </AsyncBoundary>
+    // Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5).
+    <ValidationMessagesProvider resolver={fileUploadMessages}>
+      <AsyncBoundary<CreditApplicationBundle>
+        load={(signal) => loadCreditApplication(applicationId!, signal)}
+        loadKey={applicationId}
+        enabled={applicationId !== null}
+        onSuccess={(bundle) => applyCreditApplication(form, bundle)}
+      >
+        <FormWizard
+          ref={navRef}
+          form={form}
+          config={navConfig}
+          steps={STEPS}
+          onSubmit={submitApplication}
+        />
+      </AsyncBoundary>
+    </ValidationMessagesProvider>
   );
 }
 

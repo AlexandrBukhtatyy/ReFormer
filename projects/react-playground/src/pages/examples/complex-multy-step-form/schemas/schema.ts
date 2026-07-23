@@ -16,6 +16,7 @@ import {
   InputMaskField,
   RadioGroupField,
   TextareaField,
+  FileUploadField,
 } from '@reformer/ui-kit';
 import type { FormModel } from '@reformer/core';
 import {
@@ -557,6 +558,22 @@ export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>)
       label: 'Образование',
       placeholder: 'Выберите уровень образования',
       options: EDUCATIONS,
+    },
+  },
+  // Deferred-режим (без uploader): value = File[], файлы уходят на submit через FormData.
+  // Отбор (accept/maxFiles/maxFileSize) выполняет сам компонент — отдельная валидация не нужна.
+  documents: {
+    value: model.$.documents,
+    component: FileUploadField,
+    componentProps: {
+      label: 'Документы',
+      variant: 'dropzone',
+      placeholder: 'Перетащите файлы или нажмите для выбора',
+      hint: 'Паспорт, справка о доходах — изображения или PDF, до 10 МБ, максимум 5 файлов',
+      accept: 'image/*,.pdf',
+      multiple: true,
+      maxFiles: 5,
+      maxFileSize: 10 * 1024 * 1024,
     },
   },
   hasProperty: {

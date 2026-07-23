@@ -901,6 +901,20 @@
                               }
                             }
                           ]
+                        },
+                        {
+                          "value": "$model(documents)",
+                          "component": "$component(FileUpload)",
+                          "componentProps": {
+                            "label": "Документы",
+                            "variant": "dropzone",
+                            "placeholder": "Перетащите файлы или нажмите для выбора",
+                            "hint": "Паспорт, справка о доходах — изображения или PDF, до 10 МБ, максимум 5 файлов",
+                            "accept": "image/*,.pdf",
+                            "multiple": true,
+                            "maxFiles": 5,
+                            "maxFileSize": 10485760
+                          }
                         }
                       ]
                     },
