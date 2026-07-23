@@ -72,6 +72,12 @@ jobs:
       - name: Run @reformer/renderer-json tests
         run: npm run test -w @reformer/renderer-json
 
+      # mcp — публикуемый пакет, но тестов у него нет. Собираем ради шага
+      # «Dist deps ↔ manifest» ниже: check:dist-deps сканирует ВСЕ packages/*,
+      # и без dist/ у mcp падал бы «нет dist/ — сначала соберите пакет».
+      - name: Build @reformer/mcp
+        run: npm run build -w @reformer/mcp
+
       - name: Dist deps ↔ manifest
         # Каждый внешний импорт dist/ должен быть объявлен в dependencies или
         # peerDependencies пакета. Ловит зависимость, оставленную в devDependencies:
