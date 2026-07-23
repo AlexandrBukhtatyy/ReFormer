@@ -29,3 +29,11 @@ export { pastDate } from './past-date';
 export { futureDate } from './future-date';
 export { minAge } from './min-age';
 export { maxAge } from './max-age';
+// File validator factories
+export { maxFileSize } from './max-file-size';
+export { minFileSize } from './min-file-size';
+export { fileType } from './file-type';
+export { maxFiles } from './max-files';
+export { minFiles } from './min-files';
+export { maxTotalFileSize } from './max-total-file-size';
+export { isFileLike, matchesFileAccept, toFileArray, type FileLike } from './file-utils';
