@@ -59,16 +59,16 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
   stepAriaLabel = defaultStepAriaLabel,
 }) => {
   const getStepClasses = (step: FormWizardIndicatorStepWithState) => {
-    if (step.isCurrent) return 'bg-blue-500 text-white';
-    if (step.isCompleted) return 'text-green-500 hover:bg-gray-200';
-    if (step.canNavigate) return 'hover:bg-gray-200';
+    if (step.isCurrent) return 'bg-primary text-primary-foreground';
+    if (step.isCompleted) return 'text-green-500 hover:bg-accent';
+    if (step.canNavigate) return 'hover:bg-accent';
     return 'opacity-50';
   };
 
   return (
     <div
       data-slot="step-indicator"
-      className={`flex items-center justify-between p-4 bg-gray-100 rounded-lg ${className || ''}`}
+      className={`flex items-center justify-between p-4 bg-muted rounded-lg ${className || ''}`}
       data-testid="step-indicator"
       role="navigation"
       aria-label={navAriaLabel}
@@ -97,7 +97,7 @@ export const StepIndicator: FC<StepIndicatorProps> = ({
           </div>
           {index < steps.length - 1 && (
             <div
-              className={`flex-1 h-0.5 mx-2 ${step.isCompleted ? 'bg-green-500' : 'bg-gray-300'}`}
+              className={`flex-1 h-0.5 mx-2 ${step.isCompleted ? 'bg-green-500' : 'bg-border'}`}
               aria-hidden="true"
             />
           )}

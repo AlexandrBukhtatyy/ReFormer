@@ -186,7 +186,10 @@ function FormWizardInner<T extends Record<string, any>>(
         {(indicatorProps) => <StepIndicator {...indicatorProps} className="mb-8" />}
       </FormWizardHeadless.Indicator>
 
-      <div data-slot="form-wizard-body" className="bg-white p-8 rounded-lg shadow-md">
+      <div
+        data-slot="form-wizard-body"
+        className="bg-card text-card-foreground p-8 rounded-lg shadow-md border"
+      >
         {props.steps.map((step) => (
           <FormWizardHeadless.Step key={step.number}>
             {renderStepBody(step.body, props.form)}
