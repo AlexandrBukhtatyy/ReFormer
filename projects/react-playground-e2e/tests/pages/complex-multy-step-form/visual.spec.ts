@@ -724,15 +724,10 @@ test.describe('Visual · VIS-011: Обзор страницы', { tag: ['@visual
     await expect(header).toHaveScreenshot(`${creditForm.variant}-header.png`);
   });
 
-  test('VIS-011-C: footer (подвал)', async ({ page, creditForm }) => {
+  // Footer удалён вместе с переходом на sidebar-layout (GitHub-ссылка переехала в сайдбар).
+  test('VIS-011-C: сайдбар навигации примеров', async ({ page, creditForm }) => {
     await creditForm.goto();
-    const footer = page.getByRole('contentinfo');
-    await expect(footer).toHaveScreenshot(`${creditForm.variant}-footer.png`);
-  });
-
-  test('VIS-011-D: главная навигация примеров', async ({ page, creditForm }) => {
-    await creditForm.goto();
-    const nav = page.getByRole('navigation').first();
-    await expect(nav).toHaveScreenshot(`${creditForm.variant}-main-nav.png`);
+    const sidebar = page.locator('[data-testid="sidebar-nav"]').first();
+    await expect(sidebar).toHaveScreenshot(`${creditForm.variant}-sidebar.png`);
   });
 });

@@ -171,6 +171,13 @@ export default defineConfig({
       testDir: './tests/pages/registration-form-json',
       use: { ...devices['Desktop Chrome'] },
     },
+    // FileUpload: выбор/drop/paste, immediate upload с прогрессом и retry, preloaded-дескрипторы.
+    // Unit-тесты CDK идут через renderToStaticMarkup — реальный пикер/DnD/загрузка проверяются тут.
+    {
+      name: 'file-upload',
+      testDir: './tests/pages/file-upload',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // ITER abstract test projects — переиспользуют POM + spec файлы
     // complex-multy-step-form для прогона против iter-форм. Активны только
     // когда MCP_ITER_VERSION env установлен. См. docs/iter-prompts/orchestrator.md
