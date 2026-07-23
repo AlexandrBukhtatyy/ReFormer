@@ -4718,6 +4718,347 @@ export const fieldWrapperPropsSchema: PropsSchema
 
 _Source: src/components/form-field/form-field.props.ts_
 
+### fileUploadAdapter
+
+**Kind:** `const`
+
+FileUpload уже value-based (`value: File[] | RemoteFileRef[] | null`, `onChange(value)`,
+`onBlur`) — адаптер почти identity: маппинга DOM-события нет, HOC нужен лишь чтобы
+отбросить `control` (renderer-путь). Пустой массив нормализуется в `null`,
+чтобы `required()` срабатывал без изменений.
+
+**Signature:**
+```typescript
+export const fileUploadAdapter: FieldAdapter
+```
+
+_Source: src/components/file-upload/variants/base/file-upload-base.field.tsx_
+
+### FileUploadAvatar
+
+**Kind:** `function`
+
+FileUpload (вариант `avatar`) — одиночное изображение с превью: круглая/квадратная
+кликабельная зона (клик/drop/Enter — выбрать или заменить), оверлеи прогресса и
+ошибки, кнопка удаления. `accept` по умолчанию `image/*`, файл всегда один
+(новый выбор заменяет текущий).
+
+**Signature:**
+```typescript
+export function FileUploadAvatar({
+  ref,
+  shape = 'circle',
+  ...props
+}: FileUploadAvatarProps &
+  Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
+```
+
+_Source: src/components/file-upload/variants/avatar/file-upload-avatar.tsx_
+
+### FileUploadAvatarField
+
+**Kind:** `const`
+
+Field-версия avatar-варианта. Rich handle реализует сам композит.
+
+**Signature:**
+```typescript
+export const FileUploadAvatarField
+```
+
+_Source: src/components/file-upload/variants/avatar/file-upload-avatar.field.tsx_
+
+### FileUploadAvatarProps
+
+**Kind:** `interface`
+
+Props avatar-варианта: single-файл, только изображения по умолчанию.
+
+**Signature:**
+```typescript
+export interface FileUploadAvatarProps
+  extends Omit<
+    FileUploadBaseProps,
+    'multiple' | 'maxFiles' | 'allowPaste' | 'hint' | 'placeholder'
+  > {
+  /** Форма превью. @default 'circle' */
+  shape?: 'circle' | 'square';
+  /** Доступное имя зоны (aria-label; текста у зоны нет). @default 'Загрузить изображение' */
+  label?: string;
+}
+```
+
+_Source: src/components/file-upload/variants/avatar/file-upload-avatar.tsx_
+
+### fileUploadAvatarPropsSchema
+
+**Kind:** `const`
+
+Props-схема варианта `file-upload/avatar` — single-изображение с превью.
+Отдельное registry-имя: другой тип значения (`File | RemoteFileRef | null`
+вместо массива) — другой seam-контракт.
+
+**Signature:**
+```typescript
+export const fileUploadAvatarPropsSchema
+```
+
+_Source: src/components/file-upload/variants/avatar/file-upload-avatar.props.ts_
+
+### FileUploadBase
+
+**Kind:** `function`
+
+FileUpload (вариант `button`) — компактное поле загрузки файлов: кнопка «Выбрать
+файлы» + список выбранных на презентационном `Attachment`. Controlled по seam
+(`value`/`onChange`/`onBlur`/`disabled`); поведение целиком в
+`@reformer/cdk/file-upload`.
+
+`aria-*`/`id` из FormField ложатся на кнопку-триггер (rest-spread).
+
+**Signature:**
+```typescript
+export function FileUploadBase({
+  ref,
+  ...props
+}: FileUploadBaseProps &
+  Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
+```
+
+_Source: src/components/file-upload/variants/base/file-upload-base.tsx_
+
+### FileUploadBaseField
+
+**Kind:** `const`
+
+`exposesHandle: true` — FileUploadBase сам реализует {@link FileUploadFieldHandle}
+(useImperativeHandle), поэтому HOC форвардит ref потребителя прямо в композит
+(passthrough), без своего baseline-handle.
+
+**Signature:**
+```typescript
+export const FileUploadBaseField
+```
+
+_Source: src/components/file-upload/variants/base/file-upload-base.field.tsx_
+
+### FileUploadBaseProps
+
+**Kind:** `interface`
+
+Общие props вариантов FileUpload: опции CDK-хука + презентационные.
+
+**Signature:**
+```typescript
+export interface FileUploadBaseProps extends Omit<UseFileUploadOptions, 'id'> {
+  /**
+   * Подпись поля — конвенция FormField (`componentProps.label` рендерит обёртка).
+   * Сам компонент её НЕ отображает (иначе текст дублировался бы), только снимает из DOM-spread.
+   */
+  label?: string;
+  /** Видимый текст триггера/зоны. @default 'Выбрать файлы' (button) */
+  placeholder?: string;
+  /** Подсказка под триггером (ограничения: типы, размер). */
+  hint?: string;
+  /**
+   * Явно пометить поле невалидным (стилизация рамки у dropzone/input/avatar).
+   * Под FormField не нужен: обёртка сама передаёт `aria-invalid` при ошибке валидации.
+   * Вариант button внешний вид не меняет — ошибку показывает FormField.Error.
+   */
+  invalid?: boolean;
+  /** Доп. CSS-класс контейнера. */
+  className?: string;
+  id?: string;
+}
+```
+
+_Source: src/components/file-upload/variants/base/file-upload-base.tsx_
+
+### fileUploadBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема варианта `file-upload/base` — единый источник `api.controls[]`
+(reformer-doc) и DSL-валидации `componentProps` (renderer-json).
+
+`x-registryName: 'FileUpload'` — на это имя смотрит диспетчер `FileUploadField`
+(варианты `button`/`dropzone` — один контракт, разный визуал).
+
+**Signature:**
+```typescript
+export const fileUploadBasePropsSchema
+```
+
+_Source: src/components/file-upload/variants/base/file-upload-base.props.ts_
+
+### FileUploadDropzone
+
+**Kind:** `function`
+
+FileUpload (вариант `dropzone`) — зона drag-and-drop: рамка с подсветкой состояния
+(`data-dragging` из CDK), клик и Enter/Space открывают пикер (drop — не единственный
+канал). Список файлов — тот же `FileUploadItemList`, что в варианте `button`.
+
+`aria-*`/`id` из FormField ложатся на зону (rest-spread).
+
+**Signature:**
+```typescript
+export function FileUploadDropzone({
+  ref,
+  ...props
+}: FileUploadDropzoneProps &
+  Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
+```
+
+_Source: src/components/file-upload/variants/dropzone/file-upload-dropzone.tsx_
+
+### FileUploadDropzoneField
+
+**Kind:** `const`
+
+Field-версия dropzone-варианта: тот же value-based адаптер, что у base
+(контракт один — визуал разный). Rich handle реализует сам композит.
+
+**Signature:**
+```typescript
+export const FileUploadDropzoneField
+```
+
+_Source: src/components/file-upload/variants/dropzone/file-upload-dropzone.field.tsx_
+
+### FileUploadDropzoneProps
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type FileUploadDropzoneProps = FileUploadBaseProps;
+```
+
+_Source: src/components/file-upload/variants/dropzone/file-upload-dropzone.tsx_
+
+### FileUploadField
+
+**Kind:** `const`
+
+Field-версия FileUpload — диспетчер по `variant`: `dropzone` → зона drag-and-drop,
+`input` → компактный инпут с кнопкой-иконкой, иначе кнопка-триггер (base).
+Контракт значения один (`File[] | RemoteFileRef[] | null`), различается только
+представление — поэтому одно registry-имя `FileUpload`.
+
+`forwardRef`: все пути форвардят ref и отдают rich {@link FileUploadFieldHandle}
+(собственный `useImperativeHandle` композитов, HOC — passthrough).
+
+Single-изображение с превью — отдельный {@link FileUploadAvatarField}
+(другой тип значения → другое registry-имя `FileUploadAvatar`).
+
+**Signature:**
+```typescript
+export const FileUploadField
+```
+
+_Source: src/components/file-upload/file-upload-field.tsx_
+
+### FileUploadFieldHandle
+
+**Kind:** `interface`
+
+Императивный handle field-версий FileUpload: baseline {@link FieldHandle}
+(focus/blur/scrollIntoView/getElement от интерактивного элемента) + управление
+пикером и списком. Достаётся из render-схемы:
+`schema.node('documents').getRef<FileUploadFieldHandle>().current?.openFilePicker()`.
+
+**Signature:**
+```typescript
+export interface FileUploadFieldHandle extends FieldHandle {
+  /** Открыть системный пикер файлов. */
+  openFilePicker(): void;
+  /** Очистить список (активные загрузки прерываются). */
+  clear(): void;
+  /** Прервать все активные загрузки (элементы остаются с ошибкой `uploadAborted`). */
+  abort(): void;
+}
+```
+
+_Source: src/components/file-upload/variants/base/file-upload-base.tsx_
+
+### FileUploadInput
+
+**Kind:** `function`
+
+FileUpload (вариант `input`) — поле в виде текстового инпута с кнопкой-иконкой
+(скрепка): клик по полю или иконке открывает пикер, drop на поле принимает файлы,
+выбранные имена показываются внутри строкой, крестик очищает выбор. Списка-превью
+нет — компактный вариант для форм, где вложения второстепенны.
+
+`aria-*`/`id` из FormField ложатся на зону; `invalid` (или aria-invalid от FormField)
+подсвечивает рамку как у Input.
+
+**Signature:**
+```typescript
+export function FileUploadInput({
+  ref,
+  ...props
+}: FileUploadInputProps &
+  Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> })
+```
+
+_Source: src/components/file-upload/variants/input/file-upload-input.tsx_
+
+### FileUploadInputField
+
+**Kind:** `const`
+
+Field-версия input-варианта: тот же value-based адаптер, что у base/dropzone
+(контракт значения один — визуал компактного инпута). Rich handle реализует композит.
+
+**Signature:**
+```typescript
+export const FileUploadInputField
+```
+
+_Source: src/components/file-upload/variants/input/file-upload-input.field.tsx_
+
+### FileUploadInputProps
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type FileUploadInputProps = FileUploadBaseProps;
+```
+
+_Source: src/components/file-upload/variants/input/file-upload-input.tsx_
+
+### FileUploadItemList
+
+**Kind:** `function`
+
+Список выбранных файлов + отклонения последнего отбора. Общий кусок вариантов
+`button` и `dropzone`: CDK-слоты (semantics, статусы, действия) + презентационный
+`Attachment` (визуал). Рендерится ТОЛЬКО внутри `CdkFileUpload.Root`.
+
+**Signature:**
+```typescript
+export function FileUploadItemList({ className }: { className?: string })
+```
+
+_Source: src/components/file-upload/variants/base/file-upload-item-list.tsx_
+
+### fileUploadSingleAdapter
+
+**Kind:** `const`
+
+Avatar — single-файл: значение поля `File | RemoteFileRef | null`, а CDK-слой
+работает с массивом. Адаптер конвертирует single ↔ массив длины 1.
+
+**Signature:**
+```typescript
+export const fileUploadSingleAdapter: FieldAdapter
+```
+
+_Source: src/components/file-upload/variants/avatar/file-upload-avatar.field.tsx_
+
 ### FormArraySection
 
 **Kind:** `function`
@@ -4753,7 +5094,7 @@ export function FormArraySection<T extends object>({
   reorderable = false,
   maxItems,
   className = 'space-y-3 mt-2',
-  cardClassName = 'mb-4 p-4 bg-white rounded border',
+  cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
 }: FormArraySectionProps<T>): ReactNode
 ```
 
@@ -4929,8 +5270,8 @@ Actions (Назад / Далее / Отправить) и Progress в едины
 
 Один компонент покрывает TS-flow, renderer-react и renderer-json за счёт
 полиморфного {@link FormWizardStepBody}. Валидация по шагам и submit-валидация
-задаются через `config` (`{ validateStep, validateAll }`, обычно из
-`validateFormModel`). Императивный доступ (submit/навигация снаружи дерева) —
+задаются через `config` (`{ validateStep, validateAll }`, обычно обёртки над
+`validateModel` из `@reformer/core/validation`). Императивный доступ (submit/навигация снаружи дерева) —
 через `ref` типа `FormWizardHandle<T>`.
 
 Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /
@@ -7437,6 +7778,19 @@ function Spinner({ className, ...props }: React.ComponentProps<'svg'>)
 ```
 
 _Source: src/components/spinner/variants/base/spinner-base.tsx_
+
+### splitFileUploadProps
+
+**Kind:** `function`
+
+Собирает опции CDK-хука из props варианта, отделяя презентационные и DOM-rest.
+
+**Signature:**
+```typescript
+export function splitFileUploadProps(props: FileUploadBaseProps & Record<string, unknown>)
+```
+
+_Source: src/components/file-upload/variants/base/file-upload-base.tsx_
 
 ### StepIndicator
 

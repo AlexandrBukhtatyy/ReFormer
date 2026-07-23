@@ -140,6 +140,10 @@
       "types": "./dist/field.d.ts",
       "import": "./dist/field.js"
     },
+    "./file-upload": {
+      "types": "./dist/file-upload.d.ts",
+      "import": "./dist/file-upload.js"
+    },
     "./form-array": {
       "types": "./dist/form-array.d.ts",
       "import": "./dist/form-array.js"

@@ -24,6 +24,7 @@ export * from './components/dropdown-menu';
 export * from './components/empty';
 export * from './components/example-card';
 export * from './components/field';
+export * from './components/file-upload';
 export * from './components/form-array';
 export * from './components/form-field';
 export * from './components/form-wizard';
