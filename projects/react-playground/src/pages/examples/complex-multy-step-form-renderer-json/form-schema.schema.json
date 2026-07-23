@@ -36,6 +36,7 @@
         "$component(Select)",
         "$component(Checkbox)",
         "$component(RadioGroup)",
+        "$component(FileUpload)",
         "$component(Box)",
         "$component(Section)",
         "$component(Collapsible)",
@@ -56,9 +57,111 @@
         "$component($fieldWrapper)"
       ]
     },
+    "htmlOp": {
+      "type": "string",
+      "description": "Native HTML tag: \"$html(div)\". The tag is checked against the presentational whitelist (isAllowedHtmlTag) by validateFormSchema and by the converter; buildFormSchemaMetaSchema tightens it to an enum for IDE completion.",
+      "enum": [
+        "$html(div)",
+        "$html(section)",
+        "$html(article)",
+        "$html(aside)",
+        "$html(header)",
+        "$html(footer)",
+        "$html(nav)",
+        "$html(main)",
+        "$html(figure)",
+        "$html(figcaption)",
+        "$html(details)",
+        "$html(summary)",
+        "$html(fieldset)",
+        "$html(legend)",
+        "$html(p)",
+        "$html(span)",
+        "$html(h1)",
+        "$html(h2)",
+        "$html(h3)",
+        "$html(h4)",
+        "$html(h5)",
+        "$html(h6)",
+        "$html(strong)",
+        "$html(b)",
+        "$html(em)",
+        "$html(i)",
+        "$html(u)",
+        "$html(s)",
+        "$html(small)",
+        "$html(mark)",
+        "$html(sub)",
+        "$html(sup)",
+        "$html(code)",
+        "$html(pre)",
+        "$html(kbd)",
+        "$html(samp)",
+        "$html(var)",
+        "$html(blockquote)",
+        "$html(cite)",
+        "$html(q)",
+        "$html(abbr)",
+        "$html(time)",
+        "$html(address)",
+        "$html(label)",
+        "$html(br)",
+        "$html(hr)",
+        "$html(a)",
+        "$html(ul)",
+        "$html(ol)",
+        "$html(li)",
+        "$html(dl)",
+        "$html(dt)",
+        "$html(dd)",
+        "$html(table)",
+        "$html(caption)",
+        "$html(colgroup)",
+        "$html(col)",
+        "$html(thead)",
+        "$html(tbody)",
+        "$html(tfoot)",
+        "$html(tr)",
+        "$html(th)",
+        "$html(td)",
+        "$html(img)",
+        "$html(picture)",
+        "$html(source)",
+        "$html(video)",
+        "$html(audio)",
+        "$html(track)",
+        "$html(progress)",
+        "$html(meter)"
+      ]
+    },
+    "textContent": {
+      "description": "Text content of a node: a literal, an operator string (\"$model(path)\" for reactive model values, \"$locale(key)\" for localized strings), or an array of parts joined without a separator.",
+      "$comment": "Types are listed as separate anyOf branches rather than a union \"type\": [\"string\",\"number\"] — ajv's strict mode rejects union type keywords unless allowUnionTypes is on, and validateFormSchema compiles this schema without it.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        }
+      ]
+    },
     "operatorOp": {
       "type": "string",
-      "pattern": "^\\$(model|component|dataSource|fn|locale)\\(.+\\)$",
+      "pattern": "^\\$(model|component|html|dataSource|fn|locale)\\(.+\\)$",
       "description": "Any DSL operator string (\"$model/$component/$dataSource/$fn/$locale(...)\") used as an escape hatch on a componentProps value (e.g. \"options\": \"$dataSource(LOAN_TYPES)\"). The component-props validator wraps every prop in anyOf:[honest type, operatorOp] via allowOperatorStrings, so an operator string is accepted wherever a literal value is."
     },
     "node": {
@@ -156,10 +259,20 @@
           "type": "string"
         },
         "component": {
-          "$ref": "#/definitions/componentOp"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/componentOp"
+            },
+            {
+              "$ref": "#/definitions/htmlOp"
+            }
+          ]
         },
         "componentProps": {
           "type": "object"
+        },
+        "text": {
+          "$ref": "#/definitions/textContent"
         },
         "children": {
           "type": "array",
