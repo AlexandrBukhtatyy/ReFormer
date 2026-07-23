@@ -75,8 +75,10 @@ export const toggleDocConfig: ComponentDocConfig = {
   value: model.$.confirmed,
   component: ToggleField,
   componentProps: { label: 'Подтверждение', children: 'Готово' },
-  validators: [required({ message: 'Необходимо нажать' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.confirmed, [required({ message: 'Необходимо нажать' })]);`,
     },
   ],
   api: {

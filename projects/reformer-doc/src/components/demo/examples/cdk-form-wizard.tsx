@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from 'react';
-import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { defineValidationSchema, validate, apply, validateModel } from '@reformer/core/validation';
 import { FormWizard } from '@reformer/cdk/form-wizard';
 import { FormField, InputField, InputMaskField, Button } from '@reformer/ui-kit';
 import { required, email } from '@reformer/core/validators';
@@ -13,35 +14,40 @@ const STEPS = [
   { number: 2, title: 'Телефон' },
 ];
 
+// Правила — отдельные validation-схемы (@reformer/core/validation), по одной на шаг.
+const step1Validation = defineValidationSchema<WForm>(({ model }) => {
+  validate(model.$.name, [required({ message: 'Введите имя' })]);
+  validate(model.$.email, [required(), email()]);
+});
+const step2Validation = defineValidationSchema<WForm>(({ model }) => {
+  validate(model.$.phone, [required({ message: 'Введите телефон' })]);
+});
+const fullValidation = defineValidationSchema<WForm>(() => apply(step1Validation, step2Validation));
+
 function useWizard() {
   return useMemo(() => {
     const model = createModel<WForm>({ name: '', email: '', phone: '' });
-    const nameNode = {
-      value: model.$.name,
-      component: InputField,
-      componentProps: { label: 'Имя' },
-      validators: [required({ message: 'Введите имя' })],
-    };
-    const emailNode = {
-      value: model.$.email,
-      component: InputField,
-      componentProps: { label: 'Email', type: 'email' },
-      validators: [required(), email()],
-    };
-    const phoneNode = {
-      value: model.$.phone,
-      component: InputMaskField,
-      componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
-      validators: [required({ message: 'Введите телефон' })],
-    };
-    const step1 = { name: nameNode, email: emailNode } as any;
-    const step2 = { phone: phoneNode } as any;
-    const full = { name: nameNode, email: emailNode, phone: phoneNode } as any;
-    const form = createForm<WForm>({ model, schema: full }) as any;
+    // Layout-схема без валидаторов — только component/componentProps.
+    const schema = {
+      name: { value: model.$.name, component: InputField, componentProps: { label: 'Имя' } },
+      email: {
+        value: model.$.email,
+        component: InputField,
+        componentProps: { label: 'Email', type: 'email' },
+      },
+      phone: {
+        value: model.$.phone,
+        component: InputMaskField,
+        componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
+      },
+    } as any;
+
+    const form = createForm<WForm>({ model, schema }) as any;
+    // config — колбэки поверх внешнего раннера validateModel (Promise<boolean>).
     const config = {
-      validateStep: async (step: number) =>
-        (await validateFormModel(model, step === 1 ? step1 : step2)).valid,
-      validateAll: async () => (await validateFormModel(model, full)).valid,
+      validateStep: (step: number) =>
+        validateModel(model, step === 1 ? step1Validation : step2Validation),
+      validateAll: () => validateModel(model, fullValidation),
     };
     return { model, form, config };
   }, []);
@@ -176,10 +182,17 @@ export const formWizardDocConfig: ComponentDocConfig = {
       description:
         'Прогресс сверху, навигация — через render-props. Далее блокируется, пока шаг невалиден.',
       render: WizardRenderProps,
-      code: `const config: FormWizardConfig = {
-  validateStep: (step) =>
-    validateFormModel(model, step === 1 ? step1Schema : step2Schema).then((r) => r.valid),
-  validateAll: () => validateFormModel(model, fullSchema).then((r) => r.valid),
+      code: `import { defineValidationSchema, validate, apply, validateModel } from '@reformer/core/validation';
+
+const step1Validation = defineValidationSchema<WForm>(({ model }) => {
+  validate(model.$.name, [required()]);
+  validate(model.$.email, [required(), email()]);
+});
+const fullValidation = defineValidationSchema<WForm>(() => apply(step1Validation, step2Validation));
+
+const config: FormWizardConfig = {
+  validateStep: (step) => validateModel(model, step === 1 ? step1Validation : step2Validation),
+  validateAll: () => validateModel(model, fullValidation),
 };
 
 <FormWizard form={form} config={config}>

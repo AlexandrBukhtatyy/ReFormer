@@ -60,8 +60,10 @@ export const checkboxDocConfig: ComponentDocConfig = {
   value: model.$.acceptTerms,
   component: CheckboxField,
   componentProps: { label: 'Принимаю оферту' },
-  validators: [required({ message: 'Необходимо принять условия' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.acceptTerms, [required({ message: 'Необходимо принять условия' })]);`,
     },
   ],
   api: {
@@ -85,7 +87,9 @@ export const checkboxDocConfig: ComponentDocConfig = {
   componentProps: {
     label: 'Согласен с условиями',${v.required ? '\n    required: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

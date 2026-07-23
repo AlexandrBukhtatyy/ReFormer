@@ -69,7 +69,7 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
       id: 'validation',
       title: 'Обязательный выбор (валидатор)',
       description:
-        'validators: [required()] прямо в ноде схемы. touched-поле с пустым значением показывает ошибку.',
+        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
         component: NativeSelectField,
@@ -81,8 +81,10 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
   value: model.$.loanType,
   component: NativeSelectField,
   componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
-  validators: [required({ message: 'Выберите тип кредита' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);`,
     },
   ],
   api: {
@@ -109,7 +111,9 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
     options: LOAN,
     placeholder: '${v.placeholder}',${v.required ? '\n    required: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

@@ -163,7 +163,7 @@ const [value, setValue] = useState<string | null>(null);
       id: 'validation',
       title: 'Обязательный выбор (валидатор)',
       description:
-        'validators: [required()] прямо в ноде схемы. touched-поле с пустым значением показывает ошибку.',
+        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
         component: ComboboxField,
@@ -179,8 +179,10 @@ const [value, setValue] = useState<string | null>(null);
   value: model.$.framework,
   component: ComboboxField,
   componentProps: { label: 'Фреймворк', options: FRAMEWORKS },
-  validators: [required({ message: 'Выберите фреймворк' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.framework, [required({ message: 'Выберите фреймворк' })]);`,
     },
   ],
   api: {
@@ -208,7 +210,9 @@ const [value, setValue] = useState<string | null>(null);
     placeholder: '${v.placeholder}',
     searchPlaceholder: '${v.searchPlaceholder}',${v.clearable ? '\n    clearable: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

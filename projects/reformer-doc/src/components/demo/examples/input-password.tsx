@@ -56,7 +56,7 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
       id: 'validation',
       title: 'Валидатор required + minLength',
       description:
-        'validators прямо в ноде схемы; touched-поле с пустым/коротким паролем показывает ошибку.',
+        'правила в validation-схеме (validate из @reformer/core/validation); touched-поле с пустым/коротким паролем показывает ошибку.',
       render: makeFieldVariant({
         initial: '',
         component: InputPasswordField,
@@ -71,8 +71,10 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
   value: model.$.password,
   component: InputPasswordField,
   componentProps: { label: 'Пароль' },
-  validators: [required(), minLength(8)],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.password, [required(), minLength(8)]);`,
     },
   ],
   api: {
@@ -96,7 +98,9 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
     placeholder: '${v.placeholder}',
     showToggle: ${v.showToggle},${v.required ? '\n    required: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

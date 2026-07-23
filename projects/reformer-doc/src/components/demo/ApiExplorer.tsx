@@ -2,7 +2,8 @@ import { useState } from 'react';
 import clsx from 'clsx';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
-import { validateFormModel, useFormControlValue } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
 import { FormField } from '@reformer/ui-kit';
 import { ChevronDown } from 'lucide-react';
 import { useDemoField } from './harness';
@@ -30,7 +31,7 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
   const [status, setStatus] = useState<string | null>(null);
   const [showData, setShowData] = useState(true);
 
-  const { control, model, schema } = useDemoField({
+  const { control, model, validation } = useDemoField({
     initial: api.initialValue,
     component: api.component,
     componentProps: {
@@ -64,8 +65,9 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
   };
   const onSubmit = async () => {
     control.markAsTouched();
-    const res = await validateFormModel(model, schema);
-    setStatus(res.valid ? '✅ valid' : '❌ invalid');
+    // Внешний раннер: Promise<boolean>, ошибки сам роутит в ноду поля.
+    const ok = await validateModel(model, validation);
+    setStatus(ok ? '✅ valid' : '❌ invalid');
   };
 
   // Группировка контролов с сохранением порядка появления групп.

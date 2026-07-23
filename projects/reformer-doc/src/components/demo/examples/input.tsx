@@ -53,7 +53,7 @@ export const inputDocConfig: ComponentDocConfig = {
       id: 'validation',
       title: 'Валидатор required + min',
       description:
-        'validators прямо в ноде схемы; touched-поле с пустым/малым значением показывает ошибку.',
+        'правила в validation-схеме (validate из @reformer/core/validation); touched-поле с пустым/малым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
         component: InputField,
@@ -65,8 +65,10 @@ export const inputDocConfig: ComponentDocConfig = {
   value: model.$.age,
   component: InputField,
   componentProps: { label: 'Возраст', type: 'number', min: 18 },
-  validators: [required(), min(18)],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.age, [required(), min(18)]);`,
     },
   ],
   api: {
@@ -90,7 +92,9 @@ export const inputDocConfig: ComponentDocConfig = {
     type: '${v.type}',
     placeholder: '${v.placeholder}',${v.required ? '\n    required: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

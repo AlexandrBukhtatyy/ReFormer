@@ -65,7 +65,7 @@ const [date, setDate] = useState<Date | undefined>();
       id: 'validation',
       title: 'Обязательная дата (валидатор)',
       description:
-        'validators: [required()] прямо в ноде схемы. touched-поле с пустым значением показывает ошибку.',
+        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
         component: DatePickerField,
@@ -77,8 +77,10 @@ const [date, setDate] = useState<Date | undefined>();
   value: model.$.date,
   component: DatePickerField,
   componentProps: { label: 'Дата' },
-  validators: [required({ message: 'Выберите дату' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.date, [required({ message: 'Выберите дату' })]);`,
     },
   ],
   api: {
@@ -104,7 +106,9 @@ const [date, setDate] = useState<Date | undefined>();
     placeholder: '${v.placeholder}',
     dateFormat: '${v.dateFormat}',${v.required ? '\n    required: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };

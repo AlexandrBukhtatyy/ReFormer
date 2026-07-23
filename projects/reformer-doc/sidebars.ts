@@ -4,7 +4,6 @@ const sidebars: SidebarsConfig = {
   // ── Core: базовый пакет + вся сквозная база (гайд, концепции, валидация,
   // behaviors, React, паттерны) + Core API Reference (typedoc). ──────────────
   coreSidebar: [
-    { type: 'doc', id: 'packages/core', label: '@reformer/core' },
     'intro',
     {
       type: 'category',
@@ -115,7 +114,7 @@ const sidebars: SidebarsConfig = {
 
   // ── CDK: headless-компоненты ───────────────────────────────────────────────
   cdkSidebar: [
-    { type: 'doc', id: 'packages/cdk', label: '@reformer/cdk' },
+    'cdk/overview',
     'cdk/async-boundary',
     'cdk/form-array',
     'cdk/form-wizard',
@@ -259,14 +258,7 @@ const sidebars: SidebarsConfig = {
   ],
 
   // ── MCP: сервер для AI-ассистентов ─────────────────────────────────────────
-  mcpSidebar: [
-    { type: 'doc', id: 'packages/mcp', label: '@reformer/mcp' },
-    'mcp/overview',
-    'mcp/quick-start',
-    'mcp/tools',
-    'mcp/prompts',
-    'mcp/examples',
-  ],
+  mcpSidebar: ['mcp/overview', 'mcp/quick-start', 'mcp/tools', 'mcp/prompts', 'mcp/examples'],
 };
 
 export default sidebars;

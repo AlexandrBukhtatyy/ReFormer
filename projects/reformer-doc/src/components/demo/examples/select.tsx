@@ -296,7 +296,7 @@ componentProps: { label: 'Страна', resource: countries }`,
       id: 'validation',
       title: 'Обязательный выбор (валидатор)',
       description:
-        'validators: [required()] прямо в ноде схемы. touched-поле с пустым значением показывает ошибку.',
+        'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
         component: SelectField,
@@ -308,8 +308,10 @@ componentProps: { label: 'Страна', resource: countries }`,
   value: model.$.loanType,
   component: SelectField,
   componentProps: { label: 'Тип кредита', options: LOAN },
-  validators: [required({ message: 'Выберите тип кредита' })],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);`,
     },
   ],
   api: {
@@ -336,7 +338,9 @@ componentProps: { label: 'Страна', resource: countries }`,
     options: LOAN,
     placeholder: '${v.placeholder}',${v.required ? '\n    required: true,' : ''}${v.clearable ? '\n    clearable: true,' : ''}
   },
-  validators: [required()],
-}`,
+}
+
+// правила — в validation-схеме (@reformer/core/validation):
+validate(model.$.value, [required()]);`,
   },
 };
