@@ -15,13 +15,14 @@ import { editorActions, editorStore } from '../store';
 import { clearDrag, setDrag } from '../dnd/drag-state';
 
 const CATEGORY_ORDER = [
+  'HTML', // всегда первый (и свёрнут по умолчанию — см. collapsed ниже)
+  'Типографика', // всегда второй (и свёрнут по умолчанию)
   'Поля ввода',
   'Выбор и переключатели',
   'Контейнеры',
   'Действия',
   'Отображение',
   'Массив',
-  'HTML',
   'Оверлеи',
   'Навигация',
   'Чат',
@@ -88,6 +89,7 @@ export function PalettePanel() {
   // (спека §8, дизайн-макет). Поиск временно раскрывает все разделы.
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     HTML: true,
+    Типографика: true,
     Оверлеи: true,
     Навигация: true,
     Чат: true,

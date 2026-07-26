@@ -77,7 +77,7 @@ const CATEGORY_BY_NAME: Record<string, string> = {
   Alert: 'Отображение',
   Separator: 'Отображение',
   Carousel: 'Отображение',
-  // Typography — набор отдельных компонентов (TypographyH1…Muted), см. правило-префикс в categoryOf.
+  // Typography — набор отдельных компонентов (TypographyH1…Muted) → раздел «Типографика» (правило-префикс в categoryOf).
   // Оверлеи
   Dialog: 'Оверлеи',
   AlertDialog: 'Оверлеи',
@@ -103,8 +103,8 @@ const CATEGORY_BY_NAME: Record<string, string> = {
 };
 
 function categoryOf(name: string, role: CatalogRole): string {
-  // Typography разбит на отдельные компоненты (TypographyH1…Muted) — все в «Отображение».
-  if (name.startsWith('Typography')) return 'Отображение';
+  // Typography разбит на отдельные компоненты (TypographyH1…Muted) — собственный раздел «Типографика».
+  if (name.startsWith('Typography')) return 'Типографика';
   return CATEGORY_BY_NAME[name] ?? (role === 'container' ? 'Контейнеры' : 'Прочее');
 }
 
