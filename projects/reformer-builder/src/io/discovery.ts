@@ -53,7 +53,8 @@ const IGNORE_DIRS = new Set([
 const SKIP_FILES = new Set(['package-lock.json', 'package.json', 'tsconfig.json', 'components.json']);
 
 export function isIgnoredDir(name: string): boolean {
-  return IGNORE_DIRS.has(name) || (name.startsWith('.') && name !== '.');
+  // Скрываем только тяжёлые/служебные каталоги; остальную структуру (в т.ч. `.vscode`, `.github`) показываем.
+  return IGNORE_DIRS.has(name);
 }
 
 /** Стоит ли читать файл как кандидат-схему (быстрый фильтр до парсинга). */
