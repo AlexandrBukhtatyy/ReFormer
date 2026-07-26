@@ -33,19 +33,26 @@ export function QuickAddDialog() {
     );
   }, [catalog, q]);
 
-  // Сброс и фокус при открытии.
-  useEffect(() => {
+  // Сброс поля/выделения при открытии — подстройка состояния во время рендера,
+  // а не в эффекте (react-hooks/set-state-in-effect).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setQ('');
       setActive(0);
-      inputRef.current?.focus();
     }
-  }, [open]);
+  }
 
-  // Не выходить за границы при фильтрации.
+  // Не выходить за границы при фильтрации — клампим во время рендера.
+  if (active > items.length - 1) {
+    setActive(Math.max(0, items.length - 1));
+  }
+
+  // Фокус на поле при открытии — DOM-side-effect, остаётся в эффекте.
   useEffect(() => {
-    setActive((a) => Math.min(a, Math.max(0, items.length - 1)));
-  }, [items.length]);
+    if (open) inputRef.current?.focus();
+  }, [open]);
 
   // Проскроллить активный элемент в зону видимости.
   useEffect(() => {
@@ -103,7 +110,9 @@ export function QuickAddDialog() {
         />
         <div ref={listRef} className="min-h-0 flex-1 overflow-auto p-1">
           {items.length === 0 && (
-            <div className="px-3 py-6 text-center text-xs text-muted-foreground">Ничего не найдено</div>
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+              Ничего не найдено
+            </div>
           )}
           {items.map((entry, i) => (
             <button
@@ -119,7 +128,9 @@ export function QuickAddDialog() {
             >
               <span className="min-w-0 flex-1 truncate">{label(entry)}</span>
               {entry.category && (
-                <span className="flex-none text-[10px] text-muted-foreground">{entry.category}</span>
+                <span className="flex-none text-[10px] text-muted-foreground">
+                  {entry.category}
+                </span>
               )}
             </button>
           ))}

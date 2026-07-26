@@ -29,11 +29,15 @@ export function FloatingActions() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
-  // Любая правка схемы сбрасывает результат валидации (прототип §5).
-  useEffect(() => {
+  // Любая правка схемы сбрасывает результат валидации (прототип §5). Подстройку
+  // состояния при смене схемы делаем во время рендера, а не в эффекте: setState в
+  // useEffect провоцирует каскадные ре-рендеры (react-hooks/set-state-in-effect).
+  const [validatedSchema, setValidatedSchema] = useState(tab?.schema);
+  if (tab?.schema !== validatedSchema) {
+    setValidatedSchema(tab?.schema);
     setStatus('idle');
     setErrors([]);
-  }, [tab?.schema]);
+  }
 
   // Закрыть попап настроек по клику вне него.
   useEffect(() => {
