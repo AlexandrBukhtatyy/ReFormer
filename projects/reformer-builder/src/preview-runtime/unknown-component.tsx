@@ -1,14 +1,20 @@
 /**
- * Плейсхолдер незарегистрированного `$component(NAME)` для Runtime-preview (спека §13 риск #5,
- * §14 «неизвестный компонент → generic box»). Рендерит рамку с именем и, если есть, детей —
- * чтобы вложенная структура всё равно была видна.
+ * Плейсхолдеры компонентов для Runtime-preview (спека §13 риск #5, §14 «неизвестный компонент →
+ * generic box»). Два намерения:
+ *
+ * - {@link makeUnknownComponent} — ТРЕВОЖНЫЙ amber-warning «не зарегистрирован в preview».
+ *   Достижим только для реально не-каталожных `$component` из ручного JSON (детект в `unknown.ts`).
+ * - {@link makePreviewLimitedComponent} — НЕЙТРАЛЬНЫЙ стаб «предпросмотр ограничен» для компонентов,
+ *   которые каталог знает, но canvas не рисует точно (оверлеи/subpath-only — см. `render-policy.ts`).
+ *
+ * Оба рендерят детей, чтобы вложенная структура оставалась видна.
  *
  * @module reformer-builder/preview-runtime/unknown-component
  */
 
 import type { ComponentType, ReactNode } from 'react';
 
-/** Фабрика плейсхолдер-компонента для имени `name`. */
+/** Фабрика amber-плейсхолдера для НЕИЗВЕСТНОГО каталогу имени `name`. */
 export function makeUnknownComponent(name: string): ComponentType<{ children?: ReactNode }> {
   function UnknownComponent({ children }: { children?: ReactNode }) {
     return (
@@ -21,4 +27,26 @@ export function makeUnknownComponent(name: string): ComponentType<{ children?: R
   }
   UnknownComponent.displayName = `Unknown(${name})`;
   return UnknownComponent;
+}
+
+/**
+ * Фабрика НЕЙТРАЛЬНОГО стаба «предпросмотр ограничен» для каталожного компонента, который canvas
+ * не может отрисовать точно (оверлей / subpath-only). Без amber-warning: компонент известен
+ * каталогу и палитре — просто не рендерится живьём здесь (точность — на dev-сервере, §13).
+ */
+export function makePreviewLimitedComponent(
+  name: string,
+  reason?: string,
+): ComponentType<{ children?: ReactNode }> {
+  function PreviewLimitedComponent({ children }: { children?: ReactNode }) {
+    return (
+      <div className="rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+        <span className="font-mono text-foreground">{name}</span>
+        <span className="ml-2">— предпросмотр ограничен{reason ? ` (${reason})` : ''}</span>
+        {children ? <div className="mt-2">{children}</div> : null}
+      </div>
+    );
+  }
+  PreviewLimitedComponent.displayName = `PreviewLimited(${name})`;
+  return PreviewLimitedComponent;
 }

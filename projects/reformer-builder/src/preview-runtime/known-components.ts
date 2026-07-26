@@ -1,57 +1,61 @@
 /**
- * Карта имя → React-компонент `@reformer/ui-kit` для дефолтного registry Runtime-preview
- * (спека §9). Поля — `*Field`-алиасы (биндят value/onChange через модель), плюс контейнеры и
- * `Step` из `@reformer/cdk`. Ключи совпадают с {@link KNOWN_COMPONENT_NAMES}.
+ * Реестр Runtime-preview: `имя → React-компонент` — строится ДАННЫМИ из каталога (`getCatalog()`),
+ * тем же источником, что и палитра, поэтому с ней не расходится (спека §9). Для каждой registrable
+ * записи `render-policy` резолвит либо живой `@reformer/ui-kit`-компонент (правило имён: field →
+ * `${name}Field`, иначе `name`), либо нейтральный стаб «предпросмотр ограничен» (оверлеи/subpath-only).
+ *
+ * Плюс INFRA-имена ВНЕ палитрового каталога, но нужные рендереру: `FormField` (он же `FIELD_WRAPPER`),
+ * `AsyncBoundary`, `Step` (из `@reformer/cdk`).
  *
  * @module reformer-builder/preview-runtime/known-components
  */
 
 import type { ComponentType } from 'react';
-import {
-  InputField,
-  InputPasswordField,
-  InputMaskField,
-  TextareaField,
-  SelectField,
-  NativeSelectField,
-  CheckboxField,
-  RadioGroupField,
-  SwitchField,
-  SliderField,
-  FileUploadField,
-  FileUploadAvatarField,
-  ToggleField,
-  ToggleGroupField,
-  Box,
-  Section,
-  Collapsible,
-  FormField,
-  Button,
-  AsyncBoundary,
-} from '@reformer/ui-kit';
+import * as UiKit from '@reformer/ui-kit';
 import { Step } from '@reformer/cdk/form-wizard';
+import { getCatalog } from '../catalog';
+import { classify, isRegistrable } from './render-policy';
+import { makePreviewLimitedComponent } from './unknown-component';
+import { INFRA_NAMES } from './known-names';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export const KNOWN_COMPONENTS: Record<string, ComponentType<any>> = {
-  Input: InputField,
-  InputPassword: InputPasswordField,
-  InputMask: InputMaskField,
-  Textarea: TextareaField,
-  Select: SelectField,
-  NativeSelect: NativeSelectField,
-  Checkbox: CheckboxField,
-  RadioGroup: RadioGroupField,
-  Switch: SwitchField,
-  Slider: SliderField,
-  FileUpload: FileUploadField,
-  FileUploadAvatar: FileUploadAvatarField,
-  Toggle: ToggleField,
-  ToggleGroup: ToggleGroupField,
-  Box,
-  Section,
-  Collapsible,
-  FormField,
-  Button,
-  AsyncBoundary,
-  Step,
+
+/** Компоненты для INFRA-имён (вне каталога). Ключи обязаны покрывать {@link INFRA_NAMES}. */
+const INFRA_LOOKUP: Record<string, ComponentType<any>> = {
+  FormField: UiKit.FormField as ComponentType<any>,
+  AsyncBoundary: UiKit.AsyncBoundary as ComponentType<any>,
+  Step: Step as ComponentType<any>,
 };
+
+/** Собрать карту `имя → компонент` из каталога (один раз на загрузке модуля). */
+function buildKnownComponents(): Record<string, ComponentType<any>> {
+  const map: Record<string, ComponentType<any>> = {};
+  for (const name of INFRA_NAMES) map[name] = INFRA_LOOKUP[name];
+  for (const entry of getCatalog()) {
+    if (!isRegistrable(entry)) continue;
+    const decision = classify(entry, UiKit as Record<string, unknown>);
+    map[entry.name] =
+      decision.policy === 'live'
+        ? decision.component
+        : makePreviewLimitedComponent(entry.name, decision.reason);
+  }
+  return map;
+}
+
+/** Дефолтный registry preview: имя → React-компонент (каталог + INFRA). */
+export const KNOWN_COMPONENTS: Record<string, ComponentType<any>> = buildKnownComponents();
+
+/**
+ * Классификация каждой registrable-записи каталога (для тестов/диагностики). React-зависима
+ * (тянет barrel `@reformer/ui-kit`) — использовать только в jsdom-тестах, не в node-suite.
+ */
+export function classifyCatalog(): Array<{ name: string; policy: 'live' | 'limited'; reason?: string }> {
+  return getCatalog()
+    .filter(isRegistrable)
+    .map((entry) => {
+      const d = classify(entry, UiKit as Record<string, unknown>);
+      return d.policy === 'live'
+        ? { name: entry.name, policy: 'live' as const }
+        : { name: entry.name, policy: 'limited' as const, reason: d.reason };
+    });
+}

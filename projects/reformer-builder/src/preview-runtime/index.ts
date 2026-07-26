@@ -7,10 +7,19 @@
  */
 
 export { buildPreview, type PreviewBundle } from './build-preview';
-export { KNOWN_COMPONENT_NAMES, KNOWN_COMPONENT_NAME_SET } from './known-names';
-export { KNOWN_COMPONENTS } from './known-components';
+export { KNOWN_COMPONENT_NAMES, KNOWN_COMPONENT_NAME_SET, INFRA_NAMES } from './known-names';
+export { KNOWN_COMPONENTS, classifyCatalog } from './known-components';
 export { collectUnknownComponentNames } from './unknown';
-export { makeUnknownComponent } from './unknown-component';
+export { makeUnknownComponent, makePreviewLimitedComponent } from './unknown-component';
+export {
+  OVERLAY_LIMITED,
+  SUBPATH_LIMITED,
+  isRegistrable,
+  resolveUiKitComponent,
+  classify,
+  type RenderPolicy,
+  type UiKitNamespace,
+} from './render-policy';
 export {
   registerMockSources,
   collectFunctionLikeDataSources,
