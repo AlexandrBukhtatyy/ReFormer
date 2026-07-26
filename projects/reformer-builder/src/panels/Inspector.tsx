@@ -119,7 +119,10 @@ export function Inspector() {
 
   if (!node || !selPath) {
     return (
-      <div className="grid flex-1 place-items-center p-6 text-center text-xs text-muted-foreground">
+      <div
+        id="rb-properties"
+        className="grid flex-1 place-items-center p-6 text-center text-xs text-muted-foreground"
+      >
         Выберите узел в дереве или preview, чтобы редактировать его свойства
       </div>
     );
@@ -130,7 +133,7 @@ export function Inspector() {
   const bindings = bindingsOf(node);
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div id="rb-properties" className="flex-1 overflow-auto">
       <div className="border-b border-border p-3.5">
         <div className="flex items-center gap-2">
           <span className="flex-none rounded-full bg-foreground px-2 py-0.5 font-mono text-[9.5px] font-semibold text-background">

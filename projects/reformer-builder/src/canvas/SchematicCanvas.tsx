@@ -42,11 +42,13 @@ const DndCtx = createContext<{
   setDrop: (d: DropTarget | null) => void;
   schema: JsonFormSchema;
   hideDivWrappers: boolean;
+  selectionPaths: JsonPath[];
 }>({
   drop: null,
   setDrop: () => {},
   schema: { root: { component: '$html(div)' } },
   hideDivWrappers: false,
+  selectionPaths: [],
 });
 
 const PERP_ZONES = new Set<DropZone>([
@@ -145,9 +147,10 @@ function NodeView({
   path: JsonPath;
   selectionPath: JsonPath | null;
 }) {
-  const { drop, setDrop, schema, hideDivWrappers } = useContext(DndCtx);
+  const { drop, setDrop, schema, hideDivWrappers, selectionPaths } = useContext(DndCtx);
   const isRoot = path.length === 1 && path[0] === 'root';
-  const selected = selectionPath != null && pathEquals(path, selectionPath);
+  const isActive = selectionPath != null && pathEquals(path, selectionPath);
+  const selected = isActive || selectionPaths.some((p) => pathEquals(p, path));
   const slots = childSlots(node, path);
   const isLeaf = kindOf(node) === 'field';
 
@@ -217,7 +220,9 @@ function NodeView({
         draggable={!isRoot}
         onClick={(e) => {
           e.stopPropagation();
-          editorActions.select(path);
+          if (e.shiftKey) editorActions.extendSelectionTo(path);
+          else if (e.metaKey || e.ctrlKey) editorActions.toggleSelectionAt(path);
+          else editorActions.select(path);
         }}
         onDoubleClick={(e) => {
           // Прыжок в raw-JSON на строку узла (панель откроется, если свёрнута).
@@ -246,7 +251,9 @@ function NodeView({
           'rounded-lg border border-dashed p-2.5 transition-colors',
           isRoot ? 'cursor-default' : 'cursor-grab',
           selected
-            ? 'border-primary bg-primary/5 ring-2 ring-primary/15'
+            ? isActive
+              ? 'border-primary bg-primary/5 ring-2 ring-primary/40'
+              : 'border-primary bg-primary/5 ring-2 ring-primary/15'
             : 'border-border hover:border-muted-foreground/40',
           (here === 'into' || isPerp) && 'border-primary bg-primary/5 ring-2 ring-primary/40'
         )}
@@ -323,14 +330,16 @@ function NodeView({
 export function SchematicCanvas({
   schema,
   selectionPath,
+  selectionPaths = [],
 }: {
   schema: JsonFormSchema;
   selectionPath: JsonPath | null;
+  selectionPaths?: JsonPath[];
 }) {
   const [drop, setDrop] = useState<DropTarget | null>(null);
   const hideDivWrappers = useUi().hideDivWrappers;
   return (
-    <DndCtx.Provider value={{ drop, setDrop, schema, hideDivWrappers }}>
+    <DndCtx.Provider value={{ drop, setDrop, schema, hideDivWrappers, selectionPaths }}>
       <NodeView node={schema.root} path={['root']} selectionPath={selectionPath} />
     </DndCtx.Provider>
   );

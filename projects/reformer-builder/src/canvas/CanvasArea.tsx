@@ -33,7 +33,11 @@ export function CanvasArea({ tab }: { tab: TabState }) {
           {ui.preview === 'runtime' ? (
             <RuntimePreview schema={tab.schema} />
           ) : (
-            <SchematicCanvas schema={tab.schema} selectionPath={tab.selectionPath} />
+            <SchematicCanvas
+              schema={tab.schema}
+              selectionPath={tab.selectionPath}
+              selectionPaths={tab.selectionPaths}
+            />
           )}
         </div>
       </div>

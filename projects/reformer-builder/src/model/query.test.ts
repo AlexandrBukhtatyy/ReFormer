@@ -5,8 +5,41 @@ import {
   collectModelPaths,
   collectOperatorNames,
   walkNodes,
+  siblingInfo,
+  firstChildPath,
+  navTarget,
 } from './query';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
+
+describe('навигация (siblingInfo / firstChildPath / navTarget)', () => {
+  it('siblingInfo: позиция среди соседей', () => {
+    const s = sampleSchema();
+    expect(siblingInfo(s, P.step0field0)).toEqual({ slotPath: [...P.step0children], index: 0, count: 2 });
+    expect(siblingInfo(s, P.step0field1)?.index).toBe(1);
+    // шаги wizard — соседи в слоте steps
+    expect(siblingInfo(s, P.step0)).toEqual({ slotPath: [...P.steps], index: 0, count: 2 });
+    // корень не в массив-слоте
+    expect(siblingInfo(s, P.root)).toBeNull();
+  });
+
+  it('firstChildPath: первый ребёнок', () => {
+    const s = sampleSchema();
+    expect(firstChildPath(s, P.root)).toEqual([...P.step0]); // steps[0]
+    expect(firstChildPath(s, P.step0)).toEqual([...P.step0field0]);
+    expect(firstChildPath(s, P.step0field0)).toBeNull(); // лист без детей
+  });
+
+  it('navTarget: up/down соседи, left родитель, right ребёнок', () => {
+    const s = sampleSchema();
+    expect(navTarget(s, P.step0field0, 'down')).toEqual([...P.step0field1]);
+    expect(navTarget(s, P.step0field1, 'up')).toEqual([...P.step0field0]);
+    expect(navTarget(s, P.step0field0, 'up')).toBeNull(); // первый
+    expect(navTarget(s, P.step0field0, 'left')).toEqual([...P.step0]);
+    expect(navTarget(s, P.step0, 'right')).toEqual([...P.step0field0]);
+    expect(navTarget(s, P.step0, 'down')).toEqual([...P.step1]);
+    expect(navTarget(s, P.root, 'left')).toBeNull(); // у корня нет родителя
+  });
+});
 
 describe('findByPath', () => {
   it('возвращает узел', () => {

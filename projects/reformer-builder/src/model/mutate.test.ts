@@ -16,6 +16,11 @@ import {
   unwrapSingleChild,
   flipDirection,
   flipWrapperPair,
+  reorderBlock,
+  removeBlock,
+  removeIndices,
+  groupBlock,
+  ungroupNode,
 } from './mutate';
 import { getAt, removeAt } from './paths';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
@@ -279,5 +284,63 @@ describe('wrapInRow / wrapPairInRow / unwrapSingleChild (горизонталь�
     expect(div.children).toHaveLength(2); // всё ещё 2 колонки, без нового div
     expect(div.children.map((c) => c.value)).toEqual(['$model(loanAmount)', '$model(loanType)']);
     expect(newPath).toEqual([...P.step0field0, 'children', 0]);
+  });
+});
+
+describe('reorderBlock / removeBlock (группа соседей)', () => {
+  it('reorderBlock двигает блок вниз/вверх', () => {
+    const s = sampleSchema();
+    // [loanType(0), loanAmount(1)] → вниз блок [0] → [loanAmount, loanType]
+    const down = reorderBlock(s, P.step0children, 0, 1, 1)!;
+    expect(down.newStart).toBe(1);
+    expect((getAt(down.schema, P.step0children) as Array<{ value?: string }>).map((c) => c.value)).toEqual([
+      '$model(loanAmount)',
+      '$model(loanType)',
+    ]);
+    // упор в границу → null
+    expect(reorderBlock(s, P.step0children, 0, 1, -1)).toBeNull();
+    expect(reorderBlock(s, P.step0children, 1, 1, 1)).toBeNull();
+  });
+
+  it('removeBlock вырезает непрерывный блок', () => {
+    const s = sampleSchema();
+    const next = removeBlock(s, P.step0children, 0, 2); // удалить обе колонки
+    expect(getAt(next, P.step0children) as unknown[]).toHaveLength(0);
+  });
+
+  it('removeIndices удаляет несмежные индексы без сдвига', () => {
+    const s3 = appendNode(sampleSchema(), P.step0children, field('third')).schema;
+    // [loanType(0), loanAmount(1), third(2)] → удалить [0,2] → остаётся loanAmount
+    const next = removeIndices(s3, P.step0children, [0, 2]);
+    expect((getAt(next, P.step0children) as Array<{ value?: string }>).map((c) => c.value)).toEqual([
+      '$model(loanAmount)',
+    ]);
+  });
+});
+
+describe('groupBlock / ungroupNode (группировка)', () => {
+  it('groupBlock оборачивает смежный блок в вертикальный div', () => {
+    const { schema, newPath } = groupBlock(sampleSchema(), P.step0children, 0, 2);
+    const kids = getAt(schema, P.step0children) as Array<{
+      component?: string;
+      componentProps?: { className?: string };
+      children?: Array<{ value?: string }>;
+    }>;
+    expect(kids).toHaveLength(1);
+    expect(kids[0].component).toBe('$html(div)');
+    expect(kids[0].componentProps?.className).toBe('flex flex-col gap-4');
+    expect(kids[0].children?.map((c) => c.value)).toEqual(['$model(loanType)', '$model(loanAmount)']);
+    expect(newPath).toEqual([...P.step0children, 0]);
+  });
+
+  it('ungroupNode заменяет div его детьми; не-div → no-op', () => {
+    const grouped = groupBlock(sampleSchema(), P.step0children, 0, 2).schema;
+    const { schema } = ungroupNode(grouped, [...P.step0children, 0]);
+    expect((getAt(schema, P.step0children) as Array<{ value?: string }>).map((c) => c.value)).toEqual([
+      '$model(loanType)',
+      '$model(loanAmount)',
+    ]);
+    const s = sampleSchema();
+    expect(ungroupNode(s, P.step0field0).schema).toBe(s); // поле, не div
   });
 });

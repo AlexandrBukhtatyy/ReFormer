@@ -12,10 +12,12 @@ import { TooltipProvider } from '@reformer/ui-kit';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Toaster } from '@reformer/ui-kit/sonner';
 import { activeTab, editorActions, editorStore, useActiveTab, useUi } from '../store';
+import type { NavDir } from '../model';
 import { saveDialogActions } from '../store/save-dialog';
 import { CanvasArea } from '../canvas/CanvasArea';
 import { TabBar } from '../canvas/TabBar';
 import { SaveDialog } from '../canvas/SaveDialog';
+import { QuickAddDialog } from '../canvas/QuickAddDialog';
 import { FilesPanel } from '../panels/FilesPanel';
 import { PalettePanel } from '../panels/PalettePanel';
 import { Inspector } from '../panels/Inspector';
@@ -26,6 +28,41 @@ import { cn } from '../lib/cn';
 
 const railTab =
   'rounded-md px-1.5 py-2.5 text-[11.5px] font-medium [writing-mode:vertical-rl] rotate-180 cursor-pointer';
+
+/** Фокус в поле ввода / Monaco — там горячие клавиши canvas не перехватываем. */
+function isEditableTarget(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  if (!el || !el.tagName) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (el.isContentEditable) return true;
+  return typeof el.closest === 'function' && el.closest('.monaco-editor') != null;
+}
+
+/** Стрелка → направление навигации. */
+function arrowDir(key: string): NavDir | null {
+  switch (key) {
+    case 'ArrowUp':
+      return 'up';
+    case 'ArrowDown':
+      return 'down';
+    case 'ArrowLeft':
+      return 'left';
+    case 'ArrowRight':
+      return 'right';
+    default:
+      return null;
+  }
+}
+
+/** Перевести фокус в панель свойств — на первое поле выделенного узла (Space). */
+function focusProperties(): void {
+  const panel = document.getElementById('rb-properties');
+  const el =
+    panel?.querySelector<HTMLElement>('input, textarea, select') ??
+    panel?.querySelector<HTMLElement>('button, [tabindex]');
+  el?.focus();
+}
 
 export function EditorLayout() {
   const ui = useUi();
@@ -52,15 +89,96 @@ export function EditorLayout() {
     document.documentElement.classList.toggle('dark', ui.theme === 'dark');
   }, [ui.theme]);
 
-  // Cmd/Ctrl+S — сохранить (Mode B) / экспорт (Mode A); Esc — закрыть diff-модалку (спека §7.3, §11)
+  // Горячие клавиши. Глобально: ⌘/Ctrl+S (сохранить/экспорт), Esc (закрыть diff-модалку).
+  // В схематике (вне полей ввода): навигация ↑↓←→, Shift-расширение выделения, ⌘/Ctrl+стрелки —
+  // перемещение, Delete/Backspace — удаление, ⌘D — дублировать, ⌘Z/⇧⌘Z — undo/redo.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      const mod = e.metaKey || e.ctrlKey;
+
+      if (mod && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        const tab = activeTab(editorStore.getState());
-        if (tab) void triggerSave(tab);
-      } else if (e.key === 'Escape') {
+        const t = activeTab(editorStore.getState());
+        if (t) void triggerSave(t);
+        return;
+      }
+
+      // В полях ввода / Monaco не перехватываем (Esc — закрыть модалку + вернуть фокус из поля на canvas).
+      if (isEditableTarget(e.target)) {
+        if (e.key === 'Escape') {
+          saveDialogActions.close();
+          const el = e.target as HTMLElement;
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') el.blur();
+        }
+        return;
+      }
+
+      const st = editorStore.getState();
+      const inWire = st.ui.preview === 'wire' && activeTab(st) != null;
+
+      if (e.key === 'Escape') {
         saveDialogActions.close();
+        if (inWire) editorActions.collapseSelection();
+        return;
+      }
+      if (!inWire) return;
+
+      // Space — увести фокус в панель свойств выделенного узла (не перехватываем на кнопках/ссылках).
+      if (e.key === ' ') {
+        const t = e.target as HTMLElement | null;
+        if (t && (t.tagName === 'BUTTON' || t.closest?.('button, a, [role="button"]'))) return;
+        if (!activeTab(st)?.selectionPath) return;
+        e.preventDefault();
+        if (!st.ui.rightOpen) {
+          editorActions.toggleRight();
+          requestAnimationFrame(focusProperties);
+        } else {
+          focusProperties();
+        }
+        return;
+      }
+
+      // Enter — открыть модалку быстрого добавления компонента.
+      if (e.key === 'Enter') {
+        const t = e.target as HTMLElement | null;
+        if (t && (t.tagName === 'BUTTON' || t.closest?.('button, a, [role="button"]'))) return;
+        e.preventDefault();
+        editorActions.openQuickAdd();
+        return;
+      }
+
+      const dir = arrowDir(e.key);
+      if (dir) {
+        e.preventDefault();
+        if (mod) editorActions.moveSelection(dir);
+        else editorActions.navigate(dir, e.shiftKey);
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        editorActions.deleteSelection();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        editorActions.duplicateSelection();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        if (e.shiftKey) editorActions.ungroupSelection();
+        else editorActions.groupSelection();
+        return;
+      }
+      if (mod && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        editorActions.flipSelection();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) editorActions.redo();
+        else editorActions.undo();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -154,6 +272,7 @@ export function EditorLayout() {
         </div>
       </div>
       <SaveDialog />
+      <QuickAddDialog />
       <Toaster />
     </TooltipProvider>
   );

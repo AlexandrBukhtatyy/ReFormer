@@ -54,8 +54,12 @@ export interface TabState {
   past: HistorySnapshot[];
   /** Стек повтора. */
   future: HistorySnapshot[];
-  /** Выделенный узел (путь) либо `null`. */
+  /** Активный (курсор) выделенный узел либо `null`. Всегда входит в {@link selectionPaths}. */
   selectionPath: JsonPath | null;
+  /** Все выделенные узлы (мульти-выделение — смежная группа соседей); `[selectionPath]` при одиночном. */
+  selectionPaths: JsonPath[];
+  /** Якорь диапазона Shift-выделения (откуда растёт группа), либо `null`. */
+  anchorPath: JsonPath | null;
   /** Узел под курсором (hover-подсветка). */
   hoverPath: JsonPath | null;
   /** Активный шаг wizard в canvas. */
@@ -69,6 +73,8 @@ export interface UiState {
   preview: PreviewMode;
   /** Скрывать `$html(div)`-контейнеры в схематике (чище дерево); их дети рисуются напрямую. */
   hideDivWrappers: boolean;
+  /** Открыта ли модалка быстрого добавления компонента (Enter). */
+  quickAddOpen: boolean;
   rawJsonOpen: boolean;
   leftPanel: LeftPanel;
   rightOpen: boolean;

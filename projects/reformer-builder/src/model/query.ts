@@ -15,7 +15,7 @@ import {
   type JsonFormSchema,
   type JsonNode,
 } from '@reformer/renderer-json';
-import { getAt, pathEquals, type JsonPath } from './paths';
+import { getAt, isPrefix, pathEquals, type JsonPath } from './paths';
 import { childSlots, isNodeLike } from './node-kind';
 
 /** Узел по пути (или `undefined`, если по пути не узел). */
@@ -159,4 +159,55 @@ export function collectOperatorNames(schema: JsonFormSchema): OperatorNames {
 /** Является ли путь путём того же узла (утилита для стора: сравнение выделения). */
 export function isSameNode(a: JsonPath, b: JsonPath): boolean {
   return pathEquals(a, b);
+}
+
+// ── навигация по дереву (для горячих клавиш) ──────────────────────────────────
+
+/** Позиция узла среди соседей в его массив-слоте (`children`/`steps`). `null` — не в массив-слоте. */
+export interface SiblingInfo {
+  slotPath: JsonPath;
+  index: number;
+  count: number;
+}
+
+/** Найти массив-слот и индекс узла среди соседей. Одиночные слоты (template/wrapper) — не соседи. */
+export function siblingInfo(schema: JsonFormSchema, path: JsonPath): SiblingInfo | null {
+  const parentP = parentNodePath(path);
+  if (!parentP) return null;
+  const parentNode = getAt(schema, parentP);
+  if (!isNodeLike(parentNode)) return null;
+  for (const slot of childSlots(parentNode, parentP)) {
+    if (slot.single) continue;
+    if (isPrefix(slot.path, path) && path.length === slot.path.length + 1) {
+      return { slotPath: slot.path, index: Number(path[path.length - 1]), count: slot.nodes.length };
+    }
+  }
+  return null;
+}
+
+/** Первый ребёнок узла (для навигации «внутрь»), либо `null`. */
+export function firstChildPath(schema: JsonFormSchema, path: JsonPath): JsonPath | null {
+  const node = getAt(schema, path);
+  if (!isNodeLike(node)) return null;
+  for (const slot of childSlots(node, path)) {
+    if (slot.nodes.length === 0) continue;
+    return slot.single ? slot.path : [...slot.path, 0];
+  }
+  return null;
+}
+
+/** Направление навигации/перемещения. */
+export type NavDir = 'up' | 'down' | 'left' | 'right';
+
+/**
+ * Целевой путь навигации (дерево-outline): `up`/`down` — предыдущий/следующий сосед, `left` —
+ * родитель, `right` — первый ребёнок. `null`, если в эту сторону идти некуда.
+ */
+export function navTarget(schema: JsonFormSchema, path: JsonPath, dir: NavDir): JsonPath | null {
+  if (dir === 'left') return parentNodePath(path);
+  if (dir === 'right') return firstChildPath(schema, path);
+  const sib = siblingInfo(schema, path);
+  if (!sib) return null;
+  const next = dir === 'up' ? sib.index - 1 : sib.index + 1;
+  return next < 0 || next >= sib.count ? null : [...sib.slotPath, next];
 }

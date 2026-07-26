@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonNode } from '@reformer/renderer-json';
 import * as R from './reducers';
-import { emptySchema, appendNode, setComponentProp } from '../model';
-import type { TabSource } from './types';
+import { emptySchema, appendNode, setComponentProp, getAt } from '../model';
+import { sampleSchema, P } from '../model/__fixtures__/sample-schema';
+import type { EditorState, TabSource } from './types';
 
 const src: TabSource = { kind: 'new', name: 'form.json' };
 const field = (m: string): JsonNode =>
   ({ value: `$model(${m})`, component: '$component(Input)' }) as JsonNode;
 
 const opened = () => R.openTab(R.initialState(), 't1', src, emptySchema());
+const openedSample = () => R.openTab(R.initialState(), 't1', src, sampleSchema());
+const kidsOf = (s: EditorState, path: readonly (string | number)[]) =>
+  getAt(R.activeTab(s)!.schema, path) as Array<{ value?: string }>;
 
 describe('вкладки', () => {
   it('openTab создаёт активную вкладку', () => {
@@ -101,6 +105,9 @@ describe('ui', () => {
     expect(s.ui.hideDivWrappers).toBe(false);
     s = R.toggleHideDivWrappers(s);
     expect(s.ui.hideDivWrappers).toBe(true);
+    expect(s.ui.quickAddOpen).toBe(false);
+    s = R.setQuickAdd(s, true);
+    expect(s.ui.quickAddOpen).toBe(true);
     s = R.toggleRawJson(s);
     expect(s.ui.rawJsonOpen).toBe(false);
     s = R.setLeftPanel(s, null);
@@ -109,5 +116,158 @@ describe('ui', () => {
     expect(s.ui.rightOpen).toBe(false);
     s = R.setTheme(s, 'dark');
     expect(s.ui.theme).toBe('dark');
+  });
+});
+
+describe('горячие клавиши (навигация/выделение/перемещение/удаление)', () => {
+  it('navigate: одиночная навигация up/down/left/right', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.navigate(s, 'down');
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0field1]);
+    expect(R.activeTab(s)!.selectionPaths).toEqual([[...P.step0field1]]);
+    s = R.navigate(s, 'left');
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0]);
+    s = R.navigate(s, 'right');
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0field0]);
+    s = R.navigate(s, 'up'); // первый сосед — некуда
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0field0]);
+  });
+
+  it('navigate extend (Shift): смежный диапазон соседей + якорь', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.navigate(s, 'down', true);
+    const t = R.activeTab(s)!;
+    expect(t.selectionPath).toEqual([...P.step0field1]);
+    expect(t.selectionPaths).toEqual([[...P.step0field0], [...P.step0field1]]);
+    expect(t.anchorPath).toEqual([...P.step0field0]);
+  });
+
+  it('moveSelection: реордер одиночного среди соседей, курсор следует', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.moveSelection(s, 'down');
+    expect(kidsOf(s, P.step0children).map((c) => c.value)).toEqual([
+      '$model(loanAmount)',
+      '$model(loanType)',
+    ]);
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 1]);
+  });
+
+  it('moveSelection: на границе — без изменений', () => {
+    const s0 = R.select(openedSample(), P.step0field0);
+    const s1 = R.moveSelection(s0, 'up'); // уже первый
+    expect(R.activeTab(s1)!.schema).toBe(R.activeTab(s0)!.schema);
+  });
+
+  it('deleteSelection: удаляет узел, выделение → сосед', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.deleteSelection(s);
+    expect(kidsOf(s, P.step0children)).toHaveLength(1);
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 0]);
+  });
+
+  it('deleteSelection группы: пустой слот → владелец', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.navigate(s, 'down', true); // выделены оба поля
+    s = R.deleteSelection(s);
+    expect(kidsOf(s, P.step0children)).toHaveLength(0);
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0]);
+  });
+
+  it('duplicateSelection: копия после оригинала', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.duplicateSelection(s);
+    expect(kidsOf(s, P.step0children)).toHaveLength(3);
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 1]);
+  });
+
+  it('collapseSelection: мульти → активный, затем → родитель', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.navigate(s, 'down', true);
+    s = R.collapseSelection(s);
+    expect(R.activeTab(s)!.selectionPaths).toHaveLength(1);
+    s = R.collapseSelection(s);
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0]);
+  });
+});
+
+describe('группировка / флип / мульти-выбор мышью', () => {
+  const cls = (s: EditorState, path: readonly (string | number)[]) =>
+    getAt(R.activeTab(s)!.schema, [...path, 'componentProps', 'className']);
+
+  it('groupSelection: смежные поля → вертикальный div, выделен div', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.navigate(s, 'down', true); // оба поля
+    s = R.groupSelection(s);
+    expect(kidsOf(s, P.step0children)).toHaveLength(1);
+    expect(getAt(R.activeTab(s)!.schema, [...P.step0children, 0, 'component'])).toBe('$html(div)');
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 0]);
+  });
+
+  it('ungroupSelection возвращает детей div', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.navigate(s, 'down', true);
+    s = R.groupSelection(s); // выделен div
+    s = R.ungroupSelection(s);
+    expect(kidsOf(s, P.step0children).map((c) => c.value)).toEqual([
+      '$model(loanType)',
+      '$model(loanAmount)',
+    ]);
+  });
+
+  it('flipSelection меняет раскладку div; не-div → no-op', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.navigate(s, 'down', true);
+    s = R.groupSelection(s);
+    expect(cls(s, [...P.step0children, 0])).toBe('flex flex-col gap-4');
+    s = R.flipSelection(s);
+    expect(cls(s, [...P.step0children, 0])).toBe('flex gap-4');
+    const s2 = R.select(openedSample(), P.step0field0);
+    expect(R.activeTab(R.flipSelection(s2))!.schema).toBe(R.activeTab(s2)!.schema);
+  });
+
+  it('extendSelectionTo (Shift+клик): смежный диапазон до узла', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.extendSelectionTo(s, P.step0field1);
+    expect(R.activeTab(s)!.selectionPaths).toEqual([[...P.step0field0], [...P.step0field1]]);
+  });
+
+  it('toggleSelectionAt (⌘+клик): несмежный выбор, удаление обоих', () => {
+    const s3 = R.openTab(
+      R.initialState(),
+      't1',
+      src,
+      appendNode(sampleSchema(), P.step0children, field('third')).schema
+    );
+    let s = R.select(s3, P.step0field0); // [0]
+    s = R.toggleSelectionAt(s, [...P.step0children, 2]); // + [2] → несмежно [0,2]
+    expect(R.activeTab(s)!.selectionPaths).toEqual([[...P.step0field0], [...P.step0children, 2]]);
+    s = R.deleteSelection(s); // удалить оба несмежных
+    expect(kidsOf(s, P.step0children).map((c) => c.value)).toEqual(['$model(loanAmount)']);
+  });
+});
+
+describe('addComponent (быстрое добавление, умно по контексту)', () => {
+  it('в выделенный контейнер — в конец детей', () => {
+    let s = R.select(openedSample(), P.step0); // шаг-контейнер
+    s = R.addComponent(s, field('x'));
+    expect(kidsOf(s, P.step0children)).toHaveLength(3);
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 2]);
+  });
+
+  it('после выделенного листа — соседом', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.addComponent(s, field('x'));
+    expect(kidsOf(s, P.step0children).map((c) => c.value)).toEqual([
+      '$model(loanType)',
+      '$model(x)',
+      '$model(loanAmount)',
+    ]);
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 1]);
+  });
+
+  it('без выделения — в корневой слот', () => {
+    let s = R.select(openedSample(), null);
+    s = R.addComponent(s, field('x'));
+    expect(getAt(R.activeTab(s)!.schema, P.steps) as unknown[]).toHaveLength(3);
   });
 });

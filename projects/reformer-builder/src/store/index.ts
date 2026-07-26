@@ -14,6 +14,7 @@ export {
   useActiveTab,
   useUi,
   useSelectionPath,
+  useSelectionPaths,
   useTabOrder,
   useActiveTabId,
   useTab,

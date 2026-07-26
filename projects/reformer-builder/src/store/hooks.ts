@@ -31,9 +31,17 @@ export function useUi(): UiState {
   return useEditor((s) => s.ui);
 }
 
-/** Путь выделенного узла активной вкладки. */
+/** Путь выделенного (активного) узла активной вкладки. */
 export function useSelectionPath(): JsonPath | null {
   return useEditor((s) => R.activeTab(s)?.selectionPath ?? null);
+}
+
+/** Стабильная пустая ссылка для `useSelectionPaths` (иначе `?? []` даёт лишние ре-рендеры). */
+const EMPTY_PATHS: JsonPath[] = [];
+
+/** Все выделенные узлы активной вкладки (мульти-выделение). */
+export function useSelectionPaths(): JsonPath[] {
+  return useEditor((s) => R.activeTab(s)?.selectionPaths ?? EMPTY_PATHS);
 }
 
 /** Порядок вкладок (стабильная ссылка — меняется только при open/close). */

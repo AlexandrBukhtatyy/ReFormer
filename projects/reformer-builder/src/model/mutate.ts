@@ -27,7 +27,7 @@ import {
   type JsonPathSegment,
 } from './paths';
 import { parentNodePath } from './query';
-import { orientationOf } from './node-kind';
+import { isDivContainer, orientationOf } from './node-kind';
 
 /** Результат структурной операции: новая схема + путь затронутого узла. */
 export interface MutationResult {
@@ -205,6 +205,103 @@ export function duplicateNode(schema: JsonFormSchema, nodePath: JsonPath): Mutat
   const arr = getAt(schema, slotPath);
   if (!node || !Array.isArray(arr)) return { schema, newPath: nodePath };
   return insertNode(schema, slotPath, idx + 1, clone(node));
+}
+
+/**
+ * Переставить непрерывный блок `[start, start+count)` в массив-слоте на `delta` (±1) — для
+ * перемещения выделенной группы соседей вверх/вниз. `null`, если блок упирается в границу.
+ * Возвращает новую схему и новый стартовый индекс блока.
+ */
+export function reorderBlock(
+  schema: JsonFormSchema,
+  slotPath: JsonPath,
+  start: number,
+  count: number,
+  delta: number
+): { schema: JsonFormSchema; newStart: number } | null {
+  const arr = getAt(schema, slotPath);
+  if (!Array.isArray(arr)) return null;
+  const newStart = start + delta;
+  if (newStart < 0 || newStart + count > arr.length) return null;
+  const next = updateAt(schema, slotPath, (a: unknown) => {
+    const list = (a as unknown[]).slice();
+    const block = list.splice(start, count);
+    list.splice(newStart, 0, ...block);
+    return list;
+  });
+  return { schema: next, newStart };
+}
+
+/** Удалить непрерывный блок `[start, start+count)` из массив-слота. */
+export function removeBlock(
+  schema: JsonFormSchema,
+  slotPath: JsonPath,
+  start: number,
+  count: number
+): JsonFormSchema {
+  return updateAt(schema, slotPath, (a: unknown) => {
+    const list = Array.isArray(a) ? (a as unknown[]).slice() : [];
+    list.splice(start, count);
+    return list;
+  });
+}
+
+/** Удалить набор индексов из массив-слота (для несмежного мульти-удаления). Порядок — не важен. */
+export function removeIndices(
+  schema: JsonFormSchema,
+  slotPath: JsonPath,
+  indices: number[]
+): JsonFormSchema {
+  const desc = [...new Set(indices)].sort((a, b) => b - a); // с конца — чтобы индексы не сдвигались
+  let next = schema;
+  for (const i of desc) next = removeBlock(next, slotPath, i, 1);
+  return next;
+}
+
+/**
+ * Сгруппировать непрерывный блок `[start, start+count)` соседей в новый `$html(div)`-контейнер
+ * (по умолчанию вертикальный `flex flex-col gap-4`). Возвращает путь новой группы.
+ */
+export function groupBlock(
+  schema: JsonFormSchema,
+  slotPath: JsonPath,
+  start: number,
+  count: number,
+  opts?: { className?: string }
+): MutationResult {
+  const arr = getAt(schema, slotPath);
+  if (!Array.isArray(arr) || count < 1) return { schema, newPath: [...slotPath, start] };
+  const block = (arr as JsonNode[]).slice(start, start + count).map(clone);
+  const group: JsonNode = {
+    component: '$html(div)',
+    componentProps: { className: opts?.className ?? DEFAULT_COL_CLASS },
+    children: block,
+  };
+  const next = updateAt(schema, slotPath, (a: unknown) => {
+    const list = (a as unknown[]).slice();
+    list.splice(start, count, group);
+    return list;
+  });
+  return { schema: next, newPath: [...slotPath, start] };
+}
+
+/**
+ * Разгруппировать `$html(div)`: заменить его в родительском массив-слоте на его детей. No-op для
+ * не-div или узла не в массив-слоте. Возвращает путь на месте бывшей группы.
+ */
+export function ungroupNode(schema: JsonFormSchema, nodePath: JsonPath): MutationResult {
+  const node = getAt(schema, nodePath) as JsonNode | undefined;
+  if (!node || !isDivContainer(node)) return { schema, newPath: nodePath };
+  const kids = (node as { children?: unknown }).children;
+  const slotPath = nodePath.slice(0, -1);
+  const last = nodePath[nodePath.length - 1];
+  if (!Array.isArray(kids) || typeof last !== 'number') return { schema, newPath: nodePath };
+  const next = updateAt(schema, slotPath, (a: unknown) => {
+    const list = (a as unknown[]).slice();
+    list.splice(last, 1, ...(kids as JsonNode[]).map(clone));
+    return list;
+  });
+  return { schema: next, newPath: [...slotPath, last] };
 }
 
 /**
