@@ -24,7 +24,15 @@ export const HISTORY_CAP = 100;
 
 /** Начальные UI-флаги. */
 export function initialUi(): UiState {
-  return { preview: 'wire', rawJsonOpen: true, leftPanel: 'palette', rightOpen: true, theme: 'light' };
+  return {
+    preview: 'wire',
+    rawJsonOpen: true,
+    leftPanel: 'palette',
+    rightOpen: true,
+    theme: 'light',
+    revealLine: null,
+    revealNonce: 0,
+  };
 }
 
 /** Пустое состояние редактора. */
@@ -216,6 +224,13 @@ export function setPreview(state: EditorState, preview: PreviewMode): EditorStat
 }
 export function toggleRawJson(state: EditorState): EditorState {
   return { ...state, ui: { ...state.ui, rawJsonOpen: !state.ui.rawJsonOpen } };
+}
+/** Открыть raw-JSON и запросить reveal строки `line` (1-based). Nonce++ — повтор той же строки сработает. */
+export function revealRawLine(state: EditorState, line: number): EditorState {
+  return {
+    ...state,
+    ui: { ...state.ui, rawJsonOpen: true, revealLine: line, revealNonce: state.ui.revealNonce + 1 },
+  };
 }
 export function setLeftPanel(state: EditorState, leftPanel: LeftPanel): EditorState {
   return { ...state, ui: { ...state.ui, leftPanel } };

@@ -48,6 +48,8 @@ export const editorActions = {
 
   setPreview: (mode: PreviewMode) => editorStore.setState((s) => R.setPreview(s, mode)),
   toggleRawJson: () => editorStore.setState(R.toggleRawJson),
+  /** Открыть raw-JSON и перейти к строке `line` (reveal + подсветка в Monaco). */
+  revealRawLine: (line: number) => editorStore.setState((s) => R.revealRawLine(s, line)),
   setLeftPanel: (panel: LeftPanel) => editorStore.setState((s) => R.setLeftPanel(s, panel)),
   toggleRight: () => editorStore.setState(R.toggleRight),
   setTheme: (theme: Theme) => editorStore.setState((s) => R.setTheme(s, theme)),

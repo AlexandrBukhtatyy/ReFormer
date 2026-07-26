@@ -71,6 +71,10 @@ export interface UiState {
   leftPanel: LeftPanel;
   rightOpen: boolean;
   theme: Theme;
+  /** Запрос навигации в raw-JSON: строка (1-based) для reveal; `null` — активного запроса нет. */
+  revealLine: number | null;
+  /** Счётчик запросов reveal — растёт на каждый клик, чтобы повторный переход на ту же строку сработал. */
+  revealNonce: number;
 }
 
 /** Полное состояние редактора. */

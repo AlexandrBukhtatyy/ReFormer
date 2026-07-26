@@ -16,7 +16,7 @@ import { serializeSchema } from '../io/export';
 const RawJsonEditor = lazy(() => import('./RawJsonEditor'));
 
 export function RawJson({ schema, name }: { schema: JsonFormSchema; name: string }) {
-  const { rawJsonOpen, theme } = useUi();
+  const { rawJsonOpen, theme, revealLine, revealNonce } = useUi();
   const [draft, setDraft] = useState(() => serializeSchema(schema));
   const focusedRef = useRef(false);
   const schemaRef = useRef(schema);
@@ -82,6 +82,8 @@ export function RawJson({ schema, name }: { schema: JsonFormSchema; name: string
               theme={theme}
               onChange={setDraft}
               onFocusChange={onFocusChange}
+              revealLine={revealLine}
+              revealNonce={revealNonce}
             />
           </Suspense>
         </div>
