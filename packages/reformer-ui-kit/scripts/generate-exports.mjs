@@ -45,6 +45,9 @@ const exportsMap = {
   // Фиксированная точка (не компонент) — в FIXED-наборе package-exports.test.ts.
   './fields': { types: './dist/fields.d.ts', import: './dist/fields.js' },
   './styles': './src/styles/theme.css',
+  // Каталог компонентов для reformer-builder (генерируется scripts/generate-catalog.ts).
+  // Фиксированная точка (не компонент) — в FIXED-наборе package-exports.test.ts.
+  './catalog': './component-catalog.json',
 };
 for (const name of components) {
   exportsMap[`./${name}`] = {

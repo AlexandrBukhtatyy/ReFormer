@@ -1,22 +1,32 @@
 /**
- * Контракт каталога компонентов (спека §5, §15): JSON Schema, описывающая структуру каталога-JSON,
- * адаптер `defaultPropSchemas → catalog.json` (с явным `role`) и валидатор каталога против контракта.
- * Билдер читает каталог через {@link buildCatalogFromJson} за неизменным `CatalogEntry` — смена
- * источника (прямой импорт → внешний валидированный catalog-JSON) не меняет остальной код.
+ * Контракт каталога компонентов (спека §5, §15). Билдер ВЛАДЕЕТ JSON Schema контрактом
+ * (`component-catalog.schema.json`); клиент (`@reformer/ui-kit`) генерирует под него валидный
+ * catalog-JSON (`@reformer/ui-kit/catalog`, команда `generate:catalog`). Здесь: загрузка каталога
+ * от клиента ({@link loadCatalogJson}), валидатор против контракта ({@link validateCatalog}) и
+ * реконструкция `CatalogEntry[]` с `makeNode` ({@link buildCatalogFromJson}).
+ *
+ * Категория палитры — забота билдера (клиент её не поставляет): назначается на загрузке по
+ * {@link CATEGORY_BY_NAME}. Синтетические `$html`/array-записи добавляет билдер (`synthetic-entries`).
  *
  * @module reformer-builder/catalog/contract
  */
 
 import Ajv, { type ValidateFunction } from 'ajv';
-import { defaultPropSchemas, mergeFieldPropsSchema, type PropsSchema } from '@reformer/ui-kit/meta';
 import type { CatalogEntry, CatalogJson, CatalogRole } from './types';
-import { CATALOG_CONTRACT_VERSION } from './types';
-import { inferRole } from './role';
 import { syntheticRecords } from './synthetic-entries';
 import { makeNodeFor } from './make-node';
+import catalogSchema from './component-catalog.schema.json';
+import uiKitCatalog from '@reformer/ui-kit/catalog';
 
-/** Имя регистра → категория палитры (спека §5 `category?`). */
+/** JSON Schema контракта каталога (draft-07). Владелец — билдер; ui-kit генерирует под неё. */
+export const CATALOG_SCHEMA = catalogSchema;
+
+/**
+ * Имя компонента → категория палитры (§5 `category?`). Категория — забота палитры билдера, ui-kit
+ * её не поставляет; назначается на загрузке. Незамапленные падают в default (`categoryOf`).
+ */
 const CATEGORY_BY_NAME: Record<string, string> = {
+  // Поля ввода
   Input: 'Поля ввода',
   InputPassword: 'Поля ввода',
   InputMask: 'Поля ввода',
@@ -26,6 +36,7 @@ const CATEGORY_BY_NAME: Record<string, string> = {
   Calendar: 'Поля ввода',
   FileUpload: 'Поля ввода',
   FileUploadAvatar: 'Поля ввода',
+  // Выбор и переключатели
   Select: 'Выбор и переключатели',
   NativeSelect: 'Выбор и переключатели',
   Combobox: 'Выбор и переключатели',
@@ -35,60 +46,84 @@ const CATEGORY_BY_NAME: Record<string, string> = {
   Slider: 'Выбор и переключатели',
   Toggle: 'Выбор и переключатели',
   ToggleGroup: 'Выбор и переключатели',
+  // Контейнеры
   Box: 'Контейнеры',
   Section: 'Контейнеры',
+  Card: 'Контейнеры',
+  Accordion: 'Контейнеры',
+  Tabs: 'Контейнеры',
+  Collapsible: 'Контейнеры',
+  InputGroup: 'Контейнеры',
+  ButtonGroup: 'Контейнеры',
+  AspectRatio: 'Контейнеры',
+  ScrollArea: 'Контейнеры',
+  Resizable: 'Контейнеры',
+  Sidebar: 'Контейнеры',
+  // Действия
+  Button: 'Действия',
+  // Отображение
+  Label: 'Отображение',
+  Badge: 'Отображение',
+  Typography: 'Отображение',
+  Avatar: 'Отображение',
+  Progress: 'Отображение',
+  Skeleton: 'Отображение',
+  Spinner: 'Отображение',
+  Table: 'Отображение',
+  Chart: 'Отображение',
+  Empty: 'Отображение',
+  Kbd: 'Отображение',
+  Marker: 'Отображение',
+  Alert: 'Отображение',
+  Separator: 'Отображение',
+  Carousel: 'Отображение',
+  // Typography — набор отдельных компонентов (TypographyH1…Muted), см. правило-префикс в categoryOf.
+  // Оверлеи
+  Dialog: 'Оверлеи',
+  AlertDialog: 'Оверлеи',
+  Sheet: 'Оверлеи',
+  Drawer: 'Оверлеи',
+  Popover: 'Оверлеи',
+  HoverCard: 'Оверлеи',
+  Tooltip: 'Оверлеи',
+  Command: 'Оверлеи',
+  // Навигация
+  DropdownMenu: 'Навигация',
+  ContextMenu: 'Навигация',
+  Menubar: 'Навигация',
+  NavigationMenu: 'Навигация',
+  Breadcrumb: 'Навигация',
+  Pagination: 'Навигация',
+  // Чат
+  Bubble: 'Чат',
+  Message: 'Чат',
+  MessageScroller: 'Чат',
+  Attachment: 'Чат',
+  Item: 'Чат',
 };
 
 function categoryOf(name: string, role: CatalogRole): string {
+  // Typography разбит на отдельные компоненты (TypographyH1…Muted) — все в «Отображение».
+  if (name.startsWith('Typography')) return 'Отображение';
   return CATEGORY_BY_NAME[name] ?? (role === 'container' ? 'Контейнеры' : 'Прочее');
 }
 
-/** JSON Schema контракта каталога (`component-catalog.schema.json`, draft-07). */
-export const CATALOG_SCHEMA = {
-  $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'https://reformer.dev/schemas/component-catalog.schema.json',
-  title: 'ReFormer component catalog',
-  type: 'object',
-  required: ['version', 'components'],
-  additionalProperties: false,
-  properties: {
-    version: { type: 'string', minLength: 1 },
-    components: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['name', 'role', 'propsSchema'],
-        additionalProperties: false,
-        properties: {
-          name: { type: 'string', minLength: 1 },
-          role: { enum: ['field', 'container', 'array'] },
-          category: { type: 'string' },
-          // propsSchema — произвольная JSON Schema пропсов (валидируется её структура, не содержимое).
-          propsSchema: { type: 'object' },
-        },
-      },
-    },
-  },
-} as const;
-
-/** Адаптер: `defaultPropSchemas` + синтетические → каталог-JSON (с явным `role`, сериализуемо). */
-export function buildCatalogJson(
-  schemas: Record<string, PropsSchema> = defaultPropSchemas
-): CatalogJson {
-  const components = Object.entries(schemas).map(([name, variant]) => {
-    const role = inferRole(variant);
-    const propsSchema = role === 'field' ? mergeFieldPropsSchema(variant) : variant;
-    return { name, role, category: categoryOf(name, role), propsSchema };
-  });
-  return { version: CATALOG_CONTRACT_VERSION, components: [...components, ...syntheticRecords()] };
+/**
+ * Каталог-JSON, поставляемый клиентом (`@reformer/ui-kit/catalog`, по контракту) + синтетические
+ * записи билдера (`$html`/array). Единственная граница источника — смена клиента не трогает
+ * остальной код.
+ */
+export function loadCatalogJson(): CatalogJson {
+  const supplied = uiKitCatalog as unknown as CatalogJson;
+  return { version: supplied.version, components: [...supplied.components, ...syntheticRecords()] };
 }
 
-/** Реконструировать `CatalogEntry[]` из каталога-JSON (восстанавливает `makeNode`). */
+/** Реконструировать `CatalogEntry[]` из каталога-JSON (категория палитры + восстановление `makeNode`). */
 export function buildCatalogFromJson(json: CatalogJson): CatalogEntry[] {
   return json.components.map((r) => ({
     name: r.name,
     role: r.role,
-    category: r.category,
+    category: r.category ?? categoryOf(r.name, r.role),
     propsSchema: r.propsSchema,
     makeNode: () => makeNodeFor(r.name, r.role),
   }));
@@ -96,7 +131,7 @@ export function buildCatalogFromJson(json: CatalogJson): CatalogEntry[] {
 
 let validateFn: ValidateFunction | null = null;
 
-/** Провалидировать каталог-JSON против контракта (§5: билдер валидирует каталог). */
+/** Провалидировать catalog-JSON против контракта (§5: билдер валидирует поставляемый каталог). */
 export function validateCatalog(json: unknown): { valid: boolean; errors: string[] } {
   if (!validateFn) {
     const ajv = new Ajv({ allErrors: true, strict: false });

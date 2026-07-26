@@ -14,7 +14,19 @@ import { getCatalog, type CatalogEntry } from '../catalog';
 import { editorActions, editorStore } from '../store';
 import { clearDrag, setDrag } from '../dnd/drag-state';
 
-const CATEGORY_ORDER = ['HTML', 'Поля ввода', 'Выбор и переключатели', 'Контейнеры', 'Массив', 'Прочее'];
+const CATEGORY_ORDER = [
+  'Поля ввода',
+  'Выбор и переключатели',
+  'Контейнеры',
+  'Действия',
+  'Отображение',
+  'Массив',
+  'HTML',
+  'Оверлеи',
+  'Навигация',
+  'Чат',
+  'Прочее',
+];
 
 /** Тег из синтетического HTML-имени: `$html(div)` → `div`; для остальных — `null`. */
 function htmlTag(name: string): string | null {
@@ -72,8 +84,14 @@ export function PalettePanel() {
   const [q, setQ] = useState('');
   const catalog = getCatalog();
   const groups = useMemo(() => groupByCategory(catalog, q), [catalog, q]);
-  // HTML свёрнут по умолчанию (спека §8, дизайн-макет); поиск временно раскрывает все разделы.
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ HTML: true });
+  // Форс-категории раскрыты; вспомогательные (HTML/оверлеи/навигация/чат) свёрнуты по умолчанию
+  // (спека §8, дизайн-макет). Поиск временно раскрывает все разделы.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
+    HTML: true,
+    Оверлеи: true,
+    Навигация: true,
+    Чат: true,
+  });
   const toggle = (cat: string) => setCollapsed((c) => ({ ...c, [cat]: !c[cat] }));
   const isOpen = (cat: string) => (q.trim() ? true : !collapsed[cat]);
 

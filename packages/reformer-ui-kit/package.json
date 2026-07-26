@@ -20,6 +20,7 @@
       "import": "./dist/fields.js"
     },
     "./styles": "./src/styles/theme.css",
+    "./catalog": "./component-catalog.json",
     "./accordion": {
       "types": "./dist/accordion.d.ts",
       "import": "./dist/accordion.js"
@@ -313,7 +314,8 @@
   "scripts": {
     "generate:meta": "node scripts/generate-meta.mjs",
     "generate:exports": "node scripts/generate-exports.mjs",
-    "generate:barrels": "npm run generate:meta && npm run generate:exports",
+    "generate:catalog": "tsx scripts/generate-catalog.ts",
+    "generate:barrels": "npm run generate:meta && npm run generate:exports && npm run generate:catalog",
     "generate:llms": "node ../../scripts/generate-llms-txt .",
     "build": "npm run generate:barrels && npm run generate:llms && vite build",
     "build:stackblitz": "npm run generate:barrels && vite build",

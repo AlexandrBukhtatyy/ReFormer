@@ -1,7 +1,7 @@
 /**
  * Слой `catalog/` — каталог компонентов для палитры и инспектора. Строится по контракту (§5):
- * `defaultPropSchemas` → каталог-JSON → `CatalogEntry[]`. Внешний валидированный catalog-JSON
- * подменяет источник за той же границей.
+ * клиентский catalog-JSON (`@reformer/ui-kit/catalog`, генерируется под контракт билдера) →
+ * `CatalogEntry[]`. Смена клиента подменяет источник за той же границей.
  *
  * @module reformer-builder/catalog
  */
@@ -17,7 +17,7 @@ export { makeNodeFor } from './make-node';
 export { syntheticRecords } from './synthetic-entries';
 export {
   CATALOG_SCHEMA,
-  buildCatalogJson,
+  loadCatalogJson,
   buildCatalogFromJson,
   validateCatalog,
 } from './contract';
