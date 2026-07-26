@@ -7,7 +7,9 @@
  */
 
 import { useEffect } from 'react';
+import { useDefaultLayout } from 'react-resizable-panels';
 import { TooltipProvider } from '@reformer/ui-kit';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Toaster } from '@reformer/ui-kit/sonner';
 import { activeTab, editorActions, editorStore, useActiveTab, useUi } from '../store';
 import { saveDialogActions } from '../store/save-dialog';
@@ -28,6 +30,14 @@ const railTab =
 export function EditorLayout() {
   const ui = useUi();
   const tab = useActiveTab();
+
+  // Persistence ширин сайдбаров в localStorage. panelIds перечисляет ВСЕ возможные панели
+  // (в т.ч. свёрнутые рейлом), чтобы размеры восстанавливались при повторном открытии.
+  const hLayout = useDefaultLayout({
+    id: 'rb.layout.h',
+    storage: localStorage,
+    panelIds: ['left', 'center', 'right'],
+  });
 
   // seed демо-схемы (Mode A) при первом запуске
   useEffect(() => {
@@ -78,35 +88,62 @@ export function EditorLayout() {
             </button>
           </div>
 
-          {/* левая панель */}
-          {ui.leftPanel && (
-            <div className="flex w-[250px] flex-none flex-col border-r border-border bg-sidebar">
-              <div className="flex h-[34px] items-center border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
-                {ui.leftPanel === 'files' ? 'Файлы проекта' : 'Палитра компонентов'}
-              </div>
-              {ui.leftPanel === 'files' ? <FilesPanel /> : <PalettePanel />}
-            </div>
-          )}
-
-          {/* центр */}
-          <div className="flex min-w-[320px] flex-1 flex-col overflow-hidden">
-            <TabBar />
-            {tab ? (
-              <CanvasArea tab={tab} />
-            ) : (
-              <div className="grid flex-1 place-items-center text-muted-foreground">Нет открытой схемы</div>
+          {/* resizable-ряд: левый сайдбар · центр · инспектор (рейлы — вне группы).
+              Размеры в px (в react-resizable-panels v4 число = пиксели, строка = проценты). */}
+          <ResizablePanelGroup
+            orientation="horizontal"
+            className="min-w-0 flex-1"
+            defaultLayout={hLayout.defaultLayout}
+            onLayoutChanged={hLayout.onLayoutChanged}
+          >
+            {/* левая панель */}
+            {ui.leftPanel && (
+              <>
+                <ResizablePanel
+                  id="left"
+                  defaultSize={250}
+                  minSize={180}
+                  maxSize={520}
+                  className="flex flex-col bg-sidebar"
+                >
+                  <div className="flex h-[34px] flex-none items-center border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
+                    {ui.leftPanel === 'files' ? 'Файлы проекта' : 'Палитра компонентов'}
+                  </div>
+                  {ui.leftPanel === 'files' ? <FilesPanel /> : <PalettePanel />}
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+              </>
             )}
-          </div>
 
-          {/* правый инспектор */}
-          {ui.rightOpen && (
-            <div className="flex w-[300px] flex-none flex-col border-l border-border bg-sidebar">
-              <div className="flex h-[34px] items-center border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
-                Свойства
-              </div>
-              <Inspector />
-            </div>
-          )}
+            {/* центр */}
+            <ResizablePanel id="center" minSize={360} className="flex flex-col">
+              <TabBar />
+              {tab ? (
+                <CanvasArea tab={tab} />
+              ) : (
+                <div className="grid flex-1 place-items-center text-muted-foreground">Нет открытой схемы</div>
+              )}
+            </ResizablePanel>
+
+            {/* правый инспектор */}
+            {ui.rightOpen && (
+              <>
+                <ResizableHandle withHandle />
+                <ResizablePanel
+                  id="right"
+                  defaultSize={300}
+                  minSize={220}
+                  maxSize={640}
+                  className="flex flex-col bg-sidebar"
+                >
+                  <div className="flex h-[34px] flex-none items-center border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
+                    Свойства
+                  </div>
+                  <Inspector />
+                </ResizablePanel>
+              </>
+            )}
+          </ResizablePanelGroup>
 
           {/* правый рейл */}
           <div className="flex w-[34px] flex-none flex-col items-center border-l border-border bg-sidebar pt-2">
