@@ -1,16 +1,21 @@
 name: Release
 
-# Единый release-workflow для всех пакетов monorepo. Запускает semantic-release
-# для каждого пакета СТРОГО ПОСЛЕДОВАТЕЛЬНО (max-parallel: 1) — это решает
-# race на `git push refs/notes/semantic-release` (общий ref для всех пакетов
-# в semantic-release; параллельный push с разных runner-ов проигрывал ref-lock).
+# Единый release-workflow для всех пакетов monorepo. Один последовательный джоб:
+# один checkout + один `npm ci` + одна сборка всех пакетов в топо-порядке, затем
+# semantic-release по каждому пакету последовательно в цикле.
 #
-# Заменяет release-{core,cdk,ui-kit,renderer-react,renderer-json,mcp}.yml.
-# Каждая итерация matrix эквивалентна старому per-package workflow.
+# Почему не matrix: раньше был matrix с `max-parallel: 1` (сериализация ради
+# race на общий ref `refs/notes/semantic-release`). Но max-parallel:1 не даёт
+# параллелизма — только оверхед: 6× checkout, 6× npm ci, 18 пересборок. Единый
+# джоб убирает это (1× npm ci, 6 build-ов) и попутно снимает саму гонку notes
+# (один процесс, локальный ref обновляется сам — max-parallel не нужен).
 #
-# Если в пакете нет новых коммитов с прошлого тега — semantic-release сам
-# напишет "no release needed" и выйдет с code 0; latency ~30s на "холостой"
-# пакет, total worst case ~6 × 30s = 3 минуты.
+# Изоляция сбоев (замена fail-fast: false): release-цикл ловит падение каждого
+# пакета через `if ( … )`, копит упавшие и падает в конце — один сбой не
+# блокирует публикацию остальных. Падение СБОРКИ линейно прерывает джоб до
+# релиза (нельзя публиковать из несобранного; needs: test уже собрал те же
+# пакеты). Если в пакете нет новых коммитов — semantic-release пишет
+# "no release needed" и выходит с code 0.
 
 on:
   push:
@@ -31,50 +36,9 @@ jobs:
     uses: ./.github/workflows/test.yml
 
   release:
-    name: Release ${{ matrix.workspace }}
+    name: Release all packages
     needs: test
     runs-on: ubuntu-latest
-    strategy:
-      # Sequential — гарантированно один semantic-release за раз; нет race
-      # на `refs/notes/semantic-release`.
-      max-parallel: 1
-      # Один upstream-сбой не блокирует остальные пакеты.
-      fail-fast: false
-      matrix:
-        include:
-          - workspace: '@reformer/core'
-            dir: packages/reformer
-            deps: ''
-            run_tests: true
-          - workspace: '@reformer/cdk'
-            dir: packages/reformer-cdk
-            deps: '@reformer/core'
-            run_tests: false
-          - workspace: '@reformer/renderer-react'
-            dir: packages/reformer-renderer-react
-            deps: '@reformer/core'
-            run_tests: false
-          - workspace: '@reformer/ui-kit'
-            dir: packages/reformer-ui-kit
-            # ui-kit tsc ссылается на @reformer/renderer-react (FormArraySection,
-            # FormWizard) — без его dist declaration-файлы собираются с TS2307.
-            deps: '@reformer/core @reformer/cdk @reformer/renderer-react'
-            run_tests: false
-          - workspace: '@reformer/renderer-json'
-            dir: packages/reformer-renderer-json
-            deps: '@reformer/core @reformer/renderer-react'
-            run_tests: false
-          - workspace: '@reformer/mcp'
-            dir: packages/reformer-mcp
-            # mcp tsc imports @reformer/renderer-json/validate (validate_json_schema
-            # tool) — renderer-json must be built first so its dist types resolve.
-            # renderer-json itself needs core + renderer-react, so build the full
-            # chain in order (deps are built sequentially).
-            # Тот же tool лениво импортирует @reformer/ui-kit/meta (props-валидация):
-            # импорт динамический, но tsc всё равно резолвит типы → нужен dist ui-kit,
-            # а ui-kit требует core + cdk + renderer-react.
-            deps: '@reformer/core @reformer/cdk @reformer/renderer-react @reformer/ui-kit @reformer/renderer-json'
-            run_tests: false
 
     permissions:
       contents: write
@@ -99,31 +63,61 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build dependencies
-        if: matrix.deps != ''
+      - name: Build all packages in dependency order
+        # Один раз собираем ВСЕ пакеты в топологическом порядке (тот же, что в
+        # test.yml и align-versions.yml). Корневой `npm run build --workspaces`
+        # НЕ годится: npm не топо-сортирует workspaces (mcp/tsc собрался бы до
+        # своих dist-зависимостей → TS2307) и захватил бы projects/*.
         run: |
-          for dep in ${{ matrix.deps }}; do
-            echo "::group::Build $dep"
-            npm run build -w "$dep"
+          for pkg in @reformer/core @reformer/cdk @reformer/renderer-react \
+                     @reformer/ui-kit @reformer/renderer-json @reformer/mcp; do
+            echo "::group::Build $pkg"
+            npm run build -w "$pkg"
             echo "::endgroup::"
           done
 
-      - name: Build ${{ matrix.workspace }}
-        run: npm run build -w '${{ matrix.workspace }}'
-
-      - name: Run tests
-        if: matrix.run_tests
-        run: npm run test -w '${{ matrix.workspace }}'
+      # Тесты не повторяем: needs: test (reusable test.yml) уже собрал и прогнал
+      # тесты всех пакетов + dist-deps/size/typecheck.
 
       - name: Fetch git notes
-        # Каждая итерация matrix начинается с свежего fetch — между итерациями
-        # предыдущая semantic-release могла обновить notes на remote.
+        # checkout не тянет refs/notes/*, а semantic-release хранит там каналы
+        # релиза. Тянем ОДИН раз перед циклом — внутри одного джоба каждый
+        # semantic-release сам обновляет локальный ref, между пакетами fetch не
+        # нужен, а гонки параллельных runner-ов больше нет.
         run: git fetch origin refs/notes/semantic-release:refs/notes/semantic-release || true
 
-      - name: Release ${{ matrix.workspace }}
+      - name: Release all packages (sequential, fault-isolated)
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
-        working-directory: ${{ matrix.dir }}
+        run: |
+          # workspace:dir в топологическом порядке.
+          packages=(
+            "@reformer/core:packages/reformer"
+            "@reformer/cdk:packages/reformer-cdk"
+            "@reformer/renderer-react:packages/reformer-renderer-react"
+            "@reformer/ui-kit:packages/reformer-ui-kit"
+            "@reformer/renderer-json:packages/reformer-renderer-json"
+            "@reformer/mcp:packages/reformer-mcp"
+          )
+          failed=()
+          for entry in "${packages[@]}"; do
+            ws="${entry%%:*}"
+            dir="${entry#*:}"
+            echo "::group::Release $ws"
+            # Команда в условии `if` не срабатывает под set -e, поэтому один
+            # упавший пакет не рвёт цикл. "no release needed" → exit 0 (не сбой);
+            # реальный сбой публикации → exit != 0 → копим и падаем в конце.
+            if ( cd "$dir" && npx semantic-release ); then
+              echo "$ws: done"
+            else
+              echo "::error::semantic-release failed for $ws"
+              failed+=("$ws")
+            fi
+            echo "::endgroup::"
+          done
+          if [ ${#failed[@]} -ne 0 ]; then
+            echo "::error::Release failed for: ${failed[*]}"
+            exit 1
+          fi
