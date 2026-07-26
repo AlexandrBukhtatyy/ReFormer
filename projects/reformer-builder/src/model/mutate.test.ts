@@ -14,6 +14,8 @@ import {
   wrapInColumn,
   wrapPairInColumn,
   unwrapSingleChild,
+  flipDirection,
+  flipWrapperPair,
 } from './mutate';
 import { getAt, removeAt } from './paths';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
@@ -225,5 +227,34 @@ describe('wrapInRow / wrapPairInRow / unwrapSingleChild (горизонталь�
     const stacked = wrapInColumn(sampleSchema(), P.step0field0, field('extra'), 'after').schema;
     const { schema } = removeNode(stacked, [...P.step0field0, 'children', 1]);
     expect((getAt(schema, P.step0field0) as { value?: string }).value).toBe('$model(loanType)');
+  });
+
+  it('flipDirection переключает flex-col в className контейнера (туда и обратно)', () => {
+    const row = wrapInRow(sampleSchema(), P.step0field0, field('extra'), 'after').schema;
+    const cls = [...P.step0field0, 'componentProps', 'className'];
+    expect(getAt(row, cls)).toBe('flex gap-4');
+    const flipped = flipDirection(row, P.step0field0).schema;
+    expect(getAt(flipped, cls)).toBe('flex flex-col gap-4');
+    const back = flipDirection(flipped, P.step0field0).schema;
+    expect(getAt(back, cls)).toBe('flex gap-4');
+  });
+
+  it('flipWrapperPair переворачивает обёртку и переставляет пару БЕЗ нового div', () => {
+    // ряд [loanType, loanAmount] на месте step0field0
+    const row = wrapPairInRow(sampleSchema(), P.step0field0, P.step0field1, 'after').schema;
+    const colA = [...P.step0field0, 'children', 0]; // loanType
+    const colB = [...P.step0field0, 'children', 1]; // loanAmount
+    // перетащить colB на верх colA (side before)
+    const { schema, newPath } = flipWrapperPair(row, P.step0field0, colA, colB, 'before');
+    const div = getAt(schema, P.step0field0) as {
+      component: string;
+      componentProps: { className: string };
+      children: Array<{ value?: string; component?: string }>;
+    };
+    expect(div.component).toBe('$html(div)'); // тот же div, не вложенный
+    expect(div.componentProps.className).toBe('flex flex-col gap-4'); // перевернулся
+    expect(div.children).toHaveLength(2); // всё ещё 2 колонки, без нового div
+    expect(div.children.map((c) => c.value)).toEqual(['$model(loanAmount)', '$model(loanType)']);
+    expect(newPath).toEqual([...P.step0field0, 'children', 0]);
   });
 });

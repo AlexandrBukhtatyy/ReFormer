@@ -148,3 +148,15 @@ export function orientationOf(node: JsonNode): Orientation {
   if (tokens.includes('flex') && !tokens.includes('flex-col')) return 'horizontal';
   return 'vertical';
 }
+
+/**
+ * Является ли узел flex-обёрткой `$html(div)` (её создаёт drag-раскладка). У таких обёрток направление
+ * задаётся классом `flex`/`flex-col` — его можно переключать на месте, не вкладывая новый `div`.
+ */
+export function isFlexWrapper(node: JsonNode): node is JsonContainerNode {
+  if (!isContainerNode(node)) return false;
+  const c = node as JsonContainerNode;
+  if (c.component !== '$html(div)') return false;
+  const cls = c.componentProps?.className;
+  return typeof cls === 'string' && cls.split(/\s+/).includes('flex');
+}

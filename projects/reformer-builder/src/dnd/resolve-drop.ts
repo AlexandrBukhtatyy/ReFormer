@@ -7,13 +7,18 @@
  * @module reformer-builder/dnd/resolve-drop
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { JsonContainerNode, JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
   childSlots,
   findByPath,
+  flipWrapperPair,
+  getAt,
   insertNode,
+  isFlexWrapper,
   isPrefix,
   moveNode,
+  parentNodePath,
+  pathEquals,
   wrapInColumn,
   wrapInRow,
   wrapPairInColumn,
@@ -75,14 +80,26 @@ export function performDrop(
   if (zone !== 'before' && zone !== 'after' && zone !== 'into') {
     const side = zone === 'beside-before' || zone === 'stack-before' ? 'before' : 'after';
     const isStack = zone === 'stack-before' || zone === 'stack-after';
-    const wrapNew = isStack ? wrapInColumn : wrapInRow;
-    const wrapPair = isStack ? wrapPairInColumn : wrapPairInRow;
     if (payload.kind === 'new') {
       const entry = getCatalogEntry(payload.entryName);
+      const wrapNew = isStack ? wrapInColumn : wrapInRow;
       return entry ? wrapNew(schema, targetPath, entry.makeNode(), side) : null;
     }
     if (isPrefix(payload.path, targetPath) || isPrefix(targetPath, payload.path)) return null;
-    return wrapPair(schema, targetPath, payload.path, side);
+    // Спец-случай: цель и перемещаемый — единственные ДВЕ колонки одной flex-обёртки → перевернуть её
+    // направление на месте (сменить flex-col), а не вкладывать новый div.
+    const fromParent = parentNodePath(payload.path);
+    const targetParent = parentNodePath(targetPath);
+    if (fromParent && targetParent && pathEquals(fromParent, targetParent)) {
+      const parent = getAt(schema, fromParent) as JsonNode | undefined;
+      if (parent && isFlexWrapper(parent)) {
+        const kids = (parent as JsonContainerNode).children;
+        if (Array.isArray(kids) && kids.length === 2) {
+          return flipWrapperPair(schema, fromParent, targetPath, payload.path, side);
+        }
+      }
+    }
+    return (isStack ? wrapPairInColumn : wrapPairInRow)(schema, targetPath, payload.path, side);
   }
 
   const target = resolveDrop(schema, targetPath, zone);

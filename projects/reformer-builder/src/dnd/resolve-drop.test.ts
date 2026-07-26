@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonNode } from '@reformer/renderer-json';
 import { resolveDrop, performDrop } from './resolve-drop';
-import { getAt, kindOf } from '../model';
+import { getAt, kindOf, wrapPairInRow } from '../model';
 import { sampleSchema, P } from '../model/__fixtures__/sample-schema';
 
 describe('resolveDrop', () => {
@@ -111,5 +111,25 @@ describe('performDrop stack (создание вертикального сто�
     };
     expect(col.componentProps.className).toBe('flex flex-col gap-4');
     expect(col.children.map((c) => c.value)).toEqual(['$model(loanAmount)', '$model(loanType)']);
+  });
+
+  it('stack пары в ряду из 2 полей → переворот родителя на месте, БЕЗ нового div', () => {
+    // ряд [loanType, loanAmount] на месте step0field0 (обёртка целиком из 2 колонок)
+    const row = wrapPairInRow(sampleSchema(), P.step0field0, P.step0field1, 'after').schema;
+    const colA = [...P.step0field0, 'children', 0];
+    const colB = [...P.step0field0, 'children', 1];
+    // перетащить colB на верх colA → stack-before
+    const res = performDrop(row, colA, 'stack-before', { kind: 'move', path: colB });
+    expect(res).not.toBeNull();
+    const div = getAt(res!.schema, P.step0field0) as {
+      component: string;
+      componentProps: { className: string };
+      children: unknown[];
+    };
+    // тот же div, направление перевёрнуто, детей по-прежнему 2 (нет вложенного div)
+    expect(div.component).toBe('$html(div)');
+    expect(div.componentProps.className).toBe('flex flex-col gap-4');
+    expect(div.children).toHaveLength(2);
+    expect(getAt(res!.schema, [...P.step0field0, 'children', 0, 'children'])).toBeUndefined();
   });
 });

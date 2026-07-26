@@ -344,3 +344,61 @@ export function unwrapSingleChild(
   const only = node.children![0] as JsonNode;
   return { schema: updateAt(schema, containerPath, () => clone(only)), newPath: containerPath };
 }
+
+/** Переключить `flex-col` в списке классов (горизонталь ⇄ вертикаль flex-обёртки). */
+function toggleFlexColToken(className: string): string {
+  const tokens = className.split(/\s+/).filter(Boolean);
+  const i = tokens.indexOf('flex-col');
+  if (i >= 0) {
+    tokens.splice(i, 1);
+  } else {
+    const fi = tokens.indexOf('flex');
+    tokens.splice(fi >= 0 ? fi + 1 : 0, 0, 'flex-col');
+  }
+  return tokens.join(' ');
+}
+
+/**
+ * Перевернуть направление flex-контейнера НА МЕСТЕ: переключить `flex-col` в его `className`
+ * (ряд ⇄ столбец), НЕ создавая новый `div`. No-op для не-контейнеров и без строкового className.
+ * Выделение остаётся на узле.
+ */
+export function flipDirection(schema: JsonFormSchema, nodePath: JsonPath): MutationResult {
+  const node = getAt(schema, nodePath) as JsonNode | undefined;
+  if (!node || !isContainerNode(node)) return { schema, newPath: nodePath };
+  const cls = (node as JsonContainerNode).componentProps?.className;
+  if (typeof cls !== 'string') return { schema, newPath: nodePath };
+  const next = updateAt(schema, [...nodePath, 'componentProps'], (props: unknown) => ({
+    ...(props as object),
+    className: toggleFlexColToken(cls),
+  }));
+  return { schema: next, newPath: nodePath };
+}
+
+/**
+ * Перевернуть flex-обёртку и переставить её ЕДИНСТВЕННЫЕ две колонки — случай «сделать 2 поля в `div`
+ * вертикально/горизонтально» перетаскиванием: меняем `flex-col` в className и порядок пары, БЕЗ
+ * создания нового `div`. `side` — с какой стороны от цели встаёт перемещаемый узел. Возвращает путь
+ * перемещённого узла.
+ */
+export function flipWrapperPair(
+  schema: JsonFormSchema,
+  wrapperPath: JsonPath,
+  targetPath: JsonPath,
+  fromPath: JsonPath,
+  side: 'before' | 'after'
+): MutationResult {
+  const wrapper = getAt(schema, wrapperPath) as JsonContainerNode | undefined;
+  const target = getAt(schema, targetPath) as JsonNode | undefined;
+  const moving = getAt(schema, fromPath) as JsonNode | undefined;
+  if (!wrapper || !target || !moving) return { schema, newPath: targetPath };
+  const cls = wrapper.componentProps?.className;
+  const nextClass = typeof cls === 'string' ? toggleFlexColToken(cls) : cls;
+  const children =
+    side === 'before' ? [clone(moving), clone(target)] : [clone(target), clone(moving)];
+  const next = updateAt(schema, wrapperPath, (n: unknown) => {
+    const c = n as JsonContainerNode;
+    return { ...c, componentProps: { ...(c.componentProps ?? {}), className: nextClass }, children };
+  });
+  return { schema: next, newPath: [...wrapperPath, 'children', side === 'before' ? 0 : 1] };
+}

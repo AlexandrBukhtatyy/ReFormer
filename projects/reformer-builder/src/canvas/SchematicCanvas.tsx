@@ -15,7 +15,9 @@ import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
   canAcceptChildren,
   childSlots,
+  flipDirection,
   getAt,
+  isFlexWrapper,
   kindOf,
   orientationOf,
   parentNodePath,
@@ -216,6 +218,19 @@ function NodeView({
         <div className="flex items-center gap-2">
           {!isRoot && <span className="text-muted-foreground/50 select-none text-xs">⋮⋮</span>}
           <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{nodeLabel(node)}</span>
+          {isFlexWrapper(node) && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                editorActions.apply((s) => flipDirection(s, path));
+              }}
+              title="Направление: ряд ⇄ столбец"
+              className="flex-none rounded border border-border px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              {selfHorizontal ? '↔' : '↕'}
+            </button>
+          )}
           <span className="flex-none rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-[9.5px] font-semibold text-muted-foreground">
             {nodeTypeBadge(node)}
           </span>
