@@ -150,6 +150,15 @@ export function orientationOf(node: JsonNode): Orientation {
 }
 
 /**
+ * Является ли узел html-контейнером `$html(div)`. У любого такого div можно переключать направление
+ * раскладки (ряд ⇄ столбец) на месте — {@link flipDirection} сам нормализует его к flex. Шире, чем
+ * {@link isFlexWrapper}: не требует уже проставленного класса `flex`.
+ */
+export function isDivContainer(node: JsonNode): node is JsonContainerNode {
+  return isContainerNode(node) && (node as JsonContainerNode).component === '$html(div)';
+}
+
+/**
  * Является ли узел flex-обёрткой `$html(div)` (её создаёт drag-раскладка). У таких обёрток направление
  * задаётся классом `flex`/`flex-col` — его можно переключать на месте, не вкладывая новый `div`.
  */

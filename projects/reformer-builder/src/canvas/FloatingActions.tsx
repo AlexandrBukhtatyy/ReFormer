@@ -6,10 +6,10 @@
  * @module reformer-builder/canvas/FloatingActions
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@reformer/ui-kit';
 import { toast } from '@reformer/ui-kit/sonner';
-import { Check, Redo2, Save, Undo2, X } from 'lucide-react';
+import { Check, Redo2, Save, Settings, Undo2, X } from 'lucide-react';
 import { editorActions, useActiveTab, useUi } from '../store';
 import { validateSchema } from '../io/validate';
 import { triggerSave } from '../app/save-actions';
@@ -26,12 +26,26 @@ export function FloatingActions() {
 
   const [status, setStatus] = useState<ValidationStatus>('idle');
   const [errors, setErrors] = useState<string[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   // Любая правка схемы сбрасывает результат валидации (прототип §5).
   useEffect(() => {
     setStatus('idle');
     setErrors([]);
   }, [tab?.schema]);
+
+  // Закрыть попап настроек по клику вне него.
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [settingsOpen]);
 
   const runValidate = (): boolean => {
     if (!tab) return false;
@@ -64,6 +78,41 @@ export function FloatingActions() {
         >
           Renderer
         </button>
+      </div>
+      <div ref={settingsRef} className="relative flex-none">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-6 w-6"
+          title="Настройки вида"
+          onClick={() => setSettingsOpen((o) => !o)}
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </Button>
+        {settingsOpen && (
+          <div className="absolute right-0 top-7 z-20 w-56 rounded-md border border-border bg-background p-1 text-foreground shadow-md">
+            <div className="px-2 py-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Вид схемы
+            </div>
+            <button
+              type="button"
+              onClick={() => editorActions.toggleHideDivWrappers()}
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-muted"
+            >
+              <span
+                className={cn(
+                  'flex h-4 w-4 flex-none items-center justify-center rounded border',
+                  ui.hideDivWrappers
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border'
+                )}
+              >
+                {ui.hideDivWrappers && <Check className="h-3 w-3" />}
+              </span>
+              Скрывать div-контейнеры
+            </button>
+          </div>
+        )}
       </div>
       <Button
         variant="outline"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonNode, JsonFormSchema } from '@reformer/renderer-json';
 import {
   setComponentProp,
   setNodeKey,
@@ -237,6 +237,29 @@ describe('wrapInRow / wrapPairInRow / unwrapSingleChild (горизонталь�
     expect(getAt(flipped, cls)).toBe('flex flex-col gap-4');
     const back = flipDirection(flipped, P.step0field0).schema;
     expect(getAt(back, cls)).toBe('flex gap-4');
+  });
+
+  it('flipDirection нормализует не-flex div к flex (space-y → ряд → столбец)', () => {
+    const div = {
+      root: { component: '$html(div)', componentProps: { className: 'space-y-6' }, children: [] },
+    } as unknown as JsonFormSchema;
+    const cls = ['root', 'componentProps', 'className'];
+    const row = flipDirection(div, ['root']).schema; // vertical → horizontal
+    expect(getAt(row, cls)).toBe('flex space-y-6');
+    const col = flipDirection(row, ['root']).schema; // → vertical
+    expect(getAt(col, cls)).toBe('flex flex-col space-y-6');
+  });
+
+  it('flipDirection создаёт componentProps у голого div и снимает grid при перевороте', () => {
+    const bare = { root: { component: '$html(div)', children: [] } } as unknown as JsonFormSchema;
+    const flipped = flipDirection(bare, ['root']).schema; // default vertical → horizontal
+    expect(getAt(flipped, ['root', 'componentProps', 'className'])).toBe('flex');
+
+    const grid = {
+      root: { component: '$html(div)', componentProps: { className: 'grid grid-cols-2 gap-4' }, children: [] },
+    } as unknown as JsonFormSchema;
+    const stacked = flipDirection(grid, ['root']).schema; // grid(horizontal) → vertical, grid снят
+    expect(getAt(stacked, ['root', 'componentProps', 'className'])).toBe('flex flex-col gap-4');
   });
 
   it('flipWrapperPair переворачивает обёртку и переставляет пару БЕЗ нового div', () => {

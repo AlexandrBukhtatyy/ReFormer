@@ -28,7 +28,7 @@ export function CanvasArea({ tab }: { tab: TabState }) {
   const canvasBody = (
     <>
       <FloatingActions />
-      <div className="mx-auto max-w-[680px]">
+      <div className="mx-auto w-full">
         <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
           {ui.preview === 'runtime' ? (
             <RuntimePreview schema={tab.schema} />
@@ -54,7 +54,13 @@ export function CanvasArea({ tab }: { tab: TabState }) {
             {canvasBody}
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel id="raw" defaultSize={216} minSize={120} maxSize={560} className="flex flex-col">
+          <ResizablePanel
+            id="raw"
+            defaultSize={216}
+            minSize={120}
+            maxSize={560}
+            className="flex flex-col"
+          >
             <RawJson schema={tab.schema} name={tab.source.name} />
           </ResizablePanel>
         </ResizablePanelGroup>

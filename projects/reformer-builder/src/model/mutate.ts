@@ -27,6 +27,7 @@ import {
   type JsonPathSegment,
 } from './paths';
 import { parentNodePath } from './query';
+import { orientationOf } from './node-kind';
 
 /** Результат структурной операции: новая схема + путь затронутого узла. */
 export interface MutationResult {
@@ -345,6 +346,21 @@ export function unwrapSingleChild(
   return { schema: updateAt(schema, containerPath, () => clone(only)), newPath: containerPath };
 }
 
+/**
+ * Классы контейнера для заданной оси: нормализует к flex-раскладке (переключать направление имеет
+ * смысл только у flex-контейнера). Убирает конфликтующие `grid`/`grid-cols-*`/`grid-rows-*`,
+ * гарантирует `flex`, ставит/снимает `flex-col`. Остальные классы и их порядок сохраняются.
+ */
+function withFlexOrientation(className: string | undefined, horizontal: boolean): string {
+  const tokens = (className ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((t) => t !== 'grid' && t !== 'flex-col' && !/^grid-(cols|rows)-/.test(t));
+  if (!tokens.includes('flex')) tokens.unshift('flex');
+  if (!horizontal) tokens.splice(tokens.indexOf('flex') + 1, 0, 'flex-col');
+  return tokens.join(' ');
+}
+
 /** Переключить `flex-col` в списке классов (горизонталь ⇄ вертикаль flex-обёртки). */
 function toggleFlexColToken(className: string): string {
   const tokens = className.split(/\s+/).filter(Boolean);
@@ -359,19 +375,23 @@ function toggleFlexColToken(className: string): string {
 }
 
 /**
- * Перевернуть направление flex-контейнера НА МЕСТЕ: переключить `flex-col` в его `className`
- * (ряд ⇄ столбец), НЕ создавая новый `div`. No-op для не-контейнеров и без строкового className.
- * Выделение остаётся на узле.
+ * Перевернуть направление контейнера НА МЕСТЕ (ряд ⇄ столбец), НЕ создавая новый `div`: определяем
+ * текущую ось через {@link orientationOf} и записываем противоположную. Контейнер нормализуется к flex
+ * ({@link withFlexOrientation}), поэтому работает и для div без `flex`/без `className` — `componentProps`
+ * при необходимости создаётся. No-op для не-контейнеров. Выделение остаётся на узле.
  */
 export function flipDirection(schema: JsonFormSchema, nodePath: JsonPath): MutationResult {
   const node = getAt(schema, nodePath) as JsonNode | undefined;
   if (!node || !isContainerNode(node)) return { schema, newPath: nodePath };
   const cls = (node as JsonContainerNode).componentProps?.className;
-  if (typeof cls !== 'string') return { schema, newPath: nodePath };
-  const next = updateAt(schema, [...nodePath, 'componentProps'], (props: unknown) => ({
-    ...(props as object),
-    className: toggleFlexColToken(cls),
-  }));
+  const nextClass = withFlexOrientation(
+    typeof cls === 'string' ? cls : undefined,
+    orientationOf(node) !== 'horizontal'
+  );
+  const next = updateAt(schema, nodePath, (n: unknown) => {
+    const c = n as JsonContainerNode;
+    return { ...c, componentProps: { ...(c.componentProps ?? {}), className: nextClass } };
+  });
   return { schema: next, newPath: nodePath };
 }
 

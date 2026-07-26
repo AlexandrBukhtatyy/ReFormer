@@ -11,13 +11,14 @@
  */
 
 import { createContext, useContext, useState, type DragEvent } from 'react';
+import { ArrowDown, ArrowRight } from 'lucide-react';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
   canAcceptChildren,
   childSlots,
   flipDirection,
   getAt,
-  isFlexWrapper,
+  isDivContainer,
   kindOf,
   orientationOf,
   parentNodePath,
@@ -25,7 +26,7 @@ import {
   type JsonPath,
   type Orientation,
 } from '../model';
-import { editorActions } from '../store';
+import { editorActions, useUi } from '../store';
 import { clearDrag, getDrag, setDrag } from '../dnd/drag-state';
 import { performDrop, type DropZone } from '../dnd/resolve-drop';
 import { lineOfPath } from '../io/error-path';
@@ -40,7 +41,13 @@ const DndCtx = createContext<{
   drop: DropTarget | null;
   setDrop: (d: DropTarget | null) => void;
   schema: JsonFormSchema;
-}>({ drop: null, setDrop: () => {}, schema: { root: { component: '$html(div)' } } });
+  hideDivWrappers: boolean;
+}>({
+  drop: null,
+  setDrop: () => {},
+  schema: { root: { component: '$html(div)' } },
+  hideDivWrappers: false,
+});
 
 const PERP_ZONES = new Set<DropZone>([
   'beside-before',
@@ -138,7 +145,7 @@ function NodeView({
   path: JsonPath;
   selectionPath: JsonPath | null;
 }) {
-  const { drop, setDrop, schema } = useContext(DndCtx);
+  const { drop, setDrop, schema, hideDivWrappers } = useContext(DndCtx);
   const isRoot = path.length === 1 && path[0] === 'root';
   const selected = selectionPath != null && pathEquals(path, selectionPath);
   const slots = childSlots(node, path);
@@ -152,6 +159,25 @@ function NodeView({
   const allowPerp = !isRoot && path[path.length - 2] === 'children';
   // Схематика отражает реальную раскладку: `children` горизонтального контейнера-ряда рисуются в ряд.
   const selfHorizontal = orientationOf(node) === 'horizontal';
+
+  // Настройка «скрывать div-контейнеры»: рисуем детей div напрямую с его раскладкой, без бокса/шапки.
+  if (hideDivWrappers && !isRoot && isDivContainer(node)) {
+    const kids = slots.find((s) => s.kind === 'children');
+    if (!kids) return null;
+    return (
+      <div
+        className={cn(
+          'flex gap-2',
+          selfHorizontal ? 'flex-row items-start' : 'flex-col',
+          parentOrientation === 'horizontal' && 'min-w-0 flex-1'
+        )}
+      >
+        {kids.nodes.map((child, i) => (
+          <NodeView key={i} node={child} path={[...kids.path, i]} selectionPath={selectionPath} />
+        ))}
+      </div>
+    );
+  }
 
   const here = drop && pathEquals(drop.path, path) ? drop.zone : null;
   const isPerp = here != null && PERP_ZONES.has(here);
@@ -170,11 +196,21 @@ function NodeView({
       {isPerp && (
         <div
           className={cn(
-            'pointer-events-none absolute z-20 rounded-full bg-primary px-1.5 py-px text-[9px] font-semibold whitespace-nowrap text-primary-foreground shadow-sm',
+            'pointer-events-none absolute z-20 flex items-center gap-0.5 rounded-full bg-primary px-1.5 py-px text-[9px] font-semibold whitespace-nowrap text-primary-foreground shadow-sm',
             chipPosClass(here)
           )}
         >
-          {here === 'stack-before' || here === 'stack-after' ? '↕ столбец' : '↔ ряд'}
+          {here === 'stack-before' || here === 'stack-after' ? (
+            <>
+              <ArrowDown className="size-2.5" />
+              столбец
+            </>
+          ) : (
+            <>
+              <ArrowRight className="size-2.5" />
+              ряд
+            </>
+          )}
         </div>
       )}
       <div
@@ -218,17 +254,17 @@ function NodeView({
         <div className="flex items-center gap-2">
           {!isRoot && <span className="text-muted-foreground/50 select-none text-xs">⋮⋮</span>}
           <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{nodeLabel(node)}</span>
-          {isFlexWrapper(node) && (
+          {isDivContainer(node) && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 editorActions.apply((s) => flipDirection(s, path));
               }}
-              title="Направление: ряд ⇄ столбец"
-              className="flex-none rounded border border-border px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+              title={`Направление: ${selfHorizontal ? 'ряд' : 'столбец'} (клик — перевернуть)`}
+              className="flex-none rounded border border-border p-0.5 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
             >
-              {selfHorizontal ? '↔' : '↕'}
+              {selfHorizontal ? <ArrowRight className="size-3" /> : <ArrowDown className="size-3" />}
             </button>
           )}
           <span className="flex-none rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-[9.5px] font-semibold text-muted-foreground">
@@ -292,8 +328,9 @@ export function SchematicCanvas({
   selectionPath: JsonPath | null;
 }) {
   const [drop, setDrop] = useState<DropTarget | null>(null);
+  const hideDivWrappers = useUi().hideDivWrappers;
   return (
-    <DndCtx.Provider value={{ drop, setDrop, schema }}>
+    <DndCtx.Provider value={{ drop, setDrop, schema, hideDivWrappers }}>
       <NodeView node={schema.root} path={['root']} selectionPath={selectionPath} />
     </DndCtx.Provider>
   );

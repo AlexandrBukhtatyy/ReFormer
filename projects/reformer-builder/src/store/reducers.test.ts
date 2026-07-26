@@ -98,6 +98,9 @@ describe('ui', () => {
     expect(s.ui.preview).toBe('wire');
     s = R.setPreview(s, 'runtime');
     expect(s.ui.preview).toBe('runtime');
+    expect(s.ui.hideDivWrappers).toBe(false);
+    s = R.toggleHideDivWrappers(s);
+    expect(s.ui.hideDivWrappers).toBe(true);
     s = R.toggleRawJson(s);
     expect(s.ui.rawJsonOpen).toBe(false);
     s = R.setLeftPanel(s, null);

@@ -26,6 +26,7 @@ export const HISTORY_CAP = 100;
 export function initialUi(): UiState {
   return {
     preview: 'wire',
+    hideDivWrappers: false,
     rawJsonOpen: true,
     leftPanel: 'palette',
     rightOpen: true,
@@ -224,6 +225,10 @@ export function setPreview(state: EditorState, preview: PreviewMode): EditorStat
 }
 export function toggleRawJson(state: EditorState): EditorState {
   return { ...state, ui: { ...state.ui, rawJsonOpen: !state.ui.rawJsonOpen } };
+}
+/** Переключить скрытие `$html(div)`-контейнеров в схематике. */
+export function toggleHideDivWrappers(state: EditorState): EditorState {
+  return { ...state, ui: { ...state.ui, hideDivWrappers: !state.ui.hideDivWrappers } };
 }
 /** Открыть raw-JSON и запросить reveal строки `line` (1-based). Nonce++ — повтор той же строки сработает. */
 export function revealRawLine(state: EditorState, line: number): EditorState {

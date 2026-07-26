@@ -67,6 +67,8 @@ export interface TabState {
 /** Глобальные UI-флаги оболочки (спека §8/§9). */
 export interface UiState {
   preview: PreviewMode;
+  /** Скрывать `$html(div)`-контейнеры в схематике (чище дерево); их дети рисуются напрямую. */
+  hideDivWrappers: boolean;
   rawJsonOpen: boolean;
   leftPanel: LeftPanel;
   rightOpen: boolean;
