@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@reformer/ui-kit';
+import { Button, Label, Switch } from '@reformer/ui-kit';
 import { toast } from '@reformer/ui-kit/sonner';
 import { Check, Redo2, Save, Settings, Undo2, X } from 'lucide-react';
 import { editorActions, useActiveTab, useUi } from '../store';
@@ -94,23 +94,17 @@ export function FloatingActions() {
             <div className="px-2 py-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
               Вид схемы
             </div>
-            <button
-              type="button"
-              onClick={() => editorActions.toggleHideDivWrappers()}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] hover:bg-muted"
-            >
-              <span
-                className={cn(
-                  'flex h-4 w-4 flex-none items-center justify-center rounded border',
-                  ui.hideDivWrappers
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border'
-                )}
-              >
-                {ui.hideDivWrappers && <Check className="h-3 w-3" />}
-              </span>
-              Скрывать div-контейнеры
-            </button>
+            <div className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 hover:bg-muted">
+              <Label htmlFor="hide-div-wrappers" className="cursor-pointer text-[12px] font-normal">
+                Скрывать div-контейнеры
+              </Label>
+              <Switch
+                id="hide-div-wrappers"
+                checked={ui.hideDivWrappers}
+                onCheckedChange={() => editorActions.toggleHideDivWrappers()}
+                className="flex-none"
+              />
+            </div>
           </div>
         )}
       </div>
