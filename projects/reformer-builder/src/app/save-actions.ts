@@ -21,6 +21,7 @@ import { resolvePrinterOptions } from '../io/prettier-config';
 import { prepareSave, commitSave, type SavePlan } from '../io/save';
 import { downloadSchema } from '../io/export';
 import { validateSchema } from '../io/validate';
+import { showValidationErrors } from './validation-toast';
 import { editorActions } from '../store';
 import type { TabState } from '../store';
 import { projectActions, projectStore } from '../store/project-store';
@@ -116,7 +117,7 @@ export async function openSchemaFile(d: TreeEntry): Promise<void> {
 export async function triggerSave(tab: TabState): Promise<void> {
   const v = validateSchema(tab.schema);
   if (!v.valid) {
-    toast(`Сохранение заблокировано: ${v.errors.length} ошибок`, { description: v.errors[0] });
+    showValidationErrors(v.errors, tab.schema);
     return;
   }
   if (tab.source.kind === 'file' && tab.source.handle) {

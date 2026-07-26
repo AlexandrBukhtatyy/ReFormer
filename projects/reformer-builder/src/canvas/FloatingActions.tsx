@@ -7,85 +7,16 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { JsonFormSchema } from '@reformer/renderer-json';
 import { Button } from '@reformer/ui-kit';
 import { toast } from '@reformer/ui-kit/sonner';
 import { Check, Redo2, Save, Undo2, X } from 'lucide-react';
 import { editorActions, useActiveTab, useUi } from '../store';
 import { validateSchema } from '../io/validate';
-import { errorLine, splitErrorMessage } from '../io/error-path';
 import { triggerSave } from '../app/save-actions';
+import { showValidationErrors } from '../app/validation-toast';
 import { cn } from '../lib/cn';
 
 type ValidationStatus = 'idle' | 'ok' | 'error';
-
-/** Русское склонение «ошибка/ошибки/ошибок». */
-function pluralErrors(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'ошибка';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'ошибки';
-  return 'ошибок';
-}
-
-/** В тосте показываем не больше — остальные схлопываем в «…и ещё N». */
-const MAX_SHOWN_ERRORS = 6;
-
-/**
- * Содержимое тоста невалидной схемы: заголовок + список ошибок, где путь узла — кликабельная ссылка
- * (открывает raw-JSON и прыгает на строку). Путь моноширинный/подчёркнутый, текст диагностики —
- * приглушённый, но читаемый (в отличие от почти прозрачного `description`-слота по умолчанию).
- */
-function ValidationErrors({
-  errors,
-  onPick,
-}: {
-  errors: string[];
-  onPick: (message: string) => void;
-}) {
-  const shown = errors.slice(0, MAX_SHOWN_ERRORS);
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="text-[13px] font-semibold text-foreground">
-        Невалидная схема: {errors.length} {pluralErrors(errors.length)}
-      </div>
-      <ul className="flex flex-col gap-1">
-        {shown.map((err, i) => {
-          const { path, rest } = splitErrorMessage(err);
-          return (
-            <li key={i} className="text-[11.5px] leading-snug">
-              <button
-                type="button"
-                onClick={() => onPick(err)}
-                title="Открыть строку в raw-JSON"
-                className="break-all text-left font-mono font-medium text-primary underline decoration-primary/40 underline-offset-2 transition-colors hover:decoration-primary"
-              >
-                {path}
-              </button>
-              {rest && <span className="text-muted-foreground">{rest}</span>}
-            </li>
-          );
-        })}
-      </ul>
-      {errors.length > MAX_SHOWN_ERRORS && (
-        <div className="text-[11px] text-muted-foreground">
-          …и ещё {errors.length - MAX_SHOWN_ERRORS}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Показать тост со списком ошибок; клик по пути → reveal строки в raw-JSON (по захваченной схеме). */
-function showValidationErrors(errors: string[], schema: JsonFormSchema): void {
-  toast.error(
-    <ValidationErrors
-      errors={errors}
-      onPick={(message) => editorActions.revealRawLine(errorLine(schema, message) ?? 1)}
-    />,
-    { duration: 12000, closeButton: true }
-  );
-}
 
 export function FloatingActions() {
   const ui = useUi();
@@ -131,13 +62,25 @@ export function FloatingActions() {
             ui.preview === 'runtime' ? 'bg-background shadow-sm' : 'text-muted-foreground'
           )}
         >
-          Runtime
+          Renderer
         </button>
       </div>
-      <Button variant="outline" size="icon" className="h-6 w-6" disabled={!canUndo} onClick={editorActions.undo}>
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-6 w-6"
+        disabled={!canUndo}
+        onClick={editorActions.undo}
+      >
         <Undo2 className="h-3.5 w-3.5" />
       </Button>
-      <Button variant="outline" size="icon" className="h-6 w-6" disabled={!canRedo} onClick={editorActions.redo}>
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-6 w-6"
+        disabled={!canRedo}
+        onClick={editorActions.redo}
+      >
         <Redo2 className="h-3.5 w-3.5" />
       </Button>
       <Button
