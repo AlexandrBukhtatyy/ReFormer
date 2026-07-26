@@ -29,7 +29,6 @@ function DiffColumn({
   const visible = ops
     .map((op, idx) => ({ op, idx }))
     .filter(({ op }) => (side === 'old' ? op.type !== 'add' : op.type !== 'del'));
-  let lineNo = 0;
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="flex-none border-b border-border bg-sidebar px-3.5 py-2 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -39,8 +38,8 @@ function DiffColumn({
         ref={scrollRef}
         className="relative flex-1 overflow-auto py-2 font-mono text-[10.5px] leading-relaxed"
       >
-        {visible.map(({ op, idx }) => {
-          lineNo += 1;
+        {visible.map(({ op, idx }, i) => {
+          const lineNo = i + 1;
           const marker = op.type === 'del' ? '−' : op.type === 'add' ? '+' : ' ';
           return (
             <div
@@ -93,8 +92,7 @@ function changeGroups(ops: DiffOp[]): number[] {
 function scrollColumnTo(container: HTMLDivElement | null, opIndex: number) {
   if (!container) return;
   const rows = Array.from(container.querySelectorAll<HTMLElement>('[data-op-index]'));
-  const target =
-    rows.find((r) => Number(r.dataset.opIndex) >= opIndex) ?? rows[rows.length - 1];
+  const target = rows.find((r) => Number(r.dataset.opIndex) >= opIndex) ?? rows[rows.length - 1];
   if (!target) return;
   const top = target.offsetTop - container.clientHeight / 2 + target.clientHeight / 2;
   container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
@@ -130,7 +128,9 @@ export function SaveDialog() {
         <div className="flex flex-none items-center gap-3 border-b border-border p-4">
           <div className="min-w-0">
             <div className="text-sm font-semibold">Сохранить изменения?</div>
-            <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">{plan.tabId}</div>
+            <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+              {plan.tabId}
+            </div>
           </div>
           <span className="flex-1" />
           {groups.length > 0 && (
