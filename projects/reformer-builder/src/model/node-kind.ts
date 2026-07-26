@@ -125,3 +125,26 @@ export function canAcceptChildren(node: JsonNode): boolean {
   if (isContainerNode(node)) return true;
   return false;
 }
+
+/** Ось, вдоль которой контейнер раскладывает детей. */
+export type Orientation = 'vertical' | 'horizontal';
+
+/**
+ * Ось раскладки контейнера, выведенная из его `componentProps.className`:
+ * `flex` без `flex-col`, либо `grid grid-cols-N` (N≥2) → горизонтальная; иначе
+ * (`space-y-*`, `flex-col`, отсутствие класса, не-контейнер) → вертикальная.
+ * Эвристика для drag-раскладки: она определяет, вдоль какой оси сосед считается «до/после»,
+ * а какая ось-край означает «поставить рядом».
+ */
+export function orientationOf(node: JsonNode): Orientation {
+  if (!isContainerNode(node)) return 'vertical';
+  const cls = (node as JsonContainerNode).componentProps?.className;
+  if (typeof cls !== 'string') return 'vertical';
+  const tokens = cls.split(/\s+/).filter(Boolean);
+  if (tokens.includes('grid')) {
+    const cols = tokens.find((t) => /^grid-cols-\d+$/.test(t));
+    if (cols && Number(cols.slice('grid-cols-'.length)) >= 2) return 'horizontal';
+  }
+  if (tokens.includes('flex') && !tokens.includes('flex-col')) return 'horizontal';
+  return 'vertical';
+}

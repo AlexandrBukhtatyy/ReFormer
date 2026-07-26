@@ -9,8 +9,13 @@ import {
   moveNode,
   duplicateNode,
   wrapInHtmlDiv,
+  wrapInRow,
+  wrapPairInRow,
+  wrapInColumn,
+  wrapPairInColumn,
+  unwrapSingleChild,
 } from './mutate';
-import { getAt } from './paths';
+import { getAt, removeAt } from './paths';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
 
 const field = (model: string): JsonNode => ({
@@ -133,5 +138,92 @@ describe('wrapInHtmlDiv', () => {
     expect(group.children).toHaveLength(1);
     expect(group.children[0].value).toBe('$model(loanType)');
     expect(newPath).toEqual([...P.step0field0, 'children', 0]);
+  });
+});
+
+describe('wrapInRow / wrapPairInRow / unwrapSingleChild (горизонтальный ряд)', () => {
+  it('wrapInRow (new, after): цель → $html(div)-ряд [цель, новый], newPath на новый', () => {
+    const s = sampleSchema();
+    const { schema, newPath } = wrapInRow(s, P.step0field0, field('extra'), 'after');
+    const row = getAt(schema, P.step0field0) as {
+      component: string;
+      componentProps: { className: string };
+      children: Array<{ value?: string }>;
+    };
+    expect(row.component).toBe('$html(div)');
+    expect(row.componentProps.className).toBe('flex gap-4');
+    expect(row.children.map((c) => c.value)).toEqual(['$model(loanType)', '$model(extra)']);
+    expect(newPath).toEqual([...P.step0field0, 'children', 1]);
+    // соседний слот не тронут: field0 заменён рядом, field1 на месте → длина 2
+    expect(getAt(schema, P.step0children) as JsonNode[]).toHaveLength(2);
+  });
+
+  it('wrapInRow (new, before): новый узел первой колонкой', () => {
+    const s = sampleSchema();
+    const { schema, newPath } = wrapInRow(s, P.step0field0, field('extra'), 'before');
+    const row = getAt(schema, P.step0field0) as { children: Array<{ value?: string }> };
+    expect(row.children.map((c) => c.value)).toEqual(['$model(extra)', '$model(loanType)']);
+    expect(newPath).toEqual([...P.step0field0, 'children', 0]);
+  });
+
+  it('wrapPairInRow (move соседа): ряд [цель, перемещённый], источник вырезан', () => {
+    const s = sampleSchema();
+    const { schema, newPath } = wrapPairInRow(s, P.step0field0, P.step0field1, 'after');
+    expect(getAt(schema, P.step0children) as JsonNode[]).toHaveLength(1); // field1 ушёл
+    const row = getAt(schema, P.step0field0) as { component: string; children: Array<{ value?: string }> };
+    expect(row.component).toBe('$html(div)');
+    expect(row.children.map((c) => c.value)).toEqual(['$model(loanType)', '$model(loanAmount)']);
+    expect(newPath).toEqual([...P.step0field0, 'children', 1]);
+  });
+
+  it('wrapPairInRow: узел в самого себя/предка → no-op', () => {
+    const s = sampleSchema();
+    expect(wrapPairInRow(s, P.step0, P.step0field0, 'after').schema).toBe(s);
+  });
+
+  it('unwrapSingleChild сворачивает вырожденный ряд в единственного ребёнка', () => {
+    const wrapped = wrapInRow(sampleSchema(), P.step0field0, field('extra'), 'after').schema;
+    const oneKid = removeAt(wrapped, [...P.step0field0, 'children', 1]);
+    const { schema } = unwrapSingleChild(oneKid, P.step0field0);
+    const node = getAt(schema, P.step0field0) as { value?: string; component?: string };
+    expect(node.value).toBe('$model(loanType)');
+    expect(node.component).toBe('$component(Select)');
+  });
+
+  it('removeNode авто-сворачивает ряд, оставшийся с одной колонкой', () => {
+    const wrapped = wrapInRow(sampleSchema(), P.step0field0, field('extra'), 'after').schema;
+    const { schema, newPath } = removeNode(wrapped, [...P.step0field0, 'children', 1]);
+    expect((getAt(schema, P.step0field0) as { value?: string }).value).toBe('$model(loanType)');
+    expect(newPath).toEqual([...P.step0field0]);
+  });
+
+  it('wrapInColumn создаёт вертикальный столбец (flex flex-col gap-4)', () => {
+    const { schema, newPath } = wrapInColumn(sampleSchema(), P.step0field0, field('extra'), 'after');
+    const col = getAt(schema, P.step0field0) as {
+      component: string;
+      componentProps: { className: string };
+      children: Array<{ value?: string }>;
+    };
+    expect(col.component).toBe('$html(div)');
+    expect(col.componentProps.className).toBe('flex flex-col gap-4');
+    expect(col.children.map((c) => c.value)).toEqual(['$model(loanType)', '$model(extra)']);
+    expect(newPath).toEqual([...P.step0field0, 'children', 1]);
+  });
+
+  it('wrapPairInColumn (move): вертикальный столбец [перемещённый, цель], источник вырезан', () => {
+    const { schema } = wrapPairInColumn(sampleSchema(), P.step0field0, P.step0field1, 'before');
+    expect(getAt(schema, P.step0children) as JsonNode[]).toHaveLength(1);
+    const col = getAt(schema, P.step0field0) as {
+      componentProps: { className: string };
+      children: Array<{ value?: string }>;
+    };
+    expect(col.componentProps.className).toBe('flex flex-col gap-4');
+    expect(col.children.map((c) => c.value)).toEqual(['$model(loanAmount)', '$model(loanType)']);
+  });
+
+  it('авто-unwrap сворачивает и вертикальный столбец до одной колонки', () => {
+    const stacked = wrapInColumn(sampleSchema(), P.step0field0, field('extra'), 'after').schema;
+    const { schema } = removeNode(stacked, [...P.step0field0, 'children', 1]);
+    expect((getAt(schema, P.step0field0) as { value?: string }).value).toBe('$model(loanType)');
   });
 });

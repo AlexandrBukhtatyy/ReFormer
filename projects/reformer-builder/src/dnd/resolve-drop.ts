@@ -14,14 +14,30 @@ import {
   insertNode,
   isPrefix,
   moveNode,
+  wrapInColumn,
+  wrapInRow,
+  wrapPairInColumn,
+  wrapPairInRow,
   type JsonPath,
   type MutationResult,
 } from '../model';
 import { getCatalogEntry } from '../catalog';
 import type { DragPayload } from './drag-state';
 
-/** Зона дропа относительно целевого узла. */
-export type DropZone = 'before' | 'after' | 'into';
+/**
+ * Зона дропа относительно целевого узла. `before`/`after`/`into` — вставка соседа/внутрь (по
+ * главной оси родителя). Перпендикулярные зоны оборачивают цель + брошенный узел в новый
+ * `$html(div)`: `beside-before`/`beside-after` — горизонтальный ряд, `stack-before`/`stack-after` —
+ * вертикальный столбец.
+ */
+export type DropZone =
+  | 'before'
+  | 'after'
+  | 'into'
+  | 'beside-before'
+  | 'beside-after'
+  | 'stack-before'
+  | 'stack-after';
 
 /** Слот + индекс для вставки, либо `null` если дроп в эту точку невозможен. */
 export function resolveDrop(
@@ -54,6 +70,21 @@ export function performDrop(
   zone: DropZone,
   payload: DragPayload
 ): MutationResult | null {
+  // Перпендикулярная обёртка — цель + брошенный узел в новый контейнер (мимо resolveDrop, т.к.
+  // композит из двух узлов не укладывается в {slotPath,index}): beside-* → ряд, stack-* → столбец.
+  if (zone !== 'before' && zone !== 'after' && zone !== 'into') {
+    const side = zone === 'beside-before' || zone === 'stack-before' ? 'before' : 'after';
+    const isStack = zone === 'stack-before' || zone === 'stack-after';
+    const wrapNew = isStack ? wrapInColumn : wrapInRow;
+    const wrapPair = isStack ? wrapPairInColumn : wrapPairInRow;
+    if (payload.kind === 'new') {
+      const entry = getCatalogEntry(payload.entryName);
+      return entry ? wrapNew(schema, targetPath, entry.makeNode(), side) : null;
+    }
+    if (isPrefix(payload.path, targetPath) || isPrefix(targetPath, payload.path)) return null;
+    return wrapPair(schema, targetPath, payload.path, side);
+  }
+
   const target = resolveDrop(schema, targetPath, zone);
   if (!target) return null;
 

@@ -54,3 +54,62 @@ describe('performDrop', () => {
     expect(performDrop(s, P.arrayTemplate, 'into', { kind: 'move', path: [...P.array] })).toBeNull();
   });
 });
+
+describe('performDrop beside (создание горизонтального ряда)', () => {
+  it('beside-after new из палитры → wrapInRow, цель первой колонкой', () => {
+    const s = sampleSchema();
+    const res = performDrop(s, P.step0field0, 'beside-after', { kind: 'new', entryName: 'Input' });
+    expect(res).not.toBeNull();
+    const row = getAt(res!.schema, P.step0field0) as { component: string; children: JsonNode[] };
+    expect(row.component).toBe('$html(div)');
+    expect(row.children).toHaveLength(2);
+    expect(kindOf(row.children[0])).toBe('field');
+    expect(res!.newPath).toEqual([...P.step0field0, 'children', 1]);
+  });
+
+  it('beside-before move соседа → ряд [перемещённый, цель], источник вырезан', () => {
+    const s = sampleSchema();
+    const res = performDrop(s, P.step0field0, 'beside-before', { kind: 'move', path: [...P.step0field1] });
+    expect(res).not.toBeNull();
+    expect(getAt(res!.schema, P.step0children) as JsonNode[]).toHaveLength(1);
+    const row = getAt(res!.schema, P.step0field0) as { children: Array<{ value?: string }> };
+    expect(row.children.map((c) => c.value)).toEqual(['$model(loanAmount)', '$model(loanType)']);
+  });
+
+  it('beside в самого себя/предка → null', () => {
+    const s = sampleSchema();
+    expect(performDrop(s, P.step0field0, 'beside-after', { kind: 'move', path: [...P.step0field0] })).toBeNull();
+    expect(performDrop(s, P.step0, 'beside-after', { kind: 'move', path: [...P.step0field0] })).toBeNull();
+  });
+});
+
+describe('performDrop stack (создание вертикального столбца)', () => {
+  it('stack-after new из палитры → $html(div) flex-col, цель первой колонкой', () => {
+    const s = sampleSchema();
+    const res = performDrop(s, P.step0field0, 'stack-after', { kind: 'new', entryName: 'Input' });
+    expect(res).not.toBeNull();
+    const col = getAt(res!.schema, P.step0field0) as {
+      component: string;
+      componentProps: { className: string };
+      children: JsonNode[];
+    };
+    expect(col.component).toBe('$html(div)');
+    expect(col.componentProps.className).toBe('flex flex-col gap-4');
+    expect(col.children).toHaveLength(2);
+    expect(kindOf(col.children[0])).toBe('field');
+    expect(res!.newPath).toEqual([...P.step0field0, 'children', 1]);
+  });
+
+  it('stack-before move соседа → столбец [перемещённый, цель], источник вырезан', () => {
+    const s = sampleSchema();
+    const res = performDrop(s, P.step0field0, 'stack-before', { kind: 'move', path: [...P.step0field1] });
+    expect(res).not.toBeNull();
+    expect(getAt(res!.schema, P.step0children) as JsonNode[]).toHaveLength(1);
+    const col = getAt(res!.schema, P.step0field0) as {
+      componentProps: { className: string };
+      children: Array<{ value?: string }>;
+    };
+    expect(col.componentProps.className).toBe('flex flex-col gap-4');
+    expect(col.children.map((c) => c.value)).toEqual(['$model(loanAmount)', '$model(loanType)']);
+  });
+});

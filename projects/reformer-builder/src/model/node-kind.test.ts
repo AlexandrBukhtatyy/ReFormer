@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonNode } from '@reformer/renderer-json';
-import { kindOf, childSlots, isNodeLike, canAcceptChildren } from './node-kind';
+import { kindOf, childSlots, isNodeLike, canAcceptChildren, orientationOf } from './node-kind';
 import { getAt } from './paths';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
 
@@ -70,5 +70,33 @@ describe('isNodeLike / canAcceptChildren', () => {
     expect(canAcceptChildren(getAt(s, P.step0) as JsonNode)).toBe(true);
     expect(canAcceptChildren(getAt(s, P.array) as JsonNode)).toBe(true);
     expect(canAcceptChildren(getAt(s, P.step0field0) as JsonNode)).toBe(false);
+  });
+});
+
+describe('orientationOf', () => {
+  const div = (className?: string): JsonNode =>
+    ({
+      component: '$html(div)',
+      ...(className !== undefined ? { componentProps: { className } } : {}),
+      children: [],
+    }) as JsonNode;
+
+  it('flex без flex-col → horizontal', () => {
+    expect(orientationOf(div('flex gap-4'))).toBe('horizontal');
+  });
+  it('flex flex-col → vertical', () => {
+    expect(orientationOf(div('flex flex-col gap-2'))).toBe('vertical');
+  });
+  it('grid grid-cols-N (N≥2) → horizontal, grid-cols-1 → vertical', () => {
+    expect(orientationOf(div('grid grid-cols-2 gap-4'))).toBe('horizontal');
+    expect(orientationOf(div('grid grid-cols-1'))).toBe('vertical');
+  });
+  it('space-y / нет className → vertical', () => {
+    expect(orientationOf(div('space-y-6'))).toBe('vertical');
+    expect(orientationOf(div())).toBe('vertical');
+  });
+  it('не-контейнер (поле) → vertical', () => {
+    const s = sampleSchema();
+    expect(orientationOf(getAt(s, P.step0field0) as JsonNode)).toBe('vertical');
   });
 });
