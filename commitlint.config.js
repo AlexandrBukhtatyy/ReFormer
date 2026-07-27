@@ -27,6 +27,7 @@ export default {
         'reformer-cdk',
         'reformer-ui-kit',
         'reformer-mcp',
+        'reformer-builder',
         'react-playground',
         'react-playground-e2e',
         'docs',
