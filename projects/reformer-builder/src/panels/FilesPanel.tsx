@@ -2,7 +2,8 @@
  * Панель файлов/схем. Mode B (спека §7.2, §3.1): открыть проект (FS Access) → **раскрываемое
  * дерево всего содержимого каталога** (папки с шевронами + файлы, по умолчанию всё развёрнуто).
  * Распознанные схемы форм помечены бейджами High/Med и открываются кликом, прочие файлы приглушены
- * и на клик отдают тост. «Переоткрыть» из IndexedDB. Mode A: «Новая схема». Без Chromium — Mode A.
+ * и на клик отдают тост. «Переоткрыть проект» (из IndexedDB) — здесь; «Открыть проект» и «Новая
+ * форма» переехали в меню «Файл» (AppMenuBar).
  *
  * @module reformer-builder/panels/FilesPanel
  */
@@ -10,16 +11,12 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Badge, Button, ScrollArea } from '@reformer/ui-kit';
 import { toast } from '@reformer/ui-kit/sonner';
-import { File, FileCode, FilePlus2, Folder, FolderOpen, RotateCcw } from 'lucide-react';
-import { emptySchema } from '../model';
-import { editorActions } from '../store';
+import { File, FileCode, Folder, RotateCcw } from 'lucide-react';
 import { useProject } from '../store/project-store';
-import { checkReopen, openProject, openSchemaFile, reopenProject } from '../app/save-actions';
+import { checkReopen, openSchemaFile, reopenProject } from '../app/save-actions';
 import { fsAccessSupported } from '../io/fs-access';
 import type { TreeEntry } from '../io/discovery';
 import { cn } from '../lib/cn';
-
-let counter = 1;
 
 function indent(depth: number): CSSProperties {
   return { paddingLeft: `${depth * 12 + 8}px` };
@@ -54,7 +51,11 @@ function TreeRow({
         style={indent(entry.depth)}
         className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
       >
-        <span className={cn('flex-none text-[8px] transition-transform', !collapsed && 'rotate-90')}>▶</span>
+        <span
+          className={cn('flex-none text-[8px] transition-transform', !collapsed && 'rotate-90')}
+        >
+          ▶
+        </span>
         <Folder className="h-3.5 w-3.5 flex-none opacity-70" />
         <span className="min-w-0 truncate">{entry.name}</span>
       </button>
@@ -116,24 +117,11 @@ export function FilesPanel() {
     void checkReopen();
   }, []);
 
-  const newSchema = () => {
-    counter += 1;
-    const name = `new-form-${counter}.json`;
-    editorActions.openTab(name, { kind: 'new', name }, emptySchema());
-  };
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-col gap-1.5 border-b border-border p-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full justify-start gap-2 text-xs"
-          onClick={() => void openProject()}
-        >
-          <FolderOpen className="h-3.5 w-3.5" /> Открыть проект…
-        </Button>
-        {canReopen && !dirName && (
+      {/* «Открыть проект» и «Новая форма» — в меню «Файл» (AppMenuBar). Здесь — быстрый reopen. */}
+      {canReopen && !dirName && (
+        <div className="flex flex-col gap-1.5 border-b border-border p-2">
           <Button
             variant="ghost"
             size="sm"
@@ -142,11 +130,8 @@ export function FilesPanel() {
           >
             <RotateCcw className="h-3.5 w-3.5" /> Переоткрыть проект
           </Button>
-        )}
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-xs" onClick={newSchema}>
-          <FilePlus2 className="h-3.5 w-3.5" /> Новая схема
-        </Button>
-      </div>
+        </div>
+      )}
 
       <ScrollArea className="flex-1 py-1.5">
         {dirName && (
@@ -164,12 +149,18 @@ export function FilesPanel() {
           <div className="px-3 py-2 text-[11px] text-muted-foreground">Каталог пуст.</div>
         )}
         {visible.map((entry) => (
-          <TreeRow key={entry.path} entry={entry} collapsed={collapsed.has(entry.path)} onToggle={toggle} />
+          <TreeRow
+            key={entry.path}
+            entry={entry}
+            collapsed={collapsed.has(entry.path)}
+            onToggle={toggle}
+          />
         ))}
 
         {!fsAccessSupported() && (
           <div className="px-3 py-3 text-[11px] leading-relaxed text-muted-foreground">
-            Открытие проекта требует Chromium (File System Access API). Доступен режим «Новая схема».
+            Открытие проекта требует Chromium (File System Access API). Создать форму — меню «Файл →
+            Новая форма».
           </div>
         )}
       </ScrollArea>

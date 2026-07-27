@@ -8,6 +8,7 @@
 
 import { Blocks, Moon, Sun } from 'lucide-react';
 import { editorActions, useUi } from '../store';
+import { AppMenuBar } from './AppMenuBar';
 
 export function AppToolbar() {
   const ui = useUi();
@@ -18,8 +19,13 @@ export function AppToolbar() {
         <span className="grid h-[22px] w-[22px] place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
           <Blocks className="h-3.5 w-3.5" />
         </span>
-        <span className="text-[13px] font-semibold tracking-tight text-foreground">ReFormer Builder</span>
+        <span className="text-[13px] font-semibold tracking-tight text-foreground">
+          ReFormer Builder
+        </span>
       </div>
+
+      {/* меню в стиле VSCode (Файл / Правка / Вид) */}
+      <AppMenuBar />
 
       <div className="flex-1" />
 
