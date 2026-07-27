@@ -9,17 +9,13 @@
  */
 
 import { Input, Switch } from '@reformer/ui-kit';
-import {
-  isArrayNode,
-  isFieldNode,
-  parseOperator,
-  type JsonNode,
-} from '@reformer/renderer-json';
+import { isArrayNode, isFieldNode, parseOperator, type JsonNode } from '@reformer/renderer-json';
 import { findByPath, type JsonPath } from '../model';
 import { setComponentProp } from '../model';
 import { getCatalogEntry, inspectorGroups, type InspectorProp } from '../catalog';
 import { editorActions, useActiveTab, useSelectionPath } from '../store';
-import { nodeLabel, nodeTypeBadge } from '../canvas/node-display';
+import { nodeTypeBadge } from '../canvas/node-display';
+import { ClassNameField } from './ClassNameField';
 import { cn } from '../lib/cn';
 
 /** Запись каталога для узла (по компоненту/типу). */
@@ -50,15 +46,9 @@ function toNumberValue(raw: string): number | string | undefined {
   return /^-?\d*\.?\d+$/.test(raw) ? Number(raw) : raw;
 }
 
-function PropRow({
-  node,
-  path,
-  prop,
-}: {
-  node: JsonNode;
-  path: JsonPath;
-  prop: InspectorProp;
-}) {
+function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: InspectorProp }) {
+  if (prop.widget === 'className') return <ClassNameField node={node} path={path} prop={prop} />;
+
   const props = (node as { componentProps?: Record<string, unknown> }).componentProps ?? {};
   const value = props[prop.key];
   const set = (v: unknown) =>
@@ -112,6 +102,22 @@ function PropRow({
   );
 }
 
+/**
+ * Бейдж типа выбранного узла — для шапки сайдбара свойств (рядом со словом «Свойства»).
+ * Возвращает `null`, когда ничего не выбрано.
+ */
+export function SelectedTypeBadge() {
+  const tab = useActiveTab();
+  const selPath = useSelectionPath();
+  const node = tab && selPath ? findByPath(tab.schema, selPath) : undefined;
+  if (!node) return null;
+  return (
+    <span className="flex-none rounded-full bg-foreground px-2 py-0.5 font-mono text-[9.5px] font-semibold text-background">
+      {nodeTypeBadge(node)}
+    </span>
+  );
+}
+
 export function Inspector() {
   const tab = useActiveTab();
   const selPath = useSelectionPath();
@@ -134,16 +140,6 @@ export function Inspector() {
 
   return (
     <div id="rb-properties" className="flex-1 overflow-auto">
-      <div className="border-b border-border p-3.5">
-        <div className="flex items-center gap-2">
-          <span className="flex-none rounded-full bg-foreground px-2 py-0.5 font-mono text-[9.5px] font-semibold text-background">
-            {nodeTypeBadge(node)}
-          </span>
-          <span className="min-w-0 truncate text-[13px] font-semibold">{nodeLabel(node)}</span>
-        </div>
-        <div className="mt-1.5 font-mono text-[11px] text-muted-foreground">/{selPath.join('/')}</div>
-      </div>
-
       {groups.map((group) => (
         <div key={group.group} className="border-b border-border p-3.5">
           <div className="mb-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">

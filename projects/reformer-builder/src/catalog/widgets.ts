@@ -22,7 +22,8 @@ export function toInspectorProps(schema: PropsSchema): InspectorProp[] {
     out.push({
       key,
       label: humanize(key),
-      widget: doc?.kind ?? inferWidget(prop),
+      // className → builder-редактор с автодополнением Tailwind (поверх x-doc.kind:'readonly' из ui-kit).
+      widget: key === 'className' ? 'className' : (doc?.kind ?? inferWidget(prop)),
       group: doc?.group ?? 'Control',
       description: typeof prop.description === 'string' ? prop.description : undefined,
       default: prop.default,
@@ -43,7 +44,10 @@ export function groupInspectorProps(props: InspectorProp[]): InspectorGroup[] {
     list.push(p);
     byGroup.set(p.group, list);
   }
-  return GROUP_ORDER.filter((g) => byGroup.has(g)).map((g) => ({ group: g, props: byGroup.get(g)! }));
+  return GROUP_ORDER.filter((g) => byGroup.has(g)).map((g) => ({
+    group: g,
+    props: byGroup.get(g)!,
+  }));
 }
 
 /** Пропы `propsSchema`, сразу сгруппированные для инспектора. */

@@ -59,6 +59,14 @@ export interface CatalogJson {
 }
 
 /**
+ * Виджет инспектора: стандартные {@link PropWidget} из ui-kit плюс builder-only `className`
+ * (редактор CSS-классов с автодополнением Tailwind). Билдер назначает `className` по ключу пропа
+ * поверх `x-doc.kind` (в ui-kit `className` объявлен `readonly` — эта конвенция для ui-kit-доков,
+ * а не для билдера).
+ */
+export type InspectorWidget = PropWidget | 'className';
+
+/**
  * Проп для инспектора — производная от `propsSchema` (НЕ часть сериализуемого контракта).
  * Строится {@link '../catalog/widgets'} из стандартных ключей JSON Schema + `x-doc`.
  */
@@ -67,8 +75,8 @@ export interface InspectorProp {
   key: string;
   /** Человекочитаемая подпись. */
   label: string;
-  /** Виджет редактора: boolean→switch, text→input, number→number, enum→select, readonly→серое поле. */
-  widget: PropWidget;
+  /** Виджет редактора: boolean→switch, text→input, number→number, enum→select, readonly→серое поле, className→автодополнение Tailwind. */
+  widget: InspectorWidget;
   /** Секция инспектора. */
   group: PropGroup;
   /** Подсказка (`description`). */

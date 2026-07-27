@@ -20,7 +20,7 @@ import { SaveDialog } from '../canvas/SaveDialog';
 import { QuickAddDialog } from '../canvas/QuickAddDialog';
 import { FilesPanel } from '../panels/FilesPanel';
 import { PalettePanel } from '../panels/PalettePanel';
-import { Inspector } from '../panels/Inspector';
+import { Inspector, SelectedTypeBadge } from '../panels/Inspector';
 import { AppToolbar } from './AppToolbar';
 import { seedSchema } from './seed-schema';
 import { triggerSave } from './save-actions';
@@ -108,7 +108,8 @@ export function EditorLayout() {
         if (e.key === 'Escape') {
           saveDialogActions.close();
           const el = e.target as HTMLElement;
-          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') el.blur();
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')
+            el.blur();
         }
         return;
       }
@@ -194,13 +195,21 @@ export function EditorLayout() {
           <div className="flex w-[38px] flex-none flex-col items-center gap-1 border-r border-border bg-sidebar py-1.5">
             <button
               onClick={() => editorActions.setLeftPanel(ui.leftPanel === 'files' ? null : 'files')}
-              className={cn(railTab, ui.leftPanel === 'files' ? 'bg-muted' : 'text-muted-foreground hover:bg-muted')}
+              className={cn(
+                railTab,
+                ui.leftPanel === 'files' ? 'bg-muted' : 'text-muted-foreground hover:bg-muted'
+              )}
             >
               Файлы
             </button>
             <button
-              onClick={() => editorActions.setLeftPanel(ui.leftPanel === 'palette' ? null : 'palette')}
-              className={cn(railTab, ui.leftPanel === 'palette' ? 'bg-muted' : 'text-muted-foreground hover:bg-muted')}
+              onClick={() =>
+                editorActions.setLeftPanel(ui.leftPanel === 'palette' ? null : 'palette')
+              }
+              className={cn(
+                railTab,
+                ui.leftPanel === 'palette' ? 'bg-muted' : 'text-muted-foreground hover:bg-muted'
+              )}
             >
               Палитра
             </button>
@@ -239,7 +248,9 @@ export function EditorLayout() {
               {tab ? (
                 <CanvasArea tab={tab} />
               ) : (
-                <div className="grid flex-1 place-items-center text-muted-foreground">Нет открытой схемы</div>
+                <div className="grid flex-1 place-items-center text-muted-foreground">
+                  Нет открытой схемы
+                </div>
               )}
             </ResizablePanel>
 
@@ -254,8 +265,9 @@ export function EditorLayout() {
                   maxSize={640}
                   className="flex flex-col bg-sidebar"
                 >
-                  <div className="flex h-[34px] flex-none items-center border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
-                    Свойства
+                  <div className="flex h-[34px] flex-none items-center justify-between border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
+                    <span>Свойства</span>
+                    <SelectedTypeBadge />
                   </div>
                   <Inspector />
                 </ResizablePanel>
@@ -265,7 +277,10 @@ export function EditorLayout() {
 
           {/* правый рейл */}
           <div className="flex w-[34px] flex-none flex-col items-center border-l border-border bg-sidebar pt-2">
-            <button onClick={editorActions.toggleRight} className={cn(railTab, 'text-muted-foreground hover:bg-muted')}>
+            <button
+              onClick={editorActions.toggleRight}
+              className={cn(railTab, 'text-muted-foreground hover:bg-muted')}
+            >
               Свойства
             </button>
           </div>

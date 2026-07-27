@@ -12,7 +12,7 @@ describe('toInspectorProps', () => {
     expect(by('type').options).toEqual(expect.arrayContaining(['text', 'number', 'date']));
     expect(by('min').widget).toBe('number');
     expect(by('placeholder').widget).toBe('text');
-    expect(by('className').widget).toBe('readonly'); // x-doc.kind: readonly
+    expect(by('className').widget).toBe('className'); // override по ключу поверх x-doc.kind:'readonly'
     expect(by('required').widget).toBe('boolean'); // из wrapper, type: boolean
   });
 
