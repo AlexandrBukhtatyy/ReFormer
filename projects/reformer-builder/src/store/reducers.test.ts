@@ -117,6 +117,34 @@ describe('ui', () => {
     s = R.setTheme(s, 'dark');
     expect(s.ui.theme).toBe('dark');
   });
+
+  it('toggleLeftPanel — свернуть и восстановить последнюю панель', () => {
+    let s = R.initialState();
+    expect(s.ui.leftPanel).toBe('files');
+
+    // свернуть → null, но последняя запомнена
+    s = R.toggleLeftPanel(s);
+    expect(s.ui.leftPanel).toBeNull();
+    expect(s.ui.lastLeftPanel).toBe('files');
+
+    // развернуть → восстановилась 'files'
+    s = R.toggleLeftPanel(s);
+    expect(s.ui.leftPanel).toBe('files');
+
+    // выбрать палитру через setLeftPanel → она становится последней
+    s = R.setLeftPanel(s, 'palette');
+    expect(s.ui.lastLeftPanel).toBe('palette');
+
+    // свернуть/развернуть тоглом → восстановится именно палитра
+    s = R.toggleLeftPanel(s);
+    expect(s.ui.leftPanel).toBeNull();
+    s = R.toggleLeftPanel(s);
+    expect(s.ui.leftPanel).toBe('palette');
+
+    // setLeftPanel(null) не затирает память последней панели
+    s = R.setLeftPanel(s, null);
+    expect(s.ui.lastLeftPanel).toBe('palette');
+  });
 });
 
 describe('горячие клавиши (навигация/выделение/перемещение/удаление)', () => {

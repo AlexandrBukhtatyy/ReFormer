@@ -123,6 +123,10 @@ export function AppMenuBar() {
             <MenubarRadioItem value="runtime">Renderer</MenubarRadioItem>
           </MenubarRadioGroup>
           <MenubarSeparator />
+          <MenubarItem onClick={() => editorActions.toggleLeftPanel()}>
+            Боковая панель
+            <MenubarShortcut>⌘B</MenubarShortcut>
+          </MenubarItem>
           <MenubarCheckboxItem
             checked={ui.leftPanel === 'files'}
             onCheckedChange={() =>
@@ -130,6 +134,7 @@ export function AppMenuBar() {
             }
           >
             Файлы
+            <MenubarShortcut>⇧⌘E</MenubarShortcut>
           </MenubarCheckboxItem>
           <MenubarCheckboxItem
             checked={ui.leftPanel === 'palette'}
@@ -138,12 +143,14 @@ export function AppMenuBar() {
             }
           >
             Палитра
+            <MenubarShortcut>⇧⌘B</MenubarShortcut>
           </MenubarCheckboxItem>
           <MenubarCheckboxItem
             checked={ui.rightOpen}
             onCheckedChange={() => editorActions.toggleRight()}
           >
             Свойства
+            <MenubarShortcut>⌥⌘B</MenubarShortcut>
           </MenubarCheckboxItem>
           <MenubarCheckboxItem
             checked={ui.rawJsonOpen}

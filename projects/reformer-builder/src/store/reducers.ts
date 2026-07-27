@@ -52,6 +52,7 @@ export function initialUi(): UiState {
     quickAddOpen: false,
     rawJsonOpen: true,
     leftPanel: 'files',
+    lastLeftPanel: 'files',
     rightOpen: true,
     theme: 'light',
     revealLine: null,
@@ -655,6 +656,15 @@ export function revealRawLine(state: EditorState, line: number): EditorState {
   };
 }
 export function setLeftPanel(state: EditorState, leftPanel: LeftPanel): EditorState {
+  // Раскрытую панель запоминаем — чтобы тоггл ⌘B потом восстановил именно её.
+  return {
+    ...state,
+    ui: { ...state.ui, leftPanel, lastLeftPanel: leftPanel ?? state.ui.lastLeftPanel },
+  };
+}
+/** Тоггл левого сайдбара (⌘B, как «Toggle Primary Side Bar» в VSCode): свернуть / вернуть последнюю панель. */
+export function toggleLeftPanel(state: EditorState): EditorState {
+  const leftPanel = state.ui.leftPanel === null ? state.ui.lastLeftPanel : null;
   return { ...state, ui: { ...state.ui, leftPanel } };
 }
 export function toggleRight(state: EditorState): EditorState {

@@ -12,6 +12,7 @@ import { TooltipProvider } from '@reformer/ui-kit';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Toaster } from '@reformer/ui-kit/sonner';
 import { activeTab, editorActions, editorStore, useActiveTab, useUi } from '../store';
+import type { LeftPanelKind, UiState } from '../store';
 import type { NavDir } from '../model';
 import { saveDialogActions } from '../store/save-dialog';
 import { CanvasArea } from '../canvas/CanvasArea';
@@ -65,6 +66,63 @@ function focusProperties(): void {
   el?.focus();
 }
 
+// ── навигация фокуса между областями (F6/⇧F6, как «Focus Next/Previous Part» в VSCode) ──
+
+/** Зоны оболочки слева направо; размечены атрибутом `data-rb-zone` на панелях. */
+type Zone = 'left' | 'center' | 'right';
+const ZONE_ATTR = 'data-rb-zone';
+
+/** Видимые зоны в порядке обхода: свёрнутые сайдбары пропускаются. */
+function visibleZones(ui: UiState): Zone[] {
+  const zones: Zone[] = [];
+  if (ui.leftPanel) zones.push('left');
+  zones.push('center');
+  if (ui.rightOpen) zones.push('right');
+  return zones;
+}
+
+/** Зона, в которой сейчас фокус (по ближайшему предку с `data-rb-zone`), либо `null`. */
+function currentZone(): Zone | null {
+  const active = document.activeElement as HTMLElement | null;
+  const z = active?.closest?.(`[${ZONE_ATTR}]`)?.getAttribute(ZONE_ATTR);
+  return z === 'left' || z === 'center' || z === 'right' ? z : null;
+}
+
+/** Перевести фокус в зону: на первый интерактивный элемент, иначе на сам контейнер (tabIndex=-1). */
+function focusZone(zone: Zone): void {
+  const el = document.querySelector<HTMLElement>(`[${ZONE_ATTR}="${zone}"]`);
+  if (!el) return;
+  // Центр — фокусируем контейнер canvas (стрелочная навигация слушает window), не таб-бар.
+  if (zone === 'center') {
+    el.focus();
+    return;
+  }
+  const focusable = el.querySelector<HTMLElement>(
+    'input, textarea, select, button, a[href], [tabindex]:not([tabindex="-1"])'
+  );
+  (focusable ?? el).focus();
+}
+
+/** Циклически сдвинуть фокус по видимым зонам (F6 → +1, ⇧F6 → -1). */
+function cycleZone(ui: UiState, delta: 1 | -1): void {
+  const zones = visibleZones(ui);
+  if (!zones.length) return;
+  const i = zones.indexOf(currentZone() ?? ('' as Zone));
+  // Фокус вне зон (тулбар/рейл) — заходим с края по направлению обхода.
+  if (i === -1) {
+    focusZone(delta === 1 ? zones[0] : zones[zones.length - 1]);
+    return;
+  }
+  focusZone(zones[(i + delta + zones.length) % zones.length]);
+}
+
+/** Переключить левый сайдбар на панель `kind` (или свернуть, если она уже открыта) + фокус. */
+function toggleLeftTo(kind: LeftPanelKind): void {
+  const open = editorStore.getState().ui.leftPanel === kind;
+  editorActions.setLeftPanel(open ? null : kind);
+  if (!open) requestAnimationFrame(() => focusZone('left'));
+}
+
 export function EditorLayout() {
   const ui = useUi();
   const tab = useActiveTab();
@@ -91,6 +149,8 @@ export function EditorLayout() {
   }, [ui.theme]);
 
   // Горячие клавиши. Глобально: ⌘/Ctrl+S (сохранить/экспорт), Esc (закрыть diff-модалку).
+  // Навигация по областям (в стиле VSCode, работает и из полей): ⌘B — левый сайдбар,
+  // ⌘⌥B — правый инспектор, ⌘⇧E — Файлы, ⌘⇧B — Палитра, F6/⇧F6 — цикл фокуса по зонам.
   // В схематике (вне полей ввода): навигация ↑↓←→, Shift-расширение выделения, ⌘/Ctrl+стрелки —
   // перемещение, ⇧⌥↑/↓ — дублировать вверх/вниз (Copy Line), Delete/Backspace — удаление,
   // ⌘D — дублировать, ⌘Z/⇧⌘Z — undo/redo.
@@ -102,6 +162,29 @@ export function EditorLayout() {
         e.preventDefault();
         const t = activeTab(editorStore.getState());
         if (t) void (t.kind === 'code' ? saveCodeTab(t) : triggerSave(t));
+        return;
+      }
+
+      // ── Навигация по областям (в стиле VSCode) — работают глобально, в т.ч. из полей ввода ──
+      const k = e.key.toLowerCase();
+      // ⌘/Ctrl+B — тоггл левого сайдбара; ⌘⌥B — тоггл правого инспектора.
+      if (mod && k === 'b') {
+        e.preventDefault();
+        if (e.altKey) editorActions.toggleRight();
+        else if (e.shiftKey) toggleLeftTo('palette');
+        else editorActions.toggleLeftPanel();
+        return;
+      }
+      // ⌘⇧E — левый сайдбар → Файлы (как «Explorer» в VSCode).
+      if (mod && e.shiftKey && k === 'e') {
+        e.preventDefault();
+        toggleLeftTo('files');
+        return;
+      }
+      // F6 / ⇧F6 — циклический фокус по видимым зонам.
+      if (e.key === 'F6') {
+        e.preventDefault();
+        cycleZone(editorStore.getState().ui, e.shiftKey ? -1 : 1);
         return;
       }
 
@@ -239,10 +322,12 @@ export function EditorLayout() {
               <>
                 <ResizablePanel
                   id="left"
+                  data-rb-zone="left"
+                  tabIndex={-1}
                   defaultSize={250}
                   minSize={180}
                   maxSize={520}
-                  className="flex flex-col bg-sidebar"
+                  className="flex flex-col bg-sidebar outline-none"
                 >
                   <div className="flex h-[34px] flex-none items-center border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
                     {ui.leftPanel === 'files' ? 'Файлы проекта' : 'Палитра компонентов'}
@@ -254,7 +339,13 @@ export function EditorLayout() {
             )}
 
             {/* центр */}
-            <ResizablePanel id="center" minSize={360} className="flex flex-col">
+            <ResizablePanel
+              id="center"
+              data-rb-zone="center"
+              tabIndex={-1}
+              minSize={360}
+              className="flex flex-col outline-none"
+            >
               <TabBar />
               {tab ? (
                 tab.kind === 'code' ? (
@@ -275,10 +366,12 @@ export function EditorLayout() {
                 <ResizableHandle withHandle />
                 <ResizablePanel
                   id="right"
+                  data-rb-zone="right"
+                  tabIndex={-1}
                   defaultSize={300}
                   minSize={220}
                   maxSize={640}
-                  className="flex flex-col bg-sidebar"
+                  className="flex flex-col bg-sidebar outline-none"
                 >
                   <div className="flex h-[34px] flex-none items-center justify-between border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
                     <span>Свойства</span>

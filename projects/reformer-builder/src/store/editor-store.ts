@@ -91,6 +91,8 @@ export const editorActions = {
   /** Открыть raw-JSON и перейти к строке `line` (reveal + подсветка в Monaco). */
   revealRawLine: (line: number) => editorStore.setState((s) => R.revealRawLine(s, line)),
   setLeftPanel: (panel: LeftPanel) => editorStore.setState((s) => R.setLeftPanel(s, panel)),
+  /** ⌘B: свернуть/развернуть левый сайдбар (восстанавливает последнюю панель). */
+  toggleLeftPanel: () => editorStore.setState(R.toggleLeftPanel),
   toggleRight: () => editorStore.setState(R.toggleRight),
   setTheme: (theme: Theme) => editorStore.setState((s) => R.setTheme(s, theme)),
 };

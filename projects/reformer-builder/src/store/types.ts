@@ -18,6 +18,9 @@ export type PreviewMode = 'wire' | 'runtime';
 /** Активная левая вкладка панели инструментов (спека §8); `null` — панель свёрнута. */
 export type LeftPanel = 'files' | 'palette' | null;
 
+/** Конкретная левая панель (без свёрнутого состояния) — для запоминания последней. */
+export type LeftPanelKind = Exclude<LeftPanel, null>;
+
 /** Тема оболочки. */
 export type Theme = 'light' | 'dark';
 
@@ -89,6 +92,8 @@ export interface UiState {
   quickAddOpen: boolean;
   rawJsonOpen: boolean;
   leftPanel: LeftPanel;
+  /** Последняя раскрытая левая панель — тоггл ⌘B восстанавливает её, когда сайдбар был свёрнут. */
+  lastLeftPanel: LeftPanelKind;
   rightOpen: boolean;
   theme: Theme;
   /** Запрос навигации в raw-JSON: строка (1-based) для reveal; `null` — активного запроса нет. */
