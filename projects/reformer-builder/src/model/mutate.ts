@@ -208,6 +208,31 @@ export function duplicateNode(schema: JsonFormSchema, nodePath: JsonPath): Mutat
 }
 
 /**
+ * Дублировать непрерывный блок `[start, start+count)` в массив-слоте (глубокие копии) — как
+ * «Copy Line Down/Up» в VSCode. `dir`: `down` — копия сразу ПОСЛЕ блока (оригинал остаётся сверху),
+ * `up` — ПЕРЕД блоком (оригинал уезжает вниз). Возвращает новую схему и стартовый индекс копии,
+ * либо `null`, если блок выходит за границы слота.
+ */
+export function duplicateBlock(
+  schema: JsonFormSchema,
+  slotPath: JsonPath,
+  start: number,
+  count: number,
+  dir: 'up' | 'down'
+): { schema: JsonFormSchema; newStart: number } | null {
+  const arr = getAt(schema, slotPath);
+  if (!Array.isArray(arr) || count <= 0 || start < 0 || start + count > arr.length) return null;
+  const newStart = dir === 'up' ? start : start + count;
+  const next = updateAt(schema, slotPath, (a: unknown) => {
+    const list = (a as unknown[]).slice();
+    const copies = list.slice(start, start + count).map((n) => clone(n));
+    list.splice(newStart, 0, ...copies);
+    return list;
+  });
+  return { schema: next, newStart };
+}
+
+/**
  * Переставить непрерывный блок `[start, start+count)` в массив-слоте на `delta` (±1) — для
  * перемещения выделенной группы соседей вверх/вниз. `null`, если блок упирается в границу.
  * Возвращает новую схему и новый стартовый индекс блока.
@@ -388,8 +413,7 @@ export function wrapPairInRow(
     adjustedTarget = [...targetSlot, targetLast - 1];
   }
 
-  const children =
-    side === 'before' ? [movingClone, targetClone] : [targetClone, movingClone];
+  const children = side === 'before' ? [movingClone, targetClone] : [targetClone, movingClone];
   const row: JsonNode = {
     component: '$html(div)',
     componentProps: { className: opts?.className ?? DEFAULT_ROW_CLASS },
@@ -433,10 +457,7 @@ export function wrapPairInColumn(
  * ряд или столбец) в этого ребёнка. Иначе no-op. Инвариант «обёртка не остаётся с одной колонкой»
  * (см. {@link removeNode}/{@link moveNode}).
  */
-export function unwrapSingleChild(
-  schema: JsonFormSchema,
-  containerPath: JsonPath
-): MutationResult {
+export function unwrapSingleChild(schema: JsonFormSchema, containerPath: JsonPath): MutationResult {
   const node = getAt(schema, containerPath) as JsonNode | undefined;
   if (!isDegenerateWrapper(node)) return { schema, newPath: containerPath };
   const only = node.children![0] as JsonNode;
@@ -515,7 +536,11 @@ export function flipWrapperPair(
     side === 'before' ? [clone(moving), clone(target)] : [clone(target), clone(moving)];
   const next = updateAt(schema, wrapperPath, (n: unknown) => {
     const c = n as JsonContainerNode;
-    return { ...c, componentProps: { ...(c.componentProps ?? {}), className: nextClass }, children };
+    return {
+      ...c,
+      componentProps: { ...(c.componentProps ?? {}), className: nextClass },
+      children,
+    };
   });
   return { schema: next, newPath: [...wrapperPath, 'children', side === 'before' ? 0 : 1] };
 }

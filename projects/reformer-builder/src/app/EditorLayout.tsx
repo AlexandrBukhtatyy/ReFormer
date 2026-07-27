@@ -92,7 +92,8 @@ export function EditorLayout() {
 
   // Горячие клавиши. Глобально: ⌘/Ctrl+S (сохранить/экспорт), Esc (закрыть diff-модалку).
   // В схематике (вне полей ввода): навигация ↑↓←→, Shift-расширение выделения, ⌘/Ctrl+стрелки —
-  // перемещение, Delete/Backspace — удаление, ⌘D — дублировать, ⌘Z/⇧⌘Z — undo/redo.
+  // перемещение, ⇧⌥↑/↓ — дублировать вверх/вниз (Copy Line), Delete/Backspace — удаление,
+  // ⌘D — дублировать, ⌘Z/⇧⌘Z — undo/redo.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -148,6 +149,13 @@ export function EditorLayout() {
         if (t && (t.tagName === 'BUTTON' || t.closest?.('button, a, [role="button"]'))) return;
         e.preventDefault();
         editorActions.openQuickAdd();
+        return;
+      }
+
+      // ⇧⌥↓ / ⇧⌥↑ — дублировать выделение вниз/вверх («Copy Line Down/Up» из VSCode).
+      if (e.altKey && e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        editorActions.duplicateSelection(e.key === 'ArrowDown' ? 'down' : 'up');
         return;
       }
 

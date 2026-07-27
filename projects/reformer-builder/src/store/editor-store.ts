@@ -62,8 +62,9 @@ export const editorActions = {
   moveSelection: (dir: NavDir) => editorStore.setState((s) => R.moveSelection(s, dir)),
   /** Удалить выделение (Delete/Backspace). */
   deleteSelection: () => editorStore.setState(R.deleteSelection),
-  /** Дублировать активный узел (⌘/Ctrl+D). */
-  duplicateSelection: () => editorStore.setState(R.duplicateSelection),
+  /** Дублировать выделение: вниз (⌘/Ctrl+D, ⇧⌥↓) или вверх (⇧⌥↑) — как «Copy Line» в VSCode. */
+  duplicateSelection: (dir: 'up' | 'down' = 'down') =>
+    editorStore.setState((s) => R.duplicateSelection(s, dir)),
   /** Esc: схлопнуть мульти-выделение / подняться к родителю. */
   collapseSelection: () => editorStore.setState(R.collapseSelection),
   /** ⌘/Ctrl+G: сгруппировать выделенные смежные поля в новый div. */

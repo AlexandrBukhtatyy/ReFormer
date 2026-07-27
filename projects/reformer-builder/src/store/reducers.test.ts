@@ -180,6 +180,28 @@ describe('горячие клавиши (навигация/выделение/�
     expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 1]);
   });
 
+  it('duplicateSelection up: копия перед оригиналом (⇧⌥↑), выделение на копии', () => {
+    let s = R.select(openedSample(), P.step0field1); // второе поле (index 1)
+    s = R.duplicateSelection(s, 'up');
+    expect(kidsOf(s, P.step0children).map((c) => c.value)).toEqual([
+      '$model(loanType)',
+      '$model(loanAmount)', // копия, вставлена перед оригиналом
+      '$model(loanAmount)', // оригинал уехал вниз
+    ]);
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 1]);
+  });
+
+  it('duplicateSelection: группа соседей дублируется блоком вниз', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.navigate(s, 'down', true); // выделены оба поля (блок из 2)
+    s = R.duplicateSelection(s, 'down');
+    expect(kidsOf(s, P.step0children)).toHaveLength(4);
+    expect(R.activeTab(s)!.selectionPaths).toEqual([
+      [...P.step0children, 2],
+      [...P.step0children, 3],
+    ]);
+  });
+
   it('collapseSelection: мульти → активный, затем → родитель', () => {
     let s = R.select(openedSample(), P.step0field0);
     s = R.navigate(s, 'down', true);

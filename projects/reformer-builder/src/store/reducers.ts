@@ -11,7 +11,7 @@ import { isContainerNode } from '@reformer/renderer-json';
 import {
   canAcceptChildren,
   childSlots,
-  duplicateNode,
+  duplicateBlock,
   emptySchema,
   flipDirection,
   getAt,
@@ -489,12 +489,29 @@ export function deleteSelection(state: EditorState): EditorState {
   });
 }
 
-/** ⌘D: дублировать активный узел (одиночное выделение). */
-export function duplicateSelection(state: EditorState): EditorState {
+/**
+ * Дублировать выделенный смежный блок соседей (одиночный узел или группу). `dir`:
+ * `down` (⌘D / ⇧⌥↓) — копия под блоком, `up` (⇧⌥↑) — над; выделение переходит на копию,
+ * курсор сохраняет своё смещение внутри блока (как в {@link moveSelection}).
+ */
+export function duplicateSelection(state: EditorState, dir: 'up' | 'down' = 'down'): EditorState {
   return updateActiveTab(state, (tab) => {
-    if (!tab.selectionPath || tab.selectionPaths.length !== 1) return tab;
-    const res = duplicateNode(tab.schema, tab.selectionPath);
-    return pushHistory(tab, { schema: res.schema, selectionPath: res.newPath });
+    const block = selectionBlock(tab);
+    if (!block) return tab;
+    const res = duplicateBlock(tab.schema, block.slotPath, block.start, block.count, dir);
+    if (!res) return tab;
+    const paths: JsonPath[] = [];
+    for (let i = 0; i < block.count; i++) paths.push([...block.slotPath, res.newStart + i]);
+    const curInfo = tab.selectionPath ? siblingInfo(tab.schema, tab.selectionPath) : null;
+    const off = curInfo
+      ? Math.max(0, Math.min(curInfo.index - block.start, block.count - 1))
+      : block.count - 1;
+    return pushHistory(tab, {
+      schema: res.schema,
+      selectionPath: [...block.slotPath, res.newStart + off],
+      selectionPaths: paths,
+      anchorPath: paths[0],
+    });
   });
 }
 
