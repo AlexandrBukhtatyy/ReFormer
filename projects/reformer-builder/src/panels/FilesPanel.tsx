@@ -8,13 +8,34 @@
  * @module reformer-builder/panels/FilesPanel
  */
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Badge, Button, ScrollArea } from '@reformer/ui-kit';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from '@reformer/ui-kit/context-menu';
 import { File, FileCode, Folder, FolderOpen, RotateCcw } from 'lucide-react';
 import { useProject } from '../store/project-store';
-import { checkReopen, openCodeFile, openSchemaFile, reopenProject } from '../app/save-actions';
+import {
+  checkReopen,
+  generateBehavior,
+  generateFormSchema,
+  generateModel,
+  generateUiBehavior,
+  generateValidation,
+  openCodeFile,
+  openSchemaFile,
+  reopenProject,
+} from '../app/save-actions';
 import { fsAccessSupported } from '../io/fs-access';
 import type { TreeEntry } from '../io/discovery';
+import { FilesDialogs, type FilesDialog } from './FilesDialogs';
 import { cn } from '../lib/cn';
 
 /** Ключ collapse-состояния корневого узла (реальные пути записей всегда непустые). */
@@ -22,6 +43,12 @@ const ROOT_KEY = '';
 
 function indent(depth: number): CSSProperties {
   return { paddingLeft: `${depth * 12 + 8}px` };
+}
+
+/** Родительский каталог пути (пустой — если запись в корне). */
+function parentDir(path: string): string {
+  const i = path.lastIndexOf('/');
+  return i === -1 ? '' : path.slice(0, i);
 }
 
 /** Скрыть потомков свёрнутых папок (дерево плоское: папка идёт перед своими детьми). */
@@ -117,10 +144,78 @@ export function FilesPanel() {
 
   const visible = useMemo(() => visibleTree(tree, collapsed), [tree, collapsed]);
   const rootOpen = !collapsed.has(ROOT_KEY);
+  const [dialog, setDialog] = useState<FilesDialog | null>(null);
 
   useEffect(() => {
     void checkReopen();
   }, []);
+
+  // Контекстное меню строки: dirPath — «внутрь чего» создавать (папка → в неё, файл → в родителя,
+  // корень → в корень); rename/delete показываем только для конкретной записи (не для корня).
+  const rowMenu = (key: string, row: ReactNode, target: TreeEntry | 'root') => {
+    const entry = target === 'root' ? null : target;
+    const dirPath = entry ? (entry.kind === 'directory' ? entry.path : parentDir(entry.path)) : '';
+    return (
+      <ContextMenu key={key}>
+        <ContextMenuTrigger asChild>
+          <div>{row}</div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-56">
+          <ContextMenuItem onClick={() => setDialog({ kind: 'newFile', dirPath })}>
+            Новый файл…
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => setDialog({ kind: 'newFolder', dirPath })}>
+            Новая папка…
+          </ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>Сгенерировать</ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              <ContextMenuItem onClick={() => setDialog({ kind: 'formDir', dirPath })}>
+                Каталог с формой…
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={() => void generateModel(dirPath)}>Модель</ContextMenuItem>
+              <ContextMenuItem onClick={() => void generateFormSchema(dirPath)}>
+                Схема формы
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => void generateValidation(dirPath)}>
+                Схема валидации
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => void generateBehavior(dirPath)}>
+                Поведение формы
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => void generateUiBehavior(dirPath)}>
+                Поведение UI
+              </ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+          {entry && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                onClick={() =>
+                  setDialog({
+                    kind: 'rename',
+                    path: entry.path,
+                    entryKind: entry.kind,
+                    currentName: entry.name,
+                  })
+                }
+              >
+                Переименовать…
+              </ContextMenuItem>
+              <ContextMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDialog({ kind: 'delete', path: entry.path, name: entry.name })}
+              >
+                Удалить
+              </ContextMenuItem>
+            </>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
+    );
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -142,29 +237,36 @@ export function FilesPanel() {
         {dirName && (
           <>
             {/* Корневой каталог — верхний раскрываемый узел дерева (не заголовок секции). */}
-            <button
-              onClick={() => toggle(ROOT_KEY)}
-              title={dirName}
-              style={indent(0)}
-              className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-semibold text-foreground hover:bg-muted"
-            >
-              <span
-                className={cn('flex-none text-[8px] transition-transform', rootOpen && 'rotate-90')}
+            {rowMenu(
+              'root',
+              <button
+                onClick={() => toggle(ROOT_KEY)}
+                title={dirName}
+                style={indent(0)}
+                className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-semibold text-foreground hover:bg-muted"
               >
-                ▶
-              </span>
-              {rootOpen ? (
-                <FolderOpen className="h-3.5 w-3.5 flex-none opacity-80" />
-              ) : (
-                <Folder className="h-3.5 w-3.5 flex-none opacity-80" />
-              )}
-              <span className="min-w-0 truncate">{dirName}</span>
-              {scanning && (
-                <span className="flex-none text-[10px] font-normal text-muted-foreground">
-                  · сканирую…
+                <span
+                  className={cn(
+                    'flex-none text-[8px] transition-transform',
+                    rootOpen && 'rotate-90'
+                  )}
+                >
+                  ▶
                 </span>
-              )}
-            </button>
+                {rootOpen ? (
+                  <FolderOpen className="h-3.5 w-3.5 flex-none opacity-80" />
+                ) : (
+                  <Folder className="h-3.5 w-3.5 flex-none opacity-80" />
+                )}
+                <span className="min-w-0 truncate">{dirName}</span>
+                {scanning && (
+                  <span className="flex-none text-[10px] font-normal text-muted-foreground">
+                    · сканирую…
+                  </span>
+                )}
+              </button>,
+              'root'
+            )}
 
             {rootOpen && (
               <>
@@ -178,15 +280,18 @@ export function FilesPanel() {
                     Каталог пуст.
                   </div>
                 )}
-                {visible.map((entry) => (
-                  <TreeRow
-                    key={entry.path}
-                    entry={entry}
-                    depthOffset={1}
-                    collapsed={collapsed.has(entry.path)}
-                    onToggle={toggle}
-                  />
-                ))}
+                {visible.map((entry) =>
+                  rowMenu(
+                    entry.path,
+                    <TreeRow
+                      entry={entry}
+                      depthOffset={1}
+                      collapsed={collapsed.has(entry.path)}
+                      onToggle={toggle}
+                    />,
+                    entry
+                  )
+                )}
               </>
             )}
           </>
@@ -199,6 +304,8 @@ export function FilesPanel() {
           </div>
         )}
       </ScrollArea>
+
+      <FilesDialogs dialog={dialog} onClose={() => setDialog(null)} />
     </div>
   );
 }
