@@ -13,6 +13,7 @@ import {
   pickDirectory,
   ensurePermission,
   readFile,
+  writeFile,
   readPrettierConfigs,
 } from '../io/fs-access';
 import { saveDirHandle, loadDirHandle } from '../io/handle-store';
@@ -39,7 +40,14 @@ async function scan(dir: FileSystemDirectoryHandle): Promise<void> {
     const printer = resolvePrinterOptions(configs);
     projectActions.set({ tree, printer, scanning: false, canReopen: true, error: null });
     const forms = formsOf(tree).length;
-    console.debug('[reformer-builder] scan', dir.name, '→ файлов/папок:', tree.length, 'схем:', forms);
+    console.debug(
+      '[reformer-builder] scan',
+      dir.name,
+      '→ файлов/папок:',
+      tree.length,
+      'схем:',
+      forms
+    );
     if (printer.notice) toast(printer.notice);
     toast(
       forms > 0
@@ -110,6 +118,71 @@ export async function openSchemaFile(d: TreeEntry): Promise<void> {
     );
   } catch (e) {
     toast('Не удалось открыть схему: ' + msg(e));
+  }
+}
+
+/** Monaco-язык по расширению файла (подсветка). Незнакомое — plaintext. */
+function languageOf(name: string): string {
+  const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
+  const map: Record<string, string> = {
+    ts: 'typescript',
+    tsx: 'typescript',
+    js: 'javascript',
+    jsx: 'javascript',
+    mjs: 'javascript',
+    cjs: 'javascript',
+    json: 'json',
+    jsonc: 'json',
+    css: 'css',
+    scss: 'scss',
+    less: 'less',
+    html: 'html',
+    htm: 'html',
+    xml: 'xml',
+    svg: 'xml',
+    md: 'markdown',
+    mdx: 'markdown',
+    yml: 'yaml',
+    yaml: 'yaml',
+    sh: 'shell',
+    bash: 'shell',
+    py: 'python',
+    sql: 'sql',
+    toml: 'ini',
+    ini: 'ini',
+  };
+  return map[ext] ?? 'plaintext';
+}
+
+/** Открыть произвольный (не-схемный) файл на редактирование в Monaco (code-вкладка, спека §7). */
+export async function openCodeFile(d: TreeEntry): Promise<void> {
+  if (!d.handle) return;
+  const handle = d.handle;
+  try {
+    const { text, lastModified } = await readFile(handle);
+    editorActions.openCodeTab(
+      d.path,
+      { kind: 'file', name: d.name, path: d.path, handle, rawText: text, lastModified },
+      text,
+      languageOf(d.name)
+    );
+  } catch (e) {
+    toast('Не удалось открыть файл: ' + msg(e));
+  }
+}
+
+/** Сохранить code-вкладку прямой записью в файл (без diff-модалки — она схемо-специфична). */
+export async function saveCodeTab(tab: TabState): Promise<void> {
+  if (tab.source.kind !== 'file' || !tab.source.handle || tab.text == null) {
+    toast('Файл нельзя сохранить (нет доступа к файлу)');
+    return;
+  }
+  try {
+    await writeFile(tab.source.handle, tab.text);
+    editorActions.markCodeSaved();
+    toast('Файл сохранён');
+  } catch (e) {
+    toast('Ошибка сохранения: ' + msg(e));
   }
 }
 

@@ -46,10 +46,22 @@ export interface HistorySnapshot {
 export interface TabState {
   id: string;
   source: TabSource;
-  /** Текущая схема (источник истины). */
+  /**
+   * Вид вкладки: `form` — редактор формы (canvas/инспектор, источник истины `schema`);
+   * `code` — редактор произвольного файла в Monaco (источник истины `text`). У `code`-вкладок
+   * `schema`/история/выделение не используются (несут заглушку `emptySchema()`).
+   */
+  kind: 'form' | 'code';
+  /** Текущая схема (источник истины для `form`; заглушка для `code`). */
   schema: JsonFormSchema;
   /** Baseline для dirty/diff: последний open/export (M1) или save (M2). */
   savedSchema: JsonFormSchema;
+  /** Текст файла (`code`-вкладки) — источник истины. */
+  text?: string;
+  /** Baseline текста для dirty (`code`-вкладки). */
+  savedText?: string;
+  /** Язык Monaco по расширению файла (`code`-вкладки): typescript/css/markdown/… */
+  language?: string;
   /** Стек отмены (снимки до текущего). */
   past: HistorySnapshot[];
   /** Стек повтора. */

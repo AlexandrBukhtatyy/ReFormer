@@ -12,6 +12,7 @@ import {
   canAcceptChildren,
   childSlots,
   duplicateNode,
+  emptySchema,
   flipDirection,
   getAt,
   groupBlock,
@@ -50,7 +51,7 @@ export function initialUi(): UiState {
     hideDivWrappers: false,
     quickAddOpen: false,
     rawJsonOpen: true,
-    leftPanel: 'palette',
+    leftPanel: 'files',
     rightOpen: true,
     theme: 'light',
     revealLine: null,
@@ -63,11 +64,12 @@ export function initialState(): EditorState {
   return { tabs: {}, order: [], activeTabId: null, ui: initialUi() };
 }
 
-/** Новая вкладка (без истории, не dirty: `savedSchema === schema`). */
+/** Новая вкладка формы (без истории, не dirty: `savedSchema === schema`). */
 export function makeTab(id: string, source: TabSource, schema: JsonFormSchema): TabState {
   return {
     id,
     source,
+    kind: 'form',
     schema,
     savedSchema: schema,
     past: [],
@@ -75,6 +77,37 @@ export function makeTab(id: string, source: TabSource, schema: JsonFormSchema): 
     selectionPath: ['root'],
     selectionPaths: [['root']],
     anchorPath: ['root'],
+    hoverPath: null,
+    activeStep: 0,
+    lastCoalesceKey: null,
+  };
+}
+
+/**
+ * Новая вкладка кода (произвольный файл в Monaco). `schema`/история/выделение не используются —
+ * несут заглушку `emptySchema()`; источник истины — `text`, baseline dirty — `savedText`.
+ */
+export function makeCodeTab(
+  id: string,
+  source: TabSource,
+  text: string,
+  language: string
+): TabState {
+  const schema = emptySchema();
+  return {
+    id,
+    source,
+    kind: 'code',
+    schema,
+    savedSchema: schema,
+    text,
+    savedText: text,
+    language,
+    past: [],
+    future: [],
+    selectionPath: null,
+    selectionPaths: [],
+    anchorPath: null,
     hoverPath: null,
     activeStep: 0,
     lastCoalesceKey: null,
@@ -97,6 +130,37 @@ export function openTab(
     order: [...state.order, id],
     activeTabId: id,
   };
+}
+
+/** Открыть code-вкладку (или активировать уже открытую). */
+export function openCodeTab(
+  state: EditorState,
+  id: string,
+  source: TabSource,
+  text: string,
+  language: string
+): EditorState {
+  if (state.tabs[id]) return { ...state, activeTabId: id };
+  return {
+    ...state,
+    tabs: { ...state.tabs, [id]: makeCodeTab(id, source, text, language) },
+    order: [...state.order, id],
+    activeTabId: id,
+  };
+}
+
+/** Правка текста code-вкладки (Monaco onChange). Только для `kind: 'code'`. */
+export function setTabText(state: EditorState, id: string, text: string): EditorState {
+  const tab = state.tabs[id];
+  if (!tab || tab.kind !== 'code' || tab.text === text) return state;
+  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, text } } };
+}
+
+/** Отметить сохранённым текст активной code-вкладки (baseline dirty). */
+export function markCodeSaved(state: EditorState): EditorState {
+  return updateActiveTab(state, (tab) =>
+    tab.kind === 'code' ? { ...tab, savedText: tab.text } : tab
+  );
 }
 
 /** Закрыть вкладку; активной становится соседняя. */
@@ -296,7 +360,10 @@ function selectionIndices(tab: TabState): { slotPath: JsonPath; indices: number[
 }
 
 /** Массив-слот контейнера для добавления ребёнка (`children`/`steps`), либо создать `children`. */
-function insertSlotOf(node: JsonNode, path: JsonPath): { slotPath: JsonPath; count: number } | null {
+function insertSlotOf(
+  node: JsonNode,
+  path: JsonPath
+): { slotPath: JsonPath; count: number } | null {
   const slots = childSlots(node, path).filter((s) => !s.single);
   const slot = slots.find((s) => s.kind === 'children') ?? slots[0];
   if (slot) return { slotPath: slot.path, count: slot.nodes.length };
@@ -538,7 +605,12 @@ export function toggleSelectionAt(state: EditorState, path: JsonPath): EditorSta
           return pi != null && pathEquals(pi.slotPath, info.slotPath);
         }));
     if (!sameSlot) return { ...tab, selectionPath: path, selectionPaths: [path], anchorPath: path };
-    return { ...tab, selectionPath: path, selectionPaths: [...tab.selectionPaths, path], anchorPath: path };
+    return {
+      ...tab,
+      selectionPath: path,
+      selectionPaths: [...tab.selectionPaths, path],
+      anchorPath: path,
+    };
   });
 }
 
@@ -583,5 +655,5 @@ export function activeTab(state: EditorState): TabState | null {
 
 /** Dirty активной вкладки: схема разошлась с baseline (сравнение по ссылке — иммутабельность). */
 export function isDirty(tab: TabState): boolean {
-  return tab.schema !== tab.savedSchema;
+  return tab.kind === 'code' ? tab.text !== tab.savedText : tab.schema !== tab.savedSchema;
 }

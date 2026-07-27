@@ -123,6 +123,17 @@ export function Inspector() {
   const selPath = useSelectionPath();
   const node = tab && selPath ? findByPath(tab.schema, selPath) : undefined;
 
+  if (tab?.kind === 'code') {
+    return (
+      <div
+        id="rb-properties"
+        className="grid flex-1 place-items-center p-6 text-center text-xs text-muted-foreground"
+      >
+        Свойства недоступны для файла кода — правьте текст в редакторе (Monaco).
+      </div>
+    );
+  }
+
   if (!node || !selPath) {
     return (
       <div

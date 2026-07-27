@@ -18,6 +18,13 @@ export const editorStore = createStore<EditorState>(R.initialState());
 export const editorActions = {
   openTab: (id: string, source: TabSource, schema: JsonFormSchema) =>
     editorStore.setState((s) => R.openTab(s, id, source, schema)),
+  /** Открыть произвольный файл на редактирование в Monaco (code-вкладка). */
+  openCodeTab: (id: string, source: TabSource, text: string, language: string) =>
+    editorStore.setState((s) => R.openCodeTab(s, id, source, text, language)),
+  /** Правка текста code-вкладки (Monaco onChange). */
+  setTabText: (id: string, text: string) => editorStore.setState((s) => R.setTabText(s, id, text)),
+  /** Отметить сохранённым текст активной code-вкладки. */
+  markCodeSaved: () => editorStore.setState(R.markCodeSaved),
   closeTab: (id: string) => editorStore.setState((s) => R.closeTab(s, id)),
   setActiveTab: (id: string) => editorStore.setState((s) => R.setActiveTab(s, id)),
 
@@ -35,7 +42,8 @@ export const editorActions = {
       return tab ? R.commit(s, fn(tab.schema), opts) : s;
     }),
 
-  replaceSchema: (schema: JsonFormSchema) => editorStore.setState((s) => R.replaceSchema(s, schema)),
+  replaceSchema: (schema: JsonFormSchema) =>
+    editorStore.setState((s) => R.replaceSchema(s, schema)),
   undo: () => editorStore.setState(R.undo),
   redo: () => editorStore.setState(R.redo),
   markSaved: () => editorStore.setState(R.markSaved),
@@ -48,7 +56,8 @@ export const editorActions = {
 
   // ── горячие клавиши canvas ──
   /** Навигация выделения (стрелки); `extend` — Shift-расширение диапазона (up/down). */
-  navigate: (dir: NavDir, extend?: boolean) => editorStore.setState((s) => R.navigate(s, dir, extend)),
+  navigate: (dir: NavDir, extend?: boolean) =>
+    editorStore.setState((s) => R.navigate(s, dir, extend)),
   /** Переместить выделение (⌘/Ctrl+стрелки): up/down — реордер, left/right — вынести/внести. */
   moveSelection: (dir: NavDir) => editorStore.setState((s) => R.moveSelection(s, dir)),
   /** Удалить выделение (Delete/Backspace). */

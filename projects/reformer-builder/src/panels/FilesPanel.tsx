@@ -1,19 +1,18 @@
 /**
  * Панель файлов/схем. Mode B (спека §7.2, §3.1): открыть проект (FS Access) → **раскрываемое
  * дерево всего содержимого каталога** (папки с шевронами + файлы, по умолчанию всё развёрнуто).
- * Распознанные схемы форм помечены бейджами High/Med и открываются кликом, прочие файлы приглушены
- * и на клик отдают тост. «Переоткрыть проект» (из IndexedDB) — здесь; «Открыть проект» и «Новая
- * форма» переехали в меню «Файл» (AppMenuBar).
+ * Распознанные схемы форм помечены бейджами High/Med и открываются кликом как форма, прочие файлы
+ * открываются как code-вкладка в Monaco (спека §7). «Переоткрыть проект» (из IndexedDB) — здесь;
+ * «Открыть проект» и «Новая форма» переехали в меню «Файл» (AppMenuBar).
  *
  * @module reformer-builder/panels/FilesPanel
  */
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Badge, Button, ScrollArea } from '@reformer/ui-kit';
-import { toast } from '@reformer/ui-kit/sonner';
 import { File, FileCode, Folder, RotateCcw } from 'lucide-react';
 import { useProject } from '../store/project-store';
-import { checkReopen, openSchemaFile, reopenProject } from '../app/save-actions';
+import { checkReopen, openCodeFile, openSchemaFile, reopenProject } from '../app/save-actions';
 import { fsAccessSupported } from '../io/fs-access';
 import type { TreeEntry } from '../io/discovery';
 import { cn } from '../lib/cn';
@@ -84,12 +83,12 @@ function TreeRow({
 
   return (
     <button
-      onClick={() => toast('Файл не распознан как схема формы')}
-      title={entry.path}
+      onClick={() => void openCodeFile(entry)}
+      title={`${entry.path} — открыть в редакторе`}
       style={indent(entry.depth + 1)}
-      className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs text-muted-foreground/60 hover:bg-muted/50 hover:text-muted-foreground"
+      className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs text-muted-foreground hover:bg-muted"
     >
-      <File className="h-3.5 w-3.5 flex-none opacity-60" />
+      <File className="h-3.5 w-3.5 flex-none opacity-70" />
       <span className="min-w-0 flex-1 truncate">{entry.name}</span>
     </button>
   );

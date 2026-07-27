@@ -15,6 +15,7 @@ import { activeTab, editorActions, editorStore, useActiveTab, useUi } from '../s
 import type { NavDir } from '../model';
 import { saveDialogActions } from '../store/save-dialog';
 import { CanvasArea } from '../canvas/CanvasArea';
+import { CodeArea } from '../canvas/CodeArea';
 import { TabBar } from '../canvas/TabBar';
 import { SaveDialog } from '../canvas/SaveDialog';
 import { QuickAddDialog } from '../canvas/QuickAddDialog';
@@ -23,7 +24,7 @@ import { PalettePanel } from '../panels/PalettePanel';
 import { Inspector, SelectedTypeBadge } from '../panels/Inspector';
 import { AppToolbar } from './AppToolbar';
 import { seedSchema } from './seed-schema';
-import { triggerSave } from './save-actions';
+import { saveCodeTab, triggerSave } from './save-actions';
 import { cn } from '../lib/cn';
 
 const railTab =
@@ -99,7 +100,7 @@ export function EditorLayout() {
       if (mod && e.key.toLowerCase() === 's') {
         e.preventDefault();
         const t = activeTab(editorStore.getState());
-        if (t) void triggerSave(t);
+        if (t) void (t.kind === 'code' ? saveCodeTab(t) : triggerSave(t));
         return;
       }
 
@@ -115,6 +116,8 @@ export function EditorLayout() {
       }
 
       const st = editorStore.getState();
+      // code-вкладка: canvas-хоткеи не применяем (Monaco обрабатывает ввод сам; ⌘S — выше).
+      if (activeTab(st)?.kind === 'code') return;
       const inWire = st.ui.preview === 'wire' && activeTab(st) != null;
 
       if (e.key === 'Escape') {
@@ -246,7 +249,11 @@ export function EditorLayout() {
             <ResizablePanel id="center" minSize={360} className="flex flex-col">
               <TabBar />
               {tab ? (
-                <CanvasArea tab={tab} />
+                tab.kind === 'code' ? (
+                  <CodeArea tab={tab} />
+                ) : (
+                  <CanvasArea tab={tab} />
+                )
               ) : (
                 <div className="grid flex-1 place-items-center text-muted-foreground">
                   Нет открытой схемы
