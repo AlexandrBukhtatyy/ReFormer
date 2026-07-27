@@ -10,12 +10,15 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Badge, Button, ScrollArea } from '@reformer/ui-kit';
-import { File, FileCode, Folder, RotateCcw } from 'lucide-react';
+import { File, FileCode, Folder, FolderOpen, RotateCcw } from 'lucide-react';
 import { useProject } from '../store/project-store';
 import { checkReopen, openCodeFile, openSchemaFile, reopenProject } from '../app/save-actions';
 import { fsAccessSupported } from '../io/fs-access';
 import type { TreeEntry } from '../io/discovery';
 import { cn } from '../lib/cn';
+
+/** Ключ collapse-состояния корневого узла (реальные пути записей всегда непустые). */
+const ROOT_KEY = '';
 
 function indent(depth: number): CSSProperties {
   return { paddingLeft: `${depth * 12 + 8}px` };
@@ -38,16 +41,18 @@ function TreeRow({
   entry,
   collapsed,
   onToggle,
+  depthOffset = 0,
 }: {
   entry: TreeEntry;
   collapsed: boolean;
   onToggle: (path: string) => void;
+  depthOffset?: number;
 }) {
   if (entry.kind === 'directory') {
     return (
       <button
         onClick={() => onToggle(entry.path)}
-        style={indent(entry.depth)}
+        style={indent(entry.depth + depthOffset)}
         className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
       >
         <span
@@ -66,7 +71,7 @@ function TreeRow({
       <button
         onClick={() => void openSchemaFile(entry)}
         title={entry.path}
-        style={indent(entry.depth + 1)}
+        style={indent(entry.depth + 1 + depthOffset)}
         className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs hover:bg-muted"
       >
         <FileCode className="h-3.5 w-3.5 flex-none text-primary" />
@@ -85,7 +90,7 @@ function TreeRow({
     <button
       onClick={() => void openCodeFile(entry)}
       title={`${entry.path} — открыть в редакторе`}
-      style={indent(entry.depth + 1)}
+      style={indent(entry.depth + 1 + depthOffset)}
       className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs text-muted-foreground hover:bg-muted"
     >
       <File className="h-3.5 w-3.5 flex-none opacity-70" />
@@ -111,6 +116,7 @@ export function FilesPanel() {
     });
 
   const visible = useMemo(() => visibleTree(tree, collapsed), [tree, collapsed]);
+  const rootOpen = !collapsed.has(ROOT_KEY);
 
   useEffect(() => {
     void checkReopen();
@@ -134,27 +140,57 @@ export function FilesPanel() {
 
       <ScrollArea className="flex-1 py-1.5">
         {dirName && (
-          <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            <span className="min-w-0 truncate">{dirName}</span>
-            {scanning && <span className="flex-none normal-case">· сканирую…</span>}
-          </div>
+          <>
+            {/* Корневой каталог — верхний раскрываемый узел дерева (не заголовок секции). */}
+            <button
+              onClick={() => toggle(ROOT_KEY)}
+              title={dirName}
+              style={indent(0)}
+              className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-semibold text-foreground hover:bg-muted"
+            >
+              <span
+                className={cn('flex-none text-[8px] transition-transform', rootOpen && 'rotate-90')}
+              >
+                ▶
+              </span>
+              {rootOpen ? (
+                <FolderOpen className="h-3.5 w-3.5 flex-none opacity-80" />
+              ) : (
+                <Folder className="h-3.5 w-3.5 flex-none opacity-80" />
+              )}
+              <span className="min-w-0 truncate">{dirName}</span>
+              {scanning && (
+                <span className="flex-none text-[10px] font-normal text-muted-foreground">
+                  · сканирую…
+                </span>
+              )}
+            </button>
+
+            {rootOpen && (
+              <>
+                {error && (
+                  <div className="mx-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-[11px] text-destructive">
+                    Ошибка сканирования: {error}
+                  </div>
+                )}
+                {!scanning && !error && tree.length === 0 && (
+                  <div style={indent(1)} className="py-1 text-[11px] text-muted-foreground">
+                    Каталог пуст.
+                  </div>
+                )}
+                {visible.map((entry) => (
+                  <TreeRow
+                    key={entry.path}
+                    entry={entry}
+                    depthOffset={1}
+                    collapsed={collapsed.has(entry.path)}
+                    onToggle={toggle}
+                  />
+                ))}
+              </>
+            )}
+          </>
         )}
-        {error && (
-          <div className="mx-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-[11px] text-destructive">
-            Ошибка сканирования: {error}
-          </div>
-        )}
-        {dirName && !scanning && !error && tree.length === 0 && (
-          <div className="px-3 py-2 text-[11px] text-muted-foreground">Каталог пуст.</div>
-        )}
-        {visible.map((entry) => (
-          <TreeRow
-            key={entry.path}
-            entry={entry}
-            collapsed={collapsed.has(entry.path)}
-            onToggle={toggle}
-          />
-        ))}
 
         {!fsAccessSupported() && (
           <div className="px-3 py-3 text-[11px] leading-relaxed text-muted-foreground">
