@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import type { BottomTab, TabState } from '../store';
 import { editorActions, useUi } from '../store';
 import { serializeSchema } from '../io/export';
@@ -60,7 +61,9 @@ export function BottomPanel({ tab }: { tab: TabState }) {
           title={rawJsonOpen ? 'Свернуть' : 'Развернуть'}
           className="grid h-full w-5 flex-none place-items-center rounded hover:bg-muted"
         >
-          {rawJsonOpen ? '▾' : '▸'}
+          <ChevronRight
+            className={cn('h-3.5 w-3.5 transition-transform', rawJsonOpen && 'rotate-90')}
+          />
         </button>
         <button onClick={() => select('raw')} className={tabCls('raw')}>
           JSON

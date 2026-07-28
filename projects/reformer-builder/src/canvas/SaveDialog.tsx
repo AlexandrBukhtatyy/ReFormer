@@ -40,7 +40,7 @@ function DiffColumn({
       >
         {visible.map(({ op, idx }, i) => {
           const lineNo = i + 1;
-          const marker = op.type === 'del' ? '−' : op.type === 'add' ? '+' : ' ';
+          const marker = op.type === 'del' ? '-' : op.type === 'add' ? '+' : ' ';
           return (
             <div
               key={idx}
@@ -161,7 +161,7 @@ export function SaveDialog() {
             </div>
           )}
           <span className="flex-none rounded-full border border-border bg-muted px-2.5 py-1 font-mono text-[11.5px]">
-            +{plan.added} −{plan.removed}
+            +{plan.added} -{plan.removed}
           </span>
         </div>
 

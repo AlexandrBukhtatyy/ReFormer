@@ -7,6 +7,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { ChevronRight, GripVertical } from 'lucide-react';
 import { Input, ScrollArea } from '@reformer/ui-kit';
 import { isContainerNode, type JsonFormSchema } from '@reformer/renderer-json';
 import { appendNode, findByPath, parentNodePath, type JsonPath } from '../model';
@@ -182,11 +183,9 @@ export function PalettePanel() {
                 onClick={() => toggle(cat)}
                 className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
               >
-                <span
-                  className={`text-[8px] leading-none transition-transform ${open ? 'rotate-90' : ''}`}
-                >
-                  ▶
-                </span>
+                <ChevronRight
+                  className={`h-3 w-3 flex-none transition-transform ${open ? 'rotate-90' : ''}`}
+                />
                 <span className="min-w-0 flex-1 truncate">{cat}</span>
                 <span className="flex-none font-mono text-[10px] font-normal text-muted-foreground/50">
                   {items.length}
@@ -210,7 +209,7 @@ export function PalettePanel() {
                         {glyph(e)}
                       </span>
                       <span className="min-w-0 flex-1 truncate">{displayName(e)}</span>
-                      <span className="flex-none text-xs text-muted-foreground/40">⋮⋮</span>
+                      <GripVertical className="h-3.5 w-3.5 flex-none text-muted-foreground/40" />
                     </button>
                   ))}
                 </div>

@@ -9,7 +9,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Plus, X } from 'lucide-react';
 import { Input } from '@reformer/ui-kit';
 import { parseOperator, type JsonNode } from '@reformer/renderer-json';
 import { setComponentProp, type JsonPath } from '../model';
@@ -120,7 +120,7 @@ export function OptionsField({
               $dataSource({n})
             </option>
           ))}
-          <option value="__new__">＋ Новый источник…</option>
+          <option value="__new__">+ Новый источник…</option>
         </select>
       </div>
 
@@ -152,9 +152,9 @@ export function OptionsField({
               setCreating(false);
               setNewName('');
             }}
-            className="flex-none rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:bg-muted"
+            className="flex-none rounded-md px-1.5 py-1 text-muted-foreground hover:bg-muted"
           >
-            ✕
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
@@ -200,19 +200,17 @@ function InlineOptions({
           <button
             onClick={() => remove(i)}
             title="Удалить опцию"
-            className={cn(
-              'flex-none rounded px-1 py-0.5 text-[11px] text-muted-foreground hover:bg-muted'
-            )}
+            className={cn('flex-none rounded px-1 py-0.5 text-muted-foreground hover:bg-muted')}
           >
-            ✕
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ))}
       <button
         onClick={add}
-        className="self-start text-[11px] text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1 self-start text-[11px] text-muted-foreground hover:text-foreground"
       >
-        ＋ Опция
+        <Plus className="h-3 w-3" /> Опция
       </button>
     </div>
   );

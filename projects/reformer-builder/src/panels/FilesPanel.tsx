@@ -29,7 +29,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@reformer/ui-kit/context-menu';
-import { File, FileCode, Folder, FolderOpen, RotateCcw } from 'lucide-react';
+import { ChevronRight, File, FileCode, Folder, FolderOpen, RotateCcw } from 'lucide-react';
 import { useProject } from '../store/project-store';
 import {
   checkReopen,
@@ -91,11 +91,9 @@ function TreeRow({
         style={indent(entry.depth + depthOffset)}
         className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
       >
-        <span
-          className={cn('flex-none text-[8px] transition-transform', !collapsed && 'rotate-90')}
-        >
-          ▶
-        </span>
+        <ChevronRight
+          className={cn('h-3 w-3 flex-none transition-transform', !collapsed && 'rotate-90')}
+        />
         <Folder className="h-3.5 w-3.5 flex-none opacity-70" />
         <span className="min-w-0 truncate">{entry.name}</span>
       </button>
@@ -332,14 +330,12 @@ export function FilesPanel() {
                   style={indent(0)}
                   className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-semibold text-foreground hover:bg-muted"
                 >
-                  <span
+                  <ChevronRight
                     className={cn(
-                      'flex-none text-[8px] transition-transform',
+                      'h-3 w-3 flex-none transition-transform',
                       rootOpen && 'rotate-90'
                     )}
-                  >
-                    ▶
-                  </span>
+                  />
                   {rootOpen ? (
                     <FolderOpen className="h-3.5 w-3.5 flex-none opacity-80" />
                   ) : (

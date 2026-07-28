@@ -4,6 +4,7 @@
  * @module reformer-builder/canvas/TabBar
  */
 
+import { X } from 'lucide-react';
 import { editorActions, isDirty, useActiveTabId, useTab, useTabOrder } from '../store';
 import { cn } from '../lib/cn';
 
@@ -30,7 +31,7 @@ function TabItem({ id }: { id: string }) {
         }}
         className="ml-1 grid h-4 w-4 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
       >
-        ×
+        <X className="h-3.5 w-3.5" />
       </button>
     </div>
   );
