@@ -82,6 +82,15 @@ export function FloatingActions() {
         >
           Renderer
         </button>
+        <button
+          onClick={() => editorActions.setPreview('code')}
+          className={cn(
+            'h-6 rounded px-2 text-[11.5px]',
+            ui.preview === 'code' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+          )}
+        >
+          Код
+        </button>
       </div>
       <div ref={settingsRef} className="relative flex-none">
         <Button

@@ -12,8 +12,11 @@
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { JsonPath } from '../model';
 
-/** Режим preview (спека §9). */
-export type PreviewMode = 'wire' | 'runtime';
+/**
+ * Режим отображения схемы в центре (спека §9): `wire` — схематичный canvas, `runtime` — рендерер,
+ * `code` — JSON-исходник схемы в Monaco (тот же двусторонний редактор, что и raw-панель).
+ */
+export type PreviewMode = 'wire' | 'runtime' | 'code';
 
 /** Активная левая вкладка панели инструментов (спека §8); `null` — панель свёрнута. */
 export type LeftPanel = 'files' | 'palette' | null;

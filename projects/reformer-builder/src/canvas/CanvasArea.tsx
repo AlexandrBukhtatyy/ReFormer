@@ -13,6 +13,7 @@ import { FloatingActions } from './FloatingActions';
 import { SchematicCanvas } from './SchematicCanvas';
 import { RuntimePreview } from './RuntimePreview';
 import { RawJson } from './RawJson';
+import { SchemaCodeEditor } from './SchemaCodeEditor';
 
 export function CanvasArea({ tab }: { tab: TabState }) {
   const ui = useUi();
@@ -23,6 +24,19 @@ export function CanvasArea({ tab }: { tab: TabState }) {
     storage: localStorage,
     panelIds: ['canvas', 'raw'],
   });
+
+  // Режим «Код»: схема как JSON-редактор на всю центральную область. Нижняя raw-панель здесь
+  // избыточна (дублировала бы тот же JSON) — не рендерим. Переключатель (FloatingActions) поверх.
+  if (ui.preview === 'code') {
+    return (
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-muted/40">
+        <FloatingActions />
+        <div className="min-h-0 flex-1">
+          <SchemaCodeEditor schema={tab.schema} />
+        </div>
+      </div>
+    );
+  }
 
   // Карточка формы (схематичный ⇄ runtime) + плавающие действия — общая для обеих раскладок.
   const canvasBody = (

@@ -28,6 +28,7 @@ import {
   useSelectionPath,
   useUi,
 } from '../store';
+import type { PreviewMode } from '../store';
 import { emptySchema } from '../model';
 import { openProject, triggerSave } from './save-actions';
 
@@ -117,10 +118,11 @@ export function AppMenuBar() {
           <MenubarLabel>Предпросмотр</MenubarLabel>
           <MenubarRadioGroup
             value={ui.preview}
-            onValueChange={(v) => editorActions.setPreview(v as 'wire' | 'runtime')}
+            onValueChange={(v) => editorActions.setPreview(v as PreviewMode)}
           >
             <MenubarRadioItem value="wire">Схематичный</MenubarRadioItem>
             <MenubarRadioItem value="runtime">Renderer</MenubarRadioItem>
+            <MenubarRadioItem value="code">Код</MenubarRadioItem>
           </MenubarRadioGroup>
           <MenubarSeparator />
           <MenubarItem onClick={() => editorActions.toggleLeftPanel()}>
