@@ -64,7 +64,7 @@ export interface CatalogJson {
  * поверх `x-doc.kind` (в ui-kit `className` объявлен `readonly` — эта конвенция для ui-kit-доков,
  * а не для билдера).
  */
-export type InspectorWidget = PropWidget | 'className';
+export type InspectorWidget = PropWidget | 'className' | 'dataSource';
 
 /**
  * Проп для инспектора — производная от `propsSchema` (НЕ часть сериализуемого контракта).

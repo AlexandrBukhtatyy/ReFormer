@@ -16,6 +16,7 @@ import { getCatalogEntry, inspectorGroups, type InspectorProp } from '../catalog
 import { editorActions, useActiveTab, useSelectionPath } from '../store';
 import { nodeTypeBadge } from '../canvas/node-display';
 import { ClassNameField } from './ClassNameField';
+import { OptionsField } from './OptionsField';
 import { cn } from '../lib/cn';
 
 /** Запись каталога для узла (по компоненту/типу). */
@@ -48,6 +49,7 @@ function toNumberValue(raw: string): number | string | undefined {
 
 function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: InspectorProp }) {
   if (prop.widget === 'className') return <ClassNameField node={node} path={path} prop={prop} />;
+  if (prop.widget === 'dataSource') return <OptionsField node={node} path={path} prop={prop} />;
 
   const props = (node as { componentProps?: Record<string, unknown> }).componentProps ?? {};
   const value = props[prop.key];
@@ -184,9 +186,6 @@ export function Inspector() {
                 {b}
               </span>
             ))}
-          </div>
-          <div className="mt-2 text-[10.5px] text-muted-foreground">
-            read-only · задаются в схеме/коде проекта
           </div>
         </div>
       )}
