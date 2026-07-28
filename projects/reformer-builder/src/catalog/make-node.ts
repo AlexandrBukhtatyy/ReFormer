@@ -8,8 +8,7 @@
 
 import type { JsonNode } from '@reformer/renderer-json';
 import type { CatalogRole } from './types';
-
-const HTML_CONTAINERS = new Set(['div', 'section', 'fieldset']);
+import { htmlTagSpec } from './html-tags';
 
 export function fieldNode(name: string): JsonNode {
   return {
@@ -30,18 +29,25 @@ export function containerNode(name: string): JsonNode {
 export function htmlNodeFor(name: string): JsonNode {
   const tag = name.slice('$html('.length, -1); // '$html(div)' → 'div'
   const component = `$html(${tag})` as `$html(${string})`;
-  if (HTML_CONTAINERS.has(tag)) {
-    return { component, componentProps: { className: tag === 'div' ? 'flex gap-4' : 'space-y-4' }, children: [] };
+  const spec = htmlTagSpec(tag);
+  // Неизвестный тег трактуем как контейнер (безопасный дефолт — можно вкладывать детей).
+  if (!spec || spec.content === 'container') {
+    const componentProps = spec?.defaultClass ? { className: spec.defaultClass } : {};
+    return { component, componentProps, children: [] };
   }
-  if (tag === 'hr') return { component, componentProps: {} };
-  return { component, text: tag === 'h3' ? 'Заголовок' : 'Текст' };
+  if (spec.content === 'void') return { component, componentProps: {} };
+  return { component, text: spec.defaultText ?? 'Текст' };
 }
 
 export function arrayNode(): JsonNode {
   return {
     array: '$model(items)',
     item: {
-      $template: { component: '$component(Box)', componentProps: { className: 'space-y-3' }, children: [] },
+      $template: {
+        component: '$component(Box)',
+        componentProps: { className: 'space-y-3' },
+        children: [],
+      },
     },
     componentProps: { addButtonLabel: '+ Добавить элемент' },
   };

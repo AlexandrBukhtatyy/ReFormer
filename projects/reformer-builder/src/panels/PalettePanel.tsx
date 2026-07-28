@@ -35,19 +35,72 @@ function htmlTag(name: string): string | null {
 }
 
 /** Текстовый глиф-бейдж элемента палитры (аббревиатура типа, как в дизайн-макете). */
-const HTML_GLYPH: Record<string, string> = { div: 'div', section: 'sec', fieldset: 'fs', h3: 'h3', p: 'p', hr: 'hr' };
+const HTML_GLYPH: Record<string, string> = {
+  // Блоки
+  div: 'div',
+  section: 'sec',
+  article: 'art',
+  aside: 'as',
+  header: 'hd',
+  footer: 'ft',
+  nav: 'nav',
+  main: 'mn',
+  fieldset: 'fs',
+  ul: 'ul',
+  ol: 'ol',
+  li: 'li',
+  hr: 'hr',
+  img: 'img',
+  // Типографика
+  h1: 'h1',
+  h2: 'h2',
+  h3: 'h3',
+  h4: 'h4',
+  h5: 'h5',
+  h6: 'h6',
+  p: 'p',
+  span: 'sp',
+  strong: 'b',
+  em: 'i',
+  small: 'sm',
+  blockquote: 'bq',
+  code: 'cd',
+  pre: 'pre',
+  a: 'a',
+  label: 'lb',
+  br: 'br',
+};
 const GLYPH_BY_NAME: Record<string, string> = {
-  Input: 'In', InputPassword: 'Ip', InputMask: 'Im', InputOTP: 'Io',
-  Textarea: 'Tx', DatePicker: 'Dt', Calendar: 'Ca', FileUpload: 'Up', FileUploadAvatar: 'Av',
-  Select: 'Se', NativeSelect: 'Ns', Combobox: 'Cb', RadioGroup: 'Rg', Checkbox: 'Ck',
-  Switch: 'Sw', Slider: 'Sl', Toggle: 'Tg', ToggleGroup: 'Tg',
-  Box: 'Bx', Section: 'Sc', FormArray: 'Fa',
+  Input: 'In',
+  InputPassword: 'Ip',
+  InputMask: 'Im',
+  InputOTP: 'Io',
+  Textarea: 'Tx',
+  DatePicker: 'Dt',
+  Calendar: 'Ca',
+  FileUpload: 'Up',
+  FileUploadAvatar: 'Av',
+  Select: 'Se',
+  NativeSelect: 'Ns',
+  Combobox: 'Cb',
+  RadioGroup: 'Rg',
+  Checkbox: 'Ck',
+  Switch: 'Sw',
+  Slider: 'Sl',
+  Toggle: 'Tg',
+  ToggleGroup: 'Tg',
+  Box: 'Bx',
+  Section: 'Sc',
+  FormArray: 'Fa',
 };
 
 function glyph(entry: CatalogEntry): string {
   const tag = htmlTag(entry.name);
   if (tag) return HTML_GLYPH[tag] ?? tag.slice(0, 3);
-  return GLYPH_BY_NAME[entry.name] ?? (entry.name[0]?.toUpperCase() ?? '') + (entry.name[1]?.toLowerCase() ?? '');
+  return (
+    GLYPH_BY_NAME[entry.name] ??
+    (entry.name[0]?.toUpperCase() ?? '') + (entry.name[1]?.toLowerCase() ?? '')
+  );
 }
 
 /** Отображаемая подпись: у HTML-элементов — просто имя тега (без обёртки `$html(...)`). */
@@ -65,8 +118,12 @@ function groupByCategory(catalog: CatalogEntry[], q: string): Array<[string, Cat
     list.push(e);
     map.set(c, list);
   }
-  const known = CATEGORY_ORDER.filter((c) => map.has(c)).map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
-  const rest = [...map.keys()].filter((c) => !CATEGORY_ORDER.includes(c)).map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
+  const known = CATEGORY_ORDER.filter((c) => map.has(c)).map(
+    (c) => [c, map.get(c)!] as [string, CatalogEntry[]]
+  );
+  const rest = [...map.keys()]
+    .filter((c) => !CATEGORY_ORDER.includes(c))
+    .map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
   return [...known, ...rest];
 }
 
@@ -125,9 +182,15 @@ export function PalettePanel() {
                 onClick={() => toggle(cat)}
                 className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
               >
-                <span className={`text-[8px] leading-none transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+                <span
+                  className={`text-[8px] leading-none transition-transform ${open ? 'rotate-90' : ''}`}
+                >
+                  ▶
+                </span>
                 <span className="min-w-0 flex-1 truncate">{cat}</span>
-                <span className="flex-none font-mono text-[10px] font-normal text-muted-foreground/50">{items.length}</span>
+                <span className="flex-none font-mono text-[10px] font-normal text-muted-foreground/50">
+                  {items.length}
+                </span>
               </button>
               {open && (
                 <div className="flex flex-col gap-0.5 px-2 pb-2">

@@ -3,32 +3,15 @@
  * палитровый **array** (спека §5/§6). Возвращаем сериализуемые {@link CatalogRecord} (без
  * `makeNode` — он восстанавливается из `role`/`name`).
  *
+ * Список HTML-тегов и их props живут в {@link './html-tags'} (единый источник для палитры и
+ * узла-по-умолчанию); здесь — только маппинг спецификаций в записи каталога.
+ *
  * @module reformer-builder/catalog/synthetic-entries
  */
 
 import type { PropsSchema } from '@reformer/ui-kit/meta';
 import type { CatalogRecord } from './types';
-
-const HTML_TAGS = ['div', 'section', 'fieldset', 'h3', 'p', 'hr'] as const;
-const HTML_CONTAINERS = new Set<string>(['div', 'section', 'fieldset']);
-
-const classNameProp: PropsSchema = {
-  type: 'string',
-  description: 'CSS-класс (Tailwind: flex, grid, gap-*).',
-  'x-doc': { group: 'Control', type: 'string', kind: 'readonly' },
-};
-
-function htmlPropsSchema(tag: string): PropsSchema {
-  const properties: Record<string, PropsSchema> = { className: classNameProp };
-  if (!HTML_CONTAINERS.has(tag) && tag !== 'hr') {
-    properties.text = {
-      type: 'string',
-      description: 'Текстовое содержимое.',
-      'x-doc': { group: 'Control', type: 'string' },
-    };
-  }
-  return { type: 'object', properties };
-}
+import { HTML_TAG_SPECS, htmlPropsSchema } from './html-tags';
 
 const arrayPropsSchema: PropsSchema = {
   type: 'object',
@@ -49,11 +32,11 @@ const arrayPropsSchema: PropsSchema = {
 
 /** Синтетические записи каталога (HTML-блоки + array). */
 export function syntheticRecords(): CatalogRecord[] {
-  const html: CatalogRecord[] = HTML_TAGS.map((tag) => ({
-    name: `$html(${tag})`,
+  const html: CatalogRecord[] = HTML_TAG_SPECS.map((spec) => ({
+    name: `$html(${spec.tag})`,
     role: 'container',
     category: 'HTML',
-    propsSchema: htmlPropsSchema(tag),
+    propsSchema: htmlPropsSchema(spec),
   }));
   const array: CatalogRecord = {
     name: 'FormArray',
