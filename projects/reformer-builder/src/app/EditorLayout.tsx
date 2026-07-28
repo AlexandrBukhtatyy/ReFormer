@@ -12,7 +12,7 @@ import { TooltipProvider } from '@reformer/ui-kit';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Toaster } from '@reformer/ui-kit/sonner';
 import { activeTab, editorActions, editorStore, useActiveTab, useUi } from '../store';
-import type { LeftPanelKind, UiState } from '../store';
+import type { LeftPanelKind, PreviewMode, UiState } from '../store';
 import type { NavDir } from '../model';
 import { saveDialogActions } from '../store/save-dialog';
 import { CanvasArea } from '../canvas/CanvasArea';
@@ -123,6 +123,19 @@ function toggleLeftTo(kind: LeftPanelKind): void {
   if (!open) requestAnimationFrame(() => focusZone('left'));
 }
 
+// ── переключение режима отображения схемы (⌘⌥V цикл, ⌘⌥1/2/3 прямой) ──
+
+/** Порядок режимов для циклического переключения (совпадает с сегментами переключателя). */
+const PREVIEW_ORDER: PreviewMode[] = ['wire', 'runtime', 'code'];
+
+/** Сдвинуть режим отображения по кругу (⌘⌥V → +1, ⇧⌘⌥V → -1). */
+function cyclePreview(delta: 1 | -1): void {
+  const cur = editorStore.getState().ui.preview;
+  const i = PREVIEW_ORDER.indexOf(cur);
+  const next = PREVIEW_ORDER[(i + delta + PREVIEW_ORDER.length) % PREVIEW_ORDER.length];
+  editorActions.setPreview(next);
+}
+
 export function EditorLayout() {
   const ui = useUi();
   const tab = useActiveTab();
@@ -151,6 +164,7 @@ export function EditorLayout() {
   // Горячие клавиши. Глобально: ⌘/Ctrl+S (сохранить/экспорт), Esc (закрыть diff-модалку).
   // Навигация по областям (в стиле VSCode, работает и из полей): ⌘B — левый сайдбар,
   // ⌘⌥B — правый инспектор, ⌘⇧E — Файлы, ⌘⇧B — Палитра, F6/⇧F6 — цикл фокуса по зонам.
+  // Режим отображения: ⌘⌥V — цикл (⇧ — назад), ⌘⌥1/2/3 — Схематичный/Renderer/Код.
   // В схематике (вне полей ввода): навигация ↑↓←→, Shift-расширение выделения, ⌘/Ctrl+стрелки —
   // перемещение, ⇧⌥↑/↓ — дублировать вверх/вниз (Copy Line), Delete/Backspace — удаление,
   // ⌘D — дублировать, ⌘Z/⇧⌘Z — undo/redo.
@@ -185,6 +199,25 @@ export function EditorLayout() {
       if (e.key === 'F6') {
         e.preventDefault();
         cycleZone(editorStore.getState().ui, e.shiftKey ? -1 : 1);
+        return;
+      }
+
+      // ── Режим отображения схемы (глобально) — по e.code: Alt на macOS искажает e.key (Option+V=√). ──
+      // ⌘⌥V — следующий режим по кругу; ⇧⌘⌥V — предыдущий.
+      if (mod && e.altKey && e.code === 'KeyV') {
+        e.preventDefault();
+        cyclePreview(e.shiftKey ? -1 : 1);
+        return;
+      }
+      // ⌘⌥1/2/3 — прямой переход: Схематичный / Renderer / Код.
+      if (mod && e.altKey && (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3')) {
+        e.preventDefault();
+        const byDigit: Record<string, PreviewMode> = {
+          Digit1: 'wire',
+          Digit2: 'runtime',
+          Digit3: 'code',
+        };
+        editorActions.setPreview(byDigit[e.code]);
         return;
       }
 

@@ -66,6 +66,7 @@ export function FloatingActions() {
       <div className="flex flex-none gap-0.5 rounded-md border border-border bg-muted p-0.5">
         <button
           onClick={() => editorActions.setPreview('wire')}
+          title="Схематичный (⌥⌘1 · цикл ⌥⌘V)"
           className={cn(
             'h-6 rounded px-2 text-[11.5px]',
             ui.preview === 'wire' ? 'bg-background shadow-sm' : 'text-muted-foreground'
@@ -75,6 +76,7 @@ export function FloatingActions() {
         </button>
         <button
           onClick={() => editorActions.setPreview('runtime')}
+          title="Renderer (⌥⌘2 · цикл ⌥⌘V)"
           className={cn(
             'h-6 rounded px-2 text-[11.5px]',
             ui.preview === 'runtime' ? 'bg-background shadow-sm' : 'text-muted-foreground'
@@ -84,6 +86,7 @@ export function FloatingActions() {
         </button>
         <button
           onClick={() => editorActions.setPreview('code')}
+          title="Код (⌥⌘3 · цикл ⌥⌘V)"
           className={cn(
             'h-6 rounded px-2 text-[11.5px]',
             ui.preview === 'code' ? 'bg-background shadow-sm' : 'text-muted-foreground'

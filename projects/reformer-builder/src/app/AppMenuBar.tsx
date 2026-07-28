@@ -120,9 +120,18 @@ export function AppMenuBar() {
             value={ui.preview}
             onValueChange={(v) => editorActions.setPreview(v as PreviewMode)}
           >
-            <MenubarRadioItem value="wire">Схематичный</MenubarRadioItem>
-            <MenubarRadioItem value="runtime">Renderer</MenubarRadioItem>
-            <MenubarRadioItem value="code">Код</MenubarRadioItem>
+            <MenubarRadioItem value="wire">
+              Схематичный
+              <MenubarShortcut>⌥⌘1</MenubarShortcut>
+            </MenubarRadioItem>
+            <MenubarRadioItem value="runtime">
+              Renderer
+              <MenubarShortcut>⌥⌘2</MenubarShortcut>
+            </MenubarRadioItem>
+            <MenubarRadioItem value="code">
+              Код
+              <MenubarShortcut>⌥⌘3</MenubarShortcut>
+            </MenubarRadioItem>
           </MenubarRadioGroup>
           <MenubarSeparator />
           <MenubarItem onClick={() => editorActions.toggleLeftPanel()}>
