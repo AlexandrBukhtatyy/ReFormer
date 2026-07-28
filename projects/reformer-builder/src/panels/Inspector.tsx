@@ -103,7 +103,7 @@ function ModelPathField({ node, path, tab }: { node: JsonNode; path: JsonPath; t
             }
           }}
           placeholder="имя_свойства"
-          className="h-[26px] min-w-0 flex-1 font-mono text-xs"
+          className="h-[26px] min-w-0 flex-1 bg-background font-mono text-xs"
         />
       </div>
     </div>
@@ -138,7 +138,7 @@ function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: I
         <Input
           value={value == null ? '' : String(value)}
           onChange={(e) => set(e.target.value)}
-          className="h-[26px] min-w-0 flex-1 text-xs"
+          className="h-[26px] min-w-0 flex-1 bg-background text-xs"
         />
       )}
       {prop.widget === 'number' && (
@@ -146,7 +146,7 @@ function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: I
           type="number"
           value={value == null ? '' : String(value)}
           onChange={(e) => set(toNumberValue(e.target.value))}
-          className="h-[26px] min-w-0 flex-1 text-xs"
+          className="h-[26px] min-w-0 flex-1 bg-background text-xs"
         />
       )}
       {prop.widget === 'enum' && (

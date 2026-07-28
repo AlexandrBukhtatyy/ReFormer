@@ -138,7 +138,7 @@ export function OptionsField({
               }
             }}
             placeholder="ИМЯ_ИСТОЧНИКА"
-            className="h-[26px] flex-1 text-xs"
+            className="h-[26px] flex-1 bg-background text-xs"
           />
           <button
             onClick={createSource}
@@ -189,13 +189,13 @@ function InlineOptions({
             value={r.value == null ? '' : String(r.value)}
             onChange={(e) => update(i, { value: e.target.value })}
             placeholder="value"
-            className="h-[24px] w-[64px] flex-none text-[11px]"
+            className="h-[24px] w-[64px] flex-none bg-background text-[11px]"
           />
           <Input
             value={r.label ?? ''}
             onChange={(e) => update(i, { label: e.target.value })}
             placeholder="label"
-            className="h-[24px] min-w-0 flex-1 text-[11px]"
+            className="h-[24px] min-w-0 flex-1 bg-background text-[11px]"
           />
           <button
             onClick={() => remove(i)}
