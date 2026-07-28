@@ -27,7 +27,7 @@ interface OptionItem {
 }
 
 const SELECT_CLS =
-  'h-[26px] w-[150px] flex-none rounded-md border border-input bg-background px-2 text-xs outline-none focus:border-ring';
+  'h-[26px] min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:border-ring';
 
 export function OptionsField({
   node,
@@ -113,7 +113,6 @@ export function OptionsField({
             <ExternalLink className="h-3 w-3" />
           </button>
         )}
-        <span className="flex-1" />
         <select value={mode} onChange={(e) => onSelect(e.target.value)} className={SELECT_CLS}>
           <option value="__inline__">Инлайн-опции</option>
           {sourceNames.map((n) => (

@@ -60,17 +60,17 @@ function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: I
 
   return (
     <div className="flex min-h-6 items-center gap-2.5">
-      <span className="min-w-0 flex-1 text-xs" title={prop.description}>
+      <span className="w-24 flex-none truncate text-xs" title={prop.description}>
         {prop.label}
       </span>
       {prop.widget === 'boolean' && (
-        <Switch checked={value === true} onCheckedChange={(v) => set(v)} />
+        <Switch className="ml-auto" checked={value === true} onCheckedChange={(v) => set(v)} />
       )}
       {prop.widget === 'text' && (
         <Input
           value={value == null ? '' : String(value)}
           onChange={(e) => set(e.target.value)}
-          className="h-[26px] w-[140px] flex-none text-xs"
+          className="h-[26px] min-w-0 flex-1 text-xs"
         />
       )}
       {prop.widget === 'number' && (
@@ -78,14 +78,14 @@ function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: I
           type="number"
           value={value == null ? '' : String(value)}
           onChange={(e) => set(toNumberValue(e.target.value))}
-          className="h-[26px] w-[140px] flex-none text-xs"
+          className="h-[26px] min-w-0 flex-1 text-xs"
         />
       )}
       {prop.widget === 'enum' && (
         <select
           value={value == null ? '' : String(value)}
           onChange={(e) => set(e.target.value)}
-          className="h-[26px] w-[140px] flex-none rounded-md border border-input bg-background px-2 text-xs outline-none focus:border-ring"
+          className="h-[26px] min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:border-ring"
         >
           <option value="" />
           {prop.options?.map((op) => (
@@ -96,7 +96,7 @@ function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: I
         </select>
       )}
       {prop.widget === 'readonly' && (
-        <span className="w-[140px] flex-none truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground">
           {value == null ? '—' : String(value)}
         </span>
       )}
