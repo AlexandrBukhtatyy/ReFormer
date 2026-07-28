@@ -5,6 +5,7 @@
  * @module reformer-builder/canvas/CanvasArea
  */
 
+import { useMemo } from 'react';
 import { useDefaultLayout } from 'react-resizable-panels';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import type { TabState } from '../store';
@@ -12,18 +13,25 @@ import { useUi } from '../store';
 import { FloatingActions } from './FloatingActions';
 import { SchematicCanvas } from './SchematicCanvas';
 import { RuntimePreview } from './RuntimePreview';
-import { RawJson } from './RawJson';
+import { BottomPanel } from './BottomPanel';
 import { SchemaCodeEditor } from './SchemaCodeEditor';
+import { effectiveMock } from './mock-data';
 
 export function CanvasArea({ tab }: { tab: TabState }) {
   const ui = useUi();
 
-  // Persistence высоты raw-JSON панели в localStorage (число = пиксели в v4).
+  // Persistence высоты нижней панели в localStorage (число = пиксели в v4).
   const vLayout = useDefaultLayout({
     id: 'rb.layout.v',
     storage: localStorage,
     panelIds: ['canvas', 'raw'],
   });
+
+  // Эффективный мок для runtime-превью (правки панели ⊕ синтез). Стабильная ссылка по [schema, mockText].
+  const mock = useMemo(() => effectiveMock(tab.schema, tab.mockText), [tab.schema, tab.mockText]);
+
+  // Нижняя панель со вкладками: JSON (raw схемы) + Модель (мок-данные).
+  const bottomPanel = <BottomPanel tab={tab} />;
 
   // Режим «Код»: схема как JSON-редактор на всю центральную область. Нижняя raw-панель здесь
   // избыточна (дублировала бы тот же JSON) — не рендерим. Переключатель (FloatingActions) поверх.
@@ -45,7 +53,7 @@ export function CanvasArea({ tab }: { tab: TabState }) {
       <div className="mx-auto w-full">
         <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
           {ui.preview === 'runtime' ? (
-            <RuntimePreview schema={tab.schema} />
+            <RuntimePreview schema={tab.schema} mock={mock} />
           ) : (
             <SchematicCanvas
               schema={tab.schema}
@@ -79,14 +87,14 @@ export function CanvasArea({ tab }: { tab: TabState }) {
             maxSize={560}
             className="flex flex-col"
           >
-            <RawJson schema={tab.schema} name={tab.source.name} />
+            {bottomPanel}
           </ResizablePanel>
         </ResizablePanelGroup>
       ) : (
-        // raw-JSON свёрнут: canvas на всю высоту + свёрнутая полоса-заголовок снизу.
+        // нижняя панель свёрнута: canvas на всю высоту + свёрнутая полоса-заголовок снизу.
         <>
           <div className="relative flex-1 overflow-auto p-14">{canvasBody}</div>
-          <RawJson schema={tab.schema} name={tab.source.name} />
+          {bottomPanel}
         </>
       )}
     </div>

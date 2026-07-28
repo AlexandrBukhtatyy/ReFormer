@@ -7,19 +7,26 @@
  */
 
 import { useMemo } from 'react';
-import { JsonFormRenderer, JsonRendererProvider, type JsonFormSchema } from '@reformer/renderer-json';
-import { buildPreview, type PreviewBundle } from '../preview-runtime';
+import {
+  JsonFormRenderer,
+  JsonRendererProvider,
+  type JsonFormSchema,
+} from '@reformer/renderer-json';
+import { buildPreview, type MockData, type PreviewBundle } from '../preview-runtime';
 import { PreviewErrorBoundary } from './ErrorBoundary';
 
-export function RuntimePreview({ schema }: { schema: JsonFormSchema }) {
-  // Пересобираем registry+model+form при смене ссылки схемы (иммутабельность → новая ссылка на правку).
-  const built = useMemo((): { bundle: PreviewBundle; error: null } | { bundle: null; error: string } => {
+export function RuntimePreview({ schema, mock }: { schema: JsonFormSchema; mock?: MockData }) {
+  // Пересобираем registry+model+form при смене схемы ИЛИ мока (иммутабельность → новая ссылка).
+  // Ввод в поля меняет только сигналы модели (identity schema/mock стабильна) — фокус не теряется.
+  const built = useMemo(():
+    | { bundle: PreviewBundle; error: null }
+    | { bundle: null; error: string } => {
     try {
-      return { bundle: buildPreview(schema), error: null };
+      return { bundle: buildPreview(schema, mock), error: null };
     } catch (e) {
       return { bundle: null, error: e instanceof Error ? e.message : String(e) };
     }
-  }, [schema]);
+  }, [schema, mock]);
 
   if (built.error !== null) {
     return (
@@ -32,7 +39,9 @@ export function RuntimePreview({ schema }: { schema: JsonFormSchema }) {
 
   return (
     <PreviewErrorBoundary resetKey={schema}>
-      <JsonRendererProvider settings={{ registry: built.bundle.registry, model: built.bundle.model }}>
+      <JsonRendererProvider
+        settings={{ registry: built.bundle.registry, model: built.bundle.model }}
+      >
         <JsonFormRenderer schema={schema} validate={false} />
       </JsonRendererProvider>
     </PreviewErrorBoundary>

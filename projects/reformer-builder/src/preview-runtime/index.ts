@@ -6,7 +6,7 @@
  * @module reformer-builder/preview-runtime
  */
 
-export { buildPreview, type PreviewBundle } from './build-preview';
+export { buildPreview, buildRegistry, type PreviewBundle } from './build-preview';
 export { KNOWN_COMPONENT_NAMES, KNOWN_COMPONENT_NAME_SET, INFRA_NAMES } from './known-names';
 export { KNOWN_COMPONENTS, classifyCatalog } from './known-components';
 export { collectUnknownComponentNames } from './unknown';
@@ -20,10 +20,18 @@ export {
   type RenderPolicy,
   type UiKitNamespace,
 } from './render-policy';
+export { registerMockSources } from './mock-sources';
 export {
-  registerMockSources,
-  collectFunctionLikeDataSources,
-} from './mock-sources';
+  synthMock,
+  classifyDataSources,
+  inferFieldKind,
+  mockOptions,
+  type MockData,
+  type MockOption,
+  type SynthMockOptions,
+  type FieldKind,
+  type DataSourceClasses,
+} from './mock-synth';
 export {
   synthModel,
   buildInitialValues,

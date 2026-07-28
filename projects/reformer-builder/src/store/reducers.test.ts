@@ -147,6 +147,24 @@ describe('ui', () => {
   });
 });
 
+describe('мок-данные вкладки', () => {
+  it('setMockText сохраняет, resetMock очищает', () => {
+    let s = R.openTab(R.initialState(), 't1', src, emptySchema());
+    expect(s.tabs.t1.mockText).toBeUndefined();
+    s = R.setMockText(s, 't1', '{"model":{"a":1},"dataSources":{}}');
+    expect(s.tabs.t1.mockText).toBe('{"model":{"a":1},"dataSources":{}}');
+    s = R.resetMock(s, 't1');
+    expect(s.tabs.t1.mockText).toBeUndefined();
+  });
+
+  it('мок не попадает в историю/dirty (правка mockText не создаёт снимок)', () => {
+    let s = R.openTab(R.initialState(), 't1', src, emptySchema());
+    const past = s.tabs.t1.past.length;
+    s = R.setMockText(s, 't1', '{"model":{}}');
+    expect(s.tabs.t1.past.length).toBe(past);
+  });
+});
+
 describe('горячие клавиши (навигация/выделение/перемещение/удаление)', () => {
   it('navigate: одиночная навигация up/down/left/right', () => {
     let s = R.select(openedSample(), P.step0field0);

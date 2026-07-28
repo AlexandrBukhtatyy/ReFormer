@@ -9,7 +9,7 @@ import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import type { JsonPath, MutationResult, NavDir } from '../model';
 import { createStore } from './create-store';
 import * as R from './reducers';
-import type { EditorState, LeftPanel, PreviewMode, TabSource, Theme } from './types';
+import type { BottomTab, EditorState, LeftPanel, PreviewMode, TabSource, Theme } from './types';
 
 /** Глобальный стор редактора. */
 export const editorStore = createStore<EditorState>(R.initialState());
@@ -23,6 +23,11 @@ export const editorActions = {
     editorStore.setState((s) => R.openCodeTab(s, id, source, text, language)),
   /** Правка текста code-вкладки (Monaco onChange). */
   setTabText: (id: string, text: string) => editorStore.setState((s) => R.setTabText(s, id, text)),
+  /** Правка мок-данных вкладки (панель мок-данных). */
+  setMockText: (id: string, text: string) =>
+    editorStore.setState((s) => R.setMockText(s, id, text)),
+  /** Сбросить мок-данные вкладки к синтезу из схемы. */
+  resetMock: (id: string) => editorStore.setState((s) => R.resetMock(s, id)),
   /** Отметить сохранённым текст активной code-вкладки. */
   markCodeSaved: () => editorStore.setState(R.markCodeSaved),
   closeTab: (id: string) => editorStore.setState((s) => R.closeTab(s, id)),
@@ -80,6 +85,8 @@ export const editorActions = {
 
   setPreview: (mode: PreviewMode) => editorStore.setState((s) => R.setPreview(s, mode)),
   toggleRawJson: () => editorStore.setState(R.toggleRawJson),
+  /** Переключить активную вкладку нижней панели (JSON схемы / мок-данные). */
+  setBottomTab: (t: BottomTab) => editorStore.setState((s) => R.setBottomTab(s, t)),
   /** Скрыть/показать `$html(div)`-контейнеры в схематике. */
   toggleHideDivWrappers: () => editorStore.setState(R.toggleHideDivWrappers),
   /** Открыть модалку быстрого добавления компонента (Enter). */

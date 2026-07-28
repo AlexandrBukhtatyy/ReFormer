@@ -27,6 +27,9 @@ export type LeftPanelKind = Exclude<LeftPanel, null>;
 /** Тема оболочки. */
 export type Theme = 'light' | 'dark';
 
+/** Активная вкладка нижней панели: `raw` — JSON-исходник схемы, `model` — мок-данные. */
+export type BottomTab = 'raw' | 'model';
+
 /** Происхождение вкладки: новая (Mode A) или файл проекта (Mode B). */
 export interface TabSource {
   kind: 'new' | 'file';
@@ -68,6 +71,11 @@ export interface TabState {
   savedText?: string;
   /** Язык Monaco по расширению файла (`code`-вкладки): typescript/css/markdown/… */
   language?: string;
+  /**
+   * Правки мок-данных для runtime/live-превью (JSON-текст `{ model, dataSources }`) из панели
+   * мок-данных. `undefined` ⇒ использовать синтез из схемы. Превью-only: вне истории и dirty/save.
+   */
+  mockText?: string;
   /** Стек отмены (снимки до текущего). */
   past: HistorySnapshot[];
   /** Стек повтора. */
@@ -94,6 +102,8 @@ export interface UiState {
   /** Открыта ли модалка быстрого добавления компонента (Enter). */
   quickAddOpen: boolean;
   rawJsonOpen: boolean;
+  /** Активная вкладка нижней панели (JSON схемы / мок-данные). */
+  bottomTab: BottomTab;
   leftPanel: LeftPanel;
   /** Последняя раскрытая левая панель — тоггл ⌘B восстанавливает её, когда сайдбар был свёрнут. */
   lastLeftPanel: LeftPanelKind;

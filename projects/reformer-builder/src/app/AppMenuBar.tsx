@@ -167,7 +167,7 @@ export function AppMenuBar() {
             checked={ui.rawJsonOpen}
             onCheckedChange={() => editorActions.toggleRawJson()}
           >
-            Raw JSON
+            Нижняя панель
           </MenubarCheckboxItem>
           <MenubarCheckboxItem
             checked={ui.hideDivWrappers}

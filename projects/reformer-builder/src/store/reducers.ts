@@ -31,6 +31,7 @@ import {
   type NavDir,
 } from '../model';
 import type {
+  BottomTab,
   EditorState,
   HistorySnapshot,
   LeftPanel,
@@ -51,6 +52,7 @@ export function initialUi(): UiState {
     hideDivWrappers: false,
     quickAddOpen: false,
     rawJsonOpen: true,
+    bottomTab: 'raw',
     leftPanel: 'files',
     lastLeftPanel: 'files',
     rightOpen: true,
@@ -155,6 +157,22 @@ export function setTabText(state: EditorState, id: string, text: string): Editor
   const tab = state.tabs[id];
   if (!tab || tab.kind !== 'code' || tab.text === text) return state;
   return { ...state, tabs: { ...state.tabs, [id]: { ...tab, text } } };
+}
+
+/** Правка мок-данных вкладки (панель мок-данных). Превью-only — историю/dirty не трогает. */
+export function setMockText(state: EditorState, id: string, text: string): EditorState {
+  const tab = state.tabs[id];
+  if (!tab || tab.mockText === text) return state;
+  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, mockText: text } } };
+}
+
+/** Сбросить мок-данные вкладки к синтезу из схемы (кнопка «Сбросить» в панели). */
+export function resetMock(state: EditorState, id: string): EditorState {
+  const tab = state.tabs[id];
+  if (!tab || tab.mockText === undefined) return state;
+  const next = { ...tab };
+  delete next.mockText;
+  return { ...state, tabs: { ...state.tabs, [id]: next } };
 }
 
 /** Отметить сохранённым текст активной code-вкладки (baseline dirty). */
@@ -639,6 +657,10 @@ export function setPreview(state: EditorState, preview: PreviewMode): EditorStat
 }
 export function toggleRawJson(state: EditorState): EditorState {
   return { ...state, ui: { ...state.ui, rawJsonOpen: !state.ui.rawJsonOpen } };
+}
+/** Переключить активную вкладку нижней панели (JSON схемы / мок-данные). */
+export function setBottomTab(state: EditorState, bottomTab: BottomTab): EditorState {
+  return { ...state, ui: { ...state.ui, bottomTab } };
 }
 /** Переключить скрытие `$html(div)`-контейнеров в схематике. */
 export function toggleHideDivWrappers(state: EditorState): EditorState {
