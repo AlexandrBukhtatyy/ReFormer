@@ -100,11 +100,11 @@ export function ClassNameField({
   };
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-xs" title={prop.description}>
+    <div className="flex min-h-6 items-center gap-2.5">
+      <span className="w-24 flex-none truncate text-xs" title={prop.description}>
         {prop.label}
       </span>
-      <div className="relative">
+      <div className="relative min-w-0 flex-1">
         <input
           ref={inputRef}
           value={value}
