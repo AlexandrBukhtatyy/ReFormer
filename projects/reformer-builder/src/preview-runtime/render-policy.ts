@@ -39,10 +39,6 @@ export const OVERLAY_LIMITED: ReadonlySet<string> = new Set([
  * (`ChartContainer` / `ResizablePanelGroup`), поэтому не резолвятся даже через subpath.
  */
 export const SUBPATH_LIMITED: ReadonlyMap<string, string> = new Map([
-  ['Calendar', 'subpath-only: react-day-picker'],
-  ['Combobox', 'subpath-only: cmdk'],
-  ['DatePicker', 'subpath-only: react-day-picker'],
-  ['InputOTP', 'subpath-only: input-otp'],
   ['Carousel', 'subpath-only: embla-carousel-react'],
   ['Chart', 'subpath-only: recharts (экспорт ChartContainer, не Chart)'],
   ['Command', 'subpath-only: cmdk'],
@@ -50,7 +46,6 @@ export const SUBPATH_LIMITED: ReadonlyMap<string, string> = new Map([
   ['MessageScroller', 'subpath-only: @shadcn/react'],
   ['Resizable', 'subpath-only: react-resizable-panels (экспорт ResizablePanelGroup, не Resizable)'],
   ['Sidebar', 'subpath-only'],
-  ['Table', 'subpath-only: @tanstack/react-table'],
 ]);
 
 /** Namespace-объект barrel `@reformer/ui-kit` (имя экспорта → значение). */
@@ -79,7 +74,7 @@ export function isRegistrable(entry: Pick<CatalogEntry, 'name' | 'role'>): boole
 export function resolveUiKitComponent(
   name: string,
   role: CatalogRole,
-  uiKit: UiKitNamespace,
+  uiKit: UiKitNamespace
 ): ComponentType<Record<string, unknown>> | undefined {
   const key = role === 'field' ? `${name}Field` : name;
   const exported = uiKit[key];
@@ -93,8 +88,12 @@ export function resolveUiKitComponent(
  */
 export function classify(entry: CatalogEntry, uiKit: UiKitNamespace): RenderPolicy {
   const { name, role } = entry;
-  if (OVERLAY_LIMITED.has(name)) return { policy: 'limited', reason: 'оверлей — нужен триггер/портал' };
+  if (OVERLAY_LIMITED.has(name))
+    return { policy: 'limited', reason: 'оверлей — нужен триггер/портал' };
   const component = resolveUiKitComponent(name, role, uiKit);
   if (component) return { policy: 'live', component };
-  return { policy: 'limited', reason: SUBPATH_LIMITED.get(name) ?? 'не резолвится в @reformer/ui-kit' };
+  return {
+    policy: 'limited',
+    reason: SUBPATH_LIMITED.get(name) ?? 'не резолвится в @reformer/ui-kit',
+  };
 }
