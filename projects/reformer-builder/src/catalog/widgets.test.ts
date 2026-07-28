@@ -29,6 +29,31 @@ describe('toInspectorProps', () => {
     expect(keys).not.toContain('onChange');
   });
 
+  it('dataSource-редактор — только для array-пропа опций, а не для всей секции Options', () => {
+    // Настоящий список опций (Select): проп `options` — массив {value,label} → редактор DataSource.
+    const select = toInspectorProps(defaultPropSchemas.Select);
+    expect(select.find((p) => p.key === 'options')!.widget).toBe('dataSource');
+
+    // Скалярные атрибуты презентационных тегов ($html) в той же секции Options НЕ должны стать
+    // dataSource — иначе их не отредактировать (см. widgets.ts).
+    const htmlProps = toInspectorProps({
+      type: 'object',
+      properties: {
+        target: {
+          type: 'string',
+          enum: ['_self', '_blank'],
+          'x-doc': { group: 'Options', type: 'string' },
+        },
+        width: { type: 'number', 'x-doc': { group: 'Options', type: 'number' } },
+        rel: { type: 'string', 'x-doc': { group: 'Options', type: 'string' } },
+      },
+    });
+    const by = (k: string) => htmlProps.find((p) => p.key === k)!;
+    expect(by('target').widget).toBe('enum');
+    expect(by('width').widget).toBe('number');
+    expect(by('rel').widget).toBe('text');
+  });
+
   it('человекочитаемые подписи', () => {
     const props = inputProps();
     expect(props.find((p) => p.key === 'className')!.label).toBe('Class Name');
