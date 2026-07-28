@@ -13,6 +13,7 @@ describe('toInspectorProps', () => {
     expect(by('min').widget).toBe('number');
     expect(by('placeholder').widget).toBe('text');
     expect(by('className').widget).toBe('className'); // override по ключу поверх x-doc.kind:'readonly'
+    expect(by('testId').widget).toBe('text'); // override: редактируемый (не readonly), билдер задаёт data-testid
     expect(by('required').widget).toBe('boolean'); // из wrapper, type: boolean
   });
 

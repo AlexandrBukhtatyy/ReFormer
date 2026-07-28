@@ -22,14 +22,17 @@ export function toInspectorProps(schema: PropsSchema): InspectorProp[] {
     out.push({
       key,
       label: humanize(key),
-      // className → builder-редактор Tailwind; Options-группа → редактор DataSource/инлайн-опций
-      // (поверх x-doc.kind:'readonly' из ui-kit); иначе виджет по kind/типу.
+      // Оверрайды поверх x-doc.kind:'readonly' из ui-kit: className → builder-редактор Tailwind;
+      // Options-группа → редактор DataSource/инлайн-опций; testId → редактируемый текст (билдер
+      // задаёт data-testid для e2e). Иначе — виджет по kind/типу.
       widget:
         key === 'className'
           ? 'className'
-          : doc?.group === 'Options'
-            ? 'dataSource'
-            : (doc?.kind ?? inferWidget(prop)),
+          : key === 'testId'
+            ? 'text'
+            : doc?.group === 'Options'
+              ? 'dataSource'
+              : (doc?.kind ?? inferWidget(prop)),
       group: doc?.group ?? 'Control',
       description: typeof prop.description === 'string' ? prop.description : undefined,
       default: prop.default,
