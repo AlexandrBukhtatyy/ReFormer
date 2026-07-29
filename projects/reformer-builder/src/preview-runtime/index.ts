@@ -11,6 +11,7 @@ export { KNOWN_COMPONENT_NAMES, KNOWN_COMPONENT_NAME_SET, INFRA_NAMES } from './
 export { KNOWN_COMPONENTS, classifyCatalog } from './known-components';
 export { collectUnknownComponentNames } from './unknown';
 export { makeUnknownComponent, makePreviewLimitedComponent } from './unknown-component';
+export { WizardFormProvider, useWizardForm, type PreviewFormProxy } from './wizard-form-context';
 export {
   OVERLAY_LIMITED,
   SUBPATH_LIMITED,

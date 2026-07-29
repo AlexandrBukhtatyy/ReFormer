@@ -12,7 +12,13 @@ import {
   JsonRendererProvider,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import { buildPreview, type MockData, type PreviewBundle } from '../preview-runtime';
+import type { FormProxy } from '@reformer/core';
+import {
+  buildPreview,
+  WizardFormProvider,
+  type MockData,
+  type PreviewBundle,
+} from '../preview-runtime';
 import { PreviewErrorBoundary } from './ErrorBoundary';
 
 export function RuntimePreview({ schema, mock }: { schema: JsonFormSchema; mock?: MockData }) {
@@ -42,7 +48,9 @@ export function RuntimePreview({ schema, mock }: { schema: JsonFormSchema; mock?
       <JsonRendererProvider
         settings={{ registry: built.bundle.registry, model: built.bundle.model }}
       >
-        <JsonFormRenderer schema={schema} validate={false} />
+        <WizardFormProvider form={built.bundle.form as FormProxy<Record<string, unknown>>}>
+          <JsonFormRenderer schema={schema} validate={false} />
+        </WizardFormProvider>
       </JsonRendererProvider>
     </PreviewErrorBoundary>
   );

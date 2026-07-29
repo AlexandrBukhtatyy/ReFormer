@@ -4,8 +4,12 @@
  * записи `render-policy` резолвит либо живой `@reformer/ui-kit`-компонент (правило имён: field →
  * `${name}Field`, иначе `name`), либо нейтральный стаб «предпросмотр ограничен» (оверлеи/subpath-only).
  *
- * Плюс INFRA-имена ВНЕ палитрового каталога, но нужные рендереру: `FormField` (он же `FIELD_WRAPPER`),
- * `AsyncBoundary`, `Step` (из `@reformer/cdk`).
+ * Плюс INFRA-имена ВНЕ палитрового каталога, но нужные рендереру: `FormField` (он же `FIELD_WRAPPER`)
+ * и `AsyncBoundary`.
+ *
+ * Палитровые compound'ы `Wizard`/`Step` резолвятся как обычные каталожные записи: `Step` → cdk `Step`,
+ * `Wizard` → builder-адаптер {@link WizardPreview} поверх ui-kit `FormWizard` (оба подмешаны в
+ * `PREVIEW_UIKIT`, т.к. в barrel `@reformer/ui-kit` их под этими именами нет).
  *
  * @module reformer-builder/preview-runtime/known-components
  */
@@ -24,6 +28,7 @@ import { Step } from '@reformer/cdk/form-wizard';
 import { getCatalog } from '../catalog';
 import { classify, isRegistrable } from './render-policy';
 import { makePreviewLimitedComponent } from './unknown-component';
+import { WizardPreview } from './wizard-preview';
 import { INFRA_NAMES } from './known-names';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -40,13 +45,15 @@ const PREVIEW_UIKIT: Record<string, unknown> = {
   ...DatePickerNs,
   ...InputOtpNs,
   ...TableNs,
+  // Палитровые compound'ы визарда: под этими именами в barrel экспортов нет.
+  Wizard: WizardPreview,
+  Step,
 };
 
 /** Компоненты для INFRA-имён (вне каталога). Ключи обязаны покрывать {@link INFRA_NAMES}. */
 const INFRA_LOOKUP: Record<string, ComponentType<any>> = {
   FormField: UiKit.FormField as ComponentType<any>,
   AsyncBoundary: UiKit.AsyncBoundary as ComponentType<any>,
-  Step: Step as ComponentType<any>,
 };
 
 /** Собрать карту `имя → компонент` из каталога (один раз на загрузке модуля). */

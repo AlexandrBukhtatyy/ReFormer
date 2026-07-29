@@ -53,10 +53,33 @@ export function arrayNode(): JsonNode {
   };
 }
 
+/** Шаг визарда: контейнер `$component(Step)` с подписью и телом (`children`). */
+export function stepNode(title = 'Шаг'): JsonNode {
+  return {
+    component: '$component(Step)',
+    componentProps: { title },
+    children: [],
+  };
+}
+
+/**
+ * Визард: шаги живут в `componentProps.steps` (НЕ в `children` — иначе drop/insert уходили бы в
+ * `children`, а не в слот `steps`). Сеем один шаг, чтобы слот `steps` сразу был активен
+ * (`childSlots` показывает его только при непустом `steps`, см. `node-kind`).
+ */
+export function wizardNode(): JsonNode {
+  return {
+    component: '$component(Wizard)',
+    componentProps: { steps: [stepNode('Шаг 1')] },
+  };
+}
+
 /** Узел по умолчанию для записи каталога (по `role`/`name`). */
 export function makeNodeFor(name: string, role: CatalogRole): JsonNode {
   if (role === 'array') return arrayNode();
   if (name.startsWith('$html(')) return htmlNodeFor(name);
   if (role === 'field') return fieldNode(name);
+  if (name === 'Wizard') return wizardNode();
+  if (name === 'Step') return stepNode();
   return containerNode(name);
 }

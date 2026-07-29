@@ -1,7 +1,8 @@
 /**
- * Синтетические записи каталога (нет в `defaultPropSchemas`): презентационные `$html`-блоки и
- * палитровый **array** (спека §5/§6). Возвращаем сериализуемые {@link CatalogRecord} (без
- * `makeNode` — он восстанавливается из `role`/`name`).
+ * Синтетические записи каталога (нет в `defaultPropSchemas`): презентационные `$html`-блоки,
+ * палитровый **array** и палитровый **wizard** (`Wizard` + шаг `Step`) — всё то, что билдер
+ * поставляет сам, минуя ui-kit-каталог (спека §5/§6). Возвращаем сериализуемые {@link CatalogRecord}
+ * (без `makeNode` — он восстанавливается из `role`/`name` в {@link './make-node'}).
  *
  * Список HTML-тегов и их props живут в {@link './html-tags'} (единый источник для палитры и
  * узла-по-умолчанию); здесь — только маппинг спецификаций в записи каталога.
@@ -30,7 +31,31 @@ const arrayPropsSchema: PropsSchema = {
   },
 };
 
-/** Синтетические записи каталога (HTML-блоки + array). */
+/**
+ * Props визарда — минимум: класс контейнера. Шаги живут в `componentProps.steps` и правятся
+ * структурно на canvas, а не через инспектор.
+ */
+const wizardPropsSchema: PropsSchema = {
+  type: 'object',
+  properties: {
+    className: { type: 'string', 'x-doc': { group: 'Control', type: 'string' } },
+  },
+};
+
+/** Props шага визарда: подпись и иконка (показываются в индикаторе шагов). */
+const stepPropsSchema: PropsSchema = {
+  type: 'object',
+  properties: {
+    title: { type: 'string', 'x-doc': { group: 'Control', type: 'string' } },
+    icon: {
+      type: 'string',
+      description: 'Иконка шага: эмодзи или строка.',
+      'x-doc': { group: 'Control', type: 'string' },
+    },
+  },
+};
+
+/** Синтетические записи каталога (HTML-блоки + array + wizard/step). */
 export function syntheticRecords(): CatalogRecord[] {
   const html: CatalogRecord[] = HTML_TAG_SPECS.map((spec) => ({
     name: `$html(${spec.tag})`,
@@ -44,5 +69,19 @@ export function syntheticRecords(): CatalogRecord[] {
     category: 'Массив',
     propsSchema: arrayPropsSchema,
   };
-  return [...html, array];
+  // Wizard держит шаги в `componentProps.steps` (не в `children`); Step — контейнер тела шага.
+  // Оба роли `container`: kindOf → container, что нужно для makeNode/childSlots.
+  const wizard: CatalogRecord = {
+    name: 'Wizard',
+    role: 'container',
+    category: 'Мастер',
+    propsSchema: wizardPropsSchema,
+  };
+  const step: CatalogRecord = {
+    name: 'Step',
+    role: 'container',
+    category: 'Мастер',
+    propsSchema: stepPropsSchema,
+  };
+  return [...html, array, wizard, step];
 }
