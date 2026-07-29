@@ -7,13 +7,13 @@
  * @module reformer-builder/app/form-templates
  */
 
-/** Схема формы (JSON) — рабочая «рыба»: Box + пара полей, распознаётся как форма (canvas). */
+/** Схема формы (JSON) — рабочая «рыба»: Div + пара полей, распознаётся как форма (canvas). */
 export function formJsonTemplate(): string {
   const schema = {
     $schema: './form-schema.schema.json',
     version: '1.0',
     root: {
-      component: '$component(Box)',
+      component: '$html(div)',
       componentProps: { className: 'space-y-4' },
       children: [
         {

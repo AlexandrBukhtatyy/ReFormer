@@ -13,7 +13,7 @@ export function seedSchema(): JsonFormSchema {
     $schema: './form-schema.schema.json',
     version: '1.0',
     root: {
-      component: '$component(Box)',
+      component: '$html(div)',
       componentProps: { className: 'space-y-6' },
       children: [
         {
