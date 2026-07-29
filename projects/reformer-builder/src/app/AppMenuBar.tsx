@@ -30,7 +30,7 @@ import {
 } from '../store';
 import type { PreviewMode } from '../store';
 import { emptySchema } from '../model';
-import { openProject, triggerSave } from './save-actions';
+import { exportExample, openProject, triggerSave } from './save-actions';
 
 /** Новая пустая форма — имя без коллизий с уже открытыми вкладками. */
 function newForm() {
@@ -62,6 +62,12 @@ export function AppMenuBar() {
           <MenubarItem disabled={!tab} onClick={() => tab && void triggerSave(tab)}>
             Сохранить / Экспорт
             <MenubarShortcut>⌘S</MenubarShortcut>
+          </MenubarItem>
+          <MenubarItem
+            disabled={!tab || tab.kind === 'code'}
+            onClick={() => tab && void exportExample(tab)}
+          >
+            Экспортировать как пример…
           </MenubarItem>
           <MenubarItem
             disabled={!activeId}

@@ -37,6 +37,8 @@ import { resolvePrinterOptions } from '../io/prettier-config';
 import { prepareSave, commitSave, type SavePlan } from '../io/save';
 import { downloadSchema } from '../io/export';
 import { validateSchema } from '../io/validate';
+import { effectiveMock } from '../canvas/mock-data';
+import { dirPickerAvailable, exportExampleToDirectory } from '../codegen/deliver';
 import { showValidationErrors } from './validation-toast';
 import { editorActions } from '../store';
 import type { TabState } from '../store';
@@ -424,5 +426,38 @@ export async function confirmSave(plan: SavePlan): Promise<void> {
   } catch (e) {
     saveDialogActions.setSaving(false);
     toast('Ошибка записи: ' + msg(e));
+  }
+}
+
+/**
+ * Экспортировать активную форму как полноценный пример (renderer-json): выбор папки →
+ * запись сгенерированных файлов → App.tsx-сниппет в буфер. User-owned файлы при повторном
+ * экспорте не затираются (безопасная регенерация).
+ */
+export async function exportExample(tab: TabState): Promise<void> {
+  if (tab.kind === 'code') {
+    toast('Экспорт примера доступен только для формы');
+    return;
+  }
+  if (!dirPickerAvailable()) {
+    toast('Экспорт примера требует Chromium-браузера (File System Access API)');
+    return;
+  }
+  const formName = tab.source.name.replace(/\.(form\.)?json$/i, '') || 'form';
+  const mock = effectiveMock(tab.schema, tab.mockText);
+  try {
+    const res = await exportExampleToDirectory(tab.schema, mock, formName);
+    try {
+      await navigator.clipboard.writeText(res.snippet);
+    } catch {
+      /* буфер недоступен — сниппет продублирован в README.md */
+    }
+    const skipped = res.skipped.length ? `, пропущено ${res.skipped.length} (ваши файлы)` : '';
+    toast(
+      `Пример «${res.dir}»: записано ${res.written.length} файлов${skipped}. Сниппет для App.tsx — в буфере и README.md.`
+    );
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') return; // пользователь отменил выбор папки
+    toast('Не удалось создать пример: ' + msg(e));
   }
 }
