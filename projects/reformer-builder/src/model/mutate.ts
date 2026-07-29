@@ -107,6 +107,35 @@ export function setComponent(
 }
 
 /**
+ * Переключить вариант узла на sibling-компонент из той же группы вариантов: сменить `component` на
+ * `$component(targetName)` и удалить из `componentProps` ключи, отсутствующие в целевой props-схеме
+ * (`targetPropKeys`). Общие ключи (`className`/`placeholder`/`options` + wrapper `label`/`required`/
+ * `description`/`testId`) выживают, т.к. есть в целевой схеме. Одна запись истории (стор оборачивает
+ * весь результат в один `apply`). Прунинг сохраняет порядок оставшихся ключей.
+ *
+ * @param targetPropKeys - допустимые `componentProps`-ключи целевого варианта
+ *   (`Object.keys(targetEntry.propsSchema.properties)`).
+ */
+export function switchVariant(
+  schema: JsonFormSchema,
+  nodePath: JsonPath,
+  targetName: string,
+  targetPropKeys: Set<string>
+): MutationResult {
+  const afterComponent = setComponent(schema, nodePath, `$component(${targetName})`);
+  const props = getAt(afterComponent.schema, [...nodePath, 'componentProps']);
+  if (props == null || typeof props !== 'object') return afterComponent;
+  const next = updateAt(afterComponent.schema, [...nodePath, 'componentProps'], (p: unknown) => {
+    const pruned: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(p as Record<string, unknown>)) {
+      if (targetPropKeys.has(k)) pruned[k] = v;
+    }
+    return pruned;
+  });
+  return { schema: next, newPath: nodePath };
+}
+
+/**
  * Вставить узел в массив-слот (`children`/`steps`) на позицию `index`. Слот создаётся,
  * если его не было. `index` за пределами длины трактуется как «в конец».
  *

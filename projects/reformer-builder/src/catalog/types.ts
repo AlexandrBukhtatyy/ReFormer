@@ -38,6 +38,10 @@ export interface CatalogEntry {
   role: CatalogRole;
   category?: string;
   propsSchema: PropsSchema;
+  /** Имя группы вариантов (напр. `Input`); члены группы делят его. Дефолт — член, чей `name === variantGroup`. */
+  variantGroup?: string;
+  /** Человекочитаемая метка варианта в группе (напр. `Пароль`). */
+  variant?: string;
   makeNode: () => JsonNode;
 }
 
@@ -50,6 +54,8 @@ export interface CatalogRecord {
   role: CatalogRole;
   category?: string;
   propsSchema: PropsSchema;
+  variantGroup?: string;
+  variant?: string;
 }
 
 /** Каталог-JSON по контракту `component-catalog.schema.json` (§5). */

@@ -18,8 +18,9 @@ import {
   type JsonNode,
 } from '@reformer/renderer-json';
 import { findByPath, type JsonPath } from '../model';
-import { setComponentProp, setNodeKey } from '../model';
+import { setComponentProp, setNodeKey, switchVariant } from '../model';
 import { getCatalogEntry, inspectorGroups, type InspectorProp } from '../catalog';
+import { variantGroupOf } from '../catalog/variants';
 import { editorActions, useActiveTab, useSelectionPath, type TabState } from '../store';
 import { nodeTypeBadge } from '../canvas/node-display';
 import { effectiveMock, serializeMock } from '../canvas/mock-data';
@@ -106,6 +107,42 @@ function ModelPathField({ node, path, tab }: { node: JsonNode; path: JsonPath; t
           className="h-[26px] min-w-0 flex-1 bg-background font-mono text-xs"
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Селектор варианта компонента — первая строка секции Control. Показывается только если узел входит
+ * в группу вариантов (>1 члена). Смена варианта переключает `$component(...)` и прунит несовместимые
+ * `componentProps` (общие ключи сохраняются); инспектор перечитает props-схему нового варианта и
+ * покажет его набор полей.
+ */
+function VariantRow({ node, path }: { node: JsonNode; path: JsonPath }) {
+  const name = parseOperator((node as { component?: unknown }).component)?.arg;
+  const grp = name ? variantGroupOf(name) : null;
+  if (!grp || !name) return null;
+
+  const switchTo = (targetName: string) => {
+    const target = grp.members.find((m) => m.name === targetName);
+    if (!target || target.name === name) return;
+    const keys = new Set(Object.keys(target.propsSchema.properties ?? {}));
+    editorActions.apply((s) => switchVariant(s, path, target.name, keys));
+  };
+
+  return (
+    <div className="flex min-h-6 items-center gap-2.5">
+      <span className="w-24 flex-none truncate text-xs">Вариант</span>
+      <select
+        value={name}
+        onChange={(e) => switchTo(e.target.value)}
+        className="h-[26px] min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:border-ring"
+      >
+        {grp.members.map((m) => (
+          <option key={m.name} value={m.name}>
+            {m.variant ?? m.name}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -230,6 +267,7 @@ export function Inspector() {
             {group.group}
           </div>
           <div className="flex flex-col gap-2.5">
+            {group.group === 'Control' && <VariantRow node={node} path={selPath} />}
             {group.props.map((prop) => (
               <PropRow key={prop.key} node={node} path={selPath} prop={prop} />
             ))}

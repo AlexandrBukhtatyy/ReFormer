@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { getCatalog, type CatalogEntry } from '../catalog';
+import { isDefaultVariant } from '../catalog/variants';
 import { editorActions, useUi } from '../store';
 import { cn } from '../lib/cn';
 
@@ -127,6 +128,11 @@ export function QuickAddDialog() {
               )}
             >
               <span className="min-w-0 flex-1 truncate">{label(entry)}</span>
+              {entry.variantGroup && !isDefaultVariant(entry) && (
+                <span className="flex-none rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                  {entry.variant}
+                </span>
+              )}
               {entry.category && (
                 <span className="flex-none text-[10px] text-muted-foreground">
                   {entry.category}

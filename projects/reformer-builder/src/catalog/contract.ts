@@ -125,6 +125,8 @@ export function buildCatalogFromJson(json: CatalogJson): CatalogEntry[] {
     role: r.role,
     category: r.category ?? categoryOf(r.name, r.role),
     propsSchema: r.propsSchema,
+    ...(r.variantGroup ? { variantGroup: r.variantGroup } : {}),
+    ...(r.variant ? { variant: r.variant } : {}),
     makeNode: () => makeNodeFor(r.name, r.role),
   }));
 }

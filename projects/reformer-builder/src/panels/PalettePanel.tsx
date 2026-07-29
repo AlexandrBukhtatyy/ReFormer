@@ -12,6 +12,7 @@ import { Input, ScrollArea } from '@reformer/ui-kit';
 import { isContainerNode, type JsonFormSchema } from '@reformer/renderer-json';
 import { appendNode, findByPath, parentNodePath, type JsonPath } from '../model';
 import { getCatalog, type CatalogEntry } from '../catalog';
+import { collapseToDefaults } from '../catalog/variants';
 import { editorActions, editorStore } from '../store';
 import { clearDrag, setDrag } from '../dnd/drag-state';
 
@@ -112,8 +113,11 @@ function displayName(entry: CatalogEntry): string {
 function groupByCategory(catalog: CatalogEntry[], q: string): Array<[string, CatalogEntry[]]> {
   const needle = q.trim().toLowerCase();
   const filtered = needle ? catalog.filter((e) => e.name.toLowerCase().includes(needle)) : catalog;
+  // Палитра — один дефолт-вариант на группу (не-дефолтные варианты доступны в QuickAdd). При поиске
+  // конкретного варианта (дефолт не в выборке) collapseToDefaults покажет сам найденный вариант.
+  const collapsed = collapseToDefaults(filtered);
   const map = new Map<string, CatalogEntry[]>();
-  for (const e of filtered) {
+  for (const e of collapsed) {
     const c = e.category ?? 'Прочее';
     const list = map.get(c) ?? [];
     list.push(e);
