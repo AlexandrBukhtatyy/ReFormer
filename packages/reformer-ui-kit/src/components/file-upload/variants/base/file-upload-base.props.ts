@@ -11,6 +11,8 @@ export const fileUploadBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'FileUpload',
+  'x-variantGroup': 'FileUpload',
+  'x-variant': 'Файлы',
   properties: {
     variant: {
       type: 'string',

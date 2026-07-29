@@ -31,6 +31,14 @@
           "propsSchema": {
             "type": "object",
             "description": "JSON Schema редактируемых пропсов компонента (валидируется её структура, не содержимое)."
+          },
+          "variantGroup": {
+            "type": "string",
+            "description": "Имя группы вариантов. Компоненты с одним variantGroup — варианты одного компонента (селектор variant в инспекторе). Дефолт группы — член, чей name === variantGroup."
+          },
+          "variant": {
+            "type": "string",
+            "description": "Человекочитаемая метка варианта в группе (напр. «Пароль»)."
           }
         }
       }

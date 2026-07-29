@@ -11,6 +11,8 @@ export const inputPasswordBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'InputPassword',
+  'x-variantGroup': 'Input',
+  'x-variant': 'Пароль',
   properties: {
     placeholder: {
       type: 'string',

@@ -104,7 +104,19 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "AlertDialog",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыт ли диалог изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          }
+        }
       }
     },
     {
@@ -112,7 +124,28 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "AspectRatio",
+        "properties": {
+          "ratio": {
+            "type": "number",
+            "default": 1,
+            "description": "Соотношение сторон (ширина / высота), напр. 16/9 ≈ 1.78.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -120,7 +153,52 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Attachment",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": ["idle", "uploading", "processing", "error", "done"],
+            "default": "done",
+            "description": "Состояние загрузки/обработки файла — влияет на стили рамки и анимацию.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'idle' | 'uploading' | 'processing' | 'error' | 'done'",
+              "kind": "enum"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "sm", "xs"],
+            "default": "default",
+            "description": "Размер чипа (отступы и типографика).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'sm' | 'xs'",
+              "kind": "enum"
+            }
+          },
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Ориентация: горизонтальный чип или вертикальная карточка.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -210,7 +288,19 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Breadcrumb",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -218,7 +308,41 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Bubble",
+        "properties": {
+          "variant": {
+            "type": "string",
+            "enum": ["default", "secondary", "muted", "tinted", "outline", "ghost", "destructive"],
+            "default": "default",
+            "description": "Вариант оформления пузыря.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'secondary' | 'muted' | 'tinted' | 'outline' | 'ghost' | 'destructive'",
+              "kind": "enum"
+            }
+          },
+          "align": {
+            "type": "string",
+            "enum": ["start", "end"],
+            "default": "start",
+            "description": "Сторона выравнивания пузыря (start — слева, end — справа).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'start' | 'end'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -447,7 +571,30 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Carousel",
+        "properties": {
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Ориентация прокрутки карусели.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -455,7 +602,19 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Chart",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind) — обычно задаёт высоту/ширину графика.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -680,6 +839,15 @@
               "group": "Behavior",
               "type": "boolean"
             }
+          },
+          "creatable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Разрешить ввести своё значение: при отсутствии совпадения — пункт «Создать «…»» (эмитит введённое как value).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
           }
         },
         "additionalProperties": false,
@@ -715,7 +883,55 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Command",
+        "properties": {
+          "shouldFilter": {
+            "type": "boolean",
+            "default": true,
+            "description": "Авто-фильтрация и сортировка по поисковому запросу.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "loop": {
+            "type": "boolean",
+            "default": false,
+            "description": "Зацикливать навигацию стрелками (с конца — в начало).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "disablePointerSelection": {
+            "type": "boolean",
+            "default": false,
+            "description": "Отключить выбор пункта наведением мыши.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "vimBindings": {
+            "type": "boolean",
+            "default": true,
+            "description": "Vim-хоткеи навигации (ctrl+n/j/p/k).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -723,7 +939,30 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "ContextMenu",
+        "properties": {
+          "dir": {
+            "type": "string",
+            "enum": ["ltr", "rtl"],
+            "default": "ltr",
+            "description": "Направление чтения — влияет на раскладку и навигацию с клавиатуры.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'ltr' | 'rtl'",
+              "kind": "enum"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном при открытом меню.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
       }
     },
     {
@@ -827,7 +1066,28 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Dialog",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыт ли диалог изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
       }
     },
     {
@@ -835,7 +1095,57 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Drawer",
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": ["top", "bottom", "left", "right"],
+            "default": "bottom",
+            "description": "Сторона появления шторки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'top' | 'bottom' | 'left' | 'right'",
+              "kind": "enum"
+            }
+          },
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыта ли шторка изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "dismissible": {
+            "type": "boolean",
+            "default": true,
+            "description": "Можно ли закрыть свайпом/кликом по фону.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "handleOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Тянуть только за «ручку», а не за весь контент.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
       }
     },
     {
@@ -843,7 +1153,38 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "DropdownMenu",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыто ли меню изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном, пока меню открыто.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "dir": {
+            "type": "string",
+            "enum": ["ltr", "rtl"],
+            "description": "Направление чтения — влияет на раскладку и навигацию клавиатурой.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'ltr' | 'rtl'",
+              "kind": "enum"
+            }
+          }
+        }
       }
     },
     {
@@ -851,7 +1192,19 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Empty",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -1073,7 +1426,9 @@
             "description": "Файлы, отклонённые отбором (в значение поля не попадают)."
           }
         }
-      }
+      },
+      "variantGroup": "FileUpload",
+      "variant": "Файлы"
     },
     {
       "name": "FileUploadAvatar",
@@ -1208,14 +1563,46 @@
             "description": "Файлы, отклонённые отбором."
           }
         }
-      }
+      },
+      "variantGroup": "FileUpload",
+      "variant": "Аватар"
     },
     {
       "name": "HoverCard",
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "HoverCard",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыта ли карточка изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "openDelay": {
+            "type": "number",
+            "default": 700,
+            "description": "Задержка (мс) перед открытием при наведении.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "closeDelay": {
+            "type": "number",
+            "default": 300,
+            "description": "Задержка (мс) перед закрытием при уходе курсора.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          }
+        }
       }
     },
     {
@@ -1337,7 +1724,9 @@
             "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
           }
         }
-      }
+      },
+      "variantGroup": "Input",
+      "variant": "Текст"
     },
     {
       "name": "InputGroup",
@@ -1451,7 +1840,9 @@
             "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
           }
         }
-      }
+      },
+      "variantGroup": "Input",
+      "variant": "Маска"
     },
     {
       "name": "InputOTP",
@@ -1539,7 +1930,9 @@
             "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
           }
         }
-      }
+      },
+      "variantGroup": "Input",
+      "variant": "OTP"
     },
     {
       "name": "InputPassword",
@@ -1635,14 +2028,50 @@
             "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
           }
         }
-      }
+      },
+      "variantGroup": "Input",
+      "variant": "Пароль"
     },
     {
       "name": "Item",
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Item",
+        "properties": {
+          "variant": {
+            "type": "string",
+            "enum": ["default", "outline", "muted"],
+            "default": "default",
+            "description": "Визуальный стиль: прозрачный, с рамкой или приглушённый фон.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'outline' | 'muted'",
+              "kind": "enum"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "sm"],
+            "default": "default",
+            "description": "Размер отступов и зазоров внутри строки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'sm'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -1650,7 +2079,19 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Kbd",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -1686,7 +2127,30 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Marker",
+        "properties": {
+          "variant": {
+            "type": "string",
+            "enum": ["default", "separator", "border"],
+            "default": "default",
+            "description": "Вариант оформления маркера.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'separator' | 'border'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -1694,7 +2158,39 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Menubar",
+        "properties": {
+          "dir": {
+            "type": "string",
+            "enum": ["ltr", "rtl"],
+            "default": "ltr",
+            "description": "Направление чтения (влияет на навигацию стрелками).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'ltr' | 'rtl'",
+              "kind": "enum"
+            }
+          },
+          "loop": {
+            "type": "boolean",
+            "default": false,
+            "description": "Зациклить перемещение фокуса стрелками по краям.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -1702,7 +2198,30 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Message",
+        "properties": {
+          "align": {
+            "type": "string",
+            "enum": ["start", "end"],
+            "default": "start",
+            "description": "Сторона выравнивания сообщения (end — своё сообщение справа).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'start' | 'end'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -1710,7 +2229,19 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "MessageScroller",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -1829,7 +2360,67 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "NavigationMenu",
+        "properties": {
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Ориентация меню.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "dir": {
+            "type": "string",
+            "enum": ["ltr", "rtl"],
+            "description": "Направление письма (слева-направо / справа-налево).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'ltr' | 'rtl'",
+              "kind": "enum"
+            }
+          },
+          "viewport": {
+            "type": "boolean",
+            "default": true,
+            "description": "Рендерить общий Viewport-оверлей для контента (иначе контент под каждым пунктом).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "delayDuration": {
+            "type": "number",
+            "default": 200,
+            "description": "Задержка (мс) перед открытием меню при наведении.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "skipDelayDuration": {
+            "type": "number",
+            "default": 300,
+            "description": "Окно (мс), в течение которого переход между пунктами открывает меню без задержки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -1837,7 +2428,19 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Pagination",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -1845,7 +2448,28 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Popover",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыт ли поповер изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": false,
+            "description": "Модальный режим — блокирует взаимодействие с фоном и ловит фокус.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
       }
     },
     {
@@ -1995,7 +2619,30 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Resizable",
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Направление разделения панелей.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -2003,7 +2650,39 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "ScrollArea",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["auto", "always", "scroll", "hover"],
+            "default": "hover",
+            "description": "Когда показывать скроллбары.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'auto' | 'always' | 'scroll' | 'hover'",
+              "kind": "enum"
+            }
+          },
+          "scrollHideDelay": {
+            "type": "number",
+            "default": 600,
+            "description": "Задержка скрытия скроллбаров (мс) — для type=hover/scroll.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -2226,7 +2905,28 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Sheet",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыта ли панель изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
       }
     },
     {
@@ -2234,7 +2934,52 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Sidebar",
+        "properties": {
+          "side": {
+            "type": "string",
+            "enum": ["left", "right"],
+            "default": "left",
+            "description": "Сторона размещения.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'left' | 'right'",
+              "kind": "enum"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["sidebar", "floating", "inset"],
+            "default": "sidebar",
+            "description": "Вариант оформления.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'sidebar' | 'floating' | 'inset'",
+              "kind": "enum"
+            }
+          },
+          "collapsible": {
+            "type": "string",
+            "enum": ["offcanvas", "icon", "none"],
+            "default": "offcanvas",
+            "description": "Режим сворачивания.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'offcanvas' | 'icon' | 'none'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -2242,7 +2987,19 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Skeleton",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind) — задаёт размеры плейсхолдера (h-*/w-*).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -2355,7 +3112,19 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Spinner",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind); размер задаётся через size-* (по умолчанию size-4).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
       }
     },
     {
@@ -2815,7 +3584,37 @@
       "role": "container",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": true,
+        "x-registryName": "Tooltip",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показан ли тултип изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "delayDuration": {
+            "type": "number",
+            "default": 700,
+            "description": "Задержка перед показом (мс).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "disableHoverableContent": {
+            "type": "boolean",
+            "default": false,
+            "description": "Скрывать тултип при уходе курсора с триггера (нельзя навести на сам тултип).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
       }
     },
     {

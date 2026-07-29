@@ -8,6 +8,8 @@ export const inputBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'Input',
+  'x-variantGroup': 'Input',
+  'x-variant': 'Текст',
   properties: {
     type: {
       type: 'string',

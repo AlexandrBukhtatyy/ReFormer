@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon, XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
@@ -45,6 +45,12 @@ export interface ComboboxProps {
   emptyText?: string;
   /** Показывать ли крестик очистки справа от значения. По умолчанию `false`. */
   clearable?: boolean;
+  /**
+   * Creatable-режим: разрешить ввести своё значение. Когда введённый текст не совпадает точно ни с
+   * одной опцией, в списке появляется пункт «Создать «…»» — выбор эмитит введённое значение как
+   * `value` (label в триггере = само значение). По умолчанию `false`.
+   */
+  creatable?: boolean;
   disabled?: boolean;
   id?: string;
   'data-testid'?: string;
@@ -85,6 +91,7 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
     searchPlaceholder,
     emptyText,
     clearable = false,
+    creatable = false,
     disabled,
     id,
     'data-testid': dataTestId,
@@ -97,6 +104,7 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
   ref
 ) {
   const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState('');
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
 
   React.useImperativeHandle(
@@ -110,19 +118,37 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
     [onChange]
   );
 
+  // Для creatable значение может отсутствовать в options — тогда показываем его же как label.
   const selectedLabel = React.useMemo(
-    () => options.find((opt) => opt.value === value)?.label,
+    () => options.find((opt) => opt.value === value)?.label ?? (value ? value : undefined),
     [options, value]
   );
 
+  const trimmedSearch = search.trim();
+  const showCreate =
+    creatable &&
+    trimmedSearch.length > 0 &&
+    !options.some((opt) => opt.label.toLowerCase() === trimmedSearch.toLowerCase());
+
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
-    if (!next) onBlur?.();
+    if (!next) {
+      setSearch('');
+      onBlur?.();
+    }
   };
 
   const handleSelect = (optionValue: string) => {
     // clearable: повторный выбор текущей опции сбрасывает значение (toggle-off).
     onChange?.(clearable && optionValue === value ? null : optionValue);
+    setSearch('');
+    setOpen(false);
+  };
+
+  const handleCreate = () => {
+    if (!trimmedSearch) return;
+    onChange?.(trimmedSearch);
+    setSearch('');
     setOpen(false);
   };
 
@@ -165,9 +191,13 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
         </PopoverTrigger>
         <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
           <Command>
-            <CommandInput placeholder={searchPlaceholder ?? 'Search...'} />
+            <CommandInput
+              placeholder={searchPlaceholder ?? 'Search...'}
+              value={search}
+              onValueChange={setSearch}
+            />
             <CommandList>
-              <CommandEmpty>{emptyText ?? 'No options found.'}</CommandEmpty>
+              {!showCreate && <CommandEmpty>{emptyText ?? 'No options found.'}</CommandEmpty>}
               <CommandGroup>
                 {options.map((option) => (
                   <CommandItem
@@ -186,6 +216,15 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
                   </CommandItem>
                 ))}
               </CommandGroup>
+              {showCreate && (
+                <CommandGroup>
+                  {/* value=search → cmdk не отфильтрует пункт; выбор эмитит введённое значение. */}
+                  <CommandItem value={trimmedSearch} onSelect={handleCreate}>
+                    <PlusIcon className="mr-2 size-4" />
+                    Создать «{trimmedSearch}»
+                  </CommandItem>
+                </CommandGroup>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>

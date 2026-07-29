@@ -56,6 +56,13 @@ export const comboboxBasePropsSchema = {
         'Показывать крестик очистки (сброс в null); повторный выбор опции тоже сбрасывает.',
       'x-doc': { group: 'Behavior', type: 'boolean' },
     },
+    creatable: {
+      type: 'boolean',
+      default: false,
+      description:
+        'Разрешить ввести своё значение: при отсутствии совпадения — пункт «Создать «…»» (эмитит введённое как value).',
+      'x-doc': { group: 'Behavior', type: 'boolean' },
+    },
   },
   'x-runtimeProps': {
     // Только СВОЁ: seam (onBlur/disabled) подмешает mergeFieldPropsSchema.
