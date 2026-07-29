@@ -46,8 +46,13 @@ export function QuickAddDialog() {
   }
 
   // Не выходить за границы при фильтрации — клампим во время рендера.
-  if (active > items.length - 1) {
-    setActive(Math.max(0, items.length - 1));
+  // Сравнивать надо с уже заклампленным индексом: при пустом списке (ввод, по которому нет
+  // совпадений — напр. кириллица) items.length - 1 = -1, а setActive выставляет 0. Если сравнивать
+  // с -1, условие active > -1 остаётся истинным и после клампа → setActive в фазе рендера зовётся
+  // каждый проход → «Too many re-renders».
+  const maxActive = Math.max(0, items.length - 1);
+  if (active > maxActive) {
+    setActive(maxActive);
   }
 
   // Фокус на поле при открытии — DOM-side-effect, остаётся в эффекте.
