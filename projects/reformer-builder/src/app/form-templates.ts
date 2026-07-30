@@ -7,6 +7,54 @@
  * @module reformer-builder/app/form-templates
  */
 
+/** Какие файлы генерировать в каталоге формы. */
+export interface FormDirFiles {
+  model: boolean;
+  form: boolean;
+  validation: boolean;
+  behavior: boolean;
+  ui: boolean;
+  /** Реестр компонентов (registry.ts) — привязка `$component` к ui-kit. */
+  registry: boolean;
+  /** Страница-компонент (index.tsx) — рендерит форму. Требует остальные файлы. */
+  component: boolean;
+}
+
+/**
+ * Эффективный набор файлов: страница-компонент (index.tsx) не соберётся без модели, схемы, реестра,
+ * валидации, поведения и ui-behavior — поэтому при `component` его зависимости включаются
+ * принудительно. Так «Каталог с формой» отдаёт форму, работающую сразу после копирования в проект.
+ */
+export function resolveFormDirFiles(which: FormDirFiles): FormDirFiles {
+  if (!which.component) return which;
+  return {
+    model: true,
+    form: true,
+    validation: true,
+    behavior: true,
+    ui: true,
+    registry: true,
+    component: true,
+  };
+}
+
+/** PascalCase-идентификатор из имени формы (для имени компонента-страницы). */
+function pascalCase(formName: string): string {
+  const parts = formName.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+}
+
+/**
+ * Имя компонента-страницы: валидный JS-идентификатор с суффиксом `Form`. Ведущая цифра/пустое имя
+ * получают префикс `Form`; уже имеющийся суффикс `Form` не задваивается (имя формы «profile form»
+ * → `ProfileForm`, а не `ProfileFormForm`).
+ */
+function componentName(formName: string): string {
+  const pascal = pascalCase(formName);
+  const base = /^[A-Za-z]/.test(pascal) ? pascal : `Form${pascal}`;
+  return base.endsWith('Form') ? base : `${base}Form`;
+}
+
 /** Схема формы (JSON) — рабочая «рыба»: Div + пара полей, распознаётся как форма (canvas). */
 export function formJsonTemplate(): string {
   const schema = {
@@ -239,5 +287,117 @@ export const formUiBehavior: RenderBehaviorFn<FormShape> = (schema) => {
 
   void schema;
 };
+`;
+}
+
+/**
+ * Реестр компонентов (renderer-json) — привязка `$component(...)` из form.json к реализациям
+ * @reformer/ui-kit. `FIELD_WRAPPER` оборачивает каждое поле (label + ошибки). Регенерируется целиком.
+ */
+export function registryTsTemplate(formName: string): string {
+  return `/**
+ * Реестр компонентов формы «${formName}» — что рендерить под каждое \`$component(...)\` из form.json.
+ * \`FIELD_WRAPPER\` (FormField) оборачивает каждый лист: label + ошибки. Добавили в схему новый
+ * \`$component(X)\` — зарегистрируйте X здесь (field-компоненты ui-kit: \`XField\`). Docs: @reformer/renderer-json.
+ */
+import { InputField, FormField } from '@reformer/ui-kit';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+
+export function createRegistry(): ComponentRegistry {
+  return defineRegistry((reg) => {
+    // Системная обёртка поля: label + ошибки вокруг каждого листа.
+    reg.component(FIELD_WRAPPER, FormField);
+    // Поля: имя в схеме → компонент ui-kit.
+    reg.component('Input', InputField);
+  });
+}
+`;
+}
+
+/**
+ * Точка сборки формы (renderer-json) — модель + form.json + реестр + поведение → JsonFormRenderer.
+ * Default-export страница: подключается в react-playground одной строкой. Регенерируется целиком.
+ */
+export function indexTsxTemplate(formName: string): string {
+  const Comp = componentName(formName);
+  return `/**
+ * Форма «${formName}» — сборка и рендер. В JSX только провайдер реестра и рендерер: весь layout
+ * живёт в form.json, значения/поведение/валидация — в model.ts / behavior.ts / validation.ts / ui.ts.
+ *
+ * Готова к работе сразу: рендерится на \`initialFormModel\`, «Отправить» гоняет валидацию. Подключение
+ * в react-playground: \`import ${Comp} from './pages/examples/<папка>';\` + \`<Route element={<${Comp} />} />\`.
+ */
+import { useMemo, useState } from 'react';
+import { createModel, createForm } from '@reformer/core';
+import { validateModel } from '@reformer/core/validation';
+import {
+  JsonFormRenderer,
+  JsonRendererProvider,
+  convertJsonToM1Tree,
+  type JsonFormSchema,
+} from '@reformer/renderer-json';
+import { Button } from '@reformer/ui-kit';
+import rawSchema from './form.json';
+import { createRegistry } from './registry';
+import { initialFormModel, type FormShape } from './model';
+import { formBehavior } from './behavior';
+import { formValidation } from './validation';
+import { formUiBehavior } from './ui';
+
+// В чистом JSON операторы типизируются как \`string\` — приведение = сценарий «схема пришла с сервера».
+const schema = rawSchema as unknown as JsonFormSchema;
+
+export default function ${Comp}() {
+  const [status, setStatus] = useState<string | null>(null);
+
+  // Один раз: повторная сборка создала бы новый реестр и пересоздала бы форму на каждый рендер.
+  const registry = useMemo(() => createRegistry(), []);
+  const { model, form } = useMemo(() => {
+    const model = createModel<FormShape>({ ...initialFormModel });
+    const form = createForm<FormShape>({
+      model,
+      schema: convertJsonToM1Tree(schema, registry, model),
+      behavior: formBehavior,
+    });
+    return { model, form };
+  }, [registry]);
+
+  const submit = async (): Promise<void> => {
+    form.markAsTouched();
+    const valid = await validateModel(model, formValidation);
+    if (!valid) {
+      setStatus('Проверьте выделенные поля');
+      return;
+    }
+    // TODO: отправка на бэкенд (пример флоу — в renderer-json examples: api.ts + submit).
+    // eslint-disable-next-line no-console
+    console.info('[${formName}] submit', model.get());
+    setStatus('Форма валидна — данные готовы к отправке');
+  };
+
+  return (
+    <div className="mx-auto max-w-xl space-y-4 p-6">
+      <header>
+        <h1 className="text-xl font-semibold text-gray-800">${formName}</h1>
+      </header>
+
+      {status && (
+        <div role="status" className="rounded-md border p-3 text-sm">
+          {status}
+        </div>
+      )}
+
+      <JsonRendererProvider settings={{ registry, model }}>
+        <JsonFormRenderer<FormShape>
+          schema={schema}
+          renderBehavior={formUiBehavior}
+          validateSchema={import.meta.env.DEV}
+        />
+      </JsonRendererProvider>
+
+      <Button onClick={() => void submit()}>Отправить</Button>
+    </div>
+  );
+}
 `;
 }

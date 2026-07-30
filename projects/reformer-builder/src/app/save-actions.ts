@@ -31,7 +31,13 @@ import {
   validationTsTemplate,
   behaviorTsTemplate,
   uiTsTemplate,
+  registryTsTemplate,
+  indexTsxTemplate,
+  resolveFormDirFiles,
+  type FormDirFiles,
 } from './form-templates';
+
+export type { FormDirFiles } from './form-templates';
 import { scanDirectory, formsOf, type TreeEntry } from '../io/discovery';
 import { resolvePrinterOptions } from '../io/prettier-config';
 import { prepareSave, commitSave, type SavePlan } from '../io/save';
@@ -346,15 +352,6 @@ export function generateUiBehavior(dirPath: string): Promise<void> {
   return generateOne(dirPath, 'ui.ts', uiTsTemplate(formNameOf(dirPath)), false);
 }
 
-/** Какие файлы генерировать в каталоге формы. */
-export interface FormDirFiles {
-  model: boolean;
-  form: boolean;
-  validation: boolean;
-  behavior: boolean;
-  ui: boolean;
-}
-
 /** Сгенерировать каталог формы `<formName>/` с выбранными файлами; form.json открыть в canvas. */
 export async function generateFormDirectory(
   parentPath: string,
@@ -367,18 +364,22 @@ export async function generateFormDirectory(
     return;
   }
   try {
+    const files = resolveFormDirFiles(which);
     const folder = await uniqueName(root, parentPath, formName);
     await createDirectory(root, parentPath, folder);
     const dirPath = joinPath(parentPath, folder);
 
     let formHandle: FileSystemFileHandle | null = null;
-    if (which.model) await createFile(root, dirPath, 'model.ts', modelTsTemplate(formName));
-    if (which.form) formHandle = await createFile(root, dirPath, 'form.json', formJsonTemplate());
-    if (which.validation)
+    if (files.model) await createFile(root, dirPath, 'model.ts', modelTsTemplate(formName));
+    if (files.form) formHandle = await createFile(root, dirPath, 'form.json', formJsonTemplate());
+    if (files.validation)
       await createFile(root, dirPath, 'validation.ts', validationTsTemplate(formName));
-    if (which.behavior)
+    if (files.behavior)
       await createFile(root, dirPath, 'behavior.ts', behaviorTsTemplate(formName));
-    if (which.ui) await createFile(root, dirPath, 'ui.ts', uiTsTemplate(formName));
+    if (files.ui) await createFile(root, dirPath, 'ui.ts', uiTsTemplate(formName));
+    if (files.registry)
+      await createFile(root, dirPath, 'registry.ts', registryTsTemplate(formName));
+    if (files.component) await createFile(root, dirPath, 'index.tsx', indexTsxTemplate(formName));
 
     await rescanProject();
     if (formHandle)

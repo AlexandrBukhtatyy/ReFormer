@@ -151,6 +151,8 @@ function DeleteBody({ path, name, onClose }: { path: string; name: string; onClo
 }
 
 const FORM_DIR_FILES: ReadonlyArray<{ key: keyof FormDirFiles; label: string }> = [
+  { key: 'component', label: 'Компонент-страница (index.tsx) — рендерит форму' },
+  { key: 'registry', label: 'Реестр компонентов (registry.ts)' },
   { key: 'model', label: 'Модель (model.ts)' },
   { key: 'form', label: 'Схема формы (form.json)' },
   { key: 'validation', label: 'Схема валидации (validation.ts)' },
@@ -161,13 +163,22 @@ const FORM_DIR_FILES: ReadonlyArray<{ key: keyof FormDirFiles; label: string }> 
 function FormDirBody({ dirPath, onClose }: { dirPath: string; onClose: () => void }) {
   const [name, setName] = useState('');
   const [files, setFiles] = useState<FormDirFiles>({
+    component: true,
+    registry: true,
     model: true,
     form: true,
     validation: true,
     behavior: true,
     ui: true,
   });
-  const anyFile = files.model || files.form || files.validation || files.behavior || files.ui;
+  const anyFile =
+    files.component ||
+    files.registry ||
+    files.model ||
+    files.form ||
+    files.validation ||
+    files.behavior ||
+    files.ui;
 
   const submit = () => {
     const v = name.trim();
@@ -181,8 +192,8 @@ function FormDirBody({ dirPath, onClose }: { dirPath: string; onClose: () => voi
       <DialogHeader>
         <DialogTitle>Каталог с формой</DialogTitle>
         <DialogDescription>
-          Создаст папку с выбранными файлами. Схема формы откроется в canvas, остальные — в
-          редакторе.
+          Создаст папку с выбранными файлами. С компонентом-страницей форма рендерится и работает
+          сразу (его зависимости включаются автоматически). Схема формы откроется в canvas.
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-3 py-1">
