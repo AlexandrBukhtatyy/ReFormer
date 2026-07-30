@@ -35,7 +35,7 @@ export default function RegistrationFormRendererJson() {
       <JsonFormRenderer<RegistrationFormData>
         schema={registrationJsonSchema}
         renderBehavior={renderBehavior}
-        validate={import.meta.env.DEV}
+        validateSchema={import.meta.env.DEV}
       />
     </JsonRendererProvider>
   );

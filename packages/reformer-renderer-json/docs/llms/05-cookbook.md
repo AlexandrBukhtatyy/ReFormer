@@ -33,7 +33,7 @@ export function MyFormPage() {
 
   return (
     <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm> schema={jsonSchema} validate={import.meta.env.DEV} />
+      <JsonFormRenderer<MyForm> schema={jsonSchema} validateSchema={import.meta.env.DEV} />
     </JsonRendererProvider>
   );
 }
@@ -42,7 +42,7 @@ export function MyFormPage() {
 **Notes.**
 
 - `convertJsonToM1Tree` бросает при битой схеме (неизвестный `$component`) **до** рендера. Оберни в try/catch, если хочешь показать `SchemaErrorPanel` вместо краша (см. `buildModelAndForm` в эталоне).
-- `validate={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
+- `validateSchema={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
 - Поведение (compute/enableWhen/navigation) идёт в `createForm({ behavior })`; render-behavior (hideWhen/patchProps/onInit) — отдельным пропом `renderBehavior`.
 
 ## $template для массивов { #template-arrays }
@@ -136,7 +136,7 @@ const registry = defineRegistry((reg) => {
 **Notes.**
 
 - Резолв происходит только для строк `'$dataSource(NAME)'`. Голые строки (`label`, `placeholder`) и инлайн-массивы options идут как есть.
-- Если имя не зарегистрировано: без `validate` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validate` — ошибка `unknown dataSource "NAME"`.
+- Если имя не зарегистрировано: без `validateSchema` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validateSchema` — ошибка `unknown dataSource "NAME"`.
 - dataSource нельзя использовать как имя `component` (`component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
 
 ## Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }

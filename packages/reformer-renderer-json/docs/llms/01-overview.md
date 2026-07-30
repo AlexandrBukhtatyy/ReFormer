@@ -85,7 +85,7 @@ function MyFormPage() {
 }
 ```
 
-**Почему `model` через провайдер, а не `<JsonFormRenderer form={...}/>`?** Под M1 листья схемы (`value: '$model(path)'`) биндятся к сигналам модели (`model.signalAt(path)`) конвертером. Модель обязательна и передаётся через `JsonRendererProvider` settings — `JsonFormRenderer` без неё бросит `settings.model is required (M1)`. Сам рендерер принимает только `{ schema, renderBehavior?, onSchemaReady?, validate? }`.
+**Почему `model` через провайдер, а не `<JsonFormRenderer form={...}/>`?** Под M1 листья схемы (`value: '$model(path)'`) биндятся к сигналам модели (`model.signalAt(path)`) конвертером. Модель обязательна и передаётся через `JsonRendererProvider` settings — `JsonFormRenderer` без неё бросит `settings.model is required (M1)`. Сам рендерер принимает только `{ schema, renderBehavior?, onSchemaReady?, validateSchema? }`.
 
 ## Key Concepts
 
@@ -102,7 +102,7 @@ function MyFormPage() {
 
 | Export                                          | Purpose                                                                    |
 | ----------------------------------------------- | -------------------------------------------------------------------------- |
-| `JsonFormRenderer`                              | Главный компонент-рендерер. Пропы: `{ schema, renderBehavior?, onSchemaReady?, validate? }`. |
+| `JsonFormRenderer`                              | Главный компонент-рендерер. Пропы: `{ schema, renderBehavior?, onSchemaReady?, validateSchema? }`. |
 | `JsonRendererProvider`                          | Контекст-провайдер: реестр (`registry`), модель (`model`), настройки.       |
 | `useJsonRendererSettings`                       | Хук для чтения текущих настроек контекста.                                  |
 | `defineRegistry`                                | Builder реестра компонентов и dataSource-значений.                         |
@@ -113,10 +113,10 @@ function MyFormPage() {
 | `ModelOp`, `ComponentOp`, `DataSourceOp`        | Template-literal типы операторов.                                          |
 | `convertJsonToM1Tree`                           | JSON → сырое RenderNode-дерево (для `createForm({ model, schema })`).       |
 | `createRenderSchemaFromJsonM1`                  | JSON → `RenderSchemaFn` (низкоуровневый, для `FormRenderer`/`JsonFormRenderer`). |
-| `SchemaErrorPanel`                              | Панель ошибок валидации схемы (рисуется при `validate` + невалидной схеме). |
+| `SchemaErrorPanel`                              | Панель ошибок валидации схемы (рисуется при `validateSchema` + невалидной схеме). |
 | `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `getComponentNames`, `getDataSourceNames` | Мета-схема form-DSL + утилиты (ajv-free). |
 
-> `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл). `JsonFormRenderer` грузит её динамически при `validate={true}`.
+> `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл). `JsonFormRenderer` грузит её динамически при `validateSchema={true}`.
 
 ## See also
 

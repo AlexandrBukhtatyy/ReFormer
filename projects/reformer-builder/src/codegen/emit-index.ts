@@ -69,7 +69,7 @@ export default function ${n.pageComponent}() {
         <JsonFormRenderer<${n.TypeName}>
           schema={schema}
           renderBehavior={renderBehavior}
-          validate={import.meta.env.DEV}
+          validateSchema={import.meta.env.DEV}
         />
       </JsonRendererProvider>
     </div>

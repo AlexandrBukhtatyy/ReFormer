@@ -74,7 +74,7 @@ export default function CreditApplicationRendererJsonV20Page() {
         <JsonFormRenderer<CreditApplicationForm>
           schema={jsonSchema}
           renderBehavior={renderBehavior}
-          validate={import.meta.env.DEV}
+          validateSchema={import.meta.env.DEV}
         />
       </JsonRendererProvider>
     </div>

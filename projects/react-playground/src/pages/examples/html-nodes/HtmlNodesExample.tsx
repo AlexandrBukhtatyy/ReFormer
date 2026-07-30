@@ -91,7 +91,7 @@ function JsonSchemaColumn() {
         <JsonRendererProvider settings={{ registry, model }}>
           <JsonFormRenderer<InstallmentRequest>
             schema={installmentJsonSchema}
-            validate={import.meta.env.DEV}
+            validateSchema={import.meta.env.DEV}
           />
         </JsonRendererProvider>
       </div>

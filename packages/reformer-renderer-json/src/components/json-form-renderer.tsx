@@ -31,13 +31,13 @@ export interface JsonFormRendererProps<T> {
   /**
    * Валидировать JSON-схему против мета-схемы перед рендером. При ошибках рисует
    * {@link SchemaErrorPanel} вместо формы. ajv грузится **динамически** (`import('../validate')`) —
-   * в prod-бандл не попадает, пока `validate` не включён.
+   * в prod-бандл не попадает, пока `validateSchema` не включён.
    *
    * По умолчанию `false`. Чтобы валидировать только в dev, приложение передаёт значение из
-   * СВОЕГО окружения: `validate={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет,
+   * СВОЕГО окружения: `validateSchema={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет,
    * т.к. `import.meta.env.DEV` инлайнится в `false` при production-сборке самого пакета.
    */
-  validate?: boolean;
+  validateSchema?: boolean;
 }
 
 /**
@@ -90,13 +90,13 @@ export interface JsonFormRendererProps<T> {
  *   // Модель передаётся через провайдер (settings.model), НЕ пропом рендерера.
  *   return (
  *     <JsonRendererProvider settings={{ registry, model }}>
- *       <JsonFormRenderer<MyForm> schema={schema} validate={import.meta.env.DEV} />
+ *       <JsonFormRenderer<MyForm> schema={schema} validateSchema={import.meta.env.DEV} />
  *     </JsonRendererProvider>
  *   );
  * }
  * ```
  *
- * **Note**: `JsonFormRenderer` принимает ТОЛЬКО `{ schema, renderBehavior?, onSchemaReady?, validate? }`.
+ * **Note**: `JsonFormRenderer` принимает ТОЛЬКО `{ schema, renderBehavior?, onSchemaReady?, validateSchema? }`.
  * Под M1 модель (`FormModel`) передаётся через {@link JsonRendererProvider} settings (`model`);
  * листья JSON-схемы биндятся к её сигналам конвертером {@link createRenderSchemaFromJsonM1}.
  *
@@ -106,18 +106,18 @@ export function JsonFormRenderer<T>({
   schema,
   renderBehavior,
   onSchemaReady,
-  validate = false,
+  validateSchema = false,
 }: JsonFormRendererProps<T>): ReactNode {
   const { registry, model, ...rendererSettings } = useJsonRendererSettings();
 
-  // Результат валидации схемы: `undefined` — ещё считаем (validate вкл.), `null` — выключена/прошла,
+  // Результат валидации схемы: `undefined` — ещё считаем (validateSchema вкл.), `null` — выключена/прошла,
   // непустой массив — невалидна (рисуем панель вместо формы). ajv грузится динамически.
   const [schemaErrors, setSchemaErrors] = useState<string[] | null | undefined>(
-    validate ? undefined : null
+    validateSchema ? undefined : null
   );
 
   useEffect(() => {
-    if (!validate) {
+    if (!validateSchema) {
       setSchemaErrors(null);
       return;
     }
@@ -135,7 +135,7 @@ export function JsonFormRenderer<T>({
     return () => {
       cancelled = true;
     };
-  }, [validate, schema, registry]);
+  }, [validateSchema, schema, registry]);
 
   const schemaProxy = useMemo(() => {
     // M1 (единая схема): листья биндятся к сигналам модели. Модель обязательна (legacy

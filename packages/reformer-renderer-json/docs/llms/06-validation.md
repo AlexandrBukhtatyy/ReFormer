@@ -8,7 +8,7 @@
 
 - `JsonFieldNode` — это `{ selector?, value, component?, componentProps?, wrapper? }` и **ничего больше**. Поля `validators` в нём нет (см. [json-schema.ts](../../src/types/json-schema.ts) — интерфейс `JsonFieldNode`).
 - Операторы DSL — только `$model(...)`, `$component(...)`, `$dataSource(...)` (см. [operators.ts](../../src/operators.ts)). Оператора `$validator(...)` **не существует**.
-- `JsonFormRenderer` с пропом `validate` (и функция `validateFormSchema`) проверяют **структуру** схемы через ajv: корректность узлов + синтаксис операторов + известность имён `$component`/`$dataSource` + допустимость тегов `$html(...)`. Это НЕ валидация введённых пользователем значений (см. [validate.ts](../../src/validate.ts)).
+- `JsonFormRenderer` с пропом `validateSchema` (и функция `validateFormSchema`) проверяют **структуру** схемы через ajv: корректность узлов + синтаксис операторов + известность имён `$component`/`$dataSource` + допустимость тегов `$html(...)`. Это НЕ валидация введённых пользователем значений (см. [validate.ts](../../src/validate.ts)).
 - Теги `$html(...)` проверяются **всегда**, даже без реестра: whitelist статичен, поэтому `$html(script)` отклоняется независимо от того, переданы ли `componentNames`. Тот же whitelist применяет конвертер — битый тег не «просочится» в рантайм при отключённой валидации.
 - Значит, валидацию значений выражают **отдельной TS-схемой над МОДЕЛЬЮ** (`FormModel`), а не в JSON. Схема — обычная функция `ValidationSchema<T> = (ctx: { model }) => void` (обёрнута `defineValidationSchema`); её исполняет внешний раннер `validateModel(model, schema)` — тот же контракт `@reformer/core/validation`, что и в TS-варианте формы. Одна валидация на все варианты рендера.
 
@@ -175,7 +175,7 @@ export function createJsonRenderBehavior(
 
 ## Anti-patterns
 
-- **Ждать, что `validate={true}` (или `validateFormSchema`) валидирует значения** — этот проп проверяет только СТРУКТУРУ схемы через ajv (узлы + синтаксис операторов + имена компонентов). Введённые пользователем значения он не трогает. Валидацию значений исполняет раннер `validateModel` над моделью.
+- **Ждать, что `validateSchema={true}` (или `validateFormSchema`) валидирует значения** — этот проп проверяет только СТРУКТУРУ схемы через ajv (узлы + синтаксис операторов + имена компонентов). Введённые пользователем значения он не трогает. Валидацию значений исполняет раннер `validateModel` над моделью.
 - **Пытаться добавить `validators` в JSON field-node** — `JsonFieldNode` несёт только layout (`value`/`component`/`componentProps`/`wrapper`). Поля `validators` в нём нет, оператора `$validator(...)` не существует. TypeScript отклонит лишнее поле; даже если протащить через `as`, конвертер его проигнорирует.
 - **Инлайнить схему в `validateModel` или пересобирать её на каждый прогон** — схема это обычная функция над формой модели (`validate(model.$.path, [...])` адресует поле сигналом — стабильной ссылкой; значения читаются раннером в момент прогона). Держите схемы стабильными `const` через `defineValidationSchema`: `validateModel` отменяет устаревший прогон по идентичности схемы, а инлайн-стрелка (`validateModel(model, ({ model }) => …)`) каждый раз даёт новый прогон без дедупликации.
 - **Забыть `selector: 'wizard'` у wizard-ноды** — без `selector` узел не адресуется через `schema.node('wizard')`, `onInit`/`patchProps` не найдут его и валидация не инъектируется (submit пройдёт без блокировки).
