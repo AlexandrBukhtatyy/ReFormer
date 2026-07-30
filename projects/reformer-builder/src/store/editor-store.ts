@@ -31,6 +31,12 @@ export const editorActions = {
   /** Отметить сохранённым текст активной code-вкладки. */
   markCodeSaved: () => editorStore.setState(R.markCodeSaved),
   closeTab: (id: string) => editorStore.setState((s) => R.closeTab(s, id)),
+  /** «Закрыть остальные»: оставить только вкладку `id`. */
+  closeOtherTabs: (id: string) => editorStore.setState((s) => R.closeOtherTabs(s, id)),
+  /** «Закрыть слева»: закрыть все вкладки левее `id`. */
+  closeTabsToLeft: (id: string) => editorStore.setState((s) => R.closeTabsToLeft(s, id)),
+  /** «Закрыть справа»: закрыть все вкладки правее `id`. */
+  closeTabsToRight: (id: string) => editorStore.setState((s) => R.closeTabsToRight(s, id)),
   setActiveTab: (id: string) => editorStore.setState((s) => R.setActiveTab(s, id)),
 
   /** Применить результат мутации к активной вкладке (выделение → `newPath`). */

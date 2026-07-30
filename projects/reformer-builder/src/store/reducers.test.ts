@@ -36,6 +36,44 @@ describe('вкладки', () => {
     expect(s.order).toEqual(['a', 'c']);
     expect(s.activeTabId).toBe('c');
   });
+
+  const abc = () => {
+    let s = R.openTab(R.initialState(), 'a', src, emptySchema());
+    s = R.openTab(s, 'b', src, emptySchema());
+    s = R.openTab(s, 'c', src, emptySchema());
+    return s;
+  };
+
+  it('closeOtherTabs: остаётся только цель, она активна', () => {
+    const s = R.closeOtherTabs(R.setActiveTab(abc(), 'a'), 'b');
+    expect(s.order).toEqual(['b']);
+    expect(s.activeTabId).toBe('b');
+  });
+
+  it('closeTabsToLeft: закрывает всё левее; активная переезжает на цель', () => {
+    const s = R.closeTabsToLeft(R.setActiveTab(abc(), 'a'), 'c');
+    expect(s.order).toEqual(['c']);
+    expect(s.activeTabId).toBe('c');
+  });
+
+  it('closeTabsToLeft: сохраняет активную справа от цели', () => {
+    const s = R.closeTabsToLeft(R.setActiveTab(abc(), 'c'), 'b');
+    expect(s.order).toEqual(['b', 'c']);
+    expect(s.activeTabId).toBe('c');
+  });
+
+  it('closeTabsToRight: закрывает всё правее; активная переезжает на цель', () => {
+    const s = R.closeTabsToRight(R.setActiveTab(abc(), 'c'), 'a');
+    expect(s.order).toEqual(['a']);
+    expect(s.activeTabId).toBe('a');
+  });
+
+  it('крайние случаи: нет вкладок слева/справа — стейт без изменений', () => {
+    const s = abc();
+    expect(R.closeTabsToLeft(s, 'a')).toBe(s);
+    expect(R.closeTabsToRight(s, 'c')).toBe(s);
+    expect(R.closeOtherTabs(s, 'zzz')).toBe(s);
+  });
 });
 
 describe('правки и история', () => {

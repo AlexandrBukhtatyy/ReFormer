@@ -196,6 +196,37 @@ export function closeTab(state: EditorState, id: string): EditorState {
   return { ...state, tabs, order, activeTabId };
 }
 
+/** Убрать множество вкладок; если активная попала под удаление — активной становится `fallbackId`. */
+function removeTabs(state: EditorState, remove: Set<string>, fallbackId: string): EditorState {
+  if (remove.size === 0) return state;
+  const tabs = { ...state.tabs };
+  for (const id of remove) delete tabs[id];
+  const order = state.order.filter((x) => !remove.has(x));
+  const activeTabId =
+    state.activeTabId && remove.has(state.activeTabId) ? fallbackId : state.activeTabId;
+  return { ...state, tabs, order, activeTabId };
+}
+
+/** «Закрыть остальные»: оставить только вкладку `id` (она становится активной). */
+export function closeOtherTabs(state: EditorState, id: string): EditorState {
+  if (!state.tabs[id]) return state;
+  return removeTabs(state, new Set(state.order.filter((x) => x !== id)), id);
+}
+
+/** «Закрыть слева»: закрыть все вкладки левее `id`. */
+export function closeTabsToLeft(state: EditorState, id: string): EditorState {
+  const idx = state.order.indexOf(id);
+  if (idx <= 0) return state;
+  return removeTabs(state, new Set(state.order.slice(0, idx)), id);
+}
+
+/** «Закрыть справа»: закрыть все вкладки правее `id`. */
+export function closeTabsToRight(state: EditorState, id: string): EditorState {
+  const idx = state.order.indexOf(id);
+  if (idx < 0 || idx >= state.order.length - 1) return state;
+  return removeTabs(state, new Set(state.order.slice(idx + 1)), id);
+}
+
 /** Сделать вкладку активной. */
 export function setActiveTab(state: EditorState, id: string): EditorState {
   return state.tabs[id] ? { ...state, activeTabId: id } : state;
