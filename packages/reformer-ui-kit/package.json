@@ -362,6 +362,7 @@
   "files": [
     "dist",
     "src/styles",
+    "component-catalog.json",
     "README.md",
     "LICENSE",
     "llms.txt"

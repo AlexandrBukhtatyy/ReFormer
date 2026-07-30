@@ -117,17 +117,25 @@ import { readFileSync } from 'node:fs';
 const installed = JSON.parse(
   readFileSync('node_modules/${pkg.name}/package.json', 'utf8')
 );
-const subpaths = Object.keys(installed.exports).filter((k) => k !== './styles');
+// Цель экспорта → путь файла (строка) либо { import }. По расширению цели решаем,
+// как её проверять: .css — это стиль-эндпоинт, не ESM-модуль (пропускаем); .json
+// в Node ESM требует import-атрибута { type: 'json' } (Vite-потребители его не
+// требуют, а голый import() — да, поэтому раньше падал ./catalog).
+const targetOf = (e) => (typeof e === 'string' ? e : e?.import ?? e?.default ?? e?.types ?? '');
 const failures = [];
-for (const key of subpaths) {
+let total = 0;
+for (const [key, entry] of Object.entries(installed.exports)) {
+  const target = targetOf(entry);
+  if (target.endsWith('.css')) continue;
+  total++;
   const specifier = key === '.' ? '${pkg.name}' : '${pkg.name}/' + key.slice(2);
   try {
-    await import(specifier);
+    await import(specifier, target.endsWith('.json') ? { with: { type: 'json' } } : undefined);
   } catch (error) {
     failures.push([specifier, error.message.split('\\n')[0]]);
   }
 }
-console.log(JSON.stringify({ total: subpaths.length, failures }));
+console.log(JSON.stringify({ total, failures }));
 `;
   writeFileSync(path.join(consumer, 'smoke.mjs'), runner);
   const raw = execFileSync(process.execPath, ['smoke.mjs'], {
