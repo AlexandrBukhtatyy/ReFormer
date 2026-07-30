@@ -14,7 +14,11 @@ import { sampleSchema, P } from './__fixtures__/sample-schema';
 describe('навигация (siblingInfo / firstChildPath / navTarget)', () => {
   it('siblingInfo: позиция среди соседей', () => {
     const s = sampleSchema();
-    expect(siblingInfo(s, P.step0field0)).toEqual({ slotPath: [...P.step0children], index: 0, count: 2 });
+    expect(siblingInfo(s, P.step0field0)).toEqual({
+      slotPath: [...P.step0children],
+      index: 0,
+      count: 2,
+    });
     expect(siblingInfo(s, P.step0field1)?.index).toBe(1);
     // шаги wizard — соседи в слоте steps
     expect(siblingInfo(s, P.step0)).toEqual({ slotPath: [...P.steps], index: 0, count: 2 });

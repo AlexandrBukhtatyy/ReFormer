@@ -70,5 +70,14 @@ export const P = {
   step1: ['root', 'componentProps', 'steps', 1] as const,
   step1children: ['root', 'componentProps', 'steps', 1, 'children'] as const,
   array: ['root', 'componentProps', 'steps', 1, 'children', 0] as const,
-  arrayTemplate: ['root', 'componentProps', 'steps', 1, 'children', 0, 'item', '$template'] as const,
+  arrayTemplate: [
+    'root',
+    'componentProps',
+    'steps',
+    1,
+    'children',
+    0,
+    'item',
+    '$template',
+  ] as const,
 };

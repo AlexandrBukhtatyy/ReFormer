@@ -50,7 +50,12 @@ describe('printer — round-trip (риск №1)', () => {
         component: '$component(Box)',
         $weirdOp: '$futureOp(arg)',
         children: [
-          { value: '$model(a)', component: '$component(Input)', unknownKey: 42, nested: { z: true } },
+          {
+            value: '$model(a)',
+            component: '$component(Input)',
+            unknownKey: 42,
+            nested: { z: true },
+          },
         ],
       },
     };

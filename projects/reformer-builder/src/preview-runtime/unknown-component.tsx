@@ -36,7 +36,7 @@ export function makeUnknownComponent(name: string): ComponentType<{ children?: R
  */
 export function makePreviewLimitedComponent(
   name: string,
-  reason?: string,
+  reason?: string
 ): ComponentType<{ children?: ReactNode }> {
   function PreviewLimitedComponent({ children }: { children?: ReactNode }) {
     return (

@@ -44,6 +44,18 @@ export const typographyInlineCodePropsSchema = textElementSchema(
   'Инлайн-код'
 );
 export const typographyLeadPropsSchema = textElementSchema('TypographyLead', 'p', 'Лид-абзац');
-export const typographyLargePropsSchema = textElementSchema('TypographyLarge', 'div', 'Крупный текст');
-export const typographySmallPropsSchema = textElementSchema('TypographySmall', 'small', 'Мелкий текст');
-export const typographyMutedPropsSchema = textElementSchema('TypographyMuted', 'p', 'Приглушённый текст');
+export const typographyLargePropsSchema = textElementSchema(
+  'TypographyLarge',
+  'div',
+  'Крупный текст'
+);
+export const typographySmallPropsSchema = textElementSchema(
+  'TypographySmall',
+  'small',
+  'Мелкий текст'
+);
+export const typographyMutedPropsSchema = textElementSchema(
+  'TypographyMuted',
+  'p',
+  'Приглушённый текст'
+);

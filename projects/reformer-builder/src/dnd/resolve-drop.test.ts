@@ -12,8 +12,14 @@ describe('resolveDrop', () => {
 
   it('before/after поля → соседний индекс в родительском слоте', () => {
     const s = sampleSchema();
-    expect(resolveDrop(s, P.step0field1, 'before')).toEqual({ slotPath: [...P.step0children], index: 1 });
-    expect(resolveDrop(s, P.step0field0, 'after')).toEqual({ slotPath: [...P.step0children], index: 1 });
+    expect(resolveDrop(s, P.step0field1, 'before')).toEqual({
+      slotPath: [...P.step0children],
+      index: 1,
+    });
+    expect(resolveDrop(s, P.step0field0, 'after')).toEqual({
+      slotPath: [...P.step0children],
+      index: 1,
+    });
   });
 
   it('into корня-wizard → слот steps', () => {
@@ -51,7 +57,9 @@ describe('performDrop', () => {
     // шаг в самого себя
     expect(performDrop(s, P.step0, 'into', { kind: 'move', path: [...P.step0] })).toBeNull();
     // массив в свой же шаблон
-    expect(performDrop(s, P.arrayTemplate, 'into', { kind: 'move', path: [...P.array] })).toBeNull();
+    expect(
+      performDrop(s, P.arrayTemplate, 'into', { kind: 'move', path: [...P.array] })
+    ).toBeNull();
   });
 });
 
@@ -69,7 +77,10 @@ describe('performDrop beside (создание горизонтального р
 
   it('beside-before move соседа → ряд [перемещённый, цель], источник вырезан', () => {
     const s = sampleSchema();
-    const res = performDrop(s, P.step0field0, 'beside-before', { kind: 'move', path: [...P.step0field1] });
+    const res = performDrop(s, P.step0field0, 'beside-before', {
+      kind: 'move',
+      path: [...P.step0field1],
+    });
     expect(res).not.toBeNull();
     expect(getAt(res!.schema, P.step0children) as JsonNode[]).toHaveLength(1);
     const row = getAt(res!.schema, P.step0field0) as { children: Array<{ value?: string }> };
@@ -78,8 +89,12 @@ describe('performDrop beside (создание горизонтального р
 
   it('beside в самого себя/предка → null', () => {
     const s = sampleSchema();
-    expect(performDrop(s, P.step0field0, 'beside-after', { kind: 'move', path: [...P.step0field0] })).toBeNull();
-    expect(performDrop(s, P.step0, 'beside-after', { kind: 'move', path: [...P.step0field0] })).toBeNull();
+    expect(
+      performDrop(s, P.step0field0, 'beside-after', { kind: 'move', path: [...P.step0field0] })
+    ).toBeNull();
+    expect(
+      performDrop(s, P.step0, 'beside-after', { kind: 'move', path: [...P.step0field0] })
+    ).toBeNull();
   });
 });
 
@@ -102,7 +117,10 @@ describe('performDrop stack (создание вертикального сто�
 
   it('stack-before move соседа → столбец [перемещённый, цель], источник вырезан', () => {
     const s = sampleSchema();
-    const res = performDrop(s, P.step0field0, 'stack-before', { kind: 'move', path: [...P.step0field1] });
+    const res = performDrop(s, P.step0field0, 'stack-before', {
+      kind: 'move',
+      path: [...P.step0field1],
+    });
     expect(res).not.toBeNull();
     expect(getAt(res!.schema, P.step0children) as JsonNode[]).toHaveLength(1);
     const col = getAt(res!.schema, P.step0field0) as {

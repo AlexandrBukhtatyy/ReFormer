@@ -32,7 +32,10 @@ type Picker = (opts?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDire
 
 /** Поддерживается ли File System Access API (Chromium). */
 export function fsAccessSupported(): boolean {
-  return typeof (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function';
+  return (
+    typeof (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker ===
+    'function'
+  );
 }
 
 /** Выбрать каталог проекта (readwrite upfront — один промпт, спека §7.1 Q30). */

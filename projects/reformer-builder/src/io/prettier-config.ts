@@ -38,7 +38,8 @@ function pick(raw: unknown): PrinterOptions {
   if (typeof r.printWidth === 'number') o.printWidth = r.printWidth;
   if (typeof r.tabWidth === 'number') o.tabWidth = r.tabWidth;
   if (typeof r.useTabs === 'boolean') o.useTabs = r.useTabs;
-  if (r.endOfLine === 'lf' || r.endOfLine === 'crlf' || r.endOfLine === 'cr') o.endOfLine = r.endOfLine;
+  if (r.endOfLine === 'lf' || r.endOfLine === 'crlf' || r.endOfLine === 'cr')
+    o.endOfLine = r.endOfLine;
   return o;
 }
 

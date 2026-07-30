@@ -4,12 +4,7 @@
  * @module reformer-builder/canvas/node-display
  */
 
-import {
-  isArrayNode,
-  isFieldNode,
-  parseOperator,
-  type JsonNode,
-} from '@reformer/renderer-json';
+import { isArrayNode, isFieldNode, parseOperator, type JsonNode } from '@reformer/renderer-json';
 
 /** Бейдж типа узла: имя компонента, `Array` или имя HTML-тега. */
 export function nodeTypeBadge(node: JsonNode): string {
