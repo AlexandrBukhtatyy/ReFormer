@@ -13,14 +13,32 @@ import {
   pickDirectory,
   ensurePermission,
   readFile,
+  writeFile,
   readPrettierConfigs,
 } from '../io/fs-access';
 import { saveDirHandle, loadDirHandle } from '../io/handle-store';
+import {
+  createDirectory,
+  createFile,
+  deletePath,
+  joinPath,
+  renamePath,
+  uniqueName,
+} from '../io/fs-ops';
+import {
+  formJsonTemplate,
+  modelTsTemplate,
+  validationTsTemplate,
+  behaviorTsTemplate,
+  uiTsTemplate,
+} from './form-templates';
 import { scanDirectory, formsOf, type TreeEntry } from '../io/discovery';
 import { resolvePrinterOptions } from '../io/prettier-config';
 import { prepareSave, commitSave, type SavePlan } from '../io/save';
 import { downloadSchema } from '../io/export';
 import { validateSchema } from '../io/validate';
+import { effectiveMock } from '../canvas/mock-data';
+import { dirPickerAvailable, exportExampleToDirectory } from '../codegen/deliver';
 import { showValidationErrors } from './validation-toast';
 import { editorActions } from '../store';
 import type { TabState } from '../store';
@@ -39,7 +57,14 @@ async function scan(dir: FileSystemDirectoryHandle): Promise<void> {
     const printer = resolvePrinterOptions(configs);
     projectActions.set({ tree, printer, scanning: false, canReopen: true, error: null });
     const forms = formsOf(tree).length;
-    console.debug('[reformer-builder] scan', dir.name, '→ файлов/папок:', tree.length, 'схем:', forms);
+    console.debug(
+      '[reformer-builder] scan',
+      dir.name,
+      '→ файлов/папок:',
+      tree.length,
+      'схем:',
+      forms
+    );
     if (printer.notice) toast(printer.notice);
     toast(
       forms > 0
@@ -113,6 +138,257 @@ export async function openSchemaFile(d: TreeEntry): Promise<void> {
   }
 }
 
+/** Monaco-язык по расширению файла (подсветка). Незнакомое — plaintext. */
+function languageOf(name: string): string {
+  const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
+  const map: Record<string, string> = {
+    ts: 'typescript',
+    tsx: 'typescript',
+    js: 'javascript',
+    jsx: 'javascript',
+    mjs: 'javascript',
+    cjs: 'javascript',
+    json: 'json',
+    jsonc: 'json',
+    css: 'css',
+    scss: 'scss',
+    less: 'less',
+    html: 'html',
+    htm: 'html',
+    xml: 'xml',
+    svg: 'xml',
+    md: 'markdown',
+    mdx: 'markdown',
+    yml: 'yaml',
+    yaml: 'yaml',
+    sh: 'shell',
+    bash: 'shell',
+    py: 'python',
+    sql: 'sql',
+    toml: 'ini',
+    ini: 'ini',
+  };
+  return map[ext] ?? 'plaintext';
+}
+
+/** Открыть произвольный (не-схемный) файл на редактирование в Monaco (code-вкладка, спека §7). */
+export async function openCodeFile(d: TreeEntry): Promise<void> {
+  if (!d.handle) return;
+  const handle = d.handle;
+  try {
+    const { text, lastModified } = await readFile(handle);
+    editorActions.openCodeTab(
+      d.path,
+      { kind: 'file', name: d.name, path: d.path, handle, rawText: text, lastModified },
+      text,
+      languageOf(d.name)
+    );
+  } catch (e) {
+    toast('Не удалось открыть файл: ' + msg(e));
+  }
+}
+
+/** Сохранить code-вкладку прямой записью в файл (без diff-модалки — она схемо-специфична). */
+export async function saveCodeTab(tab: TabState): Promise<void> {
+  if (tab.source.kind !== 'file' || !tab.source.handle || tab.text == null) {
+    toast('Файл нельзя сохранить (нет доступа к файлу)');
+    return;
+  }
+  try {
+    await writeFile(tab.source.handle, tab.text);
+    editorActions.markCodeSaved();
+    toast('Файл сохранён');
+  } catch (e) {
+    toast('Ошибка сохранения: ' + msg(e));
+  }
+}
+
+// ── файловые операции дерева (контекстное меню) ──────────────────────────────
+
+/** Корневой handle открытого проекта. */
+function projectRoot(): FileSystemDirectoryHandle | null {
+  return projectStore.getState().dirHandle;
+}
+
+/** Пере-сканировать текущий проект (после файловой операции — обновить дерево). */
+export async function rescanProject(): Promise<void> {
+  const dir = projectRoot();
+  if (dir) await scan(dir);
+}
+
+/** Открыть только что созданный файл: схему — в canvas, прочее — code-вкладкой. */
+async function openCreatedFile(
+  path: string,
+  name: string,
+  handle: FileSystemFileHandle,
+  asForm: boolean
+): Promise<void> {
+  const entry: TreeEntry = { path, name, kind: 'file', depth: 0, handle };
+  if (asForm) await openSchemaFile(entry);
+  else await openCodeFile(entry);
+}
+
+/** Создать пустой файл `name` в каталоге `dirPath` и открыть его в редакторе. */
+export async function createFileEntry(dirPath: string, name: string): Promise<void> {
+  const root = projectRoot();
+  if (!root) {
+    toast('Проект не открыт');
+    return;
+  }
+  try {
+    const handle = await createFile(root, dirPath, name, '');
+    await rescanProject();
+    await openCreatedFile(joinPath(dirPath, name), name, handle, false);
+  } catch (e) {
+    toast('Не удалось создать файл: ' + msg(e));
+  }
+}
+
+/** Создать каталог `name` в каталоге `dirPath`. */
+export async function createFolderEntry(dirPath: string, name: string): Promise<void> {
+  const root = projectRoot();
+  if (!root) {
+    toast('Проект не открыт');
+    return;
+  }
+  try {
+    await createDirectory(root, dirPath, name);
+    await rescanProject();
+  } catch (e) {
+    toast('Не удалось создать папку: ' + msg(e));
+  }
+}
+
+/** Удалить файл/каталог по пути (рекурсивно). */
+export async function deleteEntry(path: string): Promise<void> {
+  const root = projectRoot();
+  if (!root) {
+    toast('Проект не открыт');
+    return;
+  }
+  try {
+    await deletePath(root, path);
+    await rescanProject();
+    toast('Удалено');
+  } catch (e) {
+    toast('Не удалось удалить: ' + msg(e));
+  }
+}
+
+/** Переименовать файл/каталог. */
+export async function renameEntry(
+  path: string,
+  kind: 'file' | 'directory',
+  newName: string
+): Promise<void> {
+  const root = projectRoot();
+  if (!root) {
+    toast('Проект не открыт');
+    return;
+  }
+  try {
+    await renamePath(root, path, kind, newName);
+    await rescanProject();
+  } catch (e) {
+    toast('Не удалось переименовать: ' + msg(e));
+  }
+}
+
+/** Имя формы из пути каталога (последний сегмент) — для комментариев в .ts-шаблонах. */
+function formNameOf(dirPath: string): string {
+  return dirPath.split('/').filter(Boolean).pop() ?? 'форма';
+}
+
+/** Сгенерировать одиночный артефакт формы в каталоге и открыть его. */
+async function generateOne(
+  dirPath: string,
+  name: string,
+  content: string,
+  asForm: boolean
+): Promise<void> {
+  const root = projectRoot();
+  if (!root) {
+    toast('Проект не открыт');
+    return;
+  }
+  try {
+    const finalName = await uniqueName(root, dirPath, name);
+    const handle = await createFile(root, dirPath, finalName, content);
+    await rescanProject();
+    await openCreatedFile(joinPath(dirPath, finalName), finalName, handle, asForm);
+  } catch (e) {
+    toast('Не удалось сгенерировать: ' + msg(e));
+  }
+}
+
+/** Сгенерировать файл модели (model.ts) в каталоге. */
+export function generateModel(dirPath: string): Promise<void> {
+  return generateOne(dirPath, 'model.ts', modelTsTemplate(formNameOf(dirPath)), false);
+}
+
+/** Сгенерировать схему формы (form.json) в каталоге — открывается в canvas. */
+export function generateFormSchema(dirPath: string): Promise<void> {
+  return generateOne(dirPath, 'form.json', formJsonTemplate(), true);
+}
+
+/** Сгенерировать схему валидации (validation.ts) в каталоге. */
+export function generateValidation(dirPath: string): Promise<void> {
+  return generateOne(dirPath, 'validation.ts', validationTsTemplate(formNameOf(dirPath)), false);
+}
+
+/** Сгенерировать схему поведения формы (behavior.ts) в каталоге. */
+export function generateBehavior(dirPath: string): Promise<void> {
+  return generateOne(dirPath, 'behavior.ts', behaviorTsTemplate(formNameOf(dirPath)), false);
+}
+
+/** Сгенерировать схему поведения UI (ui.ts) в каталоге. */
+export function generateUiBehavior(dirPath: string): Promise<void> {
+  return generateOne(dirPath, 'ui.ts', uiTsTemplate(formNameOf(dirPath)), false);
+}
+
+/** Какие файлы генерировать в каталоге формы. */
+export interface FormDirFiles {
+  model: boolean;
+  form: boolean;
+  validation: boolean;
+  behavior: boolean;
+  ui: boolean;
+}
+
+/** Сгенерировать каталог формы `<formName>/` с выбранными файлами; form.json открыть в canvas. */
+export async function generateFormDirectory(
+  parentPath: string,
+  formName: string,
+  which: FormDirFiles
+): Promise<void> {
+  const root = projectRoot();
+  if (!root) {
+    toast('Проект не открыт');
+    return;
+  }
+  try {
+    const folder = await uniqueName(root, parentPath, formName);
+    await createDirectory(root, parentPath, folder);
+    const dirPath = joinPath(parentPath, folder);
+
+    let formHandle: FileSystemFileHandle | null = null;
+    if (which.model) await createFile(root, dirPath, 'model.ts', modelTsTemplate(formName));
+    if (which.form) formHandle = await createFile(root, dirPath, 'form.json', formJsonTemplate());
+    if (which.validation)
+      await createFile(root, dirPath, 'validation.ts', validationTsTemplate(formName));
+    if (which.behavior)
+      await createFile(root, dirPath, 'behavior.ts', behaviorTsTemplate(formName));
+    if (which.ui) await createFile(root, dirPath, 'ui.ts', uiTsTemplate(formName));
+
+    await rescanProject();
+    if (formHandle)
+      await openCreatedFile(joinPath(dirPath, 'form.json'), 'form.json', formHandle, true);
+    toast(`Форма «${formName}» создана`);
+  } catch (e) {
+    toast('Не удалось создать форму: ' + msg(e));
+  }
+}
+
 /** Триггер сохранения (Cmd+S / кнопка): валидация-гейт → Mode B diff-модалка или Mode A export. */
 export async function triggerSave(tab: TabState): Promise<void> {
   const v = validateSchema(tab.schema);
@@ -150,5 +426,38 @@ export async function confirmSave(plan: SavePlan): Promise<void> {
   } catch (e) {
     saveDialogActions.setSaving(false);
     toast('Ошибка записи: ' + msg(e));
+  }
+}
+
+/**
+ * Экспортировать активную форму как полноценный пример (renderer-json): выбор папки →
+ * запись сгенерированных файлов → App.tsx-сниппет в буфер. User-owned файлы при повторном
+ * экспорте не затираются (безопасная регенерация).
+ */
+export async function exportExample(tab: TabState): Promise<void> {
+  if (tab.kind === 'code') {
+    toast('Экспорт примера доступен только для формы');
+    return;
+  }
+  if (!dirPickerAvailable()) {
+    toast('Экспорт примера требует Chromium-браузера (File System Access API)');
+    return;
+  }
+  const formName = tab.source.name.replace(/\.(form\.)?json$/i, '') || 'form';
+  const mock = effectiveMock(tab.schema, tab.mockText);
+  try {
+    const res = await exportExampleToDirectory(tab.schema, mock, formName);
+    try {
+      await navigator.clipboard.writeText(res.snippet);
+    } catch {
+      /* буфер недоступен — сниппет продублирован в README.md */
+    }
+    const skipped = res.skipped.length ? `, пропущено ${res.skipped.length} (ваши файлы)` : '';
+    toast(
+      `Пример «${res.dir}»: записано ${res.written.length} файлов${skipped}. Сниппет для App.tsx — в буфере и README.md.`
+    );
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') return; // пользователь отменил выбор папки
+    toast('Не удалось создать пример: ' + msg(e));
   }
 }

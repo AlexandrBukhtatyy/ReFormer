@@ -51,6 +51,15 @@ export type PropsSchema = Omit<
    * `<Cmp>Field`. По нему `generate-meta.mjs` собирает `defaultPropSchemas`.
    */
   'x-registryName'?: string;
+  /**
+   * Имя группы вариантов (напр. `'Input'`). Члены группы делят это имя; дефолт группы — член, чей
+   * `x-registryName === x-variantGroup`. Билдер по нему группирует палитру/QuickAdd/инспектор.
+   * ВНИМАНИЕ: `mergeFieldPropsSchema` не копирует `x-*` в merged-схему — генератор читает это из
+   * СЫРОГО варианта и кладёт как record-level поле каталога.
+   */
+  'x-variantGroup'?: string;
+  /** Человекочитаемая метка варианта в группе (напр. `'Пароль'`). */
+  'x-variant'?: string;
   properties?: Record<string, PropsSchema>;
   items?: PropsSchema | PropsSchema[];
   anyOf?: PropsSchema[];

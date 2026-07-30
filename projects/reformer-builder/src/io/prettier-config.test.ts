@@ -3,14 +3,18 @@ import { resolvePrinterOptions, parseEditorConfig } from './prettier-config';
 
 describe('resolvePrinterOptions', () => {
   it('.prettierrc.json → опции', () => {
-    const r = resolvePrinterOptions({ '.prettierrc.json': JSON.stringify({ tabWidth: 4, printWidth: 80 }) });
+    const r = resolvePrinterOptions({
+      '.prettierrc.json': JSON.stringify({ tabWidth: 4, printWidth: 80 }),
+    });
     expect(r.source).toBe('.prettierrc.json');
     expect(r.options.tabWidth).toBe(4);
     expect(r.options.printWidth).toBe(80);
   });
 
   it('package.json#prettier → опции', () => {
-    const r = resolvePrinterOptions({ 'package.json': JSON.stringify({ prettier: { useTabs: true } }) });
+    const r = resolvePrinterOptions({
+      'package.json': JSON.stringify({ prettier: { useTabs: true } }),
+    });
     expect(r.source).toBe('package.json');
     expect(r.options.useTabs).toBe(true);
   });

@@ -74,13 +74,20 @@ function hasPropsFile(dir: string): boolean {
   return false;
 }
 
-type Record = { name: string; role: 'field' | 'container'; propsSchema: object };
+type Record = {
+  name: string;
+  role: 'field' | 'container';
+  propsSchema: object;
+  variantGroup?: string;
+  variant?: string;
+};
 
 // ── rich: variant-схемы из meta.ts (у кого есть props.ts) ────────────────────
 const seen = new Set<string>();
 const rich: Record[] = Object.values(meta)
   .filter(
-    (v): v is PropsSchema => Boolean(v) && typeof v === 'object' && 'x-registryName' in (v as object)
+    (v): v is PropsSchema =>
+      Boolean(v) && typeof v === 'object' && 'x-registryName' in (v as object)
   )
   .map((variant) => {
     const name = variant['x-registryName'] as string;
@@ -92,7 +99,16 @@ const rich: Record[] = Object.values(meta)
     seen.add(name);
     const role = roleOf(variant);
     const propsSchema = role === 'field' ? mergeFieldPropsSchema(variant) : variant;
-    return { name, role, propsSchema };
+    // variant-группа читается из СЫРОГО варианта: mergeFieldPropsSchema не копирует x-* в merged-схему.
+    const variantGroup = variant['x-variantGroup'];
+    const variantLabel = variant['x-variant'];
+    return {
+      name,
+      role,
+      propsSchema,
+      ...(variantGroup ? { variantGroup } : {}),
+      ...(variantLabel ? { variant: variantLabel } : {}),
+    };
   });
 
 // ── minimal: каталоги компонентов без props.ts (кроме не-палитровых) ─────────
@@ -107,13 +123,15 @@ const minimal: Record[] = dirs
   .filter((r) => !seen.has(r.name));
 
 const components = [...rich, ...minimal].sort((a, b) => a.name.localeCompare(b.name));
-const catalog = { version: '1.0', components };
+// $schema — ссылка на контракт билдера (владелец схемы) для валидации/подсказок в IDE.
+// Относительный путь от расположения этого файла (packages/reformer-ui-kit/) до схемы.
+const SCHEMA_REF = '../../projects/reformer-builder/src/catalog/component-catalog.schema.json';
+const catalog = { $schema: SCHEMA_REF, version: '1.0', components };
 
 const cfg = await resolveConfig(outFile);
 const json = await format(JSON.stringify(catalog, null, 2), { ...cfg, parser: 'json' });
 writeFileSync(outFile, json);
 
-// eslint-disable-next-line no-console
 console.log(
   `component-catalog.json: ${components.length} компонентов (rich: ${rich.length}, minimal: ${minimal.length})`
 );

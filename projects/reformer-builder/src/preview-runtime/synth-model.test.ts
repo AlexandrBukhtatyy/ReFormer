@@ -5,7 +5,9 @@ import { sampleSchema } from '../model/__fixtures__/sample-schema';
 
 describe('collectFieldDefaults', () => {
   it('верхнеуровневые дефолты; array→[]; без путей из item.$template', () => {
-    const map = Object.fromEntries(collectFieldDefaults(sampleSchema()).map((d) => [d.path, d.value]));
+    const map = Object.fromEntries(
+      collectFieldDefaults(sampleSchema()).map((d) => [d.path, d.value])
+    );
     expect(map).toEqual({ loanType: '', loanAmount: null, properties: [] });
     expect(map).not.toHaveProperty('type'); // relative-путь шаблона не собирается
   });

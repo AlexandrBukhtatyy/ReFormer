@@ -31,7 +31,9 @@ let propSchemasCache: Record<string, PropsSchema> | null = null;
  * про `label`/`required` и валидатор ложно ругается «unknown property label».
  */
 function catalogPropSchemas(): Record<string, PropsSchema> {
-  return (propSchemasCache ??= Object.fromEntries(getCatalog().map((e) => [e.name, e.propsSchema])));
+  return (propSchemasCache ??= Object.fromEntries(
+    getCatalog().map((e) => [e.name, e.propsSchema])
+  ));
 }
 
 /** Провалидировать схему перед экспортом/сохранением. */

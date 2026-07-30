@@ -15,10 +15,13 @@ import { isRegistrable } from './render-policy';
 
 /**
  * INFRA-имена ВНЕ палитрового каталога, но зарегистрированные в реестре (см. known-components):
- * враппер поля (`FormField` = `FIELD_WRAPPER`), граница async, шаг визарда. Единый источник —
+ * враппер поля (`FormField` = `FIELD_WRAPPER`) и граница async. Единый источник —
  * `known-components` строит для них компоненты по этому списку.
+ *
+ * `Wizard`/`Step` сюда НЕ входят — они палитровые (синтетические записи каталога, см.
+ * `synthetic-entries`), поэтому попадают в реестр обычным путём каталога.
  */
-export const INFRA_NAMES = ['FormField', 'AsyncBoundary', 'Step'] as const;
+export const INFRA_NAMES = ['FormField', 'AsyncBoundary'] as const;
 
 /** Каталожные компоненты, попадающие в реестр как `$component(name)` (без array и `$html`). */
 function catalogComponentNames(): string[] {
@@ -28,7 +31,10 @@ function catalogComponentNames(): string[] {
 }
 
 /** Компоненты, покрытые дефолтным реестром preview (каталог + INFRA). */
-export const KNOWN_COMPONENT_NAMES: readonly string[] = [...catalogComponentNames(), ...INFRA_NAMES];
+export const KNOWN_COMPONENT_NAMES: readonly string[] = [
+  ...catalogComponentNames(),
+  ...INFRA_NAMES,
+];
 
 /** Множество известных имён (для быстрого unknown-детекта). */
 export const KNOWN_COMPONENT_NAME_SET: ReadonlySet<string> = new Set(KNOWN_COMPONENT_NAMES);

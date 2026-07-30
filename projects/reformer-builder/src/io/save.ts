@@ -36,7 +36,8 @@ export async function prepareSave(tab: TabState, options: PrinterOptions): Promi
   if (handle) {
     const { text, lastModified } = await readFile(handle);
     oldText = text;
-    if (tab.source.lastModified != null && lastModified !== tab.source.lastModified) conflict = true;
+    if (tab.source.lastModified != null && lastModified !== tab.source.lastModified)
+      conflict = true;
   }
 
   const diff = diffLines(oldText, newText);

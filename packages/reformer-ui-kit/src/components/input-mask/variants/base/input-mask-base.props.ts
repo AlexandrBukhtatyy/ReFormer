@@ -10,6 +10,8 @@ export const inputMaskBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'InputMask',
+  'x-variantGroup': 'Input',
+  'x-variant': 'Маска',
   properties: {
     mask: {
       type: 'string',

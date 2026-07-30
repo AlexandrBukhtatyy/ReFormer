@@ -7,10 +7,12 @@
  */
 
 import { useMemo, useState } from 'react';
+import { ChevronRight, GripVertical } from 'lucide-react';
 import { Input, ScrollArea } from '@reformer/ui-kit';
 import { isContainerNode, type JsonFormSchema } from '@reformer/renderer-json';
-import { appendNode, findByPath, parentNodePath, type JsonPath } from '../model';
+import { appendNode, findByPath, isLeafComponent, parentNodePath, type JsonPath } from '../model';
 import { getCatalog, type CatalogEntry } from '../catalog';
+import { collapseToDefaults } from '../catalog/variants';
 import { editorActions, editorStore } from '../store';
 import { clearDrag, setDrag } from '../dnd/drag-state';
 
@@ -35,19 +37,72 @@ function htmlTag(name: string): string | null {
 }
 
 /** Текстовый глиф-бейдж элемента палитры (аббревиатура типа, как в дизайн-макете). */
-const HTML_GLYPH: Record<string, string> = { div: 'div', section: 'sec', fieldset: 'fs', h3: 'h3', p: 'p', hr: 'hr' };
+const HTML_GLYPH: Record<string, string> = {
+  // Блоки
+  div: 'div',
+  section: 'sec',
+  article: 'art',
+  aside: 'as',
+  header: 'hd',
+  footer: 'ft',
+  nav: 'nav',
+  main: 'mn',
+  fieldset: 'fs',
+  ul: 'ul',
+  ol: 'ol',
+  li: 'li',
+  hr: 'hr',
+  img: 'img',
+  // Типографика
+  h1: 'h1',
+  h2: 'h2',
+  h3: 'h3',
+  h4: 'h4',
+  h5: 'h5',
+  h6: 'h6',
+  p: 'p',
+  span: 'sp',
+  strong: 'b',
+  em: 'i',
+  small: 'sm',
+  blockquote: 'bq',
+  code: 'cd',
+  pre: 'pre',
+  a: 'a',
+  label: 'lb',
+  br: 'br',
+};
 const GLYPH_BY_NAME: Record<string, string> = {
-  Input: 'In', InputPassword: 'Ip', InputMask: 'Im', InputOTP: 'Io',
-  Textarea: 'Tx', DatePicker: 'Dt', Calendar: 'Ca', FileUpload: 'Up', FileUploadAvatar: 'Av',
-  Select: 'Se', NativeSelect: 'Ns', Combobox: 'Cb', RadioGroup: 'Rg', Checkbox: 'Ck',
-  Switch: 'Sw', Slider: 'Sl', Toggle: 'Tg', ToggleGroup: 'Tg',
-  Box: 'Bx', Section: 'Sc', FormArray: 'Fa',
+  Input: 'In',
+  InputPassword: 'Ip',
+  InputMask: 'Im',
+  InputOTP: 'Io',
+  Textarea: 'Tx',
+  DatePicker: 'Dt',
+  Calendar: 'Ca',
+  FileUpload: 'Up',
+  FileUploadAvatar: 'Av',
+  Select: 'Se',
+  NativeSelect: 'Ns',
+  Combobox: 'Cb',
+  RadioGroup: 'Rg',
+  Checkbox: 'Ck',
+  Switch: 'Sw',
+  Slider: 'Sl',
+  Toggle: 'Tg',
+  ToggleGroup: 'Tg',
+  Box: 'Bx',
+  Section: 'Sc',
+  FormArray: 'Fa',
 };
 
 function glyph(entry: CatalogEntry): string {
   const tag = htmlTag(entry.name);
   if (tag) return HTML_GLYPH[tag] ?? tag.slice(0, 3);
-  return GLYPH_BY_NAME[entry.name] ?? (entry.name[0]?.toUpperCase() ?? '') + (entry.name[1]?.toLowerCase() ?? '');
+  return (
+    GLYPH_BY_NAME[entry.name] ??
+    (entry.name[0]?.toUpperCase() ?? '') + (entry.name[1]?.toLowerCase() ?? '')
+  );
 }
 
 /** Отображаемая подпись: у HTML-элементов — просто имя тега (без обёртки `$html(...)`). */
@@ -58,15 +113,22 @@ function displayName(entry: CatalogEntry): string {
 function groupByCategory(catalog: CatalogEntry[], q: string): Array<[string, CatalogEntry[]]> {
   const needle = q.trim().toLowerCase();
   const filtered = needle ? catalog.filter((e) => e.name.toLowerCase().includes(needle)) : catalog;
+  // Палитра — один дефолт-вариант на группу (не-дефолтные варианты доступны в QuickAdd). При поиске
+  // конкретного варианта (дефолт не в выборке) collapseToDefaults покажет сам найденный вариант.
+  const collapsed = collapseToDefaults(filtered);
   const map = new Map<string, CatalogEntry[]>();
-  for (const e of filtered) {
+  for (const e of collapsed) {
     const c = e.category ?? 'Прочее';
     const list = map.get(c) ?? [];
     list.push(e);
     map.set(c, list);
   }
-  const known = CATEGORY_ORDER.filter((c) => map.has(c)).map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
-  const rest = [...map.keys()].filter((c) => !CATEGORY_ORDER.includes(c)).map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
+  const known = CATEGORY_ORDER.filter((c) => map.has(c)).map(
+    (c) => [c, map.get(c)!] as [string, CatalogEntry[]]
+  );
+  const rest = [...map.keys()]
+    .filter((c) => !CATEGORY_ORDER.includes(c))
+    .map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
   return [...known, ...rest];
 }
 
@@ -75,10 +137,13 @@ function resolveSlot(schema: JsonFormSchema, selPath: JsonPath | null): JsonPath
   let path: JsonPath | null = selPath;
   while (path && path.length) {
     const node = findByPath(schema, path);
-    if (node && isContainerNode(node)) return [...path, 'children'];
+    // Листовой узел (Icon/Separator/…) детей не держит — поднимаемся к родителю (вставка рядом).
+    if (node && !isLeafComponent(node) && isContainerNode(node)) return [...path, 'children'];
     path = parentNodePath(path);
   }
-  return isContainerNode(schema.root) ? ['root', 'children'] : null;
+  return !isLeafComponent(schema.root) && isContainerNode(schema.root)
+    ? ['root', 'children']
+    : null;
 }
 
 export function PalettePanel() {
@@ -125,9 +190,13 @@ export function PalettePanel() {
                 onClick={() => toggle(cat)}
                 className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
               >
-                <span className={`text-[8px] leading-none transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+                <ChevronRight
+                  className={`h-3 w-3 flex-none transition-transform ${open ? 'rotate-90' : ''}`}
+                />
                 <span className="min-w-0 flex-1 truncate">{cat}</span>
-                <span className="flex-none font-mono text-[10px] font-normal text-muted-foreground/50">{items.length}</span>
+                <span className="flex-none font-mono text-[10px] font-normal text-muted-foreground/50">
+                  {items.length}
+                </span>
               </button>
               {open && (
                 <div className="flex flex-col gap-0.5 px-2 pb-2">
@@ -147,7 +216,7 @@ export function PalettePanel() {
                         {glyph(e)}
                       </span>
                       <span className="min-w-0 flex-1 truncate">{displayName(e)}</span>
-                      <span className="flex-none text-xs text-muted-foreground/40">⋮⋮</span>
+                      <GripVertical className="h-3.5 w-3.5 flex-none text-muted-foreground/40" />
                     </button>
                   ))}
                 </div>

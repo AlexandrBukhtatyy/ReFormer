@@ -3,6 +3,7 @@ import type { JsonNode, JsonFormSchema } from '@reformer/renderer-json';
 import {
   setComponentProp,
   setNodeKey,
+  switchVariant,
   insertNode,
   appendNode,
   removeNode,
@@ -44,6 +45,33 @@ describe('setComponentProp', () => {
     const s = sampleSchema();
     const { schema } = setComponentProp(s, P.step0field1, 'type', undefined);
     expect(getAt(schema, [...P.step0field1, 'componentProps', 'type'])).toBeUndefined();
+  });
+});
+
+describe('switchVariant', () => {
+  it('меняет компонент и прунит несовместимые пропсы, общие — сохраняет', () => {
+    const s = sampleSchema();
+    // step0field1: Input { label:'Сумма', type:'number' }. Цель знает label, но не type.
+    const { schema, newPath } = switchVariant(
+      s,
+      P.step0field1,
+      'InputPassword',
+      new Set(['label', 'showToggle', 'className'])
+    );
+    expect(getAt(schema, [...P.step0field1, 'component'])).toBe('$component(InputPassword)');
+    expect(getAt(schema, [...P.step0field1, 'componentProps', 'label'])).toBe('Сумма');
+    expect(getAt(schema, [...P.step0field1, 'componentProps', 'type'])).toBeUndefined();
+    expect(newPath).toEqual([...P.step0field1]);
+    // оригинал не тронут
+    expect(getAt(s, [...P.step0field1, 'component'])).toBe('$component(Input)');
+    expect(getAt(s, [...P.step0field1, 'componentProps', 'type'])).toBe('number');
+  });
+
+  it('узел без componentProps — только меняет компонент', () => {
+    const s = removeAt(sampleSchema(), [...P.step0field1, 'componentProps']);
+    const { schema } = switchVariant(s, P.step0field1, 'InputPassword', new Set(['label']));
+    expect(getAt(schema, [...P.step0field1, 'component'])).toBe('$component(InputPassword)');
+    expect(getAt(schema, [...P.step0field1, 'componentProps'])).toBeUndefined();
   });
 });
 
@@ -177,7 +205,10 @@ describe('wrapInRow / wrapPairInRow / unwrapSingleChild (горизонталь�
     const s = sampleSchema();
     const { schema, newPath } = wrapPairInRow(s, P.step0field0, P.step0field1, 'after');
     expect(getAt(schema, P.step0children) as JsonNode[]).toHaveLength(1); // field1 ушёл
-    const row = getAt(schema, P.step0field0) as { component: string; children: Array<{ value?: string }> };
+    const row = getAt(schema, P.step0field0) as {
+      component: string;
+      children: Array<{ value?: string }>;
+    };
     expect(row.component).toBe('$html(div)');
     expect(row.children.map((c) => c.value)).toEqual(['$model(loanType)', '$model(loanAmount)']);
     expect(newPath).toEqual([...P.step0field0, 'children', 1]);
@@ -205,7 +236,12 @@ describe('wrapInRow / wrapPairInRow / unwrapSingleChild (горизонталь�
   });
 
   it('wrapInColumn создаёт вертикальный столбец (flex flex-col gap-4)', () => {
-    const { schema, newPath } = wrapInColumn(sampleSchema(), P.step0field0, field('extra'), 'after');
+    const { schema, newPath } = wrapInColumn(
+      sampleSchema(),
+      P.step0field0,
+      field('extra'),
+      'after'
+    );
     const col = getAt(schema, P.step0field0) as {
       component: string;
       componentProps: { className: string };
@@ -261,7 +297,11 @@ describe('wrapInRow / wrapPairInRow / unwrapSingleChild (горизонталь�
     expect(getAt(flipped, ['root', 'componentProps', 'className'])).toBe('flex');
 
     const grid = {
-      root: { component: '$html(div)', componentProps: { className: 'grid grid-cols-2 gap-4' }, children: [] },
+      root: {
+        component: '$html(div)',
+        componentProps: { className: 'grid grid-cols-2 gap-4' },
+        children: [],
+      },
     } as unknown as JsonFormSchema;
     const stacked = flipDirection(grid, ['root']).schema; // grid(horizontal) → vertical, grid снят
     expect(getAt(stacked, ['root', 'componentProps', 'className'])).toBe('flex flex-col gap-4');
@@ -293,10 +333,9 @@ describe('reorderBlock / removeBlock (группа соседей)', () => {
     // [loanType(0), loanAmount(1)] → вниз блок [0] → [loanAmount, loanType]
     const down = reorderBlock(s, P.step0children, 0, 1, 1)!;
     expect(down.newStart).toBe(1);
-    expect((getAt(down.schema, P.step0children) as Array<{ value?: string }>).map((c) => c.value)).toEqual([
-      '$model(loanAmount)',
-      '$model(loanType)',
-    ]);
+    expect(
+      (getAt(down.schema, P.step0children) as Array<{ value?: string }>).map((c) => c.value)
+    ).toEqual(['$model(loanAmount)', '$model(loanType)']);
     // упор в границу → null
     expect(reorderBlock(s, P.step0children, 0, 1, -1)).toBeNull();
     expect(reorderBlock(s, P.step0children, 1, 1, 1)).toBeNull();
@@ -312,9 +351,9 @@ describe('reorderBlock / removeBlock (группа соседей)', () => {
     const s3 = appendNode(sampleSchema(), P.step0children, field('third')).schema;
     // [loanType(0), loanAmount(1), third(2)] → удалить [0,2] → остаётся loanAmount
     const next = removeIndices(s3, P.step0children, [0, 2]);
-    expect((getAt(next, P.step0children) as Array<{ value?: string }>).map((c) => c.value)).toEqual([
-      '$model(loanAmount)',
-    ]);
+    expect((getAt(next, P.step0children) as Array<{ value?: string }>).map((c) => c.value)).toEqual(
+      ['$model(loanAmount)']
+    );
   });
 });
 
@@ -329,17 +368,19 @@ describe('groupBlock / ungroupNode (группировка)', () => {
     expect(kids).toHaveLength(1);
     expect(kids[0].component).toBe('$html(div)');
     expect(kids[0].componentProps?.className).toBe('flex flex-col gap-4');
-    expect(kids[0].children?.map((c) => c.value)).toEqual(['$model(loanType)', '$model(loanAmount)']);
+    expect(kids[0].children?.map((c) => c.value)).toEqual([
+      '$model(loanType)',
+      '$model(loanAmount)',
+    ]);
     expect(newPath).toEqual([...P.step0children, 0]);
   });
 
   it('ungroupNode заменяет div его детьми; не-div → no-op', () => {
     const grouped = groupBlock(sampleSchema(), P.step0children, 0, 2).schema;
     const { schema } = ungroupNode(grouped, [...P.step0children, 0]);
-    expect((getAt(schema, P.step0children) as Array<{ value?: string }>).map((c) => c.value)).toEqual([
-      '$model(loanType)',
-      '$model(loanAmount)',
-    ]);
+    expect(
+      (getAt(schema, P.step0children) as Array<{ value?: string }>).map((c) => c.value)
+    ).toEqual(['$model(loanType)', '$model(loanAmount)']);
     const s = sampleSchema();
     expect(ungroupNode(s, P.step0field0).schema).toBe(s); // поле, не div
   });

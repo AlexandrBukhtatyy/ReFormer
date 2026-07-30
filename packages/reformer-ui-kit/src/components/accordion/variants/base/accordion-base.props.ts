@@ -23,7 +23,8 @@ export const accordionBasePropsSchema = {
     },
     collapsible: {
       type: 'boolean',
-      description: 'В режиме single разрешить закрыть открытую секцию (не оставлять всегда одну открытой).',
+      description:
+        'В режиме single разрешить закрыть открытую секцию (не оставлять всегда одну открытой).',
       'x-doc': { group: 'Behavior', type: 'boolean', kind: 'boolean' },
     },
     defaultValue: {

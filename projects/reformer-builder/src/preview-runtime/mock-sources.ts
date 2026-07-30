@@ -1,45 +1,40 @@
 /**
- * Регистрация мок-заглушек для `$dataSource/$fn/$locale`, чтобы конвертер не падал на
- * app-specific источниках (спека §9: «`$dataSource/$fn/$locale` → мок-заглушки»).
- *
- * dataSource-имена, использованные как `itemLabel` массива, регистрируются ФУНКЦИЕЙ (иначе
- * компонент массива вызвал бы массив как функцию); остальные — пустым массивом (options).
+ * Регистрация значений `$dataSource/$fn/$locale` в реестре Runtime-preview. Источники разложены по
+ * бакетам ({@link classifyDataSources}): `functionLike` (itemLabel массива) → функция; `optionLike`
+ * (list-проп поля) → массив опций; `scalarLike` → скаляр. Значения option/scalar берутся из
+ * переданного `dataSources` (синтез ⊕ правки пользователя из панели мок-данных), с fallback на синтез.
  *
  * @module reformer-builder/preview-runtime/mock-sources
  */
 
-import {
-  isArrayNode,
-  parseOperator,
-  type JsonFormSchema,
-  type RegistryBuilder,
-} from '@reformer/renderer-json';
-import { collectOperatorNames, walkNodes } from '../model';
+import { type JsonFormSchema, type RegistryBuilder } from '@reformer/renderer-json';
+import { collectOperatorNames } from '../model';
+import { classifyDataSources, mockOptions } from './mock-synth';
 
-/** dataSource-имена, использованные как `itemLabel` (нужны как функции, а не массивы). */
-export function collectFunctionLikeDataSources(schema: JsonFormSchema): Set<string> {
-  const names = new Set<string>();
-  walkNodes(schema, (node) => {
-    if (isArrayNode(node)) {
-      const parsed = parseOperator(node.componentProps?.itemLabel);
-      if (parsed?.op === 'dataSource') names.add(parsed.arg);
-    }
-  });
-  return names;
-}
+/**
+ * Зарегистрировать заглушки/значения всех `$dataSource/$fn/$locale` схемы.
+ *
+ * @param dataSources - эффективные значения option/scalar-источников (по имени). Пропуски —
+ *   добираются синтез-дефолтом. functionLike всегда fn-заглушка (не сериализуется).
+ */
+export function registerMockSources(
+  reg: RegistryBuilder,
+  schema: JsonFormSchema,
+  dataSources: Record<string, unknown> = {}
+): void {
+  const { functionLike, optionLike, scalarLike } = classifyDataSources(schema);
 
-/** Зарегистрировать заглушки всех `$dataSource/$fn/$locale`, встречающихся в схеме. */
-export function registerMockSources(reg: RegistryBuilder, schema: JsonFormSchema): void {
-  const { dataSources, fns, locales } = collectOperatorNames(schema);
-  const functionLike = collectFunctionLikeDataSources(schema);
-
-  for (const name of dataSources) {
-    if (functionLike.has(name)) {
-      reg.dataSource(name, (_: unknown, index = 0) => `#${index + 1}`);
-    } else {
-      reg.dataSource(name, [] as unknown[]);
-    }
+  for (const name of functionLike) {
+    reg.dataSource(name, (_: unknown, index = 0) => `#${index + 1}`);
   }
+  for (const name of optionLike) {
+    reg.dataSource(name, dataSources[name] ?? mockOptions(name));
+  }
+  for (const name of scalarLike) {
+    reg.dataSource(name, dataSources[name] ?? 'значение');
+  }
+
+  const { fns, locales } = collectOperatorNames(schema);
   for (const name of fns) {
     reg.fn(name, () => '');
   }

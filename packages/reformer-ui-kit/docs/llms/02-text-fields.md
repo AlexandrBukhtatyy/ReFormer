@@ -10,6 +10,13 @@
 Это нужно, чтобы их можно было прозрачно подсунуть в `FormField` /
 `RenderSchema`, не оборачивая в адаптеры.
 
+> **Уже value-based — `FieldAdapter` не нужен.** Раз эти поля говорят на `value` +
+> `onChange(value)`, рендерер (`@reformer/renderer-react`, а через наследование и
+> `renderer-json`) отдаёт им seam как есть — `resolveFieldAdapter` возвращает для них
+> `undefined`. Формальный `FieldAdapter` из `RendererSettings` требуется только СЫРЫМ
+> контролам чужого UI-kit, которые эмитят не значение, а event/`checked`/`(value, option)`;
+> четыре поля выше в нём не участвуют.
+
 ## Components
 
 | Name            | Purpose                                                                                | When to use                           |

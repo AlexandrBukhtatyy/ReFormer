@@ -38,6 +38,10 @@ export interface CatalogEntry {
   role: CatalogRole;
   category?: string;
   propsSchema: PropsSchema;
+  /** Имя группы вариантов (напр. `Input`); члены группы делят его. Дефолт — член, чей `name === variantGroup`. */
+  variantGroup?: string;
+  /** Человекочитаемая метка варианта в группе (напр. `Пароль`). */
+  variant?: string;
   makeNode: () => JsonNode;
 }
 
@@ -50,6 +54,8 @@ export interface CatalogRecord {
   role: CatalogRole;
   category?: string;
   propsSchema: PropsSchema;
+  variantGroup?: string;
+  variant?: string;
 }
 
 /** Каталог-JSON по контракту `component-catalog.schema.json` (§5). */
@@ -57,6 +63,14 @@ export interface CatalogJson {
   version: string;
   components: CatalogRecord[];
 }
+
+/**
+ * Виджет инспектора: стандартные {@link PropWidget} из ui-kit плюс builder-only `className`
+ * (редактор CSS-классов с автодополнением Tailwind). Билдер назначает `className` по ключу пропа
+ * поверх `x-doc.kind` (в ui-kit `className` объявлен `readonly` — эта конвенция для ui-kit-доков,
+ * а не для билдера).
+ */
+export type InspectorWidget = PropWidget | 'className' | 'dataSource' | 'icon';
 
 /**
  * Проп для инспектора — производная от `propsSchema` (НЕ часть сериализуемого контракта).
@@ -67,8 +81,8 @@ export interface InspectorProp {
   key: string;
   /** Человекочитаемая подпись. */
   label: string;
-  /** Виджет редактора: boolean→switch, text→input, number→number, enum→select, readonly→серое поле. */
-  widget: PropWidget;
+  /** Виджет редактора: boolean→switch, text→input, number→number, enum→select, readonly→серое поле, className→автодополнение Tailwind. */
+  widget: InspectorWidget;
   /** Секция инспектора. */
   group: PropGroup;
   /** Подсказка (`description`). */

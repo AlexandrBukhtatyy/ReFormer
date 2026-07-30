@@ -32,7 +32,8 @@ export const tabsBasePropsSchema = {
       type: 'string',
       enum: ['automatic', 'manual'],
       default: 'automatic',
-      description: 'Активировать вкладку при фокусе (automatic) или только по клику/Enter (manual).',
+      description:
+        'Активировать вкладку при фокусе (automatic) или только по клику/Enter (manual).',
       'x-doc': { group: 'Behavior', type: "'automatic' | 'manual'", kind: 'enum' },
     },
   },

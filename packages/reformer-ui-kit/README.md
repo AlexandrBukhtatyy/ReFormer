@@ -141,6 +141,13 @@ event-shape примитива (`nativeInputAdapter`, `checkedAdapter`, `valueCh
 В M1-схеме поля `component` указывает на **field-версию** (не на голый примитив): `<FormField>` подаёт
 контролу резолвленные `value` / `onChange(value)`, которые понимает только `*Field`.
 
+> **Альтернатива для рендер-пути.** С `@reformer/renderer-react` (и через наследование
+> `@reformer/renderer-json`) сырой примитив можно зарегистрировать как `component` прямо в
+> M1-схеме и передать `settings.resolveFieldAdapter`, который вернёт `FieldAdapter` — рендерер сам
+> переложит `value` / `onChange(value)` на диалект контрола (`checked` + `onChange(event)`,
+> `value` + `onChange(value, option)` и т.п.). Тогда `*Field`-обёртка не нужна. `withFormControl`
+> остаётся для прямого JSX-использования вне рендерера.
+
 ## Тема (self-contained)
 
 Пакет поставляет тему через subpath-экспорт `@reformer/ui-kit/styles` — oklch-токены shadcn

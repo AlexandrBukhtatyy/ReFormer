@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { getCatalog, type CatalogEntry } from '../catalog';
+import { isDefaultVariant } from '../catalog/variants';
 import { editorActions, useUi } from '../store';
 import { cn } from '../lib/cn';
 
@@ -45,8 +46,13 @@ export function QuickAddDialog() {
   }
 
   // Не выходить за границы при фильтрации — клампим во время рендера.
-  if (active > items.length - 1) {
-    setActive(Math.max(0, items.length - 1));
+  // Сравнивать надо с уже заклампленным индексом: при пустом списке (ввод, по которому нет
+  // совпадений — напр. кириллица) items.length - 1 = -1, а setActive выставляет 0. Если сравнивать
+  // с -1, условие active > -1 остаётся истинным и после клампа → setActive в фазе рендера зовётся
+  // каждый проход → «Too many re-renders».
+  const maxActive = Math.max(0, items.length - 1);
+  if (active > maxActive) {
+    setActive(maxActive);
   }
 
   // Фокус на поле при открытии — DOM-side-effect, остаётся в эффекте.
@@ -127,6 +133,11 @@ export function QuickAddDialog() {
               )}
             >
               <span className="min-w-0 flex-1 truncate">{label(entry)}</span>
+              {entry.variantGroup && !isDefaultVariant(entry) && (
+                <span className="flex-none rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                  {entry.variant}
+                </span>
+              )}
               {entry.category && (
                 <span className="flex-none text-[10px] text-muted-foreground">
                   {entry.category}

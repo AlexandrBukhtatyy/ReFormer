@@ -11,12 +11,14 @@ import { isContainerNode } from '@reformer/renderer-json';
 import {
   canAcceptChildren,
   childSlots,
-  duplicateNode,
+  duplicateBlock,
+  emptySchema,
   flipDirection,
   getAt,
   groupBlock,
   insertNode,
   isDivContainer,
+  isLeafComponent,
   moveNode,
   navTarget,
   parentNodePath,
@@ -30,6 +32,7 @@ import {
   type NavDir,
 } from '../model';
 import type {
+  BottomTab,
   EditorState,
   HistorySnapshot,
   LeftPanel,
@@ -50,7 +53,9 @@ export function initialUi(): UiState {
     hideDivWrappers: false,
     quickAddOpen: false,
     rawJsonOpen: true,
-    leftPanel: 'palette',
+    bottomTab: 'raw',
+    leftPanel: 'files',
+    lastLeftPanel: 'files',
     rightOpen: true,
     theme: 'light',
     revealLine: null,
@@ -63,11 +68,12 @@ export function initialState(): EditorState {
   return { tabs: {}, order: [], activeTabId: null, ui: initialUi() };
 }
 
-/** Новая вкладка (без истории, не dirty: `savedSchema === schema`). */
+/** Новая вкладка формы (без истории, не dirty: `savedSchema === schema`). */
 export function makeTab(id: string, source: TabSource, schema: JsonFormSchema): TabState {
   return {
     id,
     source,
+    kind: 'form',
     schema,
     savedSchema: schema,
     past: [],
@@ -75,6 +81,37 @@ export function makeTab(id: string, source: TabSource, schema: JsonFormSchema): 
     selectionPath: ['root'],
     selectionPaths: [['root']],
     anchorPath: ['root'],
+    hoverPath: null,
+    activeStep: 0,
+    lastCoalesceKey: null,
+  };
+}
+
+/**
+ * Новая вкладка кода (произвольный файл в Monaco). `schema`/история/выделение не используются —
+ * несут заглушку `emptySchema()`; источник истины — `text`, baseline dirty — `savedText`.
+ */
+export function makeCodeTab(
+  id: string,
+  source: TabSource,
+  text: string,
+  language: string
+): TabState {
+  const schema = emptySchema();
+  return {
+    id,
+    source,
+    kind: 'code',
+    schema,
+    savedSchema: schema,
+    text,
+    savedText: text,
+    language,
+    past: [],
+    future: [],
+    selectionPath: null,
+    selectionPaths: [],
+    anchorPath: null,
     hoverPath: null,
     activeStep: 0,
     lastCoalesceKey: null,
@@ -99,6 +136,53 @@ export function openTab(
   };
 }
 
+/** Открыть code-вкладку (или активировать уже открытую). */
+export function openCodeTab(
+  state: EditorState,
+  id: string,
+  source: TabSource,
+  text: string,
+  language: string
+): EditorState {
+  if (state.tabs[id]) return { ...state, activeTabId: id };
+  return {
+    ...state,
+    tabs: { ...state.tabs, [id]: makeCodeTab(id, source, text, language) },
+    order: [...state.order, id],
+    activeTabId: id,
+  };
+}
+
+/** Правка текста code-вкладки (Monaco onChange). Только для `kind: 'code'`. */
+export function setTabText(state: EditorState, id: string, text: string): EditorState {
+  const tab = state.tabs[id];
+  if (!tab || tab.kind !== 'code' || tab.text === text) return state;
+  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, text } } };
+}
+
+/** Правка мок-данных вкладки (панель мок-данных). Превью-only — историю/dirty не трогает. */
+export function setMockText(state: EditorState, id: string, text: string): EditorState {
+  const tab = state.tabs[id];
+  if (!tab || tab.mockText === text) return state;
+  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, mockText: text } } };
+}
+
+/** Сбросить мок-данные вкладки к синтезу из схемы (кнопка «Сбросить» в панели). */
+export function resetMock(state: EditorState, id: string): EditorState {
+  const tab = state.tabs[id];
+  if (!tab || tab.mockText === undefined) return state;
+  const next = { ...tab };
+  delete next.mockText;
+  return { ...state, tabs: { ...state.tabs, [id]: next } };
+}
+
+/** Отметить сохранённым текст активной code-вкладки (baseline dirty). */
+export function markCodeSaved(state: EditorState): EditorState {
+  return updateActiveTab(state, (tab) =>
+    tab.kind === 'code' ? { ...tab, savedText: tab.text } : tab
+  );
+}
+
 /** Закрыть вкладку; активной становится соседняя. */
 export function closeTab(state: EditorState, id: string): EditorState {
   if (!state.tabs[id]) return state;
@@ -111,6 +195,37 @@ export function closeTab(state: EditorState, id: string): EditorState {
     activeTabId = order[Math.min(idx, order.length - 1)] ?? null;
   }
   return { ...state, tabs, order, activeTabId };
+}
+
+/** Убрать множество вкладок; если активная попала под удаление — активной становится `fallbackId`. */
+function removeTabs(state: EditorState, remove: Set<string>, fallbackId: string): EditorState {
+  if (remove.size === 0) return state;
+  const tabs = { ...state.tabs };
+  for (const id of remove) delete tabs[id];
+  const order = state.order.filter((x) => !remove.has(x));
+  const activeTabId =
+    state.activeTabId && remove.has(state.activeTabId) ? fallbackId : state.activeTabId;
+  return { ...state, tabs, order, activeTabId };
+}
+
+/** «Закрыть остальные»: оставить только вкладку `id` (она становится активной). */
+export function closeOtherTabs(state: EditorState, id: string): EditorState {
+  if (!state.tabs[id]) return state;
+  return removeTabs(state, new Set(state.order.filter((x) => x !== id)), id);
+}
+
+/** «Закрыть слева»: закрыть все вкладки левее `id`. */
+export function closeTabsToLeft(state: EditorState, id: string): EditorState {
+  const idx = state.order.indexOf(id);
+  if (idx <= 0) return state;
+  return removeTabs(state, new Set(state.order.slice(0, idx)), id);
+}
+
+/** «Закрыть справа»: закрыть все вкладки правее `id`. */
+export function closeTabsToRight(state: EditorState, id: string): EditorState {
+  const idx = state.order.indexOf(id);
+  if (idx < 0 || idx >= state.order.length - 1) return state;
+  return removeTabs(state, new Set(state.order.slice(idx + 1)), id);
 }
 
 /** Сделать вкладку активной. */
@@ -296,11 +411,17 @@ function selectionIndices(tab: TabState): { slotPath: JsonPath; indices: number[
 }
 
 /** Массив-слот контейнера для добавления ребёнка (`children`/`steps`), либо создать `children`. */
-function insertSlotOf(node: JsonNode, path: JsonPath): { slotPath: JsonPath; count: number } | null {
+function insertSlotOf(
+  node: JsonNode,
+  path: JsonPath
+): { slotPath: JsonPath; count: number } | null {
   const slots = childSlots(node, path).filter((s) => !s.single);
   const slot = slots.find((s) => s.kind === 'children') ?? slots[0];
   if (slot) return { slotPath: slot.path, count: slot.nodes.length };
-  return isContainerNode(node) ? { slotPath: [...path, 'children'], count: 0 } : null;
+  // Листовые компоненты (Icon/Separator/…) слот children не создают, хоть и isContainerNode.
+  return !isLeafComponent(node) && isContainerNode(node)
+    ? { slotPath: [...path, 'children'], count: 0 }
+    : null;
 }
 
 /**
@@ -422,12 +543,29 @@ export function deleteSelection(state: EditorState): EditorState {
   });
 }
 
-/** ⌘D: дублировать активный узел (одиночное выделение). */
-export function duplicateSelection(state: EditorState): EditorState {
+/**
+ * Дублировать выделенный смежный блок соседей (одиночный узел или группу). `dir`:
+ * `down` (⌘D / ⇧⌥↓) — копия под блоком, `up` (⇧⌥↑) — над; выделение переходит на копию,
+ * курсор сохраняет своё смещение внутри блока (как в {@link moveSelection}).
+ */
+export function duplicateSelection(state: EditorState, dir: 'up' | 'down' = 'down'): EditorState {
   return updateActiveTab(state, (tab) => {
-    if (!tab.selectionPath || tab.selectionPaths.length !== 1) return tab;
-    const res = duplicateNode(tab.schema, tab.selectionPath);
-    return pushHistory(tab, { schema: res.schema, selectionPath: res.newPath });
+    const block = selectionBlock(tab);
+    if (!block) return tab;
+    const res = duplicateBlock(tab.schema, block.slotPath, block.start, block.count, dir);
+    if (!res) return tab;
+    const paths: JsonPath[] = [];
+    for (let i = 0; i < block.count; i++) paths.push([...block.slotPath, res.newStart + i]);
+    const curInfo = tab.selectionPath ? siblingInfo(tab.schema, tab.selectionPath) : null;
+    const off = curInfo
+      ? Math.max(0, Math.min(curInfo.index - block.start, block.count - 1))
+      : block.count - 1;
+    return pushHistory(tab, {
+      schema: res.schema,
+      selectionPath: [...block.slotPath, res.newStart + off],
+      selectionPaths: paths,
+      anchorPath: paths[0],
+    });
   });
 }
 
@@ -538,7 +676,12 @@ export function toggleSelectionAt(state: EditorState, path: JsonPath): EditorSta
           return pi != null && pathEquals(pi.slotPath, info.slotPath);
         }));
     if (!sameSlot) return { ...tab, selectionPath: path, selectionPaths: [path], anchorPath: path };
-    return { ...tab, selectionPath: path, selectionPaths: [...tab.selectionPaths, path], anchorPath: path };
+    return {
+      ...tab,
+      selectionPath: path,
+      selectionPaths: [...tab.selectionPaths, path],
+      anchorPath: path,
+    };
   });
 }
 
@@ -549,6 +692,10 @@ export function setPreview(state: EditorState, preview: PreviewMode): EditorStat
 }
 export function toggleRawJson(state: EditorState): EditorState {
   return { ...state, ui: { ...state.ui, rawJsonOpen: !state.ui.rawJsonOpen } };
+}
+/** Переключить активную вкладку нижней панели (JSON схемы / мок-данные). */
+export function setBottomTab(state: EditorState, bottomTab: BottomTab): EditorState {
+  return { ...state, ui: { ...state.ui, bottomTab } };
 }
 /** Переключить скрытие `$html(div)`-контейнеров в схематике. */
 export function toggleHideDivWrappers(state: EditorState): EditorState {
@@ -566,6 +713,15 @@ export function revealRawLine(state: EditorState, line: number): EditorState {
   };
 }
 export function setLeftPanel(state: EditorState, leftPanel: LeftPanel): EditorState {
+  // Раскрытую панель запоминаем — чтобы тоггл ⌘B потом восстановил именно её.
+  return {
+    ...state,
+    ui: { ...state.ui, leftPanel, lastLeftPanel: leftPanel ?? state.ui.lastLeftPanel },
+  };
+}
+/** Тоггл левого сайдбара (⌘B, как «Toggle Primary Side Bar» в VSCode): свернуть / вернуть последнюю панель. */
+export function toggleLeftPanel(state: EditorState): EditorState {
+  const leftPanel = state.ui.leftPanel === null ? state.ui.lastLeftPanel : null;
   return { ...state, ui: { ...state.ui, leftPanel } };
 }
 export function toggleRight(state: EditorState): EditorState {
@@ -583,5 +739,5 @@ export function activeTab(state: EditorState): TabState | null {
 
 /** Dirty активной вкладки: схема разошлась с baseline (сравнение по ссылке — иммутабельность). */
 export function isDirty(tab: TabState): boolean {
-  return tab.schema !== tab.savedSchema;
+  return tab.kind === 'code' ? tab.text !== tab.savedText : tab.schema !== tab.savedSchema;
 }

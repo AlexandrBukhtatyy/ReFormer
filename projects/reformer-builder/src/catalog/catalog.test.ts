@@ -12,7 +12,23 @@ describe('buildCatalog', () => {
     for (const name of Object.keys(defaultPropSchemas)) expect(names.has(name)).toBe(true);
     // синтетические
     expect(names.has('$html(div)')).toBe(true);
+    expect(names.has('$html(h1)')).toBe(true);
+    expect(names.has('$html(a)')).toBe(true);
     expect(names.has('FormArray')).toBe(true);
+  });
+
+  it('все $html-теги в разделе «HTML» (синтетика билдера), с их props', () => {
+    const html = catalog.filter((e) => e.name.startsWith('$html('));
+    for (const e of html) expect(e.category).toBe('HTML');
+
+    const h1 = catalog.find((e) => e.name === '$html(h1)')!;
+    expect(h1.propsSchema.properties).toHaveProperty('text');
+    expect(catalog.find((e) => e.name === '$html(a)')!.propsSchema.properties).toHaveProperty(
+      'href'
+    );
+    expect(catalog.find((e) => e.name === '$html(img)')!.propsSchema.properties).toHaveProperty(
+      'src'
+    );
   });
 
   it('field-запись несёт wrapper-пропы (label/required) в propsSchema', () => {

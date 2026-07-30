@@ -22,7 +22,22 @@ export function toInspectorProps(schema: PropsSchema): InspectorProp[] {
     out.push({
       key,
       label: humanize(key),
-      widget: doc?.kind ?? inferWidget(prop),
+      // Оверрайды поверх x-doc.kind из ui-kit: iconName → пикер иконок lucide; className →
+      // builder-редактор Tailwind; проп-список опций (массив {value,label} в Options) → редактор
+      // DataSource/инлайн-опций; testId → редактируемый текст (data-testid для e2e). Иначе — по kind/типу.
+      // ВАЖНО: dataSource — только для array-пропа, а не для всей секции Options: скалярные атрибуты
+      // презентационных тегов ($html: a.target, img.width, ol.type, …) тоже сидят в Options и должны
+      // остаться enum/number/text, иначе их инспектор ломается (редактором опций не отредактировать).
+      widget:
+        key === 'iconName'
+          ? 'icon'
+          : key === 'className'
+            ? 'className'
+            : key === 'testId'
+              ? 'text'
+              : doc?.group === 'Options' && prop.type === 'array'
+                ? 'dataSource'
+                : (doc?.kind ?? inferWidget(prop)),
       group: doc?.group ?? 'Control',
       description: typeof prop.description === 'string' ? prop.description : undefined,
       default: prop.default,
@@ -43,7 +58,10 @@ export function groupInspectorProps(props: InspectorProp[]): InspectorGroup[] {
     list.push(p);
     byGroup.set(p.group, list);
   }
-  return GROUP_ORDER.filter((g) => byGroup.has(g)).map((g) => ({ group: g, props: byGroup.get(g)! }));
+  return GROUP_ORDER.filter((g) => byGroup.has(g)).map((g) => ({
+    group: g,
+    props: byGroup.get(g)!,
+  }));
 }
 
 /** Пропы `propsSchema`, сразу сгруппированные для инспектора. */

@@ -15,12 +15,9 @@ export * from './widgets';
 export { buildCatalog } from './catalog';
 export { makeNodeFor } from './make-node';
 export { syntheticRecords } from './synthetic-entries';
-export {
-  CATALOG_SCHEMA,
-  loadCatalogJson,
-  buildCatalogFromJson,
-  validateCatalog,
-} from './contract';
+export { HTML_TAG_SPECS, htmlTagSpec, htmlPropsSchema } from './html-tags';
+export type { HtmlTagSpec, HtmlContent } from './html-tags';
+export { CATALOG_SCHEMA, loadCatalogJson, buildCatalogFromJson, validateCatalog } from './contract';
 
 let cache: CatalogEntry[] | null = null;
 

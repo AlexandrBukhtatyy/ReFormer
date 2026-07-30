@@ -12,8 +12,17 @@ describe('toInspectorProps', () => {
     expect(by('type').options).toEqual(expect.arrayContaining(['text', 'number', 'date']));
     expect(by('min').widget).toBe('number');
     expect(by('placeholder').widget).toBe('text');
-    expect(by('className').widget).toBe('readonly'); // x-doc.kind: readonly
+    expect(by('className').widget).toBe('className'); // override по ключу поверх x-doc.kind:'readonly'
+    expect(by('testId').widget).toBe('text'); // override: редактируемый (не readonly), билдер задаёт data-testid
     expect(by('required').widget).toBe('boolean'); // из wrapper, type: boolean
+  });
+
+  it('iconName → виджет пикера иконок (icon), у Icon-компонента', () => {
+    const props = toInspectorProps(defaultPropSchemas.Icon);
+    const by = (k: string) => props.find((p) => p.key === k)!;
+    expect(by('iconName').widget).toBe('icon');
+    expect(by('size').widget).toBe('number');
+    expect(by('className').widget).toBe('className');
   });
 
   it('секции берутся из x-doc.group', () => {
@@ -26,6 +35,31 @@ describe('toInspectorProps', () => {
     const keys = inputProps().map((p) => p.key);
     expect(keys).not.toContain('value');
     expect(keys).not.toContain('onChange');
+  });
+
+  it('dataSource-редактор — только для array-пропа опций, а не для всей секции Options', () => {
+    // Настоящий список опций (Select): проп `options` — массив {value,label} → редактор DataSource.
+    const select = toInspectorProps(defaultPropSchemas.Select);
+    expect(select.find((p) => p.key === 'options')!.widget).toBe('dataSource');
+
+    // Скалярные атрибуты презентационных тегов ($html) в той же секции Options НЕ должны стать
+    // dataSource — иначе их не отредактировать (см. widgets.ts).
+    const htmlProps = toInspectorProps({
+      type: 'object',
+      properties: {
+        target: {
+          type: 'string',
+          enum: ['_self', '_blank'],
+          'x-doc': { group: 'Options', type: 'string' },
+        },
+        width: { type: 'number', 'x-doc': { group: 'Options', type: 'number' } },
+        rel: { type: 'string', 'x-doc': { group: 'Options', type: 'string' } },
+      },
+    });
+    const by = (k: string) => htmlProps.find((p) => p.key === k)!;
+    expect(by('target').widget).toBe('enum');
+    expect(by('width').widget).toBe('number');
+    expect(by('rel').widget).toBe('text');
   });
 
   it('человекочитаемые подписи', () => {

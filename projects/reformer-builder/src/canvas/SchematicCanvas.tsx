@@ -11,7 +11,7 @@
  */
 
 import { createContext, useContext, useState, type DragEvent } from 'react';
-import { ArrowDown, ArrowRight } from 'lucide-react';
+import { ArrowDown, ArrowRight, GripVertical } from 'lucide-react';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
   canAcceptChildren,
@@ -259,8 +259,10 @@ function NodeView({
         )}
       >
         <div className="flex items-center gap-2">
-          {!isRoot && <span className="text-muted-foreground/50 select-none text-xs">⋮⋮</span>}
-          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{nodeLabel(node)}</span>
+          {!isRoot && <GripVertical className="h-3.5 w-3.5 select-none text-muted-foreground/50" />}
+          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
+            {nodeLabel(node)}
+          </span>
           {isDivContainer(node) && (
             <button
               type="button"
@@ -271,7 +273,11 @@ function NodeView({
               title={`Направление: ${selfHorizontal ? 'ряд' : 'столбец'} (клик — перевернуть)`}
               className="flex-none rounded border border-border p-0.5 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
             >
-              {selfHorizontal ? <ArrowRight className="size-3" /> : <ArrowDown className="size-3" />}
+              {selfHorizontal ? (
+                <ArrowRight className="size-3" />
+              ) : (
+                <ArrowDown className="size-3" />
+              )}
             </button>
           )}
           <span className="flex-none rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-[9.5px] font-semibold text-muted-foreground">

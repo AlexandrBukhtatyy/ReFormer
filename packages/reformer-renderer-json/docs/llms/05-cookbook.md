@@ -139,6 +139,54 @@ const registry = defineRegistry((reg) => {
 - Если имя не зарегистрировано: без `validate` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validate` — ошибка `unknown dataSource "NAME"`.
 - dataSource нельзя использовать как имя `component` (`component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
 
+## Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }
+
+**Problem.** JSON-реестр удобно наполнять готовыми контролами UI-kit (antd/MUI) прямо по имени: `reg.component('Checkbox', Checkbox)`. Но seam рендерера **value-based** — он читает `value` и зовёт `onChange(value)`. Сырой antd `Checkbox` держит значение в `checked` и эмитит DOM-событие (`onChange(e)`), `Radio` — тоже событие: без перевода в модель попадёт `event`, а не значение. `Select` эмитит `(value, option)` — значение приходит **первым** и пишется в модель верно (лишний `option` отбрасывается сам), но по умолчанию рендерер пробрасывает в контрол `control={fieldNode}`, и сырой antd-контрол разольёт неизвестный проп в DOM с React-warning.
+
+**Solution.** `resolveFieldAdapter(component) => FieldAdapter | undefined` в настройках рендерера. `JsonRendererSettings` наследует его от `RendererSettings`, поэтому адаптер передаётся тем же `JsonRendererProvider settings` и доходит до листового рендерера **без единой строки** в renderer-json (`JsonFormRenderer` спредит `...rendererSettings` в `FormRenderer`). Адаптер резолвится по **резолвнутому** `node.component` (тому, что реестр вернул на `$component(Checkbox)`), поэтому ключуй по ссылке на компонент, а не по имени.
+
+```tsx
+import { Checkbox, Select, Radio } from 'antd';
+import type { FieldAdapter } from '@reformer/renderer-react';
+
+// Сырые контролы регистрируем по имени — как обычные компоненты.
+const registry = defineRegistry((reg) => {
+  reg.component('Checkbox', Checkbox);
+  reg.component('Select', Select);
+  reg.component('Radio', Radio);
+  reg.component(FIELD_WRAPPER, FormField);
+});
+
+// Перевод value-based seam → диалект контрола держим отдельно
+// (данные приложения; ядро остаётся UI-агностичным).
+const adapters = new Map<unknown, FieldAdapter>([
+  // checked + onChange(event) → e.target.checked; null/undefined → false.
+  [Checkbox, { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }],
+  // value/onChange уже как надо; пустой адаптер нужен лишь чтобы НЕ прокинуть `control`
+  // (второй аргумент onChange(value, option) отбрасывается сам — колбэк берёт только первый).
+  [Select, {}],
+  // значение приходит в событии.
+  [Radio, { fromEmit: (e) => (e as any).target.value }],
+]);
+
+<JsonRendererProvider settings={{ registry, model, resolveFieldAdapter: (c) => adapters.get(c) }}>
+  <JsonFormRenderer<MyForm> schema={jsonSchema} />
+</JsonRendererProvider>;
+```
+
+В самой JSON-схеме ничего особого — лист ссылается на зарегистрированное имя:
+
+```json
+{ "value": "$model(agree)", "component": "$component(Checkbox)", "componentProps": { "label": "Согласен" } }
+```
+
+**Notes.**
+
+- `resolveFieldAdapter` получает **резолвнутый** `node.component` (React-компонент), а не строку `$component(...)`. Ключуй `Map` по той же ссылке, что отдал в `reg.component`.
+- С адаптером `control` в контрол **не** пробрасывается (сырой antd-контрол его не потребляет); `disabled` пробрасывается всегда. Без адаптера — прежний seam (`control` + `value` + `onChange(value)`), полная обратная совместимость.
+- Контролам с уже value-based контрактом (`Input`, `Textarea`, собственные поля `@reformer/ui-kit`) адаптер не нужен — верни для них `undefined`.
+- Полный справочник полей `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в JSDoc типа `FieldAdapter` и кукбуке `@reformer/renderer-react`; здесь важно лишь, что `JsonRendererSettings` наследует `resolveFieldAdapter` без изменений в renderer-json.
+
 ## Инъекция runtime-сущностей в компонент (form, validation) { #inject-runtime }
 
 **Problem.** Компоненту (напр. wizard) нужен `FormProxy` или validation-конфиг — рантайм-сущности, которые нельзя выразить в статичном JSON.
@@ -174,7 +222,7 @@ function createMyRenderBehavior(
 
 **Problem.** Нужно показать заполненную форму «только для просмотра» — все поля недоступны для ввода. Тянет искать флаг `settings.readonly` / `settings.mode`.
 
-**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт только `fieldWrapper` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`). Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `GroupNode.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
+**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт `fieldWrapper` **и** `resolveFieldAdapter` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`) — флага `readonly`/`mode` среди них нет. Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `GroupNode.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
 
 ```typescript
 // Вариант A — сразу после сборки формы (самый прямой):

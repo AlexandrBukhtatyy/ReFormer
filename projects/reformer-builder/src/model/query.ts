@@ -179,7 +179,11 @@ export function siblingInfo(schema: JsonFormSchema, path: JsonPath): SiblingInfo
   for (const slot of childSlots(parentNode, parentP)) {
     if (slot.single) continue;
     if (isPrefix(slot.path, path) && path.length === slot.path.length + 1) {
-      return { slotPath: slot.path, index: Number(path[path.length - 1]), count: slot.nodes.length };
+      return {
+        slotPath: slot.path,
+        index: Number(path[path.length - 1]),
+        count: slot.nodes.length,
+      };
     }
   }
   return null;

@@ -62,6 +62,7 @@ const CATEGORY_BY_NAME: Record<string, string> = {
   // Действия
   Button: 'Действия',
   // Отображение
+  Icon: 'Отображение',
   Label: 'Отображение',
   Badge: 'Отображение',
   Typography: 'Отображение',
@@ -125,6 +126,8 @@ export function buildCatalogFromJson(json: CatalogJson): CatalogEntry[] {
     role: r.role,
     category: r.category ?? categoryOf(r.name, r.role),
     propsSchema: r.propsSchema,
+    ...(r.variantGroup ? { variantGroup: r.variantGroup } : {}),
+    ...(r.variant ? { variant: r.variant } : {}),
     makeNode: () => makeNodeFor(r.name, r.role),
   }));
 }

@@ -28,7 +28,9 @@ describe('loadCatalogJson (клиентский каталог ui-kit + синт
   });
 
   it('явный role у каждой записи', () => {
-    expect(json.components.every((c) => ['field', 'container', 'array'].includes(c.role))).toBe(true);
+    expect(json.components.every((c) => ['field', 'container', 'array'].includes(c.role))).toBe(
+      true
+    );
     expect(json.components.find((c) => c.name === 'Input')?.role).toBe('field');
     expect(json.components.find((c) => c.name === 'Box')?.role).toBe('container');
     expect(json.components.find((c) => c.name === 'FormArray')?.role).toBe('array');
@@ -45,8 +47,10 @@ describe('validateCatalog (контракт)', () => {
   it('битый каталог отклоняется', () => {
     expect(validateCatalog({ components: [] }).valid).toBe(false); // нет version
     expect(
-      validateCatalog({ version: '1.0', components: [{ name: 'X', role: 'widget', propsSchema: {} }] })
-        .valid
+      validateCatalog({
+        version: '1.0',
+        components: [{ name: 'X', role: 'widget', propsSchema: {} }],
+      }).valid
     ).toBe(false); // role вне enum
     expect(
       validateCatalog({ version: '1.0', components: [{ name: 'X', role: 'field' }] }).valid

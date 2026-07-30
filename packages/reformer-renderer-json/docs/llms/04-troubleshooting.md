@@ -27,6 +27,29 @@ reg.component(FIELD_WRAPPER, FormField);
 - `JsonFormRenderer: settings.model is required (M1)` — не передана модель. Под M1 листья схемы биндятся к сигналам `FormModel`; передай её в `JsonRendererProvider settings={{ registry, model }}`.
 - `[JsonRenderer/M1] No model signal for "path"` (warn) — путь в `$model(path)` не соответствует структуре модели. Проверь: `value: '$model(personalData.firstName)'` — поле `firstName` реально существует внутри `personalData` в `createModel(...)` initial-значениях.
 
+## Сырой контрол UI-kit пишет в модель событие вместо значения
+
+Контрол зарегистрирован по имени и рендерится, но в модель уезжает не то: у `Checkbox` — DOM-событие вместо `boolean`, у `Radio` — событие вместо строки. Причина: рендерер отдаёт полю value-based seam (`value` + `onChange(value)`), а сырой контрол ждёт свой диалект (`checked` + `onChange(event)` и т.п.). (У `Select` значение приходит **первым** аргументом `onChange(value, option)` и пишется верно — лишний `option` обработчик отбрасывает сам; адаптер ему нужен лишь чтобы не протёк проп `control` в DOM.) Не оборачивай каждый контрол — зарегистрируй `FieldAdapter` через `resolveFieldAdapter`, и рендерер сам переложит seam на диалект контрола:
+
+```tsx
+<JsonRendererProvider
+  settings={{
+    registry,
+    model,
+    resolveFieldAdapter: (component) => {
+      if (component === Checkbox)
+        return { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false };
+      if (component === Radio) return { fromEmit: (e) => (e as any).target.value };
+      return undefined; // текстовые / уже value-based контролы — seam как есть
+    },
+  }}
+>
+  <JsonFormRenderer<MyForm> schema={schema} />
+</JsonRendererProvider>
+```
+
+`resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`); renderer-json наследует его без изменений кода и прокидывает через `JsonRendererProvider settings` в рендерер. Вернул `undefined` → контрол получает seam как есть (обратная совместимость, прежнее поведение). Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
+
 ## componentProps string passes through as plain string
 
 Строка `'$dataSource(NAME)'` в `componentProps` ссылается на source, который не зарегистрирован — конвертер оставляет её как есть. Используй `reg.dataSource('NAME', value)` либо передавай значение литералом напрямую. Голые строки (без `$dataSource(...)`) намеренно не резолвятся — это обычные значения пропа (`label`, `placeholder`).

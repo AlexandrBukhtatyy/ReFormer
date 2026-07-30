@@ -60,7 +60,7 @@ jobs:
         # (резолвятся относительно base через import.meta.url) грузились из подкаталога.
         env:
           BUILDER_BASE: /ReFormer/builder/
-        run: npm run build -w reformer-builder
+        run: npm run build -w @reformer/builder
 
       - name: Assemble site (docs at root, builder under /builder)
         # У репозитория один Pages-артефакт: docs кладём в корень, builder — в /builder.

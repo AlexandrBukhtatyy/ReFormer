@@ -13,7 +13,7 @@
     "postinstall": "patch-package",
     "build": "npm run build --workspaces",
     "dev": "npm run dev --workspace react-playground",
-    "dev:builder": "npm run dev --workspace reformer-builder",
+    "dev:builder": "npm run dev --workspace @reformer/builder",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

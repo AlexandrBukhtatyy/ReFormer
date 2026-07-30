@@ -90,6 +90,9 @@ Each form's own `registry.ts` composes the **app base registry** with its own co
 into a per-form file — regenerate the meta-schema with `npm run gen:form-schema` when the base
 registry changes.
 
+> Raw (non-ui-kit) controls are bound by name the same way, but need a `resolveFieldAdapter` in the
+> renderer **settings** (see `@reformer/renderer-react`), not in the registry itself.
+
 ## 3. Scale up: folders (large forms)
 
 When a form grows large (many steps, heavy reuse across steps), promote the flat module to folders.

@@ -107,6 +107,35 @@ export function setComponent(
 }
 
 /**
+ * Переключить вариант узла на sibling-компонент из той же группы вариантов: сменить `component` на
+ * `$component(targetName)` и удалить из `componentProps` ключи, отсутствующие в целевой props-схеме
+ * (`targetPropKeys`). Общие ключи (`className`/`placeholder`/`options` + wrapper `label`/`required`/
+ * `description`/`testId`) выживают, т.к. есть в целевой схеме. Одна запись истории (стор оборачивает
+ * весь результат в один `apply`). Прунинг сохраняет порядок оставшихся ключей.
+ *
+ * @param targetPropKeys - допустимые `componentProps`-ключи целевого варианта
+ *   (`Object.keys(targetEntry.propsSchema.properties)`).
+ */
+export function switchVariant(
+  schema: JsonFormSchema,
+  nodePath: JsonPath,
+  targetName: string,
+  targetPropKeys: Set<string>
+): MutationResult {
+  const afterComponent = setComponent(schema, nodePath, `$component(${targetName})`);
+  const props = getAt(afterComponent.schema, [...nodePath, 'componentProps']);
+  if (props == null || typeof props !== 'object') return afterComponent;
+  const next = updateAt(afterComponent.schema, [...nodePath, 'componentProps'], (p: unknown) => {
+    const pruned: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(p as Record<string, unknown>)) {
+      if (targetPropKeys.has(k)) pruned[k] = v;
+    }
+    return pruned;
+  });
+  return { schema: next, newPath: nodePath };
+}
+
+/**
  * Вставить узел в массив-слот (`children`/`steps`) на позицию `index`. Слот создаётся,
  * если его не было. `index` за пределами длины трактуется как «в конец».
  *
@@ -205,6 +234,31 @@ export function duplicateNode(schema: JsonFormSchema, nodePath: JsonPath): Mutat
   const arr = getAt(schema, slotPath);
   if (!node || !Array.isArray(arr)) return { schema, newPath: nodePath };
   return insertNode(schema, slotPath, idx + 1, clone(node));
+}
+
+/**
+ * Дублировать непрерывный блок `[start, start+count)` в массив-слоте (глубокие копии) — как
+ * «Copy Line Down/Up» в VSCode. `dir`: `down` — копия сразу ПОСЛЕ блока (оригинал остаётся сверху),
+ * `up` — ПЕРЕД блоком (оригинал уезжает вниз). Возвращает новую схему и стартовый индекс копии,
+ * либо `null`, если блок выходит за границы слота.
+ */
+export function duplicateBlock(
+  schema: JsonFormSchema,
+  slotPath: JsonPath,
+  start: number,
+  count: number,
+  dir: 'up' | 'down'
+): { schema: JsonFormSchema; newStart: number } | null {
+  const arr = getAt(schema, slotPath);
+  if (!Array.isArray(arr) || count <= 0 || start < 0 || start + count > arr.length) return null;
+  const newStart = dir === 'up' ? start : start + count;
+  const next = updateAt(schema, slotPath, (a: unknown) => {
+    const list = (a as unknown[]).slice();
+    const copies = list.slice(start, start + count).map((n) => clone(n));
+    list.splice(newStart, 0, ...copies);
+    return list;
+  });
+  return { schema: next, newStart };
 }
 
 /**
@@ -388,8 +442,7 @@ export function wrapPairInRow(
     adjustedTarget = [...targetSlot, targetLast - 1];
   }
 
-  const children =
-    side === 'before' ? [movingClone, targetClone] : [targetClone, movingClone];
+  const children = side === 'before' ? [movingClone, targetClone] : [targetClone, movingClone];
   const row: JsonNode = {
     component: '$html(div)',
     componentProps: { className: opts?.className ?? DEFAULT_ROW_CLASS },
@@ -433,10 +486,7 @@ export function wrapPairInColumn(
  * ряд или столбец) в этого ребёнка. Иначе no-op. Инвариант «обёртка не остаётся с одной колонкой»
  * (см. {@link removeNode}/{@link moveNode}).
  */
-export function unwrapSingleChild(
-  schema: JsonFormSchema,
-  containerPath: JsonPath
-): MutationResult {
+export function unwrapSingleChild(schema: JsonFormSchema, containerPath: JsonPath): MutationResult {
   const node = getAt(schema, containerPath) as JsonNode | undefined;
   if (!isDegenerateWrapper(node)) return { schema, newPath: containerPath };
   const only = node.children![0] as JsonNode;
@@ -515,7 +565,11 @@ export function flipWrapperPair(
     side === 'before' ? [clone(moving), clone(target)] : [clone(target), clone(moving)];
   const next = updateAt(schema, wrapperPath, (n: unknown) => {
     const c = n as JsonContainerNode;
-    return { ...c, componentProps: { ...(c.componentProps ?? {}), className: nextClass }, children };
+    return {
+      ...c,
+      componentProps: { ...(c.componentProps ?? {}), className: nextClass },
+      children,
+    };
   });
   return { schema: next, newPath: [...wrapperPath, 'children', side === 'before' ? 0 : 1] };
 }

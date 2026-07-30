@@ -36,6 +36,44 @@ describe('вкладки', () => {
     expect(s.order).toEqual(['a', 'c']);
     expect(s.activeTabId).toBe('c');
   });
+
+  const abc = () => {
+    let s = R.openTab(R.initialState(), 'a', src, emptySchema());
+    s = R.openTab(s, 'b', src, emptySchema());
+    s = R.openTab(s, 'c', src, emptySchema());
+    return s;
+  };
+
+  it('closeOtherTabs: остаётся только цель, она активна', () => {
+    const s = R.closeOtherTabs(R.setActiveTab(abc(), 'a'), 'b');
+    expect(s.order).toEqual(['b']);
+    expect(s.activeTabId).toBe('b');
+  });
+
+  it('closeTabsToLeft: закрывает всё левее; активная переезжает на цель', () => {
+    const s = R.closeTabsToLeft(R.setActiveTab(abc(), 'a'), 'c');
+    expect(s.order).toEqual(['c']);
+    expect(s.activeTabId).toBe('c');
+  });
+
+  it('closeTabsToLeft: сохраняет активную справа от цели', () => {
+    const s = R.closeTabsToLeft(R.setActiveTab(abc(), 'c'), 'b');
+    expect(s.order).toEqual(['b', 'c']);
+    expect(s.activeTabId).toBe('c');
+  });
+
+  it('closeTabsToRight: закрывает всё правее; активная переезжает на цель', () => {
+    const s = R.closeTabsToRight(R.setActiveTab(abc(), 'c'), 'a');
+    expect(s.order).toEqual(['a']);
+    expect(s.activeTabId).toBe('a');
+  });
+
+  it('крайние случаи: нет вкладок слева/справа — стейт без изменений', () => {
+    const s = abc();
+    expect(R.closeTabsToLeft(s, 'a')).toBe(s);
+    expect(R.closeTabsToRight(s, 'c')).toBe(s);
+    expect(R.closeOtherTabs(s, 'zzz')).toBe(s);
+  });
 });
 
 describe('правки и история', () => {
@@ -117,6 +155,52 @@ describe('ui', () => {
     s = R.setTheme(s, 'dark');
     expect(s.ui.theme).toBe('dark');
   });
+
+  it('toggleLeftPanel — свернуть и восстановить последнюю панель', () => {
+    let s = R.initialState();
+    expect(s.ui.leftPanel).toBe('files');
+
+    // свернуть → null, но последняя запомнена
+    s = R.toggleLeftPanel(s);
+    expect(s.ui.leftPanel).toBeNull();
+    expect(s.ui.lastLeftPanel).toBe('files');
+
+    // развернуть → восстановилась 'files'
+    s = R.toggleLeftPanel(s);
+    expect(s.ui.leftPanel).toBe('files');
+
+    // выбрать палитру через setLeftPanel → она становится последней
+    s = R.setLeftPanel(s, 'palette');
+    expect(s.ui.lastLeftPanel).toBe('palette');
+
+    // свернуть/развернуть тоглом → восстановится именно палитра
+    s = R.toggleLeftPanel(s);
+    expect(s.ui.leftPanel).toBeNull();
+    s = R.toggleLeftPanel(s);
+    expect(s.ui.leftPanel).toBe('palette');
+
+    // setLeftPanel(null) не затирает память последней панели
+    s = R.setLeftPanel(s, null);
+    expect(s.ui.lastLeftPanel).toBe('palette');
+  });
+});
+
+describe('мок-данные вкладки', () => {
+  it('setMockText сохраняет, resetMock очищает', () => {
+    let s = R.openTab(R.initialState(), 't1', src, emptySchema());
+    expect(s.tabs.t1.mockText).toBeUndefined();
+    s = R.setMockText(s, 't1', '{"model":{"a":1},"dataSources":{}}');
+    expect(s.tabs.t1.mockText).toBe('{"model":{"a":1},"dataSources":{}}');
+    s = R.resetMock(s, 't1');
+    expect(s.tabs.t1.mockText).toBeUndefined();
+  });
+
+  it('мок не попадает в историю/dirty (правка mockText не создаёт снимок)', () => {
+    let s = R.openTab(R.initialState(), 't1', src, emptySchema());
+    const past = s.tabs.t1.past.length;
+    s = R.setMockText(s, 't1', '{"model":{}}');
+    expect(s.tabs.t1.past.length).toBe(past);
+  });
 });
 
 describe('горячие клавиши (навигация/выделение/перемещение/удаление)', () => {
@@ -178,6 +262,28 @@ describe('горячие клавиши (навигация/выделение/�
     s = R.duplicateSelection(s);
     expect(kidsOf(s, P.step0children)).toHaveLength(3);
     expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 1]);
+  });
+
+  it('duplicateSelection up: копия перед оригиналом (⇧⌥↑), выделение на копии', () => {
+    let s = R.select(openedSample(), P.step0field1); // второе поле (index 1)
+    s = R.duplicateSelection(s, 'up');
+    expect(kidsOf(s, P.step0children).map((c) => c.value)).toEqual([
+      '$model(loanType)',
+      '$model(loanAmount)', // копия, вставлена перед оригиналом
+      '$model(loanAmount)', // оригинал уехал вниз
+    ]);
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0children, 1]);
+  });
+
+  it('duplicateSelection: группа соседей дублируется блоком вниз', () => {
+    let s = R.select(openedSample(), P.step0field0);
+    s = R.navigate(s, 'down', true); // выделены оба поля (блок из 2)
+    s = R.duplicateSelection(s, 'down');
+    expect(kidsOf(s, P.step0children)).toHaveLength(4);
+    expect(R.activeTab(s)!.selectionPaths).toEqual([
+      [...P.step0children, 2],
+      [...P.step0children, 3],
+    ]);
   });
 
   it('collapseSelection: мульти → активный, затем → родитель', () => {

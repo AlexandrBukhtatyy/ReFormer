@@ -9,9 +9,7 @@
 import type { JsonPath } from '../model';
 
 /** Что перетаскивается: новый компонент из палитры или существующий узел (перемещение). */
-export type DragPayload =
-  | { kind: 'new'; entryName: string }
-  | { kind: 'move'; path: JsonPath };
+export type DragPayload = { kind: 'new'; entryName: string } | { kind: 'move'; path: JsonPath };
 
 let current: DragPayload | null = null;
 

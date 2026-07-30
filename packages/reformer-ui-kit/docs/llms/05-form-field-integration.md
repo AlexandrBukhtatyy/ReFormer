@@ -151,6 +151,16 @@ function CreditApplicationPage() {
 // → data-testid="field-existingLoan-bank", "input-existingLoan-bank", ...
 ```
 
+> `fieldWrapper` отвечает только за обвязку поля (label / error / `testId`) — сам
+> контрол (`node.component`) получает value-based seam рендерера (`value` +
+> `onChange(value)` + `onBlur`). Если в схеме стоят СЫРЫЕ контролы чужого UI-kit
+> (checkbox с `checked` + `onChange(event)`, select с `onChange(value, option)`
+> и т.п.), в тех же `settings` рядом с `fieldWrapper` задаётся
+> `resolveFieldAdapter` — он переводит seam на диалект каждого контрола, без
+> обёртки под каждый контрол. Компоненты `@reformer/ui-kit` уже value-based —
+> адаптер им не нужен. Детали (`FieldAdapter` / `resolveFieldAdapter`) — в docs
+> [`@reformer/renderer-react`](../../../reformer-renderer-react/docs/llms/05-cookbook.md).
+
 ### 3. Кастомизация через `children`
 
 Для случаев, когда нужен нестандартный контрол (например, маска, которая не

@@ -49,6 +49,13 @@ describe('Combobox (вариант base)', () => {
     const html = renderToStaticMarkup(<Combobox value={null} options={OPTS} clearable />);
     expect(html).not.toContain('aria-label="Clear selection"');
   });
+
+  it('creatable: значение вне options показывается в триггере как введённое', () => {
+    // Пункт «Создать «…»» рендерится в Popover-портале (в SSR отсутствует) — проверяем триггер:
+    // созданное значение, которого нет в options, показывается как собственный label.
+    const html = renderToStaticMarkup(<Combobox value="Своё значение" options={OPTS} creatable />);
+    expect(html).toContain('Своё значение');
+  });
 });
 
 describe('ComboboxField (base, comboboxAdapter)', () => {

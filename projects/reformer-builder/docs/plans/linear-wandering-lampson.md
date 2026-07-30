@@ -15,6 +15,7 @@
 **Решение:** источник истины редактора — **настоящий `JsonFormSchema`** (`@reformer/renderer-json`), редактируемый иммутабельно на месте; все подсистемы (canvas, инспектор, валидация, preview, принтер) читают ровно этот объект. UI/взаимодействия берём из макета, оболочку строим на **`@reformer/ui-kit`/shadcn**, Runtime-preview — на настоящем `renderer-json`.
 
 **Решения пользователя (зафиксировано):**
+
 - **Объём:** полный MVP сразу, включая Mode B (File System Access API, обнаружение схем, prettier round-trip-принтер, diff-сохранение, детект конфликтов, IndexedDB).
 - **Оболочка:** на `@reformer/ui-kit` (переиспользуем компоненты и токены; макет — ориентир по layout, не по пикселям).
 
@@ -22,16 +23,16 @@
 
 ## Опоры в существующем коде (переиспользуем как есть)
 
-| Что | Где | Роль в билдере |
-|---|---|---|
-| `JsonFormSchema` + узлы + guards (`isArrayNode/isFieldNode/isContainerNode`) | `packages/reformer-renderer-json/src/types/json-schema.ts` | **источник истины** редактора |
-| `convertJsonToM1Tree` + `JsonFormRenderer` + `JsonRendererProvider` + `defineRegistry` | `packages/reformer-renderer-json` | движок **Runtime-preview** |
-| `validateFormSchema(schema, {...})` → `{valid, errors}` | `@reformer/renderer-json/validate` | гейт валидации перед save/export |
-| `defaultPropSchemas: Record<name, PropsSchema>` (`x-doc.kind`/`x-doc.group`/`x-runtimeProps`) | `packages/reformer-ui-kit/src/meta.ts`, `.../fields/props-schema.ts` | каталог для **палитры + инспектора** |
-| Эталон монтирования preview + registry | `projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/{CreditApplicationFormRendererJson,registry}.tsx` | шаблон `preview-runtime/` |
-| Эталонная JSON-форма (identity-тест принтера) | `.../complex-multy-step-form-renderer-json/json-schema.json` | round-trip gate-test |
-| shadcn-набор оболочки: `resizable`, `tabs`, `collapsible`, `scroll-area`, `command`, `dialog`, `sonner`, `field`/`label`/`switch`/`select`/`slider`, `sheet`, `dropdown-menu`, `tooltip`, `badge`, `spinner`, `kbd` | `@reformer/ui-kit/*` | вся оболочка билдера |
-| Токены темы (shadcn): `--background/--foreground/--border/--muted/--primary/--ring/--card/--sidebar-*/--radius`, тёмная тема встроена | `@reformer/ui-kit/styles` | стилизация оболочки |
+| Что                                                                                                                                                                                                                 | Где                                                                                                                                   | Роль в билдере                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `JsonFormSchema` + узлы + guards (`isArrayNode/isFieldNode/isContainerNode`)                                                                                                                                        | `packages/reformer-renderer-json/src/types/json-schema.ts`                                                                            | **источник истины** редактора        |
+| `convertJsonToM1Tree` + `JsonFormRenderer` + `JsonRendererProvider` + `defineRegistry`                                                                                                                              | `packages/reformer-renderer-json`                                                                                                     | движок **Runtime-preview**           |
+| `validateFormSchema(schema, {...})` → `{valid, errors}`                                                                                                                                                             | `@reformer/renderer-json/validate`                                                                                                    | гейт валидации перед save/export     |
+| `defaultPropSchemas: Record<name, PropsSchema>` (`x-doc.kind`/`x-doc.group`/`x-runtimeProps`)                                                                                                                       | `packages/reformer-ui-kit/src/meta.ts`, `.../fields/props-schema.ts`                                                                  | каталог для **палитры + инспектора** |
+| Эталон монтирования preview + registry                                                                                                                                                                              | `projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/{CreditApplicationFormRendererJson,registry}.tsx` | шаблон `preview-runtime/`            |
+| Эталонная JSON-форма (identity-тест принтера)                                                                                                                                                                       | `.../complex-multy-step-form-renderer-json/json-schema.json`                                                                          | round-trip gate-test                 |
+| shadcn-набор оболочки: `resizable`, `tabs`, `collapsible`, `scroll-area`, `command`, `dialog`, `sonner`, `field`/`label`/`switch`/`select`/`slider`, `sheet`, `dropdown-menu`, `tooltip`, `badge`, `spinner`, `kbd` | `@reformer/ui-kit/*`                                                                                                                  | вся оболочка билдера                 |
+| Токены темы (shadcn): `--background/--foreground/--border/--muted/--primary/--ring/--card/--sidebar-*/--radius`, тёмная тема встроена                                                                               | `@reformer/ui-kit/styles`                                                                                                             | стилизация оболочки                  |
 
 **В библиотеке отсутствует** и пишется в билдере: **принтер модель→JSON** (round-trip, prettier). Валидатора schema→JSON и meta-схемы — есть (`form-schema.schema.json`, `buildFormSchemaMetaSchema`).
 
@@ -72,6 +73,7 @@
 ### 5. Runtime-preview
 
 Монтирование по эталону `CreditApplicationFormRendererJson.tsx`: `{registry, model}` → `convertJsonToM1Tree` в try/catch → `<JsonRendererProvider settings={{registry, model}}><JsonFormRenderer .../></JsonRendererProvider>`; при ошибке — `SchemaErrorPanel`.
+
 - `synth-model.ts`: собрать все `$model(path)` (`parseOperator`) → вложенный initial-values → `createModel(initialValues)` (`@reformer/core`). Пути внутри `item.$template` — относительные, их обрабатывает конвертер (не пре-сидим).
 - `default-registry.ts`: `defineRegistry` палитрового набора на ui-kit-поля (Input→InputField, …, Box, Section) + `FIELD_WRAPPER`→FormField + `Step`/wizard из `@reformer/cdk/form-wizard` + `AsyncBoundary`.
 - `mock-sources.ts`: пред-скан `$dataSource/$fn/$locale` → авто-регистрация пустых заглушек (options `[]`, itemLabel → `''`), чтобы конвертер не падал.
@@ -116,14 +118,17 @@ dnd/               drag-drop примитивы (HTML5 DnD или dnd-kit), об
 ## Milestones (весь MVP в объёме; порядок исполнения)
 
 ### M1 — Ядро редактора + Standalone Mode A (in-memory реальный `JsonFormSchema`; без FS/принтера)
+
 `model/` (paths, node-kind/childSlots, query, mutate, normalize) + юнит-тесты; `store/` zustand (tabs/history-снимки/selection/ui + dirty); `catalog/` (адаптер + role + widgets + типы); `PalettePanel` (DnD), `Inspector` (каталог + Bindings), `FilesPanel` (Mode A список + «новая схема»); `SchematicCanvas` (L2-wireframe через `childSlots`, выделение, drop-цели) + `dnd/`; `RuntimePreview` (`preview-runtime/*`, ремоунт-по-версии, try/catch→SchemaErrorPanel); `RawJson` (textarea/CodeMirror, debounce parse-back); гейт `validateFormSchema` как статус-панель, блокирует export; `io/export.ts`; оболочка/layout/preview-switch/сворачивание панелей — на ui-kit.
 **Выход:** собрать форму с нуля, править инспектором, drag палитра→canvas, runtime рендерит, править raw-JSON, undo/redo, валидация, экспорт валидного `JsonFormSchema`. Без ФС и prettier.
 
 ### M2 — Mode B: проектная связка и round-trip (рискованный)
+
 `model/printer.ts` + **`printer.test.ts` первым (TDD)** на эталоне (identity/fixpoint/passthrough) как CI-гейт; `io/prettier-config.ts`; `io/fs-access.ts`, `io/handle-store.ts` (IndexedDB + «Переоткрыть»), `io/discovery.ts` (glob + `json.root`-дискриминатор + бейджи уверенности), `io/save.ts` (diff-preview, детект внешних изменений/конфликтов через re-read `lastModified`, защищённая запись); `FilesPanel` Mode B (дерево, бейджи, dirty); Cmd+S → validate → diff → write (HMR — внешний, dev-сервер проекта).
 **Выход:** все критерии §14 спеки кроме Monaco/контракта; **round-trip идемпотентность зелёная в CI.**
 
 ### M3 — Полировка
+
 `RawJson`→Monaco split-view (двусторонний, path↔range через JSON Pointer, хинты из `form-schema.schema.json`); каталог-контракт (`component-catalog.schema.json` + ui-kit-адаптер `defaultPropSchemas→catalog.json` с явным `role` + `validateCatalog`) за неизменным `CatalogEntry`; полировка бейджей, конфиг globs обнаружения, эргономика diff/merge.
 
 ---

@@ -5,7 +5,7 @@
 Единая схема (M1): одно дерево `RenderNode` описывает и layout, и привязку полей к модели. Привязка идёт через **сигналы модели** (`model.$.<field>`), а не через отдельный `path`-прокси.
 
 - **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Без аргументов: возвращает корневой узел. Привязка к данным — через сигналы в листьях, поэтому legacy-аргумент `path` удалён.
-- **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`). Поля `validators` у узла **НЕТ** — правила валидации значений живут в отдельной TS-схеме над моделью, а не в render-дереве (`validators: [...]` на листе даст `TS2353`; см. [06-validation.md](06-validation.md)).
+- **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`). Поля `validators` у узла **НЕТ** — правила валидации значений живут в отдельной TS-схеме над моделью, а не в render-дереве (`validators: [...]` на листе даст `TS2353`; см. [06-validation.md](06-validation.md)). Компонент листа получает **value-based seam** (`control`, `value`, `disabled`, `onChange(value)`, `onBlur`) — value-based контролам настройка не нужна. Сырой контрол сторонней UI-kit с другим диалектом (`checked`+событие у Checkbox, `(value, option)` у Select) подключается через `FieldAdapter`: рендерер сам переложит seam на его контракт, не оборачивая контрол (`settings.resolveFieldAdapter`; см. [05-cookbook.md](05-cookbook.md)).
 - **`ArrayRenderNode<T>`** — узел-массив модели. Данные принадлежат модели (`array: model.<path>`), форма элемента описывается `item(itemModel)`, `initialValue` — значение/фабрика нового элемента.
 - **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент **либо нативный HTML-тег строкой** (`'div'`, `'h3'`, `'hr'`), дочерние узлы задаются в **top-level** `children` (НЕ в `componentProps`). Опциональный `text` задаёт текстовое содержимое.
 
@@ -174,3 +174,4 @@ hideWhen(schema.node('extra-section'), () => !form.subscribe.value.value);
 - [03-render-behavior.md](03-render-behavior.md) — `hideWhen`, `renderEffect`, lifecycle.
 - [06-validation.md](06-validation.md) — валидация значений отдельной model-схемой (у RenderNode нет `validators`).
 - [04-troubleshooting.md](04-troubleshooting.md).
+- [05-cookbook.md](05-cookbook.md) — `resolveFieldAdapter`/`FieldAdapter`: подключение сырых контролов сторонней UI-kit без per-контрол обёрток.

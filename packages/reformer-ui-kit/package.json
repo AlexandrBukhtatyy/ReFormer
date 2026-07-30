@@ -161,6 +161,10 @@
       "types": "./dist/hover-card.d.ts",
       "import": "./dist/hover-card.js"
     },
+    "./icon": {
+      "types": "./dist/icon.d.ts",
+      "import": "./dist/icon.js"
+    },
     "./input": {
       "types": "./dist/input.d.ts",
       "import": "./dist/input.js"

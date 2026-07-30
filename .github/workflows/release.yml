@@ -22,6 +22,7 @@ on:
     branches: [main, develop]
     paths:
       - 'packages/**'
+      - 'projects/reformer-builder/**'
       - '.github/workflows/release.yml'
   workflow_dispatch: # для ручного re-run без коммита (например после исправления git tags)
 
@@ -76,6 +77,13 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Build @reformer/builder (npm base '/')
+        # Билдер — Vite-SPA (projects/*), публикуется prebuilt-бандлом. Собираем ПОСЛЕ 6 пакетов:
+        # tsc -b / vite build резолвят пять @reformer/* из их собранного dist, а contract.ts
+        # инлайнит @reformer/ui-kit/catalog. BUILDER_BASE НЕ выставляем → base '/' (в отличие от
+        # Pages-сборки в deploy-docs.yml), чтобы ассеты/Monaco-воркеры грузились с корня статик-сервера.
+        run: npm run build -w @reformer/builder
+
       # Тесты не повторяем: needs: test (reusable test.yml) уже собрал и прогнал
       # тесты всех пакетов + dist-deps/size/typecheck.
 
@@ -100,6 +108,7 @@ jobs:
             "@reformer/ui-kit:packages/reformer-ui-kit"
             "@reformer/renderer-json:packages/reformer-renderer-json"
             "@reformer/mcp:packages/reformer-mcp"
+            "@reformer/builder:projects/reformer-builder"
           )
           failed=()
           for entry in "${packages[@]}"; do

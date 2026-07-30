@@ -22,7 +22,11 @@ export interface Classification {
 }
 
 /** Маркеры мета-схемы формы в поле `$schema` (строгий критерий). */
-const FORM_SCHEMA_MARKERS = ['form-schema.schema.json', 'reformer.dev/schemas/form', 'renderer.schema.json'];
+const FORM_SCHEMA_MARKERS = [
+  'form-schema.schema.json',
+  'reformer.dev/schemas/form',
+  'renderer.schema.json',
+];
 
 /** Классифицировать распарсенный JSON: форма ли это и с какой уверенностью. */
 export function classifyFormSchema(json: unknown): Classification {
@@ -50,7 +54,12 @@ const IGNORE_DIRS = new Set([
 ]);
 
 /** Файлы-исключения (не схемы, но тяжёлые/частые .json). */
-const SKIP_FILES = new Set(['package-lock.json', 'package.json', 'tsconfig.json', 'components.json']);
+const SKIP_FILES = new Set([
+  'package-lock.json',
+  'package.json',
+  'tsconfig.json',
+  'components.json',
+]);
 
 export function isIgnoredDir(name: string): boolean {
   // Скрываем только тяжёлые/служебные каталоги; остальную структуру (в т.ч. `.vscode`, `.github`) показываем.
@@ -90,8 +99,9 @@ export interface TreeEntry {
   /** Файл распознан как схема формы. */
   isForm?: boolean;
   confidence?: Confidence;
-  /** Handle открываемой схемы (только для `isForm`-файлов). */
+  /** Handle файла — для открытия (схема → форма, прочий файл → code-вкладка). Есть у всех файлов. */
   handle?: FileSystemFileHandle;
+  /** Метка времени файла — только для распознанных схем (детект внешних изменений). */
   lastModified?: number;
 }
 
@@ -133,7 +143,14 @@ async function walkTree(
       continue;
     }
 
-    const item: TreeEntry = { path: `${prefix}${entry.name}`, name: entry.name, kind: 'file', depth };
+    const item: TreeEntry = {
+      path: `${prefix}${entry.name}`,
+      name: entry.name,
+      kind: 'file',
+      depth,
+    };
+    // Handle — на любой файл: схемы открываются как форма, прочие — как code-вкладка в Monaco.
+    item.handle = entry as unknown as FileSystemFileHandle;
     if (shouldScanFile(entry.name)) {
       try {
         const file = await entry.getFile();
@@ -141,7 +158,6 @@ async function walkTree(
         if (isForm && confidence) {
           item.isForm = true;
           item.confidence = confidence;
-          item.handle = entry as unknown as FileSystemFileHandle;
           item.lastModified = file.lastModified;
         }
       } catch {

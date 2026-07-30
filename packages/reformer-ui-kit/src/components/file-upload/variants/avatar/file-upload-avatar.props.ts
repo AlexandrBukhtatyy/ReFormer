@@ -9,6 +9,8 @@ export const fileUploadAvatarPropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'FileUploadAvatar',
+  'x-variantGroup': 'FileUpload',
+  'x-variant': 'Аватар',
   properties: {
     shape: {
       type: 'string',
