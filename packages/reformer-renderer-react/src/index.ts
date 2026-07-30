@@ -38,6 +38,7 @@ export type {
   RenderTextPart,
   FormRendererProps,
   RendererSettings,
+  FieldAdapter,
   FieldWrapperProps,
   ContainerComponentProps,
 } from './core/types';

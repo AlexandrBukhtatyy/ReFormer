@@ -261,6 +261,36 @@ export interface FieldWrapperProps {
 }
 
 /**
+ * Адаптер поля: как свести value-based seam рендерера (`value` + `onChange(value)`) к контракту
+ * конкретного контрола библиотеки. Резолвится через {@link RendererSettings.resolveFieldAdapter}
+ * по компоненту поля (`node.component`). Позволяет регистрировать СЫРЫЕ контролы любого UI-kit —
+ * рендерер сам переложит seam на их диалект (`checked` + `onChange(event)`, `value` + `(value, option)`
+ * и т.д.). Нет адаптера → контрол получает seam как есть (текущее поведение, обратная совместимость).
+ *
+ * @example Checkbox (значение в `checked`, эмитит DOM-событие)
+ * ```ts
+ * { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }
+ * ```
+ */
+export interface FieldAdapter {
+  /** Проп, из которого контрол читает значение (default `'value'`). */
+  valueProp?: string;
+  /** Колбэк, через который контрол эмитит изменение (default `'onChange'`). */
+  changeProp?: string;
+  /**
+   * emit контрола → значение поля (default — как есть). `rest` — прочие props контрола
+   * (например, чтобы достать `options` при резолве значения).
+   */
+  fromEmit?: (arg: unknown, rest: Record<string, unknown>) => unknown;
+  /** значение поля → `valueProp` контрола (coerce `null`/`undefined`; default — как есть). */
+  toValue?: (value: unknown) => unknown;
+  /** Проброс blur нестандартным каналом (default — прокидывается `onBlur`). */
+  bindBlur?: (onBlur: () => void) => Record<string, unknown>;
+  /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
+  strip?: string[];
+}
+
+/**
  * Настройки рендерера формы
  */
 export interface RendererSettings {
@@ -271,6 +301,14 @@ export interface RendererSettings {
    * Обёртка отвечает за рендеринг label, errors и т.д.
    */
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+  /**
+   * Резолв {@link FieldAdapter} по компоненту поля (`node.component`). Возвращает адаптер для
+   * контролов с нестандартным диалектом (Checkbox/Select/Radio) либо `undefined` — тогда seam
+   * применяется как есть. Позволяет подключать сырые компоненты любого UI-kit, не оборачивая
+   * каждый контрол. Ядро при этом остаётся UI-агностичным (адаптер — данные приложения).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
 }
 
 /**

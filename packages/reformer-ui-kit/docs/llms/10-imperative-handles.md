@@ -178,6 +178,13 @@ queueMicrotask(() => {
 `valueChangeAdapter`, `sliderAdapter`, `dateAdapter`), `makeElementFieldHandle` и типы
 `FieldAdapter` / `WithFormControlOptions` / `FieldHandle`.
 
+> **Внимание — коллизия имён.** Этот `FieldAdapter` (из `@reformer/ui-kit/fields`, для
+> `withFormControl`; основные поля `valueProp`/`changeProp`/`fromEmit`/`toValue` обязательны,
+> `bindBlur`/`strip` — опциональны) — **не** тот же тип, что `FieldAdapter` из
+> `@reformer/renderer-react` (резолвится через `RendererSettings.resolveFieldAdapter` во время
+> рендера, все поля опциональны). Первый описывает event-shape примитива при сборке
+> `*Field`-компонента; второй — как рендерер сводит value-seam к сырому контролу без обёртки.
+
 `withFormControl` принимает третий аргумент:
 
 ```tsx

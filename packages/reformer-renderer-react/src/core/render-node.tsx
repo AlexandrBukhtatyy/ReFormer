@@ -11,6 +11,7 @@ import { getNodeForSignal } from '@reformer/core';
 import type {
   RenderNode,
   FieldWrapperProps,
+  FieldAdapter,
   ModelFieldRenderNode,
   ArrayRenderNode,
   RenderModelArrayControl,
@@ -31,6 +32,7 @@ import {
   RenderSchemaOverrideContext,
 } from './render-schema-proxy';
 import { useCondition, useNodeLifecycle } from './render-behavior';
+import { buildAdaptedFieldProps } from './field-adapter';
 
 /**
  * Props для RenderNodeComponent
@@ -105,6 +107,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   fieldNode,
   fieldWrapper: FieldWrapper,
   nodeRef,
+  resolveFieldAdapter,
 }: {
   node: ModelFieldRenderNode;
   fieldNode: FieldNode<unknown>;
@@ -115,6 +118,13 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
    * Стабильный createRef → React.memo не тарашит. undefined, если нода без selector или ref не запрошен.
    */
   nodeRef?: React.RefObject<unknown>;
+  /**
+   * Резолв {@link FieldAdapter} по компоненту поля (из `settings.resolveFieldAdapter`). Если адаптер
+   * найден — seam кладётся в контракт контрола (valueProp/changeProp/fromEmit/toValue), иначе
+   * применяется как есть (текущее value-based поведение).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
 }): ReactNode {
   // Подписка только на value+disabled (не на все 9 сигналов useFormControl).
   const { value, disabled } = useFieldValueAndDisabled(fieldNode);
@@ -147,24 +157,51 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
         ? path.replace(/\./g, '-')
         : undefined;
 
-  const inputProps: Record<string, unknown> = {
-    value,
-    disabled,
-    ...inputComponentProps,
-  };
-  if (testId && inputProps['data-testid'] === undefined) {
-    inputProps['data-testid'] = `input-${testId}`;
-  }
+  // Адаптер по компоненту поля: сырой контрол UI-kit получает seam в своём диалекте
+  // (`checked`+событие, `value`+`(value, option)` и т.д.). Нет адаптера → value-based seam
+  // как есть (обратная совместимость — ветка else идентична прежнему поведению).
+  const adapter = resolveFieldAdapter?.(Component);
 
-  const input = (
-    <Component
-      control={fieldNode}
-      {...inputProps}
-      {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
-      onChange={onChange}
-      onBlur={onBlur}
-    />
-  );
+  let input: ReactNode;
+  if (adapter) {
+    const adaptedProps = buildAdaptedFieldProps(
+      adapter,
+      value,
+      onChange,
+      onBlur,
+      inputComponentProps as Record<string, unknown>
+    );
+    // `control` в сырой контрол НЕ пробрасываем: он его не потребляет (иначе antd-контролы
+    // разлили бы его в DOM с React-warning про неизвестный проп).
+    if (testId && adaptedProps['data-testid'] === undefined) {
+      adaptedProps['data-testid'] = `input-${testId}`;
+    }
+    input = (
+      <Component
+        disabled={disabled}
+        {...adaptedProps}
+        {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
+      />
+    );
+  } else {
+    const inputProps: Record<string, unknown> = {
+      value,
+      disabled,
+      ...inputComponentProps,
+    };
+    if (testId && inputProps['data-testid'] === undefined) {
+      inputProps['data-testid'] = `input-${testId}`;
+    }
+    input = (
+      <Component
+        control={fieldNode}
+        {...inputProps}
+        {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
+        onChange={onChange}
+        onBlur={onBlur}
+      />
+    );
+  }
 
   const EffectiveWrapper = perFieldWrapper ?? FieldWrapper;
   return EffectiveWrapper ? (
@@ -542,6 +579,7 @@ export function RenderNodeComponent<T>({
         fieldNode={fieldNode}
         fieldWrapper={fieldWrapper}
         nodeRef={leafRef}
+        resolveFieldAdapter={settings?.resolveFieldAdapter}
       />
     );
   }

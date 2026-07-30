@@ -1920,6 +1920,11 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 
 ### Integration with UI libraries (shadcn etc.)
 
+> **Через рендерер — без обёртки.** Если ты рендеришь форму через `@reformer/renderer-react` /
+> `@reformer/renderer-json`, вместо ручной обёртки на каждый контрол можно зарегистрировать сырой
+> компонент и передать `settings.resolveFieldAdapter` — рендерер сам сведёт value-seam к диалекту
+> контрола. Ручная обёртка на `useFormControl` (ниже) нужна для прямого JSX без рендерера.
+
 Если есть существующая design system — оборачивай её компоненты в один
 `MyFormField` (как выше) и используй один прop `control`. Не множь обёртки на
 тип input'а — пусть `componentProps.type` диспатчит внутри.

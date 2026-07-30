@@ -14,6 +14,7 @@ Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer
 - Describe forms declaratively as JSON (`JsonFormSchema`)
 - String operators bind schema leaves to a reactive `FormModel` and to registered components
 - Component registry (`defineRegistry`) maps operator names to your React components
+- **Raw third-party controls** can be registered by name — the renderer translates the value seam (`value` + `onChange(value)`) to each control's dialect via `settings.resolveFieldAdapter`, so no per-control wrapper is needed (see [Raw controls](#raw-controls-field-adapters))
 - JSON carries **layout only** — field validators live in a separate `ValidationSchema` over the model, run by `validateModel` (see [Validation](#validation))
 - Optional **structural** schema validation against a meta-schema (ajv, loaded dynamically — dev only)
 - TypeScript support, tree-shakable exports
@@ -82,6 +83,48 @@ export function MyFormPage() {
 `JsonFormRenderer` accepts only `{ schema, renderBehavior?, onSchemaReady?, validate? }`. The
 `FormModel` is supplied via `JsonRendererProvider` settings (`model`); schema leaves are bound to its
 signals by the built-in converter.
+
+## Raw controls (field adapters)
+
+By default the renderer drives each field through a value-based seam — `value` +
+`onChange(value)` (plus `disabled` / `onBlur` and a `control` prop). Text-like or already
+value-based components work as-is. A **raw** third-party control that speaks a different
+dialect (a `Checkbox` reading `checked` and emitting a DOM event, a `Select` emitting
+`(value, option)`, a `Radio` emitting `event`) would otherwise write the raw event object
+straight into the model.
+
+Register such controls by name and translate the seam with `resolveFieldAdapter` — inherited
+from `@reformer/renderer-react`'s `RendererSettings` and passed through the same
+`JsonRendererProvider` settings (zero extra API on this package). Returning `undefined` for a
+component keeps the default seam, so the change is fully backward compatible.
+
+```tsx
+import { Checkbox } from 'some-ui-kit'; // raw control: `checked` + `onChange(event)`
+
+// In the registry the control is mapped by name, exactly like any other component:
+reg.component('Checkbox', Checkbox); // schema leaf: { value: '$model(agree)', component: '$component(Checkbox)' }
+
+<JsonRendererProvider
+  settings={{
+    registry,
+    model,
+    resolveFieldAdapter: (component) =>
+      component === Checkbox
+        ? {
+            valueProp: 'checked',
+            fromEmit: (e) => (e as { target: { checked: boolean } }).target.checked,
+            toValue: (v) => v ?? false,
+          }
+        : undefined, // undefined → default value seam (unchanged)
+  }}
+>
+  <JsonFormRenderer<MyForm> schema={schema} />
+</JsonRendererProvider>;
+```
+
+The adapter is resolved per field `component`. See the `@reformer/renderer-react`
+`FieldAdapter` reference for the full field list (`valueProp` / `changeProp` / `fromEmit` /
+`toValue` / `bindBlur` / `strip`).
 
 ## Validation
 
