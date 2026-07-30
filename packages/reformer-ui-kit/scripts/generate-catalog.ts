@@ -123,7 +123,10 @@ const minimal: Record[] = dirs
   .filter((r) => !seen.has(r.name));
 
 const components = [...rich, ...minimal].sort((a, b) => a.name.localeCompare(b.name));
-const catalog = { version: '1.0', components };
+// $schema — ссылка на контракт билдера (владелец схемы) для валидации/подсказок в IDE.
+// Относительный путь от расположения этого файла (packages/reformer-ui-kit/) до схемы.
+const SCHEMA_REF = '../../projects/reformer-builder/src/catalog/component-catalog.schema.json';
+const catalog = { $schema: SCHEMA_REF, version: '1.0', components };
 
 const cfg = await resolveConfig(outFile);
 const json = await format(JSON.stringify(catalog, null, 2), { ...cfg, parser: 'json' });

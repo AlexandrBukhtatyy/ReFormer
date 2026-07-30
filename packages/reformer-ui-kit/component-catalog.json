@@ -1,4 +1,5 @@
 {
+  "$schema": "../../projects/reformer-builder/src/catalog/component-catalog.schema.json",
   "version": "1.0",
   "components": [
     {
