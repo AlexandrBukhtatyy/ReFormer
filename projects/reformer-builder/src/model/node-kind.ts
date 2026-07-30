@@ -17,6 +17,7 @@ import {
   isArrayNode,
   isContainerNode,
   isFieldNode,
+  parseOperator,
   type JsonArrayNode,
   type JsonContainerNode,
   type JsonNode,
@@ -58,6 +59,53 @@ export function isNodeLike(v: unknown): v is JsonNode {
   return 'value' in o || 'array' in o || 'component' in o;
 }
 
+/** HTML void-элементы (по спецификации содержимого не имеют). */
+const VOID_HTML_TAGS: ReadonlySet<string> = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);
+
+/**
+ * Компоненты-листья (`$component`): рендерят самодостаточный визуал (иконка, разделитель, спиннер…) —
+ * вложенные компоненты не держат. Расширяемый список.
+ */
+export const LEAF_COMPONENT_NAMES: ReadonlySet<string> = new Set([
+  'Icon',
+  'Separator',
+  'Spinner',
+  'Skeleton',
+  'Progress',
+]);
+
+/** Листовой ли компонент/тег по строке `component` (Icon/Separator/… или void html br/hr/img/…). */
+export function isLeafComponentRef(component: unknown): boolean {
+  const op = parseOperator(component);
+  if (!op) return false;
+  if (op.op === 'component') return LEAF_COMPONENT_NAMES.has(op.arg);
+  if (op.op === 'html') return VOID_HTML_TAGS.has(op.arg);
+  return false;
+}
+
+/**
+ * Узел-лист: не принимает вложенные компоненты (Icon/Separator/… или `$html` void-тег). Такие узлы
+ * не drop-target ({@link canAcceptChildren}) и не имеют дочерних слотов ({@link childSlots}).
+ */
+export function isLeafComponent(node: JsonNode): boolean {
+  return isLeafComponentRef((node as { component?: unknown }).component);
+}
+
 /**
  * Дочерние слоты узла в порядке отображения. Для контейнера возвращает и `children`,
  * и `steps` (если оба присутствуют); для массива — `template`; для поля — `wrapper` (если есть).
@@ -68,6 +116,9 @@ export function isNodeLike(v: unknown): v is JsonNode {
  */
 export function childSlots(node: JsonNode, nodePath: JsonPath): ChildSlot[] {
   const slots: ChildSlot[] = [];
+
+  // Листовые компоненты (Icon/Separator/$html(br)…) вложенности не имеют — ни детей, ни обёртки.
+  if (isLeafComponent(node)) return slots;
 
   if (isArrayNode(node)) {
     const arr = node as JsonArrayNode;
@@ -121,6 +172,7 @@ export function childSlots(node: JsonNode, nodePath: JsonPath): ChildSlot[] {
  * Используется drag-drop для проверки легальности сброса.
  */
 export function canAcceptChildren(node: JsonNode): boolean {
+  if (isLeafComponent(node)) return false;
   if (isArrayNode(node)) return true;
   if (isContainerNode(node)) return true;
   return false;

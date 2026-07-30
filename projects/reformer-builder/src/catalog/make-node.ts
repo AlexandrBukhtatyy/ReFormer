@@ -9,6 +9,7 @@
 import type { JsonNode } from '@reformer/renderer-json';
 import type { CatalogRole } from './types';
 import { htmlTagSpec } from './html-tags';
+import { LEAF_COMPONENT_NAMES } from '../model/node-kind';
 
 export function fieldNode(name: string): JsonNode {
   return {
@@ -23,6 +24,14 @@ export function containerNode(name: string): JsonNode {
     component: `$component(${name})`,
     componentProps: { className: 'space-y-4' },
     children: [],
+  };
+}
+
+/** Листовой компонент (Icon/Separator/…): самодостаточный визуал, без `children`. */
+export function leafComponentNode(name: string): JsonNode {
+  return {
+    component: `$component(${name})`,
+    componentProps: {},
   };
 }
 
@@ -81,5 +90,6 @@ export function makeNodeFor(name: string, role: CatalogRole): JsonNode {
   if (role === 'field') return fieldNode(name);
   if (name === 'Wizard') return wizardNode();
   if (name === 'Step') return stepNode();
+  if (LEAF_COMPONENT_NAMES.has(name)) return leafComponentNode(name);
   return containerNode(name);
 }

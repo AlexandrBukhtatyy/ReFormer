@@ -18,6 +18,7 @@ import {
   groupBlock,
   insertNode,
   isDivContainer,
+  isLeafComponent,
   moveNode,
   navTarget,
   parentNodePath,
@@ -417,7 +418,10 @@ function insertSlotOf(
   const slots = childSlots(node, path).filter((s) => !s.single);
   const slot = slots.find((s) => s.kind === 'children') ?? slots[0];
   if (slot) return { slotPath: slot.path, count: slot.nodes.length };
-  return isContainerNode(node) ? { slotPath: [...path, 'children'], count: 0 } : null;
+  // Листовые компоненты (Icon/Separator/…) слот children не создают, хоть и isContainerNode.
+  return !isLeafComponent(node) && isContainerNode(node)
+    ? { slotPath: [...path, 'children'], count: 0 }
+    : null;
 }
 
 /**

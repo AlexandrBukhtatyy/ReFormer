@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonNode } from '@reformer/renderer-json';
-import { kindOf, childSlots, isNodeLike, canAcceptChildren, orientationOf } from './node-kind';
+import {
+  kindOf,
+  childSlots,
+  isNodeLike,
+  isLeafComponent,
+  canAcceptChildren,
+  orientationOf,
+} from './node-kind';
 import { getAt } from './paths';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
 
@@ -70,6 +77,36 @@ describe('isNodeLike / canAcceptChildren', () => {
     expect(canAcceptChildren(getAt(s, P.step0) as JsonNode)).toBe(true);
     expect(canAcceptChildren(getAt(s, P.array) as JsonNode)).toBe(true);
     expect(canAcceptChildren(getAt(s, P.step0field0) as JsonNode)).toBe(false);
+  });
+});
+
+describe('листовые компоненты (не принимают вложенные)', () => {
+  const icon: JsonNode = { component: '$component(Icon)', componentProps: { iconName: 'Star' } };
+  const separator: JsonNode = { component: '$component(Separator)' };
+  const br: JsonNode = { component: '$html(br)' };
+  const box: JsonNode = { component: '$component(Box)', children: [] };
+  const div: JsonNode = { component: '$html(div)', children: [] };
+
+  it('isLeafComponent: Icon/Separator/$html(br) — да; Box/$html(div) — нет', () => {
+    expect(isLeafComponent(icon)).toBe(true);
+    expect(isLeafComponent(separator)).toBe(true);
+    expect(isLeafComponent(br)).toBe(true);
+    expect(isLeafComponent(box)).toBe(false);
+    expect(isLeafComponent(div)).toBe(false);
+  });
+
+  it('canAcceptChildren: листовые — false (даже если это контейнер-узел)', () => {
+    expect(canAcceptChildren(icon)).toBe(false);
+    expect(canAcceptChildren(separator)).toBe(false);
+    expect(canAcceptChildren(br)).toBe(false);
+    expect(canAcceptChildren(box)).toBe(true);
+  });
+
+  it('childSlots: у листового — пусто, даже при наличии children', () => {
+    const iconWithChildren: JsonNode = { component: '$component(Icon)', children: [] } as JsonNode;
+    expect(childSlots(icon, ['root'])).toHaveLength(0);
+    expect(childSlots(iconWithChildren, ['root'])).toHaveLength(0);
+    expect(childSlots(box, ['root'])).toHaveLength(1);
   });
 });
 

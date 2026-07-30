@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import { ChevronRight, GripVertical } from 'lucide-react';
 import { Input, ScrollArea } from '@reformer/ui-kit';
 import { isContainerNode, type JsonFormSchema } from '@reformer/renderer-json';
-import { appendNode, findByPath, parentNodePath, type JsonPath } from '../model';
+import { appendNode, findByPath, isLeafComponent, parentNodePath, type JsonPath } from '../model';
 import { getCatalog, type CatalogEntry } from '../catalog';
 import { collapseToDefaults } from '../catalog/variants';
 import { editorActions, editorStore } from '../store';
@@ -137,10 +137,13 @@ function resolveSlot(schema: JsonFormSchema, selPath: JsonPath | null): JsonPath
   let path: JsonPath | null = selPath;
   while (path && path.length) {
     const node = findByPath(schema, path);
-    if (node && isContainerNode(node)) return [...path, 'children'];
+    // Листовой узел (Icon/Separator/…) детей не держит — поднимаемся к родителю (вставка рядом).
+    if (node && !isLeafComponent(node) && isContainerNode(node)) return [...path, 'children'];
     path = parentNodePath(path);
   }
-  return isContainerNode(schema.root) ? ['root', 'children'] : null;
+  return !isLeafComponent(schema.root) && isContainerNode(schema.root)
+    ? ['root', 'children']
+    : null;
 }
 
 export function PalettePanel() {
