@@ -12,8 +12,10 @@ export interface FormDirFiles {
   model: boolean;
   form: boolean;
   validation: boolean;
-  behavior: boolean;
-  ui: boolean;
+  /** Поведение формы (form-behavior.ts) — реактивные связи над моделью. */
+  formBehavior: boolean;
+  /** Поведение UI (render-behavior.ts) — render-behavior над деревом рендера. */
+  renderBehavior: boolean;
   /** Реестр компонентов (registry.ts) — привязка `$component` к ui-kit. */
   registry: boolean;
   /** Страница-компонент (index.tsx) — рендерит форму. Требует остальные файлы. */
@@ -31,8 +33,8 @@ export function resolveFormDirFiles(which: FormDirFiles): FormDirFiles {
     model: true,
     form: true,
     validation: true,
-    behavior: true,
-    ui: true,
+    formBehavior: true,
+    renderBehavior: true,
     registry: true,
     component: true,
   };
@@ -92,7 +94,7 @@ export function modelTsTemplate(formName: string): string {
 export interface FormShape {
   name: string;
   email: string;
-  /** Пример вычисляемого поля (заполняется behavior.ts). */
+  /** Пример вычисляемого поля (заполняется form-behavior.ts). */
   greeting: string;
 }
 
@@ -196,7 +198,7 @@ export const formValidation = defineValidationSchema<FormShape>(({ model }) => {
 }
 
 /** Схема поведения формы (TS-DSL над моделью) — @reformer/core/behaviors. */
-export function behaviorTsTemplate(formName: string): string {
+export function formBehaviorTsTemplate(formName: string): string {
   return `/**
  * Поведение формы «${formName}» — реактивные связи над МОДЕЛЬЮ (вычисляемые поля, копирование,
  * доступность, ре-валидация). Docs: @reformer/core/behaviors.
@@ -256,7 +258,7 @@ export const formBehavior = defineFormBehavior<FormShape>(({ model }) => {
 }
 
 /** Схема поведения UI (render-behavior над деревом рендера) — @reformer/renderer-react. */
-export function uiTsTemplate(formName: string): string {
+export function renderBehaviorTsTemplate(formName: string): string {
   return `/**
  * Поведение UI формы «${formName}» — декларативные правила над деревом рендера (скрытие узлов,
  * патч пропсов, события, lifecycle) по selector'ам из form.json. Docs: @reformer/renderer-react
@@ -268,7 +270,7 @@ import type { RenderBehaviorFn } from '@reformer/renderer-react';
 // import { hideWhen, renderEffect, onComponentEvent, onInit, onMount, onUnmount } from '@reformer/renderer-react';
 import type { FormShape } from './model';
 
-export const formUiBehavior: RenderBehaviorFn<FormShape> = (schema) => {
+export const formRenderBehavior: RenderBehaviorFn<FormShape> = (schema) => {
   // Скрыть узел по условию (реактивно — читай сигнал целиком):
   // hideWhen(schema.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
 
@@ -322,7 +324,7 @@ export function indexTsxTemplate(formName: string): string {
   const Comp = componentName(formName);
   return `/**
  * Форма «${formName}» — сборка и рендер. В JSX только провайдер реестра и рендерер: весь layout
- * живёт в form.json, значения/поведение/валидация — в model.ts / behavior.ts / validation.ts / ui.ts.
+ * живёт в form.json, значения/поведение/валидация — в model.ts / form-behavior.ts / validation.ts / render-behavior.ts.
  *
  * Готова к работе сразу: рендерится на \`initialFormModel\`, «Отправить» гоняет валидацию. Подключение
  * в react-playground: \`import ${Comp} from './pages/examples/<папка>';\` + \`<Route element={<${Comp} />} />\`.
@@ -340,9 +342,9 @@ import { Button } from '@reformer/ui-kit';
 import rawSchema from './form.json';
 import { createRegistry } from './registry';
 import { initialFormModel, type FormShape } from './model';
-import { formBehavior } from './behavior';
+import { formBehavior } from './form-behavior';
 import { formValidation } from './validation';
-import { formUiBehavior } from './ui';
+import { formRenderBehavior } from './render-behavior';
 
 // В чистом JSON операторы типизируются как \`string\` — приведение = сценарий «схема пришла с сервера».
 const schema = rawSchema as unknown as JsonFormSchema;
@@ -390,7 +392,7 @@ export default function ${Comp}() {
       <JsonRendererProvider settings={{ registry, model }}>
         <JsonFormRenderer<FormShape>
           schema={schema}
-          renderBehavior={formUiBehavior}
+          renderBehavior={formRenderBehavior}
           validateSchema={import.meta.env.DEV}
         />
       </JsonRendererProvider>

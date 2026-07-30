@@ -29,8 +29,8 @@ import {
   formJsonTemplate,
   modelTsTemplate,
   validationTsTemplate,
-  behaviorTsTemplate,
-  uiTsTemplate,
+  formBehaviorTsTemplate,
+  renderBehaviorTsTemplate,
   registryTsTemplate,
   indexTsxTemplate,
   resolveFormDirFiles,
@@ -342,14 +342,24 @@ export function generateValidation(dirPath: string): Promise<void> {
   return generateOne(dirPath, 'validation.ts', validationTsTemplate(formNameOf(dirPath)), false);
 }
 
-/** Сгенерировать схему поведения формы (behavior.ts) в каталоге. */
-export function generateBehavior(dirPath: string): Promise<void> {
-  return generateOne(dirPath, 'behavior.ts', behaviorTsTemplate(formNameOf(dirPath)), false);
+/** Сгенерировать схему поведения формы (form-behavior.ts) в каталоге. */
+export function generateFormBehavior(dirPath: string): Promise<void> {
+  return generateOne(
+    dirPath,
+    'form-behavior.ts',
+    formBehaviorTsTemplate(formNameOf(dirPath)),
+    false
+  );
 }
 
-/** Сгенерировать схему поведения UI (ui.ts) в каталоге. */
-export function generateUiBehavior(dirPath: string): Promise<void> {
-  return generateOne(dirPath, 'ui.ts', uiTsTemplate(formNameOf(dirPath)), false);
+/** Сгенерировать схему поведения UI (render-behavior.ts) в каталоге. */
+export function generateRenderBehavior(dirPath: string): Promise<void> {
+  return generateOne(
+    dirPath,
+    'render-behavior.ts',
+    renderBehaviorTsTemplate(formNameOf(dirPath)),
+    false
+  );
 }
 
 /** Сгенерировать каталог формы `<formName>/` с выбранными файлами; form.json открыть в canvas. */
@@ -374,9 +384,10 @@ export async function generateFormDirectory(
     if (files.form) formHandle = await createFile(root, dirPath, 'form.json', formJsonTemplate());
     if (files.validation)
       await createFile(root, dirPath, 'validation.ts', validationTsTemplate(formName));
-    if (files.behavior)
-      await createFile(root, dirPath, 'behavior.ts', behaviorTsTemplate(formName));
-    if (files.ui) await createFile(root, dirPath, 'ui.ts', uiTsTemplate(formName));
+    if (files.formBehavior)
+      await createFile(root, dirPath, 'form-behavior.ts', formBehaviorTsTemplate(formName));
+    if (files.renderBehavior)
+      await createFile(root, dirPath, 'render-behavior.ts', renderBehaviorTsTemplate(formName));
     if (files.registry)
       await createFile(root, dirPath, 'registry.ts', registryTsTemplate(formName));
     if (files.component) await createFile(root, dirPath, 'index.tsx', indexTsxTemplate(formName));

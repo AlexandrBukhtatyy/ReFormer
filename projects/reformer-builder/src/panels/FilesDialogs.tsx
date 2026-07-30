@@ -156,8 +156,8 @@ const FORM_DIR_FILES: ReadonlyArray<{ key: keyof FormDirFiles; label: string }> 
   { key: 'model', label: 'Модель (model.ts)' },
   { key: 'form', label: 'Схема формы (form.json)' },
   { key: 'validation', label: 'Схема валидации (validation.ts)' },
-  { key: 'behavior', label: 'Поведение формы (behavior.ts)' },
-  { key: 'ui', label: 'Поведение UI (ui.ts)' },
+  { key: 'formBehavior', label: 'Поведение формы (form-behavior.ts)' },
+  { key: 'renderBehavior', label: 'Поведение UI (render-behavior.ts)' },
 ];
 
 function FormDirBody({ dirPath, onClose }: { dirPath: string; onClose: () => void }) {
@@ -168,8 +168,8 @@ function FormDirBody({ dirPath, onClose }: { dirPath: string; onClose: () => voi
     model: true,
     form: true,
     validation: true,
-    behavior: true,
-    ui: true,
+    formBehavior: true,
+    renderBehavior: true,
   });
   const anyFile =
     files.component ||
@@ -177,8 +177,8 @@ function FormDirBody({ dirPath, onClose }: { dirPath: string; onClose: () => voi
     files.model ||
     files.form ||
     files.validation ||
-    files.behavior ||
-    files.ui;
+    files.formBehavior ||
+    files.renderBehavior;
 
   const submit = () => {
     const v = name.trim();

@@ -28,9 +28,11 @@ describe('indexTsxTemplate', () => {
     expect(src).toContain("import rawSchema from './form.json'");
     expect(src).toContain("import { createRegistry } from './registry'");
     expect(src).toContain("import { initialFormModel, type FormShape } from './model'");
+    expect(src).toContain("import { formBehavior } from './form-behavior'");
+    expect(src).toContain("import { formRenderBehavior } from './render-behavior'");
     expect(src).toContain('convertJsonToM1Tree(schema, registry, model)');
     expect(src).toContain('<JsonFormRenderer<FormShape>');
-    expect(src).toContain('renderBehavior={formUiBehavior}');
+    expect(src).toContain('renderBehavior={formRenderBehavior}');
   });
   it('submit гоняет валидацию модели', () => {
     expect(src).toContain('validateModel(model, formValidation)');
@@ -50,8 +52,8 @@ describe('resolveFormDirFiles', () => {
     model: false,
     form: false,
     validation: false,
-    behavior: false,
-    ui: false,
+    formBehavior: false,
+    renderBehavior: false,
     registry: false,
     component: false,
   };
@@ -62,8 +64,8 @@ describe('resolveFormDirFiles', () => {
       model: true,
       form: true,
       validation: true,
-      behavior: true,
-      ui: true,
+      formBehavior: true,
+      renderBehavior: true,
       registry: true,
       component: true,
     });

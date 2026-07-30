@@ -33,10 +33,10 @@ import { ChevronRight, File, FileCode, Folder, FolderOpen, RotateCcw } from 'luc
 import { useProject } from '../store/project-store';
 import {
   checkReopen,
-  generateBehavior,
+  generateFormBehavior,
   generateFormSchema,
   generateModel,
-  generateUiBehavior,
+  generateRenderBehavior,
   generateValidation,
   openCodeFile,
   openSchemaFile,
@@ -265,10 +265,10 @@ export function FilesPanel() {
               <ContextMenuItem onClick={() => void generateValidation(dirPath)}>
                 Схема валидации
               </ContextMenuItem>
-              <ContextMenuItem onClick={() => void generateBehavior(dirPath)}>
+              <ContextMenuItem onClick={() => void generateFormBehavior(dirPath)}>
                 Поведение формы
               </ContextMenuItem>
-              <ContextMenuItem onClick={() => void generateUiBehavior(dirPath)}>
+              <ContextMenuItem onClick={() => void generateRenderBehavior(dirPath)}>
                 Поведение UI
               </ContextMenuItem>
             </ContextMenuSubContent>
