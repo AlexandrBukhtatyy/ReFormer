@@ -26,6 +26,7 @@ import { nodeTypeBadge } from '../canvas/node-display';
 import { effectiveMock, serializeMock } from '../canvas/mock-data';
 import { ClassNameField } from './ClassNameField';
 import { OptionsField } from './OptionsField';
+import { IconField } from './IconField';
 import { cn } from '../lib/cn';
 
 /** Запись каталога для узла (по компоненту/типу). */
@@ -155,6 +156,7 @@ function toNumberValue(raw: string): number | string | undefined {
 function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: InspectorProp }) {
   if (prop.widget === 'className') return <ClassNameField node={node} path={path} prop={prop} />;
   if (prop.widget === 'dataSource') return <OptionsField node={node} path={path} prop={prop} />;
+  if (prop.widget === 'icon') return <IconField node={node} path={path} prop={prop} />;
 
   const props = (node as { componentProps?: Record<string, unknown> }).componentProps ?? {};
   const value = props[prop.key];

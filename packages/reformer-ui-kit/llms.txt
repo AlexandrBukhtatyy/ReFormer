@@ -5579,6 +5579,39 @@ function HoverCardTrigger({ ...props }: React.ComponentProps<typeof HoverCardPri
 
 _Source: src/components/hover-card/variants/base/hover-card-base.tsx_
 
+### Icon
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function Icon({ iconName = 'Circle', size = 24, color, strokeWidth = 2, className }: IconProps)
+```
+
+_Source: src/components/icon/variants/base/icon-base.tsx_
+
+### IconProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface IconProps {
+  /** Имя иконки lucide (PascalCase, напр. `Home`, `ArrowRight`). */
+  iconName?: string;
+  /** Размер в пикселях. */
+  size?: number;
+  /** Цвет обводки (любой CSS-цвет; по умолчанию `currentColor`). */
+  color?: string;
+  /** Толщина линий. */
+  strokeWidth?: number;
+  /** Доп. CSS-класс. */
+  className?: string;
+}
+```
+
+_Source: src/components/icon/variants/base/icon-base.tsx_
+
 ### Input
 
 **Kind:** `function`

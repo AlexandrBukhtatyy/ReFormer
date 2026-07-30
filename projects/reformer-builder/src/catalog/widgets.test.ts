@@ -17,6 +17,14 @@ describe('toInspectorProps', () => {
     expect(by('required').widget).toBe('boolean'); // из wrapper, type: boolean
   });
 
+  it('iconName → виджет пикера иконок (icon), у Icon-компонента', () => {
+    const props = toInspectorProps(defaultPropSchemas.Icon);
+    const by = (k: string) => props.find((p) => p.key === k)!;
+    expect(by('iconName').widget).toBe('icon');
+    expect(by('size').widget).toBe('number');
+    expect(by('className').widget).toBe('className');
+  });
+
   it('секции берутся из x-doc.group', () => {
     const props = inputProps();
     expect(props.find((p) => p.key === 'type')!.group).toBe('Textfield');

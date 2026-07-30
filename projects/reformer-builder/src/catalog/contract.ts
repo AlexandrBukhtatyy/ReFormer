@@ -62,6 +62,7 @@ const CATEGORY_BY_NAME: Record<string, string> = {
   // Действия
   Button: 'Действия',
   // Отображение
+  Icon: 'Отображение',
   Label: 'Отображение',
   Badge: 'Отображение',
   Typography: 'Отображение',

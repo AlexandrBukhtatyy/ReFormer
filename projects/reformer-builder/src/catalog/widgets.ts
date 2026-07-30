@@ -22,20 +22,22 @@ export function toInspectorProps(schema: PropsSchema): InspectorProp[] {
     out.push({
       key,
       label: humanize(key),
-      // Оверрайды поверх x-doc.kind:'readonly' из ui-kit: className → builder-редактор Tailwind;
-      // проп-список опций (массив {value,label} в секции Options) → редактор DataSource/инлайн-опций;
-      // testId → редактируемый текст (билдер задаёт data-testid для e2e). Иначе — виджет по kind/типу.
+      // Оверрайды поверх x-doc.kind из ui-kit: iconName → пикер иконок lucide; className →
+      // builder-редактор Tailwind; проп-список опций (массив {value,label} в Options) → редактор
+      // DataSource/инлайн-опций; testId → редактируемый текст (data-testid для e2e). Иначе — по kind/типу.
       // ВАЖНО: dataSource — только для array-пропа, а не для всей секции Options: скалярные атрибуты
       // презентационных тегов ($html: a.target, img.width, ol.type, …) тоже сидят в Options и должны
       // остаться enum/number/text, иначе их инспектор ломается (редактором опций не отредактировать).
       widget:
-        key === 'className'
-          ? 'className'
-          : key === 'testId'
-            ? 'text'
-            : doc?.group === 'Options' && prop.type === 'array'
-              ? 'dataSource'
-              : (doc?.kind ?? inferWidget(prop)),
+        key === 'iconName'
+          ? 'icon'
+          : key === 'className'
+            ? 'className'
+            : key === 'testId'
+              ? 'text'
+              : doc?.group === 'Options' && prop.type === 'array'
+                ? 'dataSource'
+                : (doc?.kind ?? inferWidget(prop)),
       group: doc?.group ?? 'Control',
       description: typeof prop.description === 'string' ? prop.description : undefined,
       default: prop.default,
