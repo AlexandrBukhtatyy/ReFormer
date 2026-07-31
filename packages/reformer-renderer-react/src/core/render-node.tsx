@@ -253,8 +253,78 @@ function stableKey(item: unknown): number {
   return k;
 }
 
-const resolveInitial = (init: ArrayRenderNode<unknown>['initialValue']): unknown =>
+/**
+ * Резолв `initialValue` элемента для кнопки «Добавить»: значение или фабрика `() => value`.
+ * Экспортируется — им пользуются ui-kit-компоненты массива (`FormArray`) для `array.push(...)`.
+ */
+export const resolveInitialValue = (init: ArrayRenderNode<unknown>['initialValue']): unknown =>
   typeof init === 'function' ? (init as () => unknown)() : init;
+
+/**
+ * Один элемент модель-массива для компонента-рендерера: стабильный ключ, живой индекс, под-модель
+ * элемента и готовое поддерево. Возвращается {@link useModelArrayItems}.
+ */
+export interface ModelArrayItem {
+  /** Стабильный React-ключ по идентичности под-модели (stableKey). */
+  key: number;
+  /** Живой индекс в массиве — для `removeAt(index)`/`move(index, …)`. */
+  index: number;
+  /** Под-модель элемента (`control.at(index)`) — для `itemLabel(model, index)` и т.п. */
+  model: unknown;
+  /** Готовое поддерево элемента: `<RenderNodeComponent node={item(model)} …/>`. */
+  element: ReactNode;
+}
+
+/**
+ * Итерация модель-массива для компонента-рендерера: подписка на структурные изменения массива
+ * (add/remove/**reorder**) + кэш поддеревьев по идентичности элемента + обёртка в
+ * {@link RenderNodeComponent}. Возвращает на элемент `{ key, index, model, element }`. Единственная
+ * копия итерации — на ней строятся ui-kit `List` (chrome-less) и `FormArray` (add/remove/reorder):
+ * хром — их, данные (модель для label, индекс для remove) — отсюда. SSR-safe (наследует серверный
+ * снапшот {@link useModelArrayRevision}). Подписка живёт в компоненте, который реально рендерит.
+ */
+export function useModelArrayItems(
+  control: RenderModelArrayControl,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<unknown>,
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>
+): ReadonlyArray<ModelArrayItem> {
+  useModelArrayRevision(control); // ре-рендер при структурных изменениях (включая reorder)
+  const length = control.length;
+
+  // Кэш поддеревьев по идентичности под-модели, ключ — фабрика `item` (сброс при смене схемы).
+  const cacheRef = useRef<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    itemFn: (itemModel: any) => RenderNode<unknown>;
+    map: WeakMap<object, RenderNode<unknown>>;
+  } | null>(null);
+  if (!cacheRef.current || cacheRef.current.itemFn !== item) {
+    cacheRef.current = { itemFn: item, map: new WeakMap() };
+  }
+  const getSubtree = (im: unknown): RenderNode<unknown> => {
+    if (im == null || typeof im !== 'object') return item(im);
+    const map = cacheRef.current!.map;
+    let sub = map.get(im as object);
+    if (sub === undefined) {
+      sub = item(im);
+      map.set(im as object, sub);
+    }
+    return sub;
+  };
+
+  return Array.from({ length }, (_, index) => {
+    const model = control.at(index);
+    const key = stableKey(model);
+    return {
+      key,
+      index,
+      model,
+      element: (
+        <RenderNodeComponent key={key} node={getSubtree(model)} fieldWrapper={fieldWrapper} />
+      ),
+    };
+  });
+}
 
 /**
  * Секция массива единой схемы (M1): данные принадлежат модели (`node.array`), поддерево элемента
@@ -331,7 +401,7 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
       type="button"
       data-testid="array-add"
       className={cls}
-      onClick={() => control.push(resolveInitial(node.initialValue))}
+      onClick={() => control.push(resolveInitialValue(node.initialValue))}
     >
       {addButtonLabel}
     </button>
@@ -413,12 +483,9 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
 
 /**
  * Массив, рендеримый ЗАРЕГИСТРИРОВАННЫМ компонентом (M1): узел `{ array, item, component }`.
- * Итерирует массив модели (реактивно + кэш поддеревьев по идентичности элемента — как
- * {@link ModelArraySectionRenderer}), формирует готовые элементы `children` и передаёт их
- * `node.component` вместе с `array`/`item`/`initialValue`/`fieldWrapper`. Простой display-компонент
- * (напр. ui-kit `List`) рендерит только `children` (chrome-less); компонент с собственным хромом
- * (add/remove/reorder) может игнорировать `children` и итерировать сам через `array`/`item` —
- * реактивность обеспечивает эта обёртка (подписка на структуру массива здесь).
+ * Тонкий pass-through: сам НЕ итерирует — отдаёт компоненту `array`/`item`/`initialValue`/
+ * `fieldWrapper` + `componentProps`, а компонент (ui-kit `List`/`FormArray`) строит элементы через
+ * {@link useModelArrayItems} (там же подписка/кэш). Так итерация — в одном месте, а хром — в компоненте.
  */
 const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   node,
@@ -427,49 +494,16 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   node: ArrayRenderNode<unknown>;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
-  const control = node.array;
-  useModelArrayRevision(control); // ре-рендер при структурных изменениях массива (add/remove/reorder)
-  const length = control.length;
-
-  // Кэш поддеревьев по идентичности под-модели элемента — как в ModelArraySectionRenderer: без него
-  // `node.item(im)` строил бы новый RenderNode на каждый рендер и ломал memo дочерних узлов.
-  const subtreeCacheRef = useRef<{
-    itemFn: ArrayRenderNode<unknown>['item'];
-    map: WeakMap<object, RenderNode<unknown>>;
-  } | null>(null);
-  if (!subtreeCacheRef.current || subtreeCacheRef.current.itemFn !== node.item) {
-    subtreeCacheRef.current = { itemFn: node.item, map: new WeakMap() };
-  }
-  const getSubtree = (im: unknown): RenderNode<unknown> => {
-    if (im == null || typeof im !== 'object') return node.item(im) as RenderNode<unknown>;
-    const cache = subtreeCacheRef.current!.map;
-    let sub = cache.get(im as object);
-    if (sub === undefined) {
-      sub = node.item(im) as RenderNode<unknown>;
-      cache.set(im as object, sub);
-    }
-    return sub;
-  };
-
-  const items = Array.from({ length }, (_, i) => {
-    const im = control.at(i);
-    const subtree = getSubtree(im); // кэш по идентичности `im` → стабильный `node` для memo
-    return <RenderNodeComponent key={stableKey(im)} node={subtree} fieldWrapper={fieldWrapper} />;
-  });
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Comp = node.component as React.ComponentType<any>;
-  const props = node.componentProps ?? {};
   return (
     <Comp
-      array={control}
+      array={node.array}
       item={node.item}
       initialValue={node.initialValue}
       fieldWrapper={fieldWrapper}
-      {...props}
-    >
-      {items}
-    </Comp>
+      {...(node.componentProps ?? {})}
+    />
   );
 });
 

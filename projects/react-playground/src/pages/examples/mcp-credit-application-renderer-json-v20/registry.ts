@@ -6,6 +6,7 @@ import { createElement, type FC } from 'react';
 import {
   Box,
   CheckboxField,
+  FormArray,
   FormField,
   InputField,
   InputMaskField,
@@ -73,6 +74,7 @@ export function createRegistry() {
     // Layout containers.
     reg.component('Box', Box);
     reg.component('Section', Section);
+    reg.component('FormArray', FormArray);
 
     // Leaf field components.
     reg.component('Input', InputField);

@@ -1090,6 +1090,64 @@ export function buildSchema(
 
 _Auto-generated from JSDoc on public exports._
 
+### ArrayRenderNode
+
+**Kind:** `interface`
+
+Узел-массив единой схемы (M1): данные принадлежат модели (`array`), форма элемента описывается
+`item(itemModel)`. `createForm` материализует `ModelArrayNode` (по `{ array, item }`), рендерер
+итерирует элементы и рисует поддерево `item(itemModel)` (листья на сигналах под-модели).
+
+**Signature:**
+```typescript
+export interface ArrayRenderNode<T> extends FormSchemaNode {
+  selector?: string;
+  /** Реактивный массив модели (`model.<path>`). Расширяет базовый контракт методом `move`. */
+  array: RenderModelArrayControl;
+  /**
+   * Опциональный компонент-рендерер массива (из `$component(...)`). Если задан — итерация
+   * рендерится этим компонентом (chrome-less display-список / кастомная секция) вместо встроенной
+   * редактируемой секции. Компонент получает `array`/`item`/`initialValue`/`fieldWrapper` и готовые
+   * элементы `children`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component?: ComponentType<any>;
+  /** Схема элемента: под-модель элемента → узел поддерева. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<T>;
+  /**
+   * Значение нового элемента для кнопки «Добавить»: значение или фабрика `() => value`.
+   * `unknown | (() => …)` схлопывается в `unknown`; вариант выбирается в рантайме по
+   * `typeof === 'function'`. (Параметризовать по `T` нельзя: `T` здесь — payload
+   * `RenderNode<T>`, а не тип данных элемента.)
+   */
+  initialValue?: unknown;
+  /** Оформление секции массива. */
+  componentProps?: {
+    title?: string;
+    addButtonLabel?: string;
+    removeButtonLabel?: string;
+    emptyMessage?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    itemLabel?: string | ((itemModel: any, index: number) => string);
+    className?: string;
+    cardClassName?: string;
+    /** Показывать кнопки ↑/↓ перестановки элементов. По умолчанию `false`. */
+    reorderable?: boolean;
+    [key: string]: unknown;
+  };
+}
+```
+
+**Examples:**
+
+```typescript
+{ array: model.coBorrowers, initialValue: createBlankCoBorrower,
+  item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
+```
+
+_Source: src/core/types.ts_
+
 ### ContainerComponentProps
 
 **Kind:** `interface`
@@ -1568,6 +1626,29 @@ isRenderSchemaProxy(renderSchemaFn); // false
 
 _Source: src/core/render-schema-proxy.ts_
 
+### ModelArrayItem
+
+**Kind:** `interface`
+
+Один элемент модель-массива для компонента-рендерера: стабильный ключ, живой индекс, под-модель
+элемента и готовое поддерево. Возвращается {@link useModelArrayItems}.
+
+**Signature:**
+```typescript
+export interface ModelArrayItem {
+  /** Стабильный React-ключ по идентичности под-модели (stableKey). */
+  key: number;
+  /** Живой индекс в массиве — для `removeAt(index)`/`move(index, …)`. */
+  index: number;
+  /** Под-модель элемента (`control.at(index)`) — для `itemLabel(model, index)` и т.п. */
+  model: unknown;
+  /** Готовое поддерево элемента: `<RenderNodeComponent node={item(model)} …/>`. */
+  element: ReactNode;
+}
+```
+
+_Source: src/core/render-node.tsx_
+
 ### NodeLifecycleHooks
 
 **Kind:** `interface`
@@ -1840,6 +1921,23 @@ export interface RendererSettings {
 
 _Source: src/core/types.ts_
 
+### RenderModelArrayControl
+
+**Kind:** `interface`
+
+Контракт реактивного массива модели для рендера: базовый {@link SchemaArrayControl}
+(`__path`/`length`/`at`/`push`/`removeAt`) + `move` для реордера.
+
+**Signature:**
+```typescript
+export interface RenderModelArrayControl extends SchemaArrayControl {
+  /** Переместить элемент (реордер; runtime-фасад модель-массива это уже умеет). */
+  move(from: number, to: number): void;
+}
+```
+
+_Source: src/core/types.ts_
+
 ### RenderNode
 
 **Kind:** `type`
@@ -2012,6 +2110,43 @@ export type RenderTextPart = string | number | Signal<any>;
 ```
 
 _Source: src/core/types.ts_
+
+### resolveInitialValue
+
+**Kind:** `const`
+
+Резолв `initialValue` элемента для кнопки «Добавить»: значение или фабрика `() => value`.
+Экспортируется — им пользуются ui-kit-компоненты массива (`FormArray`) для `array.push(...)`.
+
+**Signature:**
+```typescript
+export const resolveInitialValue
+```
+
+_Source: src/core/render-node.tsx_
+
+### useModelArrayItems
+
+**Kind:** `function`
+
+Итерация модель-массива для компонента-рендерера: подписка на структурные изменения массива
+(add/remove/**reorder**) + кэш поддеревьев по идентичности элемента + обёртка в
+{@link RenderNodeComponent}. Возвращает на элемент `{ key, index, model, element }`. Единственная
+копия итерации — на ней строятся ui-kit `List` (chrome-less) и `FormArray` (add/remove/reorder):
+хром — их, данные (модель для label, индекс для remove) — отсюда. SSR-safe (наследует серверный
+снапшот {@link useModelArrayRevision}). Подписка живёт в компоненте, который реально рендерит.
+
+**Signature:**
+```typescript
+export function useModelArrayItems(
+  control: RenderModelArrayControl,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<unknown>,
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>
+): ReadonlyArray<ModelArrayItem>
+```
+
+_Source: src/core/render-node.tsx_
 
 ### useRenderContext
 

@@ -934,6 +934,7 @@
                         {
                           "selector": "properties-array",
                           "array": "$model(properties)",
+                          "component": "$component(FormArray)",
                           "initialValue": {
                             "type": "apartment",
                             "description": "",
@@ -1041,6 +1042,7 @@
                         {
                           "selector": "existing-loans-array",
                           "array": "$model(existingLoans)",
+                          "component": "$component(FormArray)",
                           "initialValue": {
                             "bank": "",
                             "type": "consumer",
@@ -1165,6 +1167,7 @@
                         {
                           "selector": "co-borrowers-array",
                           "array": "$model(coBorrowers)",
+                          "component": "$component(FormArray)",
                           "initialValue": {
                             "personalData": {
                               "lastName": "",

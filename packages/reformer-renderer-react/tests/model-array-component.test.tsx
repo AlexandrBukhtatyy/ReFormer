@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { signal } from '@reformer/core/signals';
 import { FormRenderer } from '../src/core/form-renderer';
+import { useModelArrayItems } from '../src/core/render-node';
 import type { RenderNode, RenderModelArrayControl } from '../src/core/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -31,8 +32,11 @@ function fakeArray(items: any[]): RenderModelArrayControl {
   } as any;
 }
 
-// Компонент-обёртка списка (аналог ui-kit List) и display-элемент.
-const ListWrap = ({ children, className }: any) => <ul className={className}>{children}</ul>;
+// Компонент-обёртка списка (аналог ui-kit List, на useModelArrayItems) и display-элемент.
+const ListWrap = ({ array, item, fieldWrapper, className }: any) => {
+  const items = useModelArrayItems(array, item, fieldWrapper);
+  return <ul className={className}>{items.map((it) => it.element)}</ul>;
+};
 const Alert = ({ message, type }: any) => <li className={`alert-${type}`}>{message}</li>;
 
 describe('array node с $component', () => {

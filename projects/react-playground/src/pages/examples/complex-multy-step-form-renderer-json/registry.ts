@@ -27,6 +27,7 @@ import {
   Section,
   Collapsible,
   FormField,
+  FormArray,
   Button,
   AsyncBoundary,
 } from '@reformer/ui-kit';
@@ -70,6 +71,7 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
 
     reg.component('Box', Box);
     reg.component('Section', Section);
+    reg.component('FormArray', FormArray);
     reg.component('Collapsible', Collapsible);
     reg.component('AsyncBoundary', AsyncBoundary);
     reg.component('FormField', FormField);

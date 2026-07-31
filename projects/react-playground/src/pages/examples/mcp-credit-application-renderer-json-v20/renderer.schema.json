@@ -754,6 +754,7 @@
                 {
                   "selector": "properties-section",
                   "array": "$model(properties)",
+                  "component": "$component(FormArray)",
                   "initialValue": {
                     "type": "apartment",
                     "description": "",
@@ -829,6 +830,7 @@
                 {
                   "selector": "loans-section",
                   "array": "$model(existingLoans)",
+                  "component": "$component(FormArray)",
                   "initialValue": {
                     "bank": "",
                     "type": "",
@@ -923,6 +925,7 @@
                 {
                   "selector": "coborrowers-section",
                   "array": "$model(coBorrowers)",
+                  "component": "$component(FormArray)",
                   "initialValue": {
                     "personalData": { "lastName": "", "firstName": "", "middleName": "" },
                     "phone": "",
