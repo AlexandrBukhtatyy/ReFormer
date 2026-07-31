@@ -11,6 +11,7 @@
  */
 
 import type { PropsSchema } from '@reformer/ui-kit/meta';
+import type { SyntheticConfig } from '../config/types';
 import type { CatalogRecord } from './types';
 import { HTML_TAG_SPECS, htmlPropsSchema } from './html-tags';
 
@@ -55,14 +56,25 @@ const stepPropsSchema: PropsSchema = {
   },
 };
 
-/** Синтетические записи каталога (HTML-блоки + array + wizard/step). */
-export function syntheticRecords(): CatalogRecord[] {
-  const html: CatalogRecord[] = HTML_TAG_SPECS.map((spec) => ({
-    name: `$html(${spec.tag})`,
-    role: 'container',
-    category: 'HTML',
-    propsSchema: htmlPropsSchema(spec),
-  }));
+/**
+ * Синтетические записи каталога (HTML-блоки + array + wizard/step). Клиентский конфиг
+ * ({@link SyntheticConfig}) может отключить целые группы или сузить набор HTML-тегов; без конфига —
+ * полный набор (поведение как раньше).
+ */
+export function syntheticRecords(cfg?: SyntheticConfig): CatalogRecord[] {
+  const specs =
+    cfg?.htmlTags && cfg.htmlTags.length
+      ? HTML_TAG_SPECS.filter((s) => cfg.htmlTags!.includes(s.tag))
+      : HTML_TAG_SPECS;
+  const html: CatalogRecord[] =
+    cfg?.html === false
+      ? []
+      : specs.map((spec) => ({
+          name: `$html(${spec.tag})`,
+          role: 'container',
+          category: 'HTML',
+          propsSchema: htmlPropsSchema(spec),
+        }));
   const array: CatalogRecord = {
     name: 'FormArray',
     role: 'array',
@@ -83,5 +95,8 @@ export function syntheticRecords(): CatalogRecord[] {
     category: 'Мастер',
     propsSchema: stepPropsSchema,
   };
-  return [...html, array, wizard, step];
+  const out: CatalogRecord[] = [...html];
+  if (cfg?.formArray !== false) out.push(array);
+  if (cfg?.wizard !== false) out.push(wizard, step);
+  return out;
 }

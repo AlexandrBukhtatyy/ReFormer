@@ -12,7 +12,9 @@
  */
 
 import Ajv, { type ValidateFunction } from 'ajv';
-import type { CatalogEntry, CatalogJson, CatalogRole } from './types';
+import type { ComponentsConfig } from '../config/types';
+import { getClientCatalog, getRuntimeConfig } from '../config/state';
+import type { CatalogEntry, CatalogJson, CatalogRecord, CatalogRole } from './types';
 import { syntheticRecords } from './synthetic-entries';
 import { makeNodeFor } from './make-node';
 import catalogSchema from './component-catalog.schema.json';
@@ -104,19 +106,42 @@ const CATEGORY_BY_NAME: Record<string, string> = {
 };
 
 function categoryOf(name: string, role: CatalogRole): string {
+  // Клиентский конфиг может доопределить/переопределить категорию по имени (сливается поверх дефолта).
+  const override = getRuntimeConfig().palette?.categoryByName?.[name];
+  if (override) return override;
   // Typography разбит на отдельные компоненты (TypographyH1…Muted) — собственный раздел «Типографика».
   if (name.startsWith('Typography')) return 'Типографика';
   return CATEGORY_BY_NAME[name] ?? (role === 'container' ? 'Контейнеры' : 'Прочее');
 }
 
+/** Отфильтровать записи по whitelist/blacklist имён из клиентского конфига (по имени компонента). */
+function filterComponents(
+  records: CatalogRecord[],
+  cfg: ComponentsConfig | undefined
+): CatalogRecord[] {
+  let out = records;
+  if (cfg?.include && cfg.include.length) {
+    const inc = new Set(cfg.include);
+    out = out.filter((r) => inc.has(r.name));
+  }
+  if (cfg?.exclude && cfg.exclude.length) {
+    const exc = new Set(cfg.exclude);
+    out = out.filter((r) => !exc.has(r.name));
+  }
+  return out;
+}
+
 /**
- * Каталог-JSON, поставляемый клиентом (`@reformer/ui-kit/catalog`, по контракту) + синтетические
- * записи билдера (`$html`/array). Единственная граница источника — смена клиента не трогает
- * остальной код.
+ * Каталог-JSON: источник компонентов + синтетические записи билдера (`$html`/array/wizard).
+ * Источник — клиентский каталог (`--catalog` при локальном старте, {@link getClientCatalog}), иначе
+ * вшитый `@reformer/ui-kit/catalog`. Конфиг клиента может сузить synthetic-набор и отфильтровать
+ * компоненты (include/exclude). Единственная граница источника — смена клиента не трогает остальной код.
  */
 export function loadCatalogJson(): CatalogJson {
-  const supplied = uiKitCatalog as unknown as CatalogJson;
-  return { version: supplied.version, components: [...supplied.components, ...syntheticRecords()] };
+  const componentsCfg = getRuntimeConfig().components;
+  const supplied = getClientCatalog() ?? (uiKitCatalog as unknown as CatalogJson);
+  const all = [...supplied.components, ...syntheticRecords(componentsCfg?.synthetic)];
+  return { version: supplied.version, components: filterComponents(all, componentsCfg) };
 }
 
 /** Реконструировать `CatalogEntry[]` из каталога-JSON (категория палитры + восстановление `makeNode`). */

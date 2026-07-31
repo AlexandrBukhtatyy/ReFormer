@@ -127,6 +127,14 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
   selector?: string;
   /** Реактивный массив модели (`model.<path>`). Расширяет базовый контракт методом `move`. */
   array: RenderModelArrayControl;
+  /**
+   * Опциональный компонент-рендерер массива (из `$component(...)`). Если задан — итерация
+   * рендерится этим компонентом (chrome-less display-список / кастомная секция) вместо встроенной
+   * редактируемой секции. Компонент получает `array`/`item`/`initialValue`/`fieldWrapper` и готовые
+   * элементы `children`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component?: ComponentType<any>;
   /** Схема элемента: под-модель элемента → узел поддерева. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   item: (itemModel: any) => RenderNode<T>;

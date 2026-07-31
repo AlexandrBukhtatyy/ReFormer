@@ -242,14 +242,18 @@ function transformText(text: unknown, scope: any, registry: ComponentRegistry): 
  * массив (`array`+`item`) → field (`value`) → контейнер (`component`).
  */
 function convertNodeM1<T>(node: JsonNode, scope: any, registry: ComponentRegistry): RenderNode<T> {
-  // Массив: данные из модели (value-прокси массива), элемент — из $template
+  // Массив: данные из модели (value-прокси массива), элемент — из $template. Опциональный
+  // `component` уводит рендер на зарегистрированный компонент (напр. `$component(List)` — chrome-less
+  // display-список); без него — встроенная редактируемая секция.
   if (isArrayNode(node)) {
     const arrayControl = resolveModelPath(scope, parseOperator(node.array)!.arg);
     const template = node.item.$template;
     const initial = node.initialValue;
+    const component = node.component ? resolveComponent(node.component, registry) : undefined;
     return {
       ...(node.selector ? { selector: node.selector } : {}),
       array: arrayControl,
+      ...(component ? { component } : {}),
       initialValue: () => (initial ? cloneLiteral(initial) : {}),
       item: (im: FormModel<unknown>) => convertNodeM1(template, im, registry),
       componentProps: transformProps(node.componentProps, scope, registry),

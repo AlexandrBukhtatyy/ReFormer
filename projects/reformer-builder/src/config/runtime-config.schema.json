@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reformer.dev/schemas/reformer-builder-config",
+  "title": "ReFormer Builder runtime config",
+  "description": "Runtime-конфигурация UI-Builder, передаваемая клиентом при локальном старте (reformer-builder.config.json). Все секции опциональны; отсутствие ⇒ встроенные дефолты.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "string" },
+    "branding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "productName": { "type": "string" },
+        "title": { "type": "string" },
+        "logoUrl": { "type": "string" }
+      }
+    },
+    "palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "categoryByName": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "order": { "type": "array", "items": { "type": "string" } },
+        "collapsedByDefault": { "type": "array", "items": { "type": "string" } },
+        "glyphs": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include": { "type": "array", "items": { "type": "string" } },
+        "exclude": { "type": "array", "items": { "type": "string" } },
+        "synthetic": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "html": { "type": "boolean" },
+            "htmlTags": { "type": "array", "items": { "type": "string" } },
+            "formArray": { "type": "boolean" },
+            "wizard": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "theme": { "type": "string", "enum": ["light", "dark"] },
+        "leftPanel": { "type": ["string", "null"], "enum": ["files", "palette", null] },
+        "rightOpen": { "type": "boolean" },
+        "preview": { "type": "string", "enum": ["wire", "runtime", "code"] },
+        "bottomTab": { "type": "string", "enum": ["raw", "model"] },
+        "hideDivWrappers": { "type": "boolean" }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "formSchemaMarkers": { "type": "array", "items": { "type": "string" } },
+        "ignoreDirs": { "type": "array", "items": { "type": "string" } },
+        "skipFiles": { "type": "array", "items": { "type": "string" } },
+        "seedSchema": { "type": ["object", "null"] }
+      }
+    }
+  }
+}

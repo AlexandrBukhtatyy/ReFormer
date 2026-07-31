@@ -70,11 +70,12 @@ export default function CreditApplicationRendererJsonV20Page() {
         </div>
       )}
 
-      <JsonRendererProvider settings={{ registry, model }}>
+      <JsonRendererProvider settings={{ registry }}>
         <JsonFormRenderer<CreditApplicationForm>
           schema={jsonSchema}
+          model={model}
           renderBehavior={renderBehavior}
-          validate={import.meta.env.DEV}
+          validateSchema={import.meta.env.DEV}
         />
       </JsonRendererProvider>
     </div>

@@ -5169,6 +5169,195 @@ export function initialFileUploadState(): FileUploadState
 
 _Source: src/components/file-upload/file-upload-core.ts_
 
+### List
+
+**Kind:** `const`
+
+List — headless compound для display-итерации массива модели.
+
+Read-only брат {@link FormArray}: перебирает элементы массива и рендерит на каждый произвольную
+разметку, БЕЗ кнопок add/remove/reorder. Для списков, которые не редактируются пользователем, а
+показываются/скрываются через мутацию массива в behavior (например, алерты).
+
+#### Sub-components
+- `List.Root` — контекст-провайдер (принимает `control`)
+- `List.Items` — итерация элементов (render-prop `{ control, index, id }`)
+- `List.Empty` — содержимое пустого состояния
+
+**Signature:**
+```typescript
+export const List
+```
+
+**Examples:**
+
+```tsx
+<List.Root control={form.alerts}>
+  <List.Empty><p className="text-gray-400">Нет уведомлений</p></List.Empty>
+  <List.Items className="space-y-2">
+    {({ control }) => <Alert control={control} />}
+  </List.Items>
+</List.Root>
+```
+
+_Source: src/components/list/List.tsx_
+
+### ListContext
+
+**Kind:** `const`
+
+React-контекст, снабжающий дочерние компоненты `List` (`Items`/`Empty`) текущими элементами.
+Создаётся `List.Root`. Читать через {@link useListContext}.
+
+**Signature:**
+```typescript
+export const ListContext
+```
+
+_Source: src/components/list/ListContext.tsx_
+
+### ListContextValue
+
+**Kind:** `interface`
+
+Контекст уровня списка. Read-only: только `items` + производные (`length`/`isEmpty`), без
+мутационных действий (ср. {@link FormArrayContextValue}).
+
+**Signature:**
+```typescript
+export interface ListContextValue<T extends object = Record<string, unknown>> {
+  /** Элементы списка с их контролами */
+  items: ListItem<T>[];
+  /** Текущая длина списка */
+  length: number;
+  /** Пустой ли список */
+  isEmpty: boolean;
+}
+```
+
+_Source: src/components/list/ListContext.tsx_
+
+### ListControl
+
+**Kind:** `type`
+
+Узел массива, принимаемый CDK-компонентом {@link List}.
+
+Идентичен {@link FormArrayControl} — legacy {@link ArrayNode} (владеет элементами) ИЛИ M1
+{@link ModelArrayNode} (делегирует массиву модели). `List` использует лишь read-часть контракта
+(`map`/`at`/`length`/`value`), поэтому мутационные методы здесь не нужны, но union тот же:
+консументы M1 (у которых `form.<field>` материализуется как ModelArrayNode) не должны кастовать.
+
+**Signature:**
+```typescript
+export type ListControl<T extends object> = ArrayNode<T> | ModelArrayNode<T>;
+```
+
+_Source: src/components/list/types.ts_
+
+### ListEmptyProps
+
+**Kind:** `interface`
+
+Props for List.Empty component
+
+**Signature:**
+```typescript
+export interface ListEmptyProps {
+  /** Содержимое, показываемое когда список пуст */
+  children: ReactNode;
+}
+```
+
+_Source: src/components/list/types.ts_
+
+### ListItem
+
+**Kind:** `interface`
+
+Один элемент списка — контрол, индекс и стабильный ключ. В отличие от
+{@link FormArrayItemRenderProps} НЕ несёт мутационных/reorder-хелперов: `List` — display-итерация.
+
+**Signature:**
+```typescript
+export interface ListItem<T extends object> {
+  /** Контрол для данного элемента */
+  control: FormProxy<T>;
+  /** Индекс элемента (0-based) */
+  index: number;
+  /** Уникальный идентификатор для React key */
+  id: string | number;
+}
+```
+
+_Source: src/components/list/types.ts_
+
+### ListItemContext
+
+**Kind:** `const`
+
+React-контекст текущего элемента, видимый внутри `List.Items`. Читать через
+{@link useListItemContext}.
+
+**Signature:**
+```typescript
+export const ListItemContext
+```
+
+_Source: src/components/list/ListContext.tsx_
+
+### ListItemContextValue
+
+**Kind:** `interface`
+
+Контекст уровня элемента внутри {@link List.Items}.
+
+**Signature:**
+```typescript
+export interface ListItemContextValue<T extends object = Record<string, unknown>>
+  extends ListItem<T> {}
+```
+
+_Source: src/components/list/ListContext.tsx_
+
+### ListItemsProps
+
+**Kind:** `interface`
+
+Props for List.Items component
+
+**Signature:**
+```typescript
+export interface ListItemsProps<T extends object> {
+  /** Render-функция для каждого элемента */
+  children: (item: ListItem<T>) => ReactNode;
+  /** Опциональный className контейнера */
+  className?: string;
+  /** Опциональный тег контейнера (по умолчанию Fragment, если нет className) */
+  as?: ElementType;
+}
+```
+
+_Source: src/components/list/types.ts_
+
+### ListRootProps
+
+**Kind:** `interface`
+
+Props for List.Root component
+
+**Signature:**
+```typescript
+export interface ListRootProps<T extends object> {
+  /** Массив-контрол из формы — legacy ArrayNode или M1 ModelArrayNode */
+  control: ListControl<T>;
+  /** Дочерние компоненты */
+  children: ReactNode;
+}
+```
+
+_Source: src/components/list/types.ts_
+
 ### makeFileError
 
 **Kind:** `function`
@@ -6358,6 +6547,91 @@ return (
 ```
 
 _Source: src/components/form-wizard/FormWizardContext.tsx_
+
+### useList
+
+**Kind:** `function`
+
+Headless-хук display-итерации массива модели — read-only брат {@link useFormArray}.
+
+Реактивно подписывается на длину/значение массива и раскладывает его на элементы
+`{ control, index, id }`. НЕ отдаёт `add`/`remove`/`move` — для display-списков (например,
+список алертов), где элементы не редактируются, а появляются/исчезают через мутацию массива в
+behavior. Ключ `id` берётся из идентичности per-item контрола (`itemControl.id ?? index`), поэтому
+reorder/фильтрация сохраняют состояние элементов.
+
+**Signature:**
+```typescript
+export function useList<T extends object>(control: ListControl<T>): UseListReturn<T>
+```
+
+**Examples:**
+
+```tsx
+function AlertsView({ form }: { form: FormProxy<MyForm> }) {
+  const { items, isEmpty } = useList(form.alerts);
+  if (isEmpty) return null;
+  return (
+    <div className="space-y-2">
+      {items.map(({ control, id }) => (
+        <Alert key={id} control={control} />
+      ))}
+    </div>
+  );
+}
+```
+
+_Source: src/components/list/useList.ts_
+
+### useListContext
+
+**Kind:** `function`
+
+Доступ к контексту `List`. Бросает вне `List.Root`.
+
+**Signature:**
+```typescript
+export function useListContext<
+  T extends object = Record<string, unknown>,
+>(): ListContextValue<T>
+```
+
+_Source: src/components/list/ListContext.tsx_
+
+### useListItemContext
+
+**Kind:** `function`
+
+Доступ к контексту текущего элемента внутри `List.Items`. Бросает вне `List.Items`.
+
+**Signature:**
+```typescript
+export function useListItemContext<
+  T extends object = Record<string, unknown>,
+>(): ListItemContextValue<T>
+```
+
+_Source: src/components/list/ListContext.tsx_
+
+### UseListReturn
+
+**Kind:** `interface`
+
+Return type for {@link useList}.
+
+**Signature:**
+```typescript
+export interface UseListReturn<T extends object> {
+  /** Элементы списка с их контролами */
+  items: ListItem<T>[];
+  /** Текущая длина списка */
+  length: number;
+  /** Пустой ли список */
+  isEmpty: boolean;
+}
+```
+
+_Source: src/components/list/useList.ts_
 
 ### useValidationErrorResolver
 

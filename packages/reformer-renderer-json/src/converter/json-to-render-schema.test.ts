@@ -11,12 +11,14 @@ import type { FormModel } from '@reformer/core';
  */
 const FormFieldStub = (): null => null;
 const InputStub = (): null => null;
+const ListStub = (): null => null;
 const LOAN_TYPES = [{ value: 'consumer', label: 'Потребительский' }];
 const itemLabelFn = (_c: unknown, i: number): string => `#${i + 1}`;
 
 const registry = defineRegistry((reg) => {
   reg.component('Input', InputStub);
   reg.component('FormField', FormFieldStub);
+  reg.component('List', ListStub);
   reg.dataSource('LOAN_TYPES', LOAN_TYPES);
   reg.fn('itemLabel', itemLabelFn);
   reg.locale(createLocaleResolver({ 'fields.email.label': 'Email' }));
@@ -67,6 +69,42 @@ describe('convertJsonToM1Tree', () => {
         componentProps: { options: '$dataSource(LOAN_TYPES)' },
       });
       expect(node.componentProps.options).toBe(LOAN_TYPES);
+    });
+  });
+
+  describe('array node with optional $component (component-rendered list)', () => {
+    const listSchema = {
+      array: '$model(alerts)',
+      component: '$component(List)',
+      item: {
+        $template: {
+          component: '$component(Input)',
+          componentProps: { message: '$model(message)' },
+        },
+      },
+    };
+
+    it('attaches the resolved component + item factory', () => {
+      const node = convert(listSchema);
+      expect(node.component).toBe(ListStub);
+      expect(typeof node.item).toBe('function');
+    });
+
+    it('re-scopes $model inside the item $template to the element sub-model', () => {
+      const node = convert(listSchema);
+      // item(im) прогоняет transformProps со scope=im → $model(message) резолвится через im.signalAt
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sub = node.item({ signalAt: (p: string) => ({ __path: `item.${p}` }) } as any);
+      expect(sub.componentProps.message).toEqual({ __path: 'item.message' });
+    });
+
+    it('leaves component undefined for a plain array node (built-in path)', () => {
+      const node = convert({
+        array: '$model(alerts)',
+        initialValue: {},
+        item: { $template: { value: '$model(x)', component: '$component(Input)' } },
+      });
+      expect(node.component).toBeUndefined();
     });
   });
 

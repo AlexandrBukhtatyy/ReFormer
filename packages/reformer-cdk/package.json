@@ -19,6 +19,10 @@
       "types": "./dist/form-array.d.ts",
       "import": "./dist/form-array.js"
     },
+    "./list": {
+      "types": "./dist/list.d.ts",
+      "import": "./dist/list.js"
+    },
     "./form-wizard": {
       "types": "./dist/form-wizard.d.ts",
       "import": "./dist/form-wizard.js"

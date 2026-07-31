@@ -43,6 +43,7 @@ const NON_PALETTE_DIRS = new Set([
   'form-field',
   'form-array',
   'form-wizard',
+  'list',
   'sonner',
 ]);
 

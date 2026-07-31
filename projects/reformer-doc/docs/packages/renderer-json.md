@@ -69,20 +69,24 @@ export function MyFormPage() {
     []
   );
 
-  // Модель передаётся через провайдер (settings.model), не как проп рендерера.
+  // Реестр — глобально через провайдер; модель — per-form проп рендерера.
   return (
-    <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm> schema={schema} validate={import.meta.env.DEV} />
+    <JsonRendererProvider settings={{ registry }}>
+      <JsonFormRenderer<MyForm>
+        schema={schema}
+        model={model}
+        validateSchema={import.meta.env.DEV}
+      />
     </JsonRendererProvider>
   );
 }
 ```
 
-`JsonFormRenderer` принимает только `{ schema, renderBehavior?, onSchemaReady?, validate? }`. `FormModel` обязательна и подаётся через `JsonRendererProvider` settings (`model`) — без неё рендерер бросит `settings.model is required (M1)`.
+`JsonFormRenderer` принимает `{ schema, model, renderBehavior?, onSchemaReady?, validateSchema? }`. `FormModel` обязательна и подаётся пропом `model` (per-form состояние) — без неё рендерер бросит `` `model` prop is required (M1) ``.
 
 ## Что внутри
 
-- **JsonFormRenderer** — главный компонент-рендерер; получает JSON-схему пропом, модель и реестр — из контекста провайдера. `JsonRendererProvider` задаёт `{ registry, model }`, а `useJsonRendererSettings` читает текущие настройки.
+- **JsonFormRenderer** — главный компонент-рендерер; получает JSON-схему и модель пропами, реестр — из контекста провайдера. `JsonRendererProvider` задаёт глобальные настройки `{ registry }`, а `useJsonRendererSettings` читает текущие настройки.
 - **Операторы** — строки `$model(path)` (привязка листа к сигналу модели), `$component(Name)` (компонент из реестра), `$dataSource(Name)` (значение-источник). Разбираются через `parseOperator` / `isModelOp` / `isComponentOp` / `isDataSourceOp`; голые строки идут как есть.
 - **Реестр** — `defineRegistry` строит карту имён на компоненты и dataSource-значения. `FIELD_WRAPPER` (`'$fieldWrapper'`) — зарезервированный ключ для компонента-обёртки полей (label, error, hint), обычно `FormField` из `@reformer/ui-kit`.
 - **Валидация схемы** — мета-схема form-DSL (`formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `getComponentNames`, `getDataSourceNames`, ajv-free). Полный `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл); `JsonFormRenderer` грузит её динамически при `validate={true}`, ошибки рисует `SchemaErrorPanel`.

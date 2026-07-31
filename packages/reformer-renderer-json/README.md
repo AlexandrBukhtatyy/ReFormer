@@ -74,13 +74,13 @@ export function MyFormPage() {
   // The model is provided through the provider (settings.model), not as a renderer prop.
   return (
     <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm> schema={schema} validate={import.meta.env.DEV} />
+      <JsonFormRenderer<MyForm> schema={schema} validateSchema={import.meta.env.DEV} />
     </JsonRendererProvider>
   );
 }
 ```
 
-`JsonFormRenderer` accepts only `{ schema, renderBehavior?, onSchemaReady?, validate? }`. The
+`JsonFormRenderer` accepts only `{ schema, renderBehavior?, onSchemaReady?, validateSchema? }`. The
 `FormModel` is supplied via `JsonRendererProvider` settings (`model`); schema leaves are bound to its
 signals by the built-in converter.
 
@@ -164,7 +164,7 @@ Validation is **run externally** by `validateModel(model, schema)` — the form'
 `validate()` no longer run schema validation. Wire the runner into a submit handler, or, for a wizard,
 inject the `{ validateStep, validateAll }` callbacks into the wizard node at runtime via `renderBehavior`
 (`onInit` + `patchProps`). See the [validation guide](./docs/llms/06-validation.md) for the full wizard
-wiring. This is distinct from the `validate` prop above, which only checks the JSON schema's **structure**.
+wiring. This is distinct from the `validateSchema` prop above, which only checks the JSON schema's **structure**.
 
 ## License
 

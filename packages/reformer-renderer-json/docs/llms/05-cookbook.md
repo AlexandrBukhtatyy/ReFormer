@@ -32,8 +32,8 @@ export function MyFormPage() {
   }, [registry]);
 
   return (
-    <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm> schema={jsonSchema} validate={import.meta.env.DEV} />
+    <JsonRendererProvider settings={{ registry }}>
+      <JsonFormRenderer<MyForm> schema={jsonSchema} model={model} validateSchema={import.meta.env.DEV} />
     </JsonRendererProvider>
   );
 }
@@ -42,7 +42,7 @@ export function MyFormPage() {
 **Notes.**
 
 - `convertJsonToM1Tree` бросает при битой схеме (неизвестный `$component`) **до** рендера. Оберни в try/catch, если хочешь показать `SchemaErrorPanel` вместо краша (см. `buildModelAndForm` в эталоне).
-- `validate={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
+- `validateSchema={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
 - Поведение (compute/enableWhen/navigation) идёт в `createForm({ behavior })`; render-behavior (hideWhen/patchProps/onInit) — отдельным пропом `renderBehavior`.
 
 ## $template для массивов { #template-arrays }
@@ -85,6 +85,47 @@ export function MyFormPage() {
 - `initialValue` — полный plain-объект по форме элемента (все поля из `$template`). Клонируется через `JSON.parse(JSON.stringify(...))`; не FieldConfig. Частичный `initialValue` → у нового элемента нет сигналов для недостающих полей.
 - Внутри `$template` пути относительны элементу (`'$model(type)'`, а не `'$model(properties[0].type)'`).
 - Вложенный массив в массиве — новый array-node внутри `$template` со своим `array`/`item`.
+
+## Display-список из массива модели { #display-list }
+
+**Problem.** В модели — массив объектов (алерты, бейджи, строки-статусы). Нужно отрендерить компонент на каждый элемент и реактивно показывать/скрывать элементы — но БЕЗ редактор-хрома (add/remove/карточки), который тащит обычный array-node.
+
+**Solution.** Тот же array-node + опциональный `component: '$component(List)'`. `List` (`@reformer/ui-kit`) — chrome-less обёртка; `initialValue` не нужен (добавлять нечего). Показ/скрытие — мутация массива в `defineFormBehavior`. `$model(...)` в `componentProps` элемента доходит до компонента значением (рендерер разворачивает сигнал).
+
+```typescript
+// schema
+{
+  selector: 'alerts-list',
+  array: '$model(alerts)',
+  component: '$component(List)',
+  componentProps: { className: 'space-y-2' },
+  item: {
+    $template: {
+      component: '$component(Alert)',
+      componentProps: { type: '$model(type)', message: '$model(message)' },
+    },
+  },
+}
+
+// registry
+reg.component('List', List);   // @reformer/ui-kit
+reg.component('Alert', Alert); // ваш display-компонент { type, message }
+
+// behavior — показ/скрытие = пересборка массива
+defineFormBehavior<FormShape>(({ model }) => {
+  onChange(model.$.amount, () => {
+    model.alerts.clear();
+    if (Number(model.amount) > 1_000_000)
+      model.alerts.push({ type: 'error', message: 'Превышен лимит' });
+  });
+});
+```
+
+**Notes.**
+
+- Дисплей vs редактирование = выбор компонента, а не тип узла. Без `component` тот же узел рендерится встроенной редактируемой секцией (и требует `initialValue`).
+- Компонент-обёртка получает готовые элементы `children` (+ `array`/`item`/`fieldWrapper` — если хочет сам итерировать/добавлять хром).
+- Для React/TS (вне JSON) есть headless-примитив `List` из `@reformer/cdk/list` (брат `FormArray` без мутаций) и `useList`.
 
 ## dataSource-значения и функции { #datasource }
 
@@ -136,7 +177,7 @@ const registry = defineRegistry((reg) => {
 **Notes.**
 
 - Резолв происходит только для строк `'$dataSource(NAME)'`. Голые строки (`label`, `placeholder`) и инлайн-массивы options идут как есть.
-- Если имя не зарегистрировано: без `validate` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validate` — ошибка `unknown dataSource "NAME"`.
+- Если имя не зарегистрировано: без `validateSchema` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validateSchema` — ошибка `unknown dataSource "NAME"`.
 - dataSource нельзя использовать как имя `component` (`component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
 
 ## Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }
@@ -169,8 +210,8 @@ const adapters = new Map<unknown, FieldAdapter>([
   [Radio, { fromEmit: (e) => (e as any).target.value }],
 ]);
 
-<JsonRendererProvider settings={{ registry, model, resolveFieldAdapter: (c) => adapters.get(c) }}>
-  <JsonFormRenderer<MyForm> schema={jsonSchema} />
+<JsonRendererProvider settings={{ registry, resolveFieldAdapter: (c) => adapters.get(c) }}>
+  <JsonFormRenderer<MyForm> schema={jsonSchema} model={model} />
 </JsonRendererProvider>;
 ```
 

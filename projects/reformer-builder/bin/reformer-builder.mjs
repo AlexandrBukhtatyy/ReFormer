@@ -7,15 +7,27 @@
  * поднимает `dist/` на localhost и открывает браузер. Серверной логики у билдера нет — вся работа с
  * файлами проекта идёт в браузере через File System Access API (нужен Chromium-браузер).
  *
+ * Клиент может передать 2 JSON-файла для локальной кастомизации: каталог компонентов (--catalog)
+ * и конфиг билдера (--config). Launcher читает их с диска и отдаёт SPA по /__reformer-builder/
+ * runtime.json; без флагов пытается авто-подхватить одноимённые файлы из cwd. Отсутствие файлов —
+ * билдер работает на вшитых дефолтах.
+ *
  * Использование:
- *   npx reformer-builder [--port <n>] [--host <h>] [--no-open]
+ *   npx reformer-builder [--port <n>] [--host <h>] [--no-open] [--catalog <path>] [--config <path>]
  */
 
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { extname, join, normalize, sep } from 'node:path';
+import { extname, join, normalize, resolve, sep } from 'node:path';
+
+/** URL, по которому SPA забирает клиентский bundle (совпадает с RUNTIME_BUNDLE_PATH в src/config/load). */
+export const RUNTIME_BUNDLE_URL = '/__reformer-builder/runtime.json';
+
+/** Имена файлов для авто-детекта в cwd, если флаги `--catalog`/`--config` не заданы. */
+const DEFAULT_CATALOG_FILE = 'component-catalog.json';
+const DEFAULT_CONFIG_FILE = 'reformer-builder.config.json';
 
 // Без хвостового разделителя: иначе `distDir + sep` даёт двойной слэш и проверка
 // границы каталога в resolveFsPath() никогда не совпадает (все запросы → 400).
@@ -51,8 +63,64 @@ async function readVersion() {
   }
 }
 
-function parseArgs(argv) {
-  const opts = { port: 4321, host: '127.0.0.1', open: true, help: false, version: false };
+/**
+ * Прочитать и распарсить клиентский JSON-файл. Явно переданный (`--catalog`/`--config`) файл
+ * обязателен — при ошибке чтения/парсинга завершаемся с сообщением. Авто-детект: отсутствие файла
+ * (ENOENT) — тихий пропуск (fallback на вшитые дефолты); присутствует, но битый JSON — ошибка
+ * (файл явно предназначен к использованию).
+ */
+async function readRuntimeFile(path, { explicit, label }) {
+  let text;
+  try {
+    text = await readFile(path, 'utf8');
+  } catch (err) {
+    if (explicit) {
+      console.error(`reformer-builder: не удалось прочитать ${label} "${path}": ${err.message}`);
+      process.exit(1);
+    }
+    return null; // авто-детект: файла нет — работаем на вшитых дефолтах
+  }
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    console.error(`reformer-builder: невалидный JSON в ${label} "${path}": ${err.message}`);
+    process.exit(1);
+  }
+}
+
+/**
+ * Собрать runtime-bundle для SPA из файлов клиента. Пути берутся из флагов, иначе — авто-детект
+ * одноимённых файлов в cwd. Структурную валидацию делает SPA (реюз validateCatalog + AJV конфига);
+ * здесь ловим только отсутствие/JSON-синтаксис.
+ */
+export async function loadRuntimeBundle(opts, cwd) {
+  const catalogPath = resolve(cwd, opts.catalog ?? DEFAULT_CATALOG_FILE);
+  const configPath = resolve(cwd, opts.config ?? DEFAULT_CONFIG_FILE);
+  const catalog = await readRuntimeFile(catalogPath, {
+    explicit: Boolean(opts.catalog),
+    label: 'каталог (--catalog)',
+  });
+  const config = await readRuntimeFile(configPath, {
+    explicit: Boolean(opts.config),
+    label: 'конфиг (--config)',
+  });
+  return {
+    payload: { catalog: catalog ?? null, config: config ?? null },
+    sources: { catalog: catalog ? catalogPath : null, config: config ? configPath : null },
+  };
+}
+
+export function parseArgs(argv) {
+  const opts = {
+    port: 4321,
+    host: '127.0.0.1',
+    open: true,
+    help: false,
+    version: false,
+    // Явно переданные клиентом пути (null — не задан, будет авто-детект в cwd).
+    catalog: null,
+    config: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--help' || a === '-h') opts.help = true;
@@ -63,6 +131,10 @@ function parseArgs(argv) {
     else if (a.startsWith('--port=')) opts.port = Number(a.slice('--port='.length));
     else if (a === '--host') opts.host = String(argv[++i]);
     else if (a.startsWith('--host=')) opts.host = a.slice('--host='.length);
+    else if (a === '--catalog') opts.catalog = String(argv[++i]);
+    else if (a.startsWith('--catalog=')) opts.catalog = a.slice('--catalog='.length);
+    else if (a === '--config') opts.config = String(argv[++i]);
+    else if (a.startsWith('--config=')) opts.config = a.slice('--config='.length);
     else {
       console.error(`reformer-builder: неизвестный аргумент "${a}" (см. --help)`);
       process.exit(1);
@@ -82,11 +154,16 @@ function printHelp() {
   npx reformer-builder [опции]
 
 Опции:
-  -p, --port <n>    Порт (по умолчанию 4321; занят — берётся следующий свободный)
-      --host <h>    Хост (по умолчанию 127.0.0.1)
-      --no-open     Не открывать браузер автоматически
-  -h, --help        Показать эту справку
-  -v, --version     Показать версию
+  -p, --port <n>       Порт (по умолчанию 4321; занят — берётся следующий свободный)
+      --host <h>       Хост (по умолчанию 127.0.0.1)
+      --no-open        Не открывать браузер автоматически
+      --catalog <path> Каталог компонентов (JSON) для палитры/инспектора
+      --config <path>  Конфиг билдера (JSON): палитра, доступные компоненты, дефолты UI, брендинг
+  -h, --help           Показать эту справку
+  -v, --version        Показать версию
+
+Без --catalog/--config билдер пытается подхватить component-catalog.json и
+reformer-builder.config.json из текущей папки; если их нет — работает на вшитых дефолтах.
 
 Примечание: режим «открыть папку проекта» (File System Access API) работает только в
 Chromium-браузерах (Chrome/Edge/Arc/Brave).`);
@@ -142,7 +219,7 @@ async function sendFile(res, filePath, statusCode = 200) {
   res.end(body);
 }
 
-function createRequestHandler(indexHtmlPath) {
+export function createRequestHandler(indexHtmlPath, runtimeBundleBody) {
   return async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { Allow: 'GET, HEAD' });
@@ -150,6 +227,16 @@ function createRequestHandler(indexHtmlPath) {
       return;
     }
     const pathname = (req.url || '/').split('?')[0].split('#')[0];
+    // Клиентский runtime-bundle (каталог/конфиг из файлов) — отдаём ДО резолва static/dist.
+    if (pathname === RUNTIME_BUNDLE_URL) {
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': runtimeBundleBody.length,
+        'Cache-Control': 'no-cache',
+      });
+      res.end(req.method === 'HEAD' ? undefined : runtimeBundleBody);
+      return;
+    }
     const target = resolveFsPath(pathname === '/' ? '/index.html' : pathname);
     if (target === null) {
       res.writeHead(400);
@@ -233,7 +320,12 @@ async function main() {
     process.exit(1);
   }
 
-  const server = createServer(createRequestHandler(indexHtmlPath));
+  // Клиентский конфиг/каталог из файлов (флаги или авто-детект в cwd). Отдаётся SPA по
+  // RUNTIME_BUNDLE_URL; отсутствие файлов ⇒ пустой bundle ⇒ билдер на вшитых дефолтах.
+  const runtime = await loadRuntimeBundle(opts, process.cwd());
+  const runtimeBundleBody = Buffer.from(JSON.stringify(runtime.payload));
+
+  const server = createServer(createRequestHandler(indexHtmlPath, runtimeBundleBody));
   let port;
   try {
     port = await listenWithFallback(server, opts.host, opts.port);
@@ -246,6 +338,8 @@ async function main() {
   const url = `http://${displayHost}:${port}/`;
   console.log(`\n  reformer-builder v${await readVersion()}`);
   console.log(`  Локальный сервер:  ${url}`);
+  if (runtime.sources.catalog) console.log(`  Каталог из файла:  ${runtime.sources.catalog}`);
+  if (runtime.sources.config) console.log(`  Конфиг из файла:   ${runtime.sources.config}`);
   console.log(`  Режим «открыть папку проекта» требует Chromium-браузер (File System Access API).`);
   console.log(`  Остановить: Ctrl+C\n`);
 
@@ -260,7 +354,10 @@ async function main() {
   process.on('SIGTERM', shutdown);
 }
 
-main().catch((err) => {
-  console.error(`reformer-builder: ${err?.stack || err}`);
-  process.exit(1);
-});
+// Не запускаем сервер при импорте из тестов (юнит-тесты дёргают экспортированные хелперы).
+if (process.env.REFORMER_BUILDER_TEST !== '1') {
+  main().catch((err) => {
+    console.error(`reformer-builder: ${err?.stack || err}`);
+    process.exit(1);
+  });
+}

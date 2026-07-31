@@ -10,6 +10,7 @@
  * @module reformer-builder/io/discovery
  */
 
+import { getRuntimeConfig } from '../config/state';
 import { isFormSchema } from '../model';
 
 /** Уверенность распознавания схемы. */
@@ -22,24 +23,30 @@ export interface Classification {
 }
 
 /** Маркеры мета-схемы формы в поле `$schema` (строгий критерий). */
-const FORM_SCHEMA_MARKERS = [
+const DEFAULT_FORM_SCHEMA_MARKERS = [
   'form-schema.schema.json',
   'reformer.dev/schemas/form',
   'renderer.schema.json',
 ];
 
+/** Маркеры схемы: дефолтные + добавленные клиентом (`project.formSchemaMarkers`). */
+function formSchemaMarkers(): string[] {
+  const extra = getRuntimeConfig().project?.formSchemaMarkers ?? [];
+  return extra.length ? [...DEFAULT_FORM_SCHEMA_MARKERS, ...extra] : DEFAULT_FORM_SCHEMA_MARKERS;
+}
+
 /** Классифицировать распарсенный JSON: форма ли это и с какой уверенностью. */
 export function classifyFormSchema(json: unknown): Classification {
   if (!isFormSchema(json)) return { isForm: false, confidence: null };
   const ref = (json as { $schema?: unknown }).$schema;
-  if (typeof ref === 'string' && FORM_SCHEMA_MARKERS.some((m) => ref.includes(m))) {
+  if (typeof ref === 'string' && formSchemaMarkers().some((m) => ref.includes(m))) {
     return { isForm: true, confidence: 'high' };
   }
   return { isForm: true, confidence: 'medium' };
 }
 
 /** Каталоги, которые не сканируем. */
-const IGNORE_DIRS = new Set([
+const DEFAULT_IGNORE_DIRS = [
   'node_modules',
   'dist',
   'build',
@@ -51,25 +58,37 @@ const IGNORE_DIRS = new Set([
   '.next',
   '.turbo',
   '.cache',
-]);
+];
 
 /** Файлы-исключения (не схемы, но тяжёлые/частые .json). */
-const SKIP_FILES = new Set([
+const DEFAULT_SKIP_FILES = [
   'package-lock.json',
   'package.json',
   'tsconfig.json',
   'components.json',
-]);
+];
+
+/** Игнорируемые каталоги: дефолтные ∪ клиентские (`project.ignoreDirs`). */
+function ignoreDirs(): Set<string> {
+  const extra = getRuntimeConfig().project?.ignoreDirs ?? [];
+  return extra.length ? new Set([...DEFAULT_IGNORE_DIRS, ...extra]) : new Set(DEFAULT_IGNORE_DIRS);
+}
+
+/** Скипаемые файлы: дефолтные ∪ клиентские (`project.skipFiles`). */
+function skipFiles(): Set<string> {
+  const extra = getRuntimeConfig().project?.skipFiles ?? [];
+  return extra.length ? new Set([...DEFAULT_SKIP_FILES, ...extra]) : new Set(DEFAULT_SKIP_FILES);
+}
 
 export function isIgnoredDir(name: string): boolean {
   // Скрываем только тяжёлые/служебные каталоги; остальную структуру (в т.ч. `.vscode`, `.github`) показываем.
-  return IGNORE_DIRS.has(name);
+  return ignoreDirs().has(name);
 }
 
 /** Стоит ли читать файл как кандидат-схему (быстрый фильтр до парсинга). */
 export function shouldScanFile(name: string): boolean {
   if (!name.endsWith('.json')) return false;
-  if (SKIP_FILES.has(name)) return false;
+  if (skipFiles().has(name)) return false;
   if (name.endsWith('tsconfig.json') || name.endsWith('.tsbuildinfo')) return false;
   return true;
 }

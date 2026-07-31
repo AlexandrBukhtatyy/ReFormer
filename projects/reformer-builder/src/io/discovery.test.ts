@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { classifyFormSchema, isIgnoredDir, shouldScanFile } from './discovery';
+import { resetRuntimeState, setRuntimeConfig } from '../config/state';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const exampleDir = path.resolve(
@@ -49,5 +50,36 @@ describe('фильтры сканирования', () => {
     expect(shouldScanFile('package.json')).toBe(false);
     expect(shouldScanFile('package-lock.json')).toBe(false);
     expect(shouldScanFile('main.tsx')).toBe(false);
+  });
+});
+
+describe('runtime-конфиг: project discovery (объединение с дефолтами)', () => {
+  afterEach(resetRuntimeState);
+
+  it('formSchemaMarkers — клиентский маркер поднимает confidence до high', () => {
+    const form = { version: '1.0', root: { component: '$component(Box)', children: [] } };
+    const withMarker = { $schema: './my-forms/acme-form.json', ...form };
+    // Без конфига пользовательский маркер неизвестен → medium.
+    expect(classifyFormSchema(withMarker).confidence).toBe('medium');
+    setRuntimeConfig({ project: { formSchemaMarkers: ['acme-form.json'] } });
+    expect(classifyFormSchema(withMarker).confidence).toBe('high');
+    // Дефолтные маркеры продолжают работать.
+    expect(classifyFormSchema({ $schema: './form-schema.schema.json', ...form }).confidence).toBe(
+      'high'
+    );
+  });
+
+  it('ignoreDirs — клиентские каталоги ∪ дефолтные', () => {
+    expect(isIgnoredDir('fixtures')).toBe(false);
+    setRuntimeConfig({ project: { ignoreDirs: ['fixtures'] } });
+    expect(isIgnoredDir('fixtures')).toBe(true);
+    expect(isIgnoredDir('node_modules')).toBe(true); // дефолт остаётся
+  });
+
+  it('skipFiles — клиентские файлы ∪ дефолтные', () => {
+    expect(shouldScanFile('acme.json')).toBe(true);
+    setRuntimeConfig({ project: { skipFiles: ['acme.json'] } });
+    expect(shouldScanFile('acme.json')).toBe(false);
+    expect(shouldScanFile('package.json')).toBe(false); // дефолт остаётся
   });
 });

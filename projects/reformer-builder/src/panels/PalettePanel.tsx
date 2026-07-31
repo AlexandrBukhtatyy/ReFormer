@@ -13,10 +13,11 @@ import { isContainerNode, type JsonFormSchema } from '@reformer/renderer-json';
 import { appendNode, findByPath, isLeafComponent, parentNodePath, type JsonPath } from '../model';
 import { getCatalog, type CatalogEntry } from '../catalog';
 import { collapseToDefaults } from '../catalog/variants';
+import { getRuntimeConfig } from '../config/state';
 import { editorActions, editorStore } from '../store';
 import { clearDrag, setDrag } from '../dnd/drag-state';
 
-const CATEGORY_ORDER = [
+const DEFAULT_CATEGORY_ORDER = [
   'HTML', // всегда первый (и свёрнут по умолчанию — см. collapsed ниже)
   'Типографика', // всегда второй (и свёрнут по умолчанию)
   'Поля ввода',
@@ -30,6 +31,15 @@ const CATEGORY_ORDER = [
   'Чат',
   'Прочее',
 ];
+
+/** Разделы, свёрнутые по умолчанию (спека §8), если клиент не переопределил. */
+const DEFAULT_COLLAPSED = ['HTML', 'Типографика', 'Оверлеи', 'Навигация', 'Чат'];
+
+/** Порядок разделов палитры: из конфига клиента, иначе дефолтный. */
+function categoryOrder(): string[] {
+  const order = getRuntimeConfig().palette?.order;
+  return order && order.length ? order : DEFAULT_CATEGORY_ORDER;
+}
 
 /** Тег из синтетического HTML-имени: `$html(div)` → `div`; для остальных — `null`. */
 function htmlTag(name: string): string | null {
@@ -97,6 +107,9 @@ const GLYPH_BY_NAME: Record<string, string> = {
 };
 
 function glyph(entry: CatalogEntry): string {
+  // Клиентский конфиг может задать глиф по имени компонента (приоритет над дефолтами).
+  const override = getRuntimeConfig().palette?.glyphs?.[entry.name];
+  if (override) return override;
   const tag = htmlTag(entry.name);
   if (tag) return HTML_GLYPH[tag] ?? tag.slice(0, 3);
   return (
@@ -123,11 +136,12 @@ function groupByCategory(catalog: CatalogEntry[], q: string): Array<[string, Cat
     list.push(e);
     map.set(c, list);
   }
-  const known = CATEGORY_ORDER.filter((c) => map.has(c)).map(
-    (c) => [c, map.get(c)!] as [string, CatalogEntry[]]
-  );
+  const order = categoryOrder();
+  const known = order
+    .filter((c) => map.has(c))
+    .map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
   const rest = [...map.keys()]
-    .filter((c) => !CATEGORY_ORDER.includes(c))
+    .filter((c) => !order.includes(c))
     .map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
   return [...known, ...rest];
 }
@@ -151,13 +165,11 @@ export function PalettePanel() {
   const catalog = getCatalog();
   const groups = useMemo(() => groupByCategory(catalog, q), [catalog, q]);
   // Форс-категории раскрыты; вспомогательные (HTML/оверлеи/навигация/чат) свёрнуты по умолчанию
-  // (спека §8, дизайн-макет). Поиск временно раскрывает все разделы.
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
-    HTML: true,
-    Типографика: true,
-    Оверлеи: true,
-    Навигация: true,
-    Чат: true,
+  // (спека §8, дизайн-макет; клиент может переопределить `palette.collapsedByDefault`). Поиск
+  // временно раскрывает все разделы.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    const list = getRuntimeConfig().palette?.collapsedByDefault ?? DEFAULT_COLLAPSED;
+    return Object.fromEntries(list.map((c) => [c, true]));
   });
   const toggle = (cat: string) => setCollapsed((c) => ({ ...c, [cat]: !c[cat] }));
   const isOpen = (cat: string) => (q.trim() ? true : !collapsed[cat]);

@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { defaultPropSchemas } from '@reformer/ui-kit/meta';
 import { loadCatalogJson, buildCatalogFromJson, validateCatalog } from './contract';
 import { kindOf } from '../model';
+import { resetRuntimeState, setClientCatalog, setRuntimeConfig } from '../config/state';
 
 describe('loadCatalogJson (клиентский каталог ui-kit + синтетические)', () => {
   const json = loadCatalogJson();
@@ -72,5 +73,56 @@ describe('buildCatalogFromJson (реконструкция makeNode + катег
     }
     expect(entries.find((e) => e.name === 'Input')?.category).toBe('Поля ввода');
     expect(entries.find((e) => e.name === 'Dialog')?.category).toBe('Оверлеи');
+  });
+});
+
+describe('runtime-конфиг: источник каталога и фильтры', () => {
+  afterEach(resetRuntimeState);
+
+  it('клиентский каталог замещает вшитый ui-kit (+ синтетические билдера)', () => {
+    setClientCatalog({
+      version: '9.9',
+      components: [{ name: 'ClientOnly', role: 'field', propsSchema: {} }],
+    });
+    const json = loadCatalogJson();
+    const names = new Set(json.components.map((c) => c.name));
+    expect(json.version).toBe('9.9');
+    expect(names.has('ClientOnly')).toBe(true);
+    expect(names.has('Input')).toBe(false); // ui-kit компонентов больше нет
+    expect(names.has('$html(div)')).toBe(true); // синтетические билдера остаются
+  });
+
+  it('include — whitelist по имени', () => {
+    setRuntimeConfig({ components: { include: ['Input'] } });
+    const names = loadCatalogJson().components.map((c) => c.name);
+    expect(names).toContain('Input');
+    expect(names).not.toContain('Select');
+    expect(names).not.toContain('$html(div)'); // синтетические вне include тоже отсеиваются
+  });
+
+  it('exclude — blacklist по имени', () => {
+    setRuntimeConfig({ components: { exclude: ['Chart'] } });
+    const names = new Set(loadCatalogJson().components.map((c) => c.name));
+    expect(names.has('Chart')).toBe(false);
+    expect(names.has('Input')).toBe(true);
+  });
+
+  it('synthetic-тоглы: отключить wizard/formArray, сузить html', () => {
+    setRuntimeConfig({
+      components: { synthetic: { wizard: false, formArray: false, htmlTags: ['div'] } },
+    });
+    const names = new Set(loadCatalogJson().components.map((c) => c.name));
+    expect(names.has('Wizard')).toBe(false);
+    expect(names.has('Step')).toBe(false);
+    expect(names.has('FormArray')).toBe(false);
+    expect(names.has('$html(div)')).toBe(true);
+    expect(names.has('$html(section)')).toBe(false);
+    expect(names.has('Input')).toBe(true); // компоненты каталога не тронуты
+  });
+
+  it('palette.categoryByName переопределяет категорию', () => {
+    setRuntimeConfig({ palette: { categoryByName: { Input: 'Кастом-поля' } } });
+    const entries = buildCatalogFromJson(loadCatalogJson());
+    expect(entries.find((e) => e.name === 'Input')?.category).toBe('Кастом-поля');
   });
 });
