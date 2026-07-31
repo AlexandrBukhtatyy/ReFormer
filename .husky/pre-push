@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+# Guard: закоммиченные генерируемые снапшоты должны совпадать с их источниками.
+# Зеркалит drift-гейты CI (.github/workflows/test.yml, шаги «gen:form-schema» и «llms.txt»),
+# чтобы поймать дрейф ЛОКАЛЬНО до красного пайплайна.
+#
+# Класс ошибки, который это предотвращает: правку источника (реестр, docs/llms, JSDoc)
+# без перегенерации закоммиченного снапшота — иначе ловится только в CI после push.
+#
+# Проверка сравнивает СВЕЖУЮ регенерацию с версией в HEAD. На успехе рабочее дерево
+# не меняется (регенерация даёт тот же контент). На дрейфе — снапшоты остаются
+# перегенерированными: просмотрите, закоммитьте, повторите push.
+
+FORM_SCHEMA='projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json'
+drift=0
+
+# 1) packages/*/llms.txt — собирается из docs/llms + JSDoc (сборка пакетов не требуется).
+npm run generate:llms >/dev/null 2>&1 || true
+if ! git diff --quiet HEAD -- 'packages/*/llms.txt'; then
+  echo "✗ packages/*/llms.txt устарел относительно docs/JSDoc."
+  echo "  Пересоберите и закоммитьте:  npm run generate:llms"
+  drift=1
+fi
+
+# 2) form-schema.schema.json — из реестра кредитной формы. Нужен собранный @reformer/renderer-json
+#    (скрипт импортирует пакет через dist). Нет dist — не блокируем, а предупреждаем.
+if [ -f packages/reformer-renderer-json/dist/index.js ]; then
+  npm run gen:form-schema -w react-playground >/dev/null 2>&1 || true
+  if ! git diff --quiet HEAD -- "$FORM_SCHEMA"; then
+    echo "✗ form-schema.schema.json устарел относительно реестра кредитной формы."
+    echo "  Пересоберите и закоммитьте:  npm run gen:form-schema -w react-playground"
+    drift=1
+  fi
+else
+  echo "⚠ проверка form-schema пропущена: @reformer/renderer-json не собран (npm run build -w @reformer/renderer-json)."
+fi
+
+if [ "$drift" = 1 ]; then
+  echo ""
+  echo "Push остановлен: генерируемые снапшоты перегенерированы в рабочем дереве."
+  echo "Проверьте изменения, закоммитьте их и повторите push."
+  exit 1
+fi
+
+exit 0
