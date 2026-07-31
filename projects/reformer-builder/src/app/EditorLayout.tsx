@@ -13,7 +13,8 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/
 import { Toaster } from '@reformer/ui-kit/sonner';
 import { activeTab, editorActions, editorStore, useActiveTab, useUi } from '../store';
 import type { LeftPanelKind, PreviewMode, UiState } from '../store';
-import type { NavDir } from '../model';
+import { emptySchema, type NavDir } from '../model';
+import { getRuntimeConfig } from '../config/state';
 import { saveDialogActions } from '../store/save-dialog';
 import { CanvasArea } from '../canvas/CanvasArea';
 import { CodeArea } from '../canvas/CodeArea';
@@ -148,11 +149,14 @@ export function EditorLayout() {
     panelIds: ['left', 'center', 'right'],
   });
 
-  // seed демо-схемы (Mode A) при первом запуске
+  // seed стартовой схемы (Mode A) при первом запуске. Клиентский конфиг `project.seedSchema`:
+  // объект → кастомный seed; `null` → пустая форма; поле отсутствует → встроенная демо-схема.
   useEffect(() => {
     if (!editorStore.getState().activeTabId) {
-      const name = 'credit-application.form.json';
-      editorActions.openTab(name, { kind: 'new', name }, seedSchema());
+      const seed = getRuntimeConfig().project?.seedSchema;
+      const schema = seed === undefined ? seedSchema() : (seed ?? emptySchema());
+      const name = seed === undefined ? 'credit-application.form.json' : 'untitled.form.json';
+      editorActions.openTab(name, { kind: 'new', name }, schema);
     }
   }, []);
 

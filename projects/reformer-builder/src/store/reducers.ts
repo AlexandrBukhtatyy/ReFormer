@@ -31,6 +31,7 @@ import {
   type MutationResult,
   type NavDir,
 } from '../model';
+import { getRuntimeConfig } from '../config/state';
 import type {
   BottomTab,
   EditorState,
@@ -46,18 +47,20 @@ import type {
 /** Максимум снимков в истории (снимки дёшевы из-за structural sharing, но ограничиваем). */
 export const HISTORY_CAP = 100;
 
-/** Начальные UI-флаги. */
+/** Начальные UI-флаги (клиентский конфиг `ui` переопределяет дефолты; иначе — литералы ниже). */
 export function initialUi(): UiState {
+  const ui = getRuntimeConfig().ui;
+  const leftPanel = ui?.leftPanel !== undefined ? ui.leftPanel : 'files';
   return {
-    preview: 'wire',
-    hideDivWrappers: false,
+    preview: ui?.preview ?? 'wire',
+    hideDivWrappers: ui?.hideDivWrappers ?? false,
     quickAddOpen: false,
     rawJsonOpen: true,
-    bottomTab: 'raw',
-    leftPanel: 'files',
-    lastLeftPanel: 'files',
-    rightOpen: true,
-    theme: 'light',
+    bottomTab: ui?.bottomTab ?? 'raw',
+    leftPanel,
+    lastLeftPanel: leftPanel ?? 'files',
+    rightOpen: ui?.rightOpen ?? true,
+    theme: ui?.theme ?? 'light',
     revealLine: null,
     revealNonce: 0,
   };

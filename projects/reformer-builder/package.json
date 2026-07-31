@@ -9,12 +9,15 @@
   "files": [
     "dist",
     "bin",
+    "runtime-config.schema.json",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/copy-config-schema.mjs",
+    "build:config-schema": "node scripts/copy-config-schema.mjs",
+    "prepack": "node scripts/copy-config-schema.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node ../../scripts/run-vitest.mjs",
