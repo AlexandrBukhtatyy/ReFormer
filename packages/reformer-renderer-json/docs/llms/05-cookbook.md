@@ -32,8 +32,8 @@ export function MyFormPage() {
   }, [registry]);
 
   return (
-    <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm> schema={jsonSchema} validateSchema={import.meta.env.DEV} />
+    <JsonRendererProvider settings={{ registry }}>
+      <JsonFormRenderer<MyForm> schema={jsonSchema} model={model} validateSchema={import.meta.env.DEV} />
     </JsonRendererProvider>
   );
 }
@@ -210,8 +210,8 @@ const adapters = new Map<unknown, FieldAdapter>([
   [Radio, { fromEmit: (e) => (e as any).target.value }],
 ]);
 
-<JsonRendererProvider settings={{ registry, model, resolveFieldAdapter: (c) => adapters.get(c) }}>
-  <JsonFormRenderer<MyForm> schema={jsonSchema} />
+<JsonRendererProvider settings={{ registry, resolveFieldAdapter: (c) => adapters.get(c) }}>
+  <JsonFormRenderer<MyForm> schema={jsonSchema} model={model} />
 </JsonRendererProvider>;
 ```
 

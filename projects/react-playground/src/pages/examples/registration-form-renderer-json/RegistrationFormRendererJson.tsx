@@ -31,9 +31,10 @@ export default function RegistrationFormRendererJson() {
   const { model, registry, renderBehavior } = useMemo(() => createRegistrationSetup(), []);
 
   return (
-    <JsonRendererProvider settings={{ registry, model }}>
+    <JsonRendererProvider settings={{ registry }}>
       <JsonFormRenderer<RegistrationFormData>
         schema={registrationJsonSchema}
+        model={model}
         renderBehavior={renderBehavior}
         validateSchema={import.meta.env.DEV}
       />

@@ -185,7 +185,7 @@ const schema: JsonFormSchema = {
 
 ## See also
 
-- [01-overview.md](01-overview.md) — как схема монтируется через `model` + `JsonRendererProvider`.
+- [01-overview.md](01-overview.md) — как схема монтируется: реестр через `JsonRendererProvider`, модель — пропом `JsonFormRenderer`.
 - [03-registry.md](03-registry.md) — какие компоненты и source можно зарегистрировать.
 - [05-cookbook.md](05-cookbook.md) — `$template`, dataSource-функции, миграция из TS RenderSchema.
 - [06-validation.md](06-validation.md) — валидация значений (TS-схема над моделью + инъекция в wizard).

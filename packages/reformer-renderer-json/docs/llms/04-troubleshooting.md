@@ -20,11 +20,11 @@ import { FormField } from '@reformer/ui-kit';
 reg.component(FIELD_WRAPPER, FormField);
 ```
 
-## No model signal for "..." / settings.model is required
+## No model signal for "..." / `model` prop is required
 
 Два разных симптома одной причины — модель.
 
-- `JsonFormRenderer: settings.model is required (M1)` — не передана модель. Под M1 листья схемы биндятся к сигналам `FormModel`; передай её в `JsonRendererProvider settings={{ registry, model }}`.
+- `JsonFormRenderer: `model` prop is required (M1)` — не передана модель. Под M1 листья схемы биндятся к сигналам `FormModel`; передай её пропом: `<JsonFormRenderer schema={schema} model={model} />`.
 - `[JsonRenderer/M1] No model signal for "path"` (warn) — путь в `$model(path)` не соответствует структуре модели. Проверь: `value: '$model(personalData.firstName)'` — поле `firstName` реально существует внутри `personalData` в `createModel(...)` initial-значениях.
 
 ## Сырой контрол UI-kit пишет в модель событие вместо значения

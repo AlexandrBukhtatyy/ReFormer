@@ -73,9 +73,10 @@ export default function CreditApplicationFormRendererJson() {
     <div className="w-full">
       {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5). */}
       <ValidationMessagesProvider resolver={fileUploadMessages}>
-        <JsonRendererProvider settings={{ registry, model }}>
+        <JsonRendererProvider settings={{ registry }}>
           <JsonFormRenderer<CreditApplicationForm>
             schema={creditApplicationJsonSchema}
+            model={model}
             renderBehavior={renderBehavior}
             validateSchema={import.meta.env.DEV}
           />

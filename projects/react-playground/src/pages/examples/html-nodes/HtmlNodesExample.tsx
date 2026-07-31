@@ -88,9 +88,10 @@ function JsonSchemaColumn() {
       hint='component: "$html(div)", text: "$model(fullName)"'
     >
       <div data-testid="json-schema">
-        <JsonRendererProvider settings={{ registry, model }}>
+        <JsonRendererProvider settings={{ registry }}>
           <JsonFormRenderer<InstallmentRequest>
             schema={installmentJsonSchema}
+            model={model}
             validateSchema={import.meta.env.DEV}
           />
         </JsonRendererProvider>

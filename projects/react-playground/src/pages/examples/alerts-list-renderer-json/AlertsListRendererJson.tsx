@@ -14,9 +14,10 @@ export default function AlertsListRendererJson() {
   const { model, registry } = useMemo(() => createAlertsSetup(), []);
 
   return (
-    <JsonRendererProvider settings={{ registry, model }}>
+    <JsonRendererProvider settings={{ registry }}>
       <JsonFormRenderer<AlertsFormData>
         schema={alertsJsonSchema}
+        model={model}
         validateSchema={import.meta.env.DEV}
       />
     </JsonRendererProvider>

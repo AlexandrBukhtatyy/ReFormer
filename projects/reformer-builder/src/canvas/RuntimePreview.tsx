@@ -45,11 +45,9 @@ export function RuntimePreview({ schema, mock }: { schema: JsonFormSchema; mock?
 
   return (
     <PreviewErrorBoundary resetKey={schema}>
-      <JsonRendererProvider
-        settings={{ registry: built.bundle.registry, model: built.bundle.model }}
-      >
+      <JsonRendererProvider settings={{ registry: built.bundle.registry }}>
         <WizardFormProvider form={built.bundle.form as FormProxy<Record<string, unknown>>}>
-          <JsonFormRenderer schema={schema} validateSchema={false} />
+          <JsonFormRenderer schema={schema} model={built.bundle.model} validateSchema={false} />
         </WizardFormProvider>
       </JsonRendererProvider>
     </PreviewErrorBoundary>

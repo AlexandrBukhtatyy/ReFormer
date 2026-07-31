@@ -65,9 +65,10 @@ export default function ${n.pageComponent}() {
         </div>
       )}
 
-      <JsonRendererProvider settings={{ registry, model }}>
+      <JsonRendererProvider settings={{ registry }}>
         <JsonFormRenderer<${n.TypeName}>
           schema={schema}
+          model={model}
           renderBehavior={renderBehavior}
           validateSchema={import.meta.env.DEV}
         />

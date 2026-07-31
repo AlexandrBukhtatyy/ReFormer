@@ -30,7 +30,7 @@ import {
 
 ## Quick Start
 
-Ключевая идея M1: **модель (`FormModel`) — источник данных, JSON-схема — layout**. Форма строится из той же JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает модель через `JsonRendererProvider` settings (`model`). `JsonFormRenderer` НЕ имеет `form`-пропа — это by-design: JSON статичен, модель runtime.
+Ключевая идея M1: **модель (`FormModel`) — источник данных, JSON-схема — layout**. Форма строится из той же JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает модель пропом `model`. `JsonFormRenderer` НЕ имеет `form`-пропа — это by-design: JSON статичен, модель runtime.
 
 Минимальный рабочий монтаж:
 
@@ -76,22 +76,22 @@ function MyFormPage() {
     return { model };
   }, []);
 
-  // 4. Модель прокидывается через провайдер; JsonFormRenderer биндит листья к её сигналам.
+  // 4. Реестр — глобально через провайдер; модель — пропом рендерера, он биндит листья к её сигналам.
   return (
-    <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm> schema={jsonSchema} />
+    <JsonRendererProvider settings={{ registry }}>
+      <JsonFormRenderer<MyForm> schema={jsonSchema} model={model} />
     </JsonRendererProvider>
   );
 }
 ```
 
-**Почему `model` через провайдер, а не `<JsonFormRenderer form={...}/>`?** Под M1 листья схемы (`value: '$model(path)'`) биндятся к сигналам модели (`model.signalAt(path)`) конвертером. Модель обязательна и передаётся через `JsonRendererProvider` settings — `JsonFormRenderer` без неё бросит `settings.model is required (M1)`. Сам рендерер принимает только `{ schema, renderBehavior?, onSchemaReady?, validateSchema? }`.
+**Почему `model` — проп рендерера, а `registry` — провайдер?** `registry`/`fieldWrapper` глобальны (общие на всё поддерево форм), поэтому живут в `JsonRendererProvider`. Модель же per-form — у каждой формы своя, поэтому это проп `JsonFormRenderer` (под одним провайдером можно рендерить несколько форм с разными моделями). Под M1 листья схемы (`value: '$model(path)'`) биндятся к сигналам модели (`model.signalAt(path)`) конвертером; модель обязательна — без неё рендерер бросит `` `model` prop is required (M1) ``. `JsonFormRenderer` НЕ имеет `form`-пропа (JSON статичен): проп `model` принимает `FormModel`, а не собранную форму. Полный набор пропов — `{ schema, model, renderBehavior?, onSchemaReady?, validateSchema? }`.
 
 ## Key Concepts
 
 - **JSON-схема** — дерево `JsonNode` (см. [02-json-schema.md](02-json-schema.md)). Узлы: **field** (`value: '$model(...)'`), **array** (`array` + `item.$template`), **container** (`component` + `children`).
 - **Операторы** — строки `$model(path)` / `$component(Name)` / `$dataSource(NAME)`. Только они резолвятся; голые строки идут как есть.
-- **Модель (`model`)** — `FormModel`, источник данных. Передаётся в `JsonRendererProvider` settings; листья биндятся к её сигналам.
+- **Модель (`model`)** — `FormModel`, источник данных. Передаётся пропом `model` в `JsonFormRenderer` (per-form состояние); листья биндятся к её сигналам.
 - **Реестр** — карта имени из `$component(...)`/`$dataSource(...)` на React-компонент или source-значение. Без регистрации схема не сконвертируется (ошибка `Component "X" not found in registry`).
 - **`FIELD_WRAPPER`** — зарезервированный ключ реестра (`'$fieldWrapper'`) для компонента-обёртки полей (label, error, hint). Обычно `FormField` из `@reformer/ui-kit`.
 - **Адаптеры контролов (`resolveFieldAdapter`)** — `JsonRendererSettings extends RendererSettings`, поэтому в `JsonRendererProvider` settings можно передать `resolveFieldAdapter(component) => FieldAdapter | undefined`. Value-based контролы (`Input` и пр.) регистрируются как есть; СЫРОЙ контрол чужого диалекта (Checkbox `checked` + `onChange(event)`, Select `onChange(value, option)`, Radio `onChange(event)`) регистрируется по имени в реестре, а адаптер переводит seam `value` + `onChange(value)` на его диалект — без обёртки на каждый контрол. Детали — [03-registry.md](03-registry.md).
@@ -102,8 +102,8 @@ function MyFormPage() {
 
 | Export                                          | Purpose                                                                    |
 | ----------------------------------------------- | -------------------------------------------------------------------------- |
-| `JsonFormRenderer`                              | Главный компонент-рендерер. Пропы: `{ schema, renderBehavior?, onSchemaReady?, validateSchema? }`. |
-| `JsonRendererProvider`                          | Контекст-провайдер: реестр (`registry`), модель (`model`), настройки.       |
+| `JsonFormRenderer`                              | Главный компонент-рендерер. Пропы: `{ schema, model, renderBehavior?, onSchemaReady?, validateSchema? }`. |
+| `JsonRendererProvider`                          | Контекст-провайдер глобальных настроек: реестр (`registry`), `fieldWrapper`, `resolveFieldAdapter`. |
 | `useJsonRendererSettings`                       | Хук для чтения текущих настроек контекста.                                  |
 | `defineRegistry`                                | Builder реестра компонентов и dataSource-значений.                         |
 | `FIELD_WRAPPER`                                 | Ключ реестра (`'$fieldWrapper'`) для компонента-обёртки полей.              |

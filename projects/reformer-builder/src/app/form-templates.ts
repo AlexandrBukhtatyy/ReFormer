@@ -389,9 +389,10 @@ export default function ${Comp}() {
         </div>
       )}
 
-      <JsonRendererProvider settings={{ registry, model }}>
+      <JsonRendererProvider settings={{ registry }}>
         <JsonFormRenderer<FormShape>
           schema={schema}
+          model={model}
           renderBehavior={formRenderBehavior}
           validateSchema={import.meta.env.DEV}
         />
