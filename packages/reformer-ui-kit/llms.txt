@@ -6190,6 +6190,45 @@ function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimiti
 
 _Source: src/components/label/variants/base/label-base.tsx_
 
+### List
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function List({ children, className, testId, as: As = 'div' }: ListProps)
+```
+
+_Source: src/components/list/variants/base/list.tsx_
+
+### ListProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface ListProps {
+  /** Готовые элементы, отрисованные рендерером массива. */
+  children?: ReactNode;
+  /** CSS-класс контейнера (мержится поверх дефолтного `space-y-2`). */
+  className?: string;
+  /** `data-testid` контейнера. */
+  testId?: string;
+  /** Тег/компонент обёртки. По умолчанию `'div'`. */
+  as?: ElementType;
+  /** Инъекция рендерера (не используется List). */
+  array?: unknown;
+  /** Инъекция рендерера (не используется List). */
+  item?: unknown;
+  /** Инъекция рендерера (не используется List). */
+  initialValue?: unknown;
+  /** Инъекция рендерера (не используется List). */
+  fieldWrapper?: unknown;
+}
+```
+
+_Source: src/components/list/variants/base/list.tsx_
+
 ### Marker
 
 **Kind:** `function`

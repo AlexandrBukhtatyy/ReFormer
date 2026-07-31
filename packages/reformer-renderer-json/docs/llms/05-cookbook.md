@@ -86,6 +86,47 @@ export function MyFormPage() {
 - Внутри `$template` пути относительны элементу (`'$model(type)'`, а не `'$model(properties[0].type)'`).
 - Вложенный массив в массиве — новый array-node внутри `$template` со своим `array`/`item`.
 
+## Display-список из массива модели { #display-list }
+
+**Problem.** В модели — массив объектов (алерты, бейджи, строки-статусы). Нужно отрендерить компонент на каждый элемент и реактивно показывать/скрывать элементы — но БЕЗ редактор-хрома (add/remove/карточки), который тащит обычный array-node.
+
+**Solution.** Тот же array-node + опциональный `component: '$component(List)'`. `List` (`@reformer/ui-kit`) — chrome-less обёртка; `initialValue` не нужен (добавлять нечего). Показ/скрытие — мутация массива в `defineFormBehavior`. `$model(...)` в `componentProps` элемента доходит до компонента значением (рендерер разворачивает сигнал).
+
+```typescript
+// schema
+{
+  selector: 'alerts-list',
+  array: '$model(alerts)',
+  component: '$component(List)',
+  componentProps: { className: 'space-y-2' },
+  item: {
+    $template: {
+      component: '$component(Alert)',
+      componentProps: { type: '$model(type)', message: '$model(message)' },
+    },
+  },
+}
+
+// registry
+reg.component('List', List);   // @reformer/ui-kit
+reg.component('Alert', Alert); // ваш display-компонент { type, message }
+
+// behavior — показ/скрытие = пересборка массива
+defineFormBehavior<FormShape>(({ model }) => {
+  onChange(model.$.amount, () => {
+    model.alerts.clear();
+    if (Number(model.amount) > 1_000_000)
+      model.alerts.push({ type: 'error', message: 'Превышен лимит' });
+  });
+});
+```
+
+**Notes.**
+
+- Дисплей vs редактирование = выбор компонента, а не тип узла. Без `component` тот же узел рендерится встроенной редактируемой секцией (и требует `initialValue`).
+- Компонент-обёртка получает готовые элементы `children` (+ `array`/`item`/`fieldWrapper` — если хочет сам итерировать/добавлять хром).
+- Для React/TS (вне JSON) есть headless-примитив `List` из `@reformer/cdk/list` (брат `FormArray` без мутаций) и `useList`.
+
 ## dataSource-значения и функции { #datasource }
 
 **Problem.** Нужно передать в проп массив options, функцию (`itemLabel: (form, index) => string`) или React-компонент — а JSON хранит только примитивы и объекты.

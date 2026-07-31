@@ -73,6 +73,7 @@
       "properties": {
         "selector": { "type": "string" },
         "array": { "$ref": "#/definitions/modelOp" },
+        "component": { "$ref": "#/definitions/componentOp" },
         "item": {
           "type": "object",
           "required": ["$template"],

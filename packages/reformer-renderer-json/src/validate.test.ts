@@ -115,6 +115,23 @@ describe('validateFormSchema', () => {
     expect(validateFormSchema(schema, opts).valid).toBe(true);
   });
 
+  it('accepts an array node with a $component and NO initialValue (display-list path)', () => {
+    const schema = {
+      root: {
+        array: '$model(alerts)',
+        component: '$component(List)',
+        item: {
+          $template: {
+            component: '$component(Section)',
+            componentProps: { message: '$model(message)' },
+          },
+        },
+      },
+    };
+    const componentNames = ['Input', 'Select', 'Box', 'Section', 'List'];
+    expect(validateFormSchema(schema, { ...opts, componentNames }).valid).toBe(true);
+  });
+
   it('rejects an unknown $fn name nested in componentProps', () => {
     const schema = {
       root: {

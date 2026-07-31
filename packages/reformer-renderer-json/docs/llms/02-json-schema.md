@@ -7,7 +7,7 @@
 - **`JsonFormSchema`** — корневой документ: `version` (для миграций), опциональный `$schema` (путь к мета-схеме для IDE), единственный корневой узел `root`.
 - **`JsonNode`** — узел дерева. Дискриминированный union по строке-оператору, которую он несёт:
   - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md).
-  - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить»).
+  - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить») + опциональный `component: '$component(List)'` (рендер зарегистрированным компонентом — display-список без add/remove; см. ниже).
   - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` и `text`.
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
   - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
@@ -140,6 +140,32 @@ const schema: JsonFormSchema = {
   },
 }
 ```
+
+### Display-список: итерация массива через `$component`
+
+Тот же array-узел + опциональный `component` рендерит массив **зарегистрированным компонентом** вместо встроенной редактируемой секции. Дисплей-vs-редактирование — это выбор компонента, а не отдельный тип узла:
+
+- **без `component`** → встроенная секция с кнопками «Добавить»/«Удалить» (нужен `initialValue`);
+- **`component: '$component(List)'`** → chrome-less display-список (`List` из `@reformer/ui-kit`): без add/remove, `initialValue` не нужен. Для списков, которые не редактируются, а показываются/скрываются мутацией массива в behavior (алерты, бейджи).
+
+Итерацию и re-scoping делает рендерер; компонент получает готовые элементы `children` (плюс `array`/`item`/`fieldWrapper` — для своих секций с кастомным хромом). Внутри `$template` пути `$model(...)` резолвятся относительно элемента, а `$model(...)` в `componentProps` элемента доходит до компонента **значением** (рендерер разворачивает сигнал):
+
+```typescript
+{
+  selector: 'alerts-list',
+  array: '$model(alerts)',           // массив объектов в модели
+  component: '$component(List)',     // рендер — ui-kit List (без add/remove); initialValue не нужен
+  componentProps: { className: 'space-y-2' },
+  item: {
+    $template: {
+      component: '$component(Alert)',                 // display-компонент элемента
+      componentProps: { type: '$model(type)', message: '$model(message)' },
+    },
+  },
+}
+```
+
+Реестр: `reg.component('List', List)` (`@reformer/ui-kit`) + `reg.component('Alert', Alert)`. Показ/скрытие — мутация массива `alerts` в `defineFormBehavior` (`push`/`removeAt`/`clear`); список ре-рендерится реактивно.
 
 ## Anti-patterns
 

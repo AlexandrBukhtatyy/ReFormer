@@ -239,7 +239,9 @@ function walkArrayInitialValue(node: unknown, path: string, errors: string[]): v
   }
   if (node !== null && typeof node === 'object') {
     const n = node as Record<string, unknown>;
-    if (looksLikeArrayNode(n) && n.initialValue === undefined) {
+    // Требуем initialValue только для редактируемого (встроенного) пути. Если задан `component`
+    // (напр. `$component(List)` — display-список), «Добавить» нет, initialValue не нужен.
+    if (looksLikeArrayNode(n) && n.initialValue === undefined && n.component === undefined) {
       errors.push(
         `${path || '/'}: array node is missing "initialValue" — the "Add" button would create an empty element and its "$model(...)" template leaves would render nothing. Provide an "initialValue" literal with the element's keys.`
       );

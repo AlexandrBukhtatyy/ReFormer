@@ -37,6 +37,7 @@ export * from './components/input-password';
 export * from './components/item';
 export * from './components/kbd';
 export * from './components/label';
+export * from './components/list';
 export * from './components/marker';
 export * from './components/menubar';
 export * from './components/message';
