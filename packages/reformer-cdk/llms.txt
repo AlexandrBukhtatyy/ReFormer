@@ -5308,14 +5308,13 @@ _Source: src/components/list/ListContext.tsx_
 
 ### ListItemContextValue
 
-**Kind:** `interface`
+**Kind:** `type`
 
 Контекст уровня элемента внутри {@link List.Items}.
 
 **Signature:**
 ```typescript
-export interface ListItemContextValue<T extends object = Record<string, unknown>>
-  extends ListItem<T> {}
+export type ListItemContextValue<T extends object = Record<string, unknown>> = ListItem<T>;
 ```
 
 _Source: src/components/list/ListContext.tsx_
@@ -6591,9 +6590,7 @@ _Source: src/components/list/useList.ts_
 
 **Signature:**
 ```typescript
-export function useListContext<
-  T extends object = Record<string, unknown>,
->(): ListContextValue<T>
+export function useListContext<T extends object = Record<string, unknown>>(): ListContextValue<T>
 ```
 
 _Source: src/components/list/ListContext.tsx_

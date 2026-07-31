@@ -39,6 +39,7 @@
         "$component(FileUpload)",
         "$component(Box)",
         "$component(Section)",
+        "$component(FormArray)",
         "$component(Collapsible)",
         "$component(AsyncBoundary)",
         "$component(FormField)",
