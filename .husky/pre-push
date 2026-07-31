@@ -9,6 +9,12 @@
 # Проверка сравнивает СВЕЖУЮ регенерацию с версией в HEAD. На успехе рабочее дерево
 # не меняется (регенерация даёт тот же контент). На дрейфе — снапшоты остаются
 # перегенерированными: просмотрите, закоммитьте, повторите push.
+#
+# В CI НЕ запускаемся. Это локальный guard для разработчика; у CI свои drift-гейты
+# (workflow Test, до бампа версий). А semantic-release при релизе делает `git push --tags`
+# ПОСЛЕ бампа версии в package.json — llms.txt содержит версию в шапке, поэтому регенерация
+# тут разошлась бы с HEAD и хук ложно заблокировал бы релизный push (GitHub Actions ставит CI=true).
+[ -n "$CI" ] && exit 0
 
 FORM_SCHEMA='projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json'
 drift=0
