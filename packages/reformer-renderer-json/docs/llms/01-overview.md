@@ -22,35 +22,37 @@ import {
   JsonFormRenderer,
   JsonRendererProvider,
   defineRegistry,
+  defineJsonSchema,
+  createJsonForm,
+  useJsonForm,
   FIELD_WRAPPER,
-  convertJsonToM1Tree,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 ```
 
 ## Quick Start
 
-Ключевая идея M1: **модель (`FormModel`) — источник данных, JSON-схема — layout**. Форма строится из той же JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает модель пропом `model`. `JsonFormRenderer` НЕ имеет `form`-пропа — это by-design: JSON статичен, модель runtime.
+Ключевая идея M1: **модель (`FormModel`) — источник данных, JSON-схема — layout**. Сборка формы — ОДНИМ проходом через `createJsonForm`; результат (`{ model, form, schema, registry }`) отдаётся рендереру пропом `form`.
 
 Минимальный рабочий монтаж:
 
 ```tsx
-import { useMemo } from 'react';
-import { createForm, createModel } from '@reformer/core';
 import { Input, Box, FormField } from '@reformer/ui-kit';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
   defineRegistry,
+  defineJsonSchema,
+  createJsonForm,
+  useJsonForm,
   FIELD_WRAPPER,
-  convertJsonToM1Tree,
-  type JsonFormSchema,
 } from '@reformer/renderer-json';
 
 type MyForm = { email: string };
 
-// 1. JSON-схема — чистые данные, операторы-строки, никаких React-импортов.
-const jsonSchema: JsonFormSchema = {
+// 1. JSON-схема — чистые данные, операторы-строки, никаких React-импортов. defineJsonSchema<T>
+//    типизирует пути $model(...) по форме модели (опечатка $model(emial) — ошибка компиляции).
+const jsonSchema = defineJsonSchema<MyForm>({
   version: '1.0',
   root: {
     component: '$component(Box)',
@@ -59,9 +61,9 @@ const jsonSchema: JsonFormSchema = {
         componentProps: { label: 'Email' } },
     ],
   },
-};
+});
 
-// 2. Реестр: имена из JSON → React-компоненты.
+// 2. Реестр: имена из JSON → React-компоненты (глобальная настройка).
 const registry = defineRegistry((reg) => {
   reg.component('Input', Input);
   reg.component('Box', Box);
@@ -69,23 +71,26 @@ const registry = defineRegistry((reg) => {
 });
 
 function MyFormPage() {
-  // 3. Модель + форма строятся ИЗ JSON-схемы (единая схема, без отдельной схемы формы).
-  const { model } = useMemo(() => {
-    const model = createModel<MyForm>({ email: '' });
-    createForm<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
-    return { model };
-  }, []);
+  // 3. Сборка формы ОДНИМ проходом. useJsonForm (ленивый useState) держит model/form стабильными
+  //    между рендерами — useMemo не годится: React вправе сбросить кэш и потерять введённое.
+  const jsonForm = useJsonForm(() =>
+    createJsonForm<MyForm>({ schema: jsonSchema, registry, initial: { email: '' } })
+  );
 
-  // 4. Реестр — глобально через провайдер; модель — пропом рендерера, он биндит листья к её сигналам.
+  // 4. Реестр — глобально через провайдер; собранная форма — пропом `form`.
   return (
     <JsonRendererProvider settings={{ registry }}>
-      <JsonFormRenderer<MyForm> schema={jsonSchema} model={model} />
+      <JsonFormRenderer<MyForm> form={jsonForm} />
     </JsonRendererProvider>
   );
 }
 ```
 
-**Почему `model` — проп рендерера, а `registry` — провайдер?** `registry`/`fieldWrapper` глобальны (общие на всё поддерево форм), поэтому живут в `JsonRendererProvider`. Модель же per-form — у каждой формы своя, поэтому это проп `JsonFormRenderer` (под одним провайдером можно рендерить несколько форм с разными моделями). Под M1 листья схемы (`value: '$model(path)'`) биндятся к сигналам модели (`model.signalAt(path)`) конвертером; модель обязательна — без неё рендерер бросит `` `model` prop is required (M1) ``. `JsonFormRenderer` НЕ имеет `form`-пропа (JSON статичен): проп `model` принимает `FormModel`, а не собранную форму. Полный набор пропов — `{ schema, model, renderBehavior?, onSchemaReady?, validateSchema? }`.
+**Сборка один раз (`createJsonForm`).** Раньше схема шла дважды — в `convertJsonToM1Tree` (сборка формы) и пропом `schema` (рендер). `createJsonForm({ schema, registry, initial | model, behavior? })` инкапсулирует сборку и возвращает бандл `{ model, form, schema, registry }`. `useJsonForm(factory)` гарантирует единственную сборку (ленивый `useState`). Низкоуровневые `convertJsonToM1Tree`/`createRenderSchemaFromJsonM1` остаются для особых случаев.
+
+**Registry — глобально, форма — per-form.** `registry`/`fieldWrapper` общие на всё поддерево форм и живут в `JsonRendererProvider`; модель/форма per-form — приходят пропом (бандлом `form`, либо парой `schema`+`model`). Под одним провайдером можно рендерить несколько форм. Полный набор пропов — `{ form? | (schema + model), renderBehavior?, onSchemaReady?, validateSchema? }` (задаётся ЛИБО `form`, ЛИБО `schema`+`model`).
+
+**Схема строкой с сервера.** Если схема приходит `.json`-строкой (тип формы неизвестен), используй `JsonFormSchema` без параметра — типобезопасность путей отключается by-design (два сценария выглядят в коде по-разному). Такую схему приводят `raw as unknown as JsonFormSchema<MyForm>` и передают в `createJsonForm`/рендерер как обычно.
 
 ## Key Concepts
 
@@ -95,14 +100,18 @@ function MyFormPage() {
 - **Реестр** — карта имени из `$component(...)`/`$dataSource(...)` на React-компонент или source-значение. Без регистрации схема не сконвертируется (ошибка `Component "X" not found in registry`).
 - **`FIELD_WRAPPER`** — зарезервированный ключ реестра (`'$fieldWrapper'`) для компонента-обёртки полей (label, error, hint). Обычно `FormField` из `@reformer/ui-kit`.
 - **Адаптеры контролов (`resolveFieldAdapter`)** — `JsonRendererSettings extends RendererSettings`, поэтому в `JsonRendererProvider` settings можно передать `resolveFieldAdapter(component) => FieldAdapter | undefined`. Value-based контролы (`Input` и пр.) регистрируются как есть; СЫРОЙ контрол чужого диалекта (Checkbox `checked` + `onChange(event)`, Select `onChange(value, option)`, Radio `onChange(event)`) регистрируется по имени в реестре, а адаптер переводит seam `value` + `onChange(value)` на его диалект — без обёртки на каждый контрол. Детали — [03-registry.md](03-registry.md).
-- **`convertJsonToM1Tree`** — конвертер JSON → RenderNode-дерево для `createForm({ model, schema })`.
-- **`renderBehavior`** — TS-функция `RenderBehaviorFn<T>` (hideWhen/patchProps/onInit), применяется поверх готовой схемы; в JSON поведение не выражается.
+- **`createJsonForm` / `useJsonForm`** — сборка формы одним проходом: `createJsonForm({ schema, registry, initial | model, behavior? })` → `{ model, form, schema, registry }`; `useJsonForm(factory)` держит бандл стабильным (ленивый `useState`). Отдаётся рендереру пропом `form`. См. [05-cookbook.md](05-cookbook.md).
+- **`defineJsonSchema<T>`** — идентити-хелпер, типизирующий литерал схемы по форме `T`: пути `$model(...)` сужаются до `Path<T>` (опечатка — ошибка компиляции), не нужен `as unknown as JsonFormSchema`. См. [02-json-schema.md](02-json-schema.md).
+- **`convertJsonToM1Tree`** — низкоуровневый конвертер JSON → RenderNode-дерево для `createForm({ model, schema })` (обычно скрыт за `createJsonForm`).
+- **`renderBehavior`** — TS-функция `RenderBehaviorFn<T>` (hideWhen/patchProps/onInit), применяется поверх готовой схемы; в JSON поведение не выражается. Должна быть **стабильной по ссылке** (иначе dev-warn + пересборка дерева).
 
 ## Components and exports
 
 | Export                                          | Purpose                                                                    |
 | ----------------------------------------------- | -------------------------------------------------------------------------- |
-| `JsonFormRenderer`                              | Главный компонент-рендерер. Пропы: `{ schema, model, renderBehavior?, onSchemaReady?, validateSchema? }`. |
+| `JsonFormRenderer`                              | Главный компонент-рендерер. Пропы: `{ form? }` ЛИБО `{ schema, model }`, + `renderBehavior?, onSchemaReady?, validateSchema?`. |
+| `createJsonForm` / `useJsonForm`                | Сборка формы одним проходом → бандл `{ model, form, schema, registry }` (проп `form`); `useJsonForm` — стабильная сборка (ленивый `useState`). |
+| `defineJsonSchema<T>`                           | Типизирует литерал схемы по форме `T` (пути `$model(...)` → `Path<T>`).      |
 | `JsonRendererProvider`                          | Контекст-провайдер глобальных настроек: реестр (`registry`), `fieldWrapper`, `resolveFieldAdapter`. |
 | `useJsonRendererSettings`                       | Хук для чтения текущих настроек контекста.                                  |
 | `defineRegistry`                                | Builder реестра компонентов и dataSource-значений.                         |

@@ -14,3 +14,44 @@ Headless многошаговый визард из `@reformer/cdk`. `config` �
 Кнопка «Далее» запускает валидацию текущего шага и блокируется, пока шаг невалиден.
 
 <ComponentDoc config={formWizardDocConfig} />
+
+## defineSteps — конфиг по селектору шага
+
+Обычный `config` привязывает правила к шагу по индексу массива:
+`validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1])`. Индекс
+хрупкий: добавление или перестановка шага молча рассинхронизируют правила с
+позицией, а шаг без правил по умолчанию считается «валидным» — тихая дыра.
+
+`defineSteps` адресует правила по `selector` шага (тот же id, что у ноды шага в
+схеме), а не по `[step - 1]`. Порядок ключей = порядок шагов; шаг без правил
+объявляется **явно** через `null`. На выходе — обычный `FormWizardConfig`, визард
+потребляет его как раньше.
+
+```tsx
+import { FormWizard, defineSteps } from '@reformer/cdk/form-wizard';
+
+// step1 / step2 / crossFieldRules — ValidationSchema<Root>
+const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
+  steps: {
+    loan: step1,
+    applicant: step2,
+    confirm: null, // без правил — объявлено ЯВНО, а не по умолчанию
+  },
+  extras: crossFieldRules, // cross-field/warnings уровня формы — только на submit
+});
+
+<FormWizard form={form} config={config}>
+  {/* …Step / Actions… */}
+</FormWizard>;
+```
+
+Результат — `{ validateStep, validateAll, stepSelectors }`. `validateStep(n)`
+резолвит `n → selector → правила` внутри (хрупкая индексация инкапсулирована здесь,
+приложение её больше не пишет); `validateAll` собирает все непустые шаги плюс
+`extras`; `stepSelectors` — селекторы по порядку (индекс = `step - 1`). Обе проверки
+идут с `{ touch: true }` — метятся только провалидированные поля, без сплошного
+`form.markAsTouched()`.
+
+**Выигрыш против `STEP_SCHEMAS[step - 1]`:** перестановка шагов остаётся корректной
+(правила следуют за селектором, а не за индексом); шаг без правил виден в конфиге
+как `null`, а не как неявный пробел; вся арифметика смещений живёт в одном месте.

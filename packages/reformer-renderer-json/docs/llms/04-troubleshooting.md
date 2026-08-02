@@ -92,6 +92,39 @@ const renderBehavior: RenderBehaviorFn<MyForm> = (schema) => {
 
 `renderBehavior` передаётся пропом в `JsonFormRenderer`; узел адресуется по своему `selector`.
 
+## console.warn: `schema.node(...)` адресует неизвестный selector
+
+`schema.node('typo')` не нашёл узла с таким `selector` — рендерер пишет в консоль `console.warn` и перечисляет все известные селекторы схемы. Обычно это промах/опечатка в `selector` внутри `renderBehavior`: имя в `schema.node(...)` не совпадает с тем, что реально задано узлу в схеме (`selector: 'properties-array'`). Как чинить:
+
+- Сверь строку в `schema.node('...')` с `selector` целевого узла — регистр и дефисы должны совпадать буква в букву.
+- Убедись, что узлу вообще задан `selector` (без него узел не адресуется — см. «Behavior selector matches nothing»).
+- Возьми правильное имя из списка известных селекторов, который печатает сам warn.
+
+Промах не роняет форму, но behavior (`hideWhen`/`patchProps`) молча ни к чему не применяется — поэтому warn стоит воспринимать как ошибку конфигурации, а не как шум.
+
+## dev-warn: нестабильный `renderBehavior`
+
+Если ссылка на `renderBehavior` меняется между рендерами (новая функция на каждый рендер родителя), рендерер в dev-режиме предупреждает о нестабильном `renderBehavior`. Причина — behavior пересобирается на каждый проход и перевешивает реактивные связи впустую. Держи ссылку стабильной:
+
+- объяви функцию `const` на уровне модуля (как в примере «Toggle-видимость секции массива» выше), если она не замыкает пропсы/стейт;
+- либо оберни в `useMemo` / `useCallback` с корректными зависимостями, если behavior обязан замыкать что-то из компонента.
+
+```tsx
+// стабильно: не пересоздаётся на каждый рендер
+const renderBehavior = useCallback<RenderBehaviorFn<MyForm>>(
+  (schema) => {
+    hideWhen(schema.node('properties-array'), () => model.signalAt('hasProperty').value !== true);
+  },
+  [model],
+);
+
+<JsonFormRenderer<MyForm> form={jsonForm} renderBehavior={renderBehavior} />;
+```
+
+## Битая схема при выключенном `validateSchema` → `SchemaErrorPanel`, а не белый экран
+
+Раньше при `validateSchema={false}` (или когда валидатор отключён) ошибка в структуре схемы во время конвертации/рендера роняла поддерево — пользователь видел белый экран без диагностики. Теперь такой сбой перехватывает `SchemaErrorBoundary` и рисует `SchemaErrorPanel` с описанием проблемы — как и при `validateSchema={true}`. То есть панель ошибки схемы показывается в обоих режимах; `validateSchema={true}` лишь ловит проблему раньше и подробнее (мета-схема ajv + обход имён операторов, см. «"version" missing / invalid schema»), а выключенный флаг больше не превращает битую схему в пустую страницу.
+
 ## See also
 
 - [01-overview.md](01-overview.md)

@@ -247,3 +247,55 @@ Validation happens automatically:
 - On `submit` (ref `submit()` or `FormWizard.Actions` `onSubmit`): runs `validateAll()`; on success delegates to `form.submit(onSubmit, { skipValidation: true })`.
 
 > The higher-level `@reformer/ui-kit` `FormWizard` accepts the same `config`.
+
+## Building config from step selectors: `defineSteps`
+
+The raw `FormWizardConfig` above wires steps to rules by array position —
+`validateStep: (step) => validateModel(model, STEP_SCHEMAS[step - 1])`. That
+index is fragile: adding or reordering a step silently desyncs the rules from the
+position, and a step with no rules defaults to "valid" (a silent hole).
+
+`defineSteps` addresses the rules by the step's **selector** — the same id as the
+step node in the schema — instead of `[step - 1]`. Key order = step order; a step
+without rules is declared **explicitly** as `null`. It returns a plain
+`FormWizardConfig`, so the wizard consumes it unchanged.
+
+```tsx
+import { FormWizard, defineSteps } from '@reformer/cdk/form-wizard';
+
+// step1 / step2 / crossFieldRules are ValidationSchema<Root>
+// (defineValidationSchema / apply — see @reformer/core validation docs).
+const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
+  steps: {
+    loan: step1,
+    applicant: step2,
+    confirm: null, // no per-step rules — declared explicitly, not implied
+  },
+  extras: crossFieldRules, // form-level cross-field/warnings, applied on submit only
+});
+
+<FormWizard form={form} config={config}>
+  <FormWizard.Step component={LoanStep} control={form} />
+  <FormWizard.Step component={ApplicantStep} control={form} />
+  <FormWizard.Step component={ConfirmStep} control={form} />
+  {/* …Actions… */}
+</FormWizard>;
+```
+
+`defineSteps(model, config)` returns `{ validateStep, validateAll, stepSelectors }`:
+
+- `validateStep(n)` resolves `n → selector → rules` internally (the `[step - 1]`
+  indexing is encapsulated here — the app never writes it).
+- `validateAll()` composes every non-null step schema plus `extras`.
+- `stepSelectors` is the ordered list of selectors (index = `step - 1`), handy for
+  selector-based navigation or debugging.
+
+Both callbacks validate with `{ touch: true }`, so only the fields they actually
+validated get marked touched and their errors become visible — no blanket
+`form.markAsTouched()`, and the next step is not shown pre-touched.
+
+**Why over `STEP_SCHEMAS[step - 1]`:** reordering steps stays correct (rules follow
+the selector, not the index); a rule-less step is visible in the config as `null`
+instead of being an implicit gap; and the brittle offset math lives in one place.
+
+> Imported from `@reformer/cdk` (or `@reformer/cdk/form-wizard`).
