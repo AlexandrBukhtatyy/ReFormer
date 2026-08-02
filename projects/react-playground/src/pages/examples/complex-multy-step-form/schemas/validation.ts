@@ -586,8 +586,11 @@ const emptySchema: ValidationSchema<Root> = () => {};
  */
 export function makeCreditValidationConfig(model: M) {
   return {
+    // { touch: true } (§6): помечает touched ИМЕННО провалидированные поля шага — ошибки видны без
+    // ручного form.markAsTouched() на всё поддерево. Полный scoping «только текущий шаг» довершит
+    // рефактор wizard-контракта (#7); сейчас cdk-визард дополнительно метит форму на провале.
     validateStep: (step: number): Promise<boolean> =>
-      validateModel(model, STEP_SCHEMAS[step - 1] ?? emptySchema),
-    validateAll: (): Promise<boolean> => validateModel(model, fullSchema),
+      validateModel(model, STEP_SCHEMAS[step - 1] ?? emptySchema, { touch: true }),
+    validateAll: (): Promise<boolean> => validateModel(model, fullSchema, { touch: true }),
   };
 }

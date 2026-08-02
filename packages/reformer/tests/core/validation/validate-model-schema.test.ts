@@ -243,4 +243,43 @@ describe('@reformer/core/validation — validateModel + операторы', () 
     expect(r1).toBe(false); // без fail-closed фикса вернулось бы true (async-ошибка скипнута отменой)
     expect(r2).toBe(false); // честный: name='taken' занято
   });
+
+  describe('опция { touch } (§6)', () => {
+    it('метит touched ТОЛЬКО провалидированные поля (не всё поддерево)', async () => {
+      const { model, form } = makeForm({ name: '' });
+      const schema: ValidationSchema<F> = ({ model }) =>
+        validate(model.$.name, [required({ message: 'req' })]); // проверяет только name
+
+      expect(form.name.touched.value).toBe(false);
+      expect(form.age.touched.value).toBe(false);
+
+      await validateModel(model, schema, { touch: true });
+
+      expect(form.name.touched.value).toBe(true); // провалидированное → touched
+      expect(form.name.errors.value.map((e) => e.message)).toEqual(['req']); // ошибка теперь видима
+      expect(form.age.touched.value).toBe(false); // не упомянутое схемой → НЕ тронуто
+    });
+
+    it('без { touch } валидация не метит touched (обратная совместимость)', async () => {
+      const { model, form } = makeForm({ name: '' });
+      const schema: ValidationSchema<F> = ({ model }) =>
+        validate(model.$.name, [required({ message: 'req' })]);
+
+      await validateModel(model, schema);
+
+      expect(form.name.touched.value).toBe(false); // touched не тронут
+      expect(form.name.errors.value.map((e) => e.message)).toEqual(['req']); // ошибка есть, но невидима
+    });
+
+    it('метит и валидные провалидированные поля (безвредно)', async () => {
+      const { model, form } = makeForm({ name: 'Иван' });
+      const schema: ValidationSchema<F> = ({ model }) =>
+        validate(model.$.name, [required({ message: 'req' })]);
+
+      await validateModel(model, schema, { touch: true });
+
+      expect(form.name.touched.value).toBe(true);
+      expect(form.name.errors.value).toEqual([]); // валидно → ошибок нет, touched безвреден
+    });
+  });
 });
