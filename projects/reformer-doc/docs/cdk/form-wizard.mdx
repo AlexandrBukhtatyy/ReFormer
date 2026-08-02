@@ -45,13 +45,73 @@ const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
 </FormWizard>;
 ```
 
-Результат — `{ validateStep, validateAll, stepSelectors }`. `validateStep(n)`
-резолвит `n → selector → правила` внутри (хрупкая индексация инкапсулирована здесь,
-приложение её больше не пишет); `validateAll` собирает все непустые шаги плюс
-`extras`; `stepSelectors` — селекторы по порядку (индекс = `step - 1`). Обе проверки
-идут с `{ touch: true }` — метятся только провалидированные поля, без сплошного
-`form.markAsTouched()`.
+Результат — `{ validateStep, validateAll, stepSelectors, createStepController }`.
+`validateStep(n)` резолвит `n → selector → правила` внутри (хрупкая индексация
+инкапсулирована здесь, приложение её больше не пишет); `validateAll` собирает все
+непустые шаги плюс `extras`; `stepSelectors` — селекторы по порядку
+(индекс = `step - 1`). Обе проверки идут с `{ touch: true }` — метятся только
+провалидированные поля, без сплошного `form.markAsTouched()`.
+`createStepController` относится к живому слою и разобран
+[ниже](#live-step-validation).
 
 **Выигрыш против `STEP_SCHEMAS[step - 1]`:** перестановка шагов остаётся корректной
 (правила следуют за селектором, а не за индексом); шаг без правил виден в конфиге
 как `null`, а не как неявный пробел; вся арифметика смещений живёт в одном месте.
+
+## Живая валидация внутри шага — strategy {#live-step-validation}
+
+По умолчанию правила шага проверяются только на «Далее» (`validateStep`) и на
+финальном submit (`validateAll`). `defineSteps` дополнительно принимает `strategy`
+(плюс `debounce` и `liveAfterSubmit`) — **live-стратегию внутри активного шага**:
+тот же Слой A, что и у `createFormValidation`/`useFormValidation`, но привязанный к
+текущему шагу визарда.
+
+```tsx
+const config = defineSteps<'loan' | 'confirm', Root>(model, {
+  steps: {
+    loan: step1,
+    confirm: null,
+  },
+  strategy: 'blur', // подсвечивать ошибки шага по потере фокуса
+});
+```
+
+Значения `strategy` — `'submit' | 'blur' | 'change' | 'afterFirstSubmit'` (та же
+семантика, что у schema-стратегий Слоя A):
+
+- `submit` (default) — прогон только по `validateStep`/`validateAll`, живого слоя нет.
+- `blur` — перепрогон при потере фокуса поля; раскрываются только сблюренные поля (по `touched`).
+- `change` — перепрогон на каждый ввод (учитывает `debounce`); раскрываются только редактированные поля (по `dirty`).
+- `afterFirstSubmit` — тихо до первого submit, дальше live по `liveAfterSubmit`
+  (`'change'` по умолчанию или `'blur'`).
+
+`defineSteps` также возвращает
+`createStepController(step): FormValidationController | null` — контроллер
+live-стратегии для конкретного шага (или `null`, если у шага нет правил либо
+`strategy` не задана). Руками его обычно не дёргают: подписки поднимает хук ниже.
+
+## useWizardStepValidation — армит стратегию под текущий шаг
+
+`useWizardStepValidation(config)` вызывается **в теле компонента шага**. Он берёт
+`currentStep` из `FormWizardContext`, поднимает контроллер live-стратегии под этот
+шаг и снимает подписки при смене шага или размонтировании — так живой слой всегда
+следует за активным шагом.
+
+```tsx
+import { useWizardStepValidation } from '@reformer/cdk/form-wizard';
+
+function LoanStep() {
+  useWizardStepValidation(config); // config из defineSteps(..., { strategy: 'blur' })
+  return <>{/* поля шага */}</>;
+}
+```
+
+Хук — **no-op**, если `strategy` не задана, равна `'submit'`, или у текущего шага
+нет правил (объявлен `null`). Поэтому вызывать его безопасно в любом шаге.
+
+:::info Живой слой поверх, а не вместо
+Per-step gate («Далее» → `validateStep`) и submit (`validateAll`) **не меняются** —
+`strategy` добавляет живой слой подсветки _поверх_ них. Кнопка «Далее» по-прежнему
+блокируется через `validateStep`, а финальный прогон идёт через `validateAll` с
+`{ touch: true }`.
+:::

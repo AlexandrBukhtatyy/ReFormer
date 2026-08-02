@@ -1288,14 +1288,25 @@ export function createJsonRenderBehavior(
 
 > **Мост «поведение инициирует валидацию».** Если правка одного поля должна пере-прогнать валидацию другого (без submit), это делает НЕ схема, а поведение — через `revalidateWhen` в `defineFormBehavior` (контракт `@reformer/core/behaviors`): `revalidateWhen([model.$.dep], () => void validateModel(model, schema))`. Валидация остаётся отдельным слоем; behavior лишь дёргает раннер.
 
-## 50. Anti-patterns
+## 50. Когда прогонять — декларативная стратегия { #strategy }
+
+До сих пор момент прогона разводился руками: `validateModel` на «Далее»/submit (§ #execute) или дёрганье раннера поведением через `revalidateWhen` (§ #inject). **Когда** запускать валидацию, можно выбрать декларативно — тем же контрактом, что и для typed-формы. Схема — тот же TS-артефакт над моделью, JSON тут ни при чём (он несёт только layout); API живёт в `@reformer/core`/`@reformer/cdk` и работает одинаково для typed- и JSON-схем.
+
+- **Простая форма** — хук `useFormValidation({ model, schema, strategy })` из `@reformer/core` (рядом с `useFormControl`): мемоизирует контроллер, армит подписки в `useEffect` (SSR-safe), отдаёт `{ submit, validate, isValidating }`. `submit()` = полный прогон с `{ touch: true }` (раскрывает все ошибки). `schema` — ОБЯЗАТЕЛЬНО стабильная ссылка (module-level `const` / `useMemo`), иначе ломается дедуп раннера (та же причина, что и в § #execute).
+- **Wizard** — опция `strategy` в `defineSteps(model, { steps, strategy, debounce?, liveAfterSubmit? })` задаёт ЖИВУЮ стратегию ВНУТРИ активного шага, а хук `useWizardStepValidation(config)` из `@reformer/cdk` армит её под текущий шаг (снимает при смене шага/unmount; no-op, если `strategy` не задана / `'submit'` / у шага нет правил). Per-step gate на «Далее» и `validateAll` на submit (§ #execute) НЕ меняются — стратегия добавляется ЖИВЫМ слоем ПОВЕРХ них.
+
+Значения `strategy` (таблица одинакова для JSON- и typed-схем): `submit` (default — прогон только на submit/`validate()`), `blur` (по потере фокуса, раскрывает сблюренные поля), `change` (на каждый ввод + `debounce`, раскрывает редактированные), `afterFirstSubmit` (тихо до 1-го submit → раскрыть всё на submit → дальше live по `liveAfterSubmit: 'change' | 'blur'`, default `'change'`). Всё аддитивно, ломающих изменений нет; полная семантика операторов и раннера — в `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md), сборка wizard-конфига — в [07-form-wizard.md](07-form-wizard.md).
+
+> **Не смешивай слои на одном поле.** Node-level `updateOn`/`debounce` на ноде поля (legacy-реактивные триггеры) и активная schema-стратегия оба пишут ошибки в ту же ноду → мерцание. Один слой на поле.
+
+## 51. Anti-patterns
 
 - **Ждать, что `validateSchema={true}` (или `validateFormSchema`) валидирует значения** — этот проп проверяет только СТРУКТУРУ схемы через ajv (узлы + синтаксис операторов + имена компонентов). Введённые пользователем значения он не трогает. Валидацию значений исполняет раннер `validateModel` над моделью.
 - **Пытаться добавить `validators` в JSON field-node** — `JsonFieldNode` несёт только layout (`value`/`component`/`componentProps`/`wrapper`). Поля `validators` в нём нет, оператора `$validator(...)` не существует. TypeScript отклонит лишнее поле; даже если протащить через `as`, конвертер его проигнорирует.
 - **Инлайнить схему в `validateModel` или пересобирать её на каждый прогон** — схема это обычная функция над формой модели (`validate(model.$.path, [...])` адресует поле сигналом — стабильной ссылкой; значения читаются раннером в момент прогона). Держите схемы стабильными `const` через `defineValidationSchema`: `validateModel` отменяет устаревший прогон по идентичности схемы, а инлайн-стрелка (`validateModel(model, ({ model }) => …)`) каждый раз даёт новый прогон без дедупликации.
 - **Забыть `selector: 'wizard'` у wizard-ноды** — без `selector` узел не адресуется через `schema.node('wizard')`, `onInit`/`patchProps` не найдут его и валидация не инъектируется (submit пройдёт без блокировки).
 
-## 51. See also
+## 52. See also
 
 - [07-form-wizard.md](07-form-wizard.md) — end-to-end wizard в JSON: submit (`onComponentEvent`), навигация (`renderEffect`), инъекция этой валидации, а также `defineSteps` из `@reformer/cdk` (сборка `validateStep`/`validateAll` по `selector`, `{ touch: true }` внутри).
 - [02-json-schema.md](02-json-schema.md) — справочник по узлам `JsonNode` (field-node несёт только layout).
@@ -1303,7 +1314,7 @@ export function createJsonRenderBehavior(
 - `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — операторы схемы валидации (`validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply`), раннер `validateModel`, STEP_SCHEMAS.
 - [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts) и [validate.ts](../../src/validate.ts) — структурная валидация схемы.
 
-## 52. Половина 1 — layout шагов в JSON { #json-shape }
+## 53. Половина 1 — layout шагов в JSON { #json-shape }
 
 Wizard — обычная container-нода со `selector: 'wizard'` (чтобы адресоваться через `schema.node('wizard')`). Шаги лежат в **`componentProps.steps`** — массив container-нод, а **не** в top-level `children`. Каждый шаг — нода `$component(Step)` с `componentProps: { title, icon }` и собственным `children` (поддерево layout шага).
 
@@ -1346,7 +1357,7 @@ Ground truth: golden `complex-multy-step-form-renderer-json/json-schema.json` (w
 
 > Отличие от `@reformer/renderer-react`: там шаг — объект `{ number, title, icon, body }`, где `body` — самостоятельный `RenderNode` (см. renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms)). В JSON-DSL нельзя вписать `RenderNode` как значение пропа, поэтому шаг выражается **container-нодой** `Step` + `children`, а wizard-компонент адаптирует эту форму под `step.body`.
 
-## 53. Регистрируй свой wizard-компонент в реестре { #register }
+## 54. Регистрируй свой wizard-компонент в реестре { #register }
 
 `$component(Wizard)` — это **запись в реестре**, а не библиотечный экспорт: имя резолвится через registry (`reg.component('Wizard', <твой компонент>)`). Имя произвольное — важно лишь совпадение строки в JSON и ключа в реестре.
 
@@ -1366,7 +1377,7 @@ const registry = defineRegistry((reg) => {
 
 > В golden-эталоне под `$component(Wizard)` зарегистрирован app-shim `RendererFormWizard`: он снимает `title`/`icon` c `componentProps` Step-ноды, а сам Step-узел кладёт в `step.body` ui-kit `FormWizard`. Shim — деталь приложения, **не** канон библиотеки; регистрируй под этим именем любой совместимый с `FormWizard` компонент.
 
-## 54. Половина 2 — поведение в одном render-behavior { #render-behavior }
+## 55. Половина 2 — поведение в одном render-behavior { #render-behavior }
 
 Один `RenderBehaviorFn<T>` навешивает всё рантайм-поведение на wizard-ноду. Порядок: (a) инъекция `form` + валидации через `onInit`; (b) submit через `onComponentEvent`; (c) навигация через `renderEffect` + `wizardRef`; (d) условные секции через `hideWhen`. Семантику хелперов см. renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md).
 
@@ -1420,7 +1431,7 @@ export function createWizardRenderBehavior(
 
 Ground truth: golden `complex-multy-step-form-renderer/render-behavior.ts` — `onComponentEvent(schema.node('wizard'), 'onSubmit', ...)`, `renderEffect(schema, () => wizardRef.current?.goToStep(1))`, `hideWhen(...)`; инъекция `form`+валидации — `complex-multy-step-form-renderer-json/render-behavior.ts`.
 
-## 55. Конфиг валидации через `defineSteps` (адресация по selector) { #define-steps }
+## 56. Конфиг валидации через `defineSteps` (адресация по selector) { #define-steps }
 
 `makeValidationConfig(model)` в примерах выше (см. [06-validation.md#execute](06-validation.md#execute)) собирает `FormWizardConfig` вручную — массивом `STEP_SCHEMAS[step - 1]`. Массив привязывает правила к **позиции**: вставил шаг в середину или переставил два — индексы поехали, и `validateStep(2)` молча валидирует уже чужой шаг; шаг без правил приходится просто «не класть» в массив, и он по умолчанию считается валидным — тихая дыра.
 
@@ -1473,7 +1484,7 @@ onInit(wizard, () => {
 
 Ground truth: `packages/reformer-cdk/src/components/form-wizard/define-steps.ts` (маппинг `step → selector → правила`, стабильная `fullSchema` для submit, `{ touch: true }` в обоих колбэках) и его тест `define-steps.test.ts`.
 
-## 56. Anti-patterns
+## 57. Anti-patterns
 
 - **Класть шаги в top-level `children` wizard-ноды** — шаги живут в `componentProps.steps`. Top-level `children` wizard-компонент не читает как шаги.
 - **Ждать шаг как `{ number, title, icon, body }` в JSON** — это форма renderer-react. В JSON шаг — container-нода `$component(Step)` + `componentProps.title/icon` + `children`.
@@ -1483,7 +1494,7 @@ Ground truth: `packages/reformer-cdk/src/components/form-wizard/define-steps.ts`
 - **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, инъекция/submit/навигация не навесятся.
 - **Адресовать правила шагов массивом `STEP_SCHEMAS[step - 1]`** — привязка к позиции: вставка/перестановка шага молча разъезжается с индексами, а «забытый» шаг становится валидным по умолчанию. Собирай `FormWizardConfig` через `defineSteps` (адресация по `selector`, шаг без правил — явный `null`, `{ touch: true }` уже внутри) — см. [#define-steps](#define-steps).
 
-## 57. See also
+## 58. See also
 
 - [06-validation.md](06-validation.md) — `makeValidationConfig` (TS-схема над моделью), инъекция `validateStep`/`validateAll` в wizard.
 - [#define-steps](#define-steps) — `defineSteps` из `@reformer/cdk/form-wizard`: сборка `FormWizardConfig` из правил, адресованных по `selector` шага (рекомендуемая альтернатива массиву `STEP_SCHEMAS[step - 1]`).
@@ -1491,7 +1502,7 @@ Ground truth: `packages/reformer-cdk/src/components/form-wizard/define-steps.ts`
 - renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md) — семантика `hideWhen`/`renderEffect`/`onComponentEvent`/`onInit`.
 - renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms) — канонический `FormWizard`, форма шага `{ number, title, icon, body }`.
 
-## 58. Два пути (важно выбрать правильный)
+## 59. Два пути (важно выбрать правильный)
 
 Значение попадает в один из двух приёмников, и это определяет путь:
 
@@ -1502,7 +1513,7 @@ Ground truth: `packages/reformer-cdk/src/components/form-wizard/define-steps.ts`
 
 Причина: `componentProps` спредятся в компонент как есть — signal/ReactNode в `label` уронит его (`Objects are not valid as a React child`). Строковый путь резолвится один раз при конвертации (смена языка = пересборка дерева); реактивный путь читает сервис из React-контекста на этапе рендера (live-переключение).
 
-## 59. Сервис локализации
+## 60. Сервис локализации
 
 ```ts
 interface LocaleService {
@@ -1556,7 +1567,7 @@ const service: LocaleService = {
 };
 ```
 
-## 60. Путь 1 — строковые пропы (статично)
+## 61. Путь 1 — строковые пропы (статично)
 
 Без параметров — строковый оператор:
 
@@ -1583,7 +1594,7 @@ const registry = defineRegistry((reg) => {
 });
 ```
 
-## 61. Путь 2 — реактивный компонент `I18n`
+## 62. Путь 2 — реактивный компонент `I18n`
 
 Для markdown/rich и/или реактивных параметров и live-переключения языка. Регистрируется как компонент, оборачивается `LocaleProvider`:
 
@@ -1616,11 +1627,11 @@ function App() {
 
 `I18n` рендерит `service.render?.()` (markdown/JSX) либо `service.resolve()` (строка) — формат решает сервис. Перерисовывается при смене сигнала `values.count` и при смене `service` в `LocaleProvider` (переключение языка).
 
-## 62. Валидация
+## 63. Валидация
 
 `validateFormSchema` проверяет ключи `$locale(...)` и структурной формы `{ $locale }` против `localeKeys` (из `service.keys` или явного списка) — опечатка ключа ловится до рендера. Нет каталога → проверка мягко пропускается (ключи свободные).
 
-## 63. Anti-patterns
+## 64. Anti-patterns
 
 - **markdown/JSX в строковый проп** — `label: "$locale(...)"` с сервисом, возвращающим ReactNode, уронит компонент. Rich-контент только через `$component(I18n)` (или свой `$component(RichText)`).
 - **реактивный параметр в строковом `$locale`** — `{ $locale, params: { count: "$model(...)" } }` берётся снимком и **не обновляется** (путь статичный); в dev печатается warning. Для реактивных model-параметров → `I18n` с `values`.
@@ -1628,13 +1639,13 @@ function App() {
 - **ждать live-переключения от `$locale`** — строковый путь статичен; смена языка для label/placeholder требует пересборки (новый сервис в `reg.locale` + пере-render). Live только у `I18n`.
 - **тащить ICU/markdown в схему** — форматтер живёт в реализации `LocaleService` у потребителя, не в JSON.
 
-## 64. See also
+## 65. See also
 
 - [02-json-schema.md](02-json-schema.md) — где `$locale`/`I18n` появляются в схеме.
 - [03-registry.md](03-registry.md) — `reg.locale`, `createLocaleService`, регистрация `I18n`.
 - [06-validation.md](06-validation.md) — валидация значений (отдельно от локализации).
 
-## 65. Границы слоёв
+## 66. Границы слоёв
 
 - [ ] в `form.json` только структура и пропы — **никаких функций и рантайм-сущностей** (правила,
       расчёты, компоненты живут в TS-файлах, не в схеме);
@@ -1643,7 +1654,7 @@ function App() {
 - [ ] `form.behavior` меняет только поля модели, `ui.behavior` — только дерево рендера
       (видимость/patchProps/события); бизнес-расчёты не в `ui.behavior`.
 
-## 66. Связи по строкам (ломаются молча)
+## 67. Связи по строкам (ломаются молча)
 
 - [ ] у каждого узла, который адресует поведение, есть `selector`, и он в union-типе селекторов
       страницы (опечатка → ошибка компиляции, а не тихий промах);
@@ -1654,7 +1665,7 @@ function App() {
 - [ ] `validateSchema` включён хотя бы в dev (`validateSchema={import.meta.env.DEV}`) — ловит
       неизвестные `$component`/`$dataSource` и структурные ошибки до рендера.
 
-## 67. Валидация и видимость
+## 68. Валидация и видимость
 
 - [ ] пошаговая валидация помечает поля `touched` — иначе блокировка перехода невидима; используй
       `validateModel(model, schema, { touch: true })`, а не ручной `form.markAsTouched()` на всё
@@ -1663,7 +1674,7 @@ function App() {
       скрытое поле продолжает валидироваться и уезжает в payload;
 - [ ] предикаты `hideWhen` читают сигнал целиком (`form.x.value.value`), иначе они не реактивны.
 
-## 68. Рендер и мост
+## 69. Рендер и мост
 
 - [ ] `renderBehavior` стабилен по ссылке (иначе дерево пересобирается каждый рендер — в dev теперь
       есть предупреждение);
@@ -1674,13 +1685,13 @@ function App() {
 - [ ] реестр уровня страницы — это нормально и должно быть дефолтом; в общий реестр моста выносится
       только то, что переиспользуется несколькими формами.
 
-## 69. См. также
+## 70. См. также
 
 - [01-overview.md](01-overview.md) — монтаж формы (`createJsonForm` + провайдер).
 - [06-validation.md](06-validation.md) — валидация над моделью, опция `{ touch }`.
 - [07-form-wizard.md](07-form-wizard.md) — визард и пошаговая валидация.
 
-## 70. API Reference
+## 71. API Reference
 
 _Auto-generated from JSDoc on public exports._
 

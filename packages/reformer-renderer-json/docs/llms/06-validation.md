@@ -194,6 +194,17 @@ export function createJsonRenderBehavior(
 
 > **Мост «поведение инициирует валидацию».** Если правка одного поля должна пере-прогнать валидацию другого (без submit), это делает НЕ схема, а поведение — через `revalidateWhen` в `defineFormBehavior` (контракт `@reformer/core/behaviors`): `revalidateWhen([model.$.dep], () => void validateModel(model, schema))`. Валидация остаётся отдельным слоем; behavior лишь дёргает раннер.
 
+## Когда прогонять — декларативная стратегия { #strategy }
+
+До сих пор момент прогона разводился руками: `validateModel` на «Далее»/submit (§ #execute) или дёрганье раннера поведением через `revalidateWhen` (§ #inject). **Когда** запускать валидацию, можно выбрать декларативно — тем же контрактом, что и для typed-формы. Схема — тот же TS-артефакт над моделью, JSON тут ни при чём (он несёт только layout); API живёт в `@reformer/core`/`@reformer/cdk` и работает одинаково для typed- и JSON-схем.
+
+- **Простая форма** — хук `useFormValidation({ model, schema, strategy })` из `@reformer/core` (рядом с `useFormControl`): мемоизирует контроллер, армит подписки в `useEffect` (SSR-safe), отдаёт `{ submit, validate, isValidating }`. `submit()` = полный прогон с `{ touch: true }` (раскрывает все ошибки). `schema` — ОБЯЗАТЕЛЬНО стабильная ссылка (module-level `const` / `useMemo`), иначе ломается дедуп раннера (та же причина, что и в § #execute).
+- **Wizard** — опция `strategy` в `defineSteps(model, { steps, strategy, debounce?, liveAfterSubmit? })` задаёт ЖИВУЮ стратегию ВНУТРИ активного шага, а хук `useWizardStepValidation(config)` из `@reformer/cdk` армит её под текущий шаг (снимает при смене шага/unmount; no-op, если `strategy` не задана / `'submit'` / у шага нет правил). Per-step gate на «Далее» и `validateAll` на submit (§ #execute) НЕ меняются — стратегия добавляется ЖИВЫМ слоем ПОВЕРХ них.
+
+Значения `strategy` (таблица одинакова для JSON- и typed-схем): `submit` (default — прогон только на submit/`validate()`), `blur` (по потере фокуса, раскрывает сблюренные поля), `change` (на каждый ввод + `debounce`, раскрывает редактированные), `afterFirstSubmit` (тихо до 1-го submit → раскрыть всё на submit → дальше live по `liveAfterSubmit: 'change' | 'blur'`, default `'change'`). Всё аддитивно, ломающих изменений нет; полная семантика операторов и раннера — в `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md), сборка wizard-конфига — в [07-form-wizard.md](07-form-wizard.md).
+
+> **Не смешивай слои на одном поле.** Node-level `updateOn`/`debounce` на ноде поля (legacy-реактивные триггеры) и активная schema-стратегия оба пишут ошибки в ту же ноду → мерцание. Один слой на поле.
+
 ## Anti-patterns
 
 - **Ждать, что `validateSchema={true}` (или `validateFormSchema`) валидирует значения** — этот проп проверяет только СТРУКТУРУ схемы через ajv (узлы + синтаксис операторов + имена компонентов). Введённые пользователем значения он не трогает. Валидацию значений исполняет раннер `validateModel` над моделью.

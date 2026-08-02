@@ -96,6 +96,12 @@ UI подсвечивает), и headless (server action, юнит-тест — 
 Пошаговые формы оборачивают его в конфиг: `makeValidationConfig(model)` → `{ validateStep, validateAll }`
 для `FormWizard`. Реактивный мост «поведение инициирует валидацию» — оператор поведения
 `revalidateWhen([deps], () => void validateModel(model, schema))`.
+
+Момент прогона выбирается **декларативно**: хук `useFormValidation({ model, schema, strategy })`
+(простая форма) и опция `strategy` в `defineSteps` + хук `useWizardStepValidation` (wizard) сами
+решают, когда дёргать раннер (`submit` / `blur` / `change` / `afterFirstSubmit`). `validateModel`
+при этом остаётся низкоуровневым раннером под ними — единственным движком, а стратегия лишь выбирает
+точки вызова.
 :::
 
 ## Чтение состояния поля
@@ -189,7 +195,7 @@ const ok = await validateModel(model, orderValidation);
 - [Встроенные валидаторы](/docs/validation/built-in) — полный список фабрик с сигнатурами.
 - [Кастомные валидаторы](/docs/validation/custom) — свои правила и кросс-полевые проверки.
 - [Асинхронная валидация](/docs/validation/async) — проверки через сервер.
-- [Стратегии валидации](/docs/validation/validation-strategies) — `updateOn`, debounce, пошаговые формы.
+- [Стратегии валидации](/docs/validation/validation-strategies) — выбор стратегии (`useFormValidation`), `submit` / `blur` / `change` / `afterFirstSubmit`, пошаговые формы.
 - [Обработка ошибок](/docs/validation/error-handling) — чтение, фильтрация и отображение ошибок.
   </content>
   </invoke>
