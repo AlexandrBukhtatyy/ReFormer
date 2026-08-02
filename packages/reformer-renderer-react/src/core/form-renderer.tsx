@@ -6,7 +6,7 @@
 
 import { type ReactNode } from 'react';
 import type { FormRendererProps } from './types';
-import { RenderNodeComponent, useSelectorMissCheck } from './render-node';
+import { RenderNodeComponent } from './render-node';
 import { RenderContextProvider } from './render-context';
 import { isRenderSchemaProxy, RenderSchemaOverrideContext } from './render-schema-proxy';
 import { RenderBehaviorEffects } from './render-behavior';
@@ -51,8 +51,6 @@ import { RenderBehaviorEffects } from './render-behavior';
  */
 export function FormRenderer<T>({ render, settings }: FormRendererProps<T>): ReactNode {
   const rootNode = render();
-  // §8: диагностика промаха selector в schema.node(...) — раз на сборку схемы, без падений.
-  useSelectorMissCheck(render, rootNode);
 
   const inner: ReactNode = (
     <RenderContextProvider value={{ settings }}>
