@@ -6,7 +6,7 @@
 
 **Problem.** JSON-схема статична, а данные и форма — runtime. Нужно связать их без React-glue на каждой странице.
 
-**Solution.** Модель (`FormModel`) — источник данных, форма строится из **той же** JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает модель через `JsonRendererProvider` settings. `JsonFormRenderer` не имеет `form`-пропа (by-design).
+**Solution.** Модель (`FormModel`) — источник данных, форма строится из **той же** JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает `schema` + `model` пропами. Это низкоуровневый (ручной) путь: схема передаётся дважды — конвертеру и рендереру, а «собрать ровно один раз» держится на комментарии в прикладном коде. `JsonFormRenderer` принимает **либо** пару `schema` + `model` (как здесь), **либо** готовый бандл `form={jsonForm}` — рекомендуемый одно-проходный способ, см. [«Сборка формы одним проходом»](#one-pass).
 
 ```tsx
 import { useMemo } from 'react';
@@ -44,6 +44,93 @@ export function MyFormPage() {
 - `convertJsonToM1Tree` бросает при битой схеме (неизвестный `$component`) **до** рендера. Оберни в try/catch, если хочешь показать `SchemaErrorPanel` вместо краша (см. `buildModelAndForm` в эталоне).
 - `validateSchema={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
 - Поведение (compute/enableWhen/navigation) идёт в `createForm({ behavior })`; render-behavior (hideWhen/patchProps/onInit) — отдельным пропом `renderBehavior`.
+- Ручная сборка выше — низкоуровневый путь. Рекомендуемый — собрать всё одним проходом через `createJsonForm` и отдать бандлом `form={jsonForm}`, см. [ниже](#one-pass).
+
+## Сборка формы одним проходом { #one-pass }
+
+**Problem.** Ручной монтаж (см. выше) передаёт схему дважды: в `convertJsonToM1Tree` (для `createForm`) и пропом `schema` в `JsonFormRenderer`. Две несвязанные передачи одного артефакта легко разъезжаются (рендереру уходит не та схема/модель), а «собрать ровно один раз» держится на комментарии. Плюс `useMemo` для сборки модели/формы ненадёжен: React вправе сбросить его кэш и пересоздать форму → потеря введённого.
+
+**Solution.** `createJsonForm<T>({ schema, registry, initial | model, behavior? })` собирает всё за один проход и возвращает бандл `{ model, form, schema, registry }`. Хук `useJsonForm(factory)` делает сборку стабильной (ленивый `useState` — фабрика зовётся ровно один раз). Бандл целиком отдаётся рендереру пропом `form` — `schema` и `model` он берёт из него.
+
+```tsx
+import { useMemo } from 'react';
+import {
+  createJsonForm,
+  useJsonForm,
+  defineJsonSchema,
+  JsonFormRenderer,
+  JsonRendererProvider,
+} from '@reformer/renderer-json';
+import { createRegistry } from './registry';
+import { formBehavior } from './behavior';
+
+interface CreditForm {
+  loanType: string;
+  personalData: { firstName: string };
+}
+const INITIAL: CreditForm = { loanType: 'consumer', personalData: { firstName: '' } };
+
+// defineJsonSchema<T> типизирует пути $model(...): $model(personalData.firstName) — ок,
+// а $model(personalData.firstNam) — ошибка компиляции (нет такого пути в CreditForm).
+// Не нужен `as unknown as JsonFormSchema`.
+const schema = defineJsonSchema<CreditForm>({
+  version: '1.0',
+  root: {
+    component: '$component(Box)',
+    children: [
+      {
+        value: '$model(personalData.firstName)',
+        component: '$component(Input)',
+        componentProps: { label: 'Имя' },
+      },
+    ],
+  },
+});
+
+export function CreditFormPage() {
+  const registry = useMemo(() => createRegistry(), []);
+  // factory зовётся один раз — model/form переживают ре-рендеры (в отличие от useMemo).
+  const jsonForm = useJsonForm(() =>
+    createJsonForm<CreditForm>({ schema, registry, initial: INITIAL, behavior: formBehavior })
+  );
+
+  return (
+    <JsonRendererProvider settings={{ registry }}>
+      {/* Проп form поставляет и schema, и model — передавать их отдельно не нужно. */}
+      <JsonFormRenderer form={jsonForm} validateSchema={import.meta.env.DEV} />
+    </JsonRendererProvider>
+  );
+}
+```
+
+Тот же результат ручной сборкой (схема передаётся дважды, `useMemo` вместо `useJsonForm`) — для сравнения:
+
+```tsx
+// Было (ручная сборка): createModel + createForm + convertJsonToM1Tree.
+const model = createModel<CreditForm>(INITIAL);
+const form = createForm<CreditForm>({
+  model,
+  schema: convertJsonToM1Tree(schema, registry, model),
+  behavior: formBehavior,
+});
+// ...
+<JsonFormRenderer<CreditForm> schema={schema} model={model} />;
+
+// Стало (одним проходом): бандл { model, form, schema, registry } → проп form.
+const jsonForm = useJsonForm(() =>
+  createJsonForm<CreditForm>({ schema, registry, initial: INITIAL, behavior: formBehavior })
+);
+// ...
+<JsonFormRenderer form={jsonForm} />;
+```
+
+**Notes.**
+
+- Модель задаётся **либо** `initial` (создаётся внутри через `createModel`), **либо** готовой `model` (приоритетнее `initial`). Ни того, ни другого — `createJsonForm` бросает.
+- `behavior` (compute/copyFrom/enableWhen/onChange модели) уходит в `createForm({ behavior })` внутри — не путать с `renderBehavior` (hideWhen/patchProps/onInit), который по-прежнему отдельный проп `JsonFormRenderer`.
+- `JsonFormRenderer` принимает **либо** `form={jsonForm}`, **либо** пару `schema` + `model`. С бандлом отдельные `schema`/`model` не нужны; не задать ни `form`, ни `schema`+`model` — рендерер бросит.
+- `useJsonForm(factory)` — стабильная сборка через ленивый `useState`; `factory` вызывается ровно один раз. `useMemo` для сборки формы не годится (React вправе сбросить кэш → потеря введённого).
+- `defineJsonSchema<T>` — identity-хелпер: сужает пути `$model(...)` до `Path<T>` (опечатка — ошибка компиляции). Схему-строку-с-сервера (тип формы неизвестен) типизируй `JsonFormSchema` без параметра (`raw as unknown as JsonFormSchema<T>`). Пути внутри `item.$template` относительны элементу и НЕ типизируются.
 
 ## $template для массивов { #template-arrays }
 

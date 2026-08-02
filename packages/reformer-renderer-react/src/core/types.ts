@@ -296,6 +296,13 @@ export interface FieldAdapter {
   bindBlur?: (onBlur: () => void) => Record<string, unknown>;
   /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
   strip?: string[];
+  /**
+   * Передавать ли контролу ноду формы пропом `control` (§3.1). По умолчанию `false`: `control`
+   * контролу не нужен (реактивные пропы мёржит рендерер, errors/touched — FieldWrapper). Ставь
+   * `true`, если контрол сам потребляет ноду (напр. вызывает `useFormControl(control)`). Альтернатива
+   * без адаптера — статик на компоненте: `MyControl.reformerNeedsControl = true`.
+   */
+  passControl?: boolean;
 }
 
 /**

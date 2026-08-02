@@ -7,9 +7,8 @@
  * получает `type`/`message` через `$model(...)`. Показ/скрытие алертов = мутация массива в behavior
  * (H1) — список ре-рендерится сам.
  */
-import { createModel, createForm } from '@reformer/core';
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
-import { convertJsonToM1Tree, type JsonFormSchema } from '@reformer/renderer-json';
+import { createJsonForm, type JsonForm, type JsonFormSchema } from '@reformer/renderer-json';
 import { createAlertsRegistry } from './registry';
 import rawJsonSchema from './json-schema.json';
 
@@ -24,7 +23,7 @@ export interface AlertsFormData {
   alerts: AlertItem[];
 }
 
-export const alertsJsonSchema = rawJsonSchema as unknown as JsonFormSchema;
+export const alertsJsonSchema = rawJsonSchema as unknown as JsonFormSchema<AlertsFormData>;
 
 const INITIAL: AlertsFormData = { amount: '', email: '', alerts: [] };
 
@@ -61,15 +60,15 @@ const alertsBehavior = defineFormBehavior<AlertsFormData>(({ model }) => {
   onChange(model.$.email, () => applyAlerts(model));
 });
 
-export function createAlertsSetup() {
-  const registry = createAlertsRegistry();
-  const model = createModel<AlertsFormData>({ ...INITIAL });
-  createForm<AlertsFormData>({
-    model,
-    schema: convertJsonToM1Tree(alertsJsonSchema, registry, model),
+export function createAlertsSetup(): JsonForm<AlertsFormData> {
+  // Сборка одним проходом (§7): схема конвертируется внутри createJsonForm, наружу — готовый бандл.
+  const jsonForm = createJsonForm<AlertsFormData>({
+    schema: alertsJsonSchema,
+    registry: createAlertsRegistry(),
+    initial: { ...INITIAL },
     behavior: alertsBehavior,
   });
   // Начальное наполнение (onChange не срабатывает на init).
-  applyAlerts(model);
-  return { model, registry };
+  applyAlerts(jsonForm.model);
+  return jsonForm;
 }

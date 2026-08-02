@@ -115,6 +115,52 @@ describe('validateFormSchema', () => {
     expect(validateFormSchema(schema, opts).valid).toBe(true);
   });
 
+  it('flags an array node whose initialValue is missing a template element key (§8)', () => {
+    const schema = {
+      root: {
+        array: '$model(properties)',
+        initialValue: { type: '' }, // не хватает estimatedValue
+        item: {
+          $template: {
+            component: '$component(Box)',
+            children: [
+              { value: '$model(type)', component: '$component(Input)' },
+              { value: '$model(estimatedValue)', component: '$component(Input)' },
+            ],
+          },
+        },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, opts);
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/estimatedValue/);
+  });
+
+  it('accepts a complete initialValue; nested-array key counts, its inner leaves do not (§8)', () => {
+    const schema = {
+      root: {
+        array: '$model(properties)',
+        // ключи элемента: type (лист) + docs (вложенный массив). Внутренний лист вложенного
+        // массива (fileName) — ключ ВЛОЖЕННОГО элемента, в этот initialValue входить не должен.
+        initialValue: { type: '', docs: [] },
+        item: {
+          $template: {
+            component: '$component(Box)',
+            children: [
+              { value: '$model(type)', component: '$component(Input)' },
+              {
+                array: '$model(docs)',
+                initialValue: { fileName: '' },
+                item: { $template: { value: '$model(fileName)', component: '$component(Input)' } },
+              },
+            ],
+          },
+        },
+      },
+    };
+    expect(validateFormSchema(schema, opts).valid).toBe(true);
+  });
+
   it('accepts an array node with a $component and NO initialValue (display-list path)', () => {
     const schema = {
       root: {

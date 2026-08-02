@@ -56,20 +56,32 @@ interface RenderNodeComponentProps<T> {
 // ============================================================================
 
 /**
- * Подписка листового рендерера ТОЛЬКО на `value` + `disabled` поля (а не на все 9 сигналов
- * {@link useFormControl}). Обёрнутые `Component`/`FieldWrapper` получают `control` и подписываются
- * на errors/touched/pending/valid/… сами, поэтому родителю эти сигналы не нужны — лишние
- * ре-рендеры при churn'е валидации/touch устраняются, и `React.memo` пользовательских компонентов
- * поля не обесценивается. Снапшот кэшируется по паре (value, disabled): иначе useSyncExternalStore
- * получал бы свежий объект каждый getSnapshot и зациклился бы. SSR-safe.
+ * Подписка листового рендерера на `value` + `disabled` + реактивные `componentProps` поля (а не на
+ * все 9 сигналов {@link useFormControl}). Обёрнутые `Component`/`FieldWrapper` получают `control` и
+ * подписываются на errors/touched/pending/valid/… сами, поэтому родителю эти сигналы не нужны —
+ * лишние ре-рендеры при churn'е валидации/touch устраняются, и `React.memo` пользовательских
+ * компонентов поля не обесценивается.
+ *
+ * `componentProps` включён сюда специально: рантайм-обновления ноды (`updateComponentProps`, напр.
+ * догруженные `options`) должны доезжать до контрола в ОБЕИХ ветках рендера — в т.ч. когда контрол
+ * под адаптером и не получает `control` (иначе обновление молча терялось). Меняется он только по
+ * явному `updateComponentProps`, поэтому churn'а не добавляет. Снапшот кэшируется по тройке
+ * (value, disabled, componentProps): иначе useSyncExternalStore получал бы свежий объект каждый
+ * getSnapshot и зациклился бы. SSR-safe.
  */
-function useFieldValueAndDisabled(fieldNode: FieldNode<unknown>): {
+function useFieldRenderState(fieldNode: FieldNode<unknown>): {
   value: unknown;
   disabled: boolean;
+  componentProps: Record<string, unknown>;
 } {
-  const cacheRef = useRef<{ value: unknown; disabled: boolean }>({
+  const cacheRef = useRef<{
+    value: unknown;
+    disabled: boolean;
+    componentProps: Record<string, unknown>;
+  }>({
     value: fieldNode.value.value,
     disabled: fieldNode.disabled.value,
+    componentProps: fieldNode.componentProps.value,
   });
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
@@ -77,6 +89,7 @@ function useFieldValueAndDisabled(fieldNode: FieldNode<unknown>): {
       return effect(() => {
         void fieldNode.value.value; // зависимость: сигнал value
         void fieldNode.disabled.value; // зависимость: сигнал disabled
+        void fieldNode.componentProps.value; // зависимость: реактивные componentProps ноды
         if (first) {
           first = false;
           return;
@@ -86,12 +99,22 @@ function useFieldValueAndDisabled(fieldNode: FieldNode<unknown>): {
     },
     [fieldNode]
   );
-  const getSnapshot = useCallback((): { value: unknown; disabled: boolean } => {
+  const getSnapshot = useCallback((): {
+    value: unknown;
+    disabled: boolean;
+    componentProps: Record<string, unknown>;
+  } => {
     const value = fieldNode.value.value;
     const disabled = fieldNode.disabled.value;
+    const componentProps = fieldNode.componentProps.value;
     const prev = cacheRef.current;
-    if (prev.value === value && prev.disabled === disabled) return prev;
-    const next = { value, disabled };
+    if (
+      prev.value === value &&
+      prev.disabled === disabled &&
+      prev.componentProps === componentProps
+    )
+      return prev;
+    const next = { value, disabled, componentProps };
     cacheRef.current = next;
     return next;
   }, [fieldNode]);
@@ -126,8 +149,8 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
 }): ReactNode {
-  // Подписка только на value+disabled (не на все 9 сигналов useFormControl).
-  const { value, disabled } = useFieldValueAndDisabled(fieldNode);
+  // Подписка на value+disabled+реактивные componentProps ноды (не на все 9 сигналов useFormControl).
+  const { value, disabled, componentProps: nodeComponentProps } = useFieldRenderState(fieldNode);
   // Стабильные колбэки: fieldNode стабилен для данного сигнала → не пересоздаются каждый рендер,
   // поэтому React.memo на пользовательском Component держится.
   const onChange = useCallback((v: unknown) => fieldNode.setValue(v as never), [fieldNode]);
@@ -140,13 +163,16 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
     return null;
   }
 
+  // Схемные пропы — дефолт; реактивные пропы ноды (updateComponentProps) — override. Так рантайм-
+  // обновление (догруженные `options`, `loading`, …) доходит до контрола в ОБЕИХ ветках ниже —
+  // в т.ч. когда контрол под адаптером и не получает `control` (§3.2 рекомендаций).
   const {
     className,
     wrapper: Wrapper = 'div',
     fieldWrapper: perFieldWrapper,
     testId: explicitTestId,
     ...inputComponentProps
-  } = node.componentProps ?? {};
+  } = { ...node.componentProps, ...nodeComponentProps };
 
   // testId: явный из схемы, иначе из пути сигнала (`personalData.lastName` → `personalData-lastName`).
   const path = (node.value as { __path?: string }).__path;
@@ -158,9 +184,19 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
         : undefined;
 
   // Адаптер по компоненту поля: сырой контрол UI-kit получает seam в своём диалекте
-  // (`checked`+событие, `value`+`(value, option)` и т.д.). Нет адаптера → value-based seam
-  // как есть (обратная совместимость — ветка else идентична прежнему поведению).
+  // (`checked`+событие, `value`+`(value, option)` и т.д.). Нет адаптера → value-based seam как есть.
   const adapter = resolveFieldAdapter?.(Component);
+
+  // §3.1 (BREAKING): нода формы (`control`) передаётся контролу ТОЛЬКО по явному запросу — статикой
+  // `Component.reformerNeedsControl === true` либо `adapter.passControl`. По умолчанию НЕ передаётся:
+  // leaf-контролы UI-kit её не потребляют (иначе `control` тёк бы в DOM, и адаптеры заводились лишь
+  // чтобы её вырезать), а errors/touched/label обслуживает FieldWrapper — он получает `control`
+  // отдельно (ниже). Реактивные рантайм-пропы теперь мёржит сам рендерер (см. useFieldRenderState),
+  // поэтому ради них `control` контролу больше не нужен.
+  const needsControl =
+    adapter?.passControl === true ||
+    (Component as { reformerNeedsControl?: boolean }).reformerNeedsControl === true;
+  const controlProp = needsControl ? { control: fieldNode } : {};
 
   let input: ReactNode;
   if (adapter) {
@@ -171,8 +207,6 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
       onBlur,
       inputComponentProps as Record<string, unknown>
     );
-    // `control` в сырой контрол НЕ пробрасываем: он его не потребляет (иначе antd-контролы
-    // разлили бы его в DOM с React-warning про неизвестный проп).
     if (testId && adaptedProps['data-testid'] === undefined) {
       adaptedProps['data-testid'] = `input-${testId}`;
     }
@@ -180,6 +214,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
       <Component
         disabled={disabled}
         {...adaptedProps}
+        {...controlProp}
         {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
       />
     );
@@ -194,7 +229,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
     }
     input = (
       <Component
-        control={fieldNode}
+        {...controlProp}
         {...inputProps}
         {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
         onChange={onChange}

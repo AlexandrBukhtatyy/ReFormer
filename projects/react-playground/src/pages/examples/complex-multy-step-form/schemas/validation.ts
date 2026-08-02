@@ -20,13 +20,12 @@ import {
   validateWhen,
   cross,
   each,
-  apply,
   defineValidationSchema,
-  validateModel,
   type Rule,
   type AsyncRule,
   type ValidationSchema,
 } from '@reformer/core/validation';
+import { defineSteps } from '@reformer/cdk';
 import {
   required,
   min,
@@ -571,23 +570,26 @@ const fullExtras = defineValidationSchema<Root>(({ model }) => {
 // Публичный контракт для FormWizard
 // ============================================================================
 
-const STEP_SCHEMAS: readonly ValidationSchema<Root>[] = [step1, step2, step3, step4, step5, step6];
-
-/** Полная схема: все шаги + form-level cross-field/warnings. */
-const fullSchema = defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS, fullExtras));
-
-/** Пустая схема — для шага вне диапазона (гасит ранее тронутые поля, возвращает valid). */
-const emptySchema: ValidationSchema<Root> = () => {};
-
 /**
- * Конфиг валидации для `FormWizard`: per-step и полная валидация через `validateModel`.
- * Ошибки разносятся в ноды формы; warnings не блокируют. Схемы — стабильные `const`-ссылки
- * (важно для отмены устаревших прогонов в `validateModel`).
+ * Конфиг валидации для `FormWizard` через `defineSteps` (§5): правила адресованы по `selector` шага
+ * (loan/applicant/…), а не хрупким числовым индексом `[step - 1]` — добавление/перестановка шага не
+ * рассинхронизирует правила молча, а шаг без правил объявляется ЯВНО. Порядок ключей = порядок шагов.
+ * `{ touch: true }` (§6) метит только провалидированные поля — ошибки видны без ручного markAsTouched
+ * на всё поддерево. `extras` (cross-field/warnings) применяются только на submit (validateAll).
  */
 export function makeCreditValidationConfig(model: M) {
-  return {
-    validateStep: (step: number): Promise<boolean> =>
-      validateModel(model, STEP_SCHEMAS[step - 1] ?? emptySchema),
-    validateAll: (): Promise<boolean> => validateModel(model, fullSchema),
-  };
+  return defineSteps<
+    'loan' | 'applicant' | 'contacts' | 'employment' | 'additional' | 'confirmation',
+    Root
+  >(model, {
+    steps: {
+      loan: step1,
+      applicant: step2,
+      contacts: step3,
+      employment: step4,
+      additional: step5,
+      confirmation: step6,
+    },
+    extras: fullExtras,
+  });
 }
