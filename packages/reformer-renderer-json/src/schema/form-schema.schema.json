@@ -8,7 +8,16 @@
   "additionalProperties": false,
   "properties": {
     "$schema": { "type": "string" },
+    "id": { "type": "string" },
     "version": { "type": "string" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
     "root": { "$ref": "#/definitions/node" }
   },
   "definitions": {
