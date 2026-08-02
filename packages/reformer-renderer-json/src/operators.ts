@@ -17,8 +17,43 @@
  * @module reformer/renderer-json/operators
  */
 
-/** Строка-оператор привязки к полю/массиву модели: `` `$model(${path})` ``. */
-export type ModelOp = `$model(${string})`;
+type PathPrimitive = string | number | boolean | bigint | symbol | null | undefined;
+
+/**
+ * Внутренняя рекурсия {@link Path}: точечные пути по форме `T` с ограничением глубины (5),
+ * чтобы не уронить компилятор на рекурсивных/глубоких типах.
+ */
+type PathImpl<T, Depth extends unknown[] = []> = Depth['length'] extends 5
+  ? never
+  : T extends PathPrimitive
+    ? never
+    : T extends readonly (infer U)[]
+      ? `${number}` | `${number}.${PathImpl<U, [...Depth, unknown]>}`
+      : {
+          [K in keyof T & string]: T[K] extends PathPrimitive
+            ? K
+            : K | `${K}.${PathImpl<T[K], [...Depth, unknown]>}`;
+        }[keyof T & string];
+
+/**
+ * Все точечные пути к полям формы `T` (`'loanType'`, `'personalData.firstName'`, `'items.0.amount'`).
+ * Для `unknown`/`any` (схема пришла строкой с сервера — тип формы неизвестен) деградирует в `string`,
+ * поэтому нетипизированный сценарий продолжает работать как раньше.
+ *
+ * @typeParam T - Форма данных модели.
+ */
+export type Path<T> = unknown extends T ? string : PathImpl<T>;
+
+/**
+ * Строка-оператор привязки к полю/массиву модели: `` `$model(${path})` ``.
+ *
+ * Параметризуется формой модели `T`: при `ModelOp<CreditForm>` путь сужается до {@link Path}<T>
+ * (опечатка `$model(loanTyp)` — ошибка компиляции). Без параметра (`ModelOp`) — `T = unknown`,
+ * путь = любая строка (обратная совместимость и схема-строкой-с-сервера).
+ *
+ * @typeParam T - Форма данных модели (по умолчанию `unknown` → `` `$model(${string})` ``).
+ */
+export type ModelOp<T = unknown> = `$model(${Path<T>})`;
 
 /** Строка-оператор ссылки на компонент реестра: `` `$component(${name})` ``. */
 export type ComponentOp = `$component(${string})`;

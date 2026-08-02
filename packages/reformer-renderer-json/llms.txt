@@ -1768,6 +1768,40 @@ export const defaultLocaleResolver: LocaleResolver
 
 _Source: src/locale/locale-service.ts_
 
+### defineJsonSchema
+
+**Kind:** `function`
+
+Идентити-хелпер, ТИПИЗИРУЮЩИЙ литерал схемы по форме модели `T`: внутри `$model(...)` пути
+сужаются до {@link Path}<T> (опечатка ловится компилятором), и не нужен `as unknown as JsonFormSchema`.
+Для схемы-строки-с-сервера (тип формы неизвестен) используйте `JsonFormSchema` без параметра.
+
+**Signature:**
+```typescript
+export function defineJsonSchema<T = unknown>(schema: JsonFormSchema<T>): JsonFormSchema<T>
+```
+
+**Parameters:**
+- `schema` — - Литерал схемы, типизируемый по `T`.
+
+**Returns:** Та же схема с типом `JsonFormSchema<T>`.
+
+**Examples:**
+
+```ts
+interface CreditForm { loanType: string; personalData: { firstName: string } }
+const schema = defineJsonSchema<CreditForm>({
+  version: '1.0',
+  root: {
+    component: '$component(Box)',
+    children: [{ value: '$model(personalData.firstName)', component: '$component(Input)' }],
+    // { value: '$model(loanTyp)' } — ошибка компиляции: нет такого пути в CreditForm
+  },
+});
+```
+
+_Source: src/types/json-schema.ts_
+
 ### defineRegistry
 
 **Kind:** `function`
@@ -2301,12 +2335,15 @@ chrome-less display-списка (алерты) или своя секция с 
 
 **Signature:**
 ```typescript
-export interface JsonArrayNode {
+export interface JsonArrayNode<T = unknown> {
   /** Id для render-behavior. */
   selector?: string;
-  /** Привязка к массиву модели: `'$model(coBorrowers)'`. */
-  array: ModelOp;
-  /** Шаблон под-схемы элемента (внутри `$model(...)` относителен к элементу). */
+  /** Привязка к массиву модели: `'$model(coBorrowers)'`. С типом `T` путь сужается до {@link Path}<T>. */
+  array: ModelOp<T>;
+  /**
+   * Шаблон под-схемы элемента (внутри `$model(...)` относителен к ЭЛЕМЕНТУ, не к корню `T`),
+   * поэтому его пути остаются нетипизированными (`JsonNode` без параметра).
+   */
   item: { $template: JsonNode };
   /**
    * Компонент-рендерер массива (`'$component(List)'`). Опционален: без него — встроенная
@@ -2336,7 +2373,7 @@ _Source: src/types/json-schema.ts_
 
 **Signature:**
 ```typescript
-export interface JsonContainerNode {
+export interface JsonContainerNode<T = unknown> {
   /** Id для render-behavior. */
   selector?: string;
   /**
@@ -2354,7 +2391,7 @@ export interface JsonContainerNode {
    */
   text?: JsonText;
   /** Дочерние узлы. */
-  children?: JsonNode[];
+  children?: JsonNode<T>[];
 }
 ```
 
@@ -2368,17 +2405,17 @@ _Source: src/types/json-schema.ts_
 
 **Signature:**
 ```typescript
-export interface JsonFieldNode {
+export interface JsonFieldNode<T = unknown> {
   /** Id для render-behavior (hideWhen/patchProps). Опционален. */
   selector?: string;
-  /** Привязка к сигналу модели: `'$model(personalData.lastName)'`. */
-  value: ModelOp;
+  /** Привязка к сигналу модели: `'$model(personalData.lastName)'`. С типом `T` путь сужается до {@link Path}<T>. */
+  value: ModelOp<T>;
   /** Компонент поля из реестра: `'$component(Select)'`. Опционален. */
   component?: ComponentOp;
   /** Props компонента; значения могут содержать строки-операторы (`'$dataSource(NAME)'`) или вложенные узлы. */
   componentProps?: Record<string, unknown>;
   /** Обёртка поля (например, FormField). */
-  wrapper?: JsonNode;
+  wrapper?: JsonNode<T>;
 }
 ```
 
@@ -2508,7 +2545,7 @@ _Source: src/components/json-form-renderer.tsx_
 
 **Signature:**
 ```typescript
-export interface JsonFormSchema {
+export interface JsonFormSchema<T = unknown> {
   /**
    * Путь к мета-схеме для IDE (VSCode подсветит структуру/синтаксис/имена `$component`).
    * Игнорируется конвертером. Сгенерировать конкретную мета-схему: `gen-form-json-schema.ts`.
@@ -2516,8 +2553,8 @@ export interface JsonFormSchema {
   $schema?: string;
   /** Версия схемы (для миграций). */
   version?: string;
-  /** Корневой узел. */
-  root: JsonNode;
+  /** Корневой узел. С типом `T` пути `$model(...)` в дереве сужаются до {@link Path}<T>. */
+  root: JsonNode<T>;
 }
 ```
 
@@ -2539,11 +2576,11 @@ _Source: src/types/json-schema.ts_
 
 **Kind:** `type`
 
-Узел JSON-схемы (M1).
+Узел JSON-схемы (M1). `T` — форма модели: при указании `$model(...)` пути сужаются до {@link Path}<T>.
 
 **Signature:**
 ```typescript
-export type JsonNode = JsonFieldNode | JsonArrayNode | JsonContainerNode;
+export type JsonNode<T = unknown> = JsonFieldNode<T> | JsonArrayNode<T> | JsonContainerNode<T>;
 ```
 
 _Source: src/types/json-schema.ts_
@@ -2799,9 +2836,13 @@ _Source: src/locale/locale-service.ts_
 
 Строка-оператор привязки к полю/массиву модели: `` `$model(${path})` ``.
 
+Параметризуется формой модели `T`: при `ModelOp<CreditForm>` путь сужается до {@link Path}<T>
+(опечатка `$model(loanTyp)` — ошибка компиляции). Без параметра (`ModelOp`) — `T = unknown`,
+путь = любая строка (обратная совместимость и схема-строкой-с-сервера).
+
 **Signature:**
 ```typescript
-export type ModelOp = `$model(${string})`;
+export type ModelOp<T = unknown> = `$model(${Path<T>})`;
 ```
 
 _Source: src/operators.ts_
@@ -2845,6 +2886,21 @@ export function parseOperator(value: unknown): ParsedOperator | null
 parseOperator('$model(loanType)');   // { op: 'model', arg: 'loanType' }
 parseOperator('$dataSource(LOAN_TYPES)'); // { op: 'dataSource', arg: 'LOAN_TYPES' }
 parseOperator('Введите сумму');       // null  (обычная строка)
+```
+
+_Source: src/operators.ts_
+
+### Path
+
+**Kind:** `type`
+
+Все точечные пути к полям формы `T` (`'loanType'`, `'personalData.firstName'`, `'items.0.amount'`).
+Для `unknown`/`any` (схема пришла строкой с сервера — тип формы неизвестен) деградирует в `string`,
+поэтому нетипизированный сценарий продолжает работать как раньше.
+
+**Signature:**
+```typescript
+export type Path<T> = unknown extends T ? string : PathImpl<T>;
 ```
 
 _Source: src/operators.ts_
