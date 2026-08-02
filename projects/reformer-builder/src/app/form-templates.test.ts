@@ -24,19 +24,21 @@ describe('indexTsxTemplate', () => {
   it('default-export компонент с PascalCase-именем', () => {
     expect(src).toContain('export default function ProfileForm()');
   });
-  it('собирает форму: модель + form.json + registry + behavior → JsonFormRenderer', () => {
+  it('собирает форму одним проходом: createJsonForm + form.json + registry + behavior → JsonFormRenderer', () => {
     expect(src).toContain("import rawSchema from './form.json'");
     expect(src).toContain("import { createRegistry } from './registry'");
     expect(src).toContain("import { initialFormModel, type FormShape } from './model'");
     expect(src).toContain("import { formBehavior } from './form-behavior'");
     expect(src).toContain("import { formRenderBehavior } from './render-behavior'");
-    expect(src).toContain('convertJsonToM1Tree(schema, registry, model)');
+    expect(src).toContain('createJsonForm<FormShape>(');
+    expect(src).toContain('useJsonForm(');
     expect(src).toContain('<JsonFormRenderer<FormShape>');
+    expect(src).toContain('form={jsonForm}');
     expect(src).toContain('renderBehavior={formRenderBehavior}');
   });
   it('submit гоняет валидацию модели', () => {
-    expect(src).toContain('validateModel(model, formValidation)');
-    expect(src).toContain('form.markAsTouched()');
+    expect(src).toContain('validateModel(jsonForm.model, formValidation)');
+    expect(src).toContain('jsonForm.form.markAsTouched()');
   });
   it('PascalCase: дефис/пробел → одно имя, ведущая цифра защищена, суффикс не задваивается', () => {
     expect(indexTsxTemplate('loan-application')).toContain(

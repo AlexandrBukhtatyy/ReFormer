@@ -1,6 +1,7 @@
 /**
- * Эмиттер `index.tsx` — сборка формы (модель + registry + behavior → JsonFormRenderer). Импорт
- * схемы из `./schema` (типизирован, без каста).
+ * Эмиттер `index.tsx` — сборка формы ОДНИМ проходом (§7): `createJsonForm` бандлит model+form+registry
+ * из схемы `./schema`, бандл целиком отдаётся рендереру пропом `form`. Схема больше не передаётся
+ * дважды (в `convertJsonToM1Tree` и пропом `schema`).
  *
  * @module reformer-builder/codegen/emit-index
  */
@@ -8,11 +9,16 @@
 import type { Names } from './naming';
 
 export function emitIndex(n: Names): string {
-  return `// index.tsx — сборка формы: модель + registry + behavior → JsonFormRenderer.
+  return `// index.tsx — сборка формы одним проходом: createJsonForm → JsonFormRenderer (проп form).
 
 import { useMemo, useState } from 'react';
-import { createForm } from '@reformer/core';
-import { JsonFormRenderer, JsonRendererProvider, convertJsonToM1Tree } from '@reformer/renderer-json';
+import {
+  JsonFormRenderer,
+  JsonRendererProvider,
+  createJsonForm,
+  useJsonForm,
+  type JsonFormSchema,
+} from '@reformer/renderer-json';
 import { schema } from './schema';
 import { createRegistry } from './registry';
 import { ${n.modelFactory} } from './model';
@@ -22,26 +28,29 @@ import type { ${n.TypeName} } from './types';
 
 type SubmitResult = { message: string; ok: boolean };
 
+// ./schema типизирована как loose JsonFormSchema (машинно-сгенерирована); сужаем к форме модели.
+const typedSchema = schema as unknown as JsonFormSchema<${n.TypeName}>;
+
 export default function ${n.pageComponent}() {
   const [result, setResult] = useState<SubmitResult | null>(null);
-  const registry = useMemo(() => createRegistry(), []);
 
-  const { model, form } = useMemo(() => {
-    const model = ${n.modelFactory}();
-    const form = createForm<${n.TypeName}>({
-      model,
-      schema: convertJsonToM1Tree(schema, registry, model),
+  // Сборка одним проходом (§7): createJsonForm бандлит model+form+registry из одной схемы;
+  // useJsonForm (ленивый useState) держит бандл стабильным между рендерами.
+  const jsonForm = useJsonForm(() =>
+    createJsonForm<${n.TypeName}>({
+      schema: typedSchema,
+      registry: createRegistry(),
+      model: ${n.modelFactory}(),
       behavior: formBehavior,
-    });
-    return { model, form };
-  }, [registry]);
+    })
+  );
 
   const renderBehavior = useMemo(
     () =>
-      createJsonRenderBehavior(form, model, {
+      createJsonRenderBehavior(jsonForm.form, jsonForm.model, {
         onResult: (message, ok) => setResult({ message, ok }),
       }),
-    [form, model]
+    [jsonForm]
   );
 
   return (
@@ -65,10 +74,9 @@ export default function ${n.pageComponent}() {
         </div>
       )}
 
-      <JsonRendererProvider settings={{ registry }}>
+      <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
         <JsonFormRenderer<${n.TypeName}>
-          schema={schema}
-          model={model}
+          form={jsonForm}
           renderBehavior={renderBehavior}
           validateSchema={import.meta.env.DEV}
         />
