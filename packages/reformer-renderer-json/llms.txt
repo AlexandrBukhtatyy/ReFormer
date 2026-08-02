@@ -1624,6 +1624,63 @@ behavior,
 
 _Source: src/converter/json-to-render-schema.ts_
 
+### createJsonForm
+
+**Kind:** `function`
+
+Собирает форму из JSON-схемы за ОДИН проход: создаёт (или принимает) модель, конвертирует схему в
+дерево нод и строит форму. Схема передаётся один раз; результат целиком отдаётся рендереру пропом
+`form`.
+
+**Signature:**
+```typescript
+export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>): JsonForm<T>
+```
+
+**Parameters:**
+- `config` — - {@link CreateJsonFormConfig}: `schema` + `registry` + (`initial` | `model`) + опц. `behavior`.
+
+**Returns:** 
+
+**Examples:**
+
+```tsx
+const jsonForm = useJsonForm(() =>
+  createJsonForm<CreditForm>({ schema, registry, initial: INITIAL, behavior: formBehavior })
+);
+return (
+  <JsonRendererProvider settings={{ registry }}>
+    <JsonFormRenderer form={jsonForm} renderBehavior={renderBehavior} />
+  </JsonRendererProvider>
+);
+```
+
+_Source: src/create-json-form.ts_
+
+### CreateJsonFormConfig
+
+**Kind:** `interface`
+
+Конфиг {@link createJsonForm}. Модель — либо `initial` (создаётся внутри), либо готовая `model`.
+
+**Signature:**
+```typescript
+export interface CreateJsonFormConfig<T> {
+  /** JSON-схема формы (типизируй по `T` через `defineJsonSchema<T>`). */
+  schema: JsonFormSchema<T>;
+  /** Реестр компонентов/source. */
+  registry: ComponentRegistry;
+  /** Начальные значения — из них создаётся модель. Взаимоисключимо с `model`. */
+  initial?: T;
+  /** Готовая модель (если создана отдельно). Приоритетнее `initial`. */
+  model?: FormModel<T>;
+  /** Декларативное поведение модели (compute/copyFrom/enableWhen/onChange). */
+  behavior?: FormBehavior<T>;
+}
+```
+
+_Source: src/create-json-form.ts_
+
 ### createLocaleResolver
 
 **Kind:** `function`
@@ -2421,6 +2478,28 @@ export interface JsonFieldNode<T = unknown> {
 
 _Source: src/types/json-schema.ts_
 
+### JsonForm
+
+**Kind:** `interface`
+
+Собранная форма из JSON-схемы: источник истины для `<JsonFormRenderer form={…} />`.
+
+**Signature:**
+```typescript
+export interface JsonForm<T> {
+  /** Модель данных (источник истины значений). */
+  model: FormModel<T>;
+  /** Дерево нод формы (валидация/поведение/submit). */
+  form: FormProxy<T>;
+  /** Та же JSON-схема, из которой собраны model+form (рендерер строит из неё render-дерево). */
+  schema: JsonFormSchema<T>;
+  /** Реестр компонентов/source (нужен рендереру для резолва имён). */
+  registry: ComponentRegistry;
+}
+```
+
+_Source: src/create-json-form.ts_
+
 ### JsonFormRenderer
 
 **Kind:** `function`
@@ -2433,8 +2512,9 @@ _Source: src/types/json-schema.ts_
 **Signature:**
 ```typescript
 export function JsonFormRenderer<T>({
-  schema,
-  model,
+  form,
+  schema: schemaProp,
+  model: modelProp,
   renderBehavior,
   onSchemaReady,
   validateSchema = false,
@@ -2509,15 +2589,24 @@ Props of {@link JsonFormRenderer}.
 **Signature:**
 ```typescript
 export interface JsonFormRendererProps<T> {
-  /** JSON-схема формы. См. {@link JsonFormSchema}. */
-  schema: JsonFormSchema;
+  /**
+   * Собранный бандл {@link createJsonForm} (`{ model, form, schema, registry }`). Если задан —
+   * поставляет `schema` + `model` (передавать их отдельно не нужно). Иначе укажи `schema` + `model`.
+   */
+  form?: JsonForm<T>;
+  /**
+   * JSON-схема формы. См. {@link JsonFormSchema}. Опционально, если задан `form`. Тип намеренно
+   * НЕ параметризован `T`: рендерер принимает любую схему (в т.ч. `.json`-импорт «строкой с сервера»);
+   * типобезопасность путей `$model(...)` даётся на этапе авторинга (`defineJsonSchema<T>`/`createJsonForm<T>`).
+   */
+  schema?: JsonFormSchema;
   /**
    * Модель данных формы (M1). Листья схемы (`value: '$model(path)'`) биндятся к её сигналам
-   * (`model.signalAt(path)`) конвертером {@link createRenderSchemaFromJsonM1}. Обязательна — это
-   * per-form состояние, поэтому передаётся пропом рендерера, а не глобальными настройками
-   * {@link JsonRendererProvider} (там — общий на всё поддерево реестр/`fieldWrapper`).
+   * (`model.signalAt(path)`) конвертером {@link createRenderSchemaFromJsonM1}. Per-form состояние,
+   * поэтому передаётся пропом рендерера (не глобальными настройками {@link JsonRendererProvider}).
+   * Опционально, если задан `form`.
    */
-  model: FormModel<T>;
+  model?: FormModel<T>;
   /** Опциональный behavior: hideWhen/patchProps/onComponentEvent поверх готовой схемы. */
   renderBehavior?: RenderBehaviorFn<T>;
   /** Колбэк, получающий построенный `RenderSchemaProxy` для внешних манипуляций. */
@@ -3093,6 +3182,32 @@ export function unwrapSignalValues(values?: LocaleParams): LocaleParams | undefi
 ```
 
 _Source: src/locale/use-signal-value.ts_
+
+### useJsonForm
+
+**Kind:** `function`
+
+Хук стабильной сборки формы: `factory` вызывается РОВНО один раз (ленивый инициализатор `useState`),
+поэтому model/form переживают ре-рендеры. `useMemo` для этого не годится — React вправе сбросить
+его кэш и пересоздать форму (потеря введённого). §7 рекомендаций.
+
+**Signature:**
+```typescript
+export function useJsonForm<T>(factory: () => JsonForm<T>): JsonForm<T>
+```
+
+**Parameters:**
+- `factory` — - Фабрика бандла (обычно `() => createJsonForm<T>({…})`).
+
+**Returns:** Стабильный {@link JsonForm}` <T>`.
+
+**Examples:**
+
+```tsx
+const jsonForm = useJsonForm(() => createJsonForm<MyForm>({ schema, registry, initial }));
+```
+
+_Source: src/create-json-form.ts_
 
 ### useJsonRendererSettings
 

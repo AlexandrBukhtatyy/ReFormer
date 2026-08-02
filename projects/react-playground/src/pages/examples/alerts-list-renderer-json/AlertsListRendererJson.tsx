@@ -6,20 +6,16 @@
  * рендерит его: `List` оформляет список, `Alert` на каждый элемент получает `type`/`message` через
  * `$model(...)`. Введите сумму (> 1 000 000 или < 10 000) или email без «@» — набор алертов меняется.
  */
-import { useMemo } from 'react';
-import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
-import { createAlertsSetup, alertsJsonSchema, type AlertsFormData } from './form-setup';
+import { JsonFormRenderer, JsonRendererProvider, useJsonForm } from '@reformer/renderer-json';
+import { createAlertsSetup, type AlertsFormData } from './form-setup';
 
 export default function AlertsListRendererJson() {
-  const { model, registry } = useMemo(() => createAlertsSetup(), []);
+  // Сборка одним проходом (§7): бандл createJsonForm, стабильный через useJsonForm (ленивый useState).
+  const jsonForm = useJsonForm(() => createAlertsSetup());
 
   return (
-    <JsonRendererProvider settings={{ registry }}>
-      <JsonFormRenderer<AlertsFormData>
-        schema={alertsJsonSchema}
-        model={model}
-        validateSchema={import.meta.env.DEV}
-      />
+    <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
+      <JsonFormRenderer<AlertsFormData> form={jsonForm} validateSchema={import.meta.env.DEV} />
     </JsonRendererProvider>
   );
 }

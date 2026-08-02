@@ -29,6 +29,10 @@ export type {
 } from './types/json-schema';
 export { isFieldNode, isArrayNode, isContainerNode, defineJsonSchema } from './types/json-schema';
 
+// Сборка формы из JSON-схемы одним проходом (§7): createJsonForm + стабильный хук useJsonForm.
+export { createJsonForm, useJsonForm } from './create-json-form';
+export type { JsonForm, CreateJsonFormConfig } from './create-json-form';
+
 // Операторы JSON-схемы (M1): СТРОКОВЫЕ ссылки на модель/реестр ("$model(path)" и т.д.)
 export {
   parseOperator,
