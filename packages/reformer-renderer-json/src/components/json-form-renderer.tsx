@@ -16,6 +16,7 @@ import type { JsonFormSchema } from '../types/json-schema';
 import type { JsonForm } from '../create-json-form';
 import { useJsonRendererSettings } from '../context/json-renderer-context';
 import { createRenderSchemaFromJsonM1 } from '../converter/json-to-render-schema';
+import { collectSchemaSelectors } from '../collect-schema-selectors';
 import { SchemaErrorPanel } from './schema-error-panel';
 import { SchemaErrorBoundary } from './schema-error-boundary';
 
@@ -205,6 +206,31 @@ export function JsonFormRenderer<T>({
   useMemo(() => {
     if (schemaProxy && onSchemaReady) onSchemaReady(schemaProxy);
   }, [schemaProxy]);
+
+  // §8: диагностика промаха selector — сверяет адресованные через schema.node(...) селекторы (ключи
+  // override-карт proxy, заполненных renderBehavior) со всеми селекторами JSON-схемы. Промах раньше
+  // был тихим (override просто не читался). Известные берём из СХЕМЫ (надёжно, incl. componentProps),
+  // а не из рендер-дерева (кастомные компоненты держат детей вне node.children). Безусловный warn.
+  useEffect(() => {
+    if (!schemaProxy || !schema) return;
+    const known = collectSchemaSelectors(schema);
+    const maps = schemaProxy.__overrideMaps;
+    const addressed = new Set<string>([
+      ...maps.hiddenOverrides.keys(),
+      ...maps.propsOverrides.keys(),
+      ...maps.refRegistry.keys(),
+      ...maps.conditionRegistry.keys(),
+      ...maps.callbackRegistry.keys(),
+      ...maps.lifecycleRegistry.keys(),
+    ]);
+    const missing = [...addressed].filter((s) => !known.has(s));
+    if (missing.length > 0 && typeof console !== 'undefined') {
+      console.warn(
+        `[JsonFormRenderer] schema.node(...) адресует неизвестный selector: ${missing.join(', ')}. ` +
+          `Известные селекторы: ${[...known].sort().join(', ') || '(нет)'}.`
+      );
+    }
+  }, [schemaProxy, schema]);
 
   if (schemaErrors && schemaErrors.length > 0) {
     return <SchemaErrorPanel errors={schemaErrors} />;
