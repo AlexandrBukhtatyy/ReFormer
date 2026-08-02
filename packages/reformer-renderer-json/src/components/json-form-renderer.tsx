@@ -4,7 +4,7 @@
  * @module reformer/renderer-json/components
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   FormRenderer,
   createRenderSchema,
@@ -145,6 +145,20 @@ export function JsonFormRenderer<T>({
       cancelled = true;
     };
   }, [validateSchema, schema, registry]);
+
+  // §8 (dev): renderBehavior должен быть стабильным по ссылке — от него зависит useMemo сборки
+  // дерева ниже. Смена идентичности между рендерами пересобирает proxy каждый рендер (лишняя работа,
+  // потеря наложенного behavior-состояния). Раньше это было тихо — теперь громко предупреждаем в dev.
+  const prevRenderBehavior = useRef(renderBehavior);
+  useEffect(() => {
+    if (import.meta.env.DEV && prevRenderBehavior.current !== renderBehavior) {
+      console.warn(
+        '[JsonFormRenderer] `renderBehavior` changed identity between renders — the render tree is ' +
+          'rebuilt every render. Provide a stable reference (useMemo/useCallback/module-level const).'
+      );
+    }
+    prevRenderBehavior.current = renderBehavior;
+  }, [renderBehavior]);
 
   const schemaProxy = useMemo(() => {
     // M1 (единая схема): листья биндятся к сигналам модели. Модель обязательна (legacy
