@@ -184,9 +184,19 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
         : undefined;
 
   // Адаптер по компоненту поля: сырой контрол UI-kit получает seam в своём диалекте
-  // (`checked`+событие, `value`+`(value, option)` и т.д.). Нет адаптера → value-based seam
-  // как есть (обратная совместимость — ветка else идентична прежнему поведению).
+  // (`checked`+событие, `value`+`(value, option)` и т.д.). Нет адаптера → value-based seam как есть.
   const adapter = resolveFieldAdapter?.(Component);
+
+  // §3.1 (BREAKING): нода формы (`control`) передаётся контролу ТОЛЬКО по явному запросу — статикой
+  // `Component.reformerNeedsControl === true` либо `adapter.passControl`. По умолчанию НЕ передаётся:
+  // leaf-контролы UI-kit её не потребляют (иначе `control` тёк бы в DOM, и адаптеры заводились лишь
+  // чтобы её вырезать), а errors/touched/label обслуживает FieldWrapper — он получает `control`
+  // отдельно (ниже). Реактивные рантайм-пропы теперь мёржит сам рендерер (см. useFieldRenderState),
+  // поэтому ради них `control` контролу больше не нужен.
+  const needsControl =
+    adapter?.passControl === true ||
+    (Component as { reformerNeedsControl?: boolean }).reformerNeedsControl === true;
+  const controlProp = needsControl ? { control: fieldNode } : {};
 
   let input: ReactNode;
   if (adapter) {
@@ -197,8 +207,6 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
       onBlur,
       inputComponentProps as Record<string, unknown>
     );
-    // `control` в сырой контрол НЕ пробрасываем: он его не потребляет (иначе antd-контролы
-    // разлили бы его в DOM с React-warning про неизвестный проп).
     if (testId && adaptedProps['data-testid'] === undefined) {
       adaptedProps['data-testid'] = `input-${testId}`;
     }
@@ -206,6 +214,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
       <Component
         disabled={disabled}
         {...adaptedProps}
+        {...controlProp}
         {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
       />
     );
@@ -220,7 +229,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
     }
     input = (
       <Component
-        control={fieldNode}
+        {...controlProp}
         {...inputProps}
         {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
         onChange={onChange}
