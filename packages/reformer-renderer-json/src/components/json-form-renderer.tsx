@@ -17,6 +17,7 @@ import type { JsonForm } from '../create-json-form';
 import { useJsonRendererSettings } from '../context/json-renderer-context';
 import { createRenderSchemaFromJsonM1 } from '../converter/json-to-render-schema';
 import { SchemaErrorPanel } from './schema-error-panel';
+import { SchemaErrorBoundary } from './schema-error-boundary';
 
 /**
  * Props of {@link JsonFormRenderer}.
@@ -211,5 +212,11 @@ export function JsonFormRenderer<T>({
   if (!schemaProxy) {
     return null; // валидация ещё считается (динамический импорт ajv)
   }
-  return <FormRenderer render={schemaProxy} settings={rendererSettings} />;
+  // §8: битая схема (неизвестный $component и т.п.) бросает на этапе рендера FormRenderer.
+  // При выключенном validateSchema (prod) boundary рисует панель ошибок вместо белого экрана.
+  return (
+    <SchemaErrorBoundary resetKey={schemaProxy}>
+      <FormRenderer render={schemaProxy} settings={rendererSettings} />
+    </SchemaErrorBoundary>
+  );
 }
