@@ -47,4 +47,6 @@ export { uniqueId } from './unique-id';
 export { useFormControl } from './hooks/useFormControl';
 export { useFormControlValue } from './hooks/useFormControlValue';
 export { useArrayLength } from './hooks/useArrayLength';
+export { useFormValidation } from './hooks/use-form-validation';
+export type { UseFormValidationArgs, UseFormValidationResult } from './hooks/use-form-validation';
 export type { FieldControlState, ArrayControlState } from './hooks/types';

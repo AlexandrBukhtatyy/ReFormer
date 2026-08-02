@@ -325,3 +325,7 @@ export async function validateModel<T>(
 
   return !hasBlocking(ctx.errors);
 }
+
+// Единый декларативный выбор стратегии валидации (createFormValidation + типы) — тот же сабпат
+// `@reformer/core/validation`. Импорт `validateModel` там — на уровне функций, поэтому цикл безопасен.
+export * from './validation-strategy';
