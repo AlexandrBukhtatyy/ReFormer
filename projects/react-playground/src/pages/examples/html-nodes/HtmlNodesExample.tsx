@@ -14,7 +14,8 @@ import { FormRenderer } from '@reformer/renderer-react';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
-  convertJsonToM1Tree,
+  createJsonForm,
+  useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import { FormField } from '@reformer/ui-kit';
@@ -25,7 +26,7 @@ import rawJsonSchema from './json-schema.json';
 
 // Чистый JSON приходит как данные: операторы-строки типизируются как `string`, поэтому
 // приведение к JsonFormSchema здесь — тот же сценарий, что «схема пришла с сервера».
-const installmentJsonSchema = rawJsonSchema as unknown as JsonFormSchema;
+const installmentJsonSchema = rawJsonSchema as unknown as JsonFormSchema<InstallmentRequest>;
 
 /** Панель-обёртка колонки: заголовок + подпись, чем эта колонка отличается. */
 function Panel({
@@ -71,16 +72,15 @@ function TypedSchemaColumn() {
 }
 
 function JsonSchemaColumn() {
-  const registry = useMemo(() => createHtmlNodesRegistry(), []);
-  const { model, form } = useMemo(() => {
-    const model = createInstallmentModel();
-    const form = createForm<InstallmentRequest>({
-      model,
-      schema: convertJsonToM1Tree(installmentJsonSchema, registry, model),
-    });
-    return { model, form };
-  }, [registry]);
-  void form;
+  // Сборка одним проходом (§7): бандл createJsonForm, стабильный через useJsonForm (ленивый useState).
+  // Модель отдаём готовой (createInstallmentModel) — начальные значения те же.
+  const jsonForm = useJsonForm(() =>
+    createJsonForm<InstallmentRequest>({
+      schema: installmentJsonSchema,
+      registry: createHtmlNodesRegistry(),
+      model: createInstallmentModel(),
+    })
+  );
 
   return (
     <Panel
@@ -88,10 +88,9 @@ function JsonSchemaColumn() {
       hint='component: "$html(div)", text: "$model(fullName)"'
     >
       <div data-testid="json-schema">
-        <JsonRendererProvider settings={{ registry }}>
+        <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
           <JsonFormRenderer<InstallmentRequest>
-            schema={installmentJsonSchema}
-            model={model}
+            form={jsonForm}
             validateSchema={import.meta.env.DEV}
           />
         </JsonRendererProvider>

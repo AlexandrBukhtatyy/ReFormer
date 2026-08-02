@@ -20,22 +20,23 @@
  * поля вынесли бы из-под гейта и показывали при ошибке пустую форму.
  */
 
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
 import type { RegistrationFormData } from '../registration-form/RegistrationForm';
-import { createRegistrationSetup, registrationJsonSchema } from './form-setup';
+import { createRegistrationSetup } from './form-setup';
 
 export default function RegistrationFormRendererJson() {
-  // Один раз: повторная сборка создала бы новый реестр и новый тип AsyncBoundary,
-  // из-за чего загрузка префилла стартовала бы заново на каждый рендер.
-  const { model, registry, renderBehavior } = useMemo(() => createRegistrationSetup(), []);
+  // Сборка одним проходом (§7): бандл createJsonForm + renderBehavior. Стабилизируем ленивым
+  // useState (тем же примитивом, что оборачивает useJsonForm) — повторная сборка создала бы новый
+  // реестр и новый тип AsyncBoundary, из-за чего загрузка префилла стартовала бы заново. useJsonForm
+  // здесь не подходит: его результат сужён до JsonForm<T> и потерял бы renderBehavior из бандла.
+  const [jsonForm] = useState(() => createRegistrationSetup());
 
   return (
-    <JsonRendererProvider settings={{ registry }}>
+    <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
       <JsonFormRenderer<RegistrationFormData>
-        schema={registrationJsonSchema}
-        model={model}
-        renderBehavior={renderBehavior}
+        form={jsonForm}
+        renderBehavior={jsonForm.renderBehavior}
         validateSchema={import.meta.env.DEV}
       />
     </JsonRendererProvider>

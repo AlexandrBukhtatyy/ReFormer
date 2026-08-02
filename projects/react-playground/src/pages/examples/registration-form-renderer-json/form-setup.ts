@@ -3,13 +3,13 @@
  *
  * Вынесено из компонента, чтобы в TSX остались только `JsonRendererProvider` и
  * `JsonFormRenderer`. Здесь нет ни одного React-хука — это чистая функция сборки,
- * которую компонент вызывает один раз в `useMemo`.
+ * которую компонент вызывает один раз (ленивый `useState`). Модель/форма собираются одним
+ * проходом через `createJsonForm` (§7).
  */
 
-import { createModel, createForm } from '@reformer/core';
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 import { signal } from '@reformer/core/signals';
-import { convertJsonToM1Tree, type JsonFormSchema } from '@reformer/renderer-json';
+import { createJsonForm, type JsonForm, type JsonFormSchema } from '@reformer/renderer-json';
 import { onInit, onComponentEvent, type RenderBehaviorFn } from '@reformer/renderer-react';
 import type { RegistrationFormData } from '../registration-form/RegistrationForm';
 import { makeRegistrationValidator } from './validation';
@@ -17,8 +17,10 @@ import { createRegistrationRegistry, type FormUiState } from './registry';
 import rawJsonSchema from './json-schema.json';
 
 // Операторы в чистом JSON типизируются как `string`, поэтому приведение — это и есть
-// сценарий «схема пришла строкой с сервера».
-export const registrationJsonSchema = rawJsonSchema as unknown as JsonFormSchema;
+// сценарий «схема пришла строкой с сервера». Параметр `<RegistrationFormData>` даёт
+// `createJsonForm<T>` типобезопасность путей `$model(...)` при сборке (сам cast остаётся).
+export const registrationJsonSchema =
+  rawJsonSchema as unknown as JsonFormSchema<RegistrationFormData>;
 
 // Код приглашения, по которому грузится префилл. Локальный: mock (mocks/data/users.ts) держит свой
 // список приглашений независимо — разные слои (клиент знает свой код, сервер — свои записи). Любой
@@ -37,7 +39,7 @@ const INITIAL: RegistrationFormData = {
 };
 
 /**
- * Реактивность ДАННЫХ (`createForm({ behavior })`): реагирует на изменения модели немедленно,
+ * Реактивность ДАННЫХ (`createJsonForm({ behavior })`): реагирует на изменения модели немедленно,
  * в отличие от валидации (только на submit). Здесь один сценарий — снятие устаревшей ошибки
  * «Пароли не совпадают»: `passwordsMatch` роутит её в ноду `confirmPassword` на submit, а правка
  * первого пароля делает вердикт неактуальным, поэтому ошибку убираем сразу.
@@ -48,10 +50,20 @@ const registrationBehavior = defineFormBehavior<RegistrationFormData>(({ model, 
   });
 });
 
+/** Бандл {@link createJsonForm} + render-behavior (инъекция обработчиков/рантайм-сущностей в схему). */
+export interface RegistrationJsonForm extends JsonForm<RegistrationFormData> {
+  renderBehavior: RenderBehaviorFn<RegistrationFormData>;
+}
+
 /**
- * Собирает всё, что нужно рендереру. Вызывается один раз (в `useMemo`) — повторный вызов создал бы
- * новый реестр и новый тип компонента `AsyncBoundary`, из-за чего загрузка префилла стартовала бы
- * заново.
+ * Собирает всё, что нужно рендереру. Вызывается один раз (ленивый `useState`) — повторный вызов
+ * создал бы новый реестр и новый тип компонента `AsyncBoundary`, из-за чего загрузка префилла
+ * стартовала бы заново.
+ *
+ * Сборка модели/формы — одним проходом через `createJsonForm` (§7): раньше схема передавалась
+ * дважды (в `convertJsonToM1Tree` и пропом рендерера), теперь один раз, а наружу отдаётся бандл
+ * `{ model, form, schema, registry }`, который целиком уходит в `<JsonFormRenderer form={…} />`
+ * (плюс `renderBehavior`).
  *
  * Сборка линейна: реестр больше НЕ замыкает обработчики (события висят через `onComponentEvent`),
  * поэтому цикла `registry → actions → form` нет, и `submit`/`reset`/`loadPrefill`/`applyPrefill`
@@ -59,15 +71,18 @@ const registrationBehavior = defineFormBehavior<RegistrationFormData>(({ model, 
  * валидация → снимок → запрос → `reset` только после успеха (ошибки валидации сами доезжают до нод,
  * UI подсвечивает поля).
  */
-export function createRegistrationSetup() {
+export function createRegistrationSetup(): RegistrationJsonForm {
   const ui: FormUiState = { status: signal<string | null>(null), pending: signal(false) };
   const registry = createRegistrationRegistry(ui);
-  const model = createModel<RegistrationFormData>({ ...INITIAL });
-  const form = createForm<RegistrationFormData>({
-    model,
-    schema: convertJsonToM1Tree(registrationJsonSchema, registry, model),
+  // Сборка одним проходом (§7): createJsonForm создаёт модель из `initial`, конвертирует схему и
+  // строит форму. Наружу — бандл { model, form, schema, registry } + renderBehavior (см. return).
+  const jsonForm = createJsonForm<RegistrationFormData>({
+    schema: registrationJsonSchema,
+    registry,
+    initial: { ...INITIAL },
     behavior: registrationBehavior,
   });
+  const { model, form } = jsonForm;
   const validate = makeRegistrationValidator(model);
 
   const submit = async (): Promise<void> => {
@@ -155,5 +170,5 @@ export function createRegistrationSetup() {
     onComponentEvent(schema.node('prefill-boundary'), 'onSuccess', applyPrefill);
   };
 
-  return { model, registry, renderBehavior };
+  return { ...jsonForm, renderBehavior };
 }
