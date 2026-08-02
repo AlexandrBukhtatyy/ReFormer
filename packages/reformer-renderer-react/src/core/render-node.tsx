@@ -4,12 +4,13 @@
  * @module reformer/renderer-react/render-node
  */
 
-import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { effect, Signal } from '@reformer/core/signals';
 import type { FieldNode, FormProxy } from '@reformer/core';
 import { getNodeForSignal } from '@reformer/core';
 import type {
   RenderNode,
+  RenderSchemaFn,
   FieldWrapperProps,
   FieldAdapter,
   ModelFieldRenderNode,
@@ -29,10 +30,82 @@ import { useContext } from 'react';
 import {
   useHiddenOverride,
   usePropsOverride,
+  isRenderSchemaProxy,
   RenderSchemaOverrideContext,
+  type RenderSchemaOverrideMaps,
 } from './render-schema-proxy';
 import { useCondition, useNodeLifecycle } from './render-behavior';
 import { buildAdaptedFieldProps } from './field-adapter';
+
+/**
+ * Собирает все СТАТИЧЕСКИЕ селекторы дерева по структуре (selector узла + рекурсия в `children`).
+ * Идёт по структуре, а не по рендеру, поэтому включает узлы визарда и скрытых секций (они есть в
+ * дереве, даже если сейчас не смонтированы) — это исключает ложные срабатывания диагностики. В `item`
+ * массива (динамическая фабрика) не спускаемся: селекторы там per-item и через `schema.node(...)` не
+ * адресуются.
+ */
+function collectStaticSelectors(node: RenderNode<unknown> | undefined, out: Set<string>): void {
+  if (!node || typeof node !== 'object') return;
+  const selector = (node as { selector?: string }).selector;
+  if (selector) out.add(selector);
+  const children = (node as { children?: RenderNode<unknown>[] }).children;
+  if (Array.isArray(children)) {
+    for (const child of children) collectStaticSelectors(child, out);
+  }
+}
+
+/**
+ * Чистый анализ селекторов (для {@link useSelectorMissCheck} и юнит-тестов): собирает все статические
+ * селекторы дерева и сверяет с адресованными (ключи override-карт). Возвращает `known` (все известные)
+ * и `missing` (адресованные, которых нет в дереве — промахи/опечатки).
+ */
+export function analyzeSelectors(
+  rootNode: RenderNode<unknown>,
+  overrideMaps: RenderSchemaOverrideMaps
+): { known: string[]; missing: string[] } {
+  const knownSet = new Set<string>();
+  collectStaticSelectors(rootNode, knownSet);
+  const addressed = new Set<string>([
+    ...overrideMaps.hiddenOverrides.keys(),
+    ...overrideMaps.propsOverrides.keys(),
+    ...overrideMaps.refRegistry.keys(),
+    ...overrideMaps.conditionRegistry.keys(),
+    ...overrideMaps.callbackRegistry.keys(),
+    ...overrideMaps.lifecycleRegistry.keys(),
+  ]);
+  return {
+    known: [...knownSet].sort(),
+    missing: [...addressed].filter((s) => !knownSet.has(s)),
+  };
+}
+
+/**
+ * Диагностика промаха `selector` (§8): предупреждает, если `schema.node(selector)` адресует узел,
+ * которого нет в дереве (опечатка/промах) — раньше это было тихо (override просто никогда не читался,
+ * заметно лишь по «неработающему» hideWhen/patchProps). Безусловный `console.warn` (как прочие warn'ы
+ * рендерера) — `import.meta.env.DEV` вырезался бы из dist. Прогон один раз на сборку схемы (по
+ * идентичности `__overrideMaps`).
+ */
+export function useSelectorMissCheck<T>(render: RenderSchemaFn<T>, rootNode: RenderNode<T>): void {
+  const rootRef = useRef(rootNode);
+  rootRef.current = rootNode;
+  const overrideMaps: RenderSchemaOverrideMaps | null = isRenderSchemaProxy(render)
+    ? render.__overrideMaps
+    : null;
+  useEffect(() => {
+    if (!overrideMaps) return;
+    const { known, missing } = analyzeSelectors(
+      rootRef.current as RenderNode<unknown>,
+      overrideMaps
+    );
+    if (missing.length > 0 && typeof console !== 'undefined') {
+      console.warn(
+        `[RenderSchema] schema.node(...) адресует неизвестный selector: ${missing.join(', ')}. ` +
+          `Известные селекторы: ${known.join(', ') || '(нет)'}.`
+      );
+    }
+  }, [overrideMaps]);
+}
 
 /**
  * Props для RenderNodeComponent
