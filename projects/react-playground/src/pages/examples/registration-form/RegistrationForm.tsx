@@ -6,18 +6,18 @@
  * - VALIDATION-схема (`registrationValidation`) — стабильный module-level `const`
  *   `defineValidationSchema(({ model }) => …)` с операторами `validate` / `validateAsync` / `cross`.
  * - createForm({ model, schema }) → FormProxy (ноды привязаны к сигналам модели).
- * - На submit: `await validateModel(model, registrationValidation)` (sync + async, снапшот по требованию).
+ * - Стратегия валидации выбрана декларативно через `useFormValidation({ strategy: 'afterFirstSubmit' })`:
+ *   тихо до первой отправки, затем живая проверка при вводе. `submit()` сам метит touched.
  * - Рендер через существующий <FormField control={form.x} /> (нода = сигнал модели).
  */
 
-import { useMemo, useState } from 'react';
-import { createModel, createForm, type ValidationError } from '@reformer/core';
+import { useMemo } from 'react';
+import { createModel, createForm, useFormValidation, type ValidationError } from '@reformer/core';
 import {
   validate,
   validateAsync,
   cross,
   defineValidationSchema,
-  validateModel,
   type Rule,
   type AsyncRule,
 } from '@reformer/core/validation';
@@ -218,14 +218,19 @@ export default function RegistrationForm() {
     return { model: m, form: f };
   }, []);
 
-  const [pending, setPending] = useState(false);
+  // Единый выбор стратегии (§7): afterFirstSubmit — тихо до первой отправки, затем живая проверка
+  // при вводе (debounce 400мс). submit() внутри метит touched (раскрывает ошибки), поэтому ручной
+  // form.markAsTouched()/validateModel больше не нужны. isValidating заменяет прежний pending.
+  const { submit, isValidating } = useFormValidation({
+    model,
+    schema: registrationValidation,
+    strategy: 'afterFirstSubmit',
+    debounce: 400,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAsTouched();
-    setPending(true);
-    const ok = await validateModel(model, registrationValidation);
-    setPending(false);
+    const ok = await submit();
 
     if (ok) {
       try {
@@ -274,10 +279,10 @@ export default function RegistrationForm() {
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={pending}
+              disabled={isValidating}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {pending ? 'Проверка...' : 'Зарегистрироваться'}
+              {isValidating ? 'Проверка...' : 'Зарегистрироваться'}
             </button>
             <button
               type="button"
