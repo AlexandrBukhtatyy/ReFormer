@@ -289,6 +289,9 @@ const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
 - `validateAll()` composes every non-null step schema plus `extras`.
 - `stepSelectors` is the ordered list of selectors (index = `step - 1`), handy for
   selector-based navigation or debugging.
+- `createStepController(step)` builds a `FormValidationController` for that step's
+  live `strategy` (or `null` if `strategy` is unset / `'submit'` / the step has no
+  rules) — consumed by `useWizardStepValidation`, not called directly.
 
 Both callbacks validate with `{ touch: true }`, so only the fields they actually
 validated get marked touched and their errors become visible — no blanket
@@ -299,3 +302,44 @@ the selector, not the index); a rule-less step is visible in the config as `null
 instead of being an implicit gap; and the brittle offset math lives in one place.
 
 > Imported from `@reformer/cdk` (or `@reformer/cdk/form-wizard`).
+
+## Живая валидация шага: `strategy` + `useWizardStepValidation`
+
+По умолчанию wizard валидирует только на границах: `validateStep` на «Далее» и
+`validateAll` на submit. Чтобы включить **живую** валидацию внутри активного шага
+(по blur / по вводу / после первого submit), передай `strategy` в `defineSteps` и
+заармь её хуком `useWizardStepValidation` в теле шага.
+
+`strategy` (+ опциональные `debounce` и `liveAfterSubmit`) описывает live-слой
+**внутри активного шага**. Значения — те же, что у schema-стратегий:
+`'submit' | 'blur' | 'change' | 'afterFirstSubmit'`; `debounce` (мс) актуален для
+`'change'`, `liveAfterSubmit` (`'change' | 'blur'`, default `'change'`) — для
+`'afterFirstSubmit'`.
+
+```tsx
+import { FormWizard, defineSteps, useWizardStepValidation } from '@reformer/cdk/form-wizard';
+
+const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
+  steps: { loan: step1, applicant: step2, confirm: null },
+  extras: crossFieldRules,
+  strategy: 'blur', // живой слой внутри активного шага
+});
+
+function LoanStep() {
+  // армит strategy под текущий шаг; снимает при смене шага / unmount
+  useWizardStepValidation(config);
+  return /* поля шага */;
+}
+```
+
+- `useWizardStepValidation(config)` берёт `currentStep` из `FormWizardContext`,
+  поднимает контроллер (`config.createStepController(currentStep)`) с заданной
+  `strategy` и dispose'ит его при смене шага или unmount.
+- **No-op**, если `strategy` не задана / равна `'submit'` / у текущего шага нет
+  правил (`null`) — хук можно ставить безусловно.
+- Per-step gate (`validateStep` на «Далее») и `validateAll` (submit) **не
+  меняются** — `strategy` добавляет живой слой **поверх** них, а не заменяет их.
+
+> Не навешивай node-level `updateOn` (реактивные триггеры на ноде поля) на те же
+> поля, что покрыты активной schema-`strategy` — оба пишут ошибку в одну ноду,
+> будет мерцание.

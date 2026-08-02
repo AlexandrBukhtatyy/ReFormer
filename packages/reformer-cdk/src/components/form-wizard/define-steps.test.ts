@@ -55,4 +55,43 @@ describe('defineSteps', () => {
     });
     expect(await good.validateAll()).toBe(true);
   });
+
+  describe('createStepController (live-стратегия шага)', () => {
+    it('без strategy (или submit) — контроллер не создаётся (null)', () => {
+      const cfg = defineSteps<'first' | 'second', F>(makeModel(), {
+        steps: { first: stepA, second: stepB },
+      });
+      expect(cfg.createStepController(1)).toBeNull();
+
+      const cfgSubmit = defineSteps<'first' | 'second', F>(makeModel(), {
+        steps: { first: stepA, second: stepB },
+        strategy: 'submit',
+      });
+      expect(cfgSubmit.createStepController(1)).toBeNull();
+    });
+
+    it('со strategy — контроллер для шага с правилами; null для шага без правил', () => {
+      const cfg = defineSteps<'first' | 'confirm', F>(makeModel(), {
+        steps: { first: stepA, confirm: null },
+        strategy: 'change',
+      });
+      const ctrl = cfg.createStepController(1);
+      expect(ctrl).not.toBeNull();
+      expect(cfg.createStepController(2)).toBeNull(); // confirm — правил нет
+      ctrl?.dispose();
+    });
+
+    it('контроллер шага привязан к под-схеме ИМЕННО этого шага', async () => {
+      const cfg = defineSteps<'first' | 'second', F>(makeModel({ a: '', b: 'ok' }), {
+        steps: { first: stepA, second: stepB },
+        strategy: 'change',
+      });
+      const first = cfg.createStepController(1);
+      const second = cfg.createStepController(2);
+      expect(await first?.validate()).toBe(false); // step1 → 'a' пустой
+      expect(await second?.validate()).toBe(true); // step2 → 'b' заполнен
+      first?.dispose();
+      second?.dispose();
+    });
+  });
 });

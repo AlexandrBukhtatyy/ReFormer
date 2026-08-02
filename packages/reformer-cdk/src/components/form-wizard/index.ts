@@ -23,6 +23,10 @@ export type { SlotProps } from './Slot';
 export { defineSteps } from './define-steps';
 export type { DefineStepsConfig, WizardStepsConfig } from './define-steps';
 
+// Live-стратегия валидации внутри активного шага (createFormValidation под текущий шаг).
+export { useWizardStepValidation } from './use-wizard-step-validation';
+export type { StepValidationConfig } from './use-wizard-step-validation';
+
 // Context and hook
 export { useFormWizard, FormWizardContext } from './FormWizardContext';
 

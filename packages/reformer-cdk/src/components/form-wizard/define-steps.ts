@@ -16,11 +16,14 @@ import {
   validateModel,
   defineValidationSchema,
   apply,
+  createFormValidation,
   type ValidationSchema,
+  type ValidationStrategyKind,
+  type FormValidationController,
 } from '@reformer/core/validation';
 import type { FormWizardConfig } from './types';
 
-/** Конфиг {@link defineSteps}: правила шагов по `selector` + form-level extras. */
+/** Конфиг {@link defineSteps}: правила шагов по `selector` + form-level extras + live-стратегия шага. */
 export interface DefineStepsConfig<Sel extends string, T> {
   /**
    * Правила шагов. Ключ = `selector` шага (совпадает с id ноды шага в схеме); порядок ключей =
@@ -29,6 +32,16 @@ export interface DefineStepsConfig<Sel extends string, T> {
   steps: Record<Sel, ValidationSchema<T> | null>;
   /** Cross-field/warnings уровня всей формы — применяются только в `validateAll` (submit). */
   extras?: ValidationSchema<T>;
+  /**
+   * Live-стратегия ВНУТРИ активного шага (`blur`/`change`/`afterFirstSubmit`) — для
+   * {@link useWizardStepValidation}. Не задана / `'submit'` → живой валидации внутри шага нет
+   * (остаётся только per-step gate на «Далее» + submit). Аддитивно: per-step gate/submit не меняются.
+   */
+  strategy?: ValidationStrategyKind;
+  /** Debounce (мс) для live-фаз внутришаговой стратегии (`change` / live-часть `afterFirstSubmit`). */
+  debounce?: number;
+  /** Режим live-фазы для `afterFirstSubmit`. Default `'change'`. */
+  liveAfterSubmit?: 'change' | 'blur';
 }
 
 /** Результат {@link defineSteps}: {@link FormWizardConfig} + упорядоченный список селекторов шагов. */
@@ -39,6 +52,12 @@ export interface WizardStepsConfig<Sel extends string> extends FormWizardConfig 
   validateAll: () => Promise<boolean>;
   /** Селекторы шагов по порядку (индекс = `step - 1`). Для селекторной адресации/отладки. */
   stepSelectors: Sel[];
+  /**
+   * Контроллер live-стратегии для под-схемы шага (1-based) — для {@link useWizardStepValidation}.
+   * Возвращает `null`, если live-стратегия не задана (`strategy` отсутствует / `'submit'`) или у
+   * шага нет правил. Тип {@link FormValidationController} не зависит от `T`.
+   */
+  createStepController: (step: number) => FormValidationController | null;
 }
 
 /**
@@ -76,6 +95,7 @@ export function defineSteps<Sel extends string, T extends object>(
   const fullSchema = defineValidationSchema<T>(() =>
     apply(...stepSchemas, ...(config.extras ? [config.extras] : []))
   );
+  const { strategy, debounce, liveAfterSubmit } = config;
   return {
     stepSelectors,
     validateStep: (step: number): Promise<boolean> => {
@@ -84,5 +104,15 @@ export function defineSteps<Sel extends string, T extends object>(
       return validateModel(model, schema, { touch: true });
     },
     validateAll: (): Promise<boolean> => validateModel(model, fullSchema, { touch: true }),
+    createStepController: (step: number): FormValidationController | null => {
+      // Live-стратегия внутри шага опциональна; без неё (или 'submit') армировать нечего —
+      // остаётся только per-step gate на «Далее». Шаг без правил (null) тоже не армируем.
+      if (!strategy || strategy === 'submit') return null;
+      const selector = stepSelectors[step - 1];
+      const schema = selector != null ? config.steps[selector] : null;
+      if (schema == null) return null;
+      // Та же ссылка на под-схему шага, что и в validateStep → validateModel дедуплицирует прогоны.
+      return createFormValidation(model, schema, { strategy, debounce, liveAfterSubmit });
+    },
   };
 }

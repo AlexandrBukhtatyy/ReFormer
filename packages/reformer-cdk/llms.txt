@@ -560,6 +560,9 @@ const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
 - `validateAll()` composes every non-null step schema plus `extras`.
 - `stepSelectors` is the ordered list of selectors (index = `step - 1`), handy for
   selector-based navigation or debugging.
+- `createStepController(step)` builds a `FormValidationController` for that step's
+  live `strategy` (or `null` if `strategy` is unset / `'submit'` / the step has no
+  rules) — consumed by `useWizardStepValidation`, not called directly.
 
 Both callbacks validate with `{ touch: true }`, so only the fields they actually
 validated get marked touched and their errors become visible — no blanket
@@ -571,7 +574,48 @@ instead of being an implicit gap; and the brittle offset math lives in one place
 
 > Imported from `@reformer/cdk` (or `@reformer/cdk/form-wizard`).
 
-## 20. Purpose
+## 20. Живая валидация шага: `strategy` + `useWizardStepValidation`
+
+По умолчанию wizard валидирует только на границах: `validateStep` на «Далее» и
+`validateAll` на submit. Чтобы включить **живую** валидацию внутри активного шага
+(по blur / по вводу / после первого submit), передай `strategy` в `defineSteps` и
+заармь её хуком `useWizardStepValidation` в теле шага.
+
+`strategy` (+ опциональные `debounce` и `liveAfterSubmit`) описывает live-слой
+**внутри активного шага**. Значения — те же, что у schema-стратегий:
+`'submit' | 'blur' | 'change' | 'afterFirstSubmit'`; `debounce` (мс) актуален для
+`'change'`, `liveAfterSubmit` (`'change' | 'blur'`, default `'change'`) — для
+`'afterFirstSubmit'`.
+
+```tsx
+import { FormWizard, defineSteps, useWizardStepValidation } from '@reformer/cdk/form-wizard';
+
+const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
+  steps: { loan: step1, applicant: step2, confirm: null },
+  extras: crossFieldRules,
+  strategy: 'blur', // живой слой внутри активного шага
+});
+
+function LoanStep() {
+  // армит strategy под текущий шаг; снимает при смене шага / unmount
+  useWizardStepValidation(config);
+  return /* поля шага */;
+}
+```
+
+- `useWizardStepValidation(config)` берёт `currentStep` из `FormWizardContext`,
+  поднимает контроллер (`config.createStepController(currentStep)`) с заданной
+  `strategy` и dispose'ит его при смене шага или unmount.
+- **No-op**, если `strategy` не задана / равна `'submit'` / у текущего шага нет
+  правил (`null`) — хук можно ставить безусловно.
+- Per-step gate (`validateStep` на «Далее») и `validateAll` (submit) **не
+  меняются** — `strategy` добавляет живой слой **поверх** них, а не заменяет их.
+
+> Не навешивай node-level `updateOn` (реактивные триггеры на ноде поля) на те же
+> поля, что покрыты активной schema-`strategy` — оба пишут ошибку в одну ноду,
+> будет мерцание.
+
+## 21. Purpose
 
 - Дать минимальный «скелет» поля: label + control + description + error.
 - Не навязывать стилей — каждый sub-компонент рендерит обычные HTML-элементы (или `Slot` через `asChild`).
@@ -580,7 +624,7 @@ instead of being an implicit gap; and the brittle offset math lives in one place
 
 В отличие от `FormField` из `@reformer/ui-kit`, который рендерит готовый layout (label сверху, ошибка снизу), `FormField` из `@reformer/cdk` ничего не рендерит сверх минимально необходимого и нужен, когда требуется собственный layout.
 
-## 21. Components
+## 22. Components
 
 | Component                    | Purpose                                                                                                                                                               | Notes                                                                                                                         |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -592,7 +636,7 @@ instead of being an implicit gap; and the brittle offset math lives in one place
 | `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `errors`, `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                            |
 | `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `state`, `actions`, `ids`.                               | Удобен, когда нужен полный контроль над DOM-структурой и пропсами.                                                            |
 
-## 22. Examples
+## 23. Examples
 
 ### Базовый сценарий — auto-render всех частей
 
@@ -697,7 +741,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 </>;
 ```
 
-## 23. Anti-patterns
+## 24. Anti-patterns
 
 - **Использовать `FormField.Label` / `Error` / `Control` без `FormField.Root`.** Каждый дочерний компонент вызывает `useFormFieldContext()` и бросает: `FormField.* components must be used within <FormField.Root>`.
 - **Подписываться на `useFormControl(control)` рядом с `FormField.Root`.** `Root` уже подписан — лишняя подписка приведёт к двойному ререндеру. Используйте `useFormFieldContext()` для доступа к состоянию.
@@ -706,7 +750,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - **Двойное рендерание ошибки (`Error` + ручной `<p>`).** `FormField.Error` уже подписан на `errors`/`shouldShowError`. Если нужен кастомный layout — используйте `render` prop, а не дублируйте.
 - **Применять `asChild` к компоненту, который не пробрасывает `ref`/`...props`.** `Slot` объединяет пропсы и ref в дочерний элемент; если потомок их не принимает, `aria-*`-атрибуты потеряются.
 
-## 24. Troubleshooting
+## 25. Troubleshooting
 
 - **`Error: FormField.* components must be used within <FormField.Root>`.** Проверьте, что вызов `FormField.Label` / `Control` / `Error` обёрнут в `FormField.Root` и компонент не рендерится в портале выше провайдера.
 - **`Label` ничего не показывает.** В схеме поля нет `componentProps.label`. Вариант: задайте `label` в схеме, или передайте `children` в `FormField.Label`, или поставьте `forceRender`.
@@ -717,7 +761,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - **При async-валидации индикатор моргает.** `pending` переключается на каждый `setValue`. Дебаунсьте источник или добавьте задержку перед показом спиннера (например, `useDeferredValue`).
 - **Дубликаты `id` в DOM.** Несколько `FormField.Root` с одинаковым явным `id`. Опустите `id` (тогда работает `useId()`) или дайте уникальные значения.
 
-## 25. See also
+## 26. See also
 
 - [01-overview.md](01-overview.md) — общее введение в `@reformer/cdk`.
 - [02-form-array.md](02-form-array.md), [03-form-navigation.md](03-form-navigation.md) — соседние compound-компоненты.
@@ -725,7 +769,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
 - [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.
 
-## 26. Два режима
+## 27. Два режима
 
 | Режим            | Включается         | Кто ведёт состояние                                                                      |
 | ---------------- | ------------------ | ------------------------------------------------------------------------------------------ |
@@ -734,7 +778,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 
 В self-managed режиме props `status` / `error` / `refreshing` / `onRetry` игнорируются: два источника истины о состоянии — источник багов. Режим выбирается один раз при монтировании, менять его на лету нельзя.
 
-## 27. Purpose
+## 28. Purpose
 
 - Забрать загрузку внутрь компонента: снаружи остаются только «как загрузить» (`load`) и «что сделать с ответом» (`onSuccess`), а гонки, отмена и повтор — внутри.
 - Развести четыре взаимоисключающих состояния экрана без цепочки тернарников.
@@ -743,7 +787,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - Погасить вспышку спиннера при быстром ответе (`delayMs`) и сохранить контент при фоновом обновлении (`refreshing`).
 - Выдать корректные `aria-busy` / `role="status"` / `role="alert"` без участия консумента.
 
-## 28. Components
+## 29. Components
 
 | Component                    | Purpose                                                                                                | Notes                                                                                            |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
@@ -759,7 +803,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 | `useAsyncResource(options)`  | Хук загрузки с отменой и повтором: `load` / `loadKey` / `enabled` → `{ status, data, error, refreshing, reload, abort }`. | То, что `Root` использует внутри в self-managed режиме.                          |
 | `asyncResourceReducer`       | Чистая (React-free) машина состояний загрузки.                                                          | Экспортирована для своих обёрток и юнит-тестов без DOM.                                   |
 
-## 29. Imperative handle
+## 30. Imperative handle
 
 `AsyncBoundary.Root` принимает `ref` типа `AsyncBoundaryHandle<T, E>` — для триггеров вне дерева границы (кнопка «Обновить» в шапке, пункт меню, событие сокета):
 
@@ -783,7 +827,7 @@ const boundaryRef = useRef<AsyncBoundaryHandle<Application[]>>(null);
 | `abort()`                                      | Прервать запрос; прерывание не считается ошибкой. В controlled-режиме — no-op. |
 | `status` / `data` / `error` / `isLoading` / `refreshing` | Снимок на момент рендера — для реактивного UI читайте контекст, а не handle. |
 
-## 30. Examples
+## 31. Examples
 
 ### Self-managed — загрузка внутри компонента
 
@@ -915,7 +959,7 @@ function Panel({ status, error, reload, children }: Props) {
 }
 ```
 
-## 31. Accessibility
+## 32. Accessibility
 
 Расставляется компонентом, дублировать вручную не нужно:
 
@@ -927,13 +971,13 @@ function Panel({ status, error, reload, children }: Props) {
 
 Булевы `aria-*` / `data-*` выставляются как `true | undefined`, никогда `false`: `false` отрендерился бы строкой `"false"` и сломал селекторы вида `[data-refreshing]`.
 
-## 32. Common Patterns
+## 33. Common Patterns
 
 - **Отложенный спиннер.** `delayMs={200}` — статус остаётся честным (`'loading'`), откладывается только показ слота. Ответ за 120 мс проходит `loading → ready`, а пользователь не видит вспышки.
 - **Stale-while-revalidate.** При обновлении держите `status: 'ready'` и поднимайте `refreshing` — контент остаётся на экране, регион помечается занятым.
 - **Множественная загрузка как одна единица.** Заявка + справочники грузятся `Promise.all`; падение любого — общий `error`. Разные сообщения различают причину.
 
-## 33. Anti-patterns
+## 34. Anti-patterns
 
 - **Не** заводить пятый статус `'empty'`: пустоту знает только консумент, а статус пришлось бы пересчитывать на каждое изменение данных. Используйте `AsyncBoundary.Empty` с `when`.
 - **Не** схлопывать «нечего грузить» в `ready` — для этого есть `idle`.
@@ -944,7 +988,7 @@ function Panel({ status, error, reload, children }: Props) {
 - **Не** переиспользовать слово `pending` для загрузки данных — в `@reformer/core` оно занято состоянием асинхронного валидатора (`FieldStatus === 'pending'`).
 - **Не** класть в CDK-слоты Tailwind-классы и вёрстку: стилизованные блоки живут в `@reformer/ui-kit` (`AsyncBoundary`, `AsyncBoundaryLoading`, `AsyncBoundaryError`, `AsyncBoundaryEmpty`).
 
-## 34. Nested FormArray
+## 35. Nested FormArray
 
 ### Problem
 
@@ -1001,7 +1045,7 @@ import { FormField } from '@reformer/ui-kit';
 - `useFormArrayItemContext()` внутри вложенного `List` вернёт **внутренний** item (`coOwner`), не внешний. Если нужен индекс внешнего элемента, забирайте его в замыкании render-функции (`index`, `property`).
 - Рендер-проп `FormArray.List` стабилен по identity: вынесите тяжёлые шаги в отдельный компонент, чтобы получить React.memo-эффект.
 
-## 35. Custom AddButton
+## 36. Custom AddButton
 
 ### Problem
 
@@ -1041,7 +1085,7 @@ function AddPropertyMenu() {
 - Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FormArrayHandle<T>>` + `arrayRef.current?.add(...)`.
 - Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push триггерит ререндер `List` (через `length`-зависимость в `useFormArray`).
 
-## 36. Conditional / dynamic step count in FormWizard
+## 37. Conditional / dynamic step count in FormWizard
 
 ### Problem
 
@@ -1108,7 +1152,7 @@ function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
 - `completedSteps` — массив номеров; при изменении общей нумерации логика «можно ли перейти на шаг N» (`step === 1 || completedSteps.includes(step - 1)`) может отметить шаг как доступный без валидации. Скиньте `completedSteps` через перемонтирование `FormWizard` (key={needsVerification}) если важна строгость.
 - Children-формы рендерятся условно `_stepIndex === currentStep` (см. `FormWizardStep.tsx`); неактивные `Step` возвращают `null`, состояние их полей живёт в `form` независимо от рендера.
 
-## 37. Externally-controlled wizard via `useRef<FormWizardHandle>`
+## 38. Externally-controlled wizard via `useRef<FormWizardHandle>`
 
 ### Problem
 
@@ -1160,14 +1204,14 @@ function Page({ form, config }: Props) {
 - `goToStep(n)` возвращает `false`, если `n > totalSteps`, `n < 1`, или предыдущий шаг (`n - 1`) не в `completedSteps` (исключение — сам шаг 1). Используйте `await goToNextStep()` чтобы пройти вперёд с валидацией.
 - Ref становится `null` пока компонент не смонтировался. Все вызовы — `navRef.current?.method()` с optional chaining, либо проверка `if (!navRef.current) return`.
 
-## 38. See also
+## 39. See also
 
 - [02-form-array.md](02-form-array.md) — основы FormArray (compound API, ref-handle).
 - [03-form-navigation.md](03-form-navigation.md) — основы FormWizard (Indicator, Actions, Progress).
 - [04-form-field.md](04-form-field.md) — компоновка одного поля.
 - [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки и пути их обхода.
 
-## 39. `FormArray.AddButton` не появляется на странице
+## 40. `FormArray.AddButton` не появляется на странице
 
 **Причина.** `FormArray.AddButton` не самостоятельный элемент — он рендерит кнопку только внутри `FormArray.Root`. Если он вынесен наружу или `Root` не отрендерился (например, под условным `if`), кнопки не будет.
 
@@ -1180,7 +1224,7 @@ function Page({ form, config }: Props) {
 </FormArray.Root>
 ```
 
-## 40. `FormArray.List` ререндерит весь массив при изменении одного элемента
+## 41. `FormArray.List` ререндерит весь массив при изменении одного элемента
 
 **Причина.** Render-функция массива возвращает inline JSX, который не мемоизирован. Изменение поля у элемента триггерит ререндер `FormArray.Root` (через `useFormControl(arrayNode)`), а List-children получают новые ссылки.
 
@@ -1196,7 +1240,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 
 `useFormArray` мемоизирует `items` по длине массива (см. `useFormArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
 
-## 41. `FormWizardHandle.goToStep` возвращает `false`
+## 42. `FormWizardHandle.goToStep` возвращает `false`
 
 **Причина.** `goToStep(n)` пускает только если `n === 1` или `n - 1` уже в `completedSteps` (см. `FormWizard.tsx:goToStep`). Это защита от пропуска валидации. Также `false` возвращается при `n < 1` или `n > totalSteps`.
 
@@ -1206,7 +1250,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 - Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
 - Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
 
-## 42. Шаг без валидации пропускается без проверки
+## 43. Шаг без валидации пропускается без проверки
 
 **Причина.** `validateCurrentStep` вызывает `config.validateStep(currentStep)`. Если колбэк `validateStep` вообще не задан в `config` — выводит `console.warn` и возвращает `true` (шаг считается валидным). Актуальный `FormWizardConfig` — это пара колбэков, а не словарь схем:
 
@@ -1237,7 +1281,7 @@ const config: FormWizardConfig = {
 };
 ```
 
-## 43. `useFormArrayContext` бросает исключение
+## 44. `useFormArrayContext` бросает исключение
 
 **Сообщение.** `Error: FormArray.* components must be used within FormArray.Root or RenderSchema FormArray`.
 
@@ -1245,7 +1289,7 @@ const config: FormWizardConfig = {
 
 **Решение.** Поместите потребителя внутрь `FormArray.Root`. Для портала — оберните потребителя ещё одним `Root` с тем же `control`, либо используйте ref-handle `FormArrayHandle` снаружи.
 
-## 44. `useFormFieldContext` бросает исключение
+## 45. `useFormFieldContext` бросает исключение
 
 **Сообщение.** `Error: FormField.* components must be used within <FormField.Root>`.
 
@@ -1253,7 +1297,7 @@ const config: FormWizardConfig = {
 
 **Решение.** Перепроверьте дерево; если поле условное — выносите всю секцию в `if (!visible) return null;` снаружи `FormField.Root`.
 
-## 45. `FormField.Error` не показывает ошибку, хотя `errors.length > 0`
+## 46. `FormField.Error` не показывает ошибку, хотя `errors.length > 0`
 
 **Причина.** Поле не помечено как touched, `shouldShowError === false`. По умолчанию ReFormer показывает ошибки только после blur/submit.
 
@@ -1272,7 +1316,7 @@ const handleSubmit = async () => {
 };
 ```
 
-## 46. `FormField.Description` есть в DOM, но `aria-describedby` пустой
+## 47. `FormField.Description` есть в DOM, но `aria-describedby` пустой
 
 **Причина.** В `FormField.Root` не передан проп `hasDescription`. Без него `Control` не вписывает `descriptionId` в `aria-describedby` (это сделано осознанно — чтобы избежать двойного рендера от динамической регистрации).
 
@@ -1286,7 +1330,7 @@ const handleSubmit = async () => {
 </FormField.Root>
 ```
 
-## 47. Multi-step submit срабатывает раньше валидации последнего шага
+## 48. Multi-step submit срабатывает раньше валидации последнего шага
 
 **Причина.** `FormWizard.Actions` render-prop `submit.onClick` вызывает переданный в `Actions` `onSubmit` сразу при клике. Если в этом обработчике идёт `navRef.current?.submit(...)`, он запустит `config.validateAll?.()` поверх всей формы (а не только последнего шага). Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно, где именно проблема.
 
@@ -1300,7 +1344,7 @@ const handleSubmit = async () => {
 };
 ```
 
-## 48. `FormArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
+## 49. `FormArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
 
 **Причина.** Используется `index` в качестве React-key. После `removeAt(0)` индексы сдвигаются, React переиспользует DOM-узлы для других данных — фокус «переезжает».
 
@@ -1320,24 +1364,24 @@ const handleSubmit = async () => {
 
 Сам `FormArray.List` уже использует `item.id` для ключа `<FormArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
 
-## 49. `FormWizard` показывает «No validateStep callback configured for step N» в консоли
+## 50. `FormWizard` показывает «No validateStep callback configured for step N» в консоли
 
 **Причина.** `validateCurrentStep` warn'ит, если в `config` не задан колбэк `validateStep` (тогда шаг считается валидным без проверки).
 
 **Решение.** Передайте `validateStep(step)` в `config` (см. раздел «Шаг без валидации…» выше). Если конкретный шаг намеренно без валидации, внутри колбэка верните `true` для его номера.
 
-## 50. Ref `FormArrayHandle.length` / `isEmpty` не обновляется
+## 51. Ref `FormArrayHandle.length` / `isEmpty` не обновляется
 
 **Причина.** Эти поля snapshot'ятся в `useImperativeHandle` от `arrayState` и пересоздаются при каждом ререндере. Если вы храните `arrayRef.current` в замыкании или в `useEffect` без зависимостей, можете прочитать устаревшее значение.
 
 **Решение.** Читайте `arrayRef.current.length` непосредственно в обработчике, не кешируйте. Для реактивной длины снаружи используйте `useFormControl(form.items).length` — это даст подписку.
 
-## 51. See also
+## 52. See also
 
 - [01-overview.md](01-overview.md), [04-form-field.md](04-form-field.md), [06-recipes.md](06-recipes.md).
 - [@reformer/core troubleshooting](../../../reformer/docs/llms/) — общие проблемы с валидацией и behaviors.
 
-## 52. API Reference
+## 53. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -2283,7 +2327,7 @@ _Source: src/components/form-wizard/define-steps.ts_
 
 **Kind:** `interface`
 
-Конфиг {@link defineSteps}: правила шагов по `selector` + form-level extras.
+Конфиг {@link defineSteps}: правила шагов по `selector` + form-level extras + live-стратегия шага.
 
 **Signature:**
 ```typescript
@@ -2295,6 +2339,16 @@ export interface DefineStepsConfig<Sel extends string, T> {
   steps: Record<Sel, ValidationSchema<T> | null>;
   /** Cross-field/warnings уровня всей формы — применяются только в `validateAll` (submit). */
   extras?: ValidationSchema<T>;
+  /**
+   * Live-стратегия ВНУТРИ активного шага (`blur`/`change`/`afterFirstSubmit`) — для
+   * {@link useWizardStepValidation}. Не задана / `'submit'` → живой валидации внутри шага нет
+   * (остаётся только per-step gate на «Далее» + submit). Аддитивно: per-step gate/submit не меняются.
+   */
+  strategy?: ValidationStrategyKind;
+  /** Debounce (мс) для live-фаз внутришаговой стратегии (`change` / live-часть `afterFirstSubmit`). */
+  debounce?: number;
+  /** Режим live-фазы для `afterFirstSubmit`. Default `'change'`. */
+  liveAfterSubmit?: 'change' | 'blur';
 }
 ```
 
@@ -6850,6 +6904,12 @@ export interface WizardStepsConfig<Sel extends string> extends FormWizardConfig 
   validateAll: () => Promise<boolean>;
   /** Селекторы шагов по порядку (индекс = `step - 1`). Для селекторной адресации/отладки. */
   stepSelectors: Sel[];
+  /**
+   * Контроллер live-стратегии для под-схемы шага (1-based) — для {@link useWizardStepValidation}.
+   * Возвращает `null`, если live-стратегия не задана (`strategy` отсутствует / `'submit'`) или у
+   * шага нет правил. Тип {@link FormValidationController} не зависит от `T`.
+   */
+  createStepController: (step: number) => FormValidationController | null;
 }
 ```
 
