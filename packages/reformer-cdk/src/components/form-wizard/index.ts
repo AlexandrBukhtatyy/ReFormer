@@ -19,6 +19,10 @@ export { FormWizardSubmit } from './FormWizardSubmit';
 export { Slot } from './Slot';
 export type { SlotProps } from './Slot';
 
+// Валидация шагов по selector (§5): defineSteps → FormWizardConfig
+export { defineSteps } from './define-steps';
+export type { DefineStepsConfig, WizardStepsConfig } from './define-steps';
+
 // Context and hook
 export { useFormWizard, FormWizardContext } from './FormWizardContext';
 

@@ -2192,6 +2192,62 @@ defaultToError({});                                  // 'Неизвестная 
 
 _Source: src/components/async-boundary/async-resource.ts_
 
+### defineSteps
+
+**Kind:** `function`
+
+Строит {@link FormWizardConfig} из правил, адресованных по `selector` шага. `validateStep(n)`
+резолвит `n → selector → правила`; `validateAll` — все шаги + `extras`. Обе помечают `touched`
+только провалидированные поля (`{ touch: true }`, §6). Результат — обычный конфиг, визард
+потребляет его без изменений.
+
+**Signature:**
+```typescript
+export function defineSteps<Sel extends string, T extends object>(
+  model: FormModel<T>,
+  config: DefineStepsConfig<Sel, T>
+): WizardStepsConfig<Sel>
+```
+
+**Parameters:**
+- `model` — - Модель формы.
+- `config` — - {@link DefineStepsConfig}: `steps` (по `selector`) + опц. `extras`.
+
+**Returns:** 
+
+**Examples:**
+
+```ts
+const config = defineSteps<'loan' | 'applicant' | 'confirm', Root>(model, {
+  steps: { loan: step1, applicant: step2, confirm: null }, // confirm — без правил, ЯВНО
+  extras: crossFieldRules,
+});
+<FormWizard form={form} config={config}>…</FormWizard>
+```
+
+_Source: src/components/form-wizard/define-steps.ts_
+
+### DefineStepsConfig
+
+**Kind:** `interface`
+
+Конфиг {@link defineSteps}: правила шагов по `selector` + form-level extras.
+
+**Signature:**
+```typescript
+export interface DefineStepsConfig<Sel extends string, T> {
+  /**
+   * Правила шагов. Ключ = `selector` шага (совпадает с id ноды шага в схеме); порядок ключей =
+   * порядок шагов в визарде. `null` — шаг без правил (объявляется ЯВНО, а не молча по умолчанию).
+   */
+  steps: Record<Sel, ValidationSchema<T> | null>;
+  /** Cross-field/warnings уровня всей формы — применяются только в `validateAll` (submit). */
+  extras?: ValidationSchema<T>;
+}
+```
+
+_Source: src/components/form-wizard/define-steps.ts_
+
 ### FileError
 
 **Kind:** `type`
@@ -6726,3 +6782,23 @@ export type ValidationMessageTable = Record<string, (params?: Record<string, unk
 ```
 
 _Source: src/validation/error-resolver.tsx_
+
+### WizardStepsConfig
+
+**Kind:** `interface`
+
+Результат {@link defineSteps}: {@link FormWizardConfig} + упорядоченный список селекторов шагов.
+
+**Signature:**
+```typescript
+export interface WizardStepsConfig<Sel extends string> extends FormWizardConfig {
+  /** Валидация шага по номеру (1-based) — defineSteps всегда её возвращает (в базе она опциональна). */
+  validateStep: (step: number) => Promise<boolean>;
+  /** Полная валидация (submit) — всегда возвращается. */
+  validateAll: () => Promise<boolean>;
+  /** Селекторы шагов по порядку (индекс = `step - 1`). Для селекторной адресации/отладки. */
+  stepSelectors: Sel[];
+}
+```
+
+_Source: src/components/form-wizard/define-steps.ts_

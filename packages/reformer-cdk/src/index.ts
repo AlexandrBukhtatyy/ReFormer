@@ -219,12 +219,15 @@ export {
   FormWizardProgress,
   useFormWizard,
   FormWizardContext,
+  defineSteps,
 } from './components/form-wizard';
 
 export type {
   FormWizardHandle,
   FormWizardProps,
   FormWizardConfig,
+  DefineStepsConfig,
+  WizardStepsConfig,
   FormWizardStepProps,
   FormWizardContextValue,
   FormWizardIndicatorProps,
