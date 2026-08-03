@@ -48,10 +48,18 @@
   },
   "peerDependencies": {
     "@reformer/core": ">=1.1.0",
+    "@reformer/cdk": ">=6.0.0",
+    "@reformer/renderer-react": ">=6.0.0",
     "@reformer/ui-kit": ">=6.0.0"
   },
   "peerDependenciesMeta": {
     "@reformer/core": {
+      "optional": true
+    },
+    "@reformer/cdk": {
+      "optional": true
+    },
+    "@reformer/renderer-react": {
       "optional": true
     },
     "@reformer/ui-kit": {

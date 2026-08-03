@@ -23,6 +23,7 @@
     "knip": "knip",
     "knip:fix": "knip --fix",
     "check:dist-deps": "node scripts/check-dist-deps.mjs",
+    "check:exports-dist": "node scripts/check-exports-dist.mjs",
     "check:mcp-prompts": "node scripts/check-mcp-prompts.mjs",
     "scripts:analize:imports": "node scripts/analyze-imports/index.js",
     "generate:llms": "npm run generate:llms --workspaces --if-present",

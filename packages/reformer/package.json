@@ -87,9 +87,33 @@
       "types": "./dist/validators/non-zero.d.ts",
       "import": "./dist/validators/non-zero.js"
     },
-    "./validators/date": {
-      "types": "./dist/validators/date.d.ts",
-      "import": "./dist/validators/date.js"
+    "./validators/is-date": {
+      "types": "./dist/validators/is-date.d.ts",
+      "import": "./dist/validators/is-date.js"
+    },
+    "./validators/min-date": {
+      "types": "./dist/validators/min-date.d.ts",
+      "import": "./dist/validators/min-date.js"
+    },
+    "./validators/max-date": {
+      "types": "./dist/validators/max-date.d.ts",
+      "import": "./dist/validators/max-date.js"
+    },
+    "./validators/past-date": {
+      "types": "./dist/validators/past-date.d.ts",
+      "import": "./dist/validators/past-date.js"
+    },
+    "./validators/future-date": {
+      "types": "./dist/validators/future-date.d.ts",
+      "import": "./dist/validators/future-date.js"
+    },
+    "./validators/min-age": {
+      "types": "./dist/validators/min-age.d.ts",
+      "import": "./dist/validators/min-age.js"
+    },
+    "./validators/max-age": {
+      "types": "./dist/validators/max-age.d.ts",
+      "import": "./dist/validators/max-age.js"
     }
   },
   "sideEffects": false,

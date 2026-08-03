@@ -95,6 +95,16 @@ jobs:
         # проверяются dist/ всех packages/*.
         run: npm run check:dist-deps
 
+      - name: Exports ↔ dist
+        # Карта exports и список lib.entry в vite.config.ts — два РУЧНЫХ списка одного
+        # и того же, и они разъезжаются. Ловит обе стороны: (а) экспорт объявлен, файла
+        # в dist нет → у потребителя ERR_MODULE_NOT_FOUND; (б) entry собирается, но в
+        # exports не объявлен → при strict exports недоступен, даже лёжа в тарболе.
+        # Так после «split date validator into atomic validators» остался мёртвый
+        # ./validators/date, а 7 собранных date-валидаторов были недостижимы.
+        # Идёт после всех build-шагов: проверяются dist/ всех packages/*.
+        run: npm run check:exports-dist
+
       - name: Bundle size (size-limit)
         # Enforces brotli caps in .size-limit.json against the freshly built dist/
         # of every @reformer/* package (all builds above ran, so the artifacts
