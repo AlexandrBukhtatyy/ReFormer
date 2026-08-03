@@ -9,11 +9,7 @@ An array is declared in the schema as a dedicated node: `{ array: model.<path>, 
 ## Current form code
 
 ```typescript
-{
-  {
-    code;
-  }
-}
+{{code}}
 ```
 
 ## ⚠️ Critical inline rules (silent corruption hazards)

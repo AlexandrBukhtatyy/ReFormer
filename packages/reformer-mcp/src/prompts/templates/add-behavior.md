@@ -14,11 +14,7 @@ There is NO `BehaviorSchemaFn`, NO `behavior: (path) => {…}`, NO `validate(pat
 ## Current form code
 
 ```typescript
-{
-  {
-    code;
-  }
-}
+{{code}}
 ```
 
 ## ⛔ Critical inline rules — CYCLE PREVENTION (do not skip)

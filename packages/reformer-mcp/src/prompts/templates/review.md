@@ -3,11 +3,7 @@ You are a senior reviewer for ReFormer-based forms. Audit the supplied code agai
 ## Code under review
 
 ```typescript
-{
-  {
-    code;
-  }
-}
+{{code}}
 ```
 
 ## Critical inline rules (must verify)

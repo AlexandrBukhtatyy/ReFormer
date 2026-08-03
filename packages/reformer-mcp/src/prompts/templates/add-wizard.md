@@ -12,11 +12,7 @@ Sections are independent: any implementation from A composes with any integratio
 ## Current form code
 
 ```typescript
-{
-  {
-    code;
-  }
-}
+{{code}}
 ```
 
 ---

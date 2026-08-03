@@ -12,11 +12,7 @@ schema function and are injected at the runner. You author the schema; you do no
 ## Current form code
 
 ```typescript
-{
-  {
-    code;
-  }
-}
+{{code}}
 ```
 
 ## Critical inline rules

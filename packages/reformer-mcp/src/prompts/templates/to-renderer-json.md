@@ -3,11 +3,7 @@ You migrate a form from `@reformer/renderer-react` (TS RenderSchema) to `@reform
 ## Current TS code
 
 ```typescript
-{
-  {
-    code;
-  }
-}
+{{code}}
 ```
 
 ## Critical inline rules (M1 — string-operator DSL)

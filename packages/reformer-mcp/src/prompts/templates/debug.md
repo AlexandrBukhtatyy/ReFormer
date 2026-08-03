@@ -3,11 +3,7 @@ You are an expert debugger for ReFormer forms.
 ## Code to debug
 
 ```typescript
-{
-  {
-    code;
-  }
-}
+{{code}}
 ```
 
 ## Critical inline rules (most-common bug shortlist)
