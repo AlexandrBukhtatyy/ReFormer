@@ -26,11 +26,26 @@ symbol `@example` → fallback list.
 
 Use to copy a correct pattern instead of guessing.
 
+## search_docs
+
+Full-text search across every documentation section of all `@reformer/*` packages — for when
+you can't name the symbol or recipe topic but can describe the task in words. Returns ranked
+sections with their `reformer://docs/<pkg>/<slug>` resource URI + a matched snippet; read the
+URI to get the full section.
+- `query` (string, required) — e.g. `"conditional required validation"`, `"reset form after submit"`.
+- `package` (string, optional) — one package or `*`.
+- `limit` (number, optional) — default 10, max 25.
+
+Reach for `find_recipe` (curated topic→recipe) or `get_symbol_docs` (one symbol) when you
+already know the topic or name; `search_docs` is the fallback when you don't.
+
 ## list_symbols
 
 The API surface by kind and package — discovery when you don't know a name.
 - `kind` (optional) — `function` | `class` | `interface` | `type` | `const` | `enum`.
 - `package` (optional) — one package or `*`.
+- `nameContains` (optional) — case-insensitive substring of the symbol name (e.g. `"validate"`,
+  `"FileUpload"`). Strongly recommended: the unfiltered surface is 800+ symbols.
 
 E.g. all functions of `@reformer/core` enumerate every validator and behavior. Then
 `get_symbol_docs` the one you want.

@@ -83,7 +83,8 @@ A single H2 section of a package, addressed by slug (enumerate exact URIs via Li
 **MIME Type:** `text/markdown`
 
 > Public symbols/signatures and recipes are **tools**, not resources: use `list_symbols`,
-> `get_symbol_docs`, `find_recipe`.
+> `get_symbol_docs`, `find_recipe`. To search the prose of these sections full-text (when you
+> can't name the topic), use the `search_docs` tool.
 
 ---
 

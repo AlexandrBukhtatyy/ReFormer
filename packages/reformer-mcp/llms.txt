@@ -76,16 +76,31 @@ symbol `@example` → fallback list.
 
 Use to copy a correct pattern instead of guessing.
 
-## 7. list_symbols
+## 7. search_docs
+
+Full-text search across every documentation section of all `@reformer/*` packages — for when
+you can't name the symbol or recipe topic but can describe the task in words. Returns ranked
+sections with their `reformer://docs/<pkg>/<slug>` resource URI + a matched snippet; read the
+URI to get the full section.
+- `query` (string, required) — e.g. `"conditional required validation"`, `"reset form after submit"`.
+- `package` (string, optional) — one package or `*`.
+- `limit` (number, optional) — default 10, max 25.
+
+Reach for `find_recipe` (curated topic→recipe) or `get_symbol_docs` (one symbol) when you
+already know the topic or name; `search_docs` is the fallback when you don't.
+
+## 8. list_symbols
 
 The API surface by kind and package — discovery when you don't know a name.
 - `kind` (optional) — `function` | `class` | `interface` | `type` | `const` | `enum`.
 - `package` (optional) — one package or `*`.
+- `nameContains` (optional) — case-insensitive substring of the symbol name (e.g. `"validate"`,
+  `"FileUpload"`). Strongly recommended: the unfiltered surface is 800+ symbols.
 
 E.g. all functions of `@reformer/core` enumerate every validator and behavior. Then
 `get_symbol_docs` the one you want.
 
-## 8. validate_json_schema
+## 9. validate_json_schema
 
 Validate a `@reformer/renderer-json` form-DSL JSON schema **before rendering**. Checks node
 structure, operator syntax (`$model`/`$component`/`$dataSource`), and unknown component/
@@ -96,7 +111,7 @@ data-source names.
 
 Returns `{ valid, errors[] }`. Always run it on a renderer-json schema before handing it off.
 
-## 9. check_behaviors
+## 10. check_behaviors
 
 Static cycle detection for reactive behaviors. Declare, per computed/copied field, what it reads;
 the tool finds cyclic dependencies (the loops the runtime throws "Cycle detected" for).
@@ -104,7 +119,7 @@ the tool finds cyclic dependencies (the loops the runtime throws "Cycle detected
 
 E.g. `[{ target: "total", reads: ["price","quantity"] }]`. Run after planning compute/copyFrom.
 
-## 10. report_issue
+## 11. report_issue
 
 Record a ReFormer problem + its fix to a local knowledge store (`~/.reformer/issues.jsonl`).
 - `error` (string, required), `solution` (string, required), optional `tags`, `context`.
@@ -115,19 +130,19 @@ Use when you discover and fix a non-obvious ReFormer error, to help future runs.
 
 _A `debug` tool exists only when the server runs with `REFORMER_DEBUG=true`; ignore it in normal use._
 
-## 11. start-here
+## 12. start-here
 
 No arguments. The entry point: returns the M1 workflow, the map of prompts/tools/resources,
 and the reading order. Call it first when asked to build or modify a form.
 
-## 12. discover-context
+## 13. discover-context
 
 - `description` (required), `projectPath` (optional).
 
 Detects the target stack (ui-kit / Tailwind / which renderer) from the consumer project and
 recommends a render target. Optional first step when the target isn't given.
 
-## 13. plan-form
+## 14. plan-form
 
 - `specPath` (required), `target` (optional: core | renderer-react | renderer-json), `projectPath` (optional).
 
@@ -135,40 +150,40 @@ Reads and parses a markdown spec file, then returns a roadmap: steps, fields, co
 behaviors, API endpoints, a risk matrix, and verification scenarios. Use when the form comes
 from a written spec.
 
-## 14. create-form
+## 15. create-form
 
 - `description` (required), `target` (optional, default core), `projectPath` (optional).
 
 Turns a free-text form description into build instructions for the chosen target (quick-start,
 FormSchema reference, imports, stack-aware skeleton). Use for the initial form when there is no spec file.
 
-## 15. add-validation
+## 16. add-validation
 
 - `code` (existing FormSchema, required), `requirements` (required).
 
 Adds validation (built-in factories in `validate(sig, [...])`, cross-field `cross`, async
 `validateAsync`) as a standalone `defineValidationSchema` run by `validateModel`.
 
-## 16. add-behavior
+## 17. add-behavior
 
 - `code` (required), `requirements` (required).
 
 Wires reactive behaviors: `compute`, `copyFrom`, `enableWhen`, `onChange`, etc. Pair with the
 `check_behaviors` tool to rule out cycles.
 
-## 17. add-form-array
+## 18. add-form-array
 
 - `code` (required), `requirements` (required).
 
 Turns a field into a dynamic array: schema `{ array, item, initialValue }` + the CDK `FormArray` compound.
 
-## 18. add-wizard
+## 19. add-wizard
 
 - `code` (required), `steps` (required).
 
 Turns a single-page form into a multi-step `FormWizard` with a `FormWizardConfig` `{ validateStep, validateAll }`.
 
-## 19. to-renderer / to-renderer-json
+## 20. to-renderer / to-renderer-json
 
 - `code` (required).
 
@@ -176,7 +191,7 @@ Migrate render target: `to-renderer` (core manual JSX → renderer-react RenderS
 `to-renderer-json` (renderer-react RenderSchema → renderer-json JSON + registry). After
 `to-renderer-json`, validate the result with `validate_json_schema`.
 
-## 20. review
+## 21. review
 
 - `code` (required).
 
@@ -186,7 +201,7 @@ Cross-package review checklist (state setup, integration, anti-patterns) for exi
 
 _A `debug` prompt exists only with `REFORMER_DEBUG=true`._
 
-## 21. URI scheme
+## 22. URI scheme
 
 - `reformer://guide` — this server's full self-doc (workflow + tools + prompts + resources). The entry point in resource form (mirrors the `start-here` prompt).
 - `reformer://docs/<pkg>` — the full `llms.txt` of one library package (every section concatenated).
@@ -194,7 +209,7 @@ _A `debug` prompt exists only with `REFORMER_DEBUG=true`._
 
 `<pkg>` is a short name: `core`, `cdk`, `ui-kit`, `renderer-react`, `renderer-json`, `mcp`.
 
-## 22. Self-documentation (this server)
+## 23. Self-documentation (this server)
 
 - `reformer://guide` — the whole self-doc in one document (guide + tools + prompts + resources + workflow).
   Equivalent to `reformer://docs/mcp` (the full mcp `llms.txt`).
@@ -203,7 +218,7 @@ _A `debug` prompt exists only with `REFORMER_DEBUG=true`._
   `reformer://docs/mcp/validate-json-schema`, `reformer://docs/mcp/schema-field-leaves`,
   `reformer://docs/mcp/checklist-before-you-finish`.
 
-## 23. Library docs (the 5 packages)
+## 24. Library docs (the 5 packages)
 
 Each package's sections come from its `docs/llms/*.md`. Discover exact slugs with ListResources.
 Examples:
@@ -214,13 +229,13 @@ Examples:
 - `reformer://docs/renderer-react/render-schema`, `.../render-behavior` — RenderSchema.
 - `reformer://docs/renderer-json/json-schema`, `.../registry` — JSON DSL + registry.
 
-## 24. How this relates to tools
+## 25. How this relates to tools
 
 `find_recipe` reads the same `docs/llms/*.md` directly (with alias resolution); resources give
 you the raw sections when you want to browse or read a whole package. When you know the scenario,
 `find_recipe` is faster; when you want the full section text, read the resource.
 
-## 25. 0. Choose the render target
+## 26. 0. Choose the render target
 
 - **core + ui-kit** — plain React: one `<FormField control={form.x} />` per field. Simplest.
 - **renderer-react** — declarative `RenderSchema` tree (layout + conditional display as data).
@@ -228,7 +243,7 @@ you the raw sections when you want to browse or read a whole package. When you k
 
 All three share steps 1–6; they differ only at step 7.
 
-## 26. 1. Model — `createModel<T>(initial)`
+## 27. 1. Model — `createModel<T>(initial)`
 
 The model owns all values. Decisions: the data shape as a `type` (NOT `interface` — see
 `find_recipe type-safety-recipes`), and full initial values.
@@ -244,7 +259,7 @@ const model = createModel<RegForm>({ email: '', password: '', age: null });
 // model.email (value) · model.$.email (signal) · model.get() · model.set(full)
 ```
 
-## 27. 2. Schema — field leaves
+## 28. 2. Schema — field leaves
 
 The schema is a tree; each **field leaf** carries value-signal + component + props — **binding + display
 only, no validators**. Validation is a *separate* ambient schema (step 4), not a key on the leaf.
@@ -264,7 +279,7 @@ Traps: `value: model.$.field` (a signal) — never `value: 'field'`. Don't forge
 No `validators:` key on the leaf — the old `{ value, validators: [...] }` shape is gone; rules live in
 their own `defineValidationSchema` (step 4).
 
-## 28. 3. Create the form — `createForm({ model, schema })`
+## 29. 3. Create the form — `createForm({ model, schema })`
 
 ```ts
 import { createForm } from '@reformer/core';
@@ -273,7 +288,7 @@ const form = createForm<RegForm>({ model, schema }); // FormProxy: form.email is
 
 Overloads `createForm({ form: {...} })` and `createForm(flatSchema)` are legacy — use `{ model, schema }`.
 
-## 29. 4. Validation — `defineValidationSchema` + `validateModel(model, schema)`
+## 30. 4. Validation — `defineValidationSchema` + `validateModel(model, schema)`
 
 Validation is its **own ambient schema** — a plain function over the model, imported from
 `@reformer/core/validation`, separate from the field schema (step 2) and from behaviors (step 5).
@@ -325,7 +340,7 @@ Trap: the old `ModelValidator (value, scope, root)` placed in a leaf's `validato
 errors into the nodes itself. Cross-field is now `cross(sig, f => …)` over `model.get()`; async is
 `validateAsync` with `{ signal }`, not a `Promise`-returning `ModelValidator`.
 
-## 30. 5. Behaviors — reactive dynamics (optional)
+## 31. 5. Behaviors — reactive dynamics (optional)
 
 Computed / copied / conditionally-enabled fields. Two styles: DSL `defineFormBehavior` + operators,
 or primitives in a `useEffect`. Register the DSL via `createForm({ model, schema, behavior })`.
@@ -345,7 +360,7 @@ through the `check_behaviors` tool; see `find_recipe cycle`.
 Bridge to validation (the only overlap between the layers): behaviors don't own validation, but a
 behavior can *trigger* a re-run — `revalidateWhen([model.$.dep], () => void validateModel(model, schema))`.
 
-## 31. 6. Arrays & Wizard (when needed)
+## 32. 6. Arrays & Wizard (when needed)
 
 - **Array** node in the schema: `{ array: model.items, item: (im) => itemSchema, initialValue: {...full...} }`.
   In React use the `@reformer/cdk` `FormArray` compound; **key rows by `id`, not index**. `find_recipe form-array`.
@@ -355,7 +370,7 @@ behavior can *trigger* a re-run — `revalidateWhen([model.$.dep], () => void va
   validateAll: () => validateModel(model, fullSchema) }`, where `fullSchema = defineValidationSchema(() =>
   apply(...STEP_SCHEMAS, extras))`. `find_recipe wizard`.
 
-## 32. 7. Render
+## 33. 7. Render
 
 - **ui-kit**: `<FormField control={form.email} />` per field.
 - **renderer-react**: `createRenderSchema<T>(() => renderNodeTree)`, conditional display via `hideWhen(node, () => cond)`, mount with `<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />`. `find_recipe render-schema`.
@@ -376,14 +391,14 @@ produced by `convertJsonToM1Tree(json, registry, model)` — the **validation sc
 independent: a layout pushed from the server changes display without touching the rules, and vice versa.
 For a wizard the validation schema is flat (all fields), independent of how steps nest in the render tree.
 
-## 33. Checklist before you finish
+## 34. Checklist before you finish
 
 1. Model initialises every field (incl. array-item fields). 2. Leaves are `{ value: model.$.x, component, ... }`
 — no `validators:` on the leaf. 3. Validation is a separate `defineValidationSchema` (rules = `@reformer/core/validators`
 factories, `cross`, `validateAsync`); run via `validateModel(model, schema)` → `Promise<boolean>`. 4. Behaviors are
 acyclic (`check_behaviors`). 5. Arrays keyed by `id`. 6. renderer-json schema passed `validate_json_schema` → `valid`.
 
-## 34. 1. Minimalist (default) — flat, one file per concern
+## 35. 1. Minimalist (default) — flat, one file per concern
 
 Everything lives in the form module root (no `lib/` / `schema/` / `components/steps/` nesting). A
 single `index.tsx` holds the whole form with **all steps inline**; one `validation.ts` holds all
@@ -445,7 +460,7 @@ Rules:
 - Derived fields → `form.behavior.ts`; domain constants/enums → `types.ts`; the two data concerns
   are split: field options + async loaders → `data-sources.ts`, submit/prefill → `api.ts`.
 
-## 35. 2. App-level infrastructure (renderer-json only)
+## 36. 2. App-level infrastructure (renderer-json only)
 
 The base component **registry** is mostly shared across all JSON forms — ui-kit components plus the
 system containers (`RendererFormWizard`, `Step`, `FIELD_WRAPPER`). The DSL meta-schema is generated
@@ -466,7 +481,7 @@ registry changes.
 > Raw (non-ui-kit) controls are bound by name the same way, but need a `resolveFieldAdapter` in the
 > renderer **settings** (see `@reformer/renderer-react`), not in the registry itself.
 
-## 36. 3. Scale up: folders (large forms)
+## 37. 3. Scale up: folders (large forms)
 
 When a form grows large (many steps, heavy reuse across steps), promote the flat module to folders.
 This is the only case where you split beyond the flat set:
@@ -490,7 +505,7 @@ For cross-target reuse keep `lib/` + `schema/{model,behavior,validation}` once a
 presentation — never duplicate model/behavior/validation. The app-level registry + meta-schema (§2)
 are unchanged.
 
-## 37. 4. Scaling
+## 38. 4. Scaling
 
 | Complexity              | Structure                                                                                   |
 | ----------------------- | ------------------------------------------------------------------------------------------- |
@@ -498,7 +513,7 @@ are unchanged.
 | **Default (minimalist)**| flat files (§1) — one `index.tsx` (all steps inline), plain-named base + dot-prefixed `schema`/`behavior`; base identical across targets |
 | Large                   | folders (§3): `lib/` + `schema/` + `components/` (+ app-level registry/meta-schema for renderer-json) |
 
-## 38. 5. Configuring the default (`REFORMER_FORM_LAYOUT`)
+## 39. 5. Configuring the default (`REFORMER_FORM_LAYOUT`)
 
 Which layout the **`create-form` prompt leads with** is configurable via the `REFORMER_FORM_LAYOUT`
 environment variable, set in the MCP server registration `env` of your client's `.mcp.json` — the
@@ -512,7 +527,7 @@ same mechanism as `REFORMER_DEBUG`:
 Values: `minimalist` (default when unset/unrecognized) | `folders`. This guide documents both
 layouts regardless; the env var only changes which one `create-form` steers toward by default.
 
-## 39. 6. Reuse map
+## 40. 6. Reuse map
 
 | File                          | Role                                          | core | renderer-react | renderer-json |
 | ----------------------------- | --------------------------------------------- | :--: | :------------: | :-----------: |

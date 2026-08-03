@@ -80,11 +80,23 @@ jobs:
       - name: Run @reformer/renderer-json tests
         run: npm run test -w @reformer/renderer-json
 
-      # mcp — публикуемый пакет, но тестов у него нет. Собираем ради шага
-      # «Dist deps ↔ manifest» ниже: check:dist-deps сканирует ВСЕ packages/*,
-      # и без dist/ у mcp падал бы «нет dist/ — сначала соберите пакет».
+      # mcp — публикуемый пакет. Собираем и тестируем (find_recipe нормализация,
+      # report-issue): раньше test-скрипта не было и tests/*.test.ts в CI не гонялись.
+      # Сборка нужна ещё и шагу «Dist deps ↔ manifest» ниже (check:dist-deps сканирует
+      # ВСЕ packages/* — без dist/ у mcp падал бы «нет dist/»).
       - name: Build @reformer/mcp
         run: npm run build -w @reformer/mcp
+
+      - name: Run @reformer/mcp tests
+        run: npm run test -w @reformer/mcp
+
+      - name: MCP packaging smoke
+        # npm pack mcp + core + cdk в чистый проект вне репо и проверка, что под npx
+        # у потребителя доступны reformer://guide (свой llms.txt) и файловые рецепты
+        # docs/llms (project-structure/form-field приходят ИЗ ФАЙЛА, не из секции).
+        # Ловит регресс поля "files" — эти файлы не публиковались и баг был невидим
+        # в монорепо. Требует собранных mcp/core/cdk (все build-шаги выше отработали).
+        run: npm run check:packaging -w @reformer/mcp
 
       - name: Dist deps ↔ manifest
         # Каждый внешний импорт dist/ должен быть объявлен в dependencies или

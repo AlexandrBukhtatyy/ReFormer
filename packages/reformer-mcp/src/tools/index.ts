@@ -7,4 +7,5 @@ export {
   validateJsonSchemaTool,
 } from './validate-json-schema.js';
 export { listSymbolsToolDefinition, listSymbolsTool } from './list-symbols.js';
+export { searchDocsToolDefinition, searchDocsTool } from './search-docs.js';
 export { checkBehaviorsToolDefinition, checkBehaviorsTool } from './check-behaviors.js';

@@ -16,7 +16,10 @@
     "generate:llms": "node ../../scripts/generate-llms-txt .",
     "build": "npm run generate:llms && tsc && node scripts/copy-templates.mjs",
     "dev": "tsc --watch",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "node ../../scripts/run-vitest.mjs",
+    "test:watch": "vitest watch",
+    "check:packaging": "node scripts/check-packaging.mjs"
   },
   "keywords": [
     "mcp",

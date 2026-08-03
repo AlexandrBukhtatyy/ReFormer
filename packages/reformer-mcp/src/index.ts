@@ -49,6 +49,8 @@ import {
   validateJsonSchemaTool,
   listSymbolsToolDefinition,
   listSymbolsTool,
+  searchDocsToolDefinition,
+  searchDocsTool,
   checkBehaviorsToolDefinition,
   checkBehaviorsTool,
 } from './tools/index.js';
@@ -126,10 +128,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     | typeof findRecipeToolDefinition
     | typeof validateJsonSchemaToolDefinition
     | typeof listSymbolsToolDefinition
+    | typeof searchDocsToolDefinition
     | typeof checkBehaviorsToolDefinition
   > = [
     getSymbolDocsToolDefinition,
     findRecipeToolDefinition,
+    searchDocsToolDefinition,
     listSymbolsToolDefinition,
     validateJsonSchemaToolDefinition,
     checkBehaviorsToolDefinition,
@@ -177,8 +181,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         args as {
           kind?: 'function' | 'class' | 'interface' | 'type' | 'const' | 'enum';
           package?: string;
+          nameContains?: string;
         }
       );
+
+    case 'search_docs':
+      return await searchDocsTool(args as { query?: string; package?: string; limit?: number });
 
     case 'check_behaviors':
       return await checkBehaviorsTool(
