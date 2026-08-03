@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import { scoreDocFileMatch, pickBestDocFile, findRecipeTool } from '../src/tools/find-recipe';
 import type { FindRecipeArgs } from '../src/tools/find-recipe';
+import { normalizeTopic } from '../src/utils/docs-parser';
 
 describe('scoreDocFileMatch / pickBestDocFile — ranked matching (defect 78)', () => {
   it('prefers an exact stem match over an earlier loose substring match', () => {
@@ -45,6 +46,24 @@ describe('scoreDocFileMatch / pickBestDocFile — ranked matching (defect 78)', 
 
   it('returns null when nothing matches', () => {
     expect(pickBestDocFile(['05-recipes.md', '10-arrays.md'], 'nonexistent')).toBeNull();
+  });
+
+  // Regression: hyphen/underscore-insensitive matching. The report found 21 advertised
+  // aliases dead because the dashed multi-word form did not resolve while the joined form
+  // did ("formfield" ✓ / "form-field" ✗). Normalization must make both match the file.
+  it('matches hyphen/underscore variants against a dashed filename (regression)', () => {
+    expect(scoreDocFileMatch('04-form-field.md', 'form-field')).toBe(100); // exact
+    expect(scoreDocFileMatch('04-form-field.md', 'formfield')).toBe(90); // dash-insensitive
+    expect(scoreDocFileMatch('04-form-field.md', 'form_field')).toBe(90); // underscore too
+    expect(pickBestDocFile(['04-form-field.md'], 'formfield')).toBe('04-form-field.md');
+  });
+});
+
+describe('normalizeTopic (regression: dashed aliases)', () => {
+  it('strips case, hyphens, underscores and spaces', () => {
+    expect(normalizeTopic('Form-Field')).toBe('formfield');
+    expect(normalizeTopic('enable_when')).toBe('enablewhen');
+    expect(normalizeTopic('project structure')).toBe('projectstructure');
   });
 });
 

@@ -1,8 +1,37 @@
 import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const requireFromHere = createRequire(import.meta.url);
+
+/** Имя собственного пакета — его `llms.txt` лежит рядом с сервером, а не в CWD проекта. */
+const OWN_PACKAGE = '@reformer/mcp';
+
+/**
+ * Нормализация topic/заголовка для сопоставления: lowercase + выкинуть дефисы/подчёркивания/
+ * пробелы. Именно из-за их отсутствия «form-field» не находил секцию «## FormField», а
+ * «enable-when» — «## enableWhen»: сервер рекламировал алиасы, которые сам не резолвил.
+ */
+export function normalizeTopic(s: string): string {
+  return s.toLowerCase().replace(/[-_\s]/g, '');
+}
+
+/**
+ * Корень установленного пакета через резолв его `package.json`.
+ *
+ * Нужен потому, что канонический запуск — `npx -y @reformer/mcp`: сервер живёт в кэше npx,
+ * а не в `node_modules` проекта, поэтому `process.cwd()`-пути до него не достают. Резолв
+ * от `import.meta.url` работает и под npx, и при hoisting, и в pnpm с симлинками.
+ */
+export function packageRoot(pkg: string): string | null {
+  try {
+    return dirname(requireFromHere.resolve(`${pkg}/package.json`));
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Known @reformer/* packages with `llms.txt`. Order matters for default
@@ -74,14 +103,29 @@ function packageDirName(pkg: string): string {
  */
 function getDocsPaths(pkg: string): string[] {
   const dir = packageDirName(pkg);
-  return [
+  const paths: string[] = [];
+
+  // Own package: llms.txt лежит в корне пакета рядом с dist/. Под `npx` это единственный
+  // рабочий путь — сервер не является зависимостью проекта, и CWD-пути до него не достают.
+  // Без этого `reformer://guide` всегда отдавал "documentation not found".
+  if (pkg === OWN_PACKAGE) {
+    paths.push(resolve(__dirname, '../..', 'llms.txt'), resolve(__dirname, '..', 'llms.txt'));
+  }
+
+  // Любой установленный пакет — через резолв его package.json (npx/pnpm/hoisting-safe).
+  const root = packageRoot(pkg);
+  if (root) paths.push(resolve(root, 'llms.txt'));
+
+  paths.push(
     // In node_modules (when installed as dependency)
     resolve(process.cwd(), 'node_modules', pkg, 'llms.txt'),
     // In monorepo (during development) — relative to this file
     resolve(__dirname, '../../../', dir, 'llms.txt'),
     // Relative to current working directory (cwd inside repo)
-    resolve(process.cwd(), 'packages', dir, 'llms.txt'),
-  ];
+    resolve(process.cwd(), 'packages', dir, 'llms.txt')
+  );
+
+  return paths;
 }
 
 /**
@@ -281,7 +325,8 @@ export function getSection(name: SectionName | string, pkg: string = DEFAULT_PAC
       const [, hashes, title] = headerMatch;
       const level = hashes.length;
 
-      if (title.toLowerCase().includes(name.toLowerCase())) {
+      // Нормализуем обе стороны: «form-field» матчит «## FormField», «enable-when» — «## enableWhen».
+      if (normalizeTopic(title).includes(normalizeTopic(name))) {
         inSection = true;
         sectionLevel = level;
         result.push(line);

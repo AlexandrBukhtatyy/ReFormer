@@ -358,7 +358,8 @@
     "src/styles",
     "README.md",
     "LICENSE",
-    "llms.txt"
+    "llms.txt",
+    "docs/llms"
   ],
   "peerDependencies": {
     "@reformer/cdk": ">=1.0.0",

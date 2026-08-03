@@ -1,7 +1,13 @@
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { KNOWN_PACKAGES, type ReformerPackage, getSection } from '../utils/docs-parser.js';
+import {
+  KNOWN_PACKAGES,
+  type ReformerPackage,
+  getSection,
+  packageRoot,
+  normalizeTopic,
+} from '../utils/docs-parser.js';
 import { findSymbol, getPublicSymbols } from '../utils/symbols-parser.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -212,7 +218,11 @@ function packageDirName(pkg: string): string {
  */
 function locateDocsDir(pkg: string): string | null {
   const dir = packageDirName(pkg);
+  const root = packageRoot(pkg);
   const candidates = [
+    // Резолв через package.json пакета — работает под npx/pnpm/hoisting, где плоского
+    // `<cwd>/node_modules/<pkg>` может не быть.
+    ...(root ? [resolve(root, 'docs', 'llms')] : []),
     resolve(process.cwd(), 'node_modules', pkg, 'docs', 'llms'),
     resolve(__dirname, '../../../', dir, 'docs', 'llms'),
     resolve(process.cwd(), 'packages', dir, 'docs', 'llms'),
@@ -243,6 +253,11 @@ export function scoreDocFileMatch(fileName: string, topic: string): number {
   if (stripped.split('-').includes(lower)) return 75;
   if (stripped.startsWith(lower)) return 60;
   if (stripped.includes(lower)) return 40;
+  // Совпадение без учёта дефисов: «form-field» ↔ «form-field.md», «formfield» ↔ «form-field.md».
+  const nz = normalizeTopic(lower);
+  const nzStem = normalizeTopic(stripped);
+  if (nzStem === nz) return 90;
+  if (nzStem.includes(nz)) return 35;
   return 0;
 }
 
@@ -312,14 +327,51 @@ function buildFallbackHint(topic: string, targets: ReformerPackage[]): string {
   }
 
   const symbols = targets.flatMap((p) => getPublicSymbols(p).map((s) => s.name)).slice(0, 20);
-  const aliases = Object.keys(RECIPE_ALIASES).sort();
+
+  // Список алиасов — только фактически резолвящиеся против доступных пакетов: раньше
+  // печатались все ключи RECIPE_ALIASES, и сервер рекламировал темы, которых у потребителя
+  // нет (docs/llms не был опубликован). Хвост алиаса резолвится → это и есть «известная тема».
+  const resolvableAliases = Object.keys(RECIPE_ALIASES)
+    .filter((key) =>
+      resolveAliases(key).some((cand) =>
+        targets.some((pkg) => {
+          const dir = locateDocsDir(pkg);
+          if (dir) {
+            try {
+              if (
+                pickBestDocFile(
+                  readdirSync(dir).filter((f) => f.endsWith('.md')),
+                  cand
+                )
+              )
+                return true;
+            } catch {
+              /* skip */
+            }
+          }
+          return !getSection(cand, pkg).startsWith('Section "');
+        })
+      )
+    )
+    .sort();
+
+  const aliasLine = resolvableAliases.length
+    ? `Known topic aliases: ${resolvableAliases.join(', ')}.\n\n`
+    : '';
+
+  // `recipes.length === 0` означает, что файловый источник пуст (под npx без опубликованных
+  // docs/llms) — но ресурсы (`resources/list`) всё равно отдают весь llms.txt по секциям.
+  const noFilesNote =
+    recipes.length === 0
+      ? 'No file-based recipes are reachable here (docs/llms not published in this install). ' +
+        'The full documentation is still available as MCP resources — call `resources/list` ' +
+        '(reformer://docs/{core,cdk,ui-kit,renderer-react,renderer-json}[/section]).\n\n'
+      : `Available recipes (${recipes.length}):\n${recipes.map((r) => `  - ${r}`).join('\n')}\n\n`;
 
   return (
     `No recipe found for "${topic}".\n\n` +
-    `Available recipes (${recipes.length}):\n` +
-    recipes.map((r) => `  - ${r}`).join('\n') +
-    '\n\n' +
-    `Known topic aliases: ${aliases.join(', ')}.\n\n` +
+    noFilesNote +
+    aliasLine +
     `Or pass a public symbol name. Sample symbols: ${symbols.join(', ')}, ...`
   );
 }
