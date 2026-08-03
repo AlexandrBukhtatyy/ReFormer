@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reformer.dev/schemas/component-catalog.schema.json",
+  "title": "ReFormer component catalog",
+  "description": "Контракт каталога компонентов (спека §5). Владелец — reformer-builder; клиенты (напр. @reformer/ui-kit) генерируют валидный catalog-JSON со списком своих компонентов. Билдер грузит его в палитру/инспектор.",
+  "type": "object",
+  "required": ["version", "components"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Ссылка на этот контракт (для валидации/подсказок в IDE). Не нормативна — билдер валидирует каталог программно."
+    },
+    "version": { "type": "string", "minLength": 1 },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "role", "propsSchema"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Имя компонента для оператора $component(name)."
+          },
+          "role": {
+            "enum": ["field", "container", "array"],
+            "description": "field — form-control (несёт value); container — держит children; array — повторяющийся блок."
+          },
+          "category": {
+            "type": "string",
+            "description": "Необязательная группировка палитры. Категория — забота билдера; клиент может не поставлять."
+          },
+          "propsSchema": {
+            "type": "object",
+            "description": "JSON Schema редактируемых пропсов компонента (валидируется её структура, не содержимое)."
+          },
+          "variantGroup": {
+            "type": "string",
+            "description": "Имя группы вариантов. Компоненты с одним variantGroup — варианты одного компонента (селектор variant в инспекторе). Дефолт группы — член, чей name === variantGroup."
+          },
+          "variant": {
+            "type": "string",
+            "description": "Человекочитаемая метка варианта в группе (напр. «Пароль»)."
+          }
+        }
+      }
+    }
+  }
+}

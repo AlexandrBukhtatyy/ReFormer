@@ -1,4 +1,4 @@
-name: Deploy Documentation
+name: Deploy Pages (docs + builder)
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - develop
     paths:
       - 'projects/reformer-doc/**'
+      - 'projects/reformer-builder/**'
       - 'packages/reformer/src/**'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
@@ -54,10 +55,27 @@ jobs:
       - name: Build documentation
         run: npm run build -w reformer-doc
 
+      - name: Build builder
+        # Vite-SPA. base=/ReFormer/builder/ нужен, чтобы ассеты и Monaco-воркеры
+        # (резолвятся относительно base через import.meta.url) грузились из подкаталога.
+        env:
+          BUILDER_BASE: /ReFormer/builder/
+        run: npm run build -w @reformer/builder
+
+      - name: Assemble site (docs at root, builder under /builder)
+        # У репозитория один Pages-артефакт: docs кладём в корень, builder — в /builder.
+        # .nojekyll из docs-сборки попадает в корень и отключает Jekyll для всего сайта.
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp -r projects/reformer-doc/build/. _site/
+          mkdir -p _site/builder
+          cp -r projects/reformer-builder/dist/. _site/builder/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: projects/reformer-doc/build
+          path: _site
 
   deploy:
     environment:

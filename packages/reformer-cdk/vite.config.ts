@@ -17,6 +17,7 @@ export default defineConfig({
         index: resolve(__dirname, 'src/index.ts'),
         'async-boundary': resolve(__dirname, 'src/components/async-boundary/index.ts'),
         'form-array': resolve(__dirname, 'src/components/form-array/index.ts'),
+        list: resolve(__dirname, 'src/components/list/index.ts'),
         'form-wizard': resolve(__dirname, 'src/components/form-wizard/index.ts'),
         'form-field': resolve(__dirname, 'src/components/form-field/index.ts'),
         'file-upload': resolve(__dirname, 'src/components/file-upload/index.ts'),
@@ -28,9 +29,12 @@ export default defineConfig({
         'react',
         'react-dom',
         'react/jsx-runtime',
-        '@reformer/core',
-        '@reformer/core/state',
-        '@reformer/core/validators',
+        // @reformer/core И ВСЕ его subpath (/validation, /state, /validators, /behaviors, /signals, …)
+        // должны быть внешними: иначе в dist попадает вторая копия модуля, и ambient-контекст
+        // (единый модульный `current` у validateModel/validate/apply) разъезжается между копиями —
+        // напр. defineSteps.validateStep (cdk) ставит `current` в своей копии, а `validate()` схемы
+        // приложения видит `null` → «validate вызван вне схемы валидации».
+        /^@reformer\/core(\/.*)?$/,
       ],
       output: {
         entryFileNames: '[name].js',

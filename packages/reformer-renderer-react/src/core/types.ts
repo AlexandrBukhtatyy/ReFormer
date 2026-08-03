@@ -127,6 +127,14 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
   selector?: string;
   /** Реактивный массив модели (`model.<path>`). Расширяет базовый контракт методом `move`. */
   array: RenderModelArrayControl;
+  /**
+   * Опциональный компонент-рендерер массива (из `$component(...)`). Если задан — итерация
+   * рендерится этим компонентом (chrome-less display-список / кастомная секция) вместо встроенной
+   * редактируемой секции. Компонент получает `array`/`item`/`initialValue`/`fieldWrapper` и готовые
+   * элементы `children`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component?: ComponentType<any>;
   /** Схема элемента: под-модель элемента → узел поддерева. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   item: (itemModel: any) => RenderNode<T>;
@@ -261,6 +269,43 @@ export interface FieldWrapperProps {
 }
 
 /**
+ * Адаптер поля: как свести value-based seam рендерера (`value` + `onChange(value)`) к контракту
+ * конкретного контрола библиотеки. Резолвится через {@link RendererSettings.resolveFieldAdapter}
+ * по компоненту поля (`node.component`). Позволяет регистрировать СЫРЫЕ контролы любого UI-kit —
+ * рендерер сам переложит seam на их диалект (`checked` + `onChange(event)`, `value` + `(value, option)`
+ * и т.д.). Нет адаптера → контрол получает seam как есть (текущее поведение, обратная совместимость).
+ *
+ * @example Checkbox (значение в `checked`, эмитит DOM-событие)
+ * ```ts
+ * { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }
+ * ```
+ */
+export interface FieldAdapter {
+  /** Проп, из которого контрол читает значение (default `'value'`). */
+  valueProp?: string;
+  /** Колбэк, через который контрол эмитит изменение (default `'onChange'`). */
+  changeProp?: string;
+  /**
+   * emit контрола → значение поля (default — как есть). `rest` — прочие props контрола
+   * (например, чтобы достать `options` при резолве значения).
+   */
+  fromEmit?: (arg: unknown, rest: Record<string, unknown>) => unknown;
+  /** значение поля → `valueProp` контрола (coerce `null`/`undefined`; default — как есть). */
+  toValue?: (value: unknown) => unknown;
+  /** Проброс blur нестандартным каналом (default — прокидывается `onBlur`). */
+  bindBlur?: (onBlur: () => void) => Record<string, unknown>;
+  /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
+  strip?: string[];
+  /**
+   * Передавать ли контролу ноду формы пропом `control` (§3.1). По умолчанию `false`: `control`
+   * контролу не нужен (реактивные пропы мёржит рендерер, errors/touched — FieldWrapper). Ставь
+   * `true`, если контрол сам потребляет ноду (напр. вызывает `useFormControl(control)`). Альтернатива
+   * без адаптера — статик на компоненте: `MyControl.reformerNeedsControl = true`.
+   */
+  passControl?: boolean;
+}
+
+/**
  * Настройки рендерера формы
  */
 export interface RendererSettings {
@@ -271,6 +316,14 @@ export interface RendererSettings {
    * Обёртка отвечает за рендеринг label, errors и т.д.
    */
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+  /**
+   * Резолв {@link FieldAdapter} по компоненту поля (`node.component`). Возвращает адаптер для
+   * контролов с нестандартным диалектом (Checkbox/Select/Radio) либо `undefined` — тогда seam
+   * применяется как есть. Позволяет подключать сырые компоненты любого UI-kit, не оборачивая
+   * каждый контрол. Ядро при этом остаётся UI-агностичным (адаптер — данные приложения).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
 }
 
 /**

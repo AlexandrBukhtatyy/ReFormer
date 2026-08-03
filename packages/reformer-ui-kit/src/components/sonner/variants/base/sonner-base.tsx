@@ -24,6 +24,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
         error: <OctagonXIcon className="size-4" />,
         loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
+      // Статус-иконку выравниваем по верхней строке контента, а не по центру всего тоста:
+      // sonner ставит `[data-sonner-toast] { align-items: center }`, из-за чего при многострочном
+      // title/description иконка уезжает в вертикальную середину. `mt-0.5` — оптическая
+      // компенсация к базовой линии первой строки. Идёт до {...props} → caller может переопределить.
+      toastOptions={{ classNames: { icon: 'self-start mt-0.5' } }}
       style={
         {
           '--normal-bg': 'var(--popover)',

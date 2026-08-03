@@ -13,6 +13,7 @@ import MccaRendererJsonV20 from './pages/examples/mcp-credit-application-rendere
 import ImperativeHandles from './pages/examples/imperative-handles/ImperativeHandles';
 import HtmlNodesExample from './pages/examples/html-nodes/HtmlNodesExample';
 import RegistrationFormJson from './pages/examples/registration-form-renderer-json/RegistrationFormRendererJson';
+import AlertsListRendererJson from './pages/examples/alerts-list-renderer-json/AlertsListRendererJson';
 import FileUploadDemo from './pages/examples/file-upload/FileUploadDemo';
 type ExamplePage =
   | 'simple'
@@ -28,6 +29,7 @@ type ExamplePage =
   | 'imperative-handles'
   | 'html-nodes'
   | 'registration-json'
+  | 'alerts-json'
   | 'file-upload';
 
 interface ExampleEntry {
@@ -141,6 +143,13 @@ const exampleGroups: { title: string; items: ExampleEntry[] }[] = [
         title: 'Регистрация (JSON)',
         description:
           'Весь экран из JSON: AsyncBoundary грузит префилл, в .tsx только Provider и Renderer',
+      },
+      {
+        id: 'alerts-json',
+        path: '/examples/alerts-json',
+        title: 'Список алертов (JSON)',
+        description:
+          'Итерация массива модели через $component(List) + $template; behavior меняет набор алертов',
       },
     ],
   },
@@ -286,6 +295,7 @@ function Layout() {
             <Route path="/examples/imperative-handles" element={<ImperativeHandles />} />
             <Route path="/examples/html-nodes" element={<HtmlNodesExample />} />
             <Route path="/examples/registration-json" element={<RegistrationFormJson />} />
+            <Route path="/examples/alerts-json" element={<AlertsListRendererJson />} />
             <Route path="/examples/file-upload" element={<FileUploadDemo />} />
             <Route path="/" element={<Navigate to="/examples/simple" replace />} />
             <Route path="*" element={<Navigate to="/examples/simple" replace />} />

@@ -6,7 +6,7 @@
 
 **Problem.** JSON-схема статична, а данные и форма — runtime. Нужно связать их без React-glue на каждой странице.
 
-**Solution.** Модель (`FormModel`) — источник данных, форма строится из **той же** JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает модель через `JsonRendererProvider` settings. `JsonFormRenderer` не имеет `form`-пропа (by-design).
+**Solution.** Модель (`FormModel`) — источник данных, форма строится из **той же** JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает `schema` + `model` пропами. Это низкоуровневый (ручной) путь: схема передаётся дважды — конвертеру и рендереру, а «собрать ровно один раз» держится на комментарии в прикладном коде. `JsonFormRenderer` принимает **либо** пару `schema` + `model` (как здесь), **либо** готовый бандл `form={jsonForm}` — рекомендуемый одно-проходный способ, см. [«Сборка формы одним проходом»](#one-pass).
 
 ```tsx
 import { useMemo } from 'react';
@@ -32,8 +32,8 @@ export function MyFormPage() {
   }, [registry]);
 
   return (
-    <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm> schema={jsonSchema} validate={import.meta.env.DEV} />
+    <JsonRendererProvider settings={{ registry }}>
+      <JsonFormRenderer<MyForm> schema={jsonSchema} model={model} validateSchema={import.meta.env.DEV} />
     </JsonRendererProvider>
   );
 }
@@ -42,8 +42,95 @@ export function MyFormPage() {
 **Notes.**
 
 - `convertJsonToM1Tree` бросает при битой схеме (неизвестный `$component`) **до** рендера. Оберни в try/catch, если хочешь показать `SchemaErrorPanel` вместо краша (см. `buildModelAndForm` в эталоне).
-- `validate={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
+- `validateSchema={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
 - Поведение (compute/enableWhen/navigation) идёт в `createForm({ behavior })`; render-behavior (hideWhen/patchProps/onInit) — отдельным пропом `renderBehavior`.
+- Ручная сборка выше — низкоуровневый путь. Рекомендуемый — собрать всё одним проходом через `createJsonForm` и отдать бандлом `form={jsonForm}`, см. [ниже](#one-pass).
+
+## Сборка формы одним проходом { #one-pass }
+
+**Problem.** Ручной монтаж (см. выше) передаёт схему дважды: в `convertJsonToM1Tree` (для `createForm`) и пропом `schema` в `JsonFormRenderer`. Две несвязанные передачи одного артефакта легко разъезжаются (рендереру уходит не та схема/модель), а «собрать ровно один раз» держится на комментарии. Плюс `useMemo` для сборки модели/формы ненадёжен: React вправе сбросить его кэш и пересоздать форму → потеря введённого.
+
+**Solution.** `createJsonForm<T>({ schema, registry, initial | model, behavior? })` собирает всё за один проход и возвращает бандл `{ model, form, schema, registry }`. Хук `useJsonForm(factory)` делает сборку стабильной (ленивый `useState` — фабрика зовётся ровно один раз). Бандл целиком отдаётся рендереру пропом `form` — `schema` и `model` он берёт из него.
+
+```tsx
+import { useMemo } from 'react';
+import {
+  createJsonForm,
+  useJsonForm,
+  defineJsonSchema,
+  JsonFormRenderer,
+  JsonRendererProvider,
+} from '@reformer/renderer-json';
+import { createRegistry } from './registry';
+import { formBehavior } from './behavior';
+
+interface CreditForm {
+  loanType: string;
+  personalData: { firstName: string };
+}
+const INITIAL: CreditForm = { loanType: 'consumer', personalData: { firstName: '' } };
+
+// defineJsonSchema<T> типизирует пути $model(...): $model(personalData.firstName) — ок,
+// а $model(personalData.firstNam) — ошибка компиляции (нет такого пути в CreditForm).
+// Не нужен `as unknown as JsonFormSchema`.
+const schema = defineJsonSchema<CreditForm>({
+  version: '1.0',
+  root: {
+    component: '$component(Box)',
+    children: [
+      {
+        value: '$model(personalData.firstName)',
+        component: '$component(Input)',
+        componentProps: { label: 'Имя' },
+      },
+    ],
+  },
+});
+
+export function CreditFormPage() {
+  const registry = useMemo(() => createRegistry(), []);
+  // factory зовётся один раз — model/form переживают ре-рендеры (в отличие от useMemo).
+  const jsonForm = useJsonForm(() =>
+    createJsonForm<CreditForm>({ schema, registry, initial: INITIAL, behavior: formBehavior })
+  );
+
+  return (
+    <JsonRendererProvider settings={{ registry }}>
+      {/* Проп form поставляет и schema, и model — передавать их отдельно не нужно. */}
+      <JsonFormRenderer form={jsonForm} validateSchema={import.meta.env.DEV} />
+    </JsonRendererProvider>
+  );
+}
+```
+
+Тот же результат ручной сборкой (схема передаётся дважды, `useMemo` вместо `useJsonForm`) — для сравнения:
+
+```tsx
+// Было (ручная сборка): createModel + createForm + convertJsonToM1Tree.
+const model = createModel<CreditForm>(INITIAL);
+const form = createForm<CreditForm>({
+  model,
+  schema: convertJsonToM1Tree(schema, registry, model),
+  behavior: formBehavior,
+});
+// ...
+<JsonFormRenderer<CreditForm> schema={schema} model={model} />;
+
+// Стало (одним проходом): бандл { model, form, schema, registry } → проп form.
+const jsonForm = useJsonForm(() =>
+  createJsonForm<CreditForm>({ schema, registry, initial: INITIAL, behavior: formBehavior })
+);
+// ...
+<JsonFormRenderer form={jsonForm} />;
+```
+
+**Notes.**
+
+- Модель задаётся **либо** `initial` (создаётся внутри через `createModel`), **либо** готовой `model` (приоритетнее `initial`). Ни того, ни другого — `createJsonForm` бросает.
+- `behavior` (compute/copyFrom/enableWhen/onChange модели) уходит в `createForm({ behavior })` внутри — не путать с `renderBehavior` (hideWhen/patchProps/onInit), который по-прежнему отдельный проп `JsonFormRenderer`.
+- `JsonFormRenderer` принимает **либо** `form={jsonForm}`, **либо** пару `schema` + `model`. С бандлом отдельные `schema`/`model` не нужны; не задать ни `form`, ни `schema`+`model` — рендерер бросит.
+- `useJsonForm(factory)` — стабильная сборка через ленивый `useState`; `factory` вызывается ровно один раз. `useMemo` для сборки формы не годится (React вправе сбросить кэш → потеря введённого).
+- `defineJsonSchema<T>` — identity-хелпер: сужает пути `$model(...)` до `Path<T>` (опечатка — ошибка компиляции). Схему-строку-с-сервера (тип формы неизвестен) типизируй `JsonFormSchema` без параметра (`raw as unknown as JsonFormSchema<T>`). Пути внутри `item.$template` относительны элементу и НЕ типизируются.
 
 ## $template для массивов { #template-arrays }
 
@@ -85,6 +172,47 @@ export function MyFormPage() {
 - `initialValue` — полный plain-объект по форме элемента (все поля из `$template`). Клонируется через `JSON.parse(JSON.stringify(...))`; не FieldConfig. Частичный `initialValue` → у нового элемента нет сигналов для недостающих полей.
 - Внутри `$template` пути относительны элементу (`'$model(type)'`, а не `'$model(properties[0].type)'`).
 - Вложенный массив в массиве — новый array-node внутри `$template` со своим `array`/`item`.
+
+## Display-список из массива модели { #display-list }
+
+**Problem.** В модели — массив объектов (алерты, бейджи, строки-статусы). Нужно отрендерить компонент на каждый элемент и реактивно показывать/скрывать элементы — но БЕЗ редактор-хрома (add/remove/карточки), который тащит обычный array-node.
+
+**Solution.** Тот же array-node + опциональный `component: '$component(List)'`. `List` (`@reformer/ui-kit`) — chrome-less обёртка; `initialValue` не нужен (добавлять нечего). Показ/скрытие — мутация массива в `defineFormBehavior`. `$model(...)` в `componentProps` элемента доходит до компонента значением (рендерер разворачивает сигнал).
+
+```typescript
+// schema
+{
+  selector: 'alerts-list',
+  array: '$model(alerts)',
+  component: '$component(List)',
+  componentProps: { className: 'space-y-2' },
+  item: {
+    $template: {
+      component: '$component(Alert)',
+      componentProps: { type: '$model(type)', message: '$model(message)' },
+    },
+  },
+}
+
+// registry
+reg.component('List', List);   // @reformer/ui-kit
+reg.component('Alert', Alert); // ваш display-компонент { type, message }
+
+// behavior — показ/скрытие = пересборка массива
+defineFormBehavior<FormShape>(({ model }) => {
+  onChange(model.$.amount, () => {
+    model.alerts.clear();
+    if (Number(model.amount) > 1_000_000)
+      model.alerts.push({ type: 'error', message: 'Превышен лимит' });
+  });
+});
+```
+
+**Notes.**
+
+- Дисплей vs редактирование = выбор компонента, а не тип узла. Без `component` тот же узел рендерится встроенной редактируемой секцией (и требует `initialValue`).
+- Компонент-обёртка получает готовые элементы `children` (+ `array`/`item`/`fieldWrapper` — если хочет сам итерировать/добавлять хром).
+- Для React/TS (вне JSON) есть headless-примитив `List` из `@reformer/cdk/list` (брат `FormArray` без мутаций) и `useList`.
 
 ## dataSource-значения и функции { #datasource }
 
@@ -136,8 +264,56 @@ const registry = defineRegistry((reg) => {
 **Notes.**
 
 - Резолв происходит только для строк `'$dataSource(NAME)'`. Голые строки (`label`, `placeholder`) и инлайн-массивы options идут как есть.
-- Если имя не зарегистрировано: без `validate` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validate` — ошибка `unknown dataSource "NAME"`.
+- Если имя не зарегистрировано: без `validateSchema` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validateSchema` — ошибка `unknown dataSource "NAME"`.
 - dataSource нельзя использовать как имя `component` (`component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
+
+## Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }
+
+**Problem.** JSON-реестр удобно наполнять готовыми контролами UI-kit (antd/MUI) прямо по имени: `reg.component('Checkbox', Checkbox)`. Но seam рендерера **value-based** — он читает `value` и зовёт `onChange(value)`. Сырой antd `Checkbox` держит значение в `checked` и эмитит DOM-событие (`onChange(e)`), `Radio` — тоже событие: без перевода в модель попадёт `event`, а не значение. `Select` эмитит `(value, option)` — значение приходит **первым** и пишется в модель верно (лишний `option` отбрасывается сам), но по умолчанию рендерер пробрасывает в контрол `control={fieldNode}`, и сырой antd-контрол разольёт неизвестный проп в DOM с React-warning.
+
+**Solution.** `resolveFieldAdapter(component) => FieldAdapter | undefined` в настройках рендерера. `JsonRendererSettings` наследует его от `RendererSettings`, поэтому адаптер передаётся тем же `JsonRendererProvider settings` и доходит до листового рендерера **без единой строки** в renderer-json (`JsonFormRenderer` спредит `...rendererSettings` в `FormRenderer`). Адаптер резолвится по **резолвнутому** `node.component` (тому, что реестр вернул на `$component(Checkbox)`), поэтому ключуй по ссылке на компонент, а не по имени.
+
+```tsx
+import { Checkbox, Select, Radio } from 'antd';
+import type { FieldAdapter } from '@reformer/renderer-react';
+
+// Сырые контролы регистрируем по имени — как обычные компоненты.
+const registry = defineRegistry((reg) => {
+  reg.component('Checkbox', Checkbox);
+  reg.component('Select', Select);
+  reg.component('Radio', Radio);
+  reg.component(FIELD_WRAPPER, FormField);
+});
+
+// Перевод value-based seam → диалект контрола держим отдельно
+// (данные приложения; ядро остаётся UI-агностичным).
+const adapters = new Map<unknown, FieldAdapter>([
+  // checked + onChange(event) → e.target.checked; null/undefined → false.
+  [Checkbox, { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }],
+  // value/onChange уже как надо; пустой адаптер нужен лишь чтобы НЕ прокинуть `control`
+  // (второй аргумент onChange(value, option) отбрасывается сам — колбэк берёт только первый).
+  [Select, {}],
+  // значение приходит в событии.
+  [Radio, { fromEmit: (e) => (e as any).target.value }],
+]);
+
+<JsonRendererProvider settings={{ registry, resolveFieldAdapter: (c) => adapters.get(c) }}>
+  <JsonFormRenderer<MyForm> schema={jsonSchema} model={model} />
+</JsonRendererProvider>;
+```
+
+В самой JSON-схеме ничего особого — лист ссылается на зарегистрированное имя:
+
+```json
+{ "value": "$model(agree)", "component": "$component(Checkbox)", "componentProps": { "label": "Согласен" } }
+```
+
+**Notes.**
+
+- `resolveFieldAdapter` получает **резолвнутый** `node.component` (React-компонент), а не строку `$component(...)`. Ключуй `Map` по той же ссылке, что отдал в `reg.component`.
+- С адаптером `control` в контрол **не** пробрасывается (сырой antd-контрол его не потребляет); `disabled` пробрасывается всегда. Без адаптера — прежний seam (`control` + `value` + `onChange(value)`), полная обратная совместимость.
+- Контролам с уже value-based контрактом (`Input`, `Textarea`, собственные поля `@reformer/ui-kit`) адаптер не нужен — верни для них `undefined`.
+- Полный справочник полей `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в JSDoc типа `FieldAdapter` и кукбуке `@reformer/renderer-react`; здесь важно лишь, что `JsonRendererSettings` наследует `resolveFieldAdapter` без изменений в renderer-json.
 
 ## Инъекция runtime-сущностей в компонент (form, validation) { #inject-runtime }
 
@@ -174,7 +350,7 @@ function createMyRenderBehavior(
 
 **Problem.** Нужно показать заполненную форму «только для просмотра» — все поля недоступны для ввода. Тянет искать флаг `settings.readonly` / `settings.mode`.
 
-**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт только `fieldWrapper` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`). Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `GroupNode.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
+**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт `fieldWrapper` **и** `resolveFieldAdapter` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`) — флага `readonly`/`mode` среди них нет. Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `GroupNode.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
 
 ```typescript
 // Вариант A — сразу после сборки формы (самый прямой):

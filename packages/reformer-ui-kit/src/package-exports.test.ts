@@ -15,7 +15,7 @@ const pkg = JSON.parse(readFileSync(join(pkgRoot, 'package.json'), 'utf8')) as {
 };
 
 // Фиксированные точки — не компоненты, каталога в src/components/ у них нет.
-const FIXED = new Set(['.', './meta', './fields', './styles']);
+const FIXED = new Set(['.', './meta', './fields', './styles', './catalog']);
 
 function componentDirs(): string[] {
   if (!existsSync(componentsDir)) return [];
@@ -40,6 +40,7 @@ describe('package.json#exports ↔ src/components', () => {
       import: './dist/fields.js',
     });
     expect(pkg.exports['./styles']).toBe('./src/styles/theme.css');
+    expect(pkg.exports['./catalog']).toBe('./component-catalog.json');
   });
 
   it('dir → export: каждый компонент с index.ts имеет subpath', () => {

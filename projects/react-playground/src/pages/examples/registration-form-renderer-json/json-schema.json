@@ -13,26 +13,35 @@
     "children": [
       {
         "component": "$html(div)",
-        "componentProps": { "className": "flex flex-col md:flex-row gap-6 mx-auto" },
+        "componentProps": {
+          "className": "flex flex-col md:flex-row gap-6 mx-auto"
+        },
         "children": [
           {
             "component": "$html(div)",
-            "componentProps": { "className": "flex-1 p-6 bg-white rounded-lg shadow" },
+            "componentProps": {
+              "className": "flex-1 p-6 bg-white rounded-lg shadow"
+            },
             "children": [
               {
                 "component": "$html(h2)",
-                "componentProps": { "className": "text-xl font-bold mb-4" },
+                "componentProps": {
+                  "className": "text-xl font-bold mb-4"
+                },
                 "text": "Регистрация"
               },
               {
                 "component": "$html(p)",
-                "componentProps": { "className": "text-sm text-gray-600 mb-6" },
+                "componentProps": {
+                  "className": "text-sm text-gray-600 mb-6"
+                },
                 "text": "Поля предзаполнены по приглашению. Проверьте данные и завершите регистрацию."
               },
-
               {
                 "component": "$html(div)",
-                "componentProps": { "className": "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                "componentProps": {
+                  "className": "grid grid-cols-1 md:grid-cols-2 gap-4"
+                },
                 "children": [
                   {
                     "value": "$model(username)",
@@ -41,7 +50,8 @@
                       "label": "Имя пользователя",
                       "placeholder": "Логин (латиница)",
                       "testId": "username",
-                      "className": "mb-4"
+                      "className": "mb-4",
+                      "required": false
                     }
                   },
                   {
@@ -57,10 +67,11 @@
                   }
                 ]
               },
-
               {
                 "component": "$html(div)",
-                "componentProps": { "className": "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                "componentProps": {
+                  "className": "grid grid-cols-1 md:grid-cols-2 gap-4"
+                },
                 "children": [
                   {
                     "value": "$model(password)",
@@ -84,7 +95,6 @@
                   }
                 ]
               },
-
               {
                 "value": "$model(fullName)",
                 "component": "$component(Input)",
@@ -95,10 +105,11 @@
                   "className": "mb-4"
                 }
               },
-
               {
                 "component": "$html(div)",
-                "componentProps": { "className": "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                "componentProps": {
+                  "className": "grid grid-cols-1 md:grid-cols-2 gap-4"
+                },
                 "children": [
                   {
                     "value": "$model(phone)",
@@ -123,7 +134,6 @@
                   }
                 ]
               },
-
               {
                 "value": "$model(acceptTerms)",
                 "component": "$component(Checkbox)",
@@ -133,17 +143,17 @@
                   "className": "mb-6"
                 }
               },
-
               {
                 "component": "$html(div)",
-                "componentProps": { "className": "flex gap-2 mt-6" },
+                "componentProps": {
+                  "className": "flex gap-2 mt-6"
+                },
                 "children": [
                   {
                     "selector": "submit-button",
                     "component": "$component(Button)",
                     "componentProps": {
-                      "type": "button",
-                      "data-testid": "submit"
+                      "type": "button"
                     },
                     "text": "Зарегистрироваться"
                   },
@@ -152,14 +162,12 @@
                     "component": "$component(Button)",
                     "componentProps": {
                       "type": "button",
-                      "variant": "secondary",
-                      "data-testid": "reset"
+                      "variant": "secondary"
                     },
                     "text": "Очистить"
                   }
                 ]
               },
-
               {
                 "component": "$html(p)",
                 "componentProps": {
@@ -168,7 +176,6 @@
                 },
                 "text": "$dataSource(SUBMIT_STATUS)"
               },
-
               {
                 "component": "$html(div)",
                 "componentProps": {
@@ -177,18 +184,25 @@
                 "children": [
                   {
                     "component": "$html(h3)",
-                    "componentProps": { "className": "font-semibold mb-2" },
+                    "componentProps": {
+                      "className": "font-semibold mb-2"
+                    },
                     "text": "💡 Подсказки для тестирования"
                   },
                   {
                     "component": "$html(ul)",
-                    "componentProps": { "className": "text-sm text-gray-700 space-y-1" },
+                    "componentProps": {
+                      "className": "text-sm text-gray-700 space-y-1"
+                    },
                     "children": [
                       {
                         "component": "$html(li)",
                         "text": "• Занятые username: ",
                         "children": [
-                          { "component": "$html(code)", "text": "johndoe, janedoe, admin" }
+                          {
+                            "component": "$html(code)",
+                            "text": "johndoe, janedoe, admin"
+                          }
                         ]
                       },
                       {
@@ -204,7 +218,12 @@
                       {
                         "component": "$html(li)",
                         "text": "• Правильная captcha: ",
-                        "children": [{ "component": "$html(code)", "text": "ABC123" }]
+                        "children": [
+                          {
+                            "component": "$html(code)",
+                            "text": "ABC123"
+                          }
+                        ]
                       }
                     ]
                   }
@@ -212,14 +231,17 @@
               }
             ]
           },
-
           {
             "component": "$html(div)",
-            "componentProps": { "className": "flex-1 p-6 bg-white rounded-lg shadow" },
+            "componentProps": {
+              "className": "flex-1 p-6 bg-white rounded-lg shadow"
+            },
             "children": [
               {
                 "component": "$html(h2)",
-                "componentProps": { "className": "text-xl font-bold mb-4" },
+                "componentProps": {
+                  "className": "text-xl font-bold mb-4"
+                },
                 "text": "Состояние формы"
               },
               {

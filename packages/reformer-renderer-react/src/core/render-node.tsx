@@ -11,6 +11,7 @@ import { getNodeForSignal } from '@reformer/core';
 import type {
   RenderNode,
   FieldWrapperProps,
+  FieldAdapter,
   ModelFieldRenderNode,
   ArrayRenderNode,
   RenderModelArrayControl,
@@ -31,6 +32,7 @@ import {
   RenderSchemaOverrideContext,
 } from './render-schema-proxy';
 import { useCondition, useNodeLifecycle } from './render-behavior';
+import { buildAdaptedFieldProps } from './field-adapter';
 
 /**
  * Props для RenderNodeComponent
@@ -54,20 +56,32 @@ interface RenderNodeComponentProps<T> {
 // ============================================================================
 
 /**
- * Подписка листового рендерера ТОЛЬКО на `value` + `disabled` поля (а не на все 9 сигналов
- * {@link useFormControl}). Обёрнутые `Component`/`FieldWrapper` получают `control` и подписываются
- * на errors/touched/pending/valid/… сами, поэтому родителю эти сигналы не нужны — лишние
- * ре-рендеры при churn'е валидации/touch устраняются, и `React.memo` пользовательских компонентов
- * поля не обесценивается. Снапшот кэшируется по паре (value, disabled): иначе useSyncExternalStore
- * получал бы свежий объект каждый getSnapshot и зациклился бы. SSR-safe.
+ * Подписка листового рендерера на `value` + `disabled` + реактивные `componentProps` поля (а не на
+ * все 9 сигналов {@link useFormControl}). Обёрнутые `Component`/`FieldWrapper` получают `control` и
+ * подписываются на errors/touched/pending/valid/… сами, поэтому родителю эти сигналы не нужны —
+ * лишние ре-рендеры при churn'е валидации/touch устраняются, и `React.memo` пользовательских
+ * компонентов поля не обесценивается.
+ *
+ * `componentProps` включён сюда специально: рантайм-обновления ноды (`updateComponentProps`, напр.
+ * догруженные `options`) должны доезжать до контрола в ОБЕИХ ветках рендера — в т.ч. когда контрол
+ * под адаптером и не получает `control` (иначе обновление молча терялось). Меняется он только по
+ * явному `updateComponentProps`, поэтому churn'а не добавляет. Снапшот кэшируется по тройке
+ * (value, disabled, componentProps): иначе useSyncExternalStore получал бы свежий объект каждый
+ * getSnapshot и зациклился бы. SSR-safe.
  */
-function useFieldValueAndDisabled(fieldNode: FieldNode<unknown>): {
+function useFieldRenderState(fieldNode: FieldNode<unknown>): {
   value: unknown;
   disabled: boolean;
+  componentProps: Record<string, unknown>;
 } {
-  const cacheRef = useRef<{ value: unknown; disabled: boolean }>({
+  const cacheRef = useRef<{
+    value: unknown;
+    disabled: boolean;
+    componentProps: Record<string, unknown>;
+  }>({
     value: fieldNode.value.value,
     disabled: fieldNode.disabled.value,
+    componentProps: fieldNode.componentProps.value,
   });
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
@@ -75,6 +89,7 @@ function useFieldValueAndDisabled(fieldNode: FieldNode<unknown>): {
       return effect(() => {
         void fieldNode.value.value; // зависимость: сигнал value
         void fieldNode.disabled.value; // зависимость: сигнал disabled
+        void fieldNode.componentProps.value; // зависимость: реактивные componentProps ноды
         if (first) {
           first = false;
           return;
@@ -84,12 +99,22 @@ function useFieldValueAndDisabled(fieldNode: FieldNode<unknown>): {
     },
     [fieldNode]
   );
-  const getSnapshot = useCallback((): { value: unknown; disabled: boolean } => {
+  const getSnapshot = useCallback((): {
+    value: unknown;
+    disabled: boolean;
+    componentProps: Record<string, unknown>;
+  } => {
     const value = fieldNode.value.value;
     const disabled = fieldNode.disabled.value;
+    const componentProps = fieldNode.componentProps.value;
     const prev = cacheRef.current;
-    if (prev.value === value && prev.disabled === disabled) return prev;
-    const next = { value, disabled };
+    if (
+      prev.value === value &&
+      prev.disabled === disabled &&
+      prev.componentProps === componentProps
+    )
+      return prev;
+    const next = { value, disabled, componentProps };
     cacheRef.current = next;
     return next;
   }, [fieldNode]);
@@ -105,6 +130,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   fieldNode,
   fieldWrapper: FieldWrapper,
   nodeRef,
+  resolveFieldAdapter,
 }: {
   node: ModelFieldRenderNode;
   fieldNode: FieldNode<unknown>;
@@ -115,9 +141,16 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
    * Стабильный createRef → React.memo не тарашит. undefined, если нода без selector или ref не запрошен.
    */
   nodeRef?: React.RefObject<unknown>;
+  /**
+   * Резолв {@link FieldAdapter} по компоненту поля (из `settings.resolveFieldAdapter`). Если адаптер
+   * найден — seam кладётся в контракт контрола (valueProp/changeProp/fromEmit/toValue), иначе
+   * применяется как есть (текущее value-based поведение).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
 }): ReactNode {
-  // Подписка только на value+disabled (не на все 9 сигналов useFormControl).
-  const { value, disabled } = useFieldValueAndDisabled(fieldNode);
+  // Подписка на value+disabled+реактивные componentProps ноды (не на все 9 сигналов useFormControl).
+  const { value, disabled, componentProps: nodeComponentProps } = useFieldRenderState(fieldNode);
   // Стабильные колбэки: fieldNode стабилен для данного сигнала → не пересоздаются каждый рендер,
   // поэтому React.memo на пользовательском Component держится.
   const onChange = useCallback((v: unknown) => fieldNode.setValue(v as never), [fieldNode]);
@@ -130,13 +163,16 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
     return null;
   }
 
+  // Схемные пропы — дефолт; реактивные пропы ноды (updateComponentProps) — override. Так рантайм-
+  // обновление (догруженные `options`, `loading`, …) доходит до контрола в ОБЕИХ ветках ниже —
+  // в т.ч. когда контрол под адаптером и не получает `control` (§3.2 рекомендаций).
   const {
     className,
     wrapper: Wrapper = 'div',
     fieldWrapper: perFieldWrapper,
     testId: explicitTestId,
     ...inputComponentProps
-  } = node.componentProps ?? {};
+  } = { ...node.componentProps, ...nodeComponentProps };
 
   // testId: явный из схемы, иначе из пути сигнала (`personalData.lastName` → `personalData-lastName`).
   const path = (node.value as { __path?: string }).__path;
@@ -147,24 +183,60 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
         ? path.replace(/\./g, '-')
         : undefined;
 
-  const inputProps: Record<string, unknown> = {
-    value,
-    disabled,
-    ...inputComponentProps,
-  };
-  if (testId && inputProps['data-testid'] === undefined) {
-    inputProps['data-testid'] = `input-${testId}`;
-  }
+  // Адаптер по компоненту поля: сырой контрол UI-kit получает seam в своём диалекте
+  // (`checked`+событие, `value`+`(value, option)` и т.д.). Нет адаптера → value-based seam как есть.
+  const adapter = resolveFieldAdapter?.(Component);
 
-  const input = (
-    <Component
-      control={fieldNode}
-      {...inputProps}
-      {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
-      onChange={onChange}
-      onBlur={onBlur}
-    />
-  );
+  // §3.1 (BREAKING): нода формы (`control`) передаётся контролу ТОЛЬКО по явному запросу — статикой
+  // `Component.reformerNeedsControl === true` либо `adapter.passControl`. По умолчанию НЕ передаётся:
+  // leaf-контролы UI-kit её не потребляют (иначе `control` тёк бы в DOM, и адаптеры заводились лишь
+  // чтобы её вырезать), а errors/touched/label обслуживает FieldWrapper — он получает `control`
+  // отдельно (ниже). Реактивные рантайм-пропы теперь мёржит сам рендерер (см. useFieldRenderState),
+  // поэтому ради них `control` контролу больше не нужен.
+  const needsControl =
+    adapter?.passControl === true ||
+    (Component as { reformerNeedsControl?: boolean }).reformerNeedsControl === true;
+  const controlProp = needsControl ? { control: fieldNode } : {};
+
+  let input: ReactNode;
+  if (adapter) {
+    const adaptedProps = buildAdaptedFieldProps(
+      adapter,
+      value,
+      onChange,
+      onBlur,
+      inputComponentProps as Record<string, unknown>
+    );
+    if (testId && adaptedProps['data-testid'] === undefined) {
+      adaptedProps['data-testid'] = `input-${testId}`;
+    }
+    input = (
+      <Component
+        disabled={disabled}
+        {...adaptedProps}
+        {...controlProp}
+        {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
+      />
+    );
+  } else {
+    const inputProps: Record<string, unknown> = {
+      value,
+      disabled,
+      ...inputComponentProps,
+    };
+    if (testId && inputProps['data-testid'] === undefined) {
+      inputProps['data-testid'] = `input-${testId}`;
+    }
+    input = (
+      <Component
+        {...controlProp}
+        {...inputProps}
+        {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
+        onChange={onChange}
+        onBlur={onBlur}
+      />
+    );
+  }
 
   const EffectiveWrapper = perFieldWrapper ?? FieldWrapper;
   return EffectiveWrapper ? (
@@ -216,8 +288,78 @@ function stableKey(item: unknown): number {
   return k;
 }
 
-const resolveInitial = (init: ArrayRenderNode<unknown>['initialValue']): unknown =>
+/**
+ * Резолв `initialValue` элемента для кнопки «Добавить»: значение или фабрика `() => value`.
+ * Экспортируется — им пользуются ui-kit-компоненты массива (`FormArray`) для `array.push(...)`.
+ */
+export const resolveInitialValue = (init: ArrayRenderNode<unknown>['initialValue']): unknown =>
   typeof init === 'function' ? (init as () => unknown)() : init;
+
+/**
+ * Один элемент модель-массива для компонента-рендерера: стабильный ключ, живой индекс, под-модель
+ * элемента и готовое поддерево. Возвращается {@link useModelArrayItems}.
+ */
+export interface ModelArrayItem {
+  /** Стабильный React-ключ по идентичности под-модели (stableKey). */
+  key: number;
+  /** Живой индекс в массиве — для `removeAt(index)`/`move(index, …)`. */
+  index: number;
+  /** Под-модель элемента (`control.at(index)`) — для `itemLabel(model, index)` и т.п. */
+  model: unknown;
+  /** Готовое поддерево элемента: `<RenderNodeComponent node={item(model)} …/>`. */
+  element: ReactNode;
+}
+
+/**
+ * Итерация модель-массива для компонента-рендерера: подписка на структурные изменения массива
+ * (add/remove/**reorder**) + кэш поддеревьев по идентичности элемента + обёртка в
+ * {@link RenderNodeComponent}. Возвращает на элемент `{ key, index, model, element }`. Единственная
+ * копия итерации — на ней строятся ui-kit `List` (chrome-less) и `FormArray` (add/remove/reorder):
+ * хром — их, данные (модель для label, индекс для remove) — отсюда. SSR-safe (наследует серверный
+ * снапшот {@link useModelArrayRevision}). Подписка живёт в компоненте, который реально рендерит.
+ */
+export function useModelArrayItems(
+  control: RenderModelArrayControl,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<unknown>,
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>
+): ReadonlyArray<ModelArrayItem> {
+  useModelArrayRevision(control); // ре-рендер при структурных изменениях (включая reorder)
+  const length = control.length;
+
+  // Кэш поддеревьев по идентичности под-модели, ключ — фабрика `item` (сброс при смене схемы).
+  const cacheRef = useRef<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    itemFn: (itemModel: any) => RenderNode<unknown>;
+    map: WeakMap<object, RenderNode<unknown>>;
+  } | null>(null);
+  if (!cacheRef.current || cacheRef.current.itemFn !== item) {
+    cacheRef.current = { itemFn: item, map: new WeakMap() };
+  }
+  const getSubtree = (im: unknown): RenderNode<unknown> => {
+    if (im == null || typeof im !== 'object') return item(im);
+    const map = cacheRef.current!.map;
+    let sub = map.get(im as object);
+    if (sub === undefined) {
+      sub = item(im);
+      map.set(im as object, sub);
+    }
+    return sub;
+  };
+
+  return Array.from({ length }, (_, index) => {
+    const model = control.at(index);
+    const key = stableKey(model);
+    return {
+      key,
+      index,
+      model,
+      element: (
+        <RenderNodeComponent key={key} node={getSubtree(model)} fieldWrapper={fieldWrapper} />
+      ),
+    };
+  });
+}
 
 /**
  * Секция массива единой схемы (M1): данные принадлежат модели (`node.array`), поддерево элемента
@@ -294,7 +436,7 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
       type="button"
       data-testid="array-add"
       className={cls}
-      onClick={() => control.push(resolveInitial(node.initialValue))}
+      onClick={() => control.push(resolveInitialValue(node.initialValue))}
     >
       {addButtonLabel}
     </button>
@@ -374,6 +516,32 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
   );
 });
 
+/**
+ * Массив, рендеримый ЗАРЕГИСТРИРОВАННЫМ компонентом (M1): узел `{ array, item, component }`.
+ * Тонкий pass-through: сам НЕ итерирует — отдаёт компоненту `array`/`item`/`initialValue`/
+ * `fieldWrapper` + `componentProps`, а компонент (ui-kit `List`/`FormArray`) строит элементы через
+ * {@link useModelArrayItems} (там же подписка/кэш). Так итерация — в одном месте, а хром — в компоненте.
+ */
+const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
+  node,
+  fieldWrapper,
+}: {
+  node: ArrayRenderNode<unknown>;
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+}): ReactNode {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Comp = node.component as React.ComponentType<any>;
+  return (
+    <Comp
+      array={node.array}
+      item={node.item}
+      initialValue={node.initialValue}
+      fieldWrapper={fieldWrapper}
+      {...(node.componentProps ?? {})}
+    />
+  );
+});
+
 // ============================================================================
 // TEXT CONTENT — статический и реактивный текст узла
 // ============================================================================
@@ -413,6 +581,51 @@ function useSignalSetKey(signals: ReadonlyArray<Signal<unknown>>): number {
     ref.current = { signals, key: prev.key + 1 };
   }
   return ref.current.key;
+}
+
+/**
+ * Разворачивает signal-значения в `componentProps` (появляются, когда `$model(...)` стоит в
+ * componentProps — напр. `{ type: '$model(type)' }` в шаблоне элемента списка) в их `.value` и
+ * точечно на них подписывается: компонент получает живое значение поля, а не сырой Signal, и
+ * ре-рендерится при изменении. Пропсы без сигналов возвращаются по той же ссылке (стабильность
+ * `React.memo`). Реактивность — через revision-счётчик, поэтому объект пропсов пересобирается inline
+ * (дешёвый spread), без кэш-снапшота. SSR-safe. Вызывать безусловно (на верхнем уровне рендера).
+ */
+function useSignalProps(
+  props: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  const keys: string[] = [];
+  if (props) for (const k of Object.keys(props)) if (props[k] instanceof Signal) keys.push(k);
+  const signals: Array<Signal<unknown>> = keys.map((k) => props![k] as Signal<unknown>);
+  const signalsKey = useSignalSetKey(signals);
+  const signalsRef = useRef(signals);
+  signalsRef.current = signals;
+  const revRef = useRef(0);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      if (signalsRef.current.length === 0) return () => {};
+      let first = true;
+      return effect(() => {
+        for (const s of signalsRef.current) void s.value; // зависимости эффекта
+        if (first) {
+          first = false;
+          return;
+        }
+        revRef.current += 1;
+        onStoreChange();
+      });
+    },
+    [signalsKey]
+  );
+  useSyncExternalStore(
+    subscribe,
+    () => revRef.current,
+    () => revRef.current
+  );
+  if (!props || keys.length === 0) return props;
+  const out: Record<string, unknown> = { ...props };
+  for (const k of keys) out[k] = (props[k] as Signal<unknown>).value;
+  return out;
 }
 
 /**
@@ -510,6 +723,12 @@ export function RenderNodeComponent<T>({
   const lifecycleHooks = selector ? overrideMaps?.lifecycleRegistry.get(selector) : undefined;
   useNodeLifecycle(lifecycleHooks);
 
+  // Разворачиваем signal-значения в componentProps (из `$model(...)`, напр. в шаблоне элемента
+  // списка) — безусловно, до early-return. Использует контейнерная ветка (у листа свой seam).
+  const unwrappedComponentProps = useSignalProps(
+    node.componentProps as Record<string, unknown> | undefined
+  );
+
   if (isHidden) {
     return null;
   }
@@ -542,6 +761,7 @@ export function RenderNodeComponent<T>({
         fieldNode={fieldNode}
         fieldWrapper={fieldWrapper}
         nodeRef={leafRef}
+        resolveFieldAdapter={settings?.resolveFieldAdapter}
       />
     );
   }
@@ -550,7 +770,12 @@ export function RenderNodeComponent<T>({
   // M1: ArrayRenderNode — массив модели { array, item }
   // ========================================
   if (isArrayRenderNode(node)) {
-    return <ModelArraySectionRenderer node={node} fieldWrapper={fieldWrapper} />;
+    // Задан `component` ($component(List)/своя секция) — рендерит он; иначе встроенная секция.
+    return node.component ? (
+      <ModelArrayComponentRenderer node={node} fieldWrapper={fieldWrapper} />
+    ) : (
+      <ModelArraySectionRenderer node={node} fieldWrapper={fieldWrapper} />
+    );
   }
 
   // ========================================
@@ -558,7 +783,7 @@ export function RenderNodeComponent<T>({
   // ========================================
   if (isContainerRenderNode(node)) {
     const { selector, component: Component, children } = node;
-    const baseProps = node.componentProps || {};
+    const baseProps = unwrappedComponentProps || {};
     // Применяем переопределение пропсов (если задано через schema.node(selector).patchProps())
     const propsPatched = propsOverride != null ? { ...baseProps, ...propsOverride } : baseProps;
     // Колбэки из callbackRegistry (onComponentEvent) — наивысший приоритет среди prop-overrides

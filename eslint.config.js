@@ -58,10 +58,11 @@ export default defineConfig([
     },
   },
 
-  // Node env для скриптов и конфигов (включая вложенные в packages/projects)
+  // Node env для скриптов, CLI-launcher'ов и конфигов (включая вложенные в packages/projects)
   {
     files: [
       '**/scripts/**/*.{js,mjs,cjs}',
+      '**/bin/**/*.{js,mjs,cjs}',
       '**/*.config.{js,mjs,cjs,ts}',
       '**/.*rc.{js,mjs,cjs}',
       '**/vite.config.*',

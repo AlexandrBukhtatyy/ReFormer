@@ -11,6 +11,8 @@ export const inputOtpBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'InputOTP',
+  'x-variantGroup': 'Input',
+  'x-variant': 'OTP',
   properties: {
     maxLength: {
       type: 'number',

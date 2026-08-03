@@ -147,6 +147,7 @@ behavior can *trigger* a re-run — `revalidateWhen([model.$.dep], () => void va
 - **renderer-json**: JSON with string operators `$model(path)` / `$component(Name)` / `$dataSource(NAME)`,
   a `defineRegistry` mapping names → components, `convertJsonToM1Tree(json, registry, model)`, `<JsonRendererProvider settings={{ registry, model }}>` + `<JsonFormRenderer schema={json} />`.
   **Validate the JSON with the `validate_json_schema` tool before rendering.** `find_recipe json-schema`.
+- **Raw third-party controls (non-ui-kit)**: add `resolveFieldAdapter(component) => FieldAdapter | undefined` to the renderer `settings` (both renderer-react and renderer-json) — the renderer maps the value-seam (`value` + `onChange(value)`) to each control's dialect. ui-kit components are already value-based and need no adapter.
 
 ### Validation is a separate schema, not part of the render tree (renderer-react / renderer-json)
 

@@ -12,8 +12,23 @@
     "$schema": {
       "type": "string"
     },
+    "id": {
+      "type": "string"
+    },
     "version": {
       "type": "string"
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
     },
     "root": {
       "$ref": "#/definitions/node"
@@ -39,6 +54,7 @@
         "$component(FileUpload)",
         "$component(Box)",
         "$component(Section)",
+        "$component(FormArray)",
         "$component(Collapsible)",
         "$component(AsyncBoundary)",
         "$component(FormField)",
@@ -227,6 +243,9 @@
         },
         "array": {
           "$ref": "#/definitions/modelOp"
+        },
+        "component": {
+          "$ref": "#/definitions/componentOp"
         },
         "item": {
           "type": "object",

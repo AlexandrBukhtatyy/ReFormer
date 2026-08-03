@@ -119,6 +119,59 @@ export function createWizardRenderBehavior(
 
 Ground truth: golden `complex-multy-step-form-renderer/render-behavior.ts` — `onComponentEvent(schema.node('wizard'), 'onSubmit', ...)`, `renderEffect(schema, () => wizardRef.current?.goToStep(1))`, `hideWhen(...)`; инъекция `form`+валидации — `complex-multy-step-form-renderer-json/render-behavior.ts`.
 
+## Конфиг валидации через `defineSteps` (адресация по selector) { #define-steps }
+
+`makeValidationConfig(model)` в примерах выше (см. [06-validation.md#execute](06-validation.md#execute)) собирает `FormWizardConfig` вручную — массивом `STEP_SCHEMAS[step - 1]`. Массив привязывает правила к **позиции**: вставил шаг в середину или переставил два — индексы поехали, и `validateStep(2)` молча валидирует уже чужой шаг; шаг без правил приходится просто «не класть» в массив, и он по умолчанию считается валидным — тихая дыра.
+
+**Рекомендуемый способ — `defineSteps`** (из `@reformer/cdk/form-wizard`): правила адресуются по **`selector` шага** — той же строке, что стоит у ноды `$component(Step)` в JSON. Порядок ключей `steps` = порядок шагов; шаг без правил объявляется ЯВНО через `null`; хрупкую индексацию `[step - 1]` инкапсулирует сам хелпер. Внутри `validateStep`/`validateAll` уже стоит `{ touch: true }` (§6) — провалидированные поля метятся `touched`, ошибки видны без ручного `form.markAsTouched()` на поддерево, а следующий шаг не показывается тронутым.
+
+```typescript
+import { defineSteps } from '@reformer/cdk/form-wizard';
+import type { FormModel } from '@reformer/core';
+import type { CreditForm } from './types';
+// step1/step2 — под-схемы шагов, crossFieldRules — cross-field/warnings всей формы.
+// Все три — ValidationSchema<CreditForm> (см. 06-validation.md#build-schema).
+import { step1, step2, crossFieldRules } from './validation';
+
+export function makeWizardConfig(model: FormModel<CreditForm>) {
+  return defineSteps<'loan' | 'applicant' | 'confirm', CreditForm>(model, {
+    steps: {
+      loan: step1, // валидирует шаг с `selector: 'loan'`
+      applicant: step2, // → шаг `selector: 'applicant'`
+      confirm: null, // шаг без правил — ОБЪЯВЛЕН явно, а не забыт
+    },
+    extras: crossFieldRules, // cross-field/warnings всей формы — только в validateAll (submit)
+  });
+}
+```
+
+Результат — обычный `FormWizardConfig`, визард потребляет его как раньше. В TS-форме отдаётся пропом `config`:
+
+```tsx
+import { FormWizard } from '@reformer/cdk/form-wizard';
+
+<FormWizard form={form} config={makeWizardConfig(model)}>…</FormWizard>;
+```
+
+В **JSON-варианте** тот же конфиг инъектится в wizard-ноду через `patchProps` (§ [#render-behavior](#render-behavior)) — на месте ручного `makeValidationConfig`:
+
+```typescript
+onInit(wizard, () => {
+  wizard.patchProps({ form, ...makeWizardConfig(model) }); // form + validateStep/validateAll
+});
+```
+
+Помимо `validateStep`/`validateAll`, `defineSteps` возвращает **`stepSelectors`** — упорядоченный список селекторов (`['loan','applicant','confirm']`, индекс = `step - 1`). Он и есть маппинг `n → selector`, по которому `validateStep(n)` находит правила; полезен для отладки и селекторной навигации.
+
+Выигрыш против массива `STEP_SCHEMAS[step - 1]`:
+
+- **Перестановка/добавление шага не рассинхронизирует правила молча** — правила привязаны к `selector`, а не к позиции; переставил шаги — правила едут вместе с ними.
+- **Шаг без правил объявляется ЯВНО** (`confirm: null`), а не «забывается» в массиве и не становится валидным по умолчанию.
+- **Порядок ключей `steps` = порядок шагов** — один источник правды и для маппинга `validateStep(n)`, и для `stepSelectors`.
+- **`{ touch: true }` уже внутри** — пошаговая валидация метит только провалидированные поля; ручной `markAsTouched` не нужен, следующий шаг не показывается тронутым.
+
+Ground truth: `packages/reformer-cdk/src/components/form-wizard/define-steps.ts` (маппинг `step → selector → правила`, стабильная `fullSchema` для submit, `{ touch: true }` в обоих колбэках) и его тест `define-steps.test.ts`.
+
 ## Anti-patterns
 
 - **Класть шаги в top-level `children` wizard-ноды** — шаги живут в `componentProps.steps`. Top-level `children` wizard-компонент не читает как шаги.
@@ -127,10 +180,12 @@ Ground truth: golden `complex-multy-step-form-renderer/render-behavior.ts` — `
 - **Забыть `createWizardRenderBehavior` (только `onInit` с валидацией)** — форма будет валидировать, но `onSubmit`/навигация не подключатся: submit-less форма. Submit и навигация приходят из этого же behavior.
 - **`renderEffect(node, ...)` вместо `renderEffect(schema, ...)`** — первый аргумент `renderEffect` это схема, а не узел (в отличие от `hideWhen`/`onComponentEvent`).
 - **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, инъекция/submit/навигация не навесятся.
+- **Адресовать правила шагов массивом `STEP_SCHEMAS[step - 1]`** — привязка к позиции: вставка/перестановка шага молча разъезжается с индексами, а «забытый» шаг становится валидным по умолчанию. Собирай `FormWizardConfig` через `defineSteps` (адресация по `selector`, шаг без правил — явный `null`, `{ touch: true }` уже внутри) — см. [#define-steps](#define-steps).
 
 ## See also
 
 - [06-validation.md](06-validation.md) — `makeValidationConfig` (TS-схема над моделью), инъекция `validateStep`/`validateAll` в wizard.
+- [#define-steps](#define-steps) — `defineSteps` из `@reformer/cdk/form-wizard`: сборка `FormWizardConfig` из правил, адресованных по `selector` шага (рекомендуемая альтернатива массиву `STEP_SCHEMAS[step - 1]`).
 - [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime) — общий приём инъекции runtime-сущностей (`form`) через `onInit`/`patchProps`.
 - renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md) — семантика `hideWhen`/`renderEffect`/`onComponentEvent`/`onInit`.
 - renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms) — канонический `FormWizard`, форма шага `{ number, title, icon, body }`.

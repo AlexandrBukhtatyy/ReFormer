@@ -176,3 +176,18 @@ html[class*='docs-doc-id-api'] ul li a {
 [data-theme='dark'] .api-card p {
   color: var(--ifm-color-emphasis-600);
 }
+
+/* Navbar «Builder» — бэйдж «dev» (проект ещё в разработке). */
+.navbar-builder-dev::after {
+  content: 'dev';
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-transform: uppercase;
+  border-radius: 0.35rem;
+  background-color: #fef3c7; /* согласовано с announcementBar */
+  color: #92400e;
+  vertical-align: middle;
+}

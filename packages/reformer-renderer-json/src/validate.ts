@@ -226,6 +226,33 @@ function looksLikeArrayNode(n: Record<string, unknown>): boolean {
 }
 
 /**
+ * Собирает ключи элемента массива — первый сегмент каждого `$model(...)`-биндинга шаблона
+ * (`value` у листа, `array` у вложенного массива). Во вложенный `item.$template` НЕ спускается:
+ * его листья — ключи вложенного элемента, а не текущего. Используется для проверки полноты
+ * `initialValue` (§8).
+ */
+function collectTemplateModelKeys(node: unknown, keys = new Set<string>()): Set<string> {
+  if (Array.isArray(node)) {
+    node.forEach((v) => collectTemplateModelKeys(v, keys));
+    return keys;
+  }
+  if (node !== null && typeof node === 'object') {
+    const n = node as Record<string, unknown>;
+    for (const op of [n.value, n.array]) {
+      if (isModelOp(op)) {
+        const key = (parseOperator(op)?.arg ?? '').split('.')[0].split('[')[0];
+        if (key) keys.add(key);
+      }
+    }
+    for (const [k, v] of Object.entries(n)) {
+      if (k === 'item') continue; // не спускаемся в шаблон вложенного массива
+      collectTemplateModelKeys(v, keys);
+    }
+  }
+  return keys;
+}
+
+/**
  * Рекурсивно флагает array-узлы без `initialValue`. Листья шаблона несут `value: '$model(...)'`
  * (под-пути элемента-объекта), поэтому без литерал-`initialValue` кнопка «Добавить» кладёт `{}` —
  * core строит GroupNode без детей, `$model(...)`-листья резолвятся в undefined-сигналы и ничего
@@ -239,10 +266,31 @@ function walkArrayInitialValue(node: unknown, path: string, errors: string[]): v
   }
   if (node !== null && typeof node === 'object') {
     const n = node as Record<string, unknown>;
-    if (looksLikeArrayNode(n) && n.initialValue === undefined) {
-      errors.push(
-        `${path || '/'}: array node is missing "initialValue" — the "Add" button would create an empty element and its "$model(...)" template leaves would render nothing. Provide an "initialValue" literal with the element's keys.`
-      );
+    // Требуем initialValue только для редактируемого (встроенного) пути. Если задан `component`
+    // (напр. `$component(List)` — display-список), «Добавить» нет, initialValue не нужен.
+    if (looksLikeArrayNode(n)) {
+      if (n.initialValue === undefined && n.component === undefined) {
+        errors.push(
+          `${path || '/'}: array node is missing "initialValue" — the "Add" button would create an empty element and its "$model(...)" template leaves would render nothing. Provide an "initialValue" literal with the element's keys.`
+        );
+      } else if (
+        n.initialValue !== null &&
+        typeof n.initialValue === 'object' &&
+        !Array.isArray(n.initialValue)
+      ) {
+        // §8: initialValue задан, но обязан содержать ВСЕ ключи элемента (первый сегмент каждого
+        // $model(...)-биндинга шаблона). Недостающий ключ → у элемента нет сигнала, поле не рендерится
+        // (тихая поломка, ранее не ловилась — проверялось только наличие initialValue).
+        const template = (n.item as Record<string, unknown>).$template;
+        const required = collectTemplateModelKeys(template);
+        const have = new Set(Object.keys(n.initialValue as Record<string, unknown>));
+        const missing = [...required].filter((k) => !have.has(k));
+        if (missing.length) {
+          errors.push(
+            `${path || '/'}: array node "initialValue" is missing element keys [${missing.join(', ')}] required by the item template — those "$model(...)" leaves would have no signal and render nothing.`
+          );
+        }
+      }
     }
     for (const [k, v] of Object.entries(n)) {
       walkArrayInitialValue(v, path ? `${path}.${k}` : k, errors);

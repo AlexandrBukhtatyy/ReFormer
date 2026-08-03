@@ -77,6 +77,29 @@ export type {
 } from './components/form-array';
 
 // ============================================================================
+// List - Headless compound component for display-iterating a model array
+// ============================================================================
+export {
+  List,
+  useList,
+  ListContext,
+  ListItemContext,
+  useListContext,
+  useListItemContext,
+} from './components/list';
+
+export type {
+  UseListReturn,
+  ListControl,
+  ListItem,
+  ListRootProps,
+  ListItemsProps,
+  ListEmptyProps,
+  ListContextValue,
+  ListItemContextValue,
+} from './components/list';
+
+// ============================================================================
 // FormField - Headless compound component for accessible form field anatomy
 // ============================================================================
 export {
@@ -196,12 +219,15 @@ export {
   FormWizardProgress,
   useFormWizard,
   FormWizardContext,
+  defineSteps,
 } from './components/form-wizard';
 
 export type {
   FormWizardHandle,
   FormWizardProps,
   FormWizardConfig,
+  DefineStepsConfig,
+  WizardStepsConfig,
   FormWizardStepProps,
   FormWizardContextValue,
   FormWizardIndicatorProps,

@@ -1306,6 +1306,16 @@ function CreditApplicationPage() {
 // → data-testid="field-existingLoan-bank", "input-existingLoan-bank", ...
 ```
 
+> `fieldWrapper` отвечает только за обвязку поля (label / error / `testId`) — сам
+> контрол (`node.component`) получает value-based seam рендерера (`value` +
+> `onChange(value)` + `onBlur`). Если в схеме стоят СЫРЫЕ контролы чужого UI-kit
+> (checkbox с `checked` + `onChange(event)`, select с `onChange(value, option)`
+> и т.п.), в тех же `settings` рядом с `fieldWrapper` задаётся
+> `resolveFieldAdapter` — он переводит seam на диалект каждого контрола, без
+> обёртки под каждый контрол. Компоненты `@reformer/ui-kit` уже value-based —
+> адаптер им не нужен. Детали (`FieldAdapter` / `resolveFieldAdapter`) — в docs
+> [`@reformer/renderer-react`](../../../reformer-renderer-react/docs/llms/05-cookbook.md).
+
 ### 3. Кастомизация через `children`
 
 Для случаев, когда нужен нестандартный контрол (например, маска, которая не
@@ -2443,6 +2453,13 @@ queueMicrotask(() => {
 `withFormControl`, все адаптеры-пресеты (`nativeInputAdapter`, `checkedAdapter`, `pressedAdapter`,
 `valueChangeAdapter`, `sliderAdapter`, `dateAdapter`), `makeElementFieldHandle` и типы
 `FieldAdapter` / `WithFormControlOptions` / `FieldHandle`.
+
+> **Внимание — коллизия имён.** Этот `FieldAdapter` (из `@reformer/ui-kit/fields`, для
+> `withFormControl`; основные поля `valueProp`/`changeProp`/`fromEmit`/`toValue` обязательны,
+> `bindBlur`/`strip` — опциональны) — **не** тот же тип, что `FieldAdapter` из
+> `@reformer/renderer-react` (резолвится через `RendererSettings.resolveFieldAdapter` во время
+> рендера, все поля опциональны). Первый описывает event-shape примитива при сборке
+> `*Field`-компонента; второй — как рендерер сводит value-seam к сырому контролу без обёртки.
 
 `withFormControl` принимает третий аргумент:
 
@@ -5054,6 +5071,74 @@ export const fileUploadSingleAdapter: FieldAdapter
 
 _Source: src/components/file-upload/variants/avatar/file-upload-avatar.field.tsx_
 
+### FormArray
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function FormArray({
+  array,
+  item,
+  initialValue,
+  fieldWrapper,
+  title,
+  itemLabel,
+  addButtonLabel = '+ Добавить',
+  removeButtonLabel = 'Удалить',
+  emptyMessage,
+  emptyMessageHint,
+  reorderable = false,
+  showRemoveOnSingle = false,
+  className = 'space-y-3 mt-2',
+  cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
+}: FormArrayProps): ReactNode
+```
+
+_Source: src/components/form-array/variants/base/form-array.tsx_
+
+### FormArrayProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormArrayProps {
+  /** Контрол массива модели (инъектится рендерером). */
+  array: RenderModelArrayControl;
+  /** Фабрика поддерева элемента (инъектится рендерером). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<unknown>;
+  /** Литерал нового элемента для кнопки «Добавить» (инъектится рендерером). */
+  initialValue?: unknown;
+  /** Обёртка полей (инъектится рендерером). */
+  fieldWrapper?: ComponentType<FieldWrapperProps>;
+  /** Заголовок секции (h3). */
+  title?: string;
+  /** Метка элемента — префикс-строка или функция `(model, index) => string`. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  itemLabel?: string | ((model: any, index: number) => string);
+  /** Текст кнопки добавления. По умолчанию `'+ Добавить'`. */
+  addButtonLabel?: string;
+  /** Текст кнопки удаления. По умолчанию `'Удалить'`. */
+  removeButtonLabel?: string;
+  /** Сообщение пустого состояния. */
+  emptyMessage?: string;
+  /** Подсказка под пустым состоянием. */
+  emptyMessageHint?: string;
+  /** Кнопки ↑/↓ перестановки. По умолчанию `false`. */
+  reorderable?: boolean;
+  /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
+  showRemoveOnSingle?: boolean;
+  /** Внешний className секции. */
+  className?: string;
+  /** Класс card-обёртки элемента. */
+  cardClassName?: string;
+}
+```
+
+_Source: src/components/form-array/variants/base/form-array.tsx_
+
 ### FormArraySection
 
 **Kind:** `function`
@@ -5578,6 +5663,39 @@ function HoverCardTrigger({ ...props }: React.ComponentProps<typeof HoverCardPri
 ```
 
 _Source: src/components/hover-card/variants/base/hover-card-base.tsx_
+
+### Icon
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function Icon({ iconName = 'Circle', size = 24, color, strokeWidth = 2, className }: IconProps)
+```
+
+_Source: src/components/icon/variants/base/icon-base.tsx_
+
+### IconProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface IconProps {
+  /** Имя иконки lucide (PascalCase, напр. `Home`, `ArrowRight`). */
+  iconName?: string;
+  /** Размер в пикселях. */
+  size?: number;
+  /** Цвет обводки (любой CSS-цвет; по умолчанию `currentColor`). */
+  color?: string;
+  /** Толщина линий. */
+  strokeWidth?: number;
+  /** Доп. CSS-класс. */
+  className?: string;
+}
+```
+
+_Source: src/components/icon/variants/base/icon-base.tsx_
 
 ### Input
 
@@ -6139,6 +6257,42 @@ function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimiti
 ```
 
 _Source: src/components/label/variants/base/label-base.tsx_
+
+### List
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function List({ array, item, fieldWrapper, className, testId, as: As = 'div' }: ListProps)
+```
+
+_Source: src/components/list/variants/base/list.tsx_
+
+### ListProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface ListProps {
+  /** Контрол массива модели (инъектится рендерером). */
+  array: RenderModelArrayControl;
+  /** Фабрика поддерева элемента (инъектится рендерером). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<unknown>;
+  /** Обёртка полей (инъектится рендерером). */
+  fieldWrapper?: ComponentType<FieldWrapperProps>;
+  /** CSS-класс контейнера (мержится поверх дефолтного `space-y-2`). */
+  className?: string;
+  /** `data-testid` контейнера. */
+  testId?: string;
+  /** Тег/компонент обёртки. По умолчанию `'div'`. */
+  as?: ElementType;
+}
+```
+
+_Source: src/components/list/variants/base/list.tsx_
 
 ### Marker
 

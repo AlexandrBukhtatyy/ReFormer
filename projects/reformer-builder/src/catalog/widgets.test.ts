@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest';
+import { defaultPropSchemas, mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
+import { toInspectorProps, inspectorGroups } from './widgets';
+
+const inputProps = () => toInspectorProps(mergeFieldPropsSchema(defaultPropSchemas.Input));
+
+describe('toInspectorProps', () => {
+  it('виджет по x-doc.kind / выводу из типа', () => {
+    const props = inputProps();
+    const by = (k: string) => props.find((p) => p.key === k)!;
+    expect(by('type').widget).toBe('enum');
+    expect(by('type').options).toEqual(expect.arrayContaining(['text', 'number', 'date']));
+    expect(by('min').widget).toBe('number');
+    expect(by('placeholder').widget).toBe('text');
+    expect(by('className').widget).toBe('className'); // override по ключу поверх x-doc.kind:'readonly'
+    expect(by('testId').widget).toBe('text'); // override: редактируемый (не readonly), билдер задаёт data-testid
+    expect(by('required').widget).toBe('boolean'); // из wrapper, type: boolean
+  });
+
+  it('iconName → виджет пикера иконок (icon), у Icon-компонента', () => {
+    const props = toInspectorProps(defaultPropSchemas.Icon);
+    const by = (k: string) => props.find((p) => p.key === k)!;
+    expect(by('iconName').widget).toBe('icon');
+    expect(by('size').widget).toBe('number');
+    expect(by('className').widget).toBe('className');
+  });
+
+  it('секции берутся из x-doc.group', () => {
+    const props = inputProps();
+    expect(props.find((p) => p.key === 'type')!.group).toBe('Textfield');
+    expect(props.find((p) => p.key === 'min')!.group).toBe('Behavior');
+  });
+
+  it('x-runtimeProps (value/onChange) НЕ попадают в инспектор', () => {
+    const keys = inputProps().map((p) => p.key);
+    expect(keys).not.toContain('value');
+    expect(keys).not.toContain('onChange');
+  });
+
+  it('dataSource-редактор — только для array-пропа опций, а не для всей секции Options', () => {
+    // Настоящий список опций (Select): проп `options` — массив {value,label} → редактор DataSource.
+    const select = toInspectorProps(defaultPropSchemas.Select);
+    expect(select.find((p) => p.key === 'options')!.widget).toBe('dataSource');
+
+    // Скалярные атрибуты презентационных тегов ($html) в той же секции Options НЕ должны стать
+    // dataSource — иначе их не отредактировать (см. widgets.ts).
+    const htmlProps = toInspectorProps({
+      type: 'object',
+      properties: {
+        target: {
+          type: 'string',
+          enum: ['_self', '_blank'],
+          'x-doc': { group: 'Options', type: 'string' },
+        },
+        width: { type: 'number', 'x-doc': { group: 'Options', type: 'number' } },
+        rel: { type: 'string', 'x-doc': { group: 'Options', type: 'string' } },
+      },
+    });
+    const by = (k: string) => htmlProps.find((p) => p.key === k)!;
+    expect(by('target').widget).toBe('enum');
+    expect(by('width').widget).toBe('number');
+    expect(by('rel').widget).toBe('text');
+  });
+
+  it('человекочитаемые подписи', () => {
+    const props = inputProps();
+    expect(props.find((p) => p.key === 'className')!.label).toBe('Class Name');
+    expect(props.find((p) => p.key === 'placeholder')!.label).toBe('Placeholder');
+  });
+});
+
+describe('groupInspectorProps / inspectorGroups', () => {
+  it('группирует и упорядочивает секции', () => {
+    const groups = inspectorGroups(mergeFieldPropsSchema(defaultPropSchemas.Input));
+    const order = groups.map((g) => g.group);
+    // порядок из GROUP_ORDER: Control перед Textfield перед Behavior
+    expect(order.indexOf('Control')).toBeLessThan(order.indexOf('Textfield'));
+    expect(order.indexOf('Textfield')).toBeLessThan(order.indexOf('Behavior'));
+    // каждая секция непустая
+    expect(groups.every((g) => g.props.length > 0)).toBe(true);
+  });
+});

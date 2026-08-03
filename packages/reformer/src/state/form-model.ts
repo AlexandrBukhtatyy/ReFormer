@@ -363,6 +363,10 @@ const RESERVED = new Set([
 // Кэш фасадов по GroupNode → стабильная идентичность под-модели (для per-item форм/ключей в рендере).
 const facadeCache = new WeakMap<GroupNode, any>();
 
+// Обратный поиск: фасад FormModel → корневой GroupNode. Нужен для обхода листьев модели
+// (`eachLeafSignal`) без публичного доступа к внутреннему дереву.
+const rootByFacade = new WeakMap<object, GroupNode>();
+
 function makeFormModel(group: GroupNode): any {
   const cached = facadeCache.get(group);
   if (cached) return cached;
@@ -407,10 +411,47 @@ function makeFormModel(group: GroupNode): any {
     }
   );
   facadeCache.set(group, proxy);
+  rootByFacade.set(proxy, group);
   return proxy;
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+// ============================================================================
+// Обход листьев модели
+// ============================================================================
+
+function walkLeaves(node: ModelNode, visit: (signal: PathAwareSignal<unknown>) => void): void {
+  if (node.kind === 'leaf') {
+    visit(node.signal);
+    return;
+  }
+  if (node.kind === 'group') {
+    for (const child of node.children.values()) walkLeaves(child, visit);
+    return;
+  }
+  // array: читаем `items.value` (а не `.peek()`) — внутри effect это подписка на СОСТАВ массива,
+  // поэтому добавление/удаление элемента ретригерит обходчика (напр. реактивную стратегию валидации).
+  for (const item of node.items.value) walkLeaves(item, visit);
+}
+
+/**
+ * Обойти ВСЕ листовые сигналы модели (включая элементы массивов), вызвав `visit` на каждом.
+ *
+ * Внутри реактивного `effect` служит подпиской «любое поле изменилось»: `visit(sig => void sig.value)`
+ * подписывает на значения листьев, а обход массивов через `items.value` — на их состав. Так строятся
+ * триггеры `change`/`blur` стратегий валидации (см. `createFormValidation`), тем же паттерном, что
+ * `revalidateWhen`, но без ручного перечисления зависимостей.
+ *
+ * @group Model
+ */
+export function eachLeafSignal<T>(
+  model: FormModel<T>,
+  visit: (signal: PathAwareSignal<unknown>) => void
+): void {
+  const root = rootByFacade.get(model as unknown as object);
+  if (root) walkLeaves(root, visit);
+}
 
 // ============================================================================
 // Публичная фабрика

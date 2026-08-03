@@ -1,0 +1,139 @@
+# @reformer/builder
+
+Визуальный билдер JSON-схем форм для экосистемы **ReFormer**. Это самодостаточный офлайн-SPA: вы
+запускаете его локально через `npx`, собираете форму мышкой из компонентов `@reformer/ui-kit`, и билдер
+отдаёт готовую схему / код. Каталог компонентов `@reformer/ui-kit` вшит в бандл — устанавливать сам ui-kit
+для запуска билдера не требуется.
+
+## Установка
+
+```bash
+npm i -D @reformer/builder
+```
+
+> До первого стабильного релиза устанавливайте beta-канал: `npm i -D @reformer/builder@develop`.
+
+## Запуск
+
+```bash
+npx reformer-builder            # поднимет локальный сервер и откроет браузер
+npx reformer-builder --port 5000
+npx reformer-builder --no-open  # не открывать браузер автоматически
+
+# локальная кастомизация клиента: свой каталог компонентов и/или конфиг билдера
+npx reformer-builder --catalog ./component-catalog.json --config ./reformer-builder.config.json
+```
+
+Или добавьте скрипт в свой `package.json`:
+
+```json
+{
+  "scripts": {
+    "builder": "reformer-builder"
+  }
+}
+```
+
+```bash
+npm run builder
+```
+
+### Опции CLI
+
+| Опция              | По умолчанию | Описание                                            |
+| ------------------ | ------------ | --------------------------------------------------- |
+| `-p, --port <n>`   | `4321`       | Порт (если занят — берётся следующий свободный)     |
+| `--host <h>`       | `127.0.0.1`  | Хост                                                |
+| `--no-open`        | —            | Не открывать браузер автоматически                  |
+| `--catalog <path>` | —            | JSON-каталог компонентов (замещает вшитый)          |
+| `--config <path>`  | —            | JSON-конфиг билдера (палитра, UI, брендинг, проект) |
+| `-h, --help`       | —            | Справка                                             |
+| `-v, --version`    | —            | Версия                                              |
+
+Без `--catalog`/`--config` билдер пытается подхватить `component-catalog.json` и
+`reformer-builder.config.json` из текущей папки; если их нет — работает на вшитых дефолтах.
+
+## Режимы работы
+
+- **Mode B (основной)** — открыть папку своего проекта прямо в браузере, найти в ней JSON-схемы форм,
+  редактировать их визуально и записывать обратно в исходники (dev-сервер подхватит изменения через HMR).
+  Использует **File System Access API**, поэтому работает **только в Chromium-браузерах** (Chrome, Edge,
+  Arc, Brave).
+- **Mode A** — создать новую схему с нуля и выгрузить/скопировать JSON или сгенерированный код.
+
+## Каталог компонентов (`@reformer/ui-kit/catalog`)
+
+Палитра билдера строится из **каталога компонентов** `@reformer/ui-kit` — это
+сгенерированный JSON-файл (`component-catalog.json`), который `@reformer/ui-kit` отдаёт
+через subpath-экспорт `@reformer/ui-kit/catalog`. Для каждого компонента в нём описаны имя,
+роль (поле / контейнер / массив) и JSON-схема props — из этого билдер собирает список
+доступных компонентов и инспектор свойств.
+
+Каталог **вшивается в бандл на этапе сборки** билдера (Vite инлайнит импорт
+`@reformer/ui-kit/catalog`), поэтому опубликованный `@reformer/builder` самодостаточен и
+показывает набор компонентов той версии `@reformer/ui-kit`, с которой был собран. Этот вшитый
+каталог можно **переопределить при локальном старте** флагом `--catalog` (см. ниже) — без
+пересборки билдера.
+
+## Локальная кастомизация (`--catalog` / `--config`)
+
+Клиент может передать при локальном старте два JSON-файла — они читаются launcher'ом и
+применяются в браузере на бутстрапе. Оба **опциональны**: если файла нет — берутся встроенные
+дефолты (билдер стартует и работает как обычно). Если переданный файл невалиден — билдер
+показывает экран с ошибкой валидации (не запускается с частичной конфигурацией).
+
+- **`--catalog <path>`** — JSON-каталог компонентов по тому же контракту, что
+  `@reformer/ui-kit/catalog` (`{ version, components: [{ name, role, propsSchema, category? }] }`).
+  Замещает вшитый каталог: палитра и инспектор строятся из него.
+- **`--config <path>`** — конфиг поведения самого билдера. Все секции опциональны:
+
+```jsonc
+{
+  "$schema": "./node_modules/@reformer/builder/runtime-config.schema.json",
+  "version": "1.0",
+  // Брендинг оболочки
+  "branding": {
+    "productName": "Acme Forms",
+    "title": "Acme Builder",
+    "logoUrl": "data:image/svg+xml;...",
+  },
+  // Палитра: категории, порядок разделов, свёрнутые по умолчанию, глифы-бейджи
+  "palette": {
+    "categoryByName": { "AcmeRating": "Поля ввода" },
+    "order": ["Поля ввода", "Выбор и переключатели", "Контейнеры", "Действия"],
+    "collapsedByDefault": ["HTML", "Типографика"],
+    "glyphs": { "AcmeRating": "Ar" },
+  },
+  // Доступные компоненты: whitelist/blacklist + тоглы синтетических записей билдера
+  "components": {
+    "exclude": ["Chart", "Carousel"],
+    "synthetic": {
+      "html": true,
+      "htmlTags": ["div", "section", "fieldset"],
+      "formArray": true,
+      "wizard": false,
+    },
+  },
+  // Дефолты интерфейса при старте
+  "ui": { "theme": "light", "leftPanel": "palette", "rightOpen": true, "preview": "wire" },
+  // Работа с проектом (Mode B discovery) + стартовая схема Mode A (null — пустая форма)
+  "project": { "ignoreDirs": ["fixtures"], "seedSchema": null },
+}
+```
+
+Семантика слияния: карты (`palette.categoryByName`, `palette.glyphs`) и списки безопасных
+дефолтов (`project.ignoreDirs`, `project.skipFiles`, `project.formSchemaMarkers`) **дополняют**
+встроенные; `palette.order`, `palette.collapsedByDefault`, `components.*`, `ui.*`, `branding.*` —
+**замещают** дефолт, если заданы. JSON Schema контракта конфига публикуется в пакете как
+`@reformer/builder/runtime-config.schema.json` (для автодополнения в редакторе через `$schema`).
+
+> **Требование к упаковке `@reformer/ui-kit`:** чтобы subpath `@reformer/ui-kit/catalog`
+> резолвился у внешних потребителей, `component-catalog.json` обязан входить в поле `files`
+> пакета `@reformer/ui-kit` — иначе файла нет в npm-тарболе и импорт падает. Для самого
+> билдера это некритично (каталог уже вшит в его `dist`), но важно для CI-проверки
+> `check:subpaths` и для любых Node-ESM-потребителей этого subpath (импортировать JSON в
+> Node ESM нужно с атрибутом `with { type: 'json' }`).
+
+## Лицензия
+
+MIT © Alexandr Bukhtatyy

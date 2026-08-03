@@ -1,0 +1,3919 @@
+{
+  "$schema": "../../projects/reformer-builder/src/catalog/component-catalog.schema.json",
+  "version": "1.0",
+  "components": [
+    {
+      "name": "Accordion",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Accordion",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс контейнера аккордеона (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": ["single", "multiple"],
+            "description": "Режим раскрытия: одна секция за раз (single) или несколько (multiple).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'single' | 'multiple'",
+              "kind": "enum"
+            }
+          },
+          "collapsible": {
+            "type": "boolean",
+            "description": "В режиме single разрешить закрыть открытую секцию (не оставлять всегда одну открытой).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean",
+              "kind": "boolean"
+            }
+          },
+          "defaultValue": {
+            "type": "string",
+            "description": "Значение(-я) секции, открытой по умолчанию (uncontrolled).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string | string[]"
+            }
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "Заблокировать взаимодействие со всеми секциями.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean",
+              "kind": "boolean"
+            }
+          },
+          "orientation": {
+            "type": "string",
+            "enum": ["vertical", "horizontal"],
+            "default": "vertical",
+            "description": "Ориентация раскладки секций.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'vertical' | 'horizontal'",
+              "kind": "enum"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Alert",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Alert",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс контейнера алерта (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["default", "destructive"],
+            "default": "default",
+            "description": "Визуальный тон алерта.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'destructive'",
+              "kind": "enum"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "AlertDialog",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "AlertDialog",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыт ли диалог изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "AspectRatio",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "AspectRatio",
+        "properties": {
+          "ratio": {
+            "type": "number",
+            "default": 1,
+            "description": "Соотношение сторон (ширина / высота), напр. 16/9 ≈ 1.78.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Attachment",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Attachment",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": ["idle", "uploading", "processing", "error", "done"],
+            "default": "done",
+            "description": "Состояние загрузки/обработки файла — влияет на стили рамки и анимацию.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'idle' | 'uploading' | 'processing' | 'error' | 'done'",
+              "kind": "enum"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "sm", "xs"],
+            "default": "default",
+            "description": "Размер чипа (отступы и типографика).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'sm' | 'xs'",
+              "kind": "enum"
+            }
+          },
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Ориентация: горизонтальный чип или вертикальная карточка.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Avatar",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Avatar",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс аватара (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "sm", "lg"],
+            "default": "default",
+            "description": "Размер аватара: sm (24px), default (32px), lg (40px).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'sm' | 'lg'",
+              "kind": "enum"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Badge",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Badge",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс бейджа (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["default", "secondary", "destructive", "outline", "ghost", "link"],
+            "default": "default",
+            "description": "Визуальный вариант бейджа.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'",
+              "kind": "enum"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Box",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Box",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс layout-контейнера (atomic CSS / Tailwind: flex, grid, gap-*).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Breadcrumb",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Breadcrumb",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Bubble",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Bubble",
+        "properties": {
+          "variant": {
+            "type": "string",
+            "enum": ["default", "secondary", "muted", "tinted", "outline", "ghost", "destructive"],
+            "default": "default",
+            "description": "Вариант оформления пузыря.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'secondary' | 'muted' | 'tinted' | 'outline' | 'ghost' | 'destructive'",
+              "kind": "enum"
+            }
+          },
+          "align": {
+            "type": "string",
+            "enum": ["start", "end"],
+            "default": "start",
+            "description": "Сторона выравнивания пузыря (start — слева, end — справа).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'start' | 'end'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Button",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Button",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс кнопки (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["default", "destructive", "outline", "secondary", "ghost", "link"],
+            "default": "default",
+            "description": "Визуальный вариант кнопки (cva).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'",
+              "kind": "enum"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "xs", "sm", "lg", "icon", "icon-xs", "icon-sm", "icon-lg"],
+            "default": "default",
+            "description": "Размер кнопки (cva); icon-* — квадратные для иконок без текста.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'xs' | 'sm' | 'lg' | 'icon' | 'icon-xs' | 'icon-sm' | 'icon-lg'",
+              "kind": "enum"
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": ["button", "submit", "reset"],
+            "description": "HTML-тип кнопки: button | submit | reset.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'button' | 'submit' | 'reset'",
+              "kind": "enum"
+            }
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "Заблокировать кнопку.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean",
+              "kind": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "ButtonGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "ButtonGroup",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс группы кнопок (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Ориентация группы: горизонтальная (по умолчанию) или вертикальная (cva).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Calendar",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["single"],
+            "default": "single",
+            "description": "Режим выбора. Field-версия — только single (одна дата, value: Date | null).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'single'",
+              "kind": "enum"
+            }
+          },
+          "captionLayout": {
+            "type": "string",
+            "enum": ["label", "dropdown", "dropdown-months", "dropdown-years"],
+            "default": "label",
+            "description": "Шапка месяца: статичная подпись или дропдауны выбора месяца/года.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'label' | 'dropdown' | 'dropdown-months' | 'dropdown-years'",
+              "kind": "enum"
+            }
+          },
+          "showOutsideDays": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать дни соседних месяцев в первой и последней неделе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс корневого элемента.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "Date | null",
+            "description": "Выбранная дата. null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: Date | null) => void",
+            "description": "Выбор даты. Повторный клик по выбранной дате сбрасывает значение в null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Card",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Card",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс карточки-контейнера (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Carousel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Carousel",
+        "properties": {
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Ориентация прокрутки карусели.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Chart",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Chart",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind) — обычно задаёт высоту/ширину графика.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Checkbox",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись справа от чекбокса (inline-раскладка). Рендерит сам контрол.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контрола (CheckboxPrimitive.Root).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "boolean",
+            "description": "Состояние чекбокса. undefined/null трактуется как false."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: boolean) => void",
+            "description": "Изменение. indeterminate приводится к false."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Collapsible",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Collapsible",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс контейнера collapsible (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "defaultOpen": {
+            "type": "boolean",
+            "description": "Раскрыт ли collapsible по умолчанию (uncontrolled).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean",
+              "kind": "boolean"
+            }
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "Заблокировать раскрытие/сворачивание.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean",
+              "kind": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Combobox",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Список опций { value, label }. Поиск идёт по label.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label }>",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Select an option...",
+            "description": "Подсказка в триггере, пока ничего не выбрано.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "searchPlaceholder": {
+            "type": "string",
+            "default": "Search...",
+            "description": "Подсказка в поле поиска.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "emptyText": {
+            "type": "string",
+            "default": "No options found.",
+            "description": "Текст пустого состояния (ничего не найдено).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать крестик очистки (сброс в null); повторный выбор опции тоже сбрасывает.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "creatable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Разрешить ввести своё значение: при отсутствии совпадения — пункт «Создать «…»» (эмитит введённое как value).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор; при очистке приходит null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Command",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Command",
+        "properties": {
+          "shouldFilter": {
+            "type": "boolean",
+            "default": true,
+            "description": "Авто-фильтрация и сортировка по поисковому запросу.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "loop": {
+            "type": "boolean",
+            "default": false,
+            "description": "Зацикливать навигацию стрелками (с конца — в начало).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "disablePointerSelection": {
+            "type": "boolean",
+            "default": false,
+            "description": "Отключить выбор пункта наведением мыши.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "vimBindings": {
+            "type": "boolean",
+            "default": true,
+            "description": "Vim-хоткеи навигации (ctrl+n/j/p/k).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "ContextMenu",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "ContextMenu",
+        "properties": {
+          "dir": {
+            "type": "string",
+            "enum": ["ltr", "rtl"],
+            "default": "ltr",
+            "description": "Направление чтения — влияет на раскладку и навигацию с клавиатуры.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'ltr' | 'rtl'",
+              "kind": "enum"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном при открытом меню.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "DatePicker",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Выберите дату",
+            "description": "Текст кнопки-триггера, когда дата не выбрана.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "dateFormat": {
+            "type": "string",
+            "default": "PPP",
+            "description": "Формат отображения выбранной даты — токены date-fns (напр. dd.MM.yyyy).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс кнопки-триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "Date | null",
+            "description": "Выбранная дата. null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: Date | null) => void",
+            "description": "Выбор даты в календаре. Повторный клик по выбранной дате сбрасывает в null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Dialog",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Dialog",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыт ли диалог изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Drawer",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Drawer",
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": ["top", "bottom", "left", "right"],
+            "default": "bottom",
+            "description": "Сторона появления шторки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'top' | 'bottom' | 'left' | 'right'",
+              "kind": "enum"
+            }
+          },
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыта ли шторка изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "dismissible": {
+            "type": "boolean",
+            "default": true,
+            "description": "Можно ли закрыть свайпом/кликом по фону.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "handleOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Тянуть только за «ручку», а не за весь контент.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "DropdownMenu",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "DropdownMenu",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыто ли меню изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном, пока меню открыто.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "dir": {
+            "type": "string",
+            "enum": ["ltr", "rtl"],
+            "description": "Направление чтения — влияет на раскладку и навигацию клавиатурой.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'ltr' | 'rtl'",
+              "kind": "enum"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Empty",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Empty",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "FileUpload",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["button", "dropzone", "input"],
+            "default": "button",
+            "description": "Представление: кнопка-триггер, зона drag-and-drop или компактный инпут с кнопкой-иконкой.",
+            "x-doc": {
+              "group": "Control",
+              "type": "'button' | 'dropzone' | 'input'"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Видимый текст кнопки (button), зоны (dropzone) или пустого инпута (input). Подпись поля — отдельная конвенция label (рендерит FormField).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "invalid": {
+            "type": "boolean",
+            "default": false,
+            "description": "Явно пометить поле невалидным (подсветка рамки у dropzone/input). Под FormField не нужен: aria-invalid приходит от обёртки при ошибке валидации; button показывает ошибку текстом (FormField.Error).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "hint": {
+            "type": "string",
+            "description": "Подсказка с ограничениями («PDF, до 5 МБ, максимум 3 файла»).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "accept": {
+            "type": "string",
+            "description": "Допустимые типы в синтаксисе нативного accept: \".pdf\", \"image/png\", \"image/*\", список через запятую. Применяется и к drag-and-drop.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "multiple": {
+            "type": "boolean",
+            "default": false,
+            "description": "Несколько файлов. При false новая селекция заменяет текущую.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "maxFiles": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Максимум файлов в списке (действует при multiple).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "maxFileSize": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Максимальный размер одного файла, байты.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "minFileSize": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Минимальный размер одного файла, байты (1 — отсев пустых).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "maxTotalFileSize": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Максимальный суммарный размер всех файлов, байты.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "preventDuplicates": {
+            "type": "boolean",
+            "default": true,
+            "description": "Отклонять дубликаты (совпадение имени и размера).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "allowDrop": {
+            "type": "boolean",
+            "default": true,
+            "description": "Принимать drag-and-drop на зоне.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "allowPaste": {
+            "type": "boolean",
+            "default": false,
+            "description": "Принимать файлы из буфера обмена (paste на сфокусированной зоне).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "capture": {
+            "type": "string",
+            "enum": ["user", "environment"],
+            "description": "Источник камеры для мобильного пикера (фронтальная/тыловая).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'user' | 'environment'"
+            }
+          },
+          "autoUpload": {
+            "type": "boolean",
+            "default": true,
+            "description": "Автозагрузка принятых файлов (действует при заданном uploader).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "File[] | RemoteFileRef[] | null",
+            "description": "Выбранные файлы. Без uploader — File[]; с uploader — сериализуемые дескрипторы загруженных. null — пусто."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: File[] | RemoteFileRef[] | null) => void",
+            "description": "Изменение списка; пустой список приходит как null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "uploader": {
+            "group": "Behavior",
+            "type": "(file: File, ctx: { onProgress; signal }) => Promise<RemoteFileRef>",
+            "description": "Загрузчик immediate-режима. В JSON-форме недостижим: требует функцию — передаётся через реестр."
+          },
+          "onReject": {
+            "group": "Behavior",
+            "type": "(rejections: FileRejection[]) => void",
+            "description": "Файлы, отклонённые отбором (в значение поля не попадают)."
+          }
+        }
+      },
+      "variantGroup": "FileUpload",
+      "variant": "Файлы"
+    },
+    {
+      "name": "FileUploadAvatar",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "default": "Загрузить изображение",
+            "description": "Доступное имя зоны (aria-label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "shape": {
+            "type": "string",
+            "enum": ["circle", "square"],
+            "default": "circle",
+            "description": "Форма превью.",
+            "x-doc": {
+              "group": "Control",
+              "type": "'circle' | 'square'"
+            }
+          },
+          "accept": {
+            "type": "string",
+            "default": "image/*",
+            "description": "Допустимые типы в синтаксисе нативного accept.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "maxFileSize": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Максимальный размер файла, байты.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "capture": {
+            "type": "string",
+            "enum": ["user", "environment"],
+            "description": "Источник камеры для мобильного пикера.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'user' | 'environment'"
+            }
+          },
+          "invalid": {
+            "type": "boolean",
+            "default": false,
+            "description": "Явно пометить поле невалидным (подсветка рамки зоны). Под FormField не нужен: aria-invalid приходит от обёртки при ошибке валидации.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "File | RemoteFileRef | null",
+            "description": "Выбранное изображение (single). null — пусто."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: File | RemoteFileRef | null) => void",
+            "description": "Выбор/замена/удаление изображения."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "uploader": {
+            "group": "Behavior",
+            "type": "(file: File, ctx: { onProgress; signal }) => Promise<RemoteFileRef>",
+            "description": "Загрузчик immediate-режима. В JSON-форме недостижим: требует функцию — передаётся через реестр."
+          },
+          "onReject": {
+            "group": "Behavior",
+            "type": "(rejections: FileRejection[]) => void",
+            "description": "Файлы, отклонённые отбором."
+          }
+        }
+      },
+      "variantGroup": "FileUpload",
+      "variant": "Аватар"
+    },
+    {
+      "name": "HoverCard",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "HoverCard",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыта ли карточка изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "openDelay": {
+            "type": "number",
+            "default": 700,
+            "description": "Задержка (мс) перед открытием при наведении.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "closeDelay": {
+            "type": "number",
+            "default": 300,
+            "description": "Задержка (мс) перед закрытием при уходе курсора.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Icon",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Icon",
+        "properties": {
+          "iconName": {
+            "type": "string",
+            "default": "Circle",
+            "description": "Имя иконки lucide (PascalCase, напр. Home, ArrowRight).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          },
+          "size": {
+            "type": "number",
+            "default": 24,
+            "minimum": 8,
+            "description": "Размер в пикселях.",
+            "x-doc": {
+              "group": "Control",
+              "type": "number"
+            }
+          },
+          "color": {
+            "type": "string",
+            "description": "Цвет обводки (любой CSS-цвет; по умолчанию currentColor).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          },
+          "strokeWidth": {
+            "type": "number",
+            "default": 2,
+            "minimum": 0.5,
+            "description": "Толщина линий.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Input",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": ["text", "email", "tel", "url", "password", "number", "date"],
+            "default": "text",
+            "description": "HTML-тип input. number включает числовой буфер, остальные — строковые.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "'text' | 'email' | 'number' | 'date' | …",
+              "kind": "enum"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "min": {
+            "type": "number",
+            "description": "Минимум (type=number). При min>=0 отрицательные значения зажимаются к 0.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "max": {
+            "type": "number",
+            "description": "Максимум (type=number).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "step": {
+            "type": "number",
+            "description": "Шаг (type=number).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | number | null",
+            "description": "Значение поля. Для type=number — number|null, иначе string|null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | number | null) => void",
+            "description": "Изменение. Пустой ввод → null. Для number частичный ввод («-», «1.») не эмитится."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      },
+      "variantGroup": "Input",
+      "variant": "Текст"
+    },
+    {
+      "name": "InputGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "InputGroup",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс контейнера-группы (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "InputMask",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "mask": {
+            "type": "string",
+            "description": "Шаблон маски-подсказки: '9' — цифра, прочие символы — литералы (уходят в placeholder). Напр. '+7 (999) 999-99-99'. Автовставки литералов нет — компонент только помечает формат.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля. По умолчанию равна mask.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение поля. null/undefined → пустое поле."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      },
+      "variantGroup": "Input",
+      "variant": "Маска"
+    },
+    {
+      "name": "InputOTP",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "maxLength": {
+            "type": "number",
+            "default": 6,
+            "minimum": 1,
+            "description": "Число слотов (длина кода). Дефолтная раскладка разворачивает одну группу из maxLength слотов.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс скрытого input.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Набранный код. null — пусто."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение кода. Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      },
+      "variantGroup": "Input",
+      "variant": "OTP"
+    },
+    {
+      "name": "InputPassword",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Password",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "showToggle": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать иконку переключения видимости (eye/eye-off). Появляется при непустом value.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение пароля. null/пусто — пустое поле."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод приводится к null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      },
+      "variantGroup": "Input",
+      "variant": "Пароль"
+    },
+    {
+      "name": "Item",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Item",
+        "properties": {
+          "variant": {
+            "type": "string",
+            "enum": ["default", "outline", "muted"],
+            "default": "default",
+            "description": "Визуальный стиль: прозрачный, с рамкой или приглушённый фон.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'outline' | 'muted'",
+              "kind": "enum"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "sm"],
+            "default": "default",
+            "description": "Размер отступов и зазоров внутри строки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'sm'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Kbd",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Kbd",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Label",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Label",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс подписи (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "htmlFor": {
+            "type": "string",
+            "description": "id связанного контрола (атрибут `for` тега `<label>`).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Marker",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Marker",
+        "properties": {
+          "variant": {
+            "type": "string",
+            "enum": ["default", "separator", "border"],
+            "default": "default",
+            "description": "Вариант оформления маркера.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'separator' | 'border'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Menubar",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Menubar",
+        "properties": {
+          "dir": {
+            "type": "string",
+            "enum": ["ltr", "rtl"],
+            "default": "ltr",
+            "description": "Направление чтения (влияет на навигацию стрелками).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'ltr' | 'rtl'",
+              "kind": "enum"
+            }
+          },
+          "loop": {
+            "type": "boolean",
+            "default": false,
+            "description": "Зациклить перемещение фокуса стрелками по краям.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Message",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Message",
+        "properties": {
+          "align": {
+            "type": "string",
+            "enum": ["start", "end"],
+            "default": "start",
+            "description": "Сторона выравнивания сообщения (end — своё сообщение справа).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'start' | 'end'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "MessageScroller",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "MessageScroller",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "NativeSelect",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": ["string", "number"]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Опции списка. Одинаковый group объединяется в <optgroup>.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; group? }>",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка-опция (value=\"\") в начале списка.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс select.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value как строка). Пустой выбор → null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой выбор (value=\"\") → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "NavigationMenu",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "NavigationMenu",
+        "properties": {
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Ориентация меню.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "dir": {
+            "type": "string",
+            "enum": ["ltr", "rtl"],
+            "description": "Направление письма (слева-направо / справа-налево).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'ltr' | 'rtl'",
+              "kind": "enum"
+            }
+          },
+          "viewport": {
+            "type": "boolean",
+            "default": true,
+            "description": "Рендерить общий Viewport-оверлей для контента (иначе контент под каждым пунктом).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "delayDuration": {
+            "type": "number",
+            "default": 200,
+            "description": "Задержка (мс) перед открытием меню при наведении.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "skipDelayDuration": {
+            "type": "number",
+            "default": 300,
+            "description": "Окно (мс), в течение которого переход между пунктами открывает меню без задержки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Pagination",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Pagination",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Popover",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Popover",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыт ли поповер изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": false,
+            "description": "Модальный режим — блокирует взаимодействие с фоном и ловит фокус.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Progress",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Progress",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс дорожки прогресса (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Текущее значение прогресса в процентах (0–100).",
+            "x-doc": {
+              "group": "State",
+              "type": "number",
+              "kind": "number"
+            }
+          },
+          "max": {
+            "type": "number",
+            "minimum": 1,
+            "default": 100,
+            "description": "Максимальное значение шкалы (по умолчанию 100).",
+            "x-doc": {
+              "group": "State",
+              "type": "number",
+              "kind": "number"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "RadioGroup",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Варианты выбора. Каждый рендерится как radio + подпись справа.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label }>",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера группы (по умолчанию grid gap-3).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор варианта; пустой выбор → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Resizable",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Resizable",
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Направление разделения панелей.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "ScrollArea",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "ScrollArea",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["auto", "always", "scroll", "hover"],
+            "default": "hover",
+            "description": "Когда показывать скроллбары.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'auto' | 'always' | 'scroll' | 'hover'",
+              "kind": "enum"
+            }
+          },
+          "scrollHideDelay": {
+            "type": "number",
+            "default": 600,
+            "description": "Задержка скрытия скроллбаров (мс) — для type=hover/scroll.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Section",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Section",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Заголовок секции. Не задан — заголовок не рендерится (только обёртка).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "titleAs": {
+            "type": "string",
+            "enum": ["h1", "h2", "h3", "h4", "h5", "h6"],
+            "default": "h3",
+            "description": "HTML-элемент заголовка (уровень h1-h6).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'",
+              "kind": "enum"
+            }
+          },
+          "titleClassName": {
+            "type": "string",
+            "description": "Доп. CSS-класс заголовка.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера `<section>` (напр. `grid grid-cols-2 gap-4`).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Select",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": ["string", "number"]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Inline-опции. Одинаковый group объединяется в секцию SelectLabel.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; group? }>",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Select an option...",
+            "description": "Подсказка в триггере.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать крестик очистки (сброс в null).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор; при очистке приходит null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "resource": {
+            "group": "Options",
+            "type": "ResourceConfig<unknown>",
+            "description": "Асинхронный источник опций (static / preload / partial). В JSON-форме недостижим: требует функцию load."
+          }
+        }
+      }
+    },
+    {
+      "name": "Separator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Separator",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс разделителя (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Ориентация разделителя: горизонтальный (по умолчанию) или вертикальный.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "decorative": {
+            "type": "boolean",
+            "default": true,
+            "description": "Декоративный ли разделитель. true (по умолчанию) — скрыт от AT; false — семантический separator.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean",
+              "kind": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Sheet",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Sheet",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Открыта ли панель изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "modal": {
+            "type": "boolean",
+            "default": true,
+            "description": "Модальный режим — блокирует взаимодействие с фоном.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Sidebar",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Sidebar",
+        "properties": {
+          "side": {
+            "type": "string",
+            "enum": ["left", "right"],
+            "default": "left",
+            "description": "Сторона размещения.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'left' | 'right'",
+              "kind": "enum"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["sidebar", "floating", "inset"],
+            "default": "sidebar",
+            "description": "Вариант оформления.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'sidebar' | 'floating' | 'inset'",
+              "kind": "enum"
+            }
+          },
+          "collapsible": {
+            "type": "string",
+            "enum": ["offcanvas", "icon", "none"],
+            "default": "offcanvas",
+            "description": "Режим сворачивания.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'offcanvas' | 'icon' | 'none'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Skeleton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Skeleton",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind) — задаёт размеры плейсхолдера (h-*/w-*).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Slider",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "min": {
+            "type": "number",
+            "default": 0,
+            "description": "Минимум диапазона (Radix min).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "max": {
+            "type": "number",
+            "default": 100,
+            "description": "Максимум диапазона (Radix max).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "step": {
+            "type": "number",
+            "default": 1,
+            "description": "Шаг изменения значения (Radix step).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс слайдера (SliderPrimitive.Root).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "number | null",
+            "description": "Значение слайдера (одно-thumb). null трактуется как min. Резолвится формой."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: number | null) => void",
+            "description": "Изменение; эмитит первое число массива Radix (onValueChange → arr[0])."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Spinner",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Spinner",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс (Tailwind); размер задаётся через size-* (по умолчанию size-4).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Switch",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись справа от переключателя (inline-раскладка; FormField верхнюю метку не рисует).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс переключателя.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "boolean",
+            "description": "Состояние переключателя (true — включён). Резолвится формой."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: boolean) => void",
+            "description": "Переключение; эмитит boolean (Radix onCheckedChange, indeterminate → false)."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Table",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Table",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс таблицы (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Tabs",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Tabs",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс контейнера табов (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "defaultValue": {
+            "type": "string",
+            "description": "Значение вкладки, активной по умолчанию (uncontrolled).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "orientation": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "default": "horizontal",
+            "description": "Ориентация раскладки табов.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'horizontal' | 'vertical'",
+              "kind": "enum"
+            }
+          },
+          "activationMode": {
+            "type": "string",
+            "enum": ["automatic", "manual"],
+            "default": "automatic",
+            "description": "Активировать вкладку при фокусе (automatic) или только по клику/Enter (manual).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'automatic' | 'manual'",
+              "kind": "enum"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Textarea",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "number",
+            "description": "Число видимых строк (HTML-атрибут rows).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение поля. Пустой ввод → null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Toggle",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["default", "outline"],
+            "default": "default",
+            "description": "Стиль cva: default (заливка при нажатии) | outline (граница).",
+            "x-doc": {
+              "group": "Control",
+              "type": "'default' | 'outline'",
+              "kind": "enum"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "sm", "lg"],
+            "default": "default",
+            "description": "Размер cva: default | sm | lg.",
+            "x-doc": {
+              "group": "Control",
+              "type": "'default' | 'sm' | 'lg'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контрола (TogglePrimitive.Root).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "boolean",
+            "description": "Состояние (true — нажат/pressed). undefined/null трактуется как false. Резолвится формой."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: boolean) => void",
+            "description": "Переключение; эмитит boolean (Radix onPressedChange)."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "ToggleGroup",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Варианты выбора. Каждый рендерится как кнопка-переключатель.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label }>",
+              "kind": "readonly"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["default", "outline"],
+            "default": "default",
+            "description": "Визуальный стиль кнопок: плоские (default) или с рамкой (outline).",
+            "x-doc": {
+              "group": "Control",
+              "type": "'default' | 'outline'"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера группы.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор варианта; пустой выбор → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Tooltip",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "x-registryName": "Tooltip",
+        "properties": {
+          "defaultOpen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показан ли тултип изначально (неуправляемый режим).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "delayDuration": {
+            "type": "number",
+            "default": 700,
+            "description": "Задержка перед показом (мс).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "disableHoverableContent": {
+            "type": "boolean",
+            "default": false,
+            "description": "Скрывать тултип при уходе курсора с триггера (нельзя навести на сам тултип).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyBlockquote",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyBlockquote",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Цитата» (элемент <blockquote>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyH1",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyH1",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Заголовок 1» (элемент <h1>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyH2",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyH2",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Заголовок 2» (элемент <h2>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyH3",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyH3",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Заголовок 3» (элемент <h3>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyH4",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyH4",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Заголовок 4» (элемент <h4>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyInlineCode",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyInlineCode",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Инлайн-код» (элемент <code>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyLarge",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyLarge",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Крупный текст» (элемент <div>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyLead",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyLead",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Лид-абзац» (элемент <p>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyList",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyList",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Список» (элемент <ul>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyMuted",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyMuted",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Приглушённый текст» (элемент <p>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographyP",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographyP",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Абзац» (элемент <p>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "TypographySmall",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "TypographySmall",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс для «Мелкий текст» (элемент <small>, Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

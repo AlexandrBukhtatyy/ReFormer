@@ -20,6 +20,7 @@
       "import": "./dist/fields.js"
     },
     "./styles": "./src/styles/theme.css",
+    "./catalog": "./component-catalog.json",
     "./accordion": {
       "types": "./dist/accordion.d.ts",
       "import": "./dist/accordion.js"
@@ -160,6 +161,10 @@
       "types": "./dist/hover-card.d.ts",
       "import": "./dist/hover-card.js"
     },
+    "./icon": {
+      "types": "./dist/icon.d.ts",
+      "import": "./dist/icon.js"
+    },
     "./input": {
       "types": "./dist/input.d.ts",
       "import": "./dist/input.js"
@@ -191,6 +196,10 @@
     "./label": {
       "types": "./dist/label.d.ts",
       "import": "./dist/label.js"
+    },
+    "./list": {
+      "types": "./dist/list.d.ts",
+      "import": "./dist/list.js"
     },
     "./marker": {
       "types": "./dist/marker.d.ts",
@@ -313,7 +322,8 @@
   "scripts": {
     "generate:meta": "node scripts/generate-meta.mjs",
     "generate:exports": "node scripts/generate-exports.mjs",
-    "generate:barrels": "npm run generate:meta && npm run generate:exports",
+    "generate:catalog": "tsx scripts/generate-catalog.ts",
+    "generate:barrels": "npm run generate:meta && npm run generate:exports && npm run generate:catalog",
     "generate:llms": "node ../../scripts/generate-llms-txt .",
     "build": "npm run generate:barrels && npm run generate:llms && vite build",
     "build:stackblitz": "npm run generate:barrels && vite build",
@@ -356,6 +366,7 @@
   "files": [
     "dist",
     "src/styles",
+    "component-catalog.json",
     "README.md",
     "LICENSE",
     "llms.txt",

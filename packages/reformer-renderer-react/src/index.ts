@@ -34,10 +34,13 @@ export type {
   RenderNode,
   ContainerRenderNode,
   ContainerRenderNodeProps,
+  ArrayRenderNode,
+  RenderModelArrayControl,
   RenderText,
   RenderTextPart,
   FormRendererProps,
   RendererSettings,
+  FieldAdapter,
   FieldWrapperProps,
   ContainerComponentProps,
 } from './core/types';
@@ -45,6 +48,10 @@ export type {
 // Components
 export { FormRenderer } from './core/form-renderer';
 export { RenderNodeComponent } from './core/render-node';
+
+// Итерация модель-массива для компонентов-рендереров массива (ui-kit List/FormArray).
+export { useModelArrayItems, resolveInitialValue } from './core/render-node';
+export type { ModelArrayItem } from './core/render-node';
 
 // Render Context
 export {

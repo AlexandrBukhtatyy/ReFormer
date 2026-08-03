@@ -7,14 +7,14 @@
 - **`JsonFormSchema`** — корневой документ: `version` (для миграций), опциональный `$schema` (путь к мета-схеме для IDE), единственный корневой узел `root`.
 - **`JsonNode`** — узел дерева. Дискриминированный union по строке-оператору, которую он несёт:
   - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md).
-  - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить»).
+  - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить») + опциональный `component: '$component(List)'` (рендер зарегистрированным компонентом — display-список без add/remove; см. ниже).
   - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` и `text`.
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
   - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
   - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
   - `'$html(tag)'` — нативный HTML-тег для презентационной вёрстки без регистрации компонента. Тег проверяется по whitelist (`isAllowedHtmlTag`) и конвертером, и `validateFormSchema`.
   - `'$dataSource(NAME)'` — имя registry-source (`reg.dataSource`): options, itemLabel, константы, loading-компоненты.
-  - `'$fn(name)'` — имя функции в реестре (`reg.fn`): форматтеры, компараторы, itemLabel, обработчики. Резолвится в саму функцию (передаётся в проп как есть). Отдельный от `$dataSource` вид — `validate` ловит перепутанные `$fn`/`$dataSource` и `reg.fn` бросает на не-функцию.
+  - `'$fn(name)'` — имя функции в реестре (`reg.fn`): форматтеры, компараторы, itemLabel, обработчики. Резолвится в саму функцию (передаётся в проп как есть). Отдельный от `$dataSource` вид — `validateSchema` ловит перепутанные `$fn`/`$dataSource` и `reg.fn` бросает на не-функцию.
   - `'$locale(key)'` — ключ строки для сервиса локализации (`reg.locale`). Резолвится в **строку на этапе конвертации** (`registry.getLocale().resolve(key)`); промах ключа / нет сервиса → сам ключ. Только `componentProps` (label/placeholder/title/aria-*), не структурные позиции. С параметрами — структурная форма `{ "$locale": "key", "params": { … } }` (объект, params — литералы). Реактивный/markdown-текст — компонент `$component(I18n)`, см. [08-i18n.md](08-i18n.md).
 - **`selector`** — plain-строка, id узла для render-behavior (`schema.node('…')`, `hideWhen`, `patchProps`). **Не** путь модели.
 - **`componentProps`** — что прокидывается в React-компонент. Значения могут содержать строки-операторы (`'$dataSource(NAME)'`, `'$model(...)'`, `'$component(...)'`, `'$fn(...)'`, `'$locale(...)'`) или вложенные `JsonNode` — конвертер резолвит их рекурсивно. Обычные значения (числа, инлайн-массивы options, `label`) идут как есть.
@@ -141,25 +141,51 @@ const schema: JsonFormSchema = {
 }
 ```
 
+### Display-список: итерация массива через `$component`
+
+Тот же array-узел + опциональный `component` рендерит массив **зарегистрированным компонентом** вместо встроенной редактируемой секции. Дисплей-vs-редактирование — это выбор компонента, а не отдельный тип узла:
+
+- **без `component`** → встроенная секция с кнопками «Добавить»/«Удалить» (нужен `initialValue`);
+- **`component: '$component(List)'`** → chrome-less display-список (`List` из `@reformer/ui-kit`): без add/remove, `initialValue` не нужен. Для списков, которые не редактируются, а показываются/скрываются мутацией массива в behavior (алерты, бейджи).
+
+Итерацию и re-scoping делает рендерер; компонент получает готовые элементы `children` (плюс `array`/`item`/`fieldWrapper` — для своих секций с кастомным хромом). Внутри `$template` пути `$model(...)` резолвятся относительно элемента, а `$model(...)` в `componentProps` элемента доходит до компонента **значением** (рендерер разворачивает сигнал):
+
+```typescript
+{
+  selector: 'alerts-list',
+  array: '$model(alerts)',           // массив объектов в модели
+  component: '$component(List)',     // рендер — ui-kit List (без add/remove); initialValue не нужен
+  componentProps: { className: 'space-y-2' },
+  item: {
+    $template: {
+      component: '$component(Alert)',                 // display-компонент элемента
+      componentProps: { type: '$model(type)', message: '$model(message)' },
+    },
+  },
+}
+```
+
+Реестр: `reg.component('List', List)` (`@reformer/ui-kit`) + `reg.component('Alert', Alert)`. Показ/скрытие — мутация массива `alerts` в `defineFormBehavior` (`push`/`removeAt`/`clear`); список ре-рендерится реактивно.
+
 ## Anti-patterns
 
 - **Голые строки вместо операторов** — `component: 'Input'` или `value: 'email'` не резолвятся. Нужны операторы: `component: '$component(Input)'`, `value: '$model(email)'`. Template-literal типы (`ModelOp`/`ComponentOp`) отловят это на этапе компиляции.
 - **Использовать `selector` как путь к полю** — `selector` это id для behavior; путь задаётся только через `value`/`array` оператором `$model(...)`.
 - **Забыть `item.$template` у массива** — array-node требует `array` **и** `item: { $template }`. Без `$template` `isArrayNode` вернёт false и узел не отрендерится как массив.
 - **`initialValue` как FieldConfig** — это plain-литерал по форме элемента (`{ field: value }`), а не `{ value, component }`. Клонируется через `JSON.parse(JSON.stringify(...))`, поэтому только сериализуемые значения.
-- **Ссылаться на `$dataSource(NAME)` без регистрации** — при `validate` неизвестное имя даст ошибку; без валидации строка просто прокинется как есть (молчаливый баг).
+- **Ссылаться на `$dataSource(NAME)` без регистрации** — при `validateSchema` неизвестное имя даст ошибку; без валидации строка просто прокинется как есть (молчаливый баг).
 - **Класть `validators` в field-node** — `JsonFieldNode` несёт только layout, поля `validators` в нём нет и оператора `$validator(...)` не существует. Валидация значений живёт в отдельной validation-схеме над моделью (`defineValidationSchema`, запуск `validateModel` из `@reformer/core/validation`), а не в JSON — см. [06-validation.md](06-validation.md).
 - **Путать `$fn` и `$dataSource`** — функции регистрируй через `reg.fn` и ссылайся через `$fn(name)`, данные — через `reg.dataSource`/`$dataSource(NAME)`. Перекрёстное использование (`$fn(LOAN_TYPES)`, `$dataSource(comparator)`) `validateFormSchema` отклонит, а рантайм бросит. `reg.fn` дополнительно бросает при регистрации не-функции.
 - **Аргументы у `$fn`** — оператор передаёт функцию **по ссылке**; биндинга аргументов (`$fn(goToStep, 2)`) нет. Нужен предзаданный аргумент — зарегистрируй уже связанную функцию через `reg.fn`.
 - **`$locale` для reactive-переключения языка** — ключ резолвится в строку **на этапе конвертации** (иначе signal уронил бы строковые компоненты). Смена языка = новый сервис в `reg.locale` + пересборка дерева, а не «живое» обновление. Для live-переключения и markdown/rich — компонент `$component(I18n)` + `LocaleProvider`, см. [08-i18n.md](08-i18n.md).
-- **Динамический/составной ключ `$locale`** — ключ это статичный литерал (`$locale(fields.email.label)`); вложить в него `$model(...)`/выражение нельзя. При наличии каталога опечатка ключа ловится на `validate`; без каталога промах молча деградирует до самого ключа.
+- **Динамический/составной ключ `$locale`** — ключ это статичный литерал (`$locale(fields.email.label)`); вложить в него `$model(...)`/выражение нельзя. При наличии каталога опечатка ключа ловится на `validateSchema`; без каталога промах молча деградирует до самого ключа.
 - **Регистрировать компонент ради статичного блока** — `reg.component('InfoBlock', …)` для абзаца с текстом заменяется узлом `$html(div)`/`$html(p)` + `text`. Компонент нужен, когда есть своя логика или состояние.
 - **`$component(div)` вместо `$html(div)`** — нативные теги живут в отдельном операторе и через реестр не резолвятся: `$component(div)` даст `unknown component "div"`.
 - **Ждать от `$html` произвольной разметки** — оператор принимает ОДИН тег (`$html(div)`), а не HTML-фрагмент. Вложенность описывается `children`.
 
 ## See also
 
-- [01-overview.md](01-overview.md) — как схема монтируется через `model` + `JsonRendererProvider`.
+- [01-overview.md](01-overview.md) — как схема монтируется: реестр через `JsonRendererProvider`, модель — пропом `JsonFormRenderer`.
 - [03-registry.md](03-registry.md) — какие компоненты и source можно зарегистрировать.
 - [05-cookbook.md](05-cookbook.md) — `$template`, dataSource-функции, миграция из TS RenderSchema.
 - [06-validation.md](06-validation.md) — валидация значений (TS-схема над моделью + инъекция в wizard).

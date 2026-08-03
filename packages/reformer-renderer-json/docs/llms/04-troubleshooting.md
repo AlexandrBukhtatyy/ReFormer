@@ -20,12 +20,35 @@ import { FormField } from '@reformer/ui-kit';
 reg.component(FIELD_WRAPPER, FormField);
 ```
 
-## No model signal for "..." / settings.model is required
+## No model signal for "..." / `model` prop is required
 
 Два разных симптома одной причины — модель.
 
-- `JsonFormRenderer: settings.model is required (M1)` — не передана модель. Под M1 листья схемы биндятся к сигналам `FormModel`; передай её в `JsonRendererProvider settings={{ registry, model }}`.
+- `JsonFormRenderer: `model` prop is required (M1)` — не передана модель. Под M1 листья схемы биндятся к сигналам `FormModel`; передай её пропом: `<JsonFormRenderer schema={schema} model={model} />`.
 - `[JsonRenderer/M1] No model signal for "path"` (warn) — путь в `$model(path)` не соответствует структуре модели. Проверь: `value: '$model(personalData.firstName)'` — поле `firstName` реально существует внутри `personalData` в `createModel(...)` initial-значениях.
+
+## Сырой контрол UI-kit пишет в модель событие вместо значения
+
+Контрол зарегистрирован по имени и рендерится, но в модель уезжает не то: у `Checkbox` — DOM-событие вместо `boolean`, у `Radio` — событие вместо строки. Причина: рендерер отдаёт полю value-based seam (`value` + `onChange(value)`), а сырой контрол ждёт свой диалект (`checked` + `onChange(event)` и т.п.). (У `Select` значение приходит **первым** аргументом `onChange(value, option)` и пишется верно — лишний `option` обработчик отбрасывает сам; адаптер ему нужен лишь чтобы не протёк проп `control` в DOM.) Не оборачивай каждый контрол — зарегистрируй `FieldAdapter` через `resolveFieldAdapter`, и рендерер сам переложит seam на диалект контрола:
+
+```tsx
+<JsonRendererProvider
+  settings={{
+    registry,
+    model,
+    resolveFieldAdapter: (component) => {
+      if (component === Checkbox)
+        return { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false };
+      if (component === Radio) return { fromEmit: (e) => (e as any).target.value };
+      return undefined; // текстовые / уже value-based контролы — seam как есть
+    },
+  }}
+>
+  <JsonFormRenderer<MyForm> schema={schema} />
+</JsonRendererProvider>
+```
+
+`resolveFieldAdapter` — поле `RendererSettings` (рядом с `fieldWrapper`); renderer-json наследует его без изменений кода и прокидывает через `JsonRendererProvider settings` в рендерер. Вернул `undefined` → контрол получает seam как есть (обратная совместимость, прежнее поведение). Полный контракт `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в cookbook `@reformer/renderer-react`.
 
 ## componentProps string passes through as plain string
 
@@ -37,7 +60,7 @@ reg.component(FIELD_WRAPPER, FormField);
 
 ## "version" missing / invalid schema (при validate)
 
-`validate={true}` прогоняет схему через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под field/array/container (нет ни `value`, ни `array`+`item`, ни `component`), голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя. Ошибки рисуются в `SchemaErrorPanel` вместо формы. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны.
+`validateSchema={true}` прогоняет схему через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под field/array/container (нет ни `value`, ни `array`+`item`, ни `component`), голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя. Ошибки рисуются в `SchemaErrorPanel` вместо формы. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны.
 
 ## Behavior selector matches nothing
 
@@ -68,6 +91,39 @@ const renderBehavior: RenderBehaviorFn<MyForm> = (schema) => {
 ```
 
 `renderBehavior` передаётся пропом в `JsonFormRenderer`; узел адресуется по своему `selector`.
+
+## console.warn: `schema.node(...)` адресует неизвестный selector
+
+`schema.node('typo')` не нашёл узла с таким `selector` — рендерер пишет в консоль `console.warn` и перечисляет все известные селекторы схемы. Обычно это промах/опечатка в `selector` внутри `renderBehavior`: имя в `schema.node(...)` не совпадает с тем, что реально задано узлу в схеме (`selector: 'properties-array'`). Как чинить:
+
+- Сверь строку в `schema.node('...')` с `selector` целевого узла — регистр и дефисы должны совпадать буква в букву.
+- Убедись, что узлу вообще задан `selector` (без него узел не адресуется — см. «Behavior selector matches nothing»).
+- Возьми правильное имя из списка известных селекторов, который печатает сам warn.
+
+Промах не роняет форму, но behavior (`hideWhen`/`patchProps`) молча ни к чему не применяется — поэтому warn стоит воспринимать как ошибку конфигурации, а не как шум.
+
+## dev-warn: нестабильный `renderBehavior`
+
+Если ссылка на `renderBehavior` меняется между рендерами (новая функция на каждый рендер родителя), рендерер в dev-режиме предупреждает о нестабильном `renderBehavior`. Причина — behavior пересобирается на каждый проход и перевешивает реактивные связи впустую. Держи ссылку стабильной:
+
+- объяви функцию `const` на уровне модуля (как в примере «Toggle-видимость секции массива» выше), если она не замыкает пропсы/стейт;
+- либо оберни в `useMemo` / `useCallback` с корректными зависимостями, если behavior обязан замыкать что-то из компонента.
+
+```tsx
+// стабильно: не пересоздаётся на каждый рендер
+const renderBehavior = useCallback<RenderBehaviorFn<MyForm>>(
+  (schema) => {
+    hideWhen(schema.node('properties-array'), () => model.signalAt('hasProperty').value !== true);
+  },
+  [model],
+);
+
+<JsonFormRenderer<MyForm> form={jsonForm} renderBehavior={renderBehavior} />;
+```
+
+## Битая схема при выключенном `validateSchema` → `SchemaErrorPanel`, а не белый экран
+
+Раньше при `validateSchema={false}` (или когда валидатор отключён) ошибка в структуре схемы во время конвертации/рендера роняла поддерево — пользователь видел белый экран без диагностики. Теперь такой сбой перехватывает `SchemaErrorBoundary` и рисует `SchemaErrorPanel` с описанием проблемы — как и при `validateSchema={true}`. То есть панель ошибки схемы показывается в обоих режимах; `validateSchema={true}` лишь ловит проблему раньше и подробнее (мета-схема ajv + обход имён операторов, см. «"version" missing / invalid schema»), а выключенный флаг больше не превращает битую схему в пустую страницу.
 
 ## See also
 

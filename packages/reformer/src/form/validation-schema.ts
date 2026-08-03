@@ -264,15 +264,26 @@ function whenAborted(signal: AbortSignal): Promise<void> {
  * Инлайн-стрелка (`validateModel(model, ({ model }) => …)`) каждый раз создаёт НОВЫЙ прогон без дедупликации —
  * держите схемы в `const` / `defineValidationSchema`.
  *
+ * `options.touch` (§6): по завершении помечает `touched` ИМЕННО поля, которые схема проверяла
+ * (не всё поддерево). Ошибки становятся видимыми (`shouldShowError = invalid && (touched||dirty)`)
+ * без ручного `form.markAsTouched()`; при пошаговой валидации следующий шаг не показывается
+ * «тронутым» до ввода. Валидные проверенные поля тоже метятся — это безвредно (ошибка не покажется).
+ *
+ * @param model - Модель данных формы.
+ * @param schema - Схема валидации (стабильная ссылка).
+ * @param options - `{ touch }` — пометить провалидированные поля `touched` для показа ошибок.
+ *
  * @example
  * ```ts
- * const ok = await validateModel(model, step2Validation);   // один шаг
- * const all = await validateModel(model, formValidation);   // вся форма
+ * const ok = await validateModel(model, step2Validation);              // один шаг
+ * const all = await validateModel(model, formValidation);              // вся форма
+ * const stepOk = await validateModel(model, step2Validation, { touch: true }); // + показать ошибки шага
  * ```
  */
 export async function validateModel<T>(
   model: FormModel<T>,
-  schema: ValidationSchema<T>
+  schema: ValidationSchema<T>,
+  options?: { touch?: boolean }
 ): Promise<boolean> {
   const state = runStateFor(model as object, schema as object);
   state.ac?.abort(); // отменяем предыдущий in-flight прогон этой (model, schema)
@@ -303,10 +314,18 @@ export async function validateModel<T>(
 
   // Гашение диффом (без неограниченного накопления `owned`): поля, которых НЕ коснулись в этом прогоне
   // (исчезнувший вызов — удалённый элемент массива), гасятся один раз и отпускаются на GC.
-  const touched = new Set(ctx.errors.keys());
-  for (const sig of state.fields) if (!touched.has(sig)) getNodeForSignal(sig)?.setErrors([]);
-  for (const sig of touched) getNodeForSignal(sig)?.setErrors(ctx.errors.get(sig) ?? []);
-  state.fields = touched;
+  const validated = new Set(ctx.errors.keys());
+  for (const sig of state.fields) if (!validated.has(sig)) getNodeForSignal(sig)?.setErrors([]);
+  for (const sig of validated) getNodeForSignal(sig)?.setErrors(ctx.errors.get(sig) ?? []);
+  // §6: пометить провалидированные поля `touched`, чтобы ошибки стали видимыми без ручного
+  // `form.markAsTouched()` на всё поддерево. `validated` — ровно поля, которых коснулась схема
+  // (rule/cross/each заводят бакет в errors даже для валидного поля), поэтому scope точный.
+  if (options?.touch) for (const sig of validated) getNodeForSignal(sig)?.markAsTouched();
+  state.fields = validated;
 
   return !hasBlocking(ctx.errors);
 }
+
+// Единый декларативный выбор стратегии валидации (createFormValidation + типы) — тот же сабпат
+// `@reformer/core/validation`. Импорт `validateModel` там — на уровне функций, поэтому цикл безопасен.
+export * from './validation-strategy';

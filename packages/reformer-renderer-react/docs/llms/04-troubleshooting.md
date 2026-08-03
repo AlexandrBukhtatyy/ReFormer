@@ -65,6 +65,27 @@ State-нода поля резолвится по сигналу через ре
 - Внутри `hideWhen`/`renderEffect` сигнал читается целиком: `form.x.value.value` (первый `.value` — доступ к сигналу поля, второй — к его значению).
 - В пользовательском компоненте используется `useFormControl` (он подписывается на state-ноду).
 
+## Сырой контрол пишет в модель событие или течёт пропом `control` (Checkbox/Select/Radio)
+
+Дефолтный seam рендерера — value-based: контрол получает `value` и `onChange(value)`, а нода пишет в модель то, что пришло **первым** аргументом. У сырых контролов чужого UI-kit два симптома. (1) **Не то значение** — если `onChange` эмитит СОБЫТИЕ (Checkbox — `onChange(e)`, antd Radio.Group — `onChange(e)`), в `setValue` уйдёт DOM-`event`, а не `checked`/`value`. (2) **Проп `control` течёт в DOM** — рендерер по умолчанию пробрасывает в контрол `control={fieldNode}`, и antd-контрол разольёт неизвестный проп с React-warning. Например, `Select` эмитит `onChange(value, option)`: значение приходит первым и пишется в модель **верно** (лишний `option` обработчик отбрасывает сам) — остаётся только утечка `control`, которую снимает адаптер (даже пустой `{}`).
+
+Не оборачивай контрол ради этого — зарегистрируй `FieldAdapter` через `settings.resolveFieldAdapter`: рендерер сам переложит seam на диалект контрола (`valueProp`/`changeProp`/`fromEmit`/`toValue`), `control` в сырой контрол не пробрасывается.
+
+```tsx
+<FormRenderer
+  render={schema}
+  settings={{
+    fieldWrapper: FormField,
+    resolveFieldAdapter: (component) =>
+      component === Checkbox
+        ? { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }
+        : undefined,
+  }}
+/>;
+```
+
+Текстовым / уже value-based контролам адаптер не нужен: `resolveFieldAdapter` возвращает `undefined` — и seam применяется как есть (обратная совместимость). Рецепты по контролам — [05-cookbook.md](05-cookbook.md).
+
 ## See also
 
 - [01-overview.md](01-overview.md)

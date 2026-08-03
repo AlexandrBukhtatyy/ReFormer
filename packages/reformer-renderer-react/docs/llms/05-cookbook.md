@@ -192,7 +192,7 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
 
 **Problem.** Нужно показать форму целиком в режиме просмотра (все поля задизейблены) — например, экран подтверждения, «read-only копия», или форма, заблокированная до загрузки данных.
 
-**Solution.** Глобального `settings.readonly`/`settings.mode` **нет** — `RendererSettings` несёт только `fieldWrapper`. Канон — вызвать `form.disable()` на корневой форме после `createForm`. `disable()` каскадит `disabled` по всему поддереву (группа проставляет `disabled` себе и рекурсивно всем дочерним полям), а рендерер уже пробрасывает `state.disabled` в каждый инпут. Ничего в схеме менять не нужно.
+**Solution.** Глобального `settings.readonly`/`settings.mode` **нет** — `RendererSettings` несёт `fieldWrapper` и `resolveFieldAdapter` (адаптеры сырых контролов, см. рецепт ниже), режимного флага среди них нет. Канон — вызвать `form.disable()` на корневой форме после `createForm`. `disable()` каскадит `disabled` по всему поддереву (группа проставляет `disabled` себе и рекурсивно всем дочерним полям), а рендерер уже пробрасывает `state.disabled` в каждый инпут. Ничего в схеме менять не нужно.
 
 ```tsx
 const form = createForm({ model, schema });
@@ -267,6 +267,43 @@ const schema: RenderSchemaFn<Installment> = () => ({
 - Тег и компонент свободно вкладываются друг в друга: `{ component: 'div', children: [{ component: Section, … }] }` и наоборот.
 - `hideWhen`/`patchProps` работают по `selector` и на html-узлах; в DOM `selector` не пробрасывается.
 - Живой пример обеих схем (типизованной и JSON) — `projects/react-playground/src/pages/examples/html-nodes/`.
+
+## Сырой контрол сторонней UI-kit (FieldAdapter)
+
+**Problem.** Нужно подключить контрол чужой библиотеки (antd `Checkbox`, MUI `Select`, свой `Radio`) напрямую, без обёртки. Но рендерер отдаёт полю value-based seam — `value` + `onChange(value)`, — а сырой контрол говорит на своём диалекте: `Checkbox` эмитит DOM-событие (`onChange(e) => e.target.checked`), `Select` — `onChange(value, option)`, `Radio` — `onChange(e) => e.target.value`. Если зарегистрировать такой контрол как есть, в модель попадёт объект события вместо значения, а «неизвестный» проп `control` утечёт в DOM с React-warning.
+
+**Solution.** `settings.resolveFieldAdapter(component)` возвращает `FieldAdapter` для нужного компонента — рендерер сам переложит seam на его диалект. Адаптер описывает, из какого пропа контрол читает значение (`valueProp`, default `'value'`), каким колбэком эмитит (`changeProp`, default `'onChange'`), как из эмита достать значение (`fromEmit(arg, rest)`) и как значение поля привести к пропу (`toValue`). При наличии адаптера `control` в контрол **не** пробрасывается; `disabled` — всегда. Нет адаптера → seam применяется как есть (обратная совместимость: для text и уже-value-based контролов регистрировать ничего не нужно).
+
+```tsx
+import { Checkbox, Select, Radio } from 'some-ui-kit';
+import { FormRenderer, type FieldAdapter } from '@reformer/renderer-react';
+
+// Резолв по идентичности компонента (node.component).
+const adapters = new Map<unknown, FieldAdapter>([
+  // checked + DOM-событие: значение живёт в `checked`, эмит — событие.
+  [Checkbox, { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }],
+  // value + onChange(value, option): второй аргумент (option) отбрасывается сам —
+  // обработчик забирает только первый arg. Пустой адаптер нужен, чтобы НЕ пробросить `control`.
+  [Select, {}],
+  // value + событие: достаём из target.
+  [Radio, { fromEmit: (e) => (e as any).target.value }],
+]);
+
+<FormRenderer
+  render={schema}
+  settings={{ resolveFieldAdapter: (component) => adapters.get(component) }}
+/>;
+```
+
+**Notes.**
+
+- Резолв идёт по `node.component` (по ссылке на компонент), поэтому `Map`/`switch` по идентичности — типичная реализация. Вернул `undefined` → default value-based seam (с `control`).
+- `fromEmit` получает `(arg, rest)`, где `arg` — ПЕРВЫЙ аргумент эмита контрола, `rest` — остальные props (после `strip`). Обработчик берёт только первый аргумент, поэтому лишние (`option` у `Select`) отбрасываются сами. `rest` нужен, когда значение достаётся с оглядкой на props (например, найти выбранное в `options`).
+- `toValue` — обратный путь: coerce `null`/`undefined` под контракт контрола (`Checkbox` не любит `undefined` в `checked`).
+- `componentProps` (после `strip`) спредятся ПЕРВЫМИ — seam (`value`/`onChange`/`onBlur`) перекрывает их при совпадении ключей. `strip` убирает служебные ключи, на которые контрол ругается неизвестным пропом. Blur по умолчанию идёт как `onBlur`; нестандартный канал — через `bindBlur(onBlur) => props`.
+- `data-testid="input-{testId}"` проставляется автоматически, если его нет в props (testId — из `componentProps.testId` или пути сигнала).
+- Не путать с `FieldAdapter` из `@reformer/ui-kit/fields` (адаптер для `withFormControl` при сборке `*Field`-компонента, там основные поля `valueProp`/`changeProp`/`fromEmit`/`toValue` обязательны, `bindBlur`/`strip` — опциональны) — это другой тип другого слоя; здешний `FieldAdapter` резолвится рендерером через `resolveFieldAdapter`, и все его поля опциональны.
+- То же работает в `@reformer/renderer-json` без изменений кода: `resolveFieldAdapter` передаётся в `settings` у `JsonRendererProvider` и применяется к контролам, зарегистрированным в реестре по имени (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md)).
 
 ## See also
 

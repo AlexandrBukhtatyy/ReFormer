@@ -6,23 +6,20 @@
 
 import { createContext, useContext, useMemo, type ReactNode, type ComponentType } from 'react';
 import type { RendererSettings, FieldWrapperProps } from '@reformer/renderer-react';
-import type { FormModel } from '@reformer/core';
 import type { ComponentRegistry } from '../registry/types';
 import { ComponentRegistryImpl } from '../registry/component-registry';
 import { FIELD_WRAPPER } from '../registry/constants';
 
 /**
  * Расширенные настройки рендерера: всё из `RendererSettings` плюс реестр.
+ *
+ * Это **глобальные** настройки, общие на всё поддерево (реестр компонентов, `fieldWrapper`,
+ * `resolveFieldAdapter`). Модель данных сюда не входит — она per-form и передаётся пропом
+ * `model` компонента {@link JsonFormRenderer}.
  */
 export interface JsonRendererSettings extends RendererSettings {
   /** Реестр компонентов и source-значений. См. {@link defineRegistry}. */
   registry?: ComponentRegistry;
-  /**
-   * Модель данных (M1, единая схема). Если задана — JSON-листья биндятся к сигналам модели
-   * (`model.signalAt(selector)`), а форма строится из той же JSON-схемы (без отдельной схемы формы).
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  model?: FormModel<any>;
 }
 
 const JsonRendererContext = createContext<JsonRendererSettings>({});
@@ -44,7 +41,7 @@ export interface JsonRendererProviderProps {
  * Поддерживает вложенность: внутренний провайдер сливается с внешним
  * (внешний имеет приоритет в случае дублей имён в реестре).
  *
- * @example M1: реестр + модель через settings
+ * @example M1: реестр через settings (глобально), модель — пропом рендерера (per-form)
  * ```tsx
  * // Модель — источник истины (M1); листья схемы биндятся к её сигналам.
  * const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
@@ -53,8 +50,8 @@ export interface JsonRendererProviderProps {
  *   reg.component(FIELD_WRAPPER, FormField);
  * }), []);
  *
- * <JsonRendererProvider settings={{ registry, model }}>
- *   <JsonFormRenderer<MyForm> schema={schema} />
+ * <JsonRendererProvider settings={{ registry }}>
+ *   <JsonFormRenderer<MyForm> schema={schema} model={model} />
  * </JsonRendererProvider>
  * ```
  */

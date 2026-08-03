@@ -172,6 +172,7 @@ const schema = createRenderSchema<MyForm>(() => buildSchema(model, form));
 - **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Возвращает корневой узел дерева. Аргумента-пути нет: привязка к данным идёт через сигналы модели в листьях.
 - **`RenderNode<T>`** — узел дерева, дискриминированный union: **field** (`ModelFieldRenderNode` — есть `value: Signal`), **array** (`ArrayRenderNode` — есть `array` + `item`), **container** (`ContainerRenderNode` — есть `component` + `children`).
 - **`fieldWrapper`** — общая обёртка вокруг каждого поля (label, error). Передаётся через `settings`. Можно перекрыть для конкретного поля через `componentProps.fieldWrapper`.
+- **`resolveFieldAdapter` / `FieldAdapter`** — вторая настройка `settings` (рядом с `fieldWrapper`): по компоненту поля (`node.component`) резолвит адаптер, который переводит value-based seam рендерера (`value` + `onChange(value)`) в диалект сырого контрола (`checked` + `onChange(event)`, `value` + `onChange(value, option)`, `value` + `onChange(event)` и т.д.). Позволяет регистрировать СЫРЫЕ контролы любого UI-kit, не оборачивая каждый; нет адаптера → seam применяется как есть (обратная совместимость, текущее поведение). Рецепт — [05-cookbook.md](05-cookbook.md).
 - **`createRenderSchema(fn)`** — превращает `RenderSchemaFn` в `RenderSchemaProxy` для программного управления узлами (`setHidden`, `patchProps`, `getRef`) и точкой подключения декларативного behavior.
 - **`RenderBehaviorFn<T>`** — функция `(schema) => void`, применяющая standalone-хелперы (`hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount`) к `RenderSchemaProxy`.
 
@@ -199,7 +200,7 @@ const schema = createRenderSchema<MyForm>(() => buildSchema(model, form));
 Единая схема (M1): одно дерево `RenderNode` описывает и layout, и привязку полей к модели. Привязка идёт через **сигналы модели** (`model.$.<field>`), а не через отдельный `path`-прокси.
 
 - **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Без аргументов: возвращает корневой узел. Привязка к данным — через сигналы в листьях, поэтому legacy-аргумент `path` удалён.
-- **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`). Поля `validators` у узла **НЕТ** — правила валидации значений живут в отдельной TS-схеме над моделью, а не в render-дереве (`validators: [...]` на листе даст `TS2353`; см. [06-validation.md](06-validation.md)).
+- **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`). Поля `validators` у узла **НЕТ** — правила валидации значений живут в отдельной TS-схеме над моделью, а не в render-дереве (`validators: [...]` на листе даст `TS2353`; см. [06-validation.md](06-validation.md)). Компонент листа получает **value-based seam** (`control`, `value`, `disabled`, `onChange(value)`, `onBlur`) — value-based контролам настройка не нужна. Сырой контрол сторонней UI-kit с другим диалектом (`checked`+событие у Checkbox, `(value, option)` у Select) подключается через `FieldAdapter`: рендерер сам переложит seam на его контракт, не оборачивая контрол (`settings.resolveFieldAdapter`; см. [05-cookbook.md](05-cookbook.md)).
 - **`ArrayRenderNode<T>`** — узел-массив модели. Данные принадлежат модели (`array: model.<path>`), форма элемента описывается `item(itemModel)`, `initialValue` — значение/фабрика нового элемента.
 - **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент **либо нативный HTML-тег строкой** (`'div'`, `'h3'`, `'hr'`), дочерние узлы задаются в **top-level** `children` (НЕ в `componentProps`). Опциональный `text` задаёт текстовое содержимое.
 
@@ -368,6 +369,7 @@ hideWhen(schema.node('extra-section'), () => !form.subscribe.value.value);
 - [03-render-behavior.md](03-render-behavior.md) — `hideWhen`, `renderEffect`, lifecycle.
 - [06-validation.md](06-validation.md) — валидация значений отдельной model-схемой (у RenderNode нет `validators`).
 - [04-troubleshooting.md](04-troubleshooting.md).
+- [05-cookbook.md](05-cookbook.md) — `resolveFieldAdapter`/`FieldAdapter`: подключение сырых контролов сторонней UI-kit без per-контрол обёрток.
 
 ## 12. Helpers
 
@@ -507,7 +509,28 @@ State-нода поля резолвится по сигналу через ре
 - Внутри `hideWhen`/`renderEffect` сигнал читается целиком: `form.x.value.value` (первый `.value` — доступ к сигналу поля, второй — к его значению).
 - В пользовательском компоненте используется `useFormControl` (он подписывается на state-ноду).
 
-## 26. See also
+## 26. Сырой контрол пишет в модель событие или течёт пропом `control` (Checkbox/Select/Radio)
+
+Дефолтный seam рендерера — value-based: контрол получает `value` и `onChange(value)`, а нода пишет в модель то, что пришло **первым** аргументом. У сырых контролов чужого UI-kit два симптома. (1) **Не то значение** — если `onChange` эмитит СОБЫТИЕ (Checkbox — `onChange(e)`, antd Radio.Group — `onChange(e)`), в `setValue` уйдёт DOM-`event`, а не `checked`/`value`. (2) **Проп `control` течёт в DOM** — рендерер по умолчанию пробрасывает в контрол `control={fieldNode}`, и antd-контрол разольёт неизвестный проп с React-warning. Например, `Select` эмитит `onChange(value, option)`: значение приходит первым и пишется в модель **верно** (лишний `option` обработчик отбрасывает сам) — остаётся только утечка `control`, которую снимает адаптер (даже пустой `{}`).
+
+Не оборачивай контрол ради этого — зарегистрируй `FieldAdapter` через `settings.resolveFieldAdapter`: рендерер сам переложит seam на диалект контрола (`valueProp`/`changeProp`/`fromEmit`/`toValue`), `control` в сырой контрол не пробрасывается.
+
+```tsx
+<FormRenderer
+  render={schema}
+  settings={{
+    fieldWrapper: FormField,
+    resolveFieldAdapter: (component) =>
+      component === Checkbox
+        ? { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }
+        : undefined,
+  }}
+/>;
+```
+
+Текстовым / уже value-based контролам адаптер не нужен: `resolveFieldAdapter` возвращает `undefined` — и seam применяется как есть (обратная совместимость). Рецепты по контролам — [05-cookbook.md](05-cookbook.md).
+
+## 27. See also
 
 - [01-overview.md](01-overview.md)
 - [02-render-schema.md](02-render-schema.md)
@@ -515,7 +538,7 @@ State-нода поля резолвится по сигналу через ре
 - [05-cookbook.md](05-cookbook.md)
 - [06-validation.md](06-validation.md)
 
-## 27. Custom fieldWrapper
+## 28. Custom fieldWrapper
 
 **Problem.** Нужна собственная обёртка вокруг каждого поля (label, error, hint, аналитика, нестандартный layout) вместо стандартного `FormField` из `@reformer/ui-kit`.
 
@@ -555,7 +578,7 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
 - Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper` (поле типа `ComponentType<FieldWrapperProps>` в `ModelFieldRenderNode.componentProps`).
 - Не оборачивай wrapper в `React.memo` без сравнения по `control` и `children` — иначе DOM будет «застревать» на старом инпуте.
 
-## 28. Programmatic node manipulation
+## 29. Programmatic node manipulation
 
 **Problem.** Нужно динамически прятать/показывать секцию или менять props ноды снаружи schema (например, по событию из `useEffect`, по кнопке debug-панели, или после загрузки данных).
 
@@ -599,7 +622,7 @@ function CreditApplicationPage() {
 - `setHidden(true)` перекрывает реактивное условие из `hideWhen`. Чтобы вернуть автоматику — `resetHidden()`.
 - Селектор должен быть указан в `RenderNode.selector`. Без него `proxy.node('x')` вернёт контроллер с пустыми переопределениями (никаких ошибок не будет, но эффекта тоже не будет).
 
-## 29. Custom container with collapsible children
+## 30. Custom container with collapsible children
 
 **Problem.** Нужен контейнер с собственной логикой рендеринга `children` (например, `Section` с заголовком, который можно свернуть, или wizard с табами).
 
@@ -652,7 +675,7 @@ export function CollapsibleSection({
 - Если контейнеру нужны ноды как данные (вычислить количество, отрисовать таб-бар) — описывай их через `componentProps`, а не через `children`. Пример — `FormWizard` из `@reformer/ui-kit/form-wizard` с `componentProps.steps`. Конвертер JSON-схемы поддерживает `JsonNode` и `$template` внутри произвольных props (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md#template-arrays)).
 - Контейнер можно адресовать через `selector` — тогда `setHidden` будет работать на его содержимое целиком.
 
-## 30. Combining behaviors on one node
+## 31. Combining behaviors on one node
 
 **Problem.** На одном узле нужно сразу несколько эффектов: скрытие по условию, реактивный side-effect, обработчик события компонента, lifecycle-хук — без дублирования selector-кода.
 
@@ -701,11 +724,11 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
 - `renderEffect` принимает не node, а саму схему: эффекты живут на уровне рендера всего дерева и автоматически диспозятся при unmount `FormRenderer`.
 - `onInit` срабатывает синхронно при applying behavior (до первого рендера). Это единственный хук, способный изменить `componentProps` так, чтобы они попали в первый рендер.
 
-## 31. Вся форма read-only / view-mode
+## 32. Вся форма read-only / view-mode
 
 **Problem.** Нужно показать форму целиком в режиме просмотра (все поля задизейблены) — например, экран подтверждения, «read-only копия», или форма, заблокированная до загрузки данных.
 
-**Solution.** Глобального `settings.readonly`/`settings.mode` **нет** — `RendererSettings` несёт только `fieldWrapper`. Канон — вызвать `form.disable()` на корневой форме после `createForm`. `disable()` каскадит `disabled` по всему поддереву (группа проставляет `disabled` себе и рекурсивно всем дочерним полям), а рендерер уже пробрасывает `state.disabled` в каждый инпут. Ничего в схеме менять не нужно.
+**Solution.** Глобального `settings.readonly`/`settings.mode` **нет** — `RendererSettings` несёт `fieldWrapper` и `resolveFieldAdapter` (адаптеры сырых контролов, см. рецепт ниже), режимного флага среди них нет. Канон — вызвать `form.disable()` на корневой форме после `createForm`. `disable()` каскадит `disabled` по всему поддереву (группа проставляет `disabled` себе и рекурсивно всем дочерним полям), а рендерер уже пробрасывает `state.disabled` в каждый инпут. Ничего в схеме менять не нужно.
 
 ```tsx
 const form = createForm({ model, schema });
@@ -727,7 +750,7 @@ form.disable();
 - **Caveat:** явный `componentProps.disabled` на конкретном поле перебивает каскад. Рендерер собирает пропсы как `{ disabled: state.disabled, ...componentProps }` — спред идёт последним, поэтому жёстко заданный в схеме `disabled: false` оставит поле активным даже после `form.disable()`. Не задавай `disabled` в `componentProps`, если хочешь управлять им через `form.disable()`.
 - Это ортогонально `hideWhen`: `disable()` оставляет поля видимыми, но неактивными; `hideWhen` убирает их из дерева.
 
-## 32. Презентационные блоки и живая сводка без своих компонентов
+## 33. Презентационные блоки и живая сводка без своих компонентов
 
 **Problem.** В форме нужны заголовки, инфо-плашка, разделитель и блок «Итого», где значения пересчитываются на лету. Заводить под каждый такой блок React-компонент (и, в JSON-варианте, регистрировать его) — много кода ради вёрстки.
 
@@ -781,13 +804,50 @@ const schema: RenderSchemaFn<Installment> = () => ({
 - `hideWhen`/`patchProps` работают по `selector` и на html-узлах; в DOM `selector` не пробрасывается.
 - Живой пример обеих схем (типизованной и JSON) — `projects/react-playground/src/pages/examples/html-nodes/`.
 
-## 33. See also
+## 34. Сырой контрол сторонней UI-kit (FieldAdapter)
+
+**Problem.** Нужно подключить контрол чужой библиотеки (antd `Checkbox`, MUI `Select`, свой `Radio`) напрямую, без обёртки. Но рендерер отдаёт полю value-based seam — `value` + `onChange(value)`, — а сырой контрол говорит на своём диалекте: `Checkbox` эмитит DOM-событие (`onChange(e) => e.target.checked`), `Select` — `onChange(value, option)`, `Radio` — `onChange(e) => e.target.value`. Если зарегистрировать такой контрол как есть, в модель попадёт объект события вместо значения, а «неизвестный» проп `control` утечёт в DOM с React-warning.
+
+**Solution.** `settings.resolveFieldAdapter(component)` возвращает `FieldAdapter` для нужного компонента — рендерер сам переложит seam на его диалект. Адаптер описывает, из какого пропа контрол читает значение (`valueProp`, default `'value'`), каким колбэком эмитит (`changeProp`, default `'onChange'`), как из эмита достать значение (`fromEmit(arg, rest)`) и как значение поля привести к пропу (`toValue`). При наличии адаптера `control` в контрол **не** пробрасывается; `disabled` — всегда. Нет адаптера → seam применяется как есть (обратная совместимость: для text и уже-value-based контролов регистрировать ничего не нужно).
+
+```tsx
+import { Checkbox, Select, Radio } from 'some-ui-kit';
+import { FormRenderer, type FieldAdapter } from '@reformer/renderer-react';
+
+// Резолв по идентичности компонента (node.component).
+const adapters = new Map<unknown, FieldAdapter>([
+  // checked + DOM-событие: значение живёт в `checked`, эмит — событие.
+  [Checkbox, { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }],
+  // value + onChange(value, option): второй аргумент (option) отбрасывается сам —
+  // обработчик забирает только первый arg. Пустой адаптер нужен, чтобы НЕ пробросить `control`.
+  [Select, {}],
+  // value + событие: достаём из target.
+  [Radio, { fromEmit: (e) => (e as any).target.value }],
+]);
+
+<FormRenderer
+  render={schema}
+  settings={{ resolveFieldAdapter: (component) => adapters.get(component) }}
+/>;
+```
+
+**Notes.**
+
+- Резолв идёт по `node.component` (по ссылке на компонент), поэтому `Map`/`switch` по идентичности — типичная реализация. Вернул `undefined` → default value-based seam (с `control`).
+- `fromEmit` получает `(arg, rest)`, где `arg` — ПЕРВЫЙ аргумент эмита контрола, `rest` — остальные props (после `strip`). Обработчик берёт только первый аргумент, поэтому лишние (`option` у `Select`) отбрасываются сами. `rest` нужен, когда значение достаётся с оглядкой на props (например, найти выбранное в `options`).
+- `toValue` — обратный путь: coerce `null`/`undefined` под контракт контрола (`Checkbox` не любит `undefined` в `checked`).
+- `componentProps` (после `strip`) спредятся ПЕРВЫМИ — seam (`value`/`onChange`/`onBlur`) перекрывает их при совпадении ключей. `strip` убирает служебные ключи, на которые контрол ругается неизвестным пропом. Blur по умолчанию идёт как `onBlur`; нестандартный канал — через `bindBlur(onBlur) => props`.
+- `data-testid="input-{testId}"` проставляется автоматически, если его нет в props (testId — из `componentProps.testId` или пути сигнала).
+- Не путать с `FieldAdapter` из `@reformer/ui-kit/fields` (адаптер для `withFormControl` при сборке `*Field`-компонента, там основные поля `valueProp`/`changeProp`/`fromEmit`/`toValue` обязательны, `bindBlur`/`strip` — опциональны) — это другой тип другого слоя; здешний `FieldAdapter` резолвится рендерером через `resolveFieldAdapter`, и все его поля опциональны.
+- То же работает в `@reformer/renderer-json` без изменений кода: `resolveFieldAdapter` передаётся в `settings` у `JsonRendererProvider` и применяется к контролам, зарегистрированным в реестре по имени (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md)).
+
+## 35. See also
 
 - [02-render-schema.md](02-render-schema.md) — структура `RenderNode` и `RenderSchemaFn`.
 - [03-render-behavior.md](03-render-behavior.md) — справочник по standalone-хелперам.
 - [04-troubleshooting.md](04-troubleshooting.md) — типичные ошибки.
 
-## 34. Mental model — почему валидаторов нет в RenderNode { #mental-model }
+## 36. Mental model — почему валидаторов нет в RenderNode { #mental-model }
 
 Одна ключевая мысль: **`RenderNode` несёт только layout, а не правила валидации.**
 
@@ -797,7 +857,7 @@ const schema: RenderSchemaFn<Installment> = () => ({
 
 Дальше — три шага: (1) построить схему над моделью, (2) обернуть её в `{ validateStep, validateAll }`, (3) прокинуть конфиг в wizard-узел.
 
-## 35. Шаг 1 — построить схему валидации над моделью { #build-schema }
+## 37. Шаг 1 — построить схему валидации над моделью { #build-schema }
 
 Схема валидации — обычная функция над (под)моделью, обёрнутая `defineValidationSchema<T>(({ model }) => { … })`. Внутри — голые **операторы** из `@reformer/core/validation`: `validate(sig, [rules])` (синхронные правила поля, **массив**), `validateAsync(sig, [asyncRules])` (async-правила), `validateWhen(() => cond, () => …)` (условные ветки), `cross(sig, fn)` (cross-field по снапшоту `model.get()`), `each(arr, itemFn)` (per-item массивы), `apply(...schemas)` (композиция под-схем). `sig` — сигнал модели (`model.$.path`), **не** RenderNode: схема валидации это отдельный TS-файл, она не пересекается с render-деревом. Встроенные фабрики правил импортируются из `@reformer/core/validators`.
 
@@ -834,7 +894,7 @@ const STEP_SCHEMAS: readonly ValidationSchema<Root>[] = [step1, step2];
 
 Условные ветки (`validateWhen(() => model.loanType === 'mortgage', () => { … })`), cross-field (`cross(sig, fn)`), async (`validateAsync(sig, [rule])`), секции массивов (`each(model.items, im => { … })`) и композиция под-схем (`apply(...schemas)`) — тот же контракт, что в TS-форме. Полное описание операторов `@reformer/core/validation` и раннера `validateModel` — в `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
 
-## 36. Шаг 2 — исполнить: `{ validateStep, validateAll }` { #execute }
+## 38. Шаг 2 — исполнить: `{ validateStep, validateAll }` { #execute }
 
 `validateModel(model, schema)` прогоняет схему по текущим значениям модели, **сам роутит ошибки в ноды формы по сигналу** (`getNodeForSignal(sig).setErrors(...)` — рендерер подсветит проблемные поля) и гасит поля, ставшие валидными. Возвращает `Promise<boolean>` — `true`, если нет **блокирующих** ошибок (`severity:'warning'` показывается, но не блокирует; устаревшие прогоны той же `(model, schema)` отменяются). Оборачиваем в две функции — контракт `FormWizardConfig` из `@reformer/cdk/form-wizard` (`validateStep?(step): boolean | Promise<boolean>`, `validateAll?(): boolean | Promise<boolean>`).
 
@@ -859,7 +919,7 @@ export function makeValidationConfig(model: FormModel<Root>) {
 }
 ```
 
-## 37. Шаг 3 — прокинуть конфиг в wizard-узел { #inject }
+## 39. Шаг 3 — прокинуть конфиг в wizard-узел { #inject }
 
 В отличие от JSON-варианта (JSON не умеет носить рантайм-функции, поэтому там инъекция идёт через render-behavior `patchProps`), render-схема — это **обычный TS-код**, поэтому валидацию вкладывают **инлайн**, в `componentProps` wizard-узла при построении дерева. Канонический `FormWizard` из `@reformer/ui-kit/form-wizard` принимает конфиг под ключом `config: FormWizardConfig` (см. [01-overview.md](01-overview.md)):
 
@@ -918,7 +978,7 @@ const behavior = defineFormBehavior<Root>(({ model }) => {
 
 Схема — та же стабильная `const`-ссылка, что и в конфиге wizard'а. Контракт поведения при этом не меняется — см. [03-render-behavior.md](03-render-behavior.md) и `@reformer/core` [27-revalidate-when.md](../../../reformer/docs/llms/27-revalidate-when.md).
 
-## 38. Полный рабочий пример { #full-example }
+## 40. Полный рабочий пример { #full-example }
 
 Зеркалит golden (`complex-multy-step-form-renderer`): валидация — `ValidationSchema` над моделью, переиспользуемая всеми вариантами рендера, вкладывается инлайн в wizard-узел render-схемы. Submit и навигация между шагами приходят из render-behavior (`onComponentEvent('onSubmit')` / `renderEffect`), а не отсюда — см. [03-render-behavior.md](03-render-behavior.md).
 
@@ -1009,7 +1069,7 @@ export function buildSchema(
 }
 ```
 
-## 39. Anti-patterns
+## 41. Anti-patterns
 
 - **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: Input, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной `ValidationSchema` над моделью (Шаг 1), а не в render-дереве.
 - **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает ошибки, уже проставленные в ноды. Значения проверяет `validateModel(model, schema)`; без её вызова (обычно из `validateStep`/`validateAll` wizard-а) поля не подсветятся.
@@ -1018,7 +1078,7 @@ export function buildSchema(
 - **Забыть `selector: 'wizard'` при инъекции через render-behavior** — без `selector` узел не адресуется через `schema.node('wizard')`, `onInit`/`patchProps` не найдут его и валидация не прокинется. (При инлайн-инъекции в `componentProps` это не нужно.)
 - **`array` на array-узле + строгая типизация листа = `TS2741`.** Привязка массива это `array: model.<path>` (value-доступ, напр. `model.coBorrowers`), НЕ `model.$.coBorrowers`. Тип `ModelArray<U>` рантайм-совместим с требуемым `RenderModelArrayControl`, но в публичном типе у него **не объявлен** `__path`, поэтому под строгим контекстом узла TS ругается `Property '__path' is missing in type 'ModelArray<T>' but required in 'RenderModelArrayControl'`. Golden обходит это кастом всего дерева `as unknown as RenderNode<T>` в конце билдера (`render-schema.ts`) — это канон для схемы с array-узлами; привязка при этом остаётся `array: model.<path>` (см. [02-render-schema.md](02-render-schema.md#array)). Per-item **валидация** таких массивов — оператор `each(model.<path>, im => { … })` в схеме, не в render-дереве.
 
-## 40. See also
+## 42. See also
 
 - [02-render-schema.md](02-render-schema.md) — структура `RenderNode`: лист-поле несёт только layout, массивы (`array: model.<path>`).
 - [03-render-behavior.md](03-render-behavior.md) — `onInit`/`patchProps` для инъекции конфига в wizard-узел; `revalidateWhen`-мост к `validateModel`.
@@ -1026,9 +1086,67 @@ export function buildSchema(
 - `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — операторы `ValidationSchema` (`validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply`), раннер `validateModel`, `STEP_SCHEMAS`, конфиг wizard'а.
 - `@reformer/renderer-json` [06-validation.md](../../../reformer-renderer-json/docs/llms/06-validation.md) — родственный паттерн для JSON-схемы (та же model-валидация, инъекция через render-behavior).
 
-## 41. API Reference
+## 43. API Reference
 
 _Auto-generated from JSDoc on public exports._
+
+### ArrayRenderNode
+
+**Kind:** `interface`
+
+Узел-массив единой схемы (M1): данные принадлежат модели (`array`), форма элемента описывается
+`item(itemModel)`. `createForm` материализует `ModelArrayNode` (по `{ array, item }`), рендерер
+итерирует элементы и рисует поддерево `item(itemModel)` (листья на сигналах под-модели).
+
+**Signature:**
+```typescript
+export interface ArrayRenderNode<T> extends FormSchemaNode {
+  selector?: string;
+  /** Реактивный массив модели (`model.<path>`). Расширяет базовый контракт методом `move`. */
+  array: RenderModelArrayControl;
+  /**
+   * Опциональный компонент-рендерер массива (из `$component(...)`). Если задан — итерация
+   * рендерится этим компонентом (chrome-less display-список / кастомная секция) вместо встроенной
+   * редактируемой секции. Компонент получает `array`/`item`/`initialValue`/`fieldWrapper` и готовые
+   * элементы `children`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component?: ComponentType<any>;
+  /** Схема элемента: под-модель элемента → узел поддерева. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<T>;
+  /**
+   * Значение нового элемента для кнопки «Добавить»: значение или фабрика `() => value`.
+   * `unknown | (() => …)` схлопывается в `unknown`; вариант выбирается в рантайме по
+   * `typeof === 'function'`. (Параметризовать по `T` нельзя: `T` здесь — payload
+   * `RenderNode<T>`, а не тип данных элемента.)
+   */
+  initialValue?: unknown;
+  /** Оформление секции массива. */
+  componentProps?: {
+    title?: string;
+    addButtonLabel?: string;
+    removeButtonLabel?: string;
+    emptyMessage?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    itemLabel?: string | ((itemModel: any, index: number) => string);
+    className?: string;
+    cardClassName?: string;
+    /** Показывать кнопки ↑/↓ перестановки элементов. По умолчанию `false`. */
+    reorderable?: boolean;
+    [key: string]: unknown;
+  };
+}
+```
+
+**Examples:**
+
+```typescript
+{ array: model.coBorrowers, initialValue: createBlankCoBorrower,
+  item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
+```
+
+_Source: src/core/types.ts_
 
 ### ContainerComponentProps
 
@@ -1193,6 +1311,53 @@ schema.node('extra-section').resetHidden();
 ```
 
 _Source: src/core/render-schema-proxy.ts_
+
+### FieldAdapter
+
+**Kind:** `interface`
+
+Адаптер поля: как свести value-based seam рендерера (`value` + `onChange(value)`) к контракту
+конкретного контрола библиотеки. Резолвится через {@link RendererSettings.resolveFieldAdapter}
+по компоненту поля (`node.component`). Позволяет регистрировать СЫРЫЕ контролы любого UI-kit —
+рендерер сам переложит seam на их диалект (`checked` + `onChange(event)`, `value` + `(value, option)`
+и т.д.). Нет адаптера → контрол получает seam как есть (текущее поведение, обратная совместимость).
+
+**Signature:**
+```typescript
+export interface FieldAdapter {
+  /** Проп, из которого контрол читает значение (default `'value'`). */
+  valueProp?: string;
+  /** Колбэк, через который контрол эмитит изменение (default `'onChange'`). */
+  changeProp?: string;
+  /**
+   * emit контрола → значение поля (default — как есть). `rest` — прочие props контрола
+   * (например, чтобы достать `options` при резолве значения).
+   */
+  fromEmit?: (arg: unknown, rest: Record<string, unknown>) => unknown;
+  /** значение поля → `valueProp` контрола (coerce `null`/`undefined`; default — как есть). */
+  toValue?: (value: unknown) => unknown;
+  /** Проброс blur нестандартным каналом (default — прокидывается `onBlur`). */
+  bindBlur?: (onBlur: () => void) => Record<string, unknown>;
+  /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
+  strip?: string[];
+  /**
+   * Передавать ли контролу ноду формы пропом `control` (§3.1). По умолчанию `false`: `control`
+   * контролу не нужен (реактивные пропы мёржит рендерер, errors/touched — FieldWrapper). Ставь
+   * `true`, если контрол сам потребляет ноду (напр. вызывает `useFormControl(control)`). Альтернатива
+   * без адаптера — статик на компоненте: `MyControl.reformerNeedsControl = true`.
+   */
+  passControl?: boolean;
+}
+```
+
+**Examples:**
+
+Checkbox (значение в `checked`, эмитит DOM-событие)
+```ts
+{ valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }
+```
+
+_Source: src/core/types.ts_
 
 ### FieldWrapperProps
 
@@ -1468,6 +1633,29 @@ isRenderSchemaProxy(renderSchemaFn); // false
 
 _Source: src/core/render-schema-proxy.ts_
 
+### ModelArrayItem
+
+**Kind:** `interface`
+
+Один элемент модель-массива для компонента-рендерера: стабильный ключ, живой индекс, под-модель
+элемента и готовое поддерево. Возвращается {@link useModelArrayItems}.
+
+**Signature:**
+```typescript
+export interface ModelArrayItem {
+  /** Стабильный React-ключ по идентичности под-модели (stableKey). */
+  key: number;
+  /** Живой индекс в массиве — для `removeAt(index)`/`move(index, …)`. */
+  index: number;
+  /** Под-модель элемента (`control.at(index)`) — для `itemLabel(model, index)` и т.п. */
+  model: unknown;
+  /** Готовое поддерево элемента: `<RenderNodeComponent node={item(model)} …/>`. */
+  element: ReactNode;
+}
+```
+
+_Source: src/core/render-node.tsx_
+
 ### NodeLifecycleHooks
 
 **Kind:** `interface`
@@ -1727,6 +1915,31 @@ export interface RendererSettings {
    * Обёртка отвечает за рендеринг label, errors и т.д.
    */
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+  /**
+   * Резолв {@link FieldAdapter} по компоненту поля (`node.component`). Возвращает адаптер для
+   * контролов с нестандартным диалектом (Checkbox/Select/Radio) либо `undefined` — тогда seam
+   * применяется как есть. Позволяет подключать сырые компоненты любого UI-kit, не оборачивая
+   * каждый контрол. Ядро при этом остаётся UI-агностичным (адаптер — данные приложения).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
+}
+```
+
+_Source: src/core/types.ts_
+
+### RenderModelArrayControl
+
+**Kind:** `interface`
+
+Контракт реактивного массива модели для рендера: базовый {@link SchemaArrayControl}
+(`__path`/`length`/`at`/`push`/`removeAt`) + `move` для реордера.
+
+**Signature:**
+```typescript
+export interface RenderModelArrayControl extends SchemaArrayControl {
+  /** Переместить элемент (реордер; runtime-фасад модель-массива это уже умеет). */
+  move(from: number, to: number): void;
 }
 ```
 
@@ -1904,6 +2117,43 @@ export type RenderTextPart = string | number | Signal<any>;
 ```
 
 _Source: src/core/types.ts_
+
+### resolveInitialValue
+
+**Kind:** `const`
+
+Резолв `initialValue` элемента для кнопки «Добавить»: значение или фабрика `() => value`.
+Экспортируется — им пользуются ui-kit-компоненты массива (`FormArray`) для `array.push(...)`.
+
+**Signature:**
+```typescript
+export const resolveInitialValue
+```
+
+_Source: src/core/render-node.tsx_
+
+### useModelArrayItems
+
+**Kind:** `function`
+
+Итерация модель-массива для компонента-рендерера: подписка на структурные изменения массива
+(add/remove/**reorder**) + кэш поддеревьев по идентичности элемента + обёртка в
+{@link RenderNodeComponent}. Возвращает на элемент `{ key, index, model, element }`. Единственная
+копия итерации — на ней строятся ui-kit `List` (chrome-less) и `FormArray` (add/remove/reorder):
+хром — их, данные (модель для label, индекс для remove) — отсюда. SSR-safe (наследует серверный
+снапшот {@link useModelArrayRevision}). Подписка живёт в компоненте, который реально рендерит.
+
+**Signature:**
+```typescript
+export function useModelArrayItems(
+  control: RenderModelArrayControl,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<unknown>,
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>
+): ReadonlyArray<ModelArrayItem>
+```
+
+_Source: src/core/render-node.tsx_
 
 ### useRenderContext
 

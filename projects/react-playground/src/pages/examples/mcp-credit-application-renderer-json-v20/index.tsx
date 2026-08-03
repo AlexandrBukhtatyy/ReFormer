@@ -1,13 +1,14 @@
-// index.tsx — entry: build model + form from the JSON schema, then render via
-// JsonFormRenderer. The whole 6-step wizard lives in renderer.schema.json; runtime
-// wiring (submit / validation / conditional sections) lives in the render-behavior.
+// index.tsx — entry: build the form bundle from the JSON schema in ONE pass
+// (createJsonForm) and render it via JsonFormRenderer with the `form` prop. The whole
+// 6-step wizard lives in renderer.schema.json; runtime wiring (submit / validation /
+// conditional sections) lives in the render-behavior.
 
 import { useMemo, useState } from 'react';
-import { createForm } from '@reformer/core';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
-  convertJsonToM1Tree,
+  createJsonForm,
+  useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import rawJsonSchema from './renderer.schema.json';
@@ -17,32 +18,32 @@ import { creditBehavior } from './form.behavior';
 import { createJsonRenderBehavior } from './renderer.behavior';
 import type { CreditApplicationForm } from './types';
 
-const jsonSchema = rawJsonSchema as unknown as JsonFormSchema;
+const jsonSchema = rawJsonSchema as unknown as JsonFormSchema<CreditApplicationForm>;
 
 type SubmitResult = { message: string; ok: boolean };
 
 export default function CreditApplicationRendererJsonV20Page() {
   const [result, setResult] = useState<SubmitResult | null>(null);
 
-  const registry = useMemo(() => createRegistry(), []);
-
-  const { model, form } = useMemo(() => {
-    const model = createCreditModel();
-    const form = createForm<CreditApplicationForm>({
-      model,
-      schema: convertJsonToM1Tree(jsonSchema, registry, model),
+  // Сборка одним проходом (§7): бандл createJsonForm, стабильный через useJsonForm (ленивый useState).
+  // Модель передаём готовой (createCreditModel материализует все поля, включая условные/вычисляемые,
+  // чтобы сигналы behavior существовали); схема конвертируется внутри, наружу — { model, form, registry }.
+  const jsonForm = useJsonForm(() =>
+    createJsonForm<CreditApplicationForm>({
+      schema: jsonSchema,
+      registry: createRegistry(),
+      model: createCreditModel(),
       behavior: creditBehavior,
-    });
-    return { model, form };
-  }, [registry]);
+    })
+  );
 
   const renderBehavior = useMemo(
     () =>
-      createJsonRenderBehavior(form, model, {
+      createJsonRenderBehavior(jsonForm.form, jsonForm.model, {
         mode: 'create',
         onResult: (message, ok) => setResult({ message, ok }),
       }),
-    [form, model]
+    [jsonForm]
   );
 
   return (
@@ -70,11 +71,11 @@ export default function CreditApplicationRendererJsonV20Page() {
         </div>
       )}
 
-      <JsonRendererProvider settings={{ registry, model }}>
+      <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
         <JsonFormRenderer<CreditApplicationForm>
-          schema={jsonSchema}
+          form={jsonForm}
           renderBehavior={renderBehavior}
-          validate={import.meta.env.DEV}
+          validateSchema={import.meta.env.DEV}
         />
       </JsonRendererProvider>
     </div>

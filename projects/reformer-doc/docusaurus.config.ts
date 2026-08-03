@@ -207,6 +207,14 @@ const config: Config = {
           position: 'left',
         },
         {
+          // Отдельный Vite-SPA, задеплоен в подкаталог того же Pages-сайта.
+          // `pathname://` → роутер не трогает ссылку и сам подставляет baseUrl (/ReFormer/).
+          href: 'pathname:///builder/',
+          label: 'Builder',
+          position: 'left',
+          className: 'navbar-builder-dev',
+        },
+        {
           type: 'localeDropdown',
           position: 'right',
         },
