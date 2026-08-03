@@ -6,12 +6,19 @@ your only source of truth. Do not assume APIs from memory — look them up here.
 1. **Model** — `createModel<T>(initial)` from `@reformer/core`. One reactive model is the source of
    truth. Type the data as a `type` (not `interface`), initialise every field (numbers `null`,
    strings `''`, arrays `[]`; array-item objects must initialise all their fields).
-2. **Schema** — a tree of field leaves: `{ value: model.$.field, component, componentProps, validators: [...] }`.
-   `value` is a signal (`model.$.x`), never a string.
+2. **Schema** — a tree of field leaves: `{ value: model.$.field, component, componentProps }`.
+   `value` is a signal (`model.$.x`), never a string. The layout carries **no** validation: a leaf
+   `validators: [...]` array still type-checks (legacy field) but the engine that ran it was **removed**,
+   so the rule is silently ignored — see step 4.
 3. **Form** — `createForm({ model, schema })` (not the legacy `{ form: {...} }` overloads).
-4. **Validation** — validators are factories from `@reformer/core/validators` (`required()`, `email()`,
-   `minLength()`) plus custom `ModelValidator (value, scope, root)` for cross-field/async. Run everything
-   with `validateFormModel(model, schema)` — `form.validate()` does NOT run schema validators.
+4. **Validation** — a **standalone schema, not leaf metadata**: rules live in
+   `defineValidationSchema<T>(({ model }) => { … })` and are wired to fields with the ambient operator
+   `validate(sig, [rules])` (`sig` = `model.$.field`); both from `@reformer/core/validation`. A rule is a
+   built-in factory from `@reformer/core/validators` (`required()`, `email()`, `minLength()`) or a `Rule<T>`
+   — an inline `(value) => ValidationError | null`. Run it with the external runner
+   `await validateModel(model, schema)` (returns `Promise<boolean>`, routes errors into the form nodes).
+   The leaf `validators: [...]` array, the `ModelValidator (value, scope, root)` shape and the whole-model
+   runner `validateFormModel(model, schema)` have all been **removed** — never emit them.
 5. **Behaviors** (if needed) — `compute` / `copyFrom` / `enableWhen` / `onChange` via `defineFormBehavior`
    or primitives. A computed field reads OTHER fields and writes its own — avoid cycles.
 6. **Arrays / Wizard** (if needed) — array node `{ array, item, initialValue }` + CDK `FormArray` (key rows
