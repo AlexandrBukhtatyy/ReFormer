@@ -31,6 +31,14 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: MCP prompts ↔ live API
+        # Промпты @reformer/mcp не должны УЧИТЬ снятому из core API
+        # (`validateFormModel`, `ModelValidator`, leaf `validators: [...]`).
+        # Ловится только так: поле `validators` осталось в типах, поэтому такой код
+        # компилируется — tsc и ESLint чисты, а форма молча шлёт пустые обязательные
+        # поля. Упоминания разрешены лишь в отрицательном контексте («removed», «❌» …).
+        run: npm run check:mcp-prompts
+
       - name: Build @reformer/core
         run: npm run build -w @reformer/core
 
