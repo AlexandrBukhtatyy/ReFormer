@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -85,11 +88,23 @@ const isDebugMode = process.env.REFORMER_DEBUG === 'true';
 //   REFORMER_FORM_LAYOUT = 'minimalist' (default) | 'folders'
 //     → default file layout the `create-form` prompt steers toward. Read in prompts/create-form.ts.
 
+// Версия из package.json пакета — иначе клиент видел захардкоженный литерал (в 11.0.0
+// сервер отдавал '6.0.0', что читалось как «npx отдаёт протухший кэш»). Читаем от dist/
+// (../package.json относительно dist/index.js), с безопасным фолбэком.
+function readServerVersion(): string {
+  try {
+    const pkgPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
+    return JSON.parse(readFileSync(pkgPath, 'utf-8')).version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
 // Server instance
 const server = new Server(
   {
     name: 'reformer-mcp',
-    version: '6.0.0',
+    version: readServerVersion(),
   },
   {
     capabilities: {

@@ -307,6 +307,28 @@ export async function getPlanFormPrompt(
 ): Promise<{
   messages: Array<{ role: 'user'; content: { type: 'text'; text: string } }>;
 }> {
+  // MCP Server не валидирует args по inputSchema — обязательный `specPath` может прийти
+  // отсутствующим/не-строкой. Без guard'а resolveSpecPath() бросает на
+  // `resolve(cwd, undefined)`, ошибка уходит в диспетчер и клиент видит пустой ответ
+  // (ср. паттерн guard'а в find-recipe.ts). Возвращаем внятное сообщение вместо throw.
+  if (typeof args.specPath !== 'string' || !args.specPath.trim()) {
+    return {
+      messages: [
+        {
+          role: 'user',
+          content: {
+            type: 'text',
+            text: `❌ **plan-form: не передан обязательный аргумент \`specPath\`**
+
+plan-form строит roadmap из markdown-спеки формы — без пути к ней работать не с чем.
+
+**Что делать:** передай \`specPath\` — путь к спеке (абсолютный или относительно \`${process.cwd()}\`), например \`docs/specs/credit-application-form.md\`. Опционально \`target\` (\`core\` | \`renderer-react\` | \`renderer-json\`) и \`projectPath\`.`,
+          },
+        },
+      ],
+    };
+  }
+
   const resolvedSpecPath = resolveSpecPath(args.specPath);
 
   if (!resolvedSpecPath) {
