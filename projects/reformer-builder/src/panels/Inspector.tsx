@@ -17,7 +17,7 @@ import {
   type JsonFieldNode,
   type JsonNode,
 } from '@reformer/renderer-json';
-import { findByPath, type JsonPath } from '../model';
+import { findByPath, isLeafComponent, kindOf, type JsonPath } from '../model';
 import { setComponentProp, setNodeKey, switchVariant } from '../model';
 import { getCatalogEntry, inspectorGroups, type InspectorProp } from '../catalog';
 import { variantGroupOf } from '../catalog/variants';
@@ -107,6 +107,51 @@ function ModelPathField({ node, path, tab }: { node: JsonNode; path: JsonPath; t
           placeholder="имя_свойства"
           className="h-[26px] min-w-0 flex-1 bg-background font-mono text-xs"
         />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Редактор текстового содержимого узла (`text` — поле УРОВНЯ УЗЛА, не `componentProps`). Им
+ * наполняются как html-теги (`$html(p)`, `$html(h1)`), так и компоненты, чей визуал — это их
+ * содержимое (Button, Badge, Label, Typography*): без него такой узел рендерится пустым.
+ * Рендерер выводит `text` перед `children`, поэтому смешанное содержимое не ломается.
+ *
+ * Пустая строка удаляет ключ. Массив фрагментов (`JsonText` допускает список) строкой не правим —
+ * показываем read-only, чтобы не схлопнуть структуру.
+ */
+function TextContentField({ node, path }: { node: JsonNode; path: JsonPath }) {
+  const raw = (node as { text?: unknown }).text;
+  const isList = Array.isArray(raw);
+  const value = raw == null ? '' : String(raw);
+
+  const set = (next: string) =>
+    editorActions.apply((s) => setNodeKey(s, path, 'text', next === '' ? undefined : next), {
+      coalesceKey: `text@${path.join('.')}`,
+    });
+
+  return (
+    <div className="border-b border-border p-3.5">
+      <div className="mb-2.5 text-[10.5px] font-semibold tracking-wider text-muted-foreground uppercase">
+        Содержимое
+      </div>
+      <div className="flex min-h-6 items-center gap-2.5">
+        <span className="w-24 flex-none truncate text-xs" title="Текстовое содержимое узла (text)">
+          Текст
+        </span>
+        {isList ? (
+          <span className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground">
+            список фрагментов — правьте в JSON
+          </span>
+        ) : (
+          <Input
+            value={value}
+            onChange={(e) => set(e.target.value)}
+            placeholder="без текста"
+            className="h-[26px] min-w-0 flex-1 bg-background text-xs"
+          />
+        )}
       </div>
     </div>
   );
@@ -262,6 +307,11 @@ export function Inspector() {
     <div id="rb-properties" className="flex-1 overflow-auto">
       {tab && (isFieldNode(node) || isArrayNode(node)) && (
         <ModelPathField node={node} path={selPath} tab={tab} />
+      )}
+      {/* Текст — только у узлов, которые могут иметь содержимое: не поле/массив и не лист
+          (Icon/Separator, void-теги `<br>`/`<hr>` — рендерер им содержимое не передаёт вовсе). */}
+      {kindOf(node) === 'container' && !isLeafComponent(node) && (
+        <TextContentField node={node} path={selPath} />
       )}
       {groups.map((group) => (
         <div key={group.group} className="border-b border-border p-3.5">
