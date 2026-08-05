@@ -1,14 +1,15 @@
 /**
- * Панель шаблонов форм: встроенный шаблон, шаблоны проекта (`.reformer/templates`) и локальные
- * (IndexedDB) одним списком. Строка раскрывается в состав файлов; из панели можно сгенерировать
- * форму (в корень проекта), переименовать и удалить шаблон. Создаются шаблоны из дерева файлов —
- * ПКМ «Создать шаблон…» в {@link ./FilesPanel}.
+ * Панель шаблонов форм: встроенные, шаблоны проекта (`.reformer/templates`) и локальные (IndexedDB),
+ * сгруппированные по источнику — сворачиваемые секции со счётчиком, как категории в палитре
+ * компонентов. Клик по строке открывает предпросмотр схемы шаблона, остальное (создать форму,
+ * переименовать, удалить) — контекстное меню. Создаются шаблоны из дерева файлов: ПКМ «Создать
+ * шаблон…» в {@link ./FilesPanel}.
  *
  * @module reformer-builder/panels/TemplatesPanel
  */
 
-import { useEffect, useState } from 'react';
-import { Badge, Button, Input, ScrollArea } from '@reformer/ui-kit';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Input, ScrollArea } from '@reformer/ui-kit';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -24,12 +25,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@reformer/ui-kit/dialog';
-import { FileCode, RotateCcw } from 'lucide-react';
+import { ChevronRight, FileCode, RotateCcw } from 'lucide-react';
 import { deleteTemplate, openTemplatePreview, renameTemplate } from '../app/template-actions';
 import { useProject } from '../store/project-store';
 import { reloadTemplates, useTemplates } from '../store/templates-store';
-import { SOURCE_LABEL, type FormTemplate } from '../templates';
+import { SOURCE_GROUPS, type FormTemplate, type TemplateSource } from '../templates';
 import { FilesDialogs, type FilesDialog } from './FilesDialogs';
+import { cn } from '../lib/cn';
 
 /** Локальный диалог панели: переименование или подтверждение удаления шаблона. */
 type TemplateDialog =
@@ -44,6 +46,19 @@ export function TemplatesPanel() {
 
   const [dialog, setDialog] = useState<TemplateDialog | null>(null);
   const [filesDialog, setFilesDialog] = useState<FilesDialog | null>(null);
+  // Свёрнутые группы (как в палитре компонентов); по умолчанию раскрыты все.
+  const [collapsed, setCollapsed] = useState<Partial<Record<TemplateSource, boolean>>>({});
+  const toggleGroup = (source: TemplateSource) =>
+    setCollapsed((c) => ({ ...c, [source]: !c[source] }));
+
+  // Пустые группы не показываем: без проекта нет «Проект», без своих шаблонов — «Локальные».
+  const groups = useMemo(
+    () =>
+      SOURCE_GROUPS.map(
+        (group) => [group, items.filter((t) => t.source === group.source)] as const
+      ).filter(([, list]) => list.length > 0),
+    [items]
+  );
 
   // Локальные шаблоны доступны и без проекта — подтягиваем их при первом показе панели.
   useEffect(() => {
@@ -74,45 +89,71 @@ export function TemplatesPanel() {
           </div>
         )}
 
-        {items.map((t) => (
-          <ContextMenu key={`${t.source}:${t.id}`}>
-            <ContextMenuTrigger asChild>
+        {groups.map(([{ source, title }, list]) => {
+          const open = !collapsed[source];
+          return (
+            <div key={source} className="border-b border-border last:border-b-0">
               <button
-                onClick={() => openTemplatePreview(t)}
-                title={`${t.description ?? t.name} · ${t.files.length} файлов — клик открывает предпросмотр`}
-                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs hover:bg-muted"
+                type="button"
+                onClick={() => toggleGroup(source)}
+                className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:text-foreground"
               >
-                <FileCode className="h-3.5 w-3.5 flex-none text-primary" />
-                <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                <Badge variant="secondary" className="h-4 flex-none px-1.5 text-[9px]">
-                  {SOURCE_LABEL[t.source]}
-                </Badge>
+                <ChevronRight
+                  className={cn('h-3 w-3 flex-none transition-transform', open && 'rotate-90')}
+                />
+                <span className="min-w-0 flex-1 truncate">{title}</span>
+                <span className="flex-none font-mono text-[10px] font-normal text-muted-foreground/50">
+                  {list.length}
+                </span>
               </button>
-            </ContextMenuTrigger>
-            <ContextMenuContent className="w-52">
-              <ContextMenuItem onClick={() => openTemplatePreview(t)}>
-                Открыть предпросмотр
-              </ContextMenuItem>
-              <ContextMenuItem onClick={() => setFilesDialog({ kind: 'template', dirPath: '' })}>
-                Создать форму…
-              </ContextMenuItem>
-              {t.source !== 'builtin' && (
-                <>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem onClick={() => setDialog({ kind: 'rename', template: t })}>
-                    Переименовать…
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => setDialog({ kind: 'delete', template: t })}
-                  >
-                    Удалить
-                  </ContextMenuItem>
-                </>
+
+              {open && (
+                <div className="flex flex-col gap-0.5 px-2 pb-2">
+                  {list.map((t) => (
+                    <ContextMenu key={`${t.source}:${t.id}`}>
+                      <ContextMenuTrigger asChild>
+                        <button
+                          onClick={() => openTemplatePreview(t)}
+                          title={`${t.description ?? t.name} · ${t.files.length} файлов — клик открывает предпросмотр`}
+                          className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs hover:bg-muted"
+                        >
+                          <FileCode className="h-3.5 w-3.5 flex-none text-primary" />
+                          <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                        </button>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-52">
+                        <ContextMenuItem onClick={() => openTemplatePreview(t)}>
+                          Открыть предпросмотр
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          onClick={() => setFilesDialog({ kind: 'template', dirPath: '' })}
+                        >
+                          Создать форму…
+                        </ContextMenuItem>
+                        {t.source !== 'builtin' && (
+                          <>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem
+                              onClick={() => setDialog({ kind: 'rename', template: t })}
+                            >
+                              Переименовать…
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDialog({ kind: 'delete', template: t })}
+                            >
+                              Удалить
+                            </ContextMenuItem>
+                          </>
+                        )}
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  ))}
+                </div>
               )}
-            </ContextMenuContent>
-          </ContextMenu>
-        ))}
+            </div>
+          );
+        })}
 
         {!items.length && !loading && (
           <div className="px-3 py-3 text-[11px] leading-relaxed text-muted-foreground">

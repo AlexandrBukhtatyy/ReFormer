@@ -12,12 +12,19 @@
 /** Откуда шаблон: зашит в билдер / лежит в каталоге проекта / сохранён локально в браузере. */
 export type TemplateSource = 'builtin' | 'project' | 'local';
 
-/** Подписи источников для бейджей в панели и диалогах. */
+/** Подписи источников для бейджей (единственное число — про один шаблон). */
 export const SOURCE_LABEL: Record<TemplateSource, string> = {
   builtin: 'встроенный',
   project: 'проект',
   local: 'локальный',
 };
+
+/** Заголовки групп панели шаблонов, в порядке показа. */
+export const SOURCE_GROUPS: ReadonlyArray<{ source: TemplateSource; title: string }> = [
+  { source: 'builtin', title: 'Встроенные' },
+  { source: 'project', title: 'Проект' },
+  { source: 'local', title: 'Локальные' },
+];
 
 /** Один файл шаблона. */
 export interface TemplateFile {
