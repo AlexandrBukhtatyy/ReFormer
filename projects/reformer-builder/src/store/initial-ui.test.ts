@@ -40,4 +40,11 @@ describe('initialUi — дефолты UI из runtime-конфига', () => {
     expect(ui.leftPanel).toBeNull();
     expect(ui.lastLeftPanel).toBe('files');
   });
+
+  it('leftPanel: templates — панель шаблонов открыта при старте', () => {
+    setRuntimeConfig({ ui: { leftPanel: 'templates' } });
+    const ui = initialUi();
+    expect(ui.leftPanel).toBe('templates');
+    expect(ui.lastLeftPanel).toBe('templates');
+  });
 });

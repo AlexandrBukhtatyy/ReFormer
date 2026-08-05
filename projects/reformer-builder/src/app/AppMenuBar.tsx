@@ -167,6 +167,14 @@ export function AppMenuBar() {
               <MenubarShortcut>⇧⌘B</MenubarShortcut>
             </MenubarCheckboxItem>
             <MenubarCheckboxItem
+              checked={ui.leftPanel === 'templates'}
+              onCheckedChange={() =>
+                editorActions.setLeftPanel(ui.leftPanel === 'templates' ? null : 'templates')
+              }
+            >
+              Шаблоны
+            </MenubarCheckboxItem>
+            <MenubarCheckboxItem
               checked={ui.rightOpen}
               onCheckedChange={() => editorActions.toggleRight()}
             >

@@ -6,13 +6,13 @@
  * @module reformer-builder/app/EditorLayout
  */
 
-import { useEffect } from 'react';
+import { useEffect, type ReactElement } from 'react';
 import { useDefaultLayout } from 'react-resizable-panels';
 import { TooltipProvider } from '@reformer/ui-kit';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Toaster } from '@reformer/ui-kit/sonner';
 import { activeTab, editorActions, editorStore, useActiveTab, useUi } from '../store';
-import type { LeftPanelKind, PreviewMode, UiState } from '../store';
+import type { LeftPanel, LeftPanelKind, PreviewMode, UiState } from '../store';
 import { emptySchema, type NavDir } from '../model';
 import { getRuntimeConfig } from '../config/state';
 import { saveDialogActions } from '../store/save-dialog';
@@ -23,6 +23,7 @@ import { SaveDialog } from '../canvas/SaveDialog';
 import { QuickAddDialog } from '../canvas/QuickAddDialog';
 import { FilesPanel } from '../panels/FilesPanel';
 import { PalettePanel } from '../panels/PalettePanel';
+import { TemplatesPanel } from '../panels/TemplatesPanel';
 import { Inspector, SelectedTypeBadge } from '../panels/Inspector';
 import { AppToolbar } from './AppToolbar';
 import { seedSchema } from './seed-schema';
@@ -31,6 +32,33 @@ import { cn } from '../lib/cn';
 
 const railTab =
   'rounded-md px-1.5 py-2.5 text-[11.5px] font-medium [writing-mode:vertical-rl] rotate-180 cursor-pointer';
+
+/** Левые панели в порядке рейла: подпись вкладки, заголовок панели и её содержимое. */
+const LEFT_PANELS: ReadonlyArray<{
+  kind: LeftPanelKind;
+  title: string;
+  heading: string;
+  render: () => ReactElement;
+}> = [
+  { kind: 'files', title: 'Файлы', heading: 'Файлы проекта', render: () => <FilesPanel /> },
+  {
+    kind: 'palette',
+    title: 'Палитра',
+    heading: 'Палитра компонентов',
+    render: () => <PalettePanel />,
+  },
+  {
+    kind: 'templates',
+    title: 'Шаблоны',
+    heading: 'Шаблоны форм',
+    render: () => <TemplatesPanel />,
+  },
+];
+
+/** Описание активной левой панели (для свёрнутого сайдбара берём первую — он всё равно не виден). */
+function leftPanelOf(kind: LeftPanel): (typeof LEFT_PANELS)[number] {
+  return LEFT_PANELS.find((p) => p.kind === kind) ?? LEFT_PANELS[0];
+}
 
 /** Фокус в поле ввода / Monaco — там горячие клавиши canvas не перехватываем. */
 function isEditableTarget(t: EventTarget | null): boolean {
@@ -326,26 +354,18 @@ export function EditorLayout() {
         <div className="flex min-h-0 flex-1">
           {/* левый рейл */}
           <div className="flex w-[38px] flex-none flex-col items-center gap-1 border-r border-border bg-sidebar py-1.5">
-            <button
-              onClick={() => editorActions.setLeftPanel(ui.leftPanel === 'files' ? null : 'files')}
-              className={cn(
-                railTab,
-                ui.leftPanel === 'files' ? 'bg-muted' : 'text-muted-foreground hover:bg-muted'
-              )}
-            >
-              Файлы
-            </button>
-            <button
-              onClick={() =>
-                editorActions.setLeftPanel(ui.leftPanel === 'palette' ? null : 'palette')
-              }
-              className={cn(
-                railTab,
-                ui.leftPanel === 'palette' ? 'bg-muted' : 'text-muted-foreground hover:bg-muted'
-              )}
-            >
-              Палитра
-            </button>
+            {LEFT_PANELS.map(({ kind, title }) => (
+              <button
+                key={kind}
+                onClick={() => editorActions.setLeftPanel(ui.leftPanel === kind ? null : kind)}
+                className={cn(
+                  railTab,
+                  ui.leftPanel === kind ? 'bg-muted' : 'text-muted-foreground hover:bg-muted'
+                )}
+              >
+                {title}
+              </button>
+            ))}
           </div>
 
           {/* resizable-ряд: левый сайдбар · центр · инспектор (рейлы — вне группы).
@@ -369,9 +389,9 @@ export function EditorLayout() {
                   className="flex flex-col bg-sidebar outline-none"
                 >
                   <div className="flex h-[34px] flex-none items-center border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
-                    {ui.leftPanel === 'files' ? 'Файлы проекта' : 'Палитра компонентов'}
+                    {leftPanelOf(ui.leftPanel).heading}
                   </div>
-                  {ui.leftPanel === 'files' ? <FilesPanel /> : <PalettePanel />}
+                  {leftPanelOf(ui.leftPanel).render()}
                 </ResizablePanel>
                 <ResizableHandle withHandle />
               </>

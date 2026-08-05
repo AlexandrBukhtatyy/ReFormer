@@ -35,7 +35,8 @@ function TabItem({ id, index, count }: { id: string; index: number; count: numbe
           )}
         >
           <span className="text-muted-foreground">{'{}'}</span>
-          <span>{tab.source.name}</span>
+          {/* Предпросмотр шаблона — временная вкладка: курсивом, как preview-таб в VSCode. */}
+          <span className={cn(tab.source.kind === 'template' && 'italic')}>{tab.source.name}</span>
           {isDirty(tab) && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
           <button
             onClick={(e) => {
