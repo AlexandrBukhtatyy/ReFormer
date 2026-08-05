@@ -16,7 +16,7 @@ import {
   type JsonNode,
 } from '@reformer/renderer-json';
 import { getAt, isPrefix, pathEquals, type JsonPath } from './paths';
-import { childSlots, isNodeLike } from './node-kind';
+import { childSlots, isNodeLike, orientationOf, type Orientation } from './node-kind';
 
 /** Узел по пути (или `undefined`, если по пути не узел). */
 export function findByPath(schema: JsonFormSchema, path: JsonPath): JsonNode | undefined {
@@ -200,18 +200,60 @@ export function firstChildPath(schema: JsonFormSchema, path: JsonPath): JsonPath
   return null;
 }
 
-/** Направление навигации/перемещения. */
+/** Направление навигации/перемещения (нажатая стрелка). */
 export type NavDir = 'up' | 'down' | 'left' | 'right';
 
+/** Смысл стрелки после проекции на ось раскладки: сосед до/после, наружу к родителю, вглубь к ребёнку. */
+export type NavIntent = 'prev' | 'next' | 'out' | 'in';
+
 /**
- * Целевой путь навигации (дерево-outline): `up`/`down` — предыдущий/следующий сосед, `left` —
- * родитель, `right` — первый ребёнок. `null`, если в эту сторону идти некуда.
+ * Ось, вдоль которой лежат соседи узла — это ось раскладки его родителя ({@link orientationOf}).
+ * Горизонтальна только для слота `children` контейнера-ряда: `steps`/`template`/`wrapper` canvas
+ * всегда рисует столбцом, независимо от классов родителя.
+ */
+export function siblingAxis(schema: JsonFormSchema, path: JsonPath): Orientation {
+  if (path[path.length - 2] !== 'children') return 'vertical';
+  const parentP = parentNodePath(path);
+  if (!parentP) return 'vertical';
+  const parentNode = getAt(schema, parentP);
+  return isNodeLike(parentNode) ? orientationOf(parentNode as JsonNode) : 'vertical';
+}
+
+/**
+ * Проекция стрелки на ось раскладки: вдоль оси — соседи (`prev`/`next`), поперёк — движение по
+ * дереву (`out` к родителю, `in` к первому ребёнку). В столбце ↑↓ ходят по соседям, а ←→ — по
+ * дереву; в ряду — наоборот, ←→ по соседям, ↑↓ по дереву.
+ */
+export function navIntent(dir: NavDir, axis: Orientation): NavIntent {
+  const horizontal = axis === 'horizontal';
+  switch (dir) {
+    case 'up':
+      return horizontal ? 'out' : 'prev';
+    case 'down':
+      return horizontal ? 'in' : 'next';
+    case 'left':
+      return horizontal ? 'prev' : 'out';
+    default:
+      return horizontal ? 'next' : 'in';
+  }
+}
+
+/** Смысл стрелки для конкретного узла: {@link navIntent} на его {@link siblingAxis}. */
+export function navIntentAt(schema: JsonFormSchema, path: JsonPath, dir: NavDir): NavIntent {
+  return navIntent(dir, siblingAxis(schema, path));
+}
+
+/**
+ * Целевой путь навигации; стрелка трактуется относительно оси раскладки родителя
+ * ({@link navIntentAt}): вдоль оси — предыдущий/следующий сосед, поперёк — родитель / первый
+ * ребёнок. `null`, если в эту сторону идти некуда.
  */
 export function navTarget(schema: JsonFormSchema, path: JsonPath, dir: NavDir): JsonPath | null {
-  if (dir === 'left') return parentNodePath(path);
-  if (dir === 'right') return firstChildPath(schema, path);
+  const intent = navIntentAt(schema, path, dir);
+  if (intent === 'out') return parentNodePath(path);
+  if (intent === 'in') return firstChildPath(schema, path);
   const sib = siblingInfo(schema, path);
   if (!sib) return null;
-  const next = dir === 'up' ? sib.index - 1 : sib.index + 1;
+  const next = intent === 'prev' ? sib.index - 1 : sib.index + 1;
   return next < 0 || next >= sib.count ? null : [...sib.slotPath, next];
 }

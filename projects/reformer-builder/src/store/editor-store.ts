@@ -75,16 +75,18 @@ export const editorActions = {
   setActiveStep: (index: number) => editorStore.setState((s) => R.setActiveStep(s, index)),
 
   // ── горячие клавиши canvas ──
-  /** Навигация выделения (стрелки); `extend` — Shift-расширение диапазона (up/down). */
+  /**
+   * Навигация выделения (стрелки); направление проецируется на ось раскладки родителя — в
+   * контейнере-ряду по соседям ходят ←→. `extend` — Shift-расширение диапазона вдоль оси.
+   */
   navigate: (dir: NavDir, extend?: boolean) =>
     editorStore.setState((s) => R.navigate(s, dir, extend)),
-  /** Переместить выделение (⌘/Ctrl+стрелки): up/down — реордер, left/right — вынести/внести. */
+  /** Переместить выделение (⌘/Ctrl+стрелки): вдоль оси раскладки — реордер, поперёк — вынести/внести. */
   moveSelection: (dir: NavDir) => editorStore.setState((s) => R.moveSelection(s, dir)),
   /** Удалить выделение (Delete/Backspace). */
   deleteSelection: () => editorStore.setState(R.deleteSelection),
-  /** Дублировать выделение: вниз (⌘/Ctrl+D, ⇧⌥↓) или вверх (⇧⌥↑) — как «Copy Line» в VSCode. */
-  duplicateSelection: (dir: 'up' | 'down' = 'down') =>
-    editorStore.setState((s) => R.duplicateSelection(s, dir)),
+  /** Дублировать выделение: без `dir` (⌘/Ctrl+D) — следом, с ⇧⌥+стрелка — до/после вдоль оси раскладки. */
+  duplicateSelection: (dir?: NavDir) => editorStore.setState((s) => R.duplicateSelection(s, dir)),
   /** Esc: схлопнуть мульти-выделение / подняться к родителю. */
   collapseSelection: () => editorStore.setState(R.collapseSelection),
   /** ⌘/Ctrl+G: сгруппировать выделенные смежные поля в новый div. */

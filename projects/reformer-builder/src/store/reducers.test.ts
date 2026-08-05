@@ -250,6 +250,46 @@ describe('горячие клавиши (навигация/выделение/�
     expect(R.activeTab(s1)!.schema).toBe(R.activeTab(s0)!.schema);
   });
 
+  it('в контейнере-ряду навигация/перемещение/дублирование идут по ←→', () => {
+    // шаг раскладывает свои поля в ряд — ось соседей горизонтальная
+    const s0 = openedSample();
+    let s = R.commit(
+      s0,
+      setComponentProp(R.activeTab(s0)!.schema, P.step0, 'className', 'flex gap-4')
+    );
+    s = R.select(s, P.step0field0);
+    s = R.navigate(s, 'right');
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0field1]);
+    s = R.navigate(s, 'left');
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0field0]);
+    s = R.navigate(s, 'up'); // поперёк ряда — к родителю-шагу
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0]);
+
+    // ⇧→ расширяет выделение вдоль ряда
+    s = R.select(s, P.step0field0);
+    s = R.navigate(s, 'right', true);
+    expect(R.activeTab(s)!.selectionPaths).toEqual([[...P.step0field0], [...P.step0field1]]);
+
+    // ⌘→ реордерит соседей, ⌘↓ этого уже не делает
+    s = R.select(s, P.step0field0);
+    s = R.moveSelection(s, 'right');
+    expect(kidsOf(s, P.step0children).map((c) => c.value)).toEqual([
+      '$model(loanAmount)',
+      '$model(loanType)',
+    ]);
+    const before = R.activeTab(s)!.schema;
+    expect(R.activeTab(R.moveSelection(s, 'down'))!.schema).toBe(before);
+
+    // ⇧⌥← кладёт копию перед блоком; ⇧⌥↑ поперёк оси — no-op
+    s = R.duplicateSelection(s, 'left');
+    expect(kidsOf(s, P.step0children).map((c) => c.value)).toEqual([
+      '$model(loanAmount)',
+      '$model(loanType)',
+      '$model(loanType)',
+    ]);
+    expect(R.activeTab(R.duplicateSelection(s, 'up'))!.schema).toBe(R.activeTab(s)!.schema);
+  });
+
   it('deleteSelection: удаляет узел, выделение → сосед', () => {
     let s = R.select(openedSample(), P.step0field0);
     s = R.deleteSelection(s);

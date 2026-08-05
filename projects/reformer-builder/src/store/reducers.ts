@@ -20,6 +20,7 @@ import {
   isDivContainer,
   isLeafComponent,
   moveNode,
+  navIntentAt,
   navTarget,
   parentNodePath,
   pathEquals,
@@ -438,15 +439,17 @@ function insertSlotOf(
 }
 
 /**
- * Навигация выделения (дерево-outline). `extend` (Shift, только для `up`/`down`) расширяет смежный
- * диапазон соседей от якоря; иначе — одиночное выделение целевого узла.
+ * Навигация выделения по дереву; стрелка трактуется относительно оси раскладки родителя
+ * ({@link navIntentAt}) — в контейнере-ряду по соседям ходят ←→, а не ↑↓. `extend` (Shift, только
+ * вдоль оси) расширяет смежный диапазон соседей от якоря; иначе — одиночное выделение цели.
  */
 export function navigate(state: EditorState, dir: NavDir, extend = false): EditorState {
   return updateActiveTab(state, (tab) => {
     const cursor = tab.selectionPath ?? ['root'];
     const target = navTarget(tab.schema, cursor, dir);
     if (!target) return tab;
-    if (extend && (dir === 'up' || dir === 'down')) {
+    const intent = navIntentAt(tab.schema, cursor, dir);
+    if (extend && (intent === 'prev' || intent === 'next')) {
       const anchor = tab.anchorPath ?? cursor;
       const a = siblingInfo(tab.schema, anchor);
       const t = siblingInfo(tab.schema, target);
@@ -479,7 +482,7 @@ export function collapseSelection(state: EditorState): EditorState {
   });
 }
 
-/** ⌘←: вынести узел на уровень родителя (сразу после него). Только одиночный. */
+/** ⌘ поперёк оси (в столбце ⌘←): вынести узел на уровень родителя (сразу после него). Только одиночный. */
 function moveOut(schema: JsonFormSchema, path: JsonPath): MutationResult | null {
   const parentP = parentNodePath(path);
   if (!parentP) return null;
@@ -488,7 +491,7 @@ function moveOut(schema: JsonFormSchema, path: JsonPath): MutationResult | null 
   return moveNode(schema, path, parentSib.slotPath, parentSib.index + 1);
 }
 
-/** ⌘→: внести узел в предыдущего соседа-контейнер (последним ребёнком). Только одиночный. */
+/** ⌘ вглубь оси (в столбце ⌘→): внести узел в предыдущего соседа-контейнер (последним ребёнком). Только одиночный. */
 function moveIn(schema: JsonFormSchema, path: JsonPath): MutationResult | null {
   const sib = siblingInfo(schema, path);
   if (!sib || sib.index === 0) return null;
@@ -502,20 +505,22 @@ function moveIn(schema: JsonFormSchema, path: JsonPath): MutationResult | null {
 }
 
 /**
- * Переместить выделение: `up`/`down` — реордер смежного блока среди соседей; `left`/`right` —
- * вынести/внести (только одиночное). Всё — с записью в историю.
+ * Переместить выделение; стрелка проецируется на ось раскладки родителя ({@link navIntentAt}):
+ * вдоль оси — реордер смежного блока среди соседей, поперёк — вынести/внести (только одиночное).
+ * Всё — с записью в историю.
  */
 export function moveSelection(state: EditorState, dir: NavDir): EditorState {
   return updateActiveTab(state, (tab) => {
     const block = selectionBlock(tab);
     if (!block) return tab;
-    if (dir === 'up' || dir === 'down') {
+    const intent = navIntentAt(tab.schema, [...block.slotPath, block.start], dir);
+    if (intent === 'prev' || intent === 'next') {
       const res = reorderBlock(
         tab.schema,
         block.slotPath,
         block.start,
         block.count,
-        dir === 'up' ? -1 : 1
+        intent === 'prev' ? -1 : 1
       );
       if (!res) return tab;
       const paths: JsonPath[] = [];
@@ -533,7 +538,7 @@ export function moveSelection(state: EditorState, dir: NavDir): EditorState {
     }
     if (block.count !== 1) return tab;
     const path = [...block.slotPath, block.start];
-    const moved = dir === 'left' ? moveOut(tab.schema, path) : moveIn(tab.schema, path);
+    const moved = intent === 'out' ? moveOut(tab.schema, path) : moveIn(tab.schema, path);
     if (!moved) return tab;
     return pushHistory(tab, { schema: moved.schema, selectionPath: moved.newPath });
   });
@@ -557,15 +562,25 @@ export function deleteSelection(state: EditorState): EditorState {
 }
 
 /**
- * Дублировать выделенный смежный блок соседей (одиночный узел или группу). `dir`:
- * `down` (⌘D / ⇧⌥↓) — копия под блоком, `up` (⇧⌥↑) — над; выделение переходит на копию,
- * курсор сохраняет своё смещение внутри блока (как в {@link moveSelection}).
+ * Дублировать выделенный смежный блок соседей (одиночный узел или группу). Без `dir` (⌘D) — копия
+ * сразу после блока. С `dir` (⇧⌥ + стрелка) направление проецируется на ось раскладки
+ * ({@link navIntentAt}): вдоль оси — копия до/после блока, поперёк — no-op (дублировать некуда).
+ * Выделение переходит на копию, курсор сохраняет своё смещение внутри блока (как в
+ * {@link moveSelection}).
  */
-export function duplicateSelection(state: EditorState, dir: 'up' | 'down' = 'down'): EditorState {
+export function duplicateSelection(state: EditorState, dir?: NavDir): EditorState {
   return updateActiveTab(state, (tab) => {
     const block = selectionBlock(tab);
     if (!block) return tab;
-    const res = duplicateBlock(tab.schema, block.slotPath, block.start, block.count, dir);
+    const intent = dir ? navIntentAt(tab.schema, [...block.slotPath, block.start], dir) : 'next';
+    if (intent !== 'prev' && intent !== 'next') return tab;
+    const res = duplicateBlock(
+      tab.schema,
+      block.slotPath,
+      block.start,
+      block.count,
+      intent === 'prev' ? 'up' : 'down'
+    );
     if (!res) return tab;
     const paths: JsonPath[] = [];
     for (let i = 0; i < block.count; i++) paths.push([...block.slotPath, res.newStart + i]);

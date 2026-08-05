@@ -272,10 +272,12 @@ export function EditorLayout() {
         return;
       }
 
-      // ⇧⌥↓ / ⇧⌥↑ — дублировать выделение вниз/вверх («Copy Line Down/Up» из VSCode).
-      if (e.altKey && e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      // ⇧⌥ + стрелка вдоль оси раскладки — дублировать выделение до/после («Copy Line Down/Up» из
+      // VSCode): в столбце это ⇧⌥↑/↓, в контейнере-ряду — ⇧⌥←/→.
+      const dupDir = e.altKey && e.shiftKey ? arrowDir(e.key) : null;
+      if (dupDir) {
         e.preventDefault();
-        editorActions.duplicateSelection(e.key === 'ArrowDown' ? 'down' : 'up');
+        editorActions.duplicateSelection(dupDir);
         return;
       }
 

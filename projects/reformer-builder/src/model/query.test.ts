@@ -8,8 +8,18 @@ import {
   siblingInfo,
   firstChildPath,
   navTarget,
+  navIntent,
+  siblingAxis,
 } from './query';
+import { getAt } from './paths';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
+
+/** Копия sampleSchema, где первый шаг раскладывает свои поля в ряд. */
+function rowSchema() {
+  const s = sampleSchema();
+  (getAt(s, [...P.step0, 'componentProps']) as Record<string, unknown>).className = 'flex gap-4';
+  return s;
+}
 
 describe('навигация (siblingInfo / firstChildPath / navTarget)', () => {
   it('siblingInfo: позиция среди соседей', () => {
@@ -42,6 +52,39 @@ describe('навигация (siblingInfo / firstChildPath / navTarget)', () => 
     expect(navTarget(s, P.step0, 'right')).toEqual([...P.step0field0]);
     expect(navTarget(s, P.step0, 'down')).toEqual([...P.step1]);
     expect(navTarget(s, P.root, 'left')).toBeNull(); // у корня нет родителя
+  });
+
+  it('siblingAxis: ось соседей = ось раскладки родителя, но только в слоте children', () => {
+    const s = rowSchema();
+    expect(siblingAxis(s, P.step0field0)).toBe('horizontal'); // родитель-шаг стал рядом
+    expect(siblingAxis(sampleSchema(), P.step0field0)).toBe('vertical');
+    // шаги wizard рисуются столбцом всегда, даже если у корня flex-классы
+    expect(siblingAxis(s, P.step0)).toBe('vertical');
+    expect(siblingAxis(s, P.root)).toBe('vertical'); // у корня нет родителя
+  });
+
+  it('navIntent: проекция стрелки на ось раскладки', () => {
+    expect(navIntent('up', 'vertical')).toBe('prev');
+    expect(navIntent('down', 'vertical')).toBe('next');
+    expect(navIntent('left', 'vertical')).toBe('out');
+    expect(navIntent('right', 'vertical')).toBe('in');
+    expect(navIntent('left', 'horizontal')).toBe('prev');
+    expect(navIntent('right', 'horizontal')).toBe('next');
+    expect(navIntent('up', 'horizontal')).toBe('out');
+    expect(navIntent('down', 'horizontal')).toBe('in');
+  });
+
+  it('navTarget в контейнере-ряду: соседи по ←→, по дереву — ↑↓', () => {
+    const s = rowSchema();
+    expect(navTarget(s, P.step0field0, 'right')).toEqual([...P.step0field1]);
+    expect(navTarget(s, P.step0field1, 'left')).toEqual([...P.step0field0]);
+    expect(navTarget(s, P.step0field0, 'left')).toBeNull(); // первый в ряду
+    expect(navTarget(s, P.step0field1, 'right')).toBeNull(); // последний в ряду
+    expect(navTarget(s, P.step0field0, 'up')).toEqual([...P.step0]); // поперёк — к родителю
+    expect(navTarget(s, P.step0field0, 'down')).toBeNull(); // лист, внутрь некуда
+    // шаг лежит в слоте steps — он столбец, навигация по шагам осталась на ↑↓
+    expect(navTarget(s, P.step0, 'down')).toEqual([...P.step1]);
+    expect(navTarget(s, P.step0, 'right')).toEqual([...P.step0field0]);
   });
 });
 
