@@ -47,11 +47,24 @@ describe('навигация (siblingInfo / firstChildPath / navTarget)', () => 
     const s = sampleSchema();
     expect(navTarget(s, P.step0field0, 'down')).toEqual([...P.step0field1]);
     expect(navTarget(s, P.step0field1, 'up')).toEqual([...P.step0field0]);
-    expect(navTarget(s, P.step0field0, 'up')).toBeNull(); // первый
     expect(navTarget(s, P.step0field0, 'left')).toEqual([...P.step0]);
     expect(navTarget(s, P.step0, 'right')).toEqual([...P.step0field0]);
     expect(navTarget(s, P.step0, 'down')).toEqual([...P.step1]);
     expect(navTarget(s, P.root, 'left')).toBeNull(); // у корня нет родителя
+  });
+
+  it('navTarget на границе слота: «дальше» — к соседу предка, «назад» — к родителю', () => {
+    const s = sampleSchema();
+    // последнее поле шага 0 → следующий сосед шага, т.е. шаг 1
+    expect(navTarget(s, P.step0field1, 'down')).toEqual([...P.step1]);
+    // первое поле → родитель-шаг
+    expect(navTarget(s, P.step0field0, 'up')).toEqual([...P.step0]);
+    // подъём идёт по цепочке предков: поле в шаблоне массива последнего шага → выше некуда
+    const inTemplate = [...P.arrayTemplate, 'children', 0] as const;
+    expect(navTarget(s, inTemplate, 'up')).toEqual([...P.arrayTemplate]);
+    expect(navTarget(s, inTemplate, 'down')).toBeNull();
+    expect(navTarget(s, P.step1, 'down')).toBeNull(); // последний шаг, предков с соседями нет
+    expect(navTarget(s, P.root, 'up')).toBeNull();
   });
 
   it('siblingAxis: ось соседей = ось раскладки родителя, но только в слоте children', () => {
@@ -78,8 +91,8 @@ describe('навигация (siblingInfo / firstChildPath / navTarget)', () => 
     const s = rowSchema();
     expect(navTarget(s, P.step0field0, 'right')).toEqual([...P.step0field1]);
     expect(navTarget(s, P.step0field1, 'left')).toEqual([...P.step0field0]);
-    expect(navTarget(s, P.step0field0, 'left')).toBeNull(); // первый в ряду
-    expect(navTarget(s, P.step0field1, 'right')).toBeNull(); // последний в ряду
+    expect(navTarget(s, P.step0field0, 'left')).toEqual([...P.step0]); // край ряда → родитель
+    expect(navTarget(s, P.step0field1, 'right')).toEqual([...P.step1]); // край ряда → сосед предка
     expect(navTarget(s, P.step0field0, 'up')).toEqual([...P.step0]); // поперёк — к родителю
     expect(navTarget(s, P.step0field0, 'down')).toBeNull(); // лист, внутрь некуда
     // шаг лежит в слоте steps — он столбец, навигация по шагам осталась на ↑↓

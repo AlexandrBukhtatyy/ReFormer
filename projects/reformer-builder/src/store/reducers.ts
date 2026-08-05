@@ -27,6 +27,7 @@ import {
   removeIndices,
   reorderBlock,
   siblingInfo,
+  siblingTarget,
   ungroupNode,
   type JsonPath,
   type MutationResult,
@@ -440,16 +441,19 @@ function insertSlotOf(
 
 /**
  * Навигация выделения по дереву; стрелка трактуется относительно оси раскладки родителя
- * ({@link navIntentAt}) — в контейнере-ряду по соседям ходят ←→, а не ↑↓. `extend` (Shift, только
- * вдоль оси) расширяет смежный диапазон соседей от якоря; иначе — одиночное выделение цели.
+ * ({@link navIntentAt}) — в контейнере-ряду по соседям ходят ←→, а не ↑↓, а на границе слота
+ * курсор перешагивает к соседу предка ({@link navTarget}).
+ *
+ * `extend` (Shift, только вдоль оси) расширяет смежный диапазон соседей от якоря и остаётся внутри
+ * слота: через границу контейнера выделение не прыгает, там это no-op.
  */
 export function navigate(state: EditorState, dir: NavDir, extend = false): EditorState {
   return updateActiveTab(state, (tab) => {
     const cursor = tab.selectionPath ?? ['root'];
-    const target = navTarget(tab.schema, cursor, dir);
-    if (!target) return tab;
     const intent = navIntentAt(tab.schema, cursor, dir);
     if (extend && (intent === 'prev' || intent === 'next')) {
+      const target = siblingTarget(tab.schema, cursor, intent);
+      if (!target) return tab;
       const anchor = tab.anchorPath ?? cursor;
       const a = siblingInfo(tab.schema, anchor);
       const t = siblingInfo(tab.schema, target);
@@ -460,7 +464,10 @@ export function navigate(state: EditorState, dir: NavDir, extend = false): Edito
         for (let i = lo; i <= hi; i++) paths.push([...a.slotPath, i]);
         return { ...tab, selectionPath: target, selectionPaths: paths, anchorPath: anchor };
       }
+      return { ...tab, selectionPath: target, selectionPaths: [target], anchorPath: target };
     }
+    const target = navTarget(tab.schema, cursor, dir);
+    if (!target) return tab;
     return { ...tab, selectionPath: target, selectionPaths: [target], anchorPath: target };
   });
 }

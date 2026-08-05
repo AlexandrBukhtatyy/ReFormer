@@ -244,16 +244,50 @@ export function navIntentAt(schema: JsonFormSchema, path: JsonPath, dir: NavDir)
 }
 
 /**
+ * Соседний узел В ТОМ ЖЕ слоте по направлению `intent`; `null` на границе слота (и для узлов вне
+ * массив-слота). Без краевого перехода — им пользуется Shift-расширение выделения, которое живёт
+ * внутри одного слота.
+ */
+export function siblingTarget(
+  schema: JsonFormSchema,
+  path: JsonPath,
+  intent: 'prev' | 'next'
+): JsonPath | null {
+  const sib = siblingInfo(schema, path);
+  if (!sib) return null;
+  const next = intent === 'prev' ? sib.index - 1 : sib.index + 1;
+  return next < 0 || next >= sib.count ? null : [...sib.slotPath, next];
+}
+
+/**
+ * Первый следующий сосед вверх по цепочке предков: выход за конец слота продолжается с соседа
+ * контейнера, потом соседа его контейнера и так далее. `null`, если правее/ниже уже ничего нет.
+ */
+function nextBeyondSlot(schema: JsonFormSchema, path: JsonPath): JsonPath | null {
+  let p = parentNodePath(path);
+  while (p) {
+    const t = siblingTarget(schema, p, 'next');
+    if (t) return t;
+    p = parentNodePath(p);
+  }
+  return null;
+}
+
+/**
  * Целевой путь навигации; стрелка трактуется относительно оси раскладки родителя
  * ({@link navIntentAt}): вдоль оси — предыдущий/следующий сосед, поперёк — родитель / первый
- * ребёнок. `null`, если в эту сторону идти некуда.
+ * ребёнок.
+ *
+ * На границе слота курсор не упирается, а перешагивает её (как обход дерева в DevTools):
+ * «дальше» с последнего узла — на следующего соседа ближайшего предка ({@link nextBeyondSlot}),
+ * «назад» с первого — на родителя. Вглубь контейнера ↑↓ при этом не проваливаются: вход внутрь
+ * остаётся отдельным направлением (`in`). `null`, если идти уже некуда.
  */
 export function navTarget(schema: JsonFormSchema, path: JsonPath, dir: NavDir): JsonPath | null {
   const intent = navIntentAt(schema, path, dir);
   if (intent === 'out') return parentNodePath(path);
   if (intent === 'in') return firstChildPath(schema, path);
-  const sib = siblingInfo(schema, path);
-  if (!sib) return null;
-  const next = intent === 'prev' ? sib.index - 1 : sib.index + 1;
-  return next < 0 || next >= sib.count ? null : [...sib.slotPath, next];
+  const sib = siblingTarget(schema, path, intent);
+  if (sib) return sib;
+  return intent === 'prev' ? parentNodePath(path) : nextBeyondSlot(schema, path);
 }

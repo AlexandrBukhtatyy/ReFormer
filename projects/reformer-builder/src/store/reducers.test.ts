@@ -221,17 +221,28 @@ describe('горячие клавиши (навигация/выделение/�
     expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0]);
     s = R.navigate(s, 'right');
     expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0field0]);
-    s = R.navigate(s, 'up'); // первый сосед — некуда
-    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0field0]);
+    s = R.navigate(s, 'up'); // первый в слоте — шаг через границу, к родителю
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step0]);
   });
 
-  it('navigate extend (Shift): смежный диапазон соседей + якорь', () => {
+  it('navigate: на границе слота курсор перешагивает к соседу предка', () => {
+    let s = R.select(openedSample(), P.step0field1); // последнее поле шага 0
+    s = R.navigate(s, 'down');
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step1]);
+    s = R.navigate(s, 'down'); // последний шаг — дальше некуда
+    expect(R.activeTab(s)!.selectionPath).toEqual([...P.step1]);
+  });
+
+  it('navigate extend (Shift): смежный диапазон соседей + якорь, границу слота не переходит', () => {
     let s = R.select(openedSample(), P.step0field0);
     s = R.navigate(s, 'down', true);
     const t = R.activeTab(s)!;
     expect(t.selectionPath).toEqual([...P.step0field1]);
     expect(t.selectionPaths).toEqual([[...P.step0field0], [...P.step0field1]]);
     expect(t.anchorPath).toEqual([...P.step0field0]);
+    // ещё раз вниз — соседа в слоте больше нет, выделение остаётся прежним
+    const s2 = R.navigate(s, 'down', true);
+    expect(R.activeTab(s2)!.selectionPaths).toEqual(t.selectionPaths);
   });
 
   it('moveSelection: реордер одиночного среди соседей, курсор следует', () => {
