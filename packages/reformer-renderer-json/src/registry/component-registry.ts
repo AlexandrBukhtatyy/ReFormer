@@ -47,25 +47,49 @@ export class ComponentRegistryImpl implements ComponentRegistry {
 
   static withParent(parent: ComponentRegistry, child: ComponentRegistry): ComponentRegistry {
     const merged = new ComponentRegistryImpl();
-    // Копируем записи реестра. Свой impl → берём напрямую `own`; кастомная реализация
-    // публичного `ComponentRegistry` (без `own`) → публичный fallback через names()/get(),
-    // чтобы не падать `Cannot read properties of undefined (reading 'forEach')`.
+    // Копируем ВСЕГДА через публичные names()/get(): у своего impl они обходят и `own`,
+    // и parent-цепочку.
+    //
+    // Раньше для `ComponentRegistryImpl` здесь читался напрямую `reg.own` — и составной
+    // child терял собственный parent. Во вложенных провайдерах это не проявлялось (там
+    // составным всегда оказывается `parent`), но программная композиция делает обратное:
+    //   inner = withParent(ядро, расширения)   → parent=ядро, own=расширения
+    //   outer = withParent(хост, inner)        → own=расширения, ЯДРО ПОТЕРЯНО
+    // Отказ — `Component "..." not found in registry` из синхронного конвертера, в проде.
     const copyEntries = (reg: ComponentRegistry): void => {
-      if (reg instanceof ComponentRegistryImpl) {
-        reg.own.forEach((meta, name) => merged.own.set(name, meta));
-      } else {
-        for (const name of reg.names()) {
-          const meta = reg.get(name);
-          if (meta) merged.own.set(name, meta);
-        }
+      for (const name of reg.names()) {
+        const meta = reg.get(name);
+        if (meta) merged.own.set(name, meta);
       }
     };
     // parent как живая цепочка (только для своего impl); иначе вкладываем его записи в own.
     if (parent instanceof ComponentRegistryImpl) merged.parent = parent;
     else copyEntries(parent);
-    copyEntries(child); // child перекрывает parent
+    copyEntries(child); // child перекрывает parent (last-wins)
     return merged;
   }
+}
+
+/**
+ * Композиция реестров слева направо: каждый следующий перекрывает предыдущие
+ * (last-wins, как `Object.assign`).
+ *
+ * Программная альтернатива вложенным {@link JsonRendererProvider}. Нужна там, где порядок
+ * ВЛАДЕНИЯ (форма → микрофронт → общее ядро) не совпадает с порядком React-дерева, а также
+ * в не-React окружении и когда провайдер и рендерер оказываются в разных бандлах.
+ *
+ * @param registries - Реестры от наименее приоритетного к наиболее приоритетному.
+ * @returns Объединённый {@link ComponentRegistry}; пустой, если аргументов нет.
+ *
+ * @example Общее ядро + расширения микрофронта + специфика формы
+ * ```typescript
+ * const registry = composeRegistries(coreRegistry, mfeRegistry, formRegistry);
+ * // formRegistry перекрывает mfeRegistry, тот — coreRegistry
+ * ```
+ */
+export function composeRegistries(...registries: readonly ComponentRegistry[]): ComponentRegistry {
+  if (registries.length === 0) return new ComponentRegistryImpl();
+  return registries.reduce((acc, next) => ComponentRegistryImpl.withParent(acc, next));
 }
 
 /**

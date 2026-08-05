@@ -13,6 +13,8 @@
 export { JsonFormRenderer } from './components/json-form-renderer';
 export type { JsonFormRendererProps } from './components/json-form-renderer';
 export { SchemaErrorPanel } from './components/schema-error-panel';
+export { SchemaErrorBoundary } from './components/schema-error-boundary';
+export type { SchemaErrorBoundaryProps } from './components/schema-error-boundary';
 export type { SchemaErrorPanelProps } from './components/schema-error-panel';
 
 // ============================================================================
@@ -65,9 +67,17 @@ export { ALLOWED_HTML_TAGS, isAllowedHtmlTag, sanitizeHtmlProps } from './html/h
 // Component Registry
 // ============================================================================
 
-export { defineRegistry } from './registry/component-registry';
+export { defineRegistry, composeRegistries } from './registry/component-registry';
 export { FIELD_WRAPPER, LOCALE_SERVICE } from './registry/constants';
 export type { ComponentRegistry, ComponentMetadata, RegistryBuilder } from './registry/types';
+
+// ============================================================================
+// Анализ схемы (preflight: что схема требует от реестра и от render-behavior)
+// ============================================================================
+
+export { collectOperatorNames } from './collect-operator-names';
+export type { OperatorNames } from './collect-operator-names';
+export { collectSchemaSelectors } from './collect-schema-selectors';
 
 // ============================================================================
 // Локализация (оператор "$locale(key)" + структурная форма + реактивный <I18n>)
@@ -89,7 +99,11 @@ export { useSignalValues, unwrapSignalValues } from './locale/use-signal-value';
 // Context Provider & Settings
 // ============================================================================
 
-export { JsonRendererProvider, useJsonRendererSettings } from './context/json-renderer-context';
+export {
+  JsonRendererProvider,
+  useJsonRendererSettings,
+  useJsonRendererSettingsUnchecked,
+} from './context/json-renderer-context';
 export type {
   JsonRendererSettings,
   JsonRendererProviderProps,

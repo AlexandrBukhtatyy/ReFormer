@@ -38,8 +38,9 @@ export interface JsonRendererProviderProps {
  * Провайдер настроек для {@link JsonFormRenderer}. Прокидывает реестр и
  * fieldWrapper во вложенные компоненты через React Context.
  *
- * Поддерживает вложенность: внутренний провайдер сливается с внешним
- * (внешний имеет приоритет в случае дублей имён в реестре).
+ * Поддерживает вложенность: внутренний провайдер сливается с внешним. При дублях имён
+ * выигрывает **внутренний** (последний), как у `Object.assign` — внешний задаёт базу,
+ * внутренний её перекрывает. Программный аналог без React — {@link composeRegistries}.
  *
  * @example M1: реестр через settings (глобально), модель — пропом рендерера (per-form)
  * ```tsx
@@ -101,11 +102,26 @@ export function JsonRendererProvider({ settings, children }: JsonRendererProvide
  * ```
  */
 export function useJsonRendererSettings(): JsonRendererSettings {
-  const settings = useContext(JsonRendererContext);
+  const settings = useJsonRendererSettingsUnchecked();
   if (import.meta.env.DEV && !settings.registry) {
     throw new Error(
       '[JsonRenderer] No registry found. Wrap your app in <JsonRendererProvider settings={{ registry }}>.'
     );
   }
   return settings;
+}
+
+/**
+ * Настройки БЕЗ DEV-guard на наличие реестра.
+ *
+ * Для потребителей, которые получают реестр другим каналом (проп `registry` у
+ * {@link JsonFormRenderer}, программная {@link composeRegistries}) и вправе обходиться без
+ * провайдера. Ключевой случай — микрофронты: React-контекст не пересекает границу бандла,
+ * поэтому провайдер хоста невидим рендереру из ремоута, и обязательный guard ломал бы
+ * полностью рабочую конфигурацию. Проверку наличия реестра делает вызывающий.
+ *
+ * @returns Текущие {@link JsonRendererSettings} как есть (возможно, пустые).
+ */
+export function useJsonRendererSettingsUnchecked(): JsonRendererSettings {
+  return useContext(JsonRendererContext);
 }

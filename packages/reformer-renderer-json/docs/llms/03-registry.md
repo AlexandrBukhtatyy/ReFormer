@@ -116,7 +116,7 @@ const settings: JsonRendererSettings = {
 
 - **Забыть зарегистрировать `FIELD_WRAPPER`** — поля будут рендериться без обёртки (нет label/error). В большинстве случаев это ошибка.
 - **Регистрировать React-element вместо компонента** — `reg.component('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.component('Input', Input)`.
-- **Ожидать наследования между вложенными `JsonRendererProvider`** — реестр сливается через `withParent`, дубли решаются по приоритету (внешний > внутренний).
+- **Путать приоритет вложенных `JsonRendererProvider`** — реестры сливаются через `withParent`, и при дублях выигрывает **внутренний** (последний), как у `Object.assign`. Внешний провайдер задаёт базу, внутренний её перекрывает. Для программной композиции без React есть `composeRegistries(base, ...overrides)` с тем же правилом.
 - **Использовать `$dataSource(NAME)` без регистрации** — без `validateSchema` строка просто прокинется в проп как есть (молчаливый баг); с `validateSchema` даст ошибку `unknown dataSource "NAME"`.
 - **Ссылаться на dataSource как на компонент** — `component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` зарегистрирован через `reg.dataSource`, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`. dataSource — только для значений в `componentProps`.
 - **Регистрировать функцию как `dataSource` и ссылаться `$fn`** (или наоборот) — виды раздельны: `$fn(name)` резолвит только `reg.fn`-записи, `$dataSource(NAME)` — только `reg.dataSource`. Перекрёстная ссылка бросит `Entry "..." is a '...' and cannot be used as $fn(...)` и отклонится на `validateSchema`.

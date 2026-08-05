@@ -22,6 +22,14 @@ export interface SchemaErrorBoundaryProps {
    * ошибку и пробует отрисовать заново. Иначе React держит error-состояние до размонтирования.
    */
   resetKey?: unknown;
+  /**
+   * Своя отрисовка ошибки вместо {@link SchemaErrorPanel}.
+   *
+   * Нужна потребителям, которые монтируют форму по данным извне (реестр форм, схема из сети):
+   * там уместнее показать доменную панель с кнопкой повтора и идентификатором формы, чем
+   * техническую подсказку про мета-схему.
+   */
+  fallback?: (error: Error) => ReactNode;
 }
 
 interface SchemaErrorBoundaryState {
@@ -56,11 +64,12 @@ export class SchemaErrorBoundary extends Component<
   }
 
   render(): ReactNode {
-    if (this.state.error) {
+    const { error } = this.state;
+    if (error) {
       return (
-        <SchemaErrorPanel
-          errors={[`Schema conversion/render failed: ${this.state.error.message}`]}
-        />
+        this.props.fallback?.(error) ?? (
+          <SchemaErrorPanel errors={[`Schema conversion/render failed: ${error.message}`]} />
+        )
       );
     }
     return this.props.children;

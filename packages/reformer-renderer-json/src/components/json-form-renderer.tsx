@@ -4,17 +4,20 @@
  * @module reformer/renderer-json/components
  */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import {
   FormRenderer,
   createRenderSchema,
+  type FieldWrapperProps,
   type RenderBehaviorFn,
   type RenderSchemaProxy,
 } from '@reformer/renderer-react';
 import type { FormModel } from '@reformer/core';
 import type { JsonFormSchema } from '../types/json-schema';
 import type { JsonForm } from '../create-json-form';
-import { useJsonRendererSettings } from '../context/json-renderer-context';
+import { useJsonRendererSettingsUnchecked } from '../context/json-renderer-context';
+import { FIELD_WRAPPER } from '../registry/constants';
+import type { ComponentRegistry } from '../registry/types';
 import { createRenderSchemaFromJsonM1 } from '../converter/json-to-render-schema';
 import { collectSchemaSelectors } from '../collect-schema-selectors';
 import { SchemaErrorPanel } from './schema-error-panel';
@@ -44,6 +47,16 @@ export interface JsonFormRendererProps<T> {
    * Опционально, если задан `form`.
    */
   model?: FormModel<T>;
+  /**
+   * Реестр компонентов. Приоритет: `registry` → `form.registry` → контекст
+   * {@link JsonRendererProvider}.
+   *
+   * Нужен, когда провайдер и рендерер оказываются в РАЗНЫХ бандлах (микрофронты): React-контекст
+   * границу бандла не пересекает, поэтому провайдер хоста невидим рендереру из ремоута. В прод-сборке
+   * такой отказ МОЛЧАЛИВЫЙ — DEV-guard в `useJsonRendererSettings` вырезается при сборке пакета.
+   * Проп убирает эту точку отказа: реестр передаётся напрямую, провайдер становится необязательным.
+   */
+  registry?: ComponentRegistry;
   /** Опциональный behavior: hideWhen/patchProps/onComponentEvent поверх готовой схемы. */
   renderBehavior?: RenderBehaviorFn<T>;
   /** Колбэк, получающий построенный `RenderSchemaProxy` для внешних манипуляций. */
@@ -126,15 +139,32 @@ export function JsonFormRenderer<T>({
   form,
   schema: schemaProp,
   model: modelProp,
+  registry: registryProp,
   renderBehavior,
   onSchemaReady,
   validateSchema = false,
 }: JsonFormRendererProps<T>): ReactNode {
-  const { registry, ...rendererSettings } = useJsonRendererSettings();
+  // Unchecked: реестр может прийти пропом или из бандла `form`, и тогда провайдер не нужен —
+  // обязательный DEV-guard ломал бы полностью рабочую конфигурацию (микрофронты). Проверка ниже.
+  const { registry: contextRegistry, ...rendererSettings } = useJsonRendererSettingsUnchecked();
 
   // Бандл createJsonForm (проп `form`) поставляет schema+model; иначе — отдельные пропы schema+model.
   const schema = form?.schema ?? schemaProp;
   const model = form?.model ?? modelProp;
+  // Явный проп важнее бандла, бандл важнее контекста.
+  const registry = registryProp ?? form?.registry ?? contextRegistry;
+
+  // `$fieldWrapper` — не обычный компонент: из реестра его достаёт ПРОВАЙДЕР и кладёт в
+  // `settings.fieldWrapper`. Реестр, пришедший пропом или бандлом `form`, провайдера не проходит,
+  // поэтому обёртку берём из того реестра, который реально используется. Без этого поля
+  // рендерились бы голыми — без label, hint и ошибок, — и притом молча.
+  const ownFieldWrapper =
+    registry && registry !== contextRegistry
+      ? (registry.get(FIELD_WRAPPER)?.component as ComponentType<FieldWrapperProps> | undefined)
+      : undefined;
+  const settings = ownFieldWrapper
+    ? { ...rendererSettings, fieldWrapper: ownFieldWrapper }
+    : rendererSettings;
 
   // Результат валидации схемы: `undefined` — ещё считаем (validateSchema вкл.), `null` — выключена/прошла,
   // непустой массив — невалидна (рисуем панель вместо формы). ajv грузится динамически.
@@ -242,7 +272,7 @@ export function JsonFormRenderer<T>({
   // При выключенном validateSchema (prod) boundary рисует панель ошибок вместо белого экрана.
   return (
     <SchemaErrorBoundary resetKey={schemaProxy}>
-      <FormRenderer render={schemaProxy} settings={rendererSettings} />
+      <FormRenderer render={schemaProxy} settings={settings} />
     </SchemaErrorBoundary>
   );
 }

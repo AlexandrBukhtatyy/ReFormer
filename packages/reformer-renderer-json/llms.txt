@@ -451,7 +451,7 @@ const settings: JsonRendererSettings = {
 
 - **Забыть зарегистрировать `FIELD_WRAPPER`** — поля будут рендериться без обёртки (нет label/error). В большинстве случаев это ошибка.
 - **Регистрировать React-element вместо компонента** — `reg.component('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.component('Input', Input)`.
-- **Ожидать наследования между вложенными `JsonRendererProvider`** — реестр сливается через `withParent`, дубли решаются по приоритету (внешний > внутренний).
+- **Путать приоритет вложенных `JsonRendererProvider`** — реестры сливаются через `withParent`, и при дублях выигрывает **внутренний** (последний), как у `Object.assign`. Внешний провайдер задаёт базу, внутренний её перекрывает. Для программной композиции без React есть `composeRegistries(base, ...overrides)` с тем же правилом.
 - **Использовать `$dataSource(NAME)` без регистрации** — без `validateSchema` строка просто прокинется в проп как есть (молчаливый баг); с `validateSchema` даст ошибку `unknown dataSource "NAME"`.
 - **Ссылаться на dataSource как на компонент** — `component: '$component(EMPTY_PLACEHOLDER)'`, где `EMPTY_PLACEHOLDER` зарегистрирован через `reg.dataSource`, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`. dataSource — только для значений в `componentProps`.
 - **Регистрировать функцию как `dataSource` и ссылаться `$fn`** (или наоборот) — виды раздельны: `$fn(name)` резолвит только `reg.fn`-записи, `$dataSource(NAME)` — только `reg.dataSource`. Перекрёстная ссылка бросит `Entry "..." is a '...' and cannot be used as $fn(...)` и отклонится на `validateSchema`.
@@ -471,7 +471,7 @@ const settings: JsonRendererSettings = {
 - `defineRegistry` действительно содержит `reg.component('X', ...)` или `reg.dataSource('X', ...)`.
 - В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
 - `JsonFormRenderer` обёрнут в `JsonRendererProvider` с этим реестром.
-- Если используются вложенные провайдеры — реестр внутреннего провайдера наследуется через `withParent`, но дубли разрешаются в пользу внешнего.
+- Если используются вложенные провайдеры — реестры сливаются через `withParent`, и при дублях имени выигрывает **внутренний** провайдер (последний в цепочке).
 
 ## 19. Field renders without label/error
 
@@ -1787,6 +1787,50 @@ export interface BuildFormSchemaMetaSchemaOptions {
 
 _Source: src/schema/index.ts_
 
+### collectOperatorNames
+
+**Kind:** `function`
+
+Собирает имена операторов из схемы формы.
+
+**Signature:**
+```typescript
+export function collectOperatorNames(schema: JsonFormSchema): OperatorNames
+```
+
+**Parameters:**
+- `schema` — - JSON-схема формы.
+
+**Returns:** 
+
+**Examples:**
+
+```typescript
+const used = collectOperatorNames(schema);
+const missing = used.components.filter((n) => !registry.has(n));
+if (missing.length) throw new Error(`Не зарегистрированы: ${missing.join(', ')}`);
+```
+
+_Source: src/collect-operator-names.ts_
+
+### collectSchemaSelectors
+
+**Kind:** `function`
+
+Собирает множество всех `selector` из JSON-схемы (включая вложенные в `componentProps` ноды).
+
+**Signature:**
+```typescript
+export function collectSchemaSelectors(schema: JsonFormSchema): Set<string>
+```
+
+**Parameters:**
+- `schema` — - JSON-схема формы.
+
+**Returns:** Множество известных селекторов.
+
+_Source: src/collect-schema-selectors.ts_
+
 ### ComponentMetadata
 
 **Kind:** `interface`
@@ -1875,6 +1919,37 @@ registry.names(); // ['Input', 'Box', 'LOAN_TYPES', ...]
 ```
 
 _Source: src/registry/types.ts_
+
+### composeRegistries
+
+**Kind:** `function`
+
+Композиция реестров слева направо: каждый следующий перекрывает предыдущие
+(last-wins, как `Object.assign`).
+
+Программная альтернатива вложенным {@link JsonRendererProvider}. Нужна там, где порядок
+ВЛАДЕНИЯ (форма → микрофронт → общее ядро) не совпадает с порядком React-дерева, а также
+в не-React окружении и когда провайдер и рендерер оказываются в разных бандлах.
+
+**Signature:**
+```typescript
+export function composeRegistries(...registries: readonly ComponentRegistry[]): ComponentRegistry
+```
+
+**Parameters:**
+- `registries` — - Реестры от наименее приоритетного к наиболее приоритетному.
+
+**Returns:** Объединённый {@link ComponentRegistry}; пустой, если аргументов нет.
+
+**Examples:**
+
+Общее ядро + расширения микрофронта + специфика формы
+```typescript
+const registry = composeRegistries(coreRegistry, mfeRegistry, formRegistry);
+// formRegistry перекрывает mfeRegistry, тот — coreRegistry
+```
+
+_Source: src/registry/component-registry.ts_
 
 ### convertJsonToM1Tree
 
@@ -2805,6 +2880,7 @@ export function JsonFormRenderer<T>({
   form,
   schema: schemaProp,
   model: modelProp,
+  registry: registryProp,
   renderBehavior,
   onSchemaReady,
   validateSchema = false,
@@ -2897,6 +2973,16 @@ export interface JsonFormRendererProps<T> {
    * Опционально, если задан `form`.
    */
   model?: FormModel<T>;
+  /**
+   * Реестр компонентов. Приоритет: `registry` → `form.registry` → контекст
+   * {@link JsonRendererProvider}.
+   *
+   * Нужен, когда провайдер и рендерер оказываются в РАЗНЫХ бандлах (микрофронты): React-контекст
+   * границу бандла не пересекает, поэтому провайдер хоста невидим рендереру из ремоута. В прод-сборке
+   * такой отказ МОЛЧАЛИВЫЙ — DEV-guard в `useJsonRendererSettings` вырезается при сборке пакета.
+   * Проп убирает эту точку отказа: реестр передаётся напрямую, провайдер становится необязательным.
+   */
+  registry?: ComponentRegistry;
   /** Опциональный behavior: hideWhen/patchProps/onComponentEvent поверх готовой схемы. */
   renderBehavior?: RenderBehaviorFn<T>;
   /** Колбэк, получающий построенный `RenderSchemaProxy` для внешних манипуляций. */
@@ -2991,8 +3077,9 @@ _Source: src/operators.ts_
 Провайдер настроек для {@link JsonFormRenderer}. Прокидывает реестр и
 fieldWrapper во вложенные компоненты через React Context.
 
-Поддерживает вложенность: внутренний провайдер сливается с внешним
-(внешний имеет приоритет в случае дублей имён в реестре).
+Поддерживает вложенность: внутренний провайдер сливается с внешним. При дублях имён
+выигрывает **внутренний** (последний), как у `Object.assign` — внешний задаёт базу,
+внутренний её перекрывает. Программный аналог без React — {@link composeRegistries}.
 
 **Signature:**
 ```typescript
@@ -3233,6 +3320,28 @@ export type ModelOp<T = unknown> = `$model(${Path<T>})`;
 
 _Source: src/operators.ts_
 
+### OperatorNames
+
+**Kind:** `interface`
+
+Имена, к которым схема обращается через операторы.
+
+**Signature:**
+```typescript
+export interface OperatorNames {
+  /** Имена из `$component(...)`. */
+  components: string[];
+  /** Имена из `$dataSource(...)`. */
+  dataSources: string[];
+  /** Имена из `$fn(...)`. */
+  fns: string[];
+  /** Ключи из `$locale(...)`. */
+  locales: string[];
+}
+```
+
+_Source: src/collect-operator-names.ts_
+
 ### ParsedOperator
 
 **Kind:** `interface`
@@ -3373,6 +3482,49 @@ sanitizeHtmlProps({ className: 'p-4', href: 'javascript:alert(1)' }, 'a');
 ```
 
 _Source: src/html/html-tags.ts_
+
+### SchemaErrorBoundary
+
+**Kind:** `class`
+
+**Signature:**
+```typescript
+export class SchemaErrorBoundary extends Component<
+  SchemaErrorBoundaryProps,
+  SchemaErrorBoundaryState
+> { /* … */ }
+```
+
+_Source: src/components/schema-error-boundary.tsx_
+
+### SchemaErrorBoundaryProps
+
+**Kind:** `interface`
+
+Props of {@link SchemaErrorBoundary}.
+
+**Signature:**
+```typescript
+export interface SchemaErrorBoundaryProps {
+  /** Поддерево рендера формы (обычно `<FormRenderer />`). */
+  children: ReactNode;
+  /**
+   * Ключ сброса: при изменении (новая схема/модель → новый `schemaProxy`) boundary забывает прошлую
+   * ошибку и пробует отрисовать заново. Иначе React держит error-состояние до размонтирования.
+   */
+  resetKey?: unknown;
+  /**
+   * Своя отрисовка ошибки вместо {@link SchemaErrorPanel}.
+   *
+   * Нужна потребителям, которые монтируют форму по данным извне (реестр форм, схема из сети):
+   * там уместнее показать доменную панель с кнопкой повтора и идентификатором формы, чем
+   * техническую подсказку про мета-схему.
+   */
+  fallback?: (error: Error) => ReactNode;
+}
+```
+
+_Source: src/components/schema-error-boundary.tsx_
 
 ### SchemaErrorPanel
 
@@ -3530,6 +3682,27 @@ function MyControl() {
   return <span>{registry?.has('Input') ? 'ready' : 'not registered'}</span>;
 }
 ```
+
+_Source: src/context/json-renderer-context.tsx_
+
+### useJsonRendererSettingsUnchecked
+
+**Kind:** `function`
+
+Настройки БЕЗ DEV-guard на наличие реестра.
+
+Для потребителей, которые получают реестр другим каналом (проп `registry` у
+{@link JsonFormRenderer}, программная {@link composeRegistries}) и вправе обходиться без
+провайдера. Ключевой случай — микрофронты: React-контекст не пересекает границу бандла,
+поэтому провайдер хоста невидим рендереру из ремоута, и обязательный guard ломал бы
+полностью рабочую конфигурацию. Проверку наличия реестра делает вызывающий.
+
+**Signature:**
+```typescript
+export function useJsonRendererSettingsUnchecked(): JsonRendererSettings
+```
+
+**Returns:** Текущие {@link JsonRendererSettings} как есть (возможно, пустые).
 
 _Source: src/context/json-renderer-context.tsx_
 
