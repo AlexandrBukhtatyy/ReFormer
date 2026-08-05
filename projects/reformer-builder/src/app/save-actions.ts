@@ -31,13 +31,7 @@ import {
   validationTsTemplate,
   formBehaviorTsTemplate,
   renderBehaviorTsTemplate,
-  registryTsTemplate,
-  indexTsxTemplate,
-  resolveFormDirFiles,
-  type FormDirFiles,
 } from './form-templates';
-
-export type { FormDirFiles } from './form-templates';
 import { scanDirectory, formsOf, type TreeEntry } from '../io/discovery';
 import { resolvePrinterOptions } from '../io/prettier-config';
 import { prepareSave, commitSave, type SavePlan } from '../io/save';
@@ -49,6 +43,7 @@ import { showValidationErrors } from './validation-toast';
 import { editorActions } from '../store';
 import type { TabState } from '../store';
 import { projectActions, projectStore } from '../store/project-store';
+import { reloadTemplates } from '../store/templates-store';
 import { saveDialogActions } from '../store/save-dialog';
 
 const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -62,6 +57,8 @@ async function scan(dir: FileSystemDirectoryHandle): Promise<void> {
     const [tree, configs] = await Promise.all([scanDirectory(dir), readPrettierConfigs(dir)]);
     const printer = resolvePrinterOptions(configs);
     projectActions.set({ tree, printer, scanning: false, canReopen: true, error: null });
+    // Шаблоны проекта живут в его каталоге — перечитываем на каждый скан (в фоне, скан не блокируем).
+    void reloadTemplates();
     const forms = formsOf(tree).length;
     console.debug(
       '[reformer-builder] scan',
@@ -223,7 +220,7 @@ export async function rescanProject(): Promise<void> {
 }
 
 /** Открыть только что созданный файл: схему — в canvas, прочее — code-вкладкой. */
-async function openCreatedFile(
+export async function openCreatedFile(
   path: string,
   name: string,
   handle: FileSystemFileHandle,
@@ -360,45 +357,6 @@ export function generateRenderBehavior(dirPath: string): Promise<void> {
     renderBehaviorTsTemplate(formNameOf(dirPath)),
     false
   );
-}
-
-/** Сгенерировать каталог формы `<formName>/` с выбранными файлами; form.json открыть в canvas. */
-export async function generateFormDirectory(
-  parentPath: string,
-  formName: string,
-  which: FormDirFiles
-): Promise<void> {
-  const root = projectRoot();
-  if (!root) {
-    toast('Проект не открыт');
-    return;
-  }
-  try {
-    const files = resolveFormDirFiles(which);
-    const folder = await uniqueName(root, parentPath, formName);
-    await createDirectory(root, parentPath, folder);
-    const dirPath = joinPath(parentPath, folder);
-
-    let formHandle: FileSystemFileHandle | null = null;
-    if (files.model) await createFile(root, dirPath, 'model.ts', modelTsTemplate(formName));
-    if (files.form) formHandle = await createFile(root, dirPath, 'form.json', formJsonTemplate());
-    if (files.validation)
-      await createFile(root, dirPath, 'validation.ts', validationTsTemplate(formName));
-    if (files.formBehavior)
-      await createFile(root, dirPath, 'form-behavior.ts', formBehaviorTsTemplate(formName));
-    if (files.renderBehavior)
-      await createFile(root, dirPath, 'render-behavior.ts', renderBehaviorTsTemplate(formName));
-    if (files.registry)
-      await createFile(root, dirPath, 'registry.ts', registryTsTemplate(formName));
-    if (files.component) await createFile(root, dirPath, 'index.tsx', indexTsxTemplate(formName));
-
-    await rescanProject();
-    if (formHandle)
-      await openCreatedFile(joinPath(dirPath, 'form.json'), 'form.json', formHandle, true);
-    toast(`Форма «${formName}» создана`);
-  } catch (e) {
-    toast('Не удалось создать форму: ' + msg(e));
-  }
 }
 
 /** Триггер сохранения (Cmd+S / кнопка): валидация-гейт → Mode B diff-модалка или Mode A export. */

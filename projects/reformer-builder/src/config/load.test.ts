@@ -28,10 +28,14 @@ describe('validateRuntimeConfig', () => {
       palette: { order: ['Поля ввода'], collapsedByDefault: ['HTML'], glyphs: { X: 'Xx' } },
       components: { exclude: ['Chart'], synthetic: { wizard: false, htmlTags: ['div'] } },
       ui: { theme: 'dark', leftPanel: null, rightOpen: false, preview: 'code' },
-      project: { ignoreDirs: ['fixtures'], seedSchema: null },
+      project: { ignoreDirs: ['fixtures'], templatesDir: '.reformer/templates', seedSchema: null },
     });
     expect(res.valid).toBe(true);
     expect(res.errors).toEqual([]);
+  });
+
+  it('leftPanel: templates — валидное значение панели', () => {
+    expect(validateRuntimeConfig({ ui: { leftPanel: 'templates' } }).valid).toBe(true);
   });
 
   it('неизвестный ключ отклоняется (additionalProperties: false)', () => {

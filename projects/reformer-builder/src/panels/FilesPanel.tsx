@@ -16,6 +16,7 @@ import {
   type CSSProperties,
   type FocusEvent,
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
 } from 'react';
 import { Badge, Button, ScrollArea } from '@reformer/ui-kit';
@@ -76,18 +77,19 @@ function visibleTree(tree: TreeEntry[], collapsed: Set<string>): TreeEntry[] {
 function TreeRow({
   entry,
   collapsed,
-  onToggle,
+  onActivate,
   depthOffset = 0,
 }: {
   entry: TreeEntry;
   collapsed: boolean;
-  onToggle: (path: string) => void;
+  /** Клик по строке: панель сама решает — открыть файл/свернуть папку или пополнить мульти-выбор. */
+  onActivate: (entry: TreeEntry, e: MouseEvent) => void;
   depthOffset?: number;
 }) {
   if (entry.kind === 'directory') {
     return (
       <button
-        onClick={() => onToggle(entry.path)}
+        onClick={(e) => onActivate(entry, e)}
         style={indent(entry.depth + depthOffset)}
         className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
       >
@@ -103,7 +105,7 @@ function TreeRow({
   if (entry.isForm) {
     return (
       <button
-        onClick={() => void openSchemaFile(entry)}
+        onClick={(e) => onActivate(entry, e)}
         title={entry.path}
         style={indent(entry.depth + 1 + depthOffset)}
         className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs hover:bg-muted"
@@ -122,8 +124,8 @@ function TreeRow({
 
   return (
     <button
-      onClick={() => void openCodeFile(entry)}
-      title={`${entry.path} — открыть в редакторе`}
+      onClick={(e) => onActivate(entry, e)}
+      title={`${entry.path} — открыть в редакторе (⌘/Ctrl+клик — добавить к выбору)`}
       style={indent(entry.depth + 1 + depthOffset)}
       className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs text-muted-foreground hover:bg-muted"
     >
@@ -180,6 +182,44 @@ export function FilesPanel() {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-tree-path]');
     if (el) setSelectedPath(el.dataset.treePath ?? null);
   };
+
+  // Мульти-выбор путей (для «Создать шаблон…»): ⌘/Ctrl+клик — тоггл, ⇧+клик — диапазон по видимым
+  // строкам. Обычный клик работает как раньше (открыть файл / свернуть папку) и схлопывает набор.
+  const [checked, setChecked] = useState<Set<string>>(() => new Set());
+  const activateRow = (entry: TreeEntry, e: MouseEvent) => {
+    const path = entry.path;
+    if (e.metaKey || e.ctrlKey) {
+      e.preventDefault();
+      setChecked((prev) => {
+        const next = new Set(prev);
+        if (next.has(path)) next.delete(path);
+        else next.add(path);
+        return next;
+      });
+      setSelectedPath(path);
+      return;
+    }
+    if (e.shiftKey) {
+      e.preventDefault();
+      const from = navPaths.indexOf(selectedPath ?? path);
+      const to = navPaths.indexOf(path);
+      if (from !== -1 && to !== -1) {
+        const [lo, hi] = from <= to ? [from, to] : [to, from];
+        setChecked(new Set(navPaths.slice(lo, hi + 1).filter((p) => p !== ROOT_KEY)));
+      }
+      setSelectedPath(path);
+      return;
+    }
+    setChecked(new Set([path]));
+    setSelectedPath(path);
+    if (entry.kind === 'directory') toggle(path);
+    else if (entry.isForm) void openSchemaFile(entry);
+    else void openCodeFile(entry);
+  };
+
+  /** К каким путям применить действие ПКМ: ко всему набору, если кликнули по его строке. */
+  const menuPaths = (entry: TreeEntry): string[] =>
+    checked.has(entry.path) && checked.size > 1 ? [...checked] : [entry.path];
 
   // ↑↓ — перемещение, →/← — раскрыть/свернуть/к родителю, F2 — переименовать, Delete — удалить.
   // Enter/Space не трогаем: это нативная активация кнопки строки (открыть файл / свернуть папку).
@@ -238,7 +278,7 @@ export function FilesPanel() {
             data-tree-path={navPath}
             className={cn(
               'rounded-md focus-within:ring-1 focus-within:ring-ring',
-              selectedPath === navPath && 'bg-accent'
+              (selectedPath === navPath || checked.has(navPath)) && 'bg-accent'
             )}
           >
             {row}
@@ -251,11 +291,20 @@ export function FilesPanel() {
           <ContextMenuItem onClick={() => setDialog({ kind: 'newFolder', dirPath })}>
             Новая папка…
           </ContextMenuItem>
+          {entry && (
+            <ContextMenuItem
+              onClick={() => setDialog({ kind: 'newTemplate', paths: menuPaths(entry) })}
+            >
+              {checked.has(entry.path) && checked.size > 1
+                ? `Создать шаблон (${checked.size})…`
+                : 'Создать шаблон…'}
+            </ContextMenuItem>
+          )}
           <ContextMenuSub>
             <ContextMenuSubTrigger>Сгенерировать</ContextMenuSubTrigger>
             <ContextMenuSubContent>
-              <ContextMenuItem onClick={() => setDialog({ kind: 'formDir', dirPath })}>
-                Каталог с формой…
+              <ContextMenuItem onClick={() => setDialog({ kind: 'template', dirPath })}>
+                Выбрать шаблон…
               </ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem onClick={() => void generateModel(dirPath)}>Модель</ContextMenuItem>
@@ -370,7 +419,7 @@ export function FilesPanel() {
                         entry={entry}
                         depthOffset={1}
                         collapsed={collapsed.has(entry.path)}
-                        onToggle={toggle}
+                        onActivate={activateRow}
                       />,
                       entry
                     )

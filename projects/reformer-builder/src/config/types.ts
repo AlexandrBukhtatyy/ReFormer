@@ -61,7 +61,7 @@ export interface ComponentsConfig {
 export interface UiConfig {
   theme?: 'light' | 'dark';
   /** Открытая левая панель (`null` — сайдбар свёрнут). */
-  leftPanel?: 'files' | 'palette' | null;
+  leftPanel?: 'files' | 'palette' | 'templates' | null;
   rightOpen?: boolean;
   preview?: 'wire' | 'runtime' | 'code';
   bottomTab?: 'raw' | 'model' | 'registry';
@@ -76,6 +76,8 @@ export interface ProjectConfig {
   ignoreDirs?: string[];
   /** Файлы-исключения при сканировании (объединяются с дефолтными). */
   skipFiles?: string[];
+  /** Каталог шаблонов форм в проекте (по умолчанию `.reformer/templates`). */
+  templatesDir?: string;
   /**
    * Стартовая схема Mode A: объект — кастомный seed; `null` — пустая форма; поле отсутствует —
    * встроенная демо-схема.

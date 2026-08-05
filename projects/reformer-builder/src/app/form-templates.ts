@@ -1,44 +1,14 @@
 /**
- * Шаблоны-«рыба» для генерации артефактов формы (контекстное меню дерева файлов). В ReFormer JSON
- * несёт только схему формы (layout); валидация/поведение формы/поведение UI — это TS-DSL
+ * Шаблоны-«рыба» для генерации артефактов формы: одиночные пункты «Сгенерировать» в контекстном
+ * меню дерева и содержимое встроенного шаблона (`templates/builtin.ts`). В ReFormer JSON несёт
+ * только схему формы (layout); валидация/поведение формы/поведение UI — это TS-DSL
  * (`defineValidationSchema` / `defineFormBehavior` / `RenderBehaviorFn`), поэтому генерируются `.ts`.
  * Всё — рабочий прототип: form.json открывается в canvas, `.ts` правятся в Monaco.
  *
+ * Состав файлов формы больше не зашит здесь: им управляет выбранный шаблон (`templates/`).
+ *
  * @module reformer-builder/app/form-templates
  */
-
-/** Какие файлы генерировать в каталоге формы. */
-export interface FormDirFiles {
-  model: boolean;
-  form: boolean;
-  validation: boolean;
-  /** Поведение формы (form-behavior.ts) — реактивные связи над моделью. */
-  formBehavior: boolean;
-  /** Поведение UI (render-behavior.ts) — render-behavior над деревом рендера. */
-  renderBehavior: boolean;
-  /** Реестр компонентов (registry.ts) — привязка `$component` к ui-kit. */
-  registry: boolean;
-  /** Страница-компонент (index.tsx) — рендерит форму. Требует остальные файлы. */
-  component: boolean;
-}
-
-/**
- * Эффективный набор файлов: страница-компонент (index.tsx) не соберётся без модели, схемы, реестра,
- * валидации, поведения и ui-behavior — поэтому при `component` его зависимости включаются
- * принудительно. Так «Каталог с формой» отдаёт форму, работающую сразу после копирования в проект.
- */
-export function resolveFormDirFiles(which: FormDirFiles): FormDirFiles {
-  if (!which.component) return which;
-  return {
-    model: true,
-    form: true,
-    validation: true,
-    formBehavior: true,
-    renderBehavior: true,
-    registry: true,
-    component: true,
-  };
-}
 
 /** PascalCase-идентификатор из имени формы (для имени компонента-страницы). */
 function pascalCase(formName: string): string {
@@ -51,7 +21,7 @@ function pascalCase(formName: string): string {
  * получают префикс `Form`; уже имеющийся суффикс `Form` не задваивается (имя формы «profile form»
  * → `ProfileForm`, а не `ProfileFormForm`).
  */
-function componentName(formName: string): string {
+export function componentName(formName: string): string {
   const pascal = pascalCase(formName);
   const base = /^[A-Za-z]/.test(pascal) ? pascal : `Form${pascal}`;
   return base.endsWith('Form') ? base : `${base}Form`;

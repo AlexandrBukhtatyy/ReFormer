@@ -56,7 +56,10 @@
       "additionalProperties": false,
       "properties": {
         "theme": { "type": "string", "enum": ["light", "dark"] },
-        "leftPanel": { "type": ["string", "null"], "enum": ["files", "palette", null] },
+        "leftPanel": {
+          "type": ["string", "null"],
+          "enum": ["files", "palette", "templates", null]
+        },
         "rightOpen": { "type": "boolean" },
         "preview": { "type": "string", "enum": ["wire", "runtime", "code"] },
         "bottomTab": { "type": "string", "enum": ["raw", "model", "registry"] },
@@ -70,6 +73,7 @@
         "formSchemaMarkers": { "type": "array", "items": { "type": "string" } },
         "ignoreDirs": { "type": "array", "items": { "type": "string" } },
         "skipFiles": { "type": "array", "items": { "type": "string" } },
+        "templatesDir": { "type": "string" },
         "seedSchema": { "type": ["object", "null"] }
       }
     }

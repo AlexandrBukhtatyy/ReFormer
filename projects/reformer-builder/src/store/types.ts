@@ -19,7 +19,7 @@ import type { JsonPath } from '../model';
 export type PreviewMode = 'wire' | 'runtime' | 'code';
 
 /** Активная левая вкладка панели инструментов (спека §8); `null` — панель свёрнута. */
-export type LeftPanel = 'files' | 'palette' | null;
+export type LeftPanel = 'files' | 'palette' | 'templates' | null;
 
 /** Конкретная левая панель (без свёрнутого состояния) — для запоминания последней. */
 export type LeftPanelKind = Exclude<LeftPanel, null>;
@@ -41,7 +41,11 @@ export type MockDraft = Partial<Record<MockSection, string>>;
 
 /** Происхождение вкладки: новая (Mode A) или файл проекта (Mode B). */
 export interface TabSource {
-  kind: 'new' | 'file';
+  /**
+   * `new` — форма Mode A (ещё не на диске), `file` — файл проекта (Mode B),
+   * `template` — временный предпросмотр схемы шаблона: на диск не пишется, ⌘S отдаёт её экспортом.
+   */
+  kind: 'new' | 'file' | 'template';
   /** Отображаемое имя / имя файла. */
   name: string;
   /** Относительный путь в проекте (Mode B). */

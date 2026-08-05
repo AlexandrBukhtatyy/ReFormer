@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  registryTsTemplate,
-  indexTsxTemplate,
-  resolveFormDirFiles,
-  type FormDirFiles,
-} from './form-templates';
+import { registryTsTemplate, indexTsxTemplate } from './form-templates';
 
 describe('registryTsTemplate', () => {
   const src = registryTsTemplate('profile');
@@ -46,35 +41,5 @@ describe('indexTsxTemplate', () => {
     );
     expect(indexTsxTemplate('2fa form')).toContain('export default function Form2faForm()');
     expect(indexTsxTemplate('profile form')).toContain('export default function ProfileForm()');
-  });
-});
-
-describe('resolveFormDirFiles', () => {
-  const off: FormDirFiles = {
-    model: false,
-    form: false,
-    validation: false,
-    formBehavior: false,
-    renderBehavior: false,
-    registry: false,
-    component: false,
-  };
-
-  it('component=true форсит все зависимости', () => {
-    const r = resolveFormDirFiles({ ...off, component: true });
-    expect(r).toEqual({
-      model: true,
-      form: true,
-      validation: true,
-      formBehavior: true,
-      renderBehavior: true,
-      registry: true,
-      component: true,
-    });
-  });
-
-  it('component=false — набор не меняется', () => {
-    const picked: FormDirFiles = { ...off, model: true, form: true };
-    expect(resolveFormDirFiles(picked)).toEqual(picked);
   });
 });

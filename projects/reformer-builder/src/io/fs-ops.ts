@@ -1,8 +1,9 @@
 /**
  * Path-based файловые операции над открытым проектом (File System Access, Chromium): создать файл/
- * папку, удалить (рекурсивно), переименовать (`handle.move()`). Родительский каталог резолвится по
- * относительному пути от корня (`projectStore.dirHandle`). FS-типы описаны структурно локально
- * (lib.dom неполон: нет `getDirectoryHandle`/`removeEntry`/`createWritable`/`move`).
+ * папку (в т.ч. по вложенному пути), прочитать текст, перечислить содержимое, удалить (рекурсивно),
+ * переименовать (`handle.move()`). Родительский каталог резолвится по относительному пути от корня
+ * (`projectStore.dirHandle`). FS-типы описаны структурно локально (lib.dom неполон: нет
+ * `getDirectoryHandle`/`removeEntry`/`createWritable`/`move`/`values`).
  *
  * @module reformer-builder/io/fs-ops
  */
@@ -23,6 +24,7 @@ interface FsDirHandle {
   getFileHandle(name: string, opts?: { create?: boolean }): Promise<FsFileHandle>;
   getDirectoryHandle(name: string, opts?: { create?: boolean }): Promise<FsDirHandle>;
   removeEntry(name: string, opts?: { recursive?: boolean }): Promise<void>;
+  values(): AsyncIterableIterator<FsFileHandle | FsDirHandle>;
   move?(name: string): Promise<void>;
 }
 
@@ -31,10 +33,10 @@ type Root = FileSystemDirectoryHandle;
 const asDir = (h: unknown): FsDirHandle => h as unknown as FsDirHandle;
 
 /** Резолвить каталог по относительному пути (пустой путь → корень). */
-async function resolveDir(root: Root, dirPath: string): Promise<FsDirHandle> {
+async function resolveDir(root: Root, dirPath: string, create = false): Promise<FsDirHandle> {
   let cur = asDir(root);
   for (const seg of dirPath.split('/').filter(Boolean)) {
-    cur = await cur.getDirectoryHandle(seg);
+    cur = await cur.getDirectoryHandle(seg, create ? { create: true } : undefined);
   }
   return cur;
 }
@@ -73,6 +75,76 @@ export async function createDirectory(root: Root, dirPath: string, name: string)
   await parent.getDirectoryHandle(name, { create: true });
 }
 
+/**
+ * Создать файл по ВЛОЖЕННОМУ пути внутри `dirPath`, доделывая недостающие каталоги
+ * (`ui/head.tsx` → создаст `ui/`). Нужен генерации из шаблона: шаблон может нести подпапки.
+ */
+export async function createFileDeep(
+  root: Root,
+  dirPath: string,
+  relPath: string,
+  content: string
+): Promise<FileSystemFileHandle> {
+  const { dirPath: sub, base } = splitPath(relPath);
+  const parent = await resolveDir(root, sub ? `${dirPath}/${sub}` : dirPath, true);
+  const fh = await parent.getFileHandle(base, { create: true });
+  const w = await fh.createWritable();
+  await w.write(content);
+  await w.close();
+  return fh as unknown as FileSystemFileHandle;
+}
+
+/** Прямые подкаталоги каталога (имена). Отсутствующий каталог — пустой список. */
+export async function listSubdirectories(root: Root, dirPath: string): Promise<string[]> {
+  let dir: FsDirHandle;
+  try {
+    dir = await resolveDir(root, dirPath);
+  } catch {
+    return [];
+  }
+  const out: string[] = [];
+  for await (const entry of dir.values()) {
+    if (entry.kind === 'directory') out.push(entry.name);
+  }
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+/** Защита от случайного «шаблона» из тысяч файлов. */
+const MAX_TEMPLATE_FILES = 500;
+
+/**
+ * Рекурсивно собрать пути файлов внутри `dirPath` (относительно него). Отсутствующий каталог —
+ * пустой список; обход ограничен {@link MAX_TEMPLATE_FILES} записями.
+ */
+export async function listFilesDeep(root: Root, dirPath: string): Promise<string[]> {
+  let dir: FsDirHandle;
+  try {
+    dir = await resolveDir(root, dirPath);
+  } catch {
+    return [];
+  }
+  const out: string[] = [];
+  const walk = async (handle: FsDirHandle, prefix: string): Promise<void> => {
+    for await (const entry of handle.values()) {
+      if (out.length >= MAX_TEMPLATE_FILES) return;
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.kind === 'directory') await walk(entry, rel);
+      else out.push(rel);
+    }
+  };
+  await walk(dir, '');
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+/** Прочитать текстовый файл по пути от корня проекта. */
+export async function readTextFile(root: Root, path: string): Promise<string> {
+  const { dirPath, base } = splitPath(path);
+  const parent = await resolveDir(root, dirPath);
+  const fh = await parent.getFileHandle(base);
+  const file = await (fh as unknown as { getFile(): Promise<File> }).getFile();
+  return file.text();
+}
+
 /** Удалить файл/каталог по пути (рекурсивно для каталогов). */
 export async function deletePath(root: Root, path: string): Promise<void> {
   const { dirPath, base } = splitPath(path);
@@ -97,9 +169,17 @@ export async function renamePath(
   await handle.move(newName);
 }
 
-/** Существует ли `name` (файл или каталог) в каталоге `dirPath`. */
+/**
+ * Существует ли `name` (файл или каталог) в каталоге `dirPath`. Несуществующий `dirPath` — это
+ * тоже «нет» (иначе подбор имени в ещё не созданном каталоге падал бы).
+ */
 export async function existsIn(root: Root, dirPath: string, name: string): Promise<boolean> {
-  const parent = await resolveDir(root, dirPath);
+  let parent: FsDirHandle;
+  try {
+    parent = await resolveDir(root, dirPath);
+  } catch {
+    return false;
+  }
   try {
     await parent.getFileHandle(name);
     return true;
