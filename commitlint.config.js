@@ -24,6 +24,8 @@ export default {
       [
         'reformer',
         'reformer-renderer-react',
+        'reformer-renderer-json',
+        'reformer-form-registry',
         'reformer-cdk',
         'reformer-ui-kit',
         'reformer-mcp',

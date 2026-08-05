@@ -108,5 +108,30 @@
     "name": "@reformer/renderer-json",
     "path": "packages/reformer-renderer-json/dist/index.js",
     "limit": "10 kB"
+  },
+  {
+    "name": "@reformer/form-registry",
+    "path": "packages/reformer-form-registry/dist/index.js",
+    "limit": "3.5 kB"
+  },
+  {
+    "name": "@reformer/form-registry/react",
+    "path": "packages/reformer-form-registry/dist/react.js",
+    "limit": "2 kB"
+  },
+  {
+    "name": "@reformer/form-registry/storage",
+    "path": "packages/reformer-form-registry/dist/storage.js",
+    "limit": "3 kB"
+  },
+  {
+    "name": "@reformer/form-registry/manifest",
+    "path": "packages/reformer-form-registry/dist/manifest.js",
+    "limit": "1 kB"
+  },
+  {
+    "name": "@reformer/form-registry/guard",
+    "path": "packages/reformer-form-registry/dist/guard.js",
+    "limit": "1.5 kB"
   }
 ]

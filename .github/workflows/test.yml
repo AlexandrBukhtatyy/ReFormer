@@ -80,6 +80,16 @@ jobs:
       - name: Run @reformer/renderer-json tests
         run: npm run test -w @reformer/renderer-json
 
+      # form-registry — публикуемый пакет: реестр форм для микрофронтов. Идёт после
+      # core / renderer-react / renderer-json: он их peer-зависимый потребитель и
+      # резолвит их через собранные dist. Сборка нужна ещё и трём шагам ниже
+      # (dist-deps, exports-dist, ajv-isolation сканируют dist/ всех packages/*).
+      - name: Build @reformer/form-registry
+        run: npm run build -w @reformer/form-registry
+
+      - name: Run @reformer/form-registry tests
+        run: npm run test -w @reformer/form-registry
+
       # mcp — публикуемый пакет. Собираем и тестируем (find_recipe нормализация,
       # report-issue): раньше test-скрипта не было и tests/*.test.ts в CI не гонялись.
       # Сборка нужна ещё и шагу «Dist deps ↔ manifest» ниже (check:dist-deps сканирует
@@ -116,6 +126,23 @@ jobs:
         # ./validators/date, а 7 собранных date-валидаторов были недостижимы.
         # Идёт после всех build-шагов: проверяются dist/ всех packages/*.
         run: npm run check:exports-dist
+
+      - name: No node globals in browser bundles
+        # `process.env.NODE_ENV` — привычный способ отличить dev от prod, и со сборщиком
+        # он работает: бандлер подставляет значение. Но пакет, загруженный как ГОЛЫЙ ESM
+        # (import map, web-component, Module Federation без прогона через define), получает
+        # `ReferenceError: process is not defined` — падение не там, где ошибка, и не с тем
+        # сообщением. Проверка узкая: только пакеты, обязанные работать без сборщика.
+        run: npm run check:no-node-globals
+
+      - name: ajv isolation
+        # ajv тяжелее, чем всё ядро реестра форм вместе взятое, поэтому он вынесен в
+        # отдельные точки входа (renderer-json → validate.js, form-registry → manifest.js).
+        # До сих пор инвариант держался ОДНИМ комментарием в исходнике: достаточно одного
+        # импорта из основного модуля, чтобы ajv поехал в каждое приложение, и заметить это
+        # можно было бы только по размеру бандла. Проверка идёт по графу импортов dist/,
+        # поэтому ловит и ajv, пришедший через общий chunk.
+        run: npm run check:ajv-isolation
 
       - name: Bundle size (size-limit)
         # Enforces brotli caps in .size-limit.json against the freshly built dist/
