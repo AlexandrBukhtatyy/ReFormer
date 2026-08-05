@@ -27,10 +27,10 @@ export function CanvasArea({ tab }: { tab: TabState }) {
     panelIds: ['canvas', 'raw'],
   });
 
-  // Эффективный мок для runtime-превью (правки панели ⊕ синтез). Стабильная ссылка по [schema, mockText].
-  const mock = useMemo(() => effectiveMock(tab.schema, tab.mockText), [tab.schema, tab.mockText]);
+  // Эффективный мок для runtime-превью (правки панели ⊕ синтез). Стабильная ссылка по [schema, mock].
+  const mock = useMemo(() => effectiveMock(tab.schema, tab.mock), [tab.schema, tab.mock]);
 
-  // Нижняя панель со вкладками: JSON (raw схемы) + Модель (мок-данные).
+  // Нижняя панель со вкладками: JSON (raw схемы) + Модель + Registry (мок-данные).
   const bottomPanel = <BottomPanel tab={tab} />;
 
   // Режим «Код»: схема как JSON-редактор на всю центральную область. Нижняя raw-панель здесь

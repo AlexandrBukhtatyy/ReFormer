@@ -186,19 +186,27 @@ describe('ui', () => {
 });
 
 describe('мок-данные вкладки', () => {
-  it('setMockText сохраняет, resetMock очищает', () => {
+  it('setMockText сохраняет секцию, resetMock очищает её', () => {
     let s = R.openTab(R.initialState(), 't1', src, emptySchema());
-    expect(s.tabs.t1.mockText).toBeUndefined();
-    s = R.setMockText(s, 't1', '{"model":{"a":1},"dataSources":{}}');
-    expect(s.tabs.t1.mockText).toBe('{"model":{"a":1},"dataSources":{}}');
-    s = R.resetMock(s, 't1');
-    expect(s.tabs.t1.mockText).toBeUndefined();
+    expect(s.tabs.t1.mock).toBeUndefined();
+    s = R.setMockText(s, 't1', 'model', '{"a":1}');
+    expect(s.tabs.t1.mock?.model).toBe('{"a":1}');
+    s = R.resetMock(s, 't1', 'model');
+    expect(s.tabs.t1.mock).toBeUndefined();
   });
 
-  it('мок не попадает в историю/dirty (правка mockText не создаёт снимок)', () => {
+  it('секции независимы: сброс модели не трогает dataSources', () => {
+    let s = R.openTab(R.initialState(), 't1', src, emptySchema());
+    s = R.setMockText(s, 't1', 'model', '{"a":1}');
+    s = R.setMockText(s, 't1', 'dataSources', '{"LIST":[]}');
+    s = R.resetMock(s, 't1', 'model');
+    expect(s.tabs.t1.mock).toEqual({ dataSources: '{"LIST":[]}' });
+  });
+
+  it('мок не попадает в историю/dirty (правка секции не создаёт снимок)', () => {
     let s = R.openTab(R.initialState(), 't1', src, emptySchema());
     const past = s.tabs.t1.past.length;
-    s = R.setMockText(s, 't1', '{"model":{}}');
+    s = R.setMockText(s, 't1', 'model', '{}');
     expect(s.tabs.t1.past.length).toBe(past);
   });
 });

@@ -456,7 +456,7 @@ export async function exportExample(tab: TabState): Promise<void> {
     return;
   }
   const formName = tab.source.name.replace(/\.(form\.)?json$/i, '') || 'form';
-  const mock = effectiveMock(tab.schema, tab.mockText);
+  const mock = effectiveMock(tab.schema, tab.mock);
   try {
     const res = await exportExampleToDirectory(tab.schema, mock, formName);
     try {

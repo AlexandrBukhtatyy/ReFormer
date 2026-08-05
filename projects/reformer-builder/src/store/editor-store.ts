@@ -9,7 +9,15 @@ import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import type { JsonPath, MutationResult, NavDir } from '../model';
 import { createStore } from './create-store';
 import * as R from './reducers';
-import type { BottomTab, EditorState, LeftPanel, PreviewMode, TabSource, Theme } from './types';
+import type {
+  BottomTab,
+  EditorState,
+  LeftPanel,
+  MockSection,
+  PreviewMode,
+  TabSource,
+  Theme,
+} from './types';
 
 /** Глобальный стор редактора. */
 export const editorStore = createStore<EditorState>(R.initialState());
@@ -23,11 +31,12 @@ export const editorActions = {
     editorStore.setState((s) => R.openCodeTab(s, id, source, text, language)),
   /** Правка текста code-вкладки (Monaco onChange). */
   setTabText: (id: string, text: string) => editorStore.setState((s) => R.setTabText(s, id, text)),
-  /** Правка мок-данных вкладки (панель мок-данных). */
-  setMockText: (id: string, text: string) =>
-    editorStore.setState((s) => R.setMockText(s, id, text)),
-  /** Сбросить мок-данные вкладки к синтезу из схемы. */
-  resetMock: (id: string) => editorStore.setState((s) => R.resetMock(s, id)),
+  /** Правка секции мок-данных вкладки (нижняя панель: «Модель» / «Registry»). */
+  setMockText: (id: string, section: MockSection, text: string) =>
+    editorStore.setState((s) => R.setMockText(s, id, section, text)),
+  /** Сбросить секцию мок-данных вкладки к синтезу из схемы. */
+  resetMock: (id: string, section: MockSection) =>
+    editorStore.setState((s) => R.resetMock(s, id, section)),
   /** Отметить сохранённым текст активной code-вкладки. */
   markCodeSaved: () => editorStore.setState(R.markCodeSaved),
   closeTab: (id: string) => editorStore.setState((s) => R.closeTab(s, id)),

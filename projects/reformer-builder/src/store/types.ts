@@ -27,8 +27,17 @@ export type LeftPanelKind = Exclude<LeftPanel, null>;
 /** Тема оболочки. */
 export type Theme = 'light' | 'dark';
 
-/** Активная вкладка нижней панели: `raw` — JSON-исходник схемы, `model` — мок-данные. */
-export type BottomTab = 'raw' | 'model';
+/**
+ * Активная вкладка нижней панели: `raw` — JSON-исходник схемы, `model` — модель превью,
+ * `registry` — значения `$dataSource` реестра превью.
+ */
+export type BottomTab = 'raw' | 'model' | 'registry';
+
+/** Секция мок-данных превью: модель формы либо значения источников реестра. */
+export type MockSection = 'model' | 'dataSources';
+
+/** Правки мок-данных по секциям (JSON-текст каждой). Пропуск секции ⇒ синтез из схемы. */
+export type MockDraft = Partial<Record<MockSection, string>>;
 
 /** Происхождение вкладки: новая (Mode A) или файл проекта (Mode B). */
 export interface TabSource {
@@ -72,10 +81,11 @@ export interface TabState {
   /** Язык Monaco по расширению файла (`code`-вкладки): typescript/css/markdown/… */
   language?: string;
   /**
-   * Правки мок-данных для runtime/live-превью (JSON-текст `{ model, dataSources }`) из панели
-   * мок-данных. `undefined` ⇒ использовать синтез из схемы. Превью-only: вне истории и dirty/save.
+   * Правки мок-данных для runtime/live-превью из нижней панели: по JSON-тексту на секцию
+   * (`model` — вкладка «Модель», `dataSources` — вкладка «Registry»). Пропущенная секция ⇒
+   * синтез из схемы. Превью-only: вне истории и dirty/save.
    */
-  mockText?: string;
+  mock?: MockDraft;
   /** Стек отмены (снимки до текущего). */
   past: HistorySnapshot[];
   /** Стек повтора. */

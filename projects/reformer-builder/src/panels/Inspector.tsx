@@ -23,7 +23,7 @@ import { getCatalogEntry, inspectorGroups, type InspectorProp } from '../catalog
 import { variantGroupOf } from '../catalog/variants';
 import { editorActions, useActiveTab, useSelectionPath, type TabState } from '../store';
 import { nodeTypeBadge } from '../canvas/node-display';
-import { effectiveMock, serializeMock } from '../canvas/mock-data';
+import { effectiveMock, serializeSection } from '../canvas/mock-data';
 import { ClassNameField } from './ClassNameField';
 import { OptionsField } from './OptionsField';
 import { IconField } from './IconField';
@@ -74,13 +74,13 @@ function ModelPathField({ node, path, tab }: { node: JsonNode; path: JsonPath; t
       setDraft(current);
       return;
     }
-    if (tab.mockText != null && !current.includes('.') && !next.includes('.')) {
-      const mock = effectiveMock(tab.schema, tab.mockText);
+    if (tab.mock?.model != null && !current.includes('.') && !next.includes('.')) {
+      const mock = effectiveMock(tab.schema, tab.mock);
       if (current in mock.model) {
         const model: Record<string, unknown> = { ...mock.model };
         model[next] = model[current];
         delete model[current];
-        editorActions.setMockText(tab.id, serializeMock({ ...mock, model }));
+        editorActions.setMockText(tab.id, 'model', serializeSection({ ...mock, model }, 'model'));
       }
     }
     editorActions.apply((s) => setNodeKey(s, path, bindingKey, `$model(${next})`));

@@ -37,6 +37,8 @@ import type {
   EditorState,
   HistorySnapshot,
   LeftPanel,
+  MockDraft,
+  MockSection,
   PreviewMode,
   TabSource,
   TabState,
@@ -163,19 +165,27 @@ export function setTabText(state: EditorState, id: string, text: string): Editor
   return { ...state, tabs: { ...state.tabs, [id]: { ...tab, text } } };
 }
 
-/** Правка мок-данных вкладки (панель мок-данных). Превью-only — историю/dirty не трогает. */
-export function setMockText(state: EditorState, id: string, text: string): EditorState {
+/** Правка одной секции мок-данных вкладки (нижняя панель). Превью-only — историю/dirty не трогает. */
+export function setMockText(
+  state: EditorState,
+  id: string,
+  section: MockSection,
+  text: string
+): EditorState {
   const tab = state.tabs[id];
-  if (!tab || tab.mockText === text) return state;
-  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, mockText: text } } };
+  if (!tab || tab.mock?.[section] === text) return state;
+  const mock = { ...tab.mock, [section]: text };
+  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, mock } } };
 }
 
-/** Сбросить мок-данные вкладки к синтезу из схемы (кнопка «Сбросить» в панели). */
-export function resetMock(state: EditorState, id: string): EditorState {
+/** Сбросить секцию мок-данных к синтезу из схемы (кнопка «Сбросить» в панели). */
+export function resetMock(state: EditorState, id: string, section: MockSection): EditorState {
   const tab = state.tabs[id];
-  if (!tab || tab.mockText === undefined) return state;
-  const next = { ...tab };
-  delete next.mockText;
+  if (!tab || tab.mock?.[section] === undefined) return state;
+  const mock: MockDraft = { ...tab.mock };
+  delete mock[section];
+  const next: TabState = { ...tab, mock };
+  if (Object.keys(mock).length === 0) delete next.mock;
   return { ...state, tabs: { ...state.tabs, [id]: next } };
 }
 

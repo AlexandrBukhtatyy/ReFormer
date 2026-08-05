@@ -1,35 +1,44 @@
 /**
- * Нижняя панель со вкладками: **JSON** (raw-исходник схемы, двусторонний — {@link SchemaCodeEditor})
- * и **Модель** (мок-данные `{ model, dataSources }`, наполняющие runtime/live-превью —
- * {@link MockDataEditor}). Сворачивается общим флагом `rawJsonOpen`. Клик по вкладке разворачивает
- * панель. Для вкладки «Модель» — кнопка «Сбросить» (к синтезу из схемы).
+ * Нижняя панель со вкладками: **JSON** (raw-исходник схемы, двусторонний — {@link SchemaCodeEditor}),
+ * **Модель** (значения модели формы) и **Registry** (значения `$dataSource` реестра) — обе последние
+ * наполняют runtime/live-превью и правятся в {@link MockDataEditor}. Сворачивается общим флагом
+ * `rawJsonOpen`. Клик по вкладке разворачивает панель. Для «Модель»/«Registry» — кнопка «Сбросить»
+ * (к синтезу из схемы; сбрасывается только активная секция).
  *
  * @module reformer-builder/canvas/BottomPanel
  */
 
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-import type { BottomTab, TabState } from '../store';
+import type { BottomTab, MockSection, TabState } from '../store';
 import { editorActions, useUi } from '../store';
 import { serializeSchema } from '../io/export';
 import { synthMock } from '../preview-runtime';
 import { SchemaCodeEditor } from './SchemaCodeEditor';
 import { MockDataEditor } from './MockDataEditor';
-import { serializeMock } from './mock-data';
+import { serializeSection } from './mock-data';
 import { cn } from '../lib/cn';
+
+/** Секция мок-данных, которую правит вкладка (у `raw` секции нет). */
+const SECTION: Record<BottomTab, MockSection | null> = {
+  raw: null,
+  model: 'model',
+  registry: 'dataSources',
+};
 
 export function BottomPanel({ tab }: { tab: TabState }) {
   const { rawJsonOpen, bottomTab: active } = useUi();
   const [resetKey, setResetKey] = useState(0);
+  const section = SECTION[active];
 
   // Число строк активной вкладки (для правого счётчика в заголовке).
   const lines = useMemo(() => {
     const text =
-      active === 'raw'
+      section == null
         ? serializeSchema(tab.schema)
-        : (tab.mockText ?? serializeMock(synthMock(tab.schema)));
+        : (tab.mock?.[section] ?? serializeSection(synthMock(tab.schema), section));
     return text.split('\n').length;
-  }, [active, tab.schema, tab.mockText]);
+  }, [section, tab.schema, tab.mock]);
 
   // Клик по вкладке переключает (в сторе — переживает remount при разворачивании) и разворачивает.
   const select = (t: BottomTab) => {
@@ -37,7 +46,8 @@ export function BottomPanel({ tab }: { tab: TabState }) {
     if (!rawJsonOpen) editorActions.toggleRawJson();
   };
   const onReset = () => {
-    editorActions.resetMock(tab.id);
+    if (section == null) return;
+    editorActions.resetMock(tab.id, section);
     setResetKey((k) => k + 1); // remount редактора → стартовый текст снова из синтеза
   };
 
@@ -68,11 +78,22 @@ export function BottomPanel({ tab }: { tab: TabState }) {
         <button onClick={() => select('raw')} className={tabCls('raw')}>
           JSON
         </button>
-        <button onClick={() => select('model')} className={tabCls('model')}>
+        <button
+          onClick={() => select('model')}
+          title="Значения модели формы в превью"
+          className={tabCls('model')}
+        >
           Модель
         </button>
+        <button
+          onClick={() => select('registry')}
+          title="Значения источников $dataSource в превью"
+          className={tabCls('registry')}
+        >
+          Registry
+        </button>
         <span className="flex-1" />
-        {active === 'model' && rawJsonOpen && (
+        {section != null && rawJsonOpen && (
           <button
             onClick={onReset}
             title="Сбросить к синтезу из схемы"
@@ -85,10 +106,10 @@ export function BottomPanel({ tab }: { tab: TabState }) {
       </div>
       {rawJsonOpen && (
         <div className="min-h-0 flex-1 border-t border-border">
-          {active === 'raw' ? (
+          {section == null ? (
             <SchemaCodeEditor schema={tab.schema} />
           ) : (
-            <MockDataEditor key={resetKey} tab={tab} />
+            <MockDataEditor key={`${section}:${resetKey}`} tab={tab} section={section} />
           )}
         </div>
       )}

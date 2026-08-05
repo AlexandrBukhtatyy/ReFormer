@@ -59,7 +59,7 @@
         "leftPanel": { "type": ["string", "null"], "enum": ["files", "palette", null] },
         "rightOpen": { "type": "boolean" },
         "preview": { "type": "string", "enum": ["wire", "runtime", "code"] },
-        "bottomTab": { "type": "string", "enum": ["raw", "model"] },
+        "bottomTab": { "type": "string", "enum": ["raw", "model", "registry"] },
         "hideDivWrappers": { "type": "boolean" }
       }
     },

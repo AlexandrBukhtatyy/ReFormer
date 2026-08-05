@@ -1,9 +1,9 @@
 /**
  * Редактор Options-пропа (Select/Combobox/NativeSelect/RadioGroup/ToggleGroup): раньше был
  * read-only. Теперь — выбор источника опций: инлайн-массив `{ value, label }` (мини-редактор строк)
- * либо привязка к именованному `$dataSource(NAME)`. Новый источник создаётся В МОК-ФАЙЛЕ
- * (вкладка «Модель»): спрашиваем имя → добавляем в `tab.mockText.dataSources` → привязываем →
- * открываем «Модель» для правки опций.
+ * либо привязка к именованному `$dataSource(NAME)`. Новый источник создаётся В МОК-ДАННЫХ
+ * (вкладка «Registry»): спрашиваем имя → добавляем в секцию `dataSources` → привязываем →
+ * открываем «Registry» для правки опций.
  *
  * @module reformer-builder/panels/OptionsField
  */
@@ -16,7 +16,7 @@ import { setComponentProp, type JsonPath } from '../model';
 import type { InspectorProp } from '../catalog';
 import { editorActions, useActiveTab, useUi } from '../store';
 import { mockOptions } from '../preview-runtime';
-import { effectiveMock, serializeMock } from '../canvas/mock-data';
+import { effectiveMock, serializeSection } from '../canvas/mock-data';
 import { cn } from '../lib/cn';
 
 /** Инлайн-опция селекта. */
@@ -47,10 +47,10 @@ export function OptionsField({
   const boundName = bound?.op === 'dataSource' ? bound.arg : null;
   const inline = Array.isArray(value) ? (value as OptionItem[]) : null;
 
-  // Доступные для привязки источники: из мок-файла (option/scalar) + уже привязанный (на всякий).
+  // Доступные для привязки источники: из мок-данных (option/scalar) + уже привязанный (на всякий).
   const sourceNames = useMemo(() => {
     const names = new Set<string>(
-      tab ? Object.keys(effectiveMock(tab.schema, tab.mockText).dataSources) : []
+      tab ? Object.keys(effectiveMock(tab.schema, tab.mock).dataSources) : []
     );
     if (boundName) names.add(boundName);
     return [...names].sort();
@@ -65,23 +65,23 @@ export function OptionsField({
     });
   const bindTo = (name: string) => setValue(`$dataSource(${name})`);
 
-  const openModel = () => {
-    editorActions.setBottomTab('model');
+  const openRegistry = () => {
+    editorActions.setBottomTab('registry');
     if (!rawJsonOpen) editorActions.toggleRawJson();
   };
 
   const createSource = () => {
     const name = newName.trim();
     if (!name || !tab) return;
-    const mock = effectiveMock(tab.schema, tab.mockText);
+    const mock = effectiveMock(tab.schema, tab.mock);
     if (!(name in mock.dataSources)) {
       mock.dataSources = { ...mock.dataSources, [name]: mockOptions(name) };
-      editorActions.setMockText(tab.id, serializeMock(mock));
+      editorActions.setMockText(tab.id, 'dataSources', serializeSection(mock, 'dataSources'));
     }
     bindTo(name);
     setCreating(false);
     setNewName('');
-    openModel();
+    openRegistry();
   };
 
   const onSelect = (v: string) => {
@@ -106,8 +106,8 @@ export function OptionsField({
         </span>
         {boundName && !creating && (
           <button
-            onClick={openModel}
-            title={`Опции источника «${boundName}» — во вкладке «Модель»`}
+            onClick={openRegistry}
+            title={`Опции источника «${boundName}» — во вкладке «Registry»`}
             className="flex-none rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <ExternalLink className="h-3 w-3" />

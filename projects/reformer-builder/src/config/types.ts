@@ -64,7 +64,7 @@ export interface UiConfig {
   leftPanel?: 'files' | 'palette' | null;
   rightOpen?: boolean;
   preview?: 'wire' | 'runtime' | 'code';
-  bottomTab?: 'raw' | 'model';
+  bottomTab?: 'raw' | 'model' | 'registry';
   hideDivWrappers?: boolean;
 }
 
