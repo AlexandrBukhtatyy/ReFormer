@@ -18,6 +18,7 @@ import { emitTypes } from './emit-types';
 import { emitModel } from './emit-model';
 import { emitRegistry } from './emit-registry';
 import { emitIndex } from './emit-index';
+import { emitEntry } from './emit-entry';
 import { emitReadme } from './emit-readme';
 import { emitDataSources } from './emit-data-sources';
 import { emitBehavior } from './emit-behavior';
@@ -51,6 +52,8 @@ export function buildExampleFiles(
     { path: 'model.ts', content: emitModel(mock, names), cls: 'derived' },
     { path: 'registry.ts', content: emitRegistry(c), cls: 'derived' },
     { path: 'index.tsx', content: emitIndex(names), cls: 'derived' },
+    // Запись реестра форм: связка «id → модуль» перестаёт быть ручной (см. emit-entry).
+    { path: 'entry.ts', content: emitEntry(names), cls: 'derived' },
     { path: 'README.md', content: emitReadme(names, info, c), cls: 'derived' },
     { path: 'data-sources.ts', content: emitDataSources(c, mock), cls: 'user' },
     { path: 'renderer.behavior.ts', content: emitBehavior(names, info), cls: 'user' },
@@ -62,5 +65,6 @@ export function buildExampleFiles(
 
 export { makeNames, type Names } from './naming';
 export { appSnippet } from './app-snippet';
+export { emitEntry } from './emit-entry';
 export { validateExportable, type ExportReport } from './validate-exportable';
 export { assignSelectors } from './assign-selectors';

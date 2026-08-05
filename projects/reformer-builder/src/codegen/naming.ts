@@ -20,6 +20,8 @@ export interface Names {
   title: string;
   /** Имя фабрики модели (`createLoanApplicationFormModel`). */
   modelFactory: string;
+  /** Имя константы записи реестра форм (`loanApplicationFormEntry`). */
+  entryConst: string;
 }
 
 const TRANSLIT: Record<string, string> = {
@@ -106,5 +108,7 @@ export function makeNames(formName: string): Names {
     exampleId: dir,
     title: humanize(formName),
     modelFactory: `create${TypeName}Model`,
+    // Запись реестра: camelCase от типа + Entry (`loanApplicationFormEntry`).
+    entryConst: `${TypeName.charAt(0).toLowerCase()}${TypeName.slice(1)}Entry`,
   };
 }
