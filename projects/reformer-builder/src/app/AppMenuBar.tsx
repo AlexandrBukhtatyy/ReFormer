@@ -32,6 +32,7 @@ import {
 import type { PreviewMode } from '../store';
 import { emptySchema } from '../model';
 import { exportExample, openProject, triggerSave } from './save-actions';
+import { requestClose } from './close-actions';
 import { HelpDialogs, type HelpDialog } from './HelpDialogs';
 
 /** Новая пустая форма — имя без коллизий с уже открытыми вкладками. */
@@ -75,7 +76,7 @@ export function AppMenuBar() {
             </MenubarItem>
             <MenubarItem
               disabled={!activeId}
-              onClick={() => activeId && editorActions.closeTab(activeId)}
+              onClick={() => activeId && requestClose({ kind: 'one', id: activeId })}
             >
               Закрыть вкладку
             </MenubarItem>

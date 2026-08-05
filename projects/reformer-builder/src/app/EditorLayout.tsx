@@ -13,20 +13,20 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/
 import { Toaster } from '@reformer/ui-kit/sonner';
 import { activeTab, editorActions, editorStore, useActiveTab, useUi } from '../store';
 import type { LeftPanel, LeftPanelKind, PreviewMode, UiState } from '../store';
-import { emptySchema, type NavDir } from '../model';
-import { getRuntimeConfig } from '../config/state';
+import { type NavDir } from '../model';
 import { saveDialogActions } from '../store/save-dialog';
 import { CanvasArea } from '../canvas/CanvasArea';
 import { CodeArea } from '../canvas/CodeArea';
 import { TabBar } from '../canvas/TabBar';
 import { SaveDialog } from '../canvas/SaveDialog';
+import { CloseTabDialog } from '../canvas/CloseTabDialog';
 import { QuickAddDialog } from '../canvas/QuickAddDialog';
 import { FilesPanel } from '../panels/FilesPanel';
 import { PalettePanel } from '../panels/PalettePanel';
 import { TemplatesPanel } from '../panels/TemplatesPanel';
 import { Inspector, SelectedTypeBadge } from '../panels/Inspector';
 import { AppToolbar } from './AppToolbar';
-import { seedSchema } from './seed-schema';
+import { bootstrapDrafts } from './draft-actions';
 import { saveCodeTab, triggerSave } from './save-actions';
 import { cn } from '../lib/cn';
 
@@ -177,15 +177,19 @@ export function EditorLayout() {
     panelIds: ['left', 'center', 'right'],
   });
 
-  // seed стартовой схемы (Mode A) при первом запуске. Клиентский конфиг `project.seedSchema`:
-  // объект → кастомный seed; `null` → пустая форма; поле отсутствует → встроенная демо-схема.
+  // Старт сессии: восстановить черновики (вкладки без файла в проекте) из локального хранилища,
+  // включить их автосохранение и, если восстанавливать нечего, показать стартовую схему.
   useEffect(() => {
-    if (!editorStore.getState().activeTabId) {
-      const seed = getRuntimeConfig().project?.seedSchema;
-      const schema = seed === undefined ? seedSchema() : (seed ?? emptySchema());
-      const name = seed === undefined ? 'credit-application.form.json' : 'untitled.form.json';
-      editorActions.openTab(name, { kind: 'new', name }, schema);
-    }
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    void bootstrapDrafts().then((dispose) => {
+      if (cancelled) dispose();
+      else stop = dispose;
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
   }, []);
 
   // тёмная тема — на documentElement (покрывает порталы tooltip/toast)
@@ -465,6 +469,7 @@ export function EditorLayout() {
         </div>
       </div>
       <SaveDialog />
+      <CloseTabDialog />
       <QuickAddDialog />
       <Toaster />
     </TooltipProvider>

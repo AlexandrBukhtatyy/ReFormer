@@ -2,6 +2,9 @@
  * Таб-бар открытых схем (стиль VSCode, прототип §4): моно-имя, оранжевая точка при dirty, крестик.
  * ПКМ по вкладке — контекстное меню закрытия (закрыть / слева / справа / остальные).
  *
+ * Закрытие идёт через `app/close-actions`, а не напрямую в стор: у черновиков (вкладок без файла
+ * в проекте) закрытие удаляет и локальную копию, поэтому может потребоваться подтверждение.
+ *
  * @module reformer-builder/canvas/TabBar
  */
 
@@ -13,7 +16,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@reformer/ui-kit/context-menu';
-import { editorActions, isDirty, useActiveTabId, useTab, useTabOrder } from '../store';
+import { editorActions, isDirty, isDraft, useActiveTabId, useTab, useTabOrder } from '../store';
+import { requestClose } from '../app/close-actions';
 import { cn } from '../lib/cn';
 
 function TabItem({ id, index, count }: { id: string; index: number; count: number }) {
@@ -24,6 +28,7 @@ function TabItem({ id, index, count }: { id: string; index: number; count: numbe
   const canCloseLeft = index > 0;
   const canCloseRight = index < count - 1;
   const canCloseOthers = count > 1;
+  const draft = isDraft(tab);
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -35,13 +40,24 @@ function TabItem({ id, index, count }: { id: string; index: number; count: numbe
           )}
         >
           <span className="text-muted-foreground">{'{}'}</span>
-          {/* Предпросмотр шаблона — временная вкладка: курсивом, как preview-таб в VSCode. */}
-          <span className={cn(tab.source.kind === 'template' && 'italic')}>{tab.source.name}</span>
+          {/* Нетронутый предпросмотр шаблона — временная вкладка: курсивом, как preview-таб в
+              VSCode. После первой правки он становится черновиком с локальной копией — курсив
+              снимается. */}
+          <span
+            className={cn(tab.source.kind === 'template' && !tab.touched && 'italic')}
+            title={
+              draft
+                ? `${tab.source.name} — черновик: файла в проекте нет, копия хранится локально`
+                : tab.source.path || tab.source.name
+            }
+          >
+            {tab.source.name}
+          </span>
           {isDirty(tab) && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              editorActions.closeTab(id);
+              requestClose({ kind: 'one', id });
             }}
             className="ml-1 grid h-4 w-4 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
           >
@@ -50,20 +66,23 @@ function TabItem({ id, index, count }: { id: string; index: number; count: numbe
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
-        <ContextMenuItem onClick={() => editorActions.closeTab(id)}>Закрыть</ContextMenuItem>
-        <ContextMenuItem disabled={!canCloseLeft} onClick={() => editorActions.closeTabsToLeft(id)}>
+        <ContextMenuItem onClick={() => requestClose({ kind: 'one', id })}>Закрыть</ContextMenuItem>
+        <ContextMenuItem
+          disabled={!canCloseLeft}
+          onClick={() => requestClose({ kind: 'left', id })}
+        >
           Закрыть слева
         </ContextMenuItem>
         <ContextMenuItem
           disabled={!canCloseRight}
-          onClick={() => editorActions.closeTabsToRight(id)}
+          onClick={() => requestClose({ kind: 'right', id })}
         >
           Закрыть справа
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           disabled={!canCloseOthers}
-          onClick={() => editorActions.closeOtherTabs(id)}
+          onClick={() => requestClose({ kind: 'others', id })}
         >
           Закрыть остальные
         </ContextMenuItem>

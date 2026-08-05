@@ -19,4 +19,5 @@ export {
   useActiveTabId,
   useTab,
 } from './hooks';
-export { activeTab, isDirty, initialState, HISTORY_CAP } from './reducers';
+export { activeTab, isDirty, isDraft, initialState, HISTORY_CAP } from './reducers';
+export { startDraftSync, dropDraft, draftsDelta, toRecord, toTab } from './drafts';

@@ -44,6 +44,22 @@ describe('вкладки', () => {
     return s;
   };
 
+  it('restoreTabs: добавляет вкладки в конец, активной делает последнюю', () => {
+    const s = R.restoreTabs(R.initialState(), [
+      R.makeTab('d1', src, emptySchema()),
+      R.makeTab('d2', src, emptySchema()),
+    ]);
+    expect(s.order).toEqual(['d1', 'd2']);
+    expect(s.activeTabId).toBe('d2');
+  });
+
+  it('restoreTabs: не дублирует открытые и не перебивает активную', () => {
+    const s0 = opened();
+    const s = R.restoreTabs(s0, [R.makeTab('t1', src, emptySchema())]);
+    expect(s).toBe(s0);
+    expect(s.activeTabId).toBe('t1');
+  });
+
   it('closeOtherTabs: остаётся только цель, она активна', () => {
     const s = R.closeOtherTabs(R.setActiveTab(abc(), 'a'), 'b');
     expect(s.order).toEqual(['b']);
@@ -85,6 +101,9 @@ describe('правки и история', () => {
     expect(t1.selectionPath).toEqual(['root', 'children', 0]);
     expect(t1.past).toHaveLength(1);
     expect(R.isDirty(t1)).toBe(true);
+    // правка взводит `touched` — по нему предпросмотр шаблона становится черновиком
+    expect(t0.touched).toBe(false);
+    expect(t1.touched).toBe(true);
   });
 
   it('undo/redo восстанавливают схему и выделение', () => {

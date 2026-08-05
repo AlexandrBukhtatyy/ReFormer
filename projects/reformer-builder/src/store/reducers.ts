@@ -92,6 +92,7 @@ export function makeTab(id: string, source: TabSource, schema: JsonFormSchema): 
     anchorPath: ['root'],
     hoverPath: null,
     activeStep: 0,
+    touched: false,
     lastCoalesceKey: null,
   };
 }
@@ -123,6 +124,7 @@ export function makeCodeTab(
     anchorPath: null,
     hoverPath: null,
     activeStep: 0,
+    touched: false,
     lastCoalesceKey: null,
   };
 }
@@ -142,6 +144,24 @@ export function openTab(
     tabs: { ...state.tabs, [id]: makeTab(id, source, schema) },
     order: [...state.order, id],
     activeTabId: id,
+  };
+}
+
+/**
+ * Восстановить вкладки из локальных копий (черновики из IndexedDB на старте). Уже открытые id
+ * пропускаются, порядок восстановленных сохраняется, активной становится последняя — если своей
+ * активной вкладки ещё нет.
+ */
+export function restoreTabs(state: EditorState, restored: TabState[]): EditorState {
+  const fresh = restored.filter((t) => !state.tabs[t.id]);
+  if (!fresh.length) return state;
+  const tabs = { ...state.tabs };
+  for (const tab of fresh) tabs[tab.id] = tab;
+  return {
+    ...state,
+    tabs,
+    order: [...state.order, ...fresh.map((t) => t.id)],
+    activeTabId: state.activeTabId ?? fresh[fresh.length - 1].id,
   };
 }
 
@@ -282,6 +302,8 @@ function pushHistory(
     anchorPath: next.anchorPath !== undefined ? next.anchorPath : next.selectionPath,
     past,
     future: [],
+    // Единственная точка входа всех правок схемы — здесь же взводится флаг «вкладку трогали».
+    touched: true,
     lastCoalesceKey: coalesceKey ?? null,
   };
 }
@@ -785,4 +807,16 @@ export function activeTab(state: EditorState): TabState | null {
 /** Dirty активной вкладки: схема разошлась с baseline (сравнение по ссылке — иммутабельность). */
 export function isDirty(tab: TabState): boolean {
   return tab.kind === 'code' ? tab.text !== tab.savedText : tab.schema !== tab.savedSchema;
+}
+
+/**
+ * Черновик — вкладка, за которой нет файла в проекте, поэтому её единственная копия хранится
+ * локально (IndexedDB, {@link module:reformer-builder/io/draft-store}). Это все вкладки Mode A
+ * и предпросмотр шаблона **после первой правки**: нетронутый предпросмотр остаётся временным —
+ * терять в нём нечего, он открывается заново из панели шаблонов.
+ */
+export function isDraft(tab: TabState): boolean {
+  if (tab.kind === 'code') return false;
+  if (tab.source.kind === 'new') return true;
+  return tab.source.kind === 'template' && tab.touched;
 }

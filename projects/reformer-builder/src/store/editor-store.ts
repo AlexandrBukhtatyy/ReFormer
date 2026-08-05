@@ -17,6 +17,7 @@ import type {
   PreviewMode,
   RuntimeMode,
   TabSource,
+  TabState,
   Theme,
 } from './types';
 
@@ -27,6 +28,8 @@ export const editorStore = createStore<EditorState>(R.initialState());
 export const editorActions = {
   openTab: (id: string, source: TabSource, schema: JsonFormSchema) =>
     editorStore.setState((s) => R.openTab(s, id, source, schema)),
+  /** Восстановить вкладки-черновики из локальных копий (старт приложения). */
+  restoreTabs: (tabs: TabState[]) => editorStore.setState((s) => R.restoreTabs(s, tabs)),
   /** Открыть произвольный файл на редактирование в Monaco (code-вкладка). */
   openCodeTab: (id: string, source: TabSource, text: string, language: string) =>
     editorStore.setState((s) => R.openCodeTab(s, id, source, text, language)),
