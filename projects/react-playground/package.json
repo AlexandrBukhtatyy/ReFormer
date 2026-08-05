@@ -18,6 +18,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@reformer/cdk": "*",
     "@reformer/core": "*",
+    "@reformer/form-registry": "*",
     "@reformer/renderer-json": "*",
     "@reformer/renderer-react": "*",
     "@reformer/ui-kit": "*",

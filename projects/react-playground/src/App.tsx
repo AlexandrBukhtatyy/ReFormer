@@ -4,6 +4,7 @@ import { MenuIcon, XIcon } from 'lucide-react';
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
 import CreditApplicationFormRenderer from './pages/examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer';
 import RegistrationFormRendererJson from './pages/examples/complex-multy-step-form-renderer-json/CreditApplicationFormRendererJson';
+import CreditApplicationFormRegistry from './pages/examples/complex-multy-step-form-registry';
 import RegistrationForm from './pages/examples/registration-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
@@ -15,6 +16,9 @@ import HtmlNodesExample from './pages/examples/html-nodes/HtmlNodesExample';
 import RegistrationFormJson from './pages/examples/registration-form-renderer-json/RegistrationFormRendererJson';
 import AlertsListRendererJson from './pages/examples/alerts-list-renderer-json/AlertsListRendererJson';
 import FileUploadDemo from './pages/examples/file-upload/FileUploadDemo';
+import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
+import { FormRegistryProvider } from '@reformer/form-registry/react';
+import { baseComponentRegistry, registerPlaygroundForms } from './forms/registry';
 type ExamplePage =
   | 'simple'
   | 'validation'
@@ -23,6 +27,7 @@ type ExamplePage =
   | 'complex'
   | 'complex-renderer'
   | 'json-renderer'
+  | 'form-registry'
   | 'mcca-core-v20'
   | 'mcca-renderer-react-v20'
   | 'mcca-renderer-json-v20'
@@ -84,6 +89,12 @@ const exampleGroups: { title: string; items: ExampleEntry[] }[] = [
         path: '/examples/json-renderer',
         title: 'JSON Renderer',
         description: 'Рендеринг формы из JSON-схемы через @reformer/renderer-json',
+      },
+      {
+        id: 'form-registry',
+        path: '/examples/form-registry',
+        title: 'Реестр форм',
+        description: 'Та же JSON-форма, но смонтирована по id через @reformer/form-registry',
       },
     ],
   },
@@ -289,6 +300,7 @@ function Layout() {
             <Route path="/examples/complex" element={<CreditApplicationForm />} />
             <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
             <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
+            <Route path="/examples/form-registry" element={<CreditApplicationFormRegistry />} />
             <Route path="/examples/mcca-core-v20" element={<MccaCoreV20 />} />
             <Route path="/examples/mcca-renderer-react-v20" element={<MccaRendererReactV20 />} />
             <Route path="/examples/mcca-renderer-json-v20" element={<MccaRendererJsonV20 />} />
@@ -306,10 +318,25 @@ function Layout() {
   );
 }
 
+/**
+ * Контекст разрешения форм. В витрине прав и флагов нет — все формы доступны;
+ * в реальном приложении сюда приходят права пользователя и включённые фиче-флаги.
+ */
+const FORM_CONTEXT: ResolveContext = { permissions: new Set(), flags: new Set() };
+
 function App() {
+  // Регистрация до первого рендера: FormOutlet резолвит запись синхронно.
+  registerPlaygroundForms();
+
   return (
     <BrowserRouter>
-      <Layout />
+      <FormRegistryProvider
+        registry={getFormRegistry()}
+        context={FORM_CONTEXT}
+        baseRegistry={baseComponentRegistry}
+      >
+        <Layout />
+      </FormRegistryProvider>
     </BrowserRouter>
   );
 }

@@ -7,8 +7,10 @@
  * получает `type`/`message` через `$model(...)`. Показ/скрытие алертов = мутация массива в behavior
  * (H1) — список ре-рендерится сам.
  */
+import { createModel, type FormModel } from '@reformer/core';
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 import { createJsonForm, type JsonForm, type JsonFormSchema } from '@reformer/renderer-json';
+import type { FormEntry } from '@reformer/form-registry';
 import { createAlertsRegistry } from './registry';
 import rawJsonSchema from './json-schema.json';
 
@@ -65,10 +67,39 @@ export function createAlertsSetup(): JsonForm<AlertsFormData> {
   const jsonForm = createJsonForm<AlertsFormData>({
     schema: alertsJsonSchema,
     registry: createAlertsRegistry(),
-    initial: { ...INITIAL },
+    model: createAlertsModel(),
     behavior: alertsBehavior,
   });
-  // Начальное наполнение (onChange не срабатывает на init).
-  applyAlerts(jsonForm.model);
   return jsonForm;
 }
+
+/**
+ * Модель с уже наполненным списком алертов.
+ *
+ * Наполнение вынесено сюда из пост-обработки готовой формы: `onChange` не срабатывает на
+ * инициализации, а список должен быть непустым с первого кадра. Заодно это делает пример
+ * пригодным для реестра форм — там форму собирает сам реестр, и вклиниться после `createJsonForm`
+ * потребителю негде.
+ */
+export function createAlertsModel(): FormModel<AlertsFormData> {
+  const model = createModel<AlertsFormData>({ ...INITIAL });
+  applyAlerts(model);
+  return model;
+}
+
+/**
+ * Запись реестра форм для этого примера.
+ *
+ * Схема — данные (`inline`, но с тем же успехом могла бы приехать по сети). Реестр компонентов,
+ * поведение и фабрика модели — код: их нельзя передать JSON-ом, поэтому они `CodeSource`.
+ */
+export const alertsFormEntry: FormEntry<AlertsFormData> = {
+  id: 'alerts-list',
+  version: '1.0.0',
+  owner: 'react-playground',
+  schema: { kind: 'inline', value: alertsJsonSchema },
+  registry: { kind: 'inline', value: createAlertsRegistry() },
+  model: { kind: 'inline', value: createAlertsModel },
+  behavior: { kind: 'inline', value: alertsBehavior },
+  meta: { name: 'Список алертов из модели', tags: ['renderer-json', 'array'] },
+};
