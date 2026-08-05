@@ -63,6 +63,35 @@ export function FloatingActions() {
 
   return (
     <div className="absolute right-4 top-2 z-10 flex flex-wrap items-center justify-end gap-1.5 rounded-lg border border-border bg-background/95 p-1 shadow-sm backdrop-blur">
+      {/* Режим Renderer'а: холст поверх живого рендера ⇄ интерактивная форма (⌥⌘E). */}
+      {ui.preview === 'runtime' && (
+        <div className="flex flex-none gap-0.5 rounded-md border border-border bg-muted p-0.5">
+          <button
+            onClick={() => editorActions.setRuntimeMode('edit')}
+            title="Редактирование: клик выделяет узел, работают хоткеи и drag-drop (⌥⌘E)"
+            aria-label="Редактирование"
+            aria-pressed={ui.runtimeMode === 'edit'}
+            className={cn(
+              'flex h-6 w-6 items-center justify-center rounded',
+              ui.runtimeMode === 'edit' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+            )}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => editorActions.setRuntimeMode('test')}
+            title="Тест: форма интерактивна, редактирование схемы выключено (⌥⌘E)"
+            aria-label="Тест"
+            aria-pressed={ui.runtimeMode === 'test'}
+            className={cn(
+              'flex h-6 w-6 items-center justify-center rounded',
+              ui.runtimeMode === 'test' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+            )}
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
       <div className="flex flex-none gap-0.5 rounded-md border border-border bg-muted p-0.5">
         <button
           onClick={() => editorActions.setPreview('wire')}
@@ -95,35 +124,6 @@ export function FloatingActions() {
           Код
         </button>
       </div>
-      {/* Режим Renderer'а: холст поверх живого рендера ⇄ интерактивная форма (⌥⌘E). */}
-      {ui.preview === 'runtime' && (
-        <div className="flex flex-none gap-0.5 rounded-md border border-border bg-muted p-0.5">
-          <button
-            onClick={() => editorActions.setRuntimeMode('edit')}
-            title="Редактирование: клик выделяет узел, работают хоткеи и drag-drop (⌥⌘E)"
-            aria-label="Редактирование"
-            aria-pressed={ui.runtimeMode === 'edit'}
-            className={cn(
-              'flex h-6 w-6 items-center justify-center rounded',
-              ui.runtimeMode === 'edit' ? 'bg-background shadow-sm' : 'text-muted-foreground'
-            )}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => editorActions.setRuntimeMode('test')}
-            title="Тест: форма интерактивна, редактирование схемы выключено (⌥⌘E)"
-            aria-label="Тест"
-            aria-pressed={ui.runtimeMode === 'test'}
-            className={cn(
-              'flex h-6 w-6 items-center justify-center rounded',
-              ui.runtimeMode === 'test' ? 'bg-background shadow-sm' : 'text-muted-foreground'
-            )}
-          >
-            <Eye className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
       <div ref={settingsRef} className="relative flex-none">
         <Button
           variant="outline"
