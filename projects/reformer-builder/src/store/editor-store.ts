@@ -15,6 +15,7 @@ import type {
   LeftPanel,
   MockSection,
   PreviewMode,
+  RuntimeMode,
   TabSource,
   Theme,
 } from './types';
@@ -101,6 +102,10 @@ export const editorActions = {
   toggleSelectionAt: (path: JsonPath) => editorStore.setState((s) => R.toggleSelectionAt(s, path)),
 
   setPreview: (mode: PreviewMode) => editorStore.setState((s) => R.setPreview(s, mode)),
+  /** Режим вкладки «Renderer»: `edit` — холст поверх рендера, `test` — живая форма. */
+  setRuntimeMode: (mode: RuntimeMode) => editorStore.setState((s) => R.setRuntimeMode(s, mode)),
+  /** ⌥⌘E: переключить режим «Renderer». */
+  toggleRuntimeMode: () => editorStore.setState(R.toggleRuntimeMode),
   toggleRawJson: () => editorStore.setState(R.toggleRawJson),
   /** Переключить активную вкладку нижней панели (JSON схемы / мок-данные). */
   setBottomTab: (t: BottomTab) => editorStore.setState((s) => R.setBottomTab(s, t)),

@@ -37,7 +37,7 @@ export interface SynthMockOptions {
 }
 
 /** Вид поля для выбора значения (и для вывода TS-типа в кодогене). */
-export type FieldKind = 'select' | 'boolean' | 'number' | 'date' | 'string';
+export type FieldKind = 'select' | 'boolean' | 'number' | 'date' | 'files' | 'string';
 
 /** Классификация `$dataSource` по контексту использования (приоритет function > option > scalar). */
 export interface DataSourceClasses {
@@ -62,6 +62,13 @@ const SELECT_COMPONENTS = new Set([
 const BOOLEAN_COMPONENTS = new Set(['Checkbox', 'Switch', 'Toggle']);
 const NUMBER_COMPONENTS = new Set(['Slider', 'InputNumber', 'NumberInput']);
 const DATE_COMPONENTS = new Set(['DatePicker', 'DateInput', 'Calendar', 'DateRangePicker']);
+/**
+ * Файловые контролы держат список файлов и внутри зовут `value.map(...)` — строка их роняет
+ * (а падение одного контрола гасило всё превью). Значение по умолчанию — `null`, а НЕ `[]`:
+ * массив в начальном значении модель превратила бы в ModelArray (форма-массив вместо листа),
+ * и у поля не оказалось бы сигнала — см. `FileUploadDemo.tsx` в react-playground.
+ */
+const FILE_COMPONENTS = new Set(['FileUpload', 'FileUploadAvatar', 'Attachment']);
 
 // ── классификация источников ─────────────────────────────────────────────────
 
@@ -118,6 +125,7 @@ function synthDataSourceValues(cls: DataSourceClasses): Record<string, unknown> 
 export function inferFieldKind(node: JsonFieldNode): FieldKind {
   const name = parseOperator(node.component)?.arg;
   const props = node.componentProps ?? {};
+  if (name && FILE_COMPONENTS.has(name)) return 'files';
   if (
     hasListDataSource(props) ||
     Array.isArray(props.options) ||
@@ -165,6 +173,8 @@ function synthFieldValue(
       return numberValue(node, now);
     case 'date':
       return dateValue(node, now);
+    case 'files':
+      return null;
     default:
       return stringValue(node);
   }

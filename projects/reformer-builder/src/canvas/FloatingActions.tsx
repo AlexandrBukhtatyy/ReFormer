@@ -95,6 +95,31 @@ export function FloatingActions() {
           Код
         </button>
       </div>
+      {/* Режим Renderer'а: холст поверх живого рендера ⇄ интерактивная форма (⌥⌘E). */}
+      {ui.preview === 'runtime' && (
+        <div className="flex flex-none gap-0.5 rounded-md border border-border bg-muted p-0.5">
+          <button
+            onClick={() => editorActions.setRuntimeMode('edit')}
+            title="Редактирование: клик выделяет узел, работают хоткеи и drag-drop (⌥⌘E)"
+            className={cn(
+              'h-6 rounded px-2 text-[11.5px]',
+              ui.runtimeMode === 'edit' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+            )}
+          >
+            Редактирование
+          </button>
+          <button
+            onClick={() => editorActions.setRuntimeMode('test')}
+            title="Тест: форма интерактивна, редактирование схемы выключено (⌥⌘E)"
+            className={cn(
+              'h-6 rounded px-2 text-[11.5px]',
+              ui.runtimeMode === 'test' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+            )}
+          >
+            Тест
+          </button>
+        </div>
+      )}
       <div ref={settingsRef} className="relative flex-none">
         <Button
           variant="outline"

@@ -57,14 +57,17 @@ export function WizardPreview(props: WizardPreviewProps): ReactNode {
     body: node as any,
   }));
 
+  // `className` (в превью — класс-токен узла) вешаем на собственную обёртку: ui-kit `FormWizard`
+  // проп объявляет, но не применяет — иначе узел визарда нельзя было бы выделить кликом.
   return (
-    <FormWizard<PreviewForm>
-      form={form as FormProxy<PreviewForm>}
-      className={props.className}
-      steps={steps}
-      config={{}}
-      onSubmit={() => {}}
-    />
+    <div className={props.className}>
+      <FormWizard<PreviewForm>
+        form={form as FormProxy<PreviewForm>}
+        steps={steps}
+        config={{}}
+        onSubmit={() => {}}
+      />
+    </div>
   );
 }
 

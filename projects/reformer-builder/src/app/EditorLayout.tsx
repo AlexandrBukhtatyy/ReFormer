@@ -241,6 +241,12 @@ export function EditorLayout() {
         cyclePreview(e.shiftKey ? -1 : 1);
         return;
       }
+      // ⌘⌥E — режим вкладки Renderer: «Редактирование» ⇄ «Тест».
+      if (mod && e.altKey && e.code === 'KeyE') {
+        e.preventDefault();
+        editorActions.toggleRuntimeMode();
+        return;
+      }
       // ⌘⌥1/2/3 — прямой переход: Схематичный / Renderer / Код.
       if (mod && e.altKey && (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3')) {
         e.preventDefault();
@@ -267,14 +273,19 @@ export function EditorLayout() {
       const st = editorStore.getState();
       // code-вкладка: canvas-хоткеи не применяем (Monaco обрабатывает ввод сам; ⌘S — выше).
       if (activeTab(st)?.kind === 'code') return;
-      const inWire = st.ui.preview === 'wire' && activeTab(st) != null;
+      // Холст — схематика ИЛИ Renderer в режиме «Редактирование» (там форма не принимает ввод,
+      // поэтому клавиши смело трактуем как команды над узлами схемы).
+      const inCanvas =
+        (st.ui.preview === 'wire' ||
+          (st.ui.preview === 'runtime' && st.ui.runtimeMode === 'edit')) &&
+        activeTab(st) != null;
 
       if (e.key === 'Escape') {
         saveDialogActions.close();
-        if (inWire) editorActions.collapseSelection();
+        if (inCanvas) editorActions.collapseSelection();
         return;
       }
-      if (!inWire) return;
+      if (!inCanvas) return;
 
       // Space — увести фокус в панель свойств выделенного узла (не перехватываем на кнопках/ссылках).
       if (e.key === ' ') {

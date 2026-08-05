@@ -14,7 +14,6 @@ import { createContext, useContext, useState, type DragEvent } from 'react';
 import { ArrowDown, ArrowRight, GripVertical } from 'lucide-react';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import {
-  canAcceptChildren,
   childSlots,
   flipDirection,
   getAt,
@@ -27,8 +26,10 @@ import {
   type Orientation,
 } from '../model';
 import { editorActions, useUi } from '../store';
-import { clearDrag, getDrag, setDrag } from '../dnd/drag-state';
-import { performDrop, type DropZone } from '../dnd/resolve-drop';
+import { setDrag } from '../dnd/drag-state';
+import { commitDrop } from '../dnd/commit-drop';
+import { computeZone, PERP_ZONES, zoneEdge, type ZoneEdge } from '../dnd/compute-zone';
+import type { DropZone } from '../dnd/resolve-drop';
 import { lineOfPath } from '../io/error-path';
 import { cn } from '../lib/cn';
 import { nodeLabel, nodeTypeBadge } from './node-display';
@@ -51,67 +52,28 @@ const DndCtx = createContext<{
   selectionPaths: [],
 });
 
-const PERP_ZONES = new Set<DropZone>([
-  'beside-before',
-  'beside-after',
-  'stack-before',
-  'stack-after',
-]);
-
-/**
- * Зона по позиции курсора. `parentOrientation` задаёт главную ось (Y для вертикального родителя,
- * X для горизонтального): вдоль неё — before/into/after. `allowPerp` (узел в `children`) включает
- * поперечные края → перпендикулярную обёртку: в вертикальном родителе `beside-*` (создать ряд),
- * в горизонтальном `stack-*` (создать столбец).
- */
-function computeZone(
+/** Зона по позиции курсора события (геометрия — общая {@link computeZone}). */
+function zoneAt(
   e: DragEvent,
   node: JsonNode,
   parentOrientation: Orientation,
   allowPerp: boolean
 ): DropZone {
-  const r = e.currentTarget.getBoundingClientRect();
-  const rx = (e.clientX - r.left) / r.width;
-  const ry = (e.clientY - r.top) / r.height;
-  const horizontalParent = parentOrientation === 'horizontal';
-  const main = horizontalParent ? rx : ry;
-  const cross = horizontalParent ? ry : rx;
-
-  if (allowPerp) {
-    if (cross < 0.25) return horizontalParent ? 'stack-before' : 'beside-before';
-    if (cross > 0.75) return horizontalParent ? 'stack-after' : 'beside-after';
-  }
-
-  if (canAcceptChildren(node)) {
-    if (main < 0.28) return 'before';
-    if (main > 0.72) return 'after';
-    return 'into';
-  }
-  return main < 0.5 ? 'before' : 'after';
+  const rect = e.currentTarget.getBoundingClientRect();
+  return computeZone({ x: e.clientX, y: e.clientY }, rect, node, parentOrientation, allowPerp);
 }
 
-/** Класс линии-индикатора у нужного края (edge зависит от зоны и оси родителя). */
+/** Класс линии-индикатора у нужного края (край — из общей {@link zoneEdge}). */
+const EDGE_CLASS: Record<Exclude<ZoneEdge, null>, string> = {
+  top: '-top-1 right-0 left-0 h-0.5',
+  bottom: 'right-0 -bottom-1 left-0 h-0.5',
+  left: 'top-0 bottom-0 -left-1 w-0.5',
+  right: 'top-0 bottom-0 -right-1 w-0.5',
+};
+
 function edgeLineClass(zone: DropZone, horizontalParent: boolean): string | null {
-  const TOP = '-top-1 right-0 left-0 h-0.5';
-  const BOTTOM = 'right-0 -bottom-1 left-0 h-0.5';
-  const LEFT = 'top-0 bottom-0 -left-1 w-0.5';
-  const RIGHT = 'top-0 bottom-0 -right-1 w-0.5';
-  switch (zone) {
-    case 'before':
-      return horizontalParent ? LEFT : TOP;
-    case 'after':
-      return horizontalParent ? RIGHT : BOTTOM;
-    case 'beside-before':
-      return LEFT;
-    case 'beside-after':
-      return RIGHT;
-    case 'stack-before':
-      return TOP;
-    case 'stack-after':
-      return BOTTOM;
-    default:
-      return null; // into — подсветка бокса, не линия
-  }
+  const edge = zoneEdge(zone, horizontalParent);
+  return edge ? EDGE_CLASS[edge] : null;
 }
 
 /** Позиция чипа-подсказки у края для перпендикулярных (обёрточных) зон. */
@@ -128,14 +90,6 @@ function chipPosClass(zone: DropZone): string {
     default:
       return '';
   }
-}
-
-function commitDrop(schema: JsonFormSchema, path: JsonPath, zone: DropZone): void {
-  const payload = getDrag();
-  clearDrag();
-  if (!payload) return;
-  const res = performDrop(schema, path, zone, payload);
-  if (res) editorActions.commit(res);
 }
 
 function NodeView({
@@ -238,12 +192,12 @@ function NodeView({
         onDragOver={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setDrop({ path, zone: computeZone(e, node, parentOrientation, allowPerp) });
+          setDrop({ path, zone: zoneAt(e, node, parentOrientation, allowPerp) });
         }}
         onDrop={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          const zone = computeZone(e, node, parentOrientation, allowPerp);
+          const zone = zoneAt(e, node, parentOrientation, allowPerp);
           setDrop(null);
           commitDrop(schema, path, zone);
         }}

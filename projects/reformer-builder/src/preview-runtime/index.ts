@@ -7,6 +7,15 @@
  */
 
 export { buildPreview, buildRegistry, type PreviewBundle } from './build-preview';
+export { annotateSchema } from './annotate-schema';
+export {
+  encodeNodeToken,
+  decodeNodeToken,
+  tokenFromClassName,
+  NODE_CLASS_PREFIX,
+  EMPTY_CLASS,
+} from './node-token';
+export { PreviewStep } from './preview-step';
 export { KNOWN_COMPONENT_NAMES, KNOWN_COMPONENT_NAME_SET, INFRA_NAMES } from './known-names';
 export { KNOWN_COMPONENTS, classifyCatalog } from './known-components';
 export { collectUnknownComponentNames } from './unknown';

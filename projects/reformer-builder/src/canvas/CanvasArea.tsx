@@ -53,7 +53,13 @@ export function CanvasArea({ tab }: { tab: TabState }) {
       <div className="mx-auto w-full">
         <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
           {ui.preview === 'runtime' ? (
-            <RuntimePreview schema={tab.schema} mock={mock} />
+            <RuntimePreview
+              schema={tab.schema}
+              mock={mock}
+              mode={ui.runtimeMode}
+              selectionPath={tab.selectionPath}
+              selectionPaths={tab.selectionPaths}
+            />
           ) : (
             <SchematicCanvas
               schema={tab.schema}

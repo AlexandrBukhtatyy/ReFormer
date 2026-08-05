@@ -64,6 +64,8 @@ export interface UiConfig {
   leftPanel?: 'files' | 'palette' | 'templates' | null;
   rightOpen?: boolean;
   preview?: 'wire' | 'runtime' | 'code';
+  /** Стартовый режим вкладки «Renderer»: холст поверх рендера либо живая форма. */
+  runtimeMode?: 'edit' | 'test';
   bottomTab?: 'raw' | 'model' | 'registry';
   hideDivWrappers?: boolean;
 }

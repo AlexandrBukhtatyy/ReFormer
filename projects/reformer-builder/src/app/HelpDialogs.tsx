@@ -55,10 +55,11 @@ const SHORTCUT_GROUPS: ReadonlyArray<ShortcutGroup> = [
           ['⌘', '⌥', '3'],
         ],
       },
+      { label: 'Renderer: Редактирование ⇄ Тест', combos: [['⌘', '⌥', 'E']] },
     ],
   },
   {
-    title: 'Редактирование (схематичный режим)',
+    title: 'Редактирование (холст: Схематичный и Renderer)',
     items: [
       {
         label: 'Навигация по узлам (в ряду — ←→ по соседям)',

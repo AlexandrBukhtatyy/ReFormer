@@ -65,6 +65,39 @@ describe('inferFieldKind', () => {
     expect(inferFieldKind(s.children[4])).toBe('boolean'); // Checkbox
     expect(inferFieldKind(s.children[5])).toBe('date'); // type:date
   });
+
+  it('файловые контролы → files', () => {
+    const node = (name: string) =>
+      ({ value: '$model(docs)', component: `$component(${name})` }) as Parameters<
+        typeof inferFieldKind
+      >[0];
+    expect(inferFieldKind(node('FileUpload'))).toBe('files');
+    expect(inferFieldKind(node('FileUploadAvatar'))).toBe('files');
+    expect(inferFieldKind(node('Attachment'))).toBe('files');
+  });
+});
+
+describe('synthMock — файловые поля', () => {
+  /**
+   * Регрессия: строка роняла FileUpload (`value.map is not a function`) и вместе с ним ВСЁ превью,
+   * а массив модель превратила бы в ModelArray (лист остался бы без сигнала). Верно только `null`.
+   */
+  it('значение файлового поля — null (не строка и не массив)', () => {
+    const schema = {
+      version: '1.0',
+      root: {
+        component: '$component(Box)',
+        children: [
+          {
+            value: '$model(docs)',
+            component: '$component(FileUpload)',
+            componentProps: { label: 'Документы' },
+          },
+        ],
+      },
+    } as unknown as JsonFormSchema;
+    expect(synthMock(schema, { now: NOW }).model).toEqual({ docs: null });
+  });
 });
 
 describe('synthMock — модель', () => {

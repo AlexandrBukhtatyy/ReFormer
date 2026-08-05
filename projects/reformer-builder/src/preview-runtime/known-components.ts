@@ -7,9 +7,9 @@
  * Плюс INFRA-имена ВНЕ палитрового каталога, но нужные рендереру: `FormField` (он же `FIELD_WRAPPER`)
  * и `AsyncBoundary`.
  *
- * Палитровые compound'ы `Wizard`/`Step` резолвятся как обычные каталожные записи: `Step` → cdk `Step`,
- * `Wizard` → builder-адаптер {@link WizardPreview} поверх ui-kit `FormWizard` (оба подмешаны в
- * `PREVIEW_UIKIT`, т.к. в barrel `@reformer/ui-kit` их под этими именами нет).
+ * Палитровые compound'ы `Wizard`/`Step` резолвятся как обычные каталожные записи: `Step` →
+ * {@link PreviewStep}, `Wizard` → builder-адаптер {@link WizardPreview} поверх ui-kit `FormWizard`
+ * (оба подмешаны в `PREVIEW_UIKIT`, т.к. в barrel `@reformer/ui-kit` их под этими именами нет).
  *
  * @module reformer-builder/preview-runtime/known-components
  */
@@ -24,10 +24,11 @@ import * as CalendarNs from '@reformer/ui-kit/calendar';
 import * as DatePickerNs from '@reformer/ui-kit/date-picker';
 import * as InputOtpNs from '@reformer/ui-kit/input-otp';
 import * as TableNs from '@reformer/ui-kit/table';
-import { Step } from '@reformer/cdk/form-wizard';
 import { getCatalog } from '../catalog';
 import { classify, isRegistrable } from './render-policy';
+import { isolateComponent } from './isolate-component';
 import { makePreviewLimitedComponent } from './unknown-component';
+import { PreviewStep } from './preview-step';
 import { WizardPreview } from './wizard-preview';
 import { INFRA_NAMES } from './known-names';
 
@@ -45,28 +46,36 @@ const PREVIEW_UIKIT: Record<string, unknown> = {
   ...DatePickerNs,
   ...InputOtpNs,
   ...TableNs,
-  // Палитровые compound'ы визарда: под этими именами в barrel экспортов нет.
+  // Палитровые compound'ы визарда: под этими именами в barrel экспортов нет. `Step` — builder-версия
+  // с DOM-обёрткой (cdk-шаг рендерит голый фрагмент, на который не сядет класс-токен превью).
   Wizard: WizardPreview,
-  Step,
+  Step: PreviewStep,
 };
 
 /** Компоненты для INFRA-имён (вне каталога). Ключи обязаны покрывать {@link INFRA_NAMES}. */
 const INFRA_LOOKUP: Record<string, ComponentType<any>> = {
   FormField: UiKit.FormField as ComponentType<any>,
   AsyncBoundary: UiKit.AsyncBoundary as ComponentType<any>,
+  List: UiKit.List as ComponentType<any>,
 };
 
-/** Собрать карту `имя → компонент` из каталога (один раз на загрузке модуля). */
+/**
+ * Собрать карту `имя → компонент` из каталога (один раз на загрузке модуля). Каждый компонент
+ * изолируется ({@link isolateComponent}): падение одного контрола показывает плашку вместо того,
+ * чтобы обрушить всё превью.
+ */
 function buildKnownComponents(): Record<string, ComponentType<any>> {
   const map: Record<string, ComponentType<any>> = {};
-  for (const name of INFRA_NAMES) map[name] = INFRA_LOOKUP[name];
+  for (const name of INFRA_NAMES) map[name] = isolateComponent(INFRA_LOOKUP[name], name);
   for (const entry of getCatalog()) {
     if (!isRegistrable(entry)) continue;
     const decision = classify(entry, PREVIEW_UIKIT);
-    map[entry.name] =
+    map[entry.name] = isolateComponent(
       decision.policy === 'live'
         ? decision.component
-        : makePreviewLimitedComponent(entry.name, decision.reason);
+        : makePreviewLimitedComponent(entry.name, decision.reason),
+      entry.name
+    );
   }
   return map;
 }

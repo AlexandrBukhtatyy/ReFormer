@@ -15,13 +15,16 @@ import { isRegistrable } from './render-policy';
 
 /**
  * INFRA-имена ВНЕ палитрового каталога, но зарегистрированные в реестре (см. known-components):
- * враппер поля (`FormField` = `FIELD_WRAPPER`) и граница async. Единый источник —
- * `known-components` строит для них компоненты по этому списку.
+ * враппер поля (`FormField` = `FIELD_WRAPPER`), граница async и `List` — обёртка display-списка,
+ * которой схемы адресуют array-узлы (`{ array, component: '$component(List)', item.$template }`).
+ * `List` есть в `@reformer/ui-kit`, но каталог его не публикует, поэтому без этой записи реальные
+ * схемы получали в превью amber-плашку «не зарегистрирован». Единый источник — `known-components`
+ * строит для них компоненты по этому списку.
  *
  * `Wizard`/`Step` сюда НЕ входят — они палитровые (синтетические записи каталога, см.
  * `synthetic-entries`), поэтому попадают в реестр обычным путём каталога.
  */
-export const INFRA_NAMES = ['FormField', 'AsyncBoundary'] as const;
+export const INFRA_NAMES = ['FormField', 'AsyncBoundary', 'List'] as const;
 
 /** Каталожные компоненты, попадающие в реестр как `$component(name)` (без array и `$html`). */
 function catalogComponentNames(): string[] {

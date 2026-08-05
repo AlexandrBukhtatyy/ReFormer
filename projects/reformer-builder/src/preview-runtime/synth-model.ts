@@ -29,6 +29,10 @@ export interface FieldDefault {
 /** Дефолт значения листа по его компоненту/типу. */
 function defaultForField(node: JsonFieldNode): unknown {
   const component = parseOperator(node.component)?.arg;
+  // Файловые контролы держат список файлов и зовут `value.map(...)` — строка их роняет. `null`,
+  // а не `[]`: массив в начальном значении модель превратила бы в ModelArray (не лист-сигнал).
+  if (component === 'FileUpload' || component === 'FileUploadAvatar' || component === 'Attachment')
+    return null;
   if (component === 'Checkbox' || component === 'Switch' || component === 'Toggle') return false;
   if (component === 'Slider') {
     const min = node.componentProps?.min;

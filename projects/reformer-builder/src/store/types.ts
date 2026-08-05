@@ -18,6 +18,12 @@ import type { JsonPath } from '../model';
  */
 export type PreviewMode = 'wire' | 'runtime' | 'code';
 
+/**
+ * Режим вкладки «Renderer»: `edit` — холст (клик выделяет узел, работают хоткеи и drag-drop,
+ * ввод в поля заблокирован), `test` — живая форма (поля принимают ввод, редактирование выключено).
+ */
+export type RuntimeMode = 'edit' | 'test';
+
 /** Активная левая вкладка панели инструментов (спека §8); `null` — панель свёрнута. */
 export type LeftPanel = 'files' | 'palette' | 'templates' | null;
 
@@ -111,6 +117,8 @@ export interface TabState {
 /** Глобальные UI-флаги оболочки (спека §8/§9). */
 export interface UiState {
   preview: PreviewMode;
+  /** Режим вкладки «Renderer»: редактируем схему на живом рендере либо щупаем форму. */
+  runtimeMode: RuntimeMode;
   /** Скрывать `$html(div)`-контейнеры в схематике (чище дерево); их дети рисуются напрямую. */
   hideDivWrappers: boolean;
   /** Открыта ли модалка быстрого добавления компонента (Enter). */

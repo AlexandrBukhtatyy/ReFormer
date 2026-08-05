@@ -13,3 +13,43 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Runtime-preview как холст (режим «Редактирование») ─────────────────────────
+   Форма рендерится живой, но в режиме `edit` её интерактив гасится: события мыши получают только
+   помеченные узлы (`rbnode-*` из annotate-schema), поэтому клик по инпуту всплывает до блока поля
+   и выделяет ЕГО узел, фокус в поля не уходит, а хоткеи холста работают без исключений.
+   Подсветку выделения/hover генерирует PreviewHighlight — правилами по тем же классам. */
+[data-rb-preview='edit'] {
+  --rb-select: var(--color-primary);
+  --rb-select-weak: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  --rb-select-fg: var(--color-primary-foreground);
+  user-select: none;
+}
+[data-rb-preview='edit'] * {
+  pointer-events: none;
+}
+[data-rb-preview='edit'] [class*='rbnode-'] {
+  pointer-events: auto;
+  cursor: default;
+}
+/* Узел, который ничего не рисует (контейнер без детей; компонент, которому не подошли пропсы),
+   схлопывается в невидимую полоску и недостижим курсором — даём габарит, рамку и подпись с типом
+   узла (её проставляет RuntimePreview в data-rb-label). Расхождение с прод-рендером намеренное
+   и живёт только в режиме редактирования. */
+[data-rb-preview='edit'] .rb-empty {
+  min-height: 1.5rem;
+  min-width: 4rem;
+  outline: 1px dashed color-mix(in oklab, var(--color-muted-foreground) 40%, transparent);
+  outline-offset: -1px;
+  border-radius: 3px;
+}
+[data-rb-preview='edit'] .rb-empty[data-rb-label]::after {
+  content: attr(data-rb-label);
+  display: block;
+  padding: 0 0.375rem;
+  font-size: 10px;
+  line-height: 1.4rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: color-mix(in oklab, var(--color-muted-foreground) 85%, transparent);
+  pointer-events: none;
+}

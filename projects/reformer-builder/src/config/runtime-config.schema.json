@@ -62,6 +62,7 @@
         },
         "rightOpen": { "type": "boolean" },
         "preview": { "type": "string", "enum": ["wire", "runtime", "code"] },
+        "runtimeMode": { "type": "string", "enum": ["edit", "test"] },
         "bottomTab": { "type": "string", "enum": ["raw", "model", "registry"] },
         "hideDivWrappers": { "type": "boolean" }
       }

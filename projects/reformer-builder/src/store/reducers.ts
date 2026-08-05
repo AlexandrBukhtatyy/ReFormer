@@ -42,6 +42,7 @@ import type {
   MockDraft,
   MockSection,
   PreviewMode,
+  RuntimeMode,
   TabSource,
   TabState,
   Theme,
@@ -57,6 +58,7 @@ export function initialUi(): UiState {
   const leftPanel = ui?.leftPanel !== undefined ? ui.leftPanel : 'files';
   return {
     preview: ui?.preview ?? 'wire',
+    runtimeMode: ui?.runtimeMode ?? 'edit',
     hideDivWrappers: ui?.hideDivWrappers ?? false,
     quickAddOpen: false,
     rawJsonOpen: true,
@@ -724,6 +726,14 @@ export function toggleSelectionAt(state: EditorState, path: JsonPath): EditorSta
 
 export function setPreview(state: EditorState, preview: PreviewMode): EditorState {
   return { ...state, ui: { ...state.ui, preview } };
+}
+/** Режим вкладки «Renderer»: `edit` — холст поверх живого рендера, `test` — интерактивная форма. */
+export function setRuntimeMode(state: EditorState, runtimeMode: RuntimeMode): EditorState {
+  return { ...state, ui: { ...state.ui, runtimeMode } };
+}
+/** Переключить режим «Renderer» (⌥⌘E). */
+export function toggleRuntimeMode(state: EditorState): EditorState {
+  return setRuntimeMode(state, state.ui.runtimeMode === 'edit' ? 'test' : 'edit');
 }
 export function toggleRawJson(state: EditorState): EditorState {
   return { ...state, ui: { ...state.ui, rawJsonOpen: !state.ui.rawJsonOpen } };
