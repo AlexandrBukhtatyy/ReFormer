@@ -16,3 +16,6 @@ export * from './state/index';
 export * from './form/index';
 // Validators namespace (чистые фабрики).
 export * as validators from './form/validation/index';
+
+// Штамп копии рантайма — для guard'а от двойной загрузки ядра (@reformer/form-registry/guard).
+export { CORE_RUNTIME_TOKEN } from './runtime-token';
