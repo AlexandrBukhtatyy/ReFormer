@@ -1,0 +1,85 @@
+{
+  "name": "@reformer/form-registry",
+  "version": "0.1.0",
+  "description": "Form registry for @reformer: register forms in one bundle, resolve and mount them in another (micro-frontends)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./storage": {
+      "types": "./dist/storage.d.ts",
+      "import": "./dist/storage.js"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "import": "./dist/manifest.js"
+    },
+    "./guard": {
+      "types": "./dist/guard.d.ts",
+      "import": "./dist/guard.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "npm run generate:llms && vite build",
+    "test": "node ../../scripts/run-vitest.mjs",
+    "test:watch": "vitest watch",
+    "generate:llms": "node ../../scripts/generate-llms-txt ."
+  },
+  "keywords": [
+    "reformer",
+    "forms",
+    "registry",
+    "micro-frontends",
+    "json-schema",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "llms.txt",
+    "docs/llms"
+  ],
+  "peerDependencies": {
+    "@reformer/core": ">=6.0.0",
+    "@reformer/renderer-json": ">=6.0.0",
+    "@reformer/renderer-react": ">=6.0.0",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@reformer/core": "*",
+    "@reformer/renderer-json": "*",
+    "@reformer/renderer-react": "*",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "fake-indexeddb": "^6.2.5",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.8"
+  }
+}

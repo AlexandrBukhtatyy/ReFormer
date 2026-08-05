@@ -1,0 +1,1544 @@
+# ReFormer Form Registry - LLM Integration Guide
+# AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
+
+> Form registry for @reformer: register forms in one bundle, resolve and mount them in another (micro-frontends)
+> Package: @reformer/form-registry  •  Version: 0.1.0
+
+## Table of Contents
+- 01-overview.md — Overview
+- 02-form-entry.md — FormEntry — запись реестра
+- 03-mounting.md — Монтирование: FormOutlet, FormSlot, FormRoute
+- 04-cache-storage.md — Сеть, кэш и хранилище
+- 05-preflight.md — Preflight — проверки до сборки формы
+- 06-guard.md — Guard: двойной рантайм
+- 07-troubleshooting.md — Troubleshooting
+- API Reference (auto-generated from JSDoc)
+
+## 1. Проблема
+
+Связка «id формы → модуль» обычно набирается руками: импорт, пункт меню, маршрут. Три правки, ничем
+не связанные ни между собой, ни с самой формой. Приложение, собранное отдельно, добавить форму не
+может вовсе — оно не участвует в сборке хоста.
+
+Реестр заменяет проводку записью:
+
+```ts
+getFormRegistry().register(checkoutEntry);
+// дальше достаточно id:
+// <FormOutlet id="checkout" />
+```
+
+## 2. Установка
+
+```bash
+npm install @reformer/form-registry @reformer/core @reformer/renderer-json @reformer/renderer-react
+```
+
+`react` — опциональный peer: он нужен только для `@reformer/form-registry/react`. Ядро реестра,
+хранилище и guard React не требуют и работают в vanilla-микрофронте.
+
+## 3. Точки входа
+
+| импорт | что внутри | React |
+| --- | --- | --- |
+| `@reformer/form-registry` | реестр, разрешение, загрузчик, preflight, сеть, кэш | нет |
+| `@reformer/form-registry/react` | `FormRegistryProvider`, `FormOutlet`, `FormSlot`, `FormRoute` | да |
+| `@reformer/form-registry/storage` | стратегии OPFS / IndexedDB / память, `pickStorage` | нет |
+| `@reformer/form-registry/manifest` | валидация схемы мета-схемой (**тянет ajv**) | нет |
+| `@reformer/form-registry/guard` | обнаружение дубля рантайма (ноль зависимостей) | нет |
+
+Разделение не косметическое: ajv тяжелее, чем всё ядро реестра вместе взятое, поэтому он живёт
+только за `./manifest`. Инвариант держится проверкой `scripts/check-ajv-isolation.mjs` в CI, а не
+договорённостью.
+
+## 4. Главная идея: форма — это не только схема
+
+Канонический пакет формы состоит из десяти файлов, и только один из них — данные:
+
+- `renderer.schema.json` — **данные**, сериализуемо, может приехать по сети;
+- `validation.ts`, `form.behavior.ts`, `renderer.behavior.ts`, `api.ts`, `registry.ts`,
+  `data-sources.ts`, `model.ts`, `types.ts` — **код**.
+
+Отсюда следует то, что закреплено в типах: `DataSource` умеет `kind: 'http'`, а `CodeSource` — нет.
+Это не «пока не реализовано». Загружать код по сети означало бы исполнять то, что отдал сервер.
+
+Поэтому по сети едет схема, которая обращается к коду **по имени** — через операторы
+`$component(...)`, `$dataSource(...)`, `$fn(...)`, `$locale(...)`. Код должен быть в бандле заранее;
+если имени в реестре нет, это ловит preflight (см. `05-preflight.md`).
+
+## 5. Поток
+
+```
+FormEntry (запись)
+   │
+   ├─ resolveForms(query, ctx) ──→ отбор по id/slot/route/tag + права и флаги
+   │
+   ├─ loadForm(entry, baseRegistry, opts)
+   │     ├─ схема: inline / module / http (через кэш)
+   │     ├─ код: inline / module
+   │     ├─ composeRegistries(base, own)   ← расширение записи перекрывает базу
+   │     └─ preflight — 5 проверок
+   │
+   └─ MountedForm → createJsonForm → JsonFormRenderer
+```
+
+Разделение загрузки и монтирования обязательное, а не стилистическое: `useJsonForm` — ленивый
+`useState`, его фабрика вызывается ровно один раз. Строить форму, пока не приехали схема, реестр и
+поведение, нельзя — первый вызов зафиксировал бы неполный набор навсегда.
+
+## 6. Что читать дальше
+
+- `02-form-entry.md` — из чего состоит запись и почему именно так
+- `03-mounting.md` — `FormOutlet`, `FormSlot`, `FormRoute`, права и флаги
+- `04-cache-storage.md` — сеть, двухуровневый кэш, стратегии хранения
+- `05-preflight.md` — пять проверок до сборки формы
+- `06-guard.md` — двойной рантайм в микрофронтах
+- `07-troubleshooting.md` — симптом → причина
+
+## 7. Два вида источников
+
+```ts
+type DataSource<T> =
+  | { kind: 'inline'; value: T }
+  | { kind: 'module'; load: () => Promise<T> }
+  | { kind: 'http'; url: string; init?: RequestInit };
+
+type CodeSource<T> =
+  | { kind: 'inline'; value: T }
+  | { kind: 'module'; load: () => Promise<T> };
+```
+
+Разница в одном варианте — и она принципиальная. `kind: 'http'` есть у данных и **намеренно
+отсутствует** у кода: загрузка кода по сети означала бы исполнение того, что отдал сервер. Это не
+пробел в реализации, а граница, закреплённая системой типов.
+
+`kind: 'module'` — динамический `import()`: код остаётся в бандле, но отдельным чанком.
+
+## 8. Поля
+
+| поле | тип | зачем |
+| --- | --- | --- |
+| `id` | `string` | адрес формы |
+| `version` | `string` | разные версии одной формы сосуществуют в реестре |
+| `owner` | `string` | кто зарегистрировал — по нему разводятся коллизии `id` между микрофронтами |
+| `schema` | `DataSource` | layout формы |
+| `compatibleSchema` | `string?` | semver-диапазон версий схемы, с которыми совместим ЭТОТ код |
+| `initial` | `DataSource?` | начальные значения |
+| `model` | `CodeSource?` | фабрика модели — если нужна не пустая модель, а собранная |
+| `registry` | `CodeSource?` | расширение реестра компонентов поверх базового |
+| `behavior` | `CodeSource?` | поведение формы (`compute`/`enableWhen`/`onChange`) |
+| `validation` | `CodeSource?` | правила; ключи `steps` = селекторы шагов визарда |
+| `renderBehavior` | `CodeSource?` | фабрика render-behavior |
+| `placement` | `object?` | слоты, маршруты, приоритет |
+| `access` | `object?` | права, флаги, `canRender` |
+| `degrade` | `'error' \| 'placeholder'` | что делать при отказе; дефолт строгий |
+
+### `owner` обязателен не для красоты
+
+Хранилище кэша общее на origin, а реестр общий на realm. Два микрофронта, назвавшие форму одинаково
+(`checkout`), без `owner` затирали бы друг друга — и в реестре, и в кэше. Ключ кэша строится как
+`${owner}/${id}@${version}`.
+
+### `model` против `initial`
+
+Нужен один из двух — иначе `loadForm` бросит внятную ошибку до сборки формы. Приоритет при
+монтировании: проп `model` → `model` записи → проп `initial` → `initial` записи.
+
+Фабрика модели нужна там, где начальное состояние вычисляется, а не лежит константой. Всё, что
+раньше делалось «после сборки формы», должно переехать в фабрику: хука «после createJsonForm» в
+реестре нет намеренно — работа с моделью относится к модели и должна происходить до сборки.
+
+### `renderBehavior` и настройки места
+
+```ts
+(form, model, validation?, options?) => RenderBehaviorFn<T>
+```
+
+Четвёртый параметр — настройки **места монтирования**, а не формы. Колбэки вроде `onResult`
+принадлежат хосту: он решает, где и как показать результат. В записи им не место — она одна на все
+места, где форму покажут. Хост передаёт их пропом:
+
+```tsx
+<FormOutlet id="checkout" renderBehaviorOptions={{ onResult: showToast }} />
+```
+
+## 9. Конфликты `id`
+
+```ts
+registry.register(entry); // дефолт: бросить, назвав ОБОИХ владельцев
+registry.register(entry, { onConflict: 'replace' }); // заменить + диагностика
+registry.register(entry, { onConflict: 'keep' }); // оставить прежнюю + диагностика
+```
+
+Дефолт строгий: молчаливая перезапись формы чужим микрофронтом хуже явного отказа при старте.
+Повторная регистрация **той же** записи конфликтом не считается — так переживаются StrictMode и HMR.
+
+`register` возвращает `unregister`, и возвращает его не для симметрии: в single-spa `unmount`
+микрофронта обязан снять свои записи, иначе слот продолжит показывать форму выгруженного
+приложения. Снятие идемпотентно и не удаляет запись, которую успел перезаписать другой владелец.
+
+## 10. Провайдер
+
+```tsx
+import { FormRegistryProvider } from '@reformer/form-registry/react';
+
+<FormRegistryProvider
+  baseRegistry={coreComponents}
+  ctx={{ permissions: new Set(user.permissions), flags: new Set(featureFlags) }}
+  cache={schemaCache}
+>
+  <App />
+</FormRegistryProvider>;
+```
+
+`ctx` подаёт **хост**: реестр не знает ни про роутер, ни про модель прав приложения. Он получает
+готовые множества и сравнивает по ним.
+
+## 11. Три способа адресации
+
+```tsx
+<FormOutlet id="checkout" version="1.0.0" />   {/* по id */}
+<FormSlot name="sidebar" />                    {/* все формы слота */}
+<FormRoute path="/orders/42/checkout" />       {/* по маршруту */}
+```
+
+Маршруты поддерживают `:param` и `*`; шаблон компилируется в `RegExp` один раз, а не на каждый
+резолв.
+
+### Инвариант: право нельзя обойти другой дверью
+
+Способы адресации — это разные формы **запроса**, а права и флаги — **фильтр**, общий для всех:
+
+```ts
+resolveForms(store, query, ctx) =
+  store.filter(matchesQuery).filter(passesGate).sort(byPriorityThenVersion);
+```
+
+Если бы гейт жил в компоненте слота, императивный API его бы миновал. Инвариант закреплён тестом,
+который прогоняет один и тот же гейт против всех четырёх видов запроса.
+
+Порядок внутри `access`: сперва `permissions` (нужны ВСЕ), потом `flags` (нужны ВСЕ), и только если
+они прошли — `canRender(ctx)`. Дорогая пользовательская проверка не вызывается для записи, которая
+всё равно отсеяна.
+
+## 12. Нет прав — нет разметки
+
+```tsx
+<FormSlot name="sidebar" />
+```
+
+Если ни одна форма слота недоступна, в DOM не появляется **ничего** — ни пустой рамки, ни
+заголовка. Пустая рамка на месте недоступной формы сообщает пользователю о её существовании; это
+утечка, пусть и мелкая.
+
+## 13. Состояния загрузки
+
+```tsx
+<FormOutlet
+  id="checkout"
+  fallback={<Spinner />}
+  errorFallback={(error, retry) => <ErrorPanel error={error} onRetry={retry} />}
+/>
+```
+
+`MountedForm` дополнительно обёрнут в `SchemaErrorBoundary`: битая схема (неизвестный
+`$component` и т.п.) даёт панель ошибки, а не белый экран.
+
+## 14. Почему реестр передаётся ПРОПОМ
+
+```tsx
+<JsonFormRenderer form={jsonForm} registry={loaded.registry} validateSchema={false} />
+```
+
+React-контекст не пересекает границу бандла: провайдер хоста и рендерер ремоута — разные модульные
+графы. Полагаться на контекст здесь значит получить молчаливый отказ в проде, где DEV-guard вырезан
+сборщиком.
+
+Вместе с реестром пропом передаётся и производная от него обёртка полей (`$fieldWrapper`): её
+достаёт из реестра провайдер, поэтому реестр, пришедший в обход провайдера, обёртку бы потерял — и
+поля отрисовались бы голыми, без label и ошибок, молча.
+
+`validateSchema={false}` тоже намеренно: валидация схемы — ответственность загрузчика (см.
+`05-preflight.md`), а проп рендерера тянет ajv и компилирует мета-схему на каждый инстанс формы.
+
+## 15. Пересоздание при смене версии
+
+```tsx
+<MountedForm key={entryKeyOf(entry)} ... />
+```
+
+`key` заставляет React пересоздать поддерево целиком. Без него ленивый `useState` внутри
+`useJsonForm` вернул бы старую модель со старой схемой — форма визуально «обновилась» бы, а данные
+остались от прежней версии.
+
+## 16. Быстрый старт
+
+```ts
+import { createSchemaCache } from '@reformer/form-registry';
+import { pickStorage } from '@reformer/form-registry/storage';
+
+const cache = createSchemaCache({ storage: await pickStorage() });
+
+<FormRegistryProvider cache={cache} ...>
+```
+
+## 17. Загрузка по сети
+
+```ts
+schema: { kind: 'http', url: '/schemas/checkout.json' }
+```
+
+Что делает `fetchJson` и почему:
+
+- **Ретраит 5xx, 408, 425, 429** с экспоненциальной задержкой и джиттером. Джиттер обязателен: без
+  него все клиенты, получившие 503 одновременно, повторят запрос тоже одновременно и добьют сервер,
+  который только начал подниматься. `Retry-After` уважается — сервер знает лучше.
+- **Не ретраит 4xx.** Повторять запрос, на который сервер ответил «так нельзя», значит множить
+  нагрузку без шанса на успех.
+- **Проверяет `content-type`.** SPA-fallback отдаёт `index.html` со статусом 200 вместо JSON; без
+  этой проверки отказ всплывает как «Unexpected token <» далеко от причины. Приём взят с работающего
+  кода в `projects/reformer-builder/src/config/load.ts`.
+- **Проверяет форму объекта** (`assertFormSchemaShape`) до кэша: класть чужой JSON в кэш значит
+  закрепить ошибку до истечения срока годности.
+
+Причина отказа машиночитаема: `http-error`, `not-json`, `not-a-form-schema`, `aborted`, `network`.
+
+## 18. Два уровня кэша
+
+L1 — в памяти: разобранные объекты и промисы «в полёте». L2 — сериализованные тела через
+`StorageStrategy`. Чтение L1 → L2 → сеть; запись сеть → L2 → L1. Устаревшее в L2 ревалидируется
+условным запросом по `ETag`; ответ 304 продлевает жизнь записи.
+
+### Правило отмены
+
+Отмена **не пробрасывается** в общий запрос. Если два `FormOutlet` ждут одну схему и один
+размонтировался, отменять нельзя — второй остался бы ни с чем. Учёт идёт по числу ожидающих, и
+запрос прерывается только когда ушёл последний.
+
+### Дедупликация регистрируется синхронно
+
+Внутренняя функция `load` намеренно **не** `async`. Всё, что решает, заводить ли новый запрос,
+обязано выполниться синхронно относительно вызывающего: поставь `await` (хотя бы чтение L2) перед
+регистрацией запроса «в полёте» — и два одновременных вызова проскочат мимо проверки и заведут два
+запроса, а отмена, пришедшая сразу после вызова, не найдёт подписки. Оба случая закрыты тестами.
+
+### Отказ кэша не ломает загрузку
+
+Падение `storage.get`/`storage.set`, битое тело, очистка данных сайта посреди сессии — всё это даёт
+диагностику и уход в сеть, но не исключение. **Кэш выбрасываемый**: `clear()` в любой момент
+безопасен.
+
+## 19. Стратегии хранения
+
+```ts
+import {
+  createOpfsStorage,
+  createIndexedDbStorage,
+  createMemoryStorage,
+  pickStorage,
+  DEFAULT_STORAGE_ORDER, // ['opfs', 'indexeddb', 'memory']
+} from '@reformer/form-registry/storage';
+```
+
+Интерфейс один, реализации взаимозаменяемы — это проверяется **одним** контрактным набором против
+всех трёх. Порядок в `pickStorage` — настройка, а не архитектурное решение: меняется одной строкой.
+
+`pickStorage` проверяет не только наличие API, но и работоспособность пробной операцией: в приватном
+режиме части движков `indexedDB` объявлен, а открытие падает. Иначе отказ всплыл бы при первой
+записи схемы, далеко от места выбора.
+
+### OPFS
+
+Четыре свойства, определившие реализацию:
+
+1. **Синхронные хэндлы только в Worker.** `createSyncAccessHandle()` на главном потоке бросает,
+   поэтому путь записи выбирается **попыткой**, а не проверкой окружения — так детект переживает и
+   Worker, и главный поток, и движки, где поддержка появилась позже самого OPFS.
+2. **`createWritable()` атомарна по спецификации** — пишет в swap-файл и коммитит на `close()`.
+   Синхронный путь атомарности не даёт и сериализуется через `navigator.locks`.
+3. **Хранилище общее на origin** — отсюда `owner` в ключе.
+4. **В имени файла не может быть `/`**, а ключ его содержит — имена кодируются `encodeURIComponent`.
+
+`navigator.storage.persist()` не запрашивается: просить постоянное хранилище ради кэша, который в
+любой момент можно перекачать, несоразмерно. Флаг оставлен под будущий офлайн и выключен.
+
+### IndexedDB
+
+Существующий в репозитории `handle-store` за образец **не** взят: он открывает соединение на каждую
+операцию и не закрывает, резолвит промис по `request.onsuccess` (для `readwrite` это резолв ДО
+коммита — читатель следом может не увидеть запись) и не обрабатывает ни `onabort`, ни квоту.
+
+Здесь наоборот: одно кэшированное соединение, резолв записи по `transaction.oncomplete`, отдельная
+ветка на `QuotaExceededError` — вытеснение и один повтор. Оба отличия закреплены тестами.
+
+### Вытеснение
+
+LRU по `lastUsedAt`, потолок 32 МБ. Чтение обновляет возраст — иначе LRU выродился бы в FIFO.
+Политика вынесена чистой функцией `selectEvictions` и тестируется отдельно от ввода-вывода.
+
+## 20. Пять проверок
+
+| проверка | что ловит | делалось раньше |
+| --- | --- | --- |
+| `compatibleSchema` ↔ версия схемы | схема ушла вперёд кода: CDN отдал v2, поведение осталось v1 | **нет**, `version` объявлен и нигде не читался |
+| `id` записи ↔ `id` схемы | CDN отдал ЧУЖУЮ схему — форма молча пишет не те поля | **нет** |
+| имена операторов ⊆ реестр | ссылка на незарегистрированный компонент/источник/функцию | только ajv-путём |
+| ключи `validation.steps` ⊆ селекторы | пошаговая валидация молча не срабатывает на переименованном шаге | **нигде** |
+| пути `$model(...)` ⊆ начальные значения | поля нет в модели → нет сигнала → **ошибки валидации тихо исчезают** | только `console.warn` в конвертере |
+
+Четыре из пяти не делались нигде — и каждая ловит отказ, который иначе молчалив.
+
+### Про последнюю, самую коварную
+
+`validateModel` роутит ошибки через `getNodeForSignal(sig)?.setErrors(...)`. Опциональная цепочка
+означает, что для поля, отсутствующего в начальных значениях, сигнала нет — и ошибка просто
+исчезает. Ни поведение, ни валидация к такому полю не привяжутся, и никто об этом не скажет.
+Симптом на месте выглядит как «валидация не работает», причина — в структуре начальных значений.
+
+Индексы массивов (`items.0.name`) из проверки исключены: массив на старте пуст по определению, и
+отсутствие элемента ошибкой не является.
+
+## 21. Уровни
+
+- `error` — форму собирать нельзя, `loadForm` бросает `FormPreflightError`;
+- `warn` — соберётся, но часть поведения молча не сработает; попадает в `loaded.preflight.problems`.
+
+Единственная проверка уровня `warn` — нематериализованные пути: форма при этом работает, просто её
+валидация частично мертва.
+
+## 22. Проверяется СОСТАВНОЙ реестр
+
+Preflight получает реестр уже после `composeRegistries(base, own)`. Если бы он смотрел только в
+базовый, любое расширение записи давало бы ложный отказ — и, что хуже, потеря композиции прошла бы
+незамеченной.
+
+## 23. Валидация схемы мета-схемой
+
+Стратегия комбинированная:
+
+- **до релиза** — все `inline`/`module` схемы прогоняются полным ajv в тесте; рантайм-стоимость
+  нулевая;
+- **в релизе** — валидируются только сетевые схемы, потому что только они могут разойтись с кодом
+  после сборки.
+
+```ts
+import { validateSchemaCached, assertSchemaValid } from '@reformer/form-registry/manifest';
+```
+
+`validateFormSchema` создаёт `new Ajv()` и компилирует мета-схему на КАЖДЫЙ вызов — при слоте с
+пятью формами это пять компиляций одного и того же. `validateSchemaCached` кэширует результат по
+паре (схема, реестр) через `WeakMap`: схема иммутабельна, повторная проверка того же объекта не
+может дать другой ответ, а `WeakMap` не удерживает схемы от сборки мусора.
+
+## 24. Что ломается
+
+Две копии одного пакета в одном realm — авария, у которой нет ни одного видимого симптома.
+
+- **Две копии `@preact/signals-core`** → восемь точек `instanceof Signal` начинают давать `false`.
+- **Две копии `@reformer/core`** → раздваиваются модульные `WeakMap`:
+  - `derived-registry` — bulk-set **затирает вычисляемые поля** (тихая порча данных);
+  - `signal-node-registry` — `enableWhen`/`disableWhen` превращаются в **тихий no-op**.
+
+Юнит-тесты этого не ловят: vitest резолвит один инстанс. Ломается только собранный артефакт, и
+только в сборке из нескольких бандлов.
+
+Репозиторий про проблему знает — комментарии в `renderer-json/vite.config.ts` и `cdk/vite.config.ts`
+это постмортемы. Но те защиты работают на уровне «одна сборка»: они не дают вшить зависимость внутрь
+бандла. В микрофронтах отказ приходит с другой стороны — два независимо собранных бандла грузят по
+своей копии, и ни один из них при этом не «неправильный».
+
+## 25. Как пользоваться
+
+Каждый бандл при инициализации ставит свои штампы, хост потом спрашивает результат:
+
+```ts
+// в каждом микрофронте, при загрузке:
+import { Signal } from '@reformer/core/signals';
+import { CORE_RUNTIME_TOKEN } from '@reformer/core';
+import { stampRuntime } from '@reformer/form-registry/guard';
+
+stampRuntime('@preact/signals-core', Signal);
+stampRuntime('@reformer/core', CORE_RUNTIME_TOKEN);
+```
+
+```ts
+// в хосте, после загрузки всех ремоутов:
+import { reportRuntime } from '@reformer/form-registry/guard';
+
+const { ok, duplicates, observed } = reportRuntime((d) => telemetry.error(d.message));
+```
+
+## 26. Сравниваются объекты, а не версии
+
+Штамп обязан быть объектом или функцией — примитив отвергается с ошибкой. Строка с версией совпала
+бы у разных копий по значению, и дубль остался бы невидимым: **две копии одной и той же версии
+ломают всё ровно так же**, как две копии разных.
+
+Подходящие штампы: конструктор `Signal`, `CORE_RUNTIME_TOKEN`, `React.createContext`.
+
+`CORE_RUNTIME_TOKEN` существует в ядре ровно для этого — быть объектом, уникальным в пределах одной
+копии модуля.
+
+## 27. Строгость — рантайм-флагом
+
+```ts
+setRuntimeStrict(true); // бросить на второй копии
+```
+
+Дефолт — `report`: рушить хост из-за диагностики хуже, чем работать с известной проблемой. `throw`
+осмыслен в CI и на стенде.
+
+Флаг именно рантайм-ный, и это не вкусовщина:
+
+- `import.meta.env.DEV` **вырезается** при сборке пакета — в `packages/*/dist` ноль вхождений;
+- `process.env.NODE_ENV` в голом ESM и web-components даёт `ReferenceError: process is not defined`
+  (в `packages/reformer/dist` таких вхождений шесть).
+
+Ни на то, ни на другое опираться нельзя. Отсутствие node-глобалей в собранном пакете проверяется
+`scripts/check-no-node-globals.mjs` в CI.
+
+## 28. Ограничение, которое важно понимать
+
+Guard видит **только те копии, которые сами себя штампанули**. Бандл, не вызвавший `stampRuntime`,
+останется невидимым — из JS нет способа пересчитать все загруженные модули.
+
+Поэтому `checkRuntime()` возвращает не только `duplicates`, но и `observed`: пустой `observed`
+означает «guard просто не подключили», и это НЕ то же самое, что подтверждённое отсутствие дублей.
+
+## 29. Хранилище состояния
+
+Состояние лежит в `globalThis` под `Symbol.for('reformer.runtime.v1')`. `Symbol.for` живёт в
+cross-realm registry — это единственный ключ, совпадающий у двух независимо собранных копий модуля.
+Модульный синглтон здесь бесполезен: у каждой копии он был бы свой, и дубль остался бы незамеченным.
+
+Тот же приём использует и сам реестр форм (`Symbol.for('reformer.form-registry.v1')`) — иначе при
+Module Federation без общего chunk'а хост не увидел бы форм, зарегистрированных ремоутом.
+
+## 30. Форма не появилась, в DOM пусто, ошибок нет
+
+Запись либо не найдена, либо отсеяна гейтом — снаружи это неотличимо, и намеренно: пустая рамка на
+месте недоступной формы сообщала бы о её существовании.
+
+```ts
+const reg = getFormRegistry();
+console.log(reg.list().map((e) => `${e.owner}/${e.id}@${e.version}`)); // зарегистрирована ли
+console.log(reg.resolve({ by: 'id', id: 'checkout' }, ctx)); // проходит ли гейт
+console.log(reg.diagnostics); // конфликты id
+```
+
+Частые причины: микрофронт ещё не смонтировался; `unregister` вызван раньше времени; в `ctx` не
+попало право или флаг из `access`.
+
+## 31. Поля отрисовались голыми — без label, подсказки и места под ошибку
+
+Реестр компонентов дошёл, а производная от него обёртка полей (`$fieldWrapper`) — нет. Признак в
+разметке: `<input label="Фамилия">` — атрибут `label` уехал прямо в DOM, потому что его никто не
+потребил.
+
+Обёртку достаёт из реестра **провайдер**, поэтому реестр, пришедший в обход провайдера (пропом или в
+бандле `form`), её терял. Починено в `@reformer/renderer-json`: обёртка берётся из того реестра,
+который реально используется. Если симптом воспроизводится — проверьте версию `renderer-json`.
+
+## 32. Валидация «не работает» на конкретном поле
+
+Поля нет в начальных значениях → у него нет сигнала → ни поведение, ни ошибки к нему не привяжутся.
+`validateModel` роутит через `getNodeForSignal(sig)?.setErrors(...)`, и опциональная цепочка молча
+глотает ошибку.
+
+Preflight ловит это как `unmaterialized-model-paths` (уровень `warn`). Проверьте
+`loaded.preflight.problems` — или включите `preflight: 'error'`.
+
+## 33. Пошаговая валидация молча не срабатывает на одном шаге
+
+Шаг переименовали в схеме, а ключ в `validation.steps` остался прежним. Ключи — это **селекторы**
+узлов, и договорённость держалась только JSDoc.
+
+Ловится как `unknown-step-selectors`; сообщение перечисляет доступные селекторы.
+
+## 34. `Component "..." not found in registry`
+
+Схема ссылается на имя, которого нет в реестре. Если схема сетевая — почти наверняка она ушла вперёд
+кода.
+
+Задайте `compatibleSchema` и включите preflight: вместо одного промаха из конвертера вы получите
+полный список плюс проверку версии.
+
+## 35. Форма собралась, но пишет не те поля
+
+CDN отдал чужую схему. Ловится как `schema-identity-mismatch` — сверка `id` записи и `id` схемы.
+Без неё отказ полностью молчалив: форма выглядит работающей.
+
+## 36. `enableWhen` перестал работать / вычисляемые поля затираются
+
+Классический признак **двух копий `@reformer/core`** в одном realm. См. `06-guard.md`: подключите
+`stampRuntime` в каждом бандле и `reportRuntime` в хосте.
+
+Проверьте заодно, что `observed` не пуст — пустой означает, что guard просто не подключён, а не что
+дублей нет.
+
+## 37. `Cannot find module '@reformer/renderer-react'` у потребителя
+
+Типы пакета ссылаются на `RenderBehaviorFn`. Пакет объявлен в `peerDependencies` — установите его
+рядом. Внутри монорепозитория проблема не воспроизводится: там работает симлинк.
+
+## 38. Схема не грузится по сети
+
+Смотрите `kind` у `FormFetchError`:
+
+| `kind` | что случилось |
+| --- | --- |
+| `not-json` | пришёл `text/html` — почти всегда SPA-fallback отдал `index.html` вместо файла |
+| `not-a-form-schema` | JSON без `root` — чужой эндпоинт или ответ об ошибке в виде объекта |
+| `http-error` | 4xx не ретраится намеренно; 5xx ретраился и исчерпал попытки |
+| `network` | сеть недоступна |
+| `aborted` | отменено — размонтировали последнего ожидающего |
+
+## 39. Кэш отдаёт устаревшую схему
+
+`maxAgeMs` (дефолт 5 минут) ещё не истёк. Точечно:
+
+```ts
+await cache.invalidate(`${owner}/${id}@${version}#schema`);
+```
+
+Кэш выбрасываемый — `cache.clear()` безопасен в любой момент.
+
+## 40. Бесконечный цикл рендера, React error #185
+
+`useSyncExternalStore` сравнивает снимок по ссылке. Если ваш код оборачивает `registry.list()` в
+`map`/`filter` внутри рендера, каждый вызов даёт новый массив. Сам `list()` ссылку сохраняет, пока
+состав реестра не менялся, — не ломайте это трансформацией на месте, мемоизируйте.
+
+## 41. `entry.ts` от билдера не компилируется
+
+Обновите `@reformer/form-registry`: в ранней версии третьим параметром фабрики render-behavior
+шли правила валидации, а сгенерированный код ждал там настройки места. Сейчас настройки — четвёртый
+параметр и приходят от хоста через `renderBehaviorOptions`.
+
+## 42. API Reference
+
+_Auto-generated from JSDoc on public exports._
+
+### assertFormSchemaShape
+
+**Kind:** `function`
+
+Структурная проверка «это вообще схема формы».
+
+Дешёвая и без ajv: полная проверка мета-схемой — отдельный, куда более дорогой путь. Здесь
+отсекается очевидно чужой JSON (чужой эндпоинт, ответ об ошибке в виде объекта), чтобы такой
+ответ не поехал в конвертер и не всплыл там как `Component "..." not found`.
+
+**Signature:**
+```typescript
+export function assertFormSchemaShape(url: string, data: unknown): void
+```
+
+_Source: src/net.ts_
+
+### byPriorityThenVersionDesc
+
+**Kind:** `function`
+
+Порядок выдачи: сначала приоритет размещения, затем версия — обе по убыванию.
+
+**Signature:**
+```typescript
+export function byPriorityThenVersionDesc(a: FormEntry, b: FormEntry): number
+```
+
+_Source: src/resolve.ts_
+
+### CacheEntry
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface CacheEntry<T> {
+  value: T;
+  etag?: string;
+}
+```
+
+_Source: src/cache.ts_
+
+### CodeSource
+
+**Kind:** `type`
+
+Источник КОДА: только из бандла.
+
+Варианта `'http'` здесь намеренно НЕТ — тянуть поведение или валидацию по сети означало бы
+исполнять удалённый код. Всё, что описано функциями, приходит статическим или динамическим
+импортом внутри микрофронта.
+
+**Signature:**
+```typescript
+export type CodeSource<T> =
+  | { kind: 'inline'; value: T }
+  | { kind: 'module'; load: () => Promise<T> };
+```
+
+_Source: src/types.ts_
+
+### collectModelPaths
+
+**Kind:** `function`
+
+Пути `$model(...)`, встреченные в схеме.
+
+**Signature:**
+```typescript
+export function collectModelPaths(schema: JsonFormSchema): string[]
+```
+
+_Source: src/preflight.ts_
+
+### compileRoute
+
+**Kind:** `function`
+
+Компилирует шаблон маршрута в RegExp.
+
+Поддерживает `:param` (один сегмент) и `*` (хвост любой глубины). Компиляция делается
+ОДИН раз при регистрации записи, а не на каждый резолв — иначе на каждый рендер слота
+пересобирался бы RegExp для каждой записи реестра.
+
+**Signature:**
+```typescript
+export function compileRoute(pattern: string): RegExp
+```
+
+**Parameters:**
+- `pattern` — - Шаблон вида `/loans/:id/apply`.
+
+**Returns:** Скомпилированный RegExp с именованными группами параметров.
+
+_Source: src/resolve.ts_
+
+### ConflictPolicy
+
+**Kind:** `type`
+
+Что делать при повторной регистрации того же `id@version`.
+
+**Signature:**
+```typescript
+export type ConflictPolicy =
+  /** Бросить с указанием обоих владельцев. Дефолт: молчаливая перезапись хуже явного отказа. */
+  | 'throw'
+  /** Заменить существующую запись. */
+  | 'replace'
+  /** Оставить существующую, новую игнорировать. */
+  | 'keep';
+```
+
+_Source: src/registry.ts_
+
+### createFormRegistry
+
+**Kind:** `function`
+
+Создаёт независимый реестр. Обычному приложению нужен {@link getFormRegistry} —
+эта фабрика существует для тестов и для случаев, когда нужна изоляция.
+
+**Signature:**
+```typescript
+export function createFormRegistry(): FormRegistry
+```
+
+_Source: src/registry.ts_
+
+### createSchemaCache
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function createSchemaCache(opts: SchemaCacheOptions = {}): SchemaCache
+```
+
+_Source: src/cache.ts_
+
+### DataSource
+
+**Kind:** `type`
+
+Источник ДАННЫХ: сериализуем, поэтому может приехать по сети.
+
+Применим к схеме и начальным значениям — единственным частям формы, которые не являются кодом.
+
+**Signature:**
+```typescript
+export type DataSource<T> =
+  | { kind: 'inline'; value: T }
+  | { kind: 'module'; load: () => Promise<T> }
+  | { kind: 'http'; url: string; init?: RequestInit };
+```
+
+_Source: src/types.ts_
+
+### DegradePolicy
+
+**Kind:** `type`
+
+Что делать, если схема ссылается на незарегистрированный компонент.
+
+**Signature:**
+```typescript
+export type DegradePolicy =
+  /** Не показывать форму, нарисовать панель ошибки. Безопасно для значимых форм. */
+  | 'error'
+  /** Отрисовать форму, на месте узла — нейтральный стаб плюс диагностика. */
+  | 'placeholder';
+```
+
+_Source: src/types.ts_
+
+### Diagnostic
+
+**Kind:** `interface`
+
+Диагностическое сообщение реестра (конфликт id, промах preflight, дубль рантайма).
+
+**Signature:**
+```typescript
+export interface Diagnostic {
+  level: 'warn' | 'error';
+  code: string;
+  message: string;
+  entry?: Pick<FormEntry, 'id' | 'version' | 'owner'>;
+}
+```
+
+_Source: src/types.ts_
+
+### entryKeyOf
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const entryKeyOf
+```
+
+_Source: src/loader.ts_
+
+### Fetcher
+
+**Kind:** `interface`
+
+Как получить свежее значение, если в кэше его нет или оно устарело.
+
+**Signature:**
+```typescript
+export interface Fetcher<T> {
+  /**
+   * @param etag - ETag того, что лежит в кэше (если есть) — для условного запроса.
+   * @returns `notModified: true` — сервер подтвердил, что кэшированное ещё годно.
+   */
+  (
+    etag: string | undefined,
+    signal: AbortSignal
+  ): Promise<{ data: T; etag?: string; notModified: boolean }>;
+}
+```
+
+_Source: src/cache.ts_
+
+### FetchFailureKind
+
+**Kind:** `type`
+
+Причина отказа — машиночитаемо, чтобы вызывающий мог отличать «нет сети» от «не та схема».
+
+**Signature:**
+```typescript
+export type FetchFailureKind =
+  | 'http-error'
+  | 'not-json'
+  | 'not-a-form-schema'
+  | 'aborted'
+  | 'network';
+```
+
+_Source: src/net.ts_
+
+### fetchJson
+
+**Kind:** `function`
+
+Загружает JSON с ретраями и условным запросом.
+
+**Signature:**
+```typescript
+export async function fetchJson<T>(
+  url: string,
+  opts: FetchJsonOptions = {}
+): Promise<FetchJsonResult<T>>
+```
+
+_Source: src/net.ts_
+
+### FetchJsonOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FetchJsonOptions {
+  init?: RequestInit;
+  signal?: AbortSignal;
+  /** ETag прошлого ответа: включает условный запрос (`If-None-Match`). */
+  etag?: string;
+  /** Сколько раз ПОВТОРИТЬ после первой неудачи. */
+  retries?: number;
+  /** База экспоненциальной задержки, мс. */
+  retryBaseMs?: number;
+  /** Подменяемо для тестов. */
+  fetchImpl?: typeof fetch;
+  /** Подменяемо для тестов; по умолчанию — setTimeout. */
+  sleep?: (ms: number) => Promise<void>;
+  /** Источник случайности для джиттера; подменяемо для тестов. */
+  random?: () => number;
+}
+```
+
+_Source: src/net.ts_
+
+### FetchJsonResult
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FetchJsonResult<T> {
+  data: T;
+  etag?: string;
+  /** 304: тело не менялось, данных нет — вызывающий берёт своё из кэша. */
+  notModified: boolean;
+}
+```
+
+_Source: src/net.ts_
+
+### FormAccess
+
+**Kind:** `interface`
+
+Гейт доступа. Пустой объект и отсутствие поля означают «доступно всем».
+
+**Signature:**
+```typescript
+export interface FormAccess {
+  /** Нужны ВСЕ перечисленные права. */
+  permissions?: readonly string[];
+  /** Нужны ВСЕ перечисленные флаги. */
+  flags?: readonly string[];
+  /** Escape-hatch для сложной логики. Обязана быть чистой и синхронной. */
+  canRender?: (ctx: ResolveContext) => boolean;
+}
+```
+
+_Source: src/types.ts_
+
+### formatPreflight
+
+**Kind:** `function`
+
+Человекочитаемая сводка — для панели ошибок и диагностики.
+
+**Signature:**
+```typescript
+export function formatPreflight(entryKey: string, result: PreflightResult): string
+```
+
+_Source: src/preflight.ts_
+
+### FormEntry
+
+**Kind:** `interface`
+
+Запись реестра форм.
+
+**Signature:**
+```typescript
+export interface FormEntry<T extends object = Record<string, unknown>> {
+  /** Стабильный идентификатор. Сверяется со `schema.id`, если тот задан. */
+  id: string;
+  /** Версия записи (semver). Сверяется со `schema.version`, если тот задан. */
+  version: string;
+  /** Кто зарегистрировал — для диагностики коллизий `id` между микрофронтами. */
+  owner: string;
+
+  /** Схема формы. Единственная часть, которую можно тянуть по сети. */
+  schema: DataSource<JsonFormSchema<T>>;
+  /**
+   * Диапазон версий схемы, с которыми совместим ЭТОТ код (semver-range).
+   * Закрывает режим отказа «схема ушла вперёд кода»: CDN отдал v2, а микрофронт
+   * с поведением v1 ещё не выкачен.
+   */
+  compatibleSchema?: string;
+
+  /** Начальные значения — данные. */
+  initial?: DataSource<T>;
+  /** Готовая фабрика модели — код. Приоритетнее `initial`. */
+  model?: CodeSource<() => FormModel<T>>;
+
+  /** Расширение реестра компонентов поверх базового. */
+  registry?: CodeSource<ComponentRegistry>;
+  /** Поведение модели: compute/copyFrom/enableWhen/onChange. */
+  behavior?: CodeSource<FormBehavior<T>>;
+  /** Правила валидации. См. {@link FormValidation} про стабильность ссылок. */
+  validation?: CodeSource<FormValidation<T>>;
+  /**
+   * Фабрика render-behavior. Получает готовые form/model и правила валидации —
+   * связывание валидации с формой происходит здесь.
+   *
+   * Четвёртый параметр — настройки МЕСТА МОНТИРОВАНИЯ, а не формы: колбэки вроде `onResult`
+   * принадлежат хосту (он решает, где и как показать результат), поэтому в записи реестра их
+   * быть не может — она одна на все места, где форму покажут. Хост передаёт их пропом
+   * `renderBehaviorOptions` у `FormOutlet`/`FormSlot`.
+   *
+   * Без этого канала фабрики вида `(form, model, options)` — а именно такие генерирует билдер —
+   * получали бы в третий аргумент `FormValidation`, что и не компилируется, и молча ломает
+   * семантику: `onResult` не доехал бы никогда.
+   */
+  renderBehavior?: CodeSource<
+    (
+      form: FormProxy<T>,
+      model: FormModel<T>,
+      validation?: FormValidation<T>,
+      options?: Record<string, unknown>
+    ) => RenderBehaviorFn<T>
+  >;
+
+  placement?: FormPlacement;
+  access?: FormAccess;
+  /** Политика деградации для ЭТОЙ формы. Дефолт реестра — `'error'`. */
+  degrade?: DegradePolicy;
+
+  /** Каталожные метаданные: выбор формы в UI, поиск, админка. */
+  meta?: { name?: string; description?: string; tags?: readonly string[] };
+}
+```
+
+_Source: src/types.ts_
+
+### FormFetchError
+
+**Kind:** `class`
+
+**Signature:**
+```typescript
+export class FormFetchError extends Error { /* … */ }
+```
+
+_Source: src/net.ts_
+
+### FormKey
+
+**Kind:** `interface`
+
+Ключ формы: идентификатор плюс версия.
+
+**Signature:**
+```typescript
+export interface FormKey {
+  id: string;
+  version?: string;
+}
+```
+
+_Source: src/types.ts_
+
+### FormLoadError
+
+**Kind:** `class`
+
+Ошибка загрузки части формы — с указанием, какой именно.
+
+**Signature:**
+```typescript
+export class FormLoadError extends Error { /* … */ }
+```
+
+_Source: src/loader.ts_
+
+### FormPlacement
+
+**Kind:** `interface`
+
+Куда и когда форму разрешено рендерить.
+
+**Signature:**
+```typescript
+export interface FormPlacement {
+  /** Именованные слоты хоста: `'checkout.sidebar'`, `'profile.tabs.documents'`. */
+  slots?: readonly string[];
+  /** Шаблоны маршрутов: `'/loans/:id/apply'`. Компилируются в RegExp при регистрации. */
+  routes?: readonly string[];
+  /** Порядок внутри слота, по убыванию. По умолчанию 0. */
+  priority?: number;
+}
+```
+
+_Source: src/types.ts_
+
+### FormPreflightError
+
+**Kind:** `class`
+
+Загрузилось, но не прошло проверки. Отдельный тип: причина принципиально иная.
+
+**Signature:**
+```typescript
+export class FormPreflightError extends Error { /* … */ }
+```
+
+_Source: src/loader.ts_
+
+### FormQuery
+
+**Kind:** `type`
+
+Способ адресации формы. Права и флаги — не часть запроса, а общий фильтр.
+
+**Signature:**
+```typescript
+export type FormQuery =
+  | { by: 'id'; id: string; version?: string }
+  | { by: 'slot'; slot: string }
+  | { by: 'route'; path: string }
+  | { by: 'tag'; tag: string };
+```
+
+_Source: src/types.ts_
+
+### FormRegistry
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormRegistry {
+  /**
+   * Регистрирует форму.
+   *
+   * @returns `unregister`. Возвращать его ОБЯЗАТЕЛЬНО: в single-spa `unmount` микрофронта
+   *   должен снять свои записи, иначе слот продолжит показывать форму выгруженного приложения.
+   */
+  register(entry: FormEntry, opts?: { onConflict?: ConflictPolicy }): () => void;
+  /** Регистрирует пачку; возвращает один `unregister` на всю пачку. */
+  registerAll(entries: readonly FormEntry[], opts?: { onConflict?: ConflictPolicy }): () => void;
+  /** Все записи в порядке регистрации. */
+  list(): readonly FormEntry[];
+  /** Разрешение формы. См. {@link resolveForms}. */
+  resolve(query: FormQuery, ctx: ResolveContext): FormEntry[];
+  /** Подписка на изменения состава реестра — для `useSyncExternalStore`. */
+  subscribe(listener: () => void): () => void;
+  /** Накопленные диагностические сообщения (конфликты, промахи). */
+  readonly diagnostics: readonly Diagnostic[];
+}
+```
+
+_Source: src/registry.ts_
+
+### FormValidation
+
+**Kind:** `interface`
+
+Валидация формы.
+
+`createJsonForm` её НЕ принимает — валидация подключается отдельно, тремя путями, и все три
+сходятся в один движок `validateModel`: инъекция в визард через `patchProps({validateStep,
+validateAll})`, прямой вызов в submit-обработчике, живая стратегия `createFormValidation`.
+Реестр не изобретает четвёртый путь, а передаёт эти правила в фабрику `renderBehavior` —
+туда, где связывание происходит сегодня.
+
+⚠️ `schema` и значения `steps` обязаны быть **стабильными ссылками**: гашение и отмена
+устаревших прогонов ключатся по паре `(model, schema)` через `WeakMap`. Инлайн-стрелка
+ломает дедупликацию — валидация начнёт возвращать `false` от отменённых прогонов.
+
+**Signature:**
+```typescript
+export interface FormValidation<T> {
+  /** Полный набор правил — для submit и `validateAll`. */
+  schema?: ValidationSchema<T>;
+  /**
+   * Пошаговая валидация визарда: ключ = `selector` узла `Step` в JSON-схеме.
+   * `null` означает «шаг без правил» ЯВНО — чтобы опечатка в ключе не выглядела как пустой шаг.
+   * Совпадение ключей с селекторами проверяется preflight'ом (этап 2): сегодня эта
+   * договорённость не проверяется нигде.
+   */
+  steps?: Record<string, ValidationSchema<T> | null>;
+  /** Когда запускать живую валидацию. По умолчанию `'submit'`. */
+  strategy?: 'submit' | 'blur' | 'change' | 'afterFirstSubmit';
+  debounce?: number;
+}
+```
+
+_Source: src/types.ts_
+
+### getFormRegistry
+
+**Kind:** `function`
+
+Реестр форм этого realm'а. Один на окно — сколько бы бандлов его ни импортировало.
+
+**Signature:**
+```typescript
+export function getFormRegistry(): FormRegistry
+```
+
+**Examples:**
+
+Микрофронт регистрирует свои формы при монтировании
+```typescript
+const off = getFormRegistry().registerAll(myForms);
+// при unmount:
+off();
+```
+
+_Source: src/registry.ts_
+
+### hasPath
+
+**Kind:** `function`
+
+Есть ли путь `a.b.c` в объекте начальных значений.
+
+**Signature:**
+```typescript
+export function hasPath(obj: unknown, path: string): boolean
+```
+
+_Source: src/preflight.ts_
+
+### LoadedForm
+
+**Kind:** `interface`
+
+Всё, что нужно, чтобы синхронно собрать форму.
+
+**Signature:**
+```typescript
+export interface LoadedForm<T extends object = Record<string, unknown>> {
+  schema: JsonFormSchema<T>;
+  /** Базовый реестр, скомпонованный с расширением записи. */
+  registry: ComponentRegistry;
+  initial?: T;
+  makeModel?: () => FormModel<T>;
+  behavior?: FormBehavior<T>;
+  validation?: FormValidation<T>;
+  makeRenderBehavior?: (
+    form: FormProxy<T>,
+    model: FormModel<T>,
+    validation?: FormValidation<T>,
+    /** Настройки места монтирования (колбэки хоста). См. `FormEntry.renderBehavior`. */
+    options?: Record<string, unknown>
+  ) => RenderBehaviorFn<T>;
+  /** Результат проверок; `undefined` — preflight отключён. */
+  preflight?: PreflightResult;
+}
+```
+
+_Source: src/loader.ts_
+
+### loadForm
+
+**Kind:** `function`
+
+Загружает все части записи, компонует реестр и проверяет результат.
+
+**Signature:**
+```typescript
+export async function loadForm<T extends object>(
+  entry: FormEntry<T>,
+  baseRegistry: ComponentRegistry,
+  opts: LoadFormOptions = {}
+): Promise<LoadedForm<T>>
+```
+
+**Parameters:**
+- `entry` — - Запись реестра.
+- `baseRegistry` — - Базовый реестр компонентов (общее ядро приложения).
+
+**Returns:** Готовый {@link LoadedForm} — остаётся синхронно вызвать `createJsonForm`.
+
+_Source: src/loader.ts_
+
+### LoadFormOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface LoadFormOptions {
+  /** Кэш схем. Без него сетевые источники тянутся заново при каждой сборке. */
+  cache?: SchemaCache;
+  signal?: AbortSignal;
+  /**
+   * `'error'` (по умолчанию) — непройденный preflight бросает; `'warn'` — только диагностика;
+   * `'off'` — не проверять.
+   */
+  preflight?: 'error' | 'warn' | 'off';
+  onDiagnostic?: (d: { code: string; message: string; entryKey: string }) => void;
+  /** Подменяемо в тестах. */
+  fetchImpl?: typeof fetch;
+}
+```
+
+_Source: src/loader.ts_
+
+### matchRouteParams
+
+**Kind:** `function`
+
+Извлекает параметры маршрута из пути по шаблонам записи.
+
+**Signature:**
+```typescript
+export function matchRouteParams(
+  entry: FormEntry,
+  path: string
+): Record<string, string> | undefined
+```
+
+**Returns:** Первое совпадение или `undefined`. Нужен хосту, чтобы передать `:id` в форму.
+
+_Source: src/resolve.ts_
+
+### passesGate
+
+**Kind:** `function`
+
+Гейт доступа. Единственное место, где проверяются права и флаги — поэтому его
+невозможно обойти, выбрав другой способ адресации.
+
+**Signature:**
+```typescript
+export function passesGate(entry: FormEntry, ctx: ResolveContext): boolean
+```
+
+_Source: src/resolve.ts_
+
+### preflight
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function preflight<T extends object>(input: PreflightInput<T>): PreflightResult
+```
+
+_Source: src/preflight.ts_
+
+### PreflightInput
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface PreflightInput<T extends object> {
+  entry: FormEntry<T>;
+  schema: JsonFormSchema<T>;
+  registry: ComponentRegistry;
+  /** Начальные значения либо снимок модели. `undefined` — проверка путей пропускается. */
+  initial?: unknown;
+  validation?: FormValidation<T>;
+}
+```
+
+_Source: src/preflight.ts_
+
+### PreflightProblem
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface PreflightProblem {
+  code:
+    | 'schema-version-drift'
+    | 'schema-identity-mismatch'
+    | 'missing-components'
+    | 'missing-data-sources'
+    | 'missing-fns'
+    | 'unknown-step-selectors'
+    | 'unmaterialized-model-paths';
+  message: string;
+  /** Имена/пути, к которым относится проблема. */
+  items: string[];
+  /**
+   * `error` — форму собирать нельзя. `warn` — соберётся, но часть поведения молча не сработает.
+   */
+  level: 'error' | 'warn';
+}
+```
+
+_Source: src/preflight.ts_
+
+### PreflightResult
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface PreflightResult {
+  ok: boolean;
+  problems: PreflightProblem[];
+}
+```
+
+_Source: src/preflight.ts_
+
+### resetFormRegistry
+
+**Kind:** `function`
+
+Сбрасывает пиннинг. Только для тестов.
+
+**Signature:**
+```typescript
+export function resetFormRegistry(): void
+```
+
+_Source: src/registry.ts_
+
+### ResolveContext
+
+**Kind:** `interface`
+
+Контекст разрешения. Подаёт хост: реестр не знает ни о роутере, ни о модели прав.
+
+**Signature:**
+```typescript
+export interface ResolveContext {
+  permissions: ReadonlySet<string>;
+  flags: ReadonlySet<string>;
+  /** Текущий маршрут — из роутера хоста, каким бы он ни был. */
+  route?: { path: string; params?: Readonly<Record<string, string>> };
+  locale?: string;
+}
+```
+
+_Source: src/types.ts_
+
+### resolveForms
+
+**Kind:** `function`
+
+Единственная точка разрешения формы.
+
+**Signature:**
+```typescript
+export function resolveForms(
+  store: readonly FormEntry[],
+  query: FormQuery,
+  ctx: ResolveContext
+): FormEntry[]
+```
+
+**Parameters:**
+- `store` — - Все зарегистрированные записи.
+- `query` — - Способ адресации: по id, слоту, маршруту или тегу.
+- `ctx` — - Права, флаги, текущий маршрут.
+
+**Returns:** Подходящие записи, отсортированные по приоритету и версии. Пустой массив —
+валидный результат: записи нет либо нет прав, и вызывающий обязан это пережить.
+
+**Examples:**
+
+Императивно — первая подходящая версия формы
+```typescript
+const [entry] = resolveForms(store, { by: 'id', id: 'credit-application' }, ctx);
+```
+
+Слот — все формы, разрешённые пользователю
+```typescript
+const entries = resolveForms(store, { by: 'slot', slot: 'checkout.sidebar' }, ctx);
+```
+
+_Source: src/resolve.ts_
+
+### retryDelay
+
+**Kind:** `function`
+
+Задержка перед повтором.
+
+Джиттер обязателен, а не косметичен: без него все клиенты, получившие 503 одновременно,
+повторят запрос тоже одновременно и добьют сервер, который только начал подниматься.
+`Retry-After` уважаем — сервер знает лучше.
+
+**Signature:**
+```typescript
+export function retryDelay(
+  attempt: number,
+  base: number,
+  random: () => number,
+  retryAfter?: string | null
+): number
+```
+
+_Source: src/net.ts_
+
+### satisfiesRange
+
+**Kind:** `function`
+
+Минимальная проверка semver-диапазона: `1.x`, `^1.2.0`, `>=1.0.0`, `1.2.3`, `*`.
+
+**Signature:**
+```typescript
+export function satisfiesRange(version: string, range: string): boolean
+```
+
+_Source: src/preflight.ts_
+
+### SchemaCache
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface SchemaCache {
+  /**
+   * Значение из кэша либо из сети. Параллельные вызовы с одним ключом делят один запрос.
+   *
+   * @param signal - Отмена ЭТОГО ожидания. Общий запрос прервётся, только если ждущих не осталось.
+   */
+  get<T>(key: string, fetcher: Fetcher<T>, signal?: AbortSignal): Promise<T>;
+  /** Убрать из обоих уровней. */
+  invalidate(key: string): Promise<void>;
+  /** Полностью очистить. Кэш выбрасываемый: после этого всё просто перекачается. */
+  clear(): Promise<void>;
+  /** Сколько записей в памяти — для диагностики. */
+  readonly memorySize: number;
+}
+```
+
+_Source: src/cache.ts_
+
+### SchemaCacheOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface SchemaCacheOptions {
+  storage?: StorageStrategy;
+  /**
+   * Считать кэшированное значение свежим столько миллисекунд. По истечении значение ещё отдаётся,
+   * но параллельно ревалидируется (stale-while-revalidate).
+   */
+  maxAgeMs?: number;
+  /** Подменяемо в тестах. */
+  now?: () => number;
+  onDiagnostic?: (d: { code: string; message: string; key: string }) => void;
+}
+```
+
+_Source: src/cache.ts_
