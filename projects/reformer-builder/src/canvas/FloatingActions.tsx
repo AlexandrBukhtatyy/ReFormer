@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Label, Switch } from '@reformer/ui-kit';
 import { toast } from '@reformer/ui-kit/sonner';
-import { Check, Redo2, Save, Settings, Undo2, X } from 'lucide-react';
+import { Check, Eye, Pencil, Redo2, Save, Settings, Undo2, X } from 'lucide-react';
 import { editorActions, useActiveTab, useUi } from '../store';
 import { validateSchema } from '../io/validate';
 import { triggerSave } from '../app/save-actions';
@@ -101,22 +101,26 @@ export function FloatingActions() {
           <button
             onClick={() => editorActions.setRuntimeMode('edit')}
             title="Редактирование: клик выделяет узел, работают хоткеи и drag-drop (⌥⌘E)"
+            aria-label="Редактирование"
+            aria-pressed={ui.runtimeMode === 'edit'}
             className={cn(
-              'h-6 rounded px-2 text-[11.5px]',
+              'flex h-6 w-6 items-center justify-center rounded',
               ui.runtimeMode === 'edit' ? 'bg-background shadow-sm' : 'text-muted-foreground'
             )}
           >
-            Редактирование
+            <Pencil className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={() => editorActions.setRuntimeMode('test')}
             title="Тест: форма интерактивна, редактирование схемы выключено (⌥⌘E)"
+            aria-label="Тест"
+            aria-pressed={ui.runtimeMode === 'test'}
             className={cn(
-              'h-6 rounded px-2 text-[11.5px]',
+              'flex h-6 w-6 items-center justify-center rounded',
               ui.runtimeMode === 'test' ? 'bg-background shadow-sm' : 'text-muted-foreground'
             )}
           >
-            Тест
+            <Eye className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
