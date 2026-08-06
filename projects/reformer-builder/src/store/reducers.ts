@@ -58,7 +58,7 @@ export function initialUi(): UiState {
   const leftPanel = ui?.leftPanel !== undefined ? ui.leftPanel : 'files';
   return {
     preview: ui?.preview ?? 'wire',
-    runtimeMode: ui?.runtimeMode ?? 'edit',
+    runtimeMode: ui?.runtimeMode ?? 'test',
     hideDivWrappers: ui?.hideDivWrappers ?? false,
     quickAddOpen: false,
     rawJsonOpen: true,

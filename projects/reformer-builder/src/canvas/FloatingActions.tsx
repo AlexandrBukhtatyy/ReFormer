@@ -67,18 +67,6 @@ export function FloatingActions() {
       {ui.preview === 'runtime' && (
         <div className="flex flex-none gap-0.5 rounded-md border border-border bg-muted p-0.5">
           <button
-            onClick={() => editorActions.setRuntimeMode('edit')}
-            title="Редактирование: клик выделяет узел, работают хоткеи и drag-drop (⌥⌘E)"
-            aria-label="Редактирование"
-            aria-pressed={ui.runtimeMode === 'edit'}
-            className={cn(
-              'flex h-6 w-6 items-center justify-center rounded',
-              ui.runtimeMode === 'edit' ? 'bg-background shadow-sm' : 'text-muted-foreground'
-            )}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button
             onClick={() => editorActions.setRuntimeMode('test')}
             title="Тест: форма интерактивна, редактирование схемы выключено (⌥⌘E)"
             aria-label="Тест"
@@ -89,6 +77,18 @@ export function FloatingActions() {
             )}
           >
             <Eye className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => editorActions.setRuntimeMode('edit')}
+            title="Редактирование: клик выделяет узел, работают хоткеи и drag-drop (⌥⌘E)"
+            aria-label="Редактирование"
+            aria-pressed={ui.runtimeMode === 'edit'}
+            className={cn(
+              'flex h-6 w-6 items-center justify-center rounded',
+              ui.runtimeMode === 'edit' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+            )}
+          >
+            <Pencil className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
