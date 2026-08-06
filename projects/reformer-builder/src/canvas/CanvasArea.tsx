@@ -46,10 +46,10 @@ export function CanvasArea({ tab }: { tab: TabState }) {
     );
   }
 
-  // Карточка формы (схематичный ⇄ runtime) + плавающие действия — общая для обеих раскладок.
+  // Карточка формы (схематичный ⇄ runtime) — общая для обеих раскладок. Панель действий здесь
+  // не рендерим: она живёт вне скролл-области (см. ниже), иначе уезжала бы вверх при скролле.
   const canvasBody = (
     <>
-      <FloatingActions />
       <div className="mx-auto w-full">
         <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
           {ui.preview === 'runtime' ? (
@@ -74,6 +74,9 @@ export function CanvasArea({ tab }: { tab: TabState }) {
 
   return (
     <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-muted/40">
+      {/* Sticky-панель действий: сестра скролл-области, а не её содержимое — остаётся на месте
+          при любом скролле холста (в т.ч. горизонтальном) и при resize нижней панели. */}
+      <FloatingActions />
       {ui.rawJsonOpen ? (
         // raw-JSON открыт: canvas и редактор делят высоту через вертикальный разделитель.
         <ResizablePanelGroup

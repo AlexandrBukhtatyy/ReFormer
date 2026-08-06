@@ -63,7 +63,7 @@ export function FloatingActions() {
   };
 
   return (
-    <div className="absolute right-4 top-2 z-10 flex flex-wrap items-center justify-end gap-1.5 rounded-lg border border-border bg-background/95 p-1 shadow-sm backdrop-blur">
+    <div className="absolute right-4 top-2 z-30 flex flex-wrap items-center justify-end gap-1.5 rounded-lg border border-border bg-background/95 p-1 shadow-sm backdrop-blur">
       {/* Режим Renderer'а: холст поверх живого рендера ⇄ интерактивная форма (⌥⌘E). */}
       {ui.preview === 'runtime' && (
         <div className="flex flex-none gap-0.5 rounded-md border border-border bg-muted p-0.5">
