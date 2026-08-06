@@ -13,9 +13,12 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { encodeNodeToken } from '../preview-runtime';
 import type { JsonPath } from '../model';
 
-const ACTIVE = 'outline: 2px solid var(--rb-select); outline-offset: 1px; border-radius: 3px;';
-const GROUP = 'outline: 2px solid var(--rb-select-weak); outline-offset: 1px; border-radius: 3px;';
-const HOVER = 'outline: 1px dashed var(--rb-select-weak); outline-offset: 1px; border-radius: 3px;';
+/** Зазор между рамкой и габаритом узла: без него обводка липнет к рамке самого инпута. */
+const GAP = 'outline-offset: 4px; border-radius: 4px;';
+
+const ACTIVE = `outline: 2px solid var(--rb-select); ${GAP}`;
+const GROUP = `outline: 2px solid var(--rb-select-weak); ${GAP}`;
+const HOVER = `outline: 1px dashed var(--rb-select-weak); ${GAP}`;
 
 /** Правило подсветки одного узла в области `scope`. */
 function rule(scope: string, path: JsonPath, decl: string): string {
