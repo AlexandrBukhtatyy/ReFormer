@@ -18,11 +18,14 @@ class FakeFile {
     return Promise.resolve({ text: () => Promise.resolve(this.content) });
   }
 
-  createWritable(): Promise<{ write: (d: string) => Promise<void>; close: () => Promise<void> }> {
+  createWritable(): Promise<{
+    write: (d: string | { text(): Promise<string> }) => Promise<void>;
+    close: () => Promise<void>;
+  }> {
     return Promise.resolve({
-      write: (d: string) => {
-        this.content = d;
-        return Promise.resolve();
+      // Копирование пишет `Blob` (File), а не строку — как в браузере, сохраняем его содержимое.
+      write: async (d: string | { text(): Promise<string> }) => {
+        this.content = typeof d === 'string' ? d : await d.text();
       },
       close: () => Promise.resolve(),
     });

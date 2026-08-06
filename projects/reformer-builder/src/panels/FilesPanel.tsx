@@ -29,6 +29,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
@@ -36,8 +37,10 @@ import {
 } from '@reformer/ui-kit/context-menu';
 import { ChevronRight, File, FileCode, Folder, FolderOpen, Loader2, RotateCcw } from 'lucide-react';
 import { useProject } from '../store/project-store';
+import { useFileClipboard } from '../store/file-clipboard';
 import {
   checkReopen,
+  copyEntries,
   generateFormBehavior,
   generateFormSchema,
   generateModel,
@@ -45,6 +48,7 @@ import {
   generateValidation,
   loadDirectory,
   openTreeEntry,
+  pasteEntries,
   reopenProject,
 } from '../app/save-actions';
 import { fsAccessSupported } from '../io/fs-access';
@@ -159,6 +163,7 @@ export function FilesPanel() {
   const scanning = useProject((s) => s.scanning);
   const error = useProject((s) => s.error);
   const canReopen = useProject((s) => s.canReopen);
+  const clipboard = useFileClipboard();
 
   // Раскрытые узлы (корень открыт сразу). Раскрытие папки, содержимое которой ещё не прочитано,
   // запускает ленивую загрузку одного уровня — вложенные каталоги подгружаются так же, по клику.
@@ -267,11 +272,15 @@ export function FilesPanel() {
   const menuPaths = (entry: TreeEntry): string[] =>
     checked.has(entry.path) && checked.size > 1 ? [...checked] : [entry.path];
 
-  // ↑↓ — перемещение, →/← — раскрыть/свернуть/к родителю, F2 — переименовать, Delete — удалить.
+  // ↑↓ — перемещение, →/← — раскрыть/свернуть/к родителю, F2 — переименовать, Delete — удалить,
+  // Mod+C/Mod+V — копировать/вставить (те же действия, что в контекстном меню).
   // Enter/Space не трогаем: это нативная активация кнопки строки (открыть файл / свернуть папку).
   const onTreeKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const NAV = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'F2', 'Delete', 'Backspace'];
-    if (!NAV.includes(e.key)) return;
+    // Копирование — по e.code: в русской раскладке Ctrl+C даёт e.key === 'с' (кириллица).
+    const mod = e.metaKey || e.ctrlKey;
+    const copyPaste = mod && (e.code === 'KeyC' || e.code === 'KeyV');
+    if (!NAV.includes(e.key) && !copyPaste) return;
     const sel = selectedPath ?? navPaths[0];
     if (sel == null) return;
     e.preventDefault();
@@ -282,6 +291,13 @@ export function FilesPanel() {
     const isDir = isRoot || entry?.kind === 'directory';
     const isOpen = isRoot ? rootOpen : entry ? expanded.has(entry.path) : false;
     const idx = navPaths.indexOf(sel);
+
+    if (copyPaste) {
+      // «Куда вставлять» — как в меню: папка → в неё, файл → в его каталог, корень → в корень.
+      if (e.code === 'KeyV') void pasteEntries(isDir ? sel : parentDir(sel));
+      else if (entry) copyEntries(menuPaths(entry));
+      return;
+    }
     const move = (d: number) => {
       const p = navPaths[Math.min(Math.max(idx + d, 0), navPaths.length - 1)];
       if (p != null) selectAndFocus(p);
@@ -331,6 +347,20 @@ export function FilesPanel() {
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
+          {/* Копирование — внутри проекта, по путям: системный буфер FS-хендлы не переносит. */}
+          {entry && (
+            <ContextMenuItem onClick={() => copyEntries(menuPaths(entry))}>
+              {checked.has(entry.path) && checked.size > 1
+                ? `Копировать (${checked.size})`
+                : 'Копировать'}
+              <ContextMenuShortcut>{formatShortcut('Mod+C')}</ContextMenuShortcut>
+            </ContextMenuItem>
+          )}
+          <ContextMenuItem disabled={!clipboard.length} onClick={() => void pasteEntries(dirPath)}>
+            {clipboard.length > 1 ? `Вставить (${clipboard.length})` : 'Вставить'}
+            <ContextMenuShortcut>{formatShortcut('Mod+V')}</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={() => setDialog({ kind: 'newFile', dirPath })}>
             Новый файл…
           </ContextMenuItem>

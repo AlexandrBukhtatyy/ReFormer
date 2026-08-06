@@ -1,20 +1,22 @@
 /**
  * Path-based файловые операции над открытым проектом (File System Access, Chromium): создать файл/
  * папку (в т.ч. по вложенному пути), прочитать текст, перечислить содержимое, удалить (рекурсивно),
- * переименовать (`handle.move()`). Родительский каталог резолвится по относительному пути от корня
- * (`projectStore.dirHandle`). FS-типы описаны структурно локально (lib.dom неполон: нет
- * `getDirectoryHandle`/`removeEntry`/`createWritable`/`move`/`values`).
+ * переименовать (`handle.move()`), скопировать (рекурсивно). Родительский каталог резолвится по
+ * относительному пути от корня (`projectStore.dirHandle`). FS-типы описаны структурно локально
+ * (lib.dom неполон: нет `getDirectoryHandle`/`removeEntry`/`createWritable`/`move`/`values`).
  *
  * @module reformer-builder/io/fs-ops
  */
 
 interface Writable {
-  write(data: string): Promise<void>;
+  /** `Blob` — при копировании файла: пишем содержимое как есть, не разбирая его как текст. */
+  write(data: string | Blob): Promise<void>;
   close(): Promise<void>;
 }
 interface FsFileHandle {
   kind: 'file';
   name: string;
+  getFile(): Promise<File>;
   createWritable(): Promise<Writable>;
   move?(name: string): Promise<void>;
 }
@@ -141,8 +143,64 @@ export async function readTextFile(root: Root, path: string): Promise<string> {
   const { dirPath, base } = splitPath(path);
   const parent = await resolveDir(root, dirPath);
   const fh = await parent.getFileHandle(base);
-  const file = await (fh as unknown as { getFile(): Promise<File> }).getFile();
+  const file = await fh.getFile();
   return file.text();
+}
+
+/** Лежит ли `path` внутри каталога `dir` (или это он сам) — по путям, без обращения к ФС. */
+export function isInsideDir(path: string, dir: string): boolean {
+  return path === dir || path.startsWith(`${dir}/`);
+}
+
+/** Защита от копирования гигантских деревьев одним действием. */
+const MAX_COPY_ENTRIES = 2000;
+
+/**
+ * Скопировать файл или каталог (рекурсивно) в каталог `destDir`. Имя при конфликте разводится
+ * через {@link uniqueName} (`ui.tsx` → `ui-2.tsx`), содержимое файлов пишется как `Blob` —
+ * бинарные файлы переживают копирование без порчи.
+ *
+ * Каталог нельзя скопировать в себя или в собственного потомка (иначе обход не завершится) —
+ * такой вызов бросает ошибку. Возвращает путь созданной копии.
+ */
+export async function copyPath(root: Root, srcPath: string, destDir: string): Promise<string> {
+  const { dirPath: srcDir, base } = splitPath(srcPath);
+  const parent = await resolveDir(root, srcDir);
+
+  let src: FsFileHandle | FsDirHandle;
+  try {
+    src = await parent.getFileHandle(base);
+  } catch {
+    src = await parent.getDirectoryHandle(base); // не файл — пробуем каталог
+  }
+  if (src.kind === 'directory' && isInsideDir(destDir, srcPath)) {
+    throw new Error(`Нельзя скопировать «${base}» внутрь самой себя`);
+  }
+
+  const target = await resolveDir(root, destDir, true);
+  const name = await uniqueName(root, destDir, base);
+  let copied = 0;
+
+  const copyFile = async (from: FsFileHandle, into: FsDirHandle, as: string): Promise<void> => {
+    if (++copied > MAX_COPY_ENTRIES)
+      throw new Error(`Слишком много файлов (> ${MAX_COPY_ENTRIES})`);
+    const fh = await into.getFileHandle(as, { create: true });
+    const w = await fh.createWritable();
+    await w.write(await from.getFile());
+    await w.close();
+  };
+
+  const copyDir = async (from: FsDirHandle, into: FsDirHandle, as: string): Promise<void> => {
+    const dir = await into.getDirectoryHandle(as, { create: true });
+    for await (const entry of from.values()) {
+      if (entry.kind === 'directory') await copyDir(entry, dir, entry.name);
+      else await copyFile(entry, dir, entry.name);
+    }
+  };
+
+  if (src.kind === 'directory') await copyDir(src, target, name);
+  else await copyFile(src, target, name);
+  return joinPath(destDir, name);
 }
 
 /** Удалить файл/каталог по пути (рекурсивно для каталогов). */

@@ -5,7 +5,15 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { resetRuntimeState, setRuntimeConfig } from '../config/state';
-import { createFileDeep, listFilesDeep, listSubdirectories, readTextFile } from './fs-ops';
+import {
+  copyPath,
+  createDirectory,
+  createFileDeep,
+  isInsideDir,
+  listFilesDeep,
+  listSubdirectories,
+  readTextFile,
+} from './fs-ops';
 import {
   deleteProjectTemplate,
   loadProjectTemplates,
@@ -53,6 +61,60 @@ describe('fs-ops: вложенные пути', () => {
     await createFileDeep(root, 'x', 'two/b.ts', '');
     await createFileDeep(root, 'x', 'file.ts', '');
     expect(await listSubdirectories(root, 'x')).toEqual(['one', 'two']);
+  });
+});
+
+describe('fs-ops: копирование (контекстное меню «Копировать»/«Вставить»)', () => {
+  it('файл копируется с содержимым', async () => {
+    const root = newRoot();
+    await createFileDeep(root, 'src', 'form.json', '{"a":1}');
+    await createDirectory(root, '', 'dest');
+
+    expect(await copyPath(root, 'src/form.json', 'dest')).toBe('dest/form.json');
+    expect(await readTextFile(root, 'dest/form.json')).toBe('{"a":1}');
+    expect(await readTextFile(root, 'src/form.json')).toBe('{"a":1}'); // оригинал на месте
+  });
+
+  it('каталог копируется рекурсивно, со всей вложенностью', async () => {
+    const root = newRoot();
+    await createFileDeep(root, 'src', 'index.tsx', 'root');
+    await createFileDeep(root, 'src', 'ui/nested/head.tsx', 'deep');
+    await createDirectory(root, '', 'dest');
+
+    await copyPath(root, 'src', 'dest');
+    expect(await listFilesDeep(root, 'dest/src')).toEqual(['index.tsx', 'ui/nested/head.tsx']);
+    expect(await readTextFile(root, 'dest/src/ui/nested/head.tsx')).toBe('deep');
+  });
+
+  it('конфликт имён разводится суффиксом, оригинал не перезаписывается', async () => {
+    const root = newRoot();
+    await createFileDeep(root, '', 'form.json', 'original');
+    await createFileDeep(root, 'src', 'form.json', 'copy-me');
+
+    expect(await copyPath(root, 'src/form.json', '')).toBe('form-2.json');
+    expect(await readTextFile(root, 'form.json')).toBe('original');
+    expect(await readTextFile(root, 'form-2.json')).toBe('copy-me');
+  });
+
+  it('вставка в тот же каталог даёт копию рядом', async () => {
+    const root = newRoot();
+    await createFileDeep(root, 'src', 'a.ts', 'x');
+    expect(await copyPath(root, 'src/a.ts', 'src')).toBe('src/a-2.ts');
+  });
+
+  it('каталог нельзя скопировать в себя или в своего потомка', async () => {
+    const root = newRoot();
+    await createFileDeep(root, 'src', 'ui/head.tsx', '');
+
+    await expect(copyPath(root, 'src', 'src')).rejects.toThrow(/внутрь самой себя/);
+    await expect(copyPath(root, 'src', 'src/ui')).rejects.toThrow(/внутрь самой себя/);
+  });
+
+  it('isInsideDir — путь внутри каталога, а не просто с общим префиксом имени', () => {
+    expect(isInsideDir('src', 'src')).toBe(true);
+    expect(isInsideDir('src/ui/head.tsx', 'src')).toBe(true);
+    expect(isInsideDir('src-2/head.tsx', 'src')).toBe(false);
+    expect(isInsideDir('other', 'src')).toBe(false);
   });
 });
 

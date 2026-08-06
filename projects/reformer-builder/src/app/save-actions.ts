@@ -18,6 +18,7 @@ import {
 } from '../io/fs-access';
 import { saveDirHandle, loadDirHandle } from '../io/handle-store';
 import {
+  copyPath,
   createDirectory,
   createFile,
   deletePath,
@@ -43,6 +44,7 @@ import { showValidationErrors } from './validation-toast';
 import { editorActions, editorStore } from '../store';
 import type { OpenOptions, TabState } from '../store';
 import { projectActions, projectStore } from '../store/project-store';
+import { fileClipboardActions, fileClipboardStore } from '../store/file-clipboard';
 import { reloadTemplates } from '../store/templates-store';
 import { saveDialogActions } from '../store/save-dialog';
 
@@ -327,6 +329,42 @@ export async function createFileEntry(dirPath: string, name: string): Promise<vo
   } catch (e) {
     toast('Не удалось создать файл: ' + msg(e));
   }
+}
+
+/** Положить выбранные записи дерева в буфер («Копировать» в контекстном меню). */
+export function copyEntries(paths: string[]): void {
+  if (!paths.length) return;
+  fileClipboardActions.copy(paths);
+  toast(paths.length === 1 ? `Скопировано: ${paths[0]}` : `Скопировано записей: ${paths.length}`);
+}
+
+/**
+ * Вставить содержимое буфера в каталог `dirPath` («Вставить»). Каждая запись копируется отдельно:
+ * упавшая (исчезла с диска, папку вставляют в саму себя) не отменяет остальные — про неё отдельный
+ * тост. Буфер не очищается: как в файловых менеджерах, копию можно вставить в несколько мест.
+ */
+export async function pasteEntries(dirPath: string): Promise<void> {
+  const root = projectRoot();
+  if (!root) {
+    toast('Проект не открыт');
+    return;
+  }
+  const paths = fileClipboardStore.getState().paths;
+  if (!paths.length) return;
+
+  let done = 0;
+  for (const path of paths) {
+    try {
+      await copyPath(root, path, dirPath);
+      done++;
+    } catch (e) {
+      console.error('[reformer-builder] paste failed:', path, e);
+      toast(`Не удалось вставить «${path}»: ` + msg(e));
+    }
+  }
+  if (!done) return;
+  await rescanProject();
+  toast(done === 1 ? 'Вставлено' : `Вставлено записей: ${done}`);
 }
 
 /** Создать каталог `name` в каталоге `dirPath`. */
