@@ -123,7 +123,7 @@ export function SaveDialog() {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex h-[72vh] w-[880px] max-w-[92vw] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
+        className="flex h-[72vh] w-[1280px] max-w-[95vw] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
       >
         <div className="flex flex-none items-center gap-3 border-b border-border p-4">
           <div className="min-w-0">
