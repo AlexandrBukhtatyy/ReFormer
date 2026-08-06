@@ -78,7 +78,12 @@ export function initialState(): EditorState {
 }
 
 /** Новая вкладка формы (без истории, не dirty: `savedSchema === schema`). */
-export function makeTab(id: string, source: TabSource, schema: JsonFormSchema): TabState {
+export function makeTab(
+  id: string,
+  source: TabSource,
+  schema: JsonFormSchema,
+  preview = false
+): TabState {
   return {
     id,
     source,
@@ -93,6 +98,7 @@ export function makeTab(id: string, source: TabSource, schema: JsonFormSchema): 
     hoverPath: null,
     activeStep: 0,
     touched: false,
+    preview,
     lastCoalesceKey: null,
   };
 }
@@ -105,7 +111,8 @@ export function makeCodeTab(
   id: string,
   source: TabSource,
   text: string,
-  language: string
+  language: string,
+  preview = false
 ): TabState {
   const schema = emptySchema();
   return {
@@ -125,26 +132,63 @@ export function makeCodeTab(
     hoverPath: null,
     activeStep: 0,
     touched: false,
+    preview,
     lastCoalesceKey: null,
   };
 }
 
 // ── вкладки ────────────────────────────────────────────────────────────────
 
-/** Открыть вкладку (или активировать уже открытую с тем же id). */
+/** Опции открытия вкладки. */
+export interface OpenOptions {
+  /** Открыть временной preview-вкладкой (одиночный клик в дереве файлов). По умолчанию — закреплённой. */
+  preview?: boolean;
+}
+
+/** Id текущей preview-вкладки (она в редакторе одна), либо `null`. */
+export function previewTabId(state: EditorState): string | null {
+  return state.order.find((id) => state.tabs[id]?.preview) ?? null;
+}
+
+/**
+ * Вставить новую вкладку. Preview занимает слот прежней временной вкладки (та закрывается на месте,
+ * как в VSCode) — так «посмотреть подряд десять файлов» не разрастается в десять вкладок. Закрывать
+ * безопасно: любая правка снимает `preview`, поэтому несохранённого в такой вкладке нет.
+ */
+function insertTab(state: EditorState, tab: TabState): EditorState {
+  const replaced = tab.preview ? previewTabId(state) : null;
+  if (replaced == null) {
+    return {
+      ...state,
+      tabs: { ...state.tabs, [tab.id]: tab },
+      order: [...state.order, tab.id],
+      activeTabId: tab.id,
+    };
+  }
+  const tabs = { ...state.tabs, [tab.id]: tab };
+  delete tabs[replaced];
+  return {
+    ...state,
+    tabs,
+    order: state.order.map((x) => (x === replaced ? tab.id : x)),
+    activeTabId: tab.id,
+  };
+}
+
+/**
+ * Открыть вкладку (или активировать уже открытую с тем же id). Повторное открытие без `preview`
+ * закрепляет временную вкладку — это двойной клик по уже открытому preview-файлу.
+ */
 export function openTab(
   state: EditorState,
   id: string,
   source: TabSource,
-  schema: JsonFormSchema
+  schema: JsonFormSchema,
+  opts: OpenOptions = {}
 ): EditorState {
-  if (state.tabs[id]) return { ...state, activeTabId: id };
-  return {
-    ...state,
-    tabs: { ...state.tabs, [id]: makeTab(id, source, schema) },
-    order: [...state.order, id],
-    activeTabId: id,
-  };
+  const preview = opts.preview ?? false;
+  if (state.tabs[id]) return setActiveTab(preview ? state : pinTab(state, id), id);
+  return insertTab(state, makeTab(id, source, schema, preview));
 }
 
 /**
@@ -165,28 +209,36 @@ export function restoreTabs(state: EditorState, restored: TabState[]): EditorSta
   };
 }
 
-/** Открыть code-вкладку (или активировать уже открытую). */
+/** Открыть code-вкладку (или активировать уже открытую; см. {@link openTab} про `preview`). */
 export function openCodeTab(
   state: EditorState,
   id: string,
   source: TabSource,
   text: string,
-  language: string
+  language: string,
+  opts: OpenOptions = {}
 ): EditorState {
-  if (state.tabs[id]) return { ...state, activeTabId: id };
-  return {
-    ...state,
-    tabs: { ...state.tabs, [id]: makeCodeTab(id, source, text, language) },
-    order: [...state.order, id],
-    activeTabId: id,
-  };
+  const preview = opts.preview ?? false;
+  if (state.tabs[id]) return setActiveTab(preview ? state : pinTab(state, id), id);
+  return insertTab(state, makeCodeTab(id, source, text, language, preview));
+}
+
+/**
+ * Закрепить вкладку — снять с неё `preview` (двойной клик по файлу/вкладке, первая правка).
+ * Закреплённая вкладка живёт до явного закрытия и слот под предпросмотр больше не отдаёт.
+ */
+export function pinTab(state: EditorState, id: string): EditorState {
+  const tab = state.tabs[id];
+  if (!tab || !tab.preview) return state;
+  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, preview: false } } };
 }
 
 /** Правка текста code-вкладки (Monaco onChange). Только для `kind: 'code'`. */
 export function setTabText(state: EditorState, id: string, text: string): EditorState {
   const tab = state.tabs[id];
   if (!tab || tab.kind !== 'code' || tab.text === text) return state;
-  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, text } } };
+  // Правка закрепляет вкладку: предпросмотр больше не одноразовый (как в VSCode).
+  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, text, preview: false } } };
 }
 
 /** Правка одной секции мок-данных вкладки (нижняя панель). Превью-only — историю/dirty не трогает. */
@@ -302,8 +354,10 @@ function pushHistory(
     anchorPath: next.anchorPath !== undefined ? next.anchorPath : next.selectionPath,
     past,
     future: [],
-    // Единственная точка входа всех правок схемы — здесь же взводится флаг «вкладку трогали».
+    // Единственная точка входа всех правок схемы — здесь же взводится флаг «вкладку трогали»
+    // и снимается preview: тронутая вкладка не должна уехать под следующий предпросмотр.
     touched: true,
+    preview: false,
     lastCoalesceKey: coalesceKey ?? null,
   };
 }

@@ -92,6 +92,65 @@ describe('вкладки', () => {
   });
 });
 
+describe('preview-вкладки (как в VSCode)', () => {
+  const preview = { preview: true };
+  const openPreview = (s: EditorState, id: string) => R.openTab(s, id, src, emptySchema(), preview);
+
+  it('preview-вкладка одна: следующий предпросмотр занимает её слот', () => {
+    let s = R.openTab(R.initialState(), 'a', src, emptySchema()); // закреплённая
+    s = openPreview(s, 'b');
+    s = openPreview(s, 'c');
+    expect(s.order).toEqual(['a', 'c']);
+    expect(s.tabs.b).toBeUndefined();
+    expect(s.activeTabId).toBe('c');
+    expect(R.previewTabId(s)).toBe('c');
+  });
+
+  it('предпросмотр заменяет вкладку на её месте, а не в конце', () => {
+    let s = openPreview(R.initialState(), 'a');
+    s = R.openTab(s, 'b', src, emptySchema());
+    s = openPreview(s, 'c');
+    expect(s.order).toEqual(['c', 'b']);
+  });
+
+  it('закреплённые вкладки предпросмотр не трогает', () => {
+    let s = openPreview(R.initialState(), 'a');
+    s = R.pinTab(s, 'a');
+    s = openPreview(s, 'b');
+    expect(s.order).toEqual(['a', 'b']);
+    expect(R.previewTabId(s)).toBe('b');
+  });
+
+  it('повторное открытие: с preview — только активация, без него — закрепляет', () => {
+    let s = openPreview(R.initialState(), 'a');
+    s = openPreview(s, 'a');
+    expect(s.tabs.a?.preview).toBe(true);
+    s = R.openTab(s, 'a', src, emptySchema());
+    expect(s.tabs.a?.preview).toBe(false);
+    expect(s.order).toEqual(['a']);
+  });
+
+  it('правка схемы закрепляет вкладку', () => {
+    const s0 = openPreview(R.initialState(), 'a');
+    const s1 = R.commit(s0, appendNode(R.activeTab(s0)!.schema, ['root', 'children'], field('x')));
+    expect(s1.tabs.a?.preview).toBe(false);
+    expect(R.previewTabId(s1)).toBeNull();
+  });
+
+  it('правка текста code-вкладки закрепляет вкладку', () => {
+    const s0 = R.openCodeTab(R.initialState(), 'a', src, 'x', 'typescript', preview);
+    expect(s0.tabs.a?.preview).toBe(true);
+    const s1 = R.setTabText(s0, 'a', 'xy');
+    expect(s1.tabs.a?.preview).toBe(false);
+  });
+
+  it('pinTab: незнакомая/закреплённая вкладка — стейт без изменений', () => {
+    const s = R.openTab(R.initialState(), 'a', src, emptySchema());
+    expect(R.pinTab(s, 'a')).toBe(s);
+    expect(R.pinTab(s, 'zzz')).toBe(s);
+  });
+});
+
 describe('правки и история', () => {
   it('commit: снимок в историю, выделение = newPath, dirty', () => {
     const s0 = opened();

@@ -26,13 +26,20 @@ export const editorStore = createStore<EditorState>(R.initialState());
 
 /** Экшены редактора (мутируют {@link editorStore}). */
 export const editorActions = {
-  openTab: (id: string, source: TabSource, schema: JsonFormSchema) =>
-    editorStore.setState((s) => R.openTab(s, id, source, schema)),
+  openTab: (id: string, source: TabSource, schema: JsonFormSchema, opts?: R.OpenOptions) =>
+    editorStore.setState((s) => R.openTab(s, id, source, schema, opts)),
   /** Восстановить вкладки-черновики из локальных копий (старт приложения). */
   restoreTabs: (tabs: TabState[]) => editorStore.setState((s) => R.restoreTabs(s, tabs)),
   /** Открыть произвольный файл на редактирование в Monaco (code-вкладка). */
-  openCodeTab: (id: string, source: TabSource, text: string, language: string) =>
-    editorStore.setState((s) => R.openCodeTab(s, id, source, text, language)),
+  openCodeTab: (
+    id: string,
+    source: TabSource,
+    text: string,
+    language: string,
+    opts?: R.OpenOptions
+  ) => editorStore.setState((s) => R.openCodeTab(s, id, source, text, language, opts)),
+  /** Закрепить preview-вкладку (двойной клик по файлу в дереве или по самой вкладке). */
+  pinTab: (id: string) => editorStore.setState((s) => R.pinTab(s, id)),
   /** Правка текста code-вкладки (Monaco onChange). */
   setTabText: (id: string, text: string) => editorStore.setState((s) => R.setTabText(s, id, text)),
   /** Правка секции мок-данных вкладки (нижняя панель: «Модель» / «Registry»). */

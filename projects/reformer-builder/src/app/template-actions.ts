@@ -188,7 +188,9 @@ export function openTemplatePreview(template: FormTemplate): void {
     editorActions.openTab(
       `template:${template.source}:${template.id}`,
       { kind: 'template', name: template.name },
-      schema
+      schema,
+      // Предпросмотр — временная вкладка: занимает тот же слот, что и preview файлов из дерева.
+      { preview: true }
     );
   } catch (e) {
     toast('Не удалось открыть шаблон: ' + msg(e));

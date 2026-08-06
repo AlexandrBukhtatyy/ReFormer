@@ -34,21 +34,25 @@ function TabItem({ id, index, count }: { id: string; index: number; count: numbe
       <ContextMenuTrigger asChild>
         <div
           onClick={() => editorActions.setActiveTab(id)}
+          // Двойной клик закрепляет временную вкладку за файлом (VSCode: «Keep Open»).
+          onDoubleClick={() => editorActions.pinTab(id)}
           className={cn(
             'flex cursor-pointer items-center gap-2 whitespace-nowrap border-r border-border px-3 font-mono text-[11px]',
             active ? 'bg-background text-foreground' : 'bg-sidebar text-muted-foreground'
           )}
         >
           <span className="text-muted-foreground">{'{}'}</span>
-          {/* Нетронутый предпросмотр шаблона — временная вкладка: курсивом, как preview-таб в
-              VSCode. После первой правки он становится черновиком с локальной копией — курсив
-              снимается. */}
+          {/* Временная (preview) вкладка — курсивом, как в VSCode: открыта одиночным кликом и будет
+              переиспользована под следующий предпросмотр. Двойной клик или первая правка закрепляют
+              её — курсив снимается. */}
           <span
-            className={cn(tab.source.kind === 'template' && !tab.touched && 'italic')}
+            className={cn(tab.preview && 'italic')}
             title={
-              draft
-                ? `${tab.source.name} — черновик: файла в проекте нет, копия хранится локально`
-                : tab.source.path || tab.source.name
+              tab.preview
+                ? `${tab.source.path || tab.source.name} — предпросмотр: двойной клик закрепит вкладку`
+                : draft
+                  ? `${tab.source.name} — черновик: файла в проекте нет, копия хранится локально`
+                  : tab.source.path || tab.source.name
             }
           >
             {tab.source.name}
