@@ -24,6 +24,7 @@ import { variantGroupOf } from '../catalog/variants';
 import { editorActions, useActiveTab, useSelectionPath, type TabState } from '../store';
 import { nodeTypeBadge } from '../canvas/node-display';
 import { effectiveMock, serializeSection } from '../canvas/mock-data';
+import { blankToUndefined, toNumberValue } from './inspector-value';
 import { ClassNameField } from './ClassNameField';
 import { OptionsField } from './OptionsField';
 import { IconField } from './IconField';
@@ -193,11 +194,6 @@ function VariantRow({ node, path }: { node: JsonNode; path: JsonPath }) {
   );
 }
 
-function toNumberValue(raw: string): number | string | undefined {
-  if (raw === '') return undefined;
-  return /^-?\d*\.?\d+$/.test(raw) ? Number(raw) : raw;
-}
-
 function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: InspectorProp }) {
   if (prop.widget === 'className') return <ClassNameField node={node} path={path} prop={prop} />;
   if (prop.widget === 'dataSource') return <OptionsField node={node} path={path} prop={prop} />;
@@ -218,28 +214,42 @@ function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: I
       {prop.widget === 'boolean' && (
         <Switch className="ml-auto" checked={value === true} onCheckedChange={(v) => set(v)} />
       )}
+      {/* Пустой ввод УДАЛЯЕТ ключ (как в ClassNameField), а не пишет `""`: пустая строка в
+          `componentProps` — мусор в схеме, семантически равный отсутствию пропа. */}
       {prop.widget === 'text' && (
         <Input
           value={value == null ? '' : String(value)}
-          onChange={(e) => set(e.target.value)}
+          onChange={(e) => set(blankToUndefined(e.target.value))}
+          placeholder={prop.default == null ? undefined : String(prop.default)}
           className="h-[26px] min-w-0 flex-1 bg-background text-xs"
         />
       )}
+      {/* min/max/step берутся из props-схемы (minimum/maximum/multipleOf): раньше они вычислялись
+          в `toInspectorProps`, но до инпута не доходили — стрелки давали значения вне границ,
+          и гейт валидации падал уже на экспорте («must be >= 1»). */}
       {prop.widget === 'number' && (
         <Input
           type="number"
+          min={prop.min}
+          max={prop.max}
+          step={prop.step}
           value={value == null ? '' : String(value)}
           onChange={(e) => set(toNumberValue(e.target.value))}
+          placeholder={prop.default == null ? undefined : String(prop.default)}
           className="h-[26px] min-w-0 flex-1 bg-background text-xs"
         />
       )}
+      {/* Пустая опция = «не задано» и УДАЛЯЕТ ключ. Раньше она писала `''`, которого нет ни в
+          одном `enum` каталога, — схема сразу становилась невалидной. */}
       {prop.widget === 'enum' && (
         <select
           value={value == null ? '' : String(value)}
-          onChange={(e) => set(e.target.value)}
+          onChange={(e) => set(blankToUndefined(e.target.value))}
           className="h-[26px] min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:border-ring"
         >
-          <option value="" />
+          <option value="">
+            {prop.default == null ? '— не задано' : `по умолчанию (${String(prop.default)})`}
+          </option>
           {prop.options?.map((op) => (
             <option key={String(op)} value={String(op)}>
               {String(op)}
@@ -300,7 +310,18 @@ export function Inspector() {
   }
 
   const entry = catalogEntryFor(node);
-  const groups = entry ? inspectorGroups(entry.propsSchema) : [];
+  // Текст — только у узлов, которые могут иметь содержимое: не поле/массив и не лист
+  // (Icon/Separator, void-теги `<br>`/`<hr>` — рендерер им содержимое не передаёт вовсе).
+  const showsText = kindOf(node) === 'container' && !isLeafComponent(node);
+  const rawGroups = entry ? inspectorGroups(entry.propsSchema) : [];
+  // Если содержимое правится секцией «Содержимое» (пишет в `node.text`), проп `text` из props-схемы
+  // не показываем: он бы дал второе поле «Текст», пишущее в `componentProps.text` — не то место,
+  // рендерер оттуда содержимое не берёт.
+  const groups = showsText
+    ? rawGroups
+        .map((g) => ({ ...g, props: g.props.filter((p) => p.key !== 'text') }))
+        .filter((g) => g.props.length > 0 || g.group === 'Control')
+    : rawGroups;
   const bindings = bindingsOf(node);
 
   return (
@@ -308,11 +329,7 @@ export function Inspector() {
       {tab && (isFieldNode(node) || isArrayNode(node)) && (
         <ModelPathField node={node} path={selPath} tab={tab} />
       )}
-      {/* Текст — только у узлов, которые могут иметь содержимое: не поле/массив и не лист
-          (Icon/Separator, void-теги `<br>`/`<hr>` — рендерер им содержимое не передаёт вовсе). */}
-      {kindOf(node) === 'container' && !isLeafComponent(node) && (
-        <TextContentField node={node} path={selPath} />
-      )}
+      {showsText && <TextContentField node={node} path={selPath} />}
       {groups.map((group) => (
         <div key={group.group} className="border-b border-border p-3.5">
           <div className="mb-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">

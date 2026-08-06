@@ -36,10 +36,13 @@ describe('htmlPropsSchema', () => {
     }
   });
 
-  it('text есть только у текстовых тегов', () => {
+  // `text` — ключ уровня узла (node.text), а не componentProps: его правит секция «Содержимое»
+  // инспектора. В props-схеме его быть не должно ни у одного тега, иначе инспектор нарисует второе
+  // поле «Текст», пишущее в componentProps.text (рендерер такой ключ содержимым не считает).
+  it('text не попадает в props-схему ни у одного тега', () => {
     for (const spec of HTML_TAG_SPECS) {
       const props = htmlPropsSchema(spec).properties ?? {};
-      expect(Object.hasOwn(props, 'text')).toBe(spec.content === 'text');
+      expect(Object.hasOwn(props, 'text'), `${spec.tag} несёт text в props-схеме`).toBe(false);
     }
   });
 

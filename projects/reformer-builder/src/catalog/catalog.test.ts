@@ -22,7 +22,9 @@ describe('buildCatalog', () => {
     for (const e of html) expect(e.category).toBe('HTML');
 
     const h1 = catalog.find((e) => e.name === '$html(h1)')!;
-    expect(h1.propsSchema.properties).toHaveProperty('text');
+    expect(h1.propsSchema.properties).toHaveProperty('className');
+    // text — ключ уровня узла (node.text), не componentProps: правится секцией «Содержимое».
+    expect(h1.propsSchema.properties).not.toHaveProperty('text');
     expect(catalog.find((e) => e.name === '$html(a)')!.propsSchema.properties).toHaveProperty(
       'href'
     );

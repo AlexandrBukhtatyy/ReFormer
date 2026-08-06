@@ -1,7 +1,8 @@
 /**
  * Единый источник данных о презентационных `$html(...)`-тегах палитры (спека §5/§6): какой тег
- * рисуем, как он держит содержимое (`container` — children, `text` — текстовый проп, `void` —
- * самозакрывающийся) и какие props редактируются в инспекторе поверх базовых `className`/`text`.
+ * рисуем, как он держит содержимое (`container` — children, `text` — текстовое содержимое узла
+ * `node.text`, `void` — самозакрывающийся) и какие props редактируются в инспекторе поверх
+ * базового `className`.
  * Все презентационные теги живут в одном разделе палитры «HTML» (категория назначается в
  * `synthetic-entries`); раздел «Типографика» отведён под ui-kit `Typography*`-компоненты, туда
  * нативные теги не мешаем.
@@ -77,13 +78,6 @@ const classNameProp: PropsSchema = {
   type: 'string',
   description: 'CSS-класс (Tailwind: flex, grid, gap-*).',
   'x-doc': { group: 'Control', type: 'string', kind: 'readonly' },
-};
-
-/** Базовый проп `text` — текстовое содержимое (для `content: 'text'`). */
-const textProp: PropsSchema = {
-  type: 'string',
-  description: 'Текстовое содержимое.',
-  'x-doc': { group: 'Control', type: 'string' },
 };
 
 /**
@@ -181,12 +175,17 @@ export function htmlTagSpec(tag: string): HtmlTagSpec | undefined {
 }
 
 /**
- * `propsSchema` для инспектора: `className` (всегда) + `text` (для текстовых) + тег-специфичные
- * props из {@link HtmlTagSpec.props}. Порядок ключей = порядок строк инспектора внутри секции.
+ * `propsSchema` для инспектора: `className` (всегда) + тег-специфичные props из
+ * {@link HtmlTagSpec.props}. Порядок ключей = порядок строк инспектора внутри секции.
+ *
+ * `text` СЮДА НЕ ВХОДИТ: текстовое содержимое — ключ УРОВНЯ УЗЛА (`node.text`, см.
+ * `JsonContainerNode.text`), а не `componentProps`. Инспектор правит его отдельной секцией
+ * «Содержимое» (`TextContentField`). Пока `text` был здесь, у текстовых тегов было ДВА поля
+ * «Текст», и то, что из props-схемы, писало значение в `componentProps.text` — рендерер такой
+ * ключ содержимым не считает (уходил бы в DOM-атрибут), а узел оставался с пустым содержимым.
  */
 export function htmlPropsSchema(spec: HtmlTagSpec): PropsSchema {
   const properties: Record<string, PropsSchema> = { className: classNameProp };
-  if (spec.content === 'text') properties.text = textProp;
   if (spec.props) Object.assign(properties, spec.props);
   return { type: 'object', properties };
 }
