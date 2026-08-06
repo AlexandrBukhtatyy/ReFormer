@@ -9,12 +9,12 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight, GripVertical } from 'lucide-react';
 import { Input, ScrollArea } from '@reformer/ui-kit';
-import { isContainerNode, type JsonFormSchema } from '@reformer/renderer-json';
+import { isContainerNode, parseOperator, type JsonFormSchema } from '@reformer/renderer-json';
 import { appendNode, findByPath, isLeafComponent, parentNodePath, type JsonPath } from '../model';
-import { getCatalog, type CatalogEntry } from '../catalog';
+import { getCatalog, isCompoundPart, partsOf, type CatalogEntry } from '../catalog';
 import { collapseToDefaults } from '../catalog/variants';
 import { getRuntimeConfig } from '../config/state';
-import { editorActions, editorStore } from '../store';
+import { editorActions, editorStore, useActiveTab, useSelectionPath } from '../store';
 import { clearDrag, setDrag } from '../dnd/drag-state';
 
 const DEFAULT_CATEGORY_ORDER = [
@@ -34,6 +34,9 @@ const DEFAULT_CATEGORY_ORDER = [
 
 /** Разделы, свёрнутые по умолчанию (спека §8), если клиент не переопределил. */
 const DEFAULT_COLLAPSED = ['HTML', 'Типографика', 'Оверлеи', 'Навигация', 'Чат'];
+
+/** Ключ свёрнутости контекстного раздела частей (один на все корни — заголовок меняется). */
+const PARTS_CATEGORY = 'Части';
 
 /** Порядок разделов палитры: из конфига клиента, иначе дефолтный. */
 function categoryOrder(): string[] {
@@ -125,7 +128,11 @@ function displayName(entry: CatalogEntry): string {
 
 function groupByCategory(catalog: CatalogEntry[], q: string): Array<[string, CatalogEntry[]]> {
   const needle = q.trim().toLowerCase();
-  const filtered = needle ? catalog.filter((e) => e.name.toLowerCase().includes(needle)) : catalog;
+  // Части compound'ов (AlertTitle, CardHeader…) в общем списке не показываем — их место в разделе
+  // «Части: {корень}», который появляется по контексту выделения. Поиском они находятся всегда.
+  const filtered = needle
+    ? catalog.filter((e) => e.name.toLowerCase().includes(needle))
+    : catalog.filter((e) => !isCompoundPart(e));
   // Палитра — один дефолт-вариант на группу (не-дефолтные варианты доступны в QuickAdd). При поиске
   // конкретного варианта (дефолт не в выборке) collapseToDefaults покажет сам найденный вариант.
   const collapsed = collapseToDefaults(filtered);
@@ -146,6 +153,22 @@ function groupByCategory(catalog: CatalogEntry[], q: string): Array<[string, Cat
   return [...known, ...rest];
 }
 
+/**
+ * Корень compound'а, внутри которого стоит выделение (сам узел тоже считается). Нужен, чтобы палитра
+ * предложила именно его части: у `Alert` содержимое живёт в `AlertTitle`/`AlertDescription`, а голый
+ * текст в корне рассыпается по словам (grid-колонка нулевой ширины).
+ */
+function compoundContext(schema: JsonFormSchema, selPath: JsonPath | null): string | null {
+  let path: JsonPath | null = selPath;
+  while (path && path.length) {
+    const node = findByPath(schema, path);
+    const name = parseOperator((node as { component?: unknown } | undefined)?.component);
+    if (name?.op === 'component' && partsOf(name.arg).length) return name.arg;
+    path = parentNodePath(path);
+  }
+  return null;
+}
+
 /** Ближайший контейнер-слот от выделения (или корень) — куда добавить новый узел. */
 function resolveSlot(schema: JsonFormSchema, selPath: JsonPath | null): JsonPath | null {
   let path: JsonPath | null = selPath;
@@ -160,10 +183,78 @@ function resolveSlot(schema: JsonFormSchema, selPath: JsonPath | null): JsonPath
     : null;
 }
 
+/** Раздел палитры: свёртываемый заголовок + карточки элементов (общий для категорий и «Частей»). */
+function PaletteSection({
+  title,
+  items,
+  open,
+  onToggle,
+  onPick,
+}: {
+  title: string;
+  items: CatalogEntry[];
+  open: boolean;
+  onToggle: () => void;
+  onPick: (entry: CatalogEntry) => void;
+}) {
+  return (
+    <div className="border-b border-border">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+      >
+        <ChevronRight
+          className={`h-3 w-3 flex-none transition-transform ${open ? 'rotate-90' : ''}`}
+        />
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+        <span className="flex-none font-mono text-[10px] font-normal text-muted-foreground/50">
+          {items.length}
+        </span>
+      </button>
+      {open && (
+        <div className="flex flex-col gap-0.5 px-2 pb-2">
+          {items.map((e) => (
+            <button
+              key={e.name}
+              draggable
+              onDragStart={(ev) => {
+                setDrag({ kind: 'new', entryName: e.name });
+                ev.dataTransfer.effectAllowed = 'copy';
+              }}
+              onDragEnd={() => clearDrag()}
+              onClick={() => onPick(e)}
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] hover:bg-muted"
+            >
+              <span className="grid h-5 min-w-5 flex-none place-items-center rounded border border-border bg-background px-1 font-mono text-[9px] font-semibold text-muted-foreground">
+                {glyph(e)}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{displayName(e)}</span>
+              <GripVertical className="h-3.5 w-3.5 flex-none text-muted-foreground/40" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PalettePanel() {
   const [q, setQ] = useState('');
   const catalog = getCatalog();
   const groups = useMemo(() => groupByCategory(catalog, q), [catalog, q]);
+  // Контекстный раздел «Части: {корень}»: когда выделение стоит внутри compound'а, его части нужны
+  // здесь и сейчас — в общем списке их нет. При активном поиске раздел не нужен: части и так в выдаче.
+  const selectionPath = useSelectionPath();
+  const activeTab = useActiveTab();
+  const compoundRoot = useMemo(
+    () => (activeTab ? compoundContext(activeTab.schema, selectionPath) : null),
+    [activeTab, selectionPath]
+  );
+  const contextParts = useMemo(
+    () => (compoundRoot && !q.trim() ? partsOf(compoundRoot) : []),
+    [compoundRoot, q]
+  );
   // Форс-категории раскрыты; вспомогательные (HTML/оверлеи/навигация/чат) свёрнуты по умолчанию
   // (спека §8, дизайн-макет; клиент может переопределить `palette.collapsedByDefault`). Поиск
   // временно раскрывает все разделы.
@@ -193,49 +284,25 @@ export function PalettePanel() {
         />
       </div>
       <ScrollArea className="flex-1">
-        {groups.map(([cat, items]) => {
-          const open = isOpen(cat);
-          return (
-            <div key={cat} className="border-b border-border">
-              <button
-                type="button"
-                onClick={() => toggle(cat)}
-                className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
-              >
-                <ChevronRight
-                  className={`h-3 w-3 flex-none transition-transform ${open ? 'rotate-90' : ''}`}
-                />
-                <span className="min-w-0 flex-1 truncate">{cat}</span>
-                <span className="flex-none font-mono text-[10px] font-normal text-muted-foreground/50">
-                  {items.length}
-                </span>
-              </button>
-              {open && (
-                <div className="flex flex-col gap-0.5 px-2 pb-2">
-                  {items.map((e) => (
-                    <button
-                      key={e.name}
-                      draggable
-                      onDragStart={(ev) => {
-                        setDrag({ kind: 'new', entryName: e.name });
-                        ev.dataTransfer.effectAllowed = 'copy';
-                      }}
-                      onDragEnd={() => clearDrag()}
-                      onClick={() => pick(e)}
-                      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] hover:bg-muted"
-                    >
-                      <span className="grid h-5 min-w-5 flex-none place-items-center rounded border border-border bg-background px-1 font-mono text-[9px] font-semibold text-muted-foreground">
-                        {glyph(e)}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate">{displayName(e)}</span>
-                      <GripVertical className="h-3.5 w-3.5 flex-none text-muted-foreground/40" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {contextParts.length > 0 && compoundRoot && (
+          <PaletteSection
+            title={`Части: ${compoundRoot}`}
+            items={contextParts}
+            open={isOpen(PARTS_CATEGORY)}
+            onToggle={() => toggle(PARTS_CATEGORY)}
+            onPick={pick}
+          />
+        )}
+        {groups.map(([cat, items]) => (
+          <PaletteSection
+            key={cat}
+            title={cat}
+            items={items}
+            open={isOpen(cat)}
+            onToggle={() => toggle(cat)}
+            onPick={pick}
+          />
+        ))}
       </ScrollArea>
     </div>
   );

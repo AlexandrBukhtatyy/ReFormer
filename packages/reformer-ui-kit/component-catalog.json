@@ -70,6 +70,74 @@
       }
     },
     {
+      "name": "AccordionContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Accordion"
+    },
+    {
+      "name": "AccordionItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "value": {
+            "type": "string",
+            "description": "Значение секции — по нему Accordion её открывает.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "compoundParent": "Accordion"
+    },
+    {
+      "name": "AccordionTrigger",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Accordion"
+    },
+    {
       "name": "Alert",
       "role": "container",
       "propsSchema": {
@@ -101,6 +169,26 @@
       }
     },
     {
+      "name": "AlertDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Alert"
+    },
+    {
       "name": "AlertDialog",
       "role": "container",
       "propsSchema": {
@@ -119,6 +207,26 @@
           }
         }
       }
+    },
+    {
+      "name": "AlertTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Alert"
     },
     {
       "name": "AspectRatio",
@@ -203,6 +311,166 @@
       }
     },
     {
+      "name": "AttachmentAction",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentActions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentMedia",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentTrigger",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Attachment"
+    },
+    {
       "name": "Avatar",
       "role": "container",
       "propsSchema": {
@@ -232,6 +500,122 @@
           }
         }
       }
+    },
+    {
+      "name": "AvatarBadge",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Avatar"
+    },
+    {
+      "name": "AvatarFallback",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Avatar"
+    },
+    {
+      "name": "AvatarGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Avatar"
+    },
+    {
+      "name": "AvatarGroupCount",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Avatar"
+    },
+    {
+      "name": "AvatarImage",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "src": {
+            "type": "string",
+            "description": "URL изображения.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          },
+          "alt": {
+            "type": "string",
+            "description": "Альтернативный текст.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "compoundParent": "Avatar"
     },
     {
       "name": "Badge",
@@ -305,6 +689,134 @@
       }
     },
     {
+      "name": "BreadcrumbEllipsis",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbLink",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "href": {
+            "type": "string",
+            "description": "URL ссылки.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbList",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbPage",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
       "name": "Bubble",
       "role": "container",
       "propsSchema": {
@@ -345,6 +857,66 @@
           }
         }
       }
+    },
+    {
+      "name": "BubbleContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Bubble"
+    },
+    {
+      "name": "BubbleGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Bubble"
+    },
+    {
+      "name": "BubbleReactions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Bubble"
     },
     {
       "name": "Button",
@@ -437,6 +1009,46 @@
           }
         }
       }
+    },
+    {
+      "name": "ButtonGroupSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "ButtonGroup"
+    },
+    {
+      "name": "ButtonGroupText",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "ButtonGroup"
     },
     {
       "name": "Calendar",
@@ -568,6 +1180,126 @@
       }
     },
     {
+      "name": "CardAction",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Card"
+    },
+    {
       "name": "Carousel",
       "role": "container",
       "propsSchema": {
@@ -597,6 +1329,86 @@
           }
         }
       }
+    },
+    {
+      "name": "CarouselContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Carousel"
+    },
+    {
+      "name": "CarouselItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Carousel"
+    },
+    {
+      "name": "CarouselNext",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Carousel"
+    },
+    {
+      "name": "CarouselPrevious",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Carousel"
     },
     {
       "name": "Chart",
@@ -733,6 +1545,46 @@
           }
         }
       }
+    },
+    {
+      "name": "CollapsibleContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Collapsible"
+    },
+    {
+      "name": "CollapsibleTrigger",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Collapsible"
     },
     {
       "name": "Combobox",
@@ -1207,6 +2059,106 @@
           }
         }
       }
+    },
+    {
+      "name": "EmptyContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Empty"
+    },
+    {
+      "name": "EmptyDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Empty"
+    },
+    {
+      "name": "EmptyHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Empty"
+    },
+    {
+      "name": "EmptyMedia",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Empty"
+    },
+    {
+      "name": "EmptyTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Empty"
     },
     {
       "name": "FileUpload",
@@ -1807,6 +2759,117 @@
       }
     },
     {
+      "name": "InputGroupAddon",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "align": {
+            "type": "string",
+            "enum": ["inline-start", "inline-end", "block-start", "block-end"],
+            "default": "inline-start",
+            "description": "Сторона, с которой аддон прижат к контролу.",
+            "x-doc": {
+              "group": "Control",
+              "type": "'inline-start' | 'inline-end' | 'block-start' | 'block-end'",
+              "kind": "enum"
+            }
+          }
+        }
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
+      "name": "InputGroupButton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
+      "name": "InputGroupInput",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
+      "name": "InputGroupText",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
+      "name": "InputGroupTextarea",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
       "name": "InputMask",
       "role": "field",
       "propsSchema": {
@@ -2133,6 +3196,186 @@
       }
     },
     {
+      "name": "ItemActions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemMedia",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Item"
+    },
+    {
       "name": "Kbd",
       "role": "container",
       "propsSchema": {
@@ -2151,6 +3394,26 @@
           }
         }
       }
+    },
+    {
+      "name": "KbdGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Kbd"
     },
     {
       "name": "Label",
@@ -2210,6 +3473,46 @@
           }
         }
       }
+    },
+    {
+      "name": "MarkerContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Marker"
+    },
+    {
+      "name": "MarkerIcon",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Marker"
     },
     {
       "name": "Menubar",
@@ -2283,6 +3586,106 @@
       }
     },
     {
+      "name": "MessageAvatar",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Message"
+    },
+    {
+      "name": "MessageContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Message"
+    },
+    {
+      "name": "MessageFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Message"
+    },
+    {
+      "name": "MessageGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Message"
+    },
+    {
+      "name": "MessageHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Message"
+    },
+    {
       "name": "MessageScroller",
       "role": "container",
       "propsSchema": {
@@ -2301,6 +3704,86 @@
           }
         }
       }
+    },
+    {
+      "name": "MessageScrollerButton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "MessageScroller"
+    },
+    {
+      "name": "MessageScrollerContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "MessageScroller"
+    },
+    {
+      "name": "MessageScrollerItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "MessageScroller"
+    },
+    {
+      "name": "MessageScrollerViewport",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "MessageScroller"
     },
     {
       "name": "NativeSelect",
@@ -2500,6 +3983,143 @@
           }
         }
       }
+    },
+    {
+      "name": "PaginationContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationEllipsis",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationLink",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "href": {
+            "type": "string",
+            "description": "URL страницы.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Текущая страница (подсвечена).",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean",
+              "kind": "boolean"
+            }
+          }
+        }
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationNext",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationPrevious",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Pagination"
     },
     {
       "name": "Popover",
@@ -2702,6 +4322,66 @@
           }
         }
       }
+    },
+    {
+      "name": "ResizableHandle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Resizable"
+    },
+    {
+      "name": "ResizablePanel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Resizable"
+    },
+    {
+      "name": "ResizablePanelGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Resizable"
     },
     {
       "name": "ScrollArea",
@@ -3284,6 +4964,146 @@
       }
     },
     {
+      "name": "TableBody",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Table"
+    },
+    {
+      "name": "TableCaption",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Table"
+    },
+    {
+      "name": "TableCell",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Table"
+    },
+    {
+      "name": "TableFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Table"
+    },
+    {
+      "name": "TableHead",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Table"
+    },
+    {
+      "name": "TableHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Table"
+    },
+    {
+      "name": "TableRow",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Table"
+    },
+    {
       "name": "Tabs",
       "role": "container",
       "propsSchema": {
@@ -3332,6 +5152,82 @@
           }
         }
       }
+    },
+    {
+      "name": "TabsContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "value": {
+            "type": "string",
+            "description": "Значение вкладки, содержимое которой показывает панель.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "compoundParent": "Tabs"
+    },
+    {
+      "name": "TabsList",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      },
+      "compoundParent": "Tabs"
+    },
+    {
+      "name": "TabsTrigger",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс части (Tailwind).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "value": {
+            "type": "string",
+            "description": "Значение вкладки — связывает кнопку с TabsContent.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "compoundParent": "Tabs"
     },
     {
       "name": "Textarea",

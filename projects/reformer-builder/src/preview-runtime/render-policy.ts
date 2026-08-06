@@ -87,13 +87,18 @@ export function resolveUiKitComponent(
  * дрейфа: новое каталожное имя без резолва И без allowlist'а падёт в `render-policy.test.ts`.
  */
 export function classify(entry: CatalogEntry, uiKit: UiKitNamespace): RenderPolicy {
-  const { name, role } = entry;
-  if (OVERLAY_LIMITED.has(name))
+  const { name, role, compoundParent } = entry;
+  // Часть compound'а наследует ограничение корня: `DialogTitle` без своего `Dialog` рисуется в
+  // пустоту ровно так же, как сам оверлей, поэтому стаб честнее живого рендера.
+  if (OVERLAY_LIMITED.has(name) || (compoundParent && OVERLAY_LIMITED.has(compoundParent)))
     return { policy: 'limited', reason: 'оверлей — нужен триггер/портал' };
   const component = resolveUiKitComponent(name, role, uiKit);
   if (component) return { policy: 'live', component };
   return {
     policy: 'limited',
-    reason: SUBPATH_LIMITED.get(name) ?? 'не резолвится в @reformer/ui-kit',
+    reason:
+      SUBPATH_LIMITED.get(name) ??
+      (compoundParent ? SUBPATH_LIMITED.get(compoundParent) : undefined) ??
+      'не резолвится в @reformer/ui-kit',
   };
 }

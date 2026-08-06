@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { getCatalog } from '../catalog';
-import { OVERLAY_LIMITED, SUBPATH_LIMITED, isRegistrable } from './render-policy';
+import { getCatalog, type CatalogEntry } from '../catalog';
+import { OVERLAY_LIMITED, SUBPATH_LIMITED, classify, isRegistrable } from './render-policy';
 
 describe('render-policy allowlists', () => {
   const catalog = getCatalog();
@@ -34,5 +34,33 @@ describe('render-policy allowlists', () => {
 
   it('каждый SUBPATH_LIMITED несёт непустой reason', () => {
     for (const [, reason] of SUBPATH_LIMITED) expect(reason.trim().length).toBeGreaterThan(0);
+  });
+});
+
+describe('политика частей compound', () => {
+  const entry = (name: string, compoundParent?: string) =>
+    ({
+      name,
+      role: 'container',
+      propsSchema: {},
+      ...(compoundParent ? { compoundParent } : {}),
+    }) as unknown as CatalogEntry;
+
+  it('часть оверлея — стаб, даже если резолвится в barrel', () => {
+    const ns = { DialogTitle: () => null };
+    expect(classify(entry('DialogTitle', 'Dialog'), ns).policy).toBe('limited');
+  });
+
+  it('часть subpath-only корня наследует его причину (не резолвится из barrel)', () => {
+    const policy = classify(entry('CarouselItem', 'Carousel'), {});
+    expect(policy).toEqual({ policy: 'limited', reason: SUBPATH_LIMITED.get('Carousel') });
+  });
+
+  it('часть обычного корня рисуется живьём', () => {
+    const AlertTitle = () => null;
+    expect(classify(entry('AlertTitle', 'Alert'), { AlertTitle })).toEqual({
+      policy: 'live',
+      component: AlertTitle,
+    });
   });
 });

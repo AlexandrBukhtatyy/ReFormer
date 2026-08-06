@@ -42,6 +42,8 @@ export interface CatalogEntry {
   variantGroup?: string;
   /** Человекочитаемая метка варианта в группе (напр. `Пароль`). */
   variant?: string;
+  /** Корень compound'а, частью которого запись является (`AlertTitle` → `Alert`); см. `./compound`. */
+  compoundParent?: string;
   makeNode: () => JsonNode;
 }
 
@@ -56,6 +58,8 @@ export interface CatalogRecord {
   propsSchema: PropsSchema;
   variantGroup?: string;
   variant?: string;
+  /** Корень compound'а, частью которого запись является (`AlertTitle` → `Alert`). */
+  compoundParent?: string;
 }
 
 /** Каталог-JSON по контракту `component-catalog.schema.json` (§5). */

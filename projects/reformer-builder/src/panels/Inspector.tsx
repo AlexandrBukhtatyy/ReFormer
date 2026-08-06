@@ -19,7 +19,7 @@ import {
 } from '@reformer/renderer-json';
 import { findByPath, isLeafComponent, kindOf, type JsonPath } from '../model';
 import { setComponentProp, setNodeKey, switchVariant } from '../model';
-import { getCatalogEntry, inspectorGroups, type InspectorProp } from '../catalog';
+import { getCatalogEntry, inspectorGroups, partNamesOf, type InspectorProp } from '../catalog';
 import { variantGroupOf } from '../catalog/variants';
 import { editorActions, useActiveTab, useSelectionPath, type TabState } from '../store';
 import { nodeTypeBadge } from '../canvas/node-display';
@@ -121,11 +121,26 @@ function ModelPathField({ node, path, tab }: { node: JsonNode; path: JsonPath; t
  *
  * Пустая строка удаляет ключ. Массив фрагментов (`JsonText` допускает список) строкой не правим —
  * показываем read-only, чтобы не схлопнуть структуру.
+ *
+ * У корня compound'а (`Alert`, `Card`, `Tabs`…) голого текста не бывает: содержимое живёт в частях
+ * (`AlertTitle`/`AlertDescription`). Такому узлу вместо поля показываем, куда писать, — иначе текст
+ * попадает прямо в grid-корень `Alert` (`grid-cols-[0_1fr]`) и печатается по одному слову в строке.
+ * Если `text` уже задан (схема из прошлых версий) — поле показываем с предупреждением, чтобы значение
+ * можно было перенести и убрать.
  */
-function TextContentField({ node, path }: { node: JsonNode; path: JsonPath }) {
+function TextContentField({
+  node,
+  path,
+  parts,
+}: {
+  node: JsonNode;
+  path: JsonPath;
+  parts: string[];
+}) {
   const raw = (node as { text?: unknown }).text;
   const isList = Array.isArray(raw);
   const value = raw == null ? '' : String(raw);
+  const compound = parts.length > 0;
 
   const set = (next: string) =>
     editorActions.apply((s) => setNodeKey(s, path, 'text', next === '' ? undefined : next), {
@@ -137,23 +152,34 @@ function TextContentField({ node, path }: { node: JsonNode; path: JsonPath }) {
       <div className="mb-2.5 text-[10.5px] font-semibold tracking-wider text-muted-foreground uppercase">
         Содержимое
       </div>
-      <div className="flex min-h-6 items-center gap-2.5">
-        <span className="w-24 flex-none truncate text-xs" title="Текстовое содержимое узла (text)">
-          Текст
-        </span>
-        {isList ? (
-          <span className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground">
-            список фрагментов — правьте в JSON
+      {compound && (
+        <p className="mb-2.5 text-[11px] leading-snug text-muted-foreground">
+          Содержимое — в частях: {parts.join(' / ')}.
+          {raw != null && ' Текст в самом узле ломает раскладку — перенесите его в часть.'}
+        </p>
+      )}
+      {(!compound || raw != null) && (
+        <div className="flex min-h-6 items-center gap-2.5">
+          <span
+            className="w-24 flex-none truncate text-xs"
+            title="Текстовое содержимое узла (text)"
+          >
+            Текст
           </span>
-        ) : (
-          <Input
-            value={value}
-            onChange={(e) => set(e.target.value)}
-            placeholder="без текста"
-            className="h-[26px] min-w-0 flex-1 bg-background text-xs"
-          />
-        )}
-      </div>
+          {isList ? (
+            <span className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground">
+              список фрагментов — правьте в JSON
+            </span>
+          ) : (
+            <Input
+              value={value}
+              onChange={(e) => set(e.target.value)}
+              placeholder="без текста"
+              className="h-[26px] min-w-0 flex-1 bg-background text-xs"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -313,6 +339,9 @@ export function Inspector() {
   // Текст — только у узлов, которые могут иметь содержимое: не поле/массив и не лист
   // (Icon/Separator, void-теги `<br>`/`<hr>` — рендерер им содержимое не передаёт вовсе).
   const showsText = kindOf(node) === 'container' && !isLeafComponent(node);
+  // Части compound'а (Alert → AlertTitle/AlertDescription): секция «Содержимое» покажет их вместо
+  // поля «Текст» — у такого корня голое содержимое ломает раскладку.
+  const compoundParts = entry ? partNamesOf(entry.name) : [];
   const rawGroups = entry ? inspectorGroups(entry.propsSchema) : [];
   // Если содержимое правится секцией «Содержимое» (пишет в `node.text`), проп `text` из props-схемы
   // не показываем: он бы дал второе поле «Текст», пишущее в `componentProps.text` — не то место,
@@ -329,7 +358,7 @@ export function Inspector() {
       {tab && (isFieldNode(node) || isArrayNode(node)) && (
         <ModelPathField node={node} path={selPath} tab={tab} />
       )}
-      {showsText && <TextContentField node={node} path={selPath} />}
+      {showsText && <TextContentField node={node} path={selPath} parts={compoundParts} />}
       {groups.map((group) => (
         <div key={group.group} className="border-b border-border p-3.5">
           <div className="mb-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">

@@ -149,11 +149,14 @@ export function buildCatalogFromJson(json: CatalogJson): CatalogEntry[] {
   return json.components.map((r) => ({
     name: r.name,
     role: r.role,
-    category: r.category ?? categoryOf(r.name, r.role),
+    // Часть compound'а живёт в категории своего корня (`AlertTitle` — там же, где `Alert`): в общий
+    // список палитры она не попадает, но при контекстном показе категория должна совпадать с корнем.
+    category: r.category ?? categoryOf(r.compoundParent ?? r.name, r.role),
     propsSchema: r.propsSchema,
     ...(r.variantGroup ? { variantGroup: r.variantGroup } : {}),
     ...(r.variant ? { variant: r.variant } : {}),
-    makeNode: () => makeNodeFor(r.name, r.role),
+    ...(r.compoundParent ? { compoundParent: r.compoundParent } : {}),
+    makeNode: () => makeNodeFor(r.name, r.role, r.compoundParent),
   }));
 }
 

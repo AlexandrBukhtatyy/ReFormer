@@ -18,6 +18,11 @@ export { syntheticRecords } from './synthetic-entries';
 export { HTML_TAG_SPECS, htmlTagSpec, htmlPropsSchema } from './html-tags';
 export type { HtmlTagSpec, HtmlContent } from './html-tags';
 export { CATALOG_SCHEMA, loadCatalogJson, buildCatalogFromJson, validateCatalog } from './contract';
+// compound.ts читает готовый каталог через getCatalog() (ниже) — только внутри функций, поэтому
+// взаимная ссылка index ↔ compound на инициализацию модулей не влияет.
+export { partsOf, partNamesOf, compoundParentOf, isCompoundPart, hasParts } from './compound';
+// Шаблоны композиций — чистые фабрики узлов (каталог не читают), поэтому живут рядом с makeNodeFor.
+export { COMPOUND_TEMPLATES, hasCompoundTemplate } from './make-node';
 
 let cache: CatalogEntry[] | null = null;
 
