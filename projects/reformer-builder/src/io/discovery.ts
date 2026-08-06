@@ -5,7 +5,8 @@
  * эвристика по shape = medium.
  *
  * Классификация и фильтр файлов — чистые (тестируются). Обход каталога — через File System
- * Access API (browser). FS-типы описаны локально структурно (в lib.dom они неполны).
+ * Access API (browser), **поуровневый** (ленивая загрузка: корень при открытии проекта, содержимое
+ * папки — при её раскрытии). FS-типы описаны локально структурно (в lib.dom они неполны).
  *
  * @module reformer-builder/io/discovery
  */
@@ -120,59 +121,65 @@ export interface TreeEntry {
   confidence?: Confidence;
   /** Handle файла — для открытия (схема → форма, прочий файл → code-вкладка). Есть у всех файлов. */
   handle?: FileSystemFileHandle;
+  /** Handle каталога — для догрузки его содержимого при раскрытии. Есть у всех папок. */
+  dirHandle?: FileSystemDirectoryHandle;
   /** Метка времени файла — только для распознанных схем (детект внешних изменений). */
   lastModified?: number;
 }
 
-/** Защита от гигантских каталогов: максимум записей дерева. */
-const MAX_TREE_ENTRIES = 4000;
-
-/** Пройти каталог и собрать ПОЛНОЕ дерево (файлы+папки), классифицируя `.json` как схемы форм. */
-export async function scanDirectory(dir: FileSystemDirectoryHandle): Promise<TreeEntry[]> {
-  const out: TreeEntry[] = [];
-  await walkTree(dir as unknown as FsDirHandle, '', 0, out);
-  return out;
-}
+/** Защита от гигантских каталогов: максимум записей ОДНОГО уровня. */
+const MAX_LEVEL_ENTRIES = 2000;
 
 /** Только распознанные схемы из дерева (для счётчиков/бейджей). */
 export function formsOf(tree: TreeEntry[]): TreeEntry[] {
   return tree.filter((e) => e.isForm);
 }
 
-async function walkTree(
-  dir: FsDirHandle,
-  prefix: string,
-  depth: number,
-  out: TreeEntry[]
-): Promise<void> {
-  if (out.length >= MAX_TREE_ENTRIES) return;
-  const entries: Array<FsFileHandle | FsDirHandle> = [];
-  for await (const entry of dir.values()) entries.push(entry);
+/**
+ * Прочитать ОДИН уровень каталога (без рекурсии) — базовая операция ленивой загрузки дерева:
+ * при открытии проекта читается корень, при раскрытии папки — она сама.
+ *
+ * `.json`-кандидаты классифицируются как схемы форм параллельно (чтение файла — самая долгая часть
+ * уровня); порядок записей от этого не зависит: папки первыми, внутри — по алфавиту.
+ *
+ * @param dir каталог, содержимое которого читаем
+ * @param prefix путь каталога от корня проекта с завершающим `/` (корень — пустая строка)
+ * @param depth глубина вложенности содержимого (для отступов дерева)
+ */
+export async function scanLevel(
+  dir: FileSystemDirectoryHandle,
+  prefix = '',
+  depth = 0
+): Promise<TreeEntry[]> {
+  const handles: Array<FsFileHandle | FsDirHandle> = [];
+  for await (const entry of (dir as unknown as FsDirHandle).values()) {
+    if (entry.kind === 'directory' && isIgnoredDir(entry.name)) continue;
+    handles.push(entry);
+    if (handles.length >= MAX_LEVEL_ENTRIES) break;
+  }
   // папки первыми, затем файлы; внутри — по алфавиту
-  entries.sort((a, b) =>
+  handles.sort((a, b) =>
     a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'directory' ? -1 : 1
   );
 
-  for (const entry of entries) {
-    if (out.length >= MAX_TREE_ENTRIES) return;
-    if (entry.kind === 'directory') {
-      if (isIgnoredDir(entry.name)) continue;
-      out.push({ path: `${prefix}${entry.name}`, name: entry.name, kind: 'directory', depth });
-      await walkTree(entry, `${prefix}${entry.name}/`, depth + 1, out);
-      continue;
-    }
-
+  const out: TreeEntry[] = handles.map((entry) => {
     const item: TreeEntry = {
       path: `${prefix}${entry.name}`,
       name: entry.name,
-      kind: 'file',
+      kind: entry.kind,
       depth,
     };
+    if (entry.kind === 'directory') item.dirHandle = entry as unknown as FileSystemDirectoryHandle;
     // Handle — на любой файл: схемы открываются как форма, прочие — как code-вкладка в Monaco.
-    item.handle = entry as unknown as FileSystemFileHandle;
-    if (shouldScanFile(entry.name)) {
+    else item.handle = entry as unknown as FileSystemFileHandle;
+    return item;
+  });
+
+  await Promise.all(
+    out.map(async (item, i) => {
+      if (item.kind !== 'file' || !shouldScanFile(item.name)) return;
       try {
-        const file = await entry.getFile();
+        const file = await (handles[i] as FsFileHandle).getFile();
         const { isForm, confidence } = classifyFormSchema(JSON.parse(await file.text()));
         if (isForm && confidence) {
           item.isForm = true;
@@ -182,7 +189,47 @@ async function walkTree(
       } catch {
         // нечитаемый/невалидный JSON — просто файл
       }
+    })
+  );
+
+  return out;
+}
+
+/**
+ * Пересобрать плоское дерево: корень + рекурсивно только те каталоги, что уже были раскрыты
+ * (`loaded`). Нужен после файловых операций — обновляет дерево, не разворачивая проект целиком.
+ * Исчезнувшие каталоги просто не встретятся при обходе.
+ */
+export async function scanTree(
+  root: FileSystemDirectoryHandle,
+  loaded: ReadonlySet<string>
+): Promise<TreeEntry[]> {
+  const out: TreeEntry[] = [];
+  const level = async (dir: FileSystemDirectoryHandle, prefix: string, depth: number) => {
+    const entries = await scanLevel(dir, prefix, depth);
+    for (const e of entries) {
+      out.push(e);
+      if (e.kind === 'directory' && e.dirHandle && loaded.has(e.path)) {
+        await level(e.dirHandle, `${e.path}/`, depth + 1);
+      }
     }
-    out.push(item);
-  }
+  };
+  await level(root, '', 0);
+  return out;
+}
+
+/**
+ * Вставить содержимое каталога в плоское дерево сразу после его строки. Если каталога в дереве нет
+ * или его содержимое уже вставлено (следующая запись глубже) — дерево возвращается без изменений.
+ */
+export function insertChildren(
+  tree: TreeEntry[],
+  parentPath: string,
+  children: TreeEntry[]
+): TreeEntry[] {
+  const i = tree.findIndex((e) => e.path === parentPath && e.kind === 'directory');
+  if (i === -1) return tree;
+  const parent = tree[i]!;
+  if (tree[i + 1] && tree[i + 1]!.depth > parent.depth) return tree;
+  return [...tree.slice(0, i + 1), ...children, ...tree.slice(i + 1)];
 }

@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { classifyFormSchema, isIgnoredDir, shouldScanFile } from './discovery';
+import {
+  classifyFormSchema,
+  insertChildren,
+  isIgnoredDir,
+  shouldScanFile,
+  type TreeEntry,
+} from './discovery';
 import { resetRuntimeState, setRuntimeConfig } from '../config/state';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -50,6 +56,54 @@ describe('фильтры сканирования', () => {
     expect(shouldScanFile('package.json')).toBe(false);
     expect(shouldScanFile('package-lock.json')).toBe(false);
     expect(shouldScanFile('main.tsx')).toBe(false);
+  });
+});
+
+describe('insertChildren — вставка загруженного уровня в плоское дерево', () => {
+  const dir = (path: string, depth: number): TreeEntry => ({
+    path,
+    name: path.slice(path.lastIndexOf('/') + 1),
+    kind: 'directory',
+    depth,
+  });
+  const file = (path: string, depth: number): TreeEntry => ({
+    path,
+    name: path.slice(path.lastIndexOf('/') + 1),
+    kind: 'file',
+    depth,
+  });
+
+  it('содержимое встаёт сразу после своей папки', () => {
+    const tree = [dir('src', 0), file('README.md', 0)];
+    const next = insertChildren(tree, 'src', [dir('src/io', 1), file('src/main.tsx', 1)]);
+    expect(next.map((e) => e.path)).toEqual(['src', 'src/io', 'src/main.tsx', 'README.md']);
+  });
+
+  it('вложенная папка не задевает соседние ветки', () => {
+    const tree = [dir('src', 0), dir('src/io', 1), file('src/main.tsx', 1), file('README.md', 0)];
+    const next = insertChildren(tree, 'src/io', [file('src/io/fs.ts', 2)]);
+    expect(next.map((e) => e.path)).toEqual([
+      'src',
+      'src/io',
+      'src/io/fs.ts',
+      'src/main.tsx',
+      'README.md',
+    ]);
+  });
+
+  it('повторная вставка (двойное раскрытие) — дерево не меняется', () => {
+    const tree = [dir('src', 0), file('src/main.tsx', 1)];
+    expect(insertChildren(tree, 'src', [file('src/main.tsx', 1)])).toBe(tree);
+  });
+
+  it('неизвестная папка (её уже удалили) — дерево не меняется', () => {
+    const tree = [dir('src', 0)];
+    expect(insertChildren(tree, 'gone', [file('gone/a.ts', 1)])).toBe(tree);
+  });
+
+  it('пустая папка помечается загруженной, записей не добавляется', () => {
+    const tree = [dir('empty', 0), file('README.md', 0)];
+    expect(insertChildren(tree, 'empty', []).map((e) => e.path)).toEqual(['empty', 'README.md']);
   });
 });
 

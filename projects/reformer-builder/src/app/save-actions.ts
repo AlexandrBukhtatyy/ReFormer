@@ -32,7 +32,7 @@ import {
   formBehaviorTsTemplate,
   renderBehaviorTsTemplate,
 } from './form-templates';
-import { scanDirectory, formsOf, type TreeEntry } from '../io/discovery';
+import { formsOf, insertChildren, scanLevel, scanTree, type TreeEntry } from '../io/discovery';
 import { resolvePrinterOptions } from '../io/prettier-config';
 import { prepareSave, commitSave, type SavePlan } from '../io/save';
 import { downloadSchema } from '../io/export';
@@ -40,8 +40,8 @@ import { validateSchema } from '../io/validate';
 import { effectiveMock } from '../canvas/mock-data';
 import { dirPickerAvailable, exportExampleToDirectory } from '../codegen/deliver';
 import { showValidationErrors } from './validation-toast';
-import { editorActions } from '../store';
-import type { TabState } from '../store';
+import { editorActions, editorStore } from '../store';
+import type { OpenOptions, TabState } from '../store';
 import { projectActions, projectStore } from '../store/project-store';
 import { reloadTemplates } from '../store/templates-store';
 import { saveDialogActions } from '../store/save-dialog';
@@ -49,21 +49,39 @@ import { saveDialogActions } from '../store/save-dialog';
 const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const isAbort = (e: unknown): boolean => e instanceof DOMException && e.name === 'AbortError';
 
-/** Скан каталога: обнаружение схем + резолв prettier. */
+/**
+ * Скан каталога: содержимое КОРНЯ (обнаружение схем) + резолв prettier. Вложенные каталоги
+ * читаются лениво — при раскрытии в панели файлов ({@link loadDirectory}).
+ */
 async function scan(dir: FileSystemDirectoryHandle): Promise<void> {
   // Имя каталога показываем сразу (до конца скана), чтобы UI отреагировал на выбор.
-  projectActions.set({ dirHandle: dir, dirName: dir.name, scanning: true, error: null, tree: [] });
+  projectActions.set({
+    dirHandle: dir,
+    dirName: dir.name,
+    scanning: true,
+    error: null,
+    tree: [],
+    loadedDirs: new Set(),
+    loadingDirs: new Set(),
+  });
   try {
-    const [tree, configs] = await Promise.all([scanDirectory(dir), readPrettierConfigs(dir)]);
+    const [tree, configs] = await Promise.all([scanLevel(dir), readPrettierConfigs(dir)]);
     const printer = resolvePrinterOptions(configs);
-    projectActions.set({ tree, printer, scanning: false, canReopen: true, error: null });
+    projectActions.set({
+      tree,
+      loadedDirs: new Set(['']),
+      printer,
+      scanning: false,
+      canReopen: true,
+      error: null,
+    });
     // Шаблоны проекта живут в его каталоге — перечитываем на каждый скан (в фоне, скан не блокируем).
     void reloadTemplates();
     const forms = formsOf(tree).length;
     console.debug(
       '[reformer-builder] scan',
       dir.name,
-      '→ файлов/папок:',
+      '→ записей в корне:',
       tree.length,
       'схем:',
       forms
@@ -71,13 +89,47 @@ async function scan(dir: FileSystemDirectoryHandle): Promise<void> {
     if (printer.notice) toast(printer.notice);
     toast(
       forms > 0
-        ? `Найдено схем: ${forms} (записей: ${tree.length})`
-        : `Схемы форм не найдены (записей: ${tree.length})`
+        ? `Открыт проект «${dir.name}»: в корне ${tree.length} записей, схем: ${forms}`
+        : `Открыт проект «${dir.name}»: в корне ${tree.length} записей`
     );
   } catch (e) {
     console.error('[reformer-builder] scan failed:', e);
     projectActions.set({ scanning: false, error: msg(e) });
     toast('Ошибка сканирования: ' + msg(e));
+  }
+}
+
+/** Убрать путь из множества (новый Set — стор сравнивает по ссылке). */
+function without(set: ReadonlySet<string>, path: string): Set<string> {
+  const next = new Set(set);
+  next.delete(path);
+  return next;
+}
+
+/**
+ * Догрузить содержимое каталога при раскрытии в дереве (ленивая загрузка, один уровень).
+ * Идемпотентна: уже загруженный или загружаемый каталог игнорируется.
+ */
+export async function loadDirectory(path: string): Promise<void> {
+  const state = projectStore.getState();
+  if (state.loadedDirs.has(path) || state.loadingDirs.has(path)) return;
+  const entry = state.tree.find((e) => e.path === path && e.kind === 'directory');
+  const handle = entry?.dirHandle;
+  if (!entry || !handle) return;
+
+  projectActions.set({ loadingDirs: new Set(state.loadingDirs).add(path) });
+  try {
+    const children = await scanLevel(handle, `${path}/`, entry.depth + 1);
+    const cur = projectStore.getState();
+    projectActions.set({
+      tree: insertChildren(cur.tree, path, children),
+      loadedDirs: new Set(cur.loadedDirs).add(path),
+      loadingDirs: without(cur.loadingDirs, path),
+    });
+  } catch (e) {
+    console.error('[reformer-builder] loadDirectory failed:', path, e);
+    projectActions.set({ loadingDirs: without(projectStore.getState().loadingDirs, path) });
+    toast('Не удалось прочитать каталог: ' + msg(e));
   }
 }
 
@@ -124,8 +176,11 @@ export async function checkReopen(): Promise<void> {
   projectActions.setCanReopen(dir != null);
 }
 
-/** Открыть распознанную схему из дерева во вкладке (read → parse → ensureSchema). */
-export async function openSchemaFile(d: TreeEntry): Promise<void> {
+/**
+ * Открыть распознанную схему из дерева во вкладке (read → parse → ensureSchema).
+ * `opts.preview` — открыть временной вкладкой (одиночный клик в дереве, см. {@link OpenOptions}).
+ */
+export async function openSchemaFile(d: TreeEntry, opts?: OpenOptions): Promise<void> {
   if (!d.handle) return;
   const handle = d.handle;
   try {
@@ -134,7 +189,8 @@ export async function openSchemaFile(d: TreeEntry): Promise<void> {
     editorActions.openTab(
       d.path,
       { kind: 'file', name: d.name, path: d.path, handle, rawText: text, lastModified },
-      schema
+      schema,
+      opts
     );
   } catch (e) {
     toast('Не удалось открыть схему: ' + msg(e));
@@ -175,7 +231,7 @@ function languageOf(name: string): string {
 }
 
 /** Открыть произвольный (не-схемный) файл на редактирование в Monaco (code-вкладка, спека §7). */
-export async function openCodeFile(d: TreeEntry): Promise<void> {
+export async function openCodeFile(d: TreeEntry, opts?: OpenOptions): Promise<void> {
   if (!d.handle) return;
   const handle = d.handle;
   try {
@@ -184,11 +240,26 @@ export async function openCodeFile(d: TreeEntry): Promise<void> {
       d.path,
       { kind: 'file', name: d.name, path: d.path, handle, rawText: text, lastModified },
       text,
-      languageOf(d.name)
+      languageOf(d.name),
+      opts
     );
   } catch (e) {
     toast('Не удалось открыть файл: ' + msg(e));
   }
+}
+
+/**
+ * Открыть запись дерева файлов: схему — формой в canvas, прочее — code-вкладкой в Monaco.
+ * `opts.preview` — временной вкладкой (одиночный клик); без него — закреплённой (двойной клик),
+ * причём уже открытая вкладка тогда просто закрепляется, без повторного чтения файла.
+ */
+export async function openTreeEntry(entry: TreeEntry, opts?: OpenOptions): Promise<void> {
+  if (!opts?.preview && editorStore.getState().tabs[entry.path]) {
+    editorActions.pinTab(entry.path);
+    return;
+  }
+  if (entry.isForm) await openSchemaFile(entry, opts);
+  else await openCodeFile(entry, opts);
 }
 
 /** Сохранить code-вкладку прямой записью в файл (без diff-модалки — она схемо-специфична). */
@@ -213,10 +284,21 @@ function projectRoot(): FileSystemDirectoryHandle | null {
   return projectStore.getState().dirHandle;
 }
 
-/** Пере-сканировать текущий проект (после файловой операции — обновить дерево). */
+/**
+ * Пере-сканировать текущий проект (после файловой операции — обновить дерево). Перечитываются
+ * корень и только ранее раскрытые каталоги: свёрнутые ветки остаются незагруженными, тостов нет.
+ */
 export async function rescanProject(): Promise<void> {
-  const dir = projectRoot();
-  if (dir) await scan(dir);
+  const { dirHandle: dir, loadedDirs } = projectStore.getState();
+  if (!dir) return;
+  try {
+    const tree = await scanTree(dir, loadedDirs);
+    projectActions.set({ tree, error: null });
+  } catch (e) {
+    console.error('[reformer-builder] rescan failed:', e);
+    projectActions.set({ error: msg(e) });
+    toast('Ошибка обновления дерева: ' + msg(e));
+  }
 }
 
 /** Открыть только что созданный файл: схему — в canvas, прочее — code-вкладкой. */

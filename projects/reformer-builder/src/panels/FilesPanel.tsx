@@ -1,6 +1,10 @@
 /**
  * Панель файлов/схем. Mode B (спека §7.2, §3.1): открыть проект (FS Access) → **раскрываемое
- * дерево всего содержимого каталога** (папки с шевронами + файлы, по умолчанию всё развёрнуто).
+ * дерево содержимого каталога** (папки с шевронами + файлы). Дерево читается **лениво**: при
+ * открытии проекта — только корень, содержимое папки — при её раскрытии (тоже один уровень), так
+ * что большой репозиторий не сканируется целиком. Строки рендерятся **виртуально**
+ * ({@link useVirtualRows}) — в DOM не висят тысячи узлов с контекстным меню.
+ *
  * Распознанные схемы форм помечены бейджами High/Med и открываются кликом как форма, прочие файлы
  * открываются как code-вкладка в Monaco (спека §7). «Переоткрыть проект» (из IndexedDB) — здесь;
  * «Открыть проект» и «Новая форма» переехали в меню «Файл» (AppMenuBar).
@@ -30,7 +34,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@reformer/ui-kit/context-menu';
-import { ChevronRight, File, FileCode, Folder, FolderOpen, RotateCcw } from 'lucide-react';
+import { ChevronRight, File, FileCode, Folder, FolderOpen, Loader2, RotateCcw } from 'lucide-react';
 import { useProject } from '../store/project-store';
 import {
   checkReopen,
@@ -39,8 +43,8 @@ import {
   generateModel,
   generateRenderBehavior,
   generateValidation,
-  openCodeFile,
-  openSchemaFile,
+  loadDirectory,
+  openTreeEntry,
   reopenProject,
 } from '../app/save-actions';
 import { fsAccessSupported } from '../io/fs-access';
@@ -48,9 +52,13 @@ import type { TreeEntry } from '../io/discovery';
 import { FilesDialogs, type FilesDialog } from './FilesDialogs';
 import { cn } from '../lib/cn';
 import { formatShortcut } from '../lib/shortcuts';
+import { useVirtualRows } from '../lib/use-virtual-rows';
 
-/** Ключ collapse-состояния корневого узла (реальные пути записей всегда непустые). */
+/** Ключ раскрытия корневого узла (реальные пути записей всегда непустые). */
 const ROOT_KEY = '';
+
+/** Высота строки дерева, px. Фиксирована — на ней держится виртуальный скролл (класс `h-6`). */
+const ROW_HEIGHT = 24;
 
 function indent(depth: number): CSSProperties {
   return { paddingLeft: `${depth * 12 + 8}px` };
@@ -62,27 +70,30 @@ function parentDir(path: string): string {
   return i === -1 ? '' : path.slice(0, i);
 }
 
-/** Скрыть потомков свёрнутых папок (дерево плоское: папка идёт перед своими детьми). */
-function visibleTree(tree: TreeEntry[], collapsed: Set<string>): TreeEntry[] {
+/** Скрыть содержимое свёрнутых папок (дерево плоское: папка идёт перед своими детьми). */
+function visibleTree(tree: TreeEntry[], expanded: Set<string>): TreeEntry[] {
   const out: TreeEntry[] = [];
   let skipBelow = Infinity;
   for (const e of tree) {
     if (e.depth > skipBelow) continue; // внутри свёрнутой папки
     skipBelow = Infinity;
     out.push(e);
-    if (e.kind === 'directory' && collapsed.has(e.path)) skipBelow = e.depth;
+    if (e.kind === 'directory' && !expanded.has(e.path)) skipBelow = e.depth;
   }
   return out;
 }
 
 function TreeRow({
   entry,
-  collapsed,
+  expanded,
+  loading,
   onActivate,
   depthOffset = 0,
 }: {
   entry: TreeEntry;
-  collapsed: boolean;
+  expanded: boolean;
+  /** Содержимое папки читается прямо сейчас (ленивая загрузка) — вместо шеврона спиннер. */
+  loading?: boolean;
   /** Клик по строке: панель сама решает — открыть файл/свернуть папку или пополнить мульти-выбор. */
   onActivate: (entry: TreeEntry, e: MouseEvent) => void;
   depthOffset?: number;
@@ -92,11 +103,15 @@ function TreeRow({
       <button
         onClick={(e) => onActivate(entry, e)}
         style={indent(entry.depth + depthOffset)}
-        className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
+        className="flex h-6 w-full items-center gap-1 pr-2 text-left text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
       >
-        <ChevronRight
-          className={cn('h-3 w-3 flex-none transition-transform', !collapsed && 'rotate-90')}
-        />
+        {loading ? (
+          <Loader2 className="h-3 w-3 flex-none animate-spin" />
+        ) : (
+          <ChevronRight
+            className={cn('h-3 w-3 flex-none transition-transform', expanded && 'rotate-90')}
+          />
+        )}
         <Folder className="h-3.5 w-3.5 flex-none opacity-70" />
         <span className="min-w-0 truncate">{entry.name}</span>
       </button>
@@ -109,7 +124,7 @@ function TreeRow({
         onClick={(e) => onActivate(entry, e)}
         title={entry.path}
         style={indent(entry.depth + 1 + depthOffset)}
-        className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs hover:bg-muted"
+        className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs hover:bg-muted"
       >
         <FileCode className="h-3.5 w-3.5 flex-none text-primary" />
         <span className="min-w-0 flex-1 truncate">{entry.name}</span>
@@ -128,7 +143,7 @@ function TreeRow({
       onClick={(e) => onActivate(entry, e)}
       title={`${entry.path} — открыть в редакторе (${formatShortcut('Mod')}+клик — добавить к выбору)`}
       style={indent(entry.depth + 1 + depthOffset)}
-      className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs text-muted-foreground hover:bg-muted"
+      className="flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs text-muted-foreground hover:bg-muted"
     >
       <File className="h-3.5 w-3.5 flex-none opacity-70" />
       <span className="min-w-0 flex-1 truncate">{entry.name}</span>
@@ -139,25 +154,33 @@ function TreeRow({
 export function FilesPanel() {
   const dirName = useProject((s) => s.dirName);
   const tree = useProject((s) => s.tree);
+  const loadedDirs = useProject((s) => s.loadedDirs);
+  const loadingDirs = useProject((s) => s.loadingDirs);
   const scanning = useProject((s) => s.scanning);
   const error = useProject((s) => s.error);
   const canReopen = useProject((s) => s.canReopen);
 
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
-  const toggle = (path: string) =>
-    setCollapsed((prev) => {
+  // Раскрытые узлы (корень открыт сразу). Раскрытие папки, содержимое которой ещё не прочитано,
+  // запускает ленивую загрузку одного уровня — вложенные каталоги подгружаются так же, по клику.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([ROOT_KEY]));
+  const toggle = (path: string) => {
+    const willExpand = !expanded.has(path);
+    setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
+      if (willExpand) next.add(path);
+      else next.delete(path);
       return next;
     });
+    if (willExpand && path !== ROOT_KEY) void loadDirectory(path);
+  };
 
-  const visible = useMemo(() => visibleTree(tree, collapsed), [tree, collapsed]);
-  const rootOpen = !collapsed.has(ROOT_KEY);
+  const visible = useMemo(() => visibleTree(tree, expanded), [tree, expanded]);
+  const rootOpen = expanded.has(ROOT_KEY);
   const [dialog, setDialog] = useState<FilesDialog | null>(null);
 
   // Клавиатурная навигация по дереву (в стиле VSCode). Выделение хранится по пути (стабильно при
-  // сворачивании); плоский список навигации — корень + видимые записи (respect collapse).
+  // сворачивании); плоский список навигации — корень + видимые записи (respect collapse). Он же —
+  // список строк виртуального скролла: индекс в navPaths == индекс строки.
   const treeRef = useRef<HTMLDivElement>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const navPaths = useMemo<string[]>(() => {
@@ -166,16 +189,26 @@ export function FilesPanel() {
   }, [dirName, rootOpen, visible]);
   const visibleByPath = useMemo(() => new Map(visible.map((e) => [e.path, e])), [visible]);
 
-  // Фокус следует за выделением (роуминг) — фокусируем кнопку строки, браузер сам скроллит к ней.
-  const focusRow = (path: string) =>
-    requestAnimationFrame(() =>
-      treeRef.current
-        ?.querySelector<HTMLElement>(`[data-tree-path="${CSS.escape(path)}"] button`)
-        ?.focus()
+  const virtual = useVirtualRows(navPaths.length, ROW_HEIGHT);
+
+  // Фокус следует за выделением (роуминг). Строка может быть вне окна виртуализации — сначала
+  // доскролливаем, затем фокусируем, когда она появилась в DOM (эффект ниже, по окну [start,end)).
+  const [focusPath, setFocusPath] = useState<string | null>(null);
+  useEffect(() => {
+    if (focusPath == null) return;
+    const el = treeRef.current?.querySelector<HTMLElement>(
+      `[data-tree-path="${CSS.escape(focusPath)}"] button`
     );
+    if (el) {
+      el.focus();
+      setFocusPath(null);
+    }
+  }, [focusPath, virtual.start, virtual.end]);
+
   const selectAndFocus = (path: string) => {
     setSelectedPath(path);
-    focusRow(path);
+    virtual.scrollToRow(navPaths.indexOf(path));
+    setFocusPath(path);
   };
 
   // Фокус любой строки (клик/Tab) → она становится выделенной.
@@ -187,6 +220,14 @@ export function FilesPanel() {
   // Мульти-выбор путей (для «Создать шаблон…»): ⌘/Ctrl+клик — тоггл, ⇧+клик — диапазон по видимым
   // строкам. Обычный клик работает как раньше (открыть файл / свернуть папку) и схлопывает набор.
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
+
+  // Смена проекта — сбрасываем раскрытие/выбор: пути старого дерева больше ничего не значат.
+  useEffect(() => {
+    setExpanded(new Set([ROOT_KEY]));
+    setChecked(new Set());
+    setSelectedPath(null);
+  }, [dirName]);
+
   const activateRow = (entry: TreeEntry, e: MouseEvent) => {
     const path = entry.path;
     if (e.metaKey || e.ctrlKey) {
@@ -213,9 +254,13 @@ export function FilesPanel() {
     }
     setChecked(new Set([path]));
     setSelectedPath(path);
-    if (entry.kind === 'directory') toggle(path);
-    else if (entry.isForm) void openSchemaFile(entry);
-    else void openCodeFile(entry);
+    if (entry.kind === 'directory') {
+      toggle(path);
+      return;
+    }
+    // Как в VSCode: одиночный клик открывает файл временной preview-вкладкой (следующий такой клик
+    // займёт её слот), двойной (`detail > 1`) — закрепляет вкладку за файлом.
+    void openTreeEntry(entry, { preview: e.detail < 2 });
   };
 
   /** К каким путям применить действие ПКМ: ко всему набору, если кликнули по его строке. */
@@ -235,7 +280,7 @@ export function FilesPanel() {
     const isRoot = sel === ROOT_KEY;
     const entry = isRoot ? null : visibleByPath.get(sel);
     const isDir = isRoot || entry?.kind === 'directory';
-    const expanded = isRoot ? rootOpen : entry ? !collapsed.has(entry.path) : false;
+    const isOpen = isRoot ? rootOpen : entry ? expanded.has(entry.path) : false;
     const idx = navPaths.indexOf(sel);
     const move = (d: number) => {
       const p = navPaths[Math.min(Math.max(idx + d, 0), navPaths.length - 1)];
@@ -245,10 +290,10 @@ export function FilesPanel() {
     if (e.key === 'ArrowDown') move(1);
     else if (e.key === 'ArrowUp') move(-1);
     else if (e.key === 'ArrowRight') {
-      if (isDir && !expanded) toggle(sel);
-      else if (isDir && expanded) move(1);
+      if (isDir && !isOpen) toggle(sel);
+      else if (isDir && isOpen) move(1);
     } else if (e.key === 'ArrowLeft') {
-      if (isDir && expanded) toggle(sel);
+      if (isDir && isOpen) toggle(sel);
       else selectAndFocus(isRoot ? ROOT_KEY : parentDir(sel));
     } else if (e.key === 'F2' && entry) {
       setDialog({
@@ -278,7 +323,7 @@ export function FilesPanel() {
           <div
             data-tree-path={navPath}
             className={cn(
-              'rounded-md focus-within:ring-1 focus-within:ring-ring',
+              'h-6 focus-within:ring-1 focus-within:ring-ring',
               (selectedPath === navPath || checked.has(navPath)) && 'bg-accent'
             )}
           >
@@ -367,68 +412,79 @@ export function FilesPanel() {
         </div>
       )}
 
-      <ScrollArea className="flex-1 py-1.5">
+      {/* min-h-0 обязателен: без него flex-элемент растёт под контент, скроллит внешняя панель,
+          а вьюпорт «выше» списка — виртуализация тогда рендерит все строки. */}
+      <ScrollArea ref={virtual.scrollRef} className="min-h-0 flex-1 py-1.5">
         <div ref={treeRef} onKeyDown={onTreeKeyDown} onFocus={onTreeFocus} className="outline-none">
           {dirName && (
-            <>
-              {/* Корневой каталог — верхний раскрываемый узел дерева (не заголовок секции). */}
-              {rowMenu(
-                'root',
-                <button
-                  onClick={() => toggle(ROOT_KEY)}
-                  title={dirName}
-                  style={indent(0)}
-                  className="flex w-full items-center gap-1 py-1 pr-2 text-left text-[11.5px] font-semibold text-foreground hover:bg-muted"
-                >
-                  <ChevronRight
-                    className={cn(
-                      'h-3 w-3 flex-none transition-transform',
-                      rootOpen && 'rotate-90'
-                    )}
-                  />
-                  {rootOpen ? (
-                    <FolderOpen className="h-3.5 w-3.5 flex-none opacity-80" />
-                  ) : (
-                    <Folder className="h-3.5 w-3.5 flex-none opacity-80" />
-                  )}
-                  <span className="min-w-0 truncate">{dirName}</span>
-                  {scanning && (
-                    <span className="flex-none text-[10px] font-normal text-muted-foreground">
-                      · сканирую…
-                    </span>
-                  )}
-                </button>,
-                'root'
-              )}
-
-              {rootOpen && (
-                <>
-                  {error && (
-                    <div className="mx-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-[11px] text-destructive">
-                      Ошибка сканирования: {error}
-                    </div>
-                  )}
-                  {!scanning && !error && tree.length === 0 && (
-                    <div style={indent(1)} className="py-1 text-[11px] text-muted-foreground">
-                      Каталог пуст.
-                    </div>
-                  )}
-                  {visible.map((entry) =>
-                    rowMenu(
-                      entry.path,
-                      <TreeRow
-                        entry={entry}
-                        depthOffset={1}
-                        collapsed={collapsed.has(entry.path)}
-                        onActivate={activateRow}
-                      />,
-                      entry
-                    )
-                  )}
-                </>
-              )}
-            </>
+            // Виртуальный список: распорка на всю высоту дерева, окно строк сдвинуто translateY.
+            // Строка 0 — корневой каталог (раскрываемый узел, а не заголовок секции), далее visible.
+            <div style={{ height: virtual.totalHeight }}>
+              <div style={{ transform: `translateY(${virtual.offsetTop}px)` }}>
+                {navPaths.slice(virtual.start, virtual.end).map((path) => {
+                  if (path === ROOT_KEY) {
+                    return rowMenu(
+                      'root',
+                      <button
+                        onClick={() => toggle(ROOT_KEY)}
+                        title={dirName}
+                        style={indent(0)}
+                        className="flex h-6 w-full items-center gap-1 pr-2 text-left text-[11.5px] font-semibold text-foreground hover:bg-muted"
+                      >
+                        <ChevronRight
+                          className={cn(
+                            'h-3 w-3 flex-none transition-transform',
+                            rootOpen && 'rotate-90'
+                          )}
+                        />
+                        {rootOpen ? (
+                          <FolderOpen className="h-3.5 w-3.5 flex-none opacity-80" />
+                        ) : (
+                          <Folder className="h-3.5 w-3.5 flex-none opacity-80" />
+                        )}
+                        <span className="min-w-0 truncate">{dirName}</span>
+                        {scanning && (
+                          <span className="flex-none text-[10px] font-normal text-muted-foreground">
+                            · сканирую…
+                          </span>
+                        )}
+                      </button>,
+                      'root'
+                    );
+                  }
+                  const entry = visibleByPath.get(path);
+                  if (!entry) return null;
+                  return rowMenu(
+                    entry.path,
+                    <TreeRow
+                      entry={entry}
+                      depthOffset={1}
+                      expanded={expanded.has(entry.path)}
+                      loading={loadingDirs.has(entry.path)}
+                      onActivate={activateRow}
+                    />,
+                    entry
+                  );
+                })}
+              </div>
+            </div>
           )}
+
+          {dirName && rootOpen && error && (
+            <div className="mx-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-[11px] text-destructive">
+              Ошибка сканирования: {error}
+            </div>
+          )}
+          {dirName &&
+            rootOpen &&
+            !scanning &&
+            !error &&
+            loadedDirs.has(ROOT_KEY) &&
+            !tree.length && (
+              <div style={indent(1)} className="py-1 text-[11px] text-muted-foreground">
+                Каталог пуст.
+              </div>
+            )}
         </div>
 
         {!fsAccessSupported() && (

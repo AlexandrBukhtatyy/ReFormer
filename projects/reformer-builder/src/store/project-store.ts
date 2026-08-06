@@ -14,8 +14,15 @@ import { createStore } from './create-store';
 export interface ProjectState {
   dirHandle: FileSystemDirectoryHandle | null;
   dirName: string | null;
-  /** Полное файловое дерево открытого каталога (файлы+папки; схемы помечены). */
+  /**
+   * Плоское файловое дерево открытого каталога (файлы+папки; схемы помечены). Заполняется лениво:
+   * содержатся только уровни уже загруженных каталогов ({@link ProjectState.loadedDirs}).
+   */
   tree: TreeEntry[];
+  /** Каталоги, чьё содержимое уже прочитано (корень — пустая строка). */
+  loadedDirs: Set<string>;
+  /** Каталоги, содержимое которых читается прямо сейчас (индикатор в строке дерева). */
+  loadingDirs: Set<string>;
   printer: ResolvedPrinter | null;
   scanning: boolean;
   /** Ошибка сканирования (показываем в панели). */
@@ -28,6 +35,8 @@ const initial: ProjectState = {
   dirHandle: null,
   dirName: null,
   tree: [],
+  loadedDirs: new Set(),
+  loadingDirs: new Set(),
   printer: null,
   scanning: false,
   error: null,
@@ -40,7 +49,7 @@ export const projectActions = {
   setScanning: (scanning: boolean) => projectStore.setState((s) => ({ ...s, scanning })),
   setCanReopen: (canReopen: boolean) => projectStore.setState((s) => ({ ...s, canReopen })),
   set: (patch: Partial<ProjectState>) => projectStore.setState((s) => ({ ...s, ...patch })),
-  clear: () => projectStore.setState({ ...initial }),
+  clear: () => projectStore.setState({ ...initial, loadedDirs: new Set(), loadingDirs: new Set() }),
 };
 
 /** Подписаться на срез состояния проекта. */
