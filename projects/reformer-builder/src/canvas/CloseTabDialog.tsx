@@ -17,6 +17,7 @@ import {
 } from '@reformer/ui-kit/dialog';
 import { closeDialogActions, useCloseDialog } from '../store/close-dialog';
 import { confirmClose } from '../app/close-actions';
+import { formatShortcut } from '../lib/shortcuts';
 
 export function CloseTabDialog() {
   const { pending } = useCloseDialog();
@@ -52,8 +53,8 @@ export function CloseTabDialog() {
         </ul>
 
         <p className="text-[11.5px] text-muted-foreground">
-          Чтобы сохранить работу, отмените закрытие и выгрузите схему через «Сохранить» (⌘S) — она
-          скачается файлом.
+          Чтобы сохранить работу, отмените закрытие и выгрузите схему через «Сохранить» (
+          {formatShortcut('Mod+S')}) — она скачается файлом.
         </p>
 
         <DialogFooter>

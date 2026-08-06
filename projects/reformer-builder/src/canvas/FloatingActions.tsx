@@ -15,6 +15,7 @@ import { validateSchema } from '../io/validate';
 import { triggerSave } from '../app/save-actions';
 import { showValidationErrors } from '../app/validation-toast';
 import { cn } from '../lib/cn';
+import { formatShortcut } from '../lib/shortcuts';
 
 type ValidationStatus = 'idle' | 'ok' | 'error';
 
@@ -68,7 +69,7 @@ export function FloatingActions() {
         <div className="flex flex-none gap-0.5 rounded-md border border-border bg-muted p-0.5">
           <button
             onClick={() => editorActions.setRuntimeMode('test')}
-            title="Тест: форма интерактивна, редактирование схемы выключено (⌥⌘E)"
+            title={`Тест: форма интерактивна, редактирование схемы выключено (${formatShortcut('Mod+Alt+E')})`}
             aria-label="Тест"
             aria-pressed={ui.runtimeMode === 'test'}
             className={cn(
@@ -80,7 +81,7 @@ export function FloatingActions() {
           </button>
           <button
             onClick={() => editorActions.setRuntimeMode('edit')}
-            title="Редактирование: клик выделяет узел, работают хоткеи и drag-drop (⌥⌘E)"
+            title={`Редактирование: клик выделяет узел, работают хоткеи и drag-drop (${formatShortcut('Mod+Alt+E')})`}
             aria-label="Редактирование"
             aria-pressed={ui.runtimeMode === 'edit'}
             className={cn(
@@ -95,7 +96,7 @@ export function FloatingActions() {
       <div className="flex flex-none gap-0.5 rounded-md border border-border bg-muted p-0.5">
         <button
           onClick={() => editorActions.setPreview('wire')}
-          title="Схематичный (⌥⌘1 · цикл ⌥⌘V)"
+          title={`Схематичный (${formatShortcut('Mod+Alt+1')} · цикл ${formatShortcut('Mod+Alt+V')})`}
           className={cn(
             'h-6 rounded px-2 text-[11.5px]',
             ui.preview === 'wire' ? 'bg-background shadow-sm' : 'text-muted-foreground'
@@ -105,7 +106,7 @@ export function FloatingActions() {
         </button>
         <button
           onClick={() => editorActions.setPreview('runtime')}
-          title="Renderer (⌥⌘2 · цикл ⌥⌘V)"
+          title={`Renderer (${formatShortcut('Mod+Alt+2')} · цикл ${formatShortcut('Mod+Alt+V')})`}
           className={cn(
             'h-6 rounded px-2 text-[11.5px]',
             ui.preview === 'runtime' ? 'bg-background shadow-sm' : 'text-muted-foreground'
@@ -115,7 +116,7 @@ export function FloatingActions() {
         </button>
         <button
           onClick={() => editorActions.setPreview('code')}
-          title="Код (⌥⌘3 · цикл ⌥⌘V)"
+          title={`Код (${formatShortcut('Mod+Alt+3')} · цикл ${formatShortcut('Mod+Alt+V')})`}
           className={cn(
             'h-6 rounded px-2 text-[11.5px]',
             ui.preview === 'code' ? 'bg-background shadow-sm' : 'text-muted-foreground'
@@ -187,7 +188,9 @@ export function FloatingActions() {
       <Button
         size="icon"
         className="h-6 w-6"
-        title={tab?.source.kind === 'file' ? 'Сохранить (⌘S)' : 'Экспорт JSON'}
+        title={
+          tab?.source.kind === 'file' ? `Сохранить (${formatShortcut('Mod+S')})` : 'Экспорт JSON'
+        }
         onClick={() => tab && void triggerSave(tab)}
       >
         <Save className="h-3.5 w-3.5" />

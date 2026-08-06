@@ -1,7 +1,8 @@
 /**
- * Диалоги меню «Справка»: «Горячие клавиши» (сгруппированный список шорткатов на @reformer/ui-kit
- * `kbd`) и «О программе» (бренд + краткое описание билдера). Источник шорткатов — обработчик
- * `onKey` в EditorLayout и `MenubarShortcut` в AppMenuBar; при изменении хоткеев обновлять здесь.
+ * Диалоги меню «Справка»: «Горячие клавиши» (сгруппированный список шорткатов на `lib/Shortcut`,
+ * подписи — под ОС пользователя) и «О программе» (бренд + краткое описание билдера). Источник
+ * шорткатов — обработчик `onKey` в EditorLayout и `MenubarShortcut` в AppMenuBar; при изменении
+ * хоткеев обновлять здесь.
  * Активный диалог управляется извне (AppMenuBar), монтируется свежим при открытии.
  *
  * @module reformer-builder/app/HelpDialogs
@@ -16,46 +17,43 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@reformer/ui-kit/dialog';
-import { Kbd, KbdGroup } from '@reformer/ui-kit/kbd';
+import { Shortcut as ShortcutKeys } from '../lib/Shortcut';
+import { PLATFORM } from '../lib/shortcuts';
 
 export type HelpDialog = 'shortcuts' | 'about';
 
-/** Один шорткат: подпись + один или несколько альтернативных аккордов (каждый — набор клавиш). */
-type Shortcut = { label: string; combos: string[][] };
+/**
+ * Один шорткат: подпись + один или несколько альтернативных аккордов. Аккорды — в нейтральной
+ * записи (`Mod` = ⌘ на macOS / Ctrl на остальных), подписи собирает `Shortcut` под ОС.
+ */
+type Shortcut = { label: string; combos: string[] };
 type ShortcutGroup = { title: string; items: Shortcut[] };
 
 const SHORTCUT_GROUPS: ReadonlyArray<ShortcutGroup> = [
   {
     title: 'Общие',
     items: [
-      { label: 'Сохранить / Экспорт', combos: [['⌘', 'S']] },
-      { label: 'Закрыть модалку / снять выделение', combos: [['Esc']] },
-      { label: 'Цикл фокуса по зонам (вперёд / назад)', combos: [['F6'], ['⇧', 'F6']] },
+      { label: 'Сохранить / Экспорт', combos: ['Mod+S'] },
+      { label: 'Закрыть модалку / снять выделение', combos: ['Escape'] },
+      { label: 'Цикл фокуса по зонам (вперёд / назад)', combos: ['F6', 'Shift+F6'] },
     ],
   },
   {
     title: 'Панели и вид',
     items: [
-      { label: 'Боковая панель', combos: [['⌘', 'B']] },
-      { label: 'Файлы', combos: [['⇧', '⌘', 'E']] },
-      { label: 'Палитра', combos: [['⇧', '⌘', 'B']] },
-      { label: 'Свойства', combos: [['⌥', '⌘', 'B']] },
+      { label: 'Боковая панель', combos: ['Mod+B'] },
+      { label: 'Файлы', combos: ['Shift+Mod+E'] },
+      { label: 'Палитра', combos: ['Shift+Mod+B'] },
+      { label: 'Свойства', combos: ['Alt+Mod+B'] },
       {
         label: 'Режим отображения (вперёд / назад)',
-        combos: [
-          ['⌘', '⌥', 'V'],
-          ['⇧', '⌘', '⌥', 'V'],
-        ],
+        combos: ['Mod+Alt+V', 'Shift+Mod+Alt+V'],
       },
       {
         label: 'Схематичный / Renderer / Код',
-        combos: [
-          ['⌘', '⌥', '1'],
-          ['⌘', '⌥', '2'],
-          ['⌘', '⌥', '3'],
-        ],
+        combos: ['Mod+Alt+1', 'Mod+Alt+2', 'Mod+Alt+3'],
       },
-      { label: 'Renderer: Редактирование ⇄ Тест', combos: [['⌘', '⌥', 'E']] },
+      { label: 'Renderer: Редактирование ⇄ Тест', combos: ['Mod+Alt+E'] },
     ],
   },
   {
@@ -63,35 +61,26 @@ const SHORTCUT_GROUPS: ReadonlyArray<ShortcutGroup> = [
     items: [
       {
         label: 'Навигация по узлам (в ряду — ←→ по соседям)',
-        combos: [['↑'], ['↓'], ['←'], ['→']],
+        combos: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'],
       },
-      { label: 'Расширить выделение (вдоль ряда / столбца)', combos: [['⇧', '↑↓←→']] },
-      { label: 'Переместить узел', combos: [['⌘', '↑↓←→']] },
+      { label: 'Расширить выделение (вдоль ряда / столбца)', combos: ['Shift+Arrows'] },
+      { label: 'Переместить узел', combos: ['Mod+Arrows'] },
       {
         label: 'Дублировать до / после (вдоль ряда / столбца)',
-        combos: [
-          ['⇧', '⌥', '↑'],
-          ['⇧', '⌥', '↓'],
-        ],
+        combos: ['Shift+Alt+ArrowUp', 'Shift+Alt+ArrowDown'],
       },
-      { label: 'Добавить компонент', combos: [['↵']] },
-      { label: 'Перейти к свойствам', combos: [['Space']] },
-      { label: 'Дублировать', combos: [['⌘', 'D']] },
-      { label: 'Удалить', combos: [['Delete'], ['⌫']] },
+      { label: 'Добавить компонент', combos: ['Enter'] },
+      { label: 'Перейти к свойствам', combos: ['Space'] },
+      { label: 'Дублировать', combos: ['Mod+D'] },
+      { label: 'Удалить', combos: ['Delete', 'Backspace'] },
       {
         label: 'Сгруппировать / Разгруппировать',
-        combos: [
-          ['⌘', 'G'],
-          ['⇧', '⌘', 'G'],
-        ],
+        combos: ['Mod+G', 'Shift+Mod+G'],
       },
-      { label: 'Сменить раскладку', combos: [['⇧', '⌘', 'L']] },
+      { label: 'Сменить раскладку', combos: ['Shift+Mod+L'] },
       {
         label: 'Отменить / Вернуть',
-        combos: [
-          ['⌘', 'Z'],
-          ['⇧', '⌘', 'Z'],
-        ],
+        combos: ['Mod+Z', 'Shift+Mod+Z'],
       },
     ],
   },
@@ -103,7 +92,9 @@ function ShortcutsBody() {
       <DialogHeader>
         <DialogTitle>Горячие клавиши</DialogTitle>
         <DialogDescription>
-          На macOS — ⌘/⌥, на Windows/Linux те же комбинации на Ctrl/Alt.
+          {PLATFORM === 'mac'
+            ? 'Комбинации показаны для macOS; на Windows/Linux те же аккорды набираются на Ctrl/Alt.'
+            : 'Комбинации показаны для Windows/Linux; на macOS те же аккорды набираются на ⌘/⌥.'}
         </DialogDescription>
       </DialogHeader>
       <div className="-mr-2 max-h-[60vh] space-y-5 overflow-y-auto pr-2 py-1">
@@ -118,13 +109,9 @@ function ShortcutsBody() {
                   <dt className="text-[13px] text-foreground">{s.label}</dt>
                   <dd className="flex flex-none items-center gap-1.5">
                     {s.combos.map((combo, i) => (
-                      <Fragment key={i}>
+                      <Fragment key={combo}>
                         {i > 0 && <span className="text-xs text-muted-foreground">/</span>}
-                        <KbdGroup>
-                          {combo.map((key, j) => (
-                            <Kbd key={j}>{key}</Kbd>
-                          ))}
-                        </KbdGroup>
+                        <ShortcutKeys keys={combo} />
                       </Fragment>
                     ))}
                   </dd>

@@ -34,6 +34,7 @@ import { emptySchema } from '../model';
 import { exportExample, openProject, triggerSave } from './save-actions';
 import { requestClose } from './close-actions';
 import { HelpDialogs, type HelpDialog } from './HelpDialogs';
+import { formatShortcut } from '../lib/shortcuts';
 
 /** Новая пустая форма — имя без коллизий с уже открытыми вкладками. */
 function newForm() {
@@ -66,7 +67,7 @@ export function AppMenuBar() {
             <MenubarSeparator />
             <MenubarItem disabled={!tab} onClick={() => tab && void triggerSave(tab)}>
               Сохранить / Экспорт
-              <MenubarShortcut>⌘S</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Mod+S')}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem
               disabled={!tab || tab.kind === 'code'}
@@ -88,37 +89,37 @@ export function AppMenuBar() {
           <MenubarContent align="start">
             <MenubarItem disabled={!canUndo} onClick={() => editorActions.undo()}>
               Отменить
-              <MenubarShortcut>⌘Z</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Mod+Z')}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem disabled={!canRedo} onClick={() => editorActions.redo()}>
               Вернуть
-              <MenubarShortcut>⇧⌘Z</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Shift+Mod+Z')}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem disabled={!tab} onClick={() => editorActions.openQuickAdd()}>
               Добавить компонент…
-              <MenubarShortcut>↵</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Enter')}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem disabled={!hasSel} onClick={() => editorActions.duplicateSelection()}>
               Дублировать
-              <MenubarShortcut>⌘D</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Mod+D')}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem disabled={!hasSel} onClick={() => editorActions.deleteSelection()}>
               Удалить
-              <MenubarShortcut>⌫</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Backspace')}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem disabled={!hasSel} onClick={() => editorActions.groupSelection()}>
               Сгруппировать
-              <MenubarShortcut>⌘G</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Mod+G')}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem disabled={!hasSel} onClick={() => editorActions.ungroupSelection()}>
               Разгруппировать
-              <MenubarShortcut>⇧⌘G</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Shift+Mod+G')}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem disabled={!hasSel} onClick={() => editorActions.flipSelection()}>
               Сменить раскладку
-              <MenubarShortcut>⇧⌘L</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Shift+Mod+L')}</MenubarShortcut>
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
@@ -133,21 +134,21 @@ export function AppMenuBar() {
             >
               <MenubarRadioItem value="wire">
                 Схематичный
-                <MenubarShortcut>⌥⌘1</MenubarShortcut>
+                <MenubarShortcut>{formatShortcut('Mod+Alt+1')}</MenubarShortcut>
               </MenubarRadioItem>
               <MenubarRadioItem value="runtime">
                 Renderer
-                <MenubarShortcut>⌥⌘2</MenubarShortcut>
+                <MenubarShortcut>{formatShortcut('Mod+Alt+2')}</MenubarShortcut>
               </MenubarRadioItem>
               <MenubarRadioItem value="code">
                 Код
-                <MenubarShortcut>⌥⌘3</MenubarShortcut>
+                <MenubarShortcut>{formatShortcut('Mod+Alt+3')}</MenubarShortcut>
               </MenubarRadioItem>
             </MenubarRadioGroup>
             <MenubarSeparator />
             <MenubarItem onClick={() => editorActions.toggleLeftPanel()}>
               Боковая панель
-              <MenubarShortcut>⌘B</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Mod+B')}</MenubarShortcut>
             </MenubarItem>
             <MenubarCheckboxItem
               checked={ui.leftPanel === 'files'}
@@ -156,7 +157,7 @@ export function AppMenuBar() {
               }
             >
               Файлы
-              <MenubarShortcut>⇧⌘E</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Shift+Mod+E')}</MenubarShortcut>
             </MenubarCheckboxItem>
             <MenubarCheckboxItem
               checked={ui.leftPanel === 'palette'}
@@ -165,7 +166,7 @@ export function AppMenuBar() {
               }
             >
               Палитра
-              <MenubarShortcut>⇧⌘B</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Shift+Mod+B')}</MenubarShortcut>
             </MenubarCheckboxItem>
             <MenubarCheckboxItem
               checked={ui.leftPanel === 'templates'}
@@ -180,7 +181,7 @@ export function AppMenuBar() {
               onCheckedChange={() => editorActions.toggleRight()}
             >
               Свойства
-              <MenubarShortcut>⌥⌘B</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut('Alt+Mod+B')}</MenubarShortcut>
             </MenubarCheckboxItem>
             <MenubarCheckboxItem
               checked={ui.rawJsonOpen}

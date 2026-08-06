@@ -47,6 +47,7 @@ import { fsAccessSupported } from '../io/fs-access';
 import type { TreeEntry } from '../io/discovery';
 import { FilesDialogs, type FilesDialog } from './FilesDialogs';
 import { cn } from '../lib/cn';
+import { formatShortcut } from '../lib/shortcuts';
 
 /** Ключ collapse-состояния корневого узла (реальные пути записей всегда непустые). */
 const ROOT_KEY = '';
@@ -125,7 +126,7 @@ function TreeRow({
   return (
     <button
       onClick={(e) => onActivate(entry, e)}
-      title={`${entry.path} — открыть в редакторе (⌘/Ctrl+клик — добавить к выбору)`}
+      title={`${entry.path} — открыть в редакторе (${formatShortcut('Mod')}+клик — добавить к выбору)`}
       style={indent(entry.depth + 1 + depthOffset)}
       className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs text-muted-foreground hover:bg-muted"
     >
