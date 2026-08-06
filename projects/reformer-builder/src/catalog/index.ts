@@ -21,6 +21,14 @@ export { CATALOG_SCHEMA, loadCatalogJson, buildCatalogFromJson, validateCatalog 
 // compound.ts читает готовый каталог через getCatalog() (ниже) — только внутри функций, поэтому
 // взаимная ссылка index ↔ compound на инициализацию модулей не влияет.
 export { partsOf, partNamesOf, compoundParentOf, isCompoundPart, hasParts } from './compound';
+export {
+  DEFAULT_CATEGORY_ORDER,
+  FALLBACK_CATEGORY,
+  categoryOrder,
+  groupByCategory,
+  displayName,
+  htmlTag,
+} from './grouping';
 // Шаблоны композиций — чистые фабрики узлов (каталог не читают), поэтому живут рядом с makeNodeFor.
 export { COMPOUND_TEMPLATES, hasCompoundTemplate } from './make-node';
 

@@ -11,43 +11,25 @@ import { ChevronRight, GripVertical } from 'lucide-react';
 import { Input, ScrollArea } from '@reformer/ui-kit';
 import { isContainerNode, parseOperator, type JsonFormSchema } from '@reformer/renderer-json';
 import { appendNode, findByPath, isLeafComponent, parentNodePath, type JsonPath } from '../model';
-import { getCatalog, isCompoundPart, partsOf, type CatalogEntry } from '../catalog';
+import {
+  displayName,
+  getCatalog,
+  groupByCategory as groupEntriesByCategory,
+  htmlTag,
+  isCompoundPart,
+  partsOf,
+  type CatalogEntry,
+} from '../catalog';
 import { collapseToDefaults } from '../catalog/variants';
 import { getRuntimeConfig } from '../config/state';
 import { editorActions, editorStore, useActiveTab, useSelectionPath } from '../store';
 import { clearDrag, setDrag } from '../dnd/drag-state';
-
-const DEFAULT_CATEGORY_ORDER = [
-  'HTML', // всегда первый (и свёрнут по умолчанию — см. collapsed ниже)
-  'Типографика', // всегда второй (и свёрнут по умолчанию)
-  'Поля ввода',
-  'Выбор и переключатели',
-  'Контейнеры',
-  'Действия',
-  'Отображение',
-  'Массив',
-  'Оверлеи',
-  'Навигация',
-  'Чат',
-  'Прочее',
-];
 
 /** Разделы, свёрнутые по умолчанию (спека §8), если клиент не переопределил. */
 const DEFAULT_COLLAPSED = ['HTML', 'Типографика', 'Оверлеи', 'Навигация', 'Чат'];
 
 /** Ключ свёрнутости контекстного раздела частей (один на все корни — заголовок меняется). */
 const PARTS_CATEGORY = 'Части';
-
-/** Порядок разделов палитры: из конфига клиента, иначе дефолтный. */
-function categoryOrder(): string[] {
-  const order = getRuntimeConfig().palette?.order;
-  return order && order.length ? order : DEFAULT_CATEGORY_ORDER;
-}
-
-/** Тег из синтетического HTML-имени: `$html(div)` → `div`; для остальных — `null`. */
-function htmlTag(name: string): string | null {
-  return name.startsWith('$html(') ? name.slice('$html('.length, -1) : null;
-}
 
 /** Текстовый глиф-бейдж элемента палитры (аббревиатура типа, как в дизайн-макете). */
 const HTML_GLYPH: Record<string, string> = {
@@ -121,11 +103,6 @@ function glyph(entry: CatalogEntry): string {
   );
 }
 
-/** Отображаемая подпись: у HTML-элементов — просто имя тега (без обёртки `$html(...)`). */
-function displayName(entry: CatalogEntry): string {
-  return htmlTag(entry.name) ?? entry.name;
-}
-
 function groupByCategory(catalog: CatalogEntry[], q: string): Array<[string, CatalogEntry[]]> {
   const needle = q.trim().toLowerCase();
   // Части compound'ов (AlertTitle, CardHeader…) в общем списке не показываем — их место в разделе
@@ -135,22 +112,7 @@ function groupByCategory(catalog: CatalogEntry[], q: string): Array<[string, Cat
     : catalog.filter((e) => !isCompoundPart(e));
   // Палитра — один дефолт-вариант на группу (не-дефолтные варианты доступны в QuickAdd). При поиске
   // конкретного варианта (дефолт не в выборке) collapseToDefaults покажет сам найденный вариант.
-  const collapsed = collapseToDefaults(filtered);
-  const map = new Map<string, CatalogEntry[]>();
-  for (const e of collapsed) {
-    const c = e.category ?? 'Прочее';
-    const list = map.get(c) ?? [];
-    list.push(e);
-    map.set(c, list);
-  }
-  const order = categoryOrder();
-  const known = order
-    .filter((c) => map.has(c))
-    .map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
-  const rest = [...map.keys()]
-    .filter((c) => !order.includes(c))
-    .map((c) => [c, map.get(c)!] as [string, CatalogEntry[]]);
-  return [...known, ...rest];
+  return groupEntriesByCategory(collapseToDefaults(filtered));
 }
 
 /**
