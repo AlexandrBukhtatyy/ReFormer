@@ -4484,7 +4484,7 @@ return (
 <PhoneItem
  key={item.id}
  control={item}
- onRemove={() => control.remove(index)}
+ onRemove={() => control.removeAt(index)}
 />
 ))}
 
@@ -5312,12 +5312,12 @@ export interface FieldControlState<T> {
 
   /**
    * Пользовательские props для передачи в UI-компоненты.
-   * Устанавливаются через {@link FieldNode.setComponentProps}.
+   * Устанавливаются через {@link FieldNode.updateComponentProps}.
    *
    * @example
    * ```tsx
    * // Установка props
-   * field.setComponentProps({
+   * field.updateComponentProps({
    *   placeholder: 'Enter email...',
    *   maxLength: 100,
    *   autoComplete: 'email'
@@ -8117,11 +8117,12 @@ export function uniqueId(prefix: SubscriptionKeyType): string
 
 **Returns:** Уникальный идентификатор в формате `${prefix}-${counter}`.
 
+⚠️ `SubscriptionKey`/`SubscriptionKeyType` — внутренние: барель `@reformer/core` их не отдаёт,
+поэтому вызвать `uniqueId` извне пакета типобезопасно нельзя. Пример ниже — внутрипакетный.
+
 **Examples:**
 
 ```typescript
-import { uniqueId, SubscriptionKey } from '@reformer/core';
-
 uniqueId(SubscriptionKey.WatchField); // → 'watchField-1'
 uniqueId(SubscriptionKey.WatchField); // → 'watchField-2'
 ```
@@ -8398,7 +8399,7 @@ onChange={e => control.setValue(e.target.checked)}
 }
 
 // Использование
-control.setComponentProps({
+control.updateComponentProps({
 label: 'Accept terms and conditions',
 hint: 'Required to continue'
 });
@@ -8454,7 +8455,7 @@ control.push({ street: '', city: '' });
 };
 
 const handleRemove = (index: number) => {
-control.remove(index);
+control.removeAt(index);
 };
 
 return (

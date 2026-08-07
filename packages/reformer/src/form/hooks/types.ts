@@ -175,12 +175,12 @@ export interface FieldControlState<T> {
 
   /**
    * Пользовательские props для передачи в UI-компоненты.
-   * Устанавливаются через {@link FieldNode.setComponentProps}.
+   * Устанавливаются через {@link FieldNode.updateComponentProps}.
    *
    * @example
    * ```tsx
    * // Установка props
-   * field.setComponentProps({
+   * field.updateComponentProps({
    *   placeholder: 'Enter email...',
    *   maxLength: 100,
    *   autoComplete: 'email'
@@ -245,7 +245,7 @@ export interface FieldControlState<T> {
  *         <PhoneItem
  *           key={item.id}
  *           control={item}
- *           onRemove={() => control.remove(index)}
+ *           onRemove={() => control.removeAt(index)}
  *         />
  *       ))}
  *

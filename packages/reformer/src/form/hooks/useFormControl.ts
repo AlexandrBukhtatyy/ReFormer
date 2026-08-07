@@ -244,7 +244,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  * }
  *
  * // Использование
- * control.setComponentProps({
+ * control.updateComponentProps({
  *   label: 'Accept terms and conditions',
  *   hint: 'Required to continue'
  * });
@@ -300,7 +300,7 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  *   };
  *
  *   const handleRemove = (index: number) => {
- *     control.remove(index);
+ *     control.removeAt(index);
  *   };
  *
  *   return (

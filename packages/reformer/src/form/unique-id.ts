@@ -42,10 +42,11 @@ let counter = 0;
  * @param prefix - Префикс для идентификатора (используйте {@link SubscriptionKey}).
  * @returns Уникальный идентификатор в формате `${prefix}-${counter}`.
  *
+ * ⚠️ `SubscriptionKey`/`SubscriptionKeyType` — внутренние: барель `@reformer/core` их не отдаёт,
+ * поэтому вызвать `uniqueId` извне пакета типобезопасно нельзя. Пример ниже — внутрипакетный.
+ *
  * @example
  * ```typescript
- * import { uniqueId, SubscriptionKey } from '@reformer/core';
- *
  * uniqueId(SubscriptionKey.WatchField); // → 'watchField-1'
  * uniqueId(SubscriptionKey.WatchField); // → 'watchField-2'
  * ```
