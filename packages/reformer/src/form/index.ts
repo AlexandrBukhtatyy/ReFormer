@@ -38,10 +38,11 @@ export { registerSignalNode, getNodeForSignal } from './signal-node-registry';
 // Submit / статус / предикаты нод / id.
 export { FormSubmitter } from './form-submitter';
 export type { SubmittableForm, SubmitOptions, SubmitResult } from './form-submitter';
-export { FormStatusMachine } from './status-machine';
-export type { StatusEvent } from './status-machine';
+// FormStatusMachine и StatusEvent убраны из публичной поверхности в 7.0: машина — внутренняя
+// деталь FieldNode, снаружи её никто не конструировал. Класс живёт в './status-machine'.
 export { isFormNode, isFieldNode, isGroupNode, isArrayNode, getNodeType } from './type-guards';
-export { uniqueId } from './unique-id';
+// uniqueId убран из публичной поверхности в 7.0: его параметр типизирован `SubscriptionKeyType`,
+// который барель не отдаёт, — типобезопасно вызвать функцию извне пакета было невозможно.
 
 // React-хуки.
 export { useFormControl } from './hooks/useFormControl';

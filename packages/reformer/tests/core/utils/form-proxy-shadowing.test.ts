@@ -75,4 +75,33 @@ describe('FormProxy — затенение полей членами GroupNode (
     const form = makeForm();
     expect('$' in form).toBe(true);
   });
+
+  // 7.0: зеркальные сигналы FormNode (untouched/pristine/enabled) удалены как дубли
+  // touched/dirty/disabled. Побочный эффект — поля модели с такими именами БОЛЬШЕ НЕ
+  // затеняются и доступны через точечный доступ напрямую. Тест фиксирует именно это,
+  // чтобы возврат зеркал не проехал молча.
+  it('поля с именами удалённых зеркальных сигналов больше не затеняются', () => {
+    interface MirrorModel {
+      untouched: string;
+      pristine: string;
+      enabled: string;
+    }
+    const form = new GroupNode<MirrorModel>({
+      untouched: { value: 'u', component: null },
+      pristine: { value: 'p', component: null },
+      enabled: { value: 'e', component: null },
+    } as never).getProxy();
+
+    expect(form.untouched).toBeInstanceOf(FieldNode);
+    expect(form.untouched.value.value).toBe('u');
+    expect(form.pristine).toBeInstanceOf(FieldNode);
+    expect(form.pristine.value.value).toBe('p');
+    expect(form.enabled).toBeInstanceOf(FieldNode);
+    expect(form.enabled.value.value).toBe('e');
+
+    // Живые оригиналы на месте и по-прежнему затеняют одноимённые поля.
+    expect(typeof form.touched.value).toBe('boolean');
+    expect(typeof form.dirty.value).toBe('boolean');
+    expect(typeof form.disabled.value).toBe('boolean');
+  });
 });

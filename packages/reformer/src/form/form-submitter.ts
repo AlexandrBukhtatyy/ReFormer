@@ -199,15 +199,4 @@ export class FormSubmitter<T extends object> {
       this._submitting.value = false;
     }
   }
-
-  /**
-   * Проверить, идет ли отправка формы
-   *
-   * @deprecated Будет удалён в 7.0. Используйте сигнал `submitting` — он реактивен, а этот
-   * метод отдаёт снимок и в React-компоненте не вызовет ре-рендер. Именно так уже работает
-   * `@reformer/cdk` (`FormWizard`: `form.submitting.value`).
-   */
-  isSubmitting(): boolean {
-    return this._submitting.value;
-  }
 }

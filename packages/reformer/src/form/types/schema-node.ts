@@ -26,24 +26,8 @@
 
 import type { ElementType } from 'react';
 import type { Signal } from '../../signals';
-// type-only импорт из barrel: schema-node реэкспортится из `./index`, поэтому образуется
-// type-only цикл `index ↔ schema-node`, который стирается при emit (рантайм-цикла нет).
-import type { ValidationError } from './contracts';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-/**
- * Валидатор поля схемы (legacy). Дерево-движок, вызывавший `validators` узла как
- * `(value, scope, root)`, удалён — живые правила это `Rule<T>` в `validate(sig, [...])`
- * (`@reformer/core/validation`). Тип остаётся широким по параметрам для совместимости
- * узлов, всё ещё несущих `validators` (гетерогенные контракты `ValidatorFn`/`Validator`).
- *
- * @group Types
- */
-export type SchemaValidator = (
-  value: any,
-  ...rest: any[]
-) => ValidationError | null | Promise<ValidationError | null>;
 
 /**
  * Минимальный контракт реактивного массива модели ({@link FormSchemaNode.array}).
@@ -92,19 +76,6 @@ export interface FormSchemaNode {
   component?: ElementType;
   /** Props компонента. Также «клапан» для вложенности под-узлов (напр. steps визарда). */
   componentProps?: Record<string, unknown>;
-  /**
-   * @deprecated Будет удалён в 7.0. Рантайм эти правила НЕ ИСПОЛНЯЕТ: дерево-движок, читавший
-   * `validators` узла, удалён в Ф7, а `createForm` их даже не собирает. Живой контракт —
-   * отдельная схема: `validate(model.$.x, [rules])` внутри `defineValidationSchema` + прогон
-   * `validateModel(model, schema)` (`@reformer/core/validation`).
-   */
-  validators?: SchemaValidator[];
-  /**
-   * @deprecated Будет удалён в 7.0 — см. {@link FormSchemaNode.validators}. Живой async-путь:
-   * оператор `validateAsync` из `@reformer/core/validation` либо `asyncValidators` в конфиге
-   * узла поля (`FieldConfig`).
-   */
-  asyncValidators?: SchemaValidator[];
   updateOn?: 'change' | 'blur' | 'submit';
   disabled?: boolean;
   /** Задержка (мс) перед запуском асинхронной валидации. */
@@ -112,9 +83,9 @@ export interface FormSchemaNode {
   /** Идентификатор узла (для wizard/tabs/renderBehavior). */
   selector?: string;
   /**
-   * @deprecated Будет удалён в 7.0. Рантайм это поле НЕ ЧИТАЕТ: `renderer-react` берёт testId
-   * из `componentProps.testId` (иначе выводит из пути сигнала). Пишите
-   * `componentProps: { testId: '…' }`.
+   * ⚠️ Рантайм этого поля НЕ ЧИТАЕТ — `renderer-react` берёт testId из `componentProps.testId`
+   * (иначе выводит из пути сигнала). Поле оставлено только потому, что `RenderSchemaNode`
+   * рендерера объявляет свой одноимённый; пишите `componentProps: { testId: '…' }`.
    */
   testId?: string;
   /**
@@ -124,15 +95,6 @@ export interface FormSchemaNode {
    * выводит на своём месте в порядке следования.
    */
   children?: readonly (FormSchemaNode | string | number | Signal<any>)[];
-  /**
-   * Условие включения поддерева (branch-узел `{ when, children }`).
-   *
-   * @deprecated Будет удалён в 7.0. Рантайм предикат НЕ ВЫЗЫВАЕТ: ни `createForm`, ни рендереры
-   * его не читают — `{ when: () => false, children }` компилируется, но поддерево всё равно
-   * отрисуется. Условный показ делайте JSX-условием на стороне рендера, а условное
-   * включение/выключение поля — операторами `enableWhen`/`disableWhen`.
-   */
-  when?: (scope: any, root: any) => boolean;
   /** Реактивный массив модели (`model.<path>`) — маркер узла-массива (вместе с `item`). */
   array?: SchemaArrayControl;
   /** Схема элемента массива: под-модель элемента → узел поддерева. */

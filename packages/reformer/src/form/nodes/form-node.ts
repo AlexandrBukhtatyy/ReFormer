@@ -21,14 +21,8 @@ import type { FieldStatus, ValidationError, ErrorFilterOptions } from '../types/
 export interface SetValueOptions {
   /** Не вызывать событие изменения (не триггерить валидацию) */
   emitEvent?: boolean;
-  /**
-   * Обновить только этот узел, не распространять на родителей
-   *
-   * @deprecated Будет удалён в 7.0, если не будет реализован. Опция НЕ РЕАЛИЗОВАНА: ни одна из
-   * четырёх реализаций `setValue` (FieldNode/GroupNode/ArrayNode/ModelArrayNode) её не читает,
-   * передача значения ни на что не влияет.
-   */
-  onlySelf?: boolean;
+  // onlySelf удалён в 7.0: опция объявлялась, но не была реализована ни одной из четырёх
+  // реализаций setValue — передача значения ни на что не влияла.
 }
 
 /**
@@ -88,28 +82,10 @@ export abstract class FormNode<T> {
   readonly touched: ReadonlySignal<boolean> = computed(() => this._touched.value);
 
   /**
-   * Пользователь не взаимодействовал с узлом (untouched)
-   *
-   * @deprecated Будет удалён в 7.0. Используйте `!node.touched.value` — зеркальный сигнал
-   * не несёт своей логики, а его существование затеняет поле модели с именем `untouched`
-   * при доступе через прокси (`form.untouched` вернёт сигнал ноды, а не поле).
-   */
-  readonly untouched: ReadonlySignal<boolean> = computed(() => !this._touched.value);
-
-  /**
    * Значение узла было изменено (dirty)
    * Computed из _dirty для предоставления readonly интерфейса
    */
   readonly dirty: ReadonlySignal<boolean> = computed(() => this._dirty.value);
-
-  /**
-   * Значение узла не было изменено (pristine)
-   *
-   * @deprecated Будет удалён в 7.0. Используйте `!node.dirty.value` — зеркальный сигнал
-   * не несёт своей логики, а его существование затеняет поле модели с именем `pristine`
-   * при доступе через прокси.
-   */
-  readonly pristine: ReadonlySignal<boolean> = computed(() => !this._dirty.value);
 
   /**
    * Текущий статус узла
@@ -121,15 +97,6 @@ export abstract class FormNode<T> {
    * Узел отключен (disabled)
    */
   readonly disabled: ReadonlySignal<boolean> = computed(() => this._status.value === 'disabled');
-
-  /**
-   * Узел включен (enabled)
-   *
-   * @deprecated Будет удалён в 7.0. Используйте `!node.disabled.value` — зеркальный сигнал
-   * не несёт своей логики, а его существование затеняет поле модели с именем `enabled`
-   * при доступе через прокси.
-   */
-  readonly enabled: ReadonlySignal<boolean> = computed(() => this._status.value !== 'disabled');
 
   // ============================================================================
   // Реактивные signals (должны быть реализованы в подклассах)

@@ -5,7 +5,6 @@
 
 export type {
   FormValue,
-  UnknownFormValue,
   ValidatorFn,
   AsyncValidatorOptions,
   AsyncValidatorFn,
@@ -25,25 +24,25 @@ export type { FieldConfig } from './deep-schema';
 // Re-exports from validation-schema (чистые валидаторы M1)
 // ============================================================================
 
-export type {
-  Validator,
-  AsyncValidator,
-  ConditionFn,
-  ValidateOptions,
-  ValidateAsyncOptions,
-} from './validation-schema';
+// AsyncValidator / ConditionFn / ValidateAsyncOptions удалены в 7.0 — осиротевшие остатки
+// операторов `validateAsync`/`applyWhen`, снятых ещё в Ф7 и рантаймом не потреблявшихся.
+export type { Validator, ValidateOptions } from './validation-schema';
 
 // ============================================================================
 // Re-exports from deep-schema
 // ============================================================================
 
-export type { FormSchema, ArrayConfig } from './deep-schema';
+// ArrayConfig удалён в 7.0: тип расходился с рантаймом (описывал `{ itemSchema, initial }`,
+// а NodeFactory.isArrayConfig распознаёт `{ schema, initialItems }` — см. ConfigWithSchema).
+export type { FormSchema } from './deep-schema';
 
 // ============================================================================
 // Re-exports from schema-node (узел единой схемы M1)
 // ============================================================================
 
-export type { FormSchemaNode, SchemaArrayControl, SchemaValidator } from './schema-node';
+// SchemaValidator удалён в 7.0 вместе с полями FormSchemaNode.validators/asyncValidators,
+// которые он типизировал: дерево-движок, исполнявший их, снят ещё в Ф7.
+export type { FormSchemaNode, SchemaArrayControl } from './schema-node';
 
 // ============================================================================
 // Re-exports from form-proxy (Typed Proxy Access)
@@ -83,26 +82,6 @@ export interface GroupNodeConfig<T> {
 export type UnknownRecord = Record<string, unknown>;
 
 /**
- * Интерфейс для узлов с методом applyValidationSchema
- * @internal
- * @deprecated Будет удалён в 7.0 вместе с {@link ArrayNode.applyValidationSchema} —
- * единственным потребителем. Ни один узел этот интерфейс не реализует.
- */
-export interface WithValidationSchema {
-  applyValidationSchema(schemaFn: unknown): void;
-}
-
-/**
- * Интерфейс для узлов с методом applyBehaviorSchema
- * @internal
- * @deprecated Будет удалён в 7.0 вместе с {@link ArrayNode.applyBehaviorSchema} —
- * единственным потребителем. Ни один узел этот интерфейс не реализует.
- */
-export interface WithBehaviorSchema {
-  applyBehaviorSchema(schemaFn: unknown): void;
-}
-
-/**
  * Интерфейс для узлов, похожих на ArrayNode (с методом at)
  * Используется для duck typing при обходе путей
  * @internal
@@ -133,36 +112,8 @@ export interface ConfigWithValue {
 }
 
 /**
- * Тип для путей к полям (field paths)
- * Используется в навигации по полям вместо any
- * @internal
- * @deprecated Будет удалён в 7.0: ни одного потребителя. Роль исполняет file-local
- * `PathSegment` в `nodes/group-node.ts`.
- */
-export type FieldPathSegment = {
-  key: string;
-  index?: number;
-};
-
-/**
- * Тип для коллбэков и обработчиков событий
- * Используется вместо (...args: any[]) => any
- * @internal
- * @deprecated Будет удалён в 7.0: ни одного потребителя.
- */
-export type UnknownCallback = (...args: unknown[]) => unknown;
-
-/**
  * Тип для проверки на функцию в conditional types
  * Используется вместо Function для type narrowing
  * @internal
  */
 export type AnyFunction = (...args: never[]) => unknown;
-
-/**
- * Тип для результатов загрузки ресурсов
- * @internal
- * @deprecated Будет удалён в 7.0: алиас `unknown` без потребителей — подсистемы загрузки
- * ресурсов в ядре нет.
- */
-export type ResourceLoadResult = unknown;

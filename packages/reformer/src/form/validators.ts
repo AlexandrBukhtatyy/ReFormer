@@ -1,6 +1,11 @@
 /**
- * Re-export validators from the main index to ensure single module instance.
- * This prevents static registry isolation issues when consuming the library.
+ * Точка входа сабпата `@reformer/core/validators` — все фабрики правил одним импортом.
+ *
+ * Гранулярные сабпаты (`@reformer/core/validators/required` и ещё 21) собираются отдельными
+ * entry для tree-shaking; этот модуль отдаёт полный набор для случаев, когда правил много.
+ *
+ * Ранее здесь был ещё и default-экспорт (`validators` из корневого `index`), заведённый как
+ * часть бандл-фикса «shared static registry». Реестров, ради которых он существовал, в коде
+ * больше нет, чанк-шаринг он не обеспечивал, потребителей не имел — удалён в 7.0.
  */
-export { validators as default } from '../index';
 export * from './validation/index';

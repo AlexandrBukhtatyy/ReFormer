@@ -14,8 +14,9 @@ export * from './state/index';
 // Form-модуль: ноды, createForm, enableWhen/disableWhen, submit, хуки
 // (schema-валидация — отдельный сабпат @reformer/core/validation).
 export * from './form/index';
-// Validators namespace (чистые фабрики).
-export * as validators from './form/validation/index';
+// Validators namespace удалён в 7.0: `import { validators } from '@reformer/core'` больше нет.
+// Правила берите из сабпата — `@reformer/core/validators` (весь набор) либо гранулярно
+// (`@reformer/core/validators/required`), это ещё и лучше тришейкается.
 
 // Штамп копии рантайма — для guard'а от двойной загрузки ядра (@reformer/form-registry/guard).
 export { CORE_RUNTIME_TOKEN } from './runtime-token';

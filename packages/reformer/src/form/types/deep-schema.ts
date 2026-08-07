@@ -79,23 +79,6 @@ type RequireAtLeastOne<T> = {
  */
 type NonEmptyFieldConfig<T> = RequireAtLeastOne<FieldConfig<T>>;
 
-/**
- * Конфигурация массива
- * @group Types
- * @category Configuration Types
- *
- * @deprecated Будет удалён в 7.0. Тип РАСХОДИТСЯ С РАНТАЙМОМ: он описывает
- * `{ itemSchema, initial }`, а `NodeFactory.isArrayConfig` распознаёт `{ schema, initialItems }`
- * (см. `ConfigWithSchema`) — ни одна принимаемая рантаймом форма этому типу не соответствует,
- * потребителей нет. Используйте `ConfigWithSchema` из `form/types`.
- */
-// `T extends object` (не `FormFields`): interface-модели не имеют неявной index-signature и
-// не assignable к Record<string, FormValue> — иначе ArrayConfig<SomeInterface> даёт ложную ошибку.
-export interface ArrayConfig<T extends object> {
-  itemSchema: FormSchema<T>;
-  initial?: Partial<T>[];
-}
-
 // ============================================================================
 // Deep Schema - автоматическое определение типов
 // ============================================================================

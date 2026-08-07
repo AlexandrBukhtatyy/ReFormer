@@ -29,14 +29,6 @@ export type FormValue =
   | { [key: string]: FormValue };
 
 /**
- * Type-safe alternative to 'any' for unknown form values
- * Requires explicit type checking before use
- * @internal
- * @deprecated Будет удалён в 7.0: алиас `unknown` без потребителей.
- */
-export type UnknownFormValue = unknown;
-
-/**
  * Синхронная функция валидации
  * @group Types
  * @category Validation Types

@@ -9,19 +9,13 @@
  * @group Nodes
  */
 
-import { signal, computed, effect } from '@preact/signals-core';
+import { signal, computed } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode, type SetValueOptions } from './form-node';
 import { GroupNode } from './group-node';
-import { uniqueId, SubscriptionKey } from '../unique-id';
 import { FormErrorHandler, ErrorStrategy } from '../error-handler';
 import { createAggregateSignals } from '../aggregate-signals';
-import type {
-  FieldStatus,
-  ValidationError,
-  WithValidationSchema,
-  WithBehaviorSchema,
-} from '../types/index';
+import type { FieldStatus, ValidationError } from '../types/index';
 import type { FormSchema } from '../types/deep-schema';
 import type { FormProxy } from '../types/form-proxy';
 import { SubscriptionManager } from '../../state/subscription-manager';
@@ -63,13 +57,6 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
 
   /** Array-level validation errors (e.g., "минимум 1 элемент") */
   private readonly _arrayErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
-
-  // ============================================================================
-  // Приватные поля для сохранения схем
-  // ============================================================================
-
-  private validationSchemaFn?: unknown;
-  private behaviorSchemaFn?: unknown;
 
   // ============================================================================
   // Публичные computed signals
@@ -525,173 +512,8 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
   }
 
   // ============================================================================
-  // Validation Schema
-  // ============================================================================
-
-  /**
-   * Применить validation schema ко всем элементам массива
-   *
-   * Validation schema будет применена к:
-   * - Всем существующим элементам
-   * - Всем новым элементам, добавляемым через push/insert
-   *
-   * @param schemaFn - Функция валидации для элемента массива
-   *
-   * @example
-   * ```typescript
-   * import { propertyValidation } from './validation/property-validation';
-   *
-   * form.properties.applyValidationSchema(propertyValidation);
-   * ```
-   *
-   * @deprecated Будет удалён в 7.0. Метод НИЧЕГО НЕ ДЕЛАЕТ уже сейчас: элементы массива —
-   * это `GroupNode`, а проверка `'applyValidationSchema' in item` на нём тождественно false,
-   * так что схема сохраняется в приватное поле и не применяется ни к одному элементу.
-   * Дерево-движок, который её исполнял, удалён в Ф7. Живой путь — отдельная схема валидации:
-   * `defineValidationSchema` + `validateModel(model, schema)` (`@reformer/core/validation`),
-   * правила адресуются к сигналам модели и сами доезжают до нод.
-   */
-  applyValidationSchema(schemaFn: unknown): void {
-    // Сохраняем validation schema для применения к новым элементам
-    this.validationSchemaFn = schemaFn;
-
-    // Применяем validation schema ко всем существующим элементам
-    this.items.value.forEach((item) => {
-      if (
-        'applyValidationSchema' in item &&
-        typeof (item as WithValidationSchema).applyValidationSchema === 'function'
-      ) {
-        (item as WithValidationSchema).applyValidationSchema(schemaFn);
-      }
-    });
-  }
-
-  /**
-   * Применить behavior schema ко всем элементам ArrayNode
-   *
-   * Автоматически применяется к новым элементам при push/insert.
-   *
-   * @param schemaFn - Behavior schema функция
-   *
-   * @example
-   * ```typescript
-   * import { addressBehavior } from './behaviors/address-behavior';
-   *
-   * form.addresses.applyBehaviorSchema(addressBehavior);
-   * ```
-   *
-   * @deprecated Будет удалён в 7.0. Метод НИЧЕГО НЕ ДЕЛАЕТ уже сейчас — по той же причине,
-   * что и {@link ArrayNode.applyValidationSchema}: `'applyBehaviorSchema' in item` на `GroupNode`
-   * всегда false. Живой путь — `defineFormBehavior` + `createForm({ model, schema, behavior })`,
-   * для поэлементного поведения — оператор `applyEach` (`@reformer/core/behaviors`).
-   */
-  applyBehaviorSchema(schemaFn: unknown): void {
-    // Сохраняем behavior schema для применения к новым элементам
-    this.behaviorSchemaFn = schemaFn;
-
-    // Применяем behavior schema ко всем существующим элементам
-    this.items.value.forEach((item) => {
-      if (
-        'applyBehaviorSchema' in item &&
-        typeof (item as WithBehaviorSchema).applyBehaviorSchema === 'function'
-      ) {
-        (item as WithBehaviorSchema).applyBehaviorSchema(schemaFn);
-      }
-    });
-  }
-
-  // ============================================================================
   // Методы-помощники для реактивности (Фаза 1)
   // ============================================================================
-
-  /**
-   * Подписка на изменения конкретного поля во всех элементах массива
-   * Срабатывает при изменении значения поля в любом элементе
-   *
-   * @param fieldKey - Ключ поля для отслеживания
-   * @param callback - Функция, вызываемая при изменении, получает массив всех значений и индекс измененного элемента
-   * @returns Функция отписки для cleanup
-   *
-   * @example
-   * ```typescript
-   * // Автоматический пересчет общей стоимости при изменении цен
-   * const dispose = form.existingLoans.watchItems(
-   *   'remainingAmount',
-   *   (amounts) => {
-   *     const totalDebt = amounts.reduce((sum, amount) => sum + (amount || 0), 0);
-   *     form.totalDebt.setValue(totalDebt);
-   *   }
-   * );
-   *
-   * // При изменении любого remainingAmount → пересчитается totalDebt
-   * form.existingLoans.at(0)?.remainingAmount.setValue(500000);
-   *
-   * // Cleanup
-   * useEffect(() => dispose, []);
-   * ```
-   *
-   * @deprecated Будет удалён в 7.0. Под M1 агрегаты по массиву собираются операторами поведения
-   * над сигналами модели: `watchField`/`computeFrom` из `@reformer/core/state` (или `compute`
-   * внутри `defineFormBehavior`). Этот метод работает только с legacy-{@link ArrayNode},
-   * который `createForm` не материализует — массивы приходят как `ModelArrayNode`.
-   */
-  watchItems<K extends keyof T>(
-    fieldKey: K,
-    callback: (values: Array<T[K] | undefined>) => void | Promise<void>
-  ): () => void {
-    const dispose = effect(() => {
-      // Отслеживаем изменения всех элементов массива
-      const values = this.items.value.map((item) => {
-        if (item instanceof GroupNode) {
-          const field = item.getFieldByPath(fieldKey as string);
-          return field?.value.value as T[K];
-        }
-        return undefined;
-      });
-
-      callback(values);
-    });
-
-    // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = uniqueId(SubscriptionKey.WatchItems);
-    return this.disposers.add(key, dispose);
-  }
-
-  /**
-   * Подписка на изменение длины массива
-   * Срабатывает при добавлении/удалении элементов
-   *
-   * @param callback - Функция, вызываемая при изменении длины, получает новую длину
-   * @returns Функция отписки для cleanup
-   *
-   * @example
-   * ```typescript
-   * // Обновление счетчика элементов в UI
-   * const dispose = form.properties.watchLength((length) => {
-   *   console.log(`Количество объектов недвижимости: ${length}`);
-   *   form.propertyCount.setValue(length);
-   * });
-   *
-   * form.properties.push({ title: 'Квартира', value: 5000000 });
-   * // Выведет: "Количество объектов недвижимости: 1"
-   *
-   * // Cleanup
-   * useEffect(() => dispose, []);
-   * ```
-   *
-   * @deprecated Будет удалён в 7.0. Замена уже есть в API: реактивный сигнал `length`
-   * (`node.length.value`) для логики и хук `useArrayLength(node)` для React.
-   */
-  watchLength(callback: (length: number) => void | Promise<void>): () => void {
-    const dispose = effect(() => {
-      const currentLength = this.length.value;
-      callback(currentLength);
-    });
-
-    // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = uniqueId(SubscriptionKey.WatchLength);
-    return this.disposers.add(key, dispose);
-  }
 
   /**
    * Очистить все ресурсы узла

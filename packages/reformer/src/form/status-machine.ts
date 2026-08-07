@@ -15,21 +15,6 @@ import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import type { FieldStatus } from './types/index';
 
 /**
- * События для State Machine
- *
- * @deprecated Будет удалён в 7.0 вместе с {@link FormStatusMachine.dispatch} — единственным
- * потребителем этого типа. Используйте именованные методы (`startValidation`/`completeValidation`/
- * `setErrors`/`disable`/`enable`).
- */
-export type StatusEvent =
-  | { type: 'START_VALIDATION' }
-  | { type: 'VALIDATION_SUCCESS' }
-  | { type: 'VALIDATION_FAILURE' }
-  | { type: 'DISABLE' }
-  | { type: 'ENABLE'; hasErrors?: boolean }
-  | { type: 'SET_ERRORS'; hasErrors: boolean };
-
-/**
  * FormStatusMachine - управляет состоянием поля формы
  *
  * Предоставляет:
@@ -183,63 +168,5 @@ export class FormStatusMachine {
    */
   enable(hasErrors: boolean = false): void {
     this._status.value = hasErrors ? 'invalid' : 'valid';
-  }
-
-  /**
-   * Обработать событие (альтернативный API)
-   *
-   * @param event - Событие для обработки
-   *
-   * @example
-   * ```typescript
-   * statusMachine.dispatch({ type: 'START_VALIDATION' });
-   * statusMachine.dispatch({ type: 'VALIDATION_FAILURE' });
-   * ```
-   *
-   * @deprecated Будет удалён в 7.0. Альтернативный event-based API не прижился: ни одного
-   * вызова ни в ядре, ни в остальных пакетах — `FieldNode` работает только через именованные
-   * методы. Используйте их напрямую.
-   */
-  dispatch(event: StatusEvent): void {
-    switch (event.type) {
-      case 'START_VALIDATION':
-        this.startValidation();
-        break;
-      case 'VALIDATION_SUCCESS':
-        this.completeValidation(false);
-        break;
-      case 'VALIDATION_FAILURE':
-        this.completeValidation(true);
-        break;
-      case 'DISABLE':
-        this.disable();
-        break;
-      case 'ENABLE':
-        this.enable(event.hasErrors);
-        break;
-      case 'SET_ERRORS':
-        this.setErrors(event.hasErrors);
-        break;
-    }
-  }
-
-  /**
-   * Получить текущий статус
-   *
-   * @deprecated Будет удалён в 7.0. Используйте сигнал `status` (`machine.status.value`) —
-   * он реактивен, а этот метод отдаёт снимок.
-   */
-  getStatus(): FieldStatus {
-    return this._status.value;
-  }
-
-  /**
-   * Проверить, можно ли начать валидацию
-   *
-   * @deprecated Будет удалён в 7.0. Используйте `!machine.disabled.value` — ту же проверку
-   * ядро уже делает инлайном в трёх местах, а метод не вызывается нигде.
-   */
-  canValidate(): boolean {
-    return this._status.value !== 'disabled';
   }
 }

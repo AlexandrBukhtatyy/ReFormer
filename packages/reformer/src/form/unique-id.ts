@@ -26,10 +26,6 @@ export const SubscriptionKey = {
   LinkFields: 'linkFields',
   /** GroupNode.watchField() */
   WatchField: 'watchField',
-  /** ArrayNode.watchItems() */
-  WatchItems: 'watchItems',
-  /** ArrayNode.watchLength() */
-  WatchLength: 'watchLength',
 } as const;
 
 export type SubscriptionKeyType = (typeof SubscriptionKey)[keyof typeof SubscriptionKey];

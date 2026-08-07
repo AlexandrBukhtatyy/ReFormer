@@ -39,28 +39,6 @@ export type Validator<TForm, TField> = (
   root: FormModel<TForm>
 ) => ValidationError | null;
 
-/**
- * Чистый асинхронный валидатор поля. Та же тройка аргументов `(value, scope, root)`, что у
- * {@link Validator}, но возвращает `Promise`.
- *
- * @deprecated Осиротевший остаток удалённого оператора `validateAsync` (Ф7). Рантаймом не
- * потребляется — живой async-путь узла поля использует `AsyncValidatorFn` `(value, { signal })`.
- * Экспортируется только ради обратной совместимости.
- */
-export type AsyncValidator<TForm, TField> = (
-  value: TField,
-  scope: unknown,
-  root: FormModel<TForm>
-) => Promise<ValidationError | null>;
-
-/**
- * Функция-предикат `(value) => boolean`.
- *
- * @deprecated Осиротевший остаток удалённого оператора `applyWhen` (Ф7). Рантаймом не
- * потребляется; экспортируется только ради обратной совместимости.
- */
-export type ConditionFn<T> = (value: T) => boolean;
-
 // ============================================================================
 // Опции валидации
 // ============================================================================
@@ -75,14 +53,4 @@ export interface ValidateOptions {
   message?: string;
   /** Параметры ошибки (подстановка в шаблон сообщения / i18n). */
   params?: Record<string, FormValue>;
-}
-
-/**
- * @deprecated Осиротевший остаток удалённого оператора `validateAsync` (Ф7): опция `debounce`
- * подключалась тем оператором, которого больше нет. Рантаймом не потребляется; экспортируется
- * только ради обратной совместимости.
- */
-export interface ValidateAsyncOptions extends ValidateOptions {
-  /** Задержка перед выполнением валидации (в мс). */
-  debounce?: number;
 }
