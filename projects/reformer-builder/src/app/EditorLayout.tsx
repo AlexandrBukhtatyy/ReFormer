@@ -1,12 +1,13 @@
 /**
- * Оболочка редактора (спека §8): левая полоса-рейл + панель (Файлы/Палитра), центр
- * (таб-бар + canvas + raw-JSON), правый инспектор + рейл. На `@reformer/ui-kit` (компоненты +
- * токены). При первом монтировании открывает демо-схему (Mode A).
+ * Оболочка редактора (спека §8): левая полоса-рейл (вкладки Файлы/Палитра/Шаблоны + переключатель
+ * темы внизу) + панель, центр (таб-бар + canvas + raw-JSON), правый инспектор + рейл.
+ * На `@reformer/ui-kit` (компоненты + токены). При первом монтировании открывает демо-схему (Mode A).
  *
  * @module reformer-builder/app/EditorLayout
  */
 
 import { useEffect, type ReactElement } from 'react';
+import { Moon, Sun } from 'lucide-react';
 import { useDefaultLayout } from 'react-resizable-panels';
 import { TooltipProvider } from '@reformer/ui-kit';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
@@ -367,7 +368,7 @@ export function EditorLayout() {
       <div className="flex h-screen flex-col overflow-hidden bg-background text-[13px] text-foreground">
         <AppToolbar />
         <div className="flex min-h-0 flex-1">
-          {/* левый рейл */}
+          {/* левый рейл: вкладки панелей сверху, глобальные переключатели (тема) — внизу */}
           <div className="flex w-[38px] flex-none flex-col items-center gap-1 border-r border-border bg-sidebar py-1.5">
             {LEFT_PANELS.map(({ kind, title }) => (
               <button
@@ -381,6 +382,14 @@ export function EditorLayout() {
                 {title}
               </button>
             ))}
+            <div className="flex-1" />
+            <button
+              title={ui.theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+              onClick={() => editorActions.setTheme(ui.theme === 'dark' ? 'light' : 'dark')}
+              className="grid h-7 w-7 flex-none place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {ui.theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
           </div>
 
           {/* resizable-ряд: левый сайдбар · центр · инспектор (рейлы — вне группы).
