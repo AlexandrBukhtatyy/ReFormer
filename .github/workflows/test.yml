@@ -45,6 +45,14 @@ jobs:
       - name: Run @reformer/core tests
         run: npm run test -w @reformer/core
 
+      - name: Coverage gate @reformer/core
+        # Пороги в packages/reformer/vitest.config.ts объявлялись с самого начала, но провайдера
+        # @vitest/coverage-v8 не было ни в одном package.json и ни один шаг CI не гонял покрытие —
+        # гейт существовал только на бумаге, а `vitest --coverage` у разработчика падал. Пороги
+        # выставлены по фактическому покрытию на момент включения: шаг ловит РЕГРЕСС, а не
+        # обеспечивает целевые 80%.
+        run: npm run coverage -w @reformer/core
+
       - name: Build @reformer/cdk
         run: npm run build -w @reformer/cdk
 

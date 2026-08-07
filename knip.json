@@ -3,7 +3,7 @@
   "ignoreWorkspaces": [".", "projects/*"],
   "workspaces": {
     "packages/reformer": {
-      "entry": ["src/core/validation/validators/*.ts"]
+      "entry": ["src/form/validation/validators/*.ts"]
     }
   }
 }

@@ -36,6 +36,9 @@ projects/react-playground-e2e/videos/
 */**/*.spec.ts-snapshots
 projects/react-playground-e2e/projects
 
+# Test coverage reports (vitest --coverage)
+coverage/
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db

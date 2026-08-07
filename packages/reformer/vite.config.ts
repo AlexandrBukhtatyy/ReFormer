@@ -10,20 +10,9 @@ const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
 
 export default defineConfig({
   plugins: [dts({ insertTypesEntry: true, exclude: TEST_FILES })],
-  test: {
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'lcov'],
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/index.ts', 'src/**/*.d.ts'],
-      thresholds: {
-        statements: 80,
-        branches: 80,
-        functions: 80,
-        lines: 80,
-      },
-    },
-  },
+  // NB: конфиг тестов (включая coverage) живёт в vitest.config.ts — `scripts/run-vitest.mjs`
+  // спавнит `vitest run` без --config, и штатное разрешение отдаёт победу ему. Дубль `test:`
+  // здесь ни на что не влиял: правка порогов в этом файле не давала эффекта.
   build: {
     lib: {
       entry: {
