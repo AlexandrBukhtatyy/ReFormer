@@ -28,7 +28,7 @@ const render = (node: any): string => renderToStaticMarkup(<FormRenderer render=
 
 const faNode = (items: any[], componentProps?: any) => ({
   array: fakeArray(items),
-  item: (im: any) => ({ component: 'span', text: im.name }),
+  item: (im: any) => ({ component: 'span', children: [im.name] }),
   component: FormArray,
   initialValue: () => ({}),
   componentProps,

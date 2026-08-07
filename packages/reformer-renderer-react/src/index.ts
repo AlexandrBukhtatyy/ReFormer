@@ -36,7 +36,7 @@ export type {
   ContainerRenderNodeProps,
   ArrayRenderNode,
   RenderModelArrayControl,
-  RenderText,
+  RenderChild,
   RenderTextPart,
   FormRendererProps,
   RendererSettings,

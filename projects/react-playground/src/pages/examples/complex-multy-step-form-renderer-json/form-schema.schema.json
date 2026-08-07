@@ -150,8 +150,8 @@
         "$html(meter)"
       ]
     },
-    "textContent": {
-      "description": "Text content of a node: a literal, an operator string (\"$model(path)\" for reactive model values, \"$locale(key)\" for localized strings), or an array of parts joined without a separator.",
+    "textChild": {
+      "description": "Text part of a node's children: a literal, or an operator string (\"$model(path)\" for reactive model values, \"$locale(key)\" for localized strings). Adjacent parts are joined without a separator.",
       "$comment": "Types are listed as separate anyOf branches rather than a union \"type\": [\"string\",\"number\"] — ajv's strict mode rejects union type keywords unless allowUnionTypes is on, and validateFormSchema compiles this schema without it.",
       "anyOf": [
         {
@@ -159,19 +159,6 @@
         },
         {
           "type": "number"
-        },
-        {
-          "type": "array",
-          "items": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
-          }
         }
       ]
     },
@@ -290,13 +277,19 @@
         "componentProps": {
           "type": "object"
         },
-        "text": {
-          "$ref": "#/definitions/textContent"
-        },
         "children": {
+          "$comment": "A child is either a nested node (object) or a text part (string/number). Dispatched with if/then/else rather than anyOf for the same reason as \"node\": with allErrors ajv would report failures from every branch, burying the real cause.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/node"
+            "if": {
+              "type": "object"
+            },
+            "then": {
+              "$ref": "#/definitions/node"
+            },
+            "else": {
+              "$ref": "#/definitions/textChild"
+            }
           }
         }
       }

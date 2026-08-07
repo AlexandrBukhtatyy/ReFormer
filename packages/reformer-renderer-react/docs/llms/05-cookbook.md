@@ -218,7 +218,7 @@ form.disable();
 
 **Problem.** В форме нужны заголовки, инфо-плашка, разделитель и блок «Итого», где значения пересчитываются на лету. Заводить под каждый такой блок React-компонент (и, в JSON-варианте, регистрировать его) — много кода ради вёрстки.
 
-**Solution.** `component` контейнера принимает нативный тег строкой, а `text` — литералы и сигналы. Вычисляемое значение подаётся обычным `computed` из `@reformer/core/signals`.
+**Solution.** `component` контейнера принимает нативный тег строкой, а `children` — не только узлы, но и текстовые части: литералы и сигналы. Вычисляемое значение подаётся обычным `computed` из `@reformer/core/signals`.
 
 ```tsx
 import { computed } from '@reformer/core/signals';
@@ -229,9 +229,9 @@ const schema: RenderSchemaFn<Installment> = () => ({
   component: 'div',
   componentProps: { className: 'space-y-6' },
   children: [
-    { component: 'h2', componentProps: { className: 'text-xl font-bold' }, text: 'Рассрочка' },
+    { component: 'h2', componentProps: { className: 'text-xl font-bold' }, children: ['Рассрочка'] },
 
-    // text + children в одном узле → inline-разметка без лишних обёрток
+    // текст и узлы в одном children → inline-разметка без лишних обёрток
     {
       component: 'div',
       componentProps: { className: 'p-4 bg-blue-50 border border-blue-200 rounded-md' },
@@ -239,8 +239,10 @@ const schema: RenderSchemaFn<Installment> = () => ({
         {
           component: 'p',
           componentProps: { className: 'text-sm text-blue-800' },
-          text: 'Проценты не начисляются. ',
-          children: [{ component: 'b', text: 'Досрочное погашение бесплатно.' }],
+          children: [
+            'Проценты не начисляются. ',
+            { component: 'b', children: ['Досрочное погашение бесплатно.'] },
+          ],
         },
       ],
     },
@@ -248,13 +250,13 @@ const schema: RenderSchemaFn<Installment> = () => ({
     { value: model.$.amount, component: InputField, componentProps: { label: 'Сумма (₽)' } },
     { component: 'hr' },
 
-    // Живая сводка: сигналы в text подписываются точечно
+    // Живая сводка: сигналы среди детей подписываются точечно
     {
       component: 'dl',
       componentProps: { className: 'grid grid-cols-2 gap-2 text-sm' },
       children: [
-        { component: 'dt', text: 'Платёж в месяц' },
-        { component: 'dd', componentProps: { className: 'font-medium' }, text: [monthly, ' ₽'] },
+        { component: 'dt', children: ['Платёж в месяц'] },
+        { component: 'dd', componentProps: { className: 'font-medium' }, children: [monthly, ' ₽'] },
       ],
     },
   ],
@@ -263,7 +265,7 @@ const schema: RenderSchemaFn<Installment> = () => ({
 
 **Notes.**
 
-- Перерисовывается только сам текстовый узел — подписка идёт на сигналы части `text`, а не на поддерево.
+- Перерисовывается только сам текст — подписка идёт на сигналы текстовых детей, а не на поддерево узла.
 - Тег и компонент свободно вкладываются друг в друга: `{ component: 'div', children: [{ component: Section, … }] }` и наоборот.
 - `hideWhen`/`patchProps` работают по `selector` и на html-узлах; в DOM `selector` не пробрасывается.
 - Живой пример обеих схем (типизованной и JSON) — `projects/react-playground/src/pages/examples/html-nodes/`.

@@ -1,8 +1,8 @@
 /**
  * HTML-узлы в схеме — мини-пример, две колонки с одинаковым результатом:
  *
- * - слева типизованная RenderSchema (`component: 'div'`, `text: model.$.x`),
- * - справа JSON-схема (`"$html(div)"`, `"text": "$model(x)"`).
+ * - слева типизованная RenderSchema (`component: 'div'`, `children: [model.$.x]`),
+ * - справа JSON-схема (`"$html(div)"`, `"children": ["$model(x)"]`).
  *
  * Каждая колонка со своей моделью, чтобы видеть, что реактивный текст обновляется независимо
  * и подписан именно на свою модель.
@@ -62,7 +62,7 @@ function TypedSchemaColumn() {
   return (
     <Panel
       title="RenderSchema (renderer-react)"
-      hint="component: 'div' | 'h2' | 'hr', text: model.$.fullName"
+      hint="component: 'div' | 'h2' | 'hr', children: [model.$.fullName]"
     >
       <div data-testid="typed-schema">
         <FormRenderer<InstallmentRequest> render={schema} settings={{ fieldWrapper: FormField }} />
@@ -85,7 +85,7 @@ function JsonSchemaColumn() {
   return (
     <Panel
       title="JSON-схема (renderer-json)"
-      hint='component: "$html(div)", text: "$model(fullName)"'
+      hint='component: "$html(div)", children: ["$model(fullName)"]'
     >
       <div data-testid="json-schema">
         <JsonRendererProvider settings={{ registry: jsonForm.registry }}>

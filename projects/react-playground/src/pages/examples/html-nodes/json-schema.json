@@ -7,7 +7,7 @@
       {
         "component": "$html(h2)",
         "componentProps": { "className": "text-xl font-bold" },
-        "text": "$locale(installment.title)"
+        "children": ["$locale(installment.title)"]
       },
       {
         "component": "$html(div)",
@@ -16,8 +16,10 @@
           {
             "component": "$html(p)",
             "componentProps": { "className": "text-sm text-blue-800" },
-            "text": "Проценты не начисляются. ",
-            "children": [{ "component": "$html(b)", "text": "Досрочное погашение бесплатно." }]
+            "children": [
+              "Проценты не начисляются. ",
+              { "component": "$html(b)", "children": ["Досрочное погашение бесплатно."] }
+            ]
           }
         ]
       },
@@ -60,22 +62,22 @@
           {
             "component": "$html(dt)",
             "componentProps": { "className": "text-gray-500" },
-            "text": "Заявитель"
+            "children": ["Заявитель"]
           },
           {
             "component": "$html(dd)",
             "componentProps": { "className": "font-medium", "data-testid": "summary-fullName" },
-            "text": "$model(fullName)"
+            "children": ["$model(fullName)"]
           },
           {
             "component": "$html(dt)",
             "componentProps": { "className": "text-gray-500" },
-            "text": "Запрошенная сумма"
+            "children": ["Запрошенная сумма"]
           },
           {
             "component": "$html(dd)",
             "componentProps": { "className": "font-medium", "data-testid": "summary-amount" },
-            "text": ["$model(amount)", " ₽ на ", "$model(months)", " мес."]
+            "children": ["$model(amount)", " ₽ на ", "$model(months)", " мес."]
           }
         ]
       }

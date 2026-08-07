@@ -13,6 +13,7 @@
 
 import { type RenderSchemaFn, type RenderNode } from '@reformer/renderer-react';
 import type { FormModel } from '@reformer/core';
+import { Signal } from '@reformer/core/signals';
 import {
   isArrayNode,
   isFieldNode,
@@ -227,14 +228,45 @@ function transformProps(
 }
 
 /**
- * Резолв текстового содержимого узла (`text`) в форму, понятную рендереру: `'$model(path)'` →
- * сигнал (рендерер подпишется и обновит текст), `'$locale(key)'` → строка, литералы — как есть.
- * Переиспользует {@link transformPropValue}, поэтому набор операторов в тексте тот же, что в props.
+ * Резолв текстовой части `children` в форму, понятную рендереру: `'$model(path)'` → сигнал
+ * (рендерер подпишется и обновит текст), `'$locale(key)'` → строка каталога, `'$dataSource(name)'` →
+ * значение из реестра (обычно сигнал UI-состояния — «живой» текст не из модели), прочие строки и
+ * числа — литералы.
+ *
+ * Набор операторов здесь УЖЕ, чем в `componentProps`: компонент или функция в позиции текста —
+ * заведомая ошибка схемы, и падать на ней надо в конвертере с внятным сообщением, а не в React
+ * на попытке отрендерить объект. Структурная форма `{ $locale, params }` в этой позиции невозможна
+ * (объект в `children` — это узел); реактивные параметры — через компонент `I18n`.
  */
-function transformText(text: unknown, scope: any, registry: ComponentRegistry): unknown {
-  if (text === undefined) return undefined;
-  if (Array.isArray(text)) return text.map((part) => transformPropValue(part, scope, registry));
-  return transformPropValue(text, scope, registry);
+function resolveTextChild(part: string | number, scope: any, registry: ComponentRegistry): unknown {
+  if (typeof part === 'number') return part;
+  if (isModelOp(part)) return (scope as FormModel<unknown>).signalAt(parseOperator(part)!.arg);
+  if (isLocaleOp(part)) return resolveLocale(parseOperator(part)!.arg, registry);
+  if (isDataSourceOp(part)) {
+    const value = resolveDataSource(parseOperator(part)!.arg, registry);
+    // Источник может отдавать что угодно (options-массив, компонент-заглушку) — текстом становится
+    // только примитив или сигнал; остальное отсекаем здесь, а не оставляем React.
+    const renderable =
+      value == null ||
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      value instanceof Signal;
+    if (!renderable) throw new Error(textChildError(part, 'resolves to a non-text value'));
+    return value;
+  }
+  if (isComponentOp(part) || isHtmlOp(part) || isFnOp(part)) {
+    throw new Error(textChildError(part, 'resolves to a component or a function'));
+  }
+  return part;
+}
+
+/** Сообщение об операторе, непригодном в позиции текстового ребёнка. */
+function textChildError(op: string, why: string): string {
+  return (
+    `Operator "${op}" cannot be a text child — it ${why}. Text children accept $model(...), ` +
+    '$locale(...) and $dataSource(...) that yields a string, a number or a signal; ' +
+    'use a nested node for components and componentProps for functions.'
+  );
 }
 
 /**
@@ -293,8 +325,13 @@ function convertNodeM1<T>(node: JsonNode, scope: any, registry: ComponentRegistr
       // (обработчики, innerHTML, javascript:-URL). Props компонентов реестра не трогаем —
       // их поверхность определяет сам компонент.
       componentProps: isHtml ? sanitizeHtmlProps(props, component as string) : props,
-      ...(node.text !== undefined ? { text: transformText(node.text, scope, registry) } : {}),
-      children: node.children?.map((c) => convertNodeM1(c, scope, registry)),
+      // Ребёнок-объект — вложенный узел, примитив — текстовая часть (рендерер выведет её на этом
+      // же месте, а соседние части склеит).
+      children: node.children?.map((c) =>
+        typeof c === 'object' && c !== null
+          ? convertNodeM1(c, scope, registry)
+          : resolveTextChild(c, scope, registry)
+      ),
     } as unknown as RenderNode<T>;
   }
 

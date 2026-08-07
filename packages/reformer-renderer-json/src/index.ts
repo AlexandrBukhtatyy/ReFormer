@@ -27,7 +27,8 @@ export type {
   JsonFieldNode,
   JsonArrayNode,
   JsonContainerNode,
-  JsonText,
+  JsonChild,
+  JsonTextChild,
 } from './types/json-schema';
 export { isFieldNode, isArrayNode, isContainerNode, defineJsonSchema } from './types/json-schema';
 

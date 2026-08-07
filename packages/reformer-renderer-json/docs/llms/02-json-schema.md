@@ -8,7 +8,7 @@
 - **`JsonNode`** — узел дерева. Дискриминированный union по строке-оператору, которую он несёт:
   - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md).
   - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить») + опциональный `component: '$component(List)'` (рендер зарегистрированным компонентом — display-список без add/remove; см. ниже).
-  - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` и `text`.
+  - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` (вложенные узлы и текстовые части вперемешку).
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
   - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
   - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
@@ -46,15 +46,16 @@ function inspect(node: JsonNode) {
   "component": "$html(div)",
   "componentProps": { "className": "p-4 bg-blue-50 rounded-md" },
   "children": [
-    { "component": "$html(h3)", "text": "$locale(summary.title)" },
-    { "component": "$html(p)", "text": ["Платёж: ", "$model(monthlyPayment)", " ₽"] },
+    { "component": "$html(h3)", "children": ["$locale(summary.title)"] },
+    { "component": "$html(p)", "children": ["Платёж: ", "$model(monthlyPayment)", " ₽"] },
     { "component": "$html(hr)" }
   ]
 }
 ```
 
-- **`text`** — литерал (строка/число), оператор или массив частей (склеивается без разделителя). `'$model(path)'` в тексте даёт **реактивное** значение (рендерер подписывается на сигнал), `'$locale(key)'` — строку каталога.
-- `text` рендерится **перед** `children`, поэтому inline-разметка собирается без обёрток: `{ "component": "$html(p)", "text": "Внимание! ", "children": [{ "component": "$html(b)", "text": "…" }] }`.
+- **Текст — элемент `children`**: строка или число рядом с вложенными узлами. Соседние текстовые части склеиваются без разделителя. `'$model(path)'` в тексте даёт **реактивное** значение (рендерер подписывается на сигнал), `'$locale(key)'` — строку каталога, `'$dataSource(name)'` — значение реестра (строку/число/сигнал), если текст живёт не в модели, а в UI-состоянии.
+- Текст и узлы идут в том порядке, в каком записаны, поэтому inline-разметка собирается без обёрток — и текст можно поставить **после** узла: `{ "component": "$html(p)", "children": [{ "component": "$html(b)", "children": ["Важно:"] }, " и далее текст"] }`.
+- Отдельного поля `text` у узла больше нет: схемы вида `{ "component": "$html(p)", "text": "…" }` мета-схема отвергает — переносите значение в `children`.
 - Для html-узла `componentProps` — это DOM-атрибуты (`className`, `id`, `aria-*`).
 - **Безопасность.** JSON-схема — недоверенный вход (может прийти с сервера), поэтому:
   - разрешены только презентационные теги; `script`/`style`/`iframe`/`object`/`embed`/`link`/`meta` и управляющие элементы формы (`form`/`input`/`select`/`button`) — нет (поля описываются field-узлами);
@@ -179,7 +180,7 @@ const schema: JsonFormSchema = {
 - **Аргументы у `$fn`** — оператор передаёт функцию **по ссылке**; биндинга аргументов (`$fn(goToStep, 2)`) нет. Нужен предзаданный аргумент — зарегистрируй уже связанную функцию через `reg.fn`.
 - **`$locale` для reactive-переключения языка** — ключ резолвится в строку **на этапе конвертации** (иначе signal уронил бы строковые компоненты). Смена языка = новый сервис в `reg.locale` + пересборка дерева, а не «живое» обновление. Для live-переключения и markdown/rich — компонент `$component(I18n)` + `LocaleProvider`, см. [08-i18n.md](08-i18n.md).
 - **Динамический/составной ключ `$locale`** — ключ это статичный литерал (`$locale(fields.email.label)`); вложить в него `$model(...)`/выражение нельзя. При наличии каталога опечатка ключа ловится на `validateSchema`; без каталога промах молча деградирует до самого ключа.
-- **Регистрировать компонент ради статичного блока** — `reg.component('InfoBlock', …)` для абзаца с текстом заменяется узлом `$html(div)`/`$html(p)` + `text`. Компонент нужен, когда есть своя логика или состояние.
+- **Регистрировать компонент ради статичного блока** — `reg.component('InfoBlock', …)` для абзаца с текстом заменяется узлом `$html(div)`/`$html(p)` с текстом в `children`. Компонент нужен, когда есть своя логика или состояние.
 - **`$component(div)` вместо `$html(div)`** — нативные теги живут в отдельном операторе и через реестр не резолвятся: `$component(div)` даст `unknown component "div"`.
 - **Ждать от `$html` произвольной разметки** — оператор принимает ОДИН тег (`$html(div)`), а не HTML-фрагмент. Вложенность описывается `children`.
 

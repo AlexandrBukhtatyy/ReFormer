@@ -202,7 +202,7 @@ const schema = createRenderSchema<MyForm>(() => buildSchema(model, form));
 - **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Без аргументов: возвращает корневой узел. Привязка к данным — через сигналы в листьях, поэтому legacy-аргумент `path` удалён.
 - **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`). Поля `validators` у узла **НЕТ** — правила валидации значений живут в отдельной TS-схеме над моделью, а не в render-дереве (`validators: [...]` на листе даст `TS2353`; см. [06-validation.md](06-validation.md)). Компонент листа получает **value-based seam** (`control`, `value`, `disabled`, `onChange(value)`, `onBlur`) — value-based контролам настройка не нужна. Сырой контрол сторонней UI-kit с другим диалектом (`checked`+событие у Checkbox, `(value, option)` у Select) подключается через `FieldAdapter`: рендерер сам переложит seam на его контракт, не оборачивая контрол (`settings.resolveFieldAdapter`; см. [05-cookbook.md](05-cookbook.md)).
 - **`ArrayRenderNode<T>`** — узел-массив модели. Данные принадлежат модели (`array: model.<path>`), форма элемента описывается `item(itemModel)`, `initialValue` — значение/фабрика нового элемента.
-- **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент **либо нативный HTML-тег строкой** (`'div'`, `'h3'`, `'hr'`), дочерние узлы задаются в **top-level** `children` (НЕ в `componentProps`). Опциональный `text` задаёт текстовое содержимое.
+- **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент **либо нативный HTML-тег строкой** (`'div'`, `'h3'`, `'hr'`), содержимое задаётся в **top-level** `children` (НЕ в `componentProps`): вложенные узлы и текстовые части (`RenderChild`) вперемешку.
 
 Type guards:
 
@@ -237,19 +237,20 @@ if (isHtmlTagRenderNode(node)) {
   component: 'div',
   componentProps: { className: 'p-4 bg-blue-50 rounded-md' },  // для тега это DOM-атрибуты
   children: [
-    { component: 'h3', text: 'Итого' },
-    { component: 'p', text: ['Платёж: ', model.$.monthlyPayment, ' ₽'] },
+    { component: 'h3', children: ['Итого'] },
+    { component: 'p', children: ['Платёж: ', model.$.monthlyPayment, ' ₽'] },
     { component: 'hr' },
   ],
 }
 ```
 
-- **`text`** принимает литерал (`string`/`number`), **сигнал** (`model.$.x` или `computed(...)`) или массив таких частей — массив склеивается без разделителя. `null`/`undefined` дают пустую строку.
+- **Ребёнок** (`RenderChild`) — вложенный узел ЛИБО текстовая часть: литерал (`string`/`number`) или **сигнал** (`model.$.x`, `computed(...)`). Соседние текстовые части склеиваются без разделителя; `null`/`undefined` в сигнале дают пустую строку.
 - Сигнал подписывается **точечно**: при изменении модели перерисовывается только текст, а не поддерево узла.
-- `text` рендерится **перед** `children` — так собирается inline-разметка: `{ component: 'p', text: 'Внимание! ', children: [{ component: 'b', text: 'платёж высокий' }] }` → `<p>Внимание! <b>платёж высокий</b></p>`.
+- Порядок в `children` соблюдается, поэтому текст можно ставить и до, и после узла: `{ component: 'p', children: [{ component: 'b', children: ['Важно:'] }, ' и далее текст'] }` → `<p><b>Важно:</b> и далее текст</p>`.
 - `selector` в DOM **не** пробрасывается (он адресует узел схемы, а не элемент), но `hideWhen`/`patchProps` по нему работают как обычно.
-- Void-теги (`hr`, `br`, `img`) содержимого не получают — `text`/`children` для них игнорируются.
-- `text` работает и на узле-компоненте: `{ component: Button, text: 'Отправить' }`.
+- Void-теги (`hr`, `br`, `img`) содержимого не получают — `children` для них игнорируются.
+- Текст работает и на узле-компоненте: `{ component: Button, children: ['Отправить'] }` — он приходит компоненту обычным React-`children`.
+- Компоненты, которые рендерят детей сами (`__selfManagedChildren`: `FormWizard`, секция массива), ждут узлы — текстовые части им не передаются (в dev об этом предупреждает console.warn).
 
 ## 8. Examples
 
@@ -360,8 +361,8 @@ hideWhen(schema.node('extra-section'), () => !form.subscribe.value.value);
 - **Класть `children` в `componentProps`** — `children` это TOP-LEVEL свойство контейнера. Рендерер деструктурирует `const { children } = node`. В `componentProps.children` узлы не отрисуются.
 - **Хранить `RenderSchemaProxy` внутри компонента без `useMemo`** — на каждом ре-рендере создаётся новый proxy, что ломает override-карты и lifecycle-хуки.
 - **Забыть `createForm` перед рендером** — лист-узел резолвит state-ноду по сигналу через реестр. Без `createForm({ model, schema })` реестр пуст, поле логирует warning и рендерится как `null`.
-- **Заводить компонент ради статичного блока текста** — `{ component: 'div', children: [{ component: 'p', text: '…' }] }` описывает то же самое схемой; отдельный компонент нужен, когда есть своя логика или состояние.
-- **Ожидать реактивности от интерполяции строкой** — `text: \`Платёж: ${model.$.x.value} ₽\`` читает значение ОДИН раз при построении схемы. Реактивен только сам сигнал: `text: ['Платёж: ', model.$.x, ' ₽']`.
+- **Заводить компонент ради статичного блока текста** — `{ component: 'div', children: [{ component: 'p', children: ['…'] }] }` описывает то же самое схемой; отдельный компонент нужен, когда есть своя логика или состояние.
+- **Ожидать реактивности от интерполяции строкой** — `children: [\`Платёж: ${model.$.x.value} ₽\`]` читает значение ОДИН раз при построении схемы. Реактивен только сам сигнал: `children: ['Платёж: ', model.$.x, ' ₽']`.
 
 ## 11. See also
 
@@ -754,7 +755,7 @@ form.disable();
 
 **Problem.** В форме нужны заголовки, инфо-плашка, разделитель и блок «Итого», где значения пересчитываются на лету. Заводить под каждый такой блок React-компонент (и, в JSON-варианте, регистрировать его) — много кода ради вёрстки.
 
-**Solution.** `component` контейнера принимает нативный тег строкой, а `text` — литералы и сигналы. Вычисляемое значение подаётся обычным `computed` из `@reformer/core/signals`.
+**Solution.** `component` контейнера принимает нативный тег строкой, а `children` — не только узлы, но и текстовые части: литералы и сигналы. Вычисляемое значение подаётся обычным `computed` из `@reformer/core/signals`.
 
 ```tsx
 import { computed } from '@reformer/core/signals';
@@ -765,9 +766,9 @@ const schema: RenderSchemaFn<Installment> = () => ({
   component: 'div',
   componentProps: { className: 'space-y-6' },
   children: [
-    { component: 'h2', componentProps: { className: 'text-xl font-bold' }, text: 'Рассрочка' },
+    { component: 'h2', componentProps: { className: 'text-xl font-bold' }, children: ['Рассрочка'] },
 
-    // text + children в одном узле → inline-разметка без лишних обёрток
+    // текст и узлы в одном children → inline-разметка без лишних обёрток
     {
       component: 'div',
       componentProps: { className: 'p-4 bg-blue-50 border border-blue-200 rounded-md' },
@@ -775,8 +776,10 @@ const schema: RenderSchemaFn<Installment> = () => ({
         {
           component: 'p',
           componentProps: { className: 'text-sm text-blue-800' },
-          text: 'Проценты не начисляются. ',
-          children: [{ component: 'b', text: 'Досрочное погашение бесплатно.' }],
+          children: [
+            'Проценты не начисляются. ',
+            { component: 'b', children: ['Досрочное погашение бесплатно.'] },
+          ],
         },
       ],
     },
@@ -784,13 +787,13 @@ const schema: RenderSchemaFn<Installment> = () => ({
     { value: model.$.amount, component: InputField, componentProps: { label: 'Сумма (₽)' } },
     { component: 'hr' },
 
-    // Живая сводка: сигналы в text подписываются точечно
+    // Живая сводка: сигналы среди детей подписываются точечно
     {
       component: 'dl',
       componentProps: { className: 'grid grid-cols-2 gap-2 text-sm' },
       children: [
-        { component: 'dt', text: 'Платёж в месяц' },
-        { component: 'dd', componentProps: { className: 'font-medium' }, text: [monthly, ' ₽'] },
+        { component: 'dt', children: ['Платёж в месяц'] },
+        { component: 'dd', componentProps: { className: 'font-medium' }, children: [monthly, ' ₽'] },
       ],
     },
   ],
@@ -799,7 +802,7 @@ const schema: RenderSchemaFn<Installment> = () => ({
 
 **Notes.**
 
-- Перерисовывается только сам текстовый узел — подписка идёт на сигналы части `text`, а не на поддерево.
+- Перерисовывается только сам текст — подписка идёт на сигналы текстовых детей, а не на поддерево узла.
 - Тег и компонент свободно вкладываются друг в друга: `{ component: 'div', children: [{ component: Section, … }] }` и наоборот.
 - `hideWhen`/`patchProps` работают по `selector` и на html-узлах; в DOM `selector` не пробрасывается.
 - Живой пример обеих схем (типизованной и JSON) — `projects/react-playground/src/pages/examples/html-nodes/`.
@@ -1199,15 +1202,13 @@ export interface ContainerRenderNode<T> extends FormSchemaNode {
    */
   component: ElementType;
 
-  /** Дочерние узлы рендеринга */
-  children?: RenderNode<T>[];
-
   /**
-   * Текстовое содержимое узла — литерал, сигнал модели или массив частей.
-   * Рендерится ПЕРЕД `children` (позволяет `<p>Внимание! <b>…</b></p>` без лишних обёрток).
-   * Void-теги (`hr`, `br`, `img`) содержимого не имеют — `text` для них игнорируется.
+   * Содержимое узла: вложенные узлы и текстовые части ({@link RenderChild}) в любом порядке.
+   * Текст — литерал, число или сигнал модели; подряд идущие части склеиваются без разделителя,
+   * а сигнал подписывается точечно (перерисовывается только текст, а не поддерево).
+   * Void-теги (`hr`, `br`, `img`) содержимого не имеют — `children` для них игнорируются.
    */
-  text?: RenderText;
+  children?: RenderChild<T>[];
 
   /** Props для компонента-контейнера (className, title и т.д.) */
   componentProps?: ContainerRenderNodeProps;
@@ -1237,8 +1238,8 @@ HTML-тег с текстом (реактивным)
 component: 'div',
 componentProps: { className: 'p-4 bg-blue-50 rounded-md' },
 children: [
-{ component: 'h3', text: 'Итого' },
-{ component: 'p', text: ['Платёж: ', model.$.monthlyPayment, ' ₽'] },
+{ component: 'h3', children: ['Итого'] },
+{ component: 'p', children: ['Платёж: ', model.$.monthlyPayment, ' ₽'] },
 ],
 }
 ```
@@ -1818,6 +1819,29 @@ wizardRef.current?.goToStep(1);
 
 _Source: src/core/render-behavior.ts_
 
+### RenderChild
+
+**Kind:** `type`
+
+Ребёнок контейнера: вложенный узел ЛИБО текстовая часть. Текст — такой же ребёнок, как узел,
+поэтому его можно ставить в любую позицию (в том числе ПОСЛЕ вложенного узла), а подряд идущие
+части склеиваются без разделителя.
+
+**Signature:**
+```typescript
+export type RenderChild<T> = RenderNode<T> | RenderTextPart;
+```
+
+**Examples:**
+
+```typescript
+{ component: 'h3', children: ['Итого'] }
+{ component: 'p', children: ['Платёж: ', model.$.monthlyPayment, ' ₽'] }
+{ component: 'p', children: [{ component: 'b', children: ['Важно:'] }, ' и далее текст'] }
+```
+
+_Source: src/core/types.ts_
+
 ### RenderContextProvider
 
 **Kind:** `function`
@@ -2081,27 +2105,6 @@ export type RenderSchemaProxy<T> = RenderSchemaFn<T> & {
 ```
 
 _Source: src/core/render-schema-proxy.ts_
-
-### RenderText
-
-**Kind:** `type`
-
-Текстовое содержимое узла ({@link ContainerRenderNode.text}). Массив склеивается без разделителя —
-так собираются строки с подстановкой значений модели.
-
-**Signature:**
-```typescript
-export type RenderText = RenderTextPart | ReadonlyArray<RenderTextPart>;
-```
-
-**Examples:**
-
-```typescript
-{ component: 'h3', text: 'Итого' }
-{ component: 'p', text: ['Платёж: ', model.$.monthlyPayment, ' ₽'] }
-```
-
-_Source: src/core/types.ts_
 
 ### RenderTextPart
 

@@ -57,7 +57,7 @@ export function resolveDrop(
     const slots = childSlots(node, targetPath).filter((s) => !s.single);
     const slot = slots.find((s) => s.kind === 'children') ?? slots[0];
     if (!slot) return null;
-    return { slotPath: slot.path, index: slot.nodes.length };
+    return { slotPath: slot.path, index: slot.length };
   }
 
   // before/after — как сосед в родительском слоте

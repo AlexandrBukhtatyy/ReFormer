@@ -63,10 +63,9 @@ export function walkNodes(
   const rec = (node: JsonNode, path: JsonPath) => {
     visit(node, path);
     for (const slot of childSlots(node, path)) {
-      slot.nodes.forEach((child, i) => {
-        const childPath = slot.single ? slot.path : [...slot.path, i];
-        rec(child, childPath);
-      });
+      for (const entry of slot.entries) {
+        rec(entry.node, slot.single ? slot.path : [...slot.path, entry.index]);
+      }
     }
   };
   rec(start, ['root']);
@@ -99,7 +98,15 @@ export function collectModelPaths(schema: JsonFormSchema): string[] {
     }
     if (isContainerNode(node)) {
       const c = node as JsonContainerNode;
-      c.children?.forEach(rec);
+      c.children?.forEach((child) => {
+        // Текстовая часть тоже может нести `$model(...)` — реактивный текст узла.
+        if (!isNodeLike(child)) {
+          const p = parseOperator(child);
+          if (p?.op === 'model') push(p.arg);
+          return;
+        }
+        rec(child as JsonNode);
+      });
       const steps = c.componentProps?.steps;
       if (Array.isArray(steps)) steps.forEach((s) => isNodeLike(s) && rec(s as JsonNode));
     }
@@ -166,7 +173,14 @@ export function isSameNode(a: JsonPath, b: JsonPath): boolean {
 /** Позиция узла среди соседей в его массив-слоте (`children`/`steps`). `null` — не в массив-слоте. */
 export interface SiblingInfo {
   slotPath: JsonPath;
+  /** Индекс узла в ИСХОДНОМ массиве-слоте (совпадает с последним сегментом пути). */
   index: number;
+  /**
+   * Индексы всех УЗЛОВ слота в исходном массиве, по порядку. Соседями считаются только они:
+   * текстовые части `children` собственного места на canvas не имеют, и выделение по ним не ходит.
+   */
+  siblings: number[];
+  /** Длина исходного массива-слота, включая текстовые части (позиция вставки «в конец»). */
   count: number;
 }
 
@@ -182,7 +196,8 @@ export function siblingInfo(schema: JsonFormSchema, path: JsonPath): SiblingInfo
       return {
         slotPath: slot.path,
         index: Number(path[path.length - 1]),
-        count: slot.nodes.length,
+        siblings: slot.entries.map((e) => e.index),
+        count: slot.length,
       };
     }
   }
@@ -194,8 +209,8 @@ export function firstChildPath(schema: JsonFormSchema, path: JsonPath): JsonPath
   const node = getAt(schema, path);
   if (!isNodeLike(node)) return null;
   for (const slot of childSlots(node, path)) {
-    if (slot.nodes.length === 0) continue;
-    return slot.single ? slot.path : [...slot.path, 0];
+    if (slot.entries.length === 0) continue;
+    return slot.single ? slot.path : [...slot.path, slot.entries[0].index];
   }
   return null;
 }
@@ -255,8 +270,11 @@ export function siblingTarget(
 ): JsonPath | null {
   const sib = siblingInfo(schema, path);
   if (!sib) return null;
-  const next = intent === 'prev' ? sib.index - 1 : sib.index + 1;
-  return next < 0 || next >= sib.count ? null : [...sib.slotPath, next];
+  // Шаг по списку УЗЛОВ слота, а не по индексам массива: между узлами могут лежать текстовые части.
+  const pos = sib.siblings.indexOf(sib.index);
+  if (pos < 0) return null;
+  const next = intent === 'prev' ? pos - 1 : pos + 1;
+  return next < 0 || next >= sib.siblings.length ? null : [...sib.slotPath, sib.siblings[next]];
 }
 
 /**

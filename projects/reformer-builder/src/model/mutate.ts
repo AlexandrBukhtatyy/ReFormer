@@ -97,6 +97,50 @@ export function setNodeKey(
   return { schema: next, newPath: nodePath };
 }
 
+/**
+ * Записать текстовое содержимое узла — текстовую часть в `children`. Пустая строка убирает её.
+ *
+ * Текст живёт среди детей на равных с узлами ({@link JsonChild}), поэтому правится ровно один
+ * текстовый элемент: существующий переписывается на месте (порядок относительно вложенных узлов
+ * сохраняется), а если его не было — добавляется первым. Инспектор зовёт это только когда
+ * текстовый элемент ровно один или его нет ({@link textChildIndex}); при нескольких частях
+ * содержимое правится в JSON.
+ */
+export function setTextChild(
+  schema: JsonFormSchema,
+  nodePath: JsonPath,
+  text: string
+): MutationResult {
+  const next = updateAt(schema, nodePath, (node: unknown) => {
+    const c: Record<string, unknown> = { ...(node as object) };
+    const kids = Array.isArray(c.children) ? [...(c.children as unknown[])] : [];
+    const at = kids.findIndex((k) => typeof k === 'string' || typeof k === 'number');
+    if (text === '') {
+      if (at >= 0) kids.splice(at, 1);
+    } else if (at >= 0) {
+      kids[at] = text;
+    } else {
+      kids.unshift(text);
+    }
+    if (kids.length === 0 && !Array.isArray(c.children)) delete c.children;
+    else c.children = kids;
+    return c;
+  });
+  return { schema: next, newPath: nodePath };
+}
+
+/** Индекс единственной текстовой части в `children` (`-1` — её нет, `null` — их несколько). */
+export function textChildIndex(node: JsonNode): number | null {
+  const kids = (node as { children?: unknown }).children;
+  if (!Array.isArray(kids)) return -1;
+  const found = kids.reduce<number[]>((acc, k, i) => {
+    if (typeof k === 'string' || typeof k === 'number') acc.push(i);
+    return acc;
+  }, []);
+  if (found.length > 1) return null;
+  return found.length === 1 ? found[0] : -1;
+}
+
 /** Сменить компонент узла-контейнера/поля (`$component(...)`/`$html(...)`). */
 export function setComponent(
   schema: JsonFormSchema,

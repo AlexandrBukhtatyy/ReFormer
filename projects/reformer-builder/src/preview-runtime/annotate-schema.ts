@@ -71,9 +71,9 @@ function annotateNode(node: JsonNode, path: JsonPath): JsonNode {
     const c = node as JsonContainerNode;
     const steps = c.componentProps?.steps;
     const hasSteps = Array.isArray(steps) && steps.some(isNodeLike);
-    // «Пустой» = нечего рисовать: ни детей, ни шагов, ни текста (такой узел схлопывается в 0px).
+    // «Пустой» = нечего рисовать: ни детей (узлов или текста), ни шагов — такой узел схлопывается в 0px.
     const childCount = (Array.isArray(c.children) ? c.children.length : 0) + (hasSteps ? 1 : 0);
-    const empty = childCount === 0 && c.text == null;
+    const empty = childCount === 0;
     const next = {
       ...c,
       componentProps: propsWithToken(c.componentProps, path, { empty }),
@@ -89,7 +89,10 @@ function annotateNode(node: JsonNode, path: JsonPath): JsonNode {
       };
     }
     if (Array.isArray(c.children)) {
-      next.children = c.children.map((child, i) => annotateNode(child, [...path, 'children', i]));
+      // Текстовые части аннотировать нечем — у них нет `componentProps` для токена подсветки.
+      next.children = c.children.map((child, i) =>
+        isNodeLike(child) ? annotateNode(child, [...path, 'children', i]) : child
+      );
     }
     return next as JsonNode;
   }

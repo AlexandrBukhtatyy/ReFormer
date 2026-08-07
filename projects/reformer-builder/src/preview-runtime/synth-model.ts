@@ -58,7 +58,8 @@ export function collectFieldDefaults(schema: JsonFormSchema): FieldDefault[] {
     }
     if (isContainerNode(node)) {
       const c = node as JsonContainerNode;
-      c.children?.forEach(rec);
+      // Текстовые части `children` полей не объявляют — спускаемся только в узлы.
+      c.children?.forEach((child) => isNodeLike(child) && rec(child as JsonNode));
       const steps = c.componentProps?.steps;
       if (Array.isArray(steps)) steps.forEach((s) => isNodeLike(s) && rec(s as JsonNode));
     }

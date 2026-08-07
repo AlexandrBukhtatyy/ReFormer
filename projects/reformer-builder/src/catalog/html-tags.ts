@@ -1,7 +1,7 @@
 /**
  * Единый источник данных о презентационных `$html(...)`-тегах палитры (спека §5/§6): какой тег
- * рисуем, как он держит содержимое (`container` — children, `text` — текстовое содержимое узла
- * `node.text`, `void` — самозакрывающийся) и какие props редактируются в инспекторе поверх
+ * рисуем, как он держит содержимое (`container` — вложенные узлы, `text` — текстовая часть в
+ * `children`, `void` — самозакрывающийся) и какие props редактируются в инспекторе поверх
  * базового `className`.
  * Все презентационные теги живут в одном разделе палитры «HTML» (категория назначается в
  * `synthetic-entries`); раздел «Типографика» отведён под ui-kit `Typography*`-компоненты, туда
@@ -19,7 +19,7 @@
 import type { PropsSchema } from '@reformer/ui-kit/meta';
 import type { PropGroup } from './types';
 
-/** Как тег держит содержимое: контейнер (children) / текстовый / самозакрывающийся. */
+/** Как тег держит содержимое: контейнер (вложенные узлы) / текстовый / самозакрывающийся. */
 export type HtmlContent = 'container' | 'text' | 'void';
 
 /** Описание одного `$html`-тега палитры. */
@@ -178,11 +178,11 @@ export function htmlTagSpec(tag: string): HtmlTagSpec | undefined {
  * `propsSchema` для инспектора: `className` (всегда) + тег-специфичные props из
  * {@link HtmlTagSpec.props}. Порядок ключей = порядок строк инспектора внутри секции.
  *
- * `text` СЮДА НЕ ВХОДИТ: текстовое содержимое — ключ УРОВНЯ УЗЛА (`node.text`, см.
- * `JsonContainerNode.text`), а не `componentProps`. Инспектор правит его отдельной секцией
- * «Содержимое» (`TextContentField`). Пока `text` был здесь, у текстовых тегов было ДВА поля
- * «Текст», и то, что из props-схемы, писало значение в `componentProps.text` — рендерер такой
- * ключ содержимым не считает (уходил бы в DOM-атрибут), а узел оставался с пустым содержимым.
+ * `text` СЮДА НЕ ВХОДИТ: текстовое содержимое — это ТЕКСТОВАЯ ЧАСТЬ В `children` (см.
+ * `JsonChild`), а не `componentProps`. Инспектор правит её отдельной секцией «Содержимое»
+ * (`TextContentField`). Пока `text` был здесь, у текстовых тегов было ДВА поля «Текст», и то,
+ * что из props-схемы, писало значение в `componentProps.text` — рендерер такой ключ содержимым
+ * не считает (уходил бы в DOM-атрибут), а узел оставался с пустым содержимым.
  */
 export function htmlPropsSchema(spec: HtmlTagSpec): PropsSchema {
   const properties: Record<string, PropsSchema> = { className: classNameProp };

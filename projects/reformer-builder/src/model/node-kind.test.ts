@@ -28,7 +28,7 @@ describe('childSlots', () => {
     const steps = slots.find((x) => x.kind === 'steps');
     expect(steps).toBeDefined();
     expect(steps!.path).toEqual([...P.steps]);
-    expect(steps!.nodes).toHaveLength(2);
+    expect(steps!.entries).toHaveLength(2);
     expect(steps!.single).toBe(false);
   });
 
@@ -37,7 +37,7 @@ describe('childSlots', () => {
     const slots = childSlots(getAt(s, P.step0) as JsonNode, P.step0);
     expect(slots).toHaveLength(1);
     expect(slots[0].kind).toBe('children');
-    expect(slots[0].nodes).toHaveLength(2);
+    expect(slots[0].entries).toHaveLength(2);
   });
 
   it('array → одиночный слот template', () => {
@@ -47,7 +47,23 @@ describe('childSlots', () => {
     expect(slots[0].kind).toBe('template');
     expect(slots[0].single).toBe(true);
     expect(slots[0].path).toEqual([...P.arrayTemplate]);
-    expect(slots[0].nodes).toHaveLength(1);
+    expect(slots[0].entries).toHaveLength(1);
+  });
+
+  it('текстовые части children пропускаются, индексы узлов остаются исходными', () => {
+    const node: JsonNode = {
+      component: '$html(p)',
+      children: [
+        'Внимание! ',
+        { component: '$html(b)', children: ['важно'] },
+        ' и далее текст',
+        { component: '$html(span)', children: ['хвост'] },
+      ],
+    } as unknown as JsonNode;
+    const slot = childSlots(node, ['root'])[0];
+    // Индексы — позиции в ИСХОДНОМ массиве: иначе путь узла указал бы на текстовую часть.
+    expect(slot.entries.map((e) => e.index)).toEqual([1, 3]);
+    expect(slot.length).toBe(4);
   });
 
   it('поле без wrapper → нет слотов; с wrapper → слот wrapper', () => {

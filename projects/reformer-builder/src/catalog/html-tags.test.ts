@@ -81,17 +81,16 @@ describe('узел-по-умолчанию для каждого тега', () =
     }
   });
 
-  it('container несёт children и defaultClass; text несёт text; void — пустые props', () => {
+  it('container несёт пустой children и defaultClass; text — текстовую часть; void — пустые props', () => {
     const div = makeNodeFor('$html(div)', 'container') as unknown as Record<string, unknown>;
     expect(div.children).toEqual([]);
     expect((div.componentProps as Record<string, unknown>).className).toBe('flex gap-4');
 
     const h1 = makeNodeFor('$html(h1)', 'container') as unknown as Record<string, unknown>;
-    expect(h1.text).toBe('Заголовок');
-    expect(h1.children).toBeUndefined();
+    expect(h1.children).toEqual(['Заголовок']);
 
     const hr = makeNodeFor('$html(hr)', 'container') as unknown as Record<string, unknown>;
     expect(hr.componentProps).toEqual({});
-    expect(hr.text).toBeUndefined();
+    expect(hr.children).toBeUndefined();
   });
 });

@@ -45,17 +45,17 @@ export function htmlNodeFor(name: string): JsonNode {
     return { component, componentProps, children: [] };
   }
   if (spec.content === 'void') return { component, componentProps: {} };
-  return { component, text: spec.defaultText ?? 'Текст' };
+  return { component, children: [spec.defaultText ?? 'Текст'] };
 }
 
 /**
  * Узел части compound'а (`AlertTitle`, `CardHeader`, `TableCell`…). Без `className` — раскладку
  * задаёт сама часть (`col-start-2` и т.п.), лишний `space-y-4` её ломает. Текстовым частям кладём
- * `text`, структурным — пустой `children`.
+ * в `children` заготовку текста, структурным — пустой `children`.
  */
 export function partNode(name: string, text?: string): JsonNode {
   const component = `$component(${name})` as `$component(${string})`;
-  return text === undefined ? { component, children: [] } : { component, text };
+  return { component, children: text === undefined ? [] : [text] };
 }
 
 /**
@@ -129,12 +129,12 @@ export const COMPOUND_TEMPLATES: Record<string, () => JsonNode> = {
           {
             component: '$component(TabsTrigger)',
             componentProps: { value: 'tab-1' },
-            text: 'Вкладка 1',
+            children: ['Вкладка 1'],
           },
           {
             component: '$component(TabsTrigger)',
             componentProps: { value: 'tab-2' },
-            text: 'Вкладка 2',
+            children: ['Вкладка 2'],
           },
         ],
       },
@@ -227,7 +227,7 @@ export const COMPOUND_TEMPLATES: Record<string, () => JsonNode> = {
           { component: '$component(PaginationItem)', children: [partNode('PaginationPrevious')] },
           {
             component: '$component(PaginationItem)',
-            children: [{ component: '$component(PaginationLink)', text: '1' }],
+            children: [{ component: '$component(PaginationLink)', children: ['1'] }],
           },
           { component: '$component(PaginationItem)', children: [partNode('PaginationNext')] },
         ],

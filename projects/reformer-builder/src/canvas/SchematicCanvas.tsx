@@ -129,8 +129,13 @@ function NodeView({
           parentOrientation === 'horizontal' && 'min-w-0 flex-1'
         )}
       >
-        {kids.nodes.map((child, i) => (
-          <NodeView key={i} node={child} path={[...kids.path, i]} selectionPath={selectionPath} />
+        {kids.entries.map((entry) => (
+          <NodeView
+            key={entry.index}
+            node={entry.node}
+            path={[...kids.path, entry.index]}
+            selectionPath={selectionPath}
+          />
         ))}
       </div>
     );
@@ -249,7 +254,7 @@ function NodeView({
                   : 'flex-col border-l pl-3'
               )}
             >
-              {slot.nodes.length === 0 && (
+              {slot.entries.length === 0 && (
                 <div
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -272,11 +277,11 @@ function NodeView({
                   перетащите компонент сюда
                 </div>
               )}
-              {slot.nodes.map((child, i) => (
+              {slot.entries.map((entry) => (
                 <NodeView
-                  key={i}
-                  node={child}
-                  path={slot.single ? slot.path : [...slot.path, i]}
+                  key={entry.index}
+                  node={entry.node}
+                  path={slot.single ? slot.path : [...slot.path, entry.index]}
                   selectionPath={selectionPath}
                 />
               ))}

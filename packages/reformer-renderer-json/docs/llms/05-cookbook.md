@@ -432,7 +432,7 @@ const registry = defineRegistry((reg) => {
 
 **Problem.** Заголовки, инфо-плашки, разделители, блок «Итого» с живыми значениями. Через `$component(...)` под каждый такой блок нужен React-компонент и строка в реестре — реестр разрастается кодом, который ничего не делает, кроме вёрстки.
 
-**Solution.** Оператор `$html(tag)` + поле `text`. В реестре остаются только настоящие компоненты (поля, обёртка поля).
+**Solution.** Оператор `$html(tag)` + текст прямо в `children`. В реестре остаются только настоящие компоненты (поля, обёртка поля).
 
 ```json
 {
@@ -442,7 +442,7 @@ const registry = defineRegistry((reg) => {
     {
       "component": "$html(h2)",
       "componentProps": { "className": "text-xl font-bold" },
-      "text": "$locale(installment.title)"
+      "children": ["$locale(installment.title)"]
     },
     {
       "component": "$html(div)",
@@ -451,8 +451,10 @@ const registry = defineRegistry((reg) => {
         {
           "component": "$html(p)",
           "componentProps": { "className": "text-sm text-blue-800" },
-          "text": "Проценты не начисляются. ",
-          "children": [{ "component": "$html(b)", "text": "Досрочное погашение бесплатно." }]
+          "children": [
+            "Проценты не начисляются. ",
+            { "component": "$html(b)", "children": ["Досрочное погашение бесплатно."] }
+          ]
         }
       ]
     },
@@ -466,11 +468,11 @@ const registry = defineRegistry((reg) => {
       "component": "$html(dl)",
       "componentProps": { "className": "grid grid-cols-2 gap-2 text-sm" },
       "children": [
-        { "component": "$html(dt)", "text": "Запрошенная сумма" },
+        { "component": "$html(dt)", "children": ["Запрошенная сумма"] },
         {
           "component": "$html(dd)",
           "componentProps": { "className": "font-medium" },
-          "text": ["$model(amount)", " ₽ на ", "$model(months)", " мес."]
+          "children": ["$model(amount)", " ₽ на ", "$model(months)", " мес."]
         }
       ]
     }
@@ -490,8 +492,9 @@ defineRegistry((reg) => {
 
 **Notes.**
 
-- `'$model(...)'` в `text` реактивен: рендерер подписывается на сигнал и перерисовывает только текст.
-- Вычисляемых выражений в JSON нет — «платёж = сумма / срок» считается `compute`-поведением над моделью, а `text` показывает уже готовое поле (`"$model(monthlyPayment)"`).
+- `'$model(...)'` текстовым ребёнком реактивен: рендерер подписывается на сигнал и перерисовывает только текст.
+- Вычисляемых выражений в JSON нет — «платёж = сумма / срок» считается `compute`-поведением над моделью, а текст показывает уже готовое поле (`"$model(monthlyPayment)"`).
+- Текст, живущий не в модели, а в UI-состоянии (статус отправки), кладётся сигналом в реестр и подставляется как `"$dataSource(SUBMIT_STATUS)"`.
 - Whitelist тегов и чистка `componentProps` (обработчики, `javascript:`-URL) описаны в [02-json-schema.md](02-json-schema.md#html-узлы-html-и-текст).
 - Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/examples/html-nodes/`.
 

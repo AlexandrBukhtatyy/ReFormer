@@ -23,16 +23,16 @@ import {
 } from '../operators';
 
 /**
- * Текстовое содержимое узла ({@link JsonContainerNode.text}). Строки могут быть операторами:
- * `'$model(path)'` даёт реактивное значение модели, `'$locale(key)'` — строку локализации,
- * остальные строки — литералы. Массив склеивается без разделителя.
+ * Текстовая часть содержимого — элемент `children`, не являющийся узлом. Строки могут быть
+ * операторами: `'$model(path)'` даёт реактивное значение модели, `'$locale(key)'` — строку
+ * локализации, остальные строки — литералы. Соседние части склеиваются без разделителя.
  *
  * @example
  * ```json
- * { "component": "$html(p)", "text": ["Платёж: ", "$model(monthlyPayment)", " ₽"] }
+ * { "component": "$html(p)", "children": ["Платёж: ", "$model(monthlyPayment)", " ₽"] }
  * ```
  */
-export type JsonText = string | number | Array<string | number>;
+export type JsonTextChild = string | number;
 
 /** Лист формы: значение из модели (`$model`) + опциональный компонент (`$component`, дефолт — Input). */
 export interface JsonFieldNode<T = unknown> {
@@ -100,16 +100,17 @@ export interface JsonContainerNode<T = unknown> {
   /** Props компонента; значения могут содержать строки-операторы или вложенные узлы. */
   componentProps?: Record<string, unknown>;
   /**
-   * Текстовое содержимое узла (литерал, `$model(...)`, `$locale(...)` или массив частей).
-   * Рендерится перед `children`.
+   * Содержимое узла: вложенные узлы и текстовые части ({@link JsonTextChild}) в любом порядке —
+   * текст можно ставить и после узла (`[{ "component": "$html(b)", … }, " и далее текст"]`).
    */
-  text?: JsonText;
-  /** Дочерние узлы. */
-  children?: JsonNode<T>[];
+  children?: JsonChild<T>[];
 }
 
 /** Узел JSON-схемы (M1). `T` — форма модели: при указании `$model(...)` пути сужаются до {@link Path}<T>. */
 export type JsonNode<T = unknown> = JsonFieldNode<T> | JsonArrayNode<T> | JsonContainerNode<T>;
+
+/** Элемент `children`: вложенный узел либо текстовая часть ({@link JsonTextChild}). */
+export type JsonChild<T = unknown> = JsonNode<T> | JsonTextChild;
 
 /**
  * Корневая JSON-схема формы.

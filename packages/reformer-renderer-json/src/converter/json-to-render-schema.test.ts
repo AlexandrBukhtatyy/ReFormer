@@ -20,6 +20,8 @@ const registry = defineRegistry((reg) => {
   reg.component('FormField', FormFieldStub);
   reg.component('List', ListStub);
   reg.dataSource('LOAN_TYPES', LOAN_TYPES);
+  // Источник-строка: так в схему попадает «живой» текст не из модели (в реальных формах — computed).
+  reg.dataSource('STATUS_TEXT', 'готово');
   reg.fn('itemLabel', itemLabelFn);
   reg.locale(createLocaleResolver({ 'fields.email.label': 'Email' }));
 });
@@ -260,41 +262,67 @@ describe('convertJsonToM1Tree', () => {
       const node = convert({
         component: '$html(div)',
         children: [
-          { component: '$html(h3)', text: 'Итого' },
+          { component: '$html(h3)', children: ['Итого'] },
           { value: '$model(email)', component: '$component(Input)' },
         ],
       });
       expect(node.children[0].component).toBe('h3');
-      expect(node.children[0].text).toBe('Итого');
+      expect(node.children[0].children).toEqual(['Итого']);
       expect(node.children[1].component).toBe(InputStub);
     });
 
-    it('оставляет литеральный text как есть', () => {
-      expect(convert({ component: '$html(p)', text: 'Внимание' }).text).toBe('Внимание');
-      expect(convert({ component: '$html(p)', text: 42 }).text).toBe(42);
+    it('оставляет литеральные текстовые части как есть', () => {
+      expect(convert({ component: '$html(p)', children: ['Внимание'] }).children).toEqual([
+        'Внимание',
+      ]);
+      expect(convert({ component: '$html(p)', children: [42] }).children).toEqual([42]);
     });
 
     it('резолвит $model(...) в тексте в сигнал — рендерер на него подпишется', () => {
-      const node = convert({ component: '$html(p)', text: '$model(monthlyPayment)' });
-      expect(node.text).toEqual({ __path: 'monthlyPayment' });
+      const node = convert({ component: '$html(p)', children: ['$model(monthlyPayment)'] });
+      expect(node.children).toEqual([{ __path: 'monthlyPayment' }]);
     });
 
-    it('резолвит части массива-текста по отдельности', () => {
+    it('резолвит текстовые части по отдельности, сохраняя порядок', () => {
       const node = convert({
         component: '$html(p)',
-        text: ['Платёж: ', '$model(monthlyPayment)', ' ₽'],
+        children: ['Платёж: ', '$model(monthlyPayment)', ' ₽'],
       });
-      expect(node.text).toEqual(['Платёж: ', { __path: 'monthlyPayment' }, ' ₽']);
+      expect(node.children).toEqual(['Платёж: ', { __path: 'monthlyPayment' }, ' ₽']);
     });
 
     it('резолвит $locale(...) в тексте в строку каталога', () => {
-      expect(convert({ component: '$html(span)', text: '$locale(fields.email.label)' }).text).toBe(
-        'Email'
-      );
+      expect(
+        convert({ component: '$html(span)', children: ['$locale(fields.email.label)'] }).children
+      ).toEqual(['Email']);
     });
 
-    it('не добавляет ключ text, если его нет в схеме', () => {
-      expect('text' in convert({ component: '$html(div)' })).toBe(false);
+    it('держит текст и узлы в одном массиве в порядке следования', () => {
+      const node = convert({
+        component: '$html(p)',
+        children: [{ component: '$html(b)', children: ['Важно:'] }, ' и далее текст'],
+      });
+      expect(node.children[0].component).toBe('b');
+      expect(node.children[1]).toBe(' и далее текст');
+    });
+
+    it('$dataSource в тексте отдаёт значение реестра — «живой» текст не из модели', () => {
+      const node = convert({ component: '$html(p)', children: ['$dataSource(STATUS_TEXT)'] });
+      expect(node.children).toEqual(['готово']);
+    });
+
+    it('бросает на операторе, который не резолвится в текст', () => {
+      expect(() => convert({ component: '$html(p)', children: ['$component(Input)'] })).toThrow(
+        /cannot be a text child/i
+      );
+      // Источник, отдающий не-текст (массив options), в позиции текста — тоже ошибка схемы.
+      expect(() =>
+        convert({ component: '$html(p)', children: ['$dataSource(LOAN_TYPES)'] })
+      ).toThrow(/non-text value/i);
+    });
+
+    it('не добавляет ключ children, если его нет в схеме', () => {
+      expect(convert({ component: '$html(div)' }).children).toBeUndefined();
     });
 
     it('чистит небезопасные props html-узла', () => {

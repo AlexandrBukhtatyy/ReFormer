@@ -510,7 +510,7 @@ function insertSlotOf(
 ): { slotPath: JsonPath; count: number } | null {
   const slots = childSlots(node, path).filter((s) => !s.single);
   const slot = slots.find((s) => s.kind === 'children') ?? slots[0];
-  if (slot) return { slotPath: slot.path, count: slot.nodes.length };
+  if (slot) return { slotPath: slot.path, count: slot.length };
   // Листовые компоненты (Icon/Separator/…) слот children не создают, хоть и isContainerNode.
   return !isLeafComponent(node) && isContainerNode(node)
     ? { slotPath: [...path, 'children'], count: 0 }
@@ -586,7 +586,7 @@ function moveIn(schema: JsonFormSchema, path: JsonPath): MutationResult | null {
   const slots = childSlots(prevNode, prevPath).filter((s) => !s.single);
   const slot = slots.find((s) => s.kind === 'children') ?? slots[0];
   if (!slot) return null;
-  return moveNode(schema, path, slot.path, slot.nodes.length);
+  return moveNode(schema, path, slot.path, slot.length);
 }
 
 /**

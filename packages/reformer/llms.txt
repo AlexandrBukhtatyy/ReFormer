@@ -5900,8 +5900,13 @@ export interface FormSchemaNode {
   /** Идентификатор узла (для wizard/tabs/renderBehavior). */
   selector?: string;
   testId?: string;
-  /** Дочерние узлы (даёт контекстную типизацию вложенным литералам — value/validators/when). */
-  children?: readonly FormSchemaNode[];
+  /**
+   * Содержимое узла: под-узлы (даёт контекстную типизацию вложенным литералам — value/validators/when)
+   * и текстовые части. Текст (литерал, число, сигнал модели) — такой же ребёнок, как узел: core его
+   * не интерпретирует (обход пропускает примитивы и не спускается внутрь сигнала), а рендерер
+   * выводит на своём месте в порядке следования.
+   */
+  children?: readonly (FormSchemaNode | string | number | Signal<any>)[];
   /** Условие включения поддерева (branch-узел `{ when, children }`). */
   when?: (scope: any, root: any) => boolean;
   /** Реактивный массив модели (`model.<path>`) — маркер узла-массива (вместе с `item`). */

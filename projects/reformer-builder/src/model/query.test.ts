@@ -27,11 +27,17 @@ describe('навигация (siblingInfo / firstChildPath / navTarget)', () => 
     expect(siblingInfo(s, P.step0field0)).toEqual({
       slotPath: [...P.step0children],
       index: 0,
+      siblings: [0, 1],
       count: 2,
     });
     expect(siblingInfo(s, P.step0field1)?.index).toBe(1);
     // шаги wizard — соседи в слоте steps
-    expect(siblingInfo(s, P.step0)).toEqual({ slotPath: [...P.steps], index: 0, count: 2 });
+    expect(siblingInfo(s, P.step0)).toEqual({
+      slotPath: [...P.steps],
+      index: 0,
+      siblings: [0, 1],
+      count: 2,
+    });
     // корень не в массив-слоте
     expect(siblingInfo(s, P.root)).toBeNull();
   });

@@ -18,7 +18,13 @@ import {
   type JsonNode,
 } from '@reformer/renderer-json';
 import { findByPath, isLeafComponent, kindOf, type JsonPath } from '../model';
-import { setComponentProp, setNodeKey, switchVariant } from '../model';
+import {
+  setComponentProp,
+  setNodeKey,
+  setTextChild,
+  switchVariant,
+  textChildIndex,
+} from '../model';
 import { getCatalogEntry, inspectorGroups, partNamesOf, type InspectorProp } from '../catalog';
 import { variantGroupOf } from '../catalog/variants';
 import { editorActions, useActiveTab, useSelectionPath, type TabState } from '../store';
@@ -114,19 +120,19 @@ function ModelPathField({ node, path, tab }: { node: JsonNode; path: JsonPath; t
 }
 
 /**
- * Редактор текстового содержимого узла (`text` — поле УРОВНЯ УЗЛА, не `componentProps`). Им
+ * Редактор текстового содержимого узла — текстовой части в `children` (не `componentProps`). Им
  * наполняются как html-теги (`$html(p)`, `$html(h1)`), так и компоненты, чей визуал — это их
  * содержимое (Button, Badge, Label, Typography*): без него такой узел рендерится пустым.
- * Рендерер выводит `text` перед `children`, поэтому смешанное содержимое не ломается.
+ * Текст — такой же ребёнок, как вложенный узел, поэтому его позиция среди детей сохраняется.
  *
- * Пустая строка удаляет ключ. Массив фрагментов (`JsonText` допускает список) строкой не правим —
- * показываем read-only, чтобы не схлопнуть структуру.
+ * Пустая строка удаляет часть. Несколько текстовых частей (`['Платёж: ', '$model(x)', ' ₽']`)
+ * строкой не правим — показываем read-only, чтобы не схлопнуть структуру.
  *
  * У корня compound'а (`Alert`, `Card`, `Tabs`…) голого текста не бывает: содержимое живёт в частях
  * (`AlertTitle`/`AlertDescription`). Такому узлу вместо поля показываем, куда писать, — иначе текст
  * попадает прямо в grid-корень `Alert` (`grid-cols-[0_1fr]`) и печатается по одному слову в строке.
- * Если `text` уже задан (схема из прошлых версий) — поле показываем с предупреждением, чтобы значение
- * можно было перенести и убрать.
+ * Если текст в нём уже есть — поле показываем с предупреждением, чтобы значение можно было перенести
+ * и убрать.
  */
 function TextContentField({
   node,
@@ -137,13 +143,15 @@ function TextContentField({
   path: JsonPath;
   parts: string[];
 }) {
-  const raw = (node as { text?: unknown }).text;
-  const isList = Array.isArray(raw);
+  const at = textChildIndex(node);
+  const isList = at === null;
+  const kids = (node as { children?: unknown[] }).children;
+  const raw = at != null && at >= 0 ? kids?.[at] : undefined;
   const value = raw == null ? '' : String(raw);
   const compound = parts.length > 0;
 
   const set = (next: string) =>
-    editorActions.apply((s) => setNodeKey(s, path, 'text', next === '' ? undefined : next), {
+    editorActions.apply((s) => setTextChild(s, path, next), {
       coalesceKey: `text@${path.join('.')}`,
     });
 
@@ -343,9 +351,9 @@ export function Inspector() {
   // поля «Текст» — у такого корня голое содержимое ломает раскладку.
   const compoundParts = entry ? partNamesOf(entry.name) : [];
   const rawGroups = entry ? inspectorGroups(entry.propsSchema) : [];
-  // Если содержимое правится секцией «Содержимое» (пишет в `node.text`), проп `text` из props-схемы
-  // не показываем: он бы дал второе поле «Текст», пишущее в `componentProps.text` — не то место,
-  // рендерер оттуда содержимое не берёт.
+  // Если содержимое правится секцией «Содержимое» (пишет текстовую часть в `children`), проп `text`
+  // из props-схемы не показываем: он бы дал второе поле «Текст», пишущее в `componentProps.text` —
+  // не то место, рендерер оттуда содержимое не берёт.
   const groups = showsText
     ? rawGroups
         .map((g) => ({ ...g, props: g.props.filter((p) => p.key !== 'text') }))

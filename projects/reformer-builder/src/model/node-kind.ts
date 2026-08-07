@@ -30,6 +30,18 @@ export type NodeKind = 'field' | 'array' | 'container';
 /** Имя дочернего слота. */
 export type ChildSlotKind = 'children' | 'steps' | 'template' | 'wrapper';
 
+/**
+ * Узел слота вместе с его позицией в ИСХОДНОМ массиве. Индекс хранится явно, потому что слот
+ * отдаёт только узлы, а в массиве рядом с ними лежат не-узлы: текстовые части `children`
+ * (`JsonChild`) и произвольные значения в `componentProps.steps`. Считать позицию по индексу
+ * отфильтрованного списка нельзя — путь указал бы на соседа.
+ */
+export interface ChildEntry {
+  node: JsonNode;
+  /** Позиция в исходном массиве-слоте; для одиночных слотов (`template`/`wrapper`) — `0`. */
+  index: number;
+}
+
 /** Дочерний слот узла — нормализованное представление одной коллекции детей. */
 export interface ChildSlot {
   /** Тип слота. */
@@ -38,8 +50,10 @@ export interface ChildSlot {
   path: JsonPath;
   /** `true` для одиночных слотов (`template`/`wrapper`), где не массив, а один узел. */
   single: boolean;
-  /** Узлы слота (для одиночного — массив из одного элемента). */
-  nodes: JsonNode[];
+  /** Узлы слота с их позициями (для одиночного — один элемент с `index: 0`). */
+  entries: ChildEntry[];
+  /** Длина исходного массива-слота, включая не-узлы (для одиночного — `1`). Позиция вставки «в конец». */
+  length: number;
 }
 
 /**
@@ -126,7 +140,8 @@ export function childSlots(node: JsonNode, nodePath: JsonPath): ChildSlot[] {
       kind: 'template',
       path: [...nodePath, 'item', '$template'],
       single: true,
-      nodes: [arr.item.$template],
+      entries: [{ node: arr.item.$template, index: 0 }],
+      length: 1,
     });
     return slots;
   }
@@ -137,7 +152,8 @@ export function childSlots(node: JsonNode, nodePath: JsonPath): ChildSlot[] {
         kind: 'wrapper',
         path: [...nodePath, 'wrapper'],
         single: true,
-        nodes: [node.wrapper],
+        entries: [{ node: node.wrapper, index: 0 }],
+        length: 1,
       });
     }
     return slots;
@@ -151,7 +167,8 @@ export function childSlots(node: JsonNode, nodePath: JsonPath): ChildSlot[] {
         kind: 'steps',
         path: [...nodePath, 'componentProps', 'steps'],
         single: false,
-        nodes: steps.filter(isNodeLike),
+        entries: nodeEntries(steps),
+        length: steps.length,
       });
     }
     if (Array.isArray(c.children)) {
@@ -159,12 +176,24 @@ export function childSlots(node: JsonNode, nodePath: JsonPath): ChildSlot[] {
         kind: 'children',
         path: [...nodePath, 'children'],
         single: false,
-        nodes: c.children,
+        // Текстовые части сюда не попадают: у них нет собственного места на canvas — их правит
+        // секция «Содержимое» инспектора у родителя.
+        entries: nodeEntries(c.children),
+        length: c.children.length,
       });
     }
   }
 
   return slots;
+}
+
+/** Узлы массива-слота со своими исходными индексами (не-узлы отбрасываются, индексы не съезжают). */
+function nodeEntries(items: readonly unknown[]): ChildEntry[] {
+  const out: ChildEntry[] = [];
+  items.forEach((item, index) => {
+    if (isNodeLike(item)) out.push({ node: item, index });
+  });
+  return out;
 }
 
 /**

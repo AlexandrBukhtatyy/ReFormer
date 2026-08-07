@@ -37,8 +37,9 @@ export function isFormSchema(value: unknown): value is JsonFormSchema {
 }
 
 /**
- * Привести распарсенный JSON к `JsonFormSchema` или бросить. НЕ мутирует и НЕ переупорядочивает
- * ключи — passthrough as-is (важно для round-trip).
+ * Привести распарсенный JSON к `JsonFormSchema` или бросить. Ключи и неизвестные операторы
+ * сохраняются as-is (требование round-trip); единственное преобразование — {@link migrateTextNodes}
+ * для схем, написанных до переезда текста в `children`.
  *
  * @throws Если структура не проходит {@link isFormSchema}.
  */
@@ -46,5 +47,42 @@ export function ensureSchema(value: unknown): JsonFormSchema {
   if (!isFormSchema(value)) {
     throw new Error('ensureSchema: JSON не похож на JsonFormSchema (нет узла в `root`)');
   }
-  return value;
+  return migrateTextNodes(value);
+}
+
+/**
+ * Схемы прошлых версий держали содержимое в отдельном ключе `text` (`{ component, text: 'Итого' }`);
+ * теперь текст — такая же часть `children`, как вложенный узел, и `text` мета-схемой отвергается.
+ * Переписываем его в текстовые дети ПЕРЕД `children` — ровно там он и рендерился.
+ *
+ * Проход по всему значению (а не только по узлам): `text` встречается и внутри `componentProps`
+ * (шаги мастера, слоты компонентов). Если `text` нет — возвращается исходная ссылка, поэтому
+ * round-trip нетронутых файлов не страдает.
+ */
+export function migrateTextNodes<T>(value: T): T {
+  let touched = false;
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) {
+      const items = v.map(walk);
+      return touched ? items : v;
+    }
+    if (v == null || typeof v !== 'object') return v;
+    const src = v as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(src)) {
+      if (key === 'text' && isNodeLike(src)) {
+        const parts = Array.isArray(src.text) ? src.text : [src.text];
+        const kids = Array.isArray(src.children) ? (src.children as unknown[]).map(walk) : [];
+        out.children = [...parts, ...kids];
+        touched = true;
+        continue;
+      }
+      // `children` уже собран веткой выше — второй раз его не переписываем.
+      if (key === 'children' && out.children !== undefined) continue;
+      out[key] = walk(src[key]);
+    }
+    return touched ? out : v;
+  };
+  const next = walk(value);
+  return touched ? (next as T) : value;
 }

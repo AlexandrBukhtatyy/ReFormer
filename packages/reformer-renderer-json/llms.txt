@@ -154,7 +154,7 @@ function MyFormPage() {
 - **`JsonNode`** — узел дерева. Дискриминированный union по строке-оператору, которую он несёт:
   - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md).
   - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить») + опциональный `component: '$component(List)'` (рендер зарегистрированным компонентом — display-список без add/remove; см. ниже).
-  - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` и `text`.
+  - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` (вложенные узлы и текстовые части вперемешку).
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
   - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
   - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
@@ -192,15 +192,16 @@ function inspect(node: JsonNode) {
   "component": "$html(div)",
   "componentProps": { "className": "p-4 bg-blue-50 rounded-md" },
   "children": [
-    { "component": "$html(h3)", "text": "$locale(summary.title)" },
-    { "component": "$html(p)", "text": ["Платёж: ", "$model(monthlyPayment)", " ₽"] },
+    { "component": "$html(h3)", "children": ["$locale(summary.title)"] },
+    { "component": "$html(p)", "children": ["Платёж: ", "$model(monthlyPayment)", " ₽"] },
     { "component": "$html(hr)" }
   ]
 }
 ```
 
-- **`text`** — литерал (строка/число), оператор или массив частей (склеивается без разделителя). `'$model(path)'` в тексте даёт **реактивное** значение (рендерер подписывается на сигнал), `'$locale(key)'` — строку каталога.
-- `text` рендерится **перед** `children`, поэтому inline-разметка собирается без обёрток: `{ "component": "$html(p)", "text": "Внимание! ", "children": [{ "component": "$html(b)", "text": "…" }] }`.
+- **Текст — элемент `children`**: строка или число рядом с вложенными узлами. Соседние текстовые части склеиваются без разделителя. `'$model(path)'` в тексте даёт **реактивное** значение (рендерер подписывается на сигнал), `'$locale(key)'` — строку каталога, `'$dataSource(name)'` — значение реестра (строку/число/сигнал), если текст живёт не в модели, а в UI-состоянии.
+- Текст и узлы идут в том порядке, в каком записаны, поэтому inline-разметка собирается без обёрток — и текст можно поставить **после** узла: `{ "component": "$html(p)", "children": [{ "component": "$html(b)", "children": ["Важно:"] }, " и далее текст"] }`.
+- Отдельного поля `text` у узла больше нет: схемы вида `{ "component": "$html(p)", "text": "…" }` мета-схема отвергает — переносите значение в `children`.
 - Для html-узла `componentProps` — это DOM-атрибуты (`className`, `id`, `aria-*`).
 - **Безопасность.** JSON-схема — недоверенный вход (может прийти с сервера), поэтому:
   - разрешены только презентационные теги; `script`/`style`/`iframe`/`object`/`embed`/`link`/`meta` и управляющие элементы формы (`form`/`input`/`select`/`button`) — нет (поля описываются field-узлами);
@@ -325,7 +326,7 @@ const schema: JsonFormSchema = {
 - **Аргументы у `$fn`** — оператор передаёт функцию **по ссылке**; биндинга аргументов (`$fn(goToStep, 2)`) нет. Нужен предзаданный аргумент — зарегистрируй уже связанную функцию через `reg.fn`.
 - **`$locale` для reactive-переключения языка** — ключ резолвится в строку **на этапе конвертации** (иначе signal уронил бы строковые компоненты). Смена языка = новый сервис в `reg.locale` + пересборка дерева, а не «живое» обновление. Для live-переключения и markdown/rich — компонент `$component(I18n)` + `LocaleProvider`, см. [08-i18n.md](08-i18n.md).
 - **Динамический/составной ключ `$locale`** — ключ это статичный литерал (`$locale(fields.email.label)`); вложить в него `$model(...)`/выражение нельзя. При наличии каталога опечатка ключа ловится на `validateSchema`; без каталога промах молча деградирует до самого ключа.
-- **Регистрировать компонент ради статичного блока** — `reg.component('InfoBlock', …)` для абзаца с текстом заменяется узлом `$html(div)`/`$html(p)` + `text`. Компонент нужен, когда есть своя логика или состояние.
+- **Регистрировать компонент ради статичного блока** — `reg.component('InfoBlock', …)` для абзаца с текстом заменяется узлом `$html(div)`/`$html(p)` с текстом в `children`. Компонент нужен, когда есть своя логика или состояние.
 - **`$component(div)` вместо `$html(div)`** — нативные теги живут в отдельном операторе и через реестр не резолвятся: `$component(div)` даст `unknown component "div"`.
 - **Ждать от `$html` произвольной разметки** — оператор принимает ОДИН тег (`$html(div)`), а не HTML-фрагмент. Вложенность описывается `children`.
 
@@ -1026,7 +1027,7 @@ const registry = defineRegistry((reg) => {
 
 **Problem.** Заголовки, инфо-плашки, разделители, блок «Итого» с живыми значениями. Через `$component(...)` под каждый такой блок нужен React-компонент и строка в реестре — реестр разрастается кодом, который ничего не делает, кроме вёрстки.
 
-**Solution.** Оператор `$html(tag)` + поле `text`. В реестре остаются только настоящие компоненты (поля, обёртка поля).
+**Solution.** Оператор `$html(tag)` + текст прямо в `children`. В реестре остаются только настоящие компоненты (поля, обёртка поля).
 
 ```json
 {
@@ -1036,7 +1037,7 @@ const registry = defineRegistry((reg) => {
     {
       "component": "$html(h2)",
       "componentProps": { "className": "text-xl font-bold" },
-      "text": "$locale(installment.title)"
+      "children": ["$locale(installment.title)"]
     },
     {
       "component": "$html(div)",
@@ -1045,8 +1046,10 @@ const registry = defineRegistry((reg) => {
         {
           "component": "$html(p)",
           "componentProps": { "className": "text-sm text-blue-800" },
-          "text": "Проценты не начисляются. ",
-          "children": [{ "component": "$html(b)", "text": "Досрочное погашение бесплатно." }]
+          "children": [
+            "Проценты не начисляются. ",
+            { "component": "$html(b)", "children": ["Досрочное погашение бесплатно."] }
+          ]
         }
       ]
     },
@@ -1060,11 +1063,11 @@ const registry = defineRegistry((reg) => {
       "component": "$html(dl)",
       "componentProps": { "className": "grid grid-cols-2 gap-2 text-sm" },
       "children": [
-        { "component": "$html(dt)", "text": "Запрошенная сумма" },
+        { "component": "$html(dt)", "children": ["Запрошенная сумма"] },
         {
           "component": "$html(dd)",
           "componentProps": { "className": "font-medium" },
-          "text": ["$model(amount)", " ₽ на ", "$model(months)", " мес."]
+          "children": ["$model(amount)", " ₽ на ", "$model(months)", " мес."]
         }
       ]
     }
@@ -1084,8 +1087,9 @@ defineRegistry((reg) => {
 
 **Notes.**
 
-- `'$model(...)'` в `text` реактивен: рендерер подписывается на сигнал и перерисовывает только текст.
-- Вычисляемых выражений в JSON нет — «платёж = сумма / срок» считается `compute`-поведением над моделью, а `text` показывает уже готовое поле (`"$model(monthlyPayment)"`).
+- `'$model(...)'` текстовым ребёнком реактивен: рендерер подписывается на сигнал и перерисовывает только текст.
+- Вычисляемых выражений в JSON нет — «платёж = сумма / срок» считается `compute`-поведением над моделью, а текст показывает уже готовое поле (`"$model(monthlyPayment)"`).
+- Текст, живущий не в модели, а в UI-состоянии (статус отправки), кладётся сигналом в реестр и подставляется как `"$dataSource(SUBMIT_STATUS)"`.
 - Whitelist тегов и чистка `componentProps` (обработчики, `javascript:`-URL) описаны в [02-json-schema.md](02-json-schema.md#html-узлы-html-и-текст).
 - Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/examples/html-nodes/`.
 
@@ -2786,6 +2790,19 @@ export interface JsonArrayNode<T = unknown> {
 
 _Source: src/types/json-schema.ts_
 
+### JsonChild
+
+**Kind:** `type`
+
+Элемент `children`: вложенный узел либо текстовая часть ({@link JsonTextChild}).
+
+**Signature:**
+```typescript
+export type JsonChild<T = unknown> = JsonNode<T> | JsonTextChild;
+```
+
+_Source: src/types/json-schema.ts_
+
 ### JsonContainerNode
 
 **Kind:** `interface`
@@ -2808,12 +2825,10 @@ export interface JsonContainerNode<T = unknown> {
   /** Props компонента; значения могут содержать строки-операторы или вложенные узлы. */
   componentProps?: Record<string, unknown>;
   /**
-   * Текстовое содержимое узла (литерал, `$model(...)`, `$locale(...)` или массив частей).
-   * Рендерится перед `children`.
+   * Содержимое узла: вложенные узлы и текстовые части ({@link JsonTextChild}) в любом порядке —
+   * текст можно ставить и после узла (`[{ "component": "$html(b)", … }, " и далее текст"]`).
    */
-  text?: JsonText;
-  /** Дочерние узлы. */
-  children?: JsonNode<T>[];
+  children?: JsonChild<T>[];
 }
 ```
 
@@ -3142,23 +3157,23 @@ export interface JsonRendererSettings extends RendererSettings {
 
 _Source: src/context/json-renderer-context.tsx_
 
-### JsonText
+### JsonTextChild
 
 **Kind:** `type`
 
-Текстовое содержимое узла ({@link JsonContainerNode.text}). Строки могут быть операторами:
-`'$model(path)'` даёт реактивное значение модели, `'$locale(key)'` — строку локализации,
-остальные строки — литералы. Массив склеивается без разделителя.
+Текстовая часть содержимого — элемент `children`, не являющийся узлом. Строки могут быть
+операторами: `'$model(path)'` даёт реактивное значение модели, `'$locale(key)'` — строку
+локализации, остальные строки — литералы. Соседние части склеиваются без разделителя.
 
 **Signature:**
 ```typescript
-export type JsonText = string | number | Array<string | number>;
+export type JsonTextChild = string | number;
 ```
 
 **Examples:**
 
 ```json
-{ "component": "$html(p)", "text": ["Платёж: ", "$model(monthlyPayment)", " ₽"] }
+{ "component": "$html(p)", "children": ["Платёж: ", "$model(monthlyPayment)", " ₽"] }
 ```
 
 _Source: src/types/json-schema.ts_

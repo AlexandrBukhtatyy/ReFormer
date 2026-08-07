@@ -146,7 +146,7 @@ const exampleGroups: { title: string; items: ExampleEntry[] }[] = [
         path: '/examples/html-nodes',
         title: 'HTML-узлы',
         description:
-          'Нативные теги и текст прямо в схеме: component: \'div\' / "$html(div)" и реактивный text из модели',
+          'Нативные теги и текст прямо в схеме: component: \'div\' / "$html(div)" и реактивный текст из модели прямо в children',
       },
       {
         id: 'registration-json',

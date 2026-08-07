@@ -95,8 +95,8 @@ describe('makeNodeFor — compound-компоненты', () => {
     >;
     expect(title.component).toBe('$component(AlertTitle)');
     expect('componentProps' in title).toBe(false);
-    // Текстовой части кладём заготовку, структурной — пустой children.
-    expect(title.text).toBe('Текст');
+    // Текстовой части кладём заготовку текста в children, структурной — пустой children.
+    expect(title.children).toEqual(['Текст']);
     expect(partNode('CardContent')).toEqual({ component: '$component(CardContent)', children: [] });
   });
 });

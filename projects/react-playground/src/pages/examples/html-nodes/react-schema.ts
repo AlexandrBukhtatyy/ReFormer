@@ -1,10 +1,11 @@
 /**
- * Типизованная RenderSchema мини-примера: `component` строкой-тегом + `text`.
+ * Типизованная RenderSchema мини-примера: `component` строкой-тегом + текст прямо в `children`.
  *
  * Показывает, что презентационные блоки (заголовок, инфо-плашка, сводка, разделитель) больше
  * не требуют отдельного React-компонента с регистрацией — они описываются прямо в схеме.
- * `text` принимает и литералы, и сигналы: части массива склеиваются без разделителя, а сигнал
- * подписывается точечно, поэтому при изменении модели перерисовывается только сам текст.
+ * Ребёнком может быть литерал, сигнал или вложенный узел в любом порядке: соседние текстовые
+ * части склеиваются без разделителя, а сигнал подписывается точечно, поэтому при изменении
+ * модели перерисовывается только сам текст.
  */
 
 import { computed } from '@reformer/core/signals';
@@ -13,7 +14,7 @@ import type { RenderNode } from '@reformer/renderer-react';
 import { InputField } from '@reformer/ui-kit';
 import type { InstallmentRequest } from './model';
 
-/** Платёж без процентов — вычисляемый сигнал, который уедет прямо в `text` узла. */
+/** Платёж без процентов — вычисляемый сигнал, который уедет прямо в `children` узла. */
 export const monthlyPayment = (model: FormModel<InstallmentRequest>) =>
   computed(() => {
     const amount = model.$.amount.value ?? 0;
@@ -31,9 +32,13 @@ export function buildInstallmentSchema(
     componentProps: { className: 'space-y-6' },
     children: [
       // Заголовок секции — раньше ради этого заводили компонент Section или Typography.
-      { component: 'h2', componentProps: { className: 'text-xl font-bold' }, text: 'Рассрочка' },
+      {
+        component: 'h2',
+        componentProps: { className: 'text-xl font-bold' },
+        children: ['Рассрочка'],
+      },
 
-      // Инфо-плашка: смешанный inline-контент — `text` рендерится перед `children`.
+      // Инфо-плашка: смешанный inline-контент — текст и узлы лежат в одном `children`.
       {
         component: 'div',
         componentProps: { className: 'p-4 bg-blue-50 border border-blue-200 rounded-md' },
@@ -41,8 +46,10 @@ export function buildInstallmentSchema(
           {
             component: 'p',
             componentProps: { className: 'text-sm text-blue-800' },
-            text: 'Проценты не начисляются. ',
-            children: [{ component: 'b', text: 'Досрочное погашение бесплатно.' }],
+            children: [
+              'Проценты не начисляются. ',
+              { component: 'b', children: ['Досрочное погашение бесплатно.'] },
+            ],
           },
         ],
       },
@@ -76,21 +83,25 @@ export function buildInstallmentSchema(
         component: 'dl',
         componentProps: { className: 'grid grid-cols-2 gap-2 text-sm' },
         children: [
-          { component: 'dt', componentProps: { className: 'text-gray-500' }, text: 'Заявитель' },
+          {
+            component: 'dt',
+            componentProps: { className: 'text-gray-500' },
+            children: ['Заявитель'],
+          },
           {
             component: 'dd',
             componentProps: { className: 'font-medium', 'data-testid': 'summary-fullName' },
-            text: model.$.fullName,
+            children: [model.$.fullName],
           },
           {
             component: 'dt',
             componentProps: { className: 'text-gray-500' },
-            text: 'Платёж в месяц',
+            children: ['Платёж в месяц'],
           },
           {
             component: 'dd',
             componentProps: { className: 'font-medium', 'data-testid': 'summary-monthly' },
-            text: [monthly, ' ₽'],
+            children: [monthly, ' ₽'],
           },
         ],
       },

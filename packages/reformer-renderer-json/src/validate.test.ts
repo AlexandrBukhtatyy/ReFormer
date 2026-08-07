@@ -284,18 +284,28 @@ describe('validateFormSchema', () => {
     expect(errors.filter((e) => e.includes('/root')).length).toBe(1);
   });
 
-  describe('HTML-узлы ($html(tag) + text)', () => {
+  describe('HTML-узлы ($html(tag) + текстовые children)', () => {
     it('принимает html-узел с текстом и вложенными узлами', () => {
       const schema = {
         root: {
           component: '$html(div)',
           componentProps: { className: 'p-4' },
           children: [
-            { component: '$html(h3)', text: 'Итого' },
-            { component: '$html(p)', text: ['Платёж: ', '$model(monthlyPayment)', ' ₽'] },
+            { component: '$html(h3)', children: ['Итого'] },
+            { component: '$html(p)', children: ['Платёж: ', '$model(monthlyPayment)', ' ₽'] },
             { component: '$html(hr)' },
             { value: '$model(email)', component: '$component(Input)' },
           ],
+        },
+      };
+      expect(validateFormSchema(schema, opts)).toEqual({ valid: true, errors: [] });
+    });
+
+    it('принимает текст после вложенного узла', () => {
+      const schema = {
+        root: {
+          component: '$html(p)',
+          children: [{ component: '$html(b)', children: ['Важно:'] }, ' и далее текст'],
         },
       };
       expect(validateFormSchema(schema, opts)).toEqual({ valid: true, errors: [] });
@@ -325,8 +335,15 @@ describe('validateFormSchema', () => {
       expect(errors.join('\n')).toMatch(/"object"/);
     });
 
-    it('отвергает text неверного типа', () => {
-      const schema = { root: { component: '$html(p)', text: { some: 'object' } } };
+    it('отвергает снятое поле text — содержимое живёт в children', () => {
+      const schema = { root: { component: '$html(p)', text: 'Внимание' } };
+      const { valid, errors } = validateFormSchema(schema, opts);
+      expect(valid).toBe(false);
+      expect(errors.join('\n')).toMatch(/text/);
+    });
+
+    it('отвергает текстового ребёнка неверного типа', () => {
+      const schema = { root: { component: '$html(p)', children: [true] } };
       expect(validateFormSchema(schema, opts).valid).toBe(false);
     });
 

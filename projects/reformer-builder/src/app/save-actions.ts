@@ -187,13 +187,20 @@ export async function openSchemaFile(d: TreeEntry, opts?: OpenOptions): Promise<
   const handle = d.handle;
   try {
     const { text, lastModified } = await readFile(handle);
-    const schema = ensureSchema(JSON.parse(text));
+    const parsed = JSON.parse(text);
+    const schema = ensureSchema(parsed);
     editorActions.openTab(
       d.path,
       { kind: 'file', name: d.name, path: d.path, handle, rawText: text, lastModified },
       schema,
       opts
     );
+    // ensureSchema переносит устаревший `text` узла в текстовые `children` (ссылка меняется только
+    // при реальной правке). Файл на диске при этом ещё старый — говорим об этом, иначе расхождение
+    // редактора и файла выглядит необъяснимо.
+    if (schema !== parsed) {
+      toast('Схема обновлена под новый формат: текст узлов переехал в children. Сохраните файл.');
+    }
   } catch (e) {
     toast('Не удалось открыть схему: ' + msg(e));
   }

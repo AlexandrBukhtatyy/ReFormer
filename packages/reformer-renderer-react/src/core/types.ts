@@ -61,16 +61,18 @@ export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | Containe
 export type RenderTextPart = string | number | Signal<any>;
 
 /**
- * Текстовое содержимое узла ({@link ContainerRenderNode.text}). Массив склеивается без разделителя —
- * так собираются строки с подстановкой значений модели.
+ * Ребёнок контейнера: вложенный узел ЛИБО текстовая часть. Текст — такой же ребёнок, как узел,
+ * поэтому его можно ставить в любую позицию (в том числе ПОСЛЕ вложенного узла), а подряд идущие
+ * части склеиваются без разделителя.
  *
  * @example
  * ```typescript
- * { component: 'h3', text: 'Итого' }
- * { component: 'p', text: ['Платёж: ', model.$.monthlyPayment, ' ₽'] }
+ * { component: 'h3', children: ['Итого'] }
+ * { component: 'p', children: ['Платёж: ', model.$.monthlyPayment, ' ₽'] }
+ * { component: 'p', children: [{ component: 'b', children: ['Важно:'] }, ' и далее текст'] }
  * ```
  */
-export type RenderText = RenderTextPart | ReadonlyArray<RenderTextPart>;
+export type RenderChild<T> = RenderNode<T> | RenderTextPart;
 
 // ============================================================================
 // MODEL FIELD / ARRAY RENDER NODE (M1 — единая схема, привязка через сигнал)
@@ -209,8 +211,8 @@ export interface ContainerRenderNodeProps {
  *   component: 'div',
  *   componentProps: { className: 'p-4 bg-blue-50 rounded-md' },
  *   children: [
- *     { component: 'h3', text: 'Итого' },
- *     { component: 'p', text: ['Платёж: ', model.$.monthlyPayment, ' ₽'] },
+ *     { component: 'h3', children: ['Итого'] },
+ *     { component: 'p', children: ['Платёж: ', model.$.monthlyPayment, ' ₽'] },
  *   ],
  * }
  * ```
@@ -229,15 +231,13 @@ export interface ContainerRenderNode<T> extends FormSchemaNode {
    */
   component: ElementType;
 
-  /** Дочерние узлы рендеринга */
-  children?: RenderNode<T>[];
-
   /**
-   * Текстовое содержимое узла — литерал, сигнал модели или массив частей.
-   * Рендерится ПЕРЕД `children` (позволяет `<p>Внимание! <b>…</b></p>` без лишних обёрток).
-   * Void-теги (`hr`, `br`, `img`) содержимого не имеют — `text` для них игнорируется.
+   * Содержимое узла: вложенные узлы и текстовые части ({@link RenderChild}) в любом порядке.
+   * Текст — литерал, число или сигнал модели; подряд идущие части склеиваются без разделителя,
+   * а сигнал подписывается точечно (перерисовывается только текст, а не поддерево).
+   * Void-теги (`hr`, `br`, `img`) содержимого не имеют — `children` для них игнорируются.
    */
-  text?: RenderText;
+  children?: RenderChild<T>[];
 
   /** Props для компонента-контейнера (className, title и т.д.) */
   componentProps?: ContainerRenderNodeProps;

@@ -22,6 +22,8 @@ import {
   removeIndices,
   groupBlock,
   ungroupNode,
+  setTextChild,
+  textChildIndex,
 } from './mutate';
 import { getAt, removeAt } from './paths';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
@@ -383,5 +385,35 @@ describe('groupBlock / ungroupNode (группировка)', () => {
     ).toEqual(['$model(loanType)', '$model(loanAmount)']);
     const s = sampleSchema();
     expect(ungroupNode(s, P.step0field0).schema).toBe(s); // поле, не div
+  });
+});
+
+describe('setTextChild / textChildIndex', () => {
+  const node = (children?: unknown[]): JsonFormSchema =>
+    ({
+      version: '1.0',
+      root: { component: '$html(p)', ...(children ? { children } : {}) },
+    }) as unknown as JsonFormSchema;
+  const kidsOf = (s: JsonFormSchema): unknown[] => getAt(s, ['root', 'children']) as unknown[];
+
+  it('добавляет текстовую часть первой, если её не было', () => {
+    const s = setTextChild(node([{ component: '$html(b)' }]), ['root'], 'Внимание').schema;
+    expect(kidsOf(s)).toEqual(['Внимание', { component: '$html(b)' }]);
+  });
+
+  it('переписывает существующую часть на месте — порядок относительно узлов сохраняется', () => {
+    const s = setTextChild(node([{ component: '$html(b)' }, ' старый']), ['root'], ' новый').schema;
+    expect(kidsOf(s)).toEqual([{ component: '$html(b)' }, ' новый']);
+  });
+
+  it('пустая строка убирает текстовую часть, узлы остаются', () => {
+    const s = setTextChild(node(['текст', { component: '$html(b)' }]), ['root'], '').schema;
+    expect(kidsOf(s)).toEqual([{ component: '$html(b)' }]);
+  });
+
+  it('textChildIndex: -1 без текста, индекс единственной части, null при нескольких', () => {
+    expect(textChildIndex({ component: '$html(p)' } as never)).toBe(-1);
+    expect(textChildIndex({ component: '$html(p)', children: [{}, 'x'] } as never)).toBe(1);
+    expect(textChildIndex({ component: '$html(p)', children: ['a', 'b'] } as never)).toBeNull();
   });
 });

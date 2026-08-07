@@ -15,7 +15,7 @@ import type {
   ModelFieldRenderNode,
   ArrayRenderNode,
   RenderModelArrayControl,
-  RenderText,
+  RenderChild,
   RenderTextPart,
 } from './types';
 import {
@@ -546,9 +546,57 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
 // TEXT CONTENT — статический и реактивный текст узла
 // ============================================================================
 
-/** Нормализует {@link RenderText} к массиву частей (одиночное значение → массив из одного). */
-function toTextParts(text: RenderText): readonly RenderTextPart[] {
-  return Array.isArray(text) ? text : [text as RenderTextPart];
+/** Ребёнок-текст (литерал, число, сигнал), а не вложенный узел. */
+function isTextPart(child: unknown): child is RenderTextPart {
+  return typeof child === 'string' || typeof child === 'number' || child instanceof Signal;
+}
+
+/**
+ * Группирует детей в чанки: подряд идущие текстовые части — в один текстовый чанк (склеиваются без
+ * разделителя и подписываются одним {@link RenderTextContent}, как раньше делал массив `text`),
+ * узлы — каждый своим чанком. `key` — индекс первого элемента чанка в исходном массиве.
+ */
+function groupChildren<T>(
+  children: readonly RenderChild<T>[]
+): Array<{ key: number; parts: RenderTextPart[] } | { key: number; node: RenderNode<T> }> {
+  const out: Array<
+    { key: number; parts: RenderTextPart[] } | { key: number; node: RenderNode<T> }
+  > = [];
+  let text: { key: number; parts: RenderTextPart[] } | null = null;
+  children.forEach((child, i) => {
+    if (isTextPart(child)) {
+      if (!text) {
+        text = { key: i, parts: [] };
+        out.push(text);
+      }
+      text.parts.push(child);
+      return;
+    }
+    text = null;
+    out.push({ key: i, node: child });
+  });
+  return out;
+}
+
+/**
+ * Только узлы — для компонентов с `__selfManagedChildren` (wizard, секция массива): они обходят
+ * детей сами и ждут {@link RenderNode}. Текст в таком слоте — ошибка автора схемы, поэтому в dev
+ * о нём предупреждаем, а не роняем рендер.
+ */
+function nodesOnly<T>(children: readonly RenderChild<T>[]): RenderNode<T>[] {
+  const out: RenderNode<T>[] = [];
+  let dropped = 0;
+  for (const child of children) {
+    if (isTextPart(child)) dropped += 1;
+    else out.push(child);
+  }
+  if (dropped > 0 && process.env.NODE_ENV !== 'production' && typeof console !== 'undefined') {
+    console.warn(
+      `[RenderSchema] Компонент управляет children сам — текстовых частей он не рендерит; ` +
+        `отброшено: ${dropped}. Оберните текст в узел (напр. { component: 'span', children: [...] }).`
+    );
+  }
+  return out;
 }
 
 /** Части-сигналы (на них подписывается {@link RenderTextContent}); литералы отбрасываются. */
@@ -629,17 +677,16 @@ function useSignalProps(
 }
 
 /**
- * Текстовое содержимое узла ({@link ContainerRenderNode.text}). Части-сигналы подписываются точечно,
- * поэтому изменение значения модели перерисовывает только этот текст, а не поддерево узла.
- * Снапшот — примитив-строка, поэтому кэшировать его (в отличие от объектных снапшотов выше)
- * не нужно: `useSyncExternalStore` сравнивает через `Object.is`. SSR-safe.
+ * Текстовые дети узла — подряд идущие части одного чанка ({@link groupChildren}). Части-сигналы
+ * подписываются точечно, поэтому изменение значения модели перерисовывает только этот текст, а не
+ * поддерево узла. Снапшот — примитив-строка, поэтому кэшировать его (в отличие от объектных
+ * снапшотов выше) не нужно: `useSyncExternalStore` сравнивает через `Object.is`. SSR-safe.
  */
 const RenderTextContent = memo(function RenderTextContent({
-  text,
+  parts,
 }: {
-  text: RenderText;
+  parts: readonly RenderTextPart[];
 }): ReactNode {
-  const parts = toTextParts(text);
   const signals = collectTextSignals(parts);
   const signalsKey = useSignalSetKey(signals);
   // Актуальные части/сигналы читаются из ref-ов: subscribe/getSnapshot ключуются по составу
@@ -819,7 +866,9 @@ export function RenderNodeComponent<T>({
       // children: предпочитаем node.children (если есть). Иначе fallback на
       // componentProps.children (некоторые компоненты, напр. FormRoot из page 2 v4,
       // передают raw RenderNode[] через componentProps).
-      const childrenProp = children !== undefined ? { children } : {};
+      // Такой компонент рендерит детей сам и ждёт УЗЛЫ — текстовые части ему не отдаём
+      // (он бы попытался прочитать у строки `component`/`children`).
+      const childrenProp = children !== undefined ? { children: nodesOnly(children) } : {};
       return (
         <SelfManagedComponent
           {...(selector !== undefined ? { selector } : {})}
@@ -843,11 +892,15 @@ export function RenderNodeComponent<T>({
         {...effectiveProps}
         {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
       >
-        {/* text идёт перед children — так `<p>Внимание! <b>…</b></p>` собирается без обёрток */}
-        {node.text !== undefined ? <RenderTextContent text={node.text} /> : null}
-        {children?.map((child, i) => (
-          <RenderNodeComponent key={i} node={child} form={form} />
-        ))}
+        {/* Текст — такой же ребёнок, как узел: порядок соблюдается, соседние части склеиваются */}
+        {children &&
+          groupChildren(children).map((chunk) =>
+            'parts' in chunk ? (
+              <RenderTextContent key={chunk.key} parts={chunk.parts} />
+            ) : (
+              <RenderNodeComponent key={chunk.key} node={chunk.node} form={form} />
+            )
+          )}
       </Comp>
     );
   }

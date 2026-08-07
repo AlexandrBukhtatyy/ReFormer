@@ -12,7 +12,9 @@ function allNodePaths(schema: JsonFormSchema): JsonPath[] {
   const walk = (node: JsonNode, path: JsonPath) => {
     out.push(path);
     for (const slot of childSlots(node, path)) {
-      slot.nodes.forEach((child, i) => walk(child, slot.single ? slot.path : [...slot.path, i]));
+      slot.entries.forEach((entry) =>
+        walk(entry.node, slot.single ? slot.path : [...slot.path, entry.index])
+      );
     }
   };
   walk(schema.root, ['root']);
@@ -83,7 +85,7 @@ describe('annotateSchema', () => {
         component: '$html(div)',
         children: [
           { component: '$html(div)', children: [] },
-          { component: '$html(span)', text: 'x' },
+          { component: '$html(span)', children: ['x'] },
         ],
       },
     } as unknown as JsonFormSchema;

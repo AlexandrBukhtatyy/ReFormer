@@ -28,14 +28,16 @@
                 "componentProps": {
                   "className": "text-xl font-bold mb-4"
                 },
-                "text": "Регистрация"
+                "children": ["Регистрация"]
               },
               {
                 "component": "$html(p)",
                 "componentProps": {
                   "className": "text-sm text-gray-600 mb-6"
                 },
-                "text": "Поля предзаполнены по приглашению. Проверьте данные и завершите регистрацию."
+                "children": [
+                  "Поля предзаполнены по приглашению. Проверьте данные и завершите регистрацию."
+                ]
               },
               {
                 "component": "$html(div)",
@@ -155,7 +157,7 @@
                     "componentProps": {
                       "type": "button"
                     },
-                    "text": "Зарегистрироваться"
+                    "children": ["Зарегистрироваться"]
                   },
                   {
                     "selector": "reset-button",
@@ -164,7 +166,7 @@
                       "type": "button",
                       "variant": "secondary"
                     },
-                    "text": "Очистить"
+                    "children": ["Очистить"]
                   }
                 ]
               },
@@ -174,7 +176,7 @@
                   "className": "mt-4 text-sm text-gray-700",
                   "data-testid": "submit-status"
                 },
-                "text": "$dataSource(SUBMIT_STATUS)"
+                "children": ["$dataSource(SUBMIT_STATUS)"]
               },
               {
                 "component": "$html(div)",
@@ -187,7 +189,7 @@
                     "componentProps": {
                       "className": "font-semibold mb-2"
                     },
-                    "text": "💡 Подсказки для тестирования"
+                    "children": ["💡 Подсказки для тестирования"]
                   },
                   {
                     "component": "$html(ul)",
@@ -197,31 +199,31 @@
                     "children": [
                       {
                         "component": "$html(li)",
-                        "text": "• Занятые username: ",
                         "children": [
+                          "• Занятые username: ",
                           {
                             "component": "$html(code)",
-                            "text": "johndoe, janedoe, admin"
+                            "children": ["johndoe, janedoe, admin"]
                           }
                         ]
                       },
                       {
                         "component": "$html(li)",
-                        "text": "• Занятые email: ",
                         "children": [
+                          "• Занятые email: ",
                           {
                             "component": "$html(code)",
-                            "text": "john@example.com, admin@example.com"
+                            "children": ["john@example.com, admin@example.com"]
                           }
                         ]
                       },
                       {
                         "component": "$html(li)",
-                        "text": "• Правильная captcha: ",
                         "children": [
+                          "• Правильная captcha: ",
                           {
                             "component": "$html(code)",
-                            "text": "ABC123"
+                            "children": ["ABC123"]
                           }
                         ]
                       }
@@ -242,7 +244,7 @@
                 "componentProps": {
                   "className": "text-xl font-bold mb-4"
                 },
-                "text": "Состояние формы"
+                "children": ["Состояние формы"]
               },
               {
                 "selector": "form-state",
@@ -253,7 +255,9 @@
                 "componentProps": {
                   "className": "mt-6 p-4 bg-gray-50 border rounded text-sm text-gray-700"
                 },
-                "text": "Весь экран описан JSON-схемой: колонки, заголовки, поля, кнопки и загрузка префилла. В .tsx остались только JsonRendererProvider и JsonFormRenderer."
+                "children": [
+                  "Весь экран описан JSON-схемой: колонки, заголовки, поля, кнопки и загрузка префилла. В .tsx остались только JsonRendererProvider и JsonFormRenderer."
+                ]
               }
             ]
           }

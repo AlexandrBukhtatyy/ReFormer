@@ -10,12 +10,14 @@
           {
             "component": "$html(h1)",
             "componentProps": { "className": "text-xl font-semibold text-gray-800" },
-            "text": "Список алертов из модели"
+            "children": ["Список алертов из модели"]
           },
           {
             "component": "$html(p)",
             "componentProps": { "className": "text-sm text-gray-500" },
-            "text": "Массив alerts живёт в модели; behavior пересобирает его при изменении полей, а список рендерит $component(List) с $template на каждый элемент."
+            "children": [
+              "Массив alerts живёт в модели; behavior пересобирает его при изменении полей, а список рендерит $component(List) с $template на каждый элемент."
+            ]
           }
         ]
       },
@@ -36,7 +38,7 @@
           {
             "component": "$html(h2)",
             "componentProps": { "className": "mb-2 text-sm font-medium text-gray-500" },
-            "text": "Уведомления"
+            "children": ["Уведомления"]
           },
           {
             "selector": "alerts-list",

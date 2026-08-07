@@ -30,7 +30,7 @@ describe('wizard-узел (Wizard / Step)', () => {
     expect(slots).toHaveLength(1);
     expect(slots[0].kind).toBe('steps');
     expect(slots[0].path).toEqual(['root', 'componentProps', 'steps']);
-    expect(slots[0].nodes).toHaveLength(1);
+    expect(slots[0].entries).toHaveLength(1);
   });
 
   it('makeNodeFor(Step) — контейнер с пустым телом и подписью', () => {
