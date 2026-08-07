@@ -48,4 +48,22 @@ describe('List (ui-kit)', () => {
     expect(html).toContain('mt-4');
     expect(html).toContain('data-testid="alerts"');
   });
+
+  // Гарантия развязки: компонент — чистая презентация, ему не нужны ни форма, ни рендерер.
+  // Если этот тест начнёт требовать FormRenderer — связь с renderer-react вернулась.
+  it('рендерится на фейковых items без формы и без рендерера', () => {
+    const html = renderToStaticMarkup(
+      <List
+        testId="rows"
+        items={[
+          { key: 'a', index: 0, children: <span>Первый</span> },
+          { key: 'b', index: 1, children: <span>Второй</span> },
+        ]}
+      />
+    );
+    expect(html).toContain('role="list"');
+    expect(html).toContain('data-testid="rows"');
+    expect(html).toContain('Первый');
+    expect(html).toContain('Второй');
+  });
 });

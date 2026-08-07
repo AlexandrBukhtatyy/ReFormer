@@ -375,7 +375,6 @@
   "peerDependencies": {
     "@reformer/cdk": ">=1.0.0",
     "@reformer/core": ">=1.1.0",
-    "@reformer/renderer-react": ">=1.0.0",
     "@shadcn/react": "^0.2.1",
     "@tanstack/react-table": ">=8",
     "cmdk": ">=1",

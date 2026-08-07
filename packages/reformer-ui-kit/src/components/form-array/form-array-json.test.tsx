@@ -73,4 +73,23 @@ describe('FormArray (ui-kit, renderer-json)', () => {
     const html = render(faNode([], { title: 'T', emptyMessage: 'Пусто пока' }));
     expect(html).toContain('Пусто пока');
   });
+
+  // Гарантия развязки: компонент — чистая презентация, ему не нужны ни форма, ни рендерер.
+  // Если этот тест начнёт требовать FormRenderer — связь с renderer-react вернулась.
+  it('рендерится на фейковых items без формы и без рендерера', () => {
+    const html = renderToStaticMarkup(
+      <FormArray
+        title="Созаёмщики"
+        reorderable
+        items={[
+          { key: 'a', index: 0, model: { name: 'a' }, children: <span>Первый</span> },
+          { key: 'b', index: 1, model: { name: 'b' }, children: <span>Второй</span> },
+        ]}
+      />
+    );
+    expect(html).toContain('data-testid="array-add"');
+    expect(html).toContain('data-testid="array-item-0"');
+    expect(html).toContain('array-item-1-move-down');
+    expect(html).toContain('Первый');
+  });
 });

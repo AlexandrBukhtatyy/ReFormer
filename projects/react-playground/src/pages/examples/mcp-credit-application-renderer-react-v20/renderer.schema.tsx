@@ -4,11 +4,12 @@
 // Conditional sections carry a `selector` so renderer.behavior can hideWhen them.
 
 import type { FormModel, FormProxy } from '@reformer/core';
-import type { RenderNode } from '@reformer/renderer-react';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
 import {
   Box,
   CheckboxField,
+  FormArray,
   InputField,
   InputMaskField,
   RadioGroupField,
@@ -724,6 +725,7 @@ export function buildCreditApplicationSchema(
       {
         selector: 'properties-section',
         array: model.properties,
+        component: FormArray,
         initialValue: createBlankProperty,
         item: propertyItem,
         componentProps: {
@@ -743,6 +745,7 @@ export function buildCreditApplicationSchema(
       {
         selector: 'existingLoans-section',
         array: model.existingLoans,
+        component: FormArray,
         initialValue: createBlankExistingLoan,
         item: existingLoanItem,
         componentProps: {
@@ -761,6 +764,7 @@ export function buildCreditApplicationSchema(
       {
         selector: 'coBorrowers-section',
         array: model.coBorrowers,
+        component: FormArray,
         initialValue: createBlankCoBorrower,
         item: coBorrowerItem,
         componentProps: {
@@ -872,6 +876,13 @@ export function buildCreditApplicationSchema(
     componentProps: {
       ...(form ? { form } : {}),
       config: makeCreditValidationConfig(model),
+      // ui-kit FormWizard знает только ReactNode/ComponentType — узел RenderSchema он отрисовать
+      // не может и не должен (иначе дизайн-система зависела бы от рендерера). Стратегию отрисовки
+      // тела шага даём здесь, на стороне приложения.
+      renderStepBody: (
+        body: RenderNode<CreditApplicationForm>,
+        wizardForm: FormProxy<CreditApplicationForm>
+      ) => <RenderNodeComponent node={body} form={wizardForm} />,
       steps: [
         { number: 1, title: 'Кредит', icon: '💰', body: step1Body },
         { number: 2, title: 'Личные данные', icon: '👤', body: step2Body },

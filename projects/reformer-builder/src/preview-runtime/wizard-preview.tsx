@@ -7,8 +7,9 @@
  * Как работает: узел визарда держит шаги в `componentProps.steps[]` (каждый шаг — `$component(Step)`
  * с `componentProps.title/icon` и `children`). Конвертер renderer-json уже превратил эти шаги в
  * RenderNode-узлы (рекурсивно обходит `componentProps`), поэтому сюда `props.steps` приходят готовыми
- * узлами. Мы поднимаем `title`/`icon` на уровень шага и кладём сам узел шага в `body` — ui-kit
- * `renderStepBody` увидит объект с `.component` и отрисует его через `RenderNodeComponent`, прокинув
+ * узлами. Мы поднимаем `title`/`icon` на уровень шага, кладём сам узел шага в `body` и передаём
+ * стратегию `renderStepBody` — ui-kit `FormWizard` намеренно не знает про `@reformer/renderer-react`
+ * (дизайн-система от рендерера не зависит), поэтому отрисовку узла инъектим здесь, прокидывая
  * `form` (живые поля тела шага).
  *
  * `form` берём из builder-контекста {@link useWizardForm} (реальный `FormProxy` из `buildPreview`),
@@ -22,6 +23,7 @@
 import type { ReactNode } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormProxy } from '@reformer/core';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import { useWizardForm } from './wizard-form-context';
 
 /** Форма модели превью — гетерогенная, поэтому `Record<string, unknown>`. */
@@ -49,11 +51,11 @@ export function WizardPreview(props: WizardPreviewProps): ReactNode {
   const form = props.form ?? (contextForm as FormProxy<PreviewForm> | undefined);
   const rawSteps = props.steps ?? [];
 
-  const steps: FormWizardStep<PreviewForm>[] = rawSteps.map((node, i) => ({
+  const steps: FormWizardStep<PreviewForm, RenderNode<PreviewForm>>[] = rawSteps.map((node, i) => ({
     number: i + 1,
     title: node.componentProps?.title ?? `Шаг ${i + 1}`,
     icon: node.componentProps?.icon,
-    // Узел шага целиком → body; ui-kit `renderStepBody` отрисует его как RenderNode.
+    // Узел шага целиком → body; отрисует его стратегия `renderStepBody` ниже.
     body: node as any,
   }));
 
@@ -61,10 +63,11 @@ export function WizardPreview(props: WizardPreviewProps): ReactNode {
   // проп объявляет, но не применяет — иначе узел визарда нельзя было бы выделить кликом.
   return (
     <div className={props.className}>
-      <FormWizard<PreviewForm>
+      <FormWizard<PreviewForm, RenderNode<PreviewForm>>
         form={form as FormProxy<PreviewForm>}
         steps={steps}
         config={{}}
+        renderStepBody={(body, wizardForm) => <RenderNodeComponent node={body} form={wizardForm} />}
         onSubmit={() => {}}
       />
     </div>

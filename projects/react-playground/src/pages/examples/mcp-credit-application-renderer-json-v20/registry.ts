@@ -17,7 +17,7 @@ import {
 } from '@reformer/ui-kit';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import type { RenderNode } from '@reformer/renderer-react';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import type { CreditApplicationForm } from './types';
 import {
   CO_BORROWER_ITEM_LABEL,
@@ -43,6 +43,10 @@ type StepRenderNode = {
  * `$component(Wizard)` shim: turns the JSON `Step` container-nodes into ui-kit
  * FormWizard steps (each step's children become a Box RenderNode `body`), and
  * threads through the injected `form` + validation config.
+ *
+ * It also supplies `renderStepBody`: ui-kit `FormWizard` deliberately does not depend on
+ * `@reformer/renderer-react`, so turning a RenderNode `body` into a rendered tree is
+ * injected here — the shim is exactly the application-side boundary for that.
  */
 const RendererFormWizard: FC<Record<string, unknown>> = (props) => {
   const rawSteps = (props.steps as StepRenderNode[] | undefined) ?? [];
@@ -61,6 +65,11 @@ const RendererFormWizard: FC<Record<string, unknown>> = (props) => {
     form: props.form,
     steps,
     config: { validateStep: props.validateStep, validateAll: props.validateAll },
+    renderStepBody: (body: RenderNode<CreditApplicationForm>, form: unknown) =>
+      createElement(RenderNodeComponent as unknown as FC<Record<string, unknown>>, {
+        node: body,
+        form,
+      }),
     onSubmit: props.onSubmit,
   });
 };

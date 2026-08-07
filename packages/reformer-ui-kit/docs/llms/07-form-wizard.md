@@ -149,13 +149,15 @@ const handleSaveAndExit = async () => {
 
 `body` принимает три формы (runtime-discriminated):
 
-| Форма                                      | Когда использовать                                 |
-| ------------------------------------------ | -------------------------------------------------- |
-| `ComponentType<{ control: FormProxy<T> }>` | TS-flow; FC получает `control={form}` через ui-kit |
-| `ReactNode` (готовый JSX)                  | Статический контент шага без необходимости control |
-| `RenderNode<T>` (RenderSchema subtree)     | renderer-react / renderer-json flows               |
+| Форма                                      | Когда использовать                                                   |
+| ------------------------------------------ | -------------------------------------------------------------------- |
+| `ComponentType<{ control: FormProxy<T> }>` | TS-flow; FC получает `control={form}` через ui-kit                   |
+| `ReactNode` (готовый JSX)                  | Статический контент шага без необходимости control                   |
+| `TBody` (напр. `RenderNode<T>`)            | renderer-react / renderer-json flows — **нужен проп `renderStepBody`** |
 
 Все три варианта работают в одном wizard'е — можно комбинировать.
+
+**Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormProxy<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
 
 ## RenderNode body (renderer-react / renderer-json)
 
@@ -163,7 +165,7 @@ M1: схема без аргумента `path` — листья ссылают�
 (`value: model.$.x`), а не на `path.x`:
 
 ```tsx
-import { createRenderSchema } from '@reformer/renderer-react';
+import { createRenderSchema, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import { Box, Input } from '@reformer/ui-kit';
 
 const renderSchema = createRenderSchema<CreditApplication>(() => ({
@@ -173,6 +175,10 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
     form,
     config,
     onSubmit: handleSubmit,
+    // Стратегия отрисовки узла RenderSchema — ui-kit сам про рендерер не знает.
+    renderStepBody: (body: RenderNode<CreditApplication>, wizardForm) => (
+      <RenderNodeComponent node={body} form={wizardForm} />
+    ),
     steps: [
       {
         number: 1,
@@ -192,7 +198,7 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
 }));
 ```
 
-ui-kit FormWizard детектирует RenderNode (объект с `.component` без React-element-маркера) и оборачивает в `RenderNodeComponent` с `form={form}`.
+FormWizard видит, что `body` — не React-element и не component reference, и отдаёт его в `renderStepBody`; там приложение оборачивает узел в `RenderNodeComponent` с `form={form}`.
 
 ### ⚠️ RenderNode body требует RenderContextProvider
 
@@ -249,7 +255,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 }
 ```
 
-`body` — обычный JsonNode → конвертер renderer-json превращает в RenderNode → ui-kit FormWizard рендерит.
+`body` — обычный JsonNode → конвертер renderer-json превращает в RenderNode → шим `$component(Wizard)` отдаёт его в `FormWizard` вместе с `renderStepBody`. Шим (и стратегия в нём) — на стороне приложения; golden-пример: `projects/react-playground/src/components/RendererFormWizard.tsx`.
 
 ## Compound API
 

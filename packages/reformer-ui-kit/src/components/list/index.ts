@@ -2,3 +2,4 @@
 // renderer-json (`$component(List)`). Итерацию делает рендерер, List оформляет готовые children.
 export { List } from './variants/base/list';
 export type { ListProps } from './variants/base/list';
+export type { ArrayItemSlot, ArrayComponentProps } from '@/lib/array-slot';

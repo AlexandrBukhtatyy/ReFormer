@@ -17,7 +17,22 @@ import {
   type FormProxy,
 } from '@reformer/core';
 import { FormArray } from '@reformer/cdk/form-array';
-import type { FieldWrapperProps } from '@reformer/renderer-react';
+
+/**
+ * Props обёртки поля. Объявлены здесь СВОИ, а не импортированы из `@reformer/renderer-react`:
+ * ui-kit не зависит от рендерера. Структурно совпадает с `FieldWrapperProps` рендерера —
+ * TS сматчит их по форме, когда рендерер инъектит сюда свой wrapper.
+ */
+export interface FieldWrapperProps {
+  /** Контрол поля. */
+  control: any;
+  /** CSS-класс. */
+  className?: string;
+  /** Отрендеренный input. */
+  children: ReactNode;
+  /** testId для генерации `data-testid` на wrapper/label/error. */
+  testId?: string;
+}
 
 /**
  * Пропсы {@link FormArraySection}.

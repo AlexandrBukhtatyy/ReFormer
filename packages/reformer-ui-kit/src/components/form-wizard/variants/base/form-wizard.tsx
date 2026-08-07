@@ -6,11 +6,13 @@
  *
  * - `ComponentType<{ control: FormProxy<T> }>` — FC получает `control={form}`.
  * - `ReactNode` — готовый JSX (статический контент шага).
- * - `RenderNode<T>` — RenderSchema-поддерево; внутри обёрнуто в
- *   `<RenderNodeComponent>` для интеграции с `@reformer/renderer-react`.
+ * - `TBody` — что угодно ещё (например узел RenderSchema); отрисовывается
+ *   стратегией из пропа `renderStepBody`.
  *
- * Дискриминация делается в `renderStepBody` по типу значения runtime,
- * без discriminated-union-полей.
+ * Дискриминация делается в `resolveStepBody` по типу значения runtime,
+ * без discriminated-union-полей. Про рендерер компонент НЕ знает: всё, что не
+ * ReactNode и не ComponentType, уходит в `renderStepBody` — так ui-kit остаётся
+ * независимым от `@reformer/renderer-react` (инъекция стратегии вместо импорта).
  *
  * Маркер `__selfManagedChildren = true` гарантирует, что при использовании
  * внутри RenderSchema родительский renderer пробрасывает `form` как prop
@@ -34,7 +36,6 @@ import {
   type FormWizardProps as FormWizardHeadlessProps,
 } from '@reformer/cdk/form-wizard';
 import type { FormProxy } from '@reformer/core';
-import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import { FormWizardActions } from './form-wizard-actions';
 import { FormWizardProgress } from './form-wizard-progress';
 import { StepIndicator } from './step-indicator';
@@ -47,10 +48,12 @@ import { StepIndicator } from './step-indicator';
  * - `ComponentType<{ control: FormProxy<T> }>` — React-компонент; получает
  *   `control={form}` (корневой {@link FormProxy}) и сам обращается к нужным полям.
  * - `ReactNode` — готовый JSX или статический контент шага (текст, число и т.п.).
- * - `RenderNode<T>` — RenderSchema-поддерево; рендерится через `RenderNodeComponent`
- *   для интеграции с `@reformer/renderer-react`.
+ * - `TBody` — расширение под внешний рендерер (например `RenderNode<T>` из
+ *   `@reformer/renderer-react`); отрисовывается стратегией {@link FormWizardProps.renderStepBody}.
  *
  * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
+ * @typeParam TBody - Дополнительная форма тела шага. По умолчанию `never` —
+ *   ui-kit «из коробки» знает только про ReactNode и ComponentType.
  *
  * @example Компонент шага получает control
  * ```tsx
@@ -59,11 +62,19 @@ import { StepIndicator } from './step-indicator';
  * }
  * const body: FormWizardStepBody<CreditApplication> = BasicInfoForm;
  * ```
+ *
+ * @example Тело шага — узел RenderSchema (тип расширяется, отрисовка приходит пропом)
+ * ```tsx
+ * <FormWizard<CreditApplication, RenderNode<CreditApplication>>
+ *   steps={steps}
+ *   renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
+ * />
+ * ```
  */
-export type FormWizardStepBody<T> =
+export type FormWizardStepBody<T, TBody = never> =
   | ComponentType<{ control: FormProxy<T> }>
   | ReactNode
-  | RenderNode<T>;
+  | TBody;
 
 /**
  * Описание одного шага {@link FormWizard}: порядковый номер, заголовок и иконка
@@ -83,15 +94,15 @@ export type FormWizardStepBody<T> =
  * ];
  * ```
  */
-export interface FormWizardStep<T> {
+export interface FormWizardStep<T, TBody = never> {
   /** Порядковый номер шага (1-based). Уникальный, задаёт порядок навигации. */
   number: number;
   /** Заголовок шага, показывается в {@link StepIndicator}. */
   title: string;
   /** Иконка шага (эмодзи или строка). Передаётся в headless Indicator. */
   icon?: string;
-  /** Тело шага — FC | ReactNode | RenderNode<T> (см. {@link FormWizardStepBody}). */
-  body: FormWizardStepBody<T>;
+  /** Тело шага — FC | ReactNode | TBody (см. {@link FormWizardStepBody}). */
+  body: FormWizardStepBody<T, TBody>;
 }
 
 /**
@@ -113,24 +124,25 @@ export interface FormWizardProps<
   // for direct value access.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends Record<string, any>,
+  TBody = never,
 > extends FormWizardHeadlessProps<T> {
   /** Внешний CSS-класс корневого контейнера. */
   className?: string;
   /** Декларативный список шагов (см. {@link FormWizardStep}). Порядок = порядок навигации. */
-  steps: FormWizardStep<T>[];
+  steps: FormWizardStep<T, TBody>[];
   /** Колбэк отправки формы на последнем шаге; вызывается после успешной валидации. */
   onSubmit: HeadlessFormWizardActionsProps['onSubmit'];
-}
-
-function isRenderNode<T>(value: unknown): value is RenderNode<T> {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !isValidElement(value as ReactElement) &&
-    'component' in (value as object) &&
-    // RenderNode-shape, НЕ React component reference (memo/forwardRef имеют $$typeof).
-    !('$$typeof' in (value as object))
-  );
+  /**
+   * Стратегия отрисовки нестандартного `body`. Сам ui-kit умеет только ReactNode и
+   * ComponentType; всё остальное (например узел RenderSchema) отдаётся сюда — так компонент
+   * не импортирует рендерер, а получает его как зависимость.
+   *
+   * @example
+   * ```tsx
+   * renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
+   * ```
+   */
+  renderStepBody?: (body: TBody, form: FormProxy<T>) => ReactNode;
 }
 
 /**
@@ -149,7 +161,19 @@ function isComponentType<T>(value: unknown): value is ComponentType<{ control: F
   return false;
 }
 
-function renderStepBody<T>(body: FormWizardStepBody<T>, form: FormProxy<T>): ReactNode {
+/**
+ * Тело шага можно отрисовать не зная, что это. Порядок дискриминации: готовый element →
+ * component reference → пользовательская стратегия (`custom`) → ReactNode-фолбэк.
+ *
+ * Ветка `custom` — единственное место, куда попадает всё «чужое» (узел RenderSchema и т.п.).
+ * Плоский объект без `$$typeof` для React невалиден как ReactNode, поэтому без стратегии
+ * такое тело просто ничего не отрисует — это ожидаемо, стратегию обязан дать вызывающий.
+ */
+function resolveStepBody<T, TBody>(
+  body: FormWizardStepBody<T, TBody>,
+  form: FormProxy<T>,
+  custom?: (body: TBody, form: FormProxy<T>) => ReactNode
+): ReactNode {
   // React element (уже-отрендеренный JSX) — отдаём как ReactNode.
   if (isValidElement(body as ReactElement)) return body as ReactNode;
   // Component reference (FC | memo'd FC | forwardRef'd FC) — рендерим с control={form}.
@@ -157,17 +181,18 @@ function renderStepBody<T>(body: FormWizardStepBody<T>, form: FormProxy<T>): Rea
     const Comp = body as ComponentType<{ control: FormProxy<T> }>;
     return <Comp control={form} />;
   }
-  // RenderNode — plain object с `.component` без `$$typeof` маркера.
-  if (isRenderNode<T>(body)) {
-    return <RenderNodeComponent node={body} form={form} />;
+  // Всё остальное — во внешнюю стратегию (например RenderNode → RenderNodeComponent).
+  // Массив — валидный ReactNode (список элементов), его в стратегию не отдаём.
+  if (custom && body !== null && typeof body === 'object' && !Array.isArray(body)) {
+    return custom(body as TBody, form);
   }
   // Fallback ReactNode (текст, число, null, и т.д.)
   return body as ReactNode;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function FormWizardInner<T extends Record<string, any>>(
-  props: FormWizardProps<T>,
+function FormWizardInner<T extends Record<string, any>, TBody = never>(
+  props: FormWizardProps<T, TBody>,
   ref: ForwardedRef<FormWizardHandle<T>>
 ) {
   const formWizardRef = useRef<FormWizardHandle<T>>(null);
@@ -192,7 +217,7 @@ function FormWizardInner<T extends Record<string, any>>(
       >
         {props.steps.map((step) => (
           <FormWizardHeadless.Step key={step.number}>
-            {renderStepBody(step.body, props.form)}
+            {resolveStepBody(step.body, props.form, props.renderStepBody)}
           </FormWizardHeadless.Step>
         ))}
       </div>
@@ -211,8 +236,9 @@ function FormWizardInner<T extends Record<string, any>>(
 const FormWizardForwarded = forwardRef(FormWizardInner) as <
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends Record<string, any>,
+  TBody = never,
 >(
-  props: FormWizardProps<T> & { ref?: React.Ref<FormWizardHandle<T>> }
+  props: FormWizardProps<T, TBody> & { ref?: React.Ref<FormWizardHandle<T>> }
 ) => ReactElement | null;
 
 // Compound API: re-export headless slots для consumer-ов, которым нужен

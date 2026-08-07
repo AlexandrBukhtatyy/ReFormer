@@ -27,7 +27,7 @@ An array is declared in the schema as a dedicated node: `{ array: model.<path>, 
 
 3. **renderer-react Checkbox in array item**: don't wrap in `CdkFormField.Label` — Checkbox draws its own label, double-rendered otherwise. Pass label via `componentProps.label`.
 
-4. **Schema array node = `{ array: model.<path>, item }`**: `properties: { array: model.properties, item: (im) => ({ … }) }`, NEVER a tuple `arrField: [itemSchema]` and NEVER `{ value: [], itemSchema: {…} }` (both are removed legacy shapes → silent corruption). The `item` callback receives the element sub-model (`FormModel<Item>`); bind leaves via its signals `im.$.<field>`.
+4. **Schema array node = `{ array: model.<path>, item }`**: `properties: { array: model.properties, item: (im) => ({ … }) }`, NEVER a tuple `arrField: [itemSchema]` and NEVER `{ value: [], itemSchema: {…} }` (both are removed legacy shapes → silent corruption). The `item` callback receives the element sub-model (`FormModel<Item>`); bind leaves via its signals `im.$.<field>`. When the same node is also RENDERED (renderer-react / renderer-json), add `component: FormArray` (`$component(FormArray)` in JSON) — the renderer ships no array markup of its own, so without a component you get the items but no add/remove/reorder UI.
 
 5. **Element access**: `form.<arr>.at(i)` (NOT brackets), `.length.value`, `.items.value`. Mutations: `add`, `removeAt`, `insert`, `move`, `clear` — never mutate `.items` directly. From the model side, `model.<arr>.map(...)` subscribes to length/items (useful inside `compute`).
 

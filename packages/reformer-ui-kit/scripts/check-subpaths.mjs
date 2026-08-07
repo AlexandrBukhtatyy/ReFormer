@@ -28,11 +28,14 @@ const pkgDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(pkgDir, '../..');
 const pkg = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
 
-/** Локальные сиблинги, которые надо паковать вместо установки из npm. */
+/**
+ * Локальные сиблинги, которые надо паковать вместо установки из npm.
+ * `@reformer/renderer-react` тут сознательно НЕТ: ui-kit от рендерера не зависит,
+ * и эта проверка в том числе следит, что зависимость не вернулась.
+ */
 const LOCAL_PACKAGES = {
   '@reformer/core': path.join(repoRoot, 'packages/reformer'),
   '@reformer/cdk': path.join(repoRoot, 'packages/reformer-cdk'),
-  '@reformer/renderer-react': path.join(repoRoot, 'packages/reformer-renderer-react'),
 };
 
 // npm запускаем через его JS-entry (`npm_execpath` выставляет сам npm при `npm run`):

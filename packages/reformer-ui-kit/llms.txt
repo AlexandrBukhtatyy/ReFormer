@@ -1838,13 +1838,15 @@ const handleSaveAndExit = async () => {
 
 `body` принимает три формы (runtime-discriminated):
 
-| Форма                                      | Когда использовать                                 |
-| ------------------------------------------ | -------------------------------------------------- |
-| `ComponentType<{ control: FormProxy<T> }>` | TS-flow; FC получает `control={form}` через ui-kit |
-| `ReactNode` (готовый JSX)                  | Статический контент шага без необходимости control |
-| `RenderNode<T>` (RenderSchema subtree)     | renderer-react / renderer-json flows               |
+| Форма                                      | Когда использовать                                                   |
+| ------------------------------------------ | -------------------------------------------------------------------- |
+| `ComponentType<{ control: FormProxy<T> }>` | TS-flow; FC получает `control={form}` через ui-kit                   |
+| `ReactNode` (готовый JSX)                  | Статический контент шага без необходимости control                   |
+| `TBody` (напр. `RenderNode<T>`)            | renderer-react / renderer-json flows — **нужен проп `renderStepBody`** |
 
 Все три варианта работают в одном wizard'е — можно комбинировать.
+
+**Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormProxy<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
 
 ## 39. RenderNode body (renderer-react / renderer-json)
 
@@ -1852,7 +1854,7 @@ M1: схема без аргумента `path` — листья ссылают�
 (`value: model.$.x`), а не на `path.x`:
 
 ```tsx
-import { createRenderSchema } from '@reformer/renderer-react';
+import { createRenderSchema, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import { Box, Input } from '@reformer/ui-kit';
 
 const renderSchema = createRenderSchema<CreditApplication>(() => ({
@@ -1862,6 +1864,10 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
     form,
     config,
     onSubmit: handleSubmit,
+    // Стратегия отрисовки узла RenderSchema — ui-kit сам про рендерер не знает.
+    renderStepBody: (body: RenderNode<CreditApplication>, wizardForm) => (
+      <RenderNodeComponent node={body} form={wizardForm} />
+    ),
     steps: [
       {
         number: 1,
@@ -1881,7 +1887,7 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
 }));
 ```
 
-ui-kit FormWizard детектирует RenderNode (объект с `.component` без React-element-маркера) и оборачивает в `RenderNodeComponent` с `form={form}`.
+FormWizard видит, что `body` — не React-element и не component reference, и отдаёт его в `renderStepBody`; там приложение оборачивает узел в `RenderNodeComponent` с `form={form}`.
 
 ### ⚠️ RenderNode body требует RenderContextProvider
 
@@ -1938,7 +1944,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 }
 ```
 
-`body` — обычный JsonNode → конвертер renderer-json превращает в RenderNode → ui-kit FormWizard рендерит.
+`body` — обычный JsonNode → конвертер renderer-json превращает в RenderNode → шим `$component(Wizard)` отдаёт его в `FormWizard` вместе с `renderStepBody`. Шим (и стратегия в нём) — на стороне приложения; golden-пример: `projects/react-playground/src/components/RendererFormWizard.tsx`.
 
 ## 41. Compound API
 
@@ -5078,10 +5084,10 @@ _Source: src/components/file-upload/variants/avatar/file-upload-avatar.field.tsx
 **Signature:**
 ```typescript
 export function FormArray({
-  array,
-  item,
-  initialValue,
-  fieldWrapper,
+  items = [],
+  onAdd,
+  onRemove,
+  onMove,
   title,
   itemLabel,
   addButtonLabel = '+ Добавить',
@@ -5103,16 +5109,15 @@ _Source: src/components/form-array/variants/base/form-array.tsx_
 
 **Signature:**
 ```typescript
-export interface FormArrayProps {
-  /** Контрол массива модели (инъектится рендерером). */
-  array: RenderModelArrayControl;
-  /** Фабрика поддерева элемента (инъектится рендерером). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  item: (itemModel: any) => RenderNode<unknown>;
-  /** Литерал нового элемента для кнопки «Добавить» (инъектится рендерером). */
-  initialValue?: unknown;
-  /** Обёртка полей (инъектится рендерером). */
-  fieldWrapper?: ComponentType<FieldWrapperProps>;
+export interface FormArrayProps extends ArrayComponentProps {
+  /** Отрендеренные элементы массива (инъектится рендерером). */
+  items?: ArrayItemSlot[];
+  /** Добавить элемент (инъектится рендерером; значение резолвится из `initialValue` узла). */
+  onAdd?: () => void;
+  /** Удалить элемент по индексу (инъектится рендерером). */
+  onRemove?: (index: number) => void;
+  /** Переместить элемент (инъектится рендерером). Нужен при `reorderable`. */
+  onMove?: (from: number, to: number) => void;
   /** Заголовок секции (h3). */
   title?: string;
   /** Метка элемента — префикс-строка или функция `(model, index) => string`. */
@@ -5539,13 +5544,25 @@ export interface FormWizardProps<
   // for direct value access.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends Record<string, any>,
+  TBody = never,
 > extends FormWizardHeadlessProps<T> {
   /** Внешний CSS-класс корневого контейнера. */
   className?: string;
   /** Декларативный список шагов (см. {@link FormWizardStep}). Порядок = порядок навигации. */
-  steps: FormWizardStep<T>[];
+  steps: FormWizardStep<T, TBody>[];
   /** Колбэк отправки формы на последнем шаге; вызывается после успешной валидации. */
   onSubmit: HeadlessFormWizardActionsProps['onSubmit'];
+  /**
+   * Стратегия отрисовки нестандартного `body`. Сам ui-kit умеет только ReactNode и
+   * ComponentType; всё остальное (например узел RenderSchema) отдаётся сюда — так компонент
+   * не импортирует рендерер, а получает его как зависимость.
+   *
+   * @example
+   * ```tsx
+   * renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
+   * ```
+   */
+  renderStepBody?: (body: TBody, form: FormProxy<T>) => ReactNode;
 }
 ```
 
@@ -5567,15 +5584,15 @@ _Source: src/components/form-wizard/variants/base/form-wizard.tsx_
 
 **Signature:**
 ```typescript
-export interface FormWizardStep<T> {
+export interface FormWizardStep<T, TBody = never> {
   /** Порядковый номер шага (1-based). Уникальный, задаёт порядок навигации. */
   number: number;
   /** Заголовок шага, показывается в {@link StepIndicator}. */
   title: string;
   /** Иконка шага (эмодзи или строка). Передаётся в headless Indicator. */
   icon?: string;
-  /** Тело шага — FC | ReactNode | RenderNode<T> (см. {@link FormWizardStepBody}). */
-  body: FormWizardStepBody<T>;
+  /** Тело шага — FC | ReactNode | TBody (см. {@link FormWizardStepBody}). */
+  body: FormWizardStepBody<T, TBody>;
 }
 ```
 
@@ -5603,15 +5620,15 @@ _Source: src/components/form-wizard/variants/base/form-wizard.tsx_
 - `ComponentType<{ control: FormProxy<T> }>` — React-компонент; получает
   `control={form}` (корневой {@link FormProxy}) и сам обращается к нужным полям.
 - `ReactNode` — готовый JSX или статический контент шага (текст, число и т.п.).
-- `RenderNode<T>` — RenderSchema-поддерево; рендерится через `RenderNodeComponent`
-  для интеграции с `@reformer/renderer-react`.
+- `TBody` — расширение под внешний рендерер (например `RenderNode<T>` из
+  `@reformer/renderer-react`); отрисовывается стратегией {@link FormWizardProps.renderStepBody}.
 
 **Signature:**
 ```typescript
-export type FormWizardStepBody<T> =
+export type FormWizardStepBody<T, TBody = never> =
   | ComponentType<{ control: FormProxy<T> }>
   | ReactNode
-  | RenderNode<T>;
+  | TBody;
 ```
 
 **Examples:**
@@ -5622,6 +5639,14 @@ function BasicInfoForm({ control }: { control: FormProxy<CreditApplication> }) {
 return <FormField control={control.loanAmount} testId="loanAmount" />;
 }
 const body: FormWizardStepBody<CreditApplication> = BasicInfoForm;
+```
+
+Тело шага — узел RenderSchema (тип расширяется, отрисовка приходит пропом)
+```tsx
+<FormWizard<CreditApplication, RenderNode<CreditApplication>>
+steps={steps}
+renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
+/>
 ```
 
 _Source: src/components/form-wizard/variants/base/form-wizard.tsx_
@@ -6264,7 +6289,7 @@ _Source: src/components/label/variants/base/label-base.tsx_
 
 **Signature:**
 ```typescript
-export function List({ array, item, fieldWrapper, className, testId, as: As = 'div' }: ListProps)
+export function List({ items = [], className, testId, as: As = 'div' }: ListProps)
 ```
 
 _Source: src/components/list/variants/base/list.tsx_
@@ -6276,13 +6301,8 @@ _Source: src/components/list/variants/base/list.tsx_
 **Signature:**
 ```typescript
 export interface ListProps {
-  /** Контрол массива модели (инъектится рендерером). */
-  array: RenderModelArrayControl;
-  /** Фабрика поддерева элемента (инъектится рендерером). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  item: (itemModel: any) => RenderNode<unknown>;
-  /** Обёртка полей (инъектится рендерером). */
-  fieldWrapper?: ComponentType<FieldWrapperProps>;
+  /** Отрендеренные элементы массива (инъектится рендерером). */
+  items?: ArrayItemSlot[];
   /** CSS-класс контейнера (мержится поверх дефолтного `space-y-2`). */
   className?: string;
   /** `data-testid` контейнера. */

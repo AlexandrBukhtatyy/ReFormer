@@ -175,9 +175,9 @@ const jsonForm = useJsonForm(() =>
 
 ## Display-список из массива модели { #display-list }
 
-**Problem.** В модели — массив объектов (алерты, бейджи, строки-статусы). Нужно отрендерить компонент на каждый элемент и реактивно показывать/скрывать элементы — но БЕЗ редактор-хрома (add/remove/карточки), который тащит обычный array-node.
+**Problem.** В модели — массив объектов (алерты, бейджи, строки-статусы). Нужно отрендерить компонент на каждый элемент и реактивно показывать/скрывать элементы — но БЕЗ редактор-хрома (add/remove/карточки), который даёт `FormArray`.
 
-**Solution.** Тот же array-node + опциональный `component: '$component(List)'`. `List` (`@reformer/ui-kit`) — chrome-less обёртка; `initialValue` не нужен (добавлять нечего). Показ/скрытие — мутация массива в `defineFormBehavior`. `$model(...)` в `componentProps` элемента доходит до компонента значением (рендерер разворачивает сигнал).
+**Solution.** Тот же array-node, но `component: '$component(List)'` вместо `'$component(FormArray)'`. `List` (`@reformer/ui-kit`) — chrome-less обёртка; `initialValue` не нужен (добавлять нечего). Показ/скрытие — мутация массива в `defineFormBehavior`. `$model(...)` в `componentProps` элемента доходит до компонента значением (рендерер разворачивает сигнал).
 
 ```typescript
 // schema

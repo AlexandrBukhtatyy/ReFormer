@@ -1,28 +1,19 @@
 /**
  * List — chrome-less display-список для renderer-json (`$component(List)`).
  *
- * Итерацию массива модели даёт хук `useModelArrayItems` из `@reformer/renderer-react` (подписка на
- * структуру + кэш + рендер поддеревьев). List лишь оборачивает готовые элементы в контейнер со
- * списочным оформлением — без add/remove/карточек. Дисплей vs редактирование = выбор компонента
- * (ср. {@link FormArray}). `initialValue` не используется (добавлять нечего).
+ * Чистая презентация: элементы приходят **уже отрендеренными** в пропе `items`, List лишь
+ * оборачивает их в контейнер со списочным оформлением — без add/remove/карточек. Итерацию,
+ * подписку на модель и кэш поддеревьев делает вызывающая сторона (рендерер), поэтому компонент
+ * не зависит ни от какого рендерера и тестируется на фейковых `items` вообще без формы.
+ * Дисплей vs редактирование = выбор компонента (ср. {@link FormArray}).
  */
-import type { ComponentType, ElementType } from 'react';
-import {
-  useModelArrayItems,
-  type RenderModelArrayControl,
-  type RenderNode,
-  type FieldWrapperProps,
-} from '@reformer/renderer-react';
+import { Fragment, type ElementType } from 'react';
+import type { ArrayItemSlot } from '@/lib/array-slot';
 import { cn } from '@/lib/utils';
 
 export interface ListProps {
-  /** Контрол массива модели (инъектится рендерером). */
-  array: RenderModelArrayControl;
-  /** Фабрика поддерева элемента (инъектится рендерером). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  item: (itemModel: any) => RenderNode<unknown>;
-  /** Обёртка полей (инъектится рендерером). */
-  fieldWrapper?: ComponentType<FieldWrapperProps>;
+  /** Отрендеренные элементы массива (инъектится рендерером). */
+  items?: ArrayItemSlot[];
   /** CSS-класс контейнера (мержится поверх дефолтного `space-y-2`). */
   className?: string;
   /** `data-testid` контейнера. */
@@ -31,11 +22,12 @@ export interface ListProps {
   as?: ElementType;
 }
 
-export function List({ array, item, fieldWrapper, className, testId, as: As = 'div' }: ListProps) {
-  const items = useModelArrayItems(array, item, fieldWrapper);
+export function List({ items = [], className, testId, as: As = 'div' }: ListProps) {
   return (
     <As role="list" data-slot="list" data-testid={testId} className={cn('space-y-2', className)}>
-      {items.map((it) => it.element)}
+      {items.map((it) => (
+        <Fragment key={it.key}>{it.children}</Fragment>
+      ))}
     </As>
   );
 }

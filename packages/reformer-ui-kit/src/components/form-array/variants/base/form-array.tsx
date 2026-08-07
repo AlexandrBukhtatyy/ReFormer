@@ -1,34 +1,28 @@
 /**
  * FormArray — editable-секция массива для renderer-json (`$component(FormArray)`).
  *
- * Редактируемый двойник {@link List}: тот же хук `useModelArrayItems` (`@reformer/renderer-react`)
- * даёт элементы `{ index, model, element }`, а FormArray добавляет хром — заголовок, кнопку
- * «Добавить», карточку с меткой на элемент, кнопки удаления и (опц.) перестановки ↑/↓. Данные
- * (модель для `itemLabel`, индекс для `removeAt`/`move`) — из хука; итерация/подписка/кэш — в нём.
+ * Редактируемый двойник {@link List}: элементы приходят **уже отрендеренными** в пропе `items`
+ * (`{ key, index, model, children }`), а FormArray добавляет хром — заголовок, кнопку «Добавить»,
+ * карточку с меткой на элемент, кнопки удаления и (опц.) перестановки ↑/↓. Мутации массива идут
+ * через колбэки `onAdd`/`onRemove`/`onMove`, поэтому компонент не знает ни про модель, ни про
+ * рендерер: итерация, подписка и кэш — на вызывающей стороне.
  *
- * Оформление и `data-testid` (`array-add`, `array-item-N`, `-remove`, `-move-up/down`) совместимы со
- * встроенной секцией renderer-react — миграция схемы с `array` на `array + component:$component(FormArray)`
- * визуально и по e2e эквивалентна. Отличается от встроенной тем, что живёт в ui-kit (тема/кастомизация).
+ * `data-testid` (`array-add`, `array-item-N`, `-remove`, `-move-up/down`) — стабильный публичный
+ * контракт: на них завязаны e2e-тесты. Отличается от `FormArraySection` тем, что рассчитан на
+ * рендерер (`items` из схемы), а не на headless-контрол `@reformer/cdk/form-array`.
  */
-import type { ComponentType, ReactNode } from 'react';
-import {
-  useModelArrayItems,
-  resolveInitialValue,
-  type RenderModelArrayControl,
-  type RenderNode,
-  type FieldWrapperProps,
-} from '@reformer/renderer-react';
+import type { ReactNode } from 'react';
+import type { ArrayComponentProps, ArrayItemSlot } from '@/lib/array-slot';
 
-export interface FormArrayProps {
-  /** Контрол массива модели (инъектится рендерером). */
-  array: RenderModelArrayControl;
-  /** Фабрика поддерева элемента (инъектится рендерером). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  item: (itemModel: any) => RenderNode<unknown>;
-  /** Литерал нового элемента для кнопки «Добавить» (инъектится рендерером). */
-  initialValue?: unknown;
-  /** Обёртка полей (инъектится рендерером). */
-  fieldWrapper?: ComponentType<FieldWrapperProps>;
+export interface FormArrayProps extends ArrayComponentProps {
+  /** Отрендеренные элементы массива (инъектится рендерером). */
+  items?: ArrayItemSlot[];
+  /** Добавить элемент (инъектится рендерером; значение резолвится из `initialValue` узла). */
+  onAdd?: () => void;
+  /** Удалить элемент по индексу (инъектится рендерером). */
+  onRemove?: (index: number) => void;
+  /** Переместить элемент (инъектится рендерером). Нужен при `reorderable`. */
+  onMove?: (from: number, to: number) => void;
   /** Заголовок секции (h3). */
   title?: string;
   /** Метка элемента — префикс-строка или функция `(model, index) => string`. */
@@ -60,10 +54,10 @@ const MOVE_BTN =
   'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9';
 
 export function FormArray({
-  array,
-  item,
-  initialValue,
-  fieldWrapper,
+  items = [],
+  onAdd,
+  onRemove,
+  onMove,
   title,
   itemLabel,
   addButtonLabel = '+ Добавить',
@@ -75,10 +69,8 @@ export function FormArray({
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
 }: FormArrayProps): ReactNode {
-  const items = useModelArrayItems(array, item, fieldWrapper);
   const length = items.length;
 
-  const add = () => array.push(resolveInitialValue(initialValue));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getItemLabel = (model: any, index: number): string =>
     typeof itemLabel === 'function'
@@ -86,7 +78,7 @@ export function FormArray({
       : `${(itemLabel as string) ?? title ?? 'Элемент'} #${index + 1}`;
 
   const addBtn = (cls: string) => (
-    <button type="button" data-testid="array-add" className={cls} onClick={add}>
+    <button type="button" data-testid="array-add" className={cls} onClick={onAdd}>
       {addButtonLabel}
     </button>
   );
@@ -116,7 +108,7 @@ export function FormArray({
                         data-testid={`array-item-${it.index}-move-up`}
                         className={MOVE_BTN}
                         disabled={it.index === 0}
-                        onClick={() => array.move(it.index, it.index - 1)}
+                        onClick={() => onMove?.(it.index, it.index - 1)}
                       >
                         ↑
                       </button>
@@ -126,7 +118,7 @@ export function FormArray({
                         data-testid={`array-item-${it.index}-move-down`}
                         className={MOVE_BTN}
                         disabled={it.index === length - 1}
-                        onClick={() => array.move(it.index, it.index + 1)}
+                        onClick={() => onMove?.(it.index, it.index + 1)}
                       >
                         ↓
                       </button>
@@ -137,7 +129,7 @@ export function FormArray({
                       type="button"
                       data-testid={`array-item-${it.index}-remove`}
                       className={REMOVE_BTN}
-                      onClick={() => array.removeAt(it.index)}
+                      onClick={() => onRemove?.(it.index)}
                     >
                       {removeButtonLabel}
                     </button>
@@ -145,7 +137,7 @@ export function FormArray({
                 </div>
               </div>
             ) : null}
-            {it.element}
+            {it.children}
           </div>
         );
       })}

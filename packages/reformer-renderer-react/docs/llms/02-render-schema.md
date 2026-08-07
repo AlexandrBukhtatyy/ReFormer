@@ -86,14 +86,15 @@ const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
 
 ### Массив модели { #array }
 
-Узел-массив: `array` — реактивный массив модели, `item(itemModel)` строит поддерево по под-модели элемента, `initialValue` — фабрика нового элемента для кнопки «Добавить». Оформление секции (заголовок, кнопки, empty-message, reorder) — в `componentProps`:
+Узел-массив: `array` — реактивный массив модели, `item(itemModel)` строит поддерево по под-модели элемента, `initialValue` — фабрика нового элемента для кнопки «Добавить», `component` — компонент-рендерер секции. Оформление (заголовок, кнопки, empty-message, reorder) — в `componentProps`:
 
 ```tsx
-import { Box, Input, Select } from '@reformer/ui-kit';
+import { Box, FormArray, Input, Select } from '@reformer/ui-kit';
 
 const coBorrowersNode = {
   selector: 'co-borrowers-array',
   array: model.coBorrowers,
+  component: FormArray,          // ОБЯЗАТЕЛЕН для UI управления (add/remove/reorder)
   initialValue: createBlankCoBorrower,
   componentProps: {
     title: 'Созаемщики',
@@ -115,11 +116,13 @@ const coBorrowersNode = {
 
 Внутри `item` листья привязываются к сигналам **под-модели** элемента (`im.$.<field>`). Per-item форму создаёт `ModelArrayNode`, материализованный `createForm` — рендерер итерирует элементы и рисует поддерево для каждого.
 
-**Top-level свойства узла** (не в `componentProps`): `array` (реактивный массив модели), `item(itemModel)` (схема элемента), `initialValue` (значение/фабрика нового элемента), `selector` (для behavior/override).
+**Top-level свойства узла** (не в `componentProps`): `array` (реактивный массив модели), `item(itemModel)` (схема элемента), `component` (компонент-рендерер секции), `initialValue` (значение/фабрика нового элемента), `selector` (для behavior/override).
+
+**`component` обязателен, если нужен UI управления.** Рендерер сам разметку не шипает: он итерирует массив и отдаёт компоненту готовые элементы. Узел **без** `component` рендерится безхромным fallback'ом — элементы есть, кнопок «Добавить»/«Удалить»/↑↓ нет, в консоль идёт предупреждение. Бери `FormArray` (редактируемая секция) или `List` (display-список без add/remove) из `@reformer/ui-kit` либо свой компонент.
 
 **Привязка `array` — это `model.<path>` (value-доступ), НЕ `model.$.<path>`** (напр. `array: model.coBorrowers`). Один нюанс типов: рантайм-массив совместим с требуемым `RenderModelArrayControl`, но в публичном типе `ModelArray<U>` не объявлен `__path`, поэтому под строгим контекстом узла TS даёт `TS2741: Property '__path' is missing in type 'ModelArray<T>'`. Канон (golden `complex-multy-step-form-renderer/render-schema.ts`) — билдер строит дерево и в конце кастует его `as unknown as RenderNode<T>`; привязка при этом остаётся `array: model.<path>`. Каст также снимает лишние проверки для листьев-полей.
 
-**Полный контракт `componentProps`** нативной array-ноды (`ModelArraySectionRenderer`) — других полей нет:
+**Полный контракт `componentProps`** для `component: FormArray` (`@reformer/ui-kit`) — других полей нет:
 
 | prop | default |
 |---|---|
@@ -127,14 +130,36 @@ const coBorrowersNode = {
 | `addButtonLabel?: string` | `'+ Добавить'` |
 | `removeButtonLabel?: string` | `'Удалить'` |
 | `emptyMessage?: string` | — (показ при `length === 0`) |
+| `emptyMessageHint?: string` | — (подсказка под empty-состоянием) |
 | `itemLabel?: string \| ((im, i) => string)` | — (string → `` `${itemLabel} #${i + 1}` ``) |
 | `reorderable?: boolean` | `false` (кнопки ↑/↓, `disabled` на концах) |
+| `showRemoveOnSingle?: boolean` | `false` (кнопка «Удалить» скрыта при единственном элементе) |
 | `className?: string` | `'space-y-3 mt-2'` |
-| `cardClassName?: string` | `'mb-4 p-4 bg-white rounded border'` |
+| `cardClassName?: string` | `'mb-4 p-4 bg-card text-card-foreground rounded border'` |
 
-**`maxItems` и `showRemoveOnSingle` НЕ существуют.** Это выдуманные props — рендерер их игнорирует. Кнопка «Удалить» авто-скрывается, когда `length <= 1` (hardcoded `const showRemove = length > 1`), настроить это нельзя. Чтобы ограничить количество элементов — используй behavior (`hideWhen` на add-аффордансе или guard в `initialValue`), а не проп.
+**`maxItems` НЕ существует.** Это выдуманный проп — компонент его игнорирует. Чтобы ограничить количество элементов, используй behavior (`hideWhen` на add-аффордансе или guard в `initialValue`), а не проп.
 
-Нативная `ArrayRenderNode` (`{ array, item }`) — канон для render-schema пути (одинаково для renderer-react и renderer-json; golden — `complex-multy-step-form-renderer/render-schema.ts`); `FormArraySection` из [ui-kit](../../../reformer-ui-kit/docs/llms/08-form-array-section.md) и `FormArray` из [cdk](../../../reformer-cdk/docs/llms/02-form-array.md) — для рукописного JSX. Они параллельны, а не конкурируют: array-нода описывает массив декларативно в дереве, compound-компоненты собирают его руками.
+**Контракт компонента-рендерера массива.** Итерацию (подписку на структуру, кэш поддеревьев, стабильные ключи) делает рендерер, а компонент получает `ArrayComponentProps` — готовые `items: ArrayItemSlot[]` (`{ key, index, model, children }`) и колбэки `onAdd`/`onRemove`/`onMove` — плюс `componentProps` узла. Компонент не подписывается на модель и не вызывает хуков рендерера, поэтому свою секцию можно написать на любой UI-библиотеке и протестировать на фейковых `items` без формы:
+
+```tsx
+import type { ArrayComponentProps } from '@reformer/renderer-react';
+
+function MyArraySection({ items, onAdd, onRemove }: ArrayComponentProps) {
+  return (
+    <div>
+      {items.map((it) => (
+        <div key={it.key}>
+          {it.children}
+          <button onClick={() => onRemove(it.index)}>Удалить</button>
+        </div>
+      ))}
+      <button onClick={onAdd}>Добавить</button>
+    </div>
+  );
+}
+```
+
+`ArrayRenderNode` (`{ array, item, component }`) — канон для render-schema пути (одинаково для renderer-react и renderer-json; golden — `complex-multy-step-form-renderer/render-schema.ts`); `FormArraySection` из [ui-kit](../../../reformer-ui-kit/docs/llms/08-form-array-section.md) и `FormArray` из [cdk](../../../reformer-cdk/docs/llms/02-form-array.md) — для рукописного JSX. Они параллельны, а не конкурируют: array-нода описывает массив декларативно в дереве, compound-компоненты собирают его руками.
 
 Testid-конвенции секции (для e2e): `array-add`, `array-item-{i}`, `array-item-{i}-remove`, `array-item-{i}-move-up`, `array-item-{i}-move-down`.
 

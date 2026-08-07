@@ -21,7 +21,8 @@ your only source of truth. Do not assume APIs from memory — look them up here.
    runner `validateFormModel(model, schema)` have all been **removed** — never emit them.
 5. **Behaviors** (if needed) — `compute` / `copyFrom` / `enableWhen` / `onChange` via `defineFormBehavior`
    or primitives. A computed field reads OTHER fields and writes its own — avoid cycles.
-6. **Arrays / Wizard** (if needed) — array node `{ array, item, initialValue }` + CDK `FormArray` (key rows
+6. **Arrays / Wizard** (if needed) — array node `{ array, item, initialValue }` (+ `component: FormArray`
+   from ui-kit when the node is also rendered — the renderer ships no array chrome) + CDK `FormArray` (key rows
    by `id`); wizard via CDK `FormWizardConfig` = `{ validateStep, validateAll }` callbacks.
 7. **Render** — pick one: ui-kit `<FormField control={form.x} />`; renderer-react `createRenderSchema` +
    `FormRenderer`; renderer-json JSON (operators `$model`/`$component`/`$dataSource`) + `defineRegistry`.

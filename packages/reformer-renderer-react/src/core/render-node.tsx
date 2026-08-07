@@ -14,6 +14,7 @@ import type {
   FieldAdapter,
   ModelFieldRenderNode,
   ArrayRenderNode,
+  ArrayItemSlot,
   RenderModelArrayControl,
   RenderChild,
   RenderTextPart,
@@ -361,166 +362,46 @@ export function useModelArrayItems(
   });
 }
 
+/** Однократное (на массив) предупреждение об узле без компонента-рендерера. */
+const warnedArrays = new WeakSet<object>();
+function warnArrayWithoutComponent(node: ArrayRenderNode<unknown>): void {
+  if (typeof console === 'undefined') return;
+  const control = node.array as unknown as object;
+  if (warnedArrays.has(control)) return;
+  warnedArrays.add(control);
+  const path = (node.array as { __path?: string }).__path;
+  console.warn(
+    `[RenderSchema] Array node${path ? ` "${path}"` : ''} has no \`component\` — items are rendered ` +
+      'without add/remove/reorder UI. Register an array component (e.g. `FormArray` from ' +
+      '@reformer/ui-kit) and set `component` on the node.'
+  );
+}
+
 /**
- * Секция массива единой схемы (M1): данные принадлежат модели (`node.array`), поддерево элемента
- * строит `node.item(itemModel)` и рендерит {@link RenderNodeComponent} (листья на сигналах под-модели
- * резолвятся через реестр — per-item формы создаёт `ModelArrayNode`, материализованный `createForm`).
- * Оформление совместимо с `FormArraySection` (карточки/кнопки/empty), поддерживает `fieldWrapper`.
+ * Fallback для узла-массива БЕЗ `component`: рендерит только элементы — без секции, кнопок и
+ * какого-либо оформления. UI управления (добавить/удалить/переставить) — задача компонента
+ * (`$component(FormArray)` из `@reformer/ui-kit` либо своего), рендерер разметку не шипает.
  */
-const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
+const ModelArrayFallback = memo(function ModelArrayFallback({
   node,
   fieldWrapper,
 }: {
   node: ArrayRenderNode<unknown>;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
-  const control = node.array;
-  useModelArrayRevision(control); // ре-рендер при структурных изменениях массива, включая reorder
-  const length = control.length;
-  // Кэш поддеревьев по идентичности под-модели элемента (`im` кэшируется в ядре, зеркалит
-  // stableKey WeakMap). Без него `node.item(im)` в цикле строил бы новый RenderNode на каждый
-  // рендер → identity пропа `node` дочернего memo-рендерера менялась бы → memo ломался, и все
-  // поля всех элементов ре-рендерились при любом структурном изменении (O(элементы×поля)).
-  // Кэш сбрасывается при смене фабрики `node.item` (напр. новая схема).
-  const subtreeCacheRef = useRef<{
-    itemFn: ArrayRenderNode<unknown>['item'];
-    map: WeakMap<object, RenderNode<unknown>>;
-  } | null>(null);
-  if (!subtreeCacheRef.current || subtreeCacheRef.current.itemFn !== node.item) {
-    subtreeCacheRef.current = { itemFn: node.item, map: new WeakMap() };
-  }
-  const getSubtree = (im: unknown): RenderNode<unknown> => {
-    if (im == null || typeof im !== 'object') return node.item(im) as RenderNode<unknown>;
-    const cache = subtreeCacheRef.current!.map;
-    let sub = cache.get(im as object);
-    if (sub === undefined) {
-      sub = node.item(im) as RenderNode<unknown>;
-      cache.set(im as object, sub);
-    }
-    return sub;
-  };
-  const cp = node.componentProps ?? {};
-  const {
-    title,
-    addButtonLabel = '+ Добавить',
-    removeButtonLabel = 'Удалить',
-    emptyMessage,
-    itemLabel,
-    reorderable = false,
-    className = 'space-y-3 mt-2',
-    cardClassName = 'mb-4 p-4 bg-white rounded border',
-  } = cp;
-
-  const getItemLabel = (im: unknown, index: number): string =>
-    typeof itemLabel === 'function'
-      ? itemLabel(im, index)
-      : `${(itemLabel as string) ?? title ?? 'Элемент'} #${index + 1}`;
-
-  // aria-labels перемещения и Tailwind-классы кнопок переопределяемы через componentProps
-  // (дефолты сохраняют прежнее поведение). Позволяет i18n и консументам без Tailwind
-  // подставить свои строки/классы, не форкая рендерер.
-  const moveUpLabel = (cp.moveUpLabel as string | undefined) ?? 'Переместить вверх';
-  const moveDownLabel = (cp.moveDownLabel as string | undefined) ?? 'Переместить вниз';
-  const addBtnClass =
-    (cp.addButtonClassName as string | undefined) ??
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2';
-  const removeBtnClass =
-    (cp.removeButtonClassName as string | undefined) ??
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2';
-  const moveBtnClass =
-    (cp.moveButtonClassName as string | undefined) ??
-    'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 h-9 w-9';
-
-  const addButton = (cls: string) => (
-    <button
-      type="button"
-      data-testid="array-add"
-      className={cls}
-      onClick={() => control.push(resolveInitialValue(node.initialValue))}
-    >
-      {addButtonLabel}
-    </button>
-  );
-
-  return (
-    <section className={className}>
-      {title ? (
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          {addButton(addBtnClass)}
-        </div>
-      ) : null}
-
-      {Array.from({ length }, (_, i) => {
-        const im = control.at(i);
-        const subtree = getSubtree(im); // кэш по идентичности `im` → стабильный `node` для memo
-        const showRemove = length > 1;
-        return (
-          <div key={stableKey(im)} className={cardClassName} data-testid={`array-item-${i}`}>
-            {title || itemLabel ? (
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="font-medium">{getItemLabel(im, i)}</h4>
-                <div className="flex items-center gap-2">
-                  {reorderable ? (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        aria-label={moveUpLabel}
-                        data-testid={`array-item-${i}-move-up`}
-                        className={moveBtnClass}
-                        disabled={i === 0}
-                        onClick={() => control.move(i, i - 1)}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={moveDownLabel}
-                        data-testid={`array-item-${i}-move-down`}
-                        className={moveBtnClass}
-                        disabled={i === length - 1}
-                        onClick={() => control.move(i, i + 1)}
-                      >
-                        ↓
-                      </button>
-                    </div>
-                  ) : null}
-                  {showRemove ? (
-                    <button
-                      type="button"
-                      data-testid={`array-item-${i}-remove`}
-                      className={removeBtnClass}
-                      onClick={() => control.removeAt(i)}
-                    >
-                      {removeButtonLabel}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            <RenderNodeComponent node={subtree} fieldWrapper={fieldWrapper} />
-          </div>
-        );
-      })}
-
-      {length === 0 && emptyMessage ? (
-        <div className="p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600">
-          {emptyMessage}
-        </div>
-      ) : null}
-
-      {!title ? (
-        <div>{addButton('text-sm text-blue-600 hover:text-blue-700 hover:underline')}</div>
-      ) : null}
-    </section>
-  );
+  const items = useModelArrayItems(node.array, node.item, fieldWrapper);
+  warnArrayWithoutComponent(node);
+  return <>{items.map((it) => it.element)}</>;
 });
 
 /**
  * Массив, рендеримый ЗАРЕГИСТРИРОВАННЫМ компонентом (M1): узел `{ array, item, component }`.
- * Тонкий pass-through: сам НЕ итерирует — отдаёт компоненту `array`/`item`/`initialValue`/
- * `fieldWrapper` + `componentProps`, а компонент (ui-kit `List`/`FormArray`) строит элементы через
- * {@link useModelArrayItems} (там же подписка/кэш). Так итерация — в одном месте, а хром — в компоненте.
+ *
+ * Итерацию — подписку на структуру, кэш поддеревьев, стабильные ключи — делает рендерер
+ * ({@link useModelArrayItems}), а компонент получает результат обычными props:
+ * {@link ArrayComponentProps} (`items` + `onAdd`/`onRemove`/`onMove`) плюс `componentProps` узла.
+ * Компонент не знает ни про сигналы, ни про {@link RenderNode}, ни про хуки рендерера — поэтому
+ * реализовать его может любая UI-библиотека, а протестировать можно на фейковых `items` без формы.
  */
 const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
   node,
@@ -531,12 +412,32 @@ const ModelArrayComponentRenderer = memo(function ModelArrayComponentRenderer({
 }): ReactNode {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Comp = node.component as React.ComponentType<any>;
+  const control = node.array;
+  const items = useModelArrayItems(control, node.item, fieldWrapper);
+  const { initialValue } = node;
+
+  // Колбэки стабильны по `control`/`initialValue` — иначе memo-компоненты потребителя ломались бы
+  // на каждый рендер секции.
+  const onAdd = useCallback(
+    () => control.push(resolveInitialValue(initialValue)),
+    [control, initialValue]
+  );
+  const onRemove = useCallback((index: number) => control.removeAt(index), [control]);
+  const onMove = useCallback((from: number, to: number) => control.move(from, to), [control]);
+
+  const slots: ArrayItemSlot[] = items.map(({ key, index, model, element }) => ({
+    key,
+    index,
+    model,
+    children: element,
+  }));
+
   return (
     <Comp
-      array={node.array}
-      item={node.item}
-      initialValue={node.initialValue}
-      fieldWrapper={fieldWrapper}
+      items={slots}
+      onAdd={onAdd}
+      onRemove={onRemove}
+      onMove={onMove}
       {...(node.componentProps ?? {})}
     />
   );
@@ -817,11 +718,12 @@ export function RenderNodeComponent<T>({
   // M1: ArrayRenderNode — массив модели { array, item }
   // ========================================
   if (isArrayRenderNode(node)) {
-    // Задан `component` ($component(List)/своя секция) — рендерит он; иначе встроенная секция.
+    // Задан `component` ($component(FormArray)/$component(List)/своя секция) — рендерит он.
+    // Иначе — безхромный fallback: только элементы, без UI управления (см. ModelArrayFallback).
     return node.component ? (
       <ModelArrayComponentRenderer node={node} fieldWrapper={fieldWrapper} />
     ) : (
-      <ModelArraySectionRenderer node={node} fieldWrapper={fieldWrapper} />
+      <ModelArrayFallback node={node} fieldWrapper={fieldWrapper} />
     );
   }
 

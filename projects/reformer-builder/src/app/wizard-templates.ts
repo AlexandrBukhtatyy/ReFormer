@@ -87,7 +87,8 @@ export function wizardAdapterTsxTemplate(formName: string): string {
  *
  * Шаги в схеме лежат в \`componentProps.steps[]\` — конвертер renderer-json уже превратил их в
  * RenderNode, поэтому здесь достаточно поднять \`title\`/\`icon\` из узла и отдать сам узел как
- * \`body\`: ui-kit сам отрисует его через RenderNodeComponent. \`form\` приходит пропом — маркер
+ * \`body\`, а отрисовку узла дать пропом \`renderStepBody\`: ui-kit \`FormWizard\` намеренно не
+ * зависит от \`@reformer/renderer-react\`. \`form\` приходит пропом — маркер
  * \`__selfManagedChildren\` просит рендерер отдать её и не обходить детей самому.
  *
  * \`onSubmit\` навешивается снаружи — в render-behavior.ts через onComponentEvent.
@@ -96,6 +97,7 @@ export function wizardAdapterTsxTemplate(formName: string): string {
 import type { ReactNode } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormProxy } from '@reformer/core';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import type { FormShape } from './model';
 
 /** Узел шага после конвертации: \`title\`/\`icon\` лежат в его \`componentProps\`. */
@@ -114,7 +116,7 @@ export interface WizardProps {
 }
 
 export function Wizard({ form, steps = [], className, onSubmit }: WizardProps): ReactNode {
-  const wizardSteps: FormWizardStep<FormShape>[] = steps.map((node, i) => ({
+  const wizardSteps: FormWizardStep<FormShape, RenderNode<FormShape>>[] = steps.map((node, i) => ({
     number: i + 1,
     title: node.componentProps?.title ?? \`Шаг \${i + 1}\`,
     icon: node.componentProps?.icon,
@@ -122,11 +124,12 @@ export function Wizard({ form, steps = [], className, onSubmit }: WizardProps): 
   }));
 
   return (
-    <FormWizard<FormShape>
+    <FormWizard<FormShape, RenderNode<FormShape>>
       form={form as FormProxy<FormShape>}
       className={className}
       steps={wizardSteps}
       config={{}}
+      renderStepBody={(body, wizardForm) => <RenderNodeComponent node={body} form={wizardForm} />}
       onSubmit={onSubmit ? () => onSubmit(form?.getValue() as FormShape) : undefined}
     />
   );

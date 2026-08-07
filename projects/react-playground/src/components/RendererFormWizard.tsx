@@ -9,8 +9,11 @@
  *
  * This shim extracts `title` / `icon` from `componentProps` (lifting them to the
  * step root expected by the new API) and passes the whole old node as `body`.
- * `renderStepBody` in ui-kit FormWizard sees a plain object with `.component`
- * and renders via `RenderNodeComponent`, preserving the original visual tree.
+ *
+ * It also supplies the `renderStepBody` strategy: ui-kit `FormWizard` deliberately
+ * knows nothing about `@reformer/renderer-react` (the design system must not depend
+ * on a renderer), so rendering a RenderSchema node is injected here — at the
+ * application boundary, which is exactly what this shim is.
  *
  * After complex-form pages are rewritten to the new step shape, this shim can
  * be deleted.
@@ -21,6 +24,7 @@ import { type ReactNode } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormWizardConfig, FormWizardHandle } from '@reformer/cdk/form-wizard';
 import type { FormProxy } from '@reformer/core';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 
 export interface LegacyRendererStep {
   /** Wrapper component (typically `Step` from CDK). */
@@ -63,13 +67,12 @@ export function RendererFormWizard<T extends Record<string, unknown>>(
     className,
   } = props;
 
-  const newSteps: FormWizardStep<T>[] = legacySteps.map((step, idx) => ({
+  const newSteps: FormWizardStep<T, RenderNode<T>>[] = legacySteps.map((step, idx) => ({
     number: idx + 1,
     title: (step.componentProps?.title as string) ?? `Шаг ${idx + 1}`,
     icon: step.componentProps?.icon as string | undefined,
-    // Pass the legacy RenderNode subtree as `body` — ui-kit FormWizard's
-    // `renderStepBody` detects the RenderNode shape (object with `.component`)
-    // and renders via RenderNodeComponent, preserving the wrapper hierarchy.
+    // Pass the legacy RenderNode subtree as `body`; `renderStepBody` below turns it
+    // into a rendered tree, preserving the wrapper hierarchy.
     body: step as any,
   }));
 
@@ -89,11 +92,12 @@ export function RendererFormWizard<T extends Record<string, unknown>>(
     : undefined;
 
   return (
-    <FormWizard<T>
+    <FormWizard<T, RenderNode<T>>
       ref={ref}
       form={form}
       config={config}
       steps={newSteps}
+      renderStepBody={(body, wizardForm) => <RenderNodeComponent node={body} form={wizardForm} />}
       onSubmit={handleSubmit}
       onStepChange={onStepChange}
       scrollToTop={scrollToTop}

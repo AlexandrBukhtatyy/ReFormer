@@ -48,6 +48,7 @@ import {
   AsyncBoundary,
   Section,
   Box,
+  FormArray,
   SelectField,
   CheckboxField,
   InputField,
@@ -756,6 +757,7 @@ export function buildCreditApplicationSchema(
                         {
                           selector: 'properties-array',
                           array: model.properties,
+                          component: FormArray,
                           initialValue: createBlankProperty,
                           componentProps: {
                             title: 'Имущество',
@@ -818,6 +820,7 @@ export function buildCreditApplicationSchema(
                         {
                           selector: 'existing-loans-array',
                           array: model.existingLoans,
+                          component: FormArray,
                           initialValue: createBlankExistingLoan,
                           componentProps: {
                             title: 'Существующие кредиты',
@@ -905,6 +908,7 @@ export function buildCreditApplicationSchema(
                         {
                           selector: 'co-borrowers-array',
                           array: model.coBorrowers,
+                          component: FormArray,
                           initialValue: createBlankCoBorrower,
                           componentProps: {
                             title: 'Созаемщики',

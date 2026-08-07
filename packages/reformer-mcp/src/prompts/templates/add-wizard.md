@@ -64,7 +64,7 @@ const steps: FormWizardStep<MyForm>[] = [
 
 {{{{/raw}}}}
 
-`step.body` is runtime-discriminated — pick whichever shape fits the consumer's flow. ui-kit handles all three internally via `RenderNodeComponent` for the RenderNode case.
+`step.body` is runtime-discriminated — pick whichever shape fits the consumer's flow. ui-kit handles the first two itself; for the RenderNode case it does NOT depend on `@reformer/renderer-react` (the design system must not pull in a renderer), so you supply the strategy: type the wizard as `FormWizard<T, RenderNode<T>>` and pass `renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}`.
 
 If `@reformer/ui-kit` is NOT in package.json, skip to A2.
 
@@ -145,7 +145,7 @@ if (!ok) return;
 
 Step bodies are RenderSchema sub-trees with `selector: 'step1'..'stepN'` on each step container.
 
-- **A1 (ui-kit FormWizard)**: pass `step.body: RenderNode<T>` (the subtree). FormWizard internally wraps in `<RenderNodeComponent>`. No `setHidden` needed — ui-kit handles step switching.
+- **A1 (ui-kit FormWizard)**: pass `step.body: RenderNode<T>` (the subtree) **and** `renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}` — ui-kit does not import the renderer, so the wrapping is yours to supply. No `setHidden` needed — ui-kit handles step switching.
 - A2: if the wrapper accepts a `currentStep` prop and renders its `<Step>` slot, pass schema's pre-rendered nodes per step. Or use `setHidden` (next bullet).
 - A3/A4: `useEffect` toggling `schema.node('stepN').setHidden(currentStep !== n)` for each step.
 

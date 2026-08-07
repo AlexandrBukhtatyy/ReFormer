@@ -115,6 +115,51 @@ export interface RenderModelArrayControl extends SchemaArrayControl {
 }
 
 /**
+ * Один элемент массива, **уже отрендеренный** рендерером и готовый к вставке в разметку.
+ *
+ * Рендерер сам итерирует массив (подписка на структуру, кэш поддеревьев, стабильные ключи) и
+ * отдаёт компоненту-рендереру массива результат — компоненту остаётся только оформление.
+ * Так UI-библиотека не обязана знать ни про сигналы, ни про {@link RenderNode}, ни про хуки
+ * рендерера: она получает обычные props (см. {@link ArrayComponentProps}).
+ */
+export interface ArrayItemSlot {
+  /** Стабильный React-ключ (по идентичности под-модели элемента). */
+  key: React.Key;
+  /** Живой индекс в массиве — для `onRemove(index)` / `onMove(index, …)`. */
+  index: number;
+  /** Под-модель элемента — для меток вида `itemLabel(model, index)`. */
+  model?: unknown;
+  /** Отрендеренное поддерево элемента. */
+  children: React.ReactNode;
+}
+
+/**
+ * Контракт компонента-рендерера массива (`{ array, item, component }` → `$component(FormArray)`
+ * / `$component(List)`): готовые элементы + мутации массива обычными колбэками.
+ *
+ * Компонент — «humble object»: он не подписывается на модель и не вызывает хуки рендерера,
+ * поэтому реализовать его может любая UI-библиотека (и протестировать на фейковых `items`
+ * вообще без формы). Всё, что сверх этих полей, приходит из `componentProps` узла.
+ *
+ * @example Минимальный список
+ * ```tsx
+ * function MyList({ items }: ArrayComponentProps) {
+ *   return <ul>{items.map((it) => <li key={it.key}>{it.children}</li>)}</ul>;
+ * }
+ * ```
+ */
+export interface ArrayComponentProps {
+  /** Отрендеренные элементы массива в порядке следования. */
+  items: ArrayItemSlot[];
+  /** Добавить элемент (значение резолвится рендерером из `initialValue` узла). */
+  onAdd(): void;
+  /** Удалить элемент по индексу. */
+  onRemove(index: number): void;
+  /** Переместить элемент (реордер). */
+  onMove(from: number, to: number): void;
+}
+
+/**
  * Узел-массив единой схемы (M1): данные принадлежат модели (`array`), форма элемента описывается
  * `item(itemModel)`. `createForm` материализует `ModelArrayNode` (по `{ array, item }`), рендерер
  * итерирует элементы и рисует поддерево `item(itemModel)` (листья на сигналах под-модели).
@@ -130,10 +175,12 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
   /** Реактивный массив модели (`model.<path>`). Расширяет базовый контракт методом `move`. */
   array: RenderModelArrayControl;
   /**
-   * Опциональный компонент-рендерер массива (из `$component(...)`). Если задан — итерация
-   * рендерится этим компонентом (chrome-less display-список / кастомная секция) вместо встроенной
-   * редактируемой секции. Компонент получает `array`/`item`/`initialValue`/`fieldWrapper` и готовые
-   * элементы `children`.
+   * Компонент-рендерер массива (из `$component(...)`): секция с add/remove/reorder либо
+   * chrome-less список. Итерирует **рендерер**, а компонент получает результат обычными props —
+   * {@link ArrayComponentProps} (`items` + `onAdd`/`onRemove`/`onMove`) плюс `componentProps` узла.
+   *
+   * Без `component` узел рендерится безхромным fallback'ом (только элементы, без кнопок) —
+   * зарегистрируй `FormArray` из `@reformer/ui-kit` или свой компонент, если нужен UI управления.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component?: ComponentType<any>;
