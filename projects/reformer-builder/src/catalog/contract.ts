@@ -5,8 +5,10 @@
  * от клиента ({@link loadCatalogJson}), валидатор против контракта ({@link validateCatalog}) и
  * реконструкция `CatalogEntry[]` с `makeNode` ({@link buildCatalogFromJson}).
  *
- * Категория палитры — забота билдера (клиент её не поставляет): назначается на загрузке по
- * {@link CATEGORY_BY_NAME}. Синтетические `$html`/array-записи добавляет билдер (`synthetic-entries`).
+ * Категория палитры назначается на загрузке по карте активного кита
+ * (`descriptor.palette.categoryByName`; для «неявного кита» это дефолтная карта билдера), поверх
+ * которой может лечь клиентский конфиг. Синтетические `$html`/array-записи добавляет билдер
+ * (`synthetic-entries`).
  *
  * @module reformer-builder/catalog/contract
  */
@@ -18,100 +20,25 @@ import type { CatalogEntry, CatalogJson, CatalogRecord, CatalogRole } from './ty
 import { syntheticRecords } from './synthetic-entries';
 import { makeNodeFor } from './make-node';
 import catalogSchema from './component-catalog.schema.json';
-import uiKitCatalog from '@reformer/ui-kit/catalog';
+import { toDescriptor } from '../kits/descriptor';
+import { getKitOrDefault } from '../kits/registry';
+import { getSelectedKitId } from '../kits/selection';
+import type { KitDescriptor } from '../kits/types';
 
 /** JSON Schema контракта каталога (draft-07). Владелец — билдер; ui-kit генерирует под неё. */
 export const CATALOG_SCHEMA = catalogSchema;
 
-/**
- * Имя компонента → категория палитры (§5 `category?`). Категория — забота палитры билдера, ui-kit
- * её не поставляет; назначается на загрузке. Незамапленные падают в default (`categoryOf`).
- */
-const CATEGORY_BY_NAME: Record<string, string> = {
-  // Поля ввода
-  Input: 'Поля ввода',
-  InputPassword: 'Поля ввода',
-  InputMask: 'Поля ввода',
-  InputOTP: 'Поля ввода',
-  Textarea: 'Поля ввода',
-  DatePicker: 'Поля ввода',
-  Calendar: 'Поля ввода',
-  FileUpload: 'Поля ввода',
-  FileUploadAvatar: 'Поля ввода',
-  // Выбор и переключатели
-  Select: 'Выбор и переключатели',
-  NativeSelect: 'Выбор и переключатели',
-  Combobox: 'Выбор и переключатели',
-  RadioGroup: 'Выбор и переключатели',
-  Checkbox: 'Выбор и переключатели',
-  Switch: 'Выбор и переключатели',
-  Slider: 'Выбор и переключатели',
-  Toggle: 'Выбор и переключатели',
-  ToggleGroup: 'Выбор и переключатели',
-  // Контейнеры
-  Box: 'Контейнеры',
-  Section: 'Контейнеры',
-  Card: 'Контейнеры',
-  Accordion: 'Контейнеры',
-  Tabs: 'Контейнеры',
-  Collapsible: 'Контейнеры',
-  InputGroup: 'Контейнеры',
-  ButtonGroup: 'Контейнеры',
-  AspectRatio: 'Контейнеры',
-  ScrollArea: 'Контейнеры',
-  Resizable: 'Контейнеры',
-  Sidebar: 'Контейнеры',
-  // Действия
-  Button: 'Действия',
-  // Отображение
-  Icon: 'Отображение',
-  Label: 'Отображение',
-  Badge: 'Отображение',
-  Typography: 'Отображение',
-  Avatar: 'Отображение',
-  Progress: 'Отображение',
-  Skeleton: 'Отображение',
-  Spinner: 'Отображение',
-  Table: 'Отображение',
-  Chart: 'Отображение',
-  Empty: 'Отображение',
-  Kbd: 'Отображение',
-  Marker: 'Отображение',
-  Alert: 'Отображение',
-  Separator: 'Отображение',
-  Carousel: 'Отображение',
-  // Typography — набор отдельных компонентов (TypographyH1…Muted) → раздел «Типографика» (правило-префикс в categoryOf).
-  // Оверлеи
-  Dialog: 'Оверлеи',
-  AlertDialog: 'Оверлеи',
-  Sheet: 'Оверлеи',
-  Drawer: 'Оверлеи',
-  Popover: 'Оверлеи',
-  HoverCard: 'Оверлеи',
-  Tooltip: 'Оверлеи',
-  Command: 'Оверлеи',
-  // Навигация
-  DropdownMenu: 'Навигация',
-  ContextMenu: 'Навигация',
-  Menubar: 'Навигация',
-  NavigationMenu: 'Навигация',
-  Breadcrumb: 'Навигация',
-  Pagination: 'Навигация',
-  // Чат
-  Bubble: 'Чат',
-  Message: 'Чат',
-  MessageScroller: 'Чат',
-  Attachment: 'Чат',
-  Item: 'Чат',
-};
-
-function categoryOf(name: string, role: CatalogRole): string {
+function categoryOf(
+  name: string,
+  role: CatalogRole,
+  categoryByName: Record<string, string>
+): string {
   // Клиентский конфиг может доопределить/переопределить категорию по имени (сливается поверх дефолта).
   const override = getRuntimeConfig().palette?.categoryByName?.[name];
   if (override) return override;
   // Typography разбит на отдельные компоненты (TypographyH1…Muted) — собственный раздел «Типографика».
   if (name.startsWith('Typography')) return 'Типографика';
-  return CATEGORY_BY_NAME[name] ?? (role === 'container' ? 'Контейнеры' : 'Прочее');
+  return categoryByName[name] ?? (role === 'container' ? 'Контейнеры' : 'Прочее');
 }
 
 /** Отфильтровать записи по whitelist/blacklist имён из клиентского конфига (по имени компонента). */
@@ -139,23 +66,43 @@ function filterComponents(
  */
 export function loadCatalogJson(): CatalogJson {
   const componentsCfg = getRuntimeConfig().components;
-  const supplied = getClientCatalog() ?? (uiKitCatalog as unknown as CatalogJson);
+  // Приоритет: каталог, переданный клиентом через `--catalog`, иначе каталог ВЫБРАННОГО кита
+  // (по умолчанию — вшитый `@reformer/ui-kit`).
+  const supplied = getClientCatalog() ?? getKitOrDefault(getSelectedKitId()).catalog;
   const all = [...supplied.components, ...syntheticRecords(componentsCfg?.synthetic)];
-  return { version: supplied.version, components: filterComponents(all, componentsCfg) };
+  return {
+    version: supplied.version,
+    components: filterComponents(all, componentsCfg),
+    // Блок `kit` кита пробрасываем дальше: из него `toDescriptor` соберёт дескриптор.
+    ...(supplied.kit ? { kit: supplied.kit } : {}),
+  };
 }
 
-/** Реконструировать `CatalogEntry[]` из каталога-JSON (категория палитры + восстановление `makeNode`). */
-export function buildCatalogFromJson(json: CatalogJson): CatalogEntry[] {
+/**
+ * Реконструировать `CatalogEntry[]` из каталога-JSON (категория палитры + восстановление `makeNode`).
+ *
+ * Дескриптор кита по умолчанию выводится из самого каталога — так карта категорий приходит от кита,
+ * а не из захардкоженной таблицы билдера.
+ */
+export function buildCatalogFromJson(
+  json: CatalogJson,
+  descriptor: KitDescriptor = toDescriptor(json)
+): CatalogEntry[] {
+  const categoryByName = descriptor.palette.categoryByName;
   return json.components.map((r) => ({
     name: r.name,
     role: r.role,
     // Часть compound'а живёт в категории своего корня (`AlertTitle` — там же, где `Alert`): в общий
     // список палитры она не попадает, но при контекстном показе категория должна совпадать с корнем.
-    category: r.category ?? categoryOf(r.compoundParent ?? r.name, r.role),
+    category: r.category ?? categoryOf(r.compoundParent ?? r.name, r.role, categoryByName),
     propsSchema: r.propsSchema,
     ...(r.variantGroup ? { variantGroup: r.variantGroup } : {}),
     ...(r.variant ? { variant: r.variant } : {}),
     ...(r.compoundParent ? { compoundParent: r.compoundParent } : {}),
+    // Поля контракта 2.0 прокидываются только когда кит их реально прислал: для каталога 1.0
+    // форма записи остаётся байт-в-байт прежней (закреплено снапшот-тестом эквивалентности).
+    ...(r.exportName ? { exportName: r.exportName } : {}),
+    ...(r.subpath ? { subpath: r.subpath } : {}),
     makeNode: () => makeNodeFor(r.name, r.role, r.compoundParent),
   }));
 }

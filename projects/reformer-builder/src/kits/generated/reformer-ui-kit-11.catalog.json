@@ -1,0 +1,4221 @@
+{
+  "$schema": "../../catalog/component-catalog.schema.json",
+  "version": "2.0",
+  "kit": {
+    "id": "reformer-ui-kit-11",
+    "label": "ReFormer UI Kit 11",
+    "package": "@reformer/ui-kit",
+    "version": "11.0.0",
+    "peerRanges": {
+      "@reformer/cdk": ">=1.0.0",
+      "@reformer/core": ">=1.1.0",
+      "@reformer/renderer-react": ">=1.0.0",
+      "react": "^18.0.0 || ^19.0.0",
+      "react-dom": "^18.0.0 || ^19.0.0"
+    },
+    "resolve": {
+      "fieldSuffix": "Field"
+    },
+    "infra": {
+      "fieldWrapper": "FormField",
+      "asyncBoundary": "AsyncBoundary"
+    },
+    "adapters": {
+      "wizard": {
+        "symbol": "FormWizard",
+        "subpath": "form-wizard"
+      },
+      "step": null
+    },
+    "styles": {
+      "mode": "tokens"
+    },
+    "codegen": {
+      "importSpecifier": "@reformer/ui-kit"
+    }
+  },
+  "components": [
+    {
+      "name": "Accordion",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "AccordionContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Accordion"
+    },
+    {
+      "name": "AccordionItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Accordion"
+    },
+    {
+      "name": "Alert",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "AlertDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Alert"
+    },
+    {
+      "name": "AlertDialog",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "AlertDialogAction",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "AlertDialog"
+    },
+    {
+      "name": "AlertDialogCancel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "AlertDialog"
+    },
+    {
+      "name": "AlertDialogContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "AlertDialog"
+    },
+    {
+      "name": "AlertDialogDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "AlertDialog"
+    },
+    {
+      "name": "AlertDialogFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "AlertDialog"
+    },
+    {
+      "name": "AlertDialogHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "AlertDialog"
+    },
+    {
+      "name": "AlertDialogMedia",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "AlertDialog"
+    },
+    {
+      "name": "AlertDialogTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "AlertDialog"
+    },
+    {
+      "name": "AlertTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Alert"
+    },
+    {
+      "name": "AspectRatio",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "AsyncBoundary",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "Attachment",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "AttachmentAction",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentActions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentMedia",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "AttachmentTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Attachment"
+    },
+    {
+      "name": "Avatar",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "AvatarBadge",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Avatar"
+    },
+    {
+      "name": "AvatarFallback",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Avatar"
+    },
+    {
+      "name": "AvatarGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Avatar"
+    },
+    {
+      "name": "AvatarGroupCount",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Avatar"
+    },
+    {
+      "name": "AvatarImage",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Avatar"
+    },
+    {
+      "name": "Badge",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "Box",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Box",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс layout-контейнера (atomic CSS / Tailwind: flex, grid, gap-*).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Breadcrumb",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "BreadcrumbEllipsis",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbLink",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbList",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbPage",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "BreadcrumbSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Breadcrumb"
+    },
+    {
+      "name": "Bubble",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "BubbleContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Bubble"
+    },
+    {
+      "name": "BubbleGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Bubble"
+    },
+    {
+      "name": "BubbleReactions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Bubble"
+    },
+    {
+      "name": "Button",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "ButtonGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "ButtonGroupSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "ButtonGroup"
+    },
+    {
+      "name": "ButtonGroupText",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "ButtonGroup"
+    },
+    {
+      "name": "Calendar",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["single"],
+            "default": "single",
+            "description": "Режим выбора. Field-версия — только single (одна дата, value: Date | null).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'single'",
+              "kind": "enum"
+            }
+          },
+          "captionLayout": {
+            "type": "string",
+            "enum": ["label", "dropdown", "dropdown-months", "dropdown-years"],
+            "default": "label",
+            "description": "Шапка месяца: статичная подпись или дропдауны выбора месяца/года.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'label' | 'dropdown' | 'dropdown-months' | 'dropdown-years'",
+              "kind": "enum"
+            }
+          },
+          "showOutsideDays": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать дни соседних месяцев в первой и последней неделе.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс корневого элемента.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "Date | null",
+            "description": "Выбранная дата. null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: Date | null) => void",
+            "description": "Выбор даты. Повторный клик по выбранной дате сбрасывает значение в null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      },
+      "subpath": "calendar"
+    },
+    {
+      "name": "CalendarDayButton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Calendar",
+      "subpath": "calendar"
+    },
+    {
+      "name": "Card",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "CardAction",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "CardTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Card"
+    },
+    {
+      "name": "Carousel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "carousel"
+    },
+    {
+      "name": "CarouselContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Carousel",
+      "subpath": "carousel"
+    },
+    {
+      "name": "CarouselItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Carousel",
+      "subpath": "carousel"
+    },
+    {
+      "name": "CarouselNext",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Carousel",
+      "subpath": "carousel"
+    },
+    {
+      "name": "CarouselPrevious",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Carousel",
+      "subpath": "carousel"
+    },
+    {
+      "name": "Chart",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "chart"
+    },
+    {
+      "name": "ChartContainer",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Chart",
+      "subpath": "chart"
+    },
+    {
+      "name": "ChartLegend",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Chart",
+      "subpath": "chart"
+    },
+    {
+      "name": "ChartLegendContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Chart",
+      "subpath": "chart"
+    },
+    {
+      "name": "ChartTooltip",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Chart",
+      "subpath": "chart"
+    },
+    {
+      "name": "ChartTooltipContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Chart",
+      "subpath": "chart"
+    },
+    {
+      "name": "Checkbox",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись справа от чекбокса (inline-раскладка). Рендерит сам контрол.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контрола (CheckboxPrimitive.Root).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "boolean",
+            "description": "Состояние чекбокса. undefined/null трактуется как false."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: boolean) => void",
+            "description": "Изменение. indeterminate приводится к false."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "CheckboxWithLabel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Checkbox"
+    },
+    {
+      "name": "Collapsible",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "CollapsibleContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Collapsible"
+    },
+    {
+      "name": "Combobox",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Список опций { value, label }. Поиск идёт по label.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label }>",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Select an option...",
+            "description": "Подсказка в триггере, пока ничего не выбрано.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "searchPlaceholder": {
+            "type": "string",
+            "default": "Search...",
+            "description": "Подсказка в поле поиска.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "emptyText": {
+            "type": "string",
+            "default": "No options found.",
+            "description": "Текст пустого состояния (ничего не найдено).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать крестик очистки (сброс в null); повторный выбор опции тоже сбрасывает.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор; при очистке приходит null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      },
+      "subpath": "combobox"
+    },
+    {
+      "name": "Command",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "command"
+    },
+    {
+      "name": "CommandDialog",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Command",
+      "subpath": "command"
+    },
+    {
+      "name": "CommandEmpty",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Command",
+      "subpath": "command"
+    },
+    {
+      "name": "CommandGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Command",
+      "subpath": "command"
+    },
+    {
+      "name": "CommandInput",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Command",
+      "subpath": "command"
+    },
+    {
+      "name": "CommandItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Command",
+      "subpath": "command"
+    },
+    {
+      "name": "CommandList",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Command",
+      "subpath": "command"
+    },
+    {
+      "name": "CommandSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Command",
+      "subpath": "command"
+    },
+    {
+      "name": "CommandShortcut",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Command",
+      "subpath": "command"
+    },
+    {
+      "name": "ContextMenu",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "DatePicker",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Выберите дату",
+            "description": "Текст кнопки-триггера, когда дата не выбрана.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "dateFormat": {
+            "type": "string",
+            "default": "PPP",
+            "description": "Формат отображения выбранной даты — токены date-fns (напр. dd.MM.yyyy).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс кнопки-триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "Date | null",
+            "description": "Выбранная дата. null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: Date | null) => void",
+            "description": "Выбор даты в календаре. Повторный клик по выбранной дате сбрасывает в null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      },
+      "subpath": "date-picker"
+    },
+    {
+      "name": "Dialog",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "DialogClose",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Dialog"
+    },
+    {
+      "name": "DialogContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Dialog"
+    },
+    {
+      "name": "DialogDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Dialog"
+    },
+    {
+      "name": "DialogFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Dialog"
+    },
+    {
+      "name": "DialogHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Dialog"
+    },
+    {
+      "name": "DialogTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Dialog"
+    },
+    {
+      "name": "Direction",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "direction"
+    },
+    {
+      "name": "Drawer",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "drawer"
+    },
+    {
+      "name": "DrawerClose",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Drawer",
+      "subpath": "drawer"
+    },
+    {
+      "name": "DrawerContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Drawer",
+      "subpath": "drawer"
+    },
+    {
+      "name": "DrawerDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Drawer",
+      "subpath": "drawer"
+    },
+    {
+      "name": "DrawerFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Drawer",
+      "subpath": "drawer"
+    },
+    {
+      "name": "DrawerHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Drawer",
+      "subpath": "drawer"
+    },
+    {
+      "name": "DrawerTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Drawer",
+      "subpath": "drawer"
+    },
+    {
+      "name": "DropdownMenu",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "DropdownMenuCheckboxItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuLabel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuRadioGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuRadioItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuShortcut",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuSub",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "DropdownMenuSubContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "DropdownMenu"
+    },
+    {
+      "name": "Empty",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "EmptyContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Empty"
+    },
+    {
+      "name": "EmptyDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Empty"
+    },
+    {
+      "name": "EmptyHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Empty"
+    },
+    {
+      "name": "EmptyMedia",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Empty"
+    },
+    {
+      "name": "EmptyTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Empty"
+    },
+    {
+      "name": "ExampleCard",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "Field",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "FormArray",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "form-array"
+    },
+    {
+      "name": "FormArraySection",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "FormArray"
+    },
+    {
+      "name": "FormField",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "FormWizard",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "FormWizardActions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "FormWizard"
+    },
+    {
+      "name": "FormWizardProgress",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "FormWizard"
+    },
+    {
+      "name": "HoverCard",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "HoverCardContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "HoverCard"
+    },
+    {
+      "name": "Input",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": ["text", "email", "tel", "url", "password", "number", "date"],
+            "default": "text",
+            "description": "HTML-тип input. number включает числовой буфер, остальные — строковые.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "'text' | 'email' | 'number' | 'date' | …",
+              "kind": "enum"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "min": {
+            "type": "number",
+            "description": "Минимум (type=number). При min>=0 отрицательные значения зажимаются к 0.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "max": {
+            "type": "number",
+            "description": "Максимум (type=number).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "step": {
+            "type": "number",
+            "description": "Шаг (type=number).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | number | null",
+            "description": "Значение поля. Для type=number — number|null, иначе string|null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | number | null) => void",
+            "description": "Изменение. Пустой ввод → null. Для number частичный ввод («-», «1.») не эмитится."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "InputGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "InputGroupAddon",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
+      "name": "InputGroupButton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
+      "name": "InputGroupInput",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
+      "name": "InputGroupText",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
+      "name": "InputGroupTextarea",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "InputGroup"
+    },
+    {
+      "name": "InputMask",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "mask": {
+            "type": "string",
+            "description": "Шаблон маски-подсказки: '9' — цифра, прочие символы — литералы (уходят в placeholder). Напр. '+7 (999) 999-99-99'. Автовставки литералов нет — компонент только помечает формат.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля. По умолчанию равна mask.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение поля. null/undefined → пустое поле."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "InputOTP",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "maxLength": {
+            "type": "number",
+            "default": 6,
+            "minimum": 1,
+            "description": "Число слотов (длина кода). Дефолтная раскладка разворачивает одну группу из maxLength слотов.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс скрытого input.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Набранный код. null — пусто."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение кода. Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      },
+      "subpath": "input-otp"
+    },
+    {
+      "name": "InputOTPGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "InputOTP",
+      "subpath": "input-otp"
+    },
+    {
+      "name": "InputOTPSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "InputOTP",
+      "subpath": "input-otp"
+    },
+    {
+      "name": "InputOTPSlot",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "InputOTP",
+      "subpath": "input-otp"
+    },
+    {
+      "name": "InputPassword",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Password",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "showToggle": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать иконку переключения видимости (eye/eye-off). Появляется при непустом value.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение пароля. null/пусто — пустое поле."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод приводится к null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Item",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "ItemActions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemMedia",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "ItemTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Item"
+    },
+    {
+      "name": "Kbd",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "KbdGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Kbd"
+    },
+    {
+      "name": "Label",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "Marker",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "MarkerContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Marker"
+    },
+    {
+      "name": "MarkerIcon",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Marker"
+    },
+    {
+      "name": "Menubar",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "MenubarCheckboxItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarLabel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarMenu",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarRadioGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarRadioItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarShortcut",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarSub",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "MenubarSubContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Menubar"
+    },
+    {
+      "name": "Message",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "MessageAvatar",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Message"
+    },
+    {
+      "name": "MessageContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Message"
+    },
+    {
+      "name": "MessageFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Message"
+    },
+    {
+      "name": "MessageGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Message"
+    },
+    {
+      "name": "MessageHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Message"
+    },
+    {
+      "name": "MessageScroller",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "message-scroller"
+    },
+    {
+      "name": "MessageScrollerButton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "MessageScroller",
+      "subpath": "message-scroller"
+    },
+    {
+      "name": "MessageScrollerContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "MessageScroller",
+      "subpath": "message-scroller"
+    },
+    {
+      "name": "MessageScrollerItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "MessageScroller",
+      "subpath": "message-scroller"
+    },
+    {
+      "name": "MessageScrollerViewport",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "MessageScroller",
+      "subpath": "message-scroller"
+    },
+    {
+      "name": "NativeSelect",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": ["string", "number"]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Опции списка. Одинаковый group объединяется в <optgroup>.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; group? }>",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка-опция (value=\"\") в начале списка.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс select.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value как строка). Пустой выбор → null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой выбор (value=\"\") → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "NativeSelectOptGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "NativeSelect"
+    },
+    {
+      "name": "NativeSelectOption",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "NativeSelect"
+    },
+    {
+      "name": "NativeSelectWithOptions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "NativeSelect"
+    },
+    {
+      "name": "NavigationMenu",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "NavigationMenuContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "NavigationMenu"
+    },
+    {
+      "name": "NavigationMenuIndicator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "NavigationMenu"
+    },
+    {
+      "name": "NavigationMenuItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "NavigationMenu"
+    },
+    {
+      "name": "NavigationMenuLink",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "NavigationMenu"
+    },
+    {
+      "name": "NavigationMenuList",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "NavigationMenu"
+    },
+    {
+      "name": "NavigationMenuViewport",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "NavigationMenu"
+    },
+    {
+      "name": "Pagination",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "PaginationContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationEllipsis",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationLink",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationNext",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "PaginationPrevious",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Pagination"
+    },
+    {
+      "name": "Popover",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "PopoverAnchor",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Popover"
+    },
+    {
+      "name": "PopoverContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Popover"
+    },
+    {
+      "name": "PopoverDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Popover"
+    },
+    {
+      "name": "PopoverHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Popover"
+    },
+    {
+      "name": "PopoverTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Popover"
+    },
+    {
+      "name": "Progress",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "RadioGroup",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Варианты выбора. Каждый рендерится как radio + подпись справа.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label }>",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера группы (по умолчанию grid gap-3).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор варианта; пустой выбор → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "RadioGroupItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "RadioGroup"
+    },
+    {
+      "name": "RadioGroupOptions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "RadioGroup"
+    },
+    {
+      "name": "Resizable",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "resizable"
+    },
+    {
+      "name": "ResizableHandle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Resizable",
+      "subpath": "resizable"
+    },
+    {
+      "name": "ResizablePanel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Resizable",
+      "subpath": "resizable"
+    },
+    {
+      "name": "ResizablePanelGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Resizable",
+      "subpath": "resizable"
+    },
+    {
+      "name": "ScrollArea",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "Section",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Section",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Заголовок секции. Не задан — заголовок не рендерится (только обёртка).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "titleAs": {
+            "type": "string",
+            "enum": ["h1", "h2", "h3", "h4", "h5", "h6"],
+            "default": "h3",
+            "description": "HTML-элемент заголовка (уровень h1-h6).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'",
+              "kind": "enum"
+            }
+          },
+          "titleClassName": {
+            "type": "string",
+            "description": "Доп. CSS-класс заголовка.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера `<section>` (напр. `grid grid-cols-2 gap-4`).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Select",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": ["string", "number"]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Inline-опции. Одинаковый group объединяется в секцию SelectLabel.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; group? }>",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "default": "Select an option...",
+            "description": "Подсказка в триггере.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать крестик очистки (сброс в null).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор; при очистке приходит null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "resource": {
+            "group": "Options",
+            "type": "ResourceConfig<unknown>",
+            "description": "Асинхронный источник опций (static / preload / partial). В JSON-форме недостижим: требует функцию load."
+          }
+        }
+      }
+    },
+    {
+      "name": "SelectAsync",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Select"
+    },
+    {
+      "name": "SelectContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Select"
+    },
+    {
+      "name": "SelectGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Select"
+    },
+    {
+      "name": "SelectItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Select"
+    },
+    {
+      "name": "SelectLabel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Select"
+    },
+    {
+      "name": "SelectScrollDownButton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Select"
+    },
+    {
+      "name": "SelectScrollUpButton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Select"
+    },
+    {
+      "name": "SelectSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Select"
+    },
+    {
+      "name": "SelectValue",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Select"
+    },
+    {
+      "name": "Separator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "Sheet",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "SheetClose",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sheet"
+    },
+    {
+      "name": "SheetContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sheet"
+    },
+    {
+      "name": "SheetDescription",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sheet"
+    },
+    {
+      "name": "SheetFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sheet"
+    },
+    {
+      "name": "SheetHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sheet"
+    },
+    {
+      "name": "SheetTitle",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sheet"
+    },
+    {
+      "name": "Sidebar",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarGroup",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarGroupAction",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarGroupContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarGroupLabel",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarInput",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarInset",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarMenu",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarMenuAction",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarMenuBadge",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarMenuButton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarMenuItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarMenuSkeleton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarMenuSub",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarMenuSubButton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarMenuSubItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarRail",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "SidebarSeparator",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Sidebar",
+      "subpath": "sidebar"
+    },
+    {
+      "name": "Skeleton",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "Slider",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "min": {
+            "type": "number",
+            "default": 0,
+            "description": "Минимум диапазона (Radix min).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "max": {
+            "type": "number",
+            "default": 100,
+            "description": "Максимум диапазона (Radix max).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "step": {
+            "type": "number",
+            "default": 1,
+            "description": "Шаг изменения значения (Radix step).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс слайдера (SliderPrimitive.Root).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "number | null",
+            "description": "Значение слайдера (одно-thumb). null трактуется как min. Резолвится формой."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: number | null) => void",
+            "description": "Изменение; эмитит первое число массива Radix (onValueChange → arr[0])."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Sonner",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "sonner"
+    },
+    {
+      "name": "Spinner",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "State",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "state"
+    },
+    {
+      "name": "Switch",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись справа от переключателя (inline-раскладка; FormField верхнюю метку не рисует).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс переключателя.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "boolean",
+            "description": "Состояние переключателя (true — включён). Резолвится формой."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: boolean) => void",
+            "description": "Переключение; эмитит boolean (Radix onCheckedChange, indeterminate → false)."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Table",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "table"
+    },
+    {
+      "name": "TableBody",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Table",
+      "subpath": "table"
+    },
+    {
+      "name": "TableCaption",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Table",
+      "subpath": "table"
+    },
+    {
+      "name": "TableCell",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Table",
+      "subpath": "table"
+    },
+    {
+      "name": "TableFooter",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Table",
+      "subpath": "table"
+    },
+    {
+      "name": "TableHead",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Table",
+      "subpath": "table"
+    },
+    {
+      "name": "TableHeader",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Table",
+      "subpath": "table"
+    },
+    {
+      "name": "TableRow",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Table",
+      "subpath": "table"
+    },
+    {
+      "name": "Tabs",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "TabsContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Tabs"
+    },
+    {
+      "name": "TabsList",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Tabs"
+    },
+    {
+      "name": "Textarea",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "number",
+            "description": "Число видимых строк (HTML-атрибут rows).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Значение поля. Пустой ввод → null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "Toggle",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["default", "outline"],
+            "default": "default",
+            "description": "Стиль cva: default (заливка при нажатии) | outline (граница).",
+            "x-doc": {
+              "group": "Control",
+              "type": "'default' | 'outline'",
+              "kind": "enum"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "sm", "lg"],
+            "default": "default",
+            "description": "Размер cva: default | sm | lg.",
+            "x-doc": {
+              "group": "Control",
+              "type": "'default' | 'sm' | 'lg'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контрола (TogglePrimitive.Root).",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "boolean",
+            "description": "Состояние (true — нажат/pressed). undefined/null трактуется как false. Резолвится формой."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: boolean) => void",
+            "description": "Переключение; эмитит boolean (Radix onPressedChange)."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "ToggleGroup",
+      "role": "field",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Варианты выбора. Каждый рендерится как кнопка-переключатель.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label }>",
+              "kind": "readonly"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["default", "outline"],
+            "default": "default",
+            "description": "Визуальный стиль кнопок: плоские (default) или с рамкой (outline).",
+            "x-doc": {
+              "group": "Control",
+              "type": "'default' | 'outline'"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера группы.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выбранное значение (option.value). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор варианта; пустой выбор → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        }
+      }
+    },
+    {
+      "name": "ToggleGroupItem",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "ToggleGroup"
+    },
+    {
+      "name": "ToggleGroupOptions",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "ToggleGroup"
+    },
+    {
+      "name": "Tooltip",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "TooltipContent",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Tooltip"
+    },
+    {
+      "name": "Typography",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "subpath": "typography"
+    },
+    {
+      "name": "TypographyBlockquote",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyH1",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyH2",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyH3",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyH4",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyInlineCode",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyLarge",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyLead",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyList",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyMuted",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographyP",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    },
+    {
+      "name": "TypographySmall",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "compoundParent": "Typography"
+    }
+  ]
+}

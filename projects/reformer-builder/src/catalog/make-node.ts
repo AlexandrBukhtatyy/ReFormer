@@ -9,7 +9,7 @@
 import type { JsonNode } from '@reformer/renderer-json';
 import type { CatalogRole } from './types';
 import { htmlTagSpec } from './html-tags';
-import { LEAF_COMPONENT_NAMES } from '../model/node-kind';
+import { getActiveDescriptor } from '../kits/active';
 
 export function fieldNode(name: string): JsonNode {
   return {
@@ -310,10 +310,12 @@ export function makeNodeFor(name: string, role: CatalogRole, compoundParent?: st
   if (role === 'field') return fieldNode(name);
   if (name === 'Wizard') return wizardNode();
   if (name === 'Step') return stepNode();
-  if (LEAF_COMPONENT_NAMES.has(name)) return leafComponentNode(name);
+  const descriptor = getActiveDescriptor();
+  if (descriptor.leafComponents.has(name)) return leafComponentNode(name);
   // Корень compound'а — сразу собранная композиция; часть — узел без `className` (раскладку задаёт
   // сама часть). Проверяем ДО containerNode, чей `space-y-4` тем и другим только мешает.
-  const template = COMPOUND_TEMPLATES[name];
+  // Кит может прислать свои композиции; `undefined` — встроенные шаблоны билдера ниже.
+  const template = (descriptor.compoundTemplates ?? COMPOUND_TEMPLATES)[name];
   if (template) return template();
   if (compoundParent) return partNode(name, defaultPartText(name));
   return containerNode(name);

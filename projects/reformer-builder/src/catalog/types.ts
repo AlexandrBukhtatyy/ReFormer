@@ -14,9 +14,19 @@
 
 import type { JsonNode } from '@reformer/renderer-json';
 import type { PropDoc, PropsSchema, PropWidget } from '@reformer/ui-kit/meta';
+import type { KitDescriptorJson, KitRecordPreview } from '../kits/types';
 
-/** Версия контракта каталога — закладывается сразу (спека §11), даже до JSON-контракта (M3). */
-export const CATALOG_CONTRACT_VERSION = '1.0';
+/**
+ * Текущая версия контракта каталога. `2.0` добавила опциональный блок `kit` (дескриптор кита) и
+ * per-record поля `exportName`/`subpath`/`preview`/`leaf`.
+ *
+ * Обе версии обрабатываются одинаково: всё добавленное опционально, каталог `1.0` достраивается
+ * дефолтами билдера до «неявного кита» ({@link '../kits/descriptor'}).
+ */
+export const CATALOG_CONTRACT_VERSION = '2.0';
+
+/** Версии контракта, которые билдер принимает. `1.0` поддерживается бессрочно. */
+export const SUPPORTED_CATALOG_CONTRACT_VERSIONS: readonly string[] = ['1.0', '2.0'];
 
 /** Роль записи каталога — определяет размещение узла (спека §5). */
 export type CatalogRole = 'field' | 'container' | 'array';
@@ -44,6 +54,10 @@ export interface CatalogEntry {
   variant?: string;
   /** Корень compound'а, частью которого запись является (`AlertTitle` → `Alert`); см. `./compound`. */
   compoundParent?: string;
+  /** Точечный override имени экспорта в namespace кита (контракт `2.0`). */
+  exportName?: string;
+  /** Subpath кита, за которым лежит символ, если его нет в barrel (контракт `2.0`). */
+  subpath?: string;
   makeNode: () => JsonNode;
 }
 
@@ -60,12 +74,29 @@ export interface CatalogRecord {
   variant?: string;
   /** Корень compound'а, частью которого запись является (`AlertTitle` → `Alert`). */
   compoundParent?: string;
+  /**
+   * Ниже — необязательные поля контракта `2.0`: то, что кит может рассказать о записи сверх
+   * нормативного минимума. Отсутствие любого = сегодняшнее поведение (дефолты билдера).
+   */
+  /** Точечный override правила резолва, когда `${name}${fieldSuffix}` не подходит. */
+  exportName?: string;
+  /** Subpath кита, за которым лежит символ (когда его нет в barrel). */
+  subpath?: string;
+  /** Ограничение живого превью — переносит `OVERLAY_LIMITED`/`SUBPATH_LIMITED` из билдера в кит. */
+  preview?: KitRecordPreview;
+  /** Компонент-лист: самодостаточный визуал, вложенных компонентов не держит. */
+  leaf?: boolean;
 }
 
 /** Каталог-JSON по контракту `component-catalog.schema.json` (§5). */
 export interface CatalogJson {
   version: string;
   components: CatalogRecord[];
+  /**
+   * Дескриптор кита (контракт `2.0`, опционален). Отсутствие блока = «неявный кит»: билдер
+   * достраивает дескриптор своими дефолтами и ведёт себя ровно как до введения контракта.
+   */
+  kit?: KitDescriptorJson;
 }
 
 /**

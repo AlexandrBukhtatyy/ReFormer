@@ -8,6 +8,7 @@
 
 import { getCatalogEntry } from '../catalog';
 import { OVERLAY_LIMITED, SUBPATH_LIMITED } from '../preview-runtime/render-policy';
+import { NEEDS_SHIM } from '../kits/legacy-reformer-ui-kit';
 
 export interface CompResolution {
   /** Имя из `$component(...)`. */
@@ -19,9 +20,6 @@ export interface CompResolution {
   /** Причина placeholder (для TODO-комментария). */
   reason?: string;
 }
-
-/** Wizard-семейство: требует FormWizard-shim — в Фазе 1 отдаём placeholder с TODO. */
-const NEEDS_SHIM = new Set(['Wizard', 'RendererFormWizard', 'Step', 'FormWizard']);
 
 /** Разрешить имя компонента в импорт ui-kit либо placeholder. */
 export function resolveComponent(name: string): CompResolution {

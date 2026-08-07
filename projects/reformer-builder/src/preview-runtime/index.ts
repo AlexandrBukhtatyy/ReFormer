@@ -7,6 +7,11 @@
  */
 
 export { buildPreview, buildRegistry, type PreviewBundle } from './build-preview';
+export {
+  getActivePreviewModel,
+  setActivePreviewModel,
+  subscribeActivePreviewModel,
+} from './active-preview';
 export { annotateSchema } from './annotate-schema';
 export {
   encodeNodeToken,
@@ -16,8 +21,20 @@ export {
   EMPTY_CLASS,
 } from './node-token';
 export { PreviewStep } from './preview-step';
-export { KNOWN_COMPONENT_NAMES, KNOWN_COMPONENT_NAME_SET, INFRA_NAMES } from './known-names';
-export { KNOWN_COMPONENTS, classifyCatalog } from './known-components';
+export {
+  knownComponentNames,
+  knownComponentNameSet,
+  resetKnownNames,
+  INFRA_NAMES,
+} from './known-names';
+export {
+  knownComponents,
+  buildKnownComponents,
+  resetKnownComponents,
+  kitProviderComponent,
+  classifyCatalog,
+} from './known-components';
+export { createWizardPreview, type KitFormWizard } from './wizard-preview';
 export { collectUnknownComponentNames } from './unknown';
 export { makeUnknownComponent, makePreviewLimitedComponent } from './unknown-component';
 export { WizardFormProvider, useWizardForm, type PreviewFormProxy } from './wizard-form-context';
@@ -26,6 +43,7 @@ export {
   SUBPATH_LIMITED,
   isRegistrable,
   resolveUiKitComponent,
+  resolveKitComponent,
   classify,
   type RenderPolicy,
   type UiKitNamespace,

@@ -24,7 +24,7 @@ import {
   type ComponentRegistry,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import { KNOWN_COMPONENTS } from './known-components';
+import { knownComponents } from './known-components';
 import { registerMockSources } from './mock-sources';
 import { synthMock, type MockData } from './mock-synth';
 import { collectUnknownComponentNames } from './unknown';
@@ -45,10 +45,10 @@ export function buildRegistry(
   schema: JsonFormSchema,
   dataSources: Record<string, unknown>
 ): ComponentRegistry {
+  const components = knownComponents();
   return defineRegistry((reg) => {
-    for (const [name, component] of Object.entries(KNOWN_COMPONENTS))
-      reg.component(name, component);
-    reg.component(FIELD_WRAPPER, KNOWN_COMPONENTS.FormField);
+    for (const [name, component] of Object.entries(components)) reg.component(name, component);
+    reg.component(FIELD_WRAPPER, components.FormField);
     for (const name of collectUnknownComponentNames(schema)) {
       reg.component(name, makeUnknownComponent(name));
     }

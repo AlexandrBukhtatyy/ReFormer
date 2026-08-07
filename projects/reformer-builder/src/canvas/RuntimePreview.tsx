@@ -12,6 +12,7 @@
  */
 
 import {
+  createElement,
   memo,
   useCallback,
   useEffect,
@@ -33,6 +34,8 @@ import {
   buildPreview,
   encodeNodeToken,
   EMPTY_CLASS,
+  kitProviderComponent,
+  setActivePreviewModel,
   WizardFormProvider,
   type MockData,
   type PreviewBundle,
@@ -69,13 +72,24 @@ const FormTree = memo(function FormTree({
   model: FormModel<Record<string, unknown>>;
   form: unknown;
 }) {
+  // Кит может потребовать собственный контекст вокруг поддерева превью (тема styled-components,
+  // i18n, конфиг портала) — он объявляет его в `descriptor.adapters.provider`. Киту на
+  // Tailwind-токенах (`@reformer/ui-kit`) обёртка не нужна, и тогда дерево остаётся как было.
+  // `createElement`, а не JSX с заглавной переменной: обёртка — это ГОТОВЫЙ компонент из namespace
+  // кита (стабильная ссылка), а не создаваемый в рендере, и правило react-hooks/static-components
+  // иначе справедливо ругается — оно не может отличить поиск по namespace от создания компонента.
+  const provider = kitProviderComponent();
+  const tree = (
+    <JsonRendererProvider settings={{ registry }}>
+      <WizardFormProvider form={form as FormProxy<Record<string, unknown>>}>
+        <JsonFormRenderer schema={schema} model={model} validateSchema={false} />
+      </WizardFormProvider>
+    </JsonRendererProvider>
+  );
+
   return (
     <PreviewErrorBoundary resetKey={schema}>
-      <JsonRendererProvider settings={{ registry }}>
-        <WizardFormProvider form={form as FormProxy<Record<string, unknown>>}>
-          <JsonFormRenderer schema={schema} model={model} validateSchema={false} />
-        </WizardFormProvider>
-      </JsonRendererProvider>
+      {provider ? createElement(provider, null, tree) : tree}
     </PreviewErrorBoundary>
   );
 });
@@ -115,6 +129,13 @@ export function RuntimePreview({
       return { bundle: null, error: e instanceof Error ? e.message : String(e) };
     }
   }, [annotated, mock]);
+
+  // Публикуем модель живого превью: нижняя панель показывает по ней текущие значения формы.
+  // Только чтение — обратной записи в `mock` быть не должно, иначе форма пересоздастся (см. выше).
+  useEffect(() => {
+    setActivePreviewModel(built.bundle?.model ?? null);
+    return () => setActivePreviewModel(null);
+  }, [built.bundle]);
 
   const editing = mode === 'edit';
 

@@ -47,9 +47,172 @@
           "compoundParent": {
             "type": "string",
             "description": "Имя корня compound-компонента, частью которого является запись (AlertTitle → Alert). Части не показываются в общем списке палитры: они предлагаются в контексте своего корня и входят в его композицию по умолчанию."
+          },
+          "exportName": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Контракт 2.0. Точечный override имени экспорта в namespace кита, когда правило kit.resolve не подходит (например Chart → ChartContainer). По умолчанию: `${name}${kit.resolve.fieldSuffix}` для role=field, иначе name."
+          },
+          "subpath": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Контракт 2.0. Subpath кита, за которым лежит символ, если его нет в главном barrel (тяжёлые компоненты за optional peer-deps)."
+          },
+          "preview": {
+            "type": "object",
+            "required": ["mode"],
+            "additionalProperties": false,
+            "description": "Контракт 2.0. Ограничение живого превью. Позволяет киту самому объявить, что компонент нельзя рисовать вживую, вместо allowlist'а внутри билдера.",
+            "properties": {
+              "mode": {
+                "enum": ["live", "limited"],
+                "description": "limited — вместо компонента рисуется подписанный стаб «предпросмотр ограничен»."
+              },
+              "reason": {
+                "type": "string",
+                "description": "Причина ограничения, показывается в стабе."
+              }
+            }
+          },
+          "leaf": {
+            "type": "boolean",
+            "description": "Контракт 2.0. Компонент-лист: рендерит самодостаточный визуал (иконка, разделитель, спиннер) и вложенных компонентов не держит — не является drop-target."
           }
         }
       }
+    },
+    "kit": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Контракт 2.0. Дескриптор кита — то, что дизайн-система рассказывает о себе сама. Блок целиком опционален: каталог без него трактуется как «неявный кит» и достраивается дефолтами билдера (поведение 1:1 как до введения контракта).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Стабильный идентификатор кита, независимый от npm-алиаса (напр. reformer-ui-kit)."
+        },
+        "label": {
+          "type": "string",
+          "description": "Человекочитаемое имя для переключателя китов."
+        },
+        "package": { "type": "string", "description": "Имя npm-пакета кита." },
+        "version": {
+          "type": "string",
+          "description": "Версия ПАКЕТА кита (не путать с version на верхнем уровне — та относится к контракту каталога)."
+        },
+        "peerRanges": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Требования кита к shared-рантайму хоста. Информационная подсказка: решение об активации принимает символьная проверка, а не semver — открытые диапазоны вида '>=1.0.0' реальный контракт не выражают."
+        },
+        "resolve": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Правило «имя записи каталога → имя экспорта».",
+          "properties": {
+            "fieldSuffix": {
+              "type": "string",
+              "description": "Суффикс символа для записей role=field (у @reformer/ui-kit — 'Field': Input → InputField)."
+            }
+          }
+        },
+        "infra": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Компоненты вне палитрового каталога, обязательные для рендерера.",
+          "properties": {
+            "fieldWrapper": {
+              "type": "string",
+              "description": "Враппер поля (он же FIELD_WRAPPER реестра renderer-json)."
+            },
+            "asyncBoundary": { "type": "string", "description": "Граница асинхронной загрузки." },
+            "list": { "type": "string", "description": "Обёртка display-списка для array-узлов." }
+          }
+        },
+        "adapters": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Символы кита под builder-адаптерами: wizard/step — пошаговая форма, provider — обёртка поддерева превью (тема styled-components, i18n, конфиг портала). null — кит такого не поставляет.",
+          "properties": {
+            "wizard": { "$ref": "#/definitions/kitAdapter" },
+            "step": { "$ref": "#/definitions/kitAdapter" },
+            "provider": { "$ref": "#/definitions/kitAdapter" }
+          }
+        },
+        "palette": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Настройки палитры, которые знает сам кит. Клиентский конфиг билдера накладывается поверх.",
+          "properties": {
+            "categoryByName": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Имя компонента → категория палитры. Если задано, ЗАМЕЩАЕТ карту билдера целиком: смешивать категории чужого кита с картой ui-kit бессмысленно."
+            },
+            "order": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Порядок разделов палитры."
+            },
+            "glyphs": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Имя компонента → текстовый глиф-бейдж."
+            }
+          }
+        },
+        "styles": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Как подключаются стили кита.",
+          "properties": {
+            "mode": {
+              "enum": ["tokens", "standalone"],
+              "description": "tokens — кит использует стандартный словарь токенов, достаточно переобъявить их значения на контейнере превью; standalone — кит поставляет самодостаточный CSS со своими утилитами."
+            },
+            "href": {
+              "type": "string",
+              "description": "URL самодостаточного CSS (только для standalone)."
+            }
+          }
+        },
+        "codegen": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Что подставлять в сгенерированный registry.ts при экспорте примера.",
+          "properties": {
+            "importSpecifier": {
+              "type": "string",
+              "description": "Спецификатор пакета в import { … } from '…'. По умолчанию — kit.package."
+            },
+            "needsShim": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Символы, которым нужен shim вместо прямого импорта."
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "kitAdapter": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["symbol"],
+          "additionalProperties": false,
+          "properties": {
+            "symbol": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Имя экспорта в namespace кита."
+            },
+            "subpath": { "type": "string", "description": "Subpath кита, за которым лежит символ." }
+          }
+        }
+      ]
     }
   }
 }

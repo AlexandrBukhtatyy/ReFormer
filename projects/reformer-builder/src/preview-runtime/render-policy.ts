@@ -1,55 +1,34 @@
 /**
  * Политика рендера Runtime-preview (спека §9/§13): для каждой каталожной записи решаем — рисовать
- * ЖИВОЙ `@reformer/ui-kit`-компонент или показать нейтральный стаб «предпросмотр ограничен».
+ * ЖИВОЙ компонент активного кита или показать нейтральный стаб «предпросмотр ограничен».
  *
- * Наборы политики — чистые данные (React-free), чтобы `known-names` и тесты работали в node.
- * {@link resolveUiKitComponent}/{@link classify} принимают barrel-namespace аргументом — сам модуль
- * React НЕ импортирует (только `import type`).
+ * React-free (только `import type`), чтобы `known-names` и тесты работали в node. Namespace кита
+ * приходит аргументом, дескриптор — из {@link getActiveDescriptor}; сам модуль ни того, ни другого
+ * не импортирует статически.
  *
- * Единственная РУЧНАЯ ручка системы — два allowlist'а ниже; их полнота стережётся
- * `render-policy.test.ts`, а отсутствие дрейфа с палитрой — `registry-drift.test.ts`.
+ * Раньше здесь жили два захардкоженных allowlist'а под `@reformer/ui-kit` — «единственная ручная
+ * ручка системы». Теперь это данные кита ({@link '../kits/legacy-reformer-ui-kit'} для встроенного,
+ * блок `kit` в каталоге для остальных), а модуль стал чистой логикой. Их полнота по-прежнему
+ * стережётся `render-policy.test.ts`, а отсутствие дрейфа с палитрой — `registry-drift.test.ts`.
  *
  * @module reformer-builder/preview-runtime/render-policy
  */
 
 import type { ComponentType } from 'react';
 import type { CatalogEntry, CatalogRole } from '../catalog';
+import { getActiveDescriptor } from '../kits/active';
+import { exportNameFor } from '../kits/descriptor';
+import { OVERLAY_LIMITED, SUBPATH_LIMITED } from '../kits/legacy-reformer-ui-kit';
+import type { KitDescriptor, KitNamespace } from '../kits/types';
 
 /**
- * Настоящие оверлеи: корень Radix без триггера/портала/`open` рендерится в пустоту — живой рендер
- * даёт НЕВИДИМЫЙ узел на canvas, что хуже подписанного стаба. Показываем стаб.
+ * Дефолты встроенного кита реэкспортируются для потребителей, ещё не переведённых на дескриптор
+ * (`codegen/ui-kit-imports` — этап 6) и для `render-policy.test.ts`.
  */
-export const OVERLAY_LIMITED: ReadonlySet<string> = new Set([
-  'Dialog',
-  'AlertDialog',
-  'Sheet',
-  'Popover',
-  'HoverCard',
-  'Tooltip',
-  'DropdownMenu',
-  'ContextMenu',
-  'Menubar',
-  'NavigationMenu',
-]);
+export { OVERLAY_LIMITED, SUBPATH_LIMITED };
 
-/**
- * Subpath-only: компонент есть в каталоге, но НЕ в barrel `@reformer/ui-kit` (тяжёлые optional
- * peer-deps живут за subpath-экспортом) — из barrel-namespace не резолвится. Значение — причина
- * для стаба. `Chart`/`Resizable` дополнительно не имеют экспорта, равного имени каталога
- * (`ChartContainer` / `ResizablePanelGroup`), поэтому не резолвятся даже через subpath.
- */
-export const SUBPATH_LIMITED: ReadonlyMap<string, string> = new Map([
-  ['Carousel', 'subpath-only: embla-carousel-react'],
-  ['Chart', 'subpath-only: recharts (экспорт ChartContainer, не Chart)'],
-  ['Command', 'subpath-only: cmdk'],
-  ['Drawer', 'subpath-only: vaul'],
-  ['MessageScroller', 'subpath-only: @shadcn/react'],
-  ['Resizable', 'subpath-only: react-resizable-panels (экспорт ResizablePanelGroup, не Resizable)'],
-  ['Sidebar', 'subpath-only'],
-]);
-
-/** Namespace-объект barrel `@reformer/ui-kit` (имя экспорта → значение). */
-export type UiKitNamespace = Record<string, unknown>;
+/** Namespace кита (имя экспорта → значение). Исторический алиас для {@link KitNamespace}. */
+export type UiKitNamespace = KitNamespace;
 
 /** Решение политики для одной записи каталога. */
 export type RenderPolicy =
@@ -70,35 +49,62 @@ export function isRegistrable(entry: Pick<CatalogEntry, 'name' | 'role'>): boole
   return entry.role !== 'array' && !entry.name.startsWith('$html(');
 }
 
-/** Реальный ui-kit-компонент по правилу имён: field → `${name}Field`, иначе `name`. */
+/**
+ * Реальный компонент кита для записи каталога. Имя экспорта считает {@link exportNameFor}: правило
+ * кита (`${name}${fieldSuffix}` для полей) с точечным override через `exportName` записи.
+ */
+export function resolveKitComponent(
+  entry: Pick<CatalogEntry, 'name' | 'role' | 'exportName'>,
+  uiKit: UiKitNamespace,
+  descriptor: Pick<KitDescriptor, 'resolve'> = getActiveDescriptor()
+): ComponentType<Record<string, unknown>> | undefined {
+  const exported = uiKit[exportNameFor(entry, descriptor)];
+  return isComponentType(exported) ? exported : undefined;
+}
+
+/** Резолв по имени и роли (без записи каталога) — для вызовов, у которых записи нет под рукой. */
 export function resolveUiKitComponent(
   name: string,
   role: CatalogRole,
   uiKit: UiKitNamespace
 ): ComponentType<Record<string, unknown>> | undefined {
-  const key = role === 'field' ? `${name}Field` : name;
-  const exported = uiKit[key];
-  return isComponentType(exported) ? exported : undefined;
+  return resolveKitComponent({ name, role }, uiKit);
 }
 
 /**
- * Политика для записи каталога: оверлей → стаб; иначе резолвится живой компонент → `live`;
- * иначе стаб с причиной (subpath-only / не резолвится). Ветка «не резолвится» — растяжка против
- * дрейфа: новое каталожное имя без резолва И без allowlist'а падёт в `render-policy.test.ts`.
+ * Политика для записи каталога, в порядке убывания приоритета:
+ *
+ * 1. **Жёсткий запрет** (`descriptor.previewPolicy`) — проверяется ДО резолва: оверлей нельзя
+ *    рисовать вживую, даже если он есть в namespace (Radix-корень без триггера даёт невидимый узел,
+ *    что хуже подписанного стаба). Часть compound'а наследует запрет корня: `DialogTitle` без
+ *    своего `Dialog` рисуется в пустоту ровно так же.
+ * 2. **Резолв** в namespace → `live`.
+ * 3. **Не нашлось** → стаб с причиной из `descriptor.unresolvedReason` (subpath-only и т.п.), иначе
+ *    общей. Эта ветка — растяжка против дрейфа: новое каталожное имя без резолва И без объявленной
+ *    причины падёт в `render-policy.test.ts`.
  */
-export function classify(entry: CatalogEntry, uiKit: UiKitNamespace): RenderPolicy {
-  const { name, role, compoundParent } = entry;
-  // Часть compound'а наследует ограничение корня: `DialogTitle` без своего `Dialog` рисуется в
-  // пустоту ровно так же, как сам оверлей, поэтому стаб честнее живого рендера.
-  if (OVERLAY_LIMITED.has(name) || (compoundParent && OVERLAY_LIMITED.has(compoundParent)))
-    return { policy: 'limited', reason: 'оверлей — нужен триггер/портал' };
-  const component = resolveUiKitComponent(name, role, uiKit);
+export function classify(
+  entry: CatalogEntry,
+  uiKit: UiKitNamespace,
+  descriptor: KitDescriptor = getActiveDescriptor()
+): RenderPolicy {
+  const { name, compoundParent } = entry;
+
+  const limit =
+    descriptor.previewPolicy.get(name) ??
+    (compoundParent ? descriptor.previewPolicy.get(compoundParent) : undefined);
+  // Явный `preview: { mode: 'live' }` у записи снимает запрет, в том числе унаследованный от корня.
+  if (limit?.mode === 'limited')
+    return { policy: 'limited', reason: limit.reason ?? 'предпросмотр ограничен' };
+
+  const component = resolveKitComponent(entry, uiKit, descriptor);
   if (component) return { policy: 'live', component };
+
   return {
     policy: 'limited',
     reason:
-      SUBPATH_LIMITED.get(name) ??
-      (compoundParent ? SUBPATH_LIMITED.get(compoundParent) : undefined) ??
-      'не резолвится в @reformer/ui-kit',
+      descriptor.unresolvedReason.get(name) ??
+      (compoundParent ? descriptor.unresolvedReason.get(compoundParent) : undefined) ??
+      `не резолвится в ${descriptor.package}`,
   };
 }

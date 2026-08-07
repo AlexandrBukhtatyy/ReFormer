@@ -23,6 +23,8 @@ import {
   type JsonNode,
 } from '@reformer/renderer-json';
 import type { JsonPath } from './paths';
+import { LEAF_COMPONENT_NAMES } from '../kits/legacy-reformer-ui-kit';
+import { getActiveDescriptor } from '../kits/active';
 
 /** Вид узла: лист / массив / контейнер. */
 export type NodeKind = 'field' | 'array' | 'container';
@@ -92,22 +94,17 @@ const VOID_HTML_TAGS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Компоненты-листья (`$component`): рендерят самодостаточный визуал (иконка, разделитель, спиннер…) —
- * вложенные компоненты не держат. Расширяемый список.
+ * Компоненты-листья встроенного кита. Реэкспорт дефолта: сам резолв идёт через
+ * `descriptor.leafComponents` активного кита (см. {@link isLeafComponentRef}), а это значение —
+ * то, что получит «неявный кит».
  */
-export const LEAF_COMPONENT_NAMES: ReadonlySet<string> = new Set([
-  'Icon',
-  'Separator',
-  'Spinner',
-  'Skeleton',
-  'Progress',
-]);
+export { LEAF_COMPONENT_NAMES };
 
 /** Листовой ли компонент/тег по строке `component` (Icon/Separator/… или void html br/hr/img/…). */
 export function isLeafComponentRef(component: unknown): boolean {
   const op = parseOperator(component);
   if (!op) return false;
-  if (op.op === 'component') return LEAF_COMPONENT_NAMES.has(op.arg);
+  if (op.op === 'component') return getActiveDescriptor().leafComponents.has(op.arg);
   if (op.op === 'html') return VOID_HTML_TAGS.has(op.arg);
   return false;
 }

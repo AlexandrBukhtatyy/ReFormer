@@ -59,6 +59,67 @@ describe('validateCatalog (контракт)', () => {
   });
 });
 
+describe('validateCatalog: контракт 2.0 (блок kit + per-record поля)', () => {
+  const record = (extra: Record<string, unknown> = {}) => ({
+    name: 'X',
+    role: 'container',
+    propsSchema: {},
+    ...extra,
+  });
+  const withKit = (kit: unknown) => ({ version: '2.0', components: [record()], kit });
+
+  it('каталог 1.0 без блока kit по-прежнему валиден (обратная совместимость)', () => {
+    expect(validateCatalog({ version: '1.0', components: [record()] }).valid).toBe(true);
+  });
+
+  it('полный блок kit проходит контракт', () => {
+    const res = validateCatalog(
+      withKit({
+        id: 'acme',
+        label: 'Acme DS',
+        package: '@acme/ds',
+        version: '2.1.0',
+        peerRanges: { '@reformer/core': '^7' },
+        resolve: { fieldSuffix: 'Control' },
+        infra: { fieldWrapper: 'Field', asyncBoundary: 'Async', list: 'Repeater' },
+        adapters: { wizard: { symbol: 'Stepper', subpath: 'stepper' }, step: null },
+        palette: { categoryByName: { Btn: 'Действия' }, order: ['Действия'], glyphs: { Btn: 'B' } },
+        styles: { mode: 'standalone', href: 'https://cdn.example/acme.css' },
+        codegen: { importSpecifier: '@acme/ds', needsShim: ['Stepper'] },
+      })
+    );
+    expect(res.errors).toEqual([]);
+    expect(res.valid).toBe(true);
+  });
+
+  it('per-record поля 2.0 проходят контракт', () => {
+    const res = validateCatalog({
+      version: '2.0',
+      components: [
+        record({ exportName: 'ChartContainer', subpath: 'chart' }),
+        record({ name: 'Y', preview: { mode: 'limited', reason: 'нужен портал' } }),
+        record({ name: 'Z', leaf: true }),
+      ],
+    });
+    expect(res.errors).toEqual([]);
+    expect(res.valid).toBe(true);
+  });
+
+  it('additionalProperties: false по-прежнему ловит мусор — и в kit, и в записи', () => {
+    expect(validateCatalog(withKit({ id: 'acme', bogus: 1 })).valid).toBe(false);
+    expect(validateCatalog({ version: '2.0', components: [record({ bogus: 1 })] }).valid).toBe(
+      false
+    );
+    // preview.mode — закрытый enum.
+    expect(
+      validateCatalog({ version: '2.0', components: [record({ preview: { mode: 'maybe' } })] })
+        .valid
+    ).toBe(false);
+    // adapters принимает объект с symbol либо null, но не произвольную строку.
+    expect(validateCatalog(withKit({ adapters: { wizard: 'Stepper' } })).valid).toBe(false);
+  });
+});
+
 describe('buildCatalogFromJson (реконструкция makeNode + категория)', () => {
   it('makeNode восстанавливается, kindOf совпадает с role', () => {
     const entries = buildCatalogFromJson(loadCatalogJson());

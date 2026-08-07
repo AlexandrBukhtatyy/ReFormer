@@ -1,18 +1,18 @@
 /**
  * Верхний тулбар приложения (title-bar в стиле VSCode): бренд-иконка + название слева,
- * глобальные переключатели справа (тема). Полоса на всю ширину над рабочей областью
- * (рейлы/панели/canvas — уровнем ниже).
+ * глобальные переключатели справа (набор компонентов). Полоса на всю ширину над рабочей
+ * областью (рейлы/панели/canvas — уровнем ниже). Переключатель темы живёт в низу левого
+ * рейла (см. `EditorLayout`).
  *
  * @module reformer-builder/app/AppToolbar
  */
 
-import { Blocks, Moon, Sun } from 'lucide-react';
-import { editorActions, useUi } from '../store';
+import { Blocks } from 'lucide-react';
 import { getRuntimeConfig } from '../config/state';
 import { AppMenuBar } from './AppMenuBar';
+import { KitSwitcher } from './KitSwitcher';
 
 export function AppToolbar() {
-  const ui = useUi();
   // Брендинг клиента (если передан конфиг): название продукта + логотип. Конфиг статичен после
   // бутстрапа, поэтому читаем один раз при рендере.
   const branding = getRuntimeConfig().branding;
@@ -39,13 +39,7 @@ export function AppToolbar() {
       <div className="flex-1" />
 
       {/* глобальные действия */}
-      <button
-        title={ui.theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-        onClick={() => editorActions.setTheme(ui.theme === 'dark' ? 'light' : 'dark')}
-        className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-      >
-        {ui.theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      </button>
+      <KitSwitcher />
     </header>
   );
 }

@@ -7,9 +7,10 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { collectOperatorNames } from '../model';
-import { KNOWN_COMPONENT_NAME_SET } from './known-names';
+import { knownComponentNameSet } from './known-names';
 
 /** Имена `$component(...)`, которых нет в дефолтном ui-kit-реестре preview. */
 export function collectUnknownComponentNames(schema: JsonFormSchema): string[] {
-  return collectOperatorNames(schema).components.filter((n) => !KNOWN_COMPONENT_NAME_SET.has(n));
+  const known = knownComponentNameSet();
+  return collectOperatorNames(schema).components.filter((n) => !known.has(n));
 }

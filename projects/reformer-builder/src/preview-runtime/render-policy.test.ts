@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { getCatalog, type CatalogEntry } from '../catalog';
+import { toDescriptor } from '../kits/descriptor';
 import { OVERLAY_LIMITED, SUBPATH_LIMITED, classify, isRegistrable } from './render-policy';
 
 describe('render-policy allowlists', () => {
@@ -61,6 +62,83 @@ describe('политика частей compound', () => {
     expect(classify(entry('AlertTitle', 'Alert'), { AlertTitle })).toEqual({
       policy: 'live',
       component: AlertTitle,
+    });
+  });
+});
+
+/**
+ * Шов «политика параметризована китом» — не рефакторингом единым. Дескриптор чужого кита должен
+ * менять РЕШЕНИЯ, а не только откуда читаются константы.
+ */
+describe('чужой кит: решения следуют дескриптору, а не дефолтам ui-kit', () => {
+  const acme = toDescriptor({
+    version: '2.0',
+    components: [
+      // Свой Dialog чужой кит рисует вживую — allowlist билдера ему не указ.
+      { name: 'Dialog', role: 'container', propsSchema: {}, preview: { mode: 'live' } },
+      // А свой Toast, наоборот, запрещает.
+      {
+        name: 'Toast',
+        role: 'container',
+        propsSchema: {},
+        preview: { mode: 'limited', reason: 'нужен ToastProvider' },
+      },
+      { name: 'Fancy', role: 'container', propsSchema: {}, subpath: 'fancy' },
+    ],
+    kit: { id: 'acme', package: '@acme/ds', resolve: { fieldSuffix: 'Control' } },
+  });
+
+  const entry = (name: string, role: 'field' | 'container' = 'container', exportName?: string) =>
+    ({
+      name,
+      role,
+      propsSchema: {},
+      ...(exportName ? { exportName } : {}),
+    }) as unknown as CatalogEntry;
+
+  it('поле резолвится по суффиксу кита, а не по ${name}Field', () => {
+    const InputControl = () => null;
+    expect(classify(entry('Input', 'field'), { InputControl }, acme)).toEqual({
+      policy: 'live',
+      component: InputControl,
+    });
+    // Суффикс ui-kit для этого кита ничего не значит.
+    expect(classify(entry('Input', 'field'), { InputField: () => null }, acme).policy).toBe(
+      'limited'
+    );
+  });
+
+  it('exportName записи переопределяет правило кита', () => {
+    const ChartContainer = () => null;
+    expect(
+      classify(entry('Chart', 'container', 'ChartContainer'), { ChartContainer }, acme)
+    ).toEqual({ policy: 'live', component: ChartContainer });
+  });
+
+  it('явный preview: live снимает запрет, унаследованный от дефолтов билдера', () => {
+    const Dialog = () => null;
+    expect(classify(entry('Dialog'), { Dialog }, acme)).toEqual({
+      policy: 'live',
+      component: Dialog,
+    });
+  });
+
+  it('свой запрет кита действует даже при наличии компонента в namespace', () => {
+    const Toast = () => null;
+    expect(classify(entry('Toast'), { Toast }, acme)).toEqual({
+      policy: 'limited',
+      reason: 'нужен ToastProvider',
+    });
+  });
+
+  it('причина «не нашлось» берётся из subpath записи и называет пакет кита', () => {
+    expect(classify(entry('Fancy'), {}, acme)).toEqual({
+      policy: 'limited',
+      reason: 'subpath-only: fancy',
+    });
+    expect(classify(entry('Unknown'), {}, acme)).toEqual({
+      policy: 'limited',
+      reason: 'не резолвится в @acme/ds',
     });
   });
 });

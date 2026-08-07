@@ -15,7 +15,7 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { PropsSchema } from '@reformer/ui-kit/meta';
 import { collectOperatorNames } from '../model';
 import { getCatalog } from '../catalog';
-import { KNOWN_COMPONENT_NAMES } from '../preview-runtime/known-names';
+import { knownComponentNames } from '../preview-runtime/known-names';
 
 /** Результат валидации. */
 export interface ValidationResult {
@@ -40,7 +40,7 @@ function catalogPropSchemas(): Record<string, PropsSchema> {
 export function validateSchema(schema: JsonFormSchema): ValidationResult {
   const ops = collectOperatorNames(schema);
   const result = validateFormSchema(schema, {
-    componentNames: [...new Set([...ops.components, ...KNOWN_COMPONENT_NAMES])],
+    componentNames: [...new Set([...ops.components, ...knownComponentNames()])],
     dataSourceNames: ops.dataSources,
     fnNames: ops.fns,
     localeKeys: ops.locales,
