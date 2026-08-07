@@ -1,9 +1,13 @@
 /**
  * Нижняя панель со вкладками: **JSON** (raw-исходник схемы, двусторонний — {@link SchemaCodeEditor}),
- * **Модель** (значения модели формы) и **Registry** (значения `$dataSource` реестра) — обе последние
- * наполняют runtime/live-превью и правятся в {@link MockDataEditor}. Сворачивается общим флагом
- * `rawJsonOpen`. Клик по вкладке разворачивает панель. Для «Модель»/«Registry» — кнопка «Сбросить»
- * (к синтезу из схемы; сбрасывается только активная секция).
+ * **Модель** и **Registry** (значения `$dataSource` реестра) — наполняют runtime/live-превью и
+ * правятся в {@link MockDataEditor}. Сворачивается общим флагом `rawJsonOpen`. Клик по вкладке
+ * разворачивает панель. Кнопка «Сбросить» — к синтезу из схемы (только активная секция).
+ *
+ * У «Модели» два вида, переключаются в шапке: **Засев** (редактор мок-данных — чем форма
+ * инициализируется) и **Живые** ({@link LiveModelView} — что в модели сейчас, после ввода в поля
+ * превью, только чтение). Раньше вкладка показывала только засев, хотя подпись обещала живые
+ * значения, — отсюда и жалоба «модель не обновляется при вводе».
  *
  * @module reformer-builder/canvas/BottomPanel
  */
@@ -16,8 +20,16 @@ import { serializeSchema } from '../io/export';
 import { synthMock } from '../preview-runtime';
 import { SchemaCodeEditor } from './SchemaCodeEditor';
 import { MockDataEditor } from './MockDataEditor';
+import { LiveModelView } from './LiveModelView';
 import { serializeSection } from './mock-data';
 import { cn } from '../lib/cn';
+
+/**
+ * Что показывает вкладка «Модель»: ЗАСЕВ (чем форма инициализируется — редактируется) или ЖИВЫЕ
+ * значения (что в модели сейчас, после ввода в поля превью — только чтение). Это разные вещи, и
+ * раньше вкладка молча показывала первое, хотя подпись обещала второе.
+ */
+type ModelView = 'seed' | 'live';
 
 /** Секция мок-данных, которую правит вкладка (у `raw` секции нет). */
 const SECTION: Record<BottomTab, MockSection | null> = {
@@ -29,7 +41,10 @@ const SECTION: Record<BottomTab, MockSection | null> = {
 export function BottomPanel({ tab }: { tab: TabState }) {
   const { rawJsonOpen, bottomTab: active } = useUi();
   const [resetKey, setResetKey] = useState(0);
+  const [modelView, setModelView] = useState<ModelView>('seed');
   const section = SECTION[active];
+  /** Живой вид есть только у «Модели»; у Registry и JSON редактируется сам источник. */
+  const live = active === 'model' && modelView === 'live';
 
   // Число строк активной вкладки (для правого счётчика в заголовке).
   const lines = useMemo(() => {
@@ -80,7 +95,7 @@ export function BottomPanel({ tab }: { tab: TabState }) {
         </button>
         <button
           onClick={() => select('model')}
-          title="Значения модели формы в превью"
+          title="Модель формы: засев (редактируется) или живые значения"
           className={tabCls('model')}
         >
           Модель
@@ -93,7 +108,31 @@ export function BottomPanel({ tab }: { tab: TabState }) {
           Registry
         </button>
         <span className="flex-1" />
-        {section != null && rawJsonOpen && (
+        {active === 'model' && rawJsonOpen && (
+          <div className="flex flex-none gap-0.5 rounded border border-border p-0.5">
+            <button
+              onClick={() => setModelView('seed')}
+              title="Значения, которыми форма инициализируется. Редактируются."
+              className={cn(
+                'rounded px-1.5',
+                modelView === 'seed' ? 'bg-muted text-foreground' : ''
+              )}
+            >
+              Засев
+            </button>
+            <button
+              onClick={() => setModelView('live')}
+              title="Что в модели сейчас — с учётом ввода в поля превью. Только чтение."
+              className={cn(
+                'rounded px-1.5',
+                modelView === 'live' ? 'bg-muted text-foreground' : ''
+              )}
+            >
+              Живые
+            </button>
+          </div>
+        )}
+        {section != null && rawJsonOpen && !live && (
           <button
             onClick={onReset}
             title="Сбросить к синтезу из схемы"
@@ -102,12 +141,14 @@ export function BottomPanel({ tab }: { tab: TabState }) {
             Сбросить
           </button>
         )}
-        <span className="flex-none pr-1.5">{lines} строк</span>
+        {!live && <span className="flex-none pr-1.5">{lines} строк</span>}
       </div>
       {rawJsonOpen && (
         <div className="min-h-0 flex-1 border-t border-border">
           {section == null ? (
             <SchemaCodeEditor schema={tab.schema} />
+          ) : live ? (
+            <LiveModelView tab={tab} />
           ) : (
             <MockDataEditor key={`${section}:${resetKey}`} tab={tab} section={section} />
           )}
