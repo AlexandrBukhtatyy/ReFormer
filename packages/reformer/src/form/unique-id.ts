@@ -53,11 +53,3 @@ let counter = 0;
 export function uniqueId(prefix: SubscriptionKeyType): string {
   return `${prefix}-${++counter}`;
 }
-
-/**
- * Сбросить счётчик (только для тестов)
- * @internal
- */
-export function resetUniqueIdCounter(): void {
-  counter = 0;
-}

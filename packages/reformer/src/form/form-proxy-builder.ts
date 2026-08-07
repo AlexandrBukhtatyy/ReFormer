@@ -116,12 +116,8 @@ export function buildFormProxy<T>(
     },
 
     set: (proxyTarget, prop: string | symbol, value: unknown) => {
+      // Прямое присваивание полю запрещено — только setValue()/patchValue().
       if (typeof prop === 'string' && fields.has(prop as keyof T)) {
-        if (import.meta.env.DEV) {
-          console.warn(
-            `[GroupNode] Cannot set field "${prop}" directly. Use .setValue() or .patchValue() instead.`
-          );
-        }
         return false;
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

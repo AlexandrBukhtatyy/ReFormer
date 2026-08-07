@@ -95,8 +95,6 @@ function harvestFieldConfig(
     map.set(node.value as Signal<unknown>, {
       component: node.component as FieldConfig<unknown>['component'],
       componentProps: node.componentProps,
-      validators: node.validators as FieldConfig<unknown>['validators'],
-      asyncValidators: node.asyncValidators as FieldConfig<unknown>['asyncValidators'],
       updateOn: node.updateOn as FieldConfig<unknown>['updateOn'],
       disabled: node.disabled as boolean | undefined,
       debounce: node.debounce as number | undefined,
@@ -149,25 +147,13 @@ function buildModelConfig<T>(
     const sig = model.signalAt(path) as Signal<unknown> | undefined;
     if (!sig) throw new Error(`createForm({ model }): не найден сигнал для пути "${path}"`);
     // Schema-валидация живёт вне layout-дерева (`validateModel` из @reformer/core/validation),
-    // нода правил не исполняет. Встретив легаси-`validators` на узле, срезаем их —
-    // в FieldNode кладём только UI/поведенческий конфиг.
-    const harvested = bySignal.get(sig) ?? {};
-    const { validators: _v, asyncValidators: _av, ...nodeCfg } = harvested;
-    void _v;
-    void _av;
+    // нода правил не исполняет: harvest собирает только UI/поведенческий конфиг узла.
+    const nodeCfg = bySignal.get(sig) ?? {};
     config[key] = { ...nodeCfg, valueSignal: sig };
   }
   return config;
 }
 
-/**
- * Создать форму из {@link FormModel} + единой схемы (архитектура M1).
- * Значения принадлежат модели; ноды держат UI/валидационное состояние и ссылаются на сигналы.
- *
- * @group Utilities
- * @remarks Массивы пока не поддержаны (следующий шаг). Валидаторы берутся как есть из схемы
- * (контракт `(value, model)` подключается на этапе движка валидации).
- */
 /** Собрать пути листовых полей из формы данных (объекты+поля; массивы пропускаются). */
 function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out: string[]): void {
   for (const [key, val] of Object.entries(shape)) {

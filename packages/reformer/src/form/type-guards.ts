@@ -78,10 +78,6 @@ export function isFormNode(value: unknown): value is FormNode<FormValue> {
  * ```
  */
 export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
-  if (value === null || value === undefined) {
-    return false;
-  }
-
   return (
     isFormNode(value) &&
     'validators' in value &&
@@ -112,10 +108,6 @@ export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
  * ```
  */
 export function isGroupNode(value: unknown): value is GroupNode<object> {
-  if (value === null || value === undefined) {
-    return false;
-  }
-
   return (
     isFormNode(value) &&
     'getFieldByPath' in value &&
@@ -146,10 +138,6 @@ export function isGroupNode(value: unknown): value is GroupNode<object> {
  * ```
  */
 export function isArrayNode(value: unknown): value is ArrayNode<object> {
-  if (value === null || value === undefined) {
-    return false;
-  }
-
   return (
     isFormNode(value) &&
     'items' in value &&

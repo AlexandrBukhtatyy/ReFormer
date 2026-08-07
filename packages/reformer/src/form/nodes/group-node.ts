@@ -375,10 +375,6 @@ export class GroupNode<T> extends FormNode<T> {
    * - form.email вместо form.fields.get('email')
    * - form.address.city вместо form.fields.get('address').fields.get('city')
    *
-   * Используется в:
-   * - BehaviorApplicator для доступа к полям в behavior functions
-   * - ValidationApplicator для доступа к форме в tree validators
-   *
    * @returns Proxy-инстанс с типобезопасным доступом к полям или сама форма, если proxy не доступен
    *
    * @example

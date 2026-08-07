@@ -501,16 +501,6 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
         node.patchValue(initialValue);
       }
 
-      // Применяем validation schema к новому элементу, если она была установлена
-      if (this.validationSchemaFn && 'applyValidationSchema' in node) {
-        (node as unknown as WithValidationSchema).applyValidationSchema(this.validationSchemaFn);
-      }
-
-      //  Применяем behavior schema к новому элементу, если она была установлена
-      if (this.behaviorSchemaFn && 'applyBehaviorSchema' in node) {
-        (node as unknown as WithBehaviorSchema).applyBehaviorSchema(this.behaviorSchemaFn);
-      }
-
       return node as unknown as FormNode<T>;
     }
 
