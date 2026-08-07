@@ -85,6 +85,8 @@ export type UnknownRecord = Record<string, unknown>;
 /**
  * Интерфейс для узлов с методом applyValidationSchema
  * @internal
+ * @deprecated Будет удалён в 7.0 вместе с {@link ArrayNode.applyValidationSchema} —
+ * единственным потребителем. Ни один узел этот интерфейс не реализует.
  */
 export interface WithValidationSchema {
   applyValidationSchema(schemaFn: unknown): void;
@@ -93,6 +95,8 @@ export interface WithValidationSchema {
 /**
  * Интерфейс для узлов с методом applyBehaviorSchema
  * @internal
+ * @deprecated Будет удалён в 7.0 вместе с {@link ArrayNode.applyBehaviorSchema} —
+ * единственным потребителем. Ни один узел этот интерфейс не реализует.
  */
 export interface WithBehaviorSchema {
   applyBehaviorSchema(schemaFn: unknown): void;
@@ -132,6 +136,8 @@ export interface ConfigWithValue {
  * Тип для путей к полям (field paths)
  * Используется в навигации по полям вместо any
  * @internal
+ * @deprecated Будет удалён в 7.0: ни одного потребителя. Роль исполняет file-local
+ * `PathSegment` в `nodes/group-node.ts`.
  */
 export type FieldPathSegment = {
   key: string;
@@ -142,6 +148,7 @@ export type FieldPathSegment = {
  * Тип для коллбэков и обработчиков событий
  * Используется вместо (...args: any[]) => any
  * @internal
+ * @deprecated Будет удалён в 7.0: ни одного потребителя.
  */
 export type UnknownCallback = (...args: unknown[]) => unknown;
 
@@ -155,5 +162,7 @@ export type AnyFunction = (...args: never[]) => unknown;
 /**
  * Тип для результатов загрузки ресурсов
  * @internal
+ * @deprecated Будет удалён в 7.0: алиас `unknown` без потребителей — подсистемы загрузки
+ * ресурсов в ядре нет.
  */
 export type ResourceLoadResult = unknown;

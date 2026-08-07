@@ -543,6 +543,13 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
    *
    * form.properties.applyValidationSchema(propertyValidation);
    * ```
+   *
+   * @deprecated Будет удалён в 7.0. Метод НИЧЕГО НЕ ДЕЛАЕТ уже сейчас: элементы массива —
+   * это `GroupNode`, а проверка `'applyValidationSchema' in item` на нём тождественно false,
+   * так что схема сохраняется в приватное поле и не применяется ни к одному элементу.
+   * Дерево-движок, который её исполнял, удалён в Ф7. Живой путь — отдельная схема валидации:
+   * `defineValidationSchema` + `validateModel(model, schema)` (`@reformer/core/validation`),
+   * правила адресуются к сигналам модели и сами доезжают до нод.
    */
   applyValidationSchema(schemaFn: unknown): void {
     // Сохраняем validation schema для применения к новым элементам
@@ -572,6 +579,11 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
    *
    * form.addresses.applyBehaviorSchema(addressBehavior);
    * ```
+   *
+   * @deprecated Будет удалён в 7.0. Метод НИЧЕГО НЕ ДЕЛАЕТ уже сейчас — по той же причине,
+   * что и {@link ArrayNode.applyValidationSchema}: `'applyBehaviorSchema' in item` на `GroupNode`
+   * всегда false. Живой путь — `defineFormBehavior` + `createForm({ model, schema, behavior })`,
+   * для поэлементного поведения — оператор `applyEach` (`@reformer/core/behaviors`).
    */
   applyBehaviorSchema(schemaFn: unknown): void {
     // Сохраняем behavior schema для применения к новым элементам
@@ -617,6 +629,11 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
    * // Cleanup
    * useEffect(() => dispose, []);
    * ```
+   *
+   * @deprecated Будет удалён в 7.0. Под M1 агрегаты по массиву собираются операторами поведения
+   * над сигналами модели: `watchField`/`computeFrom` из `@reformer/core/state` (или `compute`
+   * внутри `defineFormBehavior`). Этот метод работает только с legacy-{@link ArrayNode},
+   * который `createForm` не материализует — массивы приходят как `ModelArrayNode`.
    */
   watchItems<K extends keyof T>(
     fieldKey: K,
@@ -661,6 +678,9 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
    * // Cleanup
    * useEffect(() => dispose, []);
    * ```
+   *
+   * @deprecated Будет удалён в 7.0. Замена уже есть в API: реактивный сигнал `length`
+   * (`node.length.value`) для логики и хук `useArrayLength(node)` для React.
    */
   watchLength(callback: (length: number) => void | Promise<void>): () => void {
     const dispose = effect(() => {

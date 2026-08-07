@@ -21,7 +21,13 @@ import type { FieldStatus, ValidationError, ErrorFilterOptions } from '../types/
 export interface SetValueOptions {
   /** Не вызывать событие изменения (не триггерить валидацию) */
   emitEvent?: boolean;
-  /** Обновить только этот узел, не распространять на родителей */
+  /**
+   * Обновить только этот узел, не распространять на родителей
+   *
+   * @deprecated Будет удалён в 7.0, если не будет реализован. Опция НЕ РЕАЛИЗОВАНА: ни одна из
+   * четырёх реализаций `setValue` (FieldNode/GroupNode/ArrayNode/ModelArrayNode) её не читает,
+   * передача значения ни на что не влияет.
+   */
   onlySelf?: boolean;
 }
 
@@ -83,6 +89,10 @@ export abstract class FormNode<T> {
 
   /**
    * Пользователь не взаимодействовал с узлом (untouched)
+   *
+   * @deprecated Будет удалён в 7.0. Используйте `!node.touched.value` — зеркальный сигнал
+   * не несёт своей логики, а его существование затеняет поле модели с именем `untouched`
+   * при доступе через прокси (`form.untouched` вернёт сигнал ноды, а не поле).
    */
   readonly untouched: ReadonlySignal<boolean> = computed(() => !this._touched.value);
 
@@ -94,6 +104,10 @@ export abstract class FormNode<T> {
 
   /**
    * Значение узла не было изменено (pristine)
+   *
+   * @deprecated Будет удалён в 7.0. Используйте `!node.dirty.value` — зеркальный сигнал
+   * не несёт своей логики, а его существование затеняет поле модели с именем `pristine`
+   * при доступе через прокси.
    */
   readonly pristine: ReadonlySignal<boolean> = computed(() => !this._dirty.value);
 
@@ -110,6 +124,10 @@ export abstract class FormNode<T> {
 
   /**
    * Узел включен (enabled)
+   *
+   * @deprecated Будет удалён в 7.0. Используйте `!node.disabled.value` — зеркальный сигнал
+   * не несёт своей логики, а его существование затеняет поле модели с именем `enabled`
+   * при доступе через прокси.
    */
   readonly enabled: ReadonlySignal<boolean> = computed(() => this._status.value !== 'disabled');
 
