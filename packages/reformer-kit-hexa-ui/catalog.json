@@ -1,0 +1,393 @@
+{
+  "$schema": "../../projects/reformer-builder/src/catalog/component-catalog.schema.json",
+  "version": "2.0",
+  "kit": {
+    "id": "hexa-ui",
+    "label": "Kaspersky HexaUI",
+    "package": "@kaspersky/hexa-ui",
+    "version": "6.387.4",
+    "peerRanges": {
+      "react": "16.x || 17.x || 18.x"
+    },
+    "resolve": { "fieldSuffix": "Field" },
+    "infra": { "fieldWrapper": "FormField" },
+    "adapters": {
+      "wizard": null,
+      "step": null,
+      "provider": { "symbol": "KitProvider" }
+    },
+    "styles": {
+      "mode": "standalone",
+      "href": "@kaspersky/hexa-ui/design-system/global-style/styles.css"
+    },
+    "palette": {
+      "categoryByName": {
+        "Input": "Поля ввода",
+        "InputPassword": "Поля ввода",
+        "InputNumber": "Поля ввода",
+        "Textarea": "Поля ввода",
+        "Checkbox": "Выбор и переключатели",
+        "Select": "Выбор и переключатели",
+        "Box": "Контейнеры",
+        "Section": "Контейнеры",
+        "Card": "Контейнеры",
+        "Panel": "Контейнеры",
+        "Space": "Контейнеры",
+        "Button": "Действия",
+        "Alert": "Отображение",
+        "Badge": "Отображение",
+        "Tag": "Отображение",
+        "Label": "Отображение",
+        "Link": "Отображение",
+        "Separator": "Отображение",
+        "Spinner": "Отображение",
+        "Progress": "Отображение",
+        "Skeleton": "Отображение"
+      }
+    },
+    "codegen": { "importSpecifier": "@reformer/kit-hexa-ui" }
+  },
+  "components": [
+    {
+      "name": "Input",
+      "role": "field",
+      "exportName": "InputField",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись поля.",
+            "x-doc": { "group": "Control", "type": "string" }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Обязательное поле.",
+            "x-doc": { "group": "Control", "type": "boolean" }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка в пустом поле.",
+            "x-doc": { "group": "Textfield", "type": "string" }
+          },
+          "disabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "Поле недоступно.",
+            "x-doc": { "group": "State", "type": "boolean" }
+          },
+          "testId": {
+            "type": "string",
+            "description": "Префикс data-testid.",
+            "x-doc": { "group": "Behavior", "type": "string" }
+          },
+          "className": {
+            "type": "string",
+            "description": "CSS-классы.",
+            "x-doc": { "group": "Control", "type": "string" }
+          }
+        },
+        "x-runtimeProps": {
+          "value": { "group": "Control", "type": "string", "description": "Значение поля." },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string) => void",
+            "description": "Изменение значения."
+          }
+        }
+      }
+    },
+    {
+      "name": "Textarea",
+      "role": "field",
+      "exportName": "TextareaField",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "x-doc": { "group": "Control", "type": "string" } },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "Control", "type": "boolean" }
+          },
+          "placeholder": { "type": "string", "x-doc": { "group": "Textfield", "type": "string" } },
+          "rows": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Высота в строках.",
+            "x-doc": { "group": "Textfield", "type": "number" }
+          },
+          "disabled": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "State", "type": "boolean" }
+          },
+          "testId": { "type": "string", "x-doc": { "group": "Behavior", "type": "string" } },
+          "className": { "type": "string", "x-doc": { "group": "Control", "type": "string" } }
+        },
+        "x-runtimeProps": {
+          "value": { "group": "Control", "type": "string", "description": "Значение поля." },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string) => void",
+            "description": "Изменение значения."
+          }
+        }
+      }
+    },
+    {
+      "name": "InputPassword",
+      "role": "field",
+      "exportName": "InputPasswordField",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "x-doc": { "group": "Control", "type": "string" } },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "Control", "type": "boolean" }
+          },
+          "placeholder": { "type": "string", "x-doc": { "group": "Textfield", "type": "string" } },
+          "disabled": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "State", "type": "boolean" }
+          },
+          "testId": { "type": "string", "x-doc": { "group": "Behavior", "type": "string" } },
+          "className": { "type": "string", "x-doc": { "group": "Control", "type": "string" } }
+        },
+        "x-runtimeProps": {
+          "value": { "group": "Control", "type": "string", "description": "Значение поля." },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string) => void",
+            "description": "Изменение значения."
+          }
+        }
+      }
+    },
+    {
+      "name": "InputNumber",
+      "role": "field",
+      "exportName": "InputNumberField",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "x-doc": { "group": "Control", "type": "string" } },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "Control", "type": "boolean" }
+          },
+          "min": { "type": "number", "x-doc": { "group": "Textfield", "type": "number" } },
+          "max": { "type": "number", "x-doc": { "group": "Textfield", "type": "number" } },
+          "disabled": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "State", "type": "boolean" }
+          },
+          "testId": { "type": "string", "x-doc": { "group": "Behavior", "type": "string" } },
+          "className": { "type": "string", "x-doc": { "group": "Control", "type": "string" } }
+        },
+        "x-runtimeProps": {
+          "value": { "group": "Control", "type": "number | null", "description": "Значение поля." },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: number | null) => void",
+            "description": "Изменение значения."
+          }
+        }
+      }
+    },
+    {
+      "name": "Checkbox",
+      "role": "field",
+      "exportName": "CheckboxField",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Подпись рядом с чекбоксом.",
+            "x-doc": { "group": "Control", "type": "string" }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "Control", "type": "boolean" }
+          },
+          "disabled": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "State", "type": "boolean" }
+          },
+          "testId": { "type": "string", "x-doc": { "group": "Behavior", "type": "string" } },
+          "className": { "type": "string", "x-doc": { "group": "Control", "type": "string" } }
+        },
+        "x-runtimeProps": {
+          "value": { "group": "Control", "type": "boolean", "description": "Отмечен ли чекбокс." },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: boolean) => void",
+            "description": "Изменение состояния."
+          }
+        }
+      }
+    },
+    {
+      "name": "Select",
+      "role": "field",
+      "exportName": "SelectField",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "x-doc": { "group": "Control", "type": "string" } },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "Control", "type": "boolean" }
+          },
+          "placeholder": { "type": "string", "x-doc": { "group": "Textfield", "type": "string" } },
+          "options": {
+            "type": "array",
+            "description": "Варианты выбора: { value, label }.",
+            "items": { "type": "object" },
+            "x-doc": { "group": "Options", "type": "OptionType[]" }
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["multiple", "tags"],
+            "description": "Множественный выбор.",
+            "x-doc": { "group": "Behavior", "type": "'multiple' | 'tags'", "kind": "enum" }
+          },
+          "disabled": {
+            "type": "boolean",
+            "default": false,
+            "x-doc": { "group": "State", "type": "boolean" }
+          },
+          "testId": { "type": "string", "x-doc": { "group": "Behavior", "type": "string" } },
+          "className": { "type": "string", "x-doc": { "group": "Control", "type": "string" } }
+        },
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | number",
+            "description": "Выбранное значение."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: unknown) => void",
+            "description": "Изменение выбора."
+          }
+        }
+      }
+    },
+
+    {
+      "name": "Box",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-классы контейнера.",
+            "x-doc": { "group": "Control", "type": "string" }
+          }
+        }
+      }
+    },
+    {
+      "name": "Section",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": { "type": "string", "x-doc": { "group": "Control", "type": "string" } }
+        }
+      }
+    },
+    {
+      "name": "Card",
+      "role": "container",
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Panel",
+      "role": "container",
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Space",
+      "role": "container",
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Button",
+      "role": "container",
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Alert",
+      "role": "container",
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Badge",
+      "role": "container",
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Tag",
+      "role": "container",
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Label",
+      "role": "container",
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Link",
+      "role": "container",
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Separator",
+      "role": "container",
+      "exportName": "Divider",
+      "leaf": true,
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Spinner",
+      "role": "container",
+      "exportName": "Loader",
+      "leaf": true,
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Progress",
+      "role": "container",
+      "exportName": "ProgressBar",
+      "leaf": true,
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    },
+    {
+      "name": "Skeleton",
+      "role": "container",
+      "leaf": true,
+      "propsSchema": { "type": "object", "additionalProperties": true }
+    }
+  ]
+}
