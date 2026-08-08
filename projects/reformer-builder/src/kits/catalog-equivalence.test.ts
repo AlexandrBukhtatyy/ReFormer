@@ -69,10 +69,26 @@ describe('каталог: отпечаток не меняется', () => {
 describe('«неявный кит» на реальном каталоге', () => {
   const d = toDescriptor(loadCatalogJson());
 
-  it('поставляемый каталог не несёт блока kit — значит дескриптор целиком из дефолтов', () => {
-    expect(loadCatalogJson().kit).toBeUndefined();
+  it('из блока kit каталог несёт ТОЛЬКО стили — остальное по-прежнему дефолты билдера', () => {
+    // Кит рассказывает о себе ровно одно: словарь классов и политику групп (их билдер вывести не
+    // может). Идентификация, версия, резолв и infra по-прежнему достраиваются дефолтами — то есть
+    // «неявный кит» никуда не делся, просто перестал быть буквально «каталогом без блока kit».
+    const json = loadCatalogJson();
+    expect(Object.keys(json.kit ?? {})).toEqual(['styles']);
+    expect(Object.keys(json.kit!.styles!).sort()).toEqual(['classGroupsByRole', 'classNames']);
     expect(d.id).toBe('reformer-ui-kit');
     expect(d.package).toBe('@reformer/ui-kit');
+    expect(d.version).toBe('workspace');
+    expect(d.styles.mode).toBe('tokens');
+  });
+
+  it('полям кит разрешил только отступы, контейнерам — весь словарь', () => {
+    expect(d.styles.classNames.map((g) => g.id)).toContain('spacing');
+    // Поле: расположение в форме править можно, вид — нет.
+    expect(d.classGroupPolicy.get('Input')).toEqual(new Set(['spacing']));
+    // Контейнер и синтетика билдера ограничений не получают.
+    expect(d.classGroupPolicy.has('Box')).toBe(false);
+    expect(d.classGroupPolicy.has('$html(div)')).toBe(false);
   });
 
   it('дескриптор воспроизводит захардкоженные таблицы билдера один в один', () => {

@@ -19,6 +19,9 @@
  *
  * Категорию и синтетические `$html`/array-записи добавляет билдер.
  *
+ * Помимо компонентов файл несёт блок `kit.styles` со словарём классов ({@link CLASS_GROUPS}) —
+ * из него билдер строит автодополнение `className`, своего списка у него нет.
+ *
  * Запуск: `npm run generate:catalog` (в цепочке `generate:barrels` после `generate:meta`).
  *
  * @module reformer-ui-kit/scripts/generate-catalog
@@ -30,6 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { format, resolveConfig } from 'prettier';
 import * as meta from '../src/meta';
 import { mergeFieldPropsSchema, type PropsSchema } from '../src/fields/props-schema';
+import { CLASS_GROUPS, FIELD_CLASS_GROUPS } from '../src/styles/class-catalog';
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const componentsDir = join(pkgRoot, 'src/components');
@@ -264,12 +268,26 @@ const components = [...rich, ...minimal, ...parts].sort((a, b) => a.name.localeC
 // $schema — ссылка на контракт билдера (владелец схемы) для валидации/подсказок в IDE.
 // Относительный путь от расположения этого файла (packages/reformer-ui-kit/) до схемы.
 const SCHEMA_REF = '../../projects/reformer-builder/src/catalog/component-catalog.schema.json';
-const catalog = { $schema: SCHEMA_REF, version: '1.0', components };
+// Блок `kit` — то, что кит рассказывает о себе сам. Пока это только стили: словарь классов для
+// автодополнения `className` в билдере (своего списка билдер НЕ держит) и дефолт «чем разрешено
+// стилизовать» по роли — полю можно править расположение в форме, но не вид. Остальные поля
+// дескриптора (id/resolve/infra/…) намеренно не пишем: билдер достраивает их своими дефолтами,
+// и дублировать их здесь значило бы завести второй источник правды.
+const kit = {
+  styles: {
+    classNames: CLASS_GROUPS,
+    classGroupsByRole: { field: FIELD_CLASS_GROUPS, container: '*', array: '*' },
+  },
+};
+// Версия контракта, а не пакета: `2.0` = файл использует блок `kit` и per-record поля 2.0.
+const catalog = { $schema: SCHEMA_REF, version: '2.0', kit, components };
 
 const cfg = await resolveConfig(outFile);
 const json = await format(JSON.stringify(catalog, null, 2), { ...cfg, parser: 'json' });
 writeFileSync(outFile, json);
 
+const classCount = CLASS_GROUPS.reduce((n, g) => n + g.classes.length, 0);
 console.log(
-  `component-catalog.json: ${components.length} компонентов (rich: ${rich.length}, minimal: ${minimal.length}, частей compound: ${parts.length})`
+  `component-catalog.json: ${components.length} компонентов (rich: ${rich.length}, minimal: ${minimal.length}, частей compound: ${parts.length}); ` +
+    `словарь классов: ${CLASS_GROUPS.length} групп / ${classCount} классов, полям разрешено: ${FIELD_CLASS_GROUPS.join(', ')}`
 );

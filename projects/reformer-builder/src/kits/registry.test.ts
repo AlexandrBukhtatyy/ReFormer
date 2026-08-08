@@ -30,6 +30,29 @@ describe('реестр китов', () => {
     }
   });
 
+  it('classGroups и classGroupsByRole ссылаются на существующие группы словаря', () => {
+    // Кросс-ссылок AJV не проверяет: опечатка в id молча оставила бы компонент без подсказок.
+    for (const kit of kits) {
+      const groups = kit.catalog.kit?.styles?.classNames ?? [];
+      const ids = new Set(groups.map((g) => g.id));
+      for (const [role, rule] of Object.entries(kit.catalog.kit?.styles?.classGroupsByRole ?? {})) {
+        if (rule === '*') continue;
+        for (const id of rule ?? []) expect(ids, `${kit.id}/byRole.${role}`).toContain(id);
+      }
+      for (const r of kit.catalog.components) {
+        for (const id of r.classGroups ?? []) expect(ids, `${kit.id}/${r.name}`).toContain(id);
+      }
+    }
+  });
+
+  it('кит по умолчанию поставляет непустой словарь классов', () => {
+    // Если генератор перестанет писать секцию, автодополнение className исчезнет молча:
+    // билдер своего списка не держит и просто покажет пустую выпадашку.
+    const groups = getKit(DEFAULT_KIT_ID)!.catalog.kit?.styles?.classNames ?? [];
+    expect(groups.length).toBeGreaterThan(5);
+    expect(groups.flatMap((g) => g.classes).length).toBeGreaterThan(300);
+  });
+
   it('загрузка namespace ленивая — функция, а не готовый объект', () => {
     // Иначе Vite сложит все киты в главный чанк и переключатель версий оплачивался бы весом всех.
     for (const kit of kits) expect(typeof kit.loadNamespace).toBe('function');
