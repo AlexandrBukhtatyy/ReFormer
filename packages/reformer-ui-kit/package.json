@@ -376,7 +376,7 @@
     "@reformer/cdk": ">=1.0.0",
     "@reformer/core": ">=1.1.0",
     "@shadcn/react": "^0.2.1",
-    "@tanstack/react-table": ">=8",
+    "@tanstack/react-table": ">=8 <9",
     "cmdk": ">=1",
     "date-fns": ">=4",
     "embla-carousel-react": ">=8",
