@@ -7,7 +7,7 @@ name: Release
 # Почему не matrix: раньше был matrix с `max-parallel: 1` (сериализация ради
 # race на общий ref `refs/notes/semantic-release`). Но max-parallel:1 не даёт
 # параллелизма — только оверхед: 6× checkout, 6× npm ci, 18 пересборок. Единый
-# джоб убирает это (1× npm ci, 6 build-ов) и попутно снимает саму гонку notes
+# джоб убирает это (1× npm ci, 7 build-ов) и попутно снимает саму гонку notes
 # (один процесс, локальный ref обновляется сам — max-parallel не нужен).
 #
 # Изоляция сбоев (замена fail-fast: false): release-цикл ловит падение каждого
@@ -71,7 +71,8 @@ jobs:
         # своих dist-зависимостей → TS2307) и захватил бы projects/*.
         run: |
           for pkg in @reformer/core @reformer/cdk @reformer/renderer-react \
-                     @reformer/ui-kit @reformer/renderer-json @reformer/mcp; do
+                     @reformer/ui-kit @reformer/renderer-json @reformer/form-registry \
+                     @reformer/mcp; do
             echo "::group::Build $pkg"
             npm run build -w "$pkg"
             echo "::endgroup::"
@@ -107,6 +108,7 @@ jobs:
             "@reformer/renderer-react:packages/reformer-renderer-react"
             "@reformer/ui-kit:packages/reformer-ui-kit"
             "@reformer/renderer-json:packages/reformer-renderer-json"
+            "@reformer/form-registry:packages/reformer-form-registry"
             "@reformer/mcp:packages/reformer-mcp"
             "@reformer/builder:projects/reformer-builder"
           )
@@ -128,5 +130,72 @@ jobs:
           done
           if [ ${#failed[@]} -ne 0 ]; then
             echo "::error::Release failed for: ${failed[*]}"
+            exit 1
+          fi
+
+      - name: Sync dist-tag beta → develop
+        # semantic-release публикует prerelease под dist-tag, равным имени ветки, то
+        # есть `develop` — привычное `npm i @reformer/core@beta` не работает.
+        #
+        # Задать "channel": "beta" в .releaserc.json НЕЛЬЗЯ: канал участвует в расчёте
+        # номера prerelease. На «пустом» канале beta отсчёт начинается заново с
+        # X.Y.Z-beta.1 (проверено dry-run: с channel → 10.0.0-beta.1 вместо beta.4), а
+        # эти версии уже опубликованы — npm ответил бы E403 "cannot publish over the
+        # previously published versions". Поэтому канал остаётся develop, а beta
+        # навешивается алиасом на ту же версию.
+        #
+        # Список пакетов не дублируем: берём каждый каталог, где лежит .releaserc.json.
+        # Алиас — косметика поверх состоявшейся публикации, поэтому его сбой не должен
+        # ронять джоб: только ::warning::.
+        if: github.ref == 'refs/heads/develop'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          shopt -s nullglob
+          for rc in packages/*/.releaserc.json projects/*/.releaserc.json; do
+            dir=$(dirname "$rc")
+            ws=$(node -p "require('./$dir/package.json').name")
+            v=$(npm view "$ws@develop" version 2>/dev/null || true)
+            if [ -z "$v" ]; then
+              echo "$ws: develop-версии в npm нет, пропуск"
+              continue
+            fi
+            if [ "$(npm view "$ws@beta" version 2>/dev/null || true)" = "$v" ]; then
+              echo "$ws: beta уже указывает на $v"
+              continue
+            fi
+            if npm dist-tag add "$ws@$v" beta; then
+              echo "$ws: beta → $v"
+            else
+              echo "::warning::не удалось навесить dist-tag beta на $ws@$v"
+            fi
+          done
+
+      - name: Back-merge main → develop
+        # Stable-теги semantic-release ставит на HEAD main, а это merge-коммит PR
+        # develop→main (49376483, 8c20c448, …). Такой коммит НЕ предок develop, поэтому
+        # на develop не виден ни один stable-тег: база для prerelease берётся от
+        # последней беты, и беты нумеруются от устаревшего мажора (core: latest 10.2.0
+        # против develop-беты 10.0.0-beta.3). Возвращаем main в develop сразу после
+        # публикации — следующая бета считается уже от актуального тега.
+        #
+        # Только на main: на develop релизится сама develop, мержить нечего.
+        # Merge пустой по содержимому (develop уже имеет эти изменения, не хватает
+        # только merge-коммита), поэтому paths-фильтр обычно не триггерит новый
+        # Release — беты поедут со следующим реальным коммитом, но уже от верной базы.
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin develop
+          git checkout -B develop origin/develop
+          if git merge --no-edit origin/main; then
+            git push origin develop
+            echo "develop синхронизирован с main"
+          else
+            git merge --abort || true
+            echo "::error::Back-merge main → develop конфликтует. Публикация пакетов" \
+                 "УЖЕ ПРОШЛА успешно — красный джоб означает только то, что слияние" \
+                 "надо сделать руками: git checkout develop && git merge main."
             exit 1
           fi
