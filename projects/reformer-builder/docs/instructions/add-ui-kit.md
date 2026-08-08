@@ -17,7 +17,7 @@
 | Когда                | Другая версия `@reformer/ui-kit`, форк, внутренняя ДС по тем же конвенциям             | Сторонняя ДС (MUI, AntD, Kaspersky HexaUI)                               |
 | Признаки             | Есть props-компаньоны (`*.props.ts`), поля называются `${Name}Field`, есть `FormField` | Ничего из этого нет                                                      |
 | Объём                | Адаптер на 30 строк + сгенерированный каталог                                          | Отдельный пакет: адаптеры полей, обёртка поля, провайдер, каталог руками |
-| Пример в репозитории | `src/kits/adapters/reformer-ui-kit-11.ts`                                              | `packages/reformer-kit-hexa-ui/`                                         |
+| Пример в репозитории | `src/kits/adapters/reformer-ui-kit-11.ts`                                              | `packages/ui-kits/reformer-hexa-ui/`                                     |
 
 Если сомневаетесь — попробуйте путь A. Генератор каталога честно скажет, что не нашёл `./meta`, и
 это будет ответом.
@@ -111,11 +111,12 @@ Subpath-модули подмешивают явно: тяжёлые компо�
 
 ## Путь B: сторонняя дизайн-система
 
-Кит становится **отдельным workspace-пакетом** со своими зависимостями. Билдер про него ничего не
-знает — только перечисляет в реестре и грузит namespace. Эталон — `packages/reformer-kit-hexa-ui/`.
+Кит становится **отдельным workspace-пакетом** со своими зависимостями и живёт в
+`packages/ui-kits/` — каталоге для адаптеров сторонних дизайн-систем. Билдер про него ничего не
+знает — только перечисляет в реестре и грузит namespace. Эталон — `packages/ui-kits/reformer-hexa-ui/`.
 
 ```
-packages/reformer-kit-<name>/
+packages/ui-kits/reformer-<name>/
   package.json      # свои зависимости на ДС; peer: react, @reformer/cdk, @reformer/core
   catalog.json      # каталог 2.0 с блоком kit
   src/
@@ -128,6 +129,9 @@ packages/reformer-kit-<name>/
 
 `exports` указывайте на исходники (`"." : "./src/index.ts"`) — билдер компилирует их своим Vite,
 отдельная сборка пакета не нужна.
+
+Корневой `package.json` править не надо: в `workspaces` уже есть глоб `packages/ui-kits/*`, так что
+новый кит подхватится обычным `npm install`.
 
 ### Адаптеры полей
 

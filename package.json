@@ -63,6 +63,7 @@
   "homepage": "https://github.com/AlexandrBukhtatyy/ReFormer#readme",
   "workspaces": [
     "packages/*",
+    "packages/ui-kits/*",
     "projects/*"
   ],
   "devDependencies": {
