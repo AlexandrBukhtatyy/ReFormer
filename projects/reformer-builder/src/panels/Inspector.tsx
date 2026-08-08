@@ -25,7 +25,13 @@ import {
   switchVariant,
   textChildIndex,
 } from '../model';
-import { getCatalogEntry, inspectorGroups, partNamesOf, type InspectorProp } from '../catalog';
+import {
+  classNamesFor,
+  getCatalogEntry,
+  inspectorGroups,
+  partNamesOf,
+  type InspectorProp,
+} from '../catalog';
 import { variantGroupOf } from '../catalog/variants';
 import { editorActions, useActiveTab, useSelectionPath, type TabState } from '../store';
 import { nodeTypeBadge } from '../canvas/node-display';
@@ -228,8 +234,20 @@ function VariantRow({ node, path }: { node: JsonNode; path: JsonPath }) {
   );
 }
 
-function PropRow({ node, path, prop }: { node: JsonNode; path: JsonPath; prop: InspectorProp }) {
-  if (prop.widget === 'className') return <ClassNameField node={node} path={path} prop={prop} />;
+function PropRow({
+  node,
+  path,
+  prop,
+  classNames,
+}: {
+  node: JsonNode;
+  path: JsonPath;
+  prop: InspectorProp;
+  /** Классы, разрешённые китом для этого компонента; пусто — кит подсказок не поставляет. */
+  classNames: string[];
+}) {
+  if (prop.widget === 'className')
+    return <ClassNameField node={node} path={path} prop={prop} classes={classNames} />;
   if (prop.widget === 'dataSource') return <OptionsField node={node} path={path} prop={prop} />;
   if (prop.widget === 'icon') return <IconField node={node} path={path} prop={prop} />;
 
@@ -351,6 +369,9 @@ export function Inspector() {
   // поля «Текст» — у такого корня голое содержимое ломает раскладку.
   const compoundParts = entry ? partNamesOf(entry.name) : [];
   const rawGroups = entry ? inspectorGroups(entry.propsSchema) : [];
+  // Чем кит разрешает стилизовать этот узел: словарь `kit.styles.classNames`, суженный политикой
+  // групп (полю формы — только отступы). Своего списка у билдера нет — нет секции, нет подсказок.
+  const classNames = entry ? classNamesFor(entry.name) : [];
   // Если содержимое правится секцией «Содержимое» (пишет текстовую часть в `children`), проп `text`
   // из props-схемы не показываем: он бы дал второе поле «Текст», пишущее в `componentProps.text` —
   // не то место, рендерер оттуда содержимое не берёт.
@@ -375,7 +396,13 @@ export function Inspector() {
           <div className="flex flex-col gap-2.5">
             {group.group === 'Control' && <VariantRow node={node} path={selPath} />}
             {group.props.map((prop) => (
-              <PropRow key={prop.key} node={node} path={selPath} prop={prop} />
+              <PropRow
+                key={prop.key}
+                node={node}
+                path={selPath}
+                prop={prop}
+                classNames={classNames}
+              />
             ))}
           </div>
         </div>

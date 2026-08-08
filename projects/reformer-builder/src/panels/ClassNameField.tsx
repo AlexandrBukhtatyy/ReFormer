@@ -1,9 +1,14 @@
 /**
- * Редактор `className` в инспекторе: полноширинный input + выпадающие подсказки Tailwind-классов
- * по токену под кареткой. Значение — обычная строка (список классов через пробел), любой кастомный
- * класс допустим (свободный ввод). Подсказки фильтруются по текущему токену, уже использованные
- * классы из списка исключаются. Навигация: ↑/↓ — выбор, Enter/Tab — вставить, Esc — закрыть, клик —
- * вставить. Запись идёт через `setComponentProp` с коалесингом (как остальные пропы инспектора).
+ * Редактор `className` в инспекторе: полноширинный input + выпадающие подсказки по токену под
+ * кареткой. Значение — обычная строка (список классов через пробел), любой кастомный класс допустим
+ * (свободный ввод). Подсказки фильтруются по текущему токену, уже использованные классы из списка
+ * исключаются. Навигация: ↑/↓ — выбор, Enter/Tab — вставить, Esc — закрыть, клик — вставить. Запись
+ * идёт через `setComponentProp` с коалесингом (как остальные пропы инспектора).
+ *
+ * Список подсказок приходит СНАРУЖИ (`classes`) — его поставляет активный кит через
+ * `kit.styles.classNames`, а кит может ограничить набор групп для конкретного компонента (полю
+ * формы — только отступы). Пустой список = подсказок нет; поле при этом остаётся полноценным
+ * свободным вводом, потому что ограничение групп — это про подсказки, а не про запрет ввода.
  *
  * @module reformer-builder/panels/ClassNameField
  */
@@ -12,8 +17,7 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import type { JsonNode } from '@reformer/renderer-json';
 import { setComponentProp, type JsonPath } from '../model';
 import { editorActions } from '../store';
-import type { InspectorProp } from '../catalog';
-import { TAILWIND_CLASSES } from '../lib/tailwind-classes';
+import { suggestClasses, type InspectorProp } from '../catalog';
 import { cn } from '../lib/cn';
 
 const MAX_SUGGESTIONS = 24;
@@ -22,10 +26,13 @@ export function ClassNameField({
   node,
   path,
   prop,
+  classes,
 }: {
   node: JsonNode;
   path: JsonPath;
   prop: InspectorProp;
+  /** Классы, разрешённые киту для этого компонента (см. `catalog/class-names`). */
+  classes: string[];
 }) {
   const props = (node as { componentProps?: Record<string, unknown> }).componentProps ?? {};
   const raw = props[prop.key];
@@ -49,12 +56,7 @@ export function ClassNameField({
   const token = value.slice(tokenStart, pos);
 
   const used = new Set(value.split(/\s+/).filter(Boolean));
-  const needle = token.toLowerCase();
-  const suggestions = needle
-    ? TAILWIND_CLASSES.filter(
-        (c) => c.toLowerCase().includes(needle) && (c === token || !used.has(c))
-      ).slice(0, MAX_SUGGESTIONS)
-    : [];
+  const suggestions = suggestClasses(classes, token, used, MAX_SUGGESTIONS);
   const showList = open && suggestions.length > 0;
   const activeIdx = suggestions.length ? Math.min(active, suggestions.length - 1) : 0;
 
