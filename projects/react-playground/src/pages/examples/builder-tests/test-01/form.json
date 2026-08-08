@@ -1,0 +1,29 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "component": "$html(div)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "selector": "name",
+        "value": "$model(name)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Имя"
+        }
+      },
+      {
+        "selector": "email",
+        "value": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Email",
+          "type": "email"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "selector": "wizard",
+    "component": "$component(Wizard)",
+    "componentProps": {
+      "className": "rounded-lg bg-white p-6 shadow-sm",
+      "steps": [
+        {
+          "component": "$component(Box)",
+          "componentProps": {
+            "title": "Контакты",
+            "icon": "👤",
+            "className": "space-y-4"
+          },
+          "children": [
+            {
+              "selector": "fullName",
+              "value": "$model(fullName)",
+              "component": "$component(Input)",
+              "componentProps": {
+                "label": "ФИО",
+                "placeholder": "Иванов Иван"
+              }
+            },
+            {
+              "selector": "email",
+              "value": "$model(email)",
+              "component": "$component(Input)",
+              "componentProps": {
+                "label": "Email",
+                "type": "email"
+              }
+            }
+          ]
+        },
+        {
+          "component": "$component(Box)",
+          "componentProps": {
+            "title": "Адрес",
+            "icon": "🏠",
+            "className": "space-y-4"
+          },
+          "children": [
+            {
+              "selector": "city",
+              "value": "$model(city)",
+              "component": "$component(Input)",
+              "componentProps": {
+                "label": "Город"
+              }
+            },
+            {
+              "selector": "address",
+              "value": "$model(address)",
+              "component": "$component(Input)",
+              "componentProps": {
+                "label": "Улица, дом, квартира"
+              }
+            },
+            {
+              "selector": "agree",
+              "value": "$model(agree)",
+              "component": "$component(Checkbox)",
+              "componentProps": {
+                "label": "Данные указаны верно"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -84,33 +84,18 @@ export function validationTsTemplate(formName: string): string {
  * Запуск: validateModel(model, formValidation). Docs: @reformer/core/validation.
  *
  * Ниже — активные правила под поля model.ts + шпаргалка частых случаев (раскомментируйте/
- * скопируйте под свои поля). Импорты покрывают все примеры — лишнее удалите.
+ * скопируйте под свои поля вместе с нужным импортом).
  */
 import {
   validate,
-  validateAsync,
-  validateWhen,
-  cross,
-  each,
-  apply,
   defineValidationSchema,
   type ValidationStrategyOptions,
 } from '@reformer/core/validation';
-import {
-  required,
-  email,
-  min,
-  max,
-  minLength,
-  maxLength,
-  pattern,
-  url,
-  phone,
-  isNumber,
-  integer,
-  multipleOf,
-  nonNegative,
-} from '@reformer/core/validators';
+import { required, email, minLength, maxLength } from '@reformer/core/validators';
+// Импорты для шпаргалки ниже — раскомментируйте то, что понадобится. Держать их подключёнными
+// «на всякий случай» нельзя: проекты собираются с \`noUnusedLocals\`, и форма не скомпилируется.
+// import { validateAsync, validateWhen, cross, each, apply } from '@reformer/core/validation';
+// import { min, max, pattern, url, phone, isNumber, integer, multipleOf, nonNegative } from '@reformer/core/validators';
 import type { FormShape } from './model';
 
 /**
@@ -186,21 +171,13 @@ export function formBehaviorTsTemplate(formName: string): string {
  * Поведение формы «${formName}» — реактивные связи над МОДЕЛЬЮ (вычисляемые поля, копирование,
  * доступность, ре-валидация). Docs: @reformer/core/behaviors.
  *
- * Ниже — активное поведение под поля model.ts + шпаргалка частых случаев. Импорты покрывают все
- * примеры — лишнее удалите.
+ * Ниже — активное поведение под поля model.ts + шпаргалка частых случаев (раскомментируйте нужное
+ * вместе с его импортом).
  */
-import {
-  defineFormBehavior,
-  compute,
-  computeFrom,
-  copyFrom,
-  syncFields,
-  onChange,
-  enableWhen,
-  disableWhen,
-  resetWhen,
-  revalidateWhen,
-} from '@reformer/core/behaviors';
+import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
+// Импорты для шпаргалки ниже — раскомментируйте то, что понадобится. Держать их подключёнными
+// «на всякий случай» нельзя: проекты собираются с \`noUnusedLocals\`, и форма не скомпилируется.
+// import { compute, copyFrom, syncFields, onChange, enableWhen, disableWhen, resetWhen, revalidateWhen } from '@reformer/core/behaviors';
 import type { FormShape } from './model';
 
 export const formBehavior = defineFormBehavior<FormShape>(({ model }) => {
