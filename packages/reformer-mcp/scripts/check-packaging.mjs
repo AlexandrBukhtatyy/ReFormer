@@ -115,9 +115,11 @@ if (guide.startsWith('@reformer/mcp documentation not found') || guide.length < 
 // доступен и без docs/llms, поэтому "не No recipe found" сам по себе публикацию
 // docs/llms не гарантирует. Файловый ответ — единственный сигнал, что каталог
 // реально попал в тарбол.
-// \\/ в этом template literal → \/ в записанном smoke.mjs (иначе \/ схлопнется в /
-// и регекс станет битым /docs/llms//).
-const fileSourced = (text) => /docs\\/llms\\//.test(text) && !/matched by section heading/.test(text);
+// includes, а не регекс: слеши в литерале регекса пришлось бы экранировать дважды
+// (для этого template literal и для записанного smoke.mjs), а недоэкранированный
+// вариант и схлопывается в битый /docs/llms//, и ловится no-useless-escape.
+const fileSourced = (text) =>
+  text.includes('docs/llms/') && !text.includes('matched by section heading');
 
 // core — docs/llms/@reformer/core.
 const ps = (await findRecipeTool({ topic: 'project-structure' })).content[0].text;
