@@ -3,6 +3,10 @@
  * `buildPreview` (registry ui-kit + модель + форма) → `<JsonRendererProvider>` +
  * `<JsonFormRenderer>`. Сборка в try/catch (битая схема → fallback), рендер — под error boundary.
  *
+ * При включённом тумблере «Схемы формы» бандл приходит пропом `live` — он собран из исполненных
+ * `.ts` каталога формы (модель, поведение, валидация, реестр) и полностью заменяет data-only путь.
+ * Ошибки полей и реакции рисует при этом сам рендерер, как в приложении.
+ *
  * В режиме `edit` превью — второй холст: схема аннотируется класс-токенами ({@link annotateSchema}),
  * клик по форме выделяет узел, работают hover-подсветка и drag-drop (Ф4/Ф5). Интерактив самой формы
  * при этом гасится CSS (`pointer-events` в `index.css`), поэтому фокус не уходит в поля и хоткеи
@@ -29,8 +33,9 @@ import {
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import type { FormModel, FormProxy } from '@reformer/core';
+import type { RenderBehaviorFn } from '@reformer/renderer-react';
+import type { LiveBundle } from '../preview-runtime/live';
 import {
-  annotateSchema,
   buildPreview,
   encodeNodeToken,
   EMPTY_CLASS,
@@ -66,11 +71,13 @@ const FormTree = memo(function FormTree({
   registry,
   model,
   form,
+  renderBehavior,
 }: {
   schema: JsonFormSchema;
   registry: ComponentRegistry;
   model: FormModel<Record<string, unknown>>;
   form: unknown;
+  renderBehavior?: RenderBehaviorFn<Record<string, unknown>>;
 }) {
   // Кит может потребовать собственный контекст вокруг поддерева превью (тема styled-components,
   // i18n, конфиг портала) — он объявляет его в `descriptor.adapters.provider`. Киту на
@@ -82,7 +89,12 @@ const FormTree = memo(function FormTree({
   const tree = (
     <JsonRendererProvider settings={{ registry }}>
       <WizardFormProvider form={form as FormProxy<Record<string, unknown>>}>
-        <JsonFormRenderer schema={schema} model={model} validateSchema={false} />
+        <JsonFormRenderer
+          schema={schema}
+          model={model}
+          renderBehavior={renderBehavior}
+          validateSchema={false}
+        />
       </WizardFormProvider>
     </JsonRendererProvider>
   );
@@ -96,16 +108,26 @@ const FormTree = memo(function FormTree({
 
 export function RuntimePreview({
   schema,
+  annotated,
   mock,
   mode,
   selectionPath,
   selectionPaths = [],
+  live,
 }: {
   schema: JsonFormSchema;
+  /**
+   * Та же схема с класс-токенами. Приходит пропом, а не считается здесь: live-бандл собирает по ней
+   * `convertJsonToM1Tree`, и вторая копия означала бы, что рендерится одно дерево, а форма построена
+   * по другому.
+   */
+  annotated: JsonFormSchema;
   mock?: MockData;
   mode: RuntimeMode;
   selectionPath: JsonPath | null;
   selectionPaths?: JsonPath[];
+  /** Бандл исполненных схем формы; `null` — data-only путь (тумблер выключен или каталог недоступен). */
+  live?: LiveBundle | null;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -114,21 +136,19 @@ export function RuntimePreview({
   const scope = `[data-rb-scope="${scopeId}"]`;
   const { hoverRef, setHoverPath } = useHoverStyle(scope);
 
-  // Схема для рендера: копия с класс-токенами узлов. Мемо обязательно — новая ссылка пересобрала бы
-  // модель и форму, а вместе с ними потерялись бы введённые значения.
-  const annotated = useMemo(() => annotateSchema(schema), [schema]);
-
   // Пересобираем registry+model+form при смене схемы ИЛИ мока (иммутабельность → новая ссылка).
   // Ввод в поля меняет только сигналы модели (identity schema/mock стабильна) — фокус не теряется.
+  // С live-бандлом сборка уже сделана асинхронным хуком — data-only путь не трогаем вовсе.
   const built = useMemo(():
     | { bundle: PreviewBundle; error: null }
     | { bundle: null; error: string } => {
+    if (live) return { bundle: live, error: null };
     try {
       return { bundle: buildPreview(annotated, mock), error: null };
     } catch (e) {
       return { bundle: null, error: e instanceof Error ? e.message : String(e) };
     }
-  }, [annotated, mock]);
+  }, [annotated, mock, live]);
 
   // Публикуем модель живого превью: нижняя панель показывает по ней текущие значения формы.
   // Только чтение — обратной записи в `mock` быть не должно, иначе форма пересоздастся (см. выше).
@@ -355,6 +375,7 @@ export function RuntimePreview({
         registry={built.bundle.registry}
         model={built.bundle.model}
         form={built.bundle.form}
+        renderBehavior={live?.renderBehavior}
       />
     </div>
   );

@@ -59,6 +59,7 @@ export function initialUi(): UiState {
   return {
     preview: ui?.preview ?? 'wire',
     runtimeMode: ui?.runtimeMode ?? 'test',
+    liveSchemas: false,
     hideDivWrappers: ui?.hideDivWrappers ?? false,
     quickAddOpen: false,
     rawJsonOpen: true,
@@ -810,6 +811,10 @@ export function setRuntimeMode(state: EditorState, runtimeMode: RuntimeMode): Ed
 /** Переключить режим «Renderer» (⌥⌘E). */
 export function toggleRuntimeMode(state: EditorState): EditorState {
   return setRuntimeMode(state, state.ui.runtimeMode === 'edit' ? 'test' : 'edit');
+}
+/** Включить/выключить исполнение схем формы в Renderer-превью. */
+export function setLiveSchemas(state: EditorState, liveSchemas: boolean): EditorState {
+  return { ...state, ui: { ...state.ui, liveSchemas } };
 }
 export function toggleRawJson(state: EditorState): EditorState {
   return { ...state, ui: { ...state.ui, rawJsonOpen: !state.ui.rawJsonOpen } };

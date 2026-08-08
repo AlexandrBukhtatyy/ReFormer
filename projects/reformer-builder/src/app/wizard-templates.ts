@@ -172,9 +172,19 @@ export function wizardValidationTsTemplate(formName: string): string {
  * Схема валидации формы «${formName}» — правила над МОДЕЛЬЮ, сгруппированные по шагам визарда.
  * Запуск: validateModel(model, formValidation). Docs: @reformer/core/validation.
  */
-import { validate, defineValidationSchema } from '@reformer/core/validation';
+import {
+  validate,
+  defineValidationSchema,
+  type ValidationStrategyOptions,
+} from '@reformer/core/validation';
 import { email, minLength, required } from '@reformer/core/validators';
 import type { FormShape } from './model';
+
+/**
+ * КОГДА гонять валидацию. Одна точка истины: её читают и \`index.tsx\`, и Renderer-превью билдера.
+ * У визарда осмысленнее \`blur\` — шаг проверяется по мере заполнения, а не только на отправке.
+ */
+export const validationOptions: ValidationStrategyOptions = { strategy: 'blur' };
 
 export const formValidation = defineValidationSchema<FormShape>(({ model }) => {
   // Шаг 1 — контакты.
@@ -266,6 +276,7 @@ export function wizardIndexTsxTemplate(formName: string): string {
  * + \`<Route element={<${Comp} />} />\`.
  */
 import { useMemo } from 'react';
+import { useFormValidation } from '@reformer/core';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -277,6 +288,7 @@ import rawSchema from './form.json';
 import { createRegistry } from './registry';
 import { initialFormModel, type FormShape } from './model';
 import { formBehavior } from './form-behavior';
+import { formValidation, validationOptions } from './validation';
 import { createRenderBehavior } from './render-behavior';
 
 // В чистом JSON операторы типизируются как \`string\` — приведение = сценарий «схема пришла с сервера».
@@ -293,6 +305,10 @@ export default function ${Comp}() {
       behavior: formBehavior,
     })
   );
+
+  // Стратегия запуска валидации — из validation.ts (её же читает превью билдера). Полный прогон
+  // на submit визарда делает render-behavior; здесь армится live-фаза выбранной стратегии.
+  useFormValidation({ model: jsonForm.model, schema: formValidation, ...validationOptions });
 
   // Поведение UI держит форму (её получает визард) и модель (валидация на submit) — собираем его
   // один раз на бандл формы.

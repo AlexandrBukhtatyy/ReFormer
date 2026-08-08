@@ -31,9 +31,13 @@ describe('indexTsxTemplate', () => {
     expect(src).toContain('form={jsonForm}');
     expect(src).toContain('renderBehavior={formRenderBehavior}');
   });
-  it('submit гоняет валидацию модели', () => {
-    expect(src).toContain('validateModel(jsonForm.model, formValidation)');
-    expect(src).toContain('jsonForm.form.markAsTouched()');
+  it('стратегия валидации берётся из validation.ts, submit — штатным useFormValidation', () => {
+    // Одна точка истины: тот же `validationOptions` читает Renderer-превью билдера, поэтому в
+    // превью форма валидируется ровно так же, как в приложении.
+    expect(src).toContain("import { formValidation, validationOptions } from './validation'");
+    expect(src).toContain('useFormValidation({');
+    expect(src).toContain('...validationOptions');
+    expect(src).toContain('await validation.submit()');
   });
   it('PascalCase: дефис/пробел → одно имя, ведущая цифра защищена, суффикс не задваивается', () => {
     expect(indexTsxTemplate('loan-application')).toContain(

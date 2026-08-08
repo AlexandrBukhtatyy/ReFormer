@@ -44,7 +44,7 @@ async function resolveDir(root: Root, dirPath: string, create = false): Promise<
 }
 
 /** Разбить путь на родительский каталог и имя (basename). */
-function splitPath(path: string): { dirPath: string; base: string } {
+export function splitPath(path: string): { dirPath: string; base: string } {
   const i = path.lastIndexOf('/');
   return i === -1
     ? { dirPath: '', base: path }

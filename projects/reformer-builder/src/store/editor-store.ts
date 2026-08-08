@@ -116,6 +116,8 @@ export const editorActions = {
   setRuntimeMode: (mode: RuntimeMode) => editorStore.setState((s) => R.setRuntimeMode(s, mode)),
   /** ⌥⌘E: переключить режим «Renderer». */
   toggleRuntimeMode: () => editorStore.setState(R.toggleRuntimeMode),
+  /** Исполнять ли схемы формы (validation/behavior/registry) в Renderer-превью. */
+  setLiveSchemas: (on: boolean) => editorStore.setState((s) => R.setLiveSchemas(s, on)),
   toggleRawJson: () => editorStore.setState(R.toggleRawJson),
   /** Переключить активную вкладку нижней панели (JSON схемы / мок-данные). */
   setBottomTab: (t: BottomTab) => editorStore.setState((s) => R.setBottomTab(s, t)),

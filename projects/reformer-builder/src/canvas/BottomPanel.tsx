@@ -21,6 +21,7 @@ import { synthMock } from '../preview-runtime';
 import { SchemaCodeEditor } from './SchemaCodeEditor';
 import { MockDataEditor } from './MockDataEditor';
 import { LiveModelView } from './LiveModelView';
+import { FormStateView } from './FormStateView';
 import { serializeSection } from './mock-data';
 import { cn } from '../lib/cn';
 
@@ -31,11 +32,12 @@ import { cn } from '../lib/cn';
  */
 type ModelView = 'seed' | 'live';
 
-/** Секция мок-данных, которую правит вкладка (у `raw` секции нет). */
+/** Секция мок-данных, которую правит вкладка (у `raw` и `form` секции нет — они read-only). */
 const SECTION: Record<BottomTab, MockSection | null> = {
   raw: null,
   model: 'model',
   registry: 'dataSources',
+  form: null,
 };
 
 export function BottomPanel({ tab }: { tab: TabState }) {
@@ -45,15 +47,18 @@ export function BottomPanel({ tab }: { tab: TabState }) {
   const section = SECTION[active];
   /** Живой вид есть только у «Модели»; у Registry и JSON редактируется сам источник. */
   const live = active === 'model' && modelView === 'live';
+  /** «Форма» — не текст: ни счётчика строк, ни «Сбросить» у неё нет. */
+  const formState = active === 'form';
 
   // Число строк активной вкладки (для правого счётчика в заголовке).
   const lines = useMemo(() => {
+    if (formState) return 0;
     const text =
       section == null
         ? serializeSchema(tab.schema)
         : (tab.mock?.[section] ?? serializeSection(synthMock(tab.schema), section));
     return text.split('\n').length;
-  }, [section, tab.schema, tab.mock]);
+  }, [formState, section, tab.schema, tab.mock]);
 
   // Клик по вкладке переключает (в сторе — переживает remount при разворачивании) и разворачивает.
   const select = (t: BottomTab) => {
@@ -107,6 +112,13 @@ export function BottomPanel({ tab }: { tab: TabState }) {
         >
           Registry
         </button>
+        <button
+          onClick={() => select('form')}
+          title="Состояние живой формы: валидность полей, ошибки, лог поведения, сборка схем"
+          className={tabCls('form')}
+        >
+          Форма
+        </button>
         <span className="flex-1" />
         {active === 'model' && rawJsonOpen && (
           <div className="flex flex-none gap-0.5 rounded border border-border p-0.5">
@@ -132,7 +144,7 @@ export function BottomPanel({ tab }: { tab: TabState }) {
             </button>
           </div>
         )}
-        {section != null && rawJsonOpen && !live && (
+        {section != null && rawJsonOpen && !live && !formState && (
           <button
             onClick={onReset}
             title="Сбросить к синтезу из схемы"
@@ -141,11 +153,13 @@ export function BottomPanel({ tab }: { tab: TabState }) {
             Сбросить
           </button>
         )}
-        {!live && <span className="flex-none pr-1.5">{lines} строк</span>}
+        {!live && !formState && <span className="flex-none pr-1.5">{lines} строк</span>}
       </div>
       {rawJsonOpen && (
         <div className="min-h-0 flex-1 border-t border-border">
-          {section == null ? (
+          {formState ? (
+            <FormStateView />
+          ) : section == null ? (
             <SchemaCodeEditor schema={tab.schema} />
           ) : live ? (
             <LiveModelView tab={tab} />

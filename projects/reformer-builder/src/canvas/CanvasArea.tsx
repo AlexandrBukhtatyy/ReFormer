@@ -10,12 +10,27 @@ import { useDefaultLayout } from 'react-resizable-panels';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import type { TabState } from '../store';
 import { useUi } from '../store';
+import { annotateSchema } from '../preview-runtime';
 import { FloatingActions } from './FloatingActions';
 import { SchematicCanvas } from './SchematicCanvas';
 import { RuntimePreview } from './RuntimePreview';
 import { BottomPanel } from './BottomPanel';
 import { SchemaCodeEditor } from './SchemaCodeEditor';
 import { effectiveMock } from './mock-data';
+import { useLiveForm } from './useLiveForm';
+
+/** Правки модели из панели «Засев»: объект либо `undefined`, если текста нет или он битый. */
+function parseModelDraft(text: string | undefined): Record<string, unknown> | undefined {
+  if (text == null) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function CanvasArea({ tab }: { tab: TabState }) {
   const ui = useUi();
@@ -29,6 +44,22 @@ export function CanvasArea({ tab }: { tab: TabState }) {
 
   // Эффективный мок для runtime-превью (правки панели ⊕ синтез). Стабильная ссылка по [schema, mock].
   const mock = useMemo(() => effectiveMock(tab.schema, tab.mock), [tab.schema, tab.mock]);
+
+  // Схема с класс-токенами: одна и та же и для рендера, и для сборки live-бандла (иначе
+  // convertJsonToM1Tree отработал бы по другому дереву, чем то, что смонтировано).
+  const annotated = useMemo(() => annotateSchema(tab.schema), [tab.schema]);
+
+  // Явные правки модели из панели «Засев». Синтез сюда НЕ подмешиваем: в live-пути базой служит
+  // `initialFormModel` формы, а представительный мок скрыл бы работу `required`.
+  const modelOverride = useMemo(() => parseModelDraft(tab.mock?.model), [tab.mock?.model]);
+
+  const live = useLiveForm({
+    tab,
+    annotated,
+    dataSources: mock.dataSources,
+    modelOverride,
+    enabled: ui.preview === 'runtime' && ui.liveSchemas,
+  });
 
   // Нижняя панель со вкладками: JSON (raw схемы) + Модель + Registry (мок-данные).
   const bottomPanel = <BottomPanel tab={tab} />;
@@ -55,10 +86,12 @@ export function CanvasArea({ tab }: { tab: TabState }) {
           {ui.preview === 'runtime' ? (
             <RuntimePreview
               schema={tab.schema}
+              annotated={annotated}
               mock={mock}
               mode={ui.runtimeMode}
               selectionPath={tab.selectionPath}
               selectionPaths={tab.selectionPaths}
+              live={live}
             />
           ) : (
             <SchematicCanvas

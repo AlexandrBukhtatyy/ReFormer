@@ -14,6 +14,7 @@ import { editorActions, useActiveTab, useUi } from '../store';
 import { validateSchema } from '../io/validate';
 import { triggerSave } from '../app/save-actions';
 import { showValidationErrors } from '../app/validation-toast';
+import { LiveSchemasControl } from './LiveSchemasControl';
 import { cn } from '../lib/cn';
 import { formatShortcut } from '../lib/shortcuts';
 
@@ -93,6 +94,7 @@ export function FloatingActions() {
               <Pencil className="h-3.5 w-3.5" />
             </button>
           </div>
+          <LiveSchemasControl tab={tab} />
         </div>
       )}
       <div className="flex flex-wrap items-center justify-end gap-1.5 rounded-lg border border-border bg-background/95 p-1 shadow-sm backdrop-blur">

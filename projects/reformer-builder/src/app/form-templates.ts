@@ -94,6 +94,7 @@ import {
   each,
   apply,
   defineValidationSchema,
+  type ValidationStrategyOptions,
 } from '@reformer/core/validation';
 import {
   required,
@@ -111,6 +112,18 @@ import {
   nonNegative,
 } from '@reformer/core/validators';
 import type { FormShape } from './model';
+
+/**
+ * КОГДА гонять валидацию. Одна точка истины: её читает и \`index.tsx\` (через \`useFormValidation\`),
+ * и Renderer-превью билдера, поэтому в превью форма ведёт себя ровно так же, как в приложении.
+ *
+ * \`submit\` — только по кнопке; \`blur\` — при потере фокуса; \`change\` — на каждый ввод;
+ * \`afterFirstSubmit\` — тихо до первой отправки, затем вживую.
+ */
+export const validationOptions: ValidationStrategyOptions = {
+  strategy: 'afterFirstSubmit',
+  debounce: 300,
+};
 
 export const formValidation = defineValidationSchema<FormShape>(({ model }) => {
   // ── Активные правила ──
@@ -300,7 +313,7 @@ export function indexTsxTemplate(formName: string): string {
  * в react-playground: \`import ${Comp} from './pages/examples/<папка>';\` + \`<Route element={<${Comp} />} />\`.
  */
 import { useState } from 'react';
-import { validateModel } from '@reformer/core/validation';
+import { useFormValidation } from '@reformer/core';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -313,7 +326,7 @@ import rawSchema from './form.json';
 import { createRegistry } from './registry';
 import { initialFormModel, type FormShape } from './model';
 import { formBehavior } from './form-behavior';
-import { formValidation } from './validation';
+import { formValidation, validationOptions } from './validation';
 import { formRenderBehavior } from './render-behavior';
 
 // В чистом JSON операторы типизируются как \`string\` — приведение = сценарий «схема пришла с сервера».
@@ -333,10 +346,15 @@ export default function ${Comp}() {
     })
   );
 
+  // Стратегия запуска валидации живёт в validation.ts — там же, откуда её читает превью билдера.
+  const validation = useFormValidation({
+    model: jsonForm.model,
+    schema: formValidation,
+    ...validationOptions,
+  });
+
   const submit = async (): Promise<void> => {
-    jsonForm.form.markAsTouched();
-    const valid = await validateModel(jsonForm.model, formValidation);
-    if (!valid) {
+    if (!(await validation.submit())) {
       setStatus('Проверьте выделенные поля');
       return;
     }
@@ -366,7 +384,9 @@ export default function ${Comp}() {
         />
       </JsonRendererProvider>
 
-      <Button onClick={() => void submit()}>Отправить</Button>
+      <Button disabled={validation.isValidating} onClick={() => void submit()}>
+        Отправить
+      </Button>
     </div>
   );
 }

@@ -35,9 +35,10 @@ export type Theme = 'light' | 'dark';
 
 /**
  * Активная вкладка нижней панели: `raw` — JSON-исходник схемы, `model` — модель превью,
- * `registry` — значения `$dataSource` реестра превью.
+ * `registry` — значения `$dataSource` реестра превью, `form` — состояние живой формы (валидность
+ * полей, ошибки, лог, статус сборки схем).
  */
-export type BottomTab = 'raw' | 'model' | 'registry';
+export type BottomTab = 'raw' | 'model' | 'registry' | 'form';
 
 /** Секция мок-данных превью: модель формы либо значения источников реестра. */
 export type MockSection = 'model' | 'dataSources';
@@ -131,6 +132,13 @@ export interface UiState {
   preview: PreviewMode;
   /** Режим вкладки «Renderer»: редактируем схему на живом рендере либо щупаем форму. */
   runtimeMode: RuntimeMode;
+  /**
+   * Исполнять ли схемы формы (`validation.ts` / `form-behavior.ts` / `render-behavior.ts` /
+   * `registry.ts` из каталога рядом с `form.json`) в Renderer-превью. Выключено — превью рисует
+   * layout по `form.json` на моках, как раньше. Включение требует подтверждения: код формы
+   * исполняется в главном потоке.
+   */
+  liveSchemas: boolean;
   /** Скрывать `$html(div)`-контейнеры в схематике (чище дерево); их дети рисуются напрямую. */
   hideDivWrappers: boolean;
   /** Открыта ли модалка быстрого добавления компонента (Enter). */
