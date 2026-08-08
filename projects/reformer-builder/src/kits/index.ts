@@ -18,6 +18,8 @@ export type {
   KitDescriptorJson,
   KitAdapter,
   KitAdapters,
+  KitClassGroup,
+  KitClassGroupsByRole,
   KitCodegen,
   KitInfra,
   KitNamespace,

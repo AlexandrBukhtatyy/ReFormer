@@ -81,6 +81,13 @@ describe('«неявный кит»: каталог 1.0 без блока kit', 
     expect(d.styles.mode).toBe('tokens');
   });
 
+  it('словаря классов нет: билдер СВОЕГО списка не держит', () => {
+    // Не пустой fallback «на всякий случай», а осознанное отсутствие: для standalone-кита
+    // Tailwind-подсказки неверны, а «подсказок нет» — честное поведение.
+    expect(d.styles.classNames).toEqual([]);
+    expect(d.classGroupPolicy.size).toBe(0);
+  });
+
   it('compound-шаблоны не заданы → используются встроенные шаблоны билдера', () => {
     expect(d.compoundTemplates).toBeUndefined();
   });
@@ -171,6 +178,75 @@ describe('per-record поля контракта 2.0', () => {
     expect(d.leafComponents.has('Progress')).toBe(false);
     // Остальные листья на месте.
     expect(d.leafComponents.has('Icon')).toBe(true);
+  });
+});
+
+describe('словарь классов и политика групп', () => {
+  const GROUPS = [
+    { id: 'spacing', label: 'Отступы', classes: ['gap-2', 'p-4'] },
+    { id: 'color', label: 'Цвета', classes: ['bg-muted'] },
+  ];
+
+  it('словарь кита попадает в дескриптор как есть', () => {
+    const d = toDescriptor(catalog({ kit: { styles: { classNames: GROUPS } } }));
+    expect(d.styles.classNames).toEqual(GROUPS);
+    // Режим стилей при этом остаётся дефолтным — поля блока styles независимы.
+    expect(d.styles.mode).toBe('tokens');
+  });
+
+  it('classGroups записи попадает в политику множеством', () => {
+    const d = toDescriptor(
+      catalog({ components: [record('Input', { role: 'field', classGroups: ['spacing'] })] })
+    );
+    expect(d.classGroupPolicy.get('Input')).toEqual(new Set(['spacing']));
+  });
+
+  it('ПУСТОЙ classGroups заводит ключ с пустым множеством — это не то же, что отсутствие поля', () => {
+    // Ключевое различие всей фичи: «кит промолчал» (ограничений нет) против «кит сказал: нечем»
+    // (разрешённых групп нет). Свести их к одному значению нельзя.
+    const d = toDescriptor(
+      catalog({
+        components: [record('Locked', { classGroups: [] }), record('Free')],
+      })
+    );
+    expect(d.classGroupPolicy.has('Locked')).toBe(true);
+    expect(d.classGroupPolicy.get('Locked')?.size).toBe(0);
+    expect(d.classGroupPolicy.has('Free')).toBe(false);
+  });
+
+  it('правило роли размечает записи, о которых кит промолчал', () => {
+    const d = toDescriptor(
+      catalog({
+        kit: { styles: { classGroupsByRole: { field: ['spacing'], container: '*' } } },
+        components: [record('Input', { role: 'field' }), record('Box')],
+      })
+    );
+    expect(d.classGroupPolicy.get('Input')).toEqual(new Set(['spacing']));
+    // '*' — это «ограничений нет», ключ заводить не за чем.
+    expect(d.classGroupPolicy.has('Box')).toBe(false);
+  });
+
+  it('classGroups записи важнее правила роли', () => {
+    const d = toDescriptor(
+      catalog({
+        kit: { styles: { classGroupsByRole: { field: ['spacing'] } } },
+        components: [record('Slider', { role: 'field', classGroups: ['spacing', 'sizing'] })],
+      })
+    );
+    expect(d.classGroupPolicy.get('Slider')).toEqual(new Set(['spacing', 'sizing']));
+  });
+
+  it('роль без правила ограничений не получает', () => {
+    // Синтетика билдера ($html/FormArray/Wizard/Step) приходит сюда наравне с записями кита:
+    // роли array/container без правила остаются свободными, никаких исключений в коде не нужно.
+    const d = toDescriptor(
+      catalog({
+        kit: { styles: { classGroupsByRole: { field: ['spacing'] } } },
+        components: [record('$html(div)'), record('FormArray', { role: 'array' })],
+      })
+    );
+    expect(d.classGroupPolicy.has('$html(div)')).toBe(false);
+    expect(d.classGroupPolicy.has('FormArray')).toBe(false);
   });
 });
 

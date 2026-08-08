@@ -77,6 +77,11 @@
           "leaf": {
             "type": "boolean",
             "description": "Контракт 2.0. Компонент-лист: рендерит самодостаточный визуал (иконка, разделитель, спиннер) и вложенных компонентов не держит — не является drop-target."
+          },
+          "classGroups": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "Контракт 2.0. id групп kit.styles.classNames, которыми РАЗРЕШЕНО стилизовать этот компонент. Отсутствие поля НЕ РАВНО пустому массиву: отсутствие отдаёт решение правилу роли kit.styles.classGroupsByRole (а если и его нет — доступен весь словарь), пустой массив = разрешённых групп нет и подсказок не будет. Типовой случай — form-control, которому разрешают только spacing: расположение поля в форме править можно, его вид — нет."
           }
         }
       }
@@ -164,7 +169,7 @@
         "styles": {
           "type": "object",
           "additionalProperties": false,
-          "description": "Как подключаются стили кита.",
+          "description": "Как подключаются стили кита и какими классами разрешено стилизовать его компоненты.",
           "properties": {
             "mode": {
               "enum": ["tokens", "standalone"],
@@ -173,6 +178,42 @@
             "href": {
               "type": "string",
               "description": "URL самодостаточного CSS (только для standalone)."
+            },
+            "classNames": {
+              "type": "array",
+              "description": "Словарь классов для автодополнения поля className в инспекторе, разбитый на группы. Группы нужны не только для UI: запись компонента ссылается на их id в classGroups, ограничивая, чем её разрешено стилизовать. Отсутствие секции = кит подсказок не поставляет и поле остаётся свободным вводом — своего списка билдер НЕ держит (для standalone-кита Tailwind-подсказки были бы просто неверны).",
+              "items": {
+                "type": "object",
+                "required": ["id", "label", "classes"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]*$",
+                    "description": "СТАБИЛЬНЫЙ идентификатор группы: на него ссылаются classGroups записи и classGroupsByRole. Переименование — ломающее изменение каталога, а не косметика."
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Человекочитаемая подпись группы."
+                  },
+                  "classes": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 },
+                    "description": "Классы группы в курируемом порядке — он же порядок подсказок."
+                  }
+                }
+              }
+            },
+            "classGroupsByRole": {
+              "type": "object",
+              "description": "Дефолт «чем разрешено стилизовать» по роли записи; точечный classGroups записи это правило перекрывает. Типовой смысл: field — только расположение поля в форме (отступы), вид задаёт дизайн-система; container/array — '*'.",
+              "additionalProperties": {
+                "oneOf": [
+                  { "const": "*", "description": "Ограничений нет — доступен весь словарь." },
+                  { "type": "array", "items": { "type": "string", "minLength": 1 } }
+                ]
+              }
             }
           }
         },

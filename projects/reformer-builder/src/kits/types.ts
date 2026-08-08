@@ -91,6 +91,24 @@ export interface KitPalette {
   glyphs?: Record<string, string>;
 }
 
+/**
+ * Группа классов из словаря кита.
+ *
+ * `id` СТАБИЛЕН: на него ссылается `classGroups` записи каталога и `classGroupsByRole` кита, поэтому
+ * переименование группы — ломающее изменение каталога, а не косметика.
+ */
+export interface KitClassGroup {
+  id: string;
+  label: string;
+  classes: string[];
+}
+
+/**
+ * Правило «роль записи → разрешённые группы»: `'*'` — ограничений нет, массив — только эти группы.
+ * Применяется к записям, у которых нет собственного `classGroups`.
+ */
+export type KitClassGroupsByRole = Partial<Record<CatalogRole, '*' | string[]>>;
+
 /** Как подключаются стили кита (план §3.3). */
 export interface KitStyles {
   /**
@@ -101,6 +119,18 @@ export interface KitStyles {
   mode?: 'tokens' | 'standalone';
   /** URL самодостаточного CSS (только для `standalone`). */
   href?: string;
+  /**
+   * Словарь классов для автодополнения `className` в инспекторе, разбитый на группы. Отсутствие =
+   * кит подсказок не поставляет; билдер СВОЕГО списка не держит (для `standalone`-кита
+   * Tailwind-подсказки просто неверны), поле остаётся обычным свободным вводом.
+   */
+  classNames?: KitClassGroup[];
+  /**
+   * Дефолт «чем разрешено стилизовать» по роли записи. Типовой смысл: `field` — только расположение
+   * поля в форме (отступы), вид задаёт дизайн-система; `container`/`array` — `'*'`.
+   * Точечный `classGroups` записи это правило перекрывает.
+   */
+  classGroupsByRole?: KitClassGroupsByRole;
 }
 
 /** Что подставлять в сгенерированный `registry.ts` при экспорте примера. */
@@ -132,6 +162,11 @@ export interface KitRecordExt {
   preview?: KitRecordPreview;
   /** Компонент-лист: самодостаточный визуал, вложенных компонентов не держит. */
   leaf?: boolean;
+  /**
+   * `id` групп словаря, которыми разрешено стилизовать компонент. Отсутствие ≠ `[]`: отсутствие
+   * отдаёт решение правилу роли ({@link KitStyles.classGroupsByRole}), `[]` — разрешённых групп нет.
+   */
+  classGroups?: string[];
 }
 
 /**
@@ -170,7 +205,7 @@ export interface KitDescriptor {
   infra: Required<KitInfra>;
   adapters: KitAdapters;
   palette: Required<Pick<KitPalette, 'categoryByName'>> & KitPalette;
-  styles: Required<Pick<KitStyles, 'mode'>> & KitStyles;
+  styles: Required<Pick<KitStyles, 'mode' | 'classNames'>> & KitStyles;
   codegen: Required<Pick<KitCodegen, 'importSpecifier'>> & { needsShim: ReadonlySet<string> };
   /**
    * ЖЁСТКИЙ запрет живого рендера: имя записи → политика. Проверяется ДО резолва компонента,
@@ -186,6 +221,13 @@ export interface KitDescriptor {
   unresolvedReason: ReadonlyMap<string, string>;
   /** Имена компонентов-листьев. */
   leafComponents: ReadonlySet<string>;
+  /**
+   * Имя записи → РАЗРЕШЁННЫЕ группы классов. Отсутствие ключа = ограничений нет (весь словарь кита),
+   * пустое множество = разрешённых групп нет. Та же семантика «отсутствие ≠ пусто», что у
+   * {@link previewPolicy}: синтетические записи билдера (`$html(*)`, `FormArray`, `Wizard`, `Step`)
+   * ключа не имеют, если правило роли их не ограничило, и потому свободны.
+   */
+  classGroupPolicy: ReadonlyMap<string, ReadonlySet<string>>;
   /**
    * Композиции compound'ов по умолчанию. `undefined` — использовать встроенные шаблоны билдера
    * (`catalog/make-node`); перенос самих шаблонов в дескриптор — этап 2.

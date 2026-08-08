@@ -15,7 +15,7 @@
  */
 
 import type { CatalogJson, CatalogRecord } from '../catalog/types';
-import type { KitDescriptor, KitDescriptorJson, KitRecordPreview } from './types';
+import type { KitDescriptor, KitDescriptorJson, KitRecordPreview, KitStyles } from './types';
 import {
   LEAF_COMPONENT_NAMES,
   LEGACY_KIT,
@@ -65,6 +65,29 @@ function buildLeafComponents(records: CatalogRecord[]): ReadonlySet<string> {
 }
 
 /**
+ * Разрешённые группы классов по записям: точечный `classGroups` записи, иначе правило роли
+ * `kit.styles.classGroupsByRole`, иначе ограничений нет.
+ *
+ * Ключ заводится ТОЛЬКО когда ограничение есть: отсутствие ключа = весь словарь кита, пустое
+ * множество = разрешённых групп нет. Синтетические записи билдера (`$html(*)`, `FormArray`,
+ * `Wizard`, `Step`) приходят сюда наравне с записями кита и проходят то же правило — своего
+ * `classGroups` у них нет, а роли `container`/`array` при типовом `'*'` ключа не создают.
+ */
+function buildClassGroupPolicy(
+  records: CatalogRecord[],
+  styles: KitStyles | undefined
+): ReadonlyMap<string, ReadonlySet<string>> {
+  const byRole = styles?.classGroupsByRole ?? {};
+  const map = new Map<string, ReadonlySet<string>>();
+  for (const r of records) {
+    const rule = r.classGroups ?? byRole[r.role];
+    if (rule === undefined || rule === '*') continue;
+    map.set(r.name, new Set(rule));
+  }
+  return map;
+}
+
+/**
  * Собрать дескриптор активного кита из каталога-JSON.
  *
  * @param json каталог по контракту `component-catalog.schema.json` (версии `1.0` — без блока
@@ -100,7 +123,10 @@ export function toDescriptor(json: CatalogJson): KitDescriptor {
     },
     styles: {
       mode: kit.styles?.mode ?? LEGACY_KIT.styles.mode!,
+      // Словарь классов целиком за китом: своего у билдера нет. Пусто = подсказок не будет.
+      classNames: kit.styles?.classNames ?? [],
       ...(kit.styles?.href ? { href: kit.styles.href } : {}),
+      ...(kit.styles?.classGroupsByRole ? { classGroupsByRole: kit.styles.classGroupsByRole } : {}),
     },
     codegen: {
       // Если кит назвал пакет, но не назвал спецификатор импорта — импортируем из пакета.
@@ -110,6 +136,7 @@ export function toDescriptor(json: CatalogJson): KitDescriptor {
     previewPolicy: buildPreviewPolicy(records),
     unresolvedReason: buildUnresolvedReasons(records),
     leafComponents: buildLeafComponents(records),
+    classGroupPolicy: buildClassGroupPolicy(records, kit.styles),
     // Перенос COMPOUND_TEMPLATES из `catalog/make-node` в дескриптор — этап 2.
     // `undefined` означает «использовать встроенные шаблоны билдера».
     compoundTemplates: undefined,

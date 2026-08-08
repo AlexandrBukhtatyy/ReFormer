@@ -18,7 +18,7 @@ import type { KitDescriptorJson, KitRecordPreview } from '../kits/types';
 
 /**
  * Текущая версия контракта каталога. `2.0` добавила опциональный блок `kit` (дескриптор кита) и
- * per-record поля `exportName`/`subpath`/`preview`/`leaf`.
+ * per-record поля `exportName`/`subpath`/`preview`/`leaf`/`classGroups`.
  *
  * Обе версии обрабатываются одинаково: всё добавленное опционально, каталог `1.0` достраивается
  * дефолтами билдера до «неявного кита» ({@link '../kits/descriptor'}).
@@ -86,6 +86,12 @@ export interface CatalogRecord {
   preview?: KitRecordPreview;
   /** Компонент-лист: самодостаточный визуал, вложенных компонентов не держит. */
   leaf?: boolean;
+  /**
+   * `id` групп `kit.styles.classNames`, которыми РАЗРЕШЕНО стилизовать компонент. Отсутствие поля —
+   * не то же, что `[]`: отсутствие = ограничений нет (или действует правило роли
+   * `kit.styles.classGroupsByRole`), `[]` = разрешённых групп нет и подсказок не будет.
+   */
+  classGroups?: string[];
 }
 
 /** Каталог-JSON по контракту `component-catalog.schema.json` (§5). */
@@ -101,7 +107,7 @@ export interface CatalogJson {
 
 /**
  * Виджет инспектора: стандартные {@link PropWidget} из ui-kit плюс builder-only `className`
- * (редактор CSS-классов с автодополнением Tailwind). Билдер назначает `className` по ключу пропа
+ * (редактор CSS-классов с автодополнением из словаря активного кита). Билдер назначает `className` по ключу пропа
  * поверх `x-doc.kind` (в ui-kit `className` объявлен `readonly` — эта конвенция для ui-kit-доков,
  * а не для билдера).
  */
@@ -116,7 +122,7 @@ export interface InspectorProp {
   key: string;
   /** Человекочитаемая подпись. */
   label: string;
-  /** Виджет редактора: boolean→switch, text→input, number→number, enum→select, readonly→серое поле, className→автодополнение Tailwind. */
+  /** Виджет редактора: boolean→switch, text→input, number→number, enum→select, readonly→серое поле, className→автодополнение из словаря кита. */
   widget: InspectorWidget;
   /** Секция инспектора. */
   group: PropGroup;

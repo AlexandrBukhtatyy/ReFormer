@@ -105,7 +105,57 @@ describe('validateCatalog: контракт 2.0 (блок kit + per-record по�
     expect(res.valid).toBe(true);
   });
 
+  it('словарь классов и политика групп проходят контракт', () => {
+    const res = validateCatalog({
+      version: '2.0',
+      components: [
+        record({ name: 'Input', role: 'field', classGroups: ['spacing'] }),
+        record({ name: 'Locked', classGroups: [] }),
+      ],
+      kit: {
+        styles: {
+          mode: 'tokens',
+          classNames: [
+            { id: 'spacing', label: 'Отступы', classes: ['gap-2', 'p-4'] },
+            { id: 'color', label: 'Цвета и токены темы', classes: ['bg-muted'] },
+          ],
+          classGroupsByRole: { field: ['spacing'], container: '*', array: '*' },
+        },
+      },
+    });
+    expect(res.errors).toEqual([]);
+    expect(res.valid).toBe(true);
+  });
+
+  it('группа словаря — закрытая форма: нужны id/label/classes и kebab-case id', () => {
+    const styles = (classNames: unknown) => withKit({ styles: { classNames } });
+    // Нет обязательного поля.
+    expect(validateCatalog(styles([{ id: 'spacing', label: 'Отступы' }])).valid).toBe(false);
+    expect(validateCatalog(styles([{ label: 'Отступы', classes: [] }])).valid).toBe(false);
+    // Мусор внутри группы.
+    expect(
+      validateCatalog(styles([{ id: 'spacing', label: 'X', classes: [], bogus: 1 }])).valid
+    ).toBe(false);
+    // id стабилен и ссылочен, поэтому форма жёсткая: только нижний kebab-case.
+    expect(validateCatalog(styles([{ id: 'Spacing', label: 'X', classes: [] }])).valid).toBe(false);
+    expect(validateCatalog(styles([{ id: '2col', label: 'X', classes: [] }])).valid).toBe(false);
+  });
+
+  it('classGroupsByRole принимает только "*" или список групп', () => {
+    expect(validateCatalog(withKit({ styles: { classGroupsByRole: { field: '*' } } })).valid).toBe(
+      true
+    );
+    expect(
+      validateCatalog(withKit({ styles: { classGroupsByRole: { field: 'spacing' } } })).valid
+    ).toBe(false);
+    expect(validateCatalog(withKit({ styles: { classGroupsByRole: { field: [1] } } })).valid).toBe(
+      false
+    );
+  });
+
   it('additionalProperties: false по-прежнему ловит мусор — и в kit, и в записи', () => {
+    // В том числе в блоке styles, куда добавились classNames/classGroupsByRole.
+    expect(validateCatalog(withKit({ styles: { mode: 'tokens', bogus: 1 } })).valid).toBe(false);
     expect(validateCatalog(withKit({ id: 'acme', bogus: 1 })).valid).toBe(false);
     expect(validateCatalog({ version: '2.0', components: [record({ bogus: 1 })] }).valid).toBe(
       false
