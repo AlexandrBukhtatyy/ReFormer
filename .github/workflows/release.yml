@@ -153,11 +153,16 @@ jobs:
         # публикации). Так @reformer/form-registry остался без алиаса на своём первом
         # релизе: publish прошёл в 08:04:20, а шаг через 39 секунд получил «в npm нет».
         #
-        # Источник правды — рабочее дерево: @semantic-release/npm вписывает новую версию
-        # в package.json пакета, а коммита не делает (плагина @semantic-release/git в
-        # конфигах нет). Значит расхождение с `git show HEAD:` — точный признак того, что
-        # публикация состоялась ИМЕННО в этом прогоне, и заодно её версия. Сеть при этом
-        # не опрашивается вовсе.
+        # Источник правды для свежей публикации — рабочее дерево: @semantic-release/npm
+        # вписывает новую версию в package.json пакета, а коммита не делает (плагина
+        # @semantic-release/git в конфигах нет). Значит расхождение с `git show HEAD:` —
+        # точный признак того, что публикация состоялась ИМЕННО в этом прогоне, и заодно
+        # её версия; сеть не опрашивается, кэш помешать не может.
+        #
+        # Если же пакет в этом прогоне не публиковался, шаг ДОГОНЯЕТ отставший тег через
+        # `npm view @develop` — здесь кэш не страшен, пакет давно существует. Без этого
+        # ветвления тег, однажды пропущенный (как beta у form-registry), не проставился бы
+        # до следующей публикации пакета: шаг стал бы одноразовым вместо идемпотентного.
         if: github.ref == 'refs/heads/develop'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -172,9 +177,20 @@ jobs:
             now=$(readVersion < "$dir/package.json")
             was=$(git show "HEAD:$dir/package.json" 2>/dev/null | readVersion || true)
 
-            if [ -z "$now" ] || [ "$now" = "$was" ]; then
-              echo "$ws: в этом прогоне не публиковался, пропуск"
-              continue
+            if [ -n "$now" ] && [ "$now" != "$was" ]; then
+              target="$now" # опубликован прямо сейчас
+            else
+              # не публиковался — сверяем уже опубликованные теги и догоняем при отставании
+              target=$(npm view "$ws@develop" version 2>/dev/null || true)
+              if [ -z "$target" ]; then
+                echo "$ws: не публиковался, develop-версии в npm нет — пропуск"
+                continue
+              fi
+              if [ "$(npm view "$ws@beta" version 2>/dev/null || true)" = "$target" ]; then
+                echo "$ws: beta уже указывает на $target"
+                continue
+              fi
+              echo "$ws: beta отстаёт от develop ($target) — догоняем"
             fi
 
             # dist-tag add — запись через api registry, отрицательный кэш чтения ей не
@@ -182,7 +198,7 @@ jobs:
             # прошла консистентность.
             tagged=0
             for attempt in 1 2 3; do
-              if npm dist-tag add "$ws@$now" beta; then
+              if npm dist-tag add "$ws@$target" beta; then
                 tagged=1
                 break
               fi
@@ -191,9 +207,9 @@ jobs:
             done
 
             if [ "$tagged" = 1 ]; then
-              echo "$ws: beta → $now"
+              echo "$ws: beta → $target"
             else
-              echo "::warning::не удалось навесить dist-tag beta на $ws@$now"
+              echo "::warning::не удалось навесить dist-tag beta на $ws@$target"
             fi
           done
 
