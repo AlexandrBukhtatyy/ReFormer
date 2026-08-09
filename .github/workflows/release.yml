@@ -147,27 +147,53 @@ jobs:
         # Список пакетов не дублируем: берём каждый каталог, где лежит .releaserc.json.
         # Алиас — косметика поверх состоявшейся публикации, поэтому его сбой не должен
         # ронять джоб: только ::warning::.
+        #
+        # Версию НЕ спрашиваем у `npm view`: для только что созданного пакета документ
+        # /<pkg> может отдавать 404 из-за отрицательного кэша CDN (URL запрашивали до
+        # публикации). Так @reformer/form-registry остался без алиаса на своём первом
+        # релизе: publish прошёл в 08:04:20, а шаг через 39 секунд получил «в npm нет».
+        #
+        # Источник правды — рабочее дерево: @semantic-release/npm вписывает новую версию
+        # в package.json пакета, а коммита не делает (плагина @semantic-release/git в
+        # конфигах нет). Значит расхождение с `git show HEAD:` — точный признак того, что
+        # публикация состоялась ИМЕННО в этом прогоне, и заодно её версия. Сеть при этом
+        # не опрашивается вовсе.
         if: github.ref == 'refs/heads/develop'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           shopt -s nullglob
+          readVersion() { node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(0,'utf8')).version||'')"; }
+
           for rc in packages/*/.releaserc.json projects/*/.releaserc.json; do
             dir=$(dirname "$rc")
             ws=$(node -p "require('./$dir/package.json').name")
-            v=$(npm view "$ws@develop" version 2>/dev/null || true)
-            if [ -z "$v" ]; then
-              echo "$ws: develop-версии в npm нет, пропуск"
+
+            now=$(readVersion < "$dir/package.json")
+            was=$(git show "HEAD:$dir/package.json" 2>/dev/null | readVersion || true)
+
+            if [ -z "$now" ] || [ "$now" = "$was" ]; then
+              echo "$ws: в этом прогоне не публиковался, пропуск"
               continue
             fi
-            if [ "$(npm view "$ws@beta" version 2>/dev/null || true)" = "$v" ]; then
-              echo "$ws: beta уже указывает на $v"
-              continue
-            fi
-            if npm dist-tag add "$ws@$v" beta; then
-              echo "$ws: beta → $v"
+
+            # dist-tag add — запись через api registry, отрицательный кэш чтения ей не
+            # мешает. Ретраи на случай, если запись по свежесозданному пакету ещё не
+            # прошла консистентность.
+            tagged=0
+            for attempt in 1 2 3; do
+              if npm dist-tag add "$ws@$now" beta; then
+                tagged=1
+                break
+              fi
+              echo "  $ws: попытка $attempt не удалась, повтор через 10s"
+              sleep 10
+            done
+
+            if [ "$tagged" = 1 ]; then
+              echo "$ws: beta → $now"
             else
-              echo "::warning::не удалось навесить dist-tag beta на $ws@$v"
+              echo "::warning::не удалось навесить dist-tag beta на $ws@$now"
             fi
           done
 
