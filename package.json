@@ -39,7 +39,8 @@
     "stackblitz:playground": "npm install -w react-playground && npm run dev:stackblitz -w react-playground",
     "stackblitz:start": "npm run stackblitz:core && npm run stackblitz:cdk && npm run stackblitz:renderer-react && npm run stackblitz:ui-kit && npm run stackblitz:renderer-react-json && npm run stackblitz:playground",
     "check:no-node-globals": "node scripts/check-no-node-globals.mjs",
-    "check:ajv-isolation": "node scripts/check-ajv-isolation.mjs"
+    "check:ajv-isolation": "node scripts/check-ajv-isolation.mjs",
+    "check:peer-ranges": "node scripts/check-peer-ranges.mjs"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

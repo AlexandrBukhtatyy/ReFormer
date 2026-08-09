@@ -31,6 +31,13 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: Peer-диапазоны ограничены сверху
+        # Открытый peer вида ">=8" делает чужой мажорный релиз нашей поломкой: песочница
+        # шага «Subpath smoke» ставит peer'ы по объявленному диапазону, то есть latest.
+        # Так @tanstack/react-table 9.0.0 (2026-08-04) уронил релиз без единого коммита
+        # в репозиторий. Гейт манифестный (сборка не нужна), поэтому стоит до build-ов.
+        run: npm run check:peer-ranges
+
       - name: MCP prompts ↔ live API
         # Промпты @reformer/mcp не должны УЧИТЬ снятому из core API
         # (`validateFormModel`, `ModelValidator`, leaf `validators: [...]`).
