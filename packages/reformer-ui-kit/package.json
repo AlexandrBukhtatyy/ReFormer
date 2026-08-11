@@ -330,6 +330,7 @@
     "dev": "vite",
     "check:dist-deps": "node ../../scripts/check-dist-deps.mjs .",
     "check:subpaths": "node scripts/check-subpaths.mjs",
+    "check:catalog": "tsx scripts/check-catalog-drift.ts",
     "check:packaging": "npm run check:dist-deps && npm run check:subpaths",
     "test": "node ../../scripts/run-vitest.mjs",
     "test:watch": "vitest watch"

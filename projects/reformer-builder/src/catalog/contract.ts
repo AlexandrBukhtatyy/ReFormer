@@ -69,7 +69,21 @@ export function loadCatalogJson(): CatalogJson {
   // Приоритет: каталог, переданный клиентом через `--catalog`, иначе каталог ВЫБРАННОГО кита
   // (по умолчанию — вшитый `@reformer/ui-kit`).
   const supplied = getClientCatalog() ?? getKitOrDefault(getSelectedKitId()).catalog;
-  const all = [...supplied.components, ...syntheticRecords(componentsCfg?.synthetic)];
+  const synthetic = syntheticRecords(componentsCfg?.synthetic);
+  // Синтетическая запись выигрывает у одноимённой клиентской: `FormArray` у билдера — это
+  // array-узел (role `array`, свои props повторяющегося блока), а у кита так называется обычный
+  // React-компонент. Пока кит не поставлял его в каталоге, столкновения не было; теперь, когда он
+  // описывает все свои экспорты, дубль имени надо снимать здесь — иначе array-узел подменяется
+  // контейнером и ломается тип узла, а не только палитра.
+  const syntheticNames = new Set(synthetic.map((r) => r.name));
+  // `palette: false` — кит прислал запись ради полноты метаданных (props для документации, MCP и
+  // инспектора), но размещаемым узлом она не является: порталы, оверлеи, провайдеры, части
+  // form-control'ов. Отсеиваем на границе источника, чтобы дальше по коду каталог означал ровно
+  // «то, что можно поставить в форму» — как и было до того, как кит начал описывать все экспорты.
+  const placeable = supplied.components.filter(
+    (r) => r.palette !== false && !syntheticNames.has(r.name)
+  );
+  const all = [...placeable, ...synthetic];
   return {
     version: supplied.version,
     components: filterComponents(all, componentsCfg),

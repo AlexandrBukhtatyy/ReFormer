@@ -5,17 +5,31 @@
  * JSON со списком компонентов; билдер грузит его в палитру/инспектор. Цель — «все компоненты
  * доступны в билдере»: в каталог попадает КАЖДЫЙ визуальный компонент из `src/components/*`.
  *
- * Три уровня записей:
- *  - **rich** — есть variant props.ts (`x-registryName`): props-схема отражает реальные пропсы.
- *    Каждый вариант = ОТДЕЛЬНЫЙ компонент (разные registryName). Field-роль (seam
- *    `x-runtimeProps.value`) мержится с враппером (`mergeFieldPropsSchema`) → label/required/… в инспекторе.
- *  - **minimal** — props.ts ещё нет: запись `{ name: PascalCase(dir), role: 'container', propsSchema: {} }`,
- *    компонент виден в палитре, инспектор пуст. Добавление props.ts автоматически повышает до rich.
+ * ## Откуда берётся НАБОР пропсов
+ *
+ * Из TS-типов компонентов ({@link introspectProps}), а не из ручных списков. Ручной список
+ * неизбежно отстаёт: до перехода каталог описывал 377 пропсов при 1 647 реальных — медиана
+ * 1 проп на запись, 91 часть compound'а несла только `className`. Теперь добавили проп в
+ * компонент — он появился в каталоге на следующей сборке, и разойтись они не могут.
+ *
+ * Ручные `*.props.ts` остаются ОВЕРЛЕЕМ поверх типов: они несут HTML-атрибуты, которые политика
+ * намеренно не разворачивает (`Input.placeholder`, `BreadcrumbLink.href`, `AvatarImage.src`),
+ * сужения enum'ов (`Input.type` — 7 значений вместо 22 нативных) и выверенные формулировки.
+ * Описания и секции инспектора живут в самом `component-catalog.json` и переносятся из его
+ * предыдущей версии ({@link readCuratedDocs}) — отдельного файла с текстами нет.
+ *
+ * ## Четыре вида записей
+ *  - **rich** — есть variant props.ts (`x-registryName`): оверлей мержится с типами. Каждый вариант =
+ *    ОТДЕЛЬНЫЙ компонент. Field-роль (seam `x-runtimeProps.value`) мержится с враппером
+ *    (`mergeFieldPropsSchema`) → label/required/… в инспекторе.
+ *  - **minimal** — props.ts ещё нет; набор пропсов всё равно приходит из типов.
  *  - **part** — часть compound-компонента (`AlertTitle`, `CardHeader`, `TabsList`…): несёт
  *    `compoundParent` — имя корня, из которого она собирается. Без частей корень вроде `Alert`
  *    (grid `grid-cols-[0_1fr]`) собрать в билдере нечем: голый текст падает анонимным grid item
- *    в колонку нулевой ширины и рассыпается по словам. Отбор — {@link PART_NAME_SKIP}/{@link NO_PARTS_DIRS},
- *    props — {@link partPropsSchema}.
+ *    в колонку нулевой ширины и рассыпается по словам. Отбор — {@link PART_NAME_SKIP}/{@link NO_PARTS_DIRS}.
+ *  - **прочие экспорты** — всё остальное, что кит экспортирует: порталы, оверлеи, провайдеры,
+ *    части оверлеев и меню, инфраструктурные каталоги. Записи несут `palette: false` — данные
+ *    для документации/MCP/инспектора есть, а палитру билдера они не меняют.
  *
  * Категорию и синтетические `$html`/array-записи добавляет билдер.
  *
@@ -34,6 +48,11 @@ import { format, resolveConfig } from 'prettier';
 import * as meta from '../src/meta';
 import { mergeFieldPropsSchema, type PropsSchema } from '../src/fields/props-schema';
 import { CLASS_GROUPS, FIELD_CLASS_GROUPS } from '../src/styles/class-catalog';
+import {
+  introspectProps,
+  type IntrospectedComponent,
+  type IntrospectedProp,
+} from './introspect-props';
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const componentsDir = join(pkgRoot, 'src/components');
@@ -42,6 +61,10 @@ const outFile = join(pkgRoot, 'component-catalog.json');
 /**
  * Не-палитровые каталоги: провайдеры/утилиты/структурные ReFormer-обёртки — не визуальные узлы формы.
  * array/form-* обрабатываются билдером синтетически; direction/seam/async-boundary — рантайм-инфра.
+ *
+ * ВАЖНО: это список «не узлы палитры», а НЕ «не описывать». Их пропсы каталог всё равно несёт —
+ * записями с `palette: false` (у одного `AsyncBoundary` их 17). Раньше такие компоненты выпадали
+ * из файла целиком, и отсутствие записи читалось как «пропсов нет».
  */
 const NON_PALETTE_DIRS = new Set([
   'direction',
@@ -158,6 +181,8 @@ type Record = {
   variantGroup?: string;
   variant?: string;
   compoundParent?: string;
+  /** `false` — запись существует ради полноты пропсов, но узлом палитры не является. */
+  palette?: boolean;
 };
 
 /** Именованные value-экспорты `index.ts` (типы отбрасываются): `export { Alert, AlertTitle } from …`. */
@@ -197,6 +222,129 @@ function partPropsSchema(name: string): object {
   };
 }
 
+// ── слияние: набор пропсов из типов + курированные метаданные + ручной оверлей ─
+//
+// Разделение ответственности:
+//  - НАБОР пропсов даёт интроспекция типов ({@link introspectProps}) — он не может отстать от кода;
+//  - ОПИСАНИЕ и секцию инспектора несёт предыдущая версия этого же файла (типы их не выражают),
+//    поэтому отдельного файла с описаниями нет — тексты переносятся round-trip'ом;
+//  - ручные `*.props.ts` остаются ОВЕРЛЕЕМ и кладутся последними: они несут HTML-атрибуты, которые
+//    политика намеренно не разворачивает (`Input.placeholder`, `BreadcrumbLink.href`,
+//    `AvatarImage.src`), сужения enum'ов (`Input.type` — 7 значений вместо 22 нативных) и
+//    выверенные формулировки. Потеря оверлея была бы регрессией: схемы частей строгие
+//    (`additionalProperties: false`), и уже написанные формы перестали бы валидироваться.
+
+/** Курированные метаданные пропа: описание и секция инспектора. */
+interface PropDocEntry {
+  description?: string;
+  'x-doc'?: { group?: string; type?: string; kind?: string };
+}
+
+/**
+ * Курирование читается из ПРЕДЫДУЩЕЙ версии самого `component-catalog.json` — отдельного файла
+ * с описаниями нет. Набор пропсов каждый раз выводится из типов заново, а русские тексты и секции
+ * инспектора переносятся из старой записи в новую по имени пропа: проп исчез из кода — исчезло и
+ * его описание, проп появился — приходит без описания (его допишут в этом же файле).
+ *
+ * Обратная сторона: файл одновременно генерируемый и правимый руками. Правки описаний переживают
+ * перегенерацию, правки НАБОРА пропсов — нет, они будут затёрты типами. Это и есть требуемая
+ * гарантия точности: состав пропсов руками не задаётся.
+ */
+function readCuratedDocs(): Map<string, PropDocEntry> {
+  const curated = new Map<string, PropDocEntry>();
+  if (!existsSync(outFile)) return curated;
+  const previous = JSON.parse(readFileSync(outFile, 'utf8')) as {
+    components?: Array<{ name: string; propsSchema?: PropsSchema }>;
+  };
+  for (const record of previous.components ?? [])
+    for (const [prop, schema] of Object.entries(record.propsSchema?.properties ?? {}))
+      if (schema.description || schema['x-doc'])
+        curated.set(`${record.name}.${prop}`, {
+          ...(typeof schema.description === 'string' ? { description: schema.description } : {}),
+          ...(schema['x-doc'] ? { 'x-doc': schema['x-doc'] as PropDocEntry['x-doc'] } : {}),
+        });
+  return curated;
+}
+
+const curatedDocs = readCuratedDocs();
+
+const introspected = introspectProps();
+/**
+ * Запись каталога ↔ экспорт: по `x-registryName` (`Select` → `SelectAsync`), иначе по имени.
+ * Один файл может объявлять несколько компонентов (`calendar-base.tsx` — `Calendar` и
+ * `CalendarDayButton`), и тогда `registryName` соседнего `props.ts` относится ко ВСЕМ его экспортам.
+ * Приоритет — у экспорта, чьё имя совпадает с registry-именем, иначе побеждал бы последний
+ * объявленный (`Calendar` получал пропсы кнопки дня).
+ */
+const byRegistryName = new Map<string, IntrospectedComponent>();
+for (const c of introspected.values()) {
+  if (!c.registryName) continue;
+  const current = byRegistryName.get(c.registryName);
+  if (!current || c.name === c.registryName) byRegistryName.set(c.registryName, c);
+}
+
+/** Отображаемый TS-тип для `x-doc.type`: для enum'а — сам union, иначе тип без `| undefined`. */
+function displayType(p: IntrospectedProp): string {
+  if (p.enum) return p.enum.map((v) => `'${v}'`).join(' | ');
+  return p.tsType
+    .split('|')
+    .map((s) => s.trim())
+    .filter((s) => s !== 'undefined')
+    .join(' | ');
+}
+
+/**
+ * Один извлечённый проп → узел JSON Schema с `x-doc`.
+ *
+ * Структура (`type`/`enum`/`default`) — всегда из типов, она не переносится из прошлой версии:
+ * иначе устаревший вручную поправленный enum пережил бы правку компонента. Переносятся только
+ * `description` и секция/виджет `x-doc`, которых в типах нет.
+ */
+function propToSchema(p: IntrospectedProp, doc: PropDocEntry | undefined): PropsSchema {
+  const description = doc?.description ?? p.description;
+  // Без `jsonType` проп не выражается в JSON (функция, React-нода, сложный объект) — инспектор
+  // покажет его серым полем, но каталог о нём всё-таки сообщает.
+  const kind = doc?.['x-doc']?.kind ?? (p.jsonType ? undefined : 'readonly');
+  return {
+    ...(p.jsonType ? { type: p.jsonType } : {}),
+    ...(p.enum ? { enum: p.enum } : {}),
+    ...(p.default !== undefined ? { default: p.default } : {}),
+    ...(description ? { description } : {}),
+    'x-doc': {
+      group: doc?.['x-doc']?.group ?? 'Behavior',
+      type: displayType(p),
+      ...(kind ? { kind } : {}),
+    },
+  } as PropsSchema;
+}
+
+/**
+ * `properties` записи каталога: извлечённые пропсы, поверх — ручной оверлей.
+ * Швы формы (`value`/`onChange`/…) в `properties` не попадают: их дом — `x-runtimeProps`,
+ * и `input.props.test.ts` стережёт непересечение этих множеств.
+ */
+function buildProperties(
+  intro: IntrospectedComponent | undefined,
+  overlay: Record<string, PropsSchema>,
+  runtimeNames: Set<string>
+): Record<string, PropsSchema> {
+  const out: Record<string, PropsSchema> = {};
+  for (const p of intro?.props ?? []) {
+    if (runtimeNames.has(p.name)) continue; // шов формы живёт в `x-runtimeProps`
+    out[p.name] = propToSchema(p, curatedDocs.get(`${intro!.name}.${p.name}`));
+  }
+  for (const [key, schema] of Object.entries(overlay)) {
+    if (runtimeNames.has(key)) continue;
+    out[key] = key in out ? ({ ...out[key], ...schema } as PropsSchema) : schema;
+  }
+  return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+/** Маркер `x-inherits` — что компонент принимает сверх `properties` (HTML/ARIA/события). */
+function inheritsOf(intro: IntrospectedComponent | undefined): object {
+  return intro?.inherits ? { 'x-inherits': intro.inherits } : {};
+}
+
 // ── rich: variant-схемы из meta.ts (у кого есть props.ts) ────────────────────
 const seen = new Set<string>();
 const rich: Record[] = Object.values(meta)
@@ -213,7 +361,17 @@ const rich: Record[] = Object.values(meta)
     }
     seen.add(name);
     const role = roleOf(variant);
-    const propsSchema = role === 'field' ? mergeFieldPropsSchema(variant) : variant;
+    const overlay = role === 'field' ? mergeFieldPropsSchema(variant) : variant;
+    const intro = byRegistryName.get(name) ?? introspected.get(name);
+    const propsSchema: PropsSchema = {
+      ...overlay,
+      properties: buildProperties(
+        intro,
+        (overlay.properties ?? {}) as Record<string, PropsSchema>,
+        new Set(Object.keys(overlay['x-runtimeProps'] ?? {}))
+      ),
+      ...inheritsOf(intro),
+    };
     // variant-группа читается из СЫРОГО варианта: mergeFieldPropsSchema не копирует x-* в merged-схему.
     const variantGroup = variant['x-variantGroup'];
     const variantLabel = variant['x-variant'];
@@ -233,7 +391,19 @@ const dirs = readdirSync(componentsDir).filter((d) =>
 );
 const minimal: Record[] = dirs
   .filter((d) => !NON_PALETTE_DIRS.has(d) && !hasPropsFile(join(componentsDir, d)))
-  .map((d) => ({ name: pascalCase(d), role: 'container', propsSchema: { ...MINIMAL_PROPS } }))
+  .map((d) => {
+    // `props.ts` нет — но типы компонента есть всегда, поэтому «minimal» больше не значит «пустой».
+    const intro = introspected.get(pascalCase(d));
+    return {
+      name: pascalCase(d),
+      role: 'container' as const,
+      propsSchema: {
+        ...MINIMAL_PROPS,
+        properties: buildProperties(intro, {}, new Set()),
+        ...inheritsOf(intro),
+      },
+    };
+  })
   // registryName из rich имеет приоритет (например file-upload уже покрыт FileUpload/FileUploadAvatar)
   .filter((r) => !seen.has(r.name));
 
@@ -254,17 +424,64 @@ const parts: Record[] = dirs
     return namedExports(indexFile)
       .filter((n) => n !== parent && n.startsWith(parent) && !PART_NAME_SKIP.test(n))
       .filter((n) => !seen.has(n) && !rootRoleByName.has(n))
-      .map(
-        (name): Record => ({
+      .map((name): Record => {
+        const intro = introspected.get(name);
+        const overlay = partPropsSchema(name) as PropsSchema;
+        return {
           name,
           role: 'container',
-          propsSchema: partPropsSchema(name),
+          propsSchema: {
+            ...overlay,
+            properties: buildProperties(
+              intro,
+              (overlay.properties ?? {}) as Record<string, PropsSchema>,
+              new Set()
+            ),
+            ...inheritsOf(intro),
+          },
           compoundParent: parent,
-        })
-      );
+        };
+      });
   });
 
-const components = [...rich, ...minimal, ...parts].sort((a, b) => a.name.localeCompare(b.name));
+// ── остальные экспорты кита: всё, что не покрыли rich/minimal/part ────────────
+// Раньше каталог описывал 168 записей из 392 экспортов: за бортом оставались части оверлеев и меню
+// ({@link NO_PARTS_DIRS}) и каталоги-инфраструктура ({@link NON_PALETTE_DIRS}) — 227 экспортов и
+// 962 пропса, то есть БОЛЬШЕ, чем каталог содержал. Отсутствие записи означало не «этих пропсов
+// нет», а «мы про них не рассказали»: у `AsyncBoundary` 17 пропсов, у `ChartTooltipContent` — 37.
+// Теперь описываются все; шума в палитре это не создаёт — части несут `compoundParent`, а такие
+// записи по контракту предлагаются в контексте своего корня, а не в общем списке.
+const covered = new Set([...rich, ...minimal, ...parts].map((r) => r.name));
+const extra: Record[] = [...introspected.values()]
+  // Экспорт без единого пропа не несёт информации. Все такие — field-алиасы `withFormControl`
+  // (`InputField`, `SelectField`): HOC возвращает `Record<string, unknown>`, поэтому имена пропсов
+  // в типе стёрты, а сама поверхность уже описана записью базового варианта (`Input`, `Select`).
+  .filter((c) => !covered.has(c.name) && c.props.length > 0)
+  .map((c) => {
+    const root = pascalCase(c.dir);
+    const isPart = c.name !== root && c.name.startsWith(root);
+    return {
+      name: c.name,
+      role: 'container' as const,
+      propsSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: buildProperties(c, {}, new Set()),
+        ...inheritsOf(c),
+      },
+      ...(isPart && covered.has(root) ? { compoundParent: root } : {}),
+      // Данные — да, узел палитры — нет. Эти записи заводятся ради полноты пропсов (документация,
+      // MCP, инспектор), но палитру билдера они менять не должны: среди них порталы, оверлеи,
+      // провайдеры и части form-control'ов (варианты выбора задаются пропом `options`, а не детьми),
+      // а имя `FormArray` вдобавок занято синтетической array-записью самого билдера.
+      // Решение «показывать ли запись» принадлежит консументу — здесь мы лишь не меняем его палитру.
+      palette: false,
+    };
+  });
+
+const components = [...rich, ...minimal, ...parts, ...extra].sort((a, b) =>
+  a.name.localeCompare(b.name)
+);
 // $schema — ссылка на контракт билдера (владелец схемы) для валидации/подсказок в IDE.
 // Относительный путь от расположения этого файла (packages/reformer-ui-kit/) до схемы.
 const SCHEMA_REF = '../../projects/reformer-builder/src/catalog/component-catalog.schema.json';
@@ -287,7 +504,12 @@ const json = await format(JSON.stringify(catalog, null, 2), { ...cfg, parser: 'j
 writeFileSync(outFile, json);
 
 const classCount = CLASS_GROUPS.reduce((n, g) => n + g.classes.length, 0);
+const propCount = components.reduce(
+  (n, r) => n + Object.keys((r.propsSchema as PropsSchema).properties ?? {}).length,
+  0
+);
 console.log(
-  `component-catalog.json: ${components.length} компонентов (rich: ${rich.length}, minimal: ${minimal.length}, частей compound: ${parts.length}); ` +
+  `component-catalog.json: ${components.length} компонентов (rich: ${rich.length}, minimal: ${minimal.length}, ` +
+    `частей compound: ${parts.length}, прочих экспортов: ${extra.length}), ${propCount} пропсов; ` +
     `словарь классов: ${CLASS_GROUPS.length} групп / ${classCount} классов, полям разрешено: ${FIELD_CLASS_GROUPS.join(', ')}`
 );
