@@ -28,12 +28,15 @@ export { createModel } from './form-model';
 export type {
   FormModel,
   ModelArray,
+  ModelArraySignals,
+  ModelGroupSignals,
   ModelObject,
   ModelValue,
   ModelSignals,
   ModelApi,
   PathAwareSignal,
 } from './types';
+export { isModelContainerSignal } from './form-model';
 
 // Value-операции behavior (читают/пишут сигналы, нод/валидации не касаются).
 export {

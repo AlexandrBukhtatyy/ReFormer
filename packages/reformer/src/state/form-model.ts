@@ -8,7 +8,7 @@
  * @module core/model/form-model
  */
 
-import { signal, type Signal } from '@preact/signals-core';
+import { batch, computed, signal, type ReadonlySignal, type Signal } from '@preact/signals-core';
 import type { FormModel, PathAwareSignal } from './types';
 import { isDerived } from './derived-registry';
 
@@ -121,6 +121,12 @@ class GroupNode {
     for (const [key, node] of this.children) node.rebase(joinPath(path, key));
   }
 
+  /** Реактивное чтение поддерева (внутри effect/computed подписывает на все листья группы). */
+  read(): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [key, node] of this.children) out[key] = node.read();
+    return out;
+  }
   peek(): Record<string, unknown> {
     const out: Record<string, unknown> = {};
     for (const [key, node] of this.children) out[key] = node.peek();
@@ -129,15 +135,20 @@ class GroupNode {
   set(value: unknown): void {
     if (value == null || typeof value !== 'object') return;
     const v = value as Record<string, unknown>;
-    for (const [key, node] of this.children) {
-      if (!(key in v)) continue;
-      // F9: производные поля (цели compute) не затираем значением из payload — ими владеет compute.
-      if (node.kind === 'leaf' && isDerived(node.signal)) continue;
-      node.set(v[key]);
-    }
+    // batch: иначе подписчик агрегата группы (`model.$.<group>`) получит по уведомлению на каждое поле.
+    batch(() => {
+      for (const [key, node] of this.children) {
+        if (!(key in v)) continue;
+        // F9: производные поля (цели compute) не затираем значением из payload — ими владеет compute.
+        if (node.kind === 'leaf' && isDerived(node.signal)) continue;
+        node.set(v[key]);
+      }
+    });
   }
   resetToInitial(): void {
-    for (const node of this.children.values()) node.resetToInitial();
+    batch(() => {
+      for (const node of this.children.values()) node.resetToInitial();
+    });
   }
   captureInitial(): void {
     for (const node of this.children.values()) node.captureInitial();
@@ -204,6 +215,13 @@ class ArrayNode {
     this.items.value = [];
   }
 
+  /**
+   * Реактивное чтение массива. Читаем `items.value` (а не `.peek()`) — внутри effect/computed это
+   * подписка на СОСТАВ массива, поэтому push/removeAt/move ретригерят наравне с правкой элемента.
+   */
+  read(): unknown[] {
+    return this.items.value.map((node) => node.read());
+  }
   peek(): unknown[] {
     return this.items.peek().map((node) => node.peek());
   }
@@ -288,45 +306,111 @@ function arrayValueProxy(arr: ArrayNode): any {
 // Proxy: сигналы ($)
 // ============================================================================
 
+// Кэш узлов дерева `$` → стабильная идентичность контейнерного узла (`model.$.inner === model.$.inner`)
+// и, главное, ОДИН агрегирующий `computed` на узел (иначе каждое обращение плодило бы новый).
+const signalsCache = new WeakMap<GroupNode | ArrayNode, any>();
+
+/**
+ * Делегат `ReadonlySignal` над агрегатом контейнерного узла. Обычный объект, а НЕ подкласс/Proxy
+ * вокруг инстанса `Computed`, по двум причинам:
+ * - методы замкнуты на `agg`, поэтому receiver прокси не утекает в preact как `this` (иначе его
+ *   запись во внутренние поля (`this._targets = …`) ушла бы в set-трап);
+ * - `instanceof Signal` остаётся `false`, а проверками `value instanceof Signal` по кодовой базе
+ *   лист отличают от группы (`create-form`, renderer-react/json). `ReadonlySignal` — структурный
+ *   интерфейс, так что совместимость по типам сохраняется.
+ */
+function containerSignal(node: GroupNode | ArrayNode): ReadonlySignal<unknown> {
+  const agg = computed(() => node.read());
+  return {
+    get value() {
+      return agg.value;
+    },
+    peek: () => agg.peek(),
+    subscribe: (fn: (value: unknown) => void) => agg.subscribe(fn),
+    valueOf: () => agg.value,
+    toString: () => String(agg.value),
+    toJSON: () => agg.value,
+    brand: agg.brand,
+  } as ReadonlySignal<unknown>;
+}
+
+/**
+ * Узел дерева `$`: лист → сам {@link PathAwareSignal}, группа/массив → контейнерный узел —
+ * {@link ReadonlySignal} агрегированного значения ПЛЮС доступ к детям по имени/индексу.
+ *
+ * Порядок разрешения ключа: служебные `__path`/`__kind` → ребёнок → свойство сигнала. Дети идут
+ * раньше свойств сигнала — тот же приоритет, что у {@link makeFormModel} (поле формы затеняет метод
+ * API). Поэтому имена `value`/`peek`/`subscribe`/`valueOf`/`toString`/`toJSON`/`brand` де-факто
+ * зарезервированы: одноимённое поле формы затенит свойство сигнала (`subscribe` при этом продолжает
+ * работать — он замкнут на агрегат, а не читает `.value` через прокси).
+ *
+ * `has`/`ownKeys` намеренно НЕ показывают свойства сигнала — ровно как `__path`, доступный через
+ * `get`, но невидимый для `in`/`Object.keys`. Так `Object.keys(model.$.<group>)` остаётся списком
+ * полей, а потребители, перечисляющие модель, не видят служебных ключей.
+ */
 function signalsProxy(node: ModelNode): any {
   if (node.kind === 'leaf') return node.signal;
-  if (node.kind === 'group') {
-    return new Proxy(
-      {},
-      {
-        get: (_t, key) => {
-          if (key === '__path') return node.path;
-          if (typeof key !== 'string') return undefined;
-          const child = node.children.get(key);
-          return child ? signalsProxy(child) : undefined;
+  const cached = signalsCache.get(node);
+  if (cached) return cached;
+
+  const api = containerSignal(node);
+  const isGroup = node.kind === 'group';
+  const childAt = (key: string): ModelNode | undefined =>
+    isGroup
+      ? (node as GroupNode).children.get(key)
+      : isIndexKey(key)
+        ? (node as ArrayNode).items.value[Number(key)]
+        : undefined;
+
+  const target = isGroup
+    ? {}
+    : {
+        get length(): number {
+          return (node as ArrayNode).items.value.length;
         },
-        has: (_t, key) => typeof key === 'string' && node.children.has(key),
-        ownKeys: () => [...node.children.keys()],
-        getOwnPropertyDescriptor: (_t, key) =>
-          typeof key === 'string' && node.children.has(key)
-            ? { enumerable: true, configurable: true }
-            : undefined,
-      }
-    );
-  }
-  const arr = node;
-  return new Proxy(
-    {
-      get length(): number {
-        return arr.items.value.length;
-      },
+      };
+
+  const proxy = new Proxy(target, {
+    get: (t, key, recv) => {
+      if (key === '__path') return node.path;
+      if (key === '__kind') return node.kind;
+      if (typeof key !== 'string') return Reflect.get(api, key, api);
+      const child = childAt(key);
+      if (child) return signalsProxy(child);
+      // `length` массива — реактивный геттер на target; у группы такого ключа нет.
+      if (!isGroup && Reflect.has(t, key)) return Reflect.get(t, key, recv);
+      return Reflect.get(api, key, api);
     },
-    {
-      get: (target, key, recv) => {
-        if (key === '__path') return arr.path;
-        if (typeof key === 'string' && isIndexKey(key)) {
-          const item = arr.items.value[Number(key)];
-          return item ? signalsProxy(item) : undefined;
-        }
-        return Reflect.get(target, key, recv);
-      },
-    }
-  );
+    has: (t, key) =>
+      typeof key === 'string' && (childAt(key) !== undefined || (!isGroup && Reflect.has(t, key))),
+    ownKeys: () => (isGroup ? [...(node as GroupNode).children.keys()] : Reflect.ownKeys(target)),
+    getOwnPropertyDescriptor: (t, key) => {
+      if (typeof key === 'string' && childAt(key)) return { enumerable: true, configurable: true };
+      return isGroup ? undefined : Reflect.getOwnPropertyDescriptor(t, key);
+    },
+  });
+
+  signalsCache.set(node, proxy);
+  return proxy;
+}
+
+/**
+ * Узел дерева `model.$` — контейнер (группа/массив), а не лист?
+ *
+ * Контейнерный узел структурно совместим с `ReadonlySignal` (`peek`/`value`/`subscribe`), поэтому
+ * duck-typing «есть `peek` ⇒ это лист» на нём даёт ложное срабатывание. Этот guard — надёжный
+ * способ различить: обходчикам дерева нужно спускаться в контейнер, а не читать его целиком.
+ *
+ * @group Model
+ * @example
+ * ```typescript
+ * const isLeaf = (v: unknown) => isSignalLike(v) && !isModelContainerSignal(v);
+ * ```
+ */
+export function isModelContainerSignal(value: unknown): boolean {
+  if (value == null || typeof value !== 'object') return false;
+  const kind = (value as { __kind?: unknown }).__kind;
+  return kind === 'group' || kind === 'array';
 }
 
 // ============================================================================

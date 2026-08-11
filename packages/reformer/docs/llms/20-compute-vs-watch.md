@@ -121,6 +121,14 @@ import { watchField } from '@reformer/core';
 const stop = watchField(model.$.country, () => { model.city = ''; });
 ```
 
+Источником может быть не только поле: узлы-контейнеры дерева `$` (корень, группы, массивы) — тоже
+`ReadonlySignal`, поэтому за поддеревом целиком следят без перечисления полей.
+
+```typescript
+watchField(model.$.address, (addr) => geocode(addr));  // любое поле address
+watchField(model.$, (all) => autosave(all));           // любое поле формы
+```
+
 ### Rule of Thumb
 
 | Scenario | Use |
@@ -129,6 +137,7 @@ const stop = watchField(model.$.country, () => { model.city = ''; });
 | Производное с явными зависимостями | `computeFrom` |
 | Async-реакция, обновление componentProps | `onChange` (debounce + AbortSignal) |
 | Простая синхронная реакция (примитив) | `watchField` |
+| Реакция на любое изменение группы/формы | `watchField(model.$.<группа>)` или `.subscribe` |
 
 ### Chained computeds
 

@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { effect } from '@preact/signals-core';
-import { createModel } from '../../../src/state/index';
+import { createModel, watchField } from '../../../src/state/index';
 
 interface CoBorrower {
   personalData: { lastName: string; firstName: string };
@@ -300,5 +300,171 @@ describe('FormModel: вложенные группы — суб-модели', (
     expect(m.coBorrowers[0].$.personalData.lastName).toBe(m.$.coBorrowers[0].personalData.lastName);
     // вложенная группа внутри элемента массива — тоже суб-модель
     expect(m.coBorrowers[0].personalData.$.lastName).toBe(m.$.coBorrowers[0].personalData.lastName);
+  });
+});
+
+describe('FormModel: подписка на контейнерные узлы $', () => {
+  const addCoBorrower = (m: ReturnType<typeof makeModel>, lastName: string) =>
+    m.coBorrowers.push({
+      personalData: { lastName, firstName: '' },
+      relationship: 'брат',
+      monthlyIncome: 0,
+    });
+
+  it('корень: subscribe отдаёт значение модели целиком и реагирует на любое поле', () => {
+    const m = makeModel();
+    const seen: CreditForm[] = [];
+    const unsubscribe = m.$.subscribe((v) => seen.push(v));
+
+    // preact вызывает подписчика сразу — паритет с листовым `model.$.field.subscribe`
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual({
+      loanType: 'consumer',
+      loanAmount: null,
+      personalData: { lastName: '', firstName: '', gender: 'male' },
+      coBorrowers: [],
+      tags: [],
+    });
+
+    m.loanType = 'mortgage';
+    m.personalData.lastName = 'Иванов';
+
+    expect(seen).toHaveLength(3);
+    expect(seen[2].loanType).toBe('mortgage');
+    expect(seen[2].personalData.lastName).toBe('Иванов');
+
+    unsubscribe();
+    m.loanType = 'auto';
+    expect(seen).toHaveLength(3);
+  });
+
+  it('группа: subscribe/value/peek видят только своё поддерево', () => {
+    const m = makeModel();
+    const seen: CreditForm['personalData'][] = [];
+    m.$.personalData.subscribe((v) => seen.push(v));
+
+    expect(m.$.personalData.value).toEqual({ lastName: '', firstName: '', gender: 'male' });
+
+    m.personalData.firstName = 'Пётр';
+    expect(seen).toHaveLength(2);
+    expect(seen[1]).toEqual({ lastName: '', firstName: 'Пётр', gender: 'male' });
+
+    // поле вне группы подписчика не трогает
+    m.loanType = 'auto';
+    expect(seen).toHaveLength(2);
+
+    // peek — снимок без подписки
+    expect(m.$.personalData.peek()).toEqual({ lastName: '', firstName: 'Пётр', gender: 'male' });
+  });
+
+  it('группа: peek() не создаёт зависимости внутри effect', () => {
+    const m = makeModel();
+    let runs = 0;
+    effect(() => {
+      m.$.personalData.peek();
+      runs++;
+    });
+    expect(runs).toBe(1);
+    m.personalData.lastName = 'Сидоров';
+    expect(runs).toBe(1);
+  });
+
+  it('массив: subscribe реагирует и на состав, и на правку элемента', () => {
+    const m = makeModel();
+    const seen: CoBorrower[][] = [];
+    m.$.coBorrowers.subscribe((v) => seen.push(v));
+    expect(seen[0]).toEqual([]);
+
+    addCoBorrower(m, 'Иванов');
+    expect(seen).toHaveLength(2);
+    expect(seen[1][0].personalData.lastName).toBe('Иванов');
+
+    // правка листа внутри элемента
+    m.coBorrowers[0].personalData.lastName = 'Петров';
+    expect(seen).toHaveLength(3);
+    expect(seen[2][0].personalData.lastName).toBe('Петров');
+
+    m.coBorrowers.removeAt(0);
+    expect(seen).toHaveLength(4);
+    expect(seen[3]).toEqual([]);
+  });
+
+  it('массив примитивов: subscribe отдаёт значения, length остаётся реактивной', () => {
+    const m = makeModel();
+    const seen: string[][] = [];
+    m.$.tags.subscribe((v) => seen.push(v));
+
+    m.tags.push('a');
+    m.tags.push('b');
+    expect(seen[seen.length - 1]).toEqual(['a', 'b']);
+    expect(m.$.tags.length).toBe(2);
+  });
+
+  it('set/reset модели уведомляют подписчика один раз (batch)', () => {
+    const m = makeModel();
+    let calls = 0;
+    m.$.subscribe(() => calls++);
+    expect(calls).toBe(1);
+
+    m.set({
+      loanType: 'mortgage',
+      loanAmount: 500,
+      personalData: { lastName: 'Иванов', firstName: 'Пётр', gender: 'female' },
+      coBorrowers: [],
+      tags: ['x'],
+    });
+    expect(calls).toBe(2);
+
+    m.reset();
+    expect(calls).toBe(3);
+    expect(m.$.value.loanType).toBe('consumer');
+  });
+
+  it('идентичность контейнерного узла стабильна', () => {
+    const m = makeModel();
+    expect(m.$.personalData).toBe(m.$.personalData);
+    expect(m.$.coBorrowers).toBe(m.$.coBorrowers);
+    // под-модель и корневое дерево — тот же узел
+    expect(m.personalData.$).toBe(m.$.personalData);
+    // листья по-прежнему те же сигналы
+    expect(m.$.personalData.lastName).toBe(m.personalData.$.lastName);
+  });
+
+  it('служебные свойства сигнала не видны в in/Object.keys', () => {
+    const m = makeModel();
+    expect(Object.keys(m.$.personalData)).toEqual(['lastName', 'firstName', 'gender']);
+    expect('value' in m.$.personalData).toBe(false);
+    expect('subscribe' in m.$.personalData).toBe(false);
+    expect('lastName' in m.$.personalData).toBe(true);
+    expect((m.$.personalData as unknown as { __path: string }).__path).toBe('personalData');
+    expect((m.$.coBorrowers as unknown as { __kind: string }).__kind).toBe('array');
+  });
+
+  it('контейнерный узел принимается операциями над ReadonlySignal (watchField)', () => {
+    const m = makeModel();
+    const seen: CreditForm['personalData'][] = [];
+    // структурная совместимость: watchField типизирован на ReadonlySignal<T>
+    const stop = watchField(m.$.personalData, (v) => seen.push(v));
+
+    m.personalData.lastName = 'Иванов';
+    expect(seen).toHaveLength(1);
+    expect(seen[0].lastName).toBe('Иванов');
+
+    stop();
+    m.personalData.firstName = 'Пётр';
+    expect(seen).toHaveLength(1);
+  });
+
+  it('поле с именем value затеняет свойство сигнала, subscribe продолжает работать', () => {
+    const m = createModel<{ amount: { value: number; currency: string } }>({
+      amount: { value: 0, currency: 'RUB' },
+    });
+    // ребёнок выигрывает у свойства сигнала — тот же приоритет, что у методов ModelApi
+    expect(m.$.amount.value).toBe(m.amount.$.value);
+
+    const seen: { value: number; currency: string }[] = [];
+    m.$.amount.subscribe((v) => seen.push(v));
+    m.amount.value = 42;
+    expect(seen[seen.length - 1]).toEqual({ value: 42, currency: 'RUB' });
   });
 });

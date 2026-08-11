@@ -2259,8 +2259,37 @@ model.$.email.peek();        // нереактивный снимок
 model.$.address.city.value;  // сигнал вложенного поля (≡ model.address.$.city у под-модели)
 
 // весь объект
-model.get();                 // снимок { email, address: { city }, ... } — для submit
+model.get();                 // НЕреактивный снимок { email, address: { city }, ... } — для submit
 ```
+
+> ⚠️ `model.get()` и `model.isDirty()` читают через `peek()` — внутри `effect`/`computed` они НЕ
+> создают зависимостей. `computed(() => model.get())` никогда не пересчитается. Для реактивного
+> чтения всего объекта — узел дерева `$` (ниже).
+
+### Подписка на группу и на модель целиком
+
+Каждый узел дерева `$` — сигнал: лист отдаёт `PathAwareSignal`, а корень, вложенные объекты-группы
+и массивы — `ReadonlySignal` агрегированного значения поддерева. Поэтому подписаться можно на любом
+уровне, а не только на конкретном поле.
+
+```typescript
+model.$.subscribe((all) => autosave(all));      // любое изменение модели; all: T целиком
+model.$.address.subscribe((addr) => ...);       // только поддерево address
+model.$.address.value;                          // реактивный снимок группы
+model.$.address.peek();                         // нереактивный снимок группы
+model.$.items.subscribe((rows) => ...);         // массив: и правка элемента, и push/removeAt/move
+
+// узел — обычный ReadonlySignal, поэтому принимается операциями слоя данных
+watchField(model.$.address, (addr) => geocode(addr));
+```
+
+Дети узла доступны как раньше — `model.$.address.city` по-прежнему сигнал поля. Подписчик вызывается
+сразу с текущим значением (семантика `Signal.subscribe`), а `model.set(...)`/`model.reset()`
+уведомляют один раз, а не по разу на поле.
+
+> ⚠️ Доступ к полю выигрывает у свойства сигнала: если в форме есть поле с именем `value`, `peek`,
+> `subscribe`, `valueOf`, `toString`, `toJSON` или `brand`, то `model.$.<группа>.<это имя>` вернёт
+> сигнал поля. `subscribe` при этом продолжает работать.
 
 ### В behaviors — читаем model напрямую
 
@@ -2411,6 +2440,14 @@ import { watchField } from '@reformer/core';
 const stop = watchField(model.$.country, () => { model.city = ''; });
 ```
 
+Источником может быть не только поле: узлы-контейнеры дерева `$` (корень, группы, массивы) — тоже
+`ReadonlySignal`, поэтому за поддеревом целиком следят без перечисления полей.
+
+```typescript
+watchField(model.$.address, (addr) => geocode(addr));  // любое поле address
+watchField(model.$, (all) => autosave(all));           // любое поле формы
+```
+
 ### Rule of Thumb
 
 | Scenario | Use |
@@ -2419,6 +2456,7 @@ const stop = watchField(model.$.country, () => { model.city = ''; });
 | Производное с явными зависимостями | `computeFrom` |
 | Async-реакция, обновление componentProps | `onChange` (debounce + AbortSignal) |
 | Простая синхронная реакция (примитив) | `watchField` |
+| Реакция на любое изменение группы/формы | `watchField(model.$.<группа>)` или `.subscribe` |
 
 ### Chained computeds
 
@@ -6077,6 +6115,29 @@ if (isGroupNode(node)) {
 
 _Source: src/form/type-guards.ts_
 
+### isModelContainerSignal
+
+**Kind:** `function`
+
+Узел дерева `model.$` — контейнер (группа/массив), а не лист?
+
+Контейнерный узел структурно совместим с `ReadonlySignal` (`peek`/`value`/`subscribe`), поэтому
+duck-typing «есть `peek` ⇒ это лист» на нём даёт ложное срабатывание. Этот guard — надёжный
+способ различить: обходчикам дерева нужно спускаться в контейнер, а не читать его целиком.
+
+**Signature:**
+```typescript
+export function isModelContainerSignal(value: unknown): boolean
+```
+
+**Examples:**
+
+```typescript
+const isLeaf = (v: unknown) => isSignalLike(v) && !isModelContainerSignal(v);
+```
+
+_Source: src/state/form-model.ts_
+
 ### markDerived
 
 **Kind:** `function`
@@ -6125,8 +6186,11 @@ API уровня модели (доступно на корне, под-моде
 **Signature:**
 ```typescript
 export interface ModelApi<T> {
-  /** Escape-hatch к сигналам: `model.$.loanType` → `PathAwareSignal<LoanType>`. */
-  readonly $: ModelSignals<T>;
+  /**
+   * Escape-hatch к сигналам: `model.$.loanType` → `PathAwareSignal<LoanType>`.
+   * Сам узел — {@link ReadonlySignal} модели целиком: `model.$.subscribe(v => …)`.
+   */
+  readonly $: ModelGroupSignals<T>;
   /** Снимок значений (без подписки) — для submit. */
   get(): T;
   /**
@@ -6270,6 +6334,41 @@ rows.length.value;                  // 1 (реактивная длина)
 
 _Source: src/form/nodes/model-array-node.ts_
 
+### ModelArraySignals
+
+**Kind:** `type`
+
+Узел-массив дерева `model.$`: индексируемый доступ к под-сигналам элементов, реактивная `length`
+и {@link ReadonlySignal} значения массива целиком (реагирует и на правку элемента, и на изменение
+состава — push/removeAt/move).
+
+**Signature:**
+```typescript
+export type ModelArraySignals<U, V> = ContainerSignal<V, 'length'> & {
+  readonly length: number;
+  readonly [index: number]: ModelSignalNode<U>;
+};
+```
+
+_Source: src/state/types.ts_
+
+### ModelGroupSignals
+
+**Kind:** `type`
+
+Узел-группа дерева `model.$`: доступ к под-сигналам полей ({@link ModelSignals}) И одновременно
+{@link ReadonlySignal} агрегированного значения группы — `.value`/`.peek()`/`.subscribe()`.
+
+⚠️ Поле формы с именем `value`/`peek`/`subscribe`/`valueOf`/`toString`/`toJSON`/`brand` затеняет
+одноимённое свойство сигнала (редкий краевой случай); `subscribe` при этом продолжает работать.
+
+**Signature:**
+```typescript
+export type ModelGroupSignals<T> = ModelSignals<T> & ContainerSignal<T, keyof T>;
+```
+
+_Source: src/state/types.ts_
+
 ### ModelObject
 
 **Kind:** `type`
@@ -6291,8 +6390,8 @@ _Source: src/state/types.ts_
 
 **Kind:** `type`
 
-Дерево сигналов (escape-hatch `model.$`): листья → {@link PathAwareSignal},
-объекты → вложенное дерево, массивы → индексируемое дерево под-сигналов.
+Карта под-сигналов объекта в дереве `model.$` (без свойств самого узла — их добавляет
+{@link ModelGroupSignals}).
 
 **Signature:**
 ```typescript

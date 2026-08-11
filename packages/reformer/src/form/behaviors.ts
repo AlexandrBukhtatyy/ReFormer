@@ -30,6 +30,7 @@ import {
   syncFields as coreSyncFields,
   revalidateWhen as coreRevalidateWhen,
   runOutsideEffect,
+  isModelContainerSignal,
   markDerived,
   unmarkDerived,
   type BehaviorCleanup,
@@ -136,8 +137,20 @@ export function defer(fn: () => void): void {
 
 type GroupSignals = Record<string, unknown> & { __path?: string };
 
-const isSignal = (v: unknown): v is Signal<unknown> =>
-  typeof v === 'object' && v !== null && typeof (v as { peek?: unknown }).peek === 'function';
+/**
+ * Лист модели, а не контейнерный узел дерева `$`.
+ *
+ * Узлы-группы/массивы тоже структурно совместимы с `ReadonlySignal` (у них есть `peek`/`value`/
+ * `subscribe` над агрегатом поддерева), поэтому одного duck-typing по `peek` мало: без отсечки по
+ * `isModelContainerSignal` группа уходила бы в скалярные ветки операторов — `enableWhen` молча
+ * терял бы `enableGroup`, `apply` получал бы значение вместо под-модели, а `copyFrom` — запись в
+ * read-only агрегат вместо рекурсивного `writeGroup`.
+ */
+const isLeafSignal = (v: unknown): v is Signal<unknown> =>
+  typeof v === 'object' &&
+  v !== null &&
+  typeof (v as { peek?: unknown }).peek === 'function' &&
+  !isModelContainerSignal(v);
 
 const asArray = <X>(v: X | X[]): X[] => (Array.isArray(v) ? v : [v]);
 
@@ -145,14 +158,14 @@ function readGroup(g: GroupSignals): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const k of Object.keys(g)) {
     const child = g[k];
-    out[k] = isSignal(child) ? child.value : readGroup(child as GroupSignals);
+    out[k] = isLeafSignal(child) ? child.value : readGroup(child as GroupSignals);
   }
   return out;
 }
 function writeGroup(g: GroupSignals, val: Record<string, unknown>): void {
   for (const k of Object.keys(g)) {
     const child = g[k];
-    if (isSignal(child)) child.value = val?.[k];
+    if (isLeafSignal(child)) child.value = val?.[k];
     else writeGroup(child as GroupSignals, (val?.[k] as Record<string, unknown>) ?? {});
   }
 }
@@ -179,7 +192,7 @@ function nestedModel<T>(groupSignals: GroupSignals): FormModel<T> {
         if (typeof key !== 'string') return undefined;
         const child = groupSignals[key];
         if (child == null) return undefined;
-        return isSignal(child) ? child.value : nestedModel(child as GroupSignals);
+        return isLeafSignal(child) ? child.value : nestedModel(child as GroupSignals);
       },
     }
   ) as FormModel<T>;
@@ -259,7 +272,7 @@ export function copyFrom<T>(
   target: Signal<T> | object,
   options?: { when?: () => boolean; transform?: (value: T) => T }
 ): void {
-  if (isSignal(source) && isSignal(target)) {
+  if (isLeafSignal(source) && isLeafSignal(target)) {
     onDispose(coreCopyFrom(source as ReadonlySignal<T>, target as Signal<T>, options));
     return;
   }
@@ -329,7 +342,7 @@ export function enableWhen(
   options?: { resetOnDisable?: boolean }
 ): void {
   for (const t of asArray(target)) {
-    if (isSignal(t)) {
+    if (isLeafSignal(t)) {
       onDispose(coreEnableWhen(t as ReadonlySignal<unknown>, condition, options));
     } else {
       enableGroup(t as GroupSignals, condition, options);

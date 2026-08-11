@@ -6,13 +6,15 @@
  *
  * - value-доступ: `model.field` читает/пишет значение «как у обычного объекта»;
  *   вложенные объекты → под-модель {@link FormModel} (с `.$` и {@link ModelApi}), массивы → {@link ModelArray}.
- * - escape-hatch: `model.$.field` отдаёт сам {@link PathAwareSignal} (для привязки в схеме).
+ * - escape-hatch: `model.$.field` отдаёт сам {@link PathAwareSignal} (для привязки в схеме);
+ *   узлы-контейнеры дерева `$` (корень, группы, массивы) — тоже сигналы (`ReadonlySignal`
+ *   агрегированного значения), поэтому `model.$.subscribe(…)` / `model.$.group.value` работают.
  *
  * @group Model
  * @module core/model/types
  */
 
-import type { Signal } from '@preact/signals-core';
+import type { ReadonlySignal, Signal } from '@preact/signals-core';
 
 /**
  * Сигнал, который знает свой путь в модели (`'personalData.lastName'`).
@@ -118,8 +120,8 @@ export interface ModelArray<U> {
 }
 
 /**
- * Дерево сигналов (escape-hatch `model.$`): листья → {@link PathAwareSignal},
- * объекты → вложенное дерево, массивы → индексируемое дерево под-сигналов.
+ * Карта под-сигналов объекта в дереве `model.$` (без свойств самого узла — их добавляет
+ * {@link ModelGroupSignals}).
  *
  * @group Model
  */
@@ -128,19 +130,50 @@ export type ModelSignals<T> = {
 };
 
 /**
- * Узел дерева сигналов `model.$`: массив → индексируемый узел под-сигналов, Opaque (Date/File/Blob)
- * и примитив → {@link PathAwareSignal}, объект → вложенное дерево {@link ModelSignals}. Для примитивных
+ * Свойства контейнерного узла дерева `$`, «поверх» карты детей. Ключи детей вырезаются из
+ * {@link ReadonlySignal}: доступ к полю формы всегда выигрывает у одноимённого свойства сигнала
+ * (так же ведёт себя рантайм), поэтому `{ value: string }` не порождает конфликта типов.
+ * @internal
+ */
+type ContainerSignal<T, TKeys extends PropertyKey> = Omit<ReadonlySignal<T>, TKeys>;
+
+/**
+ * Узел-группа дерева `model.$`: доступ к под-сигналам полей ({@link ModelSignals}) И одновременно
+ * {@link ReadonlySignal} агрегированного значения группы — `.value`/`.peek()`/`.subscribe()`.
+ *
+ * ⚠️ Поле формы с именем `value`/`peek`/`subscribe`/`valueOf`/`toString`/`toJSON`/`brand` затеняет
+ * одноимённое свойство сигнала (редкий краевой случай); `subscribe` при этом продолжает работать.
+ *
+ * @group Model
+ */
+export type ModelGroupSignals<T> = ModelSignals<T> & ContainerSignal<T, keyof T>;
+
+/**
+ * Узел-массив дерева `model.$`: индексируемый доступ к под-сигналам элементов, реактивная `length`
+ * и {@link ReadonlySignal} значения массива целиком (реагирует и на правку элемента, и на изменение
+ * состава — push/removeAt/move).
+ *
+ * @group Model
+ */
+export type ModelArraySignals<U, V> = ContainerSignal<V, 'length'> & {
+  readonly length: number;
+  readonly [index: number]: ModelSignalNode<U>;
+};
+
+/**
+ * Узел дерева сигналов `model.$`: массив → {@link ModelArraySignals}, Opaque (Date/File/Blob)
+ * и примитив → {@link PathAwareSignal}, объект → {@link ModelGroupSignals}. Для примитивных
  * и Opaque массивов элемент — сам сигнал листа (а не под-дерево), поэтому `model.$.tags[0]` — это
- * `PathAwareSignal<string>`, а не `ModelSignals<never>`.
+ * `PathAwareSignal<string>`, а не `ModelGroupSignals<never>`.
  * @internal
  */
 type ModelSignalNode<V> =
   NonNullable<V> extends ReadonlyArray<infer U>
-    ? { readonly length: number; readonly [index: number]: ModelSignalNode<U> }
+    ? ModelArraySignals<U, NonNullable<V>>
     : NonNullable<V> extends Opaque
       ? PathAwareSignal<V>
       : NonNullable<V> extends object
-        ? ModelSignals<NonNullable<V>>
+        ? ModelGroupSignals<NonNullable<V>>
         : PathAwareSignal<V>;
 
 /**
@@ -152,8 +185,11 @@ type ModelSignalNode<V> =
  * @group Model
  */
 export interface ModelApi<T> {
-  /** Escape-hatch к сигналам: `model.$.loanType` → `PathAwareSignal<LoanType>`. */
-  readonly $: ModelSignals<T>;
+  /**
+   * Escape-hatch к сигналам: `model.$.loanType` → `PathAwareSignal<LoanType>`.
+   * Сам узел — {@link ReadonlySignal} модели целиком: `model.$.subscribe(v => …)`.
+   */
+  readonly $: ModelGroupSignals<T>;
   /** Снимок значений (без подписки) — для submit. */
   get(): T;
   /**

@@ -29,8 +29,37 @@ model.$.email.peek();        // нереактивный снимок
 model.$.address.city.value;  // сигнал вложенного поля (≡ model.address.$.city у под-модели)
 
 // весь объект
-model.get();                 // снимок { email, address: { city }, ... } — для submit
+model.get();                 // НЕреактивный снимок { email, address: { city }, ... } — для submit
 ```
+
+> ⚠️ `model.get()` и `model.isDirty()` читают через `peek()` — внутри `effect`/`computed` они НЕ
+> создают зависимостей. `computed(() => model.get())` никогда не пересчитается. Для реактивного
+> чтения всего объекта — узел дерева `$` (ниже).
+
+### Подписка на группу и на модель целиком
+
+Каждый узел дерева `$` — сигнал: лист отдаёт `PathAwareSignal`, а корень, вложенные объекты-группы
+и массивы — `ReadonlySignal` агрегированного значения поддерева. Поэтому подписаться можно на любом
+уровне, а не только на конкретном поле.
+
+```typescript
+model.$.subscribe((all) => autosave(all));      // любое изменение модели; all: T целиком
+model.$.address.subscribe((addr) => ...);       // только поддерево address
+model.$.address.value;                          // реактивный снимок группы
+model.$.address.peek();                         // нереактивный снимок группы
+model.$.items.subscribe((rows) => ...);         // массив: и правка элемента, и push/removeAt/move
+
+// узел — обычный ReadonlySignal, поэтому принимается операциями слоя данных
+watchField(model.$.address, (addr) => geocode(addr));
+```
+
+Дети узла доступны как раньше — `model.$.address.city` по-прежнему сигнал поля. Подписчик вызывается
+сразу с текущим значением (семантика `Signal.subscribe`), а `model.set(...)`/`model.reset()`
+уведомляют один раз, а не по разу на поле.
+
+> ⚠️ Доступ к полю выигрывает у свойства сигнала: если в форме есть поле с именем `value`, `peek`,
+> `subscribe`, `valueOf`, `toString`, `toJSON` или `brand`, то `model.$.<группа>.<это имя>` вернёт
+> сигнал поля. `subscribe` при этом продолжает работать.
 
 ### В behaviors — читаем model напрямую
 
