@@ -138,6 +138,40 @@ bd close <id>         # Complete work
 - `git status`, `git diff`, `git log`, `git stash` — these are read-only/non-publishing and may be run freely. The restriction is on commit/push specifically.
 - This rule applies even when prior turns in the conversation contained commits — the user's authorization for past commits does NOT carry forward to new changes.
 
+## Git commits — процедура (первая попытка должна проходить)
+
+Секция выше отвечает на вопрос «**можно ли** коммитить». Эта — «**как**», чтобы `git commit` не падал
+и не требовал второго захода. Порядок обязателен:
+
+1. **Сообщение пишется в файл инструментом Write**, а не через шелл: `<scratchpad>/commit-msg.txt`.
+   В сессии доступны ДВА шелла с несовместимым синтаксисом многострочных строк — Bash (Git Bash,
+   heredoc `<<'EOF'`) и PowerShell (here-string `@'…'@`). Их легко перепутать, и тогда маркер
+   попадает в текст первой строкой → `subject may not be empty` + `type may not be empty`.
+   **Никогда** не используй `@'…'@` в Bash-инструменте и heredoc в PowerShell-инструменте.
+2. **Валидация ДО коммита:** `npx --no commitlint < <файл>` — ловит все правила примерно за секунду
+   и ничего не меняет на диске. Есть ошибки — правь файл и повторяй, пока не станет чисто.
+3. **Коммит файлом:** `git commit -F <файл>`.
+
+`git commit -m` допустим только для однострочного сообщения без кавычек, переносов и спецсимволов.
+
+**Что блокирует коммит** (уровень `error` в [commitlint.config.js](commitlint.config.js)); scope вне
+списка — только предупреждение, коммит проходит:
+
+| Правило                | Требование                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `subject-case`         | тема строчными ЦЕЛИКОМ: и `api`/`json`, и имена типов — `form-field`, не `FormField` |
+| `subject-full-stop`    | без точки в конце темы                                                               |
+| `header-max-length`    | первая строка ≤ 100 символов вместе с `type(scope): `                                |
+| `body-max-line-length` | КАЖДАЯ строка тела ≤ 100 символов — русские абзацы переноси вручную                  |
+| `type-enum`            | `feat fix docs style refactor perf test build ci chore revert`                       |
+
+Scope — из закрытого списка (`reformer`, `reformer-cdk`, …, `docs`, `ci`, `deps`, `repo`, `beads`);
+имя = директория пакета. Таблица и примеры — в [CONTRIBUTING.md](CONTRIBUTING.md).
+
+**После коммита:** если `lint-staged` напечатал «Applying modifications from tasks», значит
+`eslint --fix`/`prettier --write` изменили файлы уже внутри коммита — прогони тесты и `tsc`
+затронутого пакета повторно, состояние отличается от проверенного до коммита.
+
 ## Iter prompt system — MCP regression cycle
 
 Для повторяемой проверки качества MCP-сервера (на каждой итерации генерим форму через MCP, обнаруживаем gaps, готовим патчи) используется orchestrator + 3 параллельных sub-agent'а.

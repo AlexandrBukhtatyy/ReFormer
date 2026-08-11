@@ -64,19 +64,20 @@ Rebase (и merge commit) сохраняют оригинальные per-scope �
 
 ## Conventional commits + scopes
 
-Правила [conventional commits](https://www.conventionalcommits.org/), scope = имя пакета без `@reformer/` префикса:
+Правила [conventional commits](https://www.conventionalcommits.org/), scope = имя директории пакета (`reformer`, `reformer-cdk`, …). Полный список закрыт линтером — см. [commitlint.config.js](../../commitlint.config.js) и [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-| Commit                               | Эффект                                   |
-| ------------------------------------ | ---------------------------------------- |
-| `fix(core): null guard`              | core → patch (`1.0.0` → `1.0.1`)         |
-| `feat(cdk): new hook`                | cdk → minor (`1.0.0` → `1.1.0`)          |
-| `feat!(ui-kit): rewrite Input API`   | ui-kit → major (`1.0.0` → `2.0.0`)       |
-| `fix(renderer-json): typo`           | renderer-json → patch                    |
-| `chore: bump deps`                   | **никакого** release (chore не triggers) |
-| `docs: update README`                | то же                                    |
-| `feat(core,cdk): coordinated change` | оба пакета → minor (cross-scope)         |
+| Commit                                      | Эффект                                   |
+| ------------------------------------------- | ---------------------------------------- |
+| `fix(reformer): null guard`                 | core → patch (`1.0.0` → `1.0.1`)         |
+| `feat(reformer-cdk): new hook`              | cdk → minor (`1.0.0` → `1.1.0`)          |
+| `feat(reformer-ui-kit)!: rewrite input api` | ui-kit → major (`1.0.0` → `2.0.0`)       |
+| `fix(reformer-renderer-json): typo`         | renderer-json → patch                    |
+| `chore: bump deps`                          | **никакого** release (chore не triggers) |
+| `docs: update readme`                       | то же                                    |
 
-**Scope обязателен** для feat/fix — иначе `semantic-release-monorepo` не может определить какому пакету принадлежит change. Если изменения трогают неск. пакетов — указывай все scopes через запятую: `feat(core,renderer-react): ...`.
+**Пакет определяется путями изменённых файлов, а не scope.** `semantic-release-monorepo` фильтрует коммиты через `onlyPackageCommits` — коммит «принадлежит» пакету, если тронул файл внутри его директории. Поэтому коммит, тронувший два пакета, поднимет оба независимо от того, что написано в скобках. Scope нужен для читаемости истории и группировки в release notes; версию бампает `type` (`feat` → minor, `fix` → patch, `!`/`BREAKING CHANGE` → major).
+
+> Отсюда практическое следствие: **не смешивай в одном коммите изменения разных пакетов**, если не хочешь бампнуть их вместе. Разделяй по пакетам — тогда и scope, и релиз совпадут с намерением.
 
 ### Что НЕ запускает release
 
@@ -170,9 +171,9 @@ Workflow `.github/workflows/align-versions.yml` — **escape hatch** для ре
 
 Перед merge feature-PR'а:
 
-- [ ] commit message в conventional-format (`type(scope): description`)
-- [ ] scope = имя пакета (или `core,cdk,...` через запятую если cross-package)
-- [ ] `BREAKING CHANGE:` footer (или `!` после type) если есть breaking
+- [ ] commit message в conventional-format (`type(scope): description`), scope — из списка в [commitlint.config.js](../../commitlint.config.js)
+- [ ] коммит не смешивает изменения разных пакетов (иначе бампнутся оба — фильтр идёт по путям файлов)
+- [ ] `BREAKING CHANGE:` footer (или `!` после type, т.е. `feat(scope)!:`) если есть breaking
 - [ ] При breaking — обновлены `peerDependencies` затронутых пакетов
 - [ ] PR target = `develop` (для prerelease beta) или `main` (для stable)
 - [ ] merge через **Rebase and merge** (или merge commit) — **не Squash** (squash ломает per-package версионирование → major для всех)

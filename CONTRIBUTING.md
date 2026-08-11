@@ -64,30 +64,51 @@ type(scope): description
 - `ci` - CI/CD changes
 - `chore` - other changes
 
-**Scopes** (для feat/fix scope **обязателен** — `semantic-release-monorepo` использует его, чтобы определить какому пакету принадлежит change):
+**Scopes** — список закрыт и проверяется линтером, см. [commitlint.config.js](commitlint.config.js). Имя scope совпадает с именем директории пакета/проекта:
 
 Package scopes:
 
-- `core` — `@reformer/core` (`packages/reformer/`)
-- `cdk` — `@reformer/cdk`
-- `ui-kit` — `@reformer/ui-kit`
-- `renderer-react` — `@reformer/renderer-react`
-- `renderer-json` — `@reformer/renderer-json`
-- `mcp` — `@reformer/mcp`
+- `reformer` — `@reformer/core` (`packages/reformer/`)
+- `reformer-cdk` — `@reformer/cdk`
+- `reformer-ui-kit` — `@reformer/ui-kit`
+- `reformer-renderer-react` — `@reformer/renderer-react`
+- `reformer-renderer-json` — `@reformer/renderer-json`
+- `reformer-form-registry` — `@reformer/form-registry`
+- `reformer-mcp` — `@reformer/mcp`
 
-Other scopes (для chore/docs/ci типов, release не триггерят):
+Project scopes (не публикуются в npm):
 
-- `docs`, `ci`, `deps`, `repo`
+- `reformer-builder`, `react-playground`, `react-playground-e2e`
+
+Other scopes:
+
+- `docs`, `ci`, `deps`, `repo` (корневой tooling: конфиги, хуки, скрипты), `beads` (синхронизация трекера задач)
+
+> Принадлежность коммита пакету `semantic-release-monorepo` определяет по **путям изменённых файлов**, а не по scope. Scope нужен для читаемости истории и группировки в release notes; версию бампает `type` (`feat` → minor, `fix` → patch, `!`/`BREAKING CHANGE` → major).
+
+**Что блокирует коммит** (правила уровня `error`; scope вне списка — только предупреждение):
+
+| Правило                | Требование                                                                                                                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subject-case`         | Тема — **строчными целиком**: и аббревиатуры (`api`, `json`), и имена типов/компонентов (`form-field hook`, а не `FormField hook`). Точное имя символа — в теле коммита, там регистр не проверяется. |
+| `subject-full-stop`    | Без точки в конце темы.                                                                                                                                                                              |
+| `header-max-length`    | Первая строка ≤ 100 символов **вместе** с `type(scope): `.                                                                                                                                           |
+| `body-max-line-length` | Каждая строка тела ≤ 100 символов — длинные абзацы переносите вручную.                                                                                                                               |
+| `type-enum`            | Только типы из списка выше.                                                                                                                                                                          |
 
 **Examples:**
 
 ```
-feat(core): add new validation rule for phone numbers
-fix(core): resolve race condition in async validation
-feat(cdk,ui-kit): introduce new FormField hook + wrapper
-feat!(core): rewrite FormProxy<T> generic    # BREAKING
+feat(reformer): add new validation rule for phone numbers
+fix(reformer): resolve race condition in async validation
+feat(reformer-cdk): introduce new form-field hook + wrapper
+feat(reformer)!: rewrite form-proxy generic          # BREAKING
+chore(beads): sync issues jsonl
 docs: update installation instructions
 ```
+
+Все примеры выше проверены линтером. Обрати внимание на третий и четвёртый: `FormField` и
+`FormProxy<T>` в теме дали бы `subject must be lower-case` — имена символов пиши в теле коммита.
 
 Подробности про release flow и scopes см. в [docs/guides/release-and-publishing.md](docs/guides/release-and-publishing.md).
 
