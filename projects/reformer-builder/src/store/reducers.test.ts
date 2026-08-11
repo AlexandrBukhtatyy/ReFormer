@@ -224,8 +224,9 @@ describe('ui', () => {
     expect(s.ui.quickAddOpen).toBe(false);
     s = R.setQuickAdd(s, true);
     expect(s.ui.quickAddOpen).toBe(true);
-    s = R.toggleRawJson(s);
     expect(s.ui.rawJsonOpen).toBe(false);
+    s = R.toggleRawJson(s);
+    expect(s.ui.rawJsonOpen).toBe(true);
     s = R.setLeftPanel(s, null);
     expect(s.ui.leftPanel).toBeNull();
     s = R.toggleRight(s);

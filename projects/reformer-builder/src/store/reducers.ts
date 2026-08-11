@@ -62,7 +62,8 @@ export function initialUi(): UiState {
     liveSchemas: false,
     hideDivWrappers: ui?.hideDivWrappers ?? false,
     quickAddOpen: false,
-    rawJsonOpen: true,
+    // Нижняя панель при старте свёрнута — от неё видна только полоса-заголовок со вкладками.
+    rawJsonOpen: false,
     bottomTab: ui?.bottomTab ?? 'raw',
     leftPanel,
     lastLeftPanel: leftPanel ?? 'files',

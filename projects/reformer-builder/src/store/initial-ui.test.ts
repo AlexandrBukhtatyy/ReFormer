@@ -13,6 +13,8 @@ describe('initialUi — дефолты UI из runtime-конфига', () => {
     expect(ui.rightOpen).toBe(true);
     expect(ui.preview).toBe('wire');
     expect(ui.bottomTab).toBe('raw');
+    // Нижняя панель (JSON/Модель/Registry) при старте свёрнута.
+    expect(ui.rawJsonOpen).toBe(false);
   });
 
   it('конфиг переопределяет тему/панели/превью', () => {
