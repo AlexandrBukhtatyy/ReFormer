@@ -17,9 +17,9 @@
 
 С `semantic-release-monorepo` каждый workspace SR видит **только** commits, затрагивающие его `packages/<pkg>/**`. Поэтому:
 
-- `fix(cdk): edge case` → bump только cdk (например, 1.0.0 → 1.0.1). Остальные `no release needed`.
-- `feat(ui-kit): new component` → bump только ui-kit (1.0.0 → 1.1.0). Остальные не трогаются.
-- `feat!(core): breaking API change` → bump только core (1.0.0 → 2.0.0). Остальные остаются.
+- `fix(reformer-cdk): edge case` → bump только cdk (например, 1.0.0 → 1.0.1). Остальные `no release needed`.
+- `feat(reformer-ui-kit): new component` → bump только ui-kit (1.0.0 → 1.1.0). Остальные не трогаются.
+- `feat(reformer)!: breaking api change` → bump только core (1.0.0 → 2.0.0). Остальные остаются.
 
 **Lockstep'а на major+minor больше нет.** Версии могут расходиться. Совместимость поддерживается через `peerDependencies` (см. ниже).
 
@@ -58,7 +58,7 @@ npm install @reformer/core@develop      # latest prerelease из develop (X.Y.Z-
 
 В результате каждый пакет «видит» этот единственный коммит (он трогает его пути) с breaking-маркером в теле → **все пакеты бампаются на major** сразу, даже если их собственных изменений не было или они не breaking. Именно так `Develop (#28)`/`(#34)` подняли все 6 пакетов на major.
 
-Rebase (и merge commit) сохраняют оригинальные per-scope коммиты: `feat!(core): …` трогает только `packages/reformer/**` → major только для core, а `docs(mcp)` / `feat(mcp)` → релиз только для mcp.
+Rebase (и merge commit) сохраняют оригинальные per-scope коммиты: `feat(reformer)!: …` трогает только `packages/reformer/**` → major только для core, а `docs(reformer-mcp)` / `feat(reformer-mcp)` → релиз только для mcp.
 
 > Особенно для промоушена `develop → main`: делай rebase/merge, иначе весь набор коммитов схлопнется в один «major-для-всех».
 
@@ -122,25 +122,28 @@ Sequential порядок задан жёстко (matrix.include) с учёто
 
 Если фича трогает несколько пакетов сразу:
 
+Перечисли все затронутые scope через запятую. Сообщение пиши в файл и коммить через `-F` — так оно не проходит через квотинг шелла (см. «Git commits — процедура» в [CLAUDE.md](../../CLAUDE.md)):
+
 ```bash
-git commit -m "$(cat <<'EOF'
-feat(core,cdk,ui-kit): introduce new validation API
+# .commit-msg.txt
+# feat(reformer,reformer-cdk,reformer-ui-kit): introduce new validation api
+#
+# Adds <name> validator + ui-kit FormField wrapper + cdk hook.
+# Backward compatible.
 
-Adds <name> validator + ui-kit FormField wrapper + cdk hook.
-Backward compatible.
-EOF
-)"
+npx --no commitlint < .commit-msg.txt   # проверить ДО коммита
+git commit -F .commit-msg.txt
 ```
 
-CI выпустит **только** core/cdk/ui-kit на minor (1.0.0 → 1.1.0 каждый); остальные `no release needed`.
+CI выпустит **только** core/cdk/ui-kit на minor (1.0.0 → 1.1.0 каждый); остальные `no release needed`. Напомним: пакеты определяются путями изменённых файлов — scope здесь для читаемости.
 
-При **breaking** cross-package change — те же scopes, но с `!`:
+При **breaking** cross-package change — те же scopes, но с `!` после закрывающей скобки:
 
 ```
-feat!(core,cdk,ui-kit): rename FormProxy<T> generic
+feat(reformer,reformer-cdk,reformer-ui-kit)!: rename form-proxy generic
 ```
 
-→ core/cdk/ui-kit на major (1.x.y → 2.0.0 каждый), peerDeps между ними нужно явно проапдейтить в коммите (`packages/cdk/package.json`: `"@reformer/core": "^2.0.0"`).
+→ core/cdk/ui-kit на major (1.x.y → 2.0.0 каждый), peerDeps между ними нужно явно проапдейтить в коммите (`packages/reformer-cdk/package.json`: `"@reformer/core": "^2.0.0"`).
 
 ## peerDependencies
 
