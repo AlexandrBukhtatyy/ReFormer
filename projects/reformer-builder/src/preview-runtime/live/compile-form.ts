@@ -6,7 +6,7 @@
  * линкуем — тогда `./model` из `validation.ts` резолвится мгновенно.
  *
  * Изоляция ошибок пофайловая: битый `validation.ts` не должен лишать превью работающего
- * `form-behavior.ts`. Всё, что не собралось, уезжает в {@link LiveError} и показывается в панели
+ * `form.behavior.ts`. Всё, что не собралось, уезжает в {@link LiveError} и показывается в панели
  * «Сборка» — молча деградировать нельзя, иначе «форма не отрабатывает» снова без объяснений.
  *
  * @module reformer-builder/preview-runtime/live/compile-form
@@ -40,10 +40,12 @@ const EXTENSIONS = ['.ts', '.tsx', ''] as const;
 const ENTRY_FILES = [
   'model.ts',
   'validation.ts',
-  'form-behavior.ts',
-  'render-behavior.ts',
+  'form.behavior.ts',
+  'renderer.behavior.ts',
   'registry.ts',
   // Имена из ранних шаблонов билдера — форма, сгенерированная давно, тоже должна оживать.
+  'form-behavior.ts',
+  'render-behavior.ts',
   'behavior.ts',
   'ui.ts',
 ] as const;

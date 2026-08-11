@@ -1,7 +1,7 @@
 /**
  * Эмиттер `index.tsx` — сборка формы ОДНИМ проходом (§7): `createJsonForm` бандлит model+form+registry
- * из схемы `./schema`, бандл целиком отдаётся рендереру пропом `form`. Схема больше не передаётся
- * дважды (в `convertJsonToM1Tree` и пропом `schema`).
+ * из схемы `./renderer.schema.json`, бандл целиком отдаётся рендереру пропом `form`. Схема больше не
+ * передаётся дважды (в `convertJsonToM1Tree` и пропом `schema`).
  *
  * @module reformer-builder/codegen/emit-index
  */
@@ -19,7 +19,7 @@ import {
   useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import { schema } from './schema';
+import rawSchema from './renderer.schema.json';
 import { createRegistry } from './registry';
 import { ${n.modelFactory} } from './model';
 import { formBehavior } from './form.behavior';
@@ -28,8 +28,8 @@ import type { ${n.TypeName} } from './types';
 
 type SubmitResult = { message: string; ok: boolean };
 
-// ./schema типизирована как loose JsonFormSchema (машинно-сгенерирована); сужаем к форме модели.
-const typedSchema = schema as unknown as JsonFormSchema<${n.TypeName}>;
+// В чистом JSON операторы типизируются как \`string\` — приведение к схеме модели формы.
+const typedSchema = rawSchema as unknown as JsonFormSchema<${n.TypeName}>;
 
 export default function ${n.pageComponent}() {
   const [result, setResult] = useState<SubmitResult | null>(null);

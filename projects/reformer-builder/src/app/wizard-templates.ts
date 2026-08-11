@@ -3,6 +3,11 @@
  * (`form-templates.ts`). Отличия от простой: схема начинается с узла `$component(Wizard)`, шаги
  * лежат в `componentProps.steps[]`, а к набору файлов добавляется тонкий адаптер `wizard.tsx`.
  *
+ * `wizard.tsx` — осознанное отступление от канона раскладки («все шаги инлайн в `index.tsx`, без
+ * отдельных компонентных файлов»): правило канона написано про ШАГИ формы, а это инфраструктурный
+ * адаптер к ui-kit `FormWizard`, общий для всех шагов. Отдельным файлом он переиспользуем и не
+ * раздувает `index.tsx`.
+ *
  * Как это работает: renderer-react сам пробрасывает `form` в компоненты с маркером
  * `__selfManagedChildren`, а ui-kit `FormWizard` умеет рендерить `step.body` как RenderNode.
  * Адаптеру остаётся поднять `title`/`icon` из узла шага и отдать сам узел телом шага — без
@@ -91,7 +96,7 @@ export function wizardAdapterTsxTemplate(formName: string): string {
  * зависит от \`@reformer/renderer-react\`. \`form\` приходит пропом — маркер
  * \`__selfManagedChildren\` просит рендерер отдать её и не обходить детей самому.
  *
- * \`onSubmit\` навешивается снаружи — в render-behavior.ts через onComponentEvent.
+ * \`onSubmit\` навешивается снаружи — в renderer.behavior.ts через onComponentEvent.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ReactNode } from 'react';
@@ -143,7 +148,8 @@ export function Wizard({ form, steps = [], className, onSubmit }: WizardProps): 
 /** Реестр пошаговой формы: поля + контейнеры + адаптер визарда. */
 export function wizardRegistryTsTemplate(formName: string): string {
   return `/**
- * Реестр компонентов формы «${formName}» — что рендерить под каждое \`$component(...)\` из form.json.
+ * Реестр компонентов формы «${formName}» — что рендерить под каждое \`$component(...)\` из
+ * renderer.schema.json.
  * \`FIELD_WRAPPER\` (FormField) оборачивает каждый лист: label + ошибки. \`Wizard\` — локальный
  * адаптер (wizard.tsx); шаги визарда рендерятся как обычные \`Box\`-узлы. Docs: @reformer/renderer-json.
  */
@@ -225,7 +231,8 @@ export const formBehavior = defineFormBehavior<FormShape>(({ model }) => {
 /** Поведение UI пошаговой формы: submit визарда. */
 export function wizardRenderBehaviorTsTemplate(formName: string): string {
   return `/**
- * Поведение UI формы «${formName}» — правила над деревом рендера по selector'ам из form.json.
+ * Поведение UI формы «${formName}» — правила над деревом рендера по selector'ам из
+ * renderer.schema.json.
  * Здесь висит submit визарда: ui-kit FormWizard зовёт \`onSubmit\` на последнем шаге, а мы гоняем
  * валидацию модели и отправляем значения. Docs: @reformer/renderer-react render-behavior.
  *
@@ -269,8 +276,9 @@ export function wizardIndexTsxTemplate(formName: string): string {
   const Comp = componentName(formName);
   return `/**
  * Пошаговая форма «${formName}» — сборка и рендер. В JSX только провайдер реестра и рендерер:
- * шаги и layout живут в form.json, значения/поведение/валидация — в model.ts / form-behavior.ts /
- * validation.ts / render-behavior.ts, навигация и кнопки — в ui-kit FormWizard (адаптер wizard.tsx).
+ * шаги и layout живут в renderer.schema.json, значения/поведение/валидация — в model.ts /
+ * form.behavior.ts / validation.ts / renderer.behavior.ts, навигация и кнопки — в ui-kit FormWizard
+ * (адаптер wizard.tsx).
  *
  * Подключение в react-playground: \`import ${Comp} from './pages/examples/<папка>';\`
  * + \`<Route element={<${Comp} />} />\`.
@@ -284,12 +292,12 @@ import {
   useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import rawSchema from './form.json';
+import rawSchema from './renderer.schema.json';
 import { createRegistry } from './registry';
 import { initialFormModel, type FormShape } from './model';
-import { formBehavior } from './form-behavior';
+import { formBehavior } from './form.behavior';
 import { formValidation, validationOptions } from './validation';
-import { createRenderBehavior } from './render-behavior';
+import { createRenderBehavior } from './renderer.behavior';
 
 // В чистом JSON операторы типизируются как \`string\` — приведение = сценарий «схема пришла с сервера».
 const schema = rawSchema as unknown as JsonFormSchema<FormShape>;

@@ -39,7 +39,7 @@ export function LiveSchemasControl({ tab }: { tab: TabState | null }) {
       !executionApproved &&
       !window.confirm(
         'Выполнить TS-код из папки формы?\n\n' +
-          'validation.ts, form-behavior.ts, render-behavior.ts и registry.ts будут исполнены ' +
+          'validation.ts, form.behavior.ts, renderer.behavior.ts и registry.ts будут исполнены ' +
           'в этой вкладке браузера, чтобы форма в превью работала как в приложении.'
       )
     ) {
@@ -56,7 +56,7 @@ export function LiveSchemasControl({ tab }: { tab: TabState | null }) {
   /** Подсказка кнопки: она же единственный носитель статуса — бейджей рядом нет. */
   const hint = (): string => {
     if (!available) {
-      return 'Доступно для формы, открытой из проекта: рядом с form.json должны лежать .ts';
+      return 'Доступно для формы, открытой из проекта: рядом со схемой должны лежать .ts';
     }
     if (!ui.liveSchemas) {
       return 'Исполнять схемы формы из каталога: валидация, поведение, реестр';

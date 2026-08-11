@@ -75,9 +75,9 @@ describe('evalCjsModule', () => {
        export const formBehavior = defineFormBehavior<Shape>(({ model }) => {
          computeFrom([model.$.name], model.$.greeting, (name) => (name ? 'Привет, ' + name : ''));
        });`,
-      'form-behavior.ts'
+      'form.behavior.ts'
     );
-    const { formBehavior } = evalCjsModule(js, resolveModule, 'form-behavior.ts');
+    const { formBehavior } = evalCjsModule(js, resolveModule, 'form.behavior.ts');
     expect(formBehavior).toBeTruthy();
 
     // Поведение должно работать на модели, созданной билдером, — это и есть проверка синглтона.

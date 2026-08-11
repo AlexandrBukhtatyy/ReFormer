@@ -13,7 +13,7 @@
  * Раскладка по источникам повторяет границу «данные / код»:
  * - схема сериализуема, поэтому объявлена `DataSource` и позже может стать `kind: 'http'`
  *   без единой правки в коде потребителя;
- * - реестр, поведение, фабрика модели и render-behavior — код, только из бандла (`CodeSource`).
+ * - реестр, поведение, фабрика модели и renderer.behavior — код, только из бандла (`CodeSource`).
  *
  * @module reformer-builder/codegen/emit-entry
  */
@@ -25,15 +25,15 @@ export function emitEntry(n: Names): string {
 
 import type { FormEntry } from '@reformer/form-registry';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { schema } from './schema';
+import rawSchema from './renderer.schema.json';
 import { createRegistry } from './registry';
 import { ${n.modelFactory} } from './model';
 import { formBehavior } from './form.behavior';
 import { createJsonRenderBehavior } from './renderer.behavior';
 import type { ${n.TypeName} } from './types';
 
-// ./schema типизирована как loose JsonFormSchema (машинно-сгенерирована); сужаем к модели формы.
-const typedSchema = schema as unknown as JsonFormSchema<${n.TypeName}>;
+// В чистом JSON операторы типизируются как \`string\` — приведение к схеме модели формы.
+const typedSchema = rawSchema as unknown as JsonFormSchema<${n.TypeName}>;
 
 /**
  * Запись формы «${n.title}».

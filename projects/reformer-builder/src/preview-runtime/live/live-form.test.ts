@@ -39,8 +39,8 @@ function simpleFormSources(): FormSources {
     files: {
       'model.ts': modelTsTemplate('sample'),
       'validation.ts': validationTsTemplate('sample'),
-      'form-behavior.ts': formBehaviorTsTemplate('sample'),
-      'render-behavior.ts': renderBehaviorTsTemplate('sample'),
+      'form.behavior.ts': formBehaviorTsTemplate('sample'),
+      'renderer.behavior.ts': renderBehaviorTsTemplate('sample'),
       'registry.ts': registryTsTemplate('sample'),
     },
     fromEditor: [],
@@ -84,7 +84,7 @@ describe('live-превью на шаблоне простой формы', () =
     ]);
   });
 
-  it('поведение из form-behavior.ts работает на живой модели', async () => {
+  it('поведение из form.behavior.ts работает на живой модели', async () => {
     const compiled = await compileForm(simpleFormSources());
     const bundle = buildLivePreview<SimpleShape>({ schema: schema(), compiled, dataSources: {} });
 
@@ -152,17 +152,46 @@ describe('live-превью на шаблоне простой формы', () =
     expect(bundle.validation).toBeNull();
     expect(bundle.model.get()).toMatchObject({ name: '', email: '' });
   });
+
+  // Шаблоны переехали на каноничные имена (form.behavior.ts / renderer.behavior.ts), но формы,
+  // сгенерированные прежними версиями билдера, лежат у людей на дисках — превью обязано их поднимать.
+  it('дефисные имена прежних шаблонов по-прежнему подхватываются', async () => {
+    const compiled = await compileForm({
+      dir: 'forms/legacy',
+      files: {
+        'model.ts': modelTsTemplate('sample'),
+        'validation.ts': validationTsTemplate('sample'),
+        'form-behavior.ts': formBehaviorTsTemplate('sample'),
+        'render-behavior.ts': renderBehaviorTsTemplate('sample'),
+        'registry.ts': registryTsTemplate('sample'),
+      },
+      fromEditor: [],
+    });
+    expect(compiled.errors).toEqual([]);
+
+    const bundle = buildLivePreview<SimpleShape>({ schema: schema(), compiled, dataSources: {} });
+    expect(bundle.errors).toEqual([]);
+    expect(bundle.applied).toEqual([
+      'model',
+      'validation',
+      'behavior',
+      'renderBehavior',
+      'registry',
+    ]);
+    bundle.model.$.name.value = 'Мир';
+    expect(bundle.model.$.greeting.value).toBe('Привет, Мир!');
+  });
 });
 
-/** Каталог пошаговой формы: JSX-адаптер и фабрика render-behavior вместо константы. */
+/** Каталог пошаговой формы: JSX-адаптер и фабрика renderer.behavior вместо константы. */
 function wizardFormSources(): FormSources {
   return {
     dir: 'forms/wizard',
     files: {
       'model.ts': wizardModelTsTemplate('sample'),
       'validation.ts': wizardValidationTsTemplate('sample'),
-      'form-behavior.ts': wizardFormBehaviorTsTemplate('sample'),
-      'render-behavior.ts': wizardRenderBehaviorTsTemplate('sample'),
+      'form.behavior.ts': wizardFormBehaviorTsTemplate('sample'),
+      'renderer.behavior.ts': wizardRenderBehaviorTsTemplate('sample'),
       'registry.ts': wizardRegistryTsTemplate('sample'),
       'wizard.tsx': wizardAdapterTsxTemplate('sample'),
     },
@@ -171,7 +200,7 @@ function wizardFormSources(): FormSources {
 }
 
 describe('live-превью на шаблоне пошаговой формы', () => {
-  it('JSX-адаптер компилируется, фабрика render-behavior вызывается с формой и моделью', async () => {
+  it('JSX-адаптер компилируется, фабрика renderer.behavior вызывается с формой и моделью', async () => {
     const compiled = await compileForm(wizardFormSources());
     expect(compiled.errors).toEqual([]);
     // registry.ts импортирует ./wizard — значит относительный TSX-импорт резолвится и исполняется.

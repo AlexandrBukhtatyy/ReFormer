@@ -3,7 +3,11 @@
  * меню дерева и содержимое встроенного шаблона (`templates/builtin.ts`). В ReFormer JSON несёт
  * только схему формы (layout); валидация/поведение формы/поведение UI — это TS-DSL
  * (`defineValidationSchema` / `defineFormBehavior` / `RenderBehaviorFn`), поэтому генерируются `.ts`.
- * Всё — рабочий прототип: form.json открывается в canvas, `.ts` правятся в Monaco.
+ * Всё — рабочий прототип: renderer.schema.json открывается в canvas, `.ts` правятся в Monaco.
+ *
+ * Имена файлов — канон раскладки формы (`@reformer/mcp` docs/llms/06-form-directory-layout.md):
+ * плоские по умолчанию, точечный префикс только у двух concern'ов с двумя слоями — `form.` (модель)
+ * и `renderer.` (рендер).
  *
  * Состав файлов формы больше не зашит здесь: им управляет выбранный шаблон (`templates/`).
  *
@@ -64,7 +68,7 @@ export function modelTsTemplate(formName: string): string {
 export interface FormShape {
   name: string;
   email: string;
-  /** Пример вычисляемого поля (заполняется form-behavior.ts). */
+  /** Пример вычисляемого поля (заполняется form.behavior.ts). */
   greeting: string;
 }
 
@@ -217,12 +221,13 @@ export const formBehavior = defineFormBehavior<FormShape>(({ model }) => {
 `;
 }
 
-/** Схема поведения UI (render-behavior над деревом рендера) — @reformer/renderer-react. */
+/** Схема поведения UI (renderer.behavior над деревом рендера) — @reformer/renderer-react. */
 export function renderBehaviorTsTemplate(formName: string): string {
   return `/**
  * Поведение UI формы «${formName}» — декларативные правила над деревом рендера (скрытие узлов,
- * патч пропсов, события, lifecycle) по selector'ам из form.json. Docs: @reformer/renderer-react
- * render-behavior. \`form\` берётся из замыкания фабрики или через getRef() wizard-узла.
+ * патч пропсов, события, lifecycle) по selector'ам из renderer.schema.json. Docs:
+ * @reformer/renderer-react render-behavior. \`form\` берётся из замыкания фабрики или через
+ * getRef() wizard-узла.
  *
  * Ниже — шпаргалка частых случаев (раскомментируйте нужное + импорт хелпера).
  */
@@ -253,13 +258,14 @@ export const formRenderBehavior: RenderBehaviorFn<FormShape> = (schema) => {
 }
 
 /**
- * Реестр компонентов (renderer-json) — привязка `$component(...)` из form.json к реализациям
- * @reformer/ui-kit. `FIELD_WRAPPER` оборачивает каждое поле (label + ошибки). Регенерируется целиком.
+ * Реестр компонентов (renderer-json) — привязка `$component(...)` из renderer.schema.json к
+ * реализациям @reformer/ui-kit. `FIELD_WRAPPER` оборачивает каждое поле (label + ошибки).
+ * Регенерируется целиком.
  */
 export function registryTsTemplate(formName: string): string {
   return `/**
- * Реестр компонентов формы «${formName}» — что рендерить под каждое \`$component(...)\` из form.json.
- * \`FIELD_WRAPPER\` (FormField) оборачивает каждый лист: label + ошибки. Добавили в схему новый
+ * Реестр компонентов формы «${formName}» — что рендерить под каждое \`$component(...)\` из
+ * renderer.schema.json. \`FIELD_WRAPPER\` (FormField) оборачивает каждый лист: label + ошибки. Добавили в схему новый
  * \`$component(X)\` — зарегистрируйте X здесь (field-компоненты ui-kit: \`XField\`). Docs: @reformer/renderer-json.
  */
 import { InputField, FormField } from '@reformer/ui-kit';
@@ -277,14 +283,16 @@ export function createRegistry(): ComponentRegistry {
 }
 
 /**
- * Точка сборки формы (renderer-json) — модель + form.json + реестр + поведение → JsonFormRenderer.
- * Default-export страница: подключается в react-playground одной строкой. Регенерируется целиком.
+ * Точка сборки формы (renderer-json) — модель + renderer.schema.json + реестр + поведение →
+ * JsonFormRenderer. Default-export страница: подключается в react-playground одной строкой.
+ * Регенерируется целиком.
  */
 export function indexTsxTemplate(formName: string): string {
   const Comp = componentName(formName);
   return `/**
  * Форма «${formName}» — сборка и рендер. В JSX только провайдер реестра и рендерер: весь layout
- * живёт в form.json, значения/поведение/валидация — в model.ts / form-behavior.ts / validation.ts / render-behavior.ts.
+ * живёт в renderer.schema.json, значения/поведение/валидация — в model.ts / form.behavior.ts /
+ * validation.ts / renderer.behavior.ts.
  *
  * Готова к работе сразу: рендерится на \`initialFormModel\`, «Отправить» гоняет валидацию. Подключение
  * в react-playground: \`import ${Comp} from './pages/examples/<папка>';\` + \`<Route element={<${Comp} />} />\`.
@@ -299,12 +307,12 @@ import {
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import { Button } from '@reformer/ui-kit';
-import rawSchema from './form.json';
+import rawSchema from './renderer.schema.json';
 import { createRegistry } from './registry';
 import { initialFormModel, type FormShape } from './model';
-import { formBehavior } from './form-behavior';
+import { formBehavior } from './form.behavior';
 import { formValidation, validationOptions } from './validation';
-import { formRenderBehavior } from './render-behavior';
+import { formRenderBehavior } from './renderer.behavior';
 
 // В чистом JSON операторы типизируются как \`string\` — приведение = сценарий «схема пришла с сервера».
 const schema = rawSchema as unknown as JsonFormSchema<FormShape>;

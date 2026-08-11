@@ -47,7 +47,7 @@ export function buildExampleFiles(
   const c = collect(schema, mock);
 
   return [
-    { path: 'schema.ts', content: emitSchema(schema), cls: 'derived' },
+    { path: 'renderer.schema.json', content: emitSchema(schema), cls: 'derived' },
     { path: 'types.ts', content: emitTypes(c, names), cls: 'derived' },
     { path: 'model.ts', content: emitModel(mock, names), cls: 'derived' },
     { path: 'registry.ts', content: emitRegistry(c), cls: 'derived' },

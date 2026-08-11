@@ -37,8 +37,8 @@ export function FormStateView() {
   if (live.status === 'unavailable') {
     return (
       <Hint>
-        Каталог формы недоступен: исполнять нечего. Откройте форму из проекта — рядом с form.json
-        должны лежать model.ts / validation.ts / form-behavior.ts.
+        Каталог формы недоступен: исполнять нечего. Откройте форму из проекта — рядом со схемой
+        должны лежать model.ts / validation.ts / form.behavior.ts.
       </Hint>
     );
   }

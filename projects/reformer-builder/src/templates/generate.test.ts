@@ -76,10 +76,10 @@ describe('встроенные шаблоны', () => {
       'index.tsx',
       'registry.ts',
       'model.ts',
-      'form.json',
+      'renderer.schema.json',
       'validation.ts',
-      'form-behavior.ts',
-      'render-behavior.ts',
+      'form.behavior.ts',
+      'renderer.behavior.ts',
     ]);
     expect(resolvePicked(['index.tsx'], t.requires).size).toBe(7);
     expect(resolvePicked(['model.ts'], t.requires).size).toBe(1);
@@ -94,7 +94,7 @@ describe('встроенные шаблоны', () => {
 
   it('пошаговая схема — визард с двумя шагами в componentProps.steps', () => {
     const t = wizardFormTemplate();
-    const form = t.files.find((f) => f.path === 'form.json')!;
+    const form = t.files.find((f) => f.path === 'renderer.schema.json')!;
     const json = JSON.parse(form.content);
     expect(json.root.component).toBe('$component(Wizard)');
     expect(json.root.selector).toBe('wizard');
@@ -117,7 +117,28 @@ describe('встроенные шаблоны', () => {
       const out = materializeFiles(t, ['index.tsx'], 'user-profile');
       const index = out.find((f) => f.path === 'index.tsx')!;
       expect(index.content).toContain('export default function UserProfileForm()');
-      expect(formSchemaFileOf(out)?.path).toBe('form.json');
+      expect(formSchemaFileOf(out)?.path).toBe('renderer.schema.json');
+    }
+  });
+
+  // Канон раскладки формы (@reformer/mcp docs/llms/06-form-directory-layout.md): плоские имена,
+  // точечный префикс `form.` / `renderer.` только у schema и behavior. Тест держит шаблоны в
+  // каноне: прошлый раз переименование доехало до кодогена, но не до шаблонов.
+  it('имена файлов — каноничные, дефисных/легаси-имён нет', () => {
+    const CANON = [
+      'index.tsx',
+      'model.ts',
+      'renderer.schema.json',
+      'validation.ts',
+      'form.behavior.ts',
+      'renderer.behavior.ts',
+      'registry.ts',
+      // Адаптер к ui-kit FormWizard — осознанное отступление, см. wizard-templates.ts.
+      'wizard.tsx',
+    ];
+    for (const t of builtinTemplates()) {
+      const alien = t.files.map((f) => f.path).filter((p) => !CANON.includes(p));
+      expect(alien, `шаблон «${t.name}»`).toEqual([]);
     }
   });
 });

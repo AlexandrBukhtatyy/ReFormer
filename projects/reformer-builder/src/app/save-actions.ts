@@ -24,6 +24,7 @@ import {
   deletePath,
   joinPath,
   renamePath,
+  splitPath,
   uniqueName,
 } from '../io/fs-ops';
 import {
@@ -429,6 +430,19 @@ function formNameOf(dirPath: string): string {
   return dirPath.split('/').filter(Boolean).pop() ?? 'форма';
 }
 
+/**
+ * Имя формы по файлу её схемы. Каноничное имя схемы — `renderer.schema.json`, и оно НЕ несёт имени
+ * формы: его несёт каталог (`user-profile/renderer.schema.json`). Поэтому сначала снимаем расширение
+ * и служебный хвост (`.renderer.schema` / `.form`), а если после этого ничего не осталось — берём
+ * имя каталога. Так экспорт кладёт пример в `user-profile/`, а не в безымянный `form/`.
+ */
+export function formNameFromSchemaFile(name: string, path?: string): string {
+  const stripped = name.replace(/\.json$/i, '').replace(/(^|\.)(renderer\.schema|form)$/i, '');
+  if (stripped) return stripped;
+  const dir = path ? splitPath(path).dirPath : '';
+  return dir.split('/').filter(Boolean).pop() ?? 'form';
+}
+
 /** Сгенерировать одиночный артефакт формы в каталоге и открыть его. */
 async function generateOne(
   dirPath: string,
@@ -456,9 +470,9 @@ export function generateModel(dirPath: string): Promise<void> {
   return generateOne(dirPath, 'model.ts', modelTsTemplate(formNameOf(dirPath)), false);
 }
 
-/** Сгенерировать схему формы (form.json) в каталоге — открывается в canvas. */
+/** Сгенерировать схему формы (renderer.schema.json) в каталоге — открывается в canvas. */
 export function generateFormSchema(dirPath: string): Promise<void> {
-  return generateOne(dirPath, 'form.json', formJsonTemplate(), true);
+  return generateOne(dirPath, 'renderer.schema.json', formJsonTemplate(), true);
 }
 
 /** Сгенерировать схему валидации (validation.ts) в каталоге. */
@@ -466,21 +480,21 @@ export function generateValidation(dirPath: string): Promise<void> {
   return generateOne(dirPath, 'validation.ts', validationTsTemplate(formNameOf(dirPath)), false);
 }
 
-/** Сгенерировать схему поведения формы (form-behavior.ts) в каталоге. */
+/** Сгенерировать схему поведения формы (form.behavior.ts) в каталоге. */
 export function generateFormBehavior(dirPath: string): Promise<void> {
   return generateOne(
     dirPath,
-    'form-behavior.ts',
+    'form.behavior.ts',
     formBehaviorTsTemplate(formNameOf(dirPath)),
     false
   );
 }
 
-/** Сгенерировать схему поведения UI (render-behavior.ts) в каталоге. */
+/** Сгенерировать схему поведения UI (renderer.behavior.ts) в каталоге. */
 export function generateRenderBehavior(dirPath: string): Promise<void> {
   return generateOne(
     dirPath,
-    'render-behavior.ts',
+    'renderer.behavior.ts',
     renderBehaviorTsTemplate(formNameOf(dirPath)),
     false
   );
@@ -540,7 +554,7 @@ export async function exportExample(tab: TabState): Promise<void> {
     toast('Экспорт примера требует Chromium-браузера (File System Access API)');
     return;
   }
-  const formName = tab.source.name.replace(/\.(form\.)?json$/i, '') || 'form';
+  const formName = formNameFromSchemaFile(tab.source.name, tab.source.path);
   const mock = effectiveMock(tab.schema, tab.mock);
   try {
     const res = await exportExampleToDirectory(tab.schema, mock, formName);

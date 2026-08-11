@@ -19,12 +19,12 @@ describe('indexTsxTemplate', () => {
   it('default-export компонент с PascalCase-именем', () => {
     expect(src).toContain('export default function ProfileForm()');
   });
-  it('собирает форму одним проходом: createJsonForm + form.json + registry + behavior → JsonFormRenderer', () => {
-    expect(src).toContain("import rawSchema from './form.json'");
+  it('собирает форму одним проходом: createJsonForm + renderer.schema.json + registry + behavior → JsonFormRenderer', () => {
+    expect(src).toContain("import rawSchema from './renderer.schema.json'");
     expect(src).toContain("import { createRegistry } from './registry'");
     expect(src).toContain("import { initialFormModel, type FormShape } from './model'");
-    expect(src).toContain("import { formBehavior } from './form-behavior'");
-    expect(src).toContain("import { formRenderBehavior } from './render-behavior'");
+    expect(src).toContain("import { formBehavior } from './form.behavior'");
+    expect(src).toContain("import { formRenderBehavior } from './renderer.behavior'");
     expect(src).toContain('createJsonForm<FormShape>(');
     expect(src).toContain('useJsonForm(');
     expect(src).toContain('<JsonFormRenderer<FormShape>');

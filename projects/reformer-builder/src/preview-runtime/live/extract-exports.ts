@@ -64,9 +64,10 @@ function pick(modules: Record<string, ModuleExports>, files: string[], name: str
 
 const MODEL_FILES = ['model.ts', 'model.tsx'];
 const VALIDATION_FILES = ['validation.ts'];
-// `behavior.ts` / `ui.ts` — имена ранних шаблонов билдера.
-const BEHAVIOR_FILES = ['form-behavior.ts', 'behavior.ts'];
-const RENDER_BEHAVIOR_FILES = ['render-behavior.ts', 'ui.ts'];
+// Первым идёт каноничное имя (см. 06-form-directory-layout.md), дальше — легаси: дефисные имена
+// прежних шаблонов билдера и совсем ранние `behavior.ts` / `ui.ts`.
+const BEHAVIOR_FILES = ['form.behavior.ts', 'form-behavior.ts', 'behavior.ts'];
+const RENDER_BEHAVIOR_FILES = ['renderer.behavior.ts', 'render-behavior.ts', 'ui.ts'];
 const REGISTRY_FILES = ['registry.ts', 'registry.tsx'];
 
 const isFn = (v: unknown): v is (...args: never[]) => unknown => typeof v === 'function';

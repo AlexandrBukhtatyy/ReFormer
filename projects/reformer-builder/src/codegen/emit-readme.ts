@@ -49,7 +49,7 @@ ${appSnippet(n)}
 
 ## Файлы
 
-- **Регенерируемые** (перезаписываются при повторной генерации): \`schema.ts\`, \`types.ts\`, \`model.ts\`, \`registry.ts\`, \`index.tsx\`, \`README.md\`.
+- **Регенерируемые** (перезаписываются при повторной генерации): \`renderer.schema.json\`, \`types.ts\`, \`model.ts\`, \`registry.ts\`, \`index.tsx\`, \`entry.ts\`, \`README.md\`.
 - **Ваши** (пишутся один раз, не затираются): \`data-sources.ts\`, \`renderer.behavior.ts\`, \`form.behavior.ts\`, \`validation.ts\`, \`api.ts\`.
 
 ## Методы для реализации

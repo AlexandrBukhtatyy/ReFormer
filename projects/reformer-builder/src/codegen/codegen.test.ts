@@ -57,7 +57,7 @@ const files = buildExampleFiles(rawSchema, mock, 'loan');
 const byPath = (p: string) => files.find((f) => f.path === p)!;
 
 describe('buildExampleFiles — набор файлов', () => {
-  it('12 файлов, ожидаемые пути, нет JSON-схемы', () => {
+  it('12 файлов, ожидаемые пути, схема — единственный JSON', () => {
     expect(files.map((f) => f.path).sort()).toEqual(
       [
         'api.ts',
@@ -69,12 +69,16 @@ describe('buildExampleFiles — набор файлов', () => {
         'README.md',
         'registry.ts',
         'renderer.behavior.ts',
-        'schema.ts',
+        'renderer.schema.json',
         'types.ts',
         'validation.ts',
       ].sort()
     );
-    expect(files.some((f) => f.path.endsWith('.json'))).toBe(false);
+    // Схема — JSON, а не TS-литерал: так экспортированный пример открывается обратно в canvas
+    // билдера, а набор файлов совпадает с тем, что дают встроенные шаблоны.
+    expect(files.filter((f) => f.path.endsWith('.json')).map((f) => f.path)).toEqual([
+      'renderer.schema.json',
+    ]);
   });
 
   it('класс derived/user проставлен верно', () => {
@@ -93,7 +97,7 @@ describe('buildExampleFiles — набор файлов', () => {
         'index.tsx',
         'model.ts',
         'registry.ts',
-        'schema.ts',
+        'renderer.schema.json',
         'types.ts',
       ].sort()
     );
@@ -109,10 +113,13 @@ describe('buildExampleFiles — набор файлов', () => {
   });
 });
 
-describe('schema.ts — селекторы + submit впечены', () => {
-  const src = byPath('schema.ts').content;
-  it('типизированный литерал JsonFormSchema', () => {
-    expect(src).toContain('export const schema: JsonFormSchema =');
+describe('renderer.schema.json — селекторы + submit впечены', () => {
+  const src = byPath('renderer.schema.json').content;
+  it('валидный JSON с шапкой $schema/version — дискавери даёт бейдж high', () => {
+    const json = JSON.parse(src) as { $schema: string; version: string; root: unknown };
+    expect(json.$schema).toBe('./form-schema.schema.json');
+    expect(json.version).toBe('1.0');
+    expect(json.root).toBeTruthy();
   });
   it('вставлен submit-Button и selector-ы секции/массива', () => {
     expect(src).toContain('"selector": "submit"');
@@ -283,7 +290,7 @@ describe('emitEntry — сгенерированный код КОМПИЛИРУ
     try {
       const names = makeNames('loan application');
       // Соседи-заглушки: проверяем ИМЕННО entry.ts, а не весь сгенерированный набор.
-      writeFileSync(join(dir, 'schema.ts'), 'export const schema = { root: {} } as never;\n');
+      writeFileSync(join(dir, 'renderer.schema.json'), '{ "root": {} }\n');
       writeFileSync(
         join(dir, 'registry.ts'),
         "import { defineRegistry } from '@reformer/renderer-json';\n" +
@@ -323,6 +330,9 @@ describe('emitEntry — сгенерированный код КОМПИЛИРУ
         strict: true,
         noEmit: true,
         skipLibCheck: true,
+        // entry.ts импортирует схему из JSON — как и в целевом проекте
+        // (projects/react-playground/tsconfig.app.json).
+        resolveJsonModule: true,
         module: ts.ModuleKind.ESNext,
         moduleResolution: ts.ModuleResolutionKind.Bundler,
         target: ts.ScriptTarget.ES2022,

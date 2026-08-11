@@ -41,7 +41,10 @@ function markSeeded(): void {
 function openSeedTab(): void {
   const seed = getRuntimeConfig().project?.seedSchema;
   const schema = seed === undefined ? seedSchema() : (seed ?? emptySchema());
-  const name = seed === undefined ? 'credit-application.form.json' : 'untitled.form.json';
+  const name =
+    seed === undefined
+      ? 'credit-application.renderer.schema.json'
+      : 'untitled.renderer.schema.json';
   editorActions.openTab(name, { kind: 'new', name }, schema);
 }
 

@@ -161,7 +161,7 @@ export function buildLivePreview<T extends Shape = Shape>(input: BuildLiveInput)
       renderBehavior = contract.renderBehaviorFactory(form, model);
     } catch (e) {
       errors.push({
-        file: 'render-behavior.ts',
+        file: 'renderer.behavior.ts',
         phase: 'evaluate',
         message: e instanceof Error ? e.message : String(e),
       });

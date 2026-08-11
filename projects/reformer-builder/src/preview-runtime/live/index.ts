@@ -1,7 +1,8 @@
 /**
- * Слой `preview-runtime/live/` — исполнение схем формы (`model` / `validation` / `form-behavior` /
- * `render-behavior` / `registry`) рядом с `form.json`, чтобы во вкладке Renderer форма работала так
- * же, как запустится в приложении.
+ * Слой `preview-runtime/live/` — исполнение схем формы (`model` / `validation` / `form.behavior` /
+ * `renderer.behavior` / `registry`) рядом с `renderer.schema.json`, чтобы во вкладке Renderer форма
+ * работала так же, как запустится в приложении. Дефисные имена прежних шаблонов тоже принимаются —
+ * см. списки алиасов в `compile-form.ts` / `extract-exports.ts`.
  *
  * Конвейер: {@link readFormSources} (вкладки Monaco ⊕ диск) → {@link compileForm} (TS → CJS → eval
  * на инстансах билдера) → {@link buildLivePreview} (модель + реестр + форма + валидация).

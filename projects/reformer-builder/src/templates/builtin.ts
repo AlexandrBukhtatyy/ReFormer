@@ -67,20 +67,24 @@ const SIMPLE_FILES: ReadonlyArray<BuiltinFile> = [
     label: 'Модель (model.ts)',
     render: () => modelTsTemplate(BUILTIN_BASE_NAME),
   },
-  { path: 'form.json', label: 'Схема формы (form.json)', render: () => formJsonTemplate() },
+  {
+    path: 'renderer.schema.json',
+    label: 'Схема формы (renderer.schema.json)',
+    render: () => formJsonTemplate(),
+  },
   {
     path: 'validation.ts',
     label: 'Схема валидации (validation.ts)',
     render: () => validationTsTemplate(BUILTIN_BASE_NAME),
   },
   {
-    path: 'form-behavior.ts',
-    label: 'Поведение формы (form-behavior.ts)',
+    path: 'form.behavior.ts',
+    label: 'Поведение формы (form.behavior.ts)',
     render: () => formBehaviorTsTemplate(BUILTIN_BASE_NAME),
   },
   {
-    path: 'render-behavior.ts',
-    label: 'Поведение UI (render-behavior.ts)',
+    path: 'renderer.behavior.ts',
+    label: 'Поведение UI (renderer.behavior.ts)',
     render: () => renderBehaviorTsTemplate(BUILTIN_BASE_NAME),
   },
 ];
@@ -107,8 +111,8 @@ const WIZARD_FILES: ReadonlyArray<BuiltinFile> = [
     render: () => wizardModelTsTemplate(BUILTIN_BASE_NAME),
   },
   {
-    path: 'form.json',
-    label: 'Схема формы (form.json) — визард с двумя шагами',
+    path: 'renderer.schema.json',
+    label: 'Схема формы (renderer.schema.json) — визард с двумя шагами',
     render: () => wizardFormJsonTemplate(),
   },
   {
@@ -117,13 +121,13 @@ const WIZARD_FILES: ReadonlyArray<BuiltinFile> = [
     render: () => wizardValidationTsTemplate(BUILTIN_BASE_NAME),
   },
   {
-    path: 'form-behavior.ts',
-    label: 'Поведение формы (form-behavior.ts)',
+    path: 'form.behavior.ts',
+    label: 'Поведение формы (form.behavior.ts)',
     render: () => wizardFormBehaviorTsTemplate(BUILTIN_BASE_NAME),
   },
   {
-    path: 'render-behavior.ts',
-    label: 'Поведение UI (render-behavior.ts) — submit визарда',
+    path: 'renderer.behavior.ts',
+    label: 'Поведение UI (renderer.behavior.ts) — submit визарда',
     render: () => wizardRenderBehaviorTsTemplate(BUILTIN_BASE_NAME),
   },
 ];
