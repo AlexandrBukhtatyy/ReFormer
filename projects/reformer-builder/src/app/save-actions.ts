@@ -24,6 +24,7 @@ import {
   deletePath,
   joinPath,
   renamePath,
+  resolveFileHandle,
   splitPath,
   uniqueName,
 } from '../io/fs-ops';
@@ -40,10 +41,11 @@ import { prepareSave, commitSave, type SavePlan } from '../io/save';
 import { downloadSchema } from '../io/export';
 import { validateSchema } from '../io/validate';
 import { effectiveMock } from '../canvas/mock-data';
+import { applyMarkdownView, preferredMarkdownView } from '../canvas/markdown/view-pref';
 import { dirPickerAvailable, exportExampleToDirectory } from '../codegen/deliver';
 import { showValidationErrors } from './validation-toast';
 import { editorActions, editorStore } from '../store';
-import type { OpenOptions, TabState } from '../store';
+import type { MarkdownView, OpenOptions, TabState } from '../store';
 import { projectActions, projectStore } from '../store/project-store';
 import { fileClipboardActions, fileClipboardStore } from '../store/file-clipboard';
 import { reloadTemplates } from '../store/templates-store';
@@ -246,12 +248,14 @@ export async function openCodeFile(d: TreeEntry, opts?: OpenOptions): Promise<vo
   const handle = d.handle;
   try {
     const { text, lastModified } = await readFile(handle);
+    const language = languageOf(d.name);
     editorActions.openCodeTab(
       d.path,
       { kind: 'file', name: d.name, path: d.path, handle, rawText: text, lastModified },
       text,
-      languageOf(d.name),
-      opts
+      language,
+      // markdown открываем так же, как пользователь смотрел предыдущий (исходник/рендер/рядом).
+      language === 'markdown' ? { ...opts, mdView: preferredMarkdownView() } : opts
     );
   } catch (e) {
     toast('Не удалось открыть файл: ' + msg(e));
@@ -270,6 +274,50 @@ export async function openTreeEntry(entry: TreeEntry, opts?: OpenOptions): Promi
   }
   if (entry.isForm) await openSchemaFile(entry, opts);
   else await openCodeFile(entry, opts);
+}
+
+/**
+ * Открыть markdown-файл сразу в нужном режиме («Открыть предпросмотр» из дерева файлов).
+ *
+ * `setActiveTab` здесь не лишний: уже открытую вкладку `openTreeEntry` только закрепляет, а
+ * переключает на неё в дереве отдельный клик — которого при вызове из меню не было.
+ */
+export async function openMarkdownPreview(entry: TreeEntry, view: MarkdownView): Promise<void> {
+  await openTreeEntry(entry);
+  if (!editorStore.getState().tabs[entry.path]) return;
+  editorActions.setActiveTab(entry.path);
+  applyMarkdownView(entry.path, view);
+}
+
+/**
+ * Открыть файл проекта по пути от корня — переход по относительной ссылке из markdown-предпросмотра
+ * (`[соседний](./other.md)`).
+ *
+ * Дерево файлов ленивое, поэтому нужной записи в нём может ещё не быть: тогда резолвим handle по
+ * пути напрямую. Такой файл открывается code-вкладкой даже если это схема формы — распознавание
+ * схем живёт в сканере дерева, а не здесь.
+ */
+export async function openProjectPath(path: string): Promise<void> {
+  const known = projectStore.getState().tree.find((e) => e.path === path && e.kind === 'file');
+  if (known) {
+    await openTreeEntry(known);
+    // Уже открытую вкладку `openTreeEntry` только закрепляет — переход по ссылке должен ещё и
+    // показать её.
+    editorActions.setActiveTab(path);
+    return;
+  }
+  const root = projectStore.getState().dirHandle;
+  if (!root) {
+    toast('Каталог проекта не открыт');
+    return;
+  }
+  try {
+    const handle = await resolveFileHandle(root, path);
+    const name = path.slice(path.lastIndexOf('/') + 1);
+    await openCodeFile({ path, name, kind: 'file', depth: 0, handle });
+  } catch {
+    toast(`Файла нет в проекте: ${path}`);
+  }
 }
 
 /** Сохранить code-вкладку прямой записью в файл (без diff-модалки — она схемо-специфична). */

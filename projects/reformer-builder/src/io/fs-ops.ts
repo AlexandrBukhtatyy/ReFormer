@@ -147,6 +147,24 @@ export async function readTextFile(root: Root, path: string): Promise<string> {
   return file.text();
 }
 
+/**
+ * Прочитать файл по пути от корня проекта как `File` — для бинарного содержимого (картинки
+ * markdown-предпросмотра идут в blob-URL) и для случаев, когда нужен `lastModified`.
+ */
+export async function readFileByPath(root: Root, path: string): Promise<File> {
+  const { dirPath, base } = splitPath(path);
+  const parent = await resolveDir(root, dirPath);
+  const fh = await parent.getFileHandle(base);
+  return fh.getFile();
+}
+
+/** Handle файла по пути от корня проекта (открытие соседних файлов из markdown-ссылок). */
+export async function resolveFileHandle(root: Root, path: string): Promise<FileSystemFileHandle> {
+  const { dirPath, base } = splitPath(path);
+  const parent = await resolveDir(root, dirPath);
+  return (await parent.getFileHandle(base)) as unknown as FileSystemFileHandle;
+}
+
 /** Лежит ли `path` внутри каталога `dir` (или это он сам) — по путям, без обращения к ФС. */
 export function isInsideDir(path: string, dir: string): boolean {
   return path === dir || path.startsWith(`${dir}/`);

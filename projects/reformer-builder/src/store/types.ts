@@ -24,6 +24,12 @@ export type PreviewMode = 'wire' | 'runtime' | 'code';
  */
 export type RuntimeMode = 'edit' | 'test';
 
+/**
+ * Как показывать markdown-файл в code-вкладке (в стиле VSCode): `code` — только Monaco,
+ * `preview` — только рендер, `split` — редактор и рендер рядом с синхроскроллом.
+ */
+export type MarkdownView = 'code' | 'preview' | 'split';
+
 /** Активная левая вкладка панели инструментов (спека §8); `null` — панель свёрнута. */
 export type LeftPanel = 'files' | 'palette' | 'templates' | null;
 
@@ -91,6 +97,12 @@ export interface TabState {
   savedText?: string;
   /** Язык Monaco по расширению файла (`code`-вкладки): typescript/css/markdown/… */
   language?: string;
+  /**
+   * Режим показа markdown-вкладки (`code`-вкладки с `language: 'markdown'`): исходник, рендер или
+   * оба рядом. У остальных файлов не используется. Не путать с {@link TabState.preview} — то про
+   * временную вкладку, а это про содержимое.
+   */
+  mdView?: MarkdownView;
   /**
    * Правки мок-данных для runtime/live-превью из нижней панели: по JSON-тексту на секцию
    * (`model` — вкладка «Модель», `dataSources` — вкладка «Registry»). Пропущенная секция ⇒

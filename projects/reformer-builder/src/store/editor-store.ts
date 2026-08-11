@@ -13,6 +13,7 @@ import type {
   BottomTab,
   EditorState,
   LeftPanel,
+  MarkdownView,
   MockSection,
   PreviewMode,
   RuntimeMode,
@@ -42,6 +43,9 @@ export const editorActions = {
   pinTab: (id: string) => editorStore.setState((s) => R.pinTab(s, id)),
   /** Правка текста code-вкладки (Monaco onChange). */
   setTabText: (id: string, text: string) => editorStore.setState((s) => R.setTabText(s, id, text)),
+  /** Режим показа markdown-вкладки: исходник / рендер / оба рядом. */
+  setMdView: (id: string, mdView: MarkdownView) =>
+    editorStore.setState((s) => R.setMdView(s, id, mdView)),
   /** Правка секции мок-данных вкладки (нижняя панель: «Модель» / «Registry»). */
   setMockText: (id: string, section: MockSection, text: string) =>
     editorStore.setState((s) => R.setMockText(s, id, section, text)),

@@ -47,10 +47,12 @@ import {
   generateRenderBehavior,
   generateValidation,
   loadDirectory,
+  openMarkdownPreview,
   openTreeEntry,
   pasteEntries,
   reopenProject,
 } from '../app/save-actions';
+import { isMarkdownName } from '../canvas/markdown/is-markdown';
 import { fsAccessSupported } from '../io/fs-access';
 import type { TreeEntry } from '../io/discovery';
 import { FilesDialogs, type FilesDialog } from './FilesDialogs';
@@ -347,6 +349,18 @@ export function FilesPanel() {
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
+          {/* Markdown можно открыть сразу рендером — как «Open Preview» в VSCode. */}
+          {entry?.kind === 'file' && isMarkdownName(entry.name) && (
+            <>
+              <ContextMenuItem onClick={() => void openMarkdownPreview(entry, 'preview')}>
+                Открыть предпросмотр
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => void openMarkdownPreview(entry, 'split')}>
+                Открыть предпросмотр рядом
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
           {/* Копирование — внутри проекта, по путям: системный буфер FS-хендлы не переносит. */}
           {entry && (
             <ContextMenuItem onClick={() => copyEntries(menuPaths(entry))}>

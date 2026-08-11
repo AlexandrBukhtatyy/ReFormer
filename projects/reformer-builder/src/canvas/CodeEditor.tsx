@@ -6,7 +6,7 @@
  * @module reformer-builder/canvas/CodeEditor
  */
 
-import Editor from '@monaco-editor/react';
+import Editor, { type OnMount } from '@monaco-editor/react';
 import type { Theme } from '../store';
 import './monaco-setup';
 import './monaco-languages';
@@ -16,11 +16,17 @@ export default function CodeEditor({
   language,
   theme,
   onChange,
+  onMount,
 }: {
   value: string;
   language: string;
   theme: Theme;
   onChange: (value: string) => void;
+  /**
+   * Доступ к инстансу редактора: нужен тем, кто подписывается на его скролл или регистрирует
+   * собственные команды (markdown-режимы — см. {@link CodeArea}).
+   */
+  onMount?: OnMount;
 }) {
   return (
     <Editor
@@ -29,6 +35,7 @@ export default function CodeEditor({
       theme={theme === 'dark' ? 'vs-dark' : 'light'}
       value={value}
       onChange={(v) => onChange(v ?? '')}
+      onMount={onMount}
       options={{
         minimap: { enabled: false },
         fontSize: 12,

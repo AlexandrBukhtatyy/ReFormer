@@ -151,6 +151,35 @@ describe('preview-вкладки (как в VSCode)', () => {
   });
 });
 
+describe('режим markdown-вкладки', () => {
+  const openMd = (opts?: R.OpenOptions) =>
+    R.openCodeTab(R.initialState(), 'a', src, '# h', 'markdown', opts);
+
+  it('по умолчанию — исходник; стартовый режим берётся из опций открытия', () => {
+    expect(openMd().tabs.a?.mdView).toBe('code');
+    expect(openMd({ mdView: 'split' }).tabs.a?.mdView).toBe('split');
+  });
+
+  it('setMdView меняет только свою вкладку и не трогает preview-флаг', () => {
+    const s0 = R.openCodeTab(openMd({ preview: true }), 'b', src, 'x', 'markdown');
+    const s1 = R.setMdView(s0, 'a', 'preview');
+    expect(s1.tabs.a?.mdView).toBe('preview');
+    expect(s1.tabs.a?.preview).toBe(true); // временная вкладка остаётся временной
+    expect(s1.tabs.b?.mdView).toBe('code');
+  });
+
+  it('no-op возвращает тот же стейт (важно для useSyncExternalStore)', () => {
+    const s = openMd();
+    expect(R.setMdView(s, 'a', 'code')).toBe(s);
+    expect(R.setMdView(s, 'zzz', 'split')).toBe(s);
+  });
+
+  it('form-вкладку не трогает', () => {
+    const s = R.openTab(R.initialState(), 'f', src, emptySchema());
+    expect(R.setMdView(s, 'f', 'preview')).toBe(s);
+  });
+});
+
 describe('правки и история', () => {
   it('commit: снимок в историю, выделение = newPath, dirty', () => {
     const s0 = opened();

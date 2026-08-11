@@ -18,6 +18,8 @@ import { type NavDir } from '../model';
 import { saveDialogActions } from '../store/save-dialog';
 import { CanvasArea } from '../canvas/CanvasArea';
 import { CodeArea } from '../canvas/CodeArea';
+import { isMarkdownTab } from '../canvas/markdown/is-markdown';
+import { applyMarkdownView, cycleMarkdownView } from '../canvas/markdown/view-pref';
 import { TabBar } from '../canvas/TabBar';
 import { SaveDialog } from '../canvas/SaveDialog';
 import { CloseTabDialog } from '../canvas/CloseTabDialog';
@@ -155,6 +157,9 @@ function toggleLeftTo(kind: LeftPanelKind): void {
 
 // ── переключение режима отображения схемы (⌘⌥V цикл, ⌘⌥1/2/3 прямой) ──
 
+/** Сколько ждём вторую клавишу аккорда ⌘K V, прежде чем считать ⌘K забытым. */
+const CHORD_MS = 1500;
+
 /** Порядок режимов для циклического переключения (совпадает с сегментами переключателя). */
 const PREVIEW_ORDER: PreviewMode[] = ['wire', 'runtime', 'code'];
 
@@ -206,6 +211,9 @@ export function EditorLayout() {
   // перемещение, ⇧⌥↑/↓ — дублировать вверх/вниз (Copy Line), Delete/Backspace — удаление,
   // ⌘D — дублировать, ⌘Z/⇧⌘Z — undo/redo.
   useEffect(() => {
+    // Время нажатия ⌘K — первой половины аккорда «⌘K V» (единственный аккорд в билдере).
+    let chordAt = 0;
+
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
 
@@ -237,6 +245,31 @@ export function EditorLayout() {
         e.preventDefault();
         cycleZone(editorStore.getState().ui, e.shiftKey ? -1 : 1);
         return;
+      }
+
+      // ── Режимы markdown-вкладки (как в VSCode) ──
+      // ⇧⌘V — цикл Код/Предпросмотр/Рядом, ⌘K V — сразу «Рядом». Ограничение markdown-вкладкой
+      // обязательно: ⇧⌘V в браузере — «вставить как обычный текст», глушить его везде нельзя.
+      // Когда фокус в Monaco, те же аккорды перехватывает сам редактор (`addCommand` в CodeArea):
+      // его keybinding-service гасит событие раньше, чем оно дойдёт сюда.
+      if (isMarkdownTab(activeTab(editorStore.getState()))) {
+        if (mod && e.shiftKey && e.code === 'KeyV') {
+          e.preventDefault();
+          cycleMarkdownView(1);
+          return;
+        }
+        if (mod && !e.shiftKey && e.code === 'KeyK') {
+          e.preventDefault();
+          chordAt = performance.now();
+          return;
+        }
+        if (e.code === 'KeyV' && performance.now() - chordAt < CHORD_MS) {
+          e.preventDefault();
+          chordAt = 0;
+          const t = activeTab(editorStore.getState());
+          if (t) applyMarkdownView(t.id, 'split');
+          return;
+        }
       }
 
       // ── Режим отображения схемы (глобально) — по e.code: Alt на macOS искажает e.key (Option+V=√). ──

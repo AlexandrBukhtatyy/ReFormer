@@ -29,8 +29,10 @@ import {
   useSelectionPath,
   useUi,
 } from '../store';
-import type { PreviewMode } from '../store';
+import type { MarkdownView, PreviewMode } from '../store';
 import { emptySchema } from '../model';
+import { isMarkdownTab } from '../canvas/markdown/is-markdown';
+import { applyMarkdownView } from '../canvas/markdown/view-pref';
 import { exportExample, openProject, triggerSave } from './save-actions';
 import { requestClose } from './close-actions';
 import { HelpDialogs, type HelpDialog } from './HelpDialogs';
@@ -145,6 +147,32 @@ export function AppMenuBar() {
                 <MenubarShortcut>{formatShortcut('Mod+Alt+3')}</MenubarShortcut>
               </MenubarRadioItem>
             </MenubarRadioGroup>
+            {/* Режимы markdown-вкладки — только когда открыт .md: для схемы они бессмысленны. */}
+            {isMarkdownTab(tab) && (
+              <>
+                <MenubarSeparator />
+                <MenubarLabel>Markdown</MenubarLabel>
+                <MenubarRadioGroup
+                  value={tab?.mdView ?? 'code'}
+                  onValueChange={(v) => tab && applyMarkdownView(tab.id, v as MarkdownView)}
+                >
+                  <MenubarRadioItem value="code">
+                    Код
+                    <MenubarShortcut>{formatShortcut('Mod+Shift+V')}</MenubarShortcut>
+                  </MenubarRadioItem>
+                  <MenubarRadioItem value="preview">
+                    Предпросмотр
+                    <MenubarShortcut>{formatShortcut('Mod+Shift+V')}</MenubarShortcut>
+                  </MenubarRadioItem>
+                  <MenubarRadioItem value="split">
+                    Рядом
+                    <MenubarShortcut>
+                      {`${formatShortcut('Mod+K')} ${formatShortcut('V')}`}
+                    </MenubarShortcut>
+                  </MenubarRadioItem>
+                </MenubarRadioGroup>
+              </>
+            )}
             <MenubarSeparator />
             <MenubarItem onClick={() => editorActions.toggleLeftPanel()}>
               Боковая панель

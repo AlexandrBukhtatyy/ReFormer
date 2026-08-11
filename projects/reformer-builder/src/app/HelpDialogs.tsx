@@ -57,6 +57,13 @@ const SHORTCUT_GROUPS: ReadonlyArray<ShortcutGroup> = [
     ],
   },
   {
+    title: 'Markdown (.md вкладка)',
+    items: [
+      { label: 'Код / Предпросмотр / Рядом (цикл)', combos: ['Mod+Shift+V'] },
+      { label: 'Открыть предпросмотр рядом', combos: ['Mod+K', 'V'] },
+    ],
+  },
+  {
     title: 'Редактирование (холст: Схематичный и Renderer)',
     items: [
       {

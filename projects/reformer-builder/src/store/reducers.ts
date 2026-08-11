@@ -39,6 +39,7 @@ import type {
   EditorState,
   HistorySnapshot,
   LeftPanel,
+  MarkdownView,
   MockDraft,
   MockSection,
   PreviewMode,
@@ -114,7 +115,8 @@ export function makeCodeTab(
   source: TabSource,
   text: string,
   language: string,
-  preview = false
+  preview = false,
+  mdView: MarkdownView = 'code'
 ): TabState {
   const schema = emptySchema();
   return {
@@ -126,6 +128,7 @@ export function makeCodeTab(
     text,
     savedText: text,
     language,
+    mdView,
     past: [],
     future: [],
     selectionPath: null,
@@ -145,6 +148,11 @@ export function makeCodeTab(
 export interface OpenOptions {
   /** Открыть временной preview-вкладкой (одиночный клик в дереве файлов). По умолчанию — закреплённой. */
   preview?: boolean;
+  /**
+   * Стартовый режим markdown-вкладки. Редьюсеры чистые, поэтому «липкое» предпочтение
+   * (последний выбор пользователя) читает вызывающая сторона — см. `canvas/markdown/view-pref`.
+   */
+  mdView?: MarkdownView;
 }
 
 /** Id текущей preview-вкладки (она в редакторе одна), либо `null`. */
@@ -222,7 +230,17 @@ export function openCodeTab(
 ): EditorState {
   const preview = opts.preview ?? false;
   if (state.tabs[id]) return setActiveTab(preview ? state : pinTab(state, id), id);
-  return insertTab(state, makeCodeTab(id, source, text, language, preview));
+  return insertTab(state, makeCodeTab(id, source, text, language, preview, opts.mdView));
+}
+
+/**
+ * Режим показа markdown-вкладки: исходник / рендер / оба рядом. Содержимое не трогает, поэтому
+ * вкладку не «закрепляет» и в историю не пишет — это чисто про вид.
+ */
+export function setMdView(state: EditorState, id: string, mdView: MarkdownView): EditorState {
+  const tab = state.tabs[id];
+  if (!tab || tab.kind !== 'code' || tab.mdView === mdView) return state;
+  return { ...state, tabs: { ...state.tabs, [id]: { ...tab, mdView } } };
 }
 
 /**
