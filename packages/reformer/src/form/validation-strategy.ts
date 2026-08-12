@@ -43,9 +43,15 @@ export interface FormValidationController {
    * `afterFirstSubmit` в live-фазу. Возвращает `false`, если есть блокирующие ошибки.
    */
   validate(): Promise<boolean>;
-  /** Армировать реактивные подписки стратегии. Идемпотентно. Возвращает `dispose`. НЕ звать при SSR. */
+  /**
+   * Армировать реактивные подписки стратегии. Идемпотентно. Возвращает `dispose`. НЕ звать при SSR.
+   *
+   * После {@link FormValidationController.dispose} контроллер армируется ЗАНОВО: React монтирует
+   * компоненты повторно (StrictMode в разработке, remount по роуту), и «одноразовый» контроллер
+   * после такого цикла молча оставался бы без живой валидации.
+   */
   start(): () => void;
-  /** Снять подписки/таймеры. Идемпотентно. */
+  /** Снять подписки/таймеры. Идемпотентно; после него `start()` снова армирует стратегию. */
   dispose(): void;
   /** Идёт ли прогон (submit или live) — снапшот. */
   readonly isValidating: boolean;
@@ -83,7 +89,8 @@ export function createFormValidation<T>(
   const _validating = signal(false);
   let inFlight = 0;
   let submitted = false;
-  let disposed = false;
+  // Признак «стратегия армирована» — он же гарант идемпотентности start(). Отдельного флага
+  // `disposed` НЕТ намеренно: контроллер переиспользуемый, см. док `start()`.
   let disposeFx: (() => void) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -133,7 +140,7 @@ export function createFormValidation<T>(
       return run(true); // submit → touch:true (раскрыть все ошибки)
     },
     start() {
-      if (disposed || disposeFx) return () => controller.dispose(); // идемпотентно
+      if (disposeFx) return () => controller.dispose(); // уже армирован — идемпотентно
       const mode = strategy === 'afterFirstSubmit' ? liveAfterSubmit : strategy;
       if (mode === 'change') {
         disposeFx = arm((sig) => void sig.value, fireLiveDebounced);
@@ -145,7 +152,6 @@ export function createFormValidation<T>(
       return () => controller.dispose();
     },
     dispose() {
-      disposed = true;
       if (timer) {
         clearTimeout(timer);
         timer = undefined;

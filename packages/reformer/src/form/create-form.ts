@@ -77,6 +77,20 @@ function harvestFieldConfig(
   // пропускается ниже по ключу), но и под произвольными ключами: `text: model.$.x` у html-узла,
   // `componentProps.<prop>: '$model(…)'` после резолва в renderer-json.
   if (schema instanceof Signal) return;
+  // Узел ФОРМЫ (FormProxy/GroupNode) внутри схемы — обычно `componentProps: { form }` у визарда,
+  // когда дерево строят уже с формой. Спуск внутрь него — переполнение стека: прокси самоссылочен
+  // (`_proxyInstance`, `formSubmitter.form`), а обход не помнит посещённые объекты. Пропускаем узел
+  // (для harvest он всё равно бесполезен) и подсказываем, как строить дерево правильно.
+  if (typeof (schema as { getProxy?: unknown }).getProxy === 'function') {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[reformer] createForm({ schema }): в схему попал узел формы (FormProxy) — он пропущен. ' +
+          'Стройте дерево для createForm БЕЗ формы, а форму донесите до узла вторым проходом ' +
+          '(билдер `(model, form?) => …`) либо через render-behavior `patchProps({ form })`.'
+      );
+    }
+    return;
+  }
   if (Array.isArray(schema)) {
     for (const child of schema) harvestFieldConfig(child, map, arrayItems);
     return;

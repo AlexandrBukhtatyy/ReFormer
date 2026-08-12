@@ -10,7 +10,7 @@
  * - массивы пока дают явную ошибку (следующий шаг)
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createForm } from '../../../src/form/create-form';
 import { createModel } from '../../../src/state/index';
 
@@ -81,5 +81,33 @@ describe('createForm({ model, schema })', () => {
     expect(model.name).toBe('ok');
     // массив пропущен — им управляют модель + рендер (см. create-form-arrays.test.ts)
     expect((form as unknown as Record<string, unknown>).tags).toBeUndefined();
+  });
+});
+
+describe('createForm({ model, schema }) — узел формы внутри схемы', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('FormProxy в схеме пропускается с подсказкой вместо переполнения стека', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const model = createModel<Form>({ email: '', profile: { name: '', age: 0 } });
+    // Первый проход: дерево без формы — так и надо строить схему для createForm.
+    const form = createForm<Form>({
+      model,
+      schema: { children: [{ value: model.$.email, component: InputStub }] },
+    });
+
+    // Второй проход: дерево, куда уже положили форму (типичный визард). Раньше рекурсивный обход
+    // уходил по самоссылкам прокси и падал с RangeError.
+    const rebuilt = createForm<Form>({
+      model,
+      schema: {
+        component: SectionStub,
+        componentProps: { form },
+        children: [{ value: model.$.email, component: InputStub }],
+      },
+    });
+
+    expect(rebuilt.email.component).toBe(InputStub); // остальная схема отхарвестилась
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('узел формы (FormProxy)'));
   });
 });

@@ -155,6 +155,39 @@ describe('createFormValidation — стратегии запуска', () => {
     expect(form.name.errors.value).toEqual([]); // после dispose прогонов нет
   });
 
+  it('start после dispose армирует стратегию заново (StrictMode / remount)', async () => {
+    const { model, form } = makeForm();
+    const ctrl = createFormValidation(model, nameRequired, { strategy: 'change' });
+
+    // Цикл, который React в StrictMode выполняет при монтировании: эффект → cleanup → эффект.
+    ctrl.start();
+    ctrl.dispose();
+    ctrl.start();
+
+    model.name = 'x';
+    await flush();
+    expect(form.name.errors.value.map((e) => e.code)).toContain('minLength');
+
+    ctrl.dispose();
+  });
+
+  it('повторный start без dispose не дублирует подписки', async () => {
+    const { model } = makeForm();
+    const schema = vi.fn(({ model: m }: { model: typeof model }) => {
+      validate(m.$.name, [required({ message: 'req' })]);
+    });
+    const ctrl = createFormValidation(model, schema, { strategy: 'change' });
+    ctrl.start();
+    ctrl.start(); // идемпотентно
+
+    schema.mockClear();
+    model.name = 'ab';
+    await flush();
+    expect(schema).toHaveBeenCalledTimes(1); // один прогон, а не два
+
+    ctrl.dispose();
+  });
+
   it('isValidating отражает in-flight прогон', async () => {
     const { model } = makeForm();
     const ctrl = createFormValidation(model, nameRequired, { strategy: 'submit' });
