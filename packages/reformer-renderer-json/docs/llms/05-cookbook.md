@@ -41,16 +41,16 @@ export function MyFormPage() {
 
 **Notes.**
 
-- `convertJsonToM1Tree` бросает при битой схеме (неизвестный `$component`) **до** рендера. Оберни в try/catch, если хочешь показать `SchemaErrorPanel` вместо краша (см. `buildModelAndForm` в эталоне).
+- `convertJsonToM1Tree` бросает при битой схеме (неизвестный `$component`) **до** рендера. На ручном пути оберни вызов в try/catch, если хочешь показать `SchemaErrorPanel` вместо краша; на рекомендуемом (`createJsonForm`) схему стерегут CI-гейт `validate_json_schema` и проп `validateSchema`.
 - `validateSchema={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
-- Поведение (compute/enableWhen/navigation) идёт в `createForm({ behavior })`; render-behavior (hideWhen/patchProps/onInit) — отдельным пропом `renderBehavior`.
+- Поведение (compute/enableWhen/navigation) идёт полем `behavior`; render-behavior (hideWhen/patchProps/onInit) — полем `renderBehavior` того же конфига.
 - Ручная сборка выше — низкоуровневый путь. Рекомендуемый — собрать всё одним проходом через `createJsonForm` и отдать бандлом `form={jsonForm}`, см. [ниже](#one-pass).
 
 ## Сборка формы одним проходом { #one-pass }
 
 **Problem.** Ручной монтаж (см. выше) передаёт схему дважды: в `convertJsonToM1Tree` (для `createForm`) и пропом `schema` в `JsonFormRenderer`. Две несвязанные передачи одного артефакта легко разъезжаются (рендереру уходит не та схема/модель), а «собрать ровно один раз» держится на комментарии. Плюс `useMemo` для сборки модели/формы ненадёжен: React вправе сбросить его кэш и пересоздать форму → потеря введённого.
 
-**Solution.** `createJsonForm<T>({ schema, registry, initial | model, behavior? })` собирает всё за один проход и возвращает бандл `{ model, form, schema, registry }`. Хук `useJsonForm(factory)` делает сборку стабильной (ленивый `useState` — фабрика зовётся ровно один раз). Бандл целиком отдаётся рендереру пропом `form` — `schema` и `model` он берёт из него.
+**Solution.** `createJsonForm<T>({ schema, registry, initial | model, behavior?, validation?, renderBehavior?, seed?, setup? })` собирает всё за один проход и возвращает бандл `{ model, form, schema, registry, validation?, renderBehavior? }`. Хук `useJsonForm(factory)` делает сборку стабильной (ленивый `useState` — фабрика зовётся ровно один раз). Бандл целиком отдаётся рендереру пропом `form` — `schema` и `model` он берёт из него.
 
 ```tsx
 import { useMemo } from 'react';
@@ -127,7 +127,7 @@ const jsonForm = useJsonForm(() =>
 **Notes.**
 
 - Модель задаётся **либо** `initial` (создаётся внутри через `createModel`), **либо** готовой `model` (приоритетнее `initial`). Ни того, ни другого — `createJsonForm` бросает.
-- `behavior` (compute/copyFrom/enableWhen/onChange модели) уходит в `createForm({ behavior })` внутри — не путать с `renderBehavior` (hideWhen/patchProps/onInit), который по-прежнему отдельный проп `JsonFormRenderer`.
+- `behavior` (compute/copyFrom/enableWhen/onChange модели) — реактивность ДАННЫХ; `renderBehavior` (hideWhen/patchProps/onInit) — реактивность РЕНДЕРА. Оба задаются полями конфига; `renderBehavior` — фабрикой `(form, model, validation?) => RenderBehaviorFn<T>`, потому что ей нужны уже собранные сущности. Одноимённый проп рендерера остаётся для перекрытия на месте монтирования.
 - `JsonFormRenderer` принимает **либо** `form={jsonForm}`, **либо** пару `schema` + `model`. С бандлом отдельные `schema`/`model` не нужны; не задать ни `form`, ни `schema`+`model` — рендерер бросит.
 - `useJsonForm(factory)` — стабильная сборка через ленивый `useState`; `factory` вызывается ровно один раз. `useMemo` для сборки формы не годится (React вправе сбросить кэш → потеря введённого).
 - `defineJsonSchema<T>` — identity-хелпер: сужает пути `$model(...)` до `Path<T>` (опечатка — ошибка компиляции). Схему-строку-с-сервера (тип формы неизвестен) типизируй `JsonFormSchema` без параметра (`raw as unknown as JsonFormSchema<T>`). Пути внутри `item.$template` относительны элементу и НЕ типизируются.
@@ -326,19 +326,21 @@ import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
 
 function createMyRenderBehavior(
   form: FormProxy<MyForm>,
-  model: FormModel<MyForm>
+  model: FormModel<MyForm>,
+  validation?: FormValidationBundle<MyForm>
 ): RenderBehaviorFn<MyForm> {
   return (schema) => {
     // JSON-схема не знает про FormProxy/валидацию — инъектим их в wizard до первого рендера.
     onInit(schema.node('wizard'), () => {
-      schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
+      schema.node('wizard').patchProps({ form, ...(validation ?? makeValidationConfig(model)) });
     });
     // Остальное поведение (visibility/navigation) — из shared render-behavior.
     createSharedRenderBehavior(form)(schema);
   };
 }
 
-// <JsonFormRenderer schema={jsonSchema} renderBehavior={createMyRenderBehavior(form, model)} />
+// Подключение: `renderBehavior: createMyRenderBehavior` в конфиге createJsonForm — фабрика получит
+// (form, model, validation) уже собранными, а бандл уедет в <JsonFormRenderer form={jsonForm} />.
 ```
 
 **Notes.**
@@ -426,7 +428,7 @@ const registry = defineRegistry((reg) => {
 
 - В JSON `children` всегда отдельное поле узла (не `componentProps.children`).
 - field/array/container взаимоисключающи: `value` → лист, `array`+`item` → массив, `component`+`children` → контейнер. Дискриминация в конвертере: array → field → container.
-- Поведение (`hideWhen`, `onInit`, lifecycle) **не** переезжает в JSON — остаётся TS-функцией `RenderBehaviorFn<T>` и передаётся пропом `renderBehavior`. В эталоне TS- и JSON-варианты переиспользуют один shared behavior.
+- Поведение (`hideWhen`, `onInit`, lifecycle) **не** переезжает в JSON — остаётся TS-функцией `RenderBehaviorFn<T>` и подключается полем `renderBehavior` конфига сборки. В эталоне TS- и JSON-варианты переиспользуют один shared behavior.
 
 ## Презентационные блоки без регистрации компонентов { #html-nodes }
 

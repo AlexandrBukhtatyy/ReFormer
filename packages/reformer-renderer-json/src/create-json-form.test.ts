@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import type { RenderBehaviorFn } from '@reformer/renderer-react';
 import { createJsonForm } from './create-json-form';
 import { defineJsonSchema } from './types/json-schema';
 import { defineRegistry } from './registry/component-registry';
@@ -49,5 +52,64 @@ describe('createJsonForm', () => {
 
   it('бросает, если не заданы ни initial, ни model', () => {
     expect(() => createJsonForm<F>({ schema, registry })).toThrow(/initial|model/i);
+  });
+});
+
+describe('createJsonForm — валидация, поведение и фазы', () => {
+  const emailRules = defineValidationSchema<F>(({ model }) => {
+    validate(model.$.email, [required({ message: 'req' })]);
+  });
+
+  it('собирает валидацию из правил и кладёт бандл в результат', async () => {
+    const jf = createJsonForm<F>({
+      schema,
+      registry,
+      initial: { email: '', agree: false },
+      validation: { steps: { account: emailRules }, strategy: 'change' },
+    });
+    expect(jf.validation?.stepSelectors).toEqual(['account']);
+    expect(await jf.validation!.validateStep('account')).toBe(false); // email пустой
+    jf.model.email = 'a@b.c';
+    expect(await jf.validation!.validateAll()).toBe(true);
+  });
+
+  it('renderBehavior: фабрика зовётся один раз с формой, моделью и валидацией; результат в бандле', () => {
+    const applied: RenderBehaviorFn<F> = () => {};
+    const factory = vi.fn(() => applied);
+    const jf = createJsonForm<F>({
+      schema,
+      registry,
+      initial: { email: '', agree: false },
+      validation: emailRules,
+      renderBehavior: factory,
+    });
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(factory).toHaveBeenCalledWith(jf.form, jf.model, jf.validation);
+    expect(jf.renderBehavior).toBe(applied);
+  });
+
+  it('без renderBehavior поле остаётся пустым (старый путь не тронут)', () => {
+    const jf = createJsonForm<F>({ schema, registry, initial: { email: '', agree: false } });
+    expect(jf.renderBehavior).toBeUndefined();
+    expect(jf.validation).toBeUndefined();
+  });
+
+  it('seed правит модель до сборки формы, setup — после', () => {
+    const order: string[] = [];
+    const jf = createJsonForm<F>({
+      schema,
+      registry,
+      initial: { email: '', agree: false },
+      seed: (model) => {
+        order.push('seed');
+        model.email = 'seeded@x';
+      },
+      setup: (bundle) => {
+        order.push('setup');
+        expect(bundle.form.email.value.value).toBe('seeded@x');
+      },
+    });
+    expect(order).toEqual(['seed', 'setup']);
+    expect(jf.model.email).toBe('seeded@x');
   });
 });

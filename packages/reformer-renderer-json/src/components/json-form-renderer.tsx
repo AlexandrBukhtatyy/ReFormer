@@ -30,8 +30,8 @@ import { SchemaErrorBoundary } from './schema-error-boundary';
  */
 export interface JsonFormRendererProps<T> {
   /**
-   * Собранный бандл {@link createJsonForm} (`{ model, form, schema, registry }`). Если задан —
-   * поставляет `schema` + `model` (передавать их отдельно не нужно). Иначе укажи `schema` + `model`.
+   * Собранный бандл {@link createJsonForm}. Если задан — поставляет `schema`, `model`, `registry`
+   * и `renderBehavior` (передавать их отдельно не нужно). Иначе укажи `schema` + `model`.
    */
   form?: JsonForm<T>;
   /**
@@ -57,7 +57,11 @@ export interface JsonFormRendererProps<T> {
    * Проп убирает эту точку отказа: реестр передаётся напрямую, провайдер становится необязательным.
    */
   registry?: ComponentRegistry;
-  /** Опциональный behavior: hideWhen/patchProps/onComponentEvent поверх готовой схемы. */
+  /**
+   * Behavior поверх готовой схемы: hideWhen/patchProps/onComponentEvent. Приоритет: этот проп →
+   * `form.renderBehavior` (собранный фабрикой). Ссылка обязана быть стабильной — см. dev-предупреждение
+   * ниже по файлу.
+   */
   renderBehavior?: RenderBehaviorFn<T>;
   /** Колбэк, получающий построенный `RenderSchemaProxy` для внешних манипуляций. */
   onSchemaReady?: (schema: RenderSchemaProxy<T>) => void;
@@ -140,7 +144,7 @@ export function JsonFormRenderer<T>({
   schema: schemaProp,
   model: modelProp,
   registry: registryProp,
-  renderBehavior,
+  renderBehavior: renderBehaviorProp,
   onSchemaReady,
   validateSchema = false,
 }: JsonFormRendererProps<T>): ReactNode {
@@ -153,6 +157,9 @@ export function JsonFormRenderer<T>({
   const model = form?.model ?? modelProp;
   // Явный проп важнее бандла, бандл важнее контекста.
   const registry = registryProp ?? form?.registry ?? contextRegistry;
+  // То же правило для поведения: место монтирования вправе подменить его, бандл даёт умолчание,
+  // собранное вместе с формой (и потому стабильное по ссылке).
+  const renderBehavior = renderBehaviorProp ?? form?.renderBehavior;
 
   // `$fieldWrapper` — не обычный компонент: из реестра его достаёт ПРОВАЙДЕР и кладёт в
   // `settings.fieldWrapper`. Реестр, пришедший пропом или бандлом `form`, провайдера не проходит,

@@ -46,7 +46,7 @@ import {
 
 ## 3. Quick Start
 
-Ключевая идея M1: **модель (`FormModel`) — источник данных, JSON-схема — layout**. Сборка формы — ОДНИМ проходом через `createJsonForm`; результат (`{ model, form, schema, registry }`) отдаётся рендереру пропом `form`.
+Ключевая идея M1: **модель (`FormModel`) — источник данных, JSON-схема — layout**. Сборка формы — ОДНИМ проходом через `createJsonForm`; результат (`{ model, form, schema, registry, validation?, renderBehavior? }`) отдаётся рендереру пропом `form`.
 
 Минимальный рабочий монтаж:
 
@@ -100,9 +100,9 @@ function MyFormPage() {
 }
 ```
 
-**Сборка один раз (`createJsonForm`).** Раньше схема шла дважды — в `convertJsonToM1Tree` (сборка формы) и пропом `schema` (рендер). `createJsonForm({ schema, registry, initial | model, behavior? })` инкапсулирует сборку и возвращает бандл `{ model, form, schema, registry }`. `useJsonForm(factory)` гарантирует единственную сборку (ленивый `useState`). Низкоуровневые `convertJsonToM1Tree`/`createRenderSchemaFromJsonM1` остаются для особых случаев.
+**Сборка один раз (`createJsonForm`).** Раньше схема шла дважды — в `convertJsonToM1Tree` (сборка формы) и пропом `schema` (рендер). `createJsonForm({ schema, registry, initial | model, behavior?, validation?, renderBehavior?, seed?, setup? })` инкапсулирует сборку и возвращает бандл `{ model, form, schema, registry, validation?, renderBehavior? }`. `useJsonForm(factory)` гарантирует единственную сборку (ленивый `useState`). Низкоуровневые `convertJsonToM1Tree`/`createRenderSchemaFromJsonM1` остаются для особых случаев.
 
-**Registry — глобально, форма — per-form.** `registry`/`fieldWrapper` общие на всё поддерево форм и живут в `JsonRendererProvider`; модель/форма per-form — приходят пропом (бандлом `form`, либо парой `schema`+`model`). Под одним провайдером можно рендерить несколько форм. Полный набор пропов — `{ form? | (schema + model), renderBehavior?, onSchemaReady?, validateSchema? }` (задаётся ЛИБО `form`, ЛИБО `schema`+`model`).
+**Registry — глобально, форма — per-form.** `registry`/`fieldWrapper` общие на всё поддерево форм и живут в `JsonRendererProvider`; модель/форма per-form — приходят пропом (бандлом `form`, либо парой `schema`+`model`). Под одним провайдером можно рендерить несколько форм. Полный набор пропов — `{ form? | (schema + model), renderBehavior?, onSchemaReady?, validateSchema? }` (задаётся ЛИБО `form`, ЛИБО `schema`+`model`). `renderBehavior` пропом нужен, только чтобы ПЕРЕКРЫТЬ поведение из бандла: приоритет — проп → `form.renderBehavior`.
 
 **Схема строкой с сервера.** Если схема приходит `.json`-строкой (тип формы неизвестен), используй `JsonFormSchema` без параметра — типобезопасность путей отключается by-design (два сценария выглядят в коде по-разному). Такую схему приводят `raw as unknown as JsonFormSchema<MyForm>` и передают в `createJsonForm`/рендерер как обычно.
 
@@ -114,17 +114,17 @@ function MyFormPage() {
 - **Реестр** — карта имени из `$component(...)`/`$dataSource(...)` на React-компонент или source-значение. Без регистрации схема не сконвертируется (ошибка `Component "X" not found in registry`).
 - **`FIELD_WRAPPER`** — зарезервированный ключ реестра (`'$fieldWrapper'`) для компонента-обёртки полей (label, error, hint). Обычно `FormField` из `@reformer/ui-kit`.
 - **Адаптеры контролов (`resolveFieldAdapter`)** — `JsonRendererSettings extends RendererSettings`, поэтому в `JsonRendererProvider` settings можно передать `resolveFieldAdapter(component) => FieldAdapter | undefined`. Value-based контролы (`Input` и пр.) регистрируются как есть; СЫРОЙ контрол чужого диалекта (Checkbox `checked` + `onChange(event)`, Select `onChange(value, option)`, Radio `onChange(event)`) регистрируется по имени в реестре, а адаптер переводит seam `value` + `onChange(value)` на его диалект — без обёртки на каждый контрол. Детали — [03-registry.md](03-registry.md).
-- **`createJsonForm` / `useJsonForm`** — сборка формы одним проходом: `createJsonForm({ schema, registry, initial | model, behavior? })` → `{ model, form, schema, registry }`; `useJsonForm(factory)` держит бандл стабильным (ленивый `useState`). Отдаётся рендереру пропом `form`. См. [05-cookbook.md](05-cookbook.md).
+- **`createJsonForm` / `useJsonForm`** — сборка формы одним проходом: `createJsonForm({ schema, registry, initial | model, behavior?, validation?, renderBehavior?, seed?, setup? })` → `{ model, form, schema, registry, validation?, renderBehavior? }`; `useJsonForm(factory)` (тот же `useFormBundle` из core) держит бандл стабильным и армит живую валидацию. Отдаётся рендереру пропом `form`. См. [05-cookbook.md](05-cookbook.md).
 - **`defineJsonSchema<T>`** — идентити-хелпер, типизирующий литерал схемы по форме `T`: пути `$model(...)` сужаются до `Path<T>` (опечатка — ошибка компиляции), не нужен `as unknown as JsonFormSchema`. См. [02-json-schema.md](02-json-schema.md).
 - **`convertJsonToM1Tree`** — низкоуровневый конвертер JSON → RenderNode-дерево для `createForm({ model, schema })` (обычно скрыт за `createJsonForm`).
-- **`renderBehavior`** — TS-функция `RenderBehaviorFn<T>` (hideWhen/patchProps/onInit), применяется поверх готовой схемы; в JSON поведение не выражается. Должна быть **стабильной по ссылке** (иначе dev-warn + пересборка дерева).
+- **`renderBehavior`** — TS-функция `RenderBehaviorFn<T>` (hideWhen/patchProps/onInit), применяется поверх готовой схемы; в JSON поведение не выражается. Задавай его полем конфига `createJsonForm` — фабрика `(form, model, validation?) => RenderBehaviorFn<T>` получает уже собранные сущности, а ссылка выходит стабильной по построению (иначе — dev-warn + пересборка дерева на каждый рендер).
 
 ## 5. Components and exports
 
 | Export                                          | Purpose                                                                    |
 | ----------------------------------------------- | -------------------------------------------------------------------------- |
 | `JsonFormRenderer`                              | Главный компонент-рендерер. Пропы: `{ form? }` ЛИБО `{ schema, model }`, + `renderBehavior?, onSchemaReady?, validateSchema?`. |
-| `createJsonForm` / `useJsonForm`                | Сборка формы одним проходом → бандл `{ model, form, schema, registry }` (проп `form`); `useJsonForm` — стабильная сборка (ленивый `useState`). |
+| `createJsonForm` / `useJsonForm`                | Сборка формы одним вызовом → бандл `{ model, form, schema, registry, validation?, renderBehavior? }` (проп `form`); `useJsonForm` — стабильная сборка + арминг живой валидации. |
 | `defineJsonSchema<T>`                           | Типизирует литерал схемы по форме `T` (пути `$model(...)` → `Path<T>`).      |
 | `JsonRendererProvider`                          | Контекст-провайдер глобальных настроек: реестр (`registry`), `fieldWrapper`, `resolveFieldAdapter`. |
 | `useJsonRendererSettings`                       | Хук для чтения текущих настроек контекста.                                  |
@@ -637,16 +637,16 @@ export function MyFormPage() {
 
 **Notes.**
 
-- `convertJsonToM1Tree` бросает при битой схеме (неизвестный `$component`) **до** рендера. Оберни в try/catch, если хочешь показать `SchemaErrorPanel` вместо краша (см. `buildModelAndForm` в эталоне).
+- `convertJsonToM1Tree` бросает при битой схеме (неизвестный `$component`) **до** рендера. На ручном пути оберни вызов в try/catch, если хочешь показать `SchemaErrorPanel` вместо краша; на рекомендуемом (`createJsonForm`) схему стерегут CI-гейт `validate_json_schema` и проп `validateSchema`.
 - `validateSchema={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
-- Поведение (compute/enableWhen/navigation) идёт в `createForm({ behavior })`; render-behavior (hideWhen/patchProps/onInit) — отдельным пропом `renderBehavior`.
+- Поведение (compute/enableWhen/navigation) идёт полем `behavior`; render-behavior (hideWhen/patchProps/onInit) — полем `renderBehavior` того же конфига.
 - Ручная сборка выше — низкоуровневый путь. Рекомендуемый — собрать всё одним проходом через `createJsonForm` и отдать бандлом `form={jsonForm}`, см. [ниже](#one-pass).
 
 ## 34. Сборка формы одним проходом { #one-pass }
 
 **Problem.** Ручной монтаж (см. выше) передаёт схему дважды: в `convertJsonToM1Tree` (для `createForm`) и пропом `schema` в `JsonFormRenderer`. Две несвязанные передачи одного артефакта легко разъезжаются (рендереру уходит не та схема/модель), а «собрать ровно один раз» держится на комментарии. Плюс `useMemo` для сборки модели/формы ненадёжен: React вправе сбросить его кэш и пересоздать форму → потеря введённого.
 
-**Solution.** `createJsonForm<T>({ schema, registry, initial | model, behavior? })` собирает всё за один проход и возвращает бандл `{ model, form, schema, registry }`. Хук `useJsonForm(factory)` делает сборку стабильной (ленивый `useState` — фабрика зовётся ровно один раз). Бандл целиком отдаётся рендереру пропом `form` — `schema` и `model` он берёт из него.
+**Solution.** `createJsonForm<T>({ schema, registry, initial | model, behavior?, validation?, renderBehavior?, seed?, setup? })` собирает всё за один проход и возвращает бандл `{ model, form, schema, registry, validation?, renderBehavior? }`. Хук `useJsonForm(factory)` делает сборку стабильной (ленивый `useState` — фабрика зовётся ровно один раз). Бандл целиком отдаётся рендереру пропом `form` — `schema` и `model` он берёт из него.
 
 ```tsx
 import { useMemo } from 'react';
@@ -723,7 +723,7 @@ const jsonForm = useJsonForm(() =>
 **Notes.**
 
 - Модель задаётся **либо** `initial` (создаётся внутри через `createModel`), **либо** готовой `model` (приоритетнее `initial`). Ни того, ни другого — `createJsonForm` бросает.
-- `behavior` (compute/copyFrom/enableWhen/onChange модели) уходит в `createForm({ behavior })` внутри — не путать с `renderBehavior` (hideWhen/patchProps/onInit), который по-прежнему отдельный проп `JsonFormRenderer`.
+- `behavior` (compute/copyFrom/enableWhen/onChange модели) — реактивность ДАННЫХ; `renderBehavior` (hideWhen/patchProps/onInit) — реактивность РЕНДЕРА. Оба задаются полями конфига; `renderBehavior` — фабрикой `(form, model, validation?) => RenderBehaviorFn<T>`, потому что ей нужны уже собранные сущности. Одноимённый проп рендерера остаётся для перекрытия на месте монтирования.
 - `JsonFormRenderer` принимает **либо** `form={jsonForm}`, **либо** пару `schema` + `model`. С бандлом отдельные `schema`/`model` не нужны; не задать ни `form`, ни `schema`+`model` — рендерер бросит.
 - `useJsonForm(factory)` — стабильная сборка через ленивый `useState`; `factory` вызывается ровно один раз. `useMemo` для сборки формы не годится (React вправе сбросить кэш → потеря введённого).
 - `defineJsonSchema<T>` — identity-хелпер: сужает пути `$model(...)` до `Path<T>` (опечатка — ошибка компиляции). Схему-строку-с-сервера (тип формы неизвестен) типизируй `JsonFormSchema` без параметра (`raw as unknown as JsonFormSchema<T>`). Пути внутри `item.$template` относительны элементу и НЕ типизируются.
@@ -922,19 +922,21 @@ import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
 
 function createMyRenderBehavior(
   form: FormProxy<MyForm>,
-  model: FormModel<MyForm>
+  model: FormModel<MyForm>,
+  validation?: FormValidationBundle<MyForm>
 ): RenderBehaviorFn<MyForm> {
   return (schema) => {
     // JSON-схема не знает про FormProxy/валидацию — инъектим их в wizard до первого рендера.
     onInit(schema.node('wizard'), () => {
-      schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
+      schema.node('wizard').patchProps({ form, ...(validation ?? makeValidationConfig(model)) });
     });
     // Остальное поведение (visibility/navigation) — из shared render-behavior.
     createSharedRenderBehavior(form)(schema);
   };
 }
 
-// <JsonFormRenderer schema={jsonSchema} renderBehavior={createMyRenderBehavior(form, model)} />
+// Подключение: `renderBehavior: createMyRenderBehavior` в конфиге createJsonForm — фабрика получит
+// (form, model, validation) уже собранными, а бандл уедет в <JsonFormRenderer form={jsonForm} />.
 ```
 
 **Notes.**
@@ -1022,7 +1024,7 @@ const registry = defineRegistry((reg) => {
 
 - В JSON `children` всегда отдельное поле узла (не `componentProps.children`).
 - field/array/container взаимоисключающи: `value` → лист, `array`+`item` → массив, `component`+`children` → контейнер. Дискриминация в конвертере: array → field → container.
-- Поведение (`hideWhen`, `onInit`, lifecycle) **не** переезжает в JSON — остаётся TS-функцией `RenderBehaviorFn<T>` и передаётся пропом `renderBehavior`. В эталоне TS- и JSON-варианты переиспользуют один shared behavior.
+- Поведение (`hideWhen`, `onInit`, lifecycle) **не** переезжает в JSON — остаётся TS-функцией `RenderBehaviorFn<T>` и подключается полем `renderBehavior` конфига сборки. В эталоне TS- и JSON-варианты переиспользуют один shared behavior.
 
 ## 42. Презентационные блоки без регистрации компонентов { #html-nodes }
 
@@ -1999,8 +2001,8 @@ _Source: src/converter/json-to-render-schema.ts_
 **Kind:** `function`
 
 Собирает форму из JSON-схемы за ОДИН проход: создаёт (или принимает) модель, конвертирует схему в
-дерево нод и строит форму. Схема передаётся один раз; результат целиком отдаётся рендереру пропом
-`form`.
+дерево нод, строит форму, собирает валидацию и render-behavior. Схема передаётся один раз;
+результат целиком отдаётся рендереру пропом `form`.
 
 **Signature:**
 ```typescript
@@ -2008,7 +2010,8 @@ export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>
 ```
 
 **Parameters:**
-- `config` — - {@link CreateJsonFormConfig}: `schema` + `registry` + (`initial` | `model`) + опц. `behavior`.
+- `config` — - {@link CreateJsonFormConfig}: `schema` + `registry` + (`initial` | `model`) + опц.
+`behavior`, `validation`, `renderBehavior`, `seed`, `setup`.
 
 **Returns:** 
 
@@ -2016,11 +2019,18 @@ export function createJsonForm<T extends object>(config: CreateJsonFormConfig<T>
 
 ```tsx
 const jsonForm = useJsonForm(() =>
-  createJsonForm<CreditForm>({ schema, registry, initial: INITIAL, behavior: formBehavior })
+  createJsonForm<CreditForm>({
+    schema,
+    registry,
+    model: createCreditModel(),
+    behavior: formBehavior,
+    validation: { steps: { loan: loanRules }, extras: crossRules },
+    renderBehavior: makeCreditRenderBehavior,
+  })
 );
 return (
-  <JsonRendererProvider settings={{ registry }}>
-    <JsonFormRenderer form={jsonForm} renderBehavior={renderBehavior} />
+  <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
+    <JsonFormRenderer form={jsonForm} />
   </JsonRendererProvider>
 );
 ```
@@ -2035,17 +2045,17 @@ _Source: src/create-json-form.ts_
 
 **Signature:**
 ```typescript
-export interface CreateJsonFormConfig<T> {
+export interface CreateJsonFormConfig<T> extends CreateFormConfigBase<T, JsonForm<T>> {
   /** JSON-схема формы (типизируй по `T` через `defineJsonSchema<T>`). */
   schema: JsonFormSchema<T>;
   /** Реестр компонентов/source. */
   registry: ComponentRegistry;
-  /** Начальные значения — из них создаётся модель. Взаимоисключимо с `model`. */
-  initial?: T;
-  /** Готовая модель (если создана отдельно). Приоритетнее `initial`. */
-  model?: FormModel<T>;
-  /** Декларативное поведение модели (compute/copyFrom/enableWhen/onChange). */
-  behavior?: FormBehavior<T>;
+  /** Фабрика render-behavior: получает уже собранные форму, модель и валидацию. */
+  renderBehavior?: (
+    form: FormProxy<T>,
+    model: FormModel<T>,
+    validation?: FormValidationBundle<T>
+  ) => RenderBehaviorFn<T>;
 }
 ```
 
@@ -2867,15 +2877,17 @@ _Source: src/types/json-schema.ts_
 
 **Signature:**
 ```typescript
-export interface JsonForm<T> {
-  /** Модель данных (источник истины значений). */
-  model: FormModel<T>;
-  /** Дерево нод формы (валидация/поведение/submit). */
-  form: FormProxy<T>;
+export interface JsonForm<T> extends CoreForm<T> {
   /** Та же JSON-схема, из которой собраны model+form (рендерер строит из неё render-дерево). */
   schema: JsonFormSchema<T>;
   /** Реестр компонентов/source (нужен рендереру для резолва имён). */
   registry: ComponentRegistry;
+  /**
+   * Render-behavior, собранный фабрикой из конфига. В отличие от React-варианта он ещё НЕ применён:
+   * дерево строит сам рендерер, он же и накладывает поведение. Ссылка стабильна — бандл собран один
+   * раз, поэтому рендерер не пересобирает дерево на каждый рендер.
+   */
+  renderBehavior?: RenderBehaviorFn<T>;
 }
 ```
 
@@ -2897,7 +2909,7 @@ export function JsonFormRenderer<T>({
   schema: schemaProp,
   model: modelProp,
   registry: registryProp,
-  renderBehavior,
+  renderBehavior: renderBehaviorProp,
   onSchemaReady,
   validateSchema = false,
 }: JsonFormRendererProps<T>): ReactNode
@@ -2972,8 +2984,8 @@ Props of {@link JsonFormRenderer}.
 ```typescript
 export interface JsonFormRendererProps<T> {
   /**
-   * Собранный бандл {@link createJsonForm} (`{ model, form, schema, registry }`). Если задан —
-   * поставляет `schema` + `model` (передавать их отдельно не нужно). Иначе укажи `schema` + `model`.
+   * Собранный бандл {@link createJsonForm}. Если задан — поставляет `schema`, `model`, `registry`
+   * и `renderBehavior` (передавать их отдельно не нужно). Иначе укажи `schema` + `model`.
    */
   form?: JsonForm<T>;
   /**
@@ -2999,7 +3011,11 @@ export interface JsonFormRendererProps<T> {
    * Проп убирает эту точку отказа: реестр передаётся напрямую, провайдер становится необязательным.
    */
   registry?: ComponentRegistry;
-  /** Опциональный behavior: hideWhen/patchProps/onComponentEvent поверх готовой схемы. */
+  /**
+   * Behavior поверх готовой схемы: hideWhen/patchProps/onComponentEvent. Приоритет: этот проп →
+   * `form.renderBehavior` (собранный фабрикой). Ссылка обязана быть стабильной — см. dev-предупреждение
+   * ниже по файлу.
+   */
   renderBehavior?: RenderBehaviorFn<T>;
   /** Колбэк, получающий построенный `RenderSchemaProxy` для внешних манипуляций. */
   onSchemaReady?: (schema: RenderSchemaProxy<T>) => void;
@@ -3650,21 +3666,25 @@ _Source: src/locale/use-signal-value.ts_
 
 ### useJsonForm
 
-**Kind:** `function`
+**Kind:** `const`
 
-Хук стабильной сборки формы: `factory` вызывается РОВНО один раз (ленивый инициализатор `useState`),
+Хук стабильной сборки формы: фабрика вызывается РОВНО один раз (ленивый инициализатор `useState`),
 поэтому model/form переживают ре-рендеры. `useMemo` для этого не годится — React вправе сбросить
-его кэш и пересоздать форму (потеря введённого). §7 рекомендаций.
+его кэш и пересоздать форму (потеря введённого). Живая валидация армируется в эффекте.
+
+Это общий хук семейства (`useFormBundle` из `@reformer/core`) под именем JSON-слоя: он не сужает
+результат до `JsonForm<T>`, поэтому расширенные бандлы (со своими полями) переживают его без
+потерь.
 
 **Signature:**
 ```typescript
-export function useJsonForm<T>(factory: () => JsonForm<T>): JsonForm<T>
+export const useJsonForm
 ```
 
 **Parameters:**
 - `factory` — - Фабрика бандла (обычно `() => createJsonForm<T>({…})`).
 
-**Returns:** Стабильный {@link JsonForm}` <T>`.
+**Returns:** Стабильный бандл.
 
 **Examples:**
 
