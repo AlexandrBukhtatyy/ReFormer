@@ -15,9 +15,8 @@
  * @module reformer/form-registry/types
  */
 
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormProxy, FormValidation, FormValidationBundle } from '@reformer/core';
 import type { FormBehavior } from '@reformer/core/behaviors';
-import type { ValidationSchema } from '@reformer/core/validation';
 import type { ComponentRegistry, JsonFormSchema } from '@reformer/renderer-json';
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
 
@@ -43,32 +42,17 @@ export type CodeSource<T> =
   | { kind: 'module'; load: () => Promise<T> };
 
 /**
- * Валидация формы.
+ * Валидация формы — общий тип семейства фабрик, живёт в `@reformer/core`.
  *
- * `createJsonForm` её НЕ принимает — валидация подключается отдельно, тремя путями, и все три
- * сходятся в один движок `validateModel`: инъекция в визард через `patchProps({validateStep,
- * validateAll})`, прямой вызов в submit-обработчике, живая стратегия `createFormValidation`.
- * Реестр не изобретает четвёртый путь, а передаёт эти правила в фабрику `renderBehavior` —
- * туда, где связывание происходит сегодня.
+ * Реестр не описывает свой формат правил: те же данные принимают `createJsonForm`/`createCoreForm`,
+ * которые собирают из них `FormValidationBundle` (`validateStep`/`validateAll`/контроллер). Реестр
+ * лишь доставляет правила и передаёт собранный бандл в фабрику `renderBehavior` — туда, где
+ * связывание с визардом и происходит.
  *
- * ⚠️ `schema` и значения `steps` обязаны быть **стабильными ссылками**: гашение и отмена
- * устаревших прогонов ключатся по паре `(model, schema)` через `WeakMap`. Инлайн-стрелка
- * ломает дедупликацию — валидация начнёт возвращать `false` от отменённых прогонов.
+ * Ключи `steps` — селекторы узлов `Step` в JSON-схеме; их совпадение с реальными селекторами
+ * проверяется preflight'ом (этап 2), сегодня эта договорённость не проверяется нигде.
  */
-export interface FormValidation<T> {
-  /** Полный набор правил — для submit и `validateAll`. */
-  schema?: ValidationSchema<T>;
-  /**
-   * Пошаговая валидация визарда: ключ = `selector` узла `Step` в JSON-схеме.
-   * `null` означает «шаг без правил» ЯВНО — чтобы опечатка в ключе не выглядела как пустой шаг.
-   * Совпадение ключей с селекторами проверяется preflight'ом (этап 2): сегодня эта
-   * договорённость не проверяется нигде.
-   */
-  steps?: Record<string, ValidationSchema<T> | null>;
-  /** Когда запускать живую валидацию. По умолчанию `'submit'`. */
-  strategy?: 'submit' | 'blur' | 'change' | 'afterFirstSubmit';
-  debounce?: number;
-}
+export type { FormValidation };
 
 /** Ключ формы: идентификатор плюс версия. */
 export interface FormKey {
@@ -149,7 +133,8 @@ export interface FormEntry<T extends object = Record<string, unknown>> {
     (
       form: FormProxy<T>,
       model: FormModel<T>,
-      validation?: FormValidation<T>,
+      /** Уже СОБРАННАЯ валидация (`validateStep`/`validateAll`), а не сырые правила. */
+      validation?: FormValidationBundle<T>,
       options?: Record<string, unknown>
     ) => RenderBehaviorFn<T>
   >;

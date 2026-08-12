@@ -8,7 +8,7 @@
  * @module reformer/form-registry/react/mounted-form
  */
 
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import type { FormModel } from '@reformer/core';
 import {
   JsonFormRenderer,
@@ -46,6 +46,10 @@ export function MountedForm<T extends object>({
   errorFallback,
   onReady,
 }: MountedFormProps<T>): ReactNode {
+  // Вся сборка — один вызов: модель, форма, валидация и render-behavior. Правила валидации уходят
+  // в фабрику, и фабрика поведения получает уже СОБРАННЫЙ бандл (`validateStep`/`validateAll`) —
+  // ровно то, что нужно визарду, вместо сырых правил. Ссылка на поведение стабильна по построению,
+  // отдельный `useMemo` больше не нужен.
   const jsonForm = useJsonForm(() =>
     createJsonForm<T>({
       schema: loaded.schema,
@@ -56,20 +60,14 @@ export function MountedForm<T extends object>({
           ? { model: loaded.makeModel() }
           : { initial: (initial ?? loaded.initial) as T }),
       behavior: loaded.behavior,
+      ...(loaded.validation ? { validation: loaded.validation } : {}),
+      ...(loaded.makeRenderBehavior
+        ? {
+            renderBehavior: (form, formModel, validation) =>
+              loaded.makeRenderBehavior!(form, formModel, validation, renderBehaviorOptions),
+          }
+        : {}),
     })
-  );
-
-  // renderBehavior обязан быть стабильным по ссылке — иначе рендерер пересобирает
-  // дерево каждый рендер и предупреждает об этом в dev.
-  const renderBehavior = useMemo(
-    () =>
-      loaded.makeRenderBehavior?.(
-        jsonForm.form,
-        jsonForm.model,
-        loaded.validation,
-        renderBehaviorOptions
-      ),
-    [jsonForm, loaded, renderBehaviorOptions]
   );
 
   useEffect(() => {
@@ -86,7 +84,7 @@ export function MountedForm<T extends object>({
         // Реестр ПРОПОМ, а не через контекст: провайдер хоста и рендерер ремоута
         // могут оказаться в разных бандлах, а React-контекст границу не пересекает.
         registry={loaded.registry}
-        renderBehavior={renderBehavior}
+        // renderBehavior приезжает бандлом (см. выше) — отдельным пропом его дублировать не нужно.
         // Валидация схемы — ответственность загрузчика (этап 2), не рендерера:
         // проп тянет ajv и компилирует мета-схему на каждый инстанс формы.
         validateSchema={false}

@@ -8,7 +8,7 @@
  * @module reformer/form-registry/loader
  */
 
-import type { FormModel, FormProxy } from '@reformer/core';
+import type { FormModel, FormProxy, FormValidationBundle } from '@reformer/core';
 import type { FormBehavior } from '@reformer/core/behaviors';
 import {
   composeRegistries,
@@ -33,7 +33,7 @@ export interface LoadedForm<T extends object = Record<string, unknown>> {
   makeRenderBehavior?: (
     form: FormProxy<T>,
     model: FormModel<T>,
-    validation?: FormValidation<T>,
+    validation?: FormValidationBundle<T>,
     /** Настройки места монтирования (колбэки хоста). См. `FormEntry.renderBehavior`. */
     options?: Record<string, unknown>
   ) => RenderBehaviorFn<T>;
