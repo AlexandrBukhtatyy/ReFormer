@@ -71,6 +71,12 @@ export {
 export { createRenderSchema, isRenderSchemaProxy } from './core/render-schema-proxy';
 export type { RenderSchemaProxy, RenderNodeControl } from './core/render-schema-proxy';
 
+// Сборка формы ОДНИМ вызовом (модель + форма + валидация + рендер-схема). `useReactForm` — общий
+// хук стабильности из core под именем этого слоя.
+export { createReactForm } from './create-react-form';
+export type { ReactForm, CreateReactFormConfig } from './create-react-form';
+export { useFormBundle as useReactForm } from '@reformer/core';
+
 // Declarative render behavior
 export {
   hideWhen,

@@ -377,15 +377,26 @@ export interface RendererSettings {
  * Props для FormRenderer
  */
 export interface FormRendererProps<T> {
-  /** Функция создания RenderSchema (или RenderSchemaProxy из createRenderSchema) */
-  render: RenderSchemaFn<T>;
+  /**
+   * Функция создания RenderSchema (или RenderSchemaProxy из createRenderSchema).
+   * Опционален, если задан `form`.
+   */
+  render?: RenderSchemaFn<T>;
+
+  /**
+   * Бандл `createReactForm` — поставляет схему (`form.render`), поэтому `render` передавать не
+   * нужно. Тип структурный намеренно: слой типов рендерера не зависит от фабрики.
+   *
+   * Приоритет: явный `render` → `form.render`.
+   */
+  form?: { render: RenderSchemaFn<T> };
 
   /**
    * Настройки рендерера
    *
    * @example
    * ```tsx
-   * <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
+   * <FormRenderer form={myForm} settings={{ fieldWrapper: FormField }} />
    * ```
    */
   settings?: RendererSettings;

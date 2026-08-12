@@ -2,7 +2,7 @@
 
 `@reformer/renderer-react` — рендерер форм для React. Принимает `RenderSchema` (единое декларативное дерево узлов) и отрисовывает компоненты, связывая их с реактивным состоянием формы из `@reformer/core`.
 
-Под архитектурой M1 схема — **одно** дерево `RenderNode`: и layout, и конфиг полей вшиты в него. Лист несёт `value` (сигнал модели, `model.$.x`) + `component` + `componentProps`. По этому же дереву `createForm({ model, schema })` строит форму, а `FormRenderer` — рендерит.
+Под архитектурой M1 схема — **одно** дерево `RenderNode`: и layout, и конфиг полей вшиты в него. Лист несёт `value` (сигнал модели, `model.$.x`) + `component` + `componentProps`. По этому же дереву `createReactForm` строит форму и render-схему за один проход, а `FormRenderer` — рендерит полученный бандл.
 
 ## Installation
 
@@ -27,19 +27,20 @@ import {
 
 ## Quick Start
 
-> **Ключевой момент** — `FormRenderer` НЕ принимает проп `form`. Форма создаётся из той же
-> M1-схемы (`createForm({ model, schema })`) и передаётся wizard/root-узлу через его
-> `componentProps.form`. Лист-узел резолвит state-ноду по сигналу через реестр, который
-> заполняет `createForm`. Без `createForm` реестр пуст — поля рендерятся как `null` с warning.
+> **Ключевой момент** — сборка идёт ОДНИМ вызовом `createReactForm`, а рендерер принимает её
+> результат пропом `form`. Билдер схемы фабрика вызывает ДВАЖДЫ: без формы (по этому дереву
+> строятся ноды — harvest не должен встретить `FormProxy`, иначе переполнение стека) и с формой
+> (это дерево рендерится, из него wizard берёт `componentProps.form`). Лист-узел резолвит
+> state-ноду по сигналу через реестр, который заполняет сборка; без неё реестр пуст — поля
+> рендерятся как `null` с warning.
 
 ```tsx
-import { useMemo } from 'react';
-import { createForm, type FormModel } from '@reformer/core';
+import type { FormModel } from '@reformer/core';
 import {
   FormRenderer,
-  createRenderSchema,
+  createReactForm,
+  useReactForm,
   type RenderNode,
-  type RenderSchemaFn,
 } from '@reformer/renderer-react';
 import { Box, Section, Input, FormField } from '@reformer/ui-kit';
 
@@ -71,18 +72,15 @@ function buildSchema(model: FormModel<MyForm>): RenderNode<MyForm> {
 }
 
 function MyFormPage() {
-  // (2) createForm({ model, schema }) — строит форму ИЗ той же схемы
-  //     (harvest листьев по сигналу + материализация массивов).
-  const { form, model } = useMemo(() => {
-    const model = createModel<MyForm>({ email: '', password: '' }); // ваша фабрика модели
-    const form = createForm<MyForm>({ model, schema: buildSchema(model) });
-    return { form, model };
-  }, []);
+  // (2) Модель + форма (harvest листьев по сигналу + материализация массивов) + render-схема —
+  //     одним вызовом. useReactForm (ленивый useState) зовёт фабрику ровно один раз: useMemo
+  //     не годится, React вправе сбросить его кэш и пересобрать форму, потеряв введённое.
+  const myForm = useReactForm(() =>
+    createReactForm<MyForm>({ initial: { email: '', password: '' }, schema: buildSchema })
+  );
 
-  // (3) Render-схема (то же дерево). Для программного управления — createRenderSchema.
-  const schema = useMemo(() => createRenderSchema<MyForm>(() => buildSchema(model)), [model]);
-
-  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+  // (3) Бандл целиком уходит рендереру; программное управление — через myForm.render.node(sel).
+  return <FormRenderer form={myForm} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
@@ -127,18 +125,17 @@ function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): Render
 }
 ```
 
-**Листья-поля под `componentProps.steps[].body` тоже harvest'ятся.** `createForm({ model, schema })`
-обходит дерево key-agnostic и доходит до каждого `{ value: signal }`-листа независимо от
-вложенности — включая листья внутри `componentProps.steps[].body`. Поэтому строй схему БЕЗ
-`form` (чтобы harvest не обходил `FormProxy`) и передавай `form` только в render-proxy
-wizard-узла:
+**Листья-поля под `componentProps.steps[].body` тоже harvest'ятся.** Сборка обходит дерево
+key-agnostic и доходит до каждого `{ value: signal }`-листа независимо от вложенности — включая
+листья внутри `componentProps.steps[].body`. Отсюда двойной проход, и делает его фабрика:
 
 ```tsx
-const model = createModel<MyForm>({ /* ... */ });
-// (1) форма из схемы БЕЗ form — harvest листьев под steps[].body работает как есть
-const form = createForm<MyForm>({ model, schema: buildSchema(model) });
-// (2) render-схема с тем же деревом, но form передан wizard-узлу для рендера
-const schema = createRenderSchema<MyForm>(() => buildSchema(model, form));
+const myForm = useReactForm(() =>
+  createReactForm<MyForm>({ model: createMyModel(), schema: buildSchema })
+);
+// внутри: buildSchema(model) — дерево БЕЗ формы для harvest'а (FormProxy самоссылочен, обход по
+// нему упал бы с переполнением стека), затем buildSchema(model, form) — дерево для рендера, из
+// которого wizard-узел берёт форму. Писать эту пару руками больше не нужно.
 ```
 
 Полный справочник по `FormWizard` (полиморфный `step.body`, `config` / `FormWizardConfig`,
