@@ -15,7 +15,7 @@ src/
 │
 ├── forms/
 │   └── [form-name]/              # Form module — flat, one file per concern
-│       ├── index.tsx             # entry + whole form: createModel→createForm→<FormWizard> with all steps inline; arrays via FormArraySection
+│       ├── index.tsx             # entry + whole form: ONE createCoreForm call → <FormWizard> with all steps inline; arrays via FormArraySection
 │       ├── types.ts              # form type + enums + { value, label } option type + constant dictionaries
 │       ├── model.ts              # createModel + initial values + empty-array-element factories
 │       ├── form.schema.ts        # FormSchema: { value: model.$.x, component, componentProps }
@@ -60,11 +60,15 @@ export const creditApplicationBehavior = defineFormBehavior<CreditApplicationFor
 });
 
 // forms/credit-application/index.tsx — entry: assembles the form, renders <FormWizard> with all steps inline
-import { createForm } from '@reformer/core';
-export const createCreditApplicationForm = () => {
-  const model = createCreditApplicationModel();
-  return createForm({ model, schema: creditApplicationSchema(model), behavior: creditApplicationBehavior });
-};
+import { createCoreForm } from '@reformer/core';
+// ONE call: model + form + behavior + validation. In the page: useFormBundle(createCreditApplicationForm).
+export const createCreditApplicationForm = () =>
+  createCoreForm({
+    model: createCreditApplicationModel(),
+    schema: creditApplicationSchema,          // builder (model) => tree
+    behavior: creditApplicationBehavior,
+    validation: creditApplicationValidation,  // { steps, extras } → bundle.validation
+  });
 ```
 
 ### Scaling up: folders (large forms)
@@ -90,10 +94,10 @@ forms/
     │
     ├── schema/                   # The form definition
     │   ├── model.ts             # createModel factory + initial values + array-element factories
-    │   ├── schema.ts            # createForm schema tree ({ value: model.$.x, component })
+    │   ├── schema.ts            # schema builder (model) => tree ({ value: model.$.x, component })
     │   ├── validation.ts        # defineValidationSchema + validateModel config ({ validateStep, validateAll })
     │   ├── behavior.ts          # defineFormBehavior(...)
-    │   └── create-form.ts       # Assembly: createForm({ model, schema, behavior })
+    │   └── create-form.ts       # Assembly: createCoreForm({ model, schema, behavior, validation })
     │
     └── components/
         ├── steps/               # One component per wizard step

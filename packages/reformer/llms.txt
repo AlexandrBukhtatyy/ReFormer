@@ -113,14 +113,15 @@ const { value, errors, disabled } = useFormControl(control.loanType);
 > `Checkbox`-обёртки с `label`-prop'ами — это anti-pattern. См.
 > `find_recipe(package="@reformer/ui-kit", topic="form-field-integration")`.
 
-Архитектура M1: сначала создаётся **модель данных** (`createModel`), затем **форма**
-(`createForm({ model, schema })`), где схема привязывает поля к сигналам модели
-(`model.$.field`). Layout-схема НЕ несёт валидаторов — валидация живёт в отдельной
+Архитектура M1: **модель данных** — источник истины, схема привязывает поля к её сигналам
+(`model.$.field`), а сборка идёт ОДНИМ вызовом `createCoreForm` (для рендера ui-kit;
+в рендерерах — `createReactForm` / `createJsonForm`), который создаёт модель, строит форму,
+запускает поведение и собирает валидацию. Layout-схема НЕ несёт валидаторов — валидация живёт в отдельной
 схеме `defineValidationSchema` из `@reformer/core/validation` и запускается внешним
 раннером `validateModel(model, schema)`.
 
 ```typescript
-import { createModel, createForm, type FormProxy } from '@reformer/core';
+import { createCoreForm, createModel, useFormBundle, type FormProxy } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
@@ -155,8 +156,14 @@ const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
   validate(model.$.email, [required({ message: 'Email is required' }), email({ message: 'Invalid email' })]);
 });
 
-// 5. Form — ноды поверх сигналов модели
-const form = createForm<ContactForm>({ model, schema });
+// 5. Сборка ОДНИМ вызовом: модель + ноды поверх её сигналов + валидация.
+//    В React оборачивают в useFormBundle — ленивый useState, фабрика зовётся один раз.
+const contact = createCoreForm<ContactForm>({
+  model,
+  schema: buildSchema,          // билдер (model) => tree
+  validation: contactValidation,
+});
+const form = contact.form;
 
 // 6. Use in React component — thin JSX, FormField does ALL heavy lifting
 function ContactFormComponent() {
@@ -227,7 +234,7 @@ const schema = {
   properties: { array: model.properties, item: propertyItem },
 };
 
-const form = createForm<MyForm>({ model, schema });
+const { form } = createCoreForm<MyForm>({ model, schema: () => schema });
 
 // Операции над массивом — на модели:
 model.properties.push({ type: 'apartment', description: '', estimatedValue: 0 });
@@ -1653,7 +1660,7 @@ src/
 │
 ├── forms/
 │   └── [form-name]/              # Form module — flat, one file per concern
-│       ├── index.tsx             # entry + whole form: createModel→createForm→<FormWizard> with all steps inline; arrays via FormArraySection
+│       ├── index.tsx             # entry + whole form: ONE createCoreForm call → <FormWizard> with all steps inline; arrays via FormArraySection
 │       ├── types.ts              # form type + enums + { value, label } option type + constant dictionaries
 │       ├── model.ts              # createModel + initial values + empty-array-element factories
 │       ├── form.schema.ts        # FormSchema: { value: model.$.x, component, componentProps }
@@ -1698,11 +1705,15 @@ export const creditApplicationBehavior = defineFormBehavior<CreditApplicationFor
 });
 
 // forms/credit-application/index.tsx — entry: assembles the form, renders <FormWizard> with all steps inline
-import { createForm } from '@reformer/core';
-export const createCreditApplicationForm = () => {
-  const model = createCreditApplicationModel();
-  return createForm({ model, schema: creditApplicationSchema(model), behavior: creditApplicationBehavior });
-};
+import { createCoreForm } from '@reformer/core';
+// ONE call: model + form + behavior + validation. In the page: useFormBundle(createCreditApplicationForm).
+export const createCreditApplicationForm = () =>
+  createCoreForm({
+    model: createCreditApplicationModel(),
+    schema: creditApplicationSchema,          // builder (model) => tree
+    behavior: creditApplicationBehavior,
+    validation: creditApplicationValidation,  // { steps, extras } → bundle.validation
+  });
 ```
 
 ### Scaling up: folders (large forms)
@@ -1728,10 +1739,10 @@ forms/
     │
     ├── schema/                   # The form definition
     │   ├── model.ts             # createModel factory + initial values + array-element factories
-    │   ├── schema.ts            # createForm schema tree ({ value: model.$.x, component })
+    │   ├── schema.ts            # schema builder (model) => tree ({ value: model.$.x, component })
     │   ├── validation.ts        # defineValidationSchema + validateModel config ({ validateStep, validateAll })
     │   ├── behavior.ts          # defineFormBehavior(...)
-    │   └── create-form.ts       # Assembly: createForm({ model, schema, behavior })
+    │   └── create-form.ts       # Assembly: createCoreForm({ model, schema, behavior, validation })
     │
     └── components/
         ├── steps/               # One component per wizard step
@@ -4646,6 +4657,43 @@ export type BehaviorCleanup = () => void;
 
 _Source: src/state/behaviors-value.ts_
 
+### buildValidation
+
+**Kind:** `function`
+
+Собрать {@link FormValidationBundle} из правил. Принимает либо готовую схему (сахар для простых
+форм), либо {@link FormValidation} с шагами и стратегией.
+
+Схема для `validateAll` собирается ОДИН раз на бандл — иначе ломается дедупликация прогонов.
+
+**Signature:**
+```typescript
+export function buildValidation<T>(
+  model: FormModel<T>,
+  validation?: FormValidation<T> | ValidationSchema<T>
+): FormValidationBundle<T> | undefined
+```
+
+**Parameters:**
+- `model` — - Модель, по которой идут прогоны.
+- `validation` — - Правила; `undefined` — валидации у формы нет.
+
+**Returns:** Бандл валидации либо `undefined`, если правила не заданы.
+
+**Examples:**
+
+```ts
+const v = buildValidation(model, {
+  steps: { loan: loanRules, applicant: applicantRules, confirm: null },
+  extras: crossFieldRules,
+  strategy: 'blur',
+});
+await v!.validateStep(1);   // правила шага `loan`
+await v!.validateAll();     // все шаги + extras
+```
+
+_Source: src/form/validation-config.ts_
+
 ### computeFrom
 
 **Kind:** `function`
@@ -4765,6 +4813,75 @@ stampRuntime('@reformer/core', CORE_RUNTIME_TOKEN);
 
 _Source: src/runtime-token.ts_
 
+### CoreForm
+
+**Kind:** `interface`
+
+Результат {@link createCoreForm}: модель, форма и (если заданы правила) собранная валидация.
+
+**Signature:**
+```typescript
+export interface CoreForm<T> {
+  model: FormModel<T>;
+  form: FormProxy<T>;
+  validation?: FormValidationBundle<T>;
+}
+```
+
+_Source: src/form/create-core-form.ts_
+
+### createCoreForm
+
+**Kind:** `function`
+
+Собрать модель, форму и валидацию за один проход.
+
+**Signature:**
+```typescript
+export function createCoreForm<T extends object>(config: CreateCoreFormConfig<T>): CoreForm<T>
+```
+
+**Parameters:**
+- `config` — - {@link CreateCoreFormConfig}: (`initial` | `model`) + опц. `schema`, `behavior`,
+`validation`, `seed`, `setup`.
+
+**Returns:** 
+
+**Examples:**
+
+```tsx
+const credit = useFormBundle(() =>
+  createCoreForm<CreditForm>({
+    model: createCreditModel(),
+    schema: buildCreditSchema,
+    behavior: creditBehavior,
+    validation: { steps: { loan: loanRules, confirm: null }, extras: crossRules },
+  })
+);
+return <FormWizard form={credit.form} config={credit.validation} steps={STEPS} />;
+```
+
+_Source: src/form/create-core-form.ts_
+
+### CreateCoreFormConfig
+
+**Kind:** `interface`
+
+Конфиг {@link createCoreForm}.
+
+**Signature:**
+```typescript
+export interface CreateCoreFormConfig<T> extends CreateFormConfigBase<T, CoreForm<T>> {
+  /**
+   * Билдер схемы формы. Именно функция, а не готовое дерево: листья схемы держат сами сигналы
+   * модели (`value: model.$.email`), поэтому построить дерево до модели нечем.
+   */
+  schema?: (model: FormModel<T>) => FormSchemaNode;
+}
+```
+
+_Source: src/form/create-core-form.ts_
+
 ### createForm
 
 **Kind:** `function`
@@ -4816,6 +4933,40 @@ const ok = await validateModel(model, validation);
 ```
 
 _Source: src/form/create-form.ts_
+
+### CreateFormConfigBase
+
+**Kind:** `interface`
+
+Общая часть конфига всех фабрик формы.
+
+**Signature:**
+```typescript
+export interface CreateFormConfigBase<T, B> {
+  /** Начальные значения — из них создаётся модель. Взаимоисключимо с `model`. */
+  initial?: T;
+  /** Готовая модель (если создана отдельной фабрикой). Приоритетнее `initial`. */
+  model?: FormModel<T>;
+  /** Декларативное поведение модели (compute/copyFrom/enableWhen/onChange). */
+  behavior?: FormBehavior<T>;
+  /** Правила валидации: готовая схема либо {@link FormValidation} со стратегией и шагами. */
+  validation?: FormValidation<T> | ValidationSchema<T>;
+  /**
+   * Правка модели ДО сборки формы. Нужна там, где значение обязано существовать к моменту
+   * построения нод — например, массив, наполняемый из вычислений (реактивные `onChange` на
+   * инициализации не срабатывают).
+   */
+  seed?: (model: FormModel<T>) => void;
+  /**
+   * Донастройка ПОСЛЕ сборки. Единственное место для правок, которые обязаны идти следом за
+   * `createForm`: поле, чьё значение уже массив, ноды не получает (см. `buildModelConfig`),
+   * поэтому такой префилл выполняется здесь.
+   */
+  setup?: (bundle: B) => void;
+}
+```
+
+_Source: src/form/create-core-form.ts_
 
 ### createFormFromModel
 
@@ -5431,6 +5582,21 @@ todos.forEach((item, i) => {
 
 _Source: src/form/types/form-proxy.ts_
 
+### FormBundleLike
+
+**Kind:** `interface`
+
+Минимум, который хук ожидает от бандла: опциональный контроллер живой валидации.
+
+**Signature:**
+```typescript
+export interface FormBundleLike {
+  validation?: { controller: FormValidationController };
+}
+```
+
+_Source: src/form/hooks/use-form-bundle.ts_
+
 ### FormControlsProxy
 
 **Kind:** `type`
@@ -5822,6 +5988,70 @@ if (submitter.submitting.value) {
 ```
 
 _Source: src/form/form-submitter.ts_
+
+### FormValidation
+
+**Kind:** `interface`
+
+Правила валидации формы — ДАННЫЕ (без привязки к рендеру).
+
+⚠️ `schema` и значения `steps` обязаны быть **стабильными ссылками**: отмена устаревших прогонов
+ключуется по паре `(model, schema)` через `WeakMap`, поэтому инлайн-стрелка ломает дедупликацию —
+валидация начнёт возвращать `false` от уже отменённых прогонов. Держите их
+module-level-константами (`defineValidationSchema`).
+
+**Signature:**
+```typescript
+export interface FormValidation<T> {
+  /** Полный набор правил — для submit и `validateAll`. Без него собирается из `steps` + `extras`. */
+  schema?: ValidationSchema<T>;
+  /**
+   * Пошаговая валидация визарда: ключ = `selector` шага. `null` означает «шаг без правил» ЯВНО —
+   * чтобы опечатка в ключе не выглядела как пустой шаг.
+   */
+  steps?: Record<string, ValidationSchema<T> | null>;
+  /** Cross-field правила, которые проверяются только целиком (в `validateAll`), но не по шагам. */
+  extras?: ValidationSchema<T>;
+  /** Когда запускать живую валидацию. По умолчанию `'submit'` (реактивно молчит). */
+  strategy?: ValidationStrategyKind;
+  debounce?: number;
+  /** Режим live-фазы для `afterFirstSubmit`. По умолчанию `'change'`. */
+  liveAfterSubmit?: 'change' | 'blur';
+}
+```
+
+_Source: src/form/validation-config.ts_
+
+### FormValidationBundle
+
+**Kind:** `interface`
+
+Собранная валидация формы. Структурно совместима с `FormWizardConfig` и `StepValidationConfig`
+из `@reformer/cdk`, поэтому уходит в визард как есть: `config={bundle.validation}` либо
+`patchProps({ form, ...bundle.validation })`.
+
+**Signature:**
+```typescript
+export interface FormValidationBundle<T> {
+  /** Полная схема (стабильная ссылка) — та, по которой идёт `validateAll`. */
+  readonly schema: ValidationSchema<T>;
+  /** Селекторы шагов в порядке объявления. Пусто, если `steps` не заданы. */
+  readonly stepSelectors: readonly string[];
+  /** Полный прогон с раскрытием ошибок. Синоним {@link FormValidationBundle.validateAll}. */
+  validate(): Promise<boolean>;
+  validateAll(): Promise<boolean>;
+  /** Прогон правил одного шага: по номеру (1-based, как у визарда) или по селектору. */
+  validateStep(step: number | string): Promise<boolean>;
+  /** Контроллер живой валидации ШАГА; `null` — у шага нет правил либо стратегия `submit`. */
+  createStepController(step: number | string): FormValidationController | null;
+  /** Контроллер живой валидации ФОРМЫ. Армится хуком (`useFormBundle`), не фабрикой. */
+  readonly controller: FormValidationController;
+  /** Идёт ли прогон — реактивный сигнал (для тонкой подписки в UI). */
+  readonly validating: ReadonlySignal<boolean>;
+}
+```
+
+_Source: src/form/validation-config.ts_
 
 ### FormValue
 
@@ -6982,6 +7212,31 @@ function ArrayRenderer({ arrayNode }) {
 ```
 
 _Source: src/form/hooks/useArrayLength.ts_
+
+### useFormBundle
+
+**Kind:** `function`
+
+Собрать форму один раз и держать её стабильной; живую стратегию валидации армировать в эффекте
+(не при SSR — там эффекты не выполняются).
+
+**Signature:**
+```typescript
+export function useFormBundle<B extends FormBundleLike>(factory: () => B): B
+```
+
+**Parameters:**
+- `factory` — - Фабрика бандла, обычно `() => createCoreForm({…})`.
+
+**Returns:** Стабильный бандл.
+
+**Examples:**
+
+```tsx
+const credit = useFormBundle(() => createCoreForm<CreditForm>({ model: createCreditModel() }));
+```
+
+_Source: src/form/hooks/use-form-bundle.ts_
 
 ### useFormControl
 

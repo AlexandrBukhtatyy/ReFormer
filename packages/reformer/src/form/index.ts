@@ -24,6 +24,15 @@ export type { ModelArrayControl } from './nodes/model-array-node';
 export { createForm, createFormFromModel } from './create-form';
 export type { CreateFormFromModelArgs } from './create-form';
 
+// Сборка формы ОДНИМ вызовом (модель + форма + валидация) — общий конфиг с `createReactForm`
+// (@reformer/renderer-react) и `createJsonForm` (@reformer/renderer-json).
+export { createCoreForm } from './create-core-form';
+export type { CoreForm, CreateCoreFormConfig, CreateFormConfigBase } from './create-core-form';
+export { buildValidation } from './validation-config';
+export type { FormValidation, FormValidationBundle } from './validation-config';
+export { useFormBundle } from './hooks/use-form-bundle';
+export type { FormBundleLike } from './hooks/use-form-bundle';
+
 // Валидация: контракт `@reformer/core/validation` (validateModel + операторы) — отдельный сабпат,
 // в root не реэкспортируется. Старый дерево-движок (`validateFormModel`/`validateModel`(tree)) удалён.
 // State-операции над нодами.

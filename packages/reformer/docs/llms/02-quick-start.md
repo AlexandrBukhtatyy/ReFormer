@@ -7,14 +7,15 @@
 > `Checkbox`-обёртки с `label`-prop'ами — это anti-pattern. См.
 > `find_recipe(package="@reformer/ui-kit", topic="form-field-integration")`.
 
-Архитектура M1: сначала создаётся **модель данных** (`createModel`), затем **форма**
-(`createForm({ model, schema })`), где схема привязывает поля к сигналам модели
-(`model.$.field`). Layout-схема НЕ несёт валидаторов — валидация живёт в отдельной
+Архитектура M1: **модель данных** — источник истины, схема привязывает поля к её сигналам
+(`model.$.field`), а сборка идёт ОДНИМ вызовом `createCoreForm` (для рендера ui-kit;
+в рендерерах — `createReactForm` / `createJsonForm`), который создаёт модель, строит форму,
+запускает поведение и собирает валидацию. Layout-схема НЕ несёт валидаторов — валидация живёт в отдельной
 схеме `defineValidationSchema` из `@reformer/core/validation` и запускается внешним
 раннером `validateModel(model, schema)`.
 
 ```typescript
-import { createModel, createForm, type FormProxy } from '@reformer/core';
+import { createCoreForm, createModel, useFormBundle, type FormProxy } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
@@ -49,8 +50,14 @@ const contactValidation = defineValidationSchema<ContactForm>(({ model }) => {
   validate(model.$.email, [required({ message: 'Email is required' }), email({ message: 'Invalid email' })]);
 });
 
-// 5. Form — ноды поверх сигналов модели
-const form = createForm<ContactForm>({ model, schema });
+// 5. Сборка ОДНИМ вызовом: модель + ноды поверх её сигналов + валидация.
+//    В React оборачивают в useFormBundle — ленивый useState, фабрика зовётся один раз.
+const contact = createCoreForm<ContactForm>({
+  model,
+  schema: buildSchema,          // билдер (model) => tree
+  validation: contactValidation,
+});
+const form = contact.form;
 
 // 6. Use in React component — thin JSX, FormField does ALL heavy lifting
 function ContactFormComponent() {
@@ -121,7 +128,7 @@ const schema = {
   properties: { array: model.properties, item: propertyItem },
 };
 
-const form = createForm<MyForm>({ model, schema });
+const { form } = createCoreForm<MyForm>({ model, schema: () => schema });
 
 // Операции над массивом — на модели:
 model.properties.push({ type: 'apartment', description: '', estimatedValue: 0 });
