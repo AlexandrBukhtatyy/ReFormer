@@ -15,7 +15,8 @@ sidebar_label: 'renderer-react'
 
 В отличие от ручного JSX с `FormField`, где разметку и привязку каждого поля пишут руками,
 здесь форма описывается **как данные**: одно дерево узлов задаёт и layout, и конфиг полей.
-По этому же дереву `createForm({ model, schema })` строит форму, а `FormRenderer` — рендерит.
+По этому же дереву `createReactForm` строит модель, форму и render-схему за один проход, а
+`FormRenderer` — рендерит полученный бандл.
 
 ## Установка
 
@@ -26,9 +27,8 @@ npm install @reformer/renderer-react @reformer/core
 ## Быстрый пример
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
-import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
+import type { FormModel } from '@reformer/core';
+import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
 import { FormField, Input } from '@reformer/ui-kit';
 
 interface MyForm {
@@ -36,36 +36,37 @@ interface MyForm {
 }
 
 // Одно M1-дерево: листья привязаны к сигналам модели (`model.$.<field>`).
-function buildSchema(model: ReturnType<typeof createModel<MyForm>>) {
+function buildSchema(model: FormModel<MyForm>) {
   return {
     children: [{ value: model.$.email, component: Input, componentProps: { label: 'Email' } }],
   };
 }
 
 export function MyFormPage() {
-  const { schema } = useMemo(() => {
-    const model = createModel<MyForm>({ email: '' });
-    // createForm строит форму ИЗ той же схемы (harvest листьев по сигналу).
-    createForm<MyForm>({ model, schema: buildSchema(model) });
-    // Render-схема: тот же билдер или `createRenderSchema`-прокси для behaviors.
-    const schema = createRenderSchema<MyForm>(() => buildSchema(model));
-    return { schema };
-  }, []);
+  // Модель + форма + render-схема одним вызовом. useReactForm (ленивый useState) зовёт фабрику
+  // ровно один раз — useMemo не годится: React вправе сбросить кэш и потерять введённое.
+  const myForm = useReactForm(() =>
+    createReactForm<MyForm>({ initial: { email: '' }, schema: buildSchema })
+  );
 
-  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+  return <FormRenderer form={myForm} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-> `FormRenderer` НЕ принимает проп `form`. Форма создаётся из той же M1-схемы через
-> `createForm({ model, schema })`, а лист-узел резолвит state-ноду по сигналу через реестр,
-> который заполняет `createForm`. Без `createForm` реестр пуст — поля рендерятся как `null`
-> с предупреждением.
+> Билдер схемы фабрика вызывает дважды: без формы — по этому дереву строятся ноды (обход не должен
+> встретить `FormProxy`), и с формой — это дерево рендерится, из него wizard-узел берёт
+> `componentProps.form`. Лист-узел резолвит state-ноду по сигналу через реестр, который заполняет
+> сборка; без неё реестр пуст — поля рендерятся как `null` с предупреждением.
 
 ## Что внутри
 
-- **FormRenderer** — главный React-компонент. Принимает `render` (render-схему) и `settings`,
-  обходит дерево `RenderNode` и отрисовывает форму, связывая каждый лист с реактивным
-  состоянием модели.
+- **createReactForm / useReactForm** — сборка формы одним вызовом: `{ initial | model, schema,
+behavior?, validation?, renderBehavior?, seed?, setup? }` → бандл `{ model, form, render,
+validation? }`. `useReactForm` (тот же `useFormBundle` из core) держит бандл стабильным и армит
+  живую валидацию.
+- **FormRenderer** — главный React-компонент. Принимает бандл пропом `form` (или низкоуровневый
+  `render`) плюс `settings`, обходит дерево `RenderNode` и отрисовывает форму, связывая каждый лист
+  с реактивным состоянием модели.
 - **createRenderSchema / RenderSchemaFn** — `RenderSchemaFn<T>` это `() => RenderNode<T>`,
   возвращающая корневой узел; привязка к данным идёт через сигналы модели в листьях (аргумента-пути
   нет). `createRenderSchema(fn)` оборачивает её в `RenderSchemaProxy` для программного управления

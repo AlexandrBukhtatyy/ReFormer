@@ -88,60 +88,75 @@ const validation = defineValidationSchema<ContactForm>(({ model }) => {
 ошибки по нодам формы (`FormField` подсветит поля) и гасит поля, ставшие валидными.
 :::
 
-## Шаг 5. Форма
+## Шаг 5. Сборка формы
 
-`createForm` строит ноды поверх сигналов модели и возвращает типизированный proxy. Форма собирается
-из layout-схемы — валидацию она не принимает.
+`createCoreForm` за один вызов создаёт модель (или принимает готовую), строит ноды поверх её
+сигналов, запускает поведение и собирает валидацию. Схему принимает **билдером**: листья держат сами
+сигналы модели, поэтому дерево нельзя построить раньше неё.
 
 ```typescript
-import { createForm } from '@reformer/core';
+import { createCoreForm } from '@reformer/core';
 
-const form = createForm<ContactForm>({ model, schema });
+const contact = createCoreForm<ContactForm>({
+  model,
+  schema: buildSchema, // (model) => дерево
+  validation, // правила как данные → contact.validation с validateAll/validateStep
+});
+const form = contact.form;
 ```
 
 ## Шаг 6. Рендер и отправка
 
-В React создавайте `model` / `schema` / `validation` / `form` **один раз** через `useMemo`, иначе форма
-пересоздастся на каждый рендер (и раннер потеряет стабильную ссылку на схему). Универсальный `FormField`
-из `@reformer/ui-kit` делает всю работу по связыванию поля с состоянием.
+В React собирайте форму **один раз** — через `useFormBundle` (ленивый `useState`). `useMemo` для этого
+не годится: React вправе сбросить его кэш, и форма пересоберётся вместе с потерей введённого, а раннер
+валидации — стабильной ссылки на схему. Универсальный `FormField` из `@reformer/ui-kit` делает всю
+работу по связыванию поля с состоянием.
 
 ```tsx
-import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createCoreForm, useFormBundle, type FormModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
 import { FormField, Input, Textarea, Button } from '@reformer/ui-kit';
 
 type ContactForm = { name: string; email: string; message: string };
 
+// Правила — стабильная module-level константа: по паре (model, schema) раннер отменяет устаревшие
+// прогоны, поэтому пересоздавать схему на каждый рендер нельзя.
+const validation = defineValidationSchema<ContactForm>(({ model }) => {
+  validate(model.$.name, [required(), minLength(2)]);
+  validate(model.$.email, [required(), email()]);
+  validate(model.$.message, [required(), minLength(10)]);
+});
+
+function buildSchema(model: FormModel<ContactForm>) {
+  return {
+    name: {
+      value: model.$.name,
+      component: Input,
+      componentProps: { label: 'Имя', placeholder: 'Ваше имя' },
+    },
+    email: {
+      value: model.$.email,
+      component: Input,
+      componentProps: { label: 'Email', type: 'email' },
+    },
+    message: {
+      value: model.$.message,
+      component: Textarea,
+      componentProps: { label: 'Сообщение' },
+    },
+  };
+}
+
 export function ContactForm() {
-  const { form, model, validation } = useMemo(() => {
-    const model = createModel<ContactForm>({ name: '', email: '', message: '' });
-    const schema = {
-      name: {
-        value: model.$.name,
-        component: Input,
-        componentProps: { label: 'Имя', placeholder: 'Ваше имя' },
-      },
-      email: {
-        value: model.$.email,
-        component: Input,
-        componentProps: { label: 'Email', type: 'email' },
-      },
-      message: {
-        value: model.$.message,
-        component: Textarea,
-        componentProps: { label: 'Сообщение' },
-      },
-    };
-    const validation = defineValidationSchema<ContactForm>(({ model }) => {
-      validate(model.$.name, [required(), minLength(2)]);
-      validate(model.$.email, [required(), email()]);
-      validate(model.$.message, [required(), minLength(10)]);
-    });
-    const form = createForm<ContactForm>({ model, schema });
-    return { form, model, validation };
-  }, []);
+  // Сборка ОДНИМ вызовом. useFormBundle (ленивый useState) зовёт фабрику ровно один раз —
+  // useMemo не годится: React вправе сбросить его кэш и пересобрать форму, потеряв введённое.
+  const { form, model } = useFormBundle(() =>
+    createCoreForm<ContactForm>({
+      initial: { name: '', email: '', message: '' },
+      schema: buildSchema,
+    })
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
