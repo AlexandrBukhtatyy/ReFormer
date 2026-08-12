@@ -11,7 +11,7 @@ and the traps the runtime would otherwise punish. Look up exact signatures with
 - **renderer-react** — declarative `RenderSchema` tree (layout + conditional display as data).
 - **renderer-json** — machine-readable JSON schema + a component `registry` (string operators).
 
-All three share steps 1–6; they differ only at step 7.
+All three share steps 1–6; they differ only at step 7 — and at which factory step 3 calls.
 
 ## 1. Model — `createModel<T>(initial)`
 
@@ -49,14 +49,33 @@ Traps: `value: model.$.field` (a signal) — never `value: 'field'`. Don't forge
 No `validators:` key on the leaf — the old `{ value, validators: [...] }` shape is gone; rules live in
 their own `defineValidationSchema` (step 4).
 
-## 3. Create the form — `createForm({ model, schema })`
+## 3. Assemble — ONE call per target
+
+The model, the form and (when rules are given) the validation are built in a single pass. Which factory
+you call depends only on how the form is rendered; the config is the same shape everywhere:
 
 ```ts
-import { createForm } from '@reformer/core';
-const form = createForm<RegForm>({ model, schema }); // FormProxy: form.email is a node bound to model.$.email
+import { createCoreForm, useFormBundle } from '@reformer/core';
+
+const reg = useFormBundle(() =>
+  createCoreForm<RegForm>({
+    initial: INITIAL,             // or model: makeModel()
+    schema: buildSchema,          // BUILDER (model) => tree — leaves hold the model's own signals
+    behavior: formBehavior,       // optional, step 5
+    validation: formValidation,   // optional, step 4
+  })
+);
+// reg.form.email is a node bound to model.$.email; reg.validation carries validateStep/validateAll
 ```
 
-Overloads `createForm({ form: {...} })` and `createForm(flatSchema)` are legacy — use `{ model, schema }`.
+`createReactForm` (`@reformer/renderer-react`) adds the render schema, `createJsonForm`
+(`@reformer/renderer-json`) takes the JSON schema plus a registry. Both return the same bundle shape
+plus their own field(s). In React always wrap the factory in `useFormBundle` (aliased `useReactForm` /
+`useJsonForm`): it is a lazy `useState` and runs the factory once, while `useMemo` may drop its cache and
+rebuild the form, losing typed input.
+
+Low-level `createModel` + `createForm({ model, schema })` remain public for special cases; the overloads
+`createForm({ form: {...} })` and `createForm(flatSchema)` are legacy.
 
 ## 4. Validation — `defineValidationSchema` + `validateModel(model, schema)`
 
@@ -113,7 +132,7 @@ errors into the nodes itself. Cross-field is now `cross(sig, f => …)` over `mo
 ## 5. Behaviors — reactive dynamics (optional)
 
 Computed / copied / conditionally-enabled fields. Two styles: DSL `defineFormBehavior` + operators,
-or primitives in a `useEffect`. Register the DSL via `createForm({ model, schema, behavior })`.
+or primitives in a `useEffect`. Register the DSL via the `behavior` field of the assembly call (step 3).
 
 ```ts
 import { defineFormBehavior } from '@reformer/core/behaviors';
@@ -142,10 +161,16 @@ behavior can *trigger* a re-run — `revalidateWhen([model.$.dep], () => void va
 
 ## 7. Render
 
-- **ui-kit**: `<FormField control={form.email} />` per field.
-- **renderer-react**: `createRenderSchema<T>(() => renderNodeTree)`, conditional display via `hideWhen(node, () => cond)`, mount with `<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />`. `find_recipe render-schema`.
+The bundle from step 3 goes to the renderer as a single prop — targets differ only in what you assembled.
+
+- **ui-kit**: `<FormField control={bundle.form.email} />` per field; a wizard takes `config={bundle.validation}`.
+- **renderer-react**: the builder is `(model, form?) => RenderNode<T>` and `createReactForm` calls it twice
+  (without the form — to wire nodes, with it — to render), so you never write that pair yourself.
+  Conditional display via `hideWhen(node, () => cond)` inside the `renderBehavior` factory; mount with
+  `<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />`. `find_recipe render-schema`.
 - **renderer-json**: JSON with string operators `$model(path)` / `$component(Name)` / `$dataSource(NAME)`,
-  a `defineRegistry` mapping names → components, `convertJsonToM1Tree(json, registry, model)`, `<JsonRendererProvider settings={{ registry, model }}>` + `<JsonFormRenderer schema={json} />`.
+  a `defineRegistry` mapping names → components, then `createJsonForm({ schema, registry, model | initial })`
+  and `<JsonRendererProvider settings={{ registry: bundle.registry }}>` + `<JsonFormRenderer form={bundle} />`.
   **Validate the JSON with the `validate_json_schema` tool before rendering.** `find_recipe json-schema`.
 - **Raw third-party controls (non-ui-kit)**: add `resolveFieldAdapter(component) => FieldAdapter | undefined` to the renderer `settings` (both renderer-react and renderer-json) — the renderer maps the value-seam (`value` + `onChange(value)`) to each control's dialect. ui-kit components are already value-based and need no adapter.
 
@@ -155,9 +180,9 @@ The render tree (RenderSchema or JSON) describes **layout** and carries no valid
 has no `validators`, a RenderSchema leaf is display config, and there is no `$validator(...)` JSON operator
 by design. Validation is its own `defineValidationSchema<T>(({ model }) => …)` bound to the same model and
 run with `validateModel(model, schema)` at submit / per step. So a renderer target keeps up to **three**
-artifacts over one model: the **field schema** (values + components, for `createForm`) — for renderer-json
-produced by `convertJsonToM1Tree(json, registry, model)` — the **validation schema** (rules, for
-`validateModel`), and optionally a **behavior schema** (`defineFormBehavior`). Schema and rules stay
+artifacts over one model: the **field schema** (values + components — the tree the assembly call consumes;
+for renderer-json it is the JSON itself, converted inside `createJsonForm`), the **validation schema**
+(rules, for `validateModel`), and optionally a **behavior schema** (`defineFormBehavior`). Schema and rules stay
 independent: a layout pushed from the server changes display without touching the rules, and vice versa.
 For a wizard the validation schema is flat (all fields), independent of how steps nest in the render tree.
 

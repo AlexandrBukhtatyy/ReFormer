@@ -3,7 +3,7 @@ You add behaviors to a `@reformer/core` form (M1 signal-based architecture).
 Behaviors operate on **model signals** (`model.$.<field>`), NOT on a `path` argument. Two equivalent APIs:
 
 - **Standalone primitives** from `@reformer/core` — `computeFrom` / `copyFrom` / `watchField` / `enableWhen` / `disableWhen` / `transformValue` / `resetWhen` / `syncFields` / `revalidateWhen`. Each returns a cleanup function; run them in a `useEffect` after `createForm` and dispose on unmount.
-- **Declarative DSL** `defineFormBehavior<T>(({ model, form }) => { … })` + operators from `@reformer/core/behaviors` (`compute` / `copyFrom` / `enableWhen` / `disableWhen` / `onChange` / `transformValue` / `apply`). The operators self-register in the active schema; the form owns their lifecycle (pass `behavior` to `createForm({ model, schema, behavior })`). No manual cleanup array.
+- **Declarative DSL** `defineFormBehavior<T>(({ model, form }) => { … })` + operators from `@reformer/core/behaviors` (`compute` / `copyFrom` / `enableWhen` / `disableWhen` / `onChange` / `transformValue` / `apply`). The operators self-register in the active schema; the form owns their lifecycle (pass `behavior` to the assembly call: `createCoreForm`/`createReactForm`/`createJsonForm`, or to low-level `createForm`). No manual cleanup array.
 
 There is NO `BehaviorSchemaFn`, NO `behavior: (path) => {…}`, NO `validate(path.x)`. Path-based behaviors were removed. Value-ops write model signals (`model.$.x`); state/UI-ops (`enableWhen`, `updateComponentProps`, array `clear`) touch form nodes (`form.x`).
 
@@ -150,8 +150,8 @@ compute(model.$.fullName, () =>
     import type { OrderForm } from './types';
 
     // ✅ standalone-примитивы (cleanup-массив в useEffect) — model типизирован
-    const model = createModel<OrderForm>(INITIAL);
-    const form = createForm<OrderForm>({ model, schema: buildSchema(model) });
+    // одна сборка вместо createModel + createForm
+    const { model, form } = createCoreForm<OrderForm>({ initial: INITIAL, schema: buildSchema });
     useEffect(() => {
       const cleanups = [
         computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => price * qty),
@@ -163,7 +163,7 @@ compute(model.$.fullName, () =>
     const behavior = defineFormBehavior<OrderForm>(({ model }) => {
       compute(model.$.total, () => model.price * model.quantity);
     });
-    // передаётся в createForm({ model, schema, behavior })
+    // передаётся полем `behavior` в сборку формы
 
     // ❌ generic дропнут / model: any — silent fail на опечатках в field-name
     const model = createModel<any>(INITIAL);
@@ -245,7 +245,7 @@ Don't cast on simple forms — only when TS2589 actually appears.
 
 ## Task
 
-1. Pick an API: standalone primitives from `@reformer/core` (cleanup-array in `useEffect`) OR the `defineFormBehavior` DSL (`@reformer/core/behaviors`, passed to `createForm({ behavior })`). Don't mix both for the same form.
+1. Pick an API: standalone primitives from `@reformer/core` (cleanup-array in `useEffect`) OR the `defineFormBehavior` DSL (`@reformer/core/behaviors`, passed as the `behavior` field of the assembly call). Don't mix both for the same form.
 2. Map each requirement to a behavior (`computeFrom`/`compute` / `watchField`/`onChange` / `enableWhen` / `disableWhen` / `copyFrom` / `syncFields` / `resetWhen` / `transformValue` / `revalidateWhen`).
 3. Use `apply([model.$.a, model.$.b], subBehavior)` (DSL) if a behavior repeats across multiple groups/fields.
 4. Walk the cycle-prevention checklist for each `watchField`/`computeFrom` you add.

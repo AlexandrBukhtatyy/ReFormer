@@ -13,9 +13,9 @@ You design and write a new form on `@reformer/*`.
 
 ## Critical inline rules
 
-- **Architecture M1**: `createModel<T>(initialValues)` holds the data (source of truth); the schema binds each field to a model signal (`value: model.$.field`) plus `component` / `componentProps`; `createForm<T>({ model, schema })` wires nodes to the model's signals. Values live in the model, never in a standalone form config.
+- **Architecture M1**: `createModel<T>(initialValues)` holds the data (source of truth); the schema binds each field to a model signal (`value: model.$.field`) plus `component` / `componentProps`. Wiring is ONE call — `createCoreForm` (ui-kit target), `createReactForm` (renderer-react) or `createJsonForm` (renderer-json) — which builds the model, the form and (when given) the validation in a single pass and returns a bundle. Values live in the model, never in a standalone form config.
 - **FormSchema only declarative — layout carries NO validators**: this prompt does NOT add validation/behavior. Under the split contract the layout schema has no `validators` key at all — validation is a **separate** `defineValidationSchema<T>(({ model }) => …)` run on demand by `validateModel(model, schema)` (from `@reformer/core/validation`), and behavior is `defineFormBehavior`. Produce those with `add-validation` / `add-behavior` separately; every leaf here stays pure layout (`{ value, component, componentProps }`). A `validators: [...]` array on a leaf is the old shape — do not emit it.
-- **`useMemo`** when creating model + form in a React component: build `model`, then `schema`, then `form` inside one `useMemo(() => { const m = createModel<T>({...}); const s = buildSchema(m); const f = createForm<T>({ model: m, schema: s }); return { model: m, form: f, schema: s }; }, [])`.
+- **Stable assembly hook, NOT `useMemo`**: wrap the factory in `useFormBundle` (`@reformer/core`; re-exported as `useReactForm` / `useJsonForm` by the renderer packages) — `useFormBundle(() => createCoreForm<T>({ initial, schema: buildSchema, behavior, validation }))`. It calls the factory exactly once via a lazy `useState`; `useMemo` is wrong here because React may drop its cache and rebuild the form, losing typed input. The schema is passed as a BUILDER (`(model) => …`), never a prebuilt tree — leaves hold the model's own signals, so the tree cannot exist before the model.
 - **FormField** (from `@reformer/ui-kit`) usage: `<FormField control={form.x} testId="step1.x" />`. NOT the cdk compound `FormField.Root/Label/Control/Error` for ordinary fields.
 - **Leaf node shape**: `{ value: model.$.field, component: Input, componentProps: {...} }`. `value` is the model signal (`model.$.field`, a `PathAwareSignal`) — obligatory. Never a plain string field name, never a bare value.
 - **Array shape**: `{ array: model.<path>, item: (itemModel) => subSchema, initialValue }` — `array` is the reactive model array (`model.items`, not `model.$.items`), `item` builds the sub-schema from the element's sub-model (`FormModel<Item>`, access fields via `itemModel.$.field`). NEVER `{ value: [], itemSchema: {...} }` (silent corruption). Array mutations (`push`/`removeAt`) run on the model (`model.items.push(...)`), not the form.
@@ -71,56 +71,68 @@ You design and write a new form on `@reformer/*`.
   - `placeholder` missing → input shows nothing.
     Practical recipe for `renderer-json`: register option arrays / label-fns / loading-components via `reg.dataSource('NAME', value)` in `registry.ts`, and reference them from the JSON leaf's `componentProps` by operator string `'$dataSource(NAME)'`.
 
-## If `target=renderer-json` — mount from JSON via `convertJsonToM1Tree` (M1)
+## If `target=renderer-json` — assemble with `createJsonForm` (M1)
 
-Under M1 the JSON schema is a pure-string operator DSL. Bindings are encoded as strings: `'$model(path)'` (field/array), `'$component(Name)'` (registry component), `'$dataSource(NAME)'` (registry value/fn). The **model** owns the data; the form is built from the **same** JSON via `convertJsonToM1Tree(jsonSchema, registry, model)`, and `JsonFormRenderer` receives the model through `JsonRendererProvider` settings — there is no `form` prop (by design). Boilerplate (copy verbatim into `index.tsx`):
+Under M1 the JSON schema is a pure-string operator DSL. Bindings are encoded as strings: `'$model(path)'` (field/array), `'$component(Name)'` (registry component), `'$dataSource(NAME)'` (registry value/fn). The **model** owns the data; `createJsonForm` converts that same JSON, builds the form and returns a bundle `{ model, form, schema, registry, validation?, renderBehavior? }`, which goes to the renderer as the single `form` prop. Boilerplate (copy verbatim into `index.tsx`):
 
 {{{{raw}}}}
 
 ```tsx
-import { useMemo } from 'react';
-import { createForm, createModel } from '@reformer/core';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
-  convertJsonToM1Tree,
+  createJsonForm,
+  useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import rawJsonSchema from './json-schema.json';
+import rawJsonSchema from './renderer.schema.json';
 import { createMyRegistry } from './registry';
+import { createMyModel } from './model';
+import { formBehavior } from './form.behavior';
+import { formValidation } from './validation';
+import { createMyRenderBehavior } from './renderer.behavior';
 
-const jsonSchema = rawJsonSchema as unknown as JsonFormSchema; // "schema arrived as a string"
+const jsonSchema = rawJsonSchema as unknown as JsonFormSchema<MyForm>; // "schema arrived as a string"
 
 export function MyFormPage() {
-  const registry = useMemo(() => createMyRegistry(), []);
-  const { model } = useMemo(() => {
-    const model = createModel<MyForm>(initialValues);
-    // Form is built from the SAME JSON: the converter binds leaves to model signals.
-    createForm<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
-    return { model };
-  }, [registry]);
+  // ONE call: model + form + registry + behavior + validation + render behavior.
+  // useJsonForm (lazy useState) runs the factory exactly once — never useMemo.
+  const jsonForm = useJsonForm(() =>
+    createJsonForm<MyForm>({
+      schema: jsonSchema,
+      registry: createMyRegistry(),
+      model: createMyModel(),
+      behavior: formBehavior,
+      validation: formValidation,
+      renderBehavior: createMyRenderBehavior,
+    })
+  );
 
   return (
-    <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm> schema={jsonSchema} validate={import.meta.env.DEV} />
+    <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
+      <JsonFormRenderer<MyForm> form={jsonForm} validateSchema={import.meta.env.DEV} />
     </JsonRendererProvider>
   );
 }
 ```
 
-Runtime entities that cannot live in static JSON (a `FormProxy` for a wizard node, a validation config such as `makeValidationConfig(model) → { validateStep, validateAll }` built on `validateModel`) are injected via the `renderBehavior` prop + `onInit`/`patchProps`, addressing the node by `selector`:
+Runtime entities that cannot live in static JSON (a `FormProxy` for a wizard node, the assembled validation) are injected by the render-behavior factory, addressing the node by `selector`. The factory receives what the form assembly already produced — the form, the model and the built validation bundle (`{ validateStep, validateAll, … }`):
 
 ```tsx
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
+import type { FormModel, FormProxy, FormValidationBundle } from '@reformer/core';
 
-function createMyRenderBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyForm> {
+export function createMyRenderBehavior(
+  form: FormProxy<MyForm>,
+  model: FormModel<MyForm>,
+  validation?: FormValidationBundle<MyForm>
+): RenderBehaviorFn<MyForm> {
   return (schema) => {
     onInit(schema.node('wizard'), () => {
-      schema.node('wizard').patchProps({ form });
+      schema.node('wizard').patchProps({ form, ...validation });
     });
   };
 }
-// <JsonFormRenderer schema={jsonSchema} renderBehavior={createMyRenderBehavior(form)} />
 ```
 
 {{{{/raw}}}}
@@ -165,8 +177,8 @@ function createMyRenderBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 
 1. Stage 0 — verify detected stack (above). If gap → ask, don't code.
 2. Design form structure from description (fields, types, groups, arrays, nested forms).
-3. Write typed `interface MyForm { ... }` and `createModel<MyForm>(initialValues)`.
-4. Build the schema binding leaves to model signals (`{ value: model.$.field, component, componentProps }`), then `createForm<MyForm>({ model, schema })`. For `renderer-react`: same tree as `RenderSchemaFn<MyForm> = () => RenderNode<MyForm>` (no path arg) + `createRenderSchema`. For `renderer-json`: `JsonFormSchema` (`'$model(...)'` / `'$component(...)'` operators) + `defineRegistry` + `convertJsonToM1Tree`.
+3. Write typed `interface MyForm { ... }` and a model factory on `createModel<MyForm>(initialValues)`.
+4. Write the schema as a BUILDER over the model (`(model) => ({ value: model.$.field, component, componentProps })`), then assemble in ONE call wrapped in `useFormBundle`: `createCoreForm<MyForm>({ model, schema })` for ui-kit, `createReactForm<MyForm>({ model, schema })` for `renderer-react` (its builder takes `(model, form?)` and the factory calls it twice — you never do that by hand), `createJsonForm<MyForm>({ schema, registry, model })` for `renderer-json` (schema is JSON data + `defineRegistry`).
 5. Use components from detected ui-kit + Tailwind layout from skeleton above.
 6. Organize files per the directory layout: {{{layoutGuidance}}}
 7. Don't add validation/behaviors — out of scope.
@@ -174,7 +186,7 @@ function createMyRenderBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 ## Output checklist
 
 - [ ] Прочитал все ресурсы из Prerequisites: yes/no
-- [ ] `createModel` holds data; `createForm({ model, schema })` wires nodes to model signals
+- [ ] Model holds data; assembly is ONE call (`createCoreForm` / `createReactForm` / `createJsonForm`) wrapped in `useFormBundle` — no hand-rolled `createModel` + `createForm` + `useMemo` chain
 - [ ] Used ui-kit + Tailwind from detected stack (not plain HTML)
 - [ ] All spec fields included (walked the list)
 - [ ] Leaf node complete: `{ value: model.$.field, component, componentProps }` per field (`value` is the model signal, not a bare name)

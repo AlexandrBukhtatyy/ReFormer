@@ -1,6 +1,6 @@
 You add a dynamic field array to a `@reformer/*` form (M1 signal-based architecture).
 
-An array is declared in the schema as a dedicated node: `{ array: model.<path>, item: (itemModel) => <sub-schema> }`. `createForm({ model, schema })` materializes it as a `ModelArrayNode` (`form.<array>`), which `FormArraySection` (ui-kit) consumes. There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…})` factory — those are removed legacy forms.
+An array is declared in the schema as a dedicated node: `{ array: model.<path>, item: (itemModel) => <sub-schema> }`. The assembly call (`createCoreForm`/`createReactForm`/`createJsonForm`, or low-level `createForm`) materializes it as a `ModelArrayNode` (`form.<array>`), which `FormArraySection` (ui-kit) consumes. There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…})` factory — those are removed legacy forms.
 
 ## Args
 

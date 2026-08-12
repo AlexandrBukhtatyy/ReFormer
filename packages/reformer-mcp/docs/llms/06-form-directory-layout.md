@@ -25,7 +25,7 @@ is singular (no layer duality).
 
 ```
 [form-name]/
-├── index.tsx        # entry + whole form: createModel → createForm → render; ALL steps inline
+├── index.tsx        # entry + whole form: ONE assembly call (createCoreForm / createReactForm / createJsonForm) + render; ALL steps inline
 ├── types.ts         # form type + field enums + { value, label } option type + constant dictionaries
 ├── model.ts         # createModel + initial values + array-element factories
 ├── validation.ts    # ALL validation over the model → { validateStep, validateAll }
@@ -86,7 +86,7 @@ src/renderer-json/            # one per application
 ```
 
 Each form's own `registry.ts` composes the **app base registry** with its own components +
-`data-sources.ts` before `convertJsonToM1Tree`. Do **not** copy the base registry or the meta-schema
+`data-sources.ts`, and that composed registry goes into `createJsonForm({ registry })`. Do **not** copy the base registry or the meta-schema
 into a per-form file — regenerate the meta-schema with `npm run gen:form-schema` when the base
 registry changes.
 

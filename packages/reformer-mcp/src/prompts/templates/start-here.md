@@ -10,7 +10,13 @@ your only source of truth. Do not assume APIs from memory — look them up here.
    `value` is a signal (`model.$.x`), never a string. The layout carries **no** validation: a leaf
    `validators: [...]` array still type-checks (legacy field) but the engine that ran it was **removed**,
    so the rule is silently ignored — see step 4.
-3. **Form** — `createForm({ model, schema })` (not the legacy `{ form: {...} }` overloads).
+3. **Assembly** — ONE call per target: `createCoreForm({ model | initial, schema, behavior?, validation? })`
+   (`@reformer/core`, ui-kit rendering), `createReactForm({ …, schema: (model, form?) => tree, renderBehavior? })`
+   (`@reformer/renderer-react`) or `createJsonForm({ schema, registry, … })` (`@reformer/renderer-json`).
+   Each returns a bundle `{ model, form, validation?, … }`. In React wrap the factory in `useFormBundle`
+   (re-exported as `useReactForm` / `useJsonForm`) — a lazy `useState` that runs it exactly once;
+   `useMemo` may drop its cache and rebuild the form, losing typed input. Low-level `createModel` +
+   `createForm` stay available for special cases.
 4. **Validation** — a **standalone schema, not leaf metadata**: rules live in
    `defineValidationSchema<T>(({ model }) => { … })` and are wired to fields with the ambient operator
    `validate(sig, [rules])` (`sig` = `model.$.field`); both from `@reformer/core/validation`. A rule is a
@@ -24,8 +30,10 @@ your only source of truth. Do not assume APIs from memory — look them up here.
 6. **Arrays / Wizard** (if needed) — array node `{ array, item, initialValue }` (+ `component: FormArray`
    from ui-kit when the node is also rendered — the renderer ships no array chrome) + CDK `FormArray` (key rows
    by `id`); wizard via CDK `FormWizardConfig` = `{ validateStep, validateAll }` callbacks.
-7. **Render** — pick one: ui-kit `<FormField control={form.x} />`; renderer-react `createRenderSchema` +
-   `FormRenderer`; renderer-json JSON (operators `$model`/`$component`/`$dataSource`) + `defineRegistry`.
+7. **Render** — the bundle goes to the renderer as one prop: ui-kit `<FormField control={form.x} />`;
+   renderer-react `<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />`;
+   renderer-json `<JsonFormRenderer form={bundle} />` inside `JsonRendererProvider`
+   (operators `$model`/`$component`/`$dataSource` + `defineRegistry`).
 
 ## Which tool/prompt at each step
 

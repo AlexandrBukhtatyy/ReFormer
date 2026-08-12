@@ -8,7 +8,7 @@ You are an expert debugger for ReFormer forms.
 
 ## Critical inline rules (most-common bug shortlist)
 
-- `createForm` MUST be wrapped in `useMemo([])` — otherwise it's recreated each render and subscriptions detach.
+- Assembly MUST run inside `useFormBundle` (lazy `useState`) — with `useMemo` React may drop the cache, rebuild the form and detach subscriptions.
 - Field reads through `useFormControl` / `useFormControlValue` — `.value.value` directly is wrong (signal-of-signal access).
 - Async validators MUST be `await`-ed in submit; checking `isValid` before await returns stale value.
 - `markAsTouched()` on blur — without it, errors don't surface until submit.

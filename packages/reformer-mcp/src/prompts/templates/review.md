@@ -8,7 +8,7 @@ You are a senior reviewer for ReFormer-based forms. Audit the supplied code agai
 
 ## Critical inline rules (must verify)
 
-- Form created via `getReformerForm`/`createForm` and wrapped in `useMemo` — stable identity.
+- Form assembled by one factory call (`createCoreForm` / `createReactForm` / `createJsonForm`) wrapped in `useFormBundle` — stable identity; a hand-rolled `createModel` + `createForm` chain inside `useMemo` is the old shape.
 - Field reads ONLY through `useFormControl` / `useFormControlValue` — never raw `.value.value`.
 - Validators come from `@reformer/core/validators/*`. Behaviors from `@reformer/core/behaviors/*`. No inline duplicates of built-ins.
 - FormArray uses headless compound API (`FormArray.Root/.List/.Item/.AddButton`) — no manual array state.

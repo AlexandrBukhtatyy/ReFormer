@@ -56,7 +56,7 @@ const steps: FormWizardStep<MyForm>[] = [
 
 <FormWizard
   form={form}
-  config={makeValidationConfig(model) /* → { validateStep, validateAll } */}
+  config={credit.validation /* bundle from the assembly: { validateStep, validateAll, … } */}
   steps={steps}
   onSubmit={handleSubmit}
 />;
@@ -121,7 +121,7 @@ Step bodies are plain React components rendered conditionally:
 
 Validation per step: `validateModel(model, stepSchema)` (`@reformer/core/validation`) — runs the step's `ValidationSchema<Root>`, routes errors into the form nodes (so fields light up), and returns `Promise<boolean>`. Cross-step full validation runs in the submit handler.
 
-⚠ **`validateModel(model, schema)` returns `Promise<boolean>` directly** — `true` when there are no _blocking_ errors. `severity: 'warning'` entries are non-blocking by construction: the runner still routes them into the nodes (the field shows the warning) but keeps the result `true`. So the wizard's boolean gate is just the runner's result — no manual `.errors` inspection, no warning-aware helper. This is exactly what the canonical `makeValidationConfig(model)` wraps, exposing `{ validateStep, validateAll }` (each `Promise<boolean>`):
+⚠ **`validateModel(model, schema)` returns `Promise<boolean>` directly** — `true` when there are no _blocking_ errors. `severity: 'warning'` entries are non-blocking by construction: the runner still routes them into the nodes (the field shows the warning) but keeps the result `true`. So the wizard's boolean gate is just the runner's result — no manual `.errors` inspection, no warning-aware helper. This is exactly what the assembled `bundle.validation` exposes as `{ validateStep, validateAll }` (each `Promise<boolean>`):
 
 ```ts
 import { validateModel } from '@reformer/core/validation';
@@ -163,50 +163,53 @@ Conditional sub-sections within steps (mortgage, residence, etc.) get their own 
 
 ### Integration B3 — `target=renderer-json`
 
-Same `setHidden` mechanics as B2, but the tree is built from JSON via `convertJsonToM1Tree(jsonSchema, registry, model)` and mounted through `JsonRendererProvider` + `JsonFormRenderer` — there is **no** `form` prop and **no** `createRenderSchemaFromJson(...)` wrapper (both are pre-M1). The model owns the data; the converter binds JSON leaves to model signals. Runtime entities that can't live in static JSON (a `FormProxy` for the wizard node, a validation config) are injected into nodes **by `selector`** via the `renderBehavior` prop + `onInit`/`patchProps`.
+Same `setHidden` mechanics as B2, but the tree comes from JSON: `createJsonForm` converts it, builds the form and assembles the validation in one pass, and the resulting bundle is mounted as the single `form` prop of `JsonFormRenderer` (there is no `schema`+`model` pair to pass, and no pre-M1 `createRenderSchemaFromJson(...)` wrapper). Runtime entities that can't live in static JSON (a `FormProxy` for the wizard node, the assembled validation) are injected into nodes **by `selector`** from the render-behavior factory via `onInit`/`patchProps`.
 
 {{{{raw}}}}
 
 ```tsx
-import { useMemo } from 'react';
-import { createForm, createModel, type FormProxy } from '@reformer/core';
+import type { FormModel, FormProxy, FormValidationBundle } from '@reformer/core';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
-  convertJsonToM1Tree,
+  createJsonForm,
+  useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
 
-const jsonSchema = rawJsonSchema as unknown as JsonFormSchema;
+const jsonSchema = rawJsonSchema as unknown as JsonFormSchema<MyForm>;
 
-export function MyWizardPage() {
-  const registry = useMemo(() => createMyRegistry(), []);
-  const { model, form } = useMemo(() => {
-    const model = createModel<MyForm>(initialValues);
-    // Form is built from the SAME JSON: the converter binds leaves to model signals.
-    const form = createForm<MyForm>({
-      model,
-      schema: convertJsonToM1Tree(jsonSchema, registry, model),
-    });
-    return { model, form };
-  }, [registry]);
-
-  // Inject the wizard's FormProxy (+ validation config) into the wizard node — addressed by selector.
-  const renderBehavior: RenderBehaviorFn<MyForm> = (schema) => {
+// The factory receives what the assembly produced: form, model and the built validation
+// ({ validateStep, validateAll, … }) — exactly the props the wizard node needs.
+function createMyRenderBehavior(
+  form: FormProxy<MyForm>,
+  model: FormModel<MyForm>,
+  validation?: FormValidationBundle<MyForm>
+): RenderBehaviorFn<MyForm> {
+  return (schema) => {
     onInit(schema.node('wizard'), () => {
-      schema.node('wizard').patchProps({ form, config: makeValidationConfig(model) });
+      schema.node('wizard').patchProps({ form, ...validation });
     });
     // A3/A4 manual wizard: drive schema.node('stepN').setHidden(...) React-mediated (see ⚠ below).
   };
+}
+
+export function MyWizardPage() {
+  const jsonForm = useJsonForm(() =>
+    createJsonForm<MyForm>({
+      schema: jsonSchema,
+      registry: createMyRegistry(),
+      model: createMyModel(),
+      behavior: formBehavior,
+      validation: formValidation, // { steps: { step1: …, step2: … }, extras? }
+      renderBehavior: createMyRenderBehavior,
+    })
+  );
 
   return (
-    <JsonRendererProvider settings={{ registry, model }}>
-      <JsonFormRenderer<MyForm>
-        schema={jsonSchema}
-        renderBehavior={renderBehavior}
-        validate={import.meta.env.DEV}
-      />
+    <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
+      <JsonFormRenderer<MyForm> form={jsonForm} validateSchema={import.meta.env.DEV} />
     </JsonRendererProvider>
   );
 }
@@ -224,7 +227,7 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 
 - **Per-step validation schemas** (`STEP_SCHEMAS[step]` — each a `defineValidationSchema<Root>(({ model }) => { validate(model.$.x, [rules]); … })` function; async via `validateAsync`, conditional via `validateWhen`, cross-field via `cross`) drive `validateStep`; `goNext()` validates only the current step's schema via `validateModel(model, STEP_SCHEMAS[step - 1])`.
 - **Full schema** — `defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS, fullExtras))`: all step schemas plus a form-level cross-field/warnings schema (`fullExtras`), runs on submit (share reusable rule-sets as plain helper functions; no duplicates with per-step rules).
-- **`makeValidationConfig(model)`** returns `{ validateStep, validateAll }` (both `Promise<boolean>`) — pass it straight to `FormWizard config`.
+- **Validation rules travel as DATA** — `{ steps: { step1: schema1, … }, extras? }` in the `validation` field of the assembly call. The factory turns them into `{ validateStep, validateAll, createStepController, stepSelectors }` (all `Promise<boolean>` where applicable) and puts that bundle into `bundle.validation` — pass it straight to `FormWizard config`. The hand-rolled `makeValidationConfig(model)` wrapper is only needed when the form is built without a factory.
 - **Don't rename fields** when grouping by step — only visual grouping.
 - **Conditional steps** — filter `STEPS` array dynamically OR `setCurrentStep(n)` directly (A4) / `useRef<FormWizardHandle>().goToStep(n)` (A3).
 
@@ -246,7 +249,7 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 - **A3**: `reformer://docs/cdk/formwizard-indicator`, `reformer://docs/cdk/formwizard-actions`, `reformer://docs/cdk/formwizard-progress`, `reformer://docs/cdk/external-control-via-ref-2`, `reformer://docs/cdk/conditional-dynamic-step-count-in-formwizard`, `reformer://docs/cdk/multi-step-submit`.
 - **A4**: `reformer://docs/core/multi-step-form-validation` for `validateModel(model, schema)` semantics (per-step `defineValidationSchema` + `apply(...)` full schema).
 - **B2 / B3**: `reformer://docs/renderer-react/render-schema-proxy` for `schema.node().setHidden()` API.
-- **B3**: `reformer://docs/renderer-json/quick-start` for the M1 mount (`convertJsonToM1Tree` + `JsonRendererProvider`/`JsonFormRenderer`) + `renderBehavior`/`onInit`/`patchProps` injection by `selector`.
+- **B3**: `reformer://docs/renderer-json/quick-start` for the M1 mount (`createJsonForm` + `JsonRendererProvider`/`JsonFormRenderer` (bundle via the `form` prop)) + `renderBehavior`/`onInit`/`patchProps` injection by `selector`.
 
 ## Task
 
@@ -254,7 +257,7 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 2. **Pick B** by target.
 3. State both choices in your output ("A=A3 (CDK FormWizard compound), B=B2 (renderer-react setHidden)").
 4. Split existing fields into steps per requirements.
-5. Build per-step `defineValidationSchema` functions + a full schema (`apply(...STEP_SCHEMAS, fullExtras)`), exposed via `makeValidationConfig(model)` → `{ validateStep, validateAll }`.
+5. Build per-step `defineValidationSchema` functions and declare them as data: `const formValidation = { steps: { step1: …, step2: … }, extras: fullExtras }` → the `validation` field of `createCoreForm`/`createReactForm`/`createJsonForm`.
 6. Implement following A's API + B's integration.
 7. Add full visual baseline (or rely on A1/A2 if they ship it).
 
@@ -262,11 +265,11 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 
 - [ ] Stated chosen (A, B) pair AND why each was picked
 - [ ] Read the Prerequisites for both A and B
-- [ ] Per-step `defineValidationSchema` functions cover all step fields; wired via `makeValidationConfig(model)` → `{ validateStep, validateAll }`
+- [ ] Per-step `defineValidationSchema` functions cover all step fields; declared as `validation: { steps, extras }` and consumed from `bundle.validation`
 - [ ] Full schema (`apply(...STEP_SCHEMAS, fullExtras)`) includes cross-step rules
 - [ ] No duplicate validation between step and full
 - [ ] Navigation gated on `validateModel(model, schema)` result (a plain `Promise<boolean>`); warnings stay non-blocking via the runner (no hand-rolled `.errors` gate)
 - [ ] Visual baseline present (step indicator strip with icons + en-dashes, card wrap, progress text, nav arrows) — either from A1/A2 or wired manually for A3/A4
 - [ ] testIds present per convention
 - [ ] (B2 / B3) all step containers have `selector: 'stepN'`
-- [ ] (B3) mounted with `convertJsonToM1Tree` + `JsonRendererProvider`/`JsonFormRenderer` (no `form` prop); `form` injected into the wizard node via `renderBehavior` + `onInit`/`patchProps` (by `selector`)
+- [ ] (B3) assembled with `createJsonForm` and mounted as `<JsonFormRenderer form={jsonForm} />`; `form` + validation injected into the wizard node from the `renderBehavior` factory via `onInit`/`patchProps` (by `selector`)
