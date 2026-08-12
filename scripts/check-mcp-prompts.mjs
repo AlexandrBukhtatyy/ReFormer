@@ -33,6 +33,57 @@ const REMOVED_API = [
 ];
 
 /**
+ * Устаревшая РУЧНАЯ сборка формы. Само API живо (фабрики зовут его внутри), поэтому ловим не
+ * упоминание символа, а связку: «создаём модель И тут же строим форму», «конвертируем JSON И
+ * строим форму», а также снятые формы монтажа рендерера. Именно так промпты и разъезжались с
+ * пакетами: `createJsonForm` появился, а боилерплейт в `create-form.md`/`add-wizard.md` ещё
+ * полгода учил `convertJsonToM1Tree` + `<JsonFormRenderer schema=…>` — гейт этого не видел,
+ * потому что проверял только снятые символы валидации.
+ */
+const LEGACY_ASSEMBLY = [
+  {
+    name: 'ручная связка createModel + createForm',
+    test: (t) => /createModel\s*[<(]/.test(t) && /\bcreateForm\s*[<(]/.test(t),
+  },
+  {
+    name: 'ручная связка convertJsonToM1Tree + createForm',
+    test: (t) => /convertJsonToM1Tree/.test(t) && /\bcreateForm\s*[<(]/.test(t),
+  },
+  {
+    name: 'сборка формы в useMemo',
+    test: (t) =>
+      /useMemo\s*\(/.test(t) &&
+      /\bcreateForm\s*[<(]|createJsonForm|createReactForm|createCoreForm/.test(t),
+  },
+  {
+    name: '<JsonFormRenderer schema={…}> вместо бандла form={…}',
+    test: (t) => /JsonFormRenderer[^]*?\sschema=\{/.test(t),
+  },
+  {
+    name: 'settings={{ registry, model }} у JsonRendererProvider',
+    test: (t) => /settings=\{\{[^}]*\bmodel\b/.test(t),
+  },
+  {
+    name: 'снятый проп validate={…} у JsonFormRenderer (теперь validateSchema)',
+    test: (t) => /JsonFormRenderer[^]*?\svalidate=\{/.test(t),
+  },
+];
+
+/**
+ * Промпты, обязанные учить сборке через фабрику: если файл вообще говорит про создание формы,
+ * он должен назвать актуальную точку входа. Без этого «тихий разъезд» вернётся с другой стороны —
+ * промпт просто перестанет упоминать сборку, и проверка выше ничего не найдёт.
+ */
+const MUST_MENTION_FACTORY = [
+  'create-form.md',
+  'start-here.md',
+  'to-renderer.md',
+  'to-renderer-json.md',
+  'add-wizard.md',
+];
+const FACTORY_RE = /createCoreForm|createReactForm|createJsonForm/;
+
+/**
  * Маркеры отрицательного контекста. Достаточно одного в блоке.
  * Список намеренно явный: если появится новая формулировка отрицания — её сюда дописать,
  * это дешевле, чем угадывать тональность прозы эвристикой.
@@ -103,7 +154,10 @@ for (const file of files) {
   const content = readFileSync(full, 'utf8');
 
   for (const block of toBlocks(content)) {
-    const hits = REMOVED_API.filter((api) => api.re.test(block.text));
+    const hits = [
+      ...REMOVED_API.filter((api) => api.re.test(block.text)),
+      ...LEGACY_ASSEMBLY.filter((api) => api.test(block.text)),
+    ];
     if (hits.length === 0) continue;
     checkedBlocks += 1;
     if (hasNegativeMarker(block.text)) continue;
@@ -113,6 +167,16 @@ for (const file of files) {
       line: block.startLine,
       api: hits.map((h) => h.name).join(', '),
       excerpt: block.text.split('\n').slice(0, 3).join('\n'),
+    });
+  }
+
+  // Обратная проверка: файл про сборку обязан назвать фабрику.
+  if (MUST_MENTION_FACTORY.includes(file) && !FACTORY_RE.test(content)) {
+    violations.push({
+      file,
+      line: 1,
+      api: 'не упомянута ни одна фабрика сборки (createCoreForm / createReactForm / createJsonForm)',
+      excerpt: content.split('\n').slice(0, 3).join('\n'),
     });
   }
 }
