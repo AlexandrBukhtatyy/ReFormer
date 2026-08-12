@@ -7,77 +7,56 @@
  * - [json-schema.json] — layout формы как ЧИСТЫЙ JSON (операторы — строки `$model(...)` и т.п.;
  *   так схема может прийти строкой с сервера/CMS).
  * - [registry.ts] — реестр компонентов и source-значений.
- * - [render-behavior.ts] — обёртка над TS-variant behavior-ом: инжектит форму
- *   в wizard через `onInit`, делегирует остальное.
- * - [RegistrationFormRendererJson.tsx] — этот файл: создаёт форму, собирает
- *   реестр/behavior, рендерит JsonFormRenderer внутри JsonRendererProvider.
+ * - [render-behavior.ts] — обёртка над TS-variant behavior-ом: инжектит форму и валидацию
+ *   в wizard через `onInit`, остальное делегирует общему поведению.
+ * - [CreditApplicationFormRendererJson.tsx] — этот файл: собирает форму ОДНИМ вызовом
+ *   `createJsonForm` (модель + форма + валидация + render-behavior) и рендерит бандл.
  */
 
-import { useMemo } from 'react';
-import { createForm } from '@reformer/core';
+import { ValidationMessagesProvider } from '@reformer/cdk';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
-  convertJsonToM1Tree,
+  createJsonForm,
+  useJsonForm,
   type JsonFormSchema,
-  type ComponentRegistry,
 } from '@reformer/renderer-json';
 import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
 import { creditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
+import { creditApplicationValidation } from '../complex-multy-step-form/schemas/validation';
+import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import rawJsonSchema from './json-schema.json';
 import { createCreditApplicationRegistry } from './registry';
 import { createCreditApplicationJsonRenderBehavior } from './render-behavior';
-import { ValidationMessagesProvider } from '@reformer/cdk';
-import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
 
 // Чистый JSON импортируется как данные; операторы-строки (`$model(...)`) типизируются как `string`,
 // поэтому приводим к JsonFormSchema (это и есть сценарий «схема пришла строкой с сервера»).
-const creditApplicationJsonSchema = rawJsonSchema as unknown as JsonFormSchema;
-
-/**
- * Строит модель + форму из JSON-схемы. Конвертация обёрнута в try/catch: при битой схеме
- * (напр. неизвестный `$component`) `convertJsonToM1Tree` кинул бы ДО рендера JsonFormRenderer
- * и опередил его панель ошибок. На ошибке `form=null` → renderBehavior не вешаем, а
- * JsonFormRenderer (`validate`) сам покажет SchemaErrorPanel вместо формы.
- *
- * Вынесено из `useMemo` отдельной функцией: try/catch в теле мемо ломает React-Compiler
- * (`preserve-manual-memoization`), а вызов-одной-строкой компилятор сохраняет.
- */
-function buildModelAndForm(registry: ComponentRegistry) {
-  const model = createCreditApplicationModel();
-  try {
-    const form = createForm<CreditApplicationForm>({
-      model,
-      schema: convertJsonToM1Tree(creditApplicationJsonSchema, registry, model),
-      behavior: creditApplicationBehavior,
-    });
-    return { model, form };
-  } catch (err) {
-    console.error('[json-renderer] schema conversion failed:', err);
-    return { model, form: null };
-  }
-}
+const creditApplicationJsonSchema =
+  rawJsonSchema as unknown as JsonFormSchema<CreditApplicationForm>;
 
 export default function CreditApplicationFormRendererJson() {
-  const registry = useMemo(() => createCreditApplicationRegistry(), []);
-  // M1, единая схема: модель + форма строятся ИЗ JSON-схемы (без отдельной схемы формы).
-  // Поведение (compute/enableWhen/onChange) запускается внутри createForm({ behavior }).
-  const { model, form } = useMemo(() => buildModelAndForm(registry), [registry]);
-  const renderBehavior = useMemo(
-    () => (form ? createCreditApplicationJsonRenderBehavior(form, model) : undefined),
-    [form, model]
+  // Сборка ОДНИМ вызовом: модель + форма из JSON-схемы + реестр + поведение + валидация +
+  // render-behavior. `useJsonForm` (ленивый useState) зовёт фабрику ровно один раз — в отличие от
+  // useMemo, кэш которого React вправе сбросить, потеряв введённое.
+  const jsonForm = useJsonForm(() =>
+    createJsonForm<CreditApplicationForm>({
+      schema: creditApplicationJsonSchema,
+      registry: createCreditApplicationRegistry(),
+      model: createCreditApplicationModel(),
+      behavior: creditApplicationBehavior,
+      validation: creditApplicationValidation,
+      renderBehavior: createCreditApplicationJsonRenderBehavior,
+    })
   );
 
   return (
     <div className="w-full">
-      {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5). */}
+      {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5) — настройка хоста. */}
       <ValidationMessagesProvider resolver={fileUploadMessages}>
-        <JsonRendererProvider settings={{ registry }}>
+        <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
           <JsonFormRenderer<CreditApplicationForm>
-            schema={creditApplicationJsonSchema}
-            model={model}
-            renderBehavior={renderBehavior}
+            form={jsonForm}
             validateSchema={import.meta.env.DEV}
           />
         </JsonRendererProvider>

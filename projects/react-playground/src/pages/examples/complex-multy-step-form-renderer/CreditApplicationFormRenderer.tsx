@@ -10,17 +10,17 @@
  * - Переиспользует типы, схему, валидацию и API из complex-multy-step-form
  */
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { createForm } from '@reformer/core';
 import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
 import { creditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
-import { FormRenderer } from '@reformer/renderer-react';
+import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
 import type { RenderSchemaProxy } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
 import { ValidationMessagesProvider } from '@reformer/cdk';
 import { fileUploadMessages } from '../complex-multy-step-form/constants/file-upload-messages';
-import { buildCreditApplicationSchema, createCreditApplicationRenderSchema } from './render-schema';
+import { buildCreditApplicationSchema } from './render-schema';
+import { createCreditApplicationRenderBehavior } from './render-behavior';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 
 // Демо-панель для демонстрации программного управления схемой
@@ -114,26 +114,23 @@ function SchemaControlPanel({ schema }: { schema: RenderSchemaProxy<CreditApplic
 }
 
 function CreditApplicationFormRenderer() {
-  // M1, единая схема: форма строится ИЗ render-схемы (без отдельной схемы формы).
-  const { form, model } = useMemo(() => {
-    const model = createCreditApplicationModel();
-    // Дерево БЕЗ form (чтобы harvest не обходил FormProxy) → createForm строит ноды + массивы.
-    const form = createForm<CreditApplicationForm>({
-      model,
-      schema: buildCreditApplicationSchema(model),
+  // Сборка ОДНИМ вызовом: модель + форма + render-схема + поведение. Двойной проход по билдеру
+  // (без формы — для нод, с формой — для рендера wizard-узла) фабрика делает сама.
+  const creditForm = useReactForm(() =>
+    createReactForm<CreditApplicationForm>({
+      model: createCreditApplicationModel(),
+      schema: buildCreditApplicationSchema,
       behavior: creditApplicationBehavior,
-    });
-    return { model, form };
-  }, []);
-  // Render-схема (то же дерево + form для wizard) + применённое render-поведение
-  const schema = useMemo(() => createCreditApplicationRenderSchema(model, form), [model, form]);
+      renderBehavior: (form) => createCreditApplicationRenderBehavior(form),
+    })
+  );
 
   return (
     <div className="w-full">
-      <SchemaControlPanel schema={schema} />
+      <SchemaControlPanel schema={creditForm.render} />
       {/* Резолвер текстов для кодов отбора FileUpload (поле «Документы», шаг 5). */}
       <ValidationMessagesProvider resolver={fileUploadMessages}>
-        <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
+        <FormRenderer form={creditForm} settings={{ fieldWrapper: FormField }} />
       </ValidationMessagesProvider>
     </div>
   );

@@ -18,11 +18,10 @@
  * `validateModel` разносит ошибки по нодам; «первое невалидное» находим чтением нод (не картой путей).
  */
 
-import { useMemo } from 'react';
-import { createModel, createForm, getNodeForSignal, type FormModel } from '@reformer/core';
+import { getNodeForSignal, type FormModel } from '@reformer/core';
 import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
-import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
+import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
 import type { RenderNode, RenderSchemaProxy } from '@reformer/renderer-react';
 import {
   Box,
@@ -120,18 +119,9 @@ const FIELD_ORDER: Array<{ path: string; refKey: string }> = [
   { path: 'nickname', refKey: 'nickname' },
 ];
 
-/**
- * Render-схема + поведение. КЛЮЧЕВОЕ: `getRef()` вызывается здесь, на этапе применения поведения,
- * ДО первого рендера — getRef намеренно не бампает version-сигнал, поэтому ref, запрошенный позже,
- * уже не будет прикреплён к ноде (см. R2 в плане).
- */
-function createImperativeRenderSchema(model: FormModel<ImperativeDemoForm>) {
-  const schema = createRenderSchema<ImperativeDemoForm>(() => buildSchema(model));
-  for (const { refKey } of FIELD_ORDER) {
-    schema.node(refKey).getRef();
-  }
-  return schema;
-}
+// Прогрев ref'ов вынесен в фазу `setup` фабрики (см. компонент ниже). КЛЮЧЕВОЕ: `getRef()` обязан
+// вызваться ДО первого рендера — он намеренно не бампает version-сигнал, поэтому ref, запрошенный
+// позже, уже не прикрепится к ноде.
 
 function ControlPanel({
   schema,
@@ -216,22 +206,23 @@ function ControlPanel({
 }
 
 function ImperativeHandles() {
-  const { form, model } = useMemo(() => {
-    const model = createModel<ImperativeDemoForm>({ ...INITIAL });
-    const form = createForm<ImperativeDemoForm>({
-      model,
-      schema: buildSchema(model) as never,
-    });
-    return { model, form };
-  }, []);
-  void form;
-
-  const schema = useMemo(() => createImperativeRenderSchema(model), [model]);
+  // Сборка одним вызовом. `setup` — фаза до первого рендера: ref'ы регистрируются заранее, иначе
+  // панель управления получила бы пустые ссылки (getRef намеренно не бампает version-сигнал).
+  const demoForm = useReactForm(() =>
+    createReactForm<ImperativeDemoForm>({
+      initial: { ...INITIAL },
+      schema: (model) => buildSchema(model) as never,
+      setup: ({ render }) => {
+        for (const { refKey } of FIELD_ORDER) render.node(refKey).getRef();
+      },
+    })
+  );
+  const { model, render: schema } = demoForm;
 
   return (
     <div className="w-full">
       <ControlPanel schema={schema} model={model} />
-      <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
+      <FormRenderer form={demoForm} settings={{ fieldWrapper: FormField }} />
     </div>
   );
 }

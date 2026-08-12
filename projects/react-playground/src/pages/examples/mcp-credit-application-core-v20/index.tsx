@@ -1,15 +1,15 @@
 // index.tsx — Заявка на кредит (core target, iter-20).
-// createModel → buildCreditSchema → createForm({ model, schema, behavior }) → FormWizard.
+// Сборка одним вызовом: createCoreForm({ model, schema, behavior, validation }) → FormWizard.
 // Все 6 шагов inline (FC-bodies), массивы inline через FormArraySection. Schema-driven UI.
 import { useEffect, useMemo, type FC } from 'react';
-import { createForm, useFormControlValue, type FormProxy } from '@reformer/core';
+import { createCoreForm, useFormControlValue, type FormProxy } from '@reformer/core';
 import { FormField, Section } from '@reformer/ui-kit';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import { FormArraySection } from '@reformer/ui-kit/form-array';
 
 import { creditBehavior } from './form.behavior';
 import { buildCreditSchema } from './form.schema';
-import { makeValidationConfig } from './validation';
+import { creditValidation } from './validation';
 import { blankCoBorrower, blankExistingLoan, blankProperty, createCreditModel } from './model';
 import { loadApplication, submitApplication } from './api';
 import type { CoBorrower, CreditForm, ExistingLoan, FormMode, Property } from './types';
@@ -263,13 +263,18 @@ export default function McpCreditApplicationCoreV20({
   applicationId = null,
   mode = 'create',
 }: PageProps) {
-  const { form, model, config } = useMemo(() => {
-    const model = createCreditModel();
-    const schema = buildCreditSchema(model, mode === 'view');
-    const form = createForm<CreditForm>({ model, schema, behavior: creditBehavior });
-    const config = makeValidationConfig(model);
-    return { form, model, config };
-  }, [mode]);
+  // Сборка одним вызовом: модель + форма + валидация. Режим только для чтения меняет схему, поэтому
+  // при его смене форму пересобираем — отсюда ключ по `mode` вместо useFormBundle.
+  const { form, model, validation } = useMemo(
+    () =>
+      createCoreForm<CreditForm>({
+        model: createCreditModel(),
+        schema: (m) => buildCreditSchema(m, mode === 'view'),
+        behavior: creditBehavior,
+        validation: creditValidation,
+      }),
+    [mode]
+  );
 
   useEffect(() => {
     if (!applicationId) return;
@@ -294,7 +299,7 @@ export default function McpCreditApplicationCoreV20({
   return (
     <div className="mx-auto  p-6" data-testid="credit-application-core-v20">
       <h1 className="mb-6 text-2xl font-bold">Заявка на кредит</h1>
-      <FormWizard form={form} steps={STEPS} config={config} onSubmit={handleSubmit} />
+      <FormWizard form={form} steps={STEPS} config={validation!} onSubmit={handleSubmit} />
     </div>
   );
 }

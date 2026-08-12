@@ -12,9 +12,7 @@
  */
 
 import type { FormProxy, FormModel } from '@reformer/core';
-import { createRenderSchema } from '@reformer/renderer-react';
 import type { RenderNode } from '@reformer/renderer-react';
-import { createCreditApplicationRenderBehavior } from './render-behavior';
 import { Step } from '@reformer/cdk/form-wizard';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { makeCreditValidationConfig } from '../complex-multy-step-form/schemas/validation';
@@ -1085,18 +1083,6 @@ export function buildCreditApplicationSchema(
   } as unknown as RenderNode<CreditApplicationForm>;
 }
 
-/**
- * RenderSchemaProxy для FormRenderer + применённое render-поведение.
- * Форма (для wizard-узла) уже создана из этой же схемы — см. компонент-страницу.
- */
-export function createCreditApplicationRenderSchema(
-  model: FormModel<CreditApplicationForm>,
-  form: FormProxy<CreditApplicationForm>
-) {
-  const schema = createRenderSchema<CreditApplicationForm>(() =>
-    buildCreditApplicationSchema(model, form)
-  );
-  createCreditApplicationRenderBehavior(form)(schema);
-  return schema;
-}
+// Сборку схемы (двойной проход по билдеру + применение render-поведения) делает `createReactForm` —
+// см. страницу примера. Отдельной обёртки здесь больше нет.
 /* eslint-enable @typescript-eslint/no-explicit-any */

@@ -8,9 +8,7 @@
  * и подписан именно на свою модель.
  */
 
-import { useMemo } from 'react';
-import { createForm } from '@reformer/core';
-import { FormRenderer } from '@reformer/renderer-react';
+import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-react';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -50,14 +48,13 @@ function Panel({
 }
 
 function TypedSchemaColumn() {
-  const { model, form } = useMemo(() => {
-    const model = createInstallmentModel();
-    const form = createForm<InstallmentRequest>({ model, schema: buildInstallmentSchema(model) });
-    return { model, form };
-  }, []);
-  void form; // форма нужна ради нод состояния полей; рендер идёт по схеме
-
-  const schema = useMemo(() => () => buildInstallmentSchema(model), [model]);
+  // Сборка одним вызовом: форма нужна ради нод состояния полей, рендер идёт по её же схеме.
+  const installmentForm = useReactForm(() =>
+    createReactForm<InstallmentRequest>({
+      model: createInstallmentModel(),
+      schema: buildInstallmentSchema,
+    })
+  );
 
   return (
     <Panel
@@ -65,7 +62,10 @@ function TypedSchemaColumn() {
       hint="component: 'div' | 'h2' | 'hr', children: [model.$.fullName]"
     >
       <div data-testid="typed-schema">
-        <FormRenderer<InstallmentRequest> render={schema} settings={{ fieldWrapper: FormField }} />
+        <FormRenderer<InstallmentRequest>
+          form={installmentForm}
+          settings={{ fieldWrapper: FormField }}
+        />
       </div>
     </Panel>
   );

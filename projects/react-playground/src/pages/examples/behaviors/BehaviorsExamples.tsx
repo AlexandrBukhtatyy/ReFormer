@@ -3,10 +3,10 @@
  * Behaviors работают на сигналах модели; ноды (form.x) отражают изменения.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import {
-  createModel,
-  createForm,
+  createCoreForm,
+  useFormBundle,
   useFormControl,
   useFormControlValue,
   computeFrom,
@@ -19,6 +19,7 @@ import {
   syncFields,
   revalidateWhen,
   type FieldNode,
+  type FormModel,
   type ValidationError,
 } from '@reformer/core';
 import { validate, cross, defineValidationSchema, validateModel } from '@reformer/core/validation';
@@ -77,7 +78,7 @@ const amountWithinMax = (f: BehaviorsDemoForm): ValidationError | null =>
   f.amount > f.maxAmount ? { code: 'max', message: 'Превышен лимит' } : null;
 
 // RENDER-схема: только layout ({ value }), без validators — правила живут в amountValidation.
-function buildSchema(model: ReturnType<typeof createModel<BehaviorsDemoForm>>) {
+function buildSchema(model: FormModel<BehaviorsDemoForm>) {
   // Поля рендерятся кастомными компонентами (raw <input>), поэтому component не задаём.
   return {
     children: [
@@ -254,12 +255,11 @@ function SelectField({
 }
 
 export default function BehaviorsExamples() {
-  const { form, model, schema } = useMemo(() => {
-    const m = createModel<BehaviorsDemoForm>({ ...INITIAL });
-    const s = buildSchema(m);
-    const f = createForm<BehaviorsDemoForm>({ model: m, schema: s });
-    return { form: f, model: m, schema: s };
-  }, []);
+  // Сборка одним вызовом. Поведение здесь НЕ в конфиге намеренно: пример показывает императивные
+  // операторы (computeFrom/enableWhen/…), которые живут в эффекте со своим cleanup.
+  const { form, model } = useFormBundle(() =>
+    createCoreForm<BehaviorsDemoForm>({ initial: { ...INITIAL }, schema: buildSchema })
+  );
 
   // Behaviors на сигналах модели (после createForm — реестр сигнал→нода заполнен для enable/disable).
   useEffect(() => {
@@ -286,7 +286,7 @@ export default function BehaviorsExamples() {
       }),
     ];
     return () => cleanups.forEach((c) => c());
-  }, [model, schema]);
+  }, [model]);
 
   const hasDiscount = useFormControlValue(form.hasDiscount) as boolean;
   const country = useFormControlValue(form.country) as string;

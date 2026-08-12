@@ -20,23 +20,20 @@
  * поля вынесли бы из-под гейта и показывали при ошибке пустую форму.
  */
 
-import { useState } from 'react';
-import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
+import { JsonFormRenderer, JsonRendererProvider, useJsonForm } from '@reformer/renderer-json';
 import type { RegistrationFormData } from '../registration-form/RegistrationForm';
 import { createRegistrationSetup } from './form-setup';
 
 export default function RegistrationFormRendererJson() {
-  // Сборка одним проходом (§7): бандл createJsonForm + renderBehavior. Стабилизируем ленивым
-  // useState (тем же примитивом, что оборачивает useJsonForm) — повторная сборка создала бы новый
-  // реестр и новый тип AsyncBoundary, из-за чего загрузка префилла стартовала бы заново. useJsonForm
-  // здесь не подходит: его результат сужён до JsonForm<T> и потерял бы renderBehavior из бандла.
-  const [jsonForm] = useState(() => createRegistrationSetup());
+  // Сборка одним проходом: бандл createJsonForm вместе с render-behavior. useJsonForm зовёт фабрику
+  // ровно один раз — повторная сборка создала бы новый реестр и новый тип AsyncBoundary, из-за чего
+  // загрузка префилла стартовала бы заново.
+  const jsonForm = useJsonForm(createRegistrationSetup);
 
   return (
     <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
       <JsonFormRenderer<RegistrationFormData>
         form={jsonForm}
-        renderBehavior={jsonForm.renderBehavior}
         validateSchema={import.meta.env.DEV}
       />
     </JsonRendererProvider>

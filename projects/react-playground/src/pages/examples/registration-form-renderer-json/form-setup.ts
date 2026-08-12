@@ -50,10 +50,8 @@ const registrationBehavior = defineFormBehavior<RegistrationFormData>(({ model, 
   });
 });
 
-/** Бандл {@link createJsonForm} + render-behavior (инъекция обработчиков/рантайм-сущностей в схему). */
-export interface RegistrationJsonForm extends JsonForm<RegistrationFormData> {
-  renderBehavior: RenderBehaviorFn<RegistrationFormData>;
-}
+/** Собранная форма регистрации: бандл {@link createJsonForm} (он же несёт render-behavior). */
+export type RegistrationJsonForm = JsonForm<RegistrationFormData>;
 
 /**
  * Собирает всё, что нужно рендереру. Вызывается один раз (ленивый `useState`) — повторный вызов
@@ -61,9 +59,13 @@ export interface RegistrationJsonForm extends JsonForm<RegistrationFormData> {
  * стартовала бы заново.
  *
  * Сборка модели/формы — одним проходом через `createJsonForm` (§7): раньше схема передавалась
- * дважды (в `convertJsonToM1Tree` и пропом рендерера), теперь один раз, а наружу отдаётся бандл
- * `{ model, form, schema, registry }`, который целиком уходит в `<JsonFormRenderer form={…} />`
- * (плюс `renderBehavior`).
+ * дважды (в `convertJsonToM1Tree` и пропом рендерера), теперь один раз, а наружу уходит бандл
+ * `{ model, form, schema, registry, renderBehavior }`, который целиком принимает
+ * `<JsonFormRenderer form={…} />`.
+ *
+ * Render-behavior задаётся ПОСЛЕ обработчиков намеренно: фабрика в конфиге вызывается внутри
+ * `createJsonForm`, то есть до их объявления, — поэтому здесь поведение доклеивается к готовому
+ * бандлу. Для форм без такой зависимости достаточно поля `renderBehavior` в конфиге.
  *
  * Сборка линейна: реестр больше НЕ замыкает обработчики (события висят через `onComponentEvent`),
  * поэтому цикла `registry → actions → form` нет, и `submit`/`reset`/`loadPrefill`/`applyPrefill`

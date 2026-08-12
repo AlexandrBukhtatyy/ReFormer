@@ -7,8 +7,7 @@
  * внешний раннер `validateModel(model, schema)`.
  */
 
-import { useMemo } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { createCoreForm, useFormBundle, type FormModel } from '@reformer/core';
 import {
   validate,
   defineValidationSchema,
@@ -71,7 +70,7 @@ const customPassword: Rule<string> = (value) => {
 };
 
 // RENDER-схема: только layout, без правил (validators вынесены в demoValidation).
-function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) {
+function buildSchema(model: FormModel<ValidationDemoForm>) {
   return {
     children: [
       {
@@ -185,12 +184,11 @@ const demoValidation = defineValidationSchema<ValidationDemoForm>(({ model }) =>
 });
 
 export default function ValidationExamples() {
-  const { form, model } = useMemo(() => {
-    const m = createModel<ValidationDemoForm>({ ...INITIAL });
-    const s = buildSchema(m);
-    const f = createForm<ValidationDemoForm>({ model: m, schema: s });
-    return { form: f, model: m };
-  }, []);
+  // Сборка одним вызовом. Правила здесь прогоняются вручную по кнопке (`validateModel`), поэтому в
+  // конфиг не передаются — пример показывает именно ручной прогон.
+  const { form, model } = useFormBundle(() =>
+    createCoreForm<ValidationDemoForm>({ initial: { ...INITIAL }, schema: buildSchema })
+  );
 
   const handleValidateAll = async () => {
     form.markAsTouched();

@@ -11,7 +11,8 @@
  * - Полную типизацию TypeScript
  */
 
-import { useMemo, useRef } from 'react';
+import { useRef } from 'react';
+import { useFormBundle } from '@reformer/core';
 import { createCreditApplicationFormM1 } from './schemas/create-form';
 import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
 import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
@@ -19,7 +20,6 @@ import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm'
 import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
-import { makeCreditValidationConfig } from './schemas/validation';
 import {
   applyCreditApplication,
   loadCreditApplication,
@@ -49,12 +49,10 @@ function CreditApplicationForm() {
   // Ref для доступа к методам навигации
   const navRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
 
-  //  Инициализируем модель + форму (M1) — мемоизируем, чтобы не пересоздавать при рендере.
-  //  Поведение (compute/enableWhen/onChange) запускается внутри createForm({ behavior }).
-  const { form, model } = useMemo(() => createCreditApplicationFormM1(), []);
-
-  // Конфигурация навигации: M1-валидация (validateFormModel) per-step + полная
-  const navConfig = useMemo(() => makeCreditValidationConfig(model), [model]);
+  //  Модель + форма + валидация — одним вызовом. useFormBundle зовёт фабрику ровно один раз и
+  //  держит бандл стабильным (useMemo для этого не годится: React вправе сбросить его кэш).
+  //  Поведение (compute/enableWhen/onChange) запускается внутри сборки.
+  const { form, validation } = useFormBundle(createCreditApplicationFormM1);
 
   //  ID заявки: '1' / '2' — редактирование, null — пустая форма (создание).
   const applicationId: string | null = '1';
@@ -103,7 +101,7 @@ function CreditApplicationForm() {
         <FormWizard
           ref={navRef}
           form={form}
-          config={navConfig}
+          config={validation}
           steps={STEPS}
           onSubmit={submitApplication}
         />

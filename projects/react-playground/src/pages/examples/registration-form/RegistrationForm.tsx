@@ -11,8 +11,13 @@
  * - Рендер через существующий <FormField control={form.x} /> (нода = сигнал модели).
  */
 
-import { useMemo } from 'react';
-import { createModel, createForm, useFormValidation, type ValidationError } from '@reformer/core';
+import {
+  createCoreForm,
+  useFormBundle,
+  useFormValidation,
+  type FormModel,
+  type ValidationError,
+} from '@reformer/core';
 import {
   validate,
   validateAsync,
@@ -141,7 +146,7 @@ const registrationValidation = defineValidationSchema<RegistrationFormData>(({ m
 });
 
 // ── RENDER-схема: только layout (component + componentProps), без правил ─────
-function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>) {
+function buildSchema(model: FormModel<RegistrationFormData>) {
   return {
     children: [
       {
@@ -211,12 +216,13 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
 }
 
 export default function RegistrationForm() {
-  const { model, form } = useMemo(() => {
-    const m = createModel<RegistrationFormData>({ ...INITIAL });
-    const s = buildSchema(m);
-    const f = createForm<RegistrationFormData>({ model: m, schema: s });
-    return { model: m, form: f };
-  }, []);
+  // Сборка одним вызовом: модель из initial + форма по схеме. Правила валидации здесь НЕ в конфиге
+  // намеренно — пример показывает второй путь, `useFormValidation`: он даёт реактивный
+  // `isValidating` для кнопки. Смешивать оба нельзя: два контроллера на одну пару (model, schema)
+  // отменяли бы прогоны друг друга.
+  const { model, form } = useFormBundle(() =>
+    createCoreForm<RegistrationFormData>({ initial: { ...INITIAL }, schema: buildSchema })
+  );
 
   // Единый выбор стратегии (§7): afterFirstSubmit — тихо до первой отправки, затем живая проверка
   // при вводе (debounce 400мс). submit() внутри метит touched (раскрывает ошибки), поэтому ручной

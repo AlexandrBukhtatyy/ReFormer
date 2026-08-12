@@ -13,7 +13,7 @@
  * `{ validateStep, validateAll }` (колбэки для `FormWizard`). Сигнатура не менялась.
  */
 
-import { type FormModel, type ValidationError } from '@reformer/core';
+import { type FormModel, type FormValidation, type ValidationError } from '@reformer/core';
 import {
   validate,
   validateAsync,
@@ -571,25 +571,41 @@ const fullExtras = defineValidationSchema<Root>(({ model }) => {
 // ============================================================================
 
 /**
- * Конфиг валидации для `FormWizard` через `defineSteps` (§5): правила адресованы по `selector` шага
- * (loan/applicant/…), а не хрупким числовым индексом `[step - 1]` — добавление/перестановка шага не
- * рассинхронизирует правила молча, а шаг без правил объявляется ЯВНО. Порядок ключей = порядок шагов.
- * `{ touch: true }` (§6) метит только провалидированные поля — ошибки видны без ручного markAsTouched
- * на всё поддерево. `extras` (cross-field/warnings) применяются только на submit (validateAll).
+ * Правила валидации формы как ДАННЫЕ — то, что уходит полем `validation` в фабрику формы
+ * (`createCoreForm`/`createReactForm`/`createJsonForm`). Фабрика сама соберёт из них
+ * `validateStep`/`validateAll` и контроллер живой стратегии.
+ *
+ * Правила адресованы по `selector` шага (loan/applicant/…), а не хрупким числовым индексом
+ * `[step - 1]`: добавление или перестановка шага не рассинхронизирует их молча, а шаг без правил
+ * объявляется ЯВНО. Порядок ключей = порядок шагов. `extras` (cross-field/warnings) проверяются
+ * только целиком, на submit.
+ *
+ * Стабильная ссылка на уровне модуля обязательна: отмена устаревших прогонов ключуется по паре
+ * `(model, schema)`.
+ */
+export const creditApplicationValidation: FormValidation<Root> = {
+  steps: {
+    loan: step1,
+    applicant: step2,
+    contacts: step3,
+    employment: step4,
+    additional: step5,
+    confirmation: step6,
+  },
+  extras: fullExtras,
+};
+
+/**
+ * Тот же набор правил, но собранный под `FormWizard` руками — для варианта, который строит форму без
+ * фабрики (`createForm` напрямую). Новый код берёт {@link creditApplicationValidation} и получает
+ * готовый конфиг из бандла формы.
  */
 export function makeCreditValidationConfig(model: M) {
   return defineSteps<
     'loan' | 'applicant' | 'contacts' | 'employment' | 'additional' | 'confirmation',
     Root
   >(model, {
-    steps: {
-      loan: step1,
-      applicant: step2,
-      contacts: step3,
-      employment: step4,
-      additional: step5,
-      confirmation: step6,
-    },
+    steps: creditApplicationValidation.steps as Record<string, ValidationSchema<Root> | null>,
     extras: fullExtras,
   });
 }

@@ -10,8 +10,8 @@
  * (демо retry); остальные грузятся ~2 с с прогрессом.
  */
 
-import { useMemo, useState } from 'react';
-import { createModel, createForm } from '@reformer/core';
+import { useState } from 'react';
+import { createCoreForm, useFormBundle, type FormModel } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, maxFiles, maxFileSize, fileType } from '@reformer/core/validators';
 import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
@@ -102,7 +102,7 @@ const fileMessages = createMessageResolver({
   uploadAborted: () => 'Загрузка прервана',
 });
 
-function buildSchema(model: ReturnType<typeof createModel<FileUploadDemoForm>>) {
+function buildSchema(model: FormModel<FileUploadDemoForm>) {
   return {
     children: [
       {
@@ -191,15 +191,17 @@ const demoValidation = defineValidationSchema<FileUploadDemoForm>(({ model }) =>
 });
 
 export default function FileUploadDemo() {
-  const { form, model } = useMemo(() => {
-    const m = createModel<FileUploadDemoForm>({ ...INITIAL });
-    const s = buildSchema(m);
-    const f = createForm<FileUploadDemoForm>({ model: m, schema: s });
-    // Префилл «ранее загруженных» — ПОСЛЕ createForm: фабрика узлов решает по текущему
-    // значению сигнала, и массив объектов на этапе создания дал бы ArrayNode вместо поля.
-    m.signalAt('preloadedDocs')!.value = PRELOADED;
-    return { form: f, model: m };
-  }, []);
+  const { form, model } = useFormBundle(() =>
+    createCoreForm<FileUploadDemoForm>({
+      initial: { ...INITIAL },
+      schema: buildSchema,
+      // Префилл «ранее загруженных» — фаза ПОСЛЕ сборки формы: фабрика узлов решает по текущему
+      // значению сигнала, и массив объектов на этапе создания дал бы ArrayNode вместо поля.
+      setup: ({ model: m }) => {
+        m.signalAt('preloadedDocs')!.value = PRELOADED;
+      },
+    })
+  );
 
   const [snapshot, setSnapshot] = useState<string | null>(null);
 

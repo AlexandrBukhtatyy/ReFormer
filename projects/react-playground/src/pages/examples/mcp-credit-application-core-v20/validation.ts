@@ -2,16 +2,14 @@
 // Каждый шаг — `ValidationSchema<Root>` (`({ model }) => void`): значения проверяются `validate(sig, [rules])`,
 // условные ветки — `validateWhen(cond, cb)`, cross-field — `cross(sig, fn)` (fn читает снапшот `model.get()`),
 // массивы — `each(arr, itemFn)`. Композиция формы — `apply(...шаги)`. Внешний раннер — `validateModel`.
-// Экспорт makeValidationConfig → { validateStep, validateAll } (контракт FormWizardConfig).
-import { type FormModel, type ValidationError } from '@reformer/core';
+// Экспорт creditValidation — правила как данные для поля `validation` фабрики формы.
+import { type FormModel, type FormValidation, type ValidationError } from '@reformer/core';
 import {
   validate,
   validateWhen,
   cross,
   each,
-  apply,
   defineValidationSchema,
-  validateModel,
   type Rule,
   type ValidationSchema,
 } from '@reformer/core/validation';
@@ -26,7 +24,6 @@ import {
 } from './types';
 
 type Root = CreditForm;
-type M = FormModel<CreditForm>;
 
 // ===== Custom value-only rules (Rule<T>) =====
 
@@ -233,21 +230,20 @@ const step6 = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.electronicSignature, [required()]);
 });
 
-// ===== Публичный контракт для FormWizard =====
+// ===== Публичный контракт: правила как данные =====
 
-const STEP_SCHEMAS: readonly ValidationSchema<Root>[] = [step1, step2, step3, step4, step5, step6];
-
-/** Полная схема: все шаги. */
-const fullSchema = defineValidationSchema<Root>(() => apply(...STEP_SCHEMAS));
-
-/** Пустая схема — для шага вне диапазона (гасит ранее тронутые поля, возвращает valid). */
-const emptySchema: ValidationSchema<Root> = () => {};
-
-/** { validateStep, validateAll } — контракт FormWizardConfig. */
-export function makeValidationConfig(model: M) {
-  return {
-    validateStep: (step: number): Promise<boolean> =>
-      validateModel(model, STEP_SCHEMAS[step - 1] ?? emptySchema),
-    validateAll: (): Promise<boolean> => validateModel(model, fullSchema),
-  };
-}
+/**
+ * Правила формы — то, что уходит полем `validation` в фабрику (`createCoreForm`). Ключи шагов
+ * адресуют правила по имени, а не индексом: перестановка шага не рассинхронизирует их молча.
+ * Фабрика соберёт отсюда `validateStep`/`validateAll` — контракт `FormWizardConfig`.
+ */
+export const creditValidation: FormValidation<Root> = {
+  steps: {
+    loan: step1,
+    applicant: step2,
+    contacts: step3,
+    employment: step4,
+    extra: step5,
+    confirm: step6,
+  },
+};

@@ -3,7 +3,7 @@
 // 6-step wizard lives in renderer.schema.json; runtime wiring (submit / validation /
 // conditional sections) lives in the render-behavior.
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -25,25 +25,22 @@ type SubmitResult = { message: string; ok: boolean };
 export default function CreditApplicationRendererJsonV20Page() {
   const [result, setResult] = useState<SubmitResult | null>(null);
 
-  // Сборка одним проходом (§7): бандл createJsonForm, стабильный через useJsonForm (ленивый useState).
+  // Сборка ОДНИМ вызовом: модель + форма из JSON-схемы + реестр + поведение + render-behavior.
   // Модель передаём готовой (createCreditModel материализует все поля, включая условные/вычисляемые,
-  // чтобы сигналы behavior существовали); схема конвертируется внутри, наружу — { model, form, registry }.
+  // чтобы сигналы behavior существовали). Опции места монтирования (`mode`, `onResult`) замыкаются
+  // здесь: фабрика зовётся один раз, поэтому ссылка на поведение стабильна.
   const jsonForm = useJsonForm(() =>
     createJsonForm<CreditApplicationForm>({
       schema: jsonSchema,
       registry: createRegistry(),
       model: createCreditModel(),
       behavior: creditBehavior,
+      renderBehavior: (form, model) =>
+        createJsonRenderBehavior(form, model, {
+          mode: 'create',
+          onResult: (message, ok) => setResult({ message, ok }),
+        }),
     })
-  );
-
-  const renderBehavior = useMemo(
-    () =>
-      createJsonRenderBehavior(jsonForm.form, jsonForm.model, {
-        mode: 'create',
-        onResult: (message, ok) => setResult({ message, ok }),
-      }),
-    [jsonForm]
   );
 
   return (
@@ -74,7 +71,6 @@ export default function CreditApplicationRendererJsonV20Page() {
       <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
         <JsonFormRenderer<CreditApplicationForm>
           form={jsonForm}
-          renderBehavior={renderBehavior}
           validateSchema={import.meta.env.DEV}
         />
       </JsonRendererProvider>
