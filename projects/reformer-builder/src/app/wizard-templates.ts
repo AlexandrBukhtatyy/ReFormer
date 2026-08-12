@@ -283,7 +283,6 @@ export function wizardIndexTsxTemplate(formName: string): string {
  * Подключение в react-playground: \`import ${Comp} from './pages/examples/<папка>';\`
  * + \`<Route element={<${Comp} />} />\`.
  */
-import { useMemo } from 'react';
 import { useFormValidation } from '@reformer/core';
 import {
   JsonFormRenderer,
@@ -303,14 +302,15 @@ import { createRenderBehavior } from './renderer.behavior';
 const schema = rawSchema as unknown as JsonFormSchema<FormShape>;
 
 export default function ${Comp}() {
-  // Сборка одним проходом: createJsonForm бандлит model+form+registry из одной схемы;
-  // useJsonForm (ленивый useState) держит бандл стабильным между рендерами.
+  // Сборка ОДНИМ вызовом: model + form + registry + behavior + render-behavior из одной схемы.
+  // useJsonForm (ленивый useState) зовёт фабрику ровно один раз — ссылка на поведение стабильна.
   const jsonForm = useJsonForm(() =>
     createJsonForm<FormShape>({
       schema,
       registry: createRegistry(),
       initial: { ...initialFormModel },
       behavior: formBehavior,
+      renderBehavior: (form, model) => createRenderBehavior(form, model),
     })
   );
 
@@ -318,19 +318,11 @@ export default function ${Comp}() {
   // на submit визарда делает render-behavior; здесь армится live-фаза выбранной стратегии.
   useFormValidation({ model: jsonForm.model, schema: formValidation, ...validationOptions });
 
-  // Поведение UI держит форму (её получает визард) и модель (валидация на submit) — собираем его
-  // один раз на бандл формы.
-  const renderBehavior = useMemo(
-    () => createRenderBehavior(jsonForm.form, jsonForm.model),
-    [jsonForm]
-  );
-
   return (
     <div className="mx-auto max-w-2xl p-6">
       <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
         <JsonFormRenderer<FormShape>
           form={jsonForm}
-          renderBehavior={renderBehavior}
           validateSchema={import.meta.env.DEV}
         />
       </JsonRendererProvider>

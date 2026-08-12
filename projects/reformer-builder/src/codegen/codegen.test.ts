@@ -187,6 +187,17 @@ describe('model.ts / data-sources.ts / behavior / validation / api', () => {
   it('form.behavior.ts — defineFormBehavior', () => {
     expect(byPath('form.behavior.ts').content).toContain('defineFormBehavior<LoanForm>');
   });
+  it('index.tsx — сборка формы ОДНИМ вызовом, без отдельного пропа поведения', () => {
+    const src = byPath('index.tsx').content;
+    expect(src).toContain('createJsonForm<LoanForm>(');
+    expect(src).toContain('useJsonForm(');
+    expect(src).toContain('form={jsonForm}');
+    // Поведение — поле конфига; проп рендерера и useMemo вокруг него больше не эмитятся.
+    expect(src).toContain('renderBehavior: (form, model) =>');
+    expect(src).not.toContain('renderBehavior={');
+    expect(src).not.toContain('useMemo');
+  });
+
   it('README.md — сниппет + чеклист', () => {
     const src = byPath('README.md').content;
     expect(src).toContain('LoanPage');

@@ -320,14 +320,15 @@ const schema = rawSchema as unknown as JsonFormSchema<FormShape>;
 export default function ${Comp}() {
   const [status, setStatus] = useState<string | null>(null);
 
-  // Сборка одним проходом (§7): createJsonForm бандлит model+form+registry из одной схемы;
-  // useJsonForm (ленивый useState) держит бандл стабильным между рендерами.
+  // Сборка ОДНИМ вызовом: model + form + registry + behavior + render-behavior из одной схемы.
+  // useJsonForm (ленивый useState) зовёт фабрику ровно один раз.
   const jsonForm = useJsonForm(() =>
     createJsonForm<FormShape>({
       schema,
       registry: createRegistry(),
       initial: { ...initialFormModel },
       behavior: formBehavior,
+      renderBehavior: () => formRenderBehavior,
     })
   );
 
@@ -364,7 +365,6 @@ export default function ${Comp}() {
       <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
         <JsonFormRenderer<FormShape>
           form={jsonForm}
-          renderBehavior={formRenderBehavior}
           validateSchema={import.meta.env.DEV}
         />
       </JsonRendererProvider>

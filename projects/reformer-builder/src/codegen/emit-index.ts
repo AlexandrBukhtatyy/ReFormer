@@ -11,7 +11,7 @@ import type { Names } from './naming';
 export function emitIndex(n: Names): string {
   return `// index.tsx — сборка формы одним проходом: createJsonForm → JsonFormRenderer (проп form).
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -34,23 +34,20 @@ const typedSchema = rawSchema as unknown as JsonFormSchema<${n.TypeName}>;
 export default function ${n.pageComponent}() {
   const [result, setResult] = useState<SubmitResult | null>(null);
 
-  // Сборка одним проходом (§7): createJsonForm бандлит model+form+registry из одной схемы;
-  // useJsonForm (ленивый useState) держит бандл стабильным между рендерами.
+  // Сборка ОДНИМ вызовом: model + form + registry + behavior + render-behavior из одной схемы.
+  // useJsonForm (ленивый useState) зовёт фабрику ровно один раз, поэтому ссылка на поведение
+  // стабильна, а колбэк хоста (onResult) безопасно замыкается прямо здесь.
   const jsonForm = useJsonForm(() =>
     createJsonForm<${n.TypeName}>({
       schema: typedSchema,
       registry: createRegistry(),
       model: ${n.modelFactory}(),
       behavior: formBehavior,
+      renderBehavior: (form, model) =>
+        createJsonRenderBehavior(form, model, {
+          onResult: (message, ok) => setResult({ message, ok }),
+        }),
     })
-  );
-
-  const renderBehavior = useMemo(
-    () =>
-      createJsonRenderBehavior(jsonForm.form, jsonForm.model, {
-        onResult: (message, ok) => setResult({ message, ok }),
-      }),
-    [jsonForm]
   );
 
   return (
@@ -77,7 +74,6 @@ export default function ${n.pageComponent}() {
       <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
         <JsonFormRenderer<${n.TypeName}>
           form={jsonForm}
-          renderBehavior={renderBehavior}
           validateSchema={import.meta.env.DEV}
         />
       </JsonRendererProvider>

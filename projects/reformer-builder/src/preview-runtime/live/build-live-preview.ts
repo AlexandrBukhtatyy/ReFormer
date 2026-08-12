@@ -14,7 +14,7 @@
  * @module reformer-builder/preview-runtime/live/build-live-preview
  */
 
-import { createForm, createModel, type FormModel, type FormProxy } from '@reformer/core';
+import { createModel, type FormModel, type FormProxy } from '@reformer/core';
 import {
   createFormValidation,
   type FormValidationController,
@@ -22,7 +22,7 @@ import {
 } from '@reformer/core/validation';
 import {
   composeRegistries,
-  convertJsonToM1Tree,
+  createJsonForm,
   type ComponentRegistry,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
@@ -111,11 +111,14 @@ export function buildLivePreview<T extends Shape = Shape>(input: BuildLiveInput)
   }
 
   // ── форма (обязательно до рендера) ──
-  const form = createForm({
+  // Сборка через ту же фабрику, что и в прикладном коде: модель уже создана выше (её значения
+  // склеены из дефолтов схемы, контракта и оверрайда превью), поэтому передаём её готовой.
+  const { form } = createJsonForm<Shape>({
+    schema,
+    registry,
     model,
-    schema: convertJsonToM1Tree(schema, registry, model),
     behavior: contract.behavior,
-  }) as FormProxy<Shape>;
+  });
 
   // ── валидация ──
   let validation: FormValidationController | null = null;

@@ -29,7 +29,9 @@ describe('indexTsxTemplate', () => {
     expect(src).toContain('useJsonForm(');
     expect(src).toContain('<JsonFormRenderer<FormShape>');
     expect(src).toContain('form={jsonForm}');
-    expect(src).toContain('renderBehavior={formRenderBehavior}');
+    // Поведение приезжает бандлом, а не отдельным пропом рендерера.
+    expect(src).toContain('renderBehavior: () => formRenderBehavior');
+    expect(src).not.toContain('renderBehavior={');
   });
   it('стратегия валидации берётся из validation.ts, submit — штатным useFormValidation', () => {
     // Одна точка истины: тот же `validationOptions` читает Renderer-превью билдера, поэтому в
