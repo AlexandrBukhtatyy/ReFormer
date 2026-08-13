@@ -11,6 +11,13 @@
 import { useState } from 'react';
 import { Input, Switch } from '@reformer/ui-kit';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@reformer/ui-kit/select';
+import {
   isArrayNode,
   isFieldNode,
   parseOperator,
@@ -41,6 +48,25 @@ import { ClassNameField } from './ClassNameField';
 import { OptionsField } from './OptionsField';
 import { IconField } from './IconField';
 import { cn } from '../lib/cn';
+
+/**
+ * Значение пункта «сбросить проп». Пустая строка для этого не годится: Radix резервирует её под
+ * очистку выбора и запрещает у `SelectItem`, поэтому сброс едет отдельным значением и
+ * разворачивается обратно в `undefined` (= удалить ключ) на записи.
+ */
+const UNSET_OPTION = '__unset__';
+
+/**
+ * Триггер списка под плотность инспектора. `data-[size=default]` нужен, потому что высоту в ките
+ * задаёт именно data-вариант: у него выше специфичность, и простой `h-*` его не перебивает.
+ */
+const selectTriggerClass =
+  'h-[26px] min-w-0 flex-1 bg-background px-2 text-xs data-[size=default]:h-[26px]';
+
+/** Подпись пункта «значение не задано» — с дефолтом компонента, если он есть. */
+function unsetLabel(prop: InspectorProp): string {
+  return prop.default == null ? '— не задано' : `по умолчанию (${String(prop.default)})`;
+}
 
 /** Запись каталога для узла (по компоненту/типу). */
 function catalogEntryFor(node: JsonNode) {
@@ -219,17 +245,18 @@ function VariantRow({ node, path }: { node: JsonNode; path: JsonPath }) {
   return (
     <div className="flex min-h-6 items-center gap-2.5">
       <span className="w-24 flex-none truncate text-xs">Вариант</span>
-      <select
-        value={name}
-        onChange={(e) => switchTo(e.target.value)}
-        className="h-[26px] min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:border-ring"
-      >
-        {grp.members.map((m) => (
-          <option key={m.name} value={m.name}>
-            {m.variant ?? m.name}
-          </option>
-        ))}
-      </select>
+      <Select value={name} onValueChange={switchTo}>
+        <SelectTrigger className={selectTriggerClass}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {grp.members.map((m) => (
+            <SelectItem key={m.name} value={m.name} className="text-xs">
+              {m.variant ?? m.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -291,23 +318,31 @@ function PropRow({
           className="h-[26px] min-w-0 flex-1 bg-background text-xs"
         />
       )}
-      {/* Пустая опция = «не задано» и УДАЛЯЕТ ключ. Раньше она писала `''`, которого нет ни в
-          одном `enum` каталога, — схема сразу становилась невалидной. */}
+      {/* Пункт «не задано» УДАЛЯЕТ ключ. Раньше он писал `''`, которого нет ни в одном `enum`
+          каталога, — схема сразу становилась невалидной. Пустой строкой его теперь не выразить:
+          Radix запрещает `SelectItem` с пустым `value` (она зарезервирована под сброс), поэтому
+          сброс едет отдельным значением {@link UNSET_OPTION} и разворачивается обратно в `undefined`. */}
       {prop.widget === 'enum' && (
-        <select
-          value={value == null ? '' : String(value)}
-          onChange={(e) => set(blankToUndefined(e.target.value))}
-          className="h-[26px] min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:border-ring"
+        <Select
+          // Значение всегда строка (а не `undefined` при сброшенном пропе): иначе Select
+          // переключается с управляемого на неуправляемый и React ругается в консоль.
+          value={value == null ? UNSET_OPTION : String(value)}
+          onValueChange={(v) => set(v === UNSET_OPTION ? undefined : v)}
         >
-          <option value="">
-            {prop.default == null ? '— не задано' : `по умолчанию (${String(prop.default)})`}
-          </option>
-          {prop.options?.map((op) => (
-            <option key={String(op)} value={String(op)}>
-              {String(op)}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className={selectTriggerClass}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={UNSET_OPTION} className="text-xs">
+              {unsetLabel(prop)}
+            </SelectItem>
+            {prop.options?.map((op) => (
+              <SelectItem key={String(op)} value={String(op)} className="text-xs">
+                {String(op)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
       {prop.widget === 'readonly' && (
         <span className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground">
