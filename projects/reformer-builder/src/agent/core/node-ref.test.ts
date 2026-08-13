@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonNode } from '@reformer/renderer-json';
-import { appendNode, getAt } from '../../model';
+import { appendNode, emptySchema, getAt } from '../../model';
 import { P, sampleSchema } from '../../model/__fixtures__/sample-schema';
 import {
   componentOf,
@@ -67,9 +67,29 @@ describe('resolveRef', () => {
     const found = resolveRef(sampleSchema(), '/root/children');
     expect(isResolved(found)).toBe(false);
     if (!isResolved(found)) {
-      expect(found.text).toContain('слот');
+      expect(found.text).toContain('is a slot');
       expect(found.text).toContain('/root');
       expect(found.text).not.toContain('get_form_outline');
+    }
+  });
+
+  it('индекс за пределами слота называет, сколько детей есть', () => {
+    // «Перезапроси карту» здесь бесполезно: карта уже прочитана, и в контейнере просто нет
+    // столько детей. В прогонах модель на этом сообщении зависала.
+    const found = resolveRef(sampleSchema(), '/root/componentProps/steps/0/children/9');
+    expect(isResolved(found)).toBe(false);
+    if (!isResolved(found)) {
+      expect(found.text).toContain('has 2 child(ren)');
+      expect(found.text).toContain('0…1');
+    }
+  });
+
+  it('пустой контейнер объясняет, куда класть первый узел', () => {
+    const found = resolveRef(emptySchema(), '/root/children/0');
+    expect(isResolved(found)).toBe(false);
+    if (!isResolved(found)) {
+      expect(found.text).toContain('is still empty');
+      expect(found.text).toContain('parent=/root');
     }
   });
 
@@ -82,7 +102,7 @@ describe('resolveRef', () => {
   it('ожидание компонента не совпало → STALE_POINTER', () => {
     const found = resolveRef(sampleSchema(), nodeRef(P.step0field0), { component: 'Input' });
     expect(isResolved(found)).toBe(false);
-    if (!isResolved(found)) expect(found.error?.message).toContain('ожидался Input');
+    if (!isResolved(found)) expect(found.error?.message).toContain('Expected Input');
   });
 
   it('ожидание модели не совпало → STALE_POINTER', () => {

@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronRight, CircleAlert, Check, Sparkles } from 'lucide-react';
+import { ChevronRight, CircleAlert, Check, Sparkles, Undo2 } from 'lucide-react';
 import { ScrollArea } from '@reformer/ui-kit';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@reformer/ui-kit/collapsible';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from '@reformer/ui-kit/empty';
@@ -21,6 +21,44 @@ export interface MessageListProps {
   entries: readonly ChatEntry[];
   /** Идёт ход: показать индикатор у последней реплики. */
   running: boolean;
+  /** Вернуть форму к состоянию перед репликой. Без обработчика кнопка восстановления не рисуется. */
+  onRestore?: (entryId: string) => void;
+}
+
+/**
+ * Восстановление формы к состоянию перед запросом.
+ *
+ * Живёт на самой реплике, а не в отдельной панели: отменяют не «изменения вообще», а конкретный
+ * ход — и понятно это ровно там, где виден его запрос. Появляется при наведении и при фокусе с
+ * клавиатуры, чтобы не спорить за внимание с текстом переписки.
+ */
+function RestoreButton({
+  disabled,
+  onRestore,
+  title,
+}: {
+  disabled: boolean;
+  onRestore: () => void;
+  title: string;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onRestore}
+      title={`Вернуть форму к состоянию перед «${title.slice(0, 40)}${title.length > 40 ? '…' : ''}»`}
+      className={cn(
+        'absolute -top-2 right-1 inline-flex items-center gap-1 rounded-md border border-border',
+        'bg-background px-1.5 py-0.5 text-[10.5px] leading-4 text-muted-foreground shadow-sm',
+        'opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100',
+        'hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+        'disabled:pointer-events-none disabled:opacity-0'
+      )}
+    >
+      <Undo2 className="size-3" />
+      Восстановить
+    </button>
+  );
 }
 
 /**
@@ -51,7 +89,7 @@ function Reasoning({ text }: { text: string }) {
 }
 
 /** Лента диалога с автопрокруткой к концу. */
-export function MessageList({ entries, running }: MessageListProps) {
+export function MessageList({ entries, running, onRestore }: MessageListProps) {
   const endRef = useRef<HTMLDivElement>(null);
 
   // Прокрутка к концу — DOM-эффект, зависящий от объёма ленты и хода.
@@ -87,11 +125,18 @@ export function MessageList({ entries, running }: MessageListProps) {
             {entry.text && (
               <div
                 className={cn(
-                  'whitespace-pre-wrap break-words text-[12.5px] leading-5',
+                  'group relative whitespace-pre-wrap break-words text-[12.5px] leading-5',
                   entry.role === 'user' ? 'rounded-md bg-muted px-2.5 py-1.5' : 'text-foreground'
                 )}
               >
                 {entry.text}
+                {entry.role === 'user' && entry.snapshot && onRestore && (
+                  <RestoreButton
+                    disabled={running}
+                    onRestore={() => onRestore(entry.id)}
+                    title={entry.text}
+                  />
+                )}
               </div>
             )}
 

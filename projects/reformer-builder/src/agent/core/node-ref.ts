@@ -107,6 +107,25 @@ function slotHolderRef(ref: string): string | undefined {
 }
 
 /**
+ * Сообщение для адреса с индексом за пределами слота, либо `undefined`, если случай не тот.
+ *
+ * @param schema - Схема, в которой ищут.
+ * @param path - Разобранный путь адреса.
+ * @param ref - Исходный адрес — чтобы повторить его в тексте.
+ */
+function outOfRangeHint(schema: JsonFormSchema, path: JsonPath, ref: string): string | undefined {
+  const last = path.at(-1);
+  if (typeof last !== 'number') return undefined;
+  const slot = getAt(schema, path.slice(0, -1));
+  if (!Array.isArray(slot)) return undefined;
+
+  const holder = slotHolderRef(nodeRef(path.slice(0, -1))) ?? '/root';
+  return slot.length === 0
+    ? `No node at ${ref}: ${holder} is still empty. Insert the first node with parent=${holder}.`
+    : `No node at ${ref}: ${holder} has ${slot.length} child(ren), indices 0…${slot.length - 1}.`;
+}
+
+/**
  * Найти узел по адресу и проверить ожидание.
  *
  * @returns Узел либо `ToolOutcome` с `STALE_POINTER` — вызывающий возвращает его без изменений.
@@ -127,12 +146,18 @@ export function resolveRef(
     if (holder) {
       return fail(
         'STALE_POINTER',
-        `${ref} — это слот, а не узел. Родителем указывай сам узел: ${holder}.`
+        `${ref} is a slot, not a node. Pass the node itself as the parent: ${holder}.`
       );
     }
+    // Индекс за пределами слота — вторая половина той же беды: «перезапроси карту» ничего не
+    // добавит, если карта уже прочитана и в контейнере просто нет столько детей. Называем, сколько
+    // их есть, — по этому числу видно и что адрес невозможен, и куда класть следующий узел.
+    const outside = outOfRangeHint(schema, path, ref);
+    if (outside) return fail('STALE_POINTER', outside);
+
     return fail(
       'STALE_POINTER',
-      `По адресу ${ref} узла нет — форму изменили. Перезапроси get_form_outline.`
+      `No node at ${ref} — the form changed. Call get_form_outline again.`
     );
   }
   if (expect?.component) {
@@ -140,7 +165,7 @@ export function resolveRef(
     if (actual !== expect.component) {
       return fail(
         'STALE_POINTER',
-        `По адресу ${ref} ожидался ${expect.component}, а находится ${actual ?? 'узел без компонента'}. Перезапроси get_form_outline.`
+        `Expected ${expect.component} at ${ref}, found ${actual ?? 'a node without a component'}. Call get_form_outline again.`
       );
     }
   }
@@ -149,7 +174,7 @@ export function resolveRef(
     if (actual !== expect.model) {
       return fail(
         'STALE_POINTER',
-        `По адресу ${ref} ожидалась модель ${expect.model}, а находится ${actual ?? 'узел без модели'}. Перезапроси get_form_outline.`
+        `Expected model ${expect.model} at ${ref}, found ${actual ?? 'a node without a model'}. Call get_form_outline again.`
       );
     }
   }

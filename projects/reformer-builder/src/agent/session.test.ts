@@ -118,3 +118,49 @@ describe('ход', () => {
     expect(state().status).toBe('idle');
   });
 });
+
+describe('точка восстановления', () => {
+  beforeEach(() => agentSessionActions.reset());
+
+  it('реплика пользователя помнит форму на начало хода', () => {
+    const before = emptySchema();
+    agentSessionActions.startTurn('добавь поле', before);
+    const user = state().entries.find((e) => e.role === 'user');
+    expect(user?.snapshot).toBe(before);
+    // У ответа ассистента снимка нет: восстанавливают запрос, а не то, что из него вышло.
+    expect(state().entries.find((e) => e.role === 'assistant')?.snapshot).toBeUndefined();
+  });
+
+  it('восстановление обрезает переписку до выбранной реплики', () => {
+    agentSessionActions.startTurn('первый', emptySchema());
+    agentSessionActions.finishTurn(null);
+    agentSessionActions.startTurn('второй', emptySchema());
+    agentSessionActions.finishTurn(null);
+    const second = state().entries.filter((e) => e.role === 'user')[1];
+
+    agentSessionActions.restoreTo(second.id);
+
+    // Реплики ниже описывают правки, которых больше нет: оставить их — значит заставить следующий
+    // ход строить поверх несуществующего.
+    expect(state().entries.map((e) => e.text)).toEqual(['первый', '']);
+  });
+
+  it('восстановление снимает ожидающий набор и ошибку', () => {
+    agentSessionActions.startTurn('добавь', emptySchema());
+    agentSessionActions.finishTurn(oneChange(), 'что-то пошло не так');
+    const user = state().entries.find((e) => e.role === 'user')!;
+
+    agentSessionActions.restoreTo(user.id);
+
+    expect(state().pending).toBeNull();
+    expect(state().error).toBeNull();
+    expect(state().entries).toEqual([]);
+  });
+
+  it('неизвестный идентификатор ничего не меняет', () => {
+    agentSessionActions.startTurn('добавь', emptySchema());
+    const before = state().entries;
+    agentSessionActions.restoreTo('нет-такой');
+    expect(state().entries).toBe(before);
+  });
+});

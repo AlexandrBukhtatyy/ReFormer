@@ -18,6 +18,7 @@ import { abortTurn, sendMessage } from '../../agent/run';
 import { firstEditingProvider } from '../../agent/providers/registry';
 import { restoreProvider } from '../../agent/providers/load';
 import { agentSessionActions, useAgentSession } from '../../agent/session';
+import { editorActions } from '../../store';
 import { ChangePreview } from './ChangePreview';
 import { MessageList } from './MessageList';
 import { ProviderSettings } from './ProviderSettings';
@@ -58,6 +59,22 @@ export function ChatPanel() {
     }
   };
 
+  /**
+   * Вернуть форму к состоянию перед репликой и обрезать переписку до неё.
+   *
+   * Схему возвращает `replaceSchema` — та же операция, которой правки и применялись, поэтому
+   * восстановление ложится в историю обычной записью и само отменяется через Ctrl+Z.
+   */
+  const restore = (entryId: string) => {
+    if (running) return;
+    const entry = session.entries.find((e) => e.id === entryId);
+    if (!entry?.snapshot) return;
+    editorActions.replaceSchema(entry.snapshot);
+    agentSessionActions.restoreTo(entryId);
+    setNotice(null);
+    setDraft(entry.text);
+  };
+
   const apply = (force: boolean) => {
     if (!session.pending) return;
     const outcome = applyChangeSet(session.pending, { force });
@@ -96,7 +113,7 @@ export function ChatPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <MessageList entries={session.entries} running={running} />
+      <MessageList entries={session.entries} running={running} onRestore={restore} />
 
       {session.error && (
         <div className="flex-none border-t border-border p-2">
@@ -115,6 +132,9 @@ export function ChatPanel() {
         </div>
       )}
 
+      {/* Обычный ход применяется сам, и решать по нему нечего — отменить можно «Восстановить» на
+          реплике. Панель остаётся ровно для случая, когда применить не удалось: форму правили
+          руками во время хода. Молча перезаписать чужую правку нельзя, а работу хода жалко. */}
       {session.pending && (
         <ChangePreview
           set={session.pending}

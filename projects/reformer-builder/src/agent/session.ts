@@ -9,6 +9,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { createStore } from '../store/create-store';
 import type { ChangeSet } from './core/changeset';
 
@@ -37,6 +38,14 @@ export interface ChatEntry {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /**
+   * Форма ДО этого хода — точка восстановления реплики пользователя.
+   *
+   * Правки ассистента применяются сразу, поэтому отменять их надо не «до применения», а после:
+   * снимок позволяет вернуть форму такой, какой она была, когда запрос ещё не прозвучал. Хранится
+   * ссылка, а не копия: схема иммутабельна, и каждая правка и так создаёт новый объект.
+   */
+  snapshot?: JsonFormSchema;
   /**
    * Рассуждение модели. Хранится рядом с ответом, но отдельным полем: в модель обратно уходит
    * только `text` (`historyFor` в `run.ts`), а на экране это свёрнутый блок. Смешать их в одно
@@ -100,8 +109,13 @@ export const agentSessionActions = {
   setSettings: (settingsOpen: boolean) =>
     agentSessionStore.setState((s) => ({ ...s, settingsOpen })),
 
-  /** Реплика пользователя + пустая реплика ассистента, которая наполняется по ходу. */
-  startTurn: (text: string) =>
+  /**
+   * Реплика пользователя + пустая реплика ассистента, которая наполняется по ходу.
+   *
+   * @param text - Сообщение пользователя.
+   * @param snapshot - Форма на начало хода; к ней вернёт «Восстановить» на этой реплике.
+   */
+  startTurn: (text: string, snapshot?: JsonFormSchema) =>
     agentSessionStore.setState((s) => ({
       ...s,
       status: 'running',
@@ -109,10 +123,33 @@ export const agentSessionActions = {
       conflict: false,
       entries: [
         ...s.entries,
-        { id: nextId(), role: 'user', text, reasoning: '', tools: [] },
+        {
+          id: nextId(),
+          role: 'user',
+          text,
+          reasoning: '',
+          tools: [],
+          ...(snapshot ? { snapshot } : {}),
+        },
         { id: nextId(), role: 'assistant', text: '', reasoning: '', tools: [] },
       ],
     })),
+
+  /**
+   * Откатить диалог к состоянию перед репликой: она и всё, что после неё, уходят из ленты.
+   *
+   * Переписка обрезается вместе с формой намеренно: реплики ниже описывают правки, которых больше
+   * нет, а их присутствие в истории заставило бы следующий ход строить поверх несуществующего.
+   * Саму схему возвращает вызывающий — стор ассистента редактором не распоряжается.
+   *
+   * @param id - Идентификатор реплики пользователя, к которой откатываемся.
+   */
+  restoreTo: (id: string) =>
+    agentSessionStore.setState((s) => {
+      const at = s.entries.findIndex((e) => e.id === id);
+      if (at < 0) return s;
+      return { ...s, entries: s.entries.slice(0, at), pending: null, conflict: false, error: null };
+    }),
 
   appendText: (chunk: string) =>
     agentSessionStore.setState((s) => updateLast(s, (e) => ({ ...e, text: e.text + chunk }))),

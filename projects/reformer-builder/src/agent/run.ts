@@ -8,11 +8,15 @@
  */
 
 import { activeTab, editorStore } from '../store';
+import { applyChangeSet } from './apply';
 import { createEditorToolRegistry } from './core';
-import { hasChanges } from './core/changeset';
-import { runAgentTurn } from './core/loop';
+import { hasChanges, type ChangeSet } from './core/changeset';
+import { runAgentTurn, type TurnEvent } from './core/loop';
 import { agentSessionActions, agentSessionStore } from './session';
 import type { AiMessage, AiProvider } from './providers/types';
+
+/** Исход хода, каким его сообщает цикл. */
+type TurnReason = Extract<TurnEvent, { type: 'done' }>['reason'];
 
 /** Реестр строится один раз: каталог и схемы аргументов статичны в пределах сессии. */
 let registry: ReturnType<typeof createEditorToolRegistry> | null = null;
@@ -94,7 +98,8 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
     return;
   }
 
-  agentSessionActions.startTurn(message);
+  // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
+  agentSessionActions.startTurn(message, tab.schema);
   const messages = historyFor();
   const controller = new AbortController();
   current = controller;
@@ -123,14 +128,50 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
           });
           break;
         case 'done':
-          agentSessionActions.finishTurn(
-            hasChanges(event.changeSet) ? event.changeSet : null,
-            event.reason === 'error' ? (event.message ?? 'Ход прервался ошибкой.') : undefined
-          );
+          finish(event.changeSet, event.reason, event.message);
           break;
       }
     }
   } finally {
     current = null;
   }
+}
+
+/**
+ * Завершить ход: правки уходят в форму сразу.
+ *
+ * Подтверждать каждый ход кнопкой не нужно — отменить его можно и после: у реплики пользователя
+ * есть снимок формы, и «Восстановить» возвращает всё, как было. Это дешевле для внимания: обычный
+ * исход не требует решения, а редкий — требует.
+ *
+ * Исключение — конфликт: форму правили руками, пока шёл ход. Молча перезаписать чужую правку
+ * нельзя, а потерять работу ассистента жалко, поэтому такой набор изменений остаётся ждать
+ * решения — единственный случай, когда кнопка появляется.
+ */
+function finish(changeSet: ChangeSet, reason: TurnReason, message?: string): void {
+  const error = reason === 'error' ? (message ?? 'Ход прервался ошибкой.') : undefined;
+  if (!hasChanges(changeSet)) {
+    agentSessionActions.finishTurn(null, error);
+    return;
+  }
+
+  const outcome = applyChangeSet(changeSet);
+  if (outcome.status === 'applied') {
+    agentSessionActions.finishTurn(null, error);
+    return;
+  }
+  if (outcome.status === 'conflict') {
+    agentSessionActions.setConflict(true);
+    agentSessionActions.finishTurn(changeSet, error);
+    return;
+  }
+  // Невалидный результат или форма закрыта: правки не применены, и об этом надо сказать прямо —
+  // иначе ход выглядит успешным, а форма осталась прежней.
+  agentSessionActions.finishTurn(
+    changeSet,
+    error ??
+      (outcome.status === 'invalid'
+        ? `Правки не применены — они сделали бы форму невалидной: ${outcome.errors.slice(0, 2).join('; ')}`
+        : 'Правки не применены: форма закрыта.')
+  );
 }
