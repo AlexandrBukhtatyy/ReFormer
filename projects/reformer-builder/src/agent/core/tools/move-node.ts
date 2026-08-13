@@ -4,7 +4,7 @@
  * @module reformer-builder/agent/core/tools/move-node
  */
 
-import { isPrefix, moveNode } from '../../../model';
+import { isPrefix, kindOf, moveNode } from '../../../model';
 import { commitMutation } from '../gate';
 import { componentOf, isResolved, labelOf, resolveRef } from '../node-ref';
 import { insertSlotOf } from '../slots';
@@ -49,14 +49,22 @@ export const moveNodeTool: AgentTool<Params> = {
       return fail('INVALID_PARENT', `Нельзя перенести ${params.ref} внутрь самого себя.`);
     }
 
-    const slotPath = insertSlotOf(parent.node, parent.path);
-    if (!slotPath) {
+    const slot = insertSlotOf(parent.node, parent.path);
+    if (!slot) {
       return fail('INVALID_PARENT', `Узел ${params.parent} не принимает детей.`);
+    }
+
+    // Тот же запрет, что у insert_node: в слоте мастера живут шаги-контейнеры, а не поля.
+    if (slot.kind === 'steps' && kindOf(found.node) !== 'container') {
+      return fail(
+        'INVALID_PARENT',
+        `В мастер кладут только шаги. Перенеси ${params.ref} внутрь одного из шагов ${params.parent}.`
+      );
     }
 
     const name = labelOf(found.node) ?? componentOf(found.node) ?? params.ref;
     const index = params.index ?? Number.MAX_SAFE_INTEGER;
-    const result = moveNode(ctx.draft, found.path, slotPath, index);
+    const result = moveNode(ctx.draft, found.path, slot.path, index);
     return commitMutation(ctx, result, (ref) => ({
       kind: 'move',
       summary: `${name} → ${ref}`,

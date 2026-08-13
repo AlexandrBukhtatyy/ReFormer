@@ -37,6 +37,12 @@ export interface ChatEntry {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /**
+   * Рассуждение модели. Хранится рядом с ответом, но отдельным полем: в модель обратно уходит
+   * только `text` (`historyFor` в `run.ts`), а на экране это свёрнутый блок. Смешать их в одно
+   * поле нельзя — черновик мысли попал бы и в ленту как ответ, и в контекст следующего хода.
+   */
+  reasoning: string;
   /** Вызовы инструментов, сделанные в рамках этой реплики. */
   tools: ToolLogEntry[];
 }
@@ -103,13 +109,18 @@ export const agentSessionActions = {
       conflict: false,
       entries: [
         ...s.entries,
-        { id: nextId(), role: 'user', text, tools: [] },
-        { id: nextId(), role: 'assistant', text: '', tools: [] },
+        { id: nextId(), role: 'user', text, reasoning: '', tools: [] },
+        { id: nextId(), role: 'assistant', text: '', reasoning: '', tools: [] },
       ],
     })),
 
   appendText: (chunk: string) =>
     agentSessionStore.setState((s) => updateLast(s, (e) => ({ ...e, text: e.text + chunk }))),
+
+  appendReasoning: (chunk: string) =>
+    agentSessionStore.setState((s) =>
+      updateLast(s, (e) => ({ ...e, reasoning: e.reasoning + chunk }))
+    ),
 
   logTool: (entry: ToolLogEntry) =>
     agentSessionStore.setState((s) => updateLast(s, (e) => ({ ...e, tools: [...e.tools, entry] }))),

@@ -4,6 +4,7 @@
  *
  * - контейнер держит детей в `children[]`;
  * - wizard-подобный контейнер — в `componentProps.steps[]` (каждый шаг сам является узлом);
+ *   слот шагов существует и когда шагов ещё нет — по имени компонента ({@link STEPS_HOST_NAMES});
  * - массив — единственного ребёнка в `item.$template`;
  * - поле — опциональную обёртку в `wrapper`.
  *
@@ -100,6 +101,29 @@ const VOID_HTML_TAGS: ReadonlySet<string> = new Set([
  */
 export { LEAF_COMPONENT_NAMES };
 
+/**
+ * Компоненты, у которых `componentProps.steps` — это слот шагов, а не обычный проп.
+ *
+ * Список нужен ровно потому, что слот определяется ЗНАЧЕНИЕМ: пустой `steps: []` или ещё не
+ * созданный ключ неотличимы от «пропа steps, который сюда не относится». Без имени визард,
+ * оставшийся без шагов, терял слот навсегда — следующая вставка уходила в `children`, которых
+ * рантайм не рендерит, и починить его через UI или агента было уже нечем.
+ *
+ * По имени, а не по наличию массива: в ките есть записи со `steps` из плоских объектов
+ * (`StepIndicator`), и слот шагов у них означал бы drop-зону, кладущую узлы в чужие данные.
+ */
+const STEPS_HOST_NAMES: ReadonlySet<string> = new Set([
+  'Wizard',
+  'FormWizard',
+  'RendererFormWizard',
+]);
+
+/** Компонент узла — держатель шагов (см. {@link STEPS_HOST_NAMES}). */
+function isStepsHost(node: JsonNode): boolean {
+  const op = parseOperator((node as { component?: unknown }).component);
+  return op?.op === 'component' && STEPS_HOST_NAMES.has(op.arg);
+}
+
 /** Листовой ли компонент/тег по строке `component` (Icon/Separator/… или void html br/hr/img/…). */
 export function isLeafComponentRef(component: unknown): boolean {
   const op = parseOperator(component);
@@ -159,13 +183,17 @@ export function childSlots(node: JsonNode, nodePath: JsonPath): ChildSlot[] {
   if (isContainerNode(node)) {
     const c = node as JsonContainerNode;
     const steps = c.componentProps?.steps;
-    if (Array.isArray(steps) && steps.some(isNodeLike)) {
+    // Слот шагов есть, если шаги уже лежат ЛИБО узел по имени — визард (тогда слот пустой, но
+    // существует: иначе визард без шагов становится необратимо сломанным, см. STEPS_HOST_NAMES).
+    const hasStepNodes = Array.isArray(steps) && steps.some(isNodeLike);
+    if (hasStepNodes || isStepsHost(node)) {
+      const items = Array.isArray(steps) ? steps : [];
       slots.push({
         kind: 'steps',
         path: [...nodePath, 'componentProps', 'steps'],
         single: false,
-        entries: nodeEntries(steps),
-        length: steps.length,
+        entries: nodeEntries(items),
+        length: items.length,
       });
     }
     if (Array.isArray(c.children)) {

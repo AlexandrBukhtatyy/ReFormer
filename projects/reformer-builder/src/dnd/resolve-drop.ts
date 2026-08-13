@@ -54,8 +54,9 @@ export function resolveDrop(
   if (!node) return null;
 
   if (zone === 'into') {
-    const slots = childSlots(node, targetPath).filter((s) => !s.single);
-    const slot = slots.find((s) => s.kind === 'children') ?? slots[0];
+    // Первый слот в порядке childSlots (у визарда это `steps`), а не `children`: сброс в визард
+    // должен добавлять шаг, а не узел в слот, которого рантайм не рендерит.
+    const slot = childSlots(node, targetPath).find((s) => !s.single);
     if (!slot) return null;
     return { slotPath: slot.path, index: slot.length };
   }

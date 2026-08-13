@@ -68,6 +68,18 @@ describe('ход', () => {
     expect(last.tools).toEqual([{ name: 'insert_node', ok: true, summary: 'Email (Input)' }]);
   });
 
+  it('рассуждение копится отдельно от ответа', () => {
+    // Разные поля потому, что в модель обратно уходит только `text`: черновик мысли не должен
+    // ни попадать в контекст следующего хода, ни выглядеть в ленте как ответ.
+    agentSessionActions.startTurn('добавь email');
+    agentSessionActions.appendReasoning('Смотрю схему');
+    agentSessionActions.appendReasoning(' формы.');
+    agentSessionActions.appendText('Добавил.');
+    const last = state().entries.at(-1)!;
+    expect(last.reasoning).toBe('Смотрю схему формы.');
+    expect(last.text).toBe('Добавил.');
+  });
+
   it('изменения уводят панель в режим решения', () => {
     agentSessionActions.startTurn('добавь');
     agentSessionActions.finishTurn(oneChange());

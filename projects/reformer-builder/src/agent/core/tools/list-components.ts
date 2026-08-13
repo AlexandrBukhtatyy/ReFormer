@@ -37,6 +37,16 @@ export const listComponentsTool: AgentTool<Params> = {
   },
   readOnly: true,
   run(params) {
-    return ok(renderComponentList(listComponents(params), TOOL_TEXT_BUDGET));
+    // Про скрытые части говорим прямо: молчание читалось бы как «их в каталоге нет», и модель
+    // собирала бы вкладки из первых попавшихся контейнеров. Приписка только там, где части
+    // действительно скрыты, — с `query` они в выборке есть.
+    const hint = params.query ? '' : PARTS_HIDDEN_HINT;
+    const text = renderComponentList(listComponents(params), TOOL_TEXT_BUDGET - hint.length);
+    return ok(hint ? `${text}\n${hint}` : text);
   },
 };
+
+/** Приписка к неотфильтрованному списку: почему в нём нет частей и как их найти. */
+const PARTS_HIDDEN_HINT =
+  'Части составных компонентов (TabsList, TabsTrigger, CardHeader…) в списке скрыты: они создаются ' +
+  'вместе со своим корнем. Чтобы увидеть их — query с именем корня (например tabs).';

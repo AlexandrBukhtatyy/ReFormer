@@ -31,11 +31,20 @@ import type { PropsSchema } from '@reformer/ui-kit/meta';
 import { collectOperatorNames } from '../model';
 import { getCatalog } from '../catalog';
 import { knownComponentNames } from '../preview-runtime/known-names';
+import { lintStructure } from './structure-lint';
 
 /** Результат валидации. */
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
+  /**
+   * Структурные замечания (`io/structure-lint`): вкладка без панели, `defaultValue` в пустоту,
+   * не-контейнер вместо шага. На `valid` НЕ влияют — применение хода требует полной валидности
+   * без сравнения с базой, и ошибка здесь запретила бы агенту чинить чужую кривую форму.
+   *
+   * Собираются только в строгом режиме: ручное сохранение и экспорт этих замечаний не ждут.
+   */
+  warnings: string[];
 }
 
 /** Опции гейта. */
@@ -88,5 +97,9 @@ export function validateSchema(schema: JsonFormSchema, opts?: ValidateOptions): 
     localeKeys: ops.locales,
     propSchemas: catalogPropSchemas(),
   });
-  return { valid: result.valid, errors: result.errors };
+  return {
+    valid: result.valid,
+    errors: result.errors,
+    warnings: opts?.strict ? lintStructure(schema) : [],
+  };
 }

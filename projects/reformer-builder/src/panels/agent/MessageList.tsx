@@ -7,9 +7,10 @@
  * @module reformer-builder/panels/agent/MessageList
  */
 
-import { useEffect, useRef } from 'react';
-import { CircleAlert, Check, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronRight, CircleAlert, Check, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@reformer/ui-kit';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@reformer/ui-kit/collapsible';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from '@reformer/ui-kit/empty';
 import { Spinner } from '@reformer/ui-kit/spinner';
 import type { ChatEntry } from '../../agent/session';
@@ -20,6 +21,33 @@ export interface MessageListProps {
   entries: readonly ChatEntry[];
   /** Идёт ход: показать индикатор у последней реплики. */
   running: boolean;
+}
+
+/**
+ * Рассуждение модели — свёрнутый блок над ответом.
+ *
+ * Свёрнутый, потому что это черновик мысли: развёрнутым он вытесняет из панели и ответ, и журнал
+ * правок. Показывать его всё же надо — у think-моделей это единственное, что приходит до первого
+ * вызова инструмента, и на оборванном ходе только он объясняет, на чём модель встала.
+ */
+function Reasoning({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="space-y-1">
+      <CollapsibleTrigger className="flex items-center gap-1 text-[11.5px] leading-4 text-muted-foreground hover:text-foreground">
+        <ChevronRight
+          className={cn('size-3 flex-none transition-transform', open && 'rotate-90')}
+        />
+        Рассуждение
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words border-l-2 border-border pl-2 text-[11.5px] leading-4 text-muted-foreground">
+          {text}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 /** Лента диалога с автопрокруткой к концу. */
@@ -52,14 +80,20 @@ export function MessageList({ entries, running }: MessageListProps) {
       <div className="space-y-3 px-3 py-3">
         {entries.map((entry) => (
           <div key={entry.id} className="space-y-1.5">
-            <div
-              className={cn(
-                'whitespace-pre-wrap break-words text-[12.5px] leading-5',
-                entry.role === 'user' ? 'rounded-md bg-muted px-2.5 py-1.5' : 'text-foreground'
-              )}
-            >
-              {entry.text}
-            </div>
+            {entry.reasoning && <Reasoning text={entry.reasoning} />}
+
+            {/* Пустая реплика ассистента — обычное состояние в начале хода: сначала приходит
+                рассуждение и вызовы инструментов, текст ответа может появиться только в конце. */}
+            {entry.text && (
+              <div
+                className={cn(
+                  'whitespace-pre-wrap break-words text-[12.5px] leading-5',
+                  entry.role === 'user' ? 'rounded-md bg-muted px-2.5 py-1.5' : 'text-foreground'
+                )}
+              >
+                {entry.text}
+              </div>
+            )}
 
             {entry.tools.length > 0 && (
               <ul className="space-y-0.5">

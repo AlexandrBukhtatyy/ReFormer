@@ -24,8 +24,12 @@ export const EXPECT_PROP = {
   type: 'object',
   description: 'Что ожидается по адресу; при несовпадении правка отклоняется',
   properties: {
-    component: { type: 'string', description: 'Ожидаемое имя компонента' },
-    model: { type: 'string', description: 'Ожидаемый путь модели без $model(...)' },
+    // `null` допустим наравне со строкой: модели заполняют объект целиком и ставят null там, где
+    // проверять нечего (у контейнера нет модели). Отвергать такой вызов — значит тратить шаг хода
+    // на форму записи, а не на смысл; `resolveRef` сверяет ожидание по truthy, поэтому null для
+    // него — то же самое, что отсутствующий ключ.
+    component: { type: ['string', 'null'], description: 'Ожидаемое имя компонента' },
+    model: { type: ['string', 'null'], description: 'Ожидаемый путь модели без $model(...)' },
   },
   additionalProperties: false,
 } as const;

@@ -32,10 +32,10 @@ export const ARRAY_COMPONENT_NAME = 'FormArray';
 
 /** Что вызывающий рассчитывает найти по адресу. Любое заданное поле обязано совпасть. */
 export interface NodeExpectation {
-  /** Каталожное имя: `Input`, `$html(div)`, `FormArray`. */
-  component?: string;
-  /** Путь модели без обёртки оператора: `applicant.email`. */
-  model?: string;
+  /** Каталожное имя: `Input`, `$html(div)`, `FormArray`. `null` — не проверять (см. `EXPECT_PROP`). */
+  component?: string | null;
+  /** Путь модели без обёртки оператора: `applicant.email`. `null` — не проверять. */
+  model?: string | null;
 }
 
 /** Путь → адрес для агента. */
@@ -89,6 +89,23 @@ export interface ResolvedNode {
   path: JsonPath;
 }
 
+/** Хвосты адреса, которыми заканчивается СЛОТ, а не узел (см. `model/node-kind`). */
+const SLOT_TAILS = ['/children', '/componentProps/steps', '/item/$template'];
+
+/**
+ * Если адрес указывает на слот — адрес узла-держателя, иначе `undefined`.
+ *
+ * Слот легко спутать с узлом: в дайджесте он не показывается, а по смыслу «вставить в children»
+ * звучит естественнее, чем «вставить в узел». Подсказка называет правильный адрес прямо, чтобы
+ * следующий вызов был верным, а не ещё одним чтением карты.
+ */
+function slotHolderRef(ref: string): string | undefined {
+  const tail = SLOT_TAILS.find((t) => ref.endsWith(t));
+  if (!tail) return undefined;
+  const holder = ref.slice(0, -tail.length);
+  return holder || '/root';
+}
+
 /**
  * Найти узел по адресу и проверить ожидание.
  *
@@ -102,6 +119,17 @@ export function resolveRef(
   const path = refToPath(ref);
   const node = getAt(schema, path);
   if (!isNodeLike(node)) {
+    // Две разные беды приводили к одному совету «перезапроси карту», и один из них был ложным.
+    // Адрес, указывающий на СЛОТ (`/root/children`, `…/componentProps/steps`), — не устаревший:
+    // форму никто не менял, и повторный get_form_outline вернёт ровно то же. Наблюдалось вживую:
+    // модель перечитывала карту пять раз подряд и упиралась в предел шагов, так и не вставив узел.
+    const holder = slotHolderRef(ref);
+    if (holder) {
+      return fail(
+        'STALE_POINTER',
+        `${ref} — это слот, а не узел. Родителем указывай сам узел: ${holder}.`
+      );
+    }
     return fail(
       'STALE_POINTER',
       `По адресу ${ref} узла нет — форму изменили. Перезапроси get_form_outline.`

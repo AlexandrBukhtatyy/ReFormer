@@ -41,6 +41,13 @@ export interface AiRequest {
 /** Событие потока. */
 export type AiEvent =
   | { type: 'delta'; text: string }
+  /**
+   * Ход рассуждения модели. Отдельно от `delta` намеренно: это черновик мысли, а не ответ — в
+   * ленту он идёт свёрнутым и в историю диалога не возвращается. Но и терять его нельзя: у
+   * think-моделей весь поток до первого инструмента приходит именно сюда, и без него панель
+   * выглядит зависшей, а обрыв на пределе длины — беспричинным.
+   */
+  | { type: 'reasoning'; text: string }
   | { type: 'tool_call'; id: string; name: string; args: unknown }
   | { type: 'tool_result'; id: string; result: ToolOutcome }
   | { type: 'error'; message: string; retryable: boolean }

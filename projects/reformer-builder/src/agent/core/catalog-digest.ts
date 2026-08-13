@@ -13,7 +13,17 @@
  * @module reformer-builder/agent/core/catalog-digest
  */
 
-import { getCatalog, getCatalogEntry, toInspectorProps, type CatalogRole } from '../../catalog';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import {
+  getCatalog,
+  getCatalogEntry,
+  isCompoundPart,
+  makeNodeFor,
+  partNamesOf,
+  toInspectorProps,
+  type CatalogRole,
+} from '../../catalog';
+import { buildOutline, renderOutline } from './outline';
 import { joinWithinBudget } from './render-budget';
 
 /** Строка списка компонентов. */
@@ -37,6 +47,17 @@ export interface ComponentProp {
 /** Полное описание компонента. */
 export interface ComponentDetail extends ComponentSummary {
   props: ComponentProp[];
+  /** Корень compound'а, частью которого компонент является (`TabsTrigger` → `Tabs`). */
+  compoundParent?: string;
+  /** Части, из которых компонент собирается при вставке (`Tabs` → `TabsList`, `TabsTrigger`, …). */
+  parts?: string[];
+  /**
+   * Что появится в форме при вставке — дайджест узла-по-умолчанию с ОТНОСИТЕЛЬНЫМИ адресами.
+   *
+   * Нужен потому, что compound приходит собранным: без этого модель узнаёт состав только постфактум
+   * и успевает создать части повторно. Для одиночных компонентов пуст.
+   */
+  skeleton?: string;
 }
 
 /** Фильтр списка компонентов. */
@@ -51,11 +72,23 @@ export function componentNames(): string[] {
   return getCatalog().map((e) => e.name);
 }
 
-/** Компоненты каталога, опционально отфильтрованные. */
+/**
+ * Компоненты каталога, опционально отфильтрованные.
+ *
+ * Части compound'ов (`TabsList`, `CardHeader`, `AccordionItem`…) в общий список не попадают — то же
+ * правило, что у палитры (`PalettePanel`, `groupByCategory`). Причина не в эстетике: частей в ките
+ * больше половины записей, и в бюджет ответа они не пускают поля — модель, спросившая «что есть»,
+ * получала список из `TabsTrigger` и `CardFooter`, не видя ни одного `Input`. Вставлять часть
+ * отдельно всё равно незачем: она приходит вместе со своим корнем (`makeNodeFor`).
+ *
+ * Поиском части находятся всегда: имя каждой начинается с имени корня, а категория у неё —
+ * категория корня, поэтому `query: 'tabs'` возвращает и `Tabs`, и все его части.
+ */
 export function listComponents(filter?: ListComponentsFilter): ComponentSummary[] {
   const q = filter?.query?.trim().toLowerCase();
   return getCatalog()
     .filter((e) => (filter?.role ? e.role === filter.role : true))
+    .filter((e) => (q ? true : !isCompoundPart(e)))
     .filter((e) =>
       q ? e.name.toLowerCase().includes(q) || (e.category ?? '').toLowerCase().includes(q) : true
     )
@@ -66,10 +99,14 @@ export function listComponents(filter?: ListComponentsFilter): ComponentSummary[
 export function describeComponent(name: string): ComponentDetail | undefined {
   const entry = getCatalogEntry(name);
   if (!entry) return undefined;
+  const parts = partNamesOf(entry.name);
   return {
     name: entry.name,
     role: entry.role,
     ...(entry.category ? { category: entry.category } : {}),
+    ...(entry.compoundParent ? { compoundParent: entry.compoundParent } : {}),
+    ...(parts.length ? { parts } : {}),
+    ...(skeletonOf(entry.name, entry.role, entry.compoundParent) ?? {}),
     props: toInspectorProps(entry.propsSchema).map((p) => ({
       key: p.key,
       widget: p.widget,
@@ -79,6 +116,34 @@ export function describeComponent(name: string): ComponentDetail | undefined {
     })),
   };
 }
+
+/**
+ * Состав узла-по-умолчанию — тем же дайджестом, каким агент видит форму.
+ *
+ * Строится из `makeNodeFor`, то есть из ТОЙ ЖЕ фабрики, что отработает при вставке: второй
+ * источник правды разошёлся бы с первым на первом же изменении шаблона.
+ */
+function skeletonOf(
+  name: string,
+  role: CatalogRole,
+  compoundParent?: string
+): { skeleton: string } | undefined {
+  const node = makeNodeFor(name, role, compoundParent);
+  const inside = buildOutline({ version: '1.0', root: node } as JsonFormSchema).slice(1);
+  if (!inside.length) return undefined;
+  return {
+    skeleton: renderOutline(
+      // Адрес печатается СУФФИКСОМ (`/children/0`), а не от корня: приклеив его к адресу, который
+      // вернёт insert_node, модель получает готовый указатель на часть. Полный путь с `/root`
+      // читался бы как адрес в текущей форме — и увёл бы правку в чужой узел.
+      inside.map((e) => ({ ...e, ref: e.ref.slice('/root'.length), depth: e.depth - 1 })),
+      SKELETON_BUDGET
+    ),
+  };
+}
+
+/** Сколько символов отдаётся под состав вставки: это подсказка, а не карта формы. */
+const SKELETON_BUDGET = 400;
 
 /**
  * Список компонентов в текст, сгруппированный по категории. При превышении бюджета обрезается
@@ -125,9 +190,33 @@ function label(item: ComponentSummary): string {
   return `${item.name} (${item.role})`;
 }
 
+/**
+ * Строки о структуре компонента: чья он часть и что принесёт с собой.
+ *
+ * Идут перед свойствами, потому что отвечают на вопрос «куда это вставлять и надо ли собирать
+ * руками» — без них `Wizard` описывался одним `className`, и состав узнавался только по факту.
+ */
+function structureLines(detail: ComponentDetail): string[] {
+  const lines: string[] = [];
+  if (detail.compoundParent) {
+    lines.push(`Часть компонента ${detail.compoundParent} — вставляется вместе с ним.`);
+  }
+  if (detail.parts?.length) {
+    lines.push(`Собирается из частей: ${detail.parts.join(', ')} — создаются автоматически.`);
+  }
+  if (detail.skeleton) {
+    lines.push(
+      'При вставке появится (адрес части = адрес нового узла + показанный суффикс):',
+      detail.skeleton
+    );
+  }
+  return lines;
+}
+
 /** Описание компонента в текст. */
 export function renderComponentDetail(detail: ComponentDetail, budget: number): string {
-  const head = `${detail.name} — роль ${detail.role}${detail.category ? `, категория «${detail.category}»` : ''}`;
+  const headline = `${detail.name} — роль ${detail.role}${detail.category ? `, категория «${detail.category}»` : ''}`;
+  const head = [headline, ...structureLines(detail)].join('\n');
   if (!detail.props.length) return `${head}\nНастраиваемых свойств нет.`;
   const propLines = detail.props.map((p) => {
     const bits = [`  ${p.key}: ${p.widget}`];

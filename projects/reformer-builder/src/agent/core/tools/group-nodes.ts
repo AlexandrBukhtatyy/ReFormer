@@ -61,6 +61,17 @@ export const groupNodesTool: AgentTool<Params> = {
       return fail('INVALID_PARENT', 'Все узлы должны лежать в одном контейнере.');
     }
 
+    // Шаги мастера обёртка схлопывает: `groupBlock` ставит на их место один `$html(div)`, и вместо
+    // нескольких страниц остаётся одна безымянная. Внутри шага группировка полей по-прежнему
+    // законна — запрет ровно на сам слот шагов.
+    if (infos[0].info.slotPath.at(-1) === 'steps') {
+      return fail(
+        'INVALID_PARENT',
+        'Шаги мастера группировать нельзя — обёртка сделала бы из них один шаг. ' +
+          'Группируй поля ВНУТРИ шага.'
+      );
+    }
+
     const indices = infos.map((i) => i.info.index).sort((a, b) => a - b);
     const start = indices[0];
     const adjacent = indices.every((v, k) => v === start + k);

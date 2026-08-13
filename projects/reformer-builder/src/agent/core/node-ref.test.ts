@@ -60,6 +60,25 @@ describe('resolveRef', () => {
     if (!isResolved(found)) expect(found.error?.code).toBe('STALE_POINTER');
   });
 
+  it('адрес слота не выдаётся за устаревший — подсказывает узел-держатель', () => {
+    // Живой прогон: модель позвала insert_node с parent="/root/children", получила «форму
+    // изменили — перезапроси get_form_outline» и перечитала карту пять раз подряд, упершись в
+    // предел шагов. Форму никто не менял: адрес указывал на слот, и совет был ложным.
+    const found = resolveRef(sampleSchema(), '/root/children');
+    expect(isResolved(found)).toBe(false);
+    if (!isResolved(found)) {
+      expect(found.text).toContain('слот');
+      expect(found.text).toContain('/root');
+      expect(found.text).not.toContain('get_form_outline');
+    }
+  });
+
+  it('слот шагов тоже подсказывает держателя', () => {
+    const found = resolveRef(sampleSchema(), '/root/componentProps/steps');
+    expect(isResolved(found)).toBe(false);
+    if (!isResolved(found)) expect(found.text).toContain('/root');
+  });
+
   it('ожидание компонента не совпало → STALE_POINTER', () => {
     const found = resolveRef(sampleSchema(), nodeRef(P.step0field0), { component: 'Input' });
     expect(isResolved(found)).toBe(false);

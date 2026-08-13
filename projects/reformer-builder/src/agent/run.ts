@@ -24,13 +24,41 @@ function toolRegistry() {
 /** Сколько последних реплик уходит в модель. Дальше диалог придётся сжимать (вне текущего этапа). */
 const HISTORY_LIMIT = 10;
 
+/**
+ * Сколько вызовов инструментов перечислять в сводке молчаливого хода. Сводка нужна как напоминание
+ * «что уже сделано», а не как полный журнал: он и так виден в панели.
+ */
+const TOOLS_IN_SUMMARY = 12;
+
+/**
+ * Реплика ассистента для модели. Ход, в котором модель не сказала ни слова, а только звала
+ * инструменты, — не пустой: он изменил форму. Такие ходы бывают у моделей, которые в tool-режиме
+ * молчат до последнего шага, и обрываются на пределе шагов, так и не дойдя до текста. Если отдать
+ * их как пустоту, следующий ход не знает, что уже сделано, и начинает форму заново.
+ */
+function assistantContent(entry: {
+  text: string;
+  tools: readonly { name: string; summary?: string }[];
+}): string {
+  if (entry.text.trim().length > 0) return entry.text;
+  const done = entry.tools
+    .slice(0, TOOLS_IN_SUMMARY)
+    .map((t) => t.summary ?? t.name)
+    .join('; ');
+  const rest = entry.tools.length - Math.min(entry.tools.length, TOOLS_IN_SUMMARY);
+  return `(без комментария; сделано: ${done}${rest > 0 ? ` и ещё ${rest}` : ''})`;
+}
+
 /** История диалога для модели — из уже показанных реплик, чтобы контекст совпадал с видимым. */
 function historyFor(): AiMessage[] {
   return agentSessionStore
     .getState()
-    .entries.filter((e) => e.text.trim().length > 0)
+    .entries.filter((e) => e.text.trim().length > 0 || e.tools.length > 0)
     .slice(-HISTORY_LIMIT)
-    .map((e) => ({ role: e.role, content: e.text }));
+    .map((e) => ({
+      role: e.role,
+      content: e.role === 'assistant' ? assistantContent(e) : e.text,
+    }));
 }
 
 /** Управление текущим ходом: позволяет остановить его кнопкой. */
@@ -82,6 +110,9 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
       switch (event.type) {
         case 'text':
           agentSessionActions.appendText(event.text);
+          break;
+        case 'reasoning':
+          agentSessionActions.appendReasoning(event.text);
           break;
         case 'tool':
           agentSessionActions.logTool({

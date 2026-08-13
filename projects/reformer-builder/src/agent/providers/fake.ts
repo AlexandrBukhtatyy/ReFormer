@@ -10,8 +10,8 @@
 
 import type { AiCapabilities, AiEvent, AiProvider, AiRequest } from './types';
 
-/** Шаг сценария: реплика модели либо вызов инструмента. */
-export type FakeStep = { text: string } | { tool: string; args?: unknown };
+/** Шаг сценария: реплика модели, её рассуждение либо вызов инструмента. */
+export type FakeStep = { text: string } | { reasoning: string } | { tool: string; args?: unknown };
 
 /** Настройки сценарного провайдера. */
 export interface FakeProviderOptions {
@@ -59,6 +59,10 @@ export function createFakeProvider(
         }
         if ('text' in item) {
           yield { type: 'delta', text: item.text };
+          continue;
+        }
+        if ('reasoning' in item) {
+          yield { type: 'reasoning', text: item.reasoning };
           continue;
         }
         if (step >= req.maxSteps) {

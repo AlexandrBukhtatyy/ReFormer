@@ -10,12 +10,42 @@
  * @module reformer-builder/agent/providers/ai-sdk
  */
 
-import { jsonSchema, stepCountIs, streamText, tool, type LanguageModel } from 'ai';
+import {
+  jsonSchema,
+  stepCountIs,
+  streamText,
+  tool,
+  type FinishReason,
+  type LanguageModel,
+} from 'ai';
 import type { ToolOutcome } from '../core/types';
 import type { AiEvent, AiRequest } from './types';
 
 /** Ответ на случай, если исход вызова почему-то не сохранился (защита от рассинхрона). */
 const UNKNOWN_OUTCOME: ToolOutcome = { ok: true, text: '' };
+
+/**
+ * Причины остановки, при которых ход оборван, а не завершён.
+ *
+ * Тихое `done: complete` здесь — худший из исходов: набор изменений пуст, панель уходит в покой, и
+ * выглядит это как «модель решила ничего не делать», хотя её прервали на полуслове. Особенно легко
+ * поймать `length` на think-моделях: рассуждение съедает весь бюджет вывода, и до инструментов ход
+ * просто не доходит.
+ *
+ * `tool-calls` приходит от `stopWhen: stepCountIs(maxSteps)`: модель попросила ещё один инструмент,
+ * а шаги кончились. Без записи здесь такой обрыв неотличим от штатного конца — набор изменений
+ * применяется как законченная работа, хотя половина задачи не сделана.
+ */
+const BROKEN_FINISH: Partial<Record<FinishReason, string>> = {
+  length:
+    'Ответ оборван на пределе длины: бюджет вывода кончился раньше, чем модель договорила. ' +
+    'Увеличьте контекстное окно модели (у локальных серверов — OLLAMA_CONTEXT_LENGTH или num_ctx) ' +
+    'либо разбейте задачу на несколько запросов.',
+  'content-filter': 'Ответ остановлен фильтром содержимого модели.',
+  'tool-calls':
+    'Ход остановлен на пределе шагов: модель не успела закончить. Уже сделанные правки можно ' +
+    'применить, остальное — попросить следующим сообщением («продолжай»).',
+};
 
 /**
  * Провести ход через AI SDK, переводя его поток в {@link AiEvent}.
@@ -63,6 +93,9 @@ export async function* streamViaAiSdk(
         case 'text-delta':
           yield { type: 'delta', text: part.text };
           break;
+        case 'reasoning-delta':
+          yield { type: 'reasoning', text: part.text };
+          break;
         case 'tool-call':
           yield { type: 'tool_call', id: part.toolCallId, name: part.toolName, args: part.input };
           break;
@@ -90,9 +123,17 @@ export async function* streamViaAiSdk(
         case 'abort':
           yield { type: 'done', reason: 'aborted' };
           return;
-        case 'finish':
+        case 'finish': {
+          const broken = BROKEN_FINISH[part.finishReason];
+          if (broken) {
+            // Повтор того же запроса упрётся в тот же предел — чинится настройкой, а не кнопкой.
+            yield { type: 'error', message: broken, retryable: false };
+            yield { type: 'done', reason: 'error' };
+            return;
+          }
           yield { type: 'done', reason: 'complete' };
           return;
+        }
       }
     }
   } catch (e) {

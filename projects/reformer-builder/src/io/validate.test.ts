@@ -78,7 +78,9 @@ describe('validateSchema — строгий режим', () => {
     expect(validateSchema(schema, { strict: true }).errors.join('\n')).toContain(
       'RendererFormWizard'
     );
-    expect(validateSchema(schema, { strict: true, baseline: sampleSchema() })).toEqual({
+    // toMatchObject, а не toEqual: результат со временем прирастает полями (структурные
+    // предупреждения), и тест про имена компонентов не должен падать из-за соседнего контракта.
+    expect(validateSchema(schema, { strict: true, baseline: sampleSchema() })).toMatchObject({
       valid: true,
       errors: [],
     });

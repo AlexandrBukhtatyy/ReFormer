@@ -42,12 +42,18 @@ export function ChangePreview({
   onReject,
 }: ChangePreviewProps) {
   return (
-    <div className="flex-none border-t border-border bg-muted/40 px-3 py-2.5">
-      <div className="mb-1.5 text-[11.5px] font-semibold text-muted-foreground">
+    // Колонка с потолком высоты, а не блок по содержимому: длинный ход даёт десятки операций, и
+    // список, растущий свободно, выдавливал кнопки за край панели — решение по набору изменений
+    // становилось недоступным ровно тогда, когда работы было больше всего. Потолок в половину
+    // панели оставляет видимой и переписку.
+    <div className="flex max-h-[50%] min-h-0 flex-none flex-col border-t border-border bg-muted/40 px-3 py-2.5">
+      <div className="mb-1.5 flex-none text-[11.5px] font-semibold text-muted-foreground">
         Изменений: {set.ops.length}
       </div>
 
-      <ScrollArea className="mb-2 max-h-40">
+      {/* min-h-0 обязателен: без него flex-элемент не сжимается ниже своего содержимого, и
+          прокрутка не включается — список снова растёт наружу. */}
+      <ScrollArea className="mb-2 min-h-0 flex-1">
         <ul className="space-y-0.5">
           {set.ops.map((op, i) => (
             <li key={`${op.ref}-${i}`} className="flex gap-1.5 text-[12px] leading-5">
@@ -61,7 +67,7 @@ export function ChangePreview({
       </ScrollArea>
 
       {conflict && (
-        <Alert className="mb-2 border-amber-500/40 bg-amber-500/10 py-2">
+        <Alert className="mb-2 flex-none border-amber-500/40 bg-amber-500/10 py-2">
           <TriangleAlert className="text-amber-600 dark:text-amber-400" />
           <AlertDescription className="text-[11.5px] leading-4">
             Форму изменили, пока ассистент работал. Применение перезапишет эти правки.
@@ -69,7 +75,7 @@ export function ChangePreview({
         </Alert>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-none gap-2">
         <Button size="sm" className="flex-1" onClick={conflict ? onForceApply : onApply}>
           <Check />
           {conflict ? 'Применить всё равно' : 'Применить'}

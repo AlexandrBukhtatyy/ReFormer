@@ -529,13 +529,18 @@ function selectionIndices(tab: TabState): { slotPath: JsonPath; indices: number[
   return { slotPath: slot, indices: infos.map((x) => x!.index) };
 }
 
-/** Массив-слот контейнера для добавления ребёнка (`children`/`steps`), либо создать `children`. */
+/**
+ * Массив-слот контейнера для добавления ребёнка (`children`/`steps`), либо создать `children`.
+ *
+ * Первый слот, а не `children`: порядок задаёт `childSlots`, и у визарда он ставит `steps` первым.
+ * Предпочтение `children` означало бы, что у визарда с обоими слотами вставка уходит в тот, что
+ * рантайм не рендерит, — узел исчезает из превью, хотя редактор отчитался об успехе.
+ */
 function insertSlotOf(
   node: JsonNode,
   path: JsonPath
 ): { slotPath: JsonPath; count: number } | null {
-  const slots = childSlots(node, path).filter((s) => !s.single);
-  const slot = slots.find((s) => s.kind === 'children') ?? slots[0];
+  const slot = childSlots(node, path).find((s) => !s.single);
   if (slot) return { slotPath: slot.path, count: slot.length };
   // Листовые компоненты (Icon/Separator/…) слот children не создают, хоть и isContainerNode.
   return !isLeafComponent(node) && isContainerNode(node)
@@ -609,8 +614,8 @@ function moveIn(schema: JsonFormSchema, path: JsonPath): MutationResult | null {
   const prevPath = [...sib.slotPath, sib.index - 1];
   const prevNode = getAt(schema, prevPath) as JsonNode | undefined;
   if (!prevNode || !canAcceptChildren(prevNode)) return null;
-  const slots = childSlots(prevNode, prevPath).filter((s) => !s.single);
-  const slot = slots.find((s) => s.kind === 'children') ?? slots[0];
+  // Первый слот в порядке childSlots — см. заметку у insertSlotOf.
+  const slot = childSlots(prevNode, prevPath).find((s) => !s.single);
   if (!slot) return null;
   return moveNode(schema, path, slot.path, slot.length);
 }

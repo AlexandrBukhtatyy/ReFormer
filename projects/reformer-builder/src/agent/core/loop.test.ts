@@ -77,6 +77,17 @@ describe('ход агента — создание формы с нуля', () =
     ]);
   });
 
+  it('рассуждение доходит до интерфейса, но не смешивается с ответом', async () => {
+    const events = await play(
+      [{ reasoning: 'Нужно поле email.' }, { text: 'Добавляю.' }],
+      emptySchema()
+    );
+    expect(events.filter((e) => e.type === 'reasoning')).toEqual([
+      { type: 'reasoning', text: 'Нужно поле email.' },
+    ]);
+    expect(events.filter((e) => e.type === 'text')).toEqual([{ type: 'text', text: 'Добавляю.' }]);
+  });
+
   it('события хода несут текст и имена вызванных инструментов', async () => {
     const events = await play(script, emptySchema());
     expect(

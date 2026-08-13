@@ -24,7 +24,7 @@ import {
   type JsonFieldNode,
   type JsonNode,
 } from '@reformer/renderer-json';
-import { findByPath, isLeafComponent, kindOf, type JsonPath } from '../model';
+import { childSlots, findByPath, isLeafComponent, kindOf, type JsonPath } from '../model';
 import {
   setComponentProp,
   setNodeKey,
@@ -399,7 +399,12 @@ export function Inspector() {
   const entry = catalogEntryFor(node);
   // Текст — только у узлов, которые могут иметь содержимое: не поле/массив и не лист
   // (Icon/Separator, void-теги `<br>`/`<hr>` — рендерер им содержимое не передаёт вовсе).
-  const showsText = kindOf(node) === 'container' && !isLeafComponent(node);
+  //
+  // Держатель шагов (мастер) исключён отдельно: `setTextChild` завёл бы ему `children`, которых
+  // рантайм не рендерит, и с этого момента любая вставка — и мышью, и агентом — уходила бы в
+  // мёртвый слот. Самый дешёвый способ необратимо испортить визард лежал именно здесь.
+  const holdsSteps = childSlots(node, selPath).some((s) => s.kind === 'steps');
+  const showsText = kindOf(node) === 'container' && !isLeafComponent(node) && !holdsSteps;
   // Части compound'а (Alert → AlertTitle/AlertDescription): секция «Содержимое» покажет их вместо
   // поля «Текст» — у такого корня голое содержимое ломает раскладку.
   const compoundParts = entry ? partNamesOf(entry.name) : [];

@@ -69,11 +69,23 @@ export const insertNodeTool: AgentTool<Params> = {
     const parent = resolveRef(ctx.draft, params.parent);
     if (!isResolved(parent)) return parent;
 
-    const slotPath = insertSlotOf(parent.node, parent.path);
-    if (!slotPath) {
+    const slot = insertSlotOf(parent.node, parent.path);
+    if (!slot) {
       return fail(
         'INVALID_PARENT',
         `Узел ${params.parent} не принимает детей. Выбери контейнер, шаг или корень формы.`
+      );
+    }
+
+    // Мастер держит в своём слоте ШАГИ, и каждый шаг — контейнер. Поле, положенное сюда напрямую,
+    // становилось шагом: рантайм пытался нарисовать его вместо страницы мастера. Отказ приходит до
+    // правки, поэтому черновик остаётся чистым, а модель узнаёт правило в тот момент, когда оно ей
+    // нужно. Проверка по ВИДУ узла, а не по имени `Step`: шагом законно бывает и `Box`.
+    if (slot.kind === 'steps' && entry.role !== 'container') {
+      return fail(
+        'INVALID_PARENT',
+        `В мастер кладут только шаги, а ${entry.name} — не контейнер. Вставь Step в ${params.parent}, ` +
+          `затем это поле внутрь шага.`
       );
     }
 
@@ -93,7 +105,7 @@ export const insertNodeTool: AgentTool<Params> = {
     }
 
     const index = params.index ?? Number.MAX_SAFE_INTEGER;
-    const result = insertNode(ctx.draft, slotPath, index, node as unknown as JsonNode);
+    const result = insertNode(ctx.draft, slot.path, index, node as unknown as JsonNode);
     const label = params.props?.label ?? params.model ?? entry.name;
     return commitMutation(ctx, result, () => ({
       kind: 'add',

@@ -101,6 +101,67 @@ describe('insert_node', () => {
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
   });
+
+  it('поле в мастер напрямую — отказ, а не молчаливое превращение в шаг', () => {
+    // Наблюдалось вживую: insert_node(Input, parent=<Wizard>) отвечал «Готово», а поле вставало
+    // в componentProps.steps и рантайм пытался нарисовать его вместо страницы мастера.
+    const base = sampleSchema();
+    const res = reg.invoke('insert_node', { component: FIELD, parent: '/root' }, ctxOf(base));
+    expect(res.error?.code).toBe('INVALID_PARENT');
+    expect(res.schema).toBeUndefined();
+    expect(res.text).toContain('Step');
+  });
+
+  it('ответ перечисляет созданное поддерево — иначе модель создаёт части повторно', () => {
+    // Прямая причина сгоревшего хода: Tabs приходит собранным (список, две вкладки, две панели),
+    // а ответ называл один адрес. Модель, не увидев готового TabsList, делала второй.
+    const res = reg.invoke(
+      'insert_node',
+      { component: 'Tabs', parent: '/root' },
+      ctxOf(emptySchema())
+    );
+    expect(res.ok).toBe(true);
+    expect(res.text).toContain('TabsList');
+    expect(res.text).toContain('/root/children/0/children/0/children/0');
+    expect(res.text?.split('TabsList')).toHaveLength(2);
+  });
+
+  it('вставка визарда показывает посеянный шаг с его адресом', () => {
+    const res = reg.invoke(
+      'insert_node',
+      { component: 'Wizard', parent: '/root' },
+      ctxOf(emptySchema())
+    );
+    expect(res.text).toContain('/root/children/0/componentProps/steps/0');
+    expect(res.text).toContain('Step');
+  });
+
+  it('одиночный узел отвечает как раньше — массовый путь без лишнего текста', () => {
+    const res = reg.invoke(
+      'insert_node',
+      { component: FIELD, parent: '/root', model: 'a.b' },
+      ctxOf(emptySchema())
+    );
+    expect(res.text).not.toContain('\n');
+  });
+
+  it('визард без шагов не теряет слот: следующий Step встаёт в steps, а не в children', () => {
+    // Самоуничтожение визарда: remove_node последнего шага оставлял steps: [], слот исчезал, и
+    // всё, что вставляли дальше, уходило в children — в слот, которого рантайм не рендерит.
+    let schema = expectOk(
+      reg.invoke('remove_node', { ref: '/root/componentProps/steps/1' }, ctxOf(sampleSchema()))
+    );
+    schema = expectOk(
+      reg.invoke('remove_node', { ref: '/root/componentProps/steps/0' }, ctxOf(schema))
+    );
+    schema = expectOk(
+      reg.invoke('insert_node', { component: 'Step', parent: '/root' }, ctxOf(schema))
+    );
+
+    const refs = buildOutline(schema).map((e) => e.ref);
+    expect(refs).toContain('/root/componentProps/steps/0');
+    expect(refs).not.toContain('/root/children/0');
+  });
 });
 
 describe('set_node_prop', () => {
@@ -118,6 +179,63 @@ describe('set_node_prop', () => {
       reg.invoke('set_node_prop', { ref, key: 'label', value: null }, ctxOf(sampleSchema()))
     );
     expect(buildOutline(schema).find((e) => e.ref === ref)?.label).toBeUndefined();
+  });
+
+  it('key=text пишет содержимое узла, а не componentProps', () => {
+    // Подпись вкладки живёт текстовой частью children, и рендерер берёт её только оттуда. Пока
+    // ключа не было, переименовать вкладку было нечем: модель перебирала пропы по кругу.
+    const base = expectOk(
+      reg.invoke('insert_node', { component: 'Tabs', parent: '/root' }, ctxOf(emptySchema()))
+    );
+    const trigger = '/root/children/0/children/0/children/0';
+    const schema = expectOk(
+      reg.invoke(
+        'set_node_prop',
+        { ref: trigger, key: 'text', value: 'Личные данные' },
+        ctxOf(base)
+      )
+    );
+
+    const node = getAt(schema, ['root', 'children', 0, 'children', 0, 'children', 0]) as {
+      children: unknown[];
+      componentProps?: Record<string, unknown>;
+    };
+    expect(node.children).toContain('Личные данные');
+    expect(node.componentProps?.text).toBeUndefined();
+  });
+
+  it('у шага подпись — свойство title, а не содержимое', () => {
+    // Наблюдалось вживую: модель переименовывала шаг ключом text, и слово «Шаг 2» вставало
+    // абзацем НАД полями шага, а заголовок оставался прежним. У Step children — тело, не подпись.
+    const res = reg.invoke(
+      'set_node_prop',
+      { ref: '/root/componentProps/steps/0', key: 'text', value: 'Шаг 2' },
+      ctxOf(sampleSchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARENT');
+    expect(res.text).toContain('title');
+    expect(res.schema).toBeUndefined();
+  });
+
+  it('содержимое из нескольких частей строкой не затирается', () => {
+    const draft = sampleSchema();
+    const ref = '/root/componentProps/steps/0';
+    const step = getAt(draft, [...P.step0]) as { children: unknown[] };
+    step.children = ['Платёж: ', '$model(loanAmount)', ' ₽'];
+
+    const res = reg.invoke('set_node_prop', { ref, key: 'text', value: 'Итого' }, ctxOf(draft));
+    expect(res.ok).toBe(false);
+    expect(res.schema).toBeUndefined();
+  });
+
+  it('у поля содержимого нет — отказ объясняет, чем задавать подпись', () => {
+    const res = reg.invoke(
+      'set_node_prop',
+      { ref, key: 'text', value: 'Сумма' },
+      ctxOf(sampleSchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARENT');
+    expect(res.text).toContain('label');
   });
 
   it('несовпавшее expect отклоняет правку, схема не тронута', () => {
@@ -147,6 +265,56 @@ describe('set_node_prop', () => {
     );
     expect(res.error?.code).toBe('SCHEMA_INVALID');
     expect(res.schema).toBeUndefined();
+  });
+
+  it('чужая ошибка, уехавшая на другой индекс, не считается новой', () => {
+    // Форма уже была битой (например, открыли чужую): у первого поля min — строка. Вставка узла
+    // ПЕРЕД ним сдвигает children[0] → children[1], и дословное сравнение строк читало ту же самую
+    // ошибку как новую — правка отвергалась, причём с указанием на узел, которого агент не трогал.
+    const base = expectOk(
+      reg.invoke(
+        'insert_node',
+        { component: 'Input', parent: '/root', model: 'x' },
+        ctxOf(emptySchema())
+      )
+    );
+    const broken = getAt(base, ['root', 'children', 0]) as {
+      componentProps: Record<string, unknown>;
+    };
+    broken.componentProps = { ...broken.componentProps, min: 'не-число' };
+
+    const res = reg.invoke(
+      'insert_node',
+      { component: FIELD, parent: '/root', index: 0, model: 'y' },
+      ctxOf(base)
+    );
+    expect(res.error?.code, res.text).toBeUndefined();
+    expect(res.schema).toBeDefined();
+  });
+
+  it('вторая такая же ошибка у того же узла — уже ухудшение', () => {
+    // Счётчики, а не множество: иначе форма с одной битой строкой молча принимала бы вторую.
+    const base = expectOk(
+      reg.invoke(
+        'insert_node',
+        { component: 'Input', parent: '/root', model: 'x' },
+        ctxOf(emptySchema())
+      )
+    );
+    const broken = getAt(base, ['root', 'children', 0]) as {
+      componentProps: Record<string, unknown>;
+    };
+    broken.componentProps = { ...broken.componentProps, min: 'не-число' };
+
+    const withSecond = expectOk(
+      reg.invoke('insert_node', { component: 'Input', parent: '/root', model: 'z' }, ctxOf(base))
+    );
+    const res = reg.invoke(
+      'set_node_prop',
+      { ref: '/root/children/1', key: 'min', value: 'тоже-не-число' },
+      ctxOf(withSecond, base)
+    );
+    expect(res.error?.code).toBe('SCHEMA_INVALID');
   });
 
   it('непричастные узлы сохраняют ссылочную идентичность', () => {
@@ -269,6 +437,21 @@ describe('group_nodes', () => {
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
+  });
+
+  it('шаги мастера группировать нельзя — обёртка схлопнула бы их в один', () => {
+    // groupBlock ставит на место блока один $html(div): два шага превратились бы в одну
+    // безымянную страницу, а поля внутри — остались бы, но без своих шагов.
+    const draft = sampleSchema();
+    const res = reg.invoke(
+      'group_nodes',
+      { refs: ['/root/componentProps/steps/0', '/root/componentProps/steps/1'] },
+      ctxOf(draft)
+    );
+    expect(res.error?.code).toBe('INVALID_PARENT');
+    // Отказ обязан назвать законную альтернативу, иначе модель повторит тот же вызов.
+    expect(res.text?.toLowerCase()).toContain('внутри шага');
+    expect(res.schema).toBeUndefined();
   });
 
   it('меньше двух узлов отклоняется схемой аргументов', () => {

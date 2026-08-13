@@ -34,6 +34,8 @@ export interface AgentTurnOptions {
 /** Событие хода для интерфейса. */
 export type TurnEvent =
   | { type: 'text'; text: string }
+  /** Рассуждение модели: показывается свёрнутым и в историю диалога не возвращается. */
+  | { type: 'reasoning'; text: string }
   | { type: 'tool'; name: string; ok: boolean; op?: ChangeOp; error?: ToolError }
   | {
       type: 'done';
@@ -83,6 +85,9 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
       switch (event.type) {
         case 'delta':
           if (event.text) yield { type: 'text', text: event.text };
+          break;
+        case 'reasoning':
+          if (event.text) yield { type: 'reasoning', text: event.text };
           break;
         case 'tool_result':
           yield {
