@@ -39,6 +39,8 @@ import type {
   EditorState,
   HistorySnapshot,
   LeftPanel,
+  RightPanel,
+  RightPanelKind,
   MarkdownView,
   MockDraft,
   MockSection,
@@ -68,7 +70,11 @@ export function initialUi(): UiState {
     bottomTab: ui?.bottomTab ?? 'raw',
     leftPanel,
     lastLeftPanel: leftPanel ?? 'files',
-    rightOpen: ui?.rightOpen ?? true,
+    // Конфиг клиента по-прежнему знает только «открыта ли правая зона» (`ui.rightOpen`) — это
+    // ПУБЛИКУЕМЫЙ контракт, и расширять его ради внутреннего переключения панелей незачем:
+    // открытая зона означает инспектор, как и раньше.
+    rightPanel: (ui?.rightOpen ?? true) ? 'inspector' : null,
+    lastRightPanel: 'inspector',
     theme: ui?.theme ?? 'light',
     revealLine: null,
     revealNonce: 0,
@@ -869,8 +875,22 @@ export function toggleLeftPanel(state: EditorState): EditorState {
   const leftPanel = state.ui.leftPanel === null ? state.ui.lastLeftPanel : null;
   return { ...state, ui: { ...state.ui, leftPanel } };
 }
-export function toggleRight(state: EditorState): EditorState {
-  return { ...state, ui: { ...state.ui, rightOpen: !state.ui.rightOpen } };
+/** Показать правую панель (инспектор/ассистент) либо свернуть зону (`null`). */
+export function setRightPanel(state: EditorState, rightPanel: RightPanel): EditorState {
+  // Раскрытую панель запоминаем — чтобы тоггл ⌥⌘B потом восстановил именно её.
+  return {
+    ...state,
+    ui: { ...state.ui, rightPanel, lastRightPanel: rightPanel ?? state.ui.lastRightPanel },
+  };
+}
+/** Тоггл правой зоны (⌥⌘B): свернуть / вернуть последнюю панель. */
+export function toggleRightPanel(state: EditorState): EditorState {
+  const rightPanel = state.ui.rightPanel === null ? state.ui.lastRightPanel : null;
+  return { ...state, ui: { ...state.ui, rightPanel } };
+}
+/** Показать конкретную правую панель, а если она уже показана — свернуть зону (вкладка рейла). */
+export function toggleRightPanelTo(state: EditorState, kind: RightPanelKind): EditorState {
+  return setRightPanel(state, state.ui.rightPanel === kind ? null : kind);
 }
 export function setTheme(state: EditorState, theme: Theme): EditorState {
   return { ...state, ui: { ...state.ui, theme } };

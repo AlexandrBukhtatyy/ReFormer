@@ -53,26 +53,25 @@ export function CodeArea({ tab }: { tab: TabState }) {
         language={tab.language ?? 'plaintext'}
         theme={theme}
         onChange={(v) => editorActions.setTabText(tab.id, v)}
-        onMount={
-          markdown
-            ? (instance, monaco) => {
-                sync.onEditorMount(instance);
-                // Аккорды регистрируем в самом Monaco: его keybinding-service гасит ⌘K и ⇧⌘V
-                // до window-обработчика в EditorLayout, поэтому из редактора они иначе не работают.
-                instance.addCommand(
-                  monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyV,
-                  () => cycleMarkdownView(1)
-                );
-                instance.addCommand(
-                  monaco.KeyMod.chord(
-                    monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
-                    monaco.KeyCode.KeyV
-                  ),
-                  () => applyMarkdownView(tab.id, 'split')
-                );
-              }
-            : undefined
-        }
+        onMount={(instance, monaco) => {
+          // Хоткеи регистрируем в самом Monaco: его keybinding-service гасит их до
+          // window-обработчика в EditorLayout, поэтому из редактора они иначе не работают.
+          // ⇧⌘K у Monaco по умолчанию — deleteLines, поэтому перехват обязателен, а не желателен.
+          instance.addCommand(
+            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyK,
+            () => editorActions.toggleRightPanelTo('agent')
+          );
+          if (!markdown) return;
+          sync.onEditorMount(instance);
+          instance.addCommand(
+            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyV,
+            () => cycleMarkdownView(1)
+          );
+          instance.addCommand(
+            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, monaco.KeyCode.KeyV),
+            () => applyMarkdownView(tab.id, 'split')
+          );
+        }}
       />
     </Suspense>
   );

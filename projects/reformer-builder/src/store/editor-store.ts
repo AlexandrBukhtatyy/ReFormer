@@ -16,6 +16,8 @@ import type {
   MarkdownView,
   MockSection,
   PreviewMode,
+  RightPanel,
+  RightPanelKind,
   RuntimeMode,
   TabSource,
   TabState,
@@ -138,6 +140,12 @@ export const editorActions = {
   setLeftPanel: (panel: LeftPanel) => editorStore.setState((s) => R.setLeftPanel(s, panel)),
   /** ⌘B: свернуть/развернуть левый сайдбар (восстанавливает последнюю панель). */
   toggleLeftPanel: () => editorStore.setState(R.toggleLeftPanel),
-  toggleRight: () => editorStore.setState(R.toggleRight),
+  /** Показать правую панель (инспектор/ассистент) либо свернуть зону. */
+  setRightPanel: (panel: RightPanel) => editorStore.setState((s) => R.setRightPanel(s, panel)),
+  /** ⌥⌘B: свернуть/развернуть правую зону (восстанавливает последнюю панель). */
+  toggleRightPanel: () => editorStore.setState(R.toggleRightPanel),
+  /** Вкладка правого рейла: показать панель либо свернуть зону, если она уже показана. */
+  toggleRightPanelTo: (kind: RightPanelKind) =>
+    editorStore.setState((s) => R.toggleRightPanelTo(s, kind)),
   setTheme: (theme: Theme) => editorStore.setState((s) => R.setTheme(s, theme)),
 };

@@ -6,14 +6,21 @@
  * @module reformer-builder/app/EditorLayout
  */
 
-import { useEffect, type ReactElement } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { lazy, Suspense, useEffect, type ReactElement } from 'react';
+import { Moon, RotateCcw, Settings, Sun } from 'lucide-react';
 import { useDefaultLayout } from 'react-resizable-panels';
-import { TooltipProvider } from '@reformer/ui-kit';
+import { Button, TooltipProvider } from '@reformer/ui-kit';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Toaster } from '@reformer/ui-kit/sonner';
 import { activeTab, editorActions, editorStore, useActiveTab, useUi } from '../store';
-import type { LeftPanel, LeftPanelKind, PreviewMode, UiState } from '../store';
+import type {
+  LeftPanel,
+  LeftPanelKind,
+  PreviewMode,
+  RightPanel,
+  RightPanelKind,
+  UiState,
+} from '../store';
 import { type NavDir } from '../model';
 import { saveDialogActions } from '../store/save-dialog';
 import { CanvasArea } from '../canvas/CanvasArea';
@@ -28,6 +35,15 @@ import { FilesPanel } from '../panels/FilesPanel';
 import { PalettePanel } from '../panels/PalettePanel';
 import { TemplatesPanel } from '../panels/TemplatesPanel';
 import { Inspector, SelectedTypeBadge } from '../panels/Inspector';
+import { agentSessionActions } from '../agent/session';
+
+/**
+ * Панель ассистента — отдельный чанк: за неё не должен платить размером тот, кто ассистента не
+ * открывал (`dist` билдера и без того ≈8.6 МБ). Грузится в момент первого показа.
+ */
+const ChatPanel = lazy(() =>
+  import('../panels/agent/ChatPanel').then((m) => ({ default: m.ChatPanel }))
+);
 import { AppToolbar } from './AppToolbar';
 import { bootstrapDrafts } from './draft-actions';
 import { saveCodeTab, triggerSave } from './save-actions';
@@ -61,6 +77,67 @@ const LEFT_PANELS: ReadonlyArray<{
 /** Описание активной левой панели (для свёрнутого сайдбара берём первую — он всё равно не виден). */
 function leftPanelOf(kind: LeftPanel): (typeof LEFT_PANELS)[number] {
   return LEFT_PANELS.find((p) => p.kind === kind) ?? LEFT_PANELS[0];
+}
+
+/**
+ * Правые панели в порядке рейла. Инспектор и ассистент делят одну зону и переключаются: обоим
+ * нужна ширина, и держать их рядом означало бы отдать под правый борт половину экрана.
+ * `actions` рисуются в строке заголовка панели.
+ */
+const RIGHT_PANELS: ReadonlyArray<{
+  kind: RightPanelKind;
+  title: string;
+  heading: string;
+  actions?: () => ReactElement;
+  render: () => ReactElement;
+}> = [
+  {
+    kind: 'inspector',
+    title: 'Свойства',
+    heading: 'Свойства',
+    actions: () => <SelectedTypeBadge />,
+    render: () => <Inspector />,
+  },
+  {
+    kind: 'agent',
+    title: 'Ассистент',
+    heading: 'Ассистент',
+    actions: () => <AgentPanelActions />,
+    render: () => (
+      <Suspense fallback={null}>
+        <ChatPanel />
+      </Suspense>
+    ),
+  },
+];
+
+/** Кнопки шапки панели ассистента: настройка канала и новый разговор. */
+function AgentPanelActions() {
+  return (
+    <div className="flex items-center gap-0.5">
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        title="Канал к модели"
+        onClick={agentSessionActions.toggleSettings}
+      >
+        <Settings />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        title="Новый разговор"
+        onClick={agentSessionActions.reset}
+      >
+        <RotateCcw />
+      </Button>
+    </div>
+  );
+}
+
+/** Описание активной правой панели (для свёрнутой зоны берём первую — она всё равно не видна). */
+function rightPanelOf(kind: RightPanel): (typeof RIGHT_PANELS)[number] {
+  return RIGHT_PANELS.find((p) => p.kind === kind) ?? RIGHT_PANELS[0];
 }
 
 /** Фокус в поле ввода / Monaco — там горячие клавиши canvas не перехватываем. */
@@ -109,7 +186,7 @@ function visibleZones(ui: UiState): Zone[] {
   const zones: Zone[] = [];
   if (ui.leftPanel) zones.push('left');
   zones.push('center');
-  if (ui.rightOpen) zones.push('right');
+  if (ui.rightPanel) zones.push('right');
   return zones;
 }
 
@@ -153,6 +230,13 @@ function toggleLeftTo(kind: LeftPanelKind): void {
   const open = editorStore.getState().ui.leftPanel === kind;
   editorActions.setLeftPanel(open ? null : kind);
   if (!open) requestAnimationFrame(() => focusZone('left'));
+}
+
+/** Переключить правую зону на панель `kind` (или свернуть, если она уже открыта) + фокус. */
+function toggleRightTo(kind: RightPanelKind): void {
+  const wasOpen = editorStore.getState().ui.rightPanel === kind;
+  editorActions.toggleRightPanelTo(kind);
+  if (!wasOpen) requestAnimationFrame(() => focusZone('right'));
 }
 
 // ── переключение режима отображения схемы (⌘⌥V цикл, ⌘⌥1/2/3 прямой) ──
@@ -229,7 +313,7 @@ export function EditorLayout() {
       // ⌘/Ctrl+B — тоггл левого сайдбара; ⌘⌥B — тоггл правого инспектора.
       if (mod && k === 'b') {
         e.preventDefault();
-        if (e.altKey) editorActions.toggleRight();
+        if (e.altKey) editorActions.toggleRightPanel();
         else if (e.shiftKey) toggleLeftTo('palette');
         else editorActions.toggleLeftPanel();
         return;
@@ -238,6 +322,13 @@ export function EditorLayout() {
       if (mod && e.shiftKey && k === 'e') {
         e.preventDefault();
         toggleLeftTo('files');
+        return;
+      }
+      // ⌘⇧K — панель ассистента в правой зоне. Проверяем `code`, а не `key`: с кириллической
+      // раскладкой `key` даёт «л», и хоткей переставал бы работать ровно там, где интерфейс русский.
+      if (mod && e.shiftKey && e.code === 'KeyK') {
+        e.preventDefault();
+        toggleRightTo('agent');
         return;
       }
       // F6 / ⇧F6 — циклический фокус по видимым зонам.
@@ -331,8 +422,9 @@ export function EditorLayout() {
         if (t && (t.tagName === 'BUTTON' || t.closest?.('button, a, [role="button"]'))) return;
         if (!activeTab(st)?.selectionPath) return;
         e.preventDefault();
-        if (!st.ui.rightOpen) {
-          editorActions.toggleRight();
+        // Зона могла быть свёрнута ИЛИ занята ассистентом — Space всегда ведёт в свойства.
+        if (st.ui.rightPanel !== 'inspector') {
+          editorActions.setRightPanel('inspector');
           requestAnimationFrame(focusProperties);
         } else {
           focusProperties();
@@ -476,8 +568,8 @@ export function EditorLayout() {
               )}
             </ResizablePanel>
 
-            {/* правый инспектор */}
-            {ui.rightOpen && (
+            {/* правая зона: инспектор либо ассистент */}
+            {ui.rightPanel && (
               <>
                 <ResizableHandle withHandle />
                 <ResizablePanel
@@ -490,23 +582,29 @@ export function EditorLayout() {
                   className="flex flex-col bg-sidebar outline-none"
                 >
                   <div className="flex h-[34px] flex-none items-center justify-between border-b border-border px-3 text-[11.5px] font-semibold text-muted-foreground">
-                    <span>Свойства</span>
-                    <SelectedTypeBadge />
+                    <span>{rightPanelOf(ui.rightPanel).heading}</span>
+                    {rightPanelOf(ui.rightPanel).actions?.()}
                   </div>
-                  <Inspector />
+                  {rightPanelOf(ui.rightPanel).render()}
                 </ResizablePanel>
               </>
             )}
           </ResizablePanelGroup>
 
-          {/* правый рейл */}
-          <div className="flex w-[34px] flex-none flex-col items-center border-l border-border bg-sidebar pt-2">
-            <button
-              onClick={editorActions.toggleRight}
-              className={cn(railTab, 'text-muted-foreground hover:bg-muted')}
-            >
-              Свойства
-            </button>
+          {/* правый рейл: вкладки правой зоны, как слева */}
+          <div className="flex w-[34px] flex-none flex-col items-center gap-1 border-l border-border bg-sidebar pt-2">
+            {RIGHT_PANELS.map(({ kind, title }) => (
+              <button
+                key={kind}
+                onClick={() => toggleRightTo(kind)}
+                className={cn(
+                  railTab,
+                  ui.rightPanel === kind ? 'bg-muted' : 'text-muted-foreground hover:bg-muted'
+                )}
+              >
+                {title}
+              </button>
+            ))}
           </div>
         </div>
       </div>

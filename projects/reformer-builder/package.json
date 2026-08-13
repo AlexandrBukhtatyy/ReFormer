@@ -53,6 +53,9 @@
     "access": "public"
   },
   "devDependencies": {
+    "@ai-sdk/anthropic": "^4.0.38",
+    "@ai-sdk/openai": "^4.0.41",
+    "@ai-sdk/openai-compatible": "^3.0.30",
     "@eslint/js": "^9.39.1",
     "@monaco-editor/react": "^4.7.0",
     "@preact/signals-core": "^1.8.0",
@@ -72,6 +75,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.0",
+    "ai": "^7.0.63",
     "ajv": "^8.17.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

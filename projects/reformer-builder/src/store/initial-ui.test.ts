@@ -10,7 +10,8 @@ describe('initialUi — дефолты UI из runtime-конфига', () => {
     expect(ui.theme).toBe('light');
     expect(ui.leftPanel).toBe('files');
     expect(ui.lastLeftPanel).toBe('files');
-    expect(ui.rightOpen).toBe(true);
+    expect(ui.rightPanel).toBe('inspector');
+    expect(ui.lastRightPanel).toBe('inspector');
     expect(ui.preview).toBe('wire');
     expect(ui.bottomTab).toBe('raw');
     // Нижняя панель (JSON/Модель/Registry) при старте свёрнута.
@@ -31,7 +32,8 @@ describe('initialUi — дефолты UI из runtime-конфига', () => {
     expect(ui.theme).toBe('dark');
     expect(ui.leftPanel).toBe('palette');
     expect(ui.lastLeftPanel).toBe('palette');
-    expect(ui.rightOpen).toBe(false);
+    // `ui.rightOpen: false` в конфиге — публикуемый контракт; внутри он означает свёрнутую зону.
+    expect(ui.rightPanel).toBeNull();
     expect(ui.preview).toBe('code');
     expect(ui.bottomTab).toBe('model');
   });

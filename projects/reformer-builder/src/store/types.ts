@@ -36,6 +36,15 @@ export type LeftPanel = 'files' | 'palette' | 'templates' | null;
 /** Конкретная левая панель (без свёрнутого состояния) — для запоминания последней. */
 export type LeftPanelKind = Exclude<LeftPanel, null>;
 
+/**
+ * Активная правая панель; `null` — зона свёрнута. Инспектор и ассистент занимают одну зону и
+ * переключаются, а не соседствуют: обоим нужна ширина, а справа её на двоих не хватает.
+ */
+export type RightPanel = 'inspector' | 'agent' | null;
+
+/** Конкретная правая панель (без свёрнутого состояния) — для запоминания последней. */
+export type RightPanelKind = Exclude<RightPanel, null>;
+
 /** Тема оболочки. */
 export type Theme = 'light' | 'dark';
 
@@ -161,7 +170,9 @@ export interface UiState {
   leftPanel: LeftPanel;
   /** Последняя раскрытая левая панель — тоггл ⌘B восстанавливает её, когда сайдбар был свёрнут. */
   lastLeftPanel: LeftPanelKind;
-  rightOpen: boolean;
+  rightPanel: RightPanel;
+  /** Последняя раскрытая правая панель — тоггл ⌥⌘B восстанавливает её, когда зона была свёрнута. */
+  lastRightPanel: RightPanelKind;
   theme: Theme;
   /** Запрос навигации в raw-JSON: строка (1-based) для reveal; `null` — активного запроса нет. */
   revealLine: number | null;

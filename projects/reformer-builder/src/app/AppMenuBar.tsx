@@ -205,11 +205,22 @@ export function AppMenuBar() {
               Шаблоны
             </MenubarCheckboxItem>
             <MenubarCheckboxItem
-              checked={ui.rightOpen}
-              onCheckedChange={() => editorActions.toggleRight()}
+              checked={ui.rightPanel === 'inspector'}
+              onCheckedChange={() =>
+                editorActions.setRightPanel(ui.rightPanel === 'inspector' ? null : 'inspector')
+              }
             >
               Свойства
               <MenubarShortcut>{formatShortcut('Alt+Mod+B')}</MenubarShortcut>
+            </MenubarCheckboxItem>
+            <MenubarCheckboxItem
+              checked={ui.rightPanel === 'agent'}
+              onCheckedChange={() =>
+                editorActions.setRightPanel(ui.rightPanel === 'agent' ? null : 'agent')
+              }
+            >
+              Ассистент
+              <MenubarShortcut>{formatShortcut('Mod+Shift+K')}</MenubarShortcut>
             </MenubarCheckboxItem>
             <MenubarCheckboxItem
               checked={ui.rawJsonOpen}

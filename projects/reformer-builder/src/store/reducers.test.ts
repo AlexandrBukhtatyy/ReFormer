@@ -258,8 +258,13 @@ describe('ui', () => {
     expect(s.ui.rawJsonOpen).toBe(true);
     s = R.setLeftPanel(s, null);
     expect(s.ui.leftPanel).toBeNull();
-    s = R.toggleRight(s);
-    expect(s.ui.rightOpen).toBe(false);
+    s = R.toggleRightPanel(s);
+    expect(s.ui.rightPanel).toBeNull();
+    // Тоггл возвращает ту панель, что была открыта, а не «первую попавшуюся».
+    s = R.setRightPanel(s, 'agent');
+    s = R.toggleRightPanel(s);
+    s = R.toggleRightPanel(s);
+    expect(s.ui.rightPanel).toBe('agent');
     s = R.setTheme(s, 'dark');
     expect(s.ui.theme).toBe('dark');
   });
