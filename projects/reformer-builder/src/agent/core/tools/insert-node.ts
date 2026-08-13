@@ -31,24 +31,25 @@ interface Params {
 export const insertNodeTool: AgentTool<Params> = {
   name: 'insert_node',
   description:
-    'Вставить компонент внутрь контейнера. component — имя из list_components, parent — адрес ' +
-    'контейнера (шага, секции, корня). index — позиция среди детей, по умолчанию в конец. ' +
-    'model задаёт привязку к данным для полей и массивов, props — свойства компонента.',
+    'Insert a component into a container. component — a name from list_components, parent — the ' +
+    'address of the container (a step, a section, the form root). index — position among the ' +
+    'children, appended by default. model binds fields and arrays to data, props sets component ' +
+    'properties.',
   inputSchema: {
     type: 'object',
     properties: {
-      component: { type: 'string', description: 'Имя компонента из list_components' },
+      component: { type: 'string', description: 'Component name from list_components' },
       parent: REF_PROP,
       index: {
         type: 'integer',
         minimum: 0,
-        description: 'Позиция среди детей; по умолчанию в конец',
+        description: 'Position among the children; appended by default',
       },
       model: {
         type: 'string',
-        description: 'Путь модели без $model(...), например applicant.email',
+        description: 'Model path without $model(...), e.g. applicant.email',
       },
-      props: { type: 'object', description: 'Свойства компонента (см. describe_component)' },
+      props: { type: 'object', description: 'Component properties (see describe_component)' },
     },
     required: ['component', 'parent'],
     additionalProperties: false,
@@ -61,7 +62,7 @@ export const insertNodeTool: AgentTool<Params> = {
       // подсказкой служит сам путь восстановления, иначе модель осталась бы без него.
       return fail(
         'UNKNOWN_COMPONENT',
-        `Компонента "${params.component}" нет в каталоге. Возьми имя из list_components.`,
+        `No component "${params.component}" in the catalog. Take a name from list_components.`,
         similarNames(params.component, componentNames())
       );
     }
@@ -73,7 +74,7 @@ export const insertNodeTool: AgentTool<Params> = {
     if (!slot) {
       return fail(
         'INVALID_PARENT',
-        `Узел ${params.parent} не принимает детей. Выбери контейнер, шаг или корень формы.`
+        `Node ${params.parent} does not accept children. Pick a container, a step or the form root.`
       );
     }
 
@@ -84,8 +85,8 @@ export const insertNodeTool: AgentTool<Params> = {
     if (slot.kind === 'steps' && entry.role !== 'container') {
       return fail(
         'INVALID_PARENT',
-        `В мастер кладут только шаги, а ${entry.name} — не контейнер. Вставь Step в ${params.parent}, ` +
-          `затем это поле внутрь шага.`
+        `A wizard holds steps only, and ${entry.name} is not a container. Insert a Step into ` +
+          `${params.parent} first, then put this field inside that step.`
       );
     }
 
@@ -109,7 +110,9 @@ export const insertNodeTool: AgentTool<Params> = {
     const label = params.props?.label ?? params.model ?? entry.name;
     return commitMutation(ctx, result, () => ({
       kind: 'add',
+      // Подпись узла — данные пользователя, поэтому в обеих строках она одна и та же.
       summary: `${String(label)} (${entry.name})`,
+      report: `${String(label)} (${entry.name})`,
     }));
   },
 };

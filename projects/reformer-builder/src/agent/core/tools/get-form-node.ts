@@ -36,7 +36,7 @@ function childrenNote(node: JsonNode, path: JsonPath): string {
   const slots = childSlots(node, path);
   if (!slots.length) return '';
   const parts = slots.map((s) => `${s.kind}: ${s.entries.length}`);
-  return `\nДочерние узлы (в JSON выше опущены, адреса смотри в get_form_outline) — ${parts.join(', ')}.`;
+  return `\nChild nodes (omitted from the JSON above, see get_form_outline for their addresses) — ${parts.join(', ')}.`;
 }
 
 /** Параметры вызова. */
@@ -47,12 +47,12 @@ interface Params {
 export const getFormNode: AgentTool<Params> = {
   name: 'get_form_node',
   description:
-    'Полный JSON одного узла по его адресу (JSON Pointer из get_form_outline). ' +
-    'Дочерние узлы не включаются — их адреса есть в карте формы.',
+    'Full JSON of a single node by its address (JSON Pointer from get_form_outline). ' +
+    'Child nodes are not included — their addresses are in the form map.',
   inputSchema: {
     type: 'object',
     properties: {
-      ref: { type: 'string', description: 'JSON Pointer узла, например /root/children/0' },
+      ref: { type: 'string', description: 'JSON Pointer of the node, e.g. /root/children/0' },
     },
     required: ['ref'],
     additionalProperties: false,

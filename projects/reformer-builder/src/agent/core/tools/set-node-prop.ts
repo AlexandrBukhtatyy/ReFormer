@@ -35,17 +35,17 @@ interface Params extends RefParams {
 export const setNodePropTool: AgentTool<Params> = {
   name: 'set_node_prop',
   description:
-    'Задать одно свойство компонента (label, placeholder, required, …). value: null удаляет ' +
-    'свойство. Допустимые ключи и типы смотри в describe_component. Особый ключ text — ' +
-    'содержимое узла: подпись вкладки, текст кнопки, заголовок.',
+    'Set one component property (label, placeholder, required, …). value: null removes the ' +
+    'property. Allowed keys and types come from describe_component. The special key text sets the ' +
+    "node's own content: a tab caption, a button label, a heading.",
   inputSchema: {
     type: 'object',
     properties: {
       ref: REF_PROP,
-      key: { type: 'string', description: 'Имя свойства' },
+      key: { type: 'string', description: 'Property name' },
       value: {
         type: ['string', 'number', 'boolean', 'null'],
-        description: 'Значение; null удаляет свойство',
+        description: 'Value; null removes the property',
       },
       expect: EXPECT_PROP,
     },
@@ -68,6 +68,10 @@ export const setNodePropTool: AgentTool<Params> = {
       summary:
         value === undefined
           ? `${name} → свойство ${params.key} убрано`
+          : `${name} → ${params.key} = ${JSON.stringify(value)}`,
+      report:
+        value === undefined
+          ? `${name} → property ${params.key} removed`
           : `${name} → ${params.key} = ${JSON.stringify(value)}`,
     }));
   },
@@ -104,7 +108,7 @@ function setText(
   if (kindOf(found.node) !== 'container' || isLeafComponent(found.node)) {
     return fail(
       'INVALID_PARENT',
-      `У узла ${params.ref} нет содержимого. Подпись поля задаётся свойством label.`
+      `Node ${params.ref} has no content of its own. A field's caption is its "label" property.`
     );
   }
   // У части контейнеров подпись — собственный проп, а `children` держат СОДЕРЖИМОЕ: у шага мастера
@@ -115,8 +119,8 @@ function setText(
   if (caption) {
     return fail(
       'INVALID_PARENT',
-      `У ${componentOf(found.node) ?? params.ref} подпись задаётся свойством ${caption}, а не содержимым: ` +
-        `set_node_prop ${params.ref} ${caption}.`
+      `${componentOf(found.node) ?? params.ref} is captioned by its "${caption}" property, not by ` +
+        `content: call set_node_prop ${params.ref} with key "${caption}".`
     );
   }
   // Несколько текстовых частей — это шаблон вида ['Платёж: ', '$model(x)', ' ₽']. Заменить его
@@ -125,7 +129,8 @@ function setText(
   if (textChildIndex(found.node) === null) {
     return fail(
       'SCHEMA_INVALID',
-      `Содержимое ${params.ref} собрано из нескольких частей (текст и привязки) — строкой его не заменяю.`
+      `Content of ${params.ref} is assembled from several parts (text and bindings) — a plain ` +
+        `string would drop the bindings, so it is not replaced.`
     );
   }
 
@@ -135,5 +140,6 @@ function setText(
   return commitMutation(ctx, result, () => ({
     kind: 'update',
     summary: text ? `${name} → текст «${text}»` : `${name} → текст убран`,
+    report: text ? `${name} → text "${text}"` : `${name} → text removed`,
   }));
 }

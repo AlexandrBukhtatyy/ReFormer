@@ -33,7 +33,7 @@ export interface ToolRegistry {
 /** Обрезать текст до бюджета, обозначив факт обрезки. */
 function clamp(text: string, budget: number): string {
   if (text.length <= budget) return text;
-  const suffix = '… (ответ обрезан)';
+  const suffix = '… (response truncated)';
   return `${text.slice(0, Math.max(0, budget - suffix.length))}${suffix}`;
 }
 
@@ -42,7 +42,7 @@ function formatErrors(validate: ValidateFunction): string {
   const parts = (validate.errors ?? []).map((e) =>
     `${e.instancePath || '/'} ${e.message ?? 'invalid'}`.trim()
   );
-  return parts.length ? parts.join('; ') : 'аргументы не соответствуют схеме';
+  return parts.length ? parts.join('; ') : 'arguments do not match the schema';
 }
 
 /**
@@ -89,7 +89,7 @@ export function createToolRegistry(tools: readonly AgentTool[]): ToolRegistry {
       if (!tool) {
         return fail(
           'UNKNOWN_TOOL',
-          `Инструмента "${name}" нет.`,
+          `No tool named "${name}".`,
           similarNames(name, [...byName.keys()])
         );
       }
@@ -98,7 +98,7 @@ export function createToolRegistry(tools: readonly AgentTool[]): ToolRegistry {
       // ajv не любит undefined на входе, а инструменты без обязательных полей вызываются без них.
       const args = params ?? {};
       if (!validate(args)) {
-        return fail('INVALID_PARAMS', `Аргументы ${name} неверны: ${formatErrors(validate)}.`);
+        return fail('INVALID_PARAMS', `Invalid arguments for ${name}: ${formatErrors(validate)}.`);
       }
 
       let outcome: ToolOutcome;
@@ -107,7 +107,7 @@ export function createToolRegistry(tools: readonly AgentTool[]): ToolRegistry {
       } catch (e) {
         // Исключение инструмента не должно ронять ход агента: модель получит ошибку и попробует иначе.
         const message = e instanceof Error ? e.message : String(e);
-        return fail('TOOL_FAILED', `Инструмент ${name} завершился ошибкой: ${message}`);
+        return fail('TOOL_FAILED', `Tool ${name} failed: ${message}`);
       }
       return { ...outcome, text: clamp(outcome.text, TOOL_TEXT_BUDGET) };
     },

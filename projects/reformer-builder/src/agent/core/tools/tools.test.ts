@@ -116,7 +116,7 @@ describe('validate_form', () => {
 
   it('нетронутая форма валидна, хотя её компонентов нет в каталоге билдера', () => {
     const res = reg.invoke('validate_form', {}, ctx());
-    expect(res.text).toContain('ошибок нет');
+    expect(res.text).toContain('no errors');
   });
 
   it('адрес ошибки — тот же диалект, которым правят инструменты', () => {

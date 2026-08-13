@@ -17,20 +17,20 @@ interface Params {
 export const listComponentsTool: AgentTool<Params> = {
   name: 'list_components',
   description:
-    'Компоненты, доступные в этой сборке редактора: имя, роль (field/container/array) и категория. ' +
-    'Имена компонентов бери ТОЛЬКО отсюда — выдуманное имя будет отклонено гейтом. ' +
-    'Сужай выборку параметрами role и query.',
+    'Components available in this editor build: name, role (field/container/array) and category. ' +
+    'Take component names ONLY from here — an invented name is rejected by the quality gate. ' +
+    'Narrow the list with role and query.',
   inputSchema: {
     type: 'object',
     properties: {
       role: {
         type: 'string',
         enum: ['field', 'container', 'array'],
-        description: 'Оставить только компоненты этой роли',
+        description: 'Keep only components with this role',
       },
       query: {
         type: 'string',
-        description: 'Подстрока имени или категории, регистронезависимо',
+        description: 'Substring of the name or category, case-insensitive',
       },
     },
     additionalProperties: false,
@@ -48,5 +48,5 @@ export const listComponentsTool: AgentTool<Params> = {
 
 /** Приписка к неотфильтрованному списку: почему в нём нет частей и как их найти. */
 const PARTS_HIDDEN_HINT =
-  'Части составных компонентов (TabsList, TabsTrigger, CardHeader…) в списке скрыты: они создаются ' +
-  'вместе со своим корнем. Чтобы увидеть их — query с именем корня (например tabs).';
+  'Parts of composite components (TabsList, TabsTrigger, CardHeader…) are hidden from this list: ' +
+  'they are created together with their root. To see them, query by the root name (e.g. tabs).';

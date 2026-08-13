@@ -61,7 +61,7 @@ function lintTabs(node: JsonNode, path: JsonPath): string[] {
     if (v === undefined) {
       // Без value кнопка не связана ни с одной панелью: Radix свяжет её по `undefined`, и две
       // такие вкладки схлопнутся в одну.
-      out.push(`${toPointer(t.path)}: у вкладки нет value — она не откроет ни одну панель.`);
+      out.push(`${toPointer(t.path)}: tab has no value — it will open no panel.`);
       continue;
     }
     triggerValues.add(v);
@@ -71,19 +71,19 @@ function lintTabs(node: JsonNode, path: JsonPath): string[] {
   for (const p of panels) {
     const v = valueOf(p.node);
     if (v === undefined) {
-      out.push(`${toPointer(p.path)}: у панели нет value — до неё нельзя добраться.`);
+      out.push(`${toPointer(p.path)}: panel has no value — it cannot be reached.`);
       continue;
     }
     panelValues.add(v);
     if (!triggerValues.has(v)) {
-      out.push(`${toPointer(p.path)}: панель value="${v}" без вкладки — её содержимое недоступно.`);
+      out.push(`${toPointer(p.path)}: panel value="${v}" has no tab — its content is unreachable.`);
     }
   }
 
   for (const t of triggers) {
     const v = valueOf(t.node);
     if (v !== undefined && !panelValues.has(v)) {
-      out.push(`${toPointer(t.path)}: вкладка value="${v}" без панели — откроется пустота.`);
+      out.push(`${toPointer(t.path)}: tab value="${v}" has no panel — it opens nothing.`);
     }
   }
 
@@ -91,8 +91,8 @@ function lintTabs(node: JsonNode, path: JsonPath): string[] {
     ?.defaultValue;
   if (typeof defaultValue === 'string' && triggerValues.size && !triggerValues.has(defaultValue)) {
     out.push(
-      `${toPointer(path)}: defaultValue="${defaultValue}" не совпадает ни с одной вкладкой — ` +
-        `при открытии формы не будет выбрано ничего.`
+      `${toPointer(path)}: defaultValue="${defaultValue}" matches no tab — nothing will be ` +
+        `selected when the form opens.`
     );
   }
   return out;
@@ -105,10 +105,10 @@ function lintSteps(node: JsonNode, path: JsonPath): string[] {
     if (slot.kind !== 'steps') continue;
     for (const entry of slot.entries) {
       if (!childSlots(entry.node, [...slot.path, entry.index]).length) {
-        const name = nameOf(entry.node) ?? 'узел';
+        const name = nameOf(entry.node) ?? 'a node';
         out.push(
-          `${toPointer([...slot.path, entry.index])}: шагом мастера стоит ${name} — ` +
-            `шаг должен быть контейнером, внутрь которого кладут поля.`
+          `${toPointer([...slot.path, entry.index])}: ${name} stands as a wizard step — a step must be ` +
+            `a container that fields go into.`
         );
       }
     }

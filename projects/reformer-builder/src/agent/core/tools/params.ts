@@ -12,7 +12,7 @@ import type { NodeExpectation } from '../node-ref';
 /** Свойство `ref` — адрес узла. */
 export const REF_PROP = {
   type: 'string',
-  description: 'JSON Pointer узла из get_form_outline, например /root/children/0',
+  description: 'JSON Pointer of a node as shown by get_form_outline, e.g. /root/children/0',
 } as const;
 
 /**
@@ -22,14 +22,14 @@ export const REF_PROP = {
  */
 export const EXPECT_PROP = {
   type: 'object',
-  description: 'Что ожидается по адресу; при несовпадении правка отклоняется',
+  description: 'What you expect to find at the address; the edit is rejected on a mismatch',
   properties: {
     // `null` допустим наравне со строкой: модели заполняют объект целиком и ставят null там, где
     // проверять нечего (у контейнера нет модели). Отвергать такой вызов — значит тратить шаг хода
     // на форму записи, а не на смысл; `resolveRef` сверяет ожидание по truthy, поэтому null для
     // него — то же самое, что отсутствующий ключ.
-    component: { type: ['string', 'null'], description: 'Ожидаемое имя компонента' },
-    model: { type: ['string', 'null'], description: 'Ожидаемый путь модели без $model(...)' },
+    component: { type: ['string', 'null'], description: 'Expected component name' },
+    model: { type: ['string', 'null'], description: 'Expected model path without $model(...)' },
   },
   additionalProperties: false,
 } as const;

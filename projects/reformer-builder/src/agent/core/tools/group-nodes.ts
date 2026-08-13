@@ -18,8 +18,8 @@ interface Params extends LayoutParams {
 export const groupNodesTool: AgentTool<Params> = {
   name: 'group_nodes',
   description:
-    'Обернуть несколько СОСЕДНИХ узлов в общий контейнер — например, чтобы поставить имя и ' +
-    'фамилию в одну строку. direction/columns/gap задают раскладку получившейся группы.',
+    'Wrap several ADJACENT nodes into a shared container — for example to put first and last name ' +
+    'on one line. direction/columns/gap set the layout of the resulting group.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -27,14 +27,14 @@ export const groupNodesTool: AgentTool<Params> = {
         type: 'array',
         items: { type: 'string' },
         minItems: 2,
-        description: 'Адреса соседних узлов одного контейнера, в порядке следования',
+        description: 'Addresses of adjacent nodes in one container, in document order',
       },
-      direction: { type: 'string', enum: ['row', 'column'], description: 'Раскладка группы' },
-      columns: { type: 'integer', minimum: 2, description: 'Число колонок сетки' },
+      direction: { type: 'string', enum: ['row', 'column'], description: 'Layout of the group' },
+      columns: { type: 'integer', minimum: 2, description: 'Number of grid columns' },
       gap: {
         type: 'string',
         enum: ['none', 'sm', 'md', 'lg'],
-        description: 'Расстояние между детьми',
+        description: 'Spacing between children',
       },
     },
     required: ['refs'],
@@ -50,7 +50,7 @@ export const groupNodesTool: AgentTool<Params> = {
       if (!info) {
         return fail(
           'INVALID_PARENT',
-          `Узел ${ref} не лежит среди детей контейнера — группировать нечего.`
+          `Node ${ref} does not sit among the children of a container — nothing to group.`
         );
       }
       infos.push({ ref, info });
@@ -58,7 +58,7 @@ export const groupNodesTool: AgentTool<Params> = {
 
     const slot = infos[0].info.slotPath.join('/');
     if (infos.some((i) => i.info.slotPath.join('/') !== slot)) {
-      return fail('INVALID_PARENT', 'Все узлы должны лежать в одном контейнере.');
+      return fail('INVALID_PARENT', 'All nodes must sit in the same container.');
     }
 
     // Шаги мастера обёртка схлопывает: `groupBlock` ставит на их место один `$html(div)`, и вместо
@@ -67,8 +67,8 @@ export const groupNodesTool: AgentTool<Params> = {
     if (infos[0].info.slotPath.at(-1) === 'steps') {
       return fail(
         'INVALID_PARENT',
-        'Шаги мастера группировать нельзя — обёртка сделала бы из них один шаг. ' +
-          'Группируй поля ВНУТРИ шага.'
+        'Wizard steps cannot be grouped — the wrapper would collapse them into a single step. ' +
+          'Group the fields INSIDE a step instead.'
       );
     }
 
@@ -78,7 +78,7 @@ export const groupNodesTool: AgentTool<Params> = {
     if (!adjacent) {
       return fail(
         'INVALID_PARENT',
-        `Группировать можно только идущие подряд узлы; получены позиции ${indices.join(', ')}.`
+        `Only consecutive nodes can be grouped; got positions ${indices.join(', ')}.`
       );
     }
 
@@ -88,6 +88,7 @@ export const groupNodesTool: AgentTool<Params> = {
     return commitMutation(ctx, result, () => ({
       kind: 'add',
       summary: `группа из ${indices.length} узлов`,
+      report: `group of ${indices.length} nodes`,
     }));
   },
 };

@@ -55,9 +55,9 @@ function isNodeAt(ctx: ToolContext, segments: (string | number)[]): boolean {
 export const validateForm: AgentTool = {
   name: 'validate_form',
   description:
-    'Проверить текущую форму строгим гейтом: структура узлов, известные имена компонентов, ' +
-    'типы componentProps и связи между узлами (вкладка ↔ панель, шаги мастера). ' +
-    'Вызывай после структурных правок, перед завершением ответа.',
+    'Check the current form with the strict gate: node structure, known component names, ' +
+    'componentProps types and links between nodes (tab ↔ panel, wizard steps). ' +
+    'Call it after structural edits, before finishing your answer.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   readOnly: true,
   run(_params, ctx) {
@@ -69,21 +69,21 @@ export const validateForm: AgentTool = {
     // Предупреждения показываются и при валидной схеме: форма, где вкладка ведёт в пустоту, ошибок
     // не содержит — она просто не работает. Молчание здесь читалось бы как «всё в порядке».
     const lines: string[] = [];
-    if (valid) lines.push('Схема валидна: ошибок нет.');
+    if (valid) lines.push('Schema is valid: no errors.');
     else {
       const shown = errors.slice(0, MAX_ERRORS);
       lines.push(
-        `Ошибок: ${errors.length}.`,
+        `Errors: ${errors.length}.`,
         ...shown.map((e) => `- ${retarget(e, ctx)}`),
-        ...(errors.length > shown.length ? [`… ещё ${errors.length - shown.length}`] : [])
+        ...(errors.length > shown.length ? [`… ${errors.length - shown.length} more`] : [])
       );
     }
     if (warnings.length) {
       const shown = warnings.slice(0, MAX_ERRORS);
       lines.push(
-        `Связи узлов — замечаний: ${warnings.length}.`,
+        `Node links — ${warnings.length} issue(s).`,
         ...shown.map((w) => `- ${w}`),
-        ...(warnings.length > shown.length ? [`… ещё ${warnings.length - shown.length}`] : [])
+        ...(warnings.length > shown.length ? [`… ${warnings.length - shown.length} more`] : [])
       );
     }
     return ok(lines.join('\n'));

@@ -18,19 +18,18 @@ interface Params extends RefParams, LayoutParams {}
 export const setLayoutTool: AgentTool<Params> = {
   name: 'set_layout',
   description:
-    'Задать раскладку контейнера: direction (в строку/в столбец), columns (сетка) и gap ' +
-    '(плотность). Классы оформления не трогаются. CSS-классы напрямую не задавай — только эти ' +
-    'параметры.',
+    'Set the layout of a container: direction (row/column), columns (grid) and gap (density). ' +
+    'Styling classes are left alone. Never write CSS classes directly — use these parameters.',
   inputSchema: {
     type: 'object',
     properties: {
       ref: REF_PROP,
-      direction: { type: 'string', enum: ['row', 'column'], description: 'Ось раскладки' },
-      columns: { type: 'integer', minimum: 2, description: 'Число колонок сетки' },
+      direction: { type: 'string', enum: ['row', 'column'], description: 'Layout axis' },
+      columns: { type: 'integer', minimum: 2, description: 'Number of grid columns' },
       gap: {
         type: 'string',
         enum: ['none', 'sm', 'md', 'lg'],
-        description: 'Расстояние между детьми',
+        description: 'Spacing between children',
       },
       expect: EXPECT_PROP,
     },
@@ -44,7 +43,7 @@ export const setLayoutTool: AgentTool<Params> = {
     if (!isContainerNode(found.node)) {
       return fail(
         'INVALID_PARENT',
-        `Раскладка есть только у контейнеров; ${params.ref} — не контейнер.`
+        `Only containers have a layout; ${params.ref} is not a container.`
       );
     }
 
@@ -59,9 +58,17 @@ export const setLayoutTool: AgentTool<Params> = {
         : params.direction === 'column'
           ? 'в столбец'
           : `отступ ${params.gap}`;
+    const howEn = params.columns
+      ? `${params.columns} columns`
+      : params.direction === 'row'
+        ? 'row'
+        : params.direction === 'column'
+          ? 'column'
+          : `gap ${params.gap}`;
     return commitMutation(ctx, result, () => ({
       kind: 'update',
       summary: `${name} → раскладка: ${how}`,
+      report: `${name} → layout: ${howEn}`,
     }));
   },
 };

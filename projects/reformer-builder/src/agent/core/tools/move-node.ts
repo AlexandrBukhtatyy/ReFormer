@@ -20,17 +20,17 @@ interface Params extends RefParams {
 export const moveNodeTool: AgentTool<Params> = {
   name: 'move_node',
   description:
-    'Перенести узел внутрь контейнера parent на позицию index (по умолчанию в конец). ' +
-    'Тем же вызовом меняется порядок внутри текущего контейнера — укажи его же как parent.',
+    'Move a node into container parent at position index (appended by default). The same call ' +
+    'reorders within the current container — pass that same container as parent.',
   inputSchema: {
     type: 'object',
     properties: {
       ref: REF_PROP,
-      parent: { type: 'string', description: 'Адрес контейнера назначения' },
+      parent: { type: 'string', description: 'Address of the destination container' },
       index: {
         type: 'integer',
         minimum: 0,
-        description: 'Позиция среди детей; по умолчанию в конец',
+        description: 'Position among the children; appended by default',
       },
       expect: EXPECT_PROP,
     },
@@ -46,19 +46,19 @@ export const moveNodeTool: AgentTool<Params> = {
 
     // Узел нельзя положить внутрь самого себя — получилось бы потерянное поддерево.
     if (isPrefix(found.path, parent.path)) {
-      return fail('INVALID_PARENT', `Нельзя перенести ${params.ref} внутрь самого себя.`);
+      return fail('INVALID_PARENT', `Cannot move ${params.ref} inside itself.`);
     }
 
     const slot = insertSlotOf(parent.node, parent.path);
     if (!slot) {
-      return fail('INVALID_PARENT', `Узел ${params.parent} не принимает детей.`);
+      return fail('INVALID_PARENT', `Node ${params.parent} does not accept children.`);
     }
 
     // Тот же запрет, что у insert_node: в слоте мастера живут шаги-контейнеры, а не поля.
     if (slot.kind === 'steps' && kindOf(found.node) !== 'container') {
       return fail(
         'INVALID_PARENT',
-        `В мастер кладут только шаги. Перенеси ${params.ref} внутрь одного из шагов ${params.parent}.`
+        `A wizard holds steps only. Move ${params.ref} inside one of the steps of ${params.parent}.`
       );
     }
 
@@ -68,6 +68,7 @@ export const moveNodeTool: AgentTool<Params> = {
     return commitMutation(ctx, result, (ref) => ({
       kind: 'move',
       summary: `${name} → ${ref}`,
+      report: `${name} → ${ref}`,
     }));
   },
 };

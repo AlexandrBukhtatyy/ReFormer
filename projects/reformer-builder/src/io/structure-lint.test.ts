@@ -60,20 +60,20 @@ describe('вкладки', () => {
     // Прогон 1: агент удалил рабочий триггер, четыре поля третьего шага остались без входа.
     const schema = tabs({ defaultValue: 'a' }, [trigger('a')], [panel('a'), panel('b')]);
     const warnings = lintStructure(schema);
-    expect(warnings.join('\n')).toContain('панель value="b" без вкладки');
+    expect(warnings.join('\n')).toContain('panel value="b" has no tab');
   });
 
   it('вкладка без панели: откроется пустота', () => {
     const schema = tabs({ defaultValue: 'a' }, [trigger('a'), trigger('b')], [panel('a')]);
-    expect(lintStructure(schema).join('\n')).toContain('вкладка value="b" без панели');
+    expect(lintStructure(schema).join('\n')).toContain('tab value="b" has no panel');
   });
 
   it('вкладка и панель вовсе без value', () => {
     // Прогон 2: в DOM это trigger-undefined/content-undefined — работает случайно, до второй такой.
     const schema = tabs({}, [trigger()], [panel()]);
     const text = lintStructure(schema).join('\n');
-    expect(text).toContain('у вкладки нет value');
-    expect(text).toContain('у панели нет value');
+    expect(text).toContain('tab has no value');
+    expect(text).toContain('panel has no value');
   });
 
   it('defaultValue в пустоту: не открыта ни одна вкладка', () => {
@@ -97,7 +97,7 @@ describe('шаги мастера', () => {
         steps: [{ value: '$model(a.b)', component: '$component(Input)' }],
       },
     });
-    expect(lintStructure(schema).join('\n')).toContain('шагом мастера стоит Input');
+    expect(lintStructure(schema).join('\n')).toContain('Input stands as a wizard step');
   });
 
   it('Box шагом — законно: реальные формы так и устроены', () => {

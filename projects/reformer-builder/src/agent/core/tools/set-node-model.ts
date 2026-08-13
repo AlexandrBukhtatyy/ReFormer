@@ -22,13 +22,13 @@ interface Params extends RefParams {
 export const setNodeModelTool: AgentTool<Params> = {
   name: 'set_node_model',
   description:
-    'Привязать поле или массив к пути данных. Путь пиши без обёртки: applicant.email, не $model(...). ' +
-    'У контейнеров привязки нет.',
+    'Bind a field or an array to a data path. Write the path bare: applicant.email, not ' +
+    '$model(...). Containers have no binding.',
   inputSchema: {
     type: 'object',
     properties: {
       ref: REF_PROP,
-      model: { type: 'string', minLength: 1, description: 'Путь модели, например applicant.email' },
+      model: { type: 'string', minLength: 1, description: 'Model path, e.g. applicant.email' },
       expect: EXPECT_PROP,
     },
     required: ['ref', 'model'],
@@ -43,7 +43,7 @@ export const setNodeModelTool: AgentTool<Params> = {
     if (!key) {
       return fail(
         'INVALID_PARENT',
-        `Узел ${params.ref} — контейнер, привязки к данным у него нет. Привязка есть у полей и массивов.`
+        `Node ${params.ref} is a container and has no data binding. Only fields and arrays do.`
       );
     }
 
@@ -52,6 +52,7 @@ export const setNodeModelTool: AgentTool<Params> = {
     return commitMutation(ctx, result, () => ({
       kind: 'update',
       summary: `${name} → привязка ${params.model}`,
+      report: `${name} → bound to ${params.model}`,
     }));
   },
 };

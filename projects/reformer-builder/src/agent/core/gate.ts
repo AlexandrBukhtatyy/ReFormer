@@ -84,11 +84,19 @@ function introducedErrors(base: ReadonlyMap<string, number>, errors: readonly st
   return out;
 }
 
-/** Как описать операцию в списке изменений. */
+/**
+ * Как описать операцию — двумя языками сразу.
+ *
+ * Один и тот же факт читают двое: человек в списке изменений и модель в ответе инструмента.
+ * Интерфейс билдера русский, а модели устойчивее следуют англоязычным инструкциям и на них же
+ * дешевле по токенам — поэтому строки разведены, а не переведены разом.
+ */
 export interface OpDescription {
   kind: ChangeOpKind;
-  /** Человекочитаемая строка: «Email (Input)», «Email → обязательное». */
+  /** Для интерфейса, по-русски: «Email (Input)», «Email → обязательное». */
   summary: string;
+  /** Для модели, по-английски: «Email (Input)», «Email → required = true». Без адреса — его добавит гейт. */
+  report: string;
 }
 
 /**
@@ -115,13 +123,13 @@ export function commitMutation(
     const rest = introduced.length - Math.min(introduced.length, MAX_REPORTED);
     return fail(
       'SCHEMA_INVALID',
-      `Правка сделала бы форму невалидной и не применена: ${shown}${rest > 0 ? ` (и ещё ${rest})` : ''}.`
+      `Edit rejected — it would make the form invalid: ${shown}${rest > 0 ? ` (and ${rest} more)` : ''}.`
     );
   }
 
   const ref = nodeRef(result.newPath);
-  const { kind, summary } = describe(ref);
-  const head = `Готово: ${summary}. Адрес узла: ${ref}.`;
+  const { kind, summary, report } = describe(ref);
+  const head = `Done: ${report}. Node address: ${ref}.`;
   const inside = subtreeOf(
     result.schema,
     ref,
@@ -136,7 +144,7 @@ export function commitMutation(
 }
 
 /** Предисловие к составу поддерева — отделяет его от адреса самого узла. */
-const SUBTREE_LEAD = '\nВнутри уже есть:\n';
+const SUBTREE_LEAD = '\nIt already contains:\n';
 
 /**
  * Состав поддерева под `ref`, если узел пришёл не один, — иначе `undefined`.

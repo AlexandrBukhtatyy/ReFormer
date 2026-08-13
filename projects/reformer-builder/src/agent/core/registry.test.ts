@@ -94,7 +94,7 @@ describe('invoke', () => {
     };
     const res = createToolRegistry([long]).invoke('long', {}, ctx());
     expect(res.text).toHaveLength(TOOL_TEXT_BUDGET);
-    expect(res.text).toContain('обрезан');
+    expect(res.text).toContain('truncated');
   });
 });
 

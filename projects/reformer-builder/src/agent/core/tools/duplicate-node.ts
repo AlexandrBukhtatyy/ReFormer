@@ -13,8 +13,8 @@ import { EXPECT_PROP, REF_PROP, type RefParams } from './params';
 export const duplicateNodeTool: AgentTool<RefParams> = {
   name: 'duplicate_node',
   description:
-    'Создать копию узла (со всем содержимым) сразу после него. Работает для узлов, лежащих ' +
-    'среди детей контейнера.',
+    'Create a copy of a node (with everything inside) right after it. Works for nodes that sit ' +
+    'among the children of a container.',
   inputSchema: {
     type: 'object',
     properties: { ref: REF_PROP, expect: EXPECT_PROP },
@@ -31,11 +31,15 @@ export const duplicateNodeTool: AgentTool<RefParams> = {
     if (result.schema === ctx.draft) {
       return fail(
         'INVALID_PARENT',
-        `Узел ${params.ref} нельзя дублировать: он не лежит среди детей контейнера.`
+        `Node ${params.ref} cannot be duplicated: it does not sit among the children of a container.`
       );
     }
 
     const name = labelOf(found.node) ?? componentOf(found.node) ?? params.ref;
-    return commitMutation(ctx, result, () => ({ kind: 'add', summary: `копия: ${name}` }));
+    return commitMutation(ctx, result, () => ({
+      kind: 'add',
+      summary: `копия: ${name}`,
+      report: `copy of ${name}`,
+    }));
   },
 };

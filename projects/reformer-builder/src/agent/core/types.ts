@@ -114,9 +114,7 @@ export function ok(text: string): ToolOutcome {
 export function fail(code: ToolErrorCode, message: string, suggestions?: string[]): ToolOutcome {
   return {
     ok: false,
-    text: suggestions?.length
-      ? `${message} Возможные варианты: ${suggestions.join(', ')}.`
-      : message,
+    text: suggestions?.length ? `${message} Did you mean: ${suggestions.join(', ')}.` : message,
     error: { code, message, ...(suggestions?.length ? { suggestions } : {}) },
   };
 }

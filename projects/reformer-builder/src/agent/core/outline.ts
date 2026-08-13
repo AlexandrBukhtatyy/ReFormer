@@ -103,11 +103,12 @@ function renderEntry(e: OutlineEntry): string {
  * @param budget - Бюджет в символах.
  */
 export function renderOutline(entries: readonly OutlineEntry[], budget: number): string {
-  if (!entries.length) return 'Форма пуста: узлов нет.';
+  if (!entries.length) return 'The form is empty: no nodes.';
   return joinWithinBudget(
     [],
     entries.map(renderEntry),
     budget,
-    (shown, total) => `… ещё ${total - shown} узл(ов) — запроси get_form_node по нужному адресу`
+    (shown, total) =>
+      `… ${total - shown} more node(s) — call get_form_node for the address you need`
   );
 }

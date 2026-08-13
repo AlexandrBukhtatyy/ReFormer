@@ -73,11 +73,11 @@ describe('renderOutline', () => {
 
   it('при нехватке бюджета обрезает ОСОЗНАННО, сообщая о пропущенных узлах', () => {
     const text = renderOutline(buildOutline(sampleSchema()), 120);
-    expect(text).toContain('запроси get_form_node');
+    expect(text).toContain('call get_form_node');
     expect(text.split('\n').length).toBeLessThan(8);
   });
 
   it('пустой список объясняется словами', () => {
-    expect(renderOutline([], 100)).toContain('пуста');
+    expect(renderOutline([], 100)).toContain('The form is empty');
   });
 });

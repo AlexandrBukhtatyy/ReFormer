@@ -31,7 +31,7 @@ describe('listComponents', () => {
   it('несуществующий query → пусто, и это объясняется словами', () => {
     const found = listComponents({ query: 'нет-такого-компонента-zzz' });
     expect(found).toEqual([]);
-    expect(renderComponentList(found, 500)).toContain('нет');
+    expect(renderComponentList(found, 500)).toContain('No matching components');
   });
 
   it('части compound-ов скрыты из общего списка, но находятся по query', () => {
@@ -119,6 +119,6 @@ describe('рендер в текст', () => {
 
   it('описание компонента без свойств не притворяется пустым', () => {
     const text = renderComponentDetail({ name: 'X', role: 'container', props: [] }, 500);
-    expect(text).toContain('Настраиваемых свойств нет');
+    expect(text).toContain('No configurable properties');
   });
 });

@@ -17,12 +17,12 @@ interface Params {
 export const describeComponentTool: AgentTool<Params> = {
   name: 'describe_component',
   description:
-    'Свойства компонента: ключ, тип значения, допустимые значения и значение по умолчанию. ' +
-    'Вызывай перед тем, как задавать componentProps, — имена пропсов у разных китов различаются.',
+    'Properties of a component: key, value type, allowed values and default. Call it before ' +
+    'setting componentProps — prop names differ between UI kits.',
   inputSchema: {
     type: 'object',
     properties: {
-      name: { type: 'string', description: 'Имя компонента из list_components' },
+      name: { type: 'string', description: 'Component name from list_components' },
     },
     required: ['name'],
     additionalProperties: false,
@@ -38,15 +38,15 @@ export const describeComponentTool: AgentTool<Params> = {
     // стоит в форме, читается как «форма сломана» и уводит в бесполезную разведку.
     if (collectOperatorNames(ctx.draft).components.includes(params.name)) {
       return ok(
-        `${params.name} — компонент из реестра проекта, а не из каталога редактора. Его свойства ` +
-          `здесь неизвестны: посмотри узел через get_form_node. Существующие такие узлы править ` +
-          `можно, вставить новый — нет.`
+        `${params.name} comes from the project registry, not from the editor catalog, so its ` +
+          `properties are unknown here — inspect an existing node with get_form_node. You may ` +
+          `edit such nodes, but you cannot insert new ones.`
       );
     }
 
     return fail(
       'UNKNOWN_COMPONENT',
-      `Компонента "${params.name}" нет в каталоге. Возьми имя из list_components.`,
+      `No component "${params.name}" in the catalog. Take a name from list_components.`,
       similarNames(params.name, componentNames())
     );
   },

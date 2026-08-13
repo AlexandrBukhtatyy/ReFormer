@@ -213,7 +213,7 @@ describe('set_node_prop', () => {
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
-    expect(res.text).toContain('title');
+    expect(res.text).toContain('"title" property');
     expect(res.schema).toBeUndefined();
   });
 
@@ -235,7 +235,7 @@ describe('set_node_prop', () => {
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
-    expect(res.text).toContain('label');
+    expect(res.text).toContain('"label" property');
   });
 
   it('несовпавшее expect отклоняет правку, схема не тронута', () => {
@@ -450,7 +450,7 @@ describe('group_nodes', () => {
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
     // Отказ обязан назвать законную альтернативу, иначе модель повторит тот же вызов.
-    expect(res.text?.toLowerCase()).toContain('внутри шага');
+    expect(res.text).toContain('INSIDE a step');
     expect(res.schema).toBeUndefined();
   });
 

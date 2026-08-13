@@ -14,8 +14,8 @@ import { EXPECT_PROP, REF_PROP, type RefParams } from './params';
 export const removeNodeTool: AgentTool<RefParams> = {
   name: 'remove_node',
   description:
-    'Удалить узел вместе со всем, что внутри него. Для необратимых правок обязательно передавай ' +
-    'expect — так удаление не уйдёт в чужой узел, если адрес устарел.',
+    'Remove a node together with everything inside it. Always pass expect for destructive edits — ' +
+    "it keeps the removal from landing on someone else's node if the address went stale.",
   inputSchema: {
     type: 'object',
     properties: { ref: REF_PROP, expect: EXPECT_PROP },
@@ -38,6 +38,7 @@ export const removeNodeTool: AgentTool<RefParams> = {
     return commitMutation(ctx, result, () => ({
       kind: 'remove',
       summary: nested > 0 ? `${name} и вложенные узлы (${nested})` : String(name),
+      report: nested > 0 ? `${name} and ${nested} nested node(s)` : String(name),
     }));
   },
 };

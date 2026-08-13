@@ -153,14 +153,15 @@ const SKELETON_BUDGET = 400;
  * шире любого разумного бюджета, и обрезка «по категориям» его бы просто не соблюдала.
  */
 export function renderComponentList(items: readonly ComponentSummary[], budget: number): string {
-  if (!items.length) return 'Подходящих компонентов в каталоге нет.';
+  if (!items.length) return 'No matching components in the catalog.';
   const byCategory = new Map<string, ComponentSummary[]>();
   for (const item of items) {
-    const key = item.category ?? 'Прочее';
+    // Названия категорий приходят из каталога кита — это данные дизайн-системы, а не наш текст,
+    // поэтому они остаются на языке кита. Переводить их значило бы врать про то, что в нём лежит.
+    const key = item.category ?? 'Other';
     byCategory.set(key, [...(byCategory.get(key) ?? []), item]);
   }
-  const notice = (shown: number) =>
-    `… показано ${shown} из ${items.length}; сузь выборку параметром query`;
+  const notice = (shown: number) => `… showing ${shown} of ${items.length}; narrow it with query`;
 
   const lines: string[] = [];
   let shown = 0;
@@ -199,14 +200,14 @@ function label(item: ComponentSummary): string {
 function structureLines(detail: ComponentDetail): string[] {
   const lines: string[] = [];
   if (detail.compoundParent) {
-    lines.push(`Часть компонента ${detail.compoundParent} — вставляется вместе с ним.`);
+    lines.push(`Part of ${detail.compoundParent} — inserted together with it.`);
   }
   if (detail.parts?.length) {
-    lines.push(`Собирается из частей: ${detail.parts.join(', ')} — создаются автоматически.`);
+    lines.push(`Assembled from parts: ${detail.parts.join(', ')} — created automatically.`);
   }
   if (detail.skeleton) {
     lines.push(
-      'При вставке появится (адрес части = адрес нового узла + показанный суффикс):',
+      "On insert you get (a part's address = address of the new node + the suffix shown):",
       detail.skeleton
     );
   }
@@ -215,20 +216,21 @@ function structureLines(detail: ComponentDetail): string[] {
 
 /** Описание компонента в текст. */
 export function renderComponentDetail(detail: ComponentDetail, budget: number): string {
-  const headline = `${detail.name} — роль ${detail.role}${detail.category ? `, категория «${detail.category}»` : ''}`;
+  const headline = `${detail.name} — role ${detail.role}${detail.category ? `, category «${detail.category}»` : ''}`;
   const head = [headline, ...structureLines(detail)].join('\n');
-  if (!detail.props.length) return `${head}\nНастраиваемых свойств нет.`;
+  if (!detail.props.length) return `${head}\nNo configurable properties.`;
   const propLines = detail.props.map((p) => {
     const bits = [`  ${p.key}: ${p.widget}`];
     if (p.options?.length) bits.push(`= ${p.options.join(' | ')}`);
-    if (p.default !== undefined) bits.push(`(по умолчанию ${JSON.stringify(p.default)})`);
+    if (p.default !== undefined) bits.push(`(default ${JSON.stringify(p.default)})`);
+    // Описание пропа — текст props-схемы кита; он на языке кита и переводу здесь не подлежит.
     if (p.description) bits.push(`— ${p.description}`);
     return bits.join(' ');
   });
   return joinWithinBudget(
-    [head, 'Свойства:'],
+    [head, 'Properties:'],
     propLines,
     budget,
-    (shown, total) => `  … ещё ${total - shown} свойств(а)`
+    (shown, total) => `  … ${total - shown} more propert(ies)`
   );
 }

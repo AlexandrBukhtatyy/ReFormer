@@ -11,9 +11,9 @@ import { ok, TOOL_TEXT_BUDGET, type AgentTool } from '../types';
 export const getFormOutline: AgentTool = {
   name: 'get_form_outline',
   description:
-    'Карта текущей формы: по строке на узел — JSON Pointer (адрес для остальных инструментов), ' +
-    'имя компонента, путь модели и подпись. Вызывай ПЕРВЫМ при работе с существующей формой. ' +
-    'Полный JSON отдельного узла запрашивай через get_form_node.',
+    'Map of the current form: one line per node — JSON Pointer (the address other tools take), ' +
+    'component name, model path and caption. Call this FIRST when working with an existing form. ' +
+    'For the full JSON of a single node use get_form_node.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   readOnly: true,
   run(_params, ctx) {
