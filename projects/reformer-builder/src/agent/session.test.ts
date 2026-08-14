@@ -14,7 +14,7 @@ function oneChange() {
     createChangeSet(base),
     reg.invoke(
       'insert_node',
-      { component: 'Input', parent: '/root', model: 'x', props: { label: 'Поле' } },
+      { parent: '/root', nodes: [{ component: 'Input', model: 'x', props: { label: 'Поле' } }] },
       { draft: base, base }
     )
   );

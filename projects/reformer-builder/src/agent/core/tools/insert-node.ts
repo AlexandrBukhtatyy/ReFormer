@@ -12,61 +12,64 @@ import type { JsonNode } from '@reformer/renderer-json';
 import { getCatalogEntry, makeNodeFor } from '../../../catalog';
 import { insertNode } from '../../../model';
 import { componentNames } from '../catalog-digest';
-import { commitMutation } from '../gate';
-import { isResolved, resolveRef } from '../node-ref';
+import { commitBatch, type BatchEntry, type OpDescription } from '../gate';
+import { isResolved, nodeRef, resolveRef } from '../node-ref';
 import { insertSlotOf } from '../slots';
 import { similarNames } from '../suggest';
-import { fail, type AgentTool } from '../types';
+import { fail, type AgentTool, type ToolOutcome } from '../types';
 import { REF_PROP } from './params';
 
-/** Параметры вызова. */
-interface Params {
+/** Один вставляемый узел. */
+interface NodeSpec {
   component: string;
-  parent: string;
-  index?: number;
   model?: string;
   props?: Record<string, unknown>;
 }
 
+/** Параметры вызова. */
+interface Params {
+  parent: string;
+  index?: number;
+  nodes: NodeSpec[];
+}
+
 export const insertNodeTool: AgentTool<Params> = {
   name: 'insert_node',
+  // Пересказ собственных параметров отсюда убран: их описания идут ниже, в схеме, и уходили в
+  // каждый запрос дважды. Здесь остаётся то, чего из схемы не видно, — что считается контейнером.
   description:
-    'Insert a component into a container. component — a name from list_components, parent — the ' +
-    'address of the container (a step, a section, the form root). index — position among the ' +
-    'children, appended by default. model binds fields and arrays to data, props sets component ' +
-    'properties.',
+    'Insert a component into a container: a step, a section or the form root. ' +
+    'A composite component arrives already assembled.',
   inputSchema: {
     type: 'object',
     properties: {
-      component: { type: 'string', description: 'Component name from list_components' },
       parent: REF_PROP,
       index: {
         type: 'integer',
         minimum: 0,
-        description: 'Position among the children; appended by default',
+        description: 'Position of the first inserted node; appended by default',
       },
-      model: {
-        type: 'string',
-        description: 'Model path without $model(...), e.g. applicant.email',
+      nodes: {
+        type: 'array',
+        minItems: 1,
+        description: 'Components to insert into parent, in order',
+        items: {
+          type: 'object',
+          properties: {
+            component: { type: 'string', description: 'Component name from list_components' },
+            model: { type: 'string', description: 'Model path, bare: applicant.email' },
+            props: { type: 'object', description: 'Component properties (describe_component)' },
+          },
+          required: ['component'],
+          additionalProperties: false,
+        },
       },
-      props: { type: 'object', description: 'Component properties (see describe_component)' },
     },
-    required: ['component', 'parent'],
+    required: ['parent', 'nodes'],
     additionalProperties: false,
   },
   readOnly: false,
   run(params, ctx) {
-    const entry = getCatalogEntry(params.component);
-    if (!entry) {
-      // Похожих имён может не найтись вовсе (выдуманное имя ни на что не похоже) — тогда
-      // подсказкой служит сам путь восстановления, иначе модель осталась бы без него.
-      return fail(
-        'UNKNOWN_COMPONENT',
-        `No component "${params.component}" in the catalog. Take a name from list_components.`,
-        similarNames(params.component, componentNames())
-      );
-    }
-
     const parent = resolveRef(ctx.draft, params.parent);
     if (!isResolved(parent)) return parent;
 
@@ -78,41 +81,92 @@ export const insertNodeTool: AgentTool<Params> = {
       );
     }
 
-    // Мастер держит в своём слоте ШАГИ, и каждый шаг — контейнер. Поле, положенное сюда напрямую,
-    // становилось шагом: рантайм пытался нарисовать его вместо страницы мастера. Отказ приходит до
-    // правки, поэтому черновик остаётся чистым, а модель узнаёт правило в тот момент, когда оно ей
-    // нужно. Проверка по ВИДУ узла, а не по имени `Step`: шагом законно бывает и `Box`.
-    if (slot.kind === 'steps' && entry.role !== 'container') {
-      return fail(
-        'INVALID_PARENT',
-        `A wizard holds steps only, and ${entry.name} is not a container. Insert a Step into ` +
-          `${params.parent} first, then put this field inside that step.`
-      );
+    // Пакет применяется к черновику по одному узлу, но гейт проходит один раз в конце: проверка
+    // схемы стоит дороже самой вставки, а промежуточные состояния пакета модели не видны.
+    let draft = ctx.draft;
+    const entries: BatchEntry[] = [];
+    let at = params.index ?? Number.MAX_SAFE_INTEGER;
+
+    for (const [i, spec] of params.nodes.entries()) {
+      const prepared = prepareNode(spec, slot.kind, params.parent);
+      // Индекс элемента называется прямо: без него «поле нельзя класть в мастер» на пакете из
+      // двенадцати узлов не говорит, какой именно узел виноват.
+      if ('error' in prepared) return withIndex(prepared.error, params.nodes.length, i);
+
+      const result = insertNode(draft, slot.path, at, prepared.node);
+      draft = result.schema;
+      // Следующий узел встаёт сразу за предыдущим: иначе пакет с явным index уложил бы узлы в
+      // обратном порядке — каждый следующий перед уже вставленным.
+      at = params.index === undefined ? Number.MAX_SAFE_INTEGER : at + 1;
+      entries.push({ ref: nodeRef(result.newPath), ...prepared.describe });
     }
 
-    // Узел достраивается по частям (привязка, свойства), поэтому типизируется как запись:
-    // объединение JsonNode дискриминируется полями, которых на промежуточных шагах ещё нет.
-    const node = makeNodeFor(entry.name, entry.role, entry.compoundParent) as unknown as Record<
-      string,
-      unknown
-    >;
-    if (params.model) {
-      // Поле держит привязку в `value`, массив — в `array`; контейнеру привязка не нужна.
-      if (entry.role === 'field') node.value = `$model(${params.model})`;
-      else if (entry.role === 'array') node.array = `$model(${params.model})`;
-    }
-    if (params.props) {
-      node.componentProps = { ...(node.componentProps as object), ...params.props };
-    }
-
-    const index = params.index ?? Number.MAX_SAFE_INTEGER;
-    const result = insertNode(ctx.draft, slot.path, index, node as unknown as JsonNode);
-    const label = params.props?.label ?? params.model ?? entry.name;
-    return commitMutation(ctx, result, () => ({
-      kind: 'add',
-      // Подпись узла — данные пользователя, поэтому в обеих строках она одна и та же.
-      summary: `${String(label)} (${entry.name})`,
-      report: `${String(label)} (${entry.name})`,
-    }));
+    return commitBatch(ctx, draft, entries);
   },
 };
+
+/** Приписать к отказу номер элемента пакета — у одиночной вставки приписывать нечего. */
+function withIndex(outcome: ToolOutcome, total: number, index: number): ToolOutcome {
+  if (total === 1) return outcome;
+  return { ...outcome, text: `nodes[${index}]: ${outcome.text}` };
+}
+
+/** Узел, готовый ко вставке, вместе с описанием операции — либо отказ с причиной. */
+function prepareNode(
+  spec: NodeSpec,
+  slotKind: string,
+  parentRef: string
+): { node: JsonNode; describe: OpDescription } | { error: ToolOutcome } {
+  const entry = getCatalogEntry(spec.component);
+  if (!entry) {
+    // Похожих имён может не найтись вовсе (выдуманное имя ни на что не похоже) — тогда
+    // подсказкой служит сам путь восстановления, иначе модель осталась бы без него.
+    return {
+      error: fail(
+        'UNKNOWN_COMPONENT',
+        `No component "${spec.component}" in the catalog. Take a name from list_components.`,
+        similarNames(spec.component, componentNames())
+      ),
+    };
+  }
+
+  // Мастер держит в своём слоте ШАГИ, и каждый шаг — контейнер. Поле, положенное сюда напрямую,
+  // становилось шагом: рантайм пытался нарисовать его вместо страницы мастера. Отказ приходит до
+  // правки, поэтому черновик остаётся чистым, а модель узнаёт правило в тот момент, когда оно ей
+  // нужно. Проверка по ВИДУ узла, а не по имени `Step`: шагом законно бывает и `Box`.
+  if (slotKind === 'steps' && entry.role !== 'container') {
+    return {
+      error: fail(
+        'INVALID_PARENT',
+        `A wizard holds steps only, and ${entry.name} is not a container. Insert a Step into ` +
+          `${parentRef} first, then put this field inside that step.`
+      ),
+    };
+  }
+
+  // Узел достраивается по частям (привязка, свойства), поэтому типизируется как запись:
+  // объединение JsonNode дискриминируется полями, которых на промежуточных шагах ещё нет.
+  const node = makeNodeFor(entry.name, entry.role, entry.compoundParent) as unknown as Record<
+    string,
+    unknown
+  >;
+  if (spec.model) {
+    // Поле держит привязку в `value`, массив — в `array`; контейнеру привязка не нужна.
+    if (entry.role === 'field') node.value = `$model(${spec.model})`;
+    else if (entry.role === 'array') node.array = `$model(${spec.model})`;
+  }
+  if (spec.props) {
+    node.componentProps = { ...(node.componentProps as object), ...spec.props };
+  }
+
+  const label = String(spec.props?.label ?? spec.model ?? entry.name);
+  return {
+    node: node as unknown as JsonNode,
+    describe: {
+      kind: 'add',
+      // Подпись узла — данные пользователя, поэтому в обеих строках она одна и та же.
+      summary: `${label} (${entry.name})`,
+      report: `${label} (${entry.name})`,
+    },
+  };
+}

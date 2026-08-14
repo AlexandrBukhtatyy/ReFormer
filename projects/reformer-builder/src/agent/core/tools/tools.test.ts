@@ -91,7 +91,7 @@ describe('expect в write-инструментах', () => {
     const res = reg.invoke(
       'remove_node',
       {
-        ref: '/root/componentProps/steps/0/children/0',
+        refs: ['/root/componentProps/steps/0/children/0'],
         expect: { component: 'Select', model: null },
       },
       ctx()

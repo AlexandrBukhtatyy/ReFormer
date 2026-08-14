@@ -39,15 +39,35 @@ describe('listComponents', () => {
     expect(listComponents({ query: 'tabs' }).map((c) => c.name)).toContain('TabsList');
   });
 
-  it('в бюджет ответа попадают поля, а не только контейнеры и части', () => {
+  it('в бюджет ответа попадают ВСЕ поля, а не только контейнеры и части', () => {
     // Ровно то, на чём ход агента терял смысл: из 202 записей кита 91 — части compound'ов, и в
     // 1500 символов не помещалось НИ ОДНОГО поля. Модель, спросившая «что есть», видела
     // AccordionTrigger и CardFooter, но не Input и не Select — и собирала форму из контейнеров.
     // Сверка идёт по «Имя (field)», а не по подстроке: `Input` живёт внутри `InputGroupInput`, и
     // проверка на вхождение имени проходила бы даже там, где ни одного поля в ответе нет.
+    //
+    // Требуется полнота, а не «хоть одно»: прежняя формулировка `> 0` проходила ровно на том
+    // ответе, который и сжёг ход, — там дошло единственное поле из шестнадцати.
     const text = renderComponentList(listComponents(), 1500);
     const fields = listComponents({ role: 'field' }).map((c) => `${c.name} (field)`);
-    expect(fields.filter((label) => text.includes(label)).length).toBeGreaterThan(0);
+    expect(fields.filter((label) => !text.includes(label))).toEqual([]);
+  });
+
+  it('поля не вытесняют остальные категории — о существовании каждой модель узнаёт', () => {
+    // Обратная сторона того же перекоса: форму из одних полей, без контейнеров, тоже не собрать.
+    // Проверяется присутствие КАТЕГОРИЙ, а не конкретных имён: набор меток свой у каждого кита.
+    const text = renderComponentList(listComponents(), 1500);
+    const categories = new Set(listComponents().map((c) => c.category ?? 'Other'));
+    expect([...categories].filter((c) => !text.includes(`${c}:`))).toEqual([]);
+  });
+
+  it('структурные компоненты формы доходят до модели', () => {
+    // Wizard, Step и FormArray — единственный способ построить мастер и повторяющийся блок.
+    // Системный промпт учит агента мастеру, а список их не показывал.
+    const text = renderComponentList(listComponents(), 1500);
+    for (const name of ['Wizard', 'Step', 'FormArray']) {
+      expect(text, `${name} не дошёл до модели`).toContain(name);
+    }
   });
 });
 

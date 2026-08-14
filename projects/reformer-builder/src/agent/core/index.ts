@@ -15,7 +15,7 @@ export * from './changeset';
 export * from './layout';
 export * from './loop';
 export * from './registry';
-export { SYSTEM_PROMPT } from './prompt';
+export { systemPrompt } from './prompt';
 export { commitMutation, type OpDescription } from './gate';
 export { insertSlotOf } from './slots';
 export { similarNames } from './suggest';

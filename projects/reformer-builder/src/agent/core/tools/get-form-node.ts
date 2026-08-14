@@ -12,6 +12,7 @@ import type { JsonNode } from '@reformer/renderer-json';
 import { childSlots, type JsonPath } from '../../../model';
 import { isResolved, resolveRef } from '../node-ref';
 import { ok, type AgentTool } from '../types';
+import { REF_PROP } from './params';
 
 /** Копия узла без дочерних поддеревьев (`children` / `steps` / `item` / `wrapper`). */
 function withoutChildren(node: JsonNode): Record<string, unknown> {
@@ -47,12 +48,11 @@ interface Params {
 export const getFormNode: AgentTool<Params> = {
   name: 'get_form_node',
   description:
-    'Full JSON of a single node by its address (JSON Pointer from get_form_outline). ' +
-    'Child nodes are not included — their addresses are in the form map.',
+    'Full JSON of a single node. Child nodes are not included — their addresses are in the form map.',
   inputSchema: {
     type: 'object',
     properties: {
-      ref: { type: 'string', description: 'JSON Pointer of the node, e.g. /root/children/0' },
+      ref: REF_PROP,
     },
     required: ['ref'],
     additionalProperties: false,
@@ -61,7 +61,10 @@ export const getFormNode: AgentTool<Params> = {
   run(params, ctx) {
     const found = resolveRef(ctx.draft, params.ref);
     if (!isResolved(found)) return found;
-    const json = JSON.stringify(withoutChildren(found.node), null, 2);
+    // Без отступов: они стоят четверть символов ответа, а бюджет здесь тесный — на них приходится
+    // ровно та часть узла, которую пришлось бы обрезать. Модель разбирает JSON одинаково в обоих
+    // видах, читать его глазами тут некому.
+    const json = JSON.stringify(withoutChildren(found.node));
     return ok(`${params.ref}:\n${json}${childrenNote(found.node, found.path)}`);
   },
 };

@@ -21,7 +21,7 @@ import {
   type ProviderConfig,
   type ProviderKind,
 } from '../keys';
-import { streamViaAiSdk } from './ai-sdk';
+import { streamViaAiSdk, type AiSdkTuning } from './ai-sdk';
 import type { AiCapabilities, AiDetection, AiProvider } from './types';
 
 /** Версия Anthropic API, требуемая заголовком. */
@@ -89,6 +89,48 @@ function modelOf(config: ProviderConfig): LanguageModel {
   }
 }
 
+/**
+ * Чем удешевлять запросы на этом канале.
+ *
+ * Ход агента — это десятки запросов с одинаковым началом: системный промпт и определения
+ * инструментов, около трёх тысяч токенов, пересылаются заново каждый раз. Каждый канал экономит их
+ * по-своему, поэтому единого способа тут нет:
+ *
+ *  - Anthropic кэширует явно, по пометке на префиксе;
+ *  - OpenAI кэширует сам, но лучше попадает, если запросы одного разговора помечены общим ключом;
+ *  - локальный сервер не тарифицирует ничего и переиспользует префикс сам, зато упирается в
+ *    физическое окно модели — ему нужна прополка контекста и короткий предел повторов: если
+ *    `localhost` не ответил, ждать его дважды с нарастающей паузой значит подарить шагу шесть
+ *    секунд без единого шанса на успех.
+ *
+ * Ключ кэша OpenAI — случайный идентификатор сессии редактора. В нём не должно быть ни ключа API,
+ * ни чего-либо из формы: он уходит на сервер как есть.
+ */
+export function tuningOf(kind: ProviderKind): AiSdkTuning {
+  switch (kind) {
+    case 'anthropic':
+      return { cacheBreakpoints: true, pruneContext: false, maxRetries: 2 };
+    case 'openai':
+      return {
+        cacheBreakpoints: false,
+        promptCacheKey: sessionCacheKey(),
+        pruneContext: false,
+        maxRetries: 2,
+      };
+    case 'openai-compatible':
+      // Единственный канал, где полоть выгодно: кэша префикса нет, зато контекст упирается в
+      // физическое окно модели, и рассуждение с прошлых шагов съедает больше половины запроса.
+      return { cacheBreakpoints: false, pruneContext: true, maxRetries: 1 };
+  }
+}
+
+/** Идентификатор сессии редактора: один на всё время работы вкладки. */
+let cacheKey: string | null = null;
+
+function sessionCacheKey(): string {
+  return (cacheKey ??= `rb-${Math.random().toString(36).slice(2, 12)}`);
+}
+
 /** Возможности канала. Локальные модели tool-calling умеют не всегда — предупреждаем честно. */
 function capabilitiesOf(kind: ProviderKind): AiCapabilities {
   return {
@@ -120,6 +162,6 @@ export function createByokProvider(config: ProviderConfig): AiProvider {
 
     capabilities: () => capabilitiesOf(config.kind),
 
-    stream: (req, signal) => streamViaAiSdk(modelOf(config), req, signal),
+    stream: (req, signal) => streamViaAiSdk(modelOf(config), req, signal, tuningOf(config.kind)),
   };
 }

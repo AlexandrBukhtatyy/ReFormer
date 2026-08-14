@@ -95,6 +95,26 @@ export function listComponents(filter?: ListComponentsFilter): ComponentSummary[
     .map((e) => ({ name: e.name, role: e.role, ...(e.category ? { category: e.category } : {}) }));
 }
 
+/**
+ * Свойства, которые есть у ВСЕХ компонентов роли.
+ *
+ * Нужны системному промпту: правило «проверь имя свойства через describe_component» стоит целого
+ * обхода «модель → инструмент → модель» ради `label` и `required`, которые есть у каждого поля
+ * любого кита. Пересечение считается по каталогу, а не задаётся списком, — иначе на первом же
+ * новом ките промпт начал бы обещать свойства, которых там нет.
+ *
+ * Порядок — как в props-схеме первого компонента роли: стабильный, чтобы промпт не менялся между
+ * запусками и не сбрасывал кэш префикса.
+ */
+export function commonProps(role: CatalogRole): string[] {
+  const entries = getCatalog().filter((e) => e.role === role && !isCompoundPart(e));
+  if (!entries.length) return [];
+  const keySets = entries.map((e) => new Set(toInspectorProps(e.propsSchema).map((p) => p.key)));
+  return toInspectorProps(entries[0].propsSchema)
+    .map((p) => p.key)
+    .filter((key) => keySets.every((keys) => keys.has(key)));
+}
+
 /** Описание одного компонента, либо `undefined`, если имени нет в каталоге. */
 export function describeComponent(name: string): ComponentDetail | undefined {
   const entry = getCatalogEntry(name);
@@ -146,6 +166,74 @@ function skeletonOf(
 const SKELETON_BUDGET = 400;
 
 /**
+ * Сколько записей неполевой категории берётся за один круг обхода.
+ *
+ * Мало намеренно: круг должен успеть дойти до последней категории в пределах бюджета, иначе
+ * малочисленные, но незаменимые категории («Мастер» из `Wizard` и `Step») не показываются вовсе.
+ */
+const CATEGORY_QUOTA = 3;
+
+/** Есть ли в категории то, ради чего форму заполняют, — поля ввода или массивы. */
+function holdsInput(items: readonly ComponentSummary[]): boolean {
+  return items.some((i) => i.role === 'field' || i.role === 'array');
+}
+
+/**
+ * Категории в порядке полезности агенту: сперва те, где лежат поля ввода и массивы.
+ *
+ * Порядок не косметический. Каталог кита алфавитный, категории до правки шли в порядке появления,
+ * и «Контейнеры» с «Отображением» съедали весь бюджет ответа: из шестнадцати полей боевого кита до
+ * модели доходило ОДНО, а `Wizard`, `Step` и `FormArray` не доходили вовсе. Модель, спросившая «что
+ * есть», не видела ни `Input`, ни `Select` — и либо звала список повторно с `query`, либо выдумывала
+ * имя, которое отвергал гейт. И то и другое стоит целого обхода «модель → инструмент → модель».
+ *
+ * Признак — роль записи, а не имя категории: список меток свой у каждого кита, и захардкоженный
+ * порядок разошёлся бы с ним на первом же новом ките.
+ */
+function orderedCategories(byCategory: ReadonlyMap<string, ComponentSummary[]>): string[] {
+  const keys = [...byCategory.keys()];
+  const input = (c: string) => holdsInput(byCategory.get(c) ?? []);
+  return [...keys.filter(input), ...keys.filter((c) => !input(c))];
+}
+
+/**
+ * Порядок отбора записей: круговой обход категорий, пока они не кончатся.
+ *
+ * Полевые категории отдаются целиком в первый же круг: полей во всём ките пара десятков, стоят они
+ * сотни символов, а заменить их нечем — форма без полей бессмысленна. Неполевым достаётся квота,
+ * потому что контейнеров сотня и модели нужнее знать, что категория существует и что примерно в
+ * ней лежит, чем получить её исчерпывающий перечень.
+ */
+function* pickOrder(
+  categories: readonly string[],
+  byCategory: ReadonlyMap<string, ComponentSummary[]>
+): Generator<ComponentSummary> {
+  const taken = new Map<string, number>(categories.map((c) => [c, 0]));
+  for (let progressed = true; progressed; ) {
+    progressed = false;
+    for (const category of categories) {
+      const list = byCategory.get(category) ?? [];
+      const from = taken.get(category) ?? 0;
+      if (from >= list.length) continue;
+      const slice = list.slice(from, from + (holdsInput(list) ? list.length : CATEGORY_QUOTA));
+      taken.set(category, from + slice.length);
+      progressed = true;
+      yield* slice;
+    }
+  }
+}
+
+/** Выбранное — в строки, по строке на категорию, в порядке приоритета. */
+function renderChosen(
+  categories: readonly string[],
+  chosen: ReadonlyMap<string, ComponentSummary[]>
+): string[] {
+  return categories
+    .filter((c) => chosen.has(c))
+    .map((c) => `${c}: ${(chosen.get(c) ?? []).map(label).join(', ')}`);
+}
+
+/**
  * Список компонентов в текст, сгруппированный по категории. При превышении бюджета обрезается
  * с подсказкой сузить выборку — модель дозапросит с `query`, а не будет считать список полным.
  *
@@ -161,30 +249,25 @@ export function renderComponentList(items: readonly ComponentSummary[], budget: 
     const key = item.category ?? 'Other';
     byCategory.set(key, [...(byCategory.get(key) ?? []), item]);
   }
+  const categories = orderedCategories(byCategory);
   const notice = (shown: number) => `… showing ${shown} of ${items.length}; narrow it with query`;
 
-  const lines: string[] = [];
+  const chosen = new Map<string, ComponentSummary[]>();
   let shown = 0;
-  for (const [category, list] of byCategory) {
-    const chunk: string[] = [];
-    let truncated = false;
-    for (const item of list) {
-      const candidate = [...lines, `${category}: ${[...chunk, label(item)].join(', ')}`];
-      const fits = [...candidate, notice(shown)].join('\n').length <= budget;
-      if (!fits && shown > 0) {
-        truncated = true;
-        break;
-      }
-      chunk.push(label(item));
-      shown += 1;
+  for (const item of pickOrder(categories, byCategory)) {
+    const key = item.category ?? 'Other';
+    const candidate = new Map(chosen).set(key, [...(chosen.get(key) ?? []), item]);
+    const fits =
+      [...renderChosen(categories, candidate), notice(shown + 1)].join('\n').length <= budget;
+    // Первая запись показывается даже при заведомо тесном бюджете: список из одной подсказки
+    // «сузьте выборку» не помогает никому.
+    if (!fits && shown > 0) {
+      return [...renderChosen(categories, chosen), notice(shown)].join('\n');
     }
-    if (chunk.length) lines.push(`${category}: ${chunk.join(', ')}`);
-    if (truncated) {
-      lines.push(notice(shown));
-      break;
-    }
+    chosen.set(key, candidate.get(key) as ComponentSummary[]);
+    shown += 1;
   }
-  return lines.join('\n');
+  return renderChosen(categories, chosen).join('\n');
 }
 
 function label(item: ComponentSummary): string {

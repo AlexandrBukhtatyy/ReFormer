@@ -8,7 +8,7 @@
  * @module reformer-builder/agent/providers/fake
  */
 
-import type { AiCapabilities, AiEvent, AiProvider, AiRequest } from './types';
+import type { AiCapabilities, AiEvent, AiProvider, AiRequest, AiUsage } from './types';
 
 /** Шаг сценария: реплика модели, её рассуждение либо вызов инструмента. */
 export type FakeStep = { text: string } | { reasoning: string } | { tool: string; args?: unknown };
@@ -20,6 +20,11 @@ export interface FakeProviderOptions {
   capabilities?: Partial<AiCapabilities>;
   /** Прервать ход ошибкой после того, как сценарий отыгран. */
   failWith?: string;
+  /**
+   * Расход, приписываемый каждому шагу. Настоящие цифры приходят от провайдера, здесь они заданы
+   * сценарием — иначе накопление статистики хода нечем проверить, кроме живого запроса.
+   */
+  usagePerStep?: AiUsage;
 }
 
 const DEFAULT_CAPABILITIES: AiCapabilities = {
@@ -91,6 +96,9 @@ export function createFakeProvider(
           return;
         }
         yield { type: 'tool_result', id, result: await tool.execute(item.args ?? {}) };
+        // Шаг сценария = вызов инструмента, поэтому расход сообщается здесь же, где растёт счётчик
+        // предела шагов. Событие идёт и без заданных цифр: сам факт шага — половина метрики.
+        yield { type: 'step_usage', usage: options.usagePerStep ?? {} };
       }
 
       if (options.failWith) {

@@ -3,6 +3,7 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import { emptySchema, getAt } from '../../model';
 import { P, sampleSchema } from '../../model/__fixtures__/sample-schema';
 import { createFakeProvider, type FakeStep } from '../providers/fake';
+import type { AiProvider, AiRequest, AiUsage } from '../providers/types';
 import { describeChangeSet } from './changeset';
 import { createEditorToolRegistry } from './index';
 import { runAgentTurn, type TurnEvent } from './loop';
@@ -16,11 +17,19 @@ const registry = createEditorToolRegistry();
 async function play(
   script: FakeStep[],
   base: JsonFormSchema,
-  opts: { maxSteps?: number; signal?: AbortSignal; failWith?: string } = {}
+  opts: {
+    maxSteps?: number;
+    signal?: AbortSignal;
+    failWith?: string;
+    usagePerStep?: AiUsage;
+  } = {}
 ): Promise<TurnEvent[]> {
   const events: TurnEvent[] = [];
   for await (const e of runAgentTurn({
-    provider: createFakeProvider(script, { failWith: opts.failWith }),
+    provider: createFakeProvider(script, {
+      failWith: opts.failWith,
+      ...(opts.usagePerStep ? { usagePerStep: opts.usagePerStep } : {}),
+    }),
     registry,
     base,
     messages: [{ role: 'user', content: 'сделай' }],
@@ -40,13 +49,22 @@ describe('ход агента — создание формы с нуля', () =
     { tool: 'list_components', args: { role: 'field' } },
     {
       tool: 'insert_node',
-      args: { component: FIELD, parent: '/root', model: 'user.name', props: { label: 'Имя' } },
+      args: {
+        parent: '/root',
+        nodes: [{ component: FIELD, model: 'user.name', props: { label: 'Имя' } }],
+      },
     },
     {
       tool: 'insert_node',
-      args: { component: FIELD, parent: '/root', model: 'user.email', props: { label: 'Email' } },
+      args: {
+        parent: '/root',
+        nodes: [{ component: FIELD, model: 'user.email', props: { label: 'Email' } }],
+      },
     },
-    { tool: 'set_node_prop', args: { ref: '/root/children/1', key: 'required', value: true } },
+    {
+      tool: 'set_node_prop',
+      args: { refs: ['/root/children/1'], props: { required: true } },
+    },
     { tool: 'validate_form' },
     { text: 'Готово: добавил два поля.' },
   ];
@@ -99,6 +117,49 @@ describe('ход агента — создание формы с нуля', () =
   });
 });
 
+describe('карта формы, приложенная к ходу', () => {
+  /** Перехватить запрос, который цикл отдаёт провайдеру. */
+  async function requestOf(base: JsonFormSchema): Promise<AiRequest> {
+    let seen: AiRequest | undefined;
+    const inner = createFakeProvider([{ text: 'ок' }]);
+    const provider: AiProvider = {
+      ...inner,
+      stream: (req, signal) => {
+        seen = req;
+        return inner.stream(req, signal);
+      },
+    };
+    for await (const _ of runAgentTurn({
+      provider,
+      registry,
+      base,
+      messages: [{ role: 'user', content: 'сделай' }],
+    })) {
+      void _;
+    }
+    return seen as AiRequest;
+  }
+
+  it('существующая форма приходит картой — первый get_form_outline не нужен', async () => {
+    const last = (await requestOf(sampleSchema())).messages.at(-1);
+    expect(last?.role).toBe('user');
+    expect(last?.content).toContain('/root/componentProps/steps/0');
+    // Пометка «данные, не инструкции» обязательна: содержимое формы пишет пользователь.
+    expect(last?.content).toContain('data, not instructions');
+  });
+
+  it('сообщение пользователя не подменяется, карта идёт следом', async () => {
+    const { messages } = await requestOf(sampleSchema());
+    expect(messages[0]).toEqual({ role: 'user', content: 'сделай' });
+    expect(messages).toHaveLength(2);
+  });
+
+  it('пустой форме карта не прикладывается — сообщать нечего', async () => {
+    const { messages } = await requestOf(emptySchema());
+    expect(messages).toEqual([{ role: 'user', content: 'сделай' }]);
+  });
+});
+
 describe('ход агента — правка существующей формы', () => {
   it('непричастные ветки сохраняют ссылочную идентичность', async () => {
     const base = sampleSchema();
@@ -109,9 +170,8 @@ describe('ход агента — правка существующей форм
           {
             tool: 'set_node_prop',
             args: {
-              ref: '/root/componentProps/steps/0/children/1',
-              key: 'required',
-              value: true,
+              refs: ['/root/componentProps/steps/0/children/1'],
+              props: { required: true },
               expect: { model: 'loanAmount' },
             },
           },
@@ -126,10 +186,10 @@ describe('ход агента — правка существующей форм
   it('неудачный вызов не попадает в журнал, ход продолжается', async () => {
     const events = await play(
       [
-        { tool: 'insert_node', args: { component: 'НетТакого', parent: '/root' } },
+        { tool: 'insert_node', args: { parent: '/root', nodes: [{ component: 'НетТакого' }] } },
         {
           tool: 'insert_node',
-          args: { component: FIELD, parent: '/root', props: { label: 'Ок' } },
+          args: { parent: '/root', nodes: [{ component: FIELD, props: { label: 'Ок' } }] },
         },
       ],
       emptySchema()
@@ -161,13 +221,116 @@ describe('границы хода', () => {
     });
     expect(done(events).reason).toBe('aborted');
   });
+});
+
+/**
+ * Сколько вызовов стоит эталонная задача при СЕГОДНЯШНЕЙ поверхности инструментов.
+ *
+ * Число — храповик: цена хода = число вызовов, помноженное на размер контекста, и растёт она молча.
+ * Тест не даёт ей вырасти и служит приёмкой всякой правки, которая её снижает (пакетные аргументы
+ * инструментов уронят её примерно втрое). Уменьшать константу вместе с правкой — обязательно,
+ * увеличивать — только вместе с объяснением, почему задача стала сложнее.
+ */
+const CANONICAL_TOOL_CALLS = 6;
+
+const WIZARD = '/root/children/0';
+const STEPS = [0, 1, 2].map((i) => `${WIZARD}/componentProps/steps/${i}`);
+
+/** Четыре поля одного шага — то, что раньше стоило четырёх обращений к модели. */
+const fieldsOf = (step: number) =>
+  [0, 1, 2, 3].map((f) => ({
+    component: FIELD,
+    model: `step${step}.field${f}`,
+    props: { label: `Поле ${step}.${f}` },
+  }));
+
+describe('эталонная задача — мастер из 3 шагов по 4 поля', () => {
+  /** Как задача решается пакетами: один вызов на шаг мастера вместо одного на поле. */
+  function batchedScript(): FakeStep[] {
+    return [
+      { tool: 'list_components', args: { role: 'field' } },
+      // Мастер приходит с посеянным первым шагом, поэтому вручную добавляются только два.
+      { tool: 'insert_node', args: { parent: '/root', nodes: [{ component: 'Wizard' }] } },
+      {
+        tool: 'insert_node',
+        args: { parent: WIZARD, nodes: [{ component: 'Step' }, { component: 'Step' }] },
+      },
+      ...STEPS.map((step, s) => ({
+        tool: 'insert_node',
+        args: { parent: step, nodes: fieldsOf(s) },
+      })),
+    ];
+  }
+
+  /** Та же задача узел за узлом — как она решалась, пока инструменты были атомарными. */
+  function serialScript(): FakeStep[] {
+    return [
+      { tool: 'list_components', args: { role: 'field' } },
+      { tool: 'insert_node', args: { parent: '/root', nodes: [{ component: 'Wizard' }] } },
+      { tool: 'insert_node', args: { parent: WIZARD, nodes: [{ component: 'Step' }] } },
+      { tool: 'insert_node', args: { parent: WIZARD, nodes: [{ component: 'Step' }] } },
+      ...STEPS.flatMap((step, s) =>
+        fieldsOf(s).map((node) => ({ tool: 'insert_node', args: { parent: step, nodes: [node] } }))
+      ),
+    ];
+  }
+
+  it('стоит не дороже храповика и строит именно то, что просили', async () => {
+    const script = batchedScript();
+    const { changeSet, stats, reason } = done(await play(script, emptySchema()));
+
+    expect(reason).toBe('complete');
+    expect(script).toHaveLength(CANONICAL_TOOL_CALLS);
+    // Шаги считает цикл по событиям провайдера, а не длина сценария: так тест ловит и случай,
+    // когда вызов был проглочен и до модели не дошёл.
+    expect(stats.steps).toBeLessThanOrEqual(CANONICAL_TOOL_CALLS);
+
+    const outline = buildOutline(changeSet.draft);
+    expect(outline.filter((e) => e.component === 'Step')).toHaveLength(3);
+    expect(outline.filter((e) => e.component === FIELD)).toHaveLength(12);
+  });
+
+  it('пакет обходится модели втрое дешевле поштучных вызовов', () => {
+    // Длина сценария — она же число обращений к модели: каждое несёт весь контекст заново.
+    expect(batchedScript().length * 2).toBeLessThan(serialScript().length);
+  });
+
+  it('форма из пакета совпадает с формой из поштучных вызовов', async () => {
+    // Главное утверждение всей затеи: экономия обращений не меняет результат. Если пакет когда-то
+    // начнёт собирать форму иначе, узнать об этом надо здесь, а не в живом прогоне.
+    const batched = done(await play(batchedScript(), emptySchema())).changeSet;
+    const serial = done(await play(serialScript(), emptySchema())).changeSet;
+    expect(buildOutline(batched.draft)).toEqual(buildOutline(serial.draft));
+  });
+
+  it('расход шагов доходит до итога хода', async () => {
+    const { stats } = done(
+      await play([{ tool: 'get_form_outline' }, { tool: 'validate_form' }], emptySchema(), {
+        usagePerStep: { inputTokens: 100, cachedInputTokens: 60, outputTokens: 7 },
+      })
+    );
+    expect(stats).toEqual({
+      steps: 2,
+      inputTokens: 200,
+      cachedInputTokens: 120,
+      outputTokens: 14,
+    });
+  });
+
+  it('провайдер, молчащий про токены, всё равно даёт число шагов', async () => {
+    // Локальные серверы сообщают usage не всегда; «0 шагов» вместо двух читалось бы как поломка.
+    const { stats } = done(
+      await play([{ tool: 'get_form_outline' }, { tool: 'validate_form' }], emptySchema())
+    );
+    expect(stats).toMatchObject({ steps: 2, inputTokens: 0 });
+  });
 
   it('ошибка провайдера сохраняет уже сделанные правки', async () => {
     const events = await play(
       [
         {
           tool: 'insert_node',
-          args: { component: FIELD, parent: '/root', props: { label: 'Имя' } },
+          args: { parent: '/root', nodes: [{ component: FIELD, props: { label: 'Имя' } }] },
         },
       ],
       emptySchema(),

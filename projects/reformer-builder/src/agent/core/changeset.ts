@@ -37,7 +37,7 @@ export function withOutcome(set: ChangeSet, outcome: ToolOutcome): ChangeSet {
   return {
     base: set.base,
     draft: outcome.schema,
-    ops: outcome.op ? [...set.ops, outcome.op] : set.ops,
+    ops: outcome.ops?.length ? [...set.ops, ...outcome.ops] : set.ops,
   };
 }
 

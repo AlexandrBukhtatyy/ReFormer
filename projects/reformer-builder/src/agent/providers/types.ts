@@ -25,6 +25,11 @@ export interface AiToolDef {
   description: string;
   /** JSON Schema аргументов. */
   inputSchema: object;
+  /**
+   * Не меняет форму. Нужен провайдеру, чтобы схлопывать повторные ЧТЕНИЯ в накопленном контексте:
+   * ответ пишущего инструмента устареть не может — он говорит о своей правке и ни о чём больше.
+   */
+  readOnly: boolean;
   /** Исполнение на стороне редактора. Провайдер отдаёт модели только `outcome.text`. */
   execute(args: unknown): Promise<ToolOutcome>;
 }
@@ -36,6 +41,23 @@ export interface AiRequest {
   tools: readonly AiToolDef[];
   /** Предел шагов «модель → инструмент → модель» за один ход. */
   maxSteps: number;
+}
+
+/**
+ * Расход токенов на одном шаге.
+ *
+ * Нужен не для счёта денег, а как единственный объективный измеритель оптимизаций: «стало быстрее»
+ * на глаз неотличимо от «модель в этот раз сходила удачнее». Все поля необязательны — локальные
+ * серверы сообщают в лучшем случае суммарный вход, и отсутствие цифры это не ошибка.
+ *
+ * `cachedInputTokens` — единственное доказательство, что кэш префикса реально сработал: без него
+ * «включили кэширование» проверяется только счётом в биллинге через сутки.
+ */
+export interface AiUsage {
+  inputTokens?: number;
+  cachedInputTokens?: number;
+  cacheWriteTokens?: number;
+  outputTokens?: number;
 }
 
 /** Событие потока. */
@@ -50,6 +72,8 @@ export type AiEvent =
   | { type: 'reasoning'; text: string }
   | { type: 'tool_call'; id: string; name: string; args: unknown }
   | { type: 'tool_result'; id: string; result: ToolOutcome }
+  /** Шаг закончен: расход токенов. Провайдер, не сообщающий его, просто не шлёт событие. */
+  | { type: 'step_usage'; usage: AiUsage }
   | { type: 'error'; message: string; retryable: boolean }
   | { type: 'done'; reason: 'complete' | 'aborted' | 'error' };
 

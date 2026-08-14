@@ -11,7 +11,7 @@ import { activeTab, editorStore } from '../store';
 import { applyChangeSet } from './apply';
 import { createEditorToolRegistry } from './core';
 import { hasChanges, type ChangeSet } from './core/changeset';
-import { runAgentTurn, type TurnEvent } from './core/loop';
+import { runAgentTurn, type TurnEvent, type TurnStats } from './core/loop';
 import { agentSessionActions, agentSessionStore } from './session';
 import type { AiMessage, AiProvider } from './providers/types';
 
@@ -25,8 +25,13 @@ function toolRegistry() {
   return (registry ??= createEditorToolRegistry());
 }
 
-/** Сколько последних реплик уходит в модель. Дальше диалог придётся сжимать (вне текущего этапа). */
-const HISTORY_LIMIT = 10;
+/**
+ * Сколько символов истории уходит в модель.
+ *
+ * Бюджет в символах, а не счёт реплик: длина реплики не ограничена ничем, и десять реплик — это и
+ * пара килобайт, и пара десятков. Считать надо то, за что платим, а платим за объём.
+ */
+const HISTORY_BUDGET = 6000;
 
 /**
  * Сколько вызовов инструментов перечислять в сводке молчаливого хода. Сводка нужна как напоминание
@@ -55,14 +60,24 @@ function assistantContent(entry: {
 
 /** История диалога для модели — из уже показанных реплик, чтобы контекст совпадал с видимым. */
 function historyFor(): AiMessage[] {
-  return agentSessionStore
+  const all = agentSessionStore
     .getState()
     .entries.filter((e) => e.text.trim().length > 0 || e.tools.length > 0)
-    .slice(-HISTORY_LIMIT)
     .map((e) => ({
       role: e.role,
       content: e.role === 'assistant' ? assistantContent(e) : e.text,
     }));
+
+  // Набираем с конца: свежие реплики нужнее старых, а обрезать надо по началу диалога.
+  const kept: AiMessage[] = [];
+  let spent = 0;
+  for (let i = all.length - 1; i >= 0; i--) {
+    spent += all[i].content.length;
+    // Последняя реплика проходит всегда: это сообщение, на которое агент и отвечает.
+    if (spent > HISTORY_BUDGET && kept.length) break;
+    kept.unshift(all[i]);
+  }
+  return kept;
 }
 
 /** Управление текущим ходом: позволяет остановить его кнопкой. */
@@ -123,11 +138,15 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
           agentSessionActions.logTool({
             name: event.name,
             ok: event.ok,
-            ...(event.op ? { summary: event.op.summary } : {}),
+            // Журнал панели — строка на ВЫЗОВ, а не на правку: пакетная вставка двенадцати полей
+            // не должна превращать ленту в двенадцать одинаковых записей. Детали пакета видны в
+            // предпросмотре изменений, где им и место.
+            ...(event.ops?.length ? { summary: summaryOf(event.ops) } : {}),
             ...(event.error ? { error: event.error.message } : {}),
           });
           break;
         case 'done':
+          report(event.stats);
           finish(event.changeSet, event.reason, event.message);
           break;
       }
@@ -135,6 +154,30 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
   } finally {
     current = null;
   }
+}
+
+/** Сколько правок пакета называть в журнале, прежде чем свернуть остаток в счёт. */
+const OPS_IN_LOG = 3;
+
+/** Одна строка журнала для вызова, принёсшего несколько правок. */
+function summaryOf(ops: readonly { summary: string }[]): string {
+  const shown = ops.slice(0, OPS_IN_LOG).map((o) => o.summary);
+  const rest = ops.length - shown.length;
+  return `${shown.join('; ')}${rest > 0 ? ` и ещё ${rest}` : ''}`;
+}
+
+/**
+ * Напечатать, чего стоил ход.
+ *
+ * В консоль, а не в панель: цена хода — материал для того, кто настраивает агента, а пользователю
+ * формы она ничего не говорит и только шумит в ленте. Шаги печатаются всегда, токены — только если
+ * провайдер их сообщил (локальные серверы часто молчат, и «0 токенов» читалось бы как поломка).
+ */
+function report(stats: TurnStats): void {
+  const tokens = stats.inputTokens
+    ? `, вход ${stats.inputTokens} (из кэша ${stats.cachedInputTokens}), выход ${stats.outputTokens}`
+    : '';
+  console.info(`[agent] ход: шагов ${stats.steps}${tokens}`);
 }
 
 /**

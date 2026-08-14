@@ -18,6 +18,7 @@ import type { MutationResult } from '../../model';
 import { validateSchema } from '../../io/validate';
 import { nodeRef } from './node-ref';
 import { buildOutline, renderOutline } from './outline';
+import { joinWithinBudget } from './render-budget';
 import {
   fail,
   TOOL_TEXT_BUDGET,
@@ -30,10 +31,23 @@ import {
 const MAX_REPORTED = 5;
 
 /**
- * Ошибки базовой схемы. Кэш по ссылке на объект: база неизменна в пределах хода, а `validateSchema`
- * каждый раз компилирует ajv заново — на ход из десятков правок это заметная разница.
+ * Сколько замечаний дописывать к успешной правке. Замечание — не отказ, а подсказка вдогонку, и
+ * длинный список превратил бы ответ инструмента в отчёт валидатора.
  */
-const baselineCache = new WeakMap<JsonFormSchema, ReadonlyMap<string, number>>();
+const MAX_WARNINGS = 2;
+
+/** Что схема представляла собой до правки: ошибки и замечания как мультимножества. */
+interface Baseline {
+  errors: ReadonlyMap<string, number>;
+  warnings: ReadonlyMap<string, number>;
+}
+
+/**
+ * Состояние базовой схемы. Кэш по ссылке на объект: база неизменна в пределах хода, а
+ * `validateSchema` каждый раз компилирует ajv заново — на ход из десятков правок это заметная
+ * разница.
+ */
+const baselineCache = new WeakMap<JsonFormSchema, Baseline>();
 
 /**
  * Ошибка без индексов пути: `root.children[0].componentProps …` → `root.children[#].componentProps …`.
@@ -62,17 +76,18 @@ function countErrors(errors: readonly string[]): Map<string, number> {
   return counts;
 }
 
-function baselineErrors(base: JsonFormSchema): ReadonlyMap<string, number> {
+function baselineOf(base: JsonFormSchema): Baseline {
   let known = baselineCache.get(base);
   if (!known) {
-    known = countErrors(validateSchema(base, { strict: true, baseline: base }).errors);
+    const result = validateSchema(base, { strict: true, baseline: base });
+    known = { errors: countErrors(result.errors), warnings: countErrors(result.warnings) };
     baselineCache.set(base, known);
   }
   return known;
 }
 
-/** Ошибки, которых в базе не было (или стало больше), в исходных формулировках. */
-function introducedErrors(base: ReadonlyMap<string, number>, errors: readonly string[]): string[] {
+/** То, чего в базе не было (или стало больше), в исходных формулировках. */
+function introduced(base: ReadonlyMap<string, number>, errors: readonly string[]): string[] {
   const seen = new Map<string, number>();
   const out: string[] = [];
   for (const e of errors) {
@@ -112,35 +127,100 @@ export function commitMutation(
   result: MutationResult,
   describe: (ref: string) => OpDescription
 ): ToolOutcome {
-  const known = baselineErrors(ctx.base);
-  const introduced = introducedErrors(
-    known,
-    validateSchema(result.schema, { strict: true, baseline: ctx.base }).errors
-  );
+  const ref = nodeRef(result.newPath);
+  return commitBatch(ctx, result.schema, [{ ref, ...describe(ref) }]);
+}
 
-  if (introduced.length) {
-    const shown = introduced.slice(0, MAX_REPORTED).join('; ');
-    const rest = introduced.length - Math.min(introduced.length, MAX_REPORTED);
+/** Одна правка пакета: что изменилось и по какому адресу. */
+export interface BatchEntry extends OpDescription {
+  ref: string;
+}
+
+/**
+ * Провести через гейт результат ПАКЕТА правок.
+ *
+ * Гейт запускается один раз на весь пакет, а не на каждую правку: `validateSchema` компилирует ajv
+ * заново при каждом вызове, и на пакете из двенадцати полей это двенадцать полных проверок схемы
+ * вместо одной. Смысл проверки от этого не меняется — промежуточные состояния пакета модели всё
+ * равно не видны, а невалидным считается результат.
+ *
+ * Отвергается пакет ЦЕЛИКОМ. Применить его частично значило бы оставить черновик в состоянии, о
+ * котором модель не знает точно, — и следующий её вызов адресовал бы узлы по неверным индексам.
+ *
+ * @param ctx - Контекст вызова (нужна база для сравнения ошибок).
+ * @param schema - Схема после всех правок пакета.
+ * @param entries - Описания правок в порядке применения; их адреса уже посчитаны.
+ */
+export function commitBatch(
+  ctx: ToolContext,
+  schema: JsonFormSchema,
+  entries: readonly BatchEntry[]
+): ToolOutcome {
+  const known = baselineOf(ctx.base);
+  const checked = validateSchema(schema, { strict: true, baseline: ctx.base });
+  const errors = introduced(known.errors, checked.errors);
+
+  if (errors.length) {
+    const shown = errors.slice(0, MAX_REPORTED).join('; ');
+    const rest = errors.length - Math.min(errors.length, MAX_REPORTED);
     return fail(
       'SCHEMA_INVALID',
       `Edit rejected — it would make the form invalid: ${shown}${rest > 0 ? ` (and ${rest} more)` : ''}.`
     );
   }
 
-  const ref = nodeRef(result.newPath);
-  const { kind, summary, report } = describe(ref);
-  const head = `Done: ${report}. Node address: ${ref}.`;
-  const inside = subtreeOf(
-    result.schema,
-    ref,
-    TOOL_TEXT_BUDGET - head.length - SUBTREE_LEAD.length
-  );
+  const warned = warningLine(introduced(known.warnings, checked.warnings));
+  const head = headline(entries);
+  // Состав поддерева печатается только у одиночной правки: у пакета из дюжины compound'ов он не
+  // влезет ни в какой бюджет, а узнать состав модель может заранее — из describe_component.
+  const inside =
+    entries.length === 1
+      ? subtreeOf(
+          schema,
+          entries[0].ref,
+          TOOL_TEXT_BUDGET - head.length - warned.length - SUBTREE_LEAD.length
+        )
+      : undefined;
+
   return {
     ok: true,
-    text: inside ? `${head}${SUBTREE_LEAD}${inside}` : head,
-    schema: result.schema,
-    op: { kind, ref, summary },
+    text: `${head}${warned}${inside ? `${SUBTREE_LEAD}${inside}` : ''}`,
+    schema,
+    ops: entries.map((e) => ({ kind: e.kind, ref: e.ref, summary: e.summary })),
   };
+}
+
+/** Заголовок ответа: что сделано и по каким адресам. */
+function headline(entries: readonly BatchEntry[]): string {
+  if (entries.length === 1) {
+    return `Done: ${entries[0].report}. Node address: ${entries[0].ref}.`;
+  }
+  const lines = entries.map((e) => `${e.report} → ${e.ref}`);
+  return joinWithinBudget(
+    [`Done, ${entries.length} nodes:`],
+    lines,
+    TOOL_TEXT_BUDGET,
+    (shown, total) => `… and ${total - shown} more`
+  );
+}
+
+/**
+ * Замечания, которые правка ПРИНЕСЛА, — строкой вдогонку к успеху.
+ *
+ * Замечания структурного линтера (вкладка без панели, шаг не-контейнером) на валидность не влияют,
+ * поэтому гейт их не отвергает. Но раньше он их и не показывал: единственным каналом был отдельный
+ * `validate_form`, то есть целый обход «модель → инструмент → модель» в конце каждого хода — ровно
+ * тот шаг, который здесь и экономится. Сказанное сразу после правки и адреснее: модель ещё помнит,
+ * что делала.
+ *
+ * Сравнение с базой — та же политика «не обязана лечить, но обязана не ухудшать», что у ошибок:
+ * чужая форма с давним замечанием не должна упрекать агента на каждой правке.
+ */
+function warningLine(fresh: readonly string[]): string {
+  if (!fresh.length) return '';
+  const shown = fresh.slice(0, MAX_WARNINGS).join('; ');
+  const rest = fresh.length - Math.min(fresh.length, MAX_WARNINGS);
+  return `\nHeads up: ${shown}${rest > 0 ? ` (and ${rest} more)` : ''}.`;
 }
 
 /** Предисловие к составу поддерева — отделяет его от адреса самого узла. */

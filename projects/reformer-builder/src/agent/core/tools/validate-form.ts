@@ -55,9 +55,10 @@ function isNodeAt(ctx: ToolContext, segments: (string | number)[]): boolean {
 export const validateForm: AgentTool = {
   name: 'validate_form',
   description:
-    'Check the current form with the strict gate: node structure, known component names, ' +
-    'componentProps types and links between nodes (tab ↔ panel, wizard steps). ' +
-    'Call it after structural edits, before finishing your answer.',
+    // «Зови перед ответом» убрано: каждая правка и так проходит гейт, а новые замечания приходят
+    // прямо в её ответе. Обязательный финальный вызов был чистым лишним шагом в конце всякого хода.
+    'Check the whole form at once: node structure, component names, componentProps types and links ' +
+    'between nodes (tab ↔ panel, wizard steps). Single edits are already checked as you make them.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   readOnly: true,
   run(_params, ctx) {

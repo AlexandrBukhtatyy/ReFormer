@@ -6,21 +6,35 @@ import type { AiEvent, AiRequest } from './types';
  * Части потока, которые отдаст подменённый `streamText`. Переменная поднята `vi.hoisted`: фабрика
  * мока исполняется до тела файла, и обычная `let` в ней ещё не существует.
  */
-const stream = vi.hoisted(() => ({ parts: [] as unknown[] }));
+const stream = vi.hoisted(() => ({
+  parts: [] as unknown[],
+  args: {} as Record<string, unknown>,
+}));
 
 vi.mock('ai', async (importOriginal) => {
   const actual = await importOriginal<typeof import('ai')>();
   return {
     ...actual,
-    streamText: () => ({
-      fullStream: (async function* () {
-        yield* stream.parts;
-      })(),
-    }),
+    streamText: (args: Record<string, unknown>) => {
+      // Аргументы запоминаются целиком: половина этого файла проверяет не поток, а то, ЧЕМ именно
+      // мы зовём модель — пометку кэша, пределы, таймауты.
+      stream.args = args;
+      return {
+        fullStream: (async function* () {
+          // Ошибка в сценарии = поток оборвался исключением, а не событием: так ведут себя
+          // сетевые сбои и таймаут самого SDK.
+          for (const part of stream.parts) {
+            if (part instanceof Error) throw part;
+            yield part;
+          }
+        })(),
+      };
+    },
   };
 });
 
 const { streamViaAiSdk } = await import('./ai-sdk');
+type AiSdkTuning = import('./ai-sdk').AiSdkTuning;
 
 const REQUEST: AiRequest = {
   system: 's',
@@ -30,12 +44,17 @@ const REQUEST: AiRequest = {
 };
 
 /** Проиграть заданный поток SDK и собрать наши события. */
-async function play(parts: unknown[]): Promise<AiEvent[]> {
+async function play(parts: unknown[], tuning?: AiSdkTuning): Promise<AiEvent[]> {
   stream.parts = parts;
   const events: AiEvent[] = [];
-  for await (const e of streamViaAiSdk({} as LanguageModel, REQUEST)) events.push(e);
+  for await (const e of streamViaAiSdk({} as LanguageModel, REQUEST, undefined, tuning)) {
+    events.push(e);
+  }
   return events;
 }
+
+/** Чем позвали модель в последнем проигрыше. */
+const lastCall = () => stream.args;
 
 describe('перевод потока AI SDK', () => {
   it('рассуждение доходит отдельным событием, а не теряется по дороге', async () => {
@@ -97,5 +116,113 @@ describe('перевод потока AI SDK', () => {
   it('прерывание доходит как отмена', async () => {
     const events = await play([{ type: 'abort' }]);
     expect(events).toEqual([{ type: 'done', reason: 'aborted' }]);
+  });
+});
+
+describe('расход шага', () => {
+  it('конец шага доходит событием с разложением по кэшу', async () => {
+    const events = await play([
+      {
+        type: 'finish-step',
+        usage: {
+          inputTokens: 3120,
+          inputTokenDetails: { cacheReadTokens: 2800, cacheWriteTokens: 0 },
+          outputTokens: 64,
+        },
+      },
+      { type: 'finish', finishReason: 'stop' },
+    ]);
+
+    expect(events[0]).toEqual({
+      type: 'step_usage',
+      usage: {
+        inputTokens: 3120,
+        cachedInputTokens: 2800,
+        cacheWriteTokens: 0,
+        outputTokens: 64,
+      },
+    });
+  });
+
+  it('промолчавший провайдер отличается от нулевого расхода', async () => {
+    // Ollama сообщает вход, но ничего не знает про кэш. Подставить туда 0 значило бы утверждать,
+    // что кэш не сработал, — а он там попросту не существует как понятие.
+    const events = await play([
+      {
+        type: 'finish-step',
+        usage: { inputTokens: 900, inputTokenDetails: {}, outputTokens: undefined },
+      },
+      { type: 'finish', finishReason: 'stop' },
+    ]);
+
+    expect(events[0]).toEqual({ type: 'step_usage', usage: { inputTokens: 900 } });
+  });
+});
+
+describe('чем зовём модель', () => {
+  const finish = [{ type: 'finish', finishReason: 'stop' }];
+
+  it('канал с кэшем помечает префикс, а не просто шлёт строку', async () => {
+    // Пометка стоит на системном сообщении, но накрывает и определения инструментов: Anthropic
+    // складывает префикс как «инструменты → системный промпт → диалог».
+    await play(finish, { cacheBreakpoints: true, pruneContext: false, maxRetries: 2 });
+    expect(lastCall().instructions).toEqual({
+      role: 'system',
+      content: 's',
+      providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
+    });
+  });
+
+  it('канал без кэша получает промпт строкой — лишних полей в запросе не появляется', async () => {
+    await play(finish, { cacheBreakpoints: false, pruneContext: false, maxRetries: 2 });
+    expect(lastCall().instructions).toBe('s');
+    expect(lastCall().providerOptions).toBeUndefined();
+  });
+
+  it('ключ кэша OpenAI уходит своим namespace', async () => {
+    await play(finish, {
+      cacheBreakpoints: false,
+      promptCacheKey: 'rb-abc',
+      pruneContext: false,
+      maxRetries: 2,
+    });
+    expect(lastCall().providerOptions).toEqual({ openai: { promptCacheKey: 'rb-abc' } });
+  });
+
+  it('пределы и таймауты выставлены всегда', async () => {
+    await play(finish);
+    // temperature 0 — не вкусовщина: выдуманное имя компонента стоит отказа гейта, то есть шага.
+    expect(lastCall().temperature).toBe(0);
+    expect(lastCall().maxOutputTokens).toBeGreaterThan(0);
+    // Таймаут на первый фрагмент не ставится: у крупной локальной модели разбор промпта честно
+    // занимает минуты, и такой таймаут убивал бы живые запросы.
+    expect(lastCall().timeout).toMatchObject({ chunkMs: expect.any(Number) });
+    expect((lastCall().timeout as Record<string, unknown>).firstChunkMs).toBeUndefined();
+  });
+
+  it('предел повторов берётся из настроек канала', async () => {
+    await play(finish, { cacheBreakpoints: false, pruneContext: false, maxRetries: 1 });
+    expect(lastCall().maxRetries).toBe(1);
+  });
+
+  it('таймаут объясняется словами, а не сырым AbortError', async () => {
+    // Таймаут SDK прерывает запрос своим контроллером, и наш `signal.aborted` при этом ложь.
+    // Без разбора этого случая пользователь видел «The operation was aborted» — то есть отказ
+    // выглядел как нажатая им самим кнопка «Остановить».
+    const events = await play([Object.assign(new Error('aborted'), { name: 'AbortError' })]);
+    const error = events.find((e) => e.type === 'error') as { message: string; retryable: boolean };
+    expect(error.message).toContain('таймауту');
+    // Повтор здесь осмыслен, в отличие от обрыва по пределу длины.
+    expect(error.retryable).toBe(true);
+    expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
+  });
+
+  it('на последнем разрешённом шаге инструменты запрещены', async () => {
+    // Вызов с последнего шага всё равно не исполнится — шаги кончились. Без запрета ход обрывался
+    // молча, с набором правок, о котором модель не сказала ни слова.
+    await play(finish);
+    const prepare = lastCall().prepareStep as (o: { stepNumber: number }) => unknown;
+    expect(prepare({ stepNumber: REQUEST.maxSteps - 1 })).toEqual({ toolChoice: 'none' });
+    expect(prepare({ stepNumber: 0 })).toBeUndefined();
   });
 });

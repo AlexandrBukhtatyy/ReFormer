@@ -11,7 +11,7 @@
  * @module reformer-builder/agent/core/tools/set-node-prop
  */
 
-import type { JsonNode } from '@reformer/renderer-json';
+import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { getCatalogEntry, toInspectorProps } from '../../../catalog';
 import {
   isLeafComponent,
@@ -21,61 +21,121 @@ import {
   textChildIndex,
   type JsonPath,
 } from '../../../model';
-import { commitMutation } from '../gate';
-import { componentOf, isResolved, labelOf, resolveRef } from '../node-ref';
-import { fail, type AgentTool, type ToolContext, type ToolOutcome } from '../types';
-import { EXPECT_PROP, REF_PROP, type RefParams } from './params';
+import { commitBatch, type BatchEntry, type OpDescription } from '../gate';
+import type { NodeExpectation } from '../node-ref';
+import { componentOf, isResolved, labelOf, nodeRef, resolveRef } from '../node-ref';
+import { fail, type AgentTool, type ToolOutcome } from '../types';
+import { EXPECT_PROP } from './params';
+
+/** Значение свойства; `null` его убирает. */
+type PropValue = string | number | boolean | null;
 
 /** Параметры вызова. */
-interface Params extends RefParams {
-  key: string;
-  value: string | number | boolean | null;
+interface Params {
+  refs: string[];
+  props: Record<string, PropValue>;
+  expect?: NodeExpectation;
 }
 
 export const setNodePropTool: AgentTool<Params> = {
   name: 'set_node_prop',
+  // Оставлено только то, что не выводится из схемы: спецключ `text` — единственный способ задать
+  // содержимое узла, и без этой фразы модель перебирала пропы по кругу.
   description:
-    'Set one component property (label, placeholder, required, …). value: null removes the ' +
-    'property. Allowed keys and types come from describe_component. The special key text sets the ' +
-    "node's own content: a tab caption, a button label, a heading.",
+    'Set component properties (label, placeholder, required, …). The same props go to every node ' +
+    "in refs. The special key text sets the node's own content instead: a tab caption, a button " +
+    'label, a heading.',
   inputSchema: {
     type: 'object',
     properties: {
-      ref: REF_PROP,
-      key: { type: 'string', description: 'Property name' },
-      value: {
-        type: ['string', 'number', 'boolean', 'null'],
-        description: 'Value; null removes the property',
+      refs: {
+        type: 'array',
+        minItems: 1,
+        items: { type: 'string' },
+        description: 'Node addresses; the same props are applied to each',
+      },
+      props: {
+        type: 'object',
+        minProperties: 1,
+        description: 'name → value; null removes the property',
+        additionalProperties: { type: ['string', 'number', 'boolean', 'null'] },
       },
       expect: EXPECT_PROP,
     },
-    required: ['ref', 'key', 'value'],
+    required: ['refs', 'props'],
     additionalProperties: false,
   },
   readOnly: false,
   run(params, ctx) {
-    const found = resolveRef(ctx.draft, params.ref, params.expect);
-    if (!isResolved(found)) return found;
+    // Сверка ожидания имеет смысл только при одном адресе: она описывает ОДИН узел, и на списке
+    // означала бы «все эти узлы одинаковы» — утверждение, которое модель не имела в виду.
+    if (params.expect && params.refs.length > 1) {
+      return fail(
+        'INVALID_PARAMS',
+        'expect describes a single node — pass it only when refs holds exactly one address.'
+      );
+    }
 
-    if (params.key === TEXT_KEY) return setText(params, ctx, found);
+    let draft = ctx.draft;
+    const entries: BatchEntry[] = [];
 
-    // JSON не умеет выражать undefined, поэтому «убрать свойство» приходит как null.
-    const value = params.value === null ? undefined : params.value;
-    const result = setComponentProp(ctx.draft, found.path, params.key, value);
-    const name = labelOf(found.node) ?? componentOf(found.node) ?? params.ref;
-    return commitMutation(ctx, result, () => ({
+    for (const ref of params.refs) {
+      const found = resolveRef(draft, ref, params.expect);
+      if (!isResolved(found)) return found;
+
+      // Содержимое узла живёт в children, а не в componentProps, поэтому ключ `text` уходит своим
+      // путём — и вперёд остальных: он может отказать, а отказ обязан оставить черновик чистым.
+      let node = found.node;
+      let path = found.path;
+      for (const [key, value] of Object.entries(params.props)) {
+        const step =
+          key === TEXT_KEY
+            ? setText(draft, ref, { node, path }, value)
+            : setPlainProp(draft, { node, path }, key, value);
+        if ('error' in step) return step.error;
+        draft = step.schema;
+        // Узел перечитывается: предыдущее свойство уже сделало его другим объектом.
+        const again = resolveRef(draft, ref);
+        if (!isResolved(again)) return again;
+        node = again.node;
+        path = again.path;
+        entries.push({ ref, ...step.describe });
+      }
+    }
+
+    return commitBatch(ctx, draft, entries);
+  },
+};
+
+/** Результат одной правки свойства: новая схема с описанием либо отказ. */
+type PropStep = { schema: JsonFormSchema; describe: OpDescription } | { error: ToolOutcome };
+
+/** Обычное свойство — в `componentProps`. */
+function setPlainProp(
+  draft: JsonFormSchema,
+  found: { node: JsonNode; path: JsonPath },
+  key: string,
+  raw: PropValue
+): PropStep {
+  // JSON не умеет выражать undefined, поэтому «убрать свойство» приходит как null.
+  const value = raw === null ? undefined : raw;
+  const result = setComponentProp(draft, found.path, key, value);
+  const name = labelOf(found.node) ?? componentOf(found.node) ?? nodeRef(found.path);
+  return {
+    schema: result.schema,
+    describe: {
       kind: 'update',
       summary:
         value === undefined
-          ? `${name} → свойство ${params.key} убрано`
-          : `${name} → ${params.key} = ${JSON.stringify(value)}`,
+          ? `${name} → свойство ${key} убрано`
+          : `${name} → ${key} = ${JSON.stringify(value)}`,
       report:
         value === undefined
-          ? `${name} → property ${params.key} removed`
-          : `${name} → ${params.key} = ${JSON.stringify(value)}`,
-    }));
-  },
-};
+          ? `${name} → property ${key} removed`
+          : `${name} → ${key} = ${JSON.stringify(value)}`,
+    },
+  };
+}
 
 /** Ключ содержимого узла — пишется в `children`, а не в `componentProps` (см. шапку модуля). */
 const TEXT_KEY = 'text';
@@ -99,17 +159,20 @@ function captionPropOf(node: JsonNode): string | undefined {
 
 /** Записать содержимое узла текстовой частью `children`. */
 function setText(
-  params: Params,
-  ctx: ToolContext,
-  found: { node: JsonNode; path: JsonPath }
-): ToolOutcome {
+  draft: JsonFormSchema,
+  ref: string,
+  found: { node: JsonNode; path: JsonPath },
+  raw: PropValue
+): PropStep {
   // Содержимое бывает только у контейнера, который его рисует: у поля подпись — это `label`, а у
   // листа (Icon, Separator, <br>) содержимого нет вовсе. Условие дословно повторяет инспектор.
   if (kindOf(found.node) !== 'container' || isLeafComponent(found.node)) {
-    return fail(
-      'INVALID_PARENT',
-      `Node ${params.ref} has no content of its own. A field's caption is its "label" property.`
-    );
+    return {
+      error: fail(
+        'INVALID_PARENT',
+        `Node ${ref} has no content of its own. A field's caption is its "label" property.`
+      ),
+    };
   }
   // У части контейнеров подпись — собственный проп, а `children` держат СОДЕРЖИМОЕ: у шага мастера
   // это `title` и тело шага. Наблюдалось вживую: модель переименовывала шаг ключом `text`, и слово
@@ -117,29 +180,36 @@ function setText(
   // проп вместо того, чтобы молча испортить тело.
   const caption = captionPropOf(found.node);
   if (caption) {
-    return fail(
-      'INVALID_PARENT',
-      `${componentOf(found.node) ?? params.ref} is captioned by its "${caption}" property, not by ` +
-        `content: call set_node_prop ${params.ref} with key "${caption}".`
-    );
+    return {
+      error: fail(
+        'INVALID_PARENT',
+        `${componentOf(found.node) ?? ref} is captioned by its "${caption}" property, not by ` +
+          `content: set "${caption}" instead of "text" on ${ref}.`
+      ),
+    };
   }
   // Несколько текстовых частей — это шаблон вида ['Платёж: ', '$model(x)', ' ₽']. Заменить его
   // строкой значит потерять привязку, поэтому инспектор в таком случае показывает read-only, а
   // агенту честнее отказать, чем молча схлопнуть структуру.
   if (textChildIndex(found.node) === null) {
-    return fail(
-      'SCHEMA_INVALID',
-      `Content of ${params.ref} is assembled from several parts (text and bindings) — a plain ` +
-        `string would drop the bindings, so it is not replaced.`
-    );
+    return {
+      error: fail(
+        'SCHEMA_INVALID',
+        `Content of ${ref} is assembled from several parts (text and bindings) — a plain ` +
+          `string would drop the bindings, so it is not replaced.`
+      ),
+    };
   }
 
-  const text = params.value === null ? '' : String(params.value);
-  const result = setTextChild(ctx.draft, found.path, text);
-  const name = componentOf(found.node) ?? params.ref;
-  return commitMutation(ctx, result, () => ({
-    kind: 'update',
-    summary: text ? `${name} → текст «${text}»` : `${name} → текст убран`,
-    report: text ? `${name} → text "${text}"` : `${name} → text removed`,
-  }));
+  const text = raw === null ? '' : String(raw);
+  const result = setTextChild(draft, found.path, text);
+  const name = componentOf(found.node) ?? ref;
+  return {
+    schema: result.schema,
+    describe: {
+      kind: 'update',
+      summary: text ? `${name} → текст «${text}»` : `${name} → текст убран`,
+      report: text ? `${name} → text "${text}"` : `${name} → text removed`,
+    },
+  };
 }

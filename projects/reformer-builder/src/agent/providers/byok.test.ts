@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createByokProvider, listModels } from './byok';
+import { createByokProvider, listModels, tuningOf } from './byok';
 import type { ProviderConfig } from '../keys';
 
 /** Подменить fetch и запомнить, с чем его позвали. */
@@ -98,5 +98,31 @@ describe('createByokProvider', () => {
     expect(
       createByokProvider({ kind: 'openai', apiKey: 'k', model: 'gpt-x' }).displayName
     ).toContain('gpt-x');
+  });
+});
+
+describe('чем канал удешевляет ход', () => {
+  it('Anthropic помечает префикс — иначе три тысячи токенов оплачиваются каждый шаг', () => {
+    expect(tuningOf('anthropic').cacheBreakpoints).toBe(true);
+    expect(tuningOf('anthropic').promptCacheKey).toBeUndefined();
+  });
+
+  it('OpenAI кэширует сам, ему нужен только общий ключ разговора', () => {
+    const tuning = tuningOf('openai');
+    expect(tuning.cacheBreakpoints).toBe(false);
+    expect(tuning.promptCacheKey).toBeTruthy();
+    // Ключ уходит на сервер как есть, поэтому в нём не должно быть ничего, кроме случайного id.
+    expect(tuning.promptCacheKey).toMatch(/^rb-[a-z0-9]+$/);
+  });
+
+  it('ключ кэша один на сессию — иначе автокэш промахивается каждый ход', () => {
+    expect(tuningOf('openai').promptCacheKey).toBe(tuningOf('openai').promptCacheKey);
+  });
+
+  it('локальный канал не повторяет запрос дважды', () => {
+    // Не ответивший localhost не оживёт ни через две секунды, ни через четыре: повторы здесь —
+    // это шесть секунд мёртвого времени на шаг, а не запас надёжности.
+    expect(tuningOf('openai-compatible').maxRetries).toBe(1);
+    expect(tuningOf('openai-compatible').cacheBreakpoints).toBe(false);
   });
 });

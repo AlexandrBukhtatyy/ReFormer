@@ -30,10 +30,16 @@ export interface ToolRegistry {
   invoke(name: string, params: unknown, ctx: ToolContext): ToolOutcome;
 }
 
-/** Обрезать текст до бюджета, обозначив факт обрезки. */
+/**
+ * Обрезать текст до бюджета, обозначив факт обрезки.
+ *
+ * Суффикс идёт С НОВОЙ СТРОКИ: обрезка режет по символам и может разорвать JSON Pointer пополам,
+ * а приклеенный к обрубку суффикс превращал его в правдоподобный, но несуществующий адрес — модель
+ * шла по нему и сжигала шаг на `STALE_POINTER`. Перевод строки отделяет мусор от текста явно.
+ */
 function clamp(text: string, budget: number): string {
   if (text.length <= budget) return text;
-  const suffix = '… (response truncated)';
+  const suffix = '\n… (response truncated)';
   return `${text.slice(0, Math.max(0, budget - suffix.length))}${suffix}`;
 }
 

@@ -17,8 +17,9 @@ interface Params {
 export const listComponentsTool: AgentTool<Params> = {
   name: 'list_components',
   description:
+    // Правило «имена берутся отсюда» перенесено в системный промпт, где заодно перечислены поля
+    // этого кита: чаще всего список уже известен и вызов не нужен.
     'Components available in this editor build: name, role (field/container/array) and category. ' +
-    'Take component names ONLY from here — an invented name is rejected by the quality gate. ' +
     'Narrow the list with role and query.',
   inputSchema: {
     type: 'object',

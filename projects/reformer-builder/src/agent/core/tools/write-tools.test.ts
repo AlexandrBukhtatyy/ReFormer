@@ -25,7 +25,7 @@ describe('insert_node', () => {
   it('выдуманный компонент отклоняется с подсказками', () => {
     const res = reg.invoke(
       'insert_node',
-      { component: 'EmailField', parent: '/root' },
+      { parent: '/root', nodes: [{ component: 'EmailField' }] },
       ctxOf(emptySchema())
     );
     expect(res.error?.code).toBe('UNKNOWN_COMPONENT');
@@ -39,10 +39,8 @@ describe('insert_node', () => {
       reg.invoke(
         'insert_node',
         {
-          component: FIELD,
           parent: '/root',
-          model: 'applicant.email',
-          props: { label: 'Email' },
+          nodes: [{ component: FIELD, model: 'applicant.email', props: { label: 'Email' } }],
         },
         ctxOf(emptySchema())
       )
@@ -60,21 +58,21 @@ describe('insert_node', () => {
     let schema = expectOk(
       reg.invoke(
         'insert_node',
-        { component: FIELD, parent: '/root', props: { label: 'Первое' } },
+        { parent: '/root', nodes: [{ component: FIELD, props: { label: 'Первое' } }] },
         ctxOf(emptySchema())
       )
     );
     schema = expectOk(
       reg.invoke(
         'insert_node',
-        { component: FIELD, parent: '/root', props: { label: 'Второе' } },
+        { parent: '/root', nodes: [{ component: FIELD, props: { label: 'Второе' } }] },
         ctxOf(schema)
       )
     );
     schema = expectOk(
       reg.invoke(
         'insert_node',
-        { component: FIELD, parent: '/root', index: 0, props: { label: 'Нулевое' } },
+        { parent: '/root', index: 0, nodes: [{ component: FIELD, props: { label: 'Нулевое' } }] },
         ctxOf(schema)
       )
     );
@@ -88,7 +86,7 @@ describe('insert_node', () => {
   it('в мастер вставка идёт в шаги, а не в children — правило размещения знает редактор', () => {
     const base = sampleSchema();
     const schema = expectOk(
-      reg.invoke('insert_node', { component: 'Step', parent: '/root' }, ctxOf(base))
+      reg.invoke('insert_node', { parent: '/root', nodes: [{ component: 'Step' }] }, ctxOf(base))
     );
     expect(buildOutline(schema).map((e) => e.ref)).toContain('/root/componentProps/steps/2');
   });
@@ -96,7 +94,7 @@ describe('insert_node', () => {
   it('поле детей не принимает', () => {
     const res = reg.invoke(
       'insert_node',
-      { component: FIELD, parent: '/root/componentProps/steps/0/children/0' },
+      { parent: '/root/componentProps/steps/0/children/0', nodes: [{ component: FIELD }] },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -106,7 +104,11 @@ describe('insert_node', () => {
     // Наблюдалось вживую: insert_node(Input, parent=<Wizard>) отвечал «Готово», а поле вставало
     // в componentProps.steps и рантайм пытался нарисовать его вместо страницы мастера.
     const base = sampleSchema();
-    const res = reg.invoke('insert_node', { component: FIELD, parent: '/root' }, ctxOf(base));
+    const res = reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ component: FIELD }] },
+      ctxOf(base)
+    );
     expect(res.error?.code).toBe('INVALID_PARENT');
     expect(res.schema).toBeUndefined();
     expect(res.text).toContain('Step');
@@ -117,7 +119,7 @@ describe('insert_node', () => {
     // а ответ называл один адрес. Модель, не увидев готового TabsList, делала второй.
     const res = reg.invoke(
       'insert_node',
-      { component: 'Tabs', parent: '/root' },
+      { parent: '/root', nodes: [{ component: 'Tabs' }] },
       ctxOf(emptySchema())
     );
     expect(res.ok).toBe(true);
@@ -129,7 +131,7 @@ describe('insert_node', () => {
   it('вставка визарда показывает посеянный шаг с его адресом', () => {
     const res = reg.invoke(
       'insert_node',
-      { component: 'Wizard', parent: '/root' },
+      { parent: '/root', nodes: [{ component: 'Wizard' }] },
       ctxOf(emptySchema())
     );
     expect(res.text).toContain('/root/children/0/componentProps/steps/0');
@@ -139,7 +141,7 @@ describe('insert_node', () => {
   it('одиночный узел отвечает как раньше — массовый путь без лишнего текста', () => {
     const res = reg.invoke(
       'insert_node',
-      { component: FIELD, parent: '/root', model: 'a.b' },
+      { parent: '/root', nodes: [{ component: FIELD, model: 'a.b' }] },
       ctxOf(emptySchema())
     );
     expect(res.text).not.toContain('\n');
@@ -149,13 +151,13 @@ describe('insert_node', () => {
     // Самоуничтожение визарда: remove_node последнего шага оставлял steps: [], слот исчезал, и
     // всё, что вставляли дальше, уходило в children — в слот, которого рантайм не рендерит.
     let schema = expectOk(
-      reg.invoke('remove_node', { ref: '/root/componentProps/steps/1' }, ctxOf(sampleSchema()))
+      reg.invoke('remove_node', { refs: ['/root/componentProps/steps/1'] }, ctxOf(sampleSchema()))
     );
     schema = expectOk(
-      reg.invoke('remove_node', { ref: '/root/componentProps/steps/0' }, ctxOf(schema))
+      reg.invoke('remove_node', { refs: ['/root/componentProps/steps/0'] }, ctxOf(schema))
     );
     schema = expectOk(
-      reg.invoke('insert_node', { component: 'Step', parent: '/root' }, ctxOf(schema))
+      reg.invoke('insert_node', { parent: '/root', nodes: [{ component: 'Step' }] }, ctxOf(schema))
     );
 
     const refs = buildOutline(schema).map((e) => e.ref);
@@ -164,19 +166,198 @@ describe('insert_node', () => {
   });
 });
 
+describe('insert_node пакетом', () => {
+  const fields = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      component: FIELD,
+      model: `f.${i}`,
+      props: { label: `Поле ${i}` },
+    }));
+
+  it('несколько узлов за вызов встают в том же порядке, что и по одному', () => {
+    const batched = expectOk(
+      reg.invoke('insert_node', { parent: '/root', nodes: fields(3) }, ctxOf(emptySchema()))
+    );
+    let serial = emptySchema();
+    for (const node of fields(3)) {
+      serial = expectOk(
+        reg.invoke('insert_node', { parent: '/root', nodes: [node] }, ctxOf(serial))
+      );
+    }
+    expect(buildOutline(batched)).toEqual(buildOutline(serial));
+  });
+
+  it('явный index не переворачивает пакет', () => {
+    // Наивная реализация вставляла бы каждый следующий узел ПЕРЕД предыдущим: index один и тот же.
+    const base = expectOk(
+      reg.invoke(
+        'insert_node',
+        { parent: '/root', nodes: [{ component: FIELD, props: { label: 'Хвост' } }] },
+        ctxOf(emptySchema())
+      )
+    );
+    const schema = expectOk(
+      reg.invoke('insert_node', { parent: '/root', index: 0, nodes: fields(2) }, ctxOf(base))
+    );
+    expect(
+      buildOutline(schema)
+        .slice(1)
+        .map((e) => e.label)
+    ).toEqual(['Поле 0', 'Поле 1', 'Хвост']);
+  });
+
+  it('ответ называет адрес каждого узла — по ним модель правит их дальше', () => {
+    const res = reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: fields(3) },
+      ctxOf(emptySchema())
+    );
+    expect(res.ok).toBe(true);
+    for (const i of [0, 1, 2]) expect(res.text).toContain(`/root/children/${i}`);
+    // Журнал предпросмотра — строка на узел, а не на вызов.
+    expect(res.ops).toHaveLength(3);
+  });
+
+  it('негодный узел в середине отменяет ВЕСЬ пакет и называет его номер', () => {
+    // Частично применённый пакет оставил бы черновик в состоянии, которого модель не знает: её
+    // следующий вызов адресовал бы узлы по неверным индексам.
+    const res = reg.invoke(
+      'insert_node',
+      {
+        parent: '/root',
+        nodes: [{ component: FIELD }, { component: 'НетТакого' }, { component: FIELD }],
+      },
+      ctxOf(emptySchema())
+    );
+    expect(res.error?.code).toBe('UNKNOWN_COMPONENT');
+    expect(res.text).toContain('nodes[1]');
+    expect(res.schema).toBeUndefined();
+  });
+
+  it('одиночная вставка номер элемента не приписывает — приписывать нечего', () => {
+    const res = reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ component: 'НетТакого' }] },
+      ctxOf(emptySchema())
+    );
+    expect(res.text).not.toContain('nodes[');
+  });
+});
+
+describe('set_node_prop пакетом', () => {
+  const step0 = '/root/componentProps/steps/0';
+
+  it('одни и те же свойства уходят на все адреса за один вызов', () => {
+    const refs = [`${step0}/children/0`, `${step0}/children/1`];
+    const schema = expectOk(
+      reg.invoke('set_node_prop', { refs, props: { required: true } }, ctxOf(sampleSchema()))
+    );
+    const outline = buildOutline(schema);
+    for (const ref of refs) expect(outline.find((e) => e.ref === ref)?.required).toBe(true);
+  });
+
+  it('несколько свойств одного узла — тоже один вызов', () => {
+    const ref = `${step0}/children/0`;
+    const schema = expectOk(
+      reg.invoke(
+        'set_node_prop',
+        { refs: [ref], props: { required: true, label: 'Новая подпись' } },
+        ctxOf(sampleSchema())
+      )
+    );
+    const entry = buildOutline(schema).find((e) => e.ref === ref);
+    expect(entry?.required).toBe(true);
+    expect(entry?.label).toBe('Новая подпись');
+  });
+
+  it('ожидание при нескольких адресах отвергается — оно описывает один узел', () => {
+    const res = reg.invoke(
+      'set_node_prop',
+      {
+        refs: [`${step0}/children/0`, `${step0}/children/1`],
+        props: { required: true },
+        expect: { component: FIELD },
+      },
+      ctxOf(sampleSchema())
+    );
+    expect(res.error?.code).toBe('INVALID_PARAMS');
+    expect(res.schema).toBeUndefined();
+  });
+
+  it('устаревший адрес в пакете отменяет весь вызов', () => {
+    const res = reg.invoke(
+      'set_node_prop',
+      { refs: [`${step0}/children/0`, `${step0}/children/99`], props: { required: true } },
+      ctxOf(sampleSchema())
+    );
+    expect(res.ok).toBe(false);
+    expect(res.schema).toBeUndefined();
+  });
+});
+
+describe('remove_node пакетом', () => {
+  it('соседей удаляет именно тех, что назвали, — сдвиг индексов не подводит', () => {
+    // Ровно тот класс ошибок, ради которого пакет и заведён: удаляя по одному по возрастанию,
+    // модель сдвигала индексы и вторым вызовом сносила чужой узел.
+    const base = expectOk(
+      reg.invoke(
+        'insert_node',
+        {
+          parent: '/root',
+          nodes: [0, 1, 2].map((i) => ({ component: FIELD, model: `f.${i}` })),
+        },
+        ctxOf(emptySchema())
+      )
+    );
+    const schema = expectOk(
+      reg.invoke('remove_node', { refs: ['/root/children/0', '/root/children/1'] }, ctxOf(base))
+    );
+    // Уцелеть должен ровно третий: первые два названы, а не «первые два по счёту после сдвига».
+    expect(
+      buildOutline(schema)
+        .slice(1)
+        .map((e) => e.model)
+    ).toEqual(['f.2']);
+  });
+
+  it('порядок адресов в дереве считается по числам, а не по буквам', () => {
+    // На десяти и более соседях лексикографика врёт: '/children/10' < '/children/2'. Удаление
+    // «с конца» перестало бы быть удалением с конца ровно там, где детей стало много.
+    const base = expectOk(
+      reg.invoke(
+        'insert_node',
+        {
+          parent: '/root',
+          nodes: Array.from({ length: 12 }, (_, i) => ({ component: FIELD, model: `f.${i}` })),
+        },
+        ctxOf(emptySchema())
+      )
+    );
+    const schema = expectOk(
+      reg.invoke('remove_node', { refs: ['/root/children/2', '/root/children/10'] }, ctxOf(base))
+    );
+    const left = buildOutline(schema)
+      .slice(1)
+      .map((e) => e.model);
+    expect(left).not.toContain('f.2');
+    expect(left).not.toContain('f.10');
+    expect(left).toHaveLength(10);
+  });
+});
+
 describe('set_node_prop', () => {
   const ref = '/root/componentProps/steps/0/children/0';
 
   it('задаёт свойство', () => {
     const schema = expectOk(
-      reg.invoke('set_node_prop', { ref, key: 'required', value: true }, ctxOf(sampleSchema()))
+      reg.invoke('set_node_prop', { refs: [ref], props: { required: true } }, ctxOf(sampleSchema()))
     );
     expect(buildOutline(schema).find((e) => e.ref === ref)?.required).toBe(true);
   });
 
   it('null удаляет свойство', () => {
     const schema = expectOk(
-      reg.invoke('set_node_prop', { ref, key: 'label', value: null }, ctxOf(sampleSchema()))
+      reg.invoke('set_node_prop', { refs: [ref], props: { label: null } }, ctxOf(sampleSchema()))
     );
     expect(buildOutline(schema).find((e) => e.ref === ref)?.label).toBeUndefined();
   });
@@ -185,13 +366,17 @@ describe('set_node_prop', () => {
     // Подпись вкладки живёт текстовой частью children, и рендерер берёт её только оттуда. Пока
     // ключа не было, переименовать вкладку было нечем: модель перебирала пропы по кругу.
     const base = expectOk(
-      reg.invoke('insert_node', { component: 'Tabs', parent: '/root' }, ctxOf(emptySchema()))
+      reg.invoke(
+        'insert_node',
+        { parent: '/root', nodes: [{ component: 'Tabs' }] },
+        ctxOf(emptySchema())
+      )
     );
     const trigger = '/root/children/0/children/0/children/0';
     const schema = expectOk(
       reg.invoke(
         'set_node_prop',
-        { ref: trigger, key: 'text', value: 'Личные данные' },
+        { refs: [trigger], props: { text: 'Личные данные' } },
         ctxOf(base)
       )
     );
@@ -209,7 +394,7 @@ describe('set_node_prop', () => {
     // абзацем НАД полями шага, а заголовок оставался прежним. У Step children — тело, не подпись.
     const res = reg.invoke(
       'set_node_prop',
-      { ref: '/root/componentProps/steps/0', key: 'text', value: 'Шаг 2' },
+      { refs: ['/root/componentProps/steps/0'], props: { text: 'Шаг 2' } },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -223,7 +408,11 @@ describe('set_node_prop', () => {
     const step = getAt(draft, [...P.step0]) as { children: unknown[] };
     step.children = ['Платёж: ', '$model(loanAmount)', ' ₽'];
 
-    const res = reg.invoke('set_node_prop', { ref, key: 'text', value: 'Итого' }, ctxOf(draft));
+    const res = reg.invoke(
+      'set_node_prop',
+      { refs: [ref], props: { text: 'Итого' } },
+      ctxOf(draft)
+    );
     expect(res.ok).toBe(false);
     expect(res.schema).toBeUndefined();
   });
@@ -231,7 +420,7 @@ describe('set_node_prop', () => {
   it('у поля содержимого нет — отказ объясняет, чем задавать подпись', () => {
     const res = reg.invoke(
       'set_node_prop',
-      { ref, key: 'text', value: 'Сумма' },
+      { refs: [ref], props: { text: 'Сумма' } },
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
@@ -242,7 +431,7 @@ describe('set_node_prop', () => {
     const draft = sampleSchema();
     const res = reg.invoke(
       'set_node_prop',
-      { ref, key: 'required', value: true, expect: { model: 'loanAmount' } },
+      { refs: [ref], props: { required: true }, expect: { model: 'loanAmount' } },
       ctxOf(draft)
     );
     expect(res.error?.code).toBe('STALE_POINTER');
@@ -254,13 +443,13 @@ describe('set_node_prop', () => {
     const schema = expectOk(
       reg.invoke(
         'insert_node',
-        { component: 'Input', parent: '/root', model: 'x' },
+        { parent: '/root', nodes: [{ component: 'Input', model: 'x' }] },
         ctxOf(emptySchema())
       )
     );
     const res = reg.invoke(
       'set_node_prop',
-      { ref: '/root/children/0', key: 'min', value: 'не-число' },
+      { refs: ['/root/children/0'], props: { min: 'не-число' } },
       ctxOf(schema, emptySchema())
     );
     expect(res.error?.code).toBe('SCHEMA_INVALID');
@@ -274,7 +463,7 @@ describe('set_node_prop', () => {
     const base = expectOk(
       reg.invoke(
         'insert_node',
-        { component: 'Input', parent: '/root', model: 'x' },
+        { parent: '/root', nodes: [{ component: 'Input', model: 'x' }] },
         ctxOf(emptySchema())
       )
     );
@@ -285,7 +474,7 @@ describe('set_node_prop', () => {
 
     const res = reg.invoke(
       'insert_node',
-      { component: FIELD, parent: '/root', index: 0, model: 'y' },
+      { parent: '/root', index: 0, nodes: [{ component: FIELD, model: 'y' }] },
       ctxOf(base)
     );
     expect(res.error?.code, res.text).toBeUndefined();
@@ -297,7 +486,7 @@ describe('set_node_prop', () => {
     const base = expectOk(
       reg.invoke(
         'insert_node',
-        { component: 'Input', parent: '/root', model: 'x' },
+        { parent: '/root', nodes: [{ component: 'Input', model: 'x' }] },
         ctxOf(emptySchema())
       )
     );
@@ -307,11 +496,15 @@ describe('set_node_prop', () => {
     broken.componentProps = { ...broken.componentProps, min: 'не-число' };
 
     const withSecond = expectOk(
-      reg.invoke('insert_node', { component: 'Input', parent: '/root', model: 'z' }, ctxOf(base))
+      reg.invoke(
+        'insert_node',
+        { parent: '/root', nodes: [{ component: 'Input', model: 'z' }] },
+        ctxOf(base)
+      )
     );
     const res = reg.invoke(
       'set_node_prop',
-      { ref: '/root/children/1', key: 'min', value: 'тоже-не-число' },
+      { refs: ['/root/children/1'], props: { min: 'тоже-не-число' } },
       ctxOf(withSecond, base)
     );
     expect(res.error?.code).toBe('SCHEMA_INVALID');
@@ -320,7 +513,7 @@ describe('set_node_prop', () => {
   it('непричастные узлы сохраняют ссылочную идентичность', () => {
     const base = sampleSchema();
     const schema = expectOk(
-      reg.invoke('set_node_prop', { ref, key: 'required', value: true }, ctxOf(base))
+      reg.invoke('set_node_prop', { refs: [ref], props: { required: true } }, ctxOf(base))
     );
     // Второй шаг правку не видел — structural sharing обязан сохранить тот же объект.
     expect(getAt(schema, P.step1)).toBe(getAt(base, P.step1));
@@ -351,11 +544,11 @@ describe('remove_node', () => {
   it('удаляет узел и сообщает о вложенных', () => {
     const res = reg.invoke(
       'remove_node',
-      { ref: '/root/componentProps/steps/0' },
+      { refs: ['/root/componentProps/steps/0'] },
       ctxOf(sampleSchema())
     );
     const schema = expectOk(res);
-    expect(res.op?.summary).toContain('вложенные узлы');
+    expect(res.ops?.[0]?.summary).toContain('вложенные узлы');
     expect(buildOutline(schema).map((e) => e.ref)).not.toContain('/root/componentProps/steps/1');
   });
 });
@@ -477,5 +670,61 @@ describe('set_layout', () => {
       ctxOf(sampleSchema())
     );
     expect(res.error?.code).toBe('INVALID_PARENT');
+  });
+});
+
+describe('замечания структуры — вдогонку к успешной правке', () => {
+  /** Форма с собранным Tabs: он валиден и замечаний не даёт. */
+  function withTabs(): JsonFormSchema {
+    return expectOk(
+      reg.invoke(
+        'insert_node',
+        { parent: '/root', nodes: [{ component: 'Tabs' }] },
+        ctxOf(emptySchema())
+      )
+    );
+  }
+
+  it('правка, принёсшая замечание, сообщает о нём сразу — без отдельного validate_form', () => {
+    // Третья вкладка без value ни к какой панели не привязана. На валидность это не влияет, поэтому
+    // гейт правку принимает; но узнавать об этом в конце хода отдельным вызовом — целый лишний
+    // обход «модель → инструмент → модель».
+    const base = withTabs();
+    const res = reg.invoke(
+      'insert_node',
+      { parent: '/root/children/0/children/0', nodes: [{ component: 'TabsTrigger' }] },
+      ctxOf(base)
+    );
+    expect(res.ok).toBe(true);
+    expect(res.text).toContain('Heads up');
+    expect(res.text).toContain('no value');
+  });
+
+  it('давнее замечание чужой формы не упрекает агента на каждой правке', () => {
+    // Политика «не обязана лечить, но обязана не ухудшать»: замечание, уже бывшее в базе, новым
+    // не считается — иначе любая правка кривой формы выглядела бы как её порча.
+    const broken = expectOk(
+      reg.invoke(
+        'insert_node',
+        { parent: '/root/children/0/children/0', nodes: [{ component: 'TabsTrigger' }] },
+        ctxOf(withTabs())
+      )
+    );
+    const res = reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ component: FIELD, props: { label: 'Имя' } }] },
+      ctxOf(broken, broken)
+    );
+    expect(res.ok).toBe(true);
+    expect(res.text).not.toContain('Heads up');
+  });
+
+  it('чистая правка ответ не удлиняет', () => {
+    const res = reg.invoke(
+      'insert_node',
+      { parent: '/root', nodes: [{ component: FIELD, props: { label: 'Имя' } }] },
+      ctxOf(emptySchema())
+    );
+    expect(res.text).not.toContain('Heads up');
   });
 });

@@ -20,7 +20,7 @@ function openForm(schema: JsonFormSchema = emptySchema()): JsonFormSchema {
 function oneChange(base: JsonFormSchema): ChangeSet {
   const outcome = reg.invoke(
     'insert_node',
-    { component: 'Input', parent: '/root', model: 'x', props: { label: 'Поле' } },
+    { parent: '/root', nodes: [{ component: 'Input', model: 'x', props: { label: 'Поле' } }] },
     { draft: base, base }
   );
   expect(outcome.error?.code, outcome.text).toBeUndefined();
@@ -46,7 +46,7 @@ describe('applyChangeSet', () => {
     for (const label of ['Имя', 'Email', 'Телефон']) {
       const outcome = reg.invoke(
         'insert_node',
-        { component: 'Input', parent: '/root', model: label, props: { label } },
+        { parent: '/root', nodes: [{ component: 'Input', model: label, props: { label } }] },
         { draft: set.draft, base }
       );
       set = withOutcome(set, outcome);

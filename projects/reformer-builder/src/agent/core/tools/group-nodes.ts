@@ -9,6 +9,7 @@ import { commitMutation } from '../gate';
 import { isResolved, refToPath, resolveRef } from '../node-ref';
 import { layoutClassName, type LayoutParams } from '../layout';
 import { fail, type AgentTool } from '../types';
+import { LAYOUT_PROPS } from './params';
 
 /** Параметры вызова. */
 interface Params extends LayoutParams {
@@ -29,13 +30,7 @@ export const groupNodesTool: AgentTool<Params> = {
         minItems: 2,
         description: 'Addresses of adjacent nodes in one container, in document order',
       },
-      direction: { type: 'string', enum: ['row', 'column'], description: 'Layout of the group' },
-      columns: { type: 'integer', minimum: 2, description: 'Number of grid columns' },
-      gap: {
-        type: 'string',
-        enum: ['none', 'sm', 'md', 'lg'],
-        description: 'Spacing between children',
-      },
+      ...LAYOUT_PROPS,
     },
     required: ['refs'],
     additionalProperties: false,

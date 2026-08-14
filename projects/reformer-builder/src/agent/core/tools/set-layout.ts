@@ -10,7 +10,7 @@ import { commitMutation } from '../gate';
 import { layoutClassName, type LayoutParams } from '../layout';
 import { componentOf, isResolved, labelOf, resolveRef } from '../node-ref';
 import { fail, type AgentTool } from '../types';
-import { EXPECT_PROP, REF_PROP, type RefParams } from './params';
+import { EXPECT_PROP, LAYOUT_PROPS, REF_PROP, type RefParams } from './params';
 
 /** Параметры вызова. */
 interface Params extends RefParams, LayoutParams {}
@@ -19,18 +19,12 @@ export const setLayoutTool: AgentTool<Params> = {
   name: 'set_layout',
   description:
     'Set the layout of a container: direction (row/column), columns (grid) and gap (density). ' +
-    'Styling classes are left alone. Never write CSS classes directly — use these parameters.',
+    'Styling classes are left alone.',
   inputSchema: {
     type: 'object',
     properties: {
       ref: REF_PROP,
-      direction: { type: 'string', enum: ['row', 'column'], description: 'Layout axis' },
-      columns: { type: 'integer', minimum: 2, description: 'Number of grid columns' },
-      gap: {
-        type: 'string',
-        enum: ['none', 'sm', 'md', 'lg'],
-        description: 'Spacing between children',
-      },
+      ...LAYOUT_PROPS,
       expect: EXPECT_PROP,
     },
     required: ['ref'],

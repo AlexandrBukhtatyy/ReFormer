@@ -8,7 +8,7 @@ const write = (summary: string): ToolOutcome => ({
   ok: true,
   text: 'ok',
   schema: emptySchema(),
-  op: { kind: 'add', ref: '/root/children/0', summary },
+  ops: [{ kind: 'add', ref: '/root/children/0', summary }],
 });
 
 describe('ChangeSet', () => {
@@ -49,16 +49,31 @@ describe('ChangeSet', () => {
     set = withOutcome(set, write('Email (Input)'));
     set = withOutcome(set, {
       ...write('Email → required = true'),
-      op: { kind: 'update', ref: '/root/children/0', summary: 'Email → required = true' },
+      ops: [{ kind: 'update', ref: '/root/children/0', summary: 'Email → required = true' }],
     });
     set = withOutcome(set, {
       ...write('Телефон'),
-      op: { kind: 'remove', ref: '/root/children/1', summary: 'Телефон' },
+      ops: [{ kind: 'remove', ref: '/root/children/1', summary: 'Телефон' }],
     });
     expect(describeChangeSet(set)).toEqual([
       '+ Email (Input)',
       '~ Email → required = true',
       '− Телефон',
     ]);
+  });
+
+  it('пакетная правка кладёт в журнал строку на каждый узел, а не на вызов', () => {
+    // Предпросмотр — это то, по чему пользователь решает, применять ли ход. Свёрнутое «добавлено
+    // 12 полей» одной строкой ни проверить, ни осмысленно отменить нельзя.
+    const set = withOutcome(createChangeSet(sampleSchema()), {
+      ok: true,
+      text: 'ok',
+      schema: emptySchema(),
+      ops: [
+        { kind: 'add', ref: '/root/children/0', summary: 'Имя (Input)' },
+        { kind: 'add', ref: '/root/children/1', summary: 'Email (Input)' },
+      ],
+    });
+    expect(describeChangeSet(set)).toEqual(['+ Имя (Input)', '+ Email (Input)']);
   });
 });

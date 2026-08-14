@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSchema } from '../../model/__fixtures__/sample-schema';
+import { systemPrompt } from './prompt';
 import { createToolRegistry } from './registry';
-import { READ_ONLY_TOOLS } from './tools';
+import { ALL_TOOLS, READ_ONLY_TOOLS } from './tools';
 import {
   ok,
+  PROMPT_BUDGET,
   TOOL_DESCRIPTION_BUDGET,
   TOOL_NAME_BUDGET,
+  TOOL_SURFACE_BUDGET,
   TOOL_TEXT_BUDGET,
   type AgentTool,
   type ToolContext,
@@ -99,9 +102,31 @@ describe('invoke', () => {
 });
 
 describe('бюджеты поверхности', () => {
-  it.each(READ_ONLY_TOOLS.map((t) => [t.name, t] as const))('%s укладывается', (_name, tool) => {
+  // Проверяются ВСЕ инструменты, а не только read-only: write-инструменты крупнее вдвое (у них
+  // схемы аргументов), и именно они оставались вне проверки.
+  it.each(ALL_TOOLS.map((t) => [t.name, t] as const))('%s укладывается', (_name, tool) => {
     expect(tool.name.length).toBeLessThanOrEqual(TOOL_NAME_BUDGET);
     expect(tool.description.length).toBeLessThanOrEqual(TOOL_DESCRIPTION_BUDGET);
     expect(tool.name).toMatch(/^[a-z][a-z0-9_]*$/);
+  });
+
+  /** То, что уходит в запрос: ровно поля, которые провайдер кладёт в определение инструмента. */
+  const surface = () =>
+    JSON.stringify(
+      ALL_TOOLS.map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      }))
+    ).length;
+
+  it('вся поверхность вместе укладывается в бюджет', () => {
+    // Падение здесь — не «подними константу», а «сожми схемы»: каждый лишний символ отправляется
+    // заново на каждом из десятков шагов хода.
+    expect(surface()).toBeLessThanOrEqual(TOOL_SURFACE_BUDGET);
+  });
+
+  it('системный промпт укладывается в бюджет', () => {
+    expect(systemPrompt().length).toBeLessThanOrEqual(PROMPT_BUDGET);
   });
 });
