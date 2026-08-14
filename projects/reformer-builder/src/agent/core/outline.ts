@@ -99,16 +99,54 @@ function renderEntry(e: OutlineEntry): string {
  * о числе пропущенных узлов, чтобы модель знала о неполноте и дозапросила нужное через
  * `get_form_node`, а не считала обрезанное дерево полным.
  *
+ * Первым жертвуется СОДЕРЖИМОЕ, а не структура. Обрезка по порядку строк оставляла поля первого
+ * шага и отбрасывала сами шаги — модель, которую попросили дописать поля во второй и третий шаг,
+ * не находила их адресов, не могла подтвердить, что они существуют, и тратила весь ход на
+ * сомнения. Без структуры карта бесполезна, без отдельных полей — всего лишь неполна, и недостающее
+ * добирается точечным `get_form_node`.
+ *
  * @param entries - Результат {@link buildOutline}.
  * @param budget - Бюджет в символах.
  */
 export function renderOutline(entries: readonly OutlineEntry[], budget: number): string {
   if (!entries.length) return 'The form is empty: no nodes.';
+  const full = entries.map(renderEntry);
+  if (full.join('\n').length <= budget) return full.join('\n');
   return joinWithinBudget(
     [],
-    entries.map(renderEntry),
+    collapseFields(entries),
     budget,
     (shown, total) =>
-      `… ${total - shown} more node(s) — call get_form_node for the address you need`
+      `… ${total - shown} more line(s) — call get_form_node for the address you need`
   );
+}
+
+/**
+ * Свернуть подряд идущие поля в одну строку-счётчик, сохранив всю структуру.
+ *
+ * Поля сворачиваются группами по родителю — ровно так они и лежат в дайджесте, друг за другом
+ * после своего контейнера. Массивы (`kind: 'array'`) остаются: у них внутри шаблон, то есть они
+ * такая же структура, как контейнер.
+ */
+function collapseFields(entries: readonly OutlineEntry[]): string[] {
+  const out: string[] = [];
+  let held: OutlineEntry[] = [];
+
+  const flush = () => {
+    if (!held.length) return;
+    const indent = '  '.repeat(held[0].depth);
+    out.push(`${indent}… ${held.length} field(s) here — get_form_node for their addresses`);
+    held = [];
+  };
+
+  for (const entry of entries) {
+    if (entry.kind === 'field') {
+      held.push(entry);
+      continue;
+    }
+    flush();
+    out.push(renderEntry(entry));
+  }
+  flush();
+  return out;
 }

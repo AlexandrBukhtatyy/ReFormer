@@ -12,6 +12,7 @@ import { applyChangeSet } from './apply';
 import { createEditorToolRegistry } from './core';
 import { hasChanges, type ChangeSet } from './core/changeset';
 import { runAgentTurn, type TurnEvent, type TurnStats } from './core/loop';
+import { loadProviderConfig } from './keys';
 import { agentSessionActions, agentSessionStore } from './session';
 import type { AiMessage, AiProvider } from './providers/types';
 
@@ -116,6 +117,9 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
   // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
   agentSessionActions.startTurn(message, tab.schema);
   const messages = historyFor();
+  // Предел шагов читается здесь, а не в канале: это свойство ХОДА, а не соединения с моделью, и
+  // владеть им должен цикл. Настройка лежит рядом с ключом только потому, что там её и задают.
+  const maxSteps = loadProviderConfig()?.maxSteps;
   const controller = new AbortController();
   current = controller;
 
@@ -125,6 +129,7 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
       registry: toolRegistry(),
       base: tab.schema,
       messages,
+      ...(maxSteps !== undefined ? { maxSteps } : {}),
       signal: controller.signal,
     })) {
       switch (event.type) {
@@ -181,6 +186,27 @@ function report(stats: TurnStats): void {
 }
 
 /**
+ * Замечание к ходу, который не изменил форму и ничего не сказал.
+ *
+ * Такой ход выглядит как зависание: лента пуста, форма прежняя, ошибки нет. Наблюдалось вживую —
+ * модель тратила весь вывод на рассуждение и обрывалась, не дойдя до первого вызова инструмента,
+ * а пользователь видел ровно ничего.
+ *
+ * Ход, в котором модель ОТВЕТИЛА текстом, замечания не получает: «покажи, что в форме» — законный
+ * вопрос, и форму он менять не обязан.
+ */
+function silentTurnNote(): string | undefined {
+  const last = agentSessionStore.getState().entries.at(-1);
+  if (!last || last.role !== 'assistant') return undefined;
+  if (last.text.trim().length > 0) return undefined;
+  return last.tools.length > 0
+    ? 'Ассистент вызывал инструменты, но форму не изменил и ничего не ответил.'
+    : 'Ассистент ничего не сделал и не ответил. Обычно это значит, что весь ответ ушёл в ' +
+        'рассуждение: у локальной модели поможет контекстное окно побольше (num_ctx / ' +
+        'OLLAMA_CONTEXT_LENGTH), а задачу стоит разбить на части поменьше.';
+}
+
+/**
  * Завершить ход: правки уходят в форму сразу.
  *
  * Подтверждать каждый ход кнопкой не нужно — отменить его можно и после: у реплики пользователя
@@ -194,7 +220,7 @@ function report(stats: TurnStats): void {
 function finish(changeSet: ChangeSet, reason: TurnReason, message?: string): void {
   const error = reason === 'error' ? (message ?? 'Ход прервался ошибкой.') : undefined;
   if (!hasChanges(changeSet)) {
-    agentSessionActions.finishTurn(null, error);
+    agentSessionActions.finishTurn(null, error ?? silentTurnNote());
     return;
   }
 

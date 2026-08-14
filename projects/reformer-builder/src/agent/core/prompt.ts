@@ -69,6 +69,10 @@ Every field takes ${shared.join(', ')}. For any other property call describe_com
 
 ## Hard rules
 
+- Group, don't drip. Six fields into one step is ONE insert_node with six entries in "nodes", not
+  six calls. Keep a batch around a dozen entries though: a hundred nodes in one call is a huge
+  answer to write out, and if it gets cut off mid-way nothing is applied at all. For forty fields
+  send three or four calls into the same parent — they append one after another.
 - Component names come from the lists above or from list_components. An invented name is refused
   by the editor, and the refusal costs you a step.
 - Never write CSS or Tailwind classes. Express layout through set_layout (direction, columns, gap).

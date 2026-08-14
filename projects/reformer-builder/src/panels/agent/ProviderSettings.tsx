@@ -25,6 +25,7 @@ import { Spinner } from '@reformer/ui-kit/spinner';
 import {
   clearProviderConfig,
   DEFAULT_LOCAL_BASE_URL,
+  limitsFrom,
   loadProviderConfig,
   PROVIDER_LABEL,
   PROVIDER_ORIGIN,
@@ -58,6 +59,11 @@ export function ProviderSettings({ onConnected }: ProviderSettingsProps) {
   const [baseUrl, setBaseUrl] = useState(stored?.baseUrl ?? DEFAULT_LOCAL_BASE_URL);
   const [models, setModels] = useState<string[]>([]);
   const [model, setModel] = useState(stored?.model ?? '');
+  // Строкой, а не числом: пустое поле означает «без предела», и приводить его к 0 нельзя.
+  const [maxOutputTokens, setMaxOutputTokens] = useState(
+    stored?.maxOutputTokens ? String(stored.maxOutputTokens) : ''
+  );
+  const [maxSteps, setMaxSteps] = useState(stored?.maxSteps ? String(stored.maxSteps) : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +72,7 @@ export function ProviderSettings({ onConnected }: ProviderSettingsProps) {
     ...(apiKey ? { apiKey } : {}),
     ...(kind === 'openai-compatible' ? { baseUrl } : {}),
     ...(model ? { model } : {}),
+    ...limitsFrom(maxSteps, maxOutputTokens),
   });
 
   const loadModels = async () => {
@@ -190,6 +197,43 @@ export function ProviderSettings({ onConnected }: ProviderSettingsProps) {
           </Select>
         </div>
       )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="rb-agent-max-steps" className="text-[11.5px] text-muted-foreground">
+            Шагов за ход
+          </Label>
+          <Input
+            id="rb-agent-max-steps"
+            type="number"
+            min={1}
+            value={maxSteps}
+            onChange={(e) => setMaxSteps(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
+            placeholder="без предела"
+            className="h-8"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="rb-agent-max-output" className="text-[11.5px] text-muted-foreground">
+            Ответ за шаг, токенов
+          </Label>
+          <Input
+            id="rb-agent-max-output"
+            type="number"
+            min={256}
+            value={maxOutputTokens}
+            onChange={(e) => setMaxOutputTokens(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
+            placeholder="без предела"
+            className="h-8"
+          />
+        </div>
+      </div>
+      <p className="text-[11px] leading-4 text-muted-foreground">
+        Пустые поля — без ограничений. Предел шагов страхует от зацикливания на платных каналах, но
+        обрывает ход на середине формы, если его занизить.
+      </p>
 
       {error && (
         <Alert variant="destructive">

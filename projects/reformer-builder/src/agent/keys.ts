@@ -24,6 +24,48 @@ export interface ProviderConfig {
   baseUrl?: string;
   /** Выбранная модель. */
   model?: string;
+  /**
+   * Потолок вывода одного шага в токенах. По умолчанию не задан — предела нет.
+   *
+   * Настройка, а не константа: у think-моделей рассуждение съедает вывод целиком, и любое
+   * зашитое число обрывало бы ответ на полуслове у одних и ничего не значило у других. Задавать
+   * его стоит осознанно — например, чтобы зациклившаяся модель не писала ответ бесконечно.
+   */
+  maxOutputTokens?: number;
+  /**
+   * Предел шагов «модель → инструмент → модель» за ход. По умолчанию не задан — предела нет.
+   *
+   * Тоже настройка, а не константа: зашитое число обрывало работу на середине формы, потому что
+   * цена задачи в шагах зависит от модели — одна собирает шесть полей одним вызовом, другая
+   * шестью. Задают его как страховку от зацикливания, прежде всего на платных каналах.
+   */
+  maxSteps?: number;
+}
+
+/**
+ * Необязательные пределы из полей ввода.
+ *
+ * Пустое поле, ноль и мусор означают одно и то же — «без предела», и ключ не должен появиться
+ * вовсе: `maxSteps: 0` прочиталось бы как «ноль шагов» и остановило бы ход, не начав его, а
+ * `maxOutputTokens: 0` оборвало бы ответ на первом же токене.
+ *
+ * @param maxSteps - Значение поля «Шагов за ход» как есть, строкой.
+ * @param maxOutputTokens - Значение поля «Ответ за шаг» как есть, строкой.
+ */
+export function limitsFrom(
+  maxSteps: string,
+  maxOutputTokens: string
+): Pick<ProviderConfig, 'maxSteps' | 'maxOutputTokens'> {
+  const positive = (raw: string): number | undefined => {
+    const value = Number(raw.trim());
+    return raw.trim() && Number.isFinite(value) && value > 0 ? value : undefined;
+  };
+  const steps = positive(maxSteps);
+  const output = positive(maxOutputTokens);
+  return {
+    ...(steps !== undefined ? { maxSteps: steps } : {}),
+    ...(output !== undefined ? { maxOutputTokens: output } : {}),
+  };
 }
 
 const STORAGE_KEY = 'rb.agent.provider';

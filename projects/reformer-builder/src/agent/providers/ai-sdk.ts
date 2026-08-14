@@ -45,6 +45,14 @@ export interface AiSdkTuning {
   /** Ключ маршрутизации автоматического кэша OpenAI: одинаковый на весь ход. */
   promptCacheKey?: string;
   /**
+   * Потолок вывода одного шага; `undefined` — без потолка (значение по умолчанию).
+   *
+   * Не задаётся сам по себе намеренно: think-модель легко выдаёт пару тысяч токенов рассуждения на
+   * шаг, и тесное значение обрывает ответ по `length`, то есть сжигает ход целиком. Ставить его
+   * стоит только осознанно — например, чтобы зациклившаяся модель не писала ответ бесконечно.
+   */
+  maxOutputTokens?: number;
+  /**
    * Полоть контекст между шагами: выбрасывать рассуждение и схлопывать повторные чтения.
    *
    * Включается только там, где кэша префикса нет. Правка сообщений в середине диалога меняет байты
@@ -64,22 +72,18 @@ const DEFAULT_TUNING: AiSdkTuning = {
 };
 
 /**
- * Потолок вывода одного шага.
+ * Таймауты потока — только детектор зависания, не предел работы.
  *
- * Именно потолок, а не экономия: think-модель легко выдаёт пару тысяч токенов рассуждения на шаг,
- * и слишком тесное значение оборвало бы ход по `length` — то есть сожгло бы его целиком. Нужен он
- * для того, чтобы зациклившаяся модель не писала ответ бесконечно.
- */
-const MAX_OUTPUT_TOKENS = 8192;
-
-/**
- * Таймауты потока.
+ * `chunkMs` ловит ровно одно: сервер замолчал посреди ответа (обычно кончилась память под модель).
  *
  * `firstChunkMs` НЕ задаётся намеренно: у крупной локальной модели разбор промпта честно занимает
- * минуту и больше, и таймаут на первый фрагмент убивал бы живые запросы. А вот молчание ПОСЛЕ
- * начала ответа — это уже смерть сервера, и его ограничивать можно.
+ * минуту и больше, и таймаут на первый фрагмент убивал бы живые запросы.
+ *
+ * `totalMs` не задаётся тоже: предела шагов у хода нет, и общий таймаут стал бы его заменой —
+ * обрывал бы длинную, но исправно идущую работу над крупной формой. Останавливают ход кнопка
+ * «Остановить» и молчание сервера, а не секундомер.
  */
-const TIMEOUT = { chunkMs: 60_000, totalMs: 600_000 };
+const TIMEOUT = { chunkMs: 60_000 };
 
 /**
  * Причины остановки, при которых ход оборван, а не завершён.
@@ -105,6 +109,20 @@ const BROKEN_FINISH: Partial<Record<FinishReason, string>> = {
 };
 
 /**
+ * Ход израсходовал все шаги.
+ *
+ * Формулировка осторожнее, чем у `tool-calls`: на последнем шаге инструменты запрещены, поэтому
+ * модель могла и договорить работу до конца — но могла и не успеть, а молчание в этом случае
+ * выдаёт половину формы за готовый результат.
+ */
+const AT_LIMIT =
+  'Ход израсходовал все шаги. Сделанное применено; если форма собрана не полностью — напишите ' +
+  '«продолжай», и работа пойдёт дальше с этого места.';
+
+/** «Не останавливаться»: ход идёт, пока модель не закончит сама. */
+const NEVER = () => false;
+
+/**
  * Провести ход через AI SDK, переводя его поток в {@link AiEvent}.
  *
  * @param model - Модель, уже настроенная провайдером.
@@ -123,6 +141,9 @@ export async function* streamViaAiSdk(
 
   const readOnlyNames = new Set(req.tools.filter((t) => t.readOnly).map((t) => t.name));
   const readOnly = (name: string) => readOnlyNames.has(name);
+
+  /** Дошёл ли ход до последнего разрешённого шага — см. `prepareStep` и обработку `finish`. */
+  let reachedStepLimit = false;
 
   const tools = Object.fromEntries(
     req.tools.map((definition) => [
@@ -144,14 +165,21 @@ export async function* streamViaAiSdk(
     instructions: instructionsOf(req.system, tuning),
     messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
     tools,
-    stopWhen: stepCountIs(req.maxSteps),
+    // Условие «никогда» задаётся ЯВНО: без `stopWhen` SDK подставляет `stepCountIs(1)`, то есть
+    // ход закончился бы после первого же вызова инструмента, не дойдя до правок.
+    stopWhen: req.maxSteps === undefined ? NEVER : stepCountIs(req.maxSteps),
     abortSignal: signal,
     // На последнем разрешённом шаге инструменты запрещаются: вызов оттуда всё равно не исполнится
     // (шаги кончились), и ход обрывался на полуслове с набором изменений, о котором модель ничего
     // не сказала. Запрет превращает этот шаг в обычный ответ — «сделал столько-то, осталось вот
     // это», — и не стоит ни одного дополнительного обращения.
     prepareStep: ({ stepNumber, messages }) => {
-      const last = stepNumber >= req.maxSteps - 1 ? { toolChoice: 'none' as const } : {};
+      const atLimit = req.maxSteps !== undefined && stepNumber >= req.maxSteps - 1;
+      // Запрет инструментов делает шаг «тихим», и без этой отметки упор в предел неотличим от
+      // законченной работы: модель отвечает текстом, finishReason становится 'stop', и ход
+      // выглядит успешным при наполовину собранной форме.
+      if (atLimit) reachedStepLimit = true;
+      const last = atLimit ? { toolChoice: 'none' as const } : {};
       if (!tuning.pruneContext) return Object.keys(last).length ? last : undefined;
       const pruned = pruneSupersededReads(dropReasoning(messages), readOnly);
       return { ...last, messages: pruned };
@@ -159,7 +187,7 @@ export async function* streamViaAiSdk(
     // Работа структурная: чем меньше выдумок в именах компонентов и свойств, тем меньше отказов
     // гейта, а каждый отказ — это лишний обход «модель → инструмент → модель».
     temperature: 0,
-    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    ...(tuning.maxOutputTokens ? { maxOutputTokens: tuning.maxOutputTokens } : {}),
     maxRetries: tuning.maxRetries,
     timeout: TIMEOUT,
     ...(tuning.promptCacheKey
@@ -207,7 +235,10 @@ export async function* streamViaAiSdk(
           yield { type: 'done', reason: 'aborted' };
           return;
         case 'finish': {
-          const broken = BROKEN_FINISH[part.finishReason];
+          // Упор в предел шагов больше не виден по finishReason: на последнем шаге инструменты
+          // запрещены, модель отвечает текстом, и провайдер сообщает штатный 'stop'. Отметка из
+          // prepareStep — единственный оставшийся признак, что работать было ещё над чем.
+          const broken = BROKEN_FINISH[part.finishReason] ?? (reachedStepLimit ? AT_LIMIT : null);
           if (broken) {
             // Повтор того же запроса упрётся в тот же предел — чинится настройкой, а не кнопкой.
             yield { type: 'error', message: broken, retryable: false };

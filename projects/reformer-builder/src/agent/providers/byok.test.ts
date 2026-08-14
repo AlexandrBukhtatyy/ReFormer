@@ -103,12 +103,12 @@ describe('createByokProvider', () => {
 
 describe('чем канал удешевляет ход', () => {
   it('Anthropic помечает префикс — иначе три тысячи токенов оплачиваются каждый шаг', () => {
-    expect(tuningOf('anthropic').cacheBreakpoints).toBe(true);
-    expect(tuningOf('anthropic').promptCacheKey).toBeUndefined();
+    expect(tuningOf({ kind: 'anthropic' }).cacheBreakpoints).toBe(true);
+    expect(tuningOf({ kind: 'anthropic' }).promptCacheKey).toBeUndefined();
   });
 
   it('OpenAI кэширует сам, ему нужен только общий ключ разговора', () => {
-    const tuning = tuningOf('openai');
+    const tuning = tuningOf({ kind: 'openai' });
     expect(tuning.cacheBreakpoints).toBe(false);
     expect(tuning.promptCacheKey).toBeTruthy();
     // Ключ уходит на сервер как есть, поэтому в нём не должно быть ничего, кроме случайного id.
@@ -116,13 +116,27 @@ describe('чем канал удешевляет ход', () => {
   });
 
   it('ключ кэша один на сессию — иначе автокэш промахивается каждый ход', () => {
-    expect(tuningOf('openai').promptCacheKey).toBe(tuningOf('openai').promptCacheKey);
+    expect(tuningOf({ kind: 'openai' }).promptCacheKey).toBe(
+      tuningOf({ kind: 'openai' }).promptCacheKey
+    );
   });
 
   it('локальный канал не повторяет запрос дважды', () => {
     // Не ответивший localhost не оживёт ни через две секунды, ни через четыре: повторы здесь —
     // это шесть секунд мёртвого времени на шаг, а не запас надёжности.
-    expect(tuningOf('openai-compatible').maxRetries).toBe(1);
-    expect(tuningOf('openai-compatible').cacheBreakpoints).toBe(false);
+    expect(tuningOf({ kind: 'openai-compatible' }).maxRetries).toBe(1);
+    expect(tuningOf({ kind: 'openai-compatible' }).cacheBreakpoints).toBe(false);
+  });
+
+  it('потолок ответа по умолчанию не задан — его ставит пользователь, а не мы', () => {
+    // Зашитое число обрывало ответ think-модели на полуслове: рассуждение съедало вывод целиком,
+    // и ход заканчивался по `length`, не дойдя до правок.
+    for (const kind of ['anthropic', 'openai', 'openai-compatible'] as const) {
+      expect(tuningOf({ kind }).maxOutputTokens).toBeUndefined();
+    }
+  });
+
+  it('заданный потолок доходит до канала', () => {
+    expect(tuningOf({ kind: 'anthropic', maxOutputTokens: 4096 }).maxOutputTokens).toBe(4096);
   });
 });

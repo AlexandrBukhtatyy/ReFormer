@@ -106,21 +106,24 @@ function modelOf(config: ProviderConfig): LanguageModel {
  * Ключ кэша OpenAI — случайный идентификатор сессии редактора. В нём не должно быть ни ключа API,
  * ни чего-либо из формы: он уходит на сервер как есть.
  */
-export function tuningOf(kind: ProviderKind): AiSdkTuning {
-  switch (kind) {
+export function tuningOf(config: ProviderConfig): AiSdkTuning {
+  // Потолок вывода задаёт пользователь; по умолчанию его нет — см. ProviderConfig.maxOutputTokens.
+  const limit = config.maxOutputTokens ? { maxOutputTokens: config.maxOutputTokens } : {};
+  switch (config.kind) {
     case 'anthropic':
-      return { cacheBreakpoints: true, pruneContext: false, maxRetries: 2 };
+      return { cacheBreakpoints: true, pruneContext: false, maxRetries: 2, ...limit };
     case 'openai':
       return {
         cacheBreakpoints: false,
         promptCacheKey: sessionCacheKey(),
         pruneContext: false,
         maxRetries: 2,
+        ...limit,
       };
     case 'openai-compatible':
       // Единственный канал, где полоть выгодно: кэша префикса нет, зато контекст упирается в
       // физическое окно модели, и рассуждение с прошлых шагов съедает больше половины запроса.
-      return { cacheBreakpoints: false, pruneContext: true, maxRetries: 1 };
+      return { cacheBreakpoints: false, pruneContext: true, maxRetries: 1, ...limit };
   }
 }
 
@@ -162,6 +165,6 @@ export function createByokProvider(config: ProviderConfig): AiProvider {
 
     capabilities: () => capabilitiesOf(config.kind),
 
-    stream: (req, signal) => streamViaAiSdk(modelOf(config), req, signal, tuningOf(config.kind)),
+    stream: (req, signal) => streamViaAiSdk(modelOf(config), req, signal, tuningOf(config)),
   };
 }

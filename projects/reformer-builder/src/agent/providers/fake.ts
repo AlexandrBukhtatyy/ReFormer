@@ -70,7 +70,7 @@ export function createFakeProvider(
           yield { type: 'reasoning', text: item.reasoning };
           continue;
         }
-        if (step >= req.maxSteps) {
+        if (req.maxSteps !== undefined && step >= req.maxSteps) {
           yield {
             type: 'error',
             message: `Превышен предел шагов (${req.maxSteps}).`,

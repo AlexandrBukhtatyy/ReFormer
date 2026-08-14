@@ -9,6 +9,8 @@ import type { AiEvent, AiRequest } from './types';
 const stream = vi.hoisted(() => ({
   parts: [] as unknown[],
   args: {} as Record<string, unknown>,
+  /** Номер шага, который мок подставит в `prepareStep`. */
+  stepNumber: 0,
 }));
 
 vi.mock('ai', async (importOriginal) => {
@@ -21,6 +23,12 @@ vi.mock('ai', async (importOriginal) => {
       stream.args = args;
       return {
         fullStream: (async function* () {
+          // SDK зовёт prepareStep перед каждым шагом; мок повторяет один вызов, иначе отметки,
+          // которые там ставятся (например «дошли до последнего шага»), не успели бы сработать.
+          const prepare = args.prepareStep as
+            | ((o: { stepNumber: number; messages: unknown[] }) => unknown)
+            | undefined;
+          prepare?.({ stepNumber: stream.stepNumber, messages: [] });
           // Ошибка в сценарии = поток оборвался исключением, а не событием: так ведут себя
           // сетевые сбои и таймаут самого SDK.
           for (const part of stream.parts) {
@@ -36,18 +44,24 @@ vi.mock('ai', async (importOriginal) => {
 const { streamViaAiSdk } = await import('./ai-sdk');
 type AiSdkTuning = import('./ai-sdk').AiSdkTuning;
 
+/** Запрос по умолчанию — без предела шагов, как его теперь и собирает цикл. */
 const REQUEST: AiRequest = {
   system: 's',
   messages: [{ role: 'user', content: 'добавь поле' }],
   tools: [],
-  maxSteps: 4,
 };
 
 /** Проиграть заданный поток SDK и собрать наши события. */
-async function play(parts: unknown[], tuning?: AiSdkTuning): Promise<AiEvent[]> {
+async function play(
+  parts: unknown[],
+  tuning?: AiSdkTuning,
+  req: AiRequest = REQUEST,
+  stepNumber = 0
+): Promise<AiEvent[]> {
   stream.parts = parts;
+  stream.stepNumber = stepNumber;
   const events: AiEvent[] = [];
-  for await (const e of streamViaAiSdk({} as LanguageModel, REQUEST, undefined, tuning)) {
+  for await (const e of streamViaAiSdk({} as LanguageModel, req, undefined, tuning)) {
     events.push(e);
   }
   return events;
@@ -193,11 +207,26 @@ describe('чем зовём модель', () => {
     await play(finish);
     // temperature 0 — не вкусовщина: выдуманное имя компонента стоит отказа гейта, то есть шага.
     expect(lastCall().temperature).toBe(0);
-    expect(lastCall().maxOutputTokens).toBeGreaterThan(0);
     // Таймаут на первый фрагмент не ставится: у крупной локальной модели разбор промпта честно
     // занимает минуты, и такой таймаут убивал бы живые запросы.
     expect(lastCall().timeout).toMatchObject({ chunkMs: expect.any(Number) });
     expect((lastCall().timeout as Record<string, unknown>).firstChunkMs).toBeUndefined();
+  });
+
+  it('потолок ответа не задаётся, пока его не задал пользователь', async () => {
+    // Зашитое число обрывало ответ think-модели на полуслове: рассуждение съедало вывод целиком.
+    await play(finish);
+    expect(lastCall().maxOutputTokens).toBeUndefined();
+  });
+
+  it('заданный потолок доходит до модели', async () => {
+    await play(finish, {
+      cacheBreakpoints: false,
+      pruneContext: false,
+      maxRetries: 2,
+      maxOutputTokens: 4096,
+    });
+    expect(lastCall().maxOutputTokens).toBe(4096);
   });
 
   it('предел повторов берётся из настроек канала', async () => {
@@ -217,12 +246,31 @@ describe('чем зовём модель', () => {
     expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
   });
 
-  it('на последнем разрешённом шаге инструменты запрещены', async () => {
-    // Вызов с последнего шага всё равно не исполнится — шаги кончились. Без запрета ход обрывался
-    // молча, с набором правок, о котором модель не сказала ни слова.
-    await play(finish);
+  it('без предела шагов ход не останавливают ни на каком шаге', async () => {
+    // `stopWhen` обязан быть задан ЯВНО: без него SDK подставляет stepCountIs(1), и ход закончился
+    // бы после первого же вызова инструмента, не дойдя до правок.
+    const events = await play(finish, undefined, REQUEST, 999);
+    const stop = lastCall().stopWhen as (o: unknown) => boolean;
+    expect(stop({})).toBe(false);
+    // Никакого «израсходовал шаги»: их некуда расходовать.
+    expect(events).toEqual([{ type: 'done', reason: 'complete' }]);
+  });
+
+  it('заданный предел запрещает инструменты на последнем шаге', async () => {
+    // Вызов с последнего шага всё равно не исполнится — шаги кончились.
+    await play(finish, undefined, { ...REQUEST, maxSteps: 4 }, 3);
     const prepare = lastCall().prepareStep as (o: { stepNumber: number }) => unknown;
-    expect(prepare({ stepNumber: REQUEST.maxSteps - 1 })).toEqual({ toolChoice: 'none' });
+    expect(prepare({ stepNumber: 3 })).toEqual({ toolChoice: 'none' });
     expect(prepare({ stepNumber: 0 })).toBeUndefined();
+  });
+
+  it('упор в заданный предел не выдаётся за законченную работу', async () => {
+    // Запрет инструментов делает последний шаг «тихим»: модель отвечает текстом, провайдер
+    // сообщает штатный stop — и половина формы выглядела бы результатом. Ровно так ход и
+    // останавливался молча, пока об упоре не начали сообщать отдельно.
+    const events = await play(finish, undefined, { ...REQUEST, maxSteps: 4 }, 3);
+    const error = events.find((e) => e.type === 'error') as { message: string } | undefined;
+    expect(error?.message).toContain('израсходовал все шаги');
+    expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
   });
 });
