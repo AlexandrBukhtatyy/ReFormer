@@ -18,6 +18,8 @@ import {
   type FinishReason,
   type LanguageModel,
   type LanguageModelUsage,
+  type StopCondition,
+  type ToolSet,
 } from 'ai';
 import type { ToolOutcome } from '../core/types';
 import { dropReasoning, pruneSupersededReads } from './context';
@@ -119,8 +121,45 @@ const AT_LIMIT =
   'Ход израсходовал все шаги. Сделанное применено; если форма собрана не полностью — напишите ' +
   '«продолжай», и работа пойдёт дальше с этого места.';
 
+/** Ход остановлен потолком стоимости, а не пределом шагов: настройка для починки другая. */
+const OVER_BUDGET =
+  'Ход остановлен: израсходован бюджет входных токенов. Сделанное применено; продолжить можно ' +
+  'следующим сообщением, а если задача просто большая — поднимите бюджет в настройках канала.';
+
 /** «Не останавливаться»: ход идёт, пока модель не закончит сама. */
 const NEVER = () => false;
+
+/**
+ * Когда прекращать ход.
+ *
+ * Условие задаётся ЯВНО даже когда пределов нет: без `stopWhen` SDK подставляет `stepCountIs(1)`,
+ * то есть ход закончился бы после первого же вызова инструмента, не дойдя до правок.
+ *
+ * Бюджет проверяется ПОСЛЕ шага — раньше расход неизвестен, — поэтому шаг, на котором потолок
+ * перейдён, уже оплачен. Точный контроль тут невозможен в принципе; задача предела в другом:
+ * не дать зациклившемуся ходу молча съесть бюджет целиком.
+ *
+ * @param req - Запрос хода: из него берутся оба предела.
+ * @param onBudget - Вызывается, когда ход остановлен именно бюджетом (нужно, чтобы отличить эту
+ *   остановку от штатного конца: для провайдера она выглядит обычным завершением).
+ */
+function stopConditions(req: AiRequest, onBudget: () => void) {
+  const conditions: StopCondition<ToolSet>[] = [];
+
+  if (req.maxSteps !== undefined) conditions.push(stepCountIs(req.maxSteps));
+
+  const budget = req.maxInputTokens;
+  if (budget !== undefined) {
+    conditions.push(({ steps }) => {
+      const spent = steps.reduce((sum, s) => sum + (s.usage?.inputTokens ?? 0), 0);
+      if (spent < budget) return false;
+      onBudget();
+      return true;
+    });
+  }
+
+  return conditions.length ? conditions : NEVER;
+}
 
 /**
  * Провести ход через AI SDK, переводя его поток в {@link AiEvent}.
@@ -144,6 +183,8 @@ export async function* streamViaAiSdk(
 
   /** Дошёл ли ход до последнего разрешённого шага — см. `prepareStep` и обработку `finish`. */
   let reachedStepLimit = false;
+  /** Исчерпан ли бюджет входных токенов — ставится условием остановки, читается на `finish`. */
+  let exceededBudget = false;
 
   const tools = Object.fromEntries(
     req.tools.map((definition) => [
@@ -165,9 +206,9 @@ export async function* streamViaAiSdk(
     instructions: instructionsOf(req.system, tuning),
     messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
     tools,
-    // Условие «никогда» задаётся ЯВНО: без `stopWhen` SDK подставляет `stepCountIs(1)`, то есть
-    // ход закончился бы после первого же вызова инструмента, не дойдя до правок.
-    stopWhen: req.maxSteps === undefined ? NEVER : stepCountIs(req.maxSteps),
+    stopWhen: stopConditions(req, () => {
+      exceededBudget = true;
+    }),
     abortSignal: signal,
     // На последнем разрешённом шаге инструменты запрещаются: вызов оттуда всё равно не исполнится
     // (шаги кончились), и ход обрывался на полуслове с набором изменений, о котором модель ничего
@@ -238,7 +279,11 @@ export async function* streamViaAiSdk(
           // Упор в предел шагов больше не виден по finishReason: на последнем шаге инструменты
           // запрещены, модель отвечает текстом, и провайдер сообщает штатный 'stop'. Отметка из
           // prepareStep — единственный оставшийся признак, что работать было ещё над чем.
-          const broken = BROKEN_FINISH[part.finishReason] ?? (reachedStepLimit ? AT_LIMIT : null);
+          // Бюджет проверяется первым: он тоже выглядит как остановка на пределе шагов, но
+          // причина у неё другая, и лечится она другой настройкой.
+          const broken = exceededBudget
+            ? OVER_BUDGET
+            : (BROKEN_FINISH[part.finishReason] ?? (reachedStepLimit ? AT_LIMIT : null));
           if (broken) {
             // Повтор того же запроса упрётся в тот же предел — чинится настройкой, а не кнопкой.
             yield { type: 'error', message: broken, retryable: false };

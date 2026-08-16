@@ -49,6 +49,8 @@ export interface AgentTurnOptions {
   messages: readonly AiMessage[];
   /** Предел шагов; по умолчанию его нет — см. {@link DEFAULT_MAX_STEPS}. */
   maxSteps?: number;
+  /** Потолок входных токенов на ход; по умолчанию его нет. */
+  maxInputTokens?: number;
   signal?: AbortSignal;
   /** Переопределение системного промпта (тесты). */
   system?: string;
@@ -126,6 +128,7 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
         messages: withOutlineSeed(opts.messages, opts.base),
         tools,
         maxSteps,
+        ...(opts.maxInputTokens !== undefined ? { maxInputTokens: opts.maxInputTokens } : {}),
       },
       opts.signal
     )) {

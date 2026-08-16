@@ -64,6 +64,9 @@ export function ProviderSettings({ onConnected }: ProviderSettingsProps) {
     stored?.maxOutputTokens ? String(stored.maxOutputTokens) : ''
   );
   const [maxSteps, setMaxSteps] = useState(stored?.maxSteps ? String(stored.maxSteps) : '');
+  const [maxInputTokens, setMaxInputTokens] = useState(
+    stored?.maxInputTokens ? String(stored.maxInputTokens) : ''
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +75,7 @@ export function ProviderSettings({ onConnected }: ProviderSettingsProps) {
     ...(apiKey ? { apiKey } : {}),
     ...(kind === 'openai-compatible' ? { baseUrl } : {}),
     ...(model ? { model } : {}),
-    ...limitsFrom(maxSteps, maxOutputTokens),
+    ...limitsFrom({ maxSteps, maxOutputTokens, maxInputTokens }),
   });
 
   const loadModels = async () => {
@@ -230,9 +233,26 @@ export function ProviderSettings({ onConnected }: ProviderSettingsProps) {
           />
         </div>
       </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="rb-agent-max-input" className="text-[11.5px] text-muted-foreground">
+          Вход за ход, токенов
+        </Label>
+        <Input
+          id="rb-agent-max-input"
+          type="number"
+          min={1000}
+          value={maxInputTokens}
+          onChange={(e) => setMaxInputTokens(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
+          placeholder="без предела"
+          className="h-8"
+        />
+      </div>
+
       <p className="text-[11px] leading-4 text-muted-foreground">
-        Пустые поля — без ограничений. Предел шагов страхует от зацикливания на платных каналах, но
-        обрывает ход на середине формы, если его занизить.
+        Пустые поля — без ограничений. На платном канале страхует от разгона именно предел по
+        входным токенам: цена шага растёт вместе с диалогом, поэтому счёт зависит от них, а не от
+        числа вызовов. Занижать любой из пределов не стоит — ход оборвётся на середине формы.
       </p>
 
       {error && (

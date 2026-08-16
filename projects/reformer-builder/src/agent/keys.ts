@@ -40,7 +40,24 @@ export interface ProviderConfig {
    * шестью. Задают его как страховку от зацикливания, прежде всего на платных каналах.
    */
   maxSteps?: number;
+  /**
+   * Потолок входных токенов на один ход. По умолчанию не задан — предела нет.
+   *
+   * Мера стоимости честнее, чем число шагов: цена шага растёт вместе с диалогом, и двадцать шагов
+   * в начале хода стоят кратно меньше двадцати в конце. На платном канале ограничивать стоит то,
+   * за что выставляют счёт.
+   */
+  maxInputTokens?: number;
 }
+
+/** Поля пределов в форме настроек — как они введены, строками. */
+export type LimitFields = Partial<Record<keyof ProviderLimits, string>>;
+
+/** Необязательные пределы канала. */
+export type ProviderLimits = Pick<
+  ProviderConfig,
+  'maxSteps' | 'maxOutputTokens' | 'maxInputTokens'
+>;
 
 /**
  * Необязательные пределы из полей ввода.
@@ -49,23 +66,19 @@ export interface ProviderConfig {
  * вовсе: `maxSteps: 0` прочиталось бы как «ноль шагов» и остановило бы ход, не начав его, а
  * `maxOutputTokens: 0` оборвало бы ответ на первом же токене.
  *
- * @param maxSteps - Значение поля «Шагов за ход» как есть, строкой.
- * @param maxOutputTokens - Значение поля «Ответ за шаг» как есть, строкой.
+ * @param fields - Значения полей как есть; отсутствующее поле равносильно пустому.
  */
-export function limitsFrom(
-  maxSteps: string,
-  maxOutputTokens: string
-): Pick<ProviderConfig, 'maxSteps' | 'maxOutputTokens'> {
-  const positive = (raw: string): number | undefined => {
+export function limitsFrom(fields: LimitFields): ProviderLimits {
+  const positive = (raw = ''): number | undefined => {
     const value = Number(raw.trim());
     return raw.trim() && Number.isFinite(value) && value > 0 ? value : undefined;
   };
-  const steps = positive(maxSteps);
-  const output = positive(maxOutputTokens);
-  return {
-    ...(steps !== undefined ? { maxSteps: steps } : {}),
-    ...(output !== undefined ? { maxOutputTokens: output } : {}),
-  };
+  const out: ProviderLimits = {};
+  for (const key of ['maxSteps', 'maxOutputTokens', 'maxInputTokens'] as const) {
+    const value = positive(fields[key]);
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
 }
 
 const STORAGE_KEY = 'rb.agent.provider';

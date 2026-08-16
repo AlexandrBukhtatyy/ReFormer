@@ -117,9 +117,9 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
   // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
   agentSessionActions.startTurn(message, tab.schema);
   const messages = historyFor();
-  // Предел шагов читается здесь, а не в канале: это свойство ХОДА, а не соединения с моделью, и
-  // владеть им должен цикл. Настройка лежит рядом с ключом только потому, что там её и задают.
-  const maxSteps = loadProviderConfig()?.maxSteps;
+  // Пределы хода читаются здесь, а не в канале: это свойства ХОДА, а не соединения с моделью, и
+  // владеть ими должен цикл. Настройки лежат рядом с ключом только потому, что там их и задают.
+  const { maxSteps, maxInputTokens } = loadProviderConfig() ?? {};
   const controller = new AbortController();
   current = controller;
 
@@ -130,6 +130,7 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
       base: tab.schema,
       messages,
       ...(maxSteps !== undefined ? { maxSteps } : {}),
+      ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
       signal: controller.signal,
     })) {
       switch (event.type) {

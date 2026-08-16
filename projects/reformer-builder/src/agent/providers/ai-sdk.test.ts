@@ -11,6 +11,8 @@ const stream = vi.hoisted(() => ({
   args: {} as Record<string, unknown>,
   /** Номер шага, который мок подставит в `prepareStep`. */
   stepNumber: 0,
+  /** Шаги, которые мок подставит в условия `stopWhen`. */
+  steps: [] as Array<{ usage: { inputTokens?: number } }>,
 }));
 
 vi.mock('ai', async (importOriginal) => {
@@ -29,6 +31,14 @@ vi.mock('ai', async (importOriginal) => {
             | ((o: { stepNumber: number; messages: unknown[] }) => unknown)
             | undefined;
           prepare?.({ stepNumber: stream.stepNumber, messages: [] });
+          // SDK так же спрашивает условия остановки после каждого шага. Мок повторяет один опрос,
+          // иначе отметка «бюджет исчерпан» не успела бы сработать до конца потока.
+          const stop = args.stopWhen;
+          for (const condition of Array.isArray(stop) ? stop : [stop]) {
+            (condition as ((o: { steps: unknown[] }) => boolean) | undefined)?.({
+              steps: stream.steps,
+            });
+          }
           // Ошибка в сценарии = поток оборвался исключением, а не событием: так ведут себя
           // сетевые сбои и таймаут самого SDK.
           for (const part of stream.parts) {
@@ -262,6 +272,60 @@ describe('чем зовём модель', () => {
     const prepare = lastCall().prepareStep as (o: { stepNumber: number }) => unknown;
     expect(prepare({ stepNumber: 3 })).toEqual({ toolChoice: 'none' });
     expect(prepare({ stepNumber: 0 })).toBeUndefined();
+  });
+
+  describe('потолок стоимости хода', () => {
+    /** Условие остановки по бюджету — второе в списке, после предела шагов. */
+    const guardOf = () => {
+      const stop = lastCall().stopWhen as Array<(o: { steps: unknown[] }) => boolean>;
+      return stop[stop.length - 1];
+    };
+    const steps = (...inputTokens: number[]) => ({
+      steps: inputTokens.map((t) => ({ usage: { inputTokens: t } })),
+    });
+
+    it('без бюджета условия остановки вообще нет', async () => {
+      await play(finish);
+      expect(typeof lastCall().stopWhen).toBe('function');
+    });
+
+    it('ход идёт, пока израсходовано меньше бюджета', async () => {
+      await play(finish, undefined, { ...REQUEST, maxInputTokens: 10_000 });
+      expect(guardOf()(steps(3000, 3000))).toBe(false);
+    });
+
+    it('превышение бюджета останавливает ход', async () => {
+      await play(finish, undefined, { ...REQUEST, maxInputTokens: 10_000 });
+      // Считается сумма по всем шагам: цена шага растёт вместе с диалогом, и мера стоимости —
+      // именно накопленный вход, а не последний запрос.
+      expect(guardOf()(steps(4000, 4000, 4000))).toBe(true);
+    });
+
+    it('шаги без сообщённого расхода бюджет не жгут', async () => {
+      // Локальные серверы часто молчат про usage; считать их шаги «бесконечно дорогими» нельзя.
+      await play(finish, undefined, { ...REQUEST, maxInputTokens: 10_000 });
+      expect(guardOf()({ steps: [{ usage: {} }, { usage: {} }] })).toBe(false);
+    });
+
+    it('остановка по бюджету объясняется своей причиной, а не пределом шагов', async () => {
+      // Для провайдера она выглядит обычным завершением, и без отдельного сообщения ход снова
+      // выдавал бы половину формы за результат — причём чинить его пошли бы не туда.
+      stream.steps = [{ usage: { inputTokens: 20_000 } }];
+      const events = await play(finish, undefined, { ...REQUEST, maxInputTokens: 10_000 });
+      stream.steps = [];
+
+      const error = events.find((e) => e.type === 'error') as { message: string } | undefined;
+      expect(error?.message).toContain('бюджет входных токенов');
+      expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
+    });
+
+    it('ход в рамках бюджета заканчивается штатно', async () => {
+      stream.steps = [{ usage: { inputTokens: 1000 } }];
+      const events = await play(finish, undefined, { ...REQUEST, maxInputTokens: 10_000 });
+      stream.steps = [];
+
+      expect(events).toEqual([{ type: 'done', reason: 'complete' }]);
+    });
   });
 
   it('упор в заданный предел не выдаётся за законченную работу', async () => {
