@@ -4,10 +4,19 @@ on:
   push:
     branches:
       - develop
+    # Пакеты целиком, а не поимённо. Раньше здесь стоял `packages/reformer/src/**`, то есть
+    # только core, — а сайт собирается ещё из cdk, renderer-json, renderer-react и ui-kit (см.
+    # шаг «Build workspace packages»). Правка кита не публиковалась: на Pages оставался старый
+    # каталог компонентов, и заметить это было нечем. Точный список уже один раз разошёлся со
+    # сборкой и разойдётся снова при следующем пакете, поэтому здесь намеренно широкий шаблон.
+    #
+    # Цена — лишний прогон, когда менялся пакет, в сайт не входящий (mcp, form-registry), или
+    # только тесты. Она мала: цикл 5–8 минут, а `concurrency` ниже схлопывает серию пушей в один
+    # деплой. Пропущенная публикация обошлась бы дороже — она молчалива.
     paths:
       - 'projects/reformer-doc/**'
       - 'projects/reformer-builder/**'
-      - 'packages/reformer/src/**'
+      - 'packages/**'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
@@ -30,7 +39,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
