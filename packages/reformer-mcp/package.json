@@ -47,13 +47,13 @@
     "typescript": "^5.7.0"
   },
   "optionalDependencies": {
-    "@reformer/renderer-json": ">=6.0.0"
+    "@reformer/renderer-json": "*"
   },
   "peerDependencies": {
-    "@reformer/core": ">=1.1.0",
-    "@reformer/cdk": ">=6.0.0",
-    "@reformer/renderer-react": ">=6.0.0",
-    "@reformer/ui-kit": ">=6.0.0"
+    "@reformer/core": "*",
+    "@reformer/cdk": "*",
+    "@reformer/renderer-react": "*",
+    "@reformer/ui-kit": "*"
   },
   "peerDependenciesMeta": {
     "@reformer/core": {

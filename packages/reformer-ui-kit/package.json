@@ -374,8 +374,8 @@
     "docs/llms"
   ],
   "peerDependencies": {
-    "@reformer/cdk": ">=1.0.0",
-    "@reformer/core": ">=1.1.0",
+    "@reformer/cdk": "*",
+    "@reformer/core": "*",
     "@shadcn/react": "^0.2.1",
     "@tanstack/react-table": ">=8 <9",
     "cmdk": ">=1 <2",

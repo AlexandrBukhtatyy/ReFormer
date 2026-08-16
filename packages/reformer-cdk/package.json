@@ -81,7 +81,7 @@
     "docs/llms"
   ],
   "peerDependencies": {
-    "@reformer/core": ">=1.1.0",
+    "@reformer/core": "*",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
   },

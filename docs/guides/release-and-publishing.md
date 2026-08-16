@@ -21,7 +21,7 @@
 - `feat(reformer-ui-kit): new component` → bump только ui-kit (1.0.0 → 1.1.0). Остальные не трогаются.
 - `feat(reformer)!: breaking api change` → bump только core (1.0.0 → 2.0.0). Остальные остаются.
 
-**Lockstep'а на major+minor больше нет.** Версии могут расходиться. Совместимость поддерживается через `peerDependencies` (см. ниже).
+**Lockstep'а на major+minor больше нет.** Версии могут расходиться — и расходятся сильно (core 11.x, renderer-\* 12.x, ui-kit 13.x). Совместимость держится общим релизным пайплайном, а не диапазонами в `peerDependencies` (см. раздел [peerDependencies](#peerdependencies) — там же почему внутренние диапазоны обязаны быть `"*"`).
 
 ## Branch flow
 
@@ -143,13 +143,37 @@ CI выпустит **только** core/cdk/ui-kit на minor (1.0.0 → 1.1.0
 feat(reformer,reformer-cdk,reformer-ui-kit)!: rename form-proxy generic
 ```
 
-→ core/cdk/ui-kit на major (1.x.y → 2.0.0 каждый), peerDeps между ними нужно явно проапдейтить в коммите (`packages/reformer-cdk/package.json`: `"@reformer/core": "^2.0.0"`).
+→ core/cdk/ui-kit на major (1.x.y → 2.0.0 каждый). Peer-диапазоны между ними при этом **не трогаются** — почему, см. следующий раздел.
 
 ## peerDependencies
 
-Каждый пакет зависит от других через `peerDependencies` с диапазоном `^X.0.0`. Например, `@reformer/cdk@1.x` требует `@reformer/core@^1.0.0`. Если `@reformer/core` поднимается до 2.0.0 (breaking), `@reformer/cdk` нужно тоже поднять до 2.0.0 с обновлённым peer на `^2.0.0`.
+Правил два, и они противоположны.
 
-При major bump'е любого `@reformer/*` пакета — пройдись по `packages/*/package.json` и обнови все peers к нему. Это **часть BREAKING-коммита**, не отдельный commit.
+**Внутренние `@reformer/*` — всегда `"*"`, без версий.**
+
+```json
+"peerDependencies": {
+  "@reformer/core": "*",
+  "react": "^18.0.0 || ^19.0.0"
+}
+```
+
+Причина — prerelease. По правилам semver версия с суффиксом (`11.0.0-beta.3`) удовлетворяет диапазону, только если хотя бы один его компаратор имеет **тот же `major.minor.patch` и собственный prerelease-суффикс**. Поэтому бета не проходит ни `>=1.1.0`, ни `^11.0.0`, ни `^11.0.0-0` (последний примет только беты ровно `11.0.0`, а с develop уезжают и минорные — `11.3.1-beta.1`). Практический итог: с версионным диапазоном `npm i @reformer/core@beta @reformer/cdk@beta` у потребителя падает с `ERESOLVE` и требует `--legacy-peer-deps`.
+
+Работает единственная запись — `"*"`: npm обрабатывает её **до** semver'а (`arborist/lib/dep-valid.js`: `if (requested.fetchSpec === '*') return true`), одинаково во всех живых мажорах npm. Ни `"x"`, ни `">=0.0.0-0"` в это короткое замыкание не попадают.
+
+Совместимость внутри монорепо держится не диапазоном, а тем, что все `@reformer/*` выпускаются из одного репозитория одним пайплайном. Версионный диапазон её всё равно не обеспечивал: core уехал на 11.x, а peer'ы так и стояли `">=1.1.0"` с первых версий — правило «обнови peers при major bump» не соблюдалось ни разу.
+
+**Внешние (`react`, `recharts`, `cmdk`, …) — наоборот, с обязательной верхней границей** (`">=8 <9"`, `"^18.0.0 || ^19.0.0"`). Открытый диапазон обещает совместимость с ещё не вышедшим мажором и превращает чужой релиз в нашу поломку.
+
+Оба правила — гейты в CI, а не договорённость:
+
+| Проверка                                                           | Что делает                                                                                |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| [`check:peer-ranges`](../../scripts/check-peer-ranges.mjs)         | манифесты: внутренние строго `"*"`, у внешних есть верхняя граница                        |
+| [`check:peer-prerelease`](../../scripts/check-peer-prerelease.mjs) | поведение: пакеты с фальшивыми prerelease-версиями ставятся в чистый проект дефолтным npm |
+
+Второй нужен потому, что внутри монорепо баг не воспроизводится: в рабочем дереве версии стабильные, а корневой `.npmrc` долго глушил ошибку через `legacy-peer-deps=true`.
 
 ## Откат / Unpublish
 
@@ -177,7 +201,7 @@ Workflow `.github/workflows/align-versions.yml` — **escape hatch** для ре
 - [ ] commit message в conventional-format (`type(scope): description`), scope — из списка в [commitlint.config.js](../../commitlint.config.js)
 - [ ] коммит не смешивает изменения разных пакетов (иначе бампнутся оба — фильтр идёт по путям файлов)
 - [ ] `BREAKING CHANGE:` footer (или `!` после type, т.е. `feat(scope)!:`) если есть breaking
-- [ ] При breaking — обновлены `peerDependencies` затронутых пакетов
+- [ ] `peerDependencies`: внутренние `@reformer/*` остались `"*"`, у новых внешних есть верхняя граница (гейт — `npm run check:peer-ranges`)
 - [ ] PR target = `develop` (для prerelease beta) или `main` (для stable)
 - [ ] merge через **Rebase and merge** (или merge commit) — **не Squash** (squash ломает per-package версионирование → major для всех)
 - [ ] CI green: lint + format:check + tests + 6× release jobs
