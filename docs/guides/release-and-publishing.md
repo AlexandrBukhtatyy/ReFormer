@@ -173,7 +173,7 @@ feat(reformer,reformer-cdk,reformer-ui-kit)!: rename form-proxy generic
 | [`check:peer-ranges`](../../scripts/check-peer-ranges.mjs)         | манифесты: внутренние строго `"*"`, у внешних есть верхняя граница                        |
 | [`check:peer-prerelease`](../../scripts/check-peer-prerelease.mjs) | поведение: пакеты с фальшивыми prerelease-версиями ставятся в чистый проект дефолтным npm |
 
-Второй нужен потому, что внутри монорепо баг не воспроизводится: в рабочем дереве версии стабильные, а корневой `.npmrc` долго глушил ошибку через `legacy-peer-deps=true`.
+Второй нужен потому, что внутри монорепо баг не воспроизводится: в рабочем дереве версии стабильные, а корневой `.npmrc` глушит остаток через `legacy-peer-deps=true`. Этот флаг снять нельзя — он держит alias-пакеты билдера (`@reformer/ui-kit-v11`/`-v12` — опубликованные тарболы с неизменяемыми peer'ами `>=1.1.0`), которые иначе роняют `npm version` на релизе. Поэтому `check:peer-prerelease` чистит `npm_config_*` и явно передаёт `--no-legacy-peer-deps`: флаг из `.npmrc` до него не доходит.
 
 ## Откат / Unpublish
 
