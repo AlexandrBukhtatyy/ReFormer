@@ -6,8 +6,10 @@ Thank you for your interest in contributing to Reformer! This document provides 
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
-- npm >= 9.0.0
+- Node.js 24 — та же версия, что во всех workflow. Опубликованные пакеты поддерживают Node >= 18, это ограничение только для разработки в репозитории
+- npm идёт вместе с Node (24 → npm 11); отдельно ставить не нужно
+
+> Более старый npm сейчас тоже соберёт дерево: `legacy-peer-deps=true` в корневом [.npmrc](.npmrc) выключает размещение peer-зависимостей, и в этом режиме `package-lock.json` одинаково принимают npm 10 и 11. Расходятся они только в строгом режиме — `npm ci` тогда падает с `Missing: fsevents@2.3.3 from lock file`, и это версия npm, а не проблема зависимостей. Поэтому версию держим общей с CI: когда `.npmrc` удастся снять, расхождение станет ошибкой.
 
 ### Setup
 
