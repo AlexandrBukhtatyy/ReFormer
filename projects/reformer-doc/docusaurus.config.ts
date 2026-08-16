@@ -202,11 +202,6 @@ const config: Config = {
           label: 'MCP',
         },
         {
-          href: 'https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx',
-          label: 'Playground',
-          position: 'left',
-        },
-        {
           // Отдельный Vite-SPA, задеплоен в подкаталог того же Pages-сайта.
           // `pathname://` → роутер не трогает ссылку и сам подставляет baseUrl (/ReFormer/).
           href: 'pathname:///builder/',
@@ -215,12 +210,17 @@ const config: Config = {
           className: 'navbar-builder-dev',
         },
         {
-          type: 'localeDropdown',
+          href: 'https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx',
+          label: 'Stackblitz',
           position: 'right',
         },
         {
           href: 'https://github.com/AlexandrBukhtatyy/ReFormer',
           label: 'GitHub',
+          position: 'right',
+        },
+        {
+          type: 'localeDropdown',
           position: 'right',
         },
       ],
