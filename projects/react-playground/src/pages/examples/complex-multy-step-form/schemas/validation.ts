@@ -63,6 +63,339 @@ const ruName = (label: string): Rule<string>[] => [
   pattern(RU_NAME, { message: 'Только русские буквы, пробелы и дефис' }),
 ];
 
+/** Формат телефона: самостоятельный набор (доп. телефон) и хвост обязательных наборов. */
+const PHONE_FORMAT_RULES: Rule<string>[] = [
+  pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }),
+];
+
+/** Формат email: самостоятельный набор (доп. email) и хвост {@link EMAIL_REQUIRED_RULES}. */
+const EMAIL_FORMAT_RULES: Rule<string>[] = [email({ message: 'Введите корректный email' })];
+
+/** Обязательный email — заемщик (шаг 3) и созаемщик. */
+const EMAIL_REQUIRED_RULES: Rule<string>[] = [
+  required({ message: 'Email обязателен' }),
+  ...EMAIL_FORMAT_RULES,
+];
+
+/** Числовое поле не может быть отрицательным. */
+const NON_NEGATIVE_RULES: Rule<number>[] = [min(0, { message: 'Не может быть отрицательным' })];
+
+/** Общий верхний предел сумм — 10 000 000 ₽. */
+const MAX_10M_RUB_RULES: Rule<number>[] = [max(10000000, { message: 'Максимум 10 000 000 ₽' })];
+
+/** Границы стажа в годах — общий и на текущем месте. */
+const EXPERIENCE_YEARS_RULES: Rule<number>[] = [
+  ...NON_NEGATIVE_RULES,
+  max(60, { message: 'Максимум 60 лет' }),
+];
+
+// --- Шаг 1: параметры кредита -----------------------------------------------
+
+const LOAN_TYPE_RULES: Rule<unknown>[] = [required({ message: 'Выберите тип кредита' })];
+
+const LOAN_AMOUNT_RULES: Rule<number>[] = [
+  required({ message: 'Укажите сумму кредита' }),
+  min(50000, { message: 'Минимум 50 000 ₽' }),
+  ...MAX_10M_RUB_RULES,
+];
+
+const LOAN_TERM_RULES: Rule<number>[] = [
+  required({ message: 'Укажите срок кредита' }),
+  min(6, { message: 'Минимум 6 месяцев' }),
+  max(240, { message: 'Максимум 240 месяцев' }),
+];
+
+const LOAN_PURPOSE_RULES: Rule<string>[] = [
+  required({ message: 'Укажите цель кредита' }),
+  minLength(10, { message: 'Минимум 10 символов' }),
+  maxLength(500, { message: 'Не более 500 символов' }),
+];
+
+const PROPERTY_VALUE_RULES: Rule<number>[] = [
+  required({ message: 'Укажите стоимость недвижимости' }),
+  min(1000000, { message: 'Минимум 1 000 000 ₽' }),
+];
+
+const INITIAL_PAYMENT_RULES: Rule<number>[] = [
+  required({ message: 'Укажите первоначальный взнос' }),
+  ...NON_NEGATIVE_RULES,
+];
+
+const CAR_BRAND_RULES: Rule<string>[] = [
+  required({ message: 'Укажите марку автомобиля' }),
+  minLength(2, { message: 'Минимум 2 символа' }),
+  maxLength(50, { message: 'Максимум 50 символов' }),
+];
+
+const CAR_MODEL_RULES: Rule<string>[] = [
+  required({ message: 'Укажите модель автомобиля' }),
+  minLength(1, { message: 'Минимум 1 символ' }),
+  maxLength(50, { message: 'Максимум 50 символов' }),
+];
+
+const CAR_YEAR_RULES: Rule<number>[] = [
+  required({ message: 'Укажите год выпуска' }),
+  min(2000, { message: 'Не ранее 2000' }),
+  max(CURRENT_YEAR + 1, { message: `Не позднее ${CURRENT_YEAR + 1}` }),
+];
+
+const CAR_PRICE_RULES: Rule<number>[] = [
+  required({ message: 'Укажите стоимость автомобиля' }),
+  min(300000, { message: 'Минимум 300 000 ₽' }),
+  ...MAX_10M_RUB_RULES,
+];
+
+// --- Шаг 2: персональные и паспортные данные --------------------------------
+
+const BIRTH_DATE_RULES: Rule<string>[] = [
+  required({ message: 'Дата рождения обязательна' }),
+  minAge(18, { message: 'Заемщику должно быть не менее 18 лет' }),
+  maxAge(70, { message: 'Максимальный возраст заемщика: 70 лет' }),
+];
+
+const GENDER_RULES: Rule<unknown>[] = [required({ message: 'Выберите пол' })];
+
+const BIRTH_PLACE_RULES: Rule<string>[] = [
+  required({ message: 'Место рождения обязательно' }),
+  minLength(5, { message: 'Минимум 5 символов' }),
+  maxLength(100, { message: 'Максимум 100 символов' }),
+];
+
+const PASSPORT_SERIES_RULES: Rule<string>[] = [
+  required({ message: 'Серия паспорта обязательна' }),
+  pattern(/^\d{2}\s\d{2}$/, { message: 'Формат: 00 00' }),
+];
+
+const PASSPORT_NUMBER_RULES: Rule<string>[] = [
+  required({ message: 'Номер паспорта обязателен' }),
+  pattern(/^\d{6}$/, { message: 'Номер должен содержать 6 цифр' }),
+];
+
+const PASSPORT_ISSUE_DATE_RULES: Rule<string>[] = [
+  required({ message: 'Дата выдачи обязательна' }),
+  pastDate({ message: 'Дата выдачи не может быть в будущем' }),
+];
+
+const PASSPORT_ISSUED_BY_RULES: Rule<string>[] = [
+  required({ message: 'Кем выдан обязательно' }),
+  minLength(10, { message: 'Минимум 10 символов' }),
+  maxLength(200, { message: 'Максимум 200 символов' }),
+];
+
+const PASSPORT_DEPARTMENT_CODE_RULES: Rule<string>[] = [
+  required({ message: 'Код подразделения обязателен' }),
+  pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' }),
+];
+
+const INN_RULES: Rule<string>[] = [
+  required({ message: 'ИНН обязателен' }),
+  pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' }),
+];
+
+const SNILS_RULES: Rule<string>[] = [
+  required({ message: 'СНИЛС обязателен' }),
+  pattern(/^\d{3}-\d{3}-\d{3}\s\d{2}$/, { message: 'Формат: 000-000-000 00' }),
+];
+
+// --- Шаг 3: контакты и адреса -----------------------------------------------
+
+const PHONE_MAIN_RULES: Rule<string>[] = [
+  required({ message: 'Телефон обязателен' }),
+  ...PHONE_FORMAT_RULES,
+];
+
+const ADDRESS_REGION_RULES: Rule<string>[] = [
+  required({ message: 'Укажите регион' }),
+  minLength(2, { message: 'Минимум 2 символа' }),
+  maxLength(100, { message: 'Максимум 100 символов' }),
+];
+
+const ADDRESS_CITY_RULES: Rule<string>[] = [
+  required({ message: 'Укажите город' }),
+  minLength(2, { message: 'Минимум 2 символа' }),
+  maxLength(100, { message: 'Максимум 100 символов' }),
+];
+
+const ADDRESS_STREET_RULES: Rule<string>[] = [
+  required({ message: 'Укажите улицу' }),
+  minLength(3, { message: 'Минимум 3 символа' }),
+  maxLength(200, { message: 'Максимум 200 символов' }),
+];
+
+const ADDRESS_HOUSE_RULES: Rule<string>[] = [
+  required({ message: 'Укажите номер дома' }),
+  maxLength(10, { message: 'Максимум 10 символов' }),
+];
+
+const ADDRESS_APARTMENT_RULES: Rule<string | undefined>[] = [
+  maxLength(10, { message: 'Максимум 10 символов' }),
+];
+
+const ADDRESS_POSTAL_CODE_RULES: Rule<string>[] = [
+  required({ message: 'Укажите почтовый индекс' }),
+  pattern(/^\d{6}$/, { message: 'Индекс должен содержать 6 цифр' }),
+];
+
+// --- Шаг 4: занятость и доход -----------------------------------------------
+
+const EMPLOYMENT_STATUS_RULES: Rule<unknown>[] = [
+  required({ message: 'Укажите статус занятости' }),
+];
+
+const COMPANY_NAME_RULES: Rule<string>[] = [
+  required({ message: 'Укажите название компании' }),
+  minLength(3, { message: 'Минимум 3 символа' }),
+  maxLength(200, { message: 'Максимум 200 символов' }),
+];
+
+const COMPANY_INN_RULES: Rule<string>[] = [
+  required({ message: 'ИНН компании обязателен' }),
+  pattern(/^\d{10}$/, { message: 'ИНН компании — 10 цифр' }),
+];
+
+const COMPANY_PHONE_RULES: Rule<string>[] = [
+  required({ message: 'Телефон компании обязателен' }),
+  ...PHONE_FORMAT_RULES,
+];
+
+const COMPANY_ADDRESS_RULES: Rule<string>[] = [
+  required({ message: 'Адрес компании обязателен' }),
+  minLength(10, { message: 'Минимум 10 символов' }),
+  maxLength(300, { message: 'Максимум 300 символов' }),
+];
+
+const POSITION_RULES: Rule<string>[] = [
+  required({ message: 'Укажите должность' }),
+  minLength(3, { message: 'Минимум 3 символа' }),
+  maxLength(100, { message: 'Максимум 100 символов' }),
+];
+
+const WORK_EXPERIENCE_TOTAL_RULES: Rule<number>[] = [
+  required({ message: 'Укажите общий стаж' }),
+  ...EXPERIENCE_YEARS_RULES,
+];
+
+const WORK_EXPERIENCE_CURRENT_RULES: Rule<number>[] = [
+  required({ message: 'Укажите стаж на текущем месте' }),
+  ...EXPERIENCE_YEARS_RULES,
+];
+
+const BUSINESS_TYPE_RULES: Rule<unknown>[] = [required({ message: 'Укажите тип бизнеса' })];
+
+const BUSINESS_INN_RULES: Rule<string>[] = [
+  required({ message: 'ИНН ИП обязателен' }),
+  pattern(/^\d{12}$/, { message: 'ИНН ИП — 12 цифр' }),
+];
+
+const BUSINESS_ACTIVITY_RULES: Rule<string>[] = [
+  required({ message: 'Укажите вид деятельности' }),
+  minLength(10, { message: 'Минимум 10 символов' }),
+  maxLength(300, { message: 'Максимум 300 символов' }),
+];
+
+const MONTHLY_INCOME_RULES: Rule<number>[] = [
+  required({ message: 'Укажите ежемесячный доход' }),
+  min(10000, { message: 'Минимум 10 000 ₽' }),
+  ...MAX_10M_RUB_RULES,
+];
+
+const ADDITIONAL_INCOME_RULES: Rule<number>[] = [...NON_NEGATIVE_RULES, ...MAX_10M_RUB_RULES];
+
+// --- Шаг 5: дополнительная информация, имущество, кредиты, созаемщики --------
+
+const MARITAL_STATUS_RULES: Rule<unknown>[] = [required({ message: 'Укажите семейное положение' })];
+
+const DEPENDENTS_RULES: Rule<number>[] = [
+  required({ message: 'Укажите количество иждивенцев' }),
+  ...NON_NEGATIVE_RULES,
+  max(10, { message: 'Максимум 10' }),
+];
+
+const EDUCATION_RULES: Rule<unknown>[] = [required({ message: 'Укажите уровень образования' })];
+
+const PROPERTY_TYPE_RULES: Rule<unknown>[] = [required({ message: 'Укажите тип имущества' })];
+
+const PROPERTY_DESCRIPTION_RULES: Rule<string>[] = [
+  required({ message: 'Добавьте описание имущества' }),
+  minLength(10, { message: 'Минимум 10 символов' }),
+  maxLength(500, { message: 'Максимум 500 символов' }),
+];
+
+const PROPERTY_ESTIMATED_VALUE_RULES: Rule<number>[] = [
+  required({ message: 'Укажите оценочную стоимость' }),
+  min(10000, { message: 'Минимальная стоимость: 10 000 ₽' }),
+];
+
+const EXISTING_LOAN_BANK_RULES: Rule<string>[] = [
+  required({ message: 'Укажите название банка' }),
+  minLength(3, { message: 'Минимум 3 символа' }),
+  maxLength(100, { message: 'Максимум 100 символов' }),
+];
+
+const EXISTING_LOAN_TYPE_RULES: Rule<unknown>[] = [required({ message: 'Укажите тип кредита' })];
+
+const EXISTING_LOAN_AMOUNT_RULES: Rule<number>[] = [
+  required({ message: 'Укажите сумму кредита' }),
+  min(1000, { message: 'Минимум 1 000 ₽' }),
+  max(100000000, { message: 'Максимум 100 000 000 ₽' }),
+];
+
+const EXISTING_LOAN_REMAINING_RULES: Rule<number>[] = [
+  required({ message: 'Укажите остаток долга' }),
+  ...NON_NEGATIVE_RULES,
+];
+
+const EXISTING_LOAN_MONTHLY_PAYMENT_RULES: Rule<number>[] = [
+  required({ message: 'Укажите ежемесячный платеж' }),
+  min(100, { message: 'Минимум 100 ₽' }),
+];
+
+const EXISTING_LOAN_MATURITY_DATE_RULES: Rule<string>[] = [
+  required({ message: 'Укажите дату погашения' }),
+];
+
+const CO_BORROWER_BIRTH_DATE_RULES: Rule<string>[] = [
+  required({ message: 'Дата рождения обязательна' }),
+  minAge(18, { message: 'Созаемщику должно быть не менее 18 лет' }),
+  maxAge(80, { message: 'Созаемщику должно быть не более 80 лет' }),
+];
+
+const CO_BORROWER_PHONE_RULES: Rule<string>[] = [required({ message: 'Телефон обязателен' })];
+
+const CO_BORROWER_RELATIONSHIP_RULES: Rule<string>[] = [
+  required({ message: 'Укажите отношение к заемщику' }),
+];
+
+const CO_BORROWER_INCOME_RULES: Rule<number>[] = [
+  required({ message: 'Укажите доход созаемщика' }),
+  min(10000, { message: 'Минимум 10 000 ₽' }),
+];
+
+// --- Шаг 6: согласия и подпись ----------------------------------------------
+
+const AGREE_PERSONAL_DATA_RULES: Rule<boolean>[] = [
+  required({ message: 'Согласие на обработку ПД обязательно' }),
+];
+
+const AGREE_CREDIT_HISTORY_RULES: Rule<boolean>[] = [
+  required({ message: 'Согласие на проверку кредитной истории обязательно' }),
+];
+
+const AGREE_TERMS_RULES: Rule<boolean>[] = [
+  required({ message: 'Согласие с условиями обязательно' }),
+];
+
+const CONFIRM_ACCURACY_RULES: Rule<boolean>[] = [
+  required({ message: 'Подтверждение точности обязательно' }),
+];
+
+const ELECTRONIC_SIGNATURE_RULES: Rule<string>[] = [
+  required({ message: 'Введите код из СМС' }),
+  minLength(6, { message: 'Код — 6 символов' }),
+  maxLength(6, { message: 'Код — 6 символов' }),
+  pattern(/^\d{6}$/, { message: 'Только цифры' }),
+];
+
 // ============================================================================
 // Cross-field правила уровня формы (читают снапшот Root)
 // ============================================================================
@@ -225,70 +558,32 @@ const smsCode: AsyncRule<string> = async (value) => {
 // ============================================================================
 
 /** Под-схема адреса — функция над FormModel<Address> (reuse прямым вызовом). */
+/** Под-схема адреса — функция над FormModel<Address> (reuse прямым вызовом). */
 const addressSchema: ValidationSchema<Address> = ({ model }) => {
-  validate(model.$.region, [
-    required({ message: 'Укажите регион' }),
-    minLength(2, { message: 'Минимум 2 символа' }),
-    maxLength(100, { message: 'Максимум 100 символов' }),
-  ]);
-  validate(model.$.city, [
-    required({ message: 'Укажите город' }),
-    minLength(2, { message: 'Минимум 2 символа' }),
-    maxLength(100, { message: 'Максимум 100 символов' }),
-  ]);
-  validate(model.$.street, [
-    required({ message: 'Укажите улицу' }),
-    minLength(3, { message: 'Минимум 3 символа' }),
-    maxLength(200, { message: 'Максимум 200 символов' }),
-  ]);
-  validate(model.$.house, [
-    required({ message: 'Укажите номер дома' }),
-    maxLength(10, { message: 'Максимум 10 символов' }),
-  ]);
+  validate(model.$.region, ADDRESS_REGION_RULES);
+  validate(model.$.city, ADDRESS_CITY_RULES);
+  validate(model.$.street, ADDRESS_STREET_RULES);
+  validate(model.$.house, ADDRESS_HOUSE_RULES);
   // apartment опционален в типе Address, но всегда материализован в модели
-  validate(model.$.apartment!, [maxLength(10, { message: 'Максимум 10 символов' })]);
-  validate(model.$.postalCode, [
-    required({ message: 'Укажите почтовый индекс' }),
-    pattern(/^\d{6}$/, { message: 'Индекс должен содержать 6 цифр' }),
-  ]);
+  validate(model.$.apartment!, ADDRESS_APARTMENT_RULES);
+  validate(model.$.postalCode, ADDRESS_POSTAL_CODE_RULES);
 };
 
 const propertyItem = (im: FormModel<Property>): void => {
-  validate(im.$.type, [required({ message: 'Укажите тип имущества' })]);
-  validate(im.$.description, [
-    required({ message: 'Добавьте описание имущества' }),
-    minLength(10, { message: 'Минимум 10 символов' }),
-    maxLength(500, { message: 'Максимум 500 символов' }),
-  ]);
-  validate(im.$.estimatedValue, [
-    required({ message: 'Укажите оценочную стоимость' }),
-    min(10000, { message: 'Минимальная стоимость: 10 000 ₽' }),
-  ]);
+  validate(im.$.type, PROPERTY_TYPE_RULES);
+  validate(im.$.description, PROPERTY_DESCRIPTION_RULES);
+  validate(im.$.estimatedValue, PROPERTY_ESTIMATED_VALUE_RULES);
 };
 
 const existingLoanItem = (im: FormModel<ExistingLoan>): void => {
   const loan = im.get();
-  validate(im.$.bank, [
-    required({ message: 'Укажите название банка' }),
-    minLength(3, { message: 'Минимум 3 символа' }),
-    maxLength(100, { message: 'Максимум 100 символов' }),
-  ]);
-  validate(im.$.type, [required({ message: 'Укажите тип кредита' })]);
-  validate(im.$.amount, [
-    required({ message: 'Укажите сумму кредита' }),
-    min(1000, { message: 'Минимум 1 000 ₽' }),
-    max(100000000, { message: 'Максимум 100 000 000 ₽' }),
-  ]);
-  validate(im.$.remainingAmount, [
-    required({ message: 'Укажите остаток долга' }),
-    min(0, { message: 'Не может быть отрицательным' }),
-  ]);
+  validate(im.$.bank, EXISTING_LOAN_BANK_RULES);
+  validate(im.$.type, EXISTING_LOAN_TYPE_RULES);
+  validate(im.$.amount, EXISTING_LOAN_AMOUNT_RULES);
+  validate(im.$.remainingAmount, EXISTING_LOAN_REMAINING_RULES);
   cross(im.$.remainingAmount, () => remainingNotExceedAmount(loan));
-  validate(im.$.monthlyPayment, [
-    required({ message: 'Укажите ежемесячный платеж' }),
-    min(100, { message: 'Минимум 100 ₽' }),
-  ]);
-  validate(im.$.maturityDate, [required({ message: 'Укажите дату погашения' })]);
+  validate(im.$.monthlyPayment, EXISTING_LOAN_MONTHLY_PAYMENT_RULES);
+  validate(im.$.maturityDate, EXISTING_LOAN_MATURITY_DATE_RULES);
   cross(im.$.maturityDate, () => maturityInFuture(loan));
 };
 
@@ -296,21 +591,11 @@ const coBorrowerItem = (im: FormModel<CoBorrower>): void => {
   validate(im.$.personalData.lastName, ruName('Фамилия'));
   validate(im.$.personalData.firstName, ruName('Имя'));
   validate(im.$.personalData.middleName, ruName('Отчество'));
-  validate(im.$.personalData.birthDate, [
-    required({ message: 'Дата рождения обязательна' }),
-    minAge(18, { message: 'Созаемщику должно быть не менее 18 лет' }),
-    maxAge(80, { message: 'Созаемщику должно быть не более 80 лет' }),
-  ]);
-  validate(im.$.phone, [required({ message: 'Телефон обязателен' })]);
-  validate(im.$.email, [
-    required({ message: 'Email обязателен' }),
-    email({ message: 'Введите корректный email' }),
-  ]);
-  validate(im.$.relationship, [required({ message: 'Укажите отношение к заемщику' })]);
-  validate(im.$.monthlyIncome, [
-    required({ message: 'Укажите доход созаемщика' }),
-    min(10000, { message: 'Минимум 10 000 ₽' }),
-  ]);
+  validate(im.$.personalData.birthDate, CO_BORROWER_BIRTH_DATE_RULES);
+  validate(im.$.phone, CO_BORROWER_PHONE_RULES);
+  validate(im.$.email, EMAIL_REQUIRED_RULES);
+  validate(im.$.relationship, CO_BORROWER_RELATIONSHIP_RULES);
+  validate(im.$.monthlyIncome, CO_BORROWER_INCOME_RULES);
 };
 
 // ============================================================================
@@ -318,38 +603,20 @@ const coBorrowerItem = (im: FormModel<CoBorrower>): void => {
 // ============================================================================
 
 const step1 = defineValidationSchema<Root>(({ model }) => {
-  validate(model.$.loanType, [required({ message: 'Выберите тип кредита' })]);
-  validate(model.$.loanAmount, [
-    required({ message: 'Укажите сумму кредита' }),
-    min(50000, { message: 'Минимум 50 000 ₽' }),
-    max(10000000, { message: 'Максимум 10 000 000 ₽' }),
-  ]);
+  validate(model.$.loanType, LOAN_TYPE_RULES);
+  validate(model.$.loanAmount, LOAN_AMOUNT_RULES);
   validateWhen(
     () => model.loanType === 'mortgage',
     () => cross(model.$.loanAmount, loanAmountVsPropertyMinusPayment)
   );
-  validate(model.$.loanTerm, [
-    required({ message: 'Укажите срок кредита' }),
-    min(6, { message: 'Минимум 6 месяцев' }),
-    max(240, { message: 'Максимум 240 месяцев' }),
-  ]);
-  validate(model.$.loanPurpose, [
-    required({ message: 'Укажите цель кредита' }),
-    minLength(10, { message: 'Минимум 10 символов' }),
-    maxLength(500, { message: 'Не более 500 символов' }),
-  ]);
+  validate(model.$.loanTerm, LOAN_TERM_RULES);
+  validate(model.$.loanPurpose, LOAN_PURPOSE_RULES);
 
   validateWhen(
     () => model.loanType === 'mortgage',
     () => {
-      validate(model.$.propertyValue, [
-        required({ message: 'Укажите стоимость недвижимости' }),
-        min(1000000, { message: 'Минимум 1 000 000 ₽' }),
-      ]);
-      validate(model.$.initialPayment, [
-        required({ message: 'Укажите первоначальный взнос' }),
-        min(0, { message: 'Не может быть отрицательным' }),
-      ]);
+      validate(model.$.propertyValue, PROPERTY_VALUE_RULES);
+      validate(model.$.initialPayment, INITIAL_PAYMENT_RULES);
       cross(model.$.initialPayment, initialPaymentVsProperty);
     }
   );
@@ -357,26 +624,10 @@ const step1 = defineValidationSchema<Root>(({ model }) => {
   validateWhen(
     () => model.loanType === 'car',
     () => {
-      validate(model.$.carBrand, [
-        required({ message: 'Укажите марку автомобиля' }),
-        minLength(2, { message: 'Минимум 2 символа' }),
-        maxLength(50, { message: 'Максимум 50 символов' }),
-      ]);
-      validate(model.$.carModel, [
-        required({ message: 'Укажите модель автомобиля' }),
-        minLength(1, { message: 'Минимум 1 символ' }),
-        maxLength(50, { message: 'Максимум 50 символов' }),
-      ]);
-      validate(model.$.carYear, [
-        required({ message: 'Укажите год выпуска' }),
-        min(2000, { message: 'Не ранее 2000' }),
-        max(CURRENT_YEAR + 1, { message: `Не позднее ${CURRENT_YEAR + 1}` }),
-      ]);
-      validate(model.$.carPrice, [
-        required({ message: 'Укажите стоимость автомобиля' }),
-        min(300000, { message: 'Минимум 300 000 ₽' }),
-        max(10000000, { message: 'Максимум 10 000 000 ₽' }),
-      ]);
+      validate(model.$.carBrand, CAR_BRAND_RULES);
+      validate(model.$.carModel, CAR_MODEL_RULES);
+      validate(model.$.carYear, CAR_YEAR_RULES);
+      validate(model.$.carPrice, CAR_PRICE_RULES);
     }
   );
 });
@@ -385,61 +636,25 @@ const step2 = defineValidationSchema<Root>(({ model }) => {
   validate(model.$.personalData.lastName, ruName('Фамилия'));
   validate(model.$.personalData.firstName, ruName('Имя'));
   validate(model.$.personalData.middleName, ruName('Отчество'));
-  validate(model.$.personalData.birthDate, [
-    required({ message: 'Дата рождения обязательна' }),
-    minAge(18, { message: 'Заемщику должно быть не менее 18 лет' }),
-    maxAge(70, { message: 'Максимальный возраст заемщика: 70 лет' }),
-  ]);
-  validate(model.$.personalData.gender, [required({ message: 'Выберите пол' })]);
-  validate(model.$.personalData.birthPlace, [
-    required({ message: 'Место рождения обязательно' }),
-    minLength(5, { message: 'Минимум 5 символов' }),
-    maxLength(100, { message: 'Максимум 100 символов' }),
-  ]);
-  validate(model.$.passportData.series, [
-    required({ message: 'Серия паспорта обязательна' }),
-    pattern(/^\d{2}\s\d{2}$/, { message: 'Формат: 00 00' }),
-  ]);
-  validate(model.$.passportData.number, [
-    required({ message: 'Номер паспорта обязателен' }),
-    pattern(/^\d{6}$/, { message: 'Номер должен содержать 6 цифр' }),
-  ]);
-  validate(model.$.passportData.issueDate, [
-    required({ message: 'Дата выдачи обязательна' }),
-    pastDate({ message: 'Дата выдачи не может быть в будущем' }),
-  ]);
+  validate(model.$.personalData.birthDate, BIRTH_DATE_RULES);
+  validate(model.$.personalData.gender, GENDER_RULES);
+  validate(model.$.personalData.birthPlace, BIRTH_PLACE_RULES);
+  validate(model.$.passportData.series, PASSPORT_SERIES_RULES);
+  validate(model.$.passportData.number, PASSPORT_NUMBER_RULES);
+  validate(model.$.passportData.issueDate, PASSPORT_ISSUE_DATE_RULES);
   cross(model.$.passportData.issueDate, passportIssuedAfter14);
-  validate(model.$.passportData.issuedBy, [
-    required({ message: 'Кем выдан обязательно' }),
-    minLength(10, { message: 'Минимум 10 символов' }),
-    maxLength(200, { message: 'Максимум 200 символов' }),
-  ]);
-  validate(model.$.passportData.departmentCode, [
-    required({ message: 'Код подразделения обязателен' }),
-    pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' }),
-  ]);
-  validate(model.$.inn, [
-    required({ message: 'ИНН обязателен' }),
-    pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' }),
-  ]);
-  validate(model.$.snils, [
-    required({ message: 'СНИЛС обязателен' }),
-    pattern(/^\d{3}-\d{3}-\d{3}\s\d{2}$/, { message: 'Формат: 000-000-000 00' }),
-  ]);
+  validate(model.$.passportData.issuedBy, PASSPORT_ISSUED_BY_RULES);
+  validate(model.$.passportData.departmentCode, PASSPORT_DEPARTMENT_CODE_RULES);
+  validate(model.$.inn, INN_RULES);
+  validate(model.$.snils, SNILS_RULES);
 });
 
 const step3 = defineValidationSchema<Root>(({ model }) => {
-  validate(model.$.phoneMain, [
-    required({ message: 'Телефон обязателен' }),
-    pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }),
-  ]);
-  validate(model.$.phoneAdditional, [pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' })]);
+  validate(model.$.phoneMain, PHONE_MAIN_RULES);
+  validate(model.$.phoneAdditional, PHONE_FORMAT_RULES);
   cross(model.$.phoneAdditional, phoneAdditionalDiffers);
-  validate(model.$.email, [
-    required({ message: 'Email обязателен' }),
-    email({ message: 'Введите корректный email' }),
-  ]);
-  validate(model.$.emailAdditional, [email({ message: 'Введите корректный email' })]);
+  validate(model.$.email, EMAIL_REQUIRED_RULES);
+  validate(model.$.emailAdditional, EMAIL_FORMAT_RULES);
   cross(model.$.emailAdditional, emailAdditionalDiffers);
   addressSchema({ model: model.registrationAddress });
   // адрес проживания — только если не совпадает с регистрацией
@@ -450,81 +665,37 @@ const step3 = defineValidationSchema<Root>(({ model }) => {
 });
 
 const step4 = defineValidationSchema<Root>(({ model }) => {
-  validate(model.$.employmentStatus, [required({ message: 'Укажите статус занятости' })]);
+  validate(model.$.employmentStatus, EMPLOYMENT_STATUS_RULES);
   validateWhen(
     () => model.employmentStatus === 'employed',
     () => {
-      validate(model.$.companyName, [
-        required({ message: 'Укажите название компании' }),
-        minLength(3, { message: 'Минимум 3 символа' }),
-        maxLength(200, { message: 'Максимум 200 символов' }),
-      ]);
-      validate(model.$.companyInn, [
-        required({ message: 'ИНН компании обязателен' }),
-        pattern(/^\d{10}$/, { message: 'ИНН компании — 10 цифр' }),
-      ]);
-      validate(model.$.companyPhone, [
-        required({ message: 'Телефон компании обязателен' }),
-        pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }),
-      ]);
-      validate(model.$.companyAddress, [
-        required({ message: 'Адрес компании обязателен' }),
-        minLength(10, { message: 'Минимум 10 символов' }),
-        maxLength(300, { message: 'Максимум 300 символов' }),
-      ]);
-      validate(model.$.position, [
-        required({ message: 'Укажите должность' }),
-        minLength(3, { message: 'Минимум 3 символа' }),
-        maxLength(100, { message: 'Максимум 100 символов' }),
-      ]);
-      validate(model.$.workExperienceTotal, [
-        required({ message: 'Укажите общий стаж' }),
-        min(0, { message: 'Не может быть отрицательным' }),
-        max(60, { message: 'Максимум 60 лет' }),
-      ]);
-      validate(model.$.workExperienceCurrent, [
-        required({ message: 'Укажите стаж на текущем месте' }),
-        min(0, { message: 'Не может быть отрицательным' }),
-        max(60, { message: 'Максимум 60 лет' }),
-      ]);
+      validate(model.$.companyName, COMPANY_NAME_RULES);
+      validate(model.$.companyInn, COMPANY_INN_RULES);
+      validate(model.$.companyPhone, COMPANY_PHONE_RULES);
+      validate(model.$.companyAddress, COMPANY_ADDRESS_RULES);
+      validate(model.$.position, POSITION_RULES);
+      validate(model.$.workExperienceTotal, WORK_EXPERIENCE_TOTAL_RULES);
+      validate(model.$.workExperienceCurrent, WORK_EXPERIENCE_CURRENT_RULES);
       cross(model.$.workExperienceCurrent, currentExperienceVsTotal);
     }
   );
   validateWhen(
     () => model.employmentStatus === 'selfEmployed',
     () => {
-      validate(model.$.businessType, [required({ message: 'Укажите тип бизнеса' })]);
-      validate(model.$.businessInn, [
-        required({ message: 'ИНН ИП обязателен' }),
-        pattern(/^\d{12}$/, { message: 'ИНН ИП — 12 цифр' }),
-      ]);
-      validate(model.$.businessActivity, [
-        required({ message: 'Укажите вид деятельности' }),
-        minLength(10, { message: 'Минимум 10 символов' }),
-        maxLength(300, { message: 'Максимум 300 символов' }),
-      ]);
+      validate(model.$.businessType, BUSINESS_TYPE_RULES);
+      validate(model.$.businessInn, BUSINESS_INN_RULES);
+      validate(model.$.businessActivity, BUSINESS_ACTIVITY_RULES);
     }
   );
-  validate(model.$.monthlyIncome, [
-    required({ message: 'Укажите ежемесячный доход' }),
-    min(10000, { message: 'Минимум 10 000 ₽' }),
-    max(10000000, { message: 'Максимум 10 000 000 ₽' }),
-  ]);
-  validate(model.$.additionalIncome, [
-    min(0, { message: 'Не может быть отрицательным' }),
-    max(10000000, { message: 'Максимум 10 000 000 ₽' }),
-  ]);
+  validate(model.$.monthlyIncome, MONTHLY_INCOME_RULES);
+  validate(model.$.additionalIncome, ADDITIONAL_INCOME_RULES);
   cross(model.$.additionalIncomeSource, additionalIncomeSourceRequired);
 });
 
 const step5 = defineValidationSchema<Root>(({ model }) => {
-  validate(model.$.maritalStatus, [required({ message: 'Укажите семейное положение' })]);
-  validate(model.$.dependents, [
-    required({ message: 'Укажите количество иждивенцев' }),
-    min(0, { message: 'Не может быть отрицательным' }),
-    max(10, { message: 'Максимум 10' }),
-  ]);
-  validate(model.$.education, [required({ message: 'Укажите уровень образования' })]);
+  validate(model.$.maritalStatus, MARITAL_STATUS_RULES);
+  validate(model.$.dependents, DEPENDENTS_RULES);
+  validate(model.$.education, EDUCATION_RULES);
   cross(model.$.hasProperty, (f: Root) =>
     notEmptyWhen(f, 'hasProperty', 'properties', 'Добавьте хотя бы один объект имущества')
   );
@@ -540,20 +711,11 @@ const step5 = defineValidationSchema<Root>(({ model }) => {
 });
 
 const step6 = defineValidationSchema<Root>(({ model }) => {
-  validate(model.$.agreePersonalData, [
-    required({ message: 'Согласие на обработку ПД обязательно' }),
-  ]);
-  validate(model.$.agreeCreditHistory, [
-    required({ message: 'Согласие на проверку кредитной истории обязательно' }),
-  ]);
-  validate(model.$.agreeTerms, [required({ message: 'Согласие с условиями обязательно' })]);
-  validate(model.$.confirmAccuracy, [required({ message: 'Подтверждение точности обязательно' })]);
-  validate(model.$.electronicSignature, [
-    required({ message: 'Введите код из СМС' }),
-    minLength(6, { message: 'Код — 6 символов' }),
-    maxLength(6, { message: 'Код — 6 символов' }),
-    pattern(/^\d{6}$/, { message: 'Только цифры' }),
-  ]);
+  validate(model.$.agreePersonalData, AGREE_PERSONAL_DATA_RULES);
+  validate(model.$.agreeCreditHistory, AGREE_CREDIT_HISTORY_RULES);
+  validate(model.$.agreeTerms, AGREE_TERMS_RULES);
+  validate(model.$.confirmAccuracy, CONFIRM_ACCURACY_RULES);
+  validate(model.$.electronicSignature, ELECTRONIC_SIGNATURE_RULES);
   validateAsync(model.$.electronicSignature, [smsCode]);
 });
 
