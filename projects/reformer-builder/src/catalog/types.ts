@@ -54,7 +54,7 @@ export interface CatalogEntry {
   variant?: string;
   /** Корень compound'а, частью которого запись является (`AlertTitle` → `Alert`); см. `./compound`. */
   compoundParent?: string;
-  /** Точечный override имени экспорта в namespace кита (контракт `2.0`). */
+  /** Имя символа в namespace кита, если отличается от `name` (контракт `2.0`). */
   exportName?: string;
   /** Subpath кита, за которым лежит символ, если его нет в barrel (контракт `2.0`). */
   subpath?: string;
@@ -78,7 +78,7 @@ export interface CatalogRecord {
    * Ниже — необязательные поля контракта `2.0`: то, что кит может рассказать о записи сверх
    * нормативного минимума. Отсутствие любого = сегодняшнее поведение (дефолты билдера).
    */
-  /** Точечный override правила резолва, когда `${name}${fieldSuffix}` не подходит. */
+  /** Имя символа в namespace кита, если оно отличается от `name` записи (`Input` → `InputField`). */
   exportName?: string;
   /** Subpath кита, за которым лежит символ (когда его нет в barrel). */
   subpath?: string;

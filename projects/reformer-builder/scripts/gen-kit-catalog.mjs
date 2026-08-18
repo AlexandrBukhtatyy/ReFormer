@@ -68,6 +68,17 @@ function pascalCase(dir) {
   return base.replace(/Otp$/, 'OTP');
 }
 
+/**
+ * Имя символа для field-записи. Каталог обязан назвать его явно: контракт не задаёт правила
+ * «имя записи + суффикс», а под именем записи (`Input`) кит обычно публикует БАЗОВЫЙ компонент,
+ * не подключённый к форме. Ищем алиас `withFormControl` (`Input` → `InputField`) среди
+ * фактических экспортов; не нашли — запись останется без `exportName`, и это видно в отчёте.
+ */
+function fieldExportName(name, namespaces) {
+  const alias = `${name}Field`;
+  return namespaces.some((ns) => alias in ns) ? { exportName: alias } : {};
+}
+
 /** Роль записи: наличие seam `value` в `x-runtimeProps` означает form-control. */
 function roleOf(schema) {
   const runtime = schema?.['x-runtimeProps'];
@@ -146,9 +157,11 @@ async function main() {
     }
 
     const role = schema ? roleOf(schema) : 'container';
+    const subpathNs = Object.fromEntries(namedExports.map((n) => [n, true]));
     push({
       name,
       role,
+      ...(role === 'field' ? fieldExportName(name, [barrel, subpathNs]) : {}),
       propsSchema: schema
         ? role === 'field'
           ? mergeFieldPropsSchema(schema)
@@ -178,6 +191,7 @@ async function main() {
     push({
       name,
       role,
+      ...(role === 'field' ? fieldExportName(name, [barrel]) : {}),
       propsSchema: role === 'field' ? mergeFieldPropsSchema(schema) : schema,
       ...(schema['x-variantGroup'] ? { variantGroup: schema['x-variantGroup'] } : {}),
       ...(schema['x-variant'] ? { variant: schema['x-variant'] } : {}),
@@ -209,7 +223,6 @@ async function main() {
       package: manifest.name,
       version: manifest.version,
       ...(manifest.peerDependencies ? { peerRanges: manifest.peerDependencies } : {}),
-      resolve: { fieldSuffix: 'Field' },
       ...(Object.keys(infra).length ? { infra } : {}),
       adapters: { wizard, step: null },
       styles: { mode: 'tokens' },
@@ -223,6 +236,13 @@ async function main() {
   await writeFile(outPath, `${JSON.stringify(catalog, null, 2)}\n`);
 
   const rich = records.filter((r) => !r.propsSchema.additionalProperties).length;
+  const namelessFields = records.filter((r) => r.role === 'field' && !r.exportName);
+  if (namelessFields.length)
+    console.warn(
+      `! поля без exportName (символ будет искаться по имени записи): ${namelessFields
+        .map((r) => r.name)
+        .join(', ')}`
+    );
   console.log(
     `${manifest.name}@${manifest.version} → ${opts.out}\n` +
       `  записей: ${records.length} (rich ${rich}, частей ${records.filter((r) => r.compoundParent).length})\n` +

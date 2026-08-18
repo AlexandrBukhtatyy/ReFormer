@@ -80,7 +80,6 @@ describe('validateCatalog: контракт 2.0 (блок kit + per-record по�
         package: '@acme/ds',
         version: '2.1.0',
         peerRanges: { '@reformer/core': '^7' },
-        resolve: { fieldSuffix: 'Control' },
         infra: { fieldWrapper: 'Field', asyncBoundary: 'Async', list: 'Repeater' },
         adapters: { wizard: { symbol: 'Stepper', subpath: 'stepper' }, step: null },
         palette: { categoryByName: { Btn: 'Действия' }, order: ['Действия'], glyphs: { Btn: 'B' } },

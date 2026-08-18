@@ -27,7 +27,6 @@ export type {
   KitPeerRanges,
   KitRecordExt,
   KitRecordPreview,
-  KitResolveRule,
   KitStyles,
 } from './types';
 export { KIT_CONTRACT_VERSION } from './types';

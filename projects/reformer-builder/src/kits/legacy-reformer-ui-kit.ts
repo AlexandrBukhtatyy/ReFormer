@@ -198,13 +198,12 @@ export function legacyUnresolvedReasons(): Map<string, string> {
 export const LEGACY_KIT: Required<
   Pick<
     KitDescriptorJson,
-    'id' | 'label' | 'package' | 'resolve' | 'infra' | 'adapters' | 'palette' | 'styles' | 'codegen'
+    'id' | 'label' | 'package' | 'infra' | 'adapters' | 'palette' | 'styles' | 'codegen'
   >
 > = {
   id: 'reformer-ui-kit',
   label: 'ReFormer UI Kit',
   package: '@reformer/ui-kit',
-  resolve: { fieldSuffix: 'Field' },
   infra: { fieldWrapper: 'FormField', asyncBoundary: 'AsyncBoundary', list: 'List' },
   adapters: { wizard: { symbol: 'FormWizard', subpath: 'form-wizard' }, step: null },
   palette: { categoryByName: CATEGORY_BY_NAME },

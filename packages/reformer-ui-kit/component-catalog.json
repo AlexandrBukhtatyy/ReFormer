@@ -3409,6 +3409,7 @@
     {
       "name": "Calendar",
       "role": "field",
+      "exportName": "CalendarField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -5607,6 +5608,7 @@
     {
       "name": "Checkbox",
       "role": "field",
+      "exportName": "CheckboxField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -5970,6 +5972,7 @@
     {
       "name": "Combobox",
       "role": "field",
+      "exportName": "ComboboxField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -7704,6 +7707,7 @@
     {
       "name": "DatePicker",
       "role": "field",
+      "exportName": "DatePickerField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -10605,6 +10609,7 @@
     {
       "name": "FileUpload",
       "role": "field",
+      "exportName": "FileUploadField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -10881,6 +10886,7 @@
     {
       "name": "FileUploadAvatar",
       "role": "field",
+      "exportName": "FileUploadAvatarField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -12753,6 +12759,7 @@
     {
       "name": "Input",
       "role": "field",
+      "exportName": "InputField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -13110,6 +13117,7 @@
     {
       "name": "InputMask",
       "role": "field",
+      "exportName": "InputMaskField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -13217,6 +13225,7 @@
     {
       "name": "InputOTP",
       "role": "field",
+      "exportName": "InputOTPField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -13474,6 +13483,7 @@
     {
       "name": "InputPassword",
       "role": "field",
+      "exportName": "InputPasswordField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -15771,6 +15781,7 @@
     {
       "name": "NativeSelect",
       "role": "field",
+      "exportName": "NativeSelectField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -17272,6 +17283,7 @@
     {
       "name": "RadioGroup",
       "role": "field",
+      "exportName": "RadioGroupField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -18225,6 +18237,7 @@
     {
       "name": "Select",
       "role": "field",
+      "exportName": "SelectField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -20664,6 +20677,7 @@
     {
       "name": "Slider",
       "role": "field",
+      "exportName": "SliderField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -20969,6 +20983,7 @@
     {
       "name": "Switch",
       "role": "field",
+      "exportName": "SwitchField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -21598,6 +21613,7 @@
     {
       "name": "Textarea",
       "role": "field",
+      "exportName": "TextareaField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -21883,6 +21899,7 @@
     {
       "name": "Toggle",
       "role": "field",
+      "exportName": "ToggleField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -22028,6 +22045,7 @@
     {
       "name": "ToggleGroup",
       "role": "field",
+      "exportName": "ToggleGroupField",
       "propsSchema": {
         "type": "object",
         "properties": {

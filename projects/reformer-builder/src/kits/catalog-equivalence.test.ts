@@ -95,7 +95,6 @@ describe('«неявный кит» на реальном каталоге', () 
     expect(d.palette.categoryByName).toBe(CATEGORY_BY_NAME);
     expect(d.codegen.needsShim).toBe(NEEDS_SHIM);
     expect([...d.leafComponents].sort()).toEqual([...LEAF_COMPONENT_NAMES].sort());
-    expect(d.resolve.fieldSuffix).toBe('Field');
     expect(d.infra.fieldWrapper).toBe('FormField');
   });
 

@@ -105,9 +105,6 @@ export function toDescriptor(json: CatalogJson): KitDescriptor {
     package: pkg,
     version: kit.version ?? UNKNOWN_KIT_VERSION,
     peerRanges: kit.peerRanges ?? {},
-    resolve: {
-      fieldSuffix: kit.resolve?.fieldSuffix ?? LEGACY_KIT.resolve.fieldSuffix!,
-    },
     infra: {
       fieldWrapper: kit.infra?.fieldWrapper ?? LEGACY_KIT.infra.fieldWrapper!,
       asyncBoundary: kit.infra?.asyncBoundary ?? LEGACY_KIT.infra.asyncBoundary!,
@@ -144,16 +141,14 @@ export function toDescriptor(json: CatalogJson): KitDescriptor {
 }
 
 /**
- * Имя экспорта в namespace кита для записи каталога: точечный `exportName` побеждает, иначе
- * правило кита (`${name}${fieldSuffix}` для полей, имя как есть — для остального).
+ * Имя экспорта в namespace кита для записи каталога: `exportName`, а если его нет — `name` как есть.
  *
- * Единый источник правды для превью (`render-policy`) и кодогена (`codegen/ui-kit-imports`),
- * которые сегодня дублируют это правило литералом `${name}Field`.
+ * Неявного правила «имя записи + суффикс» контракт не задаёт: поле, чей символ называется иначе
+ * (`Input` → `InputField`), обязано назвать его само. Соглашение по суффиксу выражало привычку
+ * одного кита, а киту с другими именами всё равно приходилось переопределять каждую запись.
+ *
+ * Единый источник правды для превью (`render-policy`) и кодогена (`codegen/ui-kit-imports`).
  */
-export function exportNameFor(
-  record: Pick<CatalogRecord, 'name' | 'role' | 'exportName'>,
-  descriptor: Pick<KitDescriptor, 'resolve'>
-): string {
-  if (record.exportName) return record.exportName;
-  return record.role === 'field' ? `${record.name}${descriptor.resolve.fieldSuffix}` : record.name;
+export function exportNameFor(record: Pick<CatalogRecord, 'name' | 'exportName'>): string {
+  return record.exportName ?? record.name;
 }

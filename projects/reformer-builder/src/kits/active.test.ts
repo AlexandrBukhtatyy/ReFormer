@@ -19,7 +19,6 @@ describe('фолбэк до сборки каталога', () => {
 
     expect(fallback.id).toBe(fromCatalog.id);
     expect(fallback.package).toBe(fromCatalog.package);
-    expect(fallback.resolve).toEqual(fromCatalog.resolve);
     expect(fallback.infra).toEqual(fromCatalog.infra);
     expect(fallback.palette.categoryByName).toBe(fromCatalog.palette.categoryByName);
     // Множества, зависящие от записей каталога: у поставляемого ui-kit per-record полей 2.0 нет,

@@ -51,7 +51,7 @@
           "exportName": {
             "type": "string",
             "minLength": 1,
-            "description": "Контракт 2.0. Точечный override имени экспорта в namespace кита, когда правило kit.resolve не подходит (например Chart → ChartContainer). По умолчанию: `${name}${kit.resolve.fieldSuffix}` для role=field, иначе name."
+            "description": "Контракт 2.0. Имя символа в namespace кита, если оно отличается от name записи (Input → InputField, Chart → ChartContainer). По умолчанию символ ищется по name: неявного правила «имя + суффикс» контракт не задаёт — кит, у которого имена расходятся, называет экспорт явно."
           },
           "subpath": {
             "type": "string",
@@ -113,17 +113,6 @@
           "type": "object",
           "additionalProperties": { "type": "string" },
           "description": "Требования кита к shared-рантайму хоста. Информационная подсказка: решение об активации принимает символьная проверка, а не semver — открытые диапазоны вида '>=1.0.0' реальный контракт не выражают."
-        },
-        "resolve": {
-          "type": "object",
-          "additionalProperties": false,
-          "description": "Правило «имя записи каталога → имя экспорта».",
-          "properties": {
-            "fieldSuffix": {
-              "type": "string",
-              "description": "Суффикс символа для записей role=field (у @reformer/ui-kit — 'Field': Input → InputField)."
-            }
-          }
         },
         "infra": {
           "type": "object",

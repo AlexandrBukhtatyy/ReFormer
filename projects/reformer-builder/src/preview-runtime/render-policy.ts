@@ -15,7 +15,7 @@
  */
 
 import type { ComponentType } from 'react';
-import type { CatalogEntry, CatalogRole } from '../catalog';
+import type { CatalogEntry } from '../catalog';
 import { getActiveDescriptor } from '../kits/active';
 import { exportNameFor } from '../kits/descriptor';
 import { OVERLAY_LIMITED, SUBPATH_LIMITED } from '../kits/legacy-reformer-ui-kit';
@@ -50,25 +50,15 @@ export function isRegistrable(entry: Pick<CatalogEntry, 'name' | 'role'>): boole
 }
 
 /**
- * Реальный компонент кита для записи каталога. Имя экспорта считает {@link exportNameFor}: правило
- * кита (`${name}${fieldSuffix}` для полей) с точечным override через `exportName` записи.
+ * Реальный компонент кита для записи каталога. Имя символа считает {@link exportNameFor}:
+ * `exportName` записи, иначе её `name` — угадывать имя по роли резолв не пытается.
  */
 export function resolveKitComponent(
-  entry: Pick<CatalogEntry, 'name' | 'role' | 'exportName'>,
-  uiKit: UiKitNamespace,
-  descriptor: Pick<KitDescriptor, 'resolve'> = getActiveDescriptor()
-): ComponentType<Record<string, unknown>> | undefined {
-  const exported = uiKit[exportNameFor(entry, descriptor)];
-  return isComponentType(exported) ? exported : undefined;
-}
-
-/** Резолв по имени и роли (без записи каталога) — для вызовов, у которых записи нет под рукой. */
-export function resolveUiKitComponent(
-  name: string,
-  role: CatalogRole,
+  entry: Pick<CatalogEntry, 'name' | 'exportName'>,
   uiKit: UiKitNamespace
 ): ComponentType<Record<string, unknown>> | undefined {
-  return resolveKitComponent({ name, role }, uiKit);
+  const exported = uiKit[exportNameFor(entry)];
+  return isComponentType(exported) ? exported : undefined;
 }
 
 /**
@@ -97,7 +87,7 @@ export function classify(
   if (limit?.mode === 'limited')
     return { policy: 'limited', reason: limit.reason ?? 'предпросмотр ограничен' };
 
-  const component = resolveKitComponent(entry, uiKit, descriptor);
+  const component = resolveKitComponent(entry, uiKit);
   if (component) return { policy: 'live', component };
 
   return {

@@ -27,10 +27,6 @@ describe('«неявный кит»: каталог 1.0 без блока kit', 
     expect(d.version).toBe('workspace');
   });
 
-  it('правило резолва — сегодняшнее ${name}Field', () => {
-    expect(d.resolve.fieldSuffix).toBe('Field');
-  });
-
   it('infra — сегодняшние INFRA_NAMES', () => {
     expect(d.infra).toEqual({
       fieldWrapper: 'FormField',
@@ -111,11 +107,6 @@ describe('блок kit переопределяет дефолты точечн�
       catalog({ kit: { package: '@acme/ds', codegen: { importSpecifier: '@acme/ds/components' } } })
     );
     expect(d.codegen.importSpecifier).toBe('@acme/ds/components');
-  });
-
-  it('своё правило резолва полей', () => {
-    const d = toDescriptor(catalog({ kit: { resolve: { fieldSuffix: 'Control' } } }));
-    expect(d.resolve.fieldSuffix).toBe('Control');
   });
 
   it('infra переопределяется по одному полю, остальные — дефолты', () => {
@@ -250,28 +241,19 @@ describe('словарь классов и политика групп', () => {
   });
 });
 
-describe('exportNameFor — единое правило резолва символа', () => {
-  const d = toDescriptor(catalog());
-
-  it('поле получает суффикс кита', () => {
-    expect(exportNameFor({ name: 'Input', role: 'field' }, d)).toBe('InputField');
+describe('exportNameFor — символ называет сам каталог', () => {
+  it('запись без exportName резолвится по своему имени', () => {
+    expect(exportNameFor({ name: 'Box' })).toBe('Box');
   });
 
-  it('контейнер резолвится по имени как есть', () => {
-    expect(exportNameFor({ name: 'Box', role: 'container' }, d)).toBe('Box');
+  it('роль на имя символа не влияет — неявного суффикса у полей нет', () => {
+    // Растяжка против возврата правила «${name} + суффикс»: поле, чей символ называется иначе,
+    // обязано сказать это через exportName, а не полагаться на соглашение об именовании.
+    expect(exportNameFor({ name: 'Input' })).toBe('Input');
   });
 
-  it('exportName записи важнее правила', () => {
-    expect(
-      exportNameFor({ name: 'Chart', role: 'container', exportName: 'ChartContainer' }, d)
-    ).toBe('ChartContainer');
-    expect(exportNameFor({ name: 'Input', role: 'field', exportName: 'TextBox' }, d)).toBe(
-      'TextBox'
-    );
-  });
-
-  it('чужой суффикс применяется к полям', () => {
-    const acme = toDescriptor(catalog({ kit: { resolve: { fieldSuffix: 'Control' } } }));
-    expect(exportNameFor({ name: 'Input', role: 'field' }, acme)).toBe('InputControl');
+  it('exportName называет символ явно', () => {
+    expect(exportNameFor({ name: 'Input', exportName: 'InputField' })).toBe('InputField');
+    expect(exportNameFor({ name: 'Chart', exportName: 'ChartContainer' })).toBe('ChartContainer');
   });
 });

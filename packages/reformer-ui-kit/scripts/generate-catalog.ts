@@ -178,6 +178,8 @@ type Record = {
   name: string;
   role: 'field' | 'container';
   propsSchema: object;
+  /** Имя символа в barrel, когда оно отличается от `name` записи (`Input` → `InputField`). */
+  exportName?: string;
   variantGroup?: string;
   variant?: string;
   compoundParent?: string;
@@ -283,6 +285,21 @@ for (const c of introspected.values()) {
   if (!current || c.name === c.registryName) byRegistryName.set(c.registryName, c);
 }
 
+/**
+ * Имя символа field-записи. Каталог обязан назвать его сам: контракт билдера не задаёт правила
+ * «имя записи + суффикс», а под именем записи (`Input`) barrel отдаёт БАЗОВЫЙ компонент, не
+ * подключённый к форме. Форму-контрол публикует `withFormControl` под `${name}Field` — проверяем,
+ * что такой экспорт действительно есть, иначе запись молча указывала бы не на тот компонент.
+ */
+function fieldExportName(name: string): { exportName: string } {
+  const alias = `${name}Field`;
+  if (!introspected.has(alias))
+    throw new Error(
+      `field-запись '${name}': экспорта '${alias}' нет среди экспортов кита — каталог не может назвать символ.`
+    );
+  return { exportName: alias };
+}
+
 /** Отображаемый TS-тип для `x-doc.type`: для enum'а — сам union, иначе тип без `| undefined`. */
 function displayType(p: IntrospectedProp): string {
   if (p.enum) return p.enum.map((v) => `'${v}'`).join(' | ');
@@ -378,6 +395,7 @@ const rich: Record[] = Object.values(meta)
     return {
       name,
       role,
+      ...(role === 'field' ? fieldExportName(name) : {}),
       propsSchema,
       ...(variantGroup ? { variantGroup } : {}),
       ...(variantLabel ? { variant: variantLabel } : {}),
@@ -488,8 +506,9 @@ const SCHEMA_REF = '../../projects/reformer-builder/src/catalog/component-catalo
 // Блок `kit` — то, что кит рассказывает о себе сам. Пока это только стили: словарь классов для
 // автодополнения `className` в билдере (своего списка билдер НЕ держит) и дефолт «чем разрешено
 // стилизовать» по роли — полю можно править расположение в форме, но не вид. Остальные поля
-// дескриптора (id/resolve/infra/…) намеренно не пишем: билдер достраивает их своими дефолтами,
-// и дублировать их здесь значило бы завести второй источник правды.
+// дескриптора (id/infra/…) намеренно не пишем: билдер достраивает их своими дефолтами,
+// и дублировать их здесь значило бы завести второй источник правды. Имя символа — исключение:
+// это данные записи (`exportName`), а не дефолт билдера, и угадать его консумент не может.
 const kit = {
   styles: {
     classNames: CLASS_GROUPS,

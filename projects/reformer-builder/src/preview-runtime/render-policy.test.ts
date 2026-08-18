@@ -85,7 +85,7 @@ describe('чужой кит: решения следуют дескриптор�
       },
       { name: 'Fancy', role: 'container', propsSchema: {}, subpath: 'fancy' },
     ],
-    kit: { id: 'acme', package: '@acme/ds', resolve: { fieldSuffix: 'Control' } },
+    kit: { id: 'acme', package: '@acme/ds' },
   });
 
   const entry = (name: string, role: 'field' | 'container' = 'container', exportName?: string) =>
@@ -96,19 +96,19 @@ describe('чужой кит: решения следуют дескриптор�
       ...(exportName ? { exportName } : {}),
     }) as unknown as CatalogEntry;
 
-  it('поле резолвится по суффиксу кита, а не по ${name}Field', () => {
+  it('поле резолвится по exportName записи, а не по имени с суффиксом', () => {
     const InputControl = () => null;
-    expect(classify(entry('Input', 'field'), { InputControl }, acme)).toEqual({
+    expect(classify(entry('Input', 'field', 'InputControl'), { InputControl }, acme)).toEqual({
       policy: 'live',
       component: InputControl,
     });
-    // Суффикс ui-kit для этого кита ничего не значит.
-    expect(classify(entry('Input', 'field'), { InputField: () => null }, acme).policy).toBe(
-      'limited'
-    );
+    // Суффикс ui-kit для этого кита ничего не значит: имя символа знает только запись.
+    expect(
+      classify(entry('Input', 'field', 'InputControl'), { InputField: () => null }, acme).policy
+    ).toBe('limited');
   });
 
-  it('exportName записи переопределяет правило кита', () => {
+  it('exportName называет символ и для контейнера', () => {
     const ChartContainer = () => null;
     expect(
       classify(entry('Chart', 'container', 'ChartContainer'), { ChartContainer }, acme)

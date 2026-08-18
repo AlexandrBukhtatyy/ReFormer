@@ -1,6 +1,6 @@
 /**
  * Эмиттер `registry.ts` — привязка `$component`/`$dataSource` к реализациям. Компоненты резолвятся
- * через {@link resolveComponent} (field → `${name}Field`), неизвестные — под `Placeholder`.
+ * через {@link resolveComponent} (имя символа берёт каталог), неизвестные — под `Placeholder`.
  * `$dataSource`-значения импортируются из `./data-sources`.
  *
  * @module reformer-builder/codegen/emit-registry

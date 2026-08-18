@@ -9,7 +9,6 @@
     "peerRanges": {
       "react": "16.x || 17.x || 18.x"
     },
-    "resolve": { "fieldSuffix": "Field" },
     "infra": { "fieldWrapper": "FormField" },
     "adapters": {
       "wizard": null,

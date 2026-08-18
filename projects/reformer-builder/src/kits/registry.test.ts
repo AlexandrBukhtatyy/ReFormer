@@ -88,9 +88,11 @@ describe('сгенерированный каталог ui-kit@11', () => {
     expect(records.find((r) => r.name === 'Input')?.role).toBe('field');
   });
 
-  it('поля резолвятся по правилу кита', () => {
-    const input = kit.catalog.components.find((r) => r.name === 'Input')!;
-    expect(d.resolve.fieldSuffix).toBe('Field');
-    expect(input.exportName ?? `${input.name}${d.resolve.fieldSuffix}`).toBe('InputField');
+  it('каждое поле сгенерированного каталога называет свой символ явно', () => {
+    const fields = kit.catalog.components.filter((r) => r.role === 'field');
+    expect(fields.length).toBeGreaterThan(0);
+    // Билдер имя символа не угадывает — без exportName поле резолвилось бы в несуществующий Input.
+    expect(fields.filter((r) => !r.exportName)).toEqual([]);
+    expect(kit.catalog.components.find((r) => r.name === 'Input')?.exportName).toBe('InputField');
   });
 });

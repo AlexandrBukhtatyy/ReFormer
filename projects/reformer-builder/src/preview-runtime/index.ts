@@ -42,7 +42,6 @@ export {
   OVERLAY_LIMITED,
   SUBPATH_LIMITED,
   isRegistrable,
-  resolveUiKitComponent,
   resolveKitComponent,
   classify,
   type RenderPolicy,

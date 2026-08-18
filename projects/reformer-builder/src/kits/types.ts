@@ -42,15 +42,6 @@ export type KitNamespace = Record<string, unknown>;
  */
 export type KitPeerRanges = Record<string, string>;
 
-/** Правило «имя записи каталога → имя экспорта в namespace кита». */
-export interface KitResolveRule {
-  /**
-   * Суффикс символа для записей с `role: 'field'` (у `@reformer/ui-kit` — `Field`:
-   * `Input` → `InputField`). Контейнеры резолвятся по имени как есть.
-   */
-  fieldSuffix?: string;
-}
-
 /** Имена компонентов ВНЕ палитрового каталога, но обязательные для рендерера. */
 export interface KitInfra {
   /** Враппер поля (он же `FIELD_WRAPPER` реестра renderer-json). */
@@ -154,7 +145,7 @@ export interface KitRecordPreview {
  * (`name`/`role`/`propsSchema`/…). Отсутствие любого — поведение как сегодня.
  */
 export interface KitRecordExt {
-  /** Точечный override правила резолва, когда `${name}${fieldSuffix}` не подходит. */
+  /** Имя символа в namespace кита, если оно отличается от `name` записи (`Input` → `InputField`). */
   exportName?: string;
   /** Subpath кита, за которым лежит символ (когда его нет в barrel). */
   subpath?: string;
@@ -183,7 +174,6 @@ export interface KitDescriptorJson {
   /** Версия пакета кита (НЕ версия контракта каталога). */
   version?: string;
   peerRanges?: KitPeerRanges;
-  resolve?: KitResolveRule;
   infra?: KitInfra;
   adapters?: KitAdapters;
   palette?: KitPalette;
@@ -201,7 +191,6 @@ export interface KitDescriptor {
   package: string;
   version: string;
   peerRanges: KitPeerRanges;
-  resolve: Required<KitResolveRule>;
   infra: Required<KitInfra>;
   adapters: KitAdapters;
   palette: Required<Pick<KitPalette, 'categoryByName'>> & KitPalette;
