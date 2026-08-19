@@ -16,8 +16,13 @@ import {
   type ComponentRegistry,
 } from '@reformer/renderer-json';
 import { createFormRegistry } from '../registry';
+import { createSchemaCache, type SchemaCache } from '../cache';
 import type { FormEntry, ResolveContext } from '../types';
-import { FormRegistryProvider } from './context';
+import {
+  FormRegistryProvider,
+  useFormRegistryContext,
+  type FormRegistryProviderProps,
+} from './context';
 import { FormOutlet, FormSlot } from './form-outlet';
 import { MountedForm } from './mounted-form';
 import { loadForm, type LoadedForm } from '../loader';
@@ -222,5 +227,61 @@ describe('MountedForm — синхронная сборка', () => {
 describe('FormRegistryProvider', () => {
   it('использование вне провайдера даёт внятную ошибку', () => {
     expect(() => renderToString(<FormOutlet id="a" />)).toThrow(/вне <FormRegistryProvider>/);
+  });
+});
+
+describe('FormRegistryProvider — проброс кэша и опций загрузки', () => {
+  // Что «повторный монтаж не идёт в сеть», здесь не проверить: это требует эффектов, а SSR их
+  // не выполняет. Проверяем звено, которого раньше не было вовсе, — что кэш и настройки
+  // загрузчика доезжают до контекста, откуда их берёт EntryMount. Сквозная проверка живёт
+  // в e2e витрины, где считаются реальные вызовы fetch.
+  /**
+   * Зонд печатает СРАВНЕНИЕ, а не значение: `cache` и `fetchImpl` в строку не сериализуются,
+   * а проверять надо именно идентичность. Копия кэша означала бы второй, независимый L1 —
+   * то есть молчаливый промах вместо попадания, и утверждение «кэш подключён» стало бы ложью.
+   */
+  const same = (actual: unknown, expected: unknown): string =>
+    actual === undefined ? 'нет' : actual === expected ? 'тот-же' : 'другой';
+
+  const Probe: FC<{ cache?: SchemaCache; fetchImpl?: typeof fetch }> = (expected) => {
+    const { cache, options } = useFormRegistryContext();
+    // Одной строкой, а не соседними узлами: между двумя текстовыми детьми SSR вставляет
+    // разделитель `<!-- -->`, и поиск подстроки по разметке перестал бы находить очевидное.
+    const line =
+      `кэш:${same(cache, expected.cache)} ` +
+      `preflight:${options.preflight ?? 'нет'} ` +
+      `fetch:${same(options.fetchImpl, expected.fetchImpl)}`;
+    return <b>{line}</b>;
+  };
+
+  const render = (props: Partial<FormRegistryProviderProps>) =>
+    renderToString(
+      <FormRegistryProvider
+        registry={createFormRegistry()}
+        context={ctx()}
+        baseRegistry={baseRegistry}
+        {...props}
+      >
+        <Probe cache={props.cache} fetchImpl={props.options?.fetchImpl} />
+      </FormRegistryProvider>
+    );
+
+  it('кэш доезжает до контекста ТЕМ ЖЕ экземпляром', () => {
+    const cache = createSchemaCache();
+    expect(render({ cache })).toContain('кэш:тот-же');
+  });
+
+  it('кэш необязателен — без него контекст остаётся рабочим', () => {
+    const html = render({});
+    expect(html).toContain('кэш:нет');
+    expect(html).toContain('preflight:нет');
+    expect(html).toContain('fetch:нет');
+  });
+
+  it('preflight и fetchImpl доезжают до контекста', () => {
+    const fetchImpl = (() => Promise.reject(new Error('не должен вызываться'))) as typeof fetch;
+    const html = render({ options: { preflight: 'warn', fetchImpl } });
+    expect(html).toContain('preflight:warn');
+    expect(html).toContain('fetch:тот-же');
   });
 });

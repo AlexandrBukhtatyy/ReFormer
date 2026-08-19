@@ -21,4 +21,4 @@ export { MountedForm } from './mounted-form';
 export type { MountedFormProps } from './mounted-form';
 
 export { useFormResource } from './use-form-resource';
-export type { FormResource } from './use-form-resource';
+export type { FormResource, UseFormResourceOptions } from './use-form-resource';

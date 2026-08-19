@@ -5,13 +5,13 @@
  * @module reformer/form-registry/react/form-outlet
  */
 
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import type { FormModel } from '@reformer/core';
 import type { JsonForm } from '@reformer/renderer-json';
 import type { FormEntry, FormQuery } from '../types';
 import { entryKeyOf } from '../loader';
 import { useFormRegistryContext } from './context';
-import { useFormResource } from './use-form-resource';
+import { useFormResource, type UseFormResourceOptions } from './use-form-resource';
 import { MountedForm } from './mounted-form';
 
 export interface FormMountProps<T extends object> {
@@ -38,8 +38,29 @@ function EntryMount<T extends object>({
   entry,
   ...rest
 }: { entry: FormEntry<T> } & FormMountProps<T>): ReactNode {
-  const { baseRegistry } = useFormRegistryContext();
-  const res = useFormResource<T>(entry, baseRegistry);
+  const { baseRegistry, cache, options } = useFormRegistryContext();
+  const { onDiagnostic: report, preflight, fetchImpl } = options;
+  const { id, version, owner } = entry;
+
+  // Загрузчик знает про часть формы и ключ записи, но не про `Diagnostic` хоста — здесь
+  // единственное место, где под рукой есть сама запись, чтобы дополнить сообщение её паспортом.
+  const onDiagnostic = useCallback<NonNullable<UseFormResourceOptions['onDiagnostic']>>(
+    (d) =>
+      report?.({
+        level: d.level ?? 'warn',
+        code: d.code,
+        message: d.message,
+        entry: { id, version, owner },
+      }),
+    [report, id, version, owner]
+  );
+
+  const opts = useMemo<UseFormResourceOptions>(
+    () => ({ cache, preflight, fetchImpl, onDiagnostic: report ? onDiagnostic : undefined }),
+    [cache, preflight, fetchImpl, report, onDiagnostic]
+  );
+
+  const res = useFormResource<T>(entry, baseRegistry, opts);
 
   if (res.status === 'pending') return rest.fallback ?? null;
   if (res.status === 'error') {

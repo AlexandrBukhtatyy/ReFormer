@@ -180,19 +180,27 @@ registry.register(entry, { onConflict: 'keep' }); // оставить прежн
 ## 10. Провайдер
 
 ```tsx
+import { getFormRegistry } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
 
 <FormRegistryProvider
+  registry={getFormRegistry()}
   baseRegistry={coreComponents}
-  ctx={{ permissions: new Set(user.permissions), flags: new Set(featureFlags) }}
+  context={{ permissions: new Set(user.permissions), flags: new Set(featureFlags) }}
   cache={schemaCache}
+  options={{ preflight: 'warn', onDiagnostic: report }}
 >
   <App />
 </FormRegistryProvider>;
 ```
 
-`ctx` подаёт **хост**: реестр не знает ни про роутер, ни про модель прав приложения. Он получает
+`context` подаёт **хост**: реестр не знает ни про роутер, ни про модель прав приложения. Он получает
 готовые множества и сравнивает по ним.
+
+Обязательны `registry`, `context` и `baseRegistry`. `cache` и `options` необязательны, но их стоит
+держать **стабильными по ссылке**: смена экземпляра кэша перезагружает смонтированные формы (это
+осмысленно при смене настроек кэша, но не в цикле). Провайдеры вкладываются — внутренний перекрывает
+внешний, чем и пользуется отдельная страница со своим кэшем.
 
 ## 11. Три способа адресации
 
@@ -237,9 +245,17 @@ resolveForms(store, query, ctx) =
 <FormOutlet
   id="checkout"
   fallback={<Spinner />}
-  errorFallback={(error, retry) => <ErrorPanel error={error} onRetry={retry} />}
+  loadErrorFallback={(error, retry) => <ErrorPanel error={error} onRetry={retry} />}
+  errorFallback={(error, entry) => <RenderErrorPanel error={error} entry={entry} />}
 />
 ```
+
+Две разные ветки, и путать их нельзя: `loadErrorFallback` — **части не загрузились** (сеть, модуль,
+непройденный preflight), второй аргумент даёт повтор. `errorFallback` — форма загрузилась, но упала
+**на рендере**, повторять там нечего, поэтому второй аргумент — сама запись.
+
+Без `fallback` и `loadErrorFallback` `FormOutlet` рендерит `null`: для сетевого источника это значит,
+что и ожидание, и отказ выглядят одинаково — пустым местом.
 
 `MountedForm` дополнительно обёрнут в `SchemaErrorBoundary`: битая схема (неизвестный
 `$component` и т.п.) даёт панель ошибки, а не белый экран.
@@ -273,14 +289,25 @@ React-контекст не пересекает границу бандла: п
 
 ## 16. Быстрый старт
 
-```ts
-import { createSchemaCache } from '@reformer/form-registry';
+```tsx
+import { createSchemaCache, getFormRegistry } from '@reformer/form-registry';
 import { pickStorage } from '@reformer/form-registry/storage';
+import { FormRegistryProvider } from '@reformer/form-registry/react';
 
 const cache = createSchemaCache({ storage: await pickStorage() });
 
-<FormRegistryProvider cache={cache} ...>
+<FormRegistryProvider
+  registry={getFormRegistry()}
+  context={resolveContext}
+  baseRegistry={coreComponents}
+  cache={cache}
+>
+  <App />
+</FormRegistryProvider>;
 ```
+
+Кэш нужен только сетевым источникам. У `kind: 'inline'` загрузчик отдаёт значение до кэша, поэтому
+на inline-записях счётчики останутся нулевыми — это норма, а не признак неработающего кэша.
 
 ## 17. Загрузка по сети
 
@@ -328,7 +355,48 @@ L1 — в памяти: разобранные объекты и промисы 
 диагностику и уход в сеть, но не исключение. **Кэш выбрасываемый**: `clear()` в любой момент
 безопасен.
 
-## 19. Стратегии хранения
+## 19. Метрики
+
+```ts
+const cache = createSchemaCache({ storage, onEvent: (e) => log.push(e) });
+cache.stats(); // { l1Hit, l2Hit, dedup, stale, miss, fetched, ... }
+cache.resetStats(); // обнулить счётчики; содержимое кэша НЕ трогает
+```
+
+События образуют **две независимые оси**, и это не оформление, а условие того, что счётчики сходятся:
+
+| ось | события | сколько на что |
+| --- | --- | --- |
+| исход поиска | `l1-hit`, `l2-hit`, `dedup`, `stale`, `miss` | ровно одно на каждый `get()` |
+| исход сети | `fetched`, `refetched`, `revalidated`, `error`, `aborted` | не больше одного на заведённый запрос |
+
+Свести их в один список нельзя: один вызов `get()` даёт событие либо из обеих осей (`stale` →
+`revalidated`), либо только из первой (`l1-hit`). Отсюда проверяемые инварианты:
+
+```text
+l1Hit + l2Hit + dedup + stale + miss                === числу вызовов get()
+fetched + refetched + revalidated + error + aborted === stale + miss
+```
+
+Правая часть второго — именно `stale + miss`, а не число заведённых запросов: попадание в L2
+закрывает запрос ДО сети и события сетевой оси не даёт вовсе. В сеть уходят ровно те чтения, которые
+не нашли свежего значения.
+
+Что стоит знать, глядя на цифры:
+
+- **`stale` — не разновидность промаха.** «Тело было, но протухло» ведёт к условному запросу и,
+  скорее всего, к `revalidated`; «тела не было» (`miss`) — к полной загрузке.
+- **Исход поиска фиксируется до сети.** Иначе на каждом сетевом отказе событие терялось бы, и первый
+  инвариант перестал бы сходиться.
+- **`aborted` отделён от `error`.** Запрос без ожидающих гасим мы сами — в счётчике ошибок это
+  выглядело бы сбоем сервера.
+- **`l2ReadFailed` / `l2WriteFailed` / `l2Corrupt` считаются отдельно от `error`.** Сорванный кэш не
+  срывает загрузку; свести их в одну цифру — потерять смысл обеих.
+- **`bytes` — размер после сериализации**, а не байты по проводу: сжатие и заголовки не учтены.
+- **`stats()` возвращает копию.** Живой объект потребитель, сравнивающий снимки по ссылке (`useMemo`,
+  `useSyncExternalStore`), не увидел бы меняющимся ни разу. Для потока — `onEvent`.
+
+## 20. Стратегии хранения
 
 ```ts
 import {
@@ -376,7 +444,7 @@ import {
 LRU по `lastUsedAt`, потолок 32 МБ. Чтение обновляет возраст — иначе LRU выродился бы в FIFO.
 Политика вынесена чистой функцией `selectEvictions` и тестируется отдельно от ввода-вывода.
 
-## 20. Пять проверок
+## 21. Пять проверок
 
 | проверка | что ловит | делалось раньше |
 | --- | --- | --- |
@@ -398,7 +466,7 @@ LRU по `lastUsedAt`, потолок 32 МБ. Чтение обновляет �
 Индексы массивов (`items.0.name`) из проверки исключены: массив на старте пуст по определению, и
 отсутствие элемента ошибкой не является.
 
-## 21. Уровни
+## 22. Уровни
 
 - `error` — форму собирать нельзя, `loadForm` бросает `FormPreflightError`;
 - `warn` — соберётся, но часть поведения молча не сработает; попадает в `loaded.preflight.problems`.
@@ -406,13 +474,13 @@ LRU по `lastUsedAt`, потолок 32 МБ. Чтение обновляет �
 Единственная проверка уровня `warn` — нематериализованные пути: форма при этом работает, просто её
 валидация частично мертва.
 
-## 22. Проверяется СОСТАВНОЙ реестр
+## 23. Проверяется СОСТАВНОЙ реестр
 
 Preflight получает реестр уже после `composeRegistries(base, own)`. Если бы он смотрел только в
 базовый, любое расширение записи давало бы ложный отказ — и, что хуже, потеря композиции прошла бы
 незамеченной.
 
-## 23. Валидация схемы мета-схемой
+## 24. Валидация схемы мета-схемой
 
 Стратегия комбинированная:
 
@@ -430,7 +498,7 @@ import { validateSchemaCached, assertSchemaValid } from '@reformer/form-registry
 паре (схема, реестр) через `WeakMap`: схема иммутабельна, повторная проверка того же объекта не
 может дать другой ответ, а `WeakMap` не удерживает схемы от сборки мусора.
 
-## 24. Что ломается
+## 25. Что ломается
 
 Две копии одного пакета в одном realm — авария, у которой нет ни одного видимого симптома.
 
@@ -447,7 +515,7 @@ import { validateSchemaCached, assertSchemaValid } from '@reformer/form-registry
 бандла. В микрофронтах отказ приходит с другой стороны — два независимо собранных бандла грузят по
 своей копии, и ни один из них при этом не «неправильный».
 
-## 25. Как пользоваться
+## 26. Как пользоваться
 
 Каждый бандл при инициализации ставит свои штампы, хост потом спрашивает результат:
 
@@ -468,7 +536,7 @@ import { reportRuntime } from '@reformer/form-registry/guard';
 const { ok, duplicates, observed } = reportRuntime((d) => telemetry.error(d.message));
 ```
 
-## 26. Сравниваются объекты, а не версии
+## 27. Сравниваются объекты, а не версии
 
 Штамп обязан быть объектом или функцией — примитив отвергается с ошибкой. Строка с версией совпала
 бы у разных копий по значению, и дубль остался бы невидимым: **две копии одной и той же версии
@@ -479,7 +547,7 @@ const { ok, duplicates, observed } = reportRuntime((d) => telemetry.error(d.mess
 `CORE_RUNTIME_TOKEN` существует в ядре ровно для этого — быть объектом, уникальным в пределах одной
 копии модуля.
 
-## 27. Строгость — рантайм-флагом
+## 28. Строгость — рантайм-флагом
 
 ```ts
 setRuntimeStrict(true); // бросить на второй копии
@@ -497,7 +565,7 @@ setRuntimeStrict(true); // бросить на второй копии
 Ни на то, ни на другое опираться нельзя. Отсутствие node-глобалей в собранном пакете проверяется
 `scripts/check-no-node-globals.mjs` в CI.
 
-## 28. Ограничение, которое важно понимать
+## 29. Ограничение, которое важно понимать
 
 Guard видит **только те копии, которые сами себя штампанули**. Бандл, не вызвавший `stampRuntime`,
 останется невидимым — из JS нет способа пересчитать все загруженные модули.
@@ -505,7 +573,7 @@ Guard видит **только те копии, которые сами себ�
 Поэтому `checkRuntime()` возвращает не только `duplicates`, но и `observed`: пустой `observed`
 означает «guard просто не подключили», и это НЕ то же самое, что подтверждённое отсутствие дублей.
 
-## 29. Хранилище состояния
+## 30. Хранилище состояния
 
 Состояние лежит в `globalThis` под `Symbol.for('reformer.runtime.v1')`. `Symbol.for` живёт в
 cross-realm registry — это единственный ключ, совпадающий у двух независимо собранных копий модуля.
@@ -514,7 +582,7 @@ cross-realm registry — это единственный ключ, совпад�
 Тот же приём использует и сам реестр форм (`Symbol.for('reformer.form-registry.v1')`) — иначе при
 Module Federation без общего chunk'а хост не увидел бы форм, зарегистрированных ремоутом.
 
-## 30. Форма не появилась, в DOM пусто, ошибок нет
+## 31. Форма не появилась, в DOM пусто, ошибок нет
 
 Запись либо не найдена, либо отсеяна гейтом — снаружи это неотличимо, и намеренно: пустая рамка на
 месте недоступной формы сообщала бы о её существовании.
@@ -529,7 +597,7 @@ console.log(reg.diagnostics); // конфликты id
 Частые причины: микрофронт ещё не смонтировался; `unregister` вызван раньше времени; в `ctx` не
 попало право или флаг из `access`.
 
-## 31. Поля отрисовались голыми — без label, подсказки и места под ошибку
+## 32. Поля отрисовались голыми — без label, подсказки и места под ошибку
 
 Реестр компонентов дошёл, а производная от него обёртка полей (`$fieldWrapper`) — нет. Признак в
 разметке: `<input label="Фамилия">` — атрибут `label` уехал прямо в DOM, потому что его никто не
@@ -539,7 +607,7 @@ console.log(reg.diagnostics); // конфликты id
 бандле `form`), её терял. Починено в `@reformer/renderer-json`: обёртка берётся из того реестра,
 который реально используется. Если симптом воспроизводится — проверьте версию `renderer-json`.
 
-## 32. Валидация «не работает» на конкретном поле
+## 33. Валидация «не работает» на конкретном поле
 
 Поля нет в начальных значениях → у него нет сигнала → ни поведение, ни ошибки к нему не привяжутся.
 `validateModel` роутит через `getNodeForSignal(sig)?.setErrors(...)`, и опциональная цепочка молча
@@ -548,14 +616,14 @@ console.log(reg.diagnostics); // конфликты id
 Preflight ловит это как `unmaterialized-model-paths` (уровень `warn`). Проверьте
 `loaded.preflight.problems` — или включите `preflight: 'error'`.
 
-## 33. Пошаговая валидация молча не срабатывает на одном шаге
+## 34. Пошаговая валидация молча не срабатывает на одном шаге
 
 Шаг переименовали в схеме, а ключ в `validation.steps` остался прежним. Ключи — это **селекторы**
 узлов, и договорённость держалась только JSDoc.
 
 Ловится как `unknown-step-selectors`; сообщение перечисляет доступные селекторы.
 
-## 34. `Component "..." not found in registry`
+## 35. `Component "..." not found in registry`
 
 Схема ссылается на имя, которого нет в реестре. Если схема сетевая — почти наверняка она ушла вперёд
 кода.
@@ -563,12 +631,12 @@ Preflight ловит это как `unmaterialized-model-paths` (уровень 
 Задайте `compatibleSchema` и включите preflight: вместо одного промаха из конвертера вы получите
 полный список плюс проверку версии.
 
-## 35. Форма собралась, но пишет не те поля
+## 36. Форма собралась, но пишет не те поля
 
 CDN отдал чужую схему. Ловится как `schema-identity-mismatch` — сверка `id` записи и `id` схемы.
 Без неё отказ полностью молчалив: форма выглядит работающей.
 
-## 36. `enableWhen` перестал работать / вычисляемые поля затираются
+## 37. `enableWhen` перестал работать / вычисляемые поля затираются
 
 Классический признак **двух копий `@reformer/core`** в одном realm. См. `06-guard.md`: подключите
 `stampRuntime` в каждом бандле и `reportRuntime` в хосте.
@@ -576,12 +644,12 @@ CDN отдал чужую схему. Ловится как `schema-identity-mis
 Проверьте заодно, что `observed` не пуст — пустой означает, что guard просто не подключён, а не что
 дублей нет.
 
-## 37. `Cannot find module '@reformer/renderer-react'` у потребителя
+## 38. `Cannot find module '@reformer/renderer-react'` у потребителя
 
 Типы пакета ссылаются на `RenderBehaviorFn`. Пакет объявлен в `peerDependencies` — установите его
 рядом. Внутри монорепозитория проблема не воспроизводится: там работает симлинк.
 
-## 38. Схема не грузится по сети
+## 39. Схема не грузится по сети
 
 Смотрите `kind` у `FormFetchError`:
 
@@ -593,7 +661,7 @@ CDN отдал чужую схему. Ловится как `schema-identity-mis
 | `network` | сеть недоступна |
 | `aborted` | отменено — размонтировали последнего ожидающего |
 
-## 39. Кэш отдаёт устаревшую схему
+## 40. Кэш отдаёт устаревшую схему
 
 `maxAgeMs` (дефолт 5 минут) ещё не истёк. Точечно:
 
@@ -603,19 +671,19 @@ await cache.invalidate(`${owner}/${id}@${version}#schema`);
 
 Кэш выбрасываемый — `cache.clear()` безопасен в любой момент.
 
-## 40. Бесконечный цикл рендера, React error #185
+## 41. Бесконечный цикл рендера, React error #185
 
 `useSyncExternalStore` сравнивает снимок по ссылке. Если ваш код оборачивает `registry.list()` в
 `map`/`filter` внутри рендера, каждый вызов даёт новый массив. Сам `list()` ссылку сохраняет, пока
 состав реестра не менялся, — не ломайте это трансформацией на месте, мемоизируйте.
 
-## 41. `entry.ts` от билдера не компилируется
+## 42. `entry.ts` от билдера не компилируется
 
 Обновите `@reformer/form-registry`: в ранней версии третьим параметром фабрики render-behavior
 шли правила валидации, а сгенерированный код ждал там настройки места. Сейчас настройки — четвёртый
 параметр и приходят от хоста через `renderBehaviorOptions`.
 
-## 42. API Reference
+## 43. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -658,6 +726,90 @@ _Source: src/resolve.ts_
 export interface CacheEntry<T> {
   value: T;
   etag?: string;
+}
+```
+
+_Source: src/cache.ts_
+
+### CacheEvent
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface CacheEvent {
+  type: CacheEventType;
+  key: string;
+  /** Сколько заняла сетевая часть, мс. Только у терминальных событий сетевой оси. */
+  durationMs?: number;
+  /**
+   * Размер тела ПОСЛЕ сериализации, байты. Только у `fetched` и `refetched`.
+   *
+   * Это не байты по проводу: сжатие и заголовки сюда не входят.
+   */
+  bytes?: number;
+}
+```
+
+_Source: src/cache.ts_
+
+### CacheEventType
+
+**Kind:** `type`
+
+Что произошло с запросом.
+
+Ось «исход поиска» — ровно одно событие на каждый вызов `get()`:
+`l1-hit` — свежее из памяти; `l2-hit` — свежее из хранилища (пережило F5); `dedup` — присоединились
+к запросу в полёте; `stale` — тело было, но протухло, идём в сеть с `If-None-Match`; `miss` — тела
+не было вовсе.
+
+Ось «исход сети» — не больше одного на каждый заведённый запрос:
+`fetched` — холодная загрузка; `refetched` — протухшее заменено новым телом; `revalidated` — сервер
+подтвердил 304; `error` — отказ; `aborted` — запрос погасили мы сами, когда ушёл последний ждущий.
+
+**Signature:**
+```typescript
+export type CacheEventType =
+  | 'l1-hit'
+  | 'l2-hit'
+  | 'dedup'
+  | 'stale'
+  | 'miss'
+  | 'fetched'
+  | 'refetched'
+  | 'revalidated'
+  | 'error'
+  | 'aborted';
+```
+
+_Source: src/cache.ts_
+
+### CacheStats
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface CacheStats {
+  // ── ось «исход поиска»
+  l1Hit: number;
+  l2Hit: number;
+  dedup: number;
+  stale: number;
+  miss: number;
+  // ── ось «исход сети»
+  fetched: number;
+  refetched: number;
+  revalidated: number;
+  error: number;
+  aborted: number;
+  // ── отказы L2: загрузку они не роняют, поэтому считаются ОТДЕЛЬНО от `error`
+  l2ReadFailed: number;
+  l2WriteFailed: number;
+  l2Corrupt: number;
+  /** Суммарный размер тел, приехавших по сети, после сериализации. */
+  bytesFromNetwork: number;
 }
 ```
 
@@ -1249,7 +1401,16 @@ export interface LoadFormOptions {
    * `'off'` — не проверять.
    */
   preflight?: 'error' | 'warn' | 'off';
-  onDiagnostic?: (d: { code: string; message: string; entryKey: string }) => void;
+  /**
+   * @param d.level - Серьёзность проблемы. В режиме `'error'` диагностики рассылаются ДО броска,
+   *   поэтому уровень здесь не выводится из режима и передаётся явно.
+   */
+  onDiagnostic?: (d: {
+    code: string;
+    message: string;
+    entryKey: string;
+    level?: 'error' | 'warn';
+  }) => void;
   /** Подменяемо в тестах. */
   fetchImpl?: typeof fetch;
 }
@@ -1482,6 +1643,15 @@ export interface SchemaCache {
   clear(): Promise<void>;
   /** Сколько записей в памяти — для диагностики. */
   readonly memorySize: number;
+  /**
+   * Снимок счётчиков — всегда НОВЫЙ объект.
+   *
+   * Живой объект отдавать нельзя: потребитель, сравнивающий снимки по ссылке (`useMemo`,
+   * `useSyncExternalStore`), не увидел бы ни одного изменения. Поток изменений — через `onEvent`.
+   */
+  stats(): CacheStats;
+  /** Обнулить счётчики. Содержимое кэша НЕ трогает — это разные вещи. */
+  resetStats(): void;
 }
 ```
 
@@ -1496,13 +1666,15 @@ _Source: src/cache.ts_
 export interface SchemaCacheOptions {
   storage?: StorageStrategy;
   /**
-   * Считать кэшированное значение свежим столько миллисекунд. По истечении значение ещё отдаётся,
-   * но параллельно ревалидируется (stale-while-revalidate).
+   * Считать кэшированное значение свежим столько миллисекунд. По истечении значение сразу НЕ
+   * отдаётся: уходит условный запрос с `If-None-Match`, и вызывающий ждёт его исхода.
    */
   maxAgeMs?: number;
   /** Подменяемо в тестах. */
   now?: () => number;
   onDiagnostic?: (d: { code: string; message: string; key: string }) => void;
+  /** Поток событий кэша. Счётчики по тем же событиям — через {@link SchemaCache.stats}. */
+  onEvent?: (e: CacheEvent) => void;
 }
 ```
 

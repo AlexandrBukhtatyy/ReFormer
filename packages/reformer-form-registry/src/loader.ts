@@ -76,7 +76,16 @@ export interface LoadFormOptions {
    * `'off'` — не проверять.
    */
   preflight?: 'error' | 'warn' | 'off';
-  onDiagnostic?: (d: { code: string; message: string; entryKey: string }) => void;
+  /**
+   * @param d.level - Серьёзность проблемы. В режиме `'error'` диагностики рассылаются ДО броска,
+   *   поэтому уровень здесь не выводится из режима и передаётся явно.
+   */
+  onDiagnostic?: (d: {
+    code: string;
+    message: string;
+    entryKey: string;
+    level?: 'error' | 'warn';
+  }) => void;
   /** Подменяемо в тестах. */
   fetchImpl?: typeof fetch;
 }
@@ -185,7 +194,7 @@ export async function loadForm<T extends object>(
   if (mode !== 'off') {
     checked = preflight<T>({ entry, schema, registry, initial, validation });
     for (const p of checked.problems) {
-      opts.onDiagnostic?.({ code: p.code, message: p.message, entryKey: key });
+      opts.onDiagnostic?.({ code: p.code, message: p.message, entryKey: key, level: p.level });
     }
     if (!checked.ok && mode === 'error') throw new FormPreflightError(key, checked);
   }

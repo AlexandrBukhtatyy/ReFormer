@@ -3,19 +3,27 @@
 ## Провайдер
 
 ```tsx
+import { getFormRegistry } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
 
 <FormRegistryProvider
+  registry={getFormRegistry()}
   baseRegistry={coreComponents}
-  ctx={{ permissions: new Set(user.permissions), flags: new Set(featureFlags) }}
+  context={{ permissions: new Set(user.permissions), flags: new Set(featureFlags) }}
   cache={schemaCache}
+  options={{ preflight: 'warn', onDiagnostic: report }}
 >
   <App />
 </FormRegistryProvider>;
 ```
 
-`ctx` подаёт **хост**: реестр не знает ни про роутер, ни про модель прав приложения. Он получает
+`context` подаёт **хост**: реестр не знает ни про роутер, ни про модель прав приложения. Он получает
 готовые множества и сравнивает по ним.
+
+Обязательны `registry`, `context` и `baseRegistry`. `cache` и `options` необязательны, но их стоит
+держать **стабильными по ссылке**: смена экземпляра кэша перезагружает смонтированные формы (это
+осмысленно при смене настроек кэша, но не в цикле). Провайдеры вкладываются — внутренний перекрывает
+внешний, чем и пользуется отдельная страница со своим кэшем.
 
 ## Три способа адресации
 
@@ -60,9 +68,17 @@ resolveForms(store, query, ctx) =
 <FormOutlet
   id="checkout"
   fallback={<Spinner />}
-  errorFallback={(error, retry) => <ErrorPanel error={error} onRetry={retry} />}
+  loadErrorFallback={(error, retry) => <ErrorPanel error={error} onRetry={retry} />}
+  errorFallback={(error, entry) => <RenderErrorPanel error={error} entry={entry} />}
 />
 ```
+
+Две разные ветки, и путать их нельзя: `loadErrorFallback` — **части не загрузились** (сеть, модуль,
+непройденный preflight), второй аргумент даёт повтор. `errorFallback` — форма загрузилась, но упала
+**на рендере**, повторять там нечего, поэтому второй аргумент — сама запись.
+
+Без `fallback` и `loadErrorFallback` `FormOutlet` рендерит `null`: для сетевого источника это значит,
+что и ожидание, и отказ выглядят одинаково — пустым местом.
 
 `MountedForm` дополнительно обёрнут в `SchemaErrorBoundary`: битая схема (неизвестный
 `$component` и т.п.) даёт панель ошибки, а не белый экран.

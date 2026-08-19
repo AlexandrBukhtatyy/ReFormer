@@ -143,6 +143,18 @@ describe('loadForm — preflight', () => {
     expect(loaded.preflight?.ok).toBe(false);
   });
 
+  it('диагностика несёт уровень проблемы, а не только код', async () => {
+    // Без уровня получатель не отличит «форму собирать нельзя» от «часть поведения молча
+    // не сработает» — а решения по ним разные.
+    const bad = entry({ id: 'a', schema: { kind: 'inline', value: badSchema } });
+    const seen: { code: string; level?: string }[] = [];
+    await loadForm(bad, base, {
+      preflight: 'warn',
+      onDiagnostic: (d) => seen.push({ code: d.code, level: d.level }),
+    });
+    expect(seen.find((d) => d.code === 'missing-components')?.level).toBe('error');
+  });
+
   it("режим 'off' не проверяет вовсе", async () => {
     const bad = entry({ id: 'a', schema: { kind: 'inline', value: badSchema } });
     const loaded = await loadForm(bad, base, { preflight: 'off' });

@@ -5,14 +5,25 @@
 
 ## Быстрый старт
 
-```ts
-import { createSchemaCache } from '@reformer/form-registry';
+```tsx
+import { createSchemaCache, getFormRegistry } from '@reformer/form-registry';
 import { pickStorage } from '@reformer/form-registry/storage';
+import { FormRegistryProvider } from '@reformer/form-registry/react';
 
 const cache = createSchemaCache({ storage: await pickStorage() });
 
-<FormRegistryProvider cache={cache} ...>
+<FormRegistryProvider
+  registry={getFormRegistry()}
+  context={resolveContext}
+  baseRegistry={coreComponents}
+  cache={cache}
+>
+  <App />
+</FormRegistryProvider>;
 ```
+
+Кэш нужен только сетевым источникам. У `kind: 'inline'` загрузчик отдаёт значение до кэша, поэтому
+на inline-записях счётчики останутся нулевыми — это норма, а не признак неработающего кэша.
 
 ## Загрузка по сети
 
@@ -59,6 +70,47 @@ L1 — в памяти: разобранные объекты и промисы 
 Падение `storage.get`/`storage.set`, битое тело, очистка данных сайта посреди сессии — всё это даёт
 диагностику и уход в сеть, но не исключение. **Кэш выбрасываемый**: `clear()` в любой момент
 безопасен.
+
+## Метрики
+
+```ts
+const cache = createSchemaCache({ storage, onEvent: (e) => log.push(e) });
+cache.stats(); // { l1Hit, l2Hit, dedup, stale, miss, fetched, ... }
+cache.resetStats(); // обнулить счётчики; содержимое кэша НЕ трогает
+```
+
+События образуют **две независимые оси**, и это не оформление, а условие того, что счётчики сходятся:
+
+| ось | события | сколько на что |
+| --- | --- | --- |
+| исход поиска | `l1-hit`, `l2-hit`, `dedup`, `stale`, `miss` | ровно одно на каждый `get()` |
+| исход сети | `fetched`, `refetched`, `revalidated`, `error`, `aborted` | не больше одного на заведённый запрос |
+
+Свести их в один список нельзя: один вызов `get()` даёт событие либо из обеих осей (`stale` →
+`revalidated`), либо только из первой (`l1-hit`). Отсюда проверяемые инварианты:
+
+```text
+l1Hit + l2Hit + dedup + stale + miss                === числу вызовов get()
+fetched + refetched + revalidated + error + aborted === stale + miss
+```
+
+Правая часть второго — именно `stale + miss`, а не число заведённых запросов: попадание в L2
+закрывает запрос ДО сети и события сетевой оси не даёт вовсе. В сеть уходят ровно те чтения, которые
+не нашли свежего значения.
+
+Что стоит знать, глядя на цифры:
+
+- **`stale` — не разновидность промаха.** «Тело было, но протухло» ведёт к условному запросу и,
+  скорее всего, к `revalidated`; «тела не было» (`miss`) — к полной загрузке.
+- **Исход поиска фиксируется до сети.** Иначе на каждом сетевом отказе событие терялось бы, и первый
+  инвариант перестал бы сходиться.
+- **`aborted` отделён от `error`.** Запрос без ожидающих гасим мы сами — в счётчике ошибок это
+  выглядело бы сбоем сервера.
+- **`l2ReadFailed` / `l2WriteFailed` / `l2Corrupt` считаются отдельно от `error`.** Сорванный кэш не
+  срывает загрузку; свести их в одну цифру — потерять смысл обеих.
+- **`bytes` — размер после сериализации**, а не байты по проводу: сжатие и заголовки не учтены.
+- **`stats()` возвращает копию.** Живой объект потребитель, сравнивающий снимки по ссылке (`useMemo`,
+  `useSyncExternalStore`), не увидел бы меняющимся ни разу. Для потока — `onEvent`.
 
 ## Стратегии хранения
 

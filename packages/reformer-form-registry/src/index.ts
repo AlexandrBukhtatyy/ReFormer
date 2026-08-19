@@ -40,7 +40,15 @@ export { fetchJson, assertFormSchemaShape, retryDelay, FormFetchError } from './
 export type { FetchJsonOptions, FetchJsonResult, FetchFailureKind } from './net';
 
 export { createSchemaCache } from './cache';
-export type { SchemaCache, SchemaCacheOptions, Fetcher, CacheEntry } from './cache';
+export type {
+  SchemaCache,
+  SchemaCacheOptions,
+  Fetcher,
+  CacheEntry,
+  CacheEvent,
+  CacheEventType,
+  CacheStats,
+} from './cache';
 
 export {
   preflight,

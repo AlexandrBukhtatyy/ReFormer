@@ -77,9 +77,14 @@ off();
 Mount it in the host:
 
 ```tsx
+import { getFormRegistry } from '@reformer/form-registry';
 import { FormRegistryProvider, FormOutlet, FormSlot } from '@reformer/form-registry/react';
 
-<FormRegistryProvider baseRegistry={coreComponents} ctx={{ permissions, flags }}>
+<FormRegistryProvider
+  registry={getFormRegistry()}
+  baseRegistry={coreComponents}
+  context={{ permissions, flags }}
+>
   <FormOutlet id="checkout" />
   <FormSlot name="sidebar" />
 </FormRegistryProvider>;

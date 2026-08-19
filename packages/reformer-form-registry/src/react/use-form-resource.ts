@@ -11,16 +11,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ComponentRegistry } from '@reformer/renderer-json';
 import type { FormEntry } from '../types';
-import { entryKeyOf, loadForm, type LoadedForm } from '../loader';
+import { entryKeyOf, loadForm, type LoadFormOptions, type LoadedForm } from '../loader';
 
 export type FormResource<T extends object> =
   | { status: 'pending' }
   | { status: 'ready'; data: LoadedForm<T> }
   | { status: 'error'; error: Error; retry: () => void };
 
+/**
+ * Что можно донести до загрузчика с места монтирования.
+ *
+ * `signal` сюда НЕ входит, и это не упущение: отмена на связке «кэш + StrictMode» ломает загрузку.
+ * React монтирует, размонтирует и монтирует снова синхронно, в одном коммите; отмена по уходу
+ * последнего ждущего гасит общий запрос, а второй монтаж успевает присоединиться к нему до того,
+ * как `.finally` уберёт ключ из `inFlight`, — и получает вечную ошибку без шанса на автоповтор.
+ * Сценарий закреплён тестом в `cache.test.ts` и заведён отдельной задачей.
+ */
+export type UseFormResourceOptions = Pick<
+  LoadFormOptions,
+  'cache' | 'preflight' | 'onDiagnostic' | 'fetchImpl'
+>;
+
 export function useFormResource<T extends object>(
   entry: FormEntry<T>,
-  baseRegistry: ComponentRegistry
+  baseRegistry: ComponentRegistry,
+  opts?: UseFormResourceOptions
 ): FormResource<T> {
   const [state, setState] = useState<{
     status: 'pending' | 'ready' | 'error';
@@ -38,11 +53,19 @@ export function useFormResource<T extends object>(
   const entryRef = useRef(entry);
   entryRef.current = entry;
 
+  // Опции — тем же приёмом, что и запись: колбэки и литералы хоста нестабильны по ссылке, а
+  // перезагружать форму из-за нового `onDiagnostic` бессмысленно. В зависимости попадает только
+  // `cache`: смена ЭКЗЕМПЛЯРА кэша (другой `maxAgeMs`, другое хранилище) — это уже другая
+  // загрузка, и она обязана произойти заново.
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
+  const cache = opts?.cache;
+
   useEffect(() => {
     let cancelled = false;
     setState({ status: 'pending' });
 
-    loadForm(entryRef.current, baseRegistry).then(
+    loadForm(entryRef.current, baseRegistry, optsRef.current).then(
       (data) => {
         if (!cancelled) setState({ status: 'ready', data });
       },
@@ -59,7 +82,7 @@ export function useFormResource<T extends object>(
     return () => {
       cancelled = true;
     };
-  }, [key, baseRegistry, nonce]);
+  }, [key, baseRegistry, cache, nonce]);
 
   if (state.status === 'ready' && state.data) return { status: 'ready', data: state.data };
   if (state.status === 'error' && state.error)
