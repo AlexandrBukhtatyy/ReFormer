@@ -164,6 +164,17 @@ export default defineConfig({
       testDir: './tests/pages/html-nodes',
       use: { ...devices['Desktop Chrome'] },
     },
+    // Стенд реестра форм: кэш схем, ревалидация, дедупликация, ретраи.
+    // Service Worker НЕ блокируется — MSW нужен и как источник схем, и как сценарий отказов;
+    // сеть считается обёрткой fetchImpl внутри страницы, а не перехватчиком Playwright.
+    // Последовательно: тесты делят одно L2-хранилище на origin и мешали бы друг другу.
+    {
+      name: 'form-registry-lab',
+      testDir: './tests/pages/form-registry-lab',
+      fullyParallel: false,
+      workers: 1,
+      use: { ...devices['Desktop Chrome'] },
+    },
     // Форма регистрации из JSON-схемы: layout в JSON, правила значений в TS-схеме над моделью,
     // обработчики кнопок через $fn. Тесты идут по этим границам.
     {
