@@ -15,9 +15,10 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/copy-config-schema.mjs",
+    "build": "npm run generate:kit-safelist && tsc -b && vite build && node scripts/copy-config-schema.mjs",
     "build:config-schema": "node scripts/copy-config-schema.mjs",
     "generate:kit-catalogs": "node scripts/gen-kit-catalog.mjs @reformer/ui-kit-v11 reformer-ui-kit-11 --label \"ReFormer UI Kit\"",
+    "generate:kit-safelist": "node scripts/gen-kit-safelist.mjs",
     "prepack": "node scripts/copy-config-schema.mjs",
     "lint": "eslint .",
     "preview": "vite preview",

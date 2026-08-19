@@ -26,6 +26,7 @@ import {
 import type { JsonPath } from './paths';
 import { LEAF_COMPONENT_NAMES } from '../kits/legacy-reformer-ui-kit';
 import { getActiveDescriptor } from '../kits/active';
+import { baseUtility, gridColumnsOf, isAxisToken, variantsOf } from '../lib/tw-tokens';
 
 /** Вид узла: лист / массив / контейнер. */
 export type NodeKind = 'field' | 'array' | 'container';
@@ -235,23 +236,56 @@ export function canAcceptChildren(node: JsonNode): boolean {
 /** Ось, вдоль которой контейнер раскладывает детей. */
 export type Orientation = 'vertical' | 'horizontal';
 
+/** Ранг брейкпоинта: чем больше, тем шире экран, с которого вариант вступает в силу. */
+const BREAKPOINT_RANK: Record<string, number> = { sm: 1, md: 2, lg: 3, xl: 4, '2xl': 5 };
+
+/** Самый крупный брейкпоинт среди вариантов токена (0 — вариантов нет или они не про ширину). */
+function breakpointRank(token: string): number {
+  let rank = 0;
+  for (const v of variantsOf(token)) rank = Math.max(rank, BREAKPOINT_RANK[v] ?? 0);
+  return rank;
+}
+
 /**
  * Ось раскладки контейнера, выведенная из его `componentProps.className`:
  * `flex` без `flex-col`, либо `grid grid-cols-N` (N≥2) → горизонтальная; иначе
  * (`space-y-*`, `flex-col`, отсутствие класса, не-контейнер) → вертикальная.
  * Эвристика для drag-раскладки: она определяет, вдоль какой оси сосед считается «до/после»,
  * а какая ось-край означает «поставить рядом».
+ *
+ * Брейкпоинт-варианты РАЗБИРАЮТСЯ, а не считаются оформлением: `grid grid-cols-1 md:grid-cols-2` —
+ * это две колонки, а не одна. Токены применяются каскадом по возрастанию брейкпоинта, поэтому ось
+ * задаёт самый широкий из указанных: канвас показывает форму на десктопной ширине, и у
+ * `flex-col md:flex-row` пользователь видит именно строку.
  */
 export function orientationOf(node: JsonNode): Orientation {
   if (!isContainerNode(node)) return 'vertical';
   const cls = (node as JsonContainerNode).componentProps?.className;
   if (typeof cls !== 'string') return 'vertical';
-  const tokens = cls.split(/\s+/).filter(Boolean);
-  if (tokens.includes('grid')) {
-    const cols = tokens.find((t) => /^grid-cols-\d+$/.test(t));
-    if (cols && Number(cols.slice('grid-cols-'.length)) >= 2) return 'horizontal';
+  const axis = cls
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(isAxisToken)
+    .map((token, i) => ({ base: baseUtility(token), rank: breakpointRank(token), i }))
+    // Стабильная сортировка по брейкпоинту: внутри одного ранга порядок записи сохраняется.
+    .sort((a, b) => a.rank - b.rank || a.i - b.i);
+
+  let display: 'flex' | 'grid' | undefined;
+  let column = false;
+  let cols = 0;
+  for (const { base } of axis) {
+    if (base === 'flex' || base === 'inline-flex') display = 'flex';
+    else if (base === 'grid' || base === 'inline-grid') display = 'grid';
+    else if (base === 'flex-col' || base === 'flex-col-reverse') column = true;
+    else if (base === 'flex-row' || base === 'flex-row-reverse') column = false;
+    else {
+      const n = gridColumnsOf(base);
+      if (n !== undefined) cols = n;
+    }
   }
-  if (tokens.includes('flex') && !tokens.includes('flex-col')) return 'horizontal';
+
+  if (display === 'grid') return cols >= 2 ? 'horizontal' : 'vertical';
+  if (display === 'flex') return column ? 'vertical' : 'horizontal';
   return 'vertical';
 }
 

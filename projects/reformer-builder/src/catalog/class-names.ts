@@ -22,6 +22,12 @@ import { getCatalog } from './index';
 const cache = new Map<string, string[]>();
 
 /**
+ * Ключ мемо для словаря БЕЗ сужения политикой ({@link knownClassNames}). Скобки делают его
+ * недостижимым для имени компонента — те приходят из каталога и скобок не содержат.
+ */
+const ALL_CLASSES_KEY = '(all)';
+
+/**
  * Классы, которыми кит разрешает стилизовать компонент: плоский список в курируемом порядке групп,
  * дубли между группами схлопнуты (класс — React-ключ в выпадашке).
  *
@@ -43,6 +49,46 @@ export function classNamesFor(componentName: string): string[] {
   const flat = Array.from(new Set(groups.flatMap((g) => g.classes)));
   cache.set(componentName, flat);
   return flat;
+}
+
+/**
+ * ВЕСЬ словарь активного кита, без сужения политикой групп — «что кит вообще умеет отрисовать».
+ *
+ * Отличие от {@link classNamesFor} существенно: та отвечает на вопрос «что ПРЕДЛАГАТЬ для этого
+ * компонента» (полю формы — только отступы), а этот — «какие классы точно попадут в CSS». Словарь
+ * уезжает в safelist сборки (`scripts/gen-kit-safelist.mjs`), поэтому он же и есть список
+ * гарантированно живых классов; всё вне его Tailwind сгенерирует, только если встретил в коде.
+ *
+ * Пустой список = кит словаря не прислал; тогда проверять нечего (см. {@link unknownClasses}).
+ */
+export function knownClassNames(): string[] {
+  const hit = cache.get(ALL_CLASSES_KEY);
+  if (hit) return hit;
+
+  getCatalog();
+  const flat = Array.from(
+    new Set(getActiveDescriptor().styles.classNames.flatMap((g) => g.classes))
+  );
+  cache.set(ALL_CLASSES_KEY, flat);
+  return flat;
+}
+
+/**
+ * Классы значения, которых нет в словаре кита — кандидаты «не отрисуется в превью». Порядок
+ * сохраняется, дубли схлопнуты.
+ *
+ * Это ПОДСКАЗКА, а не запрет: класс вне словаря работает, если встречается в исходниках билдера
+ * или кита (`sm:max-w-lg` из компонентов кита — рабочий), а произвольные значения
+ * (`grid-cols-[1fr_2fr]`) словарём не покрываются в принципе. Поэтому формулировка в UI —
+ * «может не отрисоваться», и ввод остаётся свободным.
+ *
+ * Пустой словарь (кит его не прислал) отключает проверку целиком: иначе инспектор пометил бы
+ * подозрительным вообще всё.
+ */
+export function unknownClasses(all: readonly string[], value: string): string[] {
+  if (!all.length) return [];
+  const known = new Set(all);
+  return Array.from(new Set(value.split(/\s+/).filter(Boolean))).filter((t) => !known.has(t));
 }
 
 /**

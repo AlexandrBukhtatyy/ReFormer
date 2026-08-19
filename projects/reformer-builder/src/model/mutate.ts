@@ -28,6 +28,7 @@ import {
 } from './paths';
 import { parentNodePath } from './query';
 import { isDivContainer, orientationOf } from './node-kind';
+import { baseUtility, isAxisToken } from '../lib/tw-tokens';
 
 /** Результат структурной операции: новая схема + путь затронутого узла. */
 export interface MutationResult {
@@ -541,24 +542,35 @@ export function unwrapSingleChild(schema: JsonFormSchema, containerPath: JsonPat
  * Классы контейнера для заданной оси: нормализует к flex-раскладке (переключать направление имеет
  * смысл только у flex-контейнера). Убирает конфликтующие `grid`/`grid-cols-*`/`grid-rows-*`,
  * гарантирует `flex`, ставит/снимает `flex-col`. Остальные классы и их порядок сохраняются.
+ *
+ * Оси-токены снимаются ВМЕСТЕ с брейкпоинт-вариантами (`md:grid-cols-2`, `md:flex-col`): иначе
+ * после переворота на flex-контейнере остаётся грид-класс, который на своей ширине перебивает
+ * только что заданную ось — переворот выглядит как несработавший.
  */
 function withFlexOrientation(className: string | undefined, horizontal: boolean): string {
   const tokens = (className ?? '')
     .split(/\s+/)
     .filter(Boolean)
-    .filter((t) => t !== 'grid' && t !== 'flex-col' && !/^grid-(cols|rows)-/.test(t));
+    .filter((t) => t === 'flex' || !isAxisToken(t));
   if (!tokens.includes('flex')) tokens.unshift('flex');
   if (!horizontal) tokens.splice(tokens.indexOf('flex') + 1, 0, 'flex-col');
   return tokens.join(' ');
 }
 
-/** Переключить `flex-col` в списке классов (горизонталь ⇄ вертикаль flex-обёртки). */
+/**
+ * Переключить `flex-col` в списке классов (горизонталь ⇄ вертикаль flex-обёртки). Вариантные
+ * `md:flex-col`/`md:flex-row` снимаются вместе с голым — по той же причине, что в
+ * {@link withFlexOrientation}: адаптивное направление пережило бы переворот и отменило его.
+ */
 function toggleFlexColToken(className: string): string {
   const tokens = className.split(/\s+/).filter(Boolean);
-  const i = tokens.indexOf('flex-col');
+  const isColumn = (t: string) => baseUtility(t).startsWith('flex-col');
+  const isRow = (t: string) => baseUtility(t).startsWith('flex-row');
+  const i = tokens.findIndex(isColumn);
   if (i >= 0) {
-    tokens.splice(i, 1);
+    for (let k = tokens.length - 1; k >= 0; k--) if (isColumn(tokens[k])) tokens.splice(k, 1);
   } else {
+    for (let k = tokens.length - 1; k >= 0; k--) if (isRow(tokens[k])) tokens.splice(k, 1);
     const fi = tokens.indexOf('flex');
     tokens.splice(fi >= 0 ? fi + 1 : 0, 0, 'flex-col');
   }

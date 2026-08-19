@@ -23,7 +23,13 @@ export { CATALOG_SCHEMA, loadCatalogJson, buildCatalogFromJson, validateCatalog 
 export { partsOf, partNamesOf, compoundParentOf, isCompoundPart, hasParts } from './compound';
 // class-names.ts — та же взаимная ссылка index ↔ модуль, что и у compound: getCatalog() вызывается
 // только внутри функций, на инициализацию модулей это не влияет.
-export { classNamesFor, suggestClasses, resetClassNamesCache } from './class-names';
+export {
+  classNamesFor,
+  knownClassNames,
+  unknownClasses,
+  suggestClasses,
+  resetClassNamesCache,
+} from './class-names';
 export {
   DEFAULT_CATEGORY_ORDER,
   FALLBACK_CATEGORY,

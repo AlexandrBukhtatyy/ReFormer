@@ -8,6 +8,8 @@
  * @module reformer-builder/agent/core/layout
  */
 
+import { hasVariant, isAxisToken, isGapToken } from '../../lib/tw-tokens';
+
 /** Семантические параметры раскладки контейнера. */
 export interface LayoutParams {
   /** Ось: в строку или в столбец. */
@@ -25,51 +27,49 @@ const GAP_CLASS: Record<NonNullable<LayoutParams['gap']>, string> = {
   lg: 'gap-6',
 };
 
-/** Токены, которыми владеет раскладка: только они переписываются, остальные классы сохраняются. */
-function isLayoutToken(token: string): boolean {
-  return (
-    token === 'flex' ||
-    token === 'flex-col' ||
-    token === 'flex-row' ||
-    token === 'grid' ||
-    /^grid-cols-\d+$/.test(token) ||
-    /^gap-\d+$/.test(token) ||
-    /^space-[xy]-\d+$/.test(token)
-  );
-}
-
-/** Токены оси, выведенные из уже стоящих классов (когда ось менять не просили). */
-function keepAxis(tokens: readonly string[]): string[] {
-  if (tokens.includes('grid')) {
-    return ['grid', tokens.find((t) => /^grid-cols-\d+$/.test(t)) ?? 'grid-cols-2'];
-  }
-  if (tokens.includes('flex') && !tokens.includes('flex-col')) return ['flex'];
-  return ['flex', 'flex-col'];
-}
-
 /**
  * Собрать `className` контейнера. Не-раскладочные классы исходной строки сохраняются: агент правит
  * раскладку, а не оформление, и не должен затирать то, что пользователь настроил руками.
+ *
+ * Брейкпоинт-варианты (`md:grid-cols-2`, `md:flex-row`) — тоже раскладка, а не оформление:
+ * - ось НЕ просили менять → адаптив сохраняется как есть; раньше ось пересобиралась из голых
+ *   токенов, и правка одной лишь плотности молча роняла `md:grid-cols-2`;
+ * - ось просили сменить → адаптив снимается вместе с остальными оси-токенами. Иначе на широком
+ *   экране продолжал бы действовать старый вариант, и команда выглядела бы как не сработавшая.
  *
  * @param params - Семантика раскладки.
  * @param existing - Текущий `className` узла (для правки на месте).
  */
 export function layoutClassName(params: LayoutParams, existing = ''): string {
   const tokens = existing.split(/\s+/).filter(Boolean);
-  const kept = tokens.filter((t) => !isLayoutToken(t));
 
-  const axis =
+  const explicitAxis =
     params.columns && params.columns >= 2
       ? ['grid', `grid-cols-${params.columns}`]
       : params.direction === 'row'
         ? ['flex']
         : params.direction === 'column'
           ? ['flex', 'flex-col']
-          : keepAxis(tokens);
+          : undefined;
 
+  // Плотность живёт одним безвариантным `gap-*`; адаптивные `md:gap-*` — оформление и остаются,
+  // пока плотность не меняют явно.
   const gap = params.gap
     ? GAP_CLASS[params.gap]
     : (tokens.find((t) => /^gap-\d+$/.test(t)) ?? GAP_CLASS.md);
+  const dropGap = (t: string) => isGapToken(t) && (hasVariant(t) ? Boolean(params.gap) : true);
+
+  const kept = tokens.filter((t) => !isAxisToken(t) && !dropGap(t));
+  const axis = explicitAxis ?? keepAxis(tokens);
 
   return [...kept, ...axis, gap].join(' ');
+}
+
+/**
+ * Оси-токены, которые уже стоят на узле (когда ось менять не просили) — в порядке записи, вместе
+ * с брейкпоинт-вариантами. Пусто — узел без раскладки: даём вертикальный flex, как раньше.
+ */
+function keepAxis(tokens: readonly string[]): string[] {
+  const axis = tokens.filter(isAxisToken);
+  return axis.length ? axis : ['flex', 'flex-col'];
 }

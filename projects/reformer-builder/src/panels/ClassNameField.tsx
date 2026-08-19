@@ -10,14 +10,19 @@
  * формы — только отступы). Пустой список = подсказок нет; поле при этом остаётся полноценным
  * свободным вводом, потому что ограничение групп — это про подсказки, а не про запрет ввода.
  *
+ * Класс вне словаря кита помечается значком-предупреждением: словарь уезжает в safelist сборки,
+ * поэтому всё, чего в нём нет, Tailwind сгенерирует только при встрече в исходниках — иначе класс
+ * молча не подействует в превью. Это подсказка, а не ошибка: ввод по-прежнему свободный.
+ *
  * @module reformer-builder/panels/ClassNameField
  */
 
 import { useRef, useState, type KeyboardEvent } from 'react';
+import { TriangleAlert } from 'lucide-react';
 import type { JsonNode } from '@reformer/renderer-json';
 import { setComponentProp, type JsonPath } from '../model';
 import { editorActions } from '../store';
-import { suggestClasses, type InspectorProp } from '../catalog';
+import { knownClassNames, suggestClasses, unknownClasses, type InspectorProp } from '../catalog';
 import { cn } from '../lib/cn';
 
 const MAX_SUGGESTIONS = 24;
@@ -58,6 +63,12 @@ export function ClassNameField({
   const used = new Set(value.split(/\s+/).filter(Boolean));
   const suggestions = suggestClasses(classes, token, used, MAX_SUGGESTIONS);
   const showList = open && suggestions.length > 0;
+
+  // Классы вне словаря кита: в safelist сборки они не попадают, поэтому отрисуются, только если
+  // встречаются в исходниках билдера или кита. Проверяем по ПОЛНОМУ словарю, а не по `classes`:
+  // тот сужен политикой групп (полю формы кит разрешает предлагать только отступы), и суженным
+  // списком мы ругались бы на рабочий `md:col-span-2`.
+  const unknown = unknownClasses(knownClassNames(), value);
   const activeIdx = suggestions.length ? Math.min(active, suggestions.length - 1) : 0;
 
   const syncCaret = () => setCaret(inputRef.current?.selectionStart ?? value.length);
@@ -123,8 +134,24 @@ export function ClassNameField({
           onSelect={syncCaret}
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
-          className="h-[26px] w-full rounded-md border border-input bg-background px-2 font-mono text-[11px] outline-none focus:border-ring"
+          className={cn(
+            'h-[26px] w-full rounded-md border border-input bg-background px-2 font-mono text-[11px] outline-none focus:border-ring',
+            unknown.length && 'pr-6'
+          )}
         />
+        {unknown.length > 0 && (
+          // Тултип вешаем на span, а не на иконку: атрибут `title` у `<svg>` браузер не показывает.
+          <span
+            className="absolute top-1/2 right-1.5 -translate-y-1/2"
+            title={
+              `Нет в словаре кита: ${unknown.join(', ')}.\n` +
+              'Такой класс отрисуется, только если встречается в коде билдера или кита — ' +
+              'проверьте результат в превью.'
+            }
+          >
+            <TriangleAlert className="size-3.5 text-amber-600 dark:text-amber-400" />
+          </span>
+        )}
         {showList && (
           <div className="absolute inset-x-0 top-[30px] z-50 max-h-[240px] overflow-auto rounded-md border border-border bg-background p-1 shadow-md">
             {suggestions.map((cls, i) => (

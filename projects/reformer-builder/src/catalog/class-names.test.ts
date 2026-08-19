@@ -1,5 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { classNamesFor, resetClassNamesCache, suggestClasses } from './class-names';
+import {
+  classNamesFor,
+  knownClassNames,
+  resetClassNamesCache,
+  suggestClasses,
+  unknownClasses,
+} from './class-names';
 import { getCatalog } from './index';
 import { loadCatalogJson } from './contract';
 import { setActiveDescriptor } from '../kits/active';
@@ -113,6 +119,34 @@ describe('classNamesFor на реальном каталоге ui-kit', () => {
 
   it('синтетическому $html-тегу доступен весь словарь', () => {
     expect(classNamesFor('$html(div)')).toEqual(classNamesFor('Box'));
+  });
+
+  it('knownClassNames шире, чем разрешено полю: это про CSS, а не про политику', () => {
+    const known = knownClassNames();
+    // Полю кит предлагает только отступы, но отрисуются ему любые классы словаря.
+    expect(classNamesFor('Input')).not.toContain('md:grid-cols-2');
+    expect(known).toContain('md:grid-cols-2');
+    expect(known).toContain('bg-muted');
+    expect(known.length).toBe(classNamesFor('Box').length);
+  });
+});
+
+describe('unknownClasses', () => {
+  const ALL = ['flex', 'gap-4', 'md:grid-cols-2'];
+
+  it('отдаёт только классы вне словаря, в порядке записи и без дублей', () => {
+    expect(unknownClasses(ALL, 'flex gap-4')).toEqual([]);
+    expect(unknownClasses(ALL, 'flex md:foo bar md:foo')).toEqual(['md:foo', 'bar']);
+  });
+
+  it('лишние пробелы и пустое значение не создают токенов', () => {
+    expect(unknownClasses(ALL, '')).toEqual([]);
+    expect(unknownClasses(ALL, '   flex   gap-4  ')).toEqual([]);
+  });
+
+  it('пустой словарь выключает проверку целиком', () => {
+    // Кит словаря не прислал — иначе инспектор пометил бы подозрительным вообще всё.
+    expect(unknownClasses([], 'что-угодно и ещё')).toEqual([]);
   });
 });
 

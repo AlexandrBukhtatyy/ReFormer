@@ -152,4 +152,24 @@ describe('orientationOf', () => {
     const s = sampleSchema();
     expect(orientationOf(getAt(s, P.step0field0) as JsonNode)).toBe('vertical');
   });
+
+  it('адаптивные колонки считаются колонками', () => {
+    // Самый частый макет формы: одна колонка на телефоне, две на десктопе. Канвас показывает
+    // десктопную ширину — значит горизонталь.
+    expect(orientationOf(div('grid grid-cols-1 md:grid-cols-2 gap-4'))).toBe('horizontal');
+    expect(orientationOf(div('grid md:grid-cols-2'))).toBe('horizontal');
+    // Обратный порядок в строке роли не играет: каскад идёт по брейкпоинту, а не по записи.
+    expect(orientationOf(div('md:grid-cols-2 grid'))).toBe('horizontal');
+  });
+
+  it('ось берётся из самого широкого брейкпоинта', () => {
+    expect(orientationOf(div('flex flex-col md:flex-row'))).toBe('horizontal');
+    expect(orientationOf(div('flex md:flex-col'))).toBe('vertical');
+    expect(orientationOf(div('grid grid-cols-2 lg:grid-cols-1'))).toBe('vertical');
+  });
+
+  it('не-брейкпоинтные варианты не переопределяют базовую ось', () => {
+    // `hover:` ранга не имеет — попадает в тот же каскад по порядку записи, а не выше `md:`.
+    expect(orientationOf(div('flex hover:flex-col md:flex-row'))).toBe('horizontal');
+  });
 });

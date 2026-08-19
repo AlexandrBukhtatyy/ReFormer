@@ -9,6 +9,13 @@
    Tailwind-классы компонентов. Токены/анимации/`@custom-variant dark` приходят из `…/styles`. */
 @source "../../../packages/reformer-ui-kit/src";
 
+/* Safelist по словарям классов КИТОВ (генерируется `npm run generate:kit-safelist`).
+   Сканирование исходников покрывает только код: `className` из схемы формы Tailwind не видит
+   никогда, поэтому без safelist'а «предложили в подсказках» и «отрисовалось в превью» — разные
+   множества. Особенно заметно на брейкпоинт-вариантах (`md:grid-cols-2`) и на классах, которые
+   словарь собирает шаблоном (`bg-${color}-${shade}`): их не видит и сканер кита. */
+@import './kit-safelist.gen.css';
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
