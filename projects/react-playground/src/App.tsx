@@ -16,6 +16,7 @@ import HtmlNodesExample from './pages/examples/html-nodes/HtmlNodesExample';
 import RegistrationFormJson from './pages/examples/registration-form-renderer-json/RegistrationFormRendererJson';
 import AlertsListRendererJson from './pages/examples/alerts-list-renderer-json/AlertsListRendererJson';
 import FileUploadDemo from './pages/examples/file-upload/FileUploadDemo';
+import FormRegistryLab from './pages/examples/form-registry-lab/FormRegistryLab';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
 import { baseComponentRegistry, registerPlaygroundForms } from './forms/registry';
@@ -35,7 +36,8 @@ type ExamplePage =
   | 'html-nodes'
   | 'registration-json'
   | 'alerts-json'
-  | 'file-upload';
+  | 'file-upload'
+  | 'form-registry-lab';
 
 interface ExampleEntry {
   id: ExamplePage;
@@ -161,6 +163,18 @@ const exampleGroups: { title: string; items: ExampleEntry[] }[] = [
         title: 'Список алертов (JSON)',
         description:
           'Итерация массива модели через $component(List) + $template; behavior меняет набор алертов',
+      },
+    ],
+  },
+  {
+    title: 'Реестр форм',
+    items: [
+      {
+        id: 'form-registry-lab',
+        path: '/examples/registry-lab',
+        title: 'Стенд: кэш и метрики',
+        description:
+          'Три формы по HTTP через реестр: попадания в L1/L2, ревалидация 304, дедупликация, ретраи',
       },
     ],
   },
@@ -309,6 +323,7 @@ function Layout() {
             <Route path="/examples/registration-json" element={<RegistrationFormJson />} />
             <Route path="/examples/alerts-json" element={<AlertsListRendererJson />} />
             <Route path="/examples/file-upload" element={<FileUploadDemo />} />
+            <Route path="/examples/registry-lab" element={<FormRegistryLab />} />
             <Route path="/" element={<Navigate to="/examples/simple" replace />} />
             <Route path="*" element={<Navigate to="/examples/simple" replace />} />
           </Routes>

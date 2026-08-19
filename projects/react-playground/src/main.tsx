@@ -36,10 +36,19 @@ async function enableMocking() {
   return worker.start();
 }
 
-enableMocking().then(() => {
+function render() {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <App />
     </StrictMode>
   );
-});
+}
+
+// Приложение рендерится ДАЖЕ если моки не поднялись. Без catch любой отказ worker.start()
+// (заблокированный Service Worker в e2e, отозванная регистрация, отсутствующий mockServiceWorker.js)
+// не давал бы дойти до createRoot — и вместо внятной ошибки получался бы белый экран.
+enableMocking()
+  .catch((error: unknown) => {
+    console.error('[MSW] Не удалось запустить моки, приложение стартует без них:', error);
+  })
+  .finally(render);
