@@ -25,7 +25,7 @@ import {
   type FormValidation,
   type FormValidationBundle,
 } from './validation/config';
-import type { ValidationSchema } from './validation/schema';
+import type { ValidationSchema } from './validation';
 
 /**
  * Общая часть конфига всех фабрик формы.

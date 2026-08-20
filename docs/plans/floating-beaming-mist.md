@@ -1,414 +1,259 @@
-# Ревизия структуры `packages/reformer/src`
+# Разделение ambient-контрактов: `validation/schema.ts` и `behaviors/index.ts`
 
 ## Context
 
-Задача — привести раскладку `@reformer/core` в соответствие с логическими слоями: модель, форма
-(с группировкой по подсистемам) и платформенные биндинги.
+Два файла собрали в себе по нескольку зон ответственности:
 
-Разделение модель/форма уже существует (июль 2026, `ReFormer-by9`, план
-[snappy-bouncing-rossum.md](snappy-bouncing-rossum.md)): `src/state/**` — реактивный субстрат,
-`src/form/**` — формы и валидация. Граница закреплена ESLint-правилом
-[eslint.config.js:110-128](../../eslint.config.js#L110-L128) и **держится идеально**: рёбер
-`state → form` ноль.
+- **`form/validation/schema.ts`** (331 строка) — entry сабпата `@reformer/core/validation`: типы
+  контракта, ambient-сток прогона, шесть операторов схемы, раннер `validateModel` со своим реестром
+  состояния, плюс реэкспорт `strategy`.
+- **`form/behaviors/index.ts`** (624 строки) — entry сабпата `@reformer/core/behaviors`. Тот же
+  паттерн: `let current`, `requireCtx`, ambient-операторы. Шапка `schema.ts` прямо говорит, что он
+  «зеркалит контракт поведения», — это два экземпляра одной конструкции, и расходиться им нельзя.
 
-Просело то, что правило не покрывает:
+Решения пользователя: разбираем **оба сразу**; entry сабпата `/validation` становится
+`validation/index.ts` — симметрично уже существующим `behaviors/index.ts` и `validators/index.ts`.
 
-1. **React живёт внутри form-слоя.** `form/hooks/` — 6 файлов с runtime-импортом `react`; через
-   `form/index.ts` они утекают в корневой `@reformer/core`, хотя ни модель, ни форма от React не
-   зависят.
-2. **Корень `form/` плоский** — 17 файлов вперемешку: подсистема валидации, подсистема поведений,
-   сборка формы, шов, submit, утилиты.
-3. **Валидаторы на два уровня глубже своего публичного сабпата** и обслуживаются тремя barrel-ами.
-   Расхождение уже случилось: `UrlValidatorOptions` и `PhoneValidatorOptions` объявлены, но до
-   потребителя не доезжают — их экспортирует только тот barrel, до которого публичная цепочка не
-   доходит (и который knip считает мёртвым кодом).
-4. **В `state/` лежит чужак.** `subscription-manager.ts` имеет **ноль** потребителей внутри слоя —
-   все три это узлы формы (`field-node.ts:21`, `group-node.ts:28`, `array-node.ts:21`), и вся его
-   документация написана про `FieldNode`.
-5. **Ядро модели — один файл на 571 строку** с восемью размеченными секциями и тремя независимыми
-   механизмами.
-6. **25+ JSDoc-тегов указывают на пути, снесённые год назад** (`@module core/model/…`,
-   `@module core/utils/…`). Хуже: шапка `form/types/contracts.ts` описывает раскладку, которой
-   никогда не существовало.
+**Публичная поверхность не меняется.** `/validation` отдаёт 9 runtime-символов и 6 типов,
+`/behaviors` — 19 функций и 6 типов. Все внешние потребители (cdk, renderer-react, renderer-json,
+playground — 14 файлов, builder, reformer-doc, form-registry) импортируют по публичному имени
+сабпата, а не по внутреннему пути, поэтому разбиение их не касается.
 
-### Объём после оценки плана
+## Ключевое ограничение: ambient нельзя разрезать наивно
 
-Из первоначального замысла **исключены** три блока — обоснование в разделе «Что не делаем и почему»:
-переименование `state/` → `model/`, перенос `aggregate-signals`/`status-machine`/`form-proxy-builder`
-в `nodes/`, и переструктурирование каталога `tests/`.
+`current` — модуль-локальная переменная. После разделения на модули **прямая запись из другого
+модуля невозможна**: ESM запрещает присваивание импортированной переменной, live binding доступен
+только на чтение.
 
-Добавлен блок ESLint-правил: без него ревизия лечит симптом, а причина дрейфа (граница, которую никто
-не проверяет) остаётся.
+В двух файлах это ограничение играет по-разному:
 
-Итог: ~45 файлов движения вместо ~110, вся архитектурная ценность сохранена.
+**`behaviors` — обёртка не нужна.** Единственный писатель `current` — `defineFormBehavior.__run`
+(строки 107 и 111, save/restore через `prev`). Читатель — только `requireCtx` (70, 76). Оба
+остаются в одном модуле `context.ts`, наружу торчат лишь две «двери» — `onDispose` и `getScope`.
+Присваивания через границу модуля не возникает.
 
-## Целевая структура
+**`validation` — обёртка обязательна.** Там писатель (`validateModel`) и читатели (операторы)
+расходятся по разным файлам. Значит ambient-модуль должен инкапсулировать окно прогона:
 
-```
-src/
-├── index.ts                    зонтик (состав экспортов неизменен — 44 штуки)
-├── signals.ts                  владелец рантайма @preact/signals-core
-├── runtime-token.ts
-│
-├── state/                      имя не меняется
-│   ├── index.ts                barrel + entry сабпата /state
-│   ├── create-model.ts         createModel + eachLeafSignal            (~65)
-│   ├── model-nodes.ts          Leaf/Group/ArrayNode + clone/deepEqual  (~230)
-│   ├── model-signals-proxy.ts  $-дерево, containerSignal, signalAt     (~125)
-│   ├── model-value-proxy.ts    makeFormModel, nodeValue, arrayProxy    (~125)
-│   ├── types.ts
-│   ├── behaviors-value.ts
-│   ├── derived-registry.ts
-│   └── safe-effect.ts
-│
-├── form/                       после ревизии — без runtime-импортов react
-│   ├── index.ts
-│   ├── create-form.ts
-│   ├── create-core-form.ts
-│   ├── signal-node-registry.ts
-│   ├── form-submitter.ts
-│   ├── aggregate-signals.ts
-│   ├── status-machine.ts
-│   ├── form-proxy-builder.ts
-│   ├── type-guards.ts
-│   ├── unique-id.ts
-│   │
-│   ├── validation/             → сабпат /validation
-│   │   ├── schema.ts           ← validation-schema.ts   (entry)
-│   │   ├── strategy.ts         ← validation-strategy.ts
-│   │   ├── config.ts           ← validation-config.ts
-│   │   └── error-handler.ts    ← error-handler.ts
-│   │
-│   ├── validators/             → сабпат /validators
-│   │   ├── index.ts            единый barrel (entry)
-│   │   ├── required.ts … max-total-file-size.ts   (27 фабрик)
-│   │   ├── date-utils.ts
-│   │   └── file-utils.ts
-│   │
-│   ├── behaviors/              → сабпат /behaviors
-│   │   ├── index.ts            ← behaviors.ts (entry)
-│   │   └── node.ts             ← behaviors-node.ts
-│   │
-│   ├── nodes/
-│   │   ├── form-node.ts  field-node.ts  group-node.ts  array-node.ts  model-array-node.ts
-│   │   └── subscription-manager.ts   ← из state/
-│   ├── types/
-│   └── factories/
-│
-└── platforms/
-    └── react/
-        ├── index.ts            barrel слоя (заготовка под сабпат /react)
-        └── hooks/              ← было form/hooks/
+```ts
+// validation/context.ts
+export function runWithContext<R>(ctx: VContext, fn: () => R): R {
+  const prev = current;
+  current = ctx;
+  try {
+    return fn();
+  } finally {
+    current = prev; // окно закрыто до любого await — инвариант сохраняется
+  }
+}
 ```
 
-## Шаги
+Раннер вместо ручного присваивания вызывает `runWithContext(ctx, () => schema({ model }))`. Это не
+косметика, а единственный корректный способ разнести ambient и раннер по файлам.
 
-**Зависимость одна: B после A** (каталог `form/validation/` должен опустеть, прежде чем заселяться
-заново). Остальные блоки независимы по смыслу, но A, B, C и D правят один и тот же `form/index.ts` —
-значит выполнять последовательно, а не параллельно.
+**Общий риск обоих разбиений:** `current` становится состоянием отдельного модуля. Если сборка его
+продублирует, операторы и раннер увидят разные `current`, и любой оператор упадёт с «вызван вне
+схемы». Это ровно то, что проверяют существующие тесты — см. верификацию.
 
-**Правило коммитов, обязательное для всех блоков:** `git mv` и правка содержимого — **разные
-коммиты**. Совмещение ломает `git log --follow` на файлах, где живут самые ценные комментарии
-(разбор off-by-one в `date-utils.ts`, обоснование EPSILON в `multiple-of.ts`, объяснение
-безопасности цикла в `validation/schema.ts:328-330`, разбор `containerSignal` в модели). Каждый блок —
-отдельный PR: диф на 45 файлов ещё рецензируется, на 110 — уже нет.
+## Часть 1 — `form/validation/`
 
-### A. Валидаторы: `form/validation/validators/` → `form/validators/`
+### Целевая раскладка
 
-1. `git mv` **каталогом целиком** — 30 файлов разом. Побочный выигрыш: нынешний
-   `validation/validators/index.ts` и есть нужный итоговый barrel (надмножество среднего — содержит
-   те самые `UrlValidatorOptions`/`PhoneValidatorOptions`), так что слияние получается бесплатно.
-2. Удалить `form/validators.ts` и `form/validation/index.ts`; каталог `form/validation/` пустеет.
-   **Коллизия подтверждена по трём резолверам** (TS с `moduleResolution: bundler`, Vite
-   `tryFsResolve`, плюс явные ссылки в `vite.config.ts:35` и `knip.json:10`): все отдают приоритет
-   файлу `validators.ts` над каталогом `validators/`. Если оставить оба, три теста молча уедут на
-   старый файл, который реэкспортирует уже удалённый `./validation/index`. Снос — в том же изменении.
-3. Импорт типов в 27 фабриках, всегда строка 9: `'../../types/validation-schema'` →
-   `'../types/validation-schema'`. `date-utils.ts` и `file-utils.ts` не трогать — у них нет
-   относительных импортов.
-4. `vite.config.ts`: entry `validators` → `src/form/validators/index.ts`; 21 гранулярный entry →
-   `src/form/validators/<name>.ts`. **Ключи entry не менять.** Два ограничения на форматирование:
-   - 4 entry, разбитые сейчас на 3 строки, после укорочения пути влезают в `printWidth: 100` —
-     схлопнуть, иначе `npm run format:check` покраснеет;
-   - `resolve(` обязан остаться **на одной строке с ключом**: [scripts/check-exports-dist.mjs:69](../../scripts/check-exports-dist.mjs#L69)
-     парсит конфиг регекспом, и при переносе проверка молча деградирует до «entry не найдены».
-5. `knip.json`: две записи схлопнуть в `src/form/validators/*.ts`.
-6. Тесты — 6 файлов, 8 импортов: `tests/core/validation/{required,pattern,multiple-of}.test.ts`,
-   `date-age.test.ts` (3 импорта), `file-validators.test.ts`, `tests/core/utils/create-form-arrays.test.ts`.
+```
+form/validation/
+├── index.ts          entry сабпата: реэкспорт types + operators + run + strategy
+├── types.ts          Rule · AsyncRule · ValidationSchema (+ внутренний CallableRule)   ~35
+├── context.ts        VContext · requireCtx · touch · gated · runWithContext            ~55
+├── operators.ts      validate · validateAsync · validateWhen · cross · each · apply    ~110
+├── run.ts            defineValidationSchema · validateModel + RunState/registry        ~120
+├── strategy.ts       без изменений, кроме источника импорта
+├── config.ts         без изменений, кроме источника импорта
+└── error-handler.ts  без изменений
+```
 
-Публичный эффект: `@reformer/core/validators` наконец отдаст `UrlValidatorOptions` и
-`PhoneValidatorOptions`. Аддитивно, рантайма не тянет (оба — `export type`).
+Граф строго односторонний: `types ← context ← operators`, `types ← run → context`,
+`{types, operators, run} ← index → strategy → run`.
 
-### B. Группировка `form/`: `validation/` и `behaviors/`
+| Файл | Что переезжает (строки текущего `schema.ts`) |
+|---|---|
+| `types.ts` | `CallableRule` (30), `Rule` (45), `AsyncRule` (51), `ValidationSchema` (57) |
+| `context.ts` | `VContext` (63), `current` (76), `requireCtx` (78), `touch` (89), `gated` (96) + новый `runWithContext` |
+| `operators.ts` | `validate` (110), `validateAsync` (133), `validateWhen` (160), `cross` (175), `each` (190), `apply` (200) |
+| `run.ts` | `defineValidationSchema` (220), `RunState` (225), `stateRegistry` (231), `runStateFor` (233), `hasBlocking` (241), `whenAborted` (247), `validateModel` (283) |
+| `index.ts` | шапка контракта + реэкспорты + `export * from './strategy'` (была 331) |
 
-**После A.**
+### Побочный эффект: разрывается взаимный цикл
 
-1. Валидация:
-   ```
-   git mv src/form/validation-schema.ts   src/form/validation/schema.ts
-   git mv src/form/validation-strategy.ts src/form/validation/strategy.ts
-   git mv src/form/validation-config.ts   src/form/validation/config.ts
-   git mv src/form/error-handler.ts       src/form/validation/error-handler.ts
-   ```
-2. Поведения — **та же коллизия «файл шадоуит каталог», что и в A**. Оба `git mv` в одном шаге:
-   ```
-   git mv src/form/behaviors.ts      src/form/behaviors/index.ts
-   git mv src/form/behaviors-node.ts src/form/behaviors/node.ts
-   ```
-3. Внутренние импорты переехавших файлов (глубина +1):
-   - `validation/schema.ts:21`, `validation/strategy.ts:18`: `../index` → `../../index`;
-     `schema.ts:331` `export * from './validation-strategy'` → `'./strategy'`;
-     `strategy.ts:20` → `'./schema'`; `strategy.ts:19` `../state/form-model` → `../../state/create-model`
-     (после блока D — см. ниже; до него путь остаётся прежним)
-   - `validation/config.ts:18,24` → `./schema`, `./strategy`
-   - `validation/error-handler.ts:19`: `./types/contracts` → `../types/contracts`
-   - `behaviors/index.ts:24`: `../index` → `../../index`
-   - `behaviors/node.ts:14`: `./signal-node-registry` → `../signal-node-registry`
-4. Импортёры: `form/index.ts:31,32` → `./validation/config`; `:39` → `./behaviors/node`;
-   `:42` → `./validation/error-handler`; `create-core-form.ts:23,28` → `./validation/{config,schema}`;
-   `nodes/field-node.ts:23`, `nodes/array-node.ts:16` → `../validation/error-handler`.
-   Путь `./behaviors` в `create-form.ts:28` и `create-core-form.ts:21` **не меняется** — резолвится
-   в `behaviors/index.ts`.
-5. `vite.config.ts`: `behaviors` → `src/form/behaviors/index.ts`, `validation` →
-   `src/form/validation/schema.ts`. **Ключи entry не менять.** `knip.json:8,9` — оба пути.
-6. Тесты — **4 файла, 6 импортов**: `validate-model-schema.test.ts:23`,
-   `form-validation-strategy.test.ts:13,14`, `create-core-form.test.ts:10,13`,
-   `error-handler.test.ts:10`.
-   Семь тестов в `tests/behaviors/` править **не нужно** — путь `../../src/form/behaviors`
-   резолвится в новый `behaviors/index.ts` без изменений.
+Сейчас `schema.ts:331` делает `export * from './strategy'`, а `strategy.ts:24` импортирует
+`validateModel` из `./schema` — взаимный цикл, помеченный в коде как «безопасный, потому что импорт
+на уровне функций». После разбиения `strategy.ts` импортирует из `./run`, а реэкспортирует его
+`index.ts` — цикл исчезает сам.
 
-Побочно решается коллизия имён из инвентаризации: живой рантайм становится `validation/schema.ts`,
-а `@deprecated`-типы остаются `types/validation-schema.ts` — два разных файла с одним именем
-перестают существовать.
+### Правки у импортёров
 
-### C. React-биндинги → `platforms/react/`
+| Файл | Было | Станет |
+|---|---|---|
+| `validation/strategy.ts:24` | `./schema` | `./run` + `./types` |
+| `validation/config.ts:18` | `./schema` | `./operators` (apply) + `./run` + `./types` |
+| `form/create-core-form.ts:28` | `./validation/schema` | `./validation` |
+| `platforms/react/hooks/use-form-validation.ts:4` | `…/form/validation/schema` | `…/form/validation` |
 
-1. `git mv src/form/hooks src/platforms/react/hooks` (7 файлов).
-2. Обновить относительные импорты внутри хуков (глубина +2): `../nodes/*` → `../../../form/nodes/*`,
-   `../types/index` → `../../../form/types/index`, `../validation-strategy` →
-   `../../../form/validation/strategy`, `../../index` → `../../../index`.
-3. Создать `src/platforms/react/index.ts` — barrel слоя: `useFormControl`, `useFormControlValue`,
-   `useArrayLength`, `useFormValidation`, `useFormBundle` + типы `FieldControlState`,
-   `ArrayControlState`, `UseFormValidationArgs`, `UseFormValidationResult`, `FormBundleLike`.
-   `useSignalSubscription` наружу не отдавать — он и сейчас не публичен.
-4. **Убрать хуки из `form/index.ts`** (строки 33-34, 57-62), добавить
-   `export * from './platforms/react/index'` в `src/index.ts`. Состав экспортов зонтика не меняется —
-   меняется источник.
-5. `vitest.config.ts:28`: exclude `'src/form/hooks/types.ts'` → `'src/platforms/react/hooks/types.ts'`.
-6. Тесты — 3 файла: `tests/hooks/useFormControl.test.ts:16`,
-   `useFormControl-rules-of-hooks.test.ts:34`, `useFormControl-parity.test.ts:26`.
+Конфиги: `vite.config.ts:33` и `knip.json:9` — путь `src/form/validation/schema.ts` →
+`src/form/validation/index.ts`. `package.json` не трогается: он ссылается на `dist/validation.*`,
+а имя артефакта задаёт ключ entry, который не меняется.
 
-Что **останется** в `form/` от React: два **type-only** импорта — `types/deep-schema.ts:12`
-(`ComponentType`) и `types/schema-node.ts:27` (`ElementType`). Стираются при компиляции,
-рантайм-зависимости не создают; это часть контракта схемы, а не биндинг. Правило из блока E их
-разрешает явно.
+Тесты — 3 файла: `tests/core/validation/validate-model-schema.test.ts:14-23`,
+`tests/core/validation/form-validation-strategy.test.ts:13`,
+`tests/core/utils/create-core-form.test.ts:13` → переводятся на `src/form/validation`.
 
-### D. Разбор `state/`
+## Часть 2 — `form/behaviors/`
 
-1. **Выселить чужака.** `git mv src/state/subscription-manager.ts src/form/nodes/subscription-manager.ts`.
-   Три импортёра переходят на `./subscription-manager`; тест —
-   `tests/core/utils/subscription-manager.test.ts:2`.
+### Как файл устроен сейчас
 
-   Публичная поверхность: убрать `export { SubscriptionManager }` из `state/index.ts:58` (и упоминание
-   из docblock `:19-20`), добавить в `form/index.ts`. **Состав зонтика не меняется**; сабпат `/state`
-   теряет один экспорт — проверено грепом по всему репозиторию, внешних потребителей у него нет
-   (только три узла формы, свой barrel и собственный тест).
+| Секция | Строки | Объём |
+|---|---|---|
+| Шапка + импорты | 1-42 | 42 |
+| Типы контракта | 43-57 | 15 |
+| Ambient-сток + текущий scope | 58-119 | 62 |
+| Низкоуровневый набор авторинга (`effect`, `defer`) | 120-133 | 14 |
+| Утилиты | 134-200 | 67 |
+| **Операторы** | **201-624** | **424** |
 
-2. **Разбить `form-model.ts` (571 стр.).** Связность проверена по коду — зависимости строго
-   односторонние, циклов не возникает:
+Две трети файла — одна секция, и внутри неё две разные группы: операторы над скалярным полем
+(`compute` 230 … `revalidateWhen` 405) и операторы над коллекциями/под-моделями (`applyEach` 452,
+`exclusiveFlag` 524, `aggregateInto` 564, `apply` 606).
 
-   ```
-   model-nodes.ts ← model-signals-proxy.ts ← model-value-proxy.ts ← create-model.ts
-   ```
+### Целевая раскладка
 
-   | Новый файл | Что переезжает | Строк |
-   |---|---|---|
-   | `model-nodes.ts` | `isPlainObject`, `joinPath`, `isIndexKey`, `clone`, `deepEqual`, `ModelNode`, классы `LeafNode`/`GroupNode`/`ArrayNode`, `buildNode` | ~230 |
-   | `model-signals-proxy.ts` | `signalsCache`, `containerSignal`, `signalsProxy`, `isModelContainerSignal`, `resolveSignalAt` | ~125 |
-   | `model-value-proxy.ts` | `nodeValue`, `arrayValueProxy`, `RESERVED`, `facadeCache`, `rootByFacade`, `makeFormModel` | ~125 |
-   | `create-model.ts` | `walkLeaves`, `eachLeafSignal`, `createModel` | ~65 |
+```
+form/behaviors/
+├── index.ts        entry сабпата: шапка контракта + реэкспорты                 ~45
+├── types.ts        BehaviorScope · FormBehavior · ChangeContext + реэкспорт    ~30
+├── context.ts      RunContext · current · requireCtx · onDispose · getScope
+│                   · defineFormBehavior · effect · defer                       ~85
+├── internals.ts    GroupSignals · isLeafSignal · asArray · readGroup
+│                   · writeGroup · makeCycleGuard · getByPath                   ~80
+├── operators.ts    compute … revalidateWhen + enableGroup/nodeByPath/NodeOps   ~255
+├── collections.ts  applyEach · exclusiveFlag · aggregateInto · apply
+│                   + RowArray · touchValue · unmaterializedRowForm · nestedModel ~185
+└── node.ts         enableWhen/disableWhen над нодой — без изменений
+```
 
-   `nodeValue` / `arrayValueProxy` / `makeFormModel` **взаимно рекурсивны** — обязаны остаться в одном
-   файле (`model-value-proxy.ts`). Разрезать их нельзя.
+Граф: `types ← context`, `types ← internals`, `{types, context, internals} ← operators ← collections`.
+Ациклично.
 
-   Наружу из `model-nodes.ts` нужен ещё `isIndexKey` — им пользуются оба прокси-файла.
+**Распределение 12 внутренних хелперов по потребителям** (из карты зависимостей):
 
-   **Плоско, без подкаталога `internal/`**: в TS нет приватности каталога, knip будет спорить о
-   статусе таких файлов, а зеркало `dist/state/internal/**.d.ts` всё равно уедет в npm — то есть
-   «внутренность» была бы декларативной. Префикс `model-` при этом обязателен: файл `nodes.ts` в
-   `state/` читался бы как тёзка `form/nodes/`, а это ровно та путаница, которую ревизия устраняет.
+- в `internals.ts` — то, что не трогает ambient: `GroupSignals` (нужен обоим слоям операторов),
+  `isLeafSignal`, `asArray`, `readGroup`/`writeGroup` (только `copyFrom`), `makeCycleGuard` (только
+  `compute`/`computeFrom`), `getByPath` (три коллекционных оператора);
+- в `operators.ts` — всё обслуживание `enableWhen`: `enableGroup` (362), `nodeByPath` (178),
+  `NodeOps` (173), `EnableTarget` (336). `nodeByPath` использует `getScope`, поэтому держать его в
+  `internals.ts` значило бы затащить туда зависимость от ambient — а так `internals` остаётся
+  чистым;
+- в `collections.ts` — спутники своих операторов: `RowArray` (499), `touchValue` (505, только
+  `aggregateInto`), `unmaterializedRowForm` (417, только `applyEach`), `nestedModel` (186, только
+  `apply`).
 
-3. **Три модуль-локальных `WeakMap`** (`signalsCache`, `facadeCache`, `rootByFacade`) после разбиения
-   живут в разных файлах. От их единственности зависит идентичность модели
-   (`model.personalData.$.lastName === model.$.personalData.lastName`, `arr[i] === arr.at(i)`) и то,
-   что на контейнерный узел приходится ровно один агрегирующий `computed`. Это **главный риск блока** —
-   см. верификацию.
+`makeCycleGuard` (211) сейчас лежит в начале секции «Операторы», но по существу это утилита — едет
+в `internals.ts`.
 
-4. `state/index.ts`: `createModel` и `eachLeafSignal` из `./create-model`, `isModelContainerSignal`
-   из `./model-signals-proxy`. Заодно добавить `eachLeafSignal` в barrel — сейчас его нет, из-за чего
-   `validation/strategy.ts` лезет в файл напрямую в обход barrel'а. Список экспортов не сужается.
-5. Тест: `form-validation-strategy.test.ts:15` → `../../../src/state/create-model`.
+`collections.ts` зависит от `operators.ts` — `exclusiveFlag` (535) внутри вызывает `onChange` и
+`defineFormBehavior`. Это единственное ребро между двумя файлами операторов.
 
-Что **остаётся** в `state/` и почему: `derived-registry.ts` (используется `model-nodes.ts` в
-`GroupNode.set` — bulk-set не затирает compute-поля) и `safe-effect.ts` (используется
-`behaviors-value.ts:16`). Оба задействованы и формой, но модель ими пользуется по-настоящему — в
-отличие от `subscription-manager`.
+### Что упрощает задачу
 
-### E. ESLint: закрепить результат
+- `behaviors/index.ts` **не реэкспортируется** ни зонтиком `src/index.ts`, ни `form/index.ts`.
+  Внутри пакета на него ссылаются только два **type-only** импорта `FormBehavior`
+  (`create-core-form.ts:21`, `create-form.ts:28`) — runtime-импортёров нет. Разбиение физически не
+  может задеть состав зонтика.
+- Ключ entry `behaviors` в `vite.config.ts` уже указывает на `src/form/behaviors/index.ts` —
+  конфиги менять не придётся вовсе.
+- Тесты (`tests/behaviors/*`) импортируют `../../src/form/behaviors` — путь каталога, он не
+  меняется. Правок в тестах **ноль**.
 
-Без этого блока ревизия — разовая уборка: причина дрейфа в том, что границы никто не проверяет.
+### На что обратить внимание при переносе
 
-⚠️ **Правило нельзя добавлять отдельным блоком для `src/state/**`.** В flat-config последующий блок,
-задающий `@typescript-eslint/no-restricted-imports` для тех же файлов, **перезаписывает** правило
-целиком — существующая граница `state ⇏ form` молча исчезнет. Значит для `state/**` паттерны
-дописываются в **существующий** блок [eslint.config.js:110](../../eslint.config.js#L110), а для
-`form/**` заводится новый.
+- `/* eslint-disable @typescript-eslint/no-explicit-any */` (строка 41) стоит на весь файл —
+  расставить только по тем модулям, где `any` действительно есть.
+- Импорт из `../../index` (24-39) тянет символы **обоих** слоёв: 11 из model-слоя и один из
+  form-слоя (`coreEnableWhen`, живёт в соседнем `node.ts`). При разбиении импорт распадётся по
+  файлам — стоит проверить, что `operators.ts` не потянул лишнего.
+- Разница в управлении cleanup'ами, которую легко сломать: `apply` (620) кладёт cleanup под-схемы в
+  **родительский** сток через `onDispose`, а `applyEach` (479) держит cleanup'ы строк в
+  **собственном** `Map` и вызывает их вручную при удалении строки. Оба живут в `collections.ts` —
+  перенести как есть, не унифицируя.
 
-Два новых паттерна:
+## Что НЕ делаем
 
-- **`react` / `react-dom` / `use-sync-external-store`** запрещены в `src/state/**` и `src/form/**`
-  с `allowTypeImports: true` — именно эта опция оставляет легальными `ComponentType` и `ElementType`
-  в `form/types/`.
-- **`**/platforms/**`** запрещён в `src/state/**` и `src/form/**` — чтобы биндинги не потекли
-  обратно. Корневой `src/index.ts` под правило не подпадает и остаётся единственной точкой сшивки.
-
-### F. Гигиена шапок
-
-- 25+ тегов `@module core/model/…`, `@module core/utils/…`, `@module utils/…` → актуальные пути.
-- `@group Model` на `behaviors/node.ts:9,36,73` → `@group Form`.
-- Переписать шапку `form/types/contracts.ts` — она описывает раскладку, которой никогда не было
-  («живут в `model/`, state импортирует напрямую»; фактически файл в `form/types/`, и state его не
-  импортирует — это запрещено ESLint).
-- Переписать документацию `nodes/subscription-manager.ts`: примеры уже написаны про `FieldNode`,
-  после блока D файл наконец окажется рядом с ними.
-- `state/behaviors-value.ts` — ссылка `{@link module:core/model/behaviors}` ведёт в никуда.
-- `form/types/validation-schema.ts:11` — ссылка на `core/validation/index.ts`, устаревшая дважды.
-  Этот JSDoc уезжает в `dist/…d.ts`, то есть в npm.
-- [tests/README.md:3,25](../../packages/reformer/tests/README.md#L3) — утверждение «test structure
-  mirrors the source code structure» и пример `src/core/nodes/field-node.ts` неверны. Каталог
-  `tests/` в этой итерации не переструктурируется, поэтому README надо привести к **фактическому**
-  положению дел, а не к желаемому.
-- [scripts/diagrams/gen-excalidraw.mjs:301](../../scripts/diagrams/gen-excalidraw.mjs#L301) —
-  захардкоженная подпись `'src/form/: nodes/ … types/ · validation/'`. Текст в картинке, не
-  path-lookup; в CI не входит.
-
-## Что не делаем и почему
-
-**Переименование `state/` → `model/`.** Отменено по итогам оценки. Это откат задачи `ReFormer-by9.5`,
-которая переименовала `model/` → `state/` именно по фидбеку пользователя: «state dir must contain ONLY
-reactive substrate, nothing form-related». Имя `state` несёт **ограничение** — в этом его ценность;
-имя `model` такого ограничения не несёт, и туда снова потянет form-related, как уже было в
-`by9.4` → `by9.5`. Плюс переименование потребовало бы вечного алиаса `/state` + `/model`. Взамен —
-поправить `src/index.ts:2`, где написано «модулями model (state) и form», и свести терминологию
-к одному слову (пункт блока F).
-
-**Перенос `aggregate-signals` / `status-machine` / `form-proxy-builder` в `nodes/`.** Выгода
-эстетическая, риск ненулевой.
-
-**Переструктурирование `tests/`.** Каталог действительно живёт в снесённой раскладке
-`tests/core/{model,nodes,utils}/`, и `tests/core/utils/` смешивает оба слоя. Но это ~55 файлов
-движения, а **`tsc` их не проверяет** (`tsconfig.json` имеет `include: ["src"]`) — единственный гейт
-это фактический прогон тестов. Соотношение риска и навигационной пользы не в пользу переезда; в этой
-итерации правятся только импорты, которые ломают блоки A–D (~14 файлов). Отдельная bd-задача.
-
-**Два runtime-цикла** (`array-node → group-node → node-factory → array-node` и семимодульный
-`index → form/index → validation/config → validation/schema → index`). Оба ESM-безопасны только
-потому, что кросс-рёбра потребляются внутри функций.
-
-**`signals.ts` не является фактическим владельцем рантайма** — заявлен как «единая точка», но внутри
-`src/` его использует один файл (type-only), а 15 файлов тянут `@preact/signals-core` напрямую.
-
-**Поведения на трёх уровнях** с дублирующимися именами (`copyFrom`, `computeFrom`, `enableWhen`,
-`transformValue`, `resetWhen`, `syncFields`, `revalidateWhen` — по 2-3 определения в
-`state/behaviors-value.ts`, `form/behaviors/node.ts`, `form/behaviors/index.ts`). Блок B делает это
-дублирование виднее, но не устраняет.
+- **Цикл через корневой barrel.** `validation/run.ts` и `strategy.ts` будут, как и сейчас,
+  импортировать `getNodeForSignal` из `../../index`, что оставляет цикл `index → form/index →
+  validation/config → validation/index → index`. Разорвать его можно импортом напрямую из
+  `../signal-node-registry`, но это отдельное решение со своим влиянием на чанкинг — не смешиваем
+  с разбиением.
+- **Унификация двух ambient-реализаций.** После разбиения `validation/context.ts` и
+  `behaviors/context.ts` станут визуально похожи, но у них разные `RunContext` и разная семантика
+  вложенности. Общую абстракцию не выносим.
+- **`.size-limit.json` для `dist/validation.js`** — записи нет (в отличие от `index`, `validators`,
+  `behaviors`, `model`). Разбиение размер не увеличит, но гейта на этот артефакт как не было, так и
+  не будет. Отдельная задача.
 
 ## Верификация
+
+**Главная проверка — тесты ambient-контракта.** Именно они падают, если модуль с `current`
+продублировался при сборке:
+
+| Тест | Что охраняет |
+|---|---|
+| `tests/core/validation/validate-model-schema.test.ts:221` | `validate(...)` вне `validateModel` бросает «вне схемы валидации» |
+| `tests/behaviors/facade.test.ts:208-210` | `compute` / `onDispose` / `effect` вне `defineFormBehavior` бросают |
+| `tests/behaviors/scenarios.test.ts:575` | то же для `compute` |
+
+Эти же наборы подтверждают и обратное — что внутри прогона контекст виден: `scenarios.test.ts`
+(S1-S23) и `web-scenarios.test.ts` (W1-W13) гоняют все 19 операторов, `validate-model-schema.test.ts`
+— 8 из 9 символов сабпата.
 
 ```bash
 # из корня
 npm run lint
-npm run format:check                   # ловит несхлопнутые entry в vite.config.ts
-npm run typecheck                      # все пакеты — но НЕ tests/
+npm run format:check
+npm run typecheck                      # 8 конфигов, включая консументов
 npm run knip
 
-npm test -w @reformer/core             # единственный гейт на импорты в tests/
-npm run coverage -w @reformer/core     # пороги 79/71/80/81 — гейт CI
+npm test -w @reformer/core             # 808 тестов
+npm run coverage -w @reformer/core     # пороги 79/71/80/81
 npm run build -w @reformer/core
 
-npm run check:exports-dist             # каждый путь exports существует в dist И наоборот
-npm run check:dist-deps
-npm run size
+npm run check:exports-dist             # 27 сабпатов сходятся с dist/
+npm run size                           # dist/behaviors.js ≤ 5 kB (сейчас 2.48)
 git diff --exit-code -- 'packages/*/llms.txt'
 ```
 
-**Тест идентичности модели — главная проверка блока D.** Три `WeakMap` разъехались по файлам; если
-сборка положит их в разные чанки, идентичность фасадов сломается тихо:
-
-```bash
-npx vitest run tests/state/subpath-single-runtime.test.ts
-```
-
-Плюс ручная проверка на собранном пакете:
-
-```js
-model.personalData.$.lastName === model.$.personalData.lastName   // true
-model.tags.at(0) === model.tags[0]                                // true
-```
-
-**Негативные тесты ESLint-правил** (блок E считается выполненным только после них) — по одному на
-каждое правило, временной правкой с последующим откатом:
-
-```
-src/state/**  →  import … from '../form/nodes/form-node'     // должно упасть (старое правило цело)
-src/form/**   →  import { useState } from 'react'            // должно упасть (новое правило)
-src/form/types/deep-schema.ts → import type { ComponentType } from 'react'   // должно ПРОЙТИ
-src/form/**   →  import … from '../platforms/react/index'    // должно упасть
-```
-
-Третья строка важнее прочих: если `allowTypeImports` настроен неверно, правило сломает существующий
-код и это выяснится только на полном прогоне.
-
-**Инвариант неломки barrel'а** — состав экспортов `src/index.ts` до и после должен совпасть (44
-рантайм-экспорта). Критичен для блоков C и D, где пять хуков и `SubscriptionManager` меняют источник:
-
-```bash
-node -e "import('./dist/index.js').then(m=>console.log(Object.keys(m).sort().join('\n')))" > after.txt
-# сравнить с тем же выводом, снятым ДО начала работ
-```
-
-Статические проверки до сборки:
-
-```bash
-for p in src/form/hooks src/form/validators.ts src/form/behaviors.ts src/form/behaviors-node.ts \
-         src/form/error-handler.ts src/form/validation-schema.ts src/state/subscription-manager.ts; do
-  test ! -e packages/reformer/$p || echo "ОСТАЛОСЬ: $p"
-done
-grep -rn "from 'react'" packages/reformer/src/form/ packages/reformer/src/state/   # 0 строк
-```
-
-**Публичные сабпаты после сборки:**
+**Состав сабпатов до и после должен совпасть** — главный инвариант. Снимки снять **до** первой
+правки, иначе сравнивать будет не с чем:
 
 ```bash
 cd packages/reformer/dist
-cat validators/required.d.ts     # export * from '../form/validators/required'
-cat validators.d.ts              # export * from './form/validators/index'
-cat validation.d.ts              # export * from './form/validation/schema'
-cat behaviors.d.ts               # export * from './form/behaviors/index'
-node -e "import('./validators/required.js').then(m=>console.log(typeof m.required))"   # function
+node -e "import('./validation.js').then(m=>console.log(Object.keys(m).sort().join(',')))"
+# ожидаем 9: apply, createFormValidation, cross, defineValidationSchema, each,
+#            validate, validateAsync, validateModel, validateWhen
+node -e "import('./behaviors.js').then(m=>console.log(Object.keys(m).sort().join(',')))"
+# ожидаем 19 функций
+cat validation.d.ts                    # export * from './form/validation/index'
 ```
 
-`vite-plugin-dts` кладёт зеркало `src/` в `dist/` относительно `rootDir`, а на каждый entry генерирует
-stub, путь которого зависит **только от ключа entry** (проверено по исходнику плагина и по фактическому
-`dist/`). `package.json` ссылается на stub'ы, поэтому перенос файлов внутри `src/` их пути не меняет.
+**Смоук на собранном пакете** — проверяет, что ambient пережил бандлинг (vitest гоняет исходники,
+дублирование модуля возникает именно на бандлинге):
 
-**Консументы:** собрать `@reformer/cdk`, `@reformer/renderer-react`, `@reformer/renderer-json`, затем
-`npm run typecheck`. Финально — `projects/react-playground` (страницы `examples/validation`,
-`examples/file-upload`) и e2e `projects/react-playground-e2e`.
+```js
+const { defineValidationSchema, validate, validateModel } = await import('./dist/validation.js');
+const { createModel } = await import('./dist/index.js');
+const model = createModel({ a: '' });
+try { validate(model.$.a, []); throw new Error('НЕ бросил'); } catch { /* ожидаемо */ }
+await validateModel(model, defineValidationSchema(({ model }) => validate(model.$.a, [])));
+```
 
-**Регенерируемое:** `packages/reformer/llms.txt` (пересобирается `npm run generate:llms` внутри
-`npm run build`; в CI гейт `git diff --exit-code`) и `projects/reformer-doc/docs/api/**` (typedoc,
-закоммичен — регенерацию не забыть).
-
-**Откат:** каждый блок — отдельный PR, `git revert` одного коммита. Артефакты `dist/` в git не лежат,
-состояние npm не затрагивается.
+**Консументы:** собрать `@reformer/cdk` (`form-wizard/define-steps.ts` — единственный внешний
+пакет, использующий `/validation` полно), `renderer-react`, `renderer-json`, затем
+`projects/react-playground` (14 файлов с импортами сабпата) и `projects/reformer-builder`
+(регистрирует весь namespace `/validation` в live-превью).

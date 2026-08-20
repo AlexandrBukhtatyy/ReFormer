@@ -6,7 +6,7 @@
       "entry": [
         "src/model/index.ts",
         "src/form/behaviors/index.ts",
-        "src/form/validation/schema.ts",
+        "src/form/validation/index.ts",
         "src/form/validators/*.ts"
       ]
     }

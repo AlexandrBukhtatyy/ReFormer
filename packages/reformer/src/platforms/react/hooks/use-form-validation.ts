@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import type { FormModel } from '../../../index';
-import type { ValidationSchema } from '../../../form/validation/schema';
+import type { ValidationSchema } from '../../../form/validation';
 import {
   createFormValidation,
   type ValidationStrategyKind,

@@ -30,7 +30,7 @@ export default defineConfig({
         behaviors: resolve(__dirname, 'src/form/behaviors/index.ts'),
         // Декларативный контракт СХЕМЫ ВАЛИДАЦИИ (validateModel + операторы). Импортирует из index →
         // общий chunk (тот же реестр сигнал→нода, что и у форм/поведения).
-        validation: resolve(__dirname, 'src/form/validation/schema.ts'),
+        validation: resolve(__dirname, 'src/form/validation/index.ts'),
         // Barrel каталога validators/: полный набор правил одним импортом.
         validators: resolve(__dirname, 'src/form/validators/index.ts'),
         // Granular validator exports for tree-shaking

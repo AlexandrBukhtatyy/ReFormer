@@ -21,7 +21,8 @@ import {
   type FormModel,
   type PathAwareSignal,
 } from '../../index';
-import { validateModel, type ValidationSchema } from './schema';
+import { validateModel } from './run';
+import type { ValidationSchema } from './types';
 
 /**
  * Когда запускается schema-валидация:
