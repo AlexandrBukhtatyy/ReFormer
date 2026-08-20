@@ -98,6 +98,11 @@ export function useSignalSubscription<
 
       return dispose;
     },
+    // subscriptionKey намеренно не читается в теле — он здесь КЛЮЧ ИДЕНТИЧНОСТИ подписки (см. JSDoc
+    // параметра). Убрать его (как предлагает автофикс) значит получить subscribe, созданный один раз
+    // навсегда: подмена контрола на другой узел перестанет пересоздавать effect. Тот же приём ниже
+    // у getSnapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [subscriptionKey]
   );
 
