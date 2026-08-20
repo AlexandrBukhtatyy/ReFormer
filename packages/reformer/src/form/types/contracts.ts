@@ -1,13 +1,16 @@
 /**
- * Общие контракт-типы значения и валидации (state-слой).
+ * Общие контракт-типы значения и валидации.
  *
- * Эти типы нужны и headless-движку валидации данных (`validate-model-core`, `schema-node`,
- * `error-handler` — state), и form-слою. Живут в `model/`, поэтому state их импортирует напрямую,
- * а form-слой реэкспортирует из `form/types` (form→state разрешено). Так граница state⇏form не
- * нарушается: общие контракты принадлежат нижнему слою.
+ * Базовый словарь «значение + ошибка + статус», на который опираются узлы формы
+ * (`FormNode.getErrors`, `FieldNode`, `FormStatusMachine`, `aggregate-signals`), слой валидации
+ * и платформенные биндинги. Файл не импортирует ничего — это лист графа зависимостей.
+ *
+ * Живёт в `form/types/`, а не в state-слое: `FieldStatus`/`ErrorFilterOptions` — понятия формы,
+ * а state этих типов не использует (и импортировать их оттуда запрещено границей state⇏form).
+ * Наружу отдаётся через `form/types/index`.
  *
  * @group Types
- * @module model/contracts
+ * @module form/types/contracts
  */
 
 /**

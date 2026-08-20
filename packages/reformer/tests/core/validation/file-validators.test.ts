@@ -18,7 +18,7 @@ import {
   isFileLike,
   matchesFileAccept,
   toFileArray,
-} from '../../../src/form/validation/validators';
+} from '../../../src/form/validators';
 
 type Rule = (value: unknown) => { code: string; params?: Record<string, unknown> } | null;
 

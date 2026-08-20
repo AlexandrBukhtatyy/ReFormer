@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { FormErrorHandler, ErrorStrategy } from '../../../src/form/error-handler';
+import { FormErrorHandler, ErrorStrategy } from '../../../src/form/validation/error-handler';
 
 afterEach(() => {
   vi.restoreAllMocks();

@@ -25,7 +25,7 @@ export default defineConfig({
         'src/**/index.ts',
         'src/**/*.d.ts',
         'src/form/types/**',
-        'src/form/hooks/types.ts',
+        'src/platforms/react/hooks/types.ts',
         'src/state/types.ts',
       ],
       // Пороги = ФАКТИЧЕСКОЕ покрытие на момент включения гейта (79.87 / 71.4 / 80.85 / 81.17)

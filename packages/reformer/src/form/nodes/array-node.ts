@@ -13,12 +13,12 @@ import { signal, computed } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode, type SetValueOptions } from './form-node';
 import { GroupNode } from './group-node';
-import { FormErrorHandler, ErrorStrategy } from '../error-handler';
+import { FormErrorHandler, ErrorStrategy } from '../validation/error-handler';
 import { createAggregateSignals } from '../aggregate-signals';
 import type { FieldStatus, ValidationError } from '../types/index';
 import type { FormSchema } from '../types/deep-schema';
 import type { FormProxy } from '../types/form-proxy';
-import { SubscriptionManager } from '../../state/subscription-manager';
+import { SubscriptionManager } from './subscription-manager';
 
 /**
  * ArrayNode - массив форм с реактивным состоянием

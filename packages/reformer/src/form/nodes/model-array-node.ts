@@ -7,7 +7,7 @@
  * контракт, что ждут `FormArraySection`/`useFormControl` (length/value/valid/errors/at/push/…).
  *
  * @group Nodes
- * @module core/nodes/model-array-node
+ * @module form/nodes/model-array-node
  */
 
 import { signal, computed, effect, type Signal, type ReadonlySignal } from '@preact/signals-core';

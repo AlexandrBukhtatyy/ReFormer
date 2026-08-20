@@ -11,10 +11,10 @@
  * `createJsonForm` (`@reformer/renderer-json`): у них тот же конфиг плюс то, что нужно их слою
  * рендера.
  *
- * @module reformer/form/create-core-form
+ * @module form/create-core-form
  */
 
-import { createModel } from '../state/form-model';
+import { createModel } from '../state/create-model';
 import type { FormModel } from '../state/types';
 import { createForm } from './create-form';
 import type { FormSchemaNode } from './types/schema-node';
@@ -24,8 +24,8 @@ import {
   buildValidation,
   type FormValidation,
   type FormValidationBundle,
-} from './validation-config';
-import type { ValidationSchema } from './validation-schema';
+} from './validation/config';
+import type { ValidationSchema } from './validation/schema';
 
 /**
  * Общая часть конфига всех фабрик формы.

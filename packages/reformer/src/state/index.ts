@@ -16,15 +16,14 @@
  * - **value-операции** (реактивные правила) — `computeFrom`/`copyFrom`/`watchField`/`transformValue`/
  *   `resetWhen`/`syncFields`/`revalidateWhen`;
  * - **producer-owned флаг** — `markDerived`/`isDerived`/`unmarkDerived`;
- * - **утилиты субстрата** — `runOutsideEffect`/`safeCallback`/`safeDebouncedCallback`,
- *   `SubscriptionManager`.
+ * - **утилиты субстрата** — `runOutsideEffect`/`safeCallback`/`safeDebouncedCallback`.
  *
  * @group State
  * @module state
  */
 
 // Реактивная модель данных.
-export { createModel } from './form-model';
+export { createModel, eachLeafSignal } from './create-model';
 export type {
   FormModel,
   ModelArray,
@@ -36,7 +35,7 @@ export type {
   ModelApi,
   PathAwareSignal,
 } from './types';
-export { isModelContainerSignal } from './form-model';
+export { isModelContainerSignal } from './model-signals-proxy';
 
 // Value-операции behavior (читают/пишут сигналы, нод/валидации не касаются).
 export {
@@ -55,4 +54,3 @@ export { markDerived, isDerived, unmarkDerived } from './derived-registry';
 
 // Утилиты субстрата (реактивные правила / lifecycle).
 export { runOutsideEffect, safeCallback, safeDebouncedCallback } from './safe-effect';
-export { SubscriptionManager } from './subscription-manager';

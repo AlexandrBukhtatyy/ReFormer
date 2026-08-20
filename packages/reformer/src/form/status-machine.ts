@@ -7,7 +7,7 @@
  * - disabled -> valid/invalid
  *
  * @group Utils
- * @module utils/status-machine
+ * @module form/status-machine
  */
 
 import { signal, computed } from '@preact/signals-core';

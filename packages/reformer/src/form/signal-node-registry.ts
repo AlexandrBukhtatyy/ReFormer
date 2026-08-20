@@ -8,7 +8,7 @@
  * Используется `WeakMap`, поэтому записи авто-собираются GC вместе с сигналами.
  *
  * @group Utils
- * @module core/utils/signal-node-registry
+ * @module form/signal-node-registry
  */
 
 import type { Signal } from '@preact/signals-core';

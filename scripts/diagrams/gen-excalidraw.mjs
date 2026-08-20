@@ -298,7 +298,7 @@ card({
   version: 'v6.0.0',
   role: 'Реактивное ядро состояния формы на сигналах — единственный пакет без зависимостей на @reformer/*',
   body:
-    'src/form/: nodes/ (FieldNode, GroupNode, ArrayNode) · factories/ · hooks/ · types/ · validation/     src/state/     src/signals.ts\n' +
+    'src/form/: nodes/ · validation/ · validators/ · behaviors/ · factories/ · types/     src/state/     src/platforms/react/     src/signals.ts\n' +
     '\n' +
     '27 subpath-экспортов. Корневой barrel отдаёт form/types · form/factories · state · form + namespace validators,\n' +
     'но behaviors и schema-валидация в него НЕ входят: ./behaviors и ./validation — самостоятельные точки входа.\n' +

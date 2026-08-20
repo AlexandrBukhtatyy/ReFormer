@@ -6,10 +6,10 @@
  * (idempotent). Не зависят от form-слоя.
  *
  * State-операции, которым нужны ноды (`enableWhen`/`disableWhen`), вынесены в
- * {@link module:core/model/behaviors-node} — они резолвят ноду по сигналу через реестр из `createForm`.
+ * {@link module:form/behaviors/node} — они резолвят ноду по сигналу через реестр из `createForm`.
  *
  * @group Model
- * @module core/model/behaviors-value
+ * @module state/behaviors-value
  */
 
 import { effect, type Signal, type ReadonlySignal } from '@preact/signals-core';

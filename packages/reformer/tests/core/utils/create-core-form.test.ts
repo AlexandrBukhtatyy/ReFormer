@@ -7,10 +7,10 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { createCoreForm } from '../../../src/form/create-core-form';
-import { buildValidation } from '../../../src/form/validation-config';
+import { buildValidation } from '../../../src/form/validation/config';
 import { createModel } from '../../../src/state/index';
 import { defineFormBehavior, computeFrom } from '../../../src/form/behaviors';
-import { validate, defineValidationSchema } from '../../../src/form/validation-schema';
+import { validate, defineValidationSchema } from '../../../src/form/validation/schema';
 import { required, minLength } from '../../../src/form/validators';
 
 const InputStub = () => null;

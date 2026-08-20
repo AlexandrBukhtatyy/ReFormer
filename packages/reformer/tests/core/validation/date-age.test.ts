@@ -7,9 +7,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { calculateAge, getToday } from '../../../src/form/validation/validators/date-utils';
-import { minAge } from '../../../src/form/validation/validators/min-age';
-import { maxAge } from '../../../src/form/validation/validators/max-age';
+import { calculateAge, getToday } from '../../../src/form/validators/date-utils';
+import { minAge } from '../../../src/form/validators/min-age';
+import { maxAge } from '../../../src/form/validators/max-age';
 
 /** Дата рождения ровно `years` лет назад со сдвигом `dayOffset` дней (относительно сегодня). */
 function birthDate(years: number, dayOffset = 0): Date {

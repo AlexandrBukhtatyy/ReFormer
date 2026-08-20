@@ -7,7 +7,7 @@
  * - Тестируемости
  *
  * @group Utils
- * @module utils/form-submitter
+ * @module form/form-submitter
  */
 
 import { signal, computed } from '@preact/signals-core';

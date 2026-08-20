@@ -25,7 +25,7 @@ import type {
 import type { FormProxy } from '../types/form-proxy';
 import { uniqueId, SubscriptionKey } from '../unique-id';
 import { NodeFactory } from '../factories/node-factory';
-import { SubscriptionManager } from '../../state/subscription-manager';
+import { SubscriptionManager } from './subscription-manager';
 import { createAggregateSignals } from '../aggregate-signals';
 import { buildFormProxy } from '../form-proxy-builder';
 import { FormSubmitter, type SubmitOptions, type SubmitResult } from '../form-submitter';

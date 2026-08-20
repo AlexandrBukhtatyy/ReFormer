@@ -1,34 +1,38 @@
 # ReFormer Tests
 
-This directory contains all tests for the ReFormer package. The test structure mirrors the source code structure in `src/` for easy navigation and maintenance.
+Все тесты пакета `@reformer/core`.
+
+> ⚠️ **Структура тестов НЕ зеркалит `src/`.** Каталог `tests/core/**` остался от раскладки
+> `src/core/**`, снесённой при разделении на слои (`src/state/` + `src/form/`, июль 2026).
+> Переструктурирование вынесено в отдельную задачу; ниже — фактическое соответствие.
 
 ## Directory Structure
 
 ```
 tests/
-├── behaviors/              # Behavior schema tests (defineFormBehavior + операторы)
+├── behaviors/              # DSL поведения          → src/form/behaviors/
 ├── core/
-│   ├── factories/          # Factory function tests
-│   ├── model/              # FormModel / value-операции
-│   ├── nodes/              # Form node tests
-│   ├── types/              # Type definition tests
-│   ├── utils/              # Utility function tests
-│   └── validation/         # Validation system tests
-├── hooks/                  # React hooks tests
-├── state/                  # State subpath (@reformer/core/state)
-└── test-utils/             # Common test types
+│   ├── factories/          # NodeFactory            → src/form/factories/
+│   ├── model/              # модель данных          → src/state/
+│   ├── nodes/              # узлы формы             → src/form/nodes/
+│   ├── types/              # типы                   → src/form/types/
+│   ├── utils/              # СМЕШАННЫЙ каталог: derived-registry / safe-effect → src/state/,
+│   │                       #   create-* / type-guards / subscription-manager  → src/form/
+│   └── validation/         # раннер и правила       → src/form/validation/, src/form/validators/
+├── hooks/                  # React-хуки             → src/platforms/react/hooks/
+├── state/                  # сабпат @reformer/core/state (гарантия единого рантайма)
+└── test-utils/             # общие типы для тестов
 ```
 
-## Test Structure Principles
+## Принципы
 
-1. **Mirror Source Structure**: Each test file corresponds to a source file with the same relative path
-   - Example: `src/core/nodes/field-node.ts` → `tests/core/nodes/field-node.test.ts`
-
-2. **Consolidated Tests**: Related tests for the same module may be split into multiple files if needed
-   - Example: `field-node-cleanup.test.ts`, `field-node-error-handling.test.ts`, etc.
-
-3. **Test Utilities**: Common types are in `test-utils/`
-   - Import by explicit path: `import { ComponentInstance } from '../../test-utils/types'`
+1. **Один исходник — один тестовый файл.** Крупные модули дробятся по темам:
+   `field-node-cleanup.test.ts`, `field-node-error-handling.test.ts`, …
+2. **Импорт по относительному пути** к `src/`. ⚠️ `tsc` каталог `tests/` НЕ проверяет
+   (`tsconfig.json` → `include: ["src"]`), поэтому битый путь всплывёт только на прогоне тестов —
+   после любого переноса файлов в `src/` гоняйте `npm test`, а не только `npm run typecheck`.
+3. **Общие типы — в `test-utils/`**, импорт явным путём:
+   `import { ComponentInstance } from '../../test-utils/types'`
 
 ## Running Tests
 
@@ -48,14 +52,15 @@ npm test -- --coverage
 
 ## Test Statistics
 
-- **Total Test Files**: 57
-- **Total Tests**: 779
+- **Total Test Files**: 58
+- **Total Tests**: 808
 
 ## Writing New Tests
 
 When adding a new source file:
 
-1. Create a corresponding test file in the same relative path under `tests/`
+1. Положите тест в каталог, соответствующий слою исходника — см. таблицу соответствия выше
+   (относительный путь НЕ совпадает с `src/`, пока переструктурирование не выполнено)
 2. Use the test types from `test-utils/` where applicable
 3. Follow the existing test patterns and structure
 4. Ensure all tests pass before committing

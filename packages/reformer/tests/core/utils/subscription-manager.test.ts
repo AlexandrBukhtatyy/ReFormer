@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { SubscriptionManager } from '../../../src/state/subscription-manager';
+import { SubscriptionManager } from '../../../src/form/nodes/subscription-manager';
 
 describe('SubscriptionManager', () => {
   describe('add', () => {

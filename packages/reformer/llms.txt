@@ -4537,7 +4537,7 @@ Add Phone
 - {@link useFormControl} - хук для получения состояния
 - {@link FieldControlState} - состояние для полей
 
-_Source: src/form/hooks/types.ts_
+_Source: src/platforms/react/hooks/types.ts_
 
 ### ArrayNode
 
@@ -4692,7 +4692,7 @@ await v!.validateStep(1);   // правила шага `loan`
 await v!.validateAll();     // все шаги + extras
 ```
 
-_Source: src/form/validation-config.ts_
+_Source: src/form/validation/config.ts_
 
 ### computeFrom
 
@@ -5087,7 +5087,7 @@ model.tags.push('x');
 model.get();                  // { email: 'a@b.c', profile: { name: 'Ada' }, tags: ['x'] }
 ```
 
-_Source: src/state/form-model.ts_
+_Source: src/state/create-model.ts_
 
 ### disableWhen
 
@@ -5119,7 +5119,28 @@ export function disableWhen(
 disableWhen(model.$.discount, () => model.plan !== 'promo', { resetOnDisable: true });
 ```
 
-_Source: src/form/behaviors-node.ts_
+_Source: src/form/behaviors/node.ts_
+
+### eachLeafSignal
+
+**Kind:** `function`
+
+Обойти ВСЕ листовые сигналы модели (включая элементы массивов), вызвав `visit` на каждом.
+
+Внутри реактивного `effect` служит подпиской «любое поле изменилось»: `visit(sig => void sig.value)`
+подписывает на значения листьев, а обход массивов через `items.value` — на их состав. Так строятся
+триггеры `change`/`blur` стратегий валидации (см. `createFormValidation`), тем же паттерном, что
+`revalidateWhen`, но без ручного перечисления зависимостей.
+
+**Signature:**
+```typescript
+export function eachLeafSignal<T>(
+  model: FormModel<T>,
+  visit: (signal: PathAwareSignal<unknown>) => void
+): void
+```
+
+_Source: src/state/create-model.ts_
 
 ### enableWhen
 
@@ -5163,7 +5184,7 @@ compute(model.$.initialPayment, () => model.propertyValue * 0.2, {
 });
 ```
 
-_Source: src/form/behaviors-node.ts_
+_Source: src/form/behaviors/node.ts_
 
 ### ErrorFilterOptions
 
@@ -5221,7 +5242,7 @@ export enum ErrorStrategy {
 }
 ```
 
-_Source: src/form/error-handler.ts_
+_Source: src/form/validation/error-handler.ts_
 
 ### FieldConfig
 
@@ -5483,7 +5504,7 @@ onChange={e => control.setValue(e.target.value)}
 - {@link useFormControl} - хук для получения состояния
 - {@link ArrayControlState} - состояние для массивов
 
-_Source: src/form/hooks/types.ts_
+_Source: src/platforms/react/hooks/types.ts_
 
 ### FieldNode
 
@@ -5595,7 +5616,7 @@ export interface FormBundleLike {
 }
 ```
 
-_Source: src/form/hooks/use-form-bundle.ts_
+_Source: src/platforms/react/hooks/use-form-bundle.ts_
 
 ### FormControlsProxy
 
@@ -5709,7 +5730,7 @@ try {
 }
 ```
 
-_Source: src/form/error-handler.ts_
+_Source: src/form/validation/error-handler.ts_
 
 ### FormModel
 
@@ -6020,7 +6041,7 @@ export interface FormValidation<T> {
 }
 ```
 
-_Source: src/form/validation-config.ts_
+_Source: src/form/validation/config.ts_
 
 ### FormValidationBundle
 
@@ -6051,7 +6072,7 @@ export interface FormValidationBundle<T> {
 }
 ```
 
-_Source: src/form/validation-config.ts_
+_Source: src/form/validation/config.ts_
 
 ### FormValue
 
@@ -6366,7 +6387,7 @@ export function isModelContainerSignal(value: unknown): boolean
 const isLeaf = (v: unknown) => isSignalLike(v) && !isModelContainerSignal(v);
 ```
 
-_Source: src/state/form-model.ts_
+_Source: src/state/model-signals-proxy.ts_
 
 ### markDerived
 
@@ -7076,7 +7097,7 @@ class FieldNode {
 }
 ```
 
-_Source: src/state/subscription-manager.ts_
+_Source: src/form/nodes/subscription-manager.ts_
 
 ### syncFields
 
@@ -7211,7 +7232,7 @@ function ArrayRenderer({ arrayNode }) {
 }
 ```
 
-_Source: src/form/hooks/useArrayLength.ts_
+_Source: src/platforms/react/hooks/useArrayLength.ts_
 
 ### useFormBundle
 
@@ -7236,7 +7257,7 @@ export function useFormBundle<B extends FormBundleLike>(factory: () => B): B
 const credit = useFormBundle(() => createCoreForm<CreditForm>({ model: createCreditModel() }));
 ```
 
-_Source: src/form/hooks/use-form-bundle.ts_
+_Source: src/platforms/react/hooks/use-form-bundle.ts_
 
 ### useFormControl
 
@@ -7470,7 +7491,7 @@ return <div>Items: {length}</div>;
 - {@link FieldControlState} - тип состояния для FieldNode
 - {@link ArrayControlState} - тип состояния для ArrayNode
 
-_Source: src/form/hooks/useFormControl.ts_
+_Source: src/platforms/react/hooks/useFormControl.ts_
 
 ### useFormControlValue
 
@@ -7651,7 +7672,7 @@ return (
 - {@link useFormControl} - для полного состояния поля
 - {@link FieldNode} - тип контрола поля
 
-_Source: src/form/hooks/useFormControlValue.ts_
+_Source: src/platforms/react/hooks/useFormControlValue.ts_
 
 ### useFormValidation
 
@@ -7686,7 +7707,7 @@ function MyForm() {
 }
 ```
 
-_Source: src/form/hooks/use-form-validation.ts_
+_Source: src/platforms/react/hooks/use-form-validation.ts_
 
 ### UseFormValidationArgs
 
@@ -7708,7 +7729,7 @@ export interface UseFormValidationArgs<T> {
 }
 ```
 
-_Source: src/form/hooks/use-form-validation.ts_
+_Source: src/platforms/react/hooks/use-form-validation.ts_
 
 ### UseFormValidationResult
 
@@ -7726,7 +7747,7 @@ export interface UseFormValidationResult {
 }
 ```
 
-_Source: src/form/hooks/use-form-validation.ts_
+_Source: src/platforms/react/hooks/use-form-validation.ts_
 
 ### ValidateOptions
 

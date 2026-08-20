@@ -23,7 +23,7 @@ vi.mock('use-sync-external-store/shim', () => ({
 }));
 
 // Импортируем ПОСЛЕ vi.mock (hoisted).
-import { useFormControl } from '../../src/form/hooks/useFormControl';
+import { useFormControl } from '../../src/platforms/react/hooks/useFormControl';
 import { createModel } from '../../src/state/index';
 import { createForm } from '../../src/form/create-form';
 

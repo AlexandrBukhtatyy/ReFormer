@@ -7,7 +7,7 @@
  * `reset` НЕ затрагиваются — их пишет либо явный код, либо сам compute.
  *
  * @group Utils
- * @module core/utils/derived-registry
+ * @module state/derived-registry
  */
 
 import type { Signal } from '@preact/signals-core';

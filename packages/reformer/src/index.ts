@@ -1,19 +1,23 @@
 /**
- * Публичный barrel `@reformer/core` — зонтик над модулями `model` (state) и `form`.
+ * Публичный barrel `@reformer/core` — зонтик над слоями `state`, `form` и `platforms/react`.
  *
- * Состав экспортов НЕ изменился при модуляризации (реорг в src/model + src/form): реализация
- * разложена по модулям, а этот barrel по-прежнему отдаёт единую поверхность.
+ * `state` — реактивная модель данных (сабпат `@reformer/core/state`); `form` — узлы, поведение и
+ * валидация поверх её сигналов; `platforms/react` — биндинги в React, единственный слой с
+ * рантайм-зависимостью от `react`. Состав экспортов зонтика не меняется при реорганизациях:
+ * реализация разложена по слоям, а barrel по-прежнему отдаёт единую поверхность.
  */
 
-// Общие + form типы (контракты значения/валидации реэкспортятся из model/contracts).
+// Общие + form типы (словарь значения/валидации — form/types/contracts).
 export * from './form/types/index';
 // Фабрики нод.
 export * from './form/factories/index';
-// State-модуль: модель, value-операции, headless-валидация, producer-флаг, утилиты субстрата.
+// State-модуль: модель, value-операции, producer-флаг, утилиты субстрата.
 export * from './state/index';
-// Form-модуль: ноды, createForm, enableWhen/disableWhen, submit, хуки
+// Form-модуль: ноды, createForm, enableWhen/disableWhen, submit
 // (schema-валидация — отдельный сабпат @reformer/core/validation).
 export * from './form/index';
+// React-биндинги: единственный слой с runtime-зависимостью от react.
+export * from './platforms/react/index';
 // Validators namespace удалён в 7.0: `import { validators } from '@reformer/core'` больше нет.
 // Правила берите из сабпата — `@reformer/core/validators` (весь набор) либо гранулярно
 // (`@reformer/core/validators/required`), это ещё и лучше тришейкается.

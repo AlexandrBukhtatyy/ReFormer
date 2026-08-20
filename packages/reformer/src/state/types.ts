@@ -11,7 +11,7 @@
  *   агрегированного значения), поэтому `model.$.subscribe(…)` / `model.$.group.value` работают.
  *
  * @group Model
- * @module core/model/types
+ * @module state/types
  */
 
 import type { ReadonlySignal, Signal } from '@preact/signals-core';

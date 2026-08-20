@@ -18,9 +18,9 @@ import type {
   ValidatorFn,
   AsyncValidatorFn,
 } from '../types/index';
-import { SubscriptionManager } from '../../state/subscription-manager';
+import { SubscriptionManager } from './subscription-manager';
 import { uniqueId, SubscriptionKey } from '../unique-id';
-import { FormErrorHandler, ErrorStrategy } from '../error-handler';
+import { FormErrorHandler, ErrorStrategy } from '../validation/error-handler';
 import { FormStatusMachine } from '../status-machine';
 
 /**

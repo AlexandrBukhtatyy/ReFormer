@@ -7,7 +7,7 @@
  * пакетов — это критично для проверок вида `value instanceof Signal` над сигналами,
  * созданными внутри @reformer/core.
  *
- * @module reformer/signals
+ * @module signals
  */
 
 export { signal, computed, effect, batch, untracked, Signal } from '@preact/signals-core';

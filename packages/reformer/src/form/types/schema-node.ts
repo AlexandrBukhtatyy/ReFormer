@@ -21,7 +21,7 @@
  * строгий discriminated union: union отверг бы валидную запись record-of-fields.
  *
  * @group Types
- * @module core/types/schema-node
+ * @module form/types/schema-node
  */
 
 import type { ElementType } from 'react';

@@ -31,7 +31,7 @@ vi.mock('use-sync-external-store/shim', () => ({
 }));
 
 // Импортируем ПОСЛЕ vi.mock (hoisted): хук и фабрики формы (последние react не используют).
-import { useFormControl } from '../../src/form/hooks/useFormControl';
+import { useFormControl } from '../../src/platforms/react/hooks/useFormControl';
 import { createModel } from '../../src/state/index';
 import { createForm } from '../../src/form/create-form';
 

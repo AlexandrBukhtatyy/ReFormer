@@ -19,7 +19,7 @@
  * не здесь. См. также `aggregateInto`, где коалесинг реализован на уровне самого оператора.
  *
  * @group Utils
- * @module utils/safe-effect
+ * @module state/safe-effect
  */
 
 const DEFER_CONTEXT = 'runOutsideEffect';

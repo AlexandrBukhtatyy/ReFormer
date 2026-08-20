@@ -20,7 +20,7 @@ import {
   defineValidationSchema,
   validateModel,
   type ValidationSchema,
-} from '../../../src/form/validation-schema';
+} from '../../../src/form/validation/schema';
 
 const C = () => null;
 

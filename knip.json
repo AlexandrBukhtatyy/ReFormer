@@ -5,10 +5,9 @@
     "packages/reformer": {
       "entry": [
         "src/state/index.ts",
-        "src/form/behaviors.ts",
-        "src/form/validation-schema.ts",
-        "src/form/validators.ts",
-        "src/form/validation/validators/*.ts"
+        "src/form/behaviors/index.ts",
+        "src/form/validation/schema.ts",
+        "src/form/validators/*.ts"
       ]
     }
   }

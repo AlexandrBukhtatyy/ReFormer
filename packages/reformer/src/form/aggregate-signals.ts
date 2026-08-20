@@ -4,7 +4,7 @@
  * Устраняет дублирование кода между GroupNode и ArrayNode
  * для computed signals: valid, invalid, pending, touched, dirty, errors, status
  *
- * @module utils/aggregate-signals
+ * @module form/aggregate-signals
  */
 
 import { computed, type ReadonlySignal, type Signal } from '@preact/signals-core';
