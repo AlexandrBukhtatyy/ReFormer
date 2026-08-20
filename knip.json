@@ -4,7 +4,7 @@
   "workspaces": {
     "packages/reformer": {
       "entry": [
-        "src/state/index.ts",
+        "src/model/index.ts",
         "src/form/behaviors/index.ts",
         "src/form/validation/schema.ts",
         "src/form/validators/*.ts"

@@ -1,13 +1,13 @@
 /**
- * Cross-entry single-runtime гарантия для subpath `@reformer/core/state`.
+ * Cross-entry single-runtime гарантия для subpath `@reformer/core/model`.
  *
- * Проверяет на СОБРАННОМ dist, что зонтичный barrel `.` (`dist/index.js`), subpath `/state`
- * (`dist/state.js`) и рантайм `/signals` (`dist/signals.js`) резолвятся в ОДИН module-инстанс:
+ * Проверяет на СОБРАННОМ dist, что зонтичный barrel `.` (`dist/index.js`), subpath `/model`
+ * (`dist/model.js`) и рантайм `/signals` (`dist/signals.js`) резолвятся в ОДИН module-инстанс:
  * единая идентичность класса `Signal` и общий `derived`-WeakMap. Если бы бандлер продублировал
- * код в разные чанки, `markDerived` из `/state` не влиял бы на bulk-set модели, созданной через `.`
+ * код в разные чанки, `markDerived` из `/model` не влиял бы на bulk-set модели, созданной через `.`
  * (или `Signal` из `/signals` не совпал бы с сигналом модели) — и тест бы упал.
  *
- * `Signal` живёт в `/signals` (не в `/state`: state-субстрат рантайм не реэкспортирует).
+ * `Signal` живёт в `/signals` (не в `/model`: субстрат рантайм не реэкспортирует).
  *
  * Тест работает против dist (именно там возможна дупликация чанков; на уровне src оба entry
  * тривиально ссылаются на один модуль). Пропускается, если пакет не собран (`npm run build`).
@@ -30,7 +30,7 @@ interface Model {
 interface CoreEntry {
   createModel(init: Record<string, unknown>): Model;
 }
-interface StateEntry {
+interface ModelEntry {
   markDerived(s: unknown): void;
   isDerived(s: unknown): boolean;
 }
@@ -39,16 +39,16 @@ interface SignalsEntry {
 }
 
 const distIndex = resolve(__dirname, '../../dist/index.js');
-const distState = resolve(__dirname, '../../dist/state.js');
+const distModel = resolve(__dirname, '../../dist/model.js');
 const distSignals = resolve(__dirname, '../../dist/signals.js');
-const built = existsSync(distIndex) && existsSync(distState) && existsSync(distSignals);
+const built = existsSync(distIndex) && existsSync(distModel) && existsSync(distSignals);
 
 (built ? describe : describe.skip)(
-  '@reformer/core/state — single-runtime across entries (dist)',
+  '@reformer/core/model — single-runtime across entries (dist)',
   () => {
-    it('./ /state / /signals делят Signal-идентичность и один derived-реестр', async () => {
+    it('./ /model / /signals делят Signal-идентичность и один derived-реестр', async () => {
       const core = (await import(pathToFileURL(distIndex).href)) as unknown as CoreEntry;
-      const state = (await import(pathToFileURL(distState).href)) as unknown as StateEntry;
+      const modelSubpath = (await import(pathToFileURL(distModel).href)) as unknown as ModelEntry;
       const signals = (await import(pathToFileURL(distSignals).href)) as unknown as SignalsEntry;
 
       const model = core.createModel({ x: '', y: 0 });
@@ -57,14 +57,14 @@ const built = existsSync(distIndex) && existsSync(distState) && existsSync(distS
       // 1. Единая идентичность класса Signal: сигнал модели (из `.`) — instanceof Signal из `/signals`.
       expect(sig instanceof signals.Signal).toBe(true);
 
-      // 2. Общий derived-реестр: пометка через /state видна через /state.
-      state.markDerived(sig);
-      expect(state.isDerived(sig)).toBe(true);
+      // 2. Общий derived-реестр: пометка через /model видна через /model.
+      modelSubpath.markDerived(sig);
+      expect(modelSubpath.isDerived(sig)).toBe(true);
 
       // 3. Ключевое: bulk-set модели, созданной через `.`, консультирует ТОТ ЖЕ реестр —
       //    производное поле не затирается, обычное — обновляется.
       model.set({ x: 'CHANGED', y: 42 });
-      expect(model.get().x).toBe(''); // derived skip (пометка из /state уважается '.'-путём)
+      expect(model.get().x).toBe(''); // derived skip (пометка из /model уважается '.'-путём)
       expect(model.get().y).toBe(42); // обычное поле записалось
     });
   }

@@ -26,7 +26,7 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/form/types/**',
         'src/platforms/react/hooks/types.ts',
-        'src/state/types.ts',
+        'src/model/types.ts',
       ],
       // Пороги = ФАКТИЧЕСКОЕ покрытие на момент включения гейта (79.87 / 71.4 / 80.85 / 81.17)
       // с запасом вниз на дрожание v8, а не целевые 80%. Раньше здесь стояли 80% по всем

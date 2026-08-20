@@ -12,7 +12,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createForm } from '../../../src/form/create-form';
-import { createModel } from '../../../src/state/index';
+import { createModel } from '../../../src/model/index';
 
 // Заглушки UI-компонентов (просто маркеры идентичности).
 const InputStub = () => null;

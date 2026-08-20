@@ -4655,7 +4655,7 @@ _Source: src/form/types/contracts.ts_
 export type BehaviorCleanup = () => void;
 ```
 
-_Source: src/state/behaviors-value.ts_
+_Source: src/model/behaviors-value.ts_
 
 ### buildValidation
 
@@ -4723,7 +4723,7 @@ export function computeFrom<R>(
 computeFrom([model.$.price, model.$.qty], model.$.total, (price, qty) => price * qty);
 ```
 
-_Source: src/state/behaviors-value.ts_
+_Source: src/model/behaviors-value.ts_
 
 ### ConfigWithSchema
 
@@ -4777,7 +4777,7 @@ export function copyFrom<T>(
 copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail });
 ```
 
-_Source: src/state/behaviors-value.ts_
+_Source: src/model/behaviors-value.ts_
 
 ### CORE_RUNTIME_TOKEN
 
@@ -5087,7 +5087,7 @@ model.tags.push('x');
 model.get();                  // { email: 'a@b.c', profile: { name: 'Ada' }, tags: ['x'] }
 ```
 
-_Source: src/state/create-model.ts_
+_Source: src/model/create-model.ts_
 
 ### disableWhen
 
@@ -5140,7 +5140,7 @@ export function eachLeafSignal<T>(
 ): void
 ```
 
-_Source: src/state/create-model.ts_
+_Source: src/model/create-model.ts_
 
 ### enableWhen
 
@@ -5745,7 +5745,7 @@ FormModel — под-модель объекта `T`: value-доступ ({@link
 export type FormModel<T> = ModelObject<T> & ModelApi<T>;
 ```
 
-_Source: src/state/types.ts_
+_Source: src/model/types.ts_
 
 ### FormNode
 
@@ -6275,7 +6275,7 @@ if (!isDerived(model.$.total)) {
 **See also:**
 - {@link markDerived} - пометить сигнал производным
 
-_Source: src/state/derived-registry.ts_
+_Source: src/model/derived-registry.ts_
 
 ### isFieldNode
 
@@ -6387,7 +6387,7 @@ export function isModelContainerSignal(value: unknown): boolean
 const isLeaf = (v: unknown) => isSignalLike(v) && !isModelContainerSignal(v);
 ```
 
-_Source: src/state/model-signals-proxy.ts_
+_Source: src/model/model-signals-proxy.ts_
 
 ### markDerived
 
@@ -6423,7 +6423,7 @@ markDerived(model.$.total);
 - {@link isDerived} - проверка пометки
 - {@link unmarkDerived} - снять пометку при dispose оператора
 
-_Source: src/state/derived-registry.ts_
+_Source: src/model/derived-registry.ts_
 
 ### ModelApi
 
@@ -6466,7 +6466,7 @@ export interface ModelApi<T> {
 }
 ```
 
-_Source: src/state/types.ts_
+_Source: src/model/types.ts_
 
 ### ModelArray
 
@@ -6512,7 +6512,7 @@ export interface ModelArray<U> {
 }
 ```
 
-_Source: src/state/types.ts_
+_Source: src/model/types.ts_
 
 ### ModelArrayControl
 
@@ -6601,7 +6601,7 @@ export type ModelArraySignals<U, V> = ContainerSignal<V, 'length'> & {
 };
 ```
 
-_Source: src/state/types.ts_
+_Source: src/model/types.ts_
 
 ### ModelGroupSignals
 
@@ -6618,7 +6618,7 @@ _Source: src/state/types.ts_
 export type ModelGroupSignals<T> = ModelSignals<T> & ContainerSignal<T, keyof T>;
 ```
 
-_Source: src/state/types.ts_
+_Source: src/model/types.ts_
 
 ### ModelObject
 
@@ -6635,7 +6635,7 @@ export type ModelObject<T> = {
 };
 ```
 
-_Source: src/state/types.ts_
+_Source: src/model/types.ts_
 
 ### ModelSignals
 
@@ -6651,7 +6651,7 @@ export type ModelSignals<T> = {
 };
 ```
 
-_Source: src/state/types.ts_
+_Source: src/model/types.ts_
 
 ### ModelValue
 
@@ -6676,7 +6676,7 @@ export type ModelValue<V> =
         : V;
 ```
 
-_Source: src/state/types.ts_
+_Source: src/model/types.ts_
 
 ### NodeFactory
 
@@ -6763,7 +6763,7 @@ export type PathAwareSignal<T> = Signal<T> & {
 };
 ```
 
-_Source: src/state/types.ts_
+_Source: src/model/types.ts_
 
 ### registerSignalNode
 
@@ -6820,7 +6820,7 @@ export function resetWhen<T>(
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
-_Source: src/state/behaviors-value.ts_
+_Source: src/model/behaviors-value.ts_
 
 ### revalidateWhen
 
@@ -6843,7 +6843,7 @@ export function revalidateWhen(
 revalidateWhen([model.$.maxAmount], () => void validateModel(model, schema));
 ```
 
-_Source: src/state/behaviors-value.ts_
+_Source: src/model/behaviors-value.ts_
 
 ### runOutsideEffect
 
@@ -6877,7 +6877,7 @@ effect(() => {
 });
 ```
 
-_Source: src/state/safe-effect.ts_
+_Source: src/model/safe-effect.ts_
 
 ### safeCallback
 
@@ -6916,7 +6916,7 @@ effect(() => {
 });
 ```
 
-_Source: src/state/safe-effect.ts_
+_Source: src/model/safe-effect.ts_
 
 ### safeDebouncedCallback
 
@@ -6954,7 +6954,7 @@ return effect(() => {
 });
 ```
 
-_Source: src/state/safe-effect.ts_
+_Source: src/model/safe-effect.ts_
 
 ### SchemaArrayControl
 
@@ -7121,7 +7121,7 @@ export function syncFields<T>(
 syncFields(model.$.field1, model.$.field2);
 ```
 
-_Source: src/state/behaviors-value.ts_
+_Source: src/model/behaviors-value.ts_
 
 ### transformValue
 
@@ -7144,7 +7144,7 @@ export function transformValue<T>(
 transformValue(model.$.promoCode, (v) => (v ?? '').toUpperCase());
 ```
 
-_Source: src/state/behaviors-value.ts_
+_Source: src/model/behaviors-value.ts_
 
 ### UnknownRecord
 
@@ -7194,7 +7194,7 @@ onDispose(() => unmarkDerived(model.$.total)); // при снятии compute с
 **See also:**
 - {@link markDerived} - пометить сигнал производным
 
-_Source: src/state/derived-registry.ts_
+_Source: src/model/derived-registry.ts_
 
 ### useArrayLength
 
@@ -7850,4 +7850,4 @@ watchField(model.$.country, async (country) => {
 });
 ```
 
-_Source: src/state/behaviors-value.ts_
+_Source: src/model/behaviors-value.ts_

@@ -21,8 +21,8 @@ import * as jsxDevRuntime from 'react/jsx-dev-runtime';
 import * as signalsCore from '@preact/signals-core';
 import * as core from '@reformer/core';
 import * as coreBehaviors from '@reformer/core/behaviors';
+import * as coreModel from '@reformer/core/model';
 import * as coreSignals from '@reformer/core/signals';
-import * as coreState from '@reformer/core/state';
 import * as coreValidation from '@reformer/core/validation';
 import * as coreValidators from '@reformer/core/validators';
 import * as rendererJson from '@reformer/renderer-json';
@@ -43,8 +43,8 @@ const STATIC_MODULES: Record<string, ModuleExports> = {
   '@preact/signals-core': signalsCore as unknown as ModuleExports,
   '@reformer/core': core as unknown as ModuleExports,
   '@reformer/core/behaviors': coreBehaviors as unknown as ModuleExports,
+  '@reformer/core/model': coreModel as unknown as ModuleExports,
   '@reformer/core/signals': coreSignals as unknown as ModuleExports,
-  '@reformer/core/state': coreState as unknown as ModuleExports,
   '@reformer/core/validation': coreValidation as unknown as ModuleExports,
   '@reformer/core/validators': coreValidators as unknown as ModuleExports,
   '@reformer/renderer-json': rendererJson as unknown as ModuleExports,
@@ -74,7 +74,7 @@ export function resolveModule(spec: string): ModuleExports {
 
   throw new Error(
     `Импорт «${spec}» недоступен в превью. Разрешены react, @preact/signals-core, ` +
-      `@reformer/core (+ /behaviors, /validation, /validators, /signals, /state), ` +
+      `@reformer/core (+ /behaviors, /validation, /validators, /signals, /model), ` +
       `@reformer/renderer-json, @reformer/renderer-react, @reformer/ui-kit и файлы каталога формы.`
   );
 }

@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { FieldNode } from '../../../src/form/nodes/field-node';
-import { createModel } from '../../../src/state/index';
+import { createModel } from '../../../src/model/index';
 import type { ValidatorFn } from '../../../src/form/types/index';
 
 const required: ValidatorFn<string> = (v) =>

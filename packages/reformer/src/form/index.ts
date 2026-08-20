@@ -1,11 +1,11 @@
 /**
- * Модуль `form` — доменный слой формы поверх state-субстрата (`model`).
+ * Модуль `form` — доменный слой формы поверх реактивной модели (`model`).
  *
  * Ноды (value/touched/dirty/status/errors/componentProps), сборка формы из модели по идентичности
  * сигнала (`createForm`), state-операции над нодами (`enableWhen`/`disableWhen`), submit/статус.
  * React-биндинги вынесены в `platforms/react` — этот слой от React не зависит.
  * Schema-валидация — внешний контракт `@reformer/core/validation` (`validateModel`),
- * роутит ошибки в ноды через реестр сигнал→нода. Зависит от `model` (form→state разрешено);
+ * роутит ошибки в ноды через реестр сигнал→нода. Зависит от `model` (form→model разрешено);
  * обратной зависимости нет.
  *
  * @group Form

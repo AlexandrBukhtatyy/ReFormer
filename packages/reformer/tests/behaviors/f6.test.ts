@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createModel, type FormModel } from '../../src/state/index';
+import { createModel, type FormModel } from '../../src/model/index';
 import { createForm } from '../../src/form/create-form';
 import { defineFormBehavior, enableWhen, onChange, applyEach } from '../../src/form/behaviors';
 import type { FormProxy } from '../../src/form/types/index';

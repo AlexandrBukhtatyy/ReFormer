@@ -29,7 +29,7 @@ import { SubscriptionManager } from './subscription-manager';
 import { createAggregateSignals } from '../aggregate-signals';
 import { buildFormProxy } from '../form-proxy-builder';
 import { FormSubmitter, type SubmitOptions, type SubmitResult } from '../form-submitter';
-import { isDerived } from '../../state/derived-registry';
+import { isDerived } from '../../model/derived-registry';
 
 /** Сегмент пути к полю: ключ + опциональный индекс массива (`items[0]` → `{ key: 'items', index: 0 }`). */
 interface PathSegment {

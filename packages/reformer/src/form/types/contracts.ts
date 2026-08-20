@@ -5,8 +5,8 @@
  * (`FormNode.getErrors`, `FieldNode`, `FormStatusMachine`, `aggregate-signals`), слой валидации
  * и платформенные биндинги. Файл не импортирует ничего — это лист графа зависимостей.
  *
- * Живёт в `form/types/`, а не в state-слое: `FieldStatus`/`ErrorFilterOptions` — понятия формы,
- * а state этих типов не использует (и импортировать их оттуда запрещено границей state⇏form).
+ * Живёт в `form/types/`, а не в слое модели: `FieldStatus`/`ErrorFilterOptions` — понятия формы,
+ * а модель этих типов не использует (и импортировать их оттуда запрещено границей model⇏form).
  * Наружу отдаётся через `form/types/index`.
  *
  * @group Types

@@ -15,8 +15,8 @@
     "limit": "5 kB"
   },
   {
-    "name": "@reformer/core (state only)",
-    "path": "packages/reformer/dist/state.js",
+    "name": "@reformer/core (model only)",
+    "path": "packages/reformer/dist/model.js",
     "limit": "2 kB"
   },
   {

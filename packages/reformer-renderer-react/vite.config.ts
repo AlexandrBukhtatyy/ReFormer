@@ -26,7 +26,7 @@ export default defineConfig({
         'react-dom',
         'react/jsx-runtime',
         '@reformer/core',
-        '@reformer/core/state',
+        '@reformer/core/model',
         '@reformer/core/validators',
         '@reformer/core/signals',
       ],

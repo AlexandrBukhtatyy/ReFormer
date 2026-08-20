@@ -13,7 +13,7 @@ import {
   resetWhen,
   syncFields,
   revalidateWhen,
-} from '../../../src/state/index';
+} from '../../../src/model/index';
 
 // микротаск-флаш (transformValue/resetWhen/syncFields/revalidateWhen пишут через runOutsideEffect)
 const tick = () => new Promise((r) => setTimeout(r, 0));

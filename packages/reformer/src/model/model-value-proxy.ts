@@ -6,8 +6,8 @@
  * фасадов стабильна (`facadeCache`), поэтому `model.profile.$.name === model.$.profile.name`
  * и `arr[i] === arr.at(i)` — на это опираются per-item формы и ключи в рендере.
  *
- * @group State
- * @module state/model-value-proxy
+ * @group Model
+ * @module model/model-value-proxy
  */
 
 import { type ModelNode, GroupNode, ArrayNode, isIndexKey } from './model-nodes';

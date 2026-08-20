@@ -1,15 +1,15 @@
 /**
- * Value-операции behavior на сигналах модели (слой данных, M1, Ф5) — чистый **state**-слой.
+ * Value-операции behavior на сигналах модели (слой данных, M1, Ф5) — чистый слой модели.
  *
  * Эти операторы читают сигналы-источники и пишут сигнал-цель — НОДЫ не нужны, реестра сигнал→нода
  * они не касаются. Цель не входит в источники → цикла нет; запись синхронная/отложенная с peek-guard
  * (idempotent). Не зависят от form-слоя.
  *
- * State-операции, которым нужны ноды (`enableWhen`/`disableWhen`), вынесены в
+ * Операции над состоянием ноды (`enableWhen`/`disableWhen`) вынесены в
  * {@link module:form/behaviors/node} — они резолвят ноду по сигналу через реестр из `createForm`.
  *
  * @group Model
- * @module state/behaviors-value
+ * @module model/behaviors-value
  */
 
 import { effect, type Signal, type ReadonlySignal } from '@preact/signals-core';

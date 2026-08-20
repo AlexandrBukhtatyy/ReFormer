@@ -24,7 +24,7 @@ import { ModelArrayNode } from './nodes/model-array-node';
 import { registerSignalNode } from './signal-node-registry';
 import type { FormProxy, GroupNodeConfig, FormSchema, FieldConfig } from './types/index';
 import type { FormSchemaNode } from './types/schema-node';
-import type { FormModel } from '../state/types';
+import type { FormModel } from '../model/types';
 import type { FormBehavior } from './behaviors';
 
 /**

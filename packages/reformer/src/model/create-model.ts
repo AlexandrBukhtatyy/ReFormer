@@ -4,8 +4,8 @@
  * Внутреннее представление — дерево узлов (`model-nodes`), зеркалящее форму данных. Наружу
  * отдаются два прокси: value-доступ (`model-value-proxy`) и `$`-сигналы (`model-signals-proxy`).
  *
- * @group State
- * @module state/create-model
+ * @group Model
+ * @module model/create-model
  */
 
 import type { FormModel, PathAwareSignal } from './types';

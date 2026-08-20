@@ -24,7 +24,7 @@ export default defineConfig({
         // Низкоуровневый state-субстрат (M1): createModel + сигналы + value-операции +
         // headless-валидация + producer-флаг. Импортирует из тех же core-файлов, что и index →
         // общий chunk (один derived-WeakMap, единая идентичность Signal). Основа доменных модулей.
-        state: resolve(__dirname, 'src/state/index.ts'),
+        model: resolve(__dirname, 'src/model/index.ts'),
         // Декларативный контракт схемы поведения. Импортирует примитивы из index → общий chunk
         // (единый реестр сигнал→нода и единый ambient-сток).
         behaviors: resolve(__dirname, 'src/form/behaviors/index.ts'),

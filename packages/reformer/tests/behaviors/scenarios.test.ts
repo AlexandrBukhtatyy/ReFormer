@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createModel } from '../../src/state/index';
+import { createModel } from '../../src/model/index';
 import { createForm } from '../../src/form/create-form';
 import {
   defineFormBehavior,

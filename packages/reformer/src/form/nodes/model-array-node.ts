@@ -14,7 +14,7 @@ import { signal, computed, effect, type Signal, type ReadonlySignal } from '@pre
 import { FormNode } from './form-node';
 import { createAggregateSignals } from '../aggregate-signals';
 import type { FieldStatus, ValidationError } from '../types/index';
-import type { FormModel } from '../../state/types';
+import type { FormModel } from '../../model/types';
 import type { FormProxy } from '../types/form-proxy';
 
 /** Минимальный контракт реактивного массива модели, используемый узлом. */

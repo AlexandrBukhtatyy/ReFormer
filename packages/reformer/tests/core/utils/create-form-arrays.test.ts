@@ -9,9 +9,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { createForm } from '../../../src/form/create-form';
-import { createModel } from '../../../src/state/index';
+import { createModel } from '../../../src/model/index';
 import { required } from '../../../src/form/validators';
-import type { FormModel } from '../../../src/state/index';
+import type { FormModel } from '../../../src/model/index';
 
 const InputStub = () => null;
 const BoxStub = () => null;

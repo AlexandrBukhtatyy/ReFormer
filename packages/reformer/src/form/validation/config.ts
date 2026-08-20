@@ -14,7 +14,7 @@
  */
 
 import type { ReadonlySignal } from '@preact/signals-core';
-import type { FormModel } from '../../state/types';
+import type { FormModel } from '../../model/types';
 import { apply, defineValidationSchema, validateModel, type ValidationSchema } from './schema';
 import {
   createFormValidation,

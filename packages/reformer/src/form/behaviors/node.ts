@@ -3,7 +3,7 @@
  *
  * `enableWhen`/`disableWhen` меняют состояние ноды (enable/disable/reset), поэтому резолвят ноду по
  * сигналу-цели через реестр сигнал→нода (заполняется `createForm`). В отличие от чистых value-операций
- * ({@link module:state/behaviors-value}) эти операторы зависят от form-слоя — граница state⇏form
+ * ({@link module:model/behaviors-value}) эти операторы зависят от form-слоя — граница model⇏form
  * проходит здесь.
  *
  * @group Form
@@ -12,8 +12,8 @@
 
 import { effect, type Signal, type ReadonlySignal } from '@preact/signals-core';
 import { getNodeForSignal } from '../signal-node-registry';
-import { runOutsideEffect } from '../../state/safe-effect';
-import type { BehaviorCleanup } from '../../state/behaviors-value';
+import { runOutsideEffect } from '../../model/safe-effect';
+import type { BehaviorCleanup } from '../../model/behaviors-value';
 
 /**
  * Условное включение поля (state-операция). Резолвит ноду по сигналу-цели через реестр

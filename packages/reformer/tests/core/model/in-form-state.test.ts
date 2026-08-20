@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createForm } from '../../../src/form/create-form';
-import { createModel } from '../../../src/state/index';
+import { createModel } from '../../../src/model/index';
 import { enableWhen, disableWhen } from '../../../src/form/index';
 
 const InputStub = () => null;

@@ -3,7 +3,7 @@
 Все тесты пакета `@reformer/core`.
 
 > ⚠️ **Структура тестов НЕ зеркалит `src/`.** Каталог `tests/core/**` остался от раскладки
-> `src/core/**`, снесённой при разделении на слои (`src/state/` + `src/form/`, июль 2026).
+> `src/core/**`, снесённой при разделении на слои (`src/model/` + `src/form/`, июль 2026).
 > Переструктурирование вынесено в отдельную задачу; ниже — фактическое соответствие.
 
 ## Directory Structure
@@ -13,14 +13,14 @@ tests/
 ├── behaviors/              # DSL поведения          → src/form/behaviors/
 ├── core/
 │   ├── factories/          # NodeFactory            → src/form/factories/
-│   ├── model/              # модель данных          → src/state/
+│   ├── model/              # модель данных          → src/model/
 │   ├── nodes/              # узлы формы             → src/form/nodes/
 │   ├── types/              # типы                   → src/form/types/
-│   ├── utils/              # СМЕШАННЫЙ каталог: derived-registry / safe-effect → src/state/,
+│   ├── utils/              # СМЕШАННЫЙ каталог: derived-registry / safe-effect → src/model/,
 │   │                       #   create-* / type-guards / subscription-manager  → src/form/
 │   └── validation/         # раннер и правила       → src/form/validation/, src/form/validators/
 ├── hooks/                  # React-хуки             → src/platforms/react/hooks/
-├── state/                  # сабпат @reformer/core/state (гарантия единого рантайма)
+├── model/                  # сабпат @reformer/core/model (гарантия единого рантайма)
 └── test-utils/             # общие типы для тестов
 ```
 

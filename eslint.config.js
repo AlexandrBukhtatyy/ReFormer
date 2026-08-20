@@ -12,7 +12,7 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  * `ComponentType`/`ElementType`; они стираются при компиляции и рантайма не тянут.
  */
 const REACT_MESSAGE =
-  'Рантайм-зависимость от React живёт только в src/platforms/**. Слои state и form ' +
+  'Рантайм-зависимость от React живёт только в src/platforms/**. Слои model и form ' +
   'платформо-независимы: новый хук или подписку добавляйте в platforms/react. Type-only ' +
   'импорт (import type { ComponentType }) разрешён — он стирается при компиляции.';
 
@@ -31,7 +31,7 @@ const NO_REACT_PATHS = [
 const NO_PLATFORMS = {
   group: ['**/platforms/**', '**/platforms'],
   message:
-    'Обратная зависимость слой→платформа запрещена: state и form не знают про биндинги. ' +
+    'Обратная зависимость слой→платформа запрещена: model и form не знают про биндинги. ' +
     'Сшивает их единственная точка — корневой src/index.ts.',
 };
 
@@ -132,19 +132,19 @@ export default defineConfig([
   // ─────────────────────────────────────────────────────────────────────────
   // Границы слоёв @reformer/core.
   //
-  // 1. state ⇏ form (M1-модуляризация): state-субстрат (signals + модель + value-операции +
-  //    producer-флаг + утилиты) НЕ импортирует form-слой. Обратное (form → state) разрешено.
-  //    Держит слои расцепленными для subpath `@reformer/core/state`.
-  // 2. state ⇏ react и form ⇏ react: рантайм-зависимость от React живёт только в
+  // 1. model ⇏ form (M1-модуляризация): реактивный субстрат (signals + модель + value-операции +
+  //    producer-флаг + утилиты) НЕ импортирует form-слой. Обратное (form → model) разрешено.
+  //    Держит слои расцепленными для subpath `@reformer/core/model`.
+  // 2. model ⇏ react и form ⇏ react: рантайм-зависимость от React живёт только в
   //    src/platforms/**. Type-only импорты разрешены (см. NO_REACT_PATHS).
-  // 3. state ⇏ platforms и form ⇏ platforms: обратной зависимости слой→платформа нет.
+  // 3. model ⇏ platforms и form ⇏ platforms: обратной зависимости слой→платформа нет.
   //
-  // ВАЖНО: новые паттерны для state/** дописываются В ЭТОТ блок. Отдельный блок с тем же
+  // ВАЖНО: новые паттерны для model/** дописываются В ЭТОТ блок. Отдельный блок с тем же
   // правилом для тех же файлов перезаписал бы его целиком — flat-config мержит по ключу
-  // правила, а не по элементам patterns, и граница state⇏form исчезла бы молча.
+  // правила, а не по элементам patterns, и граница model⇏form исчезла бы молча.
   // ─────────────────────────────────────────────────────────────────────────
   {
-    files: ['packages/reformer/src/signals.ts', 'packages/reformer/src/state/**/*.ts'],
+    files: ['packages/reformer/src/signals.ts', 'packages/reformer/src/model/**/*.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -153,9 +153,9 @@ export default defineConfig([
             {
               group: ['**/form/**', '**/form'],
               message:
-                'Граница state⇏form: модуль state (src/state, src/signals) не импортирует form-слой ' +
+                'Граница model⇏form: модуль model (src/model, src/signals) не импортирует form-слой ' +
                 '(src/form/**: ноды/create-form/реестр/валидацию/схемы/DSL). Обратное направление ' +
-                'form→state разрешено. state — строго реактивный: без форм/валидации/схем.',
+                'form→model разрешено. model — строго реактивный: без форм/валидации/схем.',
             },
             NO_PLATFORMS,
           ],

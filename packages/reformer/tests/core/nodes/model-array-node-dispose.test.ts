@@ -7,10 +7,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createModel } from '../../../src/state/index';
+import { createModel } from '../../../src/model/index';
 import { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
 import { createForm } from '../../../src/form/create-form';
-import type { FormModel } from '../../../src/state/index';
+import type { FormModel } from '../../../src/model/index';
 import type { FormProxy } from '../../../src/form/types/form-proxy';
 
 interface Row {

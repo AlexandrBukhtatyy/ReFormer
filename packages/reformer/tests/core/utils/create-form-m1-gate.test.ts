@@ -10,8 +10,8 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { createForm } from '../../../src/form/create-form';
-import { createModel } from '../../../src/state/index';
-import { markDerived } from '../../../src/state/derived-registry';
+import { createModel } from '../../../src/model/index';
+import { markDerived } from '../../../src/model/derived-registry';
 
 const InputStub = () => null;
 

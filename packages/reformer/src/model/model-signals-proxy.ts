@@ -6,8 +6,8 @@
  * намеренно НЕ `instanceof Signal` — по этой проверке лист отличают от группы (`create-form`,
  * renderer-react/json), см. {@link containerSignal}.
  *
- * @group State
- * @module state/model-signals-proxy
+ * @group Model
+ * @module model/model-signals-proxy
  */
 
 import { computed, type ReadonlySignal } from '@preact/signals-core';

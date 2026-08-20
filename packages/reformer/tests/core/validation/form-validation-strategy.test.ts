@@ -7,12 +7,12 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createModel } from '../../../src/state/index';
+import { createModel } from '../../../src/model/index';
 import { createForm } from '../../../src/form/create-form';
 import { required, minLength } from '../../../src/form/validators';
 import { validate, defineValidationSchema } from '../../../src/form/validation/schema';
 import { createFormValidation } from '../../../src/form/validation/strategy';
-import { eachLeafSignal } from '../../../src/state/create-model';
+import { eachLeafSignal } from '../../../src/model/create-model';
 
 const C = () => null;
 

@@ -6,8 +6,8 @@
  * и строятся поверх этих сигналов. Наружу дерево не отдаётся — доступ идёт через прокси
  * (`model-value-proxy` — значения, `model-signals-proxy` — `$`-сигналы).
  *
- * @group State
- * @module state/model-nodes
+ * @group Model
+ * @module model/model-nodes
  */
 
 import { batch, signal, type Signal } from '@preact/signals-core';
