@@ -37,7 +37,7 @@ export interface SynthMockOptions {
 }
 
 /** Вид поля для выбора значения (и для вывода TS-типа в кодогене). */
-export type FieldKind = 'select' | 'boolean' | 'number' | 'date' | 'files' | 'string';
+export type FieldKind = 'select' | 'multi' | 'boolean' | 'number' | 'date' | 'files' | 'string';
 
 /** Классификация `$dataSource` по контексту использования (приоритет function > option > scalar). */
 export interface DataSourceClasses {
@@ -57,6 +57,23 @@ const SELECT_COMPONENTS = new Set([
   'RadioButtonGroup',
   'Combobox',
   'Autocomplete',
+]);
+/**
+ * Мультивыборные контролы: значение — МАССИВ строк, а не скаляр.
+ *
+ * Отдельный набор, а не ветка в SELECT_COMPONENTS, по той же причине, по какой отдельно вынесли
+ * FILE_COMPONENTS: у этих контролов value.map/includes внутри, и скаляр их роняет. Значение по
+ * умолчанию — null, а НЕ []: массив в начальном значении модель превратила бы в ModelArray
+ * (форма-массив вместо листа), и у поля не оказалось бы сигнала.
+ *
+ * 'MultiSelect' — имя из ЧУЖИХ реестров (в @reformer/ui-kit такого компонента нет). Раньше оно
+ * стояло в SELECT_COMPONENTS и молча давало таким полям скаляр.
+ */
+const MULTI_SELECT_COMPONENTS = new Set([
+  'SelectMulti',
+  'ComboboxMulti',
+  'NativeSelectMulti',
+  'ToggleGroupMulti',
   'MultiSelect',
 ]);
 const BOOLEAN_COMPONENTS = new Set(['Checkbox', 'Switch', 'Toggle']);
@@ -126,6 +143,8 @@ export function inferFieldKind(node: JsonFieldNode): FieldKind {
   const name = parseOperator(node.component)?.arg;
   const props = node.componentProps ?? {};
   if (name && FILE_COMPONENTS.has(name)) return 'files';
+  // Проверка ДО select: у мультивыборов тоже есть options, и select-ветка перехватила бы их.
+  if (name && MULTI_SELECT_COMPONENTS.has(name)) return 'multi';
   if (
     hasListDataSource(props) ||
     Array.isArray(props.options) ||
@@ -173,6 +192,7 @@ function synthFieldValue(
       return numberValue(node, now);
     case 'date':
       return dateValue(node, now);
+    case 'multi':
     case 'files':
       return null;
     default:

@@ -33,6 +33,15 @@ function defaultForField(node: JsonFieldNode): unknown {
   // а не `[]`: массив в начальном значении модель превратила бы в ModelArray (не лист-сигнал).
   if (component === 'FileUpload' || component === 'FileUploadAvatar' || component === 'Attachment')
     return null;
+  // Мультивыборы держат МАССИВ строк и зовут value.includes/map — скаляр их роняет.  по той
+  // же причине, что и у файловых: массив в начальном значении стал бы ModelArray, а не листом.
+  if (
+    component === 'SelectMulti' ||
+    component === 'ComboboxMulti' ||
+    component === 'NativeSelectMulti' ||
+    component === 'ToggleGroupMulti'
+  )
+    return null;
   if (component === 'Checkbox' || component === 'Switch' || component === 'Toggle') return false;
   if (component === 'Slider') {
     const min = node.componentProps?.min;

@@ -834,13 +834,110 @@ const form = createForm<{ city: string }>({ model, schema });
   пользователь увидит дефолт `'Select an option...'`. Для русскоязычных форм
   это, как правило, нежелательно.
 
-## 15. See also
+## 15. Multi-select
 
+Четыре контрола множественного выбора. Все четыре — **отдельные записи реестра**, а не режим
+одиночных: тип значения другой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у
+`FileUpload` / `FileUploadAvatar`).
+
+| Field-компонент          | На чём построен                        | Когда брать                                                       |
+| ------------------------ | -------------------------------------- | ----------------------------------------------------------------- |
+| `ToggleGroupMulti`       | Radix ToggleGroup `type="multiple"`     | 2–7 вариантов, все видны сразу                                    |
+| `ComboboxMulti`          | Popover + Command (cmdk) + Badge        | длинный список с поиском; есть `creatable`                        |
+| `SelectMulti`            | Popover + свой listbox                  | длинный список, в т.ч. асинхронный (`resource`); **без cmdk**     |
+| `NativeSelectMulti`      | нативный `<select multiple>`            | no-JS / legacy / киоски. **Не для тач-устройств**                 |
+
+### Единый контракт значения
+
+```typescript
+value: string[] | null;
+onChange: (value: string[] | null) => void;
+```
+
+**Пустой выбор — всегда `null`, никогда `[]`.** Это не стиль, а требование модели: `createModel`
+превращает массив в `ArrayNode`, `createForm` такой путь пропускает, и поля не оказывается вовсе.
+Симптомы разные и все обманчивые — `FormField` падает с `TypeError`, а renderer тихо рисует
+контейнер с подписью и опциями, но без `value`/`onChange`.
+
+```typescript
+// ✅ начальное значение поля мультивыбора
+const model = createModel({ tags: null as string[] | null });
+
+// ❌ поле исчезнет: [] → ArrayNode, а не лист-сигнал
+const model = createModel({ tags: [] });
+```
+
+### Использование в схеме
+
+```typescript
+import { ToggleGroupMultiField, ComboboxMultiField } from '@reformer/ui-kit';
+import { required, maxLength } from '@reformer/core/validators';
+
+const schema = {
+  tags: {
+    // Для поля типа T[] `model.$.tags` — НЕ сигнал (ModelArraySignals), нужен signalAt.
+    value: model.signalAt('tags')!,
+    component: ToggleGroupMultiField,
+    componentProps: {
+      label: 'Теги',
+      options: [
+        { value: 'ru', label: 'Россия' },
+        { value: 'by', label: 'Беларусь' },
+      ],
+      maxItems: 3,
+    },
+    validators: [required(), maxLength(3)],
+  },
+};
+```
+
+### Common Patterns
+
+- **Обязательность** — только `required()`. `minLength(1)` НЕ сработает: он делает ранний
+  `return null` на `null`, а пустой выбор приходит именно как `null`.
+- **Ограничение количества** — `maxLength(n)` / `minLength(n)` (оба читают `value.length` и
+  работают на массиве без правок ядра). Проп `maxItems` у контрола — это **подсказка интерфейса**
+  (гасит невыбранные пункты), а не правило формы; авторитетное ограничение задаёт валидатор.
+- **Префилл выбранного** — только ПОСЛЕ сборки формы, в `setup`, и через сигнал:
+  `model.signalAt('tags')!.value = ['ru']`. В `seed` (до `createForm`) массив снова превратит поле
+  в `ArrayNode`. После префилла нужен `model.captureInitial()` — иначе форма считает себя
+  изменённой сразу после загрузки, а `form.tags.reset()` сотрёт префилл в `null`.
+- **Лейблы выбранного вне текущей страницы** (`SelectMulti` + `resource`) — проп
+  `selectedOptions: Array<{ value, label }>`. Внутри контрола есть ещё и кэш лейблов, который
+  пополняется всем, что когда-либо появлялось в опциях, поэтому чипы не «слепнут» после смены
+  поискового запроса или перезагрузки источника.
+- **Ошибка вспыхивает посреди выбора** — ожидаемо: `FieldNode.setValue` взводит `dirty`
+  безусловно, без сравнения, а `shouldShowError = invalid && (touched || dirty)`. Оставляйте
+  `updateOn: 'blur'` (значение по умолчанию) и не стройте логику на `dirty`.
+
+### Anti-patterns
+
+- Начальное значение `[]` вместо `null` — поле молча исчезает (см. выше).
+- Мутация массива на месте: `arr.push(x); onChange(arr)` — preact-сигнал бэйлится по `!==`, UI не
+  обновится, но поле уже станет `dirty`, и валидация прогонится по старому значению. `onChange`
+  обязан отдавать **новый** массив.
+- `minFiles` / `maxFiles` на массиве строк — тихий no-op: они фильтруют значение до file-like и
+  получают пустой массив. Для количества — `minLength` / `maxLength`.
+- `compute` / `copyFrom` / `transformValue` над мультивыбором — peek-guard сравнивает по ссылке,
+  поэтому новый массив на каждом прогоне даёт запись на каждом прогоне; пара взаимных `compute`
+  сходит в расходящийся цикл или в `Cycle detected`. Сравнивайте содержимое руками и выходите до
+  записи.
+- `componentProps.disabled` для выключения отдельных опций — мёртв (враппер ставит `disabled`
+  после спреда `componentProps`). Выключить можно только контрол целиком (`control.disable()`).
+- `NativeSelectMulti` на тач-устройствах — множественный выбор в нативном листбоксе там
+  практически недоступен и не имеет аффорданса «можно несколько». Берите `ToggleGroupMulti` или
+  `SelectMulti`.
+- `placeholder` у `NativeSelectMulti` — его нет намеренно: в multiple-листбоксе `<option value="">`
+  становится выбираемым мусорным пунктом.
+
+## 16. See also
+
+- [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов (open/close/clear).
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт `Checkbox` и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».
 
-## 16. Button
+## 17. Button
 
 Кнопка на shadcn/Radix `Slot`. Поддерживает 6 вариантов внешнего вида, 6
 размеров и режим `asChild` для замены DOM-узла (типичный кейс — превратить
@@ -955,7 +1052,7 @@ import { PlusIcon } from 'lucide-react';
   вариант-опций — теряется консистентность темы.
 - `size="icon"` без иконки — будет квадрат `h-9 w-9` без видимого контента.
 
-## 17. AsyncBoundary
+## 18. AsyncBoundary
 
 Контейнер состояний загрузки данных: `idle` / `loading` / `ready` / `error`.
 Стилизованная обёртка над headless `AsyncBoundary` из `@reformer/cdk/async-boundary`.
@@ -1099,7 +1196,7 @@ Controlled — когда загрузкой владеет кто-то друг
   это разные механизмы. `AsyncBoundary` — простая state-машина, не
   перехватывает throw.
 
-## 18. ExampleCard
+## 19. ExampleCard
 
 Карточка-демонстрация для playground: заголовок, описание, область с примером
 и переключатель `пример ↔ исходник` с кнопкой копирования.
@@ -1143,7 +1240,7 @@ import { ExampleCard, Input } from '@reformer/ui-kit';
 - Использовать в продакшене — это playground-utility, не component-library
   primitive. Кнопка переключения «глаз/код» не настраивается.
 
-## 19. cn
+## 20. cn
 
 Утилита для конкатенации Tailwind-классов через `clsx` и `tailwind-merge`.
 Разрешает конфликты (последний выигрывает) — критично для условного оверрайда
@@ -1179,12 +1276,12 @@ const Card = React.forwardRef<HTMLDivElement, { className?: string }>(
 - Передавать массивы/объекты, рассчитывая на shadcn-стиль `cn({active: true})`:
   `clsx`-синтаксис поддерживается, но удобнее писать через `&&`.
 
-## 20. See also
+## 21. See also
 
 - [05-form-field-integration.md](05-form-field-integration.md) — как `Button` используется в `FormWizard.Actions`.
 - [06-troubleshooting.md](06-troubleshooting.md) — «forwardRef + Slot конфликты», «AsyncBoundary не переключает состояние».
 
-## 21. API
+## 22. API
 
 ```typescript
 interface FormFieldProps {
@@ -1207,7 +1304,7 @@ interface FormFieldProps {
 `control` — это критично для производительности больших форм (при ререндере
 родителя поле не пересчитывается, пока не сменился сам `FieldNode`).
 
-## 22. Common Patterns
+## 23. Common Patterns
 
 ### 1. Standalone
 
@@ -1377,7 +1474,7 @@ const form = createForm<{ accept: boolean }>({ model, schema });
 - Либо вручную скрывать label через `componentProps.label = undefined` и
   оборачивать обвязку самостоятельно.
 
-## 23. Anti-patterns
+## 24. Anti-patterns
 
 - Передавать `control` другого типа (`FormProxy`, `ArrayNode`) — ожидается
   именно `FieldNode<T>`. Для массивов используй `FormArray.Root` из CDK; для
@@ -1393,14 +1490,14 @@ const form = createForm<{ accept: boolean }>({ model, schema });
   баннеров) — обёртка ставит `Label` и слот ошибки, что нелогично. Для такого
   рендерь компоненты напрямую (через container-узлы `Box`/`Section`).
 
-## 24. See also
+## 25. See also
 
 - [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md) — компоненты, которые `FormField` оборачивает.
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button` для submit/prev/next.
 - [06-troubleshooting.md](06-troubleshooting.md) — «label дублируется», «error не появляется», «FormField не подцепляет ошибки».
 - CDK-хуки: [@reformer/cdk/form-field](../../../reformer-cdk/docs/llms/) (`FormField.Root`, `useFormFieldContext`).
 
-## 25. 1. `Input type="number"` возвращает строку, а не число (или `null`)
+## 26. 1. `Input type="number"` возвращает строку, а не число (или `null`)
 
 **Симптом.** В schema поле `age: number`, но в `getValue()` приходит `'42'` или
 никогда не приходит `null` для пустого ввода.
@@ -1424,7 +1521,7 @@ interface Form {
 }
 ```
 
-## 26. 2. `Select` не показывает options (пустой дропдаун)
+## 27. 2. `Select` не показывает options (пустой дропдаун)
 
 **Симптом.** Триггер открывается, но в нём `'No options available'`.
 
@@ -1444,7 +1541,7 @@ interface Form {
   `resource.load` всё равно вызовется. Если сеть упала, `loading` может
   остаться `true`, и UI блокируется. Используй один источник.
 
-## 27. 3. `InputMask` пропускает символы или не вставляет литералы
+## 28. 3. `InputMask` пропускает символы или не вставляет литералы
 
 **Симптом.** Пользователь вводит цифры, но скобки/тире из маски не
 появляются автоматически.
@@ -1467,7 +1564,7 @@ transformValue(form.phone, (raw) => raw?.replace(/\D/g, '') ?? null);
 (`react-imask`, `imask`) и подключай через [`05-form-field-integration.md`](05-form-field-integration.md)
 сценарий 3 (`<FormField><MaskedInput /></FormField>`).
 
-## 28. 4. `forwardRef` + Radix `Slot` конфликты
+## 29. 4. `forwardRef` + Radix `Slot` конфликты
 
 **Симптом.** При `<Button asChild><Link to="/">Go</Link></Button>` падает с
 `Slot: only one child or React.cloneElement is not a function`.
@@ -1505,7 +1602,7 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
 </Button>;
 ```
 
-## 29. 5. `Checkbox` value не сохраняется (всегда `false`)
+## 30. 5. `Checkbox` value не сохраняется (всегда `false`)
 
 **Симптом.** Пользователь чекает, в форме пишется `true`, но при следующем
 рендере чекбокс снова пуст.
@@ -1527,7 +1624,7 @@ const schema = {
 const form = createForm<{ accept: boolean }>({ model, schema });
 ```
 
-## 30. 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
+## 31. 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
 
 **Симптом.** Поле невалидно, `form.email.error` есть, но в DOM ошибка не
 рендерится.
@@ -1565,7 +1662,7 @@ import { FormField } from '@reformer/ui-kit'; // готовый wrapper
 import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 ```
 
-## 31. 7. `onBlur` не срабатывает на `Select` / `RadioGroup`
+## 32. 7. `onBlur` не срабатывает на `Select` / `RadioGroup`
 
 **Симптом.** `touched`-флаг не появляется при выборе значения, поле «вечно»
 без подсветки ошибки.
@@ -1596,7 +1693,7 @@ import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 `FormField` делает это автоматически (читает `componentProps` из `FieldNode`).
 Проблема обычно возникает, если Select используется руками без `FormField`.
 
-## 32. 8. `cn` стирает мои классы или, наоборот, оставляет лишние
+## 33. 8. `cn` стирает мои классы или, наоборот, оставляет лишние
 
 **Симптом.** Передал `className="px-2 py-1"` в компонент, ожидая, что
 overrideнет дефолт `px-3`, но получил оба.
@@ -1615,7 +1712,7 @@ overrideнет дефолт `px-3`, но получил оба.
 //                                    ↑ user override побеждает
 ```
 
-## 33. 9. `AsyncBoundary` не переключает состояние
+## 34. 9. `AsyncBoundary` не переключает состояние
 
 **Симптом.** Пропал `loading`, но `children` не появились.
 
@@ -1649,7 +1746,7 @@ import { AsyncBoundary } from '@reformer/cdk/async-boundary';
 </AsyncBoundary.Root>;
 ```
 
-## 34. 10. `InputPassword`: иконка-«глаз» не появляется
+## 35. 10. `InputPassword`: иконка-«глаз» не появляется
 
 **Симптом.** Прокинул `showToggle={true}` (или оставил дефолт), но в правом
 углу ничего нет.
@@ -1673,7 +1770,7 @@ const hasValue = Boolean(value);
 </div>
 ```
 
-## 35. 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
+## 36. 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
 
 **Симптом.** Регистрируется dataSource `LOAN_TYPES` через `reg.dataSource('LOAN_TYPES', list)`,
 в JSON-схеме `componentProps: { options: '$LOAN_TYPES' }`, но опции пустые.
@@ -1687,13 +1784,43 @@ const hasValue = Boolean(value);
 Внутри `Select` дальнейших магий нет — он просто читает `directOptions`
 один в один.
 
-## 36. See also
+## 37. 12. Мультивыбор не рендерится, а submit молча не проходит
+
+**Симптом.** Поле мультивыбора (`SelectMulti` / `ComboboxMulti` / `NativeSelectMulti` /
+`ToggleGroupMulti`) либо роняет `FormField` с `TypeError`, либо тихо рисуется контейнером — с
+подписью и опциями, но без реакции на клик. Кнопка submit при этом не срабатывает, и **ни одной**
+ошибки на экране нет.
+
+**Причина.** Начальное значение поля — `[]`. `createModel` превращает массив в `ArrayNode`,
+`createForm` такой путь пропускает, и `FieldNode` не создаётся вовсе: реестр сигнал→нода пуст.
+Дальше `validateModel` возвращает `false` и блокирует submit, но маршрутизация ошибок делает
+`getNodeForSignal(sig)?.setErrors(...)` — optional chaining без `else`, поэтому показать ошибку
+некому.
+
+**Лечение.**
+
+```typescript
+// ❌ было
+const model = createModel({ tags: [] });
+
+// ✅ стало — пустой выбор у мультивыбора всегда null
+const model = createModel({ tags: null as string[] | null });
+
+// и обращение к сигналу: model.$.tags для типа T[] — НЕ сигнал
+validate(model.signalAt(tags)!, [required()]);
+```
+
+Смежное: префилл выбранных значений возможен только в `setup` (после `createForm`) и только через
+`model.signalAt(path)!.value = [...]`; после него нужен `model.captureInitial()`, иначе форма
+считает себя изменённой сразу после загрузки.
+
+## 38. See also
 
 - [01-overview.md](01-overview.md) — список компонентов и их назначения.
 - [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md), [04-layout-and-buttons.md](04-layout-and-buttons.md) — детали по каждому компоненту.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 
-## 37. Базовое использование
+## 39. Базовое использование
 
 ```tsx
 import { useMemo, useRef, type FC } from 'react';
@@ -1834,7 +1961,7 @@ const handleSaveAndExit = async () => {
 Различие — два разных entry point: `<FormWizard onSubmit={...}>` (no-arg, для submit-button click)
 и `navRef.current?.submit(values => ...)` (с values, для programmatic submit).
 
-## 38. Полиморфный `step.body`
+## 40. Полиморфный `step.body`
 
 `body` принимает три формы (runtime-discriminated):
 
@@ -1848,7 +1975,7 @@ const handleSaveAndExit = async () => {
 
 **Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormProxy<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
 
-## 39. RenderNode body (renderer-react / renderer-json)
+## 41. RenderNode body (renderer-react / renderer-json)
 
 M1: схема без аргумента `path` — листья ссылаются на сигналы модели
 (`value: model.$.x`), а не на `path.x`:
@@ -1921,7 +2048,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 
 **TS-flow body (FC компоненты) — провайдер НЕ нужен**: ui-kit FormWizard рендерит FC напрямую без render-pipeline.
 
-## 40. JSON
+## 42. JSON
 
 ```jsonc
 {
@@ -1946,7 +2073,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 
 `body` — обычный JsonNode → конвертер renderer-json превращает в RenderNode → шим `$component(Wizard)` отдаёт его в `FormWizard` вместе с `renderStepBody`. Шим (и стратегия в нём) — на стороне приложения; golden-пример: `projects/react-playground/src/components/RendererFormWizard.tsx`.
 
-## 41. Compound API
+## 43. Compound API
 
 `FormWizard.Indicator/Step/Actions/Progress` — re-export headless слотов из CDK для consumer-ов, которым нужен полностью кастомный layout (например, indicator поверх кастомного header'а).
 
@@ -1956,7 +2083,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 </FormWizard.Indicator>
 ```
 
-## 42. Ref / handle
+## 44. Ref / handle
 
 ```tsx
 const wizardRef = useRef<FormWizardHandle<MyForm>>(null);
@@ -1979,7 +2106,7 @@ const result = await wizardRef.current?.submit((values) => api.submit(values));
 `validateCurrentStep()`, `goToNextStep()`, `goToPreviousStep()`,
 `goToStep(step)`, `submit(cb)`.
 
-## 43. Базовое использование (TS-flow)
+## 45. Базовое использование (TS-flow)
 
 ```tsx
 import { FormArraySection } from '@reformer/ui-kit/form-array';
@@ -2024,7 +2151,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 `initialValue` имеет тип `Partial<T>`, где `T` — тип элемента массива.
 Передавайте plain-objects по форме элемента, **не** FieldConfig-объекты.
 
-## 44. Renderer-react RenderSchema
+## 46. Renderer-react RenderSchema
 
 M1: схема без аргумента `path` (`createRenderSchema<T>(() => ...)`). `control`
 ссылается на массив модели (`model.<arrayField>` — `ModelArray<T>`); `FormArraySection`
@@ -2051,7 +2178,7 @@ ui-kit FormArraySection маркирован `__selfManagedChildren = true` — 
 
 > Альтернатива — нативный array-узел движка `{ array: model.properties, initialValue, item: (im) => ({ children: [ { value: im.$.field, component } ] }) }`.
 
-## 45. JSON (renderer-json)
+## 47. JSON (renderer-json)
 
 Два варианта `itemComponent`:
 
@@ -2112,7 +2239,7 @@ defineRegistry((reg) => {
 
 Конвертер обнаруживает `$template`, конвертирует JsonNode шаблона в RenderNode (один раз), и оборачивает в FC `({ control }) => <RenderNodeComponent node={renderNode} form={control} />`. Снаружи это обычный FC.
 
-## 46. Props (полный список)
+## 48. Props (полный список)
 
 | Prop                 | Type                                                         | Default                          | Описание                                                  |
 | -------------------- | ------------------------------------------------------------ | -------------------------------- | --------------------------------------------------------- |
@@ -2134,7 +2261,7 @@ defineRegistry((reg) => {
 | `form`               | `FormProxy<unknown>`                                         | авто-инъекция                    | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
 | `fieldWrapper`       | `ComponentType<FieldWrapperProps>`                          | авто-инъекция                    | Field wrapper для дочерних полей (по умолчанию — от родителя) |
 
-## 47. Critical: `initialValue` — PLAIN LEAVES ONLY
+## 49. Critical: `initialValue` — PLAIN LEAVES ONLY
 
 ```tsx
 // ❌ silent corruption (FieldConfig as value)
@@ -2146,7 +2273,7 @@ initialValue={{ type: 'apartment', description: '', estimatedValue: 0 }}
 
 FieldConfig попадает в значение поля → Textarea рендерит `[object Object]`, Checkbox флипается в `true`. Compiler/тесты не ловят.
 
-## 48. Schema-driven (canonical pattern)
+## 50. Schema-driven (canonical pattern)
 
 Канон M1: `createModel` → layout-схема, где лист = `{ value: model.$.field, component,
 componentProps }` → `createForm({ model, schema })`; правила — отдельной
@@ -2219,7 +2346,7 @@ import { FormField } from '@reformer/ui-kit';
 <FormField control={form.snils} testId="snils" />
 ```
 
-## 49. Common masks
+## 51. Common masks
 
 | Поле                 | Маска                 | Пример вывода         |
 | -------------------- | --------------------- | --------------------- |
@@ -2235,7 +2362,7 @@ import { FormField } from '@reformer/ui-kit';
 | Дата (DD.MM.YYYY)    | `99.99.9999`          | `15.05.1990`          |
 | Карта                | `9999 9999 9999 9999` | `4111 1111 1111 1111` |
 
-## 50. Validation
+## 52. Validation
 
 `InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
 Валидаторы — фабрики из `@reformer/core/validators` — передаются в `validate(sig, [...])`
@@ -2262,7 +2389,7 @@ Cross-field правила (например, «доп. телефон отли�
 `cross(model.$.phoneAdditional, (f) => ...)` в той же validation-схеме: функция получает
 снапшот `model.get()` и читает соседние поля напрямую.
 
-## 51. Advanced — strict mask через FormField + children slot
+## 53. Advanced — strict mask через FormField + children slot
 
 Если нужна автоматическая вставка literal-символов (true input-mask), используй
 библиотеку типа `react-input-mask` или `imask` как кастомный child в FormField:
@@ -2280,13 +2407,13 @@ import InputMask from 'react-input-mask';
 `value` / `onChange` / `onBlur` / `aria-invalid`. См. рецепт
 [05-form-field-integration.md → Pattern 3](05-form-field-integration.md).
 
-## 52. See also
+## 54. See also
 
 - [02-text-fields.md](02-text-fields.md) — обычный Input
 - [05-form-field-integration.md](05-form-field-integration.md) — FormField обёртка
 - [06-troubleshooting.md](06-troubleshooting.md) — «маска не вставляется автоматически» → используй `react-input-mask`
 
-## 53. Когда императив, а когда реактив
+## 55. Когда императив, а когда реактив
 
 Handle покрывает ТОЛЬКО то, что не выражается реактивно. Всё остальное остаётся в behaviors —
 дублировать его через handle нельзя, иначе появятся два способа делать одно и то же.
@@ -2303,7 +2430,7 @@ Handle покрывает ТОЛЬКО то, что не выражается р
 | **reload / loadMore async-источника**      | **императивный** | `…current?.reload()`                              |
 | **переключить видимость пароля**           | **императивный** | `getRef<InputPasswordHandle>().current?.setVisible(true)` |
 
-## 54. Базовое использование
+## 56. Базовое использование
 
 ```tsx
 import { createRenderSchema, renderEffect } from '@reformer/renderer-react';
@@ -2322,7 +2449,7 @@ emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 emailRef.current?.focus();
 ```
 
-## 55. ⚠️ `getRef()` вызывать ДО первого рендера
+## 57. ⚠️ `getRef()` вызывать ДО первого рендера
 
 `getRef()` намеренно **не** бампает version-сигнал ноды (иначе каждый вызов вызывал бы ре-рендер и
 менял семантику wizard-а). Нода читает реестр рефов в момент рендера — поэтому ref, запрошенный
@@ -2342,7 +2469,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 Повторные `getRef()` для того же селектора идемпотентны и возвращают тот же `RefObject` — поэтому
 достаточно один раз «прогреть» все нужные селекторы в поведении, а дальше звать `getRef()` где угодно.
 
-## 56. Адресация: `selector` или `__path`
+## 58. Адресация: `selector` или `__path`
 
 Ключ ref листа — `node.selector ?? __path` сигнала модели (явный селектор в приоритете):
 
@@ -2359,7 +2486,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 поэтому после `validateModel` ошибки поля читаются по тому же пути — см. рецепт ниже. Для строк
 `FormArray` индексы не нужно перечислять в схеме.
 
-## 57. Контракты handle
+## 59. Контракты handle
 
 Все rich-handle наследуют `FieldHandle`.
 
@@ -2376,7 +2503,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 `getRef<H>()` не выводит `H` из селектора (схема не индексирована статически) — тип указывает
 вызывающий, как и для `getRef<FormWizardHandle<T>>()`.
 
-## 58. Рецепт: focus первого невалидного поля после submit
+## 60. Рецепт: focus первого невалидного поля после submit
 
 Классика UX, реактивно невыразимая. `validateModel` роутит ошибки в ноды; нода поля
 резолвится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь —
@@ -2405,7 +2532,7 @@ async function handleSubmit() {
 }
 ```
 
-## 59. Рецепт: зависимый async-Select
+## 61. Рецепт: зависимый async-Select
 
 Реактивная часть (параметры источника) — через `patchProps`; императивная (сброс, перезагрузка,
 открытие) — через handle:
@@ -2426,7 +2553,7 @@ renderEffect(schema, () => {
 });
 ```
 
-## 60. Рецепт: фокус в поле только что добавленной строки FormArray
+## 62. Рецепт: фокус в поле только что добавленной строки FormArray
 
 ```tsx
 import type { FormArrayHandle } from '@reformer/cdk';
@@ -2442,7 +2569,7 @@ queueMicrotask(() => {
 });
 ```
 
-## 61. null-safety и жизненный цикл
+## 63. null-safety и жизненный цикл
 
 `ref.current` равен `null`, пока поле не смонтировано — и остаётся `null` у скрытых/условных полей,
 которые не рендерятся вовсе. Все вызовы обязаны идти через `?.`.
@@ -2453,7 +2580,7 @@ queueMicrotask(() => {
 - Сам baseline-handle тоже null-safe: `focus()/blur()/scrollIntoView()` на несмонтированном поле —
   no-op без исключения.
 
-## 62. Своё поле с handle
+## 64. Своё поле с handle
 
 Слой создания полей публикуется точкой `@reformer/ui-kit/fields` — оттуда доступны
 `withFormControl`, все адаптеры-пресеты (`nativeInputAdapter`, `checkedAdapter`, `pressedAdapter`,
@@ -2483,7 +2610,7 @@ export const MySelectField = withFormControl(MySelect, myAdapter, { exposesHandl
 `useImperativeHandle` — иначе один ref писался бы дважды. Rich-handle объявляйте рядом с композитом
 (`export interface MySelectHandle extends FieldHandle { … }`) и реэкспортируйте из barrel компонента.
 
-## 63. API Reference
+## 65. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -6702,6 +6829,152 @@ export const nativeSelectBasePropsSchema
 
 _Source: src/components/native-select/variants/base/native-select-base.props.ts_
 
+### NativeSelectMulti
+
+**Kind:** `function`
+
+Нативный `<select multiple>` (вариант `multi`).
+
+НЕ переиспользует примитив `NativeSelect`: тот — дословный порт shadcn под ОДНОСТРОЧНЫЙ select
+(`h-9`, `pr-9` под абсолютно спозиционированный шеврон, а нативный атрибут `size` у него занят
+под ступень шкалы размеров и вырезан `Omit`'ом). Листбоксу нужна принципиально другая геометрия,
+поэтому вариант рисует свой `<select>` и переиспользует из порта только `<option>`/`<optgroup>` —
+так порт остаётся без дрейфа от upstream.
+
+Честное ограничение, которое надо знать до выбора этого контрола: на тач-устройствах
+множественный выбор в нативном листбоксе практически недоступен, аффорданса «можно несколько»
+нет, и высота фиксирована. Для тач берите `ToggleGroupMulti` или `SelectMulti`;
+`NativeSelectMulti` — путь для no-JS / legacy / киосков, где нужна нативная семантика и
+клавиатура (Shift+стрелки, Ctrl+клик) без единой строки JS.
+
+`placeholder` здесь отсутствует намеренно: у одиночного варианта это `<option value="">` в начале
+списка, а в multiple-листбоксе такая опция становится ВЫБИРАЕМЫМ мусорным пунктом.
+
+**Signature:**
+```typescript
+function NativeSelectMulti({
+  options = [],
+  value,
+  onChange,
+  rows,
+  maxItems,
+  className,
+  'data-testid': dataTestId,
+  ...props
+}: NativeSelectMultiProps)
+```
+
+_Source: src/components/native-select/variants/multi/native-select-multi.tsx_
+
+### NativeSelectMultiField
+
+**Kind:** `const`
+
+Field-версия NativeSelectMulti: нативный множественный выбор со значением `string[] | null`.
+Привязка через {@link multiValueAdapter} — общий для всех мультивыборов кита.
+Штатный `nativeInputAdapter` тут непригоден: он читает `e.target.value`, что у `<select multiple>`
+даёт только первое выбранное значение.
+
+**Signature:**
+```typescript
+export const NativeSelectMultiField
+```
+
+_Source: src/components/native-select/variants/multi/native-select-multi.field.tsx_
+
+### NativeSelectMultiFieldProps
+
+**Kind:** `interface`
+
+Value-based контракт field-версии NativeSelectMulti. Значение — `string[] | null`; форма резолвит
+`value`/`onChange`/`onBlur`/`disabled`, автор задаёт `options`/`rows`/`maxItems`/`className`.
+Служит типом для стража props-схемы.
+
+**Signature:**
+```typescript
+export interface NativeSelectMultiFieldProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  options?: NativeSelectOptionItem[];
+  rows?: number;
+  maxItems?: number;
+  className?: string;
+}
+```
+
+_Source: src/components/native-select/variants/multi/native-select-multi.field.tsx_
+
+### NativeSelectMultiProps
+
+**Kind:** `interface`
+
+Props презентационного {@link NativeSelectMulti}.
+
+**Signature:**
+```typescript
+export interface NativeSelectMultiProps {
+  /** Опции списка. Одинаковый `group` объединяется в `<optgroup>`. */
+  options?: NativeSelectOptionItem[];
+  /**
+   * Выбранные значения. Приходит массивом всегда: `multiValueAdapter` разворачивает `null` в `[]`.
+   * Нативный `<select multiple>` в управляемом режиме требует именно массив.
+   */
+  value?: string[];
+  /** Изменение выбора. Всегда получает НОВЫЙ массив — см. `multiValueAdapter`. */
+  onChange?: (value: string[]) => void;
+  onBlur?: () => void;
+  /**
+   * Число видимых строк (нативный атрибут `size`). По умолчанию браузер показывает 4.
+   *
+   * Проп называется `rows`, а не `size`: у остальных контролов кита `size` — это ступень шкалы
+   * размеров (`'sm' | 'default'`), и одноимённый проп с другим смыслом читался бы как опечатка.
+   */
+  rows?: number;
+  /**
+   * Потолок числа выбранных: по достижении невыбранные опции выключаются.
+   * Affordance, а НЕ правило формы — ограничение задавайте валидатором `maxLength(n)`.
+   */
+  maxItems?: number;
+  className?: string;
+  disabled?: boolean;
+  /** id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке. */
+  id?: string;
+  /** Префикс `data-testid`; на `<select>` + `-<value>` на каждый `<option>`. */
+  'data-testid'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  'aria-errormessage'?: string;
+  'aria-required'?: boolean | 'true' | 'false';
+}
+```
+
+_Source: src/components/native-select/variants/multi/native-select-multi.tsx_
+
+### nativeSelectMultiPropsSchema
+
+**Kind:** `const`
+
+Props-схема NativeSelectMulti — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
+`componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`x-registryName: 'NativeSelectMulti'` — отдельная запись каталога, а не проп у `NativeSelect`:
+тип значения другой (`string[] | null` против `string | null`), а `x-runtimeProps.value` у
+записи ровно один. Прецедент — `FileUpload` / `FileUploadAvatar`.
+
+`placeholder` отсутствует НАМЕРЕННО: у одиночного варианта это `<option value="">` в начале
+списка, а в multiple-листбоксе такая опция становится выбираемым мусорным пунктом. Это
+единственное вынужденное расхождение с общим набором пропсов мультивыборов кита.
+
+**Signature:**
+```typescript
+export const nativeSelectMultiPropsSchema
+```
+
+_Source: src/components/native-select/variants/multi/native-select-multi.props.ts_
+
 ### NativeSelectOptGroup
 
 **Kind:** `function`
@@ -7636,6 +7909,207 @@ function SelectLabel({ className, ...props }: React.ComponentProps<typeof Select
 
 _Source: src/components/select/variants/base/select-base.tsx_
 
+### SelectMulti
+
+**Kind:** `const`
+
+Select в режиме множественного выбора (вариант `multi`).
+
+Radix Select мультивыбора не поддерживает в принципе: его `Root` типизирован строго под одно
+значение, `SelectValue` рисует одно, а `SelectItem` даёт `role=option` в listbox без
+`aria-multiselectable`. Поэтому вариант НЕ переиспользует `select-base.tsx`, а строится на
+`Popover` со своим listbox.
+
+На cmdk (как `ComboboxMulti`) он тоже построен быть не может, и это ограничение упаковки, а не
+вкуса: каталоги `command` и `combobox` лежат в HEAVY и держат cmdk опциональным peer'ом, а
+`select` — лёгкий и попадает в главный barrel. Импорт `Command` сюда протащил бы cmdk в
+`dist/index.js` и сделал бы его обязательным для КАЖДОГО потребителя barrel'а. Отсюда свой
+listbox и своё поле поиска — ровно такое же, как уже есть в `select-async.tsx`.
+
+Стратегии источника, поиск и пагинация переиспользуются из соседнего варианта без изменений
+(`use-resource-options.ts` поверх чистого редьюсера `select-resource.ts`).
+
+**Signature:**
+```typescript
+const SelectMulti
+```
+
+_Source: src/components/select/variants/multi/select-multi.tsx_
+
+### SelectMultiField
+
+**Kind:** `const`
+
+`exposesHandle: true` — SelectMulti сам реализует {@link SelectMultiHandle}
+(`useImperativeHandle`), поэтому HOC форвардит ref потребителя прямо в композит (passthrough).
+Привязка — общий для кита {@link multiValueAdapter}.
+
+**Signature:**
+```typescript
+export const SelectMultiField
+```
+
+_Source: src/components/select/variants/multi/select-multi.field.tsx_
+
+### SelectMultiFieldProps
+
+**Kind:** `interface`
+
+Value-based контракт field-версии SelectMulti. Значение — `string[] | null`; форма резолвит
+`value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в `componentProps`
+(кроме `resource` — он требует функцию и передаётся через реестр компонентов).
+Служит типом для стража props-схемы.
+
+**Signature:**
+```typescript
+export interface SelectMultiFieldProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  options?: SelectMultiOption[];
+  selectedOptions?: SelectMultiOption[];
+  resource?: ResourceConfig<unknown>;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  clearable?: boolean;
+  maxItems?: number;
+  summaryThreshold?: number;
+  className?: string;
+}
+```
+
+_Source: src/components/select/variants/multi/select-multi.field.tsx_
+
+### SelectMultiHandle
+
+**Kind:** `interface`
+
+Императивный handle {@link SelectMulti}: baseline {@link FieldHandle} на кнопке-триггере +
+управление popover'ом и асинхронным источником.
+
+**Signature:**
+```typescript
+export interface SelectMultiHandle extends FieldHandle {
+  /** Открыть popover со списком. */
+  open(): void;
+  /** Закрыть popover (эмитит `onBlur`, как обычное закрытие). */
+  close(): void;
+  /** Сбросить весь выбор. */
+  clear(): void;
+  /** Перезагрузить источник опций с первой страницы. */
+  reload(): void;
+  /** Догрузить следующую страницу (стратегия `partial`). */
+  loadMore(): void;
+}
+```
+
+_Source: src/components/select/variants/multi/select-multi.tsx_
+
+### SelectMultiOption
+
+**Kind:** `interface`
+
+Опция мультивыбора, заданная inline (сериализуемый источник для формы/DSL).
+
+**Signature:**
+```typescript
+export interface SelectMultiOption {
+  value: string;
+  label: string;
+  group?: string;
+}
+```
+
+_Source: src/components/select/variants/multi/select-multi.tsx_
+
+### SelectMultiProps
+
+**Kind:** `interface`
+
+Props компонента {@link SelectMulti}.
+
+**Signature:**
+```typescript
+export interface SelectMultiProps {
+  className?: string;
+  /**
+   * Выбранные значения. Приходит массивом всегда: `multiValueAdapter` разворачивает `null` в `[]`.
+   */
+  value?: string[];
+  /** Изменение выбора. Всегда получает НОВЫЙ массив — см. `multiValueAdapter`. */
+  onChange?: (value: string[]) => void;
+  /** Срабатывает при закрытии popover (снятие фокуса). */
+  onBlur?: () => void;
+  /** Inline-опции. Взаимоисключающи с `resource`: если заданы — источник не опрашивается. */
+  options?: SelectMultiOption[];
+  /**
+   * Асинхронный источник опций (`static` / `preload` / `partial`). В JSON-форме недостижим:
+   * требует функцию `load` — передаётся через реестр компонентов.
+   */
+  resource?: ResourceConfig<unknown>;
+  /**
+   * Лейблы для уже выбранных значений, которых может не быть в текущей странице опций.
+   *
+   * Нужен именно при `resource`: выбранное значение легко оказывается вне загруженной страницы
+   * (сменили поисковый запрос, перезагрузили источник, выбрали на первой странице и пролистали
+   * дальше). Без справочника чип показывал бы сырой `value`. Сериализуем — доступен и из JSON-DSL.
+   */
+  selectedOptions?: SelectMultiOption[];
+  /** Подсказка в триггере, пока ничего не выбрано. */
+  placeholder?: string;
+  /** Подсказка в поле поиска. */
+  searchPlaceholder?: string;
+  /** Текст пустого состояния (ничего не найдено). */
+  emptyText?: string;
+  /** Показывать крестик сброса ВСЕГО выбора. */
+  clearable?: boolean;
+  /**
+   * Потолок числа выбранных: по достижении невыбранные пункты выключаются.
+   * Подсказка интерфейса, а НЕ правило формы — ограничение задавайте валидатором `maxLength(n)`.
+   */
+  maxItems?: number;
+  /** Сколько чипов показать в триггере до схлопывания в сводку. По умолчанию 3. */
+  summaryThreshold?: number;
+  disabled?: boolean;
+  /** id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке. */
+  id?: string;
+  /** Префикс `data-testid`; на триггер + `-<value>` на каждый пункт списка. */
+  'data-testid'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  'aria-errormessage'?: string;
+  'aria-required'?: boolean | 'true' | 'false';
+}
+```
+
+_Source: src/components/select/variants/multi/select-multi.tsx_
+
+### selectMultiPropsSchema
+
+**Kind:** `const`
+
+Props-схема SelectMulti — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
+`componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`x-registryName: 'SelectMulti'` — отдельная запись каталога, а не проп у `Select`: тип значения
+другой (`string[] | null` против `string | null`), а `x-runtimeProps.value` у записи ровно один.
+Прецедент — `FileUpload` / `FileUploadAvatar`.
+
+Отдельной записи `SelectAsyncMulti` НЕ существует и существовать не может: `Select` и
+`SelectAsync` — одна запись каталога (`x-registryName: 'Select'` стоит на `select-async.props.ts`,
+а `SelectField` — алиас `SelectAsyncField`). Асинхронный источник, поиск и пагинация здесь —
+это ПРОПСЫ (`resource`), а не отдельный вариант.
+
+**Signature:**
+```typescript
+export const selectMultiPropsSchema
+```
+
+_Source: src/components/select/variants/multi/select-multi.props.ts_
+
 ### SelectScrollDownButton
 
 **Kind:** `function`
@@ -8383,6 +8857,143 @@ function ToggleGroupItem({
 ```
 
 _Source: src/components/toggle-group/variants/base/toggle-group-base.tsx_
+
+### ToggleGroupMulti
+
+**Kind:** `function`
+
+ToggleGroup в режиме множественного выбора (вариант `multi`).
+
+Отдельный компонент, а не проп `multiple` у базового: Radix типизирует `type="single"` и
+`type="multiple"` разными ветками union'а Root'а (`value: string` против `string[]`), а
+`ToggleGroupOptions` вдобавок жёстко зашивает `type="single"` и `value={value ?? ''}`. Главное же
+— тип значения поля входит в контракт записи каталога: `x-runtimeProps.value` у записи один, и
+«строка ИЛИ массив в зависимости от соседнего пропа» там невыразимо. Тот же приём и по той же
+причине — у `FileUpload` / `FileUploadAvatar`.
+
+Наружу выставлен value-based контракт (`value`/`onChange`), а не Radix-shape
+(`onValueChange`), чтобы field-версия собиралась общим `multiValueAdapter` — тем же, что у
+трёх остальных мультивыборов кита.
+
+**Signature:**
+```typescript
+function ToggleGroupMulti({
+  options = [],
+  value,
+  onChange,
+  maxItems,
+  variant,
+  size,
+  'data-testid': dataTestId,
+  ...props
+}: ToggleGroupMultiProps)
+```
+
+_Source: src/components/toggle-group/variants/multi/toggle-group-multi.tsx_
+
+### ToggleGroupMultiField
+
+**Kind:** `const`
+
+Field-версия ToggleGroupMulti: множественный выбор со значением `string[] | null`.
+Привязка через {@link multiValueAdapter} — общий для всех мультивыборов кита.
+НЕ inline-label: подпись группы рисует FormField сверху.
+
+**Signature:**
+```typescript
+export const ToggleGroupMultiField
+```
+
+_Source: src/components/toggle-group/variants/multi/toggle-group-multi.field.tsx_
+
+### ToggleGroupMultiFieldProps
+
+**Kind:** `interface`
+
+Value-based контракт field-версии ToggleGroupMulti. Значение — `string[] | null`; форма резолвит
+`value`/`onChange`/`onBlur`/`disabled`, автор задаёт `options`/`maxItems`/`variant`/`className`
+в `componentProps`. Служит типом для стража props-схемы.
+
+**Signature:**
+```typescript
+export interface ToggleGroupMultiFieldProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  options?: ToggleGroupOption[];
+  maxItems?: number;
+  variant?: VariantProps<typeof toggleVariants>['variant'];
+  className?: string;
+}
+```
+
+_Source: src/components/toggle-group/variants/multi/toggle-group-multi.field.tsx_
+
+### ToggleGroupMultiProps
+
+**Kind:** `interface`
+
+Props презентационного {@link ToggleGroupMulti}.
+
+**Signature:**
+```typescript
+export interface ToggleGroupMultiProps {
+  /** Список вариантов. Каждый рендерится как `ToggleGroupItem` (кнопка `role=checkbox`). */
+  options?: ToggleGroupOption[];
+  /**
+   * Выбранные значения. Приходит массивом всегда: `multiValueAdapter` разворачивает `null` в `[]`,
+   * потому что рендер ходит по значению `.includes`/`.length`.
+   */
+  value?: string[];
+  /** Изменение выбора. Всегда получает НОВЫЙ массив — см. `multiValueAdapter`. */
+  onChange?: (value: string[]) => void;
+  onBlur?: () => void;
+  /**
+   * Потолок числа выбранных: по достижении невыбранные кнопки выключаются.
+   *
+   * Это affordance, а НЕ правило формы: авторитетное ограничение задаётся `maxLength(n)` в схеме
+   * валидации. Держать здесь единственный источник истины нельзя — контрол не участвует в submit.
+   */
+  maxItems?: number;
+  variant?: VariantProps<typeof toggleVariants>['variant'];
+  size?: VariantProps<typeof toggleVariants>['size'];
+  className?: string;
+  disabled?: boolean;
+  /** id контейнера (seam — форма связывает подпись). */
+  id?: string;
+  /** Префикс `data-testid`; на контейнер + `-<value>` на каждый Item. */
+  'data-testid'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  'aria-errormessage'?: string;
+  'aria-required'?: boolean | 'true' | 'false';
+}
+```
+
+_Source: src/components/toggle-group/variants/multi/toggle-group-multi.tsx_
+
+### toggleGroupMultiPropsSchema
+
+**Kind:** `const`
+
+Props-схема ToggleGroupMulti — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
+`componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`x-registryName: 'ToggleGroupMulti'` — отдельная запись каталога, а не проп у `ToggleGroup`:
+тип значения другой (`string[] | null` против `string | null`), а `x-runtimeProps.value` у
+записи ровно один. Прецедент — `FileUpload` / `FileUploadAvatar`.
+
+`x-variantGroup: 'ToggleGroup'` (без `x-variant`-совпадения с именем) делает запись НЕдефолтным
+членом группы: дефолт — тот, чей `x-registryName === x-variantGroup`.
+
+**Signature:**
+```typescript
+export const toggleGroupMultiPropsSchema
+```
+
+_Source: src/components/toggle-group/variants/multi/toggle-group-multi.props.ts_
 
 ### ToggleGroupOption
 

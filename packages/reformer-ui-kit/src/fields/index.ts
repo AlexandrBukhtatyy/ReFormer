@@ -42,6 +42,7 @@ export {
   checkedAdapter,
   pressedAdapter,
   valueChangeAdapter,
+  multiValueAdapter,
   sliderAdapter,
   dateAdapter,
 } from './adapters';

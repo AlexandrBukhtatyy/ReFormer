@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { Combobox, ComboboxField, comboboxBasePropsSchema } from '@reformer/ui-kit/combobox';
+import {
+  Combobox,
+  ComboboxField,
+  ComboboxMultiField,
+  comboboxBasePropsSchema,
+} from '@reformer/ui-kit/combobox';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -114,6 +119,27 @@ const [value, setValue] = useState<string | null>(null);
   searchPlaceholder="Поиск фреймворка..."
   clearable
 />`,
+    },
+    {
+      id: 'multi',
+      title: 'Множественный выбор (ComboboxMulti)',
+      description:
+        'Тот же рецепт Popover + Command, но со списком-чекбоксами и чипами в триггере. Список НЕ закрывается после выбора и не сбрасывает поиск — иначе отметить несколько подряд было бы нельзя.',
+      render: makeFieldVariant({
+        initial: null,
+        component: ComboboxMultiField,
+        componentProps: {
+          label: 'Фреймворки',
+          options: FRAMEWORKS,
+          placeholder: 'Выберите фреймворки',
+          clearable: true,
+        },
+      }),
+      code: `{
+  value: model.signalAt('frameworks')!,
+  component: ComboboxMultiField,
+  componentProps: { options: FRAMEWORKS, clearable: true },
+}`,
     },
   ],
   examples: [

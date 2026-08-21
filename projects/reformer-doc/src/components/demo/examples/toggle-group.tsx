@@ -1,4 +1,8 @@
-import { ToggleGroupField, toggleGroupBasePropsSchema } from '@reformer/ui-kit';
+import {
+  ToggleGroupField,
+  toggleGroupBasePropsSchema,
+  ToggleGroupMultiField,
+} from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -63,6 +67,27 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
   ],
   variant: 'outline',
 }`,
+    },
+    {
+      id: 'multi',
+      title: 'Множественный выбор (ToggleGroupMulti)',
+      description:
+        'Отдельный компонент, а не проп: значение — string[] | null. Пустой выбор приходит как null (массив в initial модели создал бы ArrayNode, и поля бы не было).',
+      render: makeFieldVariant({
+        initial: null,
+        component: ToggleGroupMultiField,
+        componentProps: {
+          label: 'Интересы',
+          options: GENDER,
+          maxItems: 2,
+        },
+      }),
+      code: `{
+  value: model.signalAt('interests')!,
+  component: ToggleGroupMultiField,
+  componentProps: { options: GENDER, maxItems: 2 },
+}
+// maxItems — подсказка UI; правило формы задаёт maxLength(2)`,
     },
   ],
   examples: [

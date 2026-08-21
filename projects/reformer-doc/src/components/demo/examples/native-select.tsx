@@ -1,4 +1,8 @@
-import { NativeSelectField, nativeSelectBasePropsSchema } from '@reformer/ui-kit';
+import {
+  NativeSelectField,
+  nativeSelectBasePropsSchema,
+  NativeSelectMultiField,
+} from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -61,6 +65,26 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
     { value: 'msk', label: 'Москва', group: 'Россия' },
     { value: 'minsk', label: 'Минск', group: 'Беларусь' },
   ],
+}`,
+    },
+    {
+      id: 'multi',
+      title: 'Множественный выбор (NativeSelectMulti)',
+      description:
+        'Нативный <select multiple>: no-JS/legacy, клавиатура браузера (Ctrl+клик, Shift+стрелки). Не для тач-устройств. placeholder отсутствует намеренно — в листбоксе он стал бы выбираемым пунктом.',
+      render: makeFieldVariant({
+        initial: null,
+        component: NativeSelectMultiField,
+        componentProps: {
+          label: 'Цели кредита',
+          options: LOAN,
+          rows: 5,
+        },
+      }),
+      code: `{
+  value: model.signalAt('purposes')!,
+  component: NativeSelectMultiField,
+  componentProps: { options: LOAN, rows: 5 },
 }`,
     },
   ],

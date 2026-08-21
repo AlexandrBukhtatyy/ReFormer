@@ -40,6 +40,31 @@ export const valueChangeAdapter: FieldAdapter = {
   toValue: (v) => v ?? '',
 };
 
+/**
+ * Мультивыбор (`SelectMulti` / `ComboboxMulti` / `NativeSelectMulti` / `ToggleGroupMulti`) —
+ * value-based `value: string[] | null` + `onChange(string[] | null)`.
+ *
+ * Пустой выбор нормализуется в `null`, а не в `[]`. Причина не косметическая: начальным значением
+ * поля в модели массив быть НЕ МОЖЕТ — `createModel({ tags: [] })` строит ArrayNode, `createForm`
+ * такой путь пропускает, и поля не появляется вовсе (в renderer оно при этом тихо отрендерится
+ * контейнером — с подписью и опциями, но без value/onChange). Поэтому поле живёт как
+ * `string[] | null`, и `required()` ловит пустой выбор без правок ядра. Тот же приём и по той же
+ * причине — у `fileUploadAdapter` (file-upload-base.field.tsx).
+ *
+ * `fromEmit` копирует массив: preact-сигнал бэйлится по `!==`, поэтому контрол, вернувший
+ * мутированный на месте массив, подписчиков бы не уведомил — а `_dirty` при этом уже взвёлся бы.
+ * Копия делает такой контрол безопасным.
+ *
+ * `toValue` отдаёт массив (`null` → `[]`): мульти-презентации ходят по значению `.map`/`.includes`,
+ * и `''` от `valueChangeAdapter` их бы уронил.
+ */
+export const multiValueAdapter: FieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (v) => (Array.isArray(v) && v.length > 0 ? [...(v as string[])] : null),
+  toValue: (v) => (Array.isArray(v) ? (v as string[]) : []),
+};
+
 /** Slider — `value: number[]` + `onValueChange(number[])`. Одно-thumb режим: берём первый. */
 export const sliderAdapter: FieldAdapter = {
   valueProp: 'value',

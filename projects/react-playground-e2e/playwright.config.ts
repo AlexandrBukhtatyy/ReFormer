@@ -189,6 +189,14 @@ export default defineConfig({
       testDir: './tests/pages/file-upload',
       use: { ...devices['Desktop Chrome'] },
     },
+    // Мультивыбор: SelectMulti / ComboboxMulti / NativeSelectMulti / ToggleGroupMulti.
+    // Юниты кита идут через renderToStaticMarkup, а список поповерных контролов живёт в Portal —
+    // выбор, потолок и контракт «пустой выбор → null» проверяются только тут.
+    {
+      name: 'multi-select',
+      testDir: './tests/pages/multi-select',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // ITER abstract test projects — переиспользуют POM + spec файлы
     // complex-multy-step-form для прогона против iter-форм. Активны только
     // когда MCP_ITER_VERSION env установлен. См. docs/iter-prompts/orchestrator.md

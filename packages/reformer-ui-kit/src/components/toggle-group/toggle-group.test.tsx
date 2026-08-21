@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ToggleGroup, ToggleGroupItem, ToggleGroupField } from './index';
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+  ToggleGroupField,
+  ToggleGroupMulti,
+  ToggleGroupMultiField,
+} from './index';
 
 const GENDER = [
   { value: 'male', label: 'Мужской' },
@@ -97,5 +103,79 @@ describe('ToggleGroupField (вариант base, рендерит options)', () 
     );
     expect(html).toContain('id="control-x"');
     expect(html).toContain('aria-labelledby="label-x"');
+  });
+});
+
+const TAGS = [
+  { value: 'a', label: 'Альфа' },
+  { value: 'b', label: 'Бета' },
+  { value: 'c', label: 'Гамма' },
+];
+
+describe('ToggleGroupMulti (вариант multi, множественный выбор)', () => {
+  it('multiple-режим даёт роли toolbar/button + aria-pressed (не radiogroup/radio, как single)', () => {
+    const html = renderToStaticMarkup(<ToggleGroupMulti options={TAGS} value={['a']} />);
+    expect(html).toContain('role="toolbar"');
+    expect(html).not.toContain('role="radio"');
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('aria-pressed="false"');
+  });
+
+  it('отмечает КАЖДОЕ выбранное значение, а не одно', () => {
+    const html = renderToStaticMarkup(<ToggleGroupMulti options={TAGS} value={['a', 'c']} />);
+    expect(html.match(/data-state="on"/g) ?? []).toHaveLength(2);
+    expect(html.match(/data-state="off"/g) ?? []).toHaveLength(1);
+  });
+
+  it('пустой выбор: ни один Item не нажат, рендер не падает', () => {
+    const html = renderToStaticMarkup(<ToggleGroupMulti options={TAGS} value={[]} />);
+    expect(html).not.toContain('data-state="on"');
+    expect(html.match(/aria-pressed="false"/g) ?? []).toHaveLength(3);
+  });
+
+  it('per-option data-testid = input-<field>-<value> (конвенция POM)', () => {
+    const html = renderToStaticMarkup(
+      <ToggleGroupMulti options={TAGS} value={[]} data-testid="input-tags" />
+    );
+    expect(html).toContain('data-testid="input-tags"');
+    expect(html).toContain('data-testid="input-tags-a"');
+    expect(html).toContain('data-testid="input-tags-c"');
+  });
+
+  it('maxItems гасит только НЕвыбранные (иначе снять лишнее было бы нечем)', () => {
+    const html = renderToStaticMarkup(
+      <ToggleGroupMulti options={TAGS} value={['a']} maxItems={1} />
+    );
+    // Пробел перед атрибутом обязателен: data-disabled="" содержит disabled="" подстрокой.
+    expect(html.match(/ disabled=""/g) ?? []).toHaveLength(2);
+    // Выбранный Item остаётся кликабельным. Проверяем именно АТРИБУТ: слово disabled есть ещё и
+    // в tailwind-классах (disabled:opacity-50), поэтому подстроку искать нельзя.
+    const selected = html.slice(html.indexOf('aria-pressed="true"'));
+    expect(selected.slice(0, selected.indexOf('</button>'))).not.toMatch(/ disabled=""/);
+  });
+
+  it('без maxItems ничего не выключается', () => {
+    const html = renderToStaticMarkup(<ToggleGroupMulti options={TAGS} value={['a']} />);
+    expect(html).not.toContain(' disabled=""');
+  });
+});
+
+describe('ToggleGroupMultiField (field-версия, значение string[] | null)', () => {
+  it('null из формы не роняет рендер — адаптер разворачивает его в []', () => {
+    const html = renderToStaticMarkup(<ToggleGroupMultiField value={null} options={TAGS} />);
+    expect(html.match(/aria-pressed="false"/g) ?? []).toHaveLength(3);
+  });
+
+  it('массив из формы доезжает до контрола', () => {
+    const html = renderToStaticMarkup(<ToggleGroupMultiField value={['b']} options={TAGS} />);
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('Бета');
+  });
+
+  it('control (renderer-путь) не протекает в DOM', () => {
+    const html = renderToStaticMarkup(
+      <ToggleGroupMultiField value={null} options={TAGS} control={{} as never} />
+    );
+    expect(html).not.toContain('control=');
   });
 });

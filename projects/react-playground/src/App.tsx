@@ -16,6 +16,7 @@ import HtmlNodesExample from './pages/examples/html-nodes/HtmlNodesExample';
 import RegistrationFormJson from './pages/examples/registration-form-renderer-json/RegistrationFormRendererJson';
 import AlertsListRendererJson from './pages/examples/alerts-list-renderer-json/AlertsListRendererJson';
 import FileUploadDemo from './pages/examples/file-upload/FileUploadDemo';
+import MultiSelectDemo from './pages/examples/multi-select/MultiSelectDemo';
 import FormRegistryLab from './pages/examples/form-registry-lab/FormRegistryLab';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
@@ -37,6 +38,7 @@ type ExamplePage =
   | 'registration-json'
   | 'alerts-json'
   | 'file-upload'
+  | 'multi-select'
   | 'form-registry-lab';
 
 interface ExampleEntry {
@@ -135,6 +137,13 @@ const exampleGroups: { title: string; items: ExampleEntry[] }[] = [
         title: 'FileUpload',
         description:
           'Поле загрузки файлов: button/dropzone/input/avatar, deferred (File[]) и immediate (RemoteFileRef[] через uploader)',
+      },
+      {
+        id: 'multi-select',
+        path: '/examples/multi-select',
+        title: 'Множественный выбор',
+        description:
+          'SelectMulti / ComboboxMulti / NativeSelectMulti / ToggleGroupMulti: единый контракт string[] | null, префилл, валидация',
       },
       {
         id: 'imperative-handles',
@@ -323,6 +332,7 @@ function Layout() {
             <Route path="/examples/registration-json" element={<RegistrationFormJson />} />
             <Route path="/examples/alerts-json" element={<AlertsListRendererJson />} />
             <Route path="/examples/file-upload" element={<FileUploadDemo />} />
+            <Route path="/examples/multi-select" element={<MultiSelectDemo />} />
             <Route path="/examples/registry-lab" element={<FormRegistryLab />} />
             <Route path="/" element={<Navigate to="/examples/simple" replace />} />
             <Route path="*" element={<Navigate to="/examples/simple" replace />} />

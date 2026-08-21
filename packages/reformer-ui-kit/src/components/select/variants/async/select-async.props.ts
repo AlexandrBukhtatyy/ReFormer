@@ -11,6 +11,8 @@ export const selectAsyncPropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'Select',
+  'x-variantGroup': 'Select',
+  'x-variant': 'Один',
   properties: {
     className: {
       type: 'string',

@@ -119,24 +119,28 @@ event-shape примитива (`nativeInputAdapter`, `checkedAdapter`, `valueCh
 дефолтный для форм вариант. Публичная поверхность форм — именно `*Field`-компоненты (сам HOC
 внутренний):
 
-| Компонент     | Field-версия (public)                | Дефолтный алиас                    |
-| ------------- | ------------------------------------ | ---------------------------------- |
-| Input         | `InputBaseField`, `InputNumberField` | `InputField` (диспетчер по `type`) |
-| InputPassword | `InputPasswordBaseField`             | `InputPasswordField`               |
-| InputMask     | `InputMaskBaseField`                 | `InputMaskField`                   |
-| InputOTP      | `InputOTPBaseField`                  | `InputOTPField`                    |
-| Textarea      | `TextareaBaseField`                  | `TextareaField`                    |
-| Select        | `SelectAsyncField`                   | `SelectField`                      |
-| NativeSelect  | `NativeSelectBaseField`              | `NativeSelectField`                |
-| Checkbox      | `CheckboxBaseField`                  | `CheckboxField`                    |
-| Switch        | `SwitchBaseField`                    | `SwitchField`                      |
-| Toggle        | `ToggleBaseField`                    | `ToggleField`                      |
-| ToggleGroup   | `ToggleGroupBaseField`               | `ToggleGroupField`                 |
-| RadioGroup    | `RadioGroupBaseField`                | `RadioGroupField`                  |
-| Slider        | `SliderBaseField`                    | `SliderField`                      |
-| Calendar      | `CalendarBaseField`                  | `CalendarField`                    |
-| DatePicker    | `DatePickerBaseField`                | `DatePickerField`                  |
-| Combobox      | `ComboboxBaseField`                  | `ComboboxField`                    |
+| Компонент         | Field-версия (public)                | Дефолтный алиас                    |
+| ----------------- | ------------------------------------ | ---------------------------------- |
+| Input             | `InputBaseField`, `InputNumberField` | `InputField` (диспетчер по `type`) |
+| InputPassword     | `InputPasswordBaseField`             | `InputPasswordField`               |
+| InputMask         | `InputMaskBaseField`                 | `InputMaskField`                   |
+| InputOTP          | `InputOTPBaseField`                  | `InputOTPField`                    |
+| Textarea          | `TextareaBaseField`                  | `TextareaField`                    |
+| Select            | `SelectAsyncField`                   | `SelectField`                      |
+| SelectMulti       | `SelectMultiField`                   | — (множественный выбор)            |
+| NativeSelect      | `NativeSelectBaseField`              | `NativeSelectField`                |
+| NativeSelectMulti | `NativeSelectMultiField`             | — (множественный выбор)            |
+| Checkbox          | `CheckboxBaseField`                  | `CheckboxField`                    |
+| Switch            | `SwitchBaseField`                    | `SwitchField`                      |
+| Toggle            | `ToggleBaseField`                    | `ToggleField`                      |
+| ToggleGroup       | `ToggleGroupBaseField`               | `ToggleGroupField`                 |
+| ToggleGroupMulti  | `ToggleGroupMultiField`              | — (множественный выбор)            |
+| RadioGroup        | `RadioGroupBaseField`                | `RadioGroupField`                  |
+| Slider            | `SliderBaseField`                    | `SliderField`                      |
+| Calendar          | `CalendarBaseField`                  | `CalendarField`                    |
+| DatePicker        | `DatePickerBaseField`                | `DatePickerField`                  |
+| Combobox          | `ComboboxBaseField`                  | `ComboboxField`                    |
+| ComboboxMulti     | `ComboboxMultiField`                 | — (множественный выбор)            |
 
 В M1-схеме поля `component` указывает на **field-версию** (не на голый примитив): `<FormField>` подаёт
 контролу резолвленные `value` / `onChange(value)`, которые понимает только `*Field`.

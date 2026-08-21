@@ -11,5 +11,12 @@ export type {
   ToggleGroupFieldProps,
 } from './variants/base/toggle-group-base.field';
 
-// props-схема.
+// multi — множественный выбор (value: string[] | null). Отдельная запись каталога: другой тип значения.
+export { ToggleGroupMulti } from './variants/multi/toggle-group-multi';
+export { ToggleGroupMultiField } from './variants/multi/toggle-group-multi.field';
+export type { ToggleGroupMultiProps } from './variants/multi/toggle-group-multi';
+export type { ToggleGroupMultiFieldProps } from './variants/multi/toggle-group-multi.field';
+
+// props-схемы.
 export { toggleGroupBasePropsSchema } from './variants/base/toggle-group-base.props';
+export { toggleGroupMultiPropsSchema } from './variants/multi/toggle-group-multi.props';

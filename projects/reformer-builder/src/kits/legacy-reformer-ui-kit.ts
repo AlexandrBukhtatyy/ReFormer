@@ -36,14 +36,18 @@ export const CATEGORY_BY_NAME: Record<string, string> = {
   FileUploadAvatar: 'Поля ввода',
   // Выбор и переключатели
   Select: 'Выбор и переключатели',
+  SelectMulti: 'Выбор и переключатели',
   NativeSelect: 'Выбор и переключатели',
+  NativeSelectMulti: 'Выбор и переключатели',
   Combobox: 'Выбор и переключатели',
+  ComboboxMulti: 'Выбор и переключатели',
   RadioGroup: 'Выбор и переключатели',
   Checkbox: 'Выбор и переключатели',
   Switch: 'Выбор и переключатели',
   Slider: 'Выбор и переключатели',
   Toggle: 'Выбор и переключатели',
   ToggleGroup: 'Выбор и переключатели',
+  ToggleGroupMulti: 'Выбор и переключатели',
   // Контейнеры
   Box: 'Контейнеры',
   Section: 'Контейнеры',

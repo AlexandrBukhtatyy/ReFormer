@@ -6154,7 +6154,188 @@
           "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
           "packages": []
         }
-      }
+      },
+      "variantGroup": "Combobox",
+      "variant": "Один"
+    },
+    {
+      "name": "ComboboxMulti",
+      "role": "field",
+      "exportName": "ComboboxMultiField",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать крестик сброса всего выбора справа от триггера.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "creatable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Разрешить ввести своё значение: при отсутствии совпадения — пункт «Создать», добавляющий введённое в выбор. Лейблом для него служит само значение.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "emptyText": {
+            "type": "string",
+            "description": "Текст пустого состояния (ничего не найдено).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "No options found."
+          },
+          "id": {
+            "type": "string",
+            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Потолок числа выбранных: по достижении невыбранные пункты выключаются. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1
+          },
+          "options": {
+            "type": "array",
+            "description": "Список опций { value, label }. Поиск идёт по label.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка в триггере, пока ничего не выбрано.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Select options..."
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "searchPlaceholder": {
+            "type": "string",
+            "description": "Подсказка в поле поиска.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Search..."
+          },
+          "summaryThreshold": {
+            "type": "number",
+            "description": "Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N».",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1,
+            "default": 3
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string[] | null",
+            "description": "Выбранные значения (option.value). Пустой выбор приходит как null, а не []: массив в начальном значении модели создал бы ArrayNode, и поля не было бы вовсе."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string[] | null) => void",
+            "description": "Изменение выбора; снятие последнего значения → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        },
+        "x-inherits": {
+          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
+          "packages": []
+        }
+      },
+      "variantGroup": "Combobox",
+      "variant": "Несколько"
     },
     {
       "name": "Command",
@@ -15938,7 +16119,145 @@
           ],
           "packages": []
         }
-      }
+      },
+      "variantGroup": "NativeSelect",
+      "variant": "Один"
+    },
+    {
+      "name": "NativeSelectMulti",
+      "role": "field",
+      "exportName": "NativeSelectMultiField",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс поля.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string",
+            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Потолок числа выбранных: по достижении невыбранные опции выключаются. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1
+          },
+          "options": {
+            "type": "array",
+            "description": "Опции списка. Строятся в <option> (сериализуемый источник для формы/DSL); одинаковый group объединяется в <optgroup>.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; group? }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": ["string", "number"]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "rows": {
+            "type": "number",
+            "description": "Число видимых строк (нативный атрибут size). По умолчанию браузер показывает 4. Назван rows, а не size: size в ките — ступень шкалы размеров.",
+            "x-doc": {
+              "group": "Control",
+              "type": "number"
+            },
+            "minimum": 2
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string[] | null",
+            "description": "Выбранные значения (option.value как строки). Пустой выбор приходит как null, а не []: массив в начальном значении модели создал бы ArrayNode, и поля не было бы вовсе."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string[] | null) => void",
+            "description": "Изменение выбора; снятие всех вариантов → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        },
+        "x-inherits": {
+          "react": ["AriaAttributes", "DOMAttributes"],
+          "packages": []
+        }
+      },
+      "variantGroup": "NativeSelect",
+      "variant": "Несколько"
     },
     {
       "name": "NativeSelectOptGroup",
@@ -18465,7 +18784,9 @@
           "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
           "packages": ["@radix-ui/react-select"]
         }
-      }
+      },
+      "variantGroup": "Select",
+      "variant": "Один"
     },
     {
       "name": "SelectAsync",
@@ -18958,6 +19279,209 @@
       },
       "compoundParent": "Select",
       "palette": false
+    },
+    {
+      "name": "SelectMulti",
+      "role": "field",
+      "exportName": "SelectMultiField",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать крестик сброса всего выбора справа от триггера.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "emptyText": {
+            "type": "string",
+            "description": "Текст пустого состояния (ничего не найдено).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "No options found."
+          },
+          "id": {
+            "type": "string",
+            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Потолок числа выбранных: по достижении невыбранные пункты выключаются. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1
+          },
+          "options": {
+            "type": "array",
+            "description": "Inline-опции. Взаимоисключающи с resource: если заданы — источник не опрашивается.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; group? }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка в триггере, пока ничего не выбрано.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Select options..."
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "searchPlaceholder": {
+            "type": "string",
+            "description": "Подсказка в поле поиска (показывается при resource с серверным поиском).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Search..."
+          },
+          "selectedOptions": {
+            "type": "array",
+            "description": "Лейблы для уже выбранных значений, которых может не быть в текущей странице опций (сменился поиск, догрузилась страница, перезагрузился источник). Без справочника чип показал бы сырой value.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; group? }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "summaryThreshold": {
+            "type": "number",
+            "description": "Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N».",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1,
+            "default": 3
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string[] | null",
+            "description": "Выбранные значения (option.value). Пустой выбор приходит как null, а не []: массив в начальном значении модели создал бы ArrayNode, и поля не было бы вовсе."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string[] | null) => void",
+            "description": "Изменение выбора; снятие последнего значения → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "resource": {
+            "group": "Options",
+            "type": "ResourceConfig<unknown>",
+            "description": "Асинхронный источник опций (static / preload / partial). В JSON-форме недостижим: требует функцию load."
+          }
+        },
+        "x-inherits": {
+          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
+          "packages": []
+        }
+      },
+      "variantGroup": "Select",
+      "variant": "Несколько"
     },
     {
       "name": "SelectScrollDownButton",
@@ -22277,7 +22801,9 @@
           ],
           "packages": []
         }
-      }
+      },
+      "variantGroup": "ToggleGroup",
+      "variant": "Один"
     },
     {
       "name": "ToggleGroupItem",
@@ -22345,6 +22871,149 @@
       },
       "compoundParent": "ToggleGroup",
       "palette": false
+    },
+    {
+      "name": "ToggleGroupMulti",
+      "role": "field",
+      "exportName": "ToggleGroupMultiField",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера группы.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string",
+            "description": "id контейнера (seam — форма связывает подпись).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Потолок числа выбранных: по достижении невыбранные кнопки выключаются. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            },
+            "minimum": 1
+          },
+          "options": {
+            "type": "array",
+            "description": "Варианты выбора. Каждый рендерится как кнопка-переключатель.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "sm", "lg"],
+            "description": "Типоразмер — ступень шкалы размеров из cva-конфига; набор ступеней и значение по умолчанию у каждого компонента свои, а там, где размер задаётся числом, это пиксели.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'sm' | 'lg'"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "variant": {
+            "type": "string",
+            "enum": ["default", "outline"],
+            "description": "Визуальный стиль кнопок: плоские (default) или с рамкой (outline).",
+            "x-doc": {
+              "group": "Control",
+              "type": "'default' | 'outline'"
+            },
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string[] | null",
+            "description": "Выбранные значения (option.value). Пустой выбор приходит как null, а не []: массив в начальном значении модели создал бы ArrayNode, и поля не было бы вовсе."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string[] | null) => void",
+            "description": "Изменение выбора; снятие последнего варианта → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        },
+        "x-inherits": {
+          "react": ["AriaAttributes", "DOMAttributes"],
+          "packages": []
+        }
+      },
+      "variantGroup": "ToggleGroup",
+      "variant": "Несколько"
     },
     {
       "name": "ToggleGroupOptions",

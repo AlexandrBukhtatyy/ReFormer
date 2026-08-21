@@ -23,8 +23,25 @@ describe('variantGroupOf', () => {
   });
 
   it('компонент вне группы (или одиночный) → null', () => {
-    expect(variantGroupOf('Select')).toBeNull();
+    // Textarea, а не Select: с появлением мультивыбора Select стал членом группы из двух.
+    expect(variantGroupOf('Textarea')).toBeNull();
     expect(variantGroupOf('НетТакого')).toBeNull();
+  });
+
+  it('семьи мультивыбора: одиночный вариант — дефолт, мульти — второй член', () => {
+    for (const [group, multi] of [
+      ['Select', 'SelectMulti'],
+      ['Combobox', 'ComboboxMulti'],
+      ['NativeSelect', 'NativeSelectMulti'],
+      ['ToggleGroup', 'ToggleGroupMulti'],
+    ] as const) {
+      const g = variantGroupOf(group);
+      expect(g, group).not.toBeNull();
+      expect(g!.default.name).toBe(group);
+      expect(g!.members.map((m) => m.name).sort()).toEqual([group, multi].sort());
+      // Мульти резолвит ту же группу — иначе инспектор не покажет переключатель варианта.
+      expect(variantGroupOf(multi)?.group).toBe(group);
+    }
   });
 });
 

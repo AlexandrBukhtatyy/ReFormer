@@ -1,6 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { CheckIcon, ChevronDownIcon } from 'lucide-react';
-import { SelectField, selectAsyncPropsSchema, type ResourceConfig } from '@reformer/ui-kit';
+import {
+  SelectField,
+  selectAsyncPropsSchema,
+  type ResourceConfig,
+  SelectMultiField,
+} from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -310,6 +315,28 @@ export const selectDocConfig: ComponentDocConfig = {
     ))}
   </SelectContent>
 </Select>`,
+    },
+    {
+      id: 'multi',
+      title: 'Множественный выбор (SelectMulti)',
+      description:
+        'Popover со своим listbox (без cmdk — каталог select лёгкий и едет в главный barrel). Чипы выбранного в триггере, сводка при превышении summaryThreshold, поддержка resource и selectedOptions для лейблов вне текущей страницы.',
+      render: makeFieldVariant({
+        initial: null,
+        component: SelectMultiField,
+        componentProps: {
+          label: 'Города',
+          options: GROUPED,
+          clearable: true,
+          summaryThreshold: 2,
+        },
+      }),
+      code: `{
+  value: model.signalAt('cities')!,
+  component: SelectMultiField,
+  componentProps: { options: GROUPED, clearable: true, summaryThreshold: 2 },
+}
+// асинхронно: resource={{ type: 'partial', load }} + selectedOptions для лейблов выбранного`,
     },
   ],
   examples: [

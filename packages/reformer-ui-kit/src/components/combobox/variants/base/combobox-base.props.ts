@@ -11,6 +11,8 @@ export const comboboxBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'Combobox',
+  'x-variantGroup': 'Combobox',
+  'x-variant': 'Один',
   properties: {
     className: {
       type: 'string',

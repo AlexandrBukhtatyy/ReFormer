@@ -55,9 +55,9 @@
     "limit": "4.5 kB"
   },
   {
-    "name": "@reformer/ui-kit Select (async field, default SelectField)",
-    "path": "packages/reformer-ui-kit/dist/select-async.field-*.js",
-    "limit": "4.3 kB"
+    "name": "@reformer/ui-kit Select subpath (Select + SelectAsync + SelectMulti)",
+    "path": "packages/reformer-ui-kit/dist/select-*.field-*.js",
+    "limit": "6.5 kB"
   },
   {
     "name": "@reformer/ui-kit/message-scroller (@shadcn/react external)",

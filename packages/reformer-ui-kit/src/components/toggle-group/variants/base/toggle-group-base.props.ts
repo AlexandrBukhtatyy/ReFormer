@@ -11,6 +11,8 @@ export const toggleGroupBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'ToggleGroup',
+  'x-variantGroup': 'ToggleGroup',
+  'x-variant': 'Один',
   properties: {
     options: {
       type: 'array',

@@ -289,6 +289,36 @@ const hasValue = Boolean(value);
 Внутри `Select` дальнейших магий нет — он просто читает `directOptions`
 один в один.
 
+## 12. Мультивыбор не рендерится, а submit молча не проходит
+
+**Симптом.** Поле мультивыбора (`SelectMulti` / `ComboboxMulti` / `NativeSelectMulti` /
+`ToggleGroupMulti`) либо роняет `FormField` с `TypeError`, либо тихо рисуется контейнером — с
+подписью и опциями, но без реакции на клик. Кнопка submit при этом не срабатывает, и **ни одной**
+ошибки на экране нет.
+
+**Причина.** Начальное значение поля — `[]`. `createModel` превращает массив в `ArrayNode`,
+`createForm` такой путь пропускает, и `FieldNode` не создаётся вовсе: реестр сигнал→нода пуст.
+Дальше `validateModel` возвращает `false` и блокирует submit, но маршрутизация ошибок делает
+`getNodeForSignal(sig)?.setErrors(...)` — optional chaining без `else`, поэтому показать ошибку
+некому.
+
+**Лечение.**
+
+```typescript
+// ❌ было
+const model = createModel({ tags: [] });
+
+// ✅ стало — пустой выбор у мультивыбора всегда null
+const model = createModel({ tags: null as string[] | null });
+
+// и обращение к сигналу: model.$.tags для типа T[] — НЕ сигнал
+validate(model.signalAt(tags)!, [required()]);
+```
+
+Смежное: префилл выбранных значений возможен только в `setup` (после `createForm`) и только через
+`model.signalAt(path)!.value = [...]`; после него нужен `model.captureInitial()`, иначе форма
+считает себя изменённой сразу после загрузки.
+
 ## See also
 
 - [01-overview.md](01-overview.md) — список компонентов и их назначения.

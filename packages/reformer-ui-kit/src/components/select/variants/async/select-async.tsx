@@ -4,16 +4,10 @@ import { Select as SelectPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
-import {
-  resolveStrategyFlags,
-  resourceReducer,
-  initialResourceState,
-  filterClient,
-  hasMore,
-  isNearBottom,
-  type ResourceConfig,
-  type NormalizedOption,
-} from './select-resource';
+// Стратегии, поиск и пагинация живут в `use-resource-options` (React-обёртка над чистым
+// редьюсером `select-resource`): их делит с мульти-вариантом, который Radix Select не использует.
+import { useResourceOptions } from './use-resource-options';
+import { isNearBottom, type ResourceConfig } from './select-resource';
 import {
   SelectContent,
   SelectGroup,
@@ -32,99 +26,6 @@ export type {
   ResourceStrategy,
   NormalizedOption,
 } from './select-resource';
-
-/** Задержка debounce (мс) для серверного поиска в стратегии `partial`. */
-const SEARCH_DEBOUNCE_MS = 300;
-
-interface UseResourceOptionsResult {
-  options: NormalizedOption[];
-  loading: boolean;
-  loadingMore: boolean;
-  error: boolean;
-  hasMore: boolean;
-  loadMore: () => void;
-  reload: () => void;
-  searchInput: string;
-  setSearchInput: (v: string) => void;
-  flags: ReturnType<typeof resolveStrategyFlags>;
-}
-
-/**
- * Хук управления асинхронным источником опций по стратегии {@link ResourceConfig.type}.
- * Тонкая React-обёртка над чистым reducer из `select-resource.ts` (вся логика стратегий — там).
- */
-function useResourceOptions<T>(resource?: ResourceConfig<T>): UseResourceOptionsResult {
-  const flags = React.useMemo(() => resolveStrategyFlags(resource?.type), [resource?.type]);
-  const [state, dispatch] = React.useReducer(resourceReducer<T>, undefined, initialResourceState);
-  const [searchInput, setSearchInput] = React.useState('');
-  const [reloadNonce, setReloadNonce] = React.useState(0);
-  const reload = React.useCallback(() => setReloadNonce((n) => n + 1), []);
-
-  // static / preload: одна загрузка при монтировании (searchInput на сервер не влияет).
-  React.useEffect(() => {
-    if (!resource || flags.serverSearch) return;
-    let cancelled = false;
-    dispatch({ kind: 'load-start', search: '' });
-    resource.load({}).then(
-      (result) => {
-        if (!cancelled) dispatch({ kind: 'load-success', result, page: 1 });
-      },
-      () => {
-        if (!cancelled) dispatch({ kind: 'load-error' });
-      }
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [resource, flags.serverSearch, reloadNonce]);
-
-  // partial: серверный поиск с debounce — перезагружает первую страницу.
-  React.useEffect(() => {
-    if (!resource || !flags.serverSearch) return;
-    let cancelled = false;
-    const handle = setTimeout(() => {
-      dispatch({ kind: 'load-start', search: searchInput });
-      resource.load({ search: searchInput, page: 1, pageSize: resource.pageSize }).then(
-        (result) => {
-          if (!cancelled) dispatch({ kind: 'load-success', result, page: 1 });
-        },
-        () => {
-          if (!cancelled) dispatch({ kind: 'load-error' });
-        }
-      );
-    }, SEARCH_DEBOUNCE_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(handle);
-    };
-  }, [resource, flags.serverSearch, searchInput, reloadNonce]);
-
-  const loadMore = React.useCallback(() => {
-    if (!resource || !flags.paginated) return;
-    if (state.loading || state.loadingMore || !hasMore(state)) return;
-    const nextPage = state.page + 1;
-    dispatch({ kind: 'load-more-start' });
-    resource.load({ search: state.search, page: nextPage, pageSize: resource.pageSize }).then(
-      (result) => dispatch({ kind: 'load-more-success', result, page: nextPage }),
-      () => dispatch({ kind: 'load-error', more: true })
-    );
-  }, [resource, flags.paginated, state]);
-
-  const options = flags.serverSearch ? state.options : filterClient(state.options, searchInput);
-
-  return {
-    options,
-    loading: state.loading,
-    loadingMore: state.loadingMore,
-    error: state.error,
-    hasMore: hasMore(state),
-    loadMore,
-    reload,
-    searchInput,
-    setSearchInput,
-    flags,
-  };
-}
 
 /** Props компонента {@link SelectAsync}. */
 export interface SelectAsyncProps extends Omit<

@@ -10,6 +10,8 @@ export const nativeSelectBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'NativeSelect',
+  'x-variantGroup': 'NativeSelect',
+  'x-variant': 'Один',
   properties: {
     options: {
       type: 'array',

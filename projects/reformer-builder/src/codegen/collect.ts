@@ -60,18 +60,24 @@ function optionValues(node: JsonFieldNode, mock: MockData): string[] | null {
   return null;
 }
 
+/** Union строковых литералов из значений опций; `null`, если опции неизвестны. */
+function optionUnion(node: JsonFieldNode, mock: MockData): string | null {
+  const vals = optionValues(node, mock);
+  if (!vals || !vals.length) return null;
+  const uniq = [...new Set(vals)].map((v) => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`);
+  return uniq.join(' | ');
+}
+
 /** TS-тип листа: select с известными опциями → string-union, иначе по {@link inferFieldKind}. */
 function leafType(node: JsonFieldNode, mock: MockData): string {
   const kind = inferFieldKind(node);
-  if (kind === 'select') {
-    const vals = optionValues(node, mock);
-    if (vals && vals.length) {
-      const uniq = [...new Set(vals)].map(
-        (v) => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
-      );
-      return uniq.join(' | ');
-    }
-    return 'string';
+  if (kind === 'select') return optionUnion(node, mock) ?? 'string';
+  // Мультивыбор: массив значений. Union по известным опциям — как у одиночного select, но в форме
+  // массива. Тип nullable: пустой выбор приходит как null (массив в начальном значении модели
+  // создал бы ArrayNode вместо листа — см. multiValueAdapter в @reformer/ui-kit).
+  if (kind === 'multi') {
+    const union = optionUnion(node, mock);
+    return union ? `Array<${union}> | null` : 'string[] | null';
   }
   if (kind === 'boolean') return 'boolean';
   if (kind === 'number') return 'number';

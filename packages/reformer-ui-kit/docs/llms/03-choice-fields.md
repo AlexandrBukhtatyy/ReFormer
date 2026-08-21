@@ -369,8 +369,105 @@ const form = createForm<{ city: string }>({ model, schema });
   пользователь увидит дефолт `'Select an option...'`. Для русскоязычных форм
   это, как правило, нежелательно.
 
+## Multi-select
+
+Четыре контрола множественного выбора. Все четыре — **отдельные записи реестра**, а не режим
+одиночных: тип значения другой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у
+`FileUpload` / `FileUploadAvatar`).
+
+| Field-компонент          | На чём построен                        | Когда брать                                                       |
+| ------------------------ | -------------------------------------- | ----------------------------------------------------------------- |
+| `ToggleGroupMulti`       | Radix ToggleGroup `type="multiple"`     | 2–7 вариантов, все видны сразу                                    |
+| `ComboboxMulti`          | Popover + Command (cmdk) + Badge        | длинный список с поиском; есть `creatable`                        |
+| `SelectMulti`            | Popover + свой listbox                  | длинный список, в т.ч. асинхронный (`resource`); **без cmdk**     |
+| `NativeSelectMulti`      | нативный `<select multiple>`            | no-JS / legacy / киоски. **Не для тач-устройств**                 |
+
+### Единый контракт значения
+
+```typescript
+value: string[] | null;
+onChange: (value: string[] | null) => void;
+```
+
+**Пустой выбор — всегда `null`, никогда `[]`.** Это не стиль, а требование модели: `createModel`
+превращает массив в `ArrayNode`, `createForm` такой путь пропускает, и поля не оказывается вовсе.
+Симптомы разные и все обманчивые — `FormField` падает с `TypeError`, а renderer тихо рисует
+контейнер с подписью и опциями, но без `value`/`onChange`.
+
+```typescript
+// ✅ начальное значение поля мультивыбора
+const model = createModel({ tags: null as string[] | null });
+
+// ❌ поле исчезнет: [] → ArrayNode, а не лист-сигнал
+const model = createModel({ tags: [] });
+```
+
+### Использование в схеме
+
+```typescript
+import { ToggleGroupMultiField, ComboboxMultiField } from '@reformer/ui-kit';
+import { required, maxLength } from '@reformer/core/validators';
+
+const schema = {
+  tags: {
+    // Для поля типа T[] `model.$.tags` — НЕ сигнал (ModelArraySignals), нужен signalAt.
+    value: model.signalAt('tags')!,
+    component: ToggleGroupMultiField,
+    componentProps: {
+      label: 'Теги',
+      options: [
+        { value: 'ru', label: 'Россия' },
+        { value: 'by', label: 'Беларусь' },
+      ],
+      maxItems: 3,
+    },
+    validators: [required(), maxLength(3)],
+  },
+};
+```
+
+### Common Patterns
+
+- **Обязательность** — только `required()`. `minLength(1)` НЕ сработает: он делает ранний
+  `return null` на `null`, а пустой выбор приходит именно как `null`.
+- **Ограничение количества** — `maxLength(n)` / `minLength(n)` (оба читают `value.length` и
+  работают на массиве без правок ядра). Проп `maxItems` у контрола — это **подсказка интерфейса**
+  (гасит невыбранные пункты), а не правило формы; авторитетное ограничение задаёт валидатор.
+- **Префилл выбранного** — только ПОСЛЕ сборки формы, в `setup`, и через сигнал:
+  `model.signalAt('tags')!.value = ['ru']`. В `seed` (до `createForm`) массив снова превратит поле
+  в `ArrayNode`. После префилла нужен `model.captureInitial()` — иначе форма считает себя
+  изменённой сразу после загрузки, а `form.tags.reset()` сотрёт префилл в `null`.
+- **Лейблы выбранного вне текущей страницы** (`SelectMulti` + `resource`) — проп
+  `selectedOptions: Array<{ value, label }>`. Внутри контрола есть ещё и кэш лейблов, который
+  пополняется всем, что когда-либо появлялось в опциях, поэтому чипы не «слепнут» после смены
+  поискового запроса или перезагрузки источника.
+- **Ошибка вспыхивает посреди выбора** — ожидаемо: `FieldNode.setValue` взводит `dirty`
+  безусловно, без сравнения, а `shouldShowError = invalid && (touched || dirty)`. Оставляйте
+  `updateOn: 'blur'` (значение по умолчанию) и не стройте логику на `dirty`.
+
+### Anti-patterns
+
+- Начальное значение `[]` вместо `null` — поле молча исчезает (см. выше).
+- Мутация массива на месте: `arr.push(x); onChange(arr)` — preact-сигнал бэйлится по `!==`, UI не
+  обновится, но поле уже станет `dirty`, и валидация прогонится по старому значению. `onChange`
+  обязан отдавать **новый** массив.
+- `minFiles` / `maxFiles` на массиве строк — тихий no-op: они фильтруют значение до file-like и
+  получают пустой массив. Для количества — `minLength` / `maxLength`.
+- `compute` / `copyFrom` / `transformValue` над мультивыбором — peek-guard сравнивает по ссылке,
+  поэтому новый массив на каждом прогоне даёт запись на каждом прогоне; пара взаимных `compute`
+  сходит в расходящийся цикл или в `Cycle detected`. Сравнивайте содержимое руками и выходите до
+  записи.
+- `componentProps.disabled` для выключения отдельных опций — мёртв (враппер ставит `disabled`
+  после спреда `componentProps`). Выключить можно только контрол целиком (`control.disable()`).
+- `NativeSelectMulti` на тач-устройствах — множественный выбор в нативном листбоксе там
+  практически недоступен и не имеет аффорданса «можно несколько». Берите `ToggleGroupMulti` или
+  `SelectMulti`.
+- `placeholder` у `NativeSelectMulti` — его нет намеренно: в multiple-листбоксе `<option value="">`
+  становится выбираемым мусорным пунктом.
+
 ## See also
 
+- [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов (open/close/clear).
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт `Checkbox` и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».

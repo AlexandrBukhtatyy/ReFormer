@@ -6,5 +6,12 @@ export type { ComboboxProps, ComboboxOption, ComboboxHandle } from './variants/b
 export { ComboboxBaseField } from './variants/base/combobox-base.field';
 export { ComboboxBaseField as ComboboxField } from './variants/base/combobox-base.field';
 
-// props-схема варианта.
+// multi — множественный выбор (value: string[] | null). Отдельная запись каталога: другой тип значения.
+export { ComboboxMulti } from './variants/multi/combobox-multi';
+export { ComboboxMultiField } from './variants/multi/combobox-multi.field';
+export type { ComboboxMultiProps, ComboboxMultiHandle } from './variants/multi/combobox-multi';
+export type { ComboboxMultiFieldProps } from './variants/multi/combobox-multi.field';
+
+// props-схемы вариантов.
 export { comboboxBasePropsSchema } from './variants/base/combobox-base.props';
+export { comboboxMultiPropsSchema } from './variants/multi/combobox-multi.props';

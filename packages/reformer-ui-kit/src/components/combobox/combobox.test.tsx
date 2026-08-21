@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Combobox } from './variants/base/combobox-base';
-import { ComboboxField, ComboboxBaseField } from './index';
+import { ComboboxField, ComboboxBaseField, ComboboxMulti, ComboboxMultiField } from './index';
 
 const OPTS = [
   { value: 'a', label: 'Первый' },
@@ -83,5 +83,89 @@ describe('ComboboxField (base, comboboxAdapter)', () => {
 describe('ComboboxField алиас', () => {
   it('ComboboxField === ComboboxBaseField (дефолтный для форм вариант)', () => {
     expect(ComboboxField).toBe(ComboboxBaseField);
+  });
+});
+
+const MANY = [
+  { value: 'a', label: 'Альфа' },
+  { value: 'b', label: 'Бета' },
+  { value: 'c', label: 'Гамма' },
+  { value: 'd', label: 'Дельта' },
+];
+
+// Как и у одиночного варианта: список живёт в Portal и в SSR отсутствует — проверяем триггер.
+// Поведение списка (чекбоксы, потолок, «Создать») закрывается e2e.
+describe('ComboboxMulti (вариант multi)', () => {
+  it('пустой выбор показывает placeholder', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxMulti value={[]} options={MANY} placeholder="Выберите теги" />
+    );
+    expect(html).toContain('Выберите теги');
+    expect(html).not.toContain('data-slot="combobox-multi-chip"');
+  });
+
+  it('выбранные значения показываются чипами с ЛЕЙБЛАМИ, а не value', () => {
+    const html = renderToStaticMarkup(<ComboboxMulti value={['a', 'c']} options={MANY} />);
+    expect(html.match(/data-slot="combobox-multi-chip"/g) ?? []).toHaveLength(2);
+    expect(html).toContain('Альфа');
+    expect(html).toContain('Гамма');
+  });
+
+  it('значение вне options (creatable) показывается чипом как есть', () => {
+    const html = renderToStaticMarkup(<ComboboxMulti value={['своё']} options={MANY} />);
+    expect(html).toContain('своё');
+  });
+
+  it('сверх summaryThreshold чипы схлопываются в сводку', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxMulti value={['a', 'b', 'c', 'd']} options={MANY} summaryThreshold={3} />
+    );
+    expect(html).toContain('data-slot="combobox-multi-summary"');
+    expect(html).toContain('Выбрано: 4');
+    expect(html).not.toContain('data-slot="combobox-multi-chip"');
+  });
+
+  it('ровно summaryThreshold значений ещё показываются чипами', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxMulti value={['a', 'b', 'c']} options={MANY} summaryThreshold={3} />
+    );
+    expect(html.match(/data-slot="combobox-multi-chip"/g) ?? []).toHaveLength(3);
+    expect(html).not.toContain('data-slot="combobox-multi-summary"');
+  });
+
+  it('clearable даёт крестик сброса только при непустом выборе', () => {
+    const empty = renderToStaticMarkup(<ComboboxMulti value={[]} options={MANY} clearable />);
+    const filled = renderToStaticMarkup(<ComboboxMulti value={['a']} options={MANY} clearable />);
+    expect(empty).not.toContain('aria-label="Clear selection"');
+    expect(filled).toContain('aria-label="Clear selection"');
+  });
+
+  it('триггер несёт role=combobox и data-testid', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxMulti value={[]} options={MANY} data-testid="input-tags" />
+    );
+    expect(html).toContain('role="combobox"');
+    expect(html).toContain('data-testid="input-tags"');
+  });
+});
+
+describe('ComboboxMultiField (field-версия, значение string[] | null)', () => {
+  it('null из формы не роняет рендер — адаптер разворачивает его в []', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxMultiField value={null} options={MANY} placeholder="Пусто" />
+    );
+    expect(html).toContain('Пусто');
+  });
+
+  it('массив из формы доезжает до контрола', () => {
+    const html = renderToStaticMarkup(<ComboboxMultiField value={['b']} options={MANY} />);
+    expect(html).toContain('Бета');
+  });
+
+  it('control (renderer-путь) не протекает в DOM', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxMultiField value={null} options={MANY} control={{} as never} />
+    );
+    expect(html).not.toContain('control=');
   });
 });

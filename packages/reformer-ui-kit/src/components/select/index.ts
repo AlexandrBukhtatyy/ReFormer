@@ -28,5 +28,18 @@ export type {
 export { SelectAsyncField } from './variants/async/select-async.field';
 export { SelectAsyncField as SelectField } from './variants/async/select-async.field';
 
-// props-схема варианта.
+// multi — множественный выбор (value: string[] | null). Отдельная запись каталога: другой тип
+// значения. Строится на Popover со своим listbox: Radix Select мультивыбора не поддерживает,
+// а cmdk (как у ComboboxMulti) сюда тащить нельзя — каталог select лёгкий и едет в главный barrel.
+export { SelectMulti } from './variants/multi/select-multi';
+export { SelectMultiField } from './variants/multi/select-multi.field';
+export type {
+  SelectMultiProps,
+  SelectMultiHandle,
+  SelectMultiOption,
+} from './variants/multi/select-multi';
+export type { SelectMultiFieldProps } from './variants/multi/select-multi.field';
+
+// props-схемы вариантов.
 export { selectAsyncPropsSchema } from './variants/async/select-async.props';
+export { selectMultiPropsSchema } from './variants/multi/select-multi.props';
