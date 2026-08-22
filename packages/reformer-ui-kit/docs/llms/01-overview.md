@@ -202,7 +202,9 @@ function RegistrationPage() {
 | `ExampleCard`                   | Карточка-обёртка для демо в playground.                    | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `cn`                            | Утилита для конкатенации Tailwind-классов.                 | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `FormField`                     | Wrapper «label + control + error + pending» поверх CDK.    | [05-form-field-integration.md](05-form-field-integration.md)  |
-| `Box`, `Section`, `Collapsible` | Контейнеры для `RenderSchema` (см. рендерер).              | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
+| `Box`, `Section`                | Контейнеры раскладки: ритм, сетка полей, группы.           | [11-form-layout.md](11-form-layout.md)                        |
+| `Card`, `Alert`, `Separator`    | Карточка, плашка, разделитель — вид без ручных классов.    | [11-form-layout.md](11-form-layout.md)                        |
+| `Collapsible`                   | Сворачиваемый контейнер для `RenderSchema`.                | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
 
 Полный troubleshooting (number-input возвращает строку, Select не показывает
 options, mask пропускает символы, forwardRef + Slot конфликты, и т.п.) —
@@ -215,3 +217,4 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `ExampleCard`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные проблемы и решения.
+- [11-form-layout.md](11-form-layout.md) — отступы, сетка полей, группировка и секции.
