@@ -7,6 +7,9 @@ build
 # (formatting these here conflicts with gen scripts / the form-schema CI gate)
 .docusaurus/
 **/docs/llms/
+# llms-index.json пишет scripts/generate-llms-txt через JSON.stringify; prettier
+# переформатирует его иначе, и тогда КАЖДАЯ сборка помечает файл изменённым
+**/llms-index.json
 projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json
 
 # planning artifacts — authored ad-hoc by plan mode / agents, not prod docs
