@@ -234,8 +234,9 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 ## Visual baseline (do NOT skip — A1/A2 give it for free; A3/A4 must wire it manually)
 
 - **Step indicator strip** with icons + en-dashes between chips. Chips MUST be `<button>` with `onClick` (clickable to completed steps), not `<div>`.
-- **Step section card wrap**: `bg-white border rounded-xl shadow-sm p-6 space-y-4`.
-- **Page container**: `max-w-4xl mx-auto p-6 space-y-6`.
+- **Step section card**: `<Card><CardHeader><CardTitle>…</CardTitle></CardHeader><CardContent className="space-y-4">…</CardContent></Card>` — карточка компонентом, НЕ строкой `bg-white border rounded-xl shadow-sm p-6`.
+- **Page container**: `max-w-2xl mx-auto p-6 space-y-6`.
+- **Классы — только раскладка и отступы** (`space-y-*`, `grid`, `gap-*`, `flex`, `max-w-*`). Цвет, фон, рамку, тень и радиус даёт компонент кита. Правила: `find_recipe({ topic: "form-layout", package: "ui-kit" })`.
 - **Footer with progress text** under nav buttons (`Шаг N из M • X% завершено`).
 - **Nav buttons**: `← Назад` / `Далее →` with arrows.
 - **testId convention**: `step-indicator`, `step-chip-{N}` (with `data-current`/`data-completed`), `step-progress`, `wizard-prev`/`wizard-next`/`wizard-submit`.
@@ -269,7 +270,8 @@ JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard
 - [ ] Full schema (`apply(...STEP_SCHEMAS, fullExtras)`) includes cross-step rules
 - [ ] No duplicate validation between step and full
 - [ ] Navigation gated on `validateModel(model, schema)` result (a plain `Promise<boolean>`); warnings stay non-blocking via the runner (no hand-rolled `.errors` gate)
-- [ ] Visual baseline present (step indicator strip with icons + en-dashes, card wrap, progress text, nav arrows) — either from A1/A2 or wired manually for A3/A4
+- [ ] Visual baseline present (step indicator strip with icons + en-dashes, `Card`-wrapped step, progress text, nav arrows) — either from A1/A2 or wired manually for A3/A4
+- [ ] No hand-written appearance classes (`bg-*`, `text-<color>-<shade>`, `border-<color>`, `shadow-*`, `rounded-*`) — layout and spacing only
 - [ ] testIds present per convention
 - [ ] (B2 / B3) all step containers have `selector: 'stepN'`
 - [ ] (B3) assembled with `createJsonForm` and mounted as `<JsonFormRenderer form={jsonForm} />`; `form` + validation injected into the wizard node from the `renderBehavior` factory via `onInit`/`patchProps` (by `selector`)

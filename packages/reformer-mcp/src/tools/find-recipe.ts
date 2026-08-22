@@ -66,6 +66,13 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   // async
   'async-validator': ['async-validator-debounce', 'async-watchfield', 'async-preload'],
   async: ['async-watchfield', 'async-preload'],
+  // ui-kit визуальная раскладка: отступы, сетка, группировка (11-form-layout.md).
+  // Стем `form-layout` матчится сам (точное совпадение), `layout` намеренно НЕ алиасим:
+  // resolveAliases пробует исходный топик первым, и он уже уходит в 04-layout-and-buttons.
+  spacing: ['form-layout'],
+  styling: ['form-layout'],
+  grouping: ['form-layout'],
+  grid: ['form-layout'],
   // ui-kit form-field
   'form-field': ['form-field-integration'],
   'field-component': ['form-field-integration'],

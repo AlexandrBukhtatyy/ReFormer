@@ -116,7 +116,7 @@ export async function getCreateFormPrompt(
   const layoutBlock = renderLayoutSkeletonBlock(stack, target);
   const layoutSection = layoutBlock
     ? layoutBlock
-    : '_No layout skeleton — ui-kit/Tailwind not detected. Once you confirm the styling system with the orchestrator, follow Tailwind utility classes (`grid grid-cols-2 gap-4`, `space-y-4`, `bg-white border rounded-xl shadow-sm p-6`)._';
+    : '_No layout skeleton — ui-kit/Tailwind not detected. Once you confirm the styling system with the orchestrator, use layout-only classes (`space-y-6` → `space-y-4` → `space-y-3`, `grid grid-cols-1 md:grid-cols-2 gap-4`) and take the visual side from components, not hand-written `bg-*` / `border-*` / `shadow-*` / `rounded-*`._';
 
   const layoutMode = normalizeLayout(process.env.REFORMER_FORM_LAYOUT);
   const layoutGuidance = layoutGuidanceFor(layoutMode);

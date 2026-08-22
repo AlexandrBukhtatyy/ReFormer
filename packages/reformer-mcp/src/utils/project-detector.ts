@@ -190,6 +190,10 @@ export function renderStackDetectionBlock(stack: ProjectStack): string {
     );
     lines.push('// Layout-контейнеры (для RenderSchema или ручной разметки)');
     lines.push("import { Section, Box, Collapsible } from '@reformer/ui-kit';");
+    lines.push('// Вид — компонентом, а не классами: карточка, плашка, разделитель');
+    lines.push(
+      "import { Card, CardContent, CardHeader, CardTitle, Alert, Separator } from '@reformer/ui-kit';"
+    );
     lines.push('// Кнопки и обвязка');
     lines.push("import { Button, FormField, AsyncBoundary, cn } from '@reformer/ui-kit';");
     lines.push('```');
@@ -212,12 +216,24 @@ export function renderStackDetectionBlock(stack: ProjectStack): string {
       stack.hasTailwindVitePlugin && !stack.hasTailwindConfig
         ? ' (v4 — конфиг inline через `@theme` в CSS, отдельного `tailwind.config.*` нет)'
         : '';
-    lines.push(`**Styling → используй Tailwind utility-classes**${setupNote}:`);
+    lines.push(`**Styling → Tailwind, но ТОЛЬКО раскладка и отступы**${setupNote}:`);
     lines.push('');
-    lines.push('- Layout: `grid grid-cols-2 gap-4`, `flex flex-col gap-4`, `space-y-4`.');
-    lines.push('- Spacing/padding: `p-4`, `px-6 py-3`, `mb-6`, `pt-2`.');
-    lines.push('- Typography: `text-sm`, `text-2xl font-bold`, `text-gray-900`.');
-    lines.push('- Состояния полей: `disabled:opacity-50`, `focus:ring-2 focus:ring-blue-500`.');
+    lines.push(
+      '- Ритм: `space-y-6` (шаг) → `space-y-4` (группа полей) → `space-y-3` (элемент массива).'
+    );
+    lines.push(
+      '- Сетка полей: `grid grid-cols-1 md:grid-cols-2 gap-4`; поле на всю ширину — ВНЕ сетки (не `col-span-*`).'
+    );
+    lines.push(
+      '- Заголовки: `text-xl font-bold` (шаг), `text-lg font-semibold` (группа) — без цвета.'
+    );
+    lines.push(
+      '- НЕ пиши руками `bg-*`, `text-<цвет>-<оттенок>`, `border-<цвет>`, `shadow-*`, `rounded-*`. Вид даёт компонент: карточка — `Card`, плашка — `Alert`, разделитель — `Separator`.'
+    );
+    lines.push(
+      '- Состояния полей (focus / disabled / invalid) уже внутри контролов кита — не дублируй классами.'
+    );
+    lines.push('- Правила целиком: `find_recipe({ topic: "form-layout", package: "ui-kit" })`.');
   } else if (stack.hasTailwindDep || stack.hasTailwindConfig) {
     lines.push(
       '> ⚠️ Tailwind частично обнаружен (' +
@@ -251,7 +267,7 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
   lines.push('');
 
   if (target === 'renderer-react' || target === 'renderer-json') {
-    lines.push('**Step / Section в RenderSchema (с card wrap):**');
+    lines.push('**Step / Section в RenderSchema:**');
     lines.push('');
     lines.push('```typescript');
     lines.push('{');
@@ -260,9 +276,12 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push('  componentProps: {');
     lines.push("    title: 'Шаг 1. Параметры кредита',");
     lines.push("    titleAs: 'h2',");
-    lines.push("    titleClassName: 'text-xl font-bold mb-4 text-gray-900',");
-    lines.push('    // ВАЖНО: card wrap, не просто space-y-4 — иначе секция выглядит дёшево');
-    lines.push("    className: 'space-y-4 bg-white border rounded-xl shadow-sm p-6',");
+    lines.push("    titleClassName: 'text-xl font-bold',");
+    lines.push('    // Только ритм. Карточку даёт компонент Card (зарегистрируй его в реестре),');
+    lines.push(
+      '    // а не строка bg-*/border/rounded-*/shadow-* — иначе форма разъезжается с китом.'
+    );
+    lines.push("    className: 'space-y-4',");
     lines.push('  },');
     lines.push('  children: [');
     lines.push('    {');
@@ -287,27 +306,29 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push('<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />');
     lines.push('```');
   } else {
-    lines.push('**Step-обёртка в ручном React (с card wrap):**');
+    lines.push('**Step-обёртка в ручном React (карточка — компонентом, не классами):**');
     lines.push('');
     lines.push('```tsx');
-    lines.push('<section className="space-y-4 bg-white border rounded-xl shadow-sm p-6">');
-    lines.push(
-      '  <h2 className="text-xl font-bold mb-4 text-gray-900">Шаг 1. Параметры кредита</h2>'
-    );
-    lines.push('  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">');
-    lines.push('    <FormField control={form.step1.loanAmount} testId="step1.loanAmount" />');
-    lines.push('    <FormField control={form.step1.loanTerm} testId="step1.loanTerm" />');
-    lines.push('  </div>');
-    lines.push('  <FormField control={form.step1.loanPurpose} testId="step1.loanPurpose" />');
-    lines.push('</section>');
+    lines.push('<Card>');
+    lines.push('  <CardHeader>');
+    lines.push('    <CardTitle>Шаг 1. Параметры кредита</CardTitle>');
+    lines.push('  </CardHeader>');
+    lines.push('  <CardContent className="space-y-4">');
+    lines.push('    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">');
+    lines.push('      <FormField control={form.step1.loanAmount} testId="step1.loanAmount" />');
+    lines.push('      <FormField control={form.step1.loanTerm} testId="step1.loanTerm" />');
+    lines.push('    </div>');
+    lines.push('    <FormField control={form.step1.loanPurpose} testId="step1.loanPurpose" />');
+    lines.push('  </CardContent>');
+    lines.push('</Card>');
     lines.push('```');
     lines.push('');
     lines.push('**Внешний контейнер страницы:**');
     lines.push('```tsx');
-    lines.push('<div className="max-w-4xl mx-auto p-6 space-y-6">');
-    lines.push('  <h1 className="text-2xl font-bold text-gray-900">Заявка на кредит</h1>');
+    lines.push('<div className="max-w-2xl mx-auto p-6 space-y-6">');
+    lines.push('  <h1 className="text-xl font-bold">Заявка на кредит</h1>');
     lines.push('  <StepIndicator current={currentStep} completed={completedSteps} />');
-    lines.push('  {/* card-wrapped step section */}');
+    lines.push('  {/* <Card> со step section */}');
     lines.push('  {/* nav-buttons row */}');
     lines.push('  {/* progress text */}');
     lines.push('</div>');
@@ -329,14 +350,15 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
   lines.push("  { n: 6, label: 'Подтверждение', icon: CheckSquare },");
   lines.push('];');
   lines.push('// chip = <button> (не <div>), клик ведёт на n если completed || n <= maxReached.');
-  lines.push('// Между chip и chip — `<li className="text-gray-300">—</li>` (en-dash).');
+  lines.push('// Между chip и chip — `<li aria-hidden>—</li>` (en-dash), без классов цвета.');
   lines.push('```');
   lines.push('');
   lines.push('**Кнопки навигации с visual cues + progress text:**');
   lines.push('```tsx');
-  lines.push("import { Button } from '@reformer/ui-kit';");
+  lines.push("import { Button, Separator } from '@reformer/ui-kit';");
   lines.push('');
-  lines.push('<div className="flex items-center justify-between gap-3 pt-4 border-t">');
+  lines.push('<Separator />');
+  lines.push('<div className="flex items-center justify-between gap-3">');
   lines.push('  {currentStep > 1');
   lines.push('    ? <Button type="button" variant="outline" onClick={prev}>← Назад</Button>');
   lines.push('    : <span aria-hidden />}');
@@ -344,7 +366,7 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
   lines.push('    ? <Button type="button" onClick={next}>Далее →</Button>');
   lines.push('    : <Button type="submit">Отправить</Button>}');
   lines.push('</div>');
-  lines.push('<div className="text-sm text-center text-gray-500">');
+  lines.push('<div className="text-sm text-center">');
   lines.push(
     '  Шаг {currentStep} из {TOTAL_STEPS} • {Math.round((currentStep - 1) / (TOTAL_STEPS - 1) * 100)}% завершено'
   );
@@ -355,7 +377,7 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     '**Не используй plain `<input>` / `<button>` / inline-style** — это нарушает консистентность baseline.'
   );
   lines.push(
-    '**Не пропускай:** card wrap (`bg-white border rounded-xl shadow-sm p-6`), иконки в indicator, en-dashes между chips, "← Назад" / "Далее →" со стрелкой, progress-text. Каждый из этих элементов — заметный gap vs baseline (см. iter-3 fix-plan).'
+    '**Не пропускай:** карточку шага (`Card` + `CardContent`), иконки в indicator, en-dashes между chips, "← Назад" / "Далее →" со стрелкой, progress-text. Каждый из этих элементов — заметный gap vs baseline (см. iter-3 fix-plan).'
   );
 
   return lines.join('\n');
