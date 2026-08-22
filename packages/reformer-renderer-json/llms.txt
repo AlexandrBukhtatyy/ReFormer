@@ -51,7 +51,7 @@ import {
 Минимальный рабочий монтаж:
 
 ```tsx
-import { Input, Box, FormField } from '@reformer/ui-kit';
+import { InputField, Box, FormField } from '@reformer/ui-kit';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -79,7 +79,7 @@ const jsonSchema = defineJsonSchema<MyForm>({
 
 // 2. Реестр: имена из JSON → React-компоненты (глобальная настройка).
 const registry = defineRegistry((reg) => {
-  reg.component('Input', Input);
+  reg.component('Input', InputField); // *Field-версии уже value-based — адаптер не нужен
   reg.component('Box', Box);
   reg.component(FIELD_WRAPPER, FormField);
 });
@@ -363,11 +363,11 @@ const schema: JsonFormSchema = {
 
 ```typescript
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import { Input, Select, Box, FormField } from '@reformer/ui-kit';
+import { InputField, SelectField, Box, FormField } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
-  reg.component('Input', Input);
-  reg.component('Select', Select);
+  reg.component('Input', InputField);
+  reg.component('Select', SelectField);
   reg.component('Box', Box);
   reg.component(FIELD_WRAPPER, FormField);
 });
@@ -377,7 +377,7 @@ dataSource values для `componentProps` (в схеме — ссылка `'$dat
 
 ```typescript
 const registry = defineRegistry((reg) => {
-  reg.component('Select', Select);
+  reg.component('Select', SelectField);
   reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
@@ -398,7 +398,7 @@ const registry = defineRegistry((reg) => {
 import { defineRegistry, createLocaleResolver } from '@reformer/renderer-json';
 
 const registry = defineRegistry((reg) => {
-  reg.component('Input', Input);
+  reg.component('Input', InputField);
   // функции — форматтеры, компараторы, itemLabel
   reg.fn('propertyItemLabel', (_control, index) => `Имущество #${index + 1}`);
   reg.fn('formatCurrency', (v: number) => `${v} ₽`);
@@ -973,7 +973,19 @@ function createReadonlyBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 **Notes.**
 
 - `form.disable()` — публичный метод узла (`FormNode.disable()`): ставит статус `disabled` и вызывает hook `onDisable`, который у группы каскадит на всех детей рекурсивно. Обратно — `form.enable()`.
-- **Caveat:** поле с явным `componentProps.disabled` **перебивает** каскад. Рендерер собирает пропы как `{ value, disabled: state.disabled, ...componentProps }` — спред `componentProps` идёт ПОСЛЕ `disabled`, поэтому `componentProps.disabled: false` вернёт полю доступность даже при `form.disable()`. Не задавай `disabled` в JSON, если хочешь глобальный каскад.
+- **`componentProps.disabled` в JSON не работает — и это by design.** `FormFieldControl` ставит `disabled={disabled}` из состояния узла ПОСЛЕ спреда `componentProps` ([FormFieldControl.tsx:104-115](../../../reformer-cdk/src/components/form-field/FormFieldControl.tsx)), поэтому значение из схемы затирается. Props-схемы field-компонентов его и не объявляют: `disabled` описан как seam-проп в [seam.props.ts](../../../reformer-ui-kit/src/fields/seam.props.ts), а `validateFormSchema` вернёт `has unknown property "disabled"`. Единственный рабочий рычаг — состояние узла: `control.disable()` / `control.enable()`.
+- **Одно поле, а не вся форма.** Тот же `disable()` вызывается точечно из render-behavior — так делаются readonly-поля для вычисляемых значений:
+
+  ```typescript
+  onInit(schema.node('wizard'), () => {
+    // Вычисляемые поля правит только behaviour, руками их менять нельзя.
+    form.interestRate.disable();
+    form.monthlyPayment.disable();
+  });
+  ```
+
+  На снимок `model.get()` это НЕ влияет (в отличие от `getValue()` формы), поэтому вычисленные значения всё равно уезжают в submit.
+- `readOnly` в DSL тоже нет: ни одна props-схема его не объявляет, и `additionalProperties: false` его отклонит.
 - Отключённые узлы не валидируются и не попадают в `getValue()` — для чистого view-mode это обычно желаемо; если нужен submit disabled-значений, снимай `disable()` перед сбором.
 - `settings.readonly` / `settings.mode` не существует — model-level каскад (`form.disable()`) это канонический механизм view-mode.
 
@@ -1013,7 +1025,7 @@ const schema: JsonFormSchema = {
 };
 
 const registry = defineRegistry((reg) => {
-  reg.component('Input', Input);
+  reg.component('Input', InputField);
   reg.component('Box', Box);
   reg.component('Section', Section);
   reg.component(FIELD_WRAPPER, FormField);
@@ -1416,9 +1428,11 @@ export function createWizardRenderBehavior(
       wizard.patchProps({ form, ...makeValidationConfig(model) });
     });
 
-    // (b) Submit: onComponentEvent получает те же аргументы, что и оригинальный проп onSubmit.
-    onComponentEvent(wizard, 'onSubmit', async (values: CreditForm) => {
-      await submitCreditApplication(values);
+    // (b) Submit: onComponentEvent получает те же аргументы, что и оригинальный проп onSubmit,
+    //     а ui-kit FormWizard вызывает onSubmit БЕЗ аргументов (`() => void | Promise<void>`).
+    //     Значения берём снимком из модели — фабрика render-behavior получает её вторым аргументом.
+    onComponentEvent(wizard, 'onSubmit', async () => {
+      await submitCreditApplication(model.get());
     });
 
     // (c) Навигация: реактивный эффект принимает СХЕМУ (не ноду); wizardRef доступен после mount.
@@ -1497,6 +1511,7 @@ Ground truth: `packages/reformer-cdk/src/components/form-wizard/define-steps.ts`
 - **Ждать шаг как `{ number, title, icon, body }` в JSON** — это форма renderer-react. В JSON шаг — container-нода `$component(Step)` + `componentProps.title/icon` + `children`.
 - **Считать `RendererFormWizard` библиотечным экспортом** — это app-shim эталона. Wizard-компонент подключается через реестр под любым именем; канон — ui-kit `FormWizard`.
 - **Забыть `createWizardRenderBehavior` (только `onInit` с валидацией)** — форма будет валидировать, но `onSubmit`/навигация не подключатся: submit-less форма. Submit и навигация приходят из этого же behavior.
+- **Ждать значения формы аргументом `onSubmit`** — `FormWizardProps.onSubmit` у ui-kit это `() => void | Promise<void>`, аргументов у него нет. Хендлер `onComponentEvent(wizard, 'onSubmit', …)` тоже вызывается пустым; снимок берётся из модели (`model.get()`). Типизировать его как `(values: CreditForm) => …` — ошибка компиляции TS2322.
 - **`renderEffect(node, ...)` вместо `renderEffect(schema, ...)`** — первый аргумент `renderEffect` это схема, а не узел (в отличие от `hideWhen`/`onComponentEvent`).
 - **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, инъекция/submit/навигация не навесятся.
 - **Адресовать правила шагов массивом `STEP_SCHEMAS[step - 1]`** — привязка к позиции: вставка/перестановка шага молча разъезжается с индексами, а «забытый» шаг становится валидным по умолчанию. Собирай `FormWizardConfig` через `defineSteps` (адресация по `selector`, шаг без правил — явный `null`, `{ touch: true }` уже внутри) — см. [#define-steps](#define-steps).
@@ -2342,6 +2357,23 @@ formSchemaMetaSchema.$schema; // 'http://json-schema.org/draft-07/schema#'
 ```
 
 _Source: src/schema/index.ts_
+
+### FormSchemaValidationResult
+
+**Kind:** `interface`
+
+Результат валидации схемы.
+
+**Signature:**
+```typescript
+export interface FormSchemaValidationResult {
+  valid: boolean;
+  /** Человекочитаемые ошибки (путь + сообщение). Пусто, если валидно. */
+  errors: string[];
+}
+```
+
+_Source: src/validate.ts_
 
 ### getComponentNames
 
@@ -3777,3 +3809,66 @@ export function useSignalValues(values?: LocaleParams): LocaleParams | undefined
 **Returns:** Развёрнутые значения для передачи в `LocaleService.resolve/render`.
 
 _Source: src/locale/use-signal-value.ts_
+
+### validateFormSchema
+
+**Kind:** `function`
+
+Валидирует form-DSL JSON-схему. Если передан `registry`, имена компонентов/source берутся из него
+(иначе можно задать `componentNames`/`dataSourceNames` явно). Тянет `ajv` — живёт в subpath
+`@reformer/renderer-json/validate`, чтобы не попадать в основной render-бандл.
+
+Если задан `opts.propSchemas` (карта регистр-имя → схема componentProps), дополнительно запускается
+фаза (d): рекурсивный обход валидирует `componentProps` каждой компонент-ноды по её схеме (ловит
+опечатки в именах пропов и неверные типы). Не задан → фаза не запускается (обратная совместимость).
+
+**Signature:**
+```typescript
+export function validateFormSchema(
+  schema: unknown,
+  opts: ValidateFormSchemaOptions = {}
+): FormSchemaValidationResult
+```
+
+**Parameters:**
+- `schema` — - Проверяемая JSON-схема (обычно {@link JsonFormSchema}, но принимает `unknown`).
+- `opts` — - {@link ValidateFormSchemaOptions}: `registry` либо явные списки имён; опц. `propSchemas`.
+
+**Returns:** 
+
+**Examples:**
+
+```ts
+const { valid, errors } = validateFormSchema(jsonSchema, { registry });
+if (!valid) console.error(errors);
+```
+
+_Source: src/validate.ts_
+
+### ValidateFormSchemaOptions
+
+**Kind:** `interface`
+
+Опции: реестр (имена извлекаются автоматически) либо явные списки имён/ключей.
+
+**Signature:**
+```typescript
+export interface ValidateFormSchemaOptions {
+  registry?: ComponentRegistry;
+  componentNames?: string[];
+  dataSourceNames?: string[];
+  /** Имена функций `reg.fn` для проверки `$fn(...)`. Не заданы → проверка `$fn`-имён пропускается. */
+  fnNames?: string[];
+  /** Ключи каталога локализации для проверки `$locale(...)`. Не заданы → проверка ключей пропускается. */
+  localeKeys?: readonly string[];
+  /**
+   * Карта регистр-имя → полная схема `componentProps` компонента (враппер + вариант, уже прошедшая
+   * `mergeFieldPropsSchema` у поставщика). Не задана → фаза (d) не запускается (мягкий пропуск, полная
+   * обратная совместимость). Компонент есть в дереве, но НЕ в карте → его props пропускаются
+   * индивидуально. Обычно берётся из `@reformer/ui-kit/meta` (`defaultPropSchemas`).
+   */
+  propSchemas?: Record<string, ComponentPropsSchema>;
+}
+```
+
+_Source: src/validate.ts_

@@ -1,8 +1,16 @@
 # FormArraySection — UI для FormArray
 
 `@reformer/ui-kit/form-array` — стилизованный wrapper поверх headless
-`@reformer/cdk/form-array`. Один компонент с единым FC `itemComponent`
-для TS-flow, renderer-react и renderer-json.
+`@reformer/cdk/form-array`.
+
+В пакете **два** компонента массива, и путать их нельзя:
+
+| Компонент          | Для чего                                    | Контракт                                            |
+| ------------------ | ------------------------------------------- | --------------------------------------------------- |
+| `FormArraySection` | TS-flow и renderer-react RenderSchema       | `control` + `itemComponent` (FC на элемент)         |
+| `FormArray`        | **renderer-json**, `$component(FormArray)`  | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
+
+Этот документ — про `FormArraySection`; про JSON-вариант см. [JSON (renderer-json)](#json-renderer-json).
 
 ## Базовое использование (TS-flow)
 
@@ -78,64 +86,72 @@ ui-kit FormArraySection маркирован `__selfManagedChildren = true` — 
 
 ## JSON (renderer-json)
 
-Два варианта `itemComponent`:
-
-### Вариант 1: registry-name (FC зарегистрирован через reg.component)
+**В renderer-json нужен `FormArray`, а не `FormArraySection`.** Это разные компоненты с разными
+контрактами, и подмена стоит дорого: `FormArraySection` требует пропы `control` + `itemComponent`,
+которых JSON-конвертер не передаёт (он инъектит `items`/`onAdd`/`onRemove`/`onMove`), поэтому
+секция уходит в `return null` — **пустой экран без единой ошибки и предупреждения**.
 
 ```ts
 // registry.ts
+import { FormArray } from '@reformer/ui-kit/form-array';
+
 defineRegistry((reg) => {
-  reg.component('FormArraySection', FormArraySection);
-  reg.component('PropertyForm', PropertyForm);
+  reg.component('FormArray', FormArray); // ← имя из JSON `$component(FormArray)`
 });
 ```
 
+Массив в JSON — это **array-нода**, а не контейнер с `itemComponent`. Обязательны `array` и
+`item.$template` (без них `isArrayNode` вернёт false), а `initialValue` нужен кнопке «Добавить»:
+
 ```jsonc
 {
-  "component": "FormArraySection",
+  "selector": "properties-array",
+  "array": "$model(properties)",
+  "component": "$component(FormArray)",
+  "initialValue": { "type": "apartment", "description": "", "estimatedValue": 0 },
   "componentProps": {
-    "control": "properties", // строка → FieldPath
-    "itemComponent": "PropertyForm", // string → registry lookup → FC
     "title": "Имущество",
+    "itemLabel": "Имущество",
     "addButtonLabel": "+ Добавить имущество",
+    "emptyMessage": "Нажмите «Добавить имущество»",
+  },
+  "item": {
+    "$template": {
+      "component": "$component(Box)",
+      "componentProps": { "className": "space-y-3" },
+      "children": [
+        {
+          "value": "$model(type)",
+          "component": "$component(Select)",
+          "componentProps": { "label": "Тип", "options": "$dataSource(PROPERTY_TYPES)" },
+        },
+        { "value": "$model(description)", "component": "$component(Textarea)" },
+        {
+          "value": "$model(estimatedValue)",
+          "component": "$component(Input)",
+          "componentProps": { "type": "number" },
+        },
+      ],
+    },
   },
 }
 ```
 
-Конвертер видит string в `*Component` слоте → ищет в registry → подставляет FC.
+Внутри `$template` пути `$model(...)` резолвятся **относительно элемента** (`$model(type)`, а не
+`$model(properties[0].type)`). Конвертер конвертирует шаблон в `RenderNode` один раз и оборачивает
+в FC, который и рендерит каждую строку.
 
-### Вариант 2: inline `$template`
+Чего в этом контракте НЕТ (и не было под M1): пропа `control`, пропа `itemComponent`, листьев
+`"model": "type"` и голых строк-ссылок `"options": "PROPERTY_TYPES"` — справочник адресуется
+только оператором `$dataSource(...)`.
 
 ```jsonc
-{
-  "component": "FormArraySection",
-  "componentProps": {
-    "control": "properties",
-    "itemComponent": {
-      "$template": {
-        "component": "Section",
-        "componentProps": { "className": "space-y-3" },
-        "children": [
-          {
-            "model": "type",
-            "component": "Select",
-            "componentProps": { "label": "Тип", "options": "PROPERTY_TYPES" },
-          },
-          { "model": "description", "component": "Textarea" },
-          {
-            "model": "estimatedValue",
-            "component": "Input",
-            "componentProps": { "type": "number" },
-          },
-        ],
-      },
-    },
-    "title": "Имущество",
-  },
-}
-```
+// ❌ так секция молча не отрисуется: контракт TS-flow в JSON-схеме
+{ "component": "FormArraySection", "componentProps": { "control": "properties", "itemComponent": "PropertyForm" } }
 
-Конвертер обнаруживает `$template`, конвертирует JsonNode шаблона в RenderNode (один раз), и оборачивает в FC `({ control }) => <RenderNodeComponent node={renderNode} form={control} />`. Снаружи это обычный FC.
+// ✅ array-нода + FormArray в реестре
+{ "array": "$model(properties)", "component": "$component(FormArray)", "item": { "$template": { } } }
+```
 
 ## Props (полный список)
 

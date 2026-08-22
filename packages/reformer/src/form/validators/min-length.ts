@@ -22,15 +22,14 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Минимальная длина строки
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, minLength } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * name: { value: model.$.name, component: Input, validators: [minLength(2)] },
- * password: {
- *   value: model.$.password,
- *   component: Input,
- *   validators: [required(), minLength(8, { message: 'Минимум 8 символов' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.name, [minLength(2)]);
+ *   validate(model.$.password, [required(), minLength(8, { message: 'Минимум 8 символов' })]);
+ * });
  * ```
  */
 export function minLength<TForm = unknown, TField = unknown>(

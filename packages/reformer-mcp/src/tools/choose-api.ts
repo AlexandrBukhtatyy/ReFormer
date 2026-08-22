@@ -21,7 +21,7 @@ import type { IndexedAntiPattern } from '../index/types.js';
 export const chooseApiToolDefinition = {
   name: 'choose_api',
   description:
-    'Pick the right ReFormer operator for a requirement, stated in your own words ("field B is only available when A is filled", "shipping address copies billing", "clear the field when the parent choice changes"). Answers the question the docs search cannot: which of two similar operators applies — computeFrom vs copyFrom, copyFrom vs syncFields, enableWhen vs hideWhen, resetWhen vs enableWhen, validateWhen vs enableWhen. Returns the recommended symbol with its signature, a canonical example, why it fits, the alternatives it is commonly confused with, and any anti-pattern the docs record for that choice. Deterministic — same requirement, same answer.',
+    'Pick the right ReFormer operator for a requirement, stated in your own words ("field B is only available when A is filled", "shipping address copies billing", "clear the field when the parent choice changes"). Answers the question the docs search cannot: which of two similar operators applies — computeFrom vs copyFrom, copyFrom vs syncFields, enableWhen vs hideWhen, resetWhen vs enableWhen, validateWhen vs enableWhen, and resetWhen vs onChange (a predicate that holds vs the bare fact that a field changed — including clearing an array, which uses onChange + .clear(), never resetValue). Returns the recommended symbol with its signature, a canonical example, why it fits, the alternatives it is commonly confused with, and any anti-pattern the docs record for that choice. Deterministic — same requirement, same answer.',
   inputSchema: {
     type: 'object' as const,
     properties: {

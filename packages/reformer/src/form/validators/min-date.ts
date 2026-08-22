@@ -22,14 +22,13 @@ import { parseDate, normalizeDate } from './date-utils';
  *
  * @example Минимальная дата
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, minDate } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * startDate: {
- *   value: model.$.startDate,
- *   component: DatePicker,
- *   validators: [required(), minDate(new Date(), { message: 'Дата не раньше сегодня' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.startDate, [required(), minDate(new Date(), { message: 'Дата не раньше сегодня' })]);
+ * });
  * ```
  */
 export function minDate<

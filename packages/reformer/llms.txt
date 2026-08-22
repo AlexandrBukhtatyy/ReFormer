@@ -4359,6 +4359,34 @@ if (typeof window !== 'undefined') ctrl.start();
 
 _Auto-generated from JSDoc on public exports._
 
+### aggregateInto
+
+**Kind:** `function`
+
+Агрегатная запись в строки массива. `derive(snapshot)` получает СНИМОК строк и возвращает список
+`{ index, patch }`, который применяется к строкам. Записи КОАЛЕСИРУЮТСЯ в один отложенный проход на
+финальном состоянии — поэтому массовые синхронные мутации (push в цикле) не вызывают каскад на
+промежуточных состояниях. `derive` должна сходиться (на фикспоинте возвращать те же значения).
+
+**Signature:**
+```typescript
+export function aggregateInto<TItem>(
+  array: object,
+  derive: (rows: TItem[]) => Array<{ index: number; patch: Partial<TItem> }>
+): void
+```
+
+**Examples:**
+
+// последняя строка = 100 − Σ(остальные)
+aggregateInto(model.$.rows, (rows) => {
+  const n = rows.length; if (n === 0) return [];
+  const others = rows.slice(0, n - 1).reduce((s, r) => s + r.percent, 0);
+  return [{ index: n - 1, patch: { percent: 100 - others } }];
+});
+
+_Source: src/form/behaviors/collections.ts_
+
 ### AnyFunction
 
 **Kind:** `type`
@@ -4372,6 +4400,47 @@ export type AnyFunction = (...args: never[]) => unknown;
 ```
 
 _Source: src/form/types/index.ts_
+
+### apply
+
+**Kind:** `function`
+
+Композиция под-схем в текущую (над той же моделью scope). Заменяет пошаговую группировку.
+
+**Signature:**
+```typescript
+export function apply<T>(...schemas: ValidationSchema<T>[]): void
+```
+
+_Source: src/form/validation/operators.ts_
+
+### applyEach
+
+**Kind:** `function`
+
+Применить под-схему к КАЖДОМУ элементу динамического массива (per-item поведение).
+Реагирует на добавление/удаление строк: новым строкам поведение применяется, удалённым — отписывается.
+
+Под-схема получает scope строки: `model` (под-модель строки — `row.$.field`) и `form` (нода строки).
+- Value-операции (`compute`/`copyFrom`/`transformValue` на `row.$.*`) работают всегда.
+- Node-операции (`enableWhen`/`updateComponentProps`/`reset` через `form.*`) требуют, чтобы массив был
+  МАТЕРИАЛИЗОВАН в форме (узел `{ array, item }` в схеме) — тогда `form` строки = та же нода, что
+  рендерится, а её сигналы зарегистрированы (`enableWhen` резолвит ноду). Без материализации доступ
+  к `form.*` бросит понятную ошибку (см. {@link unmaterializedRowForm}).
+
+**Signature:**
+```typescript
+export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>): void
+```
+
+**Examples:**
+
+applyEach(model.$.items, defineFormBehavior<Item>(({ model: row, form }) => {
+  compute(row.$.lineTotal, () => row.qty * row.price);    // value-op — всегда
+  enableWhen(row.$.discount, () => row.qty > 10);          // node-op — нужна материализация массива
+}));
+
+_Source: src/form/behaviors/collections.ts_
 
 ### ArrayControlState
 
@@ -4585,6 +4654,23 @@ export interface ArrayNodeLike {
 
 _Source: src/form/types/index.ts_
 
+### AsyncRule
+
+**Kind:** `type`
+
+Асинхронное правило поля. Получает `AbortSignal` для отмены устаревших ответов (быстрый повторный
+прогон той же схемы отменяет предыдущий). Сетевой сбой не должен блокировать — ловите и возвращайте `null`.
+
+**Signature:**
+```typescript
+export type AsyncRule<TField> = (
+  value: TField,
+  ctx: { signal: AbortSignal }
+) => Promise<ValidationError | null>;
+```
+
+_Source: src/form/validation/types.ts_
+
 ### AsyncValidatorFn
 
 **Kind:** `type`
@@ -4657,6 +4743,19 @@ export type BehaviorCleanup = () => void;
 
 _Source: src/model/behaviors-value.ts_
 
+### BehaviorScope
+
+**Kind:** `type`
+
+Контекст схемы поведения: модель (значения/сигналы) + форма (ноды).
+
+**Signature:**
+```typescript
+export type BehaviorScope<T> = { model: FormModel<T>; form: FormProxy<T> };
+```
+
+_Source: src/form/behaviors/types.ts_
+
 ### buildValidation
 
 **Kind:** `function`
@@ -4693,6 +4792,38 @@ await v!.validateAll();     // все шаги + extras
 ```
 
 _Source: src/form/validation/config.ts_
+
+### ChangeContext
+
+**Kind:** `interface`
+
+Контекст async-реакции: `signal` аннулируется, когда поле меняется снова до завершения колбэка.
+
+**Signature:**
+```typescript
+export interface ChangeContext {
+  signal: AbortSignal;
+}
+```
+
+_Source: src/form/behaviors/types.ts_
+
+### compute
+
+**Kind:** `function`
+
+Вычисляемое поле с auto-tracking: `target = read()` при изменении прочитанных сигналов.
+
+**Signature:**
+```typescript
+export function compute<R>(
+  target: Signal<R>,
+  read: () => R,
+  options?: { when?: () => boolean }
+): void
+```
+
+_Source: src/form/behaviors/operators.ts_
 
 ### computeFrom
 
@@ -4976,7 +5107,7 @@ _Source: src/form/create-core-form.ts_
 
 Значения принадлежат модели (источник истины), ноды формы держат UI/валидационное состояние и
 ссылаются на сигналы модели по идентичности (`node.value === model.$.path`). Обходит структуру
-модели, привязывает конфиг поля (component/componentProps/validators) из схемы, материализует
+модели, привязывает конфиг поля (component/componentProps) из схемы, материализует
 top-level массивы как {@link ModelArrayNode}, заполняет реестр сигнал→нода (для `enableWhen`/
 роутинга ошибок) и, при наличии, запускает декларативное поведение (cleanup живёт на форме).
 
@@ -5008,7 +5139,8 @@ const model = createModel<Form>({ email: '', profile: { name: '', age: 0 } });
 const schema = {
 component: Section,
 children: [
-{ value: model.$.email, component: Input, validators: [required] },
+// Layout несёт только component/componentProps; правила — в отдельной ValidationSchema.
+{ value: model.$.email, component: Input },
 // вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
 { value: model.$.profile.name, component: Input },
 ],
@@ -5031,7 +5163,7 @@ _Source: src/form/create-form.ts_
 **Kind:** `interface`
 
 Аргументы createForm под архитектуру M1: данные приходят из {@link FormModel},
-конфиг полей (component/componentProps/validators) — из единой схемы.
+конфиг полей (component/componentProps) — из единой схемы.
 
 **Signature:**
 ```typescript
@@ -5052,6 +5184,41 @@ export interface CreateFormFromModelArgs<T> {
 ```
 
 _Source: src/form/create-form.ts_
+
+### createFormValidation
+
+**Kind:** `function`
+
+Собрать контроллер валидации формы с выбранной стратегией запуска. Переиспользует
+{@link validateModel} как единственный движок прогона.
+
+Фабрика ЧИСТАЯ до `start()` (никаких подписок) — безопасна для SSR/headless. Реактивные триггеры
+арминуются только в `start()` (в React — из `useEffect`).
+
+**Signature:**
+```typescript
+export function createFormValidation<T>(
+  model: FormModel<T>,
+  schema: ValidationSchema<T>,
+  options: ValidationStrategyOptions = {}
+): FormValidationController
+```
+
+**Parameters:**
+- `model` — - Модель данных.
+- `schema` — - Схема валидации. **Стабильная ссылка** (иначе `validateModel` не отменит устаревший прогон).
+- `options` — - {@link ValidationStrategyOptions}.
+
+**Examples:**
+
+```ts
+const ctrl = createFormValidation(model, schema, { strategy: 'afterFirstSubmit', debounce: 300 });
+const dispose = ctrl.start();               // на клиенте
+const ok = await ctrl.validate();           // submit → раскрыть все ошибки
+dispose();
+```
+
+_Source: src/form/validation/strategy.ts_
 
 ### createModel
 
@@ -5089,6 +5256,81 @@ model.get();                  // { email: 'a@b.c', profile: { name: 'Ada' }, tag
 
 _Source: src/model/create-model.ts_
 
+### cross
+
+**Kind:** `function`
+
+Cross-field правило: `fn` получает СНАПШОТ модели текущего scope (`model.get()`) и вешает ошибку на `sig`.
+Для элементов массива / под-моделей захватывайте нужный снапшот в замыкание (`const item = im.get()`),
+т.к. `fn` всегда получает модель ТЕКУЩЕГО scope (корень прогона), а не под-модель.
+
+**Signature:**
+```typescript
+export function cross<TSnapshot>(
+  sig: PathAwareSignal<unknown>,
+  fn: (form: TSnapshot) => ValidationError | null
+): void
+```
+
+_Source: src/form/validation/operators.ts_
+
+### defer
+
+**Kind:** `function`
+
+Отложенная запись вне effect-контекста (микротаск) — защита от «Cycle detected».
+
+**Signature:**
+```typescript
+export function defer(fn: () => void): void
+```
+
+_Source: src/form/behaviors/context.ts_
+
+### defineFormBehavior
+
+**Kind:** `function`
+
+Описать поведение формы декларативно. Возвращает {@link FormBehavior} для `createForm({ behavior })`.
+
+**Signature:**
+```typescript
+export function defineFormBehavior<T>(setup: (scope: BehaviorScope<T>) => void): FormBehavior<T>
+```
+
+**Examples:**
+
+```ts
+export const myBehavior = defineFormBehavior<MyForm>(({ model, form }) => {
+  compute(model.$.total, () => model.price * model.qty);
+  enableWhen([model.$.city], () => Boolean(model.country));
+  onChange(model.$.country, async (c) => form.city.updateComponentProps({ options: await load(c) }));
+});
+```
+
+_Source: src/form/behaviors/context.ts_
+
+### defineValidationSchema
+
+**Kind:** `function`
+
+Тонкая identity-обёртка для типизации/discoverability (как `defineFormBehavior`). Возвращает схему как есть.
+
+**Signature:**
+```typescript
+export function defineValidationSchema<T>(schema: ValidationSchema<T>): ValidationSchema<T>
+```
+
+**Examples:**
+
+```ts
+export const step1 = defineValidationSchema<LoanForm>(({ model }) => {
+  validate(model.$.loanAmount, [required(), min(50000)]);
+});
+```
+
+_Source: src/form/validation/run.ts_
+
 ### disableWhen
 
 **Kind:** `function`
@@ -5121,6 +5363,23 @@ disableWhen(model.$.discount, () => model.plan !== 'promo', { resetOnDisable: tr
 
 _Source: src/form/behaviors/node.ts_
 
+### each
+
+**Kind:** `function`
+
+Применить под-правила к КАЖДОМУ элементу текущего массива модели.
+`U extends object` — элементы должны быть под-моделями (объектами); для массива примитивов валидируйте лист напрямую.
+
+**Signature:**
+```typescript
+export function each<U extends object>(
+  arr: ModelArray<U>,
+  itemFn: (item: FormModel<U>) => void
+): void
+```
+
+_Source: src/form/validation/operators.ts_
+
 ### eachLeafSignal
 
 **Kind:** `function`
@@ -5141,6 +5400,55 @@ export function eachLeafSignal<T>(
 ```
 
 _Source: src/model/create-model.ts_
+
+### effect
+
+**Kind:** `function`
+
+Реактивный эффект (авто-dispose). Колбэк может вернуть собственный cleanup.
+
+**Signature:**
+```typescript
+export function effect(fn: () => void | (() => void)): void
+```
+
+_Source: src/form/behaviors/context.ts_
+
+### email
+
+**Kind:** `function`
+
+Фабрика валидатора формата email.
+
+Проверяет по упрощённому regex `^[^\s@]+@[^\s@]+\.[^\s@]+$`. Пустые значения
+(`''`/`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function email<TForm = unknown, TField extends string | null | undefined = string>(
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+
+**Returns:** Чистый валидатор {@link Validator} для строкового поля
+
+**Examples:**
+
+Проверка формата email
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, email } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.email, [required(), email({ message: 'Введите корректный email' })]);
+});
+```
+
+_Source: src/form/validators/email.ts_
 
 ### enableWhen
 
@@ -5243,6 +5551,28 @@ export enum ErrorStrategy {
 ```
 
 _Source: src/form/validation/error-handler.ts_
+
+### exclusiveFlag
+
+**Kind:** `function`
+
+Взаимное исключение булева флага среди строк массива (single-selection — «единственный primary»).
+Когда флаг строки становится true, у остальных строк он сбрасывается в false. Не хрупок к push:
+новые строки с флагом false исключения не запускают.
+
+**Signature:**
+```typescript
+export function exclusiveFlag<TItem>(
+  array: object,
+  getFlag: (row: FormModel<TItem>) => Signal<boolean>
+): void
+```
+
+**Examples:**
+
+exclusiveFlag(model.$.contacts, (row) => row.$.primary);
+
+_Source: src/form/behaviors/collections.ts_
 
 ### FieldConfig
 
@@ -5522,6 +5852,7 @@ export class FieldNode<T> extends FormNode<T> {
 
 **Examples:**
 
+Пример node-level: конфиг УЗЛА, а не layout-схема M1 (в ней поля `validators` нет).
 ```typescript
 const field = new FieldNode({
   value: '',
@@ -5548,6 +5879,69 @@ export type FieldStatus = 'valid' | 'invalid' | 'pending' | 'disabled';
 ```
 
 _Source: src/form/types/contracts.ts_
+
+### FileLike
+
+**Kind:** `interface`
+
+Минимальный файлоподобный контракт, с которым работают file-валидаторы:
+нативный `File`, сериализуемый дескриптор загруженного файла и т.п.
+
+**Signature:**
+```typescript
+export interface FileLike {
+  name: string;
+  size?: number;
+  type?: string;
+}
+```
+
+_Source: src/form/validators/file-utils.ts_
+
+### fileType
+
+**Kind:** `function`
+
+Фабрика валидатора типа файла.
+
+Проверяет каждый файл против accept-строки в синтаксисе нативного атрибута
+`<input type="file" accept>`: расширения (`.pdf`), точные MIME (`image/png`),
+wildcard-категории (`image/*`), список через запятую. Матчинг регистронезависимый,
+по `type` и/или расширению из `name` ({@link matchesFileAccept}).
+
+Нужен потому, что нативный `accept` — только подсказка пикеру: на drag-and-drop
+и «All files» он не действует. Пустые значения (`null`/`undefined`/`''`/`[]`)
+пропускаются (используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function fileType<TForm = unknown, TField = unknown>(
+  accept: string,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `accept` — - Accept-строка допустимых типов, например `'image/*,.pdf'`
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `accept` и `fileName` (первый нарушивший файл).
+
+**Returns:** Чистый валидатор {@link Validator} для файла или массива файлов
+
+**Examples:**
+
+Только изображения и PDF
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { fileType } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.documents, [fileType('image/*,.pdf', { message: 'Только изображения или PDF' })]);
+});
+```
+
+_Source: src/form/validators/file-type.ts_
 
 ### FormArrayProxy
 
@@ -5602,6 +5996,22 @@ todos.forEach((item, i) => {
 ```
 
 _Source: src/form/types/form-proxy.ts_
+
+### FormBehavior
+
+**Kind:** `interface`
+
+Результат {@link defineFormBehavior}; передаётся в `createForm({ behavior })`.
+
+**Signature:**
+```typescript
+export interface FormBehavior<T> {
+  /** @internal Запускается `createForm` после построения нод и заполнения реестра сигнал→нода. */
+  __run(model: FormModel<T>, form: FormProxy<T>): BehaviorCleanup;
+}
+```
+
+_Source: src/form/behaviors/types.ts_
 
 ### FormBundleLike
 
@@ -6074,6 +6484,37 @@ export interface FormValidationBundle<T> {
 
 _Source: src/form/validation/config.ts_
 
+### FormValidationController
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormValidationController {
+  /**
+   * Полный прогон схемы с раскрытием ошибок (`touch: true`) — для submit. Также переводит
+   * `afterFirstSubmit` в live-фазу. Возвращает `false`, если есть блокирующие ошибки.
+   */
+  validate(): Promise<boolean>;
+  /**
+   * Армировать реактивные подписки стратегии. Идемпотентно. Возвращает `dispose`. НЕ звать при SSR.
+   *
+   * После {@link FormValidationController.dispose} контроллер армируется ЗАНОВО: React монтирует
+   * компоненты повторно (StrictMode в разработке, remount по роуту), и «одноразовый» контроллер
+   * после такого цикла молча оставался бы без живой валидации.
+   */
+  start(): () => void;
+  /** Снять подписки/таймеры. Идемпотентно; после него `start()` снова армирует стратегию. */
+  dispose(): void;
+  /** Идёт ли прогон (submit или live) — снапшот. */
+  readonly isValidating: boolean;
+  /** Реактивный сигнал состояния прогона (для тонкой подписки в UI). */
+  readonly validating: ReadonlySignal<boolean>;
+}
+```
+
+_Source: src/form/validation/strategy.ts_
+
 ### FormValue
 
 **Kind:** `type`
@@ -6096,6 +6537,43 @@ export type FormValue =
 ```
 
 _Source: src/form/types/contracts.ts_
+
+### futureDate
+
+**Kind:** `function`
+
+Фабрика валидатора, проверяющего что дата не в прошлом.
+
+Дата не должна быть раньше сегодняшнего дня (сравнение по нормализованным датам).
+Пустые и невалидные даты пропускаются (используйте {@link required} и {@link isDate}).
+
+**Signature:**
+```typescript
+export function futureDate<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(options?: ValidateOptions): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+
+**Returns:** Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+
+**Examples:**
+
+Дата не в прошлом
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, futureDate } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.appointmentDate, [required(), futureDate({ message: 'Дата записи должна быть в будущем' })]);
+});
+```
+
+_Source: src/form/validators/future-date.ts_
 
 ### getNodeForSignal
 
@@ -6158,6 +6636,19 @@ console.log('Node type:', getNodeType(node)); // "FieldNode" | "GroupNode" | "Ar
 
 _Source: src/form/type-guards.ts_
 
+### getScope
+
+**Kind:** `function`
+
+Текущий scope ({ model, form }) активной схемы (escape hatch для кросс-операторов).
+
+**Signature:**
+```typescript
+export function getScope<T>(): BehaviorScope<T>
+```
+
+_Source: src/form/behaviors/context.ts_
+
 ### GroupNode
 
 **Kind:** `class`
@@ -6212,6 +6703,41 @@ export interface GroupNodeConfig<T> {
 
 _Source: src/form/types/index.ts_
 
+### integer
+
+**Kind:** `function`
+
+Фабрика валидатора, проверяющего что число — целое.
+
+Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
+
+**Signature:**
+```typescript
+export function integer<TForm = unknown, TField extends number | null | undefined = number>(
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+
+**Returns:** Чистый валидатор {@link Validator} для числового поля
+
+**Examples:**
+
+Проверка целого числа
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, integer } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.count, [required(), integer({ message: 'Должно быть целым числом' })]);
+});
+```
+
+_Source: src/form/validators/integer.ts_
+
 ### isArrayNode
 
 **Kind:** `function`
@@ -6242,6 +6768,43 @@ if (isArrayNode(node)) {
 ```
 
 _Source: src/form/type-guards.ts_
+
+### isDate
+
+**Kind:** `function`
+
+Фабрика валидатора, проверяющего что значение — валидная дата.
+
+Принимает `Date` или строку, парсимую в дату. Пустые значения (`''`/`null`/`undefined`)
+пропускаются (используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function isDate<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(options?: ValidateOptions): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+
+**Returns:** Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+
+**Examples:**
+
+Проверка валидности даты
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, isDate } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.eventDate, [required(), isDate({ message: 'Введите корректную дату' })]);
+});
+```
+
+_Source: src/form/validators/is-date.ts_
 
 ### isDerived
 
@@ -6307,6 +6870,25 @@ if (isFieldNode(node)) {
 ```
 
 _Source: src/form/type-guards.ts_
+
+### isFileLike
+
+**Kind:** `function`
+
+Проверяет, что значение файлоподобно: объект со строковым `name` и опциональными
+числовым `size` / строковым `type`.
+
+**Signature:**
+```typescript
+export function isFileLike(value: unknown): value is FileLike
+```
+
+**Parameters:**
+- `value` — - Проверяемое значение
+
+**Returns:** `true`, если значение соответствует {@link FileLike}
+
+_Source: src/form/validators/file-utils.ts_
 
 ### isFormNode
 
@@ -6389,6 +6971,43 @@ const isLeaf = (v: unknown) => isSignalLike(v) && !isModelContainerSignal(v);
 
 _Source: src/model/model-signals-proxy.ts_
 
+### isNumber
+
+**Kind:** `function`
+
+Фабрика валидатора, проверяющего что значение — конечное число (не NaN, не строка).
+
+Пустые значения (`null`/`undefined`) пропускаются (используйте {@link required} для
+обязательности). В отличие от других number-валидаторов, **не** пропускает не-числа
+и `NaN` — это его задача.
+
+**Signature:**
+```typescript
+export function isNumber<TForm = unknown, TField extends number | null | undefined = number>(
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+
+**Returns:** Чистый валидатор {@link Validator} для числового поля
+
+**Examples:**
+
+Проверка, что значение — число
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, isNumber } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.amount, [required(), isNumber({ message: 'Введите число' })]);
+});
+```
+
+_Source: src/form/validators/is-number.ts_
+
 ### markDerived
 
 **Kind:** `function`
@@ -6424,6 +7043,550 @@ markDerived(model.$.total);
 - {@link unmarkDerived} - снять пометку при dispose оператора
 
 _Source: src/model/derived-registry.ts_
+
+### matchesFileAccept
+
+**Kind:** `function`
+
+Проверяет файл против accept-паттерна в синтаксисе нативного атрибута
+`<input type="file" accept>`: список через запятую из расширений (`.pdf`),
+точных MIME (`image/png`) и wildcard-категорий (`image/*`). Регистронезависимо.
+
+Нужен собственный матчер, потому что `accept` у нативного input — только подсказка
+пикеру: на drag-and-drop и на программное значение он не действует.
+
+**Signature:**
+```typescript
+export function matchesFileAccept(file: Pick<FileLike, 'name' | 'type'>, accept: string): boolean
+```
+
+**Parameters:**
+- `file` — - Файлоподобное значение (`name` + опциональный `type`)
+- `accept` — - Accept-строка; пустая/пробельная строка матчит всё
+
+**Returns:** `true`, если файл подходит хотя бы под один паттерн
+
+_Source: src/form/validators/file-utils.ts_
+
+### max
+
+**Kind:** `function`
+
+Фабрика валидатора максимального числового значения.
+
+Пустые значения (`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function max<TForm = unknown, TField extends number | null | undefined = number>(
+  maxValue: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `maxValue` — - Максимально допустимое значение (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `max` и `actual`.
+
+**Returns:** Чистый валидатор {@link Validator} для числового поля
+
+**Examples:**
+
+Максимальное значение числового поля
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, max } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.quantity, [max(100)]);
+validate(model.$.discount, [required(), max(50, { message: 'Не более 50%' })]);
+});
+```
+
+_Source: src/form/validators/max.ts_
+
+### maxAge
+
+**Kind:** `function`
+
+Фабрика валидатора максимального возраста (по дате рождения).
+
+Возраст вычисляется по дате рождения относительно сегодняшнего дня. Пустые и невалидные
+даты пропускаются (используйте {@link required} и {@link isDate}).
+
+**Signature:**
+```typescript
+export function maxAge<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(maxAgeValue: number, options?: ValidateOptions): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `maxAgeValue` — - Максимально допустимый возраст (в полных годах)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `maxAge` и `currentAge`.
+
+**Returns:** Чистый валидатор {@link Validator} для поля даты рождения (`string | Date`)
+
+**Examples:**
+
+Максимальный возраст
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { maxAge } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.birthDate, [maxAge(100, { message: 'Проверьте дату рождения' })]);
+});
+```
+
+_Source: src/form/validators/max-age.ts_
+
+### maxDate
+
+**Kind:** `function`
+
+Фабрика валидатора максимальной даты (включительно).
+
+Сравнение по нормализованным датам (время обнуляется). Пустые и невалидные даты
+пропускаются (используйте {@link required} и {@link isDate}).
+
+**Signature:**
+```typescript
+export function maxDate<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(maxDateValue: Date, options?: ValidateOptions): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `maxDateValue` — - Максимально допустимая дата (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадает `maxDate`.
+
+**Returns:** Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+
+**Examples:**
+
+Максимальная дата
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { maxDate } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.birthDate, [maxDate(new Date(), { message: 'Дата не может быть в будущем' })]);
+});
+```
+
+_Source: src/form/validators/max-date.ts_
+
+### maxFiles
+
+**Kind:** `function`
+
+Фабрика валидатора максимального количества файлов.
+
+Работает с массивом файлов (одиночный файл считается как 1). Пустые значения
+(`null`/`undefined`/`''`/`[]`) пропускаются (используйте {@link required}
+для обязательности).
+
+**Signature:**
+```typescript
+export function maxFiles<TForm = unknown, TField = unknown>(
+  max: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `max` — - Максимально допустимое количество файлов (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `maxFiles` и `actualCount`.
+
+**Returns:** Чистый валидатор {@link Validator} для файла или массива файлов
+
+**Examples:**
+
+Не более трёх вложений
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { maxFiles } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.documents, [maxFiles(3, { message: 'Максимум 3 файла' })]);
+});
+```
+
+_Source: src/form/validators/max-files.ts_
+
+### maxFileSize
+
+**Kind:** `function`
+
+Фабрика валидатора максимального размера файла.
+
+Работает с одиночным файлом или массивом (`File` либо файлоподобный дескриптор с
+`name`/`size`). Проверяется каждый файл; в ошибку попадает первый нарушивший.
+Пустые значения (`null`/`undefined`/`''`/`[]`) и элементы без числового `size`
+(например, дескриптор загруженного файла без размера) пропускаются
+(используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function maxFileSize<TForm = unknown, TField = unknown>(
+  maxSize: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `maxSize` — - Максимально допустимый размер файла в байтах (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `maxFileSize`, `fileName` и `actualSize`.
+
+**Returns:** Чистый валидатор {@link Validator} для файла или массива файлов
+
+**Examples:**
+
+Ограничение размера вложений
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { maxFileSize } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.documents, [maxFileSize(5 * 1024 * 1024, { message: 'Файл больше 5 МБ' })]);
+});
+```
+
+_Source: src/form/validators/max-file-size.ts_
+
+### maxLength
+
+**Kind:** `function`
+
+Фабрика валидатора максимальной длины строки или массива.
+
+Работает со строкой или массивом (проверяется `value.length`). Пустые значения
+(`null`/`undefined`/`''`) и значения без числового `length` пропускаются
+(используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function maxLength<TForm = unknown, TField = unknown>(
+  maxLen: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `maxLen` — - Максимально допустимая длина (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `maxLength` и `actualLength`.
+
+**Returns:** Чистый валидатор {@link Validator} для строки или массива
+
+**Examples:**
+
+Максимальная длина строки
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { maxLength } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.name, [maxLength(50)]);
+validate(model.$.bio, [maxLength(500, { message: 'Максимум 500 символов' })]);
+});
+```
+
+_Source: src/form/validators/max-length.ts_
+
+### maxTotalFileSize
+
+**Kind:** `function`
+
+Фабрика валидатора суммарного размера всех файлов.
+
+Складывает `size` всех файлов значения (элементы без числового `size` в сумму
+не входят). Пустые значения (`null`/`undefined`/`''`/`[]`) пропускаются
+(используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function maxTotalFileSize<TForm = unknown, TField = unknown>(
+  maxTotal: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `maxTotal` — - Максимально допустимый суммарный размер в байтах (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `maxTotalFileSize` и `actualTotal`.
+
+**Returns:** Чистый валидатор {@link Validator} для файла или массива файлов
+
+**Examples:**
+
+Суммарно не более 20 МБ
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { maxTotalFileSize } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.documents, [maxTotalFileSize(20 * 1024 * 1024, { message: 'Суммарно не более 20 МБ' })]);
+});
+```
+
+_Source: src/form/validators/max-total-file-size.ts_
+
+### min
+
+**Kind:** `function`
+
+Фабрика валидатора минимального числового значения.
+
+Пустые значения (`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function min<TForm = unknown, TField extends number | null | undefined = number>(
+  minValue: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `minValue` — - Минимально допустимое значение (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `min` и `actual`.
+
+**Returns:** Чистый валидатор {@link Validator} для числового поля
+
+**Examples:**
+
+Минимальное значение числового поля
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, min } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.age, [min(18)]);
+validate(model.$.quantity, [required(), min(1, { message: 'Минимум 1' })]);
+});
+```
+
+_Source: src/form/validators/min.ts_
+
+### minAge
+
+**Kind:** `function`
+
+Фабрика валидатора минимального возраста (по дате рождения).
+
+Возраст вычисляется по дате рождения относительно сегодняшнего дня. Пустые и невалидные
+даты пропускаются (используйте {@link required} и {@link isDate}).
+
+**Signature:**
+```typescript
+export function minAge<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(minAgeValue: number, options?: ValidateOptions): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `minAgeValue` — - Минимально допустимый возраст (в полных годах)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `minAge` и `currentAge`.
+
+**Returns:** Чистый валидатор {@link Validator} для поля даты рождения (`string | Date`)
+
+**Examples:**
+
+Минимальный возраст
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, minAge } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.birthDate, [required(), minAge(18, { message: 'Вам должно быть не менее 18 лет' })]);
+});
+```
+
+_Source: src/form/validators/min-age.ts_
+
+### minDate
+
+**Kind:** `function`
+
+Фабрика валидатора минимальной даты (включительно).
+
+Сравнение по нормализованным датам (время обнуляется). Пустые и невалидные даты
+пропускаются (используйте {@link required} и {@link isDate}).
+
+**Signature:**
+```typescript
+export function minDate<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(minDateValue: Date, options?: ValidateOptions): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `minDateValue` — - Минимально допустимая дата (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадает `minDate`.
+
+**Returns:** Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+
+**Examples:**
+
+Минимальная дата
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, minDate } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.startDate, [required(), minDate(new Date(), { message: 'Дата не раньше сегодня' })]);
+});
+```
+
+_Source: src/form/validators/min-date.ts_
+
+### minFiles
+
+**Kind:** `function`
+
+Фабрика валидатора минимального количества файлов.
+
+Работает с массивом файлов (одиночный файл считается как 1). Пустые значения
+(`null`/`undefined`/`''`/`[]`) пропускаются — «нужен хотя бы один файл» выражается
+связкой `required()` + `minFiles(n)`, как и у {@link minLength}.
+
+**Signature:**
+```typescript
+export function minFiles<TForm = unknown, TField = unknown>(
+  min: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `min` — - Минимально допустимое количество файлов (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `minFiles` и `actualCount`.
+
+**Returns:** Чистый валидатор {@link Validator} для файла или массива файлов
+
+**Examples:**
+
+Не менее двух документов
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, minFiles } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.documents, [required(), minFiles(2, { message: 'Приложите минимум 2 документа' })]);
+});
+```
+
+_Source: src/form/validators/min-files.ts_
+
+### minFileSize
+
+**Kind:** `function`
+
+Фабрика валидатора минимального размера файла.
+
+Работает с одиночным файлом или массивом (`File` либо файлоподобный дескриптор с
+`name`/`size`). Проверяется каждый файл; в ошибку попадает первый нарушивший.
+Типовой сценарий — отсев пустых (0-байтовых) файлов: `minFileSize(1)`.
+Пустые значения (`null`/`undefined`/`''`/`[]`) и элементы без числового `size`
+пропускаются (используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function minFileSize<TForm = unknown, TField = unknown>(
+  minSize: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `minSize` — - Минимально допустимый размер файла в байтах (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `minFileSize`, `fileName` и `actualSize`.
+
+**Returns:** Чистый валидатор {@link Validator} для файла или массива файлов
+
+**Examples:**
+
+Отсев пустых файлов
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { minFileSize } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.documents, [minFileSize(1, { message: 'Файл пустой' })]);
+});
+```
+
+_Source: src/form/validators/min-file-size.ts_
+
+### minLength
+
+**Kind:** `function`
+
+Фабрика валидатора минимальной длины строки или массива.
+
+Работает со строкой или массивом (проверяется `value.length`). Пустые значения
+(`null`/`undefined`/`''`) и значения без числового `length` пропускаются
+(используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function minLength<TForm = unknown, TField = unknown>(
+  minLen: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `minLen` — - Минимально допустимая длина (включительно)
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадают `minLength` и `actualLength`.
+
+**Returns:** Чистый валидатор {@link Validator} для строки или массива
+
+**Examples:**
+
+Минимальная длина строки
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, minLength } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.name, [minLength(2)]);
+validate(model.$.password, [required(), minLength(8, { message: 'Минимум 8 символов' })]);
+});
+```
+
+_Source: src/form/validators/min-length.ts_
 
 ### ModelApi
 
@@ -6678,6 +7841,44 @@ export type ModelValue<V> =
 
 _Source: src/model/types.ts_
 
+### multipleOf
+
+**Kind:** `function`
+
+Фабрика валидатора, проверяющего что число кратно заданному.
+
+Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
+
+**Signature:**
+```typescript
+export function multipleOf<TForm = unknown, TField extends number | null | undefined = number>(
+  divisor: number,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `divisor` — - Делитель: значение должно быть кратно ему
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадает `multipleOf` (делитель).
+
+**Returns:** Чистый валидатор {@link Validator} для числового поля
+
+**Examples:**
+
+Проверка кратности
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { multipleOf } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.rating, [multipleOf(0.5, { message: 'Только шаг 0.5' })]);
+});
+```
+
+_Source: src/form/validators/multiple-of.ts_
+
 ### NodeFactory
 
 **Kind:** `class`
@@ -6708,6 +7909,7 @@ export class NodeFactory {
    * ```typescript
    * const factory = new NodeFactory();
    *
+   * Конфиг node-level (не layout-схема M1, где `validators` уже нет).
    * // FieldNode
    * const field = factory.createNode({
    *   value: 'test@mail.com',
@@ -6748,6 +7950,150 @@ const node = factory.createNode({ value: '', component: Input }); // → FieldNo
 
 _Source: src/form/factories/node-factory.ts_
 
+### nonNegative
+
+**Kind:** `function`
+
+Фабрика валидатора, проверяющего что число неотрицательное (`≥ 0`).
+
+Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
+
+**Signature:**
+```typescript
+export function nonNegative<TForm = unknown, TField extends number | null | undefined = number>(
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+
+**Returns:** Чистый валидатор {@link Validator} для числового поля
+
+**Examples:**
+
+Проверка неотрицательности
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { nonNegative } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.balance, [nonNegative({ message: 'Баланс не может быть отрицательным' })]);
+});
+```
+
+_Source: src/form/validators/non-negative.ts_
+
+### nonZero
+
+**Kind:** `function`
+
+Фабрика валидатора, проверяющего что число не равно нулю.
+
+Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
+
+**Signature:**
+```typescript
+export function nonZero<TForm = unknown, TField extends number | null | undefined = number>(
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+
+**Returns:** Чистый валидатор {@link Validator} для числового поля
+
+**Examples:**
+
+Проверка «не ноль»
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { nonZero } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.divisor, [nonZero({ message: 'Не может быть нулём' })]);
+});
+```
+
+_Source: src/form/validators/non-zero.ts_
+
+### onChange
+
+**Kind:** `function`
+
+Реакция на изменение поля; `{ debounce, immediate }`.
+
+Колбэк выполняется ВНЕ effect-контекста (микротаск/таймер) — можно безопасно писать сигналы и ноды
+(`updateComponentProps`/`reset`/`clear`) без ручного `defer` и без «Cycle detected».
+
+Для async-колбэков 2-м аргументом приходит `{ signal }` (AbortSignal): при следующей смене значения
+предыдущий `signal` аннулируется. Передавай его в `fetch` (сетевая отмена) или проверяй
+`signal.aborted` перед применением результата — это убирает гонки устаревших ответов (F2).
+
+**Signature:**
+```typescript
+export function onChange<T>(
+  source: ReadonlySignal<T>,
+  cb: (value: T, ctx: ChangeContext) => void,
+  options?: { immediate?: boolean; debounce?: number }
+): void
+```
+
+_Source: src/form/behaviors/operators.ts_
+
+### onDispose
+
+**Kind:** `function`
+
+Зарегистрировать произвольную отписку в активной схеме.
+
+**Signature:**
+```typescript
+export function onDispose(cleanup: BehaviorCleanup): void
+```
+
+_Source: src/form/behaviors/context.ts_
+
+### pastDate
+
+**Kind:** `function`
+
+Фабрика валидатора, проверяющего что дата не в будущем.
+
+Дата не должна быть позже сегодняшнего дня (сравнение по нормализованным датам).
+Пустые и невалидные даты пропускаются (используйте {@link required} и {@link isDate}).
+
+**Signature:**
+```typescript
+export function pastDate<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(options?: ValidateOptions): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+
+**Returns:** Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+
+**Examples:**
+
+Дата не в будущем
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, pastDate } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.birthDate, [required(), pastDate({ message: 'Дата рождения не может быть в будущем' })]);
+});
+```
+
+_Source: src/form/validators/past-date.ts_
+
 ### PathAwareSignal
 
 **Kind:** `type`
@@ -6764,6 +8110,118 @@ export type PathAwareSignal<T> = Signal<T> & {
 ```
 
 _Source: src/model/types.ts_
+
+### pattern
+
+**Kind:** `function`
+
+Фабрика валидатора регулярного выражения.
+
+Пустые значения (`''`/`null`/`undefined`) пропускаются (используйте {@link required}
+для обязательности).
+
+**Signature:**
+```typescript
+export function pattern<TForm = unknown, TField extends string | null | undefined = string>(
+  regex: RegExp,
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `regex` — - Регулярное выражение для проверки значения
+- `options` — - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+попадает `pattern` (строка-источник regex).
+
+**Returns:** Чистый валидатор {@link Validator} для строкового поля
+
+**Examples:**
+
+Проверка по регулярному выражению
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, pattern } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.name, [pattern(/^[a-zA-Zа-яА-Я]+$/, { message: 'Только буквы' })]);
+validate(model.$.phone, [required(), pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 123-45-67' })]);
+});
+```
+
+_Source: src/form/validators/pattern.ts_
+
+### phone
+
+**Kind:** `function`
+
+Фабрика валидатора номера телефона.
+
+Проверяет значение по regex выбранного {@link PhoneFormat}. Пустые значения
+(`''`/`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
+
+**Signature:**
+```typescript
+export function phone<TForm = unknown, TField extends string | null | undefined = string>(
+  options?: PhoneValidatorOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора {@link PhoneValidatorOptions}. В `params` ошибки
+автоматически попадает выбранный `format`.
+
+**Returns:** Чистый валидатор {@link Validator} для строкового поля
+
+**Examples:**
+
+Проверка номера телефона
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, phone } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.phone, [required(), phone({ format: 'ru' })]);
+});
+```
+
+_Source: src/form/validators/phone.ts_
+
+### PhoneFormat
+
+**Kind:** `type`
+
+Формат проверки номера телефона для валидатора {@link phone}.
+
+- `international` — международный формат E.164 (`+?[1-9]\d{1,14}`);
+- `ru` — российские номера (`+7`/`7`/`8`, коды `4`/`8`/`9`, с разделителями);
+- `us` — североамериканские номера (NANP);
+- `any` — свободный формат: цифры, скобки и разделители (по умолчанию).
+
+**Signature:**
+```typescript
+export type PhoneFormat = 'international' | 'ru' | 'us' | 'any';
+```
+
+_Source: src/form/validators/phone.ts_
+
+### PhoneValidatorOptions
+
+**Kind:** `interface`
+
+Опции валидатора {@link phone}. Расширяют {@link ValidateOptions} (`message`, `params`)
+выбором формата номера.
+
+**Signature:**
+```typescript
+export interface PhoneValidatorOptions extends ValidateOptions {
+  /** Формат проверки {@link PhoneFormat}. По умолчанию `'any'`. */
+  format?: PhoneFormat;
+}
+```
+
+_Source: src/form/validators/phone.ts_
 
 ### registerSignalNode
 
@@ -6798,6 +8256,47 @@ if (sig && node) registerSignalNode(sig, node);
 - {@link getNodeForSignal} - обратный поиск ноды по сигналу
 
 _Source: src/form/signal-node-registry.ts_
+
+### required
+
+**Kind:** `function`
+
+Фабрика валидатора обязательного поля.
+
+Возвращает чистую функцию-валидатор `(value, control, root)`. Передаётся в `validate()`.
+
+Пустыми считаются: `null`, `undefined`, `''` (пустая строка), `[]` (пустой массив —
+обязательный multi-select / FormArray без выбранных элементов).
+Для boolean полей требуется значение `true`.
+
+**Signature:**
+```typescript
+export function required<TForm = unknown, TField = unknown>(
+  options?: ValidateOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+
+**Returns:** Чистый валидатор {@link Validator} для поля схемы
+
+**Examples:**
+
+Обязательные поля в схеме формы
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.email, [required()]);
+validate(model.$.phone, [required({ message: 'Укажите номер телефона' })]);
+validate(model.$.agreeToTerms, [required({ message: 'Необходимо принять условия' })]);
+});
+```
+
+_Source: src/form/validators/required.ts_
 
 ### resetWhen
 
@@ -6844,6 +8343,25 @@ revalidateWhen([model.$.maxAmount], () => void validateModel(model, schema));
 ```
 
 _Source: src/model/behaviors-value.ts_
+
+### Rule
+
+**Kind:** `type`
+
+Синхронное правило поля типа `TField`. Проверяется ТОЛЬКО значение (`value`).
+
+Позиционные `scope`/`root` помечены `never` намеренно: так встроенные value-only фабрики
+(`required()`/`min()`/… — они `(value, model, root) => …`) и inline-правила `(value) => …`
+ОБА присваиваются в `Rule<TField>[]` без `any`, при этом сохраняется проверка типа поля
+(`validate(model.$.age, [email()])` подсветится — `email` ждёт `string`, поле `number`).
+На вызове раннер приводит правило к callable и передаёт `(value, model, model)`.
+
+**Signature:**
+```typescript
+export type Rule<TField> = (value: TField, scope: never, root: never) => ValidationError | null;
+```
+
+_Source: src/form/validation/types.ts_
 
 ### runOutsideEffect
 
@@ -7123,6 +8641,27 @@ syncFields(model.$.field1, model.$.field2);
 
 _Source: src/model/behaviors-value.ts_
 
+### toFileArray
+
+**Kind:** `function`
+
+Нормализует значение file-поля в массив файлоподобных элементов.
+
+Одиночный {@link FileLike} оборачивается в массив; из массива отбираются только
+файлоподобные элементы. Для прочих значений — `null` (валидатор пропускает).
+
+**Signature:**
+```typescript
+export function toFileArray(value: unknown): FileLike[] | null
+```
+
+**Parameters:**
+- `value` — - Значение поля (`FileLike`, `FileLike[]` или что-то ещё)
+
+**Returns:** Массив файлоподобных элементов или `null`
+
+_Source: src/form/validators/file-utils.ts_
+
 ### transformValue
 
 **Kind:** `function`
@@ -7195,6 +8734,67 @@ onDispose(() => unmarkDerived(model.$.total)); // при снятии compute с
 - {@link markDerived} - пометить сигнал производным
 
 _Source: src/model/derived-registry.ts_
+
+### url
+
+**Kind:** `function`
+
+Фабрика валидатора URL.
+
+Пустые значения (`''`/`null`/`undefined`) пропускаются (используйте {@link required}
+для обязательности). При `requireProtocol` протокол обязателен; `allowedProtocols`
+дополнительно ограничивает набор допустимых протоколов.
+
+**Signature:**
+```typescript
+export function url<TForm = unknown, TField extends string | null | undefined = string>(
+  options?: UrlValidatorOptions
+): Validator<TForm, TField>
+```
+
+**Parameters:**
+- `options` — - Опции валидатора {@link UrlValidatorOptions}
+
+**Returns:** Чистый валидатор {@link Validator} для строкового поля
+
+**Examples:**
+
+Проверка URL
+```typescript
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, url } from '@reformer/core/validators';
+
+// Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+const validation = defineValidationSchema<MyForm>(({ model }) => {
+validate(model.$.website, [required(), url({ message: 'Введите корректный URL' })]);
+// Требовать протокол и ограничить схему только https:
+validate(model.$.homepage, [url({ requireProtocol: true, allowedProtocols: ['https'] })]);
+});
+```
+
+_Source: src/form/validators/url.ts_
+
+### UrlValidatorOptions
+
+**Kind:** `interface`
+
+Опции валидатора {@link url}. Расширяют {@link ValidateOptions} (`message`, `params`)
+настройками проверки протокола.
+
+**Signature:**
+```typescript
+export interface UrlValidatorOptions extends ValidateOptions {
+  /** Требовать наличие протокола (`http://` или `https://`). По умолчанию `false`. */
+  requireProtocol?: boolean;
+  /**
+   * Список разрешённых протоколов (без `://`), например `['https']`. Если задан,
+   * значение с иным протоколом даёт ошибку с кодом `url_protocol`.
+   */
+  allowedProtocols?: string[];
+}
+```
+
+_Source: src/form/validators/url.ts_
 
 ### useArrayLength
 
@@ -7749,6 +9349,96 @@ export interface UseFormValidationResult {
 
 _Source: src/platforms/react/hooks/use-form-validation.ts_
 
+### validate
+
+**Kind:** `function`
+
+Синхронные правила поля.
+
+**Signature:**
+```typescript
+export function validate<TField>(sig: PathAwareSignal<TField>, rules: Rule<TField>[]): void
+```
+
+**Examples:**
+
+```ts
+validate(model.$.loanAmount, [required({ message: 'Сумма' }), min(50000)]);
+```
+
+_Source: src/form/validation/operators.ts_
+
+### validateAsync
+
+**Kind:** `function`
+
+Асинхронные правила поля (зеркалит движковое разделение `validators` / `asyncValidators`).
+Раннер дожидается их и прокидывает `AbortSignal` для отмены устаревших ответов.
+
+**Signature:**
+```typescript
+export function validateAsync<TField>(
+  sig: PathAwareSignal<TField>,
+  rules: AsyncRule<TField>[]
+): void
+```
+
+**Examples:**
+
+```ts
+validateAsync(model.$.username, [async (v, { signal }) => {
+  const r = await fetch(`/api/free?u=${v}`, { signal });
+  return (await r.json()).free ? null : { code: 'taken', message: 'Занято' };
+}]);
+```
+
+_Source: src/form/validation/operators.ts_
+
+### validateModel
+
+**Kind:** `function`
+
+Провалидировать модель ЛЮБОЙ схемой (шаг или вся форма). Открывает ambient-окно на время
+синхронного прогона `schema`, дожидается async-правил, разносит ошибки по нодам формы и гасит
+поля, ставшие валидными. Возвращает `true`, если нет блокирующих ошибок (`severity:'warning'` не блокирует).
+
+Гашение — на пару (model, schema): `validateModel(model, step2)` и `validateModel(model, form)` не мешают
+друг другу. Устаревший прогон (быстрый повторный вызов той же (model, schema)) отменяется через `AbortSignal`
+и возвращает `false` (**fail-closed** — отменённому результату нельзя доверять для submit).
+
+⚠️ `schema` должна быть СТАБИЛЬНОЙ ссылкой: отмена устаревших прогонов ключится по идентичности `schema`.
+Инлайн-стрелка (`validateModel(model, ({ model }) => …)`) каждый раз создаёт НОВЫЙ прогон без дедупликации —
+держите схемы в `const` / `defineValidationSchema`.
+
+`options.touch` (§6): по завершении помечает `touched` ИМЕННО поля, которые схема проверяла
+(не всё поддерево). Ошибки становятся видимыми (`shouldShowError = invalid && (touched||dirty)`)
+без ручного `form.markAsTouched()`; при пошаговой валидации следующий шаг не показывается
+«тронутым» до ввода. Валидные проверенные поля тоже метятся — это безвредно (ошибка не покажется).
+
+**Signature:**
+```typescript
+export async function validateModel<T>(
+  model: FormModel<T>,
+  schema: ValidationSchema<T>,
+  options?: { touch?: boolean }
+): Promise<boolean>
+```
+
+**Parameters:**
+- `model` — - Модель данных формы.
+- `schema` — - Схема валидации (стабильная ссылка).
+- `options` — - `{ touch }` — пометить провалидированные поля `touched` для показа ошибок.
+
+**Examples:**
+
+```ts
+const ok = await validateModel(model, step2Validation);              // один шаг
+const all = await validateModel(model, formValidation);              // вся форма
+const stepOk = await validateModel(model, step2Validation, { touch: true }); // + показать ошибки шага
+```
+
+_Source: src/form/validation/run.ts_
+
 ### ValidateOptions
 
 **Kind:** `interface`
@@ -7769,6 +9459,20 @@ export interface ValidateOptions {
 
 _Source: src/form/types/validation-schema.ts_
 
+### validateWhen
+
+**Kind:** `function`
+
+Условная валидация: правила внутри `cb` активны, только пока `cond()` истинно; иначе их поля
+ГАСЯТСЯ (пустой bucket → `setErrors([])`). Не трогает включение/сброс поля — это дело поведения (`enableWhen`).
+
+**Signature:**
+```typescript
+export function validateWhen(cond: () => boolean, cb: () => void): void
+```
+
+_Source: src/form/validation/operators.ts_
+
 ### ValidationError
 
 **Kind:** `interface`
@@ -7787,6 +9491,54 @@ export interface ValidationError {
 ```
 
 _Source: src/form/types/contracts.ts_
+
+### ValidationSchema
+
+**Kind:** `type`
+
+Схема валидации — обычная функция над (под)моделью. First-class значение (можно `apply`/тестировать/переиспользовать).
+
+**Signature:**
+```typescript
+export type ValidationSchema<T> = (ctx: { model: FormModel<T> }) => void;
+```
+
+_Source: src/form/validation/types.ts_
+
+### ValidationStrategyKind
+
+**Kind:** `type`
+
+Когда запускается schema-валидация:
+- `submit` (по умолчанию) — только явным вызовом `validate()` (на отправке);
+- `blur` — при потере фокуса поля (смена `touched` любого листа);
+- `change` — на каждый ввод (с опц. `debounce`);
+- `afterFirstSubmit` — тихо до первого `validate()`, затем live (см. `liveAfterSubmit`).
+
+**Signature:**
+```typescript
+export type ValidationStrategyKind = 'submit' | 'blur' | 'change' | 'afterFirstSubmit';
+```
+
+_Source: src/form/validation/strategy.ts_
+
+### ValidationStrategyOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface ValidationStrategyOptions {
+  /** Стратегия запуска. Default `'submit'`. */
+  strategy?: ValidationStrategyKind;
+  /** Debounce (мс) для live-фаз (`change` и live-часть `afterFirstSubmit`). Default `0`. */
+  debounce?: number;
+  /** Режим live-фазы для `afterFirstSubmit`. Default `'change'`. */
+  liveAfterSubmit?: 'change' | 'blur';
+}
+```
+
+_Source: src/form/validation/strategy.ts_
 
 ### Validator
 

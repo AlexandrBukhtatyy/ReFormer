@@ -406,6 +406,7 @@ const model = createModel({ tags: [] });
 
 ```typescript
 import { ToggleGroupMultiField, ComboboxMultiField } from '@reformer/ui-kit';
+import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
 const schema = {
@@ -421,9 +422,13 @@ const schema = {
       ],
       maxItems: 3,
     },
-    validators: [required(), maxLength(3)],
   },
 };
+
+// Правила — отдельной схемой над моделью: у layout-узла поля `validators` нет.
+const validation = defineValidationSchema<Form>(({ model }) => {
+  validate(model.signalAt('tags')!, [required(), maxLength(3)]);
+});
 ```
 
 ### Common Patterns

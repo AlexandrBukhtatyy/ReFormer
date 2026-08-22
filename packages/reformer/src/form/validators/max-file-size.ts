@@ -25,14 +25,13 @@ import { toFileArray } from './file-utils';
  *
  * @example Ограничение размера вложений
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { maxFileSize } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * documents: {
- *   value: model.$.documents,
- *   component: FileUploadField,
- *   validators: [maxFileSize(5 * 1024 * 1024, { message: 'Файл больше 5 МБ' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [maxFileSize(5 * 1024 * 1024, { message: 'Файл больше 5 МБ' })]);
+ * });
  * ```
  */
 export function maxFileSize<TForm = unknown, TField = unknown>(

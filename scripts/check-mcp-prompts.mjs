@@ -106,6 +106,24 @@ const NEGATIVE_MARKERS = [
   'no validators',
   'carries no',
   'has no',
+  // Явный скоуп: пример показывает УЗЛОВОЙ конфиг (`new FieldNode({...})`), а не layout-схему M1,
+  // где `validators` уже нет. Маркер дописан осознанно — так эти примеры остаются легальными.
+  'node-level',
+  // Русскоязычные отрицания. Понадобились, когда корпус расширился с англоязычных промптов на
+  // docs/llms и JSDoc: там «так больше нельзя» пишут по-русски, и без этих маркеров гейт валил
+  // ровно те файлы, которые и объясняют, что API снято (17-nonexistent-api, 14-extended-mistakes).
+  'удал', // удалён / удалено / удалены / удалённого
+  'снят', // снятый / снято / снята
+  'больше нельзя',
+  'не существует',
+  'устарел',
+  'wrong',
+  'а не `modelvalidator',
+  'ts2353', // ошибка компиляции — контекст заведомо отрицательный
+  'нет поля',
+  'поля `validators` нет',
+  'старая схема',
+  'ловушк',
 ];
 
 /** Разбить текст на блоки (абзац/код-фенс) с номером стартовой строки. */
@@ -181,8 +199,73 @@ for (const file of files) {
   }
 }
 
+// --- Второй корпус: то, что сервер отдаёт помимо промптов --------------------------------
+//
+// Зачем. Гейт годами смотрел только в шаблоны промптов, а `get_symbol_docs` отдаёт JSDoc из
+// пакетов, `find_recipe` — файлы docs/llms. Замерено прогоном формы через MCP-only: 28 из 30
+// фабрик валидаторов учили снятому `validators: [...]` внутри FieldConfig — ровно тому, что
+// `05-common-mistakes.md` называет удалённым. Описание символа и его же пример противоречили
+// друг другу, и агент верил примеру.
+//
+// Проверяем ТОЛЬКО снятое API (REMOVED_API): LEGACY_ASSEMBLY и «обязан назвать фабрику» —
+// требования к промптам, для библиотечного кода они бессмысленны. В .ts смотрим ИСКЛЮЧИТЕЛЬНО
+// JSDoc-блоки: реализация вправе читать `config.validators`, это живое node-level поле.
+const DOC_CORPUS_ROOTS = ['packages'];
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'coverage', '.turbo']);
+
+function walk(dir, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name)) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(full, out);
+    else if (/\.(ts|tsx)$/.test(entry.name) || /docs[/\\]llms[/\\].+\.md$/.test(full))
+      out.push(full);
+  }
+  return out;
+}
+
+/** JSDoc-блоки файла как текст — только они попадают агенту через get_symbol_docs. */
+function jsdocBlocks(content) {
+  const out = [];
+  const re = /\/\*\*[\s\S]*?\*\//g;
+  let m;
+  while ((m = re.exec(content)) !== null) {
+    out.push({ startLine: content.slice(0, m.index).split('\n').length, text: m[0] });
+  }
+  return out;
+}
+
+let corpusFiles = 0;
+for (const root of DOC_CORPUS_ROOTS) {
+  const abs = path.join(repoRoot, root);
+  if (!existsSync(abs)) continue;
+  for (const full of walk(abs)) {
+    const rel = path.relative(repoRoot, full).replace(/\\/g, '/');
+    // Шаблоны промптов уже проверены выше — своим, более строгим набором правил.
+    if (rel.includes('reformer-mcp/src/prompts/templates/')) continue;
+    if (/\.(test|spec)\.tsx?$/.test(rel)) continue;
+
+    const content = readFileSync(full, 'utf8');
+    const blocks = rel.endsWith('.md') ? toBlocks(content) : jsdocBlocks(content);
+
+    for (const block of blocks) {
+      const hits = REMOVED_API.filter((api) => api.re.test(block.text));
+      if (hits.length === 0) continue;
+      checkedBlocks += 1;
+      if (hasNegativeMarker(block.text)) continue;
+      violations.push({
+        file: rel,
+        line: block.startLine,
+        api: hits.map((h) => h.name).join(', '),
+        excerpt: block.text.split('\n').slice(0, 3).join('\n'),
+      });
+    }
+    corpusFiles += 1;
+  }
+}
+
 if (violations.length > 0) {
-  console.error(`✗ Промпты учат снятому API (${violations.length}):\n`);
+  console.error(`✗ Материал MCP учит снятому API (${violations.length}):\n`);
   for (const v of violations) {
     console.error(`  ${v.file}:${v.line} — ${v.api}`);
     console.error(
@@ -203,6 +286,6 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `✓ @reformer/mcp промпты: ${files.length} шаблон(ов), ` +
+  `✓ материал MCP: ${files.length} шаблон(ов) промптов + ${corpusFiles} файл(ов) JSDoc/docs-llms, ` +
     `${checkedBlocks} блок(ов) со снятым API — все в отрицательном контексте`
 );

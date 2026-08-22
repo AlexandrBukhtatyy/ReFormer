@@ -29,6 +29,7 @@ import { FormStatusMachine } from '../status-machine';
  * @group Nodes
  *
  * @example
+ * Пример node-level: конфиг УЗЛА, а не layout-схема M1 (в ней поля `validators` нет).
  * ```typescript
  * const field = new FieldNode({
  *   value: '',
@@ -562,6 +563,8 @@ export class FieldNode<T> extends FormNode<T> {
    * @param updateOn - новый триггер валидации: 'change' | 'blur' | 'submit'
    *
    * @example
+   * Пример node-level: плоская схема с инлайн-значениями (back-compat путь до M1). В layout-схеме
+   * `createForm({ model, schema })` поля `validators` нет — правила живут в `defineValidationSchema`.
    * ```typescript
    * // Сценарий 1: Instant feedback после submit
    * const form = createForm({

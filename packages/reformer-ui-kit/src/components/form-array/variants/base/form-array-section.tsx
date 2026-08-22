@@ -113,9 +113,25 @@ export interface FormArraySectionProps<T extends object> {
 }
 
 function resolveArrayNode<T extends object>(
-  control: FormArraySectionProps<T>['control']
+  control: FormArraySectionProps<T>['control'],
+  hasRendererSeam = false
 ): ArrayNode<T> | null {
-  if (!control) return null;
+  if (!control) {
+    // Молчать здесь дорого: без `control` секция возвращает null, и в JSON-схеме это выглядит
+    // как «массив просто не отрисовался» — ни ошибки, ни предупреждения. Самая частая причина
+    // ровно одна: под `$component(FormArray)` зарегистрировали ЭТОТ компонент вместо `FormArray`.
+    // Признак — рендерер прислал свой seam (items/onAdd), а `control` не пришёл вовсе.
+    if (typeof console !== 'undefined') {
+      console.warn(
+        hasRendererSeam
+          ? '[FormArraySection] control не передан, зато пришли items/onAdd — похоже, компонент ' +
+              'зарегистрирован в JSON-реестре. Для renderer-json нужен FormArray: ' +
+              "reg.component('FormArray', FormArray) из @reformer/ui-kit/form-array."
+          : '[FormArraySection] control не передан — секция не отрисована.'
+      );
+    }
+    return null;
+  }
   // ArrayNode / ModelArrayNode / FormArrayProxy — распознаём по array-методам.
   if (
     typeof control === 'object' &&
@@ -144,6 +160,11 @@ function resolveArrayNode<T extends object>(
  *
  * Проп `hasItems` удобен для toggle-чекбоксов («У меня есть имущество»): при
  * `false` секция скрывается целиком.
+ *
+ * **Не для renderer-json.** Там массив описывается array-нодой, а компонент получает от
+ * рендерера seam `items`/`onAdd`/`onRemove`/`onMove` — под `$component(FormArray)` нужен
+ * {@link FormArray}. Если зарегистрировать сюда `FormArraySection`, `control` не придёт
+ * и секция вернёт `null` (в dev это теперь сопровождается предупреждением в консоли).
  *
  * @typeParam T - Тип одного элемента массива (object).
  *
@@ -185,8 +206,12 @@ export function FormArraySection<T extends object>({
   maxItems,
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
+  ...rest
 }: FormArraySectionProps<T>): ReactNode {
-  const arrayNode = resolveArrayNode<T>(control);
+  // Seam рендерера (`items`/`onAdd`) в пропах этого компонента не объявлен: его получает
+  // `FormArray`. Пришёл — значит компонент подставлен вместо `FormArray` в JSON-реестре.
+  const hasRendererSeam = 'items' in rest || 'onAdd' in rest;
+  const arrayNode = resolveArrayNode<T>(control, hasRendererSeam);
 
   // Subscribe to length so add/remove triggers re-render of empty/full state.
   // Hook is called unconditionally; for missing arrayNode we pass a no-op

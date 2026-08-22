@@ -69,6 +69,7 @@ export class NodeFactory {
    * ```typescript
    * const factory = new NodeFactory();
    *
+   * Конфиг node-level (не layout-схема M1, где `validators` уже нет).
    * // FieldNode
    * const field = factory.createNode({
    *   value: 'test@mail.com',

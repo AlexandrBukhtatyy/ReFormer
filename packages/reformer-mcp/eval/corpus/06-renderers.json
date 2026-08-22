@@ -62,6 +62,31 @@
       "target": "renderer-json",
       "queries": ["render form from json schema", "JsonFormRenderer", "mount json form"],
       "expectAny": ["JsonFormRenderer", "JsonRendererProvider"]
+    },
+    {
+      "id": "renderer-json/array-component",
+      "task": "какой компонент зарегистрировать под редактируемый массив в JSON-схеме",
+      "target": "renderer-json",
+      "queries": [
+        "form array component renderer-json",
+        "editable array section registry",
+        "form-array"
+      ],
+      "expectAny": ["reg.component('FormArray'", "$component(FormArray)"]
+    },
+    {
+      "id": "renderer-json/wizard-submit",
+      "task": "получить значения формы в обработчике submit визарда",
+      "target": "renderer-json",
+      "queries": ["wizard onSubmit values", "form wizard submit json", "form-wizard"],
+      "expectAny": ["model.get()"]
+    },
+    {
+      "id": "renderer-json/readonly-field",
+      "task": "сделать одно вычисляемое поле недоступным для ввода",
+      "target": "renderer-json",
+      "queries": ["readonly field renderer-json", "view mode read only", "cookbook"],
+      "expectAny": [".disable()"]
     }
   ]
 }

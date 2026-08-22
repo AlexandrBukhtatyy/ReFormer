@@ -20,15 +20,14 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Минимальное значение числового поля
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, min } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * age: { value: model.$.age, component: Input, validators: [min(18)] },
- * quantity: {
- *   value: model.$.quantity,
- *   component: Input,
- *   validators: [required(), min(1, { message: 'Минимум 1' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.age, [min(18)]);
+ *   validate(model.$.quantity, [required(), min(1, { message: 'Минимум 1' })]);
+ * });
  * ```
  */
 export function min<TForm = unknown, TField extends number | null | undefined = number>(

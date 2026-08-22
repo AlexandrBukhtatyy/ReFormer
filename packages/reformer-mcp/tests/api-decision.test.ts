@@ -35,7 +35,15 @@ const CASES: Array<[string, string]> = [
   ['field B should be disabled when field A is empty', 'enableWhen'],
   ['скрыть узел разметки по условию', 'hideWhen'],
   ['показывать шаг только при выполнении условия', 'hideWhen'],
-  ['очистить зависимое поле, когда изменился родительский выбор', 'resetWhen'],
+  // Сброс: предикат против факта изменения. Раньше таблица фиксировала здесь resetWhen —
+  // это и был дефект: для «когда изменился» resetWhen не срабатывает, он смотрит на условие.
+  ['очистить поле номера карты, когда способ оплаты не карта', 'resetWhen'],
+  ['очистить зависимое поле, когда изменился родительский выбор', 'onChange'],
+  ['поле carModel очищается при изменении поля carBrand', 'onChange'],
+  ['clear the dependent field when the parent select changes', 'onChange'],
+  // Массив очищается своим .clear() из onChange, а не resetValue.
+  ['очистить массив properties, когда чекбокс снят', 'onChange'],
+  ['clear the array of items when the checkbox is unchecked', 'onChange'],
   // реакции
   ['выполнить побочный эффект при изменении поля', 'onChange'],
   ['перепроверить поле, когда изменилось другое', 'revalidateWhen'],
@@ -122,7 +130,7 @@ describe('tool choose_api', () => {
 
   it.runIf(hasSymbols)('ответ несёт сигнатуру, пример и анти-паттерн', async () => {
     const { content } = await chooseApiTool({
-      requirement: 'очистить зависимое поле, когда изменился родительский выбор',
+      requirement: 'очистить поле номера карты, когда способ оплаты не карта',
     });
     const text = content[0].text;
     expect(text).toContain('resetWhen');

@@ -20,14 +20,13 @@ import { parseDate, getToday, normalizeDate } from './date-utils';
  *
  * @example Дата не в будущем
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, pastDate } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * birthDate: {
- *   value: model.$.birthDate,
- *   component: DatePicker,
- *   validators: [required(), pastDate({ message: 'Дата рождения не может быть в будущем' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.birthDate, [required(), pastDate({ message: 'Дата рождения не может быть в будущем' })]);
+ * });
  * ```
  */
 export function pastDate<

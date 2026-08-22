@@ -20,14 +20,13 @@ import { parseDate, getToday, normalizeDate } from './date-utils';
  *
  * @example Дата не в прошлом
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, futureDate } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * appointmentDate: {
- *   value: model.$.appointmentDate,
- *   component: DatePicker,
- *   validators: [required(), futureDate({ message: 'Дата записи должна быть в будущем' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.appointmentDate, [required(), futureDate({ message: 'Дата записи должна быть в будущем' })]);
+ * });
  * ```
  */
 export function futureDate<

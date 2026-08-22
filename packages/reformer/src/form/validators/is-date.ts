@@ -20,14 +20,13 @@ import { parseDate } from './date-utils';
  *
  * @example Проверка валидности даты
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, isDate } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * eventDate: {
- *   value: model.$.eventDate,
- *   component: DatePicker,
- *   validators: [required(), isDate({ message: 'Введите корректную дату' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.eventDate, [required(), isDate({ message: 'Введите корректную дату' })]);
+ * });
  * ```
  */
 export function isDate<

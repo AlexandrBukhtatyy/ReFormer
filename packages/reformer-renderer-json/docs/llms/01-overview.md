@@ -37,7 +37,7 @@ import {
 Минимальный рабочий монтаж:
 
 ```tsx
-import { Input, Box, FormField } from '@reformer/ui-kit';
+import { InputField, Box, FormField } from '@reformer/ui-kit';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -65,7 +65,7 @@ const jsonSchema = defineJsonSchema<MyForm>({
 
 // 2. Реестр: имена из JSON → React-компоненты (глобальная настройка).
 const registry = defineRegistry((reg) => {
-  reg.component('Input', Input);
+  reg.component('Input', InputField); // *Field-версии уже value-based — адаптер не нужен
   reg.component('Box', Box);
   reg.component(FIELD_WRAPPER, FormField);
 });

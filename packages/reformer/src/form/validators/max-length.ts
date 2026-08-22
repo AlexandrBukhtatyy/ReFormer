@@ -22,15 +22,14 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Максимальная длина строки
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { maxLength } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * name: { value: model.$.name, component: Input, validators: [maxLength(50)] },
- * bio: {
- *   value: model.$.bio,
- *   component: Textarea,
- *   validators: [maxLength(500, { message: 'Максимум 500 символов' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.name, [maxLength(50)]);
+ *   validate(model.$.bio, [maxLength(500, { message: 'Максимум 500 символов' })]);
+ * });
  * ```
  */
 export function maxLength<TForm = unknown, TField = unknown>(

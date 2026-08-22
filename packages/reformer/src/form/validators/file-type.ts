@@ -28,14 +28,13 @@ import { matchesFileAccept, toFileArray } from './file-utils';
  *
  * @example Только изображения и PDF
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { fileType } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * documents: {
- *   value: model.$.documents,
- *   component: FileUploadField,
- *   validators: [fileType('image/*,.pdf', { message: 'Только изображения или PDF' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [fileType('image/*,.pdf', { message: 'Только изображения или PDF' })]);
+ * });
  * ```
  */
 export function fileType<TForm = unknown, TField = unknown>(

@@ -23,14 +23,13 @@ import { toFileArray } from './file-utils';
  *
  * @example Суммарно не более 20 МБ
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { maxTotalFileSize } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * documents: {
- *   value: model.$.documents,
- *   component: FileUploadField,
- *   validators: [maxTotalFileSize(20 * 1024 * 1024, { message: 'Суммарно не более 20 МБ' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [maxTotalFileSize(20 * 1024 * 1024, { message: 'Суммарно не более 20 МБ' })]);
+ * });
  * ```
  */
 export function maxTotalFileSize<TForm = unknown, TField = unknown>(

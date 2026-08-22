@@ -20,14 +20,13 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Проверка кратности
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { multipleOf } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * rating: {
- *   value: model.$.rating,
- *   component: Input,
- *   validators: [multipleOf(0.5, { message: 'Только шаг 0.5' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.rating, [multipleOf(0.5, { message: 'Только шаг 0.5' })]);
+ * });
  * ```
  */
 export function multipleOf<TForm = unknown, TField extends number | null | undefined = number>(

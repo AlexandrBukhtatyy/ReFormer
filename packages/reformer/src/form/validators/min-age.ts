@@ -22,14 +22,13 @@ import { parseDate, calculateAge } from './date-utils';
  *
  * @example Минимальный возраст
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, minAge } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * birthDate: {
- *   value: model.$.birthDate,
- *   component: DatePicker,
- *   validators: [required(), minAge(18, { message: 'Вам должно быть не менее 18 лет' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.birthDate, [required(), minAge(18, { message: 'Вам должно быть не менее 18 лет' })]);
+ * });
  * ```
  */
 export function minAge<

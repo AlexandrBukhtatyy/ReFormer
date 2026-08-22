@@ -22,14 +22,13 @@ import { parseDate, normalizeDate } from './date-utils';
  *
  * @example Максимальная дата
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { maxDate } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * birthDate: {
- *   value: model.$.birthDate,
- *   component: DatePicker,
- *   validators: [maxDate(new Date(), { message: 'Дата не может быть в будущем' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.birthDate, [maxDate(new Date(), { message: 'Дата не может быть в будущем' })]);
+ * });
  * ```
  */
 export function maxDate<

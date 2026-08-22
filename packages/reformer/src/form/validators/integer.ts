@@ -18,14 +18,13 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Проверка целого числа
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, integer } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * count: {
- *   value: model.$.count,
- *   component: Input,
- *   validators: [required(), integer({ message: 'Должно быть целым числом' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.count, [required(), integer({ message: 'Должно быть целым числом' })]);
+ * });
  * ```
  */
 export function integer<TForm = unknown, TField extends number | null | undefined = number>(

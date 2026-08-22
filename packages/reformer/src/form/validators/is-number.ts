@@ -20,14 +20,13 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Проверка, что значение — число
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, isNumber } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * amount: {
- *   value: model.$.amount,
- *   component: Input,
- *   validators: [required(), isNumber({ message: 'Введите число' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.amount, [required(), isNumber({ message: 'Введите число' })]);
+ * });
  * ```
  */
 export function isNumber<TForm = unknown, TField extends number | null | undefined = number>(

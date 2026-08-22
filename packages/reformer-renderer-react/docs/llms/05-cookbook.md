@@ -211,7 +211,7 @@ form.disable();
 **Notes.**
 
 - `disable()`/`enable()` — на группе (корне и любой вложенной группе), каскад рекурсивный: дизейбл секции задизейблит только её поля.
-- **Caveat:** явный `componentProps.disabled` на конкретном поле перебивает каскад. Рендерер собирает пропсы как `{ disabled: state.disabled, ...componentProps }` — спред идёт последним, поэтому жёстко заданный в схеме `disabled: false` оставит поле активным даже после `form.disable()`. Не задавай `disabled` в `componentProps`, если хочешь управлять им через `form.disable()`.
+- **`componentProps.disabled` каскад НЕ перебивает — он вообще не работает.** `FormFieldControl` ставит `disabled={disabled}` из состояния узла ПОСЛЕ спреда `componentProps` ([FormFieldControl.tsx:104-115](../../../reformer-cdk/src/components/form-field/FormFieldControl.tsx)), поэтому значение из схемы затирается, а не побеждает. Props-схемы field-компонентов его и не объявляют (`disabled` — seam-проп, см. [seam.props.ts](../../../reformer-ui-kit/src/fields/seam.props.ts)). Единственный рычаг — состояние узла: `control.disable()` / `control.enable()`, в том числе точечно на одном поле из `onInit`.
 - Это ортогонально `hideWhen`: `disable()` оставляет поля видимыми, но неактивными; `hideWhen` убирает их из дерева.
 
 ## Презентационные блоки и живая сводка без своих компонентов

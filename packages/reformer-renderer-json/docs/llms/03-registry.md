@@ -26,11 +26,11 @@
 
 ```typescript
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import { Input, Select, Box, FormField } from '@reformer/ui-kit';
+import { InputField, SelectField, Box, FormField } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
-  reg.component('Input', Input);
-  reg.component('Select', Select);
+  reg.component('Input', InputField);
+  reg.component('Select', SelectField);
   reg.component('Box', Box);
   reg.component(FIELD_WRAPPER, FormField);
 });
@@ -40,7 +40,7 @@ dataSource values для `componentProps` (в схеме — ссылка `'$dat
 
 ```typescript
 const registry = defineRegistry((reg) => {
-  reg.component('Select', Select);
+  reg.component('Select', SelectField);
   reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
@@ -61,7 +61,7 @@ const registry = defineRegistry((reg) => {
 import { defineRegistry, createLocaleResolver } from '@reformer/renderer-json';
 
 const registry = defineRegistry((reg) => {
-  reg.component('Input', Input);
+  reg.component('Input', InputField);
   // функции — форматтеры, компараторы, itemLabel
   reg.fn('propertyItemLabel', (_control, index) => `Имущество #${index + 1}`);
   reg.fn('formatCurrency', (v: number) => `${v} ₽`);

@@ -21,14 +21,13 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  *
  * @example Проверка формата email
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, email } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * email: {
- *   value: model.$.email,
- *   component: Input,
- *   validators: [required(), email({ message: 'Введите корректный email' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.email, [required(), email({ message: 'Введите корректный email' })]);
+ * });
  * ```
  */
 export function email<TForm = unknown, TField extends string | null | undefined = string>(

@@ -79,7 +79,12 @@ Individual sections are addressable per-heading (slug from the H2 title); enumer
 Какой оператор ReFormer решает требование, сформулированное своими словами. Отвечает на
 вопрос, которого не закрывает поиск по документации: **какой из двух похожих** —
 `computeFrom` vs `copyFrom`, `copyFrom` vs `syncFields`, `enableWhen` vs `hideWhen`,
-`resetWhen` vs `enableWhen`, `validateWhen` vs `enableWhen`.
+`resetWhen` vs `enableWhen`, `validateWhen` vs `enableWhen`, `resetWhen` vs `onChange`.
+
+Последняя пара — про триггер, и её путают чаще всего. `resetWhen` держится **условием**
+(«пока способ оплаты не карта»), а «очистить поле, когда изменилось управляющее» — это
+**факт изменения**, то есть `onChange`. Очистка массива тоже `onChange`: у `ModelArray`
+есть собственный `.clear()`, а `resetValue` к нему неприменим.
 
 - `requirement` (string, required) — ОДНО требование, по-русски или по-английски. Например:
   «поле B доступно только когда A заполнено», «total = price \* quantity»,

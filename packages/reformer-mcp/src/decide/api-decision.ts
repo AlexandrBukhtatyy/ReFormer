@@ -151,9 +151,18 @@ export const DECISION_RULES: DecisionRule[] = [
   },
   {
     id: 'reset-value',
-    intent: 'значение поля очищается при изменении условия',
-    cues: [/сброс|очист|обнул|reset\b|clear\b|wipe/i],
-    unless: [/после отправки|after submit|всю форму|whole form|entire form/i],
+    intent: 'значение поля очищается, пока держится УСЛОВИЕ',
+    // `очи(ст|щ)` вместо `очист`: «поле очищается» — самая частая формулировка требования,
+    // и на ней правило раньше не срабатывало вовсе (уходило в фолбэк-поиск).
+    cues: [/сброс|очи(ст|щ)|обнул|reset\b|clear\b|wipe/i],
+    unless: [
+      /после отправки|after submit|всю форму|whole form|entire form/i,
+      // «сбросить ПРИ ИЗМЕНЕНИИ другого поля» — это факт изменения, а не предикат: resetWhen
+      // сработает на истинность условия и не заметит смену значения внутри него. См. reset-on-change.
+      /при\s+(изменени|смене)|при\s+кажд\w*\s+измен|когда\s+(пользователь\s+)?\w*\s*(мен|измен)|как только\s+\w*\s*(мен|измен)|on\s+change\s+of|when\s+\w+\s+changes|whenever\s+\w+\s+changes/i,
+      // Массив очищается методом `.clear()` из onChange — resetValue к ModelArray неприменим.
+      /масс?ив|array\b|список|list\b/i,
+    ],
     recommend: 'resetWhen',
     because:
       'сбрасывает значение к `resetValue` при истинном условии; для строкового поля resetValue задавать явно, иначе прилетит null',
@@ -162,6 +171,35 @@ export const DECISION_RULES: DecisionRule[] = [
         symbol: 'enableWhen',
         when: 'поле должно ещё и стать недоступным — тогда enableWhen с resetOnDisable',
       },
+      {
+        symbol: 'onChange',
+        when: 'сброс нужен на ФАКТ изменения управляющего поля, а не пока держится условие',
+      },
+    ],
+  },
+  {
+    id: 'reset-on-change',
+    intent: 'зависимое поле очищается при изменении управляющего',
+    cues: [
+      // Конъюнкция намеренно в одном регэкспе: по отдельности «очистить» — это resetWhen,
+      // а «при изменении» — side-effect. Решение даёт только их сочетание.
+      /(?=[\s\S]*(сброс|очи(ст|щ)|обнул|clear\b|reset\b))[\s\S]*(при\s+(изменени|смене)|при\s+кажд\w*\s+измен|когда\s+(пользователь\s+)?\w*\s*(мен|измен)|как только\s+\w*\s*(мен|измен)|on\s+change\s+of|when\s+\w+\s+changes|whenever\s+\w+\s+changes)/i,
+      /зависим\w*\s+пол|dependent field|дочерн\w*\s+пол|child field|управляющ|parent (field|choice|select)/i,
+    ],
+    unless: [
+      // Без слова про очистку это не наше решение: «при изменении X загрузить Y» — side-effect.
+      /^(?![\s\S]*(сброс|очи(ст|щ)|обнул|clear\b|reset\b))/i,
+      /побочн|side effect/i,
+    ],
+    recommend: 'onChange',
+    because:
+      'триггер здесь — ФАКТ изменения источника, а не предикат: колбэк onChange выполняется вне effect-контекста, поэтому в нём можно писать сигналы (`model.dependent = ""`)',
+    alternatives: [
+      {
+        symbol: 'resetWhen',
+        when: 'сброс держится УСЛОВИЕМ («пока способ оплаты не карта»), а не фактом изменения',
+      },
+      { symbol: 'watchField', when: 'нужен низкоуровневый примитив без debounce и AbortSignal' },
     ],
   },
 
@@ -197,6 +235,27 @@ export const DECISION_RULES: DecisionRule[] = [
     recommend: 'applyEach',
     because:
       'применяет под-схему поведения к каждому элементу динамического массива, включая добавленные позже',
+  },
+  {
+    id: 'array-clear-on-flag',
+    intent: 'массив очищается, когда сняли флаг, который его показывал',
+    cues: [
+      // Конъюнкция «очистить» + «массив»: по отдельности первое уводит в resetWhen,
+      // а resetValue к ModelArray неприменим — у массива есть собственный `.clear()`.
+      /(?=[\s\S]*(очи(ст|щ)|сброс|обнул|clear\b|empty\b|reset\b))[\s\S]*(масс?ив|array\b|список|list\b|строк[иу]|items?\b)/i,
+      /флаг|чекбокс|checkbox|галочк|toggle|сня(т|л)|unchecked|выключ|off\b/i,
+    ],
+    unless: [/^(?![\s\S]*(масс?ив|array\b|список|list\b|строк[иу]|items?\b))/i],
+    recommend: 'onChange',
+    because:
+      'документированный ARRAY CLEANUP PATTERN: `onChange(model.$.hasItems, (on) => { if (!on) model.items.clear(); })` — колбэк выполняется вне effect-контекста, поэтому мутировать массив безопасно',
+    alternatives: [
+      {
+        symbol: 'resetWhen',
+        when: 'очищается ОДНО поле, а не массив — там resetValue, а не .clear()',
+      },
+      { symbol: 'hideWhen', when: 'массив надо только спрятать в разметке, сохранив данные' },
+    ],
   },
   {
     id: 'exclusive-flag',

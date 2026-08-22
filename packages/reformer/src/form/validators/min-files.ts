@@ -23,14 +23,13 @@ import { toFileArray } from './file-utils';
  *
  * @example Не менее двух документов
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, minFiles } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * documents: {
- *   value: model.$.documents,
- *   component: FileUploadField,
- *   validators: [required(), minFiles(2, { message: 'Приложите минимум 2 документа' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [required(), minFiles(2, { message: 'Приложите минимум 2 документа' })]);
+ * });
  * ```
  */
 export function minFiles<TForm = unknown, TField = unknown>(

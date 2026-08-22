@@ -97,9 +97,11 @@ export function createWizardRenderBehavior(
       wizard.patchProps({ form, ...makeValidationConfig(model) });
     });
 
-    // (b) Submit: onComponentEvent получает те же аргументы, что и оригинальный проп onSubmit.
-    onComponentEvent(wizard, 'onSubmit', async (values: CreditForm) => {
-      await submitCreditApplication(values);
+    // (b) Submit: onComponentEvent получает те же аргументы, что и оригинальный проп onSubmit,
+    //     а ui-kit FormWizard вызывает onSubmit БЕЗ аргументов (`() => void | Promise<void>`).
+    //     Значения берём снимком из модели — фабрика render-behavior получает её вторым аргументом.
+    onComponentEvent(wizard, 'onSubmit', async () => {
+      await submitCreditApplication(model.get());
     });
 
     // (c) Навигация: реактивный эффект принимает СХЕМУ (не ноду); wizardRef доступен после mount.
@@ -178,6 +180,7 @@ Ground truth: `packages/reformer-cdk/src/components/form-wizard/define-steps.ts`
 - **Ждать шаг как `{ number, title, icon, body }` в JSON** — это форма renderer-react. В JSON шаг — container-нода `$component(Step)` + `componentProps.title/icon` + `children`.
 - **Считать `RendererFormWizard` библиотечным экспортом** — это app-shim эталона. Wizard-компонент подключается через реестр под любым именем; канон — ui-kit `FormWizard`.
 - **Забыть `createWizardRenderBehavior` (только `onInit` с валидацией)** — форма будет валидировать, но `onSubmit`/навигация не подключатся: submit-less форма. Submit и навигация приходят из этого же behavior.
+- **Ждать значения формы аргументом `onSubmit`** — `FormWizardProps.onSubmit` у ui-kit это `() => void | Promise<void>`, аргументов у него нет. Хендлер `onComponentEvent(wizard, 'onSubmit', …)` тоже вызывается пустым; снимок берётся из модели (`model.get()`). Типизировать его как `(values: CreditForm) => …` — ошибка компиляции TS2322.
 - **`renderEffect(node, ...)` вместо `renderEffect(schema, ...)`** — первый аргумент `renderEffect` это схема, а не узел (в отличие от `hideWhen`/`onComponentEvent`).
 - **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, инъекция/submit/навигация не навесятся.
 - **Адресовать правила шагов массивом `STEP_SCHEMAS[step - 1]`** — привязка к позиции: вставка/перестановка шага молча разъезжается с индексами, а «забытый» шаг становится валидным по умолчанию. Собирай `FormWizardConfig` через `defineSteps` (адресация по `selector`, шаг без правил — явный `null`, `{ touch: true }` уже внутри) — см. [#define-steps](#define-steps).

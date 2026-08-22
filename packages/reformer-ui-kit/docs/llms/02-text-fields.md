@@ -51,7 +51,13 @@ interface InputProps {
 | `onBlur`      | `() => void`                                | —               | Срабатывает при потере фокуса.                                             |
 | `type`        | union                                       | `'text'`        | HTML `type`. Для `'number'` включается числовой парсинг.                   |
 | `placeholder` | `string`                                    | —               | Подсказка.                                                                 |
-| `disabled`    | `boolean`                                   | `false`         | Блокирует ввод и редактирование.                                           |
+| `disabled`    | `boolean`                                   | `false`         | Блокирует ввод. **Seam-проп:** внутри формы приходит из состояния узла (`control.disable()`), а не из `componentProps` — см. ниже. |
+
+> **`disabled` внутри формы задаётся не пропом.** Перечисленные выше `value`/`onChange`/`onBlur`/`disabled` — это
+> контракт «сырого» компонента. Когда поле рендерится формой (`FormField`, renderer-react, renderer-json), их
+> подставляет seam: `FormFieldControl` ставит `disabled` из состояния узла ПОСЛЕ спреда `componentProps`, поэтому
+> `componentProps.disabled` затирается и не работает. Props-схемы field-компонентов его намеренно не объявляют —
+> в JSON-DSL он вернёт `has unknown property "disabled"`. Управляйте через `control.disable()` / `control.enable()`.
 
 ### Common Patterns
 

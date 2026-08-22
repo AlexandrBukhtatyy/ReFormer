@@ -23,14 +23,13 @@ import { toFileArray } from './file-utils';
  *
  * @example Не более трёх вложений
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { maxFiles } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * documents: {
- *   value: model.$.documents,
- *   component: FileUploadField,
- *   validators: [maxFiles(3, { message: 'Максимум 3 файла' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [maxFiles(3, { message: 'Максимум 3 файла' })]);
+ * });
  * ```
  */
 export function maxFiles<TForm = unknown, TField = unknown>(

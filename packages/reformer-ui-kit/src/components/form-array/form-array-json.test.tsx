@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FormRenderer } from '@reformer/renderer-react';
 import { FormArray } from './variants/base/form-array';
+import { FormArraySection } from './variants/base/form-array-section';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -91,5 +92,28 @@ describe('FormArray (ui-kit, renderer-json)', () => {
     expect(html).toContain('data-testid="array-item-0"');
     expect(html).toContain('array-item-1-move-down');
     expect(html).toContain('Первый');
+  });
+
+  // Регресс: под `$component(FormArray)` легко зарегистрировать соседний FormArraySection —
+  // имена похожи, а JSDoc называл его «готовой UI-секцией для массива». Контракты разные:
+  // рендерер шлёт items/onAdd, а Section ждёт control+itemComponent, поэтому секция уходила
+  // в `return null` — пустой экран без единого сигнала. Диагностика этого стоила ~40 минут.
+  it('FormArraySection вместо FormArray: пустой рендер сопровождается подсказкой в консоли', () => {
+    const warnings: string[] = [];
+    const original = console.warn;
+    console.warn = (...args: unknown[]) => void warnings.push(args.join(' '));
+    let html = '';
+    try {
+      // Реальный путь: тот же array-узел, что и выше, но под `component` — соседний компонент.
+      // Рендерер даёт ему seam массива (items/onAdd/...) и не даёт `control`.
+      html = render({
+        ...faNode([{ name: 'a' }], { title: 'Имущество' }),
+        component: FormArraySection,
+      });
+    } finally {
+      console.warn = original;
+    }
+    expect(html).not.toContain('Имущество');
+    expect(warnings.join('\n')).toMatch(/FormArray.*@reformer\/ui-kit\/form-array/s);
   });
 });

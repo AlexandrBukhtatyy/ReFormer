@@ -248,7 +248,13 @@ interface InputProps {
 | `onBlur`      | `() => void`                                | —               | Срабатывает при потере фокуса.                                             |
 | `type`        | union                                       | `'text'`        | HTML `type`. Для `'number'` включается числовой парсинг.                   |
 | `placeholder` | `string`                                    | —               | Подсказка.                                                                 |
-| `disabled`    | `boolean`                                   | `false`         | Блокирует ввод и редактирование.                                           |
+| `disabled`    | `boolean`                                   | `false`         | Блокирует ввод. **Seam-проп:** внутри формы приходит из состояния узла (`control.disable()`), а не из `componentProps` — см. ниже. |
+
+> **`disabled` внутри формы задаётся не пропом.** Перечисленные выше `value`/`onChange`/`onBlur`/`disabled` — это
+> контракт «сырого» компонента. Когда поле рендерится формой (`FormField`, renderer-react, renderer-json), их
+> подставляет seam: `FormFieldControl` ставит `disabled` из состояния узла ПОСЛЕ спреда `componentProps`, поэтому
+> `componentProps.disabled` затирается и не работает. Props-схемы field-компонентов его намеренно не объявляют —
+> в JSON-DSL он вернёт `has unknown property "disabled"`. Управляйте через `control.disable()` / `control.enable()`.
 
 ### Common Patterns
 
@@ -871,6 +877,7 @@ const model = createModel({ tags: [] });
 
 ```typescript
 import { ToggleGroupMultiField, ComboboxMultiField } from '@reformer/ui-kit';
+import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
 const schema = {
@@ -886,9 +893,13 @@ const schema = {
       ],
       maxItems: 3,
     },
-    validators: [required(), maxLength(3)],
   },
 };
+
+// Правила — отдельной схемой над моделью: у layout-узла поля `validators` нет.
+const validation = defineValidationSchema<Form>(({ model }) => {
+  validate(model.signalAt('tags')!, [required(), maxLength(3)]);
+});
 ```
 
 ### Common Patterns
@@ -2180,64 +2191,72 @@ ui-kit FormArraySection маркирован `__selfManagedChildren = true` — 
 
 ## 47. JSON (renderer-json)
 
-Два варианта `itemComponent`:
-
-### Вариант 1: registry-name (FC зарегистрирован через reg.component)
+**В renderer-json нужен `FormArray`, а не `FormArraySection`.** Это разные компоненты с разными
+контрактами, и подмена стоит дорого: `FormArraySection` требует пропы `control` + `itemComponent`,
+которых JSON-конвертер не передаёт (он инъектит `items`/`onAdd`/`onRemove`/`onMove`), поэтому
+секция уходит в `return null` — **пустой экран без единой ошибки и предупреждения**.
 
 ```ts
 // registry.ts
+import { FormArray } from '@reformer/ui-kit/form-array';
+
 defineRegistry((reg) => {
-  reg.component('FormArraySection', FormArraySection);
-  reg.component('PropertyForm', PropertyForm);
+  reg.component('FormArray', FormArray); // ← имя из JSON `$component(FormArray)`
 });
 ```
 
+Массив в JSON — это **array-нода**, а не контейнер с `itemComponent`. Обязательны `array` и
+`item.$template` (без них `isArrayNode` вернёт false), а `initialValue` нужен кнопке «Добавить»:
+
 ```jsonc
 {
-  "component": "FormArraySection",
+  "selector": "properties-array",
+  "array": "$model(properties)",
+  "component": "$component(FormArray)",
+  "initialValue": { "type": "apartment", "description": "", "estimatedValue": 0 },
   "componentProps": {
-    "control": "properties", // строка → FieldPath
-    "itemComponent": "PropertyForm", // string → registry lookup → FC
     "title": "Имущество",
+    "itemLabel": "Имущество",
     "addButtonLabel": "+ Добавить имущество",
+    "emptyMessage": "Нажмите «Добавить имущество»",
+  },
+  "item": {
+    "$template": {
+      "component": "$component(Box)",
+      "componentProps": { "className": "space-y-3" },
+      "children": [
+        {
+          "value": "$model(type)",
+          "component": "$component(Select)",
+          "componentProps": { "label": "Тип", "options": "$dataSource(PROPERTY_TYPES)" },
+        },
+        { "value": "$model(description)", "component": "$component(Textarea)" },
+        {
+          "value": "$model(estimatedValue)",
+          "component": "$component(Input)",
+          "componentProps": { "type": "number" },
+        },
+      ],
+    },
   },
 }
 ```
 
-Конвертер видит string в `*Component` слоте → ищет в registry → подставляет FC.
+Внутри `$template` пути `$model(...)` резолвятся **относительно элемента** (`$model(type)`, а не
+`$model(properties[0].type)`). Конвертер конвертирует шаблон в `RenderNode` один раз и оборачивает
+в FC, который и рендерит каждую строку.
 
-### Вариант 2: inline `$template`
+Чего в этом контракте НЕТ (и не было под M1): пропа `control`, пропа `itemComponent`, листьев
+`"model": "type"` и голых строк-ссылок `"options": "PROPERTY_TYPES"` — справочник адресуется
+только оператором `$dataSource(...)`.
 
 ```jsonc
-{
-  "component": "FormArraySection",
-  "componentProps": {
-    "control": "properties",
-    "itemComponent": {
-      "$template": {
-        "component": "Section",
-        "componentProps": { "className": "space-y-3" },
-        "children": [
-          {
-            "model": "type",
-            "component": "Select",
-            "componentProps": { "label": "Тип", "options": "PROPERTY_TYPES" },
-          },
-          { "model": "description", "component": "Textarea" },
-          {
-            "model": "estimatedValue",
-            "component": "Input",
-            "componentProps": { "type": "number" },
-          },
-        ],
-      },
-    },
-    "title": "Имущество",
-  },
-}
-```
+// ❌ так секция молча не отрисуется: контракт TS-flow в JSON-схеме
+{ "component": "FormArraySection", "componentProps": { "control": "properties", "itemComponent": "PropertyForm" } }
 
-Конвертер обнаруживает `$template`, конвертирует JsonNode шаблона в RenderNode (один раз), и оборачивает в FC `({ control }) => <RenderNodeComponent node={renderNode} form={control} />`. Снаружи это обычный FC.
+// ✅ array-нода + FormArray в реестре
+{ "array": "$model(properties)", "component": "$component(FormArray)", "item": { "$template": { } } }
+```
 
 ## 48. Props (полный список)
 
@@ -2625,6 +2644,21 @@ function Accordion({ ...props }: React.ComponentProps<typeof AccordionPrimitive.
 
 _Source: src/components/accordion/variants/base/accordion-base.tsx_
 
+### accordionBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Accordion` — единый источник api/props и валидации componentProps.
+`x-registryName: 'Accordion'` — каноническое имя в реестре renderer-json.
+Accordion — обёртка над Radix `Accordion.Root`; сериализуемые пропсы взяты из его API.
+
+**Signature:**
+```typescript
+export const accordionBasePropsSchema
+```
+
+_Source: src/components/accordion/variants/base/accordion-base.props.ts_
+
 ### AccordionContent
 
 **Kind:** `function`
@@ -2684,6 +2718,21 @@ function Alert({
 
 _Source: src/components/alert/variants/base/alert-base.tsx_
 
+### alertBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Alert` — единый источник api/props и валидации componentProps.
+`x-registryName: 'Alert'` — каноническое имя в реестре renderer-json.
+Реальные сериализуемые пропсы: `className` + cva-`variant` (default | destructive).
+
+**Signature:**
+```typescript
+export const alertBasePropsSchema
+```
+
+_Source: src/components/alert/variants/base/alert-base.props.ts_
+
 ### AlertDescription
 
 **Kind:** `function`
@@ -2722,6 +2771,21 @@ function AlertDialogAction({
 ```
 
 _Source: src/components/alert-dialog/variants/base/alert-dialog-base.tsx_
+
+### alertDialogBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема AlertDialog (Radix AlertDialog.Root) — контекст-провайдер без DOM, поэтому НЕ несёт
+className (стили/размер — на AlertDialogContent). AlertDialog всегда модальный (Radix убирает `modal`),
+поэтому такого пропа нет. Управляемое состояние (open/onOpenChange) — runtime, не в схеме.
+
+**Signature:**
+```typescript
+export const alertDialogBasePropsSchema
+```
+
+_Source: src/components/alert-dialog/variants/base/alert-dialog-base.props.ts_
 
 ### AlertDialogCancel
 
@@ -2878,6 +2942,50 @@ const alertVariants
 
 _Source: src/components/alert/variants/base/alert-base.tsx_
 
+### ArrayComponentProps
+
+**Kind:** `interface`
+
+Общие props компонента-рендерера массива: элементы + мутации.
+
+**Signature:**
+```typescript
+export interface ArrayComponentProps {
+  /** Отрендеренные элементы массива в порядке следования. */
+  items?: ArrayItemSlot[];
+  /** Добавить элемент (значение нового элемента резолвит вызывающая сторона). */
+  onAdd?: () => void;
+  /** Удалить элемент по индексу. */
+  onRemove?: (index: number) => void;
+  /** Переместить элемент (реордер). */
+  onMove?: (from: number, to: number) => void;
+}
+```
+
+_Source: src/lib/array-slot.ts_
+
+### ArrayItemSlot
+
+**Kind:** `interface`
+
+Один готовый к отрисовке элемент массива.
+
+**Signature:**
+```typescript
+export interface ArrayItemSlot {
+  /** Стабильный React-ключ элемента. */
+  key: Key;
+  /** Живой индекс в массиве — для `onRemove(index)` / `onMove(index, …)`. */
+  index: number;
+  /** Данные элемента — для меток вида `itemLabel(model, index)`. */
+  model?: unknown;
+  /** Отрендеренное содержимое элемента. */
+  children: ReactNode;
+}
+```
+
+_Source: src/lib/array-slot.ts_
+
 ### AspectRatio
 
 **Kind:** `function`
@@ -2888,6 +2996,19 @@ function AspectRatio({ ...props }: React.ComponentProps<typeof AspectRatioPrimit
 ```
 
 _Source: src/components/aspect-ratio/variants/base/aspect-ratio-base.tsx_
+
+### aspectRatioBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема AspectRatio (Radix AspectRatio.Root) — держит контент в заданной пропорции.
+
+**Signature:**
+```typescript
+export const aspectRatioBasePropsSchema
+```
+
+_Source: src/components/aspect-ratio/variants/base/aspect-ratio-base.props.ts_
 
 ### AsyncBoundary
 
@@ -3193,6 +3314,22 @@ function AttachmentActions({ className, ...props }: React.ComponentProps<'div'>)
 
 _Source: src/components/attachment/variants/base/attachment-base.tsx_
 
+### attachmentBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Attachment (корневой `<div data-slot="attachment">`) — презентационный
+чип/превью прикреплённого файла. Root рендерит DOM-элемент и пробрасывает className,
+поэтому сериализуемые пропсы — только визуальные enum'ы (state/size/orientation) + className;
+контент задаётся суб-компонентами (Media/Content/Title/…), а не пропсами Root.
+
+**Signature:**
+```typescript
+export const attachmentBasePropsSchema
+```
+
+_Source: src/components/attachment/variants/base/attachment-base.props.ts_
+
 ### AttachmentContent
 
 **Kind:** `function`
@@ -3320,6 +3457,27 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<'span'>)
 
 _Source: src/components/avatar/variants/base/avatar-base.tsx_
 
+### avatarBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема `Avatar` — единый источник `api`/props (reformer-doc) и валидации
+`componentProps` (renderer-json). `Avatar` — обёртка над Radix `Avatar.Root` (compound-набор),
+не form-control: нет seam (`value`/`onChange`/`onBlur`/`disabled`), поэтому нет `x-runtimeProps`.
+Изображение/фолбэк — под-компоненты (AvatarImage/AvatarFallback) из `children[]` схемы рендера,
+а не пропсы Root: `src`/`alt` тут не фигурируют. Сериализуемые пропсы самого Root — `className`
+и custom-размер `size`.
+
+`additionalProperties: false` ловит опечатки в DSL.
+`x-registryName: 'Avatar'` — каноническое имя в реестре renderer-json.
+
+**Signature:**
+```typescript
+export const avatarBasePropsSchema
+```
+
+_Source: src/components/avatar/variants/base/avatar-base.props.ts_
+
 ### AvatarFallback
 
 **Kind:** `function`
@@ -3382,6 +3540,22 @@ function Badge({
 ```
 
 _Source: src/components/badge/variants/base/badge-base.tsx_
+
+### badgeBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Badge` — единый источник api/props и валидации componentProps.
+`x-registryName: 'Badge'` — каноническое имя в реестре renderer-json.
+Реальные сериализуемые пропсы: `className` + cva-`variant`
+(default | secondary | destructive | outline | ghost | link). `asChild` не сериализуем.
+
+**Signature:**
+```typescript
+export const badgeBasePropsSchema
+```
+
+_Source: src/components/badge/variants/base/badge-base.props.ts_
 
 ### badgeVariants
 
@@ -3489,6 +3663,22 @@ function Breadcrumb({ ...props }: React.ComponentProps<'nav'>)
 
 _Source: src/components/breadcrumb/variants/base/breadcrumb-base.tsx_
 
+### breadcrumbBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Breadcrumb (Root) — семантический `<nav aria-label="breadcrumb">`.
+Презентационный compound-контейнер без Radix-примитива и без form-состояния: Root
+лишь оборачивает список хлебных крошек. Своих enum/boolean/number-пропсов у него нет,
+поэтому единственный статический сериализуемый проп — className (пробрасывается в `<nav>`).
+
+**Signature:**
+```typescript
+export const breadcrumbBasePropsSchema
+```
+
+_Source: src/components/breadcrumb/variants/base/breadcrumb-base.props.ts_
+
 ### BreadcrumbEllipsis
 
 **Kind:** `function`
@@ -3580,6 +3770,20 @@ function Bubble({
 
 _Source: src/components/bubble/variants/base/bubble-base.tsx_
 
+### bubbleBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Bubble (shadcn AI-примитив пузыря сообщения чата) — Root рендерит <div> и
+пробрасывает className. Статические cva-пропсы: variant (оформление) и align (сторона).
+
+**Signature:**
+```typescript
+export const bubbleBasePropsSchema
+```
+
+_Source: src/components/bubble/variants/base/bubble-base.props.ts_
+
 ### BubbleContent
 
 **Kind:** `function`
@@ -3647,6 +3851,26 @@ function Button({
 
 _Source: src/components/button/variants/base/button-base.tsx_
 
+### buttonBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Button` — единый источник api/props (reformer-doc) и
+валидации `componentProps` (renderer-json). `Button` — не form-control (нет seam/field/адаптера),
+поэтому в схеме нет `x-runtimeProps`. `variant`/`size` — значения cva-конфига (`buttonVariants`),
+дефолты из `defaultVariants`.
+
+`children` (текст/иконки) приходят из `children[]` схемы рендера, а не из `componentProps`.
+`additionalProperties: false` ловит опечатки в DSL.
+`x-registryName: 'Button'` — каноническое имя в реестре renderer-json.
+
+**Signature:**
+```typescript
+export const buttonBasePropsSchema
+```
+
+_Source: src/components/button/variants/base/button-base.props.ts_
+
 ### ButtonGroup
 
 **Kind:** `function`
@@ -3661,6 +3885,26 @@ function ButtonGroup({
 ```
 
 _Source: src/components/button-group/variants/base/button-group-base.tsx_
+
+### buttonGroupBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `ButtonGroup` — единый источник api/props (reformer-doc) и
+валидации `componentProps` (renderer-json). `ButtonGroup` — не form-control (нет seam/field/адаптера),
+поэтому в схеме нет `x-runtimeProps`. `orientation` — значение cva-конфига (`buttonGroupVariants`),
+дефолт из `defaultVariants`.
+
+`children` (compound: ButtonGroupText / ButtonGroupSeparator / кнопки) приходят из `children[]`
+схемы рендера, а не из `componentProps`. `additionalProperties: false` ловит опечатки в DSL.
+`x-registryName: 'ButtonGroup'` — каноническое имя в реестре renderer-json.
+
+**Signature:**
+```typescript
+export const buttonGroupBasePropsSchema
+```
+
+_Source: src/components/button-group/variants/base/button-group-base.props.ts_
 
 ### ButtonGroupSeparator
 
@@ -3716,6 +3960,89 @@ const buttonVariants
 
 _Source: src/components/button/variants/base/button-base.tsx_
 
+### Calendar
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  captionLayout = 'label',
+  buttonVariant = 'ghost',
+  formatters,
+  components,
+  ...props
+}: React.ComponentProps<typeof DayPicker> & {
+  buttonVariant?: React.ComponentProps<typeof Button>['variant'];
+})
+```
+
+_Source: src/components/calendar/variants/base/calendar-base.tsx_
+
+### CalendarBaseField
+
+**Kind:** `const`
+
+Field-версия single-date Calendar: pure Calendar(mode=single) + {@link dateAdapter}
+(`selected`/`onSelect` ↔ `value: Date | null`). HOC отбрасывает `control` (renderer-путь).
+
+**Signature:**
+```typescript
+export const CalendarBaseField
+```
+
+_Source: src/components/calendar/variants/base/calendar-base.field.tsx_
+
+### calendarBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Calendar (field-версия single-date) — единый источник `api.controls[]` (reformer-doc)
+и DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`value`/`onChange` — seam (маппятся адаптером на `selected`/`onSelect`), поэтому в `x-runtimeProps`,
+а не в `properties`. `x-registryName: 'Calendar'` — на этот вариант смотрит алиас `CalendarField`.
+
+**Signature:**
+```typescript
+export const calendarBasePropsSchema
+```
+
+_Source: src/components/calendar/variants/base/calendar-base.props.ts_
+
+### CalendarDayButton
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CalendarDayButton({
+  className,
+  day,
+  modifiers,
+  ...props
+}: React.ComponentProps<typeof DayButton>)
+```
+
+_Source: src/components/calendar/variants/base/calendar-base.tsx_
+
+### CalendarField
+
+**Kind:** `const`
+
+Field-версия single-date Calendar: pure Calendar(mode=single) + {@link dateAdapter}
+(`selected`/`onSelect` ↔ `value: Date | null`). HOC отбрасывает `control` (renderer-путь).
+
+**Signature:**
+```typescript
+export const CalendarBaseField
+```
+
+_Source: src/components/calendar/variants/base/calendar-base.field.tsx_
+
 ### Card
 
 **Kind:** `function`
@@ -3737,6 +4064,21 @@ function CardAction({ className, ...props }: React.ComponentProps<'div'>)
 ```
 
 _Source: src/components/card/variants/base/card-base.tsx_
+
+### cardBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Card` — единый источник api/props и валидации componentProps.
+`x-registryName: 'Card'` — каноническое имя в реестре renderer-json.
+Card — чистый `ComponentProps<'div'>` без cva/Radix: единственный сериализуемый проп — `className`.
+
+**Signature:**
+```typescript
+export const cardBasePropsSchema
+```
+
+_Source: src/components/card/variants/base/card-base.props.ts_
 
 ### CardContent
 
@@ -3793,6 +4135,252 @@ function CardTitle({ className, ...props }: React.ComponentProps<'div'>)
 
 _Source: src/components/card/variants/base/card-base.tsx_
 
+### Carousel
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function Carousel({
+  orientation = 'horizontal',
+  opts,
+  setApi,
+  plugins,
+  className,
+  children,
+  ...props
+}: React.ComponentProps<'div'> & CarouselProps)
+```
+
+_Source: src/components/carousel/variants/base/carousel-base.tsx_
+
+### CarouselApi
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+type CarouselApi = UseEmblaCarouselType[1];
+```
+
+_Source: src/components/carousel/variants/base/carousel-base.tsx_
+
+### carouselBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Carousel (embla). Инлайн-конфиг (opts/plugins/setApi) несериализуем — не в схеме.
+
+**Signature:**
+```typescript
+export const carouselBasePropsSchema
+```
+
+_Source: src/components/carousel/variants/base/carousel-base.props.ts_
+
+### CarouselContent
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CarouselContent({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/carousel/variants/base/carousel-base.tsx_
+
+### CarouselItem
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CarouselItem({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/carousel/variants/base/carousel-base.tsx_
+
+### CarouselNext
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CarouselNext({
+  className,
+  variant = 'outline',
+  size = 'icon',
+  ...props
+}: React.ComponentProps<typeof Button>)
+```
+
+_Source: src/components/carousel/variants/base/carousel-base.tsx_
+
+### CarouselPrevious
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CarouselPrevious({
+  className,
+  variant = 'outline',
+  size = 'icon',
+  ...props
+}: React.ComponentProps<typeof Button>)
+```
+
+_Source: src/components/carousel/variants/base/carousel-base.tsx_
+
+### chartBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Chart (Root = ChartContainer, обёртка recharts ResponsiveContainer). Рендерит
+реальный <div className={cn(..., className)} {...props}> — поэтому несёт className. Остальные
+пропсы (config, initialDimension, children) — несериализуемые объекты/JSX, в статическую схему
+не попадают. Enum/boolean/number-пропсов у Root нет — схема минимальна.
+
+**Signature:**
+```typescript
+export const chartBasePropsSchema
+```
+
+_Source: src/components/chart/variants/base/chart-base.props.ts_
+
+### ChartConfig
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type ChartConfig = Record<
+  string,
+  {
+    label?: React.ReactNode;
+    icon?: React.ComponentType;
+  } & (
+    | { color?: string; theme?: never }
+    | { color?: never; theme: Record<keyof typeof THEMES, string> }
+  )
+>;
+```
+
+_Source: src/components/chart/variants/base/chart-base.tsx_
+
+### ChartContainer
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function ChartContainer({
+  id,
+  className,
+  children,
+  config,
+  initialDimension = INITIAL_DIMENSION,
+  ...props
+}: React.ComponentProps<'div'> & {
+  config: ChartConfig;
+  children: React.ComponentProps<typeof RechartsPrimitive.ResponsiveContainer>['children'];
+  initialDimension?: {
+    width: number;
+    height: number;
+  };
+})
+```
+
+_Source: src/components/chart/variants/base/chart-base.tsx_
+
+### ChartLegend
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+const ChartLegend
+```
+
+_Source: src/components/chart/variants/base/chart-base.tsx_
+
+### ChartLegendContent
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function ChartLegendContent({
+  className,
+  hideIcon = false,
+  payload,
+  verticalAlign = 'bottom',
+  nameKey,
+}: React.ComponentProps<'div'> & {
+  hideIcon?: boolean;
+  nameKey?: string;
+} & RechartsPrimitive.DefaultLegendContentProps)
+```
+
+_Source: src/components/chart/variants/base/chart-base.tsx_
+
+### ChartStyle
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+const ChartStyle
+```
+
+_Source: src/components/chart/variants/base/chart-base.tsx_
+
+### ChartTooltip
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+const ChartTooltip
+```
+
+_Source: src/components/chart/variants/base/chart-base.tsx_
+
+### ChartTooltipContent
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function ChartTooltipContent({
+  active,
+  payload,
+  className,
+  indicator = 'dot',
+  hideLabel = false,
+  hideIndicator = false,
+  label,
+  labelFormatter,
+  labelClassName,
+  formatter,
+  color,
+  nameKey,
+  labelKey,
+}: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
+  React.ComponentProps<'div'> & {
+    hideLabel?: boolean;
+    hideIndicator?: boolean;
+    indicator?: 'line' | 'dot' | 'dashed';
+    nameKey?: string;
+    labelKey?: string;
+  } & Omit<
+    RechartsPrimitive.DefaultTooltipContentProps<TooltipValueType, TooltipNameType>,
+    'accessibilityLayer'
+  >)
+```
+
+_Source: src/components/chart/variants/base/chart-base.tsx_
+
 ### Checkbox
 
 **Kind:** `function`
@@ -3837,6 +4425,20 @@ export const checkboxBasePropsSchema
 
 _Source: src/components/checkbox/variants/base/checkbox-base.props.ts_
 
+### CheckboxField
+
+**Kind:** `const`
+
+Field-версия Checkbox: pure Checkbox + подпись справа, привязка через `checkedAdapter`
+(`checked` / `onCheckedChange`, boolean). Экспортируется как алиас `CheckboxField`.
+
+**Signature:**
+```typescript
+export const CheckboxBaseField
+```
+
+_Source: src/components/checkbox/variants/base/checkbox-base.field.tsx_
+
 ### CheckboxWithLabel
 
 **Kind:** `function`
@@ -3877,6 +4479,19 @@ export interface CheckboxWithLabelProps extends React.ComponentProps<typeof Chec
 ```
 
 _Source: src/components/checkbox/variants/base/checkbox-base.field.tsx_
+
+### checkedAdapter
+
+**Kind:** `const`
+
+Checkbox / Switch — Radix `checked` + `onCheckedChange(boolean | 'indeterminate')`.
+
+**Signature:**
+```typescript
+export const checkedAdapter: FieldAdapter
+```
+
+_Source: src/fields/adapters.ts_
 
 ### cn
 
@@ -3928,6 +4543,25 @@ function Collapsible({ ...props }: React.ComponentProps<typeof CollapsiblePrimit
 
 _Source: src/components/collapsible/variants/base/collapsible-base.tsx_
 
+### collapsibleBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Collapsible` — единый источник api/props (reformer-doc) и
+валидации `componentProps` (renderer-json). `Collapsible` — обёртка над Radix `Collapsible.Root`
+(не form-control: нет seam/field/адаптера), поэтому в схеме нет `x-runtimeProps`.
+
+`children` (compound: CollapsibleTrigger / CollapsibleContent) приходят из `children[]` схемы
+рендера, а не из `componentProps`. `additionalProperties: false` ловит опечатки в DSL.
+`x-registryName: 'Collapsible'` — каноническое имя в реестре renderer-json.
+
+**Signature:**
+```typescript
+export const collapsibleBasePropsSchema
+```
+
+_Source: src/components/collapsible/variants/base/collapsible-base.props.ts_
+
 ### CollapsibleContent
 
 **Kind:** `function`
@@ -3954,6 +4588,447 @@ function CollapsibleTrigger({
 
 _Source: src/components/collapsible/variants/base/collapsible-base.tsx_
 
+### Combobox
+
+**Kind:** `const`
+
+Combobox (вариант `base`): управляемый поиск по опциям в Popover + Command. Триггер-кнопка
+показывает `label` текущего значения либо `placeholder`. Выбор опции эмитит `onChange(value)`;
+при `clearable` повторный клик по выбранной опции или крестик сбрасывают выбор в `null`.
+
+**Signature:**
+```typescript
+const Combobox
+```
+
+_Source: src/components/combobox/variants/base/combobox-base.tsx_
+
+### ComboboxBaseField
+
+**Kind:** `const`
+
+`exposesHandle: true` — Combobox сам реализует {@link ComboboxHandle} (useImperativeHandle),
+поэтому HOC форвардит ref потребителя прямо в композит (passthrough), без своего baseline-handle.
+
+**Signature:**
+```typescript
+export const ComboboxBaseField
+```
+
+_Source: src/components/combobox/variants/base/combobox-base.field.tsx_
+
+### comboboxBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Combobox (field-версия) — единый источник `api.controls[]` (reformer-doc) и
+DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`value`/`onChange` — seam (Combobox уже value-based), поэтому в `x-runtimeProps`, а не в
+`properties`. `x-registryName: 'Combobox'` — на этот вариант смотрит алиас `ComboboxField`.
+
+**Signature:**
+```typescript
+export const comboboxBasePropsSchema
+```
+
+_Source: src/components/combobox/variants/base/combobox-base.props.ts_
+
+### ComboboxField
+
+**Kind:** `const`
+
+`exposesHandle: true` — Combobox сам реализует {@link ComboboxHandle} (useImperativeHandle),
+поэтому HOC форвардит ref потребителя прямо в композит (passthrough), без своего baseline-handle.
+
+**Signature:**
+```typescript
+export const ComboboxBaseField
+```
+
+_Source: src/components/combobox/variants/base/combobox-base.field.tsx_
+
+### ComboboxHandle
+
+**Kind:** `interface`
+
+Императивный handle {@link Combobox}: baseline {@link FieldHandle} (focus/blur/scrollIntoView/
+getElement на кнопке-триггере) + управление popover'ом. Достаётся из схемы:
+`schema.node('city').getRef<ComboboxHandle>().current?.open()`.
+
+**Signature:**
+```typescript
+export interface ComboboxHandle extends FieldHandle {
+  /** Открыть popover со списком. */
+  open(): void;
+  /** Закрыть popover (эмитит `onBlur`, как обычное закрытие). */
+  close(): void;
+  /** Сбросить выбранное значение в `null`. */
+  clear(): void;
+}
+```
+
+_Source: src/components/combobox/variants/base/combobox-base.tsx_
+
+### ComboboxMulti
+
+**Kind:** `const`
+
+Combobox в режиме множественного выбора (вариант `multi`): та же композиция
+Popover + Command + Button, что у одиночного, но со списком-чекбоксами и чипами в триггере.
+
+Три поведенческих отличия от одиночного варианта, и все три намеренные:
+ - выбор пункта НЕ закрывает popover — иначе отметить несколько подряд было бы нельзя;
+ - поиск НЕ сбрасывается после тогла: cmdk сам ведёт активный пункт, и сброс заставлял бы
+   список перескакивать под курсором;
+ - `onBlur` эмитится только при закрытии popover, поэтому поле дольше остаётся не-touched.
+
+Чипы в триггере НЕинтерактивны намеренно: интерактивный элемент внутри `button` — невалидная
+разметка. Снять значение можно пунктом списка, сбросить всё — крестиком `clearable`, который
+(как и у одиночного варианта) живёт ВНЕ триггера.
+
+**Signature:**
+```typescript
+const ComboboxMulti
+```
+
+_Source: src/components/combobox/variants/multi/combobox-multi.tsx_
+
+### ComboboxMultiField
+
+**Kind:** `const`
+
+`exposesHandle: true` — ComboboxMulti сам реализует {@link ComboboxMultiHandle}
+(`useImperativeHandle`), поэтому HOC форвардит ref потребителя прямо в композит (passthrough),
+без своего baseline-handle. Привязка — общий для кита {@link multiValueAdapter}.
+
+**Signature:**
+```typescript
+export const ComboboxMultiField
+```
+
+_Source: src/components/combobox/variants/multi/combobox-multi.field.tsx_
+
+### ComboboxMultiFieldProps
+
+**Kind:** `interface`
+
+Value-based контракт field-версии ComboboxMulti. Значение — `string[] | null`; форма резолвит
+`value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в `componentProps`.
+Служит типом для стража props-схемы.
+
+**Signature:**
+```typescript
+export interface ComboboxMultiFieldProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  options?: ComboboxOption[];
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  clearable?: boolean;
+  creatable?: boolean;
+  maxItems?: number;
+  summaryThreshold?: number;
+  className?: string;
+}
+```
+
+_Source: src/components/combobox/variants/multi/combobox-multi.field.tsx_
+
+### ComboboxMultiHandle
+
+**Kind:** `interface`
+
+Императивный handle {@link ComboboxMulti}: baseline {@link FieldHandle} на кнопке-триггере +
+управление popover'ом. Достаётся из схемы: `schema.node('tags').getRef<ComboboxMultiHandle>()`.
+
+**Signature:**
+```typescript
+export interface ComboboxMultiHandle extends FieldHandle {
+  /** Открыть popover со списком. */
+  open(): void;
+  /** Закрыть popover (эмитит `onBlur`, как обычное закрытие). */
+  close(): void;
+  /** Сбросить весь выбор. */
+  clear(): void;
+}
+```
+
+_Source: src/components/combobox/variants/multi/combobox-multi.tsx_
+
+### ComboboxMultiProps
+
+**Kind:** `interface`
+
+Props компонента {@link ComboboxMulti}.
+
+**Signature:**
+```typescript
+export interface ComboboxMultiProps {
+  className?: string;
+  /**
+   * Выбранные значения. Приходит массивом всегда: `multiValueAdapter` разворачивает `null` в `[]`,
+   * потому что рендер ходит по значению `.includes`/`.map`.
+   */
+  value?: string[];
+  /** Изменение выбора. Всегда получает НОВЫЙ массив — см. `multiValueAdapter`. */
+  onChange?: (value: string[]) => void;
+  /** Срабатывает при закрытии popover (снятие фокуса). */
+  onBlur?: () => void;
+  /** Список опций. */
+  options?: ComboboxOption[];
+  /** Подсказка в триггере, пока ничего не выбрано. */
+  placeholder?: string;
+  /** Подсказка в поле поиска. */
+  searchPlaceholder?: string;
+  /** Текст пустого состояния (ничего не найдено). */
+  emptyText?: string;
+  /** Показывать крестик сброса ВСЕГО выбора. */
+  clearable?: boolean;
+  /**
+   * Creatable-режим: введённое значение, не совпавшее ни с одной опцией, добавляется в выбор
+   * пунктом «Создать». Лейблом для него служит само значение.
+   */
+  creatable?: boolean;
+  /**
+   * Потолок числа выбранных: по достижении невыбранные пункты выключаются.
+   * Подсказка интерфейса, а НЕ правило формы — ограничение задавайте валидатором `maxLength(n)`.
+   */
+  maxItems?: number;
+  /** Сколько чипов показать в триггере до схлопывания в сводку. По умолчанию 3. */
+  summaryThreshold?: number;
+  disabled?: boolean;
+  /** id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке. */
+  id?: string;
+  /** Префикс `data-testid`; на триггер + `-<value>` на каждый пункт списка. */
+  'data-testid'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  'aria-errormessage'?: string;
+  'aria-required'?: boolean | 'true' | 'false';
+}
+```
+
+_Source: src/components/combobox/variants/multi/combobox-multi.tsx_
+
+### comboboxMultiPropsSchema
+
+**Kind:** `const`
+
+Props-схема ComboboxMulti — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
+`componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`x-registryName: 'ComboboxMulti'` — отдельная запись каталога, а не проп `multiple` у
+`Combobox`: тип значения другой (`string[] | null` против `string | null`), а
+`x-runtimeProps.value` у записи ровно один. Прецедент — `FileUpload` / `FileUploadAvatar`.
+
+**Signature:**
+```typescript
+export const comboboxMultiPropsSchema
+```
+
+_Source: src/components/combobox/variants/multi/combobox-multi.props.ts_
+
+### ComboboxOption
+
+**Kind:** `interface`
+
+Опция комбобокса: `value` — хранимое значение, `label` — отображаемый и искомый текст.
+
+**Signature:**
+```typescript
+export interface ComboboxOption {
+  value: string;
+  label: string;
+}
+```
+
+_Source: src/components/combobox/variants/base/combobox-base.tsx_
+
+### ComboboxProps
+
+**Kind:** `interface`
+
+Props компонента {@link Combobox}.
+
+**Signature:**
+```typescript
+export interface ComboboxProps {
+  className?: string;
+  /** Выбранное значение (строка из `option.value`). `null` — ничего не выбрано. */
+  value?: string | null;
+  /** Обработчик выбора. При очистке (крестик / повторный клик по выбранной опции) приходит `null`. */
+  onChange?: (value: string | null) => void;
+  /** Срабатывает при закрытии popover (снятие фокуса). */
+  onBlur?: () => void;
+  /** Список опций. */
+  options?: ComboboxOption[];
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Select an option...'`. */
+  placeholder?: string;
+  /** Подсказка в поле поиска. По умолчанию `'Search...'`. */
+  searchPlaceholder?: string;
+  /** Текст пустого состояния (ничего не найдено). По умолчанию `'No options found.'`. */
+  emptyText?: string;
+  /** Показывать ли крестик очистки справа от значения. По умолчанию `false`. */
+  clearable?: boolean;
+  /**
+   * Creatable-режим: разрешить ввести своё значение. Когда введённый текст не совпадает точно ни с
+   * одной опцией, в списке появляется пункт «Создать «…»» — выбор эмитит введённое значение как
+   * `value` (label в триггере = само значение). По умолчанию `false`.
+   */
+  creatable?: boolean;
+  disabled?: boolean;
+  id?: string;
+  'data-testid'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  'aria-errormessage'?: string;
+  'aria-required'?: boolean | 'true' | 'false';
+}
+```
+
+_Source: src/components/combobox/variants/base/combobox-base.tsx_
+
+### Command
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>)
+```
+
+_Source: src/components/command/variants/base/command-base.tsx_
+
+### commandBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Command (cmdk CommandPrimitive) — корень командного меню, рендерит DOM-обёртку
+(div) и пробрасывает className. Управляемое состояние (value/defaultValue/onValueChange) и
+кастомный filter — runtime, не в схеме. В схеме только статические булевы-переключатели поведения.
+
+**Signature:**
+```typescript
+export const commandBasePropsSchema
+```
+
+_Source: src/components/command/variants/base/command-base.props.ts_
+
+### CommandDialog
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CommandDialog({
+  title = 'Command Palette',
+  description = 'Search for a command to run...',
+  children,
+  className,
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<typeof Dialog> & {
+  title?: string;
+  description?: string;
+  className?: string;
+  showCloseButton?: boolean;
+})
+```
+
+_Source: src/components/command/variants/base/command-base.tsx_
+
+### CommandEmpty
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CommandEmpty({ ...props }: React.ComponentProps<typeof CommandPrimitive.Empty>)
+```
+
+_Source: src/components/command/variants/base/command-base.tsx_
+
+### CommandGroup
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CommandGroup({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Group>)
+```
+
+_Source: src/components/command/variants/base/command-base.tsx_
+
+### CommandInput
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CommandInput({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Input>)
+```
+
+_Source: src/components/command/variants/base/command-base.tsx_
+
+### CommandItem
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CommandItem({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Item>)
+```
+
+_Source: src/components/command/variants/base/command-base.tsx_
+
+### CommandList
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CommandList({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.List>)
+```
+
+_Source: src/components/command/variants/base/command-base.tsx_
+
+### CommandSeparator
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CommandSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Separator>)
+```
+
+_Source: src/components/command/variants/base/command-base.tsx_
+
+### CommandShortcut
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function CommandShortcut({ className, ...props }: React.ComponentProps<'span'>)
+```
+
+_Source: src/components/command/variants/base/command-base.tsx_
+
 ### ContextMenu
 
 **Kind:** `function`
@@ -3964,6 +5039,21 @@ function ContextMenu({ ...props }: React.ComponentProps<typeof ContextMenuPrimit
 ```
 
 _Source: src/components/context-menu/variants/base/context-menu-base.tsx_
+
+### contextMenuBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема ContextMenu (Radix ContextMenu.Root) — контекст-провайдер без DOM, поэтому НЕ несёт
+className (стили/размеры — на ContextMenuContent). Открытие по правому клику: управляемого open нет,
+onOpenChange — runtime-колбэк, в схему не входит. Статически задаём dir и modal.
+
+**Signature:**
+```typescript
+export const contextMenuBasePropsSchema
+```
+
+_Source: src/components/context-menu/variants/base/context-menu-base.props.ts_
 
 ### ContextMenuCheckboxItem
 
@@ -4162,6 +5252,201 @@ function ContextMenuTrigger({
 
 _Source: src/components/context-menu/variants/base/context-menu-base.tsx_
 
+### DataGrid
+
+**Kind:** `function`
+
+Data-driven таблица поверх презентационного {@link Table}. Держит состояние
+пагинации / сортировки / фильтров, получает строки из `settings.dataProvider`
+(server-driven, `manual*` у
+
+**Signature:**
+```typescript
+export function DataGrid<Row>({ settings, className }: DataGridProps<Row>): React.ReactNode
+```
+
+**Examples:**
+
+Server-driven список с сортировкой и пагинацией
+```tsx
+import { DataGrid, type TableSettings } from '@reformer/ui-kit/table';
+
+const settings: TableSettings<User> = {
+columns: [
+{ id: 'name', header: 'Имя', accessor: (u) => u.name, sortable: true },
+{ id: 'email', header: 'E-mail', accessor: (u) => u.email },
+],
+pageSize: 20,
+rowKey: (u) => u.id,
+dataProvider: async ({ pagination, sorting }) => {
+const res = await fetch(`/api/users?page=${pagination.pageIndex}&sort=${sorting[0]?.id ?? ''}`);
+const { rows, total } = await res.json();
+return { rows, total };
+},
+};
+
+<DataGrid settings={settings} />
+```
+
+_Source: src/components/table/variants/data-grid/table-data-grid.tsx_
+
+### DataGridProps
+
+**Kind:** `interface`
+
+Props {@link DataGrid}.
+
+**Signature:**
+```typescript
+export interface DataGridProps<Row> {
+  /** Настройки грида (data-provider, колонки, пагинация, выделение). */
+  settings: TableSettings<Row>;
+  /** Доп. className контейнера. */
+  className?: string;
+}
+```
+
+_Source: src/components/table/variants/data-grid/table-data-grid.tsx_
+
+### dateAdapter
+
+**Kind:** `const`
+
+Calendar / Date Picker — `selected` + `onSelect(Date | undefined)`.
+
+**Signature:**
+```typescript
+export const dateAdapter: FieldAdapter
+```
+
+_Source: src/fields/adapters.ts_
+
+### DatePicker
+
+**Kind:** `const`
+
+DatePicker — Popover c Calendar (single) и кнопкой-триггером, показывающей выбранную дату.
+Управляемый контракт `value: Date | undefined` / `onChange(date)`. Поповер закрывается сам
+при выборе даты. Стандартное standalone-использование:
+`<DatePicker value={date} onChange={setDate} />`.
+
+**Signature:**
+```typescript
+const DatePicker
+```
+
+_Source: src/components/date-picker/variants/base/date-picker-base.tsx_
+
+### DatePickerBaseField
+
+**Kind:** `const`
+
+Field-версия DatePicker: single-date со связкой `value: Date | null` + `onChange(Date | null)`.
+{@link dateAdapter} сводит `selected`/`onSelect` к value-based контракту формы; HOC отбрасывает
+`control` (renderer-путь).
+
+`exposesHandle: true` — DatePicker сам реализует {@link DatePickerHandle}, ref форвардится
+через мост прямо в него (passthrough).
+
+**Signature:**
+```typescript
+export const DatePickerBaseField
+```
+
+_Source: src/components/date-picker/variants/base/date-picker-base.field.tsx_
+
+### datePickerBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема DatePicker (field-версия single-date) — единый источник `api.controls[]` (reformer-doc)
+и DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`value`/`onChange` — seam (маппятся адаптером на `selected`/`onSelect` Calendar), поэтому в
+`x-runtimeProps`, а не в `properties`. `x-registryName: 'DatePicker'` — на этот вариант смотрит
+алиас `DatePickerField`.
+
+**Signature:**
+```typescript
+export const datePickerBasePropsSchema
+```
+
+_Source: src/components/date-picker/variants/base/date-picker-base.props.ts_
+
+### DatePickerField
+
+**Kind:** `const`
+
+Field-версия DatePicker: single-date со связкой `value: Date | null` + `onChange(Date | null)`.
+{@link dateAdapter} сводит `selected`/`onSelect` к value-based контракту формы; HOC отбрасывает
+`control` (renderer-путь).
+
+`exposesHandle: true` — DatePicker сам реализует {@link DatePickerHandle}, ref форвардится
+через мост прямо в него (passthrough).
+
+**Signature:**
+```typescript
+export const DatePickerBaseField
+```
+
+_Source: src/components/date-picker/variants/base/date-picker-base.field.tsx_
+
+### DatePickerHandle
+
+**Kind:** `interface`
+
+Императивный handle {@link DatePicker}: baseline {@link FieldHandle} (focus/blur/scrollIntoView/
+getElement на кнопке-триггере) + управление поповером календаря. Достаётся из схемы:
+`schema.node('customDate').getRef<DatePickerHandle>().current?.open()`.
+
+**Signature:**
+```typescript
+export interface DatePickerHandle extends FieldHandle {
+  /** Открыть поповер с календарём. */
+  open(): void;
+  /** Закрыть поповер. */
+  close(): void;
+}
+```
+
+_Source: src/components/date-picker/variants/base/date-picker-base.tsx_
+
+### DatePickerProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface DatePickerProps extends Omit<
+  React.ComponentProps<typeof Button>,
+  'value' | 'onChange'
+> {
+  /** Выбранная дата (управляемое значение). `undefined` — ничего не выбрано. */
+  value?: Date;
+  /** Колбэк выбора даты в календаре. Повторный клик по выбранной дате сбрасывает в `undefined`. */
+  onChange?: (date: Date | undefined) => void;
+  /** Текст кнопки-триггера, когда дата не выбрана. */
+  placeholder?: string;
+  /** Формат отображения выбранной даты — токены `date-fns` (по умолчанию `PPP`). */
+  dateFormat?: string;
+}
+```
+
+_Source: src/components/date-picker/variants/base/date-picker-base.tsx_
+
+### defaultPropSchemas
+
+**Kind:** `const`
+
+Карта регистр-имя → полная props-схема дефолтного варианта (для renderer-json/MCP).
+
+**Signature:**
+```typescript
+export const defaultPropSchemas: Record<string, PropsSchema>
+```
+
+_Source: src/meta.ts_
+
 ### Dialog
 
 **Kind:** `function`
@@ -4172,6 +5457,20 @@ function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>)
 ```
 
 _Source: src/components/dialog/variants/base/dialog-base.tsx_
+
+### dialogBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Dialog (Radix Dialog.Root) — контекст-провайдер без DOM, поэтому НЕ несёт className
+(стили/размеры — на DialogContent). Управляемое состояние (open/onOpenChange) — runtime, не в схеме.
+
+**Signature:**
+```typescript
+export const dialogBasePropsSchema
+```
+
+_Source: src/components/dialog/variants/base/dialog-base.props.ts_
 
 ### DialogClose
 
@@ -4309,6 +5608,140 @@ function DirectionProvider({
 
 _Source: src/components/direction/variants/base/direction-base.tsx_
 
+### Drawer
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function Drawer({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
+### drawerBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Drawer (vaul Drawer.Root) — контекст-провайдер без DOM (className/стили — на DrawerContent).
+Оставлены практичные конфиг-пропсы; низкоуровневые vaul-флаги (scrollLock/bodyStyles/…) не выносим.
+
+**Signature:**
+```typescript
+export const drawerBasePropsSchema
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.props.ts_
+
+### DrawerClose
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function DrawerClose({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Close>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
+### DrawerContent
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function DrawerContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Content>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
+### DrawerDescription
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function DrawerDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Description>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
+### DrawerFooter
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function DrawerFooter({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
+### DrawerHeader
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function DrawerHeader({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
+### DrawerOverlay
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function DrawerOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Overlay>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
+### DrawerPortal
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function DrawerPortal({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Portal>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
+### DrawerTitle
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function DrawerTitle({ className, ...props }: React.ComponentProps<typeof DrawerPrimitive.Title>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
+### DrawerTrigger
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function DrawerTrigger({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Trigger>)
+```
+
+_Source: src/components/drawer/variants/base/drawer-base.tsx_
+
 ### DropdownMenu
 
 **Kind:** `function`
@@ -4319,6 +5752,20 @@ function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrim
 ```
 
 _Source: src/components/dropdown-menu/variants/base/dropdown-menu-base.tsx_
+
+### dropdownMenuBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема DropdownMenu (Radix DropdownMenu.Root) — контекст-провайдер без DOM, поэтому НЕ несёт
+className (стили/размеры — на DropdownMenuContent). Управляемое состояние (open/onOpenChange) — runtime, не в схеме.
+
+**Signature:**
+```typescript
+export const dropdownMenuBasePropsSchema
+```
+
+_Source: src/components/dropdown-menu/variants/base/dropdown-menu-base.props.ts_
 
 ### DropdownMenuCheckboxItem
 
@@ -4531,6 +5978,21 @@ function Empty({ className, ...props }: React.ComponentProps<'div'>)
 
 _Source: src/components/empty/variants/base/empty-base.tsx_
 
+### emptyBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Empty — презентационный контейнер пустого состояния (обычный <div>, React.ComponentProps<'div'>).
+Своих сериализуемых пропсов у Root нет; variant живёт на суб-компоненте EmptyMedia, не на корне —
+поэтому в схеме только className, который Root реально пробрасывает в DOM.
+
+**Signature:**
+```typescript
+export const emptyBasePropsSchema
+```
+
+_Source: src/components/empty/variants/base/empty-base.props.ts_
+
 ### EmptyContent
 
 **Kind:** `function`
@@ -4700,6 +6162,40 @@ function Field({
 ```
 
 _Source: src/components/field/variants/base/field-base.tsx_
+
+### FieldAdapter
+
+**Kind:** `interface`
+
+Адаптер поля: описывает, как разный event-shape shadcn-примитива
+(`value`/`onChange`, `checked`/`onCheckedChange`, `value`/`onValueChange`, …)
+сводится к value-based контракту ReFormer-формы — `value` + `onChange(value)` + `onBlur`.
+
+Один адаптер = один event-shape. Экзотический контроль, не выразимый через эти поля,
+— стоп-условие playbook (эскалация к оркестратору), а не «ещё один хак в HOC».
+
+**Signature:**
+```typescript
+export interface FieldAdapter {
+  /** Проп, из которого примитив читает значение: `'value'` | `'checked'` | `'pressed'` | `'selected'`. */
+  valueProp: string;
+  /** Колбэк, через который примитив эмитит: `'onChange'` | `'onCheckedChange'` | `'onValueChange'` | … */
+  changeProp: string;
+  /** emit примитива → значение поля (`e.target.value`, `checked` bool, `number[]`→number, …). */
+  fromEmit: (arg: unknown, rest: Record<string, unknown>) => unknown;
+  /** значение поля → `valueProp` примитива (+ coerce `null`/`undefined`). */
+  toValue: (value: unknown) => unknown;
+  /**
+   * Проброс blur. По умолчанию `onBlur` пробрасывается как есть. Некоторым контролам нужен
+   * другой канал (напр. Select мапит blur на `onOpenChange(false)`).
+   */
+  bindBlur?: (onBlur: (() => void) | undefined) => Record<string, unknown>;
+  /** Доп. ключи убрать перед спредом в примитив (помимо всегда снимаемых `control`/`value`/`onChange`/`onBlur`). */
+  strip?: string[];
+}
+```
+
+_Source: src/fields/with-form-control.tsx_
 
 ### FieldContent
 
@@ -5289,6 +6785,11 @@ headless-compound `@reformer/cdk/form-array`. Рендерит заголово�
 Проп `hasItems` удобен для toggle-чекбоксов («У меня есть имущество»): при
 `false` секция скрывается целиком.
 
+**Не для renderer-json.** Там массив описывается array-нодой, а компонент получает от
+рендерера seam `items`/`onAdd`/`onRemove`/`onMove` — под `$component(FormArray)` нужен
+{@link FormArray}. Если зарегистрировать сюда `FormArraySection`, `control` не придёт
+и секция вернёт `null` (в dev это теперь сопровождается предупреждением в консоли).
+
 **Signature:**
 ```typescript
 export function FormArraySection<T extends object>({
@@ -5307,6 +6808,7 @@ export function FormArraySection<T extends object>({
   maxItems,
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-card text-card-foreground rounded border',
+  ...rest
 }: FormArraySectionProps<T>): ReactNode
 ```
 
@@ -5789,6 +7291,21 @@ function HoverCard({ ...props }: React.ComponentProps<typeof HoverCardPrimitive.
 
 _Source: src/components/hover-card/variants/base/hover-card-base.tsx_
 
+### hoverCardBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема HoverCard (Radix HoverCard.Root) — контекст-провайдер без DOM, поэтому НЕ несёт className
+(стили/размеры — на HoverCardContent). Управляемое состояние (open/onOpenChange) — runtime, не в схеме.
+Остаются задержки открытия/закрытия и неуправляемый defaultOpen.
+
+**Signature:**
+```typescript
+export const hoverCardBasePropsSchema
+```
+
+_Source: src/components/hover-card/variants/base/hover-card-base.props.ts_
+
 ### HoverCardContent
 
 **Kind:** `function`
@@ -5826,6 +7343,21 @@ function Icon({ iconName = 'Circle', size = 24, color, strokeWidth = 2, classNam
 ```
 
 _Source: src/components/icon/variants/base/icon-base.tsx_
+
+### iconBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Icon` — единый источник api/props и валидации `componentProps`.
+`x-registryName: 'Icon'` — каноническое имя в реестре renderer-json. Иконка задаётся строкой-именем
+lucide (`iconName`); билдер рендерит для этого поля пикер иконок (виджет по ключу `iconName`).
+
+**Signature:**
+```typescript
+export const iconBasePropsSchema
+```
+
+_Source: src/components/icon/variants/base/icon-base.props.ts_
 
 ### IconProps
 
@@ -5930,6 +7462,27 @@ function InputGroupAddon({
 ```
 
 _Source: src/components/input-group/variants/base/input-group-base.tsx_
+
+### inputGroupBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема `InputGroup` — единый источник `api`/props (reformer-doc) и валидации
+`componentProps` (renderer-json). `InputGroup` — презентационная обёртка над `<div role="group">`
+(композиция контролов с аддонами), не form-control: нет seam (`value`/`onChange`/`onBlur`/
+`disabled`), поэтому нет `x-runtimeProps`. Единственный сериализуемый проп самого контейнера —
+`className`; под-компоненты (InputGroupAddon/InputGroupButton/…) и их дочерние ноды приходят из
+`children[]` схемы рендера, а не из `componentProps`.
+
+`additionalProperties: false` ловит опечатки в DSL.
+`x-registryName: 'InputGroup'` — каноническое имя в реестре renderer-json.
+
+**Signature:**
+```typescript
+export const inputGroupBasePropsSchema
+```
+
+_Source: src/components/input-group/variants/base/input-group-base.props.ts_
 
 ### InputGroupButton
 
@@ -6052,6 +7605,17 @@ export const inputMaskBasePropsSchema
 
 _Source: src/components/input-mask/variants/base/input-mask-base.props.ts_
 
+### InputMaskField
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const InputMaskBaseField
+```
+
+_Source: src/components/input-mask/variants/base/input-mask-base.field.tsx_
+
 ### InputMaskProps
 
 **Kind:** `interface`
@@ -6108,6 +7672,105 @@ export const InputNumberField
 ```
 
 _Source: src/components/input/variants/number/input-number.field.tsx_
+
+### InputOTP
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function InputOTP({
+  className,
+  containerClassName,
+  ...props
+}: React.ComponentProps<typeof OTPInput> & {
+  containerClassName?: string;
+})
+```
+
+_Source: src/components/input-otp/variants/base/input-otp-base.tsx_
+
+### InputOTPBaseField
+
+**Kind:** `const`
+
+OTP-поле: `InputOTP` (дефолтная раскладка слотов) + строковый `otpAdapter`. Алиас `InputOTPField`.
+
+**Signature:**
+```typescript
+export const InputOTPBaseField
+```
+
+_Source: src/components/input-otp/variants/base/input-otp-base.field.tsx_
+
+### inputOtpBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема InputOTP — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
+`componentProps` (renderer-json). Реальная поверхность в DSL — 2 ключа (`maxLength`/`className`);
+`additionalProperties: false` ловит опечатки (враппер подмешивает label/required/…).
+
+`x-registryName: 'InputOTP'` — на этот вариант смотрит алиас `InputOTPField`.
+
+**Signature:**
+```typescript
+export const inputOtpBasePropsSchema
+```
+
+_Source: src/components/input-otp/variants/base/input-otp-base.props.ts_
+
+### InputOTPField
+
+**Kind:** `const`
+
+OTP-поле: `InputOTP` (дефолтная раскладка слотов) + строковый `otpAdapter`. Алиас `InputOTPField`.
+
+**Signature:**
+```typescript
+export const InputOTPBaseField
+```
+
+_Source: src/components/input-otp/variants/base/input-otp-base.field.tsx_
+
+### InputOTPGroup
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function InputOTPGroup({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/input-otp/variants/base/input-otp-base.tsx_
+
+### InputOTPSeparator
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function InputOTPSeparator({ ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/input-otp/variants/base/input-otp-base.tsx_
+
+### InputOTPSlot
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function InputOTPSlot({
+  index,
+  className,
+  ...props
+}: React.ComponentProps<'div'> & {
+  index: number;
+})
+```
+
+_Source: src/components/input-otp/variants/base/input-otp-base.tsx_
 
 ### InputPassword
 
@@ -6180,6 +7843,21 @@ export const inputPasswordBasePropsSchema
 ```
 
 _Source: src/components/input-password/variants/base/input-password-base.props.ts_
+
+### InputPasswordField
+
+**Kind:** `const`
+
+Поле пароля: value-based InputPassword + identity-адаптер.
+`exposesHandle: true` — InputPassword сам реализует {@link InputPasswordHandle} (useImperativeHandle),
+поэтому HOC форвардит ref потребителя прямо в композит (passthrough), без своего baseline-handle.
+
+**Signature:**
+```typescript
+export const InputPasswordBaseField
+```
+
+_Source: src/components/input-password/variants/base/input-password-base.field.tsx_
 
 ### InputPasswordHandle
 
@@ -6262,6 +7940,19 @@ function ItemActions({ className, ...props }: React.ComponentProps<'div'>)
 ```
 
 _Source: src/components/item/variants/base/item-base.tsx_
+
+### itemBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Item — контейнер-строка списка (рендерит div со стилями cva variant/size).
+
+**Signature:**
+```typescript
+export const itemBasePropsSchema
+```
+
+_Source: src/components/item/variants/base/item-base.props.ts_
 
 ### ItemContent
 
@@ -6388,6 +8079,21 @@ function Kbd({ className, ...props }: React.ComponentProps<'kbd'>)
 
 _Source: src/components/kbd/variants/base/kbd-base.tsx_
 
+### kbdBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Kbd — презентационный <kbd> (порт shadcn/ui) для отображения клавиш.
+Без Radix и состояния: единственный статический проп — className, всё
+остальное (children/ref/DOM-атрибуты) несериализуемо и в схему не входит.
+
+**Signature:**
+```typescript
+export const kbdBasePropsSchema
+```
+
+_Source: src/components/kbd/variants/base/kbd-base.props.ts_
+
 ### KbdGroup
 
 **Kind:** `function`
@@ -6409,6 +8115,22 @@ function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimiti
 ```
 
 _Source: src/components/label/variants/base/label-base.tsx_
+
+### labelBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Label` — единый источник api/props и валидации componentProps.
+`x-registryName: 'Label'` — каноническое имя в реестре renderer-json.
+`Label` — дословный порт shadcn поверх Radix `LabelPrimitive.Root` (рендерит `<label>`):
+сериализуемые пропсы — `className` + нативный `htmlFor`.
+
+**Signature:**
+```typescript
+export const labelBasePropsSchema
+```
+
+_Source: src/components/label/variants/base/label-base.props.ts_
 
 ### List
 
@@ -6441,6 +8163,20 @@ export interface ListProps {
 
 _Source: src/components/list/variants/base/list.tsx_
 
+### makeElementFieldHandle
+
+**Kind:** `function`
+
+Собирает baseline {@link FieldHandle}, делегирующий на DOM-элемент по ссылке `el`.
+Все вызовы null-safe: до монтирования (`el.current === null`) — no-op, без исключений.
+
+**Signature:**
+```typescript
+export function makeElementFieldHandle(el: RefObject<HTMLElement | null>): FieldHandle
+```
+
+_Source: src/fields/field-handle.ts_
+
 ### Marker
 
 **Kind:** `function`
@@ -6459,6 +8195,20 @@ function Marker({
 ```
 
 _Source: src/components/marker/variants/base/marker-base.tsx_
+
+### markerBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Marker (AI-примитив, порт shadcn/ui) — рендерит DOM-элемент <div> и пробрасывает
+className, поэтому className в схеме. Единственный enum — variant (стиль оформления маркера).
+
+**Signature:**
+```typescript
+export const markerBasePropsSchema
+```
+
+_Source: src/components/marker/variants/base/marker-base.props.ts_
 
 ### MarkerContent
 
@@ -6503,6 +8253,21 @@ function Menubar({ className, ...props }: React.ComponentProps<typeof MenubarPri
 ```
 
 _Source: src/components/menubar/variants/base/menubar-base.tsx_
+
+### menubarBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Menubar (Radix Menubar.Root) — рендерит DOM-контейнер меню-бара, поэтому несёт
+className. Управляемое состояние (value/onValueChange/defaultValue — какое меню открыто) — runtime,
+в схему не входит. Статически задаются только направление (dir) и зацикливание фокуса (loop).
+
+**Signature:**
+```typescript
+export const menubarBasePropsSchema
+```
+
+_Source: src/components/menubar/variants/base/menubar-base.props.ts_
 
 ### MenubarCheckboxItem
 
@@ -6714,6 +8479,23 @@ function MenubarTrigger({
 
 _Source: src/components/menubar/variants/base/menubar-base.tsx_
 
+### mergeFieldPropsSchema
+
+**Kind:** `function`
+
+Полная схема `componentProps` field-ноды: контракт враппера + seam + вариант.
+
+Именно структурный merge `properties`, а НЕ `allOf: [wrapper, variant]`: в draft-07
+`additionalProperties` смотрит только на `properties` СВОЕЙ схемы → в `allOf` каждая ветка
+отвергла бы props соседней. Строгость решает вариант своим `additionalProperties`.
+
+**Signature:**
+```typescript
+export function mergeFieldPropsSchema(variantSchema: PropsSchema): PropsSchema
+```
+
+_Source: src/fields/props-schema.ts_
+
 ### Message
 
 **Kind:** `function`
@@ -6739,6 +8521,21 @@ function MessageAvatar({ className, ...props }: React.ComponentProps<'div'>)
 ```
 
 _Source: src/components/message/variants/base/message-base.tsx_
+
+### messageBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Message (shadcn AI chat message) — контейнер одного сообщения (обычный <div>,
+пробрасывает className). Из статики есть только выравнивание строки и className;
+children/аватар/заголовок задаются вложенными под-частями, не пропсами.
+
+**Signature:**
+```typescript
+export const messageBasePropsSchema
+```
+
+_Source: src/components/message/variants/base/message-base.props.ts_
 
 ### MessageContent
 
@@ -6784,6 +8581,150 @@ function MessageHeader({ className, ...props }: React.ComponentProps<'div'>)
 
 _Source: src/components/message/variants/base/message-base.tsx_
 
+### MessageScroller
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function MessageScroller({
+  className,
+  ...props
+}: React.ComponentProps<typeof MessageScrollerPrimitive.Root>)
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.tsx_
+
+### messageScrollerBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема MessageScroller (Root примитива
+
+**Signature:**
+```typescript
+export const messageScrollerBasePropsSchema
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.props.ts_
+
+### MessageScrollerButton
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function MessageScrollerButton({
+  direction = 'end',
+  className,
+  children,
+  render,
+  variant = 'secondary',
+  size = 'icon-sm',
+  ...props
+}: React.ComponentProps<typeof MessageScrollerPrimitive.Button> &
+  Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'>)
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.tsx_
+
+### MessageScrollerContent
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function MessageScrollerContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof MessageScrollerPrimitive.Content>)
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.tsx_
+
+### MessageScrollerItem
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function MessageScrollerItem({
+  className,
+  scrollAnchor = false,
+  ...props
+}: React.ComponentProps<typeof MessageScrollerPrimitive.Item>)
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.tsx_
+
+### MessageScrollerProvider
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function MessageScrollerProvider(
+  props: React.ComponentProps<typeof MessageScrollerPrimitive.Provider>
+)
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.tsx_
+
+### MessageScrollerViewport
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function MessageScrollerViewport({
+  className,
+  ...props
+}: React.ComponentProps<typeof MessageScrollerPrimitive.Viewport>)
+```
+
+_Source: src/components/message-scroller/variants/base/message-scroller-base.tsx_
+
+### multiValueAdapter
+
+**Kind:** `const`
+
+Мультивыбор (`SelectMulti` / `ComboboxMulti` / `NativeSelectMulti` / `ToggleGroupMulti`) —
+value-based `value: string[] | null` + `onChange(string[] | null)`.
+
+Пустой выбор нормализуется в `null`, а не в `[]`. Причина не косметическая: начальным значением
+поля в модели массив быть НЕ МОЖЕТ — `createModel({ tags: [] })` строит ArrayNode, `createForm`
+такой путь пропускает, и поля не появляется вовсе (в renderer оно при этом тихо отрендерится
+контейнером — с подписью и опциями, но без value/onChange). Поэтому поле живёт как
+`string[] | null`, и `required()` ловит пустой выбор без правок ядра. Тот же приём и по той же
+причине — у `fileUploadAdapter` (file-upload-base.field.tsx).
+
+`fromEmit` копирует массив: preact-сигнал бэйлится по `!==`, поэтому контрол, вернувший
+мутированный на месте массив, подписчиков бы не уведомил — а `_dirty` при этом уже взвёлся бы.
+Копия делает такой контрол безопасным.
+
+`toValue` отдаёт массив (`null` → `[]`): мульти-презентации ходят по значению `.map`/`.includes`,
+и `''` от `valueChangeAdapter` их бы уронил.
+
+**Signature:**
+```typescript
+export const multiValueAdapter: FieldAdapter
+```
+
+_Source: src/fields/adapters.ts_
+
+### nativeInputAdapter
+
+**Kind:** `const`
+
+Input / Textarea / Native Select — нативный `onChange(e)` → `e.target.value`.
+
+**Signature:**
+```typescript
+export const nativeInputAdapter: FieldAdapter
+```
+
+_Source: src/fields/adapters.ts_
+
 ### NativeSelect
 
 **Kind:** `function`
@@ -6828,6 +8769,20 @@ export const nativeSelectBasePropsSchema
 ```
 
 _Source: src/components/native-select/variants/base/native-select-base.props.ts_
+
+### NativeSelectField
+
+**Kind:** `const`
+
+Field-версия NativeSelect: `NativeSelectWithOptions` (options → `<option>`) + `nativeInputAdapter`
+(`e.target.value || null`). Экспортируется как алиас `NativeSelectField`.
+
+**Signature:**
+```typescript
+export const NativeSelectBaseField
+```
+
+_Source: src/components/native-select/variants/base/native-select-base.field.tsx_
 
 ### NativeSelectMulti
 
@@ -7074,6 +9029,21 @@ function NavigationMenu({
 
 _Source: src/components/navigation-menu/variants/base/navigation-menu-base.tsx_
 
+### navigationMenuBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема NavigationMenu (Radix NavigationMenu.Root) — рендерит DOM-элемент <nav> и пробрасывает
+className, поэтому className входит в схему. Управляемое состояние (value/onValueChange) — runtime,
+не в схеме. Сериализуемые статические пропсы: viewport, orientation, dir, тайминги задержек.
+
+**Signature:**
+```typescript
+export const navigationMenuBasePropsSchema
+```
+
+_Source: src/components/navigation-menu/variants/base/navigation-menu-base.props.ts_
+
 ### NavigationMenuContent
 
 **Kind:** `function`
@@ -7213,6 +9183,21 @@ function Pagination({ className, ...props }: React.ComponentProps<'nav'>)
 
 _Source: src/components/pagination/variants/base/pagination-base.tsx_
 
+### paginationBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Pagination (презентационный `<nav role="navigation">`, порт shadcn/ui).
+Root — простой DOM-элемент, пробрасывает className; собственных сериализуемых
+пропсов (enum/boolean/number) нет — только доп. CSS-класс.
+
+**Signature:**
+```typescript
+export const paginationBasePropsSchema
+```
+
+_Source: src/components/pagination/variants/base/pagination-base.props.ts_
+
 ### PaginationContent
 
 **Kind:** `function`
@@ -7301,6 +9286,20 @@ function PopoverAnchor({ ...props }: React.ComponentProps<typeof PopoverPrimitiv
 
 _Source: src/components/popover/variants/base/popover-base.tsx_
 
+### popoverBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Popover (Radix Popover.Root) — контекст-провайдер без DOM, поэтому НЕ несёт className
+(стили/позиционирование — на PopoverContent). Управляемое состояние (open/onOpenChange) — runtime, не в схеме.
+
+**Signature:**
+```typescript
+export const popoverBasePropsSchema
+```
+
+_Source: src/components/popover/variants/base/popover-base.props.ts_
+
 ### PopoverContent
 
 **Kind:** `function`
@@ -7361,6 +9360,19 @@ function PopoverTrigger({ ...props }: React.ComponentProps<typeof PopoverPrimiti
 
 _Source: src/components/popover/variants/base/popover-base.tsx_
 
+### pressedAdapter
+
+**Kind:** `const`
+
+Toggle — Radix `pressed` + `onPressedChange(boolean)`.
+
+**Signature:**
+```typescript
+export const pressedAdapter: FieldAdapter
+```
+
+_Source: src/fields/adapters.ts_
+
 ### Progress
 
 **Kind:** `function`
@@ -7375,6 +9387,96 @@ function Progress({
 ```
 
 _Source: src/components/progress/variants/base/progress-base.tsx_
+
+### progressBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема `Progress` — единый источник `api`/props (reformer-doc) и валидации
+`componentProps` (renderer-json). `Progress` — обёртка над Radix `Progress.Root` (Root+Indicator),
+презентационный индикатор, не form-control: нет seam (`value`/`onChange`/`onBlur`/`disabled`),
+поэтому нет `x-runtimeProps`. `value` здесь — статичный проп отображения (не редактируемое
+значение поля). Сериализуемые пропсы — `className`, `value`, `max`.
+
+`additionalProperties: false` ловит опечатки в DSL.
+`x-registryName: 'Progress'` — каноническое имя в реестре renderer-json.
+
+**Signature:**
+```typescript
+export const progressBasePropsSchema
+```
+
+_Source: src/components/progress/variants/base/progress-base.props.ts_
+
+### PropDoc
+
+**Kind:** `interface`
+
+`x-doc` — ровно то, чего нет в словаре JSON Schema. Остальное берётся из стандартных
+ключей: `description`, `default`, `enum`→options, `minimum`/`maximum`/`multipleOf`.
+
+**Signature:**
+```typescript
+export interface PropDoc {
+  group: PropGroup;
+  /** Отображаемый TS-тип: JSON Schema не выражает `string | null` и сигнатуры функций. */
+  type: string;
+  /** Переопределить виджет. По умолчанию выводится из `type`/`enum`. */
+  kind?: PropWidget;
+}
+```
+
+_Source: src/fields/props-schema.ts_
+
+### PropsSchema
+
+**Kind:** `type`
+
+ВНИМАНИЕ: форма `Omit<…> & {…}` — не косметика. Именно интерсекция с mapped-типом
+пропускает `as const`-значения (readonly-кортежи в `required`/`enum`). Плоский interface
+на них ругается (проверено). Рефакторить — только с прогоном typecheck.
+
+**Signature:**
+```typescript
+export type PropsSchema = Omit<
+  JSONSchema7,
+  'properties' | 'items' | 'anyOf' | 'additionalProperties'
+> & {
+  'x-doc'?: PropDoc;
+  'x-runtimeProps'?: Record<string, RuntimePropDoc>;
+  /**
+   * Каноническое имя в реестре renderer-json. Ставит вариант, на который смотрит алиас
+   * `<Cmp>Field`. По нему `generate-meta.mjs` собирает `defaultPropSchemas`.
+   */
+  'x-registryName'?: string;
+  /**
+   * Имя группы вариантов (напр. `'Input'`). Члены группы делят это имя; дефолт группы — член, чей
+   * `x-registryName === x-variantGroup`. Билдер по нему группирует палитру/QuickAdd/инспектор.
+   * ВНИМАНИЕ: `mergeFieldPropsSchema` не копирует `x-*` в merged-схему — генератор читает это из
+   * СЫРОГО варианта и кладёт как record-level поле каталога.
+   */
+  'x-variantGroup'?: string;
+  /** Человекочитаемая метка варианта в группе (напр. `'Пароль'`). */
+  'x-variant'?: string;
+  properties?: Record<string, PropsSchema>;
+  items?: PropsSchema | PropsSchema[];
+  anyOf?: PropsSchema[];
+  additionalProperties?: boolean | PropsSchema;
+};
+```
+
+_Source: src/fields/props-schema.ts_
+
+### PropWidget
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type PropWidget = 'boolean' | 'text' | 'number' | 'enum' | 'readonly';
+```
+
+_Source: src/fields/props-schema.ts_
 
 ### RadioGroup
 
@@ -7421,6 +9523,21 @@ export const radioGroupBasePropsSchema
 ```
 
 _Source: src/components/radio-group/variants/base/radio-group-base.props.ts_
+
+### RadioGroupField
+
+**Kind:** `const`
+
+Field-версия RadioGroup: value-based (`value: string | null`, `onChange(value)`), рендерит
+`options`. Привязка через {@link valueChangeAdapter} (`value` / `onValueChange`, string).
+НЕ inline-label — подпись группы рисует FormField сверху. Экспортируется как алиас `RadioGroupField`.
+
+**Signature:**
+```typescript
+export const RadioGroupBaseField
+```
+
+_Source: src/components/radio-group/variants/base/radio-group-base.field.tsx_
 
 ### RadioGroupItem
 
@@ -7498,6 +9615,58 @@ export interface RadioOption {
 ```
 
 _Source: src/components/radio-group/variants/base/radio-group-base.field.tsx_
+
+### resizableBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Resizable (react-resizable-panels ResizablePanelGroup — экспорт не «Resizable»).
+
+**Signature:**
+```typescript
+export const resizableBasePropsSchema
+```
+
+_Source: src/components/resizable/variants/base/resizable-base.props.ts_
+
+### ResizableHandle
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function ResizableHandle({
+  withHandle,
+  className,
+  ...props
+}: ResizablePrimitive.SeparatorProps & {
+  withHandle?: boolean;
+})
+```
+
+_Source: src/components/resizable/variants/base/resizable-base.tsx_
+
+### ResizablePanel
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function ResizablePanel({ ...props }: ResizablePrimitive.PanelProps)
+```
+
+_Source: src/components/resizable/variants/base/resizable-base.tsx_
+
+### ResizablePanelGroup
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function ResizablePanelGroup({ className, ...props }: ResizablePrimitive.GroupProps)
+```
+
+_Source: src/components/resizable/variants/base/resizable-base.tsx_
 
 ### ResourceConfig
 
@@ -7601,6 +9770,24 @@ export type ResourceStrategy = 'static' | 'preload' | 'partial';
 
 _Source: src/components/select/variants/async/select-resource.ts_
 
+### RuntimePropDoc
+
+**Kind:** `interface`
+
+Проп, которого НЕ бывает в `componentProps`: резолвит seam (`value`/`onChange`/`onBlur`/`disabled`)
+либо не представим в JSON (`resource.load`). Держим отдельно от `properties`, чтобы схема
+не врала, будто его можно указать. Валидатор DSL этот блок не видит (вырезается с `x-*`).
+
+**Signature:**
+```typescript
+export interface RuntimePropDoc extends PropDoc {
+  description: string;
+  default?: string | number | boolean;
+}
+```
+
+_Source: src/fields/props-schema.ts_
+
 ### ScrollArea
 
 **Kind:** `function`
@@ -7615,6 +9802,19 @@ function ScrollArea({
 ```
 
 _Source: src/components/scroll-area/variants/base/scroll-area-base.tsx_
+
+### scrollAreaBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема ScrollArea (Radix ScrollArea.Root) — кастомные скроллбары над контентом.
+
+**Signature:**
+```typescript
+export const scrollAreaBasePropsSchema
+```
+
+_Source: src/components/scroll-area/variants/base/scroll-area-base.props.ts_
 
 ### ScrollBar
 
@@ -7871,6 +10071,20 @@ function SelectContent({
 ```
 
 _Source: src/components/select/variants/base/select-base.tsx_
+
+### SelectField
+
+**Kind:** `const`
+
+`exposesHandle: true` — SelectAsync сам реализует {@link SelectAsyncHandle} (useImperativeHandle),
+поэтому HOC форвардит ref потребителя прямо в композит (passthrough), без своего baseline-handle.
+
+**Signature:**
+```typescript
+export const SelectAsyncField
+```
+
+_Source: src/components/select/variants/async/select-async.field.tsx_
 
 ### SelectGroup
 
@@ -8197,6 +10411,24 @@ function Separator({
 
 _Source: src/components/separator/variants/base/separator-base.tsx_
 
+### separatorBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Separator` — единый источник api/props (reformer-doc) и
+валидации `componentProps` (renderer-json). `Separator` — обёртка над Radix `Separator.Root`
+(не form-control), поэтому в схеме нет `x-runtimeProps`.
+
+`additionalProperties: false` ловит опечатки в DSL.
+`x-registryName: 'Separator'` — каноническое имя в реестре renderer-json.
+
+**Signature:**
+```typescript
+export const separatorBasePropsSchema
+```
+
+_Source: src/components/separator/variants/base/separator-base.props.ts_
+
 ### Sheet
 
 **Kind:** `function`
@@ -8207,6 +10439,19 @@ function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>)
 ```
 
 _Source: src/components/sheet/variants/base/sheet-base.tsx_
+
+### sheetBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Sheet (Radix Dialog.Root) — провайдер без DOM (className/side — на SheetContent).
+
+**Signature:**
+```typescript
+export const sheetBasePropsSchema
+```
+
+_Source: src/components/sheet/variants/base/sheet-base.props.ts_
 
 ### SheetClose
 
@@ -8322,6 +10567,340 @@ function SheetTrigger({ ...props }: React.ComponentProps<typeof SheetPrimitive.T
 
 _Source: src/components/sheet/variants/base/sheet-base.tsx_
 
+### Sidebar
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function Sidebar({
+  side = 'left',
+  variant = 'sidebar',
+  collapsible = 'offcanvas',
+  className,
+  children,
+  ...props
+}: React.ComponentProps<'div'> & {
+  side?: 'left' | 'right';
+  variant?: 'sidebar' | 'floating' | 'inset';
+  collapsible?: 'offcanvas' | 'icon' | 'none';
+})
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### sidebarBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Sidebar (лейаут-компонент). Требует SidebarProvider-контекст в рантайме; в превью —
+заглушка. Управление open/onOpenChange — на провайдере (runtime), не в схеме.
+
+**Signature:**
+```typescript
+export const sidebarBasePropsSchema
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.props.ts_
+
+### SidebarContent
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarContent({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarFooter
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarFooter({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarGroup
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarGroupAction
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarGroupAction({
+  className,
+  asChild = false,
+  ...props
+}: React.ComponentProps<'button'> & { asChild?: boolean })
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarGroupContent
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarGroupContent({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarGroupLabel
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarGroupLabel({
+  className,
+  asChild = false,
+  ...props
+}: React.ComponentProps<'div'> & { asChild?: boolean })
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarHeader
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarHeader({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarInput
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarInput({ className, ...props }: React.ComponentProps<typeof Input>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarInset
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarInset({ className, ...props }: React.ComponentProps<'main'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarMenu
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarMenu({ className, ...props }: React.ComponentProps<'ul'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarMenuAction
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarMenuAction({
+  className,
+  asChild = false,
+  showOnHover = false,
+  ...props
+}: React.ComponentProps<'button'> & {
+  asChild?: boolean;
+  showOnHover?: boolean;
+})
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarMenuBadge
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarMenuBadge({ className, ...props }: React.ComponentProps<'div'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarMenuButton
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarMenuButton({
+  asChild = false,
+  isActive = false,
+  variant = 'default',
+  size = 'default',
+  tooltip,
+  className,
+  ...props
+}: React.ComponentProps<'button'> & {
+  asChild?: boolean;
+  isActive?: boolean;
+  tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+} & VariantProps<typeof sidebarMenuButtonVariants>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarMenuItem
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarMenuSkeleton
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarMenuSkeleton({
+  className,
+  showIcon = false,
+  ...props
+}: React.ComponentProps<'div'> & {
+  showIcon?: boolean;
+})
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarMenuSub
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarMenuSub({ className, ...props }: React.ComponentProps<'ul'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarMenuSubButton
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarMenuSubButton({
+  asChild = false,
+  size = 'md',
+  isActive = false,
+  className,
+  ...props
+}: React.ComponentProps<'a'> & {
+  asChild?: boolean;
+  size?: 'sm' | 'md';
+  isActive?: boolean;
+})
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarMenuSubItem
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarMenuSubItem({ className, ...props }: React.ComponentProps<'li'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarProvider
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarProvider({
+  defaultOpen = true,
+  open: openProp,
+  onOpenChange: setOpenProp,
+  className,
+  style,
+  children,
+  ...props
+}: React.ComponentProps<'div'> & {
+  defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+})
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarRail
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarRail({ className, ...props }: React.ComponentProps<'button'>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarSeparator
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarSeparator({ className, ...props }: React.ComponentProps<typeof Separator>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### SidebarTrigger
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>)
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
 ### Skeleton
 
 **Kind:** `function`
@@ -8332,6 +10911,19 @@ function Skeleton({ className, ...props }: React.ComponentProps<'div'>)
 ```
 
 _Source: src/components/skeleton/variants/base/skeleton-base.tsx_
+
+### skeletonBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Skeleton — плейсхолдер загрузки (div). Единственный сериализуемый проп — className.
+
+**Signature:**
+```typescript
+export const skeletonBasePropsSchema
+```
+
+_Source: src/components/skeleton/variants/base/skeleton-base.props.ts_
 
 ### Slider
 
@@ -8350,6 +10942,19 @@ function Slider({
 ```
 
 _Source: src/components/slider/variants/base/slider-base.tsx_
+
+### sliderAdapter
+
+**Kind:** `const`
+
+Slider — `value: number[]` + `onValueChange(number[])`. Одно-thumb режим: берём первый.
+
+**Signature:**
+```typescript
+export const sliderAdapter: FieldAdapter
+```
+
+_Source: src/fields/adapters.ts_
 
 ### SliderBaseField
 
@@ -8386,6 +10991,22 @@ export const sliderBasePropsSchema
 
 _Source: src/components/slider/variants/base/slider-base.props.ts_
 
+### SliderField
+
+**Kind:** `const`
+
+Field-версия Slider: pure shadcn Slider + `sliderAdapter`. Скалярный контракт формы
+(`value: number | null`) сводится к Radix-массиву: `toValue: v => [v ?? 0]` (одно-thumb),
+`fromEmit: arr => arr[0] ?? null`. НЕ inline-раскладка — верхнюю подпись рисует FormField
+(маркер `reformerLayout` не ставится). Экспортируется как алиас `SliderField`.
+
+**Signature:**
+```typescript
+export const SliderBaseField
+```
+
+_Source: src/components/slider/variants/base/slider-base.field.tsx_
+
 ### SliderFieldProps
 
 **Kind:** `interface`
@@ -8421,6 +11042,21 @@ function Spinner({ className, ...props }: React.ComponentProps<'svg'>)
 ```
 
 _Source: src/components/spinner/variants/base/spinner-base.tsx_
+
+### spinnerBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Spinner — презентационный индикатор загрузки поверх lucide Loader2Icon.
+Собственных сериализуемых пропсов нет: принимает только SVG-атрибуты, размер задаётся
+через className (size-*). Поэтому единственный статический проп — className.
+
+**Signature:**
+```typescript
+export const spinnerBasePropsSchema
+```
+
+_Source: src/components/spinner/variants/base/spinner-base.props.ts_
 
 ### splitFileUploadProps
 
@@ -8560,6 +11196,23 @@ export interface SwitchControlProps extends React.ComponentProps<typeof Switch> 
 
 _Source: src/components/switch/variants/base/switch-base.field.tsx_
 
+### SwitchField
+
+**Kind:** `const`
+
+Field-версия Switch: обёртка `SwitchControl` (переключатель + подпись справа) + `checkedAdapter`
+(boolean value-based: `checked` + `onCheckedChange`, `'indeterminate'` → `false`).
+
+Маркер `reformerLayout = 'inline-label'` — ИНВАРИАНТ playbook (фаза D2): FormField НЕ рисует
+верхнюю подпись (иначе задвоится с той, что контрол рендерит справа из `componentProps.label`).
+
+**Signature:**
+```typescript
+export const SwitchBaseField
+```
+
+_Source: src/components/switch/variants/base/switch-base.field.tsx_
+
 ### SwitchFieldProps
 
 **Kind:** `interface`
@@ -8582,6 +11235,232 @@ export interface SwitchFieldProps {
 
 _Source: src/components/switch/variants/base/switch-base.field.tsx_
 
+### Table
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function Table({ className, ...props }: React.ComponentProps<'table'>)
+```
+
+_Source: src/components/table/variants/base/table-base.tsx_
+
+### tableBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Table` — единый источник api/props и валидации componentProps.
+`x-registryName: 'Table'` — каноническое имя в реестре renderer-json.
+Корень `Table` — чистый `ComponentProps<'table'>` (дословный shadcn, без cva/Radix):
+единственный сериализуемый проп — `className`.
+
+**Signature:**
+```typescript
+export const tableBasePropsSchema
+```
+
+_Source: src/components/table/variants/base/table-base.props.ts_
+
+### TableBody
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function TableBody({ className, ...props }: React.ComponentProps<'tbody'>)
+```
+
+_Source: src/components/table/variants/base/table-base.tsx_
+
+### TableCaption
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function TableCaption({ className, ...props }: React.ComponentProps<'caption'>)
+```
+
+_Source: src/components/table/variants/base/table-base.tsx_
+
+### TableCell
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function TableCell({ className, ...props }: React.ComponentProps<'td'>)
+```
+
+_Source: src/components/table/variants/base/table-base.tsx_
+
+### TableColumn
+
+**Kind:** `interface`
+
+Описание одной колонки DataGrid.
+
+**Signature:**
+```typescript
+export interface TableColumn<Row> {
+  /** Уникальный id колонки (ключ; попадает в `sorting[].id` и `filters`). */
+  id: string;
+  /** Заголовок колонки. */
+  header: React.ReactNode;
+  /** Извлекатель содержимого ячейки из строки. Если не задан — ячейка пустая. */
+  accessor?: (row: Row) => React.ReactNode;
+  /** Разрешить сортировку по колонке (кликабельный заголовок). По умолчанию `false`. */
+  sortable?: boolean;
+  /** Разрешить фильтрацию по колонке (текстовый инпут в тулбаре). По умолчанию `false`. */
+  filterable?: boolean;
+  /** Плейсхолдер для фильтр-инпута колонки. По умолчанию — `id`. */
+  filterPlaceholder?: string;
+  /** Горизонтальное выравнивание содержимого. По умолчанию `left`. */
+  align?: 'left' | 'center' | 'right';
+  /** Доп. className для ячеек и заголовка колонки. */
+  className?: string;
+}
+```
+
+_Source: src/components/table/variants/data-grid/table-data-grid.tsx_
+
+### TableFilters
+
+**Kind:** `type`
+
+Плоская карта активных фильтров: id колонки → значение фильтра.
+
+**Signature:**
+```typescript
+export type TableFilters = Record<string, unknown>;
+```
+
+_Source: src/components/table/variants/data-grid/table-data-grid.tsx_
+
+### TableFooter
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>)
+```
+
+_Source: src/components/table/variants/base/table-base.tsx_
+
+### TableHead
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function TableHead({ className, ...props }: React.ComponentProps<'th'>)
+```
+
+_Source: src/components/table/variants/base/table-base.tsx_
+
+### TableHeader
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function TableHeader({ className, ...props }: React.ComponentProps<'thead'>)
+```
+
+_Source: src/components/table/variants/base/table-base.tsx_
+
+### TablePage
+
+**Kind:** `interface`
+
+Результат {@link TableSettings.dataProvider}: строки текущей страницы + общее число строк.
+
+**Signature:**
+```typescript
+export interface TablePage<Row> {
+  /** Строки текущей страницы. */
+  rows: Row[];
+  /** Общее число строк во всём наборе (для расчёта числа страниц). */
+  total: number;
+}
+```
+
+_Source: src/components/table/variants/data-grid/table-data-grid.tsx_
+
+### TableQuery
+
+**Kind:** `interface`
+
+Аргумент запроса, который DataGrid передаёт в {@link TableSettings.dataProvider}.
+
+**Signature:**
+```typescript
+export interface TableQuery {
+  /** Активные фильтры колонок (id → значение). Пустая карта, если фильтров нет. */
+  filters: TableFilters;
+  /** Текущая страница (`pageIndex` с 0) и размер страницы. */
+  pagination: { pageIndex: number; pageSize: number };
+  /** Активная сортировка (порядок значим). `desc` — по убыванию. */
+  sorting: { id: string; desc: boolean }[];
+}
+```
+
+_Source: src/components/table/variants/data-grid/table-data-grid.tsx_
+
+### TableRow
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function TableRow({ className, ...props }: React.ComponentProps<'tr'>)
+```
+
+_Source: src/components/table/variants/base/table-base.tsx_
+
+### TableSelectionMode
+
+**Kind:** `type`
+
+Режим выделения строк DataGrid.
+
+**Signature:**
+```typescript
+export type TableSelectionMode = 'none' | 'single' | 'multiple';
+```
+
+_Source: src/components/table/variants/data-grid/table-data-grid.tsx_
+
+### TableSettings
+
+**Kind:** `interface`
+
+Контракт настроек DataGrid.
+
+**Signature:**
+```typescript
+export interface TableSettings<Row> {
+  /**
+   * Провайдер данных. Вызывается при монтировании и при любом изменении
+   * pagination / sorting / filters. Должен вернуть строки текущей страницы и общее
+   * число строк. Отклонение промиса → состояние ошибки с кнопкой «Повторить».
+   */
+  dataProvider: (query: TableQuery) => Promise<TablePage<Row>>;
+  /** Колонки таблицы. */
+  columns: TableColumn<Row>[];
+  /** Размер страницы. По умолчанию `10`. */
+  pageSize?: number;
+  /** Стабильный ключ строки (для React-key и выделения). По умолчанию — индекс. */
+  rowKey?: (row: Row) => string | number;
+  /** Режим выделения строк. По умолчанию `none`. */
+  selection?: TableSelectionMode;
+}
+```
+
+_Source: src/components/table/variants/data-grid/table-data-grid.tsx_
+
 ### Tabs
 
 **Kind:** `function`
@@ -8596,6 +11475,22 @@ function Tabs({
 ```
 
 _Source: src/components/tabs/variants/base/tabs-base.tsx_
+
+### tabsBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Tabs` — единый источник api/props и валидации componentProps.
+`x-registryName: 'Tabs'` — каноническое имя в реестре renderer-json.
+Tabs — обёртка над Radix `Tabs.Root`; сериализуемые пропсы взяты из его API
+(обёртка задаёт default `orientation='horizontal'`). cva-`variant` живёт на `TabsList`, не на Root.
+
+**Signature:**
+```typescript
+export const tabsBasePropsSchema
+```
+
+_Source: src/components/tabs/variants/base/tabs-base.props.ts_
 
 ### TabsContent
 
@@ -8684,6 +11579,30 @@ export const textareaBasePropsSchema
 
 _Source: src/components/textarea/variants/base/textarea-base.props.ts_
 
+### TextareaField
+
+**Kind:** `const`
+
+Многострочное строковое поле: pure Textarea + nativeInputAdapter (e.target.value || null).
+
+**Signature:**
+```typescript
+export const TextareaBaseField
+```
+
+_Source: src/components/textarea/variants/base/textarea-base.field.tsx_
+
+### Toaster
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+const Toaster
+```
+
+_Source: src/components/sonner/variants/base/sonner-base.tsx_
+
 ### Toggle
 
 **Kind:** `function`
@@ -8736,6 +11655,24 @@ export const toggleBasePropsSchema
 ```
 
 _Source: src/components/toggle/variants/base/toggle-base.props.ts_
+
+### ToggleField
+
+**Kind:** `const`
+
+Field-версия Toggle: pure shadcn Toggle + `pressedAdapter` (boolean value-based:
+`pressed` + `onPressedChange`, `null`/`undefined` → `false`). Экспортируется как алиас `ToggleField`.
+
+⚠️ В ОТЛИЧИЕ от Checkbox/Switch — Toggle НЕ inline-label: подпись поля рисует FormField СВЕРХУ
+(`componentProps.label` → FormField.Label), а контент toggle (`children`) живёт ВНУТРИ кнопки.
+Поэтому маркер `reformerLayout='inline-label'` НЕ ставится (иначе верхняя подпись пропала бы).
+
+**Signature:**
+```typescript
+export const ToggleBaseField
+```
+
+_Source: src/components/toggle/variants/base/toggle-base.field.tsx_
 
 ### ToggleFieldProps
 
@@ -8817,6 +11754,21 @@ export const toggleGroupBasePropsSchema
 ```
 
 _Source: src/components/toggle-group/variants/base/toggle-group-base.props.ts_
+
+### ToggleGroupField
+
+**Kind:** `const`
+
+Field-версия ToggleGroup: value-based (`value: string | null`, `onChange(value)`), рендерит
+`options`. Привязка через {@link valueChangeAdapter} (`value` / `onValueChange`, string).
+НЕ inline-label — подпись группы рисует FormField сверху. Экспортируется как алиас `ToggleGroupField`.
+
+**Signature:**
+```typescript
+export const ToggleGroupBaseField
+```
+
+_Source: src/components/toggle-group/variants/base/toggle-group-base.field.tsx_
 
 ### ToggleGroupFieldProps
 
@@ -9094,6 +12046,19 @@ function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root
 
 _Source: src/components/tooltip/variants/base/tooltip-base.tsx_
 
+### tooltipBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема Tooltip (Radix Tooltip.Root) — провайдер без DOM (стили/позиция — на TooltipContent).
+
+**Signature:**
+```typescript
+export const tooltipBasePropsSchema
+```
+
+_Source: src/components/tooltip/variants/base/tooltip-base.props.ts_
+
 ### TooltipContent
 
 **Kind:** `function`
@@ -9146,6 +12111,17 @@ function TypographyBlockquote({ className, ...props }: React.ComponentProps<'blo
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
 
+### typographyBlockquotePropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyBlockquotePropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
+
 ### TypographyH1
 
 **Kind:** `function`
@@ -9156,6 +12132,17 @@ function TypographyH1({ className, ...props }: React.ComponentProps<'h1'>)
 ```
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
+
+### typographyH1PropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyH1PropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
 
 ### TypographyH2
 
@@ -9168,6 +12155,17 @@ function TypographyH2({ className, ...props }: React.ComponentProps<'h2'>)
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
 
+### typographyH2PropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyH2PropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
+
 ### TypographyH3
 
 **Kind:** `function`
@@ -9178,6 +12176,17 @@ function TypographyH3({ className, ...props }: React.ComponentProps<'h3'>)
 ```
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
+
+### typographyH3PropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyH3PropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
 
 ### TypographyH4
 
@@ -9190,6 +12199,17 @@ function TypographyH4({ className, ...props }: React.ComponentProps<'h4'>)
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
 
+### typographyH4PropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyH4PropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
+
 ### TypographyInlineCode
 
 **Kind:** `function`
@@ -9200,6 +12220,17 @@ function TypographyInlineCode({ className, ...props }: React.ComponentProps<'cod
 ```
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
+
+### typographyInlineCodePropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyInlineCodePropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
 
 ### TypographyLarge
 
@@ -9212,6 +12243,17 @@ function TypographyLarge({ className, ...props }: React.ComponentProps<'div'>)
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
 
+### typographyLargePropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyLargePropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
+
 ### TypographyLead
 
 **Kind:** `function`
@@ -9222,6 +12264,17 @@ function TypographyLead({ className, ...props }: React.ComponentProps<'p'>)
 ```
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
+
+### typographyLeadPropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyLeadPropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
 
 ### TypographyList
 
@@ -9234,6 +12287,17 @@ function TypographyList({ className, ...props }: React.ComponentProps<'ul'>)
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
 
+### typographyListPropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyListPropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
+
 ### TypographyMuted
 
 **Kind:** `function`
@@ -9244,6 +12308,17 @@ function TypographyMuted({ className, ...props }: React.ComponentProps<'p'>)
 ```
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
+
+### typographyMutedPropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyMutedPropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
 
 ### TypographyP
 
@@ -9256,6 +12331,17 @@ function TypographyP({ className, ...props }: React.ComponentProps<'p'>)
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
 
+### typographyPPropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographyPPropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
+
 ### TypographySmall
 
 **Kind:** `function`
@@ -9267,6 +12353,28 @@ function TypographySmall({ className, ...props }: React.ComponentProps<'small'>)
 
 _Source: src/components/typography/variants/base/typography-base.tsx_
 
+### typographySmallPropsSchema
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const typographySmallPropsSchema
+```
+
+_Source: src/components/typography/variants/base/typography-base.props.ts_
+
+### useChart
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function useChart()
+```
+
+_Source: src/components/chart/variants/base/chart-base.tsx_
+
 ### useDirection
 
 **Kind:** `const`
@@ -9277,3 +12385,78 @@ const useDirection
 ```
 
 _Source: src/components/direction/variants/base/direction-base.tsx_
+
+### useSidebar
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+function useSidebar()
+```
+
+_Source: src/components/sidebar/variants/base/sidebar-base.tsx_
+
+### valueChangeAdapter
+
+**Kind:** `const`
+
+Select / Radio Group / Toggle Group — `value` + `onValueChange(string)`.
+
+**Signature:**
+```typescript
+export const valueChangeAdapter: FieldAdapter
+```
+
+_Source: src/fields/adapters.ts_
+
+### withFormControl
+
+**Kind:** `function`
+
+HOC: превращает чистый shadcn-примитив в field-компонент по контракту seam.
+
+Под `<FormField control={…}/>` (@reformer/cdk) и в renderer-react компонент получает
+plain props, резолвленные выше: `value` (raw), value-based `onChange:(value)=>void`,
+`onBlur`, `disabled`, `id`, `aria-*`, весь `componentProps` кроме `testId`.
+
+HOC отбрасывает `control` (renderer-react дополнительно передаёт `control={fieldNode}` — в DOM
+он не нужен) и любые `strip`-ключи, чтобы ничего не текло в DOM, и маппит value/onChange под
+event-shape примитива через {@link FieldAdapter}.
+
+Компонент — `forwardRef` и экспонирует императивный {@link FieldHandle}: по умолчанию baseline
+(focus/blur/scrollIntoView/getElement из DOM-узла примитива), либо handle композита при
+`options.exposesHandle`. Ref достаётся из render-схемы через `schema.node(sel).getRef()`.
+
+**Signature:**
+```typescript
+export function withFormControl<P extends object, H extends FieldHandle = FieldHandle>(
+  Primitive: ComponentType<P>,
+  adapter: FieldAdapter,
+  options?: WithFormControlOptions<H>
+): ForwardRefExoticComponent<Record<string, unknown> & RefAttributes<H>>
+```
+
+_Source: src/fields/with-form-control.tsx_
+
+### WithFormControlOptions
+
+**Kind:** `interface`
+
+Опции handle-слоя HOC (см. docs/plans/useimperativehandle-refactored-blossom.md).
+
+**Signature:**
+```typescript
+export interface WithFormControlOptions<H extends FieldHandle = FieldHandle> {
+  /**
+   * Композит сам реализует императивный handle (`useImperativeHandle`). Тогда ref потребителя
+   * форвардится ПРЯМО в примитив (passthrough), а HOC не вешает свой `useImperativeHandle` —
+   * иначе один ref писался бы дважды (последний писатель побеждает).
+   */
+  exposesHandle?: boolean;
+  /** Переопределить baseline-handle. По умолчанию — {@link makeElementFieldHandle} из DOM-узла примитива. */
+  buildHandle?: (el: RefObject<HTMLElement | null>) => H;
+}
+```
+
+_Source: src/fields/with-form-control.tsx_

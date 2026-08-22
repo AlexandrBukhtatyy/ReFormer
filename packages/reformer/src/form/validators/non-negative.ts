@@ -18,14 +18,13 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Проверка неотрицательности
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { nonNegative } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * balance: {
- *   value: model.$.balance,
- *   component: Input,
- *   validators: [nonNegative({ message: 'Баланс не может быть отрицательным' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.balance, [nonNegative({ message: 'Баланс не может быть отрицательным' })]);
+ * });
  * ```
  */
 export function nonNegative<TForm = unknown, TField extends number | null | undefined = number>(

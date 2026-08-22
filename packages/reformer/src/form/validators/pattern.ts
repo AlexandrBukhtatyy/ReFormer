@@ -21,22 +21,14 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Проверка по регулярному выражению
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, pattern } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * name: {
- *   value: model.$.name,
- *   component: Input,
- *   validators: [pattern(/^[a-zA-Zа-яА-Я]+$/, { message: 'Только буквы' })],
- * },
- * phone: {
- *   value: model.$.phone,
- *   component: InputMask,
- *   validators: [
- *     required(),
- *     pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 123-45-67' }),
- *   ],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.name, [pattern(/^[a-zA-Zа-яА-Я]+$/, { message: 'Только буквы' })]);
+ *   validate(model.$.phone, [required(), pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 123-45-67' })]);
+ * });
  * ```
  */
 export function pattern<TForm = unknown, TField extends string | null | undefined = string>(

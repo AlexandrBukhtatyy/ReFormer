@@ -20,15 +20,14 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Максимальное значение числового поля
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, max } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * quantity: { value: model.$.quantity, component: Input, validators: [max(100)] },
- * discount: {
- *   value: model.$.discount,
- *   component: Input,
- *   validators: [required(), max(50, { message: 'Не более 50%' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.quantity, [max(100)]);
+ *   validate(model.$.discount, [required(), max(50, { message: 'Не более 50%' })]);
+ * });
  * ```
  */
 export function max<TForm = unknown, TField extends number | null | undefined = number>(

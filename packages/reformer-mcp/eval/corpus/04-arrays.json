@@ -39,7 +39,7 @@
       "task": "очистить массив, когда сняли флаг, который его показывал",
       "target": "core",
       "queries": ["clear array when flag unchecked", "array cleanup", "reset array items"],
-      "expectAny": ["resetWhen", "setValue([])", "очист"]
+      "expectAny": ["onChange", ".clear()"]
     },
     {
       "id": "arrays/nested",

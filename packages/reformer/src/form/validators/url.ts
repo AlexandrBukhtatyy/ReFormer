@@ -37,20 +37,15 @@ export interface UrlValidatorOptions extends ValidateOptions {
  *
  * @example Проверка URL
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, url } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * website: {
- *   value: model.$.website,
- *   component: Input,
- *   validators: [required(), url({ message: 'Введите корректный URL' })],
- * },
- * // Требовать протокол и ограничить схему только https:
- * homepage: {
- *   value: model.$.homepage,
- *   component: Input,
- *   validators: [url({ requireProtocol: true, allowedProtocols: ['https'] })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.website, [required(), url({ message: 'Введите корректный URL' })]);
+ *   // Требовать протокол и ограничить схему только https:
+ *   validate(model.$.homepage, [url({ requireProtocol: true, allowedProtocols: ['https'] })]);
+ * });
  * ```
  */
 export function url<TForm = unknown, TField extends string | null | undefined = string>(

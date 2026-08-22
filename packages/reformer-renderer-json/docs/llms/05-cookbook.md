@@ -377,7 +377,19 @@ function createReadonlyBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 **Notes.**
 
 - `form.disable()` — публичный метод узла (`FormNode.disable()`): ставит статус `disabled` и вызывает hook `onDisable`, который у группы каскадит на всех детей рекурсивно. Обратно — `form.enable()`.
-- **Caveat:** поле с явным `componentProps.disabled` **перебивает** каскад. Рендерер собирает пропы как `{ value, disabled: state.disabled, ...componentProps }` — спред `componentProps` идёт ПОСЛЕ `disabled`, поэтому `componentProps.disabled: false` вернёт полю доступность даже при `form.disable()`. Не задавай `disabled` в JSON, если хочешь глобальный каскад.
+- **`componentProps.disabled` в JSON не работает — и это by design.** `FormFieldControl` ставит `disabled={disabled}` из состояния узла ПОСЛЕ спреда `componentProps` ([FormFieldControl.tsx:104-115](../../../reformer-cdk/src/components/form-field/FormFieldControl.tsx)), поэтому значение из схемы затирается. Props-схемы field-компонентов его и не объявляют: `disabled` описан как seam-проп в [seam.props.ts](../../../reformer-ui-kit/src/fields/seam.props.ts), а `validateFormSchema` вернёт `has unknown property "disabled"`. Единственный рабочий рычаг — состояние узла: `control.disable()` / `control.enable()`.
+- **Одно поле, а не вся форма.** Тот же `disable()` вызывается точечно из render-behavior — так делаются readonly-поля для вычисляемых значений:
+
+  ```typescript
+  onInit(schema.node('wizard'), () => {
+    // Вычисляемые поля правит только behaviour, руками их менять нельзя.
+    form.interestRate.disable();
+    form.monthlyPayment.disable();
+  });
+  ```
+
+  На снимок `model.get()` это НЕ влияет (в отличие от `getValue()` формы), поэтому вычисленные значения всё равно уезжают в submit.
+- `readOnly` в DSL тоже нет: ни одна props-схема его не объявляет, и `additionalProperties: false` его отклонит.
 - Отключённые узлы не валидируются и не попадают в `getValue()` — для чистого view-mode это обычно желаемо; если нужен submit disabled-значений, снимай `disable()` перед сбором.
 - `settings.readonly` / `settings.mode` не существует — model-level каскад (`form.disable()`) это канонический механизм view-mode.
 
@@ -417,7 +429,7 @@ const schema: JsonFormSchema = {
 };
 
 const registry = defineRegistry((reg) => {
-  reg.component('Input', Input);
+  reg.component('Input', InputField);
   reg.component('Box', Box);
   reg.component('Section', Section);
   reg.component(FIELD_WRAPPER, FormField);

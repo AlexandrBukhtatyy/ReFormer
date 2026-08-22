@@ -22,14 +22,13 @@ import { parseDate, calculateAge } from './date-utils';
  *
  * @example Максимальный возраст
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { maxAge } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * birthDate: {
- *   value: model.$.birthDate,
- *   component: DatePicker,
- *   validators: [maxAge(100, { message: 'Проверьте дату рождения' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.birthDate, [maxAge(100, { message: 'Проверьте дату рождения' })]);
+ * });
  * ```
  */
 export function maxAge<

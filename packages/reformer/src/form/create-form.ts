@@ -29,7 +29,7 @@ import type { FormBehavior } from './behaviors';
 
 /**
  * Аргументы createForm под архитектуру M1: данные приходят из {@link FormModel},
- * конфиг полей (component/componentProps/validators) — из единой схемы.
+ * конфиг полей (component/componentProps) — из единой схемы.
  *
  * @group Utilities
  */
@@ -183,7 +183,7 @@ function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out:
  *
  * Значения принадлежат модели (источник истины), ноды формы держат UI/валидационное состояние и
  * ссылаются на сигналы модели по идентичности (`node.value === model.$.path`). Обходит структуру
- * модели, привязывает конфиг поля (component/componentProps/validators) из схемы, материализует
+ * модели, привязывает конфиг поля (component/componentProps) из схемы, материализует
  * top-level массивы как {@link ModelArrayNode}, заполняет реестр сигнал→нода (для `enableWhen`/
  * роутинга ошибок) и, при наличии, запускает декларативное поведение (cleanup живёт на форме).
  *
@@ -207,7 +207,8 @@ function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out:
  * const schema = {
  *   component: Section,
  *   children: [
- *     { value: model.$.email, component: Input, validators: [required] },
+ *     // Layout несёт только component/componentProps; правила — в отдельной ValidationSchema.
+ *     { value: model.$.email, component: Input },
  *     // вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
  *     { value: model.$.profile.name, component: Input },
  *   ],
@@ -334,7 +335,8 @@ export function createForm<T>(config: GroupNodeConfig<T>): FormProxy<T>;
  *
  * @deprecated Legacy / back-compat: плоская `FormSchema` с инлайн-значениями (`value: ''`) — путь
  *   ДО архитектуры M1. Для нового кода используйте перегрузку `createForm({ model, schema })`
- *   (значения принадлежат {@link FormModel}, валидаторы — фабрики в `validators: [...]`).
+ *   (значения принадлежат {@link FormModel}, а правила — отдельной схеме `defineValidationSchema`,
+ *   которую прогоняет `validateModel`; поля `validators` у узла layout-схемы нет).
  *
  * @param schema - Схема полей формы
  * @returns Типизированная форма с Proxy-доступом к полям

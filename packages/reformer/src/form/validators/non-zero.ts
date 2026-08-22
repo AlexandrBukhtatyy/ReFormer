@@ -18,14 +18,13 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Проверка «не ноль»
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { nonZero } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * divisor: {
- *   value: model.$.divisor,
- *   component: Input,
- *   validators: [nonZero({ message: 'Не может быть нулём' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.divisor, [nonZero({ message: 'Не может быть нулём' })]);
+ * });
  * ```
  */
 export function nonZero<TForm = unknown, TField extends number | null | undefined = number>(

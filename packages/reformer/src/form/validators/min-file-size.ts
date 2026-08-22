@@ -25,14 +25,13 @@ import { toFileArray } from './file-utils';
  *
  * @example Отсев пустых файлов
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { minFileSize } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * documents: {
- *   value: model.$.documents,
- *   component: FileUploadField,
- *   validators: [minFileSize(1, { message: 'Файл пустой' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.documents, [minFileSize(1, { message: 'Файл пустой' })]);
+ * });
  * ```
  */
 export function minFileSize<TForm = unknown, TField = unknown>(

@@ -22,20 +22,15 @@ import type { Validator, ValidateOptions } from '../types/validation-schema';
  *
  * @example Обязательные поля в схеме формы
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * email: { value: model.$.email, component: Input, validators: [required()] },
- * phone: {
- *   value: model.$.phone,
- *   component: Input,
- *   validators: [required({ message: 'Укажите номер телефона' })],
- * },
- * agreeToTerms: {
- *   value: model.$.agreeToTerms,
- *   component: Checkbox,
- *   validators: [required({ message: 'Необходимо принять условия' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.email, [required()]);
+ *   validate(model.$.phone, [required({ message: 'Укажите номер телефона' })]);
+ *   validate(model.$.agreeToTerms, [required({ message: 'Необходимо принять условия' })]);
+ * });
  * ```
  */
 export function required<TForm = unknown, TField = unknown>(

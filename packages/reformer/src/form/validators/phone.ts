@@ -46,14 +46,13 @@ export interface PhoneValidatorOptions extends ValidateOptions {
  *
  * @example Проверка номера телефона
  * ```typescript
+ * import { defineValidationSchema, validate } from '@reformer/core/validation';
  * import { required, phone } from '@reformer/core/validators';
  *
- * // Внутри FieldConfig схемы формы:
- * phone: {
- *   value: model.$.phone,
- *   component: Input,
- *   validators: [required(), phone({ format: 'ru' })],
- * },
+ * // Правила живут в отдельной схеме над МОДЕЛЬЮ — layout-схема валидаторов не несёт.
+ * const validation = defineValidationSchema<MyForm>(({ model }) => {
+ *   validate(model.$.phone, [required(), phone({ format: 'ru' })]);
+ * });
  * ```
  */
 export function phone<TForm = unknown, TField extends string | null | undefined = string>(
