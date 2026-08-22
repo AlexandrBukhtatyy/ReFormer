@@ -1,0 +1,52 @@
+{
+  "category": "arrays",
+  "description": "Массивы формы: узел, рендер строк, добавление/удаление, длина, очистка.",
+  "tasks": [
+    {
+      "id": "arrays/node",
+      "task": "объявить в схеме массив объектов",
+      "target": "core",
+      "queries": ["form array node", "array of objects in form schema", "form-array"],
+      "expectAny": ["initialValue", "item:", "ArrayNode"]
+    },
+    {
+      "id": "arrays/render",
+      "task": "отрисовать строки массива с кнопками добавить и удалить",
+      "target": "core",
+      "queries": [
+        "render array rows with add and remove",
+        "array add remove ui",
+        "FormArray component"
+      ],
+      "expectAny": ["FormArray"]
+    },
+    {
+      "id": "arrays/length",
+      "task": "показать текущее количество строк массива",
+      "target": "core",
+      "queries": ["number of rows in form array", "array length reactive", "useArrayLength"],
+      "expectAny": ["useArrayLength"]
+    },
+    {
+      "id": "arrays/remove",
+      "task": "удалить строку массива",
+      "target": "core",
+      "queries": ["remove item from form array", "delete array row", "array operations"],
+      "expectAny": ["onRemove", "removeAt", ".remove("]
+    },
+    {
+      "id": "arrays/cleanup",
+      "task": "очистить массив, когда сняли флаг, который его показывал",
+      "target": "core",
+      "queries": ["clear array when flag unchecked", "array cleanup", "reset array items"],
+      "expectAny": ["resetWhen", "setValue([])", "очист"]
+    },
+    {
+      "id": "arrays/nested",
+      "task": "вложенный массив внутри строки массива",
+      "target": "core",
+      "queries": ["nested array inside array item", "array of arrays form", "nested form array"],
+      "expectAny": ["вложен", "nested array", "itemModel"]
+    }
+  ]
+}

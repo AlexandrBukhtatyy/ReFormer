@@ -16,6 +16,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findSymbol } from '../src/utils/symbols-parser';
+import { AST_HEAVY_TIMEOUT_MS } from './timeouts';
 
 const templatesDir = resolve(dirname(fileURLToPath(import.meta.url)), '../src/prompts/templates');
 
@@ -64,20 +65,24 @@ describe('промпты не противоречат резолверу сим
     expect(imports.length).toBeGreaterThan(0);
   });
 
-  it('каждое имя, импортируемое из @reformer/*, резолвится через findSymbol', () => {
-    const seen = new Set<string>();
-    const unresolved: string[] = [];
-    for (const { name, from, file } of imports) {
-      const key = `${name}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      if (!findSymbol(name, '*')) unresolved.push(`${name} (${from}, ${file})`);
-    }
-    expect(
-      unresolved,
-      `Промпты импортируют символы, которых нет в @reformer/* — вероятно, API снят из core, ` +
-        `но остался в промпте (как validateFormModel в P0). Обнови шаблон на живой контракт ` +
-        `или проверь имя.\nНе резолвятся:\n  ${unresolved.join('\n  ')}`
-    ).toEqual([]);
-  });
+  it(
+    'каждое имя, импортируемое из @reformer/*, резолвится через findSymbol',
+    () => {
+      const seen = new Set<string>();
+      const unresolved: string[] = [];
+      for (const { name, from, file } of imports) {
+        const key = `${name}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (!findSymbol(name, '*')) unresolved.push(`${name} (${from}, ${file})`);
+      }
+      expect(
+        unresolved,
+        `Промпты импортируют символы, которых нет в @reformer/* — вероятно, API снят из core, ` +
+          `но остался в промпте (как validateFormModel в P0). Обнови шаблон на живой контракт ` +
+          `или проверь имя.\nНе резолвятся:\n  ${unresolved.join('\n  ')}`
+      ).toEqual([]);
+    },
+    AST_HEAVY_TIMEOUT_MS
+  );
 });

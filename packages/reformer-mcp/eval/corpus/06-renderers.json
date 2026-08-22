@@ -1,0 +1,67 @@
+{
+  "category": "renderers",
+  "description": "renderer-react (RenderSchema) и renderer-json (JSON-DSL + реестр). Проверяем и то, что target отсекает нерелевантное.",
+  "tasks": [
+    {
+      "id": "renderer-react/schema",
+      "task": "описать разметку формы деревом вместо JSX",
+      "target": "renderer-react",
+      "queries": ["render schema tree instead of jsx", "createRenderSchema", "render schema"],
+      "expectAny": ["createRenderSchema", "RenderSchema"]
+    },
+    {
+      "id": "renderer-react/mount",
+      "task": "смонтировать форму из render-схемы",
+      "target": "renderer-react",
+      "queries": ["render the form bundle", "FormRenderer component", "mount render schema"],
+      "expectAny": ["FormRenderer"]
+    },
+    {
+      "id": "renderer-react/hide",
+      "task": "скрыть узел разметки по условию",
+      "target": "renderer-react",
+      "queries": [
+        "hide node conditionally in renderer",
+        "conditional visibility renderer",
+        "hideWhen"
+      ],
+      "expectAny": ["hideWhen", "setHidden"]
+    },
+    {
+      "id": "renderer-json/schema",
+      "task": "описать форму JSON-схемой",
+      "target": "renderer-json",
+      "queries": ["json form schema", "describe form as json", "json schema dsl"],
+      "expectAny": ["$model", "$component", "root"]
+    },
+    {
+      "id": "renderer-json/registry",
+      "task": "связать имена компонентов из JSON с реальными React-компонентами",
+      "target": "renderer-json",
+      "queries": [
+        "map component names to react components",
+        "component registry json",
+        "defineRegistry"
+      ],
+      "expectAny": ["defineRegistry", "reg.component"]
+    },
+    {
+      "id": "renderer-json/data-source",
+      "task": "подставить в select список опций из справочника",
+      "target": "renderer-json",
+      "queries": [
+        "options from data source in json schema",
+        "dataSource select options",
+        "$dataSource"
+      ],
+      "expectAny": ["$dataSource"]
+    },
+    {
+      "id": "renderer-json/mount",
+      "task": "отрендерить форму из JSON-схемы",
+      "target": "renderer-json",
+      "queries": ["render form from json schema", "JsonFormRenderer", "mount json form"],
+      "expectAny": ["JsonFormRenderer", "JsonRendererProvider"]
+    }
+  ]
+}

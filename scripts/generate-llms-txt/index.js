@@ -3,9 +3,20 @@
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import { buildIndex } from './index-builder.js';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+
+/**
+ * Эталонные формы монорепо — источник сигнала «насколько популярен символ» для ранжирования
+ * (см. countUsage в index-builder.js). У потребителя этого каталога нет, и это нормально:
+ * поле `usage` просто не появится.
+ */
+const EXAMPLES_DIR = path.join(repoRoot, 'projects/react-playground/src/pages/examples');
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -49,9 +60,21 @@ function main(pkg) {
   const outPath = path.join(pkg, 'llms.txt');
   fs.writeFileSync(outPath, output, 'utf8');
 
+  // Тот же разбор, но машиночитаемо. Публикуется рядом с llms.txt и избавляет
+  // @reformer/mcp от разбора TypeScript-AST в рантайме (и от 23 MB `typescript`
+  // в рантаймных зависимостях). Подробности и обоснование — в index-builder.js.
+  const index = buildIndex({ meta, docs, symbols, examplesDir: EXAMPLES_DIR });
+  const indexPath = path.join(pkg, 'llms-index.json');
+  fs.writeFileSync(indexPath, JSON.stringify(index) + '\n', 'utf8');
+
   console.log(
     `Generated ${path.relative(process.cwd(), outPath)} ` +
       `(${docs.length} doc files, ${symbols.length} public symbols)`
+  );
+  console.log(
+    `Generated ${path.relative(process.cwd(), indexPath)} ` +
+      `(${index.topics.length} topics, ${index.symbols.length} symbols, ` +
+      `${(fs.statSync(indexPath).size / 1024).toFixed(0)} kB)`
   );
 }
 
@@ -177,16 +200,66 @@ function extractH2Sections(md) {
 // ---------------------------------------------------------------------------
 
 function parsePublicSymbols(pkg) {
-  const entry = findEntry(pkg);
-  if (!entry) return [];
+  const entries = findEntriesWithSpecifier(pkg);
+  if (entries.length === 0) return [];
 
-  const visited = new Set();
-  const collected = new Map(); // name → SymbolDoc
+  const merged = new Map(); // name → SymbolDoc (+ entries[])
 
-  collectFromFile(entry, visited, collected, null);
+  // Собираем КАЖДУЮ точку входа отдельно, чтобы знать, из каких подпутей символ доступен.
+  // Не всё видно из корня: `validate` экспортируется только из `@reformer/core/validation`,
+  // и импорт его из `@reformer/core` соберётся в монорепо, но упадёт у потребителя. Без
+  // списка спецификаторов эту ошибку отличить не от чего — а `tsc` покажет её лишь при
+  // сборке проекта потребителя.
+  for (const { specifier, file } of entries) {
+    const collected = new Map();
+    collectFromFile(file, new Set(), collected, null);
+    for (const sym of collected.values()) {
+      const existing = merged.get(sym.name);
+      if (!existing) {
+        merged.set(sym.name, { ...sym, entries: [specifier] });
+        continue;
+      }
+      if (!existing.entries.includes(specifier)) existing.entries.push(specifier);
+      // Более богатое описание (с примерами) выигрывает — как и раньше.
+      if (isRicher(sym, existing)) {
+        merged.set(sym.name, { ...sym, entries: existing.entries });
+      }
+    }
+  }
 
   // Sort alphabetically by name for deterministic output.
-  return [...collected.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Точки входа вместе со СПЕЦИФИКАТОРОМ импорта: `.` для главной, `./behaviors` и т.п. для
+ * подпутей. Спецификатор — это то, что консумент пишет в `import … from`, поэтому именно он
+ * должен попасть в индекс, а не путь файла на диске.
+ */
+function findEntriesWithSpecifier(pkg) {
+  const out = [];
+  const main = findEntry(pkg);
+  if (main) out.push({ specifier: '.', file: main });
+
+  try {
+    const pkgJson = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json'), 'utf8'));
+    for (const [key, val] of Object.entries(pkgJson.exports ?? {})) {
+      if (key === '.') continue;
+      if (key.split('/').length > 2) continue;
+      const imp = typeof val === 'string' ? val : val?.import;
+      if (!imp) continue;
+      const sub = imp
+        .replace(/^\.\//, '')
+        .replace(/\.(js|mjs|cjs)$/, '')
+        .replace(/^dist\//, '');
+      const file = findSubpathSource(pkg, sub);
+      if (file) out.push({ specifier: key, file });
+    }
+  } catch {
+    /* нет package.json / неразбираемые exports — только главная точка */
+  }
+
+  return out;
 }
 
 function findEntry(pkg) {
@@ -195,6 +268,66 @@ function findEntry(pkg) {
     if (fs.existsSync(c)) return c;
   }
   return null;
+}
+
+/**
+ * Исходник для подпути пакета (`./behaviors` → `src/form/behaviors/index.ts`).
+ *
+ * Прямой маппинг `dist/<sub>.js` → `src/<sub>.ts` не работает: реальная раскладка задаётся
+ * entry-картой vite (`behaviors: src/form/behaviors/index.ts`), а не зеркалит dist. Полагаться
+ * на собранный `dist/<sub>.d.ts` тоже нельзя — генератор запускается ДО `vite build`
+ * (`npm run build` = `generate:llms && vite build`), и dist был бы от прошлой сборки.
+ * Поэтому ищем по дереву исходников, детерминированно (обход отсортирован), и лишь в
+ * последнюю очередь падаем на dist.
+ */
+function findSubpathSource(pkg, sub) {
+  const direct = [
+    path.join(pkg, 'src', `${sub}.ts`),
+    path.join(pkg, 'src', `${sub}.tsx`),
+    path.join(pkg, 'src', sub, 'index.ts'),
+    path.join(pkg, 'src', sub, 'index.tsx'),
+  ];
+  for (const abs of direct) {
+    if (fs.existsSync(abs)) return abs;
+  }
+
+  const leaf = sub.split('/').pop();
+  const srcRoot = path.join(pkg, 'src');
+  const found = [];
+  const walk = (dir, depth) => {
+    if (depth > 4 || found.length > 0) return;
+    let entries;
+    try {
+      entries = fs
+        .readdirSync(dir, { withFileTypes: true })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (found.length > 0) return;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name === leaf) {
+          for (const idx of ['index.ts', 'index.tsx']) {
+            if (fs.existsSync(path.join(p, idx))) {
+              found.push(path.join(p, idx));
+              return;
+            }
+          }
+        }
+        walk(p, depth + 1);
+      } else if (e.name === `${leaf}.ts` || e.name === `${leaf}.tsx`) {
+        found.push(p);
+        return;
+      }
+    }
+  };
+  walk(srcRoot, 0);
+  if (found.length > 0) return found[0];
+
+  const dts = path.join(pkg, 'dist', `${sub}.d.ts`);
+  return fs.existsSync(dts) ? dts : null;
 }
 
 /**
@@ -208,11 +341,36 @@ function findEntry(pkg) {
  */
 
 /**
- * Recursively collect public symbols. `aliasFilter` — set of names to keep when
- * processing `export { A, B } from './foo'`; null means keep all.
+ * Как текущий модуль должен выставить наружу имена, объявленные глубже: ключ — имя, под
+ * которым выставляет ЭТОТ модуль, значение — имя после всех переименований по цепочке.
+ *
+ * Раньше здесь был `Set` ЛОКАЛЬНЫХ имён, и переименование терялось:
+ * `export { X as Y } from '...'` попадал в API Reference как `X`. Так 15 field-обёрток
+ * ui-kit (`SelectField`, `CheckboxField`, …) — то, что консумент реально пишет — были
+ * задокументированы под внутренними именами (`SelectAsyncField`, `CheckboxBaseField`, …),
+ * которые не пишет никто.
+ *
+ * `null` — фильтра нет, имя берётся из объявления.
+ */
+function resolveExposed(aliasFilter, exposedHere) {
+  if (!aliasFilter) return exposedHere;
+  return aliasFilter.has(exposedHere) ? aliasFilter.get(exposedHere) : null;
+}
+
+/**
+ * Recursively collect public symbols. `aliasFilter` — карта «имя здесь → имя наружу»
+ * для `export { A, B as C } from './foo'`; null означает «брать всё».
  */
 function collectFromFile(filePath, visited, collected, aliasFilter) {
-  const key = filePath + '||' + (aliasFilter ? [...aliasFilter].sort().join(',') : '*');
+  const key =
+    filePath +
+    '||' +
+    (aliasFilter
+      ? [...aliasFilter]
+          .map(([local, exposed]) => local + '>' + exposed)
+          .sort()
+          .join(',')
+      : '*');
   if (visited.has(key)) return;
   visited.add(key);
 
@@ -256,13 +414,12 @@ function collectFromFile(filePath, visited, collected, aliasFilter) {
     ) {
       const target = resolveModule(filePath, stmt.moduleSpecifier.text);
       if (!target) continue;
-      const names = new Set();
+      // Локальное имя в целевом модуле → имя, под которым символ должен выйти наружу.
+      const names = new Map();
       for (const el of stmt.exportClause.elements) {
-        const exposed = el.name.text;
-        if (!aliasFilter || aliasFilter.has(exposed)) {
-          // propertyName is the original name in the source module
-          names.add((el.propertyName ?? el.name).text);
-        }
+        const finalName = resolveExposed(aliasFilter, el.name.text);
+        if (finalName === null) continue;
+        names.set((el.propertyName ?? el.name).text, finalName);
       }
       if (names.size > 0) collectFromFile(target, visited, collected, names);
       continue;
@@ -279,11 +436,11 @@ function collectFromFile(filePath, visited, collected, aliasFilter) {
       // Local re-exports — symbols are declared in the same file with non-export modifiers.
       // Capture them as exports.
       for (const el of stmt.exportClause.elements) {
-        const exposed = el.name.text;
-        if (aliasFilter && !aliasFilter.has(exposed)) continue;
+        const finalName = resolveExposed(aliasFilter, el.name.text);
+        if (finalName === null) continue;
         const localName = (el.propertyName ?? el.name).text;
         const decl = findLocalDeclaration(sf, localName);
-        if (decl) addSymbol(collected, exposed, decl, sf, filePath);
+        if (decl) addSymbol(collected, finalName, decl, sf, filePath);
       }
       continue;
     }
@@ -292,8 +449,9 @@ function collectFromFile(filePath, visited, collected, aliasFilter) {
     if (hasExportModifier(stmt)) {
       const items = describeExportStatement(stmt, sf);
       for (const item of items) {
-        if (aliasFilter && !aliasFilter.has(item.name)) continue;
-        addSymbol(collected, item.name, item.decl, sf, filePath, item.kind);
+        const finalName = resolveExposed(aliasFilter, item.name);
+        if (finalName === null) continue;
+        addSymbol(collected, finalName, item.decl, sf, filePath, item.kind);
       }
     }
   }
@@ -478,8 +636,47 @@ function demoteHeadings(text) {
   });
 }
 
+/** `@reformer/core` → `packages/reformer`; остальные — `packages/reformer-<tail>`. */
+function reformerPackageDir(pkgName) {
+  const tail = pkgName.replace(/^@reformer\//, '');
+  return path.join(repoRoot, 'packages', tail === 'core' ? 'reformer' : `reformer-${tail}`);
+}
+
 function resolveModule(fromFile, spec) {
-  if (!spec.startsWith('.')) return null; // package import — out of scope
+  // Реэкспорт из СОСЕДНЕГО @reformer/*-пакета. Раньше отбрасывался вместе со всеми
+  // не-относительными путями, и `export { useFormBundle as useReactForm } from '@reformer/core'`
+  // терялся целиком — символ есть в публичном API renderer-react, но ни в llms.txt,
+  // ни в индексе его не было, при том что промпты сервера учат звать именно `useReactForm`.
+  // Path-alias `@/…` → `src/…` (tsconfig paths; в ui-kit так написаны 177 файлов).
+  // Без этого терялись публичные типы, объявленные через алиас: `ArrayItemSlot` и
+  // `ArrayComponentProps` реэкспортируются как `from '@/lib/array-slot'` и в API Reference
+  // не попадали — при том что это контракт, который реализует пользовательский
+  // array-компонент.
+  if (spec.startsWith('@/')) {
+    const rel = spec.slice(2);
+    for (const abs of [
+      path.join(pkgPath, 'src', `${rel}.ts`),
+      path.join(pkgPath, 'src', `${rel}.tsx`),
+      path.join(pkgPath, 'src', rel, 'index.ts'),
+      path.join(pkgPath, 'src', rel, 'index.tsx'),
+    ]) {
+      if (fs.existsSync(abs)) return abs;
+    }
+    return null;
+  }
+
+  if (!spec.startsWith('.')) {
+    if (!spec.startsWith('@reformer/')) return null; // react и прочие зависимости — вне зоны
+    const root = reformerPackageDir(spec.split('/').slice(0, 2).join('/'));
+    const sub = spec.split('/').slice(2).join('/');
+    const candidates = sub
+      ? [path.join(root, 'src', `${sub}.ts`), path.join(root, 'src', `${sub}.tsx`)]
+      : [path.join(root, 'src', 'index.ts'), path.join(root, 'src', 'index.tsx')];
+    for (const abs of candidates) {
+      if (fs.existsSync(abs)) return abs;
+    }
+    return null;
+  }
   const baseDir = path.dirname(fromFile);
   const candidates = [
     spec + '.ts',

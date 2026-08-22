@@ -54,24 +54,67 @@ function loadCompiled(name: string): Handlebars.TemplateDelegate {
 }
 
 const RAW_BLOCK_RE = /\{\{\{\{raw\}\}\}\}[\s\S]*?\{\{\{\{\/raw\}\}\}\}/g;
-const VAR_RE = /\{\{\{?\s*([\w.]+)\s*\}?\}\}/g;
 
-function collectVarNames(template: string): Set<string> {
+/**
+ * Every mustache in the template, with its optional escaping backslash.
+ *
+ * Must match what Handlebars itself lexes, not just well-formed variables — the old
+ * `/\{\{\{?\s*([\w.]+)\s*\}?\}\}/` only matched identifier paths, so JSX double braces
+ * (`settings={{ fieldWrapper: FormField }}`) slipped past the pre-flight check and blew up
+ * later inside Handlebars with `strict: true` as `"fieldWrapper:" not defined`. That shipped:
+ * `start-here` — the documented entry point of this server — and `to-renderer` returned
+ * JSON-RPC -32603 to every client. Group 1 = escaping backslash, group 2 = inner text.
+ */
+const MUSTACHE_RE = /(\\?)\{\{\{?([^{}]*?)\}?\}\}/g;
+
+/** A bare Handlebars path (`foo`, `foo.bar`) — the only form these templates use. */
+const PATH_RE = /^[\w.$]+$/;
+
+interface TemplateScan {
+  /** Top-level variable names the template requires. */
+  names: Set<string>;
+  /** Unescaped mustaches Handlebars would parse as an expression but that name no variable. */
+  invalid: string[];
+}
+
+/**
+ * Classify every mustache: required variable, block/comment (passed through to Handlebars),
+ * escaped (`\{{…}}` — emitted literally, used for JSX braces in code samples), or invalid.
+ */
+function scanTemplate(template: string): TemplateScan {
   const stripped = template.replace(RAW_BLOCK_RE, '');
   const names = new Set<string>();
+  const invalid: string[] = [];
   let m: RegExpExecArray | null;
-  VAR_RE.lastIndex = 0;
-  while ((m = VAR_RE.exec(stripped)) !== null) {
-    const top = m[1].split('.')[0];
+  MUSTACHE_RE.lastIndex = 0;
+  while ((m = MUSTACHE_RE.exec(stripped)) !== null) {
+    const escaped = m[1] !== '';
+    const inner = m[2].trim();
+    if (escaped || !inner) continue;
+    // Block helpers, partials and comments are Handlebars' business, not ours.
+    if (/^[#/^!>]/.test(inner)) continue;
+    if (!PATH_RE.test(inner)) {
+      invalid.push(inner);
+      continue;
+    }
+    const top = inner.split('.')[0];
     if (top.startsWith('@') || top === 'this' || top === 'else') continue;
     names.add(top);
   }
-  return names;
+  return { names, invalid };
 }
 
 export function renderPromptTemplate(name: string, vars: Record<string, unknown>): string {
   const raw = loadRaw(name);
-  const required = collectVarNames(raw);
+  const { names: required, invalid } = scanTemplate(raw);
+  if (invalid.length > 0) {
+    throw new Error(
+      `Prompt template "${name}.md" has ${invalid.length} unescaped mustache(s) that Handlebars ` +
+        `parses as an expression but that name no variable: ${invalid.map((s) => `{{${s}}}`).join(', ')}. ` +
+        `Usually this is JSX/TS code in prose — escape the opening brace as \\{{ so it renders ` +
+        `literally, or wrap the block in {{{{raw}}}} … {{{{/raw}}}}.`
+    );
+  }
   const missing: string[] = [];
   for (const v of required) {
     if (!(v in vars)) missing.push(v);

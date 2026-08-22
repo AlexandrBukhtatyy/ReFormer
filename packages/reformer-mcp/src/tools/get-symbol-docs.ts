@@ -1,10 +1,11 @@
-import { findAllSymbols, type PublicSymbol } from '../utils/symbols-parser.js';
-import { KNOWN_PACKAGES } from '../utils/docs-parser.js';
+import type { PublicSymbol } from '../utils/symbols-parser.js';
+import { findSymbols } from '../index/symbols.js';
+import { normalizePackage } from '../utils/docs-parser.js';
 
 export const getSymbolDocsToolDefinition = {
   name: 'get_symbol_docs',
   description:
-    'Get JSDoc documentation for a public symbol of any @reformer/* package. Returns description, signature, parameters, return type, all @example blocks, and source location. Use it to look up exact behavior of a function/class/hook before writing code that uses it.',
+    'Full JSDoc for one public @reformer/* symbol: description, signature, params, examples, source.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -16,8 +17,7 @@ export const getSymbolDocsToolDefinition = {
       package: {
         type: 'string',
         description:
-          'Optional package name like "@reformer/cdk". Without it, all known @reformer/* packages are searched.',
-        enum: ['*', ...KNOWN_PACKAGES],
+          'Restrict to one package: core | cdk | ui-kit | renderer-react | renderer-json (full name or short). Omit for all.',
       },
     },
     required: ['symbol'],
@@ -32,7 +32,7 @@ export interface GetSymbolDocsArgs {
 export async function getSymbolDocsTool(
   args: GetSymbolDocsArgs
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
-  const matches = findAllSymbols(args.symbol, args.package ?? '*');
+  const matches = await findSymbols(args.symbol, normalizePackage(args.package) ?? '*');
   if (matches.length === 0) {
     return {
       content: [

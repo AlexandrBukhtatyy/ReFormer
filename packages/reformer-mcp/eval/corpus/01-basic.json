@@ -1,0 +1,59 @@
+{
+  "category": "basic",
+  "description": "Модель, схема, сборка формы, рендер — то, с чего начинается любая задача.",
+  "tasks": [
+    {
+      "id": "basic/create-form",
+      "task": "создать форму логина с полями email и password",
+      "target": "core",
+      "queries": ["create form", "quick start", "form schema"],
+      "expectAny": ["createForm", "createCoreForm", "FormSchema"]
+    },
+    {
+      "id": "basic/stable-assembly",
+      "task": "собрать форму так, чтобы React не пересоздавал её на ререндере",
+      "target": "core",
+      "queries": [
+        "stable form instance across rerenders",
+        "useMemo form rebuild",
+        "lazy useState form"
+      ],
+      "expectAny": ["useFormBundle", "useReactForm", "useJsonForm"]
+    },
+    {
+      "id": "basic/field-state",
+      "task": "подписаться на значение и ошибку одного поля в React-компоненте",
+      "target": "core",
+      "queries": ["subscribe to field state", "field value and error hook", "useFormControl"],
+      "expectAny": ["useFormControl"]
+    },
+    {
+      "id": "basic/field-wrapper",
+      "task": "показать label, ошибку и подсказку вокруг поля",
+      "target": "core",
+      "queries": ["label and error around field", "field wrapper", "FormField"],
+      "expectAny": ["FormField"]
+    },
+    {
+      "id": "basic/submit",
+      "task": "обработать submit и сбросить форму после успешной отправки",
+      "target": "core",
+      "queries": ["submit and reset form", "handle submit", "reset after submit"],
+      "expectAny": ["onSubmit", "handleSubmit", "submitter", "form.submit"]
+    },
+    {
+      "id": "basic/disabled-submit",
+      "task": "заблокировать кнопку отправки, пока форма невалидна",
+      "target": "core",
+      "queries": ["disable submit until form is valid", "disabled submit button", "form validity"],
+      "expectAny": ["useFormValidation", "isValidating"]
+    },
+    {
+      "id": "basic/project-layout",
+      "task": "разложить файлы формы по каталогу проекта",
+      "target": "core",
+      "queries": ["form directory layout", "project structure", "where to put form files"],
+      "expectAny": ["model.ts", "validation.ts", "form.schema.ts"]
+    }
+  ]
+}

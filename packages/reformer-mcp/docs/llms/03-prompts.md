@@ -31,39 +31,30 @@ from a written spec.
 Turns a free-text form description into build instructions for the chosen target (quick-start,
 FormSchema reference, imports, stack-aware skeleton). Use for the initial form when there is no spec file.
 
-## add-validation
+## add-feature
 
-- `code` (existing FormSchema, required), `requirements` (required).
+Добавить одну возможность в существующую форму. Стадия выбирается аргументом:
+- `feature: "validation"` — правила валидации;
+- `feature: "behavior"` — реактивные связи;
+- `feature: "array"` — массив формы;
+- `feature: "wizard"` — шаги мастера.
 
-Adds validation (built-in factories in `validate(sig, [...])`, cross-field `cross`, async
-`validateAsync`) as a standalone `defineValidationSchema` run by `validateModel`.
+Аргументы: `code` (текущий код формы) и `requirements` (что добавить; для `wizard` —
+перечень шагов и полей).
 
-## add-behavior
+Схлопывает прежние `add-validation`, `add-behavior`, `add-form-array` и `add-wizard`:
+у всех четырёх одна форма аргументов, поэтому слияние не создаёт путаницы, а перечисление
+из четырёх записей стоило каждому клиенту токенов при подключении. Содержимое шаблонов
+не тронуто.
 
-- `code` (required), `requirements` (required).
+## to-renderer
 
-Wires reactive behaviors: `compute`, `copyFrom`, `enableWhen`, `onChange`, etc. Pair with the
-`check_behaviors` tool to rule out cycles.
+Перенести форму `@reformer/core` на рендерер. Целевой стек — аргумент:
+- `target: "renderer-react"` (по умолчанию) — RenderSchema;
+- `target: "renderer-json"` — JSON-DSL и реестр компонентов.
 
-## add-form-array
-
-- `code` (required), `requirements` (required).
-
-Turns a field into a dynamic array: schema `{ array, item, initialValue }` + the CDK `FormArray` compound.
-
-## add-wizard
-
-- `code` (required), `steps` (required).
-
-Turns a single-page form into a multi-step `FormWizard` with a `FormWizardConfig` `{ validateStep, validateAll }`.
-
-## to-renderer / to-renderer-json
-
-- `code` (required).
-
-Migrate render target: `to-renderer` (core manual JSX → renderer-react RenderSchema),
-`to-renderer-json` (renderer-react RenderSchema → renderer-json JSON + registry). After
-`to-renderer-json`, validate the result with `validate_json_schema`.
+Аргументы: `code`, опционально `target`. Схлопывает прежние `to-renderer` и
+`to-renderer-json`.
 
 ## review
 

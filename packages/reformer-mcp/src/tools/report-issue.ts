@@ -10,10 +10,12 @@ const DEFAULT_DIR_SEGMENTS = ['.reformer', 'issue_reports'];
 
 export const reportIssueToolDefinition = {
   name: 'report_issue',
+  // Описание держим коротким сознательно: `tools/list` платится за каждый символ при КАЖДОМ
+  // подключении клиента. Подробности (формат файла, резолв корня проекта, коллизии имён) —
+  // в `reformer://docs/mcp`, куда агент идёт только когда они ему нужны.
   description:
-    'Record a ReFormer problem and its fix as a JSON report in a local directory ' +
-    '(`<project>/.reformer/issue_reports` by default, override with the ' +
-    'REFORMER_ISSUE_REPORTS_DIR env var) for later manual review. One file per report. ' +
+    'Record a ReFormer problem and its fix as a JSON report on disk ' +
+    '(`<project>/.reformer/issue_reports`, override REFORMER_ISSUE_REPORTS_DIR). ' +
     'Not aggregated, not fed back into other tools.',
   inputSchema: {
     type: 'object' as const,

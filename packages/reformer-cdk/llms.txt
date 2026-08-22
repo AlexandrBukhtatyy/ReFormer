@@ -2697,6 +2697,26 @@ export interface FileUploadItemContextValue {
 
 _Source: src/components/file-upload/FileUploadContext.tsx_
 
+### FileUploadItemData
+
+**Kind:** `type`
+
+Элемент внутреннего списка файлов — дискриминированное объединение по `status`.
+
+`key` — стабильный uid элемента (не индекс): по нему живут превью, abort-контроллеры
+и React-ключи при переупорядочивании.
+
+**Signature:**
+```typescript
+export type FileUploadItem =
+  | { key: string; status: 'local'; file: File }
+  | { key: string; status: 'uploading'; file: File; progress: number }
+  | { key: string; status: 'uploaded'; file?: File; remote: RemoteFileRef }
+  | { key: string; status: 'error'; file: File; error: FileError; progress?: number };
+```
+
+_Source: src/components/file-upload/types.ts_
+
 ### FileUploadItemDeleteTrigger
 
 **Kind:** `const`
@@ -3474,6 +3494,25 @@ export interface FormArrayContextValue<T extends object = Record<string, unknown
 
 _Source: src/components/form-array/FormArrayContext.tsx_
 
+### FormArrayControl
+
+**Kind:** `type`
+
+Узел массива, принимаемый CDK-компонентами FormArray.
+
+Legacy {@link ArrayNode} (владеет элементами сам) ИЛИ M1 {@link ModelArrayNode} (делегирует
+массиву модели). Оба структурно реализуют используемый CDK контракт
+(`push`/`insert`/`removeAt`/`move`/`swap`/`clear`/`at`/`map`/`length`/`value`/`errors`/…), но
+ModelArrayNode расширяет `FormNode<T[]>`, а не `ArrayNode`, поэтому нужен явный union — иначе
+консументы M1 (у которых `form.<field>` материализуется как ModelArrayNode) вынуждены кастовать.
+
+**Signature:**
+```typescript
+export type FormArrayControl<T extends object> = ArrayNode<T> | ModelArrayNode<T>;
+```
+
+_Source: src/components/form-array/types.ts_
+
 ### FormArrayCount
 
 **Kind:** `function`
@@ -3560,6 +3599,76 @@ Props for FormArray.Empty component
 export interface FormArrayEmptyProps {
   /** Content to show when array is empty */
   children: ReactNode;
+}
+```
+
+_Source: src/components/form-array/types.ts_
+
+### FormArrayError
+
+**Kind:** `const`
+
+FormArray.Error — рендерит ошибки уровня массива (`control.errors`).
+
+Паритет с `FormField.Error`, но для узла массива: показывает array-level ошибки вроде `minItems`
+/ «At least one phone required», которые ядро выставляет через `ArrayNode.setErrors` и агрегирует
+в сигнале `errors`. Ничего не рендерит, когда ошибок нет. Читает контекст `FormArray.Root`, поэтому
+консументу больше не нужно обходить CDK через `useFormControl(control)` ради валидации массива.
+
+**Signature:**
+```typescript
+export const FormArrayError
+```
+
+**Examples:**
+
+Единственная ошибка (по умолчанию)
+```tsx
+<FormArray.Root control={form.phones}>
+<FormArray.List>{({ control }) => <PhoneForm control={control} />}</FormArray.List>
+<FormArray.Error className="text-xs text-red-600" />
+</FormArray.Root>
+```
+
+Все ошибки
+```tsx
+<FormArray.Error multi className="text-xs text-red-600" />
+```
+
+Кастомный рендер на ошибку
+```tsx
+<FormArray.Error render={(err) => <span>{err.message}</span>} />
+```
+
+_Source: src/components/form-array/FormArrayError.tsx_
+
+### FormArrayErrorProps
+
+**Kind:** `interface`
+
+Props for FormArray.Error component — рендерит ошибки уровня массива
+(например `minItems` / «At least one phone required») из `control.errors`.
+
+Паритет с `FormField.Error`: `multi` рендерит все ошибки, `render` — кастомный рендер на ошибку,
+`children` переопределяет содержимое. Ничего не рендерит, когда ошибок нет.
+
+**Signature:**
+```typescript
+export interface FormArrayErrorProps extends Omit<
+  React.HTMLAttributes<HTMLParagraphElement>,
+  'role'
+> {
+  /** Рендерить как дочерний элемент через Slot (props мержатся в children). */
+  asChild?: boolean;
+  /**
+   * Рендерить все ошибки массива вместо только первой.
+   * @default false
+   */
+  multi?: boolean;
+  /** Кастомный рендер на каждую ошибку. Когда задан — `multi` подразумевается. */
+  render?: (error: ValidationError, index: number) => ReactNode;
+  /** Переопределить содержимое (по умолчанию `errors[0].message` через резолвер). */
+  children?: ReactNode;
 }
 ```
 
@@ -5074,6 +5183,120 @@ export interface FormWizardIndicatorStepWithState extends FormWizardIndicatorSte
 
 _Source: src/components/form-wizard/FormWizardIndicator.tsx_
 
+### FormWizardNext
+
+**Kind:** `const`
+
+FormWizard.Next - Next step button component
+
+Renders a button that validates current step and navigates to the next.
+Automatically disabled on the last step, during validation, or during submission.
+
+**Signature:**
+```typescript
+export const FormWizardNext
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+<FormWizard.Actions>
+<FormWizard.Next>Continue</FormWizard.Next>
+</FormWizard.Actions>
+```
+
+With custom button (asChild)
+```tsx
+<FormWizard.Next asChild>
+<MyButton variant="primary">
+Next <ArrowRight />
+</MyButton>
+</FormWizard.Next>
+```
+
+_Source: src/components/form-wizard/FormWizardNext.tsx_
+
+### FormWizardNextProps
+
+**Kind:** `interface`
+
+Props for FormWizard.Next component
+
+**Signature:**
+```typescript
+export interface FormWizardNextProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick'
+> {
+  /** Button content */
+  children: ReactNode;
+  /** Render as child element (merge props into child) */
+  asChild?: boolean;
+  /** Additional disabled state (merged with automatic via OR) */
+  disabled?: boolean;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardNext.tsx_
+
+### FormWizardPrev
+
+**Kind:** `const`
+
+FormWizard.Prev - Previous step button component
+
+Renders a button that navigates to the previous step.
+Automatically disabled on the first step, during validation, or during submission.
+
+**Signature:**
+```typescript
+export const FormWizardPrev
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+<FormWizard.Actions>
+<FormWizard.Prev>Back</FormWizard.Prev>
+</FormWizard.Actions>
+```
+
+With custom button (asChild)
+```tsx
+<FormWizard.Prev asChild>
+<MyButton variant="ghost">
+<ArrowLeft /> Back
+</MyButton>
+</FormWizard.Prev>
+```
+
+_Source: src/components/form-wizard/FormWizardPrev.tsx_
+
+### FormWizardPrevProps
+
+**Kind:** `interface`
+
+Props for FormWizard.Prev component
+
+**Signature:**
+```typescript
+export interface FormWizardPrevProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick'
+> {
+  /** Button content */
+  children: ReactNode;
+  /** Render as child element (merge props into child) */
+  asChild?: boolean;
+  /** Additional disabled state (merged with automatic via OR) */
+  disabled?: boolean;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardPrev.tsx_
+
 ### FormWizardProgress
 
 **Kind:** `function`
@@ -5280,6 +5503,46 @@ export interface FormWizardStepProps<T extends Record<string, any>> {
 
 _Source: src/components/form-wizard/FormWizardStep.tsx_
 
+### FormWizardSubmit
+
+**Kind:** `const`
+
+FormWizard.Submit - Form submission button component
+
+Renders a button that submits the form on the last step.
+Automatically disabled when not on the last step, during validation, or during submission.
+Shows `loadingText` content during submission if provided.
+
+**Signature:**
+```typescript
+export const FormWizardSubmit
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+<FormWizard.Actions onSubmit={handleSubmit}>
+<FormWizard.Submit>Submit</FormWizard.Submit>
+</FormWizard.Actions>
+```
+
+With loading text
+```tsx
+<FormWizard.Submit loadingText="Submitting...">
+Submit Application
+</FormWizard.Submit>
+```
+
+With custom button (asChild)
+```tsx
+<FormWizard.Submit asChild loadingText={<Spinner />}>
+<MyButton variant="success">Complete</MyButton>
+</FormWizard.Submit>
+```
+
+_Source: src/components/form-wizard/FormWizardSubmit.tsx_
+
 ### FormWizardSubmitProps
 
 **Kind:** `interface`
@@ -5304,6 +5567,24 @@ export interface FormWizardSubmitProps extends Omit<
 ```
 
 _Source: src/components/form-wizard/FormWizardSubmit.tsx_
+
+### FormWizardSubmitRenderProps
+
+**Kind:** `interface`
+
+Render-props state for the submit button (headless mode).
+Renamed from `FormWizardSubmitProps` to avoid a name collision with the
+`FormWizardSubmitProps` component props in FormWizardSubmit.tsx.
+
+**Signature:**
+```typescript
+export interface FormWizardSubmitRenderProps extends FormWizardButtonProps {
+  /** Whether form is currently submitting */
+  isSubmitting: boolean;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardActions.tsx_
 
 ### initialAsyncResourceState
 
@@ -5690,6 +5971,98 @@ export interface SelectFilesResult {
 ```
 
 _Source: src/components/file-upload/file-upload-core.ts_
+
+### Slot
+
+**Kind:** `const`
+
+Slot component for asChild pattern.
+
+Renders its child element and merges props from the Slot into the child.
+Used to allow custom components to be rendered in place of default elements.
+
+**Signature:**
+```typescript
+export const Slot
+```
+
+**Examples:**
+
+```tsx
+// Instead of rendering a button, renders MyButton with merged props
+<Slot onClick={handleClick} disabled={true}>
+  <MyButton className="custom">Click me</MyButton>
+</Slot>
+// Result: <MyButton onClick={handleClick} disabled={true} className="custom">Click me</MyButton>
+```
+
+_Source: src/components/form-wizard/Slot.tsx_
+
+### SlotProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface SlotProps extends HTMLAttributes<HTMLElement> {
+  children?: ReactNode;
+}
+```
+
+_Source: src/components/form-wizard/Slot.tsx_
+
+### Step
+
+**Kind:** `function`
+
+Step - маркер-компонент для wizard-схемы
+
+Компонент просто рендерит children. Метаданные (title, icon) извлекаются
+wizard-компонентом из componentProps через useFormWizardSelectors.
+
+**Signature:**
+```typescript
+export function Step({ children }: StepProps): ReactNode
+```
+
+_Source: src/components/form-wizard/Step.tsx_
+
+### StepProps
+
+**Kind:** `interface`
+
+Props для Step компонента
+
+**Signature:**
+```typescript
+export interface StepProps {
+  /** Заголовок шага (отображается в индикаторе) */
+  title: string;
+  /** Иконка шага (emoji или текст) */
+  icon?: string;
+  /** CSS класс */
+  className?: string;
+  /** Дочерние элементы */
+  children?: ReactNode;
+}
+```
+
+_Source: src/components/form-wizard/Step.tsx_
+
+### StepValidationConfig
+
+**Kind:** `interface`
+
+Минимум от {@link WizardStepsConfig}, нужный хуку: фабрика контроллера live-стратегии шага.
+
+**Signature:**
+```typescript
+export interface StepValidationConfig {
+  createStepController: (step: number) => FormValidationController | null;
+}
+```
+
+_Source: src/components/form-wizard/use-wizard-step-validation.ts_
 
 ### useAsyncBoundary
 
@@ -6709,6 +7082,22 @@ return (
 
 _Source: src/components/form-wizard/FormWizardContext.tsx_
 
+### useFormWizardActions
+
+**Kind:** `function`
+
+Hook to access Actions context (onSubmit handler)
+
+Must be used within FormWizard.Actions component.
+Used internally by FormWizard.Submit.
+
+**Signature:**
+```typescript
+export function useFormWizardActions(): FormWizardActionsContextValue
+```
+
+_Source: src/components/form-wizard/FormWizardActions.tsx_
+
 ### useList
 
 **Kind:** `function`
@@ -6823,6 +7212,38 @@ return <>{errors.map((e) => <span key={e.code}>{resolve(e)}</span>)}</>;
 ```
 
 _Source: src/validation/error-resolver.tsx_
+
+### useWizardStepValidation
+
+**Kind:** `function`
+
+Армирует live-стратегию валидации (`strategy` из {@link defineSteps}) для ТЕКУЩЕГО шага мастера.
+Читает `currentStep` из контекста {@link FormWizard}, собирает контроллер под под-схему шага и
+снимает его при смене шага / размонтировании. Per-step gate («Далее») и submit (`validateAll`) не
+затрагиваются — это отдельный, живой слой поверх них.
+
+No-op, если в `defineSteps` не задана `strategy` (или `'submit'`) либо у шага нет правил.
+
+**Signature:**
+```typescript
+export function useWizardStepValidation(config: StepValidationConfig): void
+```
+
+**Examples:**
+
+```tsx
+const config = defineSteps<'loan' | 'confirm', Root>(model, {
+  steps: { loan: step1, confirm: null },
+  strategy: 'blur',
+});
+
+function LoanStepBody() {
+  useWizardStepValidation(config); // живая валидация полей шага при blur
+  return <>{/* поля шага *\/}</>;
+}
+```
+
+_Source: src/components/form-wizard/use-wizard-step-validation.ts_
 
 ### ValidationErrorResolver
 

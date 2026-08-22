@@ -371,6 +371,7 @@
     "README.md",
     "LICENSE",
     "llms.txt",
+    "llms-index.json",
     "docs/llms"
   ],
   "peerDependencies": {

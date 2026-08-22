@@ -11,10 +11,7 @@
  * См. рецепт `find_recipe cycle` (core `22-cycle-detection.md`).
  */
 
-interface Dependency {
-  target: string;
-  reads: string[];
-}
+import { findCycle, type Dependency } from '../utils/graph.js';
 
 export const checkBehaviorsToolDefinition = {
   name: 'check_behaviors',
@@ -108,51 +105,6 @@ export async function checkBehaviorsTool(
   }
 
   return text(lines.join('\n'));
-}
-
-/**
- * DFS cycle detection over the target→reads graph. Returns the cyclic path
- * (list of field names, first repeated at the end) or null if acyclic.
- */
-function findCycle(deps: Dependency[]): string[] | null {
-  const graph = new Map<string, string[]>();
-  for (const d of deps) {
-    const list = graph.get(d.target) ?? [];
-    list.push(...d.reads);
-    graph.set(d.target, list);
-  }
-
-  const WHITE = 0;
-  const GRAY = 1;
-  const BLACK = 2;
-  const color = new Map<string, number>();
-  const stack: string[] = [];
-  let found: string[] | null = null;
-
-  function dfs(node: string): boolean {
-    color.set(node, GRAY);
-    stack.push(node);
-    for (const next of graph.get(node) ?? []) {
-      if (color.get(next) === GRAY) {
-        const idx = stack.indexOf(next);
-        found = stack.slice(idx).concat(next);
-        return true;
-      }
-      if ((color.get(next) ?? WHITE) === WHITE && graph.has(next)) {
-        if (dfs(next)) return true;
-      }
-    }
-    stack.pop();
-    color.set(node, BLACK);
-    return false;
-  }
-
-  for (const target of graph.keys()) {
-    if ((color.get(target) ?? WHITE) === WHITE) {
-      if (dfs(target)) return found;
-    }
-  }
-  return null;
 }
 
 function text(message: string): { content: Array<{ type: 'text'; text: string }> } {

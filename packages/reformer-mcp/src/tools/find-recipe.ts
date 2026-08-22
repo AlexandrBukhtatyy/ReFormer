@@ -5,17 +5,21 @@ import {
   KNOWN_PACKAGES,
   type ReformerPackage,
   getSection,
+  getSectionBySlug,
   packageRoot,
   normalizeTopic,
+  normalizePackage,
 } from '../utils/docs-parser.js';
-import { findSymbol, getPublicSymbols } from '../utils/symbols-parser.js';
+import { findOneSymbol, publicSymbols } from '../index/symbols.js';
+import { searchSections, renderSectionHits } from './search-docs.js';
+import { rankSymbolsForQuery, renderSymbolHits } from '../index/search.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export const findRecipeToolDefinition = {
   name: 'find_recipe',
   description:
-    'Find a recipe / how-to in the @reformer/* library docs (docs/llms/) or fall back to a JSDoc @example of a public symbol. Use it to look up a worked example for a topic before writing code: scenario keywords like "wizard", "form-array", "copy-from", "json-schema", "submit-and-reset" map to docs files; symbol names like "useFormControl" or "computeFrom" return their JSDoc example. Sources are limited to installed @reformer/* packages — no monorepo or playground assumptions.',
+    'A worked recipe for a scenario keyword ("wizard", "form-array", "copy-from", "json-schema") or the @example of a symbol. An unknown topic falls through to full-text search, so it returns candidates rather than nothing.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -27,8 +31,7 @@ export const findRecipeToolDefinition = {
       package: {
         type: 'string',
         description:
-          'Optional package name like "@reformer/cdk". Without it, all known @reformer/* packages are searched.',
-        enum: ['*', ...KNOWN_PACKAGES],
+          'Restrict to one package: core | cdk | ui-kit | renderer-react | renderer-json (full name or short). Omit for all.',
       },
     },
     required: ['topic'],
@@ -135,8 +138,8 @@ export async function findRecipeTool(
   if (!topic) {
     return text('Argument "topic" is required and must be non-empty.');
   }
-  const targets: ReformerPackage[] =
-    args.package && args.package !== '*' ? [args.package as ReformerPackage] : [...KNOWN_PACKAGES];
+  const only = normalizePackage(args.package);
+  const targets: ReformerPackage[] = only ? [only] : [...KNOWN_PACKAGES];
 
   const candidates = resolveAliases(topic);
 
@@ -152,10 +155,20 @@ export async function findRecipeTool(
             ? `\n\n> _Note: searched for \`${topic}\`, matched alias → \`${candidate}\`. ` +
               `Use \`${candidate}\` directly to suppress this hint._`
             : '';
+        // Рецепт возвращался ЦЕЛИКОМ, без потолка: замерено 17 130 символов (~4 283 токена)
+        // у `cookbook`. Это ответ инструмента, а не явный `resources/read`, — агент получает
+        // его не глядя, поэтому потолок обязателен. Обрезка всегда помечена и говорит, где
+        // дочитать: молча усечённый рецепт агент дописал бы сам.
+        const { text: bodyText, truncated } = capRecipe(body.trim(), RECIPE_MAX_CHARS);
+        const more = truncated
+          ? `\n\n> _Рецепт обрезан по бюджету. Полный текст — \`reformer://docs/${pkg.replace(/^@reformer\//, '')}\` ` +
+            `или \`docs/llms/${file.fileName}\` в пакете._`
+          : '';
         return text(
           `# Recipe: ${file.title}\n\n` +
             `**Source:** ${pkg} · \`docs/llms/${file.fileName}\`${aliasNote}\n\n` +
-            body.trim()
+            bodyText +
+            more
         );
       }
     }
@@ -174,7 +187,7 @@ export async function findRecipeTool(
   }
 
   // 3. Match by public symbol — return its @example block(s).
-  const sym = findSymbol(topic, args.package ?? '*');
+  const sym = await findOneSymbol(topic, args.package ?? '*');
   if (sym) {
     const examples = sym.tags.filter((t) => t.tag === 'example');
     if (examples.length > 0) {
@@ -186,8 +199,86 @@ export async function findRecipeTool(
     }
   }
 
-  // 4. Fallback: list available recipes and a sample of public symbols.
-  return text(buildFallbackHint(topic, targets));
+  // 4. Каскад в полнотекстовый поиск. Раньше здесь был сразу шаг 5 (список алиасов), и
+  //    это был тупик: замерено на 25 естественных формулировках («dependent field»,
+  //    «hide field», «phone mask», «server validation», …) — 17 из 25 (68%) не резолвились
+  //    ни файлом, ни секцией, ни символом, и агент платил ~693 токена за подсказку без
+  //    ответа. Те же 17 из 17 находит `search_docs` — соседний tool ЭТОГО ЖЕ сервера.
+  //    Поэтому промах алиасов больше не терминален: отдаём ранжированных кандидатов.
+  const hits = searchSections(topic, args.package, 5);
+  if (hits.length > 0) {
+    const top = hits[0];
+    // Инлайним тело только при попадании в ЗАГОЛОВОК секции: там скоринг надёжен
+    // (совпадение в title весит 10×), а тело — обозримого размера. В остальных случаях
+    // отдаём кандидатов с URI, чтобы не потратить 4k токенов на секцию мимо задачи.
+    // (Полноценное ранжирование — отдельная работа, см. план v7, фаза «индекс».)
+    const body =
+      top.titleMatch && top.bodyLength <= INLINE_SECTION_LIMIT
+        ? getSectionBySlug(top.pkg, top.slug)
+        : null;
+
+    if (body) {
+      const rest = hits.slice(1);
+      return text(
+        `# Recipe section: ${top.title}\n\n` +
+          `**Source:** ${top.pkg} · \`${top.uri}\` · matched by full-text search for \`${topic}\`\n\n` +
+          body +
+          (rest.length > 0
+            ? `\n\n---\n\n_Other candidates:_\n${rest.map((h) => `- \`${h.uri}\` — ${h.title}`).join('\n')}`
+            : '')
+      );
+    }
+
+    // Плюс канонические имена API из найденных секций — то, ради чего агент и спрашивал.
+    const symbols = rankSymbolsForQuery(topic, hits, args.package, 4);
+    const apiBlock = symbols.length > 0 ? `\n\n## Relevant API\n${renderSymbolHits(symbols)}` : '';
+    return text(
+      `No curated recipe is registered for "${topic}", but full-text search found related sections:\n\n` +
+        renderSectionHits(hits) +
+        apiBlock +
+        `\n\n_Read one via resources/read on its \`reformer://docs/…\` URI._`
+    );
+  }
+
+  // 5. Fallback: list available recipes and a sample of public symbols.
+  return text(await buildFallbackHint(topic, targets));
+}
+
+/**
+ * Максимальный размер секции, которую каскад отдаёт телом, а не ссылкой (~1.5k токенов).
+ * Выше порога дешевле вернуть URI: секции доходят до 149k символов (`## API Reference` cdk).
+ */
+const INLINE_SECTION_LIMIT = 6000;
+
+/** Потолок для файлового рецепта (~2.5k токенов). Крупнейший — `cookbook`, 17 130 символов. */
+const RECIPE_MAX_CHARS = 10000;
+
+/**
+ * Обрезать рецепт по границе раздела, а не посреди строки.
+ *
+ * Режем по последнему заголовку, поместившемуся в лимит: обрывок раздела вводит в
+ * заблуждение сильнее, чем его отсутствие. Незакрытый код-фенс закрываем — иначе у клиента
+ * поедет вся остальная разметка ответа.
+ */
+function capRecipe(body: string, maxChars: number): { text: string; truncated: boolean } {
+  if (body.length <= maxChars) return { text: body, truncated: false };
+  const lines = body.split('\n');
+  const kept: string[] = [];
+  let used = 0;
+  let lastHeading = -1;
+  let inFence = false;
+  for (const line of lines) {
+    if (used + line.length + 1 > maxChars) break;
+    if (/^\s*```/.test(line)) inFence = !inFence;
+    if (!inFence && /^#{2,4}\s/.test(line)) lastHeading = kept.length;
+    kept.push(line);
+    used += line.length + 1;
+  }
+  // Отрезаем хвост до последнего целого раздела, если он не в самом начале.
+  const cut = lastHeading > 5 ? kept.slice(0, lastHeading) : kept;
+  const fences = cut.filter((l) => /^\s*```/.test(l)).length;
+  if (fences % 2 === 1) cut.push('```');
+  return { text: cut.join('\n').trimEnd(), truncated: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -310,7 +401,7 @@ function findDocFile(pkg: string, topic: string): DocFile | null {
   };
 }
 
-function buildFallbackHint(topic: string, targets: ReformerPackage[]): string {
+async function buildFallbackHint(topic: string, targets: ReformerPackage[]): Promise<string> {
   const recipes: string[] = [];
   for (const pkg of targets) {
     const docsDir = locateDocsDir(pkg);
@@ -326,7 +417,10 @@ function buildFallbackHint(topic: string, targets: ReformerPackage[]): string {
     }
   }
 
-  const symbols = targets.flatMap((p) => getPublicSymbols(p).map((s) => s.name)).slice(0, 20);
+  const symbols = (await Promise.all(targets.map((p) => publicSymbols(p))))
+    .flat()
+    .map((s) => s.name)
+    .slice(0, 20);
 
   // Список алиасов — только фактически резолвящиеся против доступных пакетов: раньше
   // печатались все ключи RECIPE_ALIASES, и сервер рекламировал темы, которых у потребителя

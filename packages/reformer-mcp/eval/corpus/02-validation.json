@@ -1,0 +1,96 @@
+{
+  "category": "validation",
+  "description": "Контракт @reformer/core/validation: validate / validateAsync / validateWhen / cross / each + внешний раннер validateModel.",
+  "tasks": [
+    {
+      "id": "validation/required",
+      "task": "сделать поле обязательным",
+      "target": "core",
+      "queries": ["required field validation", "make field required", "required validator"],
+      "expectAny": ["required(", "validate(", "defineValidationSchema"]
+    },
+    {
+      "id": "validation/schema-entry",
+      "task": "объявить схему валидации формы",
+      "target": "core",
+      "queries": ["declare validation schema", "validation entry point", "defineValidationSchema"],
+      "expectAny": ["defineValidationSchema"]
+    },
+    {
+      "id": "validation/run",
+      "task": "запустить валидацию модели и получить результат",
+      "target": "core",
+      "queries": [
+        "run validation and get result",
+        "validate model programmatically",
+        "validateModel"
+      ],
+      "expectAny": ["validateModel"]
+    },
+    {
+      "id": "validation/async-email",
+      "task": "проверить на сервере, что email не занят",
+      "target": "core",
+      "queries": ["async email validation", "server side validation", "check email availability"],
+      "expectAny": ["validateAsync"]
+    },
+    {
+      "id": "validation/debounce",
+      "task": "не дёргать сервер на каждое нажатие клавиши при асинхронной проверке",
+      "target": "core",
+      "queries": [
+        "debounce async validation",
+        "throttle server validation",
+        "async validator debounce"
+      ],
+      "expectAny": ["debounce", "validateAsync"]
+    },
+    {
+      "id": "validation/cross-field",
+      "task": "confirmPassword должен совпадать с password",
+      "target": "core",
+      "queries": [
+        "password confirmation must match",
+        "cross field validation",
+        "compare two fields"
+      ],
+      "expectAny": ["cross("]
+    },
+    {
+      "id": "validation/conditional",
+      "task": "поле обязательно только когда установлен флаг",
+      "target": "core",
+      "queries": [
+        "conditional required validation",
+        "validate only when",
+        "required if checkbox checked"
+      ],
+      "expectAny": ["validateWhen"]
+    },
+    {
+      "id": "validation/array-items",
+      "task": "провалидировать каждый элемент массива",
+      "target": "core",
+      "queries": ["validate each array item", "per row validation", "validation inside form array"],
+      "expectAny": ["each("]
+    },
+    {
+      "id": "validation/revalidate",
+      "task": "перепроверить поле, когда изменилось другое",
+      "target": "core",
+      "queries": [
+        "revalidate when another field changes",
+        "trigger revalidation",
+        "revalidateWhen"
+      ],
+      "expectAny": ["revalidateWhen"]
+    },
+    {
+      "id": "validation/step",
+      "task": "валидировать только текущий шаг мастера",
+      "target": "core",
+      "queries": ["validate only current step", "step validation wizard", "validateStep"],
+      "expectAny": ["validateStep"]
+    }
+  ]
+}

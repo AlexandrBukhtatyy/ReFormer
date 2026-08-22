@@ -1,0 +1,99 @@
+{
+  "category": "behaviors",
+  "description": "Реактивные операторы @reformer/core/behaviors. Именно здесь агент чаще всего выбирает НЕ тот оператор, поэтому корпус разводит близкие сценарии (вычислить / скопировать / включить / сбросить).",
+  "tasks": [
+    {
+      "id": "behaviors/entry",
+      "task": "объявить реактивное поведение формы",
+      "target": "core",
+      "queries": ["declare form behavior", "reactive behavior entry point", "defineFormBehavior"],
+      "expectAny": ["defineFormBehavior"]
+    },
+    {
+      "id": "behaviors/computed-total",
+      "task": "total должен вычисляться как price * quantity",
+      "target": "core",
+      "queries": [
+        "computed field from other fields",
+        "derive total from price and quantity",
+        "computed value"
+      ],
+      "expectAny": ["compute", "computeFrom"]
+    },
+    {
+      "id": "behaviors/copy",
+      "task": "адрес доставки копирует адрес плательщика при установке галочки",
+      "target": "core",
+      "queries": ["copy value from another field", "same as shipping address", "copy field value"],
+      "expectAny": ["copyFrom"]
+    },
+    {
+      "id": "behaviors/enable",
+      "task": "поле B доступно только когда A заполнено",
+      "target": "core",
+      "queries": [
+        "enable field only when another is filled",
+        "disable field conditionally",
+        "enableWhen"
+      ],
+      "expectAny": ["enableWhen", "disableWhen"]
+    },
+    {
+      "id": "behaviors/reset",
+      "task": "очистить зависимое поле, когда изменился родительский выбор",
+      "target": "core",
+      "queries": [
+        "reset dependent field on change",
+        "clear field when parent changes",
+        "resetWhen"
+      ],
+      "expectAny": ["resetWhen"]
+    },
+    {
+      "id": "behaviors/transform",
+      "task": "приводить вводимый текст к верхнему регистру",
+      "target": "core",
+      "queries": ["transform value on input", "uppercase input value", "transformValue"],
+      "expectAny": ["transformValue"]
+    },
+    {
+      "id": "behaviors/sync",
+      "task": "держать два поля синхронными в обе стороны",
+      "target": "core",
+      "queries": ["keep two fields in sync", "two way field sync", "syncFields"],
+      "expectAny": ["syncFields"]
+    },
+    {
+      "id": "behaviors/on-change",
+      "task": "выполнить побочный эффект при изменении поля",
+      "target": "core",
+      "queries": ["run side effect on field change", "react to field change", "onChange behavior"],
+      "expectAny": ["onChange"]
+    },
+    {
+      "id": "behaviors/cycle",
+      "task": "избежать бесконечного цикла между вычисляемыми полями",
+      "target": "core",
+      "queries": [
+        "cycle detected between computed fields",
+        "infinite loop compute",
+        "circular dependency"
+      ],
+      "expectAny": ["Cycle detected", "cycle detection", "циклическ", "цикл"]
+    },
+    {
+      "id": "behaviors/exclusive-flag",
+      "task": "из группы чекбоксов активным может быть только один",
+      "target": "core",
+      "queries": ["only one checkbox can be active", "mutually exclusive flags", "exclusiveFlag"],
+      "expectAny": ["exclusiveFlag"]
+    },
+    {
+      "id": "behaviors/each-row",
+      "task": "навесить поведение на каждую строку массива",
+      "target": "core",
+      "queries": ["behavior for each array row", "per item behavior", "applyEach"],
+      "expectAny": ["applyEach"]
+    }
+  ]
+}

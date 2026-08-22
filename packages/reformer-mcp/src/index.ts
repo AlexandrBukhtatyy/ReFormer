@@ -54,6 +54,16 @@ import {
   searchDocsTool,
   checkBehaviorsToolDefinition,
   checkBehaviorsTool,
+  chooseApiToolDefinition,
+  chooseApiTool,
+  getContextToolDefinition,
+  getContextTool,
+  planFormToolDefinition,
+  planFormTool,
+  generateFormToolDefinition,
+  generateFormTool,
+  validateFormToolDefinition,
+  validateFormTool,
 } from './tools/index.js';
 
 // Prompts
@@ -68,18 +78,10 @@ import {
   getPlanFormPrompt,
   createFormPromptDefinition,
   getCreateFormPrompt,
-  addValidationPromptDefinition,
-  getAddValidationPrompt,
-  addBehaviorPromptDefinition,
-  getAddBehaviorPrompt,
-  addFormArrayPromptDefinition,
-  getAddFormArrayPrompt,
-  addWizardPromptDefinition,
-  getAddWizardPrompt,
+  addFeaturePromptDefinition,
+  getAddFeaturePrompt,
   toRendererPromptDefinition,
   getToRendererPrompt,
-  toRendererJsonPromptDefinition,
-  getToRendererJsonPrompt,
   discoverContextPromptDefinition,
   getDiscoverContextPrompt,
 } from './prompts/index.js';
@@ -110,11 +112,14 @@ const server = new Server(
     version: readServerVersion(),
   },
   {
+    // `sampling` здесь НЕ объявляем: это capability КЛИЕНТА, а не сервера — сервер лишь
+    // запрашивает sampling через `server.createMessage(...)`. SDK ≥1.30 типом это и
+    // фиксирует (ServerCapabilities больше не принимает `sampling`). На сам механизм
+    // это не влияет: `isSamplingSupported()` смотрит `server.getClientCapabilities()`.
     capabilities: {
       tools: {},
       resources: {},
       prompts: {},
-      sampling: {},
     },
   }
 );
@@ -131,13 +136,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     | typeof listSymbolsToolDefinition
     | typeof searchDocsToolDefinition
     | typeof checkBehaviorsToolDefinition
+    | typeof chooseApiToolDefinition
+    | typeof getContextToolDefinition
+    | typeof planFormToolDefinition
+    | typeof generateFormToolDefinition
+    | typeof validateFormToolDefinition
   > = [
+    getContextToolDefinition,
+    chooseApiToolDefinition,
     getSymbolDocsToolDefinition,
     findRecipeToolDefinition,
     searchDocsToolDefinition,
     listSymbolsToolDefinition,
-    validateJsonSchemaToolDefinition,
-    checkBehaviorsToolDefinition,
+    validateFormToolDefinition,
+    planFormToolDefinition,
+    generateFormToolDefinition,
     reportIssueToolDefinition,
   ];
   if (isDebugMode) {
@@ -158,6 +171,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new Error(`Unknown tool: ${name}`);
       }
       return await debugTool(args as { section?: string });
+
+    case 'validate_form':
+      return await validateFormTool(args as Record<string, unknown>);
+
+    case 'plan_form':
+      return await planFormTool(
+        args as { specPath?: string; description?: string; target?: string }
+      );
+
+    case 'generate_form':
+      return await generateFormTool(args as { intent: Record<string, unknown>; target?: string });
+
+    case 'get_context':
+      return await getContextTool(
+        args as {
+          task: string;
+          topics?: string[];
+          target?: string;
+          profile?: string;
+          maxTokens?: number;
+        }
+      );
+
+    case 'choose_api':
+      return await chooseApiTool(args as { requirement: string; target?: string });
 
     case 'get_symbol_docs':
       return await getSymbolDocsTool(args as { symbol: string; package?: string });
@@ -195,12 +233,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // ==================== RESOURCES ====================
 //
 // URI scheme:
+//   reformer://catalog                      — machine-readable map of packages → sections
 //   reformer://docs/<pkg-short>             — full llms.txt of one package
 //   reformer://docs/<pkg-short>/<section>   — single level-2 section, by slug
 //
 // Section slugs come from listSections() which parses llms.txt headers and
 // applies slugify(). Slugs are stable as long as section titles don't change
-// upstream. Use ListResources to discover all available URIs at runtime.
+// upstream.
+//
+// Почему секции БОЛЬШЕ НЕ перечисляются в resources/list:
+//   Замерено на этом сервере — `resources/list` отдавал 350 записей ≈ 20 900 токенов, и это
+//   платил КАЖДЫЙ клиент при подключении, до первого полезного действия (для сравнения:
+//   tools/list ≈ 2 291, prompts/list ≈ 1 564). 350 × 200-символьный preview — самая большая
+//   единичная статья расхода во всём сервере.
+//   Теперь список — 8 записей, а полный перечень секций доступен по требованию через
+//   `reformer://catalog` (компактный JSON без preview) и через `search_docs`, который и так
+//   возвращает готовые `reformer://docs/…` URI. Сами URI секций читаются как раньше.
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
   const resources: Array<{ uri: string; name: string; description: string; mimeType: string }> = [];
@@ -214,25 +262,22 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
     mimeType: 'text/markdown',
   });
 
+  resources.push({
+    uri: 'reformer://catalog',
+    name: 'ReFormer docs catalog',
+    description:
+      'JSON map of every package → its documentation sections (slug + title). Read it to discover reformer://docs/<pkg>/<slug> URIs; use search_docs when you can describe the task in words.',
+    mimeType: 'application/json',
+  });
+
   for (const pkg of listAvailablePackages()) {
     const short = packageShortName(pkg);
     resources.push({
       uri: `reformer://docs/${short}`,
       name: `${pkg} (full docs)`,
-      description: `Full llms.txt for ${pkg} — every section concatenated.`,
+      description: `Full llms.txt for ${pkg} — ${listSections(pkg).length} sections concatenated. Individual sections: reformer://docs/${short}/<slug> (see reformer://catalog).`,
       mimeType: 'text/markdown',
     });
-    for (const section of listSections(pkg)) {
-      const description = section.preview
-        ? section.preview
-        : `Section "${section.title}" of ${pkg}.`;
-      resources.push({
-        uri: `reformer://docs/${short}/${section.slug}`,
-        name: `${pkg}: ${section.title}`,
-        description: description.slice(0, 200),
-        mimeType: 'text/markdown',
-      });
-    }
   }
 
   if (isDebugMode) {
@@ -247,6 +292,32 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
   return { resources };
 });
 
+/**
+ * Compact catalog of everything readable under `reformer://docs/…`.
+ *
+ * Replaces the per-section entries that used to bloat `resources/list`: same discoverability,
+ * paid only when an agent actually asks for it (~22k chars for all 343 sections vs ~84k for
+ * the old listing, which every client paid at connection time).
+ */
+function buildCatalog(): string {
+  // Компактно и без отступов: 343 секции — уже ~30k символов одними заголовками, а
+  // pretty-print добавляет к ним ещё треть. Секция описывается парой [slug, title],
+  // потому что больше для сборки URI ничего не нужно.
+  //
+  // Именно МАССИВ пар, а не объект `{ slug: title }`: слаг может оказаться числовым
+  // (`"1"` ← «61. Путь 1 — строковые пропы» — кириллица вырезается slugify), а JS
+  // поднимает целочисленные ключи объекта в начало, ломая порядок документа.
+  return JSON.stringify({
+    readSection: 'reformer://docs/<package>/<slug>',
+    sectionShape: '[slug, title]',
+    hint: 'Prefer search_docs(query) — it returns ready URIs. Scan this catalog only when you need the full map.',
+    packages: listAvailablePackages().map((pkg) => ({
+      id: packageShortName(pkg),
+      sections: listSections(pkg).map((s) => [s.slug, s.title]),
+    })),
+  });
+}
+
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
 
@@ -254,6 +325,12 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   if (uri === 'reformer://guide') {
     return {
       contents: [{ uri, mimeType: 'text/markdown', text: getFullDocs('@reformer/mcp') }],
+    };
+  }
+
+  if (uri === 'reformer://catalog') {
+    return {
+      contents: [{ uri, mimeType: 'application/json', text: buildCatalog() }],
     };
   }
 
@@ -314,12 +391,8 @@ type AnyPromptDefinition =
   | typeof debugPromptDefinition
   | typeof planFormPromptDefinition
   | typeof createFormPromptDefinition
-  | typeof addValidationPromptDefinition
-  | typeof addBehaviorPromptDefinition
-  | typeof addFormArrayPromptDefinition
-  | typeof addWizardPromptDefinition
+  | typeof addFeaturePromptDefinition
   | typeof toRendererPromptDefinition
-  | typeof toRendererJsonPromptDefinition
   | typeof discoverContextPromptDefinition;
 
 server.setRequestHandler(ListPromptsRequestSchema, async () => {
@@ -329,12 +402,8 @@ server.setRequestHandler(ListPromptsRequestSchema, async () => {
     reviewPromptDefinition,
     planFormPromptDefinition,
     createFormPromptDefinition,
-    addValidationPromptDefinition,
-    addBehaviorPromptDefinition,
-    addFormArrayPromptDefinition,
-    addWizardPromptDefinition,
+    addFeaturePromptDefinition,
     toRendererPromptDefinition,
-    toRendererJsonPromptDefinition,
   ];
   if (isDebugMode) {
     prompts.push(debugPromptDefinition);
@@ -376,23 +445,13 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
         server
       );
 
-    case 'add-validation':
-      return await getAddValidationPrompt(args as { code: string; requirements: string });
-
-    case 'add-behavior':
-      return await getAddBehaviorPrompt(args as { code: string; requirements: string });
-
-    case 'add-form-array':
-      return await getAddFormArrayPrompt(args as { code: string; requirements: string });
-
-    case 'add-wizard':
-      return await getAddWizardPrompt(args as { code: string; steps: string });
+    case 'add-feature':
+      return await getAddFeaturePrompt(
+        args as { feature?: string; code?: string; requirements?: string; steps?: string }
+      );
 
     case 'to-renderer':
-      return await getToRendererPrompt(args as { code: string });
-
-    case 'to-renderer-json':
-      return await getToRendererJsonPrompt(args as { code: string });
+      return await getToRendererPrompt(args as { code?: string; target?: string });
 
     default:
       throw new Error(`Unknown prompt: ${name}`);

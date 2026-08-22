@@ -704,6 +704,23 @@ export function assertFormSchemaShape(url: string, data: unknown): void
 
 _Source: src/net.ts_
 
+### assertSchemaValid
+
+**Kind:** `function`
+
+Валидирует и бросает при неудаче. Удобно как `onSchemaLoaded`-хук загрузчика.
+
+**Signature:**
+```typescript
+export function assertSchemaValid(
+  entryKey: string,
+  schema: JsonFormSchema,
+  opts: ValidateOptions = {}
+): void
+```
+
+_Source: src/manifest/index.ts_
+
 ### byPriorityThenVersionDesc
 
 **Kind:** `function`
@@ -716,6 +733,19 @@ export function byPriorityThenVersionDesc(a: FormEntry, b: FormEntry): number
 ```
 
 _Source: src/resolve.ts_
+
+### byteLength
+
+**Kind:** `function`
+
+Длина строки в байтах UTF-8 — без `Buffer`, который в браузере отсутствует.
+
+**Signature:**
+```typescript
+export function byteLength(s: string): number
+```
+
+_Source: src/storage/types.ts_
 
 ### CacheEntry
 
@@ -785,6 +815,22 @@ export type CacheEventType =
 
 _Source: src/cache.ts_
 
+### cacheKey
+
+**Kind:** `const`
+
+Ключ записи кэша.
+
+`owner` в ключе ОБЯЗАТЕЛЕН: хранилище общее на origin, и два микрофронта, назвавшие форму
+одинаково (`checkout`), затёрли бы записи друг друга.
+
+**Signature:**
+```typescript
+export const cacheKey
+```
+
+_Source: src/storage/types.ts_
+
 ### CacheStats
 
 **Kind:** `interface`
@@ -814,6 +860,19 @@ export interface CacheStats {
 ```
 
 _Source: src/cache.ts_
+
+### checkRuntime
+
+**Kind:** `function`
+
+Текущее состояние. Ничего не бросает — решение принимает вызывающий.
+
+**Signature:**
+```typescript
+export function checkRuntime(): RuntimeCheck
+```
+
+_Source: src/guard/realm.ts_
 
 ### CodeSource
 
@@ -902,6 +961,39 @@ export function createFormRegistry(): FormRegistry
 
 _Source: src/registry.ts_
 
+### createIndexedDbStorage
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function createIndexedDbStorage(opts: StorageOptions = {}): StorageStrategy
+```
+
+_Source: src/storage/indexeddb.ts_
+
+### createMemoryStorage
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function createMemoryStorage(opts: StorageOptions = {}): StorageStrategy
+```
+
+_Source: src/storage/memory.ts_
+
+### createOpfsStorage
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function createOpfsStorage(opts: OpfsOptions = {}): StorageStrategy
+```
+
+_Source: src/storage/opfs.ts_
+
 ### createSchemaCache
 
 **Kind:** `function`
@@ -930,6 +1022,57 @@ export type DataSource<T> =
 ```
 
 _Source: src/types.ts_
+
+### DEFAULT_MAX_BYTES
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const DEFAULT_MAX_BYTES
+```
+
+_Source: src/storage/types.ts_
+
+### DEFAULT_NAMESPACE
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const DEFAULT_NAMESPACE
+```
+
+_Source: src/storage/types.ts_
+
+### DEFAULT_STORAGE_ORDER
+
+**Kind:** `const`
+
+Порядок предпочтения по умолчанию.
+
+Это НАСТРОЙКА, а не архитектурное решение: порядок подтверждается замером на реальных схемах
+(68 КБ у кредитной заявки) и меняется одной строкой, не трогая ни одного потребителя.
+
+**Signature:**
+```typescript
+export const DEFAULT_STORAGE_ORDER: readonly StorageKind[]
+```
+
+_Source: src/storage/index.ts_
+
+### defaultStorage
+
+**Kind:** `const`
+
+Стратегия по умолчанию: доступна всегда и везде.
+
+**Signature:**
+```typescript
+export const defaultStorage: StorageStrategy
+```
+
+_Source: src/storage/memory.ts_
 
 ### DegradePolicy
 
@@ -1219,6 +1362,63 @@ export class FormLoadError extends Error { /* … */ }
 
 _Source: src/loader.ts_
 
+### FormMountProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormMountProps<T extends object> {
+  initial?: T;
+  model?: FormModel<T>;
+  /** Настройки места монтирования для фабрики render-behavior (колбэки хоста). */
+  renderBehaviorOptions?: Record<string, unknown>;
+  /** Что показывать, пока части формы грузятся. */
+  fallback?: ReactNode;
+  /** Что показывать, если загрузка не удалась. Второй аргумент — повтор. */
+  loadErrorFallback?: (error: Error, retry: () => void) => ReactNode;
+  /** Что показывать, если форма упала на рендере. */
+  errorFallback?: (error: Error, entry: FormEntry<T>) => ReactNode;
+  onReady?: (form: JsonForm<T>) => void;
+}
+```
+
+_Source: src/react/form-outlet.tsx_
+
+### FormOutlet
+
+**Kind:** `function`
+
+Монтирует форму по идентификатору.
+
+Ничего не рендерит, если записи нет или у пользователя нет прав — это валидный исход,
+а не ошибка: слот с недоступной формой должен быть пустым, а не показывать рамку.
+
+**Signature:**
+```typescript
+export function FormOutlet<T extends object = Record<string, unknown>>({
+  id,
+  version,
+  ...rest
+}: FormOutletProps<T>): ReactNode
+```
+
+_Source: src/react/form-outlet.tsx_
+
+### FormOutletProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormOutletProps<T extends object> extends FormMountProps<T> {
+  id: string;
+  version?: string;
+}
+```
+
+_Source: src/react/form-outlet.tsx_
+
 ### FormPlacement
 
 **Kind:** `interface`
@@ -1298,6 +1498,138 @@ export interface FormRegistry {
 
 _Source: src/registry.ts_
 
+### FormRegistryContextValue
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormRegistryContextValue {
+  registry: FormRegistry;
+  /** Актуальный список записей — пересчитывается при регистрации/снятии. */
+  entries: readonly FormEntry[];
+  ctx: ResolveContext;
+  baseRegistry: ComponentRegistry;
+  /** Кэш схем. Без него сетевые источники тянутся заново при каждом монтировании. */
+  cache?: SchemaCache;
+  options: FormRegistryOptions;
+}
+```
+
+_Source: src/react/context.tsx_
+
+### FormRegistryOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormRegistryOptions {
+  /** Куда сообщать о промахах: конфликты, незагруженные части, деградация. */
+  onDiagnostic?: (d: Diagnostic) => void;
+  /**
+   * Как поступать с непройденным preflight: `'error'` (по умолчанию) — не монтировать,
+   * `'warn'` — смонтировать и сообщить в `onDiagnostic`, `'off'` — не проверять.
+   */
+  preflight?: 'error' | 'warn' | 'off';
+  /** Подменяемо в тестах и на стендах — например, чтобы считать сетевые запросы. */
+  fetchImpl?: typeof fetch;
+}
+```
+
+_Source: src/react/context.tsx_
+
+### FormRegistryProvider
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function FormRegistryProvider({
+  registry,
+  context,
+  baseRegistry,
+  cache,
+  options,
+  children,
+}: FormRegistryProviderProps): ReactNode
+```
+
+_Source: src/react/context.tsx_
+
+### FormRegistryProviderProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface FormRegistryProviderProps {
+  registry: FormRegistry;
+  /** Права, флаги, текущий маршрут. Подаёт хост из своих источников. */
+  context: ResolveContext;
+  /** Общее ядро компонентов приложения. Расширения записей компонуются поверх. */
+  baseRegistry: ComponentRegistry;
+  /**
+   * Кэш схем для сетевых источников. Держите ЭКЗЕМПЛЯР стабильным между рендерами: смена ссылки
+   * перезагружает смонтированные формы (это осмысленно при смене настроек кэша, но не в цикле).
+   */
+  cache?: SchemaCache;
+  options?: FormRegistryOptions;
+  children: ReactNode;
+}
+```
+
+_Source: src/react/context.tsx_
+
+### FormResource
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type FormResource<T extends object> =
+  | { status: 'pending' }
+  | { status: 'ready'; data: LoadedForm<T> }
+  | { status: 'error'; error: Error; retry: () => void };
+```
+
+_Source: src/react/use-form-resource.ts_
+
+### FormRoute
+
+**Kind:** `function`
+
+Формы, привязанные к маршруту.
+
+`path` передаётся пропом, а не читается из роутера: реестр не должен знать, какой роутер
+используется — это условие работы и в single-spa, и в Module Federation.
+
+**Signature:**
+```typescript
+export function FormRoute<T extends object = Record<string, unknown>>({
+  path,
+  ...rest
+}: { path: string } & FormMountProps<T>): ReactNode
+```
+
+_Source: src/react/form-outlet.tsx_
+
+### FormSlot
+
+**Kind:** `function`
+
+Все формы, объявленные для слота и доступные пользователю, в порядке приоритета.
+
+**Signature:**
+```typescript
+export function FormSlot<T extends object = Record<string, unknown>>({
+  name,
+  ...rest
+}: { name: string } & FormMountProps<T>): ReactNode
+```
+
+_Source: src/react/form-outlet.tsx_
+
 ### getFormRegistry
 
 **Kind:** `function`
@@ -1332,6 +1664,32 @@ export function hasPath(obj: unknown, path: string): boolean
 ```
 
 _Source: src/preflight.ts_
+
+### isIndexedDbAvailable
+
+**Kind:** `function`
+
+IndexedDB доступен и не заблокирован (private mode в части движков глушит открытие).
+
+**Signature:**
+```typescript
+export function isIndexedDbAvailable(): boolean
+```
+
+_Source: src/storage/indexeddb.ts_
+
+### isOpfsAvailable
+
+**Kind:** `function`
+
+OPFS доступен в этом окружении.
+
+**Signature:**
+```typescript
+export function isOpfsAvailable(): boolean
+```
+
+_Source: src/storage/opfs.ts_
 
 ### LoadedForm
 
@@ -1436,6 +1794,70 @@ export function matchRouteParams(
 
 _Source: src/resolve.ts_
 
+### MountedForm
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function MountedForm<T extends object>({
+  entry,
+  loaded,
+  initial,
+  model,
+  renderBehaviorOptions,
+  errorFallback,
+  onReady,
+}: MountedFormProps<T>): ReactNode
+```
+
+_Source: src/react/mounted-form.tsx_
+
+### MountedFormProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface MountedFormProps<T extends object> {
+  entry: FormEntry<T>;
+  loaded: LoadedForm<T>;
+  /** Переопределение начальных значений (напр. из параметров маршрута). */
+  initial?: T;
+  /** Готовая модель — приоритетнее `initial` и того, что несёт запись. */
+  model?: FormModel<T>;
+  /**
+   * Настройки МЕСТА монтирования для фабрики render-behavior: колбэки хоста (напр. `onResult`).
+   * В записи реестра им не место — она одна на все места, где форму покажут.
+   */
+  renderBehaviorOptions?: Record<string, unknown>;
+  /** Своя отрисовка ошибки рендера формы. */
+  errorFallback?: (error: Error, entry: FormEntry<T>) => ReactNode;
+  onReady?: (form: JsonForm<T>) => void;
+}
+```
+
+_Source: src/react/mounted-form.tsx_
+
+### OpfsOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface OpfsOptions extends StorageOptions {
+  /**
+   * Запрашивать постоянное хранилище (`navigator.storage.persist()`).
+   *
+   * По умолчанию `false`: кэш форм восстановим из сети, а запрос повышает шанс промпта у
+   * пользователя. Включать имеет смысл только под реальный офлайн-сценарий.
+   */
+  persist?: boolean;
+}
+```
+
+_Source: src/storage/opfs.ts_
+
 ### passesGate
 
 **Kind:** `function`
@@ -1449,6 +1871,26 @@ export function passesGate(entry: FormEntry, ctx: ResolveContext): boolean
 ```
 
 _Source: src/resolve.ts_
+
+### pickStorage
+
+**Kind:** `function`
+
+Первая доступная стратегия из списка.
+
+Проверяется не только наличие API, но и работоспособность: в приватном режиме части движков
+`indexedDB` объявлен, а открытие БД падает. Поэтому кандидат проверяется пробной операцией —
+иначе отказ всплыл бы при первой записи схемы, далеко от места выбора.
+
+**Signature:**
+```typescript
+export async function pickStorage(
+  order: readonly StorageKind[] = DEFAULT_STORAGE_ORDER,
+  opts: StorageOptions = {}
+): Promise<StorageStrategy>
+```
+
+_Source: src/storage/index.ts_
 
 ### preflight
 
@@ -1520,6 +1962,22 @@ export interface PreflightResult {
 
 _Source: src/preflight.ts_
 
+### reportRuntime
+
+**Kind:** `function`
+
+Сообщает о дублях через `console.error` и возвращает результат.
+
+**Signature:**
+```typescript
+export function reportRuntime(onDiagnostic?: (d: RuntimeDiagnostic) => void): RuntimeCheck
+```
+
+**Parameters:**
+- `onDiagnostic` — - Куда ещё отправить диагностику (телеметрия хоста).
+
+_Source: src/guard/realm.ts_
+
 ### resetFormRegistry
 
 **Kind:** `function`
@@ -1532,6 +1990,19 @@ export function resetFormRegistry(): void
 ```
 
 _Source: src/registry.ts_
+
+### resetRuntimeGuard
+
+**Kind:** `function`
+
+Сбрасывает состояние. Только для тестов.
+
+**Signature:**
+```typescript
+export function resetRuntimeGuard(): void
+```
+
+_Source: src/guard/realm.ts_
 
 ### ResolveContext
 
@@ -1611,6 +2082,37 @@ export function retryDelay(
 
 _Source: src/net.ts_
 
+### RuntimeCheck
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface RuntimeCheck {
+  ok: boolean;
+  duplicates: RuntimeDiagnostic[];
+  /** Что вообще штамповалось — чтобы отличить «дублей нет» от «никто не штамповался». */
+  observed: { pkg: string; copies: number }[];
+}
+```
+
+_Source: src/guard/realm.ts_
+
+### RuntimeDiagnostic
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface RuntimeDiagnostic {
+  pkg: string;
+  copies: number;
+  message: string;
+}
+```
+
+_Source: src/guard/realm.ts_
+
 ### satisfiesRange
 
 **Kind:** `function`
@@ -1679,3 +2181,250 @@ export interface SchemaCacheOptions {
 ```
 
 _Source: src/cache.ts_
+
+### SchemaInvalidError
+
+**Kind:** `class`
+
+Ошибка валидации схемы — отдельный тип, чтобы отличать её от сетевых и preflight-отказов.
+
+**Signature:**
+```typescript
+export class SchemaInvalidError extends Error { /* … */ }
+```
+
+_Source: src/manifest/index.ts_
+
+### selectEvictions
+
+**Kind:** `function`
+
+Отбирает записи под вытеснение, пока `usage` не опустится до `limit`.
+
+Вынесено отдельной чистой функцией: политика вытеснения одна на все стратегии, а тестировать
+её на живом IndexedDB — медленно и хрупко.
+
+**Signature:**
+```typescript
+export function selectEvictions(
+  records: readonly Pick<StoredRecord, 'key' | 'size' | 'lastUsedAt'>[],
+  usage: number,
+  limit: number
+): string[]
+```
+
+**Returns:** Ключи в порядке вытеснения (самые давно не использованные первыми).
+
+_Source: src/storage/types.ts_
+
+### setRuntimeStrict
+
+**Kind:** `function`
+
+Режим реакции на дубль.
+
+По умолчанию `'report'`: рушить хост из-за диагностики хуже, чем работать с известной проблемой.
+`'throw'` осмыслен в CI и на стенде, где отказ должен быть заметным.
+
+**Signature:**
+```typescript
+export function setRuntimeStrict(strict: boolean): void
+```
+
+_Source: src/guard/realm.ts_
+
+### stampRuntime
+
+**Kind:** `function`
+
+Регистрирует штамп рантайма из ЭТОГО бандла.
+
+**Signature:**
+```typescript
+export function stampRuntime(pkg: string, token: unknown): void
+```
+
+**Parameters:**
+- `pkg` — - Имя пакета, например `'@reformer/core'`.
+- `token` — - Объект, единственный в пределах копии модуля: конструктор `Signal`,
+`CORE_RUNTIME_TOKEN`, `React.createContext`. Примитивы не годятся — они совпадут по значению
+у разных копий и дубль останется незамеченным.
+
+_Source: src/guard/realm.ts_
+
+### StorageKind
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type StorageKind = 'opfs' | 'indexeddb' | 'memory';
+```
+
+_Source: src/storage/types.ts_
+
+### StorageOptions
+
+**Kind:** `interface`
+
+Общие настройки любой стратегии.
+
+**Signature:**
+```typescript
+export interface StorageOptions {
+  /**
+   * Префикс пространства имён. Разные версии формата кэша не должны видеть записи друг друга:
+   * при смене формата достаточно поднять префикс, и старые записи станут невидимы (и будут
+   * вытеснены LRU), вместо того чтобы читаться как битые.
+   */
+  namespace?: string;
+  /** Потолок в байтах, после которого включается вытеснение по LRU. */
+  maxBytes?: number;
+}
+```
+
+_Source: src/storage/types.ts_
+
+### StorageStrategy
+
+**Kind:** `interface`
+
+Стратегия хранения. Обязательный минимум — CRUD по ключу; `estimate` опционален, потому что
+доступен не везде (в памяти квоты нет, `navigator.storage.estimate` есть не во всех движках).
+
+**Signature:**
+```typescript
+export interface StorageStrategy {
+  /** Имя для диагностики: `'memory'`, `'indexeddb'`, `'opfs'`. */
+  readonly name: string;
+  get(key: string): Promise<StoredRecord | undefined>;
+  set(rec: StoredRecord): Promise<void>;
+  delete(key: string): Promise<void>;
+  keys(): Promise<string[]>;
+  clear(): Promise<void>;
+  /** Занято/доступно в байтах. Отсутствует — значит вытеснение работает только по своему счётчику. */
+  estimate?(): Promise<{ usage: number; quota: number }>;
+}
+```
+
+_Source: src/storage/types.ts_
+
+### StoredRecord
+
+**Kind:** `interface`
+
+Запись кэша. Тело всегда строка: хранилища не должны знать о форме данных.
+
+**Signature:**
+```typescript
+export interface StoredRecord {
+  key: string;
+  /** Сериализованное тело (обычно JSON-строка схемы). */
+  body: string;
+  /** ETag ответа — для условной ревалидации (`If-None-Match`). */
+  etag?: string;
+  /** Длина тела в байтах (UTF-8). Считается при записи, чтобы LRU не парсил тела. */
+  size: number;
+  /** Когда положили. */
+  storedAt: number;
+  /** Когда последний раз читали — ключ вытеснения LRU. */
+  lastUsedAt: number;
+}
+```
+
+_Source: src/storage/types.ts_
+
+### useFormRegistryContext
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function useFormRegistryContext(): FormRegistryContextValue
+```
+
+_Source: src/react/context.tsx_
+
+### useFormResource
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function useFormResource<T extends object>(
+  entry: FormEntry<T>,
+  baseRegistry: ComponentRegistry,
+  opts?: UseFormResourceOptions
+): FormResource<T>
+```
+
+_Source: src/react/use-form-resource.ts_
+
+### UseFormResourceOptions
+
+**Kind:** `type`
+
+Что можно донести до загрузчика с места монтирования.
+
+`signal` сюда НЕ входит, и это не упущение: отмена на связке «кэш + StrictMode» ломает загрузку.
+React монтирует, размонтирует и монтирует снова синхронно, в одном коммите; отмена по уходу
+последнего ждущего гасит общий запрос, а второй монтаж успевает присоединиться к нему до того,
+как `.finally` уберёт ключ из `inFlight`, — и получает вечную ошибку без шанса на автоповтор.
+Сценарий закреплён тестом в `cache.test.ts` и заведён отдельной задачей.
+
+**Signature:**
+```typescript
+export type UseFormResourceOptions = Pick<
+  LoadFormOptions,
+  'cache' | 'preflight' | 'onDiagnostic' | 'fetchImpl'
+>;
+```
+
+_Source: src/react/use-form-resource.ts_
+
+### ValidateOptions
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface ValidateOptions {
+  registry?: ComponentRegistry;
+}
+```
+
+_Source: src/manifest/index.ts_
+
+### ValidateResult
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface ValidateResult {
+  valid: boolean;
+  errors: string[];
+}
+```
+
+_Source: src/manifest/index.ts_
+
+### validateSchemaCached
+
+**Kind:** `function`
+
+Проверяет схему мета-схемой, переиспользуя результат для той же пары (схема, реестр).
+
+**Signature:**
+```typescript
+export function validateSchemaCached(
+  schema: JsonFormSchema,
+  opts: ValidateOptions = {}
+): ValidateResult
+```
+
+**Parameters:**
+- `schema` — - Схема формы. Сравнивается ПО ССЫЛКЕ — новый объект даст новую компиляцию.
+- `opts` — - Реестр для сверки имён операторов.
+
+_Source: src/manifest/index.ts_

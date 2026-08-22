@@ -13,3 +13,12 @@ export {
 export { listSymbolsToolDefinition, listSymbolsTool } from './list-symbols.js';
 export { searchDocsToolDefinition, searchDocsTool } from './search-docs.js';
 export { checkBehaviorsToolDefinition, checkBehaviorsTool } from './check-behaviors.js';
+export { chooseApiToolDefinition, chooseApiTool } from './choose-api.js';
+export { getContextToolDefinition, getContextTool } from './get-context.js';
+export {
+  planFormToolDefinition,
+  planFormTool,
+  generateFormToolDefinition,
+  generateFormTool,
+} from './generate-form.js';
+export { validateFormToolDefinition, validateFormTool } from './validate-form.js';

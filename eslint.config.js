@@ -92,6 +92,9 @@ export default defineConfig([
   {
     files: [
       '**/scripts/**/*.{js,mjs,cjs}',
+      // Харнесс eval'а — такой же node-скрипт: поднимает MCP-сервер как дочерний процесс
+      // и печатает отчёт. Живёт рядом с пакетом (packages/*/eval/), а не в scripts/.
+      '**/eval/**/*.{js,mjs,cjs}',
       '**/bin/**/*.{js,mjs,cjs}',
       '**/*.config.{js,mjs,cjs,ts}',
       '**/.*rc.{js,mjs,cjs}',

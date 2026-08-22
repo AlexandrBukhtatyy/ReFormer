@@ -31,7 +31,7 @@ your only source of truth. Do not assume APIs from memory — look them up here.
    from ui-kit when the node is also rendered — the renderer ships no array chrome) + CDK `FormArray` (key rows
    by `id`); wizard via CDK `FormWizardConfig` = `{ validateStep, validateAll }` callbacks.
 7. **Render** — the bundle goes to the renderer as one prop: ui-kit `<FormField control={form.x} />`;
-   renderer-react `<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />`;
+   renderer-react `<FormRenderer form={bundle} settings=\{{ fieldWrapper: FormField }} />`;
    renderer-json `<JsonFormRenderer form={bundle} />` inside `JsonRendererProvider`
    (operators `$model`/`$component`/`$dataSource` + `defineRegistry`).
 

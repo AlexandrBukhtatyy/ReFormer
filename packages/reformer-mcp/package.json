@@ -10,7 +10,9 @@
   "files": [
     "dist",
     "README.md",
-    "llms.txt"
+    "llms.txt",
+    "llms-index.json",
+    "docs/llms"
   ],
   "scripts": {
     "generate:llms": "node ../../scripts/generate-llms-txt .",
@@ -42,9 +44,8 @@
   },
   "homepage": "https://github.com/AlexandrBukhtatyy/ReFormer/tree/main/packages/reformer-mcp#readme",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "handlebars": "^4.7.9",
-    "typescript": "^5.7.0"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "handlebars": "^4.7.9"
   },
   "optionalDependencies": {
     "@reformer/renderer-json": "*"
@@ -53,7 +54,8 @@
     "@reformer/core": "*",
     "@reformer/cdk": "*",
     "@reformer/renderer-react": "*",
-    "@reformer/ui-kit": "*"
+    "@reformer/ui-kit": "*",
+    "typescript": ">=5.0.0"
   },
   "peerDependenciesMeta": {
     "@reformer/core": {
@@ -66,6 +68,9 @@
       "optional": true
     },
     "@reformer/ui-kit": {
+      "optional": true
+    },
+    "typescript": {
       "optional": true
     }
   },

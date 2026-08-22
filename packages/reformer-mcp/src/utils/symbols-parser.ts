@@ -187,14 +187,43 @@ export function findAllSymbols(symbolName: string, pkg: string = '*'): PublicSym
 // Internal: AST traversal (mirrors scripts/generate-llms-txt logic)
 // ---------------------------------------------------------------------------
 
+/**
+ * Как именно текущий модуль должен выставить наружу имена, объявленные глубже.
+ *
+ * Ключ — имя, под которым символ выставляет ЭТОТ модуль; значение — имя, под которым он
+ * должен попасть в публичный список (после всех переименований по цепочке реэкспортов).
+ * Раньше здесь был `Set<string>` из ЛОКАЛЬНЫХ имён, и переименование терялось:
+ * `export { useFormBundle as useReactForm }` регистрировался как `useFormBundle`, поэтому
+ * `get_symbol_docs('useReactForm')` отвечал «not found», хотя три шаблона промптов этого
+ * же сервера учат звать именно `useReactForm`. Так же были невидимы 15 field-обёрток
+ * ui-kit (`SelectField`, `CheckboxField`, …) — то, что консумент реально пишет.
+ *
+ * `null` — фильтра нет, имя берётся из самого объявления.
+ */
+type AliasFilter = Map<string, string> | null;
+
+/** Итоговое имя для символа, выставляемого этим модулем как `exposedHere`. */
+function resolveExposed(aliasFilter: AliasFilter, exposedHere: string): string | null {
+  if (!aliasFilter) return exposedHere;
+  return aliasFilter.get(exposedHere) ?? null;
+}
+
 function collectFromFile(
   filePath: string,
   visited: Set<string>,
   collected: Map<string, PublicSymbol>,
-  aliasFilter: Set<string> | null,
+  aliasFilter: AliasFilter,
   pkg: string
 ): void {
-  const key = filePath + '||' + (aliasFilter ? [...aliasFilter].sort().join(',') : '*');
+  const key =
+    filePath +
+    '||' +
+    (aliasFilter
+      ? [...aliasFilter]
+          .map(([local, exposed]) => `${local}>${exposed}`)
+          .sort()
+          .join(',')
+      : '*');
   if (visited.has(key)) return;
   visited.add(key);
 
@@ -236,12 +265,12 @@ function collectFromFile(
     ) {
       const target = resolveModule(filePath, stmt.moduleSpecifier.text);
       if (!target) continue;
-      const names = new Set<string>();
+      // Локальное имя в целевом модуле → имя, под которым символ должен выйти наружу.
+      const names = new Map<string, string>();
       for (const el of stmt.exportClause.elements) {
-        const exposed = el.name.text;
-        if (!aliasFilter || aliasFilter.has(exposed)) {
-          names.add((el.propertyName ?? el.name).text);
-        }
+        const finalName = resolveExposed(aliasFilter, el.name.text);
+        if (finalName === null) continue;
+        names.set((el.propertyName ?? el.name).text, finalName);
       }
       if (names.size > 0) collectFromFile(target, visited, collected, names, pkg);
       continue;
@@ -254,11 +283,11 @@ function collectFromFile(
       !stmt.moduleSpecifier
     ) {
       for (const el of stmt.exportClause.elements) {
-        const exposed = el.name.text;
-        if (aliasFilter && !aliasFilter.has(exposed)) continue;
+        const finalName = resolveExposed(aliasFilter, el.name.text);
+        if (finalName === null) continue;
         const localName = (el.propertyName ?? el.name).text;
         const decl = findLocalDeclaration(sf, localName);
-        if (decl) addSymbol(collected, exposed, decl, sf, filePath, undefined, pkg);
+        if (decl) addSymbol(collected, finalName, decl, sf, filePath, undefined, pkg);
       }
       continue;
     }
@@ -266,8 +295,9 @@ function collectFromFile(
     if (hasExportModifier(stmt)) {
       const items = describeExportStatement(stmt, sf);
       for (const item of items) {
-        if (aliasFilter && !aliasFilter.has(item.name)) continue;
-        addSymbol(collected, item.name, item.decl, sf, filePath, item.kind, pkg);
+        const finalName = resolveExposed(aliasFilter, item.name);
+        if (finalName === null) continue;
+        addSymbol(collected, finalName, item.decl, sf, filePath, item.kind, pkg);
       }
     }
   }
@@ -439,7 +469,26 @@ function renderComment(comment: string | ts.NodeArray<ts.JSDocComment>): string 
 }
 
 function resolveModule(fromFile: string, spec: string): string | null {
-  if (!spec.startsWith('.')) return null;
+  // Реэкспорт из СОСЕДНЕГО @reformer/*-пакета. Раньше любой не-относительный спецификатор
+  // отбрасывался, и `export { useFormBundle as useReactForm } from '@reformer/core'`
+  // (packages/reformer-renderer-react/src/index.ts) терялся целиком: символ есть в публичном
+  // API, а `get_symbol_docs('useReactForm')` отвечал «not found» — при том, что ТРИ шаблона
+  // промптов этого же сервера (start-here, create-form, to-renderer) учат звать именно
+  // `useReactForm`. Ровно та самоконтрадикция, ради которой заведён
+  // scripts/check-mcp-prompts.mjs, только с другой стороны.
+  if (!spec.startsWith('.')) {
+    if (!spec.startsWith('@reformer/')) return null; // react, зависимости — вне зоны ответственности
+    const root = findPackageRoot(spec.split('/').slice(0, 2).join('/'));
+    if (!root) return null;
+    // Подпуть (`@reformer/core/behaviors`) → его собственная точка входа; иначе — главная.
+    const sub = spec.split('/').slice(2).join('/');
+    if (!sub) return findEntry(root);
+    for (const rel of [`src/${sub}.ts`, `src/${sub}.tsx`, `dist/${sub}.d.ts`]) {
+      const abs = resolve(root, rel);
+      if (existsSync(abs)) return abs;
+    }
+    return findEntry(root);
+  }
   const baseDir = dirname(fromFile);
   // `.d.ts` variants resolve re-exports inside published declaration barrels, where the
   // specifier may carry a `.js` extension (ESM) or none. Source (.ts/.tsx) is tried first

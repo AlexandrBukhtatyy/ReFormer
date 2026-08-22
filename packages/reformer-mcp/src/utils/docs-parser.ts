@@ -51,6 +51,25 @@ export type ReformerPackage = (typeof KNOWN_PACKAGES)[number];
 /** Default package used by legacy single-package APIs. */
 export const DEFAULT_PACKAGE: ReformerPackage = '@reformer/core';
 
+/**
+ * Привести значение аргумента `package` к полному имени пакета.
+ *
+ * Принимает и `@reformer/core`, и короткое `core`. Короткая форма нужна с тех пор, как из
+ * схем инструментов убрали `enum` со списком пакетов: он повторялся в четырёх инструментах и
+ * стоил токенов в каждом подключении, а с ростом числа пакетов дорожал бы линейно. Раз enum
+ * больше не подсказывает форму записи, сервер обязан понимать обе.
+ *
+ * `null` — «не ограничивать» (пусто, `*` или неизвестное имя): молча сузить выдачу до пустой
+ * из-за опечатки в имени пакета хуже, чем поискать везде.
+ */
+export function normalizePackage(value: unknown): ReformerPackage | null {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw || raw === '*') return null;
+  const full = (raw.startsWith('@reformer/') ? raw : `@reformer/${raw}`) as ReformerPackage;
+  return (KNOWN_PACKAGES as readonly string[]).includes(full) ? full : null;
+}
+
 // Cache for documentation content, keyed by package name.
 const docsCache = new Map<string, string>();
 

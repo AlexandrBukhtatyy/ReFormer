@@ -125,6 +125,23 @@ jobs:
       - name: Run @reformer/mcp tests
         run: npm run test -w @reformer/mcp
 
+      - name: MCP prompts render
+        # Каждый зарегистрированный промпт обязан отрендериться, а шаблоны — не содержать
+        # неэкранированных {{…}}. Ловит то, что check:mcp-prompts (проверка ТЕКСТА на снятое
+        # API) не видит: `start-here` — задокументированная точка входа сервера — отдавала
+        # клиенту JSON-RPC -32603, потому что Handlebars в strict-режиме разбирал JSX
+        # `settings={{ fieldWrapper: FormField }}` как выражение. То же было в `to-renderer`.
+        # Список промптов берётся из барреля dist/prompts, а не из ручного перечня —
+        # именно ручной перечень в snapshot-prompts.mjs и пропустил `start-here`.
+        run: npm run check:mcp-render
+
+      - name: MCP retrieval eval
+        # 46 задач через живой stdio-сервер: отдаёт ли он знание, нужное для задачи, за
+        # сколько вызовов и токенов. Гейт против docs/mcp-eval/baseline-v6.json — падает,
+        # если упал hit/first-pass или выросли статическая поверхность либо медиана
+        # токенов/вызовов. Метод и вскрытые ограничения — docs/mcp-eval/README.md.
+        run: npm run mcp:evaluate
+
       - name: MCP packaging smoke
         # npm pack mcp + core + cdk в чистый проект вне репо и проверка, что под npx
         # у потребителя доступны reformer://guide (свой llms.txt) и файловые рецепты

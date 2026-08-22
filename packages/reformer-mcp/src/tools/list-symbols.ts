@@ -6,8 +6,9 @@
  * После — `get_symbol_docs <name>` за полной сигнатурой и примером.
  */
 
-import { getPublicSymbols, type PublicSymbol } from '../utils/symbols-parser.js';
-import { KNOWN_PACKAGES } from '../utils/docs-parser.js';
+import type { PublicSymbol } from '../utils/symbols-parser.js';
+import { publicSymbols, indexCoverageWarning } from '../index/symbols.js';
+import { KNOWN_PACKAGES, normalizePackage } from '../utils/docs-parser.js';
 
 const KINDS = ['function', 'class', 'interface', 'type', 'const', 'enum'] as const;
 type SymbolKind = (typeof KINDS)[number];
@@ -15,7 +16,7 @@ type SymbolKind = (typeof KINDS)[number];
 export const listSymbolsToolDefinition = {
   name: 'list_symbols',
   description:
-    'List public symbols of @reformer/* packages, optionally filtered by kind (function/class/interface/type/const/enum), package, and a case-insensitive substring of the name (`nameContains`). Without filters the full surface is ~800+ symbols — pass `nameContains` (e.g. "validate", "FileUpload", "Async") or a `kind`/`package` to narrow it. Use it to discover the API surface, then call get_symbol_docs for a specific name to get its full signature and @example.',
+    'List public symbols, filtered by kind, package or nameContains. Output is capped — narrow the filter. To find API by TASK rather than by name, choose_api and search_docs answer instead of listing.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -27,8 +28,7 @@ export const listSymbolsToolDefinition = {
       package: {
         type: 'string',
         description:
-          'Restrict to one package (e.g. "@reformer/core"). Omit or "*" to list across all known @reformer/* packages.',
-        enum: ['*', ...KNOWN_PACKAGES],
+          'Restrict to one package: core | cdk | ui-kit | renderer-react | renderer-json (full name or short). Omit for all.',
       },
       nameContains: {
         type: 'string',
@@ -49,7 +49,8 @@ export interface ListSymbolsArgs {
 export async function listSymbolsTool(
   args: ListSymbolsArgs
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
-  const targets = args.package && args.package !== '*' ? [args.package] : [...KNOWN_PACKAGES];
+  const only = normalizePackage(args.package);
+  const targets = only ? [only] : [...KNOWN_PACKAGES];
   const needle =
     typeof args.nameContains === 'string' && args.nameContains.trim()
       ? args.nameContains.trim().toLowerCase()
@@ -57,14 +58,29 @@ export async function listSymbolsTool(
 
   const sections: string[] = [];
   let total = 0;
+  let listed = 0;
+  let capped = false;
 
   for (const pkg of targets) {
-    let symbols = getPublicSymbols(pkg);
+    let symbols = await publicSymbols(pkg);
     if (args.kind) symbols = symbols.filter((s) => s.kind === args.kind);
     if (needle) symbols = symbols.filter((s) => s.name.toLowerCase().includes(needle));
     if (symbols.length === 0) continue;
     total += symbols.length;
-    sections.push(`## ${pkg} (${symbols.length})\n\n` + symbols.map(renderRow).join('\n'));
+
+    // Потолок на выдачу. Замерено: `list_symbols({})` отдавал 82 364 символа ≈ 20 591 токен —
+    // крупнейший единичный ответ во всём сервере, дороже подключения к нему. Описание честно
+    // предупреждало «800+ symbols», но предупреждение не мешает модели вызвать без фильтра.
+    // Показываем префикс и говорим, сколько осталось и чем сузить.
+    const room = Math.max(0, MAX_LISTED_SYMBOLS - listed);
+    const shown = symbols.slice(0, room);
+    if (shown.length < symbols.length) capped = true;
+    listed += shown.length;
+    if (shown.length === 0) continue;
+    sections.push(
+      `## ${pkg} (${shown.length}${shown.length < symbols.length ? ` из ${symbols.length}` : ''})\n\n` +
+        shown.map(renderRow).join('\n')
+    );
   }
 
   const kindLabel = args.kind ? ` of kind \`${args.kind}\`` : '';
@@ -77,12 +93,29 @@ export async function listSymbolsTool(
     );
   }
 
+  // Обрезка ВСЕГДА видима и всегда говорит, чем сузить: молча усечённый список агент примет
+  // за полный и решит, что символа не существует.
+  const cappedNote = capped
+    ? `\n\n> ⚠️ Показано ${listed} из ${total}. Сузьте выдачу: \`nameContains\` (подстрока имени), ` +
+      `\`kind\` (function/class/interface/type/const/enum) или \`package\`. ` +
+      `Если ищете API под задачу, а не по имени — \`choose_api\` или \`search_docs\` дадут ответ, а не список.`
+    : '';
+
   return text(
     `# Public symbols${kindLabel}${nameLabel} (${total})\n\n` +
       sections.join('\n\n') +
-      `\n\n_Use \`get_symbol_docs <name>\` for full signature and examples._`
+      cappedNote +
+      `\n\n_Use \`get_symbol_docs <name>\` for full signature and examples._` +
+      // Пакет без индекса даёт неполный список — агент не должен решить, что символа нет.
+      indexCoverageWarning()
   );
 }
+
+/**
+ * Сколько символов помещается в один ответ. 120 строк — около 2 000 токенов: обзор
+ * поверхности такой размер даёт, а бюджет диалога не съедает.
+ */
+const MAX_LISTED_SYMBOLS = 120;
 
 function renderRow(sym: PublicSymbol): string {
   const firstLine = sym.description.split('\n')[0].trim();

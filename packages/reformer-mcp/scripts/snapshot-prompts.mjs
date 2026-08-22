@@ -26,7 +26,12 @@ const FIXTURES = {
 
 const mod = await import(distEntryUrl);
 
+// `start-here` — точка входа сервера, и именно её отсутствие в этом списке позволило ей
+// уехать в релиз сломанной (Handlebars падал на JSX `{{ fieldWrapper: … }}`). Держим первой.
+// Сплошную проверку «все зарегистрированные промпты рендерятся» делает
+// scripts/check-mcp-render.mjs — он выводит список из барреля, а не из ручного перечня.
 const cases = [
+  ['start-here', mod.getStartHerePrompt, {}],
   ['debug', mod.getDebugPrompt, { code: FIXTURES.code }],
   ['review', mod.getReviewPrompt, { code: FIXTURES.code }],
   [

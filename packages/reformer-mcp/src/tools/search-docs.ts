@@ -22,12 +22,14 @@ import {
   getSectionBySlug,
   KNOWN_PACKAGES,
   type SectionMeta,
+  normalizePackage,
 } from '../utils/docs-parser.js';
+import { rankSymbolsForQuery, renderSymbolHits } from '../index/search.js';
 
 export const searchDocsToolDefinition = {
   name: 'search_docs',
   description:
-    'Full-text search across every documentation section of all @reformer/* packages. Use it when you do NOT know the exact symbol or recipe topic but can describe the task in words (e.g. "reset form after submit", "make a field required conditionally", "debounce async validation"). Returns ranked sections with their reformer://docs/<pkg>/<slug> resource URI and a matched snippet — read the URI via resources/read for the full section. Complements find_recipe (curated topic → recipe) and get_symbol_docs (one symbol\'s JSDoc); reach for those when you already know the topic or symbol name.',
+    'Full-text search over all @reformer/* docs, for when you can describe the task but cannot name it. Returns ranked sections with their reformer://docs/… URI, a matched snippet, and the relevant API names.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -39,8 +41,7 @@ export const searchDocsToolDefinition = {
       package: {
         type: 'string',
         description:
-          'Restrict the search to one package (e.g. "@reformer/core"). Omit or "*" to search across all packages.',
-        enum: ['*', ...KNOWN_PACKAGES],
+          'Restrict to one package: core | cdk | ui-kit | renderer-react | renderer-json (full name or short). Omit for all.',
       },
       limit: {
         type: 'number',
@@ -64,48 +65,96 @@ interface IndexedSection {
   body: string;
   titleLower: string;
   bodyLower: string;
+  /** Частоты термов тела — основа BM25. */
+  tf: Map<string, number>;
+  /** Длина секции в термах (|D| в формуле BM25). */
+  length: number;
+}
+
+interface SearchIndex {
+  sections: IndexedSection[];
+  /** В скольких секциях встречается терм (document frequency). */
+  df: Map<string, number>;
+  /** Средняя длина секции — нормировочная база BM25. */
+  avgLength: number;
 }
 
 // Индекс кэшируется на всё время жизни процесса: docs на диске не меняются, а перестройка
-// (233 секции × getSectionBySlug) не бесплатна. getFullDocs внутри уже кэширован.
-let cachedIndex: IndexedSection[] | null = null;
+// (343 секции × getSectionBySlug + токенизация) не бесплатна. getFullDocs внутри кэширован.
+let cachedIndex: SearchIndex | null = null;
 
 function shortName(pkg: string): string {
   return pkg.replace(/^@reformer\//, '');
 }
 
-function buildIndex(): IndexedSection[] {
+/**
+ * Токенизация: слова латиницы/кириллицы и идентификаторы, плюс разбор camelCase.
+ *
+ * camelCase обязателен. Прежний скоринг искал подстроку, поэтому запрос «currency» находил
+ * `formatCurrency`, а «validation» — `defineValidationSchema`. Переход на честные термы это
+ * ломает (в документации по коду половина знания живёт внутри идентификаторов), поэтому
+ * `formatCurrency` индексируется сразу тремя термами: `formatcurrency`, `format`, `currency`.
+ * Так сохраняется полнота подстрочного поиска без его главного порока — ложных совпадений
+ * посреди слова.
+ */
+function tokenize(text: string): string[] {
+  const out: string[] = [];
+  for (const raw of text.match(/[a-zA-Zа-яёА-ЯЁ0-9_$]+/g) ?? []) {
+    const lower = raw.toLowerCase();
+    out.push(lower);
+    const parts = raw
+      .replace(/[_$]+/g, ' ')
+      .replace(/([a-zа-яё0-9])([A-ZА-ЯЁ])/g, '$1 $2')
+      .replace(/([A-ZА-ЯЁ]+)([A-ZА-ЯЁ][a-zа-яё])/g, '$1 $2')
+      .split(/\s+/)
+      .filter((p) => p.length > 2)
+      .map((p) => p.toLowerCase());
+    if (parts.length > 1) out.push(...parts);
+  }
+  return out;
+}
+
+/**
+ * Понижение для собственной документации сервера.
+ *
+ * `@reformer/mcp` документирует САМ СЕРВЕР (его tools, промпты, ресурсы), а не то, как писать
+ * формы. Его секции короткие, а BM25 короткие документы поощряет — после перехода на него
+ * запросы «computed total», «dependent field», «server validation» стали выигрывать разделы
+ * mcp-мануала вместо библиотечных. Для вопроса «как сделать X в ReFormer» правильный ответ
+ * почти всегда в библиотечном пакете, поэтому mcp участвует, но уступает при прочих равных.
+ */
+const OWN_DOCS_PENALTY = 0.4;
+
+function buildIndex(): SearchIndex {
   if (cachedIndex) return cachedIndex;
-  const index: IndexedSection[] = [];
+  const sections: IndexedSection[] = [];
+  const df = new Map<string, number>();
+
   for (const pkg of listAvailablePackages()) {
     const short = shortName(pkg);
     for (const section of listSections(pkg)) {
       const body = getSectionBySlug(pkg, section.slug) ?? '';
-      index.push({
+      const tokens = tokenize(body);
+      const tf = new Map<string, number>();
+      for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
+      for (const t of tf.keys()) df.set(t, (df.get(t) ?? 0) + 1);
+      sections.push({
         pkg,
         short,
         section,
         body,
         titleLower: section.title.toLowerCase(),
         bodyLower: body.toLowerCase(),
+        tf,
+        length: tokens.length,
       });
     }
   }
-  cachedIndex = index;
-  return index;
-}
 
-/** Число непересекающихся вхождений подстроки (needle гарантированно непустой). */
-function countOccurrences(haystack: string, needle: string): number {
-  let count = 0;
-  let from = 0;
-  for (;;) {
-    const at = haystack.indexOf(needle, from);
-    if (at === -1) break;
-    count++;
-    from = at + needle.length;
-  }
-  return count;
+  const avgLength =
+    sections.length > 0 ? sections.reduce((n, s) => n + s.length, 0) / sections.length : 1;
+  cachedIndex = { sections, df, avgLength };
+  return cachedIndex;
 }
 
 interface Scored {
@@ -113,26 +162,59 @@ interface Scored {
   score: number;
 }
 
-function scoreSection(entry: IndexedSection, terms: string[], phrase: string): number {
-  let base = 0;
+/** Параметры BM25. Значения стандартные: k1 гасит насыщение частотой, b — силу нормировки. */
+const BM25_K1 = 1.2;
+const BM25_B = 0.75;
+
+/**
+ * Релевантность секции запросу.
+ *
+ * Было: сумма вхождений термов с потолком 5 на тело. Такая формула не наказывает длину,
+ * поэтому гигантская секция `## API Reference` (у `@reformer/cdk` — 149 196 символов)
+ * выигрывала запросы, к которым не имеет отношения: «computed total», «touched», «dirty»,
+ * «autocomplete». Агент читал её целиком — так и набирались 25-40k токенов на задачу при
+ * медиане около 1k. Именно это был весь хвост стоимости в eval.
+ *
+ * Стало: BM25 по телу (насыщение частотой + нормировка на длину документа) плюс два сигнала,
+ * которых у чистого BM25 нет, а для документации они решающие:
+ *  - совпадение в ЗАГОЛОВКЕ секции: у документации заголовок — это имя API или сценария,
+ *    и попадание в него надёжнее любой частоты в теле;
+ *  - точная фраза целиком — редкий и сильный сигнал.
+ */
+function scoreSection(
+  entry: IndexedSection,
+  terms: string[],
+  phrase: string,
+  index: SearchIndex
+): number {
+  const N = index.sections.length;
+  let score = 0;
   let covered = 0;
+
   for (const term of terms) {
-    const titleHits = countOccurrences(entry.titleLower, term);
-    // Тело кэпируем: длинная секция иначе доминирует одним частым словом.
-    const bodyHits = Math.min(countOccurrences(entry.bodyLower, term), 5);
-    if (titleHits + bodyHits === 0) continue;
+    const inTitle = entry.titleLower.includes(term);
+    const f = entry.tf.get(term) ?? 0;
+    if (f === 0 && !inTitle) continue;
     covered++;
-    base += titleHits * 10 + bodyHits;
+
+    if (f > 0) {
+      const n = index.df.get(term) ?? 0;
+      const idf = Math.log(1 + (N - n + 0.5) / (n + 0.5));
+      const norm = f + BM25_K1 * (1 - BM25_B + (BM25_B * entry.length) / index.avgLength);
+      score += idf * ((f * (BM25_K1 + 1)) / norm);
+    }
+    // Заголовок весит как сильный отдельный сигнал, не зависящий от длины тела.
+    if (inTitle) score += 8;
   }
-  if (base === 0) return 0;
-  // Все термы присутствуют — сильнее, чем частичное совпадение.
-  if (covered === terms.length && terms.length > 1) base *= 1.5;
-  // Точная фраза целиком — редкий и сильный сигнал.
+
+  if (score === 0) return 0;
+  if (covered === terms.length && terms.length > 1) score *= 1.5;
   if (terms.length > 1) {
-    if (entry.titleLower.includes(phrase)) base += 25;
-    else if (entry.bodyLower.includes(phrase)) base += 8;
+    if (entry.titleLower.includes(phrase)) score += 20;
+    else if (entry.bodyLower.includes(phrase)) score += 4;
   }
-  return base;
+  if (entry.pkg === '@reformer/mcp') score *= OWN_DOCS_PENALTY;
+  return score;
 }
 
 /** Наиболее релевантная строка тела как сниппет (или preview, если совпал только заголовок). */
@@ -156,39 +238,57 @@ function bestSnippet(entry: IndexedSection, terms: string[]): string {
   return best.length > 180 ? best.slice(0, 177) + '…' : best;
 }
 
-export async function searchDocsTool(
-  args: SearchDocsArgs
-): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
-  const query = typeof args.query === 'string' ? args.query.trim() : '';
-  if (!query) {
-    return text(
-      'Pass a non-empty `query` describing what you are looking for (e.g. "conditional required validation").'
-    );
-  }
+/**
+ * Один результат поиска в структурированном виде — то же ранжирование, что видит
+ * `search_docs`, но без markdown-обёртки. Нужен второму потребителю: `find_recipe`
+ * каскадирует сюда вместо тупика «No recipe found» (замерено: 68% естественных
+ * формулировок не резолвились алиасами, и все 100% из них находятся этим поиском).
+ */
+export interface SectionHit {
+  /** Полное имя пакета, напр. `@reformer/core`. */
+  pkg: string;
+  /** Короткое имя пакета для URI, напр. `core`. */
+  short: string;
+  /** Слаг секции — тот же, что в `reformer://docs/<short>/<slug>`. */
+  slug: string;
+  title: string;
+  /** Готовый resource-URI, резолвится через `resources/read`. */
+  uri: string;
+  /** Наиболее релевантная строка тела (или preview, если совпал только заголовок). */
+  snippet: string;
+  score: number;
+  /** Тело секции. Ссылка на уже закэшированную строку — нужна для связки «секция → символы». */
+  body: string;
+  /** Хотя бы один терм запроса встретился в ЗАГОЛОВКЕ — сильный сигнал точного попадания. */
+  titleMatch: boolean;
+  /** Длина тела секции в символах — потребитель решает, инлайнить её или отдать URI. */
+  bodyLength: number;
+}
 
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const phrase = query.toLowerCase();
-  const limit = clampLimit(args.limit);
+/**
+ * Ранжированный поиск по секциям. Общее ядро `search_docs` и каскада `find_recipe`.
+ *
+ * @param query - Слова, описывающие задачу.
+ * @param pkg   - Ограничить одним пакетом; `'*'`/undefined — искать везде.
+ * @param limit - Максимум результатов (1..25, по умолчанию 10).
+ * @returns Отсортированные по убыванию релевантности попадания; пустой массив, если ничего.
+ */
+export function searchSections(query: string, pkg?: string, limit?: number): SectionHit[] {
+  const trimmed = typeof query === 'string' ? query.trim() : '';
+  if (!trimmed) return [];
 
-  const restrictTo =
-    args.package && args.package !== '*'
-      ? args.package.replace(/^@reformer\//, '@reformer/')
-      : null;
+  const terms = tokenize(trimmed);
+  const phrase = trimmed.toLowerCase();
+  const restrictTo = normalizePackage(pkg);
 
+  const index = buildIndex();
   const scored: Scored[] = [];
-  for (const entry of buildIndex()) {
+  for (const entry of index.sections) {
     if (restrictTo && entry.pkg !== restrictTo) continue;
-    const score = scoreSection(entry, terms, phrase);
+    const score = scoreSection(entry, terms, phrase, index);
     if (score > 0) scored.push({ entry, score });
   }
-
-  if (scored.length === 0) {
-    return text(
-      `No documentation sections matched "${query}"${
-        restrictTo ? ` in ${restrictTo}` : ''
-      }.\n\nTry broader or different words, or use \`list_symbols\` (nameContains) / \`find_recipe\` if you have a symbol or topic name.`
-    );
-  }
+  if (scored.length === 0) return [];
 
   // Стабильный порядок при равном счёте: пакет (по KNOWN_PACKAGES), затем заголовок.
   const pkgOrder = new Map(KNOWN_PACKAGES.map((p, i) => [p as string, i]));
@@ -200,20 +300,59 @@ export async function searchDocsTool(
     return a.entry.section.title.localeCompare(b.entry.section.title);
   });
 
-  const top = scored.slice(0, limit);
-  const shown = top
-    .map(({ entry }) => {
-      const uri = `reformer://docs/${entry.short}/${entry.section.slug}`;
-      const snippet = bestSnippet(entry, terms);
-      const quote = snippet ? `\n> ${snippet}` : '';
-      return `## ${entry.pkg}: ${entry.section.title}\n\`${uri}\`${quote}`;
-    })
-    .join('\n\n');
+  return scored.slice(0, clampLimit(limit)).map(({ entry, score }) => ({
+    pkg: entry.pkg,
+    short: entry.short,
+    slug: entry.section.slug,
+    title: entry.section.title,
+    uri: `reformer://docs/${entry.short}/${entry.section.slug}`,
+    snippet: bestSnippet(entry, terms),
+    body: entry.body,
+    score,
+    titleMatch: terms.some((t) => entry.titleLower.includes(t)),
+    bodyLength: entry.body.length,
+  }));
+}
 
-  const more = scored.length > top.length ? ` (showing top ${top.length} of ${scored.length})` : '';
+/** Общее для `search_docs` и каскада `find_recipe` markdown-представление попаданий. */
+export function renderSectionHits(hits: SectionHit[]): string {
+  return hits
+    .map((h) => `## ${h.pkg}: ${h.title}\n\`${h.uri}\`${h.snippet ? `\n> ${h.snippet}` : ''}`)
+    .join('\n\n');
+}
+
+export async function searchDocsTool(
+  args: SearchDocsArgs
+): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+  const query = typeof args.query === 'string' ? args.query.trim() : '';
+  if (!query) {
+    return text(
+      'Pass a non-empty `query` describing what you are looking for (e.g. "conditional required validation").'
+    );
+  }
+
+  const restrictTo = normalizePackage(args.package);
+  const hits = searchSections(query, args.package, args.limit);
+
+  if (hits.length === 0) {
+    return text(
+      `No documentation sections matched "${query}"${
+        restrictTo ? ` in ${restrictTo}` : ''
+      }.\n\nTry broader or different words, or use \`list_symbols\` (nameContains) / \`find_recipe\` if you have a symbol or topic name.`
+    );
+  }
+
+  // Каноническое имя API в том же ответе. Замерено на корпусе eval: в задачах, которые не
+  // брались с первой формулировки, срабатывал последний запрос — и он был буквально именем
+  // символа. Значит, агенту не хватало именно перехода «слова задачи → имя», и отдавать его
+  // надо здесь же, а не заставлять угадывать следующим вызовом.
+  const symbols = rankSymbolsForQuery(query, hits, args.package, 4);
+  const apiBlock = symbols.length > 0 ? `\n\n## Relevant API\n${renderSymbolHits(symbols)}` : '';
+
   return text(
-    `# search_docs: "${query}"${more}\n\n` +
-      shown +
+    `# search_docs: "${query}"\n\n` +
+      renderSectionHits(hits) +
+      apiBlock +
       `\n\n_Read a full section via resources/read on its \`reformer://docs/…\` URI. For a specific symbol use \`get_symbol_docs\`; for a curated recipe use \`find_recipe\`._`
   );
 }

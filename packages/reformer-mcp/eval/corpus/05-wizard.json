@@ -1,0 +1,45 @@
+{
+  "category": "wizard",
+  "description": "Многошаговые формы: конфиг, навигация, валидация шага, условный шаг.",
+  "tasks": [
+    {
+      "id": "wizard/config",
+      "task": "настроить многошаговую форму",
+      "target": "core",
+      "queries": ["multi step form setup", "wizard config", "form wizard"],
+      "expectAny": ["FormWizard", "validateStep", "validateAll"]
+    },
+    {
+      "id": "wizard/step-guard",
+      "task": "не пускать на следующий шаг, пока текущий невалиден",
+      "target": "core",
+      "queries": [
+        "block next until current step valid",
+        "step guard wizard",
+        "validate step before next"
+      ],
+      "expectAny": ["validateStep"]
+    },
+    {
+      "id": "wizard/final-validation",
+      "task": "проверить все шаги перед отправкой",
+      "target": "core",
+      "queries": ["validate all steps before submit", "final validation wizard", "validateAll"],
+      "expectAny": ["validateAll"]
+    },
+    {
+      "id": "wizard/navigation",
+      "task": "переключать шаги вперёд и назад",
+      "target": "core",
+      "queries": ["wizard navigation next back", "step navigation", "form navigation"],
+      "expectAny": ["FormWizard", "currentStep", "goToStep", "navigation"]
+    },
+    {
+      "id": "wizard/conditional-step",
+      "task": "показывать шаг только при выполнении условия",
+      "target": "core",
+      "queries": ["show step only when condition", "conditional wizard step", "hidden step"],
+      "expectAny": ["setHidden", "hideWhen"]
+    }
+  ]
+}

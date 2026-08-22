@@ -133,6 +133,16 @@ if (!fileSourced(ff)) {
   failures.push('find_recipe("form-field") не из файла docs/llms (не в files @reformer/cdk?)');
 }
 
+// mcp — СВОИ docs/llms. Каталог не публиковался (в files были только dist/README/llms.txt),
+// поэтому кросс-таргетный гайд form-directory-layout у потребителя молча деградировал в
+// core-only фолбэк project-structure. Тянем именно его.
+const dl = (await findRecipeTool({ topic: 'form-directory-layout' })).content[0].text;
+if (!dl.includes('docs/llms/') || !dl.includes('form-directory-layout')) {
+  failures.push(
+    'find_recipe("form-directory-layout") не из файла docs/llms @reformer/mcp (не в files?)'
+  );
+}
+
 console.log(JSON.stringify({ failures }));
 `;
   writeFileSync(path.join(consumer, 'smoke.mjs'), runner);
