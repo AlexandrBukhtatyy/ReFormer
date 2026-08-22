@@ -48,15 +48,15 @@ claude mcp add --transport stdio reformer -- npx @reformer/mcp
 
 ## Инструменты (tools)
 
-| Tool                   | Роль                                                                                                       |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `get_symbol_docs`      | Полный JSDoc публичного символа любого `@reformer/*` (signature, params, returns, все `@example`, source). |
-| `find_recipe`          | Найти рецепт по `topic`: имя файла `docs/llms/` → `## `-секция → имя символа (fallback в `@example`).      |
-| `list_symbols`         | API surface по kind/package, когда имя символа неизвестно.                                                 |
-| `validate_json_schema` | Проверить JSON-схему `renderer-json` перед рендерингом.                                                    |
-| `check_behaviors`      | Объявить зависимости `computeFrom`/`copyFrom` и получить обнаружение циклов.                               |
-| `report_issue`         | Сохранить найденную проблему и её решение в `~/.reformer/issues.jsonl`.                                    |
-| `debug`                | Только при `REFORMER_DEBUG=true` — внутренний tool для разработки самого сервера.                          |
+| Tool                   | Роль                                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `get_symbol_docs`      | Полный JSDoc публичного символа любого `@reformer/*` (signature, params, returns, все `@example`, source).     |
+| `find_recipe`          | Найти рецепт по `topic`: имя файла `docs/llms/` → `## `-секция → имя символа (fallback в `@example`).          |
+| `list_symbols`         | API surface по kind/package, когда имя символа неизвестно.                                                     |
+| `validate_json_schema` | Проверить JSON-схему `renderer-json` перед рендерингом.                                                        |
+| `check_behaviors`      | Объявить зависимости `computeFrom`/`copyFrom` и получить обнаружение циклов.                                   |
+| `report_issue`         | Сохранить найденную проблему и её решение отдельным JSON-отчётом в `<корень проекта>/.reformer/issue_reports`. |
+| `debug`                | Только при `REFORMER_DEBUG=true` — внутренний tool для разработки самого сервера.                              |
 
 ## Промпты (prompts)
 

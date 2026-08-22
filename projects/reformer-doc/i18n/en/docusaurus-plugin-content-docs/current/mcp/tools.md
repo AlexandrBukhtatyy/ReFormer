@@ -209,7 +209,12 @@ Confirmation of successful report submission.
 1. AI encounters an error while working with ReFormer
 2. AI solves the problem
 3. AI calls `report_issue` with error description and solution
-4. Data is saved locally to `~/.reformer/issues.jsonl`
+4. The report is saved locally as its own file — `<project root>/.reformer/issue_reports/<timestamp>-<slug>.json`
+
+The directory is configurable via the `REFORMER_ISSUE_REPORTS_DIR` env var (relative values
+resolve against the server's working directory). Project root is the nearest `package.json`
+with dependencies above cwd; when there is none, reports land in cwd itself. The exact path
+comes back in the tool's response.
 
 **Example usage:**
 
@@ -229,13 +234,22 @@ AI calls report_issue:
       relatedFiles: ["packages/reformer/src/core/behavior/behaviors/compute-from.ts"]
 ```
 
-**Storage format (JSONL):**
+**Storage format (JSON):**
+
+One report per file, pretty-printed:
 
 ```json
-{"timestamp":"2025-01-15T10:30:00Z","error":"...","solution":"...","tags":["category:behavior"],"context":{"examples":[...],"notes":"..."}}
+{
+  "timestamp": "2026-01-15T10:30:00.000Z",
+  "error": "...",
+  "solution": "...",
+  "tags": ["category:behavior"],
+  "context": { "examples": [], "notes": "..." }
+}
 ```
 
-Each line is a separate JSON object. This allows easy appending and data analysis.
+The file name combines the timestamp with a short slug of the error. Two reports filed in the
+same millisecond get a `-2`, `-3`, … suffix — an existing file is never overwritten.
 
 ## Why collect feedback?
 
