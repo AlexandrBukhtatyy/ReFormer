@@ -45,7 +45,7 @@ claude mcp list
 | ----------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `get_symbol_docs` | ✅                               | Полный JSDoc публичного символа любого `@reformer/*` (description, signature, params, type params, returns, все `@example`, deprecated, see, source).                                              |
 | `find_recipe`     | ✅                               | Найти рецепт по `topic` в библиотечной документации (`docs/llms/` всех `@reformer/*`) или fallback в `@example` JSDoc публичного символа. Поиск каскадный: имя файла → `## ` секция → имя символа. |
-| `report_issue`    | ✅                               | Сохранить найденную проблему и её решение в `~/.reformer/issues.jsonl` для последующего анализа.                                                                                                   |
+| `report_issue`    | ✅                               | Сохранить найденную проблему и её решение отдельным JSON-отчётом в `<корень проекта>/.reformer/issue_reports` (каталог переопределяется `REFORMER_ISSUE_REPORTS_DIR`).                             |
 | `debug`           | под флагом `REFORMER_DEBUG=true` | Внутренний инструмент для разработки самого сервера.                                                                                                                                               |
 
 ### `get_symbol_docs`
@@ -71,6 +71,12 @@ claude mcp list
 ### `report_issue`
 
 Параметры: `error` (required), `solution` (required), `tags` (e.g. `category:behavior`, `agent:claude`, `severity:critical`), `context` (`examples`, `relatedFiles`, `notes`).
+
+Каждый вызов пишет **отдельный файл** `<timestamp>-<slug>.json` в каталог отчётов — по умолчанию
+`<корень проекта>/.reformer/issue_reports`. Корень проекта — ближайший вверх от cwd `package.json`
+с зависимостями; если такого нет, каталог создаётся прямо в cwd. Переопределяется переменной
+окружения `REFORMER_ISSUE_REPORTS_DIR` (относительный путь резолвится от cwd сервера) — см.
+[Environment variables](#environment-variables).
 
 ## Available Resources
 
@@ -138,6 +144,17 @@ node packages/reformer-mcp/dist/index.js
 
 `build` пакета сначала вызывает `npm run generate:llms` (свой `llms.txt`), затем `tsc`. На свежем checkout этого достаточно — отдельно `npm run generate:llms` запускать не нужно.
 
+## Environment variables
+
+| Переменная                   | Значение по умолчанию                      | Что делает                                                                                                       |
+| ---------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `REFORMER_ISSUE_REPORTS_DIR` | `<корень проекта>/.reformer/issue_reports` | Каталог, куда `report_issue` складывает JSON-отчёты. Относительный путь резолвится от cwd сервера.               |
+| `REFORMER_FORM_LAYOUT`       | `minimalist`                               | Какую раскладку файлов формы предлагает prompt `create-form`: `minimalist` (плоский набор файлов) или `folders`. |
+| `REFORMER_DEBUG`             | не задана                                  | `true` включает debug-режим (см. ниже).                                                                          |
+
+Задаются при регистрации сервера через `-e` (`claude mcp add … -e REFORMER_ISSUE_REPORTS_DIR=/path/to/dir`)
+либо в `env` MCP-конфига клиента.
+
 ## Debug Mode
 
 Активируется переменной окружения `REFORMER_DEBUG=true`:
@@ -189,7 +206,7 @@ REFORMER_DEBUG=true npx @modelcontextprotocol/inspector node packages/reformer-m
 - `find_recipe` → `{ "topic": "wizard" }` → возвращает рецепт wizard'а из `@reformer/cdk` (по имени файла либо секции).
 - `find_recipe` → `{ "topic": "useFormControl" }` → JSDoc-`@example` из `@reformer/core`.
 - `find_recipe` → `{ "topic": "unknown-xyz" }` → fallback со списком доступных рецептов.
-- `report_issue` → можно отправить тестовый — запишется в `~/.reformer/issues.jsonl`.
+- `report_issue` → можно отправить тестовый — появится файл в `<корень проекта>/.reformer/issue_reports/`.
 
 **Prompts:**
 

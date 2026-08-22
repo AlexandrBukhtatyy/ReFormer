@@ -43,3 +43,6 @@ coverage/
 .dolt/
 *.db
 .beads-credential-key
+
+# report_issue MCP output (REFORMER_ISSUE_REPORTS_DIR)
+.reformer/

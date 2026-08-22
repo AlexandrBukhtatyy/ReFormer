@@ -1,11 +1,20 @@
-import { homedir } from 'os';
-import { join } from 'path';
-import { appendFileSync, mkdirSync, existsSync } from 'fs';
+import { join, resolve } from 'path';
+import { writeFileSync, mkdirSync } from 'fs';
+import { detectProjectStack } from '../utils/project-detector.js';
+
+/** Env var overriding where reports are written. Value may be relative — resolved against cwd. */
+export const ISSUE_REPORTS_DIR_ENV = 'REFORMER_ISSUE_REPORTS_DIR';
+
+/** Default location, relative to the detected project root (cwd when detection fails). */
+const DEFAULT_DIR_SEGMENTS = ['.reformer', 'issue_reports'];
 
 export const reportIssueToolDefinition = {
   name: 'report_issue',
   description:
-    'Report an issue encountered while working with ReFormer and its solution. Appends the report to a local scratch log (~/.reformer/issues.jsonl) on this machine for later manual review — it is not aggregated or fed back into the other tools. Use this when you find and fix a ReFormer-related error.',
+    'Record a ReFormer problem and its fix as a JSON report in a local directory ' +
+    '(`<project>/.reformer/issue_reports` by default, override with the ' +
+    'REFORMER_ISSUE_REPORTS_DIR env var) for later manual review. One file per report. ' +
+    'Not aggregated, not fed back into other tools.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -66,11 +75,41 @@ interface ReportIssueContext {
   notes?: string;
 }
 
-interface ReportIssueArgs {
+export interface ReportIssueArgs {
   error: string;
   solution: string;
   tags?: string[];
   context?: ReportIssueContext;
+}
+
+/**
+ * Where report files go: `REFORMER_ISSUE_REPORTS_DIR` when set (relative values are
+ * resolved against cwd), otherwise `<project root>/.reformer/issue_reports`. The project
+ * root is the nearest package.json with dependencies above cwd; when there is none — cwd
+ * itself, so reports never land somewhere the caller cannot see.
+ */
+export function resolveIssueReportsDir(): string {
+  const fromEnv = process.env[ISSUE_REPORTS_DIR_ENV]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+
+  const root = detectProjectStack().projectRoot ?? process.cwd();
+  return join(root, ...DEFAULT_DIR_SEGMENTS);
+}
+
+/** Filesystem-safe ISO stamp: `2026-08-22T10-14-05-123Z` (no `:` — Windows forbids it). */
+function fileStamp(date: Date): string {
+  return date.toISOString().replace(/[:.]/g, '-');
+}
+
+/** Short kebab tail for the file name, so a directory listing is readable. */
+function slugify(text: string): string {
+  const slug = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+    .replace(/-+$/g, '');
+  return slug || 'issue';
 }
 
 export async function reportIssueTool(args: ReportIssueArgs): Promise<{
@@ -78,7 +117,6 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
 }> {
   const { error, solution, tags, context } = args;
 
-  // Prepare issue record
   const issue = {
     timestamp: new Date().toISOString(),
     error,
@@ -87,24 +125,40 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
     context: context || null,
   };
 
-  const reformerDir = join(homedir(), '.reformer');
-  const issuesFile = join(reformerDir, 'issues.jsonl');
+  const reportsDir = resolveIssueReportsDir();
+  const baseName = `${fileStamp(new Date(issue.timestamp))}-${slugify(error)}`;
+  const payload = JSON.stringify(issue, null, 2) + '\n';
 
-  // fs can fail (read-only home, permissions, disk full, path collision). Degrade to a
+  // fs can fail (read-only project, permissions, disk full, path collision). Degrade to a
   // friendly text result like the neighbouring tools instead of throwing an unhandled
   // exception out of the CallTool handler.
+  let reportFile = join(reportsDir, `${baseName}.json`);
   try {
-    if (!existsSync(reformerDir)) {
-      mkdirSync(reformerDir, { recursive: true });
+    mkdirSync(reportsDir, { recursive: true });
+    // `wx` fails on an existing file, so two reports filed in the same millisecond with the
+    // same slug get distinct names instead of one overwriting the other.
+    for (let attempt = 1; ; attempt++) {
+      reportFile = join(
+        reportsDir,
+        attempt === 1 ? `${baseName}.json` : `${baseName}-${attempt}.json`
+      );
+      try {
+        writeFileSync(reportFile, payload, { encoding: 'utf-8', flag: 'wx' });
+        break;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException)?.code === 'EEXIST' && attempt < 100) continue;
+        throw err;
+      }
     }
-    appendFileSync(issuesFile, JSON.stringify(issue) + '\n', 'utf-8');
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     return {
       content: [
         {
           type: 'text',
-          text: `Could not write the issue to the local log (${issuesFile}): ${reason}`,
+          text:
+            `Could not write the issue report to ${reportFile}: ${reason}\n` +
+            `Set ${ISSUE_REPORTS_DIR_ENV} to a writable directory to change the location.`,
         },
       ],
     };
@@ -118,7 +172,7 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
     content: [
       {
         type: 'text',
-        text: `Issue reported successfully.\n\nCategory: ${category}\nTags: ${(tags || []).join(', ') || 'none'}\nStored in: ${issuesFile}`,
+        text: `Issue reported successfully.\n\nCategory: ${category}\nTags: ${(tags || []).join(', ') || 'none'}\nStored in: ${reportFile}`,
       },
     ],
   };

@@ -94,7 +94,7 @@ Claude will use the documentation to help troubleshoot.
 
 ### Tools
 
-- `report_issue` - Report errors and solutions for feedback collection
+- `report_issue` - Report errors and solutions for feedback collection (one JSON file per report under `.reformer/issue_reports`, see `REFORMER_ISSUE_REPORTS_DIR`)
 
 ### Resources
 

@@ -93,6 +93,9 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node dist/index.js
 }
 ```
 
+Expected: a new `<timestamp>-<slug>.json` in `<project root>/.reformer/issue_reports/`
+(or in `$REFORMER_ISSUE_REPORTS_DIR` when that variable is set).
+
 Expected: Confirmation message with file path
 
 #### debug (Debug Mode Only)

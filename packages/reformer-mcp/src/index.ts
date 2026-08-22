@@ -41,6 +41,7 @@ import {
   debugTool,
   reportIssueToolDefinition,
   reportIssueTool,
+  type ReportIssueArgs,
   getSymbolDocsToolDefinition,
   getSymbolDocsTool,
   findRecipeToolDefinition,
@@ -150,14 +151,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   switch (name) {
     case 'report_issue':
-      return await reportIssueTool(
-        args as {
-          error: string;
-          solution: string;
-          code?: string;
-          category?: 'schema' | 'validation' | 'behavior' | 'react' | 'types' | 'other';
-        }
-      );
+      return await reportIssueTool(args as unknown as ReportIssueArgs);
 
     case 'debug':
       if (!isDebugMode) {

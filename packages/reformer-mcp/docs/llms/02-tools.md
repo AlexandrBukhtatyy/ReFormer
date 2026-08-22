@@ -71,8 +71,14 @@ E.g. `[{ target: "total", reads: ["price","quantity"] }]`. Run after planning co
 
 ## report_issue
 
-Record a ReFormer problem + its fix to a local knowledge store (`~/.reformer/issues.jsonl`).
+Record a ReFormer problem + its fix as a JSON report on disk — one file per report,
+`<project root>/.reformer/issue_reports/<timestamp>-<slug>.json`.
+
 - `error` (string, required), `solution` (string, required), optional `tags`, `context`.
+
+The directory is configurable via the `REFORMER_ISSUE_REPORTS_DIR` env var (relative values
+resolve against the server cwd). Project root = nearest `package.json` with dependencies above
+cwd; when there is none, reports land in cwd itself.
 
 Use when you discover and fix a non-obvious ReFormer error, to help future runs.
 
