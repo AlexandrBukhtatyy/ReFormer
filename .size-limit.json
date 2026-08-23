@@ -133,5 +133,15 @@
     "name": "@reformer/form-registry/guard",
     "path": "packages/reformer-form-registry/dist/guard.js",
     "limit": "1.5 kB"
+  },
+  {
+    "name": "@reformer/builder (корпус знаний: индекс)",
+    "path": "projects/reformer-builder/dist/assets/knowledge-index-*.js",
+    "limit": "215 kB"
+  },
+  {
+    "name": "@reformer/builder (корпус знаний: документация)",
+    "path": "projects/reformer-builder/dist/assets/knowledge-docs-*.js",
+    "limit": "280 kB"
   }
 ]

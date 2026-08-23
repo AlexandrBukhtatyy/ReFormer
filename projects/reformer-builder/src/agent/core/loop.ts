@@ -105,7 +105,7 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
     readOnly: tool.readOnly,
     execute: async (args) => {
       // Черновик читается в момент вызова: каждый следующий инструмент видит результат предыдущего.
-      const outcome = opts.registry.invoke(tool.name, args, {
+      const outcome = await opts.registry.invoke(tool.name, args, {
         draft: set.draft,
         base: opts.base,
       });

@@ -52,8 +52,8 @@ A turn has a limited number of steps. Spend them on edits: a successful edit alr
 address it created and what appeared inside it, so re-reading the whole form after every edit is
 wasted budget. If the work does not fit, do part of it and say what is left.
 
-Edit in bulk. insert_node takes a list of nodes for one parent, set_node_prop takes several
-addresses and several properties at once, remove_node takes several addresses. Twelve fields across
+Edit in bulk: insert_node, set_node_prop and remove_node take several items at once.
+Twelve fields across
 three steps is three calls, not twelve. A batch is all-or-nothing: if one item is wrong, nothing is
 applied and the answer names which one.
 
@@ -73,8 +73,9 @@ Every field takes ${shared.join(', ')}. For any other property call describe_com
   six calls. Keep a batch around a dozen entries though: a hundred nodes in one call is a huge
   answer to write out, and if it gets cut off mid-way nothing is applied at all. For forty fields
   send three or four calls into the same parent — they append one after another.
-- Component names come from the lists above or from list_components. An invented name is refused
-  by the editor, and the refusal costs you a step.
+- Names are never invented. Editor components — from the lists above or list_components;
+  ReFormer API (operators, validation) — ask ask_reformer. An invented name is refused by the
+  editor, and the refusal costs you a step.
 - Never write CSS or Tailwind classes. Express layout through set_layout (direction, columns, gap).
 - Write model paths bare (applicant.email), never wrapped in $model(...).
 - When removing or moving a node, pass "expect" so the edit cannot land on the wrong node if the

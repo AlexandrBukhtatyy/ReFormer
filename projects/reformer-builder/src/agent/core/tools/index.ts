@@ -16,6 +16,7 @@ import { getFormOutline } from './get-form-outline';
 import { groupNodesTool } from './group-nodes';
 import { insertNodeTool } from './insert-node';
 import { listComponentsTool } from './list-components';
+import { reformerDocsTool } from './reformer-docs';
 import { moveNodeTool } from './move-node';
 import { removeNodeTool } from './remove-node';
 import { setLayoutTool } from './set-layout';
@@ -32,6 +33,7 @@ export {
   insertNodeTool,
   listComponentsTool,
   moveNodeTool,
+  reformerDocsTool,
   removeNodeTool,
   setLayoutTool,
   setNodeModelTool,
@@ -46,6 +48,7 @@ export const READ_ONLY_TOOLS: readonly AgentTool[] = [
   listComponentsTool,
   describeComponentTool,
   validateForm,
+  reformerDocsTool,
 ];
 
 /** Инструменты, меняющие черновик схемы. */

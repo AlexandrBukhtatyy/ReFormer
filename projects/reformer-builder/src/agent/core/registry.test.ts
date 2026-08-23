@@ -46,32 +46,34 @@ describe('createToolRegistry', () => {
 });
 
 describe('invoke', () => {
-  it('неизвестный инструмент → UNKNOWN_TOOL с похожими именами', () => {
+  it('неизвестный инструмент → UNKNOWN_TOOL с похожими именами', async () => {
     const reg = createToolRegistry(READ_ONLY_TOOLS);
-    const res = reg.invoke('get_form_outlines', {}, ctx());
+    const res = await reg.invoke('get_form_outlines', {}, ctx());
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('UNKNOWN_TOOL');
     expect(res.error?.suggestions).toContain('get_form_outline');
   });
 
-  it('аргументы не по схеме → INVALID_PARAMS, инструмент не вызывается', () => {
+  it('аргументы не по схеме → INVALID_PARAMS, инструмент не вызывается', async () => {
     const reg = createToolRegistry([echo]);
-    const res = reg.invoke('echo', { text: 42 }, ctx());
+    const res = await reg.invoke('echo', { text: 42 }, ctx());
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('INVALID_PARAMS');
   });
 
-  it('лишний аргумент отклоняется — опечатка в имени параметра не пройдёт молча', () => {
+  it('лишний аргумент отклоняется — опечатка в имени параметра не пройдёт молча', async () => {
     const reg = createToolRegistry([echo]);
-    expect(reg.invoke('echo', { text: 'ок', txt: 'ой' }, ctx()).error?.code).toBe('INVALID_PARAMS');
+    expect((await reg.invoke('echo', { text: 'ок', txt: 'ой' }, ctx())).error?.code).toBe(
+      'INVALID_PARAMS'
+    );
   });
 
-  it('инструмент без обязательных полей вызывается без аргументов', () => {
+  it('инструмент без обязательных полей вызывается без аргументов', async () => {
     const reg = createToolRegistry(READ_ONLY_TOOLS);
-    expect(reg.invoke('get_form_outline', undefined, ctx()).ok).toBe(true);
+    expect((await reg.invoke('get_form_outline', undefined, ctx())).ok).toBe(true);
   });
 
-  it('исключение инструмента не роняет вызов → TOOL_FAILED', () => {
+  it('исключение инструмента не роняет вызов → TOOL_FAILED', async () => {
     const boom: AgentTool = {
       name: 'boom',
       description: 'Бросает',
@@ -81,13 +83,13 @@ describe('invoke', () => {
         throw new Error('внутри всё сломалось');
       },
     };
-    const res = createToolRegistry([boom]).invoke('boom', {}, ctx());
+    const res = await createToolRegistry([boom]).invoke('boom', {}, ctx());
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('TOOL_FAILED');
     expect(res.text).toContain('внутри всё сломалось');
   });
 
-  it('ответ обрезается до бюджета', () => {
+  it('ответ обрезается до бюджета', async () => {
     const long: AgentTool = {
       name: 'long',
       description: 'Длинный ответ',
@@ -95,7 +97,7 @@ describe('invoke', () => {
       readOnly: true,
       run: () => ok('x'.repeat(TOOL_TEXT_BUDGET * 2)),
     };
-    const res = createToolRegistry([long]).invoke('long', {}, ctx());
+    const res = await createToolRegistry([long]).invoke('long', {}, ctx());
     expect(res.text).toHaveLength(TOOL_TEXT_BUDGET);
     expect(res.text).toContain('truncated');
   });

@@ -52,7 +52,7 @@ export const setNodePropTool: AgentTool<Params> = {
         type: 'array',
         minItems: 1,
         items: { type: 'string' },
-        description: 'Node addresses; the same props are applied to each',
+        description: 'Node addresses',
       },
       props: {
         type: 'object',

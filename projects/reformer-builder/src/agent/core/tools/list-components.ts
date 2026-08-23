@@ -19,8 +19,7 @@ export const listComponentsTool: AgentTool<Params> = {
   description:
     // Правило «имена берутся отсюда» перенесено в системный промпт, где заодно перечислены поля
     // этого кита: чаще всего список уже известен и вызов не нужен.
-    'Components available in this editor build: name, role (field/container/array) and category. ' +
-    'Narrow the list with role and query.',
+    'Components available in this editor build: name, role (field/container/array) and category.',
   inputSchema: {
     type: 'object',
     properties: {

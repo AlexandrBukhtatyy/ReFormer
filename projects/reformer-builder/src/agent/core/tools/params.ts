@@ -32,8 +32,7 @@ export const REF_PROP = {
  */
 export const EXPECT_PROP = {
   type: 'object',
-  description:
-    'Expected component and/or model at ref; null means "do not check". Rejected on mismatch',
+  description: 'Expected component/model at ref; null skips. Mismatch rejected',
   properties: {
     // `null` допустим наравне со строкой: модели заполняют объект целиком и ставят null там, где
     // проверять нечего (у контейнера нет модели). Отвергать такой вызов — значит тратить шаг хода

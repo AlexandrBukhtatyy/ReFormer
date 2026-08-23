@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "npm run generate:kit-safelist && tsc -b && vite build && node scripts/copy-config-schema.mjs",
+    "build": "npm run generate:kit-safelist && npm run generate:knowledge && tsc -b && vite build && node scripts/copy-config-schema.mjs",
     "build:config-schema": "node scripts/copy-config-schema.mjs",
     "generate:kit-catalogs": "node scripts/gen-kit-catalog.mjs @reformer/ui-kit-v11 reformer-ui-kit-11 --label \"ReFormer UI Kit\"",
     "generate:kit-safelist": "node scripts/gen-kit-safelist.mjs",
@@ -23,7 +23,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node ../../scripts/run-vitest.mjs",
-    "test:watch": "vitest watch"
+    "test:watch": "vitest watch",
+    "generate:knowledge": "node ../../packages/reformer-mcp/scripts/build-knowledge-bundle.mjs --out src/agent/knowledge/generated",
+    "predev": "npm run generate:knowledge"
   },
   "keywords": [
     "reformer",
@@ -65,6 +67,7 @@
     "@reformer/cdk": "*",
     "@reformer/core": "*",
     "@reformer/kit-hexa-ui": "*",
+    "@reformer/mcp": "*",
     "@reformer/renderer-json": "*",
     "@reformer/renderer-react": "*",
     "@reformer/ui-kit": "*",

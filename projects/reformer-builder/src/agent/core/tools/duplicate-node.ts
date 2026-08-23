@@ -13,8 +13,8 @@ import { EXPECT_PROP, REF_PROP, type RefParams } from './params';
 export const duplicateNodeTool: AgentTool<RefParams> = {
   name: 'duplicate_node',
   description:
-    'Create a copy of a node (with everything inside) right after it. Works for nodes that sit ' +
-    'among the children of a container.',
+    'Create a copy of a node (with everything inside) right after it. Only for nodes among ' +
+    'a container children.',
   inputSchema: {
     type: 'object',
     properties: { ref: REF_PROP, expect: EXPECT_PROP },

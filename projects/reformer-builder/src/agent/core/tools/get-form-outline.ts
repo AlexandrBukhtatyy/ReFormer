@@ -14,7 +14,7 @@ export const getFormOutline: AgentTool = {
     // «Позови первым делом» отсюда убрано намеренно: карта формы на начало хода приходит вместе с
     // сообщением пользователя, и этот вызов нужен только чтобы перечитать форму после правок.
     'Map of the current form: one line per node — address, component name, model path and caption. ' +
-    'Re-read the form only if you lost track of it. For the full JSON of one node use get_form_node.',
+    'For the full JSON of one node use get_form_node.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   readOnly: true,
   run(_params, ctx) {

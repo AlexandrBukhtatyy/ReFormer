@@ -19,8 +19,8 @@ interface Params extends LayoutParams {
 export const groupNodesTool: AgentTool<Params> = {
   name: 'group_nodes',
   description:
-    'Wrap several ADJACENT nodes into a shared container — for example to put first and last name ' +
-    'on one line. direction/columns/gap set the layout of the resulting group.',
+    'Wrap several ADJACENT nodes into a shared container — e.g. two fields on one line. ' +
+    'direction/columns/gap set the layout of the resulting group.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -28,7 +28,7 @@ export const groupNodesTool: AgentTool<Params> = {
         type: 'array',
         items: { type: 'string' },
         minItems: 2,
-        description: 'Addresses of adjacent nodes in one container, in document order',
+        description: 'Adjacent nodes in one container, in document order',
       },
       ...LAYOUT_PROPS,
     },

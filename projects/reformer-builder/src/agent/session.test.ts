@@ -8,11 +8,11 @@ const reg = createEditorToolRegistry();
 const state = () => agentSessionStore.getState();
 
 /** Набор изменений с одной операцией. */
-function oneChange() {
+async function oneChange() {
   const base = emptySchema();
   return withOutcome(
     createChangeSet(base),
-    reg.invoke(
+    await reg.invoke(
       'insert_node',
       { parent: '/root', nodes: [{ component: 'Input', model: 'x', props: { label: 'Поле' } }] },
       { draft: base, base }
@@ -80,9 +80,9 @@ describe('ход', () => {
     expect(last.text).toBe('Добавил.');
   });
 
-  it('изменения уводят панель в режим решения', () => {
+  it('изменения уводят панель в режим решения', async () => {
     agentSessionActions.startTurn('добавь');
-    agentSessionActions.finishTurn(oneChange());
+    agentSessionActions.finishTurn(await oneChange());
     expect(state().status).toBe('review');
     expect(state().pending?.ops).toHaveLength(1);
   });
@@ -110,9 +110,9 @@ describe('ход', () => {
     expect(state().conflict).toBe(false);
   });
 
-  it('решение по набору возвращает панель в покой', () => {
+  it('решение по набору возвращает панель в покой', async () => {
     agentSessionActions.startTurn('добавь');
-    agentSessionActions.finishTurn(oneChange());
+    agentSessionActions.finishTurn(await oneChange());
     agentSessionActions.resolvePending();
     expect(state().pending).toBeNull();
     expect(state().status).toBe('idle');
@@ -145,9 +145,9 @@ describe('точка восстановления', () => {
     expect(state().entries.map((e) => e.text)).toEqual(['первый', '']);
   });
 
-  it('восстановление снимает ожидающий набор и ошибку', () => {
+  it('восстановление снимает ожидающий набор и ошибку', async () => {
     agentSessionActions.startTurn('добавь', emptySchema());
-    agentSessionActions.finishTurn(oneChange(), 'что-то пошло не так');
+    agentSessionActions.finishTurn(await oneChange(), 'что-то пошло не так');
     const user = state().entries.find((e) => e.role === 'user')!;
 
     agentSessionActions.restoreTo(user.id);

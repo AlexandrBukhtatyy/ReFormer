@@ -26,8 +26,14 @@ export interface ToolRegistry {
   /** Инструменты, опционально отфильтрованные по признаку read-only. */
   list(filter?: { readOnly?: boolean }): readonly AgentTool[];
   get(name: string): AgentTool | undefined;
-  /** Вызвать инструмент. Никогда не бросает — ошибка возвращается как {@link ToolOutcome}. */
-  invoke(name: string, params: unknown, ctx: ToolContext): ToolOutcome;
+  /**
+   * Вызвать инструмент. Никогда не бросает — ошибка возвращается как {@link ToolOutcome}.
+   *
+   * Всегда промис, даже когда инструмент синхронный: иначе тип был бы объединением, и каждый
+   * вызывающий разбирался бы, что ему пришло. Синхронные инструменты от этого не становятся
+   * медленнее — промис разрешается в том же тике.
+   */
+  invoke(name: string, params: unknown, ctx: ToolContext): Promise<ToolOutcome>;
 }
 
 /**
@@ -90,7 +96,7 @@ export function createToolRegistry(tools: readonly AgentTool[]): ToolRegistry {
       return byName.get(name);
     },
 
-    invoke(name, params, ctx) {
+    async invoke(name, params, ctx) {
       const tool = byName.get(name);
       if (!tool) {
         return fail(
@@ -109,7 +115,10 @@ export function createToolRegistry(tools: readonly AgentTool[]): ToolRegistry {
 
       let outcome: ToolOutcome;
       try {
-        outcome = tool.run(args as never, ctx);
+        // `await` покрывает оба вида инструментов: синхронный вернёт значение, и оно разрешится
+        // в том же тике. Отдельной ветки для промиса не нужно — она отличалась бы только тем,
+        // что в ней легче забыть про `catch`.
+        outcome = await tool.run(args as never, ctx);
       } catch (e) {
         // Исключение инструмента не должно ронять ход агента: модель получит ошибку и попробует иначе.
         const message = e instanceof Error ? e.message : String(e);

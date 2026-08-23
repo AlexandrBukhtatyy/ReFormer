@@ -47,7 +47,7 @@ export const insertNodeTool: AgentTool<Params> = {
       index: {
         type: 'integer',
         minimum: 0,
-        description: 'Position of the first inserted node; appended by default',
+        description: 'Position of the first node; appended by default',
       },
       nodes: {
         type: 'array',
@@ -56,9 +56,9 @@ export const insertNodeTool: AgentTool<Params> = {
         items: {
           type: 'object',
           properties: {
-            component: { type: 'string', description: 'Component name from list_components' },
+            component: { type: 'string', description: 'Name from list_components' },
             model: { type: 'string', description: 'Model path, bare: applicant.email' },
-            props: { type: 'object', description: 'Component properties (describe_component)' },
+            props: { type: 'object', description: 'Props; see describe_component' },
           },
           required: ['component'],
           additionalProperties: false,

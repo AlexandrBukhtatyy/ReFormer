@@ -142,6 +142,13 @@ jobs:
         # токенов/вызовов. Метод и вскрытые ограничения — docs/mcp-eval/README.md.
         run: npm run mcp:evaluate
 
+      - name: Run @reformer/builder tests
+        # Юниты билдера (~920) в CI не гонялись вовсе, и это оставляло без охраны храповик
+        # `TOOL_SURFACE_BUDGET`: поверхность инструментов уходит в запрос модели на каждом шаге
+        # хода, её рост стоит токенов в каждом ходе каждого пользователя, а проверял его один
+        # локальный тест. Требует собранного @reformer/mcp — билдер берёт оттуда ядро знаний.
+        run: npm run test -w @reformer/builder
+
       - name: MCP packaging smoke
         # npm pack mcp + core + cdk в чистый проект вне репо и проверка, что под npx
         # у потребителя доступны reformer://guide (свой llms.txt) и файловые рецепты

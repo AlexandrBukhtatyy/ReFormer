@@ -17,8 +17,8 @@ function openForm(schema: JsonFormSchema = emptySchema()): JsonFormSchema {
 }
 
 /** Набор изменений: одно добавленное поле поверх базы. */
-function oneChange(base: JsonFormSchema): ChangeSet {
-  const outcome = reg.invoke(
+async function oneChange(base: JsonFormSchema): Promise<ChangeSet> {
+  const outcome = await reg.invoke(
     'insert_node',
     { parent: '/root', nodes: [{ component: 'Input', model: 'x', props: { label: 'Поле' } }] },
     { draft: base, base }
@@ -32,19 +32,19 @@ beforeEach(() => {
 });
 
 describe('applyChangeSet', () => {
-  it('применяет черновик к активной вкладке', () => {
+  it('применяет черновик к активной вкладке', async () => {
     const base = openForm();
-    expect(applyChangeSet(oneChange(base))).toEqual({ status: 'applied' });
+    expect(applyChangeSet(await oneChange(base))).toEqual({ status: 'applied' });
     const tab = activeTab(editorStore.getState())!;
     expect((tab.schema.root as { children: unknown[] }).children).toHaveLength(1);
   });
 
-  it('весь ход отменяется ОДНИМ undo', () => {
+  it('весь ход отменяется ОДНИМ undo', async () => {
     const base = openForm();
     // Набор из трёх правок — в истории обязана появиться ровно одна запись.
     let set = createChangeSet(base);
     for (const label of ['Имя', 'Email', 'Телефон']) {
-      const outcome = reg.invoke(
+      const outcome = await reg.invoke(
         'insert_node',
         { parent: '/root', nodes: [{ component: 'Input', model: label, props: { label } }] },
         { draft: set.draft, base }
@@ -66,9 +66,9 @@ describe('applyChangeSet', () => {
     expect(activeTab(editorStore.getState())!.past).toHaveLength(0);
   });
 
-  it('правка формы во время хода даёт конфликт, а не молчаливую перезапись', () => {
+  it('правка формы во время хода даёт конфликт, а не молчаливую перезапись', async () => {
     const base = openForm();
-    const set = oneChange(base);
+    const set = await oneChange(base);
 
     // Пользователь тем временем правит форму сам.
     editorActions.replaceSchema(sampleSchema());
@@ -79,9 +79,9 @@ describe('applyChangeSet', () => {
     expect(activeTab(editorStore.getState())!.schema).not.toBe(set.draft);
   });
 
-  it('force применяет поверх конфликта — это осознанный выбор пользователя', () => {
+  it('force применяет поверх конфликта — это осознанный выбор пользователя', async () => {
     const base = openForm();
-    const set = oneChange(base);
+    const set = await oneChange(base);
     editorActions.replaceSchema(sampleSchema());
 
     expect(applyChangeSet(set, { force: true })).toEqual({ status: 'applied' });
@@ -107,14 +107,14 @@ describe('applyChangeSet', () => {
     expect(activeTab(editorStore.getState())!.schema).toBe(base);
   });
 
-  it('без открытой формы применять некуда', () => {
-    const set = oneChange(emptySchema());
+  it('без открытой формы применять некуда', async () => {
+    const set = await oneChange(emptySchema());
     editorStore.setState(initialState());
     expect(applyChangeSet(set)).toEqual({ status: 'no-form' });
   });
 
-  it('на code-вкладке применять некуда', () => {
-    const set = oneChange(emptySchema());
+  it('на code-вкладке применять некуда', async () => {
+    const set = await oneChange(emptySchema());
     editorStore.setState(initialState());
     editorActions.openCodeTab('c1', { kind: 'new', name: 'a.md' }, '# текст', 'markdown');
     expect(applyChangeSet(set)).toEqual({ status: 'no-form' });
