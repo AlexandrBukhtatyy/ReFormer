@@ -11,6 +11,7 @@
 - 04-resources.md — Resources
 - 05-m1-workflow.md — M1 form-building workflow
 - 06-form-directory-layout.md — Form directory layout (core / renderer-react / renderer-json)
+- API Reference (auto-generated from JSDoc)
 
 ## 1. How to use it (recommended order)
 
@@ -647,3 +648,162 @@ layouts regardless; the env var only changes which one `create-form` steers towa
 | `registry.ts`                 | binds components + data-sources to DSL names  |  —   |       —        |      ✅       |
 | **app** `registry.ts` (base)  | ui-kit + system components                    |  —   |       —        | **app-level** |
 | **app** `form-schema.schema.json` | generated DSL meta-schema                 |  —   |       —        | **app-level** |
+
+## 41. API Reference
+
+_Auto-generated from JSDoc on public exports._
+
+### BrowserKnowledge
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface BrowserKnowledge {
+  knowledge: Knowledge;
+  /** Накопленные отчёты — хост решает, сохранять ли их и куда. */
+  issues: MemoryIssueSink;
+}
+```
+
+_Source: src/platform/browser/knowledge.ts_
+
+### BrowserKnowledgeInput
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface BrowserKnowledgeInput {
+  /** Индексы пакетов. Без них знание пустое: на индексе стоит почти каждый инструмент. */
+  index: IndexBundle;
+  /**
+   * Тексты `llms.txt`. Необязательны: `get_context`, `choose_api`, `get_symbol_docs`,
+   * `list_symbols` и `validate_form` работают на одном индексе, и потребителю, которому
+   * хватает их, незачем платить за 1.27 МБ прозы.
+   */
+  docs?: DocsBundle | null;
+  /** Спеки, уже прочитанные хостом: имя файла → текст. */
+  specs?: ReadonlyMap<string, string>;
+}
+```
+
+_Source: src/platform/browser/knowledge.ts_
+
+### createBrowserKnowledge
+
+**Kind:** `function`
+
+**Signature:**
+```typescript
+export function createBrowserKnowledge(input: BrowserKnowledgeInput): BrowserKnowledge
+```
+
+_Source: src/platform/browser/knowledge.ts_
+
+### createKnowledge
+
+**Kind:** `function`
+
+Собрать знание из источников.
+
+Индекс сливается сразу — он нужен почти каждому инструменту, а слияние стоит около 17 мс
+против 784 мс у прежнего разбора AST. Документация читается лениво: до первого обращения
+она может не понадобиться вовсе.
+
+**Signature:**
+```typescript
+export function createKnowledge(sources: KnowledgeSources): Knowledge
+```
+
+_Source: src/core/knowledge.ts_
+
+### Knowledge
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface Knowledge {
+  /** Слитый индекс всех пакетов, у которых он есть. */
+  readonly index: MergedIndex;
+  /** Документация: `llms.txt` и его секции. */
+  readonly docs: DocsCorpus;
+  /** Файлы `docs/llms`; в средах без них — {@link EMPTY_RECIPE_SOURCE}. */
+  readonly recipes: RecipeSource;
+  /** Спеки; в средах без них — {@link EMPTY_SPEC_SOURCE}. */
+  readonly spec: SpecSource;
+  /** Сток отчётов; в средах без записи — {@link UNAVAILABLE_ISSUE_SINK}. */
+  readonly issues: IssueSink;
+  /** См. {@link SymbolsFallback}. */
+  readonly symbolsFallback?: SymbolsFallback;
+  /**
+   * Ленивые производные, общие на экземпляр: разобранные символы фолбэка, поисковые корпуса.
+   *
+   * Именно на экземпляр, а не на модуль. Модульный кэш был бы общим для двух разных Knowledge
+   * (например, вшитого артефакта и папки проекта), и второй молча отвечал бы данными первого.
+   */
+  readonly memo: Map<string, unknown>;
+}
+```
+
+_Source: src/core/knowledge.ts_
+
+### KnowledgeSources
+
+**Kind:** `interface`
+
+Что платформа обязана предоставить ядру.
+
+**Signature:**
+```typescript
+export interface KnowledgeSources {
+  docs: DocsSource;
+  index: IndexSource;
+  /**
+   * Исходные файлы `docs/llms`. Отсутствует — первая стадия `find_recipe` (подбор по имени
+   * файла) отключается, топик уходит в каскад по секциям `llms.txt`.
+   */
+  recipes?: RecipeSource;
+  /** Текст постановки задачи. Отсутствует — `plan_form` работает только от `description`. */
+  spec?: SpecSource;
+  /** Куда сохранять отчёты `report_issue`. Отсутствует — инструмент честно откажет. */
+  issues?: IssueSink;
+  /** Отсутствует — пакеты без индекса просто не дадут символов. */
+  symbolsFallback?: SymbolsFallback;
+}
+```
+
+_Source: src/core/knowledge.ts_
+
+### memoize
+
+**Kind:** `function`
+
+Ленивая производная от знания, посчитанная один раз на экземпляр.
+
+**Signature:**
+```typescript
+export function memoize<T>(k: Knowledge, key: string, build: () => T): T
+```
+
+_Source: src/core/knowledge.ts_
+
+### SymbolsFallback
+
+**Kind:** `type`
+
+Разбор публичных символов пакета в обход индекса.
+
+Существует ради одного случая: рядом с сервером стоит СТАРЫЙ `@reformer/*` без
+`llms-index.json`. В CLI это разбор TypeScript-AST, который подтягивается динамически (и
+потому `typescript` остаётся опциональным peer'ом). В браузере фолбэка нет вовсе —
+и это правильно: тащить туда компилятор ради редкого случая дороже, чем честно показать,
+что символы такого пакета не перечислены.
+
+**Signature:**
+```typescript
+export type SymbolsFallback = (pkg: string) => Promise<PublicSymbol[]>;
+```
+
+_Source: src/core/knowledge.ts_

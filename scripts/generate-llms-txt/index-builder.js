@@ -286,10 +286,13 @@ function summarize(description) {
  * лишь у 52 символов из 1056, а вес индекса растёт на всех. Полный список примеров остаётся
  * в `llms.txt` секции API Reference.
  */
-export function buildSymbolEntry(sym, pkg, topicsByFile) {
+export function buildSymbolEntry(sym, pkg, topicsByFile, pkgDir = process.cwd()) {
   const tag = (name) => sym.tags.filter((t) => t.tag === name);
   const examples = tag('example');
-  const relSource = path.relative(process.cwd(), sym.sourcePath).replace(/\\/g, '/');
+  // Путь считается от КАТАЛОГА ПАКЕТА, а не от cwd: индекс коммитится, и путь, зависящий от
+  // места запуска, давал бы `src/form/x.ts` при сборке из пакета и `packages/reformer/src/form/x.ts`
+  // из корня — то есть разный артефакт из одних и тех же исходников.
+  const relSource = path.relative(pkgDir, sym.sourcePath).replace(/\\/g, '/');
 
   // `related` из @see: там встречаются и {@link X}, и markdown-ссылки на docs/llms.
   const related = [];
@@ -426,7 +429,7 @@ function computeSectionSlugs(docs, hasApiReference) {
  * @param {Array<object>} args.symbols — из parsePublicSymbols генератора
  * @param {string|null} args.examplesDir — каталог эталонных форм для `usage` (может отсутствовать)
  */
-export function buildIndex({ meta, docs, symbols, examplesDir = null }) {
+export function buildIndex({ meta, docs, symbols, examplesDir = null, pkgDir = process.cwd() }) {
   const slugsByDoc = computeSectionSlugs(docs, symbols.length > 0);
 
   const topicsByFile = mapSymbolsToTopics(symbols, docs);
@@ -436,7 +439,7 @@ export function buildIndex({ meta, docs, symbols, examplesDir = null }) {
   );
 
   const symbolEntries = symbols.map((s) => {
-    const e = buildSymbolEntry(s, meta.name, topicsByFile);
+    const e = buildSymbolEntry(s, meta.name, topicsByFile, pkgDir);
     if (usage && usage[s.name]) e.usage = usage[s.name];
     return e;
   });

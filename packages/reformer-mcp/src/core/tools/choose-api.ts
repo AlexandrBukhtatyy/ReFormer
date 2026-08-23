@@ -14,8 +14,8 @@
 
 import { chooseApi, type DecisionRule } from '../decide/api-decision.js';
 import { findOneSymbol } from '../index/symbols.js';
-import { getMergedIndex } from '../index/loader.js';
 import { searchSymbols, renderSymbolHits } from '../index/search.js';
+import type { Knowledge } from '../knowledge.js';
 import type { IndexedAntiPattern } from '../index/types.js';
 
 export const chooseApiToolDefinition = {
@@ -63,10 +63,10 @@ function resolveTarget(target: string | undefined): string | undefined {
  * («❌ resetWhen вместо enableWhen для disable-сценария»), и для выбора API это ценнее любого
  * описания: оно называет ту самую ошибку, которую агент собирается совершить.
  */
-function antiPatternsFor(symbol: string): IndexedAntiPattern[] {
+function antiPatternsFor(k: Knowledge, symbol: string): IndexedAntiPattern[] {
   const out: IndexedAntiPattern[] = [];
   const re = new RegExp(`\\b${symbol}\\b`);
-  for (const topic of getMergedIndex().topics) {
+  for (const topic of k.index.topics) {
     for (const ap of topic.antiPatterns) {
       const haystack = [ap.why, ap.correctNote, ap.bad, ap.correct, ap.note]
         .filter(Boolean)
@@ -77,8 +77,12 @@ function antiPatternsFor(symbol: string): IndexedAntiPattern[] {
   return out.slice(0, 2);
 }
 
-async function renderChoice(rule: DecisionRule, requirement: string): Promise<string> {
-  const sym = await findOneSymbol(rule.recommend);
+async function renderChoice(
+  k: Knowledge,
+  rule: DecisionRule,
+  requirement: string
+): Promise<string> {
+  const sym = await findOneSymbol(k, rule.recommend);
   const lines: string[] = [];
 
   lines.push(`# choose_api: \`${rule.recommend}\``);
@@ -118,7 +122,7 @@ async function renderChoice(rule: DecisionRule, requirement: string): Promise<st
     }
   }
 
-  const antiPatterns = antiPatternsFor(rule.recommend);
+  const antiPatterns = antiPatternsFor(k, rule.recommend);
   if (antiPatterns.length > 0) {
     lines.push('');
     lines.push('## Anti-patterns recorded for this choice');
@@ -133,7 +137,8 @@ async function renderChoice(rule: DecisionRule, requirement: string): Promise<st
 }
 
 export async function chooseApiTool(
-  args: ChooseApiArgs
+  args: ChooseApiArgs,
+  k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const requirement = typeof args.requirement === 'string' ? args.requirement.trim() : '';
   if (!requirement) {
@@ -147,7 +152,7 @@ export async function chooseApiTool(
   if (choices.length === 0) {
     // Правило не сработало — не выдумываем, а честно уходим в поиск по символам.
     const pkg = resolveTarget(args.target);
-    const hits = searchSymbols(requirement, pkg, 5);
+    const hits = searchSymbols(k, requirement, pkg, 5);
     if (hits.length === 0) {
       return text(
         `No decision rule matched "${requirement}", and no symbol looks close.\n\n` +
@@ -163,7 +168,7 @@ export async function chooseApiTool(
   }
 
   const [best, ...rest] = choices;
-  let body = await renderChoice(best.rule, requirement);
+  let body = await renderChoice(k, best.rule, requirement);
 
   // Второе правило показываем, только если оно совпало не слабее: иначе это шум.
   const runnerUp = rest.find((c) => c.matches >= best.matches);

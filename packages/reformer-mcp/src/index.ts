@@ -14,6 +14,7 @@ import {
   GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
+import { cliKnowledge } from './platform/cli/knowledge.js';
 import {
   getFullDocs,
   getSectionBySlug,
@@ -164,20 +165,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   switch (name) {
     case 'report_issue':
-      return await reportIssueTool(args as unknown as ReportIssueArgs);
+      return await reportIssueTool(args as unknown as ReportIssueArgs, cliKnowledge());
 
     case 'debug':
       if (!isDebugMode) {
         throw new Error(`Unknown tool: ${name}`);
       }
-      return await debugTool(args as { section?: string });
+      return await debugTool(args as { section?: string }, cliKnowledge());
 
     case 'validate_form':
-      return await validateFormTool(args as Record<string, unknown>);
+      return await validateFormTool(args as Record<string, unknown>, cliKnowledge());
 
     case 'plan_form':
       return await planFormTool(
-        args as { specPath?: string; description?: string; target?: string }
+        args as { specPath?: string; description?: string; target?: string },
+        cliKnowledge()
       );
 
     case 'generate_form':
@@ -191,17 +193,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           target?: string;
           profile?: string;
           maxTokens?: number;
-        }
+        },
+        cliKnowledge()
       );
 
     case 'choose_api':
-      return await chooseApiTool(args as { requirement: string; target?: string });
+      return await chooseApiTool(args as { requirement: string; target?: string }, cliKnowledge());
 
     case 'get_symbol_docs':
-      return await getSymbolDocsTool(args as { symbol: string; package?: string });
+      return await getSymbolDocsTool(args as { symbol: string; package?: string }, cliKnowledge());
 
     case 'find_recipe':
-      return await findRecipeTool(args as { topic: string; package?: string });
+      return await findRecipeTool(args as { topic: string; package?: string }, cliKnowledge());
 
     case 'validate_json_schema':
       return await validateJsonSchemaTool(
@@ -214,11 +217,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           kind?: 'function' | 'class' | 'interface' | 'type' | 'const' | 'enum';
           package?: string;
           nameContains?: string;
-        }
+        },
+        cliKnowledge()
       );
 
     case 'search_docs':
-      return await searchDocsTool(args as { query?: string; package?: string; limit?: number });
+      return await searchDocsTool(
+        args as { query?: string; package?: string; limit?: number },
+        cliKnowledge()
+      );
 
     case 'check_behaviors':
       return await checkBehaviorsTool(

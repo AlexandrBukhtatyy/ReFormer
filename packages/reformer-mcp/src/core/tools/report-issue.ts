@@ -1,12 +1,16 @@
-import { join, resolve } from 'path';
-import { writeFileSync, mkdirSync } from 'fs';
-import { detectProjectStack } from '../utils/project-detector.js';
+/**
+ * Tool `report_issue` — записать найденную проблему и её решение отчётом.
+ *
+ * Единственный инструмент, который что-то СОХРАНЯЕТ, поэтому единственный, которому нужен
+ * сток (`IssueSink`). Где именно окажется отчёт, инструмент не знает: на диске это файл в
+ * каталоге проекта, в среде без записи — сток отказывает, и отказ превращается в дружелюбный
+ * текст, а не в исключение из обработчика `CallTool`.
+ *
+ * @module reformer-mcp/core/tools/report-issue
+ */
 
-/** Env var overriding where reports are written. Value may be relative — resolved against cwd. */
-export const ISSUE_REPORTS_DIR_ENV = 'REFORMER_ISSUE_REPORTS_DIR';
-
-/** Default location, relative to the detected project root (cwd when detection fails). */
-const DEFAULT_DIR_SEGMENTS = ['.reformer', 'issue_reports'];
+import type { Knowledge } from '../knowledge.js';
+import { fileStamp, slugifyIssue } from '../issues/sink.js';
 
 export const reportIssueToolDefinition = {
   name: 'report_issue',
@@ -84,37 +88,10 @@ export interface ReportIssueArgs {
   context?: ReportIssueContext;
 }
 
-/**
- * Where report files go: `REFORMER_ISSUE_REPORTS_DIR` when set (relative values are
- * resolved against cwd), otherwise `<project root>/.reformer/issue_reports`. The project
- * root is the nearest package.json with dependencies above cwd; when there is none — cwd
- * itself, so reports never land somewhere the caller cannot see.
- */
-export function resolveIssueReportsDir(): string {
-  const fromEnv = process.env[ISSUE_REPORTS_DIR_ENV]?.trim();
-  if (fromEnv) return resolve(fromEnv);
-
-  const root = detectProjectStack().projectRoot ?? process.cwd();
-  return join(root, ...DEFAULT_DIR_SEGMENTS);
-}
-
-/** Filesystem-safe ISO stamp: `2026-08-22T10-14-05-123Z` (no `:` — Windows forbids it). */
-function fileStamp(date: Date): string {
-  return date.toISOString().replace(/[:.]/g, '-');
-}
-
-/** Short kebab tail for the file name, so a directory listing is readable. */
-function slugify(text: string): string {
-  const slug = text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
-    .replace(/-+$/g, '');
-  return slug || 'issue';
-}
-
-export async function reportIssueTool(args: ReportIssueArgs): Promise<{
+export async function reportIssueTool(
+  args: ReportIssueArgs,
+  k: Knowledge
+): Promise<{
   content: Array<{ type: 'text'; text: string }>;
 }> {
   const { error, solution, tags, context } = args;
@@ -127,31 +104,14 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
     context: context || null,
   };
 
-  const reportsDir = resolveIssueReportsDir();
-  const baseName = `${fileStamp(new Date(issue.timestamp))}-${slugify(error)}`;
+  const baseName = `${fileStamp(new Date(issue.timestamp))}-${slugifyIssue(error)}`;
   const payload = JSON.stringify(issue, null, 2) + '\n';
 
-  // fs can fail (read-only project, permissions, disk full, path collision). Degrade to a
-  // friendly text result like the neighbouring tools instead of throwing an unhandled
-  // exception out of the CallTool handler.
-  let reportFile = join(reportsDir, `${baseName}.json`);
+  // Сток может отказать (только чтение, права, диск полон, среда без записи). Деградируем
+  // текстом, как соседние инструменты, вместо необработанного исключения.
+  let storedIn: string;
   try {
-    mkdirSync(reportsDir, { recursive: true });
-    // `wx` fails on an existing file, so two reports filed in the same millisecond with the
-    // same slug get distinct names instead of one overwriting the other.
-    for (let attempt = 1; ; attempt++) {
-      reportFile = join(
-        reportsDir,
-        attempt === 1 ? `${baseName}.json` : `${baseName}-${attempt}.json`
-      );
-      try {
-        writeFileSync(reportFile, payload, { encoding: 'utf-8', flag: 'wx' });
-        break;
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException)?.code === 'EEXIST' && attempt < 100) continue;
-        throw err;
-      }
-    }
+    storedIn = k.issues.write(baseName, payload);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     return {
@@ -159,8 +119,8 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
         {
           type: 'text',
           text:
-            `Could not write the issue report to ${reportFile}: ${reason}\n` +
-            `Set ${ISSUE_REPORTS_DIR_ENV} to a writable directory to change the location.`,
+            `Could not write the issue report to ${k.issues.location()}: ${reason}\n` +
+            `Set REFORMER_ISSUE_REPORTS_DIR to a writable directory to change the location.`,
         },
       ],
     };
@@ -174,7 +134,7 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
     content: [
       {
         type: 'text',
-        text: `Issue reported successfully.\n\nCategory: ${category}\nTags: ${(tags || []).join(', ') || 'none'}\nStored in: ${reportFile}`,
+        text: `Issue reported successfully.\n\nCategory: ${category}\nTags: ${(tags || []).join(', ') || 'none'}\nStored in: ${storedIn}`,
       },
     ],
   };

@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { findSymbol, getPublicSymbols } from '../src/utils/symbols-parser';
+import { findSymbol, getPublicSymbols } from '../src/platform/cli/symbols-parser';
 import { KNOWN_PACKAGES } from '../src/utils/docs-parser';
 import { AST_HEAVY_TIMEOUT_MS } from './timeouts';
 

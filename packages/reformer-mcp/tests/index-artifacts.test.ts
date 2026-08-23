@@ -24,7 +24,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { listSections, KNOWN_PACKAGES } from '../src/utils/docs-parser';
-import { getPublicSymbols } from '../src/utils/symbols-parser';
+import { getPublicSymbols } from '../src/platform/cli/symbols-parser';
 import { AST_HEAVY_TIMEOUT_MS } from './timeouts';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');

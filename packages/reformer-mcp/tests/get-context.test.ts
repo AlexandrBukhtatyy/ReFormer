@@ -14,22 +14,26 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildContext } from '../src/context/builder';
-import { getContextTool, getContextToolDefinition } from '../src/tools/get-context';
+import { buildContext } from '../src/core/context/builder';
+import { getContextTool, getContextToolDefinition } from '../src/core/tools/get-context';
 import { listAvailablePackages } from '../src/utils/docs-parser';
+import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+
+/** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
+const k = cliKnowledge();
 
 const hasDocs = listAvailablePackages().length > 0;
 
 describe('get_context', () => {
   it('пустая задача → внятное сообщение, а не падение', async () => {
     for (const task of [undefined, '', '   ']) {
-      const { content } = await getContextTool({ task: task as string });
+      const { content } = await getContextTool({ task: task as string }, k);
       expect(content[0].text).toMatch(/task/i);
     }
   });
 
   it.runIf(hasDocs)('сработавшее правило ведёт выдачу и даёт сигнатуру', async () => {
-    const r = await buildContext({
+    const r = await buildContext(k, {
       task: 'поле B доступно только когда A заполнено',
       target: 'core',
     });
@@ -40,21 +44,21 @@ describe('get_context', () => {
 
   it.runIf(hasDocs)('без уверенности не выдумывает блок API', async () => {
     // Запрос намеренно не ложится ни на одно правило и не имеет опорных секций.
-    const r = await buildContext({ task: 'zzqq wubble frotz plugh', target: 'core' });
+    const r = await buildContext(k, { task: 'zzqq wubble frotz plugh', target: 'core' });
     expect(r.symbols, 'символ без подтверждения секцией не должен попадать в выдачу').toEqual([]);
     expect(r.text).not.toContain('## API');
   });
 
   it.runIf(hasDocs)('minimal дешевле implementation и не теряет сигнатуру', async () => {
     const task = 'проверить на сервере, что email не занят';
-    const min = await buildContext({ task, target: 'core', profile: 'minimal' });
-    const impl = await buildContext({ task, target: 'core', profile: 'implementation' });
+    const min = await buildContext(k, { task, target: 'core', profile: 'minimal' });
+    const impl = await buildContext(k, { task, target: 'core', profile: 'implementation' });
     expect(min.tokens).toBeLessThan(impl.tokens);
     expect(min.text).toContain('## API');
   });
 
   it.runIf(hasDocs)('maxTokens соблюдается и перекрывает профиль', async () => {
-    const r = await buildContext({
+    const r = await buildContext(k, {
       task: 'проверить на сервере, что email не занят',
       target: 'core',
       profile: 'full',
@@ -65,11 +69,14 @@ describe('get_context', () => {
   });
 
   it.runIf(hasDocs)('выпавшие по бюджету блоки названы в ответе', async () => {
-    const { content } = await getContextTool({
-      task: 'проверить на сервере, что email не занят',
-      target: 'core',
-      maxTokens: 100,
-    });
+    const { content } = await getContextTool(
+      {
+        task: 'проверить на сервере, что email не занят',
+        target: 'core',
+        maxTokens: 100,
+      },
+      k
+    );
     expect(content[0].text).toMatch(/не поместились в бюджет|обрезан/);
   });
 
@@ -77,7 +84,7 @@ describe('get_context', () => {
     // Проверяем ИСТОЧНИКИ, а не наличие строки: в каноническом примере renderer-json
     // законно стоит `import { Input, Box } from '@reformer/ui-kit'`, и запрещать это
     // значило бы требовать неполный пример.
-    const r = await buildContext({ task: 'описать форму JSON-схемой', target: 'renderer-json' });
+    const r = await buildContext(k, { task: 'описать форму JSON-схемой', target: 'renderer-json' });
     expect(r.sources.every((u) => !u.includes('/ui-kit/'))).toBe(true);
     const apiBlock = r.text.match(/## API[\s\S]*?(?=\n## |$)/)?.[0] ?? '';
     expect(apiBlock).not.toContain('@reformer/ui-kit');

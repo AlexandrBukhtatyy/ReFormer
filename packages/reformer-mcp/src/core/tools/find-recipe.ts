@@ -1,20 +1,14 @@
-import { readFileSync, existsSync, readdirSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import {
-  KNOWN_PACKAGES,
-  type ReformerPackage,
-  getSection,
-  getSectionBySlug,
-  packageRoot,
-  normalizeTopic,
-  normalizePackage,
-} from '../utils/docs-parser.js';
+import { KNOWN_PACKAGES, normalizePackage, type ReformerPackage } from '../docs/packages.js';
 import { findOneSymbol, publicSymbols } from '../index/symbols.js';
+import {
+  findDocFile,
+  listRecipeNames,
+  pickBestDocFile,
+  scoreDocFileMatch,
+} from '../docs/recipes.js';
+import type { Knowledge } from '../knowledge.js';
 import { searchSections, renderSectionHits } from './search-docs.js';
 import { rankSymbolsForQuery, renderSymbolHits } from '../index/search.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export const findRecipeToolDefinition = {
   name: 'find_recipe',
@@ -133,7 +127,8 @@ function resolveAliases(topic: string): string[] {
 }
 
 export async function findRecipeTool(
-  args: FindRecipeArgs
+  args: FindRecipeArgs,
+  k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   // MCP Server не валидирует args по inputSchema — обязательный `topic` может прийти
   // отсутствующим/не-строкой. Защищаемся до .trim(), иначе — необработанный TypeError
@@ -154,9 +149,9 @@ export async function findRecipeTool(
   //    Tries the original topic first, then registered aliases.
   for (const candidate of candidates) {
     for (const pkg of targets) {
-      const file = findDocFile(pkg, candidate);
+      const file = findDocFile(k.recipes, pkg, candidate);
       if (file) {
-        const body = readFileSync(file.absPath, 'utf-8');
+        const body = file.body;
         const aliasNote =
           candidate !== topic
             ? `\n\n> _Note: searched for \`${topic}\`, matched alias → \`${candidate}\`. ` +
@@ -183,7 +178,7 @@ export async function findRecipeTool(
 
   // 2. Match by `## ` section heading.
   for (const pkg of targets) {
-    const section = getSection(topic, pkg);
+    const section = k.docs.section(topic, pkg);
     if (!section.startsWith('Section "') /* "...not found" sentinel */) {
       return text(
         `# Recipe section: ${topic}\n\n` +
@@ -194,7 +189,7 @@ export async function findRecipeTool(
   }
 
   // 3. Match by public symbol — return its @example block(s).
-  const sym = await findOneSymbol(topic, args.package ?? '*');
+  const sym = await findOneSymbol(k, topic, args.package ?? '*');
   if (sym) {
     const examples = sym.tags.filter((t) => t.tag === 'example');
     if (examples.length > 0) {
@@ -212,7 +207,7 @@ export async function findRecipeTool(
   //    ни файлом, ни секцией, ни символом, и агент платил ~693 токена за подсказку без
   //    ответа. Те же 17 из 17 находит `search_docs` — соседний tool ЭТОГО ЖЕ сервера.
   //    Поэтому промах алиасов больше не терминален: отдаём ранжированных кандидатов.
-  const hits = searchSections(topic, args.package, 5);
+  const hits = searchSections(k, topic, args.package, 5);
   if (hits.length > 0) {
     const top = hits[0];
     // Инлайним тело только при попадании в ЗАГОЛОВОК секции: там скоринг надёжен
@@ -221,7 +216,7 @@ export async function findRecipeTool(
     // (Полноценное ранжирование — отдельная работа, см. план v7, фаза «индекс».)
     const body =
       top.titleMatch && top.bodyLength <= INLINE_SECTION_LIMIT
-        ? getSectionBySlug(top.pkg, top.slug)
+        ? k.docs.sectionBySlug(top.pkg, top.slug)
         : null;
 
     if (body) {
@@ -237,7 +232,7 @@ export async function findRecipeTool(
     }
 
     // Плюс канонические имена API из найденных секций — то, ради чего агент и спрашивал.
-    const symbols = rankSymbolsForQuery(topic, hits, args.package, 4);
+    const symbols = rankSymbolsForQuery(k, topic, hits, args.package, 4);
     const apiBlock = symbols.length > 0 ? `\n\n## Relevant API\n${renderSymbolHits(symbols)}` : '';
     return text(
       `No curated recipe is registered for "${topic}", but full-text search found related sections:\n\n` +
@@ -248,7 +243,7 @@ export async function findRecipeTool(
   }
 
   // 5. Fallback: list available recipes and a sample of public symbols.
-  return text(await buildFallbackHint(topic, targets));
+  return text(await buildFallbackHint(k, topic, targets));
 }
 
 /**
@@ -296,135 +291,19 @@ function text(message: string): { content: Array<{ type: 'text'; text: string }>
   return { content: [{ type: 'text', text: message }] };
 }
 
-interface DocFile {
-  fileName: string;
-  absPath: string;
-  title: string;
-}
-
-/**
- * Map @reformer/<name> → directory name in monorepo packages/.
- */
-function packageDirName(pkg: string): string {
-  const tail = pkg.replace(/^@reformer\//, '');
-  if (tail === 'core') return 'reformer';
-  return `reformer-${tail}`;
-}
-
-/**
- * Return absolute path to the package's docs/llms directory if accessible.
- */
-function locateDocsDir(pkg: string): string | null {
-  const dir = packageDirName(pkg);
-  const root = packageRoot(pkg);
-  const candidates = [
-    // Резолв через package.json пакета — работает под npx/pnpm/hoisting, где плоского
-    // `<cwd>/node_modules/<pkg>` может не быть.
-    ...(root ? [resolve(root, 'docs', 'llms')] : []),
-    resolve(process.cwd(), 'node_modules', pkg, 'docs', 'llms'),
-    resolve(__dirname, '../../../', dir, 'docs', 'llms'),
-    resolve(process.cwd(), 'packages', dir, 'docs', 'llms'),
-  ];
-  for (const c of candidates) {
-    if (existsSync(c)) return c;
-  }
-  return null;
-}
-
-/**
- * Score how well a docs/llms filename matches a topic. Higher is better; 0 = no match.
- *
- * The `NN-` numeric prefix is stripped before matching so digits never contribute a
- * match (a degenerate topic like "05" no longer resolves a file by its file number).
- * Ranking, strongest first:
- *   100 — exact match on the human-readable stem, or on the full stem incl. NN- prefix
- *    75 — the topic is a whole hyphen-delimited segment of the stem ("api" in "api-signatures")
- *    60 — the stem starts with the topic ("recipe" → "recipes")
- *    40 — plain substring anywhere in the stem
- */
-export function scoreDocFileMatch(fileName: string, topic: string): number {
-  const lower = topic.trim().toLowerCase();
-  if (!lower) return 0;
-  const stem = fileName.replace(/\.md$/i, '').toLowerCase();
-  const stripped = stem.replace(/^\d+-/, '');
-  if (stripped === lower || stem === lower) return 100;
-  if (stripped.split('-').includes(lower)) return 75;
-  if (stripped.startsWith(lower)) return 60;
-  if (stripped.includes(lower)) return 40;
-  // Совпадение без учёта дефисов: «form-field» ↔ «form-field.md», «formfield» ↔ «form-field.md».
-  const nz = normalizeTopic(lower);
-  const nzStem = normalizeTopic(stripped);
-  if (nzStem === nz) return 90;
-  if (nzStem.includes(nz)) return 35;
-  return 0;
-}
-
-/**
- * Pick the best-matching filename for a topic among candidates, by descending score.
- * Ties keep the first candidate — with the curated `NN-` numbering and alphabetical
- * readdir order this means the lower file number wins, which is the intended priority.
- * Crucially, an exact match beats an earlier loose substring match regardless of
- * position (the old first-match-wins loop shadowed it).
- */
-export function pickBestDocFile(fileNames: string[], topic: string): string | null {
-  let best: string | null = null;
-  let bestScore = 0;
-  for (const fileName of fileNames) {
-    const score = scoreDocFileMatch(fileName, topic);
-    if (score > bestScore) {
-      bestScore = score;
-      best = fileName;
-    }
-  }
-  return best;
-}
-
-/**
- * Find a markdown file inside docs/llms whose name matches the topic.
- * Accepts both raw and NN-prefixed forms ("recipes" → "05-recipes.md").
- */
-function findDocFile(pkg: string, topic: string): DocFile | null {
-  const docsDir = locateDocsDir(pkg);
-  if (!docsDir) return null;
-
-  let entries: string[];
-  try {
-    entries = readdirSync(docsDir).filter((f) => f.endsWith('.md'));
-  } catch {
-    return null;
-  }
-
-  const fileName = pickBestDocFile(entries, topic);
-  if (!fileName) return null;
-
-  const absPath = resolve(docsDir, fileName);
-  const raw = readFileSync(absPath, 'utf-8');
-  const titleMatch = raw.match(/^#\s+(.+)$/m);
-  const stripped = fileName.replace(/\.md$/, '').toLowerCase().replace(/^\d+-/, '');
-  return {
-    fileName,
-    absPath,
-    title: titleMatch ? titleMatch[1].trim() : stripped,
-  };
-}
-
-async function buildFallbackHint(topic: string, targets: ReformerPackage[]): Promise<string> {
+async function buildFallbackHint(
+  k: Knowledge,
+  topic: string,
+  targets: ReformerPackage[]
+): Promise<string> {
   const recipes: string[] = [];
   for (const pkg of targets) {
-    const docsDir = locateDocsDir(pkg);
-    if (!docsDir) continue;
-    try {
-      for (const f of readdirSync(docsDir)) {
-        if (!f.endsWith('.md')) continue;
-        const stripped = f.replace(/\.md$/, '').replace(/^\d+-/, '');
-        recipes.push(`${pkg.replace('@reformer/', '')}/${stripped}`);
-      }
-    } catch {
-      /* skip */
+    for (const name of listRecipeNames(k.recipes, pkg)) {
+      recipes.push(`${pkg.replace('@reformer/', '')}/${name}`);
     }
   }
 
-  const symbols = (await Promise.all(targets.map((p) => publicSymbols(p))))
+  const symbols = (await Promise.all(targets.map((p) => publicSymbols(k, p))))
     .flat()
     .map((s) => s.name)
     .slice(0, 20);
@@ -436,21 +315,8 @@ async function buildFallbackHint(topic: string, targets: ReformerPackage[]): Pro
     .filter((key) =>
       resolveAliases(key).some((cand) =>
         targets.some((pkg) => {
-          const dir = locateDocsDir(pkg);
-          if (dir) {
-            try {
-              if (
-                pickBestDocFile(
-                  readdirSync(dir).filter((f) => f.endsWith('.md')),
-                  cand
-                )
-              )
-                return true;
-            } catch {
-              /* skip */
-            }
-          }
-          return !getSection(cand, pkg).startsWith('Section "');
+          if (pickBestDocFile(k.recipes.list(pkg), cand)) return true;
+          return !k.docs.section(cand, pkg).startsWith('Section "');
         })
       )
     )
@@ -476,3 +342,8 @@ async function buildFallbackHint(topic: string, targets: ReformerPackage[]): Pro
     `Or pass a public symbol name. Sample symbols: ${symbols.join(', ')}, ...`
   );
 }
+
+// Ранжирование имён файлов рецептов переехало в ядро (`core/docs/recipes`), но точкой
+// импорта остаётся этот модуль: тесты дефектов 78/79 проверяют именно поверхность
+// `find_recipe`, и переписывание их импортов проверяло бы не то.
+export { scoreDocFileMatch, pickBestDocFile };

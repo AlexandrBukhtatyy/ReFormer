@@ -63,7 +63,7 @@ function main(pkg) {
   // Тот же разбор, но машиночитаемо. Публикуется рядом с llms.txt и избавляет
   // @reformer/mcp от разбора TypeScript-AST в рантайме (и от 23 MB `typescript`
   // в рантаймных зависимостях). Подробности и обоснование — в index-builder.js.
-  const index = buildIndex({ meta, docs, symbols, examplesDir: EXAMPLES_DIR });
+  const index = buildIndex({ meta, docs, symbols, examplesDir: EXAMPLES_DIR, pkgDir: pkg });
   const indexPath = path.join(pkg, 'llms-index.json');
   fs.writeFileSync(indexPath, JSON.stringify(index) + '\n', 'utf8');
 

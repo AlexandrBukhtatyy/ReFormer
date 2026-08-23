@@ -1,8 +1,11 @@
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { detectProjectStack, renderStackDetectionBlockAsync } from '../utils/project-detector.js';
+import {
+  detectProjectStack,
+  renderStackDetectionBlockAsync,
+} from '../platform/cli/project-detector.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
-import { isSamplingSupported, requestSampling } from '../utils/sampling.js';
-import { REFORMER_TARGETS, type ReformerTarget } from '../utils/sampling-helpers.js';
+import { isSamplingSupported, requestSampling } from '../platform/cli/sampling.js';
+import { REFORMER_TARGETS, type ReformerTarget } from '../platform/cli/sampling-helpers.js';
 
 export const discoverContextPromptDefinition = {
   name: 'discover-context',

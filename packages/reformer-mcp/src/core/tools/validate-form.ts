@@ -11,6 +11,7 @@
  */
 
 import { validateCode } from '../validate/code.js';
+import type { Knowledge } from '../knowledge.js';
 import { renderDiagnostics, type Diagnostic } from '../validate/codes.js';
 import { findCycle, type Dependency } from '../utils/graph.js';
 import { crossCheckBundle } from '../generate/cross-check.js';
@@ -107,7 +108,8 @@ function report(kind: string, diagnostics: Diagnostic[], notes: string[] = []): 
 }
 
 export async function validateFormTool(
-  args: ValidateFormArgs
+  args: ValidateFormArgs,
+  k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const kind = String(args.kind ?? '').trim();
 
@@ -118,7 +120,7 @@ export async function validateFormTool(
           'Для `kind: "code"` нужен непустой аргумент `code` — текст проверяемого модуля.'
         );
       }
-      const { diagnostics, limitations } = await validateCode(args.code);
+      const { diagnostics, limitations } = await validateCode(k, args.code);
       return text(report('code', diagnostics, limitations));
     }
 

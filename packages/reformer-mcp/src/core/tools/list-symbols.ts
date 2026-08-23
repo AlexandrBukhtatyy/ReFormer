@@ -6,9 +6,10 @@
  * После — `get_symbol_docs <name>` за полной сигнатурой и примером.
  */
 
-import type { PublicSymbol } from '../utils/symbols-parser.js';
+import type { PublicSymbol } from '../index/public-symbol.js';
 import { publicSymbols, indexCoverageWarning } from '../index/symbols.js';
-import { KNOWN_PACKAGES, normalizePackage } from '../utils/docs-parser.js';
+import { KNOWN_PACKAGES, normalizePackage } from '../docs/packages.js';
+import type { Knowledge } from '../knowledge.js';
 
 const KINDS = ['function', 'class', 'interface', 'type', 'const', 'enum'] as const;
 type SymbolKind = (typeof KINDS)[number];
@@ -47,7 +48,8 @@ export interface ListSymbolsArgs {
 }
 
 export async function listSymbolsTool(
-  args: ListSymbolsArgs
+  args: ListSymbolsArgs,
+  k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const only = normalizePackage(args.package);
   const targets = only ? [only] : [...KNOWN_PACKAGES];
@@ -62,7 +64,7 @@ export async function listSymbolsTool(
   let capped = false;
 
   for (const pkg of targets) {
-    let symbols = await publicSymbols(pkg);
+    let symbols = await publicSymbols(k, pkg);
     if (args.kind) symbols = symbols.filter((s) => s.kind === args.kind);
     if (needle) symbols = symbols.filter((s) => s.name.toLowerCase().includes(needle));
     if (symbols.length === 0) continue;
@@ -107,7 +109,7 @@ export async function listSymbolsTool(
       cappedNote +
       `\n\n_Use \`get_symbol_docs <name>\` for full signature and examples._` +
       // Пакет без индекса даёт неполный список — агент не должен решить, что символа нет.
-      indexCoverageWarning()
+      indexCoverageWarning(k)
   );
 }
 

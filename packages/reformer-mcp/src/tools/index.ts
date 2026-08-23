@@ -1,24 +1,24 @@
-export { debugToolDefinition, debugTool } from './debug.js';
+export { debugToolDefinition, debugTool } from '../core/tools/debug.js';
 export {
   reportIssueToolDefinition,
   reportIssueTool,
   type ReportIssueArgs,
-} from './report-issue.js';
-export { getSymbolDocsToolDefinition, getSymbolDocsTool } from './get-symbol-docs.js';
-export { findRecipeToolDefinition, findRecipeTool } from './find-recipe.js';
+} from '../core/tools/report-issue.js';
+export { getSymbolDocsToolDefinition, getSymbolDocsTool } from '../core/tools/get-symbol-docs.js';
+export { findRecipeToolDefinition, findRecipeTool } from '../core/tools/find-recipe.js';
 export {
   validateJsonSchemaToolDefinition,
   validateJsonSchemaTool,
-} from './validate-json-schema.js';
-export { listSymbolsToolDefinition, listSymbolsTool } from './list-symbols.js';
-export { searchDocsToolDefinition, searchDocsTool } from './search-docs.js';
-export { checkBehaviorsToolDefinition, checkBehaviorsTool } from './check-behaviors.js';
-export { chooseApiToolDefinition, chooseApiTool } from './choose-api.js';
-export { getContextToolDefinition, getContextTool } from './get-context.js';
+} from '../core/tools/validate-json-schema.js';
+export { listSymbolsToolDefinition, listSymbolsTool } from '../core/tools/list-symbols.js';
+export { searchDocsToolDefinition, searchDocsTool } from '../core/tools/search-docs.js';
+export { checkBehaviorsToolDefinition, checkBehaviorsTool } from '../core/tools/check-behaviors.js';
+export { chooseApiToolDefinition, chooseApiTool } from '../core/tools/choose-api.js';
+export { getContextToolDefinition, getContextTool } from '../core/tools/get-context.js';
 export {
   planFormToolDefinition,
   planFormTool,
   generateFormToolDefinition,
   generateFormTool,
-} from './generate-form.js';
-export { validateFormToolDefinition, validateFormTool } from './validate-form.js';
+} from '../core/tools/generate-form.js';
+export { validateFormToolDefinition, validateFormTool } from '../core/tools/validate-form.js';

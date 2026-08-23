@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { findSymbol } from '../src/utils/symbols-parser';
+import { findSymbol } from '../src/platform/cli/symbols-parser';
 import { AST_HEAVY_TIMEOUT_MS } from './timeouts';
 
 const templatesDir = resolve(dirname(fileURLToPath(import.meta.url)), '../src/prompts/templates');

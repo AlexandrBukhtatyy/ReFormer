@@ -7,8 +7,12 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { searchDocsTool, __resetSearchDocsIndex } from '../src/tools/search-docs';
+import { searchDocsTool, __resetSearchDocsIndex } from '../src/core/tools/search-docs';
 import { getSectionBySlug, listAvailablePackages } from '../src/utils/docs-parser';
+import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+
+/** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
+const k = cliKnowledge();
 
 const URI_RE = /reformer:\/\/docs\/([^/\s`]+)\/([^\s`]+)/g;
 
@@ -21,18 +25,18 @@ function extractUris(text: string): Array<{ short: string; slug: string }> {
 }
 
 describe('search_docs', () => {
-  beforeEach(() => __resetSearchDocsIndex());
+  beforeEach(() => __resetSearchDocsIndex(k));
 
   it('пустой / пробельный query → подсказка, без падения', async () => {
     for (const q of [undefined, '', '   ']) {
-      const res = await searchDocsTool({ query: q as string });
+      const res = await searchDocsTool({ query: q as string }, k);
       expect(res.content[0].text).toMatch(/query/i);
     }
   });
 
   it('осмысленный запрос находит секции и каждый URI резолвится через getSectionBySlug', async () => {
     if (listAvailablePackages().length === 0) return; // нет llms.txt на диске — нечего искать
-    const res = await searchDocsTool({ query: 'validation' });
+    const res = await searchDocsTool({ query: 'validation' }, k);
     const text = res.content[0].text;
     const uris = extractUris(text);
     expect(uris.length).toBeGreaterThan(0);
@@ -46,7 +50,7 @@ describe('search_docs', () => {
   });
 
   it('заведомо бессмысленный запрос → сообщение об отсутствии совпадений (без URI)', async () => {
-    const res = await searchDocsTool({ query: 'zzqqxywvunlikelyterm' });
+    const res = await searchDocsTool({ query: 'zzqqxywvunlikelyterm' }, k);
     const text = res.content[0].text;
     expect(text).toMatch(/no documentation sections matched/i);
     expect(extractUris(text)).toHaveLength(0);
@@ -54,7 +58,7 @@ describe('search_docs', () => {
 
   it('limit ограничивает число результатов', async () => {
     if (listAvailablePackages().length === 0) return;
-    const res = await searchDocsTool({ query: 'form', limit: 2 });
+    const res = await searchDocsTool({ query: 'form', limit: 2 }, k);
     const headers = (res.content[0].text.match(/^## @reformer\//gm) || []).length;
     expect(headers).toBeLessThanOrEqual(2);
   });
@@ -62,7 +66,7 @@ describe('search_docs', () => {
   it('фильтр package ограничивает выдачу одним пакетом', async () => {
     const available = listAvailablePackages();
     if (!available.includes('@reformer/core')) return;
-    const res = await searchDocsTool({ query: 'form', package: '@reformer/core' });
+    const res = await searchDocsTool({ query: 'form', package: '@reformer/core' }, k);
     for (const { short } of extractUris(res.content[0].text)) {
       expect(short).toBe('core');
     }

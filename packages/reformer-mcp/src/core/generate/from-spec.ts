@@ -12,7 +12,7 @@
  * формула хуже явного пробела — она выглядит проверенной. Такие поля уходят в `warnings`.
  */
 
-import { analyzeSpec, type SpecAnalysis } from '../utils/spec-analyzer.js';
+import { analyzeSpec, type SpecAnalysis } from '../spec/analyze.js';
 import {
   normalizeIntent,
   type BehaviorIntent,

@@ -1,13 +1,16 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { detectProjectStack, renderStackDetectionBlockAsync } from '../utils/project-detector.js';
+import {
+  detectProjectStack,
+  renderStackDetectionBlockAsync,
+} from '../platform/cli/project-detector.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 import {
   deepAnalyzeSpec,
   inferTarget,
   renderDeepAnalysisBlock,
-} from '../utils/sampling-helpers.js';
+} from '../platform/cli/sampling-helpers.js';
 
 export const planFormPromptDefinition = {
   name: 'plan-form',

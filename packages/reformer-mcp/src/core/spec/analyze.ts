@@ -10,8 +10,6 @@
  * точный план значило бы обманывать потребителя.
  */
 
-import { existsSync, readFileSync } from 'fs';
-import { resolve } from 'path';
 import type { FieldType } from '../generate/form-intent.js';
 
 export interface SpecField {
@@ -44,21 +42,6 @@ export interface SpecAnalysis {
   hasCanonicalLabels: boolean;
   hasMasks: boolean;
   warnings: string[];
-}
-
-/** Прочитать спеку по абсолютному или относительному пути. `null`, если файла нет. */
-export function readSpec(specPath: string): string | null {
-  const candidates = [specPath, resolve(process.cwd(), specPath)];
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      try {
-        return readFileSync(p, 'utf-8');
-      } catch {
-        return null;
-      }
-    }
-  }
-  return null;
 }
 
 export function extractFormName(content: string): string {

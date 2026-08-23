@@ -13,7 +13,7 @@
 
 import { chooseApi } from '../decide/api-decision.js';
 import { findOneSymbol } from '../index/symbols.js';
-import { getMergedIndex } from '../index/loader.js';
+import type { Knowledge } from '../knowledge.js';
 import { rankSymbolsForQuery } from '../index/search.js';
 import { searchSections, type SectionHit } from '../tools/search-docs.js';
 import type { IndexedTopic } from '../index/types.js';
@@ -64,8 +64,12 @@ function packagesFor(target: string | undefined): string[] | null {
 }
 
 /** Темы, к которым относятся найденные секции. */
-function topicsForSections(hits: SectionHit[], explicit: string[] | undefined): IndexedTopic[] {
-  const all = getMergedIndex().topics;
+function topicsForSections(
+  k: Knowledge,
+  hits: SectionHit[],
+  explicit: string[] | undefined
+): IndexedTopic[] {
+  const all = k.index.topics;
   if (explicit && explicit.length > 0) {
     const wanted = new Set(explicit.map((t) => t.toLowerCase()));
     return all.filter((t) => wanted.has(t.id.toLowerCase()));
@@ -74,7 +78,7 @@ function topicsForSections(hits: SectionHit[], explicit: string[] | undefined): 
   return all.filter((t) => t.sections.some((s) => slugs.has(s.slug)));
 }
 
-export async function buildContext(args: BuildContextArgs): Promise<BuiltContext> {
+export async function buildContext(k: Knowledge, args: BuildContextArgs): Promise<BuiltContext> {
   const task = String(args.task ?? '').trim();
   const profile = resolveProfile(args.profile);
   const spec = PROFILES[profile];
@@ -93,19 +97,19 @@ export async function buildContext(args: BuildContextArgs): Promise<BuiltContext
   // `SCHEMA FORMAT`, `Anti-patterns`) и до cdk, где живёт `FormArray`, дело не доходило.
   // Буст решает исходную задачу (при прочих равных ядро впереди), не отсекая соседей.
   const OWN_PACKAGE_BOOST = 1.25;
-  const sectionHits = searchSections(task, undefined, 14)
+  const sectionHits = searchSections(k, task, undefined, 14)
     .filter((h) => !allowPackages || allowPackages.includes(h.pkg))
     .map((h) => (h.pkg === ownPackage ? { ...h, score: h.score * OWN_PACKAGE_BOOST } : h))
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
-  const topics = topicsForSections(sectionHits, args.topics).slice(0, 3);
+  const topics = topicsForSections(k, sectionHits, args.topics).slice(0, 3);
 
   // --- рекомендованные символы, дедуплицированные -----------------------------
   const decision = chooseApi(task)[0] ?? null;
   // Символы ищем по ВСЕМ допустимым пакетам, а не только по целевому: ответ на «отрисовать
   // строки массива» — `FormArray` из cdk, и при жёсткой привязке к `core` выдача заполнялась
   // случайным ядерным символом. Сужение по цели делается фильтром, а не запретом поиска.
-  const ranked = rankSymbolsForQuery(task, sectionHits, '*', 8).filter(
+  const ranked = rankSymbolsForQuery(k, task, sectionHits, '*', 8).filter(
     (h) => !allowPackages || allowPackages.includes(h.symbol.package)
   );
   // Хвост ранжирования — шум: у слабого кандидата счёт на порядок ниже лидера, а сигнатура
@@ -175,7 +179,7 @@ export async function buildContext(args: BuildContextArgs): Promise<BuiltContext
   const signatures: string[] = [];
   let example = '';
   for (const name of primary) {
-    const sym = await findOneSymbol(name, '*');
+    const sym = await findOneSymbol(k, name, '*');
     if (!sym) continue;
     signatures.push(`\`${sym.name}\` (${sym.package})\n\`\`\`typescript\n${sym.signature}\n\`\`\``);
     // Канонический пример — ОДИН, от самого уверенного символа: три примера подряд стоят

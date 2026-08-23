@@ -10,7 +10,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { normalizeIntent, deriveInterfaceName, type FormIntent } from '../src/generate/form-intent';
+import {
+  normalizeIntent,
+  deriveInterfaceName,
+  type FormIntent,
+} from '../src/core/generate/form-intent.js';
 import {
   buildBundle,
   buildModelTs,
@@ -18,9 +22,13 @@ import {
   buildBehaviorTs,
   buildLayoutJson,
   collectUsedComponents,
-} from '../src/generate/builders';
-import { crossCheckBundle } from '../src/generate/cross-check';
-import { generateFormTool, planFormTool } from '../src/tools/generate-form';
+} from '../src/core/generate/builders.js';
+import { crossCheckBundle } from '../src/core/generate/cross-check.js';
+import { generateFormTool, planFormTool } from '../src/core/tools/generate-form';
+import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+
+/** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
+const k = cliKnowledge();
 
 /** Согласованный intent: две поля, справочник, правило, вычисление, массив. */
 function goodIntent(): FormIntent {
@@ -189,12 +197,12 @@ describe('cross-check', () => {
 
 describe('tools plan_form / generate_form', () => {
   it('plan_form без источника объясняет, что нужно', async () => {
-    const { content } = await planFormTool({});
+    const { content } = await planFormTool({}, k);
     expect(content[0].text).toMatch(/specPath|description/);
   });
 
   it('plan_form с несуществующим путём не притворяется, что разобрал', async () => {
-    const { content } = await planFormTool({ specPath: 'нет/такого/файла.md' });
+    const { content } = await planFormTool({ specPath: 'нет/такого/файла.md' }, k);
     expect(content[0].text).toMatch(/не найдена/);
   });
 

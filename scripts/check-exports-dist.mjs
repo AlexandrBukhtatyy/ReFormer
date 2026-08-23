@@ -84,6 +84,10 @@ function checkPackage(pkgDir) {
   // (а) фантомы: объявлено в exports, файла нет.
   const phantoms = [];
   for (const [key, value] of Object.entries(pkg.exports)) {
+    // Subpath patterns (`"./*": "./*"`) — не путь к файлу, а правило подстановки: проверять его
+    // на существование бессмысленно, файла с именем `*` не бывает. Node резолвит такой ключ
+    // подстановкой, и «фантомом» он выглядит только для наивной проверки.
+    if (key.includes('*')) continue;
     for (const target of exportTargets(value)) {
       if (typeof target !== 'string' || !target.startsWith('./')) continue;
       if (!existsSync(path.join(pkgDir, target))) phantoms.push(`${key} → ${target}`);

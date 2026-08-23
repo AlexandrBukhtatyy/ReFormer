@@ -100,7 +100,8 @@ try {
   // node_modules, а не в исходниках монорепо.
   const runner = `
 import { getFullDocs } from '@reformer/mcp/dist/utils/docs-parser.js';
-import { findRecipeTool } from '@reformer/mcp/dist/tools/find-recipe.js';
+import { findRecipeTool } from '@reformer/mcp/dist/core/tools/find-recipe.js';
+import { cliKnowledge } from '@reformer/mcp/dist/platform/cli/knowledge.js';
 
 const failures = [];
 
@@ -122,13 +123,13 @@ const fileSourced = (text) =>
   text.includes('docs/llms/') && !text.includes('matched by section heading');
 
 // core — docs/llms/@reformer/core.
-const ps = (await findRecipeTool({ topic: 'project-structure' })).content[0].text;
+const ps = (await findRecipeTool({ topic: 'project-structure' }, cliKnowledge())).content[0].text;
 if (!fileSourced(ps)) {
   failures.push('find_recipe("project-structure") не из файла docs/llms (не в files @reformer/core?)');
 }
 
 // cdk — docs/llms/@reformer/cdk.
-const ff = (await findRecipeTool({ topic: 'form-field' })).content[0].text;
+const ff = (await findRecipeTool({ topic: 'form-field' }, cliKnowledge())).content[0].text;
 if (!fileSourced(ff)) {
   failures.push('find_recipe("form-field") не из файла docs/llms (не в files @reformer/cdk?)');
 }
@@ -136,7 +137,7 @@ if (!fileSourced(ff)) {
 // mcp — СВОИ docs/llms. Каталог не публиковался (в files были только dist/README/llms.txt),
 // поэтому кросс-таргетный гайд form-directory-layout у потребителя молча деградировал в
 // core-only фолбэк project-structure. Тянем именно его.
-const dl = (await findRecipeTool({ topic: 'form-directory-layout' })).content[0].text;
+const dl = (await findRecipeTool({ topic: 'form-directory-layout' }, cliKnowledge())).content[0].text;
 if (!dl.includes('docs/llms/') || !dl.includes('form-directory-layout')) {
   failures.push(
     'find_recipe("form-directory-layout") не из файла docs/llms @reformer/mcp (не в files?)'

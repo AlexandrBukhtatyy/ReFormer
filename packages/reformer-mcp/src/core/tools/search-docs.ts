@@ -16,15 +16,10 @@
  * URI в выдаче гарантированно резолвится через ReadResource.
  */
 
-import {
-  listAvailablePackages,
-  listSections,
-  getSectionBySlug,
-  KNOWN_PACKAGES,
-  type SectionMeta,
-  normalizePackage,
-} from '../utils/docs-parser.js';
+import { KNOWN_PACKAGES, normalizePackage } from '../docs/packages.js';
+import type { SectionMeta } from '../docs/sections.js';
 import { rankSymbolsForQuery, renderSymbolHits } from '../index/search.js';
+import { memoize, type Knowledge } from '../knowledge.js';
 
 export const searchDocsToolDefinition = {
   name: 'search_docs',
@@ -81,7 +76,10 @@ interface SearchIndex {
 
 // Индекс кэшируется на всё время жизни процесса: docs на диске не меняются, а перестройка
 // (343 секции × getSectionBySlug + токенизация) не бесплатна. getFullDocs внутри кэширован.
-let cachedIndex: SearchIndex | null = null;
+/** Индекс секций — на знание, а не на модуль: см. тот же приём в `core/index/search.ts`. */
+function sectionIndex(k: Knowledge): SearchIndex {
+  return memoize(k, 'search:section-index', () => buildIndex(k));
+}
 
 function shortName(pkg: string): string {
   return pkg.replace(/^@reformer\//, '');
@@ -125,15 +123,14 @@ function tokenize(text: string): string[] {
  */
 const OWN_DOCS_PENALTY = 0.4;
 
-function buildIndex(): SearchIndex {
-  if (cachedIndex) return cachedIndex;
+function buildIndex(k: Knowledge): SearchIndex {
   const sections: IndexedSection[] = [];
   const df = new Map<string, number>();
 
-  for (const pkg of listAvailablePackages()) {
+  for (const pkg of k.docs.packages()) {
     const short = shortName(pkg);
-    for (const section of listSections(pkg)) {
-      const body = getSectionBySlug(pkg, section.slug) ?? '';
+    for (const section of k.docs.sections(pkg)) {
+      const body = k.docs.sectionBySlug(pkg, section.slug) ?? '';
       const tokens = tokenize(body);
       const tf = new Map<string, number>();
       for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
@@ -153,8 +150,7 @@ function buildIndex(): SearchIndex {
 
   const avgLength =
     sections.length > 0 ? sections.reduce((n, s) => n + s.length, 0) / sections.length : 1;
-  cachedIndex = { sections, df, avgLength };
-  return cachedIndex;
+  return { sections, df, avgLength };
 }
 
 interface Scored {
@@ -273,7 +269,12 @@ export interface SectionHit {
  * @param limit - Максимум результатов (1..25, по умолчанию 10).
  * @returns Отсортированные по убыванию релевантности попадания; пустой массив, если ничего.
  */
-export function searchSections(query: string, pkg?: string, limit?: number): SectionHit[] {
+export function searchSections(
+  k: Knowledge,
+  query: string,
+  pkg?: string,
+  limit?: number
+): SectionHit[] {
   const trimmed = typeof query === 'string' ? query.trim() : '';
   if (!trimmed) return [];
 
@@ -281,7 +282,7 @@ export function searchSections(query: string, pkg?: string, limit?: number): Sec
   const phrase = trimmed.toLowerCase();
   const restrictTo = normalizePackage(pkg);
 
-  const index = buildIndex();
+  const index = sectionIndex(k);
   const scored: Scored[] = [];
   for (const entry of index.sections) {
     if (restrictTo && entry.pkg !== restrictTo) continue;
@@ -322,7 +323,8 @@ export function renderSectionHits(hits: SectionHit[]): string {
 }
 
 export async function searchDocsTool(
-  args: SearchDocsArgs
+  args: SearchDocsArgs,
+  k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const query = typeof args.query === 'string' ? args.query.trim() : '';
   if (!query) {
@@ -332,7 +334,7 @@ export async function searchDocsTool(
   }
 
   const restrictTo = normalizePackage(args.package);
-  const hits = searchSections(query, args.package, args.limit);
+  const hits = searchSections(k, query, args.package, args.limit);
 
   if (hits.length === 0) {
     return text(
@@ -346,7 +348,7 @@ export async function searchDocsTool(
   // брались с первой формулировки, срабатывал последний запрос — и он был буквально именем
   // символа. Значит, агенту не хватало именно перехода «слова задачи → имя», и отдавать его
   // надо здесь же, а не заставлять угадывать следующим вызовом.
-  const symbols = rankSymbolsForQuery(query, hits, args.package, 4);
+  const symbols = rankSymbolsForQuery(k, query, hits, args.package, 4);
   const apiBlock = symbols.length > 0 ? `\n\n## Relevant API\n${renderSymbolHits(symbols)}` : '';
 
   return text(
@@ -367,6 +369,6 @@ function text(message: string): { content: Array<{ type: 'text'; text: string }>
 }
 
 /** Только для тестов — сбросить кэш индекса. */
-export function __resetSearchDocsIndex(): void {
-  cachedIndex = null;
+export function __resetSearchDocsIndex(k: Knowledge): void {
+  k.memo.delete('search:section-index');
 }

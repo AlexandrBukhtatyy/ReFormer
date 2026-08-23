@@ -14,6 +14,7 @@
  */
 
 import { buildContext } from '../context/builder.js';
+import type { Knowledge } from '../knowledge.js';
 
 export const getContextToolDefinition = {
   name: 'get_context',
@@ -54,7 +55,8 @@ export interface GetContextArgs {
 }
 
 export async function getContextTool(
-  args: GetContextArgs
+  args: GetContextArgs,
+  k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const task = typeof args.task === 'string' ? args.task.trim() : '';
   if (!task) {
@@ -63,7 +65,7 @@ export async function getContextTool(
     );
   }
 
-  const built = await buildContext({
+  const built = await buildContext(k, {
     task,
     topics: Array.isArray(args.topics) ? args.topics : undefined,
     target: typeof args.target === 'string' ? args.target : undefined,

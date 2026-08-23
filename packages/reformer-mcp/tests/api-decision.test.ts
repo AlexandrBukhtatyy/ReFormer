@@ -13,11 +13,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { chooseApi, DECISION_RULES } from '../src/decide/api-decision';
-import { chooseApiTool } from '../src/tools/choose-api';
+import { chooseApi, DECISION_RULES } from '../src/core/decide/api-decision.js';
+import { chooseApiTool } from '../src/core/tools/choose-api';
 import { findOneSymbol } from '../src/index/symbols';
-import { getPublicSymbols } from '../src/utils/symbols-parser';
+import { getPublicSymbols } from '../src/platform/cli/symbols-parser';
 import { KNOWN_PACKAGES, getFullDocs } from '../src/utils/docs-parser';
+import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+
+/** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
+const k = cliKnowledge();
 
 const hasSymbols = getPublicSymbols('@reformer/core').length > 0;
 
@@ -123,15 +127,18 @@ describe('decide/api-decision — таблица правил', () => {
 describe('tool choose_api', () => {
   it('пустой аргумент → внятное сообщение, а не падение', async () => {
     for (const requirement of [undefined, '', '   ']) {
-      const { content } = await chooseApiTool({ requirement: requirement as string });
+      const { content } = await chooseApiTool({ requirement: requirement as string }, k);
       expect(content[0].text).toMatch(/requirement/i);
     }
   });
 
   it.runIf(hasSymbols)('ответ несёт сигнатуру, пример и анти-паттерн', async () => {
-    const { content } = await chooseApiTool({
-      requirement: 'очистить поле номера карты, когда способ оплаты не карта',
-    });
+    const { content } = await chooseApiTool(
+      {
+        requirement: 'очистить поле номера карты, когда способ оплаты не карта',
+      },
+      k
+    );
     const text = content[0].text;
     expect(text).toContain('resetWhen');
     expect(text).toContain('## Signature');
@@ -144,7 +151,7 @@ describe('tool choose_api', () => {
   it.runIf(hasSymbols)(
     'нераспознанное требование честно уходит в поиск, а не выдумывает',
     async () => {
-      const { content } = await chooseApiTool({ requirement: 'zzqq wubble frotz' });
+      const { content } = await chooseApiTool({ requirement: 'zzqq wubble frotz' }, k);
       expect(content[0].text).toMatch(/No decision rule matched/);
     }
   );

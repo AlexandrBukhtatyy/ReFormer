@@ -3,9 +3,13 @@ import {
   detectProjectStack,
   renderStackDetectionBlockAsync,
   renderLayoutSkeletonBlock,
-} from '../utils/project-detector.js';
+} from '../platform/cli/project-detector.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
-import { inferTarget, isReformerTarget, type ReformerTarget } from '../utils/sampling-helpers.js';
+import {
+  inferTarget,
+  isReformerTarget,
+  type ReformerTarget,
+} from '../platform/cli/sampling-helpers.js';
 
 export const createFormPromptDefinition = {
   name: 'create-form',

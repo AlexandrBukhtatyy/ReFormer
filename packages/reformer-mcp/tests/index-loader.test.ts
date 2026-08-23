@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest';
 import { getMergedIndex, loadPackageIndex, __resetIndexCache } from '../src/index/loader';
 import { publicSymbols, findSymbols, indexCoverageWarning } from '../src/index/symbols';
-import { getPublicSymbols } from '../src/utils/symbols-parser';
+import { getPublicSymbols } from '../src/platform/cli/symbols-parser';
 import { KNOWN_PACKAGES } from '../src/utils/docs-parser';
 import { AST_HEAVY_TIMEOUT_MS } from './timeouts';
 

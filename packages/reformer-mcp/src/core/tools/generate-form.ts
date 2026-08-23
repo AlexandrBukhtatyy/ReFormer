@@ -17,7 +17,8 @@ import { normalizeIntent, type FormIntent } from '../generate/form-intent.js';
 import { buildBundle } from '../generate/builders.js';
 import { crossCheckBundle } from '../generate/cross-check.js';
 import { intentFromAnalysis } from '../generate/from-spec.js';
-import { analyzeSpec, readSpec } from '../utils/spec-analyzer.js';
+import { analyzeSpec } from '../spec/analyze.js';
+import type { Knowledge } from '../knowledge.js';
 
 export const planFormToolDefinition = {
   name: 'plan_form',
@@ -81,13 +82,14 @@ function resolveTarget(value: unknown): FormIntent['target'] {
 }
 
 export async function planFormTool(
-  args: PlanFormArgs
+  args: PlanFormArgs,
+  k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
-  const spec = args.specPath ? readSpec(args.specPath) : null;
+  const spec = args.specPath ? k.spec.read(args.specPath) : null;
   if (args.specPath && spec === null) {
     return text(
       `# plan_form — спека не найдена\n\nПуть \`${args.specPath}\` не существует ни как абсолютный, ` +
-        `ни относительно \`${process.cwd()}\`. Передайте путь от корня репозитория.`
+        `ни относительно \`${k.spec.describe?.() ?? 'рабочего каталога'}\`. Передайте путь от корня репозитория.`
     );
   }
   const source = spec ?? String(args.description ?? '').trim();

@@ -8,11 +8,25 @@
  *
  * Проверка узкая намеренно: она смотрит только те пакеты, которые обязаны работать без сборщика.
  */
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 
-/** Пакеты, обязанные работать без сборщика. */
-const TARGETS = [{ name: '@reformer/form-registry', dir: 'packages/reformer-form-registry/dist' }];
+/**
+ * Пакеты и каталоги, обязанные работать без Node.
+ *
+ * `@reformer/form-registry` — потому что его грузят голым ESM (import map, web-component,
+ * Module Federation), где `process` не определён.
+ *
+ * `@reformer/mcp` проверяется НЕ целиком, а двумя частями — `dist/core` и `dist/platform/browser`:
+ * сервер запускается под Node и
+ * node-глобали в `platform/cli` законны. Смысл гейта в том, что ядро знаний обязано собираться
+ * в браузер, а «обязано» без проверки живёт ровно до следующего удобного `readFileSync`.
+ */
+const TARGETS = [
+  { name: '@reformer/form-registry', dir: 'packages/reformer-form-registry/dist' },
+  { name: '@reformer/mcp (core)', dir: 'packages/reformer-mcp/dist/core' },
+  { name: '@reformer/mcp (platform/browser)', dir: 'packages/reformer-mcp/dist/platform/browser' },
+];
 
 /** Что ищем. Строки в комментариях не в счёт — комментарии вырезаются заранее. */
 const FORBIDDEN = [
@@ -31,12 +45,23 @@ for (const { name, dir } of TARGETS) {
     console.log(`⏭  ${name}: dist/ нет, пропуск (соберите пакет)`);
     continue;
   }
-  const files = readdirSync(dir).filter((f) => f.endsWith('.js'));
+  // Обход рекурсивный: у ядра MCP вложенные каталоги (core/docs, core/index, core/tools),
+  // и плоский readdirSync проверял бы один верхний уровень, молча пропуская всё остальное.
+  const files = [];
+  const walk = (d) => {
+    for (const e of readdirSync(d)) {
+      const p = join(d, e);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (e.endsWith('.js')) files.push(p);
+    }
+  };
+  walk(dir);
+
   const hits = [];
   for (const f of files) {
-    const code = stripComments(readFileSync(join(dir, f), 'utf8'));
+    const code = stripComments(readFileSync(f, 'utf8'));
     for (const { re, what } of FORBIDDEN) {
-      if (re.test(code)) hits.push(`${f}: ${what}`);
+      if (re.test(code)) hits.push(`${relative(dir, f).split('\\').join('/')}: ${what}`);
     }
   }
   if (hits.length) {

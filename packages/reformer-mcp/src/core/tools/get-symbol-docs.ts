@@ -1,6 +1,7 @@
-import type { PublicSymbol } from '../utils/symbols-parser.js';
+import type { PublicSymbol } from '../index/public-symbol.js';
 import { findSymbols } from '../index/symbols.js';
-import { normalizePackage } from '../utils/docs-parser.js';
+import { normalizePackage } from '../docs/packages.js';
+import type { Knowledge } from '../knowledge.js';
 
 export const getSymbolDocsToolDefinition = {
   name: 'get_symbol_docs',
@@ -30,9 +31,10 @@ export interface GetSymbolDocsArgs {
 }
 
 export async function getSymbolDocsTool(
-  args: GetSymbolDocsArgs
+  args: GetSymbolDocsArgs,
+  k: Knowledge
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
-  const matches = await findSymbols(args.symbol, normalizePackage(args.package) ?? '*');
+  const matches = await findSymbols(k, args.symbol, normalizePackage(args.package) ?? '*');
   if (matches.length === 0) {
     return {
       content: [

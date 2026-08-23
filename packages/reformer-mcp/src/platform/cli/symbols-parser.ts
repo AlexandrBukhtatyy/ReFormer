@@ -2,33 +2,14 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 import * as ts from 'typescript';
-import { KNOWN_PACKAGES, type ReformerPackage } from './docs-parser.js';
+import { KNOWN_PACKAGES, type ReformerPackage } from '../../core/docs/packages.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/** A single public symbol extracted from a package's `src/index.ts`. */
-export interface PublicSymbol {
-  /** Symbol name as exported. */
-  name: string;
-  /** Kind of declaration. */
-  kind: 'function' | 'class' | 'interface' | 'type' | 'enum' | 'const' | 'unknown';
-  /** Source-text signature, with bodies/initializers stripped. */
-  signature: string;
-  /** Leading description text from the JSDoc block. */
-  description: string;
-  /** All JSDoc tags in source order. */
-  tags: SymbolTag[];
-  /** Repo-relative path of the file declaring this symbol. */
-  sourcePath: string;
-  /** Package this symbol belongs to (e.g. "@reformer/cdk"). */
-  package: string;
-}
-
-export interface SymbolTag {
-  tag: string;
-  name?: string;
-  text: string;
-}
+// Контракт символа общий у двух источников (индекс и этот парсер), поэтому объявлен в ядре.
+// Здесь он реэкспортируется, чтобы прежние импорты из `utils/symbols-parser` продолжали работать.
+export type { PublicSymbol, SymbolTag } from '../../core/index/public-symbol.js';
+import type { PublicSymbol, SymbolTag } from '../../core/index/public-symbol.js';
 
 const symbolsCache = new Map<string, PublicSymbol[]>();
 
@@ -45,7 +26,9 @@ function findPackageRoot(pkg: string): string | null {
   const dir = packageDirName(pkg);
   const candidates = [
     resolve(process.cwd(), 'node_modules', pkg),
-    resolve(__dirname, '../../../', dir),
+    // Монорепо: файл лежит в `<pkg>/{src,dist}/platform/cli/`, поэтому до `packages/` —
+    // четыре уровня вверх (та же арифметика, что в index-source и recipe-source).
+    resolve(__dirname, '../../../../', dir),
     resolve(process.cwd(), 'packages', dir),
   ];
   for (const c of candidates) {

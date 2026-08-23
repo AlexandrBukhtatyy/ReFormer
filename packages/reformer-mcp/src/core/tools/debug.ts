@@ -1,4 +1,4 @@
-import { getFullDocs } from '../utils/docs-parser.js';
+import type { Knowledge } from '../knowledge.js';
 
 export const debugToolDefinition = {
   name: 'debug',
@@ -14,10 +14,13 @@ export const debugToolDefinition = {
   },
 };
 
-export async function debugTool(args: { section?: string }): Promise<{
+export async function debugTool(
+  args: { section?: string },
+  k: Knowledge
+): Promise<{
   content: Array<{ type: 'text'; text: string }>;
 }> {
-  const docs = getFullDocs();
+  const docs = k.docs.full();
 
   return {
     content: [

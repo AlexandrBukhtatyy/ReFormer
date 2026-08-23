@@ -7,9 +7,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { scoreDocFileMatch, pickBestDocFile, findRecipeTool } from '../src/tools/find-recipe';
-import type { FindRecipeArgs } from '../src/tools/find-recipe';
+import { scoreDocFileMatch, pickBestDocFile, findRecipeTool } from '../src/core/tools/find-recipe';
+import type { FindRecipeArgs } from '../src/core/tools/find-recipe';
 import { normalizeTopic } from '../src/utils/docs-parser';
+import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+
+/** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
+const k = cliKnowledge();
 
 describe('scoreDocFileMatch / pickBestDocFile — ranked matching (defect 78)', () => {
   it('prefers an exact stem match over an earlier loose substring match', () => {
@@ -69,17 +73,17 @@ describe('normalizeTopic (regression: dashed aliases)', () => {
 
 describe('findRecipeTool — missing / invalid topic guard (defect 79)', () => {
   it('returns a friendly message instead of throwing when topic is omitted', async () => {
-    const res = await findRecipeTool({} as unknown as FindRecipeArgs);
+    const res = await findRecipeTool({} as unknown as FindRecipeArgs, k);
     expect(res.content[0].text).toMatch(/topic.*required/i);
   });
 
   it('does not throw when topic is a non-string', async () => {
-    const res = await findRecipeTool({ topic: 123 } as unknown as FindRecipeArgs);
+    const res = await findRecipeTool({ topic: 123 } as unknown as FindRecipeArgs, k);
     expect(res.content[0].text).toMatch(/topic.*required/i);
   });
 
   it('still rejects an empty-string topic with the same friendly message', async () => {
-    const res = await findRecipeTool({ topic: '   ' });
+    const res = await findRecipeTool({ topic: '   ' }, k);
     expect(res.content[0].text).toMatch(/topic.*required/i);
   });
 });

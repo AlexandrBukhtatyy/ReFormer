@@ -12,7 +12,12 @@ import { mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSyn
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { ISSUE_REPORTS_DIR_ENV, reportIssueTool } from '../src/tools/report-issue';
+import { reportIssueTool } from '../src/core/tools/report-issue';
+import { ISSUE_REPORTS_DIR_ENV } from '../src/platform/cli/issue-sink.js';
+import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+
+/** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
+const k = cliKnowledge();
 
 describe('reportIssueTool (defect 77)', () => {
   let base: string;
@@ -36,11 +41,14 @@ describe('reportIssueTool (defect 77)', () => {
     const dir = join(base, 'custom-reports');
     process.env[ISSUE_REPORTS_DIR_ENV] = dir;
 
-    const res = await reportIssueTool({
-      error: 'boom',
-      solution: 'fixed it',
-      tags: ['category:validation', 'agent:claude'],
-    });
+    const res = await reportIssueTool(
+      {
+        error: 'boom',
+        solution: 'fixed it',
+        tags: ['category:validation', 'agent:claude'],
+      },
+      k
+    );
 
     expect(res.content[0].text).toContain('Issue reported successfully');
     expect(res.content[0].text).toContain('Category: validation');
@@ -68,7 +76,7 @@ describe('reportIssueTool (defect 77)', () => {
     // chdir resolves symlinks (macOS /var → /private/var), so take the root from cwd.
     const projectRoot = join(process.cwd(), '..');
 
-    const res = await reportIssueTool({ error: 'no env var', solution: 's' });
+    const res = await reportIssueTool({ error: 'no env var', solution: 's' }, k);
 
     const dir = join(projectRoot, '.reformer', 'issue_reports');
     const files = readdirSync(dir);
@@ -84,8 +92,8 @@ describe('reportIssueTool (defect 77)', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-22T10:14:05.123Z'));
     try {
-      await reportIssueTool({ error: 'same error', solution: 'first' });
-      await reportIssueTool({ error: 'same error', solution: 'second' });
+      await reportIssueTool({ error: 'same error', solution: 'first' }, k);
+      await reportIssueTool({ error: 'same error', solution: 'second' }, k);
     } finally {
       vi.useRealTimers();
     }
@@ -107,7 +115,7 @@ describe('reportIssueTool (defect 77)', () => {
     writeFileSync(blocker, 'not a dir', 'utf-8');
     process.env[ISSUE_REPORTS_DIR_ENV] = join(blocker, 'issue_reports');
 
-    const res = await reportIssueTool({ error: 'e', solution: 's' });
+    const res = await reportIssueTool({ error: 'e', solution: 's' }, k);
 
     expect(res.content[0].text).toMatch(/could not write the issue report/i);
     expect(res.content[0].text).toContain(ISSUE_REPORTS_DIR_ENV);

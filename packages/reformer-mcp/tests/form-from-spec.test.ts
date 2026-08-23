@@ -22,9 +22,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { buildBundle } from '../src/generate/builders';
-import { intentFromSpec } from '../src/generate/from-spec';
-import { analyzeSpec, parseValidationCell } from '../src/utils/spec-analyzer';
+import { buildBundle } from '../src/core/generate/builders.js';
+import { intentFromSpec } from '../src/core/generate/from-spec';
+import { analyzeSpec, parseValidationCell } from '../src/core/spec/analyze';
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/spec-loan-request.md');
 const spec = readFileSync(FIXTURE, 'utf-8');

@@ -4,6 +4,13 @@
   "description": "MCP server for ReFormer form library - provides AI assistants with comprehensive documentation and tools for form development",
   "type": "module",
   "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./core": "./dist/core/knowledge.js",
+    "./browser": "./dist/platform/browser/knowledge.js",
+    "./package.json": "./package.json",
+    "./*": "./*"
+  },
   "bin": {
     "reformer-mcp": "./dist/index.js"
   },
@@ -16,7 +23,7 @@
   ],
   "scripts": {
     "generate:llms": "node ../../scripts/generate-llms-txt .",
-    "build": "npm run generate:llms && tsc && node scripts/copy-templates.mjs",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && npm run generate:llms && tsc && node scripts/copy-templates.mjs",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "test": "node ../../scripts/run-vitest.mjs",

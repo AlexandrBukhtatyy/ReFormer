@@ -17,7 +17,7 @@
  *    `cross` — 65, `compute` — 55, а `applyEach`/`aggregateInto`/`exclusiveFlag` — ноль).
  */
 
-import { getMergedIndex } from './loader.js';
+import { memoize, type Knowledge } from '../knowledge.js';
 import type { IndexedSymbol } from './types.js';
 
 export interface SymbolHit {
@@ -57,11 +57,17 @@ interface SymbolCorpus {
   dfText: Map<string, number>;
 }
 
-let cachedCorpus: SymbolCorpus | null = null;
+/**
+ * Поисковый корпус строится один раз на знание, а не на модуль: два разных `Knowledge`
+ * (вшитый артефакт и папка проекта) обязаны иметь независимые корпуса, иначе второй молча
+ * отвечал бы символами первого.
+ */
+function corpus(k: Knowledge): SymbolCorpus {
+  return memoize(k, 'search:symbol-corpus', () => buildCorpus(k));
+}
 
-function corpus(): SymbolCorpus {
-  if (cachedCorpus) return cachedCorpus;
-  const docs = getMergedIndex().symbols.map((symbol) => {
+function buildCorpus(k: Knowledge): SymbolCorpus {
+  const docs = k.index.symbols.map((symbol) => {
     const nameTokens = new Set(tokenize(symbol.name));
     // Описание + сигнатура + темы: всё, что описывает НАЗНАЧЕНИЕ символа своими словами.
     const text = [
@@ -82,8 +88,7 @@ function corpus(): SymbolCorpus {
     for (const t of d.textTokens.keys()) dfText.set(t, (dfText.get(t) ?? 0) + 1);
   }
 
-  cachedCorpus = { docs, dfName, dfText };
-  return cachedCorpus;
+  return { docs, dfName, dfText };
 }
 
 /**
@@ -110,12 +115,12 @@ function popularityBoost(usage: number | undefined): number {
  * @param pkg   - Ограничить пакетом; `'*'`/undefined — искать везде.
  * @param limit - Максимум результатов.
  */
-export function searchSymbols(query: string, pkg?: string, limit = 5): SymbolHit[] {
+export function searchSymbols(k: Knowledge, query: string, pkg?: string, limit = 5): SymbolHit[] {
   const terms = [...new Set(tokenize(String(query ?? '')))];
   if (terms.length === 0) return [];
   const restrictTo = pkg && pkg !== '*' ? pkg : null;
 
-  const { docs, dfName, dfText } = corpus();
+  const { docs, dfName, dfText } = corpus(k);
   const total = docs.length;
 
   const hits: SymbolHit[] = [];
@@ -176,18 +181,19 @@ export interface SectionEvidence {
  * @param limit        - Сколько символов вернуть.
  */
 export function rankSymbolsForQuery(
+  k: Knowledge,
   query: string,
   sections: SectionEvidence[],
   pkg?: string,
   limit = 5
 ): SymbolHit[] {
   const direct = new Map<string, number>();
-  for (const h of searchSymbols(query, pkg, 40)) direct.set(h.symbol.name, h.score);
+  for (const h of searchSymbols(k, query, pkg, 40)) direct.set(h.symbol.name, h.score);
 
-  const { docs } = corpus();
+  const { docs } = corpus(k);
   const restrictTo = pkg && pkg !== '*' ? pkg : null;
   const maxSectionScore = Math.max(1, ...sections.map((s) => s.score));
-  const totalTopics = Math.max(1, getMergedIndex().topics.length);
+  const totalTopics = Math.max(1, k.index.topics.length);
 
   const fromDocs = new Map<string, number>();
   for (const section of sections) {
@@ -237,6 +243,6 @@ export function renderSymbolHits(hits: SymbolHit[]): string {
 }
 
 /** Только для тестов — сбросить кэш документов. */
-export function __resetSymbolSearchCache(): void {
-  cachedCorpus = null;
+export function __resetSymbolSearchCache(k: Knowledge): void {
+  k.memo.delete('search:symbol-corpus');
 }

@@ -16,8 +16,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { findRecipeTool } from '../src/tools/find-recipe';
+import { findRecipeTool } from '../src/core/tools/find-recipe';
 import { getSectionBySlug, listAvailablePackages } from '../src/utils/docs-parser';
+import { cliKnowledge } from '../src/platform/cli/knowledge.js';
+
+/** Знание процесса: тесты гоняются в Node, поэтому источники — те же, что у сервера. */
+const k = cliKnowledge();
 
 /** Формулировки, на которых был замерен 68%-й промах. */
 const NATURAL_TOPICS = [
@@ -52,7 +56,7 @@ describe('find_recipe — каскад в полнотекстовый поис�
   it.runIf(hasDocs)('ни одна естественная формулировка не даёт "No recipe found"', async () => {
     const dead: string[] = [];
     for (const topic of NATURAL_TOPICS) {
-      const { content } = await findRecipeTool({ topic });
+      const { content } = await findRecipeTool({ topic }, k);
       if (content[0].text.startsWith('No recipe found')) dead.push(topic);
     }
     expect(dead, `тупик вместо каскада для: ${dead.join(', ')}`).toEqual([]);
@@ -60,7 +64,7 @@ describe('find_recipe — каскад в полнотекстовый поис�
 
   it.runIf(hasDocs)('каждый URI из каскада резолвится через getSectionBySlug', async () => {
     for (const topic of NATURAL_TOPICS) {
-      const { content } = await findRecipeTool({ topic });
+      const { content } = await findRecipeTool({ topic }, k);
       for (const { short, slug } of extractUris(content[0].text)) {
         expect(
           getSectionBySlug(`@reformer/${short}`, slug),
@@ -72,18 +76,18 @@ describe('find_recipe — каскад в полнотекстовый поис�
 
   it.runIf(hasDocs)('курируемый рецепт по-прежнему выигрывает у каскада', async () => {
     // `wizard` резолвится алиасом в multi-step на шаге 1 — каскад не должен его перехватывать.
-    const { content } = await findRecipeTool({ topic: 'wizard' });
+    const { content } = await findRecipeTool({ topic: 'wizard' }, k);
     expect(content[0].text).toMatch(/^# Recipe: /);
   });
 
   it('заведомо бессмысленный топик доходит до фолбэка со списком алиасов', async () => {
-    const { content } = await findRecipeTool({ topic: 'zzqqxywvunlikelyterm' });
+    const { content } = await findRecipeTool({ topic: 'zzqqxywvunlikelyterm' }, k);
     expect(content[0].text).toMatch(/No recipe found/);
   });
 
   it('пустой / не-строковый topic по-прежнему деградирует в сообщение, а не в throw', async () => {
     for (const topic of [undefined, '', '   ']) {
-      const { content } = await findRecipeTool({ topic: topic as string });
+      const { content } = await findRecipeTool({ topic: topic as string }, k);
       expect(content[0].text).toMatch(/topic/i);
     }
   });

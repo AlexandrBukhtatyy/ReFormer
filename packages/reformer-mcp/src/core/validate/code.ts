@@ -17,8 +17,9 @@
  */
 
 import { publicSymbols } from '../index/symbols.js';
-import { indexedSymbol } from '../index/loader.js';
-import { KNOWN_PACKAGES } from '../utils/docs-parser.js';
+import { symbolsByName } from '../index/merge.js';
+import { KNOWN_PACKAGES } from '../docs/packages.js';
+import type { Knowledge } from '../knowledge.js';
 import type { Diagnostic } from './codes.js';
 
 /** Один разобранный импорт. */
@@ -115,6 +116,7 @@ export interface ValidateCodeOptions {
  *          «ошибок нет» за «код верен».
  */
 export async function validateCode(
+  k: Knowledge,
   code: string,
   _options: ValidateCodeOptions = {}
 ): Promise<{ diagnostics: Diagnostic[]; limitations: string[] }> {
@@ -130,9 +132,9 @@ export async function validateCode(
   for (const imp of reformerImports) {
     const basePackage = imp.from.split('/').slice(0, 2).join('/');
     for (const { imported } of imp.names) {
-      const matches = await findSymbolAnywhere(imported);
+      const matches = await findSymbolAnywhere(k, imported);
       if (matches.length === 0) {
-        const suggestions = await suggestNames(imported);
+        const suggestions = await suggestNames(k, imported);
         diagnostics.push({
           code: 'RF002',
           severity: 'error',
@@ -164,7 +166,7 @@ export async function validateCode(
         // а в импорте — как `/behaviors`. Без нормализации любой корректный импорт из
         // подпути объявлялся ошибкой.
         const subpath = imp.from.slice(basePackage.length); // '' либо '/behaviors'
-        const entries = entriesFor(imported, basePackage).map((e) =>
+        const entries = entriesFor(k, imported, basePackage).map((e) =>
           e === '.' ? '' : e.replace(/^\./, '')
         );
         if (entries.length > 0 && !entries.includes(subpath)) {
@@ -245,16 +247,16 @@ export async function validateCode(
 }
 
 /** Спецификаторы импорта символа в этом пакете. Пусто — индекса нет, проверку пропускаем. */
-function entriesFor(name: string, pkg: string): string[] {
-  const hit = indexedSymbol(name, pkg)[0];
+function entriesFor(k: Knowledge, name: string, pkg: string): string[] {
+  const hit = symbolsByName(k.index, name, pkg)[0];
   return hit?.entries ?? [];
 }
 
 /** Все пакеты, где встречается имя. */
-async function findSymbolAnywhere(name: string) {
+async function findSymbolAnywhere(k: Knowledge, name: string) {
   const out = [];
   for (const pkg of KNOWN_PACKAGES) {
-    const hit = (await publicSymbols(pkg)).find((s) => s.name === name);
+    const hit = (await publicSymbols(k, pkg)).find((s) => s.name === name);
     if (hit) out.push(hit);
   }
   return out;
@@ -265,10 +267,10 @@ async function findSymbolAnywhere(name: string) {
  * дёшево и достаточно: опечатки и «похожие по смыслу» имена (`validateField` → `validate`,
  * `validateWhen`) попадают в выдачу.
  */
-async function suggestNames(name: string): Promise<string[]> {
+async function suggestNames(k: Knowledge, name: string): Promise<string[]> {
   const target = name.toLowerCase();
   const all: string[] = [];
-  for (const pkg of KNOWN_PACKAGES) all.push(...(await publicSymbols(pkg)).map((s) => s.name));
+  for (const pkg of KNOWN_PACKAGES) all.push(...(await publicSymbols(k, pkg)).map((s) => s.name));
   return [...new Set(all)]
     .map((candidate) => ({ candidate, d: distance(target, candidate.toLowerCase()) }))
     .filter((x) => x.d <= Math.max(2, Math.floor(target.length / 3)))
