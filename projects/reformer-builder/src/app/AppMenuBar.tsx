@@ -36,6 +36,7 @@ import { applyMarkdownView } from '../canvas/markdown/view-pref';
 import { exportExample, openProject, triggerSave } from './save-actions';
 import { requestClose } from './close-actions';
 import { HelpDialogs, type HelpDialog } from './HelpDialogs';
+import { SpecDialog } from './SpecDialog';
 import { formatShortcut } from '../lib/shortcuts';
 
 /** Новая пустая форма — имя без коллизий с уже открытыми вкладками. */
@@ -57,6 +58,7 @@ export function AppMenuBar() {
   const canUndo = (tab?.past.length ?? 0) > 0;
   const canRedo = (tab?.future.length ?? 0) > 0;
   const [help, setHelp] = useState<HelpDialog | null>(null);
+  const [spec, setSpec] = useState(false);
 
   return (
     <>
@@ -65,6 +67,7 @@ export function AppMenuBar() {
           <MenubarTrigger className={TRIGGER}>Файл</MenubarTrigger>
           <MenubarContent align="start">
             <MenubarItem onClick={newForm}>Новая форма</MenubarItem>
+            <MenubarItem onClick={() => setSpec(true)}>Форма по спеке…</MenubarItem>
             <MenubarItem onClick={() => void openProject()}>Открыть проект…</MenubarItem>
             <MenubarSeparator />
             <MenubarItem disabled={!tab} onClick={() => tab && void triggerSave(tab)}>
@@ -254,6 +257,7 @@ export function AppMenuBar() {
       </Menubar>
 
       <HelpDialogs dialog={help} onClose={() => setHelp(null)} />
+      <SpecDialog open={spec} onClose={() => setSpec(false)} />
     </>
   );
 }
