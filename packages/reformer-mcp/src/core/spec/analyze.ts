@@ -80,6 +80,23 @@ export function countFieldsPerStep(content: string): Record<string, number> {
   return result;
 }
 
+/**
+ * Похоже ли значение ячейки на ключ поля.
+ *
+ * Точки разрешены, и это не послабление, а исправление: в спеках проекта составными путями
+ * записаны целые разделы формы — `personalData.lastName`, `passportData.series`. Прежний
+ * бездотный шаблон отвергал такую строку в разборе по шапке, позиционная ветка camelCase-ячейки
+ * в ней тоже не находила, и строка ПРОПАДАЛА молча. На кредитной спеке так терялось 17 полей —
+ * паспорт и персональные данные целиком. При этом `extractFieldKeyFromTrBlock`, который питает
+ * списки условных и вычисляемых полей, точки допускал всегда: эти списки ссылались на поля,
+ * которых в `fields` не было.
+ *
+ * Ограничение на длину прежнее: односимвольная ячейка — это номер или пометка, а не ключ.
+ */
+function isFieldKey(cell: string): boolean {
+  return /^[a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9]+)*$/.test(cell) && cell.length > 1;
+}
+
 function extractFieldKeyFromTrBlock(trBlock: string): string | null {
   for (const m of trBlock.matchAll(/<td[^>]*>([^<]+)<\/td>/g)) {
     const cell = m[1].trim();
@@ -363,6 +380,16 @@ function guessField(name: string, note: string): { type: FieldType; component: s
  * Поля из табличных строк спеки. Ключом считается ячейка, похожая на идентификатор
  * (`camelCase` латиницей), меткой — первая содержательная ячейка рядом.
  */
+/**
+ * Потолок числа полей — защита от разбора мусора, а не свойство формата.
+ *
+ * Прежние 60 были меньше реальных спек проекта: страховая даёт 121 поле, кредитная 68, то есть
+ * обрезалась половина формы — и обрезалась молча. Полученная форма выглядела разобранной. Порог
+ * поднят до величины, за которой начинается уже не форма, а ошибка разбора; сам факт обрезки
+ * теперь виден в предупреждениях.
+ */
+export const MAX_FIELDS = 200;
+
 export function extractFields(content: string): SpecField[] {
   const fields: SpecField[] = [];
   const seen = new Set<string>();
@@ -396,7 +423,7 @@ export function extractFields(content: string): SpecField[] {
       const key = cellByHeader(cells, headers, ['ключ в форме', 'ключ', 'field', 'key']);
       // Ячейка может оказаться пустой или нести не идентификатор (строка-разделитель) —
       // тогда падаем на общий путь ниже, а не пропускаем строку целиком.
-      if (key && /^[a-z][a-zA-Z0-9]*$/.test(key) && key.length > 1) {
+      if (key && isFieldKey(key)) {
         const typeCell = cellByHeader(cells, headers, ['тип поля', 'тип', 'type']);
         const parsedType = typeCell ? parseTypeCell(typeCell) : null;
         const type = parsedType?.type ?? guessField(key, cells.join(' ')).type;
@@ -423,7 +450,7 @@ export function extractFields(content: string): SpecField[] {
       }
     }
 
-    const key = cells.find((c) => /^[a-z][a-zA-Z0-9]*$/.test(c) && c.length > 1);
+    const key = cells.find(isFieldKey);
     if (!key) continue;
     const label = cells.find((c) => c !== key && /[А-Яа-яA-Za-z]{3,}/.test(c));
     push(key, cells.join(' '), label);
@@ -431,11 +458,11 @@ export function extractFields(content: string): SpecField[] {
 
   if (fields.length === 0) {
     for (const line of content.split('\n')) {
-      const m = line.match(/^\|\s*`?([a-z][a-zA-Z0-9]*)`?\s*\|([^|]*)\|/);
+      const m = line.match(/^\|\s*`?([a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9]+)*)`?\s*\|([^|]*)\|/);
       if (m) push(m[1], line, m[2]);
     }
   }
-  return fields.slice(0, 60);
+  return fields.slice(0, MAX_FIELDS);
 }
 
 export function analyzeSpec(content: string): SpecAnalysis {
@@ -447,6 +474,14 @@ export function analyzeSpec(content: string): SpecAnalysis {
     warnings.push(
       'Полей в спеке распознать не удалось — заполните `fields` в intent вручную. ' +
         'Разбор рассчитан на таблицы с колонкой-идентификатором поля.'
+    );
+  }
+  if (fields.length === MAX_FIELDS) {
+    // Ровно потолок — почти наверняка обрезка. Сказать об этом обязательно: иначе форма
+    // выглядит разобранной целиком, а недостающие поля обнаружит только пользователь.
+    warnings.push(
+      `Полей ровно ${MAX_FIELDS} — это потолок разбора, часть могла быть отброшена. ` +
+        'Проверьте конец спеки и допишите недостающее в `fields`.'
     );
   }
   if (!/## Canonical user-facing strings/i.test(content)) {

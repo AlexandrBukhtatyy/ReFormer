@@ -24,7 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { buildBundle } from '../src/core/generate/builders.js';
 import { intentFromSpec } from '../src/core/generate/from-spec';
-import { analyzeSpec, parseValidationCell } from '../src/core/spec/analyze';
+import { analyzeSpec, MAX_FIELDS, parseValidationCell } from '../src/core/spec/analyze';
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/spec-loan-request.md');
 const spec = readFileSync(FIXTURE, 'utf-8');
@@ -280,5 +280,50 @@ describe.runIf(hasCore)('сгенерированная форма работа�
     await tick();
     expect(node(form.propertyValue).disabled.value).toBe(true);
     expect(node(form.carBrand).disabled.value).toBe(false);
+  });
+});
+
+describe('составные пути и потолок разбора', () => {
+  // Оба свойства проверяются на РЕАЛЬНЫХ спеках проекта, а не на выдуманной таблице: именно
+  // на них разбор молча терял поля, а выдуманная фикстура этого не показывала.
+  const spec = (name: string) =>
+    readFileSync(join(process.cwd(), '../../docs/specs', name), 'utf8');
+
+  it('поля с точкой в ключе извлекаются, а не пропадают', () => {
+    // `personalData.lastName`, `passportData.series` — так в спеках записаны целые разделы
+    // формы. Прежний бездотный шаблон отбрасывал такие строки без единого предупреждения:
+    // на кредитной спеке так терялось 17 полей — паспорт и персональные данные целиком.
+    const a = analyzeSpec(spec('credit-application-form.md'));
+    const dotted = a.fields.filter((f) => f.name.includes('.'));
+    expect(dotted.length).toBeGreaterThan(10);
+    expect(a.fields.map((f) => f.name)).toContain('personalData.lastName');
+    expect(a.fields.map((f) => f.name)).toContain('passportData.series');
+  });
+
+  it('составной ключ не мешает читать остальные колонки строки', () => {
+    // Прежде такая строка проваливалась в позиционную ветку, где тип, значение и валидация
+    // не читаются вовсе. То есть поле могло «найтись», но приехать без правил.
+    const a = analyzeSpec(spec('credit-application-form.md'));
+    const withRules = a.fields.filter((f) => f.name.includes('.') && f.rules.length > 0);
+    expect(withRules.length).toBeGreaterThan(0);
+  });
+
+  it('спека крупнее прежнего потолка разбирается целиком', () => {
+    // Страховая даёт 121 поле при прежнем потолке 60 — обрезалась половина формы, молча.
+    const a = analyzeSpec(spec('insurance-application-form.md'));
+    expect(a.fields.length).toBeGreaterThan(100);
+    expect(a.fields.length).toBeLessThanOrEqual(MAX_FIELDS);
+  });
+
+  it('упёршись в потолок, разбор говорит об этом', () => {
+    // Молчаливая обрезка выглядит как полный разбор — и это худший исход: недостающие поля
+    // обнаружит пользователь, а не тот, кто генерирует форму.
+    const rows = Array.from(
+      { length: MAX_FIELDS + 20 },
+      (_, i) => `<tr><td>1.${i}</td><td>field${i}</td><td>Поле ${i}</td><td>Input</td></tr>`
+    ).join('\n');
+    const a = analyzeSpec(`# Форма: Много полей\n\n<table>\n${rows}\n</table>\n`);
+    expect(a.fields).toHaveLength(MAX_FIELDS);
+    expect(a.warnings.some((w) => w.includes('потолок'))).toBe(true);
   });
 });

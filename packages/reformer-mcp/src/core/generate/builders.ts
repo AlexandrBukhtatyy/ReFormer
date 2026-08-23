@@ -92,22 +92,102 @@ export function buildModelTs(intent: FormIntent): string {
     lines.push('');
   }
 
+  const tree = modelTree(intent);
+
   lines.push(`export interface ${intent.interfaceName} {`);
-  for (const f of intent.fields) {
-    if (f.label) lines.push(`  /** ${f.label} */`);
-    lines.push(`  ${f.name}: ${fieldTsType(f)};`);
-  }
-  for (const a of intent.arrays) {
-    lines.push(`  ${a.name}: ${a.itemInterfaceName}[];`);
-  }
+  lines.push(...renderShape(tree, 1));
   lines.push('}');
   lines.push('');
 
   lines.push(`export const initialFormModel: ${intent.interfaceName} = {`);
-  for (const f of intent.fields) lines.push(`  ${f.name}: ${initialLiteral(f)},`);
-  for (const a of intent.arrays) lines.push(`  ${a.name}: ${JSON.stringify(a.initialValue)},`);
+  lines.push(...renderInitial(tree, 1));
   lines.push('};');
   return lines.join('\n') + '\n';
+}
+
+/**
+ * Узел дерева модели: либо лист (поле или массив), либо группа.
+ *
+ * Дерево нужно, потому что путь поля может быть составным — `personalData.lastName`. Плоский
+ * рендер давал `personalData.lastName: string;`, а это неTypeScript вовсе: файл не собирался
+ * у пользователя. Составные пути — не экзотика: в спеках проекта ими записаны целые разделы
+ * (паспорт, персональные данные), и именно из-за них разбор спеки их молча выбрасывал.
+ */
+type ModelNode =
+  | { kind: 'field'; field: FieldIntent }
+  | { kind: 'array'; array: ArrayIntent }
+  | { kind: 'group'; children: Map<string, ModelNode> };
+
+function modelTree(intent: FormIntent): Map<string, ModelNode> {
+  const root = new Map<string, ModelNode>();
+
+  const put = (path: string, leaf: ModelNode) => {
+    const parts = path.split('.').filter(Boolean);
+    let level = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const key = parts[i];
+      const existing = level.get(key);
+      if (existing?.kind === 'group') {
+        level = existing.children;
+        continue;
+      }
+      // Скаляр и группа под одним именем — противоречие в самом intent. Побеждает группа:
+      // без неё потерялись бы ВСЕ вложенные поля, а не одно.
+      const group: ModelNode = { kind: 'group', children: new Map() };
+      level.set(key, group);
+      level = group.children;
+    }
+    const last = parts[parts.length - 1] ?? path;
+    if (level.get(last)?.kind !== 'group') level.set(last, leaf);
+  };
+
+  // Массивы объявляются первыми: путь массива тоже может быть составным.
+  for (const a of intent.arrays) put(a.modelPath ?? a.name, { kind: 'array', array: a });
+  // Путь берётся тот же, что уходит в `$model(...)` разметки, иначе привязка ведёт в никуда.
+  for (const f of intent.fields) put(f.modelPath ?? f.name, { kind: 'field', field: f });
+
+  return root;
+}
+
+/** Тело интерфейса: группы разворачиваются во вложенные объекты. */
+function renderShape(level: Map<string, ModelNode>, depth: number): string[] {
+  const pad = '  '.repeat(depth);
+  const out: string[] = [];
+  for (const [key, node] of level) {
+    if (node.kind === 'group') {
+      out.push(`${pad}${key}: {`);
+      out.push(...renderShape(node.children, depth + 1));
+      out.push(`${pad}};`);
+      continue;
+    }
+    if (node.kind === 'array') {
+      out.push(`${pad}${key}: ${node.array.itemInterfaceName}[];`);
+      continue;
+    }
+    if (node.field.label) out.push(`${pad}/** ${node.field.label} */`);
+    out.push(`${pad}${key}: ${fieldTsType(node.field)};`);
+  }
+  return out;
+}
+
+/** Начальное значение — той же формы, что и интерфейс. */
+function renderInitial(level: Map<string, ModelNode>, depth: number): string[] {
+  const pad = '  '.repeat(depth);
+  const out: string[] = [];
+  for (const [key, node] of level) {
+    if (node.kind === 'group') {
+      out.push(`${pad}${key}: {`);
+      out.push(...renderInitial(node.children, depth + 1));
+      out.push(`${pad}},`);
+      continue;
+    }
+    if (node.kind === 'array') {
+      out.push(`${pad}${key}: ${JSON.stringify(node.array.initialValue)},`);
+      continue;
+    }
+    out.push(`${pad}${key}: ${initialLiteral(node.field)},`);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

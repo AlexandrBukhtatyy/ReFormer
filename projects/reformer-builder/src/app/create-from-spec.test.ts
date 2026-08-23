@@ -70,3 +70,37 @@ describe('createFormFromSpec', () => {
     expect(Object.keys(editorStore.getState().tabs)).toHaveLength(2);
   });
 });
+
+describe('createFormFromSpec на настоящих спеках проекта', () => {
+  // Фикстура MCP — девять полей «по одному представителю на класс поведения». Настоящие спеки
+  // на порядок больше и устроены иначе: составные ключи (`personalData.lastName`), несколько
+  // таблиц, десятки правил. Именно на них разбор молча терял поля, и именно они — та задача,
+  // ради которой генерация по спеке существует.
+  const realSpec = (name: string) =>
+    readFileSync(join(process.cwd(), '../../docs/specs', name), 'utf8');
+
+  beforeEach(() => {
+    editorStore.setState(() => R.initialState());
+  });
+
+  it('кредитная спека даёт форму, проходящую строгий гейт', () => {
+    const res = createFormFromSpec(realSpec('credit-application-form.md'));
+    expect(res.status).toBe('created');
+
+    const tab = editorStore.getState().tabs[res.tab!];
+    const models = [...JSON.stringify(tab.schema).matchAll(/\$model\(([^)]*)\)/g)].map((m) => m[1]);
+    expect(models.length).toBeGreaterThan(60);
+    // Составные пути — целые разделы формы (паспорт, персональные данные). Раньше их не было.
+    expect(models.filter((m) => m.includes('.')).length).toBeGreaterThan(10);
+    expect(tab.rules.validation.length).toBeGreaterThan(30);
+  });
+
+  it('страховая спека крупнее прежнего потолка разбора и тоже проходит', () => {
+    const res = createFormFromSpec(realSpec('insurance-application-form.md'));
+    expect(res.status).toBe('created');
+
+    const tab = editorStore.getState().tabs[res.tab!];
+    const models = [...JSON.stringify(tab.schema).matchAll(/\$model\(([^)]*)\)/g)].map((m) => m[1]);
+    expect(models.length).toBeGreaterThan(100);
+  });
+});
