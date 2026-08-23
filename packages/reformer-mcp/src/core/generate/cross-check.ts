@@ -163,25 +163,39 @@ export function crossCheckBundle(intent: FormIntent, layoutJson: unknown): Cross
 
   // C8 — у каждого узла массива есть initialValue, и его ключи совпадают с itemFields.
   // Проверка, которую схема сделать не может: она видит `initialValue` как opaque-значение.
+  //
+  // По контракту renderer-json это литерал ОДНОГО пустого элемента (объект), а не список
+  // начальных строк: `ArrayIntent.initialValue` и `JsonArrayNode.initialValue` называются
+  // одинаково, но значат разное. Прежняя редакция требовала здесь массив — то есть закрепляла
+  // формат, который ajv-схема пакета отвергает.
   const arrayNodes: Array<Record<string, unknown>> = [];
   collectArrayNodes(layoutJson, arrayNodes);
   for (const node of arrayNodes) {
     const path = String(node.array).replace(/^\$model\(|\)$/g, '');
     const decl = intent.arrays.find((a) => (a.modelPath ?? a.name) === path);
-    if (!Array.isArray(node.initialValue)) {
-      err('C8', `Узел массива \`${path}\` без initialValue — первое добавление строки упадёт.`);
+    const sample = node.initialValue;
+    if (sample === null || typeof sample !== 'object' || Array.isArray(sample)) {
+      err(
+        'C8',
+        `Узел массива \`${path}\` без initialValue-объекта — первое добавление строки упадёт.`
+      );
       continue;
     }
-    const sample = node.initialValue[0];
-    if (decl && sample && typeof sample === 'object') {
+    if (decl) {
       const declared = new Set(decl.itemFields.map((f) => f.name));
-      const extra = Object.keys(sample as object).filter((k) => !declared.has(k));
+      const extra = Object.keys(sample).filter((k) => !declared.has(k));
       if (extra.length > 0) {
         err(
           'C8',
           `initialValue массива \`${path}\` содержит поля вне itemFields: ${extra.join(', ')}.`
         );
       }
+    }
+    // Шаблон элемента обязан лежать под `$template`: узел, положенный в `item` напрямую, ajv
+    // отвергает, а рендер не находит.
+    const item = node.item;
+    if (item === null || typeof item !== 'object' || !('$template' in (item as object))) {
+      err('C8', `Узел массива \`${path}\`: шаблон элемента должен лежать в \`item.$template\`.`);
     }
   }
 

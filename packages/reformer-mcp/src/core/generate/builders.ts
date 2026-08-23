@@ -12,8 +12,10 @@
  */
 
 import type {
+  ArrayIntent,
   BehaviorIntent,
   FieldIntent,
+  FieldType,
   FormIntent,
   LayoutNode,
   ValidationRuleIntent,
@@ -113,6 +115,20 @@ export function buildModelTs(intent: FormIntent): string {
 // ---------------------------------------------------------------------------
 
 /** Какие валидаторы реально использованы — импортируем ровно их. */
+/**
+ * Имя валидатора → его ВЫЗОВ.
+ *
+ * `@reformer/core/validators` экспортирует фабрики: `required` — функция, создающая правило,
+ * а не само правило. Контракт `ValidationRuleIntent.rules` допускает обе записи (`required` и
+ * `minLength(2)`), и раньше первая уходила в код как есть — то есть в `validate(…, [required])`,
+ * который не компилируется. Путь «спека → бандл» этого не показывал: анализатор спек всегда
+ * пишет со скобками. Показал агент, для которого `required` — самая естественная запись.
+ */
+function callValidator(rule: string): string {
+  const trimmed = rule.trim();
+  return /[()]/.test(trimmed) ? trimmed : `${trimmed}()`;
+}
+
 function collectValidators(rules: ValidationRuleIntent[]): string[] {
   const used = new Set<string>();
   for (const rule of rules) {
@@ -158,7 +174,7 @@ export function buildValidationTs(intent: FormIntent): string {
   for (const rule of intent.validation) {
     const body: string[] = [];
     if (rule.rules.length > 0) {
-      body.push(`validate(model.$.${rule.target}, [${rule.rules.join(', ')}]);`);
+      body.push(`validate(model.$.${rule.target}, [${rule.rules.map(callValidator).join(', ')}]);`);
     }
     if (rule.async) {
       body.push(`validateAsync(model.$.${rule.target}, [${rule.async}]);`);
@@ -245,8 +261,10 @@ interface JsonNode {
   componentProps?: Record<string, unknown>;
   children?: JsonNode[];
   array?: string;
-  initialValue?: unknown[];
-  item?: JsonNode;
+  /** «Пустой» элемент для кнопки «Добавить» — ОБЪЕКТ по форме элемента, не массив строк. */
+  initialValue?: Record<string, unknown>;
+  /** Контракт renderer-json: шаблон элемента лежит под `$template`, а не в самом `item`. */
+  item?: { $template: JsonNode };
 }
 
 function fieldNode(f: FieldIntent): JsonNode {
@@ -263,6 +281,43 @@ function fieldNode(f: FieldIntent): JsonNode {
   };
 }
 
+/**
+ * «Пустой» элемент массива для кнопки «Добавить».
+ *
+ * `ArrayIntent.initialValue` — массив НАЧАЛЬНЫХ СТРОК, а `JsonArrayNode.initialValue` — литерал
+ * ОДНОГО пустого элемента: имена совпали, смысл разный. Раньше массив уезжал в разметку как есть,
+ * и renderer-json отвергал схему («initialValue must be object»), но узнавал об этом только
+ * пользователь: `crossCheckBundle` структуру узлов не знает и печатала «✅ пройдена».
+ *
+ * Образец берётся из первой строки, если она там есть, — она уже по форме элемента. Иначе
+ * собирается из `itemFields`: пустой элемент нужен даже тогда, когда начальных строк нет.
+ */
+function emptyItem(a: ArrayIntent): Record<string, unknown> {
+  const sample = a.initialValue.find(
+    (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+  );
+  if (sample) return sample as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const f of a.itemFields) out[f.name] = emptyValue(f.type);
+  return out;
+}
+
+/** Пустое значение по типу поля — то, с чего начинается новая строка массива. */
+function emptyValue(type: FieldType): unknown {
+  switch (type) {
+    case 'number':
+      return null;
+    case 'boolean':
+      return false;
+    case 'array':
+      return [];
+    case 'object':
+      return {};
+    default:
+      return '';
+  }
+}
+
 function layoutToJson(node: LayoutNode, intent: FormIntent): JsonNode | null {
   switch (node.kind) {
     case 'field': {
@@ -276,10 +331,12 @@ function layoutToJson(node: LayoutNode, intent: FormIntent): JsonNode | null {
         selector: a.name,
         array: `$model(${a.modelPath ?? a.name})`,
         component: `$component(${a.component ?? 'FormArray'})`,
-        initialValue: a.initialValue,
+        initialValue: emptyItem(a),
         item: {
-          component: '$html(div)',
-          children: a.itemFields.map(fieldNode),
+          $template: {
+            component: '$html(div)',
+            children: a.itemFields.map(fieldNode),
+          },
         },
       };
     }

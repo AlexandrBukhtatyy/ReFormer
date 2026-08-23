@@ -229,3 +229,65 @@ describe('tools plan_form / generate_form', () => {
     expect(content[0].text).toContain('### `model.ts`');
   });
 });
+
+describe('layout проходит НАСТОЯЩИЙ валидатор renderer-json', () => {
+  // Тест кросс-пакетный, и до сих пор такого здесь не было ни одного: собственный вывод
+  // генератор проверял только `crossCheckBundle`, а она структуру узлов renderer-json не знает.
+  // Из-за этого форма с массивом уезжала пользователю с отметкой «✅ Кросс-проверка пройдена»
+  // и отвергалась ajv-схемой уже у него: шаблон элемента лежал в `item` напрямую вместо
+  // `item.$template`, а `initialValue` был списком строк вместо литерала пустого элемента.
+  //
+  // Локальный `interface JsonNode` в builders.ts с типами пакета не связан, поэтому дрейф
+  // контракта компилятор не поймает — ловить его может только такой прогон.
+  const validate = async (intent: FormIntent) => {
+    const { validateFormSchema } = await import('@reformer/renderer-json/validate');
+    return validateFormSchema(JSON.parse(buildLayoutJson(intent)));
+  };
+
+  it('форма с массивом валидна', async () => {
+    const res = await validate(goodIntent());
+    expect(res.errors).toEqual([]);
+    expect(res.valid).toBe(true);
+  });
+
+  it('массив без объявленных начальных строк тоже даёт валидную схему', async () => {
+    // Пустой `initialValue` — обычное состояние intent, пришедшего от модели: `normalizeIntent`
+    // подставляет `[]` и предупреждает. Пустой элемент обязан синтезироваться из itemFields,
+    // иначе первое нажатие «Добавить» упадёт.
+    const intent = normalizeIntent({
+      formName: 'Order',
+      target: 'renderer-json',
+      fields: [{ name: 'customer', type: 'string', component: 'Input' }],
+      arrays: [
+        {
+          name: 'items',
+          itemInterfaceName: 'OrderItem',
+          itemFields: [
+            { name: 'sku', type: 'string', component: 'Input' },
+            { name: 'qty', type: 'number', component: 'Input' },
+            { name: 'gift', type: 'boolean', component: 'Checkbox' },
+          ],
+          initialValue: [],
+        },
+      ],
+    });
+
+    const res = await validate(intent);
+    expect(res.errors).toEqual([]);
+
+    const layout = JSON.parse(buildLayoutJson(intent));
+    const arrayNode = layout.root.children.find((c: { array?: string }) => c.array);
+    // Пустое значение по типу поля: строка — '', число — null, флаг — false.
+    expect(arrayNode.initialValue).toEqual({ sku: '', qty: null, gift: false });
+  });
+
+  it('форма без массивов валидна', async () => {
+    const intent = normalizeIntent({
+      formName: 'Simple',
+      target: 'renderer-json',
+      fields: [{ name: 'email', type: 'string', component: 'Input', label: 'Email' }],
+    });
+    const res = await validate(intent);
+    expect(res.errors).toEqual([]);
+  });
+});
