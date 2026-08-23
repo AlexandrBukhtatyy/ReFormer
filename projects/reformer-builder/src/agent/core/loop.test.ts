@@ -278,6 +278,45 @@ describe('эталонная задача — мастер из 3 шагов п�
     ];
   }
 
+  /**
+   * Та же задача, но три вставки полей приходят ОДНИМ шагом — именно так их и присылает модель:
+   * промпт прямо велит класть независимые правки в разные контейнеры в один шаг.
+   */
+  function parallelScript(): FakeStep[] {
+    return [
+      { tool: 'insert_node', args: { parent: '/root', nodes: [{ component: 'Wizard' }] } },
+      {
+        tool: 'insert_node',
+        args: { parent: WIZARD, nodes: [{ component: 'Step' }, { component: 'Step' }] },
+      },
+      {
+        parallel: STEPS.map((step, s) => ({
+          tool: 'insert_node',
+          args: { parent: step, nodes: fieldsOf(s) },
+        })),
+      },
+    ];
+  }
+
+  it('вставки одного шага не затирают друг друга', async () => {
+    // Вызовы одного шага идут параллельно, а черновик у хода один: каждый читал его ДО того, как
+    // предыдущий записал результат, и последний ответ затирал остальные. Вживую это выглядело как
+    // «мастер из трёх шагов, поля только на последнем» — форма собрана, а работы в ней треть.
+    const { changeSet } = done(await play(parallelScript(), emptySchema()));
+    const outline = buildOutline(changeSet.draft);
+
+    expect(outline.filter((e) => e.component === FIELD)).toHaveLength(12);
+    for (const step of STEPS) {
+      expect(outline.filter((e) => e.ref.startsWith(`${step}/`))).toHaveLength(4);
+    }
+  });
+
+  it('параллельные вставки дают ту же форму, что и последовательные', async () => {
+    const parallel = done(await play(parallelScript(), emptySchema())).changeSet;
+    const serial = done(await play(serialScript(), emptySchema())).changeSet;
+    expect(buildOutline(parallel.draft)).toEqual(buildOutline(serial.draft));
+  });
+
   it('стоит не дороже храповика и строит именно то, что просили', async () => {
     const script = batchedScript();
     const { changeSet, stats, reason } = done(await play(script, emptySchema()));

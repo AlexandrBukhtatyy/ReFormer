@@ -105,20 +105,38 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
   let set = createChangeSet(opts.base, opts.baseRules);
 
+  // Очередь исполнения инструментов. Вызовы ОДНОГО шага модель присылает пачкой, и SDK запускает
+  // их параллельно, не дожидаясь предыдущего. Черновик у хода при этом один: без очереди каждый
+  // вызов читал `set.draft` ДО того, как предыдущий записал результат, и последний ответ затирал
+  // все остальные — «двенадцать полей в три шага» превращались в мастер, где поля есть только на
+  // последнем шаге, причём журнал изменений исправно перечислял все двенадцать.
+  //
+  // Очередь, а не блокировка на время всего шага: инструменты считают локально, без сети, поэтому
+  // выстроить их в цепочку не стоит ничего, а промпт обещает модели ровно это — «правки идут по
+  // порядку против формы, которая уже меняется».
+  let queue: Promise<unknown> = Promise.resolve();
+
   const tools: AiToolDef[] = opts.registry.list().map((tool) => ({
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,
     readOnly: tool.readOnly,
-    execute: async (args) => {
-      // Черновик читается в момент вызова: каждый следующий инструмент видит результат предыдущего.
-      const outcome = await opts.registry.invoke(tool.name, args, {
-        draft: set.draft,
-        base: opts.base,
-        rules: set.draftRules,
+    execute: (args) => {
+      const started = queue.then(async () => {
+        // Черновик читается ВНУТРИ очереди — то есть после того, как предыдущий вызов записал свой
+        // результат: каждый следующий инструмент видит правку предыдущего.
+        const outcome = await opts.registry.invoke(tool.name, args, {
+          draft: set.draft,
+          base: opts.base,
+          rules: set.draftRules,
+        });
+        set = withOutcome(set, outcome);
+        return outcome;
       });
-      set = withOutcome(set, outcome);
-      return outcome;
+      // Хвост очереди не должен нести отказ: `invoke` не бросает, но отклонённый промис здесь
+      // остановил бы все последующие вызовы хода.
+      queue = started.catch(() => undefined);
+      return started;
     },
   }));
 

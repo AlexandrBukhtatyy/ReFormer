@@ -8,10 +8,27 @@
  * @module reformer-builder/agent/providers/fake
  */
 
-import type { AiCapabilities, AiEvent, AiProvider, AiRequest, AiUsage } from './types';
+import type { AiCapabilities, AiEvent, AiProvider, AiRequest, AiToolDef, AiUsage } from './types';
 
-/** Шаг сценария: реплика модели, её рассуждение либо вызов инструмента. */
-export type FakeStep = { text: string } | { reasoning: string } | { tool: string; args?: unknown };
+/** Один вызов инструмента в сценарии. */
+export interface FakeToolCall {
+  tool: string;
+  args?: unknown;
+}
+
+/**
+ * Шаг сценария: реплика модели, её рассуждение либо вызовы инструментов.
+ *
+ * `parallel` — несколько вызовов ОДНОГО шага. Это не украшение сценария, а единственный способ
+ * воспроизвести живой канал: SDK запускает вызовы одного шага, не дожидаясь предыдущего, и
+ * сценарий, умеющий только по одному, оставлял непокрытым ровно тот режим, в котором ход терял
+ * правки.
+ */
+export type FakeStep =
+  | { text: string }
+  | { reasoning: string }
+  | FakeToolCall
+  | { parallel: readonly FakeToolCall[] };
 
 /** Настройки сценарного провайдера. */
 export interface FakeProviderOptions {
@@ -81,22 +98,39 @@ export function createFakeProvider(
         }
         step += 1;
 
-        const id = `call_${step}`;
-        yield { type: 'tool_call', id, name: item.tool, args: item.args ?? {} };
-
-        const tool = byName.get(item.tool);
-        if (!tool) {
-          // Сценарий назвал инструмент, которого модели не давали, — это ошибка самого теста.
-          yield {
-            type: 'error',
-            message: `Инструмент "${item.tool}" не передан модели.`,
-            retryable: false,
-          };
-          yield { type: 'done', reason: 'error' };
-          return;
+        const calls = 'parallel' in item ? item.parallel : [item];
+        const targets: { id: string; call: FakeToolCall; tool: AiToolDef }[] = [];
+        for (const [i, call] of calls.entries()) {
+          const tool = byName.get(call.tool);
+          if (!tool) {
+            // Сценарий назвал инструмент, которого модели не давали, — это ошибка самого теста.
+            yield {
+              type: 'error',
+              message: `Инструмент "${call.tool}" не передан модели.`,
+              retryable: false,
+            };
+            yield { type: 'done', reason: 'error' };
+            return;
+          }
+          targets.push({
+            id: calls.length === 1 ? `call_${step}` : `call_${step}_${i}`,
+            call,
+            tool,
+          });
         }
-        yield { type: 'tool_result', id, result: await tool.execute(item.args ?? {}) };
-        // Шаг сценария = вызов инструмента, поэтому расход сообщается здесь же, где растёт счётчик
+
+        for (const { id, call } of targets) {
+          yield { type: 'tool_call', id, name: call.tool, args: call.args ?? {} };
+        }
+
+        // Вызовы ЗАПУСКАЮТСЯ все сразу и только потом ожидаются — так же, как это делает SDK:
+        // он не ждёт результата предыдущего инструмента, прежде чем начать следующий. Ожидание
+        // по одному прятало бы от тестов гонку за черновик, ради которой режим и заведён.
+        const started = targets.map((t) => t.tool.execute(t.call.args ?? {}));
+        for (const [i, result] of (await Promise.all(started)).entries()) {
+          yield { type: 'tool_result', id: targets[i].id, result };
+        }
+        // Шаг сценария = вызовы инструментов, поэтому расход сообщается здесь же, где растёт счётчик
         // предела шагов. Событие идёт и без заданных цифр: сам факт шага — половина метрики.
         yield { type: 'step_usage', usage: options.usagePerStep ?? {} };
       }
