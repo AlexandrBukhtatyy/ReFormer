@@ -128,6 +128,7 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
       provider,
       registry: toolRegistry(),
       base: tab.schema,
+      baseRules: tab.rules,
       messages,
       ...(maxSteps !== undefined ? { maxSteps } : {}),
       ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),

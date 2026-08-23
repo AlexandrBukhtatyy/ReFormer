@@ -8,6 +8,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { FormRules } from '../../model/rules';
 import type { AiMessage, AiProvider, AiToolDef, AiUsage } from '../providers/types';
 import { createChangeSet, withOutcome, type ChangeSet } from './changeset';
 import { buildOutline, renderOutline } from './outline';
@@ -45,6 +46,12 @@ export interface AgentTurnOptions {
   registry: ToolRegistry;
   /** Схема активной вкладки на начало хода. */
   base: JsonFormSchema;
+  /**
+   * Правила вкладки на начало хода. Без них ход начинается с пустого набора, и правка правил
+   * в режиме merge — режиме по умолчанию — молча СТИРАЕТ всё, что было накоплено раньше:
+   * инструмент добавляет новое правило к пустоте, а применение записывает результат целиком.
+   */
+  baseRules?: FormRules;
   /** История диалога, включая новое сообщение пользователя. */
   messages: readonly AiMessage[];
   /** Предел шагов; по умолчанию его нет — см. {@link DEFAULT_MAX_STEPS}. */
@@ -96,7 +103,7 @@ export type TurnEvent =
  */
 export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<TurnEvent> {
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
-  let set = createChangeSet(opts.base);
+  let set = createChangeSet(opts.base, opts.baseRules);
 
   const tools: AiToolDef[] = opts.registry.list().map((tool) => ({
     name: tool.name,
@@ -108,6 +115,7 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
       const outcome = await opts.registry.invoke(tool.name, args, {
         draft: set.draft,
         base: opts.base,
+        rules: set.draftRules,
       });
       set = withOutcome(set, outcome);
       return outcome;

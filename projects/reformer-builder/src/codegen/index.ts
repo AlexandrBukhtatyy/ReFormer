@@ -9,6 +9,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
+import { hasRules, type FormRules } from '../model/rules';
 import type { MockData } from '../preview-runtime/mock-synth';
 import { assignSelectors } from './assign-selectors';
 import { collect } from './collect';
@@ -23,6 +24,7 @@ import { emitReadme } from './emit-readme';
 import { emitDataSources } from './emit-data-sources';
 import { emitBehavior } from './emit-behavior';
 import { emitFormBehavior } from './emit-form-behavior';
+import { emitFormBehaviorFromRules, emitValidationFromRules } from './emit-rules';
 import { emitValidation } from './emit-validation';
 import { emitApi } from './emit-api';
 
@@ -40,7 +42,8 @@ export interface FileOut {
 export function buildExampleFiles(
   rawSchema: JsonFormSchema,
   mock: MockData,
-  formName: string
+  formName: string,
+  rules?: FormRules
 ): FileOut[] {
   const names = makeNames(formName);
   const { schema, info } = assignSelectors(rawSchema);
@@ -57,8 +60,18 @@ export function buildExampleFiles(
     { path: 'README.md', content: emitReadme(names, info, c), cls: 'derived' },
     { path: 'data-sources.ts', content: emitDataSources(c, mock), cls: 'user' },
     { path: 'renderer.behavior.ts', content: emitBehavior(names, info), cls: 'user' },
-    { path: 'form.behavior.ts', content: emitFormBehavior(names), cls: 'user' },
-    { path: 'validation.ts', content: emitValidation(c, names), cls: 'user' },
+    // Есть правила — собираем из них (билдерами MCP); нет — прежние заглушки с примерами.
+    // Форма без правил валидна, и генерироваться она обязана в компилируемый код.
+    {
+      path: 'form.behavior.ts',
+      content: hasRules(rules) ? emitFormBehaviorFromRules(rules!, names) : emitFormBehavior(names),
+      cls: 'user',
+    },
+    {
+      path: 'validation.ts',
+      content: hasRules(rules) ? emitValidationFromRules(rules!, names) : emitValidation(c, names),
+      cls: 'user',
+    },
     { path: 'api.ts', content: emitApi(names), cls: 'user' },
   ];
 }

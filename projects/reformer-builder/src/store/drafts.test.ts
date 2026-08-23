@@ -107,6 +107,32 @@ describe('toRecord / toTab', () => {
     expect(R.isDraft(back)).toBe(true);
   });
 
+  it('правила переживают round-trip', () => {
+    // Без этого перезагрузка вкладки вернула бы схему с полями, на которые агент повесил
+    // валидацию, и пустые правила — то есть форму, про которую он отчитался как про готовую.
+    let s = R.openTab(R.initialState(), 'a', newSrc, emptySchema());
+    const rules = {
+      validation: [{ target: 'email', rules: ['required'] }],
+      behavior: [],
+      visibility: [],
+    };
+    s = R.replaceSchema(s, R.activeTab(s)!.schema, rules);
+
+    const back = toTab(toRecord(R.activeTab(s)!, 100, 200));
+    expect(back.rules.validation).toHaveLength(1);
+    expect(back.rules.validation[0].target).toBe('email');
+  });
+
+  it('запись без правил читается как форма без правил, а не ломается', () => {
+    // Черновики, записанные до появления правил, лежат в IndexedDB у всех, кто открывал билдер.
+    const s = R.openTab(R.initialState(), 'a', newSrc, emptySchema());
+    const record = toRecord(R.activeTab(s)!, 100, 200);
+    delete (record as { rules?: unknown }).rules;
+
+    const back = toTab(record);
+    expect(back.rules).toEqual({ validation: [], behavior: [], visibility: [] });
+  });
+
   it('история не восстанавливается', () => {
     const s = edit(R.openTab(R.initialState(), 'a', newSrc, emptySchema()));
     const back = toTab(toRecord(R.activeTab(s)!, 100, 200));

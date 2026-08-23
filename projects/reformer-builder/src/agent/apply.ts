@@ -51,7 +51,12 @@ export function applyChangeSet(set: ChangeSet, opts: ApplyOptions = {}): ApplyOu
   const { valid, errors } = validateSchema(set.draft, { strict: true, baseline: set.base });
   if (!valid) return { status: 'invalid', errors };
 
-  editorActions.replaceSchema(set.draft);
+  // Правила передаются, только если ход их менял: иначе вкладка получила бы их копию и
+  // выглядела бы изменённой там, где ничего не менялось.
+  editorActions.replaceSchema(
+    set.draft,
+    set.draftRules !== set.baseRules ? set.draftRules : undefined
+  );
   return { status: 'applied' };
 }
 

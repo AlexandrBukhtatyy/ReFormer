@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { emptyRules } from '../model/rules';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { editorActions, editorStore, activeTab, initialState } from '../store';
 import { emptySchema } from '../model';
@@ -21,7 +22,7 @@ async function oneChange(base: JsonFormSchema): Promise<ChangeSet> {
   const outcome = await reg.invoke(
     'insert_node',
     { parent: '/root', nodes: [{ component: 'Input', model: 'x', props: { label: 'Поле' } }] },
-    { draft: base, base }
+    { draft: base, base, rules: emptyRules() }
   );
   expect(outcome.error?.code, outcome.text).toBeUndefined();
   return withOutcome(createChangeSet(base), outcome);
@@ -47,7 +48,7 @@ describe('applyChangeSet', () => {
       const outcome = await reg.invoke(
         'insert_node',
         { parent: '/root', nodes: [{ component: 'Input', model: label, props: { label } }] },
-        { draft: set.draft, base }
+        { draft: set.draft, base, rules: emptyRules() }
       );
       set = withOutcome(set, outcome);
     }
@@ -97,7 +98,13 @@ describe('applyChangeSet', () => {
         children: [{ value: '$model(x)', component: '$component(ВыдуманныйКомпонент)' }],
       },
     } as unknown as JsonFormSchema;
-    const set: ChangeSet = { base, draft: broken, ops: [] };
+    const set: ChangeSet = {
+      base,
+      baseRules: emptyRules(),
+      draft: broken,
+      draftRules: emptyRules(),
+      ops: [],
+    };
 
     const outcome = applyChangeSet(set, { force: true });
     expect(outcome.status).toBe('invalid');

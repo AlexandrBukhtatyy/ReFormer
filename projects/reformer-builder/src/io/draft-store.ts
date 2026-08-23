@@ -13,6 +13,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { FormRules } from '../model/rules';
 import type { MockDraft, TabSource } from '../store/types';
 import { DRAFTS_STORE, idbTx } from './idb';
 
@@ -30,6 +31,11 @@ export interface DraftRecord {
   schema: JsonFormSchema;
   /** Baseline для dirty (последний экспорт). */
   savedSchema: JsonFormSchema;
+  /**
+   * Правила валидации и поведения. Необязательное: записи, сделанные до их появления, читаются
+   * как форма без правил, а не как повреждённый черновик.
+   */
+  rules?: FormRules;
   /** Правки мок-данных превью. */
   mock?: MockDraft;
   /** Активный шаг wizard. */

@@ -10,6 +10,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { FormRules } from '../model/rules';
 import type { JsonPath } from '../model';
 
 /**
@@ -84,6 +85,12 @@ export interface TabSource {
 export interface HistorySnapshot {
   schema: JsonFormSchema;
   selectionPath: JsonPath | null;
+  /**
+   * Правила формы на момент снимка. Входят в историю наравне со схемой: правка правил — такая
+   * же правка формы, и откатываться она обязана тем же Ctrl+Z. Вынести их за историю (как
+   * `mock`) означало бы, что испорченное агентом правило вернуть нечем.
+   */
+  rules: FormRules;
 }
 
 /** Состояние одной открытой вкладки. */
@@ -100,6 +107,13 @@ export interface TabState {
   schema: JsonFormSchema;
   /** Baseline для dirty/diff: последний open/export (M1) или save (M2). */
   savedSchema: JsonFormSchema;
+  /**
+   * Правила формы: валидация, реактивные связи, условная видимость. Сайдкар — в схему их
+   * положить нельзя (контракт `@reformer/renderer-json` закрыт), см. `model/rules`.
+   */
+  rules: FormRules;
+  /** Baseline правил для dirty: правка правил делает вкладку грязной так же, как правка схемы. */
+  savedRules: FormRules;
   /** Текст файла (`code`-вкладки) — источник истины. */
   text?: string;
   /** Baseline текста для dirty (`code`-вкладки). */

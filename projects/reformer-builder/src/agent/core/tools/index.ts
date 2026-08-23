@@ -19,6 +19,7 @@ import { listComponentsTool } from './list-components';
 import { reformerDocsTool } from './reformer-docs';
 import { moveNodeTool } from './move-node';
 import { removeNodeTool } from './remove-node';
+import { setFormRulesTool } from './set-form-rules';
 import { setLayoutTool } from './set-layout';
 import { setNodeModelTool } from './set-node-model';
 import { setNodePropTool } from './set-node-prop';
@@ -35,6 +36,7 @@ export {
   moveNodeTool,
   reformerDocsTool,
   removeNodeTool,
+  setFormRulesTool,
   setLayoutTool,
   setNodeModelTool,
   setNodePropTool,
@@ -61,6 +63,7 @@ export const WRITE_TOOLS: readonly AgentTool[] = [
   duplicateNodeTool,
   groupNodesTool,
   setLayoutTool,
+  setFormRulesTool,
 ];
 
 /** Полная поверхность редактора. */

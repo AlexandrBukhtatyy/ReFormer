@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { emptyRules } from '../../model/rules';
 import { sampleSchema } from '../../model/__fixtures__/sample-schema';
 import { systemPrompt } from './prompt';
 import { createToolRegistry } from './registry';
@@ -16,7 +17,7 @@ import {
 
 const ctx = (): ToolContext => {
   const schema = sampleSchema();
-  return { draft: schema, base: schema };
+  return { draft: schema, base: schema, rules: emptyRules() };
 };
 
 const echo: AgentTool<{ text: string }> = {

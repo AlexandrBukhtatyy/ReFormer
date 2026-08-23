@@ -6,6 +6,7 @@
  * @module reformer-builder/store/reducers
  */
 
+import { emptyRules, type FormRules } from '../model/rules';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { isContainerNode } from '@reformer/renderer-json';
 import {
@@ -91,7 +92,8 @@ export function makeTab(
   id: string,
   source: TabSource,
   schema: JsonFormSchema,
-  preview = false
+  preview = false,
+  rules: FormRules = emptyRules()
 ): TabState {
   return {
     id,
@@ -99,6 +101,10 @@ export function makeTab(
     kind: 'form',
     schema,
     savedSchema: schema,
+    rules,
+    // savedRules === rules: форма только что создана и в этом виде ещё никуда не сохранена,
+    // но и не «изменена пользователем» — dirty считается от расхождения с сохранённым.
+    savedRules: rules,
     past: [],
     future: [],
     selectionPath: ['root'],
@@ -131,6 +137,8 @@ export function makeCodeTab(
     kind: 'code',
     schema,
     savedSchema: schema,
+    rules: emptyRules(),
+    savedRules: emptyRules(),
     text,
     savedText: text,
     language,
@@ -205,6 +213,27 @@ export function openTab(
   const preview = opts.preview ?? false;
   if (state.tabs[id]) return setActiveTab(preview ? state : pinTab(state, id), id);
   return insertTab(state, makeTab(id, source, schema, preview));
+}
+
+/**
+ * Открыть НОВУЮ вкладку сразу со схемой и правилами.
+ *
+ * Отдельный вход, а не `openTab` + `replaceSchema`, и это принципиально: `replaceSchema` ходит
+ * по АКТИВНОЙ вкладке, поэтому между двумя вызовами активная могла бы смениться, и правила
+ * уехали бы в чужую форму. Здесь же вкладка рождается уже целой.
+ *
+ * Если id занят — вкладка просто активируется, как и в `openTab`: молча перетереть чужую форму
+ * сгенерированной хуже, чем показать пользователю ту, что уже открыта.
+ */
+export function openFormWithRules(
+  state: EditorState,
+  id: string,
+  source: TabSource,
+  schema: JsonFormSchema,
+  rules: FormRules
+): EditorState {
+  if (state.tabs[id]) return setActiveTab(state, id);
+  return insertTab(state, makeTab(id, source, schema, false, rules));
 }
 
 /**
@@ -365,16 +394,23 @@ function pushHistory(
     selectionPath: JsonPath | null;
     selectionPaths?: JsonPath[];
     anchorPath?: JsonPath | null;
+    /** Правила, если правка их затронула. Не передали — остаются прежними. */
+    rules?: FormRules;
   },
   coalesceKey?: string
 ): TabState {
   const coalesce = coalesceKey != null && coalesceKey === tab.lastCoalesceKey;
-  const snap: HistorySnapshot = { schema: tab.schema, selectionPath: tab.selectionPath };
+  const snap: HistorySnapshot = {
+    schema: tab.schema,
+    selectionPath: tab.selectionPath,
+    rules: tab.rules,
+  };
   const past = coalesce ? tab.past : [...tab.past, snap].slice(-HISTORY_CAP);
   const selectionPaths = next.selectionPaths ?? (next.selectionPath ? [next.selectionPath] : []);
   return {
     ...tab,
     schema: next.schema,
+    ...(next.rules ? { rules: next.rules } : {}),
     selectionPath: next.selectionPath,
     selectionPaths,
     anchorPath: next.anchorPath !== undefined ? next.anchorPath : next.selectionPath,
@@ -405,9 +441,16 @@ export function commit(
 }
 
 /** Заменить схему целиком (коммит из raw-JSON): снимок в историю, выделение сохраняется. */
-export function replaceSchema(state: EditorState, schema: JsonFormSchema): EditorState {
+export function replaceSchema(
+  state: EditorState,
+  schema: JsonFormSchema,
+  rules?: FormRules
+): EditorState {
+  // Схема и правила применяются ОДНОЙ записью истории: ход агента может затронуть и то и
+  // другое, а Ctrl+Z, откатывающий половину хода, оставил бы форму в состоянии, которого
+  // пользователь не создавал.
   return updateActiveTab(state, (tab) =>
-    pushHistory(tab, { schema, selectionPath: tab.selectionPath })
+    pushHistory(tab, { schema, selectionPath: tab.selectionPath, ...(rules ? { rules } : {}) })
   );
 }
 
@@ -416,10 +459,15 @@ export function undo(state: EditorState): EditorState {
   return updateActiveTab(state, (tab) => {
     if (!tab.past.length) return tab;
     const prev = tab.past[tab.past.length - 1];
-    const current: HistorySnapshot = { schema: tab.schema, selectionPath: tab.selectionPath };
+    const current: HistorySnapshot = {
+      schema: tab.schema,
+      selectionPath: tab.selectionPath,
+      rules: tab.rules,
+    };
     return {
       ...tab,
       schema: prev.schema,
+      rules: prev.rules,
       selectionPath: prev.selectionPath,
       selectionPaths: prev.selectionPath ? [prev.selectionPath] : [],
       anchorPath: prev.selectionPath,
@@ -435,10 +483,15 @@ export function redo(state: EditorState): EditorState {
   return updateActiveTab(state, (tab) => {
     if (!tab.future.length) return tab;
     const nextSnap = tab.future[0];
-    const current: HistorySnapshot = { schema: tab.schema, selectionPath: tab.selectionPath };
+    const current: HistorySnapshot = {
+      schema: tab.schema,
+      selectionPath: tab.selectionPath,
+      rules: tab.rules,
+    };
     return {
       ...tab,
       schema: nextSnap.schema,
+      rules: nextSnap.rules,
       selectionPath: nextSnap.selectionPath,
       selectionPaths: nextSnap.selectionPath ? [nextSnap.selectionPath] : [],
       anchorPath: nextSnap.selectionPath,
@@ -451,7 +504,11 @@ export function redo(state: EditorState): EditorState {
 
 /** Пометить активную вкладку сохранённой (dirty=false): baseline = текущая схема. */
 export function markSaved(state: EditorState): EditorState {
-  return updateActiveTab(state, (tab) => ({ ...tab, savedSchema: tab.schema }));
+  return updateActiveTab(state, (tab) => ({
+    ...tab,
+    savedSchema: tab.schema,
+    savedRules: tab.rules,
+  }));
 }
 
 /**

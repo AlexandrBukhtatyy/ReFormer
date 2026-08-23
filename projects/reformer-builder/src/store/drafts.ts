@@ -33,6 +33,9 @@ function changed(a: TabState, b: TabState): boolean {
   return (
     a.schema !== b.schema ||
     a.savedSchema !== b.savedSchema ||
+    // Правка правил обязана поднимать автосохранение: иначе перезагрузка вкладки вернёт форму
+    // со схемой из последнего сохранения и правилами, которых в ней уже нет.
+    a.rules !== b.rules ||
     a.mock !== b.mock ||
     a.source !== b.source ||
     a.activeStep !== b.activeStep ||
@@ -73,6 +76,7 @@ export function toRecord(tab: TabState, createdAt: number, updatedAt: number): D
     source: tab.source,
     schema: tab.schema,
     savedSchema: tab.savedSchema,
+    rules: tab.rules,
     mock: tab.mock,
     activeStep: tab.activeStep,
     touched: tab.touched,
@@ -90,6 +94,7 @@ export function toTab(record: DraftRecord): TabState {
   return {
     ...tab,
     savedSchema: record.savedSchema,
+    ...(record.rules ? { rules: record.rules } : {}),
     mock: record.mock,
     activeStep: record.activeStep,
     touched: record.touched,

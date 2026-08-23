@@ -8,6 +8,7 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { MockData } from '../preview-runtime/mock-synth';
+import type { FormRules } from '../model/rules';
 import { createDirectory, createFile, existsIn } from '../io/fs-ops';
 import { appSnippet, buildExampleFiles, makeNames } from './index';
 import { formatFiles } from './format';
@@ -40,13 +41,17 @@ export function dirPickerAvailable(): boolean {
 export async function exportExampleToDirectory(
   schema: JsonFormSchema,
   mock: MockData,
-  formName: string
+  formName: string,
+  rules?: FormRules
 ): Promise<ExportResult> {
   const picker = getPicker();
   if (!picker) throw new Error('File System Access API недоступен — нужен Chromium-браузер');
 
   const names = makeNames(formName);
-  const files = await formatFiles(buildExampleFiles(schema, mock, formName));
+  // Правила идут сюда же, а не отдельным шагом: без них `validation.ts` и
+  // `form.behavior.ts` уедут пользователю заглушками с TODO — то есть форма, которую агент
+  // считает провалидированной, в его проекте не проверяет ничего.
+  const files = await formatFiles(buildExampleFiles(schema, mock, formName, rules));
 
   const root = await picker({ mode: 'readwrite' });
   await createDirectory(root, '', names.dir);

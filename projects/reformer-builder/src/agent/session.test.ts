@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { emptyRules } from '../model/rules';
 import { emptySchema } from '../model';
 import { agentSessionActions, agentSessionStore } from './session';
 import { createChangeSet, withOutcome } from './core/changeset';
@@ -15,7 +16,7 @@ async function oneChange() {
     await reg.invoke(
       'insert_node',
       { parent: '/root', nodes: [{ component: 'Input', model: 'x', props: { label: 'Поле' } }] },
-      { draft: base, base }
+      { draft: base, base, rules: emptyRules() }
     )
   );
 }

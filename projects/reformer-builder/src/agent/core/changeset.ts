@@ -11,21 +11,29 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
+import { emptyRules, type FormRules } from '../../model/rules';
 import type { ChangeOp, ToolOutcome } from './types';
 
 /** Черновик хода вместе с журналом операций. */
 export interface ChangeSet {
   /** Схема на начало хода. */
   readonly base: JsonFormSchema;
+  /** Правила на начало хода. */
+  readonly baseRules: FormRules;
   /** Текущее состояние черновика. */
   readonly draft: JsonFormSchema;
+  /** Текущее состояние правил. */
+  readonly draftRules: FormRules;
   /** Применённые операции в порядке выполнения. */
   readonly ops: readonly ChangeOp[];
 }
 
 /** Пустой набор изменений от базовой схемы. */
-export function createChangeSet(base: JsonFormSchema): ChangeSet {
-  return { base, draft: base, ops: [] };
+export function createChangeSet(
+  base: JsonFormSchema,
+  baseRules: FormRules = emptyRules()
+): ChangeSet {
+  return { base, baseRules, draft: base, draftRules: baseRules, ops: [] };
 }
 
 /**
@@ -33,17 +41,21 @@ export function createChangeSet(base: JsonFormSchema): ChangeSet {
  * описывает только то, что реально произошло со схемой.
  */
 export function withOutcome(set: ChangeSet, outcome: ToolOutcome): ChangeSet {
-  if (!outcome.ok || !outcome.schema) return set;
+  // Инструмент правит ЛИБО схему, либо правила — но набор изменений копит оба, потому что
+  // применяется он одной записью истории: иначе Ctrl+Z откатывал бы половину хода.
+  if (!outcome.ok || (!outcome.schema && !outcome.rules)) return set;
   return {
     base: set.base,
-    draft: outcome.schema,
+    baseRules: set.baseRules,
+    draft: outcome.schema ?? set.draft,
+    draftRules: outcome.rules ?? set.draftRules,
     ops: outcome.ops?.length ? [...set.ops, ...outcome.ops] : set.ops,
   };
 }
 
 /** Есть ли что применять. Сравнение по ссылке — мутации иммутабельны и с structural sharing. */
 export function hasChanges(set: ChangeSet): boolean {
-  return set.draft !== set.base;
+  return set.draft !== set.base || set.draftRules !== set.baseRules;
 }
 
 /** Маркер операции для списка изменений. */

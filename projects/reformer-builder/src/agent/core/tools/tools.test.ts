@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { emptyRules } from '../../../model/rules';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { getAt } from '../../../model';
 import { P, sampleSchema } from '../../../model/__fixtures__/sample-schema';
@@ -8,6 +9,7 @@ import type { ToolContext } from '../types';
 const reg = createEditorToolRegistry();
 
 const ctx = (schema: JsonFormSchema = sampleSchema()): ToolContext => ({
+  rules: emptyRules(),
   draft: schema,
   base: schema,
 });
@@ -109,7 +111,7 @@ describe('validate_form', () => {
     const children = getAt(draft, P.step0children) as unknown[];
     children.push({ value: '$model(email)', component: '$component(EmailField)' });
 
-    const res = await reg.invoke('validate_form', {}, { base, draft });
+    const res = await reg.invoke('validate_form', {}, { base, draft, rules: emptyRules() });
     expect(res.ok).toBe(true);
     expect(res.text).toContain('EmailField');
   });
@@ -127,7 +129,7 @@ describe('validate_form', () => {
     const field = getAt(draft, [...P.step0field1]) as { componentProps: Record<string, unknown> };
     field.componentProps = { ...field.componentProps, labl: 'опечатка' };
 
-    const res = await reg.invoke('validate_form', {}, { base, draft });
+    const res = await reg.invoke('validate_form', {}, { base, draft, rules: emptyRules() });
     expect(res.text).toContain('/root/componentProps/steps/0/children/1');
     expect(res.text).not.toContain('root.componentProps');
     // Рядом с адресом — компонент: он же нужен для expect в следующей правке.
@@ -140,7 +142,7 @@ describe('validate_form', () => {
     const field = getAt(draft, [...P.step0field1]) as { componentProps: Record<string, unknown> };
     field.componentProps = { ...field.componentProps, min: 'не-число' };
 
-    const res = await reg.invoke('validate_form', {}, { base, draft });
+    const res = await reg.invoke('validate_form', {}, { base, draft, rules: emptyRules() });
     expect(res.text).toContain('min');
   });
 });

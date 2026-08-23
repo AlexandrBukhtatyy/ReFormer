@@ -9,6 +9,7 @@ import { createEditorToolRegistry } from './index';
 import { runAgentTurn, type TurnEvent } from './loop';
 import { buildOutline } from './outline';
 import { listComponents } from './catalog-digest';
+import type { FormRules } from '../../model/rules';
 
 const FIELD = listComponents({ role: 'field' })[0].name;
 const registry = createEditorToolRegistry();
@@ -22,6 +23,7 @@ async function play(
     signal?: AbortSignal;
     failWith?: string;
     usagePerStep?: AiUsage;
+    baseRules?: FormRules;
   } = {}
 ): Promise<TurnEvent[]> {
   const events: TurnEvent[] = [];
@@ -32,6 +34,7 @@ async function play(
     }),
     registry,
     base,
+    ...(opts.baseRules ? { baseRules: opts.baseRules } : {}),
     messages: [{ role: 'user', content: 'сделай' }],
     maxSteps: opts.maxSteps,
     signal: opts.signal,
@@ -340,5 +343,72 @@ describe('эталонная задача — мастер из 3 шагов п�
     expect(done(events).message).toBe('соединение разорвано');
     // Черновик уцелел: пользователь увидит предпросмотр того, что успело примениться.
     expect(describeChangeSet(done(events).changeSet)).toHaveLength(1);
+  });
+});
+
+describe('правила вкладки на входе в ход', () => {
+  // Этот тест существует из-за конкретного дефекта: ход начинался с ПУСТОГО набора правил, и
+  // set_form_rules в режиме merge — режиме по умолчанию — добавлял новое правило к пустоте.
+  // Применение записывает набор целиком, поэтому второй запрос пользователя молча стирал
+  // валидацию, поставленную первым. Юнит-тесты инструмента этого не видели: они подавали
+  // ctx.rules руками, а живой прогон каждый раз начинался с чистой формы.
+  const existing: FormRules = {
+    validation: [{ target: 'email', rules: ['required'] }],
+    behavior: [],
+    visibility: [],
+  };
+
+  const schema = {
+    root: {
+      component: '$html(div)',
+      children: [
+        { value: '$model(email)', component: '$component(Input)' },
+        { value: '$model(phone)', component: '$component(Input)' },
+      ],
+    },
+  } as unknown as JsonFormSchema;
+
+  it('прежние правила не теряются при добавлении нового', async () => {
+    const events = await play(
+      [
+        {
+          tool: 'set_form_rules',
+          args: { validation: [{ target: 'phone', rules: ['required'] }] },
+        },
+      ],
+      schema,
+      { baseRules: existing }
+    );
+    const rules = done(events).changeSet.draftRules;
+    expect(rules.validation.map((r) => r.target).sort()).toEqual(['email', 'phone']);
+  });
+
+  it('без правил на входе ход начинается с пустого набора', async () => {
+    const events = await play(
+      [
+        {
+          tool: 'set_form_rules',
+          args: { validation: [{ target: 'phone', rules: ['required'] }] },
+        },
+      ],
+      schema
+    );
+    expect(done(events).changeSet.draftRules.validation).toHaveLength(1);
+  });
+
+  it('mode=replace всё так же заменяет набор целиком', async () => {
+    const events = await play(
+      [
+        {
+          tool: 'set_form_rules',
+          args: { mode: 'replace', validation: [{ target: 'phone', rules: ['required'] }] },
+        },
+      ],
+      schema,
+      { baseRules: existing }
+    );
+    const rules = done(events).changeSet.draftRules;
+    expect(rules.validation).toHaveLength(1);
+    expect(rules.validation[0].target).toBe('phone');
   });
 });

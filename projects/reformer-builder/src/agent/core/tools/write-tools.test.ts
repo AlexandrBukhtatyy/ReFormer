@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { emptyRules } from '../../../model/rules';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { emptySchema, getAt } from '../../../model';
 import { P, sampleSchema } from '../../../model/__fixtures__/sample-schema';
@@ -12,7 +13,11 @@ const reg = createEditorToolRegistry();
 /** Первое поле каталога — тесты не должны зависеть от конкретного кита. */
 const FIELD = listComponents({ role: 'field' })[0].name;
 
-const ctxOf = (draft: JsonFormSchema, base = draft): ToolContext => ({ draft, base });
+const ctxOf = (draft: JsonFormSchema, base = draft): ToolContext => ({
+  draft,
+  base,
+  rules: emptyRules(),
+});
 
 /** Вызвать инструмент и потребовать успех (иначе тест упадёт с текстом ошибки). */
 function expectOk(res: ToolOutcome): JsonFormSchema {

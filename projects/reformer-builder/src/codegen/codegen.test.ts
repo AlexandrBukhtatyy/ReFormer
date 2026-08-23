@@ -56,6 +56,32 @@ const mock = synthMock(rawSchema, { now: new Date('2026-01-01T00:00:00Z') });
 const files = buildExampleFiles(rawSchema, mock, 'loan');
 const byPath = (p: string) => files.find((f) => f.path === p)!;
 
+describe('buildExampleFiles — правила доходят до файлов', () => {
+  // Сквозная проверка того же пути, которым идёт экспорт в папку пользователя: правила,
+  // поставленные агентом, обязаны оказаться в validation.ts. Без неё разрыв между «агент
+  // отчитался» и «в проекте лежит заглушка с TODO» ничем не ловится.
+  const rules = {
+    validation: [{ target: 'amount', rules: ['required'] }],
+    behavior: [],
+    visibility: [],
+  };
+
+  it('с правилами validation.ts содержит правило, а не заглушку', () => {
+    const withRules = buildExampleFiles(rawSchema, mock, 'loan', rules);
+    const src = withRules.find((f) => f.path === 'validation.ts')!.content;
+    expect(src).toContain('amount');
+    expect(src).toContain('required');
+    // Маркер «МОК» — обещание пользователю, что правила ВЫДУМАНЫ по схеме и их надо дописать.
+    // Когда правила настоящие, обещание становится ложью.
+    expect(src).not.toContain('МОК');
+  });
+
+  it('без правил остаётся прежняя заглушка, помеченная как мок', () => {
+    const src = files.find((f) => f.path === 'validation.ts')!.content;
+    expect(src).toContain('МОК');
+  });
+});
+
 describe('buildExampleFiles — набор файлов', () => {
   it('12 файлов, ожидаемые пути, схема — единственный JSON', () => {
     expect(files.map((f) => f.path).sort()).toEqual(

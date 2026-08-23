@@ -6,6 +6,7 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
+import type { FormRules } from '../model/rules';
 import type { JsonPath, MutationResult, NavDir } from '../model';
 import { createStore } from './create-store';
 import * as R from './reducers';
@@ -31,6 +32,9 @@ export const editorStore = createStore<EditorState>(R.initialState());
 export const editorActions = {
   openTab: (id: string, source: TabSource, schema: JsonFormSchema, opts?: R.OpenOptions) =>
     editorStore.setState((s) => R.openTab(s, id, source, schema, opts)),
+  /** Открыть новую форму со схемой и правилами разом (генерация по спеке). */
+  openFormWithRules: (id: string, source: TabSource, schema: JsonFormSchema, rules: FormRules) =>
+    editorStore.setState((st) => R.openFormWithRules(st, id, source, schema, rules)),
   /** Восстановить вкладки-черновики из локальных копий (старт приложения). */
   restoreTabs: (tabs: TabState[]) => editorStore.setState((s) => R.restoreTabs(s, tabs)),
   /** Открыть произвольный файл на редактирование в Monaco (code-вкладка). */
@@ -79,8 +83,8 @@ export const editorActions = {
       return tab ? R.commit(s, fn(tab.schema), opts) : s;
     }),
 
-  replaceSchema: (schema: JsonFormSchema) =>
-    editorStore.setState((s) => R.replaceSchema(s, schema)),
+  replaceSchema: (schema: JsonFormSchema, rules?: FormRules) =>
+    editorStore.setState((s) => R.replaceSchema(s, schema, rules)),
   undo: () => editorStore.setState(R.undo),
   redo: () => editorStore.setState(R.redo),
   markSaved: () => editorStore.setState(R.markSaved),

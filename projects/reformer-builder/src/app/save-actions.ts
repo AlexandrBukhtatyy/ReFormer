@@ -605,7 +605,7 @@ export async function exportExample(tab: TabState): Promise<void> {
   const formName = formNameFromSchemaFile(tab.source.name, tab.source.path);
   const mock = effectiveMock(tab.schema, tab.mock);
   try {
-    const res = await exportExampleToDirectory(tab.schema, mock, formName);
+    const res = await exportExampleToDirectory(tab.schema, mock, formName, tab.rules);
     try {
       await navigator.clipboard.writeText(res.snippet);
     } catch {
