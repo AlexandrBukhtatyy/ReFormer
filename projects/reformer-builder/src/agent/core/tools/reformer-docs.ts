@@ -43,8 +43,8 @@ export const reformerDocsTool: AgentTool<Params> = {
   readOnly: true,
 
   async run(params) {
-    const knowledge = await loadKnowledge();
-    if (!knowledge) {
+    const source = await loadKnowledge();
+    if (!source) {
       // Корпус не собран — это состояние сборки, и молчать о нём нельзя: агент решил бы, что
       // библиотека такого не умеет, и пошёл выдумывать API.
       return ok(
@@ -55,9 +55,21 @@ export const reformerDocsTool: AgentTool<Params> = {
 
     // Бюджет передаётся сюда, а не оставляется реестру: реестр режет по символам, посреди блока
     // кода, и модель дописывает оборванный вызов сама. Внутри известно, что резать первым.
-    const answer = await askReformer(knowledge, params.question, {
+    const answer = await askReformer(source.knowledge, params.question, {
       maxChars: TOOL_TEXT_BUDGET,
     });
+
+    // Источник называется в ответе, когда знания взяты из проекта: агент должен понимать, что
+    // это версии ПОЛЬЗОВАТЕЛЯ, а не те, с которыми собран билдер. Для вшитого корпуса строки
+    // нет — она стоила бы символов в каждом ответе, не добавляя выбора.
+    if (source.origin === 'project') {
+      const versions = Object.entries(source.versions)
+        .map(([pkg, v]) => `${pkg.replace('@reformer/', '')}@${v}`)
+        .join(', ');
+      return ok(`${answer.text}
+
+_Источник: node_modules проекта${versions ? ` (${versions})` : ''}._`);
+    }
     return ok(answer.text);
   },
 };
