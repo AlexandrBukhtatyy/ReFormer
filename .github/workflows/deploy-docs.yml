@@ -54,12 +54,18 @@ jobs:
         # reformer-doc импортирует @reformer/* по их `exports` (→ dist/),
         # поэтому пакеты нужно собрать ДО сборки доков (в порядке зависимостей).
         # Иначе docusaurus build падает с «no valid target file was found».
+        #
+        # @reformer/mcp здесь не ради доков, а ради билдера: его `build` первым делом гонит
+        # `generate:knowledge`, а тот берёт список пакетов и версию формата из `dist/core`
+        # самого MCP и без него завершается с ошибкой. Пропустив эту сборку, деплой падает
+        # не на доках, а сильно позже — на шаге «Build builder».
         run: |
           npm run build -w @reformer/core
           npm run build -w @reformer/cdk
           npm run build -w @reformer/renderer-json
           npm run build -w @reformer/renderer-react
           npm run build -w @reformer/ui-kit
+          npm run build -w @reformer/mcp
 
       - name: Build documentation
         run: npm run build -w reformer-doc
