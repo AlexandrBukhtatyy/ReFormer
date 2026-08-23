@@ -15,6 +15,9 @@ import { matched } from '../lib/match.mjs';
 export const name = 'v7';
 export const description = 'get_context одним вызовом, с запасным путём v6';
 
+/** Инструменты, которые стратегия реально зовёт. Runner считает по ним поверхность набора. */
+export const tools = ['get_context', 'search_docs'];
+
 export async function run(client, task) {
   const trace = [];
   let calls = 0;

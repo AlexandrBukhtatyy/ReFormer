@@ -124,11 +124,42 @@ try {
 
   // Статическая поверхность — то, за что клиент платит просто за подключение.
   const staticSurface = {};
+  let listedTools = [];
   for (const method of ['tools/list', 'resources/list', 'prompts/list']) {
     const r = await client.request(method, {});
+    if (method === 'tools/list') listedTools = r.result?.tools ?? [];
     staticSurface[method] = estimateTokens(JSON.stringify(r.result ?? {}));
   }
   staticSurface.total = Object.values(staticSurface).reduce((a, b) => a + b, 0);
+
+  // Поверхность НАБОРА, который стратегия объявила через `export const tools`.
+  //
+  // Отдельно от `static` потому, что отвечает на другой вопрос. `static` — цена подключения ко
+  // ВСЕМУ серверу; она осмысленна для клиента, который берёт сервер целиком (Claude Code). Набор —
+  // цена у консумента, который целиком взять не может: у визуального билдера бюджет на ВСЕ
+  // инструменты равен 7700 символов и уже занят тринадцатью инструментами редактора
+  // (`TOOL_SURFACE_BUDGET`, projects/reformer-builder/src/agent/core/types.ts). Поэтому здесь
+  // символы, а не только токены, и формула — ровно та, которой билдер меряет себя
+  // (`registry.test.ts`: JSON от массива {name, description, inputSchema}).
+  let toolset = null;
+  if (Array.isArray(strategy.tools)) {
+    const missing = strategy.tools.filter((n) => !listedTools.some((t) => t.name === n));
+    // Объявленный, но не отдаваемый сервером инструмент — не «ноль символов», а рассогласование:
+    // замер набора стал бы тихо оптимистичным, а стратегия при этом продолжила бы его звать.
+    if (missing.length > 0) {
+      console.error(
+        `✗ стратегия ${strategyName} объявляет инструменты, которых нет в tools/list: ` +
+          missing.join(', ')
+      );
+      process.exit(1);
+    }
+    const json = JSON.stringify(
+      strategy.tools
+        .map((n) => listedTools.find((t) => t.name === n))
+        .map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema }))
+    );
+    toolset = { tools: strategy.tools, chars: json.length, tokens: estimateTokens(json) };
+  }
 
   const results = [];
   for (const task of corpus) {
@@ -167,6 +198,7 @@ try {
     startupMs: Math.round(init.ms),
     tasks: results.length,
     static: staticSurface,
+    toolset,
     hitRate: +(results.filter((r) => r.hit).length / results.length).toFixed(3),
     firstPassRate: +(results.filter((r) => r.firstPass).length / results.length).toFixed(3),
     tokensPerTask: {
@@ -197,6 +229,14 @@ console.log(
   `  статическая поверхность: ${report.static.total} tok ` +
     `(tools ${report.static['tools/list']}, resources ${report.static['resources/list']}, prompts ${report.static['prompts/list']})`
 );
+// Цена набора печатается в символах первой: именно в них выражен бюджет консумента, ради
+// которого этот замер и делается. Токены рядом — чтобы строка сравнивалась со `static`.
+if (report.toolset) {
+  console.log(
+    `  набор стратегии:         ${report.toolset.chars} симв. / ${report.toolset.tokens} tok ` +
+      `(${report.toolset.tools.join(' + ')})`
+  );
+}
 console.log(`  hit rate:        ${pct(report.hitRate)}`);
 console.log(`  first-pass rate: ${pct(report.firstPassRate)}   ← главный KPI`);
 console.log(

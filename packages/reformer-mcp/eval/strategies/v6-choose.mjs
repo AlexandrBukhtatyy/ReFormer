@@ -17,6 +17,9 @@ import { matched } from '../lib/match.mjs';
 export const name = 'v6-choose';
 export const description = 'choose_api → find_recipe → search_docs → resources/read';
 
+/** Инструменты, которые стратегия реально зовёт. Runner считает по ним поверхность набора. */
+export const tools = ['choose_api', 'find_recipe', 'search_docs'];
+
 export async function run(client, task) {
   const trace = [];
   let calls = 0;

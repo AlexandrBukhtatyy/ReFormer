@@ -20,6 +20,9 @@ import { matched } from '../lib/match.mjs';
 export const name = 'v6';
 export const description = 'find_recipe → search_docs → resources/read (текущая поверхность)';
 
+/** Инструменты, которые стратегия реально зовёт. Runner считает по ним поверхность набора. */
+export const tools = ['find_recipe', 'search_docs'];
+
 /**
  * @param {import('../lib/client.mjs').McpClient} client
  * @param {object} task — запись корпуса
