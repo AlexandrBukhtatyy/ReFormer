@@ -53,23 +53,30 @@ export const reformerDocsTool: AgentTool<Params> = {
       );
     }
 
-    // Бюджет передаётся сюда, а не оставляется реестру: реестр режет по символам, посреди блока
-    // кода, и модель дописывает оборванный вызов сама. Внутри известно, что резать первым.
-    const answer = await askReformer(source.knowledge, params.question, {
-      maxChars: TOOL_TEXT_BUDGET,
-    });
-
     // Источник называется в ответе, когда знания взяты из проекта: агент должен понимать, что
     // это версии ПОЛЬЗОВАТЕЛЯ, а не те, с которыми собран билдер. Для вшитого корпуса строки
     // нет — она стоила бы символов в каждом ответе, не добавляя выбора.
-    if (source.origin === 'project') {
-      const versions = Object.entries(source.versions)
-        .map(([pkg, v]) => `${pkg.replace('@reformer/', '')}@${v}`)
-        .join(', ');
-      return ok(`${answer.text}
+    const suffix = source.origin === 'project' ? sourceLine(source.versions) : '';
 
-_Источник: node_modules проекта${versions ? ` (${versions})` : ''}._`);
-    }
-    return ok(answer.text);
+    // Бюджет передаётся сюда, а не оставляется реестру: реестр режет по символам, посреди блока
+    // кода, и модель дописывает оборванный вызов сама. Внутри известно, что резать первым.
+    //
+    // Приписка вычитается ДО нарезки, а не дописывается после. Иначе ответ у верхней границы
+    // бюджета вместе с ней перевалит за неё, и `clamp` в реестре срежет хвост — то есть саму
+    // приписку. Замер: 5 ответов из 6 упирались в границу, и источник терялся ровно там, где
+    // он важнее всего.
+    const answer = await askReformer(source.knowledge, params.question, {
+      maxChars: TOOL_TEXT_BUDGET - suffix.length,
+    });
+
+    return ok(suffix ? `${answer.text}${suffix}` : answer.text);
   },
 };
+
+/** Строка про источник знаний — считается заранее, потому что её длина входит в бюджет ответа. */
+function sourceLine(versions: Record<string, string>): string {
+  const list = Object.entries(versions)
+    .map(([pkg, v]) => `${pkg.replace('@reformer/', '')}@${v}`)
+    .join(', ');
+  return `\n\n_Источник: node_modules проекта${list ? ` (${list})` : ''}._`;
+}
