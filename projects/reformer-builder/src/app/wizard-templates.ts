@@ -1,12 +1,14 @@
 /**
  * Шаблоны-«рыба» пошаговой формы (визарда) — второй встроенный шаблон рядом с простой формой
  * (`form-templates.ts`). Отличия от простой: схема начинается с узла `$component(Wizard)`, шаги
- * лежат в `componentProps.steps[]`, а к набору файлов добавляется тонкий адаптер `wizard.tsx`.
+ * лежат в `componentProps.steps[]`, а к набору файлов добавляется тонкий адаптер `renderer.wizard.tsx`.
  *
- * `wizard.tsx` — осознанное отступление от канона раскладки («все шаги инлайн в `index.tsx`, без
- * отдельных компонентных файлов»): правило канона написано про ШАГИ формы, а это инфраструктурный
- * адаптер к ui-kit `FormWizard`, общий для всех шагов. Отдельным файлом он переиспользуем и не
- * раздувает `index.tsx`.
+ * `renderer.wizard.tsx` — это ровно тот опциональный слот, который канон раскладки держит для
+ * renderer-json + wizard: библиотека компонент под `$component(Wizard)` не экспортирует, поэтому
+ * шим пишет приложение, и канон даёт ему два равноправных места — отдельный `renderer.wizard.tsx`
+ * либо инлайн в `registry.ts`. Шаблон выбирает файл: так шим переиспользуем и не раздувает
+ * `index.tsx`. Правило «все шаги инлайн в `index.tsx`» это не нарушает — оно про ШАГИ формы, а
+ * здесь инфраструктурный адаптер к ui-kit `FormWizard`, общий для всех шагов.
  *
  * Как это работает: renderer-react сам пробрасывает `form` в компоненты с маркером
  * `__selfManagedChildren`, а ui-kit `FormWizard` умеет рендерить `step.body` как RenderNode.
@@ -151,11 +153,11 @@ export function wizardRegistryTsTemplate(formName: string): string {
  * Реестр компонентов формы «${formName}» — что рендерить под каждое \`$component(...)\` из
  * renderer.schema.json.
  * \`FIELD_WRAPPER\` (FormField) оборачивает каждый лист: label + ошибки. \`Wizard\` — локальный
- * адаптер (wizard.tsx); шаги визарда рендерятся как обычные \`Box\`-узлы. Docs: @reformer/renderer-json.
+ * адаптер (renderer.wizard.tsx); шаги визарда рендерятся как обычные \`Box\`-узлы. Docs: @reformer/renderer-json.
  */
 import { Box, CheckboxField, FormField, InputField } from '@reformer/ui-kit';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
-import { Wizard } from './wizard';
+import { Wizard } from './renderer.wizard';
 
 export function createRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
@@ -278,7 +280,7 @@ export function wizardIndexTsxTemplate(formName: string): string {
  * Пошаговая форма «${formName}» — сборка и рендер. В JSX только провайдер реестра и рендерер:
  * шаги и layout живут в renderer.schema.json, значения/поведение/валидация — в model.ts /
  * form.behavior.ts / validation.ts / renderer.behavior.ts, навигация и кнопки — в ui-kit FormWizard
- * (адаптер wizard.tsx).
+ * (адаптер renderer.wizard.tsx).
  *
  * Подключение в react-playground: \`import ${Comp} from './pages/examples/<папка>';\`
  * + \`<Route element={<${Comp} />} />\`.

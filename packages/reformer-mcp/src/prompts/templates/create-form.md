@@ -83,16 +83,13 @@ import {
   JsonRendererProvider,
   createJsonForm,
   useJsonForm,
-  type JsonFormSchema,
 } from '@reformer/renderer-json';
-import rawJsonSchema from './renderer.schema.json';
+import { jsonSchema } from './renderer.schema'; // defineJsonSchema<MyForm>({ … }) — $model paths are type-checked
 import { createMyRegistry } from './registry';
 import { createMyModel } from './model';
 import { formBehavior } from './form.behavior';
 import { formValidation } from './validation';
 import { createMyRenderBehavior } from './renderer.behavior';
-
-const jsonSchema = rawJsonSchema as unknown as JsonFormSchema<MyForm>; // "schema arrived as a string"
 
 export function MyFormPage() {
   // ONE call: model + form + registry + behavior + validation + render behavior.
@@ -116,7 +113,10 @@ export function MyFormPage() {
 }
 ```
 
-Runtime entities that cannot live in static JSON (a `FormProxy` for a wizard node, the assembled validation) are injected by the render-behavior factory, addressing the node by `selector`. The factory receives what the form assembly already produced — the form, the model and the built validation bundle (`{ validateStep, validateAll, … }`):
+The schema file is **`renderer.schema.ts`** — a `defineJsonSchema<MyForm>({ … })` literal, so a typo inside `$model(...)` fails to compile. Keeping the same DSL as raw data in `renderer.schema.json` (`import raw from './renderer.schema.json'` + `as unknown as JsonFormSchema<MyForm>`) is an accepted variant, but it gives up `$model` path typing and nothing else catches a bad path. A wizard additionally needs an app shim registered as `$component(Wizard)` — `RendererFormWizard` is **not** a library export — in `renderer.wizard.tsx` or inline in `registry.ts`. Full per-target file set: `find_recipe directory-layout`.
+
+Runtime entities that cannot live in static JSON (a `FormProxy` for a wizard node, the assembled validation) are injected by the render-behavior factory,
+ addressing the node by `selector`. The factory receives what the form assembly already produced — the form, the model and the built validation bundle (`{ validateStep, validateAll, … }`):
 
 ```tsx
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';

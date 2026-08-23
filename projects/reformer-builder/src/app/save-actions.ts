@@ -479,8 +479,9 @@ function formNameOf(dirPath: string): string {
 }
 
 /**
- * Имя формы по файлу её схемы. Каноничное имя схемы — `renderer.schema.json`, и оно НЕ несёт имени
- * формы: его несёт каталог (`user-profile/renderer.schema.json`). Поэтому сначала снимаем расширение
+ * Имя формы по файлу её схемы. Билдер пишет схему в `renderer.schema.json` (вариант канона «схема
+ * как данные»; дефолт канона — `renderer.schema.ts`, см. `codegen/emit-schema.ts`), и это имя НЕ
+ * несёт имени формы: его несёт каталог (`user-profile/renderer.schema.json`). Поэтому снимаем расширение
  * и служебный хвост (`.renderer.schema` / `.form`), а если после этого ничего не осталось — берём
  * имя каталога. Так экспорт кладёт пример в `user-profile/`, а не в безымянный `form/`.
  */

@@ -31,6 +31,7 @@ export interface ProfileSpec {
 /** Части собираемого контекста. */
 export type ContextPart =
   | 'decision' // какой оператор выбрать и почему
+  | 'layout' // канонические имена файлов модуля под target
   | 'signature' // сигнатуры рекомендованных символов
   | 'example' // канонический пример
   | 'purpose' // назначение темы одной фразой
@@ -43,19 +44,24 @@ export type ContextPart =
 export const PROFILES: Record<ContextProfile, ProfileSpec> = {
   minimal: {
     maxTokens: 400,
-    priority: { decision: 0, signature: 1, example: 2 },
+    // `layout` тут в хвосте: minimal отвечает на «каким API», и вытеснять сигнатуру списком
+    // имён файлов было бы подменой вопроса. Влезет — покажем, нет — вопрос был не про это.
+    priority: { decision: 0, signature: 1, example: 2, layout: 3 },
   },
   implementation: {
     maxTokens: 1000,
     priority: {
       decision: 0,
-      signature: 1,
-      example: 2,
-      purpose: 3,
-      antiPatterns: 4,
-      rules: 5,
-      related: 6,
-      sources: 7,
+      // Раскладка идёт раньше кода намеренно: имена файлов выбираются ДО первой строки, а
+      // переименовывать модуль потом дороже, чем сходить за ссылкой из `## Read more`.
+      layout: 1,
+      signature: 2,
+      example: 3,
+      purpose: 4,
+      antiPatterns: 5,
+      rules: 6,
+      related: 7,
+      sources: 8,
     },
   },
   debug: {
@@ -69,20 +75,24 @@ export const PROFILES: Record<ContextProfile, ProfileSpec> = {
       example: 4,
       purpose: 5,
       sources: 6,
+      // Файлы уже написаны, имена — наименее срочное; но бюджет debug просторный, и
+      // «положил не туда / назвал не так» — тоже диагноз.
+      layout: 7,
     },
   },
   full: {
     maxTokens: null,
     priority: {
       decision: 0,
-      purpose: 1,
-      signature: 2,
-      example: 3,
-      rules: 4,
-      antiPatterns: 5,
-      troubleshooting: 6,
-      related: 7,
-      sources: 8,
+      layout: 1,
+      purpose: 2,
+      signature: 3,
+      example: 4,
+      rules: 5,
+      antiPatterns: 6,
+      troubleshooting: 7,
+      related: 8,
+      sources: 9,
     },
   },
 };

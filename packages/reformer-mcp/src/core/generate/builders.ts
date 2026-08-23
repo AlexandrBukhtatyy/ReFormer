@@ -18,6 +18,7 @@ import type {
   FieldType,
   FormIntent,
   LayoutNode,
+  ReformerTargetStack,
   ValidationRuleIntent,
 } from './form-intent.js';
 
@@ -279,6 +280,29 @@ export function buildValidationTs(intent: FormIntent): string {
 // behavior.ts
 // ---------------------------------------------------------------------------
 
+/**
+ * Имена параметров колбэка `computeFrom` из путей источников.
+ *
+ * Путь `personal.lastName` идентификатором не является: подставленный в список параметров как
+ * есть, он давал `(personal.lastName) => …` — файл не парсится вовсе. Составные пути в intent —
+ * норма (целые разделы спек записаны ими), а через `path` их присылает и модель, поэтому имя
+ * берётся по последнему сегменту; совпадения разводятся индексом.
+ */
+function callbackParams(sources: readonly string[]): { params: string[]; renamed: string[] } {
+  const used = new Set<string>();
+  const params: string[] = [];
+  const renamed: string[] = [];
+  for (const source of sources) {
+    const base = (source.split('.').pop() ?? source).replace(/[^A-Za-z0-9_$]/g, '') || 'value';
+    let name = base;
+    for (let i = 2; used.has(name); i++) name = `${base}${i}`;
+    used.add(name);
+    params.push(name);
+    if (name !== source) renamed.push(`${source} → ${name}`);
+  }
+  return { params, renamed };
+}
+
 function renderBehavior(b: BehaviorIntent): string {
   const target = `model.$.${b.target}`;
   const sources = b.sources.map((s) => `model.$.${s}`).join(', ');
@@ -286,8 +310,16 @@ function renderBehavior(b: BehaviorIntent): string {
   switch (b.kind) {
     case 'compute':
       return `  compute(${target}, () => ${b.expr ?? 'undefined'});`;
-    case 'computeFrom':
-      return `  computeFrom([${sources}], ${target}, (${b.sources.join(', ')}) => ${b.expr ?? 'undefined'});`;
+    case 'computeFrom': {
+      const { params, renamed } = callbackParams(b.sources);
+      // Переименование названо на месте: выражение писал консумент, и оно ссылается на
+      // ИСХОДНЫЕ имена — без этой строки расхождение он нашёл бы только по ошибке компиляции.
+      const note =
+        renamed.length > 0
+          ? `  // параметры названы по последнему сегменту: ${renamed.join(', ')}\n`
+          : '';
+      return `${note}  computeFrom([${sources}], ${target}, (${params.join(', ')}) => ${b.expr ?? 'undefined'});`;
+    }
     case 'copyFrom':
       return `  copyFrom(model.$.${b.sources[0] ?? 'source'}, ${target}${opts});`;
     case 'syncFields':
@@ -446,6 +478,32 @@ export function buildLayoutJson(intent: FormIntent): string {
   return JSON.stringify({ version: '1.0', root }, null, 2) + '\n';
 }
 
+/**
+ * `renderer.schema.ts` — тот же JSON-DSL, обёрнутый в `defineJsonSchema<T>`.
+ *
+ * Канонический дефолт схемы для renderer-json именно такой, а не чистый `.json`: хелпер сужает
+ * пути `$model(...)` до `Path<T>`, и опечатка в пути становится ошибкой компиляции. У чистого
+ * JSON этой проверки нет, и заменить её нечем — ни ajv, ни обход реестра неправильный путь
+ * не ловят. Раньше генератор печатал `.json` с предупреждением в шапке; предупреждение читают
+ * не все, а блок кода копируют все — поэтому дефолтом отдаётся `.ts`.
+ */
+export function buildRendererSchemaTs(intent: FormIntent): string {
+  const literal = buildLayoutJson(intent).trimEnd();
+  const lines: string[] = [];
+  lines.push('/**');
+  lines.push(` * Разметка формы «${intent.formName}» в JSON-DSL.`);
+  lines.push(' *');
+  lines.push(' * Обёртка `defineJsonSchema<T>` — не украшение: она типизирует литерал по модели,');
+  lines.push(' * поэтому опечатка внутри `$model(...)` не собирается, а не всплывает в рантайме.');
+  lines.push(' */');
+  lines.push("import { defineJsonSchema } from '@reformer/renderer-json';");
+  lines.push('');
+  lines.push(`import type { ${intent.interfaceName} } from './model';`);
+  lines.push('');
+  lines.push(`export const formSchema = defineJsonSchema<${intent.interfaceName}>(${literal});`);
+  return lines.join('\n') + '\n';
+}
+
 // ---------------------------------------------------------------------------
 // registry.ts (только renderer-json)
 // ---------------------------------------------------------------------------
@@ -562,6 +620,185 @@ export function buildRenderBehaviorTs(intent: FormIntent): string {
 }
 
 // ---------------------------------------------------------------------------
+// Канон раскладки файлов
+// ---------------------------------------------------------------------------
+
+/** Один файл канонической раскладки модуля формы. */
+export interface LayoutFileSpec {
+  /** Каноничное имя. */
+  path: string;
+  /** Зачем файл нужен — одной строкой. */
+  role: string;
+  /** Допустимые варианты имени/расширения (первым — то, что печатает генератор). */
+  variants?: string[];
+  /** Файл появляется не всегда. */
+  optional?: boolean;
+}
+
+/**
+ * Каноническая раскладка по таргетам — источник `06-form-directory-layout.md` §1.
+ *
+ * Таблица живёт рядом с генератором намеренно. Манифест — один из немногих каналов, по которым
+ * имена файлов доезжают до консумента без чтения документации целиком; замер
+ * (`docs/plans/mcp-layout-authority.md`) показал, что агент, работающий точечными запросами,
+ * правило раскладки не получает вовсе, а манифест печатал 5 имён из 10 и ничем не сообщал, что
+ * остальные консумент обязан создать сам. Поэтому список печатается ПОЛНЫЙ, с пометкой
+ * происхождения у каждой строки.
+ */
+export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = {
+  core: [
+    { path: 'index.tsx', role: 'точка входа; ВСЕ шаги wizard-а инлайном' },
+    { path: 'types.ts', role: 'локальные типы модуля' },
+    { path: 'model.ts', role: 'интерфейс модели и начальные значения' },
+    { path: 'form.schema.ts', role: 'схема разметки в TS', variants: ['form.schema.tsx'] },
+    { path: 'form.behavior.ts', role: 'поведение модели: computeFrom / enableWhen / copyFrom' },
+    { path: 'validation.ts', role: 'правила валидации' },
+    { path: 'data-sources.ts', role: 'справочники и списки значений' },
+    { path: 'api.ts', role: 'загрузка и submit' },
+  ],
+  'renderer-react': [
+    { path: 'index.tsx', role: 'точка входа; ВСЕ шаги wizard-а инлайном' },
+    { path: 'types.ts', role: 'локальные типы модуля' },
+    { path: 'model.ts', role: 'интерфейс модели и начальные значения' },
+    {
+      path: 'renderer.schema.ts',
+      role: 'схема разметки в TS (`.tsx`, если внутри есть JSX)',
+      variants: ['renderer.schema.tsx'],
+    },
+    { path: 'form.behavior.ts', role: 'поведение модели: computeFrom / enableWhen / copyFrom' },
+    { path: 'renderer.behavior.ts', role: 'поведение разметки: hideWhen по selector' },
+    { path: 'validation.ts', role: 'правила валидации' },
+    { path: 'data-sources.ts', role: 'справочники и списки значений' },
+    { path: 'api.ts', role: 'загрузка и submit' },
+  ],
+  'renderer-json': [
+    { path: 'index.tsx', role: 'точка входа; ВСЕ шаги wizard-а инлайном' },
+    { path: 'types.ts', role: 'локальные типы модуля' },
+    { path: 'model.ts', role: 'интерфейс модели и начальные значения' },
+    {
+      path: 'renderer.schema.ts',
+      role: 'схема в JSON-DSL через `defineJsonSchema<T>` — с ним пути `$model(...)` проверяются на компиляции, с чистым `.json` нет',
+      variants: ['renderer.schema.tsx', 'renderer.schema.json'],
+    },
+    { path: 'form.behavior.ts', role: 'поведение модели: computeFrom / enableWhen / copyFrom' },
+    { path: 'renderer.behavior.ts', role: 'поведение разметки: hideWhen по selector' },
+    { path: 'validation.ts', role: 'правила валидации' },
+    { path: 'data-sources.ts', role: 'справочники и списки значений' },
+    { path: 'api.ts', role: 'загрузка и submit' },
+    { path: 'registry.ts', role: 'реестр: `$component(...)` → React-компонент' },
+    {
+      path: 'renderer.wizard.tsx',
+      role: 'прикладной шим wizard-а (библиотека `RendererFormWizard` не экспортирует); допустимо держать его и внутри `registry.ts`',
+      optional: true,
+    },
+  ],
+};
+
+/**
+ * Тот же канон одной строкой — для каналов, где таблица `renderLayoutChecklist` не по бюджету.
+ *
+ * Такие каналы уже два: результат `plan_form` и сборка `get_context`. Строка собирается из
+ * `FORM_LAYOUT_CANON`, а не пишется руками, иначе копии расходятся с каноном — ровно эта
+ * поломка и разбирается в `docs/plans/mcp-layout-authority.md`.
+ *
+ * @param withOptional - Дописать опциональные файлы. По умолчанию нет: в `plan_form` строка
+ *   отвечает на «какие файлы завести сейчас». В `get_context` — да: там она единственный
+ *   источник имён, а `renderer.wizard.tsx` (шим wizard-а, библиотека его не экспортирует) —
+ *   как раз то имя, которое агенты выдумывали сами (`json-wizard.tsx`, `wizard.tsx`).
+ */
+export function renderLayoutLine(target: ReformerTargetStack, withOptional = false): string {
+  const canon = FORM_LAYOUT_CANON[target];
+  const files = canon
+    .filter((f) => !f.optional)
+    .map((f) => `\`${f.path}\``)
+    .join(' ');
+  const optional = withOptional
+    ? canon
+        .filter((f) => f.optional)
+        .map((f) => `\`${f.path}\``)
+        .join(' ')
+    : '';
+  return (
+    `Файлы модуля (${target}, плоский модуль, шаги инлайн): ${files}` +
+    (optional ? ` (+ по необходимости ${optional})` : '') +
+    '. Правило — `find_recipe directory-layout`, сверка имён — `validate_form kind="layout"`.'
+  );
+}
+
+/** Файлы, которые манифест печатает, но в каталог модуля не кладут. */
+const NOT_A_MODULE_FILE: Record<string, string> = {
+  'layout.json':
+    'в каталог модуля не кладут: это данные для ручной сборки схемы, перенесите их в схему и не сохраняйте сам файл',
+};
+
+/**
+ * Полный per-target список имён с пометкой, что сгенерировано, а что консумент пишет сам.
+ *
+ * Печатается ВСЕГДА, даже когда сгенерировано всё: молчание манифеста читается как «файлов
+ * ровно столько», и именно так раскладка расходилась с каноном на практике.
+ */
+export function renderLayoutChecklist(
+  target: ReformerTargetStack,
+  generated: readonly string[]
+): string {
+  const canon = FORM_LAYOUT_CANON[target];
+  const emitted = new Set(generated);
+
+  const lines: string[] = [];
+  lines.push('## Раскладка модуля — канонические имена');
+  lines.push('');
+  lines.push(
+    'Модуль формы плоский: без `lib/` / `schema/` / `components/steps/`, все шаги wizard-а ' +
+      'инлайном в `index.tsx`. Точка-префикс только у слоевых концернов (`form.` — слой модели, ' +
+      '`renderer.` — слой рендера), остальные файлы plain-named. Полное правило — ' +
+      '`find_recipe directory-layout`.'
+  );
+  lines.push('');
+
+  const rows: string[] = [];
+  let required = 0;
+  let done = 0;
+  for (const spec of canon) {
+    const hit = [spec.path, ...(spec.variants ?? [])].find((p) => emitted.has(p));
+    if (!spec.optional) required += 1;
+    let origin: string;
+    if (hit) {
+      if (!spec.optional) done += 1;
+      origin = hit === spec.path ? 'сгенерирован ниже' : `сгенерирован ниже как \`${hit}\``;
+    } else {
+      origin = spec.optional ? 'создайте сами, если нужен' : '**создайте сами**';
+    }
+    const names =
+      spec.variants && spec.variants.length > 0
+        ? `\`${spec.path}\` (или ${spec.variants.map((v) => `\`${v}\``).join(', ')})`
+        : `\`${spec.path}\``;
+    rows.push(`| ${names} | ${spec.role} | ${origin} |`);
+  }
+
+  lines.push(
+    `Сервер сгенерировал ${done} из ${required} обязательных файлов; остальные создайте сами — ` +
+      'под этими именами, а не под своими.'
+  );
+  lines.push('');
+  lines.push('| Файл | Роль | Откуда |');
+  lines.push('| --- | --- | --- |');
+  lines.push(...rows);
+
+  const transient = generated.filter((p) => NOT_A_MODULE_FILE[p]);
+  if (transient.length > 0) {
+    lines.push('');
+    for (const p of transient) lines.push(`\`${p}\` — ${NOT_A_MODULE_FILE[p]}.`);
+  }
+
+  lines.push('');
+  lines.push(
+    'Когда состав файлов известен, сверьте его: `validate_form kind="layout"` со списком имён.'
+  );
+
+  return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
 // Сборка манифеста
 // ---------------------------------------------------------------------------
 
@@ -571,9 +808,20 @@ export function buildRenderBehaviorTs(intent: FormIntent): string {
  * Раскладка — плоская (`minimalist`), с точкой-префиксом только у файлов, у которых есть
  * две слоевые версии (`form.` — модель, `renderer.` — разметка). Это конвенция репозитория,
  * зафиксированная в `docs/plans/mcp-staged-moonbeam.md`.
+ *
+ * Генерируется ПОДМНОЖЕСТВО набора: остальные файлы (`index.tsx`, `types.ts`, схема для core и
+ * renderer-react, `data-sources.ts`, `api.ts`) пишет консумент. Полный набор с пометкой
+ * происхождения печатает `renderLayoutChecklist` — без неё манифест читался как «файлов ровно
+ * столько», и имена расходились с каноном.
  */
-export function buildBundle(intent: FormIntent): { files: BundleFile[]; warnings: string[] } {
+export function buildBundle(intent: FormIntent): {
+  files: BundleFile[];
+  warnings: string[];
+  /** Layout как чистый JSON — для кросс-проверки, независимо от того, в каком файле он отдан. */
+  layoutJson: string;
+} {
   const warnings: string[] = [];
+  const layoutJson = buildLayoutJson(intent);
   const files: BundleFile[] = [
     { path: 'model.ts', content: buildModelTs(intent) },
     { path: 'validation.ts', content: buildValidationTs(intent) },
@@ -581,14 +829,18 @@ export function buildBundle(intent: FormIntent): { files: BundleFile[]; warnings
   ];
 
   if (intent.target === 'renderer-json') {
-    files.push({ path: 'renderer.schema.json', content: buildLayoutJson(intent) });
+    // Отдаём канонический `.ts` (`defineJsonSchema<T>`), а не чистый `.json`: только он держит
+    // compile-time проверку путей `$model(...)` — ни ajv, ни обход реестра опечатку в пути не
+    // ловят. Раньше здесь печатался `.json` с оговоркой в `## Warnings`; оговорку читают не все,
+    // а блок кода копируют все, и неканоничное имя расходилось дальше по проекту.
+    files.push({ path: 'renderer.schema.ts', content: buildRendererSchemaTs(intent) });
     const registry = buildRegistryTs(intent);
     files.push({ path: 'registry.ts', content: registry.content });
     warnings.push(...registry.warnings);
   } else {
     // core и renderer-react описывают разметку в TS; JSON здесь был бы чужим форматом,
     // поэтому отдаём тот же layout как данные для ручной сборки схемы.
-    files.push({ path: 'layout.json', content: buildLayoutJson(intent) });
+    files.push({ path: 'layout.json', content: layoutJson });
     warnings.push(
       'Для target `' +
         intent.target +
@@ -602,5 +854,5 @@ export function buildBundle(intent: FormIntent): { files: BundleFile[]; warnings
     files.push({ path: 'renderer.behavior.ts', content: buildRenderBehaviorTs(intent) });
   }
 
-  return { files, warnings };
+  return { files, warnings, layoutJson };
 }

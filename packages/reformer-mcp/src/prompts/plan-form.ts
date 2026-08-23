@@ -299,7 +299,6 @@ function buildPlanVars(
     stepsCountText: spec.steps > 0 ? String(spec.steps) : 'все',
     stepsTextOrSix: spec.steps > 0 ? String(spec.steps) : '6',
     stepsTextOrOne: spec.steps > 0 ? String(spec.steps) : '1',
-    rendererArtifactSuffix: target !== 'core' ? ' + render-schema' : '',
     rendererPrereqs: rendererPrereqsFor(target),
   };
 }

@@ -17,7 +17,7 @@ import {
   convertJsonToM1Tree,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import rawJsonSchema from './json-schema.json';
+import rawJsonSchema from './renderer.schema.json'; // вариант «схема как данные»; дефолт — renderer.schema.ts с defineJsonSchema<T>
 import { createRegistry } from './registry';
 
 const jsonSchema = rawJsonSchema as unknown as JsonFormSchema; // «схема пришла строкой»
@@ -62,7 +62,7 @@ import {
   JsonRendererProvider,
 } from '@reformer/renderer-json';
 import { createRegistry } from './registry';
-import { formBehavior } from './behavior';
+import { formBehavior } from './form.behavior';
 
 interface CreditForm {
   loanType: string;
@@ -130,7 +130,7 @@ const jsonForm = useJsonForm(() =>
 - `behavior` (compute/copyFrom/enableWhen/onChange модели) — реактивность ДАННЫХ; `renderBehavior` (hideWhen/patchProps/onInit) — реактивность РЕНДЕРА. Оба задаются полями конфига; `renderBehavior` — фабрикой `(form, model, validation?) => RenderBehaviorFn<T>`, потому что ей нужны уже собранные сущности. Одноимённый проп рендерера остаётся для перекрытия на месте монтирования.
 - `JsonFormRenderer` принимает **либо** `form={jsonForm}`, **либо** пару `schema` + `model`. С бандлом отдельные `schema`/`model` не нужны; не задать ни `form`, ни `schema`+`model` — рендерер бросит.
 - `useJsonForm(factory)` — стабильная сборка через ленивый `useState`; `factory` вызывается ровно один раз. `useMemo` для сборки формы не годится (React вправе сбросить кэш → потеря введённого).
-- `defineJsonSchema<T>` — identity-хелпер: сужает пути `$model(...)` до `Path<T>` (опечатка — ошибка компиляции). Схему-строку-с-сервера (тип формы неизвестен) типизируй `JsonFormSchema` без параметра (`raw as unknown as JsonFormSchema<T>`). Пути внутри `item.$template` относительны элементу и НЕ типизируются.
+- `defineJsonSchema<T>` в `renderer.schema.ts` — канон схемы для renderer-json именно из-за этого: identity-хелпер сужает пути `$model(...)` до `Path<T>` (опечатка — ошибка компиляции). Схему-строку-с-сервера (тип формы неизвестен) типизируй `JsonFormSchema` без параметра (`raw as unknown as JsonFormSchema<T>`). Пути внутри `item.$template` относительны элементу и НЕ типизируются.
 
 ## $template для массивов { #template-arrays }
 

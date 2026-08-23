@@ -20,6 +20,27 @@
 
 ## 1. Installation
 
+**Overview**
+
+`@reformer/ui-kit` — это набор готовых стилизованных React-компонентов для форм на
+[`@reformer/core`](../../../reformer/) и [`@reformer/cdk`](../../../reformer-cdk/).
+Под капотом — Tailwind CSS и Radix UI; интерфейс компонентов спроектирован под
+контракт `value` / `onChange` / `onBlur` `FieldNode<T>`, поэтому подключение к
+форме сводится к `<FormField control={form.email} />` или к регистрации
+компонента в `RenderSchema` рендерера.
+
+В отличие от headless-уровня `@reformer/cdk` (компоненты `FormArray`,
+`FormWizard`, `FormField` без стилей), `ui-kit` уже имеет:
+
+- стили (Tailwind utility-классы + темизация через CSS-переменные),
+- разумные defaults для accessibility (`aria-invalid`, `aria-label`),
+- готовый `FormField`-обёртку с label/error/pending,
+- `Button` с вариантами (`default`/`outline`/`ghost`/`link`/`destructive`/`secondary`),
+- утилиты для playground (`ExampleCard`, `AsyncBoundary`).
+
+Если стили не подходят — можно использовать только headless `@reformer/cdk` и
+писать собственный UI; этот пакет — разумная отправная точка.
+
 ```bash
 npm install @reformer/ui-kit @reformer/cdk @reformer/core
 ```
@@ -219,6 +240,25 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 - [11-form-layout.md](11-form-layout.md) — отступы, сетка полей, группировка и секции.
 
 ## 6. Components
+
+**Text fields**
+
+Текстовые поля ввода: `Input`, `InputMask`, `InputPassword`, `Textarea`. Все
+четыре компонента следуют единому контракту:
+
+- `value: string | number | null`,
+- `onChange(value: string | number | null)` — пустая строка передаётся как `null`,
+- `onBlur()` — без аргументов; используется `FormField` для пометки `touched`.
+
+Это нужно, чтобы их можно было прозрачно подсунуть в `FormField` /
+`RenderSchema`, не оборачивая в адаптеры.
+
+> **Уже value-based — `FieldAdapter` не нужен.** Раз эти поля говорят на `value` +
+> `onChange(value)`, рендерер (`@reformer/renderer-react`, а через наследование и
+> `renderer-json`) отдаёт им seam как есть — `resolveFieldAdapter` возвращает для них
+> `undefined`. Формальный `FieldAdapter` из `RendererSettings` требуется только СЫРЫМ
+> контролам чужого UI-kit, которые эмитят не значение, а event/`checked`/`(value, option)`;
+> четыре поля выше в нём не участвуют.
 
 | Name            | Purpose                                                                                | When to use                           |
 | --------------- | -------------------------------------------------------------------------------------- | ------------------------------------- |
@@ -486,6 +526,18 @@ import { Textarea } from '@reformer/ui-kit';
 - [06-troubleshooting.md](06-troubleshooting.md) — «number возвращает строку», «mask пропускает символы», «password toggle не появляется».
 
 ## 12. Checkbox
+
+**Choice fields**
+
+Поля выбора: `Checkbox`, `RadioGroup`, `Select` (+ 8 sub-компонентов из Radix).
+Контракт `value`/`onChange`/`onBlur` тот же, что у текстовых полей, но `value`
+бывает разных типов:
+
+| Component    | `value` type     | `onChange` payload                        |
+| ------------ | ---------------- | ----------------------------------------- |
+| `Checkbox`   | `boolean`        | `boolean`                                 |
+| `RadioGroup` | `string \| null` | `string` (ровно один из `options`)        |
+| `Select`     | `string \| null` | `string \| null` (`null` при `clearable`) |
 
 ### API
 
@@ -954,6 +1006,12 @@ const validation = defineValidationSchema<Form>(({ model }) => {
 
 ## 17. Button
 
+**Layout and buttons**
+
+Компоненты, не привязанные к `FieldNode`: `Button`, `AsyncBoundary`,
+`ExampleCard`, утилита `cn`. Используются как для основных действий формы
+(submit, prev/next в wizard), так и для playground-демонстраций.
+
 Кнопка на shadcn/Radix `Slot`. Поддерживает 6 вариантов внешнего вида, 6
 размеров и режим `asChild` для замены DOM-узла (типичный кейс — превратить
 кнопку в `<a>` или `<Link>` без потери стилей).
@@ -1298,6 +1356,37 @@ const Card = React.forwardRef<HTMLDivElement, { className?: string }>(
 
 ## 22. API
 
+**FormField integration**
+
+`FormField` из `@reformer/ui-kit` — это готовая обёртка-«склейка» поверх
+headless-компонента `FormField` из [`@reformer/cdk`](../../../reformer-cdk/).
+Она автоматически рендерит `Label` → `Control` → `Error`, читает `pending`-флаг
+для async-валидаций и подставляет `data-testid` для e2e.
+
+В отличие от headless-`FormField` из CDK (нужно вручную собирать `Root` /
+`Label` / `Control` / `Error`), ui-kit-вариант — однострочный:
+
+```tsx
+<FormField control={form.email} testId="email" />
+```
+
+Где-то под капотом разворачивается:
+
+```tsx
+<CdkFormField.Root control={control}>
+  <div className={className} data-testid={`field-${testId}`}>
+    {!isCheckbox && <CdkFormField.Label data-testid={`label-${testId}`} />}
+    <CdkFormField.Control data-testid={`input-${testId}`} />
+    <CdkFormField.Error data-testid={`error-${testId}`} />
+    {pending && <span>Проверка...</span>}
+  </div>
+</CdkFormField.Root>
+```
+
+`Control` сам инстанцирует `control.component` (`Input`, `Select`, `Checkbox`...)
+и прокидывает `value`/`onChange`/`onBlur`/`error` из `FieldNode` без
+дополнительного кода.
+
 ```typescript
 interface FormFieldProps {
   control: FieldNode<any>;
@@ -1513,6 +1602,10 @@ const form = createForm<{ accept: boolean }>({ model, schema });
 - CDK-хуки: [@reformer/cdk/form-field](../../../reformer-cdk/docs/llms/) (`FormField.Root`, `useFormFieldContext`).
 
 ## 26. 1. `Input type="number"` возвращает строку, а не число (или `null`)
+
+**Troubleshooting / FAQ**
+
+Частые ошибки при использовании `@reformer/ui-kit` и пути их решения.
 
 **Симптом.** В schema поле `age: number`, но в `getValue()` приходит `'42'` или
 никогда не приходит `null` для пустого ввода.
@@ -1837,6 +1930,12 @@ validate(model.signalAt(tags)!, [required()]);
 
 ## 39. Базовое использование
 
+**FormWizard — multi-step форма**
+
+`@reformer/ui-kit/form-wizard` — стилизованный wrapper поверх headless
+`@reformer/cdk/form-wizard`. Один компонент покрывает все три флоу:
+TS-схема, renderer-react RenderSchema, renderer-json.
+
 ```tsx
 import { useMemo, useRef, type FC } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
@@ -2086,7 +2185,16 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 }
 ```
 
-`body` — обычный JsonNode → конвертер renderer-json превращает в RenderNode → шим `$component(Wizard)` отдаёт его в `FormWizard` вместе с `renderStepBody`. Шим (и стратегия в нём) — на стороне приложения; golden-пример: `projects/react-playground/src/components/RendererFormWizard.tsx`.
+`body` — обычный JsonNode → конвертер renderer-json превращает в RenderNode → шим `$component(Wizard)` отдаёт его в `FormWizard` вместе с `renderStepBody`. Шим (и стратегия в нём) — код приложения, а не экспорт библиотеки: `RendererFormWizard` из `@reformer/*` не импортируется, его пишет само приложение.
+
+Канон раскладки держит шим **внутри модуля формы**, и мест под него ровно два — оба каноничны, выбирается одно:
+
+- `renderer.wizard.tsx` — отдельный файл модуля (единственный файл сверх набора, который канон разрешает, и только для renderer-json + wizard);
+- инлайном в `registry.ts` — рядом со строкой `reg.component('Wizard', …)`, которая его и регистрирует.
+
+Полное правило — `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1, он же `find_recipe directory-layout`.
+
+Общий компонент уровня приложения (`projects/react-playground/src/components/RendererFormWizard.tsx`) — исторический вариант, а не эталон нейминга: выносить шим за пределы модуля имеет смысл, только когда его переиспользуют несколько форм.
 
 ## 43. Compound API
 
@@ -2122,6 +2230,20 @@ const result = await wizardRef.current?.submit((values) => api.submit(values));
 `goToStep(step)`, `submit(cb)`.
 
 ## 45. Базовое использование (TS-flow)
+
+**FormArraySection — UI для FormArray**
+
+`@reformer/ui-kit/form-array` — стилизованный wrapper поверх headless
+`@reformer/cdk/form-array`.
+
+В пакете **два** компонента массива, и путать их нельзя:
+
+| Компонент          | Для чего                                    | Контракт                                            |
+| ------------------ | ------------------------------------------- | --------------------------------------------------- |
+| `FormArraySection` | TS-flow и renderer-react RenderSchema       | `control` + `itemComponent` (FC на элемент)         |
+| `FormArray`        | **renderer-json**, `$component(FormArray)`  | `items`/`onAdd`/`onRemove`/`onMove` — инъектит рендерер |
+
+Этот документ — про `FormArraySection`; про JSON-вариант см. [JSON (renderer-json)](#json-renderer-json).
 
 ```tsx
 import { FormArraySection } from '@reformer/ui-kit/form-array';
@@ -2298,6 +2420,17 @@ FieldConfig попадает в значение поля → Textarea ренд�
 
 ## 50. Schema-driven (canonical pattern)
 
+**InputMask — поля с маской ввода**
+
+`InputMask` из `@reformer/ui-kit` — input с placeholder-маской: символ `'9'` означает
+«цифра», остальные символы (`+`, `-`, `(`, `)`, пробел, точка) — литералы для подсказки
+формата в placeholder.
+
+> **Важно**: автоматическая вставка литералов **не** выполняется (это lightweight mask,
+> не full input-mask библиотека). Маска используется как visual hint в placeholder.
+> Для строгой маски с формат-вставкой используй `react-input-mask` или `imask`
+> через `<FormField><CustomMask /></FormField>` pattern (см. секцию ниже).
+
 Канон M1: `createModel` → layout-схема, где лист = `{ value: model.$.field, component,
 componentProps }` → `createForm({ model, schema })`; правила — отдельной
 `defineValidationSchema`. Объяви InputMask как `component` листа; передай `mask`
@@ -2437,6 +2570,12 @@ import InputMask from 'react-input-mask';
 - [06-troubleshooting.md](06-troubleshooting.md) — «маска не вставляется автоматически» → используй `react-input-mask`
 
 ## 55. Когда императив, а когда реактив
+
+**Императивные handle полей — управление компонентом по селектору**
+
+Каждое поле ui-kit экспонирует типизированный императивный handle через `ref`. Из render-схемы он
+достаётся по селектору: `schema.node(sel).getRef<H>()`. Это мост «узел схемы → живой компонент»,
+тот же, что уже использовался для `FormWizard`/`FormArray`, но теперь работает и для листовых полей.
 
 Handle покрывает ТОЛЬКО то, что не выражается реактивно. Всё остальное остаётся в behaviors —
 дублировать его через handle нельзя, иначе появятся два способа делать одно и то же.
@@ -2634,6 +2773,14 @@ export const MySelectField = withFormControl(MySelect, myAdapter, { exposesHandl
 (`export interface MySelectHandle extends FieldHandle { … }`) и реэкспортируйте из barrel компонента.
 
 ## 65. Key Concepts
+
+**Form layout — отступы, сетка и группировка полей**
+
+Правила раскладки формы: чем задавать вертикальный ритм, как собирать поля в строки и
+группы, где граница между «расположением» и «внешним видом». Короткое правило — **руками
+пишем только раскладку и отступы, вид берём компонентом кита**. Для полей это кодифицировано
+в `class-catalog.ts` (`FIELD_CLASS_GROUPS`); документ распространяет то же правило на всю
+форму.
 
 - **Разрешённые группы классов** — `layout`, `flex`, `grid`, `spacing`, `responsive`,
   `sizing` из словаря `@reformer/ui-kit/catalog`. Больше руками не пишем ничего.

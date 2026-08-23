@@ -93,6 +93,10 @@ const isDebugMode = process.env.REFORMER_DEBUG === 'true';
 // Env config (set in the MCP server registration `.mcp.json` env, like REFORMER_DEBUG):
 //   REFORMER_FORM_LAYOUT = 'minimalist' (default) | 'folders'
 //     → default file layout the `create-form` prompt steers toward. Read in prompts/create-form.ts.
+//     ВАЖНО: ручка действует только в prompt-канале, а он доходит не до всякого клиента — замер
+//     показал агентов, у которых `prompts/list` и `prompts/get` недоступны в принципе. Поэтому
+//     раскладку по умолчанию (`minimalist`) дублируют tool-поверхность (описания `plan_form` /
+//     `generate_form`, чек-лист в манифесте) и вводный блок `reformer://guide`.
 
 // Версия из package.json пакета — иначе клиент видел захардкоженный литерал (в 11.0.0
 // сервер отдавал '6.0.0', что читалось как «npx отдаёт протухший кэш»). Читаем от dist/
@@ -265,7 +269,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
     uri: 'reformer://guide',
     name: 'ReFormer MCP — start-here guide',
     description:
-      'Entry point: canonical M1 form-building workflow and a map of which MCP tool/prompt/resource to use at each step.',
+      'Entry point: the canonical M1 form-building workflow, the mandatory flat form file layout (`form.` = model, `renderer.` = render), and a map of which MCP tool/resource to use at each step; the layout rule is in the opening lines.',
     mimeType: 'text/markdown',
   });
 
@@ -325,13 +329,51 @@ function buildCatalog(): string {
   });
 }
 
+/**
+ * Сводка правила раскладки файлов — печатается ПЕРЕД полным текстом гайда.
+ *
+ * `reformer://guide` отдаёт весь llms.txt пакета (~47 КБ), и замер
+ * (`docs/plans/mcp-layout-authority.md`) показал: имена файлов формы доезжали до агента ровно
+ * одним способом — чтением этого документа целиком. Прогон точечными запросами получил 5/10
+ * совпадений с каноном, прогон, начавший с guide, — 8/9. Правило, стоящее первым абзацем,
+ * доезжает и до тех, кто читает только начало; полный per-target список остаётся ниже по тексту
+ * и в `find_recipe directory-layout`.
+ */
+const FORM_LAYOUT_ENTRY = [
+  '> **Form file layout — read this even if you read nothing else here.**',
+  '>',
+  '> A form module is FLAT: no `lib/` / `schema/` / `components/steps/` nesting, ALL wizard steps',
+  '> inline in `index.tsx`. Plain-named files: `index.tsx`, `types.ts`, `model.ts`,',
+  '> `validation.ts`, `data-sources.ts`, `api.ts`. Only the two layer-variable concerns carry a',
+  '> dot-prefix — `form.` = model layer, `renderer.` = render layer:',
+  '>',
+  '> - **schema** — `form.schema.ts` (core) / `renderer.schema.ts` (renderer-react and',
+  '>   renderer-json; `.tsx` when the schema contains JSX). For renderer-json a plain',
+  '>   `renderer.schema.json` is an accepted variant, but it loses compile-time checking of',
+  '>   `$model(...)` paths that `defineJsonSchema<T>` gives.',
+  '> - **behavior** — `form.behavior.ts` (model behavior, every target) + `renderer.behavior.ts`',
+  '>   (render behavior, both renderers).',
+  '>',
+  '> renderer-json also has `registry.ts`, and may add an optional `renderer.wizard.tsx` shim',
+  '> (the library exports no `RendererFormWizard`). File names are not a free choice. Full',
+  '> per-target list: `find_recipe directory-layout`, or the "Form directory layout" section below.',
+  '> Check the names you picked with `validate_form kind="layout"` — before writing, not after.',
+  '',
+].join('\n');
+
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
 
   // Entry-point alias → full self-doc of the MCP server.
   if (uri === 'reformer://guide') {
     return {
-      contents: [{ uri, mimeType: 'text/markdown', text: getFullDocs('@reformer/mcp') }],
+      contents: [
+        {
+          uri,
+          mimeType: 'text/markdown',
+          text: `${FORM_LAYOUT_ENTRY}\n${getFullDocs('@reformer/mcp')}`,
+        },
+      ],
     };
   }
 

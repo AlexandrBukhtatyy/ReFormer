@@ -16,6 +16,12 @@
 
 ## 1. Проблема
 
+**Overview**
+
+`@reformer/form-registry` решает одну задачу: **какая форма рендерится, где и когда**, в приложении
+из нескольких микрофронтов. Один бандл регистрирует форму, другой решает, показывать ли её и в каком
+месте.
+
 Связка «id формы → модуль» обычно набирается руками: импорт, пункт меню, маршрут. Три правки, ничем
 не связанные ни между собой, ни с самой формой. Приложение, собранное отдельно, добавить форму не
 может вовсе — оно не участвует в сборке хоста.
@@ -59,6 +65,14 @@ npm install @reformer/form-registry @reformer/core @reformer/renderer-json @refo
 - `validation.ts`, `form.behavior.ts`, `renderer.behavior.ts`, `api.ts`, `registry.ts`,
   `data-sources.ts`, `model.ts`, `types.ts` — **код**.
 
+> Расширение `.json` у схемы здесь не случайно и не противоречит канону раскладки: дефолт для
+> renderer-json — `renderer.schema.ts` с `defineJsonSchema<T>` (типизирует пути `$model(...)` на
+> этапе компиляции), а `.json` — допустимый вариант «схема как данные» ровно для этого случая —
+> когда схема едет по сети и компилятора на другом конце нет. Имя файла (стем `renderer.schema`)
+> одинаковое в обоих вариантах. Полный набор имён — `@reformer/mcp`
+> [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1.
+
+
 Отсюда следует то, что закреплено в типах: `DataSource` умеет `kind: 'http'`, а `CodeSource` — нет.
 Это не «пока не реализовано». Загружать код по сети означало бы исполнять то, что отдал сервер.
 
@@ -96,6 +110,39 @@ FormEntry (запись)
 - `07-troubleshooting.md` — симптом → причина
 
 ## 7. Два вида источников
+
+**FormEntry — запись реестра**
+
+`FormEntry` описывает форму целиком: что она такое, откуда её части взять, где её показывать и кому.
+
+```ts
+import type { FormEntry } from '@reformer/form-registry';
+
+export const checkoutEntry: FormEntry<CheckoutForm> = {
+  id: 'checkout',
+  version: '1.0.0',
+  owner: 'mfe-orders',
+
+  // ── данные
+  schema: { kind: 'inline', value: checkoutSchema },
+  compatibleSchema: '^1.0.0',
+  initial: { kind: 'inline', value: { items: [], total: 0 } },
+
+  // ── код
+  registry: { kind: 'inline', value: createCheckoutRegistry() },
+  model: { kind: 'inline', value: createCheckoutModel },
+  behavior: { kind: 'inline', value: checkoutBehavior },
+  validation: { kind: 'inline', value: { steps: { delivery: deliveryRules } } },
+  renderBehavior: { kind: 'inline', value: createCheckoutRenderBehavior },
+
+  // ── где и кому
+  placement: { slots: ['sidebar'], routes: ['/orders/:id/checkout'], priority: 10 },
+  access: { permissions: ['orders.write'], flags: ['checkout-v2'] },
+
+  degrade: 'error',
+  meta: { name: 'Оформление заказа', tags: ['orders'] },
+};
+```
 
 ```ts
 type DataSource<T> =
@@ -178,6 +225,8 @@ registry.register(entry, { onConflict: 'keep' }); // оставить прежн
 приложения. Снятие идемпотентно и не удаляет запись, которую успел перезаписать другой владелец.
 
 ## 10. Провайдер
+
+**Монтирование: FormOutlet, FormSlot, FormRoute**
 
 ```tsx
 import { getFormRegistry } from '@reformer/form-registry';
@@ -288,6 +337,11 @@ React-контекст не пересекает границу бандла: п
 остались от прежней версии.
 
 ## 16. Быстрый старт
+
+**Сеть, кэш и хранилище**
+
+Схемы объёмные: шестишаговая кредитная заявка — **68 КБ**, каталог компонентов — 128 КБ. Тянуть их
+заново на каждый F5 расточительно, поэтому кэш персистентный.
 
 ```tsx
 import { createSchemaCache, getFormRegistry } from '@reformer/form-registry';
@@ -446,6 +500,21 @@ LRU по `lastUsedAt`, потолок 32 МБ. Чтение обновляет �
 
 ## 21. Пять проверок
 
+**Preflight — проверки до сборки формы**
+
+`convertJsonToM1Tree` синхронный и бросает на первом же незарегистрированном компоненте. Для схемы,
+приехавшей по сети, это самый вероятный отказ — и бросок из конвертера называет один промах, ничего
+не говоря ни о версии, ни о том, сколько промахов впереди.
+
+Preflight собирает полную картину до того, как форма начнёт строиться.
+
+```ts
+const loaded = await loadForm(entry, baseRegistry, {
+  preflight: 'error', // дефолт | 'warn' — только диагностика | 'off'
+  onDiagnostic: (d) => telemetry.warn(d.code, d.message),
+});
+```
+
 | проверка | что ловит | делалось раньше |
 | --- | --- | --- |
 | `compatibleSchema` ↔ версия схемы | схема ушла вперёд кода: CDN отдал v2, поведение осталось v1 | **нет**, `version` объявлен и нигде не читался |
@@ -499,6 +568,8 @@ import { validateSchemaCached, assertSchemaValid } from '@reformer/form-registry
 может дать другой ответ, а `WeakMap` не удерживает схемы от сборки мусора.
 
 ## 25. Что ломается
+
+**Guard: двойной рантайм**
 
 Две копии одного пакета в одном realm — авария, у которой нет ни одного видимого симптома.
 
@@ -583,6 +654,11 @@ cross-realm registry — это единственный ключ, совпад�
 Module Federation без общего chunk'а хост не увидел бы форм, зарегистрированных ремоутом.
 
 ## 31. Форма не появилась, в DOM пусто, ошибок нет
+
+**Troubleshooting**
+
+Симптом → причина → что делать. Большинство отказов реестра **молчаливы**, поэтому список
+отсортирован по коварности, а не по частоте.
 
 Запись либо не найдена, либо отсеяна гейтом — снаружи это неотличимо, и намеренно: пустая рамка на
 месте недоступной формы сообщала бы о её существовании.

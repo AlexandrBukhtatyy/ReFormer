@@ -87,7 +87,7 @@ describe('встроенные шаблоны', () => {
 
   it('пошаговая форма: восемь файлов, включая адаптер визарда', () => {
     const t = wizardFormTemplate();
-    expect(t.files.map((f) => f.path)).toContain('wizard.tsx');
+    expect(t.files.map((f) => f.path)).toContain('renderer.wizard.tsx');
     expect(t.files).toHaveLength(8);
     expect(resolvePicked(['index.tsx'], t.requires).size).toBe(8);
   });
@@ -133,8 +133,8 @@ describe('встроенные шаблоны', () => {
       'form.behavior.ts',
       'renderer.behavior.ts',
       'registry.ts',
-      // Адаптер к ui-kit FormWizard — осознанное отступление, см. wizard-templates.ts.
-      'wizard.tsx',
+      // Опциональный слот канона: шим под `$component(Wizard)` (renderer-json + wizard).
+      'renderer.wizard.tsx',
     ];
     for (const t of builtinTemplates()) {
       const alien = t.files.map((f) => f.path).filter((p) => !CANON.includes(p));

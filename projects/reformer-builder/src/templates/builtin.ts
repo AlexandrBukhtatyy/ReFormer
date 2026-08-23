@@ -96,8 +96,8 @@ const WIZARD_FILES: ReadonlyArray<BuiltinFile> = [
     render: () => wizardIndexTsxTemplate(BUILTIN_BASE_NAME),
   },
   {
-    path: 'wizard.tsx',
-    label: 'Адаптер визарда (wizard.tsx) — шаги схемы → ui-kit FormWizard',
+    path: 'renderer.wizard.tsx',
+    label: 'Адаптер визарда (renderer.wizard.tsx) — шаги схемы → ui-kit FormWizard',
     render: () => wizardAdapterTsxTemplate(BUILTIN_BASE_NAME),
   },
   {

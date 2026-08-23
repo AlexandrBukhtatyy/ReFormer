@@ -49,6 +49,14 @@ npm install @reformer/form-registry @reformer/core @reformer/renderer-json @refo
 - `validation.ts`, `form.behavior.ts`, `renderer.behavior.ts`, `api.ts`, `registry.ts`,
   `data-sources.ts`, `model.ts`, `types.ts` — **код**.
 
+> Расширение `.json` у схемы здесь не случайно и не противоречит канону раскладки: дефолт для
+> renderer-json — `renderer.schema.ts` с `defineJsonSchema<T>` (типизирует пути `$model(...)` на
+> этапе компиляции), а `.json` — допустимый вариант «схема как данные» ровно для этого случая —
+> когда схема едет по сети и компилятора на другом конце нет. Имя файла (стем `renderer.schema`)
+> одинаковое в обоих вариантах. Полный набор имён — `@reformer/mcp`
+> [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1.
+
+
 Отсюда следует то, что закреплено в типах: `DataSource` умеет `kind: 'http'`, а `CodeSource` — нет.
 Это не «пока не реализовано». Загружать код по сети означало бы исполнять то, что отдал сервер.
 

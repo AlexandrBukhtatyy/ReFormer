@@ -23,6 +23,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { buildBundle } from '../src/core/generate/builders.js';
+import { readIntent } from '../src/core/generate/form-intent.js';
 import { intentFromSpec } from '../src/core/generate/from-spec';
 import { analyzeSpec, MAX_FIELDS, parseValidationCell } from '../src/core/spec/analyze';
 
@@ -325,5 +326,47 @@ describe('составные пути и потолок разбора', () => {
     const a = analyzeSpec(`# Форма: Много полей\n\n<table>\n${rows}\n</table>\n`);
     expect(a.fields).toHaveLength(MAX_FIELDS);
     expect(a.warnings.some((w) => w.includes('потолок'))).toBe(true);
+  });
+});
+
+describe('круг «спека → intent → повторное чтение»', () => {
+  // `generate_form` больше не принимает `Partial<FormIntent>` буквально: перед нормализацией
+  // стоит слой, приводящий интуитивные имена ключей к контракту. Он обязан быть прозрачным для
+  // штатного пути — иначе всё, что разобрал `plan_form`, на втором круге поедет иначе, и цена
+  // приёма «интуитивного» входа окажется на нормальном сценарии.
+  const sorted = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(sorted)
+      : v && typeof v === 'object'
+        ? Object.fromEntries(
+            Object.keys(v as object)
+              .sort()
+              .map((k) => [k, sorted((v as Record<string, unknown>)[k])])
+          )
+        : v;
+
+  it('intent из спеки читается обратно без потерь и без замечаний', () => {
+    // Спека проекта, а не фикстура: 68 полей, составные пути, правила и предупреждения разбора —
+    // на выдуманной таблице ни одна из этих граней не проверяется.
+    const source = readFileSync(
+      join(process.cwd(), '../../docs/specs', 'credit-application-form.md'),
+      'utf8'
+    );
+    const planned = intentFromSpec(source, 'renderer-json');
+    expect(planned.fields.length).toBeGreaterThan(50);
+
+    const { intent: reread, problems } = readIntent(JSON.parse(JSON.stringify(planned)));
+    expect(problems).toEqual([]);
+    expect(sorted({ ...reread, warnings: [] })).toEqual(sorted({ ...planned, warnings: [] }));
+    // Предупреждения разбора спеки — часть результата: потеряв их на круге, консумент решит,
+    // что формулы вычисляемых полей извлеклись.
+    expect(reread.warnings).toEqual(planned.warnings);
+  });
+
+  it('бандл из перечитанного intent совпадает с бандлом из исходного', () => {
+    const source = readFileSync(FIXTURE, 'utf-8');
+    const planned = intentFromSpec(source, 'core');
+    const { intent: reread } = readIntent(JSON.parse(JSON.stringify(planned)));
+    expect(buildBundle(reread).files).toEqual(buildBundle(planned).files);
   });
 });

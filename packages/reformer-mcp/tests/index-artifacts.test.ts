@@ -17,6 +17,11 @@
  *     то есть ровно то, что решает корректность формы. Их не было и в самом llms.txt.
  *  3. Ядро DSL (23 оператора) присутствует поимённо — это те API, вокруг которых строятся
  *     все рецепты, и потеря любого из них ломает генерацию.
+ *  4. Шапка docs-файла (H1 + вводный абзац) доезжает до llms.txt. Она лежит выше первого
+ *     `## `, а в llms.txt переносились только `## `-секции — и терялась. Терялась не только
+ *     для читателя: search_docs индексирует секции llms.txt, поэтому §1 гайда раскладки не
+ *     находился по запросу «form directory layout» — этих слов нет ни в заголовке секции,
+ *     ни в её теле, они были только в H1 и во введении файла.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -85,6 +90,52 @@ describe('llms-index.json — артефакт билда', () => {
         .filter((slug) => !known.has(slug));
       expect(broken, `${pkg}: слаги из индекса не резолвятся: ${broken.join(', ')}`).toEqual([]);
     }
+  });
+
+  it.runIf(hasIndexes)('шапка файла доезжает до первой его секции в llms.txt', () => {
+    // llms.txt состоит из `## `-секций, поэтому всё, что в docs/llms/NN-*.md лежит выше
+    // первого `## ` — H1 и вводный абзац, — при переносе терялось. Терялось не только для
+    // читателя: search_docs индексирует именно секции llms.txt, и запрос «form directory
+    // layout» не находил §1 гайда раскладки — этих слов не было ни в заголовке секции
+    // («1. Minimalist (default) — flat, one file per concern»), ни в её теле.
+    //
+    // Проверяем по артефакту, а не по коду генератора. Идём по llms.txt курсором и
+    // «съедаем» ВСЕ заголовки файла: секции там перенумерованы (`## <N>. <заголовок>`), а
+    // одинаковые заголовки («Key Concepts», «Examples») есть у нескольких файлов пакета —
+    // поиск с начала нашёл бы чужую секцию.
+    const bad: string[] = [];
+    const headingText = (line: string) => line.replace(/^##\s+(\d+\.\s+)?/, '');
+    for (const [pkg, idx] of indexed) {
+      const dir = resolve(repoRoot, 'packages', packageDir(pkg));
+      const lines = readFileSync(resolve(dir, 'llms.txt'), 'utf8').split(/\r?\n/);
+      let cursor = 0;
+      for (const topic of idx.topics) {
+        const md = readFileSync(resolve(dir, 'docs/llms', topic.file), 'utf8');
+        const headings = md
+          .split(/\r?\n/)
+          .filter((l) => /^##\s+/.test(l))
+          .map((l) => l.replace(/^##\s+/, '').trim());
+        let first = -1;
+        for (const [i, heading] of headings.entries()) {
+          const at = lines.findIndex(
+            (l, j) => j >= cursor && l.startsWith('## ') && headingText(l) === heading
+          );
+          if (at === -1) {
+            bad.push(`${pkg} ${topic.file}: секции «${heading}» нет в llms.txt`);
+            break;
+          }
+          if (i === 0) first = at;
+          cursor = at + 1;
+        }
+        if (first === -1) continue;
+        let j = first + 1;
+        while (j < lines.length && lines[j].trim() === '') j++;
+        if (lines[j] !== `**${topic.title}**`) {
+          bad.push(`${pkg} ${topic.file}: вместо шапки «${topic.title}» — ${lines[j]}`);
+        }
+      }
+    }
+    expect(bad, `шапка файла не доехала до llms.txt:\n${bad.join('\n')}`).toEqual([]);
   });
 
   it.runIf(hasIndexes)(

@@ -1,0 +1,41 @@
+{
+  "category": "layout",
+  "description": "Имена файлов модуля формы. Расследование (`.tmp/layout-check/report.md`) установило, что правило доставлялось ровно одним каналом — чтением ресурса `reformer://guide` (~47 КБ) целиком: прогон точечными запросами получил 5/10 совпадений с каноном и придумал `schema.ts` / `render-behavior.ts` / `initial-values.ts` сам, прогон, прочитавший guide, — 8/9. Задачи ниже меряют ровно это: доезжает ли КАНОНИЧЕСКОЕ имя файла по естественной формулировке, без чтения гайда целиком. Ожидания — сами имена с точкой-разделителем, поэтому неканоничный синоним (`render-behavior.ts`, `render.behavior.ts`, `schema.ts`) их подстрокой не удовлетворяет. ОБРАТНАЯ сторона — что гайд раскладки НЕ всплывает на запросах не про файлы — здесь не проверяется: формат корпуса знает только положительное `expectAny`. Этот сторож живёт юнит-тестом (`tests/search-docs.test.ts`, «исключение из штрафа действует только на layout-запросах»); он и ловит регресс, при котором §1 гайда выигрывал «how to validate a step».",
+  "tasks": [
+    {
+      "id": "layout/start-a-form",
+      "task": "начать новую форму: под какими именами создавать файлы модуля",
+      "target": "renderer-json",
+      "queries": ["create-form", "form file names", "directory-layout"],
+      "expectAny": ["renderer.schema.ts", "renderer.behavior.ts"]
+    },
+    {
+      "id": "layout/render-behavior-file",
+      "task": "куда положить поведение слоя рендера — renderEffect, onComponentEvent, hideWhen по узлам схемы",
+      "target": "renderer-react",
+      "queries": ["form file names", "file-naming", "directory-layout"],
+      "expectAny": ["renderer.behavior.ts"]
+    },
+    {
+      "id": "layout/model-behavior-file",
+      "task": "куда положить поведение модели — computeFrom, enableWhen, copyFrom",
+      "target": "core",
+      "queries": ["form file names", "directory-layout", "project-structure"],
+      "expectAny": ["form.behavior.ts"]
+    },
+    {
+      "id": "layout/json-schema-file",
+      "task": "как назвать файл JSON-схемы формы на renderer-json",
+      "target": "renderer-json",
+      "queries": ["form directory layout", "file-naming", "form-files"],
+      "expectAny": ["renderer.schema.ts"]
+    },
+    {
+      "id": "layout/wizard-shim-file",
+      "task": "куда положить app-shim компонента визарда для формы на JSON-схеме",
+      "target": "renderer-json",
+      "queries": ["directory-layout", "form-files", "form file names"],
+      "expectAny": ["renderer.wizard.tsx"]
+    }
+  ]
+}

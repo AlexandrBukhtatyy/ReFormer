@@ -156,6 +156,7 @@ function parseDocsFiles(pkg) {
     return {
       file,
       title: extractH1(raw) ?? stripExtension(file),
+      lead: extractLead(raw),
       sections: extractH2Sections(raw),
       raw,
     };
@@ -165,6 +166,23 @@ function parseDocsFiles(pkg) {
 function extractH1(md) {
   const m = md.match(/^#\s+(.+)$/m);
   return m ? m[1].trim() : null;
+}
+
+/**
+ * Шапка файла — всё до первого `## ` за вычетом строки H1.
+ *
+ * Раньше терялась целиком: в llms.txt переносились только `## `-секции, поэтому H1 и вводный
+ * абзац — ровно то место, где документ назван своими словами («Form directory layout», «How to
+ * organize the files of one form»), — не доезжали ни до одного канала. Отсюда провал поиска:
+ * `search_docs` индексирует секции llms.txt, и запрос «form directory layout» не находил §1
+ * гайда раскладки, потому что этих слов не было ни в заголовке секции («1. Minimalist
+ * (default) — flat, one file per concern»), ни в её теле.
+ */
+function extractLead(md) {
+  const lines = md.split(/\r?\n/);
+  const end = lines.findIndex((l) => /^##\s+/.test(l));
+  const head = (end === -1 ? lines : lines.slice(0, end)).join('\n');
+  return head.replace(/^#\s+.+$/m, '').trim();
 }
 
 function stripExtension(name) {
@@ -723,15 +741,31 @@ function renderLlmsTxt({ meta, docs, symbols }) {
   // Doc sections
   let n = 1;
   for (const doc of docs) {
-    for (const section of doc.sections) {
+    doc.sections.forEach((section, i) => {
       lines.push(`## ${n}. ${section.heading}`);
       lines.push('');
+      // Шапка файла (H1 + вводный текст) — в теле ПЕРВОЙ его секции, ПЕРЕД самим телом.
+      //
+      // Заголовком её сделать нельзя: тело секции сервер читает до следующего заголовка
+      // уровня ≤ 2, и строка вида `# …` обрезала бы секцию на себе. Поэтому имя документа
+      // идёт жирной строкой, а вводный текст — как есть.
+      //
+      // Именно перед телом, а не после: это рамка, задающая, о чём весь файл. Она нужна
+      // первой и тому, кто читает секцию по URI, и тому, кто читает llms.txt подряд.
+      if (i === 0) {
+        lines.push(`**${doc.title}**`);
+        lines.push('');
+        if (doc.lead) {
+          lines.push(doc.lead);
+          lines.push('');
+        }
+      }
       if (section.body) {
         lines.push(section.body);
         lines.push('');
       }
       n++;
-    }
+    });
   }
 
   // API Reference

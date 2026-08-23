@@ -21,7 +21,10 @@ export type DiagnosticCode =
   | 'RF007' // некорректная layout-схема
   | 'RF008' // неизвестный компонент
   | 'RF009' // неизвестный источник данных
-  | 'RF010'; // использование снятого/устаревшего API
+  | 'RF010' // использование снятого/устаревшего API
+  | 'RF011' // имя файла модуля формы вне канона раскладки
+  | 'RF012' // в модуле формы нет обязательного файла набора
+  | 'RF013'; // файл сверх канонического набора модуля формы
 
 export interface Diagnostic {
   code: DiagnosticCode;
@@ -49,6 +52,9 @@ export const CODE_TITLES: Record<DiagnosticCode, string> = {
   RF008: 'UNKNOWN_COMPONENT',
   RF009: 'UNKNOWN_DATASOURCE',
   RF010: 'DEPRECATED_API',
+  RF011: 'LAYOUT_FILE_NAME',
+  RF012: 'LAYOUT_FILE_MISSING',
+  RF013: 'LAYOUT_FILE_EXTRA',
 };
 
 /** Отрисовать диагностики так, чтобы каждая читалась как задача, а не как жалоба. */

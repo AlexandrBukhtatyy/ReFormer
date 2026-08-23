@@ -11,6 +11,12 @@
  */
 
 import { validateCode } from '../validate/code.js';
+import {
+  inferLayoutTarget,
+  renderLayoutCanon,
+  resolveLayoutTarget,
+  validateLayout,
+} from '../validate/layout.js';
 import type { Knowledge } from '../knowledge.js';
 import { renderDiagnostics, type Diagnostic } from '../validate/codes.js';
 import { findCycle, type Dependency } from '../utils/graph.js';
@@ -21,13 +27,24 @@ import { validateJsonSchemaTool } from './validate-json-schema.js';
 export const validateFormToolDefinition = {
   name: 'validate_form',
   description:
-    'Check a ReFormer form before running it. kind="code": generated TS — unknown or wrongly imported @reformer symbols, operators called outside their schema, deprecated API. kind="json-schema": the layout DSL. kind="behaviors": compute cycles. kind="bundle": a whole FormIntent + layout, cross-checked against each other. Returns RF0xx diagnostics with line, what to do and the next call to make.',
+    'Check a ReFormer form before running it. kind="code": generated TS — unknown or wrongly imported @reformer symbols, operators called outside their schema, deprecated API. kind="json-schema": the layout DSL. kind="behaviors": compute cycles. kind="bundle": a whole FormIntent + layout, cross-checked against each other. kind="layout": form-module FILE NAMES against the canonical per-target set (files[] + target) — catches schema.ts / render-behavior.ts drift and names the expected file; run it before writing them. Returns RF0xx diagnostics with line, what to do and the next call to make.',
   inputSchema: {
     type: 'object' as const,
     properties: {
       kind: {
         type: 'string',
-        description: 'code | json-schema | behaviors | bundle',
+        description: 'code | json-schema | behaviors | bundle | layout',
+      },
+      files: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'kind=layout: file names or paths of the form module (a common leading directory is stripped).',
+      },
+      target: {
+        type: 'string',
+        description:
+          'kind=layout: core | renderer-react | renderer-json; inferred from files when omitted.',
       },
       code: { type: 'string', description: 'kind=code: the TypeScript to check.' },
       schema: {
@@ -69,6 +86,10 @@ export interface ValidateFormArgs {
   intent?: Partial<FormIntent>;
   componentNames?: string[];
   dataSourceNames?: string[];
+  /** kind=layout: имена или пути файлов модуля формы. */
+  files?: string[];
+  /** kind=layout: `core` | `renderer-react` | `renderer-json`. */
+  target?: string;
 }
 
 function text(message: string): { content: Array<{ type: 'text'; text: string }> } {
@@ -204,11 +225,46 @@ export async function validateFormTool(
       );
     }
 
+    case 'layout': {
+      const files = (Array.isArray(args.files) ? args.files : []).filter(
+        (f): f is string => typeof f === 'string' && f.trim().length > 0
+      );
+      if (files.length === 0) {
+        return text(
+          'Для `kind: "layout"` нужен непустой массив `files` — имена или пути файлов модуля формы ' +
+            '(`["index.tsx", "types.ts", "model.ts", "renderer.schema.ts", …]`) и `target` — ' +
+            '`core` | `renderer-react` | `renderer-json`.'
+        );
+      }
+
+      const explicit = resolveLayoutTarget(args.target);
+      const target = explicit ?? inferLayoutTarget(files);
+      if (!target) {
+        return text(
+          'Для `kind: "layout"` нужен `target`: `core` | `renderer-react` | `renderer-json`. ' +
+            'Канон раскладки у таргетов разный, а по одному этому списку файлов таргет не определяется.'
+        );
+      }
+
+      const { diagnostics, limitations } = validateLayout(files, target);
+      const parts = [report('layout', diagnostics, limitations)];
+      if (!explicit) {
+        // Догадку проговариваем вслух: молчаливо выбранный таргет превращает отчёт
+        // в претензии по чужому канону, и опровергнуть их будет нечем.
+        parts.push(
+          `> \`target\` не передан — принят \`${target}\` по составу файлов. Если это не так, ` +
+            'повторите вызов с явным `target`.'
+        );
+      }
+      parts.push(renderLayoutCanon(target));
+      return text(parts.join('\n\n'));
+    }
+
     default:
       return text(
-        'Аргумент `kind` обязателен: `code` | `json-schema` | `behaviors` | `bundle`. ' +
+        'Аргумент `kind` обязателен: `code` | `json-schema` | `behaviors` | `bundle` | `layout`. ' +
           'Что именно проверять — зависит от того, что у вас на руках: текст модуля, layout-схема, ' +
-          'объявленные зависимости или целый бандл.'
+          'объявленные зависимости, целый бандл или список файлов модуля.'
       );
   }
 }

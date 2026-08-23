@@ -10,10 +10,10 @@ import type { Names } from './naming';
 export function appSnippet(n: Names): string {
   return [
     '// ── Способ 1 (рекомендуемый): через реестр форм — одна строка на регистрацию.',
-    '// Всё остальное (схема, реестр компонентов, модель, поведение) описано в entry.ts,',
-    '// который билдер сгенерировал вместе с примером и перегенерирует при изменениях.',
+    '// Всё остальное (схема, реестр компонентов, модель, поведение) описано записью реестра',
+    `// в index.tsx (${n.entryConst}) — билдер перегенерирует её при изменениях.`,
     "import { getFormRegistry } from '@reformer/form-registry';",
-    `import { ${n.entryConst} } from './pages/examples/${n.dir}/entry';`,
+    `import { ${n.entryConst} } from './pages/examples/${n.dir}';`,
     '',
     `getFormRegistry().register(${n.entryConst});`,
     '',

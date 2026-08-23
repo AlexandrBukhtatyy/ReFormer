@@ -123,6 +123,119 @@ function tokenize(text: string): string[] {
  */
 const OWN_DOCS_PENALTY = 0.4;
 
+/** Пакет, к секциям которого применяется {@link OWN_DOCS_PENALTY}. */
+const OWN_DOCS_PACKAGE = '@reformer/mcp';
+
+/**
+ * Секции `@reformer/mcp`, у которых НЕТ альтернативы в библиотечных пакетах, — понижение к ним
+ * не применяется, КОГДА спрашивают про раскладку файлов (условие — {@link isFormLayoutQuery}).
+ * Тема, а не пакет: на запросах не про файлы штраф действует и на эти секции тоже.
+ *
+ * Штраф выше исходит из того, что на вопрос «как сделать X в ReFormer» правильный ответ живёт в
+ * библиотечном пакете, а mcp документирует сам сервер. У раскладки файлов формы это не так:
+ * гайд «Form directory layout» — единственный носитель правила во всём корпусе, поимённо
+ * задающий набор файлов на каждый target. Библиотечного эквивалента у него нет: ближайшее —
+ * `@reformer/core` «PROJECT STRUCTURE (COLOCATION)», core-only срез без renderer-слоёв. Пока
+ * штраф действовал и на эти секции, запросы вроде «form directory layout» не поднимали их даже
+ * в шестёрку, и правило доезжало только к тому, кто прочёл `reformer://guide` целиком (~47 КБ).
+ *
+ * Список намеренно поимённый, а не «весь пакет разом»: смысл штрафа для остальных секций mcp
+ * (описания tools, prompts, URI-схемы, m1-workflow) сохраняется — у них конкуренты в
+ * библиотечных пакетах как раз есть. По той же причине §5 гайда (`REFORMER_FORM_LAYOUT`) в
+ * список НЕ входит: это настройка самого сервера, то есть ровно та самодокументация, ради
+ * которой штраф и заводился. Замерено — без штрафа она перехватывала запрос «form directory
+ * layout» у §1 (титул содержит `FORM_LAYOUT`) и лезла в ui-kit'овый «form layout spacing grid».
+ *
+ * По той же причине в список НЕ входит §2 (app-level `src/renderer-json/`). Он помечен в гайде
+ * `Status: aspirational` и прямо говорит «§1 alone is the conformance bar»: носитель правила
+ * именования — §1, а §2 описывает инфраструктуру приложения, которой не реализует ни один пример.
+ * Замерено после регенерации llms.txt: короткая и плотная по словам «form/layout/directory» §2
+ * без штрафа выигрывала запрос «form directory layout» со счётом 22.8, а §1 не попадал даже в
+ * восьмёрку; она же перехватывала ui-kit'овый «form layout spacing grid» (11.1 против 15.2-15.4
+ * у «Field grid» / «Layout across targets» / «Spacing scale»). Исключение для §2 работало ровно
+ * против цели правки — уводило спрашивающего про имена файлов в раздел «на вырост».
+ *
+ * Записи — ПРЕФИКСЫ слага, а не слаги целиком. Слаг считается из заголовка секции, а заголовки
+ * гайда обрастают уточнениями («… — recommendation, not a conformance bar»), от чего точное
+ * сравнение молча выключило бы исключение. Префикс переживает уточнение хвоста; полное
+ * переименование по-прежнему ловит тест «каждый префикс исключения резолвится в индексе».
+ */
+export const OWN_DOCS_NO_LIBRARY_ALTERNATIVE: readonly string[] = [
+  'minimalist-default-flat-one-file-per-concern', // §1 — плоский набор файлов, per-target
+  'scale-up-folders-large-forms', // §3 — раскладка папками для крупных форм
+  'scaling', // §4 — таблица «сложность → структура»
+  'reuse-map', // §6 — какой файл переиспользуется между таргетами
+];
+
+/** Слаг относится к гайду раскладки — точно или с уточнением в хвосте заголовка. */
+export function isOwnDocsExempt(slug: string): boolean {
+  return OWN_DOCS_NO_LIBRARY_ALTERNATIVE.some((p) => slug === p || slug.startsWith(`${p}-`));
+}
+
+/**
+ * Условие, при котором запрос считается вопросом ПРО РАСКЛАДКУ файлов формы.
+ *
+ * Исключение выше снимает штраф не с пакета, а с ТЕМЫ: у правила именования файлов нет
+ * библиотечной альтернативы. Значит и действовать оно должно только тогда, когда спрашивают
+ * именно про эту тему. Без такого условия §1 гайда — длинная секция, перечисляющая
+ * ответственность каждого файла и потому плотная по словам `validate` / `step` / `schema` /
+ * `sync` — без штрафа выигрывала запросы, к раскладке отношения не имеющие. Замерено на
+ * замороженном корпусе, батарея из 20 заведомо не-layout запросов: секции гайда попадали в
+ * топ-3 трижды (3 × 1-е место: «how to validate a step», «keep two fields in sync», «render
+ * schema tree instead of jsx» — все вытеснили библиотечный ответ) и в топ-10 семь раз, тогда
+ * как до исключения — ни разу. С условием — снова ни разу, при неизменных позициях §1 на всех
+ * целевых запросах.
+ *
+ * Основы сравниваются с термами по ПРЕФИКСУ, чтобы одна запись покрывала словоформы (`file`
+ * → `files`, `filename`; `структур` → `структура`, `структуре`). Термы берутся из того же
+ * `tokenize`, что и индекс, поэтому `directory-layout` и `formFiles` распадаются на слова.
+ *
+ * Основы разделены на два класса, и это не украшение. Слово `file` живёт в предметной области
+ * и вне раскладки — «file input component», «upload file field» — и одного его хватало, чтобы
+ * §1 встал на 1-е место запроса про компонент загрузки файла. То же у `structure` («json
+ * schema structure») и у `layout`: у ui-kit это слово означает визуальную раскладку полей
+ * («layout across targets», «grid layout two columns»). Такие основы включают исключение
+ * только рядом со словом про САМ МОДУЛЬ формы; `directory` / `folder` / `naming` / `каталог`
+ * двусмысленности не имеют и работают в одиночку.
+ */
+const LAYOUT_STEMS_STANDALONE: readonly string[] = [
+  'directory', // directory, directories
+  'folder', // folder, folders
+  'naming',
+  'colocation',
+  'scaffold', // scaffold, scaffolding
+  'папк', // папка, папки
+  'каталог',
+  'раскладк', // раскладка, раскладке
+  'именован', // именование, именования
+];
+
+/** Основы, которые включают исключение только вместе с {@link LAYOUT_STEMS_CONTEXT}. */
+const LAYOUT_STEMS_AMBIGUOUS: readonly string[] = [
+  'file', // file, files, filename — но ещё и file input / file upload
+  'layout', // layout — но ещё и визуальная раскладка полей (словарь ui-kit)
+  'структур', // структура — но ещё и структура данных
+  'structure', // structure — но ещё и json schema structure
+  'файл',
+];
+
+/** Слово про сам модуль формы — контекст, дающий ход неоднозначной основе. */
+const LAYOUT_STEMS_CONTEXT: readonly string[] = ['form', 'module', 'форм', 'модул'];
+
+const startsWithAny = (terms: readonly string[], stems: readonly string[]): boolean =>
+  terms.some((t) => stems.some((stem) => t.startsWith(stem)));
+
+/**
+ * Запрос спрашивает про раскладку/имена файлов формы — тогда и только тогда с секций гайда
+ * снимается {@link OWN_DOCS_PENALTY}.
+ *
+ * @param terms - Термы запроса от `tokenize` (нижний регистр, camelCase уже разобран).
+ */
+export function isFormLayoutQuery(terms: readonly string[]): boolean {
+  if (startsWithAny(terms, LAYOUT_STEMS_STANDALONE)) return true;
+  return startsWithAny(terms, LAYOUT_STEMS_AMBIGUOUS) && startsWithAny(terms, LAYOUT_STEMS_CONTEXT);
+}
+
 function buildIndex(k: Knowledge): SearchIndex {
   const sections: IndexedSection[] = [];
   const df = new Map<string, number>();
@@ -181,7 +294,8 @@ function scoreSection(
   entry: IndexedSection,
   terms: string[],
   phrase: string,
-  index: SearchIndex
+  index: SearchIndex,
+  layoutQuery: boolean
 ): number {
   const N = index.sections.length;
   let score = 0;
@@ -209,7 +323,9 @@ function scoreSection(
     if (entry.titleLower.includes(phrase)) score += 20;
     else if (entry.bodyLower.includes(phrase)) score += 4;
   }
-  if (entry.pkg === '@reformer/mcp') score *= OWN_DOCS_PENALTY;
+  if (entry.pkg === OWN_DOCS_PACKAGE && !(layoutQuery && isOwnDocsExempt(entry.section.slug))) {
+    score *= OWN_DOCS_PENALTY;
+  }
   return score;
 }
 
@@ -283,10 +399,12 @@ export function searchSections(
   const restrictTo = normalizePackage(pkg);
 
   const index = sectionIndex(k);
+  // Тема запроса решает, действует ли исключение из OWN_DOCS_PENALTY — считаем один раз.
+  const layoutQuery = isFormLayoutQuery(terms);
   const scored: Scored[] = [];
   for (const entry of index.sections) {
     if (restrictTo && entry.pkg !== restrictTo) continue;
-    const score = scoreSection(entry, terms, phrase, index);
+    const score = scoreSection(entry, terms, phrase, index, layoutQuery);
     if (score > 0) scored.push({ entry, score });
   }
   if (scored.length === 0) return [];

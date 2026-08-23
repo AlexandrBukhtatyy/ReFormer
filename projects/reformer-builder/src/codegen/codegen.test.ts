@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { synthMock } from '../preview-runtime/mock-synth';
-import { buildExampleFiles, makeNames, appSnippet, emitEntry, validateExportable } from './index';
+import { buildExampleFiles, makeNames, appSnippet, validateExportable } from './index';
+import { emitIndex } from './emit-index';
 
 /** Представительная форма билдера: Div → Section (поля) + FormArray. */
 const rawSchema = {
@@ -83,12 +84,11 @@ describe('buildExampleFiles — правила доходят до файлов'
 });
 
 describe('buildExampleFiles — набор файлов', () => {
-  it('12 файлов, ожидаемые пути, схема — единственный JSON', () => {
+  it('11 файлов, ожидаемые пути, схема — единственный JSON', () => {
     expect(files.map((f) => f.path).sort()).toEqual(
       [
         'api.ts',
         'data-sources.ts',
-        'entry.ts',
         'form.behavior.ts',
         'index.tsx',
         'model.ts',
@@ -107,6 +107,27 @@ describe('buildExampleFiles — набор файлов', () => {
     ]);
   });
 
+  // Канон раскладки renderer-json (@reformer/mcp docs/llms/06-form-directory-layout.md §1) — это
+  // ВЕСЬ модуль: роли без своего файла в набор не добавляются. Тест держит границу — прошлый раз
+  // запись реестра форм уехала в собственный `entry.ts`, а канон читает это имя как неканоничное
+  // имя точки входа и требует слить с `index.tsx`.
+  it('набор — канон renderer-json; из некода только README', () => {
+    const CANON = [
+      'index.tsx',
+      'types.ts',
+      'model.ts',
+      'renderer.schema.json', // допустимый вариант `renderer.schema.ts` — см. emit-schema.ts
+      'form.behavior.ts',
+      'renderer.behavior.ts',
+      'validation.ts',
+      'data-sources.ts',
+      'api.ts',
+      'registry.ts',
+    ];
+    const code = files.map((f) => f.path).filter((p) => !p.endsWith('.md'));
+    expect(code.sort()).toEqual([...CANON].sort());
+  });
+
   it('класс derived/user проставлен верно', () => {
     const derived = files
       .filter((f) => f.cls === 'derived')
@@ -119,7 +140,6 @@ describe('buildExampleFiles — набор файлов', () => {
     expect(derived).toEqual(
       [
         'README.md',
-        'entry.ts',
         'index.tsx',
         'model.ts',
         'registry.ts',
@@ -266,9 +286,9 @@ describe('naming / snippet / validateExportable', () => {
   });
 });
 
-describe('emitEntry — запись реестра форм', () => {
-  const n = makeNames('loan application');
-  const code = emitEntry(n);
+describe('запись реестра форм — в index.tsx, отдельного файла у неё нет', () => {
+  const n = makeNames('loan');
+  const code = byPath('index.tsx').content;
 
   it('объявляет FormEntry с id примера и версией', () => {
     expect(code).toContain(`export const ${n.entryConst}: FormEntry<${n.TypeName}>`);
@@ -288,16 +308,21 @@ describe('emitEntry — запись реестра форм', () => {
     expect(code).not.toContain("kind: 'http'");
   });
 
-  it('импортирует ровно то, что генерируют другие эмиттеры', () => {
-    expect(code).toContain(`import { ${n.modelFactory} } from './model';`);
-    expect(code).toContain("import { createRegistry } from './registry';");
-    expect(code).toContain("import { formBehavior } from './form.behavior';");
-    expect(code).toContain("import { createJsonRenderBehavior } from './renderer.behavior';");
+  it('переиспользует импорты и каст схемы страницы — без дубля', () => {
+    expect(code).toContain("import type { FormEntry } from '@reformer/form-registry';");
+    for (const imp of [
+      `import { ${n.modelFactory} } from './model';`,
+      "import { createRegistry } from './registry';",
+      "import { formBehavior } from './form.behavior';",
+      "import { createJsonRenderBehavior } from './renderer.behavior';",
+    ]) {
+      expect(code.split(imp)).toHaveLength(2);
+    }
+    expect(code.split('const typedSchema =')).toHaveLength(2);
   });
 
   it('помечен как derived — им владеет машина', () => {
-    const entry = files.find((f) => f.path === 'entry.ts');
-    expect(entry?.cls).toBe('derived');
+    expect(files.find((f) => f.path === 'index.tsx')?.cls).toBe('derived');
   });
 });
 
@@ -311,8 +336,8 @@ describe('appSnippet — регистрация вместо копипасты'
   });
 });
 
-describe('emitEntry — сгенерированный код КОМПИЛИРУЕТСЯ', () => {
-  it('entry.ts проходит tsc в связке с реальными типами пакетов', async () => {
+describe('index.tsx — сгенерированный код КОМПИЛИРУЕТСЯ', () => {
+  it('index.tsx проходит tsc в связке с реальными типами пакетов', async () => {
     // Все прочие тесты проверяют вхождение подстрок — они не отличают валидный TypeScript от
     // мусора. Именно поэтому мимо них прошло несовпадение сигнатуры renderBehavior: реестр
     // третьим аргументом отдаёт валидацию, а createJsonRenderBehavior ждёт там настройки.
@@ -323,10 +348,10 @@ describe('emitEntry — сгенерированный код КОМПИЛИРУ
     // Песочница ВНУТРИ репозитория: снаружи @reformer/* не резолвятся, контекстный тип
     // FormEntry теряется, и tsc сыплет ложными implicit-any вместо настоящих ошибок.
     mkdirSync(join(process.cwd(), '.tmp'), { recursive: true });
-    const dir = mkdtempSync(join(process.cwd(), '.tmp', 'emit-entry-'));
+    const dir = mkdtempSync(join(process.cwd(), '.tmp', 'emit-index-'));
     try {
       const names = makeNames('loan application');
-      // Соседи-заглушки: проверяем ИМЕННО entry.ts, а не весь сгенерированный набор.
+      // Соседи-заглушки: проверяем ИМЕННО index.tsx, а не весь сгенерированный набор.
       writeFileSync(join(dir, 'renderer.schema.json'), '{ "root": {} }\n');
       writeFileSync(
         join(dir, 'registry.ts'),
@@ -361,15 +386,22 @@ describe('emitEntry — сгенерированный код КОМПИЛИРУ
           '  _options: RenderBehaviorOptions = {}\n' +
           `): RenderBehaviorFn<${names.TypeName}> {\n  return () => {};\n}\n`
       );
-      writeFileSync(join(dir, 'entry.ts'), emitEntry(names));
+      // `import.meta.env.DEV` в целевом проекте типизирует `vite/client`; здесь — минимальный шим,
+      // иначе проп `validateSchema` даст ложную ошибку типов вместо настоящих.
+      writeFileSync(
+        join(dir, 'env.d.ts'),
+        'interface ImportMetaEnv { readonly DEV: boolean }\ninterface ImportMeta { readonly env: ImportMetaEnv }\n'
+      );
+      writeFileSync(join(dir, 'index.tsx'), emitIndex(names));
 
-      const program = ts.createProgram([join(dir, 'entry.ts')], {
+      const program = ts.createProgram([join(dir, 'index.tsx'), join(dir, 'env.d.ts')], {
         strict: true,
         noEmit: true,
         skipLibCheck: true,
-        // entry.ts импортирует схему из JSON — как и в целевом проекте
+        // index.tsx импортирует схему из JSON — как и в целевом проекте
         // (projects/react-playground/tsconfig.app.json).
         resolveJsonModule: true,
+        jsx: ts.JsxEmit.ReactJSX,
         module: ts.ModuleKind.ESNext,
         moduleResolution: ts.ModuleResolutionKind.Bundler,
         target: ts.ScriptTarget.ES2022,
@@ -377,7 +409,7 @@ describe('emitEntry — сгенерированный код КОМПИЛИРУ
       });
       const errors = ts
         .getPreEmitDiagnostics(program)
-        .filter((d) => d.file?.fileName.replace(/\\/g, '/').endsWith('entry.ts'))
+        .filter((d) => d.file?.fileName.replace(/\\/g, '/').endsWith('index.tsx'))
         .map((d) => `TS${d.code}: ${ts.flattenDiagnosticMessageText(d.messageText, ' ')}`);
 
       expect(errors).toEqual([]);

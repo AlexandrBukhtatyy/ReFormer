@@ -22,6 +22,75 @@ export function normalizeTopic(s: string): string {
   return s.toLowerCase().replace(/[-_\s]/g, '');
 }
 
+/**
+ * Открывающий/закрывающий забор кода: ```-строка или ~~~-строка (3+ символа, отступ до 3
+ * пробелов), плюс «инфо-строка» после него — `ts`, `bash`, пусто.
+ */
+interface FenceDelimiter {
+  char: string;
+  length: number;
+  info: string;
+}
+
+const FENCE_RE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+
+function matchFence(line: string): FenceDelimiter | null {
+  const m = line.match(FENCE_RE);
+  return m ? { char: m[1][0], length: m[1].length, info: m[2] } : null;
+}
+
+/**
+ * Построчный трекер код-заборов: `true` — строка внутри блока кода (сам забор считается его
+ * частью), значит заголовком быть не может.
+ *
+ * Зачем вообще. Разбор считал заголовком ЛЮБУЮ строку, начинающуюся с `#`, — включая те, что
+ * лежат внутри блока кода: shell-комментарий, `# heading` в примере markdown, `#pragma`.
+ * Замерено на корпусе: строка `# same names, allowed shapes:` внутри блока с раскладкой файлов
+ * обрывала секцию «Minimalist (default) — flat, one file per concern» на 16 % раньше конца,
+ * унося целиком блок «Rules:» — то есть сам контракт именования. Секция при этом выглядела
+ * целой: ни маркера обрезки, ни ошибки.
+ *
+ * Правила — CommonMark: закрывает забор того же символа не короче открывающего и с пустой
+ * инфо-строкой; у ```-забора в инфо-строке не может быть обратной кавычки (иначе это не
+ * открытие); незакрытый забор тянется до конца текста. Последнее делает несбалансированный
+ * забор в документации заметным (секции после него исчезнут), а не тихо игнорируемым —
+ * баланс проверяется тестом на корпусе.
+ */
+export function createFenceTracker(): (line: string) => boolean {
+  let open: FenceDelimiter | null = null;
+
+  return (line: string): boolean => {
+    const fence = matchFence(line);
+    if (open) {
+      if (fence && fence.char === open.char && fence.length >= open.length && !fence.info.trim()) {
+        open = null;
+      }
+      return true;
+    }
+    if (fence && !(fence.char === '`' && fence.info.includes('`'))) {
+      open = fence;
+      return true;
+    }
+    return false;
+  };
+}
+
+/**
+ * Остался ли в тексте незакрытый код-забор.
+ *
+ * Две роли, обе про «обрыв не должен быть тихим»:
+ *  - на корпусе — здоровье документации: незакрытый забор в `llms.txt` съел бы все секции
+ *    после себя (CommonMark: блок тянется до конца текста);
+ *  - на теле ОДНОЙ секции — признак того, что извлечение остановилось ПОСЕРЕДИНЕ блока кода,
+ *    то есть ровно симптом дефекта, ради которого появился {@link createFenceTracker}.
+ */
+export function hasUnclosedFence(text: string): boolean {
+  const inCodeFence = createFenceTracker();
+  for (const line of text.split('\n')) inCodeFence(line);
+  // Забор закрыт ⇒ пустая строка вне кода; открыт ⇒ она внутри блока.
+  return inCodeFence('');
+}
+
 export interface SectionMeta {
   /** Original `## ` heading text, e.g. "copyFrom" or "API SIGNATURES". */
   title: string;
@@ -63,8 +132,11 @@ export function parseSections(docs: string): SectionMeta[] {
   const lines = docs.split('\n');
   const result: SectionMeta[] = [];
   const usedSlugs = new Set<string>();
+  const inCodeFence = createFenceTracker();
 
   for (let i = 0; i < lines.length; i++) {
+    // Трекер обязан увидеть КАЖДУЮ строку, поэтому зовётся до любых continue.
+    if (inCodeFence(lines[i])) continue;
     const m = lines[i].match(/^##\s+(.+)$/);
     if (!m) continue;
     const title = m[1].trim();
@@ -84,11 +156,15 @@ export function parseSections(docs: string): SectionMeta[] {
     }
     usedSlugs.add(slug);
 
+    // Свой трекер на превью: заголовок обрывает поиск, только если он НЕ внутри забора, а
+    // первая строка кода за забором по-прежнему годится в превью (историческое поведение).
     let preview = '';
+    const inPreviewFence = createFenceTracker();
     for (let j = i + 1; j < lines.length && j < i + 12; j++) {
+      const fenced = inPreviewFence(lines[j]);
       const trimmed = lines[j].trim();
       if (!trimmed) continue;
-      if (trimmed.startsWith('#')) break;
+      if (!fenced && trimmed.startsWith('#')) break;
       if (trimmed.startsWith('```')) continue;
       preview = trimmed.slice(0, 120);
       break;
@@ -109,11 +185,14 @@ export function parseSections(docs: string): SectionMeta[] {
 export function extractSectionByMeta(docs: string, meta: SectionMeta): string | null {
   const lines = docs.split('\n');
   const result: string[] = [];
+  const inCodeFence = createFenceTracker();
   let inSection = false;
   let sectionLevel = 0;
 
   for (const line of lines) {
-    const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    // Строка внутри блока кода — всегда содержимое, никогда граница секции: иначе
+    // shell-комментарий `# …` обрезал бы секцию на себе (см. createFenceTracker).
+    const headerMatch = inCodeFence(line) ? null : line.match(/^(#{1,6})\s+(.+)$/);
     if (headerMatch) {
       const [, hashes, title] = headerMatch;
       const level = hashes.length;
@@ -156,11 +235,13 @@ export type SectionName =
 export function extractSection(docs: string, name: SectionName | string): string | null {
   const lines = docs.split('\n');
   const result: string[] = [];
+  const inCodeFence = createFenceTracker();
   let inSection = false;
   let sectionLevel = 0;
 
   for (const line of lines) {
-    const headerMatch = line.match(/^(#{1,3})\s+(.+)$/);
+    // Как и в extractSectionByMeta: забор экранирует `#` — и от начала секции, и от конца.
+    const headerMatch = inCodeFence(line) ? null : line.match(/^(#{1,3})\s+(.+)$/);
 
     if (headerMatch) {
       const [, hashes, title] = headerMatch;

@@ -16,6 +16,10 @@
 
 ## 1. Key Concepts
 
+**Overview**
+
+`@reformer/cdk` provides headless UI components for `@reformer/core` forms.
+
 - **Headless**: No default UI or styles - you build the interface
 - **Compound Components**: Composable, declarative API
 - **Render Props**: Children as function for full control
@@ -50,6 +54,10 @@ import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
 ```
 
 ## 5. Basic Usage
+
+**FormArray**
+
+Headless compound component for managing form arrays.
 
 ```tsx
 import { FormArray } from '@reformer/cdk/form-array';
@@ -274,6 +282,10 @@ Note: `items[]` is memoized by array length AND order — changing a value insid
 an item does not recreate the `items` array, but `move` / `swap` do (order ref changes).
 
 ## 12. Basic Usage
+
+**FormWizard**
+
+Headless compound component for multi-step form wizards.
 
 ```tsx
 import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
@@ -617,6 +629,10 @@ function LoanStep() {
 
 ## 21. Purpose
 
+**FormField**
+
+Headless compound component для построения доступной (a11y) анатомии поля формы. `FormField` берёт на себя ID-провязку (`htmlFor`, `aria-labelledby`, `aria-describedby`, `aria-errormessage`, `aria-invalid`, `aria-required`), подписку на состояние `FieldNode` и приклеивание `value`/`onChange`/`onBlur` к интерактивному контролу. UI вы строите сами.
+
 - Дать минимальный «скелет» поля: label + control + description + error.
 - Не навязывать стилей — каждый sub-компонент рендерит обычные HTML-элементы (или `Slot` через `asChild`).
 - Подписаться на `FieldNode` ровно один раз в `Root` и раздать состояние детям через React Context.
@@ -770,6 +786,12 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.
 
 ## 27. Два режима
+
+**AsyncBoundary**
+
+Headless compound component для состояний асинхронной загрузки данных: `idle` / `loading` / `ready` / `error`. Раздаёт состояние слотам и расставляет ARIA, но не рендерит ни разметки, ни стилей — визуальный слой живёт в `@reformer/ui-kit`.
+
+Это **не** Suspense-boundary: ничего не throw'ится и не перехватывается.
 
 | Режим            | Включается         | Кто ведёт состояние                                                                      |
 | ---------------- | ------------------ | ------------------------------------------------------------------------------------------ |
@@ -989,6 +1011,10 @@ function Panel({ status, error, reload, children }: Props) {
 - **Не** класть в CDK-слоты Tailwind-классы и вёрстку: стилизованные блоки живут в `@reformer/ui-kit` (`AsyncBoundary`, `AsyncBoundaryLoading`, `AsyncBoundaryError`, `AsyncBoundaryEmpty`).
 
 ## 35. Nested FormArray
+
+**Advanced Recipes**
+
+Готовые рецепты для нетривиальных задач: вложенные массивы, кастомный AddButton, динамическое количество шагов в wizard, externally-controlled wizard. Каждый рецепт — Problem → Solution → Notes.
 
 ### Problem
 
@@ -1212,6 +1238,10 @@ function Page({ form, config }: Props) {
 - [07-troubleshooting.md](07-troubleshooting.md) — типичные ошибки и пути их обхода.
 
 ## 40. `FormArray.AddButton` не появляется на странице
+
+**Troubleshooting / FAQ**
+
+Типичные проблемы при использовании `@reformer/cdk` (FormField, FormArray, FormWizard) с краткими причинами и решениями.
 
 **Причина.** `FormArray.AddButton` не самостоятельный элемент — он рендерит кнопку только внутри `FormArray.Root`. Если он вынесен наружу или `Root` не отрендерился (например, под условным `if`), кнопки не будет.
 

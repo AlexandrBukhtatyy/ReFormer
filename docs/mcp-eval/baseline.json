@@ -1,20 +1,29 @@
 {
   "strategy": "v6-choose",
   "serverVersion": "6.0.0",
-  "startupMs": 241,
-  "tasks": 49,
+  "startupMs": 225,
+  "tasks": 54,
   "static": {
-    "tools/list": 2219,
-    "resources/list": 520,
+    "tools/list": 2407,
+    "resources/list": 549,
     "prompts/list": 998,
-    "total": 3737
+    "total": 3954
+  },
+  "toolset": {
+    "tools": [
+      "choose_api",
+      "find_recipe",
+      "search_docs"
+    ],
+    "chars": 2858,
+    "tokens": 715
   },
   "hitRate": 1,
-  "firstPassRate": 0.939,
+  "firstPassRate": 0.944,
   "tokensPerTask": {
-    "median": 321,
-    "p95": 1987,
-    "total": 34626
+    "median": 392,
+    "p95": 3215,
+    "total": 48502
   },
   "callsPerTask": {
     "median": 1,
@@ -25,7 +34,7 @@
       "total": 7,
       "hit": 7,
       "firstPass": 7,
-      "tokens": 4984
+      "tokens": 4943
     },
     "validation": {
       "total": 10,
@@ -43,19 +52,25 @@
       "total": 6,
       "hit": 6,
       "firstPass": 5,
-      "tokens": 4001
+      "tokens": 3890
     },
     "wizard": {
       "total": 5,
       "hit": 5,
       "firstPass": 5,
-      "tokens": 5236
+      "tokens": 5239
     },
     "renderers": {
       "total": 10,
       "hit": 10,
       "firstPass": 8,
-      "tokens": 12759
+      "tokens": 13155
+    },
+    "layout": {
+      "total": 5,
+      "hit": 5,
+      "firstPass": 5,
+      "tokens": 13629
     }
   },
   "misses": []

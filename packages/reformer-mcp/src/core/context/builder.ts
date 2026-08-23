@@ -12,11 +12,13 @@
  */
 
 import { chooseApi } from '../decide/api-decision.js';
+import { FORM_LAYOUT_CANON, renderLayoutLine } from '../generate/builders.js';
 import { findOneSymbol } from '../index/symbols.js';
 import type { Knowledge } from '../knowledge.js';
 import { rankSymbolsForQuery } from '../index/search.js';
 import { searchSections, type SectionHit } from '../tools/search-docs.js';
 import type { IndexedTopic } from '../index/types.js';
+import type { ReformerTargetStack } from '../generate/form-intent.js';
 import { assemble, type Chunk, type AssembledContext } from './budget.js';
 import { PROFILES, resolveProfile, type ContextProfile, type ContextPart } from './profiles.js';
 
@@ -51,16 +53,73 @@ const TARGET_TO_PACKAGE: Record<string, string> = {
 };
 
 /**
+ * Пакет собственной документации сервера. Он не отвечает ни за один target, но несёт
+ * кросс-target методику: порядок сборки формы и раскладку файлов модуля.
+ */
+const GUIDANCE_PACKAGE = '@reformer/mcp';
+
+/**
  * Пакеты, релевантные цели. Граф зависимостей простой: рендерер всегда идёт вместе с ядром,
  * а ui-kit — только там, где речь о компонентах. Смысл в том, чтобы при `target=core` в
  * выдачу не лезли React-компоненты, а при `target=renderer-json` — JSX.
+ *
+ * `@reformer/mcp` входит при ЛЮБОМ распознанном target'е, и это не нарушает правило выше:
+ * компонентов в нём нет вовсе, а есть per-target методика — «Form directory layout» с
+ * поимённым набором файлов для core / renderer-react / renderer-json. Без него секции §1/§2
+ * этого гайда были недостижимы через `get_context` ни при какой формулировке: фильтр вырезал
+ * единственный пакет, где правило живёт (замерено — раскладка расходилась с каноном у любого
+ * агента, который не читал `reformer://guide` целиком). Разнос по таргетам делает сам гайд,
+ * поэтому «JSX в core-выдаче» отсюда не приходит.
+ *
+ * Занижение mcp в ранжировании при этом сохраняется (`OWN_DOCS_PENALTY` в `search-docs`):
+ * пакет участвует, но при прочих равных уступает библиотечным.
  */
 function packagesFor(target: string | undefined): string[] | null {
   if (!target) return null;
   const own = TARGET_TO_PACKAGE[target];
   if (!own) return null;
-  if (own === '@reformer/core') return ['@reformer/core', '@reformer/cdk'];
-  return ['@reformer/core', '@reformer/cdk', own];
+  const base = ['@reformer/core', '@reformer/cdk', GUIDANCE_PACKAGE];
+  if (own === '@reformer/core') return base;
+  return [...base, own];
+}
+
+/**
+ * Нужно ли выдать канонические имена файлов ТЕЛОМ ответа.
+ *
+ * Почему не хватило включения `@reformer/mcp` в `packagesFor()`. Секции гайда попадают в
+ * `get_context` только списком URI в `## Read more`: тело собирается из символов, примеров и
+ * тем, поэтому правило раскладки физически не может доехать содержимым. Замер: на
+ * `{task:'собрать многошаговую форму кредитной заявки', target:'renderer-json'}` в 3 926
+ * символах ответа было НОЛЬ канонических имён — и `profile:'full'`, и явный
+ * `topics:['form-directory-layout']` картину не меняли. Отбор секций идёт по релевантности к
+ * тексту задачи, а прикладная формулировка («кредитная заявка») layout-секцию не ранжирует
+ * вовсе. Поэтому имена подаются отдельным дешёвым блоком, а не через поиск.
+ *
+ * Условие — не «всегда при target», а два независимых признака.
+ *
+ * 1. Прямой вопрос о размещении («куда положить…», «как назвать файл…»). Он и без слова
+ *    «форма» ни о чём другом не бывает, поэтому срабатывает сам по себе.
+ * 2. Работа над модулем целиком: предмет («форма», «модуль») ПЛЮС глагол сборки. Две приметы
+ *    вместо одной дают дешёвое различение с узким вопросом про оператор («поле B доступно
+ *    только когда A заполнено» — предмета в нём нет, блок не появится).
+ *
+ * Порог намеренно низкий: лишний раз показать правило дешевле (~90 токенов), чем получить
+ * самопридуманные имена файлов. Обе приметы прогнаны по `eval/corpus`: блок появляется на
+ * 11 задачах из 54 — всей категории `layout` (5) и шести задачах вида «создать/собрать форму»;
+ * молчит на всех 43 узких («сделать поле обязательным», «удалить строку массива»).
+ */
+const FILE_PLACEMENT =
+  /куда полож|куда класт|куда девать|где лежит|где хранит|как назват|имена файлов|назван\w* файл|расклад|файлы модул|file name|file naming|directory layout|project structure|where to put/i;
+const FORM_SUBJECT = /форм|анкет|заявк|визард|wizard|мастер|модул|form|module/i;
+const WHOLE_MODULE_WORK =
+  /собра|сдела|созда|напис|постро|реализ|разлож|сверст|свёрст|разработ|опис|многошагов|build|creat|implement|scaffold|assembl|generat|write|multi-?step|directory|layout/i;
+
+function layoutTargetFor(task: string, target: string | undefined): ReformerTargetStack | null {
+  // Канон живёт по таргетам, и для `cdk` / `ui-kit` модуля формы нет — там блок не о чем.
+  if (!target || !Object.prototype.hasOwnProperty.call(FORM_LAYOUT_CANON, target)) return null;
+  const wanted =
+    FILE_PLACEMENT.test(task) || (FORM_SUBJECT.test(task) && WHOLE_MODULE_WORK.test(task));
+  return wanted ? (target as ReformerTargetStack) : null;
 }
 
 /** Темы, к которым относятся найденные секции. */
@@ -174,6 +233,12 @@ export async function buildContext(k: Knowledge, args: BuildContextArgs): Promis
           : '')
     );
   }
+
+  // --- раскладка модуля ------------------------------------------------------
+  // Строка собирается из `FORM_LAYOUT_CANON` тем же хелпером, что печатает `plan_form`:
+  // третья копия имён в сервере разошлась бы с каноном при первой же правке таблицы.
+  const layoutTarget = layoutTargetFor(task, args.target);
+  if (layoutTarget) push('layout', `## Module files\n${renderLayoutLine(layoutTarget, true)}`);
 
   // --- сигнатуры и пример ----------------------------------------------------
   const signatures: string[] = [];

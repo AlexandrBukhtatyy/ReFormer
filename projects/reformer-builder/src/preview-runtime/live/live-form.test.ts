@@ -193,7 +193,7 @@ function wizardFormSources(): FormSources {
       'form.behavior.ts': wizardFormBehaviorTsTemplate('sample'),
       'renderer.behavior.ts': wizardRenderBehaviorTsTemplate('sample'),
       'registry.ts': wizardRegistryTsTemplate('sample'),
-      'wizard.tsx': wizardAdapterTsxTemplate('sample'),
+      'renderer.wizard.tsx': wizardAdapterTsxTemplate('sample'),
     },
     fromEditor: [],
   };
@@ -203,8 +203,8 @@ describe('live-превью на шаблоне пошаговой формы', 
   it('JSX-адаптер компилируется, фабрика renderer.behavior вызывается с формой и моделью', async () => {
     const compiled = await compileForm(wizardFormSources());
     expect(compiled.errors).toEqual([]);
-    // registry.ts импортирует ./wizard — значит относительный TSX-импорт резолвится и исполняется.
-    expect(Object.keys(compiled.modules)).toContain('wizard.tsx');
+    // registry.ts импортирует ./renderer.wizard — значит относительный TSX-импорт резолвится и исполняется.
+    expect(Object.keys(compiled.modules)).toContain('renderer.wizard.tsx');
 
     const wizardSchema = JSON.parse(wizardFormJsonTemplate()) as JsonFormSchema;
     const bundle = buildLivePreview<WizardShape>({

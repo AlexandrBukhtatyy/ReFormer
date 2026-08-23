@@ -10,6 +10,7 @@ import {
   isReformerTarget,
   type ReformerTarget,
 } from '../platform/cli/sampling-helpers.js';
+import { FORM_LAYOUT_CANON } from '../core/generate/builders.js';
 
 export const createFormPromptDefinition = {
   name: 'create-form',
@@ -77,7 +78,14 @@ function normalizeLayout(raw: string | undefined): LayoutMode {
   return (raw ?? '').trim().toLowerCase() === 'folders' ? 'folders' : 'minimalist';
 }
 
-function layoutGuidanceFor(mode: LayoutMode): string {
+/**
+ * Текст minimalist-раскладки СОБИРАЕТСЯ из `FORM_LAYOUT_CANON` (`core/generate/builders.ts`) —
+ * единственного источника истины о каноне. Своего списка имён здесь нет намеренно: это уже
+ * четвёртый канал, где правило доезжает до консумента, и разошедшаяся копия — ровно то, что
+ * чинил `docs/plans/mcp-layout-authority.md` (здесь дефолтом renderer-json стоял
+ * `renderer.schema.json`, хотя канон — `renderer.schema.ts`).
+ */
+function layoutGuidanceFor(mode: LayoutMode, target: ReformerTarget): string {
   if (mode === 'folders') {
     return (
       '**Default layout = `folders`** (set via `REFORMER_FORM_LAYOUT`). Use the folder module: ' +
@@ -86,17 +94,31 @@ function layoutGuidanceFor(mode: LayoutMode): string {
       'See `find_recipe directory-layout` for the full per-target tree.'
     );
   }
+
+  const canon = FORM_LAYOUT_CANON[target];
+  const names = (optional: boolean) =>
+    canon
+      .filter((f) => Boolean(f.optional) === optional)
+      .map((f) => `\`${f.path}\``)
+      .join(' ');
+  const optionalNames = names(true);
+
   return (
     '**Default layout = `minimalist`** (flat, one file per concern). Flat form module — no ' +
-    '`lib/` / `schema/` / `components/steps/` nesting: a single `index.tsx` with ALL steps inline, ' +
-    'plus plain-named files `types.ts`, `model.ts`, `validation.ts`, `data-sources.ts`, `api.ts`. ' +
-    'Only the two layer-variable concerns carry a dot-prefix (`form.` = M1/model layer, ' +
-    '`renderer.` = render layer): **schema** — `form.schema.ts` (core) / `renderer.schema.ts` ' +
-    '(renderer-react) / `renderer.schema.json` (renderer-json); **behavior** — `form.behavior.ts` ' +
-    '(model behavior, all targets) + `renderer.behavior.ts` (render behavior, renderer-react & ' +
-    'renderer-json). renderer-json also adds `registry.ts`. The base is identical across targets. ' +
-    'Scale up to the `folders` layout only for large forms. See `find_recipe directory-layout` for ' +
-    'the full per-target tree.'
+    '`lib/` / `schema/` / `components/steps/` nesting: a single `index.tsx` with ALL steps ' +
+    `inline. Canonical set for \`${target}\`: ${names(false)}` +
+    (optionalNames ? ` (optional: ${optionalNames})` : '') +
+    '. Only the two layer-variable concerns carry a dot-prefix (`form.` = M1/model layer, ' +
+    '`renderer.` = render layer); every other file is plain-named, and the base is identical ' +
+    'across targets. ' +
+    (target === 'renderer-json'
+      ? 'The schema is `renderer.schema.ts` — the same JSON-DSL literal wrapped in ' +
+        '`defineJsonSchema<T>({ … })`, which keeps `$model(...)` paths checked at compile time; ' +
+        'a plain `renderer.schema.json` is an accepted variant that gives that up. '
+      : '') +
+    'Scale up to the `folders` layout only for large forms. See `find_recipe directory-layout` ' +
+    'for the full per-target tree, and check the names you picked with ' +
+    '`validate_form kind="layout"`.'
   );
 }
 
@@ -123,7 +145,7 @@ export async function getCreateFormPrompt(
     : '_No layout skeleton — ui-kit/Tailwind not detected. Once you confirm the styling system with the orchestrator, use layout-only classes (`space-y-6` → `space-y-4` → `space-y-3`, `grid grid-cols-1 md:grid-cols-2 gap-4`) and take the visual side from components, not hand-written `bg-*` / `border-*` / `shadow-*` / `rounded-*`._';
 
   const layoutMode = normalizeLayout(process.env.REFORMER_FORM_LAYOUT);
-  const layoutGuidance = layoutGuidanceFor(layoutMode);
+  const layoutGuidance = layoutGuidanceFor(layoutMode, target);
 
   const text = renderPromptTemplate('create-form', {
     target,

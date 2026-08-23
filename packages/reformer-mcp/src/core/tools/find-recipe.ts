@@ -97,6 +97,20 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   'folder-structure': ['form-directory-layout', 'project-structure'],
   'file-organization': ['form-directory-layout', 'project-structure'],
   colocation: ['form-directory-layout', 'project-structure'],
+  // Топики, которые агент пишет, когда СОБИРАЕТСЯ ДЕЛАТЬ форму, а не когда ищет её раскладку
+  // по имени. Замерено: `create-form` — самая естественная формулировка на старте работы —
+  // резолвился секцией `### createForm API` пакета core (шаг 2 каскада) и уводил на API,
+  // а раскладку и имена файлов агент дальше придумывал сам. `naming` уходил в
+  // core/common-patterns, `form-files` — в cdk/typed-item-access. Все четыре теперь ведут в
+  // тот же гайд, что и `directory-layout`.
+  //
+  // Прицельно про сам символ спрашивают `get_symbol_docs createForm` — этот маршрут не
+  // затронут; секция `## 18. create-form` (описание одноимённого prompt'а сервера) была
+  // недостижима и до алиаса: шаг 2 идёт по пакетам от core, и core перехватывал раньше.
+  'create-form': ['form-directory-layout', 'project-structure'],
+  'file-naming': ['form-directory-layout', 'project-structure'],
+  naming: ['form-directory-layout', 'project-structure'],
+  'form-files': ['form-directory-layout', 'project-structure'],
   // conditional fields — visibility/availability (enableWhen, compute/copyFrom { when }),
   // conditional validation (validateWhen), JSX hiding. Falls back to
   // api-signatures for the raw signatures if the recipe is somehow unavailable.

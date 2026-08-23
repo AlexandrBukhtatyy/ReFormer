@@ -49,8 +49,17 @@ ${appSnippet(n)}
 
 ## Файлы
 
-- **Регенерируемые** (перезаписываются при повторной генерации): \`renderer.schema.json\`, \`types.ts\`, \`model.ts\`, \`registry.ts\`, \`index.tsx\`, \`entry.ts\`, \`README.md\`.
+Набор — канон раскладки renderer-json (\`@reformer/mcp\` docs/llms/06-form-directory-layout.md §1),
+плоский: без \`lib/\` и \`components/steps/\`, запись реестра форм — в \`index.tsx\`.
+
+- **Регенерируемые** (перезаписываются при повторной генерации): \`renderer.schema.json\`, \`types.ts\`, \`model.ts\`, \`registry.ts\`, \`index.tsx\`, \`README.md\`.
 - **Ваши** (пишутся один раз, не затираются): \`data-sources.ts\`, \`renderer.behavior.ts\`, \`form.behavior.ts\`, \`validation.ts\`, \`api.ts\`.
+
+Схема лежит в \`renderer.schema.json\` — допустимый вариант канона («схема как данные»), выбранный
+ради того, чтобы пример открывался обратно в билдере. Цена — пути \`$model(...)\` не проверяются на
+компиляции: опечатка внутри них останется до рантайма, и никто её не поймает. Нужна проверка —
+переложите схему в \`renderer.schema.ts\` литералом \`defineJsonSchema<${n.TypeName}>({ ... })\`;
+править её в билдере после этого будет нельзя.
 
 ## Методы для реализации
 

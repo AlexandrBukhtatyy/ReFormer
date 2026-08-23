@@ -120,7 +120,7 @@ export function createJsonRenderBehavior(
 
 ## Полный рабочий пример { #full-example }
 
-Зеркалит golden-эталон (`complex-multy-step-form-renderer-json`): валидация — TS-схема над моделью (`@reformer/core/validation`), переиспользуемая всеми вариантами рендера, инъектируется в JSON-wizard. Submit и навигация между шагами приходят **не** отсюда, а из shared render-behavior — JSON-вариант лишь до-инъектит `form`/валидацию и делегирует остальное (см. [07-form-wizard.md](07-form-wizard.md)).
+Зеркалит рабочий пример `complex-multy-step-form-renderer-json` (имена файлов там исторические — канон см. `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1): валидация — TS-схема над моделью (`@reformer/core/validation`), переиспользуемая всеми вариантами рендера, инъектируется в JSON-wizard. Submit и навигация между шагами приходят **не** отсюда, а из shared render-behavior — JSON-вариант лишь до-инъектит `form`/валидацию и делегирует остальное (см. [07-form-wizard.md](07-form-wizard.md)).
 
 ```typescript
 // validation.ts — TS-схема над МОДЕЛЬЮ (не JSON), контракт @reformer/core/validation
@@ -167,13 +167,13 @@ export function makeValidationConfig(model: M) {
 ```
 
 ```typescript
-// render-behavior.ts — инъекция form + валидации в JSON-wizard
+// renderer.behavior.ts — инъекция form + валидации в JSON-wizard
 import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
 import type { FormProxy, FormModel } from '@reformer/core';
 import type { CreditForm } from './types';
 import { makeValidationConfig } from './validation';
 // Единый behavior (submit/навигация/visibility) — общий для TS- и JSON-варианта. См. 07-form-wizard.md.
-import { createSharedRenderBehavior } from './render-behavior.shared';
+import { createSharedRenderBehavior } from './renderer.behavior.shared';
 
 export function createJsonRenderBehavior(
   form: FormProxy<CreditForm>,
@@ -185,8 +185,9 @@ export function createJsonRenderBehavior(
       schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
     });
     // (2) Submit + навигация между шагами + visibility — из shared render-behavior.
-    //     БЕЗ этого вызова форма валидирует, но НЕ сабмитит и не навигирует (golden
-    //     `complex-multy-step-form-renderer-json/render-behavior.ts` делегирует так же).
+    //     БЕЗ этого вызова форма валидирует, но НЕ сабмитит и не навигирует (пример
+    //     `complex-multy-step-form-renderer-json` делегирует так же — его файл назван
+    //     по-старому `render-behavior.ts`, канон имени — `renderer.behavior.ts`).
     createSharedRenderBehavior(form)(schema);
   };
 }

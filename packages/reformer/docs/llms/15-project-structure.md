@@ -94,9 +94,9 @@ forms/
     │
     ├── schema/                   # The form definition
     │   ├── model.ts             # createModel factory + initial values + array-element factories
-    │   ├── schema.ts            # schema builder (model) => tree ({ value: model.$.x, component })
+    │   ├── form.schema.ts       # schema builder (model) => tree ({ value: model.$.x, component })
     │   ├── validation.ts        # defineValidationSchema + validateModel config ({ validateStep, validateAll })
-    │   ├── behavior.ts          # defineFormBehavior(...)
+    │   ├── form.behavior.ts     # defineFormBehavior(...)
     │   └── create-form.ts       # Assembly: createCoreForm({ model, schema, behavior, validation })
     │
     └── components/
@@ -107,7 +107,7 @@ forms/
 
 Rule of thumb for this layout: **domain raw material → `lib/`; anything describing the form →
 `schema/`; React layout → `components/`; root = entry + `index.ts`.** In very large forms you
-may co-locate each step's `schema.ts` / `validation.ts` / `behavior.ts` inside its
+may co-locate each step's `form.schema.ts` / `validation.ts` / `form.behavior.ts` inside its
 `steps/[Step]/` folder, keeping only the shared `model` and cross-step rules in `schema/` — see
 the guide below.
 
@@ -124,6 +124,7 @@ the guide below.
 > is `minimalist`.
 
 > Cross-target variants (renderer-react `renderer.schema.ts` + `renderer.behavior.ts` /
-> renderer-json `renderer.schema.json` + `renderer.behavior.ts` + `registry.ts`), the
-> centralized-vs-co-located choice, and the full reuse map live in the
-> **form-directory-layout** guide (`@reformer/mcp`).
+> renderer-json `renderer.schema.ts` + `renderer.behavior.ts` + `registry.ts`, plus an optional
+> `renderer.wizard.tsx` shim), the `.tsx` / `.json` schema variants, the centralized-vs-co-located
+> choice, and the full reuse map live in the **form-directory-layout** guide (`@reformer/mcp`) —
+> `find_recipe directory-layout`.

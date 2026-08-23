@@ -42,6 +42,8 @@
 
 ## 1. 1. API Reference
 
+**api-reference**
+
 ### Imports (CRITICALLY IMPORTANT)
 
 Архитектура M1: значения живут в **модели** (`createModel`), а форма (`createForm`) строит ноды поверх сигналов модели. Behaviors работают на сигналах (`model.$.field`), а не на строковых путях.
@@ -105,6 +107,8 @@ const { value, errors, disabled } = useFormControl(control.loanType);
 ```
 
 ## 2. 1.5 QUICK START - Minimal Working Form
+
+**quick-start**
 
 > **Schema-driven UI rule (read first)**: компонент И его пропсы (label, placeholder,
 > options, type) объявляются в **схеме поля** (`component` + `componentProps`).
@@ -256,6 +260,8 @@ model.properties.length; // реактивная длина
 `useFormControl(...).componentProps`).
 
 ## 3. 2. API SIGNATURES
+
+**api-signatures**
 
 ### Model & Form
 
@@ -531,6 +537,8 @@ revalidateWhen([model.$.dep], () => void validateModel(model, schema));
 
 ## 4. 3. COMMON PATTERNS
 
+**common-patterns**
+
 Все паттерны — на архитектуре M1: значения в модели (`model.$.field`), поведение (`defineFormBehavior`)
 на живых сигналах, валидация — отдельной ambient-схемой (`defineValidationSchema`, прогон по требованию
 через `validateModel`). Слои раздельны: layout НЕ несёт validators.
@@ -734,6 +742,8 @@ const schema = defineValidationSchema<MyForm>(({ model }) => {
 
 ## 5. 4. COMMON MISTAKES
 
+**common-mistakes**
+
 ### Imports rule (#1 cause of cascading errors — read first)
 
 - Модель/форма/хуки/типы (`FormModel`, `ValidationError`)/**примитивы behaviors** — из `@reformer/core`.
@@ -902,6 +912,8 @@ if (isFieldNode(node)) { ... }
 
 ## 6. 5. TROUBLESHOOTING
 
+**troubleshooting**
+
 | Error                                                  | Cause                                                    | Solution                                          |
 | ------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------- |
 | `'string' is not assignable to '{ message?: string }'` | Валидатору передали строку вместо options                | Используй `required({ message: 'text' })`         |
@@ -913,6 +925,8 @@ if (isFieldNode(node)) { ... }
 | Ошибки не появляются после submit                      | Не вызвали `validateModel` (`form.submit()` НЕ гоняет schema-валидацию) | `await validateModel(model, schema)` из `@reformer/core/validation` — он роутит ошибки в ноды |
 
 ## 7. Import Patterns
+
+**complete-import**
 
 ```typescript
 // Модель, форма, хуки, типы, примитивы behaviors — из @reformer/core
@@ -1014,6 +1028,8 @@ export type CoBorrower = {
 
 ## 8. 7. FORM TYPE DEFINITION
 
+**form-types**
+
 Form-shape объявляй через `type`-alias (не `interface` — см. `30-type-safety-recipes.md`).
 Тип описывает форму ДАННЫХ (то, что кладётся в `createModel`), без узлов/сигналов.
 
@@ -1061,6 +1077,8 @@ const model = createModel<MyForm>({
 не нужен.
 
 ## 9. 8. SCHEMA FORMAT (CRITICALLY IMPORTANT)
+
+**formschema**
 
 Под M1 схема **привязывает поле к сигналу модели** (`value: model.$.field`) и держит
 UI-конфиг (`component`/`componentProps`). Значения принадлежат модели. Валидаторов в
@@ -1205,6 +1223,8 @@ if (isFieldNode(node)) { /* ... */ }
 ```
 
 ## 10. 9. ARRAY SCHEMA FORMAT
+
+**arrays**
 
 Массивы объектов — **model-owned**: данные принадлежат модели (`model.arrayField` — это
 `ModelArray<Item>` с реактивными `push`/`removeAt`/`length`). В схеме массив объявляется узлом
@@ -1368,6 +1388,8 @@ cross(model.$.hasItems, (f: MyForm) => {
 
 ## 12. 10. ASYNC REACTION — onChange (CRITICALLY IMPORTANT)
 
+**async-watchfield**
+
 Для async-реакции на изменение поля (загрузка зависимых опций, справочников) используй
 `onChange` из `@reformer/core/behaviors`. Колбэк выполняется ВНЕ effect-контекста (можно
 безопасно писать сигналы/ноды), а 2-й аргумент — `{ signal }` (AbortSignal): при следующей
@@ -1422,6 +1444,8 @@ const stop = watchField(model.$.country, (country) => {
 
 ## 13. 11. ARRAY CLEANUP PATTERN
 
+**array-cleanup**
+
 Очистка массива при выключении флага — через `onChange` на сигнале флага + `clear()` на
 модели-массиве. Колбит выполняется вне effect-контекста, поэтому мутировать массив безопасно.
 
@@ -1453,6 +1477,8 @@ clearWhenOff(model.$.hasProperty, model.properties);
 ```
 
 ## 14. 12. MULTI-STEP FORM VALIDATION
+
+**multi-step**
 
 Каждый шаг — своя `ValidationSchema<Form>` (обычная функция `({ model }) => void`, обёрнутая
 `defineValidationSchema`). Переход к следующему шагу проверяется `validateModel(model, stepSchema)`;
@@ -1545,6 +1571,8 @@ function MultiStepForm() {
 ```
 
 ## 15. 13. EXTENDED COMMON MISTAKES
+
+**extended-mistakes**
 
 ### Reuse via apply / applyEach — не дублируй код
 
@@ -1645,6 +1673,8 @@ revalidateWhen([model.$.field2], () => void validateModel(model, schema));
 
 ## 16. 14. PROJECT STRUCTURE (COLOCATION)
 
+**project-structure**
+
 One form is one module folder. **Default layout — flat minimalist:** every concern is a single
 file at the module root, and the whole form (entry + all wizard steps inline) lives in one
 `index.tsx`. Filenames are flat with no prefix — **the dot-prefix (`form.` / `renderer.`) is
@@ -1739,9 +1769,9 @@ forms/
     │
     ├── schema/                   # The form definition
     │   ├── model.ts             # createModel factory + initial values + array-element factories
-    │   ├── schema.ts            # schema builder (model) => tree ({ value: model.$.x, component })
+    │   ├── form.schema.ts       # schema builder (model) => tree ({ value: model.$.x, component })
     │   ├── validation.ts        # defineValidationSchema + validateModel config ({ validateStep, validateAll })
-    │   ├── behavior.ts          # defineFormBehavior(...)
+    │   ├── form.behavior.ts     # defineFormBehavior(...)
     │   └── create-form.ts       # Assembly: createCoreForm({ model, schema, behavior, validation })
     │
     └── components/
@@ -1752,7 +1782,7 @@ forms/
 
 Rule of thumb for this layout: **domain raw material → `lib/`; anything describing the form →
 `schema/`; React layout → `components/`; root = entry + `index.ts`.** In very large forms you
-may co-locate each step's `schema.ts` / `validation.ts` / `behavior.ts` inside its
+may co-locate each step's `form.schema.ts` / `validation.ts` / `form.behavior.ts` inside its
 `steps/[Step]/` folder, keeping only the shared `model` and cross-step rules in `schema/` — see
 the guide below.
 
@@ -1769,11 +1799,14 @@ the guide below.
 > is `minimalist`.
 
 > Cross-target variants (renderer-react `renderer.schema.ts` + `renderer.behavior.ts` /
-> renderer-json `renderer.schema.json` + `renderer.behavior.ts` + `registry.ts`), the
-> centralized-vs-co-located choice, and the full reuse map live in the
-> **form-directory-layout** guide (`@reformer/mcp`).
+> renderer-json `renderer.schema.ts` + `renderer.behavior.ts` + `registry.ts`, plus an optional
+> `renderer.wizard.tsx` shim), the `.tsx` / `.json` schema variants, the centralized-vs-co-located
+> choice, and the full reuse map live in the **form-directory-layout** guide (`@reformer/mcp`) —
+> `find_recipe directory-layout`.
 
 ## 17. 14.5 UI COMPONENT PATTERNS
+
+**ui-components**
 
 > **Default rule (read first)**: для UI используй `FormField` из
 > [`@reformer/ui-kit`](../../reformer-ui-kit/) — он покрывает 95% случаев одной
@@ -1965,6 +1998,8 @@ function ShadcnFormField({ control }: { control: FieldNode<string> }) {
 
 ## 18. 15. NON-EXISTENT API (DO NOT USE)
 
+**nonexistent-api**
+
 **Следующего API НЕТ в @reformer/core** (наследие старой path-based архитектуры,
 удалено при переходе на M1 и при разделении валидации/поведения):
 
@@ -2058,6 +2093,8 @@ revalidateWhen([model.$.password], () => void validateModel(model, validation));
 ```
 
 ## 19. Purpose
+
+**Условные поля — видимость, доступность и валидация**
 
 «Показать поле X только если Y» под M1 решается тремя независимыми механизмами — выбирай по
 тому, что именно должно быть условным:
@@ -2241,6 +2278,8 @@ function MortgageFields({ form }: { form: CreditForm }) {
 
 ## 25. 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
 
+**reading-values**
+
 Под M1 значения живут в модели. Есть три контекста чтения: value-доступ модели, сигналы, и React-хуки.
 
 ### В React-компоненте — хуки
@@ -2329,6 +2368,8 @@ const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
 > `computeFrom`/`copyFrom`/`enableWhen` принимают сигналы (`model.$.x`), НЕ строковые пути.
 
 ## 26. 17. COMPUTE vs ONCHANGE
+
+**compute-vs-watch**
 
 Под M1 behaviors работают на сигналах модели. Есть два способа их писать:
 
@@ -2478,6 +2519,8 @@ watchField(model.$, (all) => autosave(all));           // любое поле ф
 
 ## 27. 18. ARRAY OPERATIONS
 
+**array-operations**
+
 Массивы объектов — model-owned. Мутации делаются через `ModelArray` (`model.arrayField`);
 рендер — через ноду формы (`form.items.map` / `.at`).
 
@@ -2592,6 +2635,8 @@ cross(model.$.totalPercent, percentagesSumTo100); // носитель — ска
 
 ## 28. Как устроено под M1
 
+**Cycle Detection — предотвращение «Cycle detected»**
+
 Behaviors на сигналах уже защищены от типичных циклов:
 
 - `compute`/`computeFrom` пишут в цель только если значение изменилось (**peek-guard**), а цель
@@ -2676,6 +2721,8 @@ enableWhen([model.$.propertyValue, model.$.initialPayment], () => model.loanType
 4. Расходящийся взаимный `compute` — разорви однонаправленной зависимостью или `when`.
 
 ## 32. Purpose
+
+**copyFrom — Копирование значений между полями**
 
 `copyFrom` декларативно копирует значение одного поля (или группы) в другое при выполнении
 условия `when`. Используется для UX-сценариев «совпадает с …»: «адрес проживания = адрес
@@ -2817,6 +2864,8 @@ A: `copyFrom` при `when === false` просто не пишет (не сбр�
 
 ## 38. Purpose
 
+**syncFields — Двусторонняя синхронизация полей**
+
 `syncFields` создаёт двунаправленную связь между двумя полями: изменение любого из них
 переписывает второе. Применяется для дублей одного значения в разных частях формы
 (тех. поле + видимое представление, mirror-поля). Внутренний флаг + `runOutsideEffect`
@@ -2929,6 +2978,8 @@ A: У `syncFields` нет `when`. Эмулируй через два `copyFrom(a
 - [20-compute-vs-watch.md](./20-compute-vs-watch.md) — `compute` для производных значений
 
 ## 44. Purpose
+
+**resetWhen — Условный сброс полей**
 
 `resetWhen` сбрасывает значение поля к `resetValue`, когда `condition` истинно. Это
 альтернатива `enableWhen({ resetOnDisable: true })`, когда поле остаётся **enabled**, но
@@ -3043,6 +3094,8 @@ A: `resetWhen` рассчитан на скалярные сигналы. Для
 - [22-cycle-detection.md](./22-cycle-detection.md) — почему `condition` не должен читать целевое поле
 
 ## 50. Purpose
+
+**transformValue — Автоматическая трансформация значений**
 
 `transformValue` подписывается на изменение поля и переписывает его трансформированной
 версией: uppercase для кодов, trim+toLowerCase для email, округление для чисел. Применяется
@@ -3179,6 +3232,8 @@ A: Симптом частых записей. Форматирование с �
 
 ## 56. Purpose
 
+**revalidateWhen — Перевалидация по триггерам**
+
 `revalidateWhen` вызывает переданный колбэк ревалидации, когда изменяется любая из
 зависимостей. Применяется, когда правило зависит от значений других полей
 (`amount <= maxAmount`, `confirmPassword === password`, `initialPayment >= propertyValue * 0.2`).
@@ -3309,6 +3364,8 @@ A: Схема — обычная функция, поэтому опиши ст�
 - [20-compute-vs-watch.md](./20-compute-vs-watch.md) — реактивные производные значения
 
 ## 62. Purpose
+
+**Submit и Reset — Жизненный цикл отправки формы**
 
 Канонический submit-флоу под M1: «запустить полную валидацию данных (`validateModel`) →
 проверить `boolean`-результат → достать снимок (`model.get()`) → сделать запрос → `model.reset()`».
@@ -3568,6 +3625,8 @@ A: `model.get()` возвращает значения всех полей. Фи
 
 ## 68. Purpose
 
+**Async Preload — Загрузка начальных значений и справочников**
+
 Загрузка формы данными с сервера под M1: (1) **initial values** в `createModel(...)`; (2)
 **`model.set` / `model.patch`** для загрузки/обновления значений; (3) **external React-hook**
 для full-blown async preload (параллельный fetch заявки + справочников, обработка ошибок,
@@ -3760,6 +3819,8 @@ A: `reset()` возвращает к initial-снимку из `createModel`, н
 
 ## 74. 30. TYPE-SAFETY RECIPES
 
+**type-safety-recipes**
+
 Идиоматичные паттерны, которые держат сгенерированный код без `any` и `as`-кастов под M1.
 
 ### Recipe 1 — Imports (root cause prevention)
@@ -3920,6 +3981,8 @@ validate(model.$.birthDate, [validateAdultAge]);
 
 ## 75. 31. ASYNC VALIDATOR
 
+**async-validator-debounce**
+
 Для проверок типа «уникальность email», «валидация ИНН через API», «проверка адреса» —
 async-правило это `AsyncRule<T>` = `(value, { signal }) => Promise<ValidationError | null>`.
 Оно регистрируется оператором `validateAsync(sig, [asyncRules])` внутри схемы валидации
@@ -4056,6 +4119,8 @@ return checking ? <Spinner /> : errors.length ? <Error errors={errors} /> : null
 
 ## 76. 32. ASYNC OPTIONS LOADING
 
+**async-options-loading**
+
 Для динамической подгрузки опций dropdown'а по значению другого поля (`region` → `city options`,
 `carBrand` → `carModel options`) — используй `onChange` из `@reformer/core/behaviors` +
 `form.field.updateComponentProps({ options })`. `onChange` даёт debounce и AbortSignal из коробки.
@@ -4164,6 +4229,8 @@ loadOptionsOn(model.$.carBrand, form.carModel, fetchCarModels, { resetTarget: tr
 - [31-async-validator-debounce.md](31-async-validator-debounce.md) — async **валидация** (не options)
 
 ## 77. Purpose
+
+**useFormValidation — Единый выбор стратегии валидации**
 
 Одна декларативная точка выбора «когда прогонять схему валидации» вместо ручной разводки
 `markAsTouched` + `validateModel` + `revalidateWhen` + `useState(pending)`. Аддитивный слой над
