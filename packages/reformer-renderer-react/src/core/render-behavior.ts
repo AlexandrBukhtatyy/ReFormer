@@ -77,14 +77,15 @@ export function hideWhen(node: RenderNodeControl, conditionFn: () => boolean): v
  *
  * @example
  * ```typescript
- * onComponentEvent(
- *   schema.node('wizard'),
- *   'onSubmit',
- *   async (values: MyForm) => {
- *     await submitForm(values);
- *   }
- * );
+ * onComponentEvent(schema.node('region'), 'onChange', (value: string) => {
+ *   loadCities(value);
+ * });
  * ```
+ *
+ * Для отправки формы этот механизм не нужен: кнопка мастера сама гейтит вызов через
+ * `config.validateAll`, поэтому обработчик отправки передаётся пропом `onSubmit`
+ * (см. `reformer://docs/cdk/multi-step-submit`). Подписка на `'onSubmit'` в обход
+ * этого гейта — анти-паттерн: она вызывается по клику, до валидации.
  */
 
 export function onComponentEvent(
@@ -258,4 +259,36 @@ export function useNodeLifecycle(
       hooks.onUnmount?.();
     };
   }, [hooks]);
+}
+
+/**
+ * @internal
+ * Предупреждает, если под селектором стоит компонент, не принимающий `ref`.
+ *
+ * `schema.node(selector).getRef()` работает только когда компонент пробрасывает `ref` в DOM
+ * или в дочерний компонент с императивным handle. Прикладные шимы (обёртки над ui-kit
+ * `FormWizard` для `$component(Wizard)`) об этом требовании регулярно забывают, и тогда
+ * `getRef().current` молча остаётся `null`: ломаются programmatic submit и навигация
+ * `wizardRef.current?.goToStep(...)`. Ни TypeScript, ни валидаторы схемы этого не видят —
+ * поэтому проверка рантаймовая и только в dev.
+ *
+ * Проверка идёт после коммита: до него ref по определению не прикреплён.
+ */
+export function useRefAttachmentWarning(
+  selector: string | undefined,
+  nodeRef: { current: unknown } | undefined,
+  skip: boolean
+): void {
+  useEffect(() => {
+    if (skip || !nodeRef || !selector) return;
+    if (nodeRef.current != null) return;
+    if (process.env.NODE_ENV === 'production' || typeof console === 'undefined') return;
+
+    console.warn(
+      `[RenderSchema] ref для узла "${selector}" не прикрепился: компонент под этим селектором ` +
+        'не принимает проп `ref`. `getRef().current` останется null — programmatic submit и ' +
+        'навигация по шагам работать не будут. Пробросьте `ref` в целевой компонент ' +
+        '(React 19 — проп `ref`, ранее — `forwardRef`).'
+    );
+  });
 }

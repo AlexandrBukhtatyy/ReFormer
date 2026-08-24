@@ -47,6 +47,23 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
 
   /** Go to specific step */
   goToStep: (step: number) => boolean;
+
+  // ============================================================================
+  // Submit
+  // ============================================================================
+
+  /**
+   * Отправить форму с полной валидацией. Прогоняет `config.validateAll` и только при
+   * успехе зовёт `onSubmit` через `form.submit(..., { skipValidation: true })`.
+   *
+   * Возвращает `null`, если форма не прошла `validateAll` (поля при этом помечаются
+   * `touched`, чтобы ошибки стали видны); иначе — результат `onSubmit`.
+   *
+   * Тот же метод, что и {@link FormWizardHandle.submit}: он положен в контекст, чтобы
+   * кнопка отправки (`FormWizard.Actions` / `FormWizard.Submit`) гейтила submit так же,
+   * как `goToNextStep` гейтит переход на следующий шаг.
+   */
+  submit: <R>(onSubmit: (values: T) => Promise<R> | R) => Promise<R | null>;
 }
 
 /**
@@ -73,7 +90,8 @@ export const FormWizardContext = createContext<FormWizardContextValue<any> | nul
  *
  * Возвращает текущее состояние мастера (`currentStep`, `totalSteps`,
  * `completedSteps`, `isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`,
- * `form`) и методы навигации (`goToNextStep`, `goToPreviousStep`, `goToStep`).
+ * `form`), методы навигации (`goToNextStep`, `goToPreviousStep`, `goToStep`) и
+ * `submit` — отправку с прогоном `config.validateAll` (`null`, если форма не прошла).
  * Бросает исключение, если вызван вне `<FormWizard>`.
  *
  * Для внешнего управления (вне дерева Wizard) используйте

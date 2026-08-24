@@ -131,8 +131,15 @@ export function FormWizardActions({
   className,
   style,
 }: FormWizardActionsProps) {
-  const { isFirstStep, isLastStep, isValidating, isSubmitting, goToNextStep, goToPreviousStep } =
-    useFormWizard();
+  const {
+    isFirstStep,
+    isLastStep,
+    isValidating,
+    isSubmitting,
+    goToNextStep,
+    goToPreviousStep,
+    submit,
+  } = useFormWizard();
 
   // Always create context value (hooks must be called unconditionally)
   const actionsContextValue = useMemo(() => ({ onSubmit }), [onSubmit]);
@@ -151,7 +158,12 @@ export function FormWizardActions({
         disabled: isDisabled,
       },
       submit: {
-        onClick: () => onSubmit?.(),
+        // Через `submit` из контекста, а не напрямую в проп: он прогоняет
+        // `config.validateAll` и зовёт `onSubmit` только при успехе — так кнопка
+        // отправки гейтит ввод так же, как `next` гейтит переход на следующий шаг.
+        onClick: () => {
+          void submit(() => onSubmit?.());
+        },
         disabled: isDisabled,
         isSubmitting,
       },

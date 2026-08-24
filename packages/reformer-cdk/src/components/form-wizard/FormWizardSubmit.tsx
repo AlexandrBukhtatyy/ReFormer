@@ -57,7 +57,7 @@ export interface FormWizardSubmitProps extends Omit<
  */
 export const FormWizardSubmit = forwardRef<HTMLButtonElement, FormWizardSubmitProps>(
   ({ children, asChild = false, disabled: disabledProp, loadingText, ...props }, ref) => {
-    const { isLastStep, isValidating, isSubmitting } = useFormWizard();
+    const { isLastStep, isValidating, isSubmitting, submit } = useFormWizard();
     const { onSubmit } = useFormWizardActions();
 
     // Merge disabled states (OR logic)
@@ -83,7 +83,12 @@ export const FormWizardSubmit = forwardRef<HTMLButtonElement, FormWizardSubmitPr
       <Comp
         ref={ref}
         type={asChild ? undefined : 'submit'}
-        onClick={() => onSubmit?.()}
+        // Через `submit` из контекста: он прогоняет `config.validateAll` и зовёт
+        // `onSubmit` только при успехе. Compound-ветка чинится отдельно от
+        // render-props ветки в FormWizardActions — гейт нужен в обеих.
+        onClick={() => {
+          void submit(() => onSubmit?.());
+        }}
         disabled={disabled}
         data-submitting={isSubmitting || undefined}
         data-not-last-step={!isLastStep || undefined}

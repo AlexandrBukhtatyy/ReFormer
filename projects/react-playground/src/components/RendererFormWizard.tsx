@@ -83,10 +83,9 @@ export function RendererFormWizard<T extends Record<string, unknown>>(
 
   const handleSubmit = onSubmit
     ? async () => {
-        // Invoked via FormWizard.Actions render-prop — ui-kit FormWizard
-        // already validates and calls submit; pass values through.
-        // The headless FormWizard.submit is invoked elsewhere; here we just
-        // expose the user-supplied onSubmit.
+        // Вызывается кнопкой отправки через FormWizard.Actions. Кнопка гейтит вызов
+        // через `submit` из контекста мастера: сюда управление доходит только после
+        // успешного `config.validateAll`, поэтому здесь достаточно передать значения.
         await onSubmit(form.getValue() as T);
       }
     : undefined;

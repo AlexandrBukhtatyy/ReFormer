@@ -299,7 +299,7 @@ function FormWizardInner<T extends Record<string, any>>(
   );
 
   // ============================================================================
-  // Context Value (includes navigation methods for child components)
+  // Context Value (includes navigation + submit methods for child components)
   // ============================================================================
 
   const contextValue = useMemo(
@@ -317,6 +317,9 @@ function FormWizardInner<T extends Record<string, any>>(
       goToNextStep,
       goToPreviousStep,
       goToStep,
+      // Submit: тот же гейт, что и у ref-handle. Без него кнопка отправки
+      // (Actions/Submit) звала бы проп onSubmit напрямую, в обход validateAll.
+      submit,
     }),
     [
       currentStep,
@@ -330,6 +333,7 @@ function FormWizardInner<T extends Record<string, any>>(
       goToNextStep,
       goToPreviousStep,
       goToStep,
+      submit,
     ]
   );
 

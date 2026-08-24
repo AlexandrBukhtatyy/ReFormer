@@ -62,6 +62,10 @@ const RendererFormWizard: FC<Record<string, unknown>> = (props) => {
   })) as unknown as FormWizardStep<CreditApplicationForm>[];
 
   return createElement(FormWizard as unknown as FC<Record<string, unknown>>, {
+    // Проброс `ref` обязателен: через него RenderSchema отдаёт `wizard.getRef()`.
+    // Без него handle пустой — молча ломаются programmatic submit и навигация
+    // (`wizardRef.current?.goToStep(...)`), причём ни tsc, ни валидаторы этого не видят.
+    ref: props.ref,
     form: props.form,
     steps,
     config: { validateStep: props.validateStep, validateAll: props.validateAll },

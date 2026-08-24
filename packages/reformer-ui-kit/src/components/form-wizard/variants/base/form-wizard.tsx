@@ -130,7 +130,11 @@ export interface FormWizardProps<
   className?: string;
   /** Декларативный список шагов (см. {@link FormWizardStep}). Порядок = порядок навигации. */
   steps: FormWizardStep<T, TBody>[];
-  /** Колбэк отправки формы на последнем шаге; вызывается после успешной валидации. */
+  /**
+   * Колбэк отправки формы на последнем шаге. Вызывается только после успешного
+   * `config.validateAll`; при провале не вызывается, а поля помечаются `touched`,
+   * чтобы ошибки стали видны. Без `config.validateAll` отправка не блокируется.
+   */
   onSubmit: HeadlessFormWizardActionsProps['onSubmit'];
   /**
    * Стратегия отрисовки нестандартного `body`. Сам ui-kit умеет только ReactNode и

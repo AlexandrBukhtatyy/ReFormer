@@ -32,7 +32,7 @@ import {
   usePropsOverride,
   RenderSchemaOverrideContext,
 } from './render-schema-proxy';
-import { useCondition, useNodeLifecycle } from './render-behavior';
+import { useCondition, useNodeLifecycle, useRefAttachmentWarning } from './render-behavior';
 import { buildAdaptedFieldProps } from './field-adapter';
 
 /**
@@ -670,6 +670,10 @@ export function RenderNodeComponent<T>({
   // не проходит через этот путь и не хранится в lifecycleRegistry.
   const lifecycleHooks = selector ? overrideMaps?.lifecycleRegistry.get(selector) : undefined;
   useNodeLifecycle(lifecycleHooks);
+
+  // Нарушение контракта ref иначе никак не проявляется: getRef() молча отдаёт null.
+  // Скрытая нода ref не крепит по определению — на неё не ругаемся.
+  useRefAttachmentWarning(selector, nodeRef, isHidden);
 
   // Разворачиваем signal-значения в componentProps (из `$model(...)`, напр. в шаблоне элемента
   // списка) — безусловно, до early-return. Использует контейнерная ветка (у листа свой seam).
