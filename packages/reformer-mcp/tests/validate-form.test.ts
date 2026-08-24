@@ -218,6 +218,99 @@ describe('validate_form kind=bundle', () => {
     expect(codes(text)).toContain('RF004');
     expect(text, 'граница проверки должна быть названа').toMatch(/сам TypeScript не проверяется/);
   });
+
+  /**
+   * Замер (см. `.tmp/verdicts/b3-validate-bundle-false-positives.md`) показал две беды сразу:
+   * проверка C1 ругалась на корректные относительные пути внутри `item.$template` и при этом
+   * пропускала реальные промахи, потому что смягчение шло суффиксным сравнением. Оба агента
+   * в итоге перестали смотреть на ответы этой проверки — худший исход для валидатора.
+   */
+  const arrayIntent = {
+    formName: 'Loan',
+    fields: [
+      { name: 'coBorrowers', type: 'array' as const, component: 'FormArray' },
+      { name: 'coBorrowers.personalData.lastName', type: 'string' as const, component: 'Input' },
+    ],
+  };
+
+  const arraySchema = (templateBinding: string) => ({
+    root: {
+      component: '$component(Box)',
+      children: [
+        {
+          array: '$model(coBorrowers)',
+          component: '$component(FormArray)',
+          item: {
+            $template: {
+              component: '$component(Box)',
+              children: [{ value: templateBinding, component: '$component(Input)' }],
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  it('путь внутри item.$template резолвится относительно элемента, а не корня', async () => {
+    const { content } = await validateFormTool(
+      { kind: 'bundle', intent: arrayIntent, schema: arraySchema('$model(personalData.lastName)') },
+      k
+    );
+    expect(codes(content[0].text), 'корректная привязка не должна давать C1/RF001').not.toContain(
+      'RF001'
+    );
+  });
+
+  it('несуществующий путь в шаблоне элемента ловится, а не прячется суффиксным совпадением', async () => {
+    const { content } = await validateFormTool(
+      { kind: 'bundle', intent: arrayIntent, schema: arraySchema('$model(personalData.ghost)') },
+      k
+    );
+    expect(codes(content[0].text)).toContain('RF001');
+  });
+
+  it('корневая привязка не «находится» внутри элемента массива', async () => {
+    // monthlyIncome есть только как поле элемента; на корне его нет — C1 обязана ругнуться.
+    const intent = {
+      formName: 'Loan',
+      fields: [
+        { name: 'coBorrowers', type: 'array' as const, component: 'FormArray' },
+        { name: 'coBorrowers.monthlyIncome', type: 'number' as const, component: 'Input' },
+      ],
+    };
+    const { content } = await validateFormTool(
+      {
+        kind: 'bundle',
+        intent,
+        schema: {
+          root: {
+            component: '$component(Box)',
+            children: [{ value: '$model(monthlyIncome)', component: '$component(Input)' }],
+          },
+        },
+      },
+      k
+    );
+    expect(codes(content[0].text)).toContain('RF001');
+  });
+
+  it('контейнерный шим Wizard не объявляется неизвестным компонентом', async () => {
+    const { content } = await validateFormTool(
+      {
+        kind: 'bundle',
+        intent: { formName: 'X', fields: [{ name: 'a', type: 'string', component: 'Input' }] },
+        schema: {
+          root: {
+            component: '$component(Wizard)',
+            children: [{ value: '$model(a)', component: '$component(Input)' }],
+          },
+        },
+      },
+      k
+    );
+    // Wizard — прикладной шим: библиотека его не экспортирует, полем intent он быть не может.
+    expect(content[0].text).not.toMatch(/\$component\(Wizard\).*не объявлен/);
+  });
 });
 
 /**

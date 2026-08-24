@@ -59,9 +59,15 @@ const TARGET_TO_PACKAGE: Record<string, string> = {
 const GUIDANCE_PACKAGE = '@reformer/mcp';
 
 /**
- * Пакеты, релевантные цели. Граф зависимостей простой: рендерер всегда идёт вместе с ядром,
- * а ui-kit — только там, где речь о компонентах. Смысл в том, чтобы при `target=core` в
- * выдачу не лезли React-компоненты, а при `target=renderer-json` — JSX.
+ * Пакеты, релевантные цели. Граф зависимостей простой: рендерер всегда идёт вместе с ядром.
+ *
+ * `@reformer/ui-kit` входит при любом распознанном target'е. Раньше здесь стояло «ui-kit —
+ * только там, где речь о компонентах», но ветки «речь о компонентах» в коде не было: пакет
+ * попадал в выдачу единственным способом — при `target === 'ui-kit'`. Из-за этого весь корпус
+ * ui-kit (71 секция) вырезался ДО ранжирования на core / renderer-react / renderer-json, то
+ * есть ровно там, где агент и собирает форму из его компонентов. Попытка угадать «речь о
+ * компонентах» по тексту задачи уже подвела (проза разошлась с кодом и замаскировала дефект),
+ * поэтому фильтра по формулировке здесь нет — отбор делает ранжирование.
  *
  * `@reformer/mcp` входит при ЛЮБОМ распознанном target'е, и это не нарушает правило выше:
  * компонентов в нём нет вовсе, а есть per-target методика — «Form directory layout» с
@@ -78,8 +84,8 @@ function packagesFor(target: string | undefined): string[] | null {
   if (!target) return null;
   const own = TARGET_TO_PACKAGE[target];
   if (!own) return null;
-  const base = ['@reformer/core', '@reformer/cdk', GUIDANCE_PACKAGE];
-  if (own === '@reformer/core') return base;
+  const base = ['@reformer/core', '@reformer/cdk', '@reformer/ui-kit', GUIDANCE_PACKAGE];
+  if (base.includes(own)) return base;
   return [...base, own];
 }
 

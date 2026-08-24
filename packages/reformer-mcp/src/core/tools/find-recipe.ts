@@ -54,9 +54,14 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   // arrays
   'form-array': ['arrays', 'array-operations', 'array-cleanup'],
   array: ['arrays'],
-  // multi-step / wizard
-  'form-wizard': ['multi-step'],
-  wizard: ['multi-step'],
+  // multi-step / wizard.
+  // `form-navigation` — имя файла cdk (03-form-navigation.md, h1 «FormWizard»): без него
+  // топик `wizard` с фильтром package попадал в шаг 2 каскада (совпадение по заголовку
+  // секции) и отдавал случайный кусок вместо рецепта — например, в renderer-react приезжал
+  // один параграф «прокинуть конфиг в wizard-узел», без формы самого узла.
+  'form-wizard': ['multi-step', 'form-navigation'],
+  wizard: ['multi-step', 'form-navigation'],
+  'multi-step': ['form-navigation'],
   // async
   'async-validator': ['async-validator-debounce', 'async-watchfield', 'async-preload'],
   async: ['async-watchfield', 'async-preload'],

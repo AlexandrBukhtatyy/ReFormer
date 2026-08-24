@@ -213,7 +213,13 @@ export async function validateFormTool(
         }
       }
       const intent = normalizeIntent(args.intent);
-      const cross = crossCheckBundle(intent, schema);
+      // componentNames/dataSourceNames — реальные ключи реестра. Раньше при kind="bundle"
+      // они игнорировались, и контейнерные компоненты (Wizard, Box, Section) объявлялись
+      // неизвестными: объявить их в FormIntent негде, он описывает поля, а не разметку.
+      const cross = crossCheckBundle(intent, schema, {
+        ...(Array.isArray(args.componentNames) ? { componentNames: args.componentNames } : {}),
+        ...(Array.isArray(args.dataSourceNames) ? { dataSourceNames: args.dataSourceNames } : {}),
+      });
       const diagnostics: Diagnostic[] = [
         ...cross.errors.map((e) => toDiagnostic(e.code, 'error', e.message)),
         ...cross.warnings.map((w) => toDiagnostic(w.code, 'warning', w.message)),

@@ -47,6 +47,56 @@ function collectOperators(node: unknown, op: string, out: Set<string>): void {
   }
 }
 
+/**
+ * Собрать `$model(...)`-привязки с учётом области видимости.
+ *
+ * Внутри `item.$template` массива пути записываются ОТНОСИТЕЛЬНО элемента (`$model(type)`
+ * в шаблоне `properties` означает `properties.type`) — так это описано в 02-json-schema.md.
+ * Плоский обход этого не знал, и C1 сверял относительный путь с корнем модели: любая
+ * вложенная группа внутри элемента массива («$model(personalData.lastName)») объявлялась
+ * привязкой в никуда. Смягчение через суффиксное сравнение чинило симптом и ломало саму
+ * проверку: корневой `$model(monthlyIncome)`, которого в модели нет, «находился» в
+ * `coBorrowers.monthlyIncome`, то есть C1 пропускала ровно ту поломку, ради которой заведена.
+ *
+ * Поэтому префикс протаскивается по дереву: для поддерева `item.$template` узла с
+ * `array: '$model(P)'` он равен `P + '.'`, для остальных ключей того же узла — прежний.
+ */
+function collectModelRefs(node: unknown, prefix: string, out: Set<string>): void {
+  if (typeof node === 'string') {
+    const m = node.match(/^\$model\(([^)]*)\)$/);
+    if (m) out.add(prefix + m[1]);
+    return;
+  }
+  if (Array.isArray(node)) {
+    for (const v of node) collectModelRefs(v, prefix, out);
+    return;
+  }
+  if (!node || typeof node !== 'object') return;
+
+  const rec = node as Record<string, unknown>;
+  const arrayOp = typeof rec.array === 'string' ? rec.array.match(/^\$model\(([^)]*)\)$/) : null;
+  const itemPrefix = arrayOp ? `${prefix}${arrayOp[1]}.` : prefix;
+
+  for (const [key, value] of Object.entries(rec)) {
+    // сам оператор массива — путь от текущей области, а не от элемента
+    if (key === 'array') {
+      collectModelRefs(value, prefix, out);
+      continue;
+    }
+    if (key === 'item' && arrayOp) {
+      // внутри item только $template живёт в области элемента
+      const item = value as Record<string, unknown> | null;
+      if (item && typeof item === 'object') {
+        for (const [ik, iv] of Object.entries(item)) {
+          collectModelRefs(iv, ik === '$template' ? itemPrefix : prefix, out);
+        }
+      }
+      continue;
+    }
+    collectModelRefs(value, prefix, out);
+  }
+}
+
 /** Собрать все `selector` из дерева — по ним адресуется render-поведение. */
 function collectSelectors(node: unknown, out: Set<string>): void {
   if (Array.isArray(node)) {
@@ -73,10 +123,29 @@ function collectArrayNodes(node: unknown, out: Array<Record<string, unknown>>): 
   }
 }
 
-/** Имена, которые реестр предоставляет всегда, без объявления в intent. */
-const BUILTIN_COMPONENTS = new Set(['FIELD_WRAPPER', 'Step', 'RendererFormWizard']);
+/**
+ * Имена, которые реестр предоставляет всегда, без объявления в intent.
+ *
+ * `Wizard` — канонический ключ реестра для прикладного шима визарда (07-form-wizard.md):
+ * библиотека компонент не экспортирует, приложение регистрирует свой. Полем intent
+ * контейнер быть не может по определению, поэтому без этой записи C2 ругалась ровно на то,
+ * что предписывает канон. `RendererFormWizard` оставлен для исторических примеров.
+ */
+const BUILTIN_COMPONENTS = new Set([
+  'FIELD_WRAPPER',
+  'Step',
+  'Wizard',
+  'RendererFormWizard',
+  'Box',
+  'Section',
+  'FormArray',
+]);
 
-export function crossCheckBundle(intent: FormIntent, layoutJson: unknown): CrossCheckReport {
+export function crossCheckBundle(
+  intent: FormIntent,
+  layoutJson: unknown,
+  opts?: { componentNames?: string[]; dataSourceNames?: string[] }
+): CrossCheckReport {
   const errors: CrossCheckIssue[] = [];
   const warnings: CrossCheckIssue[] = [];
   const err = (code: CrossCheckCode, message: string) =>
@@ -88,18 +157,19 @@ export function crossCheckBundle(intent: FormIntent, layoutJson: unknown): Cross
   const models = new Set<string>();
   const components = new Set<string>();
   const dataSources = new Set<string>();
-  collectOperators(layoutJson, 'model', models);
+  collectModelRefs(layoutJson, '', models);
   collectOperators(layoutJson, 'component', components);
   collectOperators(layoutJson, 'dataSource', dataSources);
 
   const selectors = new Set<string>();
   collectSelectors(layoutJson, selectors);
 
-  // C1 — каждая привязка разметки ведёт в существующее поле модели.
+  // C1 — каждая привязка разметки ведёт в существующее поле модели. Пути уже приведены к
+  // корню моделью области видимости (см. collectModelRefs), поэтому сравнение точное:
+  // суффиксного смягчения здесь быть не должно — оно пропускало реальные промахи.
   for (const m of models) {
-    // Путь внутри строки массива записан относительно элемента, поэтому проверяем и хвост.
-    const known = paths.has(m) || [...paths].some((p) => p.endsWith(`.${m}`));
-    if (!known) err('C1', `$model(${m}) — такого пути нет в модели. Привязка ведёт в никуда.`);
+    if (!paths.has(m))
+      err('C1', `$model(${m}) — такого пути нет в модели. Привязка ведёт в никуда.`);
   }
 
   // C2 — каждый компонент разметки зарегистрирован. Список «что используется» берём у того же
@@ -107,10 +177,23 @@ export function crossCheckBundle(intent: FormIntent, layoutJson: unknown): Cross
   const declaredComponents = new Set<string>([
     ...collectUsedComponents(intent),
     ...BUILTIN_COMPONENTS,
+    ...(opts?.componentNames ?? []),
   ]);
   for (const c of components) {
-    if (!declaredComponents.has(c)) {
-      err('C2', `$component(${c}) не объявлен ни одним полем intent — в реестре его не будет.`);
+    if (declaredComponents.has(c)) continue;
+    if (opts?.componentNames) {
+      err(
+        'C2',
+        `$component(${c}) не объявлен ни одним полем intent и не передан в componentNames — в реестре его не будет.`
+      );
+    } else {
+      // Контейнерным компонентам места в FormIntent нет: он описывает поля, а не разметку.
+      // Пока реальные ключи реестра не переданы, отличить «забыли зарегистрировать» от
+      // «это контейнер» нельзя — поэтому предупреждение, а не ошибка.
+      warn(
+        'C2',
+        `$component(${c}) не объявлен ни одним полем intent. Если это контейнер или прикладной шим — так и должно быть; чтобы проверить по-настоящему, передайте componentNames с ключами реестра.`
+      );
     }
   }
 
