@@ -93,7 +93,27 @@ export function countFieldsPerStep(content: string): Record<string, number> {
  *
  * Ограничение на длину прежнее: односимвольная ячейка — это номер или пометка, а не ключ.
  */
+/**
+ * Литералы, которые по форме неотличимы от имени поля. Позиционный фолбэк ниже сканирует
+ * строку до первой «похожей на ключ» ячейки, поэтому значение из соседней колонки
+ * («Значение» = `false`) уезжало в `fields` полем с именем `false` — а `tsc` его пропускал,
+ * потому что `false: boolean` в TS легальное имя свойства.
+ */
+const NON_FIELD_LITERALS = new Set([
+  'true',
+  'false',
+  'null',
+  'undefined',
+  'string',
+  'number',
+  'boolean',
+  'object',
+  'array',
+  'date',
+]);
+
 function isFieldKey(cell: string): boolean {
+  if (NON_FIELD_LITERALS.has(cell.toLowerCase())) return false;
   return /^[a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9]+)*$/.test(cell) && cell.length > 1;
 }
 
@@ -224,7 +244,11 @@ export function parseTypeCell(cell: string): { type: FieldType; component: strin
   const raw = cell.replace(/<[^>]+>/g, '').trim();
   if (!raw) return null;
 
-  const bracket = raw.match(/^([A-Za-z]+)\s*\[\s*([A-Za-z]+)\s*\]$/);
+  // Без якоря в конце: в спеках за скобкой встречаются пометки («Input[number] readonly»,
+  // «Input[number] — вычисляемое»). С якорем такая ячейка не матчилась вовсе и уходила в
+  // фолбэк по имени компонента, где Input значит string — поэтому ВСЕ вычисляемые числовые
+  // поля приезжали строками.
+  const bracket = raw.match(/^([A-Za-z]+)\s*\[\s*([A-Za-z]+)\s*\]/);
   const component = (bracket ? bracket[1] : raw.match(/^([A-Za-z]+)/)?.[1]) ?? '';
   const hint = bracket?.[2]?.toLowerCase();
 
@@ -327,6 +351,12 @@ export function parseValidationCell(cell: string | undefined): {
     const chunk = chunkRaw.trim();
     if (!chunk) continue;
 
+    // «Необязательное» содержит «обязательн» подстрокой, а `\b` в JS работает только по
+    // латинице (`\w` кириллицу не включает) — без явного отрицания спека с колонкой
+    // «Необязательное» превращалась в `required()`. Это худший класс ошибки разбора:
+    // не потеря данных, а сочинение — форма начинала требовать поля, которых спека не требует.
+    if (/необязательн|не\s+обязательн|опционал|optional/i.test(chunk)) continue;
+
     const flag = FLAG_VALIDATORS.find(([re]) => re.test(chunk));
     // Условие уже вырезано, поэтому здесь безопасно: `Условное` не спутается с `required`.
     if (flag && !/[:=]/.test(chunk)) {
@@ -390,7 +420,15 @@ function guessField(name: string, note: string): { type: FieldType; component: s
  */
 export const MAX_FIELDS = 200;
 
-export function extractFields(content: string): SpecField[] {
+/**
+ * Строки таблиц, из которых не вышло поля.
+ *
+ * Универсальная сеть под любой неизвестный синтаксис. Предыдущий раз этот класс бага чинили
+ * частным случаем (точки в именах — тогда молча терялось 17 полей), и он вернулся со
+ * скобками массивов: разбор снова промолчал. Пока «строка выпала» не попадает в ответ,
+ * консумент не отличает «в спеке этого нет» от «разбор не понял».
+ */
+export function extractFields(content: string, dropped?: string[]): SpecField[] {
   const fields: SpecField[] = [];
   const seen = new Set<string>();
 
@@ -448,10 +486,22 @@ export function extractFields(content: string): SpecField[] {
         );
         continue;
       }
+
+      // Шапка есть, ключевая ячейка заполнена, но ключом не является — значит синтаксис нам
+      // незнаком (например `properties[].type`). Позиционный фолбэк здесь опасен: он ищет
+      // первую похожую на ключ ячейку по всей строке и находит значение соседней колонки.
+      // Честнее выпасть в dropped, чем выдумать поле.
+      if (key) {
+        dropped?.push(cells.filter(Boolean).slice(0, 3).join(' | '));
+        continue;
+      }
     }
 
     const key = cells.find(isFieldKey);
-    if (!key) continue;
+    if (!key) {
+      if (cells.some(Boolean)) dropped?.push(cells.filter(Boolean).slice(0, 3).join(' | '));
+      continue;
+    }
     const label = cells.find((c) => c !== key && /[А-Яа-яA-Za-z]{3,}/.test(c));
     push(key, cells.join(' '), label);
   }
@@ -467,8 +517,24 @@ export function extractFields(content: string): SpecField[] {
 
 export function analyzeSpec(content: string): SpecAnalysis {
   const fieldsPerStep = countFieldsPerStep(content);
-  const fields = extractFields(content);
+  const droppedRows: string[] = [];
+  const fields = extractFields(content, droppedRows);
   const warnings: string[] = [];
+
+  if (droppedRows.length > 0) {
+    // Не «сколько нашли», а «сколько не поняли»: без этой строки неполный разбор выглядит
+    // полным. Примеры даём дословно — по ним видно, какой синтаксис не поддержан.
+    const sample = droppedRows
+      .slice(0, 3)
+      .map((r) => `«${r}»`)
+      .join(', ');
+    warnings.push(
+      `Строк таблиц, из которых не удалось получить поле: ${droppedRows.length}` +
+        `${sample ? ` (например ${sample})` : ''}. ` +
+        'Обычно это неподдержанный синтаксис ключа — например элементы массива вида ' +
+        '`items[].field`. Проверьте их и допишите недостающее в `fields`/`arrays` вручную.'
+    );
+  }
 
   if (fields.length === 0) {
     warnings.push(

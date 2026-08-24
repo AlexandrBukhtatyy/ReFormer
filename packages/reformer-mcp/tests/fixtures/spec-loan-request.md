@@ -137,4 +137,37 @@
         <td>Необязательный комментарий</td>
         <td>-</td>
     </tr>
+    <tr>
+        <td>2.5</td>
+        <td>Заявитель</td>
+        <td>middleName</td>
+        <td>Отчество</td>
+        <td>Input</td>
+        <td>''</td>
+        <td>Необязательное, maxLength: 50</td>
+        <td>При наличии</td>
+        <td>«Необязательное» не должно стать required()</td>
+    </tr>
+    <tr>
+        <td>2.5</td>
+        <td>Созаёмщики</td>
+        <td>coBorrowers[].monthlyIncome</td>
+        <td>Доход созаёмщика</td>
+        <td>Input[number]</td>
+        <td>0</td>
+        <td>Обязательное, min: 0</td>
+        <td>Ежемесячный доход</td>
+        <td>Элемент массива — синтаксис ключа разбором не поддержан</td>
+    </tr>
+    <tr>
+        <td>2.6</td>
+        <td>Расчёт</td>
+        <td>totalIncome</td>
+        <td>Совокупный доход</td>
+        <td>Input[number] readonly</td>
+        <td>0</td>
+        <td>-</td>
+        <td>Считается автоматически</td>
+        <td>Пометка после скобки — тип обязан остаться числом</td>
+    </tr>
 </table>

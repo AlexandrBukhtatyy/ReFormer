@@ -108,7 +108,10 @@ export interface WizardIntent {
 /** Узел layout-дерева. Листья ссылаются на поля/массивы ПО ИМЕНИ, не встраивают их. */
 export type LayoutNode =
   | { kind: 'field'; ref: string }
-  | { kind: 'array'; ref: string }
+  // `selector` у массива — точка адресации для behavior/visibility. Без него генератор
+  // подставлял имя массива, и правило, ссылавшееся на собственный selector из intent,
+  // адресовало узел, которого в разметке нет.
+  | { kind: 'array'; ref: string; selector?: string }
   | {
       kind: 'container';
       component: string;
@@ -771,7 +774,8 @@ function readLayoutNode(raw: unknown, at: string, ctx: ReadCtx): LayoutNode | nu
       });
       return null;
     }
-    return { kind, ref };
+    // selector осмыслен только у массива: у поля точка адресации — путь модели.
+    return kind === 'array' && selector ? { kind, ref, selector } : { kind, ref };
   }
 
   const children = asList(take(raw, 'children', ['items', 'nodes', 'fields'], ctx))

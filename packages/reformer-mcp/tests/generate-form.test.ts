@@ -95,13 +95,99 @@ describe('form-intent', () => {
 });
 
 describe('builders', () => {
-  it('model.ts объявляет интерфейс, элементы массива и начальные значения', () => {
+  it('model.ts объявляет тип формы, элементы массива и начальные значения', () => {
     const ts = buildModelTs(goodIntent());
-    expect(ts).toContain('export interface OrderItem');
-    expect(ts).toContain('export interface OrderShape');
+    // Именно `type`, а не `interface`: у interface нет неявной индексной сигнатуры, поэтому
+    // он не присваивается `Record<string, FormValue>` — на это опираются FormProxy<T>,
+    // ArrayNode<T> и constraint FormWizard<T>. Правило корпуса: core «TYPE-SAFETY RECIPES»
+    // Recipe 2, reformer://guide §27; сервер обязан ему следовать, а не только требовать.
+    expect(ts).toContain('export type OrderItem = {');
+    expect(ts).toContain('export type OrderShape = {');
+    expect(ts, 'interface нарушает собственное правило корпуса').not.toMatch(
+      /export interface (OrderItem|OrderShape)/
+    );
     expect(ts).toContain('price: number;');
     expect(ts).toContain('items: OrderItem[];');
     expect(ts).toContain('export const initialFormModel');
+  });
+
+  /**
+   * Замер показал три места, где генератор молча расходился с каноном и с самим intent'ом
+   * (`.tmp/verdicts/b2-generate-form-antipattern-invalid-ts.md`). Все три не ловились ничем:
+   * кросс-проверка сверяет файлы между собой, а они были согласованно неверны.
+   */
+  describe('layout соответствует канону renderer-json', () => {
+    const layout = (intent: FormIntent) => JSON.parse(buildLayoutJson(intent)).root;
+
+    it('шаги живут в componentProps.steps, а не в children', () => {
+      const intent = normalizeIntent({
+        formName: 'Order',
+        target: 'renderer-json',
+        fields: [{ name: 'price', type: 'number', component: 'Input' }],
+        layoutRoot: {
+          kind: 'container',
+          component: 'Box',
+          children: [{ kind: 'step', title: 'Шаг 1', children: [{ kind: 'field', ref: 'price' }] }],
+        },
+      });
+      const root = layout(intent);
+      // Класть шаги в children — анти-паттерн, названный так в корпусе renderer-json.
+      expect(root.componentProps?.steps, 'шаги обязаны быть в componentProps.steps').toHaveLength(
+        1
+      );
+      expect(root.children ?? [], 'children у wizard-ноды быть не должно').toHaveLength(0);
+      expect(root.component).toBe('$component(Wizard)');
+    });
+
+    it('selector массива из layoutRoot не подменяется именем массива', () => {
+      const intent = normalizeIntent({
+        formName: 'Order',
+        target: 'renderer-json',
+        fields: [],
+        arrays: [
+          {
+            name: 'items',
+            itemInterfaceName: 'OrderItem',
+            itemFields: [{ name: 'sku', type: 'string', component: 'Input' }],
+          },
+        ],
+        layoutRoot: {
+          kind: 'container',
+          component: 'Box',
+          children: [{ kind: 'array', ref: 'items', selector: 'items-array' }],
+        },
+      });
+      // Подмена ломала адресацию из behavior/visibility: правило ссылалось на selector,
+      // которого после генерации в разметке не оказывалось.
+      expect(layout(intent).children[0].selector).toBe('items-array');
+    });
+
+    it('initialValue поля элемента массива не затирается пустышкой по типу', () => {
+      const intent = normalizeIntent({
+        formName: 'Order',
+        target: 'renderer-json',
+        fields: [],
+        arrays: [
+          {
+            name: 'properties',
+            itemInterfaceName: 'PropertyItem',
+            itemFields: [
+              { name: 'type', type: 'string', component: 'Select', initialValue: 'apartment' },
+              { name: 'estimatedValue', type: 'number', component: 'Input', initialValue: 0 },
+            ],
+          },
+        ],
+        layoutRoot: {
+          kind: 'container',
+          component: 'Box',
+          children: [{ kind: 'array', ref: 'properties' }],
+        },
+      });
+      expect(layout(intent).children[0].initialValue).toEqual({
+        type: 'apartment',
+        estimatedValue: 0,
+      });
+    });
   });
 
   it('validation.ts импортирует ТОЛЬКО использованные валидаторы', () => {

@@ -82,22 +82,28 @@ export function buildModelTs(intent: FormIntent): string {
   lines.push(' */');
   lines.push('');
 
-  // Интерфейсы элементов массивов объявляются до основного — иначе ссылка вперёд.
+  // Типы элементов массивов объявляются до основного — иначе ссылка вперёд.
+  //
+  // `type`, а не `interface`: правило корпуса (core «TYPE-SAFETY RECIPES» Recipe 2,
+  // reformer://guide §27). У interface нет неявной индексной сигнатуры, поэтому он не
+  // присваивается `Record<string, FormValue>` — а на это ограничение опираются `FormProxy<T>`,
+  // `ArrayNode<T>` и generic-constraint `FormWizard<T>`. Сервер, печатающий interface, нарушал
+  // собственное правило и отдавал консументу тип, который тот потом менял руками.
   for (const arr of intent.arrays) {
-    lines.push(`export interface ${arr.itemInterfaceName} {`);
+    lines.push(`export type ${arr.itemInterfaceName} = {`);
     for (const f of arr.itemFields) {
       if (f.label) lines.push(`  /** ${f.label} */`);
       lines.push(`  ${f.name}: ${fieldTsType(f)};`);
     }
-    lines.push('}');
+    lines.push('};');
     lines.push('');
   }
 
   const tree = modelTree(intent);
 
-  lines.push(`export interface ${intent.interfaceName} {`);
+  lines.push(`export type ${intent.interfaceName} = {`);
   lines.push(...renderShape(tree, 1));
-  lines.push('}');
+  lines.push('};');
   lines.push('');
 
   lines.push(`export const initialFormModel: ${intent.interfaceName} = {`);
@@ -410,7 +416,12 @@ function emptyItem(a: ArrayIntent): Record<string, unknown> {
   );
   if (sample) return sample as Record<string, unknown>;
   const out: Record<string, unknown> = {};
-  for (const f of a.itemFields) out[f.name] = emptyValue(f.type);
+  // `initialValue` самого поля важнее пустышки по типу: intent, где у элемента заданы
+  // `{ type: 'apartment', estimatedValue: 0 }`, раньше давал `{ type: '', estimatedValue: null }` —
+  // значения молча терялись, и новая строка массива открывалась не в том состоянии.
+  for (const f of a.itemFields) {
+    out[f.name] = f.initialValue !== undefined ? f.initialValue : emptyValue(f.type);
+  }
   return out;
 }
 
@@ -440,7 +451,10 @@ function layoutToJson(node: LayoutNode, intent: FormIntent): JsonNode | null {
       const a = intent.arrays.find((x) => x.name === node.ref);
       if (!a) return null;
       return {
-        selector: a.name,
+        // Заданный в layoutRoot `selector` побеждает имя массива: молчаливая подмена ломала
+        // адресацию из behavior/visibility (те ссылаются на selector, которого в разметке
+        // после подмены не оказывалось — и кросс-проверка выдавала C6 на собственный вывод).
+        selector: node.selector ?? a.name,
         array: `$model(${a.modelPath ?? a.name})`,
         component: `$component(${a.component ?? 'FormArray'})`,
         initialValue: emptyItem(a),
@@ -461,7 +475,28 @@ function layoutToJson(node: LayoutNode, intent: FormIntent): JsonNode | null {
           .map((c) => layoutToJson(c, intent))
           .filter((c): c is JsonNode => c !== null),
       };
-    default:
+    default: {
+      const steps = node.children.filter((c) => c.kind === 'step');
+
+      // Контейнер, детьми которого являются шаги, — это wizard. В JSON-DSL шаги живут в
+      // `componentProps.steps`, а НЕ в `children`: класть их в children — анти-паттерн,
+      // названный так в самом корпусе (renderer-json, «Anti-patterns»). Конвертер резолвит
+      // вложенные ноды внутри componentProps рекурсивно, поэтому форма валидна.
+      // Компонент — `Wizard`: библиотека визарда не экспортирует, приложение регистрирует
+      // под этим именем свой шим (см. канон раскладки, `renderer.wizard.tsx`).
+      if (steps.length > 0 && steps.length === node.children.length) {
+        return {
+          selector: node.selector ?? 'wizard',
+          component: '$component(Wizard)',
+          componentProps: {
+            ...node.componentProps,
+            steps: steps
+              .map((c) => layoutToJson(c, intent))
+              .filter((c): c is JsonNode => c !== null),
+          },
+        };
+      }
+
       return {
         selector: node.selector,
         component: node.htmlTag ? `$html(${node.htmlTag})` : `$component(${node.component})`,
@@ -470,6 +505,7 @@ function layoutToJson(node: LayoutNode, intent: FormIntent): JsonNode | null {
           .map((c) => layoutToJson(c, intent))
           .filter((c): c is JsonNode => c !== null),
       };
+    }
   }
 }
 
