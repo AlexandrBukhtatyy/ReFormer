@@ -11,6 +11,7 @@ import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
 import MccaCoreV20 from './pages/examples/mcp-credit-application-core-v20';
 import MccaRendererReactV20 from './pages/examples/mcp-credit-application-renderer-react-v20';
 import MccaRendererJsonV20 from './pages/examples/mcp-credit-application-renderer-json-v20';
+import NewMcpTestV2 from './pages/examples/new-mcp-test-v2';
 import ImperativeHandles from './pages/examples/imperative-handles/ImperativeHandles';
 import HtmlNodesExample from './pages/examples/html-nodes/HtmlNodesExample';
 import RegistrationFormJson from './pages/examples/registration-form-renderer-json/RegistrationFormRendererJson';
@@ -33,6 +34,7 @@ type ExamplePage =
   | 'mcca-core-v20'
   | 'mcca-renderer-react-v20'
   | 'mcca-renderer-json-v20'
+  | 'new-mcp-test-v2'
   | 'imperative-handles'
   | 'html-nodes'
   | 'registration-json'
@@ -125,6 +127,12 @@ const exampleGroups: { title: string; items: ExampleEntry[] }[] = [
         title: 'renderer-json v20',
         description:
           'Сгенерировано MCP (v20, minimalist form-* layout) — renderer-json: JSON + registry',
+      },
+      {
+        id: 'new-mcp-test-v2',
+        path: '/examples/new-mcp-test-v2',
+        title: 'new-mcp-test-v2 (renderer-json)',
+        description: 'MCP-only прогон: заявка на кредит по спеке, 6 шагов, renderer-json',
       },
     ],
   },
@@ -327,6 +335,7 @@ function Layout() {
             <Route path="/examples/mcca-core-v20" element={<MccaCoreV20 />} />
             <Route path="/examples/mcca-renderer-react-v20" element={<MccaRendererReactV20 />} />
             <Route path="/examples/mcca-renderer-json-v20" element={<MccaRendererJsonV20 />} />
+            <Route path="/examples/new-mcp-test-v2" element={<NewMcpTestV2 />} />
             <Route path="/examples/imperative-handles" element={<ImperativeHandles />} />
             <Route path="/examples/html-nodes" element={<HtmlNodesExample />} />
             <Route path="/examples/registration-json" element={<RegistrationFormJson />} />
