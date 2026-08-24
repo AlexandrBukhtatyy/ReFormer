@@ -9,7 +9,7 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormRules } from '../../model/rules';
-import type { AiMessage, AiProvider, AiToolDef, AiUsage } from '../providers/types';
+import type { AiMessage, AiProvider, AiStop, AiToolDef, AiUsage } from '../providers/types';
 import { createChangeSet, withOutcome, type ChangeSet } from './changeset';
 import { buildOutline, renderOutline } from './outline';
 import { systemPrompt } from './prompt';
@@ -77,6 +77,14 @@ export interface TurnStats {
   /** Из них прочитано из кэша префикса. Ноль при работающем кэше — сигнал, что он не попадает. */
   cachedInputTokens: number;
   outputTokens: number;
+  /**
+   * Самый дорогой по входу шаг хода.
+   *
+   * Отдельно от суммы потому, что об окне модели говорит только пик: сумма растёт с каждым шагом и
+   * у длинного исправного хода легко вдесятеро больше окна, а упирается запрос в окно ровно тем,
+   * сколько весит ОДИН шаг. Это единственная цифра, по которой видно, хватает ли `num_ctx`.
+   */
+  peakStepInputTokens: number;
 }
 
 /** Событие хода для интерфейса. */
@@ -91,6 +99,8 @@ export type TurnEvent =
       reason: 'complete' | 'aborted' | 'error';
       message?: string;
       stats: TurnStats;
+      /** Чем кончился ход у канала: для журнала и для решения, стоит ли пробовать ещё раз. */
+      stop?: AiStop;
     };
 
 /**
@@ -142,7 +152,14 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
 
   let reason: 'complete' | 'aborted' | 'error' = 'complete';
   let message: string | undefined;
-  const stats: TurnStats = { steps: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+  let stop: AiStop | undefined;
+  const stats: TurnStats = {
+    steps: 0,
+    inputTokens: 0,
+    cachedInputTokens: 0,
+    outputTokens: 0,
+    peakStepInputTokens: 0,
+  };
   // Имя вызова известно из `tool_call`, а показать его нужно на `tool_result`. Карта живёт в
   // пределах хода: на уровне модуля два параллельных хода затирали бы записи друг друга.
   const callNames = new Map<string, string>();
@@ -183,6 +200,9 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
           break;
         case 'done':
           if (event.reason !== 'complete') reason = event.reason;
+          // Диагностика берётся даже у штатного завершения: именно там она и нужна — обрыв,
+          // который канал не назвал обрывом, выглядит отсюда обычным концом хода.
+          if (event.stop) stop = event.stop;
           break;
         // tool_call самостоятельного смысла для интерфейса не несёт: показывать нечего до
         // результата, а «вызывается…» без исхода только мигает в панели.
@@ -196,7 +216,14 @@ export async function* runAgentTurn(opts: AgentTurnOptions): AsyncGenerator<Turn
     message = e instanceof Error ? e.message : String(e);
   }
 
-  yield { type: 'done', changeSet: set, reason, ...(message ? { message } : {}), stats };
+  yield {
+    type: 'done',
+    changeSet: set,
+    reason,
+    ...(message ? { message } : {}),
+    stats,
+    ...(stop ? { stop } : {}),
+  };
 }
 
 /**
@@ -240,4 +267,5 @@ function addUsage(stats: TurnStats, usage: AiUsage): void {
   stats.inputTokens += usage.inputTokens ?? 0;
   stats.cachedInputTokens += usage.cachedInputTokens ?? 0;
   stats.outputTokens += usage.outputTokens ?? 0;
+  stats.peakStepInputTokens = Math.max(stats.peakStepInputTokens, usage.inputTokens ?? 0);
 }

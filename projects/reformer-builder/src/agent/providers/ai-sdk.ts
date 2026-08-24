@@ -23,7 +23,7 @@ import {
 } from 'ai';
 import type { ToolOutcome } from '../core/types';
 import { dropReasoning, pruneSupersededReads } from './context';
-import type { AiEvent, AiRequest, AiUsage } from './types';
+import type { AiEvent, AiRequest, AiStop, AiUsage } from './types';
 
 /** Ответ на случай, если исход вызова почему-то не сохранился (защита от рассинхрона). */
 const UNKNOWN_OUTCOME: ToolOutcome = { ok: true, text: '' };
@@ -108,7 +108,61 @@ const BROKEN_FINISH: Partial<Record<FinishReason, string>> = {
   'tool-calls':
     'Ход остановлен на пределе шагов: модель не успела закончить. Уже сделанные правки можно ' +
     'применить, остальное — попросить следующим сообщением («продолжай»).',
+  error:
+    'Провайдер сообщил об ошибке генерации и оборвал ответ. Сделанное применено; повторите ' +
+    'запрос, а если отказ повторяется — проверьте, жив ли сервер модели.',
 };
+
+/**
+ * `other` в этой таблице НЕТ намеренно, хотя причина такая же тихая.
+ *
+ * Для локального канала это значение ПО УМОЛЧАНИЮ: `@ai-sdk/openai-compatible` заводит
+ * `finishReason` как `other` и меняет его, только если сервер прислал `finish_reason`. Сервер,
+ * который его не шлёт никогда, отдавал бы `other` на каждом исправном ходе — и ветка здесь
+ * превратилась бы в ложную тревогу после каждого ответа. Обрыв при `other` ловится не причиной,
+ * а признаком незавершённости — незакрытым вызовом инструмента, см. {@link truncatedCallNote}.
+ */
+
+/**
+ * Модель начала передавать аргументы вызова и не дописала их.
+ *
+ * Единственный признак обрыва, не зависящий от того, назвал ли провайдер причину. Аргументы
+ * приходят потоком (`tool-input-start` → `tool-input-delta` → `tool-input-end`), и вызов без
+ * закрытия означает, что вывод кончился посреди JSON: `tool-call` не придёт уже никогда, а правка
+ * не применится вовсе — пакет применяется целиком или никак.
+ *
+ * @param tool - Имя инструмента: без него сообщение не отличить от общего «что-то оборвалось», а с
+ *   ним видно, на какой именно правке ход встал.
+ */
+function truncatedCallNote(tool: string): string {
+  return (
+    `Ответ оборвался посреди аргументов вызова ${tool}: модель начала правку и не дописала её, ` +
+    'поэтому не применилось ничего — такой вызов применяется целиком или никак. У локальной ' +
+    'модели это почти всегда тесное контекстное окно (num_ctx / OLLAMA_CONTEXT_LENGTH); помогает ' +
+    'и просьба править меньшими частями.'
+  );
+}
+
+/**
+ * Поток кончился, не сказав `finish`.
+ *
+ * Штатно так не бывает, и ветка существует как страховка: без неё генератор просто заканчивался бы
+ * молча, а цикл принимал это за завершённый ход — то есть за успех с недоделанной формой.
+ */
+const NO_FINISH =
+  'Соединение с моделью закрылось, не завершив ответ. Сделанное применено; повторите запрос.';
+
+/**
+ * Шаг кончился пустым: ни ответа, ни вызова инструмента.
+ *
+ * Наблюдавшийся исход целиком: модель уходит в рассуждение, обрывается на полуслове и закрывает
+ * поток. Причины при этом нет — локальный сервер её не присылает, — и до этой ветки такой ход
+ * доходил до панели как штатно завершённый, то есть как «модель решила ничего не делать».
+ */
+const EMPTY_FINISH =
+  'Модель закончила ответ, не сказав ни слова и не вызвав ни одного инструмента, — почти всегда ' +
+  'это обрыв на полуслове. У локальной модели помогает контекстное окно побольше (num_ctx / ' +
+  'OLLAMA_CONTEXT_LENGTH), а задачу стоит разбить на части поменьше.';
 
 /**
  * Ход израсходовал все шаги.
@@ -185,6 +239,16 @@ export async function* streamViaAiSdk(
   let reachedStepLimit = false;
   /** Исчерпан ли бюджет входных токенов — ставится условием остановки, читается на `finish`. */
   let exceededBudget = false;
+  // Вызовы, чьи аргументы модель начала передавать, но ещё не закончила: id вызова → имя
+  // инструмента. Запись живёт от `tool-input-start` до закрытия и остаётся здесь ровно тогда,
+  // когда вывод кончился посреди JSON, — это и есть детектор обрыва.
+  const openCalls = new Map<string, string>();
+  // Сказал ли шаг хоть что-то содержательное: текст пользователю или вызов инструмента.
+  // Рассуждение содержательным НЕ считается — это черновик мысли, и ход, состоящий из одного
+  // рассуждения, ровно и есть оборванный. Сбрасывается на `start-step`; если провайдер такого
+  // события не шлёт, флаг накапливается за весь ход — признак от этого не портится, только
+  // становится грубее.
+  let stepSaidSomething = false;
 
   const tools = Object.fromEntries(
     req.tools.map((definition) => [
@@ -239,13 +303,29 @@ export async function* streamViaAiSdk(
   try {
     for await (const part of result.fullStream) {
       switch (part.type) {
+        case 'start-step':
+          stepSaidSomething = false;
+          break;
         case 'text-delta':
+          stepSaidSomething = true;
           yield { type: 'delta', text: part.text };
           break;
         case 'reasoning-delta':
           yield { type: 'reasoning', text: part.text };
           break;
+        // Аргументы вызова приходят потоком, и до этих трёх событий о начатой правке не было
+        // видно ничего: обрыв посреди JSON не оставлял ни записи, ни следа попытки.
+        case 'tool-input-start':
+          openCalls.set(part.id, part.toolName);
+          break;
+        case 'tool-input-end':
+          openCalls.delete(part.id);
+          break;
         case 'tool-call':
+          // Закрытие и здесь тоже: `tool-input-end` шлют не все провайдеры, а готовый вызов
+          // означает дописанные аргументы при любом из них.
+          openCalls.delete(part.toolCallId);
+          stepSaidSomething = true;
           yield { type: 'tool_call', id: part.toolCallId, name: part.toolName, args: part.input };
           break;
         case 'finish-step':
@@ -279,22 +359,42 @@ export async function* streamViaAiSdk(
           // Упор в предел шагов больше не виден по finishReason: на последнем шаге инструменты
           // запрещены, модель отвечает текстом, и провайдер сообщает штатный 'stop'. Отметка из
           // prepareStep — единственный оставшийся признак, что работать было ещё над чем.
+          const truncated = firstOpenCall(openCalls);
+          const empty = !stepSaidSomething;
+          const stop = stopOf(part.finishReason, part.rawFinishReason, truncated, empty);
           // Бюджет проверяется первым: он тоже выглядит как остановка на пределе шагов, но
-          // причина у неё другая, и лечится она другой настройкой.
+          // причина у неё другая, и лечится она другой настройкой. Признаки обрыва идут следом,
+          // раньше таблицы причин: они видны ВСЕГДА, а таблица знает только класс отказа — и для
+          // локального канала чаще всего молчит вовсе.
           const broken = exceededBudget
             ? OVER_BUDGET
-            : (BROKEN_FINISH[part.finishReason] ?? (reachedStepLimit ? AT_LIMIT : null));
+            : truncated
+              ? truncatedCallNote(truncated)
+              : // Предел шагов идёт раньше пустоты: причина конкретнее, а лечится другим —
+                // настройкой, а не разбиением задачи.
+                (BROKEN_FINISH[part.finishReason] ??
+                (reachedStepLimit ? AT_LIMIT : empty ? EMPTY_FINISH : null));
           if (broken) {
             // Повтор того же запроса упрётся в тот же предел — чинится настройкой, а не кнопкой.
             yield { type: 'error', message: broken, retryable: false };
-            yield { type: 'done', reason: 'error' };
+            yield { type: 'done', reason: 'error', stop };
             return;
           }
-          yield { type: 'done', reason: 'complete' };
+          yield { type: 'done', reason: 'complete', stop };
           return;
         }
       }
     }
+    // Поток кончился, не сказав `finish`. Штатно так не бывает; ветка нужна, чтобы «тихого
+    // выхода» не осталось вовсе — без неё генератор просто заканчивался, и ход с недоделанной
+    // формой считался успешным.
+    yield { type: 'error', message: NO_FINISH, retryable: true };
+    yield {
+      type: 'done',
+      reason: 'error',
+      stop: stopOf(undefined, undefined, firstOpenCall(openCalls), !stepSaidSomething),
+    };
+    return;
   } catch (e) {
     // Сетевые сбои и отказ авторизации приходят исключением, а не событием потока.
     if (signal?.aborted) {
@@ -305,13 +405,47 @@ export async function* streamViaAiSdk(
     // этом ложь, и сырой AbortError уходил бы пользователю как «The operation was aborted» — то
     // есть выглядел бы как нажатая им же кнопка «Остановить».
     if (isTimeout(e)) {
+      // `truncatedCall` здесь НЕ сообщается, хотя вызов вполне мог оборваться на полуслове:
+      // молчание сервера лечится повтором самим пользователем, а автоматическая вторая попытка
+      // означала бы ещё минуту ожидания того же мёртвого сервера.
       yield { type: 'error', message: TIMED_OUT, retryable: true };
-      yield { type: 'done', reason: 'error' };
+      yield { type: 'done', reason: 'error', stop: { reason: 'timeout' } };
       return;
     }
     yield { type: 'error', message: messageOf(e), retryable: true };
     yield { type: 'done', reason: 'error' };
   }
+}
+
+/**
+ * Имя инструмента первого незакрытого вызова, если такой есть.
+ *
+ * Первого, а не всех: за шаг модель успевает начать один вызов — обрыв случается на нём, и
+ * перечислять больше нечего.
+ */
+function firstOpenCall(openCalls: ReadonlyMap<string, string>): string | undefined {
+  for (const name of openCalls.values()) return name;
+  return undefined;
+}
+
+/**
+ * Диагностика завершения хода.
+ *
+ * Собирается по одному полю: отсутствующий ключ отличает «провайдер не сообщил» от «сообщил
+ * пустоту», а именно на этой разнице и читается, молчит ли локальный сервер про `finish_reason`.
+ */
+function stopOf(
+  reason?: string,
+  raw?: string,
+  truncatedCall?: string,
+  emptyFinish?: boolean
+): AiStop {
+  return {
+    ...(reason ? { reason } : {}),
+    ...(raw ? { raw } : {}),
+    ...(truncatedCall ? { truncatedCall } : {}),
+    ...(emptyFinish ? { emptyFinish } : {}),
+  };
 }
 
 /** Сообщение о таймауте: единственный отказ, который лечится повтором, а не настройкой. */

@@ -90,7 +90,7 @@ describe('перевод потока AI SDK', () => {
       { type: 'finish', finishReason: 'stop' },
     ]);
 
-    expect(events).toEqual([
+    expect(events).toMatchObject([
       { type: 'reasoning', text: 'Сначала ' },
       { type: 'reasoning', text: 'посмотрю схему.' },
       { type: 'delta', text: 'Готово.' },
@@ -108,12 +108,12 @@ describe('перевод потока AI SDK', () => {
     expect(error).toMatchObject({ type: 'error', retryable: false });
     expect((error as { message: string }).message).toContain('пределе длины');
     // Главное: `done` не выдаёт обрыв за нормальное завершение.
-    expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'error' });
   });
 
   it('фильтр содержимого тоже не выдаётся за успех', async () => {
     const events = await play([{ type: 'finish', finishReason: 'content-filter' }]);
-    expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'error' });
   });
 
   it('остановка на пределе шагов не выдаётся за законченную работу', async () => {
@@ -128,18 +128,165 @@ describe('перевод потока AI SDK', () => {
     const error = events.find((e) => e.type === 'error');
     expect(error).toMatchObject({ type: 'error', retryable: false });
     expect((error as { message: string }).message).toContain('пределе шагов');
-    expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'error' });
   });
 
-  it('неизвестная причина остановки не превращается в ошибку', async () => {
-    // Локальные серверы часто не сообщают причину; считать это отказом — ложная тревога.
-    const events = await play([{ type: 'finish', finishReason: 'unknown' }]);
-    expect(events).toEqual([{ type: 'done', reason: 'complete' }]);
+  it('неназванная причина остановки сама по себе не превращается в ошибку', async () => {
+    // 'other' — значение ПО УМОЛЧАНИЮ у openai-compatible: сервер, который не шлёт finish_reason,
+    // отдаёт его на каждом исправном ходе, и ветка отказа здесь была бы ложной тревогой после
+    // каждого ответа. Обрыв при 'other' ловится не причиной, а признаками незавершённости —
+    // незакрытым вызовом и пустым концом хода, оба ниже.
+    const events = await play([
+      { type: 'text-delta', id: 't0', text: 'готово' },
+      { type: 'finish', finishReason: 'other' },
+    ]);
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
+    expect(events.find((e) => e.type === 'error')).toBeUndefined();
+  });
+
+  it('ошибка генерации у провайдера — не успешный ход', async () => {
+    const events = await play([{ type: 'finish', finishReason: 'error' }]);
+
+    const error = events.find((e) => e.type === 'error');
+    expect(error).toMatchObject({ type: 'error', retryable: false });
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'error' });
+  });
+
+  it('причина остановки доходит до цикла — и унифицированная, и сырая', async () => {
+    // Диагностика: без неё тихий обрыв нечем отличить от законченной работы даже в консоли.
+    const events = await play([
+      { type: 'text-delta', id: 't0', text: 'готово' },
+      { type: 'finish', finishReason: 'stop', rawFinishReason: 'end_turn' },
+    ]);
+
+    expect(events.at(-1)).toMatchObject({
+      type: 'done',
+      reason: 'complete',
+      stop: { reason: 'stop', raw: 'end_turn' },
+    });
+  });
+
+  describe('вызов, оборванный посреди аргументов', () => {
+    // Аргументы инструмента приходят потоком. Обрыв на середине не даёт ни `tool-call`, ни
+    // `tool-result` — то есть от попытки не остаётся ВООБЩЕ ничего, и ход выглядит так, будто
+    // модель ничего и не собиралась делать. Ровно этот исход и наблюдался вживую.
+    const CUT = [
+      { type: 'tool-input-start', id: 'c1', toolName: 'insert_node' },
+      { type: 'tool-input-delta', id: 'c1', delta: '{"parent":"/root","nodes":[{"comp' },
+      { type: 'finish', finishReason: 'other' },
+    ];
+
+    it('становится ошибкой, а не успешным ходом', async () => {
+      const events = await play(CUT);
+
+      const error = events.find((e) => e.type === 'error') as { message: string } | undefined;
+      expect(error?.message).toContain('insert_node');
+      expect(events.at(-1)).toMatchObject({
+        type: 'done',
+        reason: 'error',
+        stop: { truncatedCall: 'insert_node' },
+      });
+    });
+
+    it('дописанный вызов ошибкой не считается', async () => {
+      const events = await play([
+        { type: 'tool-input-start', id: 'c1', toolName: 'insert_node' },
+        { type: 'tool-input-delta', id: 'c1', delta: '{}' },
+        { type: 'tool-input-end', id: 'c1' },
+        { type: 'tool-call', toolCallId: 'c1', toolName: 'insert_node', input: {} },
+        { type: 'finish', finishReason: 'stop' },
+      ]);
+
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
+      expect(events.find((e) => e.type === 'error')).toBeUndefined();
+    });
+
+    it('готовый tool-call закрывает вызов и без tool-input-end', async () => {
+      // `tool-input-end` шлют не все провайдеры; полагаться только на него значило бы объявлять
+      // обрывом каждый исправный вызов у такого канала.
+      const events = await play([
+        { type: 'tool-input-start', id: 'c1', toolName: 'insert_node' },
+        { type: 'tool-call', toolCallId: 'c1', toolName: 'insert_node', input: {} },
+        { type: 'finish', finishReason: 'stop' },
+      ]);
+
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
+    });
+  });
+
+  describe('ход, кончившийся пустотой', () => {
+    // Наблюдавшийся исход целиком: модель уходит в рассуждение, обрывается на полуслове и
+    // закрывает поток. Причины локальный сервер не присылает, и до этой ветки такой ход доходил
+    // до панели штатно завершённым — то есть как «модель решила ничего не делать».
+    it('одно рассуждение без ответа и без вызова — обрыв, а не успех', async () => {
+      const events = await play([
+        { type: 'start-step' },
+        { type: 'reasoning-delta', id: 'r0', text: 'Let me insert these into' },
+        { type: 'finish', finishReason: 'other' },
+      ]);
+
+      const error = events.find((e) => e.type === 'error') as { message: string } | undefined;
+      expect(error?.message).toContain('не вызвав ни одного инструмента');
+      expect(events.at(-1)).toMatchObject({
+        type: 'done',
+        reason: 'error',
+        stop: { emptyFinish: true },
+      });
+    });
+
+    it('ответ текстом пустотой не считается', async () => {
+      const events = await play([
+        { type: 'start-step' },
+        { type: 'reasoning-delta', id: 'r0', text: 'думаю' },
+        { type: 'text-delta', id: 't0', text: 'В форме три поля.' },
+        { type: 'finish', finishReason: 'stop' },
+      ]);
+
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
+      expect(events.find((e) => e.type === 'error')).toBeUndefined();
+    });
+
+    it('шаг с вызовом инструмента пустотой не считается', async () => {
+      const events = await play([
+        { type: 'start-step' },
+        { type: 'tool-call', toolCallId: 'c1', toolName: 'insert_node', input: {} },
+        { type: 'finish', finishReason: 'stop' },
+      ]);
+
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
+    });
+
+    it('пустым считается ПОСЛЕДНИЙ шаг, а не весь ход', async () => {
+      // Ход мог сделать пять правок и замолчать на шестом шаге — это всё равно обрыв, и
+      // сделанное при этом остаётся применимым.
+      const events = await play([
+        { type: 'start-step' },
+        { type: 'tool-call', toolCallId: 'c1', toolName: 'insert_node', input: {} },
+        { type: 'start-step' },
+        { type: 'reasoning-delta', id: 'r1', text: 'дальше надо' },
+        { type: 'finish', finishReason: 'other' },
+      ]);
+
+      expect(events.at(-1)).toMatchObject({
+        type: 'done',
+        reason: 'error',
+        stop: { emptyFinish: true },
+      });
+    });
+  });
+
+  it('поток, кончившийся без finish, не выдаётся за завершённый ход', async () => {
+    // Страховка: штатно `finish` есть всегда, но без этой ветки генератор просто заканчивался бы
+    // молча, и ход с недоделанной формой считался бы успешным.
+    const events = await play([{ type: 'text-delta', id: 't0', text: 'начал' }]);
+
+    expect(events.find((e) => e.type === 'error')).toBeDefined();
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'error' });
   });
 
   it('прерывание доходит как отмена', async () => {
     const events = await play([{ type: 'abort' }]);
-    expect(events).toEqual([{ type: 'done', reason: 'aborted' }]);
+    expect(events).toMatchObject([{ type: 'done', reason: 'aborted' }]);
   });
 });
 
@@ -184,7 +331,13 @@ describe('расход шага', () => {
 });
 
 describe('чем зовём модель', () => {
-  const finish = [{ type: 'finish', finishReason: 'stop' }];
+  // Минимальный ЗАКОНЧЕННЫЙ ход: модель что-то ответила и остановилась. Текст здесь не украшение —
+  // ход, не сказавший ни слова и не позвавший инструмента, считается оборванным, и без ответа эти
+  // проверки ловили бы обрыв вместо того, что проверяют.
+  const finish = [
+    { type: 'text-delta', id: 't0', text: 'готово' },
+    { type: 'finish', finishReason: 'stop' },
+  ];
 
   it('канал с кэшем помечает префикс, а не просто шлёт строку', async () => {
     // Пометка стоит на системном сообщении, но накрывает и определения инструментов: Anthropic
@@ -253,7 +406,7 @@ describe('чем зовём модель', () => {
     expect(error.message).toContain('таймауту');
     // Повтор здесь осмыслен, в отличие от обрыва по пределу длины.
     expect(error.retryable).toBe(true);
-    expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'error' });
   });
 
   it('без предела шагов ход не останавливают ни на каком шаге', async () => {
@@ -263,7 +416,7 @@ describe('чем зовём модель', () => {
     const stop = lastCall().stopWhen as (o: unknown) => boolean;
     expect(stop({})).toBe(false);
     // Никакого «израсходовал шаги»: их некуда расходовать.
-    expect(events).toEqual([{ type: 'done', reason: 'complete' }]);
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
   });
 
   it('заданный предел запрещает инструменты на последнем шаге', async () => {
@@ -316,7 +469,7 @@ describe('чем зовём модель', () => {
 
       const error = events.find((e) => e.type === 'error') as { message: string } | undefined;
       expect(error?.message).toContain('бюджет входных токенов');
-      expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'error' });
     });
 
     it('ход в рамках бюджета заканчивается штатно', async () => {
@@ -324,7 +477,7 @@ describe('чем зовём модель', () => {
       const events = await play(finish, undefined, { ...REQUEST, maxInputTokens: 10_000 });
       stream.steps = [];
 
-      expect(events).toEqual([{ type: 'done', reason: 'complete' }]);
+      expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'complete' });
     });
   });
 
@@ -335,6 +488,6 @@ describe('чем зовём модель', () => {
     const events = await play(finish, undefined, { ...REQUEST, maxSteps: 4 }, 3);
     const error = events.find((e) => e.type === 'error') as { message: string } | undefined;
     expect(error?.message).toContain('израсходовал все шаги');
-    expect(events.at(-1)).toEqual({ type: 'done', reason: 'error' });
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'error' });
   });
 });

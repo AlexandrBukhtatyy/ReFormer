@@ -224,6 +224,38 @@ describe('границы хода', () => {
     });
     expect(done(events).reason).toBe('aborted');
   });
+
+  it('обрыв на недописанном вызове не выдаётся за законченный ход', async () => {
+    // Самый тихий из исходов: правок нет, ошибки нет, модель молчит. Ход обязан донести до
+    // интерфейса И причину, И имя инструмента — по нему решается, стоит ли пробовать ещё раз.
+    const events = await play(
+      [{ tool: 'get_form_outline' }, { truncated: { tool: 'insert_node' } }],
+      emptySchema()
+    );
+
+    expect(done(events).reason).toBe('error');
+    expect(done(events).stop).toMatchObject({ truncatedCall: 'insert_node' });
+  });
+
+  it('правки, сделанные до обрыва, остаются в наборе', async () => {
+    // Иначе вторая попытка пошла бы от исходной формы и собрала бы уже вставленное заново.
+    const events = await play(
+      [
+        {
+          tool: 'insert_node',
+          args: {
+            parent: '/root',
+            nodes: [{ component: FIELD, model: 'user.name', props: { label: 'Имя' } }],
+          },
+        },
+        { truncated: { tool: 'insert_node' } },
+      ],
+      emptySchema()
+    );
+
+    expect(done(events).reason).toBe('error');
+    expect(describeChangeSet(done(events).changeSet)).toHaveLength(1);
+  });
 });
 
 /**
@@ -356,6 +388,8 @@ describe('эталонная задача — мастер из 3 шагов п�
       inputTokens: 200,
       cachedInputTokens: 120,
       outputTokens: 14,
+      // Пик, а не сумма: об окне модели говорит вес ОДНОГО шага, и упирается запрос именно в него.
+      peakStepInputTokens: 100,
     });
   });
 

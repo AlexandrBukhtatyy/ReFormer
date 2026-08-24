@@ -28,7 +28,15 @@ export type FakeStep =
   | { text: string }
   | { reasoning: string }
   | FakeToolCall
-  | { parallel: readonly FakeToolCall[] };
+  | { parallel: readonly FakeToolCall[] }
+  /**
+   * Модель начала вызов и не дописала аргументы: ход обрывается прямо здесь.
+   *
+   * Режим, ради которого шаг и заведён, воспроизвести иначе нечем: аргументы инструмента приходят
+   * потоком, и обрыв посреди JSON не даёт ни `tool_call`, ни `tool_result` — то есть выглядит как
+   * отсутствие всякой попытки. Без него цикл нельзя проверить на самом тихом из своих исходов.
+   */
+  | { truncated: { tool: string } };
 
 /** Настройки сценарного провайдера. */
 export interface FakeProviderOptions {
@@ -86,6 +94,21 @@ export function createFakeProvider(
         if ('reasoning' in item) {
           yield { type: 'reasoning', text: item.reasoning };
           continue;
+        }
+        if ('truncated' in item) {
+          // Порядок тот же, что у настоящего адаптера: сначала внятная ошибка, потом `done` с
+          // диагностикой. Шаг сценария на этом кончается — дописывать вызов уже нечем.
+          yield {
+            type: 'error',
+            message: `Ответ оборвался посреди аргументов вызова ${item.truncated.tool}.`,
+            retryable: false,
+          };
+          yield {
+            type: 'done',
+            reason: 'error',
+            stop: { reason: 'other', truncatedCall: item.truncated.tool },
+          };
+          return;
         }
         if (req.maxSteps !== undefined && step >= req.maxSteps) {
           yield {
