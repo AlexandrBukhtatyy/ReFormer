@@ -54,6 +54,12 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   // arrays
   'form-array': ['arrays', 'array-operations', 'array-cleanup'],
   array: ['arrays'],
+  // Точка входа. Топик `start-here` попадал в секцию «Prompts» и отсылал к механизму,
+  // которого у агентного консумента нет вовсе (клиенты prompts не выставляют). Рабочая
+  // точка входа — методика M1, она же лежит в ресурсе `reformer://guide`.
+  'start-here': ['m1-workflow'],
+  'getting-started': ['m1-workflow'],
+  workflow: ['m1-workflow'],
   // multi-step / wizard.
   // `form-navigation` — имя файла cdk (03-form-navigation.md, h1 «FormWizard»): без него
   // топик `wizard` с фильтром package попадал в шаг 2 каскада (совпадение по заголовку
@@ -180,9 +186,11 @@ export async function findRecipeTool(
         // у `cookbook`. Это ответ инструмента, а не явный `resources/read`, — агент получает
         // его не глядя, поэтому потолок обязателен. Обрезка всегда помечена и говорит, где
         // дочитать: молча усечённый рецепт агент дописал бы сам.
-        const { text: bodyText, truncated } = capRecipe(body.trim(), RECIPE_MAX_CHARS);
+        const { text: bodyText, truncated, dropped } = capRecipe(body.trim(), RECIPE_MAX_CHARS);
+        const droppedNote =
+          dropped.length > 0 ? ` Не поместились разделы: ${dropped.join(' · ')}.` : '';
         const more = truncated
-          ? `\n\n> _Рецепт обрезан по бюджету. Полный текст — \`reformer://docs/${pkg.replace(/^@reformer\//, '')}\` ` +
+          ? `\n\n> _Рецепт обрезан по бюджету.${droppedNote} Полный текст — \`reformer://docs/${pkg.replace(/^@reformer\//, '')}\` ` +
             `или \`docs/llms/${file.fileName}\` в пакете._`
           : '';
         return text(
@@ -281,8 +289,11 @@ const RECIPE_MAX_CHARS = 10000;
  * заблуждение сильнее, чем его отсутствие. Незакрытый код-фенс закрываем — иначе у клиента
  * поедет вся остальная разметка ответа.
  */
-function capRecipe(body: string, maxChars: number): { text: string; truncated: boolean } {
-  if (body.length <= maxChars) return { text: body, truncated: false };
+function capRecipe(
+  body: string,
+  maxChars: number
+): { text: string; truncated: boolean; dropped: string[] } {
+  if (body.length <= maxChars) return { text: body, truncated: false, dropped: [] };
   const lines = body.split('\n');
   const kept: string[] = [];
   let used = 0;
@@ -299,7 +310,21 @@ function capRecipe(body: string, maxChars: number): { text: string; truncated: b
   const cut = lastHeading > 5 ? kept.slice(0, lastHeading) : kept;
   const fences = cut.filter((l) => /^\s*```/.test(l)).length;
   if (fences % 2 === 1) cut.push('```');
-  return { text: cut.join('\n').trimEnd(), truncated: true };
+
+  // Заголовки, оставшиеся за границей. Без них потеря анонимна: агент видит «обрезан по
+  // бюджету» и не знает, лишился он раздела про миграцию или половины документа. На гайде
+  // раскладки за границей оказывалось до 47% текста — пять разделов из шести.
+  const keptCount = cut.length;
+  const dropped: string[] = [];
+  let tailFence = false;
+  for (const line of lines.slice(keptCount)) {
+    if (/^\s*```/.test(line)) tailFence = !tailFence;
+    if (tailFence) continue;
+    const m = line.match(/^#{2,4}\s+(.+?)\s*$/);
+    if (m) dropped.push(m[1].replace(/\s*\{\s*#[\w-]+\s*\}\s*$/, ''));
+  }
+
+  return { text: cut.join('\n').trimEnd(), truncated: true, dropped };
 }
 
 // ---------------------------------------------------------------------------

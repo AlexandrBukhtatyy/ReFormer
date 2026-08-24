@@ -120,4 +120,38 @@ describe('reportIssueTool (defect 77)', () => {
     expect(res.content[0].text).toMatch(/could not write the issue report/i);
     expect(res.content[0].text).toContain(ISSUE_REPORTS_DIR_ENV);
   });
+
+  /**
+   * В замере 5 отчётов из 15 приехали без `solution`, и на все пять сервер ответил
+   * «Issue reported successfully». Половина ценности отчёта — именно разбор: без него
+   * остаётся жалоба, которой нельзя воспользоваться. Инструмент не проверял вход вовсе:
+   * вызывающий кастовал `args` к типу и объявлял гарантию, которой нет.
+   */
+  it('пустой solution записывается, но ответ об этом говорит', async () => {
+    const res = await reportIssueTool({ error: 'что-то сломалось' }, k);
+    expect(res.content[0].text).toMatch(/solution/i);
+    expect(res.content[0].text).not.toMatch(/successfully/i);
+  });
+
+  it('без error отчёт не пишется — по нему отчёт именуется и ищется', async () => {
+    const res = await reportIssueTool({ solution: 'починил' }, k);
+    expect(res.content[0].text).toMatch(/`error` обязателен/);
+    expect(res.content[0].text).toMatch(/не записан/);
+  });
+
+  it('tags строкой разбираются по запятым, а не теряются', async () => {
+    const res = await reportIssueTool(
+      { error: 'e', solution: 's', tags: 'category:validation, agent:claude' },
+      k
+    );
+    const text = res.content[0].text;
+    expect(text).toContain('Category: validation');
+    expect(text).toContain('category:validation, agent:claude');
+    expect(text, 'о расхождении с контрактом надо сказать').toMatch(/строкой/);
+  });
+
+  it('вызов без аргументов не роняет инструмент', async () => {
+    const res = await reportIssueTool(undefined, k);
+    expect(res.content[0].text).toMatch(/`error` обязателен/);
+  });
 });

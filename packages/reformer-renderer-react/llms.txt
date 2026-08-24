@@ -471,9 +471,25 @@ State-нода поля резолвится по сигналу через ре
 { component: Section, componentProps: { title: 'X', children: [ /* nodes */ ] } }
 ```
 
-## 19. FormRenderer не принимает form
+## 19. FormRenderer: render или form — что передавать
 
-`FormRenderer` принимает только `render` и `settings`. Формы через проп нет — она передаётся wizard/root-узлу через `componentProps.form` в самой схеме (см. [01-overview.md](01-overview.md)). Не пиши `<FormRenderer render={schema} form={form} />`.
+Источников схемы два, и оба законны:
+
+- `<FormRenderer render={schema} settings={…} />` — низкоуровневый путь: `schema` это результат
+  `createRenderSchema`;
+- `<FormRenderer form={bundle} settings={…} />` — бандл из `createReactForm`; рендерер берёт
+  схему из `bundle.render`.
+
+При одновременной передаче побеждает явный `render`.
+
+Чего делать нельзя: подставлять в `form` не бандл, а `FormProxy` (результат `createForm`) —
+проп ожидает `{ render: RenderSchemaFn<T> }`, и компилятор это ловит (TS2322). Форму для
+wizard-узла по-прежнему передают через `componentProps.form` в самой схеме — это отдельная
+вещь, не заменяющая ни один из двух путей выше.
+
+> Раздел до 2026-08 утверждал, что пропа `form` нет вовсе. Это было верно, пока его
+> действительно не было; проп добавлен, врезка в [01-overview.md](01-overview.md) обновлена
+> тогда же, а этот раздел — нет.
 
 ## 20. Unknown component in renderSchema
 
@@ -1881,6 +1897,42 @@ isRenderSchemaProxy(renderSchemaFn); // false
 ```
 
 _Source: src/core/render-schema-proxy.ts_
+
+### ModelFieldRenderNode
+
+**Kind:** `interface`
+
+Узел-поле единой схемы (M1): значение приходит из СИГНАЛА модели (`model.$.x`),
+`component` + `componentProps` — конфиг поля (как в схеме формы). State-нода (errors/disabled)
+резолвится по сигналу через реестр сигнал→нода (заполняется `createForm`).
+
+**Signature:**
+```typescript
+export interface ModelFieldRenderNode extends FormSchemaNode {
+  selector?: string;
+  /** Сигнал значения из модели (`model.$.<path>`). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value: Signal<any>;
+  /** UI-компонент поля (в рендере обязателен, в отличие от базового {@link FormSchemaNode}). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: ComponentType<any>;
+  /** Props компонента (+ опц. `testId`/`className`/`fieldWrapper`/`wrapper`). */
+  componentProps?: Record<string, unknown> & {
+    testId?: string;
+    className?: string;
+    fieldWrapper?: ComponentType<FieldWrapperProps>;
+    wrapper?: ElementType;
+  };
+}
+```
+
+**Examples:**
+
+```typescript
+{ value: model.$.loanType, component: SelectField, componentProps: { label: 'Тип', options } }
+```
+
+_Source: src/core/types.ts_
 
 ### NodeLifecycleHooks
 

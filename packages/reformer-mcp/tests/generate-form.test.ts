@@ -162,6 +162,71 @@ describe('builders', () => {
       expect(layout(intent).children[0].selector).toBe('items-array');
     });
 
+    it('testId выводится из пути модели, одноимённые листья разных массивов не сталкиваются', () => {
+      const intent = normalizeIntent({
+        formName: 'Loan',
+        target: 'renderer-json',
+        fields: [],
+        arrays: [
+          {
+            name: 'properties',
+            itemInterfaceName: 'PropertyItem',
+            itemFields: [{ name: 'type', type: 'string', component: 'Select' }],
+          },
+          {
+            name: 'existingLoans',
+            itemInterfaceName: 'LoanItem',
+            itemFields: [{ name: 'type', type: 'string', component: 'Select' }],
+          },
+        ],
+        layoutRoot: {
+          kind: 'container',
+          component: 'Box',
+          children: [
+            { kind: 'array', ref: 'properties' },
+            { kind: 'array', ref: 'existingLoans' },
+          ],
+        },
+      });
+      const root = layout(intent);
+      const ids = root.children.map(
+        (c: { item: { $template: { children: Array<{ componentProps: { testId: string } }> } } }) =>
+          c.item.$template.children[0].componentProps.testId
+      );
+      // Раньше оба давали `type`, селектор разрешался в два элемента и playwright падал.
+      expect(ids).toEqual(['properties-type', 'existingLoans-type']);
+    });
+
+    it('дубль testId — ошибка кросс-проверки, а не «✅ пройдена»', () => {
+      const report = crossCheckBundle(
+        normalizeIntent({
+          formName: 'X',
+          fields: [
+            { name: 'a', type: 'string', component: 'Input' },
+            { name: 'b', type: 'string', component: 'Input' },
+          ],
+        }),
+        {
+          root: {
+            component: '$component(Box)',
+            children: [
+              {
+                value: '$model(a)',
+                component: '$component(Input)',
+                componentProps: { testId: 'x' },
+              },
+              {
+                value: '$model(b)',
+                component: '$component(Input)',
+                componentProps: { testId: 'x' },
+              },
+            ],
+          },
+        }
+      );
+      expect(report.errors.map((e) => e.code)).toContain('C10');
+    });
+
     it('initialValue поля элемента массива не затирается пустышкой по типу', () => {
       const intent = normalizeIntent({
         formName: 'Order',

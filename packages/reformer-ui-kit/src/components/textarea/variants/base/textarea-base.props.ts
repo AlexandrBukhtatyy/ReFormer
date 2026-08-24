@@ -20,6 +20,17 @@ export const textareaBasePropsSchema = {
       description: 'Число видимых строк (HTML-атрибут rows).',
       'x-doc': { group: 'Behavior', type: 'number' },
     },
+    // Тот же `TextareaHTMLAttributes`, что и `rows`: держать один и отклонять другой нечем
+    // обосновать. Схема — закрытый список (`additionalProperties: false`), поэтому пропуск
+    // здесь означал `has unknown property "maxLength"` в JSON-DSL при том, что проза ui-kit
+    // этот проп описывала, а рантайм пропускал. Ограничение длины ПРАВИЛОМ (`maxLength(500)`
+    // в схеме валидации) — отдельная вещь: атрибут не даёт ввести лишнее, правило сообщает
+    // об ошибке.
+    maxLength: {
+      type: 'number',
+      description: 'Максимальная длина ввода (HTML-атрибут maxLength). Не заменяет валидацию.',
+      'x-doc': { group: 'Behavior', type: 'number' },
+    },
     className: {
       type: 'string',
       description: 'Доп. CSS-класс.',

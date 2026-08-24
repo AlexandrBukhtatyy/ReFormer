@@ -32,6 +32,10 @@
 export type {
   RenderSchemaFn,
   RenderNode,
+  // Член union'а `RenderNode` наравне с двумя соседними: без экспорта `get_symbol_docs`
+  // отвечал «Symbol not found», хотя тип фигурирует в определении RenderNode в том же
+  // API Reference — форму лист-узла приходилось восстанавливать из прозы.
+  ModelFieldRenderNode,
   ContainerRenderNode,
   ContainerRenderNodeProps,
   ArrayRenderNode,

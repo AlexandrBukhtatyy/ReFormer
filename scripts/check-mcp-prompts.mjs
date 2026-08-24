@@ -33,6 +33,29 @@ const REMOVED_API = [
 ];
 
 /**
+ * Presentational-примитив в позиции поля формы.
+ *
+ * У ui-kit две линейки: `*Field` — value-based (`value` + `onChange(value)`), примитивы —
+ * shadcn/Radix-контролы с нативным `onChange(event)`. В форме примитив пишет в модель объект
+ * события, `Checkbox` игнорирует `value`, `RadioGroup` рендерится пустым. Ни tsc, ни
+ * `validate_form` этого не видят — поле выглядит рабочим, расходится только модель.
+ *
+ * Миграция v7 разъезжалась ДВАЖДЫ: сначала корпус `docs/llms` отстал от кода, потом починили
+ * только сторону renderer-json. Оба раза не заметили, потому что сигнала не было ни одного.
+ * Отсюда гейт: `component:` в примере обязан называть field-версию.
+ *
+ * Имена — из `packages/reformer-ui-kit/component-catalog.json` (role: 'field'); отрицательный
+ * контекст («не ставьте», «❌», «анти-паттерн») по общему правилу пропускается, поэтому
+ * разделы, объясняющие саму разницу линеек, гейт не трогает.
+ */
+const PRESENTATIONAL_AS_FIELD = [
+  {
+    name: 'примитив ui-kit в `component:` вместо *Field-версии',
+    re: /component:\s*(Input|InputMask|InputPassword|InputOTP|Textarea|Select|NativeSelect|Checkbox|Switch|RadioGroup|Slider|Calendar|DatePicker|Combobox|Toggle|ToggleGroup)(?![A-Za-z])/,
+  },
+];
+
+/**
  * Устаревшая РУЧНАЯ сборка формы. Само API живо (фабрики зовут его внутри), поэтому ловим не
  * упоминание символа, а связку: «создаём модель И тут же строим форму», «конвертируем JSON И
  * строим форму», а также снятые формы монтажа рендерера. Именно так промпты и разъезжались с
@@ -249,7 +272,10 @@ for (const root of DOC_CORPUS_ROOTS) {
     const blocks = rel.endsWith('.md') ? toBlocks(content) : jsdocBlocks(content);
 
     for (const block of blocks) {
-      const hits = REMOVED_API.filter((api) => api.re.test(block.text));
+      const hits = [
+        ...REMOVED_API.filter((api) => api.re.test(block.text)),
+        ...PRESENTATIONAL_AS_FIELD.filter((api) => api.re.test(block.text)),
+      ];
       if (hits.length === 0) continue;
       checkedBlocks += 1;
       if (hasNegativeMarker(block.text)) continue;

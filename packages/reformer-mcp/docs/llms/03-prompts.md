@@ -1,13 +1,30 @@
 # Prompts
 
-Workflow prompts (use ListPrompts to enumerate). Each returns an instruction message that
-orchestrates one step and points you at the resources/tools to read. Invoke them in roughly
-this order.
+Workflow prompts. Each returns an instruction message that orchestrates one step and points you
+at the resources/tools to read.
+
+> **Prompts are a human channel, and most agent clients do not expose them.** If you are an
+> agent, check first: without a way to list or invoke prompts, none of this section is reachable
+> for you — and there is no error to tell you so. Every prompt below names its tool equivalent;
+> use that instead. This is not a fallback, it is the supported path for tool-only consumers.
+
+| Prompt | Tool-only equivalent |
+| --- | --- |
+| `start-here` | read the resource `reformer://guide` (same content, no prompt needed) |
+| `discover-context` | `get_context` with your task and, if known, `target` |
+| `plan-form` | `plan_form` tool (same arguments) |
+| `create-form` | `find_recipe directory-layout` for the file layout, then `generate_form` |
+| `add-feature` / `to-renderer` | `find_recipe` on the feature keyword, then `choose_api` |
+| `review` | `validate_form` — `kind: "layout"`, then `code` / `behaviors` / `json-schema` |
 
 ## start-here
 
 No arguments. The entry point: returns the M1 workflow, the map of prompts/tools/resources,
-and the reading order. Call it first when asked to build or modify a form.
+and the reading order.
+
+**Tool-only equivalent:** read the resource `reformer://guide`. It is the same document, and
+its opening lines carry the file-layout rule — which is the one thing worth reading before you
+create any file.
 
 ## discover-context
 

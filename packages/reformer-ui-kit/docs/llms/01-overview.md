@@ -151,7 +151,7 @@ function RegistrationPage() {
         },
         {
           value: model.$.password,
-          component: InputPassword,
+          component: InputPasswordField,
           componentProps: { label: 'Пароль', testId: 'password' },
         },
       ],

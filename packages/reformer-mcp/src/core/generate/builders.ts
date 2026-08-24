@@ -385,11 +385,20 @@ interface JsonNode {
   item?: { $template: JsonNode };
 }
 
-function fieldNode(f: FieldIntent): JsonNode {
+/**
+ * @param pathPrefix Путь до элемента массива, если поле лежит внутри него.
+ */
+function fieldNode(f: FieldIntent, pathPrefix?: string): JsonNode {
   const props: Record<string, unknown> = { ...(f.componentProps ?? {}) };
   if (f.label) props.label = f.label;
-  // POM e2e ожидает `data-testid="input-{testId}"`, поэтому testId проставляется всегда.
-  props.testId = f.name;
+  // testId выводится из пути модели (точки → дефисы), а не из короткого имени поля.
+  // Короткое имя не уникально: `properties[].type` и `existingLoans[].type` давали один и тот
+  // же `type`, и генератор печатал два одинаковых идентификатора, отвечая «✅ проверка
+  // пройдена». В браузере это strict mode violation — селектор разрешается в два элемента.
+  // Индекс строки массива в путь не входит: его подставляет потребитель.
+  props.testId =
+    f.componentProps?.testId ??
+    [pathPrefix, f.modelPath ?? f.name].filter(Boolean).join('.').replace(/\./g, '-');
   if (f.optionsSource) props.options = `$dataSource(${f.optionsSource})`;
   return {
     selector: f.selector ?? f.name,
@@ -461,7 +470,10 @@ function layoutToJson(node: LayoutNode, intent: FormIntent): JsonNode | null {
         item: {
           $template: {
             component: '$html(div)',
-            children: a.itemFields.map(fieldNode),
+            // Префикс — имя массива: иначе одноимённые листья разных массивов дают
+            // одинаковый testId (в замере так столкнулись properties[].type и
+            // existingLoans[].type).
+            children: a.itemFields.map((f) => fieldNode(f, a.name)),
           },
         },
       };

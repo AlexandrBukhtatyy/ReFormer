@@ -80,10 +80,27 @@ const registry = defineRegistry((reg) => {
   component: '$component(Input)',
   componentProps: {
     label: '$locale(fields.email.label)',   // → строка
-    format: '$fn(formatCurrency)',          // → функция по ссылке
   },
 }
 ```
+
+`$fn` подставляется так же — но только в проп, который у компонента действительно есть и
+действительно принимает функцию. Каноничный случай — `itemLabel` у массива:
+
+```jsonc
+{
+  array: '$model(properties)',
+  component: '$component(FormArray)',
+  componentProps: {
+    itemLabel: '$fn(propertyItemLabel)',    // → функция по ссылке
+  },
+}
+```
+
+> Проп, которого у компонента нет, `$fn` не создаёт: значение резолвится и уходит в
+> `componentProps`, где его никто не читает. Форматирование значения — не проп контрола:
+> модель хранит число, а отображением занимается сам компонент (см. ui-kit
+> `02-text-fields.md`).
 
 Смена языка — пересобрать сервис на другом каталоге и передать новый ref в `reg.locale` (плюс пересборка дерева); `$locale` резолвится в строку при конвертации, «живого» переключения нет.
 

@@ -17,7 +17,7 @@ import { modelPaths, type FormIntent } from './form-intent.js';
 import { collectUsedComponents } from './builders.js';
 
 /** Код проверки. Стабилен: на него ссылаются сообщения и тесты. */
-export type CrossCheckCode = 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7' | 'C8' | 'C9';
+export type CrossCheckCode = 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7' | 'C8' | 'C9' | 'C10';
 
 export interface CrossCheckIssue {
   code: CrossCheckCode;
@@ -292,5 +292,54 @@ export function crossCheckBundle(
       warn('C9', `dataSource \`${d.name}\` объявлен, но не используется.`);
   }
 
+  // C10 — одинаковые testId. Селектор `data-testid` обязан разрешаться в один элемент:
+  // при дубле браузерная автоматизация падает со strict mode violation, а раньше генератор
+  // печатал два одинаковых идентификатора и тут же отвечал «кросс-проверка пройдена».
+  // Строки одного массива дублями не считаются: индекс подставляет потребитель, поэтому
+  // ключ учитывает путь до ближайшего array-предка.
+  const testIds = new Map<string, number>();
+  collectTestIds(layoutJson, '', testIds);
+  for (const [id, count] of testIds) {
+    if (count > 1) {
+      err(
+        'C10',
+        `testId \`${id}\` встречается ${count} раза — селектор разрешится в несколько элементов. ` +
+          'Идентификатор выводится из пути модели: одноимённые листья разных групп должны нести префикс.'
+      );
+    }
+  }
+
   return { ok: errors.length === 0, errors, warnings };
+}
+
+/**
+ * Собрать `componentProps.testId` с учётом области массива.
+ *
+ * Внутри `item.$template` все строки массива рендерятся по одному шаблону, поэтому их
+ * идентификаторы совпадают по определению — это не дубль. Считаем такие вхождения один раз,
+ * пометив областью, а дублями объявляем только совпадения в пределах одной области.
+ */
+function collectTestIds(node: unknown, scope: string, out: Map<string, number>): void {
+  if (Array.isArray(node)) {
+    for (const v of node) collectTestIds(v, scope, out);
+    return;
+  }
+  if (!node || typeof node !== 'object') return;
+
+  const rec = node as Record<string, unknown>;
+  const props = rec.componentProps;
+  if (props && typeof props === 'object' && !Array.isArray(props)) {
+    const testId = (props as Record<string, unknown>).testId;
+    if (typeof testId === 'string') {
+      const key = `${scope} ${testId}`;
+      out.set(key, (out.get(key) ?? 0) + 1);
+    }
+  }
+
+  const arrayOp = typeof rec.array === 'string' ? rec.array.match(/^\$model\(([^)]*)\)$/) : null;
+  for (const [key, value] of Object.entries(rec)) {
+    if (key === 'componentProps') continue;
+    const nextScope = key === 'item' && arrayOp ? `${scope}/${arrayOp[1]}` : scope;
+    collectTestIds(value, nextScope, out);
+  }
 }

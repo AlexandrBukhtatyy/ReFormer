@@ -62,6 +62,8 @@ export async function listSymbolsTool(
   let total = 0;
   let listed = 0;
   let capped = false;
+  /** Пакеты, на которые не осталось места вовсе, — чтобы они не исчезали молча. */
+  const omitted: string[] = [];
 
   for (const pkg of targets) {
     let symbols = await publicSymbols(k, pkg);
@@ -78,10 +80,25 @@ export async function listSymbolsTool(
     const shown = symbols.slice(0, room);
     if (shown.length < symbols.length) capped = true;
     listed += shown.length;
-    if (shown.length === 0) continue;
+    if (shown.length === 0) {
+      // Пакет не поместился целиком. Раньше он просто исчезал из ответа: на запрос
+      // «какие есть интерфейсы» показывались core и cdk, а ui-kit, renderer-react и
+      // renderer-json не получали даже заголовка — и агент делал вывод, что их там нет.
+      // Заголовок с числом стоит одну строку и превращает молчание в адрес для уточнения.
+      omitted.push(`${pkg} (${symbols.length})`);
+      continue;
+    }
     sections.push(
       `## ${pkg} (${shown.length}${shown.length < symbols.length ? ` из ${symbols.length}` : ''})\n\n` +
         shown.map(renderRow).join('\n')
+    );
+  }
+
+  if (omitted.length > 0) {
+    sections.push(
+      `## Не поместились целиком\n\n` +
+        omitted.map((o) => `- ${o}`).join('\n') +
+        `\n\nПовторите вызов с \`package\`, чтобы увидеть любой из них.`
     );
   }
 

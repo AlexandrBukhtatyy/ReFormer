@@ -110,7 +110,9 @@ const schema: JsonFormSchema = {
   componentProps: {
     label: '$locale(fields.email.label)',        // → строка из сервиса локализации
     placeholder: '$locale(fields.email.placeholder)',
-    format: '$fn(formatEmail)',                   // → сама функция из reg.fn, передаётся в проп
+    // `$fn` подставляет функцию по ссылке — но только в проп, который у компонента есть.
+    // У `Input` пропа-форматтера нет: значение уйдёт в componentProps и будет проигнорировано.
+    // Пример настоящего функционального пропа — `itemLabel` у FormArray, см. ниже.
   },
 }
 ```

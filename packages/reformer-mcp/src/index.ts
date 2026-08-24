@@ -42,7 +42,6 @@ import {
   debugTool,
   reportIssueToolDefinition,
   reportIssueTool,
-  type ReportIssueArgs,
   getSymbolDocsToolDefinition,
   getSymbolDocsTool,
   findRecipeToolDefinition,
@@ -169,7 +168,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   switch (name) {
     case 'report_issue':
-      return await reportIssueTool(args as unknown as ReportIssueArgs, cliKnowledge());
+      // Без каста: инструмент сам проверяет вход. Прежний двойной каст объявлял гарантию,
+      // которой нет — клиент вправе прислать что угодно, и половина отчётов приезжала
+      // без `solution`, а сервер отвечал «successfully».
+      return await reportIssueTool(args, cliKnowledge());
 
     case 'debug':
       if (!isDebugMode) {

@@ -88,19 +88,82 @@ export interface ReportIssueArgs {
   context?: ReportIssueContext;
 }
 
+/**
+ * Привести `tags` к массиву строк, сохранив то, что прислали.
+ *
+ * Клиенты присылают сюда и строку через запятую, и одиночную строку — контракт объявляет
+ * массив, но никто его не проверяет. Прежний код в таком случае просто ронял поле: отчёт
+ * писался без тегов, а ответ сообщал «successfully». Отвергать данные хуже, чем принять и
+ * сказать об этом: тег дешевле восстановить из строки, чем из головы автора отчёта.
+ */
+function normalizeTags(raw: unknown): { tags: string[]; note?: string } {
+  if (raw === undefined || raw === null) return { tags: [] };
+  if (Array.isArray(raw)) {
+    const tags = raw.filter((t): t is string => typeof t === 'string' && t.trim() !== '');
+    const dropped = raw.length - tags.length;
+    return dropped > 0
+      ? { tags, note: `Отброшено нестроковых элементов в \`tags\`: ${dropped}.` }
+      : { tags };
+  }
+  if (typeof raw === 'string') {
+    const tags = raw
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    return {
+      tags,
+      note: '`tags` пришли строкой, а контракт ожидает массив — строка разобрана по запятым.',
+    };
+  }
+  return { tags: [], note: `\`tags\` не массив и не строка (${typeof raw}) — поле пропущено.` };
+}
+
 export async function reportIssueTool(
-  args: ReportIssueArgs,
+  args: Record<string, unknown> | undefined,
   k: Knowledge
 ): Promise<{
   content: Array<{ type: 'text'; text: string }>;
 }> {
-  const { error, solution, tags, context } = args;
+  const a = args ?? {};
+  const notes: string[] = [];
+
+  // `error` — единственное поле, без которого отчёт бессмыслен: по нему строится имя файла
+  // и по нему потом ищут. Молча записать отчёт без него значило бы создать мусор.
+  const error = typeof a.error === 'string' ? a.error.trim() : '';
+  if (!error) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text:
+            'Аргумент `error` обязателен и должен быть непустой строкой — это описание проблемы, ' +
+            'по нему отчёт именуется и ищется. Отчёт не записан.',
+        },
+      ],
+    };
+  }
+
+  // Половина ценности отчёта — в `solution`: без неё остаётся жалоба без ответа. Раньше
+  // отсутствие или неверный тип уходили в файл молча (5 отчётов из 15 в замере — с пустым
+  // solution и ответом «successfully»).
+  const solution = typeof a.solution === 'string' && a.solution.trim() ? a.solution : undefined;
+  if (!solution) {
+    notes.push(
+      'Поле `solution` пустое или не строка — отчёт записан как жалоба без разбора. ' +
+        'Допишите, чем проблема решилась, иначе отчётом нельзя воспользоваться.'
+    );
+  }
+
+  const { tags, note: tagsNote } = normalizeTags(a.tags);
+  if (tagsNote) notes.push(tagsNote);
+
+  const context = (a.context ?? null) as ReportIssueContext | null;
 
   const issue = {
     timestamp: new Date().toISOString(),
     error,
     solution,
-    tags: tags || [],
+    tags,
     context: context || null,
   };
 
@@ -127,14 +190,22 @@ export async function reportIssueTool(
   }
 
   // Extract category from tags for display
-  const categoryTag = tags?.find((t) => t.startsWith('category:'));
-  const category = categoryTag ? categoryTag.split(':')[1] : 'unknown';
+  const categoryTag = tags.find((t) => t.trim().startsWith('category:'));
+  const category = categoryTag ? categoryTag.trim().split(':')[1] : 'unknown';
+
+  // Замечания печатаются после «Stored in», а не вместо записи: отчёт уже на диске, и
+  // молчание о его неполноте стоило бы дороже, чем отказ, — автор ушёл бы уверенным.
+  const notesBlock =
+    notes.length > 0 ? `\n\nЗамечания:\n${notes.map((n) => `- ${n}`).join('\n')}` : '';
 
   return {
     content: [
       {
         type: 'text',
-        text: `Issue reported successfully.\n\nCategory: ${category}\nTags: ${(tags || []).join(', ') || 'none'}\nStored in: ${storedIn}`,
+        text:
+          `Issue reported${notes.length > 0 ? ' с замечаниями' : ' successfully'}.\n\n` +
+          `Category: ${category}\nTags: ${tags.join(', ') || 'none'}\nStored in: ${storedIn}` +
+          notesBlock,
       },
     ],
   };

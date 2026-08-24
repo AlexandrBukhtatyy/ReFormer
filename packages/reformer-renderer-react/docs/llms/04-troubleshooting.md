@@ -31,9 +31,25 @@ State-нода поля резолвится по сигналу через ре
 { component: Section, componentProps: { title: 'X', children: [ /* nodes */ ] } }
 ```
 
-## FormRenderer не принимает form
+## FormRenderer: render или form — что передавать
 
-`FormRenderer` принимает только `render` и `settings`. Формы через проп нет — она передаётся wizard/root-узлу через `componentProps.form` в самой схеме (см. [01-overview.md](01-overview.md)). Не пиши `<FormRenderer render={schema} form={form} />`.
+Источников схемы два, и оба законны:
+
+- `<FormRenderer render={schema} settings={…} />` — низкоуровневый путь: `schema` это результат
+  `createRenderSchema`;
+- `<FormRenderer form={bundle} settings={…} />` — бандл из `createReactForm`; рендерер берёт
+  схему из `bundle.render`.
+
+При одновременной передаче побеждает явный `render`.
+
+Чего делать нельзя: подставлять в `form` не бандл, а `FormProxy` (результат `createForm`) —
+проп ожидает `{ render: RenderSchemaFn<T> }`, и компилятор это ловит (TS2322). Форму для
+wizard-узла по-прежнему передают через `componentProps.form` в самой схеме — это отдельная
+вещь, не заменяющая ни один из двух путей выше.
+
+> Раздел до 2026-08 утверждал, что пропа `form` нет вовсе. Это было верно, пока его
+> действительно не было; проп добавлен, врезка в [01-overview.md](01-overview.md) обновлена
+> тогда же, а этот раздел — нет.
 
 ## Unknown component in renderSchema
 

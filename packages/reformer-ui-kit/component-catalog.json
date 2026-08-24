@@ -22195,6 +22195,14 @@
               "type": "string"
             }
           },
+          "maxLength": {
+            "type": "number",
+            "description": "Максимальная длина ввода (HTML-атрибут maxLength). Не заменяет валидацию.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
           "placeholder": {
             "type": "string",
             "description": "Подсказка внутри поля.",

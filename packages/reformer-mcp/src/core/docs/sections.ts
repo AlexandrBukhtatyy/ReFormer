@@ -114,10 +114,55 @@ export interface SectionMeta {
  * slugify('Multi-Step / Wizard')      // 'multi-step-wizard'
  * slugify('Troubleshooting / FAQ')    // 'troubleshooting-faq'
  */
+/**
+ * Кириллица → латиница. Держать В СИНХРОНЕ с таблицей в `scripts/generate-llms-txt/index-builder.js`:
+ * генератор пишет слаги в индекс, сервер вычисляет их при разборе `llms.txt`, и разойдясь,
+ * они дают секции, которые есть в индексе, но не резолвятся по URI.
+ *
+ * Без транслитерации чисто русский заголовок давал пустой слаг, и секция выпадала из разбора
+ * молча: в документе она есть, а в поиске, каталоге и по URI её нет.
+ */
+const CYRILLIC_TO_LATIN: Record<string, string> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+};
+
 export function slugify(title: string): string {
   return title
     .normalize('NFKC')
     .toLowerCase()
+    .replace(/[а-яё]/g, (ch) => CYRILLIC_TO_LATIN[ch] ?? '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
