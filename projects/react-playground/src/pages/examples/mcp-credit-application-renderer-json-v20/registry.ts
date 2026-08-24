@@ -16,6 +16,7 @@ import {
   TextareaField,
 } from '@reformer/ui-kit';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+import { Step } from '@reformer/cdk/form-wizard';
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import type { CreditApplicationForm } from './types';
@@ -82,7 +83,10 @@ export function createRegistry() {
   return defineRegistry((reg) => {
     // Wizard system components.
     reg.component('Wizard', RendererFormWizard);
-    reg.component('Step', Box); // step node data is consumed by the shim above
+    // The converter must resolve the `Step` name, but this component never renders: the shim
+    // above reads the Step node's title/icon and rebuilds its children as the step body.
+    // Registered as the canonical marker anyway — this example is read as the reference layout.
+    reg.component('Step', Step);
 
     // Layout containers.
     reg.component('Box', Box);
