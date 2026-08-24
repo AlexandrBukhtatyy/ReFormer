@@ -1,57 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
+// Канон раскладки берётся из самого MCP-сервера (`FORM_LAYOUT_CANON` + та же проверка, что стоит
+// у консумента как `validate_form kind="layout"`), а не переписывается сюда списком имён: копия —
+// это второй источник истины, и расходится он молча.
+import { validateLayout } from '@reformer/mcp/dist/core/validate/layout.js';
 import { synthMock } from '../preview-runtime/mock-synth';
 import { buildExampleFiles, makeNames, appSnippet, validateExportable } from './index';
 import { emitIndex } from './emit-index';
+import { exampleSchema } from './__fixtures__/example-schema';
+import { wizardSchema } from './__fixtures__/wizard-schema';
 
-/** Представительная форма билдера: Div → Section (поля) + FormArray. */
-const rawSchema = {
-  version: '1.0',
-  root: {
-    component: '$html(div)',
-    componentProps: { className: 'space-y-4' },
-    children: [
-      {
-        component: '$component(Section)',
-        componentProps: { title: 'Заявка' },
-        children: [
-          {
-            value: '$model(loanType)',
-            component: '$component(Select)',
-            componentProps: { label: 'Тип', options: '$dataSource(LOAN_TYPES)', required: true },
-          },
-          {
-            value: '$model(amount)',
-            component: '$component(Input)',
-            componentProps: { label: 'Сумма', type: 'number' },
-          },
-          {
-            value: '$model(agree)',
-            component: '$component(Checkbox)',
-            componentProps: { label: 'Согласен', required: true },
-          },
-        ],
-      },
-      {
-        array: '$model(items)',
-        initialValue: { name: '' },
-        componentProps: { title: 'Позиции', itemLabel: '$dataSource(ITEM_LABEL)' },
-        item: {
-          $template: {
-            component: '$html(div)',
-            children: [
-              {
-                value: '$model(name)',
-                component: '$component(Input)',
-                componentProps: { label: 'Название' },
-              },
-            ],
-          },
-        },
-      },
-    ],
-  },
-} as unknown as JsonFormSchema;
+const rawSchema = exampleSchema;
 
 const mock = synthMock(rawSchema, { now: new Date('2026-01-01T00:00:00Z') });
 const files = buildExampleFiles(rawSchema, mock, 'loan');
@@ -111,21 +70,24 @@ describe('buildExampleFiles — набор файлов', () => {
   // ВЕСЬ модуль: роли без своего файла в набор не добавляются. Тест держит границу — прошлый раз
   // запись реестра форм уехала в собственный `entry.ts`, а канон читает это имя как неканоничное
   // имя точки входа и требует слить с `index.tsx`.
-  it('набор — канон renderer-json; из некода только README', () => {
-    const CANON = [
-      'index.tsx',
-      'types.ts',
-      'model.ts',
-      'renderer.schema.json', // допустимый вариант `renderer.schema.ts` — см. emit-schema.ts
-      'form.behavior.ts',
-      'renderer.behavior.ts',
-      'validation.ts',
-      'data-sources.ts',
-      'api.ts',
-      'registry.ts',
-    ];
-    const code = files.map((f) => f.path).filter((p) => !p.endsWith('.md'));
-    expect(code.sort()).toEqual([...CANON].sort());
+  it('набор проходит канон раскладки renderer-json', () => {
+    const { diagnostics } = validateLayout(
+      files.map((f) => f.path),
+      'renderer-json'
+    );
+    expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+  });
+
+  // Два осознанных отступления, и оба — решения, а не случайности: схема как данные
+  // (`renderer.schema.json` вместо `.ts`) нужна, чтобы пример открывался обратно в билдере;
+  // README держит шаги интеграции. Список закрыт — новое предупреждение обязано быть обсуждено.
+  it('предупреждений канона ровно два: схема как данные и README', () => {
+    const { diagnostics } = validateLayout(
+      files.map((f) => f.path),
+      'renderer-json'
+    );
+    const warnings = diagnostics.filter((d) => d.severity === 'warning');
+    expect(warnings.map((w) => w.path).sort()).toEqual(['README.md', 'renderer.schema.json']);
   });
 
   it('класс derived/user проставлен верно', () => {
@@ -416,5 +378,73 @@ describe('index.tsx — сгенерированный код КОМПИЛИРУ
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+// Визард — единственная форма, у которой набор файлов отличается от плоской: библиотека не даёт
+// компонента под `$component(Wizard)`, поэтому шим пишет приложение. Пока кодоген его не печатал,
+// экспорт визарда уезжал пользователю с `reg.component('Wizard', Placeholder)` — форма собиралась,
+// но шаги не рисовались и submit было некому послать (ReFormer-8vn).
+describe('wizard-форма — шим вместо заглушки', () => {
+  const wizardMock = synthMock(wizardSchema, { now: new Date('2026-01-01T00:00:00Z') });
+  const wizardFiles = buildExampleFiles(wizardSchema, wizardMock, 'onboarding');
+  const wizardSrc = (p: string) => wizardFiles.find((f) => f.path === p)!.content;
+
+  it('в набор добавлен renderer.wizard.tsx — и только у визарда', () => {
+    expect(wizardFiles.map((f) => f.path)).toContain('renderer.wizard.tsx');
+    expect(files.map((f) => f.path)).not.toContain('renderer.wizard.tsx');
+  });
+
+  it('шим машинный: класс derived, перезаписывается при регенерации', () => {
+    expect(wizardFiles.find((f) => f.path === 'renderer.wizard.tsx')?.cls).toBe('derived');
+  });
+
+  it('реестр берёт Wizard и Step из шима, а не из Placeholder', () => {
+    const src = wizardSrc('registry.ts');
+    expect(src).toContain("import { Step, Wizard } from './renderer.wizard'");
+    expect(src).toContain("reg.component('Wizard', Wizard)");
+    expect(src).toContain("reg.component('Step', Step)");
+    expect(src).not.toContain('Placeholder');
+  });
+
+  it('шим типизирован типом формы и отдаёт оба компонента', () => {
+    const src = wizardSrc('renderer.wizard.tsx');
+    expect(src).toContain("import type { OnboardingForm } from './types'");
+    expect(src).toContain('export function Wizard(');
+    expect(src).toContain('export function Step(');
+    // Рендерер отдаёт `form` пропом и не обходит детей сам — иначе шаги отрисуются дважды.
+    expect(src).toContain('__selfManagedChildren = true');
+  });
+
+  // Кнопки отправки в схеме визарда нет вообще — её рисует ui-kit FormWizard и шлёт `onSubmit`.
+  // С `onClick`, как у плоской формы, submit не срабатывал бы никогда, и это молчаливый отказ.
+  it('submit висит на onSubmit визарда, а не на onClick кнопки', () => {
+    expect(wizardSrc('renderer.behavior.ts')).toContain("onComponentEvent(wizard, 'onSubmit'");
+    expect(wizardSrc('renderer.behavior.ts')).toContain("schema.node('wizard')");
+    expect(byPath('renderer.behavior.ts').content).toContain("onComponentEvent(submit, 'onClick'");
+  });
+
+  // Рендерер отдаёт `form` пропом только вложенным узлам, а визард — корень схемы. Без инъекции
+  // ui-kit FormWizard читает `form.submitting` у `undefined` и роняет первый же рендер — то есть
+  // экспорт визарда был бы «скомпилирован, но не запускается».
+  it('форма инъецируется в визард на onInit', () => {
+    const src = wizardSrc('renderer.behavior.ts');
+    expect(src).toContain('onInit(wizard, () => wizard.patchProps({ form }))');
+    expect(src).toContain('import { hideWhen, onComponentEvent, onInit,');
+    // У плоской формы onInit не нужен, а лишний импорт — ошибка под `noUnusedLocals` у пользователя.
+    expect(byPath('renderer.behavior.ts').content).not.toContain('onInit');
+  });
+
+  it('набор проходит канон раскладки: шим — его опциональный файл', () => {
+    const { diagnostics } = validateLayout(
+      wizardFiles.map((f) => f.path),
+      'renderer-json'
+    );
+    expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+  });
+
+  it('README перечисляет шим среди регенерируемых файлов', () => {
+    expect(wizardSrc('README.md')).toContain('`renderer.wizard.tsx`');
+    expect(byPath('README.md').content).not.toContain('`renderer.wizard.tsx`');
   });
 });

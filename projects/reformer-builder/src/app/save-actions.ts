@@ -29,8 +29,12 @@ import {
   uniqueName,
 } from '../io/fs-ops';
 import {
+  apiTsTemplate,
+  dataSourcesTsTemplate,
   formJsonTemplate,
   modelTsTemplate,
+  registryTsTemplate,
+  typesTsTemplate,
   validationTsTemplate,
   formBehaviorTsTemplate,
   renderBehaviorTsTemplate,
@@ -514,6 +518,11 @@ async function generateOne(
   }
 }
 
+/** Сгенерировать файл типов (types.ts) в каталоге. */
+export function generateTypes(dirPath: string): Promise<void> {
+  return generateOne(dirPath, 'types.ts', typesTsTemplate(formNameOf(dirPath)), false);
+}
+
 /** Сгенерировать файл модели (model.ts) в каталоге. */
 export function generateModel(dirPath: string): Promise<void> {
   return generateOne(dirPath, 'model.ts', modelTsTemplate(formNameOf(dirPath)), false);
@@ -547,6 +556,21 @@ export function generateRenderBehavior(dirPath: string): Promise<void> {
     renderBehaviorTsTemplate(formNameOf(dirPath)),
     false
   );
+}
+
+/** Сгенерировать справочники (data-sources.ts) в каталоге. */
+export function generateDataSources(dirPath: string): Promise<void> {
+  return generateOne(dirPath, 'data-sources.ts', dataSourcesTsTemplate(formNameOf(dirPath)), false);
+}
+
+/** Сгенерировать бэкенд формы (api.ts) в каталоге. */
+export function generateApi(dirPath: string): Promise<void> {
+  return generateOne(dirPath, 'api.ts', apiTsTemplate(formNameOf(dirPath)), false);
+}
+
+/** Сгенерировать реестр компонентов (registry.ts) в каталоге. */
+export function generateRegistry(dirPath: string): Promise<void> {
+  return generateOne(dirPath, 'registry.ts', registryTsTemplate(formNameOf(dirPath)), false);
 }
 
 /** Триггер сохранения (Cmd+S / кнопка): валидация-гейт → Mode B diff-модалка или Mode A export. */

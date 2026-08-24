@@ -41,10 +41,14 @@ import { useFileClipboard } from '../store/file-clipboard';
 import {
   checkReopen,
   copyEntries,
+  generateApi,
+  generateDataSources,
   generateFormBehavior,
   generateFormSchema,
   generateModel,
+  generateRegistry,
   generateRenderBehavior,
+  generateTypes,
   generateValidation,
   loadDirectory,
   openMarkdownPreview,
@@ -397,18 +401,28 @@ export function FilesPanel() {
                 Выбрать шаблон…
               </ContextMenuItem>
               <ContextMenuSeparator />
+              {/* Порядок — канон раскладки renderer-json: пункты дают весь набор файлов модуля
+                  формы, кроме страницы (index.tsx) и шима визарда — их даёт шаблон целиком. */}
+              <ContextMenuItem onClick={() => void generateTypes(dirPath)}>Типы</ContextMenuItem>
               <ContextMenuItem onClick={() => void generateModel(dirPath)}>Модель</ContextMenuItem>
               <ContextMenuItem onClick={() => void generateFormSchema(dirPath)}>
                 Схема формы
-              </ContextMenuItem>
-              <ContextMenuItem onClick={() => void generateValidation(dirPath)}>
-                Схема валидации
               </ContextMenuItem>
               <ContextMenuItem onClick={() => void generateFormBehavior(dirPath)}>
                 Поведение формы
               </ContextMenuItem>
               <ContextMenuItem onClick={() => void generateRenderBehavior(dirPath)}>
                 Поведение UI
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => void generateValidation(dirPath)}>
+                Схема валидации
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => void generateDataSources(dirPath)}>
+                Справочники
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => void generateApi(dirPath)}>Бэкенд</ContextMenuItem>
+              <ContextMenuItem onClick={() => void generateRegistry(dirPath)}>
+                Реестр компонентов
               </ContextMenuItem>
             </ContextMenuSubContent>
           </ContextMenuSub>

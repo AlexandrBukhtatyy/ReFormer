@@ -13,18 +13,29 @@
  * Как это работает: renderer-react сам пробрасывает `form` в компоненты с маркером
  * `__selfManagedChildren`, а ui-kit `FormWizard` умеет рендерить `step.body` как RenderNode.
  * Адаптеру остаётся поднять `title`/`icon` из узла шага и отдать сам узел телом шага — без
- * `patchProps` и прочей проводки. Шаги — обычные `Box`-узлы, поэтому отдельный `Step`-компонент
- * регистрировать не нужно, а canvas билдера показывает их через слот `steps`.
+ * `patchProps` и прочей проводки.
+ *
+ * Шаг — узел `$component(Step)`, как предписывает рецепт визарда (`@reformer/renderer-json`
+ * docs/llms/07-form-wizard.md) и как сделано в примерах репозитория. `Box` на его месте не годится
+ * по двум причинам: во-первых, `title`/`icon` — метаданные шага, а props-схема `Box` знает только
+ * `className` и `additionalProperties: false` их отвергает, поэтому гейт `io/validate` браковал
+ * схему собственного шаблона; во-вторых, шаблон учил бы форме, отличной от той, которой MCP учит
+ * агентов. Сам `Step` — маркер: рендерит `children`, а метаданные снимает с узла wizard-шим
+ * (см. `wizardAdapterTsxTemplate`).
  *
  * @module reformer-builder/app/wizard-templates
  */
 
 import { componentName } from './form-templates';
 
-/** Схема пошаговой формы: `Wizard` c двумя шагами-`Box`; каждый шаг несёт поля модели. */
+/**
+ * Схема пошаговой формы: `Wizard` c двумя шагами-`Step`; каждый шаг несёт поля модели. `Step` —
+ * то же имя, которым canvas создаёт шаг (`catalog/make-node.ts`, `stepNode`), и та же
+ * синтетическая запись каталога, чья props-схема знает `title`/`icon`.
+ */
 export function wizardFormJsonTemplate(): string {
   const step = (title: string, icon: string, children: unknown[]): unknown => ({
-    component: '$component(Box)',
+    component: '$component(Step)',
     componentProps: { title, icon, className: 'space-y-4' },
     children,
   });
@@ -48,7 +59,12 @@ export function wizardFormJsonTemplate(): string {
             field('email', '$component(Input)', { label: 'Email', type: 'email' }),
           ]),
           step('Адрес', '🏠', [
-            field('city', '$component(Input)', { label: 'Город' }),
+            // Опции приходят из data-sources.ts — реестр связывает имя со значением.
+            field('city', '$component(Select)', {
+              label: 'Город',
+              options: '$dataSource(cities)',
+              placeholder: 'Выберите город',
+            }),
             field('address', '$component(Input)', { label: 'Улица, дом, квартира' }),
             field('agree', '$component(Checkbox)', { label: 'Данные указаны верно' }),
           ]),
@@ -59,10 +75,10 @@ export function wizardFormJsonTemplate(): string {
   return JSON.stringify(schema, null, 2) + '\n';
 }
 
-/** Модель пошаговой формы: поля обоих шагов. */
-export function wizardModelTsTemplate(formName: string): string {
+/** Типы пошаговой формы: поля всех шагов одним типом + тип элемента справочника. */
+export function wizardTypesTsTemplate(formName: string): string {
   return `/**
- * Модель пошаговой формы «${formName}» — поля всех шагов в одном объекте: визард шагает по одной
+ * Типы пошаговой формы «${formName}» — поля всех шагов в одном типе: визард шагает по одной
  * модели, а не по нескольким. Docs: @reformer/core (FormModel<T>), @reformer/cdk (FormWizard).
  */
 
@@ -71,10 +87,24 @@ export interface FormShape {
   fullName: string;
   email: string;
   // Шаг 2 — адрес.
+  /** Город — значение берётся из справочника \`cities\` (data-sources.ts). */
   city: string;
   address: string;
   agree: boolean;
 }
+
+/** Элемент справочника: значение + подпись. Тот же тип печатает кодоген примеров. */
+export type SelectOption = { value: string; label: string };
+`;
+}
+
+/** Модель пошаговой формы: начальные значения полей всех шагов. */
+export function wizardModelTsTemplate(formName: string): string {
+  return `/**
+ * Модель пошаговой формы «${formName}» — начальные значения. Тип модели живёт в types.ts
+ * (канон раскладки), поэтому здесь только данные. Docs: @reformer/core (FormModel<T>).
+ */
+import type { FormShape } from './types';
 
 /** Начальные значения — для createJsonForm/useFormControl. */
 export const initialFormModel: FormShape = {
@@ -84,6 +114,33 @@ export const initialFormModel: FormShape = {
   address: '',
   agree: false,
 };
+`;
+}
+
+/** Справочники пошаговой формы: города для select-поля второго шага. */
+export function wizardDataSourcesTsTemplate(formName: string): string {
+  return `/**
+ * Справочники формы «${formName}» — значения операторов \`$dataSource(...)\` из
+ * renderer.schema.json. Имя экспорта = имя в схеме; связывает их registry.ts
+ * (\`reg.dataSource('cities', cities)\`).
+ */
+import type { SelectOption } from './types';
+
+/** Города — опции поля \`city\` на шаге «Адрес». */
+export const cities: SelectOption[] = [
+  { value: 'msk', label: 'Москва' },
+  { value: 'spb', label: 'Санкт-Петербург' },
+  { value: 'nsk', label: 'Новосибирск' },
+];
+
+// ── Шпаргалка ──
+
+// Справочник с бэкенда: грузите его в renderer.behavior.ts (onMount узла шага) и патчите пропсы
+// узла — сам \`$dataSource\` синхронен и функцию-загрузчик не вызывает:
+// export async function loadCities(): Promise<SelectOption[]> {
+//   const res = await fetch('/api/cities');
+//   return (await res.json()) as SelectOption[];
+// }
 `;
 }
 
@@ -105,7 +162,7 @@ import type { ReactNode } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormProxy } from '@reformer/core';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import type { FormShape } from './model';
+import type { FormShape } from './types';
 
 /** Узел шага после конвертации: \`title\`/\`icon\` лежат в его \`componentProps\`. */
 interface StepNode {
@@ -144,6 +201,20 @@ export function Wizard({ form, steps = [], className, onSubmit }: WizardProps): 
 
 // Контракт с рендерером: получить \`form\` пропом и сырые \`steps\`, без обхода детей.
 (Wizard as any).__selfManagedChildren = true;
+
+export interface StepProps {
+  className?: string;
+  children?: ReactNode;
+}
+
+/**
+ * Тело шага — компонент под \`$component(Step)\`. Маркер: \`title\`/\`icon\` из его
+ * \`componentProps\` снимает \`Wizard\` выше, сюда доезжает только вёрстка. Тот же маркер есть в
+ * \`@reformer/cdk/form-wizard\` (\`Step\`) — если cdk уже в проекте, замените локальный на импорт.
+ */
+export function Step({ className, children }: StepProps): ReactNode {
+  return <div className={className}>{children}</div>;
+}
 `;
 }
 
@@ -152,12 +223,13 @@ export function wizardRegistryTsTemplate(formName: string): string {
   return `/**
  * Реестр компонентов формы «${formName}» — что рендерить под каждое \`$component(...)\` из
  * renderer.schema.json.
- * \`FIELD_WRAPPER\` (FormField) оборачивает каждый лист: label + ошибки. \`Wizard\` — локальный
- * адаптер (renderer.wizard.tsx); шаги визарда рендерятся как обычные \`Box\`-узлы. Docs: @reformer/renderer-json.
+ * \`FIELD_WRAPPER\` (FormField) оборачивает каждый лист: label + ошибки. \`Wizard\` и \`Step\` —
+ * локальные компоненты шима (renderer.wizard.tsx): визард и тело шага. Docs: @reformer/renderer-json.
  */
-import { Box, CheckboxField, FormField, InputField } from '@reformer/ui-kit';
+import { CheckboxField, FormField, InputField, SelectField } from '@reformer/ui-kit';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
-import { Wizard } from './renderer.wizard';
+import { Step, Wizard } from './renderer.wizard';
+import { cities } from './data-sources';
 
 export function createRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
@@ -165,10 +237,13 @@ export function createRegistry(): ComponentRegistry {
     reg.component(FIELD_WRAPPER, FormField);
     // Контейнеры: визард и тела шагов.
     reg.component('Wizard', Wizard);
-    reg.component('Box', Box);
+    reg.component('Step', Step);
     // Поля: имя в схеме → компонент ui-kit.
     reg.component('Input', InputField);
+    reg.component('Select', SelectField);
     reg.component('Checkbox', CheckboxField);
+    // Справочники: имя в \`$dataSource(...)\` → значение из data-sources.ts.
+    reg.dataSource('cities', cities);
   });
 }
 `;
@@ -186,7 +261,7 @@ import {
   type ValidationStrategyOptions,
 } from '@reformer/core/validation';
 import { email, minLength, required } from '@reformer/core/validators';
-import type { FormShape } from './model';
+import type { FormShape } from './types';
 
 /**
  * КОГДА гонять валидацию. Одна точка истины: её читают и \`index.tsx\`, и Renderer-превью билдера.
@@ -216,7 +291,7 @@ export function wizardFormBehaviorTsTemplate(formName: string): string {
  * визард переключает видимость, а модель и её связи общие. Docs: @reformer/core/behaviors.
  */
 import { defineFormBehavior, enableWhen } from '@reformer/core/behaviors';
-import type { FormShape } from './model';
+import type { FormShape } from './types';
 
 export const formBehavior = defineFormBehavior<FormShape>(({ model }) => {
   // Адрес заполняется только после города — поле недоступно, пока город пуст.
@@ -246,7 +321,8 @@ import { onComponentEvent, onInit, type RenderBehaviorFn } from '@reformer/rende
 import { validateModel } from '@reformer/core/validation';
 import type { FormModel, FormProxy } from '@reformer/core';
 import { formValidation } from './validation';
-import type { FormShape } from './model';
+import { submitForm } from './api';
+import type { FormShape } from './types';
 
 export function createRenderBehavior(
   form: FormProxy<FormShape>,
@@ -260,9 +336,10 @@ export function createRenderBehavior(
 
     onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: FormShape) => {
       if (!(await validateModel(model, formValidation))) return;
-      // TODO: отправка на бэкенд.
+      // Бэкенд — только через api.ts: поведение не знает ни про fetch, ни про эндпоинты.
+      const result = await submitForm(values);
       // eslint-disable-next-line no-console
-      console.info('[${formName}] submit', values);
+      if (!result.success) console.error('[${formName}] submit failed', result.error);
     });
 
     // ── Шпаргалка ──
@@ -278,8 +355,9 @@ export function wizardIndexTsxTemplate(formName: string): string {
   const Comp = componentName(formName);
   return `/**
  * Пошаговая форма «${formName}» — сборка и рендер. В JSX только провайдер реестра и рендерер:
- * шаги и layout живут в renderer.schema.json, значения/поведение/валидация — в model.ts /
- * form.behavior.ts / validation.ts / renderer.behavior.ts, навигация и кнопки — в ui-kit FormWizard
+ * шаги и layout живут в renderer.schema.json, типы — в types.ts, значения/поведение/валидация —
+ * в model.ts / form.behavior.ts / validation.ts / renderer.behavior.ts, справочники — в
+ * data-sources.ts, запросы — в api.ts, навигация и кнопки — в ui-kit FormWizard
  * (адаптер renderer.wizard.tsx).
  *
  * Подключение в react-playground: \`import ${Comp} from './pages/examples/<папка>';\`
@@ -295,7 +373,8 @@ import {
 } from '@reformer/renderer-json';
 import rawSchema from './renderer.schema.json';
 import { createRegistry } from './registry';
-import { initialFormModel, type FormShape } from './model';
+import { initialFormModel } from './model';
+import type { FormShape } from './types';
 import { formBehavior } from './form.behavior';
 import { formValidation, validationOptions } from './validation';
 import { createRenderBehavior } from './renderer.behavior';

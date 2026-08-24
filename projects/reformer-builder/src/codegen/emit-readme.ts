@@ -5,6 +5,7 @@
  * @module reformer-builder/codegen/emit-readme
  */
 
+import { isStepsHostName } from '../model';
 import { appSnippet } from './app-snippet';
 import type { SelectorInfo } from './assign-selectors';
 import type { Collected } from './collect';
@@ -34,6 +35,10 @@ export function emitReadme(n: Names, sel: SelectorInfo, c: Collected): string {
     '- `form.behavior.ts` → вычисляемые поля / условное включение (по желанию).',
   ].join('\n');
 
+  // Шим визарда есть не у всякой формы — он опциональный файл канона, поэтому и в списке
+  // регенерируемых появляется только там, где реально сгенерирован (см. emit-wizard).
+  const wizardFile = c.components.some(isStepsHostName) ? ', `renderer.wizard.tsx`' : '';
+
   return `# ${n.title}
 
 Сгенерированная форма (renderer-json). Рендерится и работает сразу на синтетических данных —
@@ -52,7 +57,7 @@ ${appSnippet(n)}
 Набор — канон раскладки renderer-json (\`@reformer/mcp\` docs/llms/06-form-directory-layout.md §1),
 плоский: без \`lib/\` и \`components/steps/\`, запись реестра форм — в \`index.tsx\`.
 
-- **Регенерируемые** (перезаписываются при повторной генерации): \`renderer.schema.json\`, \`types.ts\`, \`model.ts\`, \`registry.ts\`, \`index.tsx\`, \`README.md\`.
+- **Регенерируемые** (перезаписываются при повторной генерации): \`renderer.schema.json\`, \`types.ts\`, \`model.ts\`, \`registry.ts\`, \`index.tsx\`, \`README.md\`${wizardFile}.
 - **Ваши** (пишутся один раз, не затираются): \`data-sources.ts\`, \`renderer.behavior.ts\`, \`form.behavior.ts\`, \`validation.ts\`, \`api.ts\`.
 
 Схема лежит в \`renderer.schema.json\` — допустимый вариант канона («схема как данные»), выбранный

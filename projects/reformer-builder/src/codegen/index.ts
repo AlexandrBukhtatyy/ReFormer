@@ -9,7 +9,8 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { hasRules, type FormRules } from '../model/rules';
+import { isStepsHostName } from '../model';
+import { hasBehaviorRules, hasValidationRules, type FormRules } from '../model/rules';
 import type { MockData } from '../preview-runtime/mock-synth';
 import { assignSelectors } from './assign-selectors';
 import { collect } from './collect';
@@ -26,6 +27,7 @@ import { emitFormBehavior } from './emit-form-behavior';
 import { emitFormBehaviorFromRules, emitValidationFromRules } from './emit-rules';
 import { emitValidation } from './emit-validation';
 import { emitApi } from './emit-api';
+import { emitWizard } from './emit-wizard';
 
 export type FileClass = 'derived' | 'user';
 
@@ -47,6 +49,9 @@ export function buildExampleFiles(
   const names = makeNames(formName);
   const { schema, info } = assignSelectors(rawSchema);
   const c = collect(schema, mock);
+  // Шим визарда — опциональный файл канона: он появляется ровно у той формы, где есть
+  // `$component(Wizard)`. Без него экспорт визарда уезжал с `reg.component('Wizard', Placeholder)`.
+  const hasWizard = c.components.some(isStepsHostName);
 
   return [
     { path: 'renderer.schema.json', content: emitSchema(schema), cls: 'derived' },
@@ -59,17 +64,27 @@ export function buildExampleFiles(
     { path: 'renderer.behavior.ts', content: emitBehavior(names, info), cls: 'user' },
     // Есть правила — собираем из них (билдерами MCP); нет — прежние заглушки с примерами.
     // Форма без правил валидна, и генерироваться она обязана в компилируемый код.
+    //
+    // Вопрос задаётся КАЖДОМУ файлу отдельно: правила одного вида ничего не говорят о другом,
+    // а общий признак подменял богатую заглушку пустой и терял выведенные из схемы `required`.
     {
       path: 'form.behavior.ts',
-      content: hasRules(rules) ? emitFormBehaviorFromRules(rules!, names) : emitFormBehavior(names),
+      content: hasBehaviorRules(rules)
+        ? emitFormBehaviorFromRules(rules!, names)
+        : emitFormBehavior(names),
       cls: 'user',
     },
     {
       path: 'validation.ts',
-      content: hasRules(rules) ? emitValidationFromRules(rules!, names) : emitValidation(c, names),
+      content: hasValidationRules(rules)
+        ? emitValidationFromRules(rules!, names)
+        : emitValidation(c, names),
       cls: 'user',
     },
     { path: 'api.ts', content: emitApi(names), cls: 'user' },
+    ...(hasWizard
+      ? [{ path: 'renderer.wizard.tsx', content: emitWizard(names), cls: 'derived' as const }]
+      : []),
   ];
 }
 

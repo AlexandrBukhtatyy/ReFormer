@@ -1,4 +1,10 @@
 import { describe, expect, it } from 'vitest';
+// Канон раскладки — из самого MCP-сервера: там он объявлен таблицей (`FORM_LAYOUT_CANON`), и та же
+// проверка стоит у консумента как `validate_form kind="layout"`. Импорт из `dist` — тот же путь,
+// которым билдер уже ходит в MCP (см. agent/core/tools); CI собирает пакет до тестов билдера.
+import { validateLayout } from '@reformer/mcp/dist/core/validate/layout.js';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import { validateSchema } from '../io/validate';
 import {
   builtinTemplates,
   simpleFormTemplate,
@@ -70,26 +76,29 @@ describe('встроенные шаблоны', () => {
     for (const t of builtinTemplates()) expect(t.source).toBe('builtin');
   });
 
-  it('простая форма: семь файлов, страница тянет остальные', () => {
+  it('простая форма: десять файлов канона, страница тянет остальные', () => {
     const t = simpleFormTemplate();
     expect(t.files.map((f) => f.path)).toEqual([
       'index.tsx',
-      'registry.ts',
+      'types.ts',
       'model.ts',
       'renderer.schema.json',
-      'validation.ts',
       'form.behavior.ts',
       'renderer.behavior.ts',
+      'validation.ts',
+      'data-sources.ts',
+      'api.ts',
+      'registry.ts',
     ]);
-    expect(resolvePicked(['index.tsx'], t.requires).size).toBe(7);
+    expect(resolvePicked(['index.tsx'], t.requires).size).toBe(10);
     expect(resolvePicked(['model.ts'], t.requires).size).toBe(1);
   });
 
-  it('пошаговая форма: восемь файлов, включая адаптер визарда', () => {
+  it('пошаговая форма: одиннадцать файлов, включая адаптер визарда', () => {
     const t = wizardFormTemplate();
     expect(t.files.map((f) => f.path)).toContain('renderer.wizard.tsx');
-    expect(t.files).toHaveLength(8);
-    expect(resolvePicked(['index.tsx'], t.requires).size).toBe(8);
+    expect(t.files).toHaveLength(11);
+    expect(resolvePicked(['index.tsx'], t.requires).size).toBe(11);
   });
 
   it('пошаговая схема — визард с двумя шагами в componentProps.steps', () => {
@@ -100,8 +109,9 @@ describe('встроенные шаблоны', () => {
     expect(json.root.selector).toBe('wizard');
     expect(json.root.componentProps.steps).toHaveLength(2);
     expect(json.root.componentProps.steps[0].componentProps.title).toBe('Контакты');
-    // Шаги — обычные Box-узлы: отдельный Step-компонент регистрировать не нужно.
-    expect(json.root.componentProps.steps[0].component).toBe('$component(Box)');
+    // Шаг — `$component(Step)`, как в рецепте визарда renderer-json: `title`/`icon` — метаданные
+    // шага, и props-схема `Box` (только `className`, additionalProperties: false) их отвергает.
+    expect(json.root.componentProps.steps[0].component).toBe('$component(Step)');
   });
 
   it('файлы параметризованы: техническое базовое имя не утекает', () => {
@@ -121,24 +131,48 @@ describe('встроенные шаблоны', () => {
     }
   });
 
-  // Канон раскладки формы (@reformer/mcp docs/llms/06-form-directory-layout.md): плоские имена,
-  // точечный префикс `form.` / `renderer.` только у schema и behavior. Тест держит шаблоны в
-  // каноне: прошлый раз переименование доехало до кодогена, но не до шаблонов.
-  it('имена файлов — каноничные, дефисных/легаси-имён нет', () => {
-    const CANON = [
-      'index.tsx',
-      'model.ts',
-      'renderer.schema.json',
-      'validation.ts',
-      'form.behavior.ts',
-      'renderer.behavior.ts',
-      'registry.ts',
-      // Опциональный слот канона: шим под `$component(Wizard)` (renderer-json + wizard).
-      'renderer.wizard.tsx',
-    ];
+  // Схема шаблона обязана проходить ТОТ ЖЕ гейт, что стоит на сохранении и экспорте: иначе форма,
+  // созданную билдером из его же шаблона, билдер и забракует при первом сохранении. Ровно так и
+  // было (ReFormer-shn): шаги визарда лежали в `$component(Box)`, а `title`/`icon` в его
+  // `componentProps` — props-схема Box знает только `className` и режет остальное.
+  it('схемы шаблонов проходят гейт валидации билдера', () => {
     for (const t of builtinTemplates()) {
-      const alien = t.files.map((f) => f.path).filter((p) => !CANON.includes(p));
-      expect(alien, `шаблон «${t.name}»`).toEqual([]);
+      const file = formSchemaFileOf(t.files);
+      expect(file, `шаблон «${t.name}»`).not.toBeNull();
+      const res = validateSchema(JSON.parse(file!.content) as JsonFormSchema);
+      expect(res.errors, `шаблон «${t.name}»`).toEqual([]);
+      expect(res.valid).toBe(true);
+    }
+  });
+
+  // Канон раскладки формы сверяется ЕГО ЖЕ валидатором (@reformer/mcp), а не копией списка имён
+  // здесь: копия — это второй источник истины, и расходится он молча. Ровно так канон уже
+  // разъезжался: переименование доехало до кодогена, но не до шаблонов.
+  it('набор файлов проходит канон раскладки renderer-json', () => {
+    for (const t of builtinTemplates()) {
+      const { diagnostics } = validateLayout(
+        t.files.map((f) => f.path),
+        'renderer-json'
+      );
+      const errors = diagnostics.filter((d) => d.severity === 'error');
+      expect(errors, `шаблон «${t.name}»`).toEqual([]);
+    }
+  });
+
+  // Единственный осознанный отход от дефолта канона — схема как данные (`renderer.schema.json`
+  // вместо `renderer.schema.ts`): без неё форма не открывается обратно в canvas билдера. Тест
+  // держит список отходов закрытым: новое предупреждение обязано быть решением, а не случайностью.
+  it('предупреждение канона ровно одно — схема как данные', () => {
+    for (const t of builtinTemplates()) {
+      const { diagnostics } = validateLayout(
+        t.files.map((f) => f.path),
+        'renderer-json'
+      );
+      const warnings = diagnostics.filter((d) => d.severity === 'warning');
+      expect(
+        warnings.map((w) => w.path),
+        `шаблон «${t.name}»`
+      ).toEqual(['renderer.schema.json']);
     }
   });
 });

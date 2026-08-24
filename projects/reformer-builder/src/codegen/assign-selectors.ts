@@ -13,7 +13,7 @@ import {
   parseOperator,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import { isNodeLike, walkNodes } from '../model';
+import { isNodeLike, isStepsHostName, walkNodes } from '../model';
 import { kebab } from './naming';
 
 /** Узел в «сыром» виде — читаем/пишем динамические ключи схемы. */
@@ -32,6 +32,13 @@ export interface SelectorInfo {
   arrays: { selector: string; path: string }[];
   /** Узел-цель submit (`onComponentEvent(node, 'onClick'|'onSubmit')`). */
   submitSelector: string;
+  /**
+   * Событие submit-цели. Кнопка шлёт `onClick`, а wizard — `onSubmit` со своей последней страницы:
+   * кнопки отправки в схеме визарда нет вообще, её рисует ui-kit `FormWizard`. Поле нужно потому,
+   * что `renderer.behavior.ts` подписывается ИМЕНЕМ события — с `onClick` на визарде submit молча
+   * не срабатывал бы никогда.
+   */
+  submitEvent: 'onClick' | 'onSubmit';
   /** Был ли вставлен новый submit-Button (иначе найден существующий триггер). */
   injectedSubmit: boolean;
 }
@@ -61,6 +68,7 @@ export function assignSelectors(input: JsonFormSchema): AssignResult {
   const sections: SelectorInfo['sections'] = [];
   const arrays: SelectorInfo['arrays'] = [];
   let submitSelector = '';
+  let submitEvent: SelectorInfo['submitEvent'] = 'onClick';
 
   walkNodes(schema, (node) => {
     const n = node as unknown as AnyNode;
@@ -83,9 +91,17 @@ export function assignSelectors(input: JsonFormSchema): AssignResult {
       arrays.push({ selector: n.selector, path });
     }
 
-    if (comp?.op === 'component' && (comp.arg === 'Button' || comp.arg.includes('Wizard'))) {
-      if (!n.selector) n.selector = uniq('submit');
-      if (!submitSelector) submitSelector = n.selector;
+    // Кто отправляет форму: кнопка или сам визард. Имя визарда берём из общего списка модели
+    // (`isStepsHostName`), а не подстрокой: подстрока ловила бы и `StepIndicator`-подобные записи.
+    const isWizard = comp?.op === 'component' && isStepsHostName(comp.arg);
+    if (comp?.op === 'component' && (comp.arg === 'Button' || isWizard)) {
+      // Имя по роли узла: у визарда кнопки нет вообще, и `submit`-селектор на нём читался бы в
+      // поведении и README как кнопка, которой в схеме не существует.
+      if (!n.selector) n.selector = uniq(isWizard ? 'wizard' : 'submit');
+      if (!submitSelector) {
+        submitSelector = n.selector;
+        submitEvent = isWizard ? 'onSubmit' : 'onClick';
+      }
     }
   });
 
@@ -107,5 +123,5 @@ export function assignSelectors(input: JsonFormSchema): AssignResult {
     }
   }
 
-  return { schema, info: { sections, arrays, submitSelector, injectedSubmit } };
+  return { schema, info: { sections, arrays, submitSelector, submitEvent, injectedSubmit } };
 }

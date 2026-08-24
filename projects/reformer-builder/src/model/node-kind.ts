@@ -113,11 +113,23 @@ export { LEAF_COMPONENT_NAMES };
  * По имени, а не по наличию массива: в ките есть записи со `steps` из плоских объектов
  * (`StepIndicator`), и слот шагов у них означал бы drop-зону, кладущую узлы в чужие данные.
  */
-const STEPS_HOST_NAMES: ReadonlySet<string> = new Set([
+export const STEPS_HOST_NAMES: ReadonlySet<string> = new Set([
   'Wizard',
   'FormWizard',
   'RendererFormWizard',
 ]);
+
+/**
+ * Держит ли компонент с таким именем шаги (см. {@link STEPS_HOST_NAMES}).
+ *
+ * Экспортируется, потому что «это визард» решается не только при обходе дерева: кодоген экспорта
+ * спрашивает то же самое про собранный список имён (`$component(...)` всей схемы), чтобы решить,
+ * печатать ли wizard-шим и на какое событие вешать submit. Второй копии списка быть не должно —
+ * прошлый раз она была в `assign-selectors` подстрокой `includes('Wizard')`.
+ */
+export function isStepsHostName(name: string): boolean {
+  return STEPS_HOST_NAMES.has(name);
+}
 
 /** Компонент узла — держатель шагов (см. {@link STEPS_HOST_NAMES}). */
 function isStepsHost(node: JsonNode): boolean {

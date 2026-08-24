@@ -10,22 +10,27 @@
  */
 
 import {
+  apiTsTemplate,
+  dataSourcesTsTemplate,
   formBehaviorTsTemplate,
   formJsonTemplate,
   indexTsxTemplate,
   modelTsTemplate,
   registryTsTemplate,
   renderBehaviorTsTemplate,
+  typesTsTemplate,
   validationTsTemplate,
 } from '../app/form-templates';
 import {
   wizardAdapterTsxTemplate,
+  wizardDataSourcesTsTemplate,
   wizardFormBehaviorTsTemplate,
   wizardFormJsonTemplate,
   wizardIndexTsxTemplate,
   wizardModelTsTemplate,
   wizardRegistryTsTemplate,
   wizardRenderBehaviorTsTemplate,
+  wizardTypesTsTemplate,
   wizardValidationTsTemplate,
 } from '../app/wizard-templates';
 import { tokenize } from './placeholders';
@@ -58,24 +63,19 @@ const SIMPLE_FILES: ReadonlyArray<BuiltinFile> = [
     render: () => indexTsxTemplate(BUILTIN_BASE_NAME),
   },
   {
-    path: 'registry.ts',
-    label: 'Реестр компонентов (registry.ts)',
-    render: () => registryTsTemplate(BUILTIN_BASE_NAME),
+    path: 'types.ts',
+    label: 'Типы формы (types.ts) — тип модели и справочников',
+    render: () => typesTsTemplate(BUILTIN_BASE_NAME),
   },
   {
     path: 'model.ts',
-    label: 'Модель (model.ts)',
+    label: 'Модель (model.ts) — начальные значения',
     render: () => modelTsTemplate(BUILTIN_BASE_NAME),
   },
   {
     path: 'renderer.schema.json',
     label: 'Схема формы (renderer.schema.json)',
     render: () => formJsonTemplate(),
-  },
-  {
-    path: 'validation.ts',
-    label: 'Схема валидации (validation.ts)',
-    render: () => validationTsTemplate(BUILTIN_BASE_NAME),
   },
   {
     path: 'form.behavior.ts',
@@ -87,6 +87,26 @@ const SIMPLE_FILES: ReadonlyArray<BuiltinFile> = [
     label: 'Поведение UI (renderer.behavior.ts)',
     render: () => renderBehaviorTsTemplate(BUILTIN_BASE_NAME),
   },
+  {
+    path: 'validation.ts',
+    label: 'Схема валидации (validation.ts)',
+    render: () => validationTsTemplate(BUILTIN_BASE_NAME),
+  },
+  {
+    path: 'data-sources.ts',
+    label: 'Справочники (data-sources.ts) — значения $dataSource',
+    render: () => dataSourcesTsTemplate(BUILTIN_BASE_NAME),
+  },
+  {
+    path: 'api.ts',
+    label: 'Бэкенд (api.ts) — submit и загрузка',
+    render: () => apiTsTemplate(BUILTIN_BASE_NAME),
+  },
+  {
+    path: 'registry.ts',
+    label: 'Реестр компонентов (registry.ts)',
+    render: () => registryTsTemplate(BUILTIN_BASE_NAME),
+  },
 ];
 
 const WIZARD_FILES: ReadonlyArray<BuiltinFile> = [
@@ -96,29 +116,19 @@ const WIZARD_FILES: ReadonlyArray<BuiltinFile> = [
     render: () => wizardIndexTsxTemplate(BUILTIN_BASE_NAME),
   },
   {
-    path: 'renderer.wizard.tsx',
-    label: 'Адаптер визарда (renderer.wizard.tsx) — шаги схемы → ui-kit FormWizard',
-    render: () => wizardAdapterTsxTemplate(BUILTIN_BASE_NAME),
-  },
-  {
-    path: 'registry.ts',
-    label: 'Реестр компонентов (registry.ts)',
-    render: () => wizardRegistryTsTemplate(BUILTIN_BASE_NAME),
+    path: 'types.ts',
+    label: 'Типы формы (types.ts) — поля всех шагов одним типом',
+    render: () => wizardTypesTsTemplate(BUILTIN_BASE_NAME),
   },
   {
     path: 'model.ts',
-    label: 'Модель (model.ts) — поля всех шагов',
+    label: 'Модель (model.ts) — начальные значения всех шагов',
     render: () => wizardModelTsTemplate(BUILTIN_BASE_NAME),
   },
   {
     path: 'renderer.schema.json',
     label: 'Схема формы (renderer.schema.json) — визард с двумя шагами',
     render: () => wizardFormJsonTemplate(),
-  },
-  {
-    path: 'validation.ts',
-    label: 'Схема валидации (validation.ts)',
-    render: () => wizardValidationTsTemplate(BUILTIN_BASE_NAME),
   },
   {
     path: 'form.behavior.ts',
@@ -129,6 +139,31 @@ const WIZARD_FILES: ReadonlyArray<BuiltinFile> = [
     path: 'renderer.behavior.ts',
     label: 'Поведение UI (renderer.behavior.ts) — submit визарда',
     render: () => wizardRenderBehaviorTsTemplate(BUILTIN_BASE_NAME),
+  },
+  {
+    path: 'validation.ts',
+    label: 'Схема валидации (validation.ts)',
+    render: () => wizardValidationTsTemplate(BUILTIN_BASE_NAME),
+  },
+  {
+    path: 'data-sources.ts',
+    label: 'Справочники (data-sources.ts) — значения $dataSource',
+    render: () => wizardDataSourcesTsTemplate(BUILTIN_BASE_NAME),
+  },
+  {
+    path: 'api.ts',
+    label: 'Бэкенд (api.ts) — submit и загрузка',
+    render: () => apiTsTemplate(BUILTIN_BASE_NAME),
+  },
+  {
+    path: 'registry.ts',
+    label: 'Реестр компонентов (registry.ts)',
+    render: () => wizardRegistryTsTemplate(BUILTIN_BASE_NAME),
+  },
+  {
+    path: 'renderer.wizard.tsx',
+    label: 'Адаптер визарда (renderer.wizard.tsx) — шаги схемы → ui-kit FormWizard',
+    render: () => wizardAdapterTsxTemplate(BUILTIN_BASE_NAME),
   },
 ];
 
@@ -155,7 +190,7 @@ export function simpleFormTemplate(): FormTemplate {
   return {
     id: SIMPLE_TEMPLATE_ID,
     name: 'Простая форма',
-    description: 'Одна страница: модель, схема, валидация, поведение, реестр, страница.',
+    description: 'Одна страница: типы, модель, схема, поведение, валидация, справочники, реестр.',
     source: 'builtin',
     files: toTemplateFiles(SIMPLE_FILES),
     requires: pageRequires(SIMPLE_FILES),
@@ -168,7 +203,7 @@ export function wizardFormTemplate(): FormTemplate {
   return {
     id: WIZARD_TEMPLATE_ID,
     name: 'Пошаговая форма',
-    description: 'Визард: два шага, общая модель, валидация и submit на последнем шаге.',
+    description: 'Визард: два шага, общая модель, справочник города, submit через api.ts.',
     source: 'builtin',
     files: toTemplateFiles(WIZARD_FILES),
     requires: pageRequires(WIZARD_FILES),

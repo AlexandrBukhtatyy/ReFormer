@@ -12,35 +12,44 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
+  apiTsTemplate,
+  dataSourcesTsTemplate,
   formBehaviorTsTemplate,
   formJsonTemplate,
   modelTsTemplate,
   registryTsTemplate,
   renderBehaviorTsTemplate,
+  typesTsTemplate,
   validationTsTemplate,
 } from '../../app/form-templates';
 import {
   wizardAdapterTsxTemplate,
+  wizardDataSourcesTsTemplate,
   wizardFormBehaviorTsTemplate,
   wizardFormJsonTemplate,
   wizardModelTsTemplate,
   wizardRegistryTsTemplate,
   wizardRenderBehaviorTsTemplate,
+  wizardTypesTsTemplate,
   wizardValidationTsTemplate,
 } from '../../app/wizard-templates';
 import { buildLivePreview } from './build-live-preview';
 import { compileForm } from './compile-form';
 import type { FormSources } from './sibling-sources';
+import type { FormRules } from '../../model/rules';
 
 /** Каталог простой формы так, как его отдаёт шаблон билдера. */
 function simpleFormSources(): FormSources {
   return {
     dir: 'forms/sample',
     files: {
+      'types.ts': typesTsTemplate('sample'),
       'model.ts': modelTsTemplate('sample'),
       'validation.ts': validationTsTemplate('sample'),
       'form.behavior.ts': formBehaviorTsTemplate('sample'),
       'renderer.behavior.ts': renderBehaviorTsTemplate('sample'),
+      'data-sources.ts': dataSourcesTsTemplate('sample'),
+      'api.ts': apiTsTemplate('sample'),
       'registry.ts': registryTsTemplate('sample'),
     },
     fromEditor: [],
@@ -56,6 +65,7 @@ const tick = (): Promise<void> => new Promise((resolve) => queueMicrotask(resolv
 interface SimpleShape extends Record<string, unknown> {
   name: string;
   email: string;
+  contactMethod: string;
   greeting: string;
 }
 
@@ -159,10 +169,12 @@ describe('live-превью на шаблоне простой формы', () =
     const compiled = await compileForm({
       dir: 'forms/legacy',
       files: {
+        'types.ts': typesTsTemplate('sample'),
         'model.ts': modelTsTemplate('sample'),
         'validation.ts': validationTsTemplate('sample'),
         'form-behavior.ts': formBehaviorTsTemplate('sample'),
         'render-behavior.ts': renderBehaviorTsTemplate('sample'),
+        'data-sources.ts': dataSourcesTsTemplate('sample'),
         'registry.ts': registryTsTemplate('sample'),
       },
       fromEditor: [],
@@ -188,10 +200,13 @@ function wizardFormSources(): FormSources {
   return {
     dir: 'forms/wizard',
     files: {
+      'types.ts': wizardTypesTsTemplate('sample'),
       'model.ts': wizardModelTsTemplate('sample'),
       'validation.ts': wizardValidationTsTemplate('sample'),
       'form.behavior.ts': wizardFormBehaviorTsTemplate('sample'),
       'renderer.behavior.ts': wizardRenderBehaviorTsTemplate('sample'),
+      'data-sources.ts': wizardDataSourcesTsTemplate('sample'),
+      'api.ts': apiTsTemplate('sample'),
       'registry.ts': wizardRegistryTsTemplate('sample'),
       'renderer.wizard.tsx': wizardAdapterTsxTemplate('sample'),
     },
@@ -235,5 +250,67 @@ describe('live-превью на шаблоне пошаговой формы', 
     bundle.model.$.city.value = 'Москва';
     await tick();
     expect(bundle.form.address.disabled.value).toBe(false);
+  });
+});
+
+/**
+ * Второй контракт, который обязан сходиться, — между КОДОГЕНОМ билдера и живым превью.
+ *
+ * Шаблоны из `app/*-templates.ts` (выше) и `codegen/*` — разные производители одного и того же
+ * каталога, и имена экспортов у них разошлись: шаблон печатает `formRenderBehavior`, кодоген —
+ * фабрику `createJsonRenderBehavior`. Пока превью знало только про первое, форма, экспортированная
+ * билдером, рендерилась БЕЗ submit и без `hideWhen` — и молча: отсутствие артефакта ошибкой не
+ * считается, в панели «Сборка» не появлялось ничего.
+ */
+describe('live-превью на выходе кодогена', () => {
+  /** Каталог так, как его получает пользователь после «экспортировать пример». */
+  async function codegenSources(rules?: FormRules): Promise<{
+    sources: FormSources;
+    schema: JsonFormSchema;
+  }> {
+    const { buildExampleFiles } = await import('../../codegen');
+    const { synthMock } = await import('../mock-synth');
+    const { exampleSchema } = await import('../../codegen/__fixtures__/example-schema');
+
+    const mock = synthMock(exampleSchema, { now: new Date('2026-01-01T00:00:00Z') });
+    const out = buildExampleFiles(exampleSchema, mock, 'loan', rules);
+
+    const files: Record<string, string> = {};
+    for (const f of out) {
+      // Те же правила отбора, что у `sibling-sources`: только исполняемое, без страницы-обёртки.
+      if (!/\.tsx?$/.test(f.path) || f.path.startsWith('index.')) continue;
+      files[f.path] = f.content;
+    }
+    // Схема берётся ИЗ выхода: селекторы проставляет `assignSelectors`, и `renderer.behavior.ts`
+    // адресует узлы именно ими. Исходная схема здесь дала бы промах `schema.node()`.
+    const emitted = out.find((f) => f.path === 'renderer.schema.json')!.content;
+    return { sources: { dir: 'forms/loan', files, fromEditor: [] }, schema: JSON.parse(emitted) };
+  }
+
+  it('подключает валидацию и поведение UI', async () => {
+    const { sources, schema: emitted } = await codegenSources();
+    const compiled = await compileForm(sources);
+    expect(compiled.errors).toEqual([]);
+
+    const bundle = buildLivePreview({ schema: emitted, compiled, dataSources: {} });
+    expect(bundle.errors).toEqual([]);
+    expect(bundle.applied).toContain('validation');
+    expect(bundle.applied).toContain('renderBehavior');
+  });
+
+  it('каталог с правилами тоже подключается целиком', async () => {
+    const rules: FormRules = {
+      validation: [{ target: 'amount', rules: ['required'] }],
+      behavior: [],
+      visibility: [],
+    };
+    const { sources, schema: emitted } = await codegenSources(rules);
+    const compiled = await compileForm(sources);
+    expect(compiled.errors).toEqual([]);
+
+    const bundle = buildLivePreview({ schema: emitted, compiled, dataSources: {} });
+    expect(bundle.errors).toEqual([]);
+    expect(bundle.applied).toContain('validation');
+    expect(bundle.applied).toContain('renderBehavior');
   });
 });

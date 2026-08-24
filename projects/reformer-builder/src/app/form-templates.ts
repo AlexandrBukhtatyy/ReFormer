@@ -52,32 +52,131 @@ export function formJsonTemplate(): string {
           component: '$component(Input)',
           componentProps: { label: 'Email', type: 'email' },
         },
+        {
+          selector: 'contactMethod',
+          value: '$model(contactMethod)',
+          component: '$component(Select)',
+          componentProps: {
+            label: 'Способ связи',
+            // Опции приходят из data-sources.ts — реестр связывает имя со значением.
+            options: '$dataSource(contactMethods)',
+            placeholder: 'Выберите способ',
+          },
+        },
       ],
     },
   };
   return JSON.stringify(schema, null, 2) + '\n';
 }
 
-/** Модель формы (тип данных + начальные значения) — источник истины для валидации/поведения/UI. */
-export function modelTsTemplate(formName: string): string {
+/**
+ * Типы формы: тип данных модели, тип элемента справочника, доменные константы. Отдельный файл —
+ * требование канона раскладки (`types.ts` — «form type + enums + option type + dictionaries»),
+ * и он же разрывает круг импортов: `data-sources.ts` берёт отсюда `SelectOption`, а `model.ts` —
+ * `FormShape`, не завися при этом друг от друга.
+ */
+export function typesTsTemplate(formName: string): string {
   return `/**
- * Модель формы «${formName}» — тип данных (источник истины) и начальные значения.
- * Импортируется схемами валидации/поведения/UI. Docs: @reformer/core (FormModel<T>).
+ * Типы формы «${formName}» — тип данных модели и типы справочников. Источник истины для схем
+ * валидации/поведения/UI: они импортируют \`FormShape\` отсюда, а не из model.ts.
  */
 
 export interface FormShape {
   name: string;
   email: string;
+  /** Способ связи — значение берётся из справочника \`contactMethods\` (data-sources.ts). */
+  contactMethod: string;
   /** Пример вычисляемого поля (заполняется form.behavior.ts). */
   greeting: string;
 }
 
-/** Начальные значения — для createForm/useFormControl. */
+/** Элемент справочника: значение + подпись. Тот же тип печатает кодоген примеров. */
+export type SelectOption = { value: string; label: string };
+`;
+}
+
+/** Модель формы (начальные значения) — стартовое состояние для createJsonForm/useFormControl. */
+export function modelTsTemplate(formName: string): string {
+  return `/**
+ * Модель формы «${formName}» — начальные значения. Тип модели живёт в types.ts (канон раскладки),
+ * поэтому здесь только данные. Docs: @reformer/core (FormModel<T>).
+ */
+import type { FormShape } from './types';
+
+/** Начальные значения — для createJsonForm/useFormControl. */
 export const initialFormModel: FormShape = {
   name: '',
   email: '',
+  contactMethod: '',
   greeting: '',
 };
+`;
+}
+
+/**
+ * Справочники и загрузчики (`data-sources.ts`) — значения, которые схема тянет оператором
+ * `$dataSource(...)`, а `registry.ts` связывает с их именами.
+ */
+export function dataSourcesTsTemplate(formName: string): string {
+  return `/**
+ * Справочники формы «${formName}» — значения операторов \`$dataSource(...)\` из
+ * renderer.schema.json. Имя экспорта = имя в схеме; связывает их registry.ts
+ * (\`reg.dataSource('contactMethods', contactMethods)\`).
+ */
+import type { SelectOption } from './types';
+
+/** Способы связи — опции поля \`contactMethod\`. */
+export const contactMethods: SelectOption[] = [
+  { value: 'email', label: 'Электронная почта' },
+  { value: 'phone', label: 'Телефон' },
+  { value: 'telegram', label: 'Telegram' },
+];
+
+// ── Шпаргалка ──
+
+// Справочник с бэкенда: грузите его в renderer.behavior.ts (onMount узла) и кладите в реестр
+// либо патчите пропсы узла — сам \`$dataSource\` синхронен и функцию-загрузчик не вызывает:
+// export const cities: SelectOption[] = [];
+// export async function loadCities(): Promise<SelectOption[]> {
+//   const res = await fetch('/api/cities');
+//   return (await res.json()) as SelectOption[];
+// }
+`;
+}
+
+/** Загрузка и отправка (`api.ts`) — единственное место, где форма ходит на бэкенд. */
+export function apiTsTemplate(formName: string): string {
+  return `/**
+ * Бэкенд формы «${formName}» — отправка и загрузка. Мок с задержкой: форма работает сразу,
+ * реальные запросы вписываются здесь и больше нигде.
+ */
+import type { FormShape } from './types';
+
+export type ApiResult<T> = { success: true; data: T } | { success: false; error: string };
+
+const API_DELAY = 600;
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** POST — отправка формы. TODO: заменить на реальный запрос. */
+export async function submitForm(values: FormShape): Promise<ApiResult<{ id: string }>> {
+  await wait(API_DELAY);
+  // eslint-disable-next-line no-console
+  console.info('[${formName}] submit', values);
+  return { success: true, data: { id: String(Date.now()) } };
+}
+
+// ── Шпаргалка ──
+
+// Префилл (GET перед показом формы) — зовите из renderer.behavior.ts на onMount корневого узла
+// и кладите результат в модель:
+// export async function loadForm(id: string): Promise<ApiResult<FormShape>> {
+//   const res = await fetch(\`/api/forms/\${id}\`);
+//   if (!res.ok) return { success: false, error: res.statusText };
+//   return { success: true, data: (await res.json()) as FormShape };
+// }
 `;
 }
 
@@ -87,7 +186,7 @@ export function validationTsTemplate(formName: string): string {
  * Схема валидации формы «${formName}» — правила над МОДЕЛЬЮ (не в JSON-схеме формы).
  * Запуск: validateModel(model, formValidation). Docs: @reformer/core/validation.
  *
- * Ниже — активные правила под поля model.ts + шпаргалка частых случаев (раскомментируйте/
+ * Ниже — активные правила под поля \`FormShape\` (types.ts) + шпаргалка частых случаев (раскомментируйте/
  * скопируйте под свои поля вместе с нужным импортом).
  */
 import {
@@ -100,7 +199,7 @@ import { required, email, minLength, maxLength } from '@reformer/core/validators
 // «на всякий случай» нельзя: проекты собираются с \`noUnusedLocals\`, и форма не скомпилируется.
 // import { validateAsync, validateWhen, cross, each, apply } from '@reformer/core/validation';
 // import { min, max, pattern, url, phone, isNumber, integer, multipleOf, nonNegative } from '@reformer/core/validators';
-import type { FormShape } from './model';
+import type { FormShape } from './types';
 
 /**
  * КОГДА гонять валидацию. Одна точка истины: её читает и \`index.tsx\` (через \`useFormValidation\`),
@@ -175,14 +274,14 @@ export function formBehaviorTsTemplate(formName: string): string {
  * Поведение формы «${formName}» — реактивные связи над МОДЕЛЬЮ (вычисляемые поля, копирование,
  * доступность, ре-валидация). Docs: @reformer/core/behaviors.
  *
- * Ниже — активное поведение под поля model.ts + шпаргалка частых случаев (раскомментируйте нужное
+ * Ниже — активное поведение под поля \`FormShape\` (types.ts) + шпаргалка частых случаев (раскомментируйте нужное
  * вместе с его импортом).
  */
 import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
 // Импорты для шпаргалки ниже — раскомментируйте то, что понадобится. Держать их подключёнными
 // «на всякий случай» нельзя: проекты собираются с \`noUnusedLocals\`, и форма не скомпилируется.
 // import { compute, copyFrom, syncFields, onChange, enableWhen, disableWhen, resetWhen, revalidateWhen } from '@reformer/core/behaviors';
-import type { FormShape } from './model';
+import type { FormShape } from './types';
 
 export const formBehavior = defineFormBehavior<FormShape>(({ model }) => {
   // ── Активное поведение ──
@@ -233,7 +332,7 @@ export function renderBehaviorTsTemplate(formName: string): string {
  */
 import type { RenderBehaviorFn } from '@reformer/renderer-react';
 // import { hideWhen, renderEffect, onComponentEvent, onInit, onMount, onUnmount } from '@reformer/renderer-react';
-import type { FormShape } from './model';
+import type { FormShape } from './types';
 
 export const formRenderBehavior: RenderBehaviorFn<FormShape> = (schema) => {
   // Скрыть узел по условию (реактивно — читай сигнал целиком):
@@ -266,10 +365,12 @@ export function registryTsTemplate(formName: string): string {
   return `/**
  * Реестр компонентов формы «${formName}» — что рендерить под каждое \`$component(...)\` из
  * renderer.schema.json. \`FIELD_WRAPPER\` (FormField) оборачивает каждый лист: label + ошибки. Добавили в схему новый
- * \`$component(X)\` — зарегистрируйте X здесь (field-компоненты ui-kit: \`XField\`). Docs: @reformer/renderer-json.
+ * \`$component(X)\` — зарегистрируйте X здесь (field-компоненты ui-kit: \`XField\`); новый
+ * \`$dataSource(y)\` — заведите \`y\` в data-sources.ts и свяжите здесь же. Docs: @reformer/renderer-json.
  */
-import { InputField, FormField } from '@reformer/ui-kit';
+import { FormField, InputField, SelectField } from '@reformer/ui-kit';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
+import { contactMethods } from './data-sources';
 
 export function createRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
@@ -277,6 +378,9 @@ export function createRegistry(): ComponentRegistry {
     reg.component(FIELD_WRAPPER, FormField);
     // Поля: имя в схеме → компонент ui-kit.
     reg.component('Input', InputField);
+    reg.component('Select', SelectField);
+    // Справочники: имя в \`$dataSource(...)\` → значение из data-sources.ts.
+    reg.dataSource('contactMethods', contactMethods);
   });
 }
 `;
@@ -291,8 +395,9 @@ export function indexTsxTemplate(formName: string): string {
   const Comp = componentName(formName);
   return `/**
  * Форма «${formName}» — сборка и рендер. В JSX только провайдер реестра и рендерер: весь layout
- * живёт в renderer.schema.json, значения/поведение/валидация — в model.ts / form.behavior.ts /
- * validation.ts / renderer.behavior.ts.
+ * живёт в renderer.schema.json, типы — в types.ts, значения/поведение/валидация — в model.ts /
+ * form.behavior.ts / validation.ts / renderer.behavior.ts, справочники — в data-sources.ts,
+ * запросы — в api.ts.
  *
  * Готова к работе сразу: рендерится на \`initialFormModel\`, «Отправить» гоняет валидацию. Подключение
  * в react-playground: \`import ${Comp} from './pages/examples/<папка>';\` + \`<Route element={<${Comp} />} />\`.
@@ -309,10 +414,12 @@ import {
 import { Button } from '@reformer/ui-kit';
 import rawSchema from './renderer.schema.json';
 import { createRegistry } from './registry';
-import { initialFormModel, type FormShape } from './model';
+import { initialFormModel } from './model';
+import type { FormShape } from './types';
 import { formBehavior } from './form.behavior';
 import { formValidation, validationOptions } from './validation';
 import { formRenderBehavior } from './renderer.behavior';
+import { submitForm } from './api';
 
 // В чистом JSON операторы типизируются как \`string\` — приведение = сценарий «схема пришла с сервера».
 const schema = rawSchema as unknown as JsonFormSchema<FormShape>;
@@ -344,10 +451,11 @@ export default function ${Comp}() {
       setStatus('Проверьте выделенные поля');
       return;
     }
-    // TODO: отправка на бэкенд (пример флоу — в renderer-json examples: api.ts + submit).
-    // eslint-disable-next-line no-console
-    console.info('[${formName}] submit', jsonForm.model.get());
-    setStatus('Форма валидна — данные готовы к отправке');
+    // Бэкенд — только через api.ts: страница не знает ни про fetch, ни про эндпоинты.
+    const result = await submitForm(jsonForm.model.get());
+    setStatus(
+      result.success ? \`Отправлено, номер заявки \${result.data.id}\` : \`Ошибка: \${result.error}\`
+    );
   };
 
   return (

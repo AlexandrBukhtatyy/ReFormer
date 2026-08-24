@@ -112,8 +112,11 @@ npm run builder
 Три источника шаблонов:
 
 - **встроенные** — «Простая форма» (одна страница полей) и «Пошаговая форма» (визард на два шага с
-  адаптером к ui-kit `FormWizard`). Оба дают полный набор: модель, схема, валидация, поведение формы
-  и UI, реестр, страница-компонент — она тянет остальные файлы, без них не соберётся;
+  адаптером к ui-kit `FormWizard`). Оба дают полный набор файлов модуля формы по канону раскладки
+  `renderer-json` (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1): `index.tsx`,
+  `types.ts`, `model.ts`, `renderer.schema.json`, `form.behavior.ts`, `renderer.behavior.ts`,
+  `validation.ts`, `data-sources.ts`, `api.ts`, `registry.ts` (+ `renderer.wizard.tsx` у визарда).
+  Страница-компонент тянет остальные файлы, без них не соберётся;
 - **проект** — папки в `.reformer/templates/<slug>/` (каталог переопределяется
   `project.templatesDir`). Обычные файлы + `template.json` с именем и описанием: шаблон едет в git,
   правится руками в IDE и работает у всей команды;

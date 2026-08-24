@@ -12,6 +12,13 @@ describe('registryTsTemplate', () => {
     expect(src).toContain("from '@reformer/renderer-json'");
     expect(src).toContain('export function createRegistry(): ComponentRegistry');
   });
+  // `data-sources.ts` существует не ради галочки в каноне: реестр — единственное место, где
+  // значение справочника встречается с именем из `$dataSource(...)` схемы.
+  it('справочник из data-sources.ts связан с именем в схеме', () => {
+    expect(src).toContain("import { contactMethods } from './data-sources'");
+    expect(src).toContain("reg.component('Select', SelectField)");
+    expect(src).toContain("reg.dataSource('contactMethods', contactMethods)");
+  });
 });
 
 describe('indexTsxTemplate', () => {
@@ -22,7 +29,10 @@ describe('indexTsxTemplate', () => {
   it('собирает форму одним проходом: createJsonForm + renderer.schema.json + registry + behavior → JsonFormRenderer', () => {
     expect(src).toContain("import rawSchema from './renderer.schema.json'");
     expect(src).toContain("import { createRegistry } from './registry'");
-    expect(src).toContain("import { initialFormModel, type FormShape } from './model'");
+    // Канон раскладки делит роли: тип формы живёт в types.ts, начальные значения — в model.ts,
+    // поэтому импортов два, а не один.
+    expect(src).toContain("import { initialFormModel } from './model'");
+    expect(src).toContain("import type { FormShape } from './types'");
     expect(src).toContain("import { formBehavior } from './form.behavior'");
     expect(src).toContain("import { formRenderBehavior } from './renderer.behavior'");
     expect(src).toContain('createJsonForm<FormShape>(');
@@ -40,6 +50,12 @@ describe('indexTsxTemplate', () => {
     expect(src).toContain('useFormValidation({');
     expect(src).toContain('...validationOptions');
     expect(src).toContain('await validation.submit()');
+  });
+  // Запросы — только через api.ts: страница не знает ни про fetch, ни про эндпоинты.
+  it('отправка идёт через api.ts, а не через console.info на месте', () => {
+    expect(src).toContain("import { submitForm } from './api'");
+    expect(src).toContain('await submitForm(jsonForm.model.get())');
+    expect(src).not.toContain('TODO: отправка на бэкенд');
   });
   it('PascalCase: дефис/пробел → одно имя, ведущая цифра защищена, суффикс не задваивается', () => {
     expect(indexTsxTemplate('loan-application')).toContain(
