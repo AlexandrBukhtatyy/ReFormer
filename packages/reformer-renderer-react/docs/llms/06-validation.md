@@ -194,7 +194,7 @@ export function makeCreditValidationConfig(model: M) {
 import type { FormModel, FormProxy } from '@reformer/core';
 import type { RenderNode } from '@reformer/renderer-react';
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
-import { Input } from '@reformer/ui-kit';
+import { InputField } from '@reformer/ui-kit';
 import { makeCreditValidationConfig } from './validation';
 import type { CreditForm } from './types';
 
@@ -213,7 +213,7 @@ export function buildSchema(
           number: 1,
           title: 'Кредит',
           body: {
-            component: Input, // лист несёт только value/component/componentProps — без validators
+            component: InputField, // лист несёт только value/component/componentProps — без validators
             value: model.$.loanAmount,
             componentProps: { label: 'Сумма' },
           },
@@ -226,7 +226,7 @@ export function buildSchema(
 
 ## Anti-patterns
 
-- **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: Input, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной `ValidationSchema` над моделью (Шаг 1), а не в render-дереве.
+- **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: InputField, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной `ValidationSchema` над моделью (Шаг 1), а не в render-дереве.
 - **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает ошибки, уже проставленные в ноды. Значения проверяет `validateModel(model, schema)`; без её вызова (обычно из `validateStep`/`validateAll` wizard-а) поля не подсветятся.
 - **Читать текущее значение вместо сигнала в `validate`** — оператор это `validate(model.$.path, [rules])`, где `model.$.path` — СИГНАЛ (стабильная ссылка на форму модели), а не текущее значение поля. Значения читает раннер в момент прогона; cross-field берёт снапшот через `model.get()` внутри `cross(sig, fn)`. Не передавайте в `validate` результат `model.get()` / `.value`.
 - **Пересоздавать схему на каждый вызов конфига** (`validateModel(model, defineValidationSchema(...))` инлайн) — раннер отменяет **устаревший прогон той же `(model, schema)`** по ссылке на схему. Новый объект схемы на каждый вызов ломает отмену и гашение полей. Держите схемы стабильными module-level `const` (`STEP_SCHEMAS`, `fullSchema`).

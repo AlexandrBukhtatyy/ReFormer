@@ -208,9 +208,9 @@ function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out:
  *   component: Section,
  *   children: [
  *     // Layout несёт только component/componentProps; правила — в отдельной ValidationSchema.
- *     { value: model.$.email, component: Input },
+ *     { value: model.$.email, component: InputField },
  *     // вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
- *     { value: model.$.profile.name, component: Input },
+ *     { value: model.$.profile.name, component: InputField },
  *   ],
  * };
  *
@@ -310,8 +310,8 @@ const isFormModelArgs = <T>(arg: unknown): arg is CreateFormFromModelArgs<T> =>
  * // Layout-схема НЕ несёт validators — только component/componentProps.
  * const schema = {
  *   children: [
- *     { value: model.$.email, component: Input },
- *     { value: model.$.password, component: Input },
+ *     { value: model.$.email, component: InputField },
+ *     { value: model.$.password, component: InputField },
  *   ],
  * };
  *
@@ -344,8 +344,8 @@ export function createForm<T>(config: GroupNodeConfig<T>): FormProxy<T>;
  * @example Legacy (back-compat) — плоская схема без модели
  * ```typescript
  * const form = createForm<UserForm>({
- *   email: { value: '', component: Input },
- *   password: { value: '', component: Input },
+ *   email: { value: '', component: InputField },
+ *   password: { value: '', component: InputField },
  * });
  * ```
  */

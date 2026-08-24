@@ -61,7 +61,7 @@ interface FormFieldProps {
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createForm } from '@reformer/core';
-import { Button, FormField, Input, Select } from '@reformer/ui-kit';
+import { Button, FormField, InputField, SelectField } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   email: string;
@@ -75,12 +75,12 @@ function RegistrationPage() {
       children: [
         {
           value: model.$.email,
-          component: Input,
+          component: InputField,
           componentProps: { label: 'Email', placeholder: 'you@example.com', testId: 'email' },
         },
         {
           value: model.$.country,
-          component: Select,
+          component: SelectField,
           componentProps: {
             label: 'Страна',
             testId: 'country',
@@ -118,7 +118,7 @@ function RegistrationPage() {
 import { useMemo } from 'react';
 import { createForm } from '@reformer/core';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
-import { FormField, Input, Section } from '@reformer/ui-kit';
+import { FormField, InputField, Section } from '@reformer/ui-kit';
 import { createCreditApplicationModel } from './schemas/model';
 
 function CreditApplicationPage() {
@@ -129,9 +129,9 @@ function CreditApplicationPage() {
       component: Section,
       componentProps: { title: 'Заявка', className: 'space-y-4' },
       children: [
-        { value: model.$.email, component: Input, componentProps: { testId: 'email' } },
-        { value: model.$.phone, component: Input, componentProps: { testId: 'phone' } },
-        { value: model.$.amount, component: Input, componentProps: { testId: 'amount' } },
+        { value: model.$.email, component: InputField, componentProps: { testId: 'email' } },
+        { value: model.$.phone, component: InputField, componentProps: { testId: 'phone' } },
+        { value: model.$.amount, component: InputField, componentProps: { testId: 'amount' } },
       ],
     }));
     const form = createForm<CreditApplication>({ model, schema });
@@ -146,7 +146,7 @@ function CreditApplicationPage() {
 `testId` рендерер берёт из `componentProps.testId` листа schema:
 
 ```tsx
-{ value: itemModel.$.bank, component: Input, componentProps: { testId: 'existingLoan-bank' } }
+{ value: itemModel.$.bank, component: InputField, componentProps: { testId: 'existingLoan-bank' } }
 // → <FormField control={...} testId="existingLoan-bank" />
 // → data-testid="field-existingLoan-bank", "input-existingLoan-bank", ...
 ```
@@ -170,7 +170,7 @@ function CreditApplicationPage() {
 
 ```tsx
 import { FormField } from '@reformer/ui-kit';
-import { InputMask } from '@reformer/ui-kit/input-mask';
+import { InputMaskField } from '@reformer/ui-kit/input-mask';
 
 <FormField control={form.phone} testId="phone">
   <InputMask mask="+7 (999) 999-99-99" />
@@ -182,29 +182,34 @@ import { InputMask } from '@reformer/ui-kit/input-mask';
 > сложных случаев — двух input-ов рядом — используй `CdkFormField.Root` напрямую,
 > минуя ui-kit-обёртку.
 
-### 4. Checkbox-исключение
+### 4. Inline-label контролы (Checkbox, Switch)
 
-`Checkbox` сам рендерит `label` рядом с собственным контролом. Если бы
-`FormField` ставил `Label` сверху, мы получили бы дубль:
+`CheckboxField` и `SwitchField` сами рендерят `label` рядом с собственным контролом.
+Если бы `FormField` ставил `Label` сверху, мы получили бы дубль:
 
 ```
 Условия использования       <-- FormField.Label (нежелательно)
-[ ] Условия использования    <-- сам Checkbox
+[ ] Условия использования    <-- сам CheckboxField
 ```
 
-Поэтому `FormField` детектит `control.component === Checkbox` и не рендерит
-верхний `Label`:
+Поэтому `FormField` не рендерит верхний `Label` для контролов со статическим маркером
+`reformerLayout === 'inline-label'`. Сравнение с конкретным компонентом
+(`control.component === Checkbox`) снято в v7: маркер работает для любого варианта и
+для пользовательских контролов.
+
+> Маркер — неэнфорсимая конвенция. Свой inline-контрол обязан выставить
+> `MyControl.reformerLayout = 'inline-label'`, иначе подпись задвоится молча.
 
 ```tsx
 import { createModel, createForm } from '@reformer/core';
-import { Checkbox, FormField } from '@reformer/ui-kit';
+import { CheckboxField, FormField } from '@reformer/ui-kit';
 
 const model = createModel<{ accept: boolean }>({ accept: false });
 const schema = {
   children: [
     {
       value: model.$.accept,
-      component: Checkbox,
+      component: CheckboxField,
       componentProps: { label: 'Принимаю условия' },
     },
   ],

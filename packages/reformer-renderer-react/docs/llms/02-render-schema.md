@@ -64,7 +64,7 @@ if (isHtmlTagRenderNode(node)) {
 ```tsx
 import type { FormModel } from '@reformer/core';
 import type { RenderSchemaFn } from '@reformer/renderer-react';
-import { Box, Section, Input } from '@reformer/ui-kit';
+import { Box, Section, InputField } from '@reformer/ui-kit';
 
 const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
   return () => ({
@@ -75,8 +75,8 @@ const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
         component: Section,
         componentProps: { title: 'Личные данные', className: 'space-y-4' },
         children: [
-          { value: model.$.firstName, component: Input, componentProps: { label: 'Имя' } },
-          { value: model.$.lastName, component: Input, componentProps: { label: 'Фамилия' } },
+          { value: model.$.firstName, component: InputField, componentProps: { label: 'Имя' } },
+          { value: model.$.lastName, component: InputField, componentProps: { label: 'Фамилия' } },
         ],
       },
     ],
@@ -89,7 +89,7 @@ const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
 Узел-массив: `array` — реактивный массив модели, `item(itemModel)` строит поддерево по под-модели элемента, `initialValue` — фабрика нового элемента для кнопки «Добавить», `component` — компонент-рендерер секции. Оформление (заголовок, кнопки, empty-message, reorder) — в `componentProps`:
 
 ```tsx
-import { Box, FormArray, Input, Select } from '@reformer/ui-kit';
+import { Box, FormArray, InputField, SelectField } from '@reformer/ui-kit';
 
 const coBorrowersNode = {
   selector: 'co-borrowers-array',
@@ -107,8 +107,8 @@ const coBorrowersNode = {
     component: Box,
     componentProps: { className: 'space-y-3' },
     children: [
-      { value: im.$.phone, component: Input, componentProps: { label: 'Телефон' } },
-      { value: im.$.relationship, component: Select, componentProps: { label: 'Отношение' } },
+      { value: im.$.phone, component: InputField, componentProps: { label: 'Телефон' } },
+      { value: im.$.relationship, component: SelectField, componentProps: { label: 'Отношение' } },
     ],
   }),
 };

@@ -59,7 +59,7 @@ Layout-схема БЕЗ валидаторов — правила живут в
 const model = createModel<CreditApplicationForm>(initial);
 
 const schema = {
-  loanAmount: { value: model.$.loanAmount, component: Input },
+  loanAmount: { value: model.$.loanAmount, component: InputField },
   // вложенная группа — builder, принимающий ModelSignals<Sub>
   personalData: personalDataNodes(model.$.personalData),
   // массив — { array, item }

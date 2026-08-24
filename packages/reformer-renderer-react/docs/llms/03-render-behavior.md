@@ -46,8 +46,12 @@ renderEffect(schema, () => {
 ```tsx
 import { onComponentEvent } from '@reformer/renderer-react';
 
-onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditForm) => {
-  await submitCreditApplication(values);
+onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {
+  // `FormWizardProps.onSubmit` у ui-kit — это `() => void | Promise<void>`: аргументов нет,
+  // снимок берётся из модели. Типизировать как `(values: CreditForm) => …` — TS2322.
+  // Валидировать здесь руками не надо: кнопка отправки гейтит вызов через `config.validateAll`
+  // и при провале сюда не доходит (reformer://docs/cdk/multi-step-submit).
+  await submitCreditApplication(model.get());
 });
 ```
 

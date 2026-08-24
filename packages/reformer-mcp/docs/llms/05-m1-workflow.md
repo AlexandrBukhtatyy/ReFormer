@@ -36,11 +36,11 @@ only, no validators**. Validation is a *separate* ambient schema (step 4), not a
 Layout (Step/Section/Grid) stays in React, not in the schema.
 
 ```ts
-import { Input } from '@reformer/ui-kit';
+import { InputField } from '@reformer/ui-kit';
 const schema = {
   children: [
-    { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
-    { value: model.$.password, component: Input, componentProps: { label: 'Password' } },
+    { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
+    { value: model.$.password, component: InputField, componentProps: { label: 'Password' } },
   ],
 };
 ```
@@ -172,7 +172,7 @@ The bundle from step 3 goes to the renderer as a single prop — targets differ 
   a `defineRegistry` mapping names → components, then `createJsonForm({ schema, registry, model | initial })`
   and `<JsonRendererProvider settings={{ registry: bundle.registry }}>` + `<JsonFormRenderer form={bundle} />`.
   **Validate the JSON with the `validate_json_schema` tool before rendering.** `find_recipe json-schema`.
-- **Raw third-party controls (non-ui-kit)**: add `resolveFieldAdapter(component) => FieldAdapter | undefined` to the renderer `settings` (both renderer-react and renderer-json) — the renderer maps the value-seam (`value` + `onChange(value)`) to each control's dialect. ui-kit components are already value-based and need no adapter.
+- **Raw third-party controls (non-ui-kit)**: add `resolveFieldAdapter(component) => FieldAdapter | undefined` to the renderer `settings` (both renderer-react and renderer-json) — the renderer maps the value-seam (`value` + `onChange(value)`) to each control's dialect. The **`*Field` line** of ui-kit (`InputField`, `SelectField`, `CheckboxField`, `RadioGroupField`, `TextareaField`, `InputMaskField`) is already value-based and needs no adapter — put those in forms. The bare primitives (`Input`, `Select`, `Checkbox`, …) are shadcn-style presentational controls with a native `onChange(event)`: in a form they write the event object into the model, so they need an adapter just like any third-party control.
 
 ### Validation is a separate schema, not part of the render tree (renderer-react / renderer-json)
 

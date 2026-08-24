@@ -38,16 +38,16 @@ interface CheckboxProps {
 Согласие с условиями:
 
 ```tsx
-import { Checkbox } from '@reformer/ui-kit';
+import { CheckboxField } from '@reformer/ui-kit';
 
-<Checkbox value={agree} onChange={setAgree} label="Согласен с условиями" />;
+<CheckboxField value={agree} onChange={setAgree} label="Согласен с условиями" />;
 ```
 
 Чекбокс без подписи (label рендерится снаружи или не нужен):
 
 ```tsx
 <div className="flex items-center gap-2">
-  <Checkbox value={hasMortgage} onChange={setHasMortgage} />
+  <CheckboxField value={hasMortgage} onChange={setHasMortgage} />
   <span>У меня уже есть ипотека</span>
 </div>
 ```
@@ -57,12 +57,12 @@ label сверху):
 
 ```tsx
 import { createModel, createForm } from '@reformer/core';
-import { Checkbox, FormField } from '@reformer/ui-kit';
+import { CheckboxField, FormField } from '@reformer/ui-kit';
 
 const model = createModel<{ accept: boolean }>({ accept: false });
 const schema = {
   children: [
-    { value: model.$.accept, component: Checkbox, componentProps: { label: 'Принять' } },
+    { value: model.$.accept, component: CheckboxField, componentProps: { label: 'Принять' } },
   ],
 };
 const form = createForm<{ accept: boolean }>({ model, schema });
@@ -72,10 +72,15 @@ const form = createForm<{ accept: boolean }>({ model, schema });
 
 ### Anti-patterns
 
-- Передавать `value: 'yes' | 'no'` (строку) — `Checkbox` ожидает `boolean`. Для
-  строкового выбора используйте `RadioGroup` (два варианта) или `Select`.
-- Делать `<Checkbox checked={x} onChange={…}>` (как с нативным `<input
-type="checkbox">`) — пропа `checked` нет, нужно `value`.
+- Передавать `value: 'yes' | 'no'` (строку) — `CheckboxField` ожидает `boolean`. Для
+  строкового выбора используйте `RadioGroupField` (два варианта) или `SelectField`.
+- Делать `<CheckboxField checked={x} onChange={…}>` (как с нативным `<input
+type="checkbox">`) — у field-версии пропа `checked` нет, нужно `value`.
+- **Ставить в форму примитив `Checkbox` вместо `CheckboxField`.** У примитива всё
+  наоборот: он Radix-контрол с `checked`, и `value={true}` он проигнорирует —
+  чекбокс останется `aria-checked="false"`, а `label`/`value` утекут в DOM-атрибуты.
+  То же для `RadioGroup`/`RadioGroupField` (примитив отрисуется пустым) и
+  `Select`/`SelectField`.
 
 ## RadioGroup
 
@@ -112,7 +117,7 @@ interface RadioGroupProps {
 Вертикальная раскладка (default):
 
 ```tsx
-import { RadioGroup } from '@reformer/ui-kit';
+import { RadioGroupField } from '@reformer/ui-kit';
 
 const LOAN_TYPES = [
   { value: 'consumer', label: 'Потребительский' },
@@ -120,13 +125,13 @@ const LOAN_TYPES = [
   { value: 'auto', label: 'Авто' },
 ];
 
-<RadioGroup value={loanType} onChange={setLoanType} options={LOAN_TYPES} />;
+<RadioGroupField value={loanType} onChange={setLoanType} options={LOAN_TYPES} />;
 ```
 
 Горизонтальная раскладка (через `className`):
 
 ```tsx
-<RadioGroup
+<RadioGroupField
   value={size}
   onChange={setSize}
   options={[
@@ -148,7 +153,7 @@ const schema = {
   children: [
     {
       value: model.$.loanType,
-      component: RadioGroup,
+      component: RadioGroupField,
       componentProps: { options: LOAN_TYPES },
     },
   ],
@@ -246,9 +251,9 @@ interface SelectProps<T> {
 Inline `options`:
 
 ```tsx
-import { Select } from '@reformer/ui-kit';
+import { SelectField } from '@reformer/ui-kit';
 
-<Select
+<SelectField
   value={loanType}
   onChange={setLoanType}
   placeholder="Тип кредита"
@@ -262,7 +267,7 @@ import { Select } from '@reformer/ui-kit';
 Async `resource`, стратегия `preload` (грузим всё, поиск на клиенте):
 
 ```tsx
-import { Select, type ResourceConfig } from '@reformer/ui-kit';
+import { SelectField, type ResourceConfig } from '@reformer/ui-kit';
 
 const banksResource: ResourceConfig<string> = {
   type: 'preload',
@@ -276,7 +281,7 @@ const banksResource: ResourceConfig<string> = {
   },
 };
 
-<Select value={bankId} onChange={setBankId} resource={banksResource} />;
+<SelectField value={bankId} onChange={setBankId} resource={banksResource} />;
 ```
 
 Стратегия `partial` (серверные поиск + пагинация больших списков):
@@ -296,13 +301,13 @@ const usersResource: ResourceConfig<string> = {
   },
 };
 
-<Select value={userId} onChange={setUserId} resource={usersResource} clearable />;
+<SelectField value={userId} onChange={setUserId} resource={usersResource} clearable />;
 ```
 
 Grouped options:
 
 ```tsx
-<Select
+<SelectField
   value={city}
   onChange={setCity}
   options={[
@@ -317,7 +322,7 @@ Grouped options:
 `clearable` (с очисткой):
 
 ```tsx
-<Select
+<SelectField
   value={status}
   onChange={setStatus}
   clearable
@@ -339,7 +344,7 @@ const schema = {
   children: [
     {
       value: model.$.city,
-      component: Select,
+      component: SelectField,
       componentProps: {
         placeholder: 'Город',
         options: [

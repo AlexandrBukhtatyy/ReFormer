@@ -401,8 +401,8 @@ function createReadonlyBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 
 | TS RenderSchema (`@reformer/renderer-react`)                                             | JSON-схема (`@reformer/renderer-json`, M1)                                                                 |
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `{ value: path.email, component: Input }`                                                | `{ value: '$model(email)', component: '$component(Input)' }`                                               |
-| `{ value: path.personalData.firstName, component: Input }`                               | `{ value: '$model(personalData.firstName)', component: '$component(Input)' }`                              |
+| `{ value: path.email, component: InputField }`                                                | `{ value: '$model(email)', component: '$component(Input)' }`                                               |
+| `{ value: path.personalData.firstName, component: InputField }`                               | `{ value: '$model(personalData.firstName)', component: '$component(Input)' }`                              |
 | `{ component: Box, componentProps: { className: 'grid' }, children: [...] }`             | `{ component: '$component(Box)', componentProps: { className: 'grid' }, children: [...] }`                 |
 | `{ component: Section, componentProps: { title: 'X' }, children: [...] }`                | `{ component: '$component(Section)', componentProps: { title: 'X' }, children: [...] }`                    |
 | `{ selector: 'mortgage-section', component: Section, ... }`                              | то же — `selector` сохраняется (plain-строка)                                                             |

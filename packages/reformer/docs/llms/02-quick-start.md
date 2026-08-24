@@ -18,7 +18,7 @@
 import { createCoreForm, createModel, useFormBundle, type FormProxy } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
-import { FormField, Input, Button } from '@reformer/ui-kit';
+import { FormField, InputField, Button } from '@reformer/ui-kit';
 
 // 1. Define form type as `type` alias (not `interface` — see Recipe 2)
 type ContactForm = {
@@ -34,12 +34,12 @@ const model = createModel<ContactForm>({ name: '', email: '' });
 const schema = {
   name: {
     value: model.$.name,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Name', placeholder: 'Your name' },
   },
   email: {
     value: model.$.email,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Email', type: 'email' },
   },
 };
@@ -113,13 +113,13 @@ const model = createModel<MyForm>({ properties: [] });
 const propertyItem = (item: FormModel<PropertyItem>) => ({
   type: {
     value: item.$.type,
-    component: Select,
+    component: SelectField,
     componentProps: { label: 'Тип', options: [/* ... */] },
   },
-  description: { value: item.$.description, component: Textarea, componentProps: { label: 'Описание' } },
+  description: { value: item.$.description, component: TextareaField, componentProps: { label: 'Описание' } },
   estimatedValue: {
     value: item.$.estimatedValue,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Стоимость', type: 'number' },
   },
 });

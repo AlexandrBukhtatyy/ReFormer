@@ -71,7 +71,7 @@ import { revalidateWhen, type ValidationError } from '@reformer/core';
 // ❌ старое (УДАЛЕНО): дерево { value, validators }, ModelValidator (value, scope, root), validateFormModel
 const legacyRule: ModelValidator<number, unknown, Form> = (_value, _scope, root) =>
   root.field1 > root.field2 ? { code: 'error', message: 'Invalid' } : null;
-const legacySchema = { field1: { value: model.$.field1, component: Input, validators: [legacyRule] } };
+const legacySchema = { field1: { value: model.$.field1, component: InputField, validators: [legacyRule] } };
 validateFormModel(model, legacySchema);
 
 // ✅ новое: cross-правило — обычная функция над снапшотом (model.get()), не читает scope/root

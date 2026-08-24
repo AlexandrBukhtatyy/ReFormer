@@ -179,7 +179,7 @@ defineRegistry((reg) => {
 
 ```tsx
 // ❌ silent corruption (FieldConfig as value)
-initialValue={{ type: { value: 'apartment', component: Select }, ... }}
+initialValue={{ type: { value: 'apartment', component: SelectField }, ... }}
 
 // ✅ plain primitives matching item shape
 initialValue={{ type: 'apartment', description: '', estimatedValue: 0 }}

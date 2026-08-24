@@ -128,7 +128,7 @@ const { value, errors, disabled } = useFormControl(control.loanType);
 import { createCoreForm, createModel, useFormBundle, type FormProxy } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
-import { FormField, Input, Button } from '@reformer/ui-kit';
+import { FormField, InputField, Button } from '@reformer/ui-kit';
 
 // 1. Define form type as `type` alias (not `interface` — see Recipe 2)
 type ContactForm = {
@@ -144,12 +144,12 @@ const model = createModel<ContactForm>({ name: '', email: '' });
 const schema = {
   name: {
     value: model.$.name,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Name', placeholder: 'Your name' },
   },
   email: {
     value: model.$.email,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Email', type: 'email' },
   },
 };
@@ -223,13 +223,13 @@ const model = createModel<MyForm>({ properties: [] });
 const propertyItem = (item: FormModel<PropertyItem>) => ({
   type: {
     value: item.$.type,
-    component: Select,
+    component: SelectField,
     componentProps: { label: 'Тип', options: [/* ... */] },
   },
-  description: { value: item.$.description, component: Textarea, componentProps: { label: 'Описание' } },
+  description: { value: item.$.description, component: TextareaField, componentProps: { label: 'Описание' } },
   estimatedValue: {
     value: item.$.estimatedValue,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Стоимость', type: 'number' },
   },
 });
@@ -335,9 +335,9 @@ const model = createModel<Loan>({ email: '', age: 0, amount: 0 });
 const form = createForm({
   model,
   schema: {
-    email:  { value: model.$.email,  component: Input },
-    age:    { value: model.$.age,    component: Input },
-    amount: { value: model.$.amount, component: Input },
+    email:  { value: model.$.email,  component: InputField },
+    age:    { value: model.$.age,    component: InputField },
+    amount: { value: model.$.amount, component: InputField },
   },
 });
 
@@ -837,7 +837,7 @@ computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => pr
 ```typescript
 // ❌ WRONG - дерево { value, validators } и позиционная строка удалены
 const schema = {
-  email: { value: model.$.email, component: Input, validators: [required(), email()] },
+  email: { value: model.$.email, component: InputField, validators: [required(), email()] },
 };
 validate(path.email, required(), 'Email is required'); // старая сигнатура validate() — удалена
 
@@ -1090,7 +1090,7 @@ layout-схеме НЕТ — правила живут в отдельной с�
 ```typescript
 {
   value: model.$.fieldName,   // сигнал модели (PathAwareSignal) — обязателен
-  component: Input,           // React-компонент
+  component: InputField,           // React-компонент
   componentProps?: object,    // пропсы (label, placeholder, options, type, ...)
   disabled?: boolean,
   updateOn?: 'change' | 'blur' | 'submit',
@@ -1108,7 +1108,7 @@ layout-схеме НЕТ — правила живут в отдельной с�
 import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
-import { Input, Select, Checkbox } from '@reformer/ui-kit';
+import { InputField, SelectField, CheckboxField } from '@reformer/ui-kit';
 
 const model = createModel<MyForm>({ name: '', age: null, agree: false, status: 'active' });
 
@@ -1120,22 +1120,22 @@ const myValidation = defineValidationSchema<MyForm>(({ model }) => {
 const schema = {
   name: {
     value: model.$.name,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Name', placeholder: 'Enter name' },
   },
   age: {
     value: model.$.age,
-    component: Input,
+    component: InputField,
     componentProps: { type: 'number', label: 'Age' },
   },
   agree: {
     value: model.$.agree,
-    component: Checkbox,
+    component: CheckboxField,
     componentProps: { label: 'I agree to terms' },
   },
   status: {
     value: model.$.status,
-    component: Select,
+    component: SelectField,
     componentProps: {
       label: 'Status',
       options: [
@@ -1159,9 +1159,9 @@ const form = createForm<MyForm>({ model, schema });
 import type { FormModel } from '@reformer/core';
 
 const addressNodes = (m: FormModel<Address>) => ({
-  street: { value: m.$.street, component: Input, componentProps: { label: 'Street' } },
-  city:   { value: m.$.city,   component: Input, componentProps: { label: 'City' } },
-  zip:    { value: m.$.zip,    component: Input, componentProps: { label: 'ZIP' } },
+  street: { value: m.$.street, component: InputField, componentProps: { label: 'Street' } },
+  city:   { value: m.$.city,   component: InputField, componentProps: { label: 'City' } },
+  zip:    { value: m.$.zip,    component: InputField, componentProps: { label: 'ZIP' } },
 });
 
 const schema = {
@@ -1178,8 +1178,8 @@ const schema = {
 import type { FormModel } from '@reformer/core';
 
 const itemSchema = (item: FormModel<Item>) => ({
-  id:   { value: item.$.id,   component: Input, componentProps: { label: 'ID' } },
-  name: { value: item.$.name, component: Input, componentProps: { label: 'Name' } },
+  id:   { value: item.$.id,   component: InputField, componentProps: { label: 'ID' } },
+  name: { value: item.$.name, component: InputField, componentProps: { label: 'Name' } },
 });
 
 const schema = {
@@ -1233,7 +1233,7 @@ if (isFieldNode(node)) { /* ... */ }
 
 ```typescript
 import { createModel, createForm, type FormModel } from '@reformer/core';
-import { Input } from '@reformer/ui-kit';
+import { InputField } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
 type MyForm = { items: Item[] };
@@ -1242,9 +1242,9 @@ const model = createModel<MyForm>({ items: [] });
 
 // под-схема одного элемента (item.$.field — сигнал под-модели)
 const itemSchema = (item: FormModel<Item>) => ({
-  id:    { value: item.$.id,    component: Input },
-  name:  { value: item.$.name,  component: Input },
-  price: { value: item.$.price, component: Input, componentProps: { type: 'number' } },
+  id:    { value: item.$.id,    component: InputField },
+  name:  { value: item.$.name,  component: InputField },
+  price: { value: item.$.price, component: InputField, componentProps: { type: 'number' } },
 });
 
 const schema = {
@@ -1645,7 +1645,7 @@ import { revalidateWhen, type ValidationError } from '@reformer/core';
 // ❌ старое (УДАЛЕНО): дерево { value, validators }, ModelValidator (value, scope, root), validateFormModel
 const legacyRule: ModelValidator<number, unknown, Form> = (_value, _scope, root) =>
   root.field1 > root.field2 ? { code: 'error', message: 'Invalid' } : null;
-const legacySchema = { field1: { value: model.$.field1, component: Input, validators: [legacyRule] } };
+const legacySchema = { field1: { value: model.$.field1, component: InputField, validators: [legacyRule] } };
 validateFormModel(model, legacySchema);
 
 // ✅ новое: cross-правило — обычная функция над снапшотом (model.get()), не читает scope/root
@@ -1722,7 +1722,7 @@ export const createCreditApplicationModel = (): FormModel<CreditApplicationForm>
 // forms/credit-application/form.schema.ts
 import type { FormModel } from '@reformer/core';
 export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
-  loanType: { value: model.$.loanType, component: Select, componentProps: { /* ... */ } },
+  loanType: { value: model.$.loanType, component: SelectField, componentProps: { /* ... */ } },
   personalData: personalDataNodes(model.$.personalData),
   properties: { array: model.properties, item: propertyItem },
 });
@@ -1815,7 +1815,7 @@ the guide below.
 >
 > Канонический schema-driven подход:
 >
-> - **компонент** объявляется в схеме как `component: Input` (или `Select`, `Checkbox`, etc.)
+> - **компонент** объявляется в схеме как `component: InputField` (или `Select`, `Checkbox`, etc.)
 > - **пропсы** компонента — в `componentProps: { label, placeholder, options, type, ... }`
 > - **JSX рендерит**: `<FormField control={form.x} />` БЕЗ дополнительных props
 >
@@ -1827,7 +1827,7 @@ the guide below.
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createForm } from '@reformer/core';
-import { FormField, Input, Select, Checkbox, Button } from '@reformer/ui-kit';
+import { FormField, InputField, SelectField, CheckboxField, Button } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   email: string;
@@ -1841,12 +1841,12 @@ function RegistrationPage() {
     const schema = {
       email: {
         value: model.$.email,
-        component: Input,
+        component: InputField,
         componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
       },
       country: {
         value: model.$.country,
-        component: Select,
+        component: SelectField,
         componentProps: {
           label: 'Country',
           options: [
@@ -1857,7 +1857,7 @@ function RegistrationPage() {
       },
       agree: {
         value: model.$.agree,
-        component: Checkbox,
+        component: CheckboxField,
         componentProps: { label: 'I agree to terms' },
       },
     };
@@ -1900,7 +1900,7 @@ function RegistrationPage() {
 ✅ Всё это в схеме:
 
 ```ts
-{ email: { component: Input, componentProps: { label: 'Email' } } }
+{ email: { component: InputField, componentProps: { label: 'Email' } } }
 ```
 
 ```tsx
@@ -2064,8 +2064,8 @@ const schema = {
 
 // CORRECT - layout только связывает поле с сигналом модели...
 const layout = {
-  name:  { value: model.$.name,  component: Input, componentProps: { label: 'Name' } },
-  email: { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
+  name:  { value: model.$.name,  component: InputField, componentProps: { label: 'Name' } },
+  email: { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
 };
 
 // ...а правила — отдельная ambient-схема (прогоняется раннером validateModel):
@@ -3656,16 +3656,16 @@ Initial values задаются в `createModel(initial)`; `reset()` возвр�
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
-import { Input, Select } from '@reformer/ui-kit';
+import { InputField, SelectField } from '@reformer/ui-kit';
 
 type ProfileForm = { username: string; language: 'ru' | 'en'; marketing: boolean };
 
 const model = createModel<ProfileForm>({ username: '', language: 'ru', marketing: true });
 const schema = {
-  username: { value: model.$.username, component: Input, componentProps: { label: 'Username' } },
+  username: { value: model.$.username, component: InputField, componentProps: { label: 'Username' } },
   language: {
     value: model.$.language,
-    component: Select,
+    component: SelectField,
     componentProps: {
       label: 'Язык',
       options: [
@@ -3674,7 +3674,7 @@ const schema = {
       ],
     },
   },
-  marketing: { value: model.$.marketing, component: Input, componentProps: { type: 'checkbox' } },
+  marketing: { value: model.$.marketing, component: InputField, componentProps: { type: 'checkbox' } },
 };
 const form = createForm({ model, schema });
 // model.get() === { username: '', language: 'ru', marketing: true }
@@ -3880,7 +3880,7 @@ Layout-схема БЕЗ валидаторов — правила живут в
 const model = createModel<CreditApplicationForm>(initial);
 
 const schema = {
-  loanAmount: { value: model.$.loanAmount, component: Input },
+  loanAmount: { value: model.$.loanAmount, component: InputField },
   // вложенная группа — builder, принимающий ModelSignals<Sub>
   personalData: personalDataNodes(model.$.personalData),
   // массив — { array, item }
@@ -4693,8 +4693,8 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
 
 ```typescript
 const array = new ArrayNode({
-  title: { value: '', component: Input },
-  price: { value: 0, component: Input },
+  title: { value: '', component: InputField },
+  price: { value: 0, component: InputField },
 });
 
 array.push({ title: 'Item 1', price: 100 });
@@ -5114,8 +5114,8 @@ const model = createModel<UserForm>({ email: '', password: '' });
 // Layout-схема НЕ несёт validators — только component/componentProps.
 const schema = {
 children: [
-{ value: model.$.email, component: Input },
-{ value: model.$.password, component: Input },
+{ value: model.$.email, component: InputField },
+{ value: model.$.password, component: InputField },
 ],
 };
 
@@ -5207,9 +5207,9 @@ const schema = {
 component: Section,
 children: [
 // Layout несёт только component/componentProps; правила — в отдельной ValidationSchema.
-{ value: model.$.email, component: Input },
+{ value: model.$.email, component: InputField },
 // вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
-{ value: model.$.profile.name, component: Input },
+{ value: model.$.profile.name, component: InputField },
 ],
 };
 
@@ -5923,7 +5923,7 @@ export class FieldNode<T> extends FormNode<T> {
 ```typescript
 const field = new FieldNode({
   value: '',
-  component: Input,
+  component: InputField,
   validators: [required, email],
 });
 
@@ -6374,14 +6374,14 @@ interface Form {
 }
 
 const schema: FormSchema<Form> = {
-  name: { value: '', component: Input },
+  name: { value: '', component: InputField },
   address: {
-    city: { value: '', component: Input },
-    street: { value: '', component: Input },
+    city: { value: '', component: InputField },
+    street: { value: '', component: InputField },
   },
   items: [{
-    title: { value: '', component: Input },
-    price: { value: 0, component: Input },
+    title: { value: '', component: InputField },
+    price: { value: 0, component: InputField },
   }],
 };
 ```
@@ -6738,8 +6738,8 @@ export class GroupNode<T> extends FormNode<T> {
 
 ```typescript
 const form = new GroupNode({
-  email: { valueSignal: model.$.email, component: Input },
-  password: { valueSignal: model.$.password, component: Input },
+  email: { valueSignal: model.$.email, component: InputField },
+  password: { valueSignal: model.$.password, component: InputField },
 });
 
 // Прямой доступ к полям через Proxy
@@ -7796,8 +7796,8 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> { /* … */ 
 const model = createModel<{ rows: { name: string; qty: number }[] }>({ rows: [] });
 
 const rowItem = (item: FormModel<{ name: string; qty: number }>) => ({
-name: { value: item.$.name, component: Input },
-qty: { value: item.$.qty, component: Input },
+name: { value: item.$.name, component: InputField },
+qty: { value: item.$.qty, component: InputField },
 });
 
 const form = createForm({
@@ -7980,25 +7980,25 @@ export class NodeFactory {
    * // FieldNode
    * const field = factory.createNode({
    *   value: 'test@mail.com',
-   *   component: Input,
+   *   component: InputField,
    *   validators: [required, email]
    * });
    *
    * // GroupNode
    * const group = factory.createNode({
-   *   email: { value: '', component: Input },
-   *   password: { value: '', component: Input }
+   *   email: { value: '', component: InputField },
+   *   password: { value: '', component: InputField }
    * });
    *
    * // ArrayNode (объект)
    * const array = factory.createNode({
-   *   schema: { title: { value: '', component: Input } },
+   *   schema: { title: { value: '', component: InputField } },
    *   initialItems: [{ title: 'Item 1' }]
    * });
    *
    * // ArrayNode (массив) - новый формат
    * const array2 = factory.createNode([
-   *   { title: { value: '', component: Input } }, // schema
+   *   { title: { value: '', component: InputField } }, // schema
    *   { title: 'Item 1' }, // initial item 1
    *   { title: 'Item 2' }  // initial item 2
    * ]);
@@ -8012,7 +8012,7 @@ export class NodeFactory {
 import { NodeFactory } from '@reformer/core';
 
 const factory = new NodeFactory();
-const node = factory.createNode({ value: '', component: Input }); // → FieldNode<string>
+const node = factory.createNode({ value: '', component: InputField }); // → FieldNode<string>
 ```
 
 _Source: src/form/factories/node-factory.ts_

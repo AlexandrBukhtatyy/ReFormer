@@ -103,8 +103,8 @@ import {
 
 ```typescript
 // Tree-shaking (для библиотек / тонких бандлов)
-import { Input } from '@reformer/ui-kit/input';
-import { Select } from '@reformer/ui-kit/select';
+import { InputField } from '@reformer/ui-kit/input';
+import { SelectField } from '@reformer/ui-kit/select';
 import { FormField } from '@reformer/ui-kit/form-field';
 import { Button } from '@reformer/ui-kit/button';
 ```
@@ -124,7 +124,7 @@ import { useMemo } from 'react';
 import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email, minLength } from '@reformer/core/validators';
-import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
+import { Button, FormField, InputField, InputPasswordField } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   email: string;
@@ -146,7 +146,7 @@ function RegistrationPage() {
       children: [
         {
           value: model.$.email,
-          component: Input,
+          component: InputField,
           componentProps: { label: 'Email', type: 'email', testId: 'email' },
         },
         {
@@ -186,17 +186,51 @@ function RegistrationPage() {
 }
 ```
 
+## Две линейки: примитив и `*Field`
+
+**В форму ставится `*Field`-версия, не примитив.** Это не стилистический выбор, а разные контракты:
+
+| Линейка                 | Контракт                                   | Где применять                                          |
+| ----------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| `InputField`, `SelectField`, `CheckboxField`, … | `value` + `onChange(value)` — value-based | **форма**: `component:` в схеме, `<FormField>`, JSON-реестр |
+| `Input`, `Select`, `Checkbox`, …               | нативный/Radix: `onChange(event)`, у чекбокса `checked` | вёрстка вне формы; в форме — только с `resolveFieldAdapter` |
+
+Что происходит, если поставить в форму примитив: `Input` запишет в модель объект
+`SyntheticEvent` вместо строки, `Checkbox` не отреагирует на `value` (ему нужен `checked`),
+`RadioGroup` отрисуется пустым. Ошибка **не видна ни TypeScript, ни `validate_form`**: поле
+выглядит нормально, подпись и `data-testid` на месте — расходится только содержимое модели.
+
+Соглашение об именах: field-версия варианта — `<Cmp><Variant>Field`, плюс алиас `<Cmp>Field` на
+дефолтный для форм вариант. Публичная поверхность форм — именно `*Field` (сам HOC внутренний).
+
+| Примитив     | Дефолт для формы     | Примитив      | Дефолт для формы      |
+| ------------ | -------------------- | ------------- | --------------------- |
+| `Input`      | `InputField`         | `Checkbox`    | `CheckboxField`       |
+| `InputMask`  | `InputMaskField`     | `Switch`      | `SwitchField`         |
+| `InputPassword` | `InputPasswordField` | `RadioGroup` | `RadioGroupField`    |
+| `InputOTP`   | `InputOTPField`      | `Slider`      | `SliderField`         |
+| `Textarea`   | `TextareaField`      | `Calendar`    | `CalendarField`       |
+| `Select`     | `SelectField`        | `DatePicker`  | `DatePickerField`     |
+| `NativeSelect` | `NativeSelectField` | `Combobox`    | `ComboboxField`       |
+| `Toggle`     | `ToggleField`        | `ToggleGroup` | `ToggleGroupField`    |
+
+Множественный выбор — отдельные компоненты без примитива-пары: `SelectMultiField`,
+`NativeSelectMultiField`, `ComboboxMultiField`, `ToggleGroupMultiField`. Полная таблица вариантов
+(`InputNumberField`, `SelectAsyncField`, …) — в `README.md` пакета.
+
 ## Components
+
+Ниже — примитивы; в форму берите их `*Field`-версии из таблицы выше.
 
 | Name                            | Purpose                                                    | Where documented                                              |
 | ------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
-| `Input`                         | Текстовое поле (`text`/`email`/`number`/`tel`/`url`).      | [02-text-fields.md](02-text-fields.md)                        |
-| `InputMask`                     | Поле ввода со строковой маской (телефон, дата, ИНН).       | [02-text-fields.md](02-text-fields.md)                        |
-| `InputPassword`                 | Поле пароля с переключателем видимости.                    | [02-text-fields.md](02-text-fields.md)                        |
-| `Textarea`                      | Многострочное поле.                                        | [02-text-fields.md](02-text-fields.md)                        |
-| `Checkbox`                      | Чекбокс с label рядом с контролом.                         | [03-choice-fields.md](03-choice-fields.md)                    |
-| `RadioGroup`                    | Группа радио-кнопок из массива `options`.                  | [03-choice-fields.md](03-choice-fields.md)                    |
-| `Select` (+ 8 sub-компонентов)  | Выпадающий список с inline `options` или async `resource`. | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Input` / `InputField`          | Текстовое поле (`text`/`email`/`number`/`tel`/`url`).      | [02-text-fields.md](02-text-fields.md)                        |
+| `InputMask` / `InputMaskField`  | Поле ввода со строковой маской (телефон, дата, ИНН).       | [02-text-fields.md](02-text-fields.md)                        |
+| `InputPassword` / `InputPasswordField` | Поле пароля с переключателем видимости.             | [02-text-fields.md](02-text-fields.md)                        |
+| `Textarea` / `TextareaField`    | Многострочное поле.                                        | [02-text-fields.md](02-text-fields.md)                        |
+| `Checkbox` / `CheckboxField`    | Чекбокс с label рядом с контролом.                         | [03-choice-fields.md](03-choice-fields.md)                    |
+| `RadioGroup` / `RadioGroupField`| Группа радио-кнопок из массива `options`.                  | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Select` / `SelectField` (+ 8 sub-компонентов) | Выпадающий список с inline `options` или async `resource`. | [03-choice-fields.md](03-choice-fields.md)   |
 | `Button`                        | Кнопка с вариантами (`variant`, `size`, `asChild`).        | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `AsyncBoundary` (+ `*Loading`, `*Error`, `*Empty`) | Состояния загрузки `idle`/`loading`/`ready`/`error` со встроенными блоками. | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
 | `ExampleCard`                   | Карточка-обёртка для демо в playground.                    | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |

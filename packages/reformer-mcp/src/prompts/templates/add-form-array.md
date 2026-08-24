@@ -18,7 +18,7 @@ An array is declared in the schema as a dedicated node: `{ array: model.<path>, 
 
    ```typescript
    // ❌ silent corruption
-   () => ({ type: { value: 'x', component: Select } })
+   () => ({ type: { value: 'x', component: SelectField } })
    // ✅
    () => ({ type: 'x', description: '', estimatedValue: 0 })
    ```

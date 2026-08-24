@@ -26,8 +26,8 @@ import type { FormSchemaNode, SchemaArrayControl } from '@reformer/core';
  * const renderSchema: RenderSchemaFn<MyForm> = () => ({
  *   component: Box,
  *   children: [
- *     { value: model.$.email, component: Input },
- *     { value: model.$.password, component: InputPassword },
+ *     { value: model.$.email, component: InputField },
+ *     { value: model.$.password, component: InputPasswordField },
  *   ],
  * });
  * ```
@@ -85,7 +85,7 @@ export type RenderChild<T> = RenderNode<T> | RenderTextPart;
  *
  * @example
  * ```typescript
- * { value: model.$.loanType, component: Select, componentProps: { label: 'Тип', options } }
+ * { value: model.$.loanType, component: SelectField, componentProps: { label: 'Тип', options } }
  * ```
  */
 export interface ModelFieldRenderNode extends FormSchemaNode {
@@ -167,7 +167,7 @@ export interface ArrayComponentProps {
  * @example
  * ```typescript
  * { array: model.coBorrowers, initialValue: createBlankCoBorrower,
- *   item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
+ *   item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: InputField }] }) }
  * ```
  */
 export interface ArrayRenderNode<T> extends FormSchemaNode {
@@ -246,8 +246,8 @@ export interface ContainerRenderNodeProps {
  *     className: 'grid grid-cols-2 gap-4',
  *   },
  *   children: [
- *     { value: model.$.firstName, component: Input },
- *     { value: model.$.lastName, component: Input },
+ *     { value: model.$.firstName, component: InputField },
+ *     { value: model.$.lastName, component: InputField },
  *   ],
  * }
  * ```

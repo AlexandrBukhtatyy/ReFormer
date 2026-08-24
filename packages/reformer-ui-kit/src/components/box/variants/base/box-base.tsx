@@ -30,8 +30,8 @@ export interface BoxProps {
  *   component: Box,
  *   componentProps: { className: 'flex flex-col gap-4' },
  *   children: [
- *     { value: model.$.email, component: Input },
- *     { value: model.$.password, component: InputPassword },
+ *     { value: model.$.email, component: InputField },
+ *     { value: model.$.password, component: InputPasswordField },
  *   ],
  * }
  * ```
@@ -44,8 +44,8 @@ export interface BoxProps {
  *   component: Box,
  *   componentProps: { className: 'grid grid-cols-2 gap-4' },
  *   children: [
- *     { value: model.$.firstName, component: Input },
- *     { value: model.$.lastName, component: Input },
+ *     { value: model.$.firstName, component: InputField },
+ *     { value: model.$.lastName, component: InputField },
  *   ],
  * }
  * ```

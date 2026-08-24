@@ -17,7 +17,7 @@ You design and write a new form on `@reformer/*`.
 - **FormSchema only declarative — layout carries NO validators**: this prompt does NOT add validation/behavior. Under the split contract the layout schema has no `validators` key at all — validation is a **separate** `defineValidationSchema<T>(({ model }) => …)` run on demand by `validateModel(model, schema)` (from `@reformer/core/validation`), and behavior is `defineFormBehavior`. Produce those with `add-validation` / `add-behavior` separately; every leaf here stays pure layout (`{ value, component, componentProps }`). A `validators: [...]` array on a leaf is the old shape — do not emit it.
 - **Stable assembly hook, NOT `useMemo`**: wrap the factory in `useFormBundle` (`@reformer/core`; re-exported as `useReactForm` / `useJsonForm` by the renderer packages) — `useFormBundle(() => createCoreForm<T>({ initial, schema: buildSchema, behavior, validation }))`. It calls the factory exactly once via a lazy `useState`; `useMemo` is wrong here because React may drop its cache and rebuild the form, losing typed input. The schema is passed as a BUILDER (`(model) => …`), never a prebuilt tree — leaves hold the model's own signals, so the tree cannot exist before the model.
 - **FormField** (from `@reformer/ui-kit`) usage: `<FormField control={form.x} testId="step1.x" />`. NOT the cdk compound `FormField.Root/Label/Control/Error` for ordinary fields.
-- **Leaf node shape**: `{ value: model.$.field, component: Input, componentProps: {...} }`. `value` is the model signal (`model.$.field`, a `PathAwareSignal`) — obligatory. Never a plain string field name, never a bare value.
+- **Leaf node shape**: `{ value: model.$.field, component: InputField, componentProps: {...} }`. `value` is the model signal (`model.$.field`, a `PathAwareSignal`) — obligatory. Never a plain string field name, never a bare value.
 - **Array shape**: `{ array: model.<path>, item: (itemModel) => subSchema, initialValue }` — `array` is the reactive model array (`model.items`, not `model.$.items`), `item` builds the sub-schema from the element's sub-model (`FormModel<Item>`, access fields via `itemModel.$.field`). NEVER `{ value: [], itemSchema: {...} }` (silent corruption). Array mutations (`push`/`removeAt`) run on the model (`model.items.push(...)`), not the form.
 - **`initialValue`** (new-element factory/value for the array's Add button): PLAIN leaf values only — a full plain object matching the element shape. Never a FieldConfig (`{ value, component }`) — silent runtime corruption.
 - **Conditional fields → Hide, not Disable**. Type/status conditional (loanType, employmentStatus) → JSX-conditional (`{model.loanType === 'mortgage' && <FormField control={form.propertyValue} />}`) for `core`; `hideWhen` / `setHidden` on render-schema nodes for renderers. Progressive disclosure (`confirmPassword` after `password`) → `enableWhen(model.$.confirmPassword, () => !!model.password)` behavior (out of scope here — flag it for `add-behavior`).
@@ -28,7 +28,7 @@ You design and write a new form on `@reformer/*`.
 - **`componentProps` use camelCase React-style prop names**, not HTML-lowercase. Pass-through to the React leaf component → React DOM rejects the lowercase variant with a console warning. Common offenders: `readOnly` (NOT `readonly`), `htmlFor` (NOT `for`), `tabIndex` (NOT `tabindex`), `autoFocus` (NOT `autofocus`), `maxLength` / `minLength` (NOT `maxlength` / `minlength`). Sub-agents intuitively reach for the HTML attribute name — that spams `Warning: Invalid DOM property '<name>'. Did you mean '<camelCase>'?` on every render.
 
 - **Inside a RenderSchema (`target=renderer-react`) — a leaf carries the MODEL SIGNAL (`value: model.$.x`), NEVER the resolved `form.X` FieldNode.** Under M1 the render tree binds to the model, and the state-node (errors/disabled) is resolved by signal through the registry that `createForm` populates:
-  - Leaf = `{ value: model.$.x, component: Input, componentProps: {...} }`. `isModelFieldRenderNode` sees `value` is a signal → resolves the state node via `getNodeForSignal` at render. **This is the renderer flow contract.**
+  - Leaf = `{ value: model.$.x, component: InputField, componentProps: {...} }`. `isModelFieldRenderNode` sees `value` is a signal → resolves the state node via `getNodeForSignal` at render. **This is the renderer flow contract.**
   - Putting the FieldNode `form.X` (or a `component: form.X`) into a node is wrong — it is not a signal and not a container component → the node is **silently ignored** by the renderer. Form looks empty, no console error.
   - **`RenderSchemaFn<T>` takes NO argument** — it is `() => RenderNode<T>`. The legacy `path`-proxy argument was removed. A step body / array-item / nested helper receives the **model** (or a sub-model signal group like `model.$.address`), never a `path` and never the resolved `form` instance.
 
@@ -55,7 +55,7 @@ You design and write a new form on `@reformer/*`.
     return {
       component: Box,
       children: [
-        { value: model.$.email, component: Input }, // model signal — resolved at render
+        { value: model.$.email, component: InputField }, // model signal — resolved at render
         { value: model.$.password, component: InputPassword },
       ],
     };

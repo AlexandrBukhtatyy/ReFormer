@@ -770,7 +770,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 
 - **`Error: FormField.* components must be used within <FormField.Root>`.** Проверьте, что вызов `FormField.Label` / `Control` / `Error` обёрнут в `FormField.Root` и компонент не рендерится в портале выше провайдера.
 - **`Label` ничего не показывает.** В схеме поля нет `componentProps.label`. Вариант: задайте `label` в схеме, или передайте `children` в `FormField.Label`, или поставьте `forceRender`.
-- **`Control` рендерит «голый» `<input>` без стилей.** Auto-mode рендерит `control.component` — убедитесь, что в схеме указан компонент (`component: Input`). Иначе используйте `asChild` + свой компонент.
+- **`Control` рендерит «голый» `<input>` без стилей.** Auto-mode рендерит `control.component` — убедитесь, что в схеме указан компонент (`component: InputField`). Иначе используйте `asChild` + свой компонент.
 - **Сырой контрол с event-диалектом (Checkbox/Radio) пишет в модель `event` вместо значения.** И auto-mode, и `asChild` вешают value-based seam (`value` + `onChange(value)` + `onBlur`). Контрол с диалектом `checked` + `onChange(event)` получит `value`, но в `setValue` уйдёт DOM-`event`. (`Select` с `onChange(value, option)` привязывается корректно сам — значение идёт первым аргументом, а лишний `option` обработчик отбрасывает; адаптер ему нужен, только если значение надо вывести ИЗ `option`/props, либо чтобы снять утечку пропа `control` в DOM.) Решение на уровне CDK: `asChild` с value-based обёрткой (переложите `event.target.checked` в `onChange(value)` руками) либо регистрация value-based обёртки как `component:` в схеме. Когда поле рисует не CDK-compound, а рендерер (`@reformer/renderer-react` / `@reformer/renderer-json`) из схемы — сырые контролы подключаются без обёрток через `RendererSettings.resolveFieldAdapter` (`FieldAdapter`: `valueProp`/`fromEmit`/`toValue`).
 - **`aria-describedby` пустой при наличии `Description`.** Не передан `hasDescription` в `Root`. Это не «магический» флаг — без него `Control` не знает, что description есть в дереве.
 - **`FormField.Error` не появляется при наличии ошибки.** Поле не помечено как touched. Используйте `form.markAsTouched()` или `control.markAsTouched()` перед сабмитом, либо настройте `revalidateWhen` чтобы помечать touched по `change`.
@@ -4944,6 +4944,23 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
 
   /** Go to specific step */
   goToStep: (step: number) => boolean;
+
+  // ============================================================================
+  // Submit
+  // ============================================================================
+
+  /**
+   * Отправить форму с полной валидацией. Прогоняет `config.validateAll` и только при
+   * успехе зовёт `onSubmit` через `form.submit(..., { skipValidation: true })`.
+   *
+   * Возвращает `null`, если форма не прошла `validateAll` (поля при этом помечаются
+   * `touched`, чтобы ошибки стали видны); иначе — результат `onSubmit`.
+   *
+   * Тот же метод, что и {@link FormWizardHandle.submit}: он положен в контекст, чтобы
+   * кнопка отправки (`FormWizard.Actions` / `FormWizard.Submit`) гейтила submit так же,
+   * как `goToNextStep` гейтит переход на следующий шаг.
+   */
+  submit: <R>(onSubmit: (values: T) => Promise<R> | R) => Promise<R | null>;
 }
 ```
 
@@ -7072,7 +7089,8 @@ _Source: src/components/form-field/useFormField.ts_
 
 Возвращает текущее состояние мастера (`currentStep`, `totalSteps`,
 `completedSteps`, `isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`,
-`form`) и методы навигации (`goToNextStep`, `goToPreviousStep`, `goToStep`).
+`form`), методы навигации (`goToNextStep`, `goToPreviousStep`, `goToStep`) и
+`submit` — отправку с прогоном `config.validateAll` (`null`, если форма не прошла).
 Бросает исключение, если вызван вне `<FormWizard>`.
 
 Для внешнего управления (вне дерева Wizard) используйте

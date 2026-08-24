@@ -51,8 +51,8 @@ export interface ModelArrayControl<TItem extends object> {
  * const model = createModel<{ rows: { name: string; qty: number }[] }>({ rows: [] });
  *
  * const rowItem = (item: FormModel<{ name: string; qty: number }>) => ({
- *   name: { value: item.$.name, component: Input },
- *   qty: { value: item.$.qty, component: Input },
+ *   name: { value: item.$.name, component: InputField },
+ *   qty: { value: item.$.qty, component: InputField },
  * });
  *
  * const form = createForm({

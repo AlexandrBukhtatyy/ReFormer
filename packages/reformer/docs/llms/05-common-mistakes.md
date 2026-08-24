@@ -93,7 +93,7 @@ computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => pr
 ```typescript
 // ❌ WRONG - дерево { value, validators } и позиционная строка удалены
 const schema = {
-  email: { value: model.$.email, component: Input, validators: [required(), email()] },
+  email: { value: model.$.email, component: InputField, validators: [required(), email()] },
 };
 validate(path.email, required(), 'Email is required'); // старая сигнатура validate() — удалена
 

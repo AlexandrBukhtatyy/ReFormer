@@ -103,6 +103,8 @@ export function createWizardRenderBehavior(
     // (b) Submit: onComponentEvent получает те же аргументы, что и оригинальный проп onSubmit,
     //     а ui-kit FormWizard вызывает onSubmit БЕЗ аргументов (`() => void | Promise<void>`).
     //     Значения берём снимком из модели — фабрика render-behavior получает её вторым аргументом.
+    //     Валидировать здесь руками не надо: кнопка отправки гейтит вызов через
+    //     `config.validateAll` и при провале сюда не доходит (reformer://docs/cdk/multi-step-submit).
     onComponentEvent(wizard, 'onSubmit', async () => {
       await submitCreditApplication(model.get());
     });

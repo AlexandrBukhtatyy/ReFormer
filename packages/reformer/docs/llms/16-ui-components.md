@@ -7,7 +7,7 @@
 >
 > Канонический schema-driven подход:
 >
-> - **компонент** объявляется в схеме как `component: Input` (или `Select`, `Checkbox`, etc.)
+> - **компонент** объявляется в схеме как `component: InputField` (или `Select`, `Checkbox`, etc.)
 > - **пропсы** компонента — в `componentProps: { label, placeholder, options, type, ... }`
 > - **JSX рендерит**: `<FormField control={form.x} />` БЕЗ дополнительных props
 >
@@ -19,7 +19,7 @@
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createForm } from '@reformer/core';
-import { FormField, Input, Select, Checkbox, Button } from '@reformer/ui-kit';
+import { FormField, InputField, SelectField, CheckboxField, Button } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   email: string;
@@ -33,12 +33,12 @@ function RegistrationPage() {
     const schema = {
       email: {
         value: model.$.email,
-        component: Input,
+        component: InputField,
         componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
       },
       country: {
         value: model.$.country,
-        component: Select,
+        component: SelectField,
         componentProps: {
           label: 'Country',
           options: [
@@ -49,7 +49,7 @@ function RegistrationPage() {
       },
       agree: {
         value: model.$.agree,
-        component: Checkbox,
+        component: CheckboxField,
         componentProps: { label: 'I agree to terms' },
       },
     };
@@ -92,7 +92,7 @@ function RegistrationPage() {
 ✅ Всё это в схеме:
 
 ```ts
-{ email: { component: Input, componentProps: { label: 'Email' } } }
+{ email: { component: InputField, componentProps: { label: 'Email' } } }
 ```
 
 ```tsx

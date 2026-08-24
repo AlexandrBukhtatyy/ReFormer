@@ -64,8 +64,8 @@ const schema = {
 
 // CORRECT - layout только связывает поле с сигналом модели...
 const layout = {
-  name:  { value: model.$.name,  component: Input, componentProps: { label: 'Name' } },
-  email: { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
+  name:  { value: model.$.name,  component: InputField, componentProps: { label: 'Name' } },
+  email: { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
 };
 
 // ...а правила — отдельная ambient-схема (прогоняется раннером validateModel):

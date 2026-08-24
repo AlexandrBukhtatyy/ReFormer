@@ -114,14 +114,14 @@ type NonEmptyFieldConfig<T> = RequireAtLeastOne<FieldConfig<T>>;
  * }
  *
  * const schema: FormSchema<Form> = {
- *   name: { value: '', component: Input },
+ *   name: { value: '', component: InputField },
  *   address: {
- *     city: { value: '', component: Input },
- *     street: { value: '', component: Input },
+ *     city: { value: '', component: InputField },
+ *     street: { value: '', component: InputField },
  *   },
  *   items: [{
- *     title: { value: '', component: Input },
- *     price: { value: 0, component: Input },
+ *     title: { value: '', component: InputField },
+ *     price: { value: 0, component: InputField },
  *   }],
  * };
  * ```

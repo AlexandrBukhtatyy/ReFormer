@@ -63,8 +63,8 @@ function parsePathSegments(path: string): PathSegment[] {
  * @example
  * ```typescript
  * const form = new GroupNode({
- *   email: { valueSignal: model.$.email, component: Input },
- *   password: { valueSignal: model.$.password, component: Input },
+ *   email: { valueSignal: model.$.email, component: InputField },
+ *   password: { valueSignal: model.$.password, component: InputField },
  * });
  *
  * // Прямой доступ к полям через Proxy
@@ -380,8 +380,8 @@ export class GroupNode<T> extends FormNode<T> {
    * @example
    * ```typescript
    * const form = new GroupNode({
-   *   email: { value: '', component: Input },
-   *   name: { value: '', component: Input },
+   *   email: { value: '', component: InputField },
+   *   name: { value: '', component: InputField },
    * });
    *
    * const proxy = form.getProxy();
@@ -475,11 +475,11 @@ export class GroupNode<T> extends FormNode<T> {
    * @example
    * ```typescript
    * const form = new GroupNode({
-   *   email: { value: '', component: Input },
+   *   email: { value: '', component: InputField },
    *   address: {
-   *     city: { value: '', component: Input }
+   *     city: { value: '', component: InputField }
    *   },
-   *   items: [{ name: { value: '', component: Input } }]
+   *   items: [{ name: { value: '', component: InputField } }]
    * });
    *
    * form.getFieldByPath('email');           // FieldNode

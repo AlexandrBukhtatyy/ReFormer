@@ -51,7 +51,7 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
 ```tsx
 import { useEffect, useMemo } from 'react';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
-import { Section, Input } from '@reformer/ui-kit';
+import { Section, InputField } from '@reformer/ui-kit';
 
 function CreditApplicationPage() {
   const schema = useMemo(
@@ -59,7 +59,7 @@ function CreditApplicationPage() {
       createRenderSchema<CreditForm>(() => ({
         selector: 'mortgage-section',
         component: Section,
-        children: [{ value: model.$.propertyValue, component: Input }],
+        children: [{ value: model.$.propertyValue, component: InputField }],
       })),
     []
   );
@@ -127,8 +127,8 @@ export function CollapsibleSection({
   component: CollapsibleSection,
   componentProps: { title: 'Дополнительно', defaultOpen: false },
   children: [
-    { value: model.$.notes, component: Textarea },
-    { value: model.$.tags, component: Input },
+    { value: model.$.notes, component: TextareaField },
+    { value: model.$.tags, component: InputField },
   ],
 }
 ```
@@ -169,8 +169,11 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
   });
 
   // 3. Подписка на проп-событие компонента (получает родные args).
-  onComponentEvent(wizard, 'onSubmit', async (values) => {
-    await submitCreditApplication(values);
+  //    У ui-kit `onSubmit` аргументов НЕ имеет — снимок берём из модели.
+  //    Кнопка отправки уже гейтит вызов через `config.validateAll`: при провале
+  //    обработчик не вызывается (reformer://docs/cdk/multi-step-submit).
+  onComponentEvent(wizard, 'onSubmit', async () => {
+    await submitCreditApplication(model.get());
   });
 
   // 4. Lifecycle: onMount может вернуть cleanup.

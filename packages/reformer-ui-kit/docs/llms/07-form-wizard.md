@@ -9,7 +9,7 @@ TS-схема, renderer-react RenderSchema, renderer-json.
 ```tsx
 import { useMemo, useRef, type FC } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
-import { FormField, Input, Checkbox } from '@reformer/ui-kit';
+import { FormField, InputField, CheckboxField } from '@reformer/ui-kit';
 import type { FormWizardHandle, FormWizardConfig } from '@reformer/cdk/form-wizard';
 import { createModel, createForm, type FormProxy, type FormModel } from '@reformer/core';
 import {
@@ -37,17 +37,17 @@ const model = createModel<MyForm>({ email: '', password: '', confirmation: false
 const schema = {
   email: {
     value: model.$.email,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Email', testId: 'email' },
   },
   password: {
     value: model.$.password,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Пароль', testId: 'password' },
   },
   confirmation: {
     value: model.$.confirmation,
-    component: Checkbox,
+    component: CheckboxField,
     componentProps: { label: 'Подтверждаю' },
   },
 };
@@ -142,8 +142,11 @@ const handleSaveAndExit = async () => {
 };
 ```
 
-Различие — два разных entry point: `<FormWizard onSubmit={...}>` (no-arg, для submit-button click)
-и `navRef.current?.submit(values => ...)` (с values, для programmatic submit).
+Различие только в аргументе, не в гарантиях: оба пути проходят через один и тот же гейт —
+`config.validateAll`, и при провале колбэк не вызывается, а поля помечаются `touched`.
+`<FormWizard onSubmit={...}>` вызывается кнопкой и аргументов не получает;
+`navRef.current?.submit(values => ...)` вызывается из кода, отдаёт `values` и возвращает
+результат колбэка либо `null`, если валидация не прошла.
 
 ## Полиморфный `step.body`
 
@@ -166,7 +169,7 @@ M1: схема без аргумента `path` — листья ссылают�
 
 ```tsx
 import { createRenderSchema, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import { Box, Input } from '@reformer/ui-kit';
+import { Box, InputField } from '@reformer/ui-kit';
 
 const renderSchema = createRenderSchema<CreditApplication>(() => ({
   selector: 'wizard',
@@ -188,8 +191,8 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
           component: Box,
           componentProps: { className: 'space-y-4' },
           children: [
-            { value: model.$.loanAmount, component: Input },
-            { value: model.$.loanTerm, component: Input },
+            { value: model.$.loanAmount, component: InputField },
+            { value: model.$.loanTerm, component: InputField },
           ],
         },
       },

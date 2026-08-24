@@ -47,8 +47,8 @@ const steps: FormWizardStep<MyForm>[] = [
     body: {
       component: Box,
       children: [
-        { value: model.$.phoneMain, component: InputMask, componentProps: { label: 'Телефон' } },
-        { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
+        { value: model.$.phoneMain, component: InputMaskField, componentProps: { label: 'Телефон' } },
+        { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
       ],
     },
   },

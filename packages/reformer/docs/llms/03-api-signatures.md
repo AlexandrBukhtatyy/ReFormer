@@ -72,9 +72,9 @@ const model = createModel<Loan>({ email: '', age: 0, amount: 0 });
 const form = createForm({
   model,
   schema: {
-    email:  { value: model.$.email,  component: Input },
-    age:    { value: model.$.age,    component: Input },
-    amount: { value: model.$.amount, component: Input },
+    email:  { value: model.$.email,  component: InputField },
+    age:    { value: model.$.age,    component: InputField },
+    amount: { value: model.$.amount, component: InputField },
   },
 });
 

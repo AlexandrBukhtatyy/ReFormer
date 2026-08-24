@@ -11,6 +11,7 @@
 - 04-troubleshooting.md — Troubleshooting / FAQ
 - 05-cookbook.md — Cookbook
 - 06-validation.md — Validation
+- 07-form-wizard.md — FormWizard — многошаговая форма в renderer-react
 - API Reference (auto-generated from JSDoc)
 
 ## 1. Installation
@@ -57,7 +58,7 @@ import {
   useReactForm,
   type RenderNode,
 } from '@reformer/renderer-react';
-import { Box, Section, Input, FormField } from '@reformer/ui-kit';
+import { Box, Section, InputField, FormField } from '@reformer/ui-kit';
 
 interface MyForm {
   email: string;
@@ -74,10 +75,10 @@ function buildSchema(model: FormModel<MyForm>): RenderNode<MyForm> {
         component: Section,
         componentProps: { title: 'Вход' },
         children: [
-          { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
+          { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
           {
             value: model.$.password,
-            component: Input,
+            component: InputField,
             componentProps: { label: 'Пароль', type: 'password' },
           },
         ],
@@ -101,61 +102,13 @@ function MyFormPage() {
 
 ### Multi-step forms
 
-Для многошаговых форм wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`
-(канонический shipped-компонент). Форма передаётся ему через `componentProps.form`, а шаги —
-через `componentProps.steps`: массив объектов `{ number, title, icon, body }`, где `body` —
-это `RenderNode` (поддерево M1-схемы шага). `body` — самостоятельная под-схема, её НЕ нужно
-оборачивать в `component: Step` + `children`.
+Wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`: форма едет в
+`componentProps.form`, шаги — в `componentProps.steps` (`{ number, title, icon, body }`, где
+`body` — самостоятельный `RenderNode`), а тело шага рисуется ОБЯЗАТЕЛЬНОЙ стратегией
+`renderStepBody` — без неё шаг не просто «не отрисуется», а уронит рендер.
 
-```tsx
-import { FormWizard } from '@reformer/ui-kit/form-wizard';
-import { Box, Input } from '@reformer/ui-kit';
-
-// form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form.
-function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): RenderNode<MyForm> {
-  return {
-    selector: 'wizard',
-    component: FormWizard,
-    componentProps: {
-      ...(form ? { form } : {}), // form нужен только рендеру; при createForm его не передаём
-      config, // FormWizardConfig: { validateStep?, validateAll? } — см. канон ниже
-      steps: [
-        {
-          number: 1,
-          title: 'Кредит',
-          icon: '💰',
-          body: {
-            component: Box,
-            componentProps: { className: 'space-y-4' },
-            children: [
-              { value: model.$.loanAmount, component: Input, componentProps: { label: 'Сумма' } },
-              { value: model.$.loanTerm, component: Input, componentProps: { label: 'Срок' } },
-            ],
-          },
-        },
-        // ...остальные шаги
-      ],
-    },
-  };
-}
-```
-
-**Листья-поля под `componentProps.steps[].body` тоже harvest'ятся.** Сборка обходит дерево
-key-agnostic и доходит до каждого `{ value: signal }`-листа независимо от вложенности — включая
-листья внутри `componentProps.steps[].body`. Отсюда двойной проход, и делает его фабрика:
-
-```tsx
-const myForm = useReactForm(() =>
-  createReactForm<MyForm>({ model: createMyModel(), schema: buildSchema })
-);
-// внутри: buildSchema(model) — дерево БЕЗ формы для harvest'а (FormProxy самоссылочен, обход по
-// нему упал бы с переполнением стека), затем buildSchema(model, form) — дерево для рендера, из
-// которого wizard-узел берёт форму. Писать эту пару руками больше не нужно.
-```
-
-Полный справочник по `FormWizard` (полиморфный `step.body`, `config` / `FormWizardConfig`,
-`FormWizardHandle`, обязательный mounting под `RenderContextProvider` / `<FormRenderer>`) —
-`@reformer/ui-kit · docs/llms/07-form-wizard.md`.
+Полный рецепт с примером схемы, двойным проходом harvest'а и разбором submit —
+[07-form-wizard.md](07-form-wizard.md), он же `find_recipe wizard`.
 
 ### Container `children` — top-level свойство
 
@@ -264,7 +217,7 @@ if (isHtmlTagRenderNode(node)) {
 ```tsx
 import type { FormModel } from '@reformer/core';
 import type { RenderSchemaFn } from '@reformer/renderer-react';
-import { Box, Section, Input } from '@reformer/ui-kit';
+import { Box, Section, InputField } from '@reformer/ui-kit';
 
 const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
   return () => ({
@@ -275,8 +228,8 @@ const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
         component: Section,
         componentProps: { title: 'Личные данные', className: 'space-y-4' },
         children: [
-          { value: model.$.firstName, component: Input, componentProps: { label: 'Имя' } },
-          { value: model.$.lastName, component: Input, componentProps: { label: 'Фамилия' } },
+          { value: model.$.firstName, component: InputField, componentProps: { label: 'Имя' } },
+          { value: model.$.lastName, component: InputField, componentProps: { label: 'Фамилия' } },
         ],
       },
     ],
@@ -289,7 +242,7 @@ const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
 Узел-массив: `array` — реактивный массив модели, `item(itemModel)` строит поддерево по под-модели элемента, `initialValue` — фабрика нового элемента для кнопки «Добавить», `component` — компонент-рендерер секции. Оформление (заголовок, кнопки, empty-message, reorder) — в `componentProps`:
 
 ```tsx
-import { Box, FormArray, Input, Select } from '@reformer/ui-kit';
+import { Box, FormArray, InputField, SelectField } from '@reformer/ui-kit';
 
 const coBorrowersNode = {
   selector: 'co-borrowers-array',
@@ -307,8 +260,8 @@ const coBorrowersNode = {
     component: Box,
     componentProps: { className: 'space-y-3' },
     children: [
-      { value: im.$.phone, component: Input, componentProps: { label: 'Телефон' } },
-      { value: im.$.relationship, component: Select, componentProps: { label: 'Отношение' } },
+      { value: im.$.phone, component: InputField, componentProps: { label: 'Телефон' } },
+      { value: im.$.relationship, component: SelectField, componentProps: { label: 'Отношение' } },
     ],
   }),
 };
@@ -450,8 +403,12 @@ renderEffect(schema, () => {
 ```tsx
 import { onComponentEvent } from '@reformer/renderer-react';
 
-onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditForm) => {
-  await submitCreditApplication(values);
+onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {
+  // `FormWizardProps.onSubmit` у ui-kit — это `() => void | Promise<void>`: аргументов нет,
+  // снимок берётся из модели. Типизировать как `(values: CreditForm) => …` — TS2322.
+  // Валидировать здесь руками не надо: кнопка отправки гейтит вызов через `config.validateAll`
+  // и при провале сюда не доходит (reformer://docs/cdk/multi-step-submit).
+  await submitCreditApplication(model.get());
 });
 ```
 
@@ -535,7 +492,7 @@ State-нода поля резолвится по сигналу через ре
 
 ## 23. `TS2353: 'validators' does not exist in type 'RenderNode<T>'`
 
-Валидаторы вписаны прямо в лист render-схемы (`{ value: model.$.x, component: Input, validators: [...] }`). У `RenderNode` нет поля `validators` — дерево рендера несёт только layout. Правила валидации значений живут в **отдельной validation-схеме над моделью** (`defineValidationSchema<T>(({ model }) => { validate(model.$.path, [...]) })` из `@reformer/core/validation`), исполняются `validateModel` и прокидываются в wizard как `{ validateStep, validateAll }`. Полный поток — [06-validation.md](06-validation.md).
+Валидаторы вписаны прямо в лист render-схемы (`{ value: model.$.x, component: InputField, validators: [...] }`). У `RenderNode` нет поля `validators` — дерево рендера несёт только layout. Правила валидации значений живут в **отдельной validation-схеме над моделью** (`defineValidationSchema<T>(({ model }) => { validate(model.$.path, [...]) })` из `@reformer/core/validation`), исполняются `validateModel` и прокидываются в wizard как `{ validateStep, validateAll }`. Полный поток — [06-validation.md](06-validation.md).
 
 ## 24. `TS2741: Property '__path' is missing in type 'ModelArray<T>' ... required in 'RenderModelArrayControl'`
 
@@ -630,7 +587,7 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
 ```tsx
 import { useEffect, useMemo } from 'react';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
-import { Section, Input } from '@reformer/ui-kit';
+import { Section, InputField } from '@reformer/ui-kit';
 
 function CreditApplicationPage() {
   const schema = useMemo(
@@ -638,7 +595,7 @@ function CreditApplicationPage() {
       createRenderSchema<CreditForm>(() => ({
         selector: 'mortgage-section',
         component: Section,
-        children: [{ value: model.$.propertyValue, component: Input }],
+        children: [{ value: model.$.propertyValue, component: InputField }],
       })),
     []
   );
@@ -706,8 +663,8 @@ export function CollapsibleSection({
   component: CollapsibleSection,
   componentProps: { title: 'Дополнительно', defaultOpen: false },
   children: [
-    { value: model.$.notes, component: Textarea },
-    { value: model.$.tags, component: Input },
+    { value: model.$.notes, component: TextareaField },
+    { value: model.$.tags, component: InputField },
   ],
 }
 ```
@@ -748,8 +705,11 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
   });
 
   // 3. Подписка на проп-событие компонента (получает родные args).
-  onComponentEvent(wizard, 'onSubmit', async (values) => {
-    await submitCreditApplication(values);
+  //    У ui-kit `onSubmit` аргументов НЕ имеет — снимок берём из модели.
+  //    Кнопка отправки уже гейтит вызов через `config.validateAll`: при провале
+  //    обработчик не вызывается (reformer://docs/cdk/multi-step-submit).
+  onComponentEvent(wizard, 'onSubmit', async () => {
+    await submitCreditApplication(model.get());
   });
 
   // 4. Lifecycle: onMount может вернуть cleanup.
@@ -1088,7 +1048,7 @@ export function makeCreditValidationConfig(model: M) {
 import type { FormModel, FormProxy } from '@reformer/core';
 import type { RenderNode } from '@reformer/renderer-react';
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
-import { Input } from '@reformer/ui-kit';
+import { InputField } from '@reformer/ui-kit';
 import { makeCreditValidationConfig } from './validation';
 import type { CreditForm } from './types';
 
@@ -1107,7 +1067,7 @@ export function buildSchema(
           number: 1,
           title: 'Кредит',
           body: {
-            component: Input, // лист несёт только value/component/componentProps — без validators
+            component: InputField, // лист несёт только value/component/componentProps — без validators
             value: model.$.loanAmount,
             componentProps: { label: 'Сумма' },
           },
@@ -1120,7 +1080,7 @@ export function buildSchema(
 
 ## 41. Anti-patterns
 
-- **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: Input, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной `ValidationSchema` над моделью (Шаг 1), а не в render-дереве.
+- **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: InputField, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной `ValidationSchema` над моделью (Шаг 1), а не в render-дереве.
 - **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает ошибки, уже проставленные в ноды. Значения проверяет `validateModel(model, schema)`; без её вызова (обычно из `validateStep`/`validateAll` wizard-а) поля не подсветятся.
 - **Читать текущее значение вместо сигнала в `validate`** — оператор это `validate(model.$.path, [rules])`, где `model.$.path` — СИГНАЛ (стабильная ссылка на форму модели), а не текущее значение поля. Значения читает раннер в момент прогона; cross-field берёт снапшот через `model.get()` внутри `cross(sig, fn)`. Не передавайте в `validate` результат `model.get()` / `.value`.
 - **Пересоздавать схему на каждый вызов конфига** (`validateModel(model, defineValidationSchema(...))` инлайн) — раннер отменяет **устаревший прогон той же `(model, schema)`** по ссылке на схему. Новый объект схемы на каждый вызов ломает отмену и гашение полей. Держите схемы стабильными module-level `const` (`STEP_SCHEMAS`, `fullSchema`).
@@ -1135,7 +1095,117 @@ export function buildSchema(
 - `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — операторы `ValidationSchema` (`validate`/`validateAsync`/`validateWhen`/`cross`/`each`/`apply`), раннер `validateModel`, `STEP_SCHEMAS`, конфиг wizard'а.
 - `@reformer/renderer-json` [06-validation.md](../../../reformer-renderer-json/docs/llms/06-validation.md) — родственный паттерн для JSON-схемы (та же model-валидация, инъекция через render-behavior).
 
-## 43. API Reference
+## 43. Форма wizard-узла
+
+**FormWizard — многошаговая форма в renderer-react**
+
+Wizard-узел RenderSchema: `FormWizard` из `@reformer/ui-kit/form-wizard` (канонический
+shipped-компонент, своего визарда рендерер не поставляет). Форма передаётся через
+`componentProps.form`, шаги — через `componentProps.steps`, а тело шага рисуется стратегией
+`renderStepBody`.
+
+Полный справочник по самому компоненту (полиморфный `step.body`, `FormWizardConfig`,
+`FormWizardHandle`, mounting под `RenderContextProvider`) — `@reformer/ui-kit`
+`docs/llms/07-form-wizard.md`. Здесь — только то, что специфично для render-схемы.
+
+`steps` — массив `{ number, title, icon, body }`, где `body` — это `RenderNode`, поддерево
+M1-схемы шага. `body` самостоятелен: оборачивать его в `component: Step` + `children` НЕ нужно.
+
+```tsx
+import { FormWizard } from '@reformer/ui-kit/form-wizard';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
+import { Box, InputField } from '@reformer/ui-kit';
+
+// form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form.
+function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): RenderNode<MyForm> {
+  return {
+    selector: 'wizard',
+    component: FormWizard,
+    componentProps: {
+      ...(form ? { form } : {}),
+      config, // FormWizardConfig: { validateStep?, validateAll? }
+      // ОБЯЗАТЕЛЬНО для RenderNode-тела: см. раздел ниже.
+      renderStepBody: (body: RenderNode<MyForm>, wizardForm: FormProxy<MyForm>) => (
+        <RenderNodeComponent node={body} form={wizardForm} />
+      ),
+      steps: [
+        {
+          number: 1,
+          title: 'Кредит',
+          icon: '💰',
+          body: {
+            component: Box,
+            componentProps: { className: 'space-y-4' },
+            children: [
+              { value: model.$.loanAmount, component: InputField, componentProps: { label: 'Сумма' } },
+              { value: model.$.loanTerm, component: InputField, componentProps: { label: 'Срок' } },
+            ],
+          },
+        },
+        // ...остальные шаги
+      ],
+    },
+  };
+}
+```
+
+## 44. `renderStepBody` обязателен
+
+ui-kit намеренно не зависит от `@reformer/renderer-react` — дизайн-система не тянет рендерер.
+Поэтому `FormWizard` умеет только два вида `body`: `ReactNode` и `ComponentType`. Третий вид —
+`RenderNode` — он отдаёт стратегии из пропа
+`renderStepBody: (body: TBody, form: FormProxy<T>) => ReactNode`.
+
+**Без стратегии шаг не отрисуется, а упадёт.** Плоский объект узла уходит React'у как
+child, и React бросает `Objects are not valid as a React child (found: object with keys
+{component, componentProps, children})`, размонтируя корень: error boundary ни в рендерере, ни
+в ui-kit нет. Ни `tsc`, ни `validate_form kind="code"` этого не ловят — тип тела в
+`componentProps` не проверяется (`ContainerRenderNodeProps` — индексная сигнатура).
+
+Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`.
+
+Из-за JSX в стратегии файл схемы обычно получает расширение `.tsx` — канон раскладки это
+допускает (`renderer.schema.tsx`).
+
+## 45. Листья внутри `steps[].body` тоже harvest'ятся
+
+Сборка обходит дерево key-agnostic и доходит до каждого `{ value: signal }`-листа независимо от
+вложенности — включая листья внутри `componentProps.steps[].body`. Отсюда двойной проход, и
+делает его фабрика:
+
+```tsx
+const myForm = useReactForm(() =>
+  createReactForm<MyForm>({ model: createMyModel(), schema: buildSchema })
+);
+// внутри: buildSchema(model) — дерево БЕЗ формы для harvest'а (FormProxy самоссылочен, обход по
+// нему упал бы с переполнением стека), затем buildSchema(model, form) — дерево для рендера, из
+// которого wizard-узел берёт форму. Писать эту пару руками больше не нужно.
+```
+
+## 46. Валидация и submit
+
+`config` — это `FormWizardConfig`, то есть `{ validateStep?, validateAll? }`; оба колбэка
+возвращают `boolean | Promise<boolean>`. Канон — прогонять `validateModel(model, schema)` из
+`@reformer/core/validation`: валидация живёт отдельным слоем, в layout-схеме валидаторов нет.
+
+Кнопка отправки гейтит вызов через `config.validateAll`: при провале `onSubmit` не вызывается,
+а поля помечаются `touched`. Поэтому валидировать руками в обработчике не нужно.
+`FormWizardProps.onSubmit` — это `() => void | Promise<void>`, **аргументов у него нет**:
+снимок значений берётся из модели (`model.get()`). Типизировать его как
+`(values: MyForm) => …` — ошибка компиляции.
+
+Императивный доступ — через `schema.node('wizard').getRef<FormWizardHandle<T>>()`:
+`handle.submit(cb)` принимает `(values) => …`, проходит тот же гейт и возвращает `null`, если
+валидация не прошла. Компонент под селектором обязан пробрасывать `ref`, иначе handle пуст.
+
+## 47. См. также
+
+- `@reformer/ui-kit` `docs/llms/07-form-wizard.md` — сам компонент целиком.
+- `@reformer/cdk` `docs/llms/03-form-navigation.md` — headless-навигация и `FormWizard.Actions`.
+- [03-render-behavior.md](03-render-behavior.md) — `onComponentEvent`, `renderEffect`, `hideWhen`.
+- [06-validation.md](06-validation.md) — per-step схемы и `defineSteps`.
+
+## 48. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -1257,7 +1327,7 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
 
 ```typescript
 { array: model.coBorrowers, initialValue: createBlankCoBorrower,
-  item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
+  item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: InputField }] }) }
 ```
 
 _Source: src/core/types.ts_
@@ -1337,8 +1407,8 @@ title: 'Личные данные',
 className: 'grid grid-cols-2 gap-4',
 },
 children: [
-{ value: model.$.firstName, component: Input },
-{ value: model.$.lastName, component: Input },
+{ value: model.$.firstName, component: InputField },
+{ value: model.$.lastName, component: InputField },
 ],
 }
 ```
@@ -1854,14 +1924,15 @@ export function onComponentEvent(
 **Examples:**
 
 ```typescript
-onComponentEvent(
-  schema.node('wizard'),
-  'onSubmit',
-  async (values: MyForm) => {
-    await submitForm(values);
-  }
-);
+onComponentEvent(schema.node('region'), 'onChange', (value: string) => {
+  loadCities(value);
+});
 ```
+
+Для отправки формы этот механизм не нужен: кнопка мастера сама гейтит вызов через
+`config.validateAll`, поэтому обработчик отправки передаётся пропом `onSubmit`
+(см. `reformer://docs/cdk/multi-step-submit`). Подписка на `'onSubmit'` в обход
+этого гейта — анти-паттерн: она вызывается по клику, до валидации.
 
 _Source: src/core/render-behavior.ts_
 
@@ -2249,8 +2320,8 @@ export type RenderSchemaFn<T> = () => RenderNode<T>;
 const renderSchema: RenderSchemaFn<MyForm> = () => ({
   component: Box,
   children: [
-    { value: model.$.email, component: Input },
-    { value: model.$.password, component: InputPassword },
+    { value: model.$.email, component: InputField },
+    { value: model.$.password, component: InputPasswordField },
   ],
 });
 ```

@@ -10,7 +10,7 @@ layout-схеме НЕТ — правила живут в отдельной с�
 ```typescript
 {
   value: model.$.fieldName,   // сигнал модели (PathAwareSignal) — обязателен
-  component: Input,           // React-компонент
+  component: InputField,           // React-компонент
   componentProps?: object,    // пропсы (label, placeholder, options, type, ...)
   disabled?: boolean,
   updateOn?: 'change' | 'blur' | 'submit',
@@ -28,7 +28,7 @@ layout-схеме НЕТ — правила живут в отдельной с�
 import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
-import { Input, Select, Checkbox } from '@reformer/ui-kit';
+import { InputField, SelectField, CheckboxField } from '@reformer/ui-kit';
 
 const model = createModel<MyForm>({ name: '', age: null, agree: false, status: 'active' });
 
@@ -40,22 +40,22 @@ const myValidation = defineValidationSchema<MyForm>(({ model }) => {
 const schema = {
   name: {
     value: model.$.name,
-    component: Input,
+    component: InputField,
     componentProps: { label: 'Name', placeholder: 'Enter name' },
   },
   age: {
     value: model.$.age,
-    component: Input,
+    component: InputField,
     componentProps: { type: 'number', label: 'Age' },
   },
   agree: {
     value: model.$.agree,
-    component: Checkbox,
+    component: CheckboxField,
     componentProps: { label: 'I agree to terms' },
   },
   status: {
     value: model.$.status,
-    component: Select,
+    component: SelectField,
     componentProps: {
       label: 'Status',
       options: [
@@ -79,9 +79,9 @@ const form = createForm<MyForm>({ model, schema });
 import type { FormModel } from '@reformer/core';
 
 const addressNodes = (m: FormModel<Address>) => ({
-  street: { value: m.$.street, component: Input, componentProps: { label: 'Street' } },
-  city:   { value: m.$.city,   component: Input, componentProps: { label: 'City' } },
-  zip:    { value: m.$.zip,    component: Input, componentProps: { label: 'ZIP' } },
+  street: { value: m.$.street, component: InputField, componentProps: { label: 'Street' } },
+  city:   { value: m.$.city,   component: InputField, componentProps: { label: 'City' } },
+  zip:    { value: m.$.zip,    component: InputField, componentProps: { label: 'ZIP' } },
 });
 
 const schema = {
@@ -98,8 +98,8 @@ const schema = {
 import type { FormModel } from '@reformer/core';
 
 const itemSchema = (item: FormModel<Item>) => ({
-  id:   { value: item.$.id,   component: Input, componentProps: { label: 'ID' } },
-  name: { value: item.$.name, component: Input, componentProps: { label: 'Name' } },
+  id:   { value: item.$.id,   component: InputField, componentProps: { label: 'ID' } },
+  name: { value: item.$.name, component: InputField, componentProps: { label: 'Name' } },
 });
 
 const schema = {

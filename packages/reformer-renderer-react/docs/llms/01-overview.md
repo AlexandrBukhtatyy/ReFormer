@@ -42,7 +42,7 @@ import {
   useReactForm,
   type RenderNode,
 } from '@reformer/renderer-react';
-import { Box, Section, Input, FormField } from '@reformer/ui-kit';
+import { Box, Section, InputField, FormField } from '@reformer/ui-kit';
 
 interface MyForm {
   email: string;
@@ -59,10 +59,10 @@ function buildSchema(model: FormModel<MyForm>): RenderNode<MyForm> {
         component: Section,
         componentProps: { title: 'Вход' },
         children: [
-          { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
+          { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
           {
             value: model.$.password,
-            component: Input,
+            component: InputField,
             componentProps: { label: 'Пароль', type: 'password' },
           },
         ],
@@ -86,61 +86,13 @@ function MyFormPage() {
 
 ### Multi-step forms
 
-Для многошаговых форм wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`
-(канонический shipped-компонент). Форма передаётся ему через `componentProps.form`, а шаги —
-через `componentProps.steps`: массив объектов `{ number, title, icon, body }`, где `body` —
-это `RenderNode` (поддерево M1-схемы шага). `body` — самостоятельная под-схема, её НЕ нужно
-оборачивать в `component: Step` + `children`.
+Wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`: форма едет в
+`componentProps.form`, шаги — в `componentProps.steps` (`{ number, title, icon, body }`, где
+`body` — самостоятельный `RenderNode`), а тело шага рисуется ОБЯЗАТЕЛЬНОЙ стратегией
+`renderStepBody` — без неё шаг не просто «не отрисуется», а уронит рендер.
 
-```tsx
-import { FormWizard } from '@reformer/ui-kit/form-wizard';
-import { Box, Input } from '@reformer/ui-kit';
-
-// form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form.
-function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): RenderNode<MyForm> {
-  return {
-    selector: 'wizard',
-    component: FormWizard,
-    componentProps: {
-      ...(form ? { form } : {}), // form нужен только рендеру; при createForm его не передаём
-      config, // FormWizardConfig: { validateStep?, validateAll? } — см. канон ниже
-      steps: [
-        {
-          number: 1,
-          title: 'Кредит',
-          icon: '💰',
-          body: {
-            component: Box,
-            componentProps: { className: 'space-y-4' },
-            children: [
-              { value: model.$.loanAmount, component: Input, componentProps: { label: 'Сумма' } },
-              { value: model.$.loanTerm, component: Input, componentProps: { label: 'Срок' } },
-            ],
-          },
-        },
-        // ...остальные шаги
-      ],
-    },
-  };
-}
-```
-
-**Листья-поля под `componentProps.steps[].body` тоже harvest'ятся.** Сборка обходит дерево
-key-agnostic и доходит до каждого `{ value: signal }`-листа независимо от вложенности — включая
-листья внутри `componentProps.steps[].body`. Отсюда двойной проход, и делает его фабрика:
-
-```tsx
-const myForm = useReactForm(() =>
-  createReactForm<MyForm>({ model: createMyModel(), schema: buildSchema })
-);
-// внутри: buildSchema(model) — дерево БЕЗ формы для harvest'а (FormProxy самоссылочен, обход по
-// нему упал бы с переполнением стека), затем buildSchema(model, form) — дерево для рендера, из
-// которого wizard-узел берёт форму. Писать эту пару руками больше не нужно.
-```
-
-Полный справочник по `FormWizard` (полиморфный `step.body`, `config` / `FormWizardConfig`,
-`FormWizardHandle`, обязательный mounting под `RenderContextProvider` / `<FormRenderer>`) —
-`@reformer/ui-kit · docs/llms/07-form-wizard.md`.
+Полный рецепт с примером схемы, двойным проходом harvest'а и разбором submit —
+[07-form-wizard.md](07-form-wizard.md), он же `find_recipe wizard`.
 
 ### Container `children` — top-level свойство
 

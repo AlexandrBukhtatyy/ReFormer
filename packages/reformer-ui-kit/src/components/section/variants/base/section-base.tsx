@@ -41,8 +41,8 @@ export interface SectionProps {
  *     className: 'grid grid-cols-2 gap-4',
  *   },
  *   children: [
- *     { value: model.$.firstName, component: Input },
- *     { value: model.$.lastName, component: Input },
+ *     { value: model.$.firstName, component: InputField },
+ *     { value: model.$.lastName, component: InputField },
  *   ],
  * }
  * ```
@@ -55,8 +55,8 @@ export interface SectionProps {
  *   component: Section,
  *   componentProps: { className: 'space-y-4 mt-4' },
  *   children: [
- *     { value: model.$.address, component: Input },
- *     { value: model.$.city, component: Input },
+ *     { value: model.$.address, component: InputField },
+ *     { value: model.$.city, component: InputField },
  *   ],
  * }
  * ```

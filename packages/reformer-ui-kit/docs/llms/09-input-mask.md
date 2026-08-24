@@ -20,7 +20,7 @@ componentProps }` → `createForm({ model, schema })`; правила — отд
 import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, pattern } from '@reformer/core/validators';
-import { InputMask } from '@reformer/ui-kit';
+import { InputMaskField } from '@reformer/ui-kit';
 
 type ContactForm = {
   phone: string;
@@ -36,22 +36,22 @@ const schema = {
   children: [
     {
       value: model.$.phone,
-      component: InputMask,
+      component: InputMaskField,
       componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99', testId: 'phone' },
     },
     {
       value: model.$.passport,
-      component: InputMask,
+      component: InputMaskField,
       componentProps: { label: 'Серия и номер паспорта', mask: '9999 999999', testId: 'passport' },
     },
     {
       value: model.$.inn,
-      component: InputMask,
+      component: InputMaskField,
       componentProps: { label: 'ИНН', mask: '999999999999', testId: 'inn' },
     },
     {
       value: model.$.snils,
-      component: InputMask,
+      component: InputMaskField,
       componentProps: { label: 'СНИЛС', mask: '999-999-999 99', testId: 'snils' },
     },
   ],

@@ -124,7 +124,7 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
 ```typescript
 const model = createModel<{ accept: boolean }>({ accept: false }); // false, не undefined!
 const schema = {
-  children: [{ value: model.$.accept, component: Checkbox }],
+  children: [{ value: model.$.accept, component: CheckboxField }],
 };
 const form = createForm<{ accept: boolean }>({ model, schema });
 ```

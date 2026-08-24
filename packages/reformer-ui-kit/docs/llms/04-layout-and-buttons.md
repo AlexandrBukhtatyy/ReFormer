@@ -291,7 +291,7 @@ interface ExampleCardProps {
 ### Common Patterns
 
 ```tsx
-import { ExampleCard, Input } from '@reformer/ui-kit';
+import { ExampleCard, InputField } from '@reformer/ui-kit';
 
 <ExampleCard
   title="Input — базовый"

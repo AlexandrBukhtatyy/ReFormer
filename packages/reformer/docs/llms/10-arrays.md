@@ -7,7 +7,7 @@
 
 ```typescript
 import { createModel, createForm, type FormModel } from '@reformer/core';
-import { Input } from '@reformer/ui-kit';
+import { InputField } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
 type MyForm = { items: Item[] };
@@ -16,9 +16,9 @@ const model = createModel<MyForm>({ items: [] });
 
 // под-схема одного элемента (item.$.field — сигнал под-модели)
 const itemSchema = (item: FormModel<Item>) => ({
-  id:    { value: item.$.id,    component: Input },
-  name:  { value: item.$.name,  component: Input },
-  price: { value: item.$.price, component: Input, componentProps: { type: 'number' } },
+  id:    { value: item.$.id,    component: InputField },
+  name:  { value: item.$.name,  component: InputField },
+  price: { value: item.$.price, component: InputField, componentProps: { type: 'number' } },
 });
 
 const schema = {

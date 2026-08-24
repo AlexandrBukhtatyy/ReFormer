@@ -64,15 +64,15 @@ interface InputProps {
 Базовый ввод (текст):
 
 ```tsx
-import { Input } from '@reformer/ui-kit';
+import { InputField } from '@reformer/ui-kit';
 
-<Input value={name} onChange={setName} placeholder="Имя" />;
+<InputField value={name} onChange={setName} placeholder="Имя" />;
 ```
 
 Числовое поле (с `min`):
 
 ```tsx
-<Input type="number" value={age} onChange={setAge} min={0} placeholder="Возраст" />
+<InputField type="number" value={age} onChange={setAge} min={0} placeholder="Возраст" />
 ```
 
 > **Edge case `type='number'`.** Пустой ввод даёт `null` (а не `''`). При `min >= 0`
@@ -88,14 +88,14 @@ Email-валидация на уровне формы (M1: `createModel` → lay
 import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
-import { Input, FormField } from '@reformer/ui-kit';
+import { InputField, FormField } from '@reformer/ui-kit';
 
 const model = createModel<{ email: string }>({ email: '' });
 const schema = {
   children: [
     {
       value: model.$.email,
-      component: Input,
+      component: InputField,
       componentProps: { type: 'email', label: 'Email', testId: 'email' },
     },
   ],
@@ -117,7 +117,11 @@ const form = createForm<{ email: string }>({ model, schema });
 - Опускать `min={0}` и ожидать, что отрицательные числа отсекутся сами — нет,
   без `min` отрицательные значения проходят.
 - Перехватывать `onChange={(e) => …}` напрямую (как у нативного `<input>`).
-  `Input` отдаёт сразу значение, а не event.
+  `InputField` отдаёт сразу значение, а не event.
+- **Ставить в форму примитив `Input` вместо `InputField`.** Примитив — нативный
+  `<input>`: его `onChange` отдаёт `SyntheticEvent`, и в модель уедет объект события,
+  а не строка. Ни TypeScript, ни `validate_form` этого не поймают — поле выглядит
+  рабочим. То же для `Textarea`/`TextareaField`, `InputMask`/`InputMaskField`.
 
 ## InputMask
 
@@ -145,28 +149,32 @@ interface InputMaskProps {
 Российский телефон:
 
 ```tsx
-import { InputMask } from '@reformer/ui-kit';
+import { InputMaskField } from '@reformer/ui-kit';
 
-<InputMask value={phone} onChange={setPhone} mask="+7 (999) 999-99-99" />;
+<InputMaskField value={phone} onChange={setPhone} mask="+7 (999) 999-99-99" />;
 ```
 
 ИНН (10 цифр):
 
 ```tsx
-<InputMask value={inn} onChange={setInn} mask="9999999999" placeholder="ИНН" />
+<InputMaskField value={inn} onChange={setInn} mask="9999999999" placeholder="ИНН" />
 ```
 
 Дата `DD.MM.YYYY`:
 
 ```tsx
-<InputMask value={birthDate} onChange={setBirthDate} mask="99.99.9999" />
+<InputMaskField value={birthDate} onChange={setBirthDate} mask="99.99.9999" />
 ```
 
 ### Anti-patterns
 
-- Считать, что `value` хранится без литералов маски. На самом деле `value` — это
-  ровно то, что введено пользователем, **с** литералами. Очистку (только цифры)
-  нужно делать в behavior `transformValue` или при сабмите.
+- **Рассчитывать, что маска отформатирует ввод.** `InputMask` ввод НЕ трансформирует:
+  `onChange` отдаёт `event.target.value` как есть, а `mask` используется только как
+  `placeholder`-подсказка. Наберёт пользователь `+7 (999) …` — столько и уедет в модель;
+  наберёт `9999999999` — уедет без литералов. Если формат обязателен, проверяйте его
+  правилом валидации, а нормализуйте в behavior `transformValue` или при сабмите.
+- Поэтому регулярка валидации не должна требовать литералов, если только вы не приводите
+  значение к формату сами: `/^\d{10}$/` пройдёт, а `/^\+7 \(\d{3}\)…/` — нет.
 - Использовать `mask` для сложных правил (валидация диапазонов, контрольные
   суммы) — `InputMask` только направляет ввод, не валидирует. Валидацию вешать
   через `validate(model.$.x, [...])` в validation-схеме (запуск `validateModel`).
@@ -197,22 +205,22 @@ interface InputPasswordProps {
 Дефолт (с переключателем):
 
 ```tsx
-import { InputPassword } from '@reformer/ui-kit';
+import { InputPasswordField } from '@reformer/ui-kit';
 
-<InputPassword value={password} onChange={setPassword} placeholder="Пароль" />;
+<InputPasswordField value={password} onChange={setPassword} placeholder="Пароль" />;
 ```
 
 Без переключателя видимости:
 
 ```tsx
-<InputPassword value={password} onChange={setPassword} showToggle={false} />
+<InputPasswordField value={password} onChange={setPassword} showToggle={false} />
 ```
 
 Подтверждение пароля (через `compute-from` / `revalidate-when` на уровне формы):
 
 ```tsx
-<InputPassword value={form.password.value} onChange={form.password.setValue} />
-<InputPassword
+<InputPasswordField value={form.password.value} onChange={form.password.setValue} />
+<InputPasswordField
   value={form.passwordConfirm.value}
   onChange={form.passwordConfirm.setValue}
   placeholder="Повторите пароль"
@@ -221,7 +229,7 @@ import { InputPassword } from '@reformer/ui-kit';
 
 ### Anti-patterns
 
-- Использовать `<Input type="password">` вместо `InputPassword`, если нужен
+- Использовать `<InputField type="password">` вместо `InputPassword`, если нужен
   переключатель видимости — `Input` его не имеет.
 - Хранить пароль с побочными состояниями (`maskedValue`, `realValue`). Компонент
   всегда отдаёт raw-строку через `onChange`; маскирование — задача браузера.
@@ -253,9 +261,9 @@ interface TextareaProps {
 Комментарий с лимитом:
 
 ```tsx
-import { Textarea } from '@reformer/ui-kit';
+import { TextareaField } from '@reformer/ui-kit';
 
-<Textarea
+<TextareaField
   value={comment}
   onChange={setComment}
   rows={5}
@@ -267,7 +275,7 @@ import { Textarea } from '@reformer/ui-kit';
 Адрес доставки:
 
 ```tsx
-<Textarea value={address} onChange={setAddress} rows={3} placeholder="Адрес" />
+<TextareaField value={address} onChange={setAddress} rows={3} placeholder="Адрес" />
 ```
 
 ### Anti-patterns
@@ -280,6 +288,6 @@ import { Textarea } from '@reformer/ui-kit';
 
 ## See also
 
-- [03-choice-fields.md](03-choice-fields.md) — Select, Checkbox, RadioGroup.
+- [03-choice-fields.md](03-choice-fields.md) — Select, CheckboxField, RadioGroupField.
 - [05-form-field-integration.md](05-form-field-integration.md) — как все эти поля автоматически подключаются через `FormField`.
 - [06-troubleshooting.md](06-troubleshooting.md) — «number возвращает строку», «mask пропускает символы», «password toggle не появляется».

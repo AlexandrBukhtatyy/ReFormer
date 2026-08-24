@@ -289,12 +289,14 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push("      componentProps: { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },");
     lines.push('      children: [');
     lines.push(
-      "        { value: model.$.step1.loanAmount, component: Input, componentProps: { testId: 'step1.loanAmount' } },"
+      "        { value: model.$.step1.loanAmount, component: InputField, componentProps: { testId: 'step1.loanAmount' } },"
     );
-    lines.push('        { value: model.$.step1.loanTerm, component: Input },');
+    lines.push('        { value: model.$.step1.loanTerm, component: InputField },');
     lines.push('      ],');
     lines.push('    },');
-    lines.push('    { value: model.$.step1.loanPurpose, component: Textarea },  // full-width');
+    lines.push(
+      '    { value: model.$.step1.loanPurpose, component: TextareaField },  // full-width'
+    );
     lines.push('  ],');
     lines.push('}');
     lines.push('```');
