@@ -55,7 +55,7 @@ export function FloatingActions() {
 
   const runValidate = (): boolean => {
     if (!tab) return false;
-    const res = validateSchema(tab.schema);
+    const res = validateSchema(tab.schema, { rules: tab.rules });
     setStatus(res.valid ? 'ok' : 'error');
     setErrors(res.errors);
     if (res.valid) toast.success('Схема валидна');
