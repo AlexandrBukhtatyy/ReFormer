@@ -89,7 +89,15 @@ describe('createFormFromSpec на настоящих спеках проекта
 
     const tab = editorStore.getState().tabs[res.tab!];
     const models = [...JSON.stringify(tab.schema).matchAll(/\$model\(([^)]*)\)/g)].map((m) => m[1]);
-    expect(models.length).toBeGreaterThan(60);
+    // Ровно 60 — столько в спеке РЕАЛЬНЫХ полей. Прежний порог «больше 60» держался на
+    // выдуманном поле: позиционный фолбэк разбора подбирал значение соседней колонки, и в
+    // модель попадало поле с именем `false`. Фолбэк убран, число стало честным, поэтому
+    // сторожим не количество, а отсутствие мусора.
+    expect(models.length).toBeGreaterThanOrEqual(60);
+    expect(
+      models.filter((m) => /^(false|true|null|undefined)$/i.test(m)),
+      'литерал из соседней колонки не должен становиться полем'
+    ).toEqual([]);
     // Составные пути — целые разделы формы (паспорт, персональные данные). Раньше их не было.
     expect(models.filter((m) => m.includes('.')).length).toBeGreaterThan(10);
     expect(tab.rules.validation.length).toBeGreaterThan(30);
