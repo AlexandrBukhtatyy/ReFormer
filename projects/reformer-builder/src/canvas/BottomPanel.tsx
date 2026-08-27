@@ -1,13 +1,15 @@
 /**
  * Нижняя панель со вкладками: **JSON** (raw-исходник схемы, двусторонний — {@link SchemaCodeEditor}),
- * **Модель** и **Registry** (значения `$dataSource` реестра) — наполняют runtime/live-превью и
- * правятся в {@link MockDataEditor}. Сворачивается общим флагом `rawJsonOpen`. Клик по вкладке
- * разворачивает панель. Кнопка «Сбросить» — к синтезу из схемы (только активная секция).
+ * **Модель** и **Registry** (значения `$dataSource` реестра, {@link MockDataEditor}), три **схемы
+ * формы** (`validation.ts` / `form.behavior.ts` / `renderer.behavior.ts`, {@link FormSourceEditor})
+ * и **Форма** (состояние живой формы). Сворачивается общим флагом `rawJsonOpen`.
  *
- * У «Модели» два вида, переключаются в шапке: **Засев** (редактор мок-данных — чем форма
- * инициализируется) и **Живые** ({@link LiveModelView} — что в модели сейчас, после ввода в поля
- * превью, только чтение). Раньше вкладка показывала только засев, хотя подпись обещала живые
- * значения, — отсюда и жалоба «модель не обновляется при вводе».
+ * Схемы формы живут здесь, а не отдельными документами в таб-баре, потому что они принадлежность
+ * ФОРМЫ: у них общая с ней рабочая копия, общий dirty и общее закрытие. Рядом — «Модель» и
+ * «Форма», то есть ровно тот контекст, в котором правило проверяют глазами.
+ *
+ * Вкладки описаны списком, а не семью ветками: с четырьмя кнопками и тернарником на четыре уровня
+ * это ещё читалось, с семью — уже нет.
  *
  * @module reformer-builder/canvas/BottomPanel
  */
@@ -18,10 +20,13 @@ import type { BottomTab, MockSection, TabState } from '../store';
 import { editorActions, useUi } from '../store';
 import { serializeSchema } from '../io/export';
 import { synthMock } from '../preview-runtime';
+import { FORM_SCHEMA_LABELS, type FormSchemaFile } from '../codegen/regenerate';
 import { SchemaCodeEditor } from './SchemaCodeEditor';
 import { MockDataEditor } from './MockDataEditor';
 import { LiveModelView } from './LiveModelView';
 import { FormStateView } from './FormStateView';
+import { FormSourceEditor, type SourceState } from './FormSourceEditor';
+import { revertToRules } from './revert-to-rules';
 import { serializeSection } from './mock-data';
 import { cn } from '../lib/cn';
 
@@ -32,19 +37,71 @@ import { cn } from '../lib/cn';
  */
 type ModelView = 'seed' | 'live';
 
-/** Секция мок-данных, которую правит вкладка (у `raw` и `form` секции нет — они read-only). */
-const SECTION: Record<BottomTab, MockSection | null> = {
-  raw: null,
+/** Секция мок-данных, которую правит вкладка (у остальных секции нет). */
+const SECTION: Partial<Record<BottomTab, MockSection>> = {
   model: 'model',
   registry: 'dataSources',
-  form: null,
+};
+
+/** Вкладка → файл схемы формы. Пусто у вкладок, которые схем не правят. */
+const SOURCE_FILE: Partial<Record<BottomTab, FormSchemaFile>> = {
+  validation: 'validation.ts',
+  formBehavior: 'form.behavior.ts',
+  renderBehavior: 'renderer.behavior.ts',
+};
+
+/** Порядок и подписи вкладок. Схемы формы — сразу после «Модели». */
+const TABS: ReadonlyArray<{ id: BottomTab; label: string; title: string }> = [
+  { id: 'raw', label: 'JSON', title: 'Исходник схемы формы' },
+  { id: 'model', label: 'Модель', title: 'Модель формы: засев (редактируется) или живые значения' },
+  {
+    id: 'validation',
+    label: FORM_SCHEMA_LABELS['validation.ts'],
+    title: 'validation.ts — правила валидации модели',
+  },
+  {
+    id: 'formBehavior',
+    label: FORM_SCHEMA_LABELS['form.behavior.ts'],
+    title: 'form.behavior.ts — реактивные связи между полями',
+  },
+  {
+    id: 'renderBehavior',
+    label: FORM_SCHEMA_LABELS['renderer.behavior.ts'],
+    title: 'renderer.behavior.ts — видимость, события и пропсы узлов',
+  },
+  { id: 'registry', label: 'Registry', title: 'Значения источников $dataSource в превью' },
+  {
+    id: 'form',
+    label: 'Форма',
+    title: 'Состояние живой формы: валидность полей, ошибки, лог поведения, сборка схем',
+  },
+];
+
+/** Подпись состояния файла — она же единственный носитель модели владения в интерфейсе. */
+const STATE_LABEL: Record<SourceState, string> = {
+  loading: '…',
+  generated: 'из правил',
+  edited: 'правлен',
+  handwritten: 'из проекта',
+  unavailable: 'н/д',
+};
+
+const STATE_HINT: Record<SourceState, string> = {
+  loading: 'Читаем рабочую копию',
+  generated: 'Файл собирается из правил формы и обновляется вместе с ними',
+  edited: 'Вы правили этот файл — правила его больше не трогают',
+  handwritten: 'Файл пришёл из проекта — правила его не трогают',
+  unavailable: 'Хранилище браузера выключено, править файл нельзя',
 };
 
 export function BottomPanel({ tab }: { tab: TabState }) {
   const { rawJsonOpen, bottomTab: active } = useUi();
   const [resetKey, setResetKey] = useState(0);
   const [modelView, setModelView] = useState<ModelView>('seed');
+  const [sourceState, setSourceState] = useState<SourceState>('loading');
+
   const section = SECTION[active];
+  const sourceFile = SOURCE_FILE[active];
   /** Живой вид есть только у «Модели»; у Registry и JSON редактируется сам источник. */
   const live = active === 'model' && modelView === 'live';
   /** «Форма» — не текст: ни счётчика строк, ни «Сбросить» у неё нет. */
@@ -52,13 +109,13 @@ export function BottomPanel({ tab }: { tab: TabState }) {
 
   // Число строк активной вкладки (для правого счётчика в заголовке).
   const lines = useMemo(() => {
-    if (formState) return 0;
+    if (formState || sourceFile) return 0;
     const text =
       section == null
         ? serializeSchema(tab.schema)
         : (tab.mock?.[section] ?? serializeSection(synthMock(tab.schema), section));
     return text.split('\n').length;
-  }, [formState, section, tab.schema, tab.mock]);
+  }, [formState, sourceFile, section, tab.schema, tab.mock]);
 
   // Клик по вкладке переключает (в сторе — переживает remount при разворачивании) и разворачивает.
   const select = (t: BottomTab) => {
@@ -70,10 +127,16 @@ export function BottomPanel({ tab }: { tab: TabState }) {
     editorActions.resetMock(tab.id, section);
     setResetKey((k) => k + 1); // remount редактора → стартовый текст снова из синтеза
   };
+  const onRevert = () => {
+    if (!sourceFile) return;
+    void revertToRules(tab, sourceFile).then((done) => {
+      if (done) setResetKey((k) => k + 1);
+    });
+  };
 
   const tabCls = (t: BottomTab) =>
     cn(
-      'h-full rounded px-2.5 text-[11.5px]',
+      'h-full flex-none whitespace-nowrap rounded px-2 text-[11.5px]',
       active === t ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted'
     );
 
@@ -95,31 +158,19 @@ export function BottomPanel({ tab }: { tab: TabState }) {
             className={cn('h-3.5 w-3.5 transition-transform', rawJsonOpen && 'rotate-90')}
           />
         </button>
-        <button onClick={() => select('raw')} className={tabCls('raw')}>
-          JSON
-        </button>
-        <button
-          onClick={() => select('model')}
-          title="Модель формы: засев (редактируется) или живые значения"
-          className={tabCls('model')}
-        >
-          Модель
-        </button>
-        <button
-          onClick={() => select('registry')}
-          title="Значения источников $dataSource в превью"
-          className={tabCls('registry')}
-        >
-          Registry
-        </button>
-        <button
-          onClick={() => select('form')}
-          title="Состояние живой формы: валидность полей, ошибки, лог поведения, сборка схем"
-          className={tabCls('form')}
-        >
-          Форма
-        </button>
-        <span className="flex-1" />
+        <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => select(t.id)}
+              title={t.title}
+              className={tabCls(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {active === 'model' && rawJsonOpen && (
           <div className="flex flex-none gap-0.5 rounded border border-border p-0.5">
             <button
@@ -144,6 +195,34 @@ export function BottomPanel({ tab }: { tab: TabState }) {
             </button>
           </div>
         )}
+
+        {sourceFile && rawJsonOpen && (
+          <>
+            <span
+              title={STATE_HINT[sourceState]}
+              className={cn(
+                'flex-none whitespace-nowrap rounded-full border px-2 py-0.5 text-[10.5px]',
+                sourceState === 'generated' &&
+                  'border-emerald-500/50 bg-emerald-500/10 text-emerald-700',
+                (sourceState === 'edited' || sourceState === 'handwritten') &&
+                  'border-amber-500/50 bg-amber-500/10 text-amber-700',
+                sourceState === 'unavailable' && 'border-destructive/50 text-destructive',
+                sourceState === 'loading' && 'border-border'
+              )}
+            >
+              {STATE_LABEL[sourceState]}
+            </span>
+            <button
+              onClick={onRevert}
+              disabled={sourceState === 'loading' || sourceState === 'unavailable'}
+              title="Собрать файл из правил формы заново (покажем, что изменится)"
+              className="flex-none whitespace-nowrap rounded px-2 py-0.5 hover:bg-muted hover:text-foreground disabled:opacity-50"
+            >
+              К правилам
+            </button>
+          </>
+        )}
+
         {section != null && rawJsonOpen && !live && !formState && (
           <button
             onClick={onReset}
@@ -153,12 +232,23 @@ export function BottomPanel({ tab }: { tab: TabState }) {
             Сбросить
           </button>
         )}
-        {!live && !formState && <span className="flex-none pr-1.5">{lines} строк</span>}
+        {!live && !formState && !sourceFile && (
+          <span className="flex-none pr-1.5">{lines} строк</span>
+        )}
       </div>
+
       {rawJsonOpen && (
         <div className="min-h-0 flex-1 border-t border-border">
           {formState ? (
             <FormStateView />
+          ) : sourceFile ? (
+            <FormSourceEditor
+              key={`${tab.id}:${sourceFile}`}
+              tab={tab}
+              file={sourceFile}
+              onState={setSourceState}
+              resetToken={resetKey}
+            />
           ) : section == null ? (
             <SchemaCodeEditor schema={tab.schema} />
           ) : live ? (

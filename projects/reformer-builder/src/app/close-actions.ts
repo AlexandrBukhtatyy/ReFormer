@@ -11,6 +11,7 @@
 import { dropDraft, editorActions, editorStore, isDirty, isDraft } from '../store';
 import type { EditorState } from '../store';
 import { closeDialogActions, type CloseIntent } from '../store/close-dialog';
+import { dropWorkdir } from './workdir-actions';
 
 /** Какие вкладки закроет команда (в порядке таб-бара). */
 export function closingTabs(state: EditorState, intent: CloseIntent): string[] {
@@ -49,6 +50,9 @@ function runClose(state: EditorState, intent: CloseIntent): void {
   for (const id of closingTabs(state, intent)) {
     const tab = state.tabs[id];
     if (tab && isDraft(tab)) void dropDraft(id);
+    // Рабочая копия убирается ВСЕГДА, а не только у черновиков: каталоги OPFS живут, пока их не
+    // удалить, и копия формы из проекта пережила бы закрытие вкладки так же, как копия новой.
+    void dropWorkdir(id);
   }
   switch (intent.kind) {
     case 'one':

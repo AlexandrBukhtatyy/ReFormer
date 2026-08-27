@@ -9,7 +9,8 @@
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { MockData } from '../preview-runtime/mock-synth';
 import type { FormRules } from '../model/rules';
-import { createDirectory, createFile, existsIn } from '../io/fs-ops';
+import { createDirectory, createFile, existsIn, readTextFile } from '../io/fs-ops';
+import { isGenerated, withMarker } from './regenerate';
 import { appSnippet, buildExampleFiles, makeNames } from './index';
 import { formatFiles } from './format';
 
@@ -18,10 +19,33 @@ export interface ExportResult {
   dir: string;
   /** Записанные файлы. */
   written: string[];
-  /** Пропущенные user-owned файлы (уже существовали). */
+  /**
+   * Пропущенные файлы — те, что пользователь правил руками.
+   *
+   * Раньше сюда попадал ЛЮБОЙ существующий `user`-файл, и это был молчаливый отказ: агент менял
+   * правила, отчитывался об этом, а `validation.ts` на диске оставался прежним. Теперь пропуск
+   * означает ровно «ваши правки не тронуты», и вызывающий обязан это показать.
+   */
   skipped: string[];
   /** Сниппет для вставки в App.tsx. */
   snippet: string;
+}
+
+/**
+ * `user`-файлы, которые всё-таки производятся из правил и потому маркируются.
+ *
+ * `api.ts` и `data-sources.ts` сюда не входят: это заготовки, которые пользователь дописывает
+ * под свой бэкенд, и регенерировать их не из чего.
+ */
+const GENERATED_USER_FILES = new Set(['validation.ts', 'form.behavior.ts', 'renderer.behavior.ts']);
+
+/** Текст файла либо `null`, если его нет. */
+async function safeRead(root: FileSystemDirectoryHandle, path: string): Promise<string | null> {
+  try {
+    return await readTextFile(root, path);
+  } catch {
+    return null;
+  }
 }
 
 type Picker = (opts?: { mode?: string }) => Promise<FileSystemDirectoryHandle>;
@@ -51,7 +75,13 @@ export async function exportExampleToDirectory(
   // Правила идут сюда же, а не отдельным шагом: без них `validation.ts` и
   // `form.behavior.ts` уедут пользователю заглушками с TODO — то есть форма, которую агент
   // считает провалидированной, в его проекте не проверяет ничего.
-  const files = await formatFiles(buildExampleFiles(schema, mock, formName, rules));
+  const files = (await formatFiles(buildExampleFiles(schema, mock, formName, rules))).map((f) =>
+    // Маркер несут все перезаписываемые файлы: по нему следующий экспорт отличит «наш, можно
+    // обновить» от «правили руками, трогать нельзя».
+    f.cls === 'derived' || GENERATED_USER_FILES.has(f.path)
+      ? { ...f, content: withMarker(f.content) }
+      : f
+  );
 
   const root = await picker({ mode: 'readwrite' });
   await createDirectory(root, '', names.dir);
@@ -60,8 +90,13 @@ export async function exportExampleToDirectory(
   const skipped: string[] = [];
   for (const f of files) {
     if (f.cls === 'user' && (await existsIn(root, names.dir, f.path))) {
-      skipped.push(f.path);
-      continue;
+      // Существующий файл перезаписывается, только если он наш и его не правили: предикат —
+      // маркер происхождения, а не сам факт существования.
+      const current = await safeRead(root, `${names.dir}/${f.path}`);
+      if (!GENERATED_USER_FILES.has(f.path) || !isGenerated(current)) {
+        skipped.push(f.path);
+        continue;
+      }
     }
     await createFile(root, names.dir, f.path, f.content);
     written.push(f.path);

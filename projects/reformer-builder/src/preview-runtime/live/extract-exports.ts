@@ -99,7 +99,13 @@ export function extractContract(modules: Record<string, ModuleExports>): FormCon
   const renderBehavior = pick(modules, RENDER_BEHAVIOR_FILES, 'formRenderBehavior');
   if (isFn(renderBehavior)) contract.renderBehavior = renderBehavior as RenderBehaviorFn<Shape>;
 
-  const factory = pick(modules, RENDER_BEHAVIOR_FILES, 'createRenderBehavior');
+  // `createJsonRenderBehavior` — имя, которое печатает кодоген билдера (`emit-behavior.ts`) и
+  // импортирует его же `index.tsx`. Переименовать символ нельзя: `index.tsx` класса `derived`
+  // и перезаписывается, а `renderer.behavior.ts` — `user` и остаётся пользовательским, так что
+  // переименование выдало бы уже экспортированному каталогу импорт несуществующего имени.
+  const factory =
+    pick(modules, RENDER_BEHAVIOR_FILES, 'createRenderBehavior') ??
+    pick(modules, RENDER_BEHAVIOR_FILES, 'createJsonRenderBehavior');
   if (isFn(factory)) {
     contract.renderBehaviorFactory = factory as FormContract['renderBehaviorFactory'];
   }

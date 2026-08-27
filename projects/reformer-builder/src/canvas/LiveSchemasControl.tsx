@@ -27,8 +27,8 @@ let executionApproved = false;
 export function LiveSchemasControl({ tab }: { tab: TabState | null }) {
   const ui = useUi();
   const live = useSyncExternalStore(subscribeLiveState, getLiveState);
-  // Каталог с `.ts` есть только у вкладки, открытой из проекта.
-  const available = tab?.source.kind === 'file' && Boolean(tab.source.path);
+  // Рабочая копия есть у любой открытой формы — и у собранной в билдере тоже.
+  const available = Boolean(tab);
 
   const toggle = (): void => {
     if (ui.liveSchemas) {
@@ -56,7 +56,7 @@ export function LiveSchemasControl({ tab }: { tab: TabState | null }) {
   /** Подсказка кнопки: она же единственный носитель статуса — бейджей рядом нет. */
   const hint = (): string => {
     if (!available) {
-      return 'Доступно для формы, открытой из проекта: рядом со схемой должны лежать .ts';
+      return 'Откройте форму, чтобы исполнять её схемы';
     }
     if (!ui.liveSchemas) {
       return 'Исполнять схемы формы из каталога: валидация, поведение, реестр';

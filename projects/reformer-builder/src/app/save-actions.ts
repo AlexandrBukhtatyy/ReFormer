@@ -48,8 +48,11 @@ import { effectiveMock } from '../canvas/mock-data';
 import { applyMarkdownView, preferredMarkdownView } from '../canvas/markdown/view-pref';
 import { dirPickerAvailable, exportExampleToDirectory } from '../codegen/deliver';
 import { showValidationErrors } from './validation-toast';
-import { editorActions, editorStore } from '../store';
-import type { MarkdownView, OpenOptions, TabState } from '../store';
+import { activeTab, editorActions, editorStore } from '../store';
+import { syncWorkdir } from './workdir-actions';
+import { FORM_SCHEMA_FILES } from '../codegen/regenerate';
+import { commitSourcesSave, describePlan, planSourcesSave } from '../io/save-sources';
+import type { BottomTab, MarkdownView, OpenOptions, TabState } from '../store';
 import { projectActions, projectStore } from '../store/project-store';
 import { fileClipboardActions, fileClipboardStore } from '../store/file-clipboard';
 import { reloadTemplates } from '../store/templates-store';
@@ -271,7 +274,35 @@ export async function openCodeFile(d: TreeEntry, opts?: OpenOptions): Promise<vo
  * `opts.preview` — временной вкладкой (одиночный клик); без него — закреплённой (двойной клик),
  * причём уже открытая вкладка тогда просто закрепляется, без повторного чтения файла.
  */
+/**
+ * Три схемы АКТИВНОЙ формы правятся только в нижней панели.
+ *
+ * Открыть их ещё и code-вкладкой значило бы завести второй буфер на один файл: панель пишет в
+ * рабочую копию, вкладка — в свой текст, и разошлись бы они на первой же правке.
+ */
+const PANEL_FILES: Record<string, BottomTab> = {
+  'validation.ts': 'validation',
+  'form.behavior.ts': 'formBehavior',
+  'renderer.behavior.ts': 'renderBehavior',
+};
+
+/** Вкладка нижней панели для файла активной формы, если он её схема. */
+function panelTabFor(entry: TreeEntry): BottomTab | undefined {
+  const target = PANEL_FILES[entry.name];
+  if (!target) return undefined;
+  const tab = activeTab(editorStore.getState());
+  if (!tab || tab.kind !== 'form' || !tab.source.path) return undefined;
+  const formDir = splitPath(tab.source.path).dirPath;
+  return splitPath(entry.path).dirPath === formDir ? target : undefined;
+}
+
 export async function openTreeEntry(entry: TreeEntry, opts?: OpenOptions): Promise<void> {
+  const panel = panelTabFor(entry);
+  if (panel) {
+    editorActions.setBottomTab(panel);
+    if (!editorStore.getState().ui.rawJsonOpen) editorActions.toggleRawJson();
+    return;
+  }
   if (!opts?.preview && editorStore.getState().tabs[entry.path]) {
     editorActions.pinTab(entry.path);
     return;
@@ -575,7 +606,7 @@ export function generateRegistry(dirPath: string): Promise<void> {
 
 /** Триггер сохранения (Cmd+S / кнопка): валидация-гейт → Mode B diff-модалка или Mode A export. */
 export async function triggerSave(tab: TabState): Promise<void> {
-  const v = validateSchema(tab.schema);
+  const v = validateSchema(tab.schema, { rules: tab.rules });
   if (!v.valid) {
     showValidationErrors(v.errors, tab.schema);
     return;
@@ -595,6 +626,34 @@ export async function triggerSave(tab: TabState): Promise<void> {
   }
 }
 
+/**
+ * Синхронизировать схемы формы из рабочей копии на диск (Mode B).
+ *
+ * Отдельно от сохранения схемы, потому что это отдельные артефакты с отдельной судьбой: схему
+ * печатает принтер из `tab.schema`, а `.ts` берутся из рабочей копии, где их правил человек
+ * или собрал генератор. Раньше этого пути не было вовсе — правки схем формы на диск не
+ * попадали никак, кроме первого экспорта в пустую папку.
+ */
+async function saveFormSources(tab: TabState): Promise<void> {
+  const root = projectStore.getState().dirHandle;
+  if (!root || !tab.source.path) return;
+  const workdir = await syncWorkdir(tab);
+  if (!workdir) return;
+
+  const plan = await planSourcesSave(root, tab.source.path, workdir, [...FORM_SCHEMA_FILES]);
+  if (!plan.changes.length) return;
+
+  const ok = window.confirm(
+    'Записать схемы формы на диск?\n\n' +
+      describePlan(plan) +
+      '\n\nФайлы будут перезаписаны содержимым рабочей копии.'
+  );
+  if (!ok) return;
+
+  const written = await commitSourcesSave(root, plan);
+  if (written.length) toast('Схемы формы записаны: ' + written.join(', '));
+}
+
 /** Подтвердить запись из diff-модалки → защищённая запись + обновление baseline. */
 export async function confirmSave(plan: SavePlan): Promise<void> {
   if (!plan.handle) {
@@ -607,6 +666,9 @@ export async function confirmSave(plan: SavePlan): Promise<void> {
     editorActions.commitSaved(plan.newText, lastModified);
     saveDialogActions.close();
     toast('Сохранено в файл');
+    // Схемы формы едут следом: пользователь нажал «сохранить форму», а не «сохранить раскладку».
+    const tab = editorStore.getState().tabs[plan.tabId];
+    if (tab) await saveFormSources(tab);
   } catch (e) {
     saveDialogActions.setSaving(false);
     toast('Ошибка записи: ' + msg(e));

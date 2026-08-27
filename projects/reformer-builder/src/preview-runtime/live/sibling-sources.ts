@@ -1,27 +1,29 @@
 /**
- * Исходники каталога формы — то, что будет исполнено рядом с `renderer.schema.json`.
+ * Исходники каталога формы — то, что будет исполнено живым превью.
  *
- * **Приоритет: открытая в Monaco `code`-вкладка, потом диск.** Иначе правка `validation.ts` во
- * вкладке не влияла бы на превью до сохранения, а именно этот цикл («правлю правило — вижу, как оно
- * отрабатывает») и есть смысл живого рендера.
+ * **Один путь чтения — рабочая копия вкладки** (`app/workdir-actions`). Раньше их было два, с
+ * правилом приоритета «несохранённая вкладка Monaco важнее диска», и работало это только для формы,
+ * открытой из проекта: у формы, собранной в билдере, файлов не существовало вовсе, и живое превью
+ * ей было недоступно. Теперь буфер и есть файл: редактор пишет в рабочую копию, превью её читает.
  *
- * Берём прямых детей каталога с расширением `.ts`/`.tsx`, кроме `index.tsx` (страница-обёртка со
- * своим JSX и submit — превью её не исполняет) и тестов.
+ * Копия содержит МОДУЛЬ ЦЕЛИКОМ, а не три правимые схемы. Это не запас: `renderer.behavior.ts`
+ * импортирует значения из `./validation` и `./api`, и на неполном наборе `require('./api')` бросил
+ * бы — то есть поведение UI не подключилось бы никогда.
  *
  * @module reformer-builder/preview-runtime/live/sibling-sources
  */
 
-import { listFilesDeep, readTextFile, splitPath } from '../../io/fs-ops';
-import { editorStore } from '../../store';
-import { projectStore } from '../../store/project-store';
+import { syncWorkdir } from '../../app/workdir-actions';
+import { splitPath } from '../../io/fs-ops';
+import type { TabState } from '../../store/types';
 
 /** Исходники каталога формы: имя файла → текст. */
 export interface FormSources {
-  /** Каталог формы относительно корня проекта. */
+  /** Каталог формы относительно корня проекта (пустой у формы без проекта). */
   dir: string;
   /** Прямые дети каталога: имя файла (с расширением) → исходник. */
   files: Record<string, string>;
-  /** Файлы, взятые из несохранённых вкладок Monaco, — показываем это в панели «Сборка». */
+  /** Файлы, правленные пользователем, — показываем это в панели «Сборка». */
   fromEditor: string[];
 }
 
@@ -32,44 +34,23 @@ function isExecutable(name: string): boolean {
   return !/\.(test|spec)\.tsx?$/.test(name);
 }
 
-/** Тексты открытых `code`-вкладок, лежащих прямо в каталоге формы. */
-function editorOverrides(dir: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const tab of Object.values(editorStore.getState().tabs)) {
-    const path = tab.source.path;
-    if (tab.kind !== 'code' || typeof tab.text !== 'string' || !path) continue;
-    const { dirPath, base } = splitPath(path);
-    if (dirPath !== dir || !isExecutable(base)) continue;
-    out[base] = tab.text;
-  }
-  return out;
-}
-
 /**
- * Прочитать исходники каталога, в котором лежит `formPath` (путь к `renderer.schema.json`
- * относительно корня проекта). Без открытого проекта или при недоступном каталоге — пустой набор: вызывающий покажет
- * это как «схемы не подключены», а не как ошибку.
+ * Прочитать исходники формы из её рабочей копии.
+ *
+ * Недоступная копия (OPFS выключен, приватный режим) — не ошибка: пустой набор, вызывающий
+ * покажет это как «схемы не подключены».
  */
-export async function readFormSources(formPath: string): Promise<FormSources> {
-  const dir = splitPath(formPath).dirPath;
-  const root = projectStore.getState().dirHandle;
+export async function readFormSources(tab: TabState): Promise<FormSources> {
+  const dir = tab.source.path ? splitPath(tab.source.path).dirPath : '';
+  const all = await syncWorkdir(tab);
+  if (!all) return { dir, files: {}, fromEditor: [] };
+
   const files: Record<string, string> = {};
-
-  if (root) {
-    // listFilesDeep обходит вложенные каталоги — берём только прямых детей.
-    const names = (await listFilesDeep(root, dir)).filter(
-      (rel) => !rel.includes('/') && isExecutable(rel)
-    );
-    for (const name of names) {
-      try {
-        files[name] = await readTextFile(root, dir ? `${dir}/${name}` : name);
-      } catch {
-        // Файл исчез между листингом и чтением — не повод валить всю сборку.
-      }
-    }
+  for (const [name, text] of Object.entries(all)) {
+    if (isExecutable(name)) files[name] = text;
   }
-
-  const overrides = editorOverrides(dir);
-  Object.assign(files, overrides);
-  return { dir, files, fromEditor: Object.keys(overrides) };
+  // Что именно правил человек, знает маркер: файл без него либо с разошедшимся хэшем — рукописный.
+  const { originOf } = await import('../../codegen/regenerate');
+  const fromEditor = Object.keys(files).filter((n) => originOf(files[n]) !== 'generated');
+  return { dir, files, fromEditor };
 }

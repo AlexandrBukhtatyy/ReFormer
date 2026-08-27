@@ -70,13 +70,17 @@ export function useLiveForm({
   const [bundle, setBundle] = useState<LiveBundle | null>(null);
   // Счётчик ручных пересборок и подпись правок в Monaco — оба входят в зависимости эффекта.
   const [reloadNonce, setReloadNonce] = useState(0);
+  // Ключ пересборки — id вкладки, а не путь на диске: рабочая копия есть и у формы, собранной
+  // в билдере, и живое превью обязано работать и для неё. Примитив, а не объект: объект,
+  // пересоздаваемый на каждый рендер, зациклил бы эффект.
+  const formKey = tab.id;
   const formPath = tab.source.kind === 'file' ? tab.source.path : undefined;
   const [signature, setSignature] = useState(() => editorSignature(formPath));
   const disposeRef = useRef<(() => void) | null>(null);
 
   // Правки соседних файлов в Monaco: следим за подписью, а не за каждым рендером стора.
   useEffect(() => {
-    if (!enabled || !formPath) return;
+    if (!enabled) return;
     let timer = 0;
     const unsubscribe = editorStore.subscribe(() => {
       const next = editorSignature(formPath);
@@ -93,7 +97,7 @@ export function useLiveForm({
   }, [enabled, formPath]);
 
   useEffect(() => {
-    if (!enabled || !formPath) {
+    if (!enabled) {
       setBundle(null);
       setLiveState({
         status: enabled ? 'unavailable' : 'off',
@@ -119,7 +123,7 @@ export function useLiveForm({
     void (async () => {
       try {
         const live = await import('../preview-runtime/live');
-        const sources = await live.readFormSources(formPath);
+        const sources = await live.readFormSources(tab);
         const compiled = await live.compileForm(sources);
         if (cancelled) return;
 
@@ -161,7 +165,10 @@ export function useLiveForm({
       disposeRef.current?.();
       disposeRef.current = null;
     };
-  }, [enabled, formPath, annotated, dataSources, modelOverride, signature, reloadNonce]);
+    // `tab` в зависимостях намеренно нет: он меняется на каждую правку схемы, а пересборка
+    // нужна на смену формы и на правку файлов — это `formKey` и `signature`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, formKey, annotated, dataSources, modelOverride, signature, reloadNonce]);
 
   // Размонтирование превью — состояние панели не должно «залипать» на прошлой форме.
   useEffect(() => resetLiveState, []);

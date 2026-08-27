@@ -54,7 +54,14 @@ export type Theme = 'light' | 'dark';
  * `registry` — значения `$dataSource` реестра превью, `form` — состояние живой формы (валидность
  * полей, ошибки, лог, статус сборки схем).
  */
-export type BottomTab = 'raw' | 'model' | 'registry' | 'form';
+export type BottomTab =
+  | 'raw'
+  | 'model'
+  | 'validation'
+  | 'formBehavior'
+  | 'renderBehavior'
+  | 'registry'
+  | 'form';
 
 /** Секция мок-данных превью: модель формы либо значения источников реестра. */
 export type MockSection = 'model' | 'dataSources';
