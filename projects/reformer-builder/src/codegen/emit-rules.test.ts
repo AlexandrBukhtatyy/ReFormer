@@ -40,7 +40,7 @@ function rules(): FormRules {
       },
       { kind: 'enableWhen', target: 'city', sources: ['country'], expr: 'model.country !== null' },
     ],
-    visibility: [],
+    render: [],
   };
 }
 

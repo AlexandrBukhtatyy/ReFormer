@@ -31,6 +31,8 @@ import type { PropsSchema } from '@reformer/ui-kit/meta';
 import { collectOperatorNames } from '../model';
 import { getCatalog } from '../catalog';
 import { knownComponentNames } from '../preview-runtime/known-names';
+import { ruleWarnings } from '../model/rules-integrity';
+import type { FormRules } from '../model/rules';
 import { lintStructure } from './structure-lint';
 
 /** Результат валидации. */
@@ -62,6 +64,15 @@ export interface ValidateOptions {
    * игнорируется.
    */
   baseline?: JsonFormSchema;
+  /**
+   * Правила формы — чтобы заодно сказать об осиротевших: правиле на удалённое поле или на
+   * несуществующий селектор.
+   *
+   * В отличие от структурного линта, эти замечания собираются в ЛЮБОМ режиме, включая ручное
+   * сохранение. Причина в цене промаха: кривая раскладка видна на канвасе сразу, а правило,
+   * указывающее в никуда, в рантайме не делает ничего и молча — узнать о нём иначе негде.
+   */
+  rules?: FormRules;
 }
 
 let propSchemasCache: Record<string, PropsSchema> | null = null;
@@ -100,6 +111,9 @@ export function validateSchema(schema: JsonFormSchema, opts?: ValidateOptions): 
   return {
     valid: result.valid,
     errors: result.errors,
-    warnings: opts?.strict ? lintStructure(schema) : [],
+    warnings: [
+      ...(opts?.strict ? lintStructure(schema) : []),
+      ...(opts?.rules ? ruleWarnings(schema, opts.rules) : []),
+    ],
   };
 }

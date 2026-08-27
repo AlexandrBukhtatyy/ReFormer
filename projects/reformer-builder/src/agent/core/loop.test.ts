@@ -428,7 +428,7 @@ describe('правила вкладки на входе в ход', () => {
   const existing: FormRules = {
     validation: [{ target: 'email', rules: ['required'] }],
     behavior: [],
-    visibility: [],
+    render: [],
   };
 
   const schema = {

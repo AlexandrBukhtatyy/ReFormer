@@ -171,13 +171,13 @@ function cloneRules(rules: FormRules): FormRules {
   return {
     validation: [...rules.validation],
     behavior: [...rules.behavior],
-    visibility: [...rules.visibility],
+    render: [...rules.render],
   };
 }
 
 function summarize(rules: FormRules): string {
   return (
     `Готово. Правил: валидация ${rules.validation.length}, поведение ${rules.behavior.length}, ` +
-    `видимость ${rules.visibility.length}. Они уходят в validation.ts и form.behavior.ts.`
+    `render ${rules.render.length}. Они уходят в validation.ts и form.behavior.ts.`
   );
 }

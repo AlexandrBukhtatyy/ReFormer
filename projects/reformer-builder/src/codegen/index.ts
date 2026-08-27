@@ -61,7 +61,7 @@ export function buildExampleFiles(
     { path: 'index.tsx', content: emitIndex(names), cls: 'derived' },
     { path: 'README.md', content: emitReadme(names, info, c), cls: 'derived' },
     { path: 'data-sources.ts', content: emitDataSources(c, mock), cls: 'user' },
-    { path: 'renderer.behavior.ts', content: emitBehavior(names, info), cls: 'user' },
+    { path: 'renderer.behavior.ts', content: emitBehavior(names, info, rules), cls: 'user' },
     // Есть правила — собираем из них (билдерами MCP); нет — прежние заглушки с примерами.
     // Форма без правил валидна, и генерироваться она обязана в компилируемый код.
     //

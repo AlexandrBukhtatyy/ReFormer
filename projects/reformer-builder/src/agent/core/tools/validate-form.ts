@@ -63,6 +63,7 @@ export const validateForm: AgentTool = {
   readOnly: true,
   run(_params, ctx) {
     const { valid, errors, warnings } = validateSchema(ctx.draft, {
+      rules: ctx.rules,
       strict: true,
       baseline: ctx.base,
     });

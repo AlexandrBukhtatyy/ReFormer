@@ -21,6 +21,7 @@ import { moveNodeTool } from './move-node';
 import { removeNodeTool } from './remove-node';
 import { setFormRulesTool } from './set-form-rules';
 import { setLayoutTool } from './set-layout';
+import { setRenderRulesTool } from './set-render-rules';
 import { setNodeModelTool } from './set-node-model';
 import { setNodePropTool } from './set-node-prop';
 import { validateForm } from './validate-form';
@@ -40,6 +41,7 @@ export {
   setLayoutTool,
   setNodeModelTool,
   setNodePropTool,
+  setRenderRulesTool,
   validateForm,
 };
 
@@ -64,6 +66,7 @@ export const WRITE_TOOLS: readonly AgentTool[] = [
   groupNodesTool,
   setLayoutTool,
   setFormRulesTool,
+  setRenderRulesTool,
 ];
 
 /** Полная поверхность редактора. */

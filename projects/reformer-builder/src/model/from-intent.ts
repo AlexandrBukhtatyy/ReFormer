@@ -21,7 +21,7 @@ import { buildLayoutJson } from '@reformer/mcp/dist/core/generate/builders.js';
 import type { FormIntent } from '@reformer/mcp/dist/core/generate/form-intent.js';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { knownComponentNames } from '../preview-runtime/known-names';
-import { emptyRules, type FormRules } from './rules';
+import { emptyRules, renderRuleFromVisibility, type FormRules } from './rules';
 
 /**
  * Имена компонентов, которые MCP пишет в разметку, но билдер знает под другим именем.
@@ -64,7 +64,7 @@ export function formFromIntent(intent: FormIntent): FormFromIntent {
       ...emptyRules(),
       validation: [...intent.validation],
       behavior: [...intent.behavior],
-      visibility: [...intent.visibility],
+      render: intent.visibility.map(renderRuleFromVisibility),
     },
     warnings,
   };

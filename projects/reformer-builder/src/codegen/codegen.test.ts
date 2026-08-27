@@ -23,7 +23,7 @@ describe('buildExampleFiles — правила доходят до файлов'
   const rules = {
     validation: [{ target: 'amount', rules: ['required'] }],
     behavior: [],
-    visibility: [],
+    render: [],
   };
 
   it('с правилами validation.ts содержит правило, а не заглушку', () => {

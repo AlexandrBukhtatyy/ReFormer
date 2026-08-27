@@ -1,6 +1,11 @@
 /**
- * Эмиттер `validation.ts` (user-owned) — `required`-правила из `componentProps.required` +
- * `makeValidationConfig`. При отсутствии required — пустая схема (форма валидна).
+ * Эмиттер `validation.ts` (user-owned) — `required`-правила из `componentProps.required`.
+ * При отсутствии required — пустая схема (форма валидна).
+ *
+ * Основной экспорт — `formValidation`: тот же контракт, что отдаёт путь через правила
+ * (`emit-rules`), и то, что ищут `renderer.behavior.ts` и живое превью. Второй экспорт,
+ * `makeValidationConfig`, остаётся: это документированная обёртка визарда
+ * (`{ validateStep, validateAll }`) из доков core и cdk, а не изобретение билдера.
  *
  * @module reformer-builder/codegen/emit-validation
  */
@@ -34,13 +39,13 @@ import type { ${n.TypeName} } from './types';
 
 type Root = ${n.TypeName};
 
-const schema = defineValidationSchema<Root>(${cb});
+export const formValidation = defineValidationSchema<Root>(${cb});
 
-/** Контракт валидации для формы (при желании — разбейте по шагам). */
+/** Пошаговый контракт для визарда. Полная проверка — validateModel(model, formValidation). */
 export function makeValidationConfig(model: FormModel<Root>) {
   return {
-    validateStep: (_step: number): Promise<boolean> => validateModel(model, schema),
-    validateAll: (): Promise<boolean> => validateModel(model, schema),
+    validateStep: (_step: number): Promise<boolean> => validateModel(model, formValidation),
+    validateAll: (): Promise<boolean> => validateModel(model, formValidation),
   };
 }
 `;

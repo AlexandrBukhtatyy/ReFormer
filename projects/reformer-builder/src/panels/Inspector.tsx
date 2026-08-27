@@ -25,6 +25,7 @@ import {
   type JsonNode,
 } from '@reformer/renderer-json';
 import { childSlots, findByPath, isLeafComponent, kindOf, type JsonPath } from '../model';
+import { selectorOf, setNodeSelector, suggestSelector } from '../model';
 import {
   setComponentProp,
   setNodeKey,
@@ -144,6 +145,59 @@ function ModelPathField({ node, path, tab }: { node: JsonNode; path: JsonPath; t
             }
           }}
           placeholder="имя_свойства"
+          className="h-[26px] min-w-0 flex-1 bg-background font-mono text-xs"
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Редактор селектора узла — имени, которым за узел цепляются правила render-слоя
+ * (`schema.node('…')` в `renderer.behavior.ts`).
+ *
+ * Показывается ВСЕМ узлам, а не только секциям: до появления этого поля селектор проставлялся
+ * только при экспорте и только контейнерам-секциям, массивам и submit-кнопке, поэтому правило
+ * видимости на обычном поле оказывалось молчаливым no-op. Пустое значение убирает ключ; имя
+ * дедуплицируется по всей схеме (`setNodeSelector`), иначе два узла отозвались бы на один адрес
+ * и правило досталось бы первому попавшемуся.
+ */
+function SelectorField({ node, path }: { node: JsonNode; path: JsonPath }) {
+  const current = selectorOf(node) ?? '';
+  const [draft, setDraft] = useState(current);
+  const [synced, setSynced] = useState(current);
+  if (synced !== current) {
+    setSynced(current);
+    setDraft(current);
+  }
+
+  const commit = () => {
+    const next = draft.trim();
+    if (next === current) return;
+    editorActions.apply((schema) => setNodeSelector(schema, path, next));
+  };
+
+  return (
+    <div className="border-b border-border p-3.5">
+      <div className="mb-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Селектор
+      </div>
+      <div className="flex min-h-6 items-center gap-2.5">
+        <span className="w-24 flex-none truncate text-xs" title="Имя узла для правил поведения UI">
+          schema.node()
+        </span>
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') {
+              setDraft(current);
+              e.currentTarget.blur();
+            }
+          }}
+          placeholder={suggestSelector(node)}
           className="h-[26px] min-w-0 flex-1 bg-background font-mono text-xs"
         />
       </div>
@@ -427,6 +481,7 @@ export function Inspector() {
       {tab && (isFieldNode(node) || isArrayNode(node)) && (
         <ModelPathField node={node} path={selPath} tab={tab} />
       )}
+      <SelectorField node={node} path={selPath} />
       {showsText && <TextContentField node={node} path={selPath} parts={compoundParts} />}
       {groups.map((group) => (
         <div key={group.group} className="border-b border-border p-3.5">

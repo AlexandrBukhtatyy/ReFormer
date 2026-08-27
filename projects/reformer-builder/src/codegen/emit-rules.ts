@@ -19,7 +19,7 @@
 
 import { buildBehaviorTs, buildValidationTs } from '@reformer/mcp/dist/core/generate/builders.js';
 import { normalizeIntent } from '@reformer/mcp/dist/core/generate/form-intent.js';
-import type { FormRules } from '../model/rules';
+import { visibilityFromRules, type FormRules } from '../model/rules';
 import type { Names } from './naming';
 
 /**
@@ -35,7 +35,7 @@ function intentOf(rules: FormRules, names: Names) {
     interfaceName: names.TypeName,
     validation: rules.validation,
     behavior: rules.behavior,
-    visibility: rules.visibility,
+    visibility: visibilityFromRules(rules),
   });
 }
 

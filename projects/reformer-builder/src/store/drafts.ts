@@ -10,6 +10,7 @@
  * @module reformer-builder/store/drafts
  */
 
+import { readRules } from '../model/rules';
 import { deleteDraft, saveDraft, type DraftRecord } from '../io/draft-store';
 import { editorStore } from './editor-store';
 import { isDraft, makeTab } from './reducers';
@@ -94,7 +95,7 @@ export function toTab(record: DraftRecord): TabState {
   return {
     ...tab,
     savedSchema: record.savedSchema,
-    ...(record.rules ? { rules: record.rules } : {}),
+    ...(record.rules ? { rules: readRules(record.rules) } : {}),
     mock: record.mock,
     activeStep: record.activeStep,
     touched: record.touched,

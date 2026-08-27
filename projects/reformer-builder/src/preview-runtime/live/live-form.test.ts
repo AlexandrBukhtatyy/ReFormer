@@ -302,7 +302,7 @@ describe('live-превью на выходе кодогена', () => {
     const rules: FormRules = {
       validation: [{ target: 'amount', rules: ['required'] }],
       behavior: [],
-      visibility: [],
+      render: [],
     };
     const { sources, schema: emitted } = await codegenSources(rules);
     const compiled = await compileForm(sources);

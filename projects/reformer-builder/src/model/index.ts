@@ -11,3 +11,4 @@ export * from './node-kind';
 export * from './query';
 export * from './normalize';
 export * from './mutate';
+export * from './selectors';

@@ -114,7 +114,7 @@ describe('toRecord / toTab', () => {
     const rules = {
       validation: [{ target: 'email', rules: ['required'] }],
       behavior: [],
-      visibility: [],
+      render: [],
     };
     s = R.replaceSchema(s, R.activeTab(s)!.schema, rules);
 
@@ -130,7 +130,7 @@ describe('toRecord / toTab', () => {
     delete (record as { rules?: unknown }).rules;
 
     const back = toTab(record);
-    expect(back.rules).toEqual({ validation: [], behavior: [], visibility: [] });
+    expect(back.rules).toEqual({ validation: [], behavior: [], render: [] });
   });
 
   it('история не восстанавливается', () => {

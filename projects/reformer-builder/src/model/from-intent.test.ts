@@ -86,7 +86,7 @@ describe('formFromIntent', () => {
     expect(rules.validation).toHaveLength(1);
     expect(rules.validation[0].target).toBe('email');
     expect(rules.behavior[0].kind).toBe('computeFrom');
-    expect(rules.visibility).toEqual([]);
+    expect(rules.render).toEqual([]);
   });
 
   it('предупреждения самого intent не теряются', () => {
