@@ -353,7 +353,16 @@ export async function* streamViaAiSdk(
           yield { type: 'error', message: messageOf(part.error), retryable: true };
           break;
         case 'abort':
-          yield { type: 'done', reason: 'aborted' };
+          // Диагностика нужна и здесь, хотя причина названа. `aborted` без подробностей
+          // неотличим от нажатой пользователем кнопки «Остановить», а приходит он и когда
+          // поток закрыл сервер. Незакрытый вызов инструмента — единственный признак, который
+          // виден в обоих случаях: он означает, что вывод кончился посреди JSON аргументов,
+          // и правка не применилась вовсе.
+          yield {
+            type: 'done',
+            reason: 'aborted',
+            stop: stopOf('abort', 'abort', firstOpenCall(openCalls), !stepSaidSomething),
+          };
           return;
         case 'finish': {
           // Упор в предел шагов больше не виден по finishReason: на последнем шаге инструменты
@@ -398,7 +407,13 @@ export async function* streamViaAiSdk(
   } catch (e) {
     // Сетевые сбои и отказ авторизации приходят исключением, а не событием потока.
     if (signal?.aborted) {
-      yield { type: 'done', reason: 'aborted' };
+      // Здесь причина известна — остановил пользователь, — но недописанный вызов сообщить всё
+      // равно стоит: по нему видно, что правка не применилась, а не «применилась наполовину».
+      yield {
+        type: 'done',
+        reason: 'aborted',
+        stop: stopOf('abort', 'user-abort', firstOpenCall(openCalls)),
+      };
       return;
     }
     // Свой таймаут SDK тоже отменяет прерыванием, но НЕ нашим сигналом: наш `signal.aborted` при

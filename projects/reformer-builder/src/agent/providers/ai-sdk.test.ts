@@ -288,6 +288,27 @@ describe('перевод потока AI SDK', () => {
     const events = await play([{ type: 'abort' }]);
     expect(events).toMatchObject([{ type: 'done', reason: 'aborted' }]);
   });
+
+  /**
+   * Замер ассистента на большой спеке (.tmp/builder-spec-run/report.md) кончился именно так:
+   * `reason: 'aborted'` при пустом `stop` и без единого слова от модели. Отличить «нажали
+   * Остановить» от «сервер закрыл поток» было нечем, а форма осталась пустым каркасом.
+   * Причина названа — но диагностика нужна и при названной причине.
+   */
+  it('отмена несёт диагностику: недописанный вызов и молчание шага', async () => {
+    const events = await play([
+      { type: 'tool-input-start', id: 'c1', toolName: 'insert_node' },
+      { type: 'abort' },
+    ]);
+    const done = events.at(-1) as { type: string; reason?: string; stop?: Record<string, unknown> };
+    expect(done).toMatchObject({ type: 'done', reason: 'aborted' });
+    expect(done.stop, 'обрыв без диагностики неотличим от штатного конца').toBeDefined();
+    expect(
+      done.stop?.truncatedCall,
+      'вызов оборван посреди аргументов — правка не применилась'
+    ).toBe('insert_node');
+    expect(done.stop?.emptyFinish, 'шаг не сказал ничего').toBe(true);
+  });
 });
 
 describe('расход шага', () => {
