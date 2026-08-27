@@ -185,7 +185,7 @@ exports[`каталог: отпечаток не меняется > состав
   "TabsContent|container|Контейнеры|||Tabs|||a2aee01f|{"children":[],"component":"$component(TabsContent)"}",
   "TabsList|container|Контейнеры|||Tabs|||1f5dd0bc|{"children":[],"component":"$component(TabsList)"}",
   "TabsTrigger|container|Контейнеры|||Tabs|||57462c77|{"children":["Текст"],"component":"$component(TabsTrigger)"}",
-  "Textarea|field|Поля ввода||||TextareaField||ba0579d0|{"component":"$component(Textarea)","componentProps":{"label":"Textarea"},"value":"$model(newField)"}",
+  "Textarea|field|Поля ввода||||TextareaField||7d90c77b|{"component":"$component(Textarea)","componentProps":{"label":"Textarea"},"value":"$model(newField)"}",
   "Toggle|field|Выбор и переключатели||||ToggleField||ffece60d|{"component":"$component(Toggle)","componentProps":{"label":"Toggle"},"value":"$model(newField)"}",
   "ToggleGroup|field|Выбор и переключатели|ToggleGroup|Один||ToggleGroupField||791a8285|{"component":"$component(ToggleGroup)","componentProps":{"label":"ToggleGroup"},"value":"$model(newField)"}",
   "ToggleGroupMulti|field|Выбор и переключатели|ToggleGroup|Несколько||ToggleGroupMultiField||732dd899|{"component":"$component(ToggleGroupMulti)","componentProps":{"label":"ToggleGroupMulti"},"value":"$model(newField)"}",
