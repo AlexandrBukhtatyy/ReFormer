@@ -69,7 +69,9 @@ export function ChatPanel() {
     if (running) return;
     const entry = session.entries.find((e) => e.id === entryId);
     if (!entry?.snapshot) return;
-    editorActions.replaceSchema(entry.snapshot);
+    // Правила восстанавливаются вместе со схемой: ход, изменивший ТОЛЬКО правила, иначе не
+    // отменялся видимой кнопкой вовсе — Ctrl+Z его откатывал, а «Восстановить» молча нет.
+    editorActions.replaceSchema(entry.snapshot, entry.snapshotRules);
     agentSessionActions.restoreTo(entryId);
     setNotice(null);
     setDraft(entry.text);

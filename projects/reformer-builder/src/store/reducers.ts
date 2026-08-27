@@ -966,7 +966,10 @@ export function activeTab(state: EditorState): TabState | null {
 
 /** Dirty активной вкладки: схема разошлась с baseline (сравнение по ссылке — иммутабельность). */
 export function isDirty(tab: TabState): boolean {
-  return tab.kind === 'code' ? tab.text !== tab.savedText : tab.schema !== tab.savedSchema;
+  if (tab.kind === 'code') return tab.text !== tab.savedText;
+  // Правила — такая же часть формы, как раскладка: `markSaved` их baseline честно обновлял, а
+  // dirty их не смотрел, и правка правил агентом не зажигала точку «не сохранено».
+  return tab.schema !== tab.savedSchema || tab.rules !== tab.savedRules;
 }
 
 /**

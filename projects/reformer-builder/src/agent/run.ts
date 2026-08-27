@@ -136,7 +136,7 @@ export async function sendMessage(text: string, provider: AiProvider): Promise<v
   }
 
   // Снимок берётся ДО хода: он же станет точкой восстановления на реплике пользователя.
-  agentSessionActions.startTurn(message, tab.schema);
+  agentSessionActions.startTurn(message, tab.schema, tab.rules);
   const controller = new AbortController();
   current = controller;
 

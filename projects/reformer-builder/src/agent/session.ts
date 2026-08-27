@@ -10,6 +10,7 @@
 
 import { useSyncExternalStore } from 'react';
 import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { FormRules } from '../model/rules';
 import { createStore } from '../store/create-store';
 import type { ChangeSet } from './core/changeset';
 
@@ -46,6 +47,12 @@ export interface ChatEntry {
    * ссылка, а не копия: схема иммутабельна, и каждая правка и так создаёт новый объект.
    */
   snapshot?: JsonFormSchema;
+  /**
+   * Правила на начало хода. Отдельно от схемы, потому что и хранятся отдельно: без них ход,
+   * изменивший ТОЛЬКО правила, кнопкой «Восстановить» не отменялся вовсе — Ctrl+Z его
+   * откатывал, а видимая кнопка молча нет.
+   */
+  snapshotRules?: FormRules;
   /**
    * Рассуждение модели. Хранится рядом с ответом, но отдельным полем: в модель обратно уходит
    * только `text` (`historyFor` в `run.ts`), а на экране это свёрнутый блок. Смешать их в одно
@@ -115,7 +122,7 @@ export const agentSessionActions = {
    * @param text - Сообщение пользователя.
    * @param snapshot - Форма на начало хода; к ней вернёт «Восстановить» на этой реплике.
    */
-  startTurn: (text: string, snapshot?: JsonFormSchema) =>
+  startTurn: (text: string, snapshot?: JsonFormSchema, snapshotRules?: FormRules) =>
     agentSessionStore.setState((s) => ({
       ...s,
       status: 'running',
@@ -130,6 +137,7 @@ export const agentSessionActions = {
           reasoning: '',
           tools: [],
           ...(snapshot ? { snapshot } : {}),
+          ...(snapshotRules ? { snapshotRules } : {}),
         },
         { id: nextId(), role: 'assistant', text: '', reasoning: '', tools: [] },
       ],
