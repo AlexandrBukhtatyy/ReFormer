@@ -69,7 +69,13 @@ export function fieldSnapshot(
   model: FormModel<Record<string, unknown>>,
   path: string
 ): FieldSnapshot {
-  const signal = path.split('.').reduce<any>((acc, seg) => (acc == null ? acc : acc[seg]), model);
+  // Обход начинается с `model.$`, а не с `model`.
+  //
+  // `FormModel<T> = ModelObject<T> & ModelApi<T>`: под `model.<путь>` лежат ЗНАЧЕНИЯ, сигналы —
+  // только под `model.$`. Обход по самой модели давал значение вместо сигнала, `isSignal` был
+  // ложен, и таблица показывала «—» и «нет form-node» у КАЖДОГО поля любой формы — то есть
+  // сообщала о поломке привязки там, где привязка была в порядке.
+  const signal = path.split('.').reduce<any>((acc, seg) => (acc == null ? acc : acc[seg]), model.$);
   const value = isSignal(signal) ? signal.value : undefined;
 
   const node = isSignal(signal) ? getNodeForSignal(signal as any) : undefined;
