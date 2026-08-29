@@ -1,244 +1,224 @@
-# Билдер как среда разработки формы: типы, моки, тесты, stage
+# Пересборка ядра: конвейер вместо трёх связанных пакетов
+
+> Прошлый план из этого файла (билдер: типы, моки, тесты, stage) закоммичен в `eefb4429` и
+> доступен в истории. Файл переиспользован под новую задачу.
 
 ## Context
 
-Пять идей из брейншторма. Две из них уже реализованы, и это меняет постановку остальных трёх.
+Цель — ядро, пригодное для **разных UI-китов, разных компиляторов и разных рендереров**.
+Сегодня ни одно из трёх не выполняется до конца, и мешает этому не объём кода, а расположение
+границ: они проведены по технологиям (`core` / `renderer-react` / `renderer-json`), а не по ролям
+в конвейере.
 
-**Уже работает:**
+**Четыре факта, установленные по коду:**
 
-- **Рабочая копия на вкладку в OPFS** — [io/opfs.ts](../../projects/reformer-builder/src/io/opfs.ts) (`workdirs/<encodeURIComponent(tabId)>`, манифест в `localStorage`, подметание брошенных каталогов на старте) + [app/workdir-actions.ts](../../projects/reformer-builder/src/app/workdir-actions.ts) (co-ownership по маркеру и хэшу: сгенерированное догоняет схему, рукописное не затирается). Идея 1 закрыта; в скоуп этого плана не входит.
-- **Компиляция каталога формы из рабочей копии** — [live/compile-form.ts](../../projects/reformer-builder/src/preview-runtime/live/compile-form.ts) → [live/link.ts](../../projects/reformer-builder/src/preview-runtime/live/link.ts) (CJS через `new Function`, чтобы не поднять второй инстанс `@reformer/core`) → [live/build-live-preview.ts](../../projects/reformer-builder/src/preview-runtime/live/build-live-preview.ts). Валидация и поведение уже исполняются по-настоящему. Идея 2 закрыта в ядре; здесь достраиваются недостающие слои.
+| Факт | Где | Следствие |
+| --- | --- | --- |
+| `@reformer/core` объявляет `react`/`react-dom` в **обязательных** peerDependencies, а корневой barrel реэкспортирует `platforms/react` | [package.json](../../packages/reformer/package.json), [src/index.ts:20](../../packages/reformer/src/index.ts#L20) | любой `import from '@reformer/core'` тянет React; ядро нельзя поставить в Vue-проект |
+| `@reformer/renderer-json` держит peer на `@reformer/renderer-react` и импортирует его типы | [create-json-form.ts:24](../../packages/reformer-renderer-json/src/create-json-form.ts#L24), [converter](../../packages/reformer-renderer-json/src/converter/json-to-render-schema.ts#L14) | второй рендерер потребует второй копии JSON-слоя |
+| Дерево формы описано **дважды**: открытый `FormSchemaNode` в ядре и строгий union `RenderNode` в рендерере | [schema-node.ts](../../packages/reformer/src/form/types/schema-node.ts), [core/types.ts](../../packages/reformer-renderer-react/src/core/types.ts) | поля расходятся — `testId` в ядре объявлен, но рантаймом не читается |
+| Компоненты подключаются **двумя контрактами**: прямая ссылка `component: ElementType` и имя через `ComponentRegistry` | [registry/types.ts](../../packages/reformer-renderer-json/src/registry/types.ts) | «сменный кит» работает только в JSON-ветке |
 
-**Три дыры, ради которых пишется план:**
+**Хорошая новость, на которой стоит план:** ядро уже почти разрезано. `model/`, `form/` и
+`validators/` от React свободны (остались только type-only `ComponentType`/`ElementType`), сабпаты
+`./model`, `./signals`, `./validation`, `./validators` уже опубликованы, а React собран в одном
+каталоге `platforms/react` (1344 строки из 11 893). В шапке [platforms/react/index.ts](../../packages/reformer/src/platforms/react/index.ts)
+это прямо названо «точкой для будущего сабпата». То есть работа — доведение уже начатого
+разделения, а не переписывание.
 
-1. **Проверки типов нет вообще.** [monaco-setup.ts](../../projects/reformer-builder/src/canvas/monaco-setup.ts) настраивает только `jsonDefaults`, [monaco-languages.ts](../../projects/reformer-builder/src/canvas/monaco-languages.ts) регистрирует «только грамматики, без языковых сервисов». Комментарий [transpile.ts:10](../../projects/reformer-builder/src/preview-runtime/live/transpile.ts#L10) («типы в билдере проверяет Monaco») не соответствует коду. `ts.transpileModule` ловит только синтаксис — форма может ожить в превью и не собраться у пользователя. Ровно этот класс дефектов ловит [example-compiles.test.ts](../../projects/reformer-builder/src/codegen/example-compiles.test.ts), но только для кодогена и только в CI.
-2. **Моки не являются артефактом формы.** Они живут JSON-текстом в сторе вкладки ([canvas/mock-data.ts](../../projects/reformer-builder/src/canvas/mock-data.ts) → `TabState.mock`). В проект уезжает только `data-sources.ts`. Импортировать их из теста нечем.
-3. **Прогонять форму негде, кроме глаз.** Тест-раннера нет; [live/sibling-sources.ts:34](../../projects/reformer-builder/src/preview-runtime/live/sibling-sources.ts#L34) сейчас отбрасывает `.test.ts` из исполнения — место под них зарезервировано, но пусто. Канала до stage-сервера нет.
-
-**Результат:** каталог формы в билдере проверяется тем же способом, что и в проекте (типы, тесты, моки — одни и те же файлы), а готовая форма уезжает на живой стенд целиком, включая код, и возвращается оттуда на редактирование.
+**Согласованные рамки:** обратная совместимость не нужна (пользователей нет); «компилятор»
+понимается как **одна ось** — и «формат → дерево», и «TS → исполняемый модуль»; целевые рендереры —
+**другие фреймворки** (Vue, Svelte, vanilla); «проще» = **меньше способов собрать форму** (сейчас
+их четыре: `createForm`, `createCoreForm`, `createReactForm`, `createJsonForm`).
 
 ---
 
-## Решения по развилкам (согласовано)
+## Целевая архитектура
 
-| Развилка              | Выбор                                                                                                                                                                                                                                                                                                                                          |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Что уезжает на stage  | **Форма целиком, включая код** (не только схема)                                                                                                                                                                                                                                                                                              |
-| Конверт доставки      | **Не native ESM, а манифест транспилированных модулей + линкер на стороне stage.** Уточнение к выбранной опции: цель («вся форма») сохраняется, механика другая — см. [обоснование](#почему-не-native-esm-бандл)                                                                                                                              |
-| Sourcemap             | **Оба направления** — со stage вытащить исходники в билдер, из билдера отдать map для DevTools                                                                                                                                                                                                                                                 |
-| Где гоняются тесты    | **Оба уровня**: браузерный раннер сейчас, Node-раннер после появления `@reformer/devhost` ([RFC-0001](../../projects/reformer-builder/docs/rfcs/0001-local-development-runtime.md)). В этот план входит только браузерный — по принципу runtime-optional (P1 того же RFC)                                                                       |
-| Очередь               | Все четыре потока, в порядке Ф1 → Ф2 → Ф3 → Ф4 (каждый следующий опирается на предыдущий)                                                                                                                                                                                                                                                     |
-
----
-
-## Целевая картина
+Одна цепочка с четырьмя сменными звеньями и явными контрактами между ними:
 
 ```mermaid
 graph LR
-  subgraph WD["OPFS workdir вкладки (есть)"]
-    F["model.ts · validation.ts · form.behavior.ts<br/>renderer.behavior.ts · registry.ts · api.ts"]
-    M["mocks.ts ⟵ Ф2"]
-    T["form.test.ts ⟵ Ф3"]
+  subgraph S["Источник"]
+    J["JSON-схема"]
+    T["TS-модуль формы"]
+    Y["YAML · Figma · …"]
   end
 
-  subgraph B["Билдер"]
-    TR["transpileTs (есть, +sourcemap ⟵ Ф4)"]
-    CF["compileForm (есть)"]
-    LP["buildLivePreview (есть)"]
-    TC["typecheck в воркере ⟵ Ф1"]
-    RN["test-runner + vitest-shim ⟵ Ф3"]
-    ST["stage-клиент ⟵ Ф4"]
+  C["Compiler<br/>source → FormDefinition"]
+  IR["FormTree (IR)<br/>component — непрозрачный ref"]
+  K["Ядро<br/>model · nodes · behavior · validation"]
+  FC["FieldController<br/>subscribe · getSnapshot"]
+
+  subgraph R["Рендереры"]
+    RR["react"]
+    RV["vue"]
+    RD["vanilla"]
   end
 
-  DTS[(".d.ts пакетов<br/>~1 МБ, ленивый чанк")]
+  RES["ComponentResolver<br/>ref → компонент кита"]
 
-  subgraph S["Приложение на stage"]
-    BR["@reformer/stage-bridge<br/>dev-only"]
-    HOST["инстансы хоста:<br/>@reformer/core, react, …"]
-    FORM["форма подменена"]
-  end
-
-  F & M --> TR --> CF --> LP
-  F & M & T --> TC
-  DTS --> TC
-  T --> RN --> CF
-  CF --> ST -.->|"postMessage<br/>manifest + pairing"| BR
-  BR --> HOST --> FORM
-  BR -.->|"sourcesContent из .map"| ST
+  J & T & Y --> C --> IR --> K --> FC --> RR & RV & RD
+  RES --> RR & RV & RD
 ```
 
----
-
-## Ф1 — Проверка типов каталога формы
-
-**Что:** полная проверка типов всего каталога (не файла по отдельности), с реальными `.d.ts` пакетов `@reformer/*`, в web-worker'е, с маркерами в Monaco и списком в панели «Сборка».
-
-Проверять надо каталогом целиком: дефект из шапки `example-compiles.test.ts` жил **между** файлами (`validation.ts` экспортирует `formValidation`, а `renderer.behavior.ts` импортирует `makeValidationConfig` — по отдельности оба валидны).
-
-**Почему не Monaco TS-worker:** он тянет вторую копию `typescript` (~5 МБ) и проверяет по одной модели за раз. `typescript` уже в зависимостях билдера и уже грузится лениво в [transpile.ts](../../projects/reformer-builder/src/preview-runtime/live/transpile.ts). Один `ts.createProgram` поверх виртуального `CompilerHost` даёт и межфайловые ошибки, и squiggles — маркеры рисуются вручную через `monaco.editor.setModelMarkers`.
-
-**Файлы:**
-
-| Файл                              | Что                                                                                                                                                    |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/build-types-bundle.mjs`  | новый. Собирает `packages/*/dist/**/*.d.ts` + нужные `lib.*.d.ts` + `@types/react` в один JSON-артефакт. Замер: core 290 КБ, ui-kit 412 КБ, cdk 196 КБ, renderer-json 84 КБ, renderer-react 53 КБ — ~1 МБ несжатых, ленивым чанком приемлемо |
-| `src/workers/pool.ts`             | новый. Пул с **типизированными дорожками и affinity**, а не безликий: воркер держит резидентный `ts.Program`/кэш `ajv`, и миграция задачи на «свободный» воркер этот кэш обнуляет (обоснование — [RFC-0003](../../projects/reformer-builder/docs/rfcs/0003-schema-validation-and-worker-pool.md) §6.7). Обязателен inline-фолбэк: нет воркеров — считаем в главном потоке |
-| `src/typecheck/host.ts`           | новый. Виртуальный `CompilerHost` поверх `FormSources` + артефакта типов; `compilerOptions` — те же, что в `example-compiles.test.ts`, чтобы билдер и CI судили одинаково                                                                       |
-| `src/typecheck/index.ts`          | новый. `checkFormTypes(sources) → Diagnostic[]` с `{file, line, col, code, severity, message}`. Формат — тот же `Diagnostic`, что вводит RFC-0003 Ф1: две диагностики в UI не заводим                                                        |
-| `canvas/BottomPanel.tsx`          | правка. Ошибки типов в панель «Сборка» рядом с `LiveError`                                                                                              |
-| `canvas/FormSourceEditor.tsx`     | правка. `setModelMarkers` по диагностикам                                                                                                                |
-| `live/transpile.ts`               | правка. Убрать неверное утверждение про Monaco в шапке модуля                                                                                            |
-
-**Тонкость:** `@reformer/ui-kit` — самый крупный `.d.ts` (412 КБ), но выкинуть его нельзя: `registry.ts` формы импортирует компоненты кита. Артефакт типов должен собираться **под активный кит** — при переключении кита ([эпик ReFormer-s0j](#)) подгружается свой набор.
-
----
-
-## Ф2 — `mocks.ts` как единый файл фикстур
-
-**Что:** моки переезжают из стора вкладки в файл каталога формы. Один и тот же файл кормит превью в билдере, уезжает в проект и импортируется тестами — и в билдере (Ф3), и в vitest проекта.
-
-**Контракт файла** (user-owned, пишется один раз, не затирается регенерацией):
+Четыре контракта, которые и есть вся суть переделки:
 
 ```ts
-// mocks.ts
-export const modelMock: LoanFormShape = {...};              // фикстура модели
-export const dataSourcesMock: Record<string, unknown> = {...}; // значения $dataSource
-export const apiMock = { submitForm: async () => ({...}) };  // заглушки api.ts
+// 1. Компилятор — единственная ось «откуда взялась форма».
+type Compiler<S> = (source: S) => FormDefinition | Promise<FormDefinition>;
+interface FormDefinition<T = unknown> {
+  tree: FormNode;                    // IR
+  model?: FormModel<T>;              // если источник сам создаёт модель
+  behavior?: FormBehavior<T>;
+  validation?: FormValidation<T>;
+}
+
+// 2. IR — одно описание дерева на всех. Компонент здесь НЕ тип фреймворка.
+type ComponentRef = string | symbol;  // имя в ките либо токен
+interface FormNode { value?: Signal<unknown>; component?: ComponentRef; /* … */ }
+
+// 3. Резолвер компонентов — единственный способ подключить кит.
+type ComponentResolver = (ref: ComponentRef) => unknown;
+
+// 4. Контроллер поля — то, что рендереру нужно от ядра. Без React.
+interface FieldController<V> {
+  subscribe(cb: () => void): () => void;
+  getSnapshot(): FieldSnapshot<V>;   // value · errors · disabled · touched · status
+  setValue(v: V): void;
+  blur(): void;
+}
 ```
 
-**Файлы:**
-
-| Файл                             | Что                                                                                                                                                                                                      |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/codegen/emit-mocks.ts`      | новый. Печатает `mocks.ts` из `synthMock(schema)` — тот же синтез, что сейчас питает панель                                                                                                                |
-| `src/codegen/index.ts`           | правка. Добавить в `buildExampleFiles` с `cls: 'user'`                                                                                                                                                    |
-| `live/extract-exports.ts`        | правка. `modelMock`/`dataSourcesMock`/`apiMock` в `FormContract` + `AppliedArtifact`                                                                                                                       |
-| `live/build-live-preview.ts`     | правка. `dataSources` берутся из `mocks.ts`, если он есть; иначе прежний путь                                                                                                                              |
-| `canvas/mock-data.ts`            | правка. Источник истины — `mocks.ts` из workdir. `effectiveMock` остаётся фолбэком для формы без файла                                                                                                     |
-| `canvas/MockDataEditor.tsx`      | правка. Редактирует `mocks.ts` (Monaco/TS), как остальные файлы каталога. JSON-вид секций «Модель»/«Registry» остаётся только на чтение — как быстрый просмотр                                             |
-| `src/codegen/emit-data-sources.ts` | правка. `data-sources.ts` — прод-значения; в шапке ссылка на `mocks.ts` как источник тестовых                                                                                                            |
-
-**Миграция:** у формы без `mocks.ts` файл создаётся при первой синхронизации workdir из `synthMock` — тем же путём, что уже работает для остальных сгенерированных файлов в [workdir-actions.ts](../../projects/reformer-builder/src/app/workdir-actions.ts). Правки, лежащие сейчас в `TabState.mock`, при открытии вкладки переносятся в файл один раз.
+Прямая ссылка на компонент (нынешний `component: InputField`) становится частным случаем:
+`resolve = (ref) => ref`. Это убирает второй контракт, не отнимая удобства code-first.
 
 ---
 
-## Ф3 — Тест-раннер в билдере
+## Фазы
 
-**Ключевое решение: `module-registry` резолвит спецификатор `'vitest'` на собственный shim.** Тогда `form.test.ts` — один и тот же файл и в билдере, и в `npm test` проекта. Никакого «билдерского диалекта тестов» не появляется, а переносимость проверяется самим фактом, что файл уезжает в репозиторий без правок.
+Порядок выбран так, чтобы каждая фаза давала проверяемый результат, а не только приближала финал.
 
-**Файлы:**
+### Ф0 — Разрезать поверхность ядра
 
-| Файл                            | Что                                                                                                                                                                                                                                     |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `live/vitest-shim.ts`           | новый. `describe`/`it`/`test`/`expect`/`beforeEach`/`afterEach`/`vi.fn`. Матчеры — по факту нужды тестов формы (`toBe`, `toEqual`, `toBeTruthy`, `toContain`, `toHaveLength`, `rejects/resolves`). Неподдержанный матчер обязан падать явным сообщением, а не молча проходить |
-| `live/module-registry.ts`       | правка. `'vitest'` → shim. Ровно одна строка в `STATIC_MODULES`-ветке, но с комментарием: shim активен только внутри прогона, вне его импорт `vitest` — ошибка                                                                            |
-| `live/test-runner.ts`           | новый. Сбор `*.test.ts` из workdir → `transpileTs` → `evalCjsModule` → сбор результатов. **Главный поток** (в воркере нет инстанса `@reformer/core`, а он обязан быть общим — см. шапку [module-registry.ts](../../projects/reformer-builder/src/preview-runtime/live/module-registry.ts)), с `await yieldToBrowser()` между тестами, чтобы не морозить UI |
-| `live/sibling-sources.ts`       | правка. `.test.ts` не отбрасываются, а уезжают отдельным полем `tests` — исполняемый набор превью остаётся прежним                                                                                                                        |
-| `src/codegen/emit-tests.ts`     | новый. Стартовый `form.test.ts` (cls `user`) из схемы и правил: `required`-поля дают «пусто → невалидно», правила `enableWhen`/`computeFrom` — по тесту на правило. Импортирует `mocks.ts` из Ф2                                          |
-| `canvas/BottomPanel.tsx`        | правка. Вкладка «Тесты»: список, статус, сообщение падения с файлом и строкой                                                                                                                                                             |
+Самая дешёвая фаза с самым большим эффектом: снимает блокирующий факт №1.
 
-**Граница:** раннер не эмулирует DOM. Тесты формы — это тесты модели, валидации и поведения (создать модель → применить → проверить сигналы). Рендер-тесты остаются за e2e и за vitest проекта.
+- `packages/reformer/package.json`: добавить сабпат `./react`; `react`/`react-dom` перевести в
+  `peerDependenciesMeta: { optional: true }`.
+- [src/index.ts](../../packages/reformer/src/index.ts): убрать `export * from './platforms/react'`.
+  Корневой barrel остаётся зонтиком над `model` + `form` и становится React-free.
+- Потребители React-хуков (`useFormControl`, `useFormBundle`, …) переходят на
+  `@reformer/core/react` — это `renderer-react`, `cdk`, `ui-kit`, playground, билдер.
+- Тест: собрать пакет и проверить, что в графе `@reformer/core` (корень) нет `react`.
 
----
+### Ф1 — Одно дерево вместо двух
 
-## Ф4 — Мост до stage-сервера (в обе стороны)
+- Новый пакет **`@reformer/tree`**: `FormNode`, обход, `harvest` (переезд `harvestFieldConfig` из
+  [create-form.ts:68](../../packages/reformer/src/form/create-form.ts#L68) — там же живут защиты от
+  спуска в `Signal` и `FormProxy`, их терять нельзя).
+- `component` становится `ComponentRef`; `ElementType`/`ComponentType` из IR уходят.
+- `RenderNode` в [renderer-react/core/types.ts](../../packages/reformer-renderer-react/src/core/types.ts)
+  перестаёт быть отдельным описанием и становится **сужением** `FormNode` для React-рендера.
+- Мёртвое поле `testId` из IR удаляется — рантайм читает `componentProps.testId`.
 
-### Почему не native ESM-бандл
+### Ф2 — Единый резолвер компонентов
 
-Выбранная цель — «форма целиком, включая код» — сохраняется. Меняется конверт, по трём причинам:
+- `ComponentResolver` переезжает в `@reformer/tree`; `ComponentRegistry` из
+  [renderer-json](../../packages/reformer-renderer-json/src/registry/types.ts) становится его
+  реализацией (плюс `dataSource`/`fn`/`locale`, которые к компонентам отношения не имеют — они
+  выделяются в отдельный `ValueResolver`).
+- Прямые ссылки поддерживаются тождественным резолвером.
 
-1. **Единственный инстанс `@reformer/core`.** Native ESM с голыми спецификаторами резолвит браузер, то есть тянет второй бандл core — и форма теряет связь сигналов с form-node'ами. Это уже разобрано и решено в билдере ([link.ts](../../projects/reformer-builder/src/preview-runtime/live/link.ts), [module-registry.ts](../../projects/reformer-builder/src/preview-runtime/live/module-registry.ts)); повторять решение вторым способом незачем.
-2. **Sourcemap без склейки.** Помодульный конверт позволяет каждому модулю нести собственный inline map — не нужно сливать mappings нескольких файлов (нетривиально: индекс `source` в VLQ относительный).
-3. **Ноль новых зависимостей.** Native ESM потребовал бы `esbuild-wasm` (~10 МБ) либо import-map-шимов, генерируемых на лету. Каталог формы плоский по контракту `compile-form`, импорты — либо относительные внутри каталога, либо из белого списка. Бандлер здесь не нужен.
+### Ф3 — Компилятор как контракт
 
-**Конверт:** `FormBundle = { schema, files: Record<name, jsWithInlineMap>, meta }`. Линкер на стороне stage — тот же, что в билдере.
+- `@reformer/renderer-json` распадается: **`@reformer/compiler-json`** (JSON → `FormNode`,
+  операторы, ajv-валидация схемы — без React) и React-часть (`JsonFormRenderer`, контекст,
+  локаль-провайдер) уезжает в `render-react`.
+- **`@reformer/compiler-module`** — вторая ось компиляции: каталог TS-файлов → транспиляция →
+  линковка → `FormDefinition`. Это ядро из [live/compile-form.ts](../../projects/reformer-builder/src/preview-runtime/live/compile-form.ts)
+  и [live/link.ts](../../projects/reformer-builder/src/preview-runtime/live/link.ts), вынесенное из
+  билдера. Резолвер импортов — параметр, а не константа: билдер подставит свои инстансы, стенд —
+  свои. Это же закрывает `@reformer/form-linker` из прошлого плана.
 
-### Общее ядро выносится в пакет
+### Ф4 — `FieldController`: то, что рендерер берёт у ядра
 
-`evalCjsModule` + резолвер + `compileForm` дублировать в bridge нельзя — это ядро корректности. Новый пакет **`@reformer/form-linker`** (без React и без зависимостей билдера): билдер и bridge становятся его потребителями. Билдерские [link.ts](../../projects/reformer-builder/src/preview-runtime/live/link.ts) / [compile-form.ts](../../projects/reformer-builder/src/preview-runtime/live/compile-form.ts) переезжают туда; [module-registry.ts](../../projects/reformer-builder/src/preview-runtime/live/module-registry.ts) остаётся в билдере — карта модулей у билдера и у приложения разная, и это и есть точка расширения.
+- Агностичный контроллер в `@reformer/core` (не в `platforms/`): `subscribe`/`getSnapshot`/
+  `setValue`/`blur`. Заготовка уже есть — [field-adapter.ts](../../packages/reformer-renderer-react/src/core/field-adapter.ts) (47 строк)
+  и `hooks/types.ts` (`FieldControlState`).
+- `platforms/react/hooks/*` худеют до обёрток `useSyncExternalStore(ctrl.subscribe, ctrl.getSnapshot)`.
+- `render-behavior` и `render-schema-proxy` ([294](../../packages/reformer-renderer-react/src/core/render-behavior.ts) и
+  [290](../../packages/reformer-renderer-react/src/core/render-schema-proxy.ts) строк) — сегодня они
+  на React-хуках, хотя выражают агностичные правила (`hideWhen`, `onEvent`, патч пропсов). Логика
+  переезжает на сигналы, React остаётся только в точке подписки.
 
-### Транспорт
+### Ф5 — Одна фабрика
 
-`window.open(stageUrl)` + `MessageChannel`, `postMessage` со строгим `targetOrigin`, одноразовый pairing-код. Без сервера, без WebSocket, без зависимости от `@reformer/devhost` — работает с любым стендом, где подключён bridge.
-
-**Безопасность** (исполнение чужого кода в чужом приложении — самая рискованная часть плана):
-
-- bridge — **dev-зависимость**, монтируется только под `import.meta.env.DEV` либо явным флагом; в прод-сборке его нет физически;
-- pairing-код показывается на стенде, вводится в билдере — вкладка не может подменить форму молча;
-- `targetOrigin` фиксируется на handshake и проверяется на каждом сообщении;
-- на странице stage — видимый индикатор «форма подменена билдером» с кнопкой возврата.
-
-### Файлы
-
-| Файл                                   | Что                                                                                                                        |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `packages/reformer-form-linker/`        | новый пакет. Переезд `link.ts` + `compile-form.ts`, резолвер как инъекция                                                  |
-| `packages/reformer-stage-bridge/`       | новый пакет, dev-only. Хост-модули, приём манифеста, монтирование формы, отдача исходников назад                            |
-| `src/stage/client.ts`                   | новый. Handshake, pairing, отправка манифеста, статус                                                                       |
-| `src/stage/import-sources.ts`           | новый. Обратное направление (ниже)                                                                                          |
-| `canvas/FloatingActions.tsx`            | правка. Кнопка «Отправить на stage» + индикатор соединения                                                                  |
-| `live/transpile.ts`                     | правка. `sourceMap: true` + `inlineSourceMap` + `inlineSources` — сейчас их нет, поэтому DevTools показывает только `sourceURL` |
-
-### Обратное направление: stage → билдер
-
-Два пути, оба через тот же канал:
-
-- **dev-стенд:** bridge отдаёт исходники каталога формы напрямую (`import.meta.glob`);
-- **собранный стенд:** bridge фетчит собственные чанки и их `.js.map`, вынимает `sourcesContent`, фильтрует по каталогу формы, отдаёт билдеру.
-
-Билдер материализует полученное в OPFS-workdir новой вкладки — дальше это обычная форма. Практический смысл: открыть на редактирование форму с любого стенда, не имея доступа к репозиторию.
-
-Cross-origin фетч чанков делает **bridge**, а не билдер: он на той же странице, ему не нужен CORS.
-
----
-
-## Порядок и зависимости
-
-```
-Ф1 типы ──┐
-          ├─→ Ф3 тесты ──→ Ф4 stage
-Ф2 моки ──┘
+```ts
+const form = createForm({
+  source, compile,            // откуда форма
+  resolve,                    // каким китом рисуется
+  initial | model, behavior, validation,
+});
 ```
 
-- **Ф1** самостоятелен, но даёт пул воркеров, которым потом пользуется валидация схемы (RFC-0003 Ф4) — поэтому первым.
-- **Ф2** разблокирует Ф3: тесту нечего импортировать без `mocks.ts`.
-- **Ф3** до Ф4 намеренно: отправлять на живой стенд форму, которая не прошла собственные тесты, — ровно тот сценарий, ради которого мост и строится.
-- **Ф4** последний и самый рискованный; при остановке после Ф3 первые три потока остаются самостоятельной ценностью.
+`createCoreForm`, `createReactForm`, `createJsonForm` удаляются (совместимость не требуется).
+Общий конфиг уже выделен — [`CreateFormConfigBase`](../../packages/reformer/src/form/create-core-form.ts);
+он и становится единственным.
+
+### Ф6 — Доказательство агностичности
+
+**`@reformer/render-vanilla`** — минимальный рендерер на DOM, без фреймворка. Не продукт, а тест
+архитектуры: пока второго рендерера нет, «агностичное ядро» — утверждение, а не факт. Ориентир —
+300–400 строк; если получается заметно больше, значит контракт `FieldController` неполон.
 
 ---
 
-## Что в скоуп не входит
+## Что остаётся React-специфичным — и это нормально
 
-- Node-раннер тестов и `tsc` через `@reformer/devhost` — после реализации RFC-0001, отдельно.
-- Снапшоты и восстановление workdir после падения браузера — идея 1 работает, доработка отдельной задачей.
-- Единая модель диагностик и подсветка на canvas — это RFC-0003 Ф1/Ф3; здесь только **потребляется** её формат `Diagnostic`, чтобы не заводить второй.
-- Изменение контракта `CodeSource` в [form-registry](../../packages/reformer-form-registry/src/types.ts) — запрет на код по сети остаётся; мост живёт рядом и только в dev.
+`@reformer/cdk` (55 файлов из 76 зависят от React) и `@reformer/ui-kit` — по природе React-пакеты.
+Их аналоги для других фреймворков пишутся отдельно и общаются с ядром через те же четыре контракта.
+Попытка сделать агностичным ещё и CDK утроит объём работы без выигрыша.
+
+---
+
+## Порядок и риски
+
+```
+Ф0 ─→ Ф1 ─→ Ф2 ─→ Ф3
+      └────→ Ф4 ─→ Ф5 ─→ Ф6
+```
+
+Ф0 самостоятельна и делается первой. Ф1 — фундамент для Ф2/Ф3/Ф4. Ф6 проверяет всё сразу.
+
+**Главный риск — связывание по идентичности сигнала.** `harvest` находит поле сравнением
+`node.value === model.$.path`, то есть по ссылке на объект. Отсюда запрет на два инстанса ядра
+(`CORE_RUNTIME_TOKEN`, guard в `form-registry`, `module-registry` в билдере). При выносе IR в
+отдельный пакет число мест, где инстанс может задвоиться, растёт. Ты не отметил это как боль,
+поэтому механизм сохраняется как есть — но `@reformer/tree` обязан быть **типами и функциями без
+собственного состояния**, иначе появится второй кандидат на задвоение.
+
+**Второй риск — объём Ф3.** `renderer-json` — 3182 строки, и разрез проходит через
+`json-form-renderer.tsx` и локаль-контекст. Здесь стоит остановиться и проверить границу до того,
+как начнётся перенос файлов.
 
 ---
 
 ## Верификация
 
-**Ф1.**
+**Ф0.** `npm run build` во всех пакетах; проверка графа зависимостей: `@reformer/core` (корневой
+вход) не тянет `react`. Playground и билдер собираются после перевода импортов на `/react`.
 
-- Юнит: каталог с межфайловым конфликтом (`validation.ts` отдаёт `formValidation`, `renderer.behavior.ts` ждёт `makeValidationConfig`) даёт диагностику — тот самый случай из `example-compiles.test.ts`.
-- Совпадение вердиктов: прогнать `checkFormTypes` на фикстурах `codegen/__fixtures__` и сверить с `example-compiles.test.ts`. Расхождение = разные `compilerOptions`.
-- Ручное: открыть форму, сломать тип в `validation.ts` → squiggle в редакторе + строка в панели «Сборка».
-- Осторожно с [ReFormer-3ee](#) — тесты билдера с настоящим `tsc` уже флакают при полном прогоне.
+**Ф1–Ф2.** Существующие тесты ядра и рендерера — зелёные без правок логики (правки импортов
+допустимы). Отдельный тест: один и тот же `FormNode` проходит `harvest` и рендер, поля совпадают.
 
-**Ф2.**
+**Ф3.** `compiler-json` собирается и тестируется **без установленного react** — это и есть проверка
+разреза. Для `compiler-module` — перенос тестов из
+[live-form.test.ts](../../projects/reformer-builder/src/preview-runtime/live/live-form.test.ts) и
+[live-plumbing.test.ts](../../projects/reformer-builder/src/preview-runtime/live/live-plumbing.test.ts).
 
-- Юнит: `emit-mocks` детерминирован при фиксированной дате (как `synthMock` в `example-compiles.test.ts`).
-- Ручное: правка `mocks.ts` меняет превью; сохранение уносит файл в проект; форма без `mocks.ts` открывается по-прежнему.
+**Ф4–Ф5.** E2E `projects/react-playground-e2e` целиком зелёный — он покрывает реальные формы и
+поймает регрессии связывания и валидации, которых юнит-тесты не видят.
 
-**Ф3.**
-
-- Юнит: `test-runner` на каталоге с падающим и проходящим тестом — оба статуса, сообщение с файлом и строкой.
-- **Переносимость (главная проверка):** сгенерированный `form.test.ts` кладётся в `projects/react-playground/src/pages/examples/…` и запускается настоящим `vitest` без единой правки. Расхождение здесь означает, что shim разошёлся с `vitest` — это дефект shim'а, не теста.
-- Ручное: вкладка «Тесты», зелёный и красный прогон.
-
-**Ф4.**
-
-- Юнит: линкер из `@reformer/form-linker` собирает тот же контракт, что билдерский путь (общий набор фикстур для обоих потребителей).
-- Интеграция: `react-playground` под dev поднимается с bridge, билдер отправляет форму, стенд её показывает; e2e в `projects/react-playground-e2e/tests/` со скриншотом в `screenshots/stage-bridge/`.
-- Round-trip: отправить форму на стенд → вытащить обратно через `import-sources` → сравнить с исходным содержимым workdir.
-- Безопасность: без pairing-кода подмена отклоняется; сообщение с чужого origin игнорируется; в прод-сборке `react-playground` bridge отсутствует в бандле (проверяется grep'ом по `dist/`).
+**Ф6.** Одна и та же JSON-схема кредитной заявки рендерится React-рендерером и vanilla-рендерером;
+ввод, валидация и условная видимость работают в обоих. Это финальный критерий: если vanilla
+потребовал правок в ядре — разделение не завершено.
