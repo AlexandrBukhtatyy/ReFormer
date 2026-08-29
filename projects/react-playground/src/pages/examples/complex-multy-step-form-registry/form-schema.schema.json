@@ -192,6 +192,10 @@
       "required": ["value"],
       "additionalProperties": false,
       "properties": {
+        "$nodeId": {
+          "type": "string",
+          "pattern": "^[0-9a-z]{8}$"
+        },
         "selector": {
           "type": "string"
         },
@@ -214,6 +218,10 @@
       "required": ["array", "item"],
       "additionalProperties": false,
       "properties": {
+        "$nodeId": {
+          "type": "string",
+          "pattern": "^[0-9a-z]{8}$"
+        },
         "selector": {
           "type": "string"
         },
@@ -246,6 +254,10 @@
       "required": ["component"],
       "additionalProperties": false,
       "properties": {
+        "$nodeId": {
+          "type": "string",
+          "pattern": "^[0-9a-z]{8}$"
+        },
         "selector": {
           "type": "string"
         },

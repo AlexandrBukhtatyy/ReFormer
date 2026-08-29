@@ -200,6 +200,10 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "$nodeId": {
+          "type": "string",
+          "pattern": "^[0-9a-z]{8}$"
+        },
         "selector": {
           "type": "string"
         },
@@ -225,6 +229,10 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "$nodeId": {
+          "type": "string",
+          "pattern": "^[0-9a-z]{8}$"
+        },
         "selector": {
           "type": "string"
         },
@@ -261,6 +269,10 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "$nodeId": {
+          "type": "string",
+          "pattern": "^[0-9a-z]{8}$"
+        },
         "selector": {
           "type": "string"
         },

@@ -37,6 +37,14 @@ export type JsonTextChild = string | number;
 /** Лист формы: значение из модели (`$model`) + опциональный компонент (`$component`, дефолт — Input). */
 export interface JsonFieldNode<T = unknown> {
   /** Id для render-behavior (hideWhen/patchProps). Опционален. */
+  /**
+   * Стабильный идентификатор узла, 8 символов base36. Выдаётся инструментом (билдером),
+   * а не автором: `selector` человек пишет руками и адресует им поведение рендера,
+   * `$nodeId` машина выдаёт при разборе и в поведении не адресуется.
+   *
+   * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
+   */
+  $nodeId?: string;
   selector?: string;
   /** Привязка к сигналу модели: `'$model(personalData.lastName)'`. С типом `T` путь сужается до {@link Path}<T>. */
   value: ModelOp<T>;
@@ -59,6 +67,14 @@ export interface JsonFieldNode<T = unknown> {
  */
 export interface JsonArrayNode<T = unknown> {
   /** Id для render-behavior. */
+  /**
+   * Стабильный идентификатор узла, 8 символов base36. Выдаётся инструментом (билдером),
+   * а не автором: `selector` человек пишет руками и адресует им поведение рендера,
+   * `$nodeId` машина выдаёт при разборе и в поведении не адресуется.
+   *
+   * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
+   */
+  $nodeId?: string;
   selector?: string;
   /** Привязка к массиву модели: `'$model(coBorrowers)'`. С типом `T` путь сужается до {@link Path}<T>. */
   array: ModelOp<T>;
@@ -89,6 +105,14 @@ export interface JsonArrayNode<T = unknown> {
  */
 export interface JsonContainerNode<T = unknown> {
   /** Id для render-behavior. */
+  /**
+   * Стабильный идентификатор узла, 8 символов base36. Выдаётся инструментом (билдером),
+   * а не автором: `selector` человек пишет руками и адресует им поведение рендера,
+   * `$nodeId` машина выдаёт при разборе и в поведении не адресуется.
+   *
+   * Конвертером **игнорируется** — до render-узла и до DOM не доходит.
+   */
+  $nodeId?: string;
   selector?: string;
   /**
    * Компонент-контейнер из реестра (`'$component(Section)'`) либо нативный HTML-тег

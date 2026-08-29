@@ -61,6 +61,7 @@
       "required": ["value"],
       "additionalProperties": false,
       "properties": {
+        "$nodeId": { "type": "string", "pattern": "^[0-9a-z]{8}$" },
         "selector": { "type": "string" },
         "value": { "$ref": "#/definitions/modelOp" },
         "component": { "$ref": "#/definitions/componentOp" },
@@ -73,6 +74,7 @@
       "required": ["array", "item"],
       "additionalProperties": false,
       "properties": {
+        "$nodeId": { "type": "string", "pattern": "^[0-9a-z]{8}$" },
         "selector": { "type": "string" },
         "array": { "$ref": "#/definitions/modelOp" },
         "component": { "$ref": "#/definitions/componentOp" },
@@ -93,6 +95,7 @@
       "required": ["component"],
       "additionalProperties": false,
       "properties": {
+        "$nodeId": { "type": "string", "pattern": "^[0-9a-z]{8}$" },
         "selector": { "type": "string" },
         "component": {
           "anyOf": [{ "$ref": "#/definitions/componentOp" }, { "$ref": "#/definitions/htmlOp" }]
