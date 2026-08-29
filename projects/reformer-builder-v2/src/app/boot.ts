@@ -1,0 +1,599 @@
+/**
+ * Композиция приложения: какие сервисы, какие реестры, какие плагины, чем открывается проект.
+ *
+ * Единственный слой, которому можно всё. Host не знает, из чего он собран, плагины не знают
+ * друг о друге, а решения «настройки лежат в IndexedDB, источники бывают такие-то, список
+ * плагинов вот такой» принимаются здесь и только здесь.
+ *
+ * ## Последовательность запуска
+ *
+ * Порядок взят из plugin-and-shell.md, «Последовательность запуска», и он несущий:
+ *
+ * ```text
+ * 1. сервисы Host          синхронно, без сети и без источника
+ * 2. настройки и словари   асинхронно — это и есть `ready`
+ * 3. плагины активируются  синхронно, набор вкладов после этого полон
+ * 4. оболочка рисуется     по определённому состоянию, а не по тому, что успело встать
+ * 5. рабочая область       восстанавливается ПОСЛЕ отрисовки — это `restore`
+ * 6. плагины каталога      после источника: их файлы лежат в открытом проекте
+ * ```
+ *
+ * Шаг 6 — восьмой шаг контракта, и он отделён от шага 3 не по стилю, а по необходимости:
+ * плагины каталога физически лежат в проекте, поэтому до появления источника их прочитать
+ * неоткуда. Следствие принимается сознательно: **оболочка успевает отрисоваться раньше, чем
+ * появятся их вклады** — так же, как при включении плагина руками.
+ *
+ * Шаги 2 и 3 стоят до отрисовки не ради красоты. Раскладка читается из настроек **один раз**
+ * при монтировании (`defaultLayout` библиотеки панелей), поэтому отрисовка до загрузки
+ * настроек означала бы, что сохранённые ширины не применяются никогда. А `t()` до загрузки
+ * словаря отдаёт маркер промаха — по замыслу i18n, и показывать его пользователю не за что.
+ *
+ * Шаг 5 стоит ПОСЛЕ отрисовки по обратной причине: он ждёт IndexedDB и, возможно, разрешения
+ * на каталог, и держать ради этого белый экран нельзя. «Проект не открыт» — нормальное
+ * состояние интерфейса, а не отсутствие интерфейса.
+ *
+ * ## Кто кого держит
+ *
+ * ```text
+ * boot ──┬── сервисы Host           settings, i18n, theme, notifications, diagnostics
+ *        ├── реестр источников      + фабрика `fs` над хранилищем хэндлов
+ *        ├── держатель проекта      сессия: рабочая область, дерево, вкладки, статус
+ *        ├── оркестратор валидации  общий на приложение, наблюдает открытые документы
+ *        ├── рантайм плагинов       files (панель, редактор, команды), validator-schema
+ *        └── каталог плагинов       `.ui_builder/plugins/` открытого проекта: список,
+ *                                   включение, выключение, перезагрузка
+ * ```
+ *
+ * @module app/boot
+ */
+
+import { createElement, type ReactElement } from 'react';
+import type { ResourceId } from '../host/primitives/resource';
+import { createCommandRegistry } from '../host/primitives/command';
+import { createEventBus } from '../host/primitives/event';
+import { createExtensionRegistry } from '../host/primitives/extension-point';
+import { createServiceRegistry } from '../host/primitives/service';
+import {
+  createProjectPluginCatalog,
+  type EnabledPluginsStore,
+  type ProjectPluginCatalog,
+} from '../host/plugin/catalog';
+import { createPluginLoader } from '../host/plugin/loader';
+import { createPluginRegistry, type PluginRegistry } from '../host/plugin/registry';
+import { createMemoryStorageBackend } from '../host/plugin/storage';
+import { createDiagnosticsService, DiagnosticsServiceToken } from '../host/diagnostics/service';
+import { createSelectionService, SelectionServiceToken } from '../host/services/selection';
+import { createFsSourceFactory } from '../host/source/fs-access';
+import { createSourceRegistry } from '../host/source/registry';
+import type { Source } from '../host/source/types';
+import { createI18nService } from '../host/services/i18n/i18n';
+import { createPromptService, PromptServiceToken } from '../host/services/prompt';
+import {
+  createResourceClipboardService,
+  ResourceClipboardServiceToken,
+} from '../host/services/resource-clipboard';
+import {
+  createNotificationsService,
+  NotificationsServiceToken,
+  type NotificationsService,
+} from '../host/services/notifications';
+import { createIdbSettingsBackend } from '../host/services/settings-idb';
+import {
+  createSettingsService,
+  SettingsServiceToken,
+  type SettingsService,
+} from '../host/services/settings';
+import {
+  createBrowserSystemTheme,
+  createThemeService,
+  ThemeServiceToken,
+} from '../host/services/theme';
+import { dockSettingsKey } from '../host/ui/layout-settings';
+import type { ShellHost } from '../host/ui/Shell';
+import { createValidationOrchestrator } from '../host/validation/orchestrator';
+import { createWhenContextStore } from '../host/ui/when-context-store';
+import { createWorkspaceMetaStore } from '../host/workspace/storage/idb';
+import { createJournalRelief } from '../host/workspace/journal/journal';
+import type { Journal } from '../host/workspace/journal/journal';
+import { FILES_MESSAGES } from '../plugins/files/messages';
+import { FILES_PLUGIN_ID } from '../plugins/files/plugin';
+import { createFilesHost } from './files-host';
+import { createMarkdownHost } from './markdown-host';
+import { createMonacoHost } from './monaco-host';
+import { createSchemaHost } from './schema-host';
+import { createAiHost } from './ai-host';
+import { createPreviewHost } from './preview-host';
+import { createCodegenHost } from './codegen-host';
+import { createTemplatesHost } from './templates-host';
+import { BUILTIN_TARGETS, CODEGEN_PLUGIN_ID, generateModule } from '../plugins/codegen';
+import { TEMPLATES_PLUGIN_ID } from '../plugins/templates';
+import { attachFocusChecks } from '../host/workspace/merge/divergence';
+import { installPluginStyles } from '../host/plugin/styles';
+import type { Disposable as HostDisposable } from '../host/primitives/disposable';
+import { PREVIEW_PLUGIN_ID } from '../plugins/preview';
+import { AI_PLUGIN_ID } from '../plugins/ai';
+import {
+  createFocusRegistry,
+  createViewStateRegistry,
+  monacoEditorContribution,
+  MONACO_PLUGIN_ID,
+} from '../plugins/editor-monaco';
+import { MARKDOWN_PLUGIN_ID } from '../plugins/editor-markdown';
+import { SCHEMA_EDITOR_PLUGIN_ID } from '../plugins/editor-schema';
+import { KITS_PLUGIN_ID } from '../plugins/kits/plugin';
+import { KitsServiceToken } from '../plugins/kits/service';
+import type { CatalogEntry } from '../lib/catalog/types';
+import { createDirectoryHandleStore } from './fs-handles';
+import { createPluginModules } from './plugin-modules';
+import { createBuiltinPlugins } from './plugins';
+import { createProjectHost, type ProjectFailure, type ProjectHost } from './project';
+import { createProjectStatusSource } from './project-status';
+
+/** Ключ настройки локали. Область — `user`: язык интерфейса принадлежит человеку. */
+export const LOCALE_SETTINGS_KEY = 'host.locale';
+
+/**
+ * Ключ списка включённых плагинов каталога. Область — `workspace`: плагины лежат В ПРОЕКТЕ,
+ * и «какие из них включены» принадлежит проекту, а не оболочке.
+ */
+export const ENABLED_PLUGINS_SETTINGS_KEY = 'workspace.plugins.enabled';
+
+/** Локаль, на которой инструмент открывается, пока не выбрано иное. */
+const DEFAULT_LOCALE = 'ru';
+
+/** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
+const EMPTY_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
+
+/**
+ * Список включённых плагинов поверх настроек.
+ *
+ * Значение валидируется на чтении: в настройках лежит то, что туда положили прошлые версии
+ * приложения, а тут из него получается список кода, который будет исполнен. Мусор трактуется
+ * как «ничего не включено» — это то же правило, по которому испорченная запись настроек
+ * не мешает инструменту открыться.
+ */
+export function createSettingsEnabledPlugins(settings: SettingsService): EnabledPluginsStore {
+  return {
+    read(): Promise<readonly string[]> {
+      const raw = settings.get<unknown>(ENABLED_PLUGINS_SETTINGS_KEY);
+      if (!Array.isArray(raw)) return Promise.resolve([]);
+      return Promise.resolve(raw.filter((id): id is string => typeof id === 'string'));
+    },
+    write(ids: readonly string[]): Promise<void> {
+      return settings.set(ENABLED_PLUGINS_SETTINGS_KEY, [...ids], 'workspace');
+    },
+  };
+}
+
+/**
+ * Что сказать человеку о неудаче открытия проекта.
+ *
+ * Отмена выбора — не событие вовсе: человек передумал, и уведомление об этом было бы
+ * сообщением о его собственном действии. Остальные три различаются причиной, и склеивать
+ * их в одно «не удалось» значит отнимать у человека единственную подсказку, что делать.
+ */
+/**
+ * Ключ сообщения об отказе открытия.
+ *
+ * Принимает отказ ЦЕЛИКОМ, а не только его вид: у недоступного источника есть причина,
+ * и она решает, какую кнопку показать. «Источника больше нет» требует выбрать проект
+ * заново, «доступ не дан» — одного нажатия «разрешить». Показывать их одинаково значит
+ * посылать человека делать лишнюю работу в половине случаев.
+ *
+ * Причина отдельным полем, а не вторым видом отказа: вид отвечает «что случилось
+ * с открытием» и выбирает уровень уведомления, причина — «что делать». Разложи мы второе
+ * по первому, каждый, кому нужен только уровень, был бы обязан перечислять причины.
+ */
+export function projectFailureMessageKey(failure: ProjectFailure): string | null {
+  switch (failure.kind) {
+    case 'cancelled':
+      return null;
+    case 'unsupported':
+      return 'files.notify.unsupported';
+    case 'unavailable':
+      return failure.reason === undefined
+        ? 'files.notify.unavailable'
+        : `files.notify.unavailable.${failure.reason}`;
+    case 'failed':
+      return 'files.notify.failed';
+  }
+}
+
+/** Показывает отказ открытия проекта и не более того. */
+function reportProjectFailure(notifications: NotificationsService, failure: ProjectFailure): void {
+  const messageKey = projectFailureMessageKey(failure);
+  if (messageKey === null) return;
+  if (failure.kind === 'failed') console.error('[boot] проект не открыт', failure.error);
+  if (failure.kind === 'unavailable') notifications.info(messageKey);
+  else if (failure.kind === 'unsupported') notifications.warning(messageKey);
+  else notifications.error(messageKey);
+}
+
+/**
+ * Собранное приложение.
+ *
+ * Расширяет {@link ShellHost}: оболочке нужна часть этого, и она получает именно её — чтобы
+ * «оболочка дотягивается до рантайма плагинов» было невыразимо, а не запрещено правилом.
+ */
+export interface BuilderApp extends ShellHost {
+  readonly plugins: PluginRegistry;
+  /**
+   * Плагины из каталога открытого проекта: список, включение, выключение, перезагрузка.
+   *
+   * Отдельно от {@link plugins} потому, что вопросы разные: рантайм отвечает «как плагин
+   * живёт», каталог — «какие плагины лежат в проекте и какие из них человек включил».
+   */
+  readonly projectPlugins: ProjectPluginCatalog;
+  /** Открытый проект. Оболочка берёт отсюда вкладки, а панель проекта — дерево. */
+  readonly project: ProjectHost;
+  /**
+   * Шаги 2–3 запуска: настройки загружены, словари загружены, плагины активированы.
+   *
+   * Отказ сюда не пробрасывается — он уже сообщён в консоль: инструмент обязан открыться
+   * и с недогруженными настройками, иначе испорченная запись в хранилище означала бы
+   * белый экран без единого способа её починить.
+   */
+  readonly ready: Promise<void>;
+  /**
+   * Шаг 5: восстановление последнего проекта. Зовётся ПОСЛЕ отрисовки.
+   *
+   * Отказ не пробрасывается по той же причине, что и у `ready`: не открывшийся проект —
+   * это состояние интерфейса, а не сбой запуска.
+   */
+  restore(): Promise<void>;
+  /** Освобождает всё, что держит приложение. Нужен тестам и переинициализации. */
+  dispose(): void;
+}
+
+/**
+ * Создаёт приложение. Вызывается один раз из `main.tsx`.
+ *
+ * Синхронна: всё, что требует ожидания, живёт в {@link BuilderApp.ready} и
+ * {@link BuilderApp.restore}. Это то же правило, по которому синхронен `activate` плагина, —
+ * набор вкладов и состав сервисов не должны зависеть от того, что успело загрузиться.
+ */
+export function boot(): BuilderApp {
+  // 1. Примитивы и сервисы. Порядок здесь значит только одно: у службы темы в зависимостях
+  //    настройки, поэтому настройки создаются раньше.
+  const services = createServiceRegistry();
+  const extensions = createExtensionRegistry();
+  const events = createEventBus();
+  const whenContext = createWhenContextStore();
+  const commands = createCommandRegistry({ getContext: () => whenContext.get() });
+
+  // Метаданные рабочих областей подняты СЮДА, выше настроек: это одно соединение на всё
+  // приложение (см. шаг 3), а хранилище настроек живёт над ним — область `user` отдельной
+  // записью, область `workspace` полем открытого проекта. Второе соединение ради настроек
+  // означало бы вторую базу с той же историей жизни.
+  /**
+   * Журналы рабочих областей: идентификатор области → её журнал.
+   *
+   * Карта, а не поле, по причине из контракта журнала: разгрузка при нехватке места
+   * задаётся хранилищу МЕТАДАННЫХ, а журналу это самое хранилище и нужно. Передать готовый
+   * журнал в его настройки нельзя — яйцо и курица. Отложенный поиск разрывает цикл
+   * и заодно обслуживает несколько областей над одним хранилищем.
+   */
+  const journals = new Map<string, Journal>();
+  const meta = createWorkspaceMetaStore({
+    onQuotaPressure: createJournalRelief((id) => journals.get(id)),
+  });
+  const settingsStore = createIdbSettingsBackend(meta);
+  const settings = createSettingsService(settingsStore);
+  const i18n = createI18nService();
+  const theme = createThemeService({
+    settings,
+    system: createBrowserSystemTheme(),
+    root: typeof document === 'undefined' ? null : document.documentElement,
+  });
+  const notifications = createNotificationsService();
+  const diagnostics = createDiagnosticsService();
+  // Выделение — состояние, а не событие: панель превью и редактор схемы монтируются
+  // в произвольном порядке, и пришедший позже обязан прочитать текущее, а не ждать
+  // следующего щелчка.
+  const selection = createSelectionService();
+  // Запросы к человеку и буфер записей дерева. Обе службы платформенные и обе нужны
+  // не только файлам: шаблон формы точно так же спросит имя, а вклад чужого плагина
+  // точно так же положит в буфер свои записи.
+  const prompt = createPromptService();
+  const clipboard = createResourceClipboardService();
+
+  services.register(SettingsServiceToken, settings);
+  services.register(ThemeServiceToken, theme);
+  services.register(NotificationsServiceToken, notifications);
+  services.register(DiagnosticsServiceToken, diagnostics);
+  services.register(SelectionServiceToken, selection);
+  services.register(PromptServiceToken, prompt);
+  services.register(ResourceClipboardServiceToken, clipboard);
+
+  // Умолчания настроек оболочки. Объявляет их тот, кто настройку вносит, — иначе каждый
+  // потребитель дописывал бы свой `?? true`, и они бы разъехались.
+  settings.registerDefault(LOCALE_SETTINGS_KEY, DEFAULT_LOCALE);
+  settings.registerDefault(dockSettingsKey('panel.left', 'open'), true);
+
+  // 2. Источники. Вид `fs` заводит композиция, а не плагин: реестра источников в
+  //    `PluginContext` нет, и до появления плагинов источников это единственное место,
+  //    где вид может быть объявлен. Хэндлы каталогов живут в своей базе — см. `./fs-handles`.
+  const handles = createDirectoryHandleStore();
+  const sources = createSourceRegistry();
+  sources.register(createFsSourceFactory(handles));
+
+  // 3. Рабочая область. Метаданные общие на приложение: рабочих областей может быть много,
+  //    а база у них одна, и открывать её на каждую было бы четырьмя соединениями вместо одного.
+  //    Само хранилище создано выше — его же делят настройки.
+  const validation = createValidationOrchestrator({ extensions, diagnostics });
+  // Реестр фокуса Monaco создаётся ЗДЕСЬ, потому что читателей у него двое: сам редактор
+  // («перерисовывать ли буфер прямо сейчас») и надстройка модели над открываемым документом
+  // (`attachDocumentModel({ isTextEditorFocused })`). Два реестра означали бы, что ход
+  // ассистента затирает набранное на полуслове, поэтому объект обязан быть одним — и он
+  // уходит и в сессию, и в плагин.
+  const monacoFocus = createFocusRegistry();
+  // Снимки вида создаются здесь, а не внутри плагина: их делит с ним предпросмотр markdown,
+  // и два реестра означали бы потерю позиции курсора при каждом переключении режима.
+  const monacoViewStates = createViewStateRegistry();
+  const project = createProjectHost({
+    journals,
+    sources,
+    handles,
+    meta,
+    whenContext,
+    // Провайдеры модели документа живут в реестре вкладов: без него сессия открывала бы
+    // всё текстом, а структурный редактор не получил бы ни модели, ни истории.
+    extensions,
+    isTextEditorFocused: (id) => monacoFocus.isFocused(id),
+    events,
+    diagnostics,
+    validation,
+    onFailure: (failure) => {
+      reportProjectFailure(notifications, failure);
+    },
+  });
+  // Строка состояния получает ОДИН источник на всё время жизни приложения: смена проекта
+  // для неё — смена содержимого, а не смена источника.
+  const status = createProjectStatusSource(project);
+
+  const plugins = createPluginRegistry({
+    services,
+    extensions,
+    commands,
+    events,
+    // Память сессии: постоянное хранилище плагинов — часть рабочей области (Э2), и до неё
+    // плагину лучше не иметь хранилища вовсе, чем иметь исчезающее незаметно.
+    storage: createMemoryStorageBackend(),
+  });
+  // Каталог активного кита читается ЛЕНИВО из сервиса: сервис появляется при активации
+  // плагина китов, а список плагинов собирается до неё. Захвати мы каталог значением —
+  // получили бы снимок пустого, и палитра осталась бы пустой навсегда.
+  const activeCatalog = (): readonly CatalogEntry[] =>
+    services.get(KitsServiceToken)?.catalog() ?? EMPTY_CATALOG;
+
+  // Реестр модулей поднят СЮДА, выше регистрации плагинов: движок нужен двоим — загрузчику
+  // плагинов каталога (шаг 3а) и компилирующей поверхности превью, которая собирается прямо
+  // здесь. Второй экземпляр означал бы второй чанк TypeScript на 3.5 МБ.
+  const pluginModules = createPluginModules();
+
+  // Один порт Monaco на двоих: сам редактор и предпросмотр markdown, который одалживает
+  // его тело для режима «рядом».
+  const monacoHost = createMonacoHost({ project, i18n, diagnostics });
+  /**
+   * Тело редактора кода как компонент.
+   *
+   * Собирается ОДИН раз: пересоздание на каждую отрисовку размонтировало бы Monaco при
+   * каждом нажатии клавиши. Его берут двое — предпросмотр markdown (режим «рядом»)
+   * и редактор схемы (режим исходника).
+   */
+  const monacoTextEditor = ({ documentId }: { documentId: ResourceId }): ReactElement =>
+    createElement(
+      monacoEditorContribution({
+        host: monacoHost,
+        focus: monacoFocus,
+        viewStates: monacoViewStates,
+      }).Body,
+      { documentId }
+    );
+
+  plugins.registerAll(
+    createBuiltinPlugins({
+      files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
+      monaco: monacoHost,
+      markdown: createMarkdownHost({
+        project,
+        i18n,
+        // Тот же порт и те же реестры, что у обычной code-вкладки: режим «рядом» показывает
+        // ровно тот редактор, в котором файл правится, а не его копию.
+        monaco: { host: monacoHost, focus: monacoFocus, viewStates: monacoViewStates },
+      }),
+      markdownI18n: i18n.forPlugin(MARKDOWN_PLUGIN_ID),
+      monacoFocus,
+      monacoViewStates,
+      monacoI18n: i18n.forPlugin(MONACO_PLUGIN_ID),
+      schema: createSchemaHost({
+        project,
+        i18n,
+        services,
+        // Один и тот же редактор кода на троих: обычная вкладка, «рядом» у markdown
+        // и исходник схемы. Общие реестры фокуса и снимков вида — условие того, что
+        // позиция курсора переживает переключение вида.
+        TextEditor: monacoTextEditor,
+      }),
+      schemaI18n: i18n.forPlugin(SCHEMA_EDITOR_PLUGIN_ID),
+      kits: {
+        // `settings` НЕ передаются намеренно: плагин берёт их из реестра сервисов —
+        // единственным путём, доступным плагину из каталога. Передай мы параметром,
+        // этот путь остался бы непроверенным, а другого у внешнего плагина нет.
+        // Перевод плагина китов НЕ реактивный: пункты палитры строятся провайдером, а не
+        // компонентом, и хука там быть не может. Смена локали перестроит их на следующем
+        // открытии палитры — это и есть та цена, которую платит не-компонентный вклад.
+        translate: (key, params) => i18n.forPlugin(KITS_PLUGIN_ID).t(key, params),
+      },
+      ai: createAiHost({ project, i18n, services }),
+      // Загрузчик модулей — ТОТ ЖЕ, что у плагинов каталога: движок TypeScript один на
+      // приложение, и второй экземпляр означал бы второй чанк на 3.5 МБ.
+      preview: createPreviewHost({
+        project,
+        i18n,
+        services,
+        modules: { load: pluginModules.modules.load, prepare: pluginModules.prepare },
+      }),
+      previewI18n: i18n.forPlugin(PREVIEW_PLUGIN_ID),
+      codegen: createCodegenHost({ project, i18n, services }),
+      codegenI18n: i18n.forPlugin(CODEGEN_PLUGIN_ID),
+      templates: createTemplatesHost({ project, i18n, services }),
+      templatesI18n: i18n.forPlugin(TEMPLATES_PLUGIN_ID),
+      // Кита нет — встроенных шаблонов нет: печатать их нечем, а умолчание напечатало бы
+      // импорты чужого пакета. Пустой список честнее неверного кода.
+      printTemplate: async (schema, formName) => {
+        const kits = services.get(KitsServiceToken);
+        const kit = kits?.descriptor() ?? null;
+        if (kit === null || kits === undefined) return [];
+        const built = await generateModule(BUILTIN_TARGETS, {
+          schema,
+          formName,
+          kit: { kit, catalog: kits.catalog() },
+        });
+        return built.files.map(({ path, content }) => ({ path, content }));
+      },
+      aiI18n: i18n.forPlugin(AI_PLUGIN_ID),
+      catalog: activeCatalog,
+    })
+  );
+
+  // 3a. Плагины каталога проекта. Реестр модулей с настоящим `@builder/sdk` собирает
+  //     композиция — только она вправе занять защищённые слоты (см. `./plugin-modules`).
+  //     Сам каталог здесь только СОЗДАЁТСЯ: читать его до открытия проекта неоткуда,
+  //     поэтому обход каталога — шаг 8, ниже.
+  const projectPlugins = createProjectPluginCatalog({
+    // Настоящую установку подставляет композиция: она требует `CSSStyleSheet`, которого
+    // в окружении тестов нет, а каталог обязан оставаться проверяемым.
+    installStyles: (css, pluginId) => installPluginStyles(css, pluginId, document),
+    loader: createPluginLoader({
+      source: () => project.get()?.source ?? null,
+      modules: pluginModules.modules,
+      prepare: pluginModules.prepare,
+    }),
+    plugins,
+    enabled: createSettingsEnabledPlugins(settings),
+  });
+
+  /**
+   * Шаг 8: плагины каталога. Зовётся после того, как источник появился, — и повторно
+   * на каждую смену проекта.
+   *
+   * Следствие, которое принято сознательно: оболочка успевает отрисоваться раньше, чем
+   * появятся их вклады. Их панели и команды возникают позже — так же, как при включении
+   * плагина руками, и тем же механизмом.
+   */
+  // Начальное состояние — «проекта нет»: пока источник не появился, синхронизировать нечего,
+  // и первый же вызов без проекта обязан быть бесплатным.
+  let syncedSource: Source | null = null;
+  let syncing: Promise<void> = Promise.resolve();
+  const syncProjectPlugins = (): Promise<void> => {
+    const source = project.get()?.source ?? null;
+    if (source === syncedSource) return syncing;
+    syncedSource = source;
+    // Цепочкой, а не параллельно: две смены проекта подряд не должны включать плагины
+    // прежнего каталога поверх нового.
+    syncing = syncing
+      .then(() => {
+        // Плагины закрытого проекта уходят вместе с ним, а память о том, что человек их
+        // включал, остаётся: вернётся проект — вернутся и они.
+        projectPlugins.deactivateAll();
+        // Настройки ОБЛАСТИ принадлежат проекту, поэтому запись переключается вместе с ним,
+        // и делается это ЗДЕСЬ, в той же цепочке, а не отдельной подпиской: список включённых
+        // плагинов — настройка области, и `restoreEnabled` ниже обязан читать уже настройки
+        // нового проекта. Отдельная подписка не дала бы порядка — только совпадение.
+        //
+        // `forget` обязателен: без него запись, сделанная в прежнем проекте, считалась бы
+        // «своей, более новой» и переехала бы в новый.
+        settingsStore.useWorkspace(project.get()?.workspaceId ?? null);
+        return settings.hydrate({ forget: ['workspace'] });
+      })
+      .then(() => (source === null ? undefined : projectPlugins.refresh()))
+      .then(() => (source === null ? undefined : projectPlugins.restoreEnabled()))
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        console.error('[boot] плагины каталога проекта не загрузились', error);
+      });
+    return syncing;
+  };
+  const projectPluginsSubscription = project.subscribe(() => void syncProjectPlugins());
+
+  /**
+   * Проверка источника при возврате фокуса в окно.
+   *
+   * Подписка на ОКНО одна на приложение, а наблюдение живёт в сессии и умирает вместе
+   * с проектом — поэтому слушатель перевешивается на смену проекта, а не заводится по
+   * одному на сессию. Без проекта слушателя нет вовсе: спрашивать нечего и не у кого.
+   */
+  let focusChecks: HostDisposable | null = null;
+  const rebindFocusChecks = (): void => {
+    focusChecks?.dispose();
+    const session = project.get();
+    focusChecks =
+      session === null ? null : attachFocusChecks(session.divergence, { window, document });
+  };
+  const focusSubscription = project.subscribe(rebindFocusChecks);
+  rebindFocusChecks();
+
+  // 4. Настройки, словари, активация. Одна цепочка: локаль читается из настроек, поэтому
+  //    её загрузка обязана идти после `hydrate`.
+  const ready = settings
+    .hydrate()
+    .then(() => i18n.setLocale(settings.get<string>(LOCALE_SETTINGS_KEY) ?? DEFAULT_LOCALE))
+    .then(() => {
+      // Словарь плагина регистрирует композиция: сервиса локализации в `PluginContext` нет,
+      // и это не упущение — вклад в словарь не снимается вместе с плагином, значит и частью
+      // его подписок быть не может.
+      const filesI18n = i18n.forPlugin(FILES_PLUGIN_ID);
+      for (const [locale, messages] of Object.entries(FILES_MESSAGES)) {
+        filesI18n.contribute(locale, messages);
+      }
+      // Отчёт не разбирается: отказавшие уже сообщены каналом диагностики рантайма плагинов,
+      // а показать их человеку пока нечем — вклада в строку состояния на это нет.
+      plugins.activateAll();
+    })
+    .catch((error: unknown) => {
+      console.error('[boot] запуск прошёл не полностью', error);
+    });
+
+  return {
+    extensions,
+    whenContext,
+    settings,
+    commands,
+    status,
+    i18n,
+    // Обе службы уходят в оболочку, а не только в реестр: тосты и диалоги рисует она,
+    // и без этих двух полей отказ операции виден только в консоли, а запрос имени —
+    // нигде вовсе.
+    notifications,
+    prompt,
+    plugins,
+    projectPlugins,
+    project,
+    ready,
+
+    async restore() {
+      await project.restoreLast();
+      // Проверка источника при переоткрытии: ревизии в хранилище — из прошлой сессии,
+      // между ними могла пройти неделя. Механизм тот же, что у проверки по фокусу.
+      void project.get()?.divergence.check('reopen');
+      // Шаг 8 идёт ПОСЛЕ восстановления источника: файлы плагинов лежат в открытом проекте,
+      // до его появления их прочитать неоткуда.
+      await syncProjectPlugins();
+    },
+
+    dispose() {
+      projectPluginsSubscription.dispose();
+      focusSubscription.dispose();
+      focusChecks?.dispose();
+      projectPlugins.dispose();
+      pluginModules.dispose();
+      plugins.deactivateAll();
+      project.dispose();
+      status.dispose();
+      validation.dispose();
+      meta.dispose();
+      handles.dispose();
+    },
+  };
+}
