@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "types": ["vite/client", "node"],
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      // `vitest/browser` (пакет `vitest` в корне монорепо) реэкспортирует контекст
+      // из `@vitest/browser-playwright/context` под `@ts-ignore`, а сам провайдер npm положил
+      // НЕ в корень, а в node_modules этого проекта. Из корневого файла он не резолвится,
+      // и без этой строки тесты браузерного прогона теряют и `page`/`userEvent`,
+      // и объявление `expect.element`. На сборку не влияет: во время исполнения
+      // спецификатор разрешает Vite, а не TypeScript.
+      "vitest/browser": ["./node_modules/@vitest/browser/context"]
+    }
+  },
+  "include": ["src"]
+}

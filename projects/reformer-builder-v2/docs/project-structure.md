@@ -48,9 +48,10 @@ projects/reformer-builder-v2/
 │   │   │   ├── types.ts
 │   │   │   ├── registry.ts        вид источника → фабрика
 │   │   │   ├── errors.ts
-│   │   │   └── path.ts            нормализация: ядро владеет ею, адаптер — смыслом
+│   │   │                          (нормализация путей живёт в primitives/resource.ts:
+│   │   │                           она нужна раньше источника и не только ему)
 │   │   ├── services/            сервисы Host
-│   │   │   ├── i18n.ts
+│   │   │   ├── i18n/             сервис, формат сообщений, словари ru/en
 │   │   │   ├── settings.ts
 │   │   │   ├── theme.ts
 │   │   │   ├── notifications.ts
@@ -73,7 +74,6 @@ projects/reformer-builder-v2/
 │   │   │   ├── StatusBar.tsx
 │   │   │   ├── keybindings.ts     диспетчер сочетаний, НЕ обработка ввода
 │   │   │   └── when-context.ts
-│   │   ├── locales/{ru,en}.json
 │   │   └── index.ts             публичная поверхность Host
 │   │
 │   ├── sdk/                   ЧТО ВИДИТ ПЛАГИН
