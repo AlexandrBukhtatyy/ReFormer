@@ -1,0 +1,5 @@
+{
+  "palette.switch": "Kit: {label}",
+  "palette.active": "Active",
+  "palette.detail": "{package} {version}"
+}

@@ -1,0 +1,9 @@
+{
+  "editor.label": "Code editor",
+  "editor.loading": "The editor is loading",
+  "editor.opening.title": "Opening the document",
+  "editor.missing.title": "The document is closed",
+  "editor.missing.description": "The tab was closed while the editor was starting up.",
+  "editor.failed.title": "The editor failed to load",
+  "editor.failed.description": "Monaco did not start: {message}"
+}

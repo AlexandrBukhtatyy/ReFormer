@@ -1,0 +1,10 @@
+{
+  "command.cycleView": "Next markdown view",
+  "command.openPreview": "Open the preview",
+  "command.showCode": "Show the source",
+  "command.showPreview": "Show the preview",
+  "command.showSplit": "Show side by side",
+  "command.toggleView": "Toggle source and preview",
+  "editor.label": "Markdown",
+  "editor.opening": "Opening the document…"
+}

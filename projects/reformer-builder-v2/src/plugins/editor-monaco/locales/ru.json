@@ -1,0 +1,9 @@
+{
+  "editor.label": "Редактор кода",
+  "editor.loading": "Редактор загружается",
+  "editor.opening.title": "Документ открывается",
+  "editor.missing.title": "Документ закрыт",
+  "editor.missing.description": "Вкладку закрыли, пока редактор поднимался.",
+  "editor.failed.title": "Редактор не загрузился",
+  "editor.failed.description": "Monaco не поднялся: {message}"
+}
