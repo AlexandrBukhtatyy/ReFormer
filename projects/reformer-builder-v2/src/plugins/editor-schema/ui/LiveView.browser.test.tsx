@@ -158,13 +158,25 @@ describe('живой вид', () => {
     }
   });
 
-  it('поверхность названа вслух: от неё зависит, работает ли валидация формы', async () => {
+  it('отказ источника назван словами: иначе валидация молчит без объяснения', async () => {
     const fixture = mount({ live: createFakeLivePort({ notice: 'источник запретил исполнение' }) });
     try {
       await vi.waitFor(() => {
-        expect(document.body.textContent).toContain('live.surface');
         expect(document.body.textContent).toContain('источник запретил исполнение');
       });
+    } finally {
+      fixture.unmount();
+    }
+  });
+
+  it('в норме полос нет вовсе: они отнимали бы высоту у формы на каждой вкладке', async () => {
+    const fixture = mount();
+    try {
+      await vi.waitFor(() => {
+        expect(fixture.live.mounts()).toBe(1);
+      });
+      // Ни имени поверхности, ни причины отказа, ни объяснения про хит-тест — говорить нечего.
+      expect(document.body.textContent).not.toContain('live.');
     } finally {
       fixture.unmount();
     }

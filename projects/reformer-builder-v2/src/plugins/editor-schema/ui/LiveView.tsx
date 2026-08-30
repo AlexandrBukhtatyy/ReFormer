@@ -446,15 +446,21 @@ export function LiveView({ session, state, t, live, drag = null }: LiveViewProps
       tabIndex={0}
       className="flex min-h-0 flex-1 flex-col outline-none"
     >
-      {/* Полоса называет поверхность вслух: от неё зависит, работают ли валидация и поведение
-          формы, и «тихая подмена режима хуже отказа» — решение контракта превью. */}
-      <div className="text-muted-foreground border-border flex items-center gap-2 border-b px-3 py-1 text-[11px]">
-        <span>{t('live.surface', { name: info.title })}</span>
-        {!selectable && <span>· {t('live.no-hit-test')}</span>}
-      </div>
+      {/* Полоса появляется, только когда есть что сказать.
+
+          Здесь стояло постоянное «Нарисовано: {имя поверхности}». Мысль была верной —
+          «тихая подмена режима хуже отказа», решение контракта превью, — а исполнение нет:
+          в норме подменять нечего, и строка сообщала то, что человек и так выбрал, отнимая
+          полосу высоты у формы на каждой вкладке. Отказ же остался виден: если источник
+          запретил исполнять код, причина стоит здесь и объясняет, почему валидация молчит. */}
       {info.notice !== null && (
         <div className="border-border border-b bg-amber-50/60 px-3 py-1 text-[11px] text-amber-700 dark:bg-amber-950/20 dark:text-amber-400">
           {info.notice}
+        </div>
+      )}
+      {!selectable && (
+        <div className="text-muted-foreground border-border border-b px-3 py-1 text-[11px]">
+          {t('live.no-hit-test')}
         </div>
       )}
       {offscreen && (

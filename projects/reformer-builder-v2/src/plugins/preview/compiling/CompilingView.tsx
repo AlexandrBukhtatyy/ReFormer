@@ -256,24 +256,13 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     return <Notice tone="warning" title={t('empty.build-failed')} detail={problems[0]?.message} />;
   }
 
+  // Полоса «сайдкары такие-то, проблем столько-то» убрана. Она отвечала на вопрос панели
+  // превью — «что вообще подцепилось», — а панели больше нет: поверхность монтируют в тело
+  // редактора, где та же строка отнимает высоту у формы на каждой вкладке. Число находок
+  // без их текста всё равно ничего не давало: разбирать их надо в панели проблем, куда они
+  // пока не доезжают (см. задачу о находках сборки).
   return (
     <div className="flex h-full flex-col">
-      <div className="text-muted-foreground border-border flex flex-wrap items-center gap-1 border-b px-3 py-1 text-[11px]">
-        {sources.applied.length === 0 ? (
-          <span>{t('applied.none')}</span>
-        ) : (
-          sources.applied.map((artifact) => (
-            <span key={artifact} className="border-border rounded border px-1 py-px font-mono">
-              {artifact}
-            </span>
-          ))
-        )}
-        {problems.length === 0 ? null : (
-          <span className="ml-2 text-amber-600 dark:text-amber-400">
-            {t('applied.problems', { count: problems.length })}
-          </span>
-        )}
-      </div>
       <ScrollArea ref={surface} className="min-h-0 flex-1" onClick={onClick}>
         {/* Отступ лежит на содержимом, а не на `ScrollArea`: на корне он оставил бы полосу
             прокрутки внутри поля, а нижний отступ перестал бы уезжать вместе с формой. */}
