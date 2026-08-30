@@ -51,6 +51,7 @@
   "quickfix.rename-property": "Исправить имя свойства",
   "quickfix.replace-component": "Подставить ближайшее имя из каталога",
   "shell.dock.bottom.close": "Закрыть нижнюю панель",
+  "shell.dock.bottom.expand": "Развернуть нижнюю панель",
   "shell.dock.bottom.label": "Нижняя панель",
   "shell.dock.bottom.minimize": "Свернуть до полосы вкладок",
   "shell.dock.bottom.toggle": "Нижняя панель",

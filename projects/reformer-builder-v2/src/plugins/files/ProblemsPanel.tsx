@@ -55,11 +55,9 @@ import {
   ItemTitle,
 } from '@reformer/ui-kit/item';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import { Separator } from '@reformer/ui-kit/separator';
 import type { DiagnosticSeverity, DiagnosticsService, QuickFix, ResourceId } from '@/sdk';
 import {
   groupProblems,
-  totalCounts,
   type CommandAccess,
   type ProblemGroup,
   type ProblemRow,
@@ -181,29 +179,11 @@ export function ProblemsPanel({
     );
   }
 
-  const counts = totalCounts(groups.map((group) => group.summary));
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 px-3 py-1.5">
-        <span className="text-muted-foreground text-[12px]">{t('problems.title')}</span>
-        {counts.error > 0 && (
-          <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">
-            {counts.error}
-          </Badge>
-        )}
-        {counts.warning > 0 && (
-          <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-            {counts.warning}
-          </Badge>
-        )}
-        {counts.info > 0 && (
-          <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-            {counts.info}
-          </Badge>
-        )}
-      </div>
-      <Separator />
+      {/* Своей шапки у панели НЕТ: имя ей даёт оболочка — вкладкой нижнего дока, а число
+          находок — значок на той же вкладке. Строка «Проблемы 3» под вкладкой «Проблемы 3»
+          повторяла и то и другое, отнимая высоту у списка, ради которого панель открыта. */}
       <ScrollArea className="min-h-0 flex-1">
         <ItemGroup role="list" aria-label={t('problems.title')}>
           {groups.map((group) => (

@@ -41,13 +41,21 @@
  * @module host/ui/Shell
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactElement,
+} from 'react';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { usePanelRef } from 'react-resizable-panels';
 import { Toggle } from '@reformer/ui-kit/toggle';
 import { Button } from '@reformer/ui-kit/button';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
 import type { CommandRegistry } from '../primitives/command';
 import type { WhenContext } from '../primitives/when-context';
@@ -370,6 +378,22 @@ function RailTab({
 /** Высота нижней панели, когда своей ещё не было. */
 const DEFAULT_BOTTOM_SIZE = 200;
 
+/**
+ * Панель раскладки не прокручивает себя сама.
+ *
+ * `react-resizable-panels` кладёт содержимому панели `overflow: auto` ИНЛАЙНОМ, и классом
+ * это не снять — инлайн сильнее. Полоса появлялась там, где прокручивать нечего: размеры
+ * панелей считаются долями группы, поэтому свёрнутый нижний док высотой ровно в полосу
+ * вкладок выходит то 22.01 пикселя, то 21.6, и на второй доле пикселя Chromium ставит
+ * рядом с крестиком НАСТОЯЩУЮ полосу шириной 15 пикселей — во всю высоту полосы вкладок,
+ * ради содержимого, которого нет.
+ *
+ * Прокрутку внутри панелей ведёт `ScrollArea`, а не сама панель: своя полоса у панели
+ * была бы второй поверх первой. Поэтому `hidden` здесь не заплатка на округление,
+ * а правило раскладки, записанное явно.
+ */
+const PANEL_CONTENT_STYLE: CSSProperties = Object.freeze({ overflow: 'hidden' });
+
 const STRIP_HEIGHT: Readonly<Record<DockMode, number>> = Object.freeze({
   full: 34,
   minimal: 22,
@@ -427,21 +451,24 @@ function BottomTabs({
       })}
 
       {/* Кнопки справа, как в привычных инструментах: сворачивание рядом с закрытием,
-          потому что это соседние по силе действия, и рука ищет их в одном месте. */}
+          потому что это соседние по силе действия, и рука ищет их в одном месте.
+
+          Кнопка сворачивания остаётся и в свёрнутом виде, меняя только направление
+          стрелки. Исчезни она — её место занял бы крестик, и повторное нажатие вслепую
+          закрывало бы панель вместо разворота. Место действия не должно зависеть
+          от состояния, поэтому здесь один переключатель на оба направления. */}
       <div className="ml-auto flex items-center gap-0.5">
-        {dock.mode === 'full' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            aria-label={t('shell.dock.bottom.minimize')}
-            onClick={() => {
-              dock.setMode('minimal');
-            }}
-          >
-            <ChevronDown className="size-3.5" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={compact ? 'size-4' : 'size-6'}
+          aria-label={t(compact ? 'shell.dock.bottom.expand' : 'shell.dock.bottom.minimize')}
+          onClick={() => {
+            dock.setMode(compact ? 'full' : 'minimal');
+          }}
+        >
+          {compact ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3.5" />}
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -812,6 +839,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
             <>
               <ResizablePanel
                 id="left"
+                style={PANEL_CONTENT_STYLE}
                 defaultSize={260}
                 minSize={180}
                 maxSize={560}
@@ -832,7 +860,12 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
             </>
           )}
 
-          <ResizablePanel id="center" minSize={320} className="flex min-w-0 flex-col">
+          <ResizablePanel
+            id="center"
+            minSize={320}
+            className="flex min-w-0 flex-col"
+            style={PANEL_CONTENT_STYLE}
+          >
             <ResizablePanelGroup
               id="shell.center"
               orientation="vertical"
@@ -840,7 +873,12 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
               defaultLayout={centerSizes}
               onLayoutChanged={saveCenter}
             >
-              <ResizablePanel id="editor" minSize={120} className="flex min-h-0 flex-col">
+              <ResizablePanel
+                id="editor"
+                minSize={120}
+                className="flex min-h-0 flex-col"
+                style={PANEL_CONTENT_STYLE}
+              >
                 <main
                   aria-label={t('shell.editor.label')}
                   data-focus-zone="panel"
@@ -867,6 +905,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
                       целиком — развернуть его было бы нечем. Полоса и есть его след. */}
                   <ResizablePanel
                     id="bottom"
+                    style={PANEL_CONTENT_STYLE}
                     panelRef={bottomPanel}
                     defaultSize={
                       bottomDock.mode === 'minimal' ? STRIP_HEIGHT.minimal : DEFAULT_BOTTOM_SIZE
@@ -907,6 +946,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
               <ResizableHandle withHandle />
               <ResizablePanel
                 id="right"
+                style={PANEL_CONTENT_STYLE}
                 defaultSize={320}
                 minSize={200}
                 maxSize={640}

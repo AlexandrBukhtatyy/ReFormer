@@ -51,6 +51,7 @@
   "quickfix.rename-property": "Fix the property name",
   "quickfix.replace-component": "Use the closest name from the catalog",
   "shell.dock.bottom.close": "Close bottom panel",
+  "shell.dock.bottom.expand": "Expand bottom panel",
   "shell.dock.bottom.label": "Bottom panel",
   "shell.dock.bottom.minimize": "Collapse to tab strip",
   "shell.dock.bottom.toggle": "Bottom panel",

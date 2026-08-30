@@ -307,6 +307,35 @@ describe('рейлы доков: одна панель в зоне, как в п
     await expect.element(page.getByText('7')).toBeVisible();
   });
 
+  it('свёрнутая полоса сохраняет кнопку разворота: обратный ход на том же месте', async () => {
+    // Отказ был ровно здесь: в полосе кнопка сворачивания исчезала, и её место занимал
+    // крестик — повторное нажатие в ту же точку закрывало панель вместо разворота.
+    await shell([{ id: 'problems', slot: 'panel.bottom', title: 'Проблемы' }]);
+    await userEvent.click(page.getByRole('button', { name: 'Свернуть до полосы вкладок' }));
+    await expect.element(page.getByText('тело Проблемы')).not.toBeInTheDocument();
+
+    await userEvent.click(page.getByRole('button', { name: 'Развернуть нижнюю панель' }));
+
+    await expect.element(page.getByText('тело Проблемы')).toBeVisible();
+  });
+
+  it('свёрнутая полоса не заводит своей полосы прокрутки', async () => {
+    // `react-resizable-panels` кладёт содержимому панели `overflow: auto` ИНЛАЙНОМ, а высота
+    // панели — доля группы: свёрнутый док выходит то 22.01 пикселя, то 21.6, и на второй доле
+    // Chromium ставил рядом с крестиком настоящую полосу в 15 пикселей. Классом это не
+    // снимается, поэтому проверяем вычисленное значение, а не наличие класса.
+    await shell([{ id: 'problems', slot: 'panel.bottom', title: 'Проблемы' }]);
+    await userEvent.click(page.getByRole('button', { name: 'Свернуть до полосы вкладок' }));
+
+    const strip = page.getByRole('region', { name: 'Нижняя панель' }).element();
+    const content = strip.parentElement!;
+    expect(getComputedStyle(content).overflow).toBe('hidden');
+
+    // И сам признак: на заведомо дробной высоте полосы прокрутки нет.
+    (content.parentElement as HTMLElement).style.flex = '0 0 21.6px';
+    expect(content.offsetWidth - content.clientWidth).toBe(0);
+  });
+
   it('сочетание клавиш водит между полным видом и полосой', async () => {
     // Три состояния в одну клавишу не уложить: сочетание переключает состояния РАБОТЫ,
     // закрытие — действие другой силы, и у него своя кнопка.
