@@ -43,6 +43,7 @@ import {
 import { Input } from '@reformer/ui-kit/input';
 import { Label } from '@reformer/ui-kit/label';
 import type { RootI18nService } from '../services/i18n/i18n';
+import { DIALOG_SCOPE, useScope, type ScopeStack } from './scope';
 import type { PendingPrompt, PromptService } from '../services/prompt';
 import { splitName } from '../workspace/resource-names';
 import { useLocale } from './usePanels';
@@ -53,6 +54,8 @@ export interface PromptHostProps {
    * (тест оболочки, встраивание), а не поломка.
    */
   readonly prompt?: PromptService | null;
+  /** Стек областей: пока запрос показан, его клавиши принадлежат ему. */
+  readonly scopes?: ScopeStack;
   readonly i18n: RootI18nService;
 }
 
@@ -80,8 +83,9 @@ function usePendingPrompt(prompt: PromptService | null | undefined): PendingProm
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
-export function PromptHost({ prompt, i18n }: PromptHostProps): ReactElement | null {
+export function PromptHost({ prompt, scopes, i18n }: PromptHostProps): ReactElement | null {
   const pending = usePendingPrompt(prompt);
+  useScope(scopes, pending === null ? null : DIALOG_SCOPE);
   useLocale(i18n);
 
   const translate = useCallback(

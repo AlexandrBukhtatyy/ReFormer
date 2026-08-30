@@ -36,7 +36,8 @@ import {
 } from '@reformer/ui-kit/menubar';
 import type { CommandRegistry } from '../primitives/command';
 import type { RootI18nService } from '../services/i18n/i18n';
-import { detectPlatformModifier, formatKeybinding, type PlatformModifier } from './keybindings';
+import { detectPlatformModifier, formatChord, type PlatformModifier } from './keybindings';
+import { chordOfCommand, type KeymapService } from './keymap';
 import { buildMenuBar, MenuPoint, observeMenuEntries, type MenuEntry, type MenuNode } from './menu';
 import { createMenuIssueReporter, formatMenuIssue } from './menu-issues';
 import { useCommandSnapshot, useContributions, useLocale } from './usePanels';
@@ -56,6 +57,11 @@ export interface MenuBarProps {
    * ровно столько, сколько их есть, — они не растворяются среди вкладов плагинов.
    */
   readonly builtin?: readonly MenuEntry[];
+  /**
+   * Действующая раскладка. Без неё подпись берётся из объявления команды — верно, пока
+   * переопределять сочетания нечем.
+   */
+  readonly keymap?: KeymapService;
   /** Во что разворачивать `mod` в подписях. По умолчанию определяется по платформе. */
   readonly modifier?: PlatformModifier;
 }
@@ -84,8 +90,8 @@ function MenuItemNode({
   }
 
   const shortcut =
-    node.keybinding === undefined ? null : (
-      <MenubarShortcut>{formatKeybinding(node.keybinding, modifier)}</MenubarShortcut>
+    node.chord === undefined ? null : (
+      <MenubarShortcut>{formatChord(node.chord, modifier)}</MenubarShortcut>
     );
 
   // Переключатель отличается от пункта именно `checked`: у обычного пункта его нет, и
@@ -130,6 +136,7 @@ export function MenuBar({
   whenContext,
   i18n,
   builtin,
+  keymap,
   modifier,
 }: MenuBarProps): ReactElement {
   const contributions = useContributions(extensions, MenuPoint);
@@ -186,6 +193,11 @@ export function MenuBar({
     translate: (key, owner) =>
       owner?.pluginId === undefined ? i18n.t(key) : i18n.forPlugin(owner.pluginId).t(key),
     execute,
+    // Подпись обязана показывать то, что сработает, а не то, что объявлено: после
+    // переназначения человеком объявленное у команды сочетание перестаёт быть правдой.
+    ...(keymap === undefined
+      ? {}
+      : { chordOf: (id: string) => chordOfCommand(keymap.index(), id) }),
     onIssue: reportIssue,
   });
 

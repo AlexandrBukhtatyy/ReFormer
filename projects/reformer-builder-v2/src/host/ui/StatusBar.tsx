@@ -38,13 +38,15 @@ import { useCallback, useSyncExternalStore, type ReactElement } from 'react';
 import type { RootI18nService } from '../services/i18n/i18n';
 import {
   describeWorkspaceStatus,
+  chordIndicator,
   localeIndicator,
   type StatusIndicator,
   type StatusTone,
   type WorkspaceStatusSnapshot,
   type WorkspaceStatusSource,
 } from './status';
-import { useLocale, usePanels, type ExtensionReader } from './usePanels';
+import type { ChordState } from './chords';
+import { useChord, useLocale, usePanels, type ExtensionReader } from './usePanels';
 import type { WhenContextStore } from './when-context-store';
 
 /**
@@ -102,9 +104,21 @@ export interface StatusBarProps {
   readonly whenContext: WhenContextStore;
   readonly i18n: RootI18nService;
   readonly status: WorkspaceStatusSource;
+  /**
+   * Ожидание второй ступени аккорда. Без него ячейка не появляется вовсе — законная
+   * сборка, а не поломка: аккорды это возможность оболочки, а не её обязанность.
+   */
+  readonly chords?: ChordState;
 }
 
-export function StatusBar({ extensions, whenContext, i18n, status }: StatusBarProps): ReactElement {
+export function StatusBar({
+  extensions,
+  whenContext,
+  i18n,
+  status,
+  chords,
+}: StatusBarProps): ReactElement {
+  const chord = useChord(chords);
   // Локаль здесь нужна и как повод перерисоваться, и как значение: она сама выводится
   // в строке состояния — это единственное место, где человек видит, на каком языке
   // работает инструмент.
@@ -112,7 +126,14 @@ export function StatusBar({ extensions, whenContext, i18n, status }: StatusBarPr
   const snapshot = useWorkspaceStatus(status);
   const panels = usePanels(extensions, whenContext, 'statusbar');
 
-  const indicators = [...describeWorkspaceStatus(snapshot), localeIndicator(locale)];
+  // Ожидание аккорда идёт ПЕРВЫМ: пока оно есть, это самое важное в строке — приложение
+  // ждёт от человека следующего нажатия, и он должен это видеть, не выискивая.
+  const waiting = chordIndicator(chord.labels);
+  const indicators = [
+    ...(waiting === null ? [] : [waiting]),
+    ...describeWorkspaceStatus(snapshot),
+    localeIndicator(locale),
+  ];
 
   return (
     <>

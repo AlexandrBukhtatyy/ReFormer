@@ -19,6 +19,7 @@
 
 import { toDisposable, type Disposable } from './disposable';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from './when-context';
+import { compileWhen, WHEN_TRUE, WhenSyntaxError, type WhenExpr } from './when-expr';
 
 /**
  * Как команда выглядит для модели. Заполняется осознанно — см.
@@ -68,6 +69,31 @@ export interface CommandContribution {
   /** Например `mod+s`, `mod+alt+v`. `mod` = Cmd на macOS, Ctrl на остальных. */
   readonly keybinding?: string;
   /**
+   * Условие ПРИВЯЗКИ КЛАВИШИ: `focus == tree`, `activeResourceKind == form.schema`.
+   * Разбирается на регистрации, синтаксис — см. `./when-expr`.
+   *
+   * ## Чем отличается от `enabled` — водораздел, а не два способа одного
+   *
+   * `when` отвечает «где и в каком режиме» (состояние платформы: куда направлен фокус, что
+   * открыто), `enabled` — «есть ли чему сработать» (приватное состояние владельца: есть ли
+   * что отменять, лежит ли что-то в буфере). Первое обязано быть ДАННЫМИ — их сравнивают,
+   * чтобы решить, чья клавиша выигрывает, показывают человеку в таблице клавиш и пишут в
+   * файл раскладки. Второе данными быть не может: оно читает то, чего у платформы нет.
+   *
+   * Прямая польза, ради которой поле и заведено: `delete` в проекте зарегистрирован дважды —
+   * деревом файлов и редактором схемы, — и сегодня их разводит только порядок регистрации,
+   * который по контракту рантайма плагинов ничего не значит. С условиями `focus == tree` и
+   * `focus == canvas` они становятся ДОКАЗУЕМО непересекающимися.
+   *
+   * ## Проверяет его диспетчер клавиш, а НЕ этот реестр
+   *
+   * `isEnabled` и `execute` условие не смотрят, и это осознанно: `when` ограничивает клавишу,
+   * а не команду. Смотри его реестр — пункт контекстного меню «Переименовать» пропал бы в тот
+   * момент, когда меню открыто правым щелчком без фокуса на строке, то есть ровно тогда, когда
+   * он нужен. Из палитры, меню и от ассистента команда вызывается по-прежнему по `enabled`.
+   */
+  readonly when?: string;
+  /**
    * Разрешить сочетание, когда фокус в поле ввода. По умолчанию — нет.
    *
    * Помечаются единицы: сохранение, палитра команд. Всё остальное в поле ввода принадлежит
@@ -92,6 +118,7 @@ export type AgentVisibleCommand = CommandContribution & { readonly agent: Comman
 export type CommandErrorKind =
   | 'invalid-id'
   | 'invalid-keybinding'
+  | 'invalid-when'
   | 'duplicate'
   | 'not-found'
   | 'disabled';
@@ -241,6 +268,84 @@ export function normalizeKeybinding(keybinding: string): string {
   if (key === null) throw invalidKeybinding(keybinding, 'нет клавиши, только модификаторы');
 
   return [...MODIFIER_ORDER.filter((modifier) => modifiers.has(modifier)), key].join('+');
+}
+
+/**
+ * Разобранные условия команд.
+ *
+ * Кэш по объекту объявления, а не по строке: одна и та же строка у разных команд — обычное
+ * дело (`focus == tree` у пяти команд файлов), и держать её разбор по одному экземпляру
+ * дешевле, чем по вхождению. `WeakMap` — потому что снятая команда обязана уходить целиком,
+ * вместе со своим условием; обычная карта удерживала бы объявления снятых плагинов навсегда.
+ *
+ * Заполняется на регистрации, но не только ею: диспетчер зовёт {@link whenOf} и для команды,
+ * собранной в обход реестра (так делают его собственные тесты), — тогда разбор ленивый.
+ */
+const WHEN_CACHE = new WeakMap<object, WhenExpr>();
+
+/** Объявление в объёме, которого хватает для условия: диспетчеру больше ничего не нужно. */
+export interface WhenBearing {
+  readonly when?: string;
+}
+
+/** Условие, которое не истинно никогда. Нужен ровно для отказа в {@link whenOf}. */
+const NEVER: WhenExpr = compileWhen('false');
+
+/**
+ * Разобранное условие команды. Без условия — {@link WHEN_TRUE}, то есть «всегда».
+ *
+ * Разбор здесь никогда не бросает: до этой точки объявление уже прошло регистрацию, которая
+ * отвергает неразбираемое условие. Команда, собранная в обход реестра с испорченным условием,
+ * получает «никогда» — тихо пропустить её безопаснее, чем уронить обработчик нажатия.
+ */
+export function whenOf(command: WhenBearing): WhenExpr {
+  const cached = WHEN_CACHE.get(command);
+  if (cached !== undefined) return cached;
+
+  let expr: WhenExpr;
+  try {
+    expr = command.when === undefined ? WHEN_TRUE : compileWhen(command.when);
+  } catch {
+    expr = NEVER;
+  }
+  WHEN_CACHE.set(command, expr);
+  return expr;
+}
+
+/**
+ * Сколько нажатий может быть в аккорде.
+ *
+ * Два, как в VS Code и WebStorm. Не потому, что три технически сложнее, а потому что аккорд
+ * из трёх ступеней человек не воспроизводит по памяти, и такая клавиша существует только
+ * в списке.
+ */
+export const MAX_CHORD_STEPS = 2;
+
+/**
+ * Разбирает аккорд: `mod+k mod+s` в две ступени, обычное сочетание — в одну.
+ *
+ * Разделитель ступеней — пробел, и здесь есть ловушка, ради которой написана первая строка:
+ * пробел ВНУТРИ ступени незначим (`mod + alt + V` — одно сочетание, и это закреплено тестом
+ * реестра). Наивное деление по пробелам сломало бы существующее написание. Правило звучит
+ * так: **пробел, прилегающий к `+`, — украшение; пробел между двумя завершёнными ступенями —
+ * разделитель.**
+ *
+ * @throws {CommandError} `invalid-keybinding` — ступеней больше {@link MAX_CHORD_STEPS}
+ * либо ступень не разбирается.
+ */
+export function normalizeChord(keybinding: string): readonly string[] {
+  const steps = keybinding
+    .replace(/\s*\+\s*/g, '+')
+    .trim()
+    .split(/\s+/);
+
+  if (steps.length > MAX_CHORD_STEPS) {
+    throw invalidKeybinding(
+      keybinding,
+      `в аккорде больше ${String(MAX_CHORD_STEPS)} ступеней: такое сочетание не воспроизводят по памяти`
+    );
+  }
+  return steps.map((step) => normalizeKeybinding(step));
 }
 
 /** Где именно упал чужой код. Пока причина одна, но она не последняя. */
@@ -446,8 +551,12 @@ function createRegistryOver(
       if (command.keybinding !== undefined) {
         // Проверяем на регистрации, а не при первом нажатии: иначе опечатка в сочетании
         // живёт до того дня, когда кто-то попробует его нажать.
+        //
+        // Через `normalizeChord`, а не `normalizeKeybinding`: аккорд из двух ступеней —
+        // законное сочетание. Это расширение, а не смена правил: односоставная запись
+        // разбирается ровно так же, что закреплено отдельным тестом.
         try {
-          normalizeKeybinding(command.keybinding);
+          normalizeChord(command.keybinding);
         } catch (error) {
           throw new CommandError(
             'invalid-keybinding',
@@ -458,10 +567,34 @@ function createRegistryOver(
         }
       }
 
+      let when: WhenExpr | undefined;
+      if (command.when !== undefined) {
+        // Проверяем здесь по тому же доводу, что и сочетание: неразбираемое условие — это
+        // клавиша, которая не сработает никогда, и узнавать об этом в день нажатия значит
+        // получить самую дорогую из поломок — молчаливую.
+        try {
+          when = compileWhen(command.when);
+        } catch (error) {
+          throw new CommandError(
+            'invalid-when',
+            `команда «${command.id}»: условие «${command.when}» разобрать нельзя`,
+            {
+              commandId: command.id,
+              when: command.when,
+              ...(error instanceof WhenSyntaxError ? { at: String(error.at) } : {}),
+            },
+            { cause: error }
+          );
+        }
+      }
+
       // Владельца ставит реестр: пришедший в объявлении игнорируется, иначе плагин мог бы
       // зарегистрировать команду от чужого имени, просто написав чужой идентификатор.
       const stored: CommandContribution =
         owner === undefined ? command : { ...command, pluginId: owner };
+      // Кэш заполняется по ХРАНИМОМУ объявлению, а не по пришедшему: у команды плагина это
+      // разные объекты, и диспетчер спрашивает условие именно у хранимого.
+      if (when !== undefined) WHEN_CACHE.set(stored, when);
       commands.set(stored.id, stored);
       notify();
       return toDisposable(() => {

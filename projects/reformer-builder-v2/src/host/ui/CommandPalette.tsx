@@ -83,6 +83,7 @@ import type { CommandRegistry } from '../primitives/command';
 import type { Disposable } from '../primitives/disposable';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '../primitives/when-context';
 import type { RootI18nService } from '../services/i18n/i18n';
+import { useScope, type ScopeStack } from './scope';
 import { detectPlatformModifier, formatKeybinding, type PlatformModifier } from './keybindings';
 import {
   PaletteItemsPoint,
@@ -126,18 +127,29 @@ export interface CommandPaletteProps {
   readonly extensions: ExtensionReader;
   readonly whenContext: WhenContextStore;
   readonly i18n: RootI18nService;
+  /**
+   * Стек областей. Пока палитра открыта, она кладёт туда свою область — иначе её
+   * собственные клавиши неотличимы от клавиш поля ввода где угодно ещё.
+   */
+  readonly scopes?: ScopeStack;
   /** Во что разворачивать `mod` в подписях. По умолчанию определяется по платформе. */
   readonly modifier?: PlatformModifier;
 }
+
+/** Область палитры. Экспортирована: на неё ссылаются условия правил, а строку не угадывают. */
+export const PALETTE_SCOPE = 'palette';
 
 export function CommandPalette({
   commands,
   extensions,
   whenContext,
   i18n,
+  scopes,
   modifier,
 }: CommandPaletteProps): ReactElement | null {
   const [open, setOpen] = useState(false);
+  // Область живёт ровно столько, сколько окно: положена при открытии, снята при закрытии.
+  useScope(scopes, open ? PALETTE_SCOPE : null);
   const [query, setQuery] = useState('');
   const [dynamic, setDynamic] = useState<readonly PaletteItem[]>([]);
   // Контекст на момент открытия — см. шапку модуля.

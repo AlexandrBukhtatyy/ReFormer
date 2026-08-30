@@ -165,3 +165,23 @@ export function localeIndicator(locale: string): StatusIndicator {
     tone: 'default',
   };
 }
+
+/**
+ * Ожидание второй ступени аккорда. `null` — ожидания нет, и ячейки в строке не существует.
+ *
+ * Ячейка появляется только на время ожидания, а не висит пустой: строка состояния узкая,
+ * и место в ней принадлежит тому, что происходит сейчас. Показать здесь обязательно —
+ * иначе состояние «приложение ждёт вторую клавишу» ничем не отличается от зависшего.
+ *
+ * Отдельной функцией, а не полем снимка, по той же причине, что и локаль: аккорд принадлежит
+ * клавиатуре, а не рабочей области.
+ */
+export function chordIndicator(labels: readonly string[]): StatusIndicator | null {
+  if (labels.length === 0) return null;
+  return {
+    id: 'chord',
+    messageKey: 'shell.status.chord',
+    params: { keys: labels.join(' ') },
+    tone: 'accent',
+  };
+}

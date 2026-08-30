@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createCommandRegistry, normalizeKeybinding } from '../primitives/command';
 import { whenContext } from '../primitives/when-context';
+import { createChordState } from './chords';
+import { createKeymapService } from './keymap';
 import {
   detectPlatformModifier,
   dispatchKeydown,
@@ -196,14 +198,73 @@ describe('shouldDispatch', () => {
   });
 });
 
+describe('shouldDispatch — условие when', () => {
+  it('условие ложно — команда не срабатывает, даже если enabled истинно', () => {
+    const command = { keybinding: 'delete', when: 'focus == tree', enabled: () => true };
+
+    expect(shouldDispatch('delete', whenContext({ focus: 'tree' }), command)).toBe(true);
+    expect(shouldDispatch('delete', whenContext({ focus: 'canvas' }), command)).toBe(false);
+  });
+
+  it('enabled ложно — команда не срабатывает, даже если условие истинно', () => {
+    // Проверки независимы. Мутация, снимающая любую из них, роняет ровно один из двух тестов.
+    const command = { keybinding: 'delete', when: 'focus == tree', enabled: () => false };
+
+    expect(shouldDispatch('delete', whenContext({ focus: 'tree' }), command)).toBe(false);
+  });
+
+  it('одно сочетание разводится условиями по месту фокуса', () => {
+    // Ровно тот случай, ради которого условие и заведено: `delete` зарегистрирован дважды —
+    // деревом файлов и редактором схемы, — и до условий их разводил только порядок
+    // регистрации, который по контракту рантайма плагинов ничего не значит.
+    const removeFile = { keybinding: 'delete', when: 'focus == tree' };
+    const removeNode = { keybinding: 'delete', when: 'focus == canvas' };
+    const inTree = whenContext({ focus: 'tree' });
+    const onCanvas = whenContext({ focus: 'canvas' });
+
+    expect(shouldDispatch('delete', inTree, removeFile)).toBe(true);
+    expect(shouldDispatch('delete', inTree, removeNode)).toBe(false);
+    expect(shouldDispatch('delete', onCanvas, removeFile)).toBe(false);
+    expect(shouldDispatch('delete', onCanvas, removeNode)).toBe(true);
+  });
+
+  it('без условия команда ведёт себя ровно как раньше', () => {
+    // Обратная совместимость одной строкой: отсутствие условия — это «всегда», и ни одна
+    // из шестнадцати существующих привязок не меняет поведения.
+    expect(
+      shouldDispatch('delete', whenContext({ focus: 'canvas' }), { keybinding: 'delete' })
+    ).toBe(true);
+  });
+
+  it('условие читает ключи вне пяти полей, когда дан читатель', () => {
+    // Ключи плагинов и области в WhenContext не входят и входить не должны — их приносит
+    // отдельный читатель, а тип из пяти полей заставил бы складывать их в контракт.
+    const command = { keybinding: 'mod+d', when: 'schemaEditor.nodeSelected' };
+    const read = (key: string): unknown => (key === 'schemaEditor.nodeSelected' ? true : undefined);
+
+    expect(shouldDispatch('ctrl+d', whenContext(), command, { read })).toBe(true);
+    expect(shouldDispatch('ctrl+d', whenContext(), command)).toBe(false);
+  });
+
+  it('условие, ссылающееся на ключ выключенного плагина, просто не совпадает', () => {
+    expect(
+      shouldDispatch('ctrl+d', whenContext(), { keybinding: 'mod+d', when: 'acme.ready' })
+    ).toBe(false);
+  });
+});
+
 describe('dispatchKeydown', () => {
   function setup() {
     const ctx = { current: whenContext() };
     const commands = createCommandRegistry({ getContext: () => ctx.current });
+    // Настоящая раскладка над тем же реестром: подделка проверяла бы подделку, а правило
+    // «кто выигрывает» живёт именно в ней.
+    const keymap = createKeymapService({ commands, modifier: 'ctrl' });
     return {
       ctx,
       commands,
-      options: { commands, getContext: () => ctx.current, modifier: 'ctrl' as const },
+      keymap,
+      options: { commands, keymap, getContext: () => ctx.current, modifier: 'ctrl' as const },
     };
   }
 
@@ -263,11 +324,36 @@ describe('dispatchKeydown', () => {
     expect(dispatchKeydown(dispatchable({ key: 's', ctrlKey: true }), options)).toBeNull();
   });
 
-  it('первая подошедшая команда выигрывает', () => {
+  it('при полном равенстве выигрывает ПОСЛЕДНЯЯ зарегистрированная', () => {
+    // Правило изменилось намеренно. Раньше выигрывала первая, то есть исход зависел от
+    // порядка активации плагинов, — а он по контракту рантайма (`plugin/registry.test.ts`)
+    // не значит ничего. Теперь порядок стоит последним критерием после слоя и специфичности
+    // и доходит до дела только у правил, неразличимых по всему остальному.
     const { commands, options } = setup();
     commands.register({ id: 'a.first', titleKey: 'a', keybinding: 'mod+k', run: vi.fn() });
     commands.register({ id: 'a.second', titleKey: 'b', keybinding: 'ctrl+k', run: vi.fn() });
-    expect(dispatchKeydown(dispatchable({ key: 'k', ctrlKey: true }), options)).toBe('a.first');
+    expect(dispatchKeydown(dispatchable({ key: 'k', ctrlKey: true }), options)).toBe('a.second');
+  });
+
+  it('более специфичное условие бьёт менее специфичное независимо от порядка', () => {
+    // А это и есть то, ради чего порядок ушёл на третье место: клавиша достаётся тому,
+    // кто точнее назвал место, а не тому, кто раньше загрузился.
+    const { ctx, commands, options } = setup();
+    commands.register({ id: 'a.broad', titleKey: 'a', keybinding: 'delete', run: vi.fn() });
+    commands.register({
+      id: 'a.narrow',
+      titleKey: 'b',
+      keybinding: 'delete',
+      when: 'focus == tree',
+      run: vi.fn(),
+    });
+
+    ctx.current = whenContext({ focus: 'tree' });
+    expect(dispatchKeydown(dispatchable({ key: 'Delete' }), options)).toBe('a.narrow');
+
+    // Вне дерева узкое правило не подходит, и клавиша достаётся широкому.
+    ctx.current = whenContext({ focus: 'panel' });
+    expect(dispatchKeydown(dispatchable({ key: 'Delete' }), options)).toBe('a.broad');
   });
 
   it('сообщает об отказе команды, но не бросает', async () => {
@@ -307,12 +393,141 @@ describe('dispatchKeydown', () => {
     });
     dispatchKeydown(dispatchable({ key: '1', ctrlKey: true }), {
       commands,
+      keymap: createKeymapService({ commands, modifier: 'ctrl' }),
       getContext,
       modifier: 'ctrl',
     });
     // Иначе два предиката отвечали бы про разные состояния — и «команда доступна»
     // зависело бы от того, какой она по счёту в реестре.
     expect(getContext).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('dispatchKeydown — аккорды', () => {
+  function chordSetup() {
+    const ctx = { current: whenContext() };
+    const commands = createCommandRegistry({ getContext: () => ctx.current });
+    const keymap = createKeymapService({ commands, modifier: 'ctrl' });
+    // Планировщик-двойник: настоящий таймер стоил бы прогону пяти секунд.
+    let pending: (() => void) | null = null;
+    const chords = createChordState({
+      schedule: (fn) => {
+        pending = fn;
+        return 1;
+      },
+      cancelScheduled: () => {
+        pending = null;
+      },
+    });
+    return {
+      ctx,
+      commands,
+      chords,
+      fireTimeout: () => {
+        const fn = pending;
+        pending = null;
+        fn?.();
+      },
+      options: {
+        commands,
+        keymap,
+        chords,
+        getContext: () => ctx.current,
+        modifier: 'ctrl' as const,
+      },
+    };
+  }
+
+  it('первая ступень гасит умолчание браузера и переводит в ожидание', () => {
+    // `preventDefault` обязателен: иначе, пока мы ждём вторую клавишу, `mod+k` уже увёл
+    // фокус в адресную строку браузера.
+    const { commands, chords, options } = chordSetup();
+    commands.register({ id: 'keys.open', titleKey: 'a', keybinding: 'mod+k mod+s', run: vi.fn() });
+
+    const event = dispatchable({ key: 'k', ctrlKey: true });
+    expect(dispatchKeydown(event, options)).toBeNull();
+    expect(event.prevented).toBe(true);
+    expect(chords.get().prefix).toEqual(['ctrl+k']);
+  });
+
+  it('вторая ступень выполняет команду и снимает ожидание', async () => {
+    const { commands, chords, options } = chordSetup();
+    const run = vi.fn();
+    commands.register({ id: 'keys.open', titleKey: 'a', keybinding: 'mod+k mod+s', run });
+
+    dispatchKeydown(dispatchable({ key: 'k', ctrlKey: true }), options);
+    expect(dispatchKeydown(dispatchable({ key: 's', ctrlKey: true }), options)).toBe('keys.open');
+
+    await Promise.resolve();
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(chords.get().prefix).toEqual([]);
+  });
+
+  it('непопавшая вторая ступень отменяет аккорд и НЕ выполняет ничего', async () => {
+    // Самое важное правило ветки. Переразбор ступени как самостоятельного сочетания означал
+    // бы, что `mod+k`, а затем `mod+s` молча сохраняет файл, — человек получил бы действие,
+    // которого не просил.
+    const { commands, chords, options } = chordSetup();
+    const save = vi.fn();
+    commands.register({ id: 'files.save', titleKey: 'a', keybinding: 'mod+s', run: save });
+    commands.register({ id: 'keys.open', titleKey: 'b', keybinding: 'mod+k mod+p', run: vi.fn() });
+
+    dispatchKeydown(dispatchable({ key: 'k', ctrlKey: true }), options);
+    const second = dispatchable({ key: 's', ctrlKey: true });
+    expect(dispatchKeydown(second, options)).toBeNull();
+
+    await Promise.resolve();
+    expect(save).not.toHaveBeenCalled();
+    expect(second.prevented).toBe(true);
+    expect(chords.get().prefix).toEqual([]);
+  });
+
+  it('Escape отменяет ожидание', () => {
+    const { commands, chords, options } = chordSetup();
+    commands.register({ id: 'keys.open', titleKey: 'a', keybinding: 'mod+k mod+s', run: vi.fn() });
+
+    dispatchKeydown(dispatchable({ key: 'k', ctrlKey: true }), options);
+    const escape = dispatchable({ key: 'Escape' });
+    expect(dispatchKeydown(escape, options)).toBeNull();
+
+    expect(chords.get().prefix).toEqual([]);
+    expect(escape.prevented).toBe(true);
+  });
+
+  it('таймаут отменяет ожидание, и следующее нажатие снова обычное', async () => {
+    const { commands, chords, fireTimeout, options } = chordSetup();
+    const save = vi.fn();
+    commands.register({ id: 'files.save', titleKey: 'a', keybinding: 'mod+s', run: save });
+    commands.register({ id: 'keys.open', titleKey: 'b', keybinding: 'mod+k mod+p', run: vi.fn() });
+
+    dispatchKeydown(dispatchable({ key: 'k', ctrlKey: true }), options);
+    fireTimeout();
+    expect(chords.get().prefix).toEqual([]);
+
+    expect(dispatchKeydown(dispatchable({ key: 's', ctrlKey: true }), options)).toBe('files.save');
+    await Promise.resolve();
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('пока аккорд ждёт, обычные сочетания не рассматриваются', () => {
+    // Ожидание — отдельная ветка, а не ещё одно условие в общем отборе.
+    const { commands, options } = chordSetup();
+    commands.register({ id: 'files.save', titleKey: 'a', keybinding: 'mod+s', run: vi.fn() });
+    commands.register({ id: 'keys.open', titleKey: 'b', keybinding: 'mod+k mod+s', run: vi.fn() });
+
+    dispatchKeydown(dispatchable({ key: 'k', ctrlKey: true }), options);
+
+    // `mod+s` здесь — вторая ступень аккорда, а не самостоятельное сохранение.
+    expect(dispatchKeydown(dispatchable({ key: 's', ctrlKey: true }), options)).toBe('keys.open');
+  });
+
+  it('без состояния аккордов первая ступень просто не срабатывает', () => {
+    // Законная сборка: аккорды — возможность, а не обязанность оболочки.
+    const { commands, options } = chordSetup();
+    commands.register({ id: 'keys.open', titleKey: 'a', keybinding: 'mod+k mod+s', run: vi.fn() });
+    const withoutChords = { ...options, chords: undefined };
+
+    expect(dispatchKeydown(dispatchable({ key: 'k', ctrlKey: true }), withoutChords)).toBeNull();
   });
 });
 
@@ -329,6 +544,7 @@ describe('installKeybindings', () => {
 
     const subscription = installKeybindings(target, {
       commands,
+      keymap: createKeymapService({ commands, modifier: 'ctrl' }),
       getContext: () => whenContext(),
       modifier: 'ctrl',
     });

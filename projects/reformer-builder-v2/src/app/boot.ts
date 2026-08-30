@@ -91,6 +91,10 @@ import {
 import { dockSettingsKey } from '../host/ui/layout-settings';
 import type { ShellHost } from '../host/ui/Shell';
 import { createValidationOrchestrator } from '../host/validation/orchestrator';
+import { ContextKeyServiceToken, createContextKeyService } from '../host/services/context-keys';
+import { createChordState } from '../host/ui/chords';
+import { createKeymapService, KeymapServiceToken } from '../host/ui/keymap';
+import { createScopeStack, ScopeStackServiceToken } from '../host/ui/scope';
 import { createWhenContextStore } from '../host/ui/when-context-store';
 import { createWorkspaceMetaStore } from '../host/workspace/storage/idb';
 import { createJournalRelief } from '../host/workspace/journal/journal';
@@ -260,6 +264,16 @@ export function boot(): BuilderApp {
   const events = createEventBus();
   const whenContext = createWhenContextStore();
   const commands = createCommandRegistry({ getContext: () => whenContext.get() });
+  // Читатель условий `when`. Пять полей контекста остаются единственной истиной — служба
+  // их не копирует, а делегирует стору; своё у неё только то, что объявили плагины.
+  // Стек областей: какое окно сейчас сверху. Читается условиями как ключи scope и scopes.
+  const scopes = createScopeStack();
+  // Ожидание второй ступени аккорда — одно на приложение: строка состояния и диспетчер
+  // обязаны видеть одно и то же ожидание.
+  const chords = createChordState();
+  services.register(ScopeStackServiceToken, scopes);
+  const contextKeys = createContextKeyService({ whenContext, scopes });
+  services.register(ContextKeyServiceToken, contextKeys);
 
   // Метаданные рабочих областей подняты СЮДА, выше настроек: это одно соединение на всё
   // приложение (см. шаг 3), а хранилище настроек живёт над ним — область `user` отдельной
@@ -462,6 +476,12 @@ export function boot(): BuilderApp {
   //     Сам каталог здесь только СОЗДАЁТСЯ: читать его до открытия проекта неоткуда,
   //     поэтому обход каталога — шаг 8, ниже.
   const projectPlugins = createProjectPluginCatalog({
+    // Раскладка объявлена НИЖЕ: её слой зависит от состава каталога, а состав каталога —
+    // от неё нет. Ссылка через замыкание, потому что каталог зовёт публикацию только
+    // на обходе проекта (шаг 8), то есть заведомо позже сборки композиции.
+    keymap: {
+      registerRules: (source, layer, rules) => keymap.registerRules(source, layer, rules),
+    },
     // Настоящую установку подставляет композиция: она требует `CSSStyleSheet`, которого
     // в окружении тестов нет, а каталог обязан оставаться проверяемым.
     installStyles: (css, pluginId) => installPluginStyles(css, pluginId, document),
@@ -517,6 +537,23 @@ export function boot(): BuilderApp {
   };
   const projectPluginsSubscription = project.subscribe(() => void syncProjectPlugins());
 
+  // Раскладка создаётся ЗДЕСЬ, ниже каталога проекта: слой правила зависит от того, откуда
+  // пришёл плагин, а «какие плагины лежат в проекте» знает только каталог. Оболочке этот
+  // вопрос не задать — она не знает, из чего собрана.
+  const keymap = createKeymapService({
+    commands,
+    settings,
+    layerOf: (pluginId) => {
+      if (pluginId === undefined) return 'host';
+      return projectPlugins.list().some((entry) => entry.id === pluginId)
+        ? 'catalog-plugin'
+        : 'builtin-plugin';
+    },
+  });
+  // Раскладку читают и плагины: подсказка «нажмите X» обязана показывать действующее
+  // сочетание, а не объявленное.
+  services.register(KeymapServiceToken, keymap);
+
   /**
    * Проверка источника при возврате фокуса в окно.
    *
@@ -558,6 +595,10 @@ export function boot(): BuilderApp {
   return {
     extensions,
     whenContext,
+    contextKeys,
+    keymap,
+    scopes,
+    chords,
     settings,
     commands,
     status,

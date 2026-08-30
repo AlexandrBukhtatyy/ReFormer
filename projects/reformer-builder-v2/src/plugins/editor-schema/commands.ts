@@ -28,6 +28,10 @@
 
 import type { CommandContribution, ResourceId } from '@/sdk';
 import { isDivContainer } from '@/lib/form-model/node-kind';
+import type { NavDir } from '@/lib/form-model/query';
+import { planDuplicate } from './duplicate';
+import { planMove } from './move';
+import type { QuickAddStore } from './quick-add-store';
 import { indexNodes } from './node-index';
 import {
   duplicateOp,
@@ -42,12 +46,55 @@ import type { EditOp, NodeId, SchemaEditorHost } from './host';
 import type { SchemaSession, SessionRegistry } from './sessions';
 
 export const DELETE_COMMAND_ID = 'editor-schema.delete';
+/**
+ * Второе имя удаления — под Backspace.
+ *
+ * Отдельная команда, а не второе сочетание у первой: у команды по контракту РОВНО одно
+ * сочетание ({@link CommandContribution.keybinding}), и это правильно — палитра команд
+ * показывает одно, а не список. Две привычки («Delete» и «Backspace») пришли из первой
+ * версии и обе живые, поэтому обе и остаются, но делают они одно и то же.
+ */
+export const DELETE_BACK_COMMAND_ID = 'editor-schema.delete.backspace';
 export const DUPLICATE_COMMAND_ID = 'editor-schema.duplicate';
 export const GROUP_COMMAND_ID = 'editor-schema.group';
 export const UNGROUP_COMMAND_ID = 'editor-schema.ungroup';
 export const FLIP_COMMAND_ID = 'editor-schema.flip';
 export const UNDO_COMMAND_ID = 'editor-schema.undo';
 export const REDO_COMMAND_ID = 'editor-schema.redo';
+
+/**
+ * Перемещение узла клавишами — по команде на направление.
+ *
+ * Четыре команды, а не одна с аргументом: сочетание у команды одно, и «переместить»
+ * с параметром получило бы четыре разных сочетания на один идентификатор. Заодно каждая
+ * видна в палитре под своим именем — а «переместить» без направления там бесполезна.
+ */
+export const MOVE_COMMAND_IDS: Readonly<Record<NavDir, string>> = {
+  up: 'editor-schema.move-up',
+  down: 'editor-schema.move-down',
+  left: 'editor-schema.move-left',
+  right: 'editor-schema.move-right',
+};
+
+/**
+ * Дублирование в направлении — «Copy Line» первой версии, по команде на направление.
+ *
+ * Отдельно от {@link DUPLICATE_COMMAND_ID}, потому что это разные действия: то кладёт копию
+ * сразу за оригиналом и направления не знает, это — ставит её с той стороны, куда показала
+ * стрелка, и умеет копировать блок целиком.
+ */
+export const DUPLICATE_DIR_COMMAND_IDS: Readonly<Record<NavDir, string>> = {
+  up: 'editor-schema.duplicate-up',
+  down: 'editor-schema.duplicate-down',
+  left: 'editor-schema.duplicate-left',
+  right: 'editor-schema.duplicate-right',
+};
+
+/** Схлопнуть выделение: из блока — к одному узлу, из одного — к его родителю. */
+export const COLLAPSE_SELECTION_COMMAND_ID = 'editor-schema.collapse-selection';
+
+/** Открыть диалог быстрого добавления компонента. */
+export const QUICK_ADD_COMMAND_ID = 'editor-schema.quick-add';
 
 /**
  * Команды быстрых исправлений. Имена — часть контракта с валидатором
@@ -123,6 +170,134 @@ function flippableNode(registry: SessionRegistry, nodeId?: string): NodeId | nul
   if (target === undefined) return null;
   const found = indexNodes(model).find(target);
   return found !== undefined && isDivContainer(found.node) ? target : null;
+}
+
+/**
+ * Сочетание для перемещения в этом направлении.
+ *
+ * `mod+стрелка`, как в первой версии: стрелка без модификатора двигает КУРСОР по дереву,
+ * а с модификатором — сам узел. Пара «навигация / перемещение» тем и запоминается, что
+ * отличается одной клавишей.
+ */
+/**
+ * Условие клавиш канваса, записанное данными.
+ *
+ * Заведено по найденному дефекту, а не «для порядка»: у `delete`, `backspace`, `mod+d`,
+ * `mod+g` и стрелок предикат смотрел только на выделение и НЕ смотрел на фокус. Значит
+ * `Delete` в дереве файлов удалял узел схемы, если в схеме что-то оставалось выделенным, —
+ * и то же сочетание было объявлено плагином файлов. Разводил их порядок регистрации, который
+ * по контракту рантайма плагинов ничего не значит.
+ *
+ * Пара `focus == canvas` против `focus == tree` делает эти клавиши ДОКАЗУЕМО
+ * непересекающимися — см. `provablyDisjoint` в `host/primitives/when-expr`.
+ */
+const ON_CANVAS = 'focus == canvas';
+
+/**
+ * Условие клавиш, применимых ко всей вкладке схемы, а не к канвасу.
+ *
+ * Отмена и повтор принадлежат ДОКУМЕНТУ: их жмут и из панели свойств, и с канваса, поэтому
+ * сужать их до фокуса на канвасе нельзя. Зато сужение до вида ресурса обязательно — иначе
+ * `mod+z` на вкладке markdown перебирает историю схемы, открытой в соседней вкладке.
+ */
+const IN_SCHEMA = 'activeResourceKind == form.schema';
+
+const MOVE_KEYBINDINGS: Readonly<Record<NavDir, string>> = {
+  up: 'mod+arrowup',
+  down: 'mod+arrowdown',
+  left: 'mod+arrowleft',
+  right: 'mod+arrowright',
+};
+
+/** Сочетание для дублирования в этом направлении — то же, что в первой версии. */
+const DUPLICATE_KEYBINDINGS: Readonly<Record<NavDir, string>> = {
+  up: 'alt+shift+arrowup',
+  down: 'alt+shift+arrowdown',
+  left: 'alt+shift+arrowleft',
+  right: 'alt+shift+arrowright',
+};
+
+const DIRECTIONS: readonly NavDir[] = ['up', 'down', 'left', 'right'];
+
+/** Команды дублирования в направлении: копия встаёт с той стороны, куда показала стрелка. */
+function duplicateCommands(registry: SessionRegistry): readonly CommandContribution[] {
+  return DIRECTIONS.map((dir) => ({
+    id: DUPLICATE_DIR_COMMAND_IDS[dir],
+    titleKey: `command.duplicate.${dir}`,
+    keybinding: DUPLICATE_KEYBINDINGS[dir],
+    when: ON_CANVAS,
+    enabled: () => removableSelection(registry).length > 0,
+    run: () => {
+      const session = editable(registry);
+      if (session === null) return false;
+      const { model, selection } = session.get();
+      const op = planDuplicate(model, selection, dir);
+      if (op === null) return false;
+      // Выделение остаётся на оригинале: копия — новый узел, и уводить на неё курсор
+      // значило бы, что следующая правка человека уйдёт не в то место, где он работал.
+      const outcome = session.apply(op);
+      if (outcome.status !== 'applied') return false;
+      session.setSelection(selection);
+      return true;
+    },
+  }));
+}
+
+/**
+ * Команда быстрого добавления — только когда есть чем открыть диалог.
+ *
+ * Без стора её нет вовсе, а не «есть, но ничего не делает»: команда, не делающая ничего,
+ * висит в палитре и обещает то, чего не будет.
+ */
+function quickAddCommands(
+  registry: SessionRegistry,
+  quickAdd: QuickAddStore | null
+): readonly CommandContribution[] {
+  if (quickAdd === null) return [];
+  return [
+    {
+      id: QUICK_ADD_COMMAND_ID,
+      titleKey: 'command.quick-add',
+      keybinding: 'enter',
+      when: ON_CANVAS,
+      // Только на канвасе: Enter в поле ввода принадлежит полю, а на кнопке — кнопке
+      // (это отдельно стережёт диспетчер оболочки).
+      enabled: (ctx) => ctx.focus === 'canvas' && editable(registry) !== null,
+      run: () => {
+        if (editable(registry) === null) return false;
+        quickAdd.open();
+        return true;
+      },
+    },
+  ];
+}
+
+/** Команды перемещения: одна на направление, все поверх одного планировщика. */
+function moveCommands(registry: SessionRegistry): readonly CommandContribution[] {
+  const directions: readonly NavDir[] = DIRECTIONS;
+  return directions.map((dir) => ({
+    id: MOVE_COMMAND_IDS[dir],
+    titleKey: `command.move.${dir}`,
+    keybinding: MOVE_KEYBINDINGS[dir],
+    when: ON_CANVAS,
+    // Условие широкое — «есть что двигать»: точный ответ даёт планировщик по модели,
+    // а повторять его правила в предикате значило бы завести им второе место жизни.
+    enabled: () => selectionOf(registry).length > 0,
+    run: () => {
+      const session = editable(registry);
+      if (session === null) return false;
+      const { model, selection } = session.get();
+      const op = planMove(model, selection, dir);
+      if (op === null) return false;
+      const outcome = session.apply(op);
+      if (outcome.status !== 'applied') return false;
+      // Курсор остаётся на том, что двигали: реордер выражен переносом СОСЕДА через блок
+      // (см. `./move`), и `focus` операции назвал бы именно его — то есть выделение
+      // перепрыгнуло бы на узел, которого человек не трогал.
+      session.setSelection(selection);
+      return true;
+    },
+  }));
 }
 
 // ── быстрые исправления ─────────────────────────────────────────────────────────
@@ -250,31 +425,44 @@ export function schemaFixCommands(host: SchemaEditorHost): readonly CommandContr
 /** Команды плагина. Отдельно от `activate`, чтобы тест звал их без реестров. */
 export function schemaEditorCommands(
   registry: SessionRegistry,
-  host: SchemaEditorHost
+  host: SchemaEditorHost,
+  quickAdd: QuickAddStore | null = null
 ): readonly CommandContribution[] {
+  const removeSelection = (): boolean => {
+    const session = editable(registry);
+    if (session === null) return false;
+    // С конца: удаление соседа сдвигает индексы, но не адреса — а адреса здесь и нужны.
+    // Порядок всё равно значим для выделения: после серии удалений оно уедет на родителя
+    // последнего удалённого, и это ближе к месту, где человек только что работал.
+    let applied = false;
+    for (const id of removableSelection(registry)) {
+      if (session.apply(removeOp(id)).status === 'applied') applied = true;
+    }
+    return applied;
+  };
+
   return [
     {
       id: DELETE_COMMAND_ID,
       titleKey: 'command.delete',
       keybinding: 'delete',
+      when: ON_CANVAS,
       enabled: () => removableSelection(registry).length > 0,
-      run: () => {
-        const session = editable(registry);
-        if (session === null) return false;
-        // С конца: удаление соседа сдвигает индексы, но не адреса — а адреса здесь и нужны.
-        // Порядок всё равно значим для выделения: после серии удалений оно уедет на родителя
-        // последнего удалённого, и это ближе к месту, где человек только что работал.
-        let applied = false;
-        for (const id of removableSelection(registry)) {
-          if (session.apply(removeOp(id)).status === 'applied') applied = true;
-        }
-        return applied;
-      },
+      run: removeSelection,
+    },
+    {
+      id: DELETE_BACK_COMMAND_ID,
+      titleKey: 'command.delete',
+      keybinding: 'backspace',
+      when: ON_CANVAS,
+      enabled: () => removableSelection(registry).length > 0,
+      run: removeSelection,
     },
     {
       id: DUPLICATE_COMMAND_ID,
       titleKey: 'command.duplicate',
       keybinding: 'mod+d',
+      when: ON_CANVAS,
       enabled: () => removableSelection(registry).length > 0,
       run: () => {
         const session = editable(registry);
@@ -287,6 +475,7 @@ export function schemaEditorCommands(
       id: GROUP_COMMAND_ID,
       titleKey: 'command.group',
       keybinding: 'mod+g',
+      when: ON_CANVAS,
       enabled: () => removableSelection(registry).length > 0,
       run: () => {
         const session = editable(registry);
@@ -299,6 +488,7 @@ export function schemaEditorCommands(
       id: UNGROUP_COMMAND_ID,
       titleKey: 'command.ungroup',
       keybinding: 'mod+shift+g',
+      when: ON_CANVAS,
       enabled: () => selectionOf(registry).length === 1,
       run: () => {
         const session = editable(registry);
@@ -310,8 +500,10 @@ export function schemaEditorCommands(
     {
       id: FLIP_COMMAND_ID,
       titleKey: 'command.flip',
-      // Без сочетания клавиш: переворот всегда виден кнопкой на самой коробке, а свободные
-      // сочетания дешевле оставить тем действиям, у которых своей кнопки нет.
+      // То же сочетание, что в первой версии: там оно означало «сменить раскладку выделенного
+      // div», и здесь означает ровно это же.
+      keybinding: 'mod+shift+l',
+      when: ON_CANVAS,
       enabled: () => flippableNode(registry) !== null,
       run: (args) => {
         const session = editable(registry);
@@ -324,6 +516,7 @@ export function schemaEditorCommands(
       id: UNDO_COMMAND_ID,
       titleKey: 'command.undo',
       keybinding: 'mod+z',
+      when: IN_SCHEMA,
       enabled: () => registry.active()?.get().canUndo === true,
       run: () => registry.active()?.undo() ?? false,
     },
@@ -331,9 +524,46 @@ export function schemaEditorCommands(
       id: REDO_COMMAND_ID,
       titleKey: 'command.redo',
       keybinding: 'mod+shift+z',
+      when: IN_SCHEMA,
       enabled: () => registry.active()?.get().canRedo === true,
       run: () => registry.active()?.redo() ?? false,
     },
+    {
+      id: COLLAPSE_SELECTION_COMMAND_ID,
+      titleKey: 'command.collapse-selection',
+      keybinding: 'escape',
+      when: ON_CANVAS,
+      // Только на канвасе: Escape в остальном интерфейсе принадлежит тому, что открыто
+      // поверх — окну, палитре, подсказке. Отбирать его у них ради выделения нельзя.
+      enabled: (ctx) => ctx.focus === 'canvas' && selectionOf(registry).length > 0,
+      run: () => {
+        const session = registry.active();
+        if (session === null) return false;
+        const { model, selection } = session.get();
+        // Блок схлопывается к одному узлу — тому, на котором курсор; одиночное выделение
+        // поднимается к родителю. Так один и тот же Escape отвечает на оба «слишком много
+        // выделено» и «хочу работать уровнем выше».
+        if (selection.length > 1) {
+          session.setSelection([selection[selection.length - 1]]);
+          return true;
+        }
+        const current = selection[0];
+        if (current === undefined) return false;
+        const index = indexNodes(model);
+        const entry = index.find(current);
+        if (entry === undefined) return false;
+        const parentPath = entry.path.slice(0, -1);
+        // Путь родителя — это ещё и путь слота: у `children` и `steps` над узлом лежит
+        // массив, а над ним уже сам родитель.
+        const parent = index.idAt(parentPath) ?? index.idAt(parentPath.slice(0, -1));
+        if (parent === undefined || parent === current) return false;
+        session.setSelection([parent]);
+        return true;
+      },
+    },
+    ...quickAddCommands(registry, quickAdd),
+    ...moveCommands(registry),
+    ...duplicateCommands(registry),
     ...schemaFixCommands(host),
   ];
 }

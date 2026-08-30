@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { CommandError, createCommandRegistry, normalizeKeybinding } from './command';
+import {
+  CommandError,
+  createCommandRegistry,
+  MAX_CHORD_STEPS,
+  normalizeChord,
+  normalizeKeybinding,
+} from './command';
 import type { CommandContribution } from './command';
 import { NEUTRAL_WHEN_CONTEXT, whenContext } from './when-context';
 import type { WhenContext } from './when-context';
@@ -360,6 +366,14 @@ describe('normalizeKeybinding', () => {
     expect(normalizeKeybinding('alt+mod+shift+k')).toBe(normalizeKeybinding('shift+mod+alt+K'));
   });
 
+  it('КАЖДОЕ существующее написание после normalizeChord даёт ровно одну ту же ступень', () => {
+    // Гарантия, что переход реестра на аккорды не изменил написание ни одного из уже
+    // работающих сочетаний. Разъедься они — клавиша молча перестала бы работать.
+    for (const [input, expected] of canonical) {
+      expect(normalizeChord(input), input).toEqual([expected]);
+    }
+  });
+
   it('идемпотентна', () => {
     const once = normalizeKeybinding('Shift+Mod+K');
     expect(normalizeKeybinding(once)).toBe(once);
@@ -519,5 +533,35 @@ describe('getAll как снимок', () => {
 
     expect(registry.getAll()).not.toBe(before);
     expect(registry.getAll().map((command) => command.id)).toEqual(['a.run']);
+  });
+});
+
+describe('normalizeChord', () => {
+  it('делит аккорд по пробелу между ступенями', () => {
+    expect(normalizeChord('mod+k mod+s')).toEqual(['mod+k', 'mod+s']);
+  });
+
+  it('пробел У «плюса» — украшение, пробел МЕЖДУ ступенями — разделитель', () => {
+    // Ловушка, ради которой правило и сформулировано: наивное деление по пробелам сломало бы
+    // существующее написание «mod + alt + V», которое закреплено тестом выше.
+    expect(normalizeChord('  mod + alt + V  ')).toEqual(['mod+alt+v']);
+    expect(normalizeChord('mod + k   mod + s')).toEqual(['mod+k', 'mod+s']);
+  });
+
+  it('клавиша «плюс» переживает разбор аккорда', () => {
+    expect(normalizeChord('mod++')).toEqual(['mod++']);
+    expect(normalizeChord('mod+ +')).toEqual(['mod++']);
+  });
+
+  it('ступеней больше двух не бывает', () => {
+    // Аккорд из трёх нажатий человек не воспроизводит по памяти: такая клавиша существует
+    // только в списке.
+    const error = expectCommandError(() => normalizeChord('mod+k mod+s mod+x'));
+    expect(error.kind).toBe('invalid-keybinding');
+    expect(MAX_CHORD_STEPS).toBe(2);
+  });
+
+  it('неразбираемая ступень отвергает весь аккорд', () => {
+    expect(expectCommandError(() => normalizeChord('mod+k mod+')).kind).toBe('invalid-keybinding');
   });
 });

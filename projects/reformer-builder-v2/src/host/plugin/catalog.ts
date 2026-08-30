@@ -43,6 +43,9 @@
 import { toDisposable, type Disposable } from '../primitives/disposable';
 import type { DiscoveredPlugin, PluginLoader } from './loader';
 import type { PluginManifest, PluginProblem } from './manifest';
+import { normalizeChord } from '../primitives/command';
+import { compileWhen, WHEN_TRUE } from '../primitives/when-expr';
+import type { KeymapService } from '../ui/keymap';
 import type { PluginRegistry } from './registry';
 
 /**
@@ -95,6 +98,11 @@ export interface ProjectPluginCatalogDeps {
     css: string,
     pluginId: string
   ) => { ok: true; subscription: Disposable } | { ok: false; problem: PluginProblem };
+  /**
+   * Раскладка клавиш. Необязательна: без неё манифестные сочетания не публикуются,
+   * а всё остальное в каталоге работает как прежде.
+   */
+  readonly keymap?: Pick<KeymapService, 'registerRules'>;
   readonly loader: PluginLoader;
   /** Тот же рантайм, в котором живут встроенные плагины: контракт у них один. */
   readonly plugins: PluginRegistry;
@@ -148,6 +156,9 @@ interface CatalogRecord {
   /** Отказ загрузки или активации. Отказ разбора живёт в `found.problem` — он неустраним. */
   problem?: PluginProblem;
 }
+
+/** Имя источника манифестных клавиш в раскладке. Одно на каталог: он публикует их разом. */
+export const CATALOG_KEYBINDINGS_SOURCE = 'plugin-catalog';
 
 function defaultOnProblem(id: string, problem: PluginProblem): void {
   console.error(`[plugins] «${id}»: ${problem.code} — ${problem.message}`, problem.cause);
@@ -244,6 +255,9 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     if (registered.has(id)) deps.plugins.deactivate(id);
   };
 
+  /** Подписка на манифестные клавиши: одна на весь каталог, замещается целиком. */
+  let keybindingsSubscription: Disposable | null = null;
+
   const rediscover = async (): Promise<void> => {
     const found = await deps.loader.discover();
     const seen = new Set<string>();
@@ -265,7 +279,58 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       deactivate(id);
       records.delete(id);
     }
+
+    publishKeybindings();
   };
+
+  /**
+   * Публикует клавиши, объявленные манифестами, — на ОБНАРУЖЕНИИ, а не на включении.
+   *
+   * Это и есть смысл декларации: сочетание видно в таблице клавиш и переназначаемо до того,
+   * как плагин включён. Публикуй мы их при активации — человек узнавал бы о занятой клавише
+   * ровно в тот момент, когда она перестала делать привычное.
+   *
+   * Правило, ссылающееся на команду выключенного плагина, просто не срабатывает: диспетчер
+   * пропускает кандидата, у которого нет команды в реестре.
+   */
+  function publishKeybindings(): void {
+    if (deps.keymap === undefined) return;
+
+    const declared = [...records.values()].flatMap((record) => {
+      const keybindings = record.found.manifest?.contributes?.keybindings ?? [];
+      return keybindings.map((item) => ({ pluginId: record.found.id, item }));
+    });
+
+    keybindingsSubscription?.dispose();
+    keybindingsSubscription =
+      declared.length === 0
+        ? null
+        : deps.keymap.registerRules(
+            CATALOG_KEYBINDINGS_SOURCE,
+            'catalog-plugin',
+            declared.flatMap(({ pluginId, item }) => {
+              // Манифест уже проверен разбором: сюда попадает только разбираемое сочетание
+              // и разбираемое условие. Отказ здесь означал бы, что проверка разошлась
+              // с применением, поэтому запись просто пропускается.
+              try {
+                return [
+                  {
+                    chord: normalizeChord(item.key),
+                    commandId: item.command,
+                    when: item.when === undefined ? WHEN_TRUE : compileWhen(item.when),
+                    ...(item.args === undefined ? {} : { args: item.args }),
+                    ...(item.allowInEditable === undefined
+                      ? {}
+                      : { allowInEditable: item.allowInEditable }),
+                    pluginId,
+                  },
+                ];
+              } catch {
+                return [];
+              }
+            })
+          );
+  }
 
   const enablePlugin = async (id: string): Promise<boolean> => {
     const record = records.get(id);
@@ -434,6 +499,10 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
 
     dispose(): void {
       for (const id of records.keys()) deactivate(id);
+      // Клавиши манифестов уходят вместе с каталогом: правило, ссылающееся на плагин
+      // закрытого проекта, показывалось бы в таблице как действующее.
+      keybindingsSubscription?.dispose();
+      keybindingsSubscription = null;
       records.clear();
       listeners.clear();
     },

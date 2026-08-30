@@ -43,6 +43,7 @@ import type { ComponentType } from 'react';
 import type { Disposable } from '../primitives/disposable';
 import type { CommandContribution } from '../primitives/command';
 import { defineExtensionPoint } from '../primitives/extension-point';
+import { normalizeChord } from '../primitives/command';
 import type { WhenContext } from '../primitives/when-context';
 import type { TranslateKey } from './palette';
 
@@ -357,6 +358,14 @@ export interface MenuBuildOptions {
   /** Запуск команды. Всегда через реестр — общая дверь с палитрой, клавишами и ассистентом. */
   readonly execute: (commandId: string, args?: unknown) => void;
   /**
+   * ДЕЙСТВУЮЩЕЕ сочетание команды: ступени в каноническом написании.
+   *
+   * Входом, а не чтением раскладки изнутри, — тем же приёмом, что `translate` и `execute`:
+   * правило сборки меню не тянет за собой службу. Без входа берётся сочетание, объявленное
+   * у команды, — оно верно, пока переопределять его нечем.
+   */
+  readonly chordOf?: (commandId: string) => readonly string[] | undefined;
+  /**
    * Куда сообщать о записи, которая не попала в меню.
    *
    * Молчание здесь хуже шума: пункт, промахнувшийся мимо пути, просто не появляется, и без
@@ -382,8 +391,14 @@ export interface MenuActionNode {
   readonly icon?: ComponentType;
   /** Галочка/радио. `undefined` — обычный пункт. */
   readonly checked?: boolean;
-  /** Каноническое сочетание команды (`mod+s`); форматирует его тот, кто знает платформу. */
-  readonly keybinding?: string;
+  /**
+   * ДЕЙСТВУЮЩЕЕ сочетание команды: ступени в каноническом написании (`['mod+s']`).
+   * Форматирует его тот, кто знает платформу.
+   *
+   * Массив, а не строка: аккорд — это два НАЖАТИЯ, и подпись обязана показывать их
+   * раздельно, иначе `Ctrl+K Ctrl+S` выглядело бы одним сочетанием из четырёх клавиш.
+   */
+  readonly chord?: readonly string[];
   readonly run: () => void;
 }
 
@@ -513,11 +528,32 @@ function actionNode(
     // команду без них. Найдено запуском: подменю «Панели» — это одна команда с адресом
     // панели, и каждая строка обещала «Ctrl+B», хотя это сочетание переключает боковую
     // панель, а не ту, что в строке. Подпись, которая врёт, хуже отсутствующей.
-    keybinding: spec.args === undefined ? command.keybinding : undefined,
+    chord: spec.args === undefined ? chordOfCommand(options, command) : undefined,
     run: () => {
       options.execute(command.id, spec.args);
     },
   };
+}
+
+/**
+ * Действующее сочетание команды.
+ *
+ * Раскладка знает про переопределения, объявление у команды — нет. Разбор объявленной строки
+ * идёт через ту же `normalizeChord`, которой пользуется реестр: разъедься написание, подпись
+ * в меню перестала бы совпадать с тем, что нажимают.
+ */
+function chordOfCommand(
+  options: MenuBuildOptions,
+  command: { readonly id: string; readonly keybinding?: string }
+): readonly string[] | undefined {
+  const fromKeymap = options.chordOf?.(command.id);
+  if (fromKeymap !== undefined) return fromKeymap;
+  if (command.keybinding === undefined) return undefined;
+  try {
+    return normalizeChord(command.keybinding);
+  } catch {
+    return undefined;
+  }
 }
 
 /** Пункты одной динамической группы. Упавший поставщик даёт пустую группу, а не пустое меню. */

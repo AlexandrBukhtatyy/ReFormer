@@ -44,9 +44,12 @@
  */
 
 import { useEffect } from 'react';
-import { normalizeKeybinding, type CommandRegistry } from '../primitives/command';
+import { normalizeKeybinding, whenOf, type CommandRegistry } from '../primitives/command';
 import { toDisposable, type Disposable } from '../primitives/disposable';
 import type { WhenContext } from '../primitives/when-context';
+import { evaluateWhen, type WhenExpr } from '../primitives/when-expr';
+import { readWhenContext } from '../services/context-keys';
+import type { ChordState } from './chords';
 
 /**
  * Модификатор, в который разворачивается `mod` на этой платформе.
@@ -98,6 +101,18 @@ export function resolvePlatformKeybinding(keybinding: string, modifier: Platform
     return tail.startsWith('meta+') ? rest : `ctrl+meta+${tail}`;
   }
   return rest.startsWith('meta+') ? rest : `meta+${rest}`;
+}
+
+/**
+ * Разворачивает `mod` в каждой ступени аккорда.
+ *
+ * @throws {CommandError} `invalid-keybinding`, если ступень не разбирается.
+ */
+export function resolvePlatformChord(
+  chord: readonly string[],
+  modifier: PlatformModifier
+): readonly string[] {
+  return chord.map((step) => resolvePlatformKeybinding(step, modifier));
 }
 
 /** Как модификатор называется в подписи. Порядок совпадает с каноническим. */
@@ -153,6 +168,24 @@ export function formatKeybinding(keybinding: string, modifier: PlatformModifier)
   }
   parts.push(formatKey(rest));
   return parts.join('+');
+}
+
+/**
+ * Разделитель ступеней в подписи аккорда.
+ *
+ * Обычный пробел, а не запятая и не дефис: `Ctrl+K Ctrl+S` — так это пишут и VS Code,
+ * и WebStorm, и привычка человека читать такую подпись уже сформирована не нами.
+ */
+const CHORD_SEPARATOR = ' ';
+
+/**
+ * Подпись аккорда: `['mod+k', 'mod+s']` → `Ctrl+K Ctrl+S`.
+ *
+ * Ступени разделены, а не слиты: это два НАЖАТИЯ, и подпись `Ctrl+K+Ctrl+S` описывала бы
+ * несуществующее сочетание из четырёх одновременно зажатых клавиш.
+ */
+export function formatChord(chord: readonly string[], modifier: PlatformModifier): string {
+  return chord.map((step) => formatKeybinding(step, modifier)).join(CHORD_SEPARATOR);
 }
 
 /**
@@ -295,6 +328,7 @@ export function eventToKeybinding(event: KeyEventLike): string | null {
  */
 export interface DispatchableCommand {
   readonly keybinding?: string;
+  readonly when?: string;
   readonly enabled?: (ctx: WhenContext) => boolean;
   readonly allowInEditable?: boolean;
 }
@@ -302,6 +336,14 @@ export interface DispatchableCommand {
 export interface ShouldDispatchOptions {
   /** Во что разворачивать `mod`. По умолчанию `ctrl` — чтобы результат не зависел от машины. */
   readonly modifier?: PlatformModifier;
+  /**
+   * Чем читать ключи условия. По умолчанию — пять полей переданного контекста.
+   *
+   * Отдельным входом, а не выводом из `ctx`, потому что ключей больше, чем полей: области
+   * и ключи плагинов живут в службе контекстных ключей, а тип из пяти полей заставил бы
+   * складывать их туда — то есть расширять контракт на каждый чужой ключ.
+   */
+  readonly read?: (key: string) => unknown;
   /** Куда сообщать об упавшем предикате. Молча его глотать нельзя: это чужая поломка. */
   readonly onError?: (error: unknown) => void;
 }
@@ -314,7 +356,12 @@ export interface ShouldDispatchOptions {
  * 1. у команды есть сочетание и оно совпадает с нажатым (с разрешением `mod`);
  * 2. фокус не в поле ввода — либо команда помечена `allowInEditable`;
  * 3. фокус не на управляющем элементе — либо нажато не «голое» пробел/Enter;
- * 4. `enabled(ctx)` истинно.
+ * 4. условие `when` истинно;
+ * 5. `enabled(ctx)` истинно.
+ *
+ * Условие стоит перед предикатом, а не после: оно дешевле (обход маленького дерева по уже
+ * снятому снимку против чужого кода) и отсекает больше. Проверки при этом независимы —
+ * ложное `when` запрещает даже при истинном `enabled`, и наоборот.
  *
  * Упавший предикат считается запретом: охранное условие, которое не смогло ответить,
  * тем более не должно пропускать действие. Это та же политика, что в реестре команд.
@@ -340,6 +387,12 @@ export function shouldDispatch(
   if (ctx.focus === 'editable' && command.allowInEditable !== true) return false;
   if (ctx.focus === 'control' && CONTROL_KEYS.has(binding)) return false;
 
+  if (command.when !== undefined) {
+    // `whenOf` держит разбор в кэше по объявлению, поэтому строка разбирается один раз
+    // за жизнь команды, а не на каждое нажатие.
+    if (!evaluateWhen(whenOf(command), options.read ?? readWhenContext(ctx))) return false;
+  }
+
   if (command.enabled === undefined) return true;
   try {
     return command.enabled(ctx) === true;
@@ -357,8 +410,27 @@ export interface KeybindingErrorInfo {
 
 export interface KeybindingsOptions {
   readonly commands: CommandRegistry;
+  /**
+   * Раскладка: указатель «сочетание → правила», уже отсортированный по слою, специфичности
+   * и порядку. Диспетчер не перебирает реестр команд и не решает, кто выигрывает, — он
+   * берёт первого применимого кандидата из готового списка.
+   */
+  readonly keymap: KeymapLike;
+  /**
+   * Состояние аккорда. Без него аккорды не работают вовсе: первая ступень правила из двух
+   * нажатий просто не совпадёт ни с чем, и клавиша останется свободной.
+   */
+  readonly chords?: ChordState;
   /** Снимок состояния. Читается **один раз на нажатие**: предикатам нужен один и тот же. */
   readonly getContext: () => WhenContext;
+  /**
+   * Чем читать ключи условий. Тоже **один раз на нажатие** и по той же причине: условие
+   * и предикат обязаны видеть одно состояние, а не два соседних во времени.
+   *
+   * По умолчанию читаются пять полей `getContext()`. Оболочка передаёт сюда читатель службы
+   * контекстных ключей — с областями и ключами плагинов.
+   */
+  readonly getReader?: () => (key: string) => unknown;
   /** Во что разворачивать `mod`. По умолчанию определяется по платформе. */
   readonly modifier?: PlatformModifier;
   readonly onError?: (error: unknown, info: KeybindingErrorInfo) => void;
@@ -398,13 +470,76 @@ export function dispatchKeydown(
 
   const onError = options.onError ?? defaultOnError;
   const ctx = options.getContext();
-  const modifier = options.modifier ?? detectPlatformModifier();
+  const read = options.getReader?.() ?? readWhenContext(ctx);
+  const chords = options.chords;
+  const index = options.keymap.index();
+  const waiting = chords?.get().prefix ?? [];
 
-  for (const command of options.commands.getAll()) {
-    const ok = shouldDispatch(binding, ctx, command, {
-      modifier,
+  // Ожидание второй ступени — отдельная ветка, а не ещё одно условие в общем отборе:
+  // пока аккорд начат, обычные сочетания не рассматриваются вовсе.
+  if (waiting.length > 0 && chords !== undefined) {
+    // Голое Escape отменяет ожидание. Четвёртый смысл Escape в приложении, и он последний
+    // по очереди: Radix ловит его на погружении, редактор гасит на своём поддереве, и до
+    // всплытия он доходит ровно тогда, когда его никто не забрал.
+    if (binding === 'escape') {
+      chords.cancel();
+      event.preventDefault();
+      return null;
+    }
+
+    const candidates = index.rulesAfter(waiting, binding);
+    if (candidates.length === 0) {
+      // **Непопавшая ступень НИЧЕГО не выполняет и не переразбирается как самостоятельное
+      // сочетание.** Переразбор означал бы, что `mod+k`, а затем `mod+s` молча сохраняет
+      // файл, — то есть человек получил бы действие, которого не просил. Это худший из
+      // возможных исходов, и он запрещён по построению.
+      chords.cancel();
+      event.preventDefault();
+      return null;
+    }
+
+    chords.cancel();
+    return runFirstApplicable(candidates, binding, ctx, read, event, options, onError);
+  }
+
+  // Первая ступень аккорда: гасим умолчание браузера и ждём вторую. `preventDefault`
+  // обязателен — иначе, пока мы ждём, `mod+k` уже увёл фокус в адресную строку.
+  if (chords !== undefined && index.isChordPrefix(binding)) {
+    event.preventDefault();
+    const modifier = options.modifier ?? detectPlatformModifier();
+    chords.begin([binding], [formatKeybinding(binding, modifier)]);
+    return null;
+  }
+
+  return runFirstApplicable(index.rulesFor(binding), binding, ctx, read, event, options, onError);
+}
+
+/**
+ * Выполняет первое применимое правило из уже отобранных кандидатов.
+ *
+ * Общее тело для обычного сочетания и для второй ступени аккорда: решение о применимости
+ * у них одно, различается только то, откуда взялся список.
+ */
+function runFirstApplicable(
+  candidates: readonly DispatchableIndexRule[],
+  binding: string,
+  ctx: WhenContext,
+  read: (key: string) => unknown,
+  event: DispatchableEvent,
+  options: KeybindingsOptions,
+  onError: (error: unknown, info: KeybindingErrorInfo) => void
+): string | null {
+  for (const rule of candidates) {
+    const command = options.commands.get(rule.commandId);
+    // Правило может ссылаться на команду, которой нет: плагин выключен, раскладка человека
+    // пережила его удаление. Это обычное состояние, а не поломка, — правило просто
+    // пропускается, и клавиша достаётся следующему кандидату.
+    if (command === undefined) continue;
+
+    const ok = shouldDispatchRule(binding, ctx, rule, command, {
+      read,
       onError: (error) => {
-        onError(error, { commandId: command.id, phase: 'enabled' });
+        onError(error, { commandId: rule.commandId, phase: 'enabled' });
       },
     });
     if (!ok) continue;
@@ -414,13 +549,68 @@ export function dispatchKeydown(
     // которую команда запускается, и он же обязан быть общим с палитрой и с ассистентом.
     // Плата — повторная проверка `enabled` внутри `execute`; предикат по контракту чист
     // и дёшев, поэтому цена известна и мала.
-    void options.commands.execute(command.id, undefined, ctx).catch((error: unknown) => {
-      onError(error, { commandId: command.id, phase: 'execute' });
+    void options.commands.execute(rule.commandId, rule.args, ctx).catch((error: unknown) => {
+      onError(error, { commandId: rule.commandId, phase: 'execute' });
     });
-    return command.id;
+    return rule.commandId;
   }
 
   return null;
+}
+
+/**
+ * Применимо ли ПРАВИЛО. То же решение, что в {@link shouldDispatch}, но сочетание уже
+ * сопоставлено указателем, а условие и `allowInEditable` берутся у правила, а не у команды:
+ * правило из раскладки человека вправе переопределить и то, и другое.
+ */
+export function shouldDispatchRule(
+  binding: string,
+  ctx: WhenContext,
+  rule: DispatchableRule,
+  command: Pick<DispatchableCommand, 'enabled'>,
+  options: ShouldDispatchOptions = {}
+): boolean {
+  if (ctx.focus === 'editable' && !rule.allowInEditable) return false;
+  if (ctx.focus === 'control' && CONTROL_KEYS.has(binding)) return false;
+
+  const read = options.read ?? readWhenContext(ctx);
+  if (!evaluateWhen(rule.when, read)) return false;
+
+  if (command.enabled === undefined) return true;
+  try {
+    return command.enabled(ctx) === true;
+  } catch (error) {
+    options.onError?.(error);
+    return false;
+  }
+}
+
+/** Правило в объёме, который нужен решению. */
+export interface DispatchableRule {
+  readonly when: WhenExpr;
+  readonly allowInEditable: boolean;
+}
+
+/**
+ * Раскладка в объёме, нужном диспетчеру. `KeymapService` подходит под эту форму.
+ *
+ * Отдельный тип, а не импорт службы: диспетчеру нужен один метод, и зависимость от службы
+ * целиком заставила бы каждый его тест собирать источники правил, подписки и кэш.
+ */
+/** Правило в объёме, который нужен диспетчеру: решение плюс адрес команды. */
+export type DispatchableIndexRule = DispatchableRule & {
+  readonly commandId: string;
+  readonly args?: unknown;
+};
+
+export interface KeymapLike {
+  index(): {
+    rulesFor(binding: string): readonly DispatchableIndexRule[];
+    /** Является ли сочетание началом аккорда — признак входа в ожидание. */
+    isChordPrefix(binding: string): boolean;
+    /** Продолжения после уже нажатых ступеней. */
+    rulesAfter(prefix: readonly string[], binding: string): readonly DispatchableIndexRule[];
+  };
 }
 
 /** Узел, на который вешается обработчик. `Document` и `HTMLElement` подходят под эту форму. */

@@ -31,6 +31,8 @@
  * @module host/plugin/manifest
  */
 
+import { normalizeChord } from '../primitives/command';
+import { parseWhen } from '../primitives/when-expr';
 import { normalizePath } from '../modules/linker';
 
 /** Имя файла манифеста внутри каталога плагина. */
@@ -59,6 +61,38 @@ export interface PluginManifest {
    * оболочки и токенами кита и выглядит родным бесплатно.
    */
   readonly styles?: PluginStyles;
+  /** Вклады, объявленные ДЕКЛАРАТИВНО — то есть видимые до того, как плагин включён. */
+  readonly contributes?: PluginContributes;
+}
+
+/**
+ * Декларативные вклады манифеста.
+ *
+ * Пока здесь только клавиши, и они попали сюда по проверяемой причине, а не «для симметрии
+ * с VS Code»: сочетание, объявленное КОДОМ, появляется в приложении только после активации
+ * плагина. Значит до включения таблица клавиш о нём не знает, и переназначить его нельзя —
+ * а человеку это нужно ровно тогда, когда новый плагин занял привычную ему клавишу.
+ */
+export interface PluginContributes {
+  readonly keybindings?: readonly DeclaredKeybinding[];
+}
+
+/**
+ * Сочетание, объявленное в манифесте.
+ *
+ * `command` — строка, и плагин вправе назвать команду, которой сейчас нет: она появится
+ * при активации. Правило без команды просто не срабатывает — это обычное состояние
+ * выключенного плагина, а не поломка.
+ */
+export interface DeclaredKeybinding {
+  readonly command: string;
+  /** Сочетание или аккорд: `mod+alt+i`, `mod+k mod+i`. */
+  readonly key: string;
+  /** Условие применимости; синтаксис — `primitives/when-expr`. */
+  readonly when?: string;
+  /** Аргументы вызова: у клавиши их нет, поэтому объявить их можно только здесь. */
+  readonly args?: unknown;
+  readonly allowInEditable?: boolean;
 }
 
 /**
@@ -251,6 +285,9 @@ export function parsePluginManifest(
   const styles = parseStyles(fields.styles);
   if (styles !== undefined && 'ok' in styles) return styles;
 
+  const contributes = parseContributes(fields.contributes);
+  if (contributes !== undefined && 'ok' in contributes) return contributes;
+
   return {
     ok: true,
     manifest: {
@@ -260,8 +297,115 @@ export function parsePluginManifest(
       apiVersion,
       main,
       ...(styles === undefined ? {} : { styles: styles.styles }),
+      ...(contributes === undefined ? {} : { contributes: contributes.contributes }),
     },
   };
+}
+
+/**
+ * Разбирает поле `contributes`. `undefined` — поля нет, и это норма.
+ *
+ * Форма та же, что у {@link parseStyles}, и код проблемы тот же (`manifest-invalid`): строке
+ * списка плагинов незачем различать «сломаны стили» и «сломаны клавиши» — ей нужно знать,
+ * что чинить, а это уже в сообщении.
+ */
+function parseContributes(
+  raw: unknown
+): { contributes: PluginContributes } | { ok: false; problem: PluginProblem } | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    return problem('manifest-invalid', 'поле «contributes» должно быть объектом', {
+      file: PLUGIN_MANIFEST_FILE,
+    });
+  }
+
+  const keybindings = parseKeybindings((raw as Record<string, unknown>).keybindings);
+  if (keybindings !== undefined && 'ok' in keybindings) return keybindings;
+  return {
+    contributes: keybindings === undefined ? {} : { keybindings: keybindings.keybindings },
+  };
+}
+
+/**
+ * Разбирает `contributes.keybindings`.
+ *
+ * **Неразбираемое сочетание или условие — отказ манифеста, а не пропуск записи.** Довод тот
+ * же, по которому реестр команд проверяет их на регистрации: клавиша с испорченным описанием
+ * не сработает никогда, и узнавать об этом в день нажатия — самая дорогая из поломок, потому
+ * что она молчит. Отказ манифеста человек видит в списке плагинов сразу.
+ */
+function parseKeybindings(
+  raw: unknown
+):
+  | { keybindings: readonly DeclaredKeybinding[] }
+  | { ok: false; problem: PluginProblem }
+  | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw)) {
+    return problem('manifest-invalid', 'поле «contributes.keybindings» должно быть массивом', {
+      file: PLUGIN_MANIFEST_FILE,
+    });
+  }
+
+  const parsed: DeclaredKeybinding[] = [];
+  for (const [index, item] of raw.entries()) {
+    const at = `contributes.keybindings[${String(index)}]`;
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+      return problem('manifest-invalid', `${at} должен быть объектом`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+    const fields = item as Record<string, unknown>;
+
+    const command = stringField(fields, 'command');
+    if (command === undefined) {
+      return problem('manifest-invalid', `в ${at} нет поля «command» или оно не строка`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+
+    const key = stringField(fields, 'key');
+    if (key === undefined) {
+      return problem('manifest-invalid', `в ${at} нет поля «key» или оно не строка`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+    try {
+      normalizeChord(key);
+    } catch (cause) {
+      return problem('manifest-invalid', `${at}: сочетание «${key}» разобрать нельзя`, {
+        file: PLUGIN_MANIFEST_FILE,
+        cause,
+      });
+    }
+
+    const when = stringField(fields, 'when');
+    if (when !== undefined) {
+      const result = parseWhen(when);
+      if (!result.ok) {
+        return problem('manifest-invalid', `${at}: ${result.error.message}`, {
+          file: PLUGIN_MANIFEST_FILE,
+        });
+      }
+    }
+
+    const allowInEditable = fields.allowInEditable;
+    if (allowInEditable !== undefined && typeof allowInEditable !== 'boolean') {
+      return problem('manifest-invalid', `${at}: «allowInEditable» должно быть булевым`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+
+    parsed.push({
+      command,
+      key,
+      ...(when === undefined ? {} : { when }),
+      ...(fields.args === undefined ? {} : { args: fields.args }),
+      ...(allowInEditable === undefined ? {} : { allowInEditable }),
+    });
+  }
+
+  return { keybindings: parsed };
 }
 
 /**

@@ -181,7 +181,7 @@ describe('пункт как ссылка на команду', () => {
         kind: 'item',
         // Владелец ключа — владелец КОМАНДЫ: заголовок принадлежит ей, а не пункту.
         title: 'files/files.save.title',
-        keybinding: 'mod+s',
+        chord: ['mod+s'],
         enabled: true,
       }),
     ]);
@@ -200,8 +200,8 @@ describe('пункт как ссылка на команду', () => {
     );
 
     expect(menuOf(bar, 'file').items).toEqual([
-      expect.objectContaining({ id: 'with-args', keybinding: undefined }),
-      expect.objectContaining({ id: 'plain', keybinding: 'mod+b' }),
+      expect.objectContaining({ id: 'with-args', chord: undefined }),
+      expect.objectContaining({ id: 'plain', chord: ['mod+b'] }),
     ]);
   });
 

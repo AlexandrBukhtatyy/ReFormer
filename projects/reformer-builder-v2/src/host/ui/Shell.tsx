@@ -51,18 +51,23 @@ import { ChevronDown, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
 import type { CommandRegistry } from '../primitives/command';
 import type { WhenContext } from '../primitives/when-context';
+import type { ContextKeyReader } from '../services/context-keys';
 import type { RootI18nService } from '../services/i18n/i18n';
 import type { NotificationsService } from '../services/notifications';
 import type { PromptService } from '../services/prompt';
 import type { SettingsService } from '../services/settings';
 import { CommandPalette } from './CommandPalette';
 import { EditorArea, EDITOR_NEXT_COMMAND_ID } from './EditorArea';
-import { HelpDialogs, HELP_ABOUT_COMMAND_ID, HELP_SHORTCUTS_COMMAND_ID } from './HelpDialogs';
+import { HelpDialogs, HELP_ABOUT_COMMAND_ID } from './HelpDialogs';
+import { KeybindingsDialog, KEYBINDINGS_OPEN_COMMAND_ID } from './KeybindingsDialog';
 import { MenuBar } from './MenuBar';
 import { hostMenuEntry, type MenuEntry } from './menu';
 import { NotificationCenter } from './NotificationCenter';
 import { PromptHost } from './PromptHost';
 import { useKeybindings } from './keybindings';
+import { createChordState, type ChordState } from './chords';
+import { createKeymapService, type KeymapService } from './keymap';
+import type { ScopeStack } from './scope';
 import type { DocumentTabsStore } from './tabs';
 import { StatusBar } from './StatusBar';
 import type { WorkspaceStatusSource } from './status';
@@ -91,6 +96,30 @@ import { useLocale, usePanels, useSetting, type ExtensionReader } from './usePan
 export interface ShellHost {
   readonly extensions: ExtensionReader;
   readonly whenContext: WhenContextStore;
+  /**
+   * Читатель условий `when` для диспетчера сочетаний.
+   *
+   * Необязателен: без него условия читают пять полей {@link whenContext}, и этого хватает
+   * всем правилам самой оболочки. Композиция передаёт сюда службу контекстных ключей —
+   * с ней становятся видны ключи, объявленные плагинами.
+   */
+  readonly contextKeys?: ContextKeyReader;
+  /**
+   * Действующая раскладка. Необязательна: без неё оболочка собирает свою поверх реестра
+   * команд — тогда работают правила самих команд, но не правила из манифестов и не
+   * переназначения человека, потому что их источники живут в композиции.
+   */
+  readonly keymap?: KeymapService;
+  /**
+   * Стек областей. Без него окна работают как раньше: их клавиши неотличимы от прочих,
+   * и правило `scope == …` не совпадает ни с чем.
+   */
+  readonly scopes?: ScopeStack;
+  /**
+   * Ожидание второй ступени аккорда. Без него аккорды не работают: правило из двух нажатий
+   * просто не совпадает, и его первая ступень остаётся свободной.
+   */
+  readonly chords?: ChordState;
   readonly settings: SettingsService;
   /**
    * Реестр команд. Нужен двоим: диспетчеру сочетаний и палитре — и обоим целиком, потому что
@@ -494,6 +523,26 @@ function PanelRail({
 export function Shell({ host }: { host: ShellHost }): ReactElement {
   const { extensions, whenContext, settings, commands, status, i18n, documents, notifications } =
     host;
+  const contextKeys = host.contextKeys;
+
+  // Своя раскладка, когда композиция её не дала. Создаётся один раз и освобождается при
+  // размонтировании: она подписана на реестр команд, и брошенная подписка пережила бы
+  // оболочку.
+  const ownKeymap = useMemo(
+    () => (host.keymap === undefined ? createKeymapService({ commands }) : null),
+    [host.keymap, commands]
+  );
+  useEffect(() => () => ownKeymap?.dispose(), [ownKeymap]);
+  const keymap = host.keymap ?? ownKeymap;
+
+  // Своё состояние аккордов, когда композиция его не дала: держит таймер, поэтому
+  // освобождается вместе с оболочкой.
+  const ownChords = useMemo(
+    () => (host.chords === undefined ? createChordState() : null),
+    [host.chords]
+  );
+  useEffect(() => () => ownChords?.dispose(), [ownChords]);
+  const chords = host.chords ?? ownChords ?? undefined;
 
   // Перевод не является React-состоянием: подписка на локаль — это и есть то, что делает
   // `t()` реактивным. Значение не нужно, нужен факт перерисовки.
@@ -505,8 +554,19 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
   // и порядок подписок относительно редакторов терялся бы вместе с ним.
   useKeybindings(
     useMemo(
-      () => ({ commands, getContext: (): WhenContext => whenContext.get() }),
-      [commands, whenContext]
+      () => ({
+        commands,
+        keymap: keymap as KeymapService,
+        ...(chords === undefined ? {} : { chords }),
+        getContext: (): WhenContext => whenContext.get(),
+        // Снимок берётся один раз на нажатие: условие и предикат обязаны видеть одно
+        // состояние, а не два соседних во времени. Без службы поле не появляется вовсе —
+        // тогда условия читают пять полей контекста, и этого хватает правилам оболочки.
+        ...(contextKeys === undefined
+          ? {}
+          : { getReader: (): ((key: string) => unknown) => contextKeys.snapshot().read }),
+      }),
+      [commands, keymap, chords, whenContext, contextKeys]
     )
   );
 
@@ -693,7 +753,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
       hostMenuEntry('shell.help.shortcuts', {
         kind: 'item',
         menu: 'help',
-        command: HELP_SHORTCUTS_COMMAND_ID,
+        command: KEYBINDINGS_OPEN_COMMAND_ID,
       }),
       hostMenuEntry('shell.help.about', {
         kind: 'item',
@@ -723,6 +783,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
           whenContext={whenContext}
           i18n={i18n}
           builtin={builtinMenu}
+          keymap={keymap ?? undefined}
         />
         <div className="flex flex-1 items-center justify-end gap-1">
           {toolbar.map((entry) => (
@@ -886,7 +947,13 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
         data-focus-zone="panel"
         className="bg-sidebar text-muted-foreground flex h-[24px] flex-none items-center gap-3 border-t border-border px-3 text-[11px]"
       >
-        <StatusBar extensions={extensions} whenContext={whenContext} i18n={i18n} status={status} />
+        <StatusBar
+          extensions={extensions}
+          whenContext={whenContext}
+          i18n={i18n}
+          status={status}
+          chords={chords}
+        />
       </footer>
 
       <CommandPalette
@@ -894,15 +961,22 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
         extensions={extensions}
         whenContext={whenContext}
         i18n={i18n}
+        scopes={host.scopes}
       />
 
       {/* Команды справки живут вместе с её окнами: нет окон — нет и пунктов в меню. */}
-      <HelpDialogs commands={commands} i18n={i18n} />
+      <HelpDialogs commands={commands} scopes={host.scopes} i18n={i18n} />
+
+      {/* Экран клавиш заменяет прежнюю таблицу справки: список сочетаний в приложении
+          обязан быть один, иначе второй расходится с первым молча. */}
+      {keymap !== null && (
+        <KeybindingsDialog commands={commands} keymap={keymap} scopes={host.scopes} i18n={i18n} />
+      )}
 
       {/* Запросы к человеку — тоже вне раскладки, и по той же причине, что тосты: их зовёт
           КОМАНДА, а команду вызывают откуда угодно, в том числе из палитры, когда панели,
           затеявшей действие, на экране нет вовсе. */}
-      <PromptHost prompt={host.prompt} i18n={i18n} />
+      <PromptHost prompt={host.prompt} scopes={host.scopes} i18n={i18n} />
 
       {/* Вне раскладки: тосты живут в своём слое поверх всего и места в сетке не занимают. */}
       {notifications !== undefined && (

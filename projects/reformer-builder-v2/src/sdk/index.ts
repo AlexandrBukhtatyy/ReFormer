@@ -92,6 +92,49 @@ export type { PaletteItem, PaletteItemProvider } from '../host/ui/palette';
 export type { CommandContribution } from '../host/primitives/command';
 export type { WhenContext, FocusTarget } from '../host/primitives/when-context';
 
+// ── Клавиатура: условие применимости как данные ─────────────────────────────────
+//
+// Строку условия (`CommandContribution.when`) плагин пишет и без импорта, но разбирать её
+// обязаны трое одинаково — реестр команд, диспетчер клавиш и тот, кто её показывает.
+// Вторая реализация грамматики разошлась бы с первой на первом же операторе, а расхождение
+// проявилось бы не отказом, а молча не сработавшей клавишей.
+export { parseWhen, compileWhen, evaluateWhen, WHEN_TRUE } from '../host/primitives/when-expr';
+export type {
+  WhenExpr,
+  WhenNode,
+  WhenParseError,
+  WhenParseResult,
+} from '../host/primitives/when-expr';
+
+// Контекстные ключи. Без них плагин может выразить «узел выделен на канвасе» только
+// предикатом, читающим его собственный реестр сеансов, — то есть непрозрачно: такое условие
+// нельзя ни сравнить с чужим при разрешении конфликта клавиш, ни показать в таблице клавиш.
+// Область: плагин, открывающий своё окно, обязан её положить — иначе его клавиши не могут
+// перебить глобальные, и «пока диалог открыт, работает не то» становится неисправимым снаружи.
+export { ScopeStackServiceToken, DIALOG_SCOPE } from '../host/ui/scope';
+export type { ScopeId, ScopeStack } from '../host/ui/scope';
+
+// Действующее сочетание — только чтение. Плагин, показывающий в своём интерфейсе «нажмите X»,
+// обязан показать ДЕЙСТВУЮЩЕЕ сочетание, а не объявленное: после переназначения человеком
+// его подсказка иначе врёт.
+export { chordOfCommand, KeymapServiceToken } from '../host/ui/keymap';
+export type { KeymapService } from '../host/ui/keymap';
+export type { KeybindingIndex, KeybindingLayer, KeybindingRule } from '../host/ui/keybinding-rules';
+export { detectPlatformModifier, formatChord, formatKeybinding } from '../host/ui/keybindings';
+export type { PlatformModifier } from '../host/ui/keybindings';
+
+// Разбор аккорда — тем же кодом, что и регистрация: разъедься написание, подпись плагина
+// перестала бы совпадать с тем, что человек нажимает.
+export { MAX_CHORD_STEPS, normalizeChord, normalizeKeybinding } from '../host/primitives/command';
+
+export { ContextKeyServiceToken } from '../host/services/context-keys';
+export type {
+  ContextKey,
+  ContextKeyReader,
+  ContextKeyService,
+  ContextKeySnapshot,
+} from '../host/services/context-keys';
+
 // ── Сервисы: объявление своих и доступ к чужим ──────────────────────────────────
 //
 // Без `defineService` плагин **вообще не может объявить сервис** средствами SDK — а сервис это

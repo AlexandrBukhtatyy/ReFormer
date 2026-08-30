@@ -121,3 +121,110 @@ describe('диапазон apiVersion', () => {
     }
   });
 });
+
+describe('contributes.keybindings', () => {
+  const withContributes = (contributes: unknown): string =>
+    JSON.stringify({ id: 'acme', apiVersion: '^1', main: 'main.js', contributes });
+
+  it('разбирает объявленные сочетания', () => {
+    const result = parsePluginManifest(
+      withContributes({
+        keybindings: [
+          {
+            command: 'acme.insert',
+            key: 'mod+alt+i',
+            when: 'focus == canvas',
+            args: { kind: 'field' },
+            allowInEditable: false,
+          },
+        ],
+      }),
+      'acme'
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.manifest.contributes?.keybindings).toEqual([
+      {
+        command: 'acme.insert',
+        key: 'mod+alt+i',
+        when: 'focus == canvas',
+        args: { kind: 'field' },
+        allowInEditable: false,
+      },
+    ]);
+  });
+
+  it('отсутствие contributes — норма, а не промах', () => {
+    const result = parsePluginManifest(
+      JSON.stringify({ id: 'acme', apiVersion: '^1', main: 'main.js' }),
+      'acme'
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.manifest.contributes).toBeUndefined();
+  });
+
+  it('аккорд из двух ступеней принимается', () => {
+    const result = parsePluginManifest(
+      withContributes({ keybindings: [{ command: 'acme.insert', key: 'mod+k mod+i' }] }),
+      'acme'
+    );
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('неразбираемое сочетание — ОТКАЗ манифеста, а не пропуск записи', () => {
+    // Клавиша с испорченным описанием не сработает никогда, и узнавать об этом в день
+    // нажатия — самая дорогая из поломок, потому что она молчит.
+    const result = parsePluginManifest(
+      withContributes({ keybindings: [{ command: 'acme.insert', key: 'mod+' }] }),
+      'acme'
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problem.code).toBe('manifest-invalid');
+  });
+
+  it('три ступени — отказ', () => {
+    const result = parsePluginManifest(
+      withContributes({ keybindings: [{ command: 'a', key: 'mod+k mod+s mod+x' }] }),
+      'acme'
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('неразбираемое условие — отказ манифеста', () => {
+    const result = parsePluginManifest(
+      withContributes({ keybindings: [{ command: 'a', key: 'mod+i', when: 'focus ==' }] }),
+      'acme'
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problem.code).toBe('manifest-invalid');
+  });
+
+  it('запись без команды или без клавиши — отказ', () => {
+    expect(
+      parsePluginManifest(withContributes({ keybindings: [{ key: 'mod+i' }] }), 'acme').ok
+    ).toBe(false);
+    expect(
+      parsePluginManifest(withContributes({ keybindings: [{ command: 'a' }] }), 'acme').ok
+    ).toBe(false);
+  });
+
+  it('contributes не объект и keybindings не массив — отказ', () => {
+    expect(parsePluginManifest(withContributes('нет'), 'acme').ok).toBe(false);
+    expect(parsePluginManifest(withContributes({ keybindings: 'нет' }), 'acme').ok).toBe(false);
+  });
+
+  it('allowInEditable обязано быть булевым', () => {
+    const result = parsePluginManifest(
+      withContributes({ keybindings: [{ command: 'a', key: 'mod+i', allowInEditable: 'да' }] }),
+      'acme'
+    );
+
+    expect(result.ok).toBe(false);
+  });
+});

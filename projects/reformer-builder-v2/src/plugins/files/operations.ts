@@ -148,6 +148,16 @@ export function nameValidator(): (value: string) => string | null {
   };
 }
 
+/**
+ * Условие клавиш дерева, записанное данными.
+ *
+ * Одна константа на все шесть команд, а не строка в каждой: у сочетаний `delete`, `mod+c`,
+ * `mod+x` и `mod+v` есть двойники в редакторе схемы и в самом браузере, и разводит их именно
+ * это условие. Разъедься его написание между командами — разошлось бы и разрешение
+ * конфликтов, причём молча.
+ */
+const IN_TREE = 'focus == tree';
+
 /** Сообщение об отказе — человеку, а не в консоль. */
 function report(deps: FilesOperationsDeps, messageKey: string, error?: unknown): void {
   if (error !== undefined) console.error(`[files] ${messageKey}`, error);
@@ -226,8 +236,12 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
       id: RENAME_COMMAND_ID,
       titleKey: 'files.command.rename',
       keybinding: 'f2',
-      // Клавиша принадлежит дереву, поэтому предикат смотрит на фокус: `F2` в редакторе
-      // схемы означает совсем другое.
+      // Клавиша принадлежит дереву: `F2` в редакторе схемы означает совсем другое.
+      // Условие названо ДАННЫМИ, поэтому диспетчер разводит одноимённые клавиши разных
+      // плагинов ещё до вызова предикатов, а таблица клавиш показывает разницу человеку.
+      when: IN_TREE,
+      // Фокус остаётся и в предикате: `when` ограничивает КЛАВИШУ, а палитра и меню
+      // спрашивают именно предикат — см. `CommandContribution.when`.
       enabled: (ctx) => inTree(ctx) && host.hasProject() && deps.prompt != null,
       run: async (args) => {
         const operations = operationsOf(deps);
@@ -249,6 +263,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
       id: DELETE_COMMAND_ID,
       titleKey: 'files.command.delete',
       keybinding: 'delete',
+      when: IN_TREE,
       enabled: (ctx) => inTree(ctx) && host.hasProject() && deps.prompt != null,
       run: async (args) => {
         const operations = operationsOf(deps);
@@ -275,6 +290,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
       id: COPY_COMMAND_ID,
       titleKey: 'files.command.copy',
       keybinding: 'mod+c',
+      when: IN_TREE,
       enabled: (ctx) => inTree(ctx) && deps.clipboard != null,
       run: (args) => {
         const ids = targets(args, host);
@@ -287,6 +303,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
       id: CUT_COMMAND_ID,
       titleKey: 'files.command.cut',
       keybinding: 'mod+x',
+      when: IN_TREE,
       enabled: (ctx) => inTree(ctx) && deps.clipboard != null,
       run: (args) => {
         const ids = targets(args, host);
@@ -299,6 +316,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
       id: PASTE_COMMAND_ID,
       titleKey: 'files.command.paste',
       keybinding: 'mod+v',
+      when: IN_TREE,
       // Гаснет, когда вставлять нечего: пункт, обещающий вставку пустоты, — обещание,
       // которое не исполнится.
       enabled: (ctx) => inTree(ctx) && host.hasProject() && (deps.clipboard?.size() ?? 0) > 0,

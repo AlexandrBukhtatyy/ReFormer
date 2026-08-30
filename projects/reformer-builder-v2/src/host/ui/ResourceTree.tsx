@@ -103,7 +103,7 @@ import {
 } from './decorations';
 import type { CommandRegistry } from '../primitives/command';
 import { createLazyEditorProbe, createUnreadableProbe, type ReadResourceText } from './editors';
-import { detectPlatformModifier, formatKeybinding } from './keybindings';
+import { detectPlatformModifier, formatChord } from './keybindings';
 import { buildMenu, MenuPoint, type MenuActionNode, type MenuNode } from './menu';
 import { RESOURCE_CONTEXT_MENU, resourceMenuTarget, parentIdOf } from './resource-menu';
 import {
@@ -589,8 +589,8 @@ export function ResourceTree({
   const renderAction = (node: MenuActionNode): ReactElement => (
     <ContextMenuItem key={node.id} disabled={!node.enabled} onSelect={node.run}>
       {node.title}
-      {node.keybinding !== undefined && (
-        <ContextMenuShortcut>{formatKeybinding(node.keybinding, modifier)}</ContextMenuShortcut>
+      {node.chord !== undefined && (
+        <ContextMenuShortcut>{formatChord(node.chord, modifier)}</ContextMenuShortcut>
       )}
     </ContextMenuItem>
   );

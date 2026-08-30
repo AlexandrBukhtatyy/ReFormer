@@ -28,6 +28,7 @@ import type {
   RootExtensionRegistry,
 } from '../primitives/extension-point';
 import type { CommandContribution, CommandRegistry } from '../primitives/command';
+import type { ChordSnapshot, ChordState } from './chords';
 import type { I18nService } from '../services/i18n/i18n';
 import type { SettingsService } from '../services/settings';
 import { selectPanels, type PanelEntry, type PanelPredicateErrorHandler } from './panels';
@@ -153,3 +154,32 @@ export function useLocale(i18n: I18nService): string {
   const getSnapshot = useCallback(() => i18n.locale, [i18n]);
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
+
+/**
+ * Ожидание второй ступени аккорда как React-значение.
+ *
+ * Хранилище живёт вне React (см. `./chords`), потому что читает его и диспетчер клавиш,
+ * где React недоступен. Здесь только переходник — тот же приём, что у снимка команд рядом.
+ *
+ * `undefined` вместо условного вызова хука: аккорды передаются оболочке необязательным
+ * входом, а вызывать хук по условию React не даёт.
+ */
+export function useChord(chords: ChordState | undefined): ChordSnapshot {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const subscription = chords?.subscribe(onStoreChange);
+      return () => {
+        subscription?.dispose();
+      };
+    },
+    [chords]
+  );
+  const getSnapshot = useCallback(() => chords?.get() ?? IDLE_CHORD, [chords]);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+/** Пустое ожидание для сборки без аккордов. Ссылка одна: снимок обязан быть стабильным. */
+const IDLE_CHORD: ChordSnapshot = Object.freeze({
+  prefix: Object.freeze([]),
+  labels: Object.freeze([]),
+});

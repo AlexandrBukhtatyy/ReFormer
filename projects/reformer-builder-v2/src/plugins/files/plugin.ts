@@ -199,6 +199,9 @@ export function filesCommands(host: FilesHost): readonly FilesCommand[] {
       titleKey: 'files.command.save',
       keybinding: 'mod+s',
       allowInEditable: true,
+      // «Есть открытая вкладка» — состояние платформы, поэтому оно выражено данными и
+      // отсекает нажатие до вызова предиката.
+      when: 'activeEditorId != null',
       enabled: (ctx) => ctx.activeEditorId !== null,
       run: () => {
         const active = host.activeResource();
