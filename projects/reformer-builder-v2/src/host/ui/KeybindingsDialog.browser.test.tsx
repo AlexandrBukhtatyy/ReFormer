@@ -56,7 +56,13 @@ interface Fixture {
   readonly startRecording: () => Promise<void>;
 }
 
-async function setup(): Promise<Fixture> {
+/**
+ * @param extra — сколько добавить команд сверх `files.save`. Нужно тестам раскладки:
+ *   на двух строках таблица не переполняет ни высоту окна, ни его ширину, то есть
+ *   проверять там нечего. Ключи нарочно длинные — ширину разносит `truncate` в ячейках
+ *   (это `white-space: nowrap`), и на коротких строках дефект не воспроизводится.
+ */
+async function setup({ extra = 0 }: { readonly extra?: number } = {}): Promise<Fixture> {
   const commands = createCommandRegistry();
   const saved = vi.fn();
   commands.register({
@@ -66,6 +72,13 @@ async function setup(): Promise<Fixture> {
     allowInEditable: true,
     run: saved,
   });
+  for (let index = 0; index < extra; index += 1) {
+    commands.register({
+      id: `plugins.editor.schema.command.with.a.rather.long.identifier.${String(index)}`,
+      titleKey: 'files.command.save',
+      run: () => undefined,
+    });
+  }
 
   const keymap = createKeymapService({ commands, modifier: 'ctrl' });
   const scopes = createScopeStack();
@@ -204,6 +217,44 @@ describe('таблица', () => {
     expect(table).not.toBeNull();
     expect(table?.getBoundingClientRect().width).toBeLessThanOrEqual(
       (container?.getBoundingClientRect().width ?? 0) + 1
+    );
+  });
+});
+
+describe('область прокрутки', () => {
+  /** Окно прокрутки области кита — то, что реально скроллится. */
+  function viewport(): HTMLElement {
+    const node = document.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+    if (node === null) throw new Error('окна прокрутки нет');
+    return node;
+  }
+
+  it('длинный список прокручивается, а не растягивает диалог за край экрана', async () => {
+    // Область кита объявляет своему окну `h-full`, а сто процентов от `max-height`
+    // родителя — это `auto`: без определённой высоты предел не срабатывает вовсе,
+    // прокрутки нет, и таблица уезжает вниз за край окна браузера.
+    await page.viewport(1400, 900);
+    const fixture = await setup({ extra: 40 });
+    await fixture.open();
+
+    await expect.poll(() => viewport().scrollHeight > viewport().clientHeight).toBe(true);
+
+    const dialog = document.querySelector('[data-testid="keybindings-dialog"]');
+    expect(dialog?.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight + 1);
+  });
+
+  it('содержимое не шире окна прокрутки: колонки остаются в диалоге', async () => {
+    // Тот дефект, из-за которого область сюда сперва не поставили: Radix кладёт содержимое
+    // в свой `display: table`, а тот растёт до МИНИМАЛЬНОЙ ширины содержимого — с `truncate`
+    // в ячейках это полная длина текста, и кнопки последней колонки уезжали за край экрана.
+    await page.viewport(1400, 900);
+    const fixture = await setup({ extra: 40 });
+    await fixture.open();
+
+    const content = viewport().firstElementChild;
+    expect(content).not.toBeNull();
+    expect(content?.getBoundingClientRect().width).toBeLessThanOrEqual(
+      viewport().getBoundingClientRect().width + 1
     );
   });
 });

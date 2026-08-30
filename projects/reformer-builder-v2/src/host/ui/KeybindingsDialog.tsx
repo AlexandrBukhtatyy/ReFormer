@@ -32,6 +32,7 @@ import {
 import { Button } from '@reformer/ui-kit/button';
 import { Input } from '@reformer/ui-kit/input';
 import { Kbd, KbdGroup } from '@reformer/ui-kit/kbd';
+import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import {
   Table,
   TableBody,
@@ -309,131 +310,146 @@ export function KeybindingsDialog({
           aria-label={t('shell.keybindings.search.label')}
         />
 
-        {/* Обычный блок с прокруткой, а НЕ `ScrollArea`: её область просмотра растягивается
-            по содержимому, и таблица из шести колонок с `whitespace-nowrap` разъезжалась до
-            полутора тысяч пикселей — кнопки последней колонки уезжали за край экрана и
-            переставали нажиматься. Проверено замером: ширина контейнера равнялась ширине
-            таблицы, то есть `w-full` ограничивать было нечему. Горизонтальную прокрутку
-            таблица приносит свою (`overflow-x-auto` у её контейнера). */}
-        <div className="max-h-[55vh] overflow-y-auto">
-          <Table className="table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[24%]">{t('shell.keybindings.column.command')}</TableHead>
-                <TableHead className="w-[20%]">{t('shell.keybindings.column.key')}</TableHead>
-                <TableHead className="w-[16%]">{t('shell.keybindings.column.chord')}</TableHead>
-                <TableHead className="w-[16%]">{t('shell.keybindings.column.when')}</TableHead>
-                <TableHead className="w-[10%]">{t('shell.keybindings.column.source')}</TableHead>
-                <TableHead className="sr-only">{t('shell.keybindings.column.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id} data-testid={`keybinding-row-${row.commandId}`}>
-                  <TableCell className="truncate">
-                    {row.title}
-                    {row.conflicting && (
-                      <span className="ml-2 text-[11px] text-amber-600">
-                        {t('shell.keybindings.conflict.unresolved')}
-                      </span>
-                    )}
-                  </TableCell>
+        {/* Прокрутка — областью кита, а не нативным `overflow-y-auto`: её полоса лежит
+            оверлеем поверх края и не отъедает ширину у таблицы, которой здесь и так тесно.
 
-                  {/* Ключ — то, чем команду называют в раскладке, в манифесте плагина и
+            ВЫСОТУ область берёт из РАСКЛАДКИ, а не из класса на себе. Своему окну она
+            объявляет `h-full`, а сто процентов от `max-height` родителя — это `auto`:
+            предела нет, прокрутка не включается вовсе, и таблица уезжает за нижний край
+            экрана. Поэтому предел стоит на обёртке-колонке, а высоту области задаёт
+            флексбокс (`flex-auto` + `min-h-0`): пока строк мало — по содержимому, дальше —
+            упор в предел и прокрутка.
+
+            ШИРИНА — причина, по которой область сюда сперва не поставили: Radix кладёт
+            содержимое в свой `display: table`, а тот растёт до МИНИМАЛЬНОЙ ширины
+            содержимого, и таблица разъезжалась до полутора тысяч пикселей — кнопки
+            последней колонки уезжали за край. С нынешней разметкой не растёт: минимальная
+            ширина у контейнера таблицы нулевая (он сам прокручивается, `overflow-x-auto`),
+            и `display: table` остаётся шириной окна. Это ИЗМЕРЕНО тестом, а не
+            подразумевается, — вместе с самой прокруткой. */}
+        <div className="flex max-h-[55vh] flex-col">
+          <ScrollArea className="min-h-0 flex-auto">
+            {/* Отступ справа — под полосу-оверлей: без него она ложится на кнопки
+                последней колонки, а они здесь крайние по краю. */}
+            <Table className="table-fixed pr-2.5">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[24%]">{t('shell.keybindings.column.command')}</TableHead>
+                  <TableHead className="w-[20%]">{t('shell.keybindings.column.key')}</TableHead>
+                  <TableHead className="w-[16%]">{t('shell.keybindings.column.chord')}</TableHead>
+                  <TableHead className="w-[16%]">{t('shell.keybindings.column.when')}</TableHead>
+                  <TableHead className="w-[10%]">{t('shell.keybindings.column.source')}</TableHead>
+                  <TableHead className="sr-only">{t('shell.keybindings.column.actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.id} data-testid={`keybinding-row-${row.commandId}`}>
+                    <TableCell className="truncate">
+                      {row.title}
+                      {row.conflicting && (
+                        <span className="ml-2 text-[11px] text-amber-600">
+                          {t('shell.keybindings.conflict.unresolved')}
+                        </span>
+                      )}
+                    </TableCell>
+
+                    {/* Ключ — то, чем команду называют в раскладке, в манифесте плагина и
                       в обращении к ассистенту. Моноширинным и приглушённым: это не текст
                       интерфейса, а адрес, и отличать его от заголовка глазами обязательно. */}
-                  <TableCell className="text-muted-foreground truncate font-mono text-[11px]">
-                    {row.commandId}
-                  </TableCell>
+                    <TableCell className="text-muted-foreground truncate font-mono text-[11px]">
+                      {row.commandId}
+                    </TableCell>
 
-                  <TableCell>
-                    {editing === row.commandId ? (
-                      <Recorder
-                        state={recording}
-                        onKey={(binding) => {
-                          setRecording((state) => pushKey(state, binding));
-                        }}
-                        onCancel={stopEditing}
-                      />
-                    ) : (
-                      <ChordKeys
-                        chord={row.chord.map((step) => formatKeybinding(step, platformModifier))}
-                      />
-                    )}
-                  </TableCell>
-
-                  <TableCell className="text-muted-foreground truncate font-mono text-[11px]">
-                    {row.when}
-                  </TableCell>
-
-                  <TableCell className="text-muted-foreground text-[11px]">
-                    {sourceLabel(row.layer, t)}
-                  </TableCell>
-
-                  <TableCell className="text-right">
-                    {editing === row.commandId ? (
-                      <span className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          disabled={recording.steps.length === 0}
-                          onClick={() => {
-                            commit(row);
+                    <TableCell>
+                      {editing === row.commandId ? (
+                        <Recorder
+                          state={recording}
+                          onKey={(binding) => {
+                            setRecording((state) => pushKey(state, binding));
                           }}
-                        >
-                          {t('shell.keybindings.record.commit')}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={stopEditing}>
-                          {t('shell.keybindings.record.cancel')}
-                        </Button>
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditing(row.commandId);
-                            setRecording(beginRecording());
-                          }}
-                        >
-                          {t('shell.keybindings.record.start')}
-                        </Button>
-                        {row.chord.length > 0 && (
+                          onCancel={stopEditing}
+                        />
+                      ) : (
+                        <ChordKeys
+                          chord={row.chord.map((step) => formatKeybinding(step, platformModifier))}
+                        />
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-muted-foreground truncate font-mono text-[11px]">
+                      {row.when}
+                    </TableCell>
+
+                    <TableCell className="text-muted-foreground text-[11px]">
+                      {sourceLabel(row.layer, t)}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      {editing === row.commandId ? (
+                        <span className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            disabled={recording.steps.length === 0}
+                            onClick={() => {
+                              commit(row);
+                            }}
+                          >
+                            {t('shell.keybindings.record.commit')}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={stopEditing}>
+                            {t('shell.keybindings.record.cancel')}
+                          </Button>
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-end gap-1">
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              unbind(row);
+                              setEditing(row.commandId);
+                              setRecording(beginRecording());
                             }}
                           >
-                            {t('shell.keybindings.remove')}
+                            {t('shell.keybindings.record.start')}
                           </Button>
-                        )}
-                        {row.layer === 'user' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              reset(row);
-                            }}
-                          >
-                            {t('shell.keybindings.reset')}
-                          </Button>
-                        )}
-                      </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {rows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-muted-foreground">
-                    {t('shell.keybindings.empty')}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                          {row.chord.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                unbind(row);
+                              }}
+                            >
+                              {t('shell.keybindings.remove')}
+                            </Button>
+                          )}
+                          {row.layer === 'user' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                reset(row);
+                              }}
+                            >
+                              {t('shell.keybindings.reset')}
+                            </Button>
+                          )}
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-muted-foreground">
+                      {t('shell.keybindings.empty')}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
         </div>
 
         {taken.length > 0 && (
