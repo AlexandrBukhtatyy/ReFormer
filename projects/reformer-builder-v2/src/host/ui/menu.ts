@@ -10,6 +10,11 @@
  * командой, и разойдётся молча. Отсюда же ответ на «доступен ли пункт»: его даёт
  * `CommandRegistry.isEnabled`, то есть тот же предикат, что гасит команду везде.
  *
+ * Единственная добавка к этому ответу — {@link MenuPlacement.enabledWhen}, и она ровно про то,
+ * чего реестр команд знать не может: по чему щёлкнули. Команда одинакова в палитре и в меню,
+ * а «в папку можно, в файл нельзя» — свойство ЦЕЛИ, и вне контекстного меню вопроса не
+ * существует. Вкладом, а не телом пункта: действие остаётся одной командой.
+ *
  * Следствие, названное явно: **пункт, за которым нет зарегистрированной команды, не рисуется**.
  * Не серым, а никак — потому что серый пункт обещает, что когда-нибудь станет доступен, а этот
  * не станет: команды нет вовсе. Та же политика, что у быстрых исправлений (`usableFixes`).
@@ -128,6 +133,29 @@ interface MenuPlacement {
    * второе значило бы, что меню меняет высоту под курсором.
    */
   readonly when?: (ctx: WhenContext, target: MenuTarget) => boolean;
+  /**
+   * Доступен ли пункт ПРИ ЭТОЙ ЦЕЛИ. Отсутствие означает «доступен».
+   *
+   * ## Зачем он, если недоступность уже считает реестр команд
+   *
+   * `CommandRegistry.isEnabled` отвечает на вопрос «есть ли чему сработать» по
+   * {@link WhenContext}, и цели щелчка там нет и быть не может: контекст применимости
+   * одинаков для палитры, клавиш и меню, а цель существует только в момент щелчка. Поэтому
+   * «сгенерировать можно в папку, но не в файл» через `enabled` невыразимо — команда не
+   * знает, по чему щёлкнули, и в палитре этот вопрос не имеет смысла вовсе.
+   *
+   * ## Почему не `when`
+   *
+   * `when` СКРЫВАЕТ, и для «применимо не к каждой строке дерева» это чаще всего правильно:
+   * «Переименовать» на пустом месте панели — пункт не про эту цель, и его там нет. Но там,
+   * где пункт про цель ОДНОГО РОДА (создание — про каталоги), исчезновение на файле читается
+   * как пропажа возможности: человек видел «Сгенерировать» на папке, щёлкнул по файлу — и
+   * пункта нет, а почему — меню не сказало. Серый пункт говорит это сам.
+   *
+   * Предикат обязан быть чистым и дешёвым — его зовут на каждую сборку меню. Бросок означает
+   * «недоступен»: запускать действие, условие которого неизвестно, хуже, чем не запускать.
+   */
+  readonly enabledWhen?: (ctx: WhenContext, target: MenuTarget) => boolean;
   /**
    * Сигнал «мой ответ изменился»: подписка, по которой поверхность пересчитывает меню.
    *
@@ -407,6 +435,16 @@ export interface MenuSubmenuNode {
   readonly kind: 'submenu';
   readonly id: string;
   readonly title: string;
+  /**
+   * Открывается ли подменю. `false` — заголовок на месте, но серый и не раскрывается.
+   *
+   * Отдельно от «пустое подменю не рисуется»: пустое не рисуется потому, что открывать нечего,
+   * а серое — потому, что открывать НЕ К ЧЕМУ ПРИМЕНИТЬ. Первое чинит тот, кто вносил пункты,
+   * второе — тот, кто щёлкнул не по той строке, и разница обязана быть видна ему, а не только
+   * в коде. Содержимое при этом построено: гасит подменю целиком
+   * {@link MenuPlacement.enabledWhen} его заголовка, а не отсутствие доступных пунктов внутри.
+   */
+  readonly enabled: boolean;
   readonly items: readonly MenuNode[];
 }
 
@@ -460,6 +498,27 @@ function isVisible(
   }
 }
 
+/**
+ * Доступность по цели щелчка. Упавший предикат — «недоступен»: запустить действие, условие
+ * которого неизвестно, хуже, чем оставить его серым.
+ */
+function isEnabledAt(
+  entry: MenuEntry,
+  ctx: WhenContext,
+  target: MenuTarget,
+  onIssue?: (i: MenuIssue) => void
+): boolean {
+  if (entry.value.kind === 'root') return true;
+  const enabledWhen = entry.value.enabledWhen;
+  if (enabledWhen === undefined) return true;
+  try {
+    return enabledWhen(ctx, target) === true;
+  } catch (error) {
+    onIssue?.({ kind: 'predicate-failed', entryId: entry.id, pluginId: entry.pluginId, error });
+    return false;
+  }
+}
+
 /** Заголовок пункта: свой ключ разрешается словарём внёсшего, иначе берётся заголовок команды. */
 function itemTitle(
   entry: MenuEntry,
@@ -505,6 +564,13 @@ function actionNode(
     readonly titleKey?: string;
     readonly checked?: boolean;
     readonly icon?: ComponentType;
+    /**
+     * Доступность по цели щелчка — И с ответом реестра команд, а не вместо него.
+     *
+     * Именно И: `enabledWhen` отвечает «применимо ли к этой цели», реестр — «есть ли чему
+     * сработать», и обойти второе первым значило бы дать вкладу включать чужую команду.
+     */
+    readonly enabledAt?: boolean;
   }
 ): MenuActionNode | null {
   const command = options.commands.get(spec.command);
@@ -521,7 +587,7 @@ function actionNode(
     kind: 'item',
     id: nodeId,
     title: spec.title ?? itemTitle(entry, command, spec.titleKey, options.translate),
-    enabled: options.commands.isEnabled(command.id, options.ctx),
+    enabled: options.commands.isEnabled(command.id, options.ctx) && spec.enabledAt !== false,
     checked: spec.checked,
     icon: spec.icon,
     // Сочетание показывается ТОЛЬКО у пункта без аргументов, потому что клавиши вызывают
@@ -560,7 +626,8 @@ function chordOfCommand(
 function dynamicNodes(
   options: MenuBuildOptions,
   entry: MenuEntry,
-  contribution: MenuDynamicContribution
+  contribution: MenuDynamicContribution,
+  enabledAt: boolean
 ): readonly MenuNode[] {
   let items: readonly MenuDynamicItem[];
   try {
@@ -583,6 +650,9 @@ function dynamicNodes(
       title: item.title,
       titleKey: item.titleKey,
       checked: item.toggled,
+      // Группа объявила доступность один раз — на всю группу: её пункты рождаются из одного
+      // ответа на один вопрос, и различать их по цели было бы нечем.
+      enabledAt,
     });
     if (node !== null) nodes.push(node);
   }
@@ -620,6 +690,9 @@ function submenuNode(
     kind: 'submenu',
     id: entry.id,
     title: options.translate(contribution.titleKey, entry),
+    // Содержимое строится и у серого подменю: пустое не рисуется вовсе, и не построив его,
+    // отличить «нечего показывать» от «не к чему применить» было бы нечем.
+    enabled: isEnabledAt(entry, options.ctx, options.target, options.onIssue),
     items,
   };
 }
@@ -667,13 +740,21 @@ function buildItems(
         titleKey: value.titleKey,
         icon: value.icon,
         checked: readToggled(entry, value.toggled, options.ctx, options.target, options.onIssue),
+        enabledAt: isEnabledAt(entry, options.ctx, options.target, options.onIssue),
       });
       if (node !== null) bucket.push(node);
     } else if (value.kind === 'submenu') {
       const node = submenuNode(options, entry, value, trail);
       if (node !== null) bucket.push(node);
     } else if (value.kind === 'dynamic') {
-      bucket.push(...dynamicNodes(options, entry, value));
+      bucket.push(
+        ...dynamicNodes(
+          options,
+          entry,
+          value,
+          isEnabledAt(entry, options.ctx, options.target, options.onIssue)
+        )
+      );
     }
 
     if (bucket.length > 0) groups.set(group, bucket);

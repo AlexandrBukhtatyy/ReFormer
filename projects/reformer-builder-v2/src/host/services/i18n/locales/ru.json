@@ -2,6 +2,16 @@
   "app.project.empty": "Откройте каталог проекта — меню «Файл» → «Открыть папку…».",
   "app.shell.placeholder": "Каркас проекта. Оболочки ещё нет.",
   "app.title": "ReFormer Builder v2",
+  "codegen.notify.failed": "Сгенерировать не удалось: {message}",
+  "codegen.notify.no-directory": "Не выбран каталог: генерировать некуда.",
+  "codegen.notify.no-kit": "Кит не выбран: неизвестно, откуда импортировать компоненты.",
+  "codegen.notify.no-listing": "Содержимое каталога недоступно — искать схему негде.",
+  "codegen.notify.no-schema": "В этом каталоге нет схемы формы: генерировать не из чего.",
+  "codegen.notify.not-applicable": "Этот файл к такой форме не относится — печатать нечего.",
+  "codegen.notify.nothing-written": "Ничего не записано: ваших файлов {skipped} — они не тронуты.",
+  "codegen.notify.partial": "Записано файлов: {written}, не записано: {failed}.",
+  "codegen.notify.read-only": "Источник не принимает запись — сгенерированное сохранить некуда.",
+  "codegen.notify.written": "Записано файлов: {written}, пропущено ваших: {skipped}.",
   "errors.rules.behavior-target-missing": "Поведение «{kind}» ссылается на «{target}»: такого поля в форме нет.",
   "errors.rules.render-selector-missing": "Правило «{kind}» адресует узел «{selector}», которого в схеме нет — в рантайме оно ничего не сделает.",
   "errors.rules.validation-target-missing": "Правило валидации на «{target}»: такого поля в форме нет.",
@@ -147,5 +157,8 @@
   "shell.tree.label": "Ресурсы проекта",
   "shell.tree.menu.empty": "Здесь нет действий",
   "templates.notify.created": "Шаблон сохранён.",
-  "templates.notify.failed": "Шаблон не сохранён. Подробности — на панели шаблонов."
+  "templates.notify.failed": "Шаблон не сохранён. Подробности — на панели шаблонов.",
+  "templates.notify.generate-failed": "Форму создать не удалось. Подробности — на панели шаблонов.",
+  "templates.notify.generated": "Форма создана по шаблону.",
+  "templates.notify.gone": "Шаблона больше нет — список обновлён."
 }

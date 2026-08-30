@@ -79,7 +79,14 @@ function MenuItemNode({
   if (node.kind === 'submenu') {
     return (
       <MenubarSub>
-        <MenubarSubTrigger>{node.title}</MenubarSubTrigger>
+        {/* Те же два класса, что и в дереве: у `SubTrigger` кита нет правил `data-[disabled]`,
+            и без них серый заголовок ничем не отличался бы от обычного. */}
+        <MenubarSubTrigger
+          disabled={!node.enabled}
+          className="data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+        >
+          {node.title}
+        </MenubarSubTrigger>
         <MenubarSubContent>
           {node.items.map((child) => (
             <MenuItemNode key={child.id} node={child} modifier={modifier} />

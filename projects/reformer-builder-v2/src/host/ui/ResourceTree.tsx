@@ -578,7 +578,15 @@ export function ResourceTree({
     if (node.kind === 'submenu') {
       return (
         <ContextMenuSub key={node.id}>
-          <ContextMenuSubTrigger>{node.title}</ContextMenuSubTrigger>
+          {/* Гашение подписывается здесь, а не в ките: у `ContextMenuItem` правила
+              `data-[disabled]` есть, у `SubTrigger` их нет, и серый заголовок выглядел бы
+              обычным. Править пакет ради двух классов — менять общий кит под один вызов. */}
+          <ContextMenuSubTrigger
+            disabled={!node.enabled}
+            className="data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+          >
+            {node.title}
+          </ContextMenuSubTrigger>
           <ContextMenuSubContent>{node.items.map(renderNode)}</ContextMenuSubContent>
         </ContextMenuSub>
       );

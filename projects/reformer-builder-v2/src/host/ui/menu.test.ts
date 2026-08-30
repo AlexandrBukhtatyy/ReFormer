@@ -4,6 +4,7 @@ import { createCommandRegistry, type CommandContribution } from '../primitives/c
 import { createExtensionRegistry } from '../primitives/extension-point';
 import { whenContext } from '../primitives/when-context';
 import {
+  buildMenu,
   buildMenuBar,
   hostMenuEntry,
   MAX_MENU_DEPTH,
@@ -590,5 +591,151 @@ describe('unknownMenuPaths', () => {
     );
 
     expect(issues).toEqual([]);
+  });
+});
+
+/**
+ * `enabledWhen` — единственный ответ на «доступен ли пункт», который зависит от ЦЕЛИ щелчка.
+ *
+ * Проверяется здесь, а не в `resource-menu.test.ts`: сужение цели до строки дерева — дело
+ * того модуля, а правило «серый, а не исчезнувший» принадлежит модели меню и обязано
+ * работать над любой целью, включая ту, которой ещё нет.
+ */
+describe('доступность по цели щелчка', () => {
+  /** Меню одного пути с целью — то, чего `buildMenuBar` не умеет: у шапки цели нет. */
+  function buildAt(
+    entries: readonly MenuEntry[],
+    target: unknown,
+    options: {
+      commands?: readonly CommandContribution[];
+      onIssue?: (issue: MenuIssue) => void;
+    } = {}
+  ): readonly MenuNode[] {
+    return buildMenu(
+      {
+        entries,
+        ctx: whenContext(),
+        target,
+        commands: commandsOf(options.commands ?? [command({ id: 'test.run' })]),
+        translate,
+        execute: () => undefined,
+        onIssue: options.onIssue,
+      },
+      'resource/context'
+    );
+  }
+
+  const item: MenuContribution = {
+    kind: 'item',
+    menu: 'resource/context',
+    command: 'test.run',
+    enabledWhen: (_ctx, target) => target === 'directory',
+  };
+
+  it('пункт остаётся на месте серым, а не исчезает', () => {
+    expect(buildAt(entriesOf([{ value: item }]), 'file')).toEqual([
+      expect.objectContaining({ kind: 'item', enabled: false }),
+    ]);
+    expect(buildAt(entriesOf([{ value: item }]), 'directory')).toEqual([
+      expect.objectContaining({ kind: 'item', enabled: true }),
+    ]);
+  });
+
+  it('не включает команду, которую погасил её собственный предикат', () => {
+    const nodes = buildAt(entriesOf([{ value: item }]), 'directory', {
+      commands: [command({ id: 'test.run', enabled: () => false })],
+    });
+
+    expect(nodes).toEqual([expect.objectContaining({ kind: 'item', enabled: false })]);
+  });
+
+  it('гасит подменю целиком, не пряча его содержимое', () => {
+    const nodes = buildAt(
+      entriesOf([
+        {
+          value: {
+            kind: 'submenu',
+            menu: 'resource/context',
+            submenu: 'resource/context/generate',
+            titleKey: 'generate',
+            enabledWhen: (_ctx, target) => target === 'directory',
+          },
+        },
+        { value: { kind: 'item', menu: 'resource/context/generate', command: 'test.run' } },
+      ]),
+      'file'
+    );
+
+    expect(nodes).toEqual([
+      expect.objectContaining({ kind: 'submenu', enabled: false, items: [expect.anything()] }),
+    ]);
+  });
+
+  it('пустое подменю не рисуется даже доступным: открывать нечего', () => {
+    const nodes = buildAt(
+      entriesOf([
+        {
+          value: {
+            kind: 'submenu',
+            menu: 'resource/context',
+            submenu: 'resource/context/generate',
+            titleKey: 'generate',
+          },
+        },
+      ]),
+      'directory'
+    );
+
+    expect(nodes).toEqual([]);
+  });
+
+  it('динамическая группа гаснет целиком: её пункты — один ответ на один вопрос', () => {
+    const nodes = buildAt(
+      entriesOf([
+        {
+          value: {
+            kind: 'dynamic',
+            menu: 'resource/context',
+            enabledWhen: (_ctx, target) => target === 'directory',
+            items: () => [
+              { id: 'a', command: 'test.run', title: 'A' },
+              { id: 'b', command: 'test.run', title: 'B' },
+            ],
+          },
+        },
+      ]),
+      'file'
+    );
+
+    expect(nodes).toEqual([
+      expect.objectContaining({ title: 'A', enabled: false }),
+      expect.objectContaining({ title: 'B', enabled: false }),
+    ]);
+  });
+
+  it('упавший предикат гасит пункт и называет виновника', () => {
+    const onIssue = vi.fn();
+    const nodes = buildAt(
+      entriesOf([
+        {
+          plugin: 'git',
+          value: {
+            kind: 'item',
+            menu: 'resource/context',
+            command: 'test.run',
+            enabledWhen: () => {
+              throw new Error('предикат отказал');
+            },
+          },
+        },
+      ]),
+      'directory',
+      { onIssue }
+    );
+
+    expect(nodes).toEqual([expect.objectContaining({ enabled: false })]);
+    expect(onIssue).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'predicate-failed', pluginId: 'git' })
+    );
   });
 });

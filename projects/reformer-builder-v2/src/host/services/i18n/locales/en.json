@@ -2,6 +2,16 @@
   "app.project.empty": "Open a project directory — File → Open folder…",
   "app.shell.placeholder": "Project skeleton. There is no shell yet.",
   "app.title": "ReFormer Builder v2",
+  "codegen.notify.failed": "Generation failed: {message}",
+  "codegen.notify.no-directory": "No directory chosen: there is nowhere to generate into.",
+  "codegen.notify.no-kit": "No kit selected: there is no way to know where to import components from.",
+  "codegen.notify.no-listing": "The directory listing is unavailable — there is nowhere to look for a schema.",
+  "codegen.notify.no-schema": "This directory holds no form schema: there is nothing to generate from.",
+  "codegen.notify.not-applicable": "This file does not apply to that form — nothing to print.",
+  "codegen.notify.nothing-written": "Nothing written: {skipped} of your files were left untouched.",
+  "codegen.notify.partial": "Files written: {written}, failed: {failed}.",
+  "codegen.notify.read-only": "The source refuses writes — there is nowhere to put what was generated.",
+  "codegen.notify.written": "Files written: {written}, yours skipped: {skipped}.",
   "errors.rules.behavior-target-missing": "Behavior {kind} refers to {target}: there is no such field in the form.",
   "errors.rules.render-selector-missing": "Rule {kind} addresses node {selector}, which is not in the schema — it will do nothing at runtime.",
   "errors.rules.validation-target-missing": "A validation rule targets {target}: there is no such field in the form.",
@@ -147,5 +157,8 @@
   "shell.tree.label": "Project resources",
   "shell.tree.menu.empty": "No actions here",
   "templates.notify.created": "The template has been saved.",
-  "templates.notify.failed": "The template was not saved. See the templates panel for details."
+  "templates.notify.failed": "The template was not saved. See the templates panel for details.",
+  "templates.notify.generate-failed": "The form was not created. See the templates panel for details.",
+  "templates.notify.generated": "The form has been created from the template.",
+  "templates.notify.gone": "That template is gone — the list has been refreshed."
 }
