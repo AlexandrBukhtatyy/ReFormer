@@ -32,6 +32,10 @@ export default defineConfig({
     ],
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Исходники билдера v2: демо `examples/ui_builder` показывает ЕГО механизм компиляции
+      // формы в браузере, и копия здесь разошлась бы с оригиналом на первой же правке.
+      // Тот же приём, каким tsconfig уже включает исходники ui-kit.
+      '@builder-src': path.resolve(__dirname, '../reformer-builder-v2/src'),
     },
   },
 });

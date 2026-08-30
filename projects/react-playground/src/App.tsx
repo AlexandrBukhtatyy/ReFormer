@@ -19,6 +19,7 @@ import AlertsListRendererJson from './pages/examples/alerts-list-renderer-json/A
 import FileUploadDemo from './pages/examples/file-upload/FileUploadDemo';
 import MultiSelectDemo from './pages/examples/multi-select/MultiSelectDemo';
 import FormRegistryLab from './pages/examples/form-registry-lab/FormRegistryLab';
+import UiBuilderDemo from './pages/examples/ui_builder';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
 import { FormRegistryProvider } from '@reformer/form-registry/react';
 import { baseComponentRegistry, registerPlaygroundForms } from './forms/registry';
@@ -41,7 +42,8 @@ type ExamplePage =
   | 'alerts-json'
   | 'file-upload'
   | 'multi-select'
-  | 'form-registry-lab';
+  | 'form-registry-lab'
+  | 'ui-builder';
 
 interface ExampleEntry {
   id: ExamplePage;
@@ -180,6 +182,18 @@ const exampleGroups: { title: string; items: ExampleEntry[] }[] = [
         title: 'Список алертов (JSON)',
         description:
           'Итерация массива модели через $component(List) + $template; behavior меняет набор алертов',
+      },
+    ],
+  },
+  {
+    title: 'UI Builder',
+    items: [
+      {
+        id: 'ui-builder',
+        path: '/examples/ui-builder',
+        title: 'Компиляция формы в браузере',
+        description:
+          'Правишь сайдкары и фикстуру — форма пересобирается; инспектор модели читает и правит значения',
       },
     ],
   },
@@ -342,6 +356,7 @@ function Layout() {
             <Route path="/examples/alerts-json" element={<AlertsListRendererJson />} />
             <Route path="/examples/file-upload" element={<FileUploadDemo />} />
             <Route path="/examples/multi-select" element={<MultiSelectDemo />} />
+            <Route path="/examples/ui-builder" element={<UiBuilderDemo />} />
             <Route path="/examples/registry-lab" element={<FormRegistryLab />} />
             <Route path="/" element={<Navigate to="/examples/simple" replace />} />
             <Route path="*" element={<Navigate to="/examples/simple" replace />} />

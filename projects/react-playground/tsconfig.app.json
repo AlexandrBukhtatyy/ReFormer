@@ -28,9 +28,19 @@
     /* For shadcn */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@builder-src/*": ["../reformer-builder-v2/src/*"]
     }
   },
-  "include": ["src", "../../packages/reformer-ui-kit/src/lib"],
+  "include": [
+    "src",
+    "../../packages/reformer-ui-kit/src/lib",
+    "../reformer-builder-v2/src/host/modules",
+    "../reformer-builder-v2/src/host/plugin/typescript-transpiler.ts",
+    "../reformer-builder-v2/src/host/primitives/disposable.ts",
+    "../reformer-builder-v2/src/lib/form-fixture",
+    "../reformer-builder-v2/src/lib/form-inspect",
+    "../reformer-builder-v2/src/lib/form-mock"
+  ],
   "exclude": ["src/mocks/_generated"]
 }
