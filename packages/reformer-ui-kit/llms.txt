@@ -10229,8 +10229,12 @@ _Source: src/fields/props-schema.ts_
 function ScrollArea({
   className,
   children,
+  size = 'default',
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>)
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
+  /** Толщина полос прокрутки: `xs` — тонкие (6px) для плотных рядов вроде вкладок. */
+  size?: ScrollAreaSize;
+})
 ```
 
 _Source: src/components/scroll-area/variants/base/scroll-area-base.tsx_
@@ -10248,6 +10252,19 @@ export const scrollAreaBasePropsSchema
 
 _Source: src/components/scroll-area/variants/base/scroll-area-base.props.ts_
 
+### ScrollAreaSize
+
+**Kind:** `type`
+
+Ступени толщины полос прокрутки: `default` — 10px апстрима, `xs` — 6px для плотных рядов.
+
+**Signature:**
+```typescript
+type ScrollAreaSize = 'default' | 'xs';
+```
+
+_Source: src/components/scroll-area/variants/base/scroll-area-base.tsx_
+
 ### ScrollBar
 
 **Kind:** `function`
@@ -10257,8 +10274,12 @@ _Source: src/components/scroll-area/variants/base/scroll-area-base.props.ts_
 function ScrollBar({
   className,
   orientation = 'vertical',
+  size = 'default',
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>)
+}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar> & {
+  /** Толщина полосы: `xs` — тонкая (6px) для плотных рядов вроде вкладок. */
+  size?: ScrollAreaSize;
+})
 ```
 
 _Source: src/components/scroll-area/variants/base/scroll-area-base.tsx_

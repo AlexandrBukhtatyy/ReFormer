@@ -162,7 +162,7 @@ exports[`каталог: отпечаток не меняется > состав
   "ResizableHandle|container|Контейнеры|||Resizable|||53b41afe|{"children":[],"component":"$component(ResizableHandle)"}",
   "ResizablePanel|container|Контейнеры|||Resizable|||82e92d1c|{"children":[],"component":"$component(ResizablePanel)"}",
   "ResizablePanelGroup|container|Контейнеры|||Resizable|||b68fb040|{"children":[],"component":"$component(ResizablePanelGroup)"}",
-  "ScrollArea|container|Контейнеры||||||a2280c0d|{"children":[],"component":"$component(ScrollArea)","componentProps":{"className":"space-y-4"}}",
+  "ScrollArea|container|Контейнеры||||||58a6d577|{"children":[],"component":"$component(ScrollArea)","componentProps":{"className":"space-y-4"}}",
   "Section|container|Контейнеры||||||94304c5d|{"children":[],"component":"$component(Section)","componentProps":{"className":"space-y-4"}}",
   "Select|field|Выбор и переключатели|Select|Один||SelectField||9aa8c6af|{"component":"$component(Select)","componentProps":{"label":"Select"},"value":"$model(newField)"}",
   "SelectMulti|field|Выбор и переключатели|Select|Несколько||SelectMultiField||2f70b36b|{"component":"$component(SelectMulti)","componentProps":{"label":"SelectMulti"},"value":"$model(newField)"}",

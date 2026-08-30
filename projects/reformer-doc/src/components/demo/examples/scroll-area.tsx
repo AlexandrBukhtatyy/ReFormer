@@ -21,6 +21,8 @@ const ARTIFACTS = [
   'v3.0.0',
 ];
 
+const FILES = ['model.ts', 'validation.ts', 'form.behavior.ts', 'layout.tsx', 'registry.tsx'];
+
 export const scrollAreaDocConfig: ComponentDocConfig = {
   name: 'ScrollArea',
   importFrom: '@reformer/ui-kit',
@@ -104,6 +106,48 @@ export const scrollAreaDocConfig: ComponentDocConfig = {
   <ScrollBar orientation="horizontal" />
 </ScrollArea>`,
     },
+    {
+      id: 'compact',
+      title: 'Тонкие полосы — size="xs"',
+      description:
+        'В плотных рядах (вкладки редактора, панели инструментов) полоса в 10px спорит с содержимым: у ряда высотой 34px это треть высоты. size="xs" делает полосу 6px — область и содержимое остаются прежними, полоса рисуется поверх. Размерность области наследует её собственная вертикальная полоса; добавленной вручную ScrollBar размер задаётся отдельно.',
+      render: () => (
+        <ScrollArea
+          type="always"
+          size="xs"
+          className="w-72 rounded-md border whitespace-nowrap"
+          style={{ width: 288 }}
+        >
+          <div style={{ display: 'flex', gap: 4, padding: 4, height: 34, alignItems: 'center' }}>
+            {FILES.map((file) => (
+              <div
+                key={file}
+                style={{
+                  flex: '0 0 auto',
+                  padding: '4px 8px',
+                  fontSize: 12,
+                  borderRadius: 6,
+                  border: '1px solid var(--border, #e5e7eb)',
+                }}
+              >
+                {file}
+              </div>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" size="xs" />
+        </ScrollArea>
+      ),
+      code: `<ScrollArea type="always" size="xs" className="w-72 rounded-md border whitespace-nowrap">
+  <div className="flex h-[34px] items-center gap-1 p-1">
+    {files.map((file) => (
+      <div key={file} className="flex-none rounded-md border px-2 py-1 text-xs">
+        {file}
+      </div>
+    ))}
+  </div>
+  <ScrollBar orientation="horizontal" size="xs" />
+</ScrollArea>`,
+    },
   ],
   examples: [
     {
@@ -167,6 +211,13 @@ export const scrollAreaDocConfig: ComponentDocConfig = {
       name: 'dir',
       type: "'ltr' | 'rtl'",
       description: 'Направление текста — влияет на сторону вертикальной полосы (проп Radix Root).',
+    },
+    {
+      name: 'size',
+      type: "'default' | 'xs'",
+      default: "'default'",
+      description:
+        'Толщина полос: "default" — 10px апстрима, "xs" — 6px для плотных рядов. На ScrollArea задаёт размер её собственной вертикальной полосы, на ScrollBar — размер этой полосы.',
     },
     {
       name: 'orientation (ScrollBar)',

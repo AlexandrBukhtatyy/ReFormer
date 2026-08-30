@@ -51,6 +51,28 @@ describe('ScrollArea (base, compound over Radix)', () => {
     expect(html).toContain('w-2.5');
   });
 
+  it('size="xs" сужает собственную вертикальную полосу области (10px → 6px)', () => {
+    const html = renderToStaticMarkup(
+      <ScrollArea type="always" size="xs">
+        <div>c</div>
+      </ScrollArea>
+    );
+    expect(html).toContain('data-size="xs"');
+    expect(html).toContain('w-1.5');
+    // базовая ширина апстрима вытеснена tailwind-merge, а не приписана рядом
+    expect(html).not.toContain('w-2.5');
+  });
+
+  it('size="xs" на горизонтальной ScrollBar меняет высоту полосы', () => {
+    const html = renderToStaticMarkup(
+      <ScrollArea type="always">
+        <div>c</div>
+        <ScrollBar orientation="horizontal" size="xs" />
+      </ScrollArea>
+    );
+    expect(html).toContain('data-orientation="horizontal"');
+    expect(html).toContain('h-1.5');
+  });
   it('экспортируемая ScrollBar принимает orientation="horizontal" (горизонтальная ветка стилей)', () => {
     const html = renderToStaticMarkup(
       <ScrollArea type="always">

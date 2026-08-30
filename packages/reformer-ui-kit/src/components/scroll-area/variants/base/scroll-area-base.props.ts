@@ -13,6 +13,14 @@ export const scrollAreaBasePropsSchema = {
       description: 'Когда показывать скроллбары.',
       'x-doc': { group: 'Behavior', type: "'auto' | 'always' | 'scroll' | 'hover'", kind: 'enum' },
     },
+    size: {
+      type: 'string',
+      enum: ['default', 'xs'],
+      default: 'default',
+      description:
+        'Толщина полос прокрутки: default — 10px, xs — тонкие 6px для плотных рядов (вкладки, панели инструментов).',
+      'x-doc': { group: 'Behavior', type: "'default' | 'xs'", kind: 'enum' },
+    },
     scrollHideDelay: {
       type: 'number',
       default: 600,

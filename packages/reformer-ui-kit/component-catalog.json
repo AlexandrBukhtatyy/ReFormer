@@ -18449,6 +18449,17 @@
             },
             "default": 600
           },
+          "size": {
+            "type": "string",
+            "enum": ["default", "xs"],
+            "default": "default",
+            "description": "Толщина полос прокрутки: default — 10px, xs — тонкие 6px для плотных рядов (вкладки, панели инструментов).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'xs'",
+              "kind": "enum"
+            }
+          },
           "type": {
             "type": "string",
             "enum": ["auto", "always", "scroll", "hover"],
@@ -18514,6 +18525,16 @@
             "x-doc": {
               "group": "Behavior",
               "type": "'horizontal' | 'vertical'"
+            }
+          },
+          "size": {
+            "type": "string",
+            "enum": ["default", "xs"],
+            "default": "default",
+            "description": "Толщина полосы: `xs` — тонкая (6px) для плотных рядов вроде вкладок.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'default' | 'xs'"
             }
           }
         },

@@ -7,12 +7,24 @@ import { cn } from '@/lib/utils';
 // (ScrollArea.Root/Viewport/ScrollAreaScrollbar/ScrollAreaThumb/Corner), `@/lib/utils`,
 // снят 'use client'. data-slot уже в апстриме. Compound-набор поверх Radix ScrollArea —
 // презентационный (не form-control). Стили — Tailwind внутри реализации.
+//
+// Сверх апстрима — `size`: у shadcn толщина полосы одна (10px), и в плотных рядах она спорит
+// с содержимым — в ряду вкладок высотой 34px это почти треть высоты. `xs` даёт 6px, как полосы
+// в редакторах кода. Толщина полосы — решение раскладки конкретного места, а не темы, поэтому
+// это проп, а не токен; `data-size` на полосе оставлен для стилей вызывающего и для тестов.
+
+/** Ступени толщины полос прокрутки: `default` — 10px апстрима, `xs` — 6px для плотных рядов. */
+type ScrollAreaSize = 'default' | 'xs';
 
 function ScrollArea({
   className,
   children,
+  size = 'default',
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
+  /** Толщина полос прокрутки: `xs` — тонкие (6px) для плотных рядов вроде вкладок. */
+  size?: ScrollAreaSize;
+}) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
@@ -25,7 +37,9 @@ function ScrollArea({
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
+      {/* Собственная вертикальная полоса области наследует её размерность: иначе вызывающий
+          задал бы `size` дважды — на области и на каждой полосе, которую добавил сам. */}
+      <ScrollBar size={size} />
       <ScrollAreaPrimitive.Corner />
     </ScrollAreaPrimitive.Root>
   );
@@ -34,16 +48,27 @@ function ScrollArea({
 function ScrollBar({
   className,
   orientation = 'vertical',
+  size = 'default',
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
+}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar> & {
+  /** Толщина полосы: `xs` — тонкая (6px) для плотных рядов вроде вкладок. */
+  size?: ScrollAreaSize;
+}) {
   return (
     <ScrollAreaPrimitive.ScrollAreaScrollbar
       data-slot="scroll-area-scrollbar"
+      data-size={size}
       orientation={orientation}
       className={cn(
         'flex touch-none p-px transition-colors select-none',
         orientation === 'vertical' && 'h-full w-2.5 border-l border-l-transparent',
         orientation === 'horizontal' && 'h-2.5 flex-col border-t border-t-transparent',
+        // `xs` сужает полосу вдвое и снимает внутренний отступ: с ним от ползунка в 6px полосе
+        // остаётся 3px (пиксель отступа с каждой стороны плюс рамка-разделитель), и он теряется
+        // на фоне. Рамка остаётся — она отделяет полосу от содержимого, по которому та идёт.
+        size === 'xs' && 'p-0',
+        size === 'xs' && orientation === 'vertical' && 'w-1.5',
+        size === 'xs' && orientation === 'horizontal' && 'h-1.5',
         className
       )}
       {...props}
@@ -57,3 +82,4 @@ function ScrollBar({
 }
 
 export { ScrollArea, ScrollBar };
+export type { ScrollAreaSize };
