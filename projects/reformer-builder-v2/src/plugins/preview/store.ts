@@ -2,9 +2,13 @@
  * Состояние превью, живущее ВНЕ поверхности.
  *
  * Решение контракта: «если состояние не внутри компонента, поверхности можно свободно
- * размонтировать при переключении». Отсюда весь модуль: выбор поверхности, выделение и находки
- * сборки принадлежат документу, а не тому, что сейчас смонтировано. Переключение поверхности
+ * размонтировать при переключении». Отсюда весь модуль: выделение, находки сборки и введённые
+ * значения принадлежат документу, а не тому, что сейчас смонтировано. Смена поверхности
  * поэтому стоит ровно одного размонтирования и ничего не теряет.
+ *
+ * Выбора поверхности здесь больше нет: он существовал ради переключателя в панели превью,
+ * а панель ушла вместе с ней. Теперь поверхность назначает правило (`./selection`) по
+ * объявленным возможностям и правам источника — то есть выбирать нечего и некому.
  *
  * ## Снимок стабилен по ссылке
  *
@@ -19,6 +23,21 @@
  * `DiagnosticsService.publish`. Иначе исправленная ошибка сборки осталась бы висеть после
  * пересборки, и панель показывала бы историю, а не состояние.
  *
+ * ## Введённые значения лежат ВНЕ снимка
+ *
+ * Форму пересобирают на каждую правку схемы, и без переноса значений человек терял бы всё
+ * набранное — а в живом виде конструктора схему правят непрерывно. Место значений здесь по той
+ * же причине, что и у всего остального в этом модуле: поверхность размонтируется при каждом
+ * переключении вида, и состояние, живущее в ней, исчезло бы вместе с ней.
+ *
+ * Но в {@link PreviewState} их нет, и это не оплошность. Снимок — то, на что ПОДПИСАНЫ; значения
+ * читает только сборка формы, и никто их не показывает. Положи их в снимок — и запись значений
+ * при размонтировании перерисовывала бы панель, ничего не меняя на экране.
+ *
+ * От мок-данных они отличаются происхождением, а не только местом: мок пишет автор, и он
+ * переживает закрытие вкладки; эти значения человек набрал, чтобы посмотреть на форму, и дальше
+ * сеанса им жить незачем.
+ *
  * ## Чего здесь нет
  *
  * Мок-данных. По контракту они живут в OPFS рядом с рабочей копией как авторский артефакт,
@@ -30,12 +49,10 @@
  */
 
 import type { Disposable, NodeId } from '@/sdk';
-import type { PreviewProblem } from './contract';
+import type { PreviewProblem, PreviewValues } from './contract';
 
 /** Снимок состояния превью одного документа. */
 export interface PreviewState {
-  /** Выбор человека; `null` — решает правило умолчания ({@link './selection'.chooseSurface}). */
-  readonly surfaceId: string | null;
   readonly selection: readonly NodeId[];
   /** Находки всех источников, слитые в один список в порядке источников. */
   readonly problems: readonly PreviewProblem[];
@@ -44,10 +61,12 @@ export interface PreviewState {
 export interface PreviewStore {
   get(): PreviewState;
   subscribe(cb: () => void): Disposable;
-  /** Выбрать поверхность руками; `null` — вернуть решение правилу. */
-  chooseSurface(id: string | null): void;
   select(ids: readonly NodeId[]): void;
   report(source: string, problems: readonly PreviewProblem[]): void;
+  /** Значения прежней формы; пусто, пока в форму ничего не вводили. */
+  values(): PreviewValues | undefined;
+  /** Запомнить значения формы — перед пересборкой и при размонтировании поверхности. */
+  keepValues(values: PreviewValues): void;
 }
 
 const NO_PROBLEMS: readonly PreviewProblem[] = Object.freeze([]);
@@ -55,10 +74,11 @@ const NO_SELECTION: readonly NodeId[] = Object.freeze([]);
 
 export function createPreviewStore(): PreviewStore {
   const bySource = new Map<string, readonly PreviewProblem[]>();
+  /** Вне снимка намеренно — см. шапку модуля. */
+  let values: PreviewValues | undefined;
   const listeners = new Set<() => void>();
 
   let state: PreviewState = Object.freeze({
-    surfaceId: null,
     selection: NO_SELECTION,
     problems: NO_PROBLEMS,
   });
@@ -91,14 +111,15 @@ export function createPreviewStore(): PreviewStore {
       };
     },
 
-    chooseSurface(id) {
-      if (id === state.surfaceId) return;
-      commit({ ...state, surfaceId: id });
-    },
-
     select(ids) {
       if (sameIds(ids, state.selection)) return;
       commit({ ...state, selection: Object.freeze([...ids]) });
+    },
+
+    values: () => values,
+
+    keepValues(next) {
+      values = next;
     },
 
     report(source, problems) {

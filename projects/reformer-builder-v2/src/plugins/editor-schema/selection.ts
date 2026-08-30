@@ -54,6 +54,30 @@ export function anchorOf(selection: readonly NodeId[]): NodeId | undefined {
  * только режиму `range` и намеренно приходит параметром: порядок принадлежит виду дерева,
  * а не выделению, и вычислять его здесь значило бы завести вторую развёртку модели.
  */
+/**
+ * Модификаторы щелчка в объёме, который решает режим выделения.
+ *
+ * Структурная форма, а не тип события: щелчок приходит и React-обработчиком (дерево, схема),
+ * и нативным слушателем в фазе перехвата (живая форма, где событие обязано быть погашено
+ * до того, как дойдёт до самой формы). Оба вида события совпадают по этим трём полям.
+ */
+export interface SelectModifiers {
+  readonly shiftKey: boolean;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+}
+
+/**
+ * Модификаторы щелчка → режим выделения.
+ *
+ * Shift сильнее Ctrl: диапазон важнее добавления. Правило одно на все три вида конструктора —
+ * разойдись копии, один и тот же щелчок выделял бы по-разному в дереве и в форме.
+ */
+export function selectModeOf(event: SelectModifiers): SelectMode {
+  if (event.shiftKey) return 'range';
+  return event.ctrlKey || event.metaKey ? 'toggle' : 'replace';
+}
+
 export function selectNode(
   selection: readonly NodeId[],
   id: NodeId,

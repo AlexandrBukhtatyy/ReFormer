@@ -8,12 +8,12 @@
  * только что смотрел, в другом режиме. Это ровно тот дефект v1, из-за которого состояние
  * вида в v2 адресуется парой «редактор + документ».
  *
- * ## Активный документ приходит от панели, а не от реестра
+ * ## Активного документа реестр больше не знает
  *
- * Реестр не может узнать активную вкладку сам: вкладки принадлежат рабочей области, а плагину
- * её не дают. Поэтому панель, отрисовавшись, СООБЩАЕТ реестру, на что смотрит, — тем же приёмом,
- * которым сеанс редактора схемы становится активным при монтировании тела редактора. Читает это
- * команда переключения поверхности: у неё своего документа нет.
+ * Знал — потому что панель превью, отрисовавшись, сообщала ему, на что смотрит, а команде
+ * переключения поверхности нужен был документ, которого у неё нет. Ушли обе, и вместе с ними
+ * ушёл вопрос: живой вид редактора схемы всегда знает свой документ и спрашивает состояние
+ * по адресу. Реестр остался тем, чем и был по сути, — картой «документ → состояние».
  *
  * ## Выделение ходит через канал отсюда, а не из панели — и в обе стороны
  *
@@ -49,14 +49,6 @@ export type SelectionChannel = Pick<SelectionService, 'get' | 'set' | 'onDidChan
 export interface PreviewSessions {
   /** Состояние документа; создаётся при первом обращении. */
   storeFor(id: ResourceId): PreviewStore;
-  /** Документ, на который смотрит панель, либо `null`. */
-  active(): ResourceId | null;
-  setActive(id: ResourceId | null): void;
-  /** Состояние активного документа либо `null` — то, с чем работают команды. */
-  activeStore(): PreviewStore | null;
-  /** Версия реестра: меняется на смене активного документа. Снимок для `useSyncExternalStore`. */
-  version(): number;
-  subscribe(cb: () => void): Disposable;
   /**
    * Связывает выделение всех документов с общим каналом — в ОБЕ стороны.
    *
@@ -76,32 +68,18 @@ export interface PreviewSessions {
 
 export function createPreviewSessions(): PreviewSessions {
   const stores = new Map<ResourceId, PreviewStore>();
-  const listeners = new Set<() => void>();
   /** Подписка «стор → канал» по документу. Пусто, пока канал не подключён. */
   const publishing = new Map<ResourceId, Disposable>();
   let channel: SelectionChannel | null = null;
   /** Подписка «канал → стор». Одна на все документы: канал называет ресурс в событии. */
   let watching: Disposable | null = null;
-  let activeId: ResourceId | null = null;
-  let version = 0;
-
-  const notify = (): void => {
-    version += 1;
-    for (const listener of [...listeners]) {
-      try {
-        listener();
-      } catch (error) {
-        console.error('[preview] подписчик реестра состояний упал', error);
-      }
-    }
-  };
 
   /**
    * Отправляет выделение документа в канал.
    *
    * Служба сама гасит повтор совпадающего значения, поэтому подписка на ВЕСЬ снимок стора
-   * (а он меняется и от выбора поверхности, и от находок сборки) не даёт лишних уведомлений
-   * снаружи — только лишний вызов, который дешевле второго правила «на что публиковать».
+   * (а он меняется и от находок сборки) не даёт лишних уведомлений снаружи — только лишний
+   * вызов, который дешевле второго правила «на что публиковать».
    */
   const publish = (id: ResourceId, store: PreviewStore): void => {
     channel?.set(id, store.get().selection);
@@ -157,31 +135,10 @@ export function createPreviewSessions(): PreviewSessions {
         stores.set(id, store);
         attach(id, store);
         // Состояние родилось позже щелчка по канвасу: прочитать текущее выделение —
-        // единственный способ подсветить узел, выбранный до открытия панели.
+        // единственный способ подсветить узел, выбранный до того, как форму показали.
         reconcile(id, store);
       }
       return store;
-    },
-
-    active: () => activeId,
-
-    setActive(id) {
-      if (id === activeId) return;
-      activeId = id;
-      notify();
-    },
-
-    activeStore: () => (activeId === null ? null : (stores.get(activeId) ?? null)),
-
-    version: () => version,
-
-    subscribe(cb) {
-      listeners.add(cb);
-      return {
-        dispose(): void {
-          listeners.delete(cb);
-        },
-      };
     },
 
     connectSelection(next) {
@@ -212,10 +169,8 @@ export function createPreviewSessions(): PreviewSessions {
       if (!stores.delete(id)) return;
       detach(id);
       // Запись в канале НЕ снимается: там уже может лежать выделение, поставленное редактором
-      // схемы, а закрытие панели превью — не повод стирать чужой выбор. Владелец записи —
-      // тот, кто владеет жизнью ресурса, а не одна из показывающих его сторон.
-      if (activeId === id) activeId = null;
-      notify();
+      // схемы, а закрытие вкладки — не повод стирать чужой выбор. Владелец записи — тот,
+      // кто владеет жизнью ресурса, а не одна из показывающих его сторон.
     },
 
     dispose() {
@@ -224,8 +179,6 @@ export function createPreviewSessions(): PreviewSessions {
       watching = null;
       channel = null;
       stores.clear();
-      listeners.clear();
-      activeId = null;
     },
   };
 }

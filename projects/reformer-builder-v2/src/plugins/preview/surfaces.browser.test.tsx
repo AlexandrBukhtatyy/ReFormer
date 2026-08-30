@@ -23,9 +23,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import type { Disposable, DocumentRef, NodeId } from '@/sdk';
-import type { PreviewContext, PreviewProblem, PreviewSurface } from './contract';
+import type { PreviewContext, PreviewProblem, PreviewSurface, PreviewValues } from './contract';
 import { builtinSurfaces } from './plugin';
 import { RUNTIME_SURFACE_ID } from './runtime/surface';
+import { COMPILING_SURFACE_ID } from './compiling/surface';
+import type { PreviewModules } from './host';
 import { createFakeHost, fakeRef } from './testing';
 
 const NOOP: Disposable = Object.freeze({ dispose: () => undefined });
@@ -47,6 +49,8 @@ function host(): HTMLElement {
 
 interface FakeContext extends PreviewContext {
   readonly problems: PreviewProblem[];
+  /** Что поверхность отдала на хранение. Двойник хранит по-настоящему — как и настоящий стор. */
+  kept(): PreviewValues | undefined;
 }
 
 const NO_SELECTION: readonly NodeId[] = Object.freeze([]);
@@ -67,8 +71,10 @@ function fakeContext(schema: JsonFormSchema | null): FakeContext {
     ref: fakeRef('fake:form/form.json'),
     kind: 'text',
   };
+  let values: PreviewValues | undefined;
   return {
     problems,
+    kept: () => values,
     doc,
     schema: () => schema,
     onDidChangeSchema: () => NOOP,
@@ -76,6 +82,10 @@ function fakeContext(schema: JsonFormSchema | null): FakeContext {
     onDidChangeSelection: () => NOOP,
     select: () => undefined,
     mock: () => null,
+    values: () => values,
+    keepValues: (next) => {
+      values = next;
+    },
     report: (_source, next) => {
       problems.push(...next);
     },
@@ -131,10 +141,114 @@ describe.each(surfaces.map((surface) => [surface.id, surface] as const))(
 );
 
 describe('набор поверхностей', () => {
-  it('их три и все берутся за документ формы', () => {
-    expect(surfaces).toHaveLength(3);
+  it('их две, и обе берутся за документ формы', () => {
+    // Каркасная убрана: структуру формы показывают дерево и схема, и оба умеют её править.
+    expect(surfaces).toHaveLength(2);
     const doc = fakeContext(null).doc;
-    expect(surfaces.filter((surface) => surface.applies(doc))).toHaveLength(3);
+    expect(surfaces.filter((surface) => surface.applies(doc))).toHaveLength(2);
+  });
+});
+
+/**
+ * Правка схемы не должна перекомпилировать сайдкары.
+ *
+ * Свойство видно только здесь: оно про порядок эффектов React, а в node-прогоне эффекты
+ * не выполняются вовсе. Цена ошибки — форма, падающая в «собирается» на каждое нажатие
+ * клавиши в конструкторе, и перезапуск транспилятора вместе с ней.
+ */
+describe('компилирующая поверхность и правка схемы', () => {
+  /** Контекст, у которого схему можно поменять и сообщить об этом. */
+  function editableContext(): FakeContext & { edit(next: JsonFormSchema): void } {
+    let schema = sampleSchema();
+    const listeners = new Set<() => void>();
+    const base = fakeContext(schema);
+    return {
+      ...base,
+      schema: () => schema,
+      onDidChangeSchema: (cb: () => void) => {
+        listeners.add(cb);
+        return { dispose: () => listeners.delete(cb) };
+      },
+      edit(next: JsonFormSchema) {
+        schema = next;
+        for (const listener of [...listeners]) listener();
+      },
+    };
+  }
+
+  it('правка схемы пересобирает форму, но не запускает компиляцию заново', async () => {
+    let loads = 0;
+    const modules: PreviewModules = {
+      load: () => {
+        loads += 1;
+        return Promise.resolve({ entry: {}, modules: new Map(), errors: [] });
+      },
+    };
+    // Сайдкар нужен, чтобы компиляции было что делать: без файлов загрузчик не зовут вовсе.
+    const siblings = { 'model.ts': 'module.exports.initialFormModel = {};' };
+    const compiling = builtinSurfaces(createFakeHost({ modules, siblings })).find(
+      (surface) => surface.id === COMPILING_SURFACE_ID
+    );
+    if (compiling === undefined) throw new Error('компилирующая поверхность не зарегистрирована');
+
+    const ctx = editableContext();
+    await mounted(compiling, ctx);
+    await vi.waitFor(() => {
+      expect(loads).toBe(1);
+    });
+
+    const edited = sampleSchema();
+    edited.meta = { name: 'после правки' };
+    ctx.edit(edited);
+
+    // Ждём, пока перерисовка точно пройдёт, и проверяем, что компилятор не тронут.
+    await vi.waitFor(() => {
+      expect(document.body.textContent).not.toBe(null);
+    });
+    expect(loads).toBe(1);
+  });
+});
+/**
+ * Хранение введённых значений — вторая половина того же механизма, что `carry` в сборке.
+ *
+ * Node-тесты сборки проверяют перенос как правило: значения поверх мока, лишние пути отброшены.
+ * Здесь проверяется то, чего в node нет вовсе, — что модель ДОЖИВАЕТ до размонтирования и её
+ * содержимое успевает уйти на хранение. Без этого правка правилами работала бы, а на экране
+ * переключение вида конструктора всё равно давало бы пустые поля.
+ */
+describe('значения переживают размонтирование рантайм-поверхности', () => {
+  const runtime = surfaces.find((surface) => surface.id === RUNTIME_SURFACE_ID);
+
+  it('снятие отдаёт значения формы на хранение', async () => {
+    if (runtime === undefined) throw new Error('рантайм-поверхность не зарегистрирована');
+    const ctx = fakeContext(sampleSchema());
+    const element = host();
+    const subscription = runtime.mount(element, ctx);
+    await vi.waitFor(() => {
+      expect(element.childElementCount).toBeGreaterThan(0);
+    });
+    // До снятия хранилище пусто: поверхность отдаёт значения ровно один раз и в конце.
+    expect(ctx.kept()).toBeUndefined();
+
+    subscription.dispose();
+
+    // Схема из фикстуры даёт эти два пути — значит модель дожила и была прочитана.
+    expect(ctx.kept()).toMatchObject({ loanType: '', properties: [] });
+  });
+
+  it('сохранённое возвращается в форму, а не заменяется дефолтом мока', async () => {
+    if (runtime === undefined) throw new Error('рантайм-поверхность не зарегистрирована');
+    const ctx = fakeContext(sampleSchema());
+    ctx.keepValues({ loanType: 'ипотека' });
+    const element = host();
+    const subscription = runtime.mount(element, ctx);
+    await vi.waitFor(() => {
+      expect(element.childElementCount).toBeGreaterThan(0);
+    });
+    subscription.dispose();
+    // Полный круг: хранилище → сборка формы → модель → снова хранилище. Синтезированный мок
+    // дал бы здесь пустую строку, и именно это ломалось бы при переключении вида.
+    expect(ctx.kept()).toMatchObject({ loanType: 'ипотека' });
   });
 });
 

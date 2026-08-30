@@ -21,6 +21,7 @@ import type { RootI18nService } from '../host/services/i18n/i18n';
 import { useLocale } from '../host/ui/usePanels';
 import type { CatalogEntry } from '../lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '../lib/kits/types';
+import { createKitNamespaceLoader } from './kit-namespace';
 import { KitsServiceToken } from '../plugins/kits/service';
 import { PREVIEW_PLUGIN_ID } from '../plugins/preview';
 import type {
@@ -60,32 +61,13 @@ function makeUseTranslate(i18n: RootI18nService): () => Translate {
  * загрузок. Отказ **не запоминаем** — иначе один сетевой сбой навсегда лишал бы человека живого
  * превью, а перезагрузка страницы не должна быть единственным лечением сетевой икоты.
  */
-function createKitNamespaceLoader(): { get: () => KitNamespace | null } {
-  let loaded: KitNamespace | null = null;
-  let loading: Promise<void> | null = null;
-
-  return {
-    get: () => {
-      if (loaded === null && loading === null) {
-        loading = import('@reformer/ui-kit')
-          .then((ns) => {
-            loaded = ns as unknown as KitNamespace;
-          })
-          .catch((err: unknown) => {
-            console.error('[preview] кит не загрузился: рисуем заглушки', err);
-          })
-          .finally(() => {
-            loading = null;
-          });
-      }
-      return loaded;
-    },
-  };
-}
-
 export function createPreviewHost(deps: PreviewHostDeps): PreviewHost {
   const { project, i18n, services, modules } = deps;
-  const namespace = createKitNamespaceLoader();
+  // Импорт передаётся параметром, а не зашит в загрузчик: так его поведение проверяется
+  // тестом, не собирая настоящий чанк кита.
+  const namespace = createKitNamespaceLoader(
+    () => import('@reformer/ui-kit') as unknown as Promise<KitNamespace>
+  );
 
   /**
    * Активная вкладка как внешнее состояние.
@@ -130,8 +112,19 @@ export function createPreviewHost(deps: PreviewHostDeps): PreviewHost {
     kit: (): KitDescriptor | null => services.get(KitsServiceToken)?.descriptor() ?? null,
     kitNamespace: namespace.get,
 
-    onDidChangeKit: (cb: () => void): Disposable =>
-      services.get(KitsServiceToken)?.onDidChange(cb) ?? { dispose: () => {} },
+    // Два события, и оба означают «пересоберись»: сменился активный кит и догрузилось его
+    // пространство имён. Подпишись только на первое — и форма, собранная до загрузки кита,
+    // осталась бы в заглушках навсегда.
+    onDidChangeKit: (cb: () => void): Disposable => {
+      const onKit = services.get(KitsServiceToken)?.onDidChange(cb) ?? null;
+      const onLoad = namespace.onDidLoad(cb);
+      return {
+        dispose(): void {
+          onKit?.dispose();
+          onLoad.dispose();
+        },
+      };
+    },
 
     // Соседи формы — её сайдкары: компилирующей поверхности нужен каталог, а не один файл.
     siblings: async (id: ResourceId) => {

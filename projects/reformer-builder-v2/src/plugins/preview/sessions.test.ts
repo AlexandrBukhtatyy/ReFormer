@@ -1,5 +1,5 @@
 /**
- * Реестр состояний: состояние принадлежит документу, а не панели.
+ * Реестр состояний: состояние принадлежит документу, а не тому, что его показывает.
  *
  * @module plugins/preview/sessions.test
  */
@@ -9,44 +9,32 @@ import { createPreviewSessions } from './sessions';
 import { createFakeSelectionChannel, type FakeSelectionChannel } from './testing';
 
 describe('createPreviewSessions', () => {
-  it('состояние документа переживает переключение вкладки', () => {
+  it('состояние документа то же самое при повторном обращении', () => {
     const sessions = createPreviewSessions();
-    sessions.storeFor('a').chooseSurface('preview.skeleton');
-    sessions.setActive('b');
-    sessions.setActive('a');
-    expect(sessions.storeFor('a').get().surfaceId).toBe('preview.skeleton');
+    const store = sessions.storeFor('a');
+    store.select(['a1b2c3d4']);
+    expect(sessions.storeFor('a')).toBe(store);
+    expect(sessions.storeFor('a').get().selection).toEqual(['a1b2c3d4']);
   });
 
   it('состояния разных документов не смешиваются', () => {
     const sessions = createPreviewSessions();
-    sessions.storeFor('a').chooseSurface('preview.skeleton');
-    expect(sessions.storeFor('b').get().surfaceId).toBeNull();
+    sessions.storeFor('a').select(['a1b2c3d4']);
+    expect(sessions.storeFor('b').get().selection).toEqual([]);
   });
 
-  it('активный документ читается командой, у которой своего документа нет', () => {
+  it('введённые значения живут вместе с состоянием документа', () => {
     const sessions = createPreviewSessions();
-    expect(sessions.activeStore()).toBeNull();
-    const store = sessions.storeFor('a');
-    sessions.setActive('a');
-    expect(sessions.activeStore()).toBe(store);
+    sessions.storeFor('a').keepValues({ loanType: 'ипотека' });
+    expect(sessions.storeFor('a').values()).toEqual({ loanType: 'ипотека' });
+    expect(sessions.storeFor('b').values()).toBeUndefined();
   });
 
-  it('закрытая вкладка забывается вместе со своим режимом', () => {
+  it('закрытая вкладка забывается вместе со своим состоянием', () => {
     const sessions = createPreviewSessions();
-    sessions.storeFor('a').chooseSurface('preview.skeleton');
-    sessions.setActive('a');
+    sessions.storeFor('a').select(['a1b2c3d4']);
     sessions.forget('a');
-    expect(sessions.active()).toBeNull();
-    expect(sessions.storeFor('a').get().surfaceId).toBeNull();
-  });
-
-  it('версия меняется на смене активного документа', () => {
-    const sessions = createPreviewSessions();
-    const before = sessions.version();
-    sessions.setActive('a');
-    expect(sessions.version()).toBeGreaterThan(before);
-    sessions.setActive('a');
-    expect(sessions.version()).toBe(before + 1);
+    expect(sessions.storeFor('a').get().selection).toEqual([]);
   });
 });
 

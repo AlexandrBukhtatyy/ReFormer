@@ -42,9 +42,11 @@ import {
   type ResourceId,
   type WhenContext,
 } from '@/sdk';
+import { canvasViewCommands, canvasViewMenuItems, type CanvasActionDeps } from './canvas-actions';
 import { createCanvasPrefs, type CanvasPrefs } from './canvas-prefs';
+import { createQuickAddStore, type QuickAddStore } from './quick-add-store';
 import { schemaEditorCommands, type CommandAccess } from './commands';
-import { schemaViewCommands, schemaViewMenuItems } from './view-actions';
+import { schemaViewCommands } from './view-actions';
 import type { SchemaViewStore } from './view-mode';
 import { createSchemaViewStore } from './view-mode';
 import { createDragSession, type DragSession } from './drag-session';
@@ -115,6 +117,8 @@ export interface SchemaEditorStores {
    * вида: снимок принадлежит документу, а способ смотреть — человеку.
    */
   readonly prefs: CanvasPrefs;
+  /** Быстрое добавление: команда открывает диалог через этот стор, тело редактора его рисует. */
+  readonly quickAdd: QuickAddStore;
 }
 
 /**
@@ -132,7 +136,7 @@ export function schemaEditorContribution(
   stores: SchemaEditorStores = defaultStores(),
   views: SchemaViewStore | null = null
 ): EditorContribution {
-  const { drag, viewStates, prefs } = stores;
+  const { drag, viewStates, prefs, quickAdd } = stores;
   return {
     id: SCHEMA_EDITOR_ID,
     // Имя для выбора «открыть с помощью». Ключ разрешается словарём ПЛАГИНА: заголовок
@@ -154,6 +158,7 @@ export function schemaEditorContribution(
         drag,
         viewStates,
         prefs,
+        quickAdd,
         views,
       }),
     viewState: {
@@ -174,6 +179,7 @@ function defaultStores(): SchemaEditorStores {
     drag: createDragSession(),
     viewStates: createCollapseRegistry(),
     prefs: createCanvasPrefs(),
+    quickAdd: createQuickAddStore(),
   };
 }
 
@@ -273,10 +279,6 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
         },
       };
 
-      for (const command of schemaEditorCommands(registry, host)) {
-        ctx.subscriptions.push(ctx.commands.register(command));
-      }
-
       // Настройки берутся из реестра служб: способ показа принадлежит человеку, и хранит
       // его платформа. Без службы всё работает, но не переживает перезагрузку.
       const settings = ctx.services.get(SettingsServiceToken) ?? null;
@@ -290,12 +292,18 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
         drag: createDragSession(),
         viewStates: createCollapseRegistry(),
         prefs: createCanvasPrefs({ settings }),
+        quickAdd: createQuickAddStore(),
       };
       ctx.subscriptions.push({
         dispose: () => {
           stores.prefs.dispose();
+          stores.quickAdd.dispose();
         },
       });
+
+      for (const command of schemaEditorCommands(registry, host, stores.quickAdd)) {
+        ctx.subscriptions.push(ctx.commands.register(command));
+      }
 
       // Чем показан документ — конструктором или исходником.
       const views = createSchemaViewStore({
@@ -321,11 +329,24 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
-      for (const item of schemaViewMenuItems({
+      // Как показан документ — дерево, схема, живая форма или исходник: один переключатель
+      // в полосе вкладок. Держать его двумя наборами кнопок значило бы дать два ответа
+      // на один вопрос.
+      const canvasActions: CanvasActionDeps = {
+        prefs: stores.prefs,
         views,
-        hasTextEditor: () => host.TextEditor !== undefined,
         isSchema,
-      })) {
+        editorId: SCHEMA_EDITOR_ID,
+        hasTextEditor: () => host.TextEditor !== undefined,
+        // Спрашивается у порта на каждый вызов: поверхности вносятся вкладами, и плагин
+        // превью можно выключить, пока вкладка открыта.
+        hasLive: () => host.live?.available() === true,
+        activeDocument: () => host.activeDocument?.() ?? null,
+      };
+      for (const command of canvasViewCommands(canvasActions)) {
+        ctx.subscriptions.push(ctx.commands.register(command));
+      }
+      for (const item of canvasViewMenuItems(canvasActions)) {
         ctx.subscriptions.push(ctx.extensions.contribute(MenuPoint, item.value, { id: item.id }));
       }
 

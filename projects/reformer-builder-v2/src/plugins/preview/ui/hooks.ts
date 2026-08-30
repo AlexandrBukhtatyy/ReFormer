@@ -1,7 +1,7 @@
 /**
  * Подписки React на контекст превью и на его состояние.
  *
- * Отдельно от компонентов по той же причине, по которой у редактора схемы отделён `useSession`:
+ * Отдельно от поверхностей по той же причине, по которой у редактора схемы отделён `useSession`:
  * правила живут в чистых модулях, а здесь остаётся переходник `useSyncExternalStore`, в котором
  * нечему ломаться, кроме стабильности снимка.
  *
@@ -17,8 +17,6 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { NodeId } from '@/sdk';
 import type { PreviewContext } from '../contract';
 import type { PreviewHost } from '../host';
-import type { PreviewSessions } from '../sessions';
-import type { PreviewState, PreviewStore } from '../store';
 
 /** Схема документа с перерисовкой на каждую правку буфера. */
 export function usePreviewSchema(ctx: PreviewContext): JsonFormSchema | null {
@@ -47,36 +45,6 @@ export function usePreviewSelection(ctx: PreviewContext): readonly NodeId[] {
     [ctx]
   );
   const snapshot = useCallback(() => ctx.selection(), [ctx]);
-  return useSyncExternalStore(subscribe, snapshot, snapshot);
-}
-
-/** Состояние превью одного документа. */
-export function usePreviewState(store: PreviewStore): PreviewState {
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const subscription = store.subscribe(onStoreChange);
-      return () => {
-        subscription.dispose();
-      };
-    },
-    [store]
-  );
-  const snapshot = useCallback(() => store.get(), [store]);
-  return useSyncExternalStore(subscribe, snapshot, snapshot);
-}
-
-/** Версия реестра состояний: то самое стабильное число, на которое подписана панель. */
-export function useSessionsVersion(sessions: PreviewSessions): number {
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const subscription = sessions.subscribe(onStoreChange);
-      return () => {
-        subscription.dispose();
-      };
-    },
-    [sessions]
-  );
-  const snapshot = useCallback(() => sessions.version(), [sessions]);
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 

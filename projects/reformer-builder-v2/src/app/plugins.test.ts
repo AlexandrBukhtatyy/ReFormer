@@ -23,7 +23,7 @@ import { createSelectionService, SelectionServiceToken } from '../host/services/
 import { createPluginRegistry } from '../host/plugin/registry';
 import { createMemoryStorageBackend } from '../host/plugin/storage';
 import { DocumentModelPoint } from '../host/workspace/model/provider';
-import { EditorPoint } from '../host/ui/editors';
+import { EditorPoint, resolveEditor } from '../host/ui/editors';
 import { PanelPoint } from '../host/ui/slots';
 import { createFocusRegistry } from '../plugins/editor-monaco';
 import { createBuiltinPlugins } from './plugins';
@@ -142,14 +142,7 @@ describe('состав встроенных плагинов', () => {
     const owners = <T>(point: ExtensionPoint<T>): string[] =>
       [...new Set(h.extensions.get(point).map((c) => c.pluginId))].sort();
 
-    expect(owners(PanelPoint)).toEqual([
-      'ai',
-      'codegen',
-      'editor-schema',
-      'files',
-      'preview',
-      'templates',
-    ]);
+    expect(owners(PanelPoint)).toEqual(['ai', 'codegen', 'editor-schema', 'files', 'templates']);
     expect(owners(EditorPoint)).toEqual([
       'editor-markdown',
       'editor-monaco',
@@ -157,6 +150,29 @@ describe('состав встроенных плагинов', () => {
       'files',
     ]);
     expect(owners(DocumentModelPoint)).toEqual(['editor-schema']);
+  });
+
+  it('markdown-файл достаётся markdown-редактору, а не Monaco', () => {
+    // Проверка ЗДЕСЬ, а не в плагине: приоритеты сравниваются между плагинами, а плагин
+    // видит только свой. Числа были равны — и `.md` доставался Monaco просто потому, что
+    // тот зарегистрирован раньше; кнопки предпросмотра при этом рисовались и «не работали».
+    const h = harness();
+    h.plugins.registerAll(h.built);
+    h.plugins.activateAll();
+
+    const ref = {
+      id: 'mem:README.md',
+      sourceId: 'mem',
+      path: 'README.md',
+      name: 'README.md',
+      kind: 'file' as const,
+      mediaType: 'text/markdown',
+    };
+    const winner = resolveEditor(h.extensions.get(EditorPoint), ref, {
+      text: () => Promise.resolve('# заголовок'),
+    });
+
+    expect(winner?.value.id).toBe('markdown.editor');
   });
 
   it('у каждого вклада есть владелец, и он настоящий плагин', () => {

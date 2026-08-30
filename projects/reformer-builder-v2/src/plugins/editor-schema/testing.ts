@@ -24,8 +24,11 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { Disposable, ResourceId, ResourceRef } from '@/sdk';
 import { createSchemaModelProvider } from './provider';
+import { NODE_CLASS_PREFIX } from '@/lib/form-model/node-token';
 import type {
   EditOp,
+  LivePreviewPort,
+  LiveSurfaceContext,
   NodeId,
   SchemaApplyOutcome,
   SchemaEditorHost,
@@ -294,5 +297,102 @@ export function createFakeSelectionChannel(): FakeSelectionChannel {
         },
       };
     },
+  };
+}
+
+/**
+ * Двойник порта живого рендера — вместе с тем, что тест про него хочет знать.
+ *
+ * Рисует «форму» вложенными `div` с классами-токенами и перерисовывает её по
+ * `onDidChangeSchema`. Это не подделка: живой вид опирается ровно на это обещание контракта —
+ * «в моём DOM стоят токены аннотированной схемы», — и настоящая рантайм-поверхность в тестовом
+ * окружении даёт то же самое, только через подписанные стабы и втрое медленнее.
+ */
+export interface FakeLivePort extends LivePreviewPort {
+  /** Сколько раз поверхность монтировали. Инвариант живого вида: ровно один на документ. */
+  mounts(): number;
+  /** Контекст последнего монтирования: тест дёргает его так, как это делала бы поверхность. */
+  ctx(): LiveSurfaceContext | null;
+}
+
+export interface FakeLivePortOptions {
+  /** Нет ни одной поверхности: кнопки вида «форма» не существует. */
+  readonly empty?: boolean;
+  readonly hitTest?: boolean;
+  readonly executesCode?: boolean;
+  /** Уже переведённая причина отката; `null` — выбор без отката. */
+  readonly notice?: string | null;
+}
+
+export function createFakeLivePort(options: FakeLivePortOptions = {}): FakeLivePort {
+  const empty = options.empty === true;
+  const listeners = new Set<() => void>();
+  let mounts = 0;
+  let ctx: LiveSurfaceContext | null = null;
+
+  /** Плоский обход схемы: каждому узлу с адресом — свой элемент с токеном. */
+  const draw = (element: HTMLElement, schema: JsonFormSchema | null): void => {
+    element.replaceChildren();
+    if (schema === null) return;
+    const visit = (node: unknown, parent: HTMLElement): void => {
+      if (typeof node !== 'object' || node === null) return;
+      const record = node as Record<string, unknown>;
+      const id = record.$nodeId;
+      const box = element.ownerDocument.createElement('div');
+      // Размеры настоящие: зона броска считается по `getBoundingClientRect`, и на коробках
+      // нулевой высоты любая точка попадала бы в середину — то есть проверялось бы не то.
+      box.style.cssText = 'min-height:32px;padding:4px;box-sizing:border-box;';
+      if (typeof id === 'string') box.className = `${NODE_CLASS_PREFIX}${id}`;
+      parent.append(box);
+      for (const value of Object.values(record)) {
+        if (Array.isArray(value)) for (const item of value) visit(item, box);
+        else visit(value, box);
+      }
+    };
+    visit(schema.root, element);
+  };
+
+  return {
+    available: () => !empty,
+
+    chosen: () =>
+      empty
+        ? null
+        : {
+            id: 'fake.surface',
+            title: 'двойник',
+            hitTest: options.hitTest ?? true,
+            sameRealm: true,
+            executesCode: options.executesCode ?? false,
+            notice: options.notice ?? null,
+          },
+
+    mount(_documentId, element, next) {
+      if (empty) return null;
+      mounts += 1;
+      ctx = next;
+      draw(element, next.schema());
+      // Правка схемы обязана доходить перерисовкой, а не пересозданием поверхности: тем же
+      // способом ведёт себя настоящая, и именно это проверяет инвариант монтирования.
+      const subscription = next.onDidChangeSchema(() => draw(element, next.schema()));
+      return {
+        dispose(): void {
+          subscription.dispose();
+          element.replaceChildren();
+        },
+      };
+    },
+
+    onDidChange(_documentId, cb) {
+      listeners.add(cb);
+      return {
+        dispose(): void {
+          listeners.delete(cb);
+        },
+      };
+    },
+
+    mounts: () => mounts,
+    ctx: () => ctx,
   };
 }

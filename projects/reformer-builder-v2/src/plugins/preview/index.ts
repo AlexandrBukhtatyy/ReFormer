@@ -55,17 +55,30 @@
 export {
   createPreviewPlugin,
   builtinSurfaces,
-  panelVisible,
-  previewCommands,
-  previewPanel,
-  CYCLE_SURFACE_COMMAND_ID,
-  DEFAULT_PREVIEW_SLOT,
-  PREVIEW_PANEL_ID,
   PREVIEW_PLUGIN_ID,
   type PreviewPluginOptions,
 } from './plugin';
 
 export { PreviewSurfacePoint } from './contract';
+
+/**
+ * Правило выбора поверхности, состояния документов и переходник контекста — наружу.
+ *
+ * Не «внутреннее, вырвавшееся в публичный интерфейс», а прямое следствие того, что поверхности
+ * стало показывать двое: панель превью и живой вид редактора схемы. Композиция обязана дать
+ * второму ТУ ЖЕ поверхность по ТОМУ ЖЕ правилу и с ТЕМ ЖЕ состоянием документа — иначе
+ * переключение поверхности в панели не меняло бы форму в редакторе, а находки сборки
+ * раздваивались бы. Реестр состояний поэтому и создаётся композицией — тем же приёмом,
+ * которым она владеет реестрами Monaco, делимыми на троих.
+ */
+export { chooseSurface, surfaceRank } from './selection';
+export type { SurfaceChoice, SurfaceFallback, SurfaceOption } from './selection';
+export { createPreviewSessions } from './sessions';
+export type { PreviewSessions } from './sessions';
+export { documentRefOf } from './context';
+export { fallbackMessage, surfaceTitle } from './label';
+export type { PreviewStore, PreviewState } from './store';
+export type { PreviewValues } from './contract';
 export type {
   ExtensionPointRef,
   PreviewCapabilities,
@@ -92,4 +105,3 @@ export type {
 
 export { COMPILING_SURFACE_ID } from './compiling/surface';
 export { RUNTIME_SURFACE_ID } from './runtime/surface';
-export { SKELETON_SURFACE_ID } from './skeleton/surface';

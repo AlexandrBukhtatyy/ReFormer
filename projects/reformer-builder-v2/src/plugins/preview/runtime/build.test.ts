@@ -50,6 +50,22 @@ describe('buildRuntimeBundle', () => {
     expect(bundle.form?.model.get()).toMatchObject({ loanType: 'ипотека' });
   });
 
+  it('введённые значения переносятся поверх мока и model.ts', () => {
+    const bundle = bundleOf(sampleSchema(), {
+      initialOverride: { loanType: 'ипотека' },
+      carry: { loanType: 'автокредит' },
+    });
+    // Введённое человеком старше и мока, и объявленных начальных значений.
+    expect(bundle.form?.model.get()).toMatchObject({ loanType: 'автокредит' });
+  });
+
+  it('перенос не создаёт путей, которых в схеме нет', () => {
+    const bundle = bundleOf(sampleSchema(), { carry: { loanType: 'авто', сгинувшее: 'x' } });
+    const model = bundle.form?.model.get() as Record<string, unknown>;
+    expect(model).toMatchObject({ loanType: 'авто' });
+    expect(Object.hasOwn(model, 'сгинувшее')).toBe(false);
+  });
+
   it('битая схема — находка, а не исключение', () => {
     const bundle = bundleOf({ version: '1.0' } as unknown as JsonFormSchema);
     expect(bundle.form).toBeNull();

@@ -19,6 +19,8 @@ import { useCallback, useEffect, useSyncExternalStore, type ReactElement } from 
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import type { ResourceId } from '@/sdk';
 import { Canvas } from './Canvas';
+import { QuickAddDialog } from './QuickAddDialog';
+import { useCatalog } from './useCatalog';
 import type { CommandAccess } from '../commands';
 import { useDiagnosticCode, useResourceDiagnostics } from './useDiagnostics';
 import { useSessionOf, useSessionState } from './useSession';
@@ -26,6 +28,7 @@ import type { DragSession } from '../drag-session';
 import type { SchemaDiagnostics, SchemaEditorHost } from '../host';
 import type { SessionRegistry } from '../sessions';
 import type { CanvasPrefs } from '../canvas-prefs';
+import type { QuickAddStore } from '../quick-add-store';
 import type { CollapseRegistry } from '../view-state';
 import type { SchemaView, SchemaViewStore } from '../view-mode';
 
@@ -68,6 +71,12 @@ export interface SchemaEditorProps {
    * переключении вкладок.
    */
   readonly prefs?: CanvasPrefs | null;
+  /**
+   * Быстрое добавление компонента: стор, которым команда открывает диалог.
+   *
+   * `null` — сборка без него, и это законно: тесту канваса диалог не нужен.
+   */
+  readonly quickAdd?: QuickAddStore | null;
 }
 
 /**
@@ -103,6 +112,22 @@ function useSchemaView(views: SchemaViewStore | null, documentId: ResourceId): S
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
+/** Открыт ли диалог быстрого добавления. Подписка на стор — тем же приёмом, что режим. */
+function useQuickAddOpen(store: QuickAddStore | null): boolean {
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      if (store === null) return () => undefined;
+      const subscription = store.subscribe(listener);
+      return () => {
+        subscription.dispose();
+      };
+    },
+    [store]
+  );
+  const snapshot = useCallback(() => store?.isOpen() ?? false, [store]);
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
+}
+
 export function SchemaEditor({
   host,
   registry,
@@ -112,9 +137,12 @@ export function SchemaEditor({
   drag = null,
   viewStates = null,
   prefs = null,
+  quickAdd = null,
   views = null,
 }: SchemaEditorProps): ReactElement {
   const view = useSchemaView(views, documentId);
+  const quickAddOpen = useQuickAddOpen(quickAdd);
+  const catalog = useCatalog(host);
   const TextEditor = host.TextEditor;
 
   // Исходник рисуется ДО всех хуков конструктора? Нет: хук по условию звать нельзя.
@@ -164,17 +192,36 @@ export function SchemaEditor({
   }
 
   return (
-    <Canvas
-      session={session}
-      state={state}
-      t={t}
-      commands={commands}
-      problems={problems}
-      message={message}
-      fixTitle={fixTitle}
-      drag={drag}
-      viewStates={viewStates}
-      prefs={prefs}
-    />
+    <>
+      <Canvas
+        session={session}
+        state={state}
+        t={t}
+        commands={commands}
+        problems={problems}
+        message={message}
+        fixTitle={fixTitle}
+        drag={drag}
+        viewStates={viewStates}
+        prefs={prefs}
+        // Поверхность, рисующая форму: её даёт композиция, потому что плагины друг друга
+        // не видят. Отсутствие означает, что вида «форма» нет вовсе.
+        live={host.live ?? null}
+      />
+      {/* Диалог рисуется телом редактора, а открывается КОМАНДОЙ через стор: команда живёт
+          у плагина и про смонтированные компоненты не знает. Без стора — сборка без быстрого
+          добавления; это законно (тест канваса), а не поломка. */}
+      {quickAdd !== null && (
+        <QuickAddDialog
+          open={quickAddOpen}
+          onClose={quickAdd.close}
+          session={session}
+          state={state}
+          t={t}
+          catalog={catalog}
+          order={host.categoryOrder?.()}
+        />
+      )}
+    </>
   );
 }

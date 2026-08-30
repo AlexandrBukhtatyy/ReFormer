@@ -37,14 +37,13 @@ import {
   useState,
   type DragEvent,
   type KeyboardEvent,
-  type MouseEvent,
   type ReactElement,
 } from 'react';
 import { ArrowDown, ArrowRight, GripVertical, Wrench } from 'lucide-react';
 import { Badge } from '@reformer/ui-kit/badge';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import type { CommandLookup, Diagnostic, QuickFix } from '@/sdk';
-import { navTarget, type NavDir } from '@/lib/form-model/query';
+import { type NavDir } from '@/lib/form-model/query';
 import type { Orientation } from '@/lib/form-model/node-kind';
 import { FLIP_COMMAND_ID, type CommandAccess } from '../commands';
 import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../drag-session';
@@ -55,6 +54,7 @@ import {
   type NodeDiagnostics,
 } from '../node-diagnostics';
 import { indexNodes } from '../node-index';
+import { visibleTarget } from '../schematic-nav';
 import { planSchematicDrop, type SchematicSpot } from '../schematic-drop';
 import { zoneAt, zoneEdge, PERP_ZONES, type SchematicZone } from '../schematic-zone';
 import {
@@ -63,7 +63,7 @@ import {
   type SchematicBox,
   type SchematicItem,
 } from '../schematic-tree';
-import { selectNode, type SelectMode } from '../selection';
+import { selectModeOf, selectNode, type SelectMode } from '../selection';
 import type { NodeId, Translate } from '../host';
 import type { SchemaEditorState, SchemaSession } from '../sessions';
 
@@ -165,6 +165,10 @@ export function SchematicView({
 
   const tree = useMemo(() => buildSchematic(model, { hideWrappers }), [model, hideWrappers]);
   const order = useMemo(() => schematicOrder(tree), [tree]);
+  // Множество видимых адресов: по нему навигация пропускает скрытые обёртки, которых
+  // на экране нет. Считается из того же порядка — второго ответа на вопрос «что видно» быть
+  // не должно.
+  const visible = useMemo(() => new Set(order), [order]);
   const byNode = useMemo(() => indexNodeDiagnostics(problems), [problems]);
 
   const editable = state.syncState === 'synced';
@@ -303,19 +307,22 @@ export function SchematicView({
     (event: KeyboardEvent<HTMLDivElement>) => {
       const dir = ARROW_DIRECTIONS[event.key];
       if (dir === undefined) return;
+      // Стрелка с Ctrl/Cmd или Alt принадлежит КОМАНДЕ — перемещению и дублированию.
+      // То же правило, что у дерева строк: одно нажатие делает одно дело.
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
       const current = selection[selection.length - 1];
       if (current === undefined) return;
-      const index = indexNodes(model);
-      const from = index.find(current);
+      const from = indexNodes(model).find(current);
       if (!from) return;
-      const target = navTarget(model, from.path, dir);
-      const id = target === null ? undefined : index.idAt(target);
       // Навигация домена уже axis-aware: в ряду «влево» означает соседа, а не выход наверх.
-      if (id === undefined) return;
+      // А вот СКРЫТЫЕ обёртки домен не пропускает — он про отрисовку не знает, поэтому шаг
+      // повторяется до видимого узла (см. `./../schematic-nav`).
+      const id = visibleTarget(model, from.path, dir, visible);
+      if (id === null) return;
       event.preventDefault();
       session.setSelection(selectNode(selection, id, event.shiftKey ? 'range' : 'replace', order));
     },
-    [model, order, selection, session]
+    [model, order, selection, session, visible]
   );
 
   const shared = useMemo<SchematicShared>(
@@ -476,7 +483,7 @@ function BoxView({ box }: { box: SchematicBox }): ReactElement {
         onClick={(event) => {
           // Останов всплытия: щелчок по вложенной коробке выбирает ЕЁ, а не всех предков.
           event.stopPropagation();
-          shared.onSelect(box.id, modeOf(event));
+          shared.onSelect(box.id, selectModeOf(event));
         }}
         onDragStart={(event) => {
           shared.onDragStart(event, box.id);
@@ -601,12 +608,6 @@ function BoxView({ box }: { box: SchematicBox }): ReactElement {
       </div>
     </div>
   );
-}
-
-/** Модификаторы щелчка → режим выделения. Shift сильнее Ctrl: диапазон важнее добавления. */
-function modeOf(event: MouseEvent<HTMLElement>): SelectMode {
-  if (event.shiftKey) return 'range';
-  return event.ctrlKey || event.metaKey ? 'toggle' : 'replace';
 }
 
 /**

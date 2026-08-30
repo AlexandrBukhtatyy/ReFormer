@@ -24,6 +24,12 @@
  * Тихая подмена режима запрещена контрактом Э8, и именно поэтому причина — часть результата,
  * а не журнальная запись.
  *
+ * Причина называется САМА, без просьбы показать конкретную поверхность. Раньше `fallback`
+ * заполнялся только когда человек выбрал недоступную руками, — и это работало ровно пока
+ * существовал переключатель. Он ушёл вместе с панелью превью, выбор стал автоматическим,
+ * и по прежнему правилу человек с источника без права исполнения видел бы форму без своей
+ * валидации и никакого объяснения. Отказ обязан быть виден тому, кто ни о чём не просил.
+ *
  * @module plugins/preview/selection
  */
 
@@ -62,18 +68,12 @@ export interface SurfaceOption {
   readonly refusal: PreviewRefusalReason | null;
 }
 
-/** Почему показана не та поверхность, которую просили. */
-export type FallbackReason =
-  /** Просили поверхность, которой нет среди вкладов. */
-  | 'unknown-surface'
-  /** Просили поверхность, которая за такой документ не берётся. */
-  | 'not-applicable'
-  /** Просили поверхность, которой отказал источник. */
-  | PreviewRefusalReason;
+/** Почему показана не самая способная поверхность. */
+export type FallbackReason = PreviewRefusalReason;
 
-/** Отказ от запрошенного выбора. */
+/** Что осталось недоступным и почему. */
 export interface SurfaceFallback {
-  /** Что просили. */
+  /** Идентификатор той поверхности, которая показала бы больше. */
   readonly requested: string;
   readonly reason: FallbackReason;
 }
@@ -93,8 +93,6 @@ export interface SurfaceChoiceInput {
   readonly surfaces: readonly PreviewSurface[];
   readonly doc: DocumentRef;
   readonly source: PreviewSourceCapabilities | null;
-  /** Выбор человека; `null`/`undefined` — решает правило. */
-  readonly preferred?: string | null;
 }
 
 /**
@@ -105,11 +103,11 @@ export interface SurfaceChoiceInput {
  * ВОСПРОИЗВОДИМЫМ: одинаковый набор вкладов даёт одинаковый ответ независимо от того,
  * в каком порядке плагины активировались.
  *
- * Неприменимые к документу поверхности в `options` не попадают вовсе: переключатель, где
- * половина пунктов не работает, хуже короткого списка.
+ * Неприменимые к документу поверхности в `options` не попадают вовсе: список, где половина
+ * пунктов не работает, хуже короткого.
  */
 export function chooseSurface(input: SurfaceChoiceInput): SurfaceChoice {
-  const { surfaces, doc, source, preferred } = input;
+  const { surfaces, doc, source } = input;
 
   const applicable = surfaces.filter((surface) => applies(surface, doc));
   const options: readonly SurfaceOption[] = applicable
@@ -125,24 +123,16 @@ export function chooseSurface(input: SurfaceChoiceInput): SurfaceChoice {
 
   const best = options.find((option) => option.available)?.surface ?? null;
 
-  if (preferred === undefined || preferred === null) {
-    return { surface: best, options, fallback: null };
-  }
+  // Самая способная из применимых — независимо от того, доступна ли она. Если выбрали
+  // не её, значит источник отказал, и человек обязан узнать об этом сам: он ничего
+  // не выбирал и не заметит подмены иначе.
+  const strongest = options[0] ?? null;
+  const refused =
+    strongest !== null && !strongest.available && strongest.refusal !== null
+      ? { requested: strongest.surface.id, reason: strongest.refusal }
+      : null;
 
-  const chosen = options.find((option) => option.surface.id === preferred);
-  if (chosen !== undefined && chosen.available) {
-    return { surface: chosen.surface, options, fallback: null };
-  }
-
-  const reason: FallbackReason =
-    chosen !== undefined
-      ? // `available: false` всегда несёт причину — она и есть ответ «почему не смонтировали».
-        (chosen.refusal ?? 'not-applicable')
-      : surfaces.some((surface) => surface.id === preferred)
-        ? 'not-applicable'
-        : 'unknown-surface';
-
-  return { surface: best, options, fallback: { requested: preferred, reason } };
+  return { surface: best, options, fallback: refused };
 }
 
 /**
@@ -159,24 +149,4 @@ function applies(surface: PreviewSurface, doc: DocumentRef): boolean {
     console.error(`[preview] поверхность «${surface.id}»: applies бросил`, error);
     return false;
   }
-}
-
-/**
- * Следующая ДОСТУПНАЯ поверхность по кругу — то, что делает команда переключения.
- *
- * По кругу, а не до конца списка: переключатель из трёх пунктов, упирающийся в последний,
- * заставляет тянуться мышью ради возврата в начало. Недоступные пропускаются — нажатие
- * на команду обязано что-то менять, иначе она выглядит сломанной.
- *
- * `null` означает «менять не на что»: доступна одна поверхность или ни одной.
- */
-export function nextSurfaceId(
-  options: readonly SurfaceOption[],
-  currentId: string | null
-): string | null {
-  const usable = options.filter((option) => option.available);
-  if (usable.length < 2) return null;
-  const at = usable.findIndex((option) => option.surface.id === currentId);
-  // Текущей нет в списке (её сняли вместе с плагином) — начинаем с первой.
-  return usable[(at + 1) % usable.length].surface.id;
 }

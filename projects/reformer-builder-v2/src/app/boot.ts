@@ -107,6 +107,7 @@ import { createMonacoHost } from './monaco-host';
 import { createSchemaHost } from './schema-host';
 import { createAiHost } from './ai-host';
 import { createPreviewHost } from './preview-host';
+import { createLiveSurfacePort } from './live-surface';
 import { createCodegenHost } from './codegen-host';
 import { createTemplatesHost } from './templates-host';
 import { BUILTIN_TARGETS, CODEGEN_PLUGIN_ID, generateModule } from '../plugins/codegen';
@@ -114,7 +115,7 @@ import { TEMPLATES_PLUGIN_ID } from '../plugins/templates';
 import { attachFocusChecks } from '../host/workspace/merge/divergence';
 import { installPluginStyles } from '../host/plugin/styles';
 import type { Disposable as HostDisposable } from '../host/primitives/disposable';
-import { PREVIEW_PLUGIN_ID } from '../plugins/preview';
+import { createPreviewSessions, PREVIEW_PLUGIN_ID } from '../plugins/preview';
 import { AI_PLUGIN_ID } from '../plugins/ai';
 import {
   createFocusRegistry,
@@ -405,6 +406,19 @@ export function boot(): BuilderApp {
       { documentId }
     );
 
+  // Порт превью и реестр его состояний создаются ЗДЕСЬ, потому что их берут двое: панель
+  // превью и живой вид редактора схемы. Общий реестр — то, из-за чего выбор поверхности,
+  // находки сборки и введённые в форму значения у них одни, а не две расходящиеся копии.
+  const previewHost = createPreviewHost({
+    project,
+    i18n,
+    services,
+    // Загрузчик модулей — ТОТ ЖЕ, что у плагинов каталога: движок TypeScript один на
+    // приложение, и второй экземпляр означал бы второй чанк на 3.5 МБ.
+    modules: { load: pluginModules.modules.load, prepare: pluginModules.prepare },
+  });
+  const previewSessions = createPreviewSessions();
+
   plugins.registerAll(
     createBuiltinPlugins({
       files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
@@ -428,6 +442,14 @@ export function boot(): BuilderApp {
         // и исходник схемы. Общие реестры фокуса и снимков вида — условие того, что
         // позиция курсора переживает переключение вида.
         TextEditor: monacoTextEditor,
+        // И та же поверхность, что рисует форму в панели превью: «чем нарисована эта форма» —
+        // один вопрос с одним ответом, где бы её ни показывали.
+        live: createLiveSurfacePort({
+          host: previewHost,
+          sessions: previewSessions,
+          extensions,
+          i18n,
+        }),
       }),
       schemaI18n: i18n.forPlugin(SCHEMA_EDITOR_PLUGIN_ID),
       kits: {
@@ -440,15 +462,9 @@ export function boot(): BuilderApp {
         translate: (key, params) => i18n.forPlugin(KITS_PLUGIN_ID).t(key, params),
       },
       ai: createAiHost({ project, i18n, services }),
-      // Загрузчик модулей — ТОТ ЖЕ, что у плагинов каталога: движок TypeScript один на
-      // приложение, и второй экземпляр означал бы второй чанк на 3.5 МБ.
-      preview: createPreviewHost({
-        project,
-        i18n,
-        services,
-        modules: { load: pluginModules.modules.load, prepare: pluginModules.prepare },
-      }),
+      preview: previewHost,
       previewI18n: i18n.forPlugin(PREVIEW_PLUGIN_ID),
+      previewSessions,
       codegen: createCodegenHost({ project, i18n, services }),
       codegenI18n: i18n.forPlugin(CODEGEN_PLUGIN_ID),
       templates: createTemplatesHost({ project, i18n, services }),

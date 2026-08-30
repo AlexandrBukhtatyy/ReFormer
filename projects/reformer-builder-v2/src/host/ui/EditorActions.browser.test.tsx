@@ -19,10 +19,11 @@ import { createI18nService } from '../services/i18n/i18n';
 import { renderReact } from '../../testing/render';
 import { EditorActions } from './EditorActions';
 import { EDITOR_TITLE_MENU, whenEditor } from './editor-menu';
-import { MenuPoint, type MenuContribution } from './menu';
+import { hostMenuEntry, MenuPoint, type MenuContribution } from './menu';
 
 const MESSAGES: Readonly<Record<string, string>> = {
   'shell.editor.actions.more': 'Ещё действия',
+  'shell.editor.next': 'Открыть другим редактором',
 };
 
 const PLUGIN_MESSAGES: Readonly<Record<string, string>> = {
@@ -148,6 +149,48 @@ describe('ряд действий', () => {
     await expect.element(page.getByText('Настройки предпросмотра')).toBeVisible();
 
     fixture.unmount();
+  });
+
+  it('встроенная запись оболочки держит «…» на месте без единого вклада плагина', async () => {
+    const extensions = createExtensionRegistry();
+    const commands = createCommandRegistry();
+    const executed: string[] = [];
+    commands.register({
+      id: 'shell.editor.next',
+      titleKey: 'shell.editor.next',
+      run: () => {
+        executed.push('shell.editor.next');
+      },
+    });
+    const i18n = createI18nService({
+      loadHostMessages: () => Promise.resolve(MESSAGES),
+      dev: false,
+    });
+    await i18n.setLocale('ru');
+
+    const mounted = renderReact(
+      <EditorActions
+        extensions={extensions}
+        i18n={i18n}
+        ref={README}
+        commands={commands}
+        builtin={[
+          hostMenuEntry('shell.editor.title.next', {
+            kind: 'item',
+            menu: EDITOR_TITLE_MENU,
+            command: 'shell.editor.next',
+            group: '9_editor',
+          }),
+        ]}
+      />
+    );
+
+    // Кнопка есть, хотя ни один плагин ничего не внёс: у неё постоянное место, и наполняет
+    // её тот, кто знает, что открыто.
+    await userEvent.click(page.getByRole('button', { name: 'Ещё действия' }));
+    await expect.element(page.getByText('Открыть другим редактором')).toBeVisible();
+
+    mounted.unmount();
   });
 
   it('без вкладов ряда нет вовсе: пустая полоса не должна занимать ширину', async () => {

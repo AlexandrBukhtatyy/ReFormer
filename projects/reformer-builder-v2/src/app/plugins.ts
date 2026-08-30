@@ -97,6 +97,15 @@ export interface BuiltinPluginsOptions {
   readonly preview: PreviewHost;
   /** Словарь превью. */
   readonly previewI18n: Parameters<typeof createPreviewPlugin>[0]['i18n'];
+  /**
+   * Реестр состояний превью.
+   *
+   * Создаётся композицией, а не плагином, потому что показывающих поверхности стало двое:
+   * панель превью и живой вид редактора схемы. Общий реестр — то, из-за чего выбор поверхности,
+   * находки сборки и введённые значения у них ОДНИ, а не две похожие копии. Тот же приём и та же
+   * причина, что у реестров Monaco, делимых на троих.
+   */
+  readonly previewSessions?: Parameters<typeof createPreviewPlugin>[0]['sessions'];
   /** Порт платформы для генерации кода. */
   readonly codegen: CodegenHost;
   readonly codegenI18n: Parameters<typeof createCodegenPlugin>[0]['i18n'];
@@ -143,6 +152,10 @@ export function createBuiltinPlugins(options: BuiltinPluginsOptions): readonly P
       viewStates: options.monacoViewStates,
       i18n: options.monacoI18n,
     }),
+    // Приоритет 50: markdown забирает свои файлы у Monaco (10), потому что рендер — это то,
+    // зачем .md открывают чаще всего. Порядок в этом списке на исход не влияет и влиять
+    // не должен: при РАВНОМ приоритете победил бы зарегистрированный раньше, то есть Monaco,
+    // и предметный редактор не получил бы ни одного файла.
     createMarkdownPlugin({
       host: options.markdown,
       i18n: options.markdownI18n,
@@ -163,7 +176,11 @@ export function createBuiltinPlugins(options: BuiltinPluginsOptions): readonly P
     // Точку поверхностей плагин объявляет структурно — `@/sdk` её пока не отдаёт, как и
     // `defineExtensionPoint`, которым чужой плагин мог бы объявить свою. Пока поверхности
     // вносит только сам преьвю, это ничего не стоит; появится вторая — точку надо вынести.
-    createPreviewPlugin({ host: options.preview, i18n: options.previewI18n }),
+    createPreviewPlugin({
+      host: options.preview,
+      i18n: options.previewI18n,
+      sessions: options.previewSessions,
+    }),
     createCodegenPlugin({ host: options.codegen, i18n: options.codegenI18n }),
     createTemplatesPlugin({
       host: options.templates,

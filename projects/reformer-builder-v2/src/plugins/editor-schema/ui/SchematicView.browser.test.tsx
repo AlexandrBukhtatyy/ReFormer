@@ -25,7 +25,7 @@ import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@/lib/form-model/mutate';
 import { getAt } from '@/lib/form-model/paths';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { renderReact } from '@/testing/render';
-import { createCanvasPrefs } from '../canvas-prefs';
+import { createCanvasPrefs, type CanvasPrefs } from '../canvas-prefs';
 import { FLIP_COMMAND_ID, type CommandAccess } from '../commands';
 import { createDragSession, DRAG_MIME, type DragSession } from '../drag-session';
 import { indexNodes } from '../node-index';
@@ -72,6 +72,8 @@ function layoutSchema(): JsonFormSchema {
 
 interface Fixture {
   readonly drag: DragSession;
+  /** Предпочтения канваса: вид переключает команда полосы вкладок, а тест — напрямую. */
+  readonly prefs: CanvasPrefs;
   readonly model: () => JsonFormSchema;
   readonly selection: () => readonly string[];
   readonly idAt: (path: readonly (string | number)[]) => string;
@@ -84,14 +86,16 @@ function Harness({
   registry,
   drag,
   commands,
+  prefs,
   withPalette,
-  withToolbar,
+  withCanvas,
 }: {
   registry: SessionRegistry;
   drag: DragSession;
   commands: CommandAccess;
+  prefs: CanvasPrefs;
   withPalette: boolean;
-  withToolbar: boolean;
+  withCanvas: boolean;
 }): ReactElement {
   const session = useActiveSession(registry);
   const state = useSessionState(registry, session);
@@ -104,9 +108,6 @@ function Harness({
     }),
     []
   );
-  // Предпочтения переживают перерисовку: иначе вид сбрасывался бы на дерево сам собой.
-  const prefs = useMemo(() => createCanvasPrefs(), []);
-
   if (session === null || state === null) return <div>сеанса нет</div>;
   return (
     <div className="flex">
@@ -116,7 +117,7 @@ function Harness({
         </div>
       )}
       <div style={{ width: 520 }}>
-        {withToolbar ? (
+        {withCanvas ? (
           <Canvas
             session={session}
             state={state}
@@ -151,7 +152,7 @@ function flush(): Promise<void> {
 }
 
 async function mount(
-  options: { withPalette?: boolean; withToolbar?: boolean } = {}
+  options: { withPalette?: boolean; withCanvas?: boolean } = {}
 ): Promise<Fixture> {
   const host = createFakeSchemaHost({
     documentId: DOCUMENT,
@@ -165,13 +166,17 @@ async function mount(
   const drag = createDragSession();
   const run = vi.fn();
   const commands: CommandAccess = { has: () => true, run };
+  // Предпочтения живут ВНЕ дерева React: их держит плагин, а тело редактора пересоздаётся
+  // на пару «редактор + документ». Тест держит их так же — иначе он проверял бы не то.
+  const prefs = createCanvasPrefs();
   const mounted = renderReact(
     <Harness
       registry={registry}
       drag={drag}
       commands={commands}
+      prefs={prefs}
       withPalette={options.withPalette ?? false}
-      withToolbar={options.withToolbar ?? false}
+      withCanvas={options.withCanvas ?? false}
     />
   );
 
@@ -184,6 +189,7 @@ async function mount(
   const model = (): JsonFormSchema => session.get().model;
   return {
     drag,
+    prefs,
     model,
     selection: () => session.get().selection,
     idAt: (path) => {
@@ -343,7 +349,7 @@ describe('перетаскивание в схематичном виде', () =
   });
 });
 
-describe('панель инструментов и кнопки коробки', () => {
+describe('вид канваса и кнопки коробки', () => {
   it('переворот направления идёт командой и называет узел', async () => {
     const fixture = await mount();
     const rowId = fixture.idAt(ROW);
@@ -357,28 +363,49 @@ describe('панель инструментов и кнопки коробки',
     fixture.unmount();
   });
 
-  it('переключатель ведёт из дерева в схему и обратно', async () => {
-    const fixture = await mount({ withToolbar: true });
+  it('канвас идёт за предпочтением вида: из дерева в схему и обратно', async () => {
+    const fixture = await mount({ withCanvas: true });
     // Умолчание — дерево: у него есть треугольники сворачивания, а у схемы их нет.
     expect(document.querySelector('[data-view="schematic"]')).toBeNull();
 
-    const toSchematic = document.querySelector<HTMLElement>('[aria-label="action.view.schematic"]');
-    if (toSchematic === null) throw new Error('нет кнопки перехода в схему');
-    await userEvent.click(toSchematic);
+    // Вид переключает команда из полосы вкладок (`../canvas-actions`), а её работа — записать
+    // предпочтение. Тест зовёт то же самое: кнопки живут в оболочке, и её тут нет вовсе.
+    fixture.prefs.setView('schematic');
     await vi.waitFor(() => {
       if (document.querySelector('[data-view="schematic"]') === null) {
         throw new Error('схема не показалась');
       }
     });
 
-    const toTree = document.querySelector<HTMLElement>('[aria-label="action.view.tree"]');
-    if (toTree === null) throw new Error('нет кнопки возврата в дерево');
-    await userEvent.click(toTree);
+    fixture.prefs.setView('tree');
     await vi.waitFor(() => {
       if (document.querySelector('[data-view="schematic"]') !== null) {
         throw new Error('схема осталась на экране');
       }
     });
+    fixture.unmount();
+  });
+});
+
+describe('навигация стрелками', () => {
+  it('работает сразу после щелчка по коробке, без похода за фокусом', async () => {
+    const fixture = await mount();
+    const city = fixture.idAt(CITY);
+    await userEvent.click(box(city));
+    await expect.poll(() => fixture.selection()).toEqual([city]);
+
+    // Ряд горизонтален: следующий сосед — справа, и ведёт к нему стрелка ВПРАВО.
+    await userEvent.keyboard('{ArrowRight}');
+    await expect.poll(() => fixture.selection()).toEqual([fixture.idAt(ZIP)]);
+    fixture.unmount();
+  });
+
+  it('в столбце ходит вверх-вниз, а в ряду — влево-вправо', async () => {
+    const fixture = await mount();
+    await userEvent.click(box(fixture.idAt(COMMENT)));
+    // Корень — столбец: вверх от последнего ребёнка ведёт к ряду над ним.
+    await userEvent.keyboard('{ArrowUp}');
+    await expect.poll(() => fixture.selection()).toEqual([fixture.idAt(ROW)]);
     fixture.unmount();
   });
 });

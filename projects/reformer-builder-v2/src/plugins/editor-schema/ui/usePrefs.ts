@@ -1,7 +1,7 @@
 /**
  * Предпочтения канваса как состояние React.
  *
- * Подписка, а не чтение при отрисовке: предпочтение меняет кнопка панели инструментов,
+ * Подписка, а не чтение при отрисовке: предпочтение меняет команда из полосы вкладок,
  * но хранится оно ВНЕ компонента ({@link './../canvas-prefs'}) — иначе вид сбрасывался бы
  * на дерево при каждом переключении вкладок, потому что тело редактора пересоздаётся
  * на пару «редактор + документ».
@@ -25,14 +25,10 @@ import { DEFAULT_CANVAS_VIEW, type CanvasPrefs, type CanvasView } from '../canva
 /** Снимок предпочтений: то, на что смотрит канвас. */
 export interface CanvasPrefsSnapshot {
   readonly view: CanvasView;
-  readonly wrappersHidden: boolean;
 }
 
-/** Умолчания: канвас без стора остаётся деревом с видимыми обёртками. */
-const DEFAULTS: CanvasPrefsSnapshot = Object.freeze({
-  view: DEFAULT_CANVAS_VIEW,
-  wrappersHidden: false,
-});
+/** Умолчание: канвас без стора остаётся деревом. */
+const DEFAULTS: CanvasPrefsSnapshot = Object.freeze({ view: DEFAULT_CANVAS_VIEW });
 
 /**
  * Текущие предпочтения; без стора — умолчания.
@@ -56,12 +52,11 @@ export function useCanvasPrefs(prefs: CanvasPrefs | null): CanvasPrefsSnapshot {
 
   const snapshot = useCallback((): CanvasPrefsSnapshot => {
     const view = prefs?.view() ?? DEFAULTS.view;
-    const wrappersHidden = prefs?.wrappersHidden() ?? DEFAULTS.wrappersHidden;
     const previous = cache.current;
-    // Та же ссылка, пока значения те же: снимок сравнивается ссылкой, и новый объект
+    // Та же ссылка, пока значение то же: снимок сравнивается ссылкой, и новый объект
     // на каждый вопрос React принял бы за изменение — то есть за повод отрисоваться снова.
-    if (previous.view === view && previous.wrappersHidden === wrappersHidden) return previous;
-    const next: CanvasPrefsSnapshot = { view, wrappersHidden };
+    if (previous.view === view) return previous;
+    const next: CanvasPrefsSnapshot = { view };
     cache.current = next;
     return next;
   }, [prefs]);

@@ -11,7 +11,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   CANVAS_VIEW_SETTING,
   createCanvasPrefs,
-  HIDE_WRAPPERS_SETTING,
+  DEFAULT_CANVAS_VIEW,
+  isCanvasView,
   readCanvasView,
 } from './canvas-prefs';
 import type { SchemaViewSettings } from './view-mode';
@@ -58,15 +59,6 @@ describe('createCanvasPrefs', () => {
     expect(prefs.view()).toBe('schematic');
   });
 
-  it('обёртки по умолчанию видны', () => {
-    expect(createCanvasPrefs().wrappersHidden()).toBe(false);
-    expect(
-      createCanvasPrefs({
-        settings: fakeSettings({ [HIDE_WRAPPERS_SETTING]: true }),
-      }).wrappersHidden()
-    ).toBe(true);
-  });
-
   it('подписчик узнаёт о смене, а повторная запись того же значения его не будит', () => {
     const prefs = createCanvasPrefs();
     const listener = vi.fn();
@@ -74,12 +66,11 @@ describe('createCanvasPrefs', () => {
 
     prefs.setView('schematic');
     prefs.setView('schematic');
-    prefs.setWrappersHidden(true);
-    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenCalledTimes(1);
 
     subscription.dispose();
     prefs.setView('tree');
-    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it('отказ хранилища не мешает переключению', async () => {
@@ -96,5 +87,24 @@ describe('createCanvasPrefs', () => {
     await Promise.resolve();
     expect(error).toHaveBeenCalled();
     error.mockRestore();
+  });
+});
+
+describe('живая форма как вид конструктора', () => {
+  it('распознаётся наравне с деревом и схемой', () => {
+    expect(isCanvasView('live')).toBe(true);
+    expect(readCanvasView('live')).toBe('live');
+  });
+
+  it('умолчанием не становится: её может не быть в этой сборке', () => {
+    // Порт живой поверхности даёт композиция, и без плагина превью его нет. Умолчание,
+    // которого на половине запусков не существует, — не умолчание.
+    expect(DEFAULT_CANVAS_VIEW).not.toBe('live');
+  });
+
+  it('запоминается как предпочтение человека', () => {
+    const prefs = createCanvasPrefs();
+    prefs.setView('live');
+    expect(prefs.view()).toBe('live');
   });
 });

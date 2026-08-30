@@ -20,6 +20,9 @@ export { SCHEMA_MODEL_PROVIDER_ID } from './provider';
 export { SCHEMA_EDITOR_MESSAGES } from './messages';
 export type {
   ExtensionPointRef,
+  LivePreviewPort,
+  LiveSurfaceContext,
+  LiveSurfaceInfo,
   MessageSink,
   SchemaApplyOutcome,
   SchemaEditorHost,

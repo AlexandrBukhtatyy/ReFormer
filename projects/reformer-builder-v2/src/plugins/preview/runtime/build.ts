@@ -27,6 +27,7 @@ import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
 import { annotateSchema } from '../annotate';
 import type { PreviewMock, PreviewProblem } from '../contract';
+import { carryValues } from './carry';
 import { synthMock } from './mock';
 import { buildPreviewRegistry } from './registry';
 
@@ -47,6 +48,13 @@ export interface RuntimeBundleInput {
   readonly extraRegistry?: ComponentRegistry;
   /** Начальные значения поверх мока: то, что объявил `model.ts` формы. */
   readonly initialOverride?: Shape;
+  /**
+   * Значения прежней формы — то, что человек успел ввести до этой пересборки.
+   *
+   * Переносятся только пути, которым в новой форме есть место (см. {@link './carry'}).
+   * Без этого правка схемы стирает введённое, а в конструкторе схему правят непрерывно.
+   */
+  readonly carry?: Shape;
   /** Поведение модели и правила валидации из сайдкаров. */
   readonly behavior?: Parameters<typeof createJsonForm<Shape>>[0]['behavior'];
   readonly validation?: Parameters<typeof createJsonForm<Shape>>[0]['validation'];
@@ -95,8 +103,11 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
   }
 
   const mock = input.mock ?? synthMock(annotated);
-  const initial =
+  const declared =
     input.initialOverride === undefined ? mock.model : deepMerge(mock.model, input.initialOverride);
+  // Перенос идёт последним шагом: введённое человеком старше и мока, и `model.ts` — но только
+  // там, где новая форма оставила для него место.
+  const initial = carryValues(declared, input.carry);
 
   let registry: ComponentRegistry;
   try {

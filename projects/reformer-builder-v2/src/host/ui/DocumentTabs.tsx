@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
 } from '@reformer/ui-kit/alert-dialog';
 import { Button } from '@reformer/ui-kit/button';
+import { ScrollArea, ScrollBar } from '@reformer/ui-kit/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@reformer/ui-kit/tabs';
 import type { I18nService } from '../services/i18n/i18n';
 import type { ResourceId } from '../primitives/resource';
@@ -109,61 +110,70 @@ export function DocumentTabs({ tabs, i18n, trailing }: DocumentTabsProps): React
           // `min-w-0` обязателен: без него ряд не сжимается и выталкивает соседа за край.
           className="min-w-0 flex-1 gap-0"
         >
-          <TabsList
-            variant="line"
-            aria-label={t('shell.tabs.label')}
-            className="h-[34px] w-full justify-start gap-0 overflow-x-auto rounded-none px-1"
-          >
-            {state.tabs.map((tab) => (
-              <div
-                key={tab.ref.id}
-                // Подчёркивание активной вкладки рисует обёртка, а не сам триггер: полоса идёт
-                // под всей вкладкой вместе с крестиком, а крестик — сосед триггера, а не его
-                // содержимое (внутри триггера это была бы кнопка в кнопке). `self-stretch`
-                // и `-bottom-[3px]` кладут полосу на нижний край ряда — на отступ `TabsList`.
-                className="group/tab relative flex flex-none items-center self-stretch after:absolute after:inset-x-0 after:-bottom-[3px] after:h-0.5 after:bg-foreground after:opacity-0 after:transition-opacity has-[[data-state=active]]:after:opacity-100"
-              >
-                <TabsTrigger
-                  value={tab.ref.id}
-                  title={tab.ref.path}
-                  onDoubleClick={() => {
-                    tabs.pin(tab.ref.id);
-                  }}
-                  onAuxClick={(event) => {
-                    // Средняя кнопка закрывает — привычка из редакторов кода; правая
-                    // оставлена контекстному меню, которого здесь пока нет.
-                    if (event.button === 1) requestClose(tab.ref.id);
-                  }}
-                  // `after:hidden` — своё подчёркивание кита выключено, его рисует обёртка.
-                  className={
-                    tab.preview
-                      ? 'flex-none pr-1 text-[12px] italic after:hidden'
-                      : 'flex-none pr-1 text-[12px] not-italic after:hidden'
-                  }
+          {/* Прокрутка ряда — областью кита, а не нативным `overflow-x-auto`: нативная полоса
+            в Windows занимает высоту внутри ряда (34px минус её толщина остаётся вкладкам)
+            и не убирается вместе с курсором. Полоса кита — оверлей поверх нижнего края,
+            `size="xs"` делает её 6px, чтобы она не спорила с подчёркиванием активной вкладки. */}
+          <ScrollArea size="xs" className="w-full">
+            <TabsList
+              variant="line"
+              aria-label={t('shell.tabs.label')}
+              // `w-max`, а не `w-full`: внутри области ряд должен быть шириной по содержимому,
+              // иначе он сожмётся до ширины окна и прокручивать станет нечего.
+              className="h-[34px] w-max justify-start gap-0 rounded-none px-1"
+            >
+              {state.tabs.map((tab) => (
+                <div
+                  key={tab.ref.id}
+                  // Подчёркивание активной вкладки рисует обёртка, а не сам триггер: полоса идёт
+                  // под всей вкладкой вместе с крестиком, а крестик — сосед триггера, а не его
+                  // содержимое (внутри триггера это была бы кнопка в кнопке). `self-stretch`
+                  // и `-bottom-[3px]` кладут полосу на нижний край ряда — на отступ `TabsList`.
+                  className="group/tab relative flex flex-none items-center self-stretch after:absolute after:inset-x-0 after:-bottom-[3px] after:h-0.5 after:bg-foreground after:opacity-0 after:transition-opacity has-[[data-state=active]]:after:opacity-100"
                 >
-                  {tab.ref.name}
-                  {tab.dirty && (
-                    <span aria-label={t('shell.tabs.dirty')} title={t('shell.tabs.dirty')}>
-                      •
-                    </span>
-                  )}
-                </TabsTrigger>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={t('shell.tabs.close', { name: tab.ref.name })}
-                  title={t('shell.tabs.close', { name: tab.ref.name })}
-                  onClick={() => {
-                    requestClose(tab.ref.id);
-                  }}
-                >
-                  {/* Поштучный импорт из `lucide-react`: `@reformer/ui-kit/icon` объявляет себя
+                  <TabsTrigger
+                    value={tab.ref.id}
+                    title={tab.ref.path}
+                    onDoubleClick={() => {
+                      tabs.pin(tab.ref.id);
+                    }}
+                    onAuxClick={(event) => {
+                      // Средняя кнопка закрывает — привычка из редакторов кода; правая
+                      // оставлена контекстному меню, которого здесь пока нет.
+                      if (event.button === 1) requestClose(tab.ref.id);
+                    }}
+                    // `after:hidden` — своё подчёркивание кита выключено, его рисует обёртка.
+                    className={
+                      tab.preview
+                        ? 'flex-none pr-1 text-[12px] italic after:hidden'
+                        : 'flex-none pr-1 text-[12px] not-italic after:hidden'
+                    }
+                  >
+                    {tab.ref.name}
+                    {tab.dirty && (
+                      <span aria-label={t('shell.tabs.dirty')} title={t('shell.tabs.dirty')}>
+                        •
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={t('shell.tabs.close', { name: tab.ref.name })}
+                    title={t('shell.tabs.close', { name: tab.ref.name })}
+                    onClick={() => {
+                      requestClose(tab.ref.id);
+                    }}
+                  >
+                    {/* Поштучный импорт из `lucide-react`: `@reformer/ui-kit/icon` объявляет себя
                     opt-in, потому что тянет весь набор значков разом. */}
-                  <X aria-hidden="true" className="size-3.5" />
-                </Button>
-              </div>
-            ))}
-          </TabsList>
+                    <X aria-hidden="true" className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </TabsList>
+            <ScrollBar orientation="horizontal" size="xs" />
+          </ScrollArea>
         </Tabs>
         {trailing !== undefined && (
           <div className="flex flex-none items-center pr-1">{trailing}</div>

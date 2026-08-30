@@ -1,5 +1,5 @@
 /**
- * Плагин: состав вкладов, возможности трёх поверхностей, видимость панели и команда.
+ * Плагин: состав вкладов и возможности поверхностей.
  *
  * Порт платформы здесь подставной — настоящий собирается композицией и требует рабочей области.
  * Проверяется то, чем владеет плагин.
@@ -8,19 +8,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { PluginContext, WhenContext } from '@/sdk';
+import type { PluginContext } from '@/sdk';
 import { chooseSurface } from './selection';
-import {
-  builtinSurfaces,
-  createPreviewPlugin,
-  CYCLE_SURFACE_COMMAND_ID,
-  panelVisible,
-  PREVIEW_PANEL_ID,
-  PREVIEW_PLUGIN_ID,
-} from './plugin';
+import { builtinSurfaces, createPreviewPlugin, PREVIEW_PLUGIN_ID } from './plugin';
 import { COMPILING_SURFACE_ID } from './compiling/surface';
 import { RUNTIME_SURFACE_ID } from './runtime/surface';
-import { SKELETON_SURFACE_ID } from './skeleton/surface';
 import { createPreviewSessions } from './sessions';
 import { createFakeHost, fakeRef } from './testing';
 
@@ -29,17 +21,6 @@ const DOC = {
   ref: fakeRef('fake:form.json'),
   kind: 'model' as const,
 };
-
-function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
-  return {
-    focus: 'canvas',
-    activeEditorId: DOC.id,
-    activeResourceKind: 'form.schema',
-    hasSelection: false,
-    previewMode: null,
-    ...patch,
-  };
-}
 
 /**
  * Реестры в объёме, который трогает `activate`.
@@ -78,14 +59,14 @@ function fakeContext(services: Readonly<Record<string, unknown>> = {}) {
 }
 
 describe('activate', () => {
-  it('вносит три поверхности и панель', () => {
+  it('вносит поверхности и больше ничего: своего интерфейса у плагина нет', () => {
     const { ctx, contributed } = fakeContext();
     createPreviewPlugin({ host: createFakeHost() }).activate(ctx);
+    // Панель ушла вместе с переключателем: форму показывает представление редактора схемы,
+    // а плагин остался поставщиком поверхностей.
     expect(contributed).toEqual([
-      { point: 'preview.surface', id: SKELETON_SURFACE_ID },
       { point: 'preview.surface', id: RUNTIME_SURFACE_ID },
       { point: 'preview.surface', id: COMPILING_SURFACE_ID },
-      { point: 'panel', id: PREVIEW_PANEL_ID },
     ]);
   });
 
@@ -95,13 +76,13 @@ describe('activate', () => {
       host: createFakeHost(),
       surfacePoint: { id: 'preview.surface.v2' },
     }).activate(ctx);
-    expect(contributed.filter((item) => item.point === 'preview.surface.v2')).toHaveLength(3);
+    expect(contributed.filter((item) => item.point === 'preview.surface.v2')).toHaveLength(2);
   });
 
-  it('регистрирует команду переключения поверхности', () => {
+  it('команд не регистрирует: переключать нечего, а показывать нечем', () => {
     const { ctx, commands } = fakeContext();
     createPreviewPlugin({ host: createFakeHost() }).activate(ctx);
-    expect(commands).toEqual([CYCLE_SURFACE_COMMAND_ID]);
+    expect(commands).toEqual([]);
   });
 
   it('везёт словарь сам, если есть куда его положить', () => {
@@ -202,7 +183,6 @@ describe('запрет исполнения по источнику доходи
       surfaces: builtinSurfaces(createFakeHost()),
       doc: DOC,
       source: { executesCode: false },
-      preferred: COMPILING_SURFACE_ID,
     });
     expect(choice.surface?.id).toBe(RUNTIME_SURFACE_ID);
     expect(choice.fallback).toEqual({
@@ -218,17 +198,5 @@ describe('запрет исполнения по источнику доходи
       source: { executesCode: true },
     });
     expect(choice.surface?.id).toBe(COMPILING_SURFACE_ID);
-  });
-});
-
-describe('panelVisible', () => {
-  it('видна на схеме формы и на JSON, пока документы текстовые', () => {
-    expect(panelVisible(whenContext())).toBe(true);
-    expect(panelVisible(whenContext({ activeResourceKind: 'application/json' }))).toBe(true);
-  });
-
-  it('не видна на чужом ресурсе', () => {
-    expect(panelVisible(whenContext({ activeResourceKind: 'text/typescript' }))).toBe(false);
-    expect(panelVisible(whenContext({ activeResourceKind: null }))).toBe(false);
   });
 });

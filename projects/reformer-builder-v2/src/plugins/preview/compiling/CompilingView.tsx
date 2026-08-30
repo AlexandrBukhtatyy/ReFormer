@@ -15,6 +15,16 @@
  * доходит только при разрешении. Обратное — «поверхность проверяет себя сама» — защищало бы
  * ровно её, а точка расширения открыта для чужих вкладов.
  *
+ * ## Компиляция и сборка разведены
+ *
+ * Сайдкары читаются и транспилируются по документу и версии рабочих копий; форма собирается
+ * по схеме. Один эффект на двоих означал бы перекомпиляцию сайдкаров на каждое нажатие
+ * клавиши в конструкторе — и, что хуже, падение в «собирается» вместо показанной формы.
+ * В живом виде конструктора это видно постоянно: форма там на экране всегда.
+ *
+ * Отсюда и `pending`: он показывается только на ПЕРВОЙ компиляции. Пустое место во время
+ * пересборки — это потеря того, на что человек смотрит, ради того, чего он ещё не просил.
+ *
  * ## Деградация частями
  *
  * Битый `validation.ts` не лишает превью работающего `form.behavior.ts`: сбои приходят списком
@@ -37,15 +47,21 @@ import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json'
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { toDescriptor } from '@/lib/kits/descriptor';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
-import type { PreviewContext, PreviewProblem } from '../contract';
+import type { PreviewContext, PreviewProblem, PreviewValues } from '../contract';
 import type { PreviewHost } from '../host';
 import { nodeAt } from '../node-token';
 import { buildRuntimeBundle, type RuntimeBundle } from '../runtime/build';
 import { Highlight } from '../ui/Highlight';
 import { Notice } from '../ui/Notice';
 import { useFilesVersion, useKitVersion, usePreviewSchema, usePreviewSelection } from '../ui/hooks';
+import type { ComponentRegistry } from '@reformer/renderer-json';
 import { compileForm } from './compile';
-import { appliedArtifacts, extractContract, type AppliedArtifact } from './exports';
+import {
+  appliedArtifacts,
+  extractContract,
+  type AppliedArtifact,
+  type FormContract,
+} from './exports';
 import { readSidecars } from './read';
 
 /** Идентификатор поверхности. Он же имя источника находок. */
@@ -57,18 +73,32 @@ function fallbackDescriptor(): KitDescriptor {
   return toDescriptor({ version: '1.0', components: [] });
 }
 
-interface CompiledState {
-  readonly bundle: RuntimeBundle | null;
+/** Что дали сайдкары. Пересобирается ТОЛЬКО при их правке, но не при правке схемы. */
+interface CompiledSources {
+  readonly contract: FormContract | null;
+  /** Реестр компонентов формы: собран один раз, при исполнении `registry.ts`. */
+  readonly registry: ComponentRegistry | undefined;
   readonly applied: readonly AppliedArtifact[];
   readonly problems: readonly PreviewProblem[];
+  /** Идёт первая компиляция: показывать нечего вовсе. */
   readonly pending: boolean;
 }
 
-const PENDING: CompiledState = Object.freeze({
-  bundle: null,
+const PENDING: CompiledSources = Object.freeze({
+  contract: null,
+  registry: undefined,
   applied: [],
   problems: [],
   pending: true,
+});
+
+/** Загрузчика модулей нет: сайдкары не исполнятся, но форма по схеме соберётся. */
+const NOTHING: CompiledSources = Object.freeze({
+  contract: {},
+  registry: undefined,
+  applied: [],
+  problems: [],
+  pending: false,
 });
 
 export interface CompilingViewProps {
@@ -83,7 +113,9 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
   const kitVersion = useKitVersion(host);
   const filesVersion = useFilesVersion(host);
   const surface = useRef<HTMLDivElement | null>(null);
-  const [state, setState] = useState<CompiledState>(PENDING);
+  const [sources, setSources] = useState<CompiledSources>(PENDING);
+  /** Форма прошлой сборки — источник значений для следующей (см. `../runtime/carry`). */
+  const live = useRef<{ model: { get(): unknown } } | null>(null);
 
   const modules = host.modules;
   const documentId = ctx.doc.id;
@@ -100,29 +132,33 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     };
   }, [host, kitVersion]);
 
+  // Сайдкары: от схемы НЕ зависят вовсе. Их правят в соседних вкладках, и об этом сообщает
+  // `filesVersion`, а не изменение модели документа.
   useEffect(() => {
-    if (schema === null || modules === undefined) {
-      setState({ bundle: null, applied: [], problems: [], pending: false });
+    if (modules === undefined) {
+      setSources(NOTHING);
       return;
     }
 
     // Отменяем не работу, а ПРИМЕНЕНИЕ результата: компиляция уже запущена, остановить её
     // нечем, но опоздавший результат обязан быть отброшен — иначе он затрёт свежий.
     let cancelled = false;
-    setState(PENDING);
+    // В «собирается» падаем только с пустого места: пересборка сайдкаров не должна убирать
+    // с экрана форму, которая уже показана.
+    setSources((previous) => (previous.contract === null ? PENDING : previous));
 
     void (async () => {
-      const sources = await readSidecars(host, documentId);
-      const compiled = await compileForm(sources.files, modules);
+      const read = await readSidecars(host, documentId);
+      const compiled = await compileForm(read.files, modules);
       if (cancelled) return;
 
       const contract = extractContract(compiled.modules);
-      const problems: PreviewProblem[] = [...sources.problems, ...compiled.problems];
+      const problems: PreviewProblem[] = [...read.problems, ...compiled.problems];
 
-      let extraRegistry;
+      let registry: ComponentRegistry | undefined;
       if (contract.createRegistry !== undefined) {
         try {
-          extraRegistry = contract.createRegistry();
+          registry = contract.createRegistry();
         } catch (error) {
           problems.push({
             file: 'registry.ts',
@@ -132,23 +168,11 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
         }
       }
 
-      const bundle = buildRuntimeBundle({
-        schema,
-        catalog: kit.catalog,
-        descriptor: kit.descriptor,
-        namespace: kit.namespace,
-        mock,
-        extraRegistry,
-        initialOverride: contract.initial,
-        behavior: contract.behavior,
-        validation: contract.validation,
-        renderBehavior: contract.renderBehavior,
-      });
-
-      setState({
-        bundle,
+      setSources({
+        contract,
+        registry,
         applied: appliedArtifacts(contract),
-        problems: [...problems, ...bundle.problems],
+        problems,
         pending: false,
       });
     })();
@@ -156,11 +180,49 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     return () => {
       cancelled = true;
     };
-  }, [schema, host, documentId, modules, kit, mock, filesVersion]);
+  }, [host, documentId, modules, filesVersion]);
+
+  // Форма: синхронная сборка по схеме и уже исполненным сайдкарам. Правка схемы доходит
+  // сюда и никуда больше — компилятор она не трогает.
+  const bundle = useMemo<RuntimeBundle | null>(() => {
+    const contract = sources.contract;
+    if (schema === null || contract === null) return null;
+    const carry = (live.current?.model.get() as PreviewValues | undefined) ?? ctx.values();
+    return buildRuntimeBundle({
+      schema,
+      catalog: kit.catalog,
+      descriptor: kit.descriptor,
+      namespace: kit.namespace,
+      mock,
+      extraRegistry: sources.registry,
+      initialOverride: contract.initial,
+      behavior: contract.behavior,
+      validation: contract.validation,
+      renderBehavior: contract.renderBehavior,
+      carry,
+    });
+  }, [schema, kit, mock, sources, ctx]);
 
   useEffect(() => {
-    ctx.report(COMPILING_SURFACE_ID, state.problems);
-  }, [ctx, state.problems]);
+    live.current = bundle?.form ?? null;
+  }, [bundle]);
+
+  useEffect(() => {
+    // Размонтирование — последний момент, когда модель ещё жива.
+    return () => {
+      const form = live.current;
+      if (form !== null) ctx.keepValues(form.model.get() as PreviewValues);
+    };
+  }, [ctx]);
+
+  const problems = useMemo(
+    () => [...sources.problems, ...(bundle?.problems ?? [])],
+    [sources.problems, bundle]
+  );
+
+  useEffect(() => {
+    ctx.report(COMPILING_SURFACE_ID, problems);
+  }, [ctx, problems]);
 
   const onClick = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
@@ -185,30 +247,30 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
   if (schema === null) {
     return <Notice title={t('empty.no-schema')} detail={t('empty.no-schema.detail')} />;
   }
-  if (state.pending) {
+  // Пустое место показывается только на ПЕРВОЙ компиляции: дальше прошлая форма остаётся
+  // на экране, пока не готова новая.
+  if (sources.pending) {
     return <Notice title={t('empty.compiling')} />;
   }
-  if (state.bundle === null || state.bundle.form === null) {
-    return (
-      <Notice tone="warning" title={t('empty.build-failed')} detail={state.problems[0]?.message} />
-    );
+  if (bundle === null || bundle.form === null) {
+    return <Notice tone="warning" title={t('empty.build-failed')} detail={problems[0]?.message} />;
   }
 
   return (
     <div className="flex h-full flex-col">
       <div className="text-muted-foreground border-border flex flex-wrap items-center gap-1 border-b px-3 py-1 text-[11px]">
-        {state.applied.length === 0 ? (
+        {sources.applied.length === 0 ? (
           <span>{t('applied.none')}</span>
         ) : (
-          state.applied.map((artifact) => (
+          sources.applied.map((artifact) => (
             <span key={artifact} className="border-border rounded border px-1 py-px font-mono">
               {artifact}
             </span>
           ))
         )}
-        {state.problems.length === 0 ? null : (
+        {problems.length === 0 ? null : (
           <span className="ml-2 text-amber-600 dark:text-amber-400">
-            {t('applied.problems', { count: state.problems.length })}
+            {t('applied.problems', { count: problems.length })}
           </span>
         )}
       </div>
@@ -217,8 +279,8 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
             прокрутки внутри поля, а нижний отступ перестал бы уезжать вместе с формой. */}
         <div className="p-4">
           <Highlight selection={selection} />
-          <JsonRendererProvider settings={{ registry: state.bundle.form.registry }}>
-            <JsonFormRenderer form={state.bundle.form} />
+          <JsonRendererProvider settings={{ registry: bundle.form.registry }}>
+            <JsonFormRenderer form={bundle.form} />
           </JsonRendererProvider>
         </div>
       </ScrollArea>

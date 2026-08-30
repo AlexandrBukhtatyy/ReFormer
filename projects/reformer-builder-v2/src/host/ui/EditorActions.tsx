@@ -61,6 +61,19 @@ export interface EditorActionsProps {
   readonly commands?: EditorActionsCommands;
   /** Контекст применимости; читается в момент отрисовки ряда. */
   readonly whenContext?: () => WhenContext;
+  /**
+   * Встроенные пункты оболочки — то, что относится к любому открытому документу.
+   *
+   * Отдельным входом, а не вкладом: у корневого реестра `contribute` нет вовсе, и «пункт,
+   * который Host внёс сам себе» невыразим по построению. Тот же вход, что у шапки
+   * ({@link './MenuBar'}), и по той же причине.
+   *
+   * Он же делает «…» ПОСТОЯННОЙ кнопкой: пункт без значка уходит под неё, а такой пункт
+   * у открытого документа есть всегда — значит, и кнопка стоит на месте всегда, а не
+   * появляется от того, какой плагин что внёс. Правило «без пунктов ряда нет вовсе» при этом
+   * остаётся в силе: пусто здесь — пусто и на экране.
+   */
+  readonly builtin?: readonly MenuEntry[];
 }
 
 /**
@@ -109,6 +122,7 @@ export function EditorActions({
   editorId = null,
   commands,
   whenContext,
+  builtin,
 }: EditorActionsProps): ReactElement | null {
   const contributions = useContributions(extensions, MenuPoint);
   useMenuRevision(contributions);
@@ -121,7 +135,7 @@ export function EditorActions({
     if (commands === undefined || ref === null) return [];
     return buildMenu(
       {
-        entries: contributions,
+        entries: [...(builtin ?? []), ...contributions],
         ctx: whenContext?.() ?? NEUTRAL_WHEN_CONTEXT,
         target: { documentId: ref.id, ref, editorId },
         commands,

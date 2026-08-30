@@ -19,7 +19,7 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { Disposable, DocumentRef, NodeId } from '@/sdk';
-import type { PreviewContext, PreviewMock, PreviewProblem } from './contract';
+import type { PreviewContext, PreviewMock, PreviewProblem, PreviewValues } from './contract';
 import { schemaOf } from './document';
 import type { PreviewDocument } from './host';
 import type { PreviewStore } from './store';
@@ -89,6 +89,14 @@ export function createPreviewContext(deps: PreviewContextDeps): OwnedPreviewCont
 
     mock(): PreviewMock | null {
       return deps.mock?.() ?? null;
+    },
+
+    values(): PreviewValues | undefined {
+      return store.values();
+    },
+
+    keepValues(next: PreviewValues): void {
+      store.keepValues(next);
     },
 
     report(source: string, problems: readonly PreviewProblem[]): void {

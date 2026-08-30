@@ -13,8 +13,14 @@ import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { emptyRules, type FormRules, type ValidationRuleIntent } from '@/lib/form-model/rules';
 import type { EditorProbe, PluginContext, WhenContext } from '@/sdk';
 import {
+  COLLAPSE_SELECTION_COMMAND_ID,
+  DELETE_BACK_COMMAND_ID,
   DELETE_COMMAND_ID,
   DUPLICATE_COMMAND_ID,
+  DUPLICATE_DIR_COMMAND_IDS,
+  FLIP_COMMAND_ID,
+  GROUP_COMMAND_ID,
+  MOVE_COMMAND_IDS,
   REDO_COMMAND_ID,
   REMOVE_RULE_COMMAND_ID,
   RENAME_PROP_COMMAND_ID,
@@ -25,8 +31,12 @@ import {
   type CommandAccess,
 } from './commands';
 import { createCanvasPrefs } from './canvas-prefs';
+import { createQuickAddStore } from './quick-add-store';
 import { createDragSession } from './drag-session';
 import type { ExtensionPointRef, SchemaModelProviderSpec } from './host';
+import { getAt } from '@/lib/form-model/paths';
+import { nodeIdOf } from '@/lib/form-model/node-id';
+import type { JsonNode } from '@reformer/renderer-json';
 import { indexNodes } from './node-index';
 import {
   createSchemaEditorPlugin,
@@ -108,6 +118,7 @@ function stores(): SchemaEditorStores {
     drag: createDragSession(),
     viewStates: createCollapseRegistry(),
     prefs: createCanvasPrefs(),
+    quickAdd: createQuickAddStore(),
   };
 }
 
@@ -134,10 +145,13 @@ describe('activate', () => {
     void registry;
 
     expect(contributed).toEqual([
-      // Пара кнопок переключения вида: одна половина видна в конструкторе, другая
-      // в исходнике, а на экране это одна кнопка, меняющая значок.
-      { point: 'menu', id: 'schema.title.toCode' },
-      { point: 'menu', id: 'schema.title.toDesign' },
+      // Переключатель: кнопки видны разом, нажата ровно одна — полоса отвечает «как показан
+      // документ», а не «куда можно перейти». Два положения из четырёх условны: исходник
+      // существует при редакторе кода, живая форма — при поверхности превью.
+      { point: 'menu', id: 'schema.title.canvasTree' },
+      { point: 'menu', id: 'schema.title.canvasSchematic' },
+      { point: 'menu', id: 'schema.title.canvasLive' },
+      { point: 'menu', id: 'schema.title.showCode' },
       { point: 'document.model', id: SCHEMA_MODEL_PROVIDER_ID },
       { point: 'editor', id: SCHEMA_EDITOR_ID },
       { point: 'panel', id: PALETTE_PANEL_ID },
@@ -175,9 +189,11 @@ describe('activate', () => {
     const { host } = harness();
     const { ctx } = fakeContext();
     createSchemaEditorPlugin({ host, modelPoint: MODEL_POINT }).activate(ctx);
-    // Прибавились: команда переключения вида, две кнопки и снятие хранилища режима;
-    // затем переворот направления и снятие предпочтений канваса.
-    expect(ctx.subscriptions).toHaveLength(18);
+    // Прибавились: команда переключения вида и снятие хранилища режима; затем переворот
+    // направления и снятие предпочтений канваса; затем четыре перемещения и удаление
+    // по Backspace; затем переключатель показа — три команды и три кнопки; потом быстрое
+    // добавление. Последней пришла живая форма — команда и кнопка.
+    expect(ctx.subscriptions).toHaveLength(35);
   });
 });
 
@@ -216,6 +232,7 @@ describe('редактор', () => {
     const editor = schemaEditorContribution(host, registry, noCommands(), null, {
       drag: createDragSession(),
       prefs: createCanvasPrefs(),
+      quickAdd: createQuickAddStore(),
       viewStates,
     });
 
@@ -235,6 +252,7 @@ describe('редактор', () => {
     const editor = schemaEditorContribution(host, registry, noCommands(), null, {
       drag: createDragSession(),
       prefs: createCanvasPrefs(),
+      quickAdd: createQuickAddStore(),
       viewStates,
     });
     editor.viewState?.restore(DOCUMENT, { scrollTop: 40 });
@@ -266,6 +284,69 @@ describe('панели', () => {
 });
 
 describe('команды', () => {
+  it('сочетания клавиш перенесены из первой версии и не спорят между собой', () => {
+    const { host, registry } = harness();
+    const list = schemaEditorCommands(registry, host);
+    const byId = new Map(list.map((c) => [c.id, c.keybinding]));
+
+    // Набор, к которому человек привык в v1. Промах здесь означает не «нет команды»,
+    // а «команда есть, но клавиша молчит» — а это неотличимо от поломки.
+    expect(byId.get(DELETE_COMMAND_ID)).toBe('delete');
+    expect(byId.get(DELETE_BACK_COMMAND_ID)).toBe('backspace');
+    expect(byId.get(DUPLICATE_COMMAND_ID)).toBe('mod+d');
+    expect(byId.get(GROUP_COMMAND_ID)).toBe('mod+g');
+    expect(byId.get(UNGROUP_COMMAND_ID)).toBe('mod+shift+g');
+    expect(byId.get(FLIP_COMMAND_ID)).toBe('mod+shift+l');
+    expect(byId.get(MOVE_COMMAND_IDS.up)).toBe('mod+arrowup');
+    expect(byId.get(MOVE_COMMAND_IDS.down)).toBe('mod+arrowdown');
+    expect(byId.get(MOVE_COMMAND_IDS.left)).toBe('mod+arrowleft');
+    expect(byId.get(MOVE_COMMAND_IDS.right)).toBe('mod+arrowright');
+    expect(byId.get(DUPLICATE_DIR_COMMAND_IDS.up)).toBe('alt+shift+arrowup');
+    expect(byId.get(DUPLICATE_DIR_COMMAND_IDS.down)).toBe('alt+shift+arrowdown');
+    expect(byId.get(DUPLICATE_DIR_COMMAND_IDS.left)).toBe('alt+shift+arrowleft');
+    expect(byId.get(DUPLICATE_DIR_COMMAND_IDS.right)).toBe('alt+shift+arrowright');
+    expect(byId.get(COLLAPSE_SELECTION_COMMAND_ID)).toBe('escape');
+
+    // Два сочетания на одно нажатие означали бы, что победитель зависит от порядка
+    // регистрации, — а он ничего не значит.
+    const bound = list.map((c) => c.keybinding).filter((key) => key !== undefined);
+    expect(new Set(bound).size).toBe(bound.length);
+  });
+
+  it('перемещают узел и оставляют курсор на нём', () => {
+    const { host, registry, session, idAt } = harness();
+    const first = idAt(['root', 'componentProps', 'steps', 0, 'children', 0]);
+    session.setSelection([first]);
+
+    const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
+    const down = commands.get(MOVE_COMMAND_IDS.down);
+    expect(down?.enabled?.(whenContext())).toBe(true);
+    expect(down?.run()).toBe(true);
+
+    const moved = getAt(session.get().model, [
+      'root',
+      'componentProps',
+      'steps',
+      0,
+      'children',
+      1,
+    ]) as JsonNode;
+    expect(nodeIdOf(moved)).toBe(first);
+    // Курсор остался на том, что двигали: реордер выражен переносом соседа, и без явного
+    // возврата выделение уехало бы на него.
+    expect(session.get().selection).toEqual([first]);
+  });
+
+  it('перемещение у края слота отвечает отказом, а не пустой правкой', () => {
+    const { host, registry, session, idAt } = harness();
+    session.setSelection([idAt(['root', 'componentProps', 'steps', 0, 'children', 0])]);
+    const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));
+    const before = session.get().model;
+
+    expect(commands.get(MOVE_COMMAND_IDS.up)?.run()).toBe(false);
+    expect(session.get().model).toBe(before);
+  });
+
   it('недоступны без выделения', () => {
     const { host, registry } = harness();
     const commands = new Map(schemaEditorCommands(registry, host).map((c) => [c.id, c]));

@@ -6,6 +6,7 @@ import {
   CYCLE_VIEW_COMMAND_ID,
   documentIdOf,
   firstResourceOf,
+  MARKDOWN_EDITOR_ID,
   MARKDOWN_EDITOR_PRIORITY,
   markdownCommands,
   markdownEditor,
@@ -200,10 +201,11 @@ describe('кнопки в строке вкладок', () => {
     if (found === undefined || found.value.kind !== 'item') throw new Error(`нет пункта ${id}`);
     return found.value;
   };
-  const target = (source: ResourceRef) => ({
+  /** Цель ряда: документ и редактор, который его рисует, — по нему кнопки узнают свои. */
+  const target = (source: ResourceRef, editorId: string | null = MARKDOWN_EDITOR_ID) => ({
     documentId: source.id,
     ref: source,
-    editorId: null,
+    editorId,
   });
 
   it('переключатель вида — ОДНА кнопка: видна ровно половина пары', () => {
@@ -238,6 +240,14 @@ describe('кнопки в строке вкладок', () => {
     h.views.set(README.id, 'split');
 
     expect(itemOf(h, 'markdown.title.toCode').when?.(context(), target(README))).toBe(true);
+  });
+
+  it('на markdown, открытом чужим редактором, кнопок нет: они переключали бы вхолостую', () => {
+    const h = harness();
+
+    for (const id of ['markdown.title.toPreview', 'markdown.title.split']) {
+      expect(itemOf(h, id).when?.(context(), target(README, 'monaco.editor'))).toBe(false);
+    }
   });
 
   it('кнопки видны только над markdown-документом', () => {

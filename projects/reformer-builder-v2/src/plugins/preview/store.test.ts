@@ -13,15 +13,31 @@ describe('createPreviewStore', () => {
     expect(store.get()).toBe(store.get());
   });
 
-  it('повторный выбор той же поверхности подписчиков не будит', () => {
+  it('повторный выбор того же узла подписчиков не будит', () => {
     const store = createPreviewStore();
     let calls = 0;
     store.subscribe(() => {
       calls += 1;
     });
-    store.chooseSurface('preview.runtime');
-    store.chooseSurface('preview.runtime');
+    store.select(['a1b2c3d4']);
+    store.select(['a1b2c3d4']);
+    // Совпадающее по содержимому значение не уведомляет — это оно гасит эхо между
+    // отражающими друг друга сторонами канала выделения.
     expect(calls).toBe(1);
+  });
+
+  it('введённые значения лежат вне снимка: на них никто не подписан', () => {
+    const store = createPreviewStore();
+    const before = store.get();
+    let calls = 0;
+    store.subscribe(() => {
+      calls += 1;
+    });
+    store.keepValues({ loanType: 'ипотека' });
+    // Значения читает только сборка формы, и перерисовывать из-за них некого.
+    expect(store.values()).toEqual({ loanType: 'ипотека' });
+    expect(store.get()).toBe(before);
+    expect(calls).toBe(0);
   });
 
   it('находки источника ЗАМЕЩАЮТСЯ, а не копятся', () => {

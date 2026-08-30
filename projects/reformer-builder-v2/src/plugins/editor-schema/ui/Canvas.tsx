@@ -9,9 +9,13 @@
  *
  * Сам: выделение (щелчок, Shift, Ctrl), сворачивание веток, перемещение курсора стрелками,
  * приём броска. Отдаёт: удаление, дублирование, группировку, отмену — всё, что меняет модель
- * помимо перетаскивания. Кнопки панели инструментов зовут ТУ ЖЕ команду, что и сочетание
- * клавиш, а не свою копию действия: иначе Delete и корзина разошлись бы в поведении на первом
- * же исключении.
+ * помимо перетаскивания.
+ *
+ * Своей панели инструментов у канваса нет вовсе. Структурные действия живут командами
+ * с сочетаниями клавиш, а переключатель вида уехал в полосу вкладок
+ * ({@link './../canvas-actions'}) — туда, где уже отвечают на вопрос «чем показан этот
+ * документ». Полоса над деревом существовала ради двух кнопок и отнимала высоту у самой
+ * схемы на каждой вкладке.
  *
  * ## Перетаскивание: решение принимает {@link planDrop}, канвас его только показывает
  *
@@ -65,21 +69,7 @@ import {
   type KeyboardEvent,
   type ReactElement,
 } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Eye,
-  EyeOff,
-  Group,
-  LayoutPanelTop,
-  List,
-  Redo2,
-  Trash2,
-  Undo2,
-  Ungroup,
-  Wrench,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Wrench } from 'lucide-react';
 import { Badge } from '@reformer/ui-kit/badge';
 import { Button } from '@reformer/ui-kit/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
@@ -92,8 +82,6 @@ import {
   ItemTitle,
 } from '@reformer/ui-kit/item';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import { Separator } from '@reformer/ui-kit/separator';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
 import type { CommandLookup, Diagnostic, QuickFix } from '@/sdk';
 import { navTarget, type NavDir } from '@/lib/form-model/query';
 import { canvasOrder, flattenCanvas, type CanvasRow } from '../canvas-tree';
@@ -108,20 +96,13 @@ import {
 } from '../node-diagnostics';
 import { indexNodes } from '../node-index';
 import { selectNode, type SelectMode } from '../selection';
-import type { CanvasPrefs, CanvasView } from '../canvas-prefs';
+import type { CanvasPrefs } from '../canvas-prefs';
+import { LiveView } from './LiveView';
 import { SchematicView } from './SchematicView';
 import { useCanvasPrefs } from './usePrefs';
 import type { CollapseRegistry } from '../view-state';
-import {
-  DELETE_COMMAND_ID,
-  DUPLICATE_COMMAND_ID,
-  GROUP_COMMAND_ID,
-  REDO_COMMAND_ID,
-  UNDO_COMMAND_ID,
-  UNGROUP_COMMAND_ID,
-  type CommandAccess,
-} from '../commands';
-import type { NodeId, Translate } from '../host';
+import type { CommandAccess } from '../commands';
+import type { LivePreviewPort, NodeId, Translate } from '../host';
 import type { SchemaEditorState, SchemaSession } from '../sessions';
 
 /** Отступ уровня в пикселях. Динамическая величина, классом Tailwind невыразима. */
@@ -178,6 +159,14 @@ export interface CanvasProps {
    * клавиши, поднимает канвас без настроек, и переключателя у него просто нет.
    */
   readonly prefs?: CanvasPrefs | null;
+  /**
+   * Живой рендер формы — поверхность превью, отданная композицией.
+   *
+   * `null` означает, что вида «форма» нет вовсе: кнопки в полосе вкладок нет, а запомненное
+   * предпочтение падает на дерево. Так бывает и в сборке без плагина превью, и в тесте
+   * канваса, которому нужны только клавиши.
+   */
+  readonly live?: LivePreviewPort | null;
 }
 
 /** Пустой свод: одна ссылка вместо нового массива на каждую отрисовку. */
@@ -200,6 +189,7 @@ export function Canvas({
   drag = null,
   viewStates = null,
   prefs = null,
+  live = null,
 }: CanvasProps): ReactElement {
   const prefsState = useCanvasPrefs(prefs);
   const documentId = session.documentId;
@@ -332,6 +322,11 @@ export function Canvas({
     (event: KeyboardEvent<HTMLDivElement>) => {
       const dir = ARROW_DIRECTIONS[event.key];
       if (dir === undefined) return;
+      // Стрелка с Ctrl/Cmd или Alt принадлежит КОМАНДЕ — перемещению и дублированию
+      // (`plugins/editor-schema/commands`). Курсор её не трогает: иначе одно нажатие
+      // делало бы два дела сразу — узел уезжал бы, и выделение уходило бы с него.
+      // Shift исключением не является: он расширяет диапазон, и это работа курсора.
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
       const current = selection[selection.length - 1];
       if (current === undefined) return;
       const index = indexNodes(model);
@@ -377,11 +372,20 @@ export function Canvas({
     </>
   );
 
+  // Порт мог исчезнуть вместе с плагином превью, а предпочтение — приехать из сборки,
+  // где он был. Падаем на дерево и не притворяемся, что показываем форму.
+  if (prefsState.view === 'live' && live !== null) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        {notices}
+        <LiveView session={session} state={state} t={t} live={live} drag={drag} />
+      </div>
+    );
+  }
+
   if (prefsState.view === 'schematic') {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <Toolbar t={t} state={state} commands={commands} prefs={prefs} view="schematic" />
-        <Separator />
         {notices}
         <SchematicView
           session={session}
@@ -392,7 +396,6 @@ export function Canvas({
           message={message}
           fixTitle={fixTitle}
           drag={drag}
-          hideWrappers={prefsState.wrappersHidden}
         />
       </div>
     );
@@ -400,8 +403,6 @@ export function Canvas({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <Toolbar t={t} state={state} commands={commands} prefs={prefs} view="tree" />
-      <Separator />
       {notices}
       <ScrollArea className="min-h-0 flex-1">
         <div
@@ -454,157 +455,6 @@ export function Canvas({
         </div>
       </ScrollArea>
     </div>
-  );
-}
-
-/**
- * Панель инструментов канваса. Каждая кнопка — вызов команды, а не своё действие.
- *
- * Исключение ровно одно и оно осознанное: переключатель вида и скрытие обёрток командами
- * не идут. Это не правка документа, а предпочтение смотрящего ({@link './../canvas-prefs'}),
- * у него нет ни отмены, ни цели, ни охранного условия — команда обещала бы всё это зря.
- */
-function Toolbar({
-  t,
-  state,
-  commands,
-  prefs,
-  view,
-}: {
-  t: Translate;
-  state: SchemaEditorState;
-  commands: CommandAccess;
-  prefs: CanvasPrefs | null;
-  view: CanvasView;
-}): ReactElement {
-  const single = state.selection.length === 1;
-  const some = state.selection.length > 0;
-  const editable = state.syncState === 'synced';
-  const wrappersHidden = prefs?.wrappersHidden() === true;
-
-  return (
-    <TooltipProvider>
-      <div className="flex items-center gap-1 px-2 py-1">
-        {prefs !== null && (
-          <>
-            <ToolButton
-              label={t('action.view.tree')}
-              icon={<List className="size-4" />}
-              active={view === 'tree'}
-              disabled={false}
-              onClick={() => {
-                prefs.setView('tree');
-              }}
-            />
-            <ToolButton
-              label={t('action.view.schematic')}
-              icon={<LayoutPanelTop className="size-4" />}
-              active={view === 'schematic'}
-              disabled={false}
-              onClick={() => {
-                prefs.setView('schematic');
-              }}
-            />
-            {view === 'schematic' && (
-              // Только в схеме: в дереве обёртка — такая же строка, как остальные, и прятать
-              // её значило бы прятать узел, до которого больше нечем добраться.
-              <ToolButton
-                label={wrappersHidden ? t('action.wrappers.show') : t('action.wrappers.hide')}
-                icon={wrappersHidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                disabled={false}
-                onClick={() => {
-                  prefs.setWrappersHidden(!wrappersHidden);
-                }}
-              />
-            )}
-            <Separator orientation="vertical" className="mx-1 h-4" />
-          </>
-        )}
-        <ToolButton
-          label={t('action.duplicate')}
-          icon={<Copy className="size-4" />}
-          disabled={!editable || !single}
-          onClick={() => {
-            commands.run(DUPLICATE_COMMAND_ID);
-          }}
-        />
-        <ToolButton
-          label={t('action.delete')}
-          icon={<Trash2 className="size-4" />}
-          disabled={!editable || !some}
-          onClick={() => {
-            commands.run(DELETE_COMMAND_ID);
-          }}
-        />
-        <Separator orientation="vertical" className="mx-1 h-4" />
-        <ToolButton
-          label={t('action.group')}
-          icon={<Group className="size-4" />}
-          disabled={!editable || !some}
-          onClick={() => {
-            commands.run(GROUP_COMMAND_ID);
-          }}
-        />
-        <ToolButton
-          label={t('action.ungroup')}
-          icon={<Ungroup className="size-4" />}
-          disabled={!editable || !single}
-          onClick={() => {
-            commands.run(UNGROUP_COMMAND_ID);
-          }}
-        />
-        <Separator orientation="vertical" className="mx-1 h-4" />
-        <ToolButton
-          label={t('action.undo')}
-          icon={<Undo2 className="size-4" />}
-          disabled={!state.canUndo}
-          onClick={() => {
-            commands.run(UNDO_COMMAND_ID);
-          }}
-        />
-        <ToolButton
-          label={t('action.redo')}
-          icon={<Redo2 className="size-4" />}
-          disabled={!state.canRedo}
-          onClick={() => {
-            commands.run(REDO_COMMAND_ID);
-          }}
-        />
-      </div>
-    </TooltipProvider>
-  );
-}
-
-function ToolButton({
-  label,
-  icon,
-  disabled,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  icon: ReactElement;
-  disabled: boolean;
-  /** Нажатое состояние — у переключателя вида: он показывает выбор, а не только действие. */
-  active?: boolean;
-  onClick: () => void;
-}): ReactElement {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant={active ? 'secondary' : 'ghost'}
-          size="icon-sm"
-          aria-label={label}
-          aria-pressed={active || undefined}
-          disabled={disabled}
-          onClick={onClick}
-        >
-          {icon}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
   );
 }
 

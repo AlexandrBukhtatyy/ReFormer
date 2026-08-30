@@ -49,6 +49,8 @@ import {
   type ViewStateStore,
 } from './editors';
 import type { Document } from '../workspace/document';
+import { hostMenuEntry, type MenuEntry } from './menu';
+import { EDITOR_TITLE_MENU } from './editor-menu';
 import type { PanelEntry } from './panels';
 import type { DocumentTabsStore } from './tabs';
 import { useContributions, type ExtensionReader } from './usePanels';
@@ -149,6 +151,27 @@ export type EditorAreaCommands = EditorActionsCommands & Pick<CommandRegistry, '
 /** Команда «открыть другим редактором». Экспортируется: на неё ссылается пункт меню «Файл». */
 export const EDITOR_NEXT_COMMAND_ID = 'shell.editor.next';
 
+/**
+ * Встроенные пункты «…» — то, что относится к ЛЮБОМУ открытому документу.
+ *
+ * Значка нет намеренно: по правилу ряда пункт без значка уходит под «…», и именно это
+ * делает кнопку постоянной. Дальше её наполняет тот, кто знает, что открыто: редактор схемы
+ * кладёт туда обёртки, markdown — своё. Без этой записи «…» появлялась бы и исчезала вместе
+ * с чужими вкладами, а место у постоянной кнопки должно быть постоянным.
+ *
+ * Смена редактора здесь, а не только в меню «Файл», по той же причине, по какой она вообще
+ * есть: «покажи этот файл иначе» спрашивают О ДОКУМЕНТЕ, и спрашивать это удобнее там, где
+ * документ и открыт. Пункт остаётся ссылкой на ту же команду — второго пути к ней не заведено.
+ */
+const EDITOR_TITLE_BUILTIN: readonly MenuEntry[] = Object.freeze([
+  hostMenuEntry('shell.editor.title.next', {
+    kind: 'item',
+    menu: EDITOR_TITLE_MENU,
+    command: EDITOR_NEXT_COMMAND_ID,
+    group: '9_editor',
+  }),
+]);
+
 /** Ни одного кандидата: одна ссылка — её сравнивает `useMemo` ниже по дереву. */
 const NO_CANDIDATES: readonly EditorCandidate[] = Object.freeze([]);
 
@@ -202,6 +225,7 @@ function DocumentSurface({
             editorId={entry?.value.id ?? null}
             commands={commands}
             whenContext={whenContext}
+            builtin={EDITOR_TITLE_BUILTIN}
           />
         }
       />

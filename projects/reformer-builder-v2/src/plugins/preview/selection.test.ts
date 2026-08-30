@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DocumentRef } from '@/sdk';
 import type { PreviewCapabilities, PreviewSurface } from './contract';
-import { chooseSurface, nextSurfaceId, surfaceRank } from './selection';
+import { chooseSurface, surfaceRank } from './selection';
 
 const DOC: DocumentRef = {
   id: 'fake:form.json',
@@ -71,14 +71,11 @@ describe('chooseSurface', () => {
     ]);
   });
 
-  it('источник без права исполнения откатывает на рантайм и называет причину', () => {
-    const choice = chooseSurface({
-      surfaces: ALL,
-      doc: DOC,
-      source: { executesCode: false },
-      preferred: 'compiling',
-    });
+  it('источник без права исполнения откатывает на рантайм и называет причину САМ', () => {
+    const choice = chooseSurface({ surfaces: ALL, doc: DOC, source: { executesCode: false } });
     expect(choice.surface?.id).toBe('runtime');
+    // Никто ничего не просил — и именно поэтому причина обязана прийти сама: переключателя
+    // нет, а форма без исполненной валидации выглядит как форма со сломанной валидацией.
     expect(choice.fallback).toEqual({ requested: 'compiling', reason: 'source-forbids-code' });
   });
 
@@ -92,26 +89,10 @@ describe('chooseSurface', () => {
     });
   });
 
-  it('выбор человека выигрывает у правила', () => {
-    const choice = chooseSurface({
-      surfaces: ALL,
-      doc: DOC,
-      source: { executesCode: true },
-      preferred: 'skeleton',
-    });
-    expect(choice.surface?.id).toBe('skeleton');
-    expect(choice.fallback).toBeNull();
-  });
-
-  it('исчезнувшая поверхность даёт откат с причиной unknown-surface', () => {
-    const choice = chooseSurface({
-      surfaces: ALL,
-      doc: DOC,
-      source: { executesCode: true },
-      preferred: 'external',
-    });
+  it('доступная самая способная причины не рождает: объяснять нечего', () => {
+    const choice = chooseSurface({ surfaces: ALL, doc: DOC, source: { executesCode: true } });
     expect(choice.surface?.id).toBe('compiling');
-    expect(choice.fallback).toEqual({ requested: 'external', reason: 'unknown-surface' });
+    expect(choice.fallback).toBeNull();
   });
 
   it('неприменимая к документу поверхность не попадает в переключатель', () => {
@@ -143,22 +124,5 @@ describe('chooseSurface', () => {
     const choice = chooseSurface({ surfaces: [], doc: DOC, source: null });
     expect(choice.surface).toBeNull();
     expect(choice.options).toEqual([]);
-  });
-});
-
-describe('nextSurfaceId', () => {
-  it('идёт по кругу и пропускает недоступные', () => {
-    const options = chooseSurface({
-      surfaces: ALL,
-      doc: DOC,
-      source: { executesCode: false },
-    }).options;
-    expect(nextSurfaceId(options, 'runtime')).toBe('skeleton');
-    expect(nextSurfaceId(options, 'skeleton')).toBe('runtime');
-  });
-
-  it('менять не на что, когда доступна одна', () => {
-    const options = chooseSurface({ surfaces: [SKELETON], doc: DOC, source: null }).options;
-    expect(nextSurfaceId(options, 'skeleton')).toBeNull();
   });
 });

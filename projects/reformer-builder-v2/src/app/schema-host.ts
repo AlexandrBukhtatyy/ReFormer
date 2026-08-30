@@ -1,10 +1,17 @@
 /**
  * Порт визуального редактора схемы, собранный из платформы.
  *
- * Отличие от портов файлов и Monaco одно: сюда приходит **каталог активного кита**. Редактор
- * без него работает, но бесполезен — палитре нечего предлагать, а инспектору нечего показывать
- * в свойствах. Каталог берётся из сервиса китов ЛЕНИВО, на каждый вызов: кит переключают,
- * и захваченный в замыкание список означал бы палитру от предыдущего кита.
+ * Отличий от портов файлов и Monaco два.
+ *
+ * Первое: сюда приходит **каталог активного кита**. Редактор без него работает, но бесполезен —
+ * палитре нечего предлагать, а инспектору нечего показывать в свойствах. Каталог берётся
+ * из сервиса китов ЛЕНИВО, на каждый вызов: кит переключают, и захваченный в замыкание список
+ * означал бы палитру от предыдущего кита.
+ *
+ * Второе: сюда же приходит **живой рендер формы** ({@link './live-surface'}) — поверхность
+ * плагина превью, выбранная общим с панелью правилом. Тем же приёмом и по той же причине,
+ * что и тело редактора кода ниже: рисовать форму умеет чужой плагин, а импортировать его
+ * редактору схемы нельзя.
  *
  * @module app/schema-host
  */
@@ -18,7 +25,12 @@ import { useLocale } from '../host/ui/usePanels';
 import type { CatalogEntry } from '../lib/catalog/types';
 import { KitsServiceToken } from '../plugins/kits/service';
 import { SCHEMA_EDITOR_PLUGIN_ID, SCHEMA_MODEL_PROVIDER_ID } from '../plugins/editor-schema';
-import type { SchemaEditorHost, SchemaModelHandle, Translate } from '../plugins/editor-schema';
+import type {
+  LivePreviewPort,
+  SchemaEditorHost,
+  SchemaModelHandle,
+  Translate,
+} from '../plugins/editor-schema';
 import { makeUseDiagnosticMessage, makeUseHostMessage } from './monaco-host';
 import type { ProjectHost } from './project';
 
@@ -34,6 +46,13 @@ export interface SchemaHostDeps {
    * бы его урезанная копия со своими сочетаниями клавиш и своей подсветкой.
    */
   readonly TextEditor?: ComponentType<{ documentId: ResourceId }>;
+  /**
+   * Живой рендер формы.
+   *
+   * Без него четвёртого представления нет вовсе — кнопка не рисуется. Так и бывает: плагин
+   * превью выключаемый, а его поверхности вносятся вкладами.
+   */
+  readonly live?: LivePreviewPort;
 }
 
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
@@ -58,9 +77,10 @@ export function createSchemaHost(deps: SchemaHostDeps): SchemaEditorHost {
     // из палитры, где аргументов нет вовсе.
     activeDocument: () => project.get()?.documents.get().activeId ?? null,
 
-    // Приходит от композиции и уходит в редактор как есть: плагин не выбирает редактор
-    // и не знает, чей он.
+    // Приходит от композиции и уходит в редактор как есть: плагин не выбирает ни редактор,
+    // ни поверхность и не знает, чьи они.
     TextEditor: deps.TextEditor,
+    live: deps.live,
     // Тот же словарь Host, что у Monaco: находка на узле канваса и подчёркивание в тексте —
     // это одна ошибка, показанная дважды, и звучать она обязана одинаково.
     useDiagnosticMessage: makeUseDiagnosticMessage(i18n),
