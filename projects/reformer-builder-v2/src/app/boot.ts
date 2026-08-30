@@ -47,8 +47,6 @@
  * @module app/boot
  */
 
-import { createElement, type ReactElement } from 'react';
-import type { ResourceId } from '../host/primitives/resource';
 import { createCommandRegistry } from '../host/primitives/command';
 import { createEventBus } from '../host/primitives/event';
 import { createExtensionRegistry } from '../host/primitives/extension-point';
@@ -392,19 +390,21 @@ export function boot(): BuilderApp {
   /**
    * Тело редактора кода как компонент.
    *
-   * Собирается ОДИН раз: пересоздание на каждую отрисовку размонтировало бы Monaco при
-   * каждом нажатии клавиши. Его берут двое — предпросмотр markdown (режим «рядом»)
-   * и редактор схемы (режим исходника).
+   * Берётся ОДИН раз, и это не оптимизация: React сравнивает тип элемента по ссылке, поэтому
+   * новая функция на каждой отрисовке — это размонтирование Monaco и монтирование заново.
+   * Здесь стояла обёртка, вызывавшая `monacoEditorContribution(...)` внутри себя: сама она
+   * создавалась один раз, а `Body` — на каждый вызов. Любая перерисовка родителя (клик,
+   * пришедшая диагностика, смена фокуса) роняла позицию курсора и набранное, то есть
+   * редактировать исходник схемы было нельзя вовсе.
+   *
+   * Тело берут двое — предпросмотр markdown (режим «рядом») и редактор схемы (режим
+   * исходника), — и оба обязаны получить ОДНУ ссылку.
    */
-  const monacoTextEditor = ({ documentId }: { documentId: ResourceId }): ReactElement =>
-    createElement(
-      monacoEditorContribution({
-        host: monacoHost,
-        focus: monacoFocus,
-        viewStates: monacoViewStates,
-      }).Body,
-      { documentId }
-    );
+  const monacoTextEditor = monacoEditorContribution({
+    host: monacoHost,
+    focus: monacoFocus,
+    viewStates: monacoViewStates,
+  }).Body;
 
   // Порт превью и реестр его состояний создаются ЗДЕСЬ, потому что их берут двое: панель
   // превью и живой вид редактора схемы. Общий реестр — то, из-за чего выбор поверхности,

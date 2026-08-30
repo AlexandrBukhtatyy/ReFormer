@@ -27,6 +27,11 @@ import { createWorkspaceFileStore } from '../host/workspace/storage/opfs';
 import { createMemoryIndexedDb, createMemoryOpfs } from '../host/workspace/storage/testing';
 import { sampleSchema } from '../lib/form-model/__fixtures__/sample-schema';
 import { createSchemaModelProvider } from '../plugins/editor-schema/provider';
+import {
+  createFocusRegistry,
+  createViewStateRegistry,
+  monacoEditorContribution,
+} from '../plugins/editor-monaco';
 import { createMonacoHost } from './monaco-host';
 import { createProjectHost } from './project';
 import { createSchemaHost } from './schema-host';
@@ -283,5 +288,32 @@ describe('порт ассистента: пометка происхождени
     void host.writeText('mem:a.json' as ResourceId, '{}');
 
     expect(marks).toEqual([undefined]);
+  });
+});
+
+/**
+ * Предпосылка, на которой держится способ отдавать тело редактора кода.
+ *
+ * Композиция обязана взять `Body` ОДИН раз и раздать эту ссылку всем троим (обычная вкладка,
+ * markdown «рядом», исходник схемы). Именно здесь это чуть не стоило редактора: тело отдавалось
+ * обёрткой, которая звала `monacoEditorContribution(...)` внутри себя, — сама обёртка была
+ * стабильной, а `Body` рождался заново на каждой отрисовке. React сравнивает тип элемента
+ * по ссылке, поэтому любая перерисовка родителя размонтировала Monaco и монтировала заново:
+ * курсор и набранное пропадали, то есть править исходник схемы было нельзя вовсе.
+ *
+ * Тест охраняет не саму композицию, а факт, который делает такую обёртку разрушительной.
+ * Станет `Body` стабильным между вызовами — тест упадёт, и это будет поводом перечитать
+ * решение, а не молча вернуть обёртку.
+ */
+describe('тело редактора кода', () => {
+  it('рождается заново на каждый вызов вклада — потому и берётся один раз', () => {
+    const h = harness();
+    const deps = {
+      host: h.monaco,
+      focus: createFocusRegistry(),
+      viewStates: createViewStateRegistry(),
+    };
+
+    expect(monacoEditorContribution(deps).Body).not.toBe(monacoEditorContribution(deps).Body);
   });
 });

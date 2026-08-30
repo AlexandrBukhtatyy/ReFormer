@@ -16,7 +16,6 @@
  * @module app/markdown-host
  */
 
-import { createElement } from 'react';
 import { makeResourceId, type ResourceId } from '../host/primitives/resource';
 import type { RootI18nService } from '../host/services/i18n/i18n';
 import { useLocale } from '../host/ui/usePanels';
@@ -57,20 +56,18 @@ function makeUseTranslate(i18n: RootI18nService): () => Translate {
 export function createMarkdownHost(deps: MarkdownHostDeps): MarkdownHost {
   const { project, i18n, monaco } = deps;
 
-  // Тело редактора собирается один раз: пересоздавать его на каждую отрисовку значило бы
-  // размонтировать Monaco при каждом нажатии клавиши.
+  // Тело редактора берётся один раз, и это не оптимизация: React сравнивает тип элемента
+  // по ссылке, поэтому новая функция на каждой отрисовке — это размонтирование Monaco
+  // и монтирование заново, то есть потеря курсора и набранного. Здесь стояла обёртка,
+  // создававшая `Body` внутри себя на каждый вызов, — она это и делала.
   const TextEditor =
     monaco === undefined
       ? undefined
-      : ({ documentId }: { documentId: ResourceId }) =>
-          createElement(
-            monacoEditorContribution({
-              host: monaco.host,
-              focus: monaco.focus,
-              viewStates: monaco.viewStates,
-            }).Body,
-            { documentId }
-          );
+      : monacoEditorContribution({
+          host: monaco.host,
+          focus: monaco.focus,
+          viewStates: monaco.viewStates,
+        }).Body;
 
   return {
     useTranslate: makeUseTranslate(i18n),
