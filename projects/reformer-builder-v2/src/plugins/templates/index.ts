@@ -129,6 +129,9 @@ export type { NameCase } from './placeholders';
 
 export { TEMPLATES_MESSAGES } from './messages';
 
+export { createTemplatesRefresh } from './refresh';
+export type { TemplatesRefresh } from './refresh';
+
 export type {
   MessageSink,
   TemplateKeyValue,

@@ -56,6 +56,23 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
     resolve: (dir, ...segments) =>
       [dir, ...segments].filter((s) => s !== '').join('/') as ResourceId,
     exists: async (id) => written.has(id),
+    // Листинг выводится из той же плоской карты: «в каталоге» — значит адрес начинается с него
+    // и не уходит глубже. Отдельного дерева каталогов у двойника нет — оно было бы вторым
+    // ответом на вопрос «что лежит на диске».
+    list: async (dir) =>
+      [...written.keys()]
+        .filter((id) => id.startsWith(`${dir}/`) && !id.slice(dir.length + 1).includes('/'))
+        .map((id) => {
+          const name = id.slice(dir.length + 1);
+          return {
+            id: id as ResourceId,
+            sourceId: 'fake',
+            path: id,
+            name,
+            kind: 'file' as const,
+            mediaType: name.endsWith('.json') ? 'application/json' : 'text/plain',
+          };
+        }),
     readText: async (id) => written.get(id) ?? null,
     writeText: async (id, text) => {
       written.set(id, text);

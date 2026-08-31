@@ -157,6 +157,7 @@ export function materializeFiles(
   return template.files
     .filter((f) => keep.has(f.path))
     .map((f) => ({
+      ...f,
       path: materialize(f.path, formName),
       content: materialize(f.content, formName),
     }));

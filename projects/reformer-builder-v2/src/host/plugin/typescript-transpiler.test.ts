@@ -5,6 +5,8 @@ import {
   createTypeScriptSupport,
   createTypeScriptTranspiler,
   isTypeScriptFile,
+  TYPESCRIPT_ENGINE_VERSION,
+  TYPESCRIPT_OPTIONS_SIGNATURE,
   TYPESCRIPT_TRANSPILER_ID,
   type TypeScriptEngine,
 } from './typescript-transpiler';
@@ -48,6 +50,23 @@ describe('транспилятор TypeScript', () => {
       jsxImportSource: 'react',
       isolatedModules: true,
     });
+  });
+
+  it('подпись опций называет КАЖДУЮ опцию, которая реально уходит в движок', () => {
+    const engine = fakeEngine();
+    createTypeScriptTranspiler(engine).transpile('export const a = 1;', 'main.ts');
+
+    // Подпись — часть ключа кэша транспиляции. Разойдись она с опциями — кэш отдал бы код,
+    // собранный по прежним правилам, и понять это по поведению формы было бы нельзя.
+    for (const option of Object.keys(engine.calls[0].options)) {
+      expect(TYPESCRIPT_OPTIONS_SIGNATURE, option).toContain(`${option}=`);
+    }
+  });
+
+  it('версия движка берётся из package.json — она нужна до его загрузки', () => {
+    // Ключ кэша обязан быть известен ДО `import('typescript')`, иначе экономить нечего:
+    // движок уже приехал.
+    expect(TYPESCRIPT_ENGINE_VERSION).toMatch(/^\d+\.\d+/);
   });
 
   it('находки движка становятся исключением с их текстом', () => {

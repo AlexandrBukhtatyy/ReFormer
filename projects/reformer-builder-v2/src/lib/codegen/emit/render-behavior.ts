@@ -124,7 +124,13 @@ ${hidden.size > 0 ? '' : '    void hideWhen;\n'}
     const ${target} = schema.node('${selectors.submitSelector}');
 ${injectForm}
     onComponentEvent(${target}, '${selectors.submitEvent}', async () => {
-      if (!(await validateModel(model, formValidation))) return;
+      // \`touch: true\` обязателен: киты показывают ошибку только у ТРОНУТОГО поля
+      // (\`invalid && (touched || dirty)\`). Без него неудачная отправка выглядела бы так,
+      // будто кнопка не работает: форма не отправлена, а почему — нигде не сказано.
+      if (!(await validateModel(model, formValidation, { touch: true }))) {
+        onResult?.('Проверьте заполнение формы', false);
+        return;
+      }
       const res = await submitForm(model.get());
       onResult?.(res.success ? 'Форма отправлена' : res.error, res.success);
     });

@@ -109,6 +109,13 @@ export function createTemplatesHost(deps: TemplatesHostDeps): TemplatesHost {
       return source === undefined ? null : { write: source.capabilities?.write === true };
     },
 
+    // Дерево читает уровни лениво и помнит прочитанное: каталог, созданный записью,
+    // без этого хода в нём не появится. Тот же глагол, которым чинит себя дерево после
+    // операций над записями, — `ResourceOperations.refresh`.
+    async invalidate(dir: ResourceId) {
+      await project.get()?.resources.refresh(dir);
+    },
+
     async save(ids: readonly ResourceId[]) {
       const session = project.get();
       if (session === null) return false;

@@ -14,11 +14,10 @@
  */
 
 import { useEffect, useState, type KeyboardEvent, type ReactElement } from 'react';
-import { CircleAlert, MessageSquarePlus, Send, Settings2, Square, Undo2 } from 'lucide-react';
+import { CircleAlert, Send, Square } from 'lucide-react';
 import { Alert, AlertDescription } from '@reformer/ui-kit/alert';
 import { Button } from '@reformer/ui-kit/button';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import { Separator } from '@reformer/ui-kit/separator';
 import { Textarea } from '@reformer/ui-kit/textarea';
 import { isStale } from '../apply';
 import type { AgentBridge } from '../bridge';
@@ -46,10 +45,6 @@ export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps):
   // панель запрашивает сама. Заводить ради этого второе наблюдаемое состояние не за что —
   // канал меняется ровно в двух местах, и оба здесь.
   const [connected, setConnected] = useState(0);
-  // Отмена хода состояния сессии не меняет (лента остаётся какой была — в том и смысл), поэтому
-  // перерисовку после неё панель запрашивает сама: иначе кнопка осталась бы доступной на вид
-  // до ближайшего чужого изменения. Тот же приём и та же причина, что у `connected` выше.
-  const [undone, setUndone] = useState(0);
 
   // Канал поднимается при первом показе панели: SDK провайдера грузится отдельным чанком, и
   // платить за него должен тот, кто ассистента открыл.
@@ -65,7 +60,6 @@ export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps):
   }, [assistant]);
 
   void connected;
-  void undone;
   const provider = assistant.providers.firstEditing();
   const running = state.status === 'running';
   // Без канала показывать ленту нечего — сразу открываем настройки.
@@ -87,53 +81,9 @@ export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps):
     }
   };
 
-  const header = (
-    <div className="flex flex-none items-center justify-end gap-1 px-2 py-1">
-      {/* Через реестр команд, а не прямым вызовом моста: у отмены один вход, и охранное
-          условие с записью в палитре относятся к нему же. Доступность спрашивается у моста
-          напрямую — это чтение, а не действие, и оно обязано быть дешёвым. */}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        title={t('chat.undoTurn')}
-        disabled={!bridge.canUndoTurn()}
-        onClick={() => {
-          void bridge.requestUndoTurn().then(() => {
-            setUndone((n) => n + 1);
-          });
-        }}
-      >
-        <Undo2 />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        title={t('chat.newConversation')}
-        disabled={running}
-        onClick={() => {
-          session.reset();
-        }}
-      >
-        <MessageSquarePlus />
-      </Button>
-      <Button
-        variant={state.settingsOpen ? 'secondary' : 'ghost'}
-        size="icon-sm"
-        title={t('chat.settings')}
-        onClick={() => {
-          session.setSettingsOpen(!state.settingsOpen);
-        }}
-      >
-        <Settings2 />
-      </Button>
-    </div>
-  );
-
   if (showSettings) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        {header}
-        <Separator />
         <ScrollArea className="min-h-0 flex-1">
           <ProviderSettings
             assistant={assistant}
@@ -150,9 +100,6 @@ export function ChatPanel({ host, session, bridge, assistant }: ChatPanelProps):
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {header}
-      <Separator />
-
       <MessageList
         entries={state.entries}
         running={running}

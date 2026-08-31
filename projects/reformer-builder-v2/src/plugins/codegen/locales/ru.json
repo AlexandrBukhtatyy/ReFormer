@@ -31,5 +31,21 @@
   "error.not-a-schema": "Этот документ не разбирается в схему формы.",
   "error.no-kit": "Кит не выбран: неизвестно, откуда импортировать компоненты.",
   "error.read-only": "Источник не принимает запись — сгенерированное сохранить некуда.",
-  "error.failed": "Записать модуль не удалось."
+  "error.failed": "Записать модуль не удалось.",
+  "command.create-fixture": "Создать фикстуру предпросмотра",
+  "command.generateInto": "Сгенерировать код формы в каталог",
+  "menu.generate": "Сгенерировать",
+  "menu.generate.all": "Весь модуль",
+  "target.schema": "Схема формы",
+  "target.types": "Типы",
+  "target.model": "Модель",
+  "target.registry": "Реестр компонентов",
+  "target.index": "Точка входа",
+  "target.wizard": "Шим визарда",
+  "target.data-sources": "Справочники",
+  "target.render-behavior": "Поведение UI",
+  "target.form-behavior": "Поведение формы",
+  "target.validation": "Схема валидации",
+  "target.api": "Бэкенд",
+  "target.readme": "README"
 }

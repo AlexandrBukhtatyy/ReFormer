@@ -14,7 +14,8 @@ import { ensureNodeIds, newNodeId } from '@/lib/form-model/node-id';
 import { toDescriptor } from '@/lib/kits/descriptor';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { NODE_CLASS_PREFIX } from '../node-token';
-import { buildRuntimeBundle, deepMerge } from './build';
+import { deepMerge } from '@/lib/form-fixture';
+import { buildRuntimeBundle } from './build';
 
 const DESCRIPTOR = toDescriptor({ version: '1.0', components: [] });
 

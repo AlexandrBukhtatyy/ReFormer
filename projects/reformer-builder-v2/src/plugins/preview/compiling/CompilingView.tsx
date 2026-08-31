@@ -55,7 +55,9 @@ import { Highlight } from '../ui/Highlight';
 import { Notice } from '../ui/Notice';
 import { useFilesVersion, useKitVersion, usePreviewSchema, usePreviewSelection } from '../ui/hooks';
 import type { ComponentRegistry } from '@reformer/renderer-json';
+import { createAmbient, type FormFixture } from '@/lib/form-fixture';
 import { compileForm } from './compile';
+import { loadFixture } from './fixture';
 import {
   appliedArtifacts,
   extractContract,
@@ -78,6 +80,13 @@ interface CompiledSources {
   readonly contract: FormContract | null;
   /** Реестр компонентов формы: собран один раз, при исполнении `registry.ts`. */
   readonly registry: ComponentRegistry | undefined;
+  /**
+   * Фикстура формы: данные, подстановки и окружение.
+   *
+   * Живёт рядом с контрактом, потому что читается тем же эффектом и по тому же поводу —
+   * правке файлов, а не схемы.
+   */
+  readonly fixture: FormFixture | null;
   readonly applied: readonly AppliedArtifact[];
   readonly problems: readonly PreviewProblem[];
   /** Идёт первая компиляция: показывать нечего вовсе. */
@@ -87,6 +96,7 @@ interface CompiledSources {
 const PENDING: CompiledSources = Object.freeze({
   contract: null,
   registry: undefined,
+  fixture: null,
   applied: [],
   problems: [],
   pending: true,
@@ -96,6 +106,7 @@ const PENDING: CompiledSources = Object.freeze({
 const NOTHING: CompiledSources = Object.freeze({
   contract: {},
   registry: undefined,
+  fixture: null,
   applied: [],
   problems: [],
   pending: false,
@@ -119,6 +130,9 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
 
   const modules = host.modules;
   const documentId = ctx.doc.id;
+  // Путь документа нужен для адреса фикстуры: она лежит рядом с формой (`fixture.ts` в её
+  // каталоге), и этот адрес выводится из пути схемы.
+  const schemaPath = host.documentOf(documentId)?.ref.path ?? '';
   const mock = ctx.mock();
 
   const kit = useMemo(() => {
@@ -148,12 +162,27 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     setSources((previous) => (previous.contract === null ? PENDING : previous));
 
     void (async () => {
+      // Фикстура исполняется ПЕРВОЙ и отдельным графом: её подстановки нужны сайдкарам,
+      // а общий граф исполнил бы `./api` дважды — один раз для неё, другой для формы.
+      const loaded = await loadFixture(host, modules, documentId, schemaPath);
+      const isolation = {
+        overrides:
+          loaded.fixture?.modules === undefined
+            ? undefined
+            : new Map(Object.entries(loaded.fixture.modules)),
+        ambient: createAmbient(loaded.fixture),
+      };
+
       const read = await readSidecars(host, documentId);
-      const compiled = await compileForm(read.files, modules);
+      const compiled = await compileForm(read.files, modules, isolation);
       if (cancelled) return;
 
       const contract = extractContract(compiled.modules);
-      const problems: PreviewProblem[] = [...read.problems, ...compiled.problems];
+      const problems: PreviewProblem[] = [
+        ...loaded.problems,
+        ...read.problems,
+        ...compiled.problems,
+      ];
 
       let registry: ComponentRegistry | undefined;
       if (contract.createRegistry !== undefined) {
@@ -171,6 +200,7 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
       setSources({
         contract,
         registry,
+        fixture: loaded.fixture,
         applied: appliedArtifacts(contract),
         problems,
         pending: false,
@@ -180,7 +210,7 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     return () => {
       cancelled = true;
     };
-  }, [host, documentId, modules, filesVersion]);
+  }, [host, documentId, schemaPath, modules, filesVersion]);
 
   // Форма: синхронная сборка по схеме и уже исполненным сайдкарам. Правка схемы доходит
   // сюда и никуда больше — компилятор она не трогает.
@@ -194,6 +224,7 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
       descriptor: kit.descriptor,
       namespace: kit.namespace,
       mock,
+      fixture: sources.fixture,
       extraRegistry: sources.registry,
       initialOverride: contract.initial,
       behavior: contract.behavior,
@@ -205,7 +236,13 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
 
   useEffect(() => {
     live.current = bundle?.form ?? null;
-  }, [bundle]);
+    // Панель модели читает и правит ЭТУ форму. Публикуем после сборки и снимаем на
+    // размонтировании: наблюдателю нечего показывать, когда поверхности нет.
+    ctx.publishForm?.(bundle?.form ?? null);
+    return () => {
+      ctx.publishForm?.(null);
+    };
+  }, [bundle, ctx]);
 
   useEffect(() => {
     // Размонтирование — последний момент, когда модель ещё жива.

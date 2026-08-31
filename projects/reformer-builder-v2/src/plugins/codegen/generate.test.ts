@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { builtinKit, foreignKit, plainSchema, wizardSchema } from '@/lib/codegen/__fixtures__/kit';
-import { isGenerated, originOf, type CodegenInput } from '@/lib/codegen';
+import { isGenerated, MARKER_PREFIX, originOf, type CodegenInput } from '@/lib/codegen';
 import type { CodegenTarget } from './contract';
 import { generateModule } from './generate';
 import { BUILTIN_TARGETS } from './targets';
@@ -121,6 +121,19 @@ describe('маркеры происхождения', () => {
     expect(isGenerated(by('validation.ts'))).toBe(true);
     expect(originOf(by('api.ts'))).toBe('handwritten');
     expect(originOf(by('data-sources.ts'))).toBe('handwritten');
+  });
+
+  it('схема остаётся РАЗБИРАЕМЫМ json: маркер туда не ставится', async () => {
+    // Отказ был ровно здесь: `renderer.schema.json` уезжал со строкой `// @reformer-generated`
+    // первой, то есть переставал быть JSON. Редактор схемы такой файл не брал (вкладка
+    // открывалась голым текстом), и сгенерированный `index.tsx`, который импортирует эту же
+    // схему, тоже не собрался бы.
+    const module = await generateModule(BUILTIN_TARGETS, input());
+    const schema = module.files.find((f) => f.path === 'renderer.schema.json')?.content ?? '';
+
+    expect(schema.startsWith(MARKER_PREFIX)).toBe(false);
+    expect(() => JSON.parse(schema)).not.toThrow();
+    expect(JSON.parse(schema)).toHaveProperty('root');
   });
 
   it('маркер считается ПОСЛЕ форматирования, иначе он не сойдётся с телом', async () => {

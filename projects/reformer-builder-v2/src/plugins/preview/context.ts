@@ -95,6 +95,10 @@ export function createPreviewContext(deps: PreviewContextDeps): OwnedPreviewCont
       return store.values();
     },
 
+    publishForm(form): void {
+      store.publishForm(form);
+    },
+
     keepValues(next: PreviewValues): void {
       store.keepValues(next);
     },

@@ -14,9 +14,11 @@ import {
   CODEGEN_PANEL_ID,
   CODEGEN_PLUGIN_ID,
   createCodegenPlugin,
+  CREATE_FIXTURE_COMMAND_ID,
   GENERATE_COMMAND_ID,
   panelVisible,
 } from './plugin';
+import { GENERATE_INTO_COMMAND_ID } from './context-menu';
 import { BUILTIN_TARGETS } from './targets';
 import { createCodegenSessions } from './state';
 import { createFakeHost } from './testing';
@@ -58,6 +60,9 @@ function fakeContext() {
       },
       execute: () => Promise.resolve(true),
     },
+    // Служб нет ни одной, и это НЕ упущение двойника: композиция вправе не дать уведомлений,
+    // и плагин обязан активироваться без них — молча, а не отказом.
+    services: { get: () => undefined },
   } as unknown as PluginContext;
   return { ctx, contributed, commands };
 }
@@ -98,10 +103,26 @@ describe('activate', () => {
     );
   });
 
-  it('регистрирует команду экспорта', () => {
+  it('регистрирует команды экспорта, фикстуры и генерации в каталог', () => {
     const { ctx, commands } = fakeContext();
     createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
-    expect(commands).toEqual([GENERATE_COMMAND_ID]);
+    expect(commands).toEqual([
+      GENERATE_COMMAND_ID,
+      CREATE_FIXTURE_COMMAND_ID,
+      GENERATE_INTO_COMMAND_ID,
+    ]);
+  });
+
+  it('вносит и пункт документа, и подменю каталога — это разные вопросы', () => {
+    const { ctx, contributed } = fakeContext();
+    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
+    const menu = contributed.filter((item) => item.point === 'menu').map((item) => item.id);
+    expect(menu).toEqual([
+      'codegen.context.generate',
+      'codegen.context.submenu',
+      'codegen.context.all',
+      'codegen.context.targets',
+    ]);
   });
 
   it('везёт словарь сам, если есть куда его положить', () => {

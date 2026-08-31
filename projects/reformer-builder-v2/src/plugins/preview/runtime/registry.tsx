@@ -41,6 +41,15 @@ export interface PreviewRegistryInput {
   readonly namespace: KitNamespace;
   /** Значения `$dataSource`: мок автора либо синтез. */
   readonly dataSources: Record<string, unknown>;
+  /**
+   * Реализации `$fn` из фикстуры. Чего нет — заглушка, отдающая пустую строку.
+   *
+   * Без них форма с `$fn(formatMoney)` показывала бы пустоту там, где человек ждёт число:
+   * заглушка честна ровно до тех пор, пока автор не захотел проверить настоящее форматирование.
+   */
+  readonly fns?: Readonly<Record<string, (...args: never[]) => unknown>>;
+  /** Резолвер `$locale` из фикстуры. Не задан — ключ отдаётся сам собой. */
+  readonly locale?: (key: string) => string;
 }
 
 /** Имя → компонент по каталогу и инфраструктуре кита. Каждый изолирован своей границей ошибок. */
@@ -92,14 +101,21 @@ export function unknownComponentNames(
 function registerSources(
   builder: RegistryBuilder,
   schema: JsonFormSchema,
-  dataSources: Record<string, unknown>
+  dataSources: Record<string, unknown>,
+  fns: Readonly<Record<string, (...args: never[]) => unknown>> = {},
+  locale?: (key: string) => string
 ): void {
   const classes = classifyDataSources(schema);
 
   for (const name of classes.functionLike) {
     // `itemLabel` массива ждёт ФУНКЦИЮ, а не список: массив здесь дал бы «is not a function»
-    // на первом же элементе.
-    builder.dataSource(name, (_: unknown, index = 0) => `#${index + 1}`);
+    // на первом же элементе. Поэтому из фикстуры берём значение ТОЛЬКО если оно функция —
+    // подпись элемента, объявленная массивом, это опечатка автора, а не повод уронить форму.
+    const authored = dataSources[name];
+    builder.dataSource(
+      name,
+      typeof authored === 'function' ? authored : (_: unknown, index = 0) => `#${index + 1}`
+    );
   }
   for (const name of classes.optionLike) {
     builder.dataSource(name, dataSources[name] ?? mockOptions(name));
@@ -108,11 +124,13 @@ function registerSources(
     builder.dataSource(name, dataSources[name] ?? 'значение');
   }
 
-  const { fns, locales } = collectOperatorNames(schema);
-  for (const name of fns) builder.fn(name, () => '');
+  const names = collectOperatorNames(schema);
+  // Реализация из фикстуры, если автор её дал; иначе заглушка — форма обязана собраться
+  // и без неё, потому что `$fn` резолвится синхронно и промах роняет конвертер.
+  for (const name of names.fns) builder.fn(name, fns[name] ?? (() => ''));
   // Голый резолвер: ключ локализации отдаётся сам собой. Своего словаря у превью нет,
-  // и придумывать переводы за форму оно не вправе.
-  if (locales.length > 0) builder.locale((key: string) => key);
+  // и придумывать переводы за форму оно не вправе — но фикстура вправе.
+  if (names.locales.length > 0) builder.locale(locale ?? ((key: string) => key));
 }
 
 /** Собирает реестр компонентов и источников для рантайм-поверхности. */
@@ -126,6 +144,6 @@ export function buildPreviewRegistry(input: PreviewRegistryInput): ComponentRegi
     // Враппер поля адресуется рендерером служебным именем, а не каталожным.
     builder.component(FIELD_WRAPPER, components.FormField);
     for (const name of unknown) builder.component(name, makeUnknownComponent(name));
-    registerSources(builder, input.schema, input.dataSources);
+    registerSources(builder, input.schema, input.dataSources, input.fns, input.locale);
   });
 }

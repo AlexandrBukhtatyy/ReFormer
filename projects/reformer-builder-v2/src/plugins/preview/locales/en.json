@@ -8,5 +8,13 @@
   "refusal.source-forbids-code": "The source does not allow executing its code, so form sidecars are not compiled.",
   "refusal.source-unknown": "The document source is unknown: executing code is refused until a project is open.",
   "surface.compiling": "With code",
-  "surface.runtime": "Runtime"
+  "surface.runtime": "Runtime",
+  "model.title": "Model",
+  "model.empty": "No form right now: values appear once it builds",
+  "model.raw": "Raw write",
+  "model.raw.hint": "no change event, no touched — like data from the backend",
+  "model.copy": "Copy model",
+  "model.reset": "reset",
+  "model.disable": "disable",
+  "model.enable": "enable"
 }

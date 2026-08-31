@@ -56,6 +56,27 @@ export interface PreviewState {
   readonly selection: readonly NodeId[];
   /** Находки всех источников, слитые в один список в порядке источников. */
   readonly problems: readonly PreviewProblem[];
+  /**
+   * Живая форма последней сборки либо `null`, если её сейчас нет.
+   *
+   * В снимке — в отличие от введённых значений, — потому что на неё ПОДПИСАНЫ: панель модели
+   * перерисовывается, когда форма пересобралась. Хранится ссылка на объект, а не его содержимое:
+   * значения внутри живут на сигналах и меняются, не трогая снимок, — иначе каждое нажатие
+   * клавиши в форме перерисовывало бы всё, что подписано на состояние превью.
+   */
+  readonly form: PreviewForm | null;
+}
+
+/**
+ * Собранная форма в объёме, которым пользуется наблюдатель.
+ *
+ * Структурная копия `JsonForm` — ровно те три вещи, ради которых форму и публикуют: значения,
+ * реестр (опции для редакторов) и узлы, добываемые из модели через `signalAt` + `getNodeForSignal`.
+ * Шире брать нечего: `store` не рисует форму и не пересобирает её.
+ */
+export interface PreviewForm {
+  readonly model: unknown;
+  readonly registry?: unknown;
 }
 
 export interface PreviewStore {
@@ -67,6 +88,14 @@ export interface PreviewStore {
   values(): PreviewValues | undefined;
   /** Запомнить значения формы — перед пересборкой и при размонтировании поверхности. */
   keepValues(values: PreviewValues): void;
+  /**
+   * Отдать живую форму наблюдателям; `null` — формы сейчас нет.
+   *
+   * Отдельно от {@link PreviewStore.keepValues}: тот про СНИМОК для переноса между сборками,
+   * этот про живой объект для наблюдения и правки. Под одним именем хранилище отдавало бы
+   * то устаревший снимок, то текущую модель.
+   */
+  publishForm(form: PreviewForm | null): void;
 }
 
 const NO_PROBLEMS: readonly PreviewProblem[] = Object.freeze([]);
@@ -81,6 +110,7 @@ export function createPreviewStore(): PreviewStore {
   let state: PreviewState = Object.freeze({
     selection: NO_SELECTION,
     problems: NO_PROBLEMS,
+    form: null,
   });
 
   const notify = (): void => {
@@ -120,6 +150,13 @@ export function createPreviewStore(): PreviewStore {
 
     keepValues(next) {
       values = next;
+    },
+
+    publishForm(form) {
+      // Сравнение по ссылке: пересборка даёт НОВЫЙ объект формы, а повторная публикация
+      // той же — обычное дело при перемонтировании поверхности, и перерисовывать по ней нечего.
+      if (state.form === form) return;
+      commit({ ...state, form });
     },
 
     report(source, problems) {

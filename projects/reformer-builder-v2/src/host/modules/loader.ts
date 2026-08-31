@@ -49,6 +49,39 @@ export interface LoadResult {
   readonly modules: ReadonlyMap<string, unknown>;
   /** Пусто ⇔ загрузка удалась. */
   readonly errors: readonly ModuleLoadError[];
+  /**
+   * Что пришлось транспилировать на самом деле: путь → полученный JS.
+   *
+   * Отдаётся наружу ради кэша, и только он этим пользуется. Считать это можно было бы и снаружи —
+   * повторив транспиляцию, — но платить вторым проходом за то, что уже вычислено, незачем.
+   * Файлы, взятые из {@link LoadOptions.ready}, сюда не попадают: они и так в кэше.
+   */
+  readonly compiled: ReadonlyMap<string, string>;
+}
+
+/** Чем можно снабдить одну загрузку. */
+export interface LoadOptions {
+  /**
+   * Готовый JS для части файлов: путь → код. Транспилятор для них не зовётся вовсе.
+   *
+   * Это единственный способ, которым кэш сборки касается загрузки, и он намеренно узкий:
+   * линковщик получает всё тот же `compile`, а не второй источник модулей, — то есть остаётся
+   * неизменным, как и обещано его контрактом.
+   */
+  readonly ready?: ReadonlyMap<string, string>;
+  /**
+   * Подстановки импортов на время этой загрузки: спецификатор → готовые экспорты.
+   *
+   * Ими фикстура формы закрывает то, чего в оболочке нет (`@/shared/dict`) и что не должно
+   * исполняться по-настоящему (`./api`). Подробности и границы — в {@link LinkerOptions.overrides}.
+   */
+  readonly overrides?: ReadonlyMap<string, unknown>;
+  /**
+   * Окружение, подставляемое каждому модулю набора лексически: `fetch`, `Date`, `Math`.
+   *
+   * Пусто по умолчанию — тогда исполнение ничем не отличается от прежнего.
+   */
+  readonly ambient?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -65,7 +98,11 @@ export interface ModuleLoader {
   /** Сменные движки транспиляции. Сверх контракта — иначе некуда зарегистрировать TS. */
   readonly transpilers: TranspilerRegistry;
   /** Загружает набор файлов как связный граф модулей. */
-  load(files: ReadonlyMap<string, string>, entry: string): Promise<LoadResult>;
+  load(
+    files: ReadonlyMap<string, string>,
+    entry: string,
+    options?: LoadOptions
+  ): Promise<LoadResult>;
 }
 
 /** Настройки загрузчика. Всё необязательно: по умолчанию реестры пустые и свои. */
@@ -93,28 +130,42 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
   const registry = options.registry ?? createModuleRegistry(options.builtins);
   const transpilers = options.transpilers ?? createTranspilerRegistry();
 
-  /**
-   * Файл без подходящего движка идёт как есть.
-   *
-   * Это не послабление, а нужное поведение: собранный `main.js` плагина — уже JS, и требовать
-   * для него транспилятор значило бы заводить пустышку ради формальности.
-   */
-  const compile = (code: string, fileName: string): string => {
-    const transpiler = transpilers.find(fileName);
-    return transpiler === undefined ? code : transpiler.transpile(code, fileName).js;
-  };
-
   return {
     registry,
     transpilers,
 
-    load(files, entry) {
+    load(files, entry, loadOptions) {
       const normalized = normalizeFiles(files);
+      const ready = loadOptions?.ready;
+      /** Что прошло через движок. Наполняется по ходу линковки — граф зовёт только нужное. */
+      const compiled = new Map<string, string>();
+
+      /**
+       * Файл без подходящего движка идёт как есть.
+       *
+       * Это не послабление, а нужное поведение: собранный `main.js` плагина — уже JS, и требовать
+       * для него транспилятор значило бы заводить пустышку ради формальности.
+       *
+       * Готовый код из кэша проверяется ПЕРВЫМ и по тому же ключу, что и файл в наборе, — иначе
+       * попадание пришлось бы искать после того, как движок уже разбудили.
+       */
+      const compile = (code: string, fileName: string): string => {
+        const cached = ready?.get(fileName);
+        if (cached !== undefined) return cached;
+        const transpiler = transpilers.find(fileName);
+        if (transpiler === undefined) return code;
+        const js = transpiler.transpile(code, fileName).js;
+        compiled.set(fileName, js);
+        return js;
+      };
+
       const linker = createLinker({
         files: normalized,
         registry,
         compile,
         knownSpecifiers: () => registry.specifiers(),
+        overrides: loadOptions?.overrides,
+        ambient: loadOptions?.ambient,
       });
 
       const entryPath = normalizePath(entry);
@@ -127,6 +178,7 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
         return Promise.resolve({
           entry: undefined,
           modules: linker.modules,
+          compiled,
           errors: [
             {
               file: entry,
@@ -141,13 +193,14 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
 
       try {
         const value = linker.load(entryFile);
-        return Promise.resolve({ entry: value, modules: linker.modules, errors: [] });
+        return Promise.resolve({ entry: value, modules: linker.modules, compiled, errors: [] });
       } catch (error) {
         // Модули, успевшие исполниться до сбоя, остаются доступны: у плагина это уже
         // подключённые вклады, которые владельцу придётся снять.
         return Promise.resolve({
           entry: undefined,
           modules: linker.modules,
+          compiled,
           errors: [toLoadError(error, entryFile)],
         });
       }

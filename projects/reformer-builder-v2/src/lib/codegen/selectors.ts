@@ -121,10 +121,14 @@ export function assignSelectors(input: JsonFormSchema): AssignResult {
     const root = schema.root as unknown as AnyNode;
     if (Array.isArray(root.children)) {
       submitSelector = uniq('submit');
+      // Подпись — в `children` УЗЛА, а не в `componentProps`: рендерер отдаёт компоненту
+      // содержимое из `children[]` и затирает им `componentProps.children`, поэтому кнопка
+      // с текстом в пропсах выходит пустым (у ui-kit — чёрным) прямоугольником.
       root.children.push({
         component: '$component(Button)',
         selector: submitSelector,
-        componentProps: { children: 'Отправить', type: 'submit' },
+        componentProps: { type: 'submit' },
+        children: ['Отправить'],
       });
       injectedSubmit = true;
     } else if (isNodeLike(schema.root)) {

@@ -23,6 +23,7 @@
 import {
   prepare,
   withFiles,
+  acceptsMarker,
   withMarker,
   type CodegenInput,
   type EmitContext,
@@ -169,7 +170,11 @@ export async function generateModule(
     // Маркер получают производные файлы и те авторские, что выводятся из правил. `api.ts`
     // и `data-sources.ts` его не получают: перевыводить их не из чего, и маркер обещал бы
     // перезапись, которой не будет.
-    const marked = file.cls === 'derived' || file.regenerable ? withMarker(content) : content;
+    //
+    // И только там, где строка `//` — комментарий: в `renderer.schema.json` она делала файл
+    // неразбираемым, а читают его и редактор схемы билдера, и сгенерированный `index.tsx`.
+    const wanted = file.cls === 'derived' || file.regenerable;
+    const marked = wanted && acceptsMarker(file.path) ? withMarker(content) : content;
     return { ...file, content: marked };
   });
 

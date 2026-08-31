@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import type { PluginContext } from '@/sdk';
 import { chooseSurface } from './selection';
 import { builtinSurfaces, createPreviewPlugin, PREVIEW_PLUGIN_ID } from './plugin';
+import { MODEL_PANEL_ID } from './ui/ModelPanel';
 import { COMPILING_SURFACE_ID } from './compiling/surface';
 import { RUNTIME_SURFACE_ID } from './runtime/surface';
 import { createPreviewSessions } from './sessions';
@@ -59,12 +60,15 @@ function fakeContext(services: Readonly<Record<string, unknown>> = {}) {
 }
 
 describe('activate', () => {
-  it('вносит поверхности и больше ничего: своего интерфейса у плагина нет', () => {
+  it('вносит поверхности и ОДНУ панель — модель, которая форму не дублирует', () => {
     const { ctx, contributed } = fakeContext();
     createPreviewPlugin({ host: createFakeHost() }).activate(ctx);
-    // Панель ушла вместе с переключателем: форму показывает представление редактора схемы,
-    // а плагин остался поставщиком поверхностей.
+    // Прежняя панель ушла вместе с переключателем: она показывала ФОРМУ, которую и так
+    // показывает представление редактора схемы. Панель модели показывает то, чего не видно
+    // нигде, — значения, состояние узлов и производные пути, — поэтому её возвращение
+    // не откат прежнего решения, а другое решение.
     expect(contributed).toEqual([
+      { point: 'panel', id: MODEL_PANEL_ID },
       { point: 'preview.surface', id: RUNTIME_SURFACE_ID },
       { point: 'preview.surface', id: COMPILING_SURFACE_ID },
     ]);

@@ -43,3 +43,18 @@ export function resolve(dir: ResourceId, ...segments: readonly string[]): Resour
   const { sourceId, path } = parseResourceId(dir);
   return makeResourceId(sourceId, joinPath(path, ...segments));
 }
+
+/**
+ * Адрес по пути от КОРНЯ того же источника, которому принадлежит `anchor`.
+ *
+ * Нужен тем, у кого на руках путь ОТ КОРНЯ, а не смещение от текущего каталога: так адресуется
+ * фикстура формы — её путь выводится из пути документа схемы (`fixturePathOf`) целиком, и
+ * разбирать его обратно на сегменты ради `resolve` значило бы считать одно и то же дважды.
+ *
+ * Источник берётся у якоря, а не запрашивается отдельно: «корень проекта» вне источника
+ * не определён, а якорем всегда служит ресурс, ради которого адрес и строят.
+ */
+export function fromRoot(anchor: ResourceId, path: string): ResourceId {
+  const { sourceId } = parseResourceId(anchor);
+  return makeResourceId(sourceId, joinPath('', path));
+}

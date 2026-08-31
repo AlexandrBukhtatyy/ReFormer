@@ -94,7 +94,8 @@ import { createChordState } from '../host/ui/chords';
 import { createKeymapService, KeymapServiceToken } from '../host/ui/keymap';
 import { createScopeStack, ScopeStackServiceToken } from '../host/ui/scope';
 import { createWhenContextStore } from '../host/ui/when-context-store';
-import { createWorkspaceMetaStore } from '../host/workspace/storage/idb';
+import { createWorkspaceMetaStore, WORKSPACE_DB_NAME } from '../host/workspace/storage/idb';
+import { browserPurgeEnvironment, purgeOriginStorage } from '../host/workspace/storage/purge';
 import { createJournalRelief } from '../host/workspace/journal/journal';
 import type { Journal } from '../host/workspace/journal/journal';
 import { FILES_MESSAGES } from '../plugins/files/messages';
@@ -126,14 +127,22 @@ import { SCHEMA_EDITOR_PLUGIN_ID } from '../plugins/editor-schema';
 import { KITS_PLUGIN_ID } from '../plugins/kits/plugin';
 import { KitsServiceToken } from '../plugins/kits/service';
 import type { CatalogEntry } from '../lib/catalog/types';
-import { createDirectoryHandleStore } from './fs-handles';
+import { createDirectoryHandleStore, HANDLES_DB_NAME } from './fs-handles';
+import { createCompileCache, type CompileCache } from '../host/modules/compile-cache';
+import {
+  TYPESCRIPT_ENGINE_VERSION,
+  TYPESCRIPT_OPTIONS_SIGNATURE,
+  TYPESCRIPT_TRANSPILER_ID,
+} from '../host/plugin/typescript-transpiler';
+import { createBuildCacheStore } from '../host/workspace/storage/build-cache';
 import { createPluginModules } from './plugin-modules';
 import { createBuiltinPlugins } from './plugins';
 import { createProjectHost, type ProjectFailure, type ProjectHost } from './project';
 import { createProjectStatusSource } from './project-status';
+import { createSettingsSections, LOCALE_SETTINGS_KEY } from './settings-sections';
 
-/** Ключ настройки локали. Область — `user`: язык интерфейса принадлежит человеку. */
-export const LOCALE_SETTINGS_KEY = 'host.locale';
+/** Ключ настройки локали. Объявлен рядом с полем, которое его пишет. */
+export { LOCALE_SETTINGS_KEY } from './settings-sections';
 
 /**
  * Ключ списка включённых плагинов каталога. Область — `workspace`: плагины лежат В ПРОЕКТЕ,
@@ -143,6 +152,16 @@ export const ENABLED_PLUGINS_SETTINGS_KEY = 'workspace.plugins.enabled';
 
 /** Локаль, на которой инструмент открывается, пока не выбрано иное. */
 const DEFAULT_LOCALE = 'ru';
+
+/**
+ * Потолок кэша транспиляции на рабочую область.
+ *
+ * Транспилированный сайдкар — единицы килобайт, форма целиком — десятки, поэтому 16 МБ хватает
+ * на сотни форм со всей их историей правок. Величина выбрана с запасом намеренно: кэш вытесняется
+ * браузером и без нас, а слишком тесный бюджет означал бы уборку, выбрасывающую то, что вот-вот
+ * понадобится снова.
+ */
+const BUILD_CACHE_BUDGET_BYTES = 16 * 1024 * 1024;
 
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
 const EMPTY_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
@@ -379,10 +398,42 @@ export function boot(): BuilderApp {
   const activeCatalog = (): readonly CatalogEntry[] =>
     services.get(KitsServiceToken)?.catalog() ?? EMPTY_CATALOG;
 
+  /**
+   * Кэш транспиляции текущей рабочей области.
+   *
+   * Функция, а не значение: модули живут дольше проекта и переживают его смену, а кэш
+   * принадлежит области — захватив его в замыкание, после смены проекта мы писали бы
+   * транспиляцию в каталог прежнего. Запоминается ровно один, чтобы не строить хранилище
+   * на каждую компиляцию; при смене области он заменяется, а прежний уходит вместе с ней.
+   *
+   * Уборка запускается один раз на область и в фоне: она обходит дерево кэша, а держать
+   * из-за этого открытие проекта незачем — промах кэша не ошибка.
+   */
+  let compileCache: { readonly workspaceId: string; readonly cache: CompileCache } | null = null;
+  const buildCacheOf = (): CompileCache | null => {
+    const workspaceId = project.get()?.workspaceId ?? null;
+    if (workspaceId === null) return null;
+    if (compileCache?.workspaceId !== workspaceId) {
+      const store = createBuildCacheStore(workspaceId);
+      compileCache = {
+        workspaceId,
+        cache: createCompileCache(store, {
+          engineId: TYPESCRIPT_TRANSPILER_ID,
+          engineVersion: TYPESCRIPT_ENGINE_VERSION,
+          optionsVersion: TYPESCRIPT_OPTIONS_SIGNATURE,
+        }),
+      };
+      void store.sweep(BUILD_CACHE_BUDGET_BYTES).catch((error: unknown) => {
+        console.warn('[boot] уборка кэша сборки не прошла', error);
+      });
+    }
+    return compileCache.cache;
+  };
+
   // Реестр модулей поднят СЮДА, выше регистрации плагинов: движок нужен двоим — загрузчику
   // плагинов каталога (шаг 3а) и компилирующей поверхности превью, которая собирается прямо
   // здесь. Второй экземпляр означал бы второй чанк TypeScript на 3.5 МБ.
-  const pluginModules = createPluginModules();
+  const pluginModules = createPluginModules({ cache: buildCacheOf });
 
   // Один порт Monaco на двоих: сам редактор и предпросмотр markdown, который одалживает
   // его тело для режима «рядом».
@@ -415,7 +466,21 @@ export function boot(): BuilderApp {
     services,
     // Загрузчик модулей — ТОТ ЖЕ, что у плагинов каталога: движок TypeScript один на
     // приложение, и второй экземпляр означал бы второй чанк на 3.5 МБ.
-    modules: { load: pluginModules.modules.load, prepare: pluginModules.prepare },
+    //
+    // Прогрев здесь ШИРЕ, чем у загрузчика плагинов, и это решение композиции: сайдкары формы
+    // тянут кит почти всегда (его печатает `registry.ts`), а превью грузит кит и без того —
+    // ленивым namespace. Плагину каталога кит обычно не нужен, поэтому ему прогрев ленивых
+    // не достаётся.
+    modules: {
+      load: pluginModules.modules.load,
+      prepare: async (files) => {
+        const [primed] = await Promise.all([
+          pluginModules.prepareCached(files),
+          pluginModules.warm(),
+        ]);
+        return primed;
+      },
+    },
   });
   const previewSessions = createPreviewSessions();
 
@@ -471,13 +536,18 @@ export function boot(): BuilderApp {
       templatesI18n: i18n.forPlugin(TEMPLATES_PLUGIN_ID),
       // Кита нет — встроенных шаблонов нет: печатать их нечем, а умолчание напечатало бы
       // импорты чужого пакета. Пустой список честнее неверного кода.
-      printTemplate: async (schema, formName) => {
+      printTemplate: async (schema, formName, seed) => {
         const kits = services.get(KitsServiceToken);
         const kit = kits?.descriptor() ?? null;
         if (kit === null || kits === undefined) return [];
+        // Правила затравки доезжают до эмиттеров: из них печатаются НАСТОЯЩИЕ
+        // и  (мост к билдерам MCP), а не заглушки. Без них шаблон давал
+        // структуру модуля, в которой нечего проверять.
         const built = await generateModule(BUILTIN_TARGETS, {
           schema,
           formName,
+          rules: seed?.rules,
+          mock: seed?.mock,
           kit: { kit, catalog: kits.catalog() },
         });
         return built.files.map(({ path, content }) => ({ path, content }));
@@ -619,11 +689,33 @@ export function boot(): BuilderApp {
     commands,
     status,
     i18n,
+    // Разделы настроек: их состав знает композиция — тему применяет служба темы,
+    // язык — служба локализации, и обе собраны здесь.
+    settingsSections: createSettingsSections({ settings, i18n, theme }),
     // Обе службы уходят в оболочку, а не только в реестр: тосты и диалоги рисует она,
     // и без этих двух полей отказ операции виден только в консоли, а запрос имени —
     // нигде вовсе.
     notifications,
     prompt,
+    // Обслуживание хранилища: ЧТО именно приложение держит на источнике, знает только
+    // композиция — она эти хранилища и завела. Оболочке уходит порт из двух глаголов,
+    // а не список баз: перечисление, протёкшее в оболочку, разошлось бы с составом
+    // хранилищ при первом же новом кэше.
+    storage: {
+      // Известные базы — запасной путь на движки без `indexedDB.databases()`; там, где
+      // перечисление есть, оно полнее любого списка (см. шапку `storage/purge`).
+      purge: () =>
+        purgeOriginStorage(
+          browserPurgeEnvironment({ knownDatabases: [WORKSPACE_DB_NAME, HANDLES_DB_NAME] })
+        ),
+      // Перезапуск, а не `dispose` с пересборкой: после очистки в памяти остаётся
+      // приложение поверх снесённого хранилища, и половину удалённого оно создаст заново
+      // первой же записью. Заодно закрытие страницы доводит до конца отложенные
+      // (`blocked`) удаления баз.
+      reload: () => {
+        window.location.reload();
+      },
+    },
     plugins,
     projectPlugins,
     project,

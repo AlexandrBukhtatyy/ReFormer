@@ -24,7 +24,15 @@
  * @module plugins/preview/plugin
  */
 
-import { definePlugin, SelectionServiceToken, type Plugin } from '@/sdk';
+import { createElement } from 'react';
+import {
+  definePlugin,
+  PanelPoint,
+  SelectionServiceToken,
+  type Plugin,
+  type SlotId,
+  type WhenContext,
+} from '@/sdk';
 import { createCompilingSurface } from './compiling/surface';
 import type { ExtensionPointRef, PreviewSurface } from './contract';
 import { PreviewSurfacePoint } from './contract';
@@ -32,6 +40,7 @@ import type { MessageSink, PreviewHost } from './host';
 import { PREVIEW_MESSAGES } from './messages';
 import { createRuntimeSurface } from './runtime/surface';
 import { createPreviewSessions, type PreviewSessions } from './sessions';
+import { ModelPanel, MODEL_PANEL_ID } from './ui/ModelPanel';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
 export const PREVIEW_PLUGIN_ID = 'preview';
@@ -89,6 +98,23 @@ export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
       for (const [locale, messages] of Object.entries(PREVIEW_MESSAGES)) {
         options.i18n?.contribute(locale, messages);
       }
+
+      // Панель модели: единственный вклад превью в оболочку помимо поверхностей. Слот нижний —
+      // строки значений читают в ширину, а не в высоту, и форме при этом остаётся весь экран.
+      ctx.subscriptions.push(
+        ctx.extensions.contribute(
+          PanelPoint,
+          {
+            id: MODEL_PANEL_ID,
+            slot: 'panel.bottom' as SlotId,
+            titleKey: 'model.title',
+            when: (when: WhenContext) => when.activeResourceKind === 'form.schema',
+            order: 30,
+            Body: () => createElement(ModelPanel, { host, sessions }),
+          },
+          { id: MODEL_PANEL_ID }
+        )
+      );
 
       for (const surface of builtinSurfaces(host)) {
         ctx.subscriptions.push(ctx.extensions.contribute(point, surface, { id: surface.id }));

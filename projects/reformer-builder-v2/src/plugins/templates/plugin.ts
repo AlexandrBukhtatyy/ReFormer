@@ -27,12 +27,18 @@ import {
   type WhenContext,
 } from '@/sdk';
 import { TemplateStorePoint, type ExtensionPointRef, type TemplateStore } from './contract';
-import { templatesContextMenuItems, templatesMenuCommands } from './context-menu';
+import {
+  createTemplateSnapshot,
+  templatesContextMenuItems,
+  templatesMenuCommands,
+} from './context-menu';
 import type { MessageSink, TemplatesHost } from './host';
 import { TEMPLATES_MESSAGES } from './messages';
+import { createTemplatesRefresh, type TemplatesRefresh } from './refresh';
 import { createBuiltinStore, type ModulePrinter } from './stores/builtin';
 import { createLocalStore } from './stores/local';
 import { createProjectStore } from './stores/project';
+import { TemplatesActions } from './ui/TemplatesActions';
 import { TemplatesPanel } from './ui/TemplatesPanel';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
@@ -65,7 +71,8 @@ export const panelVisible: (ctx: WhenContext) => boolean = () => true;
 export function templatesPanel(
   host: TemplatesHost,
   stores: () => readonly TemplateStore[],
-  slot: SlotId
+  slot: SlotId,
+  refresh: TemplatesRefresh
 ): PanelContribution {
   return {
     id: TEMPLATES_PANEL_ID,
@@ -74,7 +81,11 @@ export function templatesPanel(
     icon: TemplatesIcon,
     when: panelVisible,
     order: 30,
-    Body: () => createElement(TemplatesPanel, { host, stores }),
+    Body: () => createElement(TemplatesPanel, { host, stores, refresh }),
+    // «Обновить» стоит в шапке дока, а не первой строкой списка: постоянное действие над
+    // содержимым — свойство панели, а не её содержимого, и в теле оно уезжало бы вместе
+    // со списком при прокрутке.
+    Actions: () => createElement(TemplatesActions, { host, refresh }),
   };
 }
 
@@ -143,14 +154,28 @@ export function createTemplatesPlugin(options: TemplatesPluginOptions): Plugin {
         prompt: ctx.services.get(PromptServiceToken) ?? null,
         notifications: ctx.services.get(NotificationsServiceToken) ?? null,
       };
-      for (const command of templatesMenuCommands(menuDeps)) {
+      // Список шаблонов для подменю держится готовым: сборка меню синхронна, а хранилища
+      // отвечают обещанием. Перечитывается тем же событием, что и панель, — смена кита меняет
+      // ВЫВОД встроенных шаблонов, потому что печатает их кодоген под активный кит.
+      const snapshot = createTemplateSnapshot(stores);
+      snapshot.refresh();
+      ctx.subscriptions.push(
+        host.onDidChangeKit(() => {
+          snapshot.refresh();
+        })
+      );
+
+      for (const command of templatesMenuCommands(menuDeps, snapshot)) {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
-      for (const item of templatesContextMenuItems()) {
+      for (const item of templatesContextMenuItems(snapshot)) {
         ctx.subscriptions.push(ctx.extensions.contribute(MenuPoint, item.value, { id: item.id }));
       }
 
-      const panel = templatesPanel(host, stores, slot);
+      // Один повод перечитать на плагин: его объявляет кнопка в шапке дока, а слушает
+      // тело панели — они живут в разных поддеревьях и общего состояния не имеют.
+      const refresh = createTemplatesRefresh();
+      const panel = templatesPanel(host, stores, slot, refresh);
       ctx.subscriptions.push(ctx.extensions.contribute(PanelPoint, panel, { id: panel.id }));
     },
   });

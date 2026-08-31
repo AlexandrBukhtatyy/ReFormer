@@ -31,6 +31,12 @@ describe('isExecutableSidecar', () => {
     expect(isExecutableSidecar('form.json')).toBe(false);
     expect(isExecutableSidecar('README.md')).toBe(false);
   });
+
+  it('фикстура не сайдкар: иначе `api.ts` исполнится дважды', () => {
+    // Она лежит в каталоге формы и подставляет её же модули. Один граф на двоих означал бы
+    // ДВА разных объекта под одним именем — см. `./fixture`.
+    expect(isExecutableSidecar('fixture.ts')).toBe(false);
+  });
 });
 
 describe('selectSidecars', () => {

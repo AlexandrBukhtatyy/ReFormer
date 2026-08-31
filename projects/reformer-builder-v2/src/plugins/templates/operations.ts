@@ -24,6 +24,7 @@ import {
   canSave,
   canUpdate,
   type FormTemplate,
+  type TemplateFile,
   type TemplateSource,
   type TemplateStore,
 } from './contract';
@@ -59,6 +60,100 @@ const done = (messageKey: string, params?: Record<string, unknown>): OperationRe
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Сказать дереву, что уровни изменились: по одному разу на КАТАЛОГ записанного.
+ *
+ * Адрес непрозрачен, поэтому родителя считает платформа ({@link TemplatesHost.parentOf}),
+ * а не разбор строки. Отказ одного уровня не отменяет остальных и не отменяет саму
+ * операцию: файлы уже записаны, и «не перечитали дерево» — не повод сообщить о неудаче.
+ */
+async function invalidateParents(host: TemplatesHost, ids: readonly ResourceId[]): Promise<void> {
+  if (host.invalidate === undefined) return;
+  for (const dir of new Set(ids.map((id) => host.parentOf(id)))) {
+    try {
+      await host.invalidate(dir);
+    } catch (error) {
+      console.warn(`[templates] уровень «${dir}» не перечитан`, error);
+    }
+  }
+}
+
+/** Один каталог проекта в списке выбора: адрес и путь, каким его видит человек. */
+export interface FolderChoice {
+  readonly id: ResourceId;
+  /** Путь от корня проекта; пустая строка — сам корень. */
+  readonly path: string;
+}
+
+/**
+ * Каталоги, которые в списке выбора не нужны никогда.
+ *
+ * Не «скрытые вообще»: `.reformer`, `.ui_builder` и прочие каталоги настроек проекта человек
+ * открывает осознанно, и прятать их — решать за него. Здесь перечислено то, куда форму
+ * не кладут ни при каких обстоятельствах: чужие пакеты и вывод сборки. Заодно это главная
+ * экономия обхода — `node_modules` один стоит дороже всего проекта.
+ */
+const SKIPPED_FOLDERS: ReadonlySet<string> = new Set([
+  'node_modules',
+  'dist',
+  'build',
+  'coverage',
+  '.git',
+  '.next',
+  '.turbo',
+  '.vite',
+]);
+
+/** Предел обхода: столько каталогов человек всё равно не просматривает глазами. */
+const FOLDER_LIMIT = 300;
+
+/** Предел глубины. Форму кладут в осмысленное место, а не на десятый уровень вложенности. */
+const FOLDER_DEPTH = 6;
+
+/**
+ * Каталоги проекта для выбора места новой формы — обходом вширь.
+ *
+ * Вширь, а не вглубь, потому что при упоре в предел показать полезнее ВЕРХНИЕ уровни:
+ * `src/pages` человеку нужнее, чем полный перечень листьев одной ветки. По той же причине
+ * пределы жёсткие: список — поле выбора, а не карта проекта, и обход, растянувшийся
+ * на тысячу листингов, сделал бы открытие окна ожиданием.
+ */
+export async function listFolders(
+  host: TemplatesHost,
+  root: ResourceId,
+  limit = FOLDER_LIMIT
+): Promise<readonly FolderChoice[]> {
+  const out: FolderChoice[] = [{ id: root, path: '' }];
+  let level: readonly FolderChoice[] = out.slice();
+
+  for (let depth = 0; depth < FOLDER_DEPTH && level.length > 0 && out.length < limit; depth += 1) {
+    const next: FolderChoice[] = [];
+    for (const folder of level) {
+      if (out.length >= limit) break;
+      let entries: readonly ResourceRef[];
+      try {
+        entries = await host.list(folder.id);
+      } catch {
+        // Нечитаемый каталог — не повод оборвать выбор: пропускаем его вместе с ветвью.
+        continue;
+      }
+      for (const entry of entries) {
+        if (entry.kind !== 'directory' || SKIPPED_FOLDERS.has(entry.name)) continue;
+        const child = {
+          id: entry.id,
+          path: folder.path === '' ? entry.name : `${folder.path}/${entry.name}`,
+        };
+        next.push(child);
+        out.push(child);
+        if (out.length >= limit) break;
+      }
+    }
+    level = next;
+  }
+
+  return out.sort((a, b) => a.path.localeCompare(b.path));
 }
 
 /** Рекурсивный обход каталога: пути относительно корня проекта. */
@@ -150,6 +245,22 @@ export interface GenerateFormResult extends OperationResult {
   readonly openId: ResourceId | null;
 }
 
+/** Файлы модуля формы: всё, кроме тех, у кого своё место. */
+function moduleFilesOf(files: readonly TemplateFile[]): readonly TemplateFile[] {
+  return files.filter((file) => (file.scope ?? 'form') === 'form');
+}
+
+/**
+ * Файлы фикстуры — те, что идут СВЕРХ вывода кодогена.
+ *
+ * Ложатся в тот же каталог формы, что и модуль: фикстура лежит рядом со схемой. Отдельным
+ * `scope` они помечены не ради адреса, а ради происхождения — контракт каталога модуля
+ * (`06-form-directory-layout`) фикстуру не перечисляет, и генерация модуля её не пишет.
+ */
+function fixtureFilesOf(files: readonly TemplateFile[]): readonly TemplateFile[] {
+  return files.filter((file) => file.scope === 'fixture');
+}
+
 /**
  * Создать форму по шаблону: каталог `<parent>/<formName>/`, отобранные файлы (с добором
  * зависимостей) и подстановкой имени.
@@ -185,13 +296,32 @@ export async function generateFormFromTemplate(
     const ids: ResourceId[] = [];
     let openId: ResourceId | null = null;
 
-    for (const file of files) {
+    for (const file of moduleFilesOf(files)) {
       const id = host.resolve(dir, ...file.path.split('/'));
       await host.writeText(id, file.content);
       ids.push(id);
       if (schema !== null && file.path === schema.file.path) openId = id;
     }
-    await host.save?.(ids);
+
+    // Фикстура — в тот же каталог: она лежит рядом со схемой, и особой адресации ей больше
+    // не нужно. Отдельным проходом её пишем потому, что происхождение у неё другое —
+    // не вывод кодогена (см. `fixtureFilesOf`).
+    for (const file of fixtureFilesOf(files)) {
+      const id = host.resolve(dir, ...file.path.split('/'));
+      await host.writeText(id, file.content);
+      ids.push(id);
+    }
+    const stored = await host.save?.(ids);
+    // Каталог формы создан ЗАПИСЬЮ, а не операциями над записями, поэтому дерево о нём
+    // не знает: у него лежит прошлый листинг родителя, и «форма создана» без строки
+    // в дереве выглядит как несделанная работа.
+    await invalidateParents(host, [dir, ...ids]);
+
+    // Отправка в источник не удалась — форма осталась рабочей копией и не переживёт
+    // перезагрузку. Сообщать об успехе здесь нельзя: именно так дефект и выглядел
+    // снаружи — «создано», а в проекте пусто. Отсутствие `save` у порта — другое дело:
+    // это законная сборка без отправки, а не отказ.
+    if (stored === false) return { ...fail('error.save-failed'), openId: null };
 
     return {
       ...done('result.generated', { folder, template: template.name }),

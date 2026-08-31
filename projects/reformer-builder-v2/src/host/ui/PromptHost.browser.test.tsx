@@ -26,12 +26,19 @@ const MESSAGES: Readonly<Record<string, string>> = {
   'name.empty': 'Имя не может быть пустым',
 };
 
+/** Словарь плагина-заказчика: его ключи и ТОЛЬКО его — кнопок оболочки в нём нет. */
+const PLUGIN_MESSAGES: Readonly<Record<string, string>> = {
+  'menu.generate.title': 'Форма по шаблону',
+  'menu.generate.label': 'Имя формы',
+};
+
 async function mountPrompt(): Promise<{ prompt: PromptService; unmount: () => void }> {
   const i18n = createI18nService({
     loadHostMessages: () => Promise.resolve(MESSAGES),
     dev: false,
   });
   await i18n.setLocale('ru');
+  i18n.forPlugin('templates').contribute('ru', PLUGIN_MESSAGES);
   const prompt = createPromptService();
   const mounted = renderReact(<PromptHost prompt={prompt} i18n={i18n} />);
   return { prompt, unmount: mounted.unmount };
@@ -88,6 +95,25 @@ describe('запрос имени', () => {
 
     await expect.element(page.getByText('Имя не может быть пустым')).toBeVisible();
     await expect.element(page.getByRole('button', { name: 'Готово' })).toBeDisabled();
+    unmount();
+  });
+
+  it('запрос плагина: его ключи — из его словаря, кнопки — из словаря Host', async () => {
+    // Отказ был ровно здесь: словарь заказчика брался и для УМОЛЧАНИЙ оболочки, поэтому
+    // запрос без своих `confirmKey`/`cancelKey` показывал на кнопках ⟦templates.shell.
+    // prompt.confirm⟧ — при переведённых заголовке и подписи поля рядом.
+    const { prompt, unmount } = await mountPrompt();
+
+    void prompt.input({
+      titleKey: 'menu.generate.title',
+      labelKey: 'menu.generate.label',
+      pluginId: 'templates',
+    });
+
+    await expect.element(page.getByText('Форма по шаблону')).toBeVisible();
+    await expect.element(page.getByText('Имя формы')).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Готово' })).toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Отмена' })).toBeVisible();
     unmount();
   });
 

@@ -31,5 +31,21 @@
   "error.not-a-schema": "This document is not a form schema.",
   "error.no-kit": "No kit selected: there is no way to know where to import components from.",
   "error.read-only": "The source refuses writes — there is nowhere to put the module.",
-  "error.failed": "Writing the module failed."
+  "error.failed": "Writing the module failed.",
+  "command.create-fixture": "Create preview fixture",
+  "command.generateInto": "Generate the form module into a directory",
+  "menu.generate": "Generate",
+  "menu.generate.all": "The whole module",
+  "target.schema": "Form schema",
+  "target.types": "Types",
+  "target.model": "Model",
+  "target.registry": "Component registry",
+  "target.index": "Entry point",
+  "target.wizard": "Wizard shim",
+  "target.data-sources": "Data sources",
+  "target.render-behavior": "UI behavior",
+  "target.form-behavior": "Form behavior",
+  "target.validation": "Validation schema",
+  "target.api": "Backend",
+  "target.readme": "README"
 }

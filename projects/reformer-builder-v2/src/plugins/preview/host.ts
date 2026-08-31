@@ -90,6 +90,23 @@ export interface PreviewModuleGraph {
   readonly entry: unknown;
   readonly modules: ReadonlyMap<string, unknown>;
   readonly errors: readonly PreviewModuleError[];
+  /** Что пришлось транспилировать: путь → JS. Уходит обратно в кэш сборки. */
+  readonly compiled?: ReadonlyMap<string, string>;
+}
+
+/**
+ * Прогретая компиляция набора — структурная копия `PrimedCompile` платформы.
+ *
+ * Превью не знает ни про OPFS, ни про ключи: его дело — отдать прогретое в `load` и вернуть
+ * назад то, что пришлось собрать самому.
+ */
+export interface PreviewPrimedCompile {
+  /** Готовый JS, взятый из кэша: путь → код. */
+  readonly ready: ReadonlyMap<string, string>;
+  /** Нашлось ли всё. `false` означает, что движок транспиляции уже разбужен. */
+  readonly complete: boolean;
+  /** Отдать на хранение то, что собралось. Зовётся после линковки — до неё состав неизвестен. */
+  commit(compiled: ReadonlyMap<string, string>): Promise<void>;
 }
 
 /**
@@ -101,14 +118,29 @@ export interface PreviewModuleGraph {
  */
 export interface PreviewModules {
   /**
-   * Прогрев движка транспиляции. ОБЯЗАН завершиться до `load`: внутри `require` асинхронного шага
-   * быть не может, поэтому ленивая загрузка `typescript` вынесена отдельной фазой.
+   * Прогрев перед линковкой. ОБЯЗАН завершиться до `load`: внутри `require` асинхронного шага
+   * быть не может, поэтому и ленивая загрузка `typescript`, и чтение кэша вынесены отдельной фазой.
    *
-   * Необязателен: набор без `.ts` движка не касается вовсе.
+   * Принимает ФАЙЛЫ, а не имена, и это не мелочь: ответить «движок не нужен, всё уже собрано»
+   * можно, только зная содержимое, — ключ кэша считается от исходника. Прежняя форма (имена)
+   * заставляла будить движок всегда, то есть платить 3.5 МБ за форму, которую не меняли.
+   *
+   * Необязателен: композиция вправе его не давать, и тогда компиляция идёт без кэша.
    */
-  prepare?(fileNames: readonly string[]): Promise<void>;
+  prepare?(files: ReadonlyMap<string, string>): Promise<PreviewPrimedCompile>;
 
-  load(files: ReadonlyMap<string, string>, entry: string): Promise<PreviewModuleGraph>;
+  load(
+    files: ReadonlyMap<string, string>,
+    entry: string,
+    options?: {
+      /** Готовый JS из кэша: путь → код. */
+      readonly ready?: ReadonlyMap<string, string>;
+      /** Подстановки импортов из фикстуры: спецификатор → готовые экспорты. */
+      readonly overrides?: ReadonlyMap<string, unknown>;
+      /** Лексически подставляемое окружение: `fetch`, `Date`, `Math`. */
+      readonly ambient?: Readonly<Record<string, unknown>>;
+    }
+  ): Promise<PreviewModuleGraph>;
 }
 
 /** Всё, что превью получает от композиции. */
@@ -168,6 +200,18 @@ export interface PreviewHost {
 
   /** Текст рабочей копии. В источник не ходит: компиляция читает Workspace, а не Source. */
   readText(id: ResourceId): Promise<string>;
+
+  /**
+   * Адрес по пути от корня проекта, которому принадлежит документ.
+   *
+   * Нужен фикстурам: их адрес выводится из пути документа схемы от корня проекта
+   * (`fixturePathOf`) целиком, а не как смещение от каталога. Арифметику по-прежнему делает
+   * платформа — плагин лишь называет путь.
+   *
+   * Необязателен: без него фикстура не читается, и форма наполняется синтезом из схемы,
+   * то есть ведёт себя ровно как до появления фикстур.
+   */
+  resolveFromRoot?(anchor: ResourceId, path: string): ResourceId;
 
   /**
    * Правка ЛЮБОЙ рабочей копии.

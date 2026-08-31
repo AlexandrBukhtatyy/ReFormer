@@ -51,6 +51,7 @@ import type { Journal } from '../host/workspace/journal/journal';
 import { createWorkspaceFileStore, type WorkspaceFileStore } from '../host/workspace/storage/opfs';
 import type { DiagnosticsSink } from '../host/workspace/workspace';
 import type { DirectoryHandleStore } from './fs-handles';
+import { restoreOpenedTabs } from './opened-tabs';
 import { createWorkspaceSession, type WorkspaceSession } from './workspace-session';
 
 /**
@@ -238,6 +239,11 @@ export function createProjectHost(options: ProjectHostOptions): ProjectHost {
       lastOpenedAt: now(),
       settings: existing?.settings,
     });
+
+    // Ряд вкладок прошлого сеанса. ПОСЛЕ `setSession`: восстановление открывает документы
+    // через сессию, и до неё открывать было бы нечем. Отказ не отменяет открытия проекта —
+    // проект без вкладок работает, а проект, не открывшийся из-за вкладок, не работает вовсе.
+    await restoreOpenedTabs({ workspaceId, documents: created.documents, meta });
   };
 
   /** Ключ уже известного хэндла, указывающего на тот же каталог, или `null`. */

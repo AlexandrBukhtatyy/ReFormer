@@ -88,12 +88,20 @@ export function PromptHost({ prompt, scopes, i18n }: PromptHostProps): ReactElem
   useScope(scopes, pending === null ? null : DIALOG_SCOPE);
   useLocale(i18n);
 
+  /**
+   * Ключ ЗАПРОСА разрешается словарём того, кто его написал; ключ-УМОЛЧАНИЕ — словарём Host.
+   *
+   * Один словарь на оба означал бы, что плагин обязан перевести кнопки оболочки: запрос
+   * от плагина без своих `confirmKey`/`cancelKey` искал бы `shell.prompt.confirm` внутри
+   * словаря плагина и показывал бы на кнопках маркеры промаха — при переведённых заголовке
+   * и подписи поля рядом. Умолчания принадлежат оболочке, поэтому и ищутся у неё.
+   */
   const translate = useCallback(
     (key: string | undefined, fallbackKey: string): string => {
-      const target = key ?? fallbackKey;
+      if (key === undefined) return i18n.t(fallbackKey, pending?.params);
       const owner = pending?.pluginId;
       const service = owner === undefined ? i18n : i18n.forPlugin(owner);
-      return service.t(target, pending?.params);
+      return service.t(key, pending?.params);
     },
     [i18n, pending]
   );

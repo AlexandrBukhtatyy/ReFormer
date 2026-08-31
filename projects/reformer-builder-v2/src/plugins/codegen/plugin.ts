@@ -20,6 +20,7 @@ import {
   argsOfResource,
   definePlugin,
   MenuPoint,
+  NotificationsServiceToken,
   PanelPoint,
   RESOURCE_CONTEXT_MENU,
   whenResource,
@@ -31,7 +32,13 @@ import {
   type SlotId,
   type WhenContext,
 } from '@/sdk';
+import {
+  codegenContextCommands,
+  codegenContextMenuItems,
+  type GenerateIntoDeps,
+} from './context-menu';
 import { CodegenTargetPoint, type CodegenTarget, type ExtensionPointRef } from './contract';
+import { createFixture, type FixtureOutcome } from './fixture-command';
 import type { CodegenHost, MessageSink } from './host';
 import { CODEGEN_MESSAGES } from './messages';
 import { runCodegen } from './run';
@@ -47,6 +54,9 @@ export const CODEGEN_PANEL_ID = 'codegen.panel';
 
 /** Команда «экспортировать форму». */
 export const GENERATE_COMMAND_ID = 'codegen.generate';
+
+/** Идентификатор команды создания фикстуры предпросмотра. */
+export const CREATE_FIXTURE_COMMAND_ID = 'codegen.create-fixture';
 
 /**
  * Слот по умолчанию — правый док.
@@ -93,7 +103,12 @@ export function codegenPanel(
 }
 
 /**
- * Команды плагина. Одна: запустить генерацию для активного документа.
+ * Команды плагина: сгенерировать модуль формы и создать фикстуру предпросмотра.
+ *
+ * Обе — про запись файлов по схеме активного документа, и обе живут здесь по одной причине:
+ * писать в проект вправе только кодоген (у превью в порту записи нет вовсе). Фикстура при этом
+ * не цель генерации, а команда — её адрес лежит ВНЕ каталога модуля, а `CodegenTarget.path`
+ * относителен ему и `..` отвергает.
  *
  * Имя формы команда не спрашивает — берёт то, что лежит в состоянии панели (а если панель
  * не открывали, то имя файла схемы). Команда с аргументом «как назвать» дублировала бы поле
@@ -112,13 +127,18 @@ export function documentIdOf(args: unknown): ResourceId | null {
 }
 
 /**
- * Пункт контекстного меню дерева: «Сгенерировать код формы».
+ * Пункт контекстного меню дерева: «Сгенерировать код формы» — на ОТКРЫТОМ файле схемы.
+ *
+ * Остаётся рядом с подменю «Сгенерировать» (`./context-menu`) и не дублирует его: это два
+ * разных вопроса, и видны они в разных местах. Здесь щёлкнули по САМОМУ ФАЙЛУ схемы, и
+ * ответом будет модуль рядом с ним, в подпапке по имени формы, — то же, что делает панель
+ * экспорта. Там щёлкнули по КАТАЛОГУ, и ответом будут файлы в нём самом.
  *
  * Виден только на файле, который ОТКРЫТ как схема формы (`host.documentOf` отвечает моделью,
  * а не текстом). Проверка честная: генерировать из неоткрытого файла нечего — модель схемы
  * появляется вместе с документом, — и пункт, обещающий это, обещал бы несбыточное.
  */
-export function codegenContextMenuItems(
+export function codegenDocumentMenuItems(
   host: CodegenHost
 ): readonly { readonly id: string; readonly value: MenuContribution }[] {
   return [
@@ -164,7 +184,32 @@ export function codegenCommands(
         });
       },
     },
+    {
+      id: CREATE_FIXTURE_COMMAND_ID,
+      titleKey: 'command.create-fixture',
+      enabled: panelVisible,
+      run(args) {
+        const documentId = documentIdOf(args) ?? sessions.active();
+        if (documentId === null) return;
+        void createFixture(host, documentId).then((outcome) => {
+          // Исход показывается словами всегда, включая «ничего не сделал»: человек нажал
+          // кнопку и обязан узнать, что произошло, — молчание тут читается как поломка.
+          notifyFixture(host, outcome);
+        });
+      },
+    },
   ];
+}
+
+/** Показывает исход создания фикстуры. Открывает файл, только когда он действительно записан. */
+function notifyFixture(host: CodegenHost, outcome: FixtureOutcome): void {
+  if (outcome.kind === 'written') {
+    host.openResource?.(outcome.id);
+    return;
+  }
+  // Остальные исходы объясняет панель: у команды нет своего места для сообщения, а заводить
+  // его ради трёх строк значило бы вторую систему уведомлений рядом с существующей.
+  console.info('[codegen] фикстура не создана:', outcome.kind);
 }
 
 export interface CodegenPluginOptions {
@@ -218,7 +263,16 @@ export function createCodegenPlugin(options: CodegenPluginOptions): Plugin {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
-      for (const item of codegenContextMenuItems(host)) {
+      // Генерация в названный каталог: своя команда и своё подменю. Уведомления берутся
+      // из сервисов, а не из порта, — исход поездки показывает оболочка, и порт кодогена
+      // о ней знать не обязан.
+      const intoDeps: GenerateIntoDeps = { host, targets };
+      const notifications = ctx.services.get(NotificationsServiceToken) ?? null;
+      for (const command of codegenContextCommands(intoDeps, notifications)) {
+        ctx.subscriptions.push(ctx.commands.register(command));
+      }
+
+      for (const item of [...codegenDocumentMenuItems(host), ...codegenContextMenuItems(targets)]) {
         ctx.subscriptions.push(ctx.extensions.contribute(MenuPoint, item.value, { id: item.id }));
       }
 

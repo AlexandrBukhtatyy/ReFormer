@@ -15,7 +15,12 @@ import { emitIndex, emitModel, emitTypes, makeNames, prepare } from '@/lib/codeg
 import type { FormTemplate, TemplateStore } from './contract';
 import { canRemove, canSave, canUpdate } from './contract';
 import { materializeFiles } from './files';
-import { createBuiltinStore, type ModulePrinter } from './stores/builtin';
+import {
+  BUILTIN_BASE_NAME,
+  createBuiltinStore,
+  type ModulePrinter,
+  type SeedExtras,
+} from './stores/builtin';
 import { createLocalStore } from './stores/local';
 import { createProjectStore, TEMPLATES_DIR } from './stores/project';
 import { createFakeTemplatesHost, createMemoryStorage } from './testing';
@@ -29,7 +34,7 @@ const template = (over: Partial<FormTemplate> = {}): FormTemplate => ({
   ...over,
 });
 
-const printer = async (): Promise<{ path: string; content: string }[]> => [
+const printer: ModulePrinter = async () => [
   { path: 'index.tsx', content: 'export default function SamplePage() {}' },
   { path: 'model.ts', content: 'export const createSampleFormModel = 1;' },
   { path: 'README.md', content: '# sample' },
@@ -55,7 +60,58 @@ describe('встроенные шаблоны', () => {
     const store = createBuiltinStore({ print: printer });
     const templates = await store.list();
     expect(templates.map((t) => t.id)).toEqual(['builtin-simple-form', 'builtin-wizard-form']);
-    expect(templates[0].files.map((f) => f.path)).toEqual(['index.tsx', 'model.ts', 'README.md']);
+    // Модуль печатает кодоген; фикстура идёт СВЕРХ его вывода — её адрес лежит вне каталога
+    // модуля, и целью генерации она невыразима.
+    expect(templates[0].files.map((f) => f.path)).toEqual([
+      'index.tsx',
+      'model.ts',
+      'README.md',
+      'fixture.ts',
+    ]);
+  });
+
+  it('фикстура помечена своим размещением: каталог модуля описан контрактом', async () => {
+    const templates = await createBuiltinStore({ print: printer }).list();
+    const fixture = templates[0].files.find((f) => f.path === 'fixture.ts');
+
+    expect(fixture?.scope).toBe('fixture');
+    // Всё остальное ложится в каталог формы, и это умолчание.
+    for (const file of templates[0].files.filter((f) => f.path !== 'fixture.ts')) {
+      expect(file.scope ?? 'form', file.path).toBe('form');
+    }
+  });
+
+  it('фикстура несёт настоящие данные, а не синтезированные option1/2/3', async () => {
+    const templates = await createBuiltinStore({ print: printer }).list();
+    const fixture = templates[0].files.find((f) => f.path === 'fixture.ts');
+
+    // Список из трёх безымянных значений показал бы, что механизм работает, но не показал бы,
+    // как выглядит форма.
+    expect(fixture?.content).toContain('Москва');
+    expect(fixture?.content).toContain('CITY_LIST');
+    expect(fixture?.content).not.toContain('option1');
+  });
+
+  it('затравка несёт правила и данные — иначе проверять в форме нечего', async () => {
+    const seen: (SeedExtras | undefined)[] = [];
+    const capturing: ModulePrinter = (schema, formName, seed) => {
+      seen.push(seed);
+      return printer(schema, formName);
+    };
+
+    await createBuiltinStore({ print: capturing }).list();
+
+    expect(seen).toHaveLength(2);
+    for (const seed of seen) {
+      // Без правил кодоген печатает `defineFormBehavior(() => {})` и пустую валидацию.
+      expect(seed?.rules?.validation.length ?? 0).toBeGreaterThan(0);
+      expect(seed?.rules?.behavior.length ?? 0).toBeGreaterThan(0);
+      // Поведение РЕНДЕРА — третий вид правил: видимость принадлежит узлу схемы, а не
+      // значению модели, и двумя предыдущими её не выразить.
+      expect(seed?.rules?.render.length ?? 0).toBeGreaterThan(0);
+      // Без мока `data-sources.ts` уезжает с синтезированными `option1/2/3`.
+      expect(seed?.mock?.dataSources).toHaveProperty('CITY_LIST');
+    }
   });
 
   it('напечатанное токенизируется: шаблон параметризован именем формы', async () => {
@@ -102,7 +158,7 @@ describe('встроенные шаблоны', () => {
       print: async () => {
         calls += 1;
         if (calls === 1) throw new Error('не напечаталось');
-        return printer();
+        return printer({} as never, BUILTIN_BASE_NAME);
       },
     });
     expect((await store.list()).map((t) => t.id)).toEqual(['builtin-wizard-form']);

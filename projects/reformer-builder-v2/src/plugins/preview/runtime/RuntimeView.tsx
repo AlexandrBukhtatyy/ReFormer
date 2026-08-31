@@ -94,7 +94,13 @@ export function RuntimeView({ ctx, host }: RuntimeViewProps): ReactNode {
 
   useEffect(() => {
     live.current = bundle?.form ?? null;
-  }, [bundle]);
+    // Панель модели читает и правит ЭТУ форму. Публикуем после сборки и снимаем на
+    // размонтировании: наблюдателю нечего показывать, когда поверхности нет.
+    ctx.publishForm?.(bundle?.form ?? null);
+    return () => {
+      ctx.publishForm?.(null);
+    };
+  }, [bundle, ctx]);
 
   useEffect(() => {
     // Размонтирование — последний момент, когда модель ещё жива. Вид конструктора переключают

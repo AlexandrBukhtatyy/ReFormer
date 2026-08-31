@@ -33,11 +33,36 @@
  * @module host/plugin/typescript-transpiler
  */
 
+import { version as typescriptVersion } from 'typescript/package.json';
+
 import type { Disposable } from '../primitives/disposable';
 import type { Transpiler, TranspilerRegistry } from '../modules/transpilers';
 
 /** Идентификатор в реестре транспиляторов. Свой движок регистрируется под другим id. */
 export const TYPESCRIPT_TRANSPILER_ID = 'typescript';
+
+/**
+ * Версия движка — часть ключа кэша транспиляции.
+ *
+ * Берётся из `package.json`, а не у самого движка, и это принципиально: ответить «код уже собран,
+ * движок не нужен» надо ДО того, как движок загрузят, иначе экономить нечего. Импорт безопасен —
+ * это JSON, компилятор за собой он не тянет.
+ */
+export const TYPESCRIPT_ENGINE_VERSION: string = typescriptVersion;
+
+/**
+ * Подпись опций транспиляции — вторая часть ключа кэша.
+ *
+ * Сами опции собрать в строку нельзя: их значения (`ModuleKind.CommonJS`) живут в движке,
+ * который к моменту вычисления ключа ещё не загружен. Поэтому подпись объявлена рядом с опциями
+ * и обязана меняться вместе с ними — иначе кэш отдаст код, собранный по прежним правилам.
+ *
+ * Расхождение ловит тест: он сверяет, что каждый ключ, реально уходящий в `transpileModule`,
+ * назван в подписи.
+ */
+export const TYPESCRIPT_OPTIONS_SIGNATURE =
+  'module=commonjs;target=es2022;jsx=react-jsx;jsxImportSource=react;' +
+  'esModuleInterop=true;isolatedModules=true;sourceMap=false';
 
 /** Расширения, которые без движка не прочитать. */
 export const TYPESCRIPT_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '.mts', '.cts'];

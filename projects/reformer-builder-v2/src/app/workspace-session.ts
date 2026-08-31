@@ -37,6 +37,7 @@ import { createWorkspace } from '../host/workspace/workspace';
 import type { WorkspaceFileStore } from '../host/workspace/storage/opfs';
 import type { WorkspaceMetaStore } from '../host/workspace/storage/idb';
 import { createDocumentModels, type DocumentModels } from './document-models';
+import { watchOpenedTabs } from './opened-tabs';
 
 /**
  * Рабочая область в объёме, нужном строке состояния.
@@ -330,6 +331,9 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
   if (options.validation !== undefined) {
     subscriptions.push(watchOpenDocuments(documents, options.validation));
   }
+  // Ряд вкладок пишется в метаданные рабочей области, чтобы пережить перезагрузку страницы;
+  // обратный ход — `restoreOpenedTabs`, его зовёт открытие проекта (`./project`).
+  subscriptions.push(watchOpenedTabs({ workspaceId, documents, meta }));
 
   return {
     workspaceId,

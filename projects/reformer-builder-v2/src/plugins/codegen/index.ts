@@ -47,6 +47,7 @@
 export {
   createCodegenPlugin,
   codegenCommands,
+  codegenDocumentMenuItems,
   codegenPanel,
   panelVisible,
   CODEGEN_PANEL_ID,
@@ -56,6 +57,24 @@ export {
   type CodegenPluginOptions,
 } from './plugin';
 
+export {
+  codegenContextCommands,
+  codegenContextMenuItems,
+  findSchemaIn,
+  generateInto,
+  generateIntoArgs,
+  notifyOutcome,
+  schemaCandidates,
+  CODEGEN_CONTEXT_SUBMENU,
+  GENERATE_INTO_COMMAND_ID,
+} from './context-menu';
+export type {
+  FoundSchema,
+  GenerateIntoArgs,
+  GenerateIntoDeps,
+  GenerateIntoOutcome,
+} from './context-menu';
+
 export { CodegenTargetPoint } from './contract';
 export type { CodegenTarget, ExtensionPointRef, TargetCatalog } from './contract';
 
@@ -64,7 +83,7 @@ export { BUILTIN_TARGETS } from './targets';
 export { generateModule } from './generate';
 export type { CodegenProblem, Formatter, GeneratedModule, ModuleFile } from './generate';
 
-export { deliverModule, SourceReadOnlyError } from './deliver';
+export { deliverInto, deliverModule, SourceReadOnlyError } from './deliver';
 export type { DeliveryResult, SkipReason } from './deliver';
 
 export { defaultFormName, runCodegen, schemaOf } from './run';

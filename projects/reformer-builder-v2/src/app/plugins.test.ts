@@ -142,7 +142,16 @@ describe('состав встроенных плагинов', () => {
     const owners = <T>(point: ExtensionPoint<T>): string[] =>
       [...new Set(h.extensions.get(point).map((c) => c.pluginId))].sort();
 
-    expect(owners(PanelPoint)).toEqual(['ai', 'codegen', 'editor-schema', 'files', 'templates']);
+    expect(owners(PanelPoint)).toEqual([
+      'ai',
+      'codegen',
+      'editor-schema',
+      'files',
+      // Превью вносит панель модели: значения формы, состояние узлов и производные пути
+      // не видны больше нигде. Форму оно по-прежнему не дублирует — её рисует редактор схемы.
+      'preview',
+      'templates',
+    ]);
     expect(owners(EditorPoint)).toEqual([
       'editor-markdown',
       'editor-monaco',

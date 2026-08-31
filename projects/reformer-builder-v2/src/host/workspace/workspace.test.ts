@@ -27,6 +27,8 @@ import { makeResourceId, type ResourceId } from '../primitives/resource';
 import { createWorkspaceMetaStore, type WorkspaceMetaStore } from './storage/idb';
 import { createWorkspaceFileStore } from './storage/opfs';
 import { createMemoryIndexedDb, createMemoryOpfs, type MemoryOpfs } from './storage/testing';
+import { createFsAccessSource } from '../source/fs-access';
+import { createFakeDirectory } from '../source/testing';
 import { createMemorySource, type MemorySource, type MemorySourceOptions } from './testing';
 import { createJournal, type Journal } from './journal/journal';
 import {
@@ -309,6 +311,32 @@ describe('Workspace: сохранение', () => {
     expect(h.source.revisionOf('a.ts')).not.toBe(before);
     const stat = await h.ws.stat(h.rid('a.ts'));
     expect(stat?.revision).toBe(h.source.revisionOf('a.ts'));
+  });
+
+  it('новый файл в ещё не существующем каталоге: каталог создаётся при сохранении', async () => {
+    // Источник с НАСТОЯЩИМ деревом, а не плоский двойник: `Source.write` пишет файл, а не
+    // путь, и на несуществующем каталоге отвечает `not-found`. Так создаётся любой новый
+    // модуль — форма по шаблону, вывод кодогена, — и без этого файл оставался бы рабочей
+    // копией при полном молчании: операция сообщала об успехе, на диске пусто.
+    seq += 1;
+    const id = `fs${seq}`;
+    const { root } = createFakeDirectory({ 'src/old.ts': 'x' });
+    const source = createFsAccessSource(root, { id, handleKey: id });
+    const opfs = createMemoryOpfs();
+    const memoryDb = createMemoryIndexedDb();
+    const ws = createWorkspace({
+      id,
+      source,
+      files: createWorkspaceFileStore(id, { directory: opfs.directory }),
+      meta: createWorkspaceMetaStore({ factory: memoryDb.factory, databaseName: `fs-${seq}` }),
+    });
+    const target = makeResourceId(id, 'src/forms/credit/model.ts');
+
+    await ws.writeText(target, 'export const model = 1;');
+    const result = await ws.save(target);
+
+    expect(result.ok).toBe(true);
+    expect((await source.read('src/forms/credit/model.ts')).text).toBe('export const model = 1;');
   });
 
   it('второе сохранение подряд проходит: ревизия не устарела', async () => {

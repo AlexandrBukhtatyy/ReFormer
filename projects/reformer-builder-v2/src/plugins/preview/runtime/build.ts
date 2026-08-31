@@ -27,6 +27,7 @@ import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
 import { annotateSchema } from '../annotate';
 import type { PreviewMock, PreviewProblem } from '../contract';
+import { mergeFormData, type FormFixture } from '@/lib/form-fixture';
 import { carryValues } from './carry';
 import { synthMock } from './mock';
 import { buildPreviewRegistry } from './registry';
@@ -41,6 +42,13 @@ export interface RuntimeBundleInput {
   readonly namespace: KitNamespace;
   /** Мок автора; `null` — синтезируем из схемы. */
   readonly mock: PreviewMock | null;
+  /**
+   * Фикстура формы — авторский артефакт из её каталога (`fixture.ts`).
+   *
+   * Только у компилирующей поверхности: фикстура — исполняемый код, а рантайм-поверхность
+   * объявляет `executesCode: false` и не вправе его запускать.
+   */
+  readonly fixture?: FormFixture | null;
   /**
    * Реестр формы поверх билдерского (`createRegistry` из сайдкаров). Компилирующая поверхность
    * передаёт его сюда, чтобы не заводить вторую сборку реестра со своими правилами.
@@ -72,20 +80,6 @@ export interface RuntimeBundle {
 const describe = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-function isPlainObject(value: unknown): value is Shape {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** Слияние вглубь: значения `patch` перекрывают `base`, объекты сливаются рекурсивно. */
-export function deepMerge(base: Shape, patch: Shape): Shape {
-  const out: Shape = { ...base };
-  for (const [key, value] of Object.entries(patch)) {
-    const previous = out[key];
-    out[key] = isPlainObject(previous) && isPlainObject(value) ? deepMerge(previous, value) : value;
-  }
-  return out;
-}
-
 /** Собирает форму по схеме. Отказ — данные, а не исключение. */
 export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
   const problems: PreviewProblem[] = [];
@@ -102,12 +96,17 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
     };
   }
 
-  const mock = input.mock ?? synthMock(annotated);
-  const declared =
-    input.initialOverride === undefined ? mock.model : deepMerge(mock.model, input.initialOverride);
-  // Перенос идёт последним шагом: введённое человеком старше и мока, и `model.ts` — но только
+  // Порядок старшинства целиком живёт в `lib/form-fixture/merge`: синтез < model.ts < фикстура.
+  // Фикстура старше `model.ts` потому, что пишется РАДИ проверки, — иначе «покажи форму
+  // с пустой моделью» было бы невыразимо.
+  const mock = mergeFormData(
+    input.mock ?? synthMock(annotated),
+    input.initialOverride,
+    input.fixture ?? null
+  );
+  // Перенос идёт последним шагом: введённое человеком старше всех слоёв — но только
   // там, где новая форма оставила для него место.
-  const initial = carryValues(declared, input.carry);
+  const initial = carryValues(mock.model, input.carry);
 
   let registry: ComponentRegistry;
   try {
@@ -117,6 +116,8 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
       descriptor: input.descriptor,
       namespace: input.namespace,
       dataSources: mock.dataSources,
+      fns: input.fixture?.fns,
+      locale: input.fixture?.locale,
     });
   } catch (error) {
     return {

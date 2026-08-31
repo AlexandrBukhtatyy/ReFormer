@@ -58,6 +58,7 @@ import { activateProvider, fetchModels, restoreProvider } from './providers/load
 import { createProviderRegistry, type ProviderRegistry } from './providers/registry';
 import type { AiProvider } from './providers/types';
 import { createAiSession, type AiSession } from './session';
+import { ChatActions } from './ui/ChatActions';
 import { ChatPanel } from './ui/ChatPanel';
 
 /** Идентификатор плагина: пространство имён во всех реестрах, в хранилище и в словаре. */
@@ -231,6 +232,10 @@ export function aiChatPanel(
     // рейл заполнен целиком.
     railPlacement: 'bottom',
     Body: () => createElement(ChatPanel, { host, session, bridge, assistant }),
+    // Действия — в шапке дока, а не первой строкой ленты: заголовок панели и ряд кнопок
+    // над её содержимым — один ярус интерфейса, и разложенный на два он отнимал у разговора
+    // высоту строки на каждом кадре.
+    Actions: () => createElement(ChatActions, { host, session, bridge }),
   };
 }
 

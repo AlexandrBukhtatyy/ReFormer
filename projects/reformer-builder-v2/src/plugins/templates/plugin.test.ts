@@ -16,6 +16,7 @@ import {
   TEMPLATES_PANEL_ID,
   TEMPLATES_PLUGIN_ID,
 } from './plugin';
+import { createTemplatesRefresh } from './refresh';
 import { createFakeTemplatesHost } from './testing';
 
 function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
@@ -123,8 +124,55 @@ describe('видимость панели', () => {
   });
 
   it('панель вносится один раз, слот задаёт композиция', () => {
-    const panel = templatesPanel(createFakeTemplatesHost(), () => [], 'panel.left');
+    const panel = templatesPanel(
+      createFakeTemplatesHost(),
+      () => [],
+      'panel.left',
+      createTemplatesRefresh()
+    );
     expect(panel.slot).toBe('panel.left');
     expect(panel.when).toBe(panelVisible);
+  });
+
+  it('панель несёт действия шапки: «Обновить» живёт в доке, а не первой строкой списка', () => {
+    const panel = templatesPanel(
+      createFakeTemplatesHost(),
+      () => [],
+      'panel.left',
+      createTemplatesRefresh()
+    );
+    expect(panel.Actions).toBeTypeOf('function');
+  });
+});
+
+describe('повод перечитать', () => {
+  it('зовёт подписчиков и отпускает их по освобождению', () => {
+    const refresh = createTemplatesRefresh();
+    let calls = 0;
+    const subscription = refresh.subscribe(() => {
+      calls += 1;
+    });
+
+    refresh.request();
+    expect(calls).toBe(1);
+
+    subscription.dispose();
+    refresh.request();
+    expect(calls).toBe(1);
+  });
+
+  it('подписчик вправе отписаться прямо в обработчике', () => {
+    const refresh = createTemplatesRefresh();
+    const seen: string[] = [];
+    const first = refresh.subscribe(() => {
+      seen.push('first');
+      first.dispose();
+    });
+    refresh.subscribe(() => seen.push('second'));
+
+    refresh.request();
+
+    // Второй слушатель обязан получить свой вызов: обход идёт по копии набора.
+    expect(seen).toEqual(['first', 'second']);
   });
 });

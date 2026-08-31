@@ -4,6 +4,7 @@ import type { FormTemplate } from './contract';
 import {
   createTemplateFromDirectory,
   generateFormFromTemplate,
+  listFolders,
   listTemplates,
   removeTemplate,
   renameTemplate,
@@ -41,6 +42,112 @@ describe('создание формы по шаблону', () => {
     // и команда палитры вправе его не принимать.
     expect(result.openId).toBe('src/forms/Профиль/renderer.schema.json');
     expect(host.opened).toEqual([]);
+  });
+
+  it('просит дерево забыть уровни: без этого форма создана, но её не видно', async () => {
+    // Отказ был ровно здесь: каталог формы создаётся ЗАПИСЬЮ, а не операциями над записями,
+    // поэтому дерево оставалось с прошлым листингом родителя — «форма создана» без строки
+    // в дереве.
+    const host = createFakeTemplatesHost();
+
+    await generateFormFromTemplate(host, PARENT, 'Профиль', template, [
+      'model.ts',
+      'renderer.schema.json',
+    ]);
+
+    // Родитель — чтобы появился сам каталог формы; каталог формы — чтобы в нём были файлы.
+    expect(host.invalidated).toContain(PARENT);
+    expect(host.invalidated).toContain('src/forms/Профиль');
+  });
+
+  it('отправка в источник не удалась — это отказ, а не «форма создана»', async () => {
+    // Ровно так дефект и выглядел снаружи: сообщение об успехе, а в проекте пусто —
+    // файлы остались рабочей копией и не пережили бы перезагрузку.
+    const host = { ...createFakeTemplatesHost(), save: async () => false };
+
+    const result = await generateFormFromTemplate(host, PARENT, 'Профиль', template, ['model.ts']);
+
+    expect(result.ok).toBe(false);
+    expect(result.messageKey).toBe('error.save-failed');
+  });
+
+  it('порт без отправки в источник — законная сборка, а не отказ', async () => {
+    // Отсутствие `save` означает «созданное остаётся рабочей копией» и объявлено контрактом
+    // порта; путать его с неудачей отправки нельзя.
+    const host = createFakeTemplatesHost();
+
+    const result = await generateFormFromTemplate(host, PARENT, 'Профиль', template, ['model.ts']);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('перечитывает уровень КАЖДОГО записанного файла, а не только каталога формы', async () => {
+    // Правило сформулировано через фактические адреса записи, а не через литералы путей:
+    // часть файлов шаблона ложится не в каталог формы (фикстура), и где именно — решает
+    // правило размещения. Тест не должен повторять его копией: перечитывание уровней
+    // к размещению отношения не имеет и обязано работать при любом.
+    const host = createFakeTemplatesHost();
+    const withFixture = {
+      ...template,
+      files: [
+        ...template.files,
+        { path: 'fixture.ts', content: 'export const fixture = {};', scope: 'fixture' as const },
+      ],
+    };
+
+    await generateFormFromTemplate(host, PARENT, 'Профиль', withFixture, [
+      'renderer.schema.json',
+      'fixture.ts',
+    ]);
+
+    expect(host.files.size).toBeGreaterThan(0);
+    for (const path of host.files.keys()) {
+      expect(host.invalidated).toContain(host.parentOf(path as ResourceId));
+    }
+  });
+
+  it('фикстура ложится в каталог формы — рядом со схемой', async () => {
+    const host = createFakeTemplatesHost();
+    const withFixture = {
+      ...template,
+      files: [
+        ...template.files,
+        { path: 'fixture.ts', content: 'export const fixture = {};', scope: 'fixture' as const },
+      ],
+    };
+
+    await generateFormFromTemplate(host, PARENT, 'Профиль', withFixture, [
+      'renderer.schema.json',
+      'fixture.ts',
+    ]);
+
+    // Адрес считается от пути СХЕМЫ, а не от каталога шаблона: до применения неизвестно,
+    // куда ляжет форма.
+    expect(host.files.has('src/forms/Профиль/fixture.ts')).toBe(true);
+    // Прежнего дерева фикстур больше нет — ничего в него не пишется.
+    expect(host.files.has('_generated/reformer/src/forms/Профиль/fixture.ts')).toBe(false);
+  });
+
+  it('фикстура едет в занятое имя каталога вместе с модулем', async () => {
+    // Каталог `Профиль` занят — форма уезжает в `Профиль-2`, и фикстура обязана уехать с ней:
+    // адрес у них теперь общий, и разъехаться они могут только по недосмотру.
+    const host = createFakeTemplatesHost({ files: { 'src/forms/Профиль/model.ts': 'чужое' } });
+    const withFixture = {
+      ...template,
+      files: [
+        ...template.files,
+        { path: 'fixture.ts', content: 'export const fixture = {};', scope: 'fixture' as const },
+      ],
+    };
+
+    const result = await generateFormFromTemplate(host, PARENT, 'Профиль', withFixture, [
+      'renderer.schema.json',
+      'fixture.ts',
+    ]);
+
+    expect(result.ok).toBe(true);
+    expect(host.files.has('src/forms/Профиль-2/fixture.ts')).toBe(true);
+    expect(host.files.has('src/forms/Профиль/fixture.ts')).toBe(false);
   });
 
   it('зависимости добираются сами: отметили модель — приехала и схема', async () => {
@@ -162,5 +269,46 @@ describe('сводный список', () => {
     const stores = [createBuiltinStore({}), createLocalStore(createMemoryStorage())];
     expect(storeOf(stores, 'local')?.source).toBe('local');
     expect(storeOf(stores, 'project')).toBeNull();
+  });
+});
+
+describe('каталоги для выбора места формы', () => {
+  it('корень идёт первым, вложенные — путями от него', async () => {
+    const host = createFakeTemplatesHost({
+      files: {
+        'project/src/forms/old.json': '{}',
+        'project/src/pages/index.tsx': '',
+        'project/README.md': '',
+      },
+    });
+
+    const folders = await listFolders(host, 'project' as ResourceId);
+
+    expect(folders.map((folder) => folder.path)).toEqual(['', 'src', 'src/forms', 'src/pages']);
+  });
+
+  it('чужие пакеты и вывод сборки пропускаются вместе с ветвью', async () => {
+    // Обход по ним стоит дороже всего проекта, а форму туда не кладут никогда.
+    const host = createFakeTemplatesHost({
+      files: {
+        'project/node_modules/react/index.js': '',
+        'project/dist/bundle.js': '',
+        'project/src/forms/a.json': '{}',
+      },
+    });
+
+    const folders = await listFolders(host, 'project' as ResourceId);
+
+    expect(folders.map((folder) => folder.path)).toEqual(['', 'src', 'src/forms']);
+  });
+
+  it('предел обхода не превышается', async () => {
+    const files: Record<string, string> = {};
+    for (let index = 0; index < 50; index += 1) files[`project/dir-${index}/file.ts`] = '';
+    const host = createFakeTemplatesHost({ files });
+
+    const folders = await listFolders(host, 'project' as ResourceId, 10);
+
+    expect(folders.length).toBe(10);
   });
 });

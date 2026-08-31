@@ -24,6 +24,17 @@ describe('assignSelectors', () => {
     expect(children.at(-1)?.selector).toBe(info.submitSelector);
   });
 
+  it('подпись вставленной кнопки лежит в children узла, а не в componentProps', () => {
+    // `componentProps.children` рендерер затирает содержимым `children[]` узла — кнопка
+    // выходила пустым (чёрным) прямоугольником.
+    const { schema } = assignSelectors(plainSchema());
+    // Через `unknown`: `JsonChild` не индексируемая запись, и прямое сужение tsc отвергает.
+    const children = (schema.root as unknown as { children: Record<string, unknown>[] }).children;
+    const submit = children.at(-1)!;
+    expect(submit.children).toEqual(['Отправить']);
+    expect(submit.componentProps).toEqual({ type: 'submit' });
+  });
+
   it('визард отправляет форму сам: событие onSubmit и никакой вставленной кнопки', () => {
     const { info } = assignSelectors(wizardSchema());
     expect(info.injectedSubmit).toBe(false);

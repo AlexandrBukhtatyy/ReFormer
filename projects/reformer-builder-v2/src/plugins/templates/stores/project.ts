@@ -163,6 +163,9 @@ export function createProjectStore(host: TemplatesHost): TemplateStore {
         ids.push(id);
       }
       await host.save?.(ids);
+      // Каталог шаблона создан записью, а не операциями над записями: дерево помнит прошлый
+      // листинг каталога шаблонов и без этого нового имени не покажет.
+      await host.invalidate?.(root).catch(() => undefined);
       return { ...template, id: slug, source: 'project' };
     },
 
@@ -185,6 +188,7 @@ export function createProjectStore(host: TemplatesHost): TemplateStore {
       const root = rootDir();
       if (root === null) throw new Error('проект не открыт: каталог шаблонов неизвестен');
       await remove(host.resolve(root, id));
+      await host.invalidate?.(root).catch(() => undefined);
     };
   }
 

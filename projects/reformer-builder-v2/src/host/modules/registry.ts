@@ -19,6 +19,26 @@
  * и `@reformer/*` при старте, а публичный `register` не может к ним прикоснуться уже никогда —
  * ни поверх занятого слота, ни в пустой.
  *
+ * ## Ленивый модуль оболочки — и почему это не догрузка
+ *
+ * Часть модулей оболочки живёт отдельным чанком: `@reformer/ui-kit` вынесен в свои 708 кБ
+ * осознанно, и статическая ссылка на него отсюда вернула бы его в основной чанк — то есть
+ * заставила бы платить за кит всех, включая тех, кто ни одной формы не открывал. Поэтому
+ * встроенным модулем может быть {@link lazyBuiltin} — обещание значения, а не значение.
+ *
+ * Это НЕ ослабление запрета «bare-спецификатор никуда не догружается». Догрузка запрещена потому,
+ * что второй экземпляр пакета ломает идентичность, а второй экземпляр берётся из того, что
+ * спецификатор резолвит кто-то, кроме оболочки. Здесь резолвит по-прежнему только оболочка:
+ * `load` объявлен композицией и указывает на её собственный `import()`, то есть на ТОТ ЖЕ
+ * экземпляр, который получит и сама оболочка. Код формы к этому механизму не прикасается —
+ * `register` ленивую запись не принимает.
+ *
+ * Разрешаются такие записи одной фазой — {@link ModuleRegistryWarmup.warm}, — и ровно по той же
+ * причине, по которой отдельной фазой грузится движок TypeScript: `require` внутри модуля
+ * синхронен, значит всё асинхронное обязано случиться ДО линковки. Непрогретый ленивый модуль
+ * на `resolve` не молчит и не отдаёт `undefined`, а отказывает причиной `cold`: «не зарегистрирован»
+ * и «зарегистрирован, но не прогрет» чинятся в разных местах.
+ *
  * @module host/modules/registry
  */
 
@@ -58,8 +78,61 @@ export interface ModuleRegistryDiagnostics {
   specifiers(): readonly string[];
 }
 
-/** Реализация реестра в Host: контракт плюс диагностика. */
-export type HostModuleRegistry = ModuleRegistry & ModuleRegistryDiagnostics;
+/**
+ * Прогрев ленивых модулей оболочки. Тоже вне {@link ModuleRegistry} и по той же причине:
+ * контракт описывает резолв, а не жизненный цикл того, кто его наполняет.
+ */
+export interface ModuleRegistryWarmup {
+  /** Объявленные, но ещё не прогретые спецификаторы. Пусто ⇔ `resolve` не откажет по `cold`. */
+  cold(): readonly string[];
+  /**
+   * Разрешает все ленивые модули. Идемпотентна: параллельные вызовы получают один промис,
+   * а после успеха прогревать уже нечего.
+   *
+   * Отказ НЕ запоминается — иначе одна сетевая икота навсегда лишила бы человека кита,
+   * и лечилась бы только перезагрузкой страницы (тот же довод, что у ленивого namespace
+   * в `app/preview-host`).
+   */
+  warm(): Promise<void>;
+}
+
+/** Реализация реестра в Host: контракт плюс диагностика плюс прогрев. */
+export type HostModuleRegistry = ModuleRegistry & ModuleRegistryDiagnostics & ModuleRegistryWarmup;
+
+/**
+ * Обещание модуля оболочки вместо самого модуля.
+ *
+ * Бренд — символ, а не форма объекта: распознавать «ленивое» по наличию поля `load` значило бы
+ * не суметь посадить в реестр настоящий модуль, у которого есть экспорт с таким именем.
+ */
+const LAZY_BUILTIN: unique symbol = Symbol('reformer-builder.lazy-builtin');
+
+/** Ленивый встроенный модуль. Создаётся только через {@link lazyBuiltin}. */
+export interface LazyBuiltin {
+  readonly [LAZY_BUILTIN]: true;
+  /** Как достать модуль. Зовётся не более одного раза за успешный прогрев. */
+  readonly load: () => Promise<unknown>;
+}
+
+/**
+ * Объявляет встроенный модуль ленивым.
+ *
+ * ```ts
+ * createModuleRegistry([['@reformer/ui-kit', lazyBuiltin(() => import('@reformer/ui-kit'))]]);
+ * ```
+ */
+export function lazyBuiltin(load: () => Promise<unknown>): LazyBuiltin {
+  return { [LAZY_BUILTIN]: true, load };
+}
+
+/** Ленивое ли это объявление. */
+export function isLazyBuiltin(value: unknown): value is LazyBuiltin {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Partial<LazyBuiltin>)[LAZY_BUILTIN] === true
+  );
+}
 
 /**
  * Защищённые спецификаторы — точное совпадение.
@@ -114,7 +187,14 @@ export type ModuleRegistryErrorReason =
   /** Пустой или бессмысленный спецификатор. */
   | 'invalid'
   /** В реестр пришёл путь — ошибка вызывающего, такие резолвит линковщик. */
-  | 'relative';
+  | 'relative'
+  /**
+   * Модуль объявлен ленивым, но прогрев до линковки не выполнен.
+   *
+   * Отдельная причина, а не `undefined`: «такого модуля нет» отправляет автора формы искать опечатку
+   * в импорте, тогда как чинить надо вызывающего, забывшего дождаться {@link ModuleRegistryWarmup.warm}.
+   */
+  | 'cold';
 
 /** Отказ реестра модулей. Несёт спецификатор и причину — чтобы UI не разбирал текст. */
 export class ModuleRegistryError extends Error {
@@ -139,9 +219,16 @@ export class ModuleRegistryError extends Error {
 export function createModuleRegistry(
   builtins: Iterable<readonly [string, unknown]> = []
 ): HostModuleRegistry {
-  /** Запись, а не голое значение: по её идентичности `dispose` понимает, что слот всё ещё его. */
+  /**
+   * Запись, а не голое значение: по её идентичности `dispose` понимает, что слот всё ещё его.
+   *
+   * Поля меняются на месте (прогрев ленивой записи), а не заменой записи целиком — иначе
+   * `dispose`, сверяющий идентичность, счёл бы прогретый слот чужим.
+   */
   interface Entry {
-    readonly exports: unknown;
+    exports: unknown;
+    /** Не `undefined` ⇔ модуль ещё не прогрет. */
+    load?: () => Promise<unknown>;
   }
 
   const entries = new Map<string, Entry>();
@@ -154,8 +241,17 @@ export function createModuleRegistry(
         `модуль оболочки «${specifier}» объявлен дважды: список встроенных модулей противоречив`
       );
     }
-    entries.set(specifier, { exports });
+    entries.set(
+      specifier,
+      isLazyBuiltin(exports) ? { exports: undefined, load: exports.load } : { exports }
+    );
   }
+
+  /** Промис текущего прогрева. Сбрасывается на отказе — см. {@link ModuleRegistryWarmup.warm}. */
+  let warming: Promise<void> | undefined;
+
+  const coldEntries = (): [string, Entry][] =>
+    [...entries].filter(([, entry]) => entry.load !== undefined);
 
   return {
     resolve(specifier, fromPath) {
@@ -170,12 +266,32 @@ export function createModuleRegistry(
         );
       }
       const entry = entries.get(specifier);
-      return entry === undefined ? undefined : entry.exports;
+      if (entry === undefined) return undefined;
+      if (entry.load !== undefined) {
+        throw new ModuleRegistryError(
+          'cold',
+          specifier,
+          `модуль «${specifier}» (импорт из «${fromPath}») объявлен ленивым и ещё не прогрет: ` +
+            `прогрев обязан завершиться ДО линковки, потому что require внутри модуля синхронен`
+        );
+      }
+      return entry.exports;
     },
 
     register(specifier, exports) {
       if (specifier.trim() === '') {
         throw new ModuleRegistryError('invalid', specifier, 'пустой спецификатор модуля');
+      }
+      if (isLazyBuiltin(exports)) {
+        // Ленивая запись живёт только среди встроенных. Прогрев — фаза, которая к моменту
+        // `register` уже могла пройти, и тогда модуль остался бы холодным навсегда: `resolve`
+        // отказывал бы причиной «не прогрет», а прогревать было бы уже некому.
+        throw new ModuleRegistryError(
+          'invalid',
+          specifier,
+          `«${specifier}»: ленивым может быть только встроенный модуль оболочки — ` +
+            `прогрев идёт один раз до линковки, и зарегистрированное после него не прогреет никто`
+        );
       }
       if (isProtectedSpecifier(specifier)) {
         throw new ModuleRegistryError(
@@ -211,6 +327,42 @@ export function createModuleRegistry(
 
     specifiers() {
       return [...entries.keys()].sort();
+    },
+
+    cold() {
+      return coldEntries()
+        .map(([specifier]) => specifier)
+        .sort();
+    },
+
+    warm() {
+      const pending = coldEntries();
+      if (pending.length === 0) return Promise.resolve();
+      warming ??= Promise.all(
+        pending.map(async ([specifier, entry]) => {
+          const load = entry.load;
+          if (load === undefined) return;
+          try {
+            entry.exports = await load();
+          } catch (error) {
+            throw new ModuleRegistryError(
+              'cold',
+              specifier,
+              `ленивый модуль «${specifier}» не загрузился: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+          // Снимаем метку последней: пока она стоит, `resolve` честно отвечает «не прогрет».
+          entry.load = undefined;
+        })
+      )
+        .then(() => undefined)
+        .catch((error: unknown) => {
+          warming = undefined;
+          throw error;
+        });
+      return warming;
     },
   };
 }

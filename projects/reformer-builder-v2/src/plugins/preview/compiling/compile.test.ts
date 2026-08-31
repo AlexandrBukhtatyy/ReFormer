@@ -5,9 +5,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { PreviewModuleGraph, PreviewModules } from '../host';
+import type { PreviewModuleGraph, PreviewModules, PreviewPrimedCompile } from '../host';
 import { compileForm } from './compile';
 import { PREVIEW_ENTRY_FILE } from './entry';
+
+/** Прогрев, который ничего не нашёл: движок нужен, писать пока нечего. */
+function primed(): PreviewPrimedCompile {
+  return { ready: new Map(), complete: false, commit: () => Promise.resolve() };
+}
 
 /** Двойник загрузчика: исполняет энтри тем же способом, что линковщик, и не транспилирует. */
 function loader(
@@ -56,16 +61,54 @@ describe('compileForm', () => {
     expect(result.problems).toEqual([]);
   });
 
-  it('прогревает движок ВСЕМ набором, включая синтетический энтри', async () => {
+  it('прогревает ВСЕМ набором, включая синтетический энтри', async () => {
     const warmed: string[][] = [];
-    const prepare = (names: readonly string[]): Promise<void> => {
-      warmed.push([...names]);
-      return Promise.resolve();
+    const prepare = (files: ReadonlyMap<string, string>): Promise<PreviewPrimedCompile> => {
+      warmed.push([...files.keys()]);
+      return Promise.resolve(primed());
     };
     await compileForm(SOURCES, loader({ 'model.ts': {}, 'validation.ts': {} }, { prepare }));
     expect(warmed).toHaveLength(1);
     expect(warmed[0]).toContain(PREVIEW_ENTRY_FILE);
     expect(warmed[0]).toContain('model.ts');
+  });
+
+  it('отдаёт прогретый код линковщику, а собранное — обратно в кэш', async () => {
+    const ready = new Map([['model.ts', 'exports.initialFormModel = {};']]);
+    const committed: ReadonlyMap<string, string>[] = [];
+    const seen: (ReadonlyMap<string, string> | undefined)[] = [];
+
+    const modules: PreviewModules = {
+      prepare: () =>
+        Promise.resolve({
+          ready,
+          complete: false,
+          commit: (compiled) => {
+            committed.push(compiled);
+            return Promise.resolve();
+          },
+        }),
+      load: (files, entry, options) => {
+        seen.push(options?.ready);
+        const source = files.get(entry) ?? '';
+        const module: { exports: unknown } = { exports: {} };
+        new Function('exports', 'require', 'module', source)(module.exports, () => ({}), module);
+        return Promise.resolve({
+          entry: module.exports,
+          modules: new Map(),
+          errors: [],
+          compiled: new Map([['validation.ts', 'exports.formValidation = {};']]),
+        });
+      },
+    };
+
+    await compileForm(SOURCES, modules);
+
+    expect(seen[0]).toBe(ready);
+    // Запись идёт следующим тиком: показ формы не ждёт OPFS.
+    await Promise.resolve();
+    expect(committed).toHaveLength(1);
+    expect([...committed[0].keys()]).toEqual(['validation.ts']);
   });
 
   it('отказ прогрева объясняется, а не превращается в «форма не собралась»', async () => {

@@ -31,7 +31,14 @@ export {
   type MockOption,
 } from '../form-mock';
 export { resolveComponent, type ComponentResolution, type KitView } from './components';
-export { isGenerated, originOf, withMarker, MARKER_PREFIX, type FileOrigin } from './marker';
+export {
+  acceptsMarker,
+  isGenerated,
+  originOf,
+  withMarker,
+  MARKER_PREFIX,
+  type FileOrigin,
+} from './marker';
 
 export { emitSchema } from './emit/schema';
 export { emitTypes } from './emit/types';

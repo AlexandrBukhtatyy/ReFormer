@@ -135,6 +135,9 @@ export function createLiveSurfacePort(deps: LiveSurfaceDeps): LivePreviewPort {
         // Мок-данных в v2 нет ни у кого: поверхность синтезирует значения из схемы.
         mock: () => null,
         values: () => store.values(),
+        publishForm: (form) => {
+          store.publishForm(form);
+        },
         keepValues: (values) => {
           store.keepValues(values);
         },

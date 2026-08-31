@@ -13,8 +13,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { AI_UNDO_TURN_COMMAND_ID, type AgentBridge } from './bridge';
-import { aiCommands, AI_RESET_COMMAND_ID, AI_STOP_COMMAND_ID } from './plugin';
+import { aiChatPanel, aiCommands, AI_RESET_COMMAND_ID, AI_STOP_COMMAND_ID } from './plugin';
 import { createAiSession } from './session';
+import { createFakeHost } from './testing';
 
 /** Мост в объёме, который читают охранные условия команд. */
 function fakeBridge(overrides: Partial<AgentBridge> = {}): AgentBridge {
@@ -57,5 +58,22 @@ describe('команды плагина', () => {
     const commands = aiCommands(fakeBridge(), createAiSession());
 
     expect(commands.filter((command) => command.agent !== undefined)).toEqual([]);
+  });
+});
+
+describe('панель ассистента', () => {
+  it('несёт действия шапки: ряд кнопок не занимает высоту у ленты', () => {
+    // Раньше это была своя полоса первой строкой содержимого, под заголовком дока, — то есть
+    // тот же ярус интерфейса, разложенный на два. Здесь проверяется, что действия объявлены
+    // вкладом шапки, а не вернулись в тело при следующей правке.
+    const panel = aiChatPanel(
+      createFakeHost() as unknown as Parameters<typeof aiChatPanel>[0],
+      createAiSession(),
+      fakeBridge(),
+      {} as unknown as Parameters<typeof aiChatPanel>[3]
+    );
+
+    expect(panel.Actions).toBeTypeOf('function');
+    expect(panel.Body).toBeTypeOf('function');
   });
 });

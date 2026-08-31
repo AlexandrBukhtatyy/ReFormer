@@ -21,7 +21,7 @@ import type { KitDescriptor } from '../lib/kits/types';
 import { KitsServiceToken } from '../plugins/kits/service';
 import { CODEGEN_PLUGIN_ID } from '../plugins/codegen';
 import type { CodegenDocument, CodegenHost, Translate } from '../plugins/codegen';
-import { parentOf, resolve } from './resource-paths';
+import { fromRoot, parentOf, resolve } from './resource-paths';
 import type { ProjectHost } from './project';
 
 export interface CodegenHostDeps {
@@ -82,6 +82,8 @@ export function createCodegenHost(deps: CodegenHostDeps): CodegenHost {
 
     parentOf,
     resolve,
+    // Фикстура предпросмотра лежит в отдельном дереве проекта, а не в каталоге модуля формы.
+    resolveFromRoot: fromRoot,
 
     async exists(id: ResourceId) {
       const session = project.get();
@@ -89,6 +91,15 @@ export function createCodegenHost(deps: CodegenHostDeps): CodegenHost {
       // Отсутствие ресурса — обычный ответ источника, а не авария: генерация спрашивает это
       // ровно затем, чтобы не затереть чужой файл, и отказ здесь означал бы «не знаю».
       return (await session.workspace.stat(id).catch(() => null)) !== null;
+    },
+
+    // Один уровень каталога — им генерация из дерева находит схему в щёлкнутой папке.
+    // Отказ листинга (каталога нет, источник не отвечает) отдаётся пустым списком: «схемы
+    // здесь не нашлось» — тот же ответ для человека, и различать его нечем.
+    async list(id: ResourceId) {
+      const session = project.get();
+      if (session === null) return [];
+      return session.workspace.list(id).catch(() => []);
     },
 
     async readText(id: ResourceId) {

@@ -58,6 +58,8 @@ async function shell(
     title: string;
     railPlacement?: 'top' | 'bottom';
     badge?: string;
+    /** Подпись кнопки в шапке дока: панель отдаёт свои действия оболочке. */
+    action?: string;
   }[],
   /** Сохранённая высота нижней панели: как если бы человек уже двигал разделитель. */
   bottomSize?: number
@@ -76,6 +78,10 @@ async function shell(
           p.badge === undefined
             ? undefined
             : (): ReactElement => createElement('span', null, p.badge),
+        Actions:
+          p.action === undefined
+            ? undefined
+            : (): ReactElement => createElement('button', { type: 'button' }, p.action),
       },
       { id: p.id }
     );
@@ -294,6 +300,29 @@ describe('рейлы доков: одна панель в зоне, как в п
 
     expect(page.getByText('тело Проблемы').elements()).toHaveLength(0);
     expect(page.getByRole('button', { name: 'Проблемы' }).elements()).toHaveLength(0);
+  });
+
+  it('действия панели стоят в шапке дока, справа от её заголовка', async () => {
+    // Место действия — свойство ПАНЕЛИ, а не её содержимого: в теле кнопка уезжала бы
+    // с прокруткой и отнимала высоту у списка. Проверяется геометрией, потому что
+    // «нарисовано в шапке» и «нарисовано первым в теле» неразличимы по разметке.
+    await shell([{ id: 'files', slot: 'panel.left', title: 'Файлы', action: 'Обновить' }]);
+    await expect.element(page.getByRole('button', { name: 'Обновить' })).toBeVisible();
+
+    const action = page.getByRole('button', { name: 'Обновить' }).element();
+    const heading = page.getByRole('heading', { name: 'Файлы' }).element();
+    const body = page.getByText('тело Файлы').element();
+
+    const actionBox = action.getBoundingClientRect();
+    expect(actionBox.left).toBeGreaterThan(heading.getBoundingClientRect().right);
+    expect(actionBox.bottom).toBeLessThanOrEqual(body.getBoundingClientRect().top);
+  });
+
+  it('панель без действий не заводит в шапке пустого места под них', async () => {
+    await shell([{ id: 'files', slot: 'panel.left', title: 'Файлы' }]);
+    await expect.element(page.getByText('тело Файлы')).toBeVisible();
+
+    expect(page.getByRole('button', { name: 'Обновить' }).elements()).toHaveLength(0);
   });
 
   it('сворачивание оставляет полосу со значком: ошибку видно, не разворачивая', async () => {

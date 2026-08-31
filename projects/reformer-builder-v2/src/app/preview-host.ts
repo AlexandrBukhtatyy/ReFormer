@@ -31,6 +31,7 @@ import type {
   PreviewSourceCapabilities,
   Translate,
 } from '../plugins/preview';
+import { fromRoot as resolveFromRoot } from './resource-paths';
 import type { ProjectHost } from './project';
 
 export interface PreviewHostDeps {
@@ -139,6 +140,11 @@ export function createPreviewHost(deps: PreviewHostDeps): PreviewHost {
       if (session === null) throw new Error(`проект не открыт: читать нечего (${id})`);
       return session.workspace.readText(id);
     },
+
+    // Фикстура лежит не рядом с формой, а в отдельном дереве проекта, поэтому подниматься
+    // к ней от документа пришлось бы на неизвестное заранее число уровней. Арифметику делает
+    // платформа (`app/resource-paths`), плагин лишь называет путь.
+    resolveFromRoot,
 
     onDidChangeFiles: (cb: () => void): Disposable => {
       const session = project.get();

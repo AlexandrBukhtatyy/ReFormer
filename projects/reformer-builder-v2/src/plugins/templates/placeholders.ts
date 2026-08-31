@@ -135,6 +135,19 @@ export function materialize(text: string, formName: string): string {
   return out;
 }
 
+/**
+ * Годится ли имя новой формы: выводится ли из него хоть одно слово.
+ *
+ * Проверка ровно та, от которой зависит {@link materialize}: пустой набор слов означает, что
+ * подстановка молча оставит плейсхолдеры в файлах. Правило первой версии («латиница, цифры
+ * и дефис») здесь было бы уже неверным — {@link splitWords} транслитерирует кириллицу, и
+ * «Профиль пользователя» даёт законное `ProfilPolzovatelya`. Запрещать надо не кириллицу,
+ * а имя, из которого не выходит идентификатор: одни знаки препинания, пробелы, пустая строка.
+ */
+export function isUsableFormName(name: string): boolean {
+  return splitWords(name).length > 0;
+}
+
 /** Есть ли в тексте хотя бы один плейсхолдер — для отметки «шаблон параметризован». */
 export function hasTokens(text: string): boolean {
   return VARIANT_ORDER.some((kind) => text.includes(TOKENS[kind]));

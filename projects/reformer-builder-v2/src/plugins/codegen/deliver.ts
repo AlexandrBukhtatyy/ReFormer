@@ -64,10 +64,29 @@ export async function deliverModule(
   dirName: string,
   files: readonly ModuleFile[]
 ): Promise<DeliveryResult> {
-  const capabilities = host.sourceOf(parent);
+  return deliverInto(host, host.resolve(parent, dirName), files);
+}
+
+/**
+ * Записать модуль В САМ каталог, без подпапки под ним.
+ *
+ * Второй вход, а не флаг у первого, потому что вопросы разные. {@link deliverModule} отвечает
+ * «рядом с этой схемой заведи модуль формы» — имя каталога там ПРОИЗВОДНОЕ имени формы, и
+ * решает его генерация. Здесь каталог НАЗВАН: его выбрал человек, щёлкнув по строке дерева,
+ * и выводить внутри него ещё один по имени формы значило бы переспросить то, на что уже
+ * ответили — и получить `credit-application/credit-application/`.
+ *
+ * Всё остальное общее и живёт здесь: право источника на запись, предикат перезаписи,
+ * отправка записанного. Разница ровно в одном адресе.
+ */
+export async function deliverInto(
+  host: CodegenHost,
+  dir: ResourceId,
+  files: readonly ModuleFile[]
+): Promise<DeliveryResult> {
+  const capabilities = host.sourceOf(dir);
   if (capabilities === null || !capabilities.write) throw new SourceReadOnlyError();
 
-  const dir = host.resolve(parent, dirName);
   const written: string[] = [];
   const skipped: { path: string; reason: SkipReason }[] = [];
   const failed: { path: string; message: string }[] = [];

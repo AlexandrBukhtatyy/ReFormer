@@ -152,17 +152,30 @@ export function resolveFilePath(
  * `sourceURL` дописывается, чтобы в DevTools и в стеке было `form/validation.ts`,
  * а не `<anonymous>`. `new Function`, а не `eval`: код приходит не из сети, а из файла,
  * который пользователь открыл сам и явно разрешил исполнить.
+ *
+ * ## `ambient` — подмена окружения ЛЕКСИЧЕСКАЯ
+ *
+ * Имена из `ambient` становятся дополнительными параметрами функции модуля, то есть внутри кода
+ * `fetch` — обычная переменная, затеняющая глобал. Отсюда два свойства, которых не дал бы ни патч
+ * `globalThis`, ни Service Worker: область действия ровно один модуль, и снимать подмену не нужно,
+ * потому что снаружи её и не было — оболочка и соседние вкладки продолжают видеть настоящий `fetch`.
+ *
+ * Пустой `ambient` не добавляет ни одного параметра: плагин каталога и форма без фикстуры
+ * исполняются ровно так же, как исполнялись.
  */
-export function evaluateCommonJs(js: string, require: RequireFn, fileName: string): unknown {
+export function evaluateCommonJs(
+  js: string,
+  require: RequireFn,
+  fileName: string,
+  ambient: Readonly<Record<string, unknown>> = {}
+): unknown {
   const module: { exports: unknown } = { exports: {} };
   const source = `${js}\n//# sourceURL=builder-module:///${fileName}`;
-  const factory = new Function('exports', 'require', 'module', '__filename', source) as (
-    exports: unknown,
-    require: RequireFn,
-    module: { exports: unknown },
-    filename: string
+  const names = Object.keys(ambient);
+  const factory = new Function('exports', 'require', 'module', '__filename', ...names, source) as (
+    ...args: unknown[]
   ) => void;
-  factory(module.exports, require, module, fileName);
+  factory(module.exports, require, module, fileName, ...names.map((name) => ambient[name]));
   return module.exports;
 }
 
@@ -179,6 +192,29 @@ export interface LinkerOptions {
   readonly compile: (code: string, fileName: string) => string;
   /** Что перечислить в ошибке «модуль недоступен». Необязательно. */
   readonly knownSpecifiers?: () => readonly string[];
+  /**
+   * Подстановки на время ОДНОГО графа: спецификатор → уже готовые экспорты.
+   *
+   * Проверяются раньше всего — и раньше файлов набора, и раньше реестра. Это не обход запрета
+   * «bare-спецификатор никуда не догружается», а его продолжение: подстановка приходит из кода,
+   * который оболочка уже исполнила сама (фикстура формы), а не из сети. Второго экземпляра пакета
+   * отсюда взяться неоткуда.
+   *
+   * Перекрывать разрешено и файл, который в наборе ЕСТЬ (`./api`): это не лазейка, а суть
+   * проверки, когда настоящий `api.ts` ходит в сеть, а посмотреть надо на форму. Ключ
+   * сравнивается с тем, что НАПИСАНО в импорте, а не с резолвнутым путём: фикстуру пишет человек,
+   * и он видит перед собой строку импорта, а не арифметику путей.
+   *
+   * Живёт ровно одну загрузку, поэтому две формы, собираемые параллельно, не могут подменить
+   * модули друг другу.
+   */
+  readonly overrides?: ReadonlyMap<string, unknown>;
+  /**
+   * Имена, которые получит КАЖДЫЙ модуль набора дополнительными параметрами.
+   *
+   * См. {@link evaluateCommonJs}: подмена лексическая, а не глобальная.
+   */
+  readonly ambient?: Readonly<Record<string, unknown>>;
 }
 
 /** Живой граф: исполненные модули плюс точка входа в него. */
@@ -207,9 +243,15 @@ export function createLinker(options: LinkerOptions): Linker {
   /** Файлы в процессе исполнения. Он же детектор цикла: без него была бы вечная рекурсия. */
   const stack: string[] = [];
 
+  const overrides = options.overrides;
+
   const requireFrom =
     (fromPath: string): RequireFn =>
     (specifier: string): unknown => {
+      // Подстановка идёт ПЕРВОЙ и одинаково для путей и для имён пакетов: человек, писавший
+      // фикстуру, указал строку импорта, а не то, во что она резолвится.
+      if (overrides !== undefined && overrides.has(specifier)) return overrides.get(specifier);
+
       if (isRelativeSpecifier(specifier) || specifier.startsWith('/')) {
         const file = resolveFilePath(specifier, fromPath, files);
         if (file === undefined) {
@@ -261,7 +303,7 @@ export function createLinker(options: LinkerOptions): Linker {
 
       let exports: unknown;
       try {
-        exports = evaluateCommonJs(js, requireFrom(file), file);
+        exports = evaluateCommonJs(js, requireFrom(file), file, options.ambient);
       } catch (error) {
         // Ошибка из более глубокого модуля уже названа своим файлом — перезаворачивать её
         // значило бы приписать сбой импортёру и отправить чинить не тот файл.

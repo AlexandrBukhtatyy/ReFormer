@@ -219,4 +219,78 @@ describe('исполнение CommonJS-конверта', () => {
 
     expect(exports).toEqual({ where: 'form/model.ts' });
   });
+
+  it('ambient затеняет глобал ЛЕКСИЧЕСКИ, а снаружи ничего не меняет', () => {
+    const real = globalThis.fetch;
+
+    const exports = evaluateCommonJs(
+      'module.exports = { got: fetch("/x") };',
+      () => undefined,
+      'form/api.ts',
+      { fetch: (url: string) => `подменённый ${url}` }
+    );
+
+    expect(exports).toEqual({ got: 'подменённый /x' });
+    // Главное свойство: оболочка и соседние вкладки продолжают видеть настоящий `fetch`,
+    // и снимать подмену не нужно — снаружи её и не было.
+    expect(globalThis.fetch).toBe(real);
+  });
+
+  it('без ambient сигнатура модуля прежняя: плагины ничего не замечают', () => {
+    const exports = evaluateCommonJs(
+      'module.exports = { args: arguments.length };',
+      () => undefined,
+      'plugin/main.js'
+    );
+
+    expect(exports).toEqual({ args: 4 });
+  });
+});
+
+describe('подстановка модулей', () => {
+  const files = new Map([
+    ['form/api.ts', 'module.exports.submitForm = function () { return "настоящий"; };'],
+    ['form/behavior.ts', 'module.exports.submit = require("./api").submitForm;'],
+    ['form/dict-user.ts', 'module.exports.dict = require("@acme/dict");'],
+  ]);
+
+  function link(overrides?: ReadonlyMap<string, unknown>) {
+    return createLinker({
+      files,
+      registry: createModuleRegistry(),
+      compile: (code) => code,
+      overrides,
+    });
+  }
+
+  it('перекрывает файл, который в наборе ЕСТЬ', () => {
+    const linker = link(new Map([['./api', { submitForm: () => 'подменённый' }]]));
+
+    const exports = linker.load('form/behavior.ts') as { submit: () => string };
+
+    // Не лазейка, а суть проверки: настоящий `api.ts` ходил бы в сеть.
+    expect(exports.submit()).toBe('подменённый');
+  });
+
+  it('закрывает bare-спецификатор, которого в оболочке нет вовсе', () => {
+    const linker = link(new Map<string, unknown>([['@acme/dict', { REGIONS: ['Москва'] }]]));
+
+    const exports = linker.load('form/dict-user.ts') as { dict: { REGIONS: string[] } };
+
+    expect(exports.dict.REGIONS).toEqual(['Москва']);
+  });
+
+  it('без подстановки неизвестный пакет по-прежнему ОТКАЗ, а не пустышка', () => {
+    const linker = link();
+
+    expect(() => linker.load('form/dict-user.ts')).toThrowError(/@acme\/dict/);
+  });
+
+  it('подстановка сравнивается со строкой импорта, а не с резолвнутым путём', () => {
+    // Человек, писавший фикстуру, видит перед собой `'./api'`, а не `form/api.ts`.
+    const byResolvedPath = link(new Map([['form/api.ts', { submitForm: () => 'мимо' }]]));
+
+    const exports = byResolvedPath.load('form/behavior.ts') as { submit: () => string };
+    expect(exports.submit()).toBe('настоящий');
+  });
 });

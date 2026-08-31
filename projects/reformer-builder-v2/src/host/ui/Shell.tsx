@@ -68,7 +68,14 @@ import { CommandPalette } from './CommandPalette';
 import { EditorArea, EDITOR_NEXT_COMMAND_ID } from './EditorArea';
 import { HelpDialogs, HELP_ABOUT_COMMAND_ID } from './HelpDialogs';
 import { KeybindingsDialog, KEYBINDINGS_OPEN_COMMAND_ID } from './KeybindingsDialog';
+import { SettingsDialog, SETTINGS_OPEN_COMMAND_ID } from './SettingsDialog';
+import type { SettingsSection } from './settings-ui';
 import { MenuBar } from './MenuBar';
+import {
+  storagePurgeCommand,
+  STORAGE_PURGE_COMMAND_ID,
+  type StorageMaintenance,
+} from './storage-purge';
 import { hostMenuEntry, type MenuEntry } from './menu';
 import { NotificationCenter } from './NotificationCenter';
 import { PromptHost } from './PromptHost';
@@ -150,6 +157,14 @@ export interface ShellHost {
    */
   readonly i18n: RootI18nService;
   /**
+   * Разделы окна настроек.
+   *
+   * Составляет их композиция: ЧТО настраивается, знает она (тему применяет служба темы,
+   * язык — служба локализации), а оболочка знает лишь, как это нарисовать. Без них пункт
+   * меню и команда просто отсутствуют — окно, в котором нечего менять, не нужно.
+   */
+  readonly settingsSections?: readonly SettingsSection[];
+  /**
    * Служба уведомлений. Отсутствие означает ровно одно: тосты не показываются — и это
    * законная сборка (тест оболочки, встраивание в чужой интерфейс), а не поломка.
    *
@@ -166,6 +181,16 @@ export interface ShellHost {
    * показать.
    */
   readonly prompt?: PromptService;
+  /**
+   * Обслуживание хранилища: очистка кэша и перезапуск.
+   *
+   * Необязателен ровно как уведомления и запросы: состав хранилищ и способ перезапуска —
+   * знание композиции, а оболочка обязана рисоваться и без него. Без порта команда
+   * «Очистить кэш» не регистрируется, и пункт меню, ссылающийся на неё, не рисуется вовсе
+   * (пункт без команды не показывается; см. `./menu`) — то же правило, по которому сборка
+   * без справки остаётся законной сборкой.
+   */
+  readonly storage?: StorageMaintenance;
   /**
    * Вкладки документов. Отсутствие — «рабочая область ещё не открыта»: она восстанавливается
    * ПОСЛЕ отрисовки (шаг 7 запуска), и до этого момента открытых ресурсов не бывает вовсе.
@@ -305,11 +330,23 @@ function PanelBody({ entry }: { entry: PanelEntry }): ReactElement {
  * не помещается, второе — про формы, а не про оболочку. Заимствовать компонент ради того,
  * чтобы затем переопределить у него всё, — это не «на ките», это чужое имя над своим стилем.
  */
-function PanelHeading({ title }: { title: string }): ReactElement {
+function PanelHeading({ title, entry }: { title: string; entry: PanelEntry }): ReactElement {
+  const Actions = entry.value.Actions;
   return (
-    <h2 className="text-muted-foreground flex h-[34px] flex-none items-center px-3 text-[11.5px] font-semibold">
-      {title}
-    </h2>
+    <div className="flex h-[34px] flex-none items-center justify-between gap-2 pr-1.5 pl-3">
+      <h2 className="text-muted-foreground min-w-0 truncate text-[11.5px] font-semibold">
+        {title}
+      </h2>
+      {/* Провайдер подсказок здесь, а не вокруг всей оболочки: действия — единственное
+          место шапки, где они бывают, и вклад не обязан заводить свой. */}
+      {Actions === undefined ? null : (
+        <TooltipProvider>
+          <div className="flex flex-none items-center gap-0.5">
+            <Actions panelId={entry.value.id} />
+          </div>
+        </TooltipProvider>
+      )}
+    </div>
   );
 }
 
@@ -393,6 +430,9 @@ const DEFAULT_BOTTOM_SIZE = 200;
  * а правило раскладки, записанное явно.
  */
 const PANEL_CONTENT_STYLE: CSSProperties = Object.freeze({ overflow: 'hidden' });
+
+/** Разделов нет: одна ссылка, чтобы окно настроек не пересобиралось на каждый кадр. */
+const NO_SETTINGS: readonly SettingsSection[] = Object.freeze([]);
 
 const STRIP_HEIGHT: Readonly<Record<DockMode, number>> = Object.freeze({
   full: 34,
@@ -707,6 +747,32 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
     };
   }, [commands, bottomDock]);
 
+  /**
+   * Очистка хранилища.
+   *
+   * Команда существует, только пока композиция дала порт, — а пункт меню, ссылающийся
+   * на неё, без команды не рисуется вовсе (см. `./menu`). Поэтому «сборки без очистки»
+   * не приходится описывать отдельно: она получается сама.
+   *
+   * Служба запросов здесь необязательна, но и не подменяется: без неё команда объявит
+   * себя недоступной — снести рабочую копию по щелчку, ничего не спросив, нельзя.
+   */
+  const storage = host.storage;
+  const promptService = host.prompt;
+  useEffect(() => {
+    if (storage === undefined) return undefined;
+    const subscription = commands.register(
+      storagePurgeCommand({
+        storage,
+        prompt: promptService ?? null,
+        notifications: notifications ?? null,
+      })
+    );
+    return () => {
+      subscription.dispose();
+    };
+  }, [commands, storage, promptService, notifications]);
+
   /** Доки, между которыми ищется панель по идентификатору: у каждого свой контроллер. */
   const docks = useMemo(
     () => [
@@ -776,6 +842,23 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
         menu: 'file',
         command: EDITOR_NEXT_COMMAND_ID,
         group: '3_view',
+      }),
+      // Очистка кэша — своей группой, а не рядом с настройками: между «поменять цвет темы»
+      // и «снести рабочую копию» обязана быть линия. Группа стоит перед настройками
+      // (`8_` < `9_`), потому что это всё же обслуживание, а не первое, что ищут в меню.
+      hostMenuEntry('shell.file.storage.purge', {
+        kind: 'item',
+        menu: 'file',
+        command: STORAGE_PURGE_COMMAND_ID,
+        group: '8_maintenance',
+      }),
+      // Настройки — в «Файле», рядом с открытием проекта: это первое место, где их ищут,
+      // и там же они стоят в редакторах, на которые человек насмотрелся до нас.
+      hostMenuEntry('shell.file.settings', {
+        kind: 'item',
+        menu: 'file',
+        command: SETTINGS_OPEN_COMMAND_ID,
+        group: '9_settings',
       }),
       hostMenuEntry('shell.help.shortcuts', {
         kind: 'item',
@@ -850,7 +933,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
                   data-focus-zone="panel"
                   className="flex min-h-0 flex-1 flex-col"
                 >
-                  <PanelHeading title={panelTitle(i18n, activeLeft)} />
+                  <PanelHeading title={panelTitle(i18n, activeLeft)} entry={activeLeft} />
                   <ScrollArea className="min-h-0 flex-1">
                     <PanelBody entry={activeLeft} />
                   </ScrollArea>
@@ -957,7 +1040,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
                   data-focus-zone="panel"
                   className="flex min-h-0 flex-1 flex-col"
                 >
-                  <PanelHeading title={panelTitle(i18n, activeRight)} />
+                  <PanelHeading title={panelTitle(i18n, activeRight)} entry={activeRight} />
                   <ScrollArea className="min-h-0 flex-1">
                     <PanelBody entry={activeRight} />
                   </ScrollArea>
@@ -1007,6 +1090,13 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
       {/* Команды справки живут вместе с её окнами: нет окон — нет и пунктов в меню. */}
       <HelpDialogs commands={commands} scopes={host.scopes} i18n={i18n} />
 
+      <SettingsDialog
+        commands={commands}
+        i18n={i18n}
+        sections={host.settingsSections ?? NO_SETTINGS}
+        scopes={host.scopes}
+      />
+
       {/* Экран клавиш заменяет прежнюю таблицу справки: список сочетаний в приложении
           обязан быть один, иначе второй расходится с первым молча. */}
       {keymap !== null && (
@@ -1016,7 +1106,7 @@ export function Shell({ host }: { host: ShellHost }): ReactElement {
       {/* Запросы к человеку — тоже вне раскладки, и по той же причине, что тосты: их зовёт
           КОМАНДА, а команду вызывают откуда угодно, в том числе из палитры, когда панели,
           затеявшей действие, на экране нет вовсе. */}
-      <PromptHost prompt={host.prompt} scopes={host.scopes} i18n={i18n} />
+      <PromptHost prompt={promptService} scopes={host.scopes} i18n={i18n} />
 
       {/* Вне раскладки: тосты живут в своём слое поверх всего и места в сетке не занимают. */}
       {notifications !== undefined && (

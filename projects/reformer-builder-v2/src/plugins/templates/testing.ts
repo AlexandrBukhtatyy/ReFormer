@@ -43,6 +43,8 @@ export interface FakeTemplatesHostOptions {
 export interface FakeTemplatesHost extends TemplatesHost {
   readonly files: Map<string, string>;
   readonly opened: ResourceId[];
+  /** Уровни, о которых порт попросили забыть: их перечитывает дерево. */
+  readonly invalidated: ResourceId[];
 }
 
 function refOf(id: string, kind: 'file' | 'directory'): ResourceRef {
@@ -62,10 +64,12 @@ export function createFakeTemplatesHost(options: FakeTemplatesHostOptions = {}):
   const view = builtinKit();
   const files = new Map<string, string>(Object.entries(options.files ?? {}));
   const opened: ResourceId[] = [];
+  const invalidated: ResourceId[] = [];
 
   const host: FakeTemplatesHost = {
     files,
     opened,
+    invalidated,
     useTranslate: () => (key) => key,
     useActiveDocument: () => null,
     refOf: (id) => (files.has(id) ? refOf(id, 'file') : null),
@@ -94,6 +98,9 @@ export function createFakeTemplatesHost(options: FakeTemplatesHostOptions = {}):
       files.set(id, text);
     },
     sourceOf: () => ({ write: options.write ?? true }),
+    invalidate: async (dir) => {
+      invalidated.push(dir);
+    },
     openResource: (id) => opened.push(id),
     catalog: () => options.catalog ?? view.catalog,
     kit: () => (options.kit === undefined ? view.kit : options.kit),

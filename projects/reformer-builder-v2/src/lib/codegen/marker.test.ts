@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isGenerated, MARKER_PREFIX, originOf, withMarker } from './marker';
+import { acceptsMarker, isGenerated, MARKER_PREFIX, originOf, withMarker } from './marker';
 
 describe('маркер происхождения', () => {
   it('приписывается первой строкой и идемпотентен', () => {
@@ -27,5 +27,19 @@ describe('маркер происхождения', () => {
     const a = withMarker('a\n').split('\n')[0];
     const b = withMarker('b\n').split('\n')[0];
     expect(a).not.toBe(b);
+  });
+});
+
+describe(`где маркер допустим`, () => {
+  it(`строка // — комментарий только в части форматов`, () => {
+    expect(acceptsMarker(`model.ts`)).toBe(true);
+    expect(acceptsMarker(`index.tsx`)).toBe(true);
+    expect(acceptsMarker(`theme.css`)).toBe(true);
+    // JSON комментариев не знает: маркер сделал бы файл неразбираемым — и для редактора
+    // схемы, и для импорта в сгенерированном модуле.
+    expect(acceptsMarker(`renderer.schema.json`)).toBe(false);
+    expect(acceptsMarker(`README.md`)).toBe(false);
+    // Неизвестный формат безопаснее оставить без пометки, чем испортить.
+    expect(acceptsMarker(`LICENSE`)).toBe(false);
   });
 });

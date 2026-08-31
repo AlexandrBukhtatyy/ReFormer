@@ -38,21 +38,51 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
   Object.freeze([
     {
       id: 'codegen.schema',
+      titleKey: 'target.schema',
       path: 'renderer.schema.json',
       cls: 'derived',
       order: 10,
       emit: emitSchema,
     },
-    { id: 'codegen.types', path: 'types.ts', cls: 'derived', order: 20, emit: emitTypes },
-    { id: 'codegen.model', path: 'model.ts', cls: 'derived', order: 30, emit: emitModel },
-    { id: 'codegen.registry', path: 'registry.ts', cls: 'derived', order: 40, emit: emitRegistry },
-    { id: 'codegen.index', path: 'index.tsx', cls: 'derived', order: 50, emit: emitIndex },
+    {
+      id: 'codegen.types',
+      titleKey: 'target.types',
+      path: 'types.ts',
+      cls: 'derived',
+      order: 20,
+      emit: emitTypes,
+    },
+    {
+      id: 'codegen.model',
+      titleKey: 'target.model',
+      path: 'model.ts',
+      cls: 'derived',
+      order: 30,
+      emit: emitModel,
+    },
+    {
+      id: 'codegen.registry',
+      titleKey: 'target.registry',
+      path: 'registry.ts',
+      cls: 'derived',
+      order: 40,
+      emit: emitRegistry,
+    },
+    {
+      id: 'codegen.index',
+      titleKey: 'target.index',
+      path: 'index.tsx',
+      cls: 'derived',
+      order: 50,
+      emit: emitIndex,
+    },
     {
       // Шим визарда — опциональный файл канона: он появляется ровно у той формы, где есть
       // узел-визард, И только если кит поставляет адаптер. Без адаптера файл не печатается,
       // а `registry.ts` регистрирует заглушку с внятной причиной — это лучше импорта из
       // чужого пакета, который у пользователя не соберётся.
       id: 'codegen.wizard',
+      titleKey: 'target.wizard',
       path: 'renderer.wizard.tsx',
       cls: 'derived',
       order: 60,
@@ -61,6 +91,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.data-sources',
+      titleKey: 'target.data-sources',
       path: 'data-sources.ts',
       cls: 'user',
       order: 70,
@@ -70,6 +101,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       // Производится из правил render-слоя, поэтому несёт маркер и перезаписывается,
       // пока его не правили руками.
       id: 'codegen.render-behavior',
+      titleKey: 'target.render-behavior',
       path: 'renderer.behavior.ts',
       cls: 'user',
       regenerable: true,
@@ -78,6 +110,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.form-behavior',
+      titleKey: 'target.form-behavior',
       path: 'form.behavior.ts',
       cls: 'user',
       regenerable: true,
@@ -86,6 +119,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     },
     {
       id: 'codegen.validation',
+      titleKey: 'target.validation',
       path: 'validation.ts',
       cls: 'user',
       regenerable: true,
@@ -93,8 +127,22 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       emit: emitValidation,
     },
     // Заготовка под бэкенд: регенерировать её не из чего, поэтому маркера она не несёт.
-    { id: 'codegen.api', path: 'api.ts', cls: 'user', order: 110, emit: emitApi },
+    {
+      id: 'codegen.api',
+      titleKey: 'target.api',
+      path: 'api.ts',
+      cls: 'user',
+      order: 110,
+      emit: emitApi,
+    },
     // README печатается последним не по прихоти: он перечисляет состав модуля, и состав
     // к этому моменту уже известен целиком.
-    { id: 'codegen.readme', path: 'README.md', cls: 'derived', order: 120, emit: emitReadme },
+    {
+      id: 'codegen.readme',
+      titleKey: 'target.readme',
+      path: 'README.md',
+      cls: 'derived',
+      order: 120,
+      emit: emitReadme,
+    },
   ]);
