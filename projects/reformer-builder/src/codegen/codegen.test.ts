@@ -209,7 +209,7 @@ describe('model.ts / data-sources.ts / behavior / validation / api', () => {
   it('README.md — сниппет + чеклист', () => {
     const src = byPath('README.md').content;
     expect(src).toContain('LoanPage');
-    expect(src).toContain("import LoanPage from './pages/examples/loan'");
+    expect(src).toContain("import LoanPage from './pages/demo/loan'");
     expect(src).toContain('zayavka-section');
   });
 });
@@ -232,7 +232,7 @@ describe('naming / snippet / validateExportable', () => {
   });
   it('appSnippet — 3 части', () => {
     const s = appSnippet(makeNames('loan'));
-    expect(s).toContain("import LoanPage from './pages/examples/loan'");
+    expect(s).toContain("import LoanPage from './pages/demo/loan'");
     expect(s).toContain('<Route path="/examples/loan"');
   });
   it('validateExportable — пропуск $model в моке даёт warning', () => {

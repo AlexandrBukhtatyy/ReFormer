@@ -24,7 +24,7 @@ export function pdfFile(name: string, sizeBytes = 1024): MemoryFile {
 }
 
 /**
- * Page Object Model страницы примеров FileUpload (/examples/file-upload).
+ * Page Object Model страницы примеров FileUpload (/demo/file-upload).
  *
  * testId-конвенция FormField: `field-/label-/input-/error-<testId>`;
  * `input-<testId>` — корень компонента (data-slot="file-upload"), hidden
@@ -32,7 +32,7 @@ export function pdfFile(name: string, sizeBytes = 1024): MemoryFile {
  */
 export class FileUploadPage {
   readonly page: Page;
-  readonly baseUrl = '/examples/file-upload';
+  readonly baseUrl = '/demo/file-upload';
   readonly perf?: PerformanceCollector;
 
   readonly consoleErrors: string[] = [];

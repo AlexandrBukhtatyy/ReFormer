@@ -13,7 +13,7 @@
 
 ## Куда писать код
 
-Каталог: `projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/`
+Каталог: `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/`
 
 Файлы per target:
 
@@ -24,7 +24,7 @@
 | `renderer-json`  | `schema.json` + `index.tsx` |
 
 ```bash
-mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean
+mkdir -p projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean
 ```
 
 ---
@@ -100,8 +100,8 @@ ok | partial | blocked
 
 ## Files written
 
-- projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/schema.ts (LOC: N)
-- projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/index.tsx (LOC: N)
+- projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/schema.ts (LOC: N)
+- projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/index.tsx (LOC: N)
 - ...
 
 ## MCP calls
@@ -137,8 +137,8 @@ ok | partial | blocked
 status: ok | partial | blocked
 target: { TARGET }
 files_written:
-  - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/schema.ts
-  - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/index.tsx
+  - projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/schema.ts
+  - projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-clean/index.tsx
 mcp_calls: N
 gaps:
   high: N

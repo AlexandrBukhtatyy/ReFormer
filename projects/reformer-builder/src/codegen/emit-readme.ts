@@ -46,7 +46,7 @@ export function emitReadme(n: Names, sel: SelectorInfo, c: Collected): string {
 
 ## Встраивание в react-playground
 
-Скопируйте папку в \`src/pages/examples/${n.dir}/\` и добавьте в \`src/App.tsx\`:
+Скопируйте папку в \`src/pages/demo/${n.dir}/\` и добавьте в \`src/App.tsx\`:
 
 \`\`\`tsx
 ${appSnippet(n)}

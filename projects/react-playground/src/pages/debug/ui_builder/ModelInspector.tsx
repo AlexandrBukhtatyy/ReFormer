@@ -6,7 +6,7 @@
  * `путь → signalAt → getNodeForSignal → узел`. Правка идёт ТЕМ ЖЕ вызовом, каким пишет
  * контрол, поэтому `compute` пересчитывается сам — это и есть главное, что демо показывает.
  *
- * @module pages/examples/ui_builder/ModelInspector
+ * @module pages/debug/ui_builder/ModelInspector
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';

@@ -510,7 +510,7 @@ defineRegistry((reg) => {
 - Вычисляемых выражений в JSON нет — «платёж = сумма / срок» считается `compute`-поведением над моделью, а текст показывает уже готовое поле (`"$model(monthlyPayment)"`).
 - Текст, живущий не в модели, а в UI-состоянии (статус отправки), кладётся сигналом в реестр и подставляется как `"$dataSource(SUBMIT_STATUS)"`.
 - Whitelist тегов и чистка `componentProps` (обработчики, `javascript:`-URL) описаны в [02-json-schema.md](02-json-schema.md#html-узлы-html-и-текст).
-- Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/examples/html-nodes/`.
+- Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/demo/html-nodes/`.
 
 ## See also
 

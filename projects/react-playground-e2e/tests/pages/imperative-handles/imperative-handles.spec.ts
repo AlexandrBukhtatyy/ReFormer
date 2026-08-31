@@ -15,7 +15,7 @@
 
 import { test, expect } from '../../shared/test-factory';
 
-const PAGE_PATH = '/examples/imperative-handles';
+const PAGE_PATH = '/demo/imperative-handles';
 
 test.describe('Императивные handle по селектору', { tag: ['@imperative-handles'] }, () => {
   test.beforeEach(async ({ page }) => {

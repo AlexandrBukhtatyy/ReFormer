@@ -9,7 +9,7 @@
  * видно на одном экране: модель, валидация, поведение — плюс фикстура, лежащая в билдере
  * отдельным деревом `_generated/reformer/`.
  *
- * @module pages/examples/ui_builder/sources
+ * @module pages/debug/ui_builder/sources
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';

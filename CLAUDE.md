@@ -194,7 +194,7 @@ Sub-agent имитирует консумента MCP. Это **тест MCP**, 
 ### Артефакты iter-N
 
 - **Workspace** (gitignored): `.tmp/iter-artifacts/iter-{N}/{target}/{dev-plan,dev-report,discovery}.md`, `.tmp/iter-artifacts/iter-{N}/proposed-patches/`
-- **Сгенерированный код** (в репо): `projects/react-playground/src/pages/examples/mcp-credit-application-{target}-v{N}/`
+- **Сгенерированный код** (в репо): `projects/react-playground/src/pages/debug/mcp-credit-application-{target}-v{N}/`
 - **Smoke spec** (transient): `$TMPDIR/iter-{N}-{target}/smoke.spec.ts` — sub-agent пишет минимальный smoke check, abstract tests запустит orchestrator
 - **Скриншоты** (gitignored, fullPage): `projects/react-playground-e2e/screenshots/mcp-credit-v{N}/{target}/{smoke-final,...}.png`
 - **Видео** (gitignored): `projects/react-playground-e2e/videos/mcp-credit-v{N}/{target}/` — orchestrator пишет при abstract test run

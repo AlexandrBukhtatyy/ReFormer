@@ -18,10 +18,10 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildFormSchemaMetaSchema, getComponentNames } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { createCreditApplicationRegistry } from '../src/pages/examples/complex-multy-step-form-renderer-json/registry';
+import { createCreditApplicationRegistry } from '../src/pages/demo/complex-multy-step-form-renderer-json/registry';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const exampleDir = resolve(here, '../src/pages/examples/complex-multy-step-form-renderer-json');
+const exampleDir = resolve(here, '../src/pages/demo/complex-multy-step-form-renderer-json');
 const jsonSchemaPath = resolve(exampleDir, 'json-schema.json');
 const outPath = resolve(exampleDir, 'form-schema.schema.json');
 

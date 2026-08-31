@@ -70,8 +70,8 @@
 
 ## Files written
 
-- `projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/schema.ts` (LOC: N)
-- `projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/index.tsx` (LOC: N)
+- `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/schema.ts` (LOC: N)
+- `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/index.tsx` (LOC: N)
 - `projects/react-playground-e2e/tests/iter/mcp-credit-{TARGET}-v{ITER}.spec.ts` (LOC: N)
 
 ## Screenshots index

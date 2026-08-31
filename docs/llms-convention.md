@@ -58,7 +58,7 @@ packages/<package>/
 - **Заголовки** только `#` (h1, один на файл, имя темы) и `##` / `###`. Глубже не уходим.
 - **Fenced code** — обязательно с указанием языка: `tsx`, `typescript`, `bash`, `json`. Без языка парсер не подсветит и хуже извлечёт.
 - **Таблицы** через `| … |` синтаксис. Используем для перечисления компонентов / hooks / validators.
-- **Ссылки на эталонные примеры** из `projects/react-playground/src/pages/examples/` — приветствуются в секциях `Examples` и `Common Patterns`. Формат: `[CreditApplicationForm](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx)`.
+- **Ссылки на эталонные примеры** из `projects/react-playground/src/pages/demo/` — приветствуются в секциях `Examples` и `Common Patterns`. Формат: `[CreditApplicationForm](../../../../projects/react-playground/src/pages/demo/complex-multy-step-form/CreditApplicationForm.tsx)`.
 - **Front-matter (YAML)** не используется.
 - **Пометки важности** в тексте: `(CRITICALLY IMPORTANT)`, `(DEPRECATED)`. Без кастомных callout-блоков.
 

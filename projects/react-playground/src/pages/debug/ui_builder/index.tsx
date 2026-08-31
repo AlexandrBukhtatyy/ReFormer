@@ -33,7 +33,7 @@
  *   внизу с именем файла — пофайловая изоляция.
  * — Уберите `CITY_LIST` из фикстуры: список городов опустеет.
  *
- * @module pages/examples/ui_builder
+ * @module pages/debug/ui_builder
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

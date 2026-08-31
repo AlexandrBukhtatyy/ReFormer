@@ -152,9 +152,9 @@ export function createVariantTest(variant: 'compound' | 'renderer' | 'json') {
     creditForm: async ({ page }, use) => {
       const creditForm = new CreditFormPage(page);
       const basePathByVariant: Record<typeof variant, string> = {
-        compound: '/examples/complex',
-        renderer: '/examples/complex-renderer',
-        json: '/examples/json-renderer',
+        compound: '/demo/complex',
+        renderer: '/demo/complex-renderer',
+        json: '/demo/json-renderer',
       };
       const basePath = basePathByVariant[variant];
 

@@ -12,7 +12,7 @@ export interface BehaviorsPageOptions {
  */
 export class BehaviorsPage {
   readonly page: Page;
-  readonly baseUrl = '/examples/behaviors';
+  readonly baseUrl = '/demo/behaviors';
   readonly perf?: PerformanceCollector;
 
   // Reset button

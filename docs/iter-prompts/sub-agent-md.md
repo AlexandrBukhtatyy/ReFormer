@@ -25,7 +25,7 @@
 
 - **Write любого кода в `projects/`** — в paper mode приложенческий код НЕ создаётся вообще. Твой код живёт только внутри `form-listing.md` в fenced-блоках.
 - Read/Glob/Grep по `packages/` (исходники библиотек)
-- Read/Glob/Grep по `projects/react-playground/src/pages/examples/` (любой каталог)
+- Read/Glob/Grep по `projects/react-playground/src/pages/demo/` и `.../pages/debug/` (любой каталог)
 - Read/Glob/Grep по `projects/react-playground/src/components/`, `factories/`, `hooks/`, `utils/`, и подобным «общим» helper'ам
 - **Read `node_modules/@reformer/*` `.d.ts`** — на бумаге нет tsc, который форсит проблему, поэтому peeking в `.d.ts` замещает предохранитель. Разрешён ТОЛЬКО как крайний fallback когда MCP молчит, и **обязан** быть залогирован как gap (`workaround: fallback to node_modules .d.ts inspection`). Orchestrator грепает такие reads.
 - Любая правка `docs/specs/`

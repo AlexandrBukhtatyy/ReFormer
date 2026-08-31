@@ -1,4 +1,4 @@
-import type { Option } from '../../pages/examples/complex-multy-step-form/types/option';
+import type { Option } from '../../pages/demo/complex-multy-step-form/types/option';
 
 export const citiesByRegion: Record<string, Option[]> = {
   moscow: [

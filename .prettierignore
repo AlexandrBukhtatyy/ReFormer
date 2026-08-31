@@ -14,7 +14,7 @@ build
 # prettier сжимает toolset.tools в одну строку — тогда КАЖДЫЙ --save оставлял бы файл
 # изменённым после lint-staged
 docs/mcp-eval/baseline.json
-projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json
+projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/form-schema.schema.json
 
 # planning artifacts — authored ad-hoc by plan mode / agents, not prod docs
 docs/plans/

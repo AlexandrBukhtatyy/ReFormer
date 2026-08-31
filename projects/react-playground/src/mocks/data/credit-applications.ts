@@ -1,4 +1,4 @@
-import type { CreditApplicationForm } from '../../pages/examples/complex-multy-step-form/types/credit-application';
+import type { CreditApplicationForm } from '../../pages/demo/complex-multy-step-form/types/credit-application';
 
 export const MOCK_APPLICATIONS: Record<string, Partial<CreditApplicationForm>> = {
   // Заявка '1' - потребительский кредит с минимальными данными для тестирования

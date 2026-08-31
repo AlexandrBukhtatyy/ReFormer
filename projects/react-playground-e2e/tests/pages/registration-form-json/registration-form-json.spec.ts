@@ -32,7 +32,7 @@ async function completeForm(page: Page): Promise<void> {
 
 test.describe('Регистрация из JSON-схемы', () => {
   test('AsyncBoundary: префилл загружается и попадает в модель', async ({ page }) => {
-    await page.goto('/examples/registration-json');
+    await page.goto('/demo/registration-json');
     await waitForForm(page);
 
     for (const [field, value] of Object.entries(PREFILL)) {
@@ -53,7 +53,7 @@ test.describe('Регистрация из JSON-схемы', () => {
         body: JSON.stringify(PREFILL),
       });
     });
-    await page.goto('/examples/registration-json?mocks=off', { waitUntil: 'commit' });
+    await page.goto('/demo/registration-json?mocks=off', { waitUntil: 'commit' });
 
     await expect(page.getByTestId('loading-state')).toBeVisible();
     await expect(page.getByTestId('input-username')).toBeHidden();
@@ -80,7 +80,7 @@ test.describe('Регистрация из JSON-схемы', () => {
         await route.fulfill({ status: 404, body: '' });
       }
     });
-    await page.goto('/examples/registration-json?mocks=off');
+    await page.goto('/demo/registration-json?mocks=off');
 
     await expect(page.getByTestId('error-state')).toBeVisible();
     await expect(page.getByTestId('input-username')).toBeHidden();
@@ -92,7 +92,7 @@ test.describe('Регистрация из JSON-схемы', () => {
   });
 
   test('layout из JSON: заголовки, обе колонки, кнопки, блок подсказок', async ({ page }) => {
-    await page.goto('/examples/registration-json');
+    await page.goto('/demo/registration-json');
     await waitForForm(page);
 
     await expect(page.getByRole('heading', { name: 'Регистрация' })).toBeVisible();
@@ -112,7 +112,7 @@ test.describe('Регистрация из JSON-схемы', () => {
   });
 
   test('правила из TS-схемы подсвечивают незаполненное', async ({ page }) => {
-    await page.goto('/examples/registration-json');
+    await page.goto('/demo/registration-json');
     await waitForForm(page);
 
     await page.getByTestId('submit').click();
@@ -125,7 +125,7 @@ test.describe('Регистрация из JSON-схемы', () => {
   });
 
   test('cross-field правило: несовпадающие пароли', async ({ page }) => {
-    await page.goto('/examples/registration-json');
+    await page.goto('/demo/registration-json');
     await waitForForm(page);
 
     await page.getByTestId('input-password').fill('Passw0rdX');
@@ -136,7 +136,7 @@ test.describe('Регистрация из JSON-схемы', () => {
   });
 
   test('behavior: правка пароля снимает устаревшую ошибку подтверждения', async ({ page }) => {
-    await page.goto('/examples/registration-json');
+    await page.goto('/demo/registration-json');
     await waitForForm(page);
 
     // Провоцируем ошибку «не совпадают»
@@ -151,7 +151,7 @@ test.describe('Регистрация из JSON-схемы', () => {
   });
 
   test('async-правило: занятый username приходит с сервера', async ({ page }) => {
-    await page.goto('/examples/registration-json');
+    await page.goto('/demo/registration-json');
     await waitForForm(page);
 
     await completeForm(page);
@@ -165,7 +165,7 @@ test.describe('Регистрация из JSON-схемы', () => {
   });
 
   test('успешный submit сбрасывает форму к префиллу и показывает статус', async ({ page }) => {
-    await page.goto('/examples/registration-json');
+    await page.goto('/demo/registration-json');
     await waitForForm(page);
 
     await completeForm(page);
@@ -200,7 +200,7 @@ test.describe('Регистрация из JSON-схемы', () => {
         body: JSON.stringify({ success: true, userId: 'u-1', message: 'ok' }),
       });
     });
-    await page.goto('/examples/registration-json?mocks=off');
+    await page.goto('/demo/registration-json?mocks=off');
     await waitForForm(page);
 
     await completeForm(page);
@@ -219,7 +219,7 @@ test.describe('Регистрация из JSON-схемы', () => {
   });
 
   test('кнопка «Очистить» возвращает значения и снимает ошибки', async ({ page }) => {
-    await page.goto('/examples/registration-json');
+    await page.goto('/demo/registration-json');
     await waitForForm(page);
 
     await page.getByTestId('submit').click();

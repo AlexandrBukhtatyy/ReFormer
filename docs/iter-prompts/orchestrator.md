@@ -20,7 +20,7 @@
 
 ## Step 0 — pre-flight (sequential, fail-fast)
 
-1. **Validate ITER unique**: проверить `projects/react-playground/src/pages/examples/` — `mcp-credit-application-core-v${ITER}/` не должен существовать. Если существует — abort.
+1. **Validate ITER unique**: проверить `projects/react-playground/src/pages/debug/` — `mcp-credit-application-core-v${ITER}/` не должен существовать. Если существует — abort.
 2. **Validate spec**: `test -f ${SPEC}` иначе abort.
 3. **Validate spec untouched**: `git status ${SPEC}` должен быть пуст. Иначе — `git diff ${SPEC}` показать пользователю и abort (CLAUDE.md → specs read-only).
 4. **Create workspace**:
@@ -63,7 +63,7 @@ Agent( ... target=renderer-json  ... )
 Для каждого sub-agent transcript (доступ через jsonl session log в `~/.claude/projects/.../<uuid>.jsonl` или через возвращённый summary):
 
 - `grep -E '"name":"(Read|Glob|Grep)".*packages/'` → mark `tainted` если match
-- `grep -E '"name":"(Read|Glob|Grep)".*projects/react-playground/src/pages/examples/(?!mcp-credit-application-.*-v${ITER})'` → same
+- `grep -E '"name":"(Read|Glob|Grep)".*projects/react-playground/src/pages/(demo|debug)/(?!mcp-credit-application-.*-v${ITER})'` → same
 - `grep -E '"name":"(Read|Glob|Grep)".*projects/react-playground/src/(components|factories|hooks|utils)/'` → same
 - `grep -E '"name":"Bash".*git (commit|push|tag)'` → fail iter, не just tainted
 
@@ -75,9 +75,9 @@ Agent( ... target=renderer-json  ... )
 
 Read `projects/react-playground/src/App.tsx`. Для каждого target из `{core, renderer-react, renderer-json}` где sub-agent НЕ tainted и `index.tsx` существует:
 
-1. Добавить импорт после последнего `import ... from './pages/examples/...'`:
+1. Добавить импорт после последнего `import ... from './pages/debug/...'`:
    ```ts
-   import MccaCoreV${ITER} from './pages/examples/mcp-credit-application-core-v${ITER}';
+   import MccaCoreV${ITER} from './pages/debug/mcp-credit-application-core-v${ITER}';
    ```
    (имя компонента: `Mcca{Pascal(target)}V${ITER}`).
 2. Расширить `examples` массив:
@@ -234,7 +234,7 @@ decision = f"continue → /iter {ITER+1}"
 
 1. **Summary path**: `docs/iter-summaries/iter-${ITER}.md`
 2. **Patches path**: `.tmp/iter-artifacts/iter-${ITER}/proposed-patches/`
-3. **Files changed**: `git status --short -- 'projects/react-playground/src/pages/examples/mcp-credit-application-*-v${ITER}/*' projects/react-playground/src/App.tsx 'projects/react-playground-e2e/tests/iter/mcp-credit-*-v${ITER}.spec.ts' docs/iter-summaries/iter-${ITER}.md`
+3. **Files changed**: `git status --short -- 'projects/react-playground/src/pages/debug/mcp-credit-application-*-v${ITER}/*' projects/react-playground/src/App.tsx 'projects/react-playground-e2e/tests/iter/mcp-credit-*-v${ITER}.spec.ts' docs/iter-summaries/iter-${ITER}.md`
 4. **Counts**: `screenshots: $(find projects/react-playground-e2e/screenshots/mcp-credit-v${ITER} -name '*.png' | wc -l), videos: $(find projects/react-playground-e2e/videos/mcp-credit-v${ITER} -name '*.webm' | wc -l)`
 5. **Decision** + **Next steps**:
    - GREEN → «Cycle закрыт. Можно мерджить feature → main, или начать новый цикл с другой спекой.»

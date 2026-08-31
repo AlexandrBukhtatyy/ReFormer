@@ -28,8 +28,8 @@
 
 ## Planned files
 
-- `projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/schema.ts` (или `schema.json` для renderer-json)
-- `projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/index.tsx`
+- `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/schema.ts` (или `schema.json` для renderer-json)
+- `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/index.tsx`
 - `projects/react-playground-e2e/tests/mcp-credit-{TARGET}-v{ITER}.spec.ts`
 
 ## Recipes/symbols planned to use

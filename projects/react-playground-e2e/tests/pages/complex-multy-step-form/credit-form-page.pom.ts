@@ -60,7 +60,7 @@ export class CreditFormPage extends BasePage {
 
   constructor(page: Page, options?: CreditFormPageOptions) {
     super(page);
-    this.basePath = options?.basePath ?? '/examples/complex';
+    this.basePath = options?.basePath ?? '/demo/complex';
     this.variant = options?.variant ?? 'compound';
     this.perf = options?.perf;
 

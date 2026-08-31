@@ -50,7 +50,7 @@ export function emitReadme(ctx: EmitContext): string {
 
 ## Встраивание
 
-Скопируйте папку в \`src/pages/examples/${names.dir}/\` и зарегистрируйте форму:
+Скопируйте папку в \`src/pages/demo/${names.dir}/\` и зарегистрируйте форму:
 
 \`\`\`tsx
 ${appSnippet(names)}

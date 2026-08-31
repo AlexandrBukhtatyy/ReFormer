@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('HTML-узлы в схеме', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/examples/html-nodes');
+    await page.goto('/demo/html-nodes');
   });
 
   test('обе колонки рендерят нативные теги вместо зарегистрированных компонентов', async ({

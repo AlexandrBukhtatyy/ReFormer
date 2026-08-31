@@ -14,7 +14,7 @@ import { resetRuntimeState, setRuntimeConfig } from '../config/state';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const exampleDir = path.resolve(
   here,
-  '../../../react-playground/src/pages/examples/complex-multy-step-form-renderer-json'
+  '../../../react-playground/src/pages/demo/complex-multy-step-form-renderer-json'
 );
 const readJson = (p: string) => JSON.parse(readFileSync(p, 'utf8'));
 

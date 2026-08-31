@@ -15,7 +15,7 @@
 - MCP prompts/resources, экспонированные сервером (через slash-commands если настроены)
 - Read спеки: `{SPEC_PATH}` (read-only — НЕ редактировать, см. CLAUDE.md → Specs are read-only)
 - Read/Write своего workspace: `.tmp/iter-artifacts/iter-{ITER}/{TARGET}/`
-- Write нового кода: `projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/`
+- Write нового кода: `projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/`
 - Write smoke spec в `$TMPDIR/iter-{ITER}-{TARGET}/smoke.spec.ts` (см. Step 5). НЕ пиши в `tests/iter/` — каталог удалён, abstract tests запустит orchestrator.
 - Bash: tsc / eslint / playwright / mkdir / find (на свои каталоги)
 - `node_modules/@reformer/*` — это то, что видит реальный консумент через `npm install`. Используй ТОЛЬКО если MCP не дал ответа; зафиксируй такой случай как gap.
@@ -23,7 +23,7 @@
 ### НЕЛЬЗЯ (orchestrator аудирует через grep по transcript'у)
 
 - Read/Glob/Grep по `packages/` (исходники библиотек)
-- Read/Glob/Grep по `projects/react-playground/src/pages/examples/` кроме своего нового каталога
+- Read/Glob/Grep по `projects/react-playground/src/pages/demo/` и `.../pages/debug/` кроме своего нового каталога
 - Read/Glob/Grep по `projects/react-playground/src/components/`, `factories/`, `hooks/`, `utils/`, и подобным «общим» helper'ам
 - Любая правка `docs/specs/`
 - `git commit`, `git push`, `git tag`, `git checkout` (любая ветка)
@@ -124,7 +124,7 @@
 > **Token budget per sub-agent: что нужно — то и трать**. Реализация полной спеки приоритетнее экономии токенов. iter-12 показал ~180k tokens / ~25-30 мин per target — это нормальный target.
 
 ```bash
-mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}
+mkdir -p projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}
 ```
 
 В зависимости от target:
@@ -320,8 +320,8 @@ gaps:
   med: N
   low: N
 files_written:
-  - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/schema.ts
-  - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/index.tsx
+  - projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/schema.ts
+  - projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-v{ITER}/index.tsx
   - $TMPDIR/iter-{ITER}-{TARGET}/smoke.spec.ts (smoke only — abstract tests запустит orchestrator)
 report_path: .tmp/iter-artifacts/iter-{ITER}/{TARGET}/dev-report.md
 discovery_path: .tmp/iter-artifacts/iter-{ITER}/{TARGET}/discovery.md

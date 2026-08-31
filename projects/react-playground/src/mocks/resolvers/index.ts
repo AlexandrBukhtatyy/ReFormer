@@ -19,8 +19,8 @@ import {
   type User,
   type RegistrationPrefill,
 } from '../data/users';
-import type { Option } from '../../pages/examples/complex-multy-step-form/types/option';
-import type { CreditApplicationForm } from '../../pages/examples/complex-multy-step-form/types/credit-application';
+import type { Option } from '../../pages/demo/complex-multy-step-form/types/option';
+import type { CreditApplicationForm } from '../../pages/demo/complex-multy-step-form/types/credit-application';
 
 export interface ResolverResult<T> {
   status: number;

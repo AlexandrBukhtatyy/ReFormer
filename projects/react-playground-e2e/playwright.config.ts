@@ -88,20 +88,20 @@ export default defineConfig({
       name: 'complex-multy-step-form',
       testDir: './tests/pages/complex-multy-step-form',
       use: { ...devices['Desktop Chrome'] },
-      metadata: { basePath: '/examples/complex', variant: 'compound' },
+      metadata: { basePath: '/demo/complex', variant: 'compound' },
     },
     {
       name: 'complex-multy-step-form-renderer',
       testDir: './tests/pages/complex-multy-step-form',
       use: { ...devices['Desktop Chrome'] },
-      metadata: { basePath: '/examples/complex-renderer', variant: 'renderer' },
+      metadata: { basePath: '/demo/complex-renderer', variant: 'renderer' },
     },
     // JSON variant - renders form from JSON schema via @reformer/renderer-json
     {
       name: 'complex-multy-step-form-json',
       testDir: './tests/pages/complex-multy-step-form',
       use: { ...devices['Desktop Chrome'] },
-      metadata: { basePath: '/examples/json-renderer', variant: 'json' },
+      metadata: { basePath: '/demo/json-renderer', variant: 'json' },
     },
     // Cross-browser for @critical
     {
@@ -109,14 +109,14 @@ export default defineConfig({
       testDir: './tests/pages/complex-multy-step-form',
       grep: /@critical/,
       use: { ...devices['Desktop Firefox'] },
-      metadata: { basePath: '/examples/complex', variant: 'compound' },
+      metadata: { basePath: '/demo/complex', variant: 'compound' },
     },
     {
       name: 'complex-form:webkit',
       testDir: './tests/pages/complex-multy-step-form',
       grep: /@critical/,
       use: { ...devices['Desktop Safari'] },
-      metadata: { basePath: '/examples/complex', variant: 'compound' },
+      metadata: { basePath: '/demo/complex', variant: 'compound' },
     },
     // Smoke tests — быстрая проверка критических путей
     {
@@ -124,7 +124,7 @@ export default defineConfig({
       testDir: './tests/pages/complex-multy-step-form',
       grep: /@smoke/,
       use: { ...devices['Desktop Chrome'] },
-      metadata: { basePath: '/examples/complex', variant: 'compound' },
+      metadata: { basePath: '/demo/complex', variant: 'compound' },
     },
     // Regression tests — полный регрессионный прогон
     {
@@ -132,7 +132,7 @@ export default defineConfig({
       testDir: './tests/pages/complex-multy-step-form',
       grep: /@regression/,
       use: { ...devices['Desktop Chrome'] },
-      metadata: { basePath: '/examples/complex', variant: 'compound' },
+      metadata: { basePath: '/demo/complex', variant: 'compound' },
     },
     // Other pages
     {

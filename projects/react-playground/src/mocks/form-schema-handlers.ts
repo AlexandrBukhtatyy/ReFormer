@@ -17,9 +17,9 @@
  */
 
 import { http, HttpResponse, delay } from 'msw';
-import alertsSchema from '../pages/examples/alerts-list-renderer-json/json-schema.json';
-import registrationSchema from '../pages/examples/registration-form-renderer-json/json-schema.json';
-import creditSchema from '../pages/examples/complex-multy-step-form-renderer-json/json-schema.json';
+import alertsSchema from '../pages/demo/alerts-list-renderer-json/json-schema.json';
+import registrationSchema from '../pages/demo/registration-form-renderer-json/json-schema.json';
+import creditSchema from '../pages/demo/complex-multy-step-form-renderer-json/json-schema.json';
 
 /** Базовый путь MSW-источника схем. Совпадает с тем, что подставляет стенд в `kind: 'http'`. */
 export const MOCK_FORMS_BASE = '/mock-forms';

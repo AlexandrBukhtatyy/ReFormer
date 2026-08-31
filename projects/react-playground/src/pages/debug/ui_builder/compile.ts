@@ -21,7 +21,7 @@
  * модуль исполнился бы дважды и дал два разных объекта — ровно та потеря идентичности, ради
  * защиты от которой линковщик и написан.
  *
- * @module pages/examples/ui_builder/compile
+ * @module pages/debug/ui_builder/compile
  */
 
 import * as reformerCore from '@reformer/core';

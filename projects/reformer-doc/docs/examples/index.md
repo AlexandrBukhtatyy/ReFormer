@@ -17,19 +17,19 @@ sidebar_label: Обзор
 
 <div className="api-grid">
 
-<a className="api-card" href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/examples/complex-multy-step-form/index.tsx">
+<a className="api-card" href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/demo/complex-multy-step-form/index.tsx">
   <h3>🧱 Core + ручной JSX</h3>
   <p>createForm + FormWizard, поля выведены как &lt;FormField control={form.x} /&gt;. Максимум контроля.</p>
   <span className="api-count">/examples/complex</span>
 </a>
 
-<a className="api-card" href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/examples/complex-multy-step-form-renderer/index.tsx">
+<a className="api-card" href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/demo/complex-multy-step-form-renderer/index.tsx">
   <h3>🖼️ renderer-react</h3>
   <p>Та же форма из декларативной render-схемы (createRenderSchema + FormRenderer). Форма как данные.</p>
   <span className="api-count">/examples/complex-renderer</span>
 </a>
 
-<a className="api-card" href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/index.tsx">
+<a className="api-card" href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/index.tsx">
   <h3>📄 renderer-json</h3>
   <p>Та же форма целиком из JSON-схемы + реестр компонентов. Форма приходит данными с бэкенда.</p>
   <span className="api-count">/examples/json-renderer</span>

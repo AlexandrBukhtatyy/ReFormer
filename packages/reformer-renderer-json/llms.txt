@@ -1143,7 +1143,7 @@ defineRegistry((reg) => {
 - Вычисляемых выражений в JSON нет — «платёж = сумма / срок» считается `compute`-поведением над моделью, а текст показывает уже готовое поле (`"$model(monthlyPayment)"`).
 - Текст, живущий не в модели, а в UI-состоянии (статус отправки), кладётся сигналом в реестр и подставляется как `"$dataSource(SUBMIT_STATUS)"`.
 - Whitelist тегов и чистка `componentProps` (обработчики, `javascript:`-URL) описаны в [02-json-schema.md](02-json-schema.md#html-узлы-html-и-текст).
-- Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/examples/html-nodes/`.
+- Живой пример (JSON рядом с типизованной схемой) — `projects/react-playground/src/pages/demo/html-nodes/`.
 
 ## 43. See also
 
@@ -1156,7 +1156,7 @@ defineRegistry((reg) => {
 
 **Validation**
 
-Как валидировать **значения** формы, собранной из JSON-схемы (`@reformer/renderer-json`, M1). Всё сверено с рабочим кодом: типы узла — [json-schema.ts](../../src/types/json-schema.ts), структурная валидация — [validate.ts](../../src/validate.ts), исполнение над моделью — `validateModel` из `@reformer/core/validation` (рабочий пример — [registration-form-renderer-json/validation.ts](../../../../projects/react-playground/src/pages/examples/registration-form-renderer-json/validation.ts)).
+Как валидировать **значения** формы, собранной из JSON-схемы (`@reformer/renderer-json`, M1). Всё сверено с рабочим кодом: типы узла — [json-schema.ts](../../src/types/json-schema.ts), структурная валидация — [validate.ts](../../src/validate.ts), исполнение над моделью — `validateModel` из `@reformer/core/validation` (рабочий пример — [registration-form-renderer-json/validation.ts](../../../../projects/react-playground/src/pages/demo/registration-form-renderer-json/validation.ts)).
 
 Одна ключевая мысль: **JSON-DSL несёт только layout, а не правила валидации.**
 

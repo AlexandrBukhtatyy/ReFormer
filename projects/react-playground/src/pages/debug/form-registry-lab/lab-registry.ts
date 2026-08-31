@@ -18,9 +18,9 @@
 
 import { createFormRegistry, type FormEntry, type FormRegistry } from '@reformer/form-registry';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { alertsFormEntry } from '../alerts-list-renderer-json/form-setup';
-import { creditApplicationFormEntry } from '../complex-multy-step-form-registry/form-setup';
-import { registrationFormEntry } from '../registration-form-renderer-json/form-entry';
+import { alertsFormEntry } from '../../demo/alerts-list-renderer-json/form-setup';
+import { creditApplicationFormEntry } from '../../demo/complex-multy-step-form-registry/form-setup';
+import { registrationFormEntry } from '../../demo/registration-form-renderer-json/form-entry';
 import { SCHEMA_SOURCES, withSchemaSource, type SchemaSourceKind } from './schema-sources';
 
 export interface LabForm {

@@ -16,7 +16,7 @@
 # тут разошлась бы с HEAD и хук ложно заблокировал бы релизный push (GitHub Actions ставит CI=true).
 [ -n "$CI" ] && exit 0
 
-FORM_SCHEMA='projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json'
+FORM_SCHEMA='projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/form-schema.schema.json'
 drift=0
 
 # 1) packages/*/llms.txt — собирается из docs/llms + JSDoc (сборка пакетов не требуется).

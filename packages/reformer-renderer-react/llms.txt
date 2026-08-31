@@ -823,7 +823,7 @@ const schema: RenderSchemaFn<Installment> = () => ({
 - Перерисовывается только сам текст — подписка идёт на сигналы текстовых детей, а не на поддерево узла.
 - Тег и компонент свободно вкладываются друг в друга: `{ component: 'div', children: [{ component: Section, … }] }` и наоборот.
 - `hideWhen`/`patchProps` работают по `selector` и на html-узлах; в DOM `selector` не пробрасывается.
-- Живой пример обеих схем (типизованной и JSON) — `projects/react-playground/src/pages/examples/html-nodes/`.
+- Живой пример обеих схем (типизованной и JSON) — `projects/react-playground/src/pages/demo/html-nodes/`.
 
 ## 34. Сырой контрол сторонней UI-kit (FieldAdapter)
 

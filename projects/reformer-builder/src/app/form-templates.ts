@@ -400,7 +400,7 @@ export function indexTsxTemplate(formName: string): string {
  * запросы — в api.ts.
  *
  * Готова к работе сразу: рендерится на \`initialFormModel\`, «Отправить» гоняет валидацию. Подключение
- * в react-playground: \`import ${Comp} from './pages/examples/<папка>';\` + \`<Route element={<${Comp} />} />\`.
+ * в react-playground: \`import ${Comp} from './pages/demo/<папка>';\` + \`<Route element={<${Comp} />} />\`.
  */
 import { useState } from 'react';
 import { useFormValidation } from '@reformer/core';

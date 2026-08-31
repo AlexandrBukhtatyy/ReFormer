@@ -206,7 +206,7 @@ jobs:
       - name: Check generated form-schema is up to date
         run: |
           npm run gen:form-schema -w react-playground
-          git diff --exit-code -- 'projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json'
+          git diff --exit-code -- 'projects/react-playground/src/pages/demo/complex-multy-step-form-renderer-json/form-schema.schema.json'
 
       - name: Check generated llms.txt is up to date
         # llms.txt собирается из docs/llms/*.md + JSDoc и публикуется в npm (поле files).

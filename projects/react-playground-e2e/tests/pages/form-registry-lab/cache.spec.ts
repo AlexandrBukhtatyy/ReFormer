@@ -16,7 +16,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 
-const PATH = '/examples/registry-lab';
+const PATH = '/debug/registry-lab';
 
 /** Сколько раз загрузчик реально ходил в сеть. */
 const netCalls = (page: Page): Promise<number> =>

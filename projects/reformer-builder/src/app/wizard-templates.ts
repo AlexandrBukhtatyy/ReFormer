@@ -360,7 +360,7 @@ export function wizardIndexTsxTemplate(formName: string): string {
  * data-sources.ts, запросы — в api.ts, навигация и кнопки — в ui-kit FormWizard
  * (адаптер renderer.wizard.tsx).
  *
- * Подключение в react-playground: \`import ${Comp} from './pages/examples/<папка>';\`
+ * Подключение в react-playground: \`import ${Comp} from './pages/demo/<папка>';\`
  * + \`<Route element={<${Comp} />} />\`.
  */
 import { useFormValidation } from '@reformer/core';

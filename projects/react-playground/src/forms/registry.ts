@@ -15,8 +15,8 @@
 
 import { defineRegistry, type ComponentRegistry } from '@reformer/renderer-json';
 import { getFormRegistry, type FormEntry } from '@reformer/form-registry';
-import { alertsFormEntry } from '../pages/examples/alerts-list-renderer-json/form-setup';
-import { creditApplicationFormEntry } from '../pages/examples/complex-multy-step-form-registry/form-setup';
+import { alertsFormEntry } from '../pages/demo/alerts-list-renderer-json/form-setup';
+import { creditApplicationFormEntry } from '../pages/demo/complex-multy-step-form-registry/form-setup';
 
 /** Общее ядро компонентов витрины. Пока пусто — см. комментарий модуля. */
 export const baseComponentRegistry: ComponentRegistry = defineRegistry(() => {});

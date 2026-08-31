@@ -18,9 +18,9 @@
 import type { DataSource, FormEntry } from '@reformer/form-registry';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { MOCK_FORMS_BASE } from '../../../mocks/form-schema-handlers';
-import alertsSchemaUrl from '../alerts-list-renderer-json/json-schema.json?url&no-inline';
-import registrationSchemaUrl from '../registration-form-renderer-json/json-schema.json?url&no-inline';
-import creditSchemaUrl from '../complex-multy-step-form-renderer-json/json-schema.json?url&no-inline';
+import alertsSchemaUrl from '../../demo/alerts-list-renderer-json/json-schema.json?url&no-inline';
+import registrationSchemaUrl from '../../demo/registration-form-renderer-json/json-schema.json?url&no-inline';
+import creditSchemaUrl from '../../demo/complex-multy-step-form-renderer-json/json-schema.json?url&no-inline';
 
 export type SchemaSourceKind = 'inline' | 'static' | 'msw';
 

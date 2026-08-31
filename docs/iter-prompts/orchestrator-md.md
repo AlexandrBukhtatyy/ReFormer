@@ -74,7 +74,7 @@ date -u +%FT%TZ > .tmp/iter-artifacts/${RUN_ID}/.end
 # Read/Glob/Grep по исходникам библиотек
 grep -E '"name":"(Read|Glob|Grep)"' <transcript> | grep -E 'packages/'
 # Read по любым examples (включая соседние)
-grep -E '"name":"(Read|Glob|Grep)"' <transcript> | grep -E 'src/pages/examples/'
+grep -E '"name":"(Read|Glob|Grep)"' <transcript> | grep -E 'src/pages/(demo|debug)/'
 # Read по общим helper'ам
 grep -E '"name":"(Read|Glob|Grep)"' <transcript> | grep -E 'src/(components|factories|hooks|utils)/'
 # node_modules .d.ts peeking (paper-mode специфично)

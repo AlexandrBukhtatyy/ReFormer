@@ -12,7 +12,7 @@ export interface ValidationPageOptions {
  */
 export class ValidationPage {
   readonly page: Page;
-  readonly baseUrl = '/examples/validation';
+  readonly baseUrl = '/demo/validation';
   readonly perf?: PerformanceCollector;
 
   // Control buttons

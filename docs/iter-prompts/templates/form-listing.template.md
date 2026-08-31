@@ -29,7 +29,7 @@
 > Дерево файлов, которое агент СОЗДАЛ БЫ (не создаёт). Показывай реальные пути.
 
 ```
-projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-{RUN_ID}/
+projects/react-playground/src/pages/debug/mcp-credit-application-{TARGET}-{RUN_ID}/
 ├── schema.ts            # (или schema.json + registry.ts для renderer-json)
 └── index.tsx
 ```

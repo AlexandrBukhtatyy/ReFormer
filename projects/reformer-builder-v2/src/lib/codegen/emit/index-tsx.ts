@@ -95,7 +95,7 @@ export default function ${n.pageComponent}() {
  * Регистрация в приложении — одна строка:
  * \`\`\`ts
  * import { getFormRegistry } from '@reformer/form-registry';
- * import { ${n.entryConst} } from './pages/examples/${n.dir}';
+ * import { ${n.entryConst} } from './pages/demo/${n.dir}';
  *
  * getFormRegistry().register(${n.entryConst});
  * \`\`\`

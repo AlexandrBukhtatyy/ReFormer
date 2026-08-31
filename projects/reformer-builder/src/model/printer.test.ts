@@ -8,7 +8,7 @@ import { print } from './printer';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const GOLDEN = path.resolve(
   here,
-  '../../../react-playground/src/pages/examples/complex-multy-step-form-renderer-json/json-schema.json'
+  '../../../react-playground/src/pages/demo/complex-multy-step-form-renderer-json/json-schema.json'
 );
 
 describe('printer — round-trip (риск №1)', () => {

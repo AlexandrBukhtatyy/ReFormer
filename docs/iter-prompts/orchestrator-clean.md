@@ -24,7 +24,7 @@ date -u +%FT%TZ > .tmp/iter-artifacts/${RUN_ID}/.start
 git rev-parse HEAD >> .tmp/iter-artifacts/${RUN_ID}/.start
 ```
 
-Проверь что не существует `projects/react-playground/src/pages/examples/mcp-credit-application-*-clean/` (если есть — abort, попроси пользователя удалить или переименовать `RUN_ID`).
+Проверь что не существует `projects/react-playground/src/pages/debug/mcp-credit-application-*-clean/` (если есть — abort, попроси пользователя удалить или переименовать `RUN_ID`).
 
 Проверь spec untouched: `git status ${SPEC}` должен быть пуст.
 
@@ -120,7 +120,7 @@ done
 
 ```bash
 for t in core renderer-react renderer-json; do
-  total=$(find projects/react-playground/src/pages/examples/mcp-credit-application-${t}-clean -type f \
+  total=$(find projects/react-playground/src/pages/debug/mcp-credit-application-${t}-clean -type f \
     \( -name '*.ts' -o -name '*.tsx' -o -name '*.json' \) -exec wc -l {} + | tail -1 | awk '{print $1}')
   echo "${t}: ${total} LOC"
 done
@@ -132,12 +132,12 @@ done
 
 Read `projects/react-playground/src/App.tsx`. Для каждого target где `mcp-credit-application-{target}-clean/index.tsx` существует:
 
-1. **Импорт** после последнего `import ... from './pages/examples/...'`:
+1. **Импорт** после последнего `import ... from './pages/debug/...'`:
 
    ```ts
-   import MccaCoreClean from './pages/examples/mcp-credit-application-core-clean';
-   import MccaRendererReactClean from './pages/examples/mcp-credit-application-renderer-react-clean';
-   import MccaRendererJsonClean from './pages/examples/mcp-credit-application-renderer-json-clean';
+   import MccaCoreClean from './pages/debug/mcp-credit-application-core-clean';
+   import MccaRendererReactClean from './pages/debug/mcp-credit-application-renderer-react-clean';
+   import MccaRendererJsonClean from './pages/debug/mcp-credit-application-renderer-json-clean';
    ```
 
 2. **Расширь `examples` массив** записями:

@@ -1,7 +1,7 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 
 /**
- * Page Object Model страницы примеров множественного выбора (`/examples/multi-select`).
+ * Page Object Model страницы примеров множественного выбора (`/demo/multi-select`).
  *
  * testId-конвенция FormField: `field-/label-/input-/error-<testId>`. У мультивыборов к ней
  * добавляется per-option идентификатор `input-<testId>-<value>` — он одинаков у всех четырёх
@@ -14,7 +14,7 @@ import { type Page, type Locator, expect } from '@playwright/test';
  */
 export class MultiSelectPage {
   readonly page: Page;
-  readonly baseUrl = '/examples/multi-select';
+  readonly baseUrl = '/demo/multi-select';
 
   readonly consoleErrors: string[] = [];
   readonly pageErrors: string[] = [];

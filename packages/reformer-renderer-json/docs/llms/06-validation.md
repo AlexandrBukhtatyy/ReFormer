@@ -1,6 +1,6 @@
 # Validation
 
-Как валидировать **значения** формы, собранной из JSON-схемы (`@reformer/renderer-json`, M1). Всё сверено с рабочим кодом: типы узла — [json-schema.ts](../../src/types/json-schema.ts), структурная валидация — [validate.ts](../../src/validate.ts), исполнение над моделью — `validateModel` из `@reformer/core/validation` (рабочий пример — [registration-form-renderer-json/validation.ts](../../../../projects/react-playground/src/pages/examples/registration-form-renderer-json/validation.ts)).
+Как валидировать **значения** формы, собранной из JSON-схемы (`@reformer/renderer-json`, M1). Всё сверено с рабочим кодом: типы узла — [json-schema.ts](../../src/types/json-schema.ts), структурная валидация — [validate.ts](../../src/validate.ts), исполнение над моделью — `validateModel` из `@reformer/core/validation` (рабочий пример — [registration-form-renderer-json/validation.ts](../../../../projects/react-playground/src/pages/demo/registration-form-renderer-json/validation.ts)).
 
 ## Mental model — почему валидаторов нет в JSON { #mental-model }
 

@@ -1,5 +1,5 @@
 /**
- * E2E-тесты FileUpload (/examples/file-upload).
+ * E2E-тесты FileUpload (/demo/file-upload).
  *
  * Покрытие:
  * - FU-001 — выбор через пикер (accepted/rejected, удаление, добавление, дубликаты)

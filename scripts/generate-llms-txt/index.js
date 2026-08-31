@@ -15,8 +15,11 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
  * Эталонные формы монорепо — источник сигнала «насколько популярен символ» для ранжирования
  * (см. countUsage в index-builder.js). У потребителя этого каталога нет, и это нормально:
  * поле `usage` просто не появится.
+ *
+ * Берём только витрину (`pages/demo`): в `pages/debug` лежат стенды и формы, сгенерированные
+ * самим MCP, — считать их сигналом популярности значило бы ранжировать API по собственному выводу.
  */
-const EXAMPLES_DIR = path.join(repoRoot, 'projects/react-playground/src/pages/examples');
+const EXAMPLES_DIR = path.join(repoRoot, 'projects/react-playground/src/pages/demo');
 
 // ---------------------------------------------------------------------------
 // CLI

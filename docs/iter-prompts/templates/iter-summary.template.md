@@ -121,7 +121,7 @@
 ## Artifacts
 
 - `.tmp/iter-artifacts/iter-{ITER}/` — workspace, dev-plan/dev-report per target, proposed-patches, audit
-- `projects/react-playground/src/pages/examples/mcp-credit-application-{core,renderer-react,renderer-json}-v{ITER}/` — сгенерированный код
+- `projects/react-playground/src/pages/debug/mcp-credit-application-{core,renderer-react,renderer-json}-v{ITER}/` — сгенерированный код
 - `projects/react-playground-e2e/tests/iter/mcp-credit-{core,renderer-react,renderer-json}-v{ITER}.spec.ts` — e2e спеки
 - `projects/react-playground-e2e/screenshots/mcp-credit-v{ITER}/{core,renderer-react,renderer-json}/` — full-page скриншоты
 - `projects/react-playground-e2e/videos/mcp-credit-v{ITER}/{core,renderer-react,renderer-json}/walkthrough.webm` — видео

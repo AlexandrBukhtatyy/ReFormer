@@ -11,7 +11,7 @@ export interface SimpleFormPageOptions {
  */
 export class SimpleFormPage {
   readonly page: Page;
-  readonly baseUrl = '/examples/simple';
+  readonly baseUrl = '/demo/simple';
   readonly perf?: PerformanceCollector;
 
   // Form fields
