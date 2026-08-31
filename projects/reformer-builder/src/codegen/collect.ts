@@ -79,6 +79,10 @@ function leafType(node: JsonFieldNode, mock: MockData): string {
     const union = optionUnion(node, mock);
     return union ? `Array<${union}> | null` : 'string[] | null';
   }
+  // Одиночное дерево: значение — адрес узла (`id`). Union не строим: адреса живут в `nodes`, а не
+  // в `options`, их набор ленивый источник вообще не обязан раскрывать целиком — литеральный тип
+  // из первой прочитанной ветки врал бы. Nullable: несделанный выбор приходит как `null`.
+  if (kind === 'tree') return 'string | null';
   if (kind === 'boolean') return 'boolean';
   if (kind === 'number') return 'number';
   return 'string';

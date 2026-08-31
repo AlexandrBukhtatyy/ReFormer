@@ -24,7 +24,8 @@ export function toInspectorProps(schema: PropsSchema): InspectorProp[] {
       label: humanize(key),
       // Оверрайды поверх x-doc.kind из ui-kit: iconName → пикер иконок lucide; className →
       // builder-редактор Tailwind; проп-список опций (массив {value,label} в Options) → редактор
-      // DataSource/инлайн-опций; testId → редактируемый текст (data-testid для e2e). Иначе — по kind/типу.
+      // DataSource/инлайн-опций; проп-дерево (массив {id,label,children}) → редактор иерархии;
+      // testId → редактируемый текст (data-testid для e2e). Иначе — по kind/типу.
       // ВАЖНО: dataSource — только для array-пропа, а не для всей секции Options: скалярные атрибуты
       // презентационных тегов ($html: a.target, img.width, ol.type, …) тоже сидят в Options и должны
       // остаться enum/number/text, иначе их инспектор ломается (редактором опций не отредактировать).
@@ -35,9 +36,11 @@ export function toInspectorProps(schema: PropsSchema): InspectorProp[] {
             ? 'className'
             : key === 'testId'
               ? 'text'
-              : doc?.group === 'Options' && prop.type === 'array'
-                ? 'dataSource'
-                : (doc?.kind ?? inferWidget(prop)),
+              : isTreeProp(prop)
+                ? 'tree'
+                : doc?.group === 'Options' && prop.type === 'array'
+                  ? 'dataSource'
+                  : (doc?.kind ?? inferWidget(prop)),
       group: doc?.group ?? 'Control',
       description: typeof prop.description === 'string' ? prop.description : undefined,
       default: prop.default,
@@ -67,6 +70,21 @@ export function groupInspectorProps(props: InspectorProp[]): InspectorGroup[] {
 /** Пропы `propsSchema`, сразу сгруппированные для инспектора. */
 export function inspectorGroups(schema: PropsSchema): InspectorGroup[] {
   return groupInspectorProps(toInspectorProps(schema));
+}
+
+/**
+ * Проп-ДЕРЕВО: массив, элемент которого обязан нести `id` и держит собственных детей (`children`).
+ *
+ * Различается по ФОРМЕ элемента, а не по имени `nodes`: редактор опций умеет ровно
+ * `{ value, label }`, и любой массив другой формы он не столько отредактирует, сколько затрёт.
+ * Опция дерева не подходит и наоборот: у неё нет `id`, по которому строка адресуется, — привяжи
+ * инспектор к имени, и первый же кит со своим `treeData` получил бы плоские опции молча.
+ */
+function isTreeProp(prop: PropsSchema): boolean {
+  if (prop.type !== 'array') return false;
+  const items = prop.items as PropsSchema | undefined;
+  const props = (items?.properties ?? {}) as Record<string, unknown>;
+  return 'id' in props && 'children' in props;
 }
 
 /** Виджет по типу пропа, когда `x-doc.kind` не задан. */

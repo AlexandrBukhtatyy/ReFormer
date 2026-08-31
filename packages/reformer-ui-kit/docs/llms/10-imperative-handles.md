@@ -81,15 +81,27 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 
 Все rich-handle наследуют `FieldHandle`.
 
-| Компонент             | Handle                | Дополнительно к baseline                     | Импорт                          |
-| --------------------- | --------------------- | -------------------------------------------- | ------------------------------- |
-| любое поле            | `FieldHandle`         | `focus` `blur` `scrollIntoView` `getElement` | `@reformer/ui-kit`              |
-| `InputPasswordField`  | `InputPasswordHandle` | `toggleVisibility` `setVisible`               | `@reformer/ui-kit`              |
-| `SelectField`         | `SelectAsyncHandle`   | `open` `close` `clear` `reload` `loadMore`    | `@reformer/ui-kit`              |
-| `ComboboxField`       | `ComboboxHandle`      | `open` `close` `clear`                        | `@reformer/ui-kit/combobox`     |
-| `DatePickerField`     | `DatePickerHandle`    | `open` `close`                                | `@reformer/ui-kit/date-picker`  |
+| Компонент                | Handle                    | Дополнительно к baseline                                                        | Импорт                         |
+| ------------------------ | ------------------------- | ------------------------------------------------------------------------------- | ------------------------------ |
+| любое поле               | `FieldHandle`             | `focus` `blur` `scrollIntoView` `getElement`                                    | `@reformer/ui-kit`             |
+| `InputPasswordField`     | `InputPasswordHandle`     | `toggleVisibility` `setVisible`                                                 | `@reformer/ui-kit`             |
+| `SelectField`            | `SelectAsyncHandle`       | `open` `close` `clear` `reload` `loadMore`                                      | `@reformer/ui-kit`             |
+| `ComboboxField`          | `ComboboxHandle`          | `open` `close` `clear`                                                          | `@reformer/ui-kit/combobox`    |
+| `ComboboxTreeField`      | `ComboboxTreeHandle`      | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
+| `ComboboxTreeMultiField` | `ComboboxTreeMultiHandle` | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
+| `DatePickerField`        | `DatePickerHandle`        | `open` `close`                                                                  | `@reformer/ui-kit/date-picker` |
+| `Tree` (не поле)         | `TreeHandle`              | `expand` `collapse` `toggle` `refresh` `focusNode` `getRows` `getActionTargets` | `@reformer/ui-kit`             |
 
 `Combobox` и `DatePicker` — heavy-компоненты, они вне главного barrel и доступны только своим subpath.
+
+`refresh(id)` у древесных вариантов перечитывает уровень (`null` — верхний) и действует, только
+пока поповер открыт: закрытый Radix содержимое размонтирует, и перечитывать нечего — следующее
+открытие прочитает уровень заново.
+
+`Tree` в таблице — исключение: это не поле, `*Field`-версии у него нет, и в схеме он живёт
+контейнерным узлом. Его handle берут обычным React-ref'ом там, где дерево отрисовано; если узел
+объявлен в схеме со своим `selector`, работает и `schema.node(sel).getRef<TreeHandle>()` — тем же
+способом, что у `FormWizard` и `FormArray`.
 
 `getRef<H>()` не выводит `H` из селектора (схема не индексирована статически) — тип указывает
 вызывающий, как и для `getRef<FormWizardHandle<T>>()`.
@@ -175,7 +187,8 @@ queueMicrotask(() => {
 
 Слой создания полей публикуется точкой `@reformer/ui-kit/fields` — оттуда доступны
 `withFormControl`, все адаптеры-пресеты (`nativeInputAdapter`, `checkedAdapter`, `pressedAdapter`,
-`valueChangeAdapter`, `sliderAdapter`, `dateAdapter`), `makeElementFieldHandle` и типы
+`valueChangeAdapter`, `multiValueAdapter`, `sliderAdapter`, `dateAdapter`),
+`makeElementFieldHandle` и типы
 `FieldAdapter` / `WithFormControlOptions` / `FieldHandle`.
 
 > **Внимание — коллизия имён.** Этот `FieldAdapter` (из `@reformer/ui-kit/fields`, для

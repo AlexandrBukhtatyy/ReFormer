@@ -197,6 +197,15 @@ export default defineConfig({
       testDir: './tests/pages/multi-select',
       use: { ...devices['Desktop Chrome'] },
     },
+    // Дерево: свободный Tree и комбобоксы с деревом (ComboboxTree / ComboboxTreeMulti).
+    // Юниты кита идут через renderToStaticMarkup и всего этого не видят: список живёт в Portal,
+    // ленивый уровень приезжает уже после первой отрисовки, а состояние раскрытия хранится
+    // в самом дереве и наружу выходит только атрибутами строки.
+    {
+      name: 'tree',
+      testDir: './tests/pages/tree',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // ITER abstract test projects — переиспользуют POM + spec файлы
     // complex-multy-step-form для прогона против iter-форм. Активны только
     // когда MCP_ITER_VERSION env установлен. См. docs/iter-prompts/orchestrator.md

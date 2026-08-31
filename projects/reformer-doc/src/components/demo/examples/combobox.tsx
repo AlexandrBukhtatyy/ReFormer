@@ -3,8 +3,11 @@ import {
   Combobox,
   ComboboxField,
   ComboboxMultiField,
+  ComboboxTreeField,
+  ComboboxTreeMultiField,
   comboboxBasePropsSchema,
 } from '@reformer/ui-kit/combobox';
+import type { TreeNode } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -24,6 +27,34 @@ const COUNTRIES = [
   { value: 'by', label: 'Беларусь' },
   { value: 'kz', label: 'Казахстан' },
   { value: 'am', label: 'Армения' },
+];
+
+/**
+ * Дерево файлов для вариантов ComboboxTree. Плоского `options` тут не хватает: у выбора есть
+ * иерархия, а значением поля становится `id` узла — для файла это полный путь, поэтому он же
+ * годится и адресом узла в дереве.
+ */
+const FILES: TreeNode[] = [
+  {
+    id: 'src',
+    label: 'src',
+    kind: 'branch',
+    children: [
+      {
+        id: 'src/components',
+        label: 'components',
+        kind: 'branch',
+        children: [
+          { id: 'src/components/combobox.tsx', label: 'combobox.tsx' },
+          { id: 'src/components/tree.tsx', label: 'tree.tsx' },
+        ],
+      },
+      { id: 'src/index.ts', label: 'index.ts' },
+      { id: 'src/theme.css', label: 'theme.css' },
+    ],
+  },
+  { id: 'package.json', label: 'package.json' },
+  { id: 'README.md', label: 'README.md' },
 ];
 
 /* ─── Ручная сборка base (управляемый Combobox с локальным состоянием) ─── */
@@ -140,6 +171,61 @@ const [value, setValue] = useState<string | null>(null);
   component: ComboboxMultiField,
   componentProps: { options: FRAMEWORKS, clearable: true },
 }`,
+    },
+    {
+      id: 'tree',
+      title: 'Выбор узла иерархии (ComboboxTree)',
+      description:
+        'Вместо плоского options — дерево (nodes); значение поля это id выбранного узла, для файла — его полный путь. По умолчанию selectable="leaf": щелчок по каталогу раскрывает его, а не выбирает. Список в поповере — Tree кита, а не Command: cmdk при поиске размонтирует несовпавшие строки вместе с детьми, чего иерархия не переживает.',
+      render: makeFieldVariant({
+        initial: null,
+        component: ComboboxTreeField,
+        componentProps: {
+          label: 'Файл',
+          nodes: FILES,
+          placeholder: 'Выберите файл',
+          clearable: true,
+        },
+      }),
+      code: `{
+  value: model.$.file,
+  component: ComboboxTreeField,
+  componentProps: {
+    label: 'Файл',
+    nodes: FILES,
+    placeholder: 'Выберите файл',
+    clearable: true,
+  },
+}`,
+    },
+    {
+      id: 'tree-multi',
+      title: 'Несколько узлов иерархии (ComboboxTreeMulti)',
+      description:
+        'Тот же список-дерево, но с чипами в триггере и набором адресов в значении (string[] | null; пустой выбор эмитится как null, никогда не []). Поповер после выбора не закрывается и поиск не сбрасывает — иначе отметить несколько файлов подряд было бы нельзя.',
+      render: makeFieldVariant({
+        initial: null,
+        component: ComboboxTreeMultiField,
+        componentProps: {
+          label: 'Файлы',
+          nodes: FILES,
+          placeholder: 'Выберите файлы',
+          clearable: true,
+        },
+      }),
+      code: `{
+  value: model.signalAt('files')!,
+  component: ComboboxTreeMultiField,
+  componentProps: {
+    label: 'Файлы',
+    nodes: FILES,
+    placeholder: 'Выберите файлы',
+    clearable: true,
+  },
+}
+
+// обязательность — только required(): пустой выбор приходит как null, не как [].
+validate(model.signalAt('files')!, [required()]);`,
     },
   ],
   examples: [

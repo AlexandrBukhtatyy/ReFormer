@@ -1,6 +1,6 @@
 /**
  * Дерево ресурсов. Правила живут в `./resource-tree`, `./menu` и `./resource-menu`,
- * здесь — отрисовка и ввод.
+ * отрисовка — в `Tree` из `@reformer/ui-kit`, здесь — связка одного с другим.
  *
  * Компонент не смонтирован оболочкой и не может быть ею смонтирован: место в раскладке —
  * это панель, а панели приходят вкладами, которых у Host нет и быть не может. Поэтому дерево
@@ -8,49 +8,42 @@
  * — вот этот компонент. Так навигация остаётся платформенной, а место для неё — предметным
  * решением того, кто собирает продукт.
  *
- * ## Плотная строка — это требование к дереву, а не вкус
+ * ## Что здесь есть и чего здесь больше нет
  *
- * Строка фиксирована в {@link ROW_HEIGHT} пикселей, и на этом стоит виртуализация: в DOM
- * живёт только видимое окно. Причина не в микросекундах отрисовки — в том, что раскрытый
- * каталог реального проекта это тысячи строк, и каждая несёт свои обработчики.
+ * Плотная строка, отступы уровня, треугольник, значки каталога и файла, клавиатурная навигация
+ * и виртуальный скролл переехали в кит: это не свойства ДЕРЕВА РЕСУРСОВ, а свойства дерева
+ * вообще, и держать их здесь значило бы чинить одну и ту же ошибку дважды — второй раз
+ * в комбобоксе выбора файла, который тем же деревом и собран.
  *
- * ## Клавиатура разделена между деревом и реестром команд
+ * Здесь осталось ровно предметное: хранилище уровней (`./resource-tree`), декорации вкладов,
+ * контекстное меню, реестр команд и словарь. Кит про них не знает и знать не должен.
  *
- * Навигация (стрелки, Home/End, Enter, пробел, Escape) — ВВОД: он принадлежит дереву,
- * обрабатывается здесь и глушится `stopPropagation`, поэтому глобальный слой сочетаний
- * его не видит. Действия (переименовать, удалить, копировать, вставить) — КОМАНДЫ: они
- * объявлены плагином с сочетанием и предикатом «фокус в дереве», и дерево о них не знает
- * ничего. Именно поэтому здесь нет ни `F2`, ни `Delete`: перехватив их, дерево забрало бы
- * у команды её единственную дверь.
+ * ## Хранилище остаётся здесь, а не переезжает в кит
+ *
+ * Кит умеет читать уровни сам (`loadChildren`), но здесь это не используется: уровни —
+ * не только источник строк, но и то, к чему обращаются команды, декорации и меню, а их
+ * правила проверяются без браузера. Поэтому дерево кита стоит в ПОЛНОСТЬЮ УПРАВЛЯЕМОМ
+ * режиме: раскрытие, выделение, набор и состояния чтения приходят из снимка хранилища,
+ * а всякое намерение возвращается в него же.
  *
  * ## Контекстное меню — одно на всё дерево
  *
  * Не по строке на меню: при виртуализации это дало бы сотню корней Radix со своими
  * подписками вместо одного. Строка, по которой щёлкнули, определяется в момент открытия
- * по `data-resource-id` ближайшего предка — заодно так работает щелчок по пустому месту
+ * по `data-tree-id` ближайшего предка — заодно так работает щелчок по пустому месту
  * панели, где строки нет вовсе, а «Новый файл…» осмысленен.
  *
  * Само меню строится ТОЙ ЖЕ моделью, что шапка приложения (`./menu`): контекстное меню —
- * не второй механизм, а другой корень (`resource/context`). Поэтому пункт в меню дерева
- * пишется таким же вкладом, как пункт в «Файле», и остаётся ссылкой на команду — доступной
- * из палитры, с клавиши и ассистенту.
+ * не второй механизм, а другой корень (`resource/context`).
  *
- * ## Декорации получают ленивую пробу
+ * ## Клавиатура разделена между деревом и реестром команд
  *
- * `decorate` синхронна, а `readText` в тип рабочей области дерева не входит вовсе. Проба
- * над содержимым собирается ТОЛЬКО если её передали пропом, и даже тогда не читает ничего,
- * пока вклад сам не спросит. Раскрытие уровня стоит одного листинга — это правило, а не
- * намерение.
- *
- * ## Пометка, зависящая от состояния снаружи дерева
- *
- * `decorate` спрашивают в отрисовке, а перерисовку заказывает React. Вкладу, чей ответ
- * зависит от `ref` (как «это схема формы»), этого хватает: `ref` приходит вместе со
- * строкой. Вкладу, чей ответ зависит от чужого состояния (диагностика), — нет: находки
- * приходят от валидатора, и дереву перерисовываться не с чего. Поэтому вклад вправе
- * сказать «спроси меня заново» (`onDidChange`), и {@link useDecorationRevision} на это
- * подписан. Правило то же, что у локали в `useLocale`: хук ничего не считает, он делает
- * чужое состояние поводом перерисоваться.
+ * Навигация (стрелки, Home/End, Enter, пробел, Escape) — ВВОД: он принадлежит дереву кита,
+ * обрабатывается там и глушится `stopPropagation`, поэтому глобальный слой сочетаний его
+ * не видит. Действия (переименовать, удалить, копировать, вставить) — КОМАНДЫ: они объявлены
+ * плагином с сочетанием и предикатом «фокус в дереве», и дерево о них не знает ничего.
+ * Сочетания с модификатором кит намеренно не перехватывает — иначе `mod+c` не доходил бы
+ * до команды копирования.
  *
  * @module host/ui/ResourceTree
  */
@@ -60,13 +53,10 @@ import {
   useEffect,
   useMemo,
   useReducer,
-  useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactElement,
 } from 'react';
-import { ChevronRight, File, Folder, FolderOpen, Loader2 } from 'lucide-react';
 import { Badge } from '@reformer/ui-kit/badge';
 import {
   ContextMenu,
@@ -79,16 +69,8 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@reformer/ui-kit/context-menu';
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from '@reformer/ui-kit/item';
-import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
+import { TREE_ROW_ATTRIBUTE, Tree, type TreeNode } from '@reformer/ui-kit/tree';
 import type { ResourceId, ResourceRef } from '../primitives/resource';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '../primitives/when-context';
 import type { RootI18nService } from '../services/i18n/i18n';
@@ -105,16 +87,15 @@ import type { CommandRegistry } from '../primitives/command';
 import { createLazyEditorProbe, createUnreadableProbe, type ReadResourceText } from './editors';
 import { detectPlatformModifier, formatChord } from './keybindings';
 import { buildMenu, MenuPoint, type MenuActionNode, type MenuNode } from './menu';
-import { RESOURCE_CONTEXT_MENU, resourceMenuTarget, parentIdOf } from './resource-menu';
+import { RESOURCE_CONTEXT_MENU, resourceMenuTarget } from './resource-menu';
 import {
   actionTargets,
   flattenTree,
-  rangeIds,
+  levelStatus,
+  type ResourceTreeState,
   type ResourceTreeStore,
-  type TreeRow,
 } from './resource-tree';
 import { useContributions, useLocale, type ExtensionReader } from './usePanels';
-import { useVirtualRows } from './use-virtual-rows';
 import { useResourceTree } from './useWorkspaceViews';
 
 /** Тон пометки → вариант значка кита. Соответствие визуальное, поэтому живёт в отрисовке. */
@@ -145,6 +126,49 @@ function useDecorationRevision(entries: readonly DecorationEntry[]): void {
     };
   }, [entries]);
 }
+
+/**
+ * Снимок хранилища → узлы дерева кита; попутно собирает адреса обратно в ссылки.
+ *
+ * Ссылка нужна декорациям и меню целиком (путь, тип, источник), а узел кита несёт только то,
+ * что дерево рисует. Возвращать её через узел значило бы протаскивать предметный тип сквозь
+ * общий компонент — дешевле и честнее оставить рядом карту.
+ *
+ * Нечитанный уровень детей НЕ получает: `undefined` в поле `children` для кита означает
+ * «уровень не прочитан», а пустой массив — «детей нет». Разница видна человеку: у первого
+ * треугольник раскрывается, у второго нет.
+ */
+function toTreeNodes(
+  state: ResourceTreeState,
+  parentId: ResourceId,
+  refs: Map<ResourceId, ResourceRef>
+): TreeNode[] {
+  const nodes: TreeNode[] = [];
+  for (const ref of state.children.get(parentId) ?? []) {
+    refs.set(ref.id, ref);
+    const directory = ref.kind === 'directory';
+    const status = levelStatus(state, ref.id);
+    nodes.push({
+      id: ref.id,
+      label: ref.name,
+      kind: directory ? 'branch' : 'leaf',
+      title: ref.path,
+      ...(directory && state.children.has(ref.id)
+        ? { children: toTreeNodes(state, ref.id, refs) }
+        : {}),
+      ...(status === 'loading' ? { loading: true } : {}),
+      ...(status === 'failed' ? { failed: true } : {}),
+    });
+  }
+  return nodes;
+}
+
+/**
+ * Реестр команд в объёме, нужном контекстному меню: прочитать, спросить применимость,
+ * выполнить. `Pick` от настоящего реестра — форма обязана совпадать буква в букву, иначе
+ * расхождение вскроется на композиции, а не на типах.
+ */
+export type TreeCommands = Pick<CommandRegistry, 'get' | 'isEnabled' | 'execute'>;
 
 export interface ResourceTreeProps {
   readonly tree: ResourceTreeStore;
@@ -177,151 +201,6 @@ export interface ResourceTreeProps {
   readonly whenContext?: () => WhenContext;
 }
 
-/**
- * Реестр команд в объёме, нужном контекстному меню: прочитать, спросить применимость,
- * выполнить. `Pick` от настоящего реестра — форма обязана совпадать буква в букву, иначе
- * расхождение вскроется на композиции, а не на типах.
- */
-export type TreeCommands = Pick<CommandRegistry, 'get' | 'isEnabled' | 'execute'>;
-
-/** Высота строки. Фиксирована — на ней стоит виртуальный скролл. */
-const ROW_HEIGHT = 24;
-
-/** Отступ уровня в пикселях. Динамическая величина, классом Tailwind невыразима. */
-const INDENT_STEP = 12;
-const INDENT_BASE = 8;
-
-/** Атрибут, по которому щелчок правой кнопкой находит свою строку. */
-const ROW_ATTRIBUTE = 'data-resource-id';
-
-function TreeRowView({
-  row,
-  decoration,
-  tooltip,
-  onToggle,
-  onClick,
-  onDoubleClick,
-}: {
-  row: TreeRow;
-  decoration: MergedDecoration | null;
-  tooltip: string | null;
-  onToggle: (id: ResourceId) => void;
-  onClick: (row: TreeRow, event: ReactMouseEvent) => void;
-  onDoubleClick: (row: TreeRow) => void;
-}): ReactElement {
-  const isDirectory = row.ref.kind === 'directory';
-  const Icon = decoration?.icon;
-  const active = row.selected || row.checked;
-
-  return (
-    <Item
-      size="sm"
-      role="treeitem"
-      aria-level={row.depth + 1}
-      aria-expanded={isDirectory ? row.expanded : undefined}
-      aria-selected={row.selected || row.checked}
-      data-selected={row.selected || undefined}
-      data-checked={row.checked || undefined}
-      {...{ [ROW_ATTRIBUTE]: row.ref.id }}
-      tabIndex={row.selected ? 0 : -1}
-      title={row.ref.path}
-      onClick={(event) => {
-        onClick(row, event);
-      }}
-      onDoubleClick={() => {
-        onDoubleClick(row);
-      }}
-      className={
-        active
-          ? 'bg-accent text-accent-foreground h-6 cursor-pointer gap-1.5 rounded-none border-0 py-0 pr-2 text-[12px]'
-          : 'hover:bg-accent/50 h-6 cursor-pointer gap-1.5 rounded-none border-0 py-0 pr-2 text-[12px]'
-      }
-      style={{ paddingLeft: INDENT_BASE + row.depth * INDENT_STEP }}
-    >
-      <ItemMedia className="size-3.5 shrink-0">
-        {/* Треугольник — только у каталогов; у файлов его место остаётся пустым, иначе
-            имена файлов и каталогов одного уровня не выстраивались бы по левому краю. */}
-        {isDirectory ? (
-          row.loading ? (
-            <Loader2 aria-hidden="true" className="text-muted-foreground size-3 animate-spin" />
-          ) : (
-            <ChevronRight
-              aria-hidden="true"
-              data-testid={`tree-chevron-${row.ref.id}`}
-              className={
-                row.expanded
-                  ? 'text-muted-foreground size-3 rotate-90 transition-transform'
-                  : 'text-muted-foreground size-3 transition-transform'
-              }
-              onClick={(event) => {
-                // Щелчок по треугольнику — только раскрытие: открывать каталог нечем,
-                // а всплытие сделало бы из одного щелчка два действия.
-                event.stopPropagation();
-                onToggle(row.ref.id);
-              }}
-            />
-          )
-        ) : null}
-      </ItemMedia>
-
-      <ItemMedia className="size-3.5 shrink-0">
-        {/* Значок вклада бьёт умолчание: «это схема формы» знает вклад, а не дерево.
-            Поштучный импорт из `lucide-react`, а не `@reformer/ui-kit/icon`: тот объявляет
-            себя opt-in, потому что тянет весь набор значков разом. */}
-        {Icon !== undefined ? (
-          <Icon />
-        ) : isDirectory ? (
-          row.expanded ? (
-            <FolderOpen aria-hidden="true" className="size-3.5 opacity-70" />
-          ) : (
-            <Folder aria-hidden="true" className="size-3.5 opacity-70" />
-          )
-        ) : (
-          <File aria-hidden="true" className="size-3.5 opacity-70" />
-        )}
-      </ItemMedia>
-
-      <ItemContent className="min-w-0 gap-0">
-        <ItemTitle
-          className={
-            row.failed
-              ? 'text-destructive truncate text-[12px] font-normal'
-              : isDirectory
-                ? 'truncate text-[12px] font-medium'
-                : 'truncate text-[12px] font-normal'
-          }
-        >
-          {row.ref.name}
-        </ItemTitle>
-      </ItemContent>
-
-      <ItemActions className="gap-1">
-        {decoration?.badge !== undefined &&
-          (tooltip === null ? (
-            <Badge
-              variant={BADGE_VARIANT[decoration.tone ?? 'default']}
-              className="h-4 px-1.5 py-0 text-[10px]"
-            >
-              {decoration.badge}
-            </Badge>
-          ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge
-                  variant={BADGE_VARIANT[decoration.tone ?? 'default']}
-                  className="h-4 px-1.5 py-0 text-[10px]"
-                >
-                  {decoration.badge}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>{tooltip}</TooltipContent>
-            </Tooltip>
-          ))}
-      </ItemActions>
-    </Item>
-  );
-}
-
 export function ResourceTree({
   tree,
   extensions,
@@ -344,178 +223,89 @@ export function ResourceTree({
     void tree.expand(state.rootId);
   }, [tree, state.rootId]);
 
-  const rows = useMemo(() => flattenTree(state), [state]);
-  const virtual = useVirtualRows(rows.length, ROW_HEIGHT);
-  const modifier = useMemo(() => detectPlatformModifier(), []);
+  const { nodes, refs } = useMemo(() => {
+    const collected = new Map<ResourceId, ResourceRef>();
+    return { nodes: toTreeNodes(state, state.rootId, collected), refs: collected };
+  }, [state]);
 
-  const treeRef = useRef<HTMLDivElement>(null);
+  const expandedIds = useMemo(() => [...state.expanded], [state.expanded]);
+  const checkedIds = useMemo(() => [...state.checked], [state.checked]);
+
   /**
-   * Строка, которую нужно сфокусировать, когда она появится в DOM.
-   *
-   * Отдельным состоянием, потому что при виртуализации выделенной строки в документе может
-   * не быть вовсе: сначала до неё доскроллит {@link useVirtualRows}, и только следующим
-   * кадром её можно сфокусировать.
+   * Раскрытие возвращается в хранилище различием, а не заменой набора: только оно знает,
+   * что раскрытие ещё не прочитанного каталога стоит одного листинга. Разница между
+   * снимками — ровно один адрес, поэтому цикл здесь дешевле любого хитрого протокола.
    */
-  const [focusId, setFocusId] = useState<ResourceId | null>(null);
-
-  useEffect(() => {
-    if (focusId === null) return;
-    const element = treeRef.current?.querySelector<HTMLElement>(
-      `[${ROW_ATTRIBUTE}="${CSS.escape(focusId)}"]`
-    );
-    if (element !== null && element !== undefined) {
-      element.focus();
-      setFocusId(null);
-    }
-  }, [focusId, virtual.start, virtual.end]);
+  const onExpandedChange = useCallback(
+    (ids: string[]): void => {
+      const next = new Set(ids);
+      for (const id of next) if (!state.expanded.has(id)) void tree.expand(id);
+      for (const id of state.expanded) if (!next.has(id)) tree.collapse(id);
+    },
+    [tree, state.expanded]
+  );
 
   const decorate = useCallback(
-    (ref: ResourceRef, entries: readonly DecorationEntry[]): MergedDecoration | null =>
-      mergeDecorations(
-        entries,
+    (id: ResourceId): MergedDecoration | null => {
+      const ref = refs.get(id);
+      if (ref === undefined) return null;
+      return mergeDecorations(
+        decorations,
         ref,
         readText === undefined
           ? createUnreadableProbe(ref)
           : createLazyEditorProbe(() => readText(ref.id))
-      ),
-    [readText]
+      );
+    },
+    [decorations, readText, refs]
   );
 
-  /** Выделяет строку и доводит её до видимой области вместе с фокусом. */
-  const focusRow = useCallback(
-    (id: ResourceId): void => {
-      tree.select(id);
-      virtual.scrollToRow(rows.findIndex((row) => row.ref.id === id));
-      setFocusId(id);
+  /** Значок вклада бьёт умолчание: «это схема формы» знает вклад, а не дерево. */
+  const renderIcon = useCallback(
+    (node: TreeNode): ReactElement | null => {
+      const Icon = decorate(node.id)?.icon;
+      return Icon === undefined ? null : <Icon />;
     },
-    [tree, virtual, rows]
+    [decorate]
   );
 
-  const open = useCallback(
-    (ref: ResourceRef, preview: boolean): void => {
-      if (ref.kind === 'directory') {
-        void tree.toggle(ref.id);
-        return;
-      }
-      onOpen?.(ref.id, { preview });
+  const renderActions = useCallback(
+    (node: TreeNode): ReactElement | null => {
+      const decoration = decorate(node.id);
+      if (decoration?.badge === undefined) return null;
+      const badge = (
+        <Badge
+          variant={BADGE_VARIANT[decoration.tone ?? 'default']}
+          className="h-4 px-1.5 py-0 text-[10px]"
+        >
+          {decoration.badge}
+        </Badge>
+      );
+      const tooltip = decorationTooltip(i18n, decoration);
+      if (tooltip === null) return badge;
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>{badge}</TooltipTrigger>
+          <TooltipContent>{tooltip}</TooltipContent>
+        </Tooltip>
+      );
     },
-    [tree, onOpen]
-  );
-
-  const onRowClick = useCallback(
-    (row: TreeRow, event: ReactMouseEvent): void => {
-      const id = row.ref.id;
-
-      // Ctrl/Cmd — набор пополняется по одному; открытие при этом не происходит:
-      // человек выбирает, а не смотрит.
-      if (event.metaKey || event.ctrlKey) {
-        event.preventDefault();
-        tree.toggleCheck(id);
-        tree.select(id);
-        return;
-      }
-
-      // Shift — диапазон от текущего выделения до этой строки, по видимым строкам.
-      if (event.shiftKey) {
-        event.preventDefault();
-        const anchor = state.selectedId ?? id;
-        tree.check(rangeIds(rows, anchor, id));
-        tree.select(id);
-        return;
-      }
-
-      tree.check([id]);
-      tree.select(id);
-      // Как в VSCode: одиночный щелчок открывает файл временной вкладкой (следующий такой
-      // щелчок займёт её слот), двойной — закрепляет её за файлом.
-      open(row.ref, true);
-    },
-    [tree, state.selectedId, rows, open]
-  );
-
-  const onRowDoubleClick = useCallback(
-    (row: TreeRow): void => {
-      open(row.ref, false);
-    },
-    [open]
+    [decorate, i18n]
   );
 
   /**
-   * Клавиатура дерева — ввод, а не команды: обработчик стоит на самом дереве и глушит
-   * событие, поэтому глобальный слой сочетаний его не увидит (то же правило, что у палитры).
-   *
-   * Всё, чего здесь нет, уходит наверх намеренно: `F2`, `Delete` и копирование — это
-   * команды плагина, объявленные с предикатом «фокус в дереве».
+   * Запуск строки. Каталог сюда не приходит вовсе: его раскрывает само дерево, потому что
+   * открывать каталог нечем. Как в VSCode: одиночный щелчок открывает файл временной вкладкой
+   * (следующий такой щелчок займёт её слот), двойной — закрепляет её за файлом.
    */
-  const onKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>): void => {
-      // Сочетания с модификатором принадлежат командам целиком: перехватив здесь `mod+c`,
-      // дерево отняло бы у команды копирования её единственную дверь.
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-
-      const at = rows.findIndex((row) => row.selected);
-      const current = at >= 0 ? rows[at] : undefined;
-
-      const move = (index: number): void => {
-        const next = rows[Math.min(Math.max(index, 0), rows.length - 1)];
-        if (next !== undefined) focusRow(next.ref.id);
-      };
-
-      switch (event.key) {
-        case 'ArrowDown':
-          move(at + 1);
-          break;
-        case 'ArrowUp':
-          move(at === -1 ? 0 : at - 1);
-          break;
-        case 'Home':
-          move(0);
-          break;
-        case 'End':
-          move(rows.length - 1);
-          break;
-        case 'ArrowRight':
-          if (current !== undefined && current.ref.kind === 'directory' && !current.expanded) {
-            void tree.expand(current.ref.id);
-          } else {
-            move(at + 1);
-          }
-          break;
-        case 'ArrowLeft':
-          if (current === undefined) {
-            move(0);
-            break;
-          }
-          if (current.ref.kind === 'directory' && current.expanded) {
-            tree.collapse(current.ref.id);
-            break;
-          }
-          // У файла и у свёрнутого каталога стрелка влево уходит К РОДИТЕЛЮ — так человек
-          // выбирается из глубоко вложенного каталога, не считая строки вверх.
-          {
-            const parent = parentIdOf(current.ref);
-            if (parent !== null && rows.some((row) => row.ref.id === parent)) focusRow(parent);
-          }
-          break;
-        case 'Enter':
-          if (current !== undefined) open(current.ref, false);
-          break;
-        case ' ':
-          if (current !== undefined) open(current.ref, true);
-          break;
-        case 'Escape':
-          // Снять набор — единственный способ выйти из множественного выбора, не открыв
-          // при этом чего-нибудь щелчком.
-          tree.check([]);
-          break;
-        default:
-          return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
+  const onActivate = useCallback(
+    (node: TreeNode, choice: { readonly preview: boolean }): void => {
+      onOpen?.(node.id, { preview: choice.preview });
     },
-    [rows, tree, focusRow, open]
+    [onOpen]
   );
+
+  const rows = useMemo(() => flattenTree(state), [state]);
 
   /**
    * Строка, по которой открыли меню. `null` — щёлкнули мимо строк, и это законный случай.
@@ -527,8 +317,8 @@ export function ResourceTree({
 
   const onContextMenu = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>): void => {
-      const element = (event.target as HTMLElement).closest<HTMLElement>(`[${ROW_ATTRIBUTE}]`);
-      const id = element?.getAttribute(ROW_ATTRIBUTE) ?? null;
+      const element = (event.target as HTMLElement).closest<HTMLElement>(`[${TREE_ROW_ATTRIBUTE}]`);
+      const id = element?.getAttribute(TREE_ROW_ATTRIBUTE) ?? null;
       const row = id === null ? undefined : rows.find((item) => item.ref.id === id);
       setMenuRow(row?.ref ?? null);
       if (row === undefined) return;
@@ -539,6 +329,8 @@ export function ResourceTree({
     },
     [rows, tree]
   );
+
+  const modifier = useMemo(() => detectPlatformModifier(), []);
 
   const menu = useMemo(() => {
     if (commands === undefined) return [];
@@ -604,63 +396,47 @@ export function ResourceTree({
   );
 
   const body = (
-    <ScrollArea ref={virtual.scrollRef} className="h-full">
-      <ItemGroup
-        ref={treeRef}
-        role="tree"
-        aria-label={t('shell.tree.label')}
-        data-focus-zone="tree"
-        tabIndex={rows.some((row) => row.selected) ? -1 : 0}
-        onKeyDown={onKeyDown}
-        onContextMenu={onContextMenu}
-        className="py-1 outline-none"
-      >
-        {rows.length === 0 ? (
-          <p className="text-muted-foreground px-3 py-2 text-[12px]">{t('shell.tree.empty')}</p>
-        ) : (
-          // Распорка на всю высоту дерева; окно строк сдвинуто `translateY`, поэтому
-          // скроллбар и позиции строк совпадают с невиртуальным списком.
-          <div style={{ height: virtual.totalHeight }}>
-            <div style={{ transform: `translateY(${virtual.offsetTop}px)` }}>
-              {rows.slice(virtual.start, virtual.end).map((row) => {
-                const decoration = decorate(row.ref, decorations);
-                return (
-                  <TreeRowView
-                    key={row.ref.id}
-                    row={row}
-                    decoration={decoration}
-                    tooltip={decoration === null ? null : decorationTooltip(i18n, decoration)}
-                    onToggle={(id) => {
-                      void tree.toggle(id);
-                    }}
-                    onClick={onRowClick}
-                    onDoubleClick={onRowDoubleClick}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </ItemGroup>
-    </ScrollArea>
+    <Tree
+      className="h-full"
+      nodes={nodes}
+      expandedIds={expandedIds}
+      onExpandedChange={onExpandedChange}
+      selectedId={state.selectedId}
+      onSelectedChange={tree.select}
+      selectionMode="multiple"
+      checkedIds={checkedIds}
+      onCheckedChange={tree.check}
+      onActivate={onActivate}
+      renderIcon={renderIcon}
+      renderActions={renderActions}
+      aria-label={t('shell.tree.label')}
+      emptyText={t('shell.tree.empty')}
+    />
+  );
+
+  // Зона фокуса объявляется ОБЁРТКОЙ, а не деревом: `probeFromElement` поднимается по
+  // `closest`, поэтому строке достаточно быть потомком. Кит про предикаты команд не знает
+  // и знать не должен.
+  //
+  // Правый щелчок слушает та же обёртка: она занимает всю панель, тогда как ряд строк —
+  // только свою высоту. Без этого щелчок ниже последней строки не сбрасывал бы `menuRow`,
+  // и меню показывало бы пункты для строки, которой под курсором нет.
+  const zone = (
+    <div className="h-full" data-focus-zone="tree" onContextMenu={onContextMenu}>
+      {body}
+    </div>
   );
 
   // Без реестра команд меню не существует, и обёртка вокруг дерева не нужна: пустой корень
   // Radix ловил бы правый щелчок и показывал пустую рамку.
   if (commands === undefined) {
-    return (
-      <TooltipProvider>
-        <div className="h-full">{body}</div>
-      </TooltipProvider>
-    );
+    return <TooltipProvider>{zone}</TooltipProvider>;
   }
 
   return (
     <TooltipProvider>
       <ContextMenu>
-        <ContextMenuTrigger asChild>
-          <div className="h-full">{body}</div>
-        </ContextMenuTrigger>
+        <ContextMenuTrigger asChild>{zone}</ContextMenuTrigger>
         {/* Меню объявляет себя зоной дерева, хотя рисуется порталом снаружи. Это не уловка:
             пока меню открыто, человек работает с деревом, и команды с предикатом «фокус
             в дереве» обязаны оставаться доступными — иначе Radix, забравший фокус себе,

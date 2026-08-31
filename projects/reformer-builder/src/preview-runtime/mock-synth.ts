@@ -37,19 +37,39 @@ export interface SynthMockOptions {
 }
 
 /** Вид поля для выбора значения (и для вывода TS-типа в кодогене). */
-export type FieldKind = 'select' | 'multi' | 'boolean' | 'number' | 'date' | 'files' | 'string';
+export type FieldKind =
+  | 'select'
+  | 'multi'
+  | 'tree'
+  | 'boolean'
+  | 'number'
+  | 'date'
+  | 'files'
+  | 'string';
 
-/** Классификация `$dataSource` по контексту использования (приоритет function > option > scalar). */
+/**
+ * Классификация `$dataSource` по контексту использования
+ * (приоритет function > tree > option > scalar).
+ */
 export interface DataSourceClasses {
   /** `componentProps.itemLabel` массива — нужна ФУНКЦИЯ (не массив). */
   functionLike: Set<string>;
   /** list-проп поля (`options`/`items`/…) — массив `{ value, label }`. */
   optionLike: Set<string>;
+  /** `nodes` дерева — ИЕРАРХИЯ `{ id, label, children }`, а не плоский список опций. */
+  treeLike: Set<string>;
   /** прочие привязки — скаляр-плейсхолдер. */
   scalarLike: Set<string>;
 }
 
 const LIST_PROP_KEYS = ['options', 'items', 'data', 'dataSource', 'choices', 'list'] as const;
+/**
+ * Пропы, чьё значение — ДЕРЕВО (`Tree`, `ComboboxTree`, `ComboboxTreeMulti`). Отдельно от
+ * {@link LIST_PROP_KEYS}, а не ещё одним именем в нём: у списка и у дерева разная форма элемента
+ * (`{ value, label }` против `{ id, label, children }`), и попади `nodes` в общий набор, поле
+ * получило бы плоские опции — дерево нарисовало бы пустоту, потому что `id` в них нет.
+ */
+const TREE_PROP_KEYS = ['nodes'] as const;
 const SELECT_COMPONENTS = new Set([
   'Select',
   'RadioGroup',
@@ -72,10 +92,17 @@ const SELECT_COMPONENTS = new Set([
 const MULTI_SELECT_COMPONENTS = new Set([
   'SelectMulti',
   'ComboboxMulti',
+  'ComboboxTreeMulti',
   'NativeSelectMulti',
   'ToggleGroupMulti',
   'MultiSelect',
 ]);
+/**
+ * Одиночный выбор узла ИЕРАРХИИ: значение — скаляр (`id` узла), но опций у поля нет вовсе —
+ * список приходит деревом в пропе `nodes`. Свой вид нужен ровно из-за этого: select-ветка
+ * ищет значение среди `options` и на дереве вернула бы `'option1'`, которого в нём нет.
+ */
+const TREE_SELECT_COMPONENTS = new Set(['ComboboxTree']);
 const BOOLEAN_COMPONENTS = new Set(['Checkbox', 'Switch', 'Toggle']);
 const NUMBER_COMPONENTS = new Set(['Slider', 'InputNumber', 'NumberInput']);
 const DATE_COMPONENTS = new Set(['DatePicker', 'DateInput', 'Calendar', 'DateRangePicker']);
@@ -94,6 +121,7 @@ export function classifyDataSources(schema: JsonFormSchema): DataSourceClasses {
   const all = new Set(collectOperatorNames(schema).dataSources);
   const functionLike = new Set<string>();
   const optionLike = new Set<string>();
+  const treeLike = new Set<string>();
 
   walkNodes(schema, (node) => {
     const props = (node as { componentProps?: Record<string, unknown> }).componentProps;
@@ -106,14 +134,25 @@ export function classifyDataSources(schema: JsonFormSchema): DataSourceClasses {
       const p = parseOperator(props[key]);
       if (p?.op === 'dataSource') optionLike.add(p.arg);
     }
+    for (const key of TREE_PROP_KEYS) {
+      const p = parseOperator(props[key]);
+      if (p?.op === 'dataSource') treeLike.add(p.arg);
+    }
   });
 
-  // приоритет: function > option > scalar
-  for (const n of functionLike) optionLike.delete(n);
+  // приоритет: function > tree > option > scalar. Дерево выше списка, потому что источник,
+  // попавший и туда и туда, обязан родить иерархию: список из неё читается (`{ id, label }`
+  // сойдёт за опцию), а обратно — нет.
+  for (const n of functionLike) {
+    optionLike.delete(n);
+    treeLike.delete(n);
+  }
+  for (const n of treeLike) optionLike.delete(n);
   const scalarLike = new Set<string>();
-  for (const n of all) if (!functionLike.has(n) && !optionLike.has(n)) scalarLike.add(n);
+  for (const n of all)
+    if (!functionLike.has(n) && !optionLike.has(n) && !treeLike.has(n)) scalarLike.add(n);
 
-  return { functionLike, optionLike, scalarLike };
+  return { functionLike, optionLike, treeLike, scalarLike };
 }
 
 /** Опция `{ value, label }` формы, принятой в проекте. */
@@ -128,10 +167,44 @@ export function mockOptions(name: string): MockOption[] {
   return [1, 2, 3].map((i) => ({ value: `option${i}`, label: `${prefix} ${i}` }));
 }
 
-/** Значения сериализуемых источников (option → массив опций, scalar → плейсхолдер). */
+/** Узел мок-дерева — минимум контракта `TreeNode` кита: адрес, подпись и дети. */
+export interface MockTreeNode {
+  id: string;
+  label: string;
+  children?: MockTreeNode[];
+}
+
+/**
+ * Детерминированное мок-дерево для treeLike-источника: две ветки с детьми и один лист верхнего
+ * уровня. Ветки нужны обе — с одной не видно, что раскрытие поузловое; лист рядом с ними
+ * показывает, что дерево смешанное, а `selectable: 'leaf'` у комбобокса выбирает именно листья.
+ * Адрес узла — путь через `/`: так его строит и настоящий источник (дерево файлов).
+ */
+export function mockTreeNodes(name: string): MockTreeNode[] {
+  const prefix = humanizeName(name);
+  return [
+    {
+      id: 'group-1',
+      label: `${prefix} 1`,
+      children: [
+        { id: 'group-1/item-1', label: `${prefix} 1.1` },
+        { id: 'group-1/item-2', label: `${prefix} 1.2` },
+      ],
+    },
+    {
+      id: 'group-2',
+      label: `${prefix} 2`,
+      children: [{ id: 'group-2/item-1', label: `${prefix} 2.1` }],
+    },
+    { id: 'item-3', label: `${prefix} 3` },
+  ];
+}
+
+/** Значения сериализуемых источников (option → опции, tree → иерархия, scalar → плейсхолдер). */
 function synthDataSourceValues(cls: DataSourceClasses): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const name of cls.optionLike) out[name] = mockOptions(name);
+  for (const name of cls.treeLike) out[name] = mockTreeNodes(name);
   for (const name of cls.scalarLike) out[name] = 'значение';
   return out;
 }
@@ -145,6 +218,7 @@ export function inferFieldKind(node: JsonFieldNode): FieldKind {
   if (name && FILE_COMPONENTS.has(name)) return 'files';
   // Проверка ДО select: у мультивыборов тоже есть options, и select-ветка перехватила бы их.
   if (name && MULTI_SELECT_COMPONENTS.has(name)) return 'multi';
+  if (name && TREE_SELECT_COMPONENTS.has(name)) return 'tree';
   if (
     hasListDataSource(props) ||
     Array.isArray(props.options) ||
@@ -186,6 +260,8 @@ function synthFieldValue(
   switch (inferFieldKind(node)) {
     case 'select':
       return selectValue(node, dataSources);
+    case 'tree':
+      return treeValue(node, dataSources);
     case 'boolean':
       return false;
     case 'number':
@@ -215,6 +291,44 @@ function selectValue(node: JsonFieldNode, dataSources: Record<string, unknown>):
     if (first && typeof first === 'object' && 'value' in first) return first.value;
   }
   return 'option1';
+}
+
+/**
+ * Значение одиночного дерева = адрес ПЕРВОГО ЛИСТА объявленной иерархии; `null`, если её нет.
+ *
+ * Именно листа, а не первого попавшегося узла: у `ComboboxTree` по умолчанию `selectable: 'leaf'`,
+ * и адрес ветки дал бы в моке значение, которого пользователь щелчком не получит — каталог там
+ * раскрывается, а не выбирается.
+ */
+function treeValue(node: JsonFieldNode, dataSources: Record<string, unknown>): unknown {
+  const props = node.componentProps ?? {};
+  for (const key of TREE_PROP_KEYS) {
+    const p = parseOperator(props[key]);
+    const nodes = p?.op === 'dataSource' ? dataSources[p.arg] : props[key];
+    const leaf = firstLeafId(nodes);
+    if (leaf !== null) return leaf;
+  }
+  return null;
+}
+
+/**
+ * Адрес первого листа сырого дерева; `null` — листьев нет. Лист — узел без `children` либо
+ * помеченный `kind: 'leaf'` (то же правило, что и в самом ките: вид выводится из наличия детей,
+ * а явный `kind` его перекрывает).
+ */
+function firstLeafId(nodes: unknown): string | null {
+  if (!Array.isArray(nodes)) return null;
+  for (const raw of nodes) {
+    if (!isPlainObject(raw)) continue;
+    const leaf = raw.kind === 'leaf' || !Array.isArray(raw.children);
+    if (leaf) {
+      if (typeof raw.id === 'string') return raw.id;
+      continue;
+    }
+    const nested = firstLeafId(raw.children);
+    if (nested !== null) return nested;
+  }
+  return null;
 }
 
 function numberValue(node: JsonFieldNode, now: Date): number {

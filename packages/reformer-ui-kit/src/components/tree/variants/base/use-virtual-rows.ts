@@ -1,27 +1,27 @@
 /**
  * Виртуальный скролл для списков строк ФИКСИРОВАННОЙ высоты.
  *
- * Нужен ровно одному месту — дереву ресурсов, — но нужен по-настоящему: раскрытый каталог
- * проекта это тысячи строк, а у каждой строки дерева висит контекстное меню, то есть узел
- * Radix со своими подписками. Без виртуализации открытие `src` в среднем репозитории
- * означало бы несколько тысяч таких узлов разом.
+ * Дереву он нужен по-настоящему: раскрытый каталог реального проекта — это тысячи строк, а
+ * у каждой строки свои обработчики, и у потребителя поверх неё может висеть контекстное меню,
+ * то есть узел Radix со своими подписками. Без виртуализации раскрытие `src` в среднем
+ * репозитории означало бы несколько тысяч таких узлов разом.
  *
  * ## Правило отделено от подписки
  *
- * {@link rowRange} — чистая функция, и проверяется в `node` без единого DOM-узла: окно строк
- * это арифметика, а не отрисовка. В хуке остаётся ровно то, что без браузера не проверить, —
+ * {@link rowRange} — чистая функция, и проверяется без единого DOM-узла: окно строк это
+ * арифметика, а не отрисовка. В хуке остаётся ровно то, что без браузера не проверить, —
  * чтение метрик скроллера и подписка на его события.
  *
  * ## Что считается скроллером
  *
- * `ScrollArea` кита прокручивает не корень, а вложенный `[data-slot="scroll-area-viewport"]`,
+ * {@link ScrollArea} кита прокручивает не корень, а вложенный `[data-slot="scroll-area-viewport"]`,
  * поэтому метрики читаются с него. Если разметка окажется другой (обычный `overflow-auto`),
- * скроллером считается сам элемент по ссылке — так хук годится и без кита.
+ * скроллером считается сам элемент по ссылке — так хук годится и вне кита.
  *
- * @module host/ui/use-virtual-rows
+ * @module components/tree/use-virtual-rows
  */
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import * as React from 'react';
 
 /** Окно строк, которые нужно отрисовать: `[start, end)`. */
 export interface RowRange {
@@ -32,8 +32,8 @@ export interface RowRange {
 /**
  * Какие строки показать при такой прокрутке.
  *
- * `overscan` — запас строк за краями видимой области: без него строка, появляющаяся
- * из-за края, успевает мигнуть пустотой на быстрой прокрутке.
+ * `overscan` — запас строк за краями видимой области: без него строка, появляющаяся из-за
+ * края, успевает мигнуть пустотой на быстрой прокрутке.
  */
 export function rowRange(
   scrollTop: number,
@@ -59,7 +59,7 @@ function scrollerOf(root: HTMLElement | null): HTMLElement | null {
 
 export interface VirtualRows extends RowRange {
   /** Вешается на контейнер со скроллом. */
-  readonly scrollRef: RefObject<HTMLDivElement | null>;
+  readonly scrollRef: React.RefObject<HTMLDivElement | null>;
   /** Высота всего списка — распорка, которая держит скроллбар честным. */
   readonly totalHeight: number;
   /** Сдвиг окна от начала списка. */
@@ -82,10 +82,10 @@ export interface VirtualRows extends RowRange {
  * </ScrollArea>
  */
 export function useVirtualRows(count: number, rowHeight: number, overscan = 8): VirtualRows {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [metrics, setMetrics] = useState({ scrollTop: 0, viewportHeight: 0 });
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [metrics, setMetrics] = React.useState({ scrollTop: 0, viewportHeight: 0 });
 
-  useEffect(() => {
+  React.useEffect(() => {
     const element = scrollerOf(scrollRef.current);
     if (element === null) return;
 
@@ -109,7 +109,7 @@ export function useVirtualRows(count: number, rowHeight: number, overscan = 8): 
     };
   }, []);
 
-  const scrollToRow = useCallback(
+  const scrollToRow = React.useCallback(
     (index: number): void => {
       const element = scrollerOf(scrollRef.current);
       if (element === null || index < 0) return;

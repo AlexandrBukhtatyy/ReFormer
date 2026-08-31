@@ -6,8 +6,11 @@ import { Combobox } from './combobox-base';
  * почти identity (как у SelectAsync): маппинга DOM-события нет, HOC нужен лишь чтобы отбросить
  * `control` (renderer-путь) и привести null/undefined. Штатный `valueChangeAdapter` тут не подходит:
  * он ждёт Radix-shape `onValueChange(string)`, а Combobox эмитит value-based `onChange(string|null)`.
+ *
+ * Экспортируется, потому что вариант `tree` эмитит ровно тот же контракт: тащить одинаковый
+ * адаптер в общий `fields/adapters.ts` не за чем — он не общекитовый, а комбобоксовый.
  */
-const comboboxAdapter: FieldAdapter = {
+export const comboboxAdapter: FieldAdapter = {
   valueProp: 'value',
   changeProp: 'onChange',
   fromEmit: (v) => v ?? null, // Combobox сам эмитит null при очистке

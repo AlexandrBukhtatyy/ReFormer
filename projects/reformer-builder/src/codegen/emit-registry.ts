@@ -31,9 +31,10 @@ export function emitRegistry(c: Collected): string {
   for (const r of resolutions) if (r.symbol) uiSymbols.add(r.symbol);
 
   const opt = [...c.ds.optionLike].sort();
+  const tree = [...c.ds.treeLike].sort();
   const scal = [...c.ds.scalarLike].sort();
   const fn = [...c.ds.functionLike].sort();
-  const dsNames = [...opt, ...scal, ...fn];
+  const dsNames = [...opt, ...tree, ...scal, ...fn];
 
   const shimLines = [
     ...wizardNames.map((name) => `    reg.component('${name}', Wizard);`),

@@ -28,19 +28,22 @@ describe('variantGroupOf', () => {
     expect(variantGroupOf('НетТакого')).toBeNull();
   });
 
-  it('семьи мультивыбора: одиночный вариант — дефолт, мульти — второй член', () => {
-    for (const [group, multi] of [
+  it('семьи выбора: одиночный вариант — дефолт, остальные — члены той же группы', () => {
+    // Combobox — семья из ЧЕТЫРЁХ: к одиночному и мульти добавились древовидные варианты
+    // (выбор узла иерархии и набора узлов). Остальные семьи по-прежнему из двух.
+    for (const [group, ...rest] of [
       ['Select', 'SelectMulti'],
-      ['Combobox', 'ComboboxMulti'],
+      ['Combobox', 'ComboboxMulti', 'ComboboxTree', 'ComboboxTreeMulti'],
       ['NativeSelect', 'NativeSelectMulti'],
       ['ToggleGroup', 'ToggleGroupMulti'],
     ] as const) {
       const g = variantGroupOf(group);
       expect(g, group).not.toBeNull();
       expect(g!.default.name).toBe(group);
-      expect(g!.members.map((m) => m.name).sort()).toEqual([group, multi].sort());
-      // Мульти резолвит ту же группу — иначе инспектор не покажет переключатель варианта.
-      expect(variantGroupOf(multi)?.group).toBe(group);
+      expect(g!.members.map((m) => m.name).sort()).toEqual([group, ...rest].sort());
+      // Любой не-дефолтный вариант резолвит ту же группу — иначе инспектор не покажет
+      // переключатель варианта, стоя на нём.
+      for (const member of rest) expect(variantGroupOf(member)?.group, member).toBe(group);
     }
   });
 });

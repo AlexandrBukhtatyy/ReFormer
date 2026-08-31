@@ -222,6 +222,7 @@ const sidebars: SidebarsConfig = {
         'ui-kit/collapsible',
         'ui-kit/button-group',
         'ui-kit/item',
+        'ui-kit/tree',
         'ui-kit/empty',
         'ui-kit/spinner',
         'ui-kit/kbd',

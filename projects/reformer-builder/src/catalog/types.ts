@@ -116,8 +116,12 @@ export interface CatalogJson {
  * (редактор CSS-классов с автодополнением из словаря активного кита). Билдер назначает `className` по ключу пропа
  * поверх `x-doc.kind` (в ui-kit `className` объявлен `readonly` — эта конвенция для ui-kit-доков,
  * а не для билдера).
+ *
+ * `dataSource` и `tree` — два редактора «откуда берутся данные списка»: плоские опции
+ * `{ value, label }` и иерархия `{ id, label, children }`. Разные виджеты, а не один с режимом:
+ * формы элементов несовместимы, и редактор опций, наведённый на дерево, стирает `id`.
  */
-export type InspectorWidget = PropWidget | 'className' | 'dataSource' | 'icon';
+export type InspectorWidget = PropWidget | 'className' | 'dataSource' | 'icon' | 'tree';
 
 /**
  * Проп для инспектора — производная от `propsSchema` (НЕ часть сериализуемого контракта).

@@ -107,6 +107,10 @@ tests/
     │   ├── validators.spec.ts       # SVAL-*, NVAL-*, DVAL-*: Тесты валидаторов
     │   └── validation-page.pom.ts   # Page Object
     │
+    ├── tree/                        # Дерево и комбобоксы с деревом
+    │   ├── tree.spec.ts             # TREE-*: Выбор файла и набора файлов
+    │   └── tree-page.pom.ts         # Page Object
+    │
     └── complex-multy-step-form/     # Сложная многошаговая форма
         ├── happy-path.spec.ts       # HP-*: Успешные сценарии
         ├── validation.spec.ts       # VAL-*: Валидация

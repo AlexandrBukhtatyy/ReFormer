@@ -376,7 +376,7 @@ const form = createForm<{ city: string }>({ model, schema });
 
 ## Multi-select
 
-Четыре контрола множественного выбора. Все четыре — **отдельные записи реестра**, а не режим
+Пять контролов множественного выбора. Все пять — **отдельные записи реестра**, а не режим
 одиночных: тип значения другой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у
 `FileUpload` / `FileUploadAvatar`).
 
@@ -386,6 +386,7 @@ const form = createForm<{ city: string }>({ model, schema });
 | `ComboboxMulti`          | Popover + Command (cmdk) + Badge        | длинный список с поиском; есть `creatable`                        |
 | `SelectMulti`            | Popover + свой listbox                  | длинный список, в т.ч. асинхронный (`resource`); **без cmdk**     |
 | `NativeSelectMulti`      | нативный `<select multiple>`            | no-JS / legacy / киоски. **Не для тач-устройств**                 |
+| `ComboboxTreeMulti`      | Popover + `Tree` кита; **без cmdk**     | значения лежат в иерархии: файлы, разделы каталога                |
 
 ### Единый контракт значения
 
@@ -410,7 +411,8 @@ const model = createModel({ tags: [] });
 ### Использование в схеме
 
 ```typescript
-import { ToggleGroupMultiField, ComboboxMultiField } from '@reformer/ui-kit';
+import { ToggleGroupMultiField } from '@reformer/ui-kit';
+import { ComboboxMultiField } from '@reformer/ui-kit/combobox'; // combobox — только subpath
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
@@ -475,8 +477,155 @@ const validation = defineValidationSchema<Form>(({ model }) => {
 - `placeholder` у `NativeSelectMulti` — его нет намеренно: в multiple-листбоксе `<option value="">`
   становится выбираемым мусорным пунктом.
 
+## Combobox: варианты дерева
+
+Два варианта комбобокса показывают в поповере не плоский список, а иерархию — тот самый `Tree`
+кита (см. [04-layout-and-buttons.md](04-layout-and-buttons.md)). Берут их там, где значение
+адресуется путём, а не выбирается из перечня: файл в репозитории, раздел каталога, узел
+оргструктуры.
+
+| Field-компонент          | `value` в модели                  | Что выбирается            |
+| ------------------------ | --------------------------------- | ------------------------- |
+| `ComboboxTreeField`      | `string \| null` — адрес узла     | один узел, обычно файл    |
+| `ComboboxTreeMultiField` | `string[] \| null` — адреса узлов | набор узлов, обычно файлы |
+
+Оба живут вне главного barrel:
+
+```typescript
+import { ComboboxTreeField, ComboboxTreeMultiField } from '@reformer/ui-kit/combobox';
+import type { TreeNode } from '@reformer/ui-kit';
+```
+
+Subpath `./combobox` тянет опциональный peer `cmdk` — не ради дерева (в нём cmdk нет намеренно),
+а ради базового варианта, который отдаёт тот же barrel.
+
+### Key Concepts
+
+- **Значение — `node.id`, а не подпись.** Подпись в триггере берётся из объявленного дерева, а
+  если узел пришёл из лениво прочитанного уровня — показывается сам адрес. Для файлов это и
+  нужно: путь однозначен, имя файла — нет.
+- **`selectable` по умолчанию `'leaf'`** — в отличие от самого `Tree`, где умолчание `'all'`.
+  Щелчок по каталогу раскрывает его, а не выбирает; выбрать можно только лист. `'all'` ставят
+  там, где значением бывает и ветка (раздел каталога).
+- **Пустой выбор мульти — `null`, никогда `[]`** (тот же контракт и та же причина, что у
+  остальных мультивыборов, см. «Единый контракт значения» выше). Компонент при этом видит
+  массив: `multiValueAdapter` разворачивает `null` в `[]` на входе и сворачивает пустой выбор
+  обратно в `null` на выходе.
+- **Обязательность — только `required()`.** `minLength(1)` на пустом выборе делает ранний
+  `return null` и пропускает его.
+- **Одиночный закрывает поповер по выбору**, мульти — **нет**: набор файлов собирают одним
+  заходом, и поиск между выборами тоже не сбрасывается. `onBlur` у обоих эмитится на закрытии
+  поповера, а не на каждом выборе.
+- **Членство в мульти переключается щелчком по строке**, отметка — галочка справа. Чекбокса
+  слева нет намеренно: там уже треугольник раскрытия и значок типа узла, третий значок сделал бы
+  уровень нечитаемым.
+- **Поиск свой, не cmdk**: фильтрует само дерево, достраивая путь до совпадения. Видит только
+  **прочитанные** уровни; непрочитанная ветка при этом остаётся в выдаче — её содержимое ещё не
+  за что судить, и человек может открыть её руками.
+- **`maxItems` — подсказка интерфейса**, а не правило формы: по достижении потолка невыбранные
+  строки гаснут. Авторитетное ограничение задаёт `maxLength(n)`.
+- **Путь до выбранного раскрывается сам** — но только по объявленному `nodes`. У ленивого
+  источника предков не знает никто, пока уровень не прочитан; нужные ветки перечисляют в
+  `defaultExpandedIds`.
+
+Остальные пропы обоих вариантов: `placeholder` (`'Выберите файл...'` / `'Выберите файлы...'`),
+`searchPlaceholder` (`'Поиск...'`), `emptyText` (`'Ничего не найдено'`), `clearable` (`false`),
+`maxRows` (12 строк до прокрутки), у мульти ещё `summaryThreshold` (3 — дальше чипы схлопываются
+в «Выбрано: N»).
+
+### Common Patterns
+
+Выбор одного файла из объявленного дерева:
+
+```tsx
+import { createModel, createForm } from '@reformer/core';
+import { FormField } from '@reformer/ui-kit';
+import { ComboboxTreeField } from '@reformer/ui-kit/combobox';
+import type { TreeNode } from '@reformer/ui-kit';
+
+// id — полный путь: два index.ts в разных каталогах обязаны различаться.
+const FILES: TreeNode[] = [
+  {
+    id: 'src',
+    label: 'src',
+    children: [
+      { id: 'src/index.ts', label: 'index.ts' },
+      { id: 'src/app.tsx', label: 'app.tsx' },
+    ],
+  },
+  { id: 'package.json', label: 'package.json' },
+];
+
+const model = createModel<{ entry: string | null }>({ entry: null });
+const schema = {
+  entry: {
+    value: model.$.entry,
+    component: ComboboxTreeField,
+    componentProps: {
+      label: 'Точка входа',
+      nodes: FILES,
+      defaultExpandedIds: ['src'],
+      clearable: true,
+      testId: 'entry',
+    },
+  },
+};
+const form = createForm<{ entry: string | null }>({ model, schema });
+
+<FormField control={form.entry} testId="entry" />;
+```
+
+Набор файлов из ленивого источника — значение поля `string[] | null`, поэтому сигнал берётся
+через `signalAt`, а правила живут в отдельной validation-схеме:
+
+```typescript
+import { ComboboxTreeMultiField } from '@reformer/ui-kit/combobox';
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, maxLength } from '@reformer/core/validators';
+
+type Form = { attachments: string[] | null };
+
+const model = createModel<Form>({ attachments: null }); // не [] — иначе поля не будет
+const schema = {
+  attachments: {
+    value: model.signalAt('attachments')!,
+    component: ComboboxTreeMultiField,
+    componentProps: {
+      label: 'Файлы заявки',
+      // Уровень читается при первом раскрытии ветки; null — верхний уровень.
+      loadChildren: (node) => fs.list(node?.id ?? '/'),
+      maxItems: 5,
+      testId: 'attachments',
+    },
+  },
+};
+
+const validation = defineValidationSchema<Form>(({ model }) => {
+  validate(model.signalAt('attachments')!, [required(), maxLength(5)]);
+});
+```
+
+### Anti-patterns
+
+- Начальное значение мульти `[]` вместо `null` — поле молча исчезает; симптомы разобраны в
+  [06-troubleshooting.md](06-troubleshooting.md), пункт 12.
+- `minLength(1)` вместо `required()` для обязательности — пустой выбор приходит как `null`, и
+  правило выходит раньше проверки.
+- Одинаковые `node.id` у разных узлов (имя файла вместо полного пути) — раскрытие, выделение и
+  отметка адресуются одним и тем же ключом, поэтому две строки начинают вести себя как одна.
+- Ждать, что поиск найдёт файл в непрочитанном каталоге. Фильтр не ходит за уровнями: ради
+  подсветки одной строки пришлось бы обойти весь источник. Нужен сквозной поиск — ищите на
+  сервере и подавайте `nodes` уже отфильтрованными.
+- Полагаться на `maxItems` как на валидацию — это только гашение строк в интерфейсе, форма о нём
+  ничего не знает.
+- Импортировать `ComboboxTree*` из `'@reformer/ui-kit'` — их там нет, `combobox` живёт только в
+  своём subpath.
+- Ставить в схему примитив `ComboboxTree` / `ComboboxTreeMulti` вместо `*Field`-версии —
+  value-seam остаётся неподключённым, поле рисуется и не реагирует на выбор.
+
 ## See also
 
+- [04-layout-and-buttons.md](04-layout-and-buttons.md) — сам `Tree`: узлы, ленивое чтение уровней, виртуализация.
 - [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов (open/close/clear).
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт `Checkbox` и не дублирует label.

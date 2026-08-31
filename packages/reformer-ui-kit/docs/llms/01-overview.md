@@ -95,6 +95,7 @@ import {
   Box,
   Section,
   Collapsible,
+  Tree,
   cn,
 } from '@reformer/ui-kit';
 ```
@@ -215,7 +216,9 @@ function RegistrationPage() {
 | `Toggle`     | `ToggleField`        | `ToggleGroup` | `ToggleGroupField`    |
 
 Множественный выбор — отдельные компоненты без примитива-пары: `SelectMultiField`,
-`NativeSelectMultiField`, `ComboboxMultiField`, `ToggleGroupMultiField`. Полная таблица вариантов
+`NativeSelectMultiField`, `ComboboxMultiField`, `ComboboxTreeMultiField`,
+`ToggleGroupMultiField`. Выбор из иерархии — `ComboboxTreeField` (примитив `ComboboxTree`);
+сам `Tree` `*Field`-версии не имеет, потому что он не поле формы. Полная таблица вариантов
 (`InputNumberField`, `SelectAsyncField`, …) — в `README.md` пакета.
 
 ## Components
@@ -231,6 +234,8 @@ function RegistrationPage() {
 | `Checkbox` / `CheckboxField`    | Чекбокс с label рядом с контролом.                         | [03-choice-fields.md](03-choice-fields.md)                    |
 | `RadioGroup` / `RadioGroupField`| Группа радио-кнопок из массива `options`.                  | [03-choice-fields.md](03-choice-fields.md)                    |
 | `Select` / `SelectField` (+ 8 sub-компонентов) | Выпадающий список с inline `options` или async `resource`. | [03-choice-fields.md](03-choice-fields.md)   |
+| `Combobox` / `ComboboxField` (+ `Multi`, `Tree`, `TreeMulti`) | Поле с поиском; варианты `Tree*` выбирают узел иерархии (файл). | [03-choice-fields.md](03-choice-fields.md) |
+| `Tree`                          | Дерево с ленивым чтением уровней и виртуализацией. **Не поле формы.** | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
 | `Button`                        | Кнопка с вариантами (`variant`, `size`, `asChild`).        | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `AsyncBoundary` (+ `*Loading`, `*Error`, `*Empty`) | Состояния загрузки `idle`/`loading`/`ready`/`error` со встроенными блоками. | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
 | `ExampleCard`                   | Карточка-обёртка для демо в playground.                    | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
@@ -247,8 +252,8 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 ## See also
 
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
-- [03-choice-fields.md](03-choice-fields.md) — `Checkbox`, `RadioGroup`, `Select`.
-- [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `ExampleCard`, `cn`.
+- [03-choice-fields.md](03-choice-fields.md) — `Checkbox`, `RadioGroup`, `Select`, мультивыборы, варианты дерева у `Combobox`.
+- [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `Tree`, `ExampleCard`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные проблемы и решения.
 - [11-form-layout.md](11-form-layout.md) — отступы, сетка полей, группировка и секции.

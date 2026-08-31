@@ -47,6 +47,7 @@ import { effectiveMock, serializeSection } from '../canvas/mock-data';
 import { blankToUndefined, toNumberValue } from './inspector-value';
 import { ClassNameField } from './ClassNameField';
 import { OptionsField } from './OptionsField';
+import { TreeNodesField } from './TreeNodesField';
 import { IconField } from './IconField';
 import { cn } from '../lib/cn';
 
@@ -330,6 +331,7 @@ function PropRow({
   if (prop.widget === 'className')
     return <ClassNameField node={node} path={path} prop={prop} classes={classNames} />;
   if (prop.widget === 'dataSource') return <OptionsField node={node} path={path} prop={prop} />;
+  if (prop.widget === 'tree') return <TreeNodesField node={node} path={path} prop={prop} />;
   if (prop.widget === 'icon') return <IconField node={node} path={path} prop={prop} />;
 
   const props = (node as { componentProps?: Record<string, unknown> }).componentProps ?? {};

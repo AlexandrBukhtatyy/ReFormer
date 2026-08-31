@@ -18,6 +18,7 @@ import RegistrationFormJson from './pages/demo/registration-form-renderer-json/R
 import AlertsListRendererJson from './pages/demo/alerts-list-renderer-json/AlertsListRendererJson';
 import FileUploadDemo from './pages/demo/file-upload/FileUploadDemo';
 import MultiSelectDemo from './pages/demo/multi-select/MultiSelectDemo';
+import TreeDemo from './pages/demo/tree/TreeDemo';
 import FormRegistryLab from './pages/debug/form-registry-lab/FormRegistryLab';
 import UiBuilderDemo from './pages/debug/ui_builder';
 import { getFormRegistry, type ResolveContext } from '@reformer/form-registry';
@@ -42,6 +43,7 @@ type ExamplePage =
   | 'alerts-json'
   | 'file-upload'
   | 'multi-select'
+  | 'tree'
   | 'form-registry-lab'
   | 'ui-builder';
 
@@ -177,6 +179,13 @@ const exampleGroups: ExampleGroup[] = [
         title: 'Множественный выбор',
         description:
           'SelectMulti / ComboboxMulti / NativeSelectMulti / ToggleGroupMulti: единый контракт string[] | null, префилл, валидация',
+      },
+      {
+        id: 'tree',
+        path: '/demo/tree',
+        title: 'Дерево и выбор файла',
+        description:
+          'Tree как отрисовка иерархии (раскрытие, выделение, набор, ленивые уровни) и поля ComboboxTree / ComboboxTreeMulti поверх него',
       },
       {
         id: 'imperative-handles',
@@ -390,6 +399,7 @@ function Layout() {
             <Route path="/demo/alerts-json" element={<AlertsListRendererJson />} />
             <Route path="/demo/file-upload" element={<FileUploadDemo />} />
             <Route path="/demo/multi-select" element={<MultiSelectDemo />} />
+            <Route path="/demo/tree" element={<TreeDemo />} />
             <Route path="/debug/ui-builder" element={<UiBuilderDemo />} />
             <Route path="/debug/registry-lab" element={<FormRegistryLab />} />
             <Route path="/" element={<Navigate to="/demo/simple" replace />} />

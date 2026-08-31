@@ -448,3 +448,50 @@ describe('wizard-форма — шим вместо заглушки', () => {
     expect(byPath('README.md').content).not.toContain('`renderer.wizard.tsx`');
   });
 });
+
+/**
+ * Древовидные поля: тип листа и путь их источника до `data-sources.ts`/`registry.ts`. Проверяется
+ * не «строка встретилась», а разница с плоским списком — она вся в форме данных, и промах в ней
+ * молчит до рантайма.
+ */
+describe('деревья: типы листьев и источник-иерархия', () => {
+  const treeSchema = {
+    version: '1.0',
+    root: {
+      component: '$component(Box)',
+      children: [
+        {
+          value: '$model(file)',
+          component: '$component(ComboboxTree)',
+          componentProps: { label: 'Файл', nodes: '$dataSource(PROJECT_TREE)' },
+        },
+        {
+          value: '$model(files)',
+          component: '$component(ComboboxTreeMulti)',
+          componentProps: { label: 'Файлы', nodes: '$dataSource(PROJECT_TREE)' },
+        },
+      ],
+    },
+  } as unknown as JsonFormSchema;
+
+  const treeMock = synthMock(treeSchema, { now: new Date('2026-01-01T00:00:00Z') });
+  const treeFiles = buildExampleFiles(treeSchema, treeMock, 'docs');
+  const src = (p: string) => treeFiles.find((f) => f.path === p)!.content;
+
+  it('одиночное дерево — `string | null`, множественное — `string[] | null`', () => {
+    // Union по опциям тут не построить: адреса узлов живут в `nodes`, и ленивый источник не обязан
+    // раскрывать их набор целиком. Nullable — потому что пустой выбор приходит как null.
+    expect(src('types.ts')).toContain('file: string | null');
+    expect(src('types.ts')).toContain('files: string[] | null');
+  });
+
+  it('источник дерева выгружается иерархией и регистрируется наравне с опциями', () => {
+    const ds = src('data-sources.ts');
+    expect(ds).toContain('export const PROJECT_TREE =');
+    // Плоские опции узнаются по `value`; у узла его нет — есть `id` и вложенные `children`.
+    expect(ds).toContain('"id"');
+    expect(ds).toContain('"children"');
+    expect(ds).not.toContain('SelectOption');
+    expect(src('registry.ts')).toContain("reg.dataSource('PROJECT_TREE', PROJECT_TREE)");
+  });
+});

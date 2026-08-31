@@ -5245,12 +5245,12 @@
           },
           "trigger": {
             "type": "string",
-            "enum": ["hover", "click"],
+            "enum": ["click", "hover"],
             "default": "hover",
             "description": "Чем открывается тултип: наведением или кликом — при клике он остаётся активным.",
             "x-doc": {
               "group": "Behavior",
-              "type": "'hover' | 'click'"
+              "type": "'click' | 'hover'"
             }
           },
           "useTranslate3d": {
@@ -5585,12 +5585,12 @@
           },
           "trigger": {
             "type": "string",
-            "enum": ["hover", "click"],
+            "enum": ["click", "hover"],
             "default": "hover",
             "description": "Открытие по наведению или клику — параметр ChartTooltip, самим ChartTooltipContent не читается.",
             "x-doc": {
               "group": "Behavior",
-              "type": "'hover' | 'click'"
+              "type": "'click' | 'hover'"
             }
           },
           "useTranslate3d": {
@@ -6336,6 +6336,479 @@
       },
       "variantGroup": "Combobox",
       "variant": "Несколько"
+    },
+    {
+      "name": "ComboboxTree",
+      "role": "field",
+      "exportName": "ComboboxTreeField",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать крестик очистки (сброс в null); повторный выбор той же строки тоже сбрасывает.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "defaultExpandedIds": {
+            "type": "array",
+            "description": "Ветки, раскрытые при открытии списка. Путь до выбранного узла раскрывается и без него.",
+            "x-doc": {
+              "group": "State",
+              "type": "string[]",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "emptyText": {
+            "type": "string",
+            "description": "Текст пустого состояния (по запросу ничего не совпало).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Ничего не найдено"
+          },
+          "id": {
+            "type": "string",
+            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "maxRows": {
+            "type": "number",
+            "description": "Сколько строк дерева показать в поповере до появления прокрутки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number",
+              "kind": "number"
+            },
+            "minimum": 1,
+            "default": 12
+          },
+          "nodes": {
+            "type": "array",
+            "description": "Узлы верхнего уровня. Поиск идёт по label; значением поля становится id выбранного узла.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ id; label; kind?; children?; badge?; … }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["id", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Адрес узла, уникальный в пределах дерева."
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Видимая подпись строки; по ней идёт поиск."
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["branch", "leaf"],
+                  "description": "Ветка или лист. По умолчанию выводится из наличия children."
+                },
+                "children": {
+                  "type": "array",
+                  "description": "Дети — такие же узлы (вложенность схемой не проверяется). У ветки отсутствие поля означает «уровень не прочитан»."
+                },
+                "badge": {
+                  "type": "string",
+                  "description": "Метка справа от подписи."
+                },
+                "badgeTone": {
+                  "type": "string",
+                  "enum": ["default", "secondary", "destructive", "outline"],
+                  "description": "Тон метки."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Подсказка при наведении; по умолчанию label."
+                },
+                "disabled": {
+                  "type": "boolean",
+                  "description": "Строку нельзя выбрать."
+                },
+                "loading": {
+                  "type": "boolean",
+                  "description": "Уровень читается прямо сейчас — вместо треугольника спиннер."
+                },
+                "failed": {
+                  "type": "boolean",
+                  "description": "Уровень не прочитался — подпись становится тревожной."
+                }
+              }
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка в триггере, пока ничего не выбрано.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Выберите файл..."
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "searchPlaceholder": {
+            "type": "string",
+            "description": "Подсказка в поле поиска над деревом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Поиск..."
+          },
+          "selectable": {
+            "type": "string",
+            "enum": ["all", "leaf"],
+            "default": "leaf",
+            "description": "Что можно выбрать. leaf — выбор файла: щелчок по каталогу его раскрывает. all разрешает выбрать и каталог.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'all' | 'leaf'",
+              "kind": "enum"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Адрес выбранного узла (node.id). null — ничего не выбрано."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Выбор; при очистке приходит null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "loadChildren": {
+            "group": "Options",
+            "type": "(node: TreeNode | null) => Promise<readonly TreeNode[]>",
+            "description": "Ленивое чтение уровня при первом раскрытии ветки; null — верхний уровень. В JSON-форме недостижим: требует функцию — передаётся через реестр компонентов."
+          }
+        },
+        "x-inherits": {
+          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
+          "packages": []
+        }
+      },
+      "variantGroup": "Combobox",
+      "variant": "Дерево"
+    },
+    {
+      "name": "ComboboxTreeMulti",
+      "role": "field",
+      "exportName": "ComboboxTreeMultiField",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс триггера.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "clearable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Показывать крестик сброса всего выбора справа от триггера.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "defaultExpandedIds": {
+            "type": "array",
+            "description": "Ветки, раскрытые при открытии списка. Пути до выбранных узлов раскрываются и без него.",
+            "x-doc": {
+              "group": "State",
+              "type": "string[]",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "emptyText": {
+            "type": "string",
+            "description": "Текст пустого состояния (по запросу ничего не совпало).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Ничего не найдено"
+          },
+          "id": {
+            "type": "string",
+            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "Потолок числа выбранных: по достижении невыбранные строки гаснут. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number",
+              "kind": "number"
+            },
+            "minimum": 1
+          },
+          "maxRows": {
+            "type": "number",
+            "description": "Сколько строк дерева показать в поповере до появления прокрутки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number",
+              "kind": "number"
+            },
+            "minimum": 1,
+            "default": 12
+          },
+          "nodes": {
+            "type": "array",
+            "description": "Узлы верхнего уровня. Поиск идёт по label; значением поля становятся id выбранных узлов.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ id; label; kind?; children?; badge?; … }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["id", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Адрес узла, уникальный в пределах дерева."
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Видимая подпись строки; по ней идёт поиск."
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["branch", "leaf"],
+                  "description": "Ветка или лист. По умолчанию выводится из наличия children."
+                },
+                "children": {
+                  "type": "array",
+                  "description": "Дети — такие же узлы (вложенность схемой не проверяется). У ветки отсутствие поля означает «уровень не прочитан»."
+                },
+                "badge": {
+                  "type": "string",
+                  "description": "Метка справа от подписи."
+                },
+                "badgeTone": {
+                  "type": "string",
+                  "enum": ["default", "secondary", "destructive", "outline"],
+                  "description": "Тон метки."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Подсказка при наведении; по умолчанию label."
+                },
+                "disabled": {
+                  "type": "boolean",
+                  "description": "Строку нельзя выбрать."
+                },
+                "loading": {
+                  "type": "boolean",
+                  "description": "Уровень читается прямо сейчас — вместо треугольника спиннер."
+                },
+                "failed": {
+                  "type": "boolean",
+                  "description": "Уровень не прочитался — подпись становится тревожной."
+                }
+              }
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка в триггере, пока ничего не выбрано.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Выберите файлы..."
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "searchPlaceholder": {
+            "type": "string",
+            "description": "Подсказка в поле поиска над деревом.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Поиск..."
+          },
+          "selectable": {
+            "type": "string",
+            "enum": ["all", "leaf"],
+            "default": "leaf",
+            "description": "Что можно выбрать. leaf — выбор файлов: щелчок по каталогу его раскрывает. all разрешает выбрать и каталог.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'all' | 'leaf'",
+              "kind": "enum"
+            }
+          },
+          "summaryThreshold": {
+            "type": "number",
+            "description": "Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N».",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number",
+              "kind": "number"
+            },
+            "minimum": 1,
+            "default": 3
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string[] | null",
+            "description": "Адреса выбранных узлов (node.id). Пустой выбор приходит как null, а не []: массив в начальном значении модели создал бы ArrayNode, и поля не было бы вовсе."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string[] | null) => void",
+            "description": "Изменение выбора; снятие последнего значения → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "loadChildren": {
+            "group": "Options",
+            "type": "(node: TreeNode | null) => Promise<readonly TreeNode[]>",
+            "description": "Ленивое чтение уровня при первом раскрытии ветки; null — верхний уровень. В JSON-форме недостижим: требует функцию — передаётся через реестр компонентов."
+          }
+        },
+        "x-inherits": {
+          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
+          "packages": []
+        }
+      },
+      "variantGroup": "Combobox",
+      "variant": "Дерево, несколько"
     },
     {
       "name": "Command",
@@ -23418,6 +23891,316 @@
       },
       "compoundParent": "Tooltip",
       "palette": false
+    },
+    {
+      "name": "Tree",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-registryName": "Tree",
+        "properties": {
+          "checkOn": {
+            "type": "string",
+            "enum": ["modifier", "click"],
+            "default": "modifier",
+            "description": "Как строка попадает в набор: modifier — навигатор файлов (щелчок заменяет набор, Ctrl/Shift его строят), click — выбор из списка (щелчок и пробел переключают членство).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'modifier' | 'click'",
+              "kind": "enum"
+            }
+          },
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс контейнера дерева.",
+            "x-doc": {
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "defaultCheckedIds": {
+            "type": "array",
+            "description": "Отмеченный набор на старте (неуправляемо).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "readonly string[]"
+            }
+          },
+          "defaultExpandedIds": {
+            "type": "array",
+            "description": "Адреса веток, раскрытых на старте (неуправляемо).",
+            "x-doc": {
+              "group": "State",
+              "type": "string[]",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "string"
+            }
+          },
+          "defaultSelectedId": {
+            "type": "string",
+            "description": "Выделенный узел на старте (неуправляемо).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string | null"
+            }
+          },
+          "emptyText": {
+            "type": "string",
+            "description": "Текст пустого дерева.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            },
+            "default": "Пусто"
+          },
+          "expandedIds": {
+            "type": "array",
+            "description": "Раскрытые ветки (управляемо). Без него дерево держит раскрытие само.",
+            "x-doc": {
+              "group": "State",
+              "type": "string[]",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string",
+            "description": "id контейнера дерева — по нему подпись снаружи связывается с деревом.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "indent": {
+            "type": "number",
+            "description": "Отступ уровня, px. По умолчанию 12.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "indentBase": {
+            "type": "number",
+            "description": "Отступ первого уровня от левого края, px. По умолчанию 8.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "maxRows": {
+            "type": "number",
+            "description": "Сколько строк показать до появления прокрутки. Задаёт высоту по содержимому; без него высоту задаёт className вызывающего.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number",
+              "kind": "number"
+            },
+            "minimum": 1
+          },
+          "nodes": {
+            "type": "array",
+            "description": "Узлы верхнего уровня. Не задан вместе с loadChildren — верхний уровень дерево прочитает само.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ id; label; kind?; children?; badge?; … }>",
+              "kind": "readonly"
+            },
+            "items": {
+              "type": "object",
+              "required": ["id", "label"],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Адрес узла, уникальный в пределах дерева."
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Видимая подпись строки; по ней идёт поиск."
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["branch", "leaf"],
+                  "description": "Ветка или лист. По умолчанию выводится из наличия children."
+                },
+                "children": {
+                  "type": "array",
+                  "description": "Дети — такие же узлы (вложенность схемой не проверяется). У ветки отсутствие поля означает «уровень не прочитан»."
+                },
+                "badge": {
+                  "type": "string",
+                  "description": "Метка справа от подписи."
+                },
+                "badgeTone": {
+                  "type": "string",
+                  "enum": ["default", "secondary", "destructive", "outline"],
+                  "description": "Тон метки."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Подсказка при наведении; по умолчанию label."
+                },
+                "disabled": {
+                  "type": "boolean",
+                  "description": "Строку нельзя выбрать."
+                },
+                "loading": {
+                  "type": "boolean",
+                  "description": "Уровень читается прямо сейчас — вместо треугольника спиннер."
+                },
+                "failed": {
+                  "type": "boolean",
+                  "description": "Уровень не прочитался — подпись становится тревожной."
+                }
+              }
+            }
+          },
+          "rowHeight": {
+            "type": "number",
+            "description": "Высота строки, px. На ней стоит виртуальный скролл.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number",
+              "kind": "number"
+            },
+            "minimum": 1,
+            "default": 24
+          },
+          "search": {
+            "type": "string",
+            "default": "",
+            "description": "Поисковый запрос по подписи. Путь до совпадения раскрывается на время поиска; фильтр видит только прочитанные уровни.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "selectable": {
+            "type": "string",
+            "enum": ["all", "leaf"],
+            "default": "all",
+            "description": "Что можно выбрать. leaf — режим выбора файла: щелчок по ветке её раскрывает.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'all' | 'leaf'",
+              "kind": "enum"
+            }
+          },
+          "selectionMode": {
+            "type": "string",
+            "enum": ["single", "multiple"],
+            "default": "single",
+            "description": "Режим выбора: один узел (курсор) или курсор плюс отмеченный набор.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'single' | 'multiple'",
+              "kind": "enum"
+            }
+          },
+          "virtualized": {
+            "type": "boolean",
+            "default": true,
+            "description": "Виртуальный скролл. Выключают там, где дерево заведомо короткое, а разметка нужна целиком (серверная отрисовка).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean",
+              "kind": "boolean"
+            }
+          }
+        },
+        "x-runtimeProps": {
+          "loadChildren": {
+            "group": "Control",
+            "type": "(node: TreeNode | null) => Promise<readonly TreeNode[]>",
+            "description": "Ленивое чтение уровня при первом раскрытии ветки; null — верхний уровень. Прочитанное запоминается."
+          },
+          "selectedId": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Выделенный узел (управляемо) — «где я сейчас», одна строка."
+          },
+          "onSelectedChange": {
+            "group": "Control",
+            "type": "(id: string | null) => void",
+            "description": "Смена выделения."
+          },
+          "checkedIds": {
+            "group": "Control",
+            "type": "string[]",
+            "description": "Отмеченный набор (управляемо) — «что я выбрал». Отдельно от selectedId: набор и выделение отвечают на разные вопросы."
+          },
+          "onCheckedChange": {
+            "group": "Control",
+            "type": "(ids: string[]) => void",
+            "description": "Смена набора; порядок — порядок строк дерева."
+          },
+          "onExpandedChange": {
+            "group": "Control",
+            "type": "(ids: string[]) => void",
+            "description": "Смена раскрытых веток."
+          },
+          "onActivate": {
+            "group": "Control",
+            "type": "(node: TreeNode, meta: { preview: boolean }) => void",
+            "description": "Запуск строки. preview=true — одиночный щелчок или пробел, false — двойной щелчок или Enter. Ветку дерево раскрывает само."
+          },
+          "isNodeDisabled": {
+            "group": "Control",
+            "type": "(node: TreeNode) => boolean",
+            "description": "Запрет выбора поверх node.disabled — для запретов динамических: потолок числа выбранных, права на файл."
+          },
+          "onRowClick": {
+            "group": "Control",
+            "type": "(node: TreeNode, event: React.MouseEvent) => void",
+            "description": "Щелчок ДО правил выбора дерева. Вызвавший preventDefault() берёт строку себе целиком — так потребитель со своими правилами остаётся хозяином, не отказываясь от отрисовки."
+          },
+          "onRowDoubleClick": {
+            "group": "Control",
+            "type": "(node: TreeNode, event: React.MouseEvent) => void",
+            "description": "Двойной щелчок ДО запуска строки; preventDefault отменяет запуск."
+          },
+          "onContextMenu": {
+            "group": "Control",
+            "type": "(event: React.MouseEvent) => void",
+            "description": "Правый щелчок по дереву целиком; строку потребитель находит по data-tree-id."
+          },
+          "getRowProps": {
+            "group": "Control",
+            "type": "(node: TreeNode, row: TreeRow) => HTMLAttributes",
+            "description": "Доп. атрибуты строки: свои data-*, title, обработчики."
+          },
+          "renderIcon": {
+            "group": "Control",
+            "type": "(node, state: { branch; expanded; selected; checked }) => ReactNode",
+            "description": "Значок строки; возврат null оставляет умолчание (каталог/файл)."
+          },
+          "renderLabel": {
+            "group": "Control",
+            "type": "(node, state) => ReactNode",
+            "description": "Подпись строки; возврат null оставляет node.label."
+          },
+          "renderActions": {
+            "group": "Control",
+            "type": "(node: TreeNode, state) => ReactNode",
+            "description": "Содержимое правого края строки: свои метки, кнопки, подсказки."
+          },
+          "onLoadError": {
+            "group": "Control",
+            "type": "(error: unknown, node: TreeNode | null) => void",
+            "description": "Отказ чтения уровня. По умолчанию пишется в консоль."
+          }
+        },
+        "x-inherits": {
+          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
+          "packages": []
+        }
+      }
     },
     {
       "name": "TypographyBlockquote",

@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Combobox } from './variants/base/combobox-base';
-import { ComboboxField, ComboboxBaseField, ComboboxMulti, ComboboxMultiField } from './index';
+import {
+  ComboboxField,
+  ComboboxBaseField,
+  ComboboxMulti,
+  ComboboxMultiField,
+  ComboboxTree,
+  ComboboxTreeField,
+  ComboboxTreeMulti,
+  ComboboxTreeMultiField,
+} from './index';
+import type { TreeNode } from '@/components/tree';
 
 const OPTS = [
   { value: 'a', label: 'Первый' },
@@ -167,5 +177,144 @@ describe('ComboboxMultiField (field-версия, значение string[] | nu
       <ComboboxMultiField value={null} options={MANY} control={{} as never} />
     );
     expect(html).not.toContain('control=');
+  });
+});
+
+/**
+ * Варианты с деревом. В SSR доступен только триггер — содержимое поповера уходит в Portal,
+ * которого в серверной разметке нет; раскрытие, поиск и ленивое чтение уровня закрываются e2e.
+ */
+const FILES: TreeNode[] = [
+  {
+    id: 'src',
+    label: 'src',
+    kind: 'branch',
+    children: [
+      { id: 'src/index.ts', label: 'index.ts' },
+      { id: 'src/app.tsx', label: 'app.tsx' },
+    ],
+  },
+  { id: 'README.md', label: 'README.md' },
+];
+
+describe('ComboboxTree (вариант tree)', () => {
+  it('рендерит триггер-кнопку с role=combobox', () => {
+    const html = renderToStaticMarkup(<ComboboxTree value={null} nodes={FILES} />);
+    expect(html).toContain('data-slot="popover-trigger"');
+    expect(html).toContain('role="combobox"');
+  });
+
+  it('placeholder показывается при пустом значении', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTree value={null} nodes={FILES} placeholder="Выберите файл" />
+    );
+    expect(html).toContain('Выберите файл');
+    expect(html).toContain('data-slot="combobox-tree-value"');
+  });
+
+  it('подпись выбранного узла показывается в триггере', () => {
+    const html = renderToStaticMarkup(<ComboboxTree value="src/app.tsx" nodes={FILES} />);
+    expect(html).toContain('app.tsx');
+  });
+
+  it('узел из лениво прочитанного уровня показывается адресом — подписи для него нет', () => {
+    // Осознанное поведение, а не потеря: путь однозначен, имя файла — нет.
+    const html = renderToStaticMarkup(<ComboboxTree value="src/lazy/deep.ts" nodes={FILES} />);
+    expect(html).toContain('src/lazy/deep.ts');
+  });
+
+  it('clearable даёт крестик сброса только при непустом значении', () => {
+    const empty = renderToStaticMarkup(<ComboboxTree value={null} nodes={FILES} clearable />);
+    const filled = renderToStaticMarkup(<ComboboxTree value="README.md" nodes={FILES} clearable />);
+    expect(empty).not.toContain('aria-label="Clear selection"');
+    expect(filled).toContain('aria-label="Clear selection"');
+  });
+
+  it('прокидывает id/aria-* на триггер (seam-контракт поля)', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTree
+        value={null}
+        nodes={FILES}
+        id="control-file"
+        aria-labelledby="label-file"
+        aria-invalid
+      />
+    );
+    expect(html).toContain('id="control-file"');
+    expect(html).toContain('aria-labelledby="label-file"');
+    expect(html).toContain('aria-invalid="true"');
+  });
+
+  it('триггер несёт data-testid — от него же строки дерева получают свои', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTree value={null} nodes={FILES} data-testid="input-configFile" />
+    );
+    expect(html).toContain('data-testid="input-configFile"');
+  });
+});
+
+describe('ComboboxTreeField (field-версия, значение string | null)', () => {
+  it('null из формы не роняет рендер', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTreeField value={null} nodes={FILES} placeholder="Пусто" />
+    );
+    expect(html).toContain('Пусто');
+  });
+
+  it('control (renderer-путь) не протекает в DOM', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTreeField value={null} nodes={FILES} control={{} as never} />
+    );
+    expect(html).not.toContain('control=');
+  });
+});
+
+describe('ComboboxTreeMulti (вариант tree-multi)', () => {
+  it('пустой выбор показывает placeholder', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTreeMulti value={[]} nodes={FILES} placeholder="Выберите файлы" />
+    );
+    expect(html).toContain('Выберите файлы');
+  });
+
+  it('выбранные узлы показываются чипами', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTreeMulti value={['src/index.ts', 'README.md']} nodes={FILES} />
+    );
+    expect(html.match(/data-slot="combobox-tree-multi-chip"/g) ?? []).toHaveLength(2);
+    expect(html).toContain('index.ts');
+  });
+
+  it('сверх summaryThreshold чипы схлопываются в сводку', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTreeMulti value={['a', 'b', 'c', 'd']} nodes={FILES} summaryThreshold={3} />
+    );
+    expect(html).toContain('data-slot="combobox-tree-multi-summary"');
+    expect(html).toContain('Выбрано: 4');
+  });
+
+  it('clearable даёт крестик сброса только при непустом выборе', () => {
+    const empty = renderToStaticMarkup(<ComboboxTreeMulti value={[]} nodes={FILES} clearable />);
+    const filled = renderToStaticMarkup(
+      <ComboboxTreeMulti value={['README.md']} nodes={FILES} clearable />
+    );
+    expect(empty).not.toContain('aria-label="Clear selection"');
+    expect(filled).toContain('aria-label="Clear selection"');
+  });
+});
+
+describe('ComboboxTreeMultiField (field-версия, значение string[] | null)', () => {
+  it('null из формы не роняет рендер — адаптер разворачивает его в []', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTreeMultiField value={null} nodes={FILES} placeholder="Пусто" />
+    );
+    expect(html).toContain('Пусто');
+  });
+
+  it('массив из формы доезжает до контрола', () => {
+    const html = renderToStaticMarkup(
+      <ComboboxTreeMultiField value={['src/app.tsx']} nodes={FILES} />
+    );
+    expect(html).toContain('app.tsx');
   });
 });

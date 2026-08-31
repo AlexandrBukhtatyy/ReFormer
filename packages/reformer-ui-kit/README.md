@@ -1,6 +1,6 @@
 # @reformer/ui-kit
 
-Готовый набор из **72 компонентов** на базе [shadcn/ui](https://ui.shadcn.com/)
+Готовый набор из **75 компонентов** на базе [shadcn/ui](https://ui.shadcn.com/)
 (стиль **new-york**, палитра **neutral**, Tailwind CSS v4), интегрированный с формами
 `@reformer/core` через тонкий HOC-слой.
 
@@ -10,9 +10,12 @@
 
 ## Что нового в v7
 
-- **Полный набор shadcn/ui** — 72 компонента (все примитивы shadcn + ReFormer-специфичные:
+- **Полный набор shadcn/ui** — 75 компонентов (все примитивы shadcn + ReFormer-специфичные:
   `Box`, `Section`, `FormField`, `FormArraySection`, `FormWizard`, `AsyncBoundary`,
-  `InputMask`, `InputPassword`, `ExampleCard`).
+  `InputMask`, `InputPassword`, `Tree`, `ExampleCard`).
+- **Дерево** — `Tree`: плотный навигатор по иерархии (файлы, категории, оргструктура) с ленивым
+  чтением уровней и виртуальным скроллом. Само дерево не поле формы, но на нём стоят варианты
+  комбобокса `ComboboxTree` и `ComboboxTreeMulti` — выбор файла и набора файлов.
 - **Каталог-на-компонент + «Варианты»** — каждый компонент лежит под `variants/`; `base` — чистый
   shadcn-примитив, функциональные варианты (`async`, `number`, …) — пресеты под юзкейс.
 - **Чистый shadcn + HOC** — примитивы не знают про формы; form-интеграцию добавляет
@@ -71,7 +74,7 @@ src/components/<cmp>/
 ## Импорты
 
 ```tsx
-// Из корневого barrel (60 «лёгких» компонентов)
+// Из корневого barrel (62 «лёгких» компонента)
 import { Input, Select, Checkbox, Button, Box, FormField } from '@reformer/ui-kit';
 
 // Через subpath отдельного компонента (tree-shaking)
@@ -141,9 +144,16 @@ event-shape примитива (`nativeInputAdapter`, `checkedAdapter`, `valueCh
 | DatePicker        | `DatePickerBaseField`                | `DatePickerField`                  |
 | Combobox          | `ComboboxBaseField`                  | `ComboboxField`                    |
 | ComboboxMulti     | `ComboboxMultiField`                 | — (множественный выбор)            |
+| ComboboxTree      | `ComboboxTreeField`                  | — (узел иерархии, обычно файл)     |
+| ComboboxTreeMulti | `ComboboxTreeMultiField`             | — (набор узлов иерархии)           |
 
 В M1-схеме поля `component` указывает на **field-версию** (не на голый примитив): `<FormField>` подаёт
 контролу резолвленные `value` / `onChange(value)`, которые понимает только `*Field`.
+
+`Tree` в этой таблице нет намеренно: у него нет ни `value`, ни `onChange`, и `TreeField` не
+существует. Это компонент отображения — раскрытие, выделение и отмеченный набор он держит сам,
+а наружу отдаёт события. Когда от иерархии нужно именно значение поля, в форму ставят
+`ComboboxTreeField` / `ComboboxTreeMultiField`, построенные поверх того же `Tree`.
 
 > **Альтернатива для рендер-пути.** С `@reformer/renderer-react` (и через наследование
 > `@reformer/renderer-json`) сырой примитив можно зарегистрировать как `component` прямо в

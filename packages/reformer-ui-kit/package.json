@@ -313,6 +313,10 @@
       "types": "./dist/tooltip.d.ts",
       "import": "./dist/tooltip.js"
     },
+    "./tree": {
+      "types": "./dist/tree.d.ts",
+      "import": "./dist/tree.js"
+    },
     "./typography": {
       "types": "./dist/typography.d.ts",
       "import": "./dist/typography.js"

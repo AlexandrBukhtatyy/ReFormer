@@ -294,3 +294,55 @@ describe('контекстное меню', () => {
     fixture.unmount();
   });
 });
+
+describe('строка дерева', () => {
+  it('щелчок по треугольнику раскрывает каталог и НИЧЕГО не выбирает', async () => {
+    // До переезда на кит обработчик треугольника был мёртвым: `ItemMedia` гасит указатель
+    // у любого вложенного `svg`, и щелчок проваливался на строку — раскрытие происходило
+    // «заодно» с выбором. Теперь это два разных действия, и тест держит границу.
+    const fixture = await mountTree();
+
+    const chevron = document.querySelector<HTMLElement>(
+      '[data-tree-id="mem:forms"] [data-slot="tree-item-chevron"]'
+    );
+    expect(chevron).not.toBeNull();
+    await userEvent.click(page.elementLocator(chevron as HTMLElement));
+
+    await expect.element(page.getByText('credit.json')).toBeVisible();
+    expect(document.querySelectorAll('[data-checked]').length).toBe(0);
+    expect(document.querySelectorAll('[data-selected]').length).toBe(0);
+    expect(fixture.opened).toEqual([]);
+
+    fixture.unmount();
+  });
+
+  it('строка ровно в 24 пикселя: на этой высоте стоит виртуальный скролл', async () => {
+    // Проверяется в браузере, потому что это ФАКТИЧЕСКАЯ высота после каскада, а не класс:
+    // в jsdom `getBoundingClientRect` вернул бы нули.
+    const fixture = await mountTree();
+
+    const row = document.querySelector<HTMLElement>('[data-tree-id="mem:package.json"]');
+    expect(row).not.toBeNull();
+    expect((row as HTMLElement).getBoundingClientRect().height).toBe(24);
+
+    fixture.unmount();
+  });
+
+  it('Escape снимает набор, ничего при этом не открыв', async () => {
+    const fixture = await mountTree();
+
+    await userEvent.click(page.getByText('package.json'));
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll('[data-checked]').length).toBe(1);
+    });
+    fixture.opened.length = 0;
+
+    await userEvent.keyboard('{Escape}');
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll('[data-checked]').length).toBe(0);
+    });
+    expect(fixture.opened).toEqual([]);
+
+    fixture.unmount();
+  });
+});

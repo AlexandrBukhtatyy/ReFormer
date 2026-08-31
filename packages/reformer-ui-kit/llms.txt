@@ -115,6 +115,7 @@ import {
   Box,
   Section,
   Collapsible,
+  Tree,
   cn,
 } from '@reformer/ui-kit';
 ```
@@ -235,7 +236,9 @@ function RegistrationPage() {
 | `Toggle`     | `ToggleField`        | `ToggleGroup` | `ToggleGroupField`    |
 
 Множественный выбор — отдельные компоненты без примитива-пары: `SelectMultiField`,
-`NativeSelectMultiField`, `ComboboxMultiField`, `ToggleGroupMultiField`. Полная таблица вариантов
+`NativeSelectMultiField`, `ComboboxMultiField`, `ComboboxTreeMultiField`,
+`ToggleGroupMultiField`. Выбор из иерархии — `ComboboxTreeField` (примитив `ComboboxTree`);
+сам `Tree` `*Field`-версии не имеет, потому что он не поле формы. Полная таблица вариантов
 (`InputNumberField`, `SelectAsyncField`, …) — в `README.md` пакета.
 
 ## 5. Components
@@ -251,6 +254,8 @@ function RegistrationPage() {
 | `Checkbox` / `CheckboxField`    | Чекбокс с label рядом с контролом.                         | [03-choice-fields.md](03-choice-fields.md)                    |
 | `RadioGroup` / `RadioGroupField`| Группа радио-кнопок из массива `options`.                  | [03-choice-fields.md](03-choice-fields.md)                    |
 | `Select` / `SelectField` (+ 8 sub-компонентов) | Выпадающий список с inline `options` или async `resource`. | [03-choice-fields.md](03-choice-fields.md)   |
+| `Combobox` / `ComboboxField` (+ `Multi`, `Tree`, `TreeMulti`) | Поле с поиском; варианты `Tree*` выбирают узел иерархии (файл). | [03-choice-fields.md](03-choice-fields.md) |
+| `Tree`                          | Дерево с ленивым чтением уровней и виртуализацией. **Не поле формы.** | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
 | `Button`                        | Кнопка с вариантами (`variant`, `size`, `asChild`).        | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
 | `AsyncBoundary` (+ `*Loading`, `*Error`, `*Empty`) | Состояния загрузки `idle`/`loading`/`ready`/`error` со встроенными блоками. | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
 | `ExampleCard`                   | Карточка-обёртка для демо в playground.                    | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
@@ -267,8 +272,8 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 ## 6. See also
 
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
-- [03-choice-fields.md](03-choice-fields.md) — `Checkbox`, `RadioGroup`, `Select`.
-- [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `ExampleCard`, `cn`.
+- [03-choice-fields.md](03-choice-fields.md) — `Checkbox`, `RadioGroup`, `Select`, мультивыборы, варианты дерева у `Combobox`.
+- [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `Tree`, `ExampleCard`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные проблемы и решения.
 - [11-form-layout.md](11-form-layout.md) — отступы, сетка полей, группировка и секции.
@@ -945,7 +950,7 @@ const form = createForm<{ city: string }>({ model, schema });
 
 ## 16. Multi-select
 
-Четыре контрола множественного выбора. Все четыре — **отдельные записи реестра**, а не режим
+Пять контролов множественного выбора. Все пять — **отдельные записи реестра**, а не режим
 одиночных: тип значения другой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у
 `FileUpload` / `FileUploadAvatar`).
 
@@ -955,6 +960,7 @@ const form = createForm<{ city: string }>({ model, schema });
 | `ComboboxMulti`          | Popover + Command (cmdk) + Badge        | длинный список с поиском; есть `creatable`                        |
 | `SelectMulti`            | Popover + свой listbox                  | длинный список, в т.ч. асинхронный (`resource`); **без cmdk**     |
 | `NativeSelectMulti`      | нативный `<select multiple>`            | no-JS / legacy / киоски. **Не для тач-устройств**                 |
+| `ComboboxTreeMulti`      | Popover + `Tree` кита; **без cmdk**     | значения лежат в иерархии: файлы, разделы каталога                |
 
 ### Единый контракт значения
 
@@ -979,7 +985,8 @@ const model = createModel({ tags: [] });
 ### Использование в схеме
 
 ```typescript
-import { ToggleGroupMultiField, ComboboxMultiField } from '@reformer/ui-kit';
+import { ToggleGroupMultiField } from '@reformer/ui-kit';
+import { ComboboxMultiField } from '@reformer/ui-kit/combobox'; // combobox — только subpath
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
@@ -1044,20 +1051,168 @@ const validation = defineValidationSchema<Form>(({ model }) => {
 - `placeholder` у `NativeSelectMulti` — его нет намеренно: в multiple-листбоксе `<option value="">`
   становится выбираемым мусорным пунктом.
 
-## 17. See also
+## 17. Combobox: варианты дерева
 
+Два варианта комбобокса показывают в поповере не плоский список, а иерархию — тот самый `Tree`
+кита (см. [04-layout-and-buttons.md](04-layout-and-buttons.md)). Берут их там, где значение
+адресуется путём, а не выбирается из перечня: файл в репозитории, раздел каталога, узел
+оргструктуры.
+
+| Field-компонент          | `value` в модели                  | Что выбирается            |
+| ------------------------ | --------------------------------- | ------------------------- |
+| `ComboboxTreeField`      | `string \| null` — адрес узла     | один узел, обычно файл    |
+| `ComboboxTreeMultiField` | `string[] \| null` — адреса узлов | набор узлов, обычно файлы |
+
+Оба живут вне главного barrel:
+
+```typescript
+import { ComboboxTreeField, ComboboxTreeMultiField } from '@reformer/ui-kit/combobox';
+import type { TreeNode } from '@reformer/ui-kit';
+```
+
+Subpath `./combobox` тянет опциональный peer `cmdk` — не ради дерева (в нём cmdk нет намеренно),
+а ради базового варианта, который отдаёт тот же barrel.
+
+### Key Concepts
+
+- **Значение — `node.id`, а не подпись.** Подпись в триггере берётся из объявленного дерева, а
+  если узел пришёл из лениво прочитанного уровня — показывается сам адрес. Для файлов это и
+  нужно: путь однозначен, имя файла — нет.
+- **`selectable` по умолчанию `'leaf'`** — в отличие от самого `Tree`, где умолчание `'all'`.
+  Щелчок по каталогу раскрывает его, а не выбирает; выбрать можно только лист. `'all'` ставят
+  там, где значением бывает и ветка (раздел каталога).
+- **Пустой выбор мульти — `null`, никогда `[]`** (тот же контракт и та же причина, что у
+  остальных мультивыборов, см. «Единый контракт значения» выше). Компонент при этом видит
+  массив: `multiValueAdapter` разворачивает `null` в `[]` на входе и сворачивает пустой выбор
+  обратно в `null` на выходе.
+- **Обязательность — только `required()`.** `minLength(1)` на пустом выборе делает ранний
+  `return null` и пропускает его.
+- **Одиночный закрывает поповер по выбору**, мульти — **нет**: набор файлов собирают одним
+  заходом, и поиск между выборами тоже не сбрасывается. `onBlur` у обоих эмитится на закрытии
+  поповера, а не на каждом выборе.
+- **Членство в мульти переключается щелчком по строке**, отметка — галочка справа. Чекбокса
+  слева нет намеренно: там уже треугольник раскрытия и значок типа узла, третий значок сделал бы
+  уровень нечитаемым.
+- **Поиск свой, не cmdk**: фильтрует само дерево, достраивая путь до совпадения. Видит только
+  **прочитанные** уровни; непрочитанная ветка при этом остаётся в выдаче — её содержимое ещё не
+  за что судить, и человек может открыть её руками.
+- **`maxItems` — подсказка интерфейса**, а не правило формы: по достижении потолка невыбранные
+  строки гаснут. Авторитетное ограничение задаёт `maxLength(n)`.
+- **Путь до выбранного раскрывается сам** — но только по объявленному `nodes`. У ленивого
+  источника предков не знает никто, пока уровень не прочитан; нужные ветки перечисляют в
+  `defaultExpandedIds`.
+
+Остальные пропы обоих вариантов: `placeholder` (`'Выберите файл...'` / `'Выберите файлы...'`),
+`searchPlaceholder` (`'Поиск...'`), `emptyText` (`'Ничего не найдено'`), `clearable` (`false`),
+`maxRows` (12 строк до прокрутки), у мульти ещё `summaryThreshold` (3 — дальше чипы схлопываются
+в «Выбрано: N»).
+
+### Common Patterns
+
+Выбор одного файла из объявленного дерева:
+
+```tsx
+import { createModel, createForm } from '@reformer/core';
+import { FormField } from '@reformer/ui-kit';
+import { ComboboxTreeField } from '@reformer/ui-kit/combobox';
+import type { TreeNode } from '@reformer/ui-kit';
+
+// id — полный путь: два index.ts в разных каталогах обязаны различаться.
+const FILES: TreeNode[] = [
+  {
+    id: 'src',
+    label: 'src',
+    children: [
+      { id: 'src/index.ts', label: 'index.ts' },
+      { id: 'src/app.tsx', label: 'app.tsx' },
+    ],
+  },
+  { id: 'package.json', label: 'package.json' },
+];
+
+const model = createModel<{ entry: string | null }>({ entry: null });
+const schema = {
+  entry: {
+    value: model.$.entry,
+    component: ComboboxTreeField,
+    componentProps: {
+      label: 'Точка входа',
+      nodes: FILES,
+      defaultExpandedIds: ['src'],
+      clearable: true,
+      testId: 'entry',
+    },
+  },
+};
+const form = createForm<{ entry: string | null }>({ model, schema });
+
+<FormField control={form.entry} testId="entry" />;
+```
+
+Набор файлов из ленивого источника — значение поля `string[] | null`, поэтому сигнал берётся
+через `signalAt`, а правила живут в отдельной validation-схеме:
+
+```typescript
+import { ComboboxTreeMultiField } from '@reformer/ui-kit/combobox';
+import { defineValidationSchema, validate } from '@reformer/core/validation';
+import { required, maxLength } from '@reformer/core/validators';
+
+type Form = { attachments: string[] | null };
+
+const model = createModel<Form>({ attachments: null }); // не [] — иначе поля не будет
+const schema = {
+  attachments: {
+    value: model.signalAt('attachments')!,
+    component: ComboboxTreeMultiField,
+    componentProps: {
+      label: 'Файлы заявки',
+      // Уровень читается при первом раскрытии ветки; null — верхний уровень.
+      loadChildren: (node) => fs.list(node?.id ?? '/'),
+      maxItems: 5,
+      testId: 'attachments',
+    },
+  },
+};
+
+const validation = defineValidationSchema<Form>(({ model }) => {
+  validate(model.signalAt('attachments')!, [required(), maxLength(5)]);
+});
+```
+
+### Anti-patterns
+
+- Начальное значение мульти `[]` вместо `null` — поле молча исчезает; симптомы разобраны в
+  [06-troubleshooting.md](06-troubleshooting.md), пункт 12.
+- `minLength(1)` вместо `required()` для обязательности — пустой выбор приходит как `null`, и
+  правило выходит раньше проверки.
+- Одинаковые `node.id` у разных узлов (имя файла вместо полного пути) — раскрытие, выделение и
+  отметка адресуются одним и тем же ключом, поэтому две строки начинают вести себя как одна.
+- Ждать, что поиск найдёт файл в непрочитанном каталоге. Фильтр не ходит за уровнями: ради
+  подсветки одной строки пришлось бы обойти весь источник. Нужен сквозной поиск — ищите на
+  сервере и подавайте `nodes` уже отфильтрованными.
+- Полагаться на `maxItems` как на валидацию — это только гашение строк в интерфейсе, форма о нём
+  ничего не знает.
+- Импортировать `ComboboxTree*` из `'@reformer/ui-kit'` — их там нет, `combobox` живёт только в
+  своём subpath.
+- Ставить в схему примитив `ComboboxTree` / `ComboboxTreeMulti` вместо `*Field`-версии —
+  value-seam остаётся неподключённым, поле рисуется и не реагирует на выбор.
+
+## 18. See also
+
+- [04-layout-and-buttons.md](04-layout-and-buttons.md) — сам `Tree`: узлы, ленивое чтение уровней, виртуализация.
 - [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов (open/close/clear).
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт `Checkbox` и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».
 
-## 18. Button
+## 19. Button
 
 **Layout and buttons**
 
-Компоненты, не привязанные к `FieldNode`: `Button`, `AsyncBoundary`,
+Компоненты, не привязанные к `FieldNode`: `Button`, `AsyncBoundary`, `Tree`,
 `ExampleCard`, утилита `cn`. Используются как для основных действий формы
-(submit, prev/next в wizard), так и для playground-демонстраций.
+(submit, prev/next в wizard), для показа данных рядом с ней и для
+playground-демонстраций.
 
 Кнопка на shadcn/Radix `Slot`. Поддерживает 6 вариантов внешнего вида, 6
 размеров и режим `asChild` для замены DOM-узла (типичный кейс — превратить
@@ -1172,7 +1327,7 @@ import { PlusIcon } from 'lucide-react';
   вариант-опций — теряется консистентность темы.
 - `size="icon"` без иконки — будет квадрат `h-9 w-9` без видимого контента.
 
-## 19. AsyncBoundary
+## 20. AsyncBoundary
 
 Контейнер состояний загрузки данных: `idle` / `loading` / `ready` / `error`.
 Стилизованная обёртка над headless `AsyncBoundary` из `@reformer/cdk/async-boundary`.
@@ -1316,7 +1471,169 @@ Controlled — когда загрузкой владеет кто-то друг
   это разные механизмы. `AsyncBoundary` — простая state-машина, не
   перехватывает throw.
 
-## 20. ExampleCard
+## 21. Tree
+
+Плотное дерево с уровнями — файловый навигатор редактора, а не раскрывающийся список. Показывает
+иерархию: дерево проекта, разделы каталога, оргструктуру. Живёт в главном barrel
+(`@reformer/ui-kit`) и в своём subpath (`@reformer/ui-kit/tree`); тяжёлых зависимостей не тянет.
+
+**`Tree` — не поле формы.** У него нет ни `value`, ни `onChange`, и `TreeField` не существует:
+раскрытие, выделение и отмеченный набор он держит сам, а наружу отдаёт события. Когда от иерархии
+нужно именно значение поля, берут построенные поверх него `ComboboxTreeField` /
+`ComboboxTreeMultiField` — см. [03-choice-fields.md](03-choice-fields.md).
+
+### Key Concepts
+
+- **Два источника узлов.** `nodes` — дерево объявлено целиком; `loadChildren(node)` — уровень
+  читается при первом раскрытии ветки (`null` — верхний уровень). Вместе их не передают.
+- **Прочитанный уровень не забывается.** Свернуть и раскрыть обратно — частое движение, и
+  повторного запроса оно не стоит. Перечитать уровень можно только явно — `refresh(id)` у handle.
+- **«Уровень не прочитан» ≠ «детей нет».** У ветки `children: undefined` означает первое, поэтому
+  `kind` объявляют явно: пустой каталог иначе неотличим от файла и теряет треугольник.
+- **Выделение и отмеченный набор — разное.** `selectedId` это «где я сейчас» (одна строка, туда же
+  уходит фокус), `checkedIds` — «что я выбрал» (сколько угодно строк, и строка с фокусом может в
+  набор не входить). Свести их в один список нельзя: тогда клавиатура теряет точку отсчёта для
+  диапазона.
+- **Две идиомы набора, а не россыпь флагов.** `checkOn='modifier'` (умолчание) — навигатор файлов:
+  щелчок заменяет набор, Ctrl/Cmd пополняет, Shift берёт диапазон, `Escape` снимает набор.
+  `checkOn='click'` — выбор из списка: щелчок и пробел переключают членство, `Escape` уходит
+  наверх (в поповере его ждёт закрытие). Обе действуют при `selectionMode='multiple'`.
+- **`selectable`** — `'all'` (умолчание) или `'leaf'`. При `'leaf'` щелчок по ветке раскрывает её,
+  а не выбирает: иначе до файлов внутри было бы не добраться мышью.
+- **Виртуальный скролл включён по умолчанию.** Строки фиксированной высоты (24 px), в разметке
+  живёт только видимое окно: раскрытый каталог реального проекта — тысячи строк, и у каждой свои
+  обработчики. `virtualized={false}` — там, где разметка нужна целиком (серверная отрисовка
+  страницы документации).
+- **`maxRows` задаёт высоту по содержимому** — то, что нужно списку в поповере: короткое дерево не
+  оставляет пустоты, длинное не растёт бесконечно. Без него высоту задаёт вызывающий через
+  `className` (например `h-full` в панели), и прокрутка появляется от неё.
+- **Поиск фильтрует само дерево**, достраивая путь до совпадения: ветки на пути раскрываются на
+  время поиска и возвращаются в прежнее состояние, когда запрос убран. Видит только прочитанные
+  уровни; непрочитанная ветка остаётся в выдаче — судить её содержимое ещё не по чему.
+- **`node.id` — адрес, уникальный в пределах всего дерева.** По нему идут раскрытие, выбор, фокус
+  и `data-testid` строки. Для файлов это полный путь, а не имя.
+- **Клавиатура принадлежит дереву** и глушится: стрелки (влево — свернуть либо уйти к родителю,
+  вправо — раскрыть либо шагнуть вниз), `Home`/`End`, `Enter` (запуск), пробел (предпросмотр, а в
+  идиоме `'click'` — переключение членства), `Escape`. Сочетания с модификатором уходят наверх
+  целиком: перехватив `mod+c`, дерево отняло бы у команды копирования её единственную дверь.
+
+### API
+
+```typescript
+interface TreeNode {
+  id: string; // адрес, уникальный в пределах дерева; для файлов — полный путь
+  label: string; // подпись; по ней же идёт поиск
+  kind?: 'branch' | 'leaf'; // умолчание выводится из наличия поля children
+  children?: readonly TreeNode[];
+  badge?: string;
+  badgeTone?: 'default' | 'secondary' | 'destructive' | 'outline';
+  title?: string; // подсказка при наведении; по умолчанию label
+  disabled?: boolean; // выбрать нельзя; раскрыть по-прежнему можно
+  loading?: boolean; // уровень читается — вместо треугольника спиннер
+  failed?: boolean; // уровень не прочитался: нет прав, каталог исчез
+}
+```
+
+| Prop                                                        | Тип                                               | Default           | Описание                                                                          |
+| ----------------------------------------------------------- | ------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------- |
+| `nodes`                                                     | `readonly TreeNode[]`                             | —                 | Узлы верхнего уровня объявленного дерева.                                         |
+| `loadChildren`                                              | `(node: TreeNode \| null) => Promise<TreeNode[]>` | —                 | Ленивое чтение уровня; `null` — верхний уровень.                                  |
+| `expandedIds` / `defaultExpandedIds`                        | `readonly string[]`                               | —                 | Раскрытые ветки: управляемо / на старте.                                          |
+| `selectedId` / `defaultSelectedId`                          | `string \| null`                                  | —                 | Выделенная строка: управляемо / на старте.                                        |
+| `checkedIds` / `defaultCheckedIds`                          | `readonly string[]`                               | —                 | Отмеченный набор: управляемо / на старте.                                         |
+| `onExpandedChange` / `onSelectedChange` / `onCheckedChange` | функция                                           | —                 | Изменение соответствующего состояния.                                             |
+| `selectionMode`                                             | `'single' \| 'multiple'`                          | `'single'`        | Есть ли отмеченный набор помимо выделения.                                        |
+| `checkOn`                                                   | `'modifier' \| 'click'`                           | `'modifier'`      | Как строка попадает в набор.                                                      |
+| `selectable`                                                | `'all' \| 'leaf'`                                 | `'all'`           | Что можно выбрать.                                                                |
+| `isNodeDisabled`                                            | `(node) => boolean`                               | —                 | Динамический запрет выбора поверх `node.disabled`.                                |
+| `onActivate`                                                | `(node, { preview }) => void`                     | —                 | Запуск строки. `preview: true` — щелчок/пробел, `false` — двойной щелчок/`Enter`. |
+| `onRowClick` / `onRowDoubleClick`                           | `(node, event) => void`                           | —                 | ДО правил дерева; `preventDefault()` забирает строку себе.                        |
+| `onContextMenu` / `getRowProps`                             | функция                                           | —                 | Правый щелчок по дереву; свои атрибуты строки.                                    |
+| `search`                                                    | `string`                                          | —                 | Поисковый запрос (подстрока в `label`, регистр не важен).                         |
+| `emptyText`                                                 | `string`                                          | `'Пусто'`         | Текст пустого дерева.                                                             |
+| `rowHeight` / `indent` / `indentBase`                       | `number`                                          | `24` / `12` / `8` | Высота строки и отступы уровней, px.                                              |
+| `maxRows`                                                   | `number`                                          | —                 | Сколько строк показать до появления прокрутки.                                    |
+| `virtualized`                                               | `boolean`                                         | `true`            | Виртуальный скролл.                                                               |
+| `renderIcon` / `renderLabel` / `renderActions`              | функция                                           | —                 | Значок, подпись, правый край строки.                                              |
+| `onLoadError`                                               | `(error, node) => void`                           | консоль           | Отказ чтения уровня.                                                              |
+| `id` / `data-testid` / `aria-*`                             | `string`                                          | —                 | Связывание с подписью снаружи и адресация в тестах.                               |
+
+Императивный handle (`TreeHandle`: `expand` / `collapse` / `toggle` / `refresh` / `focusNode` /
+`getRows` / `getActionTargets` поверх baseline `FieldHandle`) — в
+[10-imperative-handles.md](10-imperative-handles.md).
+
+Рядом с компонентом пакет отдаёт и его модель: `flattenTree`, `filterTree`, `rangeIds`,
+`actionTargets`, `isBranch`, `useVirtualRows` / `rowRange`, константы `TREE_ROW_HEIGHT` и
+`TREE_ROW_ATTRIBUTE` (`data-tree-id` на строке — по нему обработчик, нарисованный вне дерева,
+находит свою строку).
+
+### Common Patterns
+
+Ленивый файловый источник: уровень читается при первом раскрытии.
+
+```tsx
+import { Tree } from '@reformer/ui-kit';
+
+<Tree
+  loadChildren={(node) => fs.list(node?.id ?? '/')}
+  selectedId={path}
+  onSelectedChange={setPath}
+  selectable="leaf"
+  onActivate={(node, { preview }) => (preview ? openPreview(node.id) : openPinned(node.id))}
+  className="h-full"
+  data-testid="files"
+/>;
+```
+
+Панель проекта с набором строк, к которому применяется действие:
+
+```tsx
+import { useRef } from 'react';
+import { Tree, type TreeHandle } from '@reformer/ui-kit';
+
+const treeRef = useRef<TreeHandle>(null);
+
+<Tree
+  ref={treeRef}
+  nodes={project}
+  selectionMode="multiple" // Ctrl/Cmd — по одной, Shift — диапазон, Escape — снять набор
+  onContextMenu={openMenu}
+  renderActions={(node) => (node.failed ? <AlertIcon /> : null)}
+/>;
+
+// Что удалять: набор, если выделение внутри него, иначе одна выделенная строка.
+const targets = treeRef.current?.getActionTargets() ?? [];
+```
+
+Поиск над деревом — своё поле ввода, дерево фильтрует себя само:
+
+```tsx
+const [query, setQuery] = useState('');
+
+<div className="space-y-2">
+  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Поиск по файлам" />
+  <Tree nodes={project} search={query} maxRows={12} emptyText="Ничего не найдено" />
+</div>;
+```
+
+### Anti-patterns
+
+- Собирать `id` из имени узла — два `index.ts` в разных каталогах схлопнутся в один адрес, и две
+  строки начнут раскрываться и выделяться вместе. Адрес обязан быть уникальным в пределах дерева.
+- Обновлять содержимое ветки заменой `nodes`, когда уровень уже прочитан лениво: прочитанный
+  уровень перекрывает объявленный, и новые данные до строки не дойдут. Перечитывание —
+  `refresh(id)` у handle.
+- Держать `selectedId` и «что выбрано» одним списком — выделение отвечает на «где я», набор на
+  «к чему применится действие»; слитые вместе, они ломают Shift-диапазон и клавиатуру.
+- Оставлять виртуализацию включённой при серверной отрисовке — без метрик вьюпорта в разметку
+  попадает только окно из девяти строк. Для страниц документации `virtualized={false}`.
+- Ставить дерево в форму как поле (`component: Tree`) — value-seam ему нечем принять: ни `value`,
+  ни `onChange` у него нет. Значение из иерархии даёт `ComboboxTreeField`.
+- Обвешивать строки собственными классами фона и рамки: вид строки — часть компонента, а темой
+  управляют токены. Своё содержимое добавляют слотами `renderIcon` / `renderLabel` /
+  `renderActions`.
+
+## 22. ExampleCard
 
 Карточка-демонстрация для playground: заголовок, описание, область с примером
 и переключатель `пример ↔ исходник` с кнопкой копирования.
@@ -1360,7 +1677,7 @@ import { ExampleCard, InputField } from '@reformer/ui-kit';
 - Использовать в продакшене — это playground-utility, не component-library
   primitive. Кнопка переключения «глаз/код» не настраивается.
 
-## 21. cn
+## 23. cn
 
 Утилита для конкатенации Tailwind-классов через `clsx` и `tailwind-merge`.
 Разрешает конфликты (последний выигрывает) — критично для условного оверрайда
@@ -1396,12 +1713,14 @@ const Card = React.forwardRef<HTMLDivElement, { className?: string }>(
 - Передавать массивы/объекты, рассчитывая на shadcn-стиль `cn({active: true})`:
   `clsx`-синтаксис поддерживается, но удобнее писать через `&&`.
 
-## 22. See also
+## 24. See also
 
+- [03-choice-fields.md](03-choice-fields.md) — `ComboboxTreeField` / `ComboboxTreeMultiField`: значение из иерархии.
 - [05-form-field-integration.md](05-form-field-integration.md) — как `Button` используется в `FormWizard.Actions`.
-- [06-troubleshooting.md](06-troubleshooting.md) — «forwardRef + Slot конфликты», «AsyncBoundary не переключает состояние».
+- [10-imperative-handles.md](10-imperative-handles.md) — `TreeHandle`: раскрытие уровней, `refresh`, цели действия.
+- [06-troubleshooting.md](06-troubleshooting.md) — «forwardRef + Slot конфликты», «AsyncBoundary не переключает состояние», ловушки дерева.
 
-## 23. API
+## 25. API
 
 **FormField integration**
 
@@ -1455,7 +1774,7 @@ interface FormFieldProps {
 `control` — это критично для производительности больших форм (при ререндере
 родителя поле не пересчитывается, пока не сменился сам `FieldNode`).
 
-## 24. Common Patterns
+## 26. Common Patterns
 
 ### 1. Standalone
 
@@ -1630,7 +1949,7 @@ const form = createForm<{ accept: boolean }>({ model, schema });
 - Либо вручную скрывать label через `componentProps.label = undefined` и
   оборачивать обвязку самостоятельно.
 
-## 25. Anti-patterns
+## 27. Anti-patterns
 
 - Передавать `control` другого типа (`FormProxy`, `ArrayNode`) — ожидается
   именно `FieldNode<T>`. Для массивов используй `FormArray.Root` из CDK; для
@@ -1646,14 +1965,14 @@ const form = createForm<{ accept: boolean }>({ model, schema });
   баннеров) — обёртка ставит `Label` и слот ошибки, что нелогично. Для такого
   рендерь компоненты напрямую (через container-узлы `Box`/`Section`).
 
-## 26. See also
+## 28. See also
 
 - [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md) — компоненты, которые `FormField` оборачивает.
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button` для submit/prev/next.
 - [06-troubleshooting.md](06-troubleshooting.md) — «label дублируется», «error не появляется», «FormField не подцепляет ошибки».
 - CDK-хуки: [@reformer/cdk/form-field](../../../reformer-cdk/docs/llms/) (`FormField.Root`, `useFormFieldContext`).
 
-## 27. 1. `Input type="number"` возвращает строку, а не число (или `null`)
+## 29. 1. `Input type="number"` возвращает строку, а не число (или `null`)
 
 **Troubleshooting / FAQ**
 
@@ -1681,7 +2000,7 @@ interface Form {
 }
 ```
 
-## 28. 2. `Select` не показывает options (пустой дропдаун)
+## 30. 2. `Select` не показывает options (пустой дропдаун)
 
 **Симптом.** Триггер открывается, но в нём `'No options available'`.
 
@@ -1701,7 +2020,7 @@ interface Form {
   `resource.load` всё равно вызовется. Если сеть упала, `loading` может
   остаться `true`, и UI блокируется. Используй один источник.
 
-## 29. 3. `InputMask` пропускает символы или не вставляет литералы
+## 31. 3. `InputMask` пропускает символы или не вставляет литералы
 
 **Симптом.** Пользователь вводит цифры, но скобки/тире из маски не
 появляются автоматически.
@@ -1724,7 +2043,7 @@ transformValue(form.phone, (raw) => raw?.replace(/\D/g, '') ?? null);
 (`react-imask`, `imask`) и подключай через [`05-form-field-integration.md`](05-form-field-integration.md)
 сценарий 3 (`<FormField><MaskedInput /></FormField>`).
 
-## 30. 4. `forwardRef` + Radix `Slot` конфликты
+## 32. 4. `forwardRef` + Radix `Slot` конфликты
 
 **Симптом.** При `<Button asChild><Link to="/">Go</Link></Button>` падает с
 `Slot: only one child or React.cloneElement is not a function`.
@@ -1762,7 +2081,7 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
 </Button>;
 ```
 
-## 31. 5. `Checkbox` value не сохраняется (всегда `false`)
+## 33. 5. `Checkbox` value не сохраняется (всегда `false`)
 
 **Симптом.** Пользователь чекает, в форме пишется `true`, но при следующем
 рендере чекбокс снова пуст.
@@ -1784,7 +2103,7 @@ const schema = {
 const form = createForm<{ accept: boolean }>({ model, schema });
 ```
 
-## 32. 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
+## 34. 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
 
 **Симптом.** Поле невалидно, `form.email.error` есть, но в DOM ошибка не
 рендерится.
@@ -1822,7 +2141,7 @@ import { FormField } from '@reformer/ui-kit'; // готовый wrapper
 import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 ```
 
-## 33. 7. `onBlur` не срабатывает на `Select` / `RadioGroup`
+## 35. 7. `onBlur` не срабатывает на `Select` / `RadioGroup`
 
 **Симптом.** `touched`-флаг не появляется при выборе значения, поле «вечно»
 без подсветки ошибки.
@@ -1853,7 +2172,7 @@ import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 `FormField` делает это автоматически (читает `componentProps` из `FieldNode`).
 Проблема обычно возникает, если Select используется руками без `FormField`.
 
-## 34. 8. `cn` стирает мои классы или, наоборот, оставляет лишние
+## 36. 8. `cn` стирает мои классы или, наоборот, оставляет лишние
 
 **Симптом.** Передал `className="px-2 py-1"` в компонент, ожидая, что
 overrideнет дефолт `px-3`, но получил оба.
@@ -1872,7 +2191,7 @@ overrideнет дефолт `px-3`, но получил оба.
 //                                    ↑ user override побеждает
 ```
 
-## 35. 9. `AsyncBoundary` не переключает состояние
+## 37. 9. `AsyncBoundary` не переключает состояние
 
 **Симптом.** Пропал `loading`, но `children` не появились.
 
@@ -1906,7 +2225,7 @@ import { AsyncBoundary } from '@reformer/cdk/async-boundary';
 </AsyncBoundary.Root>;
 ```
 
-## 36. 10. `InputPassword`: иконка-«глаз» не появляется
+## 38. 10. `InputPassword`: иконка-«глаз» не появляется
 
 **Симптом.** Прокинул `showToggle={true}` (или оставил дефолт), но в правом
 углу ничего нет.
@@ -1930,7 +2249,7 @@ const hasValue = Boolean(value);
 </div>
 ```
 
-## 37. 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
+## 39. 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
 
 **Симптом.** Регистрируется dataSource `LOAN_TYPES` через `reg.dataSource('LOAN_TYPES', list)`,
 в JSON-схеме `componentProps: { options: '$LOAN_TYPES' }`, но опции пустые.
@@ -1944,12 +2263,12 @@ const hasValue = Boolean(value);
 Внутри `Select` дальнейших магий нет — он просто читает `directOptions`
 один в один.
 
-## 38. 12. Мультивыбор не рендерится, а submit молча не проходит
+## 40. 12. Мультивыбор не рендерится, а submit молча не проходит
 
-**Симптом.** Поле мультивыбора (`SelectMulti` / `ComboboxMulti` / `NativeSelectMulti` /
-`ToggleGroupMulti`) либо роняет `FormField` с `TypeError`, либо тихо рисуется контейнером — с
-подписью и опциями, но без реакции на клик. Кнопка submit при этом не срабатывает, и **ни одной**
-ошибки на экране нет.
+**Симптом.** Поле мультивыбора (`SelectMulti` / `ComboboxMulti` / `ComboboxTreeMulti` /
+`NativeSelectMulti` / `ToggleGroupMulti`) либо роняет `FormField` с `TypeError`, либо тихо
+рисуется контейнером — с подписью и опциями, но без реакции на клик. Кнопка submit при этом не
+срабатывает, и **ни одной** ошибки на экране нет.
 
 **Причина.** Начальное значение поля — `[]`. `createModel` превращает массив в `ArrayNode`,
 `createForm` такой путь пропускает, и `FieldNode` не создаётся вовсе: реестр сигнал→нода пуст.
@@ -1974,13 +2293,71 @@ validate(model.signalAt(tags)!, [required()]);
 `model.signalAt(path)!.value = [...]`; после него нужен `model.captureInitial()`, иначе форма
 считает себя изменённой сразу после загрузки.
 
-## 39. See also
+## 41. 13. Поиск в дереве не находит файл, который точно есть
+
+**Симптом.** В `Tree` (или в поповере `ComboboxTree` / `ComboboxTreeMulti`) вводится имя файла,
+который лежит в неоткрытом каталоге, — в выдаче его нет. Тот же запрос после раскрытия каталога
+руками срабатывает.
+
+**Причина.** Фильтр видит только **прочитанные** уровни. У ленивого источника (`loadChildren`)
+непрочитанный уровень — это данные, которых ещё нет; чтобы поиск их видел, дереву пришлось бы
+обойти весь источник ради подсветки одной строки. Непрочитанная ветка поэтому остаётся в выдаче
+как есть — её содержимое ещё не за что судить.
+
+**Решение.** Сквозной поиск делает тот, кто владеет данными:
+
+```tsx
+// Ищем на сервере и подаём уже отфильтрованное дерево; локальный `search` при этом не нужен.
+const [found, setFound] = useState<TreeNode[] | undefined>(undefined);
+<Tree nodes={found ?? roots} loadChildren={found === undefined ? fs.list : undefined} />;
+```
+
+Для полностью объявленного дерева (`nodes` без `loadChildren`) ограничения нет: прочитано всё.
+
+## 42. 14. Две строки дерева ведут себя как одна
+
+**Симптом.** Раскрытие одного каталога раскрывает и другой; выделение прыгает не на ту строку;
+в `ComboboxTreeMulti` галочка появляется сразу у двух файлов.
+
+**Причина.** Совпали `node.id`. Адрес узла — ключ сразу для всего: раскрытия, выделения,
+отмеченного набора, `data-testid` строки и значения поля. Типичная ошибка — брать `id` из имени
+файла: `index.ts` в `src/` и в `src/utils/` дают один и тот же ключ.
+
+**Решение.** `id` — полный путь, уникальный в пределах всего дерева; `label` — то, что видно:
+
+```typescript
+// ❌ ключ повторится в каждом каталоге
+{ id: 'index.ts', label: 'index.ts' }
+
+// ✅ адрес уникален, подпись остаётся короткой
+{ id: 'src/utils/index.ts', label: 'index.ts' }
+```
+
+## 43. 15. При серверной отрисовке в разметку дерева попадает девять строк
+
+**Симптом.** На странице, отрисованной на сервере (или в снапшот-тесте без layout), у дерева из
+сотни узлов в HTML оказывается девять строк; остальные появляются только после гидратации.
+
+**Причина.** Виртуальный скролл включён по умолчанию и рисует окно по метрикам вьюпорта. Без
+браузера высота вьюпорта — ноль, и окно вырождается в одну строку плюс запас отрисовки.
+
+**Решение.** Там, где разметка нужна целиком — а это ровно случай серверной отрисовки страницы
+документации, — виртуализацию выключают:
+
+```tsx
+<Tree nodes={sections} virtualized={false} />
+```
+
+Обратная сторона честная: без виртуализации в разметке живёт каждая строка со своими
+обработчиками, поэтому для дерева проекта на тысячи узлов так делать нельзя.
+
+## 44. See also
 
 - [01-overview.md](01-overview.md) — список компонентов и их назначения.
-- [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md), [04-layout-and-buttons.md](04-layout-and-buttons.md) — детали по каждому компоненту.
+- [02-text-fields.md](02-text-fields.md), [03-choice-fields.md](03-choice-fields.md), [04-layout-and-buttons.md](04-layout-and-buttons.md) — детали по каждому компоненту; `Tree` в 04, его варианты комбобокса в 03.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` standalone и как `fieldWrapper`.
 
-## 40. Базовое использование
+## 45. Базовое использование
 
 **FormWizard — multi-step форма**
 
@@ -2130,7 +2507,7 @@ const handleSaveAndExit = async () => {
 `navRef.current?.submit(values => ...)` вызывается из кода, отдаёт `values` и возвращает
 результат колбэка либо `null`, если валидация не прошла.
 
-## 41. Полиморфный `step.body`
+## 46. Полиморфный `step.body`
 
 `body` принимает три формы (runtime-discriminated):
 
@@ -2144,7 +2521,7 @@ const handleSaveAndExit = async () => {
 
 **Про третью форму.** ui-kit намеренно НЕ зависит от `@reformer/renderer-react` — дизайн-система не должна тянуть рендерер. Поэтому `FormWizard` сам знает только `ReactNode` и `ComponentType`, а всё остальное отдаёт стратегии из пропа `renderStepBody: (body: TBody, form: FormProxy<T>) => ReactNode`. Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`. Без стратегии такое тело просто не отрисуется.
 
-## 42. RenderNode body (renderer-react / renderer-json)
+## 47. RenderNode body (renderer-react / renderer-json)
 
 M1: схема без аргумента `path` — листья ссылаются на сигналы модели
 (`value: model.$.x`), а не на `path.x`:
@@ -2217,7 +2594,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 
 **TS-flow body (FC компоненты) — провайдер НЕ нужен**: ui-kit FormWizard рендерит FC напрямую без render-pipeline.
 
-## 43. JSON
+## 48. JSON
 
 ```jsonc
 {
@@ -2251,7 +2628,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 
 Общий компонент уровня приложения (`projects/react-playground/src/components/RendererFormWizard.tsx`) — исторический вариант, а не эталон нейминга: выносить шим за пределы модуля имеет смысл, только когда его переиспользуют несколько форм.
 
-## 44. Compound API
+## 49. Compound API
 
 `FormWizard.Indicator/Step/Actions/Progress` — re-export headless слотов из CDK для consumer-ов, которым нужен полностью кастомный layout (например, indicator поверх кастомного header'а).
 
@@ -2261,7 +2638,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 </FormWizard.Indicator>
 ```
 
-## 45. Ref / handle
+## 50. Ref / handle
 
 ```tsx
 const wizardRef = useRef<FormWizardHandle<MyForm>>(null);
@@ -2284,7 +2661,7 @@ const result = await wizardRef.current?.submit((values) => api.submit(values));
 `validateCurrentStep()`, `goToNextStep()`, `goToPreviousStep()`,
 `goToStep(step)`, `submit(cb)`.
 
-## 46. Базовое использование (TS-flow)
+## 51. Базовое использование (TS-flow)
 
 **FormArraySection — UI для FormArray**
 
@@ -2343,7 +2720,7 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 `initialValue` имеет тип `Partial<T>`, где `T` — тип элемента массива.
 Передавайте plain-objects по форме элемента, **не** FieldConfig-объекты.
 
-## 47. Renderer-react RenderSchema
+## 52. Renderer-react RenderSchema
 
 M1: схема без аргумента `path` (`createRenderSchema<T>(() => ...)`). `control`
 ссылается на массив модели (`model.<arrayField>` — `ModelArray<T>`); `FormArraySection`
@@ -2370,7 +2747,7 @@ ui-kit FormArraySection маркирован `__selfManagedChildren = true` — 
 
 > Альтернатива — нативный array-узел движка `{ array: model.properties, initialValue, item: (im) => ({ children: [ { value: im.$.field, component } ] }) }`.
 
-## 48. JSON (renderer-json)
+## 53. JSON (renderer-json)
 
 **В renderer-json нужен `FormArray`, а не `FormArraySection`.** Это разные компоненты с разными
 контрактами, и подмена стоит дорого: `FormArraySection` требует пропы `control` + `itemComponent`,
@@ -2439,7 +2816,7 @@ defineRegistry((reg) => {
 { "array": "$model(properties)", "component": "$component(FormArray)", "item": { "$template": { } } }
 ```
 
-## 49. Props (полный список)
+## 54. Props (полный список)
 
 | Prop                 | Type                                                         | Default                          | Описание                                                  |
 | -------------------- | ------------------------------------------------------------ | -------------------------------- | --------------------------------------------------------- |
@@ -2461,7 +2838,7 @@ defineRegistry((reg) => {
 | `form`               | `FormProxy<unknown>`                                         | авто-инъекция                    | Проброс `form` (RenderNodeComponent через `__selfManagedChildren`) |
 | `fieldWrapper`       | `ComponentType<FieldWrapperProps>`                          | авто-инъекция                    | Field wrapper для дочерних полей (по умолчанию — от родителя) |
 
-## 50. Critical: `initialValue` — PLAIN LEAVES ONLY
+## 55. Critical: `initialValue` — PLAIN LEAVES ONLY
 
 ```tsx
 // ❌ silent corruption (FieldConfig as value)
@@ -2473,7 +2850,7 @@ initialValue={{ type: 'apartment', description: '', estimatedValue: 0 }}
 
 FieldConfig попадает в значение поля → Textarea рендерит `[object Object]`, Checkbox флипается в `true`. Compiler/тесты не ловят.
 
-## 51. Schema-driven (canonical pattern)
+## 56. Schema-driven (canonical pattern)
 
 **InputMask — поля с маской ввода**
 
@@ -2557,7 +2934,7 @@ import { FormField } from '@reformer/ui-kit';
 <FormField control={form.snils} testId="snils" />
 ```
 
-## 52. Common masks
+## 57. Common masks
 
 | Поле                 | Маска                 | Пример вывода         |
 | -------------------- | --------------------- | --------------------- |
@@ -2573,7 +2950,7 @@ import { FormField } from '@reformer/ui-kit';
 | Дата (DD.MM.YYYY)    | `99.99.9999`          | `15.05.1990`          |
 | Карта                | `9999 9999 9999 9999` | `4111 1111 1111 1111` |
 
-## 53. Validation
+## 58. Validation
 
 `InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
 Валидаторы — фабрики из `@reformer/core/validators` — передаются в `validate(sig, [...])`
@@ -2600,7 +2977,7 @@ Cross-field правила (например, «доп. телефон отли�
 `cross(model.$.phoneAdditional, (f) => ...)` в той же validation-схеме: функция получает
 снапшот `model.get()` и читает соседние поля напрямую.
 
-## 54. Advanced — strict mask через FormField + children slot
+## 59. Advanced — strict mask через FormField + children slot
 
 Если нужна автоматическая вставка literal-символов (true input-mask), используй
 библиотеку типа `react-input-mask` или `imask` как кастомный child в FormField:
@@ -2618,13 +2995,13 @@ import InputMask from 'react-input-mask';
 `value` / `onChange` / `onBlur` / `aria-invalid`. См. рецепт
 [05-form-field-integration.md → Pattern 3](05-form-field-integration.md).
 
-## 55. See also
+## 60. See also
 
 - [02-text-fields.md](02-text-fields.md) — обычный Input
 - [05-form-field-integration.md](05-form-field-integration.md) — FormField обёртка
 - [06-troubleshooting.md](06-troubleshooting.md) — «маска не вставляется автоматически» → используй `react-input-mask`
 
-## 56. Когда императив, а когда реактив
+## 61. Когда императив, а когда реактив
 
 **Императивные handle полей — управление компонентом по селектору**
 
@@ -2647,7 +3024,7 @@ Handle покрывает ТОЛЬКО то, что не выражается р
 | **reload / loadMore async-источника**      | **императивный** | `…current?.reload()`                              |
 | **переключить видимость пароля**           | **императивный** | `getRef<InputPasswordHandle>().current?.setVisible(true)` |
 
-## 57. Базовое использование
+## 62. Базовое использование
 
 ```tsx
 import { createRenderSchema, renderEffect } from '@reformer/renderer-react';
@@ -2666,7 +3043,7 @@ emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 emailRef.current?.focus();
 ```
 
-## 58. ⚠️ `getRef()` вызывать ДО первого рендера
+## 63. ⚠️ `getRef()` вызывать ДО первого рендера
 
 `getRef()` намеренно **не** бампает version-сигнал ноды (иначе каждый вызов вызывал бы ре-рендер и
 менял семантику wizard-а). Нода читает реестр рефов в момент рендера — поэтому ref, запрошенный
@@ -2686,7 +3063,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 Повторные `getRef()` для того же селектора идемпотентны и возвращают тот же `RefObject` — поэтому
 достаточно один раз «прогреть» все нужные селекторы в поведении, а дальше звать `getRef()` где угодно.
 
-## 59. Адресация: `selector` или `__path`
+## 64. Адресация: `selector` или `__path`
 
 Ключ ref листа — `node.selector ?? __path` сигнала модели (явный селектор в приоритете):
 
@@ -2703,24 +3080,36 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 поэтому после `validateModel` ошибки поля читаются по тому же пути — см. рецепт ниже. Для строк
 `FormArray` индексы не нужно перечислять в схеме.
 
-## 60. Контракты handle
+## 65. Контракты handle
 
 Все rich-handle наследуют `FieldHandle`.
 
-| Компонент             | Handle                | Дополнительно к baseline                     | Импорт                          |
-| --------------------- | --------------------- | -------------------------------------------- | ------------------------------- |
-| любое поле            | `FieldHandle`         | `focus` `blur` `scrollIntoView` `getElement` | `@reformer/ui-kit`              |
-| `InputPasswordField`  | `InputPasswordHandle` | `toggleVisibility` `setVisible`               | `@reformer/ui-kit`              |
-| `SelectField`         | `SelectAsyncHandle`   | `open` `close` `clear` `reload` `loadMore`    | `@reformer/ui-kit`              |
-| `ComboboxField`       | `ComboboxHandle`      | `open` `close` `clear`                        | `@reformer/ui-kit/combobox`     |
-| `DatePickerField`     | `DatePickerHandle`    | `open` `close`                                | `@reformer/ui-kit/date-picker`  |
+| Компонент                | Handle                    | Дополнительно к baseline                                                        | Импорт                         |
+| ------------------------ | ------------------------- | ------------------------------------------------------------------------------- | ------------------------------ |
+| любое поле               | `FieldHandle`             | `focus` `blur` `scrollIntoView` `getElement`                                    | `@reformer/ui-kit`             |
+| `InputPasswordField`     | `InputPasswordHandle`     | `toggleVisibility` `setVisible`                                                 | `@reformer/ui-kit`             |
+| `SelectField`            | `SelectAsyncHandle`       | `open` `close` `clear` `reload` `loadMore`                                      | `@reformer/ui-kit`             |
+| `ComboboxField`          | `ComboboxHandle`          | `open` `close` `clear`                                                          | `@reformer/ui-kit/combobox`    |
+| `ComboboxTreeField`      | `ComboboxTreeHandle`      | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
+| `ComboboxTreeMultiField` | `ComboboxTreeMultiHandle` | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
+| `DatePickerField`        | `DatePickerHandle`        | `open` `close`                                                                  | `@reformer/ui-kit/date-picker` |
+| `Tree` (не поле)         | `TreeHandle`              | `expand` `collapse` `toggle` `refresh` `focusNode` `getRows` `getActionTargets` | `@reformer/ui-kit`             |
 
 `Combobox` и `DatePicker` — heavy-компоненты, они вне главного barrel и доступны только своим subpath.
+
+`refresh(id)` у древесных вариантов перечитывает уровень (`null` — верхний) и действует, только
+пока поповер открыт: закрытый Radix содержимое размонтирует, и перечитывать нечего — следующее
+открытие прочитает уровень заново.
+
+`Tree` в таблице — исключение: это не поле, `*Field`-версии у него нет, и в схеме он живёт
+контейнерным узлом. Его handle берут обычным React-ref'ом там, где дерево отрисовано; если узел
+объявлен в схеме со своим `selector`, работает и `schema.node(sel).getRef<TreeHandle>()` — тем же
+способом, что у `FormWizard` и `FormArray`.
 
 `getRef<H>()` не выводит `H` из селектора (схема не индексирована статически) — тип указывает
 вызывающий, как и для `getRef<FormWizardHandle<T>>()`.
 
-## 61. Рецепт: focus первого невалидного поля после submit
+## 66. Рецепт: focus первого невалидного поля после submit
 
 Классика UX, реактивно невыразимая. `validateModel` роутит ошибки в ноды; нода поля
 резолвится по тому же пути через `getNodeForSignal(model.signalAt(path))`, а путь —
@@ -2749,7 +3138,7 @@ async function handleSubmit() {
 }
 ```
 
-## 62. Рецепт: зависимый async-Select
+## 67. Рецепт: зависимый async-Select
 
 Реактивная часть (параметры источника) — через `patchProps`; императивная (сброс, перезагрузка,
 открытие) — через handle:
@@ -2770,7 +3159,7 @@ renderEffect(schema, () => {
 });
 ```
 
-## 63. Рецепт: фокус в поле только что добавленной строки FormArray
+## 68. Рецепт: фокус в поле только что добавленной строки FormArray
 
 ```tsx
 import type { FormArrayHandle } from '@reformer/cdk';
@@ -2786,7 +3175,7 @@ queueMicrotask(() => {
 });
 ```
 
-## 64. null-safety и жизненный цикл
+## 69. null-safety и жизненный цикл
 
 `ref.current` равен `null`, пока поле не смонтировано — и остаётся `null` у скрытых/условных полей,
 которые не рендерятся вовсе. Все вызовы обязаны идти через `?.`.
@@ -2797,11 +3186,12 @@ queueMicrotask(() => {
 - Сам baseline-handle тоже null-safe: `focus()/blur()/scrollIntoView()` на несмонтированном поле —
   no-op без исключения.
 
-## 65. Своё поле с handle
+## 70. Своё поле с handle
 
 Слой создания полей публикуется точкой `@reformer/ui-kit/fields` — оттуда доступны
 `withFormControl`, все адаптеры-пресеты (`nativeInputAdapter`, `checkedAdapter`, `pressedAdapter`,
-`valueChangeAdapter`, `sliderAdapter`, `dateAdapter`), `makeElementFieldHandle` и типы
+`valueChangeAdapter`, `multiValueAdapter`, `sliderAdapter`, `dateAdapter`),
+`makeElementFieldHandle` и типы
 `FieldAdapter` / `WithFormControlOptions` / `FieldHandle`.
 
 > **Внимание — коллизия имён.** Этот `FieldAdapter` (из `@reformer/ui-kit/fields`, для
@@ -2827,7 +3217,7 @@ export const MySelectField = withFormControl(MySelect, myAdapter, { exposesHandl
 `useImperativeHandle` — иначе один ref писался бы дважды. Rich-handle объявляйте рядом с композитом
 (`export interface MySelectHandle extends FieldHandle { … }`) и реэкспортируйте из barrel компонента.
 
-## 66. Key Concepts
+## 71. Key Concepts
 
 **Form layout — отступы, сетка и группировка полей**
 
@@ -2855,7 +3245,7 @@ export const MySelectField = withFormControl(MySelect, myAdapter, { exposesHandl
 - **Один макет — три записи.** TSX, `RenderSchema` и JSON используют одни и те же строки
   классов; меняется только синтаксис узла.
 
-## 67. Spacing scale
+## 72. Spacing scale
 
 | Уровень                            | Класс       | Где                                       |
 | ---------------------------------- | ----------- | ----------------------------------------- |
@@ -2878,7 +3268,7 @@ export const MySelectField = withFormControl(MySelect, myAdapter, { exposesHandl
 Отступ под заголовком даёт сам `space-y-*` — `mb-*` не нужен. Условную группу не подпирайте
 `mt-6`: заверните в собственную секцию, и родительский `space-y-*` расставит отступы сам.
 
-## 68. Field grid
+## 73. Field grid
 
 - Пара связанных полей — `grid grid-cols-1 md:grid-cols-2 gap-4`.
 - Тройка (ФИО; серия / номер / дата) — `grid grid-cols-1 md:grid-cols-3 gap-4`.
@@ -2902,7 +3292,7 @@ export const MySelectField = withFormControl(MySelect, myAdapter, { exposesHandl
 </section>
 ```
 
-## 69. Grouping and sections
+## 74. Grouping and sections
 
 `Section` — секция с заголовком. Своих классов не несёт, поэтому `className` и
 `titleClassName` задаются явно: `titleAs` отвечает за семантику (уровень заголовка),
@@ -2954,7 +3344,7 @@ export const MySelectField = withFormControl(MySelect, myAdapter, { exposesHandl
 Повторяющиеся записи — `FormArraySection`: у него уже есть дефолты `space-y-3 mt-2` для
 списка и карточка для элемента, переопределять их не нужно.
 
-## 70. Layout across targets
+## 75. Layout across targets
 
 Строки классов между вариантами **не меняются** — меняется только синтаксис узла.
 
@@ -2973,7 +3363,7 @@ reg.component('Card', Card);
 reg.component('CardContent', CardContent);
 ```
 
-## 71. Common Patterns
+## 76. Common Patterns
 
 Сквозной пример шага: карточка, две группы, сетка и поле на всю ширину.
 
@@ -3004,7 +3394,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 </Card>;
 ```
 
-## 72. Anti-patterns
+## 77. Anti-patterns
 
 ```tsx
 // ❌ Карточка собрана классами — ломает тёмную тему и расходится с китом.
@@ -3048,7 +3438,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 <div className="max-w-2xl mx-auto">
 ```
 
-## 73. See also
+## 78. See also
 
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button`, `AsyncBoundary`, `cn`.
 - [05-form-field-integration.md](05-form-field-integration.md) — что `FormField` рисует сам.
@@ -3057,7 +3447,7 @@ import { Card, CardContent, CardHeader, CardTitle, FormField, Section } from '@r
 - [renderer-react](../../../reformer-renderer-react/docs/llms/) — layout в `RenderSchema`.
 - [renderer-json](../../../reformer-renderer-json/docs/llms/) — layout в JSON.
 
-## 74. API Reference
+## 79. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -3130,6 +3520,24 @@ function AccordionTrigger({
 ```
 
 _Source: src/components/accordion/variants/base/accordion-base.tsx_
+
+### actionTargets
+
+**Kind:** `function`
+
+К чему применится действие: набор, если выделение стоит внутри него, иначе одна строка.
+
+Без этого правила клавиша и пункт меню отвечали бы на разные вопросы: первая — про строку
+под выделением, второй — про набор, и человек не знал бы заранее, что именно произойдёт.
+Порядок — порядок строк дерева, а не порядок отметок: действие сверху вниз предсказуемо,
+«в том порядке, в каком тыкали» — нет.
+
+**Signature:**
+```typescript
+export function actionTargets(rows: readonly TreeRow[]): readonly TreeNode[]
+```
+
+_Source: src/components/tree/variants/base/tree-model.ts_
 
 ### Alert
 
@@ -5321,6 +5729,343 @@ export interface ComboboxProps {
 ```
 
 _Source: src/components/combobox/variants/base/combobox-base.tsx_
+
+### ComboboxTree
+
+**Kind:** `const`
+
+Combobox с деревом (вариант `tree`): выбор одного узла — как правило файла — из иерархии.
+
+Триггер показывает подпись выбранного узла, а если узел пришёл из лениво прочитанного
+уровня и в объявленном дереве его нет — сам адрес. Для файлов это не компромисс, а то,
+что и нужно видеть: путь однозначен, имя файла — нет.
+
+**Signature:**
+```typescript
+const ComboboxTree
+```
+
+_Source: src/components/combobox/variants/tree/combobox-tree.tsx_
+
+### ComboboxTreeField
+
+**Kind:** `const`
+
+`exposesHandle: true` — ComboboxTree сам реализует {@link ComboboxTreeHandle}
+(`useImperativeHandle`), поэтому HOC форвардит ref потребителя прямо в композит
+(passthrough), без своего baseline-handle. Привязка — общий с одиночным вариантом
+{@link comboboxAdapter}: контракт значения у них один и тот же.
+
+**Signature:**
+```typescript
+export const ComboboxTreeField
+```
+
+_Source: src/components/combobox/variants/tree/combobox-tree.field.tsx_
+
+### ComboboxTreeFieldProps
+
+**Kind:** `interface`
+
+Value-based контракт field-версии ComboboxTree. Значение — `string | null` (адрес узла);
+форма резолвит `value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в
+`componentProps`. Служит типом для стража props-схемы.
+
+**Signature:**
+```typescript
+export interface ComboboxTreeFieldProps {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  nodes?: readonly TreeNode[];
+  loadChildren?: (node: TreeNode | null) => Promise<readonly TreeNode[]>;
+  defaultExpandedIds?: readonly string[];
+  selectable?: 'all' | 'leaf';
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  clearable?: boolean;
+  maxRows?: number;
+  className?: string;
+}
+```
+
+_Source: src/components/combobox/variants/tree/combobox-tree.field.tsx_
+
+### ComboboxTreeHandle
+
+**Kind:** `interface`
+
+Императивный handle {@link ComboboxTree}: baseline {@link FieldHandle} на кнопке-триггере +
+управление popover'ом и уровнями дерева.
+
+**Signature:**
+```typescript
+export interface ComboboxTreeHandle extends FieldHandle {
+  /** Открыть popover с деревом. */
+  open(): void;
+  /** Закрыть popover (эмитит `onBlur`, как обычное закрытие). */
+  close(): void;
+  /** Сбросить выбранное значение в `null`. */
+  clear(): void;
+  /**
+   * Перечитать уровень дерева: файл создан, удалён, переименован. `null` — верхний уровень.
+   * Действует, только пока popover открыт: закрытый Radix содержимое размонтирует, и
+   * перечитывать нечего — следующее открытие прочитает уровень заново.
+   */
+  refresh(id?: string | null): Promise<void>;
+}
+```
+
+_Source: src/components/combobox/variants/tree/combobox-tree.tsx_
+
+### ComboboxTreeMulti
+
+**Kind:** `const`
+
+Combobox с деревом, множественный выбор (вариант `tree-multi`): набор узлов — как правило
+файлов — из иерархии. Значение — `string[] | null` на стороне формы (пустой выбор всегда
+`null`, никогда `[]`) и `string[]` на стороне компонента.
+
+**Signature:**
+```typescript
+const ComboboxTreeMulti
+```
+
+_Source: src/components/combobox/variants/tree-multi/combobox-tree-multi.tsx_
+
+### ComboboxTreeMultiField
+
+**Kind:** `const`
+
+`exposesHandle: true` — ComboboxTreeMulti сам реализует {@link ComboboxTreeMultiHandle}
+(`useImperativeHandle`), поэтому HOC форвардит ref потребителя прямо в композит
+(passthrough), без своего baseline-handle. Привязка — общий для кита
+{@link multiValueAdapter}: он же разворачивает `null` в `[]` на входе и сворачивает
+пустой выбор обратно в `null` на выходе.
+
+**Signature:**
+```typescript
+export const ComboboxTreeMultiField
+```
+
+_Source: src/components/combobox/variants/tree-multi/combobox-tree-multi.field.tsx_
+
+### ComboboxTreeMultiFieldProps
+
+**Kind:** `interface`
+
+Value-based контракт field-версии ComboboxTreeMulti. Значение — `string[] | null` (адреса
+узлов); форма резолвит `value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное
+в `componentProps`. Служит типом для стража props-схемы.
+
+**Signature:**
+```typescript
+export interface ComboboxTreeMultiFieldProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  nodes?: readonly TreeNode[];
+  loadChildren?: (node: TreeNode | null) => Promise<readonly TreeNode[]>;
+  defaultExpandedIds?: readonly string[];
+  selectable?: 'all' | 'leaf';
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  clearable?: boolean;
+  maxItems?: number;
+  summaryThreshold?: number;
+  maxRows?: number;
+  className?: string;
+}
+```
+
+_Source: src/components/combobox/variants/tree-multi/combobox-tree-multi.field.tsx_
+
+### ComboboxTreeMultiHandle
+
+**Kind:** `interface`
+
+Императивный handle {@link ComboboxTreeMulti}: baseline {@link FieldHandle} на кнопке-триггере
++ управление popover'ом и уровнями дерева.
+
+**Signature:**
+```typescript
+export interface ComboboxTreeMultiHandle extends FieldHandle {
+  /** Открыть popover с деревом. */
+  open(): void;
+  /** Закрыть popover (эмитит `onBlur`, как обычное закрытие). */
+  close(): void;
+  /** Сбросить весь выбор. */
+  clear(): void;
+  /** Перечитать уровень дерева. Действует, только пока popover открыт. */
+  refresh(id?: string | null): Promise<void>;
+}
+```
+
+_Source: src/components/combobox/variants/tree-multi/combobox-tree-multi.tsx_
+
+### ComboboxTreeMultiProps
+
+**Kind:** `interface`
+
+Props компонента {@link ComboboxTreeMulti}.
+
+**Signature:**
+```typescript
+export interface ComboboxTreeMultiProps {
+  className?: string;
+  /**
+   * Выбранные узлы (`node.id`). Приходит массивом всегда: `multiValueAdapter` разворачивает
+   * `null` в `[]`, потому что рендер ходит по значению `.includes`/`.map`.
+   */
+  value?: string[];
+  /** Изменение выбора. Всегда получает НОВЫЙ массив — см. `multiValueAdapter`. */
+  onChange?: (value: string[]) => void;
+  /** Срабатывает при закрытии popover (снятие фокуса). */
+  onBlur?: () => void;
+  /** Узлы верхнего уровня. Не задан вместе с `loadChildren`. */
+  nodes?: readonly TreeNode[];
+  /** Ленивое чтение уровня при первом раскрытии ветки; `null` — верхний уровень. */
+  loadChildren?: (node: TreeNode | null) => Promise<readonly TreeNode[]>;
+  /** Ветки, раскрытые при открытии списка. Пути до выбранных узлов раскрываются и без него. */
+  defaultExpandedIds?: readonly string[];
+  /**
+   * Что можно выбрать. По умолчанию `'leaf'` — выбор файлов: щелчок по каталогу его раскрывает.
+   */
+  selectable?: TreeSelectable;
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Выберите файлы...'`. */
+  placeholder?: string;
+  /** Подсказка в поле поиска. По умолчанию `'Поиск...'`. */
+  searchPlaceholder?: string;
+  /** Текст пустого состояния. По умолчанию `'Ничего не найдено'`. */
+  emptyText?: string;
+  /** Показывать крестик сброса ВСЕГО выбора справа от триггера. */
+  clearable?: boolean;
+  /**
+   * Потолок числа выбранных: по достижении невыбранные строки гаснут.
+   * Подсказка интерфейса, а НЕ правило формы — ограничение задавайте валидатором `maxLength(n)`.
+   */
+  maxItems?: number;
+  /** Сколько чипов показать в триггере до схлопывания в сводку. По умолчанию 3. */
+  summaryThreshold?: number;
+  /** Сколько строк дерева показать до появления прокрутки. По умолчанию 12. */
+  maxRows?: number;
+  disabled?: boolean;
+  /** id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке. */
+  id?: string;
+  /**
+   * Префикс `data-testid`. Части поля адресуются им же: сам он на триггере, `-search` на поле
+   * поиска, `-clear` на крестике, `-tree` на корне дерева и `-tree-<id узла>` на его строках.
+   * Триггер и дерево получают РАЗНЫЕ значения намеренно: одно и то же на двух элементах
+   * означало бы, что при открытом поповере селектор находит два узла вместо одного.
+   */
+  'data-testid'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  'aria-errormessage'?: string;
+  'aria-required'?: boolean | 'true' | 'false';
+}
+```
+
+_Source: src/components/combobox/variants/tree-multi/combobox-tree-multi.tsx_
+
+### comboboxTreeMultiPropsSchema
+
+**Kind:** `const`
+
+Props-схема ComboboxTreeMulti — единый источник `api.controls[]` (reformer-doc) и
+DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`x-registryName: 'ComboboxTreeMulti'` — отдельная запись каталога, а не проп `multiple`
+у `ComboboxTree`: тип значения другой (`string[] | null` против `string | null`), а
+`x-runtimeProps.value` у записи ровно один. Адаптер вшит в замыкание HOC на этапе вызова
+`withFormControl` и переключаться на рендере не может.
+
+**Signature:**
+```typescript
+export const comboboxTreeMultiPropsSchema
+```
+
+_Source: src/components/combobox/variants/tree-multi/combobox-tree-multi.props.ts_
+
+### ComboboxTreeProps
+
+**Kind:** `interface`
+
+Props компонента {@link ComboboxTree}.
+
+**Signature:**
+```typescript
+export interface ComboboxTreeProps {
+  className?: string;
+  /** Выбранный узел (`node.id`). `null` — ничего не выбрано. */
+  value?: string | null;
+  /** Обработчик выбора. При очистке приходит `null`. */
+  onChange?: (value: string | null) => void;
+  /** Срабатывает при закрытии popover (снятие фокуса). */
+  onBlur?: () => void;
+  /** Узлы верхнего уровня. Не задан вместе с `loadChildren`. */
+  nodes?: readonly TreeNode[];
+  /** Ленивое чтение уровня при первом раскрытии ветки; `null` — верхний уровень. */
+  loadChildren?: (node: TreeNode | null) => Promise<readonly TreeNode[]>;
+  /** Ветки, раскрытые при открытии списка. Путь до выбранного узла раскрывается и без него. */
+  defaultExpandedIds?: readonly string[];
+  /**
+   * Что можно выбрать. По умолчанию `'leaf'` — выбор файла: щелчок по каталогу его раскрывает.
+   * `'all'` разрешает выбрать и каталог.
+   */
+  selectable?: TreeSelectable;
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Выберите файл...'`. */
+  placeholder?: string;
+  /** Подсказка в поле поиска. По умолчанию `'Поиск...'`. */
+  searchPlaceholder?: string;
+  /** Текст пустого состояния. По умолчанию `'Ничего не найдено'`. */
+  emptyText?: string;
+  /** Показывать ли крестик очистки справа от значения. По умолчанию `false`. */
+  clearable?: boolean;
+  /** Сколько строк дерева показать до появления прокрутки. По умолчанию 12. */
+  maxRows?: number;
+  disabled?: boolean;
+  /** id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке. */
+  id?: string;
+  /**
+   * Префикс `data-testid`. Части поля адресуются им же: сам он на триггере, `-search` на поле
+   * поиска, `-clear` на крестике, `-tree` на корне дерева и `-tree-<id узла>` на его строках.
+   * Триггер и дерево получают РАЗНЫЕ значения намеренно: одно и то же на двух элементах
+   * означало бы, что при открытом поповере селектор находит два узла вместо одного.
+   */
+  'data-testid'?: string;
+  'aria-invalid'?: boolean | 'true' | 'false';
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  'aria-errormessage'?: string;
+  'aria-required'?: boolean | 'true' | 'false';
+}
+```
+
+_Source: src/components/combobox/variants/tree/combobox-tree.tsx_
+
+### comboboxTreePropsSchema
+
+**Kind:** `const`
+
+Props-схема ComboboxTree — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
+`componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`x-registryName: 'ComboboxTree'` — отдельная запись каталога, а не проп `tree` у `Combobox`:
+список опций и дерево — разные структуры данных (`options` против `nodes`), а `x-runtimeProps`
+записи описывают ровно один контракт значения. Прецедент — `ComboboxMulti` и `FileUploadAvatar`.
+
+**Signature:**
+```typescript
+export const comboboxTreePropsSchema
+```
+
+_Source: src/components/combobox/variants/tree/combobox-tree.props.ts_
 
 ### Command
 
@@ -8345,6 +9090,19 @@ export interface InputPasswordProps extends Omit<
 
 _Source: src/components/input-password/variants/base/input-password-base.tsx_
 
+### isBranch
+
+**Kind:** `function`
+
+Ветка ли узел. Правило одно на всё дерево — и на отрисовку, и на клавиатуру.
+
+**Signature:**
+```typescript
+export function isBranch(node: TreeNode): boolean
+```
+
+_Source: src/components/tree/variants/base/tree-model.ts_
+
 ### Item
 
 **Kind:** `function`
@@ -10048,6 +10806,23 @@ export interface RadioOption {
 
 _Source: src/components/radio-group/variants/base/radio-group-base.field.tsx_
 
+### rangeIds
+
+**Kind:** `function`
+
+Адреса строк между двумя, включая обе, — то, что отмечает щелчок с Shift.
+
+Считается по ВИДИМЫМ строкам, а не по дереву: человек выделяет то, что видит, и строки
+свёрнутой ветки в диапазон попадать не должны, хотя в дереве они между ними лежат.
+Неизвестная граница даёт пустой диапазон — выделять нечего, а не «выделить всё».
+
+**Signature:**
+```typescript
+export function rangeIds(rows: readonly TreeRow[], from: string, to: string): readonly string[]
+```
+
+_Source: src/components/tree/variants/base/tree-model.ts_
+
 ### resizableBasePropsSchema
 
 **Kind:** `const`
@@ -10201,6 +10976,44 @@ export type ResourceStrategy = 'static' | 'preload' | 'partial';
 ```
 
 _Source: src/components/select/variants/async/select-resource.ts_
+
+### rowRange
+
+**Kind:** `function`
+
+Какие строки показать при такой прокрутке.
+
+`overscan` — запас строк за краями видимой области: без него строка, появляющаяся из-за
+края, успевает мигнуть пустотой на быстрой прокрутке.
+
+**Signature:**
+```typescript
+export function rowRange(
+  scrollTop: number,
+  viewportHeight: number,
+  rowHeight: number,
+  count: number,
+  overscan: number
+): RowRange
+```
+
+_Source: src/components/tree/variants/base/use-virtual-rows.ts_
+
+### RowRange
+
+**Kind:** `interface`
+
+Окно строк, которые нужно отрисовать: `[start, end)`.
+
+**Signature:**
+```typescript
+export interface RowRange {
+  readonly start: number;
+  readonly end: number;
+}
+```
+
+_Source: src/components/tree/variants/base/use-virtual-rows.ts_
 
 ### RuntimePropDoc
 
@@ -12553,6 +13366,411 @@ function TooltipTrigger({ ...props }: React.ComponentProps<typeof TooltipPrimiti
 
 _Source: src/components/tooltip/variants/base/tooltip-base.tsx_
 
+### Tree
+
+**Kind:** `const`
+
+Tree (вариант `base`) — плотное дерево с уровнями, как файловый навигатор редактора.
+
+Уровни читаются лениво: {@link TreeProps.loadChildren} вызывается при первом раскрытии
+ветки, прочитанное запоминается. Строки фиксированной высоты и виртуальный скролл — не
+микрооптимизация: раскрытый каталог проекта это тысячи строк, и каждая несёт обработчики.
+
+Клавиатура принадлежит дереву и глушится (`stopPropagation`): стрелки, `Home`/`End`,
+`Enter`, пробел, `Escape`. Сочетания с модификатором уходят наверх целиком — перехватив
+`mod+c`, дерево отняло бы у команды копирования её единственную дверь.
+
+**Signature:**
+```typescript
+const Tree
+```
+
+**Examples:**
+
+Статическое дерево, выбор только файлов
+```tsx
+<Tree nodes={nodes} selectable="leaf" onActivate={(n) => open(n.id)} />
+```
+
+Ленивый файловый источник
+```tsx
+<Tree
+loadChildren={(node) => fs.list(node?.id ?? '/')}
+selectedId={path}
+onSelectedChange={setPath}
+/>
+```
+
+_Source: src/components/tree/variants/base/tree-base.tsx_
+
+### TREE_ROW_ATTRIBUTE
+
+**Kind:** `const`
+
+Атрибут адреса на строке. По нему потребитель находит свою строку в обработчике, который
+рисуется вне дерева, — например в контекстном меню, чьё содержимое Radix монтирует порталом.
+
+**Signature:**
+```typescript
+const ROW_ATTRIBUTE
+```
+
+_Source: src/components/tree/variants/base/tree-base.tsx_
+
+### TREE_ROW_HEIGHT
+
+**Kind:** `const`
+
+Высота строки, px. Фиксирована — на ней стоит виртуальный скролл.
+
+**Signature:**
+```typescript
+const ROW_HEIGHT
+```
+
+_Source: src/components/tree/variants/base/tree-base.tsx_
+
+### TreeActivateMeta
+
+**Kind:** `interface`
+
+Обстоятельства запуска строки.
+
+**Signature:**
+```typescript
+export interface TreeActivateMeta {
+  /**
+   * Предпросмотр. `true` — одиночный щелчок или пробел, `false` — двойной щелчок или Enter.
+   * Различение взято у редакторов кода: одиночный щелчок открывает файл временной вкладкой,
+   * двойной закрепляет её. Потребителю, которому это не нужно, достаточно не смотреть в поле.
+   */
+  readonly preview: boolean;
+}
+```
+
+_Source: src/components/tree/variants/base/tree-base.tsx_
+
+### TreeBadgeTone
+
+**Kind:** `type`
+
+Оформление метки строки — те же тона, что у {@link Badge}.
+
+**Signature:**
+```typescript
+export type TreeBadgeTone = 'default' | 'secondary' | 'destructive' | 'outline';
+```
+
+_Source: src/components/tree/variants/base/tree-model.ts_
+
+### treeBasePropsSchema
+
+**Kind:** `const`
+
+Props-схема презентационного `Tree` — единый источник `api.controls[]` (reformer-doc) и
+DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
+
+`x-registryName: 'Tree'` — каноническое имя в реестре renderer-json.
+
+Дерево — не поле формы: у него нет `value`/`onChange`, и `*Field`-обёртки у него тоже нет.
+Выбор файла формой делает вариант комбобокса (`ComboboxTree`), который это дерево использует
+внутри: поле обязано отдавать ОДНО значение, а дерево — навигация, у которой значений
+столько же, сколько строк.
+
+Описание узла — общий фрагмент с вариантами комбобокса, см. `./tree-node-schema`.
+
+**Signature:**
+```typescript
+export const treeBasePropsSchema
+```
+
+_Source: src/components/tree/variants/base/tree-base.props.ts_
+
+### TreeHandle
+
+**Kind:** `interface`
+
+Императивный handle {@link Tree}: baseline {@link FieldHandle} (focus/blur/scrollIntoView/
+getElement на контейнере дерева) + управление уровнями и фокусом строки.
+
+**Signature:**
+```typescript
+export interface TreeHandle extends FieldHandle {
+  /** Раскрывает ветку, дочитывая уровень, если он ещё не прочитан. */
+  expand(id: string): Promise<void>;
+  collapse(id: string): void;
+  /** Раскрывает или сворачивает — то, что делает щелчок по треугольнику. */
+  toggle(id: string): Promise<void>;
+  /**
+   * Перечитывает уровень: файл создан, удалён, переименован. `null` — верхний уровень.
+   * Без него ленивое дерево держало бы устаревший снимок до перемонтирования.
+   */
+  refresh(id?: string | null): Promise<void>;
+  /** Выделяет строку, доводит её до видимой области и ставит на неё фокус. */
+  focusNode(id: string): void;
+  /** Видимый ряд строк — то, из чего потребитель считает цель действия. */
+  getRows(): readonly TreeRow[];
+  /** К чему применится действие: набор, если выделение внутри него, иначе одна строка. */
+  getActionTargets(): readonly TreeNode[];
+}
+```
+
+_Source: src/components/tree/variants/base/tree-base.tsx_
+
+### TreeIconRenderer
+
+**Kind:** `type`
+
+Значок строки. Вынесен из отрисовки, потому что им подменяют умолчание: «это схема формы»
+знает потребитель, а не дерево.
+
+**Signature:**
+```typescript
+export type TreeIconRenderer = (node: TreeNode, state: TreeRenderState) => React.ReactNode;
+```
+
+_Source: src/components/tree/variants/base/tree-model.ts_
+
+### TreeNode
+
+**Kind:** `interface`
+
+Узел дерева.
+
+`kind` объявляется, а не выводится из `children`: у ленивой ветки детей ещё нет, и пустой
+каталог был бы неотличим от файла. Умолчание — `'branch'`, если поле `children` присутствует,
+иначе `'leaf'`.
+
+**Signature:**
+```typescript
+export interface TreeNode {
+  /** Адрес узла, уникальный в пределах всего дерева: по нему идут раскрытие, выбор и фокус. */
+  id: string;
+  /** Видимая подпись строки. По ней же идёт поиск. */
+  label: string;
+  /** Ветка или лист. */
+  kind?: TreeNodeKind;
+  /** Дети. У ветки `undefined` означает «уровень не прочитан», а не «детей нет». */
+  children?: readonly TreeNode[];
+  /** Метка справа от подписи. */
+  badge?: string;
+  /** Тон метки. */
+  badgeTone?: TreeBadgeTone;
+  /** Подсказка при наведении. По умолчанию — `label`. */
+  title?: string;
+  /** Строку нельзя выбрать. Раскрыть ветку по-прежнему можно: это осмотр, а не выбор. */
+  disabled?: boolean;
+  /**
+   * Уровень читается прямо сейчас — вместо треугольника показывается спиннер.
+   *
+   * Объявляется узлом, а не только выводится из внутреннего чтения, ради потребителей,
+   * у которых загрузка уровней уже своя: дерево с чужим хранилищем обязано уметь показать
+   * его состояние, не отбирая у него это хранилище.
+   */
+  loading?: boolean;
+  /** Уровень не прочитался: нет прав, каталог исчез. Подпись становится тревожной. */
+  failed?: boolean;
+}
+```
+
+_Source: src/components/tree/variants/base/tree-model.ts_
+
+### TreeNodeKind
+
+**Kind:** `type`
+
+Вид узла: ветка раскрывается, лист — нет.
+
+**Signature:**
+```typescript
+export type TreeNodeKind = 'branch' | 'leaf';
+```
+
+_Source: src/components/tree/variants/base/tree-model.ts_
+
+### TreeProps
+
+**Kind:** `interface`
+
+Props компонента {@link Tree}.
+
+**Signature:**
+```typescript
+export interface TreeProps {
+  className?: string;
+  /**
+   * Узлы верхнего уровня. Не задан вместе с {@link TreeProps.loadChildren} — верхний уровень
+   * дерево прочитает само при появлении, передав в загрузчик `null`.
+   */
+  nodes?: readonly TreeNode[];
+  /**
+   * Ленивое чтение уровня: вызывается при первом раскрытии ветки; `null` — верхний уровень.
+   * Прочитанный уровень запоминается: свернуть и раскрыть обратно обращения не стоит.
+   */
+  loadChildren?: (node: TreeNode | null) => Promise<readonly TreeNode[]>;
+  /** Раскрытые ветки (управляемо). Без него дерево держит раскрытие само. */
+  expandedIds?: readonly string[];
+  /** Раскрытые ветки на старте (неуправляемо). */
+  defaultExpandedIds?: readonly string[];
+  onExpandedChange?: (ids: string[]) => void;
+  /** Выделенный узел (управляемо). Выделение — «где я сейчас», одна строка. */
+  selectedId?: string | null;
+  /** Выделенный узел на старте (неуправляемо). */
+  defaultSelectedId?: string | null;
+  onSelectedChange?: (id: string | null) => void;
+  /**
+   * Отмеченный набор (управляемо) — «что я выбрал», к чему применится действие.
+   *
+   * Отдельно от {@link TreeProps.selectedId}, потому что это разные вещи: выделение — одна
+   * строка, туда же уходит фокус; набор — сколько угодно строк, и строка с фокусом может
+   * в него не входить. Свести их в один список нельзя: тогда «где я» теряет ответ, а
+   * клавиатурная навигация — точку отсчёта для диапазона.
+   */
+  checkedIds?: readonly string[];
+  /** Отмеченный набор на старте (неуправляемо). */
+  defaultCheckedIds?: readonly string[];
+  onCheckedChange?: (ids: string[]) => void;
+  /** Режим выбора. По умолчанию `'single'`. */
+  selectionMode?: TreeSelectionMode;
+  /** Как строка попадает в набор при `selectionMode='multiple'`. По умолчанию `'modifier'`. */
+  checkOn?: TreeCheckOn;
+  /** Что можно выбрать. По умолчанию `'all'`; `'leaf'` — режим выбора файла. */
+  selectable?: TreeSelectable;
+  /**
+   * Дополнительный запрет выбора поверх `node.disabled`. Для запретов ДИНАМИЧЕСКИХ, которых
+   * в данных узла быть не может: достигнутый потолок числа выбранных, права на конкретный файл.
+   */
+  isNodeDisabled?: (node: TreeNode) => boolean;
+  /**
+   * Запуск строки. Ветку дерево раскрывает само и наружу не сообщает: раскрытие — осмотр,
+   * а не действие над узлом, и потребителю не приходится знать про состояние, которым он
+   * не управляет.
+   */
+  onActivate?: (node: TreeNode, meta: TreeActivateMeta) => void;
+  /**
+   * Щелчок по строке ДО того, как дерево применит свои правила выбора. Вызвавший
+   * `event.preventDefault()` берёт строку себе целиком — так потребитель со своими правилами
+   * (диапазоны, наборы, свои модификаторы) остаётся хозяином, не отказываясь от отрисовки.
+   */
+  onRowClick?: (node: TreeNode, event: React.MouseEvent) => void;
+  /** Двойной щелчок ДО запуска строки; `preventDefault` отменяет запуск. */
+  onRowDoubleClick?: (node: TreeNode, event: React.MouseEvent) => void;
+  /** Правый щелчок по дереву целиком: строку потребитель находит по `data-tree-id`. */
+  onContextMenu?: React.MouseEventHandler<HTMLDivElement>;
+  /** Доп. атрибуты строки: свои `data-*`, `title`, обработчики. */
+  getRowProps?: (
+    node: TreeNode,
+    row: TreeRow
+  ) => React.HTMLAttributes<HTMLElement> & Record<string, unknown>;
+  /**
+   * Поисковый запрос. Оставляет узлы, чей `label` содержит подстроку, и достраивает до них
+   * путь; ветки на пути раскрываются на время поиска и возвращаются в прежнее состояние,
+   * когда запрос убран. Видит только прочитанные уровни.
+   */
+  search?: string;
+  /** Текст пустого дерева. По умолчанию `'Пусто'`. */
+  emptyText?: string;
+  /** Высота строки, px. По умолчанию 24. */
+  rowHeight?: number;
+  /**
+   * Сколько строк показать, прежде чем включится прокрутка. Задаёт дереву ОПРЕДЕЛЁННУЮ высоту
+   * по содержимому — то, что нужно списку в поповере: короткое дерево не оставляет пустоты,
+   * длинное не растёт бесконечно. Без него высоту задаёт вызывающий через `className`
+   * (например `h-full` в панели), и прокрутка появляется от неё.
+   */
+  maxRows?: number;
+  /** Отступ уровня, px. По умолчанию 12. */
+  indent?: number;
+  /** Отступ первого уровня от левого края, px. По умолчанию 8. */
+  indentBase?: number;
+  /**
+   * Виртуальный скролл. По умолчанию включён: раскрытый каталог реального проекта — тысячи
+   * строк. Выключают там, где дерево заведомо короткое, а разметка нужна целиком, — например
+   * при серверной отрисовке страницы документации.
+   */
+  virtualized?: boolean;
+  /** Значок строки; возврат `undefined`/`null` оставляет умолчание (каталог/файл). */
+  renderIcon?: TreeIconRenderer;
+  /** Подпись строки; возврат `undefined`/`null` оставляет `node.label`. */
+  renderLabel?: (node: TreeNode, state: TreeRenderState) => React.ReactNode;
+  /** Содержимое правого края строки: свои метки, кнопки, подсказки. */
+  renderActions?: (node: TreeNode, state: TreeRenderState) => React.ReactNode;
+  /** Отказ чтения уровня. По умолчанию пишется в консоль: молчание здесь хуже шума. */
+  onLoadError?: (error: unknown, node: TreeNode | null) => void;
+  /** id контейнера дерева — по нему подпись снаружи связывается с деревом. */
+  id?: string;
+  /** Префикс `data-testid`: на корне, `-<id узла>` на строке, `-<id узла>-chevron` на треугольнике. */
+  'data-testid'?: string;
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+}
+```
+
+_Source: src/components/tree/variants/base/tree-base.tsx_
+
+### TreeRow
+
+**Kind:** `interface`
+
+Строка видимого ряда — то, что дерево отрисовывает.
+
+**Signature:**
+```typescript
+export interface TreeRow {
+  readonly node: TreeNode;
+  /** Глубина от корня; узлы верхнего уровня — `0`. */
+  readonly depth: number;
+  /** Раскрыта ли ветка. У листа всегда `false`. */
+  readonly expanded: boolean;
+  /** Уровень читается прямо сейчас. */
+  readonly loading: boolean;
+  /** Уровень не прочитался: нет прав, каталог исчез. */
+  readonly failed: boolean;
+  readonly selected: boolean;
+  /** Входит ли строка в отмеченный набор. */
+  readonly checked: boolean;
+  /** Ветка ли это — считано один раз, чтобы отрисовка не повторяла правило. */
+  readonly branch: boolean;
+  /**
+   * Строку нельзя выбрать: так объявлено узлом либо так решил предикат дерева. Считается
+   * здесь, а не в отрисовке, потому что тот же ответ нужен клавиатуре и правилам выбора —
+   * а два места, отвечающие на один вопрос, рано или поздно отвечают по-разному.
+   */
+  readonly disabled: boolean;
+  /** Адрес родителя; у верхнего уровня — `null`. Нужен стрелке «влево». */
+  readonly parentId: string | null;
+}
+```
+
+_Source: src/components/tree/variants/base/tree-model.ts_
+
+### TreeSelectable
+
+**Kind:** `type`
+
+Что можно выбирать: любой узел или только листья.
+
+**Signature:**
+```typescript
+export type TreeSelectable = 'all' | 'leaf';
+```
+
+_Source: src/components/tree/variants/base/tree-base.tsx_
+
+### TreeSelectionMode
+
+**Kind:** `type`
+
+Режим выбора: один узел (курсор) или курсор плюс отмеченный набор.
+
+**Signature:**
+```typescript
+export type TreeSelectionMode = 'single' | 'multiple';
+```
+
+_Source: src/components/tree/variants/base/tree-base.tsx_
+
 ### TypographyBlockquote
 
 **Kind:** `function`
@@ -12850,6 +14068,30 @@ function useSidebar()
 
 _Source: src/components/sidebar/variants/base/sidebar-base.tsx_
 
+### useVirtualRows
+
+**Kind:** `function`
+
+Окно видимых строк списка из `count` строк по `rowHeight` пикселей.
+
+**Signature:**
+```typescript
+export function useVirtualRows(count: number, rowHeight: number, overscan = 8): VirtualRows
+```
+
+**Examples:**
+
+const rows = useVirtualRows(items.length, 24);
+<ScrollArea ref={rows.scrollRef}>
+  <div style={{ height: rows.totalHeight }}>
+    <div style={{ transform: `translateY(${rows.offsetTop}px)` }}>
+      {items.slice(rows.start, rows.end).map(renderRow)}
+    </div>
+  </div>
+</ScrollArea>
+
+_Source: src/components/tree/variants/base/use-virtual-rows.ts_
+
 ### valueChangeAdapter
 
 **Kind:** `const`
@@ -12862,6 +14104,26 @@ export const valueChangeAdapter: FieldAdapter
 ```
 
 _Source: src/fields/adapters.ts_
+
+### VirtualRows
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface VirtualRows extends RowRange {
+  /** Вешается на контейнер со скроллом. */
+  readonly scrollRef: React.RefObject<HTMLDivElement | null>;
+  /** Высота всего списка — распорка, которая держит скроллбар честным. */
+  readonly totalHeight: number;
+  /** Сдвиг окна от начала списка. */
+  readonly offsetTop: number;
+  /** Доводит строку до видимой области, если она за краем. */
+  readonly scrollToRow: (index: number) => void;
+}
+```
+
+_Source: src/components/tree/variants/base/use-virtual-rows.ts_
 
 ### withFormControl
 

@@ -40,10 +40,25 @@ describe('variantGroupOf', () => {
       const g = variantGroupOf(cat, group);
       expect(g, group).not.toBeNull();
       expect(g!.default.name).toBe(group);
-      expect(g!.members.map((m) => m.name).sort()).toEqual([group, multi].sort());
+      // Вхождение, а не равенство состава: у группы бывает больше двух членов (Combobox),
+      // и жёсткий список ломался бы от каждого нового варианта, ничего при этом не проверяя.
+      expect(g!.members.map((m) => m.name)).toContain(group);
+      expect(g!.members.map((m) => m.name)).toContain(multi);
       // Мульти резолвит ту же группу — иначе инспектор не покажет переключатель варианта.
       expect(variantGroupOf(cat, multi)?.group).toBe(group);
     }
+  });
+
+  it('семья Combobox — четыре варианта: плоский список и дерево, каждый в двух видах', () => {
+    const g = variantGroupOf(cat, 'Combobox');
+    expect(g).not.toBeNull();
+    expect(g!.default.name).toBe('Combobox');
+    expect(g!.members.map((m) => m.name).sort()).toEqual(
+      ['Combobox', 'ComboboxMulti', 'ComboboxTree', 'ComboboxTreeMulti'].sort()
+    );
+    // Метки вариантов различны — иначе переключатель показал бы два одинаковых пункта.
+    const labels = g!.members.map((m) => m.variant);
+    expect(new Set(labels).size).toBe(labels.length);
   });
 });
 

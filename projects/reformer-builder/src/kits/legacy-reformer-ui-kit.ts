@@ -41,6 +41,8 @@ export const CATEGORY_BY_NAME: Record<string, string> = {
   NativeSelectMulti: 'Выбор и переключатели',
   Combobox: 'Выбор и переключатели',
   ComboboxMulti: 'Выбор и переключатели',
+  ComboboxTree: 'Выбор и переключатели',
+  ComboboxTreeMulti: 'Выбор и переключатели',
   RadioGroup: 'Выбор и переключатели',
   Checkbox: 'Выбор и переключатели',
   Switch: 'Выбор и переключатели',
@@ -73,6 +75,7 @@ export const CATEGORY_BY_NAME: Record<string, string> = {
   Skeleton: 'Отображение',
   Spinner: 'Отображение',
   Table: 'Отображение',
+  Tree: 'Отображение',
   Chart: 'Отображение',
   Empty: 'Отображение',
   Kbd: 'Отображение',
@@ -141,6 +144,11 @@ export const SUBPATH_LIMITED: ReadonlyMap<string, string> = new Map([
 /**
  * Компоненты-листья (`$component`): рендерят самодостаточный визуал (иконка, разделитель, спиннер…) —
  * вложенные компоненты не держат. Расширяемый список.
+ *
+ * `Tree` в этом списке при роли `container` не противоречие: роль говорит «узел не поле формы», а
+ * лист — «детей внутрь не положить». Строки дерева приходят из пропа `nodes` (данные), а `children`
+ * у него нет вовсе: без этой записи палитра дала бы Tree drop-зону, куда всё падало бы в никуда,
+ * а `makeNode` пришил бы ему `className: 'space-y-4'` и пустой `children`.
  */
 export const LEAF_COMPONENT_NAMES: ReadonlySet<string> = new Set([
   'Icon',
@@ -148,6 +156,7 @@ export const LEAF_COMPONENT_NAMES: ReadonlySet<string> = new Set([
   'Spinner',
   'Skeleton',
   'Progress',
+  'Tree',
 ]);
 
 /**

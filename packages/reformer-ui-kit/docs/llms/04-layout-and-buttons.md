@@ -1,8 +1,9 @@
 # Layout and buttons
 
-Компоненты, не привязанные к `FieldNode`: `Button`, `AsyncBoundary`,
+Компоненты, не привязанные к `FieldNode`: `Button`, `AsyncBoundary`, `Tree`,
 `ExampleCard`, утилита `cn`. Используются как для основных действий формы
-(submit, prev/next в wizard), так и для playground-демонстраций.
+(submit, prev/next в wizard), для показа данных рядом с ней и для
+playground-демонстраций.
 
 ## Button
 
@@ -263,6 +264,168 @@ Controlled — когда загрузкой владеет кто-то друг
   это разные механизмы. `AsyncBoundary` — простая state-машина, не
   перехватывает throw.
 
+## Tree
+
+Плотное дерево с уровнями — файловый навигатор редактора, а не раскрывающийся список. Показывает
+иерархию: дерево проекта, разделы каталога, оргструктуру. Живёт в главном barrel
+(`@reformer/ui-kit`) и в своём subpath (`@reformer/ui-kit/tree`); тяжёлых зависимостей не тянет.
+
+**`Tree` — не поле формы.** У него нет ни `value`, ни `onChange`, и `TreeField` не существует:
+раскрытие, выделение и отмеченный набор он держит сам, а наружу отдаёт события. Когда от иерархии
+нужно именно значение поля, берут построенные поверх него `ComboboxTreeField` /
+`ComboboxTreeMultiField` — см. [03-choice-fields.md](03-choice-fields.md).
+
+### Key Concepts
+
+- **Два источника узлов.** `nodes` — дерево объявлено целиком; `loadChildren(node)` — уровень
+  читается при первом раскрытии ветки (`null` — верхний уровень). Вместе их не передают.
+- **Прочитанный уровень не забывается.** Свернуть и раскрыть обратно — частое движение, и
+  повторного запроса оно не стоит. Перечитать уровень можно только явно — `refresh(id)` у handle.
+- **«Уровень не прочитан» ≠ «детей нет».** У ветки `children: undefined` означает первое, поэтому
+  `kind` объявляют явно: пустой каталог иначе неотличим от файла и теряет треугольник.
+- **Выделение и отмеченный набор — разное.** `selectedId` это «где я сейчас» (одна строка, туда же
+  уходит фокус), `checkedIds` — «что я выбрал» (сколько угодно строк, и строка с фокусом может в
+  набор не входить). Свести их в один список нельзя: тогда клавиатура теряет точку отсчёта для
+  диапазона.
+- **Две идиомы набора, а не россыпь флагов.** `checkOn='modifier'` (умолчание) — навигатор файлов:
+  щелчок заменяет набор, Ctrl/Cmd пополняет, Shift берёт диапазон, `Escape` снимает набор.
+  `checkOn='click'` — выбор из списка: щелчок и пробел переключают членство, `Escape` уходит
+  наверх (в поповере его ждёт закрытие). Обе действуют при `selectionMode='multiple'`.
+- **`selectable`** — `'all'` (умолчание) или `'leaf'`. При `'leaf'` щелчок по ветке раскрывает её,
+  а не выбирает: иначе до файлов внутри было бы не добраться мышью.
+- **Виртуальный скролл включён по умолчанию.** Строки фиксированной высоты (24 px), в разметке
+  живёт только видимое окно: раскрытый каталог реального проекта — тысячи строк, и у каждой свои
+  обработчики. `virtualized={false}` — там, где разметка нужна целиком (серверная отрисовка
+  страницы документации).
+- **`maxRows` задаёт высоту по содержимому** — то, что нужно списку в поповере: короткое дерево не
+  оставляет пустоты, длинное не растёт бесконечно. Без него высоту задаёт вызывающий через
+  `className` (например `h-full` в панели), и прокрутка появляется от неё.
+- **Поиск фильтрует само дерево**, достраивая путь до совпадения: ветки на пути раскрываются на
+  время поиска и возвращаются в прежнее состояние, когда запрос убран. Видит только прочитанные
+  уровни; непрочитанная ветка остаётся в выдаче — судить её содержимое ещё не по чему.
+- **`node.id` — адрес, уникальный в пределах всего дерева.** По нему идут раскрытие, выбор, фокус
+  и `data-testid` строки. Для файлов это полный путь, а не имя.
+- **Клавиатура принадлежит дереву** и глушится: стрелки (влево — свернуть либо уйти к родителю,
+  вправо — раскрыть либо шагнуть вниз), `Home`/`End`, `Enter` (запуск), пробел (предпросмотр, а в
+  идиоме `'click'` — переключение членства), `Escape`. Сочетания с модификатором уходят наверх
+  целиком: перехватив `mod+c`, дерево отняло бы у команды копирования её единственную дверь.
+
+### API
+
+```typescript
+interface TreeNode {
+  id: string; // адрес, уникальный в пределах дерева; для файлов — полный путь
+  label: string; // подпись; по ней же идёт поиск
+  kind?: 'branch' | 'leaf'; // умолчание выводится из наличия поля children
+  children?: readonly TreeNode[];
+  badge?: string;
+  badgeTone?: 'default' | 'secondary' | 'destructive' | 'outline';
+  title?: string; // подсказка при наведении; по умолчанию label
+  disabled?: boolean; // выбрать нельзя; раскрыть по-прежнему можно
+  loading?: boolean; // уровень читается — вместо треугольника спиннер
+  failed?: boolean; // уровень не прочитался: нет прав, каталог исчез
+}
+```
+
+| Prop                                                        | Тип                                               | Default           | Описание                                                                          |
+| ----------------------------------------------------------- | ------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------- |
+| `nodes`                                                     | `readonly TreeNode[]`                             | —                 | Узлы верхнего уровня объявленного дерева.                                         |
+| `loadChildren`                                              | `(node: TreeNode \| null) => Promise<TreeNode[]>` | —                 | Ленивое чтение уровня; `null` — верхний уровень.                                  |
+| `expandedIds` / `defaultExpandedIds`                        | `readonly string[]`                               | —                 | Раскрытые ветки: управляемо / на старте.                                          |
+| `selectedId` / `defaultSelectedId`                          | `string \| null`                                  | —                 | Выделенная строка: управляемо / на старте.                                        |
+| `checkedIds` / `defaultCheckedIds`                          | `readonly string[]`                               | —                 | Отмеченный набор: управляемо / на старте.                                         |
+| `onExpandedChange` / `onSelectedChange` / `onCheckedChange` | функция                                           | —                 | Изменение соответствующего состояния.                                             |
+| `selectionMode`                                             | `'single' \| 'multiple'`                          | `'single'`        | Есть ли отмеченный набор помимо выделения.                                        |
+| `checkOn`                                                   | `'modifier' \| 'click'`                           | `'modifier'`      | Как строка попадает в набор.                                                      |
+| `selectable`                                                | `'all' \| 'leaf'`                                 | `'all'`           | Что можно выбрать.                                                                |
+| `isNodeDisabled`                                            | `(node) => boolean`                               | —                 | Динамический запрет выбора поверх `node.disabled`.                                |
+| `onActivate`                                                | `(node, { preview }) => void`                     | —                 | Запуск строки. `preview: true` — щелчок/пробел, `false` — двойной щелчок/`Enter`. |
+| `onRowClick` / `onRowDoubleClick`                           | `(node, event) => void`                           | —                 | ДО правил дерева; `preventDefault()` забирает строку себе.                        |
+| `onContextMenu` / `getRowProps`                             | функция                                           | —                 | Правый щелчок по дереву; свои атрибуты строки.                                    |
+| `search`                                                    | `string`                                          | —                 | Поисковый запрос (подстрока в `label`, регистр не важен).                         |
+| `emptyText`                                                 | `string`                                          | `'Пусто'`         | Текст пустого дерева.                                                             |
+| `rowHeight` / `indent` / `indentBase`                       | `number`                                          | `24` / `12` / `8` | Высота строки и отступы уровней, px.                                              |
+| `maxRows`                                                   | `number`                                          | —                 | Сколько строк показать до появления прокрутки.                                    |
+| `virtualized`                                               | `boolean`                                         | `true`            | Виртуальный скролл.                                                               |
+| `renderIcon` / `renderLabel` / `renderActions`              | функция                                           | —                 | Значок, подпись, правый край строки.                                              |
+| `onLoadError`                                               | `(error, node) => void`                           | консоль           | Отказ чтения уровня.                                                              |
+| `id` / `data-testid` / `aria-*`                             | `string`                                          | —                 | Связывание с подписью снаружи и адресация в тестах.                               |
+
+Императивный handle (`TreeHandle`: `expand` / `collapse` / `toggle` / `refresh` / `focusNode` /
+`getRows` / `getActionTargets` поверх baseline `FieldHandle`) — в
+[10-imperative-handles.md](10-imperative-handles.md).
+
+Рядом с компонентом пакет отдаёт и его модель: `flattenTree`, `filterTree`, `rangeIds`,
+`actionTargets`, `isBranch`, `useVirtualRows` / `rowRange`, константы `TREE_ROW_HEIGHT` и
+`TREE_ROW_ATTRIBUTE` (`data-tree-id` на строке — по нему обработчик, нарисованный вне дерева,
+находит свою строку).
+
+### Common Patterns
+
+Ленивый файловый источник: уровень читается при первом раскрытии.
+
+```tsx
+import { Tree } from '@reformer/ui-kit';
+
+<Tree
+  loadChildren={(node) => fs.list(node?.id ?? '/')}
+  selectedId={path}
+  onSelectedChange={setPath}
+  selectable="leaf"
+  onActivate={(node, { preview }) => (preview ? openPreview(node.id) : openPinned(node.id))}
+  className="h-full"
+  data-testid="files"
+/>;
+```
+
+Панель проекта с набором строк, к которому применяется действие:
+
+```tsx
+import { useRef } from 'react';
+import { Tree, type TreeHandle } from '@reformer/ui-kit';
+
+const treeRef = useRef<TreeHandle>(null);
+
+<Tree
+  ref={treeRef}
+  nodes={project}
+  selectionMode="multiple" // Ctrl/Cmd — по одной, Shift — диапазон, Escape — снять набор
+  onContextMenu={openMenu}
+  renderActions={(node) => (node.failed ? <AlertIcon /> : null)}
+/>;
+
+// Что удалять: набор, если выделение внутри него, иначе одна выделенная строка.
+const targets = treeRef.current?.getActionTargets() ?? [];
+```
+
+Поиск над деревом — своё поле ввода, дерево фильтрует себя само:
+
+```tsx
+const [query, setQuery] = useState('');
+
+<div className="space-y-2">
+  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Поиск по файлам" />
+  <Tree nodes={project} search={query} maxRows={12} emptyText="Ничего не найдено" />
+</div>;
+```
+
+### Anti-patterns
+
+- Собирать `id` из имени узла — два `index.ts` в разных каталогах схлопнутся в один адрес, и две
+  строки начнут раскрываться и выделяться вместе. Адрес обязан быть уникальным в пределах дерева.
+- Обновлять содержимое ветки заменой `nodes`, когда уровень уже прочитан лениво: прочитанный
+  уровень перекрывает объявленный, и новые данные до строки не дойдут. Перечитывание —
+  `refresh(id)` у handle.
+- Держать `selectedId` и «что выбрано» одним списком — выделение отвечает на «где я», набор на
+  «к чему применится действие»; слитые вместе, они ломают Shift-диапазон и клавиатуру.
+- Оставлять виртуализацию включённой при серверной отрисовке — без метрик вьюпорта в разметку
+  попадает только окно из девяти строк. Для страниц документации `virtualized={false}`.
+- Ставить дерево в форму как поле (`component: Tree`) — value-seam ему нечем принять: ни `value`,
+  ни `onChange` у него нет. Значение из иерархии даёт `ComboboxTreeField`.
+- Обвешивать строки собственными классами фона и рамки: вид строки — часть компонента, а темой
+  управляют токены. Своё содержимое добавляют слотами `renderIcon` / `renderLabel` /
+  `renderActions`.
+
 ## ExampleCard
 
 Карточка-демонстрация для playground: заголовок, описание, область с примером
@@ -345,5 +508,7 @@ const Card = React.forwardRef<HTMLDivElement, { className?: string }>(
 
 ## See also
 
+- [03-choice-fields.md](03-choice-fields.md) — `ComboboxTreeField` / `ComboboxTreeMultiField`: значение из иерархии.
 - [05-form-field-integration.md](05-form-field-integration.md) — как `Button` используется в `FormWizard.Actions`.
-- [06-troubleshooting.md](06-troubleshooting.md) — «forwardRef + Slot конфликты», «AsyncBoundary не переключает состояние».
+- [10-imperative-handles.md](10-imperative-handles.md) — `TreeHandle`: раскрытие уровней, `refresh`, цели действия.
+- [06-troubleshooting.md](06-troubleshooting.md) — «forwardRef + Slot конфликты», «AsyncBoundary не переключает состояние», ловушки дерева.

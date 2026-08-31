@@ -62,6 +62,19 @@ describe('toInspectorProps', () => {
     expect(by('rel').widget).toBe('text');
   });
 
+  it('проп-дерево (`nodes`) — свой редактор, а не редактор опций', () => {
+    // Редактор опций пишет `{ value, label }`. Наведи его на дерево — у узлов пропадёт `id`,
+    // которым дерево их адресует, и значение поля перестанет с чем-либо совпадать. Молча.
+    for (const name of ['Tree', 'ComboboxTree', 'ComboboxTreeMulti'] as const) {
+      const props = toInspectorProps(defaultPropSchemas[name]);
+      expect(props.find((p) => p.key === 'nodes')!.widget, name).toBe('tree');
+    }
+    // Плоский список по-прежнему уходит в редактор опций — различие по ФОРМЕ элемента, не по имени.
+    expect(
+      toInspectorProps(defaultPropSchemas.ComboboxMulti).find((p) => p.key === 'options')!.widget
+    ).toBe('dataSource');
+  });
+
   it('человекочитаемые подписи', () => {
     const props = inputProps();
     expect(props.find((p) => p.key === 'className')!.label).toBe('Class Name');

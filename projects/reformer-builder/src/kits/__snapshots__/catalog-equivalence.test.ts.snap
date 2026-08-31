@@ -26,7 +26,7 @@ exports[`«неявный кит» на реальном каталоге > жё
 }
 `;
 
-exports[`каталог: отпечаток не меняется > размер каталога зафиксирован (сдвиг = кит изменился, а не рефактор) 1`] = `206`;
+exports[`каталог: отпечаток не меняется > размер каталога зафиксирован (сдвиг = кит изменился, а не рефактор) 1`] = `209`;
 
 exports[`каталог: отпечаток не меняется > состав, категории и makeNode каждой записи 1`] = `
 [
@@ -91,6 +91,8 @@ exports[`каталог: отпечаток не меняется > состав
   "CollapsibleTrigger|container|Контейнеры|||Collapsible|||11f52680|{"children":["Текст"],"component":"$component(CollapsibleTrigger)"}",
   "Combobox|field|Выбор и переключатели|Combobox|Один||ComboboxField||14902d59|{"component":"$component(Combobox)","componentProps":{"label":"Combobox"},"value":"$model(newField)"}",
   "ComboboxMulti|field|Выбор и переключатели|Combobox|Несколько||ComboboxMultiField||2e34a0d8|{"component":"$component(ComboboxMulti)","componentProps":{"label":"ComboboxMulti"},"value":"$model(newField)"}",
+  "ComboboxTree|field|Выбор и переключатели|Combobox|Дерево||ComboboxTreeField||9ec39b2e|{"component":"$component(ComboboxTree)","componentProps":{"label":"ComboboxTree"},"value":"$model(newField)"}",
+  "ComboboxTreeMulti|field|Выбор и переключатели|Combobox|Дерево, несколько||ComboboxTreeMultiField||c9865697|{"component":"$component(ComboboxTreeMulti)","componentProps":{"label":"ComboboxTreeMulti"},"value":"$model(newField)"}",
   "Command|container|Оверлеи||||||82aa3265|{"children":[],"component":"$component(Command)","componentProps":{"className":"space-y-4"}}",
   "ContextMenu|container|Навигация||||||386fc0e4|{"children":[],"component":"$component(ContextMenu)","componentProps":{"className":"space-y-4"}}",
   "DatePicker|field|Поля ввода||||DatePickerField||60ded2a2|{"component":"$component(DatePicker)","componentProps":{"label":"DatePicker"},"value":"$model(newField)"}",
@@ -162,7 +164,7 @@ exports[`каталог: отпечаток не меняется > состав
   "ResizableHandle|container|Контейнеры|||Resizable|||53b41afe|{"children":[],"component":"$component(ResizableHandle)"}",
   "ResizablePanel|container|Контейнеры|||Resizable|||82e92d1c|{"children":[],"component":"$component(ResizablePanel)"}",
   "ResizablePanelGroup|container|Контейнеры|||Resizable|||b68fb040|{"children":[],"component":"$component(ResizablePanelGroup)"}",
-  "ScrollArea|container|Контейнеры||||||a2280c0d|{"children":[],"component":"$component(ScrollArea)","componentProps":{"className":"space-y-4"}}",
+  "ScrollArea|container|Контейнеры||||||58a6d577|{"children":[],"component":"$component(ScrollArea)","componentProps":{"className":"space-y-4"}}",
   "Section|container|Контейнеры||||||94304c5d|{"children":[],"component":"$component(Section)","componentProps":{"className":"space-y-4"}}",
   "Select|field|Выбор и переключатели|Select|Один||SelectField||9aa8c6af|{"component":"$component(Select)","componentProps":{"label":"Select"},"value":"$model(newField)"}",
   "SelectMulti|field|Выбор и переключатели|Select|Несколько||SelectMultiField||2f70b36b|{"component":"$component(SelectMulti)","componentProps":{"label":"SelectMulti"},"value":"$model(newField)"}",
@@ -190,6 +192,7 @@ exports[`каталог: отпечаток не меняется > состав
   "ToggleGroup|field|Выбор и переключатели|ToggleGroup|Один||ToggleGroupField||791a8285|{"component":"$component(ToggleGroup)","componentProps":{"label":"ToggleGroup"},"value":"$model(newField)"}",
   "ToggleGroupMulti|field|Выбор и переключатели|ToggleGroup|Несколько||ToggleGroupMultiField||732dd899|{"component":"$component(ToggleGroupMulti)","componentProps":{"label":"ToggleGroupMulti"},"value":"$model(newField)"}",
   "Tooltip|container|Оверлеи||||||b2906777|{"children":[],"component":"$component(Tooltip)","componentProps":{"className":"space-y-4"}}",
+  "Tree|container|Отображение||||||f73ae46e|{"component":"$component(Tree)","componentProps":{}}",
   "TypographyBlockquote|container|Типографика||||||6c8af5d8|{"children":[],"component":"$component(TypographyBlockquote)","componentProps":{"className":"space-y-4"}}",
   "TypographyH1|container|Типографика||||||b2d818d3|{"children":[],"component":"$component(TypographyH1)","componentProps":{"className":"space-y-4"}}",
   "TypographyH2|container|Типографика||||||dc8c3f22|{"children":[],"component":"$component(TypographyH2)","componentProps":{"className":"space-y-4"}}",

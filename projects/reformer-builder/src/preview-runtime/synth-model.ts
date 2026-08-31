@@ -38,6 +38,7 @@ function defaultForField(node: JsonFieldNode): unknown {
   if (
     component === 'SelectMulti' ||
     component === 'ComboboxMulti' ||
+    component === 'ComboboxTreeMulti' ||
     component === 'NativeSelectMulti' ||
     component === 'ToggleGroupMulti'
   )

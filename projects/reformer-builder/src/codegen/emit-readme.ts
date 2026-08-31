@@ -31,6 +31,15 @@ export function emitReadme(n: Names, sel: SelectorInfo, c: Collected): string {
     ...(c.ds.optionLike.size
       ? ['- `data-sources.ts` → замените синтетические опции реальными словарями/загрузчиками.']
       : []),
+    ...(c.ds.treeLike.size
+      ? [
+          `- \`data-sources.ts\` → замените синтетические деревья реальной иерархией: ${[
+            ...c.ds.treeLike,
+          ]
+            .map((x) => `\`${x}\``)
+            .join(', ')}.`,
+        ]
+      : []),
     '- `validation.ts` → допишите правила (сейчас — только `required`).',
     '- `form.behavior.ts` → вычисляемые поля / условное включение (по желанию).',
   ].join('\n');

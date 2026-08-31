@@ -1,7 +1,8 @@
 /**
  * Эмиттер `data-sources.ts` (user-owned) — значения `$dataSource`: optionLike → массив опций из
- * мока; scalarLike → константа; functionLike → рабочая подпись элемента (заглушка). Всё —
- * функциональные no-op, форма работает сразу; реальные данные пользователь вписывает сам.
+ * мока; treeLike → иерархия узлов оттуда же; scalarLike → константа; functionLike → рабочая подпись
+ * элемента (заглушка). Всё — функциональные no-op, форма работает сразу; реальные данные
+ * пользователь вписывает сам.
  *
  * @module reformer-builder/codegen/emit-data-sources
  */
@@ -11,6 +12,7 @@ import type { Collected } from './collect';
 
 export function emitDataSources(c: Collected, mock: MockData): string {
   const opt = [...c.ds.optionLike].sort();
+  const tree = [...c.ds.treeLike].sort();
   const scal = [...c.ds.scalarLike].sort();
   const fn = [...c.ds.functionLike].sort();
 
@@ -18,6 +20,14 @@ export function emitDataSources(c: Collected, mock: MockData): string {
     const val = mock.dataSources[name];
     const arr = Array.isArray(val) ? val : [];
     return `export const ${name}: SelectOption[] = ${JSON.stringify(arr, null, 2)};`;
+  });
+  // Без аннотации типа, в отличие от опций: форму узла дерева (`children` — такие же узлы)
+  // описывает `TreeNode` кита, а тащить его импортом в user-owned файл значит привязать
+  // «свои» данные к пакету. Вывод типа из литерала здесь точнее и ничего не стоит.
+  const treeLines = tree.map((name) => {
+    const val = mock.dataSources[name];
+    const arr = Array.isArray(val) ? val : [];
+    return `export const ${name} = ${JSON.stringify(arr, null, 2)};`;
   });
   const scalLines = scal.map((name) => {
     const val = mock.dataSources[name];
@@ -30,7 +40,12 @@ export function emitDataSources(c: Collected, mock: MockData): string {
 
   const needsSelectOption = opt.length > 0;
   const importLine = needsSelectOption ? `import type { SelectOption } from './types';\n\n` : '';
-  const blocks = [optLines.join('\n\n'), scalLines.join('\n'), fnLines.join('\n')].filter(Boolean);
+  const blocks = [
+    optLines.join('\n\n'),
+    treeLines.join('\n\n'),
+    scalLines.join('\n'),
+    fnLines.join('\n'),
+  ].filter(Boolean);
 
   return `// data-sources.ts — значения $dataSource. МОК: опции из синтеза — замените реальными данными.
 // Пишется один раз (не затирается при регенерации).

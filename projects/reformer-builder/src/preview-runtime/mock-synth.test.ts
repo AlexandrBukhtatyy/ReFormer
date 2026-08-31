@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { classifyDataSources, inferFieldKind, mockOptions, synthMock } from './mock-synth';
+import {
+  classifyDataSources,
+  inferFieldKind,
+  mockOptions,
+  mockTreeNodes,
+  synthMock,
+} from './mock-synth';
 import { sampleSchema } from '../model/__fixtures__/sample-schema';
 import { seedSchema } from '../app/seed-schema';
 
@@ -48,11 +54,50 @@ function tokenSchema(): JsonFormSchema {
   } as unknown as JsonFormSchema;
 }
 
+/** Схема с деревом: поле-комбобокс на инлайн-узлах и контейнер `Tree` на именованном источнике. */
+function treeSchema(): JsonFormSchema {
+  return {
+    version: '1.0',
+    root: {
+      component: '$component(Box)',
+      children: [
+        {
+          value: '$model(file)',
+          component: '$component(ComboboxTree)',
+          componentProps: {
+            label: 'Файл',
+            nodes: [
+              { id: 'src', label: 'src', children: [{ id: 'src/app.ts', label: 'app.ts' }] },
+              { id: 'readme.md', label: 'readme.md' },
+            ],
+          },
+        },
+        {
+          value: '$model(files)',
+          component: '$component(ComboboxTreeMulti)',
+          componentProps: { label: 'Файлы', nodes: '$dataSource(PROJECT_TREE)' },
+        },
+        { component: '$component(Tree)', componentProps: { nodes: '$dataSource(PROJECT_TREE)' } },
+      ],
+    },
+  } as unknown as JsonFormSchema;
+}
+
 describe('classifyDataSources', () => {
   it('раскладывает по бакетам: itemLabel → functionLike, list-проп → optionLike', () => {
     const cls = classifyDataSources(sampleSchema());
     expect([...cls.functionLike]).toEqual(['PROP_LABEL']);
     expect([...cls.optionLike]).toEqual(['LOAN_TYPES']);
+    expect([...cls.treeLike]).toEqual([]);
+    expect([...cls.scalarLike]).toEqual([]);
+  });
+
+  it('`nodes` → treeLike, а НЕ optionLike и не scalarLike', () => {
+    // Промах в любую сторону виден только в рантайме: опции дадут узлы без `id` (пустое дерево),
+    // скаляр — строку вместо массива, на которой обход иерархии падает вместе со всем превью.
+    const cls = classifyDataSources(treeSchema());
+    expect([...cls.treeLike]).toEqual(['PROJECT_TREE']);
+    expect([...cls.optionLike]).toEqual([]);
     expect([...cls.scalarLike]).toEqual([]);
   });
 });
@@ -74,6 +119,33 @@ describe('inferFieldKind', () => {
     expect(inferFieldKind(node('FileUpload'))).toBe('files');
     expect(inferFieldKind(node('FileUploadAvatar'))).toBe('files');
     expect(inferFieldKind(node('Attachment'))).toBe('files');
+  });
+
+  it('древовидные комбобоксы: одиночный → tree, множественный → multi', () => {
+    const s = treeSchema().root as { children: Parameters<typeof inferFieldKind>[0][] };
+    expect(inferFieldKind(s.children[0])).toBe('tree');
+    expect(inferFieldKind(s.children[1])).toBe('multi');
+  });
+});
+
+describe('synthMock — деревья', () => {
+  it('одиночное дерево получает адрес ПЕРВОГО ЛИСТА, а не первого узла', () => {
+    // Каталог верхнего уровня выбрать нельзя (`selectable: 'leaf'` у ComboboxTree) — мок со
+    // значением 'src' показывал бы состояние, которого пользователь щелчком не добьётся.
+    expect(synthMock(treeSchema(), { now: NOW }).model.file).toBe('src/app.ts');
+  });
+
+  it('множественное дерево — null (не [] и не строка)', () => {
+    // Как у остальных мультивыборов: массив в начальном значении стал бы ModelArray, а не листом.
+    expect(synthMock(treeSchema(), { now: NOW }).model.files).toBeNull();
+  });
+
+  it('treeLike-источник наполняется иерархией с детьми, а не плоскими опциями', () => {
+    const { dataSources } = synthMock(treeSchema(), { now: NOW });
+    expect(dataSources.PROJECT_TREE).toEqual(mockTreeNodes('PROJECT_TREE'));
+    const nodes = dataSources.PROJECT_TREE as Array<{ id: string; children?: unknown[] }>;
+    expect(nodes.some((n) => Array.isArray(n.children) && n.children.length > 0)).toBe(true);
+    expect(nodes.every((n) => typeof n.id === 'string' && n.id.length > 0)).toBe(true);
   });
 });
 
