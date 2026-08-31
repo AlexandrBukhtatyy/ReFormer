@@ -31,6 +31,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "npm run generate:llms && vite build",
+    "build:stackblitz": "vite build",
     "test": "node ../../scripts/run-vitest.mjs",
     "test:watch": "vitest watch",
     "generate:llms": "node ../../scripts/generate-llms-txt ."
