@@ -17,8 +17,8 @@ import type { CatalogEntry } from '@/lib/catalog/types';
 import type { Plugin } from '@/shell/platform/plugin/types';
 import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
-import type { FilesHost } from '@/plugins/files/host';
-import { createFilesPlugin } from '@/plugins/files/plugin';
+import type { FilesHost } from '@/plugins/files';
+import { createFilesPlugin } from '@/plugins/files';
 import type { ViewStateRegistry } from '@/plugins/editor-monaco';
 import {
   createMonacoEditorPlugin,
@@ -29,8 +29,8 @@ import { createMarkdownPlugin } from '@/plugins/editor-markdown';
 import type { MarkdownHost } from '@/plugins/editor-markdown';
 import { createSchemaEditorPlugin } from '@/plugins/editor-schema';
 import type { SchemaEditorHost } from '@/plugins/editor-schema';
-import { createKitsPlugin } from '@/plugins/kits/plugin';
-import type { KitsPluginOptions } from '@/plugins/kits/plugin';
+import { createKitsPlugin } from '@/plugins/kits';
+import type { KitsPluginOptions } from '@/plugins/kits';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
 import { createAiPlugin } from '@/plugins/ai';
 import type { AiHost } from '@/plugins/ai';
@@ -40,7 +40,7 @@ import { createCodegenPlugin } from '@/plugins/codegen';
 import type { CodegenHost } from '@/plugins/codegen';
 import { createTemplatesPlugin } from '@/plugins/templates';
 import type { ModulePrinter, TemplatesHost } from '@/plugins/templates';
-import { createSchemaValidatorPlugin } from '@/plugins/validator-schema/plugin';
+import { createSchemaValidatorPlugin } from '@/plugins/validator-schema';
 
 export interface BuiltinPluginsOptions {
   /** Порт платформы для плагина файлов. */

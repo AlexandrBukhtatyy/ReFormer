@@ -29,7 +29,7 @@ import { TooltipProvider } from '@reformer/ui-kit/tooltip';
 import { renderReact } from '@/testing/render';
 import type { FormTemplate, TemplateStore } from '../contract';
 import type { TemplatesHost } from '../host';
-import { createTemplatesRefresh, type TemplatesRefresh } from '../refresh';
+import { createTemplatesRefresh, type TemplatesRefresh } from '../content/refresh';
 import { createFakeTemplatesHost, type FakeTemplatesHost } from '../testing';
 import { TemplatesActions } from './TemplatesActions';
 import { TemplatesPanel } from './TemplatesPanel';

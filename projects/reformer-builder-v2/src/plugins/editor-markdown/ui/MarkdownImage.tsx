@@ -10,8 +10,8 @@
  */
 
 import { useEffect, useState, type ImgHTMLAttributes, type ReactElement } from 'react';
-import type { AssetCache } from '../assets';
-import { isExternalUrl } from '../markdown';
+import type { AssetCache } from '../render/assets';
+import { isExternalUrl } from '../render/markdown';
 import { withoutProps } from './props';
 
 export type MarkdownImageProps = ImgHTMLAttributes<HTMLImageElement> & {

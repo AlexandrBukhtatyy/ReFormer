@@ -25,10 +25,10 @@ import { Label } from '@reformer/ui-kit/label';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Separator } from '@reformer/ui-kit/separator';
 import type { CodegenTarget } from '../contract';
-import type { CodegenProblem } from '../generate';
+import type { CodegenProblem } from '../pipeline/generate';
 import type { CodegenHost, Translate } from '../host';
-import { defaultFormName, runCodegen } from '../run';
-import type { CodegenSessions, CodegenState, CodegenStore } from '../state';
+import { defaultFormName, runCodegen } from '../pipeline/run';
+import type { CodegenSessions, CodegenState, CodegenStore } from '../pipeline/state';
 
 export interface ExportPanelProps {
   readonly host: CodegenHost;

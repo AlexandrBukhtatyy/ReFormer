@@ -13,7 +13,7 @@
 
 import type { AnchorHTMLAttributes, MouseEvent, ReactElement, RefObject } from 'react';
 import type { ResourceId } from '@/sdk';
-import { isExternalUrl, resolveRelativePath, splitHash } from '../markdown';
+import { isExternalUrl, resolveRelativePath, splitHash } from '../render/markdown';
 import { withoutProps } from './props';
 
 export type MarkdownLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {

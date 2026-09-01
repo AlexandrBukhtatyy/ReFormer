@@ -20,7 +20,7 @@ import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor } from '@/lib/kits/types';
-import { KitsServiceToken } from '@/plugins/kits/service';
+import { KitsServiceToken } from '@/plugins/kits';
 import { TEMPLATES_PLUGIN_ID } from '@/plugins/templates';
 import type { TemplatesHost, Translate } from '@/plugins/templates';
 import { parentOf, resolve } from '@/shell/platform/primitives/resource-path';

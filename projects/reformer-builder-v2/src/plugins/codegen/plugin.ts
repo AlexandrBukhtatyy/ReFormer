@@ -38,17 +38,17 @@ import {
   codegenContextCommands,
   codegenContextMenuItems,
   type GenerateIntoDeps,
-} from './context-menu';
+} from './commands/context-menu';
 import { CodegenTargetPoint, type CodegenTarget, type ExtensionPointRef } from './contract';
-import { ejectTemplate, type EjectOutcome } from './eject';
-import { createFixture, type FixtureOutcome } from './fixture-command';
-import type { CodegenProblem } from './generate';
+import { ejectTemplate, type EjectOutcome } from './commands/eject';
+import { createFixture, type FixtureOutcome } from './commands/fixture-command';
+import type { CodegenProblem } from './pipeline/generate';
 import type { CodegenHost, MessageSink } from './host';
 import { CODEGEN_MESSAGES } from './messages';
-import { runCodegen } from './run';
-import { applyOverrides, discoverUserTargets } from './user-targets';
-import { createCodegenSessions, type CodegenSessions } from './state';
-import { BUILTIN_TARGETS } from './targets';
+import { runCodegen } from './pipeline/run';
+import { applyOverrides, discoverUserTargets } from './pipeline/user-targets';
+import { createCodegenSessions, type CodegenSessions } from './pipeline/state';
+import { BUILTIN_TARGETS } from './pipeline/targets';
 import { ExportPanel } from './ui/ExportPanel';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */

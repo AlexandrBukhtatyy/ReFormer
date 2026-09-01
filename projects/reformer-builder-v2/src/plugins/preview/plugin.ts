@@ -39,7 +39,7 @@ import { PreviewSurfacePoint } from './contract';
 import type { MessageSink, PreviewHost } from './host';
 import { PREVIEW_MESSAGES } from './messages';
 import { createRuntimeSurface } from './runtime/surface';
-import { createPreviewSessions, type PreviewSessions } from './sessions';
+import { createPreviewSessions, type PreviewSessions } from './state/sessions';
 import { ModelPanel, MODEL_PANEL_ID } from './ui/ModelPanel';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */

@@ -31,10 +31,10 @@ import {
   createTemplateSnapshot,
   templatesContextMenuItems,
   templatesMenuCommands,
-} from './context-menu';
+} from './commands/context-menu';
 import type { MessageSink, TemplatesHost } from './host';
 import { TEMPLATES_MESSAGES } from './messages';
-import { createTemplatesRefresh, type TemplatesRefresh } from './refresh';
+import { createTemplatesRefresh, type TemplatesRefresh } from './content/refresh';
 import { createBuiltinStore, type ModulePrinter } from './stores/builtin';
 import { createLocalStore } from './stores/local';
 import { createProjectStore } from './stores/project';

@@ -39,7 +39,7 @@ import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createProjectHost } from '@/shell/boot/project/project';
 import { createSchemaHost } from '@/shell/boot/ports/schema';
 import { createAiHost } from '@/shell/boot/ports/ai';
-import { KitsServiceToken } from '@/plugins/kits/service';
+import { KitsServiceToken } from '@/plugins/kits';
 import type { CatalogEntry } from '@/lib/catalog/types';
 
 let seq = 0;

@@ -24,7 +24,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import type { ResourceId } from '@/sdk';
 import type { MarkdownHost } from '../host';
-import type { MarkdownViewStore } from '../sessions';
+import type { MarkdownViewStore } from '../state/sessions';
 /**
  * Рендер грузится ЛЕНИВО, и это не оптимизация «на всякий случай».
  *

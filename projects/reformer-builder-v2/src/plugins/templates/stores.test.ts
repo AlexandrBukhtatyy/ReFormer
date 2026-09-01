@@ -22,7 +22,7 @@ import {
 } from '@/lib/codegen';
 import type { FormTemplate, TemplateStore } from './contract';
 import { canRemove, canSave, canUpdate } from './contract';
-import { materializeFiles } from './files';
+import { materializeFiles } from './content/files';
 import {
   BUILTIN_BASE_NAME,
   createBuiltinStore,

@@ -110,8 +110,8 @@ import {
 } from '@/shell/platform/workspace/storage/purge';
 import { createJournalRelief } from '@/shell/platform/workspace/journal/journal';
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
-import { FILES_MESSAGES } from '@/plugins/files/messages';
-import { FILES_PLUGIN_ID } from '@/plugins/files/plugin';
+import { FILES_MESSAGES } from '@/plugins/files';
+import { FILES_PLUGIN_ID } from '@/plugins/files';
 import { createFilesHost } from '@/shell/boot/ports/files';
 import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
@@ -136,8 +136,8 @@ import {
 } from '@/plugins/editor-monaco';
 import { MARKDOWN_PLUGIN_ID } from '@/plugins/editor-markdown';
 import { SCHEMA_EDITOR_PLUGIN_ID } from '@/plugins/editor-schema';
-import { KITS_PLUGIN_ID } from '@/plugins/kits/plugin';
-import { KitsServiceToken } from '@/plugins/kits/service';
+import { KITS_PLUGIN_ID } from '@/plugins/kits';
+import { KitsServiceToken } from '@/plugins/kits';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
 import { createCompileCache, type CompileCache } from '@/shell/platform/modules/compile-cache';

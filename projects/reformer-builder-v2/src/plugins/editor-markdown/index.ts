@@ -26,5 +26,7 @@
 export { createMarkdownPlugin, MARKDOWN_EDITOR_ID, MARKDOWN_PLUGIN_ID } from './plugin';
 export type { MarkdownPluginOptions } from './plugin';
 export type { MarkdownDocument, MarkdownHost } from './host';
-export { isMarkdown, MARKDOWN_MEDIA_TYPE } from './markdown';
-export { MARKDOWN_VIEW_SETTING, type MarkdownView } from './view';
+export { isMarkdown, MARKDOWN_MEDIA_TYPE } from './render/markdown';
+export { MARKDOWN_VIEW_SETTING, type MarkdownView } from './state/view';
+export { MARKDOWN_MESSAGES } from './messages';
+export type { Translate } from './host';

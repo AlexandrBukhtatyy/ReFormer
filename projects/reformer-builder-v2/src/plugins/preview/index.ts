@@ -71,13 +71,13 @@ export { PreviewSurfacePoint } from './contract';
  * раздваивались бы. Реестр состояний поэтому и создаётся композицией — тем же приёмом,
  * которым она владеет реестрами Monaco, делимыми на троих.
  */
-export { chooseSurface, surfaceRank } from './selection';
-export type { SurfaceChoice, SurfaceFallback, SurfaceOption } from './selection';
-export { createPreviewSessions } from './sessions';
-export type { PreviewSessions } from './sessions';
-export { documentRefOf } from './context';
-export { fallbackMessage, surfaceTitle } from './label';
-export type { PreviewStore, PreviewState } from './store';
+export { chooseSurface, surfaceRank } from './surface/selection';
+export type { SurfaceChoice, SurfaceFallback, SurfaceOption } from './surface/selection';
+export { createPreviewSessions } from './state/sessions';
+export type { PreviewSessions } from './state/sessions';
+export { documentRefOf } from './surface/context';
+export { fallbackMessage, surfaceTitle } from './surface/label';
+export type { PreviewStore, PreviewState } from './state/store';
 export type { PreviewValues } from './contract';
 export type {
   ExtensionPointRef,

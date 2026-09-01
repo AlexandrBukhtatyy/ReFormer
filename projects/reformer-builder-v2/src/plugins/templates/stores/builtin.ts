@@ -31,7 +31,7 @@ import type { FormRules } from '@/lib/form-model/rules';
 import { emptySchema } from '@/lib/form-model/normalize';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile, TemplateStore } from '../contract';
-import { tokenize } from '../placeholders';
+import { tokenize } from '../render/placeholders';
 
 /**
  * Базовое имя, под которое печатаются затравки перед токенизацией.

@@ -13,7 +13,7 @@ import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { ensureNodeIds, newNodeId } from '@/lib/form-model/node-id';
 import { toDescriptor } from '@/lib/kits/descriptor';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { NODE_CLASS_PREFIX } from '../node-token';
+import { NODE_CLASS_PREFIX } from '../schema/node-token';
 import { deepMerge } from '@/lib/form-fixture';
 import { buildRuntimeBundle } from './build';
 

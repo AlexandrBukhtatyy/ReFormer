@@ -28,12 +28,12 @@ import {
   type Plugin,
   type ResourceId,
 } from '@/sdk';
-import { createFocusRegistry, type MonacoFocusRegistry } from './focus';
+import { createFocusRegistry, type MonacoFocusRegistry } from './sync/focus';
 import type { MessageSink, MonacoHost } from './host';
-import { MONACO_EDITOR_PRIORITY } from './language';
+import { MONACO_EDITOR_PRIORITY } from './runtime/language';
 import { contributeMessages, resolveMessageSink } from './messages';
-import { MonacoEditorBody } from './MonacoEditor';
-import { createViewStateRegistry, readViewState, type ViewStateRegistry } from './view-state';
+import { MonacoEditorBody } from './ui/MonacoEditor';
+import { createViewStateRegistry, readViewState, type ViewStateRegistry } from './sync/view-state';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
 export const MONACO_PLUGIN_ID = 'editor-monaco';

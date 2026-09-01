@@ -9,12 +9,12 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PluginContext } from '@/sdk';
-import { chooseSurface } from './selection';
+import { chooseSurface } from './surface/selection';
 import { builtinSurfaces, createPreviewPlugin, PREVIEW_PLUGIN_ID } from './plugin';
 import { MODEL_PANEL_ID } from './ui/ModelPanel';
 import { COMPILING_SURFACE_ID } from './compiling/surface';
 import { RUNTIME_SURFACE_ID } from './runtime/surface';
-import { createPreviewSessions } from './sessions';
+import { createPreviewSessions } from './state/sessions';
 import { createFakeHost, fakeRef } from './testing';
 
 const DOC = {

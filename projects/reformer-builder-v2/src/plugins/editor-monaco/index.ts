@@ -27,7 +27,7 @@
 
 export { createMonacoEditorPlugin, monacoEditorContribution } from './plugin';
 export { MONACO_EDITOR_ID, MONACO_PLUGIN_ID, type MonacoEditorPluginOptions } from './plugin';
-export { MONACO_EDITOR_PRIORITY } from './language';
-export { createFocusRegistry, type MonacoFocusRegistry } from './focus';
-export { createViewStateRegistry, type ViewStateRegistry } from './view-state';
+export { MONACO_EDITOR_PRIORITY } from './runtime/language';
+export { createFocusRegistry, type MonacoFocusRegistry } from './sync/focus';
+export { createViewStateRegistry, type ViewStateRegistry } from './sync/view-state';
 export type { MessageSink, MonacoDiagnostics, MonacoDocument, MonacoHost, Translate } from './host';

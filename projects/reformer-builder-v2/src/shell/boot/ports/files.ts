@@ -22,8 +22,8 @@ import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-st
 import { actionTargets, flattenTree } from '@/shell/platform/ui/state/resource-tree';
 import type { ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
-import type { FilesDocument, FilesHost, Translate } from '@/plugins/files/host';
-import { FILES_PLUGIN_ID } from '@/plugins/files/plugin';
+import type { FilesDocument, FilesHost, Translate } from '@/plugins/files';
+import { FILES_PLUGIN_ID } from '@/plugins/files';
 import { makeUseDiagnosticMessage, makeUseHostMessage } from './monaco';
 import { ProjectTree } from '@/shell/boot/project/ProjectTree';
 import type { ProjectHost } from '@/shell/boot/project/project';

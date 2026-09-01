@@ -20,9 +20,9 @@ import {
   GENERATE_COMMAND_ID,
   panelVisible,
 } from './plugin';
-import { GENERATE_INTO_COMMAND_ID } from './context-menu';
-import { BUILTIN_TARGETS } from './targets';
-import { createCodegenSessions } from './state';
+import { GENERATE_INTO_COMMAND_ID } from './commands/context-menu';
+import { BUILTIN_TARGETS } from './pipeline/targets';
+import { createCodegenSessions } from './pipeline/state';
 import { createFakeHost } from './testing';
 
 function whenContext(patch: Partial<WhenContext> = {}): WhenContext {

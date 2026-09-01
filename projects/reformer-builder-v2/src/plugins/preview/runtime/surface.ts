@@ -12,9 +12,9 @@
 
 import { createElement } from 'react';
 import type { PreviewSurface } from '../contract';
-import { isFormDocument } from '../document';
+import { isFormDocument } from '../schema/document';
 import type { PreviewHost } from '../host';
-import { mountReact } from '../mount';
+import { mountReact } from '../surface/mount';
 import { RuntimeView, RUNTIME_SURFACE_ID } from './RuntimeView';
 
 export { RUNTIME_SURFACE_ID };

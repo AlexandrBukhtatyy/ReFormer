@@ -39,7 +39,7 @@ import {
   type NodeState,
 } from '@/lib/form-inspect';
 import type { PreviewHost } from '../host';
-import type { PreviewSessions } from '../sessions';
+import type { PreviewSessions } from '../state/sessions';
 
 /** Идентификатор панели. */
 export const MODEL_PANEL_ID = 'preview.model';

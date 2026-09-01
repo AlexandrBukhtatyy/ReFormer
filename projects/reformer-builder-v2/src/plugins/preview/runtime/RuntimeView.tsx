@@ -25,7 +25,7 @@
  * ## Выбор узла кликом
  *
  * Работает по класс-токенам аннотированной копии схемы: клик всплывает до элемента с токеном
- * ({@link '../node-token'.nodeAt}). Отдельной карты «элемент → узел» нет, поэтому пересборка
+ * ({@link '../schema/node-token'.nodeAt}). Отдельной карты «элемент → узел» нет, поэтому пересборка
  * формы её и не рассинхронизирует.
  *
  * @module plugins/preview/runtime/RuntimeView
@@ -38,7 +38,7 @@ import { toDescriptor } from '@/lib/kits/descriptor';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
 import type { PreviewContext, PreviewValues } from '../contract';
 import type { PreviewHost } from '../host';
-import { nodeAt } from '../node-token';
+import { nodeAt } from '../schema/node-token';
 import { Highlight } from '../ui/Highlight';
 import { Notice } from '../ui/Notice';
 import { useKitVersion, usePreviewSchema, usePreviewSelection } from '../ui/hooks';

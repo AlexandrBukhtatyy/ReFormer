@@ -103,7 +103,7 @@ export {
   type CreateTemplateOptions,
   type GenerateFormResult,
   type OperationResult,
-} from './operations';
+} from './content/operations';
 
 export {
   buildTemplateFiles,
@@ -116,7 +116,7 @@ export {
   templateSlug,
   type MaterializeOptions,
   type SourceFile,
-} from './files';
+} from './content/files';
 
 export {
   hasTokens,
@@ -126,16 +126,16 @@ export {
   toCase,
   tokenize,
   TOKENS,
-} from './placeholders';
-export type { NameCase } from './placeholders';
+} from './render/placeholders';
+export type { NameCase } from './render/placeholders';
 
 export { TEMPLATES_MESSAGES } from './messages';
 
-export { buildTemplateView, renderTemplateFile } from './render';
-export type { FormTemplateView, TemplateViewOptions } from './render';
+export { buildTemplateView, renderTemplateFile } from './render/render';
+export type { FormTemplateView, TemplateViewOptions } from './render/render';
 
-export { createTemplatesRefresh } from './refresh';
-export type { TemplatesRefresh } from './refresh';
+export { createTemplatesRefresh } from './content/refresh';
+export type { TemplatesRefresh } from './content/refresh';
 
 export type {
   MessageSink,

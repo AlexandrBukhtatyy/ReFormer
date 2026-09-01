@@ -12,7 +12,7 @@
 import type { ReactNode } from 'react';
 import type { NodeId } from '@/sdk';
 import { NODE_ID_PATTERN } from '@/lib/form-model/node-id';
-import { NODE_CLASS_PREFIX } from '../node-token';
+import { NODE_CLASS_PREFIX } from '../schema/node-token';
 
 export interface HighlightProps {
   readonly selection: readonly NodeId[];

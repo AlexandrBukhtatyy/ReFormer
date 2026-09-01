@@ -43,9 +43,9 @@ import {
 import { ChevronRight } from 'lucide-react';
 import type { ResourceId } from '@/sdk';
 import { canRemove, canUpdate, type FormTemplate, type TemplateStore } from '../contract';
-import { resolvePicked } from '../files';
+import { resolvePicked } from '../content/files';
 import type { TemplatesHost, Translate } from '../host';
-import { isUsableFormName } from '../placeholders';
+import { isUsableFormName } from '../render/placeholders';
 import {
   generateFormFromTemplate,
   listFolders,
@@ -54,7 +54,7 @@ import {
   storeOf,
   type FolderChoice,
   type OperationResult,
-} from '../operations';
+} from '../content/operations';
 
 /** Какой из трёх диалогов открыт и над каким шаблоном. */
 export type TemplateDialog =

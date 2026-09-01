@@ -41,8 +41,8 @@ import { ChevronRight, FileCode } from 'lucide-react';
 import { canRemove, canUpdate, type FormTemplate, type TemplateSource } from '../contract';
 import type { TemplateStore } from '../contract';
 import type { TemplatesHost, Translate } from '../host';
-import { listTemplates, SOURCE_ORDER, storeOf, type OperationResult } from '../operations';
-import type { TemplatesRefresh } from '../refresh';
+import { listTemplates, SOURCE_ORDER, storeOf, type OperationResult } from '../content/operations';
+import type { TemplatesRefresh } from '../content/refresh';
 import { TemplateDialogs, type TemplateDialog } from './TemplateDialogs';
 
 export interface TemplatesPanelProps {

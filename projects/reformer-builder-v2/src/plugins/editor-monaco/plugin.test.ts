@@ -10,16 +10,16 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PluginContext, ResourceRef } from '@/sdk';
-import { createFocusRegistry } from './focus';
+import { createFocusRegistry } from './sync/focus';
 import type { MonacoHost } from './host';
-import { MONACO_EDITOR_PRIORITY } from './language';
+import { MONACO_EDITOR_PRIORITY } from './runtime/language';
 import {
   createMonacoEditorPlugin,
   monacoEditorContribution,
   MONACO_EDITOR_ID,
   MONACO_PLUGIN_ID,
 } from './plugin';
-import { createViewStateRegistry } from './view-state';
+import { createViewStateRegistry } from './sync/view-state';
 
 /**
  * Приоритет временного редактора на `textarea` из плагина файлов.

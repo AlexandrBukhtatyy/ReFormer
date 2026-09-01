@@ -25,7 +25,7 @@ import {
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
-import { annotateSchema } from '../annotate';
+import { annotateSchema } from '../schema/annotate';
 import type { PreviewMock, PreviewProblem } from '../contract';
 import { mergeFormData, type FormFixture } from '@/lib/form-fixture';
 import { carryValues } from './carry';

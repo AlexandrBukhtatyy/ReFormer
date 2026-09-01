@@ -15,7 +15,7 @@ import { Button } from '@reformer/ui-kit/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@reformer/ui-kit/tooltip';
 import { RotateCcw } from 'lucide-react';
 import type { TemplatesHost } from '../host';
-import type { TemplatesRefresh } from '../refresh';
+import type { TemplatesRefresh } from '../content/refresh';
 
 export interface TemplatesActionsProps {
   readonly host: TemplatesHost;

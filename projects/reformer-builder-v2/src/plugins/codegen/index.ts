@@ -67,26 +67,26 @@ export {
   schemaCandidates,
   CODEGEN_CONTEXT_SUBMENU,
   GENERATE_INTO_COMMAND_ID,
-} from './context-menu';
+} from './commands/context-menu';
 export type {
   FoundSchema,
   GenerateIntoArgs,
   GenerateIntoDeps,
   GenerateIntoOutcome,
-} from './context-menu';
+} from './commands/context-menu';
 
 export { CodegenTargetPoint } from './contract';
 export type { CodegenTarget, ExtensionPointRef, TargetCatalog } from './contract';
 
-export { BUILTIN_TARGETS } from './targets';
+export { BUILTIN_TARGETS } from './pipeline/targets';
 
-export { generateModule } from './generate';
-export type { CodegenProblem, Formatter, GeneratedModule, ModuleFile } from './generate';
+export { generateModule } from './pipeline/generate';
+export type { CodegenProblem, Formatter, GeneratedModule, ModuleFile } from './pipeline/generate';
 
-export { deliverInto, deliverModule, SourceReadOnlyError } from './deliver';
-export type { DeliveryResult, SkipReason } from './deliver';
+export { deliverInto, deliverModule, SourceReadOnlyError } from './pipeline/deliver';
+export type { DeliveryResult, SkipReason } from './pipeline/deliver';
 
-export { defaultFormName, runCodegen, schemaOf } from './run';
+export { defaultFormName, runCodegen, schemaOf } from './pipeline/run';
 
 export { CODEGEN_MESSAGES } from './messages';
 

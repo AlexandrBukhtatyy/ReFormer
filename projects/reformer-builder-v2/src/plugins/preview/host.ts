@@ -165,7 +165,7 @@ export interface PreviewHost {
   /**
    * Возможности источника, которому принадлежит документ, или `null`, если источник неизвестен.
    *
-   * `null` трактуется как запрет (см. {@link './source-guard'}): «источника нет» — не повод
+   * `null` трактуется как запрет (см. {@link './schema/source-guard'}): «источника нет» — не повод
    * исполнять код, а повод сказать, что исполнять его пока нельзя.
    */
   sourceOf(id: ResourceId): PreviewSourceCapabilities | null;

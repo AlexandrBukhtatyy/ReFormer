@@ -49,7 +49,7 @@ import { toDescriptor } from '@/lib/kits/descriptor';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
 import type { PreviewContext, PreviewProblem, PreviewValues } from '../contract';
 import type { PreviewHost } from '../host';
-import { nodeAt } from '../node-token';
+import { nodeAt } from '../schema/node-token';
 import { buildRuntimeBundle, type RuntimeBundle } from '../runtime/build';
 import { Highlight } from '../ui/Highlight';
 import { Notice } from '../ui/Notice';

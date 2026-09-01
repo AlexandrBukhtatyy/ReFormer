@@ -16,7 +16,7 @@ import {
   TEMPLATES_PANEL_ID,
   TEMPLATES_PLUGIN_ID,
 } from './plugin';
-import { createTemplatesRefresh } from './refresh';
+import { createTemplatesRefresh } from './content/refresh';
 import { createFakeTemplatesHost } from './testing';
 
 function whenContext(patch: Partial<WhenContext> = {}): WhenContext {

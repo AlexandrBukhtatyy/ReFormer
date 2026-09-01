@@ -37,11 +37,11 @@ import {
   type ResourceId,
 } from '@/sdk';
 import type { MarkdownHost } from './host';
-import { isMarkdown } from './markdown';
+import { isMarkdown } from './render/markdown';
 import { MARKDOWN_MESSAGES } from './messages';
-import { createMarkdownViewStore, type MarkdownViewStore } from './sessions';
+import { createMarkdownViewStore, type MarkdownViewStore } from './state/sessions';
 import { MarkdownEditor } from './ui/MarkdownEditor';
-import { availableViews, cycleView, MARKDOWN_VIEW_SETTING, type MarkdownView } from './view';
+import { availableViews, cycleView, MARKDOWN_VIEW_SETTING, type MarkdownView } from './state/view';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
 export const MARKDOWN_PLUGIN_ID = 'editor-markdown';

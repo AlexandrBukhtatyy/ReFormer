@@ -47,9 +47,9 @@ import {
 import { diagnosticDecoration, type CommandAccess } from './diagnostics';
 import { filesContextMenuItems, filesOperationCommands } from './operations';
 import type { ExtensionPointRef, FilesEditorSpec, FilesHost, FilesPanelSpec } from './host';
-import { ProblemsBadge } from './ProblemsBadge';
-import { ProblemsPanel } from './ProblemsPanel';
-import { TextEditor } from './TextEditor';
+import { ProblemsBadge } from './ui/ProblemsBadge';
+import { ProblemsPanel } from './ui/ProblemsPanel';
+import { TextEditor } from './ui/TextEditor';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
 export const FILES_PLUGIN_ID = 'files';

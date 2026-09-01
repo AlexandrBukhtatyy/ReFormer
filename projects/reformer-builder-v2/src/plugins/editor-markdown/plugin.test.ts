@@ -17,8 +17,8 @@ import {
   SHOW_SPLIT_COMMAND_ID,
   TOGGLE_VIEW_COMMAND_ID,
 } from './plugin';
-import { createMarkdownViewStore, type MarkdownViewStore } from './sessions';
-import { MARKDOWN_VIEW_SETTING } from './view';
+import { createMarkdownViewStore, type MarkdownViewStore } from './state/sessions';
+import { MARKDOWN_VIEW_SETTING } from './state/view';
 
 const README = ref('README.md', 'text/markdown');
 const SCHEMA = ref('schema.json', 'application/json');

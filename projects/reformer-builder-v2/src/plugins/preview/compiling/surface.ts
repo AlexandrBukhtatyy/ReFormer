@@ -15,9 +15,9 @@
 
 import { createElement } from 'react';
 import type { PreviewSurface } from '../contract';
-import { isFormDocument } from '../document';
+import { isFormDocument } from '../schema/document';
 import type { PreviewHost } from '../host';
-import { mountReact } from '../mount';
+import { mountReact } from '../surface/mount';
 import { CompilingView, COMPILING_SURFACE_ID } from './CompilingView';
 
 export { COMPILING_SURFACE_ID };

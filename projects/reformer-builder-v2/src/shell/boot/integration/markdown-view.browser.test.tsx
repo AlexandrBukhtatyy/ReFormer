@@ -36,9 +36,9 @@ import { toDisposable, type Disposable } from '@/shell/platform/primitives/dispo
 import { createDocument, type Document } from '@/shell/platform/workspace/document';
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
 import { renderReact } from '@/testing/render';
-import type { MarkdownHost } from '@/plugins/editor-markdown/host';
-import { createMarkdownPlugin } from '@/plugins/editor-markdown/plugin';
-import { MARKDOWN_MESSAGES } from '@/plugins/editor-markdown/messages';
+import type { MarkdownHost } from '@/plugins/editor-markdown';
+import { createMarkdownPlugin } from '@/plugins/editor-markdown';
+import { MARKDOWN_MESSAGES } from '@/plugins/editor-markdown';
 
 const HOST_MESSAGES: Readonly<Record<string, string>> = {
   'shell.editor.empty': 'Нет открытых редакторов',

@@ -22,7 +22,7 @@ import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
 import { createKitNamespaceLoader } from './kit-namespace';
-import { KitsServiceToken } from '@/plugins/kits/service';
+import { KitsServiceToken } from '@/plugins/kits';
 import { PREVIEW_PLUGIN_ID } from '@/plugins/preview';
 import type {
   PreviewDocument,

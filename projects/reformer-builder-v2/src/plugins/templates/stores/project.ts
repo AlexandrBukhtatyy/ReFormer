@@ -21,7 +21,7 @@ import {
   type TemplateManifest,
   type TemplateStore,
 } from '../contract';
-import { isTextFile } from '../files';
+import { isTextFile } from '../content/files';
 import type { TemplatesHost } from '../host';
 
 /** Каталог шаблонов внутри проекта. */
