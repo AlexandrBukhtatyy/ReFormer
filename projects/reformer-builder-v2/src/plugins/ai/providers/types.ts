@@ -11,7 +11,7 @@
  * @module plugins/ai/providers/types
  */
 
-import type { ToolOutcome } from '../core/types';
+import type { ToolOutcome } from '../model/types';
 
 /** Реплика диалога. */
 export interface AiMessage {

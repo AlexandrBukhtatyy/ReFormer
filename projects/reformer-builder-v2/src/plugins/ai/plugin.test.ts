@@ -12,9 +12,9 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { AI_UNDO_TURN_COMMAND_ID, type AgentBridge } from './bridge';
+import { AI_UNDO_TURN_COMMAND_ID, type AgentBridge } from './session/bridge';
 import { aiChatPanel, aiCommands, AI_RESET_COMMAND_ID, AI_STOP_COMMAND_ID } from './plugin';
-import { createAiSession } from './session';
+import { createAiSession } from './session/session';
 import { createFakeHost } from './testing';
 
 /** Мост в объёме, который читают охранные условия команд. */

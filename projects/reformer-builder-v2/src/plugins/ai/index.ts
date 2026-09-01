@@ -45,17 +45,17 @@ export {
   type ProviderLimits,
   type ProviderSettings,
   type SaveOptions,
-} from './config';
+} from './session/config';
 
 // Мост: ход агента поверх рабочей области — то, ради чего плагин существует.
-export { createAgentBridge, type AgentBridge, type BridgeDeps } from './bridge';
+export { createAgentBridge, type AgentBridge, type BridgeDeps } from './session/bridge';
 export {
   applyChangeSet,
   isStale,
   type ApplyDeps,
   type ApplyOptions,
   type ApplyOutcome,
-} from './apply';
+} from './session/apply';
 export {
   createAiSession,
   type AgentStatus,
@@ -65,13 +65,14 @@ export {
   type PendingChanges,
   type ToolLogEntry,
   type TurnSnapshot,
-} from './session';
-export { assistantContent, historyFor, HISTORY_BUDGET } from './history';
+} from './session/session';
+export { assistantContent, historyFor, HISTORY_BUDGET } from './session/history';
 
 // Ход агента: чистое ядро, которым пользуется мост.
-export { runAgentTurn, type AgentTurnOptions, type TurnEvent, type TurnStats } from './core/loop';
-export { createChangeSet, describeChangeSet, hasChanges, type ChangeSet } from './core/changeset';
-export { createEditorToolRegistry, createReadOnlyToolRegistry, type ToolRegistry } from './core';
+export { runAgentTurn, type AgentTurnOptions, type TurnEvent, type TurnStats } from './loop/loop';
+export { createChangeSet, describeChangeSet, hasChanges, type ChangeSet } from './model/changeset';
+export { createEditorToolRegistry, createReadOnlyToolRegistry } from './tools';
+export type { ToolRegistry } from './tools/registry';
 export {
   commandTools,
   toolNameForCommand,
@@ -81,11 +82,11 @@ export {
   type CommandRejection,
   type CommandRejectionCode,
   type ExecuteCommand,
-} from './core/command-tools';
-export { measureToolSurface } from './core/tool-surface';
-export type { ChangeOp, ChangeOpKind, ToolError, ToolErrorCode } from './core/types';
+} from './tools/command-tools';
+export { measureToolSurface } from './tools/tool-surface';
+export type { ChangeOp, ChangeOpKind, ToolError, ToolErrorCode } from './model/types';
 // Проверка по мета-схеме: грузится по требованию, приходит параметром — см. `core/validate`.
-export type { LoadValidateForm, ValidateFormSchema } from './core/validate';
+export type { LoadValidateForm, ValidateFormSchema } from './model/validate';
 
 // Каналы к модели.
 export { createProviderRegistry, type ProviderRegistry } from './providers/registry';

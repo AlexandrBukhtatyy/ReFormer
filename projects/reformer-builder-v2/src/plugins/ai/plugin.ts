@@ -40,24 +40,24 @@ import {
   type Plugin,
   type PluginContext,
 } from '@/sdk';
-import { aiUndoTurnCommand, createAgentBridge, type AgentBridge } from './bridge';
+import { aiUndoTurnCommand, createAgentBridge, type AgentBridge } from './session/bridge';
 import {
   clearProviderConfig,
   loadProviderConfig,
   saveProviderConfig,
   type ProviderConfig,
   type SaveOptions,
-} from './config';
-import { createEditorToolRegistry, type ToolRegistry } from './core';
-import type { AgentCommand } from './core/command-tools';
-import type { LoadValidateForm, ValidateFormSchema } from './core/validate';
+} from './session/config';
+import { createEditorToolRegistry, type ToolRegistry } from './tools';
+import type { AgentCommand } from './tools/command-tools';
+import type { LoadValidateForm, ValidateFormSchema } from './model/validate';
 import type { AiHost, MessageSink } from './host';
 import { createKnowledgeLoader, type KnowledgeLoader } from './knowledge';
 import { AI_MESSAGES } from './messages';
 import { activateProvider, fetchModels, restoreProvider } from './providers/load';
 import { createProviderRegistry, type ProviderRegistry } from './providers/registry';
 import type { AiProvider } from './providers/types';
-import { createAiSession, type AiSession } from './session';
+import { createAiSession, type AiSession } from './session/session';
 import { ChatActions } from './ui/ChatActions';
 import { ChatPanel } from './ui/ChatPanel';
 

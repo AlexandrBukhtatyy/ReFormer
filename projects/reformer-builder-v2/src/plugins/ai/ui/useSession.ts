@@ -9,7 +9,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import type { AiSession, AiSessionState } from '../session';
+import type { AiSession, AiSessionState } from '../session/session';
 
 /** Текущее состояние сессии. */
 export function useAiSession(session: AiSession): AiSessionState {

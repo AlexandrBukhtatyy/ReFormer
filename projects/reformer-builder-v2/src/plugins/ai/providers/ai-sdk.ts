@@ -21,7 +21,7 @@ import {
   type StopCondition,
   type ToolSet,
 } from 'ai';
-import type { ToolOutcome } from '../core/types';
+import type { ToolOutcome } from '../model/types';
 import { dropReasoning, pruneSupersededReads } from './context';
 import type { AiEvent, AiRequest, AiStop, AiUsage } from './types';
 

@@ -44,7 +44,7 @@ import {
   PROVIDER_ORIGIN,
   type ProviderConfig,
   type ProviderKind,
-} from '../config';
+} from '../session/config';
 import type { Translate } from '../host';
 import type { AiAssistant } from '../plugin';
 

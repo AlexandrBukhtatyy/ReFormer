@@ -27,7 +27,7 @@ import { Message, MessageContent, MessageGroup } from '@reformer/ui-kit/message'
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Spinner } from '@reformer/ui-kit/spinner';
 import type { Translate } from '../host';
-import type { ChatEntry } from '../session';
+import type { ChatEntry } from '../session/session';
 
 export interface MessageListProps {
   readonly entries: readonly ChatEntry[];

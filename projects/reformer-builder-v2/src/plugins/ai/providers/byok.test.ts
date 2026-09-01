@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createByokProvider, listModels, tuningOf } from './byok';
-import type { ProviderConfig } from '../config';
+import type { ProviderConfig } from '../session/config';
 
 /** Подменить fetch и запомнить, с чем его позвали. */
 function stubFetch(

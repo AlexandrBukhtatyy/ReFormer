@@ -19,9 +19,9 @@ import { Alert, AlertDescription } from '@reformer/ui-kit/alert';
 import { Badge } from '@reformer/ui-kit/badge';
 import { Button } from '@reformer/ui-kit/button';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import type { ChangeOp } from '../core/types';
+import type { ChangeOp } from '../model/types';
 import type { Translate } from '../host';
-import type { PendingChanges } from '../session';
+import type { PendingChanges } from '../session/session';
 
 /** Знак и цвет операции по её виду. */
 const OP_STYLE: Record<ChangeOp['kind'], { readonly mark: string; readonly className: string }> = {

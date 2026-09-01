@@ -19,7 +19,7 @@ import {
   PROVIDER_ORIGIN,
   type ProviderConfig,
   type ProviderKind,
-} from '../config';
+} from '../session/config';
 import { streamViaAiSdk, type AiSdkTuning } from './ai-sdk';
 import type { AiCapabilities, AiDetection, AiProvider } from './types';
 

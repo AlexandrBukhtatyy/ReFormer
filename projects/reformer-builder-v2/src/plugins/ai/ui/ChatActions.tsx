@@ -21,9 +21,9 @@
 import { useState, type ReactElement } from 'react';
 import { MessageSquarePlus, Settings2, Undo2 } from 'lucide-react';
 import { Button } from '@reformer/ui-kit/button';
-import type { AgentBridge } from '../bridge';
+import type { AgentBridge } from '../session/bridge';
 import type { AiHost } from '../host';
-import type { AiSession } from '../session';
+import type { AiSession } from '../session/session';
 import { useAiSession } from './useSession';
 
 export interface ChatActionsProps {

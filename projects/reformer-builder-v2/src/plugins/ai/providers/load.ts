@@ -7,7 +7,7 @@
  * @module plugins/ai/providers/load
  */
 
-import { loadProviderConfig, type ConfigStore, type ProviderConfig } from '../config';
+import { loadProviderConfig, type ConfigStore, type ProviderConfig } from '../session/config';
 import type { ProviderRegistry } from './registry';
 import type { AiProvider } from './types';
 
