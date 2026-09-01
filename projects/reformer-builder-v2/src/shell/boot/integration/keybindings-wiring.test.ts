@@ -32,7 +32,7 @@ import { readWhenContext } from '@/shell/platform/services/context-keys';
 import { shouldDispatch } from '@/shell/platform/ui/keyboard/keybindings';
 import { whenContext } from '@/shell/platform/primitives/when-context';
 import { createFocusRegistry } from '@/plugins/editor-monaco';
-import { createBuiltinPlugins } from './plugins';
+import { createBuiltinPlugins } from '../plugins';
 
 /**
  * Порты-пустышки. Тот же приём и та же причина, что в `plugins.test.ts`: здесь проверяется

@@ -31,8 +31,8 @@ import type {
   SchemaModelHandle,
   Translate,
 } from '@/plugins/editor-schema';
-import { makeUseDiagnosticMessage, makeUseHostMessage } from './monaco-host';
-import type { ProjectHost } from './project';
+import { makeUseDiagnosticMessage, makeUseHostMessage } from './monaco';
+import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface SchemaHostDeps {
   readonly project: ProjectHost;

@@ -26,9 +26,12 @@ import {
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import type { FormTemplate } from '@/plugins/templates';
 import { generateFormFromTemplate } from '@/plugins/templates';
-import { createWorkspaceSession, type WorkspaceSession } from './workspace-session';
-import type { ProjectHost } from './project';
-import { createTemplatesHost } from './templates-host';
+import {
+  createWorkspaceSession,
+  type WorkspaceSession,
+} from '@/shell/boot/project/workspace-session';
+import type { ProjectHost } from '@/shell/boot/project/project';
+import { createTemplatesHost } from './templates';
 
 let seq = 0;
 

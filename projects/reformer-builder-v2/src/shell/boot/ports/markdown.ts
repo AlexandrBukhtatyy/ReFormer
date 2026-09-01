@@ -24,7 +24,7 @@ import type { ViewStateRegistry } from '@/plugins/editor-monaco';
 import type { MonacoHost } from '@/plugins/editor-monaco/host';
 import { MARKDOWN_PLUGIN_ID } from '@/plugins/editor-markdown';
 import type { MarkdownDocument, MarkdownHost, Translate } from '@/plugins/editor-markdown/host';
-import type { ProjectHost } from './project';
+import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface MarkdownHostDeps {
   readonly project: ProjectHost;

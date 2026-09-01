@@ -112,15 +112,15 @@ import { createJournalRelief } from '@/shell/platform/workspace/journal/journal'
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
 import { FILES_MESSAGES } from '@/plugins/files/messages';
 import { FILES_PLUGIN_ID } from '@/plugins/files/plugin';
-import { createFilesHost } from './files-host';
-import { createMarkdownHost } from './markdown-host';
-import { createMonacoHost } from './monaco-host';
-import { createSchemaHost } from './schema-host';
-import { createAiHost } from './ai-host';
-import { createPreviewHost } from './preview-host';
-import { createLiveSurfacePort } from './live-surface';
-import { createCodegenHost } from './codegen-host';
-import { createTemplatesHost } from './templates-host';
+import { createFilesHost } from '@/shell/boot/ports/files';
+import { createMarkdownHost } from '@/shell/boot/ports/markdown';
+import { createMonacoHost } from '@/shell/boot/ports/monaco';
+import { createSchemaHost } from '@/shell/boot/ports/schema';
+import { createAiHost } from '@/shell/boot/ports/ai';
+import { createPreviewHost } from '@/shell/boot/ports/preview';
+import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
+import { createCodegenHost } from '@/shell/boot/ports/codegen';
+import { createTemplatesHost } from '@/shell/boot/ports/templates';
 import { BUILTIN_TARGETS, CODEGEN_PLUGIN_ID, generateModule } from '@/plugins/codegen';
 import { TEMPLATES_PLUGIN_ID } from '@/plugins/templates';
 import { attachFocusChecks } from '@/shell/platform/workspace/merge/divergence';
@@ -149,8 +149,12 @@ import {
 import { createBuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import { createPluginModules } from './plugin-modules';
 import { createBuiltinPlugins } from './plugins';
-import { createProjectHost, type ProjectFailure, type ProjectHost } from './project';
-import { createProjectStatusSource } from './project-status';
+import {
+  createProjectHost,
+  type ProjectFailure,
+  type ProjectHost,
+} from '@/shell/boot/project/project';
+import { createProjectStatusSource } from '@/shell/boot/project/project-status';
 import { createSettingsSections, LOCALE_SETTINGS_KEY } from './settings-sections';
 
 /** Ключ настройки локали. Объявлен рядом с полем, которое его пишет. */

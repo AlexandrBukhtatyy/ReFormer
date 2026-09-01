@@ -35,10 +35,10 @@ import {
   createViewStateRegistry,
   monacoEditorContribution,
 } from '@/plugins/editor-monaco';
-import { createMonacoHost } from './monaco-host';
-import { createProjectHost } from './project';
-import { createSchemaHost } from './schema-host';
-import { createAiHost } from './ai-host';
+import { createMonacoHost } from '@/shell/boot/ports/monaco';
+import { createProjectHost } from '@/shell/boot/project/project';
+import { createSchemaHost } from '@/shell/boot/ports/schema';
+import { createAiHost } from '@/shell/boot/ports/ai';
 import { KitsServiceToken } from '@/plugins/kits/service';
 import type { CatalogEntry } from '@/lib/catalog/types';
 

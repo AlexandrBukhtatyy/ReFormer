@@ -190,7 +190,7 @@ describe('словари: список проверяемых не отстаё�
    * (плагин файлов везёт строки литералами, и каталога у него нет).
    */
   function pluginsWithMessages(): string[] {
-    const root = fileURLToPath(new URL('../../plugins', import.meta.url));
+    const root = fileURLToPath(new URL('../../../plugins', import.meta.url));
     const found: string[] = [];
     for (const name of readdirSync(root)) {
       const directory = `${root}/${name}`;

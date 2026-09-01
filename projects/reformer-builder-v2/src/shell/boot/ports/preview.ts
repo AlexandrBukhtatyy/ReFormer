@@ -31,8 +31,8 @@ import type {
   PreviewSourceCapabilities,
   Translate,
 } from '@/plugins/preview';
-import { fromRoot as resolveFromRoot } from './resource-paths';
-import type { ProjectHost } from './project';
+import { fromRoot as resolveFromRoot } from '../resource-paths';
+import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface PreviewHostDeps {
   readonly project: ProjectHost;

@@ -53,7 +53,7 @@ import {
   type WorkspaceFileStore,
 } from '@/shell/platform/workspace/storage/opfs';
 import type { DiagnosticsSink } from '@/shell/platform/workspace/workspace';
-import type { DirectoryHandleStore } from './fs-handles';
+import type { DirectoryHandleStore } from '../fs-handles';
 import { restoreOpenedTabs } from './opened-tabs';
 import { createWorkspaceSession, type WorkspaceSession } from './workspace-session';
 

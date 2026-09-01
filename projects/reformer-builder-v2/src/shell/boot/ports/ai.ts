@@ -18,7 +18,7 @@ import type { CatalogEntry } from '@/lib/catalog/types';
 import { KitsServiceToken } from '@/plugins/kits/service';
 import { AI_PLUGIN_ID } from '@/plugins/ai';
 import type { AiDocument, AiHost, Translate, WriteMark } from '@/plugins/ai';
-import type { ProjectHost } from './project';
+import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface AiHostDeps {
   readonly project: ProjectHost;

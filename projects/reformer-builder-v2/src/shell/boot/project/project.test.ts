@@ -22,7 +22,7 @@ import {
   createMemoryIndexedDb,
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
-import { createDirectoryHandleStore } from './fs-handles';
+import { createDirectoryHandleStore } from '../fs-handles';
 import { createProjectHost, type ProjectFailure } from './project';
 
 let seq = 0;

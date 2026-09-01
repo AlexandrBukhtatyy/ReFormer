@@ -24,9 +24,9 @@ import type { ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { FilesDocument, FilesHost, Translate } from '@/plugins/files/host';
 import { FILES_PLUGIN_ID } from '@/plugins/files/plugin';
-import { makeUseDiagnosticMessage, makeUseHostMessage } from './monaco-host';
-import { ProjectTree } from './ProjectTree';
-import type { ProjectHost } from './project';
+import { makeUseDiagnosticMessage, makeUseHostMessage } from './monaco';
+import { ProjectTree } from '@/shell/boot/project/ProjectTree';
+import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface FilesHostDeps {
   readonly project: ProjectHost;

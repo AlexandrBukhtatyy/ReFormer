@@ -19,7 +19,7 @@ import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { MonacoDocument, MonacoHost, Translate } from '@/plugins/editor-monaco/host';
 import { MONACO_PLUGIN_ID } from '@/plugins/editor-monaco';
-import type { ProjectHost } from './project';
+import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface MonacoHostDeps {
   readonly project: ProjectHost;

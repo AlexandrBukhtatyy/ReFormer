@@ -21,8 +21,8 @@ import type { KitDescriptor } from '@/lib/kits/types';
 import { KitsServiceToken } from '@/plugins/kits/service';
 import { CODEGEN_PLUGIN_ID } from '@/plugins/codegen';
 import type { CodegenDocument, CodegenHost, Translate } from '@/plugins/codegen';
-import { fromRoot, parentOf, resolve } from './resource-paths';
-import type { ProjectHost } from './project';
+import { fromRoot, parentOf, resolve } from '../resource-paths';
+import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface CodegenHostDeps {
   readonly project: ProjectHost;
