@@ -5,7 +5,7 @@ import {
   type Notification,
   type NotificationsService,
 } from '@/shell/platform/services/notifications';
-import { drainNotifications, SHOWN_LIMIT, toToast, type ToastSpec } from './notifications';
+import { drainNotifications, SHOWN_LIMIT, toToast, type ToastSpec } from './toasts';
 
 /** Перевод-заглушка: ключ и параметры видны в результате, словарь для этого не нужен. */
 const translate = (key: string, params?: Record<string, unknown>): string =>

@@ -6,7 +6,7 @@
  * в имени (`saveProjectTemplate` / `saveLocalTemplate`), такого теста написать было нельзя —
  * общего у них не было ничего, кроме намерения автора.
  *
- * @module plugins/templates/stores.test
+ * @module plugins/templates/stores/stores.test
  */
 
 import { describe, expect, it } from 'vitest';
@@ -20,18 +20,18 @@ import {
   prepare,
   renderTemplate,
 } from '@/lib/codegen';
-import type { FormTemplate, TemplateStore } from './contract';
-import { canRemove, canSave, canUpdate } from './contract';
-import { materializeFiles } from './content/files';
+import type { FormTemplate, TemplateStore } from '../contract';
+import { canRemove, canSave, canUpdate } from '../contract';
+import { materializeFiles } from '../content/files';
 import {
   BUILTIN_BASE_NAME,
   createBuiltinStore,
   type ModulePrinter,
   type SeedExtras,
-} from './stores/builtin';
-import { createLocalStore } from './stores/local';
-import { createProjectStore, TEMPLATES_DIR } from './stores/project';
-import { createFakeTemplatesHost, createMemoryStorage } from './testing';
+} from './builtin';
+import { createLocalStore } from './local';
+import { createProjectStore, TEMPLATES_DIR } from './project';
+import { createFakeTemplatesHost, createMemoryStorage } from '../testing';
 
 const template = (over: Partial<FormTemplate> = {}): FormTemplate => ({
   id: 'credit-form',

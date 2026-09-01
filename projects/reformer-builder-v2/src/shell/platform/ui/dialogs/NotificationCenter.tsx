@@ -31,7 +31,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore, type ReactElement
 import { Toaster, toast } from '@reformer/ui-kit/sonner';
 import type { NotificationsService } from '@/shell/platform/services/notifications';
 import type { I18nService } from '@/shell/platform/services/i18n/i18n';
-import { drainNotifications, type ToastSpec } from './notifications';
+import { drainNotifications, type ToastSpec } from './toasts';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 
 /** Показ одного тоста. Отдельно от компонента — чтобы соответствие уровней читалось целиком. */
