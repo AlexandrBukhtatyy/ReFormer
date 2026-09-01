@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { boot } from './app/boot';
+import { boot } from './shell/boot/boot';
 import './index.css';
 
 // Бут синхронный — в отличие от v1, где он async из-за модульной мемоизации в графе

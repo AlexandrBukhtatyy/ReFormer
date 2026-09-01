@@ -33,20 +33,20 @@
  */
 
 // Плагин: контракт и объявление.
-export { definePlugin } from '../host/plugin/types';
-export type { Plugin, PluginContext } from '../host/plugin/types';
+export { definePlugin } from '@/shell/platform/plugin/types';
+export type { Plugin, PluginContext } from '@/shell/platform/plugin/types';
 
 // Освобождение: всё, что плагин регистрирует, он кладёт в `ctx.subscriptions`.
-export type { Disposable } from '../host/primitives/disposable';
+export type { Disposable } from '@/shell/platform/primitives/disposable';
 
 // Адресация: ресурс, на который смотрит документ.
-export type { ResourceId, ResourceRef } from '../host/primitives/resource';
+export type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
 
 // Правила имён записей — платформенные, потому что их проверяет не только плагин файлов:
 // шаблон формы спрашивает имя каталога ровно теми же правилами, и вторая их реализация
 // разошлась бы с первой на первом же `aux.ts`, который Windows не даёт создать.
-export { validateResourceName, splitName } from '../host/workspace/resource-names';
-export type { NameRejection } from '../host/workspace/resource-names';
+export { validateResourceName, splitName } from '@/shell/platform/workspace/resource-names';
+export type { NameRejection } from '@/shell/platform/workspace/resource-names';
 
 // Диагностика: то, во что плагин облекает найденное.
 export type {
@@ -55,21 +55,25 @@ export type {
   DiagnosticTarget,
   QuickFix,
   TextRange,
-} from '../host/diagnostics/types';
+} from '@/shell/platform/diagnostics/types';
 
 // Отбор быстрых исправлений по реестру команд. Здесь, а не у каждого потребителя: проверять
 // «команда вообще есть?» обязаны все, кто исправления ПОКАЗЫВАЕТ или применяет (панель проблем,
 // канвас, ассистент), а плагины не видят друг друга и завели бы по копии — которые совпадали бы
 // по договорённости, то есть до первой правки. Тот же довод, что у порядка строгости выше.
-export { usableFixes, withUsableFixes } from '../host/diagnostics/fixes';
-export type { CommandLookup, FixesOptions } from '../host/diagnostics/fixes';
+export { usableFixes, withUsableFixes } from '@/shell/platform/diagnostics/fixes';
+export type { CommandLookup, FixesOptions } from '@/shell/platform/diagnostics/fixes';
 
 // Валидация: точка расширения и контракт вклада.
-export { ValidatorPoint } from '../host/validation/types';
-export type { DocumentRef, ValidateContext, ValidatorContribution } from '../host/validation/types';
+export { ValidatorPoint } from '@/shell/platform/validation/types';
+export type {
+  DocumentRef,
+  ValidateContext,
+  ValidatorContribution,
+} from '@/shell/platform/validation/types';
 
 // Вид документа — дискриминант, по которому валидатор решает, ждать ли модель.
-export type { DocumentKind } from '../host/workspace/document';
+export type { DocumentKind } from '@/shell/platform/workspace/document';
 
 // ── Оболочка: точки расширения интерфейса ───────────────────────────────────────
 //
@@ -80,17 +84,17 @@ export type { DocumentKind } from '../host/workspace/document';
 //
 // Точка расширения обязана быть ОДНИМ объектом для Host и плагина — иначе вклад уйдёт
 // в точку-двойник и потеряется молча. Поэтому здесь реэкспорт, а не переобъявление.
-export { PanelPoint } from '../host/ui/slots';
-export type { PanelContribution, SlotId } from '../host/ui/slots';
-export { EditorPoint } from '../host/ui/editors';
-export type { EditorContribution } from '../host/ui/editors';
-export type { EditorProbe } from '../host/workspace/model/provider';
-export { ResourceDecorationPoint } from '../host/ui/decorations';
-export type { Decoration, ResourceDecorationContribution } from '../host/ui/decorations';
-export { PaletteItemsPoint } from '../host/ui/palette';
-export type { PaletteItem, PaletteItemProvider } from '../host/ui/palette';
-export type { CommandContribution } from '../host/primitives/command';
-export type { WhenContext, FocusTarget } from '../host/primitives/when-context';
+export { PanelPoint } from '@/shell/platform/ui/slots';
+export type { PanelContribution, SlotId } from '@/shell/platform/ui/slots';
+export { EditorPoint } from '@/shell/platform/ui/editors';
+export type { EditorContribution } from '@/shell/platform/ui/editors';
+export type { EditorProbe } from '@/shell/platform/workspace/model/provider';
+export { ResourceDecorationPoint } from '@/shell/platform/ui/decorations';
+export type { Decoration, ResourceDecorationContribution } from '@/shell/platform/ui/decorations';
+export { PaletteItemsPoint } from '@/shell/platform/ui/palette';
+export type { PaletteItem, PaletteItemProvider } from '@/shell/platform/ui/palette';
+export type { CommandContribution } from '@/shell/platform/primitives/command';
+export type { WhenContext, FocusTarget } from '@/shell/platform/primitives/when-context';
 
 // ── Клавиатура: условие применимости как данные ─────────────────────────────────
 //
@@ -98,42 +102,59 @@ export type { WhenContext, FocusTarget } from '../host/primitives/when-context';
 // обязаны трое одинаково — реестр команд, диспетчер клавиш и тот, кто её показывает.
 // Вторая реализация грамматики разошлась бы с первой на первом же операторе, а расхождение
 // проявилось бы не отказом, а молча не сработавшей клавишей.
-export { parseWhen, compileWhen, evaluateWhen, WHEN_TRUE } from '../host/primitives/when-expr';
+export {
+  parseWhen,
+  compileWhen,
+  evaluateWhen,
+  WHEN_TRUE,
+} from '@/shell/platform/primitives/when-expr';
 export type {
   WhenExpr,
   WhenNode,
   WhenParseError,
   WhenParseResult,
-} from '../host/primitives/when-expr';
+} from '@/shell/platform/primitives/when-expr';
 
 // Контекстные ключи. Без них плагин может выразить «узел выделен на канвасе» только
 // предикатом, читающим его собственный реестр сеансов, — то есть непрозрачно: такое условие
 // нельзя ни сравнить с чужим при разрешении конфликта клавиш, ни показать в таблице клавиш.
 // Область: плагин, открывающий своё окно, обязан её положить — иначе его клавиши не могут
 // перебить глобальные, и «пока диалог открыт, работает не то» становится неисправимым снаружи.
-export { ScopeStackServiceToken, DIALOG_SCOPE } from '../host/ui/scope';
-export type { ScopeId, ScopeStack } from '../host/ui/scope';
+export { ScopeStackServiceToken, DIALOG_SCOPE } from '@/shell/platform/ui/scope';
+export type { ScopeId, ScopeStack } from '@/shell/platform/ui/scope';
 
 // Действующее сочетание — только чтение. Плагин, показывающий в своём интерфейсе «нажмите X»,
 // обязан показать ДЕЙСТВУЮЩЕЕ сочетание, а не объявленное: после переназначения человеком
 // его подсказка иначе врёт.
-export { chordOfCommand, KeymapServiceToken } from '../host/ui/keymap';
-export type { KeymapService } from '../host/ui/keymap';
-export type { KeybindingIndex, KeybindingLayer, KeybindingRule } from '../host/ui/keybinding-rules';
-export { detectPlatformModifier, formatChord, formatKeybinding } from '../host/ui/keybindings';
-export type { PlatformModifier } from '../host/ui/keybindings';
+export { chordOfCommand, KeymapServiceToken } from '@/shell/platform/ui/keymap';
+export type { KeymapService } from '@/shell/platform/ui/keymap';
+export type {
+  KeybindingIndex,
+  KeybindingLayer,
+  KeybindingRule,
+} from '@/shell/platform/ui/keybinding-rules';
+export {
+  detectPlatformModifier,
+  formatChord,
+  formatKeybinding,
+} from '@/shell/platform/ui/keybindings';
+export type { PlatformModifier } from '@/shell/platform/ui/keybindings';
 
 // Разбор аккорда — тем же кодом, что и регистрация: разъедься написание, подпись плагина
 // перестала бы совпадать с тем, что человек нажимает.
-export { MAX_CHORD_STEPS, normalizeChord, normalizeKeybinding } from '../host/primitives/command';
+export {
+  MAX_CHORD_STEPS,
+  normalizeChord,
+  normalizeKeybinding,
+} from '@/shell/platform/primitives/command';
 
-export { ContextKeyServiceToken } from '../host/services/context-keys';
+export { ContextKeyServiceToken } from '@/shell/platform/services/context-keys';
 export type {
   ContextKey,
   ContextKeyReader,
   ContextKeyService,
   ContextKeySnapshot,
-} from '../host/services/context-keys';
+} from '@/shell/platform/services/context-keys';
 
 // ── Сервисы: объявление своих и доступ к чужим ──────────────────────────────────
 //
@@ -146,29 +167,29 @@ export type {
 // ключуются **по строке идентификатора**, поэтому структурный двойник сервис всё-таки находит.
 // То есть цена дубликата здесь — типы и гигиена, а не потеря поведения. Но дублировать
 // объявление в каждом плагине всё равно нельзя: `plugins/**` не могут импортировать друг друга.
-export { defineService } from '../host/primitives/service';
-export type { ServiceToken, ServiceRegistry } from '../host/primitives/service';
+export { defineService } from '@/shell/platform/primitives/service';
+export type { ServiceToken, ServiceRegistry } from '@/shell/platform/primitives/service';
 
 // Сервисы платформы, к которым плагин обращается через `ctx.services`.
 //
 // Почему через реестр, а не полями контекста: **на момент активации плагина рабочей области
 // ещё нет** — она появляется, когда пользователь открыл проект, то есть заведомо позже.
 // Поле в контексте пришлось бы объявлять необязательным и всё равно проверять на каждом обращении.
-export { SettingsServiceToken } from '../host/services/settings';
-export type { SettingsService } from '../host/services/settings';
-export { ThemeServiceToken } from '../host/services/theme';
-export type { ThemeService, ThemePreference } from '../host/services/theme';
-export { NotificationsServiceToken } from '../host/services/notifications';
-export type { NotificationsService } from '../host/services/notifications';
-export { DiagnosticsServiceToken } from '../host/diagnostics/service';
-export type { DiagnosticsService } from '../host/diagnostics/service';
+export { SettingsServiceToken } from '@/shell/platform/services/settings';
+export type { SettingsService } from '@/shell/platform/services/settings';
+export { ThemeServiceToken } from '@/shell/platform/services/theme';
+export type { ThemeService, ThemePreference } from '@/shell/platform/services/theme';
+export { NotificationsServiceToken } from '@/shell/platform/services/notifications';
+export type { NotificationsService } from '@/shell/platform/services/notifications';
+export { DiagnosticsServiceToken } from '@/shell/platform/diagnostics/service';
+export type { DiagnosticsService } from '@/shell/platform/diagnostics/service';
 
 // Выделение — общий канал между плагинами, которые показывают ОДИН документ с разных сторон
 // (канвас редактора схемы и превью). Он обязан быть здесь, а не портом от композиции: плагины
 // не импортируют друг друга, поэтому единственный способ договориться о выделении — общая
 // служба платформы, и «непонятно, как передать выбранный узел» решается именно этой строкой.
-export { SelectionServiceToken } from '../host/services/selection';
-export type { SelectionService } from '../host/services/selection';
+export { SelectionServiceToken } from '@/shell/platform/services/selection';
+export type { SelectionService } from '@/shell/platform/services/selection';
 
 // ── Модель документа: второй вид документа поверх текста ────────────────────────
 //
@@ -182,18 +203,18 @@ export type { SelectionService } from '../host/services/selection';
 //
 // Провайдер конкретной модели вносится в точку без приведения: методы в TypeScript
 // бивариантны, поэтому провайдер `JsonFormSchema` — это провайдер `unknown`.
-export { DocumentModelPoint } from '../host/workspace/model/provider';
+export { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
 export type {
   DocumentModelProvider,
   EditOp,
   ApplyResult,
   NodeId,
-} from '../host/workspace/model/provider';
+} from '@/shell/platform/workspace/model/provider';
 
 // Порядок строгости диагностик. Без него каждый показывающий плагин заводит свою копию,
 // и совпадение копий держится на комментарии, а не на компиляторе — ровно это и случилось
 // в дереве файлов и на канвасе, пока порядок жил у платформы без выхода наружу.
-export { SEVERITY_RANK } from '../host/diagnostics/types';
+export { SEVERITY_RANK } from '@/shell/platform/diagnostics/types';
 
 // ── Меню ─────────────────────────────────────────────────────────────────────────
 //
@@ -204,7 +225,7 @@ export { SEVERITY_RANK } from '../host/diagnostics/types';
 // Корневые меню Host здесь тоже видны (`MenuRootId`): плагин должен уметь СОСЛАТЬСЯ на `file`
 // или `edit`, не выдумывая строку. Завести собственный корень он всё равно может — вкладом
 // `kind: 'root'`, который встанет в зону между «Видом» и «Справкой».
-export { MenuPoint, MENU_ROOT_IDS, CONTEXT_MENU_IDS } from '../host/ui/menu';
+export { MenuPoint, MENU_ROOT_IDS, CONTEXT_MENU_IDS } from '@/shell/platform/ui/menu';
 export type {
   ContextMenuId,
   MenuContribution,
@@ -216,7 +237,7 @@ export type {
   MenuRootId,
   MenuSubmenuContribution,
   MenuTarget,
-} from '../host/ui/menu';
+} from '@/shell/platform/ui/menu';
 
 // Контекстное меню дерева ресурсов — тот же `MenuPoint`, другой корень. Плагину нужны адрес
 // этого корня и типизация цели щелчка: без них пункт «Переименовать» получал бы `unknown`
@@ -232,25 +253,25 @@ export {
   asResourceTarget,
   selectedIds,
   whenResource,
-} from '../host/ui/resource-menu';
-export type { ResourceMenuTarget } from '../host/ui/resource-menu';
+} from '@/shell/platform/ui/resource-menu';
+export type { ResourceMenuTarget } from '@/shell/platform/ui/resource-menu';
 
 // Ряд действий над открытым документом — тот же `MenuPoint`, поверхность `editor/title`.
 // Плагину нужны её адрес и типизация цели: без них кнопка «показать предпросмотр» получала бы
 // `unknown` и приводила бы его к нужной форме сама — каждый по-своему.
-export { EDITOR_TITLE_MENU, argsOfEditor, whenEditor } from '../host/ui/editor-menu';
-export type { EditorMenuTarget } from '../host/ui/editor-menu';
+export { EDITOR_TITLE_MENU, argsOfEditor, whenEditor } from '@/shell/platform/ui/editor-menu';
+export type { EditorMenuTarget } from '@/shell/platform/ui/editor-menu';
 
 // ── Запросы к человеку и буфер записей дерева ───────────────────────────────────
 // Обе службы нужны пунктам меню: «Новая папка…» обязана спросить имя, «Вставить» — знать,
 // есть ли что вставлять. Портом их отдавать нельзя: спрашивают и копируют не только файлы —
 // шаблоны формы точно так же спросят имя, а вклад чужого плагина точно так же положит
 // в буфер свои записи.
-export { PromptServiceToken } from '../host/services/prompt';
-export type { PromptService } from '../host/services/prompt';
-export { ResourceClipboardServiceToken } from '../host/services/resource-clipboard';
+export { PromptServiceToken } from '@/shell/platform/services/prompt';
+export type { PromptService } from '@/shell/platform/services/prompt';
+export { ResourceClipboardServiceToken } from '@/shell/platform/services/resource-clipboard';
 export type {
   ClipboardMode,
   ClipboardState,
   ResourceClipboardService,
-} from '../host/services/resource-clipboard';
+} from '@/shell/platform/services/resource-clipboard';

@@ -16,9 +16,9 @@
  */
 
 import { useMemo, type ReactElement } from 'react';
-import { Shell, type ShellHost } from './host/ui/Shell';
-import { useProjectSession } from './app/useProject';
-import type { BuilderApp } from './app/boot';
+import { Shell, type ShellHost } from './shell/platform/ui/Shell';
+import { useProjectSession } from './shell/boot/useProject';
+import type { BuilderApp } from './shell/boot/boot';
 
 export default function App({ app }: { app: BuilderApp }): ReactElement {
   const session = useProjectSession(app.project);
