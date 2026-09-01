@@ -43,10 +43,10 @@ import {
 import { Input } from '@reformer/ui-kit/input';
 import { Label } from '@reformer/ui-kit/label';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { DIALOG_SCOPE, useScope, type ScopeStack } from './scope';
+import { DIALOG_SCOPE, useScope, type ScopeStack } from '@/shell/platform/ui/keyboard/scope';
 import type { PendingPrompt, PromptService } from '@/shell/platform/services/prompt';
 import { splitName } from '@/shell/platform/workspace/resource-names';
-import { useLocale } from './usePanels';
+import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 
 export interface PromptHostProps {
   /**

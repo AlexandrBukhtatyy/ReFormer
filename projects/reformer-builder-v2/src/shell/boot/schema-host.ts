@@ -21,7 +21,7 @@ import type { Disposable } from '@/shell/platform/primitives/disposable';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
 import type { ServiceRegistry } from '@/shell/platform/primitives/service';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { useLocale } from '@/shell/platform/ui/usePanels';
+import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { KitsServiceToken } from '@/plugins/kits/service';
 import { SCHEMA_EDITOR_PLUGIN_ID, SCHEMA_MODEL_PROVIDER_ID } from '@/plugins/editor-schema';

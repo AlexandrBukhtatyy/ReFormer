@@ -22,8 +22,13 @@ import {
 import { whenContext } from '@/shell/platform/primitives/when-context';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { renderReact } from '@/testing/render';
-import { MenuPoint, type MenuContribution } from './menu';
-import { RESOURCE_CONTEXT_MENU, argsOfResource, selectedIds, whenResource } from './resource-menu';
+import { MenuPoint, type MenuContribution } from '@/shell/platform/ui/menu/menu';
+import {
+  RESOURCE_CONTEXT_MENU,
+  argsOfResource,
+  selectedIds,
+  whenResource,
+} from '@/shell/platform/ui/menu/resource-menu';
 import { createResourceTreeStore, type TreeWorkspace } from './resource-tree';
 import { ResourceTree } from './ResourceTree';
 

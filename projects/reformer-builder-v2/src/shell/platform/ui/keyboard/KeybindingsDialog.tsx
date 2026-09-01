@@ -63,7 +63,7 @@ import {
 import type { KeybindingLayer } from './keybinding-rules';
 import type { KeymapService } from './keymap';
 import { DIALOG_SCOPE, useScope, type ScopeStack } from './scope';
-import { useLocale } from './usePanels';
+import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import { WHEN_TRUE } from '@/shell/platform/primitives/when-expr';
 
 /** Команда, открывающая экран. Идентификатор экспортирован: на него ссылается пункт меню. */

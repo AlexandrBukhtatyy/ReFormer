@@ -12,7 +12,7 @@ import {
   selectPanels,
   type PanelEntry,
 } from './panels';
-import { PanelPoint, type PanelContribution } from './slots';
+import { PanelPoint, type PanelContribution } from '../slots';
 
 /**
  * Панели теста — фиктивные и намеренно бессодержательные.

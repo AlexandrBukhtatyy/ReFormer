@@ -83,8 +83,12 @@ import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@/shell/platform/primitives/when-context';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { useScope, type ScopeStack } from './scope';
-import { detectPlatformModifier, formatKeybinding, type PlatformModifier } from './keybindings';
+import { useScope, type ScopeStack } from '@/shell/platform/ui/keyboard/scope';
+import {
+  detectPlatformModifier,
+  formatKeybinding,
+  type PlatformModifier,
+} from '@/shell/platform/ui/keyboard/keybindings';
 import {
   PaletteItemsPoint,
   commandPaletteItems,
@@ -95,8 +99,12 @@ import {
   type PaletteItem,
   type ResolvedPaletteItem,
 } from './palette';
-import { useContributions, useLocale, type ExtensionReader } from './usePanels';
-import type { WhenContextStore } from './when-context-store';
+import {
+  useContributions,
+  useLocale,
+  type ExtensionReader,
+} from '@/shell/platform/ui/chrome/usePanels';
+import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 
 /**
  * Идентификатор команды открытия.

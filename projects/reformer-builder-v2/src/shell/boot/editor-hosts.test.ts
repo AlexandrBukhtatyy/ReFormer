@@ -19,7 +19,7 @@ import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
 import type { Source } from '@/shell/platform/source/types';
-import { createWhenContextStore } from '@/shell/platform/ui/when-context-store';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
 import { createLinesProvider } from '@/shell/platform/workspace/model/testing';
 import { createWorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';

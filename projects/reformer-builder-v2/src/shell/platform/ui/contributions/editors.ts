@@ -45,7 +45,7 @@ import {
 } from '@/shell/platform/primitives/resource';
 import type { Document } from '@/shell/platform/workspace/document';
 import { createEditorProbe, type EditorProbe } from '@/shell/platform/workspace/model/provider';
-import type { PanelContribution } from './slots';
+import type { PanelContribution } from '../slots';
 
 /**
  * Редактор — вклад, отвечающий на два вопроса: берётся ли он за ресурс и чем его рисовать.

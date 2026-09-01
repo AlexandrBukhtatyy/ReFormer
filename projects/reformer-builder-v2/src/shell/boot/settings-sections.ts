@@ -20,7 +20,7 @@
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { SettingsService } from '@/shell/platform/services/settings';
 import type { ThemePreference, ThemeService } from '@/shell/platform/services/theme';
-import type { SettingsSection } from '@/shell/platform/ui/settings-ui';
+import type { SettingsSection } from '@/shell/platform/ui/dialogs/settings-ui';
 
 /** Ключ настройки языка. Тот же, что читает `boot` при старте. */
 export const LOCALE_SETTINGS_KEY = 'host.locale';

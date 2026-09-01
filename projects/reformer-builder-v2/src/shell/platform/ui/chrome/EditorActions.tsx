@@ -36,7 +36,7 @@ import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { ResourceRef } from '@/shell/platform/primitives/resource';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@/shell/platform/primitives/when-context';
-import { EDITOR_TITLE_MENU } from './editor-menu';
+import { EDITOR_TITLE_MENU } from '@/shell/platform/ui/menu/editor-menu';
 import {
   buildMenu,
   MenuPoint,
@@ -44,7 +44,7 @@ import {
   type MenuActionNode,
   type MenuEntry,
   type MenuNode,
-} from './menu';
+} from '@/shell/platform/ui/menu/menu';
 import { useContributions, useLocale, type ExtensionReader } from './usePanels';
 
 /** Реестр команд в объёме, нужном ряду: прочитать, спросить применимость, выполнить. */

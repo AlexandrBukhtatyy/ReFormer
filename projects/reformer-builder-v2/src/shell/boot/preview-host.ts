@@ -18,7 +18,7 @@ import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resour
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import type { ServiceRegistry } from '@/shell/platform/primitives/service';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { useLocale } from '@/shell/platform/ui/usePanels';
+import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
 import { createKitNamespaceLoader } from './kit-namespace';

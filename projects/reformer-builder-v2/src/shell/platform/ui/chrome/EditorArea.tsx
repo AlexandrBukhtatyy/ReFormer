@@ -39,7 +39,11 @@ import type { WhenContext } from '@/shell/platform/primitives/when-context';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { DocumentTabs } from './DocumentTabs';
 import { EditorActions, type EditorActionsCommands } from './EditorActions';
-import { createEditorChoiceStore, pickEditor, type EditorChoiceStore } from './editor-choice';
+import {
+  createEditorChoiceStore,
+  pickEditor,
+  type EditorChoiceStore,
+} from '@/shell/platform/ui/contributions/editor-choice';
 import {
   EditorPoint,
   createViewStateStore,
@@ -47,12 +51,12 @@ import {
   type EditorCandidate,
   type EditorEntry,
   type ViewStateStore,
-} from './editors';
+} from '@/shell/platform/ui/contributions/editors';
 import type { Document } from '@/shell/platform/workspace/document';
-import { hostMenuEntry, type MenuEntry } from './menu';
-import { EDITOR_TITLE_MENU } from './editor-menu';
+import { hostMenuEntry, type MenuEntry } from '@/shell/platform/ui/menu/menu';
+import { EDITOR_TITLE_MENU } from '@/shell/platform/ui/menu/editor-menu';
 import type { PanelEntry } from './panels';
-import type { DocumentTabsStore } from './tabs';
+import type { DocumentTabsStore } from '@/shell/platform/ui/state/tabs';
 import { useContributions, type ExtensionReader } from './usePanels';
 import { useDocumentTabs, useEditorChoices } from './useWorkspaceViews';
 

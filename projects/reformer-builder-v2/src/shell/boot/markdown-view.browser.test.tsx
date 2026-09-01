@@ -29,9 +29,9 @@ import {
 } from '@/shell/platform/primitives/resource';
 import { whenContext } from '@/shell/platform/primitives/when-context';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
-import { EditorArea } from '@/shell/platform/ui/EditorArea';
-import { createDocumentTabsStore, type TabsWorkspace } from '@/shell/platform/ui/tabs';
-import { createWhenContextStore } from '@/shell/platform/ui/when-context-store';
+import { EditorArea } from '@/shell/platform/ui/chrome/EditorArea';
+import { createDocumentTabsStore, type TabsWorkspace } from '@/shell/platform/ui/state/tabs';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 import { createDocument, type Document } from '@/shell/platform/workspace/document';
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';

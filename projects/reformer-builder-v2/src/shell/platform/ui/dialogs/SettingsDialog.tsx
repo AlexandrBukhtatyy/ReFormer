@@ -48,9 +48,9 @@ import {
 import { Search } from 'lucide-react';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { DIALOG_SCOPE, useScope, type ScopeStack } from './scope';
+import { DIALOG_SCOPE, useScope, type ScopeStack } from '@/shell/platform/ui/keyboard/scope';
 import type { SettingField, SettingsSection } from './settings-ui';
-import { useLocale } from './usePanels';
+import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 
 /** Команда, открывающая окно. Идентификатор экспортирован: на него ссылается пункт меню. */
 export const SETTINGS_OPEN_COMMAND_ID = 'host.settings.open';

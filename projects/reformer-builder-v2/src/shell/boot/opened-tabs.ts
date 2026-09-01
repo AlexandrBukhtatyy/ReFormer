@@ -33,7 +33,7 @@
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
-import type { DocumentTabsStore } from '@/shell/platform/ui/tabs';
+import type { DocumentTabsStore } from '@/shell/platform/ui/state/tabs';
 import type { OpenedRecord, WorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 
 /** Хранилище метаданных в объёме, которым пользуются вкладки. */

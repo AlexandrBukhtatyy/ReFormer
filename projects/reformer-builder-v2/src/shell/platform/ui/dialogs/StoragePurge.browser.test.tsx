@@ -22,8 +22,8 @@ import {
 } from '@/shell/platform/services/settings';
 import { createPromptService } from '@/shell/platform/services/prompt';
 import type { PurgeReport } from '@/shell/platform/workspace/storage/purge';
-import { Shell } from './Shell';
-import { createWhenContextStore } from './when-context-store';
+import { Shell } from '../Shell';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { renderReact } from '@/testing/render';
 
 /** Снимок строки состояния: замороженная ссылка — требование `useSyncExternalStore`. */

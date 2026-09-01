@@ -38,7 +38,7 @@ import { ScrollArea, ScrollBar } from '@reformer/ui-kit/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@reformer/ui-kit/tabs';
 import type { I18nService } from '@/shell/platform/services/i18n/i18n';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
-import { findTab, type DocumentTabsStore, type Tab } from './tabs';
+import { findTab, type DocumentTabsStore, type Tab } from '@/shell/platform/ui/state/tabs';
 import { useLocale } from './usePanels';
 import { useDocumentTabs } from './useWorkspaceViews';
 

@@ -15,7 +15,7 @@ import { createMemorySource } from '@/shell/platform/source/memory';
 import type { FsDirectoryHandle } from '@/shell/platform/source/fs-access';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
 import type { RestoredSource, Source } from '@/shell/platform/source/types';
-import { createWhenContextStore } from '@/shell/platform/ui/when-context-store';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { createWorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 import { createWorkspaceFileStore } from '@/shell/platform/workspace/storage/opfs';
 import {

@@ -23,7 +23,7 @@ import {
   createMemoryIndexedDb,
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
-import { createWhenContextStore } from '@/shell/platform/ui/when-context-store';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import type { FormTemplate } from '@/plugins/templates';
 import { generateFormFromTemplate } from '@/plugins/templates';
 import { createWorkspaceSession, type WorkspaceSession } from './workspace-session';

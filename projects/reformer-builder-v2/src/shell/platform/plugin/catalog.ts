@@ -45,7 +45,7 @@ import type { DiscoveredPlugin, PluginLoader } from './loader';
 import type { PluginManifest, PluginProblem } from './manifest';
 import { normalizeChord } from '@/shell/platform/primitives/command';
 import { compileWhen, WHEN_TRUE } from '@/shell/platform/primitives/when-expr';
-import type { KeymapService } from '@/shell/platform/ui/keymap';
+import type { KeymapService } from '@/shell/platform/ui/keyboard/keymap';
 import type { PluginRegistry } from './registry';
 
 /**

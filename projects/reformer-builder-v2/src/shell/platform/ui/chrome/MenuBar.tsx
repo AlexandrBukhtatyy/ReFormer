@@ -36,12 +36,25 @@ import {
 } from '@reformer/ui-kit/menubar';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { detectPlatformModifier, formatChord, type PlatformModifier } from './keybindings';
-import { chordOfCommand, type KeymapService } from './keymap';
-import { buildMenuBar, MenuPoint, observeMenuEntries, type MenuEntry, type MenuNode } from './menu';
-import { createMenuIssueReporter, formatMenuIssue } from './menu-issues';
+import {
+  detectPlatformModifier,
+  formatChord,
+  type PlatformModifier,
+} from '@/shell/platform/ui/keyboard/keybindings';
+import { chordOfCommand, type KeymapService } from '@/shell/platform/ui/keyboard/keymap';
+import {
+  buildMenuBar,
+  MenuPoint,
+  observeMenuEntries,
+  type MenuEntry,
+  type MenuNode,
+} from '@/shell/platform/ui/menu/menu';
+import { createMenuIssueReporter, formatMenuIssue } from '@/shell/platform/ui/menu/menu-issues';
 import { useCommandSnapshot, useContributions, useLocale } from './usePanels';
-import { useWhenContext, type WhenContextStore } from './when-context-store';
+import {
+  useWhenContext,
+  type WhenContextStore,
+} from '@/shell/platform/ui/state/when-context-store';
 import type { ExtensionReader } from './usePanels';
 
 export interface MenuBarProps {

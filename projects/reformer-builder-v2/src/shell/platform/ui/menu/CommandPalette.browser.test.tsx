@@ -23,7 +23,10 @@ import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { renderReact } from '@/testing/render';
 import { CommandPalette, PALETTE_OPEN_COMMAND_ID } from './CommandPalette';
 import { PaletteItemsPoint, type PaletteItemProvider } from './palette';
-import { createWhenContextStore, useFocusTracking } from './when-context-store';
+import {
+  createWhenContextStore,
+  useFocusTracking,
+} from '@/shell/platform/ui/state/when-context-store';
 
 const MESSAGES: Readonly<Record<string, string>> = {
   'shell.palette.label': 'Палитра команд',

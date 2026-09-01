@@ -15,7 +15,7 @@ import {
   NO_WORKSPACE_STATUS,
   type WorkspaceStatusSnapshot,
   type WorkspaceStatusSource,
-} from '@/shell/platform/ui/status';
+} from '@/shell/platform/ui/state/status';
 import { createProjectStatusSource } from './project-status';
 
 /** Итог, которым можно управлять руками. */

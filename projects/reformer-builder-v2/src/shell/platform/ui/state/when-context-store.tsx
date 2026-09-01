@@ -41,7 +41,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import { toDisposable } from '@/shell/platform/primitives/disposable';
 import { whenContext, type WhenContext } from '@/shell/platform/primitives/when-context';
-import { classifyFocus, probeFromElement } from './focus';
+import { classifyFocus, probeFromElement } from '@/shell/platform/ui/keyboard/focus';
 
 /** Изменяемое хранилище одного снимка {@link WhenContext}. */
 export interface WhenContextStore {

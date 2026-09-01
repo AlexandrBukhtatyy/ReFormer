@@ -18,7 +18,7 @@
 
 import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { useLocale } from '@/shell/platform/ui/usePanels';
+import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import { monacoEditorContribution, type MonacoFocusRegistry } from '@/plugins/editor-monaco';
 import type { ViewStateRegistry } from '@/plugins/editor-monaco';
 import type { MonacoHost } from '@/plugins/editor-monaco/host';

@@ -14,7 +14,7 @@ import { page, userEvent } from 'vitest/browser';
 import { createElement, type ReactElement } from 'react';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
-import { createWhenContextStore } from './when-context-store';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import {
   createInMemorySettingsBackend,

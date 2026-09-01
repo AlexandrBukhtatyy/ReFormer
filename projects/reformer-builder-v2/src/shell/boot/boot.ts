@@ -89,17 +89,17 @@ import {
   createThemeService,
   ThemeServiceToken,
 } from '@/shell/platform/services/theme';
-import { dockSettingsKey } from '@/shell/platform/ui/layout-settings';
+import { dockSettingsKey } from '@/shell/platform/ui/chrome/layout-settings';
 import type { ShellHost } from '@/shell/platform/ui/Shell';
 import { createValidationOrchestrator } from '@/shell/platform/validation/orchestrator';
 import {
   ContextKeyServiceToken,
   createContextKeyService,
 } from '@/shell/platform/services/context-keys';
-import { createChordState } from '@/shell/platform/ui/chords';
-import { createKeymapService, KeymapServiceToken } from '@/shell/platform/ui/keymap';
-import { createScopeStack, ScopeStackServiceToken } from '@/shell/platform/ui/scope';
-import { createWhenContextStore } from '@/shell/platform/ui/when-context-store';
+import { createChordState } from '@/shell/platform/ui/keyboard/chords';
+import { createKeymapService, KeymapServiceToken } from '@/shell/platform/ui/keyboard/keymap';
+import { createScopeStack, ScopeStackServiceToken } from '@/shell/platform/ui/keyboard/scope';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import {
   createWorkspaceMetaStore,
   WORKSPACE_DB_NAME,

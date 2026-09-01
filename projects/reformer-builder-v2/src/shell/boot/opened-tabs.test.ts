@@ -21,7 +21,7 @@ import {
   createMemoryIndexedDb,
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
-import { createWhenContextStore } from '@/shell/platform/ui/when-context-store';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { createWorkspaceSession, type WorkspaceSession } from './workspace-session';
 import { restoreOpenedTabs } from './opened-tabs';
 

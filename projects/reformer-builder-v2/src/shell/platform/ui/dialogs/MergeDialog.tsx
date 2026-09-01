@@ -49,7 +49,7 @@ import {
   type MergeColumn,
   type MergeColumnId,
 } from './merge';
-import { useLocale } from './usePanels';
+import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 
 /** Что редактор ручного слияния получает от диалога. */
 export interface MergeEditorProps {

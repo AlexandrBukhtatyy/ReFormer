@@ -20,18 +20,24 @@ import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-po
 import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
 import type { Source } from '@/shell/platform/source/types';
 import type { ValidationOrchestrator } from '@/shell/platform/validation/orchestrator';
-import { createResourceTreeStore, type ResourceTreeStore } from '@/shell/platform/ui/resource-tree';
+import {
+  createResourceTreeStore,
+  type ResourceTreeStore,
+} from '@/shell/platform/ui/state/resource-tree';
 import {
   createResourceOperations,
   type ResourceOperations,
 } from '@/shell/platform/workspace/resource-ops';
-import type { WorkspaceStatusSnapshot, WorkspaceStatusSource } from '@/shell/platform/ui/status';
+import type {
+  WorkspaceStatusSnapshot,
+  WorkspaceStatusSource,
+} from '@/shell/platform/ui/state/status';
 import {
   createDocumentTabsStore,
   type DocumentTabsStore,
   type TabsWorkspace,
-} from '@/shell/platform/ui/tabs';
-import type { WhenContextStore } from '@/shell/platform/ui/when-context-store';
+} from '@/shell/platform/ui/state/tabs';
+import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import type { DiagnosticsSink, Workspace } from '@/shell/platform/workspace/workspace';
 import { createJournal, type Journal } from '@/shell/platform/workspace/journal/journal';
 import { createDivergenceWatch } from '@/shell/platform/workspace/merge/divergence';

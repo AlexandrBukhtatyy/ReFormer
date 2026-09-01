@@ -44,10 +44,10 @@ import {
   type StatusTone,
   type WorkspaceStatusSnapshot,
   type WorkspaceStatusSource,
-} from './status';
-import type { ChordState } from './chords';
+} from '@/shell/platform/ui/state/status';
+import type { ChordState } from '@/shell/platform/ui/keyboard/chords';
 import { useChord, useLocale, usePanels, type ExtensionReader } from './usePanels';
-import type { WhenContextStore } from './when-context-store';
+import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 
 /**
  * Подписывает компонент на итог по рабочей области.

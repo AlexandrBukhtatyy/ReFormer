@@ -19,7 +19,7 @@ import {
   NO_WORKSPACE_STATUS,
   type WorkspaceStatusSnapshot,
   type WorkspaceStatusSource,
-} from '@/shell/platform/ui/status';
+} from '@/shell/platform/ui/state/status';
 
 /** Держатель проекта в объёме, нужном строке состояния. */
 export interface StatusProjectReader {

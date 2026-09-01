@@ -64,28 +64,34 @@ import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { NotificationsService } from '@/shell/platform/services/notifications';
 import type { PromptService } from '@/shell/platform/services/prompt';
 import type { SettingsService } from '@/shell/platform/services/settings';
-import { CommandPalette } from './CommandPalette';
-import { EditorArea, EDITOR_NEXT_COMMAND_ID } from './EditorArea';
-import { HelpDialogs, HELP_ABOUT_COMMAND_ID } from './HelpDialogs';
-import { KeybindingsDialog, KEYBINDINGS_OPEN_COMMAND_ID } from './KeybindingsDialog';
-import { SettingsDialog, SETTINGS_OPEN_COMMAND_ID } from './SettingsDialog';
-import type { SettingsSection } from './settings-ui';
-import { MenuBar } from './MenuBar';
+import { CommandPalette } from '@/shell/platform/ui/menu/CommandPalette';
+import { EditorArea, EDITOR_NEXT_COMMAND_ID } from '@/shell/platform/ui/chrome/EditorArea';
+import { HelpDialogs, HELP_ABOUT_COMMAND_ID } from '@/shell/platform/ui/dialogs/HelpDialogs';
+import {
+  KeybindingsDialog,
+  KEYBINDINGS_OPEN_COMMAND_ID,
+} from '@/shell/platform/ui/keyboard/KeybindingsDialog';
+import {
+  SettingsDialog,
+  SETTINGS_OPEN_COMMAND_ID,
+} from '@/shell/platform/ui/dialogs/SettingsDialog';
+import type { SettingsSection } from '@/shell/platform/ui/dialogs/settings-ui';
+import { MenuBar } from '@/shell/platform/ui/chrome/MenuBar';
 import {
   storagePurgeCommand,
   STORAGE_PURGE_COMMAND_ID,
   type StorageMaintenance,
-} from './storage-purge';
-import { hostMenuEntry, type MenuEntry } from './menu';
-import { NotificationCenter } from './NotificationCenter';
-import { PromptHost } from './PromptHost';
-import { useKeybindings } from './keybindings';
-import { createChordState, type ChordState } from './chords';
-import { createKeymapService, type KeymapService } from './keymap';
-import type { ScopeStack } from './scope';
-import type { DocumentTabsStore } from './tabs';
-import { StatusBar } from './StatusBar';
-import type { WorkspaceStatusSource } from './status';
+} from '@/shell/platform/ui/dialogs/storage-purge';
+import { hostMenuEntry, type MenuEntry } from '@/shell/platform/ui/menu/menu';
+import { NotificationCenter } from '@/shell/platform/ui/dialogs/NotificationCenter';
+import { PromptHost } from '@/shell/platform/ui/dialogs/PromptHost';
+import { useKeybindings } from '@/shell/platform/ui/keyboard/keybindings';
+import { createChordState, type ChordState } from '@/shell/platform/ui/keyboard/chords';
+import { createKeymapService, type KeymapService } from '@/shell/platform/ui/keyboard/keymap';
+import type { ScopeStack } from '@/shell/platform/ui/keyboard/scope';
+import type { DocumentTabsStore } from '@/shell/platform/ui/state/tabs';
+import { StatusBar } from '@/shell/platform/ui/chrome/StatusBar';
+import type { WorkspaceStatusSource } from '@/shell/platform/ui/state/status';
 import {
   dockSettingsKey,
   normalizeDockState,
@@ -95,17 +101,25 @@ import {
   writeDockState,
   writePanelSizes,
   type PanelSizes,
-} from './layout-settings';
+} from '@/shell/platform/ui/chrome/layout-settings';
 import {
   findPanel,
   panelInitial,
   panelTitle,
   resolveActivePanelId,
   type PanelEntry,
-} from './panels';
+} from '@/shell/platform/ui/chrome/panels';
 import type { SlotId } from './slots';
-import { useFocusTracking, type WhenContextStore } from './when-context-store';
-import { useLocale, usePanels, useSetting, type ExtensionReader } from './usePanels';
+import {
+  useFocusTracking,
+  type WhenContextStore,
+} from '@/shell/platform/ui/state/when-context-store';
+import {
+  useLocale,
+  usePanels,
+  useSetting,
+  type ExtensionReader,
+} from '@/shell/platform/ui/chrome/usePanels';
 
 /** Платформа в объёме, который нужен оболочке. Больше она ни до чего не дотягивается. */
 export interface ShellHost {

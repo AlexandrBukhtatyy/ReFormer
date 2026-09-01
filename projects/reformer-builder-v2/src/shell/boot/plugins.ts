@@ -15,7 +15,7 @@
 
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { Plugin } from '@/shell/platform/plugin/types';
-import { EditorPoint } from '@/shell/platform/ui/editors';
+import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
 import type { FilesHost } from '@/plugins/files/host';
 import { createFilesPlugin } from '@/plugins/files/plugin';

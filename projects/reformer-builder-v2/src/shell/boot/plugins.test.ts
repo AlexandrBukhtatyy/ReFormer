@@ -23,7 +23,7 @@ import { createSelectionService, SelectionServiceToken } from '@/shell/platform/
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
-import { EditorPoint, resolveEditor } from '@/shell/platform/ui/editors';
+import { EditorPoint, resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
 import { createFocusRegistry } from '@/plugins/editor-monaco';
 import { createBuiltinPlugins } from './plugins';

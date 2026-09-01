@@ -14,9 +14,12 @@
  */
 
 import { useCallback, useSyncExternalStore } from 'react';
-import type { EditorChoices, EditorChoiceStore } from './editor-choice';
-import type { ResourceTreeState, ResourceTreeStore } from './resource-tree';
-import type { DocumentTabsStore, TabsState } from './tabs';
+import type {
+  EditorChoices,
+  EditorChoiceStore,
+} from '@/shell/platform/ui/contributions/editor-choice';
+import type { ResourceTreeState, ResourceTreeStore } from '@/shell/platform/ui/state/resource-tree';
+import type { DocumentTabsStore, TabsState } from '@/shell/platform/ui/state/tabs';
 
 /** Снимок вкладок с перерисовкой при их изменении. */
 export function useDocumentTabs(store: DocumentTabsStore): TabsState {

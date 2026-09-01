@@ -28,12 +28,15 @@ import type {
   RootExtensionRegistry,
 } from '@/shell/platform/primitives/extension-point';
 import type { CommandContribution, CommandRegistry } from '@/shell/platform/primitives/command';
-import type { ChordSnapshot, ChordState } from './chords';
+import type { ChordSnapshot, ChordState } from '@/shell/platform/ui/keyboard/chords';
 import type { I18nService } from '@/shell/platform/services/i18n/i18n';
 import type { SettingsService } from '@/shell/platform/services/settings';
 import { selectPanels, type PanelEntry, type PanelPredicateErrorHandler } from './panels';
-import { PanelPoint, type SlotId } from './slots';
-import { useWhenContext, type WhenContextStore } from './when-context-store';
+import { PanelPoint, type SlotId } from '../slots';
+import {
+  useWhenContext,
+  type WhenContextStore,
+} from '@/shell/platform/ui/state/when-context-store';
 
 /**
  * Чтение точек расширения — всё, что оболочке нужно от реестра.

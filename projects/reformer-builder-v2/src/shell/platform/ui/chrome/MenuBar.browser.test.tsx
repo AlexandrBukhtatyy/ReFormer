@@ -17,8 +17,13 @@ import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { MenuBar } from './MenuBar';
-import { hostMenuEntry, MenuPoint, type MenuContribution, type MenuEntry } from './menu';
-import { createWhenContextStore } from './when-context-store';
+import {
+  hostMenuEntry,
+  MenuPoint,
+  type MenuContribution,
+  type MenuEntry,
+} from '@/shell/platform/ui/menu/menu';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { renderReact } from '@/testing/render';
 
 /** Ключи пунктов теста лежат в словаре плагина: иначе на экране были бы маркеры промаха. */

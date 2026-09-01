@@ -27,11 +27,11 @@ import { createDocument, type Document } from '@/shell/platform/workspace/docume
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
 import { renderReact } from '@/testing/render';
 import { EditorArea } from './EditorArea';
-import { EditorPoint, type EditorContribution } from './editors';
-import { EDITOR_TITLE_MENU, whenEditor } from './editor-menu';
-import { MenuPoint, type MenuContribution } from './menu';
-import { createDocumentTabsStore, type TabsWorkspace } from './tabs';
-import { createWhenContextStore } from './when-context-store';
+import { EditorPoint, type EditorContribution } from '@/shell/platform/ui/contributions/editors';
+import { EDITOR_TITLE_MENU, whenEditor } from '@/shell/platform/ui/menu/editor-menu';
+import { MenuPoint, type MenuContribution } from '@/shell/platform/ui/menu/menu';
+import { createDocumentTabsStore, type TabsWorkspace } from '@/shell/platform/ui/state/tabs';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 
 const MESSAGES: Readonly<Record<string, string>> = {
   'shell.editor.empty': 'Нет открытых редакторов',

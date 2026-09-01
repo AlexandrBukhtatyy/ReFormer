@@ -27,7 +27,7 @@ import {
   createMemoryIndexedDb,
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
-import { createWhenContextStore } from '@/shell/platform/ui/when-context-store';
+import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { createWorkspaceSession } from './workspace-session';
 
 let seq = 0;

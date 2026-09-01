@@ -86,13 +86,16 @@ export type { DocumentKind } from '@/shell/platform/workspace/document';
 // в точку-двойник и потеряется молча. Поэтому здесь реэкспорт, а не переобъявление.
 export { PanelPoint } from '@/shell/platform/ui/slots';
 export type { PanelContribution, SlotId } from '@/shell/platform/ui/slots';
-export { EditorPoint } from '@/shell/platform/ui/editors';
-export type { EditorContribution } from '@/shell/platform/ui/editors';
+export { EditorPoint } from '@/shell/platform/ui/contributions/editors';
+export type { EditorContribution } from '@/shell/platform/ui/contributions/editors';
 export type { EditorProbe } from '@/shell/platform/workspace/model/provider';
-export { ResourceDecorationPoint } from '@/shell/platform/ui/decorations';
-export type { Decoration, ResourceDecorationContribution } from '@/shell/platform/ui/decorations';
-export { PaletteItemsPoint } from '@/shell/platform/ui/palette';
-export type { PaletteItem, PaletteItemProvider } from '@/shell/platform/ui/palette';
+export { ResourceDecorationPoint } from '@/shell/platform/ui/contributions/decorations';
+export type {
+  Decoration,
+  ResourceDecorationContribution,
+} from '@/shell/platform/ui/contributions/decorations';
+export { PaletteItemsPoint } from '@/shell/platform/ui/menu/palette';
+export type { PaletteItem, PaletteItemProvider } from '@/shell/platform/ui/menu/palette';
 export type { CommandContribution } from '@/shell/platform/primitives/command';
 export type { WhenContext, FocusTarget } from '@/shell/platform/primitives/when-context';
 
@@ -120,25 +123,25 @@ export type {
 // нельзя ни сравнить с чужим при разрешении конфликта клавиш, ни показать в таблице клавиш.
 // Область: плагин, открывающий своё окно, обязан её положить — иначе его клавиши не могут
 // перебить глобальные, и «пока диалог открыт, работает не то» становится неисправимым снаружи.
-export { ScopeStackServiceToken, DIALOG_SCOPE } from '@/shell/platform/ui/scope';
-export type { ScopeId, ScopeStack } from '@/shell/platform/ui/scope';
+export { ScopeStackServiceToken, DIALOG_SCOPE } from '@/shell/platform/ui/keyboard/scope';
+export type { ScopeId, ScopeStack } from '@/shell/platform/ui/keyboard/scope';
 
 // Действующее сочетание — только чтение. Плагин, показывающий в своём интерфейсе «нажмите X»,
 // обязан показать ДЕЙСТВУЮЩЕЕ сочетание, а не объявленное: после переназначения человеком
 // его подсказка иначе врёт.
-export { chordOfCommand, KeymapServiceToken } from '@/shell/platform/ui/keymap';
-export type { KeymapService } from '@/shell/platform/ui/keymap';
+export { chordOfCommand, KeymapServiceToken } from '@/shell/platform/ui/keyboard/keymap';
+export type { KeymapService } from '@/shell/platform/ui/keyboard/keymap';
 export type {
   KeybindingIndex,
   KeybindingLayer,
   KeybindingRule,
-} from '@/shell/platform/ui/keybinding-rules';
+} from '@/shell/platform/ui/keyboard/keybinding-rules';
 export {
   detectPlatformModifier,
   formatChord,
   formatKeybinding,
-} from '@/shell/platform/ui/keybindings';
-export type { PlatformModifier } from '@/shell/platform/ui/keybindings';
+} from '@/shell/platform/ui/keyboard/keybindings';
+export type { PlatformModifier } from '@/shell/platform/ui/keyboard/keybindings';
 
 // Разбор аккорда — тем же кодом, что и регистрация: разъедься написание, подпись плагина
 // перестала бы совпадать с тем, что человек нажимает.
@@ -225,7 +228,7 @@ export { SEVERITY_RANK } from '@/shell/platform/diagnostics/types';
 // Корневые меню Host здесь тоже видны (`MenuRootId`): плагин должен уметь СОСЛАТЬСЯ на `file`
 // или `edit`, не выдумывая строку. Завести собственный корень он всё равно может — вкладом
 // `kind: 'root'`, который встанет в зону между «Видом» и «Справкой».
-export { MenuPoint, MENU_ROOT_IDS, CONTEXT_MENU_IDS } from '@/shell/platform/ui/menu';
+export { MenuPoint, MENU_ROOT_IDS, CONTEXT_MENU_IDS } from '@/shell/platform/ui/menu/menu';
 export type {
   ContextMenuId,
   MenuContribution,
@@ -237,7 +240,7 @@ export type {
   MenuRootId,
   MenuSubmenuContribution,
   MenuTarget,
-} from '@/shell/platform/ui/menu';
+} from '@/shell/platform/ui/menu/menu';
 
 // Контекстное меню дерева ресурсов — тот же `MenuPoint`, другой корень. Плагину нужны адрес
 // этого корня и типизация цели щелчка: без них пункт «Переименовать» получал бы `unknown`
@@ -253,14 +256,14 @@ export {
   asResourceTarget,
   selectedIds,
   whenResource,
-} from '@/shell/platform/ui/resource-menu';
-export type { ResourceMenuTarget } from '@/shell/platform/ui/resource-menu';
+} from '@/shell/platform/ui/menu/resource-menu';
+export type { ResourceMenuTarget } from '@/shell/platform/ui/menu/resource-menu';
 
 // Ряд действий над открытым документом — тот же `MenuPoint`, поверхность `editor/title`.
 // Плагину нужны её адрес и типизация цели: без них кнопка «показать предпросмотр» получала бы
 // `unknown` и приводила бы его к нужной форме сама — каждый по-своему.
-export { EDITOR_TITLE_MENU, argsOfEditor, whenEditor } from '@/shell/platform/ui/editor-menu';
-export type { EditorMenuTarget } from '@/shell/platform/ui/editor-menu';
+export { EDITOR_TITLE_MENU, argsOfEditor, whenEditor } from '@/shell/platform/ui/menu/editor-menu';
+export type { EditorMenuTarget } from '@/shell/platform/ui/menu/editor-menu';
 
 // ── Запросы к человеку и буфер записей дерева ───────────────────────────────────
 // Обе службы нужны пунктам меню: «Новая папка…» обязана спросить имя, «Вставить» — знать,

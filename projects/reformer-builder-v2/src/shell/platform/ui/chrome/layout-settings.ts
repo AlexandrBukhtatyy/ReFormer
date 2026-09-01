@@ -25,7 +25,7 @@
  */
 
 import type { SettingsService } from '@/shell/platform/services/settings';
-import type { SlotId } from './slots';
+import type { SlotId } from '../slots';
 
 /**
  * Размеры панелей группы: идентификатор панели → доля (`flexGrow`).

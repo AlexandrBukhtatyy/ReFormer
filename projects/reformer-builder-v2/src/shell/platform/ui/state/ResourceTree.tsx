@@ -82,12 +82,21 @@ import {
   type DecorationEntry,
   type DecorationTone,
   type MergedDecoration,
-} from './decorations';
+} from '@/shell/platform/ui/contributions/decorations';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
-import { createLazyEditorProbe, createUnreadableProbe, type ReadResourceText } from './editors';
-import { detectPlatformModifier, formatChord } from './keybindings';
-import { buildMenu, MenuPoint, type MenuActionNode, type MenuNode } from './menu';
-import { RESOURCE_CONTEXT_MENU, resourceMenuTarget } from './resource-menu';
+import {
+  createLazyEditorProbe,
+  createUnreadableProbe,
+  type ReadResourceText,
+} from '@/shell/platform/ui/contributions/editors';
+import { detectPlatformModifier, formatChord } from '@/shell/platform/ui/keyboard/keybindings';
+import {
+  buildMenu,
+  MenuPoint,
+  type MenuActionNode,
+  type MenuNode,
+} from '@/shell/platform/ui/menu/menu';
+import { RESOURCE_CONTEXT_MENU, resourceMenuTarget } from '@/shell/platform/ui/menu/resource-menu';
 import {
   actionTargets,
   flattenTree,
@@ -95,8 +104,12 @@ import {
   type ResourceTreeState,
   type ResourceTreeStore,
 } from './resource-tree';
-import { useContributions, useLocale, type ExtensionReader } from './usePanels';
-import { useResourceTree } from './useWorkspaceViews';
+import {
+  useContributions,
+  useLocale,
+  type ExtensionReader,
+} from '@/shell/platform/ui/chrome/usePanels';
+import { useResourceTree } from '@/shell/platform/ui/chrome/useWorkspaceViews';
 
 /** Тон пометки → вариант значка кита. Соответствие визуальное, поэтому живёт в отрисовке. */
 const BADGE_VARIANT: Readonly<
