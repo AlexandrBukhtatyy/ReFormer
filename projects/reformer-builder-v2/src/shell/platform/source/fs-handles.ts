@@ -18,10 +18,10 @@
  * на открытый когда-либо каталог), они крошечные, и повторять ради них машинерию `idb.ts`
  * значило бы завести вторую её копию, расходящуюся с первой.
  *
- * @module app/fs-handles
+ * @module shell/platform/source/fs-handles
  */
 
-import type { FsDirectoryHandle, FsHandleStore } from '@/shell/platform/source/fs-access';
+import type { FsDirectoryHandle, FsHandleStore } from './fs-access';
 
 /** Имя базы. Отдельно от `reformer-builder.workspace`: другая схема и другой срок жизни. */
 export const HANDLES_DB_NAME = 'reformer-builder.handles';

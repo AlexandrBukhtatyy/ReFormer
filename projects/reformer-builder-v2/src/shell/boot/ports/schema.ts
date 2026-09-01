@@ -13,7 +13,7 @@
  * что и тело редактора кода ниже: рисовать форму умеет чужой плагин, а импортировать его
  * редактору схемы нельзя.
  *
- * @module app/schema-host
+ * @module shell/boot/ports/schema
  */
 
 import type { ComponentType } from 'react';

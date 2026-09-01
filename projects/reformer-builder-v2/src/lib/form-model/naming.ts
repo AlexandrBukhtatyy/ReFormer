@@ -9,7 +9,7 @@
  *
  * Модуль — ЛИСТ графа зависимостей: не импортирует ничего.
  *
- * @module reformer-builder/lib/form-model/naming
+ * @module lib/form-model/naming
  */
 
 const TRANSLIT: Record<string, string> = {

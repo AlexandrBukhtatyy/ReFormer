@@ -17,7 +17,7 @@
  * в несколько мест подряд, и очистка после первой вставки означала бы, что вторую надо
  * начинать заново.
  *
- * @module host/services/resource-clipboard
+ * @module shell/platform/services/resource-clipboard
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

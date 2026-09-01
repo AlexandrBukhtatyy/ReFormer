@@ -35,7 +35,7 @@
  * подписанными стабами и остаётся понятной, поэтому отказ логируется и на этом заканчивается.
  * Повторная попытка разрешена: `loading` снимается в любом случае.
  *
- * @module app/kit-namespace
+ * @module shell/boot/ports/kit-namespace
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

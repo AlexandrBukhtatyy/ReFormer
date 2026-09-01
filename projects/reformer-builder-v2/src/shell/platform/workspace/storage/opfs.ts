@@ -25,7 +25,7 @@
  * каталогов в `localStorage` не нужен вовсе: перечень рабочих областей лежит в IndexedDB,
  * и {@link listStoredWorkspaces} сверяется с ним, а не со вторым, рассинхронизирующимся списком.
  *
- * @module host/workspace/storage/opfs
+ * @module shell/platform/workspace/storage/opfs
  */
 
 import { basename, dirname, normalizePath } from '@/shell/platform/primitives/resource';

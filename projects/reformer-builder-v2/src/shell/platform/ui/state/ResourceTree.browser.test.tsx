@@ -6,7 +6,7 @@
  * [resource-menu.test.ts](resource-menu.test.ts). Здесь то, чего компиляция не проверяет
  * вовсе: щелчок с модификатором, правая кнопка, портал меню Radix и клавиатура.
  *
- * @module host/ui/ResourceTree.browser.test
+ * @module shell/platform/ui/state/ResourceTree.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

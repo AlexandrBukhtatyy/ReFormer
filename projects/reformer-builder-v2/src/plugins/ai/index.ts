@@ -7,7 +7,7 @@
  * точку незачем: барьер здесь не для сокрытия, а чтобы состав зависимости было видно в одном
  * файле.
  *
- * @module plugins/ai
+ * @module plugins/ai/index
  */
 
 export { AI_MESSAGES } from './messages';

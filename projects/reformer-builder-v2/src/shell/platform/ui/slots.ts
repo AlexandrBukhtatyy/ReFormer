@@ -18,7 +18,7 @@
  * при этом пуст: там видимость панели была зашита в раскладку, здесь — в предикат вклада,
  * то есть у того, кто про содержимое панели знает.
  *
- * @module host/ui/slots
+ * @module shell/platform/ui/slots
  */
 
 import type { ComponentType } from 'react';

@@ -23,7 +23,7 @@
  * настройку меняют мимо окна — командой, другим окном, чужой вкладкой через общее хранилище.
  * Поэтому источник истины один: {@link SettingField.read}.
  *
- * @module host/ui/SettingsDialog
+ * @module shell/platform/ui/dialogs/SettingsDialog
  */
 
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';

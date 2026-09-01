@@ -19,7 +19,7 @@
  * вызывающего (так решено в контракте: проверять возможности перед вызовом нельзя). Приводит
  * одно к другому {@link callOptional} — единственное место, где это знание записано.
  *
- * @module host/source/contract.test
+ * @module shell/platform/source/contract.test
  */
 
 import { describe, expect, it } from 'vitest';

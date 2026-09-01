@@ -11,7 +11,7 @@
  * схемы. С `.ts` экспорт стал бы дверью в одну сторону. Цена названа в сгенерированном README —
  * чтобы выбор доехал и до того, кто получит пример.
  *
- * @module reformer-builder/lib/codegen/emit/schema
+ * @module lib/codegen/emit/schema
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';

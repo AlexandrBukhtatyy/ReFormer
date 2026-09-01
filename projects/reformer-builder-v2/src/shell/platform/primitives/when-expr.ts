@@ -32,7 +32,7 @@
  * его зовут двое — реестр команд (проверка на регистрации) и диспетчер клавиш (вычисление
  * на нажатии), а `primitives` не имеет права импортировать `ui`.
  *
- * @module host/primitives/when-expr
+ * @module shell/platform/primitives/when-expr
  */
 
 /** Значение в правой части сравнения. Только литерал — см. {@link parseWhen}. */

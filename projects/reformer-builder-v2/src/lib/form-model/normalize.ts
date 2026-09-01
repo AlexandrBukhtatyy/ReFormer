@@ -3,7 +3,7 @@
  * к `JsonFormSchema`. Валидация против мета-схемы — отдельно (`validateFormSchema`);
  * здесь только структурный дискриминатор и заготовка.
  *
- * @module reformer-builder/lib/form-model/normalize
+ * @module lib/form-model/normalize
  */
 
 import type { ComponentOp, HtmlOp, JsonFormSchema, JsonNode } from '@reformer/renderer-json';

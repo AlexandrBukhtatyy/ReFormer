@@ -15,7 +15,7 @@
  * глубина вложенности хранилась в четырёх местах. Здесь строки относительные, а глубину
  * ставит шаблон одним `indent(lines, 4)` — там, где она видна вместе с окружающим кодом.
  *
- * @module reformer-builder/lib/codegen/view/render-rules
+ * @module lib/codegen/view/render-rules
  */
 
 import type { RenderRuleIntent } from '../../form-model/rules';

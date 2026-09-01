@@ -9,7 +9,7 @@
  * Пустое состояние здесь не то же, что пустое состояние дерева: «проект не открыт» и «в проекте
  * пусто» — разные вещи, и человек обязан их различать, не открывая консоль.
  *
- * @module app/ProjectTree
+ * @module shell/boot/project/ProjectTree
  */
 
 import type { ReactElement } from 'react';

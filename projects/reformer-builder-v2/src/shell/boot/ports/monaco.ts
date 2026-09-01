@@ -10,7 +10,7 @@
  * в панели проблем и в дереве. Приставку `errors.` ставит эта функция: плагин передаёт
  * голый код и о раскладке чужого словаря не знает.
  *
- * @module app/monaco-host
+ * @module shell/boot/ports/monaco
  */
 
 import { isTextMediaType, type ResourceId } from '@/shell/platform/primitives/resource';

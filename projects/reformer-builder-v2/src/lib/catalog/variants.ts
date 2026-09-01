@@ -6,7 +6,7 @@
  * Собранный каталог приходит ПАРАМЕТРОМ (в v1 брался из синглтона `getCatalog()`): держать его —
  * работа сервиса плагина, домен только считает по нему производные.
  *
- * @module reformer-builder/lib/catalog/variants
+ * @module lib/catalog/variants
  */
 
 import type { CatalogEntry } from './types';

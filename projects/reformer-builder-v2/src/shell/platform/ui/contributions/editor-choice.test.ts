@@ -4,7 +4,7 @@
  * Смену редактора командой проверяет [EditorArea.browser.test.tsx](EditorArea.browser.test.tsx) —
  * здесь только то, что от браузера не зависит.
  *
- * @module host/ui/editor-choice.test
+ * @module shell/platform/ui/contributions/editor-choice.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

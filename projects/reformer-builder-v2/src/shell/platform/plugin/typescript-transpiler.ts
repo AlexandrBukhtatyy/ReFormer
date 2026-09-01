@@ -30,7 +30,7 @@
  * Место у модуля временное: он общий для загрузчика плагинов и будущего компилятора формы,
  * поэтому переедет к `host/modules/`, как только у того появится второй потребитель.
  *
- * @module host/plugin/typescript-transpiler
+ * @module shell/platform/plugin/typescript-transpiler
  */
 
 import { version as typescriptVersion } from 'typescript/package.json';

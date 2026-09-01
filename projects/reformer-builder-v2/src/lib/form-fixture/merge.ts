@@ -19,7 +19,7 @@
  * Введённое человеком старше всего и приезжает не сюда, а отдельным шагом (`runtime/carry`):
  * оно переносится только туда, где новая форма оставила для него место.
  *
- * @module reformer-builder/lib/form-fixture/merge
+ * @module lib/form-fixture/merge
  */
 
 import type { FormMock } from '../form-mock';

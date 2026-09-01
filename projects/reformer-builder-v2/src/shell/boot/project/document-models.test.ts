@@ -9,7 +9,7 @@
  * композиция не знает форматов, и тест, написанный на схеме формы, проверял бы шов вместе
  * с предметным разбором.
  *
- * @module app/document-models.test
+ * @module shell/boot/project/document-models.test
  */
 
 import { describe, expect, it } from 'vitest';

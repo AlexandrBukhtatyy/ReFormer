@@ -6,7 +6,7 @@
  * другое не видно по одному вызову: нужна ВТОРАЯ сессия над тем же хранилищем метаданных,
  * то есть ровно то, что делает F5.
  *
- * @module app/opened-tabs.test
+ * @module shell/boot/project/opened-tabs.test
  */
 
 import { describe, expect, it } from 'vitest';

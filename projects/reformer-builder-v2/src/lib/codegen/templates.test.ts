@@ -9,7 +9,7 @@
  * Отсюда и граница: сюда попадает то, что требует синтетического входа; всё остальное про
  * шаблоны удерживают снимки.
  *
- * @module reformer-builder/lib/codegen/templates.test
+ * @module lib/codegen/templates.test
  */
 
 import { describe, expect, it } from 'vitest';

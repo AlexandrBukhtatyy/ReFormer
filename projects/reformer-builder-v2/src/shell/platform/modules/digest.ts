@@ -22,7 +22,7 @@
  * Своей реализации SHA-256 здесь нет и не будет — она была бы медленнее транспиляции, ради
  * ускорения которой кэш и заводится.
  *
- * @module host/modules/digest
+ * @module shell/platform/modules/digest
  */
 
 /**

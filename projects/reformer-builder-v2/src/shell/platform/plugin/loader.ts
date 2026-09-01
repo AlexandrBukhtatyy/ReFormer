@@ -38,7 +38,7 @@
  * только источник, и только на том, что к конкретному плагину не относится (каталог не читается
  * целиком) — это уже отказ проекта, а не плагина.
  *
- * @module host/plugin/loader
+ * @module shell/platform/plugin/loader
  */
 
 import type { ModuleLoader } from '@/shell/platform/modules/loader';

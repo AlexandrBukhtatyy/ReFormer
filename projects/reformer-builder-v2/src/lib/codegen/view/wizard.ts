@@ -20,7 +20,7 @@
  * с внятной причиной. Раньше в этом случае печатался импорт из чужого пакета, и форма
  * не собиралась у пользователя.
  *
- * @module reformer-builder/lib/codegen/view/wizard
+ * @module lib/codegen/view/wizard
  */
 
 import { isStepsHostName } from '../../form-model/node-kind';

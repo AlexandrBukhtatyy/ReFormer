@@ -32,7 +32,7 @@
  * Третий случай — не авария: у документа с моделью обязана быть «последняя валидная модель»
  * с первой секунды, а у файла, который не разобрался ни разу, её нет.
  *
- * @module app/document-models
+ * @module shell/boot/project/document-models
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

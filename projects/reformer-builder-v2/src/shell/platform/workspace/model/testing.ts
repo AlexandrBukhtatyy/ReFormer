@@ -13,7 +13,7 @@
  * Провайдер держит structural sharing честно: `apply` переиспользует объекты нетронутых
  * узлов, поэтому тест может утверждать про идентичность, а не только про равенство.
  *
- * @module host/workspace/model/testing
+ * @module shell/platform/workspace/model/testing
  */
 
 import type { ResourceRef } from '@/shell/platform/primitives/resource';

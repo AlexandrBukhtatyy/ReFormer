@@ -20,7 +20,7 @@
  * Вклад, которому нужно содержимое, читает его сам (проба это позволяет) и объявляет
  * результат вторым проходом — сняв и внеся вклад заново.
  *
- * @module host/ui/decorations
+ * @module shell/platform/ui/contributions/decorations
  */
 
 import type { ComponentType } from 'react';

@@ -16,7 +16,7 @@
  * непрозрачные строки, их смысл задаёт плагин, Host только переносит значение от источника
  * к предикату.
  *
- * @module host/primitives/when-context
+ * @module shell/platform/primitives/when-context
  */
 
 /**

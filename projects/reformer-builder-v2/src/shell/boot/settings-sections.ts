@@ -14,7 +14,7 @@
  * Локаль — исключение с двумя шагами: `I18nService` применяет её, но не помнит между
  * запусками, поэтому выбор дополнительно кладётся в настройки, откуда его читает `boot`.
  *
- * @module app/settings-sections
+ * @module shell/boot/settings-sections
  */
 
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';

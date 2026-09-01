@@ -31,7 +31,7 @@
  * - **Пропущенный аргумент не бросает исключение**, а подставляет заметный маркер `⟦name⟧`: строка
  *   интерфейса не должна ронять панель. Поведение настраивается через `onMissingArgument`.
  *
- * @module host/services/i18n/message-format
+ * @module shell/platform/services/i18n/message-format
  */
 
 /** Узел разобранного сообщения. */

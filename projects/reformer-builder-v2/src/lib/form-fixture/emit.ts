@@ -10,7 +10,7 @@
  * доставляет файл (`lib/codegen/marker` и порт кодогена): здесь нет ни файловой системы,
  * ни знания о том, регенерация это или первое создание.
  *
- * @module reformer-builder/lib/form-fixture/emit
+ * @module lib/form-fixture/emit
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';

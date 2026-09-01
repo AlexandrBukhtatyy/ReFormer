@@ -41,7 +41,7 @@
  * (`mod+s`), а не форматированным: как оно выглядит, знает только то место, где известна
  * платформа.
  *
- * @module host/ui/menu
+ * @module shell/platform/ui/menu/menu
  */
 
 import type { ComponentType } from 'react';

@@ -3,7 +3,7 @@
  * каталог-JSON остаётся чисто декларативным (без функций), а билдер восстанавливает `makeNode`
  * (спека §5).
  *
- * @module reformer-builder/lib/catalog/make-node
+ * @module lib/catalog/make-node
  */
 
 import type { JsonNode } from '@reformer/renderer-json';

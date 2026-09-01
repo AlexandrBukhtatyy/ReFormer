@@ -21,7 +21,7 @@
  * с этим приходится по симптому. Поэтому {@link normalizeSizes} и {@link normalizeDockState}
  * стоят между хранилищем и оболочкой.
  *
- * @module host/ui/layout-settings
+ * @module shell/platform/ui/chrome/layout-settings
  */
 
 import type { SettingsService } from '@/shell/platform/services/settings';

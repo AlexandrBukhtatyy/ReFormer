@@ -25,7 +25,7 @@
  * того же документа проходило бы бюджет, который первое не прошло, — и «форма не собирается»
  * зависело бы от того, что лежит в кэше.
  *
- * @module host/workspace/materialize
+ * @module shell/platform/workspace/materialize
  */
 
 import type { Diagnostic } from '@/shell/platform/diagnostics/types';

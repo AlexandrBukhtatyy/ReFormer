@@ -6,7 +6,7 @@
  * стали возможны ровно тогда, когда композиция начала собирать модельные документы;
  * до того один был `undefined`, а второй не существовал.
  *
- * @module app/editor-hosts.test
+ * @module shell/boot/integration/editor-hosts.test
  */
 
 import { describe, expect, it } from 'vitest';

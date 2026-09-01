@@ -7,7 +7,7 @@
  * уезжал со строкой-маркером `//` первой, переставал быть JSON, и форма, созданная по шаблону,
  * открывалась голым текстом вместо канваса.
  *
- * @module app/builtin-templates.test
+ * @module shell/boot/integration/builtin-templates.test
  */
 
 import { describe, expect, it } from 'vitest';

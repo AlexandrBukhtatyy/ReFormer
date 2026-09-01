@@ -6,7 +6,7 @@
  * сколько обращений стоит `stat` (в v1 — два), во что превращаются `DOMException`, и что
  * происходит с разрешением, которого не дали.
  *
- * @module host/source/fs-access.test
+ * @module shell/platform/source/fs-access.test
  */
 
 import { describe, expect, it } from 'vitest';

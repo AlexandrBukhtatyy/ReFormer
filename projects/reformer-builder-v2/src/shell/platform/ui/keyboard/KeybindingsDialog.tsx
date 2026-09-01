@@ -18,7 +18,7 @@
  * `stopPropagation` на каждом нажатии. Это единственное место оболочки, где перехват
  * настолько жёсткий, и он ограничен временем записи.
  *
- * @module host/ui/KeybindingsDialog
+ * @module shell/platform/ui/keyboard/KeybindingsDialog
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';

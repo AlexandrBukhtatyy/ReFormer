@@ -16,7 +16,7 @@
  *    ни к `matchMedia` напрямую — иначе её нельзя было бы проверить без браузера, а
  *    «системное предпочтение как умолчание» — ровно то свойство, которое обязано быть в тестах.
  *
- * @module host/services/theme
+ * @module shell/platform/services/theme
  */
 
 import { disposeAll, toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

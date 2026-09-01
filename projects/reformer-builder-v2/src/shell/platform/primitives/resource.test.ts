@@ -5,7 +5,7 @@
  * пути (один ресурс — один ключ кэша), невозможность побега за корень, арифметика сегментов
  * для резолвера импортов и приоритет источника над расширением.
  *
- * @module host/primitives/resource.test
+ * @module shell/platform/primitives/resource.test
  */
 
 import { describe, expect, it } from 'vitest';

@@ -17,7 +17,7 @@
  * и держать рядом второй список, обязанный с ним совпадать, значило бы завести расхождение,
  * которое обнаружилось бы молча. Пункт меню «Горячие клавиши» ведёт туда же.
  *
- * @module host/ui/HelpDialogs
+ * @module shell/platform/ui/dialogs/HelpDialogs
  */
 
 import { useEffect, useState, type ReactElement } from 'react';

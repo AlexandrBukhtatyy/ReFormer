@@ -15,7 +15,7 @@
  * Поэтому сборка — чистая функция: дескриптор она ВОЗВРАЩАЕТ вместе с записями, а «какой кит
  * активен сейчас» держит сервис плагина (`plugins/kits/`), который эту функцию и зовёт.
  *
- * @module reformer-builder/lib/catalog/catalog
+ * @module lib/catalog/catalog
  */
 
 import type { KitDescriptor } from '../kits/types';

@@ -7,7 +7,7 @@
  * Список HTML-тегов и их props живут в {@link './html-tags'} (единый источник для палитры и
  * узла-по-умолчанию); здесь — только маппинг спецификаций в записи каталога.
  *
- * @module reformer-builder/lib/catalog/synthetic-entries
+ * @module lib/catalog/synthetic-entries
  */
 
 import type { PropsSchema } from '@reformer/ui-kit/meta';

@@ -7,7 +7,7 @@
  * не виден, поэтому чистые читатели переехали в домен, а адресация инструментов остаётся у агента
  * и берёт их отсюда. Разделение проходит ровно по границе «знание о форме» / «протокол агента».
  *
- * @module reformer-builder/lib/form-model/node-ref
+ * @module lib/form-model/node-ref
  */
 
 import { isArrayNode, isFieldNode, parseOperator, type JsonNode } from '@reformer/renderer-json';

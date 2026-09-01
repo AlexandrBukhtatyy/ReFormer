@@ -6,7 +6,7 @@
  * Все правки идут через `updateAt`/`removeAt` (`paths.ts`): порядок ключей и неизвестные
  * ключи/операторы сохраняются нетронутыми (требование round-trip).
  *
- * @module reformer-builder/lib/form-model/mutate
+ * @module lib/form-model/mutate
  */
 
 import { isContainerNode } from '@reformer/renderer-json';

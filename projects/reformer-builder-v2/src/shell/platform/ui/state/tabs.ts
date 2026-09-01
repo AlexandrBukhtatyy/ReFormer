@@ -29,7 +29,7 @@
  * Обновление идёт при каждом изменении состояния, включая момент, когда документ уже открыт,
  * но вид его ресурса стал известен только после разбора.
  *
- * @module host/ui/tabs
+ * @module shell/platform/ui/state/tabs
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

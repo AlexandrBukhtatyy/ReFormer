@@ -10,7 +10,7 @@
  * (см. `host/plugin/registry`) и проверяет это тестом «порядок активации ничего не значит».
  * Держать его читаемым стоит только ради вывода диагностики.
  *
- * @module app/plugins
+ * @module shell/boot/plugins
  */
 
 import type { CatalogEntry } from '@/lib/catalog/types';

@@ -28,7 +28,7 @@
  * `path` печатать некуда, а цель, молча выпавшая из списка, неотличима от «мой файл не
  * подхватился» — и человек будет искать причину в шаблоне, которого никто не читал.
  *
- * @module reformer-builder/lib/codegen/template-file
+ * @module lib/codegen/template-file
  */
 
 import type { FileClass } from './types';

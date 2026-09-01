@@ -18,7 +18,7 @@
  * {@link PluginContextDeps}, поле в контексте, одна строка в сборке. Рантайм от этого
  * не меняется, потому что он про жизненный цикл, а не про содержимое контекста.
  *
- * @module host/plugin/context
+ * @module shell/platform/plugin/context
  */
 
 import type { CommandRegistry } from '@/shell/platform/primitives/command';

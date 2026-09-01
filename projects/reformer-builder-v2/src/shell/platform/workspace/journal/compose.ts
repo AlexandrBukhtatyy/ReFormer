@@ -26,7 +26,7 @@
  * в основании). Токены непрерывны в координатах основания, поэтому «грязный» участок всегда
  * складывается в одну правку, а чистый кусок основания эту правку закрывает.
  *
- * @module host/workspace/journal/compose
+ * @module shell/platform/workspace/journal/compose
  */
 
 import type { TextEdit } from '../model/history';

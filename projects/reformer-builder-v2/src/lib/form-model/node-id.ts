@@ -40,7 +40,7 @@
  * адреса нет вовсе и адрес не той формы ({@link NODE_ID_PATTERN}). Все три означают одно —
  * «файл не несёт годного адреса для этого узла», — и лечить их по-разному было бы непоследовательно.
  *
- * @module reformer-builder/lib/form-model/node-id
+ * @module lib/form-model/node-id
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';

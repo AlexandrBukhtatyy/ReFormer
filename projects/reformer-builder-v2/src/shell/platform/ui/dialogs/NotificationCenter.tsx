@@ -24,7 +24,7 @@
  * под курсором и закрывает `sonner`, потому что это он знает, где курсор. Служба таймеров
  * не заводит и заводить не должна.
  *
- * @module host/ui/NotificationCenter
+ * @module shell/platform/ui/dialogs/NotificationCenter
  */
 
 import { useCallback, useEffect, useRef, useSyncExternalStore, type ReactElement } from 'react';

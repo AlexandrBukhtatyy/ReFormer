@@ -4,7 +4,7 @@
  * с «Мастером» (`Wizard`/`Step` из `synthetic-entries`), поэтому проверка сверяет НЕ список с
  * копией списка, а список с фактическим каталогом.
  *
- * @module reformer-builder/lib/catalog/grouping.test
+ * @module lib/catalog/grouping.test
  */
 
 import { describe, expect, it } from 'vitest';

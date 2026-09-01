@@ -22,7 +22,7 @@
  * getSnapshot should be cached». Тот же приём и по той же причине, что в
  * `host/primitives/extension-point`.
  *
- * @module host/diagnostics/service
+ * @module shell/platform/diagnostics/service
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

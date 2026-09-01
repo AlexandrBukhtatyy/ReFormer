@@ -20,7 +20,7 @@
  * - Таблицы расширений. Она там же; адаптер только зовёт `mediaTypeFor`, добавляя подсказку
  *   транспорта, если она у него есть.
  *
- * @module host/source/types
+ * @module shell/platform/source/types
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

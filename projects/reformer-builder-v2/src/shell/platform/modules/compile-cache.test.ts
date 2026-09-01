@@ -5,7 +5,7 @@
  * `build-cache`), а то, ради чего кэш существует, — когда он отвечает «движок не нужен»,
  * сколько чтений это стоит и что именно обесценивает правка одного файла.
  *
- * @module host/modules/compile-cache.test
+ * @module shell/platform/modules/compile-cache.test
  */
 
 import { describe, expect, it } from 'vitest';

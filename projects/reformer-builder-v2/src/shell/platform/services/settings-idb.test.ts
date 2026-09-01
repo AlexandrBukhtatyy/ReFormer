@@ -8,7 +8,7 @@
  * Двойник хранилища здесь свой, а не подставная IndexedDB: проверяется договор с
  * `WorkspaceMetaStore`, а не работа самой базы — та проверена в `workspace/storage/idb.test`.
  *
- * @module host/services/settings-idb.test
+ * @module shell/platform/services/settings-idb.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

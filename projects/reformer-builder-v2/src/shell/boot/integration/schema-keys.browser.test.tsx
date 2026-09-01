@@ -10,7 +10,7 @@
  * Проверяются те сочетания, о которых спросили: группировка (она была и раньше, но её
  * работоспособность никто не подтверждал) и перемещение (его не было вовсе).
  *
- * @module app/schema-keys.browser.test
+ * @module shell/boot/integration/schema-keys.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

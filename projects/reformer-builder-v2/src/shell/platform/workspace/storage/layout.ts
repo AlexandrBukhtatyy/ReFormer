@@ -25,7 +25,7 @@
  * Модуль намеренно не делает ввода-вывода: всё, что здесь есть, проверяется тестами в `node`,
  * где ни OPFS, ни IndexedDB нет.
  *
- * @module host/workspace/storage/layout
+ * @module shell/platform/workspace/storage/layout
  */
 
 import { normalizePath, type ResourceId } from '@/shell/platform/primitives/resource';

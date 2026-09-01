@@ -12,7 +12,7 @@
  * - **отказ записи объясняется**: молча не применившийся переключатель человек жмёт
  *   второй и третий раз.
  *
- * @module host/ui/SettingsDialog.browser.test
+ * @module shell/platform/ui/dialogs/SettingsDialog.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

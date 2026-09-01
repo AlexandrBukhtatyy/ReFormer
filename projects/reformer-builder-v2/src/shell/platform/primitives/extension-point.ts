@@ -21,7 +21,7 @@
  * Это делает проверяемым правило «ни одна точка расширения не заполняется самим Host» —
  * не соглашением, а отсутствием пути.
  *
- * @module host/primitives/extension-point
+ * @module shell/platform/primitives/extension-point
  */
 
 import type { Disposable } from './disposable';

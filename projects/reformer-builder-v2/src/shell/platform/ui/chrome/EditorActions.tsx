@@ -18,7 +18,7 @@
  * панели. Здесь порог — {@link MAX_INLINE_ACTIONS} кнопок; всё сверх него уходит в «…»
  * в объявленном порядке, поэтому положение кнопки не зависит от ширины окна.
  *
- * @module host/ui/EditorActions
+ * @module shell/platform/ui/chrome/EditorActions
  */
 
 import { useEffect, useReducer, useState, type ReactElement } from 'react';

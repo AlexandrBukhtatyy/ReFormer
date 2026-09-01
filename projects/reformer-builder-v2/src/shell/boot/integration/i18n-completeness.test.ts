@@ -36,7 +36,7 @@
  * набор совпал, а `{count}` в одной локали превратился в текст без числа. Обе проверки стоят
  * дешевле, чем поиск причины по маркеру на экране.
  *
- * @module app/i18n-completeness.test
+ * @module shell/boot/integration/i18n-completeness.test
  */
 
 import { readdirSync, statSync } from 'node:fs';

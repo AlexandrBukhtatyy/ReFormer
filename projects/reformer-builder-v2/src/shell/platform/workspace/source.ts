@@ -20,7 +20,7 @@
  * «остановись и скажи», и склеивание их в один `catch` — ровно та ошибка, из-за которой
  * пустая рабочая область выглядит как пустой проект.
  *
- * @module host/workspace/source
+ * @module shell/platform/workspace/source
  */
 
 /**

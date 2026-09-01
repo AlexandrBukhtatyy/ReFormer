@@ -9,7 +9,7 @@
  * Шаблон здесь означал бы рукописную сериализацию JSON — то есть round-trip редактора схемы
  * (ради которого схема и лежит данными, а не литералом) зависел бы от чужих кавычек.
  *
- * @module reformer-builder/lib/codegen/emit.test
+ * @module lib/codegen/emit.test
  */
 
 import { describe, expect, it } from 'vitest';

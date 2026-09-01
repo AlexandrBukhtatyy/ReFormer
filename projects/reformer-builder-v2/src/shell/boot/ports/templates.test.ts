@@ -8,7 +8,7 @@
  * в источник и забывание прочитанного уровня, — и ломается она молча: операция сообщает
  * об успехе в любом случае.
  *
- * @module app/templates-host.test
+ * @module shell/boot/ports/templates.test
  */
 
 import { describe, expect, it } from 'vitest';

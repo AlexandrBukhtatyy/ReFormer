@@ -23,7 +23,7 @@
  * а без него работает многострочное поле кита — рабочий, хотя и небогатый, запасной путь.
  * Подставить Monaco — дело композиции, у которой есть и то, и другое.
  *
- * @module host/ui/MergeDialog
+ * @module shell/platform/ui/dialogs/MergeDialog
  */
 
 import { useMemo, useState, type ReactElement, type ReactNode } from 'react';

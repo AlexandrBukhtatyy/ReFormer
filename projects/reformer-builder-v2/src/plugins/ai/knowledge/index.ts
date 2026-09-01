@@ -26,7 +26,7 @@
  * может и не должен: «какой проект открыт» знает Host, а корпусу нужно ровно одно действие
  * «прочитай файл по пути» ({@link PackageFiles}). Мост передаёт его при создании корпуса.
  *
- * @module plugins/ai/knowledge
+ * @module plugins/ai/knowledge/index
  */
 
 import { createBrowserKnowledge } from '@reformer/mcp/browser';

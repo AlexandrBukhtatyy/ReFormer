@@ -5,7 +5,7 @@
  * до открытия проекта состояние выразимо, при смене проекта подписка переезжает на новый
  * итог, а после закрытия старый итог никого не будит.
  *
- * @module app/project-status.test
+ * @module shell/boot/project/project-status.test
  */
 
 import { describe, expect, it } from 'vitest';

@@ -16,7 +16,7 @@
  * не должно (решение 6 плана: ошибки несут код и параметры); текущие сообщения — отладочные,
  * и перевод их в коды с параметрами идёт отдельной работой вместе с диагностиками валидаторов.
  *
- * @module host/source/errors
+ * @module shell/platform/source/errors
  */
 
 import { normalizePath } from '@/shell/platform/primitives/resource';

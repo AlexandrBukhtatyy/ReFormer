@@ -17,7 +17,7 @@
  * через `setTimeout` (см. шапку `storage/testing.ts`), и с `vi.useFakeTimers()` он не наступил
  * бы сам.
  *
- * @module host/workspace/workspace.test
+ * @module shell/platform/workspace/workspace.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

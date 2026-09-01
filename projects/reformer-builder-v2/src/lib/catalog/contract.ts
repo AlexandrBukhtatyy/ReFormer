@@ -18,7 +18,7 @@
  * (плагин `plugins/kits/`). Отсюда и другое имя: «compose», а не «load» — функция ничего не
  * загружает, она склеивает поставленное с синтетикой билдера.
  *
- * @module reformer-builder/lib/catalog/contract
+ * @module lib/catalog/contract
  */
 
 import type { CatalogEntry, CatalogJson, CatalogRecord, CatalogRole } from './types';

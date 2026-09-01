@@ -18,7 +18,7 @@
  * Три ответа, а не два: «сохранить и закрыть», «закрыть без сохранения» и отмена. Отмена —
  * не украшение: закрытие могло быть промахом по крестику соседней вкладки.
  *
- * @module host/ui/DocumentTabs
+ * @module shell/platform/ui/chrome/DocumentTabs
  */
 
 import { useCallback, useState, type ReactElement, type ReactNode } from 'react';

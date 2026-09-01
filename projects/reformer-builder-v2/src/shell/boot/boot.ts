@@ -44,7 +44,7 @@
  *                                   включение, выключение, перезагрузка
  * ```
  *
- * @module app/boot
+ * @module shell/boot/boot
  */
 
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
@@ -139,7 +139,7 @@ import { SCHEMA_EDITOR_PLUGIN_ID } from '@/plugins/editor-schema';
 import { KITS_PLUGIN_ID } from '@/plugins/kits/plugin';
 import { KitsServiceToken } from '@/plugins/kits/service';
 import type { CatalogEntry } from '@/lib/catalog/types';
-import { createDirectoryHandleStore, HANDLES_DB_NAME } from './fs-handles';
+import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
 import { createCompileCache, type CompileCache } from '@/shell/platform/modules/compile-cache';
 import {
   TYPESCRIPT_ENGINE_VERSION,

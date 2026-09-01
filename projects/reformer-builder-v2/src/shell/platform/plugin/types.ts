@@ -39,7 +39,7 @@
  * контекст в замыкание**, чтобы обратиться к чужому сервису тогда, когда команда действительно
  * выполняется.
  *
- * @module host/plugin/types
+ * @module shell/platform/plugin/types
  */
 
 import type { PluginCommandRegistry } from '@/shell/platform/primitives/command';

@@ -31,7 +31,7 @@
  * оркестратор проставляет `source` сам, а валидатор пишет своё имя (или не пишет ничего
  * осмысленного — его перепишут).
  *
- * @module host/validation/orchestrator
+ * @module shell/platform/validation/orchestrator
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

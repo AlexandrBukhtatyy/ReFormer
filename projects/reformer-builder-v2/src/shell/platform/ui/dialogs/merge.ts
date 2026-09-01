@@ -21,7 +21,7 @@
  * текст с маркерами — это не решение, а незаконченная работа, и записать его в источник значит
  * сломать файл молча.
  *
- * @module host/ui/merge
+ * @module shell/platform/ui/dialogs/merge
  */
 
 import type {

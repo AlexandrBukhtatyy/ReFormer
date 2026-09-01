@@ -10,7 +10,7 @@
  * а билдер — в `types.ts`. Импорт переписывается здесь, а не правится в MCP: раскладка файлов —
  * решение потребителя, и у CLI-потребителя она другая.
  *
- * @module reformer-builder/lib/codegen/emit/rules-bridge
+ * @module lib/codegen/emit/rules-bridge
  */
 
 import { buildBehaviorTs, buildValidationTs } from '@reformer/mcp/dist/core/generate/builders.js';

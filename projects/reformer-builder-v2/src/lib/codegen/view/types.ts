@@ -11,7 +11,7 @@
  * Правило раздела соблюдено: РЕШЕНИЕ «как выглядит тип» принимается здесь, шаблон получает
  * готовую строку и ставит её в объявление.
  *
- * @module reformer-builder/lib/codegen/view/types
+ * @module lib/codegen/view/types
  */
 
 import type { TsNode, TsObject } from '../collect';

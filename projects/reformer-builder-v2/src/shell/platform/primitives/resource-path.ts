@@ -9,15 +9,10 @@
  * Общий модуль, а не по копии в каждом порту: сегодня это нужно генерации кода и шаблонам,
  * и обе делают с адресом ровно одно и то же — поднимаются к каталогу и приписывают имена.
  *
- * @module app/resource-paths
+ * @module shell/platform/primitives/resource-path
  */
 
-import {
-  joinPath,
-  makeResourceId,
-  parseResourceId,
-  type ResourceId,
-} from '@/shell/platform/primitives/resource';
+import { joinPath, makeResourceId, parseResourceId, type ResourceId } from './resource';
 
 /**
  * Каталог, в котором лежит ресурс.

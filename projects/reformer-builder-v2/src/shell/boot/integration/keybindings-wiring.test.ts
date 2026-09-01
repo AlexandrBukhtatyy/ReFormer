@@ -15,7 +15,7 @@
  * Сеть ловит возвращение этого класса ошибок: если кто-то добавит клавишу, уже занятую в
  * другом месте, и не скажет условием, чем его случай отличается, — тест покраснеет.
  *
- * @module app/keybindings-wiring.test
+ * @module shell/boot/integration/keybindings-wiring.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

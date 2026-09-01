@@ -17,7 +17,7 @@
  * `eventToKeybinding`, что и в диспетчере: разъедься они, записанное сочетание не совпало бы
  * с тем, что человек потом нажмёт, — и промах выглядел бы как «клавиша не работает».
  *
- * @module host/ui/keybinding-editor
+ * @module shell/platform/ui/keyboard/keybinding-editor
  */
 
 import type { CommandContribution } from '@/shell/platform/primitives/command';

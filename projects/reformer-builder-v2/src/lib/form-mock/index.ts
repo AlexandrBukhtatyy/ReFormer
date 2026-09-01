@@ -12,7 +12,7 @@
  * Модуль лежал в `lib/codegen/`, что было почти правильно: домен — да, но не генерации.
  * Копия в превью появилась раньше и уже успела разойтись на 29 строк.
  *
- * @module reformer-builder/lib/form-mock
+ * @module lib/form-mock/index
  */
 
 import {

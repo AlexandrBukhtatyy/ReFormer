@@ -9,7 +9,7 @@
  * и ui-kit-адаптер с явным `role` — M3 (спека §5/§15). Эта форма — стабильная граница: смена
  * источника (прямой импорт → валидированный catalog-JSON) не меняет тип.
  *
- * @module reformer-builder/lib/catalog/types
+ * @module lib/catalog/types
  */
 
 import type { JsonNode } from '@reformer/renderer-json';

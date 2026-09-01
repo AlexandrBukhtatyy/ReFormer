@@ -5,7 +5,7 @@
  * резолв записи ПОСЛЕ коммита и обработка квоты ровно с одним повтором. Всё остальное
  * (четыре хранилища, каскад, порядок) — вокруг них.
  *
- * @module host/workspace/storage/idb.test
+ * @module shell/platform/workspace/storage/idb.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

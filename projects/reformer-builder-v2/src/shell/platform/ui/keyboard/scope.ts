@@ -28,7 +28,7 @@
  * палитрой и `defaultPrevented` у Monaco остаются на месте. Смешать эти два механизма —
  * значит снова сломать палитру.
  *
- * @module host/ui/scope
+ * @module shell/platform/ui/keyboard/scope
  */
 
 import { useEffect } from 'react';

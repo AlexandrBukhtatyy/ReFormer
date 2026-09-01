@@ -5,7 +5,7 @@
  * без которого он не выполним: открытые закреплены, нужные открытым защищены, изменённые
  * защищены, порядок — по давности, а недостижимый потолок сообщается, а не обходится.
  *
- * @module host/workspace/eviction.test
+ * @module shell/platform/workspace/eviction.test
  */
 
 import { describe, expect, it } from 'vitest';

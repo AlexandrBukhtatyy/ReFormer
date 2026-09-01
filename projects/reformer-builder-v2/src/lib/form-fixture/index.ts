@@ -9,7 +9,7 @@
  * превью и генератору РАЗНЫЕ формы, и заметить это можно было бы только сравнив две программы
  * вручную.
  *
- * @module reformer-builder/lib/form-fixture
+ * @module lib/form-fixture/index
  */
 
 export {

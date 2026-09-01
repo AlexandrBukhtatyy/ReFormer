@@ -22,7 +22,7 @@
  * такие тесты обязаны прокручивать таймеры (`vi.advanceTimersByTimeAsync`) или брать
  * настоящие. Причина выбора — в комментарии к `scheduleCommit`.
  *
- * @module host/workspace/storage/testing
+ * @module shell/platform/workspace/storage/testing
  */
 
 import type {

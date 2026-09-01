@@ -6,7 +6,7 @@
  * не видно» и случается: ряд собран правильно, но область редактора не передала ему ни
  * реестра команд, ни ссылки на документ.
  *
- * @module host/ui/EditorArea.browser.test
+ * @module shell/platform/ui/chrome/EditorArea.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

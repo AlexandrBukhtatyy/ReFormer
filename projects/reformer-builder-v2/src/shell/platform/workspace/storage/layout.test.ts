@@ -6,7 +6,7 @@
  * строку», а три утверждения, на которых держится починка: путь ЗЕРКАЛИТ структуру проекта,
  * из рабочей области нельзя выйти, и разбор обратим.
  *
- * @module host/workspace/storage/layout.test
+ * @module shell/platform/workspace/storage/layout.test
  */
 
 import { describe, expect, it } from 'vitest';

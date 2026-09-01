@@ -24,7 +24,7 @@
  * второй стор, то есть партиал, зарегистрированный одним, невидим другому — и отказ выглядел бы
  * как «включение не найдено» в шаблоне, который заведомо правильный.
  *
- * @module reformer-builder/lib/codegen/render
+ * @module lib/codegen/render
  */
 
 import { Eta } from 'eta/core';

@@ -6,7 +6,7 @@
  * выдумку. Второй кит — синтетический: он нужен ровно затем, чтобы показать, что вывод
  * МЕНЯЕТСЯ вместе с китом.
  *
- * @module reformer-builder/lib/codegen/__fixtures__/kit
+ * @module lib/codegen/__fixtures__/kit
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';

@@ -5,7 +5,7 @@
  * и каждая ступень умеет остановить следующую. Ни очистка (у неё свои тесты), ни отрисовка
  * меню сюда не входят.
  *
- * @module host/ui/storage-purge.test
+ * @module shell/platform/ui/dialogs/storage-purge.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

@@ -7,7 +7,7 @@
  * возвращает ту же ссылку на сессию, пока проект не сменился, поэтому оборачивать её здесь
  * ничем нельзя.
  *
- * @module app/useProject
+ * @module shell/boot/project/useProject
  */
 
 import { useCallback, useSyncExternalStore } from 'react';

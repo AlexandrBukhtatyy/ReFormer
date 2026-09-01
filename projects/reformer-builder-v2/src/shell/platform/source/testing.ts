@@ -19,7 +19,7 @@
  *   стоит счётчик {@link FakeFsControls.bodyReads}, которым проверяется запрет N+1.
  * - **Разрешения** — чтобы отказ пользователя в диалоге проверялся, а не предполагался.
  *
- * @module host/source/testing
+ * @module shell/platform/source/testing
  */
 
 import type { FsDirectoryHandle, FsFile, FsFileHandle, FsWritable } from './fs-access';

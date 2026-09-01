@@ -9,7 +9,7 @@
  * Проверяется поведение, а не форма: правило применилось или не применилось к настоящему
  * элементу в настоящем документе. Сравнение имён классов проверяло бы то же, что компилятор.
  *
- * @module host/plugin/styles.browser.test
+ * @module shell/platform/plugin/styles.browser.test
  */
 
 import { afterEach, describe, expect, it } from 'vitest';

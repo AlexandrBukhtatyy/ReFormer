@@ -10,7 +10,7 @@
  * `plugins/**` не видит `@/shell` — это правило слоёв, и обходить его тестом нельзя.
  * Композиции же видны обе стороны, и именно она отвечает за то, что они сходятся.
  *
- * @module app/markdown-view.browser.test
+ * @module shell/boot/integration/markdown-view.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

@@ -17,7 +17,7 @@
  * на первом же эмодзи — суррогатная пара занимает две единицы, и правка после неё стоит
  * не там, где её ждёт наивный счёт по символам.
  *
- * @module host/workspace/journal/record
+ * @module shell/platform/workspace/journal/record
  */
 
 import type { ResourceId } from '@/shell/platform/primitives/resource';

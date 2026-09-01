@@ -21,7 +21,7 @@
  * минуту — в чужом контексте, где человек уже забыл про начатый аккорд. У VS Code таймаута
  * нет, но там индикатор виден постоянно; у нас строка состояния одна и узкая.
  *
- * @module host/ui/chords
+ * @module shell/platform/ui/keyboard/chords
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

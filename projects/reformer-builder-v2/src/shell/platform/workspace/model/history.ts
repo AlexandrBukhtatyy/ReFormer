@@ -19,7 +19,7 @@
  * и отдельная задача; общее у них — формат {@link TextEdit} и `EditOp`, чтобы одну и ту же
  * правку не описывать дважды.
  *
- * @module host/workspace/model/history
+ * @module shell/platform/workspace/model/history
  */
 
 import type { NodeId } from './provider';

@@ -32,7 +32,7 @@
  * достаётся текст и — если документ модельный и его модель согласована с буфером — сама модель
  * как `unknown`. Сузить её до своего типа обязан тот, кто этот тип объявил, то есть плагин.
  *
- * @module host/validation/types
+ * @module shell/platform/validation/types
  */
 
 import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';

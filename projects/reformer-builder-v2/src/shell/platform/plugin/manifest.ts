@@ -28,7 +28,7 @@
  * **Поля `permissions` нет и не будет** — решено там же: включённый плагин может всё, и объявлять
  * намерения полем, которое ничего не принуждает, значит создавать ложное ощущение границы.
  *
- * @module host/plugin/manifest
+ * @module shell/platform/plugin/manifest
  */
 
 import { normalizeChord } from '@/shell/platform/primitives/command';

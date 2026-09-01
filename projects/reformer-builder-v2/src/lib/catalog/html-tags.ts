@@ -13,7 +13,7 @@
  * `ALLOWED_HTML_TAGS` из `@reformer/renderer-json` (иначе валидатор отвергнет узел); инвариант
  * стережёт `html-tags.test.ts`.
  *
- * @module reformer-builder/lib/catalog/html-tags
+ * @module lib/catalog/html-tags
  */
 
 import type { PropsSchema } from '@reformer/ui-kit/meta';

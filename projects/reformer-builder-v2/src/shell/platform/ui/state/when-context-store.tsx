@@ -34,7 +34,7 @@
  * Хранилище одно на приложение и создаётся композицией (`app/boot`), поэтому «кто обновляет»
  * — это вопрос к владельцу поля, а не к оболочке: она отдаёт `set` и не знает, что за ним.
  *
- * @module host/ui/when-context-store
+ * @module shell/platform/ui/state/when-context-store
  */
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';

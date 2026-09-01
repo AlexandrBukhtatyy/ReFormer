@@ -17,7 +17,7 @@
  * у подтверждения другая семантика доступности (`alertdialog` для скринридера, фокус
  * на кнопке, а не на поле) — то есть ровно то, ради чего в ките есть оба.
  *
- * @module host/ui/PromptHost
+ * @module shell/platform/ui/dialogs/PromptHost
  */
 
 import { useCallback, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';

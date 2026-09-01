@@ -5,7 +5,7 @@
  * путём, что ввод в контрол, и потому запускает поведение (`compute`) и валидацию. Двойник
  * подтвердил бы только, что мы позвали свои же функции.
  *
- * @module reformer-builder/lib/form-inspect/form-inspect.test
+ * @module lib/form-inspect/form-inspect.test
  */
 
 import { describe, expect, it } from 'vitest';

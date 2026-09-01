@@ -31,7 +31,7 @@
  * принимает. Появиться такой узел может только у схемы, собранной мимо разбора (провайдер модели
  * проставляет идентификаторы всем). Ошибочно выбранный сосед был бы хуже невыбираемого узла.
  *
- * @module reformer-builder/lib/form-model/node-token
+ * @module lib/form-model/node-token
  */
 
 import { NODE_ID_PATTERN, type NodeId } from './node-id';

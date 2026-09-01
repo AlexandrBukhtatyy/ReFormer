@@ -11,7 +11,7 @@
  * Шаблону остаётся раскладка: четыре условные строки импорта и три цикла. И это ровно то, что
  * человек в `registry.ts` меняет чаще всего, — поэтому оно и должно быть в шаблоне.
  *
- * @module reformer-builder/lib/codegen/view/registry
+ * @module lib/codegen/view/registry
  */
 
 import { resolveComponent } from '../components';

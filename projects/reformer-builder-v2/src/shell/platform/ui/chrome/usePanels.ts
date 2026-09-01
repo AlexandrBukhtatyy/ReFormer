@@ -18,7 +18,7 @@
  *   бы сравнивать по содержимому, а служба настроек хранит то, что в неё положили, и своей
  *   нормализации не делает.
  *
- * @module host/ui/usePanels
+ * @module shell/platform/ui/chrome/usePanels
  */
 
 import { useCallback, useMemo, useSyncExternalStore } from 'react';

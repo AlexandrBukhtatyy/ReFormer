@@ -56,7 +56,7 @@
  * заведена отдельно; `axios` и `lucide-react` в том же обходе покрывать не надо вовсе —
  * это зависимости приложения, и отказ по ним честный.
  *
- * @module app/plugin-modules
+ * @module shell/boot/plugin-modules
  */
 
 import * as react from 'react';

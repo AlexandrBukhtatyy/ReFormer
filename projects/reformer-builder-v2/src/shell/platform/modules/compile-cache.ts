@@ -31,7 +31,7 @@
  * разный вывод. Версия движка входит потому, что апгрейд `typescript` обязан обесценить кэш сам,
  * без ручной инвалидации.
  *
- * @module host/modules/compile-cache
+ * @module shell/platform/modules/compile-cache
  */
 
 import type { BuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';

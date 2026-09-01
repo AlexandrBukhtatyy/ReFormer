@@ -16,7 +16,7 @@
  * и «последний победил» здесь означает, что проект молча откроется не оттуда. Поэтому
  * занятый вид — ошибка, а не тихая замена (тот же принцип, что у реестра модулей).
  *
- * @module host/source/registry
+ * @module shell/platform/source/registry
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

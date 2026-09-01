@@ -5,7 +5,7 @@
  * (утверждения делаются по снимку дерева, а не по собственному же чтению), выбор ветки записи,
  * политика промаха и поведение пары `files`/`base`.
  *
- * @module host/workspace/storage/opfs.test
+ * @module shell/platform/workspace/storage/opfs.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

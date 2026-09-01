@@ -7,7 +7,7 @@
  * Разойдись эти две проверки, и один и тот же отказ обрабатывался бы по-разному на разных
  * этажах: самая тихая из возможных поломок.
  *
- * @module host/source/errors.test
+ * @module shell/platform/source/errors.test
  */
 
 import { describe, expect, it } from 'vitest';

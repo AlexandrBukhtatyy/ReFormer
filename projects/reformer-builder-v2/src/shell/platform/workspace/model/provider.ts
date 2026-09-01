@@ -24,7 +24,7 @@
  * в `lib/form-model`, куда платформе ходу нет), а ядру они нужны ровно как адреса выделения
  * и цели диагностик.
  *
- * @module host/workspace/model/provider
+ * @module shell/platform/workspace/model/provider
  */
 
 import {

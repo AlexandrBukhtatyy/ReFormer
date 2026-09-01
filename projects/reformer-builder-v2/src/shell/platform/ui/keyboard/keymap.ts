@@ -19,7 +19,7 @@
  * плагина. Отказ был бы невидимым, поэтому его стережёт пара тестов: один считает число
  * сборок, другой проверяет содержимое после регистрации.
  *
- * @module host/ui/keymap
+ * @module shell/platform/ui/keyboard/keymap
  */
 
 import type { CommandRegistry } from '@/shell/platform/primitives/command';

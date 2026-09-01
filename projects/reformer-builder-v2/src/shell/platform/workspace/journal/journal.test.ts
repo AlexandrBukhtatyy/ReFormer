@@ -5,7 +5,7 @@
  * из него восстанавливается текст, ход ассистента откатывается целиком — и после любой
  * уборки в нём не остаётся правок без основания.
  *
- * @module host/workspace/journal/journal.test
+ * @module shell/platform/workspace/journal/journal.test
  */
 
 import { describe, expect, it } from 'vitest';

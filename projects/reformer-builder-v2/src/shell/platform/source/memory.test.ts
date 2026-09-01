@@ -6,7 +6,7 @@
  * системы в памяти не ловит ничего — контракт из неё и вычитали, — поэтому каждое
  * расхождение здесь закреплено тестом, чтобы его не «починили» обратно.
  *
- * @module host/source/memory.test
+ * @module shell/platform/source/memory.test
  */
 
 import { describe, expect, it } from 'vitest';

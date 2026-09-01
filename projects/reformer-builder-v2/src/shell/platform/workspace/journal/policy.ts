@@ -32,7 +32,7 @@
  * по времени записи, а они все проходят через хвост. {@link collapse} остаётся чистой функцией
  * и проверяется отдельно от журнала — на ней же держится показ истории «шагами».
  *
- * @module host/workspace/journal/policy
+ * @module shell/platform/workspace/journal/policy
  */
 
 import type { ResourceId } from '@/shell/platform/primitives/resource';

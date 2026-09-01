@@ -21,7 +21,7 @@
  * {@link FOCUS_ZONE_ATTRIBUTE}, а классификатор ищет ближайшего предка с ним. Плагину это
  * ничего не стоит и не требует от Host знания о том, что за поверхность он нарисовал.
  *
- * @module host/ui/focus
+ * @module shell/platform/ui/keyboard/focus
  */
 
 import type { FocusTarget } from '@/shell/platform/primitives/when-context';

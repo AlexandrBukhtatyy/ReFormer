@@ -49,7 +49,7 @@
  * а плагины друг друга не импортируют. Нужен сервис или событие; это правка контракта,
  * а не плагина.
  *
- * @module plugins/preview
+ * @module plugins/preview/index
  */
 
 export {

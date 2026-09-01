@@ -19,7 +19,7 @@
  * Файл лежит в `src`, а не рядом с одним тестом, по той же причине, что и
  * `storage/testing.ts`: им пользуются тесты Workspace, догрузки и вытеснения.
  *
- * @module host/workspace/testing
+ * @module shell/platform/workspace/testing
  */
 
 import { normalizePath } from '@/shell/platform/primitives/resource';

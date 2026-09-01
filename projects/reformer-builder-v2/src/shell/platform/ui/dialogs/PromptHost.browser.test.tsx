@@ -5,7 +5,7 @@
  * Здесь то, чего компиляция не видит: модальное окно кита, автофокус поля, выделение имени
  * без расширения, Escape как отмена и кнопка, погашенная проверкой.
  *
- * @module host/ui/PromptHost.browser.test
+ * @module shell/platform/ui/dialogs/PromptHost.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

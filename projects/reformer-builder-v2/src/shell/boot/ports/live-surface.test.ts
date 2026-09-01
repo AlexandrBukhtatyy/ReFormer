@@ -6,7 +6,7 @@
  * поверхность, собран из двух половин правильно (схема и выделение — от редактора, адрес,
  * значения и находки — от превью); и падение поверхности не выходит наружу.
  *
- * @module app/live-surface.test
+ * @module shell/boot/ports/live-surface.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

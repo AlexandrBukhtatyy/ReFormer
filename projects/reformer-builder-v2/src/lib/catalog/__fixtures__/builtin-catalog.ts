@@ -7,7 +7,7 @@
  * `@reformer/ui-kit/catalog` импортируется здесь и только здесь: тестам нужен настоящий каталог
  * реального кита, иначе проверки категорий, вариантов и compound-частей проверяли бы выдумку.
  *
- * @module reformer-builder/lib/catalog/__fixtures__/builtin-catalog
+ * @module lib/catalog/__fixtures__/builtin-catalog
  */
 
 import builtin from '@reformer/ui-kit/catalog';

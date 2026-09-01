@@ -20,7 +20,7 @@
  * проверяются без браузера, а отрисовка остаётся циклом по массиву — то, что позже позволит
  * виртуализировать длинный список, не трогая правил.
  *
- * @module host/ui/resource-tree
+ * @module shell/platform/ui/state/resource-tree
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

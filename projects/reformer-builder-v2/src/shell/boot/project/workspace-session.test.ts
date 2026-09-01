@@ -5,7 +5,7 @@
  * и `source/memory`, а рабочая область, вкладки и дерево — настоящие. Иначе проверялось бы,
  * что сессия зовёт то, что мы ей подсунули, а не что из неё получается работающий проект.
  *
- * @module app/workspace-session.test
+ * @module shell/boot/project/workspace-session.test
  */
 
 import { describe, expect, it } from 'vitest';

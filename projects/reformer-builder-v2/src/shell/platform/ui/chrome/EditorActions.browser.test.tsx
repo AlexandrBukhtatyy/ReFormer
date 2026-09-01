@@ -5,7 +5,7 @@
  * не проверяет: кнопка со значком против строки под «…», нажатое состояние переключателя
  * и то, что щелчок доходит до команды.
  *
- * @module host/ui/EditorActions.browser.test
+ * @module shell/platform/ui/chrome/EditorActions.browser.test
  */
 
 import { describe, expect, it } from 'vitest';

@@ -11,7 +11,7 @@
  * применимости. Ни канвас, ни операции, ни модель инспектора сюда не входят: их вызывает
  * только сам плагин.
  *
- * @module plugins/editor-schema
+ * @module plugins/editor-schema/index
  */
 
 export { createSchemaEditorPlugin, SCHEMA_EDITOR_ID, SCHEMA_EDITOR_PLUGIN_ID } from './plugin';

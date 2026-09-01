@@ -15,7 +15,7 @@
  * Сама транспиляция обязана быть синхронной, потому что `require` внутри CommonJS-модуля
  * синхронен: асинхронный шаг посреди линковки означал бы, что модуль нельзя дописать до конца.
  *
- * @module host/modules/transpilers
+ * @module shell/platform/modules/transpilers
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

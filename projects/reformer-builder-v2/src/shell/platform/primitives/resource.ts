@@ -15,7 +15,7 @@
  *   и конфигом пакета, и как транспорт он однозначен в обоих случаях. Кто откроет файл —
  *   решает редактор по успеху разбора.
  *
- * @module host/primitives/resource
+ * @module shell/platform/primitives/resource
  */
 
 /**

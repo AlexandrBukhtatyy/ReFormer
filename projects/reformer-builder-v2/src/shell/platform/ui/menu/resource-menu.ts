@@ -22,7 +22,7 @@
  * создавал бы файл рядом с выбранным, а от другого — внутрь него, и оба были бы уверены,
  * что поступают правильно.
  *
- * @module host/ui/resource-menu
+ * @module shell/platform/ui/menu/resource-menu
  */
 
 import {

@@ -27,7 +27,7 @@
  * тем же приёмом, что `WorkspaceStatusSource` в `ui/status.ts`. Настоящий `WhenContextStore`
  * подходит под форму порта структурно, приводить его ни к чему не нужно.
  *
- * @module host/services/context-keys
+ * @module shell/platform/services/context-keys
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

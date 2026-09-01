@@ -21,7 +21,7 @@
  * («если кита нет, пиши `@reformer/ui-kit`») вернуло бы ровно ту ошибку, ради которой всё это
  * и делалось, только молча.
  *
- * @module reformer-builder/lib/codegen/components
+ * @module lib/codegen/components
  */
 
 import type { CatalogEntry } from '../catalog/types';

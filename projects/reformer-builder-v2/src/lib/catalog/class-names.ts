@@ -21,7 +21,7 @@
  * самому дескриптору через `WeakMap`, поэтому у разных китов кэши разные по построению и
  * рассинхронизироваться не могут.
  *
- * @module reformer-builder/lib/catalog/class-names
+ * @module lib/catalog/class-names
  */
 
 import type { KitDescriptor } from '../kits/types';

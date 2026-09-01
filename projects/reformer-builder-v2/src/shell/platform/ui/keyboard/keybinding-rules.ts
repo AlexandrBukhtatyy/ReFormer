@@ -24,7 +24,7 @@
  *
  * Сортировка считается ОДИН раз при сборке указателя, а не на нажатии.
  *
- * @module host/ui/keybinding-rules
+ * @module shell/platform/ui/keyboard/keybinding-rules
  */
 
 import { normalizeChord } from '@/shell/platform/primitives/command';

@@ -45,7 +45,7 @@
  * Сочетания с модификатором кит намеренно не перехватывает — иначе `mod+c` не доходил бы
  * до команды копирования.
  *
- * @module host/ui/ResourceTree
+ * @module shell/platform/ui/state/ResourceTree
  */
 
 import {

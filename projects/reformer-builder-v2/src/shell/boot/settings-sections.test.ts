@@ -6,7 +6,7 @@
  * записанная мимо службы тема не появилась бы до перезагрузки, а язык — до следующей
  * догрузки словаря.
  *
- * @module app/settings-sections.test
+ * @module shell/boot/settings-sections.test
  */
 
 import { describe, expect, it } from 'vitest';

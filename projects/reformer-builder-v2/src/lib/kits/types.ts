@@ -21,7 +21,7 @@
  * слоя без циклов: `lib/catalog/*` и `lib/form-model/*` импортируют отсюда, а `lib/kits/*` из
  * них — только типы.
  *
- * @module reformer-builder/lib/kits/types
+ * @module lib/kits/types
  */
 
 import type { JsonNode } from '@reformer/renderer-json';

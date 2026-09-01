@@ -5,7 +5,7 @@
  * проектные шаблоны лежат каталогом, а не одним файлом. Кит нужен обоим и по одной причине —
  * встроенные шаблоны печатает сам генератор, а он без дескриптора кита отказывается.
  *
- * @module app/templates-host
+ * @module shell/boot/ports/templates
  */
 
 import { useSyncExternalStore } from 'react';
@@ -23,7 +23,7 @@ import type { KitDescriptor } from '@/lib/kits/types';
 import { KitsServiceToken } from '@/plugins/kits/service';
 import { TEMPLATES_PLUGIN_ID } from '@/plugins/templates';
 import type { TemplatesHost, Translate } from '@/plugins/templates';
-import { parentOf, resolve } from '../resource-paths';
+import { parentOf, resolve } from '@/shell/platform/primitives/resource-path';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface TemplatesHostDeps {

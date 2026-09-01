@@ -26,7 +26,7 @@
  * ИГНОРИРУЕТ. Панель обязана знать это заранее ({@link readNodeState}) — иначе человек пишет,
  * значение возвращается, и он идёт искать несуществующий баг.
  *
- * @module reformer-builder/lib/form-inspect
+ * @module lib/form-inspect/index
  */
 
 import { getNodeForSignal, isDerived } from '@reformer/core';

@@ -6,7 +6,7 @@
  * Здесь проверяется РЕШЕНИЕ: печатать ли его вообще. Снимком оно не выражается — отсутствие
  * файла там видно только по составу модуля, а причину отсутствия состав не называет.
  *
- * @module reformer-builder/lib/codegen/view/wizard.test
+ * @module lib/codegen/view/wizard.test
  */
 
 import { describe, expect, it } from 'vitest';

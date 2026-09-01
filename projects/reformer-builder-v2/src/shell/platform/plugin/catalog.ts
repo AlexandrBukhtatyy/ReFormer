@@ -37,7 +37,7 @@
  * снять, потом читать: он же гарантирует, что после неудачной перезагрузки в системе
  * не останется вкладов от прошлой версии кода.
  *
- * @module host/plugin/catalog
+ * @module shell/platform/plugin/catalog
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

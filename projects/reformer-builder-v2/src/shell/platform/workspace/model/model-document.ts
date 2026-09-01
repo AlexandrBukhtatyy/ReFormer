@@ -48,7 +48,7 @@
  * буфер изменил сам пользователь. Приоритет у того, кто печатает: его текст — истина,
  * которую он видит.
  *
- * @module host/workspace/model/model-document
+ * @module shell/platform/workspace/model/model-document
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

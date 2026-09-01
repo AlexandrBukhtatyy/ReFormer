@@ -33,7 +33,7 @@
  * потерянный второй выглядит как зависший интерфейс. Показывается всегда первый в очереди;
  * ответ снимает его и открывает следующий.
  *
- * @module host/services/prompt
+ * @module shell/platform/services/prompt
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

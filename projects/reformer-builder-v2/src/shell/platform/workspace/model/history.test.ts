@@ -9,7 +9,7 @@
  * - снимки схлопываются по ключу и НЕ схлопываются через границу;
  * - выделение едет вместе со снимком, потому что входит в него.
  *
- * @module host/workspace/model/history.test
+ * @module shell/platform/workspace/model/history.test
  */
 
 import { describe, expect, it } from 'vitest';

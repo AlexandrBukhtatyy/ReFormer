@@ -14,7 +14,7 @@
  * этот модуль о клавиатуре не знает ничего, кроме канонического написания сочетания
  * (см. {@link normalizeKeybinding}).
  *
- * @module host/primitives/command
+ * @module shell/platform/primitives/command
  */
 
 import { toDisposable, type Disposable } from './disposable';

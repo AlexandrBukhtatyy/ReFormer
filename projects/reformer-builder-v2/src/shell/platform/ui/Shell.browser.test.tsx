@@ -6,7 +6,7 @@
  * «панель одна»: в окружении `node` она означала бы «в дереве React один узел», а надо —
  * «человек видит одну».
  *
- * @module host/ui/Shell.browser.test
+ * @module shell/platform/ui/Shell.browser.test
  */
 
 import { describe, expect, it } from 'vitest';

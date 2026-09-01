@@ -17,7 +17,7 @@
  * пользователя до первого исполнения — контракт Э8 называет это «запретом исполнения
  * по источнику».
  *
- * @module host/modules/linker
+ * @module shell/platform/modules/linker
  */
 
 import { isRelativeSpecifier, type ModuleRegistry } from './registry';

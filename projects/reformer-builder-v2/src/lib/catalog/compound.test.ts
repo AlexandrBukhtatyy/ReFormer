@@ -7,7 +7,7 @@
  * обёртка тянет за собой реестр превью и структурный линт — слои, которых в v2 ещё нет. Проверяемое
  * при этом то же самое: структура узлов + типы `componentProps` против схем каталога.
  *
- * @module reformer-builder/lib/catalog/compound.test
+ * @module lib/catalog/compound.test
  */
 
 import { describe, expect, it } from 'vitest';

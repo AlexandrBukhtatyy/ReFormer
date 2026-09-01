@@ -16,7 +16,7 @@
  * команде аргументом, — а адрес в контексте непрозрачен и не несёт ни имени, ни медиатипа.
  * Цель приносит ссылку целиком, поэтому вклад решает по тому же, по чему решал бы редактор.
  *
- * @module host/ui/editor-menu
+ * @module shell/platform/ui/menu/editor-menu
  */
 
 import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';

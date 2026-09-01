@@ -11,7 +11,7 @@
  * **Почему не удаляем молча.** Осиротевшее правило — работа пользователя. Стереть её при удалении
  * узла значит потерять её без спроса. Поэтому здесь только диагноз; решение — за человеком.
  *
- * @module reformer-builder/lib/form-model/rules-integrity
+ * @module lib/form-model/rules-integrity
  */
 
 import { collectSchemaSelectors, type JsonFormSchema } from '@reformer/renderer-json';

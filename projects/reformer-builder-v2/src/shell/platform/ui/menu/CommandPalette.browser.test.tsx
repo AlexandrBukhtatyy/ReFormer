@@ -8,7 +8,7 @@
  * Radix проставляет атрибуты окна; тёмная тема достаёт до портала. Правила отбора и слияния
  * проверяет [palette.test.ts](palette.test.ts) — здесь только то, чего без DOM не видно.
  *
- * @module host/ui/CommandPalette.browser.test
+ * @module shell/platform/ui/menu/CommandPalette.browser.test
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

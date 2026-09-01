@@ -8,7 +8,7 @@
  * Второй потребитель — `plugins/templates`: встроенные шаблоны печатаются этими же эмиттерами,
  * поэтому «шаблон» и «экспорт» не могут разойтись в том, как выглядит модуль формы.
  *
- * @module reformer-builder/lib/codegen
+ * @module lib/codegen/index
  */
 
 export type { FileClass, GeneratedFile, FormMock } from './types';

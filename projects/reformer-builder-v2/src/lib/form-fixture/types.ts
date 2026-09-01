@@ -24,7 +24,7 @@
  *
  * Слои независимы: можно объявить только `dataSources` и не трогать остальное.
  *
- * @module reformer-builder/lib/form-fixture/types
+ * @module lib/form-fixture/types
  */
 
 /** Значения модели формы. Форма приходит из схемы, и сузить её нечем. */

@@ -7,7 +7,7 @@
  * текста разошлись бы на первой же правке: человек скопировал бы из панели одно, а в README
  * прочитал другое.
  *
- * @module reformer-builder/lib/codegen/emit/snippet
+ * @module lib/codegen/emit/snippet
  */
 
 import type { Names } from '../naming';

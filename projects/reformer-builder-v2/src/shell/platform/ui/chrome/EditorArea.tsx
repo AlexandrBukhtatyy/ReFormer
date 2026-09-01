@@ -28,7 +28,7 @@
  * его дважды (один раз ради тела, другой ради меню) означало бы два ответа на один вопрос,
  * и первое же расхождение выглядело бы как «в меню отмечен не тот, кто на экране».
  *
- * @module host/ui/EditorArea
+ * @module shell/platform/ui/chrome/EditorArea
  */
 
 import { useEffect, useLayoutEffect, useMemo, type ReactElement } from 'react';

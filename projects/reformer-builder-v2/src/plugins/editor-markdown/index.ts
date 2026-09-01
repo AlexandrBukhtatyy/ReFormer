@@ -20,7 +20,7 @@
  * - **редактор кода** — `TextEditor`: режим «рядом» показывает исходник тем же редактором,
  *   которым правится обычная code-вкладка. Без него режима нет вовсе.
  *
- * @module plugins/editor-markdown
+ * @module plugins/editor-markdown/index
  */
 
 export { createMarkdownPlugin, MARKDOWN_EDITOR_ID, MARKDOWN_PLUGIN_ID } from './plugin';

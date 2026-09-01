@@ -1,7 +1,7 @@
 /**
  * Тесты чистой части фикстур: адреса, слияние слоёв, подменяемое окружение, печать скелета.
  *
- * @module reformer-builder/lib/form-fixture/form-fixture.test
+ * @module lib/form-fixture/form-fixture.test
  */
 
 import { describe, expect, it } from 'vitest';

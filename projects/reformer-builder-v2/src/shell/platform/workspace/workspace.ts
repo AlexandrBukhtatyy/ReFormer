@@ -58,7 +58,7 @@
  * схлопывание, опорные снимки, уборка по потолку — решает журнал, потому что это его политика,
  * а не политика набора файлов.
  *
- * @module host/workspace/workspace
+ * @module shell/platform/workspace/workspace
  */
 
 import type { Diagnostic } from '@/shell/platform/diagnostics/types';

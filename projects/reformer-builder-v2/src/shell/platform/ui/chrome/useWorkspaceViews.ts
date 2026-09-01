@@ -10,7 +10,7 @@
  * ссылку, пока ничего не изменилось. Поэтому оба хранилища возвращают прежний объект,
  * когда изменение ничего не поменяло, а здесь снимок ничем не оборачивается.
  *
- * @module host/ui/useWorkspaceViews
+ * @module shell/platform/ui/chrome/useWorkspaceViews
  */
 
 import { useCallback, useSyncExternalStore } from 'react';

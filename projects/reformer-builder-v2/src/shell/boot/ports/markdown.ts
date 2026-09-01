@@ -13,7 +13,7 @@
  * режима, а «в фокусе ли редактор» имело бы два разных ответа — и ход ассистента затирал бы
  * набранное на полуслове.
  *
- * @module app/markdown-host
+ * @module shell/boot/ports/markdown
  */
 
 import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';

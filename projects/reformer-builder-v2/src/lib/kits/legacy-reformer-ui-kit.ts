@@ -21,7 +21,7 @@
  * `lib/form-model/node-kind` может тянуть отсюда ЗНАЧЕНИЕ: во время выполнения модуль не
  * подтягивает ничего.
  *
- * @module reformer-builder/lib/kits/legacy-reformer-ui-kit
+ * @module lib/kits/legacy-reformer-ui-kit
  */
 
 import type { KitDescriptorJson, KitRecordPreview } from './types';

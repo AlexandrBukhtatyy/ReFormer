@@ -30,7 +30,7 @@
  * консервативно в опасную сторону (конфликт может быть не замечен), но лучшего маркера
  * File System Access не даёт — хеш содержимого стоил бы чтения файла на каждый `stat`.
  *
- * @module host/source/fs-access
+ * @module shell/platform/source/fs-access
  */
 
 import { basename, dirname, joinPath, mediaTypeFor } from '@/shell/platform/primitives/resource';

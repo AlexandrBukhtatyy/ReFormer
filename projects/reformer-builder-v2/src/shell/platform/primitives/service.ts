@@ -22,7 +22,7 @@
  * Сервис — слот на одну реализацию. Если реализаций должно быть много (панели, валидаторы,
  * цели генерации), это не сервис, а точка расширения — см. `host/primitives/extension-point`.
  *
- * @module host/primitives/service
+ * @module shell/platform/primitives/service
  */
 
 import type { Disposable } from './disposable';

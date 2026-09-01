@@ -37,7 +37,7 @@
  * **мимо** `subscriptions`, останется: рантайм не знает, что именно тот сделал, — и это ещё
  * одна причина класть регистрации в `subscriptions`, а не «прибираться потом».
  *
- * @module host/plugin/registry
+ * @module shell/platform/plugin/registry
  */
 
 import { disposeAll } from '@/shell/platform/primitives/disposable';

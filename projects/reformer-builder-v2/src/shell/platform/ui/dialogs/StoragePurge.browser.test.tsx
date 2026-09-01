@@ -7,7 +7,7 @@
  * без порта), доводит ли щелчок до диалога подтверждения и доходит ли согласие обратно
  * до очистки и перезапуска.
  *
- * @module host/ui/StoragePurge.browser.test
+ * @module shell/platform/ui/dialogs/StoragePurge.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

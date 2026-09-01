@@ -7,7 +7,7 @@
  * а по ревизии можно прочитать содержимое; если хоть одно звено не доехало, диалог показывает
  * пустоту, и никакой тест чистых функций этого не поймает.
  *
- * @module host/workspace/merge/workspace-merge.test
+ * @module shell/platform/workspace/merge/workspace-merge.test
  */
 
 import { describe, expect, it } from 'vitest';

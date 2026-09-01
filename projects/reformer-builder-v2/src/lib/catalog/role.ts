@@ -6,7 +6,7 @@
  * иначе — контейнер (Box/Section). `array` — синтетическая запись (форма узла, а не ui-kit-компонент),
  * задаётся в `synthetic-entries.ts`.
  *
- * @module reformer-builder/lib/catalog/role
+ * @module lib/catalog/role
  */
 
 import type { PropsSchema } from '@reformer/ui-kit/meta';

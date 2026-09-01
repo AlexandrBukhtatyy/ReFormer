@@ -6,7 +6,7 @@
  * нечем. Причина устройства важнее: «какие панели видны в слоте» — это правило, а не отрисовка,
  * и держать его в JSX означало бы, что единственный способ узнать ответ — посмотреть глазами.
  *
- * @module host/ui/panels
+ * @module shell/platform/ui/chrome/panels
  */
 
 import type { Contribution } from '@/shell/platform/primitives/extension-point';

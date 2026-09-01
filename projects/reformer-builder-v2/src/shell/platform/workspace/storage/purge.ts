@@ -5,7 +5,7 @@
  *
  * Список «наших» хранилищ протухает молча. Кэш сборки завели соседом рабочей копии
  * (`build/` рядом с `ws/`), плагин заведёт свою базу, движок редактора — свой Cache Storage;
- * очистка, знающая только про две базы из `app/fs-handles` и `workspace/storage/idb`,
+ * очистка, знающая только про две базы из `source/fs-handles` и `workspace/storage/idb`,
  * оставила бы ровно то, из-за чего её и позвали, и человек ушёл бы чинить руками через
  * DevTools. Источник у сборщика свой, чужого на нём нет — значит «очистить кэш» честно
  * означает «очистить источник».
@@ -34,7 +34,7 @@
  * где нет ни OPFS, ни IndexedDB, ни `caches` — то же решение и та же причина, что
  * у `OpfsStoreOptions.directory`.
  *
- * @module host/workspace/storage/purge
+ * @module shell/platform/workspace/storage/purge
  */
 
 import type { OpfsDirectoryHandle, OpfsDirectoryProvider } from './opfs';

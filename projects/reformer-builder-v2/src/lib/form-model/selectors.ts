@@ -11,7 +11,7 @@
  * Здесь селектор становится управляемым: он пишется в ЖИВУЮ схему, переживает экспорт
  * (`assignSelectors` пользовательские селекторы сохраняет) и потому годится в адрес правила.
  *
- * @module reformer-builder/lib/form-model/selectors
+ * @module lib/form-model/selectors
  */
 
 import {

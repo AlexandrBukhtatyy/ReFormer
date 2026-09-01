@@ -29,7 +29,7 @@
  * (см. `./resource-names`). В v1 тот же подбор стоил до двух тысяч последовательных
  * обращений к файловой системе на одно имя.
  *
- * @module host/workspace/resource-ops
+ * @module shell/platform/workspace/resource-ops
  */
 
 import {

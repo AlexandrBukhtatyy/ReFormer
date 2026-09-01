@@ -4,7 +4,7 @@
  * и сбрасывать мемо после каждого случая. Здесь дескриптор — аргумент: подменять нечего, греть
  * нечего, сбрасывать нечего.
  *
- * @module reformer-builder/lib/catalog/class-names.test
+ * @module lib/catalog/class-names.test
  */
 
 import { describe, expect, it } from 'vitest';

@@ -11,7 +11,7 @@
  * источником. Откуда он взялся — выбрал человек или подняла фабрика по дескриптору — знает
  * `boot`, и сессии это знание не нужно ни для чего.
  *
- * @module app/workspace-session
+ * @module shell/boot/project/workspace-session
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

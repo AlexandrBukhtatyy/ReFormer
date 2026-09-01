@@ -6,7 +6,7 @@
  * ничего не зная про File System Access. Выбор каталога и хранилище содержимого подменены —
  * ни окна, ни OPFS в `node` нет; всё остальное настоящее.
  *
- * @module app/project.test
+ * @module shell/boot/project/project.test
  */
 
 import { describe, expect, it } from 'vitest';
@@ -22,7 +22,7 @@ import {
   createMemoryIndexedDb,
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
-import { createDirectoryHandleStore } from '../fs-handles';
+import { createDirectoryHandleStore } from '@/shell/platform/source/fs-handles';
 import { createProjectHost, type ProjectFailure } from './project';
 
 let seq = 0;

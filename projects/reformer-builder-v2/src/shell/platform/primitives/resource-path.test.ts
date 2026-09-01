@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parentOf, resolve } from './resource-paths';
+import { parentOf, resolve } from './resource-path';
 
 describe('путевая арифметика портов', () => {
   it('поднимается к каталогу', () => {

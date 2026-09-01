@@ -7,7 +7,7 @@
  * сейчас пусто. Всё это — поведение Radix и разметки, то есть ровно та часть, которую
  * «проверка дерева React» подтверждает, ничего не подтверждая.
  *
- * @module host/ui/MenuBar.browser.test
+ * @module shell/platform/ui/chrome/MenuBar.browser.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

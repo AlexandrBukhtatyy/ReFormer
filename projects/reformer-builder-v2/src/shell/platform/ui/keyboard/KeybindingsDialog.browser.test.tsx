@@ -10,7 +10,7 @@
  * Правила экрана (строки, поиск, сборка аккорда, конфликты) живут в
  * [keybinding-editor.ts](keybinding-editor.ts) и проверяются в `node`.
  *
- * @module host/ui/KeybindingsDialog.browser.test
+ * @module shell/platform/ui/keyboard/KeybindingsDialog.browser.test
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';

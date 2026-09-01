@@ -6,7 +6,7 @@
  * в интерфейсе: «фабрика не смогла» (`null`) против «вида не знает никто» (отказ), и «слот
  * занят» против «тихо заменили».
  *
- * @module host/source/registry.test
+ * @module shell/platform/source/registry.test
  */
 
 import { describe, expect, it } from 'vitest';

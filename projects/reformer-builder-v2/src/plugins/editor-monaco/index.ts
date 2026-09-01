@@ -22,7 +22,7 @@
  * он» знает только редактор. Свой реестр у плагина и свой у рабочей области означали бы,
  * что ход ассистента затирает набранное на полуслове.
  *
- * @module plugins/editor-monaco
+ * @module plugins/editor-monaco/index
  */
 
 export { createMonacoEditorPlugin, monacoEditorContribution } from './plugin';

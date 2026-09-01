@@ -6,7 +6,7 @@
  * на стыках (правка внутри вставки, удаление через границу, дописывание в конец) руками
  * придумываются не те случаи, которые ломаются.
  *
- * @module host/workspace/journal/compose.test
+ * @module shell/platform/workspace/journal/compose.test
  */
 
 import { describe, expect, it } from 'vitest';

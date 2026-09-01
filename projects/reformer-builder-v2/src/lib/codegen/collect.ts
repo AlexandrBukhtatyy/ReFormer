@@ -6,7 +6,7 @@
  * в `item.$template` за верхнеуровневыми путями. Это не совпадение, а требование —
  * `model.ts` печатается из первого, `types.ts` из второго, и разойтись им нельзя.
  *
- * @module reformer-builder/lib/codegen/collect
+ * @module lib/codegen/collect
  */
 
 import {

@@ -18,7 +18,7 @@
  * таймеров), а время жизни тоста всё равно знает тот, кто его показывает — он же ставит
  * его на паузу под курсором.
  *
- * @module host/services/notifications
+ * @module shell/platform/services/notifications
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

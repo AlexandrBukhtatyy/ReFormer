@@ -25,7 +25,7 @@
  * и история живут там, а здесь появился ровно один новый элемент — {@link DocumentKind},
  * дискриминант союза. Всё остальное по-прежнему буфер.
  *
- * @module host/workspace/document
+ * @module shell/platform/workspace/document
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

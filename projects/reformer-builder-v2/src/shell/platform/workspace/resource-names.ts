@@ -14,7 +14,7 @@
  * подбирается ПО СПИСКУ уровня, который вызывающий и так прочитал одним `list`, поэтому
  * цена подбора — ноль обращений, и правило проверяется без файловой системы вовсе.
  *
- * @module host/workspace/resource-names
+ * @module shell/platform/workspace/resource-names
  */
 
 /**

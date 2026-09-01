@@ -3,7 +3,7 @@
  * обход всех узлов и сбор `$model`-путей / имён операторов (для synth-model и mock-sources
  * runtime-preview).
  *
- * @module reformer-builder/lib/form-model/query
+ * @module lib/form-model/query
  */
 
 import {

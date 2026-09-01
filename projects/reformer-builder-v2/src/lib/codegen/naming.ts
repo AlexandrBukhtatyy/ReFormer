@@ -8,7 +8,7 @@
  * Транслитерация и `kebab` сюда НЕ переехали: они нужны модели раньше всякого экспорта
  * (имя селектора выводится из подписи узла) и потому живут в `lib/form-model/naming`.
  *
- * @module reformer-builder/lib/codegen/naming
+ * @module lib/codegen/naming
  */
 
 import { kebab } from '../form-model/naming';

@@ -7,7 +7,7 @@
  * осталось. Молчаливое усечение выглядит как «всё загрузилось», и его отсутствие проверяется
  * тем, что диагностика есть и несёт `at` и `pending`.
  *
- * @module host/workspace/materialize.test
+ * @module shell/platform/workspace/materialize.test
  */
 
 import { describe, expect, it } from 'vitest';

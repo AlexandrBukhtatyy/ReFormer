@@ -35,7 +35,7 @@
  * нечего и терять. Всё остальное — либо автоматическое слияние (никто не проиграл: правки
  * не пересеклись и результат разобрался), либо вопрос.
  *
- * @module host/workspace/merge/resolve
+ * @module shell/platform/workspace/merge/resolve
  */
 
 import type { ResourceId } from '@/shell/platform/primitives/resource';

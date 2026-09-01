@@ -24,7 +24,7 @@
  * Таймеры тоже не подменяются: управляемые часы нужны детерминированному прогону сценариев,
  * а живое превью обязано вести себя как приложение — `debounce` в нём настоящий.
  *
- * @module reformer-builder/lib/form-fixture/ambient
+ * @module lib/form-fixture/ambient
  */
 
 import type { FixtureClock, FixtureHttpRule, FormFixture } from './types';

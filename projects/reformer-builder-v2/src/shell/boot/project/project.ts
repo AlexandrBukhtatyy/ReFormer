@@ -13,7 +13,7 @@
  *
  * Переоткрытие держится на разведении, объявленном в `host/source/registry`: сериализуемый
  * {@link SourceDescriptor} едет в запись рабочей области, а живой хэндл каталога — в свою базу
- * по ключу (`app/fs-handles`). Поэтому «восстановить последний проект» — это прочитать самую
+ * по ключу (`platform/source/fs-handles`). Поэтому «восстановить последний проект» — это прочитать самую
  * свежую запись и отдать её дескриптор реестру источников; ничего про File System Access
  * этот код не знает и знать не должен.
  *
@@ -24,7 +24,7 @@
  * Совпадение проверяется `isSameEntry` — единственным, что File System Access даёт вместо
  * устойчивого идентификатора каталога.
  *
- * @module app/project
+ * @module shell/boot/project/project
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
@@ -53,7 +53,7 @@ import {
   type WorkspaceFileStore,
 } from '@/shell/platform/workspace/storage/opfs';
 import type { DiagnosticsSink } from '@/shell/platform/workspace/workspace';
-import type { DirectoryHandleStore } from '../fs-handles';
+import type { DirectoryHandleStore } from '@/shell/platform/source/fs-handles';
 import { restoreOpenedTabs } from './opened-tabs';
 import { createWorkspaceSession, type WorkspaceSession } from './workspace-session';
 

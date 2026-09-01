@@ -25,7 +25,7 @@
  * ключ сообщения и параметры, а не текст, — перевод случается в отрисовке, потому что локаль
  * меняется, а правило нет.
  *
- * @module host/ui/status
+ * @module shell/platform/ui/state/status
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

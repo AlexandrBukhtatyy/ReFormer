@@ -11,7 +11,7 @@
  * проект закрывают и открывают заново, а плагин активируется один раз — захваченная сессия
  * означала бы «сохранить» в область, которой больше нет.
  *
- * @module app/files-host
+ * @module shell/boot/ports/files
  */
 
 import { createElement, type ReactElement } from 'react';

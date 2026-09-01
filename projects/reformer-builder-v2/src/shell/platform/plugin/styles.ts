@@ -47,7 +47,7 @@
  * Атрибут `[data-rb-plugin="acme.forms"]` этой ловушки не имеет: значение — строка, а не
  * идентификатор.
  *
- * @module host/plugin/styles
+ * @module shell/platform/plugin/styles
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

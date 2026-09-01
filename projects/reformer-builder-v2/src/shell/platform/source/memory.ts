@@ -30,7 +30,7 @@
  *   не воспроизводятся вообще никогда.
  * - *Выключенная запись*: разница между «возможности нет» и «метод упал».
  *
- * @module host/source/memory
+ * @module shell/platform/source/memory
  */
 
 import { joinPath, mediaTypeFor } from '@/shell/platform/primitives/resource';

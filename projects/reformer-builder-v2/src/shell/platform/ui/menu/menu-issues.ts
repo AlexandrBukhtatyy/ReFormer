@@ -18,7 +18,7 @@
  * Пункт, за которым нет команды, не рисуется. Молча — значит «я внёс пункт, а его нет», и
  * виновника ищут чтением всех плагинов сразу. Диагностика здесь дешевле любого поиска.
  *
- * @module host/ui/menu-issues
+ * @module shell/platform/ui/menu/menu-issues
  */
 
 import type { MenuIssue } from './menu';

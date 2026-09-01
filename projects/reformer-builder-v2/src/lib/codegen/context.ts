@@ -11,7 +11,7 @@
  * а результат обязан быть один и тот же — иначе `types.ts` описывал бы не ту схему, которую
  * напечатал `renderer.schema.json`.
  *
- * @module reformer-builder/lib/codegen/context
+ * @module lib/codegen/context
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';

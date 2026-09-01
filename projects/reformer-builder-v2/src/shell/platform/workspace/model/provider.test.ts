@@ -5,7 +5,7 @@
  * ломаются молча: провайдер выбирается ПО ПОРЯДКУ вкладов (а не по случайности регистрации),
  * и один упавший провайдер не делает файл неоткрываемым.
  *
- * @module host/workspace/model/provider.test
+ * @module shell/platform/workspace/model/provider.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

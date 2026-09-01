@@ -16,7 +16,7 @@
  * - выделение переезжает на `focus` операции и входит в снимок отмены;
  * - эхо собственной печати не пересобирает модель — иначе structural sharing пропал бы.
  *
- * @module host/workspace/model/model-document.test
+ * @module shell/platform/workspace/model/model-document.test
  */
 
 import { describe, expect, it } from 'vitest';

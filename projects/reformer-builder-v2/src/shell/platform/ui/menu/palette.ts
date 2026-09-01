@@ -31,7 +31,7 @@
  * i18n-сервиса. Перевод приходит функцией `translate`, потому что окружение тестов — `node`,
  * а правило «пункт с `title` не переводится» проверяется без словаря.
  *
- * @module host/ui/palette
+ * @module shell/platform/ui/menu/palette
  */
 
 import type { CommandContribution } from '@/shell/platform/primitives/command';

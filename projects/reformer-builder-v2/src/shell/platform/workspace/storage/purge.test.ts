@@ -5,7 +5,7 @@
  * не прерывается на первом отказе, `blocked` — это не отказ, а перечисление баз берётся
  * у движка, когда он умеет перечислять, и у списка, когда не умеет.
  *
- * @module host/workspace/storage/purge.test
+ * @module shell/platform/workspace/storage/purge.test
  */
 
 import { describe, expect, it } from 'vitest';

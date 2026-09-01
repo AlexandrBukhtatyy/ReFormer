@@ -29,7 +29,7 @@
  * правки, живёт в снимке отмены и следует за узлом при вставках и перемещениях. Редактор,
  * положивший выделение в `viewState`, получил бы вторую его копию — расходящуюся с первой.
  *
- * @module host/ui/editors
+ * @module shell/platform/ui/contributions/editors
  */
 
 import type { ComponentType } from 'react';

@@ -14,7 +14,7 @@
  *
  * Размер нейтрален: Vite инлайнит `?raw` в тот же чанк, где эти байты уже лежали литералами.
  *
- * @module reformer-builder/lib/codegen/templates
+ * @module lib/codegen/templates/index
  */
 
 import { registerPartial } from '../render';

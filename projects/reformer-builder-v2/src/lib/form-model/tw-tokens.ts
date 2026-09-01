@@ -11,7 +11,7 @@
  *
  * Модуль — ЛИСТ графа зависимостей: не импортирует ничего.
  *
- * @module reformer-builder/lib/form-model/tw-tokens
+ * @module lib/form-model/tw-tokens
  */
 
 /**

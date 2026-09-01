@@ -40,7 +40,7 @@
  * тестов — `node`, DOM там нет, поэтому обе принимают снимки полей, а не события браузера.
  * В обвязке остаётся только подписка на `keydown` и вызов реестра.
  *
- * @module host/ui/keybindings
+ * @module shell/platform/ui/keyboard/keybindings
  */
 
 import { useEffect } from 'react';

@@ -28,7 +28,7 @@
  * «адрес + порядок + временная + активная»: одна строка вместо обхода IndexedDB на каждое
  * нажатие клавиши.
  *
- * @module app/opened-tabs
+ * @module shell/boot/project/opened-tabs
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

@@ -29,7 +29,7 @@
  * Ни React, ни DOM, ни `sonner` здесь нет намеренно: окружение тестов — `node`, и правило
  * «показанное не показывается второй раз» обязано проверяться без браузера.
  *
- * @module host/ui/notifications
+ * @module shell/platform/ui/dialogs/notifications
  */
 
 import type { Notification, NotificationLevel } from '@/shell/platform/services/notifications';

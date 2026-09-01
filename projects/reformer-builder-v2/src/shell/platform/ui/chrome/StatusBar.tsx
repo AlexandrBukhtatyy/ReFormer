@@ -31,7 +31,7 @@
  * при таком состоянии» живёт в `./status` и проверяется без React — окружение тестов `node`,
  * DOM там нет.
  *
- * @module host/ui/StatusBar
+ * @module shell/platform/ui/chrome/StatusBar
  */
 
 import { useCallback, useSyncExternalStore, type ReactElement } from 'react';

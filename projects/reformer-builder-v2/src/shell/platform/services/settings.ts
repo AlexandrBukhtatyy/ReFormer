@@ -25,7 +25,7 @@
  * Хранилище внедряется ({@link SettingsBackend}) и здесь не реализуется: слой IndexedDB —
  * часть рабочей области, у него свой владелец.
  *
- * @module host/services/settings
+ * @module shell/platform/services/settings
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

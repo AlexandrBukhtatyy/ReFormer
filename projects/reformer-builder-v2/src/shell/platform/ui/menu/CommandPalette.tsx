@@ -58,7 +58,7 @@
  * прогон в настоящем Chromium. Слияние, фильтрация, упорядочивание и отмена устаревшего
  * запроса вынесены в `./palette` и проверяются там, без браузера.
  *
- * @module host/ui/CommandPalette
+ * @module shell/platform/ui/menu/CommandPalette
  */
 
 import {

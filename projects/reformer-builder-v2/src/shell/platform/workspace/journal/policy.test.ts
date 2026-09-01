@@ -5,7 +5,7 @@
  * схлопывание не стирает границ между действиями, удаление никогда не оставляет хвоста
  * без основания, и жёсткое ограничение (объём) действительно доводит журнал до потолка.
  *
- * @module host/workspace/journal/policy.test
+ * @module shell/platform/workspace/journal/policy.test
  */
 
 import { describe, expect, it } from 'vitest';

@@ -22,7 +22,7 @@
  * `CodegenTarget.view` и лежит отдельным полем `local`, а не подмешивается в корень: иначе
  * чужая цель молча перекрыла бы платформенное поле.
  *
- * @module reformer-builder/lib/codegen/view
+ * @module lib/codegen/view/index
  */
 
 import { hasBehaviorRules, hasValidationRules } from '../../form-model/rules';

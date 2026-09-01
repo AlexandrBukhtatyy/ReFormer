@@ -6,7 +6,7 @@
  * Порядок разделов приходит ПАРАМЕТРОМ (в v1 читался из `config/state.getRuntimeConfig()`):
  * конфиг клиента — состояние приложения, домену оно не видно.
  *
- * @module reformer-builder/lib/catalog/grouping
+ * @module lib/catalog/grouping
  */
 
 import type { CatalogEntry } from './types';

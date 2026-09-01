@@ -34,7 +34,7 @@
  * КЛАДЁТСЯ (шаг 0 политики) и только потом режется. Ресурс, уходящий из журнала целиком,
  * ничего не требует: хвоста без основания после него не остаётся.
  *
- * @module host/workspace/journal/journal
+ * @module shell/platform/workspace/journal/journal
  */
 
 import type { ResourceId } from '@/shell/platform/primitives/resource';

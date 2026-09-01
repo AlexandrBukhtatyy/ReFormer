@@ -17,7 +17,7 @@
  * только `form-model`, константа временно жила здесь, теперь она у дизайн-систем, где ей и место
  * (это данные кита, а не правило вложенности). Здесь остался ровно шов.
  *
- * @module reformer-builder/lib/form-model/node-kind
+ * @module lib/form-model/node-kind
  */
 
 import {

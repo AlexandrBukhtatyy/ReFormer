@@ -1,7 +1,7 @@
 /**
  * Кодек класс-токена узла.
  *
- * @module reformer-builder/lib/form-model/node-token.test
+ * @module lib/form-model/node-token.test
  */
 
 import { describe, expect, it } from 'vitest';

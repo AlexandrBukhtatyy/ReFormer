@@ -10,7 +10,7 @@
  * Узел без селектора адресовать нечем, и правило видимости на нём стало бы no-op — ни ошибки,
  * ни эффекта.
  *
- * @module reformer-builder/lib/codegen/selectors
+ * @module lib/codegen/selectors
  */
 
 import {

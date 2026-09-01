@@ -7,7 +7,7 @@
  * функция. Смена локали посреди хода оставит на экране прежний язык у уже отправленных
  * сообщений — это цена того, что ход не является отрисовкой.
  *
- * @module app/ai-host
+ * @module shell/boot/ports/ai
  */
 
 import type { ResourceId } from '@/shell/platform/primitives/resource';

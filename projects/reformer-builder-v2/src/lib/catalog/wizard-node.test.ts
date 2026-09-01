@@ -7,7 +7,7 @@
  * становился необратимо сломанным: слот исчезал, вставка уходила в `children`, и вернуть шаги
  * было уже нечем — ни агенту, ни человеку. React-free (node).
  *
- * @module reformer-builder/lib/catalog/wizard-node.test
+ * @module lib/catalog/wizard-node.test
  */
 
 import { describe, expect, it } from 'vitest';

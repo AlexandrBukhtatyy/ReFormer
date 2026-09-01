@@ -5,7 +5,7 @@
  * собранная до загрузки кита, обязана пересобраться после неё. Проверять это на настоящем
  * импорте нечем — он тянет чанк на сотни килобайт, — поэтому загрузка внедряется параметром.
  *
- * @module app/kit-namespace.test
+ * @module shell/boot/ports/kit-namespace.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

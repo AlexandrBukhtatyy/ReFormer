@@ -12,7 +12,7 @@
  * то есть читала «каталог, собранный для текущего кита». В v2 собранный каталог передаётся
  * ПАРАМЕТРОМ: держать его — работа сервиса плагина, домен только считает по нему производные.
  *
- * @module reformer-builder/lib/catalog/compound
+ * @module lib/catalog/compound
  */
 
 import type { CatalogEntry } from './types';

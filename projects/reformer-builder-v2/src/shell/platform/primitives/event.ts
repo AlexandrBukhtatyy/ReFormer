@@ -14,7 +14,7 @@
  * **Ошибка подписчика не касается отправителя.** Она не прерывает рассылку и не выходит
  * наружу из `emit` — см. {@link EventBusOptions.onListenerError}.
  *
- * @module host/primitives/event
+ * @module shell/platform/primitives/event
  */
 
 import { toDisposable, type Disposable } from './disposable';

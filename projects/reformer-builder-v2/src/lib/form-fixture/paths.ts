@@ -16,7 +16,7 @@
  * одним именем (см. `plugins/preview/compiling/fixture`). Разделение графов держится на имени
  * файла: отбор сайдкаров исключает {@link FIXTURE_FILE} явно ({@link isFixturePath}).
  *
- * @module reformer-builder/lib/form-fixture/paths
+ * @module lib/form-fixture/paths
  */
 
 /** Имя файла фикстуры внутри каталога формы. */

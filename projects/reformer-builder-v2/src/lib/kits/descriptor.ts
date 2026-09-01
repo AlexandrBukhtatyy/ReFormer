@@ -11,7 +11,7 @@
  * который завёл блок `kit`, но ещё не перенёс в записи `preview`, внезапно начал бы рисовать
  * оверлеи вживую (то есть невидимыми узлами на canvas).
  *
- * @module reformer-builder/lib/kits/descriptor
+ * @module lib/kits/descriptor
  */
 
 import type { CatalogJson, CatalogRecord } from '../catalog/types';

@@ -4,12 +4,12 @@
  * Проверяется то, ради чего оно заведено: хэндл переживает «перезагрузку» (новое хранилище
  * над той же базой), ключей может быть много, а отсутствующий ключ — обычный ответ, а не отказ.
  *
- * @module app/fs-handles.test
+ * @module shell/platform/source/fs-handles.test
  */
 
 import { describe, expect, it } from 'vitest';
 
-import type { FsDirectoryHandle } from '@/shell/platform/source/fs-access';
+import type { FsDirectoryHandle } from './fs-access';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
 import { createDirectoryHandleStore } from './fs-handles';
 

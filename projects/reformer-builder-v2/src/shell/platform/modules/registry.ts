@@ -39,7 +39,7 @@
  * на `resolve` не молчит и не отдаёт `undefined`, а отказывает причиной `cold`: «не зарегистрирован»
  * и «зарегистрирован, но не прогрет» чинятся в разных местах.
  *
- * @module host/modules/registry
+ * @module shell/platform/modules/registry
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

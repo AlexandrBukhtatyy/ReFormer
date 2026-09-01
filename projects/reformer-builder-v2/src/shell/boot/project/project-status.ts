@@ -11,7 +11,7 @@
  * Модуль типизован структурно и ничего не импортирует из `./project`: так он проверяется
  * в `node` без рабочей области, хранилищ и React.
  *
- * @module app/project-status
+ * @module shell/boot/project/project-status
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

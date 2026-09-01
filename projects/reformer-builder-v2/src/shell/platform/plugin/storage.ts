@@ -30,7 +30,7 @@
  * `pluginId` связывается в момент создания хранилища рантаймом — тем же приёмом, что
  * `ExtensionRegistry.forPlugin`.
  *
- * @module host/plugin/storage
+ * @module shell/platform/plugin/storage
  */
 
 /** Данные плагина. Переживают перезагрузку страницы — если бэкенд постоянный. */

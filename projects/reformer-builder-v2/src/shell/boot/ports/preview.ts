@@ -10,7 +10,7 @@
  * единственное место, тянущее кит целиком. Пока чанк в пути, поверхность рисует подписанные
  * заглушки: не отказ, а честное «компонент ещё едет».
  *
- * @module app/preview-host
+ * @module shell/boot/ports/preview
  */
 
 import { useSyncExternalStore } from 'react';
@@ -31,7 +31,7 @@ import type {
   PreviewSourceCapabilities,
   Translate,
 } from '@/plugins/preview';
-import { fromRoot as resolveFromRoot } from '../resource-paths';
+import { fromRoot as resolveFromRoot } from '@/shell/platform/primitives/resource-path';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface PreviewHostDeps {
@@ -143,7 +143,7 @@ export function createPreviewHost(deps: PreviewHostDeps): PreviewHost {
 
     // Фикстура лежит не рядом с формой, а в отдельном дереве проекта, поэтому подниматься
     // к ней от документа пришлось бы на неизвестное заранее число уровней. Арифметику делает
-    // платформа (`app/resource-paths`), плагин лишь называет путь.
+    // платформа (`platform/primitives/resource-path`), плагин лишь называет путь.
     resolveFromRoot,
 
     onDidChangeFiles: (cb: () => void): Disposable => {

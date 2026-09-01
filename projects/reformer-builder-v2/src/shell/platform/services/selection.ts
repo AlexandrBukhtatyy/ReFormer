@@ -48,7 +48,7 @@
  * с пустым списком. Иначе карта росла бы на каждый файл, который когда-либо открывали, а
  * «выделения нет» имело бы два неразличимых представления.
  *
- * @module host/services/selection
+ * @module shell/platform/services/selection
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';

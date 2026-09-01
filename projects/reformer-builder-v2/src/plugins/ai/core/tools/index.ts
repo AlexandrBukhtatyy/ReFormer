@@ -15,7 +15,7 @@
  * тогда он честно отвечает «справка недоступна». Иначе поверхность инструментов зависела бы от
  * состояния сборки, а храповик (`core/tool-surface.test.ts`) мерил бы разное в разных запусках.
  *
- * @module plugins/ai/core/tools
+ * @module plugins/ai/core/tools/index
  */
 
 import type { KnowledgeLoader } from '../../knowledge';

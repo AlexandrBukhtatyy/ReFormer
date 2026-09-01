@@ -13,7 +13,7 @@
  * (в v1 так грузится `typescript`). Сама линковка внутри — синхронная и обязана такой остаться:
  * `require` в CommonJS-модуле синхронен.
  *
- * @module host/modules/loader
+ * @module shell/platform/modules/loader
  */
 
 import {

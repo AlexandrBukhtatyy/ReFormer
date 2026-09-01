@@ -17,7 +17,7 @@
  * Пункт рисует то, что вернула модель; она берёт имя у команды. Поэтому переименование
  * команды меняет и палитру, и меню одновременно, а разойтись им негде.
  *
- * @module host/ui/MenuBar
+ * @module shell/platform/ui/chrome/MenuBar
  */
 
 import { useCallback, useEffect, useMemo, useReducer, type ReactElement } from 'react';

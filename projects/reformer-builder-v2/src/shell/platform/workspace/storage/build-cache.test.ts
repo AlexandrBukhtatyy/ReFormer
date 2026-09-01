@@ -5,7 +5,7 @@
  * модуль написан: раскладка на диске, отказ по битому ключу, политика промаха и порядок
  * вытеснения.
  *
- * @module host/workspace/storage/build-cache.test
+ * @module shell/platform/workspace/storage/build-cache.test
  */
 
 import { describe, expect, it } from 'vitest';

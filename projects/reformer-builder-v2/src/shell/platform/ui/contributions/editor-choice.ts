@@ -37,7 +37,7 @@
  * когда содержимое изменилось так, что редактор за него больше не берётся, — и отваливается
  * молча в правильную сторону: на умолчание, а не в «редактора нет».
  *
- * @module host/ui/editor-choice
+ * @module shell/platform/ui/contributions/editor-choice
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

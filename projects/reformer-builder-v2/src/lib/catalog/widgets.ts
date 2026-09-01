@@ -4,7 +4,7 @@
  * `x-doc.kind` либо выводится из `enum`/`type`, границы/дефолт/подсказка — из стандартных ключей
  * JSON Schema, секции — из `x-doc.group`.
  *
- * @module reformer-builder/lib/catalog/widgets
+ * @module lib/catalog/widgets
  */
 
 import type { PropsSchema, PropWidget } from '@reformer/ui-kit/meta';

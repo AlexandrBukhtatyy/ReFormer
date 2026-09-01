@@ -24,7 +24,7 @@
  * без потери воспроизведения. Владелец журнала передаёт это знание через `onQuotaPressure`;
  * умолчание — намеренно грубое, см. {@link WorkspaceMetaStoreOptions}.
  *
- * @module host/workspace/storage/idb
+ * @module shell/platform/workspace/storage/idb
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

@@ -39,7 +39,7 @@
  * `navigator.storage.persist()` НЕ запрашиваем: содержимое одноразовое, и вытеснение браузером —
  * штатный режим (тот же довод, что в `packages/reformer-form-registry/src/storage/opfs.ts`).
  *
- * @module host/workspace/storage/build-cache
+ * @module shell/platform/workspace/storage/build-cache
  */
 
 import type { OpfsDirectoryHandle, OpfsFileHandle, OpfsStoreOptions } from './opfs';

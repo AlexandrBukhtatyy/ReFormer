@@ -29,7 +29,7 @@
  * с наполовину очищенным хранилищем и без единого следа причины. Вместо этого показывается
  * уведомление с кнопкой перезагрузки — решение остаётся за человеком.
  *
- * @module host/ui/storage-purge
+ * @module shell/platform/ui/dialogs/storage-purge
  */
 
 import type { CommandContribution } from '@/shell/platform/primitives/command';

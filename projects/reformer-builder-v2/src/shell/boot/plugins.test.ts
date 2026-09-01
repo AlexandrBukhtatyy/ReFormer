@@ -10,7 +10,7 @@
  *
  * Оба случая в этом проекте уже происходили. Отсюда этот файл.
  *
- * @module app/plugins.test
+ * @module shell/boot/plugins.test
  */
 
 import { describe, expect, it, vi } from 'vitest';

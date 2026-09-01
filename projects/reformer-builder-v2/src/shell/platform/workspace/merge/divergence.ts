@@ -40,7 +40,7 @@
  * счётчик в строке состояния пришлось бы считать фильтрацией, а список расхождений — искать
  * среди совпадений.
  *
- * @module host/workspace/merge/divergence
+ * @module shell/platform/workspace/merge/divergence
  */
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';

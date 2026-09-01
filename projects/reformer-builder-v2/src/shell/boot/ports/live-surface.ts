@@ -23,7 +23,7 @@
  * своё. Отсюда — адрес документа, мок-данные, хранилище введённых значений и имя источника
  * находок: всё это принадлежит превью и редактору не видно.
  *
- * @module app/live-surface
+ * @module shell/boot/ports/live-surface
  */
 
 import type { RootExtensionRegistry } from '@/shell/platform/primitives/extension-point';

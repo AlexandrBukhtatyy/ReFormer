@@ -42,7 +42,7 @@
  * Регистрация атомарна: словарь с одним битым сообщением не оставляет пространство имён
  * наполовину заполненным.
  *
- * @module host/services/i18n/i18n
+ * @module shell/platform/services/i18n/i18n
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';
