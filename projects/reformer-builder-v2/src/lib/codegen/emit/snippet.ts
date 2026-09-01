@@ -2,31 +2,21 @@
  * Сниппет для ручной регистрации формы в приложении-хосте. Без автопатча: показывается после
  * генерации и дублируется в `README.md`.
  *
+ * Текст живёт в `templates/_snippet.eta` и отсюда только рендерится. Потребителей у него два —
+ * панель экспорта (через эту функцию) и шаблон README (через `include`), — и две копии одного
+ * текста разошлись бы на первой же правке: человек скопировал бы из панели одно, а в README
+ * прочитал другое.
+ *
  * @module reformer-builder/lib/codegen/emit/snippet
  */
 
 import type { Names } from '../naming';
+import { renderTemplate } from '../render';
+import { SNIPPET_PARTIAL, snippetTemplate } from '../templates';
 
 export function appSnippet(n: Names): string {
-  return [
-    '// ── Способ 1 (рекомендуемый): через реестр форм — одна строка на регистрацию.',
-    '// Всё остальное (схема, реестр компонентов, модель, поведение) описано записью реестра',
-    `// в index.tsx (${n.entryConst}) — билдер перегенерирует её при изменениях.`,
-    "import { getFormRegistry } from '@reformer/form-registry';",
-    `import { ${n.entryConst} } from './pages/demo/${n.dir}';`,
-    '',
-    `getFormRegistry().register(${n.entryConst});`,
-    '',
-    '// Дальше форму можно смонтировать где угодно, зная только её id:',
-    `//   <FormOutlet id="${n.exampleId}" />`,
-    '',
-    '// ── Способ 2: как обычную страницу, если реестр не используется.',
-    `import ${n.pageComponent} from './pages/demo/${n.dir}';`,
-    '',
-    '// пункт в списке примеров:',
-    `{ id: '${n.exampleId}', path: '${n.routePath}', title: '${n.title}', description: '' },`,
-    '',
-    '// маршрут внутри <Routes>:',
-    `<Route path="${n.routePath}" element={<${n.pageComponent} />} />`,
-  ].join('\n');
+  // Хвостовой перевод строки снимается: `_snippet.eta` — текстовый ФАЙЛ и оканчивается им,
+  // как всякий файл, а сниппет — ФРАГМЕНТ, который вставляют внутрь блока кода. В README
+  // этой правки не нужно: там перевод строки съедает закрывающий тег включения.
+  return renderTemplate(SNIPPET_PARTIAL, snippetTemplate, { names: n }).replace(/\n$/, '');
 }

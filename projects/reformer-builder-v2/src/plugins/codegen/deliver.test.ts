@@ -12,6 +12,7 @@ const file = (over: Partial<ModuleFile> & Pick<ModuleFile, 'path'>): ModuleFile 
   cls: 'derived',
   regenerable: false,
   targetId: `t:${over.path}`,
+  origin: 'builtin',
   ...over,
 });
 

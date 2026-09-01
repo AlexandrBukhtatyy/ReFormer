@@ -1,0 +1,16 @@
+// data-sources.ts — значения $dataSource. МОК: опции из синтеза, замените реальными.
+// Пишется один раз и при регенерации не затирается.
+
+<% if (it.dataSources.options.length > 0) { -%>
+import type { SelectOption } from './types';
+
+<% } -%>
+<%~ it.blocks([
+  it.dataSources.options
+    .map((d) => `export const ${d.name}: SelectOption[] = ${it.json(d.value)};`)
+    .join('\n\n'),
+  it.dataSources.scalars.map((d) => `export const ${d.name} = ${d.literal};`).join('\n'),
+  it.dataSources.labels
+    .map((name) => `export const ${name} = (_item: unknown, index: number): string =>\n  '#' + (index + 1); // TODO: подпись элемента`)
+    .join('\n'),
+]) %>

@@ -1,0 +1,19 @@
+// ── Способ 1 (рекомендуемый): через реестр форм — одна строка на регистрацию.
+// Всё остальное (схема, реестр компонентов, модель, поведение) описано записью реестра
+// в index.tsx (<%= it.names.entryConst %>) — билдер перегенерирует её при изменениях.
+import { getFormRegistry } from '@reformer/form-registry';
+import { <%= it.names.entryConst %> } from './pages/demo/<%= it.names.dir %>';
+
+getFormRegistry().register(<%= it.names.entryConst %>);
+
+// Дальше форму можно смонтировать где угодно, зная только её id:
+//   <FormOutlet id="<%= it.names.exampleId %>" />
+
+// ── Способ 2: как обычную страницу, если реестр не используется.
+import <%= it.names.pageComponent %> from './pages/demo/<%= it.names.dir %>';
+
+// пункт в списке примеров:
+{ id: '<%= it.names.exampleId %>', path: '<%= it.names.routePath %>', title: '<%= it.names.title %>', description: '' },
+
+// маршрут внутри <Routes>:
+<Route path="<%= it.names.routePath %>" element={<<%= it.names.pageComponent %> />} />

@@ -1,0 +1,24 @@
+// data-sources.ts — значения $dataSource. МОК: опции из синтеза, замените реальными.
+// Пишется один раз и при регенерации не затирается.
+
+import type { SelectOption } from './types';
+
+export const LOAN_TYPES: SelectOption[] = [
+  {
+    "value": "option1",
+    "label": "Loan types 1"
+  },
+  {
+    "value": "option2",
+    "label": "Loan types 2"
+  },
+  {
+    "value": "option3",
+    "label": "Loan types 3"
+  }
+];
+
+export const HINT_TEXT = "значение";
+
+export const PROP_LABEL = (_item: unknown, index: number): string =>
+  '#' + (index + 1); // TODO: подпись элемента

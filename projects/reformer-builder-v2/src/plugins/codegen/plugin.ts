@@ -24,7 +24,9 @@ import {
   PanelPoint,
   RESOURCE_CONTEXT_MENU,
   whenResource,
+  type Disposable,
   type MenuContribution,
+  type NotificationsService,
   type ResourceId,
   type CommandContribution,
   type PanelContribution,
@@ -38,10 +40,13 @@ import {
   type GenerateIntoDeps,
 } from './context-menu';
 import { CodegenTargetPoint, type CodegenTarget, type ExtensionPointRef } from './contract';
+import { ejectTemplate, type EjectOutcome } from './eject';
 import { createFixture, type FixtureOutcome } from './fixture-command';
+import type { CodegenProblem } from './generate';
 import type { CodegenHost, MessageSink } from './host';
 import { CODEGEN_MESSAGES } from './messages';
 import { runCodegen } from './run';
+import { applyOverrides, discoverUserTargets } from './user-targets';
 import { createCodegenSessions, type CodegenSessions } from './state';
 import { BUILTIN_TARGETS } from './targets';
 import { ExportPanel } from './ui/ExportPanel';
@@ -57,6 +62,25 @@ export const GENERATE_COMMAND_ID = 'codegen.generate';
 
 /** Идентификатор команды создания фикстуры предпросмотра. */
 export const CREATE_FIXTURE_COMMAND_ID = 'codegen.create-fixture';
+
+/**
+ * Перечитать цели из `.ui_builder/codegen/`.
+ *
+ * Командой, а не слежением за файлами: File System Access слежения не даёт — тот же
+ * названный пробел, что у шаблонов форм, и та же кнопка «перечитать» в ответ.
+ */
+export const REFRESH_TARGETS_COMMAND_ID = 'codegen.refresh-targets';
+
+/** Выгрузить встроенный шаблон в проект — «скопируй и правь». */
+export const EJECT_TEMPLATE_COMMAND_ID = 'codegen.eject-template';
+
+/**
+ * Порядок цели из проекта, если она ничего не переопределяет и порядка не назвала.
+ *
+ * После всех встроенных (у тех порядок кратен десяти и не доходит до тысячи): новый
+ * файл модуля — это добавка к канону, а не вставка в его середину.
+ */
+const USER_TARGET_ORDER = 1000;
 
 /**
  * Слот по умолчанию — правый док.
@@ -89,7 +113,11 @@ export function codegenPanel(
   host: CodegenHost,
   sessions: CodegenSessions,
   targets: () => readonly CodegenTarget[],
-  slot: SlotId
+  slot: SlotId,
+  /** Выгрузка шаблона цели. Без неё панель не показывает кнопку — и это законно. */
+  onEject?: (targetId: string) => void,
+  /** Отказы разбора целей из проекта — панель показывает их вместе с отказами печати. */
+  problems?: () => readonly CodegenProblem[]
 ): PanelContribution {
   return {
     id: CODEGEN_PANEL_ID,
@@ -98,7 +126,7 @@ export function codegenPanel(
     icon: CodegenIcon,
     when: panelVisible,
     order: 20,
-    Body: () => createElement(ExportPanel, { host, sessions, targets }),
+    Body: () => createElement(ExportPanel, { host, sessions, targets, onEject, problems }),
   };
 }
 
@@ -161,7 +189,15 @@ export function codegenDocumentMenuItems(
 export function codegenCommands(
   host: CodegenHost,
   sessions: CodegenSessions,
-  targets: () => readonly CodegenTarget[]
+  targets: () => readonly CodegenTarget[],
+  /**
+   * Отказы разбора пользовательских целей.
+   *
+   * Приезжают в отчёт вместе с отказами печати: человек смотрит в панель после нажатия
+   * «Сгенерировать», и «мой шаблон не подхватился» обязан объясниться именно там,
+   * а не в тосте, который уже исчез.
+   */
+  problems: () => readonly CodegenProblem[] = () => []
 ): readonly CommandContribution[] {
   return [
     {
@@ -181,6 +217,7 @@ export function codegenCommands(
           documentId,
           store,
           formName: store.get().formName,
+          problems: problems(),
         });
       },
     },
@@ -199,6 +236,79 @@ export function codegenCommands(
       },
     },
   ];
+}
+
+/**
+ * Команды вокруг целей из проекта: перечитать каталог и выгрузить встроенный шаблон.
+ *
+ * Отдельно от {@link codegenCommands}, потому что обе не про ДОКУМЕНТ: перечитывание
+ * относится к проекту, выгрузка — к цели. Ни той, ни другой не нужна активная вкладка.
+ */
+export function userTargetCommands(
+  host: CodegenHost,
+  targets: () => readonly CodegenTarget[],
+  reload: () => Promise<number>,
+  notifications: NotificationsService | null
+): readonly CommandContribution[] {
+  return [
+    {
+      id: REFRESH_TARGETS_COMMAND_ID,
+      titleKey: 'command.refresh-targets',
+      run() {
+        void reload().then((count) => {
+          // Число называется всегда, включая ноль: «перечитал и не нашёл ничего» —
+          // это ответ, а молчание читается как «кнопка не сработала».
+          notifications?.info('codegen.notify.targets-refreshed', { params: { count } });
+        });
+      },
+    },
+    {
+      id: EJECT_TEMPLATE_COMMAND_ID,
+      titleKey: 'command.eject-template',
+      run(args) {
+        const targetId = targetIdOf(args);
+        if (targetId === null) return;
+        void ejectTemplate({ host, targets }, targetId).then(async (outcome) => {
+          notifyEject(notifications, outcome);
+          if (outcome.kind !== 'written') return;
+          // Перечитываем сразу: иначе выгруженный файл существует, но целью ещё не стал,
+          // и первая же генерация напечатала бы встроенный шаблон — как будто выгрузка
+          // ничего не сделала.
+          await reload();
+          host.openResource?.(outcome.id);
+        });
+      },
+    },
+  ];
+}
+
+/** Идентификатор цели из аргументов команды. Проверяется, а не приводится типом. */
+export function targetIdOf(args: unknown): string | null {
+  if (typeof args !== 'object' || args === null) return null;
+  const value = (args as { targetId?: unknown }).targetId;
+  return typeof value === 'string' ? value : null;
+}
+
+/** Исход выгрузки словами. Показывается всегда, включая «ничего не сделал». */
+function notifyEject(notifications: NotificationsService | null, outcome: EjectOutcome): void {
+  if (notifications === null) return;
+  switch (outcome.kind) {
+    case 'written':
+      notifications.success('codegen.notify.eject-written', { params: { name: outcome.name } });
+      return;
+    case 'no-project':
+      notifications.warning('codegen.notify.eject-no-project');
+      return;
+    case 'not-a-template':
+      notifications.info('codegen.notify.eject-not-a-template');
+      return;
+    case 'read-only':
+      notifications.error('codegen.notify.eject-read-only');
+      return;
+    case 'failed':
+      notifications.error('codegen.notify.eject-failed', { params: { message: outcome.message } });
+      return;
+  }
 }
 
 /** Показывает исход создания фикстуры. Открывает файл, только когда он действительно записан. */
@@ -250,8 +360,51 @@ export function createCodegenPlugin(options: CodegenPluginOptions): Plugin {
 
       // Список читается ЛЕНИВО, через реестр: цели вносят и снимают, в том числе чужие
       // плагины, и захваченный массив показывал бы состав на момент активации.
+      //
+      // Переопределённые снимаются ЗДЕСЬ, а не реестром: замена — предметное правило
+      // кодогена, а реестр про неё не знает и знать не должен.
       const targets = (): readonly CodegenTarget[] =>
-        ctx.extensions.get(point).map((contribution) => contribution.value);
+        applyOverrides(ctx.extensions.get(point).map((contribution) => contribution.value));
+
+      // Цели из проекта вносятся ВКЛАДАМИ наравне с нашими — только так они попадают
+      // в общий порядок: цель, заменившая встроенную, обязана встать на ЕЁ место, иначе
+      // состав модуля переставлялся бы от одного факта переопределения.
+      let userDisposables: Disposable[] = [];
+      let userProblems: readonly CodegenProblem[] = [];
+
+      const dropUserTargets = (): void => {
+        for (const disposable of userDisposables) disposable.dispose();
+        userDisposables = [];
+      };
+
+      const reloadUserTargets = async (): Promise<number> => {
+        dropUserTargets();
+        const found = await discoverUserTargets(host);
+        userProblems = found.problems;
+        for (const target of found.targets) {
+          const inherited = BUILTIN_TARGETS.find((t) => t.id === target.overrides)?.order;
+          userDisposables.push(
+            ctx.extensions.contribute(point, target, {
+              // Свой ключ в реестре: `id` принадлежит цели, а совпадение КЛЮЧЕЙ реестр
+              // встречает броском — то есть отказом активации вместо отказа одного файла.
+              id: `user:${target.id}`,
+              order: target.order ?? inherited ?? USER_TARGET_ORDER,
+            })
+          );
+        }
+        return found.targets.length;
+      };
+      ctx.subscriptions.push({ dispose: dropUserTargets });
+      void reloadUserTargets();
+      // Проект в момент активации может быть ещё не открыт, и тогда первое чтение вернуло бы
+      // пустой список навсегда — до тех пор, пока человек не догадается нажать «перечитать».
+      // Смена кита — тот же признак «проект появился», по которому перечитывает себя панель
+      // шаблонов форм; своего события «проект открыт» порт не отдаёт.
+      ctx.subscriptions.push(
+        host.onDidChangeKit(() => {
+          void reloadUserTargets();
+        })
+      );
 
       for (const target of BUILTIN_TARGETS) {
         ctx.subscriptions.push(
@@ -259,7 +412,7 @@ export function createCodegenPlugin(options: CodegenPluginOptions): Plugin {
         );
       }
 
-      for (const command of codegenCommands(host, sessions, targets)) {
+      for (const command of codegenCommands(host, sessions, targets, () => userProblems)) {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
@@ -268,6 +421,10 @@ export function createCodegenPlugin(options: CodegenPluginOptions): Plugin {
       // о ней знать не обязан.
       const intoDeps: GenerateIntoDeps = { host, targets };
       const notifications = ctx.services.get(NotificationsServiceToken) ?? null;
+
+      for (const command of userTargetCommands(host, targets, reloadUserTargets, notifications)) {
+        ctx.subscriptions.push(ctx.commands.register(command));
+      }
       for (const command of codegenContextCommands(intoDeps, notifications)) {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
@@ -276,7 +433,18 @@ export function createCodegenPlugin(options: CodegenPluginOptions): Plugin {
         ctx.subscriptions.push(ctx.extensions.contribute(MenuPoint, item.value, { id: item.id }));
       }
 
-      const panel = codegenPanel(host, sessions, targets, slot);
+      const panel = codegenPanel(
+        host,
+        sessions,
+        targets,
+        slot,
+        (targetId) => {
+          // Через реестр команд, а не прямым вызовом: кнопка панели обязана делать то же
+          // самое, что палитра и клавиатурное сочетание, — иначе путей к действию два.
+          ctx.commands.get(EJECT_TEMPLATE_COMMAND_ID)?.run({ targetId });
+        },
+        () => userProblems
+      );
       ctx.subscriptions.push(ctx.extensions.contribute(PanelPoint, panel, { id: panel.id }));
     },
     deactivate() {

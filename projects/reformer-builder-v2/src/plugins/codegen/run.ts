@@ -20,7 +20,7 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@/sdk';
 import type { CodegenTarget } from './contract';
 import { deliverModule, SourceReadOnlyError } from './deliver';
-import { generateModule } from './generate';
+import { generateModule, type CodegenProblem } from './generate';
 import type { CodegenDocument, CodegenHost } from './host';
 import type { CodegenStore } from './state';
 
@@ -62,6 +62,14 @@ export interface RunOptions {
   readonly store: CodegenStore;
   /** Имя формы; пустое — берётся из имени файла. */
   readonly formName?: string;
+  /**
+   * Отказы, случившиеся ДО прогона, — разбор пользовательских целей.
+   *
+   * Показываются там же, где отказы печати, и по той же причине: человек смотрит
+   * в панель после нажатия «Сгенерировать», и «мой шаблон не подхватился» обязан
+   * объясниться именно там, а не в исчезнувшем тосте.
+   */
+  readonly problems?: readonly CodegenProblem[];
 }
 
 /**
@@ -104,7 +112,13 @@ export async function runCodegen(options: RunOptions): Promise<void> {
     host.format
   );
 
-  const files = module.files.map((file) => ({ path: file.path, cls: file.cls }));
+  const problems = [...(options.problems ?? []), ...module.problems];
+  const files = module.files.map((file) => ({
+    path: file.path,
+    cls: file.cls,
+    targetId: file.targetId,
+    origin: file.origin,
+  }));
   // Сниппет регистрации — не файл модуля: он вставляется в ЧУЖОЕ приложение, и записать его
   // за человека нельзя. Поэтому он не цель, а часть отчёта.
   const snippet = appSnippet(module.context.names);
@@ -116,7 +130,8 @@ export async function runCodegen(options: RunOptions): Promise<void> {
       formName,
       files,
       snippet,
-      problems: module.problems,
+      problems,
+      view: module.view,
       delivery,
       errorKey: null,
     });
@@ -126,7 +141,8 @@ export async function runCodegen(options: RunOptions): Promise<void> {
       formName,
       files,
       snippet,
-      problems: module.problems,
+      problems,
+      view: module.view,
       delivery: null,
       errorKey: error instanceof SourceReadOnlyError ? 'error.read-only' : 'error.failed',
     });

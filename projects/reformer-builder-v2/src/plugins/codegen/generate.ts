@@ -24,8 +24,13 @@ import {
   prepare,
   withFiles,
   acceptsMarker,
+  buildView,
+  renderTemplate,
+  withLocal,
   withMarker,
+  withViewFiles,
   type CodegenInput,
+  type CodegenView,
   type EmitContext,
   type EmittedFileRef,
   type FileClass,
@@ -41,13 +46,27 @@ export interface ModuleFile {
   readonly regenerable: boolean;
   /** Кто напечатал — для отчёта и диагностики. */
   readonly targetId: string;
+  /**
+   * Откуда цель приехала.
+   *
+   * Панели это нужно, чтобы сказать: `registry.ts` печатает ФАЙЛ ЧЕЛОВЕКА, а не наш.
+   * Без пометки замена встроенной цели выглядела бы как её отсутствие.
+   */
+  readonly origin: 'builtin' | 'user' | 'plugin';
 }
 
 /** Отказ одной цели. Данные, а не исключение: генерация продолжается. */
 export interface CodegenProblem {
   readonly targetId: string;
   readonly path: string;
-  readonly reason: 'threw' | 'duplicate-path' | 'escaping-path';
+  readonly reason:
+    | 'threw'
+    | 'duplicate-path'
+    | 'escaping-path'
+    | 'no-body'
+    | 'both-bodies'
+    /** Файл цели из проекта не разбирается: битый заголовок либо `applies`. */
+    | 'template-invalid';
   readonly message: string;
 }
 
@@ -58,6 +77,15 @@ export interface GeneratedModule {
   readonly problems: readonly CodegenProblem[];
   /** Контекст прогона: панель показывает по нему имена и селекторы. */
   readonly context: EmitContext;
+  /**
+   * Вид, который видели шаблоны, — тот самый `it`.
+   *
+   * Отдаётся наружу ради инспектора в панели: первый вопрос автора шаблона — «что лежит
+   * в `it`?», и ответом не может быть «читай исходники». Собран один раз здесь, а не
+   * пересобран панелью: второй вызов `buildView` дал бы ДРУГОЙ объект, и инспектор
+   * показывал бы не то, чем печатали.
+   */
+  readonly view: CodegenView;
 }
 
 /** Форматирование: тексты в порядке входа. Без него файлы уезжают как напечатаны. */
@@ -81,6 +109,21 @@ function selectTargets(
   const claimed = new Map<string, string>();
 
   for (const target of targets) {
+    // Тело ровно одно. Предпочесть одно другому молча значило бы, что цель, объявившая оба,
+    // работает — и её автор узнает о лишнем поле только когда правка в нём ничего не изменит.
+    const hasEmit = target.emit !== undefined;
+    const hasTemplate = target.template !== undefined;
+    if (hasEmit === hasTemplate) {
+      problems.push({
+        targetId: target.id,
+        path: target.path,
+        reason: hasEmit ? 'both-bodies' : 'no-body',
+        message: hasEmit
+          ? 'цель объявила и emit, и template'
+          : 'цель не объявила ни emit, ни template',
+      });
+      continue;
+    }
     if (!isInsideModule(target.path)) {
       problems.push({
         targetId: target.id,
@@ -126,6 +169,25 @@ function messageOf(error: unknown): string {
 }
 
 /**
+ * Текст цели: напечатанный кодом или отрисованный шаблоном.
+ *
+ * Выбор уже сделан отбором — здесь его остаётся исполнить. Имя шаблона в кэше — это `id`
+ * цели: оно уникально в пределах точки расширения по построению и попадает в сообщение
+ * об ошибке, а значит человек видит, КАКОЙ шаблон сломался, а не только чем.
+ */
+function bodyOf(target: CodegenTarget, ctx: EmitContext, view: CodegenView): string {
+  if (target.template !== undefined) {
+    const local = target.view?.(ctx);
+    const data = local === undefined ? view : withLocal(view, local);
+    return renderTemplate(target.id, target.template, data);
+  }
+  if (target.emit !== undefined) return target.emit(ctx);
+  // Недостижимо: цель без тела отвергается отбором. Бросок, а не пустая строка — молчаливый
+  // пустой файл в модуле хуже названного отказа.
+  throw new Error(`цель «${target.id}» без тела дошла до печати`);
+}
+
+/**
  * Напечатать модуль формы.
  *
  * Маркер происхождения ставится ЗДЕСЬ, после форматирования: он считается от тела файла, и если
@@ -142,6 +204,9 @@ export async function generateModule(
 
   const refs: readonly EmittedFileRef[] = selected.map((t) => ({ path: t.path, cls: t.cls }));
   const ctx = withFiles(base, refs);
+  // Вид для шаблонов собирается ОДИН раз на прогон и по тем же данным, что видит код:
+  // два способа узнать состав модуля разошлись бы на первой же цели, читающей `files`.
+  const view = withViewFiles(buildView(base), refs);
 
   const printed: ModuleFile[] = [];
   const emitProblems: CodegenProblem[] = [];
@@ -149,10 +214,11 @@ export async function generateModule(
     try {
       printed.push({
         path: target.path,
-        content: target.emit(ctx),
+        content: bodyOf(target, ctx, view),
         cls: target.cls,
         regenerable: target.regenerable === true,
         targetId: target.id,
+        origin: target.origin ?? 'builtin',
       });
     } catch (error) {
       emitProblems.push({
@@ -183,5 +249,6 @@ export async function generateModule(
     files,
     problems: [...problems, ...emitProblems],
     context: ctx,
+    view,
   };
 }

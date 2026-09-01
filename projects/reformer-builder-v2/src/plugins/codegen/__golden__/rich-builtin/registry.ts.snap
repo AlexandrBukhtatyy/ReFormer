@@ -1,0 +1,22 @@
+// registry.ts — привязка $component/$dataSource к реализациям. Регенерируется.
+
+import { Box, FormField, InputField, SelectField } from '@reformer/ui-kit';
+import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
+import { Step, Wizard } from './renderer.wizard';
+import { LOAN_TYPES, HINT_TEXT, PROP_LABEL } from './data-sources';
+
+export function createRegistry() {
+  return defineRegistry((reg) => {
+    reg.component(FIELD_WRAPPER, FormField);
+    // Визард и тело шага — из шима renderer.wizard.tsx.
+    reg.component('RendererFormWizard', Wizard);
+    reg.component('Step', Step);
+    reg.component('Select', SelectField);
+    reg.component('Input', InputField);
+    reg.component('Box', Box);
+
+    reg.dataSource('LOAN_TYPES', LOAN_TYPES);
+    reg.dataSource('HINT_TEXT', HINT_TEXT);
+    reg.dataSource('PROP_LABEL', PROP_LABEL);
+  });
+}

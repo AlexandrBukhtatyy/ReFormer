@@ -1,0 +1,9 @@
+/**
+ * Поведение формы «Zayavka na kredit» — реактивные связи над моделью.
+ */
+import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
+import type { ZayavkaNaKreditForm } from './types';
+
+export const formBehavior = defineFormBehavior<ZayavkaNaKreditForm>(({ model }) => {
+  computeFrom([model.$.fullName], model.$.agreed, (fullName) => fullName !== null && fullName.length > 1);
+});

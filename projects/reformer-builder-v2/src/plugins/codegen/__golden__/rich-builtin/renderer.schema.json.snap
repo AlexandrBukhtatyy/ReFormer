@@ -1,0 +1,80 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "component": "$component(RendererFormWizard)",
+    "componentProps": {
+      "className": "bg-white",
+      "steps": [
+        {
+          "component": "$component(Step)",
+          "componentProps": {
+            "title": "Кредит"
+          },
+          "children": [
+            {
+              "value": "$model(loanType)",
+              "component": "$component(Select)",
+              "componentProps": {
+                "label": "Тип кредита",
+                "options": "$dataSource(LOAN_TYPES)"
+              }
+            },
+            {
+              "value": "$model(loanAmount)",
+              "component": "$component(Input)",
+              "componentProps": {
+                "label": "Сумма",
+                "type": "number"
+              }
+            },
+            {
+              "value": "$model(comment)",
+              "component": "$component(Input)",
+              "componentProps": {
+                "label": "Комментарий",
+                "placeholder": "$dataSource(HINT_TEXT)"
+              }
+            }
+          ],
+          "selector": "kredit-section"
+        },
+        {
+          "component": "$component(Step)",
+          "componentProps": {
+            "title": "Имущество"
+          },
+          "children": [
+            {
+              "selector": "properties-array",
+              "array": "$model(properties)",
+              "initialValue": {
+                "type": "apartment"
+              },
+              "componentProps": {
+                "title": "Имущество",
+                "itemLabel": "$dataSource(PROP_LABEL)"
+              },
+              "item": {
+                "$template": {
+                  "component": "$component(Box)",
+                  "children": [
+                    {
+                      "value": "$model(type)",
+                      "component": "$component(Select)",
+                      "componentProps": {
+                        "label": "Тип имущества"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "selector": "imuschestvo-section"
+        }
+      ]
+    },
+    "selector": "wizard"
+  }
+}

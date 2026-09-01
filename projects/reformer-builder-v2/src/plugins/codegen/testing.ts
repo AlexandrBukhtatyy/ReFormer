@@ -25,6 +25,8 @@ export interface FakeHostOptions {
   readonly document?: CodegenDocument | null;
   /** Даёт ли композиция сохранение в источник. */
   readonly withSave?: boolean;
+  /** Корень проекта. Без него пользовательских целей нет — так же, как в композиции. */
+  readonly root?: string;
 }
 
 export interface FakeHost extends CodegenHost {
@@ -79,6 +81,10 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
     },
   };
 
+  if (options.root !== undefined) {
+    const root = options.root as ResourceId;
+    host.projectRoot = () => root;
+  }
   if (options.rules !== undefined) {
     const rules = options.rules;
     host.rulesOf = () => rules;

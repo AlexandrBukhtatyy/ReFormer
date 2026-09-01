@@ -11,7 +11,15 @@
 
 import { describe, expect, it } from 'vitest';
 import { builtinKit } from '@/lib/codegen/__fixtures__/kit';
-import { emitIndex, emitModel, emitTypes, makeNames, prepare } from '@/lib/codegen';
+import {
+  buildView,
+  typesTemplate,
+  indexTemplate,
+  makeNames,
+  modelTemplate,
+  prepare,
+  renderTemplate,
+} from '@/lib/codegen';
 import type { FormTemplate, TemplateStore } from './contract';
 import { canRemove, canSave, canUpdate } from './contract';
 import { materializeFiles } from './files';
@@ -48,10 +56,11 @@ const printer: ModulePrinter = async () => [
  */
 const realPrinter: ModulePrinter = async (schema, formName) => {
   const ctx = prepare({ schema, formName, kit: builtinKit() });
+  const view = buildView(ctx);
   return [
-    { path: 'types.ts', content: emitTypes(ctx) },
-    { path: 'model.ts', content: emitModel(ctx) },
-    { path: 'index.tsx', content: emitIndex(ctx) },
+    { path: 'types.ts', content: renderTemplate('test.builtin.types', typesTemplate, view) },
+    { path: 'model.ts', content: renderTemplate('test.builtin.model', modelTemplate, view) },
+    { path: 'index.tsx', content: renderTemplate('test.builtin.index', indexTemplate, view) },
   ];
 };
 

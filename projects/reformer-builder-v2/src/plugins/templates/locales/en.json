@@ -37,6 +37,7 @@
   "error.rename-failed": "Could not rename: {message}",
   "error.save-failed": "The form files could not be sent to the project — it stayed a working copy only.",
   "error.store-read-only": "This store does not accept writes.",
+  "error.template-failed": "Template failed: {message}",
   "files.picked": "Files ({picked} of {total})",
   "form.name": "Form name",
   "form.name.invalid": "Letters or digits are required: file, component and import names are derived from it.",

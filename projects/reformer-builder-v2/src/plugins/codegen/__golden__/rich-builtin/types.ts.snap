@@ -1,0 +1,12 @@
+// types.ts — тип формы (выведен из схемы и мока). Регенерируется.
+
+export type SelectOption = { value: string; label: string };
+
+export type ZayavkaNaKreditForm = {
+  loanType: 'option1' | 'option2' | 'option3';
+  loanAmount: number;
+  comment: string;
+  properties: Array<{
+    type: string;
+  }>;
+};

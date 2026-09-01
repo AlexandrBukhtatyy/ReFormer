@@ -1,0 +1,14 @@
+/**
+ * Валидация формы «Zayavka na kredit» — правила над МОДЕЛЬЮ, не в layout-схеме.
+ * Запуск: validateModel(model, formValidation).
+ */
+import { validate, defineValidationSchema, validateWhen } from '@reformer/core/validation';
+import { minLength, required } from '@reformer/core/validators';
+import type { ZayavkaNaKreditForm } from './types';
+
+export const formValidation = defineValidationSchema<ZayavkaNaKreditForm>(({ model }) => {
+  validate(model.$.fullName, [required(), minLength(2)]);
+  validateWhen(() => model.fullName !== null, () => {
+    validate(model.$.agreed, [required()]);
+  });
+});

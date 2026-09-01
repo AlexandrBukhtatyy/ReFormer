@@ -1,0 +1,44 @@
+# <%= it.names.title %>
+
+Сгенерированная форма (renderer-json). Рендерится и работает сразу на синтетических данных —
+«доведение» сводится к реализации методов в ваших файлах.
+
+## Встраивание
+
+Скопируйте папку в `src/pages/demo/<%= it.names.dir %>/` и зарегистрируйте форму:
+
+```tsx
+<%~ include('codegen.snippet', it) -%>
+```
+
+## Файлы
+
+Набор — канон раскладки renderer-json (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1),
+плоский: без `lib/` и `components/steps/`, запись реестра форм — в `index.tsx`.
+
+- **Регенерируемые** (перезаписываются при повторной генерации): <%= it.files.filter((f) => f.cls === 'derived').map((f) => '`' + f.path + '`').join(', ') %>.
+- **Ваши** (пишутся один раз, не затираются): <%= it.files.filter((f) => f.cls === 'user').map((f) => '`' + f.path + '`').join(', ') %>.
+
+Схема лежит в `renderer.schema.json` — допустимый вариант канона («схема как данные»), выбранный
+ради того, чтобы форма открывалась обратно в билдере. Цена — пути `$model(...)` не проверяются на
+компиляции: опечатка внутри них останется до рантайма, и никто её не поймает. Нужна проверка —
+переложите схему в `renderer.schema.ts` литералом `defineJsonSchema<<%= it.names.TypeName %>>({ ... })`;
+править её в билдере после этого будет нельзя.
+
+Компоненты импортируются из `<%= it.kit.importSpecifier %>` — того кита, который был
+активен при генерации (`<%= it.kit.label %>`).
+
+## Методы для реализации
+
+- `api.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
+<% if (it.selectors.sections.length > 0) { -%>
+- `renderer.behavior.ts` → раскомментируйте `hideWhen` для секций: <%= it.selectors.sections.map((s) => '`' + s.selector + '`').join(', ') %>.
+<% } -%>
+<% if (it.dataSources.labels.length > 0) { -%>
+- `data-sources.ts` → подписи элементов массивов: <%= it.dataSources.labels.map((x) => '`' + x + '`').join(', ') %>.
+<% } -%>
+<% if (it.dataSources.options.length > 0) { -%>
+- `data-sources.ts` → замените синтетические опции реальными словарями или загрузчиками.
+<% } -%>
+- `validation.ts` → допишите правила (сейчас — только `required`).
+- `form.behavior.ts` → вычисляемые поля и условное включение (по желанию).

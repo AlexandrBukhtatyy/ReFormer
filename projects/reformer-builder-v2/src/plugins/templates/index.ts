@@ -74,6 +74,7 @@ export type {
   FormTemplate,
   RemovingStore,
   SavingStore,
+  TemplateEngine,
   TemplateFile,
   TemplateManifest,
   TemplateSource,
@@ -113,6 +114,7 @@ export {
   resolvePicked,
   suggestBaseName,
   templateSlug,
+  type MaterializeOptions,
   type SourceFile,
 } from './files';
 
@@ -128,6 +130,9 @@ export {
 export type { NameCase } from './placeholders';
 
 export { TEMPLATES_MESSAGES } from './messages';
+
+export { buildTemplateView, renderTemplateFile } from './render';
+export type { FormTemplateView, TemplateViewOptions } from './render';
 
 export { createTemplatesRefresh } from './refresh';
 export type { TemplatesRefresh } from './refresh';

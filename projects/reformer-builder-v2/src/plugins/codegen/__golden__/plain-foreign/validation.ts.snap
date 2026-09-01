@@ -1,0 +1,21 @@
+// validation.ts — валидация модели. МОК: required выведены из схемы, допишите правила.
+// Пишется один раз и при регенерации не затирается.
+
+import { type FormModel } from '@reformer/core';
+import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import type { ZayavkaNaKreditForm } from './types';
+
+type Root = ZayavkaNaKreditForm;
+
+export const formValidation = defineValidationSchema<Root>(({ model }) => {
+    validate(model.$.fullName, [required({ message: 'Обязательное поле' })]);
+  });
+
+/** Пошаговый контракт визарда. Полная проверка — validateModel(model, formValidation). */
+export function makeValidationConfig(model: FormModel<Root>) {
+  return {
+    validateStep: (_step: number): Promise<boolean> => validateModel(model, formValidation),
+    validateAll: (): Promise<boolean> => validateModel(model, formValidation),
+  };
+}

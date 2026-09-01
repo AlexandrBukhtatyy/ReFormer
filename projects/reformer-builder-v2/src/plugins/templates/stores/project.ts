@@ -92,6 +92,10 @@ export function createProjectStore(host: TemplatesHost): TemplateStore {
       files,
       requires: manifest.requires,
       createdAt: manifest.createdAt,
+      // Сверка со списком, а не доверие манифесту: чужое значение означало бы шаблон,
+      // который не подставляет имя ничем, — и человек получил бы файлы с `__FormName__`
+      // внутри, решив, что сломался билдер.
+      ...(manifest.engine === 'eta' ? { engine: 'eta' as const } : {}),
     };
   };
 
@@ -103,6 +107,7 @@ export function createProjectStore(host: TemplatesHost): TemplateStore {
       baseName,
       createdAt: template.createdAt,
       requires: template.requires as Record<string, string[]> | undefined,
+      engine: template.engine,
     };
     return `${JSON.stringify(manifest, null, 2)}\n`;
   };

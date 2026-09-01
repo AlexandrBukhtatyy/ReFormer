@@ -1,0 +1,45 @@
+// registry.ts — привязка $component/$dataSource к реализациям. Регенерируется.
+
+<% if (it.registry.hasPlaceholder) { -%>
+import type { ReactNode } from 'react';
+<% } -%>
+import { <%= it.registry.kitSymbols.join(', ') %> } from '<%= it.kit.importSpecifier %>';
+import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
+<% if (it.wizard !== null) { -%>
+import { <% if (it.wizard.hasStep) { %><%= it.wizard.stepName %>, <% } %>Wizard } from './renderer.wizard';
+<% } -%>
+<% if (it.registry.dataSourceNames.length > 0) { -%>
+import { <%= it.registry.dataSourceNames.join(', ') %> } from './data-sources';
+<% } -%>
+<% if (it.registry.hasPlaceholder) { -%>
+
+/** Заглушка для компонента без прямого соответствия в ките (замените реальным). */
+const Placeholder = ({ children }: { children?: ReactNode }): ReactNode => children ?? null;
+<% } -%>
+
+export function createRegistry() {
+  return defineRegistry((reg) => {
+    reg.component(FIELD_WRAPPER, <%= it.registry.fieldWrapper %>);
+<% if (it.wizard !== null) { -%>
+    // Визард и тело шага — из шима renderer.wizard.tsx.
+<% for (const name of it.wizard.hostNames) { -%>
+    reg.component('<%= name %>', Wizard);
+<% } -%>
+<% if (it.wizard.hasStep) { -%>
+    reg.component('<%= it.wizard.stepName %>', <%= it.wizard.stepName %>);
+<% } -%>
+<% } -%>
+<% for (const c of it.registry.components) { -%>
+<% if (c.placeholder) { -%>
+    reg.component('<%= c.name %>', Placeholder); // TODO: <%= c.reason %>
+<% } else { -%>
+    reg.component('<%= c.name %>', <%= c.symbol %>);
+<% } -%>
+<% } -%>
+<% if (it.registry.dataSourceNames.length > 0) { %>
+<% for (const name of it.registry.dataSourceNames) { -%>
+    reg.dataSource('<%= name %>', <%= name %>);
+<% } -%>
+<% } -%>
+  });
+}

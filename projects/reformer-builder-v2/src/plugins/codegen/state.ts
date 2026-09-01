@@ -18,18 +18,33 @@ import type { CodegenProblem } from './generate';
 /** Фаза работы. `idle` — ещё не запускали или уже показали результат. */
 export type CodegenPhase = 'idle' | 'running';
 
+/** Файл в отчёте: чем он является и КТО его напечатал. */
+export interface ReportedFile {
+  readonly path: string;
+  readonly cls: 'derived' | 'user';
+  /** Цель-печатник: по нему панель предлагает выгрузить её шаблон. */
+  readonly targetId: string;
+  readonly origin: 'builtin' | 'user' | 'plugin';
+}
+
 export interface CodegenState {
   readonly phase: CodegenPhase;
   /** Имя формы: предзаполняется из имени файла схемы, дальше правится человеком. */
   readonly formName: string;
   /** Файлы последнего прогона — то, что было бы записано. */
-  readonly files: readonly { readonly path: string; readonly cls: 'derived' | 'user' }[];
+  readonly files: readonly ReportedFile[];
   /** Сниппет регистрации формы. Пустой — прогона ещё не было. */
   readonly snippet: string;
   readonly problems: readonly CodegenProblem[];
   readonly delivery: DeliveryResult | null;
   /** Отказ, из-за которого прогон не состоялся. Ключ словаря плагина. */
   readonly errorKey: string | null;
+  /**
+   * Данные, которые видели шаблоны (`it`). `null` — прогона ещё не было.
+   *
+   * Нужны инспектору: автор шаблона обязан видеть, чем располагает, не читая исходники.
+   */
+  readonly view: object | null;
 }
 
 const INITIAL: CodegenState = Object.freeze({
@@ -40,6 +55,7 @@ const INITIAL: CodegenState = Object.freeze({
   problems: [],
   delivery: null,
   errorKey: null,
+  view: null,
 });
 
 export interface CodegenStore {

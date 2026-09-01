@@ -1,0 +1,66 @@
+// renderer.wizard.tsx — шим под $component(Wizard) и тело шага. Регенерируется.
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { ReactNode } from 'react';
+import { <%= it.wizard.symbol %>, type FormWizardStep } from '<%= it.wizard.importFrom %>';
+import type { FormProxy } from '@reformer/core';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
+import type { <%= it.names.TypeName %> } from './types';
+
+/** Узел шага после конвертации: `title`/`icon` лежат в его `componentProps`. */
+interface StepNode {
+  componentProps?: { title?: string; icon?: string; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
+export interface WizardProps {
+  /** Приходит от рендерера (см. `__selfManagedChildren`). */
+  form?: FormProxy<<%= it.names.TypeName %>>;
+  /** Узлы шагов из `componentProps.steps`. */
+  steps?: StepNode[];
+  className?: string;
+  /** Вешается снаружи — renderer.behavior.ts через onComponentEvent(node, 'onSubmit'). */
+  onSubmit?: (values: <%= it.names.TypeName %>) => void | Promise<void>;
+}
+
+/**
+ * Визард: узлы шагов из схемы — в шаги кита. Отрисовку тела шага даём пропом
+ * `renderStepBody`: кит намеренно не зависит от `@reformer/renderer-react`.
+ */
+export function Wizard({ form, steps = [], className, onSubmit }: WizardProps): ReactNode {
+  const wizardSteps: FormWizardStep<<%= it.names.TypeName %>, RenderNode<<%= it.names.TypeName %>>>[] = steps.map(
+    (node, i) => ({
+      number: i + 1,
+      title: node.componentProps?.title ?? `Шаг ${i + 1}`,
+      icon: node.componentProps?.icon,
+      body: node as any,
+    })
+  );
+
+  return (
+    <<%= it.wizard.symbol %><<%= it.names.TypeName %>, RenderNode<<%= it.names.TypeName %>>>
+      form={form as FormProxy<<%= it.names.TypeName %>>}
+      className={className}
+      steps={wizardSteps}
+      config={{}}
+      renderStepBody={(body, wizardForm) => <RenderNodeComponent node={body} form={wizardForm} />}
+      onSubmit={onSubmit ? () => onSubmit(form?.getValue() as <%= it.names.TypeName %>) : undefined}
+    />
+  );
+}
+
+// Контракт с рендерером: получить `form` пропом и сырые `steps`, без обхода детей.
+(Wizard as any).__selfManagedChildren = true;
+
+export interface StepProps {
+  className?: string;
+  children?: ReactNode;
+}
+
+/**
+ * Тело шага — компонент под `$component(Step)`. Маркер: `title`/`icon` из его
+ * `componentProps` снимает `Wizard` выше, сюда доезжает только вёрстка.
+ */
+export function <%= it.wizard.stepName %>({ className, children }: StepProps): ReactNode {
+  return <div className={className}>{children}</div>;
+}

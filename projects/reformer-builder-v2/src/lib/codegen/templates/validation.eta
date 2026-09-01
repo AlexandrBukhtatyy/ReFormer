@@ -1,0 +1,37 @@
+<% if (it.rules.validationCode !== null) { -%>
+<%~ it.rules.validationCode -%>
+<% } else { -%>
+// validation.ts — валидация модели. МОК: required выведены из схемы, допишите правила.
+// Пишется один раз и при регенерации не затирается.
+
+import { type FormModel } from '@reformer/core';
+<% if (it.required.length > 0) { -%>
+import { validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+<% } else { -%>
+import { defineValidationSchema, validateModel } from '@reformer/core/validation';
+<% } -%>
+import type { <%= it.names.TypeName %> } from './types';
+
+type Root = <%= it.names.TypeName %>;
+
+<% if (it.required.length > 0) { -%>
+export const formValidation = defineValidationSchema<Root>(({ model }) => {
+<% for (const path of it.required) { -%>
+    validate(model.$.<%= path %>, [required({ message: 'Обязательное поле' })]);
+<% } -%>
+  });
+<% } else { -%>
+export const formValidation = defineValidationSchema<Root>(() => {
+    // TODO: правила валидации
+  });
+<% } -%>
+
+/** Пошаговый контракт визарда. Полная проверка — validateModel(model, formValidation). */
+export function makeValidationConfig(model: FormModel<Root>) {
+  return {
+    validateStep: (_step: number): Promise<boolean> => validateModel(model, formValidation),
+    validateAll: (): Promise<boolean> => validateModel(model, formValidation),
+  };
+}
+<% } -%>

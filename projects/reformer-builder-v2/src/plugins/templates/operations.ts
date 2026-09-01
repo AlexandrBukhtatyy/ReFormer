@@ -283,7 +283,19 @@ export async function generateFormFromTemplate(
     return { ...fail('error.read-only'), openId: null };
   }
 
-  const files = materializeFiles(template, picked, name);
+  // Кит нужен шаблону с движком: без него он не увидит вида формы, даже неся схему.
+  // Токенному шаблону кит безразличен, поэтому его отсутствие — не отказ операции.
+  const kit = host.kit();
+  let files: readonly TemplateFile[];
+  try {
+    files = materializeFiles(template, picked, name, {
+      kit: kit === null ? null : { kit, catalog: host.catalog() },
+    });
+  } catch (error) {
+    // Новый класс отказа: у токенной подстановки его не могло быть, а шаблон на движке
+    // бросает — и сообщение Eta несёт номер строки, то есть ответ «где чинить».
+    return { ...fail('error.template-failed', { message: messageOf(error) }), openId: null };
+  }
   if (files.length === 0) return { ...fail('error.nothing-picked'), openId: null };
 
   try {

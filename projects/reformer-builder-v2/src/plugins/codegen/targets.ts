@@ -12,18 +12,18 @@
  */
 
 import {
-  emitApi,
-  emitDataSources,
-  emitFormBehavior,
-  emitIndex,
-  emitModel,
-  emitReadme,
-  emitRegistry,
-  emitRenderBehavior,
+  registryTemplate,
+  renderBehaviorTemplate,
+  typesTemplate,
+  validationTemplate,
+  formBehaviorTemplate,
+  wizardTemplate,
+  readmeTemplate,
+  dataSourcesTemplate,
+  modelTemplate,
+  indexTemplate,
+  apiTemplate,
   emitSchema,
-  emitTypes,
-  emitValidation,
-  emitWizard,
   wizardShimOf,
 } from '@/lib/codegen';
 import type { CodegenTarget } from './contract';
@@ -50,7 +50,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       path: 'types.ts',
       cls: 'derived',
       order: 20,
-      emit: emitTypes,
+      template: typesTemplate,
     },
     {
       id: 'codegen.model',
@@ -58,7 +58,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       path: 'model.ts',
       cls: 'derived',
       order: 30,
-      emit: emitModel,
+      template: modelTemplate,
     },
     {
       id: 'codegen.registry',
@@ -66,7 +66,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       path: 'registry.ts',
       cls: 'derived',
       order: 40,
-      emit: emitRegistry,
+      template: registryTemplate,
     },
     {
       id: 'codegen.index',
@@ -74,7 +74,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       path: 'index.tsx',
       cls: 'derived',
       order: 50,
-      emit: emitIndex,
+      template: indexTemplate,
     },
     {
       // Шим визарда — опциональный файл канона: он появляется ровно у той формы, где есть
@@ -87,7 +87,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       cls: 'derived',
       order: 60,
       applies: (ctx) => wizardShimOf(ctx) !== null,
-      emit: emitWizard,
+      template: wizardTemplate,
     },
     {
       id: 'codegen.data-sources',
@@ -95,7 +95,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       path: 'data-sources.ts',
       cls: 'user',
       order: 70,
-      emit: emitDataSources,
+      template: dataSourcesTemplate,
     },
     {
       // Производится из правил render-слоя, поэтому несёт маркер и перезаписывается,
@@ -106,7 +106,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       cls: 'user',
       regenerable: true,
       order: 80,
-      emit: emitRenderBehavior,
+      template: renderBehaviorTemplate,
     },
     {
       id: 'codegen.form-behavior',
@@ -115,7 +115,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       cls: 'user',
       regenerable: true,
       order: 90,
-      emit: emitFormBehavior,
+      template: formBehaviorTemplate,
     },
     {
       id: 'codegen.validation',
@@ -124,7 +124,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       cls: 'user',
       regenerable: true,
       order: 100,
-      emit: emitValidation,
+      template: validationTemplate,
     },
     // Заготовка под бэкенд: регенерировать её не из чего, поэтому маркера она не несёт.
     {
@@ -133,7 +133,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       path: 'api.ts',
       cls: 'user',
       order: 110,
-      emit: emitApi,
+      template: apiTemplate,
     },
     // README печатается последним не по прихоти: он перечисляет состав модуля, и состав
     // к этому моменту уже известен целиком.
@@ -143,6 +143,6 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       path: 'README.md',
       cls: 'derived',
       order: 120,
-      emit: emitReadme,
+      template: readmeTemplate,
     },
   ]);

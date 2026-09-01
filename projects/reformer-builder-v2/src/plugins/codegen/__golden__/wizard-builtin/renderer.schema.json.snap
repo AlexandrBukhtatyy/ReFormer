@@ -1,0 +1,33 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "children": [
+      {
+        "component": "$component(Wizard)",
+        "componentProps": {
+          "steps": [
+            {
+              "component": "$component(Step)",
+              "componentProps": {
+                "title": "Шаг 1"
+              },
+              "children": [
+                {
+                  "value": "$model(email)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Почта"
+                  }
+                }
+              ],
+              "selector": "shag-1-section"
+            }
+          ]
+        },
+        "selector": "wizard"
+      }
+    ]
+  }
+}

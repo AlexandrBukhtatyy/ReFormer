@@ -12,7 +12,7 @@
 
 import { useSyncExternalStore } from 'react';
 import type { Disposable } from '../host/primitives/disposable';
-import type { ResourceId } from '../host/primitives/resource';
+import { makeResourceId, type ResourceId } from '../host/primitives/resource';
 import type { ServiceRegistry } from '../host/primitives/service';
 import type { RootI18nService } from '../host/services/i18n/i18n';
 import { useLocale } from '../host/ui/usePanels';
@@ -82,6 +82,13 @@ export function createCodegenHost(deps: CodegenHostDeps): CodegenHost {
 
     parentOf,
     resolve,
+
+    // Корень ИСТОЧНИКА, а не каталог открытого файла: цели пользователя лежат в одном
+    // месте на весь проект — тем же приёмом, что и каталог шаблонов форм.
+    projectRoot: (): ResourceId | null => {
+      const source = project.get()?.source;
+      return source === undefined ? null : makeResourceId(source.id, '');
+    },
     // Фикстура предпросмотра лежит в отдельном дереве проекта, а не в каталоге модуля формы.
     resolveFromRoot: fromRoot,
 

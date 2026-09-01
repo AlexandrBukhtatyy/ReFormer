@@ -11,7 +11,15 @@
 import { isFormSchema } from '@/lib/form-model/normalize';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile } from './contract';
+import type { KitView } from '@/lib/codegen';
 import { materialize, tokenize } from './placeholders';
+import { buildTemplateView, renderTemplateFile } from './render';
+
+/** Чем дополняется подстановка, когда шаблон её просит. */
+export interface MaterializeOptions {
+  /** Активный кит: без него шаблон не увидит вида формы, даже неся схему. */
+  readonly kit?: KitView | null;
+}
 
 /** Прочитанный файл проекта: путь от корня проекта и текст. */
 export interface SourceFile {
@@ -147,20 +155,35 @@ export function resolvePicked(
   return out;
 }
 
-/** Отобранные файлы шаблона с подставленным именем формы — и в содержимом, и в пути. */
+/**
+ * Отобранные файлы шаблона с подставленным именем формы — и в содержимом, и в пути.
+ *
+ * Два способа подстановки, и выбирает между ними САМ ШАБЛОН (`engine`), а не вызывающий:
+ * иначе один и тот же шаблон применялся бы по-разному из панели и из контекстного меню.
+ *
+ * С движком функция может БРОСИТЬ — чего у токенной подстановки не могло быть никогда.
+ * Это новый класс отказа, и он обязан быть назван вызывающему, а не проглочен: шаблон,
+ * молча отдавший половину файлов, хуже шаблона, который честно не применился.
+ */
 export function materializeFiles(
   template: FormTemplate,
   picked: Iterable<string>,
-  formName: string
+  formName: string,
+  options: MaterializeOptions = {}
 ): TemplateFile[] {
   const keep = resolvePicked(picked, template.requires);
-  return template.files
-    .filter((f) => keep.has(f.path))
-    .map((f) => ({
+  const files = template.files.filter((f) => keep.has(f.path));
+
+  if (template.engine !== 'eta') {
+    return files.map((f) => ({
       ...f,
       path: materialize(f.path, formName),
       content: materialize(f.content, formName),
     }));
+  }
+
+  const view = buildTemplateView(template, formName, { kit: options.kit ?? null });
+  return files.map((f) => renderTemplateFile(template, f, view));
 }
 
 /**

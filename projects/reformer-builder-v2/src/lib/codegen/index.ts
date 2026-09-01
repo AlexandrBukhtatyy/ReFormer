@@ -41,15 +41,32 @@ export {
 } from './marker';
 
 export { emitSchema } from './emit/schema';
-export { emitTypes } from './emit/types';
-export { emitModel } from './emit/model';
-export { emitRegistry } from './emit/registry';
-export { emitIndex } from './emit/index-tsx';
-export { emitReadme } from './emit/readme';
-export { emitDataSources } from './emit/data-sources';
-export { emitRenderBehavior } from './emit/render-behavior';
-export { emitFormBehavior } from './emit/form-behavior';
-export { emitValidation } from './emit/validation';
-export { emitApi } from './emit/api';
-export { emitWizard, wizardShimOf, STEP_NAME, type WizardShim } from './emit/wizard';
+export { wizardShimOf, STEP_NAME, type WizardShim } from './view/wizard';
 export { appSnippet } from './emit/snippet';
+
+// Печать через шаблоны: движок, вид, который шаблон видит как `it`, и тексты встроенных
+// шаблонов. Решение «какие файлы производить» по-прежнему не здесь, а в `plugins/codegen`.
+export { registerPartial, renderTemplate } from './render';
+export { formatTargetFile, parseTargetFile } from './template-file';
+export type { TargetFileMeta, TargetFileResult } from './template-file';
+export {
+  buildView,
+  withLocal,
+  withViewFiles,
+  type CodegenView,
+  type Indent,
+  type Json,
+} from './view';
+export {
+  apiTemplate,
+  indexTemplate,
+  modelTemplate,
+  dataSourcesTemplate,
+  readmeTemplate,
+  typesTemplate,
+  validationTemplate,
+  formBehaviorTemplate,
+  wizardTemplate,
+  registryTemplate,
+  renderBehaviorTemplate,
+} from './templates';

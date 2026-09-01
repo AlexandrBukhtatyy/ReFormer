@@ -1,0 +1,11 @@
+renderer.schema.json	derived
+types.ts	derived
+model.ts	derived
+registry.ts	derived
+index.tsx	derived
+data-sources.ts	user
+renderer.behavior.ts	user	regenerable
+form.behavior.ts	user	regenerable
+validation.ts	user	regenerable
+api.ts	user
+README.md	derived

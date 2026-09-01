@@ -15,6 +15,8 @@ import {
   CODEGEN_PLUGIN_ID,
   createCodegenPlugin,
   CREATE_FIXTURE_COMMAND_ID,
+  EJECT_TEMPLATE_COMMAND_ID,
+  REFRESH_TARGETS_COMMAND_ID,
   GENERATE_COMMAND_ID,
   panelVisible,
 } from './plugin';
@@ -103,12 +105,16 @@ describe('activate', () => {
     );
   });
 
-  it('регистрирует команды экспорта, фикстуры и генерации в каталог', () => {
+  it('регистрирует команды экспорта, фикстуры, целей проекта и генерации в каталог', () => {
     const { ctx, commands } = fakeContext();
     createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
+    // Список полный, а не «содержит»: команда, появившаяся незаметно, — это пункт палитры,
+    // которого никто не заказывал, и сочетание клавиш, которое никто не назначал.
     expect(commands).toEqual([
       GENERATE_COMMAND_ID,
       CREATE_FIXTURE_COMMAND_ID,
+      REFRESH_TARGETS_COMMAND_ID,
+      EJECT_TEMPLATE_COMMAND_ID,
       GENERATE_INTO_COMMAND_ID,
     ]);
   });

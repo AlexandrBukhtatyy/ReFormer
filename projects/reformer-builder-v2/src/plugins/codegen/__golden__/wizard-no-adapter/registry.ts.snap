@@ -1,0 +1,18 @@
+// registry.ts — привязка $component/$dataSource к реализациям. Регенерируется.
+
+import type { ReactNode } from 'react';
+import { HexBox, HexField, HexInput } from '@hexa/ui';
+import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
+
+/** Заглушка для компонента без прямого соответствия в ките (замените реальным). */
+const Placeholder = ({ children }: { children?: ReactNode }): ReactNode => children ?? null;
+
+export function createRegistry() {
+  return defineRegistry((reg) => {
+    reg.component(FIELD_WRAPPER, HexField);
+    reg.component('Box', HexBox);
+    reg.component('Wizard', Placeholder); // TODO: кит «HexaUI» не поставляет адаптер для этого компонента
+    reg.component('Step', Placeholder); // TODO: кит «HexaUI» не поставляет адаптер для этого компонента
+    reg.component('Input', HexInput);
+  });
+}

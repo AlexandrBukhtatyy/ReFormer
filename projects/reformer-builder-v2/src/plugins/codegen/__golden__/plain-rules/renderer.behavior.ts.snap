@@ -1,0 +1,48 @@
+// renderer.behavior.ts — рантайм-обвязка (submit, условная видимость, события узлов).
+
+import { hideWhen, onComponentEvent, type RenderBehaviorFn } from '@reformer/renderer-react';
+import { validateModel } from '@reformer/core/validation';
+import type { FormModel, FormProxy } from '@reformer/core';
+import { formValidation } from './validation';
+import { submitForm } from './api';
+import type { ZayavkaNaKreditForm } from './types';
+
+export type RenderBehaviorOptions = { onResult?: (message: string, ok: boolean) => void };
+
+export function createJsonRenderBehavior(
+  form: FormProxy<ZayavkaNaKreditForm>,
+  model: FormModel<ZayavkaNaKreditForm>,
+  options: RenderBehaviorOptions = {}
+): RenderBehaviorFn<ZayavkaNaKreditForm> {
+  const { onResult } = options;
+  return (schema) => {
+    void form; // используется в условиях hideWhen (form.<поле>.value.value)
+
+    const submit = schema.node('submit');
+
+    onComponentEvent(submit, 'onClick', async () => {
+      // `touch: true` обязателен: киты показывают ошибку только у ТРОНУТОГО поля
+      // (`invalid && (touched || dirty)`). Без него неудачная отправка выглядела бы так,
+      // будто кнопка не работает: форма не отправлена, а почему — нигде не сказано.
+      if (!(await validateModel(model, formValidation, { touch: true }))) {
+        onResult?.('Проверьте заполнение формы', false);
+        return;
+      }
+      const res = await submitForm(model.get());
+      onResult?.(res.success ? 'Форма отправлена' : res.error, res.success);
+    });
+
+    // Правила render-слоя (из правил формы — правьте здесь или в панели правил):
+    hideWhen(schema.node('lichnye-dannye-section'), () => !form.agreed.value.value);
+    schema.node('full-name').patchProps({ placeholder: "Иванов Иван", maxLength: 64, disabled: !form.agreed.value.value });
+    onComponentEvent(schema.node('full-name'), 'onBlur', (...args: unknown[]) => {
+      void args;
+      const value = form.fullName.value.value;
+      console.info('[golden] blur', value);
+    });
+    onComponentEvent(schema.node('full-name'), 'onFocus', async (...args: unknown[]) => {
+      void args;
+      await Promise.resolve();
+    });
+  };
+}
