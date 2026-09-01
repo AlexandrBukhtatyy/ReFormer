@@ -31,9 +31,9 @@ import { userEvent } from 'vitest/browser';
 import { useCallback, useSyncExternalStore, type ReactElement } from 'react';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { renderReact } from '@/testing/render';
-import type { CommandAccess } from '../commands';
-import { indexNodes } from '../node-index';
-import { createSessionRegistry, type SessionRegistry } from '../sessions';
+import type { CommandAccess } from '../editing/commands';
+import { indexNodes } from '../model/node-index';
+import { createSessionRegistry, type SessionRegistry } from '../session/sessions';
 import {
   createFakeSchemaHost,
   createFakeSelectionChannel,

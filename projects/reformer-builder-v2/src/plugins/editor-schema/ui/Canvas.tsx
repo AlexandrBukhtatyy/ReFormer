@@ -13,7 +13,7 @@
  *
  * Своей панели инструментов у канваса нет вовсе. Структурные действия живут командами
  * с сочетаниями клавиш, а переключатель вида уехал в полосу вкладок
- * ({@link './../canvas-actions'}) — туда, где уже отвечают на вопрос «чем показан этот
+ * ({@link '../canvas/canvas-actions'}) — туда, где уже отвечают на вопрос «чем показан этот
  * документ». Полоса над деревом существовала ради двух кнопок и отнимала высоту у самой
  * схемы на каждой вкладке.
  *
@@ -84,26 +84,32 @@ import {
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import type { CommandLookup, Diagnostic, QuickFix } from '@/sdk';
 import { navTarget, type NavDir } from '@/lib/form-model/query';
-import { canvasOrder, flattenCanvas, type CanvasRow } from '../canvas-tree';
-import { canDropInside, dropPositionAt, planDrop, type DropPosition, type DropSpot } from '../drag';
-import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../drag-session';
+import { canvasOrder, flattenCanvas, type CanvasRow } from '../canvas/canvas-tree';
+import {
+  canDropInside,
+  dropPositionAt,
+  planDrop,
+  type DropPosition,
+  type DropSpot,
+} from '../editing/drag';
+import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../session/drag-session';
 import {
   indexNodeDiagnostics,
   nodeFixes,
   nodeProblemTitle,
   unplacedCount,
   type NodeDiagnostics,
-} from '../node-diagnostics';
-import { indexNodes } from '../node-index';
-import { selectNode, type SelectMode } from '../selection';
-import type { CanvasPrefs } from '../canvas-prefs';
+} from '../canvas/node-diagnostics';
+import { indexNodes } from '../model/node-index';
+import { selectNode, type SelectMode } from '../session/selection';
+import type { CanvasPrefs } from '../session/canvas-prefs';
 import { LiveView } from './LiveView';
 import { SchematicView } from './SchematicView';
 import { useCanvasPrefs } from './usePrefs';
-import type { CollapseRegistry } from '../view-state';
-import type { CommandAccess } from '../commands';
+import type { CollapseRegistry } from '../session/view-state';
+import type { CommandAccess } from '../editing/commands';
 import type { LivePreviewPort, NodeId, Translate } from '../host';
-import type { SchemaEditorState, SchemaSession } from '../sessions';
+import type { SchemaEditorState, SchemaSession } from '../session/sessions';
 
 /** Отступ уровня в пикселях. Динамическая величина, классом Tailwind невыразима. */
 const INDENT_STEP = 14;

@@ -23,7 +23,7 @@
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { Disposable, ResourceId, ResourceRef } from '@/sdk';
-import { createSchemaModelProvider } from './provider';
+import { createSchemaModelProvider } from './model/provider';
 import { NODE_CLASS_PREFIX } from '@/lib/form-model/node-token';
 import type {
   EditOp,

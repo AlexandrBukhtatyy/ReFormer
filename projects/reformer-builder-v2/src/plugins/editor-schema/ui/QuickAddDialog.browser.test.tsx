@@ -22,7 +22,7 @@ import { DEFAULT_COL_CLASS } from '@/lib/form-model/mutate';
 import { getAt } from '@/lib/form-model/paths';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { renderReact } from '@/testing/render';
-import { createSessionRegistry, type SessionRegistry } from '../sessions';
+import { createSessionRegistry, type SessionRegistry } from '../session/sessions';
 import { createFakeSchemaHost } from '../testing';
 import { QuickAddDialog } from './QuickAddDialog';
 import { useActiveSession, useSessionState } from './useSession';

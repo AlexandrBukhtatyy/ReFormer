@@ -14,8 +14,8 @@
  */
 
 import { useCallback, useSyncExternalStore } from 'react';
-import type { SchemaEditorState, SchemaSession } from '../sessions';
-import type { SessionRegistry } from '../sessions';
+import type { SchemaEditorState, SchemaSession } from '../session/sessions';
+import type { SessionRegistry } from '../session/sessions';
 
 /** Активный сеанс с перерисовкой при его смене и при любой правке в нём. */
 export function useActiveSession(registry: SessionRegistry): SchemaSession | null {

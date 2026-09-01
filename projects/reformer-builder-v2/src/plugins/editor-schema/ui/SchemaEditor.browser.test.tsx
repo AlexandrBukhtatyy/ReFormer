@@ -23,12 +23,12 @@ import { useEffect, type ReactElement } from 'react';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import type { ResourceId } from '@/sdk';
 import { renderReact } from '@/testing/render';
-import type { CommandAccess } from '../commands';
-import { indexNodes } from '../node-index';
-import { setPropOp } from '../ops';
-import { createSessionRegistry } from '../sessions';
+import type { CommandAccess } from '../editing/commands';
+import { indexNodes } from '../model/node-index';
+import { setPropOp } from '../model/ops';
+import { createSessionRegistry } from '../session/sessions';
 import { createFakeSchemaHost } from '../testing';
-import { createSchemaViewStore } from '../view-mode';
+import { createSchemaViewStore } from '../session/view-mode';
 import { SchemaEditor } from './SchemaEditor';
 
 const DOCUMENT = 'fake:form.json' as ResourceId;

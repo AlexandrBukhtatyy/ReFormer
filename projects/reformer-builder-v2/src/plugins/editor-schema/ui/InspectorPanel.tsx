@@ -36,12 +36,12 @@ import {
   SelectValue,
 } from '@reformer/ui-kit/select';
 import { Separator } from '@reformer/ui-kit/separator';
-import { inspectorModelFor, type InspectorField } from '../inspector-model';
-import { setBindingOp, setPropOp, setTextOp } from '../ops';
+import { inspectorModelFor, type InspectorField } from '../palette/inspector-model';
+import { setBindingOp, setPropOp, setTextOp } from '../model/ops';
 import { useActiveSession, useSessionState } from './useSession';
 import type { NodeId, SchemaEditorHost, Translate } from '../host';
-import type { SchemaSession } from '../sessions';
-import type { SessionRegistry } from '../sessions';
+import type { SchemaSession } from '../session/sessions';
+import type { SessionRegistry } from '../session/sessions';
 import { useCatalog } from './useCatalog';
 
 export interface InspectorPanelProps {

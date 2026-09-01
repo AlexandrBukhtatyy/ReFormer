@@ -29,15 +29,15 @@ import {
   UNDO_COMMAND_ID,
   UNGROUP_COMMAND_ID,
   type CommandAccess,
-} from './commands';
-import { createCanvasPrefs } from './canvas-prefs';
-import { createQuickAddStore } from './quick-add-store';
-import { createDragSession } from './drag-session';
+} from './editing/commands';
+import { createCanvasPrefs } from './session/canvas-prefs';
+import { createQuickAddStore } from './session/quick-add-store';
+import { createDragSession } from './session/drag-session';
 import type { ExtensionPointRef, SchemaModelProviderSpec } from './host';
 import { getAt } from '@/lib/form-model/paths';
 import { nodeIdOf } from '@/lib/form-model/node-id';
 import type { JsonNode } from '@reformer/renderer-json';
-import { indexNodes } from './node-index';
+import { indexNodes } from './model/node-index';
 import {
   createSchemaEditorPlugin,
   INSPECTOR_PANEL_ID,
@@ -51,10 +51,10 @@ import {
   type SchemaEditorStores,
 } from './plugin';
 import { SCHEMA_EDITOR_MESSAGES } from './messages';
-import { SCHEMA_MODEL_PROVIDER_ID } from './provider';
-import { createSessionRegistry } from './sessions';
+import { SCHEMA_MODEL_PROVIDER_ID } from './model/provider';
+import { createSessionRegistry } from './session/sessions';
 import { createFakeSchemaHost, fakeRef } from './testing';
-import { createCollapseRegistry } from './view-state';
+import { createCollapseRegistry } from './session/view-state';
 
 const TEXT = JSON.stringify(sampleSchema());
 const DOCUMENT = 'fake:form.json';

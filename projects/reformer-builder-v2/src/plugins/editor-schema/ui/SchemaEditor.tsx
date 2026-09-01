@@ -21,16 +21,16 @@ import type { ResourceId } from '@/sdk';
 import { Canvas } from './Canvas';
 import { QuickAddDialog } from './QuickAddDialog';
 import { useCatalog } from './useCatalog';
-import type { CommandAccess } from '../commands';
+import type { CommandAccess } from '../editing/commands';
 import { useDiagnosticCode, useResourceDiagnostics } from './useDiagnostics';
 import { useSessionOf, useSessionState } from './useSession';
-import type { DragSession } from '../drag-session';
+import type { DragSession } from '../session/drag-session';
 import type { SchemaDiagnostics, SchemaEditorHost } from '../host';
-import type { SessionRegistry } from '../sessions';
-import type { CanvasPrefs } from '../canvas-prefs';
-import type { QuickAddStore } from '../quick-add-store';
-import type { CollapseRegistry } from '../view-state';
-import type { SchemaView, SchemaViewStore } from '../view-mode';
+import type { SessionRegistry } from '../session/sessions';
+import type { CanvasPrefs } from '../session/canvas-prefs';
+import type { QuickAddStore } from '../session/quick-add-store';
+import type { CollapseRegistry } from '../session/view-state';
+import type { SchemaView, SchemaViewStore } from '../session/view-mode';
 
 export interface SchemaEditorProps {
   readonly host: SchemaEditorHost;

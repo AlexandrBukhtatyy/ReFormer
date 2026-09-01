@@ -38,7 +38,7 @@
  * ## Подсветка — правилами CSS
  *
  * Ни выделение, ни наведение не трогают чужой DOM: правила пишутся по классу-токену
- * ({@link '../live-style'}). Наведение живёт в отдельной таблице и обновляется императивно —
+ * ({@link '../live/live-style'}). Наведение живёт в отдельной таблице и обновляется императивно —
  * курсор двигается десятки раз в секунду, и перерисовывать из-за него React значило бы
  * перерисовывать форму.
  *
@@ -57,20 +57,20 @@ import {
 } from 'react';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import type { NodeId, ResourceId } from '@/sdk';
-import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../drag-session';
-import { createLiveContext } from '../live-context';
-import { elementOf, hitAt } from '../live-hit';
-import { hoverCss, liveCss } from '../live-style';
-import { gripBox, indicatorFor, type Indicator } from '../live-zone';
-import { targetAt, type LiveTarget } from '../live-target';
-import { planSchematicDrop } from '../schematic-drop';
+import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../session/drag-session';
+import { createLiveContext } from '../live/live-context';
+import { elementOf, hitAt } from '../live/live-hit';
+import { hoverCss, liveCss } from '../live/live-style';
+import { gripBox, indicatorFor, type Indicator } from '../live/live-zone';
+import { targetAt, type LiveTarget } from '../live/live-target';
+import { planSchematicDrop } from '../schematic/schematic-drop';
 import type { LivePreviewPort, LiveSurfaceInfo, Translate } from '../host';
-import { indexNodes } from '../node-index';
-import { buildSchematic, schematicOrder } from '../schematic-tree';
-import type { Rect } from '../schematic-zone';
+import { indexNodes } from '../model/node-index';
+import { buildSchematic, schematicOrder } from '../schematic/schematic-tree';
+import type { Rect } from '../schematic/schematic-zone';
 import { LiveOverlay, type LiveOverlayHandle } from './LiveOverlay';
-import { selectModeOf, selectNode } from '../selection';
-import type { SchemaEditorState, SchemaSession } from '../sessions';
+import { selectModeOf, selectNode } from '../session/selection';
+import type { SchemaEditorState, SchemaSession } from '../session/sessions';
 
 export interface LiveViewProps {
   readonly session: SchemaSession;

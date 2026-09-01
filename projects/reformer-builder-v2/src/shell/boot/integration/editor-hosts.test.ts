@@ -29,7 +29,7 @@ import {
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import { createSchemaModelProvider } from '@/plugins/editor-schema/provider';
+import { createSchemaModelProvider } from '@/plugins/editor-schema/model/provider';
 import {
   createFocusRegistry,
   createViewStateRegistry,

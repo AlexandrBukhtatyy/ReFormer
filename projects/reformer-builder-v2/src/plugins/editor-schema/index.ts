@@ -16,7 +16,7 @@
 
 export { createSchemaEditorPlugin, SCHEMA_EDITOR_ID, SCHEMA_EDITOR_PLUGIN_ID } from './plugin';
 export type { SchemaEditorPluginOptions } from './plugin';
-export { SCHEMA_MODEL_PROVIDER_ID } from './provider';
+export { SCHEMA_MODEL_PROVIDER_ID } from './model/provider';
 export { SCHEMA_EDITOR_MESSAGES } from './messages';
 export type {
   ExtensionPointRef,

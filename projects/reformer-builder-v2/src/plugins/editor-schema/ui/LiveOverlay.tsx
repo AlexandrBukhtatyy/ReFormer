@@ -28,8 +28,8 @@ import {
 } from 'react';
 import { GripVertical } from 'lucide-react';
 import type { NodeId } from '@/sdk';
-import type { Indicator } from '../live-zone';
-import type { Rect } from '../schematic-zone';
+import type { Indicator } from '../live/live-zone';
+import type { Rect } from '../schematic/schematic-zone';
 
 export interface LiveOverlayHandle {
   /** Показать указатель броска; `null` — стереть. */

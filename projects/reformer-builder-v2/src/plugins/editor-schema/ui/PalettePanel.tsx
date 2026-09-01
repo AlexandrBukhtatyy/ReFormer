@@ -28,18 +28,18 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@reformer/u
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import { Input } from '@reformer/ui-kit/input';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import { DRAG_MIME, type DragSession } from '../drag-session';
-import { insertOp } from '../ops';
-import { placementFor } from '../placement';
+import { DRAG_MIME, type DragSession } from '../session/drag-session';
+import { insertOp } from '../model/ops';
+import { placementFor } from '../editing/placement';
 import {
   DEFAULT_COLLAPSED_CATEGORIES,
   paletteNode,
   paletteSections,
   type PaletteEntry,
-} from '../palette-model';
+} from '../palette/palette-model';
 import { useActiveSession, useSessionState } from './useSession';
 import type { SchemaEditorHost } from '../host';
-import type { SessionRegistry } from '../sessions';
+import type { SessionRegistry } from '../session/sessions';
 import { useCatalog } from './useCatalog';
 
 export interface PalettePanelProps {

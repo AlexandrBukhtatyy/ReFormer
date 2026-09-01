@@ -25,12 +25,18 @@ import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { installKeybindings } from '@/shell/platform/ui/keyboard/keybindings';
 import { createKeymapService } from '@/shell/platform/ui/keyboard/keymap';
 import type { WhenContext } from '@/shell/platform/primitives/when-context';
-import { schemaEditorCommands, type CommandAccess } from '@/plugins/editor-schema/commands';
-import { createQuickAddStore, type QuickAddStore } from '@/plugins/editor-schema/quick-add-store';
+import { schemaEditorCommands, type CommandAccess } from '@/plugins/editor-schema/editing/commands';
+import {
+  createQuickAddStore,
+  type QuickAddStore,
+} from '@/plugins/editor-schema/session/quick-add-store';
 import { QuickAddDialog } from '@/plugins/editor-schema/ui/QuickAddDialog';
-import { createDragSession } from '@/plugins/editor-schema/drag-session';
-import { indexNodes } from '@/plugins/editor-schema/node-index';
-import { createSessionRegistry, type SessionRegistry } from '@/plugins/editor-schema/sessions';
+import { createDragSession } from '@/plugins/editor-schema/session/drag-session';
+import { indexNodes } from '@/plugins/editor-schema/model/node-index';
+import {
+  createSessionRegistry,
+  type SessionRegistry,
+} from '@/plugins/editor-schema/session/sessions';
 import { createFakeSchemaHost } from '@/plugins/editor-schema/testing';
 import { SchematicView } from '@/plugins/editor-schema/ui/SchematicView';
 import { useActiveSession, useSessionState } from '@/plugins/editor-schema/ui/useSession';

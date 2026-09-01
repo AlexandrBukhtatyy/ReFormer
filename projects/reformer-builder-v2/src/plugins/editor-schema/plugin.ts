@@ -42,25 +42,33 @@ import {
   type ResourceId,
   type WhenContext,
 } from '@/sdk';
-import { canvasViewCommands, canvasViewMenuItems, type CanvasActionDeps } from './canvas-actions';
-import { createCanvasPrefs, type CanvasPrefs } from './canvas-prefs';
-import { createQuickAddStore, type QuickAddStore } from './quick-add-store';
-import { schemaEditorCommands, type CommandAccess } from './commands';
-import { schemaViewCommands } from './view-actions';
-import type { SchemaViewStore } from './view-mode';
-import { createSchemaViewStore } from './view-mode';
-import { createDragSession, type DragSession } from './drag-session';
+import {
+  canvasViewCommands,
+  canvasViewMenuItems,
+  type CanvasActionDeps,
+} from './canvas/canvas-actions';
+import { createCanvasPrefs, type CanvasPrefs } from './session/canvas-prefs';
+import { createQuickAddStore, type QuickAddStore } from './session/quick-add-store';
+import { schemaEditorCommands, type CommandAccess } from './editing/commands';
+import { schemaViewCommands } from './editing/view-actions';
+import type { SchemaViewStore } from './session/view-mode';
+import { createSchemaViewStore } from './session/view-mode';
+import { createDragSession, type DragSession } from './session/drag-session';
 import { SCHEMA_EDITOR_MESSAGES } from './messages';
 import {
   createSchemaModelProvider,
   isFormSchemaResource,
   SCHEMA_MODEL_PROVIDER_ID,
-} from './provider';
-import { createSessionRegistry, type SessionRegistry } from './sessions';
+} from './model/provider';
+import { createSessionRegistry, type SessionRegistry } from './session/sessions';
 import { InspectorPanel } from './ui/InspectorPanel';
 import { PalettePanel } from './ui/PalettePanel';
 import { SchemaEditor } from './ui/SchemaEditor';
-import { createCollapseRegistry, readCollapsedState, type CollapseRegistry } from './view-state';
+import {
+  createCollapseRegistry,
+  readCollapsedState,
+  type CollapseRegistry,
+} from './session/view-state';
 import type { ExtensionPointRef, MessageSink, SchemaDiagnostics, SchemaEditorHost } from './host';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */

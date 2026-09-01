@@ -39,12 +39,12 @@ import { Input } from '@reformer/ui-kit/input';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { NavDir } from '@/lib/form-model/query';
-import { insertOp } from '../ops';
-import { paletteNode } from '../palette-model';
-import { placementFor } from '../placement';
-import { gridTarget, quickAddView, type QuickAddItem } from '../quick-add';
+import { insertOp } from '../model/ops';
+import { paletteNode } from '../palette/palette-model';
+import { placementFor } from '../editing/placement';
+import { gridTarget, quickAddView, type QuickAddItem } from '../palette/quick-add';
 import type { Translate } from '../host';
-import type { SchemaEditorState, SchemaSession } from '../sessions';
+import type { SchemaEditorState, SchemaSession } from '../session/sessions';
 
 export interface QuickAddDialogProps {
   readonly open: boolean;

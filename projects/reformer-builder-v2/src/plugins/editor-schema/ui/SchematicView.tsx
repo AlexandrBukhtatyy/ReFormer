@@ -11,7 +11,7 @@
  * Второй вопрос дороже проверять в превью: там правка требует возврата к дереву, а здесь
  * колонку двигают там же, где её видят. Отсюда и главная возможность вида: у коробки есть
  * левый и правый край, поэтому перетаскиванием выражается «поставить рядом» — то, чего
- * в списке строк выразить нечем ({@link './../schematic-zone'}).
+ * в списке строк выразить нечем ({@link '../schematic/schematic-zone'}).
  *
  * ## Ближайшая коробка выигрывает
  *
@@ -45,27 +45,27 @@ import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import type { CommandLookup, Diagnostic, QuickFix } from '@/sdk';
 import { type NavDir } from '@/lib/form-model/query';
 import type { Orientation } from '@/lib/form-model/node-kind';
-import { FLIP_COMMAND_ID, type CommandAccess } from '../commands';
-import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../drag-session';
+import { FLIP_COMMAND_ID, type CommandAccess } from '../editing/commands';
+import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../session/drag-session';
 import {
   indexNodeDiagnostics,
   nodeFixes,
   nodeProblemTitle,
   type NodeDiagnostics,
-} from '../node-diagnostics';
-import { indexNodes } from '../node-index';
-import { visibleTarget } from '../schematic-nav';
-import { planSchematicDrop, type SchematicSpot } from '../schematic-drop';
-import { zoneAt, zoneEdge, PERP_ZONES, type SchematicZone } from '../schematic-zone';
+} from '../canvas/node-diagnostics';
+import { indexNodes } from '../model/node-index';
+import { visibleTarget } from '../schematic/schematic-nav';
+import { planSchematicDrop, type SchematicSpot } from '../schematic/schematic-drop';
+import { zoneAt, zoneEdge, PERP_ZONES, type SchematicZone } from '../schematic/schematic-zone';
 import {
   buildSchematic,
   schematicOrder,
   type SchematicBox,
   type SchematicItem,
-} from '../schematic-tree';
-import { selectModeOf, selectNode, type SelectMode } from '../selection';
+} from '../schematic/schematic-tree';
+import { selectModeOf, selectNode, type SelectMode } from '../session/selection';
 import type { NodeId, Translate } from '../host';
-import type { SchemaEditorState, SchemaSession } from '../sessions';
+import type { SchemaEditorState, SchemaSession } from '../session/sessions';
 
 export interface SchematicViewProps {
   readonly session: SchemaSession;

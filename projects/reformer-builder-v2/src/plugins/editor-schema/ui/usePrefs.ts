@@ -2,7 +2,7 @@
  * Предпочтения канваса как состояние React.
  *
  * Подписка, а не чтение при отрисовке: предпочтение меняет команда из полосы вкладок,
- * но хранится оно ВНЕ компонента ({@link './../canvas-prefs'}) — иначе вид сбрасывался бы
+ * но хранится оно ВНЕ компонента ({@link '../session/canvas-prefs'}) — иначе вид сбрасывался бы
  * на дерево при каждом переключении вкладок, потому что тело редактора пересоздаётся
  * на пару «редактор + документ».
  *
@@ -20,7 +20,7 @@
  */
 
 import { useCallback, useRef, useSyncExternalStore } from 'react';
-import { DEFAULT_CANVAS_VIEW, type CanvasPrefs, type CanvasView } from '../canvas-prefs';
+import { DEFAULT_CANVAS_VIEW, type CanvasPrefs, type CanvasView } from '../session/canvas-prefs';
 
 /** Снимок предпочтений: то, на что смотрит канвас. */
 export interface CanvasPrefsSnapshot {
