@@ -38,7 +38,7 @@
  * @module host/workspace/merge/resolve
  */
 
-import type { ResourceId } from '../../primitives/resource';
+import type { ResourceId } from '@/shell/platform/primitives/resource';
 import type { SaveConflict, Workspace } from '../workspace';
 import { mergeThreeWay, type MergeOptions, type MergeResult } from './text-merge';
 

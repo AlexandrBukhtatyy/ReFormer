@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { planMerge, type MergeSides } from '../workspace/merge/resolve';
+import { planMerge, type MergeSides } from '@/shell/platform/workspace/merge/resolve';
 import { columnOf, describeMergeDialog, validateManualMerge } from './merge';
 
 const sidesOf = (partial: Partial<MergeSides>): MergeSides => ({

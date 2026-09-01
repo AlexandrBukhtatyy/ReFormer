@@ -25,8 +25,13 @@
  * @module host/ui/resource-menu
  */
 
-import { dirname, makeResourceId, type ResourceId, type ResourceRef } from '../primitives/resource';
-import type { WhenContext } from '../primitives/when-context';
+import {
+  dirname,
+  makeResourceId,
+  type ResourceId,
+  type ResourceRef,
+} from '@/shell/platform/primitives/resource';
+import type { WhenContext } from '@/shell/platform/primitives/when-context';
 import type { ContextMenuId, MenuTarget } from './menu';
 
 /** Адрес контекстного меню дерева: в него вносят пункты те, кому есть что предложить. */

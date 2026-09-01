@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
-import { whenContext, type WhenContext } from '../primitives/when-context';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { whenContext, type WhenContext } from '@/shell/platform/primitives/when-context';
 import { createContextKeyService, readWhenContext } from './context-keys';
 import type { ScopeSource, WhenContextSource } from './context-keys';
 

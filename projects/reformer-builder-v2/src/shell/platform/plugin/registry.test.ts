@@ -1,13 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createCommandRegistry, type CommandRegistry } from '../primitives/command';
-import { createEventBus, defineEvent, type EventBus } from '../primitives/event';
+import { createCommandRegistry, type CommandRegistry } from '@/shell/platform/primitives/command';
+import { createEventBus, defineEvent, type EventBus } from '@/shell/platform/primitives/event';
 import {
   createExtensionRegistry,
   defineExtensionPoint,
   type RootExtensionRegistry,
-} from '../primitives/extension-point';
-import { createServiceRegistry, defineService, type ServiceRegistry } from '../primitives/service';
+} from '@/shell/platform/primitives/extension-point';
+import {
+  createServiceRegistry,
+  defineService,
+  type ServiceRegistry,
+} from '@/shell/platform/primitives/service';
 import { createPluginRegistry, type PluginFailure, type PluginRegistry } from './registry';
 import { createMemoryStorageBackend, type PluginStorageBackend } from './storage';
 import { definePlugin, type Plugin, type PluginContext } from './types';

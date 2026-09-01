@@ -32,10 +32,10 @@
  * @module host/ui/storage-purge
  */
 
-import type { CommandContribution } from '../primitives/command';
-import type { NotificationsService } from '../services/notifications';
-import type { PromptService } from '../services/prompt';
-import type { PurgeReport } from '../workspace/storage/purge';
+import type { CommandContribution } from '@/shell/platform/primitives/command';
+import type { NotificationsService } from '@/shell/platform/services/notifications';
+import type { PromptService } from '@/shell/platform/services/prompt';
+import type { PurgeReport } from '@/shell/platform/workspace/storage/purge';
 
 /** Идентификатор команды. Экспортирован: на него ссылается пункт меню «Файл». */
 export const STORAGE_PURGE_COMMAND_ID = 'host.storage.purge';

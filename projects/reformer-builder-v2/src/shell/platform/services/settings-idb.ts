@@ -53,8 +53,8 @@
  * @module host/services/settings-idb
  */
 
-import { isStorageError } from '../workspace/storage/errors';
-import type { WorkspaceMetaStore } from '../workspace/storage/idb';
+import { isStorageError } from '@/shell/platform/workspace/storage/errors';
+import type { WorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 import type { SettingsBackend, SettingsScope } from './settings';
 
 /**

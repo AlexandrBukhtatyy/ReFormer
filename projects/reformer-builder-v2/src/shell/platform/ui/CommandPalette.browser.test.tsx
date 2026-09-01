@@ -14,9 +14,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import type { ReactElement } from 'react';
-import { createCommandRegistry, type CommandContribution } from '../primitives/command';
-import { createExtensionRegistry } from '../primitives/extension-point';
-import { createI18nService } from '../services/i18n/i18n';
+import {
+  createCommandRegistry,
+  type CommandContribution,
+} from '@/shell/platform/primitives/command';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { renderReact } from '@/testing/render';
 import { CommandPalette, PALETTE_OPEN_COMMAND_ID } from './CommandPalette';
 import { PaletteItemsPoint, type PaletteItemProvider } from './palette';

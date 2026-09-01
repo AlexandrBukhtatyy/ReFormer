@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { NEUTRAL_WHEN_CONTEXT } from '../primitives/when-context';
+import { NEUTRAL_WHEN_CONTEXT } from '@/shell/platform/primitives/when-context';
 import { createWhenContextStore } from './when-context-store';
 
 describe('createWhenContextStore', () => {

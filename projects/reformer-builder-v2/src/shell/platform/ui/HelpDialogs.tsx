@@ -28,8 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@reformer/ui-kit/dialog';
-import type { CommandRegistry } from '../primitives/command';
-import type { RootI18nService } from '../services/i18n/i18n';
+import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { DIALOG_SCOPE, useScope, type ScopeStack } from './scope';
 import { useLocale } from './usePanels';
 

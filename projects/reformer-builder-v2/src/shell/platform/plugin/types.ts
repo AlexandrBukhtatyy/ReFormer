@@ -42,11 +42,11 @@
  * @module host/plugin/types
  */
 
-import type { PluginCommandRegistry } from '../primitives/command';
-import type { Disposable } from '../primitives/disposable';
-import type { EventBus } from '../primitives/event';
-import type { ExtensionRegistry } from '../primitives/extension-point';
-import type { ServiceRegistry } from '../primitives/service';
+import type { PluginCommandRegistry } from '@/shell/platform/primitives/command';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { EventBus } from '@/shell/platform/primitives/event';
+import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import type { ServiceRegistry } from '@/shell/platform/primitives/service';
 import type { PluginStorage, SecretStorage } from './storage';
 
 /**

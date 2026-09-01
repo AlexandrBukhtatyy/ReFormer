@@ -9,9 +9,9 @@
  * @module host/ui/panels
  */
 
-import type { Contribution } from '../primitives/extension-point';
-import type { RootI18nService } from '../services/i18n/i18n';
-import type { WhenContext } from '../primitives/when-context';
+import type { Contribution } from '@/shell/platform/primitives/extension-point';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
+import type { WhenContext } from '@/shell/platform/primitives/when-context';
 import type { PanelContribution, SlotId } from './slots';
 
 /** Вклад панели: то, что лежит в точке расширения, вместе с происхождением и React-ключом. */

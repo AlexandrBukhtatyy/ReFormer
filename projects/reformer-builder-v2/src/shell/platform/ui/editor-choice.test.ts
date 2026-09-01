@@ -9,9 +9,9 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createExtensionRegistry } from '../primitives/extension-point';
-import { makeResourceId, type ResourceRef } from '../primitives/resource';
-import { createEditorProbe } from '../workspace/model/provider';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { makeResourceId, type ResourceRef } from '@/shell/platform/primitives/resource';
+import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
 import { createEditorChoiceStore, pickEditor } from './editor-choice';
 import {
   EditorPoint,

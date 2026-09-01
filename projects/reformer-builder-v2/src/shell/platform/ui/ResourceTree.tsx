@@ -71,9 +71,9 @@ import {
 } from '@reformer/ui-kit/context-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
 import { TREE_ROW_ATTRIBUTE, Tree, type TreeNode } from '@reformer/ui-kit/tree';
-import type { ResourceId, ResourceRef } from '../primitives/resource';
-import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '../primitives/when-context';
-import type { RootI18nService } from '../services/i18n/i18n';
+import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
+import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@/shell/platform/primitives/when-context';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import {
   ResourceDecorationPoint,
   decorationTooltip,
@@ -83,7 +83,7 @@ import {
   type DecorationTone,
   type MergedDecoration,
 } from './decorations';
-import type { CommandRegistry } from '../primitives/command';
+import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import { createLazyEditorProbe, createUnreadableProbe, type ReadResourceText } from './editors';
 import { detectPlatformModifier, formatChord } from './keybindings';
 import { buildMenu, MenuPoint, type MenuActionNode, type MenuNode } from './menu';

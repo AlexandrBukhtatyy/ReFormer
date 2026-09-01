@@ -39,8 +39,8 @@ import {
   makeResourceId,
   parseResourceId,
   type ResourceId,
-} from '../primitives/resource';
-import type { Source } from '../source/types';
+} from '@/shell/platform/primitives/resource';
+import type { Source } from '@/shell/platform/source/types';
 import { isInside, uniqueName, validateResourceName, type NameRejection } from './resource-names';
 
 /**

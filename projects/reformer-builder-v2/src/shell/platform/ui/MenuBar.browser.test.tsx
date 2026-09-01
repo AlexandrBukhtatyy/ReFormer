@@ -13,9 +13,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { createElement } from 'react';
-import { createCommandRegistry } from '../primitives/command';
-import { createExtensionRegistry } from '../primitives/extension-point';
-import { createI18nService } from '../services/i18n/i18n';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { MenuBar } from './MenuBar';
 import { hostMenuEntry, MenuPoint, type MenuContribution, type MenuEntry } from './menu';
 import { createWhenContextStore } from './when-context-store';

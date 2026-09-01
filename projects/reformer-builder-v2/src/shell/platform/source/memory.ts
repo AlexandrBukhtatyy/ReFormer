@@ -33,7 +33,7 @@
  * @module host/source/memory
  */
 
-import { joinPath, mediaTypeFor } from '../primitives/resource';
+import { joinPath, mediaTypeFor } from '@/shell/platform/primitives/resource';
 import { SourceError, sourcePath } from './errors';
 import type { SourceErrorKind } from './errors';
 import type {

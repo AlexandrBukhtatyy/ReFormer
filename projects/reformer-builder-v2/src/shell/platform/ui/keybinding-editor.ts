@@ -20,9 +20,9 @@
  * @module host/ui/keybinding-editor
  */
 
-import type { CommandContribution } from '../primitives/command';
-import { MAX_CHORD_STEPS } from '../primitives/command';
-import type { WhenExpr } from '../primitives/when-expr';
+import type { CommandContribution } from '@/shell/platform/primitives/command';
+import { MAX_CHORD_STEPS } from '@/shell/platform/primitives/command';
+import type { WhenExpr } from '@/shell/platform/primitives/when-expr';
 import type { KeybindingIndex, KeybindingLayer, KeybindingRule } from './keybinding-rules';
 import type { UserKeybinding } from './keymap';
 

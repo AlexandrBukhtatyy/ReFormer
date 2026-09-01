@@ -10,7 +10,10 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { BuildArtifactKind, BuildCacheStore } from '../workspace/storage/build-cache';
+import type {
+  BuildArtifactKind,
+  BuildCacheStore,
+} from '@/shell/platform/workspace/storage/build-cache';
 import { createCompileCache } from './compile-cache';
 import { digestAvailable } from './digest';
 

@@ -13,7 +13,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { StorageError } from '../workspace/storage/errors';
+import { StorageError } from '@/shell/platform/workspace/storage/errors';
 import { createIdbSettingsBackend, type SettingsMetaStore } from './settings-idb';
 import { createSettingsService } from './settings';
 

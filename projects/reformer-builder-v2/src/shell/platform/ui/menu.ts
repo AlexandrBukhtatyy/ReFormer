@@ -45,11 +45,11 @@
  */
 
 import type { ComponentType } from 'react';
-import type { Disposable } from '../primitives/disposable';
-import type { CommandContribution } from '../primitives/command';
-import { defineExtensionPoint } from '../primitives/extension-point';
-import { normalizeChord } from '../primitives/command';
-import type { WhenContext } from '../primitives/when-context';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { CommandContribution } from '@/shell/platform/primitives/command';
+import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
+import { normalizeChord } from '@/shell/platform/primitives/command';
+import type { WhenContext } from '@/shell/platform/primitives/when-context';
 import type { TranslateKey } from './palette';
 
 /**

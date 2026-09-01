@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { createCommandRegistry, MAX_CHORD_STEPS } from '../primitives/command';
-import type { CommandContribution } from '../primitives/command';
-import { compileWhen, WHEN_TRUE } from '../primitives/when-expr';
+import { createCommandRegistry, MAX_CHORD_STEPS } from '@/shell/platform/primitives/command';
+import type { CommandContribution } from '@/shell/platform/primitives/command';
+import { compileWhen, WHEN_TRUE } from '@/shell/platform/primitives/when-expr';
 import {
   beginRecording,
   conflictsOf,

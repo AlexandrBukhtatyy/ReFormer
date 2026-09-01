@@ -11,11 +11,15 @@
 import { describe, expect, it } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import type { ReactElement } from 'react';
-import { createCommandRegistry } from '../primitives/command';
-import { createExtensionRegistry } from '../primitives/extension-point';
-import { makeResourceId, mediaTypeFor, type ResourceRef } from '../primitives/resource';
-import { whenContext } from '../primitives/when-context';
-import { createI18nService } from '../services/i18n/i18n';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import {
+  makeResourceId,
+  mediaTypeFor,
+  type ResourceRef,
+} from '@/shell/platform/primitives/resource';
+import { whenContext } from '@/shell/platform/primitives/when-context';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { renderReact } from '@/testing/render';
 import { EditorActions } from './EditorActions';
 import { EDITOR_TITLE_MENU, whenEditor } from './editor-menu';

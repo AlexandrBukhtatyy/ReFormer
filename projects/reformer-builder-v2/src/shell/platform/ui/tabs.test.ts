@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Disposable } from '../primitives/disposable';
-import { toDisposable } from '../primitives/disposable';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable } from '@/shell/platform/primitives/disposable';
 import {
   makeResourceId,
   mediaTypeFor,
   type ResourceId,
   type ResourceRef,
-} from '../primitives/resource';
-import { createDocument, type Document } from '../workspace/document';
-import type { SaveResult, WorkspaceChange } from '../workspace/workspace';
+} from '@/shell/platform/primitives/resource';
+import { createDocument, type Document } from '@/shell/platform/workspace/document';
+import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
 import {
   EMPTY_TABS,
   activateTab,

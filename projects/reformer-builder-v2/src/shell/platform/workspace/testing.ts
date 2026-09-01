@@ -22,7 +22,7 @@
  * @module host/workspace/testing
  */
 
-import { normalizePath } from '../primitives/resource';
+import { normalizePath } from '@/shell/platform/primitives/resource';
 import type {
   SourceBytes,
   SourceContent,

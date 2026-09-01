@@ -28,7 +28,7 @@
  * @module host/ui/status
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 
 /** Итог по рабочей области. Числа, а не списки: строке состояния нужен счёт, а не адреса. */
 export interface WorkspaceStatusSnapshot {

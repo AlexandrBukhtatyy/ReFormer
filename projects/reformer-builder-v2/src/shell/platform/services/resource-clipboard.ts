@@ -20,10 +20,10 @@
  * @module host/services/resource-clipboard
  */
 
-import type { Disposable } from '../primitives/disposable';
-import { createEventBus, defineEvent } from '../primitives/event';
-import type { ResourceId } from '../primitives/resource';
-import { defineService } from '../primitives/service';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
+import type { ResourceId } from '@/shell/platform/primitives/resource';
+import { defineService } from '@/shell/platform/primitives/service';
 
 /**
  * Что сделали с записями.

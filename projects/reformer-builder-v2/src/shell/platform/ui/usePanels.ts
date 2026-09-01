@@ -26,11 +26,11 @@ import type {
   Contribution,
   ExtensionPoint,
   RootExtensionRegistry,
-} from '../primitives/extension-point';
-import type { CommandContribution, CommandRegistry } from '../primitives/command';
+} from '@/shell/platform/primitives/extension-point';
+import type { CommandContribution, CommandRegistry } from '@/shell/platform/primitives/command';
 import type { ChordSnapshot, ChordState } from './chords';
-import type { I18nService } from '../services/i18n/i18n';
-import type { SettingsService } from '../services/settings';
+import type { I18nService } from '@/shell/platform/services/i18n/i18n';
+import type { SettingsService } from '@/shell/platform/services/settings';
 import { selectPanels, type PanelEntry, type PanelPredicateErrorHandler } from './panels';
 import { PanelPoint, type SlotId } from './slots';
 import { useWhenContext, type WhenContextStore } from './when-context-store';

@@ -41,10 +41,10 @@
  * @module host/plugin/loader
  */
 
-import type { ModuleLoader } from '../modules/loader';
-import { joinPath } from '../primitives/resource';
-import { isSourceError } from '../source/errors';
-import type { Entry, Source } from '../source/types';
+import type { ModuleLoader } from '@/shell/platform/modules/loader';
+import { joinPath } from '@/shell/platform/primitives/resource';
+import { isSourceError } from '@/shell/platform/source/errors';
+import type { Entry, Source } from '@/shell/platform/source/types';
 import {
   parsePluginManifest,
   PLUGIN_MANIFEST_FILE,

@@ -32,8 +32,8 @@
  */
 
 import { useEffect } from 'react';
-import { toDisposable, type Disposable } from '../primitives/disposable';
-import { defineService } from '../primitives/service';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { defineService } from '@/shell/platform/primitives/service';
 
 /**
  * Имя области: `palette`, `dialog`. Непрозрачная строка, как `activeResourceKind`.

@@ -21,14 +21,14 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { Diagnostic } from '../../diagnostics/types';
-import { createExtensionRegistry } from '../../primitives/extension-point';
+import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import {
   makeResourceId,
   mediaTypeFor,
   type ResourceId,
   type ResourceRef,
-} from '../../primitives/resource';
+} from '@/shell/platform/primitives/resource';
 import { createDocument, type Document, type DocumentHandle } from '../document';
 import { createWorkspaceMetaStore } from './../storage/idb';
 import { createWorkspaceFileStore } from './../storage/opfs';

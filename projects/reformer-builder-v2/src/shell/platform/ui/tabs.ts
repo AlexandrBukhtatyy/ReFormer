@@ -32,17 +32,17 @@
  * @module host/ui/tabs
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 import {
   basename,
   mediaTypeFor,
   parseResourceId,
   type ResourceId,
   type ResourceRef,
-} from '../primitives/resource';
-import type { Document } from '../workspace/document';
-import { isModelDocument } from '../workspace/model/model-document';
-import type { Workspace } from '../workspace/workspace';
+} from '@/shell/platform/primitives/resource';
+import type { Document } from '@/shell/platform/workspace/document';
+import { isModelDocument } from '@/shell/platform/workspace/model/model-document';
+import type { Workspace } from '@/shell/platform/workspace/workspace';
 import type { WhenContextStore } from './when-context-store';
 
 /** Одна вкладка. Ссылка на ресурс, а не идентификатор: строке нужны имя, путь и медиатип. */

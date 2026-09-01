@@ -33,10 +33,10 @@
 
 import { useEffect, useLayoutEffect, useMemo, type ReactElement } from 'react';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
-import type { ResourceId } from '../primitives/resource';
-import type { CommandRegistry } from '../primitives/command';
-import type { WhenContext } from '../primitives/when-context';
-import type { RootI18nService } from '../services/i18n/i18n';
+import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { WhenContext } from '@/shell/platform/primitives/when-context';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { DocumentTabs } from './DocumentTabs';
 import { EditorActions, type EditorActionsCommands } from './EditorActions';
 import { createEditorChoiceStore, pickEditor, type EditorChoiceStore } from './editor-choice';
@@ -48,7 +48,7 @@ import {
   type EditorEntry,
   type ViewStateStore,
 } from './editors';
-import type { Document } from '../workspace/document';
+import type { Document } from '@/shell/platform/workspace/document';
 import { hostMenuEntry, type MenuEntry } from './menu';
 import { EDITOR_TITLE_MENU } from './editor-menu';
 import type { PanelEntry } from './panels';

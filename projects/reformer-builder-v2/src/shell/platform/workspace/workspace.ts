@@ -61,9 +61,9 @@
  * @module host/workspace/workspace
  */
 
-import type { Diagnostic } from '../diagnostics/types';
-import type { Disposable } from '../primitives/disposable';
-import { createEventBus, defineEvent, type EventBus } from '../primitives/event';
+import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import { createEventBus, defineEvent, type EventBus } from '@/shell/platform/primitives/event';
 import {
   basename,
   dirname,
@@ -75,7 +75,7 @@ import {
   type ResourceId,
   type ResourceRef,
   type ResourceStat,
-} from '../primitives/resource';
+} from '@/shell/platform/primitives/resource';
 import { createDocument, type Document, type DocumentHandle } from './document';
 import {
   DEFAULT_EVICTION_BUDGET,

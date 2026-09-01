@@ -4,7 +4,7 @@ import {
   createNotificationsService,
   type Notification,
   type NotificationsService,
-} from '../services/notifications';
+} from '@/shell/platform/services/notifications';
 import { drainNotifications, SHOWN_LIMIT, toToast, type ToastSpec } from './notifications';
 
 /** Перевод-заглушка: ключ и параметры видны в результате, словарь для этого не нужен. */

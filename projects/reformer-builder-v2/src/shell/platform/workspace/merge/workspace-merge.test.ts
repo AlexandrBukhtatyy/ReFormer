@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { makeResourceId, type ResourceId } from '../../primitives/resource';
+import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
 import { createWorkspaceMetaStore } from '../storage/idb';
 import { createWorkspaceFileStore } from '../storage/opfs';
 import { createMemoryIndexedDb, createMemoryOpfs, type MemoryOpfs } from '../storage/testing';

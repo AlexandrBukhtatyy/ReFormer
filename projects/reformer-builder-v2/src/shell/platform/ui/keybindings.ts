@@ -44,11 +44,15 @@
  */
 
 import { useEffect } from 'react';
-import { normalizeKeybinding, whenOf, type CommandRegistry } from '../primitives/command';
-import { toDisposable, type Disposable } from '../primitives/disposable';
-import type { WhenContext } from '../primitives/when-context';
-import { evaluateWhen, type WhenExpr } from '../primitives/when-expr';
-import { readWhenContext } from '../services/context-keys';
+import {
+  normalizeKeybinding,
+  whenOf,
+  type CommandRegistry,
+} from '@/shell/platform/primitives/command';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import type { WhenContext } from '@/shell/platform/primitives/when-context';
+import { evaluateWhen, type WhenExpr } from '@/shell/platform/primitives/when-expr';
+import { readWhenContext } from '@/shell/platform/services/context-keys';
 import type { ChordState } from './chords';
 
 /**

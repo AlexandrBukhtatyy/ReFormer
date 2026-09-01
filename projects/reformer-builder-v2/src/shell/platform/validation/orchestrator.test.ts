@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createDiagnosticsService } from '../diagnostics/service';
-import type { Diagnostic } from '../diagnostics/types';
-import { createExtensionRegistry } from '../primitives/extension-point';
-import { makeResourceId, type ResourceRef } from '../primitives/resource';
-import { createDocument, type Document } from '../workspace/document';
-import { createModelDocument } from '../workspace/model/model-document';
-import { createLinesProvider, printLines, type LinesModel } from '../workspace/model/testing';
+import { createDiagnosticsService } from '@/shell/platform/diagnostics/service';
+import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { makeResourceId, type ResourceRef } from '@/shell/platform/primitives/resource';
+import { createDocument, type Document } from '@/shell/platform/workspace/document';
+import { createModelDocument } from '@/shell/platform/workspace/model/model-document';
+import {
+  createLinesProvider,
+  printLines,
+  type LinesModel,
+} from '@/shell/platform/workspace/model/testing';
 import { createValidationOrchestrator, type Schedule } from './orchestrator';
 import {
   asyncSource,

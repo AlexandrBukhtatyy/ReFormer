@@ -34,8 +34,8 @@ import {
   MenubarSubTrigger,
   MenubarTrigger,
 } from '@reformer/ui-kit/menubar';
-import type { CommandRegistry } from '../primitives/command';
-import type { RootI18nService } from '../services/i18n/i18n';
+import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { detectPlatformModifier, formatChord, type PlatformModifier } from './keybindings';
 import { chordOfCommand, type KeymapService } from './keymap';
 import { buildMenuBar, MenuPoint, observeMenuEntries, type MenuEntry, type MenuNode } from './menu';

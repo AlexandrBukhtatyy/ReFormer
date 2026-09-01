@@ -23,7 +23,7 @@
  * @module host/source/types
  */
 
-import type { Disposable } from '../primitives/disposable';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
 
 /**
  * Ответ источника на чтение текста.

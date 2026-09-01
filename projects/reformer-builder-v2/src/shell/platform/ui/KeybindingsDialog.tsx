@@ -41,8 +41,8 @@ import {
   TableHeader,
   TableRow,
 } from '@reformer/ui-kit/table';
-import type { CommandRegistry } from '../primitives/command';
-import type { RootI18nService } from '../services/i18n/i18n';
+import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import {
   beginRecording,
   conflictsOf,
@@ -64,7 +64,7 @@ import type { KeybindingLayer } from './keybinding-rules';
 import type { KeymapService } from './keymap';
 import { DIALOG_SCOPE, useScope, type ScopeStack } from './scope';
 import { useLocale } from './usePanels';
-import { WHEN_TRUE } from '../primitives/when-expr';
+import { WHEN_TRUE } from '@/shell/platform/primitives/when-expr';
 
 /** Команда, открывающая экран. Идентификатор экспортирован: на него ссылается пункт меню. */
 export const KEYBINDINGS_OPEN_COMMAND_ID = 'host.keybindings.open';

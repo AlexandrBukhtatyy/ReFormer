@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createModuleLoader } from '../modules/loader';
-import { createCommandRegistry } from '../primitives/command';
-import { createEventBus } from '../primitives/event';
-import { createExtensionRegistry, defineExtensionPoint } from '../primitives/extension-point';
-import { createServiceRegistry } from '../primitives/service';
-import { createMemorySource, type MemorySource } from '../source/memory';
-import type { Source } from '../source/types';
+import { createModuleLoader } from '@/shell/platform/modules/loader';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { createEventBus } from '@/shell/platform/primitives/event';
+import {
+  createExtensionRegistry,
+  defineExtensionPoint,
+} from '@/shell/platform/primitives/extension-point';
+import { createServiceRegistry } from '@/shell/platform/primitives/service';
+import { createMemorySource, type MemorySource } from '@/shell/platform/source/memory';
+import type { Source } from '@/shell/platform/source/types';
 import {
   createProjectPluginCatalog,
   type ProjectPluginCatalogDeps,

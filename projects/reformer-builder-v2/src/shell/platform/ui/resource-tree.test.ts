@@ -5,7 +5,7 @@ import {
   mediaTypeFor,
   type ResourceId,
   type ResourceRef,
-} from '../primitives/resource';
+} from '@/shell/platform/primitives/resource';
 import {
   collapseNode,
   createResourceTreeStore,

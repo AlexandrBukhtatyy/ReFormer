@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { makeResourceId } from '../primitives/resource';
+import { makeResourceId } from '@/shell/platform/primitives/resource';
 import { createDiagnosticsService } from './service';
 import type { Diagnostic } from './types';
 

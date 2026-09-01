@@ -22,13 +22,13 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Diagnostic } from '../diagnostics/types';
-import { makeResourceId, type ResourceId } from '../primitives/resource';
+import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
 import { createWorkspaceMetaStore, type WorkspaceMetaStore } from './storage/idb';
 import { createWorkspaceFileStore } from './storage/opfs';
 import { createMemoryIndexedDb, createMemoryOpfs, type MemoryOpfs } from './storage/testing';
-import { createFsAccessSource } from '../source/fs-access';
-import { createFakeDirectory } from '../source/testing';
+import { createFsAccessSource } from '@/shell/platform/source/fs-access';
+import { createFakeDirectory } from '@/shell/platform/source/testing';
 import { createMemorySource, type MemorySource, type MemorySourceOptions } from './testing';
 import { createJournal, type Journal } from './journal/journal';
 import {

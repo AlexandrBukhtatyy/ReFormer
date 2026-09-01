@@ -29,8 +29,8 @@
 
 import { useCallback, useEffect, useRef, useSyncExternalStore, type ReactElement } from 'react';
 import { Toaster, toast } from '@reformer/ui-kit/sonner';
-import type { NotificationsService } from '../services/notifications';
-import type { I18nService } from '../services/i18n/i18n';
+import type { NotificationsService } from '@/shell/platform/services/notifications';
+import type { I18nService } from '@/shell/platform/services/i18n/i18n';
 import { drainNotifications, type ToastSpec } from './notifications';
 import { useLocale } from './usePanels';
 

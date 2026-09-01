@@ -51,10 +51,10 @@
  * @module host/workspace/model/model-document
  */
 
-import type { Disposable } from '../../primitives/disposable';
-import { toDisposable } from '../../primitives/disposable';
-import type { ExtensionRegistry } from '../../primitives/extension-point';
-import type { Diagnostic } from '../../diagnostics/types';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable } from '@/shell/platform/primitives/disposable';
+import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import type { Diagnostic } from '@/shell/platform/diagnostics/types';
 import type { Document } from '../document';
 import type { DiagnosticsSink } from '../workspace';
 import { createModelHistory, type ModelHistory, type ModelSnapshot } from './history';

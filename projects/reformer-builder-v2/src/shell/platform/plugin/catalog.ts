@@ -40,12 +40,12 @@
  * @module host/plugin/catalog
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 import type { DiscoveredPlugin, PluginLoader } from './loader';
 import type { PluginManifest, PluginProblem } from './manifest';
-import { normalizeChord } from '../primitives/command';
-import { compileWhen, WHEN_TRUE } from '../primitives/when-expr';
-import type { KeymapService } from '../ui/keymap';
+import { normalizeChord } from '@/shell/platform/primitives/command';
+import { compileWhen, WHEN_TRUE } from '@/shell/platform/primitives/when-expr';
+import type { KeymapService } from '@/shell/platform/ui/keymap';
 import type { PluginRegistry } from './registry';
 
 /**

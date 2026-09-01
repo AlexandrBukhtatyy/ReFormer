@@ -21,10 +21,10 @@
  * @module host/plugin/context
  */
 
-import type { CommandRegistry } from '../primitives/command';
-import type { EventBus } from '../primitives/event';
-import type { RootExtensionRegistry } from '../primitives/extension-point';
-import type { ServiceRegistry } from '../primitives/service';
+import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { EventBus } from '@/shell/platform/primitives/event';
+import type { RootExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import type { ServiceRegistry } from '@/shell/platform/primitives/service';
 import { createPluginStorage, createSecretStorage } from './storage';
 import type { PluginStorageBackend, SecretSessionStore } from './storage';
 import type { PluginContext } from './types';

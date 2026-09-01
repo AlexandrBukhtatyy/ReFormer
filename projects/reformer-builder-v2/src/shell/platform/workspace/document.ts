@@ -28,8 +28,8 @@
  * @module host/workspace/document
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
-import type { ResourceId, ResourceRef } from '../primitives/resource';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
 
 /**
  * Вид документа — дискриминант союза `TextDocument | ModelDocument`.

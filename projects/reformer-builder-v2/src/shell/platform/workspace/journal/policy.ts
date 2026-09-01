@@ -35,7 +35,7 @@
  * @module host/workspace/journal/policy
  */
 
-import type { ResourceId } from '../../primitives/resource';
+import type { ResourceId } from '@/shell/platform/primitives/resource';
 import { composeTextEdits } from './compose';
 import type { JournalIndexEntry, JournalRecord } from './record';
 

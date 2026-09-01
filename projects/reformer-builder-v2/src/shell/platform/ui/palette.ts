@@ -34,10 +34,10 @@
  * @module host/ui/palette
  */
 
-import type { CommandContribution } from '../primitives/command';
-import type { Disposable } from '../primitives/disposable';
-import { defineExtensionPoint } from '../primitives/extension-point';
-import type { WhenContext } from '../primitives/when-context';
+import type { CommandContribution } from '@/shell/platform/primitives/command';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
+import type { WhenContext } from '@/shell/platform/primitives/when-context';
 
 /**
  * Пункт палитры.

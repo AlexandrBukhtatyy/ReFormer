@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import * as sdkModule from '@/sdk';
-import { createModuleLoader, type ModuleLoader } from '../modules/loader';
-import { ModuleRegistryError } from '../modules/registry';
-import { createMemorySource, type MemorySource } from '../source/memory';
-import type { Source } from '../source/types';
+import { createModuleLoader, type ModuleLoader } from '@/shell/platform/modules/loader';
+import { ModuleRegistryError } from '@/shell/platform/modules/registry';
+import { createMemorySource, type MemorySource } from '@/shell/platform/source/memory';
+import type { Source } from '@/shell/platform/source/types';
 import { createPluginLoader, PLUGIN_CATALOG_DIR, type PluginLoader } from './loader';
 import { createTypeScriptSupport, type TypeScriptEngine } from './typescript-transpiler';
 import type { Plugin } from './types';

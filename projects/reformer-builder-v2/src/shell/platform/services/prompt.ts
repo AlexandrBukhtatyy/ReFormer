@@ -36,9 +36,9 @@
  * @module host/services/prompt
  */
 
-import type { Disposable } from '../primitives/disposable';
-import { createEventBus, defineEvent } from '../primitives/event';
-import { defineService } from '../primitives/service';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
+import { defineService } from '@/shell/platform/primitives/service';
 
 /** Проверка введённого значения: ключ сообщения об ошибке или `null`, если всё хорошо. */
 export type PromptValidator = (value: string) => string | null;

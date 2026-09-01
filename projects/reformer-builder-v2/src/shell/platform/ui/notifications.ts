@@ -32,7 +32,7 @@
  * @module host/ui/notifications
  */
 
-import type { Notification, NotificationLevel } from '../services/notifications';
+import type { Notification, NotificationLevel } from '@/shell/platform/services/notifications';
 
 /** Сколько идентификаторов помнить. Больше очереди службы (100) — с запасом на устаревший кадр. */
 export const SHOWN_LIMIT = 200;

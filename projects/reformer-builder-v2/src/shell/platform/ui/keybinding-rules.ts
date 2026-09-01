@@ -27,8 +27,8 @@
  * @module host/ui/keybinding-rules
  */
 
-import { normalizeChord } from '../primitives/command';
-import { provablyDisjoint, WHEN_TRUE, type WhenExpr } from '../primitives/when-expr';
+import { normalizeChord } from '@/shell/platform/primitives/command';
+import { provablyDisjoint, WHEN_TRUE, type WhenExpr } from '@/shell/platform/primitives/when-expr';
 import { resolvePlatformChord, type PlatformModifier } from './keybindings';
 
 /**

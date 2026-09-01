@@ -33,7 +33,7 @@
  * @module host/source/fs-access
  */
 
-import { basename, dirname, joinPath, mediaTypeFor } from '../primitives/resource';
+import { basename, dirname, joinPath, mediaTypeFor } from '@/shell/platform/primitives/resource';
 import { SourceError, isSourceError, sourcePath, unsupported } from './errors';
 import type {
   Entry,

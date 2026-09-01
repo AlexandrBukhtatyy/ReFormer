@@ -79,10 +79,10 @@ import {
 } from '@reformer/ui-kit/command';
 import { Dialog, DialogContent, DialogTitle } from '@reformer/ui-kit/dialog';
 import { Kbd, KbdGroup } from '@reformer/ui-kit/kbd';
-import type { CommandRegistry } from '../primitives/command';
-import type { Disposable } from '../primitives/disposable';
-import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '../primitives/when-context';
-import type { RootI18nService } from '../services/i18n/i18n';
+import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@/shell/platform/primitives/when-context';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useScope, type ScopeStack } from './scope';
 import { detectPlatformModifier, formatKeybinding, type PlatformModifier } from './keybindings';
 import {

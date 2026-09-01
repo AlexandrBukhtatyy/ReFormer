@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { makeResourceId } from '../primitives/resource';
+import { makeResourceId } from '@/shell/platform/primitives/resource';
 import { createSelectionService, SelectionServiceToken } from './selection';
 
 const A = makeResourceId('mem', 'a.json');

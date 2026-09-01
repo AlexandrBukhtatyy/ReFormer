@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createI18nService } from '../services/i18n/i18n';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import {
   createStaticWorkspaceStatusSource,
   describeWorkspaceStatus,

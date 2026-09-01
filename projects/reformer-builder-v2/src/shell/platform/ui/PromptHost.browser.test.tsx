@@ -10,8 +10,8 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
-import { createI18nService } from '../services/i18n/i18n';
-import { createPromptService, type PromptService } from '../services/prompt';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
+import { createPromptService, type PromptService } from '@/shell/platform/services/prompt';
 import { renderReact } from '@/testing/render';
 import { PromptHost } from './PromptHost';
 

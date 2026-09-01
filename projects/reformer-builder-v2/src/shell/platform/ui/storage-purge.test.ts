@@ -10,9 +10,9 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createPromptService } from '../services/prompt';
-import { createNotificationsService } from '../services/notifications';
-import type { PurgeReport } from '../workspace/storage/purge';
+import { createPromptService } from '@/shell/platform/services/prompt';
+import { createNotificationsService } from '@/shell/platform/services/notifications';
+import type { PurgeReport } from '@/shell/platform/workspace/storage/purge';
 import { storagePurgeCommand, STORAGE_PURGE_COMMAND_ID } from './storage-purge';
 
 const CLEAN: PurgeReport = Object.freeze({ removed: 3, blocked: [], failures: [] });

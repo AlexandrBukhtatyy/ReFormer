@@ -19,8 +19,8 @@
  * @module host/ui/editor-menu
  */
 
-import type { ResourceId, ResourceRef } from '../primitives/resource';
-import type { WhenContext } from '../primitives/when-context';
+import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
+import type { WhenContext } from '@/shell/platform/primitives/when-context';
 import type { ContextMenuId, MenuTarget } from './menu';
 
 /** Адрес ряда действий над активным документом. */

@@ -16,7 +16,7 @@
  * @module host/workspace/model/testing
  */
 
-import type { ResourceRef } from '../../primitives/resource';
+import type { ResourceRef } from '@/shell/platform/primitives/resource';
 import type { ApplyResult, DocumentModelProvider, EditOp, NodeId } from './provider';
 
 /** Узел подставной модели. */

@@ -24,8 +24,17 @@
  * @module host/ui/merge
  */
 
-import type { AskReason, MergeChoice, MergePlan, MergeSides } from '../workspace/merge/resolve';
-import { diffLines, diffStat, hasConflictMarkers } from '../workspace/merge/text-merge';
+import type {
+  AskReason,
+  MergeChoice,
+  MergePlan,
+  MergeSides,
+} from '@/shell/platform/workspace/merge/resolve';
+import {
+  diffLines,
+  diffStat,
+  hasConflictMarkers,
+} from '@/shell/platform/workspace/merge/text-merge';
 
 export type MergeColumnId = 'base' | 'ours' | 'theirs';
 

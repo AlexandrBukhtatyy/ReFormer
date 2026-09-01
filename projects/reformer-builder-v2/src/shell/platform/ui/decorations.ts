@@ -24,11 +24,14 @@
  */
 
 import type { ComponentType } from 'react';
-import type { Disposable } from '../primitives/disposable';
-import { defineExtensionPoint, type Contribution } from '../primitives/extension-point';
-import type { ResourceRef } from '../primitives/resource';
-import type { RootI18nService } from '../services/i18n/i18n';
-import type { EditorProbe } from '../workspace/model/provider';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import {
+  defineExtensionPoint,
+  type Contribution,
+} from '@/shell/platform/primitives/extension-point';
+import type { ResourceRef } from '@/shell/platform/primitives/resource';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
+import type { EditorProbe } from '@/shell/platform/workspace/model/provider';
 
 /**
  * Тон пометки. Предметного смысла у Host нет: он переносит значение от вклада к отрисовке.

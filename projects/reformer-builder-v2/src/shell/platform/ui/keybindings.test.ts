@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createCommandRegistry, normalizeKeybinding } from '../primitives/command';
-import { whenContext } from '../primitives/when-context';
+import { createCommandRegistry, normalizeKeybinding } from '@/shell/platform/primitives/command';
+import { whenContext } from '@/shell/platform/primitives/when-context';
 import { createChordState } from './chords';
 import { createKeymapService } from './keymap';
 import {

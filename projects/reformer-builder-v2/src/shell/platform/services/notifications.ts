@@ -21,9 +21,9 @@
  * @module host/services/notifications
  */
 
-import type { Disposable } from '../primitives/disposable';
-import { createEventBus, defineEvent } from '../primitives/event';
-import { defineService } from '../primitives/service';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
+import { defineService } from '@/shell/platform/primitives/service';
 
 /** Уровень тоста. Определяет вид и озвучку для скринридера, но не поведение очереди. */
 export type NotificationLevel = 'info' | 'success' | 'warning' | 'error';

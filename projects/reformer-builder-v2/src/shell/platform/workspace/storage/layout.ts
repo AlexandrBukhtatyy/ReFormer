@@ -28,7 +28,7 @@
  * @module host/workspace/storage/layout
  */
 
-import { normalizePath, type ResourceId } from '../../primitives/resource';
+import { normalizePath, type ResourceId } from '@/shell/platform/primitives/resource';
 import { StorageError } from './errors';
 
 /** Корень всех рабочих областей внутри OPFS. */

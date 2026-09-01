@@ -28,7 +28,7 @@
  * @module host/workspace/storage/opfs
  */
 
-import { basename, dirname, normalizePath } from '../../primitives/resource';
+import { basename, dirname, normalizePath } from '@/shell/platform/primitives/resource';
 import { StorageError } from './errors';
 import {
   STORAGE_LAYERS,

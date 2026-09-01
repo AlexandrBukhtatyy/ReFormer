@@ -5,7 +5,7 @@ import {
   createSettingsService,
   scopeForKey,
   type SettingsBackend,
-} from '../services/settings';
+} from '@/shell/platform/services/settings';
 import {
   DEFAULT_DOCK_STATE,
   dockSettingsKey,

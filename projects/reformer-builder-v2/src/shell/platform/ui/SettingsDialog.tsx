@@ -46,8 +46,8 @@ import {
   SelectValue,
 } from '@reformer/ui-kit/select';
 import { Search } from 'lucide-react';
-import type { CommandRegistry } from '../primitives/command';
-import type { RootI18nService } from '../services/i18n/i18n';
+import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { DIALOG_SCOPE, useScope, type ScopeStack } from './scope';
 import type { SettingField, SettingsSection } from './settings-ui';
 import { useLocale } from './usePanels';

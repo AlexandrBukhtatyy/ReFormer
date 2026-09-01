@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { makeResourceId, mediaTypeFor, type ResourceRef } from '../primitives/resource';
-import { whenContext } from '../primitives/when-context';
+import {
+  makeResourceId,
+  mediaTypeFor,
+  type ResourceRef,
+} from '@/shell/platform/primitives/resource';
+import { whenContext } from '@/shell/platform/primitives/when-context';
 import {
   argsOfResource,
   asResourceTarget,

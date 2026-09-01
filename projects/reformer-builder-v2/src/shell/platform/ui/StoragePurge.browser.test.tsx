@@ -13,12 +13,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { createElement } from 'react';
-import { createCommandRegistry } from '../primitives/command';
-import { createExtensionRegistry } from '../primitives/extension-point';
-import { createI18nService } from '../services/i18n/i18n';
-import { createInMemorySettingsBackend, createSettingsService } from '../services/settings';
-import { createPromptService } from '../services/prompt';
-import type { PurgeReport } from '../workspace/storage/purge';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
+import {
+  createInMemorySettingsBackend,
+  createSettingsService,
+} from '@/shell/platform/services/settings';
+import { createPromptService } from '@/shell/platform/services/prompt';
+import type { PurgeReport } from '@/shell/platform/workspace/storage/purge';
 import { Shell } from './Shell';
 import { createWhenContextStore } from './when-context-store';
 import { renderReact } from '@/testing/render';

@@ -35,7 +35,7 @@
  */
 
 import { useCallback, useSyncExternalStore, type ReactElement } from 'react';
-import type { RootI18nService } from '../services/i18n/i18n';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import {
   describeWorkspaceStatus,
   chordIndicator,

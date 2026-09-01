@@ -28,8 +28,8 @@
  * @module host/workspace/materialize
  */
 
-import type { Diagnostic } from '../diagnostics/types';
-import { dirname, extname, joinPath } from '../primitives/resource';
+import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import { dirname, extname, joinPath } from '@/shell/platform/primitives/resource';
 
 /** Потолки догрузки замыкания. */
 export interface ClosureBudget {

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { makeResourceId, type ResourceId } from '../primitives/resource';
-import { createFsAccessSource } from '../source/fs-access';
-import { createFakeDirectory } from '../source/testing';
-import type { Source } from '../source/types';
+import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
+import { createFsAccessSource } from '@/shell/platform/source/fs-access';
+import { createFakeDirectory } from '@/shell/platform/source/testing';
+import type { Source } from '@/shell/platform/source/types';
 import {
   createResourceOperations,
   ResourceOperationError,

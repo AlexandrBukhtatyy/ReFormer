@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { makeResourceId, type ResourceId } from '../../primitives/resource';
+import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
 import {
   attachFocusChecks,
   classifyDivergence,

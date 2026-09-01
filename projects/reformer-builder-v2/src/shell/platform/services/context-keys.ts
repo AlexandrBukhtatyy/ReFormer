@@ -30,9 +30,9 @@
  * @module host/services/context-keys
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
-import { defineService } from '../primitives/service';
-import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '../primitives/when-context';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { defineService } from '@/shell/platform/primitives/service';
+import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@/shell/platform/primitives/when-context';
 
 /** Порт источника пяти полей. `WhenContextStore` подходит под эту форму как есть. */
 export interface WhenContextSource {

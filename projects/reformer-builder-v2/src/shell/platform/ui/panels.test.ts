@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createExtensionRegistry } from '../primitives/extension-point';
-import { whenContext } from '../primitives/when-context';
-import { createI18nService } from '../services/i18n/i18n';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { whenContext } from '@/shell/platform/primitives/when-context';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import {
   findPanel,
   panelInitial,

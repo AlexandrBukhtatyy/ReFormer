@@ -24,8 +24,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isSourceError as consumerRecognizes } from '../workspace/source';
-import type { WorkspaceSource } from '../workspace/source';
+import { isSourceError as consumerRecognizes } from '@/shell/platform/workspace/source';
+import type { WorkspaceSource } from '@/shell/platform/workspace/source';
 import { SourceError, conflictRevision, isSourceError } from './errors';
 import type { SourceErrorKind, SourceErrorLike } from './errors';
 import { createFakeDirectory } from './testing';

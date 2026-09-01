@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createTranspilerRegistry } from '../modules/transpilers';
+import { createTranspilerRegistry } from '@/shell/platform/modules/transpilers';
 import {
   createTypeScriptSupport,
   createTypeScriptTranspiler,

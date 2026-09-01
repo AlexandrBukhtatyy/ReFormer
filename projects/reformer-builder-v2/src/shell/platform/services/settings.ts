@@ -28,9 +28,9 @@
  * @module host/services/settings
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
-import { createEventBus, defineEvent } from '../primitives/event';
-import { defineService } from '../primitives/service';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
+import { defineService } from '@/shell/platform/primitives/service';
 
 /** Куда пишется значение. Читается всегда из обеих: `workspace` перекрывает `user`. */
 export type SettingsScope = 'user' | 'workspace';

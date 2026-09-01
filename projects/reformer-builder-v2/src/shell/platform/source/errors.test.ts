@@ -15,8 +15,8 @@ import { describe, expect, it } from 'vitest';
 import {
   conflictRevision as consumerConflictRevision,
   isSourceError as consumerRecognizes,
-} from '../workspace/source';
-import { TestSourceError } from '../workspace/testing';
+} from '@/shell/platform/workspace/source';
+import { TestSourceError } from '@/shell/platform/workspace/testing';
 import { SourceError, conflictRevision, isSourceError, sourcePath, unsupported } from './errors';
 import type { SourceErrorKind } from './errors';
 

@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createExtensionRegistry } from '../primitives/extension-point';
-import { makeResourceId, type ResourceRef } from '../primitives/resource';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { makeResourceId, type ResourceRef } from '@/shell/platform/primitives/resource';
 import {
   createEditorProbe,
   isSyncEditorProbe,
   type EditorProbe,
-} from '../workspace/model/provider';
+} from '@/shell/platform/workspace/model/provider';
 import {
   EditorPoint,
   chooseEditor,

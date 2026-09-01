@@ -42,7 +42,7 @@
  * @module host/modules/registry
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 
 /**
  * Реестр модулей — неприкосновенная часть контракта Э8.

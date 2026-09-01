@@ -34,7 +34,7 @@
  * @module host/modules/compile-cache
  */
 
-import type { BuildCacheStore } from '../workspace/storage/build-cache';
+import type { BuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import { digestAvailable, digestHex } from './digest';
 
 /** Версия формата бандла набора. Меняется вместе со схемой JSON ниже. */

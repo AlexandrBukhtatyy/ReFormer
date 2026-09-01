@@ -33,11 +33,18 @@
  */
 
 import type { ComponentType } from 'react';
-import type { CommandContribution } from '../primitives/command';
-import { defineExtensionPoint, type Contribution } from '../primitives/extension-point';
-import { isTextMediaType, type ResourceId, type ResourceRef } from '../primitives/resource';
-import type { Document } from '../workspace/document';
-import { createEditorProbe, type EditorProbe } from '../workspace/model/provider';
+import type { CommandContribution } from '@/shell/platform/primitives/command';
+import {
+  defineExtensionPoint,
+  type Contribution,
+} from '@/shell/platform/primitives/extension-point';
+import {
+  isTextMediaType,
+  type ResourceId,
+  type ResourceRef,
+} from '@/shell/platform/primitives/resource';
+import type { Document } from '@/shell/platform/workspace/document';
+import { createEditorProbe, type EditorProbe } from '@/shell/platform/workspace/model/provider';
 import type { PanelContribution } from './slots';
 
 /**

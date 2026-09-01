@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { createCommandRegistry } from '../primitives/command';
-import { createEventBus } from '../primitives/event';
-import { createExtensionRegistry, defineExtensionPoint } from '../primitives/extension-point';
-import { createServiceRegistry } from '../primitives/service';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { createEventBus } from '@/shell/platform/primitives/event';
+import {
+  createExtensionRegistry,
+  defineExtensionPoint,
+} from '@/shell/platform/primitives/extension-point';
+import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import { createPluginContext, type PluginContextDeps } from './context';
 import { createMemoryStorageBackend, createSecretSessionStore } from './storage';
 

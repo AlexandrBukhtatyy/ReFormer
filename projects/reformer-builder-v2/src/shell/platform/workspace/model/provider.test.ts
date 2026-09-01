@@ -10,8 +10,12 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createExtensionRegistry } from '../../primitives/extension-point';
-import { makeResourceId, mediaTypeFor, type ResourceRef } from '../../primitives/resource';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import {
+  makeResourceId,
+  mediaTypeFor,
+  type ResourceRef,
+} from '@/shell/platform/primitives/resource';
 import {
   createEditorProbe,
   DocumentModelPoint,

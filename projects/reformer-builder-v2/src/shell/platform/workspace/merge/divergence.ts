@@ -43,8 +43,8 @@
  * @module host/workspace/merge/divergence
  */
 
-import { toDisposable, type Disposable } from '../../primitives/disposable';
-import type { ResourceId } from '../../primitives/resource';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import type { ResourceId } from '@/shell/platform/primitives/resource';
 
 /**
  * Чем кончилось сравнение с источником.

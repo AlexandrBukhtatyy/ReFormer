@@ -40,8 +40,8 @@ import {
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@reformer/ui-kit/tabs';
 import { Textarea } from '@reformer/ui-kit/textarea';
-import type { I18nService } from '../services/i18n/i18n';
-import type { MergeChoice, MergePlan, MergeSides } from '../workspace/merge/resolve';
+import type { I18nService } from '@/shell/platform/services/i18n/i18n';
+import type { MergeChoice, MergePlan, MergeSides } from '@/shell/platform/workspace/merge/resolve';
 import {
   columnOf,
   describeMergeDialog,

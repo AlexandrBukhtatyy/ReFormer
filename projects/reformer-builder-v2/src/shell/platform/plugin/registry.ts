@@ -40,7 +40,7 @@
  * @module host/plugin/registry
  */
 
-import { disposeAll } from '../primitives/disposable';
+import { disposeAll } from '@/shell/platform/primitives/disposable';
 import { createPluginContext } from './context';
 import type { PluginContextDeps } from './context';
 import { createSecretSessionStore } from './storage';

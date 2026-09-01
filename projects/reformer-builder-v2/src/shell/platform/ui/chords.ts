@@ -24,7 +24,7 @@
  * @module host/ui/chords
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 
 /**
  * Сколько ждать вторую ступень.

@@ -19,7 +19,7 @@
  * @module host/source/registry
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 import { SourceError } from './errors';
 import type { RestoredSource, SourceDescriptor, SourceFactory } from './types';
 

@@ -18,7 +18,7 @@
  * @module host/modules/transpilers
  */
 
-import { toDisposable, type Disposable } from '../primitives/disposable';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 
 /** Результат транспиляции одного файла. `map` — sourcemap, если движок её отдаёт. */
 export interface TranspileOutput {

@@ -31,9 +31,9 @@
  * @module host/plugin/manifest
  */
 
-import { normalizeChord } from '../primitives/command';
-import { parseWhen } from '../primitives/when-expr';
-import { normalizePath } from '../modules/linker';
+import { normalizeChord } from '@/shell/platform/primitives/command';
+import { parseWhen } from '@/shell/platform/primitives/when-expr';
+import { normalizePath } from '@/shell/platform/modules/linker';
 
 /** Имя файла манифеста внутри каталога плагина. */
 export const PLUGIN_MANIFEST_FILE = 'manifest.json';

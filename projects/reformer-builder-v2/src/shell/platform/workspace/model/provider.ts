@@ -27,8 +27,11 @@
  * @module host/workspace/model/provider
  */
 
-import { defineExtensionPoint, type ExtensionRegistry } from '../../primitives/extension-point';
-import type { ResourceRef } from '../../primitives/resource';
+import {
+  defineExtensionPoint,
+  type ExtensionRegistry,
+} from '@/shell/platform/primitives/extension-point';
+import type { ResourceRef } from '@/shell/platform/primitives/resource';
 
 /**
  * Адрес узла внутри модели.

@@ -12,19 +12,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import type { ReactElement } from 'react';
-import { createCommandRegistry } from '../primitives/command';
-import { toDisposable, type Disposable } from '../primitives/disposable';
-import { createExtensionRegistry } from '../primitives/extension-point';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import {
   makeResourceId,
   mediaTypeFor,
   type ResourceId,
   type ResourceRef,
-} from '../primitives/resource';
-import { whenContext } from '../primitives/when-context';
-import { createI18nService } from '../services/i18n/i18n';
-import { createDocument, type Document } from '../workspace/document';
-import type { SaveResult, WorkspaceChange } from '../workspace/workspace';
+} from '@/shell/platform/primitives/resource';
+import { whenContext } from '@/shell/platform/primitives/when-context';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
+import { createDocument, type Document } from '@/shell/platform/workspace/document';
+import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
 import { renderReact } from '@/testing/render';
 import { EditorArea } from './EditorArea';
 import { EditorPoint, type EditorContribution } from './editors';

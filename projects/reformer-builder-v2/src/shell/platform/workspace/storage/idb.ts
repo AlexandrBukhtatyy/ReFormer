@@ -27,8 +27,8 @@
  * @module host/workspace/storage/idb
  */
 
-import { toDisposable, type Disposable } from '../../primitives/disposable';
-import type { ResourceId, ResourceStat } from '../../primitives/resource';
+import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import type { ResourceId, ResourceStat } from '@/shell/platform/primitives/resource';
 import { StorageError } from './errors';
 import { openedKey, statKey, type HistoryKey } from './layout';
 

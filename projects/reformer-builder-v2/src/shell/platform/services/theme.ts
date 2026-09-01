@@ -19,9 +19,9 @@
  * @module host/services/theme
  */
 
-import { disposeAll, toDisposable, type Disposable } from '../primitives/disposable';
-import { createEventBus, defineEvent } from '../primitives/event';
-import { defineService } from '../primitives/service';
+import { disposeAll, toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
+import { defineService } from '@/shell/platform/primitives/service';
 import type { SettingsService } from './settings';
 
 /** Тема, которая реально применена. Третьего состояния у оболочки нет. */

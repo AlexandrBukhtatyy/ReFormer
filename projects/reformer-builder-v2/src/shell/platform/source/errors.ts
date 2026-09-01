@@ -19,7 +19,7 @@
  * @module host/source/errors
  */
 
-import { normalizePath } from '../primitives/resource';
+import { normalizePath } from '@/shell/platform/primitives/resource';
 
 /** Виды отказов. Набор совпадает с `SourceErrorKind` Workspace — это один и тот же набор. */
 export type SourceErrorKind =

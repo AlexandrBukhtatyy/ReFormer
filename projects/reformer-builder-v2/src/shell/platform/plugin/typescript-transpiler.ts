@@ -35,8 +35,8 @@
 
 import { version as typescriptVersion } from 'typescript/package.json';
 
-import type { Disposable } from '../primitives/disposable';
-import type { Transpiler, TranspilerRegistry } from '../modules/transpilers';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Transpiler, TranspilerRegistry } from '@/shell/platform/modules/transpilers';
 
 /** Идентификатор в реестре транспиляторов. Свой движок регистрируется под другим id. */
 export const TYPESCRIPT_TRANSPILER_ID = 'typescript';

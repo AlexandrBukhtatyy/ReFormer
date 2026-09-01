@@ -22,8 +22,8 @@
  */
 
 import type { ComponentType } from 'react';
-import { defineExtensionPoint } from '../primitives/extension-point';
-import type { WhenContext } from '../primitives/when-context';
+import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
+import type { WhenContext } from '@/shell/platform/primitives/when-context';
 
 /**
  * Область оболочки, в которую можно внести панель.

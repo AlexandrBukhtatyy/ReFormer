@@ -35,10 +35,10 @@
  * @module host/validation/types
  */
 
-import { defineExtensionPoint } from '../primitives/extension-point';
-import type { ResourceId, ResourceRef } from '../primitives/resource';
-import type { Diagnostic } from '../diagnostics/types';
-import type { DocumentKind } from '../workspace/document';
+import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
+import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
+import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import type { DocumentKind } from '@/shell/platform/workspace/document';
 
 /**
  * То, что валидатор знает о документе, ещё ничего не прочитав.

@@ -37,7 +37,7 @@
  * @module host/workspace/journal/journal
  */
 
-import type { ResourceId } from '../../primitives/resource';
+import type { ResourceId } from '@/shell/platform/primitives/resource';
 import { applyTextEdits, invertTextEdits } from '../model/history';
 import type { EditOp } from '../model/provider';
 import type { HistorySnapshotRecord, QuotaPressure, WorkspaceMetaStore } from '../storage/idb';

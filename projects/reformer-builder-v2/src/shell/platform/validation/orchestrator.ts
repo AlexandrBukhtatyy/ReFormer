@@ -34,13 +34,13 @@
  * @module host/validation/orchestrator
  */
 
-import type { Disposable } from '../primitives/disposable';
-import { toDisposable } from '../primitives/disposable';
-import type { ExtensionRegistry } from '../primitives/extension-point';
-import type { ResourceId } from '../primitives/resource';
-import type { Diagnostic } from '../diagnostics/types';
-import type { Document } from '../workspace/document';
-import { isModelDocument } from '../workspace/model/model-document';
+import type { Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable } from '@/shell/platform/primitives/disposable';
+import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import type { Document } from '@/shell/platform/workspace/document';
+import { isModelDocument } from '@/shell/platform/workspace/model/model-document';
 import {
   asyncSource,
   fastSource,

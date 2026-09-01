@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { CommandContribution } from '../primitives/command';
-import { whenContext } from '../primitives/when-context';
+import type { CommandContribution } from '@/shell/platform/primitives/command';
+import { whenContext } from '@/shell/platform/primitives/when-context';
 import {
   commandPaletteItems,
   createPaletteQueryRunner,

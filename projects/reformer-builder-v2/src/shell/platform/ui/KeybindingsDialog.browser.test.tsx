@@ -15,14 +15,14 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
-import { createCommandRegistry } from '../primitives/command';
-import { createI18nService } from '../services/i18n/i18n';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { renderReact } from '@/testing/render';
 import { KeybindingsDialog, KEYBINDINGS_OPEN_COMMAND_ID } from './KeybindingsDialog';
 import { createKeymapService } from './keymap';
 import { installKeybindings } from './keybindings';
 import { createScopeStack } from './scope';
-import { whenContext } from '../primitives/when-context';
+import { whenContext } from '@/shell/platform/primitives/when-context';
 
 const MESSAGES: Readonly<Record<string, string>> = {
   'shell.keybindings.title': 'Горячие клавиши',

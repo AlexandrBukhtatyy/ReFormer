@@ -12,11 +12,14 @@
 import { describe, expect, it } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { createElement, type ReactElement } from 'react';
-import { createExtensionRegistry } from '../primitives/extension-point';
-import { createCommandRegistry } from '../primitives/command';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { createWhenContextStore } from './when-context-store';
-import { createI18nService } from '../services/i18n/i18n';
-import { createInMemorySettingsBackend, createSettingsService } from '../services/settings';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
+import {
+  createInMemorySettingsBackend,
+  createSettingsService,
+} from '@/shell/platform/services/settings';
 import { PanelPoint } from './slots';
 import type { SlotId } from './slots';
 import { Shell } from './Shell';

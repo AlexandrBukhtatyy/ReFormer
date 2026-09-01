@@ -24,7 +24,7 @@
  * @module host/ui/layout-settings
  */
 
-import type { SettingsService } from '../services/settings';
+import type { SettingsService } from '@/shell/platform/services/settings';
 import type { SlotId } from './slots';
 
 /**
