@@ -31,14 +31,14 @@
  * оркестратор проставляет `source` сам, а валидатор пишет своё имя (или не пишет ничего
  * осмысленного — его перепишут).
  *
- * @module shell/platform/validation/orchestrator
+ * @module shell/platform/services/validation/orchestrator
  */
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import { toDisposable } from '@/shell/platform/primitives/disposable';
 import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
-import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import type { Document } from '@/shell/platform/workspace/document';
 import { isModelDocument } from '@/shell/platform/workspace/model/model-document';
 import {

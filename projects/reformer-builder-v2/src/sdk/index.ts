@@ -55,22 +55,22 @@ export type {
   DiagnosticTarget,
   QuickFix,
   TextRange,
-} from '@/shell/platform/diagnostics/types';
+} from '@/shell/platform/services/diagnostics/types';
 
 // Отбор быстрых исправлений по реестру команд. Здесь, а не у каждого потребителя: проверять
 // «команда вообще есть?» обязаны все, кто исправления ПОКАЗЫВАЕТ или применяет (панель проблем,
 // канвас, ассистент), а плагины не видят друг друга и завели бы по копии — которые совпадали бы
 // по договорённости, то есть до первой правки. Тот же довод, что у порядка строгости выше.
-export { usableFixes, withUsableFixes } from '@/shell/platform/diagnostics/fixes';
-export type { CommandLookup, FixesOptions } from '@/shell/platform/diagnostics/fixes';
+export { usableFixes, withUsableFixes } from '@/shell/platform/services/diagnostics/fixes';
+export type { CommandLookup, FixesOptions } from '@/shell/platform/services/diagnostics/fixes';
 
 // Валидация: точка расширения и контракт вклада.
-export { ValidatorPoint } from '@/shell/platform/validation/types';
+export { ValidatorPoint } from '@/shell/platform/services/validation/types';
 export type {
   DocumentRef,
   ValidateContext,
   ValidatorContribution,
-} from '@/shell/platform/validation/types';
+} from '@/shell/platform/services/validation/types';
 
 // Вид документа — дискриминант, по которому валидатор решает, ждать ли модель.
 export type { DocumentKind } from '@/shell/platform/workspace/document';
@@ -184,8 +184,8 @@ export { ThemeServiceToken } from '@/shell/platform/services/theme';
 export type { ThemeService, ThemePreference } from '@/shell/platform/services/theme';
 export { NotificationsServiceToken } from '@/shell/platform/services/notifications';
 export type { NotificationsService } from '@/shell/platform/services/notifications';
-export { DiagnosticsServiceToken } from '@/shell/platform/diagnostics/service';
-export type { DiagnosticsService } from '@/shell/platform/diagnostics/service';
+export { DiagnosticsServiceToken } from '@/shell/platform/services/diagnostics/service';
+export type { DiagnosticsService } from '@/shell/platform/services/diagnostics/service';
 
 // Выделение — общий канал между плагинами, которые показывают ОДИН документ с разных сторон
 // (канвас редактора схемы и превью). Он обязан быть здесь, а не портом от композиции: плагины
@@ -217,7 +217,7 @@ export type {
 // Порядок строгости диагностик. Без него каждый показывающий плагин заводит свою копию,
 // и совпадение копий держится на комментарии, а не на компиляторе — ровно это и случилось
 // в дереве файлов и на канвасе, пока порядок жил у платформы без выхода наружу.
-export { SEVERITY_RANK } from '@/shell/platform/diagnostics/types';
+export { SEVERITY_RANK } from '@/shell/platform/services/diagnostics/types';
 
 // ── Меню ─────────────────────────────────────────────────────────────────────────
 //

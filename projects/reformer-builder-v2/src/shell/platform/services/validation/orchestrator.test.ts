@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createDiagnosticsService } from '@/shell/platform/diagnostics/service';
-import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import { createDiagnosticsService } from '@/shell/platform/services/diagnostics/service';
+import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { makeResourceId, type ResourceRef } from '@/shell/platform/primitives/resource';
 import { createDocument, type Document } from '@/shell/platform/workspace/document';

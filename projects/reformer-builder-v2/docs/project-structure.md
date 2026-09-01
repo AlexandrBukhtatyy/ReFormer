@@ -62,10 +62,10 @@ projects/reformer-builder-v2/
 │   │   │   │                    command, event, disposable, when-expr, when-context
 │   │   │   ├── workspace/       рабочая область; внутри journal/ merge/ model/ storage/
 │   │   │   ├── source/          контракт источника, fs-access, fs-handles, memory-двойник, registry
-│   │   │   ├── services/        i18n/, settings, theme, notifications, prompt, selection,
+│   │   │   ├── services/        службы платформы — один каталог, один ответ на вопрос
+│   │   │   │                    «какие они есть»: i18n/, diagnostics/, validation/,
+│   │   │   │                    settings, theme, notifications, prompt, selection,
 │   │   │   │                    context-keys, resource-clipboard
-│   │   │   ├── diagnostics/     сервис диагностики и быстрых исправлений
-│   │   │   ├── validation/      оркестратор валидации открытых документов
 │   │   │   ├── modules/         механика загрузки кода: registry, linker, transpilers, compile-cache
 │   │   │   ├── plugin/          рантайм плагинов: types, context, registry, loader, catalog, storage, styles
 │   │   │   └── ui/              оболочка и слоты
@@ -113,7 +113,8 @@ projects/reformer-builder-v2/
 │   │   ├── templates/           content/ render/ commands/ stores/ ui/
 │   │   ├── files/               ui/
 │   │   ├── kits/                активный кит как сервис (флат)
-│   │   └── ai/                  loop/ model/ tools/ session/ knowledge/ providers/ ui/
+│   │   └── ai/                  model/ loop/ tools/ session/ knowledge/ providers/ ui/
+│   │                            (каталога core/ нет: имя не сообщало ничего и притягивало всё)
 │   │
 │   ├── testing/               browser-setup (зашит в vitest.browser.config), render
 │   ├── main.tsx  App.tsx  index.css

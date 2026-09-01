@@ -14,7 +14,7 @@
  */
 
 import { isTextMediaType, type ResourceId } from '@/shell/platform/primitives/resource';
-import type { DiagnosticsService } from '@/shell/platform/diagnostics/service';
+import type { DiagnosticsService } from '@/shell/platform/services/diagnostics/service';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { MonacoDocument, MonacoHost, Translate } from '@/plugins/editor-monaco';

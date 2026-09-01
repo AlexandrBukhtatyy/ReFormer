@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
 import { createMemorySource } from '@/shell/platform/source/memory';

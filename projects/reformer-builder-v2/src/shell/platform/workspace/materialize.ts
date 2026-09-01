@@ -28,7 +28,7 @@
  * @module shell/platform/workspace/materialize
  */
 
-import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import { dirname, extname, joinPath } from '@/shell/platform/primitives/resource';
 
 /** Потолки догрузки замыкания. */

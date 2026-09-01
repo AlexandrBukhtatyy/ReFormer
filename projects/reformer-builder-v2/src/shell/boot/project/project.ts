@@ -44,7 +44,7 @@ import {
   type SourceDescriptor,
   type SourceUnavailableReason,
 } from '@/shell/platform/source/types';
-import type { ValidationOrchestrator } from '@/shell/platform/validation/orchestrator';
+import type { ValidationOrchestrator } from '@/shell/platform/services/validation/orchestrator';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import type { WorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 import type { Journal } from '@/shell/platform/workspace/journal/journal';

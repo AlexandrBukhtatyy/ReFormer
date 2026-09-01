@@ -19,7 +19,7 @@ import type { EventBus } from '@/shell/platform/primitives/event';
 import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
 import type { Source } from '@/shell/platform/source/types';
-import type { ValidationOrchestrator } from '@/shell/platform/validation/orchestrator';
+import type { ValidationOrchestrator } from '@/shell/platform/services/validation/orchestrator';
 import {
   createResourceTreeStore,
   type ResourceTreeStore,

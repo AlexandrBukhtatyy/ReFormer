@@ -32,12 +32,12 @@
  * достаётся текст и — если документ модельный и его модель согласована с буфером — сама модель
  * как `unknown`. Сузить её до своего типа обязан тот, кто этот тип объявил, то есть плагин.
  *
- * @module shell/platform/validation/types
+ * @module shell/platform/services/validation/types
  */
 
 import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
 import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
-import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import type { DocumentKind } from '@/shell/platform/workspace/document';
 
 /**

@@ -62,7 +62,7 @@ import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import {
   createDiagnosticsService,
   DiagnosticsServiceToken,
-} from '@/shell/platform/diagnostics/service';
+} from '@/shell/platform/services/diagnostics/service';
 import { createSelectionService, SelectionServiceToken } from '@/shell/platform/services/selection';
 import { createFsSourceFactory } from '@/shell/platform/source/fs-access';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
@@ -91,7 +91,7 @@ import {
 } from '@/shell/platform/services/theme';
 import { dockSettingsKey } from '@/shell/platform/ui/chrome/layout-settings';
 import type { ShellHost } from '@/shell/platform/ui/Shell';
-import { createValidationOrchestrator } from '@/shell/platform/validation/orchestrator';
+import { createValidationOrchestrator } from '@/shell/platform/services/validation/orchestrator';
 import {
   ContextKeyServiceToken,
   createContextKeyService,

@@ -29,7 +29,7 @@
  * ({@link FixesOptions.onUnavailable}), а тот решает, что с этим делать — обычно предупредить
  * в консоли по одному разу на идентификатор.
  *
- * @module shell/platform/diagnostics/fixes
+ * @module shell/platform/services/diagnostics/fixes
  */
 
 import type { Diagnostic, QuickFix } from './types';

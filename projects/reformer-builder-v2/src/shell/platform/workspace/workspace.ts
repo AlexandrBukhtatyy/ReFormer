@@ -61,7 +61,7 @@
  * @module shell/platform/workspace/workspace
  */
 
-import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import { createEventBus, defineEvent, type EventBus } from '@/shell/platform/primitives/event';
 import {

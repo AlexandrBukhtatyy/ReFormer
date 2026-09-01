@@ -22,7 +22,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Diagnostic } from '@/shell/platform/diagnostics/types';
+import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
 import { createWorkspaceMetaStore, type WorkspaceMetaStore } from './storage/idb';
 import { createWorkspaceFileStore } from './storage/opfs';

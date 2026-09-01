@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { createDiagnosticsService } from '@/shell/platform/diagnostics/service';
+import { createDiagnosticsService } from '@/shell/platform/services/diagnostics/service';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
