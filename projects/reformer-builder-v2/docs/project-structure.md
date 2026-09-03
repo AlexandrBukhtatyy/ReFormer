@@ -115,6 +115,7 @@ projects/reformer-builder-v2/
 │   │   ├── templates/           content/ render/ commands/ stores/ ui/
 │   │   ├── files/               ui/
 │   │   ├── kits/                активный кит как сервис (флат)
+│   │   ├── plugin-manager/      управление плагинами каталога из палитры (флат)
 │   │   └── ai/                  model/ loop/ tools/ session/ knowledge/ providers/ ui/
 │   │                            (каталога core/ нет: имя не сообщало ничего и притягивало всё)
 │   │

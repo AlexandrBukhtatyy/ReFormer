@@ -86,6 +86,7 @@ function builtinCommands(): readonly CommandContribution[] {
       templatesI18n: undefined,
       printTemplate: () => Promise.resolve([]),
       kits: { translate: (key: string) => key },
+      pluginManager: { host: stubHost(), translate: (key: string) => key },
     })
   );
   plugins.activateAll();

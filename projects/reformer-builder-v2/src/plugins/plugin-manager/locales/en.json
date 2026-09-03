@@ -1,0 +1,10 @@
+{
+  "palette.refresh": "Plugins: rescan project catalog",
+  "palette.enable": "Plugins: enable “{name}”",
+  "palette.disable": "Plugins: disable “{name}”",
+  "palette.reload": "Plugins: reload “{name}”",
+  "palette.dev-on": "Plugins: watch “{name}” — development mode",
+  "palette.dev-off": "Plugins: stop watching “{name}”",
+  "detail.failed": "error: {message}",
+  "detail.dev": "in development — reloads when files change"
+}

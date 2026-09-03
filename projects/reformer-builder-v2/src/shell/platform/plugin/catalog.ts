@@ -29,13 +29,16 @@
  * то есть панели, команды, вклады и подписки уходят вместе с плагином. Именно поэтому
  * динамические плагины сделали `deactivate` необходимостью, а не удобством для тестов.
  *
- * ## Перезагрузка — команда, а не автоматика
+ * ## Перезагрузка: команда — всегда, автоматика — для помеченных «в разработке»
  *
- * Наблюдения за файлами нет (File System Access его не даёт), поэтому цикл разработки
- * в каталоге замыкается вручную: {@link ProjectPluginCatalog.reload} снимает вклады,
- * перечитывает манифест и файлы, поднимает плагин заново. Порядок именно такой — сначала
- * снять, потом читать: он же гарантирует, что после неудачной перезагрузки в системе
- * не останется вкладов от прошлой версии кода.
+ * {@link ProjectPluginCatalog.reload} снимает вклады, перечитывает манифест и файлы, поднимает
+ * плагин заново. Порядок именно такой — сначала снять, потом читать: он же гарантирует, что
+ * после неудачной перезагрузки в системе не останется вкладов от прошлой версии кода.
+ *
+ * Наблюдения за файлами File System Access не даёт, поэтому автоматика (`./dev-watch`) строится
+ * не на нём, а на двух событиях, которые у приложения уже есть: сохранение файла плагина
+ * из встроенного редактора и возврат фокуса в окно (правка во внешнем IDE). Сам каталог об этом
+ * не знает — он только хранит пометку {@link ProjectPluginCatalog.setDev} и исполняет команды.
  *
  * @module shell/platform/plugin/catalog
  */
@@ -64,6 +67,14 @@ export interface ProjectPluginEntry {
   readonly name: string;
   readonly version?: string;
   readonly state: ProjectPluginState;
+  /**
+   * Помечен «в разработке»: файлы этого плагина наблюдаются, перезагрузка автоматическая.
+   *
+   * Пометка независима от включённости: она про НАМЕРЕНИЕ человека работать над кодом,
+   * а не про текущее состояние. Упавший dev-плагин остаётся dev — иначе первый же отказ
+   * компиляции выключал бы автоматику ровно в тот момент, когда она нужнее всего.
+   */
+  readonly dev: boolean;
   readonly manifest?: PluginManifest;
   /** Почему `failed`. У остальных состояний отсутствует. */
   readonly problem?: PluginProblem;
@@ -108,6 +119,11 @@ export interface ProjectPluginCatalogDeps {
   readonly plugins: PluginRegistry;
   /** Без него включённые не переживают перезагрузку вкладки — но каталог работает. */
   readonly enabled?: EnabledPluginsStore;
+  /**
+   * Где живут пометки «в разработке». Контракт тот же, что у списка включённых, и по той же
+   * причине отдельный: пометка принадлежит проекту, а каталог обязан проверяться без хранилища.
+   */
+  readonly dev?: EnabledPluginsStore;
   /** Куда сообщать об отказе плагина. По умолчанию — `console.error`. */
   readonly onProblem?: (id: string, problem: PluginProblem) => void;
 }
@@ -128,6 +144,11 @@ export interface ProjectPluginCatalog extends Disposable {
   enable(id: string): Promise<boolean>;
   /** Снимает вклады и убирает плагин из включённых. Для выключенного — ничего не делает. */
   disable(id: string): void;
+  /**
+   * Ставит или снимает пометку «в разработке». На вклады не влияет — это сигнал наблюдателю
+   * (`./dev-watch`), а не операция над плагином. Неизвестный идентификатор игнорируется.
+   */
+  setDev(id: string, on: boolean): void;
   /**
    * Снимает вклады, перечитывает манифест и файлы, поднимает заново.
    *
@@ -169,6 +190,8 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
   const records = new Map<string, CatalogRecord>();
   /** Что человек включил. Это и есть содержимое {@link EnabledPluginsStore}. */
   const enabled = new Set<string>();
+  /** Что человек пометил «в разработке». Живёт по тем же правилам, что и `enabled`. */
+  const dev = new Set<string>();
   /**
    * Кого этот каталог уже зарегистрировал в рантайме.
    *
@@ -199,6 +222,13 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     });
   };
 
+  const persistDev = (): void => {
+    if (deps.dev === undefined) return;
+    void deps.dev.write([...dev]).catch((error: unknown) => {
+      console.error('[plugins] пометки «в разработке» не сохранены', error);
+    });
+  };
+
   const entryOf = (record: CatalogRecord): ProjectPluginEntry => {
     const problem = record.found.problem ?? record.problem;
     const manifest = record.found.manifest;
@@ -209,6 +239,7 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       name: manifest?.name ?? record.found.id,
       version: manifest?.version,
       state,
+      dev: dev.has(record.found.id),
       manifest,
       problem,
     };
@@ -441,6 +472,15 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     enable: enablePlugin,
     disable: disablePlugin,
 
+    setDev(id: string, on: boolean): void {
+      if (!records.has(id)) return;
+      if (dev.has(id) === on) return;
+      if (on) dev.add(id);
+      else dev.delete(id);
+      persistDev();
+      notify();
+    },
+
     async reload(id: string): Promise<boolean> {
       const record = records.get(id);
       if (record === undefined) return false;
@@ -463,6 +503,18 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     },
 
     async restoreEnabled(): Promise<readonly string[]> {
+      if (deps.dev !== undefined) {
+        try {
+          // Хранилище — истина, по тому же правилу, что и список включённых ниже: пометки
+          // принадлежат проекту, и перенос их между проектами был бы наблюдением за чужим кодом.
+          const marks = await deps.dev.read();
+          dev.clear();
+          for (const id of marks) dev.add(id);
+        } catch (error) {
+          console.error('[plugins] пометки «в разработке» не прочитаны', error);
+        }
+      }
+
       if (deps.enabled !== undefined) {
         try {
           // Читаем КАЖДЫЙ раз и берём хранилище за истину, а не дополняем им память.

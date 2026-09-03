@@ -19,6 +19,8 @@ import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
 import type { FilesHost } from '@/plugins/files';
 import { createFilesPlugin } from '@/plugins/files';
+import type { PluginManagerPluginOptions } from '@/plugins/plugin-manager';
+import { createPluginManagerPlugin } from '@/plugins/plugin-manager';
 import type { ViewStateRegistry } from '@/plugins/editor-monaco';
 import {
   createMonacoEditorPlugin,
@@ -89,6 +91,15 @@ export interface BuiltinPluginsOptions {
    * состояние троим, не заводя его копию у каждого.
    */
   readonly kits: Pick<KitsPluginOptions, 'translate' | 'settings' | 'sources'>;
+  /**
+   * Порт и перевод управления плагинами каталога.
+   *
+   * Порт удовлетворяется каталогом плагинов КАК ЕСТЬ — `ProjectPluginCatalog` структурно
+   * шире `PluginManagerHost`, и это ровно то место, где их совместимость проверяется
+   * компиляцией. Управление — вклад плагина, а не действие композиции, потому что точки
+   * расширения заполняются только плагинами (см. `primitives/extension-point`).
+   */
+  readonly pluginManager: PluginManagerPluginOptions;
   /** Порт платформы для ассистента. */
   readonly ai: AiHost;
   /** Словарь ассистента. */
@@ -169,6 +180,7 @@ export function createBuiltinPlugins(options: BuiltinPluginsOptions): readonly P
       i18n: options.schemaI18n,
     }),
     createKitsPlugin(options.kits),
+    createPluginManagerPlugin(options.pluginManager),
     // Панель встаёт в правый слот без предиката: настройки провайдера и ключ должны быть
     // доступны и до того, как открыта форма, — иначе первый же запуск требует сначала
     // найти файл, а потом обнаружить, что ключа нет.

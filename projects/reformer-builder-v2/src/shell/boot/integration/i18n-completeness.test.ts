@@ -53,6 +53,7 @@ import { MONACO_MESSAGES } from '@/plugins/editor-monaco/messages';
 import { SCHEMA_EDITOR_MESSAGES } from '@/plugins/editor-schema/messages';
 import { FILES_MESSAGES } from '@/plugins/files';
 import { KITS_MESSAGES } from '@/plugins/kits/messages';
+import { PLUGIN_MANAGER_MESSAGES } from '@/plugins/plugin-manager';
 import { PREVIEW_MESSAGES } from '@/plugins/preview/messages';
 import { TEMPLATES_MESSAGES } from '@/plugins/templates/messages';
 
@@ -82,6 +83,7 @@ const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['editor-schema', SCHEMA_EDITOR_MESSAGES],
   ['files', FILES_MESSAGES],
   ['kits', KITS_MESSAGES],
+  ['plugin-manager', PLUGIN_MANAGER_MESSAGES],
   ['preview', PREVIEW_MESSAGES],
   ['templates', TEMPLATES_MESSAGES],
 ];

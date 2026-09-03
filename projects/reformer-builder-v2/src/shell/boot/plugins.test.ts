@@ -105,6 +105,7 @@ function harness() {
     templatesI18n: undefined,
     printTemplate: () => Promise.resolve([]),
     kits: { translate: (key: string) => key },
+    pluginManager: { host: stubHost(), translate: (key: string) => key },
   });
 
   return { built, plugins, extensions, commands, services, onError };

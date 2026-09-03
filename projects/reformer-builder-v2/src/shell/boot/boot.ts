@@ -56,6 +56,7 @@ import {
   type EnabledPluginsStore,
   type ProjectPluginCatalog,
 } from '@/shell/platform/plugin/catalog';
+import { createPluginDevWatch } from '@/shell/platform/plugin/dev-watch';
 import { createPluginLoader } from '@/shell/platform/plugin/loader';
 import { createPluginRegistry, type PluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
@@ -112,6 +113,7 @@ import { createJournalRelief } from '@/shell/platform/workspace/journal/journal'
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
 import { FILES_MESSAGES } from '@/plugins/files';
 import { FILES_PLUGIN_ID } from '@/plugins/files';
+import { PLUGIN_MANAGER_MESSAGES, PLUGIN_MANAGER_PLUGIN_ID } from '@/plugins/plugin-manager';
 import { createFilesHost } from '@/shell/boot/ports/files';
 import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
@@ -191,14 +193,29 @@ const EMPTY_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
  * не мешает инструменту открыться.
  */
 export function createSettingsEnabledPlugins(settings: SettingsService): EnabledPluginsStore {
+  return createSettingsPluginSet(settings, ENABLED_PLUGINS_SETTINGS_KEY);
+}
+
+/**
+ * Ключ пометок «в разработке». Область та же, что у включённых, и по той же причине:
+ * наблюдаемый плагин лежит в проекте, и намерение работать над ним принадлежит проекту.
+ */
+export const DEV_PLUGINS_SETTINGS_KEY = 'workspace.plugins.dev';
+
+/** Пометки «в разработке» поверх настроек — контракт хранилища у обоих списков один. */
+export function createSettingsDevPlugins(settings: SettingsService): EnabledPluginsStore {
+  return createSettingsPluginSet(settings, DEV_PLUGINS_SETTINGS_KEY);
+}
+
+function createSettingsPluginSet(settings: SettingsService, key: string): EnabledPluginsStore {
   return {
     read(): Promise<readonly string[]> {
-      const raw = settings.get<unknown>(ENABLED_PLUGINS_SETTINGS_KEY);
+      const raw = settings.get<unknown>(key);
       if (!Array.isArray(raw)) return Promise.resolve([]);
       return Promise.resolve(raw.filter((id): id is string => typeof id === 'string'));
     },
     write(ids: readonly string[]): Promise<void> {
-      return settings.set(ENABLED_PLUGINS_SETTINGS_KEY, [...ids], 'workspace');
+      return settings.set(key, [...ids], 'workspace');
     },
   };
 }
@@ -451,6 +468,37 @@ export function boot(): BuilderApp {
   // здесь. Второй экземпляр означал бы второй чанк TypeScript на 3.5 МБ.
   const pluginModules = createPluginModules({ cache: buildCacheOf });
 
+  // 3a. Плагины каталога проекта. Реестр модулей с настоящим `@builder/sdk` собирает
+  //     композиция — только она вправе занять защищённые слоты (см. `./plugin-modules`).
+  //     Сам каталог здесь только СОЗДАЁТСЯ: читать его до открытия проекта неоткуда,
+  //     поэтому обход каталога — шаг 8, ниже. Стоит он ВЫШЕ встроенных плагинов, потому
+  //     что один из них — управление плагинами — получает каталог своим портом.
+  const projectPlugins = createProjectPluginCatalog({
+    // Раскладка объявлена НИЖЕ: её слой зависит от состава каталога, а состав каталога —
+    // от неё нет. Ссылка через замыкание, потому что каталог зовёт публикацию только
+    // на обходе проекта (шаг 8), то есть заведомо позже сборки композиции.
+    keymap: {
+      registerRules: (source, layer, rules) => keymap.registerRules(source, layer, rules),
+    },
+    // Настоящую установку подставляет композиция: она требует `CSSStyleSheet`, которого
+    // в окружении тестов нет, а каталог обязан оставаться проверяемым.
+    installStyles: (css, pluginId) => installPluginStyles(css, pluginId, document),
+    loader: createPluginLoader({
+      source: () => project.get()?.source ?? null,
+      modules: pluginModules.modules,
+      prepare: pluginModules.prepare,
+    }),
+    plugins,
+    enabled: createSettingsEnabledPlugins(settings),
+    dev: createSettingsDevPlugins(settings),
+    // Отказ плагина — событие для человека, а не для консоли: тост говорит, ЧТО сломалось,
+    // подробности (код, файл) остаются в списке плагинов и в консоли.
+    onProblem: (id, problem) => {
+      console.error(`[plugins] «${id}»: ${problem.code} — ${problem.message}`, problem.cause);
+      notifications.error('plugins.problem', { params: { id, message: problem.message } });
+    },
+  });
+
   // Один порт Monaco на двоих: сам редактор и предпросмотр markdown, который одалживает
   // его тело для режима «рядом».
   const monacoHost = createMonacoHost({ project, i18n, diagnostics });
@@ -542,6 +590,12 @@ export function boot(): BuilderApp {
         // открытии палитры — это и есть та цена, которую платит не-компонентный вклад.
         translate: (key, params) => i18n.forPlugin(KITS_PLUGIN_ID).t(key, params),
       },
+      pluginManager: {
+        // Порт — сам каталог: `ProjectPluginCatalog` структурно шире `PluginManagerHost`,
+        // и эта строка — то единственное место, где их совместимость проверяется компиляцией.
+        host: projectPlugins,
+        translate: (key, params) => i18n.forPlugin(PLUGIN_MANAGER_PLUGIN_ID).t(key, params),
+      },
       ai: createAiHost({ project, i18n, services }),
       preview: previewHost,
       previewI18n: i18n.forPlugin(PREVIEW_PLUGIN_ID),
@@ -572,29 +626,6 @@ export function boot(): BuilderApp {
       catalog: activeCatalog,
     })
   );
-
-  // 3a. Плагины каталога проекта. Реестр модулей с настоящим `@builder/sdk` собирает
-  //     композиция — только она вправе занять защищённые слоты (см. `./plugin-modules`).
-  //     Сам каталог здесь только СОЗДАЁТСЯ: читать его до открытия проекта неоткуда,
-  //     поэтому обход каталога — шаг 8, ниже.
-  const projectPlugins = createProjectPluginCatalog({
-    // Раскладка объявлена НИЖЕ: её слой зависит от состава каталога, а состав каталога —
-    // от неё нет. Ссылка через замыкание, потому что каталог зовёт публикацию только
-    // на обходе проекта (шаг 8), то есть заведомо позже сборки композиции.
-    keymap: {
-      registerRules: (source, layer, rules) => keymap.registerRules(source, layer, rules),
-    },
-    // Настоящую установку подставляет композиция: она требует `CSSStyleSheet`, которого
-    // в окружении тестов нет, а каталог обязан оставаться проверяемым.
-    installStyles: (css, pluginId) => installPluginStyles(css, pluginId, document),
-    loader: createPluginLoader({
-      source: () => project.get()?.source ?? null,
-      modules: pluginModules.modules,
-      prepare: pluginModules.prepare,
-    }),
-    plugins,
-    enabled: createSettingsEnabledPlugins(settings),
-  });
 
   /**
    * Шаг 8: плагины каталога. Зовётся после того, как источник появился, — и повторно
@@ -673,6 +704,20 @@ export function boot(): BuilderApp {
   const focusSubscription = project.subscribe(rebindFocusChecks);
   rebindFocusChecks();
 
+  /**
+   * Наблюдатель плагинов «в разработке» — второй потребитель тех же двух жестов: сохранение
+   * из встроенного редактора (шина `events`) и возврат фокуса (окно). Живёт один на приложение,
+   * а не пересоздаётся на смену проекта: без dev-плагинов каждый его шаг — дешёвый холостой,
+   * а снимки сами привязаны к источнику и не переживают его смену.
+   */
+  const devWatch = createPluginDevWatch({
+    catalog: projectPlugins,
+    source: () => project.get()?.source ?? null,
+    events,
+    window,
+    document,
+  });
+
   // 4. Настройки, словари, активация. Одна цепочка: локаль читается из настроек, поэтому
   //    её загрузка обязана идти после `hydrate`.
   const ready = settings
@@ -685,6 +730,10 @@ export function boot(): BuilderApp {
       const filesI18n = i18n.forPlugin(FILES_PLUGIN_ID);
       for (const [locale, messages] of Object.entries(FILES_MESSAGES)) {
         filesI18n.contribute(locale, messages);
+      }
+      const pluginManagerI18n = i18n.forPlugin(PLUGIN_MANAGER_PLUGIN_ID);
+      for (const [locale, messages] of Object.entries(PLUGIN_MANAGER_MESSAGES)) {
+        pluginManagerI18n.contribute(locale, messages);
       }
       // Отчёт не разбирается: отказавшие уже сообщены каналом диагностики рантайма плагинов,
       // а показать их человеку пока нечем — вклада в строку состояния на это нет.
@@ -749,6 +798,7 @@ export function boot(): BuilderApp {
 
     dispose() {
       projectPluginsSubscription.dispose();
+      devWatch.dispose();
       focusSubscription.dispose();
       focusChecks?.dispose();
       projectPlugins.dispose();

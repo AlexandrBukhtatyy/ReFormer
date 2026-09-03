@@ -81,7 +81,11 @@ function createStore(initial: readonly string[] = []): TestStore {
 
 function createHarness(
   files: Record<string, string>,
-  options: { store?: TestStore; installStyles?: ProjectPluginCatalogDeps['installStyles'] } = {}
+  options: {
+    store?: TestStore;
+    devStore?: TestStore;
+    installStyles?: ProjectPluginCatalogDeps['installStyles'];
+  } = {}
 ): Harness {
   const memory = createMemorySource(files);
   // Источник проекта — локальный каталог, ему исполнение кода разрешено (см. `loader.test`).
@@ -113,6 +117,7 @@ function createHarness(
     loader,
     plugins,
     enabled: store,
+    dev: options.devStore,
     onProblem: problems,
     installStyles: options.installStyles,
   });
@@ -450,5 +455,68 @@ describe('стили плагина живут ровно столько же, �
     await h.catalog.enable('acme');
 
     expect(f.installed).toEqual([]);
+  });
+});
+
+describe('пометка «в разработке»', () => {
+  const files = (): Record<string, string> => ({
+    [dir('acme', 'manifest.json')]: manifestOf('acme'),
+    [dir('acme', 'main.js')]: contributingPlugin('acme', 'панель'),
+  });
+
+  it('ставится, видна в списке и не трогает вклады', async () => {
+    const devStore = createStore();
+    const h = createHarness(files(), { devStore });
+    await h.catalog.refresh();
+
+    h.catalog.setDev('acme', true);
+
+    expect(h.catalog.list()[0]).toMatchObject({ id: 'acme', dev: true, state: 'disabled' });
+    // Пометка — сигнал наблюдателю, а не второй способ включить.
+    expect(h.panels()).toEqual([]);
+    expect(devStore.state.ids).toEqual(['acme']);
+
+    h.catalog.setDev('acme', false);
+    expect(h.catalog.list()[0]).toMatchObject({ dev: false });
+    expect(devStore.state.ids).toEqual([]);
+  });
+
+  it('неизвестный идентификатор игнорируется, хранилище не трогается', async () => {
+    const devStore = createStore();
+    const h = createHarness(files(), { devStore });
+    await h.catalog.refresh();
+
+    h.catalog.setDev('нет-такого', true);
+
+    expect(devStore.state.ids).toEqual([]);
+  });
+
+  it('переживает выключение, падение и восстановление: хранилище — истина', async () => {
+    const devStore = createStore(['acme']);
+    const h = createHarness(files(), { devStore });
+    await h.catalog.refresh();
+    await h.catalog.restoreEnabled();
+
+    expect(h.catalog.list()[0]).toMatchObject({ dev: true, state: 'disabled' });
+
+    await h.catalog.enable('acme');
+    h.catalog.disable('acme');
+    // Включённость менялась дважды — пометка не шелохнулась.
+    expect(h.catalog.list()[0]).toMatchObject({ dev: true });
+    expect(devStore.state.ids).toEqual(['acme']);
+  });
+
+  it('подписчик уведомляется о смене пометки, повторная установка — нет', async () => {
+    const h = createHarness(files(), { devStore: createStore() });
+    await h.catalog.refresh();
+    let ticks = 0;
+    h.catalog.subscribe(() => {
+      ticks += 1;
+    });
+
+    h.catalog.setDev('acme', true);
+    h.catalog.setDev('acme', true);
+
+    expect(ticks).toBe(1);
   });
 });

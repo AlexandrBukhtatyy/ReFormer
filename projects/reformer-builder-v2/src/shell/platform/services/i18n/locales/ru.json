@@ -63,6 +63,7 @@
   "files.notify.unavailable.denied": "Доступ к каталогу проекта не подтверждён. Нажмите «Разрешить доступ» — браузер спросит разрешение заново.",
   "files.notify.unavailable.missing": "Каталога прошлого проекта больше нет. Откройте проект заново.",
   "files.notify.unsupported": "Этот браузер не умеет открывать локальные каталоги.",
+  "plugins.problem": "Плагин «{id}»: {message}",
   "quickfix.remove-orphan-rule": "Убрать осиротевшее правило",
   "quickfix.rename-property": "Исправить имя свойства",
   "quickfix.replace-component": "Подставить ближайшее имя из каталога",
