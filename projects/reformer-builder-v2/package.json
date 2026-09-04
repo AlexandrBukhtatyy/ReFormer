@@ -1,9 +1,18 @@
 {
-  "name": "reformer-builder-v2",
+  "name": "@reformer/builder-v2",
   "version": "0.0.0",
   "private": true,
-  "description": "Каркас второй версии визуального конструктора форм. Локальная разработка; публикуется не отсюда, а из projects/reformer-builder после переноса кода.",
+  "description": "Вторая версия визуального конструктора форм ReFormer: собранный офлайн-SPA, запускаемый через npx у разработчика; конфигурация — каталогом .ui_builder. private снимается решением о публикации.",
   "type": "module",
+  "bin": {
+    "reformer-builder2": "./bin/reformer-builder2.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "runtime-config.schema.json",
+    "README.md"
+  ],
   "scripts": {
     "dev": "vite",
     "generate:knowledge": "node ../../packages/reformer-mcp/scripts/build-knowledge-bundle.mjs --out src/plugins/ai/knowledge/generated",

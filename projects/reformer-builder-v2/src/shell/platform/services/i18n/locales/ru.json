@@ -18,6 +18,8 @@
   "codegen.notify.read-only": "Источник не принимает запись — сгенерированное сохранить некуда.",
   "codegen.notify.targets-refreshed": "Шаблоны генерации перечитаны: {count}",
   "codegen.notify.written": "Записано файлов: {written}, пропущено ваших: {skipped}.",
+  "config.problem.launch": "Конфиг запуска: {message}",
+  "config.problem.project": "Конфиг проекта (.ui_builder/config.json): {message}",
   "errors.rules.behavior-target-missing": "Поведение «{kind}» ссылается на «{target}»: такого поля в форме нет.",
   "errors.rules.render-selector-missing": "Правило «{kind}» адресует узел «{selector}», которого в схеме нет — в рантайме оно ничего не сделает.",
   "errors.rules.validation-target-missing": "Правило валидации на «{target}»: такого поля в форме нет.",

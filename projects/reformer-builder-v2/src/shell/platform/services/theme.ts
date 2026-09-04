@@ -92,6 +92,14 @@ export interface ThemeServiceOptions {
   readonly system: SystemTheme;
   /** Куда вешать класс. `null` — среда без DOM (тесты, воркер): служба считает тему, но не рисует. */
   readonly root?: ThemeRoot | null;
+  /**
+   * Умолчание до первого выбора человеком. Без значения — `system`.
+   *
+   * Параметр существует ради конфига уровня запуска (`.ui_builder/config.json`,
+   * `defaults.theme`): умолчание объявляется один раз при создании службы, поэтому
+   * конфиг обязан успеть сюда, а не переобъявлять его позже.
+   */
+  readonly defaultPreference?: ThemePreference;
 }
 
 /**
@@ -124,7 +132,7 @@ export function createThemeService(options: ThemeServiceOptions): HostThemeServi
 
   const defaultRegistration = settings.registerDefault<ThemePreference>(
     THEME_SETTINGS_KEY,
-    'system'
+    options.defaultPreference ?? 'system'
   );
 
   let preference = readPreference();

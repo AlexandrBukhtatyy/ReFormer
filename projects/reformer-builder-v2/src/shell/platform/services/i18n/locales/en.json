@@ -18,6 +18,8 @@
   "codegen.notify.read-only": "The source refuses writes — there is nowhere to put what was generated.",
   "codegen.notify.targets-refreshed": "Codegen templates reloaded: {count}",
   "codegen.notify.written": "Files written: {written}, yours skipped: {skipped}.",
+  "config.problem.launch": "Launch config: {message}",
+  "config.problem.project": "Project config (.ui_builder/config.json): {message}",
   "errors.rules.behavior-target-missing": "Behavior {kind} refers to {target}: there is no such field in the form.",
   "errors.rules.render-selector-missing": "Rule {kind} addresses node {selector}, which is not in the schema — it will do nothing at runtime.",
   "errors.rules.validation-target-missing": "A validation rule targets {target}: there is no such field in the form.",

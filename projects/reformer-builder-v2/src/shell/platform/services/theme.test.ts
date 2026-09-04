@@ -222,3 +222,35 @@ describe('жизненный цикл', () => {
     expect(theme.theme).toBe('dark');
   });
 });
+
+describe('умолчание из конфига запуска', () => {
+  it('defaultPreference действует до первого выбора и виден настройкам как умолчание', async () => {
+    const settings = await loadedSettings(createInMemorySettingsBackend());
+    const root = fakeRoot();
+    createThemeService({
+      settings,
+      system: createFixedSystemTheme('light'),
+      root,
+      defaultPreference: 'dark',
+    });
+
+    // Система светлая, но конфиг сказал «тёмная по умолчанию» — и она применилась.
+    expect(root.has(DARK_CLASS)).toBe(true);
+    expect(settings.get(THEME_SETTINGS_KEY)).toBe('dark');
+  });
+
+  it('явный выбор человека сильнее умолчания из конфига', async () => {
+    const settings = await loadedSettings(createInMemorySettingsBackend());
+    const root = fakeRoot();
+    const theme = createThemeService({
+      settings,
+      system: createFixedSystemTheme('dark'),
+      root,
+      defaultPreference: 'dark',
+    });
+
+    await theme.setPreference('light');
+
+    expect(root.has(DARK_CLASS)).toBe(false);
+  });
+});

@@ -58,6 +58,12 @@ import {
 } from '@/shell/platform/plugin/catalog';
 import { createPluginDevWatch } from '@/shell/platform/plugin/dev-watch';
 import { createPluginLoader } from '@/shell/platform/plugin/loader';
+import {
+  mergeRuntimeConfig,
+  readProjectRuntimeConfig,
+  type ParsedRuntimeConfig,
+  type RuntimeConfig,
+} from './runtime-config';
 import { createPluginRegistry, type PluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import {
@@ -307,7 +313,25 @@ export interface BuilderApp extends ShellHost {
  * {@link BuilderApp.restore}. Это то же правило, по которому синхронен `activate` плагина, —
  * набор вкладов и состав сервисов не должны зависеть от того, что успело загрузиться.
  */
-export function boot(): BuilderApp {
+export interface BootOptions {
+  /**
+   * Конфиг уровня запуска от лаунчера, уже разобранный ({@link fetchRuntimeConfig} в main).
+   * `null`/отсутствие — лаунчера нет (vite dev, чужой сервер): работа на вшитых дефолтах.
+   */
+  readonly runtime?: ParsedRuntimeConfig | null;
+}
+
+export function boot(options: BootOptions = {}): BuilderApp {
+  /** Конфиг уровня запуска. Проектный уровень читается позже, на каждое открытие проекта. */
+  const launchConfig: RuntimeConfig = options.runtime?.config ?? {};
+  /** Титул до конфига — то, что написано в index.html; к нему возвращаемся без конфига. */
+  const builtinTitle = typeof document === 'undefined' ? '' : document.title;
+  const applyTitle = (config: RuntimeConfig): void => {
+    if (typeof document === 'undefined') return;
+    document.title = config.branding?.title ?? builtinTitle;
+  };
+  applyTitle(launchConfig);
+
   // 1. Примитивы и сервисы. Порядок здесь значит только одно: у службы темы в зависимостях
   //    настройки, поэтому настройки создаются раньше.
   const services = createServiceRegistry();
@@ -349,6 +373,8 @@ export function boot(): BuilderApp {
     settings,
     system: createBrowserSystemTheme(),
     root: typeof document === 'undefined' ? null : document.documentElement,
+    // Дефолт из конфига запуска. Именно здесь, а не позже: умолчание объявляется один раз.
+    defaultPreference: launchConfig.defaults?.theme,
   });
   const notifications = createNotificationsService();
   const diagnostics = createDiagnosticsService();
@@ -371,8 +397,9 @@ export function boot(): BuilderApp {
   services.register(ResourceClipboardServiceToken, clipboard);
 
   // Умолчания настроек оболочки. Объявляет их тот, кто настройку вносит, — иначе каждый
-  // потребитель дописывал бы свой `?? true`, и они бы разъехались.
-  settings.registerDefault(LOCALE_SETTINGS_KEY, DEFAULT_LOCALE);
+  // потребитель дописывал бы свой `?? true`, и они бы разъехались. Локаль может задать
+  // конфиг запуска; выбор человека в настройках всё равно сильнее умолчания.
+  settings.registerDefault(LOCALE_SETTINGS_KEY, launchConfig.defaults?.locale ?? DEFAULT_LOCALE);
   settings.registerDefault(dockSettingsKey('panel.left', 'open'), true);
 
   // 2. Источники. Вид `fs` заводит композиция, а не плагин: реестра источников в
@@ -660,6 +687,24 @@ export function boot(): BuilderApp {
         settingsStore.useWorkspace(project.get()?.workspaceId ?? null);
         return settings.hydrate({ forget: ['workspace'] });
       })
+      .then(async () => {
+        // Конфиг уровня ПРОЕКТА: перекрывает конфиг запуска по полю. Дефолты темы/локали
+        // проектный уровень задать не может — умолчания настроек объявлены при сборке,
+        // и это говорится человеку словами, а не глотается.
+        const parsed = source === null ? null : await readProjectRuntimeConfig(source);
+        applyTitle(mergeRuntimeConfig(launchConfig, parsed?.config ?? {}));
+        const problems = [
+          ...(parsed?.problems ?? []),
+          ...(parsed?.config.defaults !== undefined
+            ? ['«defaults» действуют только на уровне запуска — задайте их в конфиге лаунчера']
+            : []),
+        ];
+        if (problems.length > 0) {
+          notifications.warning('config.problem.project', {
+            params: { message: problems.join('; ') },
+          });
+        }
+      })
       .then(() => (source === null ? undefined : projectPlugins.refresh()))
       .then(() => (source === null ? undefined : projectPlugins.restoreEnabled()))
       .then(() => undefined)
@@ -738,6 +783,13 @@ export function boot(): BuilderApp {
       // Отчёт не разбирается: отказавшие уже сообщены каналом диагностики рантайма плагинов,
       // а показать их человеку пока нечем — вклада в строку состояния на это нет.
       plugins.activateAll();
+      // Проблемы конфига запуска показываются ПОСЛЕ словарей: тост переводится при показе.
+      const configProblems = options.runtime?.problems ?? [];
+      if (configProblems.length > 0) {
+        notifications.warning('config.problem.launch', {
+          params: { message: configProblems.join('; ') },
+        });
+      }
     })
     .catch((error: unknown) => {
       console.error('[boot] запуск прошёл не полностью', error);
