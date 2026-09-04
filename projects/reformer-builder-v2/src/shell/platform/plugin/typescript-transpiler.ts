@@ -36,7 +36,12 @@
 import { version as typescriptVersion } from 'typescript/package.json';
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';
-import type { Transpiler, TranspilerRegistry } from '@/shell/platform/modules/transpilers';
+import {
+  TranspileError,
+  type TranspileFinding,
+  type Transpiler,
+  type TranspilerRegistry,
+} from '@/shell/platform/modules/transpilers';
 
 /** Идентификатор в реестре транспиляторов. Свой движок регистрируется под другим id. */
 export const TYPESCRIPT_TRANSPILER_ID = 'typescript';
@@ -67,9 +72,16 @@ export const TYPESCRIPT_OPTIONS_SIGNATURE =
 /** Расширения, которые без движка не прочитать. */
 export const TYPESCRIPT_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '.mts', '.cts'];
 
-/** Одна находка компилятора. Форма — та, что отдаёт `typescript`, но без его типов. */
+/**
+ * Одна находка компилятора. Форма — та, что отдаёт `typescript`, но без его типов.
+ *
+ * `start`/`length` — смещение и протяжённость в исходнике; движок отдаёт их не всегда
+ * (у находки без места они `undefined`), и тогда находка честно остаётся без позиции.
+ */
 interface TranspileDiagnostic {
   readonly messageText: unknown;
+  readonly start?: number;
+  readonly length?: number;
 }
 
 /**
@@ -130,6 +142,20 @@ function describeDiagnostic(engine: TypeScriptEngine, diagnostic: TranspileDiagn
 }
 
 /**
+ * Находка движка в находку реестра: текст плюс место, если движок его назвал.
+ *
+ * Нулевая протяжённость растягивается до одного символа: «ожидалась „;“» стоит В точке,
+ * а подчеркнуть точку нечем. Смещения в кодовых единицах UTF-16 — те же, что у редактора.
+ */
+function toFinding(engine: TypeScriptEngine, diagnostic: TranspileDiagnostic): TranspileFinding {
+  const message = describeDiagnostic(engine, diagnostic);
+  const start = diagnostic.start;
+  if (typeof start !== 'number' || start < 0) return { message };
+  const length = typeof diagnostic.length === 'number' ? Math.max(diagnostic.length, 1) : 1;
+  return { message, range: { start, end: start + length } };
+}
+
+/**
  * Собирает транспилятор над готовым движком.
  *
  * Экспортируется отдельно от подготовки: так его можно завести над своим движком (sucrase,
@@ -163,7 +189,9 @@ export function createTypeScriptTranspiler(engine: TypeScriptEngine): Transpiler
 
       const diagnostics = output.diagnostics ?? [];
       if (diagnostics.length > 0) {
-        throw new Error(diagnostics.map((d) => describeDiagnostic(engine, d)).join('; '));
+        // Не `Error` со склейкой: позиция первой находки нужна редактору, а линковщик
+        // перезаворачивает исключение строкой — доехать она может только полем.
+        throw new TranspileError(diagnostics.map((d) => toFinding(engine, d)));
       }
       return { js: output.outputText };
     },

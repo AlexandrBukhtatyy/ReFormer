@@ -71,6 +71,8 @@
   "live.no-surface": "Nothing can render the form",
   "live.no-surface.detail": "No preview surface took this document.",
   "live.offscreen": "The selected node is not on screen — it is on another step or in a collapsed part of the form",
+  "live.problems.more": "{count, plural, one{# more finding} other{# more findings}} — see the problems panel",
+  "live.problems.title": "Findings in the form",
   "palette.add": "Add {name}",
   "palette.empty": "Nothing found",
   "palette.hint": "A click adds the component to the selected container",

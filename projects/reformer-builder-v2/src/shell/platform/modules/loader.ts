@@ -24,7 +24,12 @@ import {
   type LinkPhase,
 } from './linker';
 import { createModuleRegistry, type HostModuleRegistry, type ModuleRegistry } from './registry';
-import { createTranspilerRegistry, type TranspilerRegistry } from './transpilers';
+import {
+  createTranspilerRegistry,
+  TranspileError,
+  type TranspileFinding,
+  type TranspilerRegistry,
+} from './transpilers';
 
 /**
  * Сбой загрузки одного файла — данные, а не исключение.
@@ -37,6 +42,14 @@ export interface ModuleLoadError {
   readonly file: string;
   readonly phase: LinkPhase;
   readonly message: string;
+  /**
+   * Место в исходнике файла, если фаза его знает.
+   *
+   * Знает только транспиляция: движок читает исходник и отдаёт смещение. Фаза исполнения
+   * места не знает честно — стек называет строки уже собранного JS, а не файла перед человеком,
+   * и приписать их исходнику значило бы подчеркнуть не то.
+   */
+  readonly range?: TranspileFinding['range'];
   /** Исходное исключение — для консоли и стека, не для показа. */
   readonly cause?: unknown;
 }
@@ -117,10 +130,29 @@ export interface ModuleLoaderOptions {
 const describe = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+/**
+ * Место первой находки движка, если сбой — отказ транспиляции.
+ *
+ * Первой, а не всех: у сбоя одно место в плоской структуре, а первая находка — та, с которой
+ * человек начнёт чинить; остальные обычно её следствие.
+ */
+function rangeOf(error: ModuleLinkError): TranspileFinding['range'] | undefined {
+  const cause = error.cause;
+  if (!(cause instanceof TranspileError)) return undefined;
+  return cause.findings.find((finding) => finding.range !== undefined)?.range;
+}
+
 /** Приводит любое исключение к плоскому {@link ModuleLoadError}. */
 function toLoadError(error: unknown, fallbackFile: string): ModuleLoadError {
   if (error instanceof ModuleLinkError) {
-    return { file: error.file, phase: error.phase, message: error.message, cause: error };
+    const range = rangeOf(error);
+    return {
+      file: error.file,
+      phase: error.phase,
+      message: error.message,
+      ...(range === undefined ? {} : { range }),
+      cause: error,
+    };
   }
   return { file: fallbackFile, phase: 'evaluate', message: describe(error), cause: error };
 }

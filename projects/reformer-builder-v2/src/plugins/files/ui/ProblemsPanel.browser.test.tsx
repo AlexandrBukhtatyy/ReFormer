@@ -180,4 +180,26 @@ describe('исправление в строке панели проблем', (
     expect(document.querySelector('[role="listitem"]')).not.toBeNull();
     fixture.unmount();
   });
+
+  it('закрытый ресурс подписан именем от порта, а не адресом', async () => {
+    // Находка сборки сайдкара приходит под адресом файла, вкладки которого нет: имя
+    // спрашивается у порта, и человек читает «schema.json», а не «fs:forms/credit/…».
+    const host: FilesHost = {
+      ...fakeHost(() => undefined),
+      nameOf: () => ({ name: 'schema.json', path: 'forms/credit/schema.json' }),
+    };
+    const rendered = renderReact(
+      <div style={{ width: 520, height: 240 }}>
+        <ProblemsPanel host={host} diagnostics={fakeDiagnostics([FINDING])} commands={null} />
+      </div>
+    );
+    try {
+      await vi.waitFor(() => {
+        expect(document.body.textContent).toContain('schema.json');
+      });
+      expect(document.body.textContent).not.toContain(RESOURCE);
+    } finally {
+      rendered.unmount();
+    }
+  });
 });

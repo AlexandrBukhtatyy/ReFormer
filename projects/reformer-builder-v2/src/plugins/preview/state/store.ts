@@ -84,6 +84,14 @@ export interface PreviewStore {
   subscribe(cb: () => void): Disposable;
   select(ids: readonly NodeId[]): void;
   report(source: string, problems: readonly PreviewProblem[]): void;
+  /**
+   * Каждая публикация находок — и та, что ничего не изменила.
+   *
+   * `subscribe` молчит о повторе того же состава (иначе панель перерисовывалась бы на каждую
+   * пересборку), а своду диагностик нужен именно факт пересборки: снятая при правке файла
+   * находка обязана вернуться, даже если сборка нашла ровно то же самое.
+   */
+  onDidReport(cb: () => void): Disposable;
   /** Значения прежней формы; пусто, пока в форму ничего не вводили. */
   values(): PreviewValues | undefined;
   /** Запомнить значения формы — перед пересборкой и при размонтировании поверхности. */
@@ -106,6 +114,7 @@ export function createPreviewStore(): PreviewStore {
   /** Вне снимка намеренно — см. шапку модуля. */
   let values: PreviewValues | undefined;
   const listeners = new Set<() => void>();
+  const reporters = new Set<() => void>();
 
   let state: PreviewState = Object.freeze({
     selection: NO_SELECTION,
@@ -159,14 +168,36 @@ export function createPreviewStore(): PreviewStore {
       commit({ ...state, form });
     },
 
+    onDidReport(cb) {
+      reporters.add(cb);
+      return {
+        dispose(): void {
+          reporters.delete(cb);
+        },
+      };
+    },
+
     report(source, problems) {
-      const previous = bySource.get(source);
-      if (previous !== undefined && sameProblems(previous, problems)) return;
-      // Пустой список — это «у меня чисто», и он обязан СНИМАТЬ прошлые находки источника,
-      // а не оставлять его запись пустой: иначе порядок слияния зависел бы от истории.
-      if (problems.length === 0) bySource.delete(source);
-      else bySource.set(source, Object.freeze([...problems]));
-      commit({ ...state, problems: mergeProblems(bySource) });
+      try {
+        const previous = bySource.get(source);
+        const unchanged =
+          previous === undefined ? problems.length === 0 : sameProblems(previous, problems);
+        if (unchanged) return;
+        // Пустой список — это «у меня чисто», и он обязан СНИМАТЬ прошлые находки источника,
+        // а не оставлять его запись пустой: иначе порядок слияния зависел бы от истории.
+        if (problems.length === 0) bySource.delete(source);
+        else bySource.set(source, Object.freeze([...problems]));
+        commit({ ...state, problems: mergeProblems(bySource) });
+      } finally {
+        // Факт публикации — всегда, и после раннего выхода тоже: см. `onDidReport`.
+        for (const reporter of [...reporters]) {
+          try {
+            reporter();
+          } catch (error) {
+            console.error('[preview] подписчик публикаций упал', error);
+          }
+        }
+      }
     },
   };
 }

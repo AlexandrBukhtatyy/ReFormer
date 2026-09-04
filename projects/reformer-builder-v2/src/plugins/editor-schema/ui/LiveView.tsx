@@ -42,6 +42,14 @@
  * курсор двигается десятки раз в секунду, и перерисовывать из-за него React значило бы
  * перерисовывать форму.
  *
+ * ## Находки видны в форме
+ *
+ * Свод диагностик документа приходит пропом — тот же, что рисует метки на строках дерева, —
+ * и здесь превращается в контур на узле (тем же способом, что выделение) и в полосу над формой.
+ * Находки сборки чужих файлов (сайдкаров) приходят от поверхности строками через контекст:
+ * их адрес — другой ресурс, в своде документа их нет, а «validation.ts не компилируется» —
+ * ровно тот ответ на «почему моя валидация молчит», ради которого форму и открывают.
+ *
  * @module plugins/editor-schema/ui/LiveView
  */
 
@@ -56,10 +64,11 @@ import {
   type ReactElement,
 } from 'react';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
-import type { NodeId, ResourceId } from '@/sdk';
+import type { Diagnostic, NodeId, ResourceId } from '@/sdk';
 import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../session/drag-session';
 import { createLiveContext } from '../live/live-context';
 import { elementOf, hitAt } from '../live/live-hit';
+import { liveProblemRows, sameStrings, worstByNode } from '../live/live-problems';
 import { hoverCss, liveCss } from '../live/live-style';
 import { gripBox, indicatorFor, type Indicator } from '../live/live-zone';
 import { targetAt, type LiveTarget } from '../live/live-target';
@@ -69,14 +78,26 @@ import { indexNodes } from '../model/node-index';
 import { buildSchematic, schematicOrder } from '../schematic/schematic-tree';
 import type { Rect } from '../schematic/schematic-zone';
 import { LiveOverlay, type LiveOverlayHandle } from './LiveOverlay';
+import { LiveProblems } from './LiveProblems';
 import { selectModeOf, selectNode } from '../session/selection';
 import type { SchemaEditorState, SchemaSession } from '../session/sessions';
+
+/** Пустой свод: одна ссылка на все чистые документы. */
+const NO_PROBLEMS: readonly Diagnostic[] = Object.freeze([]);
+/** Находок сборки нет: одна ссылка, чтобы первое сообщение поверхности не перерисовало зря. */
+const NO_BUILD: readonly string[] = Object.freeze([]);
+/** Запасной перевод кода: сам код — для встраиваний без словаря Host. */
+const rawCode: Translate = (code) => code;
 
 export interface LiveViewProps {
   readonly session: SchemaSession;
   readonly state: SchemaEditorState;
   readonly t: Translate;
   readonly live: LivePreviewPort;
+  /** Свод диагностик документа — тот же, что рисует метки на строках дерева. */
+  readonly problems?: readonly Diagnostic[];
+  /** Перевод кода находки словарём Host; без него в полосе виден сам код. */
+  readonly message?: Translate;
   /**
    * Сеанс перетаскивания — общий с палитрой и остальными видами.
    *
@@ -114,7 +135,15 @@ function useScope(): string {
   return useMemo(() => `rb${raw.replace(/[^a-zA-Z0-9-]/g, '')}`, [raw]);
 }
 
-export function LiveView({ session, state, t, live, drag = null }: LiveViewProps): ReactElement {
+export function LiveView({
+  session,
+  state,
+  t,
+  live,
+  drag = null,
+  problems = NO_PROBLEMS,
+  message = rawCode,
+}: LiveViewProps): ReactElement {
   const documentId = session.documentId;
   const root = useRef<HTMLDivElement | null>(null);
   const mountPoint = useRef<HTMLDivElement | null>(null);
@@ -122,6 +151,8 @@ export function LiveView({ session, state, t, live, drag = null }: LiveViewProps
   const overlay = useRef<LiveOverlayHandle | null>(null);
   const scope = useScope();
   const version = useSurfaceVersion(live, documentId);
+  /** Находки сборки чужих файлов — строками от поверхности; см. шапку модуля. */
+  const [build, setBuild] = useState<readonly string[]>(NO_BUILD);
 
   const info = useMemo<LiveSurfaceInfo | null>(() => {
     // Счётчик читается намеренно: он и есть связь с составом поверхностей и выбором человека.
@@ -139,9 +170,17 @@ export function LiveView({ session, state, t, live, drag = null }: LiveViewProps
         onSelect: (ids) => {
           session.setSelection(ids);
         },
+        // Поверхность сообщает на каждую пересборку, а состав меняется редко: тот же список
+        // не должен перерисовывать вид, внутри которого живёт чужой корень с формой.
+        onProblems: (messages) => {
+          setBuild((previous) => (sameStrings(previous, messages) ? previous : messages));
+        },
       }),
     [session]
   );
+
+  const severities = useMemo(() => worstByNode(problems), [problems]);
+  const rows = useMemo(() => liveProblemRows(problems, build, message), [problems, build, message]);
 
   useEffect(() => () => ctx.dispose(), [ctx]);
 
@@ -468,7 +507,16 @@ export function LiveView({ session, state, t, live, drag = null }: LiveViewProps
           {t('live.offscreen')}
         </div>
       )}
-      <style>{liveCss({ scope, selection: state.selection, hover: null, dragging })}</style>
+      <LiveProblems rows={rows} t={t} />
+      <style>
+        {liveCss({
+          scope,
+          selection: state.selection,
+          hover: null,
+          dragging,
+          problems: severities,
+        })}
+      </style>
       {/* Отдельная таблица под наведение: её переписывает мышь, и React о ней не знает. */}
       <style ref={hoverStyle} />
       <div

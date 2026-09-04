@@ -24,7 +24,7 @@
 
 import { encodeNodeToken, EMPTY_CLASS } from '@/lib/form-model/node-token';
 import { NODE_ID_PATTERN } from '@/lib/form-model/node-id';
-import type { NodeId } from '@/sdk';
+import type { DiagnosticSeverity, NodeId } from '@/sdk';
 
 export interface LiveStyleInput {
   /** Значение `data-rb-live` корня живого вида. Санируется вызывающим. */
@@ -34,6 +34,13 @@ export interface LiveStyleInput {
   readonly hover: NodeId | null;
   /** Идёт перетаскивание: пустые контейнеры показываются заметнее. */
   readonly dragging: boolean;
+  /**
+   * Худшая находка каждого узла — контур по строгости.
+   *
+   * Необязателен: без свода диагностик форма рисуется как прежде. Выделение сильнее находки:
+   * узел, который человек выбрал, обводится цветом выбора, а о находке говорит полоса.
+   */
+  readonly problems?: ReadonlyMap<NodeId, DiagnosticSeverity>;
 }
 
 /** Активный узел: тот, к которому относятся клавиши и инспектор. */
@@ -42,6 +49,18 @@ const ACTIVE = 'outline: 2px solid var(--color-ring, #6366f1); outline-offset: 2
 const SELECTED = 'outline: 1px solid var(--color-ring, #6366f1); outline-offset: 2px;';
 /** Наведение: пунктир — обещание, а не состояние. */
 const HOVER = 'outline: 1px dashed var(--color-ring, #6366f1); outline-offset: 1px;';
+
+/**
+ * Контуры находок — по строгости, теми же токенами, что у пометок в дереве и панели.
+ *
+ * Ошибка сплошная, предупреждение пунктиром: тот же язык, что у выделения и наведения, —
+ * сплошное «так есть», пунктир «стоит посмотреть».
+ */
+const PROBLEM: Readonly<Record<DiagnosticSeverity, string>> = Object.freeze({
+  error: 'outline: 2px solid var(--color-destructive, #dc2626); outline-offset: 2px;',
+  warning: 'outline: 2px dashed var(--color-amber-500, #f59e0b); outline-offset: 2px;',
+  info: 'outline: 1px dashed var(--color-muted-foreground, #71717a); outline-offset: 2px;',
+});
 
 /**
  * Габарит пустого контейнера.
@@ -73,6 +92,13 @@ export function liveCss(input: LiveStyleInput): string {
   const rules: string[] = [
     `[data-rb-live="${scope}"] .${EMPTY_CLASS} { ${EMPTY} ${dragging ? EMPTY_DRAGGING : EMPTY_IDLE} }`,
   ];
+
+  // Находки идут ПЕРЕД выделением: у правил одна специфичность, и побеждает позднее —
+  // выбранный узел обводится цветом выбора, а не находки.
+  for (const [id, severity] of input.problems ?? []) {
+    const rule = ruleFor(scope, id, PROBLEM[severity]);
+    if (rule !== null) rules.push(rule);
+  }
 
   // Активен последний выбранный: им же командует клавиатура, и подсветка обязана совпадать
   // с тем, что показывает инспектор.

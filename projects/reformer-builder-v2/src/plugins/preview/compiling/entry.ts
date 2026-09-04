@@ -42,12 +42,26 @@
  */
 export const PREVIEW_ENTRY_FILE = '__preview-entry__.js';
 
+/** Сбой одного сайдкара, как его записал энтри. */
+export interface PreviewEntryFailure {
+  /**
+   * Файл, на котором споткнулись: тот, что назвала ошибка линковщика, — импортёр не виноват,
+   * что его `./model` не собрался, — либо сам сайдкар, если ошибка файла не называет.
+   */
+  readonly file: string;
+  readonly message: string;
+  /** Фаза из ошибки линковщика; без неё — исполнение. */
+  readonly phase?: 'resolve' | 'transpile' | 'evaluate';
+  /** Место первой находки движка, если ошибка его несёт (`cause.findings`). */
+  readonly range?: { readonly start: number; readonly end: number };
+}
+
 /** Что синтетический энтри отдаёт наружу. Разбирается {@link './compile'}. */
 export interface PreviewEntryExports {
   /** Имя файла → его экспорты. Только то, что исполнилось. */
   readonly modules: Record<string, unknown>;
   /** Файлы, которые исполниться не смогли. */
-  readonly errors: readonly { readonly file: string; readonly message: string }[];
+  readonly errors: readonly PreviewEntryFailure[];
 }
 
 /**
@@ -72,15 +86,39 @@ export function buildEntrySource(files: readonly string[]): string {
     const key = JSON.stringify(file);
     return (
       `try { modules[${key}] = require(${specifier}); } ` +
-      `catch (error) { errors.push({ file: ${key}, message: describe(error) }); }`
+      `catch (error) { errors.push(failure(${key}, error)); }`
     );
   });
 
+  // Ошибка линковщика знает больше, чем её текст: файл, фазу и — через находки движка —
+  // место. Энтри исполняется чужим кодом и импортировать класс ошибки не может, поэтому читает
+  // поля по форме: чего нет — того и не будет, а текст останется в любом случае.
   return [
     'var modules = {};',
     'var errors = [];',
     'function describe(error) {',
     '  return error && error.message ? String(error.message) : String(error);',
+    '}',
+    'function rangeOf(error) {',
+    '  var findings = error && error.cause && error.cause.findings;',
+    '  if (!Array.isArray(findings)) return undefined;',
+    '  for (var i = 0; i < findings.length; i += 1) {',
+    '    var range = findings[i] && findings[i].range;',
+    "    if (range && typeof range.start === 'number' && typeof range.end === 'number') {",
+    '      return { start: range.start, end: range.end };',
+    '    }',
+    '  }',
+    '  return undefined;',
+    '}',
+    'function failure(file, error) {',
+    '  var out = { file: file, message: describe(error) };',
+    "  if (error && typeof error.file === 'string' && error.file !== '') out.file = error.file;",
+    "  if (error && (error.phase === 'resolve' || error.phase === 'transpile' || error.phase === 'evaluate')) {",
+    '    out.phase = error.phase;',
+    '  }',
+    '  var range = rangeOf(error);',
+    '  if (range !== undefined) out.range = range;',
+    '  return out;',
     '}',
     ...lines,
     'module.exports = { modules: modules, errors: errors };',

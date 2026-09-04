@@ -79,3 +79,40 @@ describe('hoverCss', () => {
     expect(hoverCss(SCOPE, 'не адрес')).toBe('');
   });
 });
+
+describe('liveCss: контуры находок', () => {
+  it('узел с находкой обводится по строгости теми же токенами, что пометки в дереве', () => {
+    const rules = css({
+      problems: new Map([
+        [A, 'error'],
+        [B, 'warning'],
+      ]),
+    });
+    expect(rules).toContain(`.${'rbnode-'}${A}`);
+    expect(rules).toMatch(new RegExp(`${A}[^\\n]*solid[^\\n]*--color-destructive`));
+    expect(rules).toMatch(new RegExp(`${B}[^\\n]*dashed`));
+  });
+
+  it('выделение сильнее находки: правило выбора идёт позже и побеждает', () => {
+    const rules = css({ selection: [A], problems: new Map([[A, 'error']]) }).split('\n');
+    const problem = rules.findIndex((rule) => rule.includes('--color-destructive'));
+    const active = rules.findIndex((rule) => rule.includes('--color-ring'));
+    expect(problem).toBeGreaterThan(-1);
+    expect(active).toBeGreaterThan(problem);
+  });
+
+  it('находки ограничены областью, а мусорный адрес не даёт правила', () => {
+    const rules = css({
+      problems: new Map([
+        [A, 'info'],
+        ['не адрес', 'error'],
+      ]),
+    }).split('\n');
+    expect(rules).toHaveLength(2);
+    expect(rules[1]).toContain(`[data-rb-live="${SCOPE}"]`);
+  });
+
+  it('без находок таблица та же, что и раньше', () => {
+    expect(css({ problems: new Map() })).toBe(css());
+  });
+});

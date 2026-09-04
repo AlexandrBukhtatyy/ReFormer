@@ -154,6 +154,44 @@ describe('порт Monaco', () => {
   });
 });
 
+describe('порт Monaco: пути узлов для разметки', () => {
+  it('отдаёт «идентификатор → путь» по модели схемы, в тексте которой идентификаторов нет', async () => {
+    // Ровно случай формы из кодогена: `SCHEMA_TEXT` печатан без `$nodeId`, а модель их выдала
+    // при разборе. Без этого ответа подчеркнуть находку по узлу в редакторе было бы нечем.
+    const h = harness();
+    await h.open('form.json');
+
+    const paths = h.monaco.locateNodes?.(h.id('form.json'));
+    expect(paths).not.toBeNull();
+    expect(paths?.size).toBe(8);
+    expect([...(paths?.values() ?? [])]).toContainEqual(['root']);
+    expect([...(paths?.values() ?? [])]).toContainEqual(['root', 'componentProps', 'steps', 0]);
+    h.dispose();
+  });
+
+  it('тот же указатель, пока модель та же: обход схемы на каждое нажатие не повторяется', async () => {
+    const h = harness();
+    await h.open('form.json');
+    const id = h.id('form.json');
+
+    expect(h.monaco.locateNodes?.(id)).toBe(h.monaco.locateNodes?.(id));
+    h.dispose();
+  });
+
+  it('молчит про чужую модель, текстовый документ и закрытый проект', async () => {
+    const h = harness();
+    await h.open('notes.lines');
+    expect(h.monaco.locateNodes?.(h.id('notes.lines'))).toBeNull();
+
+    await h.open('readme.md');
+    expect(h.monaco.locateNodes?.(h.id('readme.md'))).toBeNull();
+
+    h.project.close();
+    expect(h.monaco.locateNodes?.(h.id('form.json'))).toBeNull();
+    h.dispose();
+  });
+});
+
 describe('порт редактора схемы', () => {
   it('отдаёт ручку документа, модель которого разобрал именно его провайдер', async () => {
     const h = harness();

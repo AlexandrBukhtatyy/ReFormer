@@ -16,6 +16,7 @@ import {
   type JsonNode,
 } from '@reformer/renderer-json';
 import { getAt, isPrefix, pathEquals, type JsonPath } from './paths';
+import { nodeIdOf, type NodeId } from './node-id';
 import { childSlots, isNodeLike, orientationOf, type Orientation } from './node-kind';
 
 /** Узел по пути (или `undefined`, если по пути не узел). */
@@ -69,6 +70,23 @@ export function walkNodes(
     }
   };
   rec(start, ['root']);
+}
+
+/**
+ * Указатель «идентификатор узла → путь узла» по всей схеме.
+ *
+ * Обход тот же, что у {@link walkNodes}, — значит пути здесь совпадают с теми, по которым
+ * узел находят `findByPath` и провайдер модели. Повторный идентификатор — ошибка схемы, и
+ * находит её валидатор; здесь выигрывает первое вхождение, чтобы ответ был детерминирован.
+ * Узлы без идентификатора в указатель не попадают: адресовать их нечем.
+ */
+export function indexNodePaths(schema: JsonFormSchema): ReadonlyMap<NodeId, JsonPath> {
+  const out = new Map<NodeId, JsonPath>();
+  walkNodes(schema, (node, path) => {
+    const id = nodeIdOf(node);
+    if (id !== undefined && !out.has(id)) out.set(id, path);
+  });
+  return out;
 }
 
 /**

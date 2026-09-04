@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PreviewModuleGraph, PreviewModules, PreviewPrimedCompile } from '../host';
-import { compileForm } from './compile';
+import { compileForm, stripFilePrefix } from './compile';
 import { PREVIEW_ENTRY_FILE } from './entry';
 
 /** Прогрев, который ничего не нашёл: движок нужен, писать пока нечего. */
@@ -168,6 +168,110 @@ describe('compileForm', () => {
     const result = await compileForm(SOURCES, modules);
     expect(result.problems).toEqual([
       { file: 'model.ts', phase: 'transpile', message: 'синтаксис' },
+    ]);
+  });
+});
+
+describe('compileForm: текст находки', () => {
+  it('имя файла, приписанное линковщиком, снимается: файл несёт отдельное поле', async () => {
+    const modules: PreviewModules = {
+      load: () =>
+        Promise.resolve({
+          entry: undefined,
+          modules: new Map(),
+          errors: [
+            {
+              file: 'validation.ts',
+              phase: 'transpile' as const,
+              message: "validation.ts: ')' expected.",
+            },
+            { file: 'model.ts', phase: 'evaluate' as const, message: 'validation.ts: чужое имя' },
+            { file: '', phase: 'resolve' as const, message: ': без файла' },
+          ],
+        }),
+    };
+    const result = await compileForm(SOURCES, modules);
+    expect(result.problems.map((problem) => problem.message)).toEqual([
+      "')' expected.",
+      'validation.ts: чужое имя',
+      ': без файла',
+    ]);
+  });
+
+  it('stripFilePrefix снимает ровно своё имя и только с начала', () => {
+    expect(stripFilePrefix('a.ts', 'a.ts: x')).toBe('x');
+    expect(stripFilePrefix('a.ts', 'y a.ts: x')).toBe('y a.ts: x');
+    expect(stripFilePrefix('', ': x')).toBe(': x');
+  });
+});
+
+describe('compileForm: место находки', () => {
+  it('место, названное движком, доезжает до находки превью', async () => {
+    const modules: PreviewModules = {
+      load: () =>
+        Promise.resolve({
+          entry: undefined,
+          modules: new Map(),
+          errors: [
+            {
+              file: 'validation.ts',
+              phase: 'transpile' as const,
+              message: 'ожидалась «;»',
+              range: { start: 40, end: 41 },
+            },
+            { file: 'model.ts', phase: 'evaluate' as const, message: 'бросил' },
+          ],
+        }),
+    };
+    const result = await compileForm(SOURCES, modules);
+    expect(result.problems).toEqual([
+      {
+        file: 'validation.ts',
+        phase: 'transpile',
+        message: 'ожидалась «;»',
+        range: { start: 40, end: 41 },
+      },
+      { file: 'model.ts', phase: 'evaluate', message: 'бросил' },
+    ]);
+  });
+
+  it('сбой, пойманный энтри, несёт фазу, файл-виновник и место, а повтор схлопывается', async () => {
+    // Два сайдкара импортируют один битый `./model`: ошибка названа виновником, а не
+    // импортёром, и второй раз ничего не добавляет.
+    const modules: PreviewModules = {
+      load: () =>
+        Promise.resolve({
+          entry: {
+            modules: {},
+            errors: [
+              {
+                file: 'model.ts',
+                message: "model.ts: ')' expected.",
+                phase: 'transpile' as const,
+                range: { start: 7, end: 8 },
+              },
+              {
+                file: 'model.ts',
+                message: "model.ts: ')' expected.",
+                phase: 'transpile' as const,
+                range: { start: 7, end: 8 },
+              },
+              { file: 'registry.ts', message: 'бросил при исполнении' },
+            ],
+          },
+          modules: new Map(),
+          errors: [],
+        }),
+    };
+    const result = await compileForm(SOURCES, modules);
+    expect(result.problems).toEqual([
+      {
+        file: 'model.ts',
+        phase: 'transpile',
+        message: "')' expected.",
+        range: { start: 7, end: 8 },
+      },
+      { file: 'registry.ts', phase: 'evaluate', message: 'бросил при исполнении' },
     ]);
   });
 });

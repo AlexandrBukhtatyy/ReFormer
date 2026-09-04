@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createPreviewSessions } from './sessions';
+import { createPreviewSessions, type DiagnosticsSink } from './sessions';
 import { createFakeSelectionChannel, type FakeSelectionChannel } from '../testing';
 
 describe('createPreviewSessions', () => {
@@ -218,5 +218,187 @@ describe('createPreviewSessions — приём чужого выделения',
     channel.set('a', ['n1']);
 
     expect(store.get().selection).toEqual([]);
+  });
+});
+
+/** Двойник свода диагностик: запоминает каждую публикацию как есть. */
+function fakeSink(): DiagnosticsSink & {
+  readonly writes: { resource: string; source: string; codes: string[] }[];
+} {
+  const writes: { resource: string; source: string; codes: string[] }[] = [];
+  return {
+    writes,
+    publish(resource, source, items) {
+      writes.push({ resource, source, codes: items.map((item) => item.code) });
+    },
+  };
+}
+
+const BROKEN_SIDECAR = {
+  file: 'validation.ts',
+  phase: 'transpile' as const,
+  message: 'ожидалась «;»',
+  resource: 'fake:form/validation.ts',
+};
+const BROKEN_RENDER = { file: '', phase: 'render' as const, message: 'форма упала' };
+
+describe('createPreviewSessions — свод диагностик', () => {
+  it('находки сборки уходят в свод под адресом файла, где чинить', () => {
+    const sessions = createPreviewSessions();
+    const sink = fakeSink();
+    sessions.connectDiagnostics(sink);
+
+    sessions.storeFor('a').report('compiling', [BROKEN_SIDECAR, BROKEN_RENDER]);
+
+    expect(sink.writes).toContainEqual({
+      resource: 'fake:form/validation.ts',
+      source: 'preview.build',
+      codes: ['build.transpile'],
+    });
+    // Находка без файла относится к самому документу схемы.
+    expect(sink.writes).toContainEqual({
+      resource: 'a',
+      source: 'preview.build',
+      codes: ['build.render'],
+    });
+  });
+
+  it('ушедшая находка снимается пустой публикацией, а не остаётся висеть', () => {
+    const sessions = createPreviewSessions();
+    const sink = fakeSink();
+    sessions.connectDiagnostics(sink);
+    sessions.storeFor('a').report('compiling', [BROKEN_SIDECAR]);
+    sink.writes.length = 0;
+
+    sessions.storeFor('a').report('compiling', []);
+
+    expect(sink.writes).toEqual([
+      { resource: 'fake:form/validation.ts', source: 'preview.build', codes: [] },
+    ]);
+  });
+
+  it('состояние, созданное ДО подключения свода, догоняет его', () => {
+    const sessions = createPreviewSessions();
+    sessions.storeFor('a').report('compiling', [BROKEN_RENDER]);
+
+    const sink = fakeSink();
+    sessions.connectDiagnostics(sink);
+
+    expect(sink.writes).toContainEqual({
+      resource: 'a',
+      source: 'preview.build',
+      codes: ['build.render'],
+    });
+  });
+
+  it('выделение и форма свод не будят: публикуется только новый состав находок', () => {
+    const sessions = createPreviewSessions();
+    const sink = fakeSink();
+    sessions.connectDiagnostics(sink);
+    const store = sessions.storeFor('a');
+    store.report('compiling', [BROKEN_RENDER]);
+    const after = sink.writes.length;
+
+    store.select(['a1b2c3d4']);
+    store.publishForm({ model: {} });
+    store.report('compiling', [{ ...BROKEN_RENDER }]);
+
+    expect(sink.writes.length).toBe(after);
+  });
+
+  it('закрытая вкладка снимает свои находки: обновлять их больше некому', () => {
+    const sessions = createPreviewSessions();
+    const sink = fakeSink();
+    sessions.connectDiagnostics(sink);
+    sessions.storeFor('a').report('compiling', [BROKEN_SIDECAR, BROKEN_RENDER]);
+    sink.writes.length = 0;
+
+    sessions.forget('a');
+
+    expect(sink.writes).toEqual(
+      expect.arrayContaining([
+        { resource: 'fake:form/validation.ts', source: 'preview.build', codes: [] },
+        { resource: 'a', source: 'preview.build', codes: [] },
+      ])
+    );
+    expect(sink.writes).toHaveLength(2);
+  });
+
+  it('снятие подписки снимает опубликованное и прекращает публикацию', () => {
+    const sessions = createPreviewSessions();
+    const sink = fakeSink();
+    const subscription = sessions.connectDiagnostics(sink);
+    sessions.storeFor('a').report('compiling', [BROKEN_RENDER]);
+    sink.writes.length = 0;
+
+    subscription.dispose();
+    expect(sink.writes).toEqual([{ resource: 'a', source: 'preview.build', codes: [] }]);
+
+    sink.writes.length = 0;
+    sessions.storeFor('a').report('compiling', [BROKEN_SIDECAR]);
+    expect(sink.writes).toEqual([]);
+  });
+
+  it('без свода превью работает: находки остаются в состоянии документа', () => {
+    const sessions = createPreviewSessions();
+    expect(() => {
+      sessions.storeFor('a').report('compiling', [BROKEN_RENDER]);
+    }).not.toThrow();
+    expect(sessions.storeFor('a').get().problems).toHaveLength(1);
+  });
+
+  it('перечисляет документы, у которых есть состояние', () => {
+    const sessions = createPreviewSessions();
+    sessions.storeFor('a');
+    sessions.storeFor('b');
+    expect([...sessions.ids()].sort()).toEqual(['a', 'b']);
+    sessions.forget('a');
+    expect(sessions.ids()).toEqual(['b']);
+  });
+});
+
+describe('createPreviewSessions — правка файла снимает его находки до следующей сборки', () => {
+  it('изменившийся файл теряет свои находки, остальные адреса не трогаются', () => {
+    const sessions = createPreviewSessions();
+    const sink = fakeSink();
+    sessions.connectDiagnostics(sink);
+    sessions.storeFor('a').report('compiling', [BROKEN_SIDECAR, BROKEN_RENDER]);
+    sink.writes.length = 0;
+
+    sessions.invalidate(['fake:form/validation.ts', 'fake:form/model.ts']);
+
+    // Подчёркивание относилось к тексту, которого после правки уже нет.
+    expect(sink.writes).toEqual([
+      { resource: 'fake:form/validation.ts', source: 'preview.build', codes: [] },
+    ]);
+  });
+
+  it('следующая сборка возвращает находки, даже если нашла ровно то же самое', () => {
+    const sessions = createPreviewSessions();
+    const sink = fakeSink();
+    sessions.connectDiagnostics(sink);
+    const store = sessions.storeFor('a');
+    store.report('compiling', [BROKEN_SIDECAR]);
+    sessions.invalidate(['fake:form/validation.ts']);
+    sink.writes.length = 0;
+
+    // Тот же состав: снимок стора не меняется, но факт публикации есть — и его достаточно.
+    store.report('compiling', [{ ...BROKEN_SIDECAR }]);
+
+    expect(sink.writes).toEqual([
+      { resource: 'fake:form/validation.ts', source: 'preview.build', codes: ['build.transpile'] },
+    ]);
+  });
+
+  it('адреса, под которыми превью не публиковало, при правке не трогаются', () => {
+    const sessions = createPreviewSessions();
+    const sink = fakeSink();
+    sessions.connectDiagnostics(sink);
+    sessions.storeFor('a').report('compiling', [BROKEN_RENDER]);
+    sink.writes.length = 0;
+
+    sessions.invalidate(['fake:form/validation.ts']);
+
+    expect(sink.writes).toEqual([]);
   });
 });

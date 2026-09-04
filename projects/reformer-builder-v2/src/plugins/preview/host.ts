@@ -37,7 +37,7 @@
 
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
-import type { Disposable, DocumentKind, ResourceId, ResourceRef } from '@/sdk';
+import type { Disposable, DocumentKind, ResourceId, ResourceRef, TextRange } from '@/sdk';
 
 /** Перевод: ключ и параметры. Совпадает по форме с `I18nService.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -83,6 +83,8 @@ export interface PreviewModuleError {
   readonly file: string;
   readonly phase: 'resolve' | 'transpile' | 'evaluate';
   readonly message: string;
+  /** Место в исходнике файла, если фаза его знает (транспиляция — знает). */
+  readonly range?: TextRange;
 }
 
 /** Результат загрузки графа модулей. Структурная копия `LoadResult`. */
@@ -220,9 +222,13 @@ export interface PreviewHost {
    * на документ схемы про них ничего не знает. Без него превью пересобирается только на смене
    * самой схемы — это работает, но «поменял валидацию, ничего не изменилось» возвращается.
    *
+   * `changed` — адреса, чей ТЕКСТ изменился или исчез (не «загрузился» и не «сохранился»):
+   * по ним снимаются находки сборки этих файлов до следующей сборки — подчёркивание относится
+   * к тексту, которого после правки уже нет.
+   *
    * Необязателен: композиция вправе его не давать, и тогда деградация именно такая.
    */
-  onDidChangeFiles?(cb: () => void): Disposable;
+  onDidChangeFiles?(cb: (changed: readonly ResourceId[]) => void): Disposable;
 
   /**
    * Загрузчик модулей. Необязателен: без него компилирующая поверхность объявляет себя

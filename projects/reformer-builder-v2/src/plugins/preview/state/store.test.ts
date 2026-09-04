@@ -76,4 +76,25 @@ describe('createPreviewStore', () => {
     store.select(['a1b2c3d4']);
     expect(store.get()).toBe(snapshot);
   });
+
+  it('onDidReport сообщает о каждой публикации — и о той, что ничего не изменила', () => {
+    const store = createPreviewStore();
+    let snapshots = 0;
+    let reports = 0;
+    store.subscribe(() => {
+      snapshots += 1;
+    });
+    store.onDidReport(() => {
+      reports += 1;
+    });
+
+    store.report('a', [{ file: 'x.ts', phase: 'evaluate', message: 'одна' }]);
+    store.report('a', [{ file: 'x.ts', phase: 'evaluate', message: 'одна' }]);
+    store.report('b', []);
+
+    // Снимок сменился один раз — панель перерисовалась один раз. Публикаций было три:
+    // своду диагностик нужен факт пересборки, а не только новый состав.
+    expect(snapshots).toBe(1);
+    expect(reports).toBe(3);
+  });
 });

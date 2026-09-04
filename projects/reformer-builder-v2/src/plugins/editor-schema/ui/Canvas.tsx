@@ -384,7 +384,17 @@ export function Canvas({
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         {notices}
-        <LiveView session={session} state={state} t={t} live={live} drag={drag} />
+        <LiveView
+          session={session}
+          state={state}
+          t={t}
+          live={live}
+          drag={drag}
+          // Тот же свод и тот же перевод, что у меток на строках дерева: находка обязана
+          // выглядеть одинаково, чем бы ни был показан документ.
+          problems={problems}
+          message={message}
+        />
       </div>
     );
   }

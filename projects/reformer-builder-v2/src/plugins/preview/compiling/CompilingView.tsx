@@ -64,7 +64,7 @@ import {
   type AppliedArtifact,
   type FormContract,
 } from './exports';
-import { readSidecars } from './read';
+import { attributeProblems, readSidecars } from './read';
 
 /** Идентификатор поверхности. Он же имя источника находок. */
 export const COMPILING_SURFACE_ID = 'preview.compiling';
@@ -202,7 +202,8 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
         registry,
         fixture: loaded.fixture,
         applied: appliedArtifacts(contract),
-        problems,
+        // Адрес файла — чтобы находка ушла в свод диагностик туда, где чинить, а не на схему.
+        problems: attributeProblems(problems, read.resources),
         pending: false,
       });
     })();

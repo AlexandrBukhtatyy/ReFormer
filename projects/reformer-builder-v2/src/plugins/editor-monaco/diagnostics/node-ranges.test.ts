@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { indexNodeRanges } from './node-ranges';
+import { indexNodeRanges, indexTextNodes, pathKey } from './node-ranges';
 
 /** Кусок текста по диапазону: так утверждения читаются, а не считаются в уме. */
 function slice(text: string, range: { start: number; end: number }): string {
@@ -70,5 +70,79 @@ describe('indexNodeRanges', () => {
 
   it('пустой текст даёт пустой указатель, а не отказ', () => {
     expect(indexNodeRanges('').size).toBe(0);
+  });
+});
+
+describe('indexTextNodes: объекты по пути', () => {
+  const TEXT = `{
+    "version": "1.0",
+    "root": {
+      "component": "$html(div)",
+      "children": [
+        { "value": "$model(name)", "component": "$component(Input)" },
+        { "array": "$model(items)", "item": { "$template": { "component": "$component(Box)" } } }
+      ]
+    }
+  }`;
+
+  it('каждый объект находится по своему пути от корня документа', () => {
+    const { byPath } = indexTextNodes(TEXT);
+    expect(byPath.has(pathKey([]))).toBe(true);
+    expect(byPath.has(pathKey(['root']))).toBe(true);
+    expect(byPath.has(pathKey(['root', 'children', 0]))).toBe(true);
+    expect(byPath.has(pathKey(['root', 'children', 1]))).toBe(true);
+    expect(byPath.has(pathKey(['root', 'children', 1, 'item', '$template']))).toBe(true);
+  });
+
+  it('объект по пути — от скобки до скобки', () => {
+    const { byPath } = indexTextNodes(TEXT);
+    expect(slice(TEXT, byPath.get(pathKey(['root', 'children', 0]))!.node)).toBe(
+      '{ "value": "$model(name)", "component": "$component(Input)" }'
+    );
+  });
+
+  it('якорь узла без идентификатора — значение component: там стоит имя, которого нет в каталоге', () => {
+    const { byPath } = indexTextNodes(TEXT);
+    expect(slice(TEXT, byPath.get(pathKey(['root', 'children', 0]))!.anchor)).toBe(
+      '"$component(Input)"'
+    );
+  });
+
+  it('без component якорем становится первый ключ объекта', () => {
+    const { byPath } = indexTextNodes(TEXT);
+    expect(slice(TEXT, byPath.get(pathKey(['root', 'children', 1]))!.anchor)).toBe('"array"');
+  });
+
+  it('у пустого объекта якорь — открывающая скобка', () => {
+    const text = '{ "root": {} }';
+    const { byPath } = indexTextNodes(text);
+    expect(slice(text, byPath.get(pathKey(['root']))!.anchor)).toBe('{');
+  });
+
+  it('идентификатор в тексте важнее component: он короче и однозначнее', () => {
+    const text = '{ "root": { "component": "$html(div)", "$nodeId": "abcd1234" } }';
+    const { byId, byPath } = indexTextNodes(text);
+    expect(slice(text, byPath.get(pathKey(['root']))!.anchor)).toBe('"abcd1234"');
+    expect(byId.get('abcd1234')!.node).toEqual(byPath.get(pathKey(['root']))!.node);
+  });
+
+  it('числа и литералы в массиве считаются значениями: индексы соседей не съезжают', () => {
+    const text = '{ "list": [1, true, null, "s", { "n": 4 }] }';
+    const { byPath } = indexTextNodes(text);
+    expect(byPath.has(pathKey(['list', 4]))).toBe(true);
+    expect(byPath.has(pathKey(['list', 0]))).toBe(false);
+  });
+
+  it('ключи с разделителями не сталкиваются: ключ пути — сериализация, а не склейка', () => {
+    expect(pathKey(['a/b'])).not.toBe(pathKey(['a', 'b']));
+    expect(pathKey(['root', 0])).not.toBe(pathKey(['root', '0']));
+  });
+
+  it('половина указателя на недописанном JSON лучше, чем ничего', () => {
+    const text =
+      '{ "root": { "component": "$html(div)", "children": [ { "value": "$model(a)" }, { "val';
+    const { byPath } = indexTextNodes(text);
+    expect(byPath.has(pathKey(['root', 'children', 0]))).toBe(true);
+    expect(byPath.has(pathKey(['root']))).toBe(false);
   });
 });

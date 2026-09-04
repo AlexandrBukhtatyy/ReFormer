@@ -119,16 +119,48 @@ export async function compileForm(
   }
 
   for (const failure of exported.errors) {
-    problems.push(problem(failure.file, 'evaluate', failure.message));
+    const next: PreviewProblem = {
+      ...problem(
+        failure.file,
+        failure.phase ?? 'evaluate',
+        stripFilePrefix(failure.file, failure.message)
+      ),
+      ...(failure.range === undefined ? {} : { range: failure.range }),
+    };
+    // Два сайдкара, импортирующих один битый `./model`, приносят одну и ту же находку дважды:
+    // ошибка названа файлом-виновником, а не импортёром, — и второй раз она ничего не добавляет.
+    if (!problems.some((seen) => sameProblem(seen, next))) problems.push(next);
   }
 
   return { modules: new Map(Object.entries(exported.modules)), problems };
+}
+
+function sameProblem(a: PreviewProblem, b: PreviewProblem): boolean {
+  return a.file === b.file && a.phase === b.phase && a.message === b.message;
 }
 
 function problem(file: string, phase: PreviewProblem['phase'], message: string): PreviewProblem {
   return { file, phase, message };
 }
 
+/**
+ * Снимает имя файла с начала текста, если линковщик его туда приписал.
+ *
+ * `ModuleLinkError` печатает `«файл: причина»` — для лога это верно, но находка несёт файл
+ * отдельным полем, и тот, кто её показывает, называет его сам: в полосе живого вида и в
+ * строке панели получалось бы «validation.ts: validation.ts: …».
+ */
+export function stripFilePrefix(file: string, message: string): string {
+  const prefix = `${file}: `;
+  return file !== '' && message.startsWith(prefix) ? message.slice(prefix.length) : message;
+}
+
 function fromModuleError(error: PreviewModuleError): PreviewProblem {
-  return { file: error.file, phase: error.phase, message: error.message };
+  return {
+    file: error.file,
+    phase: error.phase,
+    message: stripFilePrefix(error.file, error.message),
+    // Место доезжает, когда движок его назвал: без него находка ляжет на первую строку файла.
+    ...(error.range === undefined ? {} : { range: error.range }),
+  };
 }

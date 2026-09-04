@@ -263,3 +263,40 @@ describe('кнопки в полосе вкладок', () => {
     expect(signals).toBe(2);
   });
 });
+
+describe('сигнал ряда кнопок от сеансов', () => {
+  it('появление сеанса перерисовывает ряд: кнопки включаются, когда документ стал схемой', () => {
+    // Сеанс заводит эффект тела редактора — ПОСЛЕ отрисовки ряда. Без этого сигнала ряд
+    // оставался с ответом «не схема» и всеми кнопками выключенными до чужой перерисовки.
+    const listeners = new Set<() => void>();
+    const d: CanvasActionDeps = {
+      ...deps(),
+      sessions: {
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return { dispose: () => listeners.delete(listener) };
+        },
+      },
+    };
+    let signals = 0;
+    const subscription = itemOf(d, 'schema.title.showCode').onDidChange?.(() => {
+      signals += 1;
+    });
+
+    for (const listener of listeners) listener();
+    expect(signals).toBe(1);
+
+    subscription?.dispose();
+    expect(listeners.size).toBe(0);
+  });
+
+  it('без реестра сеансов сигнал по-прежнему идёт от предпочтений и режимов', () => {
+    const d = deps();
+    let signals = 0;
+    itemOf(d, 'schema.title.showCode').onDidChange?.(() => {
+      signals += 1;
+    });
+    d.prefs.setView('schematic');
+    expect(signals).toBe(1);
+  });
+});

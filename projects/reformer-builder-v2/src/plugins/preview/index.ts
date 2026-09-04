@@ -74,7 +74,12 @@ export { PreviewSurfacePoint } from './contract';
 export { chooseSurface, surfaceRank } from './surface/selection';
 export type { SurfaceChoice, SurfaceFallback, SurfaceOption } from './surface/selection';
 export { createPreviewSessions } from './state/sessions';
-export type { PreviewSessions } from './state/sessions';
+export type { DiagnosticsSink, PreviewSessions } from './state/sessions';
+/**
+ * Правило адресации находок сборки — наружу, потому что им пользуется и композиция: живому
+ * виду она отдаёт строкой только то, что человек не прочтёт из свода своего документа.
+ */
+export { BUILD_DIAGNOSTICS_SOURCE, problemResource } from './state/problem-diagnostics';
 export { documentRefOf } from './surface/context';
 export { fallbackMessage, surfaceTitle } from './surface/label';
 export type { PreviewStore, PreviewState } from './state/store';

@@ -34,7 +34,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { Disposable, DocumentRef, NodeId } from '@/sdk';
+import type { Disposable, DocumentRef, NodeId, ResourceId, TextRange } from '@/sdk';
 
 /**
  * Типизированное имя точки расширения — структурная копия `host/primitives/extension-point`.
@@ -83,11 +83,20 @@ export type PreviewProblemPhase =
  *
  * Плоская структура с именем файла: «на чём споткнулись» и «где чинить» — два разных вопроса,
  * и панель сборки показывает оба. Файл пустой, если сбой ни к какому файлу не относится.
+ *
+ * `resource` и `range` — адрес для службы диагностик: по ним находка сборки становится
+ * подчёркиванием в редакторе того файла, где чинить, и строкой панели проблем. Оба
+ * необязательны: сбой без файла относится к документу схемы, а место знает только
+ * транспиляция (см. `PreviewModuleError.range`).
  */
 export interface PreviewProblem {
   readonly file: string;
   readonly phase: PreviewProblemPhase;
   readonly message: string;
+  /** Ресурс файла, к которому отнесён сбой; нет — сбой относится к документу схемы. */
+  readonly resource?: ResourceId;
+  /** Место в тексте этого ресурса, в кодовых единицах UTF-16. */
+  readonly range?: TextRange;
 }
 
 /**

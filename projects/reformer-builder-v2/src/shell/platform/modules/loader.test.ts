@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createModuleLoader } from './loader';
 import { ModuleRegistryError } from './registry';
-import type { Transpiler } from './transpilers';
+import { TranspileError, type Transpiler } from './transpilers';
 
 /**
  * Фиктивный транспилятор вместо настоящего TypeScript.
@@ -202,5 +202,46 @@ describe('ModuleLoader: отказы', () => {
     );
 
     expect(result.errors[0].phase).toBe('resolve');
+  });
+});
+
+describe('ModuleLoader: место находки движка', () => {
+  it('место первой находки с позицией доезжает до ошибки загрузки', async () => {
+    const loader = createModuleLoader();
+    loader.transpilers.register({
+      id: 'positioned',
+      applies: (fileName) => fileName.endsWith('.ts'),
+      transpile: () => {
+        throw new TranspileError([
+          { message: 'без места' },
+          { message: 'ожидалась «;»', range: { start: 4, end: 5 } },
+          { message: 'потом ещё', range: { start: 9, end: 10 } },
+        ]);
+      },
+    });
+
+    const result = await loader.load(files({ 'broken.ts': 'что-то не то' }), 'broken.ts');
+
+    expect(result.errors[0].phase).toBe('transpile');
+    // Первая находка С МЕСТОМ, а не первая вообще: у сбоя одно место в плоской структуре,
+    // и это то, с которого человек начнёт чинить.
+    expect(result.errors[0].range).toEqual({ start: 4, end: 5 });
+    expect(result.errors[0].message).toContain('ожидалась «;»');
+  });
+
+  it('движок без находок с местом — ошибка без места, как и раньше', async () => {
+    const loader = createModuleLoader();
+    loader.transpilers.register({
+      id: 'plain',
+      applies: (fileName) => fileName.endsWith('.ts'),
+      transpile: () => {
+        throw new Error('просто не вышло');
+      },
+    });
+
+    const result = await loader.load(files({ 'broken.ts': 'x' }), 'broken.ts');
+
+    expect(result.errors[0].phase).toBe('transpile');
+    expect(result.errors[0].range).toBeUndefined();
   });
 });

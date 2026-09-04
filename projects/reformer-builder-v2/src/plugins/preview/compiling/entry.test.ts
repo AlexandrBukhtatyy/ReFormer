@@ -42,6 +42,37 @@ describe('buildEntrySource', () => {
     expect(exported?.errors).toEqual([{ file: 'validation.ts', message: 'битая схема' }]);
   });
 
+  it('ошибка линковщика читается по форме: файл-виновник, фаза и место находки движка', () => {
+    // Так выглядит `ModuleLinkError` с `TranspileError` в причине: энтри импортировать класс
+    // не может, но поля по форме читает — и сбой `./model` относится к model.ts, а не к тому,
+    // кто его импортировал.
+    const linkError = Object.assign(new Error("model.ts: ')' expected."), {
+      file: 'model.ts',
+      phase: 'transpile',
+      cause: {
+        findings: [{ message: 'без места' }, { message: 'x', range: { start: 7, end: 8 } }],
+      },
+    });
+    const exported = readEntryExports(run(['validation.ts'], { 'validation.ts': linkError }));
+    expect(exported?.errors).toEqual([
+      {
+        file: 'model.ts',
+        message: "model.ts: ')' expected.",
+        phase: 'transpile',
+        range: { start: 7, end: 8 },
+      },
+    ]);
+  });
+
+  it('ошибка без полей линковщика остаётся ошибкой самого сайдкара без фазы и места', () => {
+    const exported = readEntryExports(
+      run(['validation.ts'], {
+        'validation.ts': Object.assign(new Error('бросил'), { phase: 'странная', file: '' }),
+      })
+    );
+    expect(exported?.errors).toEqual([{ file: 'validation.ts', message: 'бросил' }]);
+  });
+
   it('занятое имя точки входа — отказ, а не молчаливая перезапись', () => {
     expect(() => buildEntrySource(['model.ts', PREVIEW_ENTRY_FILE])).toThrow(/занято/);
   });

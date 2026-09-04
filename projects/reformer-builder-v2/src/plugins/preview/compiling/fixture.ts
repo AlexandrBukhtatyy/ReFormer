@@ -28,6 +28,7 @@ import { FIXTURE_EXPORT, fixturePathOf, type FormFixture } from '@/lib/form-fixt
 import type { ResourceId } from '@/sdk';
 import type { PreviewProblem } from '../contract';
 import type { PreviewHost, PreviewModules } from '../host';
+import { stripFilePrefix } from './compile';
 
 /** Что дала фикстура. */
 export interface LoadedFixture {
@@ -65,9 +66,11 @@ export async function loadFixture(
   const path = fixturePathOf(schemaPath);
   if (path === null) return NOTHING;
 
+  // Адрес фикстуры — он же адрес её находок: чинить надо в ней, а не в схеме.
+  const resource = resolveFromRoot(documentId, path);
   let source: string;
   try {
-    source = await host.readText(resolveFromRoot(documentId, path));
+    source = await host.readText(resource);
   } catch {
     // Фикстуры нет — самый частый случай, и он не событие.
     return NOTHING;
@@ -77,14 +80,22 @@ export async function loadFixture(
   try {
     primed = await modules.prepare?.(new Map([[path, source]]));
   } catch (error) {
-    return { fixture: null, path, problems: [problem(path, 'transpile', describe(error))] };
+    return {
+      fixture: null,
+      path,
+      problems: [problem(path, 'transpile', describe(error), resource)],
+    };
   }
 
   let graph;
   try {
     graph = await modules.load(new Map([[path, source]]), path, { ready: primed?.ready });
   } catch (error) {
-    return { fixture: null, path, problems: [problem(path, 'evaluate', describe(error))] };
+    return {
+      fixture: null,
+      path,
+      problems: [problem(path, 'evaluate', describe(error), resource)],
+    };
   }
 
   if (primed !== undefined && graph.compiled !== undefined && graph.compiled.size > 0) {
@@ -93,7 +104,12 @@ export async function loadFixture(
     });
   }
 
-  const problems = graph.errors.map((error) => problem(error.file, error.phase, error.message));
+  // Граф фикстуры — один файл, поэтому и адрес у всех его находок один; место доезжает
+  // от движка, когда он его назвал.
+  const problems = graph.errors.map((error) => ({
+    ...problem(error.file, error.phase, stripFilePrefix(error.file, error.message), resource),
+    ...(error.range === undefined ? {} : { range: error.range }),
+  }));
   const exported = (graph.entry as Record<string, unknown> | undefined)?.[FIXTURE_EXPORT];
   if (exported === undefined) {
     // Файл есть, а экспорта нет — почти всегда опечатка в имени. Молчать нельзя: человек
@@ -103,7 +119,8 @@ export async function loadFixture(
         problem(
           path,
           'evaluate',
-          `фикстура не экспортирует «${FIXTURE_EXPORT}» — форма её не увидит`
+          `фикстура не экспортирует «${FIXTURE_EXPORT}» — форма её не увидит`,
+          resource
         )
       );
     }
@@ -113,6 +130,11 @@ export async function loadFixture(
   return { fixture: asFixture(exported), path, problems };
 }
 
-function problem(file: string, phase: PreviewProblem['phase'], message: string): PreviewProblem {
-  return { file, phase, message };
+function problem(
+  file: string,
+  phase: PreviewProblem['phase'],
+  message: string,
+  resource: ResourceId
+): PreviewProblem {
+  return { file, phase, message, resource };
 }

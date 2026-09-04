@@ -27,6 +27,7 @@
 import { createElement } from 'react';
 import {
   definePlugin,
+  DiagnosticsServiceToken,
   PanelPoint,
   SelectionServiceToken,
   type Plugin,
@@ -125,6 +126,20 @@ export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
       // собирается и тест плагина, где реестра сервисов нет вовсе.
       const selection = ctx.services.get(SelectionServiceToken);
       if (selection !== undefined) ctx.subscriptions.push(sessions.connectSelection(selection));
+
+      // Находки сборки уходят в общий свод диагностик — под адресом файла, где чинить. Тот же
+      // `get`, а не `require`, и та же деградация: без службы находки остаются в состоянии
+      // превью, и живой вид показывает их, как и раньше.
+      const diagnostics = ctx.services.get(DiagnosticsServiceToken);
+      if (diagnostics !== undefined) {
+        ctx.subscriptions.push(sessions.connectDiagnostics(diagnostics));
+        // Правка файла снимает его находки сборки до следующей сборки: они про текст, которого
+        // уже нет. Порт вправе канала не дать — тогда находки живут до пересборки, как и раньше.
+        const files = host.onDidChangeFiles?.((changed) => {
+          sessions.invalidate(changed);
+        });
+        if (files !== undefined) ctx.subscriptions.push(files);
+      }
     },
     deactivate() {
       // Состояния не выражаются подпиской: они переживают перерисовку и переключение вкладки,

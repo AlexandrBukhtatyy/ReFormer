@@ -13,13 +13,36 @@
  * @module shell/boot/ports/monaco
  */
 
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import { isTextMediaType, type ResourceId } from '@/shell/platform/primitives/resource';
 import type { DiagnosticsService } from '@/shell/platform/services/diagnostics/service';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
+import type { JsonPath } from '@/lib/form-model/paths';
+import { indexNodePaths } from '@/lib/form-model/query';
 import type { MonacoDocument, MonacoHost, Translate } from '@/plugins/editor-monaco';
 import { MONACO_PLUGIN_ID } from '@/plugins/editor-monaco';
+import { SCHEMA_MODEL_PROVIDER_ID } from '@/plugins/editor-schema';
 import type { ProjectHost } from '@/shell/boot/project/project';
+
+/**
+ * Указатель «узел → путь» по модели, запомненный по самой модели.
+ *
+ * `WeakMap`, а не поле порта: модель — замороженный объект со structural sharing, и новая
+ * ссылка означает новую правку; та же ссылка — тот же указатель. Разметка спрашивает пути
+ * на каждое нажатие клавиши и на каждую публикацию, а обход схемы ради одного и того же
+ * ответа стоил бы столько же, сколько сам показ.
+ */
+const nodePathsCache = new WeakMap<object, ReadonlyMap<string, JsonPath>>();
+
+function nodePathsOf(model: JsonFormSchema): ReadonlyMap<string, JsonPath> {
+  let paths = nodePathsCache.get(model);
+  if (paths === undefined) {
+    paths = indexNodePaths(model);
+    nodePathsCache.set(model, paths);
+  }
+  return paths;
+}
 
 export interface MonacoHostDeps {
   readonly project: ProjectHost;
@@ -93,6 +116,17 @@ export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
     // Свод диагностик платформы отдаётся плагину напрямую: `MonacoDiagnostics` — это в точности
     // читающая половина `DiagnosticsService`, и оборачивать её значило бы завести второй канал.
     diagnostics,
+
+    // Пути узлов — только по модели, которую разобрал провайдер схемы формы: та же проверка
+    // идентификатора провайдера, что в порту редактора схемы, и по той же причине — чужая
+    // модель под видом схемы дала бы пути, которых в тексте нет. Расходящаяся модель
+    // не отдаётся вовсе: её пути описывают текст, который человек уже переписал.
+    locateNodes: (id) => {
+      const handle = project.get()?.models.handleOf(id) ?? null;
+      if (handle === null || handle.document.providerId !== SCHEMA_MODEL_PROVIDER_ID) return null;
+      if (handle.document.getSyncState() !== 'synced') return null;
+      return nodePathsOf(handle.document.getModel() as JsonFormSchema);
+    },
 
     // Уход фокуса из редактора — момент, когда откладывать перерисовку буфера по модели больше
     // не из-за чего. У текстового документа ручки нет, и `undefined` здесь означает «отложенного

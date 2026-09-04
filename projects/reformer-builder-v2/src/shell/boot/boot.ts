@@ -125,7 +125,7 @@ import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createSchemaHost } from '@/shell/boot/ports/schema';
 import { createAiHost } from '@/shell/boot/ports/ai';
-import { createPreviewHost } from '@/shell/boot/ports/preview';
+import { attachPreviewLifecycle, createPreviewHost } from '@/shell/boot/ports/preview';
 import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
 import { createCodegenHost } from '@/shell/boot/ports/codegen';
 import { createTemplatesHost } from '@/shell/boot/ports/templates';
@@ -574,6 +574,9 @@ export function boot(options: BootOptions = {}): BuilderApp {
     },
   });
   const previewSessions = createPreviewSessions();
+  // Состояния превью живут не дольше вкладок: закрытая вкладка забывает и режим, и находки
+  // сборки — иначе те висели бы в своде диагностик, а обновлять их было бы некому.
+  const previewLifecycle = attachPreviewLifecycle(project, previewSessions);
 
   plugins.registerAll(
     createBuiltinPlugins({
@@ -856,6 +859,7 @@ export function boot(options: BootOptions = {}): BuilderApp {
       projectPlugins.dispose();
       pluginModules.dispose();
       plugins.deactivateAll();
+      previewLifecycle.dispose();
       project.dispose();
       status.dispose();
       validation.dispose();

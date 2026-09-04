@@ -344,6 +344,10 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
         prefs: stores.prefs,
         views,
         isSchema,
+        // Сеанс появляется ПОСЛЕ отрисовки ряда кнопок (его открывает эффект тела редактора),
+        // и ряд обязан узнать об этом — иначе кнопки видов остаются выключенными у только
+        // что открытой формы.
+        sessions: registry,
         editorId: SCHEMA_EDITOR_ID,
         hasTextEditor: () => host.TextEditor !== undefined,
         // Спрашивается у порта на каждый вызов: поверхности вносятся вкладами, и плагин

@@ -162,8 +162,10 @@ export function ProblemsPanel({
     (id) => {
       // Имя спрашивается у открытого документа: у службы диагностик его нет, а разбирать
       // идентификатор ресурса плагину нельзя — путевая арифметика принадлежит платформе.
+      // Закрытый документ (сайдкар с ошибкой сборки) называет порт — той же арифметикой.
       const ref = host.documentOf(id)?.ref;
-      return ref === undefined ? null : { name: ref.name, path: ref.path };
+      if (ref !== undefined) return { name: ref.name, path: ref.path };
+      return host.nameOf?.(id) ?? null;
     },
     commands === null ? undefined : (commandId) => commands.has(commandId)
   );

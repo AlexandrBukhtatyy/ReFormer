@@ -15,7 +15,12 @@
  */
 
 import { createElement, type ReactElement } from 'react';
-import { isTextMediaType, type ResourceId } from '@/shell/platform/primitives/resource';
+import {
+  basename,
+  isTextMediaType,
+  parseResourceId,
+  type ResourceId,
+} from '@/shell/platform/primitives/resource';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
@@ -106,6 +111,13 @@ export function createFilesHost(deps: FilesHostDeps): FilesHost {
 
     documentOf: (id: ResourceId): FilesDocument | null =>
       project.get()?.documents.documentOf(id) ?? null,
+
+    // Имя закрытого ресурса — разбором адреса платформой: панель проблем показывает и находки
+    // сайдкара, вкладки которого нет, и подписывать их сырым адресом было бы нечитаемо.
+    nameOf: (id: ResourceId) => {
+      const { path } = parseResourceId(id);
+      return { name: basename(path), path };
+    },
 
     writeText(id: ResourceId, text: string) {
       const session = project.get();

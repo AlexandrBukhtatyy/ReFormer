@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createTranspilerRegistry } from '@/shell/platform/modules/transpilers';
+import { createTranspilerRegistry, TranspileError } from '@/shell/platform/modules/transpilers';
 import {
   createTypeScriptSupport,
   createTypeScriptTranspiler,
@@ -146,5 +146,36 @@ describe('прогрев движка', () => {
     support.dispose();
 
     expect(registry.find('main.ts')).toBeUndefined();
+  });
+});
+
+describe('транспилятор TypeScript: место находки', () => {
+  it('находка с местом доезжает диапазоном, без места — только текстом', () => {
+    const engine = fakeEngine({
+      transpileModule: () => ({
+        outputText: '',
+        diagnostics: [
+          { messageText: 'без места' },
+          { messageText: 'ожидалась «;»', start: 12, length: 0 },
+          { messageText: 'лишний токен', start: 20, length: 3 },
+        ],
+      }),
+    });
+
+    let caught: unknown;
+    try {
+      createTypeScriptTranspiler(engine).transpile('x', 'main.ts');
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(TranspileError);
+    const findings = (caught as TranspileError).findings;
+    expect(findings[0]).toEqual({ message: 'без места' });
+    // Нулевая протяжённость растягивается до символа: подчеркнуть точку нечем.
+    expect(findings[1]).toEqual({ message: 'ожидалась «;»', range: { start: 12, end: 13 } });
+    expect(findings[2]).toEqual({ message: 'лишний токен', range: { start: 20, end: 23 } });
+    // Текст исключения — прежняя склейка: лог и панель сборки читают его как одну строку.
+    expect((caught as Error).message).toBe('без места; ожидалась «;»; лишний токен');
   });
 });

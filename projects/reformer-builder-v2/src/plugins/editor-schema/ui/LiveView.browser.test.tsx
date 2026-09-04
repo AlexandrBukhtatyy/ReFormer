@@ -19,6 +19,8 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { useMemo, type ReactElement } from 'react';
+import type { JsonFormSchema } from '@reformer/renderer-json';
+import type { Diagnostic } from '@/sdk';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { NODE_CLASS_PREFIX } from '@/lib/form-model/node-token';
 import { renderReact } from '@/testing/render';
@@ -47,20 +49,29 @@ interface Fixture {
   readonly unmount: () => void;
 }
 
+/** Свод диагностик по модели: адреса узлов известны только после разбора. */
+type ProblemsOf = (model: JsonFormSchema) => readonly Diagnostic[];
+
 function Harness({
   registry,
   prefs,
   live,
   drag,
+  problemsOf,
 }: {
   registry: SessionRegistry;
   prefs: CanvasPrefs;
   live: FakeLivePort | null;
   drag: DragSession;
+  problemsOf?: ProblemsOf;
 }): ReactElement {
   const session = useActiveSession(registry);
   const state = useSessionState(registry, session);
   const t = useMemo(() => (key: string) => key, []);
+  const problems = useMemo(
+    () => (state === null ? [] : (problemsOf?.(state.model) ?? [])),
+    [problemsOf, state]
+  );
 
   if (session === null || state === null) return <div>сеанса нет</div>;
   return (
@@ -73,12 +84,15 @@ function Harness({
         prefs={prefs}
         live={live}
         drag={drag}
+        problems={problems}
       />
     </div>
   );
 }
 
-function mount(options: { live?: FakeLivePort | null; view?: 'live' | 'tree' } = {}): Fixture {
+function mount(
+  options: { live?: FakeLivePort | null; view?: 'live' | 'tree'; problemsOf?: ProblemsOf } = {}
+): Fixture {
   const host = createFakeSchemaHost({
     documentId: DOCUMENT,
     text: JSON.stringify(sampleSchema(), null, 2),
@@ -92,7 +106,13 @@ function mount(options: { live?: FakeLivePort | null; view?: 'live' | 'tree' } =
 
   const drag = createDragSession();
   const rendered = renderReact(
-    <Harness registry={registry} prefs={prefs} live={live} drag={drag} />
+    <Harness
+      registry={registry}
+      prefs={prefs}
+      live={live}
+      drag={drag}
+      problemsOf={options.problemsOf}
+    />
   );
 
   const model = () => registry.get(DOCUMENT)?.get().model ?? sampleSchema();
@@ -212,6 +232,56 @@ describe('живой вид', () => {
       await vi.waitFor(() => {
         expect(document.querySelector('[role="tree"]')).not.toBeNull();
       });
+    } finally {
+      fixture.unmount();
+    }
+  });
+
+  it('находки валидатора видны в форме: контур на узле и строка в полосе', async () => {
+    const fixture = mount({
+      problemsOf: (model) => {
+        const id = indexNodes(model).idAt(['root', 'componentProps', 'steps', 0]);
+        if (id === undefined) return [];
+        return [
+          {
+            source: 'validator.schema',
+            severity: 'error',
+            code: 'schema.unknown-component',
+            params: { name: 'Inpit' },
+            target: { kind: 'node', nodeId: id },
+          },
+        ];
+      },
+    });
+    try {
+      await vi.waitFor(() => {
+        expect(fixture.live.mounts()).toBe(1);
+      });
+      const target = fixture.idAt(['root', 'componentProps', 'steps', 0]);
+
+      // Полоса называет находку — перевод в тесте тождественный, поэтому виден код.
+      await vi.waitFor(() => {
+        expect(document.querySelector('[data-testid="live-problems"]')?.textContent).toContain(
+          'schema.unknown-component'
+        );
+      });
+      // Контур — правилом по классу-токену узла, цветом ошибки: DOM формы не тронут.
+      const css = [...document.querySelectorAll('style')]
+        .map((style) => style.textContent ?? '')
+        .join('\n');
+      expect(css).toMatch(new RegExp(`${NODE_CLASS_PREFIX}${target}[^\\n]*--color-destructive`));
+    } finally {
+      fixture.unmount();
+    }
+  });
+
+  it('без находок полосы нет — высота принадлежит форме', async () => {
+    const fixture = mount();
+    try {
+      await vi.waitFor(() => {
+        expect(fixture.live.mounts()).toBe(1);
+      });
+      expect(document.querySelector('[data-testid="live-problems"]')).toBeNull();
     } finally {
       fixture.unmount();
     }

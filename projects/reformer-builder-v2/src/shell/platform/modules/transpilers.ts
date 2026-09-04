@@ -26,6 +26,33 @@ export interface TranspileOutput {
   readonly map?: string;
 }
 
+/**
+ * Одна находка движка: текст и, если движок его знает, полуинтервал `[start, end)` в исходнике —
+ * в кодовых единицах UTF-16, как считают и JavaScript, и редактор.
+ */
+export interface TranspileFinding {
+  readonly message: string;
+  readonly range?: { readonly start: number; readonly end: number };
+}
+
+/**
+ * Отказ движка — исключение, которое несёт находки, а не только их склейку.
+ *
+ * `message` по-прежнему читается как одна строка (так её показывают лог и панель сборки),
+ * но позиция первой находки без этого класса терялась бы на первом же перезаворачивании:
+ * линковщик описывает ошибку строкой и относит к файлу, а «в какой строке» знает только
+ * движок — и только в момент, когда транспилирует.
+ */
+export class TranspileError extends Error {
+  readonly findings: readonly TranspileFinding[];
+
+  constructor(findings: readonly TranspileFinding[]) {
+    super(findings.map((finding) => finding.message).join('; '));
+    this.name = 'TranspileError';
+    this.findings = findings;
+  }
+}
+
 /** Сменный движок транспиляции. Контракт Э8. */
 export interface Transpiler {
   /** Идентификатор для диагностики и для запрета двойной регистрации. */

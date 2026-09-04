@@ -37,6 +37,7 @@ import {
   fallbackMessage,
   PreviewSurfacePoint,
   PREVIEW_PLUGIN_ID,
+  problemResource,
   surfaceTitle,
   type PreviewContext,
   type PreviewDocument,
@@ -138,10 +139,16 @@ export function createLiveSurfacePort(deps: LiveSurfaceDeps): LivePreviewPort {
           store.keepValues(values);
         },
         report: (source: string, problems: readonly PreviewProblem[]) => {
-          // В общий свод — чтобы панель показала то же самое; и во встраивающего — чтобы
-          // живой вид мог сказать словами, почему форма не собралась.
+          // В состояние документа — оттуда превью кладёт находки в общий свод диагностик под
+          // адресом файла, где чинить. Встраивающему строкой уходят только находки ЧУЖИХ
+          // файлов (сайдкаров): находки самого документа он читает из свода вместе с находками
+          // валидаторов, и вторая копия стояла бы рядом с первой.
           store.report(source, problems);
-          ctx.report?.(problems.map(describeProblem));
+          ctx.report?.(
+            problems
+              .filter((problem) => problemResource(doc.id, problem) !== doc.id)
+              .map(describeProblem)
+          );
         },
       };
 

@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Diagnostic } from '@/sdk';
 import { hasNodeTargets, planMarkers } from './markers';
-import { indexNodeRanges, type NodeLocation } from './node-ranges';
+import { indexNodeRanges, indexTextNodes, pathKey, type NodeLocation } from './node-ranges';
 
 const NO_NODES: ReadonlyMap<string, NodeLocation> = new Map();
 
@@ -68,6 +68,41 @@ describe('planMarkers', () => {
     const plan = planMarkers(items, '{}', NO_NODES);
     expect(plan.markers).toEqual([]);
     expect(plan.unresolved).toEqual(['missing0']);
+  });
+
+  it('узел без идентификатора в тексте находится по пути через запасной резолвер', () => {
+    // Так выглядит форма из кодогена: идентификаторы выданы моделью, в файл ещё не записаны.
+    const text =
+      '{ "root": { "component": "$html(div)", "children": [{ "component": "$component(Inpit)" }] } }';
+    const index = indexTextNodes(text);
+    const paths = new Map([['child000', ['root', 'children', 0]]]);
+    const items = [diagnostic({ kind: 'node', nodeId: 'child000' })];
+    const plan = planMarkers(items, text, index.byId, (nodeId) => {
+      const path = paths.get(nodeId);
+      return path === undefined ? undefined : index.byPath.get(pathKey(path));
+    });
+    expect(plan.unresolved).toEqual([]);
+    expect(text.slice(plan.markers[0].range.start, plan.markers[0].range.end)).toBe(
+      '"$component(Inpit)"'
+    );
+  });
+
+  it('идентификатор в тексте важнее запасного резолвера', () => {
+    const text = '{ "$nodeId": "aaaa0000", "component": "Input" }';
+    const items = [diagnostic({ kind: 'node', nodeId: 'aaaa0000' })];
+    const fallback = (): NodeLocation => ({
+      anchor: { start: 0, end: 1 },
+      node: { start: 0, end: 1 },
+    });
+    const plan = planMarkers(items, text, indexNodeRanges(text), fallback);
+    expect(text.slice(plan.markers[0].range.start, plan.markers[0].range.end)).toBe('"aaaa0000"');
+  });
+
+  it('резолвер, не знающий узла, оставляет его в нерешённых', () => {
+    const items = [diagnostic({ kind: 'node', nodeId: 'unknown0' })];
+    const plan = planMarkers(items, '{}', NO_NODES, () => undefined);
+    expect(plan.markers).toEqual([]);
+    expect(plan.unresolved).toEqual(['unknown0']);
   });
 
   it('проблема всего ресурса встаёт на первую строку, а не подчёркивает файл целиком', () => {

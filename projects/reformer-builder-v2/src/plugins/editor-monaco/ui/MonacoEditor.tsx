@@ -45,7 +45,7 @@ import { shouldStopPropagation } from '../sync/input';
 import { languageFor, modelPathFor } from '../runtime/language';
 import { hasNodeTargets, planMarkers, type MarkerDraft } from '../diagnostics/markers';
 import { ensureMonaco } from '../runtime/monaco-setup';
-import { indexNodeRanges, type NodeLocation } from '../diagnostics/node-ranges';
+import { indexTextNodes, pathKey, type TextNodeIndex } from '../diagnostics/node-ranges';
 import { createSyncState, reduceSync, type SyncEvent, type SyncState } from '../sync/sync';
 import { monacoThemeFor, useDarkTheme } from '../runtime/theme';
 import type { ViewStateRegistry } from '../sync/view-state';
@@ -59,8 +59,8 @@ import type { ViewStateRegistry } from '../sync/view-state';
  */
 const MARKER_OWNER = 'reformer.diagnostics';
 
-/** Пустой указатель узлов: одна ссылка вместо новой карты на каждый показ. */
-const NO_NODES: ReadonlyMap<string, NodeLocation> = new Map();
+/** Пустой указатель узлов: одна ссылка вместо новых карт на каждый показ. */
+const NO_INDEX: TextNodeIndex = Object.freeze({ byId: new Map(), byPath: new Map() });
 
 function severityOf(
   monaco: Monaco,
@@ -294,8 +294,15 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
       if (monaco === null || model === undefined || model === null) return;
       const items = host.diagnostics.get(documentId);
       const text = model.getValue();
-      const nodes = hasNodeTargets(items) ? indexNodeRanges(text) : NO_NODES;
-      const plan = planMarkers(items, text, nodes);
+      const withNodes = hasNodeTargets(items);
+      const index = withNodes ? indexTextNodes(text) : NO_INDEX;
+      // Узел, чьего идентификатора в тексте нет, ищется по пути: «идентификатор → путь» знает
+      // порт по модели документа, «путь → место» — указатель по этому же тексту.
+      const paths = withNodes ? (host.locateNodes?.(documentId) ?? null) : null;
+      const plan = planMarkers(items, text, index.byId, (nodeId) => {
+        const path = paths?.get(nodeId);
+        return path === undefined ? undefined : index.byPath.get(pathKey(path));
+      });
       monaco.editor.setModelMarkers(
         model,
         MARKER_OWNER,

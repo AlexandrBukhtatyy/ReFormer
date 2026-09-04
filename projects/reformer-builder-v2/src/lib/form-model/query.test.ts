@@ -10,7 +10,9 @@ import {
   navTarget,
   navIntent,
   siblingAxis,
+  indexNodePaths,
 } from './query';
+import { ensureNodeIds } from './node-id';
 import { getAt } from './paths';
 import { sampleSchema, P } from './__fixtures__/sample-schema';
 
@@ -167,5 +169,32 @@ describe('walkNodes', () => {
     // root + 2 шага + 2 поля шага0 + 1 массив + 1 шаблон-Box + 1 поле шаблона = 8
     expect(visited).toHaveLength(8);
     expect(visited[0]).toBe('root');
+  });
+});
+
+describe('indexNodePaths', () => {
+  it('каждому идентификатору — путь того же обхода, что у walkNodes', () => {
+    let seq = 0;
+    const s = ensureNodeIds(sampleSchema(), () => `id${String(seq++).padStart(6, '0')}`);
+    const paths = indexNodePaths(s);
+    expect(paths.size).toBe(8);
+    walkNodes(s, (node, path) => {
+      const id = (node as { $nodeId?: string }).$nodeId;
+      expect(id).toBeDefined();
+      expect(paths.get(id!)).toEqual(path);
+    });
+  });
+
+  it('схема без идентификаторов даёт пустой указатель: адресовать нечем', () => {
+    expect(indexNodePaths(sampleSchema()).size).toBe(0);
+  });
+
+  it('при повторе идентификатора выигрывает первое вхождение — как у указателя редактора', () => {
+    const s = sampleSchema();
+    const root = s.root as unknown as Record<string, unknown>;
+    root.$nodeId = 'dupe0000';
+    const steps = (root.componentProps as { steps: Record<string, unknown>[] }).steps;
+    steps[0].$nodeId = 'dupe0000';
+    expect(indexNodePaths(s).get('dupe0000')).toEqual(['root']);
   });
 });
