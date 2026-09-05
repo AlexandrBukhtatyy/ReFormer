@@ -19,7 +19,7 @@ import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor } from '@/lib/kits/types';
 import { KitsServiceToken } from '@/plugins/kits';
-import { CODEGEN_PLUGIN_ID } from '@/plugins/codegen';
+import { CODEGEN_PLUGIN_ID } from '@/plugins/codegen/contract';
 import type { CodegenDocument, CodegenHost, Translate } from '@/plugins/codegen';
 import { fromRoot, parentOf, resolve } from '@/shell/platform/primitives/resource-path';
 import type { ProjectHost } from '@/shell/boot/project/project';

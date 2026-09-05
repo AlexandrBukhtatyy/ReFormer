@@ -71,8 +71,10 @@ import {
 } from './session/view-state';
 import type { ExtensionPointRef, MessageSink, SchemaDiagnostics, SchemaEditorHost } from './host';
 
-/** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const SCHEMA_EDITOR_PLUGIN_ID = 'editor-schema';
+// Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
+// взять его, не втягивая плагин в стартовый граф.
+import { SCHEMA_EDITOR_PLUGIN_ID } from './contract';
+export { SCHEMA_EDITOR_PLUGIN_ID };
 
 /** Структурный редактор схемы. */
 export const SCHEMA_EDITOR_ID = 'editor-schema.canvas';

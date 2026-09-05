@@ -16,7 +16,7 @@ import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { KitsServiceToken } from '@/plugins/kits';
-import { AI_PLUGIN_ID } from '@/plugins/ai';
+import { AI_PLUGIN_ID } from '@/plugins/ai/contract';
 import type { AiDocument, AiHost, Translate, WriteMark } from '@/plugins/ai';
 import type { ProjectHost } from '@/shell/boot/project/project';
 

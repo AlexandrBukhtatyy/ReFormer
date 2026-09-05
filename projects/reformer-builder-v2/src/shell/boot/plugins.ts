@@ -10,41 +10,75 @@
  * (см. `host/plugin/registry`) и проверяет это тестом «порядок активации ничего не значит».
  * Держать его читаемым стоит только ради вывода диагностики.
  *
+ * ## Две фазы, и почему граница проходит именно здесь
+ *
+ * Плагины делятся на СТАТИЧЕСКИХ и ЛЕНИВЫХ, и это деление про СБОРКУ, а не про поведение:
+ * оба набора встают до первой отрисовки, потому что ленивые дожидаются внутри `ready`
+ * (см. `boot`). Контракт «набор вкладов полон и детерминирован к моменту отрисовки»
+ * (plugin-and-shell, «Последовательность запуска», шаги 5-6) остаётся в силе дословно.
+ *
+ * Смысл деления — в том, что иначе весь код плагинов лежит внутри entry одним файлом.
+ * Отдельный файл даёт только динамический импорт: попытка добиться того же через
+ * `manualChunks` измерена и отвергнута (см. `vite.config.ts` — ручной чанк стягивает
+ * в себя общий вендор и утяжеляет стартовый граф на полмегабайта).
+ *
+ * СТАТИЧЕСКИМИ остаются пятеро, и у каждого причина в композиции, а не в предпочтении:
+ *
+ * - `files` — его словарь регистрирует сама композиция ЗНАЧЕНИЕМ (`FILES_MESSAGES`) до того,
+ *   как что-либо активировано;
+ * - `editor-monaco` — `boot` синхронно вычисляет тело редактора и раздаёт ОДНУ ссылку троим
+ *   (вкладка кода, режим «рядом» у markdown, исходник схемы); новая ссылка означала бы
+ *   перемонтирование Monaco на каждую перерисовку родителя;
+ * - `kits` — `KitsServiceToken` импортируется значением пятью портами композиции;
+ * - `preview` — композиция сама создаёт реестр состояний и вешает на него жизненный цикл;
+ * - `validator-schema` — его `activate` ЗАКАЗЫВАЕТ тяжёлую проверку (`renderer-json/validate`
+ *   плюс ajv), чтобы она ехала параллельно оболочке; ленивость сделала бы из одного
+ *   параллельного запроса цепочку из двух ради десяти килобайт.
+ *
  * @module shell/boot/plugins
  */
 
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { Plugin } from '@/shell/platform/plugin/types';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
+import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
+
+// Статические: их значения нужны композиции или их отделение стоит дороже, чем даёт.
 import type { FilesHost } from '@/plugins/files';
 import { createFilesPlugin } from '@/plugins/files';
-import type { PluginManagerPluginOptions } from '@/plugins/plugin-manager';
-import { createPluginManagerPlugin } from '@/plugins/plugin-manager';
 import type { ViewStateRegistry } from '@/plugins/editor-monaco';
 import {
   createMonacoEditorPlugin,
+  MONACO_PLUGIN_ID,
   type MonacoFocusRegistry,
   type MonacoHost,
 } from '@/plugins/editor-monaco';
-import { createMarkdownPlugin } from '@/plugins/editor-markdown';
-import type { MarkdownHost } from '@/plugins/editor-markdown';
-import { createSchemaEditorPlugin } from '@/plugins/editor-schema';
-import type { SchemaEditorHost } from '@/plugins/editor-schema';
-import { createKitsPlugin } from '@/plugins/kits';
+import { createKitsPlugin, KITS_PLUGIN_ID } from '@/plugins/kits';
 import type { KitsPluginOptions } from '@/plugins/kits';
-import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
-import { createAiPlugin } from '@/plugins/ai';
-import type { AiHost } from '@/plugins/ai';
-import { createPreviewPlugin } from '@/plugins/preview';
+import { createPreviewPlugin, PREVIEW_PLUGIN_ID } from '@/plugins/preview';
 import type { PreviewHost } from '@/plugins/preview';
-import { createCodegenPlugin } from '@/plugins/codegen';
-import type { CodegenHost } from '@/plugins/codegen';
-import { createTemplatesPlugin } from '@/plugins/templates';
-import type { ModulePrinter, TemplatesHost } from '@/plugins/templates';
 import { createSchemaValidatorPlugin } from '@/plugins/validator-schema';
 
+// Ленивые: только ТИПЫ. `verbatimModuleSyntax` стирает такой импорт целиком, графа он
+// не создаёт — значения приезжают динамическим импортом в `loadLazyBuiltinPlugins`.
+import type { PluginManagerPluginOptions } from '@/plugins/plugin-manager';
+import type { MarkdownHost } from '@/plugins/editor-markdown';
+import type { SchemaEditorHost } from '@/plugins/editor-schema';
+import type { AiHost } from '@/plugins/ai';
+import type { CodegenHost } from '@/plugins/codegen';
+import type { ModulePrinter, TemplatesHost } from '@/plugins/templates';
+
 export interface BuiltinPluginsOptions {
+  /**
+   * Служба словарей.
+   *
+   * Композиция передаёт КОРЕНЬ, а не готовые виды `forPlugin(id)` по одному на плагин, — иначе
+   * `boot` обязан знать идентификатор каждого плагина ЗНАЧЕНИЕМ, а идентификаторы объявлены
+   * в барелях. Один такой импорт возвращает ленивый плагин в стартовый граф целиком.
+   */
+  readonly i18n: Pick<RootI18nService, 'forPlugin'>;
   /** Порт платформы для плагина файлов. */
   readonly files: FilesHost;
   /** Порт платформы для редактора Monaco. */
@@ -66,8 +100,6 @@ export interface BuiltinPluginsOptions {
    * потерянную позицию курсора при каждом переключении режима.
    */
   readonly monacoViewStates?: ViewStateRegistry;
-  /** Словарь плагина Monaco: в `PluginContext` своего i18n пока нет. */
-  readonly monacoI18n: Parameters<typeof createMonacoEditorPlugin>[0]['i18n'];
   /**
    * Порт предпросмотра markdown.
    *
@@ -76,38 +108,30 @@ export interface BuiltinPluginsOptions {
    * выключение markdown требует правки чужого плагина.
    */
   readonly markdown: MarkdownHost;
-  /** Словарь плагина markdown. */
-  readonly markdownI18n: Parameters<typeof createMarkdownPlugin>[0]['i18n'];
   /** Порт платформы для визуального редактора схемы. */
   readonly schema: SchemaEditorHost;
-  /** Словарь редактора схемы. */
-  readonly schemaI18n: Parameters<typeof createSchemaEditorPlugin>[0]['i18n'];
   /**
-   * Настройки и перевод плагина китов.
+   * Настройки плагина китов.
    *
    * Киты вносятся плагином, а не композицией, потому что «какой кит активен» — это
    * состояние, которое читают трое: валидатор (с чем сверять), палитра (что предлагать)
    * и инспектор (какие свойства у компонента). Сервис — единственный способ отдать одно
    * состояние троим, не заводя его копию у каждого.
    */
-  readonly kits: Pick<KitsPluginOptions, 'translate' | 'settings' | 'sources'>;
+  readonly kits: Pick<KitsPluginOptions, 'settings' | 'sources'>;
   /**
-   * Порт и перевод управления плагинами каталога.
+   * Порт управления плагинами каталога.
    *
    * Порт удовлетворяется каталогом плагинов КАК ЕСТЬ — `ProjectPluginCatalog` структурно
    * шире `PluginManagerHost`, и это ровно то место, где их совместимость проверяется
    * компиляцией. Управление — вклад плагина, а не действие композиции, потому что точки
    * расширения заполняются только плагинами (см. `primitives/extension-point`).
    */
-  readonly pluginManager: PluginManagerPluginOptions;
+  readonly pluginManager: Omit<PluginManagerPluginOptions, 'translate'>;
   /** Порт платформы для ассистента. */
   readonly ai: AiHost;
-  /** Словарь ассистента. */
-  readonly aiI18n: Parameters<typeof createAiPlugin>[0]['i18n'];
   /** Порт платформы для превью. */
   readonly preview: PreviewHost;
-  /** Словарь превью. */
-  readonly previewI18n: Parameters<typeof createPreviewPlugin>[0]['i18n'];
   /**
    * Реестр состояний превью.
    *
@@ -119,10 +143,8 @@ export interface BuiltinPluginsOptions {
   readonly previewSessions?: Parameters<typeof createPreviewPlugin>[0]['sessions'];
   /** Порт платформы для генерации кода. */
   readonly codegen: CodegenHost;
-  readonly codegenI18n: Parameters<typeof createCodegenPlugin>[0]['i18n'];
   /** Порт платформы для шаблонов форм. */
   readonly templates: TemplatesHost;
-  readonly templatesI18n: Parameters<typeof createTemplatesPlugin>[0]['i18n'];
   /**
    * Печатник встроенных шаблонов.
    *
@@ -146,8 +168,30 @@ export interface BuiltinPluginsOptions {
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
-/** Встроенные плагины: активируются на старте, выключить их из интерфейса нельзя. */
-export function createBuiltinPlugins(options: BuiltinPluginsOptions): readonly Plugin[] {
+/**
+ * Плагины, приезжающие отдельным файлом.
+ *
+ * Список объявлен ДЛЯ ПРОВЕРОК, а не для загрузки: грузятся они литеральными `import()`
+ * ниже, потому что сборщику нужен литерал, а не переменная. Расхождение между этим списком
+ * и телом `loadLazyBuiltinPlugins` ловит тест состава, а статический импорт любого из этих
+ * барелей из `shell/**` — храповик в том же файле.
+ */
+export const LAZY_PLUGIN_IDS: readonly string[] = Object.freeze([
+  'ai',
+  'codegen',
+  'editor-markdown',
+  'editor-schema',
+  'plugin-manager',
+  'templates',
+]);
+
+/**
+ * Плагины, которые едут в стартовом графе вместе с оболочкой.
+ *
+ * Синхронна намеренно: их значения композиции уже нужны, ждать нечего. Причины, по которым
+ * каждый из пятерых остался здесь, перечислены в шапке модуля.
+ */
+export function createEagerBuiltinPlugins(options: BuiltinPluginsOptions): readonly Plugin[] {
   const catalog = options.catalog ?? ((): readonly CatalogEntry[] => NO_CATALOG);
   return Object.freeze([
     // Точки расширения подставляются ЗДЕСЬ: плагин объявил их структурно (`plugins/files/host`),
@@ -161,43 +205,102 @@ export function createBuiltinPlugins(options: BuiltinPluginsOptions): readonly P
       host: options.monaco,
       focus: options.monacoFocus,
       viewStates: options.monacoViewStates,
-      i18n: options.monacoI18n,
+      i18n: options.i18n.forPlugin(MONACO_PLUGIN_ID),
     }),
-    // Приоритет 50: markdown забирает свои файлы у Monaco (10), потому что рендер — это то,
-    // зачем .md открывают чаще всего. Порядок в этом списке на исход не влияет и влиять
-    // не должен: при РАВНОМ приоритете победил бы зарегистрированный раньше, то есть Monaco,
-    // и предметный редактор не получил бы ни одного файла.
-    createMarkdownPlugin({
-      host: options.markdown,
-      i18n: options.markdownI18n,
+    createKitsPlugin({
+      ...options.kits,
+      // Перевод плагина китов НЕ реактивный: пункты палитры строятся провайдером, а не
+      // компонентом, и хука там быть не может. Смена локали перестроит их на следующем
+      // открытии палитры — это и есть та цена, которую платит не-компонентный вклад.
+      translate: (key, params) => options.i18n.forPlugin(KITS_PLUGIN_ID).t(key, params),
     }),
-    // Приоритет 100: структурный редактор забирает файл формы у Monaco, а Monaco остаётся
-    // для всего остального текста. Оба отвечают `canOpen` по содержимому пробы, а не по
-    // расширению, — потому и уживаются на одном `.json` без ветвления по имени файла.
-    createSchemaEditorPlugin({
-      host: options.schema,
-      modelPoint: DocumentModelPoint,
-      i18n: options.schemaI18n,
-    }),
-    createKitsPlugin(options.kits),
-    createPluginManagerPlugin(options.pluginManager),
-    // Панель встаёт в правый слот без предиката: настройки провайдера и ключ должны быть
-    // доступны и до того, как открыта форма, — иначе первый же запуск требует сначала
-    // найти файл, а потом обнаружить, что ключа нет.
-    createAiPlugin({ host: options.ai, i18n: options.aiI18n }),
     // Точку поверхностей плагин объявляет структурно — `@/sdk` её пока не отдаёт, как и
     // `defineExtensionPoint`, которым чужой плагин мог бы объявить свою. Пока поверхности
     // вносит только сам преьвю, это ничего не стоит; появится вторая — точку надо вынести.
     createPreviewPlugin({
       host: options.preview,
-      i18n: options.previewI18n,
+      i18n: options.i18n.forPlugin(PREVIEW_PLUGIN_ID),
       sessions: options.previewSessions,
     }),
-    createCodegenPlugin({ host: options.codegen, i18n: options.codegenI18n }),
-    createTemplatesPlugin({
+  ]);
+}
+
+/**
+ * Плагины, приезжающие своим файлом.
+
+ * Импорты идут ОДНИМ `Promise.all`: шесть запросов параллельно, а не цепочкой. Ждёт их
+ * `boot` внутри `ready`, до первой отрисовки, — поэтому «ленивый» здесь означает «отдельный
+ * файл», а не «вклад появится позже».
+ *
+ * Словарь `plugin-manager` регистрируется ЗДЕСЬ, а не в `boot`: он единственный из ленивых,
+ * чей словарь ставит композиция (вклад в словарь не снимается вместе с плагином, значит
+ * и частью его подписок быть не может), а взять его значением в `boot` нельзя — этот импорт
+ * вернул бы плагин в стартовый граф.
+ */
+export async function loadLazyBuiltinPlugins(
+  options: BuiltinPluginsOptions
+): Promise<readonly Plugin[]> {
+  const [markdown, schemaEditor, pluginManager, ai, codegen, templates] = await Promise.all([
+    import('@/plugins/editor-markdown'),
+    import('@/plugins/editor-schema'),
+    import('@/plugins/plugin-manager'),
+    import('@/plugins/ai'),
+    import('@/plugins/codegen'),
+    import('@/plugins/templates'),
+  ]);
+
+  const pluginManagerI18n = options.i18n.forPlugin(pluginManager.PLUGIN_MANAGER_PLUGIN_ID);
+  for (const [locale, messages] of Object.entries(pluginManager.PLUGIN_MANAGER_MESSAGES)) {
+    pluginManagerI18n.contribute(locale, messages);
+  }
+
+  return Object.freeze([
+    // Приоритет 50: markdown забирает свои файлы у Monaco (10), потому что рендер — это то,
+    // зачем .md открывают чаще всего. Порядок в этом списке на исход не влияет и влиять
+    // не должен: при РАВНОМ приоритете победил бы зарегистрированный раньше, то есть Monaco,
+    // и предметный редактор не получил бы ни одного файла.
+    markdown.createMarkdownPlugin({
+      host: options.markdown,
+      i18n: options.i18n.forPlugin(markdown.MARKDOWN_PLUGIN_ID),
+    }),
+    // Приоритет 100: структурный редактор забирает файл формы у Monaco, а Monaco остаётся
+    // для всего остального текста. Оба отвечают `canOpen` по содержимому пробы, а не по
+    // расширению, — потому и уживаются на одном `.json` без ветвления по имени файла.
+    schemaEditor.createSchemaEditorPlugin({
+      host: options.schema,
+      modelPoint: DocumentModelPoint,
+      i18n: options.i18n.forPlugin(schemaEditor.SCHEMA_EDITOR_PLUGIN_ID),
+    }),
+    pluginManager.createPluginManagerPlugin({
+      ...options.pluginManager,
+      translate: (key, params) => pluginManagerI18n.t(key, params),
+    }),
+    // Панель встаёт в правый слот без предиката: настройки провайдера и ключ должны быть
+    // доступны и до того, как открыта форма, — иначе первый же запуск требует сначала
+    // найти файл, а потом обнаружить, что ключа нет.
+    ai.createAiPlugin({ host: options.ai, i18n: options.i18n.forPlugin(ai.AI_PLUGIN_ID) }),
+    codegen.createCodegenPlugin({
+      host: options.codegen,
+      i18n: options.i18n.forPlugin(codegen.CODEGEN_PLUGIN_ID),
+    }),
+    templates.createTemplatesPlugin({
       host: options.templates,
-      i18n: options.templatesI18n,
+      i18n: options.i18n.forPlugin(templates.TEMPLATES_PLUGIN_ID),
       print: options.printTemplate,
     }),
   ]);
+}
+
+/**
+ * Весь встроенный набор одним вызовом.
+ *
+ * Нужна тем, кому важен СОСТАВ, а не порядок загрузки, — прежде всего проверкам состава.
+ * `boot` ею не пользуется: ему нужны именно две фазы, потому что статических он регистрирует
+ * синхронно, а ленивых — внутри `ready`.
+ */
+export async function createBuiltinPlugins(
+  options: BuiltinPluginsOptions
+): Promise<readonly Plugin[]> {
+  const lazy = await loadLazyBuiltinPlugins(options);
+  return Object.freeze([...createEagerBuiltinPlugins(options), ...lazy]);
 }

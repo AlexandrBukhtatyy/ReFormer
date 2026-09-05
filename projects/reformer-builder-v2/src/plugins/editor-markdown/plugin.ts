@@ -43,8 +43,10 @@ import { createMarkdownViewStore, type MarkdownViewStore } from './state/session
 import { MarkdownEditor } from './ui/MarkdownEditor';
 import { availableViews, cycleView, MARKDOWN_VIEW_SETTING, type MarkdownView } from './state/view';
 
-/** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const MARKDOWN_PLUGIN_ID = 'editor-markdown';
+// Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
+// взять его, не втягивая плагин в стартовый граф.
+import { MARKDOWN_PLUGIN_ID } from './contract';
+export { MARKDOWN_PLUGIN_ID };
 
 /** Редактор markdown. */
 export const MARKDOWN_EDITOR_ID = 'markdown.editor';

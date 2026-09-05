@@ -61,8 +61,10 @@ import { createAiSession, type AiSession } from './session/session';
 import { ChatActions } from './ui/ChatActions';
 import { ChatPanel } from './ui/ChatPanel';
 
-/** Идентификатор плагина: пространство имён во всех реестрах, в хранилище и в словаре. */
-export const AI_PLUGIN_ID = 'ai';
+// Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
+// взять его, не втягивая плагин в стартовый граф.
+import { AI_PLUGIN_ID } from './contract';
+export { AI_PLUGIN_ID };
 
 /** Панель чата: правый док, рядом с инспектором. */
 export const AI_PANEL_ID = 'ai.chat';

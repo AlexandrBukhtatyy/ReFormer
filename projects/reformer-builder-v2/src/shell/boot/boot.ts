@@ -119,7 +119,6 @@ import { createJournalRelief } from '@/shell/platform/workspace/journal/journal'
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
 import { FILES_MESSAGES } from '@/plugins/files';
 import { FILES_PLUGIN_ID } from '@/plugins/files';
-import { PLUGIN_MANAGER_MESSAGES, PLUGIN_MANAGER_PLUGIN_ID } from '@/plugins/plugin-manager';
 import { createFilesHost } from '@/shell/boot/ports/files';
 import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
@@ -129,22 +128,15 @@ import { attachPreviewLifecycle, createPreviewHost } from '@/shell/boot/ports/pr
 import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
 import { createCodegenHost } from '@/shell/boot/ports/codegen';
 import { createTemplatesHost } from '@/shell/boot/ports/templates';
-import { BUILTIN_TARGETS, CODEGEN_PLUGIN_ID, generateModule } from '@/plugins/codegen';
-import { TEMPLATES_PLUGIN_ID } from '@/plugins/templates';
 import { attachFocusChecks } from '@/shell/platform/workspace/merge/divergence';
 import { installPluginStyles } from '@/shell/platform/plugin/styles';
 import type { Disposable as HostDisposable } from '@/shell/platform/primitives/disposable';
-import { createPreviewSessions, PREVIEW_PLUGIN_ID } from '@/plugins/preview';
-import { AI_PLUGIN_ID } from '@/plugins/ai';
+import { createPreviewSessions } from '@/plugins/preview';
 import {
   createFocusRegistry,
   createViewStateRegistry,
   monacoEditorContribution,
-  MONACO_PLUGIN_ID,
 } from '@/plugins/editor-monaco';
-import { MARKDOWN_PLUGIN_ID } from '@/plugins/editor-markdown';
-import { SCHEMA_EDITOR_PLUGIN_ID } from '@/plugins/editor-schema';
-import { KITS_PLUGIN_ID } from '@/plugins/kits';
 import { KitsServiceToken } from '@/plugins/kits';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
@@ -156,7 +148,8 @@ import {
 } from '@/shell/platform/plugin/typescript-transpiler';
 import { createBuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import { createPluginModules } from './plugin-modules';
-import { createBuiltinPlugins } from './plugins';
+import { createEagerBuiltinPlugins, loadLazyBuiltinPlugins } from './plugins';
+import type { BuiltinPluginsOptions } from './plugins';
 import {
   createProjectHost,
   type ProjectFailure,
@@ -578,84 +571,86 @@ export function boot(options: BootOptions = {}): BuilderApp {
   // сборки — иначе те висели бы в своде диагностик, а обновлять их было бы некому.
   const previewLifecycle = attachPreviewLifecycle(project, previewSessions);
 
-  plugins.registerAll(
-    createBuiltinPlugins({
-      files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
-      monaco: monacoHost,
-      markdown: createMarkdownHost({
-        project,
+  /**
+   * Опции встроенного набора — ОДИН объект на обе фазы.
+   *
+   * Статические плагины регистрируются здесь же, синхронно; ленивые доезжают внутри `ready`
+   * (шаг 3 ниже) и получают ровно эти опции. Две копии объекта означали бы два порта у одного
+   * плагина — а порты держат разделяемые реестры, и второй экземпляр ломает ровно то, ради
+   * чего они разделяются.
+   */
+  const builtinOptions: BuiltinPluginsOptions = {
+    i18n,
+    files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
+    monaco: monacoHost,
+    markdown: createMarkdownHost({
+      project,
+      i18n,
+      // Тот же порт и те же реестры, что у обычной code-вкладки: режим «рядом» показывает
+      // ровно тот редактор, в котором файл правится, а не его копию.
+      monaco: { host: monacoHost, focus: monacoFocus, viewStates: monacoViewStates },
+    }),
+    monacoFocus,
+    monacoViewStates,
+    schema: createSchemaHost({
+      project,
+      i18n,
+      services,
+      // Один и тот же редактор кода на троих: обычная вкладка, «рядом» у markdown
+      // и исходник схемы. Общие реестры фокуса и снимков вида — условие того, что
+      // позиция курсора переживает переключение вида.
+      TextEditor: monacoTextEditor,
+      // И та же поверхность, что рисует форму в панели превью: «чем нарисована эта форма» —
+      // один вопрос с одним ответом, где бы её ни показывали.
+      live: createLiveSurfacePort({
+        host: previewHost,
+        sessions: previewSessions,
+        extensions,
         i18n,
-        // Тот же порт и те же реестры, что у обычной code-вкладки: режим «рядом» показывает
-        // ровно тот редактор, в котором файл правится, а не его копию.
-        monaco: { host: monacoHost, focus: monacoFocus, viewStates: monacoViewStates },
       }),
-      markdownI18n: i18n.forPlugin(MARKDOWN_PLUGIN_ID),
-      monacoFocus,
-      monacoViewStates,
-      monacoI18n: i18n.forPlugin(MONACO_PLUGIN_ID),
-      schema: createSchemaHost({
-        project,
-        i18n,
-        services,
-        // Один и тот же редактор кода на троих: обычная вкладка, «рядом» у markdown
-        // и исходник схемы. Общие реестры фокуса и снимков вида — условие того, что
-        // позиция курсора переживает переключение вида.
-        TextEditor: monacoTextEditor,
-        // И та же поверхность, что рисует форму в панели превью: «чем нарисована эта форма» —
-        // один вопрос с одним ответом, где бы её ни показывали.
-        live: createLiveSurfacePort({
-          host: previewHost,
-          sessions: previewSessions,
-          extensions,
-          i18n,
-        }),
-      }),
-      schemaI18n: i18n.forPlugin(SCHEMA_EDITOR_PLUGIN_ID),
-      kits: {
-        // `settings` НЕ передаются намеренно: плагин берёт их из реестра сервисов —
-        // единственным путём, доступным плагину из каталога. Передай мы параметром,
-        // этот путь остался бы непроверенным, а другого у внешнего плагина нет.
-        // Перевод плагина китов НЕ реактивный: пункты палитры строятся провайдером, а не
-        // компонентом, и хука там быть не может. Смена локали перестроит их на следующем
-        // открытии палитры — это и есть та цена, которую платит не-компонентный вклад.
-        translate: (key, params) => i18n.forPlugin(KITS_PLUGIN_ID).t(key, params),
-      },
-      pluginManager: {
-        // Порт — сам каталог: `ProjectPluginCatalog` структурно шире `PluginManagerHost`,
-        // и эта строка — то единственное место, где их совместимость проверяется компиляцией.
-        host: projectPlugins,
-        translate: (key, params) => i18n.forPlugin(PLUGIN_MANAGER_PLUGIN_ID).t(key, params),
-      },
-      ai: createAiHost({ project, i18n, services }),
-      preview: previewHost,
-      previewI18n: i18n.forPlugin(PREVIEW_PLUGIN_ID),
-      previewSessions,
-      codegen: createCodegenHost({ project, i18n, services }),
-      codegenI18n: i18n.forPlugin(CODEGEN_PLUGIN_ID),
-      templates: createTemplatesHost({ project, i18n, services }),
-      templatesI18n: i18n.forPlugin(TEMPLATES_PLUGIN_ID),
-      // Кита нет — встроенных шаблонов нет: печатать их нечем, а умолчание напечатало бы
-      // импорты чужого пакета. Пустой список честнее неверного кода.
-      printTemplate: async (schema, formName, seed) => {
-        const kits = services.get(KitsServiceToken);
-        const kit = kits?.descriptor() ?? null;
-        if (kit === null || kits === undefined) return [];
-        // Правила затравки доезжают до эмиттеров: из них печатаются НАСТОЯЩИЕ
-        // и  (мост к билдерам MCP), а не заглушки. Без них шаблон давал
-        // структуру модуля, в которой нечего проверять.
-        const built = await generateModule(BUILTIN_TARGETS, {
-          schema,
-          formName,
-          rules: seed?.rules,
-          mock: seed?.mock,
-          kit: { kit, catalog: kits.catalog() },
-        });
-        return built.files.map(({ path, content }) => ({ path, content }));
-      },
-      aiI18n: i18n.forPlugin(AI_PLUGIN_ID),
-      catalog: activeCatalog,
-    })
-  );
+    }),
+    kits: {
+      // `settings` НЕ передаются намеренно: плагин берёт их из реестра сервисов —
+      // единственным путём, доступным плагину из каталога. Передай мы параметром,
+      // этот путь остался бы непроверенным, а другого у внешнего плагина нет.
+    },
+    pluginManager: {
+      // Порт — сам каталог: `ProjectPluginCatalog` структурно шире `PluginManagerHost`,
+      // и эта строка — то единственное место, где их совместимость проверяется компиляцией.
+      host: projectPlugins,
+    },
+    ai: createAiHost({ project, i18n, services }),
+    preview: previewHost,
+    previewSessions,
+    codegen: createCodegenHost({ project, i18n, services }),
+    templates: createTemplatesHost({ project, i18n, services }),
+    // Кита нет — встроенных шаблонов нет: печатать их нечем, а умолчание напечатало бы
+    // импорты чужого пакета. Пустой список честнее неверного кода.
+    printTemplate: async (schema, formName, seed) => {
+      const kits = services.get(KitsServiceToken);
+      const kit = kits?.descriptor() ?? null;
+      if (kit === null || kits === undefined) return [];
+      // Генератор берётся динамическим импортом, и это не оптимизация, а условие: статический
+      // импорт вернул бы плагин кодогена в стартовый граф целиком, ради функции, которая
+      // нужна только когда шаблон действительно печатают. Модуль уже загружен — печатник
+      // зовут после активации, — поэтому ожидание здесь нулевое.
+      const { BUILTIN_TARGETS, generateModule } = await import('@/plugins/codegen');
+      // Правила затравки доезжают до эмиттеров: из них печатаются НАСТОЯЩИЕ
+      // и  (мост к билдерам MCP), а не заглушки. Без них шаблон давал
+      // структуру модуля, в которой нечего проверять.
+      const built = await generateModule(BUILTIN_TARGETS, {
+        schema,
+        formName,
+        rules: seed?.rules,
+        mock: seed?.mock,
+        kit: { kit, catalog: kits.catalog() },
+      });
+      return built.files.map(({ path, content }) => ({ path, content }));
+    },
+    catalog: activeCatalog,
+  };
+
+  plugins.registerAll(createEagerBuiltinPlugins(builtinOptions));
 
   /**
    * Шаг 8: плагины каталога. Зовётся после того, как источник появился, — и повторно
@@ -779,10 +774,23 @@ export function boot(options: BootOptions = {}): BuilderApp {
       for (const [locale, messages] of Object.entries(FILES_MESSAGES)) {
         filesI18n.contribute(locale, messages);
       }
-      const pluginManagerI18n = i18n.forPlugin(PLUGIN_MANAGER_PLUGIN_ID);
-      for (const [locale, messages] of Object.entries(PLUGIN_MANAGER_MESSAGES)) {
-        pluginManagerI18n.contribute(locale, messages);
+    })
+    // Ленивые плагины доезжают ЗДЕСЬ — до активации и, значит, до отрисовки: `main` рисует
+    // по `ready`. Контракт «набор вкладов полон и детерминирован к моменту отрисовки»
+    // соблюдён дословно; ленивость касается только того, каким файлом приезжает код.
+    //
+    // Отказ загрузки не проглатывается тихо, но и не отменяет запуск: без ассистента или
+    // кодогена билдер работает, а вот без оболочки — нет. Общий `catch` ниже поймал бы
+    // отказ вместе с остальным шагом и снял бы активацию СТАТИЧЕСКИХ плагинов заодно.
+    .then(async () => {
+      try {
+        plugins.registerAll(await loadLazyBuiltinPlugins(builtinOptions));
+      } catch (error) {
+        console.error('[boot] ленивые плагины не загрузились', error);
+        notifications.error('plugins.lazy-failed');
       }
+    })
+    .then(() => {
       // Отчёт не разбирается: отказавшие уже сообщены каналом диагностики рантайма плагинов,
       // а показать их человеку пока нечем — вклада в строку состояния на это нет.
       plugins.activateAll();

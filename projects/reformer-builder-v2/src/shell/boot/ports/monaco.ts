@@ -22,7 +22,7 @@ import type { JsonPath } from '@/lib/form-model/paths';
 import { indexNodePaths } from '@/lib/form-model/query';
 import type { MonacoDocument, MonacoHost, Translate } from '@/plugins/editor-monaco';
 import { MONACO_PLUGIN_ID } from '@/plugins/editor-monaco';
-import { SCHEMA_MODEL_PROVIDER_ID } from '@/plugins/editor-schema';
+import { SCHEMA_MODEL_PROVIDER_ID } from '@/plugins/editor-schema/contract';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 /**

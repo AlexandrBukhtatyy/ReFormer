@@ -41,8 +41,10 @@ import { createProjectStore } from './stores/project';
 import { TemplatesActions } from './ui/TemplatesActions';
 import { TemplatesPanel } from './ui/TemplatesPanel';
 
-/** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const TEMPLATES_PLUGIN_ID = 'templates';
+// Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
+// взять его, не втягивая плагин в стартовый граф.
+import { TEMPLATES_PLUGIN_ID } from './contract';
+export { TEMPLATES_PLUGIN_ID };
 
 /** Панель шаблонов. */
 export const TEMPLATES_PANEL_ID = 'templates.panel';

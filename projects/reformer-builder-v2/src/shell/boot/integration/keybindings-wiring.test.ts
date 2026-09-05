@@ -55,7 +55,7 @@ function stubHost(): never {
 }
 
 /** Команды всех встроенных плагинов — ровно те, что получит собранное приложение. */
-function builtinCommands(): readonly CommandContribution[] {
+async function builtinCommands(): Promise<readonly CommandContribution[]> {
   const commands = createCommandRegistry();
   const plugins = createPluginRegistry({
     services: createServiceRegistry(),
@@ -66,27 +66,26 @@ function builtinCommands(): readonly CommandContribution[] {
     onError: vi.fn(),
   });
 
+  // Ждём ОБЕ фазы: сочетания ленивых плагинов обязаны попадать в проверку так же,
+  // как сочетания тех, что едут в entry.
   plugins.registerAll(
-    createBuiltinPlugins({
+    await createBuiltinPlugins({
+      // Словари здесь не проверяются: перевод возвращает ключ, вклад глотается.
+      i18n: {
+        forPlugin: () => ({ t: (key: string) => key, contribute: () => {} }),
+      },
       files: stubHost(),
       monaco: stubHost(),
       monacoFocus: createFocusRegistry(),
-      monacoI18n: undefined,
       markdown: stubHost(),
-      markdownI18n: undefined,
       schema: stubHost(),
-      schemaI18n: undefined,
       ai: stubHost(),
-      aiI18n: undefined,
       preview: stubHost(),
-      previewI18n: undefined,
       codegen: stubHost(),
-      codegenI18n: undefined,
       templates: stubHost(),
-      templatesI18n: undefined,
       printTemplate: () => Promise.resolve([]),
-      kits: { translate: (key: string) => key },
-      pluginManager: { host: stubHost(), translate: (key: string) => key },
+      kits: {},
+      pluginManager: { host: stubHost() },
     })
   );
   plugins.activateAll();
@@ -109,11 +108,11 @@ function byKeybinding(
 }
 
 describe('раскладка собранного приложения', () => {
-  it('у каждой пары на одном сочетании условия ДОКАЗУЕМО не пересекаются', () => {
+  it('у каждой пары на одном сочетании условия ДОКАЗУЕМО не пересекаются', async () => {
     // Несущий тест файла. «Доказуемо» — это `provablyDisjoint`, и он намеренно неполон:
     // доказывает только сравнение одного ключа с разными литералами. Поэтому пройти его
     // нельзя хитростью — только назвав место, где клавиша работает.
-    const groups = byKeybinding(builtinCommands());
+    const groups = byKeybinding(await builtinCommands());
     const collisions: string[] = [];
 
     for (const [binding, group] of groups) {
@@ -131,10 +130,10 @@ describe('раскладка собранного приложения', () => {
     expect(collisions).toEqual([]);
   });
 
-  it('сочетание delete разведено между деревом файлов и канвасом схемы', () => {
+  it('сочетание delete разведено между деревом файлов и канвасом схемы', async () => {
     // Именно тот дефект, ради которого всё делалось, — проверяется поимённо, а не только
     // через общее правило выше: общее правило пройдёт и если обе команды исчезнут.
-    const group = byKeybinding(builtinCommands()).get('delete') ?? [];
+    const group = byKeybinding(await builtinCommands()).get('delete') ?? [];
     const ids = group.map((command) => command.id);
 
     expect(ids).toContain('files.delete');
@@ -160,10 +159,10 @@ describe('раскладка собранного приложения', () => {
     expect(node && fires(node, inTree)).toBe(false);
   });
 
-  it('клавиши канваса не срабатывают из дерева файлов', () => {
+  it('клавиши канваса не срабатывают из дерева файлов', async () => {
     // До условий у этих команд предикат смотрел только на выделение: `mod+d` в дереве
     // дублировал узел схемы, если в схеме что-то оставалось выделенным.
-    const commands = builtinCommands();
+    const commands = await builtinCommands();
     const inTree = whenContext({ focus: 'tree' });
 
     const canvasKeys = ['mod+d', 'mod+g', 'mod+arrowup', 'alt+shift+arrowdown'];
@@ -186,8 +185,8 @@ describe('раскладка собранного приложения', () => {
     }
   });
 
-  it('отмена схемы не рассматривается на вкладке другого вида', () => {
-    const commands = builtinCommands();
+  it('отмена схемы не рассматривается на вкладке другого вида', async () => {
+    const commands = await builtinCommands();
     const undo = commands.find((command) => command.id === 'editor-schema.undo');
     expect(undo).toBeDefined();
     if (undo === undefined) return;
@@ -206,11 +205,11 @@ describe('раскладка собранного приложения', () => {
     expect(fires(onMarkdown)).toBe(false);
   });
 
-  it('все объявленные условия разбираются', () => {
+  it('все объявленные условия разбираются', async () => {
     // Реестр проверяет условие на регистрации и отказал бы раньше, поэтому тест
     // страхует не от опечатки, а от условия, которое разбирается во что-то пустое:
     // «всегда» у команды, которая его написала, — это промах, а не значение.
-    for (const command of builtinCommands()) {
+    for (const command of await builtinCommands()) {
       if (command.when === undefined) continue;
       expect(whenOf(command).source, `условие «${command.id}» пусто`).not.toBe('');
     }

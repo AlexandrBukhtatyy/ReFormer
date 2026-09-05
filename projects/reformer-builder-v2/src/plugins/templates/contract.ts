@@ -176,3 +176,6 @@ export interface ExtensionPointRef<T> {
 export const TemplateStorePoint: ExtensionPointRef<TemplateStore> = Object.freeze({
   id: 'templates.store',
 });
+
+/** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
+export const TEMPLATES_PLUGIN_ID = 'templates';

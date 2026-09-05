@@ -22,7 +22,7 @@ import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import { monacoEditorContribution, type MonacoFocusRegistry } from '@/plugins/editor-monaco';
 import type { ViewStateRegistry } from '@/plugins/editor-monaco';
 import type { MonacoHost } from '@/plugins/editor-monaco';
-import { MARKDOWN_PLUGIN_ID } from '@/plugins/editor-markdown';
+import { MARKDOWN_PLUGIN_ID } from '@/plugins/editor-markdown/contract';
 import type { MarkdownDocument, MarkdownHost, Translate } from '@/plugins/editor-markdown';
 import type { ProjectHost } from '@/shell/boot/project/project';
 

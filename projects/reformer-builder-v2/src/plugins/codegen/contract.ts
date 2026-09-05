@@ -145,3 +145,6 @@ export const CodegenTargetPoint: ExtensionPointRef<CodegenTarget> = Object.freez
 export interface TargetCatalog {
   list(): readonly CodegenTarget[];
 }
+
+/** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
+export const CODEGEN_PLUGIN_ID = 'codegen';

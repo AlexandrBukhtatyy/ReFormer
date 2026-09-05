@@ -51,8 +51,10 @@ import { createCodegenSessions, type CodegenSessions } from './pipeline/state';
 import { BUILTIN_TARGETS } from './pipeline/targets';
 import { ExportPanel } from './ui/ExportPanel';
 
-/** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const CODEGEN_PLUGIN_ID = 'codegen';
+// Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
+// взять его, не втягивая плагин в стартовый граф.
+import { CODEGEN_PLUGIN_ID } from './contract';
+export { CODEGEN_PLUGIN_ID };
 
 /** Панель экспорта. */
 export const CODEGEN_PANEL_ID = 'codegen.panel';

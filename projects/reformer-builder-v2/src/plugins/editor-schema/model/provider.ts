@@ -50,14 +50,10 @@ import type { EditorProbe, ResourceRef } from '@/sdk';
 import { applyEditOp } from './ops';
 import type { ApplyResult, EditOp, SchemaModelProviderSpec } from '../host';
 
-/**
- * Идентификатор провайдера.
- *
- * Он же — «вид активного ресурса» в контексте применимости (`WhenContext.activeResourceKind`
- * равен `providerId` модельного документа), поэтому имя выбрано предметным, а не служебным:
- * предикат команды читается как «когда открыта схема формы».
- */
-export const SCHEMA_MODEL_PROVIDER_ID = 'form.schema';
+// Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
+// взять его, не втягивая плагин в стартовый граф.
+import { SCHEMA_MODEL_PROVIDER_ID } from '../contract';
+export { SCHEMA_MODEL_PROVIDER_ID };
 
 /** Отступ печати. Два пробела — то, чем набраны схемы в репозитории. */
 const INDENT = 2;

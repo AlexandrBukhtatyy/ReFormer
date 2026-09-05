@@ -73,6 +73,7 @@
   "files.notify.unavailable.denied": "Access to the project directory is not granted. Press “Grant access” — the browser will ask again.",
   "files.notify.unavailable.missing": "The previous project directory is gone. Open the project again.",
   "files.notify.unsupported": "This browser cannot open local directories.",
+  "plugins.lazy-failed": "Some plugins failed to load — their panels and commands are unavailable. See the console for details.",
   "plugins.problem": "Plugin “{id}”: {message}",
   "quickfix.remove-orphan-rule": "Remove the orphaned rule",
   "quickfix.rename-property": "Fix the property name",

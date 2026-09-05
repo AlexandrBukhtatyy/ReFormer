@@ -151,7 +151,8 @@ plugins/editor-schema/
 ├── plugin.ts         definePlugin + activate: регистрация вкладов   (+ plugin.test.ts)
 ├── host.ts           порт платформы: структурная копия интерфейса, который плагин
 │                     просит у композиции; реализуется в shell/boot/ports/<name>.ts
-├── contract.ts       собственная точка расширения плагина (если есть)
+├── contract.ts       то из плагина, что нужно ЗНАТЬ, не загружая его: собственная точка
+│                     расширения и идентификатор плагина. Лист графа — без импортов значений
 ├── messages.ts       ключи словаря — ОБЯЗАН лежать в корне
 ├── locales/{ru,en}.json                — ОБЯЗАН лежать в корне
 ├── testing.ts        двойник порта для юнитов (если есть)
@@ -224,7 +225,13 @@ plugins/editor-schema/
 - `package.json` (`generate:knowledge`) и `.gitignore` монорепо — путь
   `src/plugins/ai/knowledge/generated`;
 - `vitest.browser.config.ts` — `setupFiles: ['./src/testing/browser-setup.ts']`;
-- `src/index.css` — относительный `@source` до `packages/reformer-ui-kit`.
+- `src/index.css` — относительный `@source` до `packages/reformer-ui-kit`;
+- `vite.config.ts` — раскладка `dist/assets` разбирает путь модуля строками: `/src/plugins/<id>/`
+  решает, в какой файл `assets/plugins/` уедет чанк, `/src/shell/platform/services/i18n/locales/`
+  отправляет словари в `assets/i18n/`. Переименование этих каталогов молча сложит всё в `assets/js/`;
+- `shell/boot/plugins.ts` — шесть литеральных `import('@/plugins/<id>')` в `loadLazyBuiltinPlugins`:
+  сборщику нужен литерал, переменной путь не задать. Список `LAZY_PLUGIN_IDS` рядом — для проверок,
+  и его расхождение с телом функции ловит тест состава.
 
 ## Соглашения
 
