@@ -16,7 +16,9 @@
  * пока человек продолжает печатать в редакторе.
  *
  * Три ответа, а не два: «сохранить и закрыть», «закрыть без сохранения» и отмена. Отмена —
- * не украшение: закрытие могло быть промахом по крестику соседней вкладки.
+ * не украшение: закрытие могло быть промахом по крестику соседней вкладки. Живёт она
+ * крестиком в углу окна, а не кнопкой в подвале: отказ от вопроса — не третий равноправный
+ * ответ, и в подвале он спорил бы взглядом с «сохранить и закрыть».
  *
  * @module shell/platform/ui/chrome/DocumentTabs
  */
@@ -188,15 +190,27 @@ export function DocumentTabs({ tabs, i18n, trailing }: DocumentTabsProps): React
           if (!open) setAsked(null);
         }}
       >
-        <AlertDialogContent size="sm">
+        {/* Размер по умолчанию, а не `sm`: в вопросе есть имя файла, и в узком окне длинное
+        имя переносится на несколько строк, а подвал схлопывается в две колонки. */}
+        <AlertDialogContent>
+          <AlertDialogCancel
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('shell.tabs.unsaved.cancel')}
+            title={t('shell.tabs.unsaved.cancel')}
+            className="absolute top-3 right-3"
+          >
+            <X aria-hidden="true" className="size-4" />
+          </AlertDialogCancel>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('shell.tabs.unsaved.title')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t('shell.tabs.unsaved.message', { name: unsaved?.ref.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('shell.tabs.unsaved.cancel')}</AlertDialogCancel>
+          {/* Ответы прижаты влево, к тексту вопроса: читать их начинают оттуда же, откуда
+          заголовок и имя файла, и глазу не надо возвращаться через всё окно. */}
+          <AlertDialogFooter className="sm:justify-start">
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
