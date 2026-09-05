@@ -133,8 +133,12 @@ export function createPluginDevWatch(deps: PluginDevWatchDeps): Disposable {
           revisions.set(path, stat?.revision);
         }
       }
-    } catch {
+    } catch (error) {
       // Каталога больше нет или источник закрылся: снимка нет, решает следующий обход.
+      // Причина обязана быть ВИДНА: отказ обхода — единственное, что отличает «ничего
+      // не менялось» от «наблюдать нечем» (отозвано разрешение, каталог исчез, потолок
+      // листинга). Без этой строки оба случая выглядят одинаково — как тихо работающий режим.
+      console.warn('[plugins/dev] обход каталога отказал:', pluginId, error);
       return null;
     }
     return revisions;
@@ -163,8 +167,12 @@ export function createPluginDevWatch(deps: PluginDevWatchDeps): Disposable {
         // Пока снимали, источник мог смениться ещё раз: устаревший снимок не записывается —
         // его перезапишет тот, кто стоит в цепочке следом.
         if (deps.source() !== source) return;
-        if (revisions === null) snapshots.delete(pluginId);
-        else snapshots.set(pluginId, { source, revisions });
+        // Неудачный обход НЕ стирает базу. Со стиранием один отказ выключал наблюдение
+        // навсегда: без снимка сверка уходит в ветку «базы нет — только снимаю» и заказать
+        // перезагрузку уже не может НИКОГДА. Цена принята сознательно: если обход упал сразу
+        // после перезагрузки, сохранённая старая база даст повторный заказ на следующем
+        // фокусе — это ограничено троттлингом и коалесценцией и дешевле вечного молчания.
+        if (revisions !== null) snapshots.set(pluginId, { source, revisions });
       })
       .finally(() => {
         if (capturing.get(pluginId)?.job === job) capturing.delete(pluginId);
@@ -212,6 +220,10 @@ export function createPluginDevWatch(deps: PluginDevWatchDeps): Disposable {
       .list()
       .filter(watched)
       .map((entry) => entry.id);
+    // Немых развилок у фокусной ветки три, и снаружи они неотличимы. Отсюда и ниже —
+    // console.debug: в консоли он скрыт за уровнем «Verbose», то есть не шумит тому, кто
+    // его не искал, но отвечает на вопрос «жест дошёл, а дальше что» без пересборки.
+    console.debug('[plugins/dev] наблюдаемые', ids, 'источник', source !== null);
     if (source === null || ids.length === 0) return Promise.resolve();
     checking = Promise.all(
       ids.map(async (pluginId) => {
@@ -223,6 +235,13 @@ export function createPluginDevWatch(deps: PluginDevWatchDeps): Disposable {
           return;
         }
         const current = await readRevisions(source, pluginId);
+        const outcome =
+          current === null
+            ? 'обход отказал'
+            : sameRevisions(snapshot.revisions, current)
+              ? 'снимок совпал'
+              : 'расхождение';
+        console.debug('[plugins/dev]', pluginId, outcome, current?.size);
         if (current === null || disposed) return;
         if (!sameRevisions(snapshot.revisions, current)) requestReload(pluginId);
       })
@@ -238,6 +257,7 @@ export function createPluginDevWatch(deps: PluginDevWatchDeps): Disposable {
   let lastCheck = Number.NEGATIVE_INFINITY;
   const onFocus = (): void => {
     const at = now();
+    console.debug('[plugins/dev] фокус', at - lastCheck < interval ? 'троттлинг' : 'проверка');
     if (at - lastCheck < interval) return;
     lastCheck = at;
     void check();
