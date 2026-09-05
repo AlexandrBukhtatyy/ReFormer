@@ -99,8 +99,9 @@ export function nodeFixes(node: NodeDiagnostics, isRegistered: CommandLookup): r
 /**
  * Сколько находок не легло ни на один узел.
  *
- * Считаются и `range`, и `resource`: для канваса разница между «ошибка разбора в этом месте
- * текста» и «это вообще не схема формы» одна — показать их строкой дерева нечем.
+ * Считаются `range`, `resource` и `attached`: для канваса разница между «ошибка разбора в этом
+ * месте текста», «это вообще не схема формы» и «осиротело правило в сайдкаре» одна — показать
+ * их строкой дерева нечем.
  */
 export function unplacedCount(items: readonly Diagnostic[]): number {
   let count = 0;

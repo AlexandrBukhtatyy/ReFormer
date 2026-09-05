@@ -59,6 +59,29 @@ describe('сообщение становится кодом и параметр
     ['has unknown property "lable"', CODES.UNKNOWN_PROPERTY, { property: 'lable' }],
     ["must have required property 'component'", CODES.MISSING_PROPERTY, { property: 'component' }],
     ['must be boolean', CODES.WRONG_TYPE, { expected: 'boolean' }],
+    ['must be string,null', CODES.WRONG_TYPE, { expected: 'string,null' }],
+    // Ниже — то, что до сужения образца притворялось ошибкой типа и печаталось фразой
+    // «Значение не того типа: ожидается equal to one of the allowed values».
+    ['must be equal to one of the allowed values', CODES.VALUE_NOT_ALLOWED, {}],
+    ['must be equal to constant', CODES.VALUE_NOT_ALLOWED, {}],
+    ['must be >= 1', CODES.OUT_OF_RANGE, { op: '>=', limit: '1' }],
+    ['must be <= 10', CODES.OUT_OF_RANGE, { op: '<=', limit: '10' }],
+    ['must be > 0', CODES.OUT_OF_RANGE, { op: '>', limit: '0' }],
+    // Регулярка мета-схемы становится формой записи: `^\$model\(.+\)$` человеку не подсказывает
+    // написать `$model(price)`.
+    [
+      'must match pattern "^\\$model\\(.+\\)$"',
+      CODES.PATTERN_MISMATCH,
+      { expected: '$model(...)' },
+    ],
+    [
+      'must match pattern "^\\$html\\([a-zA-Z][a-zA-Z0-9]*\\)$"',
+      CODES.PATTERN_MISMATCH,
+      { expected: '$html(...)' },
+    ],
+    ['must match pattern "^[0-9a-z]{8}$"', CODES.PATTERN_MISMATCH, { expected: '$nodeId' }],
+    // Неузнанная регулярка отдаётся как есть: она хотя бы точна.
+    ['must match pattern "^\\d+$"', CODES.PATTERN_MISMATCH, { expected: '^\\d+$' }],
     [
       'array node is missing "initialValue" — the "Add" button would create an empty element',
       CODES.ARRAY_INITIAL_VALUE_MISSING,
@@ -76,6 +99,13 @@ describe('сообщение становится кодом и параметр
       expect(translateMessage(message)).toEqual({ code, params });
     });
   }
+
+  it('счётные проверки остаются общим кодом: единица счёта у ajv внутри фразы', () => {
+    // Осознанная граница, а не промах образца: `… more than 2 items` без склонения перевести
+    // нечем, а шесть кодов на «сторона × единица» не окупились бы восемью местами в каталоге.
+    expect(translateMessage('must NOT have more than 2 items').code).toBe(CODES.INVALID);
+    expect(translateMessage('must NOT have fewer than 5 characters').code).toBe(CODES.INVALID);
+  });
 
   it('неузнанная фраза не теряется: общий код и текст в параметрах', () => {
     // Граница перевода: проверки живут в чужом пакете, и новое сообщение там не должно

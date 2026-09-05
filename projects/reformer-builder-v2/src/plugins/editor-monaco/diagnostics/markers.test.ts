@@ -130,3 +130,78 @@ describe('planMarkers', () => {
     });
   });
 });
+
+describe('planMarkers: цель, суженная до свойства узла', () => {
+  const TEXT = `{
+  "root": {
+    "$nodeId": "aaaa0000",
+    "component": "$component(Inpit)",
+    "componentProps": { "label": "Имя", "readOnly": true }
+  }
+}`;
+  const at = (target: Diagnostic['target']): string => {
+    const plan = planMarkers([diagnostic(target)], TEXT, indexNodeRanges(TEXT));
+    return TEXT.slice(plan.markers[0].range.start, plan.markers[0].range.end);
+  };
+
+  it('подчёркивает имя свойства, а не идентификатор узла', () => {
+    expect(at({ kind: 'node', nodeId: 'aaaa0000', within: ['componentProps', 'readOnly'] })).toBe(
+      '"readOnly"'
+    );
+  });
+
+  it('по просьбе подчёркивает значение: там, где виновато оно', () => {
+    expect(at({ kind: 'node', nodeId: 'aaaa0000', within: ['component'], at: 'value' })).toBe(
+      '"$component(Inpit)"'
+    );
+  });
+
+  it('значение-поддерево не подчёркивается: это маркер на пол-файла', () => {
+    expect(at({ kind: 'node', nodeId: 'aaaa0000', within: ['componentProps'], at: 'value' })).toBe(
+      '"componentProps"'
+    );
+  });
+
+  it('путь, которого в тексте нет, не теряет находку: подчёркивается узел', () => {
+    expect(at({ kind: 'node', nodeId: 'aaaa0000', within: ['componentProps', 'readonly'] })).toBe(
+      '"aaaa0000"'
+    );
+  });
+
+  it('пустой путь — то же, что и его отсутствие', () => {
+    expect(at({ kind: 'node', nodeId: 'aaaa0000', within: [] })).toBe('"aaaa0000"');
+  });
+
+  it('сужение работает и у узла, найденного запасным резолвером', () => {
+    const text = '{ "root": { "component": "$html(div)", "componentProps": { "hint": 1 } } }';
+    const index = indexTextNodes(text);
+    const items = [
+      diagnostic({ kind: 'node', nodeId: 'child000', within: ['componentProps', 'hint'] }),
+    ];
+    const plan = planMarkers(items, text, index.byId, () => index.byPath.get(pathKey(['root'])));
+    expect(text.slice(plan.markers[0].range.start, plan.markers[0].range.end)).toBe('"hint"');
+  });
+});
+
+describe('planMarkers: проблема приложенного файла', () => {
+  it('маркера не получает: подчёркивать в этом тексте нечего', () => {
+    const plan = planMarkers([diagnostic({ kind: 'attached' })], 'первая строка\nвторая', NO_NODES);
+    expect(plan.markers).toEqual([]);
+  });
+
+  it('и в нерешённые не попадает: место не искали, его нет по природе находки', () => {
+    const plan = planMarkers([diagnostic({ kind: 'attached' })], 'текст', NO_NODES);
+    expect(plan.unresolved).toEqual([]);
+  });
+
+  it('соседние находки не теряются из-за неё', () => {
+    const text = '{ "$nodeId": "aaaa0000", "component": "Input" }';
+    const plan = planMarkers(
+      [diagnostic({ kind: 'attached' }), diagnostic({ kind: 'node', nodeId: 'aaaa0000' })],
+      text,
+      indexNodeRanges(text)
+    );
+    expect(plan.markers).toHaveLength(1);
+    expect(text.slice(plan.markers[0].range.start, plan.markers[0].range.end)).toBe('"aaaa0000"');
+  });
+});

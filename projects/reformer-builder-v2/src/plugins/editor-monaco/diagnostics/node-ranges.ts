@@ -37,9 +37,27 @@
  * нет в каталоге), иначе первый ключ объекта, иначе открывающая скобка. Для узла с
  * идентификатором якорем остаётся сам идентификатор — короткий и однозначный.
  *
+ * ## Свойство внутри узла ищется отдельным проходом, а не третьей картой указателя
+ *
+ * Находка вида «у компонента нет свойства `readOnly`» относится не к узлу целиком, а к одному
+ * его свойству, и подчёркивать в ней идентификатор — значит показывать на единственное место
+ * узла, которое к ошибке отношения не имеет. Место свойства ищет {@link memberRange} —
+ * по пути ОТ УЗЛА, внутри уже известного диапазона узла.
+ *
+ * Проходом по узлу, а не записью в указатель, потому что счёт разный: свойств в документе
+ * тысячи, а находок с путём — единицы. Класть в карту каждое свойство значило бы платить
+ * на КАЖДОЙ правке текста за то, что понадобится в трёх случаях из тысячи; проход по одному
+ * узлу стоит его размера и делается ровно столько раз, сколько таких находок.
+ *
+ * Подчёркивается ИМЯ свойства, а значение — только когда виновато оно (`$component(Inpit)`,
+ * «must be boolean»), и только если это не поддерево: у `componentProps` значение — сотни
+ * строк, и маркер на нём вернул бы ровно ту закраску пол-файла, ради которой заведён якорь.
+ *
  * Экранирование внутри строк не разворачивается: сравнение идёт по сырому содержимому,
  * а служебный ключ и восемь символов base36 экранирования не содержат. Закрывающую кавычку
- * при этом проход ищет честно — `"a\"b"` заканчивается там, где надо.
+ * при этом проход ищет честно — `"a\"b"` заканчивается там, где надо. Имя свойства с
+ * экранированием внутри (`"a\"b"`) по этой же причине не совпадёт с именем из модели —
+ * находка тогда честно подчёркивает узел, а не соседнее свойство.
  *
  * @module plugins/editor-monaco/diagnostics/node-ranges
  */
@@ -259,4 +277,150 @@ export function indexTextNodes(text: string): TextNodeIndex {
 /** Указатель «идентификатор узла → место в тексте» — половина {@link indexTextNodes}. */
 export function indexNodeRanges(text: string): ReadonlyMap<string, NodeLocation> {
   return indexTextNodes(text).byId;
+}
+
+/** Место свойства внутри узла. */
+export interface MemberRange {
+  /** Имя свойства вместе с кавычками. `null` — элемент массива: имени у него нет. */
+  readonly name: TextRange | null;
+  /** Значение свойства целиком — от первого символа до последнего. */
+  readonly value: TextRange;
+  /**
+   * Значение — примитив, а не объект или массив.
+   *
+   * Различие нужно тому, кто подчёркивает: у поддерева значение занимает сотни строк,
+   * и маркер на нём закрашивает пол-файла — ровно то, ради чего у узла заведён короткий якорь.
+   */
+  readonly scalar: boolean;
+}
+
+/** Индекс сразу за значением, начинающимся в `at`. `-1` — значение не дочитано (обрыв текста). */
+function skipValue(text: string, at: number, limit: number): number {
+  const ch = text[at];
+  if (ch === '"') {
+    const token = readString(text, at);
+    return token === null || token.end > limit ? -1 : token.end;
+  }
+  if (ch === '{' || ch === '[') {
+    // Глубина скобок со строками, пропущенными целиком: скобка внутри строки не считается.
+    let depth = 0;
+    let i = at;
+    while (i < limit) {
+      const c = text[i];
+      if (c === '"') {
+        const token = readString(text, i);
+        if (token === null || token.end > limit) return -1;
+        i = token.end;
+        continue;
+      }
+      if (c === '{' || c === '[') depth += 1;
+      else if (c === '}' || c === ']') {
+        depth -= 1;
+        if (depth === 0) return i + 1;
+      }
+      i += 1;
+    }
+    return -1;
+  }
+  // Число, `true`, `false`, `null`.
+  let i = at;
+  while (i < limit && !/[\s,\]}]/.test(text[i])) i += 1;
+  return i === at ? -1 : i;
+}
+
+/** Прямой член контейнера, начинающегося в `start`, по одному сегменту пути. */
+function memberAt(
+  text: string,
+  start: number,
+  limit: number,
+  segment: string | number
+): MemberRange | undefined {
+  const open = text[start];
+  if (open !== '{' && open !== '[') return undefined;
+  const object = open === '{';
+  const wanted = String(segment);
+  let i = start + 1;
+  let index = 0;
+
+  while (i < limit) {
+    i = skipWhitespace(text, i);
+    const ch = text[i];
+    if (ch === undefined || ch === '}' || ch === ']') return undefined;
+    if (ch === ',') {
+      i += 1;
+      continue;
+    }
+
+    let name: TextRange | null = null;
+    if (object) {
+      // В объекте всё, что не имя, — уже не JSON: дальше идти не по чему.
+      if (ch !== '"') return undefined;
+      const token = readString(text, i);
+      if (token === null) return undefined;
+      name = { start: i, end: token.end };
+      const colon = skipWhitespace(text, token.end);
+      if (text[colon] !== ':') return undefined;
+      i = skipWhitespace(text, colon + 1);
+      // Повтор имени в одном объекте: выигрывает ПЕРВОЕ, и это защита, а не только
+      // детерминизм. `JSON.parse` оставил бы последнее, но текст в буфере бывает сломан
+      // так, что «последнее» лежит уже за пределами узла (пропущенная скобка склеивает
+      // его с соседом) — и маркер уехал бы в чужой узел. Первое вхождение такого сделать
+      // не может: оно заведомо внутри того объекта, с которого проход начался.
+      if (token.value !== wanted) {
+        const next = skipValue(text, i, limit);
+        if (next === -1) return undefined;
+        i = next;
+        continue;
+      }
+      // Сравнение по ИМЕНИ, а не по счёту: числовой ключ объекта (`"0"`) приходит из разбора
+      // пути числом, но индексом массива от этого не становится.
+    } else if (index !== Number(segment)) {
+      const next = skipValue(text, i, limit);
+      if (next === -1) return undefined;
+      i = next;
+      index += 1;
+      continue;
+    }
+
+    const end = skipValue(text, i, limit);
+    if (end === -1) return undefined;
+    const head = text[i];
+    return {
+      name,
+      value: { start: i, end },
+      scalar: head !== '{' && head !== '[',
+    };
+  }
+  return undefined;
+}
+
+/**
+ * Место свойства по пути ОТ УЗЛА — внутри уже известного диапазона узла.
+ *
+ * Путь пустой или ведущий в никуда (текст успел уехать от модели, свойство уже переименовано,
+ * имя содержит экранирование) — `undefined`: тогда подчёркивается сам узел, и это ровно то
+ * поведение, которое было до появления путей.
+ *
+ * **Сегмент-имя самопроверяем, сегмент-индекс — нет.** Имя сверяется с текстом, поэтому на
+ * соседнее СВОЙСТВО проход промахнуться не может: разошёлся текст с моделью — путь не сойдётся
+ * и отдаст откат. Индекс элемента массива сверять не с чем, он просто считается; вставка
+ * элемента между проходом валидатора и показом уводит место на соседний элемент. Это цена
+ * точности внутри массивов (`componentProps.options[1]`), и другого способа её получить нет:
+ * у элемента нет ни имени, ни идентификатора. Окно ошибки — один такт валидатора.
+ */
+export function memberRange(
+  text: string,
+  node: TextRange,
+  path: TextPath
+): MemberRange | undefined {
+  if (path.length === 0) return undefined;
+  const limit = Math.min(node.end, text.length);
+  let at = node.start;
+  for (let depth = 0; depth < path.length; depth += 1) {
+    const found = memberAt(text, at, limit, path[depth]);
+    if (found === undefined) return undefined;
+    if (depth === path.length - 1) return found;
+    at = found.value.start;
+  }
+  return undefined;
 }

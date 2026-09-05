@@ -10,6 +10,12 @@
  * ни то ни другое     → resource  «файл не той формы» — проблема всего ресурса
  * ```
  *
+ * Узловая цель при этом СУЖАЕТСЯ до места внутри узла: `«у компонента нет свойства readOnly»`
+ * относится к одному полю, и подчёркивать в ней `$nodeId` — значит показывать на единственное
+ * место узла, к ошибке не относящееся. Остаток пути кладётся в цель ОТНОСИТЕЛЬНЫМ (отсчёт от
+ * узла), поэтому он не съезжает при вставке соседей — в отличие от абсолютного, который
+ * в находку класть по-прежнему нельзя.
+ *
  * ## Почему структурная ошибка НЕ адресуется диапазоном
  *
  * Диапазон для узла пришлось бы вычислять симуляцией печати — так делает v1, и поэтому
@@ -38,7 +44,7 @@ import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { findByPath } from '@/lib/form-model/query';
 import { nodeIdOf } from '@/lib/form-model/node-id';
 import type { JsonPath } from '@/lib/form-model/paths';
-import type { DiagnosticTarget, TextRange } from '@/sdk';
+import type { DiagnosticTarget, NodePart, TextRange } from '@/sdk';
 
 /** Результат разбора текста документа. */
 export type ParseOutcome =
@@ -125,39 +131,56 @@ export function splitLocation(raw: string): { path: JsonPath; message: string } 
 }
 
 /**
- * Ближайший узел НА пути или ВЫШЕ по нему — тот, к которому находка относится.
- *
- * Нужен не для адресации (для неё есть {@link nodeIdAt}), а для вопросов «какой это
- * компонент» и «какие у него пропсы»: без ответа на них быстрое исправление предложить
- * нечего.
- */
-export function nodeAt(schema: JsonFormSchema, path: JsonPath): JsonNode | undefined {
-  for (let end = path.length; end > 0; end -= 1) {
-    const node = findByPath(schema, path.slice(0, end));
-    if (node !== undefined) return node;
-  }
-  return undefined;
-}
-
-/**
- * Идентификатор ближайшего узла НА пути или ВЫШЕ по нему.
+ * Узел, которым находка адресуется, и остаток пути ДО МЕСТА ошибки внутри него.
  *
  * Подъём обязателен: ошибка приходит на лист (`…/componentProps/hint`), а адресуется узел,
  * которому этот лист принадлежит. Отсутствие идентификатора — не сбой: `$nodeId` расставляет
  * `ensureNodeIds` при открытии, и файл, открытый мимо этого, честно адресуется ресурсом.
+ *
+ * Подъём идёт до НОСИТЕЛЯ ИДЕНТИФИКАТОРА, а не до первого, что похоже на узел, и это не
+ * придирка: узлом считается любой объект с ключом `value`/`array`/`component`, а у
+ * `TabsTrigger`, `TabsContent` и `RadioGroupItem` ровно такой `componentProps` —
+ * `{ value: 'one' }`. Остановка «на похожем» отдавала бы сами пропсы: ни идентификатора,
+ * ни компонента, то есть цель уезжала бы в ресурс, а быстрое исправление исчезало.
+ *
+ * Сам узел возвращается вместе с адресом, потому что его же спрашивают «какой это компонент»
+ * и «какие у него пропсы»: без ответа на них исправление предложить нечего, а второй проход
+ * по тому же пути разошёлся бы с первым на первой же правке условия «что считается узлом».
+ *
+ * Остаток пути отрезается ровно там, где нашёлся узел, поэтому он ОТНОСИТЕЛЬНЫЙ — и потому
+ * законен в находке: вставка соседей где угодно в документе его не двигает, в отличие от
+ * абсолютного пути, который устаревает вместе с показом.
  */
-export function nodeIdAt(schema: JsonFormSchema, path: JsonPath): string | undefined {
+export function nodeSiteAt(
+  schema: JsonFormSchema,
+  path: JsonPath
+): { readonly node: JsonNode; readonly nodeId: string; readonly inner: JsonPath } | undefined {
   for (let end = path.length; end > 0; end -= 1) {
     const node = findByPath(schema, path.slice(0, end));
     if (node === undefined) continue;
     const id = nodeIdOf(node);
-    if (id !== undefined) return id;
+    if (id !== undefined) return { node, nodeId: id, inner: path.slice(end) };
   }
   return undefined;
 }
 
-/** Цель для находки по пути: узел, если он нашёлся, иначе ресурс целиком. */
-export function targetAt(schema: JsonFormSchema, path: JsonPath): DiagnosticTarget {
-  const nodeId = nodeIdAt(schema, path);
-  return nodeId === undefined ? { kind: 'resource' } : { kind: 'node', nodeId };
+/** Идентификатор ближайшего узла НА пути или ВЫШЕ по нему — половина {@link nodeSiteAt}. */
+export function nodeIdAt(schema: JsonFormSchema, path: JsonPath): string | undefined {
+  return nodeSiteAt(schema, path)?.nodeId;
+}
+
+/**
+ * Цель для находки по пути: узел (суженный до места внутри него), иначе ресурс целиком.
+ *
+ * `at` — что подчеркнуть у найденного свойства; решает это ВЫЗЫВАЮЩИЙ, потому что знает код
+ * находки: «нет такого свойства» — про имя, «значение не того типа» — про значение.
+ */
+export function targetAt(schema: JsonFormSchema, path: JsonPath, at?: NodePart): DiagnosticTarget {
+  const site = nodeSiteAt(schema, path);
+  if (site === undefined) return { kind: 'resource' };
+  return {
+    kind: 'node',
+    nodeId: site.nodeId,
+    ...(site.inner.length > 0 ? { within: site.inner, ...(at !== undefined ? { at } : {}) } : {}),
+  };
 }

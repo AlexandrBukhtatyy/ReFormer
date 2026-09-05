@@ -24,6 +24,7 @@ import { childSlots } from '@/lib/form-model/node-kind';
 import { componentOf } from '@/lib/form-model/node-ref';
 import { walkNodes } from '@/lib/form-model/query';
 import type { JsonPath } from '@/lib/form-model/paths';
+import type { NodePart } from '@/sdk';
 import { CODES, type DiagnosticCode } from './codes';
 
 /** Замечание до того, как оно стало диагностикой: код, данные и узел-виновник. */
@@ -32,7 +33,23 @@ export interface Finding {
   readonly params?: Record<string, unknown>;
   /** Узел, к которому замечание относится; `undefined` — замечание о схеме целиком. */
   readonly node?: JsonNode;
+  /**
+   * Место ВНУТРИ узла, если оно у замечания есть: путь от самого узла.
+   *
+   * Ставится не везде, и это не недоделка. «Вкладке «one» не соответствует ни одна панель»
+   * цитирует конкретное значение — его и надо подчеркнуть. «У вкладки нет value» говорит
+   * о ключе, которого в тексте НЕТ, и подчёркивать там можно только объект, которому его
+   * не хватает.
+   */
+  readonly within?: JsonPath;
+  /** Что подчеркнуть у {@link within}: имя (по умолчанию) или значение. */
+  readonly at?: NodePart;
 }
+
+/** Пропсы узла — общий адрес для замечаний, чей ключ в тексте отсутствует. */
+const PROPS: JsonPath = ['componentProps'];
+/** Значение внутри пропсов — адрес замечаний, которые цитируют это значение в своей фразе. */
+const PROPS_VALUE: JsonPath = ['componentProps', 'value'];
 
 /** Компонент-контейнер вкладок и имена его частей. */
 const TABS = { root: 'Tabs', trigger: 'TabsTrigger', panel: 'TabsContent' } as const;
@@ -72,7 +89,8 @@ function lintTabs(node: JsonNode, path: JsonPath): Finding[] {
     const value = valueOf(trigger);
     // Без `value` кнопка не связана ни с одной панелью: Radix свяжет её по `undefined`,
     // и две такие вкладки схлопнутся в одну.
-    if (value === undefined) out.push({ code: CODES.TAB_WITHOUT_VALUE, node: trigger });
+    if (value === undefined)
+      out.push({ code: CODES.TAB_WITHOUT_VALUE, node: trigger, within: PROPS });
     else triggerValues.add(value);
   }
 
@@ -80,19 +98,31 @@ function lintTabs(node: JsonNode, path: JsonPath): Finding[] {
   for (const panel of panels) {
     const value = valueOf(panel);
     if (value === undefined) {
-      out.push({ code: CODES.PANEL_WITHOUT_VALUE, node: panel });
+      out.push({ code: CODES.PANEL_WITHOUT_VALUE, node: panel, within: PROPS });
       continue;
     }
     panelValues.add(value);
     if (!triggerValues.has(value)) {
-      out.push({ code: CODES.PANEL_WITHOUT_TAB, params: { value }, node: panel });
+      out.push({
+        code: CODES.PANEL_WITHOUT_TAB,
+        params: { value },
+        node: panel,
+        within: PROPS_VALUE,
+        at: 'value',
+      });
     }
   }
 
   for (const trigger of triggers) {
     const value = valueOf(trigger);
     if (value !== undefined && !panelValues.has(value)) {
-      out.push({ code: CODES.TAB_WITHOUT_PANEL, params: { value }, node: trigger });
+      out.push({
+        code: CODES.TAB_WITHOUT_PANEL,
+        params: { value },
+        node: trigger,
+        within: PROPS_VALUE,
+        at: 'value',
+      });
     }
   }
 
@@ -103,7 +133,13 @@ function lintTabs(node: JsonNode, path: JsonPath): Finding[] {
     triggerValues.size > 0 &&
     !triggerValues.has(defaultValue)
   ) {
-    out.push({ code: CODES.TABS_DEFAULT_VALUE_UNKNOWN, params: { value: defaultValue }, node });
+    out.push({
+      code: CODES.TABS_DEFAULT_VALUE_UNKNOWN,
+      params: { value: defaultValue },
+      node,
+      within: ['componentProps', 'defaultValue'],
+      at: 'value',
+    });
   }
   return out;
 }
@@ -119,6 +155,9 @@ function lintSteps(node: JsonNode, path: JsonPath): Finding[] {
         code: CODES.STEP_NOT_CONTAINER,
         params: { name: componentOf(entry.node) ?? '' },
         node: entry.node,
+        // Имя не-контейнера стоит в значении `component` — оттуда же берётся `params.name`.
+        within: ['component'],
+        at: 'value',
       });
     }
   }

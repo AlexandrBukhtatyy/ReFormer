@@ -6,7 +6,7 @@ import { builtinEntries } from '@/lib/catalog/__fixtures__/builtin-catalog';
 import { ensureNodeIds, type NodeIdFactory } from '@/lib/form-model/node-id';
 import { emptyRules, type FormRules } from '@/lib/form-model/rules';
 import type { Diagnostic } from '@/sdk';
-import { checkForm } from './check';
+import { checkForm, dedupe } from './check';
 import { CODES, COMMANDS, QUICKFIX } from './codes';
 
 const resource = 'fs:forms/credit.json';
@@ -70,11 +70,16 @@ describe('неизвестный компонент', () => {
     ]);
   });
 
-  it('адресуется УЗЛОМ: идентификатор не съезжает при вставке соседей', () => {
+  it('адресуется УЗЛОМ, суженным до значения component: там и стоит неизвестное имя', () => {
     const found = check(schemaOf(box([field('$component(Inpt)')])));
 
     const problem = found.find((item) => item.code === CODES.UNKNOWN_COMPONENT);
-    expect(problem?.target).toEqual({ kind: 'node', nodeId: 'node0002' });
+    expect(problem?.target).toEqual({
+      kind: 'node',
+      nodeId: 'node0002',
+      within: ['component'],
+      at: 'value',
+    });
   });
 
   it('имя, слишком далёкое от каталожного, остаётся без исправления', () => {
@@ -94,6 +99,86 @@ describe('неизвестный компонент', () => {
     );
 
     expect(codes(found)).not.toContain(CODES.UNKNOWN_COMPONENT);
+  });
+});
+
+describe('ошибка в значении, а не в типе', () => {
+  it('значение не из перечисления называет список — ajv его не передаёт, каталог передаёт', () => {
+    const found = check(schemaOf(box([field('$component(Input)', { type: 'вбок' })])));
+
+    const problem = found.find((item) => item.code === CODES.VALUE_NOT_ALLOWED);
+    expect(problem?.params?.list).toBe('yes');
+    expect(problem?.params?.allowed).toBe('text, email, tel, url, password, number, date');
+    // Виновато значение, а не имя поля: подчёркивать надо «вбок», а не «type».
+    expect(problem?.target).toEqual({
+      kind: 'node',
+      nodeId: 'node0002',
+      within: ['componentProps', 'type'],
+      at: 'value',
+    });
+  });
+
+  it('число вне границ несёт знак и предел раздельно, а не обрывок английской фразы', () => {
+    const found = check(schemaOf(box([field('$component(Progress)', { value: 500 })])));
+
+    const problem = found.find((item) => item.code === CODES.OUT_OF_RANGE);
+    expect(problem?.params).toEqual({ op: '<=', limit: '100' });
+  });
+});
+
+describe('дубли находок', () => {
+  it('одна ошибка не показывается дважды: мета-схема жалуется обеими ветвями anyOf', () => {
+    // `component` объявлен как `anyOf` из `$component(...)` и `$html(...)`; на `5` жалуются обе,
+    // и до дедупликации это давало два одинаковых маркера на одном и том же диапазоне.
+    const found = check(
+      schemaOf(box([{ value: '$model(a)', component: 5 } as unknown as JsonNode]))
+    );
+
+    expect(found.filter((item) => item.code === CODES.WRONG_TYPE)).toHaveLength(1);
+  });
+
+  it('исправление не теряется: из двух неотличимых остаётся то, которым можно починить', () => {
+    const base: Diagnostic = {
+      source: 'validator.schema',
+      severity: 'error',
+      code: CODES.UNKNOWN_COMPONENT,
+      target: { kind: 'node', nodeId: 'node0001' },
+      params: { name: 'Inpt' },
+    };
+    const withFix: Diagnostic = {
+      ...base,
+      fixes: [{ titleKey: QUICKFIX.REPLACE_COMPONENT, commandId: COMMANDS.SET_COMPONENT }],
+    };
+
+    expect(dedupe([base, withFix])).toEqual([withFix]);
+  });
+
+  it('порядок устойчив: панель проблем не переставляет строки от прохода к проходу', () => {
+    const at = (nodeId: string): Diagnostic => ({
+      source: 'validator.schema',
+      severity: 'error',
+      code: CODES.UNKNOWN_COMPONENT,
+      target: { kind: 'node', nodeId },
+      params: { name: 'Inpt' },
+    });
+
+    expect(dedupe([at('a'), at('b'), at('a')]).map((item) => item.target)).toEqual([
+      { kind: 'node', nodeId: 'a' },
+      { kind: 'node', nodeId: 'b' },
+    ]);
+  });
+
+  it('разные места одной ошибки — разные находки: дедупликация не склеивает узлы', () => {
+    const found = check(
+      schemaOf(
+        box([
+          field('$component(Input)', { lable: 'Первое' }),
+          field('$component(Input)', { lable: 'Второе' }),
+        ])
+      )
+    );
+
+    expect(found.filter((item) => item.code === CODES.UNKNOWN_PROPERTY)).toHaveLength(2);
   });
 });
 
@@ -136,12 +221,42 @@ describe('структурные ошибки', () => {
     const problem = found.find((item) => item.code === CODES.UNKNOWN_PROPERTY);
     expect(problem?.params?.property).toBe('lable');
     expect(problem?.params?.suggestion).toBe('label');
-    expect(problem?.target).toEqual({ kind: 'node', nodeId: 'node0002' });
+    // Цель сужена до самого пропа: подчёркивать надо `"lable"`, а не `$nodeId` — тот
+    // к находке отношения не имеет и был бы единственным неверным местом в узле.
+    expect(problem?.target).toEqual({
+      kind: 'node',
+      nodeId: 'node0002',
+      within: ['componentProps', 'lable'],
+    });
     expect(problem?.fixes?.[0]).toEqual({
       titleKey: QUICKFIX.RENAME_PROPERTY,
       commandId: COMMANDS.RENAME_PROP,
       args: { resource, nodeId: 'node0002', from: 'lable', to: 'label' },
     });
+  });
+
+  it('пропсы, похожие на узел, не перехватывают адрес: у TabsTrigger это буквально { value }', () => {
+    // Узлом считается любой объект с ключом `value`, и подъём «до похожего на узел»
+    // останавливался на самих пропсах: цель уезжала в ресурс (маркер на первой строке файла),
+    // а подсказка и быстрое исправление исчезали — при том что у соседнего Input всё работало.
+    const tab = {
+      component: '$component(TabsTrigger)',
+      componentProps: { value: 'one', valu: 'опечатка' },
+      children: ['Первая'],
+    } as unknown as JsonNode;
+
+    const found = check(schemaOf(box([tab])));
+
+    const problem = found.find((item) => item.code === CODES.UNKNOWN_PROPERTY);
+    expect(problem?.target).toEqual({
+      kind: 'node',
+      nodeId: 'node0002',
+      within: ['componentProps', 'valu'],
+    });
+    // Подсказка и исправление считаются от ТОГО ЖЕ узла: остановись подъём на пропсах —
+    // компонента у них нет, словарь пропсов пуст, и предлагать было бы нечего.
+    expect(problem?.params?.suggestion).toBe('value');
+    expect(problem?.fixes?.[0].commandId).toBe(COMMANDS.RENAME_PROP);
   });
 
   it('находка на месте, у которого своего идентификатора нет, поднимается к ближайшему узлу', () => {
@@ -150,8 +265,13 @@ describe('структурные ошибки', () => {
     const found = check(schema);
 
     expect(found.length).toBeGreaterThan(0);
-    // `{ componentProps: {} }` узлом не является и идентификатора не несёт — адресуется корень.
-    expect(found[0].target).toEqual({ kind: 'node', nodeId: 'node0001' });
+    // `{ componentProps: {} }` узлом не является и идентификатора не несёт — адресуется
+    // ближайший узел выше, а путь до места ошибки считается ОТ НЕГО.
+    expect(found[0].target).toEqual({
+      kind: 'node',
+      nodeId: 'node0001',
+      within: ['children', 0],
+    });
   });
 
   it('неузнанное сообщение не теряется: код общий, фраза — в параметрах', () => {
@@ -193,11 +313,27 @@ describe('структурный линт: связи, которых схема
     expect(codes(found)).toContain(CODES.PANEL_WITHOUT_TAB);
   });
 
-  it('вкладка без value адресуется своим узлом', () => {
+  it('вкладка без value адресуется своим узлом и пропсами: самого ключа в тексте нет', () => {
     const found = check(schemaOf(tabs([trigger(), panel('one')])));
 
     const problem = found.find((item) => item.code === CODES.TAB_WITHOUT_VALUE);
-    expect(problem?.target).toEqual({ kind: 'node', nodeId: 'node0002' });
+    expect(problem?.target).toEqual({
+      kind: 'node',
+      nodeId: 'node0002',
+      within: ['componentProps'],
+    });
+  });
+
+  it('вкладка без панели показывает на значение, которое цитирует её фраза', () => {
+    const found = check(schemaOf(tabs([trigger('one'), panel('two')])));
+
+    const problem = found.find((item) => item.code === CODES.TAB_WITHOUT_PANEL);
+    expect(problem?.target).toEqual({
+      kind: 'node',
+      nodeId: 'node0002',
+      within: ['componentProps', 'value'],
+      at: 'value',
+    });
   });
 
   it('defaultValue, не совпадающий ни с одной вкладкой', () => {
@@ -222,8 +358,10 @@ describe('целостность правил', () => {
     const problem = found.find((item) => item.code === CODES.RULE_VALIDATION_TARGET_MISSING);
     expect(problem?.params?.target).toBe('несуществующее');
     expect(problem?.severity).toBe('warning');
-    // Узла, на который правило указывает, не существует — в том и находка.
-    expect(problem?.target).toEqual({ kind: 'resource' });
+    // Узла, на который правило указывает, не существует — в том и находка. И `resource` тоже
+    // не годится: он значит «ошибка уровня документа», а рисующий ставит на такую маркер
+    // первой строки — то есть на `{` схемы, к которой находка не относится.
+    expect(problem?.target).toEqual({ kind: 'attached' });
   });
 
   it('исправление предлагается, но не применяется само: правило — работа пользователя', () => {
@@ -280,18 +418,53 @@ describe('двойники $nodeId в исходном тексте', () => {
       },
     });
 
-  it('находятся и сообщаются предупреждением', () => {
+  it('находятся и сообщаются предупреждением — по одному на КАЖДОЕ вхождение', () => {
     // Смотрится ТЕКСТ, а не модель: в модели двойников уже нет — разбор их чинит перевыдачей,
     // и молча. Не скажи мы об этом, человек унёс бы файл с двойниками дальше.
-    const found = checkForm(
-      { resource: 'mem:form.json', text: withIds('bbbbbbbb', 'bbbbbbbb') },
-      { catalog: [] }
-    );
+    const text = withIds('bbbbbbbb', 'bbbbbbbb');
+    const found = checkForm({ resource: 'mem:form.json', text }, { catalog: [] });
     const dup = found.filter((d) => d.code === 'schema.duplicate-node-id');
 
-    expect(dup).toHaveLength(1);
+    expect(dup).toHaveLength(2);
     expect(dup[0]?.severity).toBe('warning');
-    expect(dup[0]?.target).toEqual({ kind: 'node', nodeId: 'bbbbbbbb' });
+    // Узлом такую находку адресовать нельзя ровно потому, в чём она и состоит: идентификатор
+    // называет два места, а указатель по тексту отдаёт из них ОДНО — и это первое, то есть
+    // как раз то, которое перевыдачей не трогали.
+    for (const item of dup) {
+      expect(item.target.kind).toBe('range');
+      if (item.target.kind !== 'range') throw new Error('ожидался диапазон');
+      expect(text.slice(item.target.range.start, item.target.range.end)).toBe('"bbbbbbbb"');
+    }
+    const [first, second] = dup.map((item) =>
+      item.target.kind === 'range' ? item.target.range.start : -1
+    );
+    expect(second).toBeGreaterThan(first);
+  });
+
+  it('идентификатор в ТЕКСТЕ формы не путается с записанным адресом', () => {
+    // `"$nodeId"` встречается и как значение — в подписи поля, например. Ключом это не делает.
+    const text = JSON.stringify(
+      {
+        version: '1.0',
+        root: {
+          $nodeId: 'aaaaaaaa',
+          component: '$component(Stack)',
+          children: [
+            { $nodeId: 'bbbbbbbb', component: '$component(Input)', value: '$model(x)' },
+            { $nodeId: 'bbbbbbbb', component: '$component(Input)', value: '$model(y)' },
+          ],
+          componentProps: { title: 'ключ "$nodeId": "bbbbbbbb" внутри строки' },
+        },
+      },
+      null,
+      2
+    );
+
+    const dup = checkForm({ resource: 'mem:form.json', text }, { catalog: [] }).filter(
+      (d) => d.code === 'schema.duplicate-node-id'
+    );
+
+    expect(dup).toHaveLength(2);
   });
 
   it('у файла без двойников их не находит', () => {

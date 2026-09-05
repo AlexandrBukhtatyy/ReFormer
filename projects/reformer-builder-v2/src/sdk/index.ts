@@ -66,6 +66,7 @@ export type {
   Diagnostic,
   DiagnosticSeverity,
   DiagnosticTarget,
+  NodePart,
   QuickFix,
   TextRange,
 } from '@/shell/platform/services/diagnostics/types';

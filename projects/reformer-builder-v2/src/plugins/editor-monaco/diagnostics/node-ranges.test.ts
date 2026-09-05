@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { indexNodeRanges, indexTextNodes, pathKey } from './node-ranges';
+import { indexNodeRanges, indexTextNodes, memberRange, pathKey } from './node-ranges';
 
 /** Кусок текста по диапазону: так утверждения читаются, а не считаются в уме. */
 function slice(text: string, range: { start: number; end: number }): string {
@@ -144,5 +144,77 @@ describe('indexTextNodes: объекты по пути', () => {
     const { byPath } = indexTextNodes(text);
     expect(byPath.has(pathKey(['root', 'children', 0]))).toBe(true);
     expect(byPath.has(pathKey(['root']))).toBe(false);
+  });
+});
+
+describe('memberRange: место свойства внутри узла', () => {
+  const NODE = `{
+    "$nodeId": "ab12cd34",
+    "value": "$model(fullName)",
+    "component": "$component(Input)",
+    "componentProps": { "label": "Полное имя", "readOnly": true },
+    "children": [{ "component": "$html(span)" }]
+  }`;
+  const whole = { start: 0, end: NODE.length };
+
+  it('находит имя свойства — ради него путь и заведён', () => {
+    const found = memberRange(NODE, whole, ['componentProps', 'readOnly']);
+    expect(slice(NODE, found!.name!)).toBe('"readOnly"');
+  });
+
+  it('отдаёт и значение, и признак «примитив»: подчёркивать поддерево нельзя', () => {
+    const scalar = memberRange(NODE, whole, ['componentProps', 'readOnly']);
+    expect(slice(NODE, scalar!.value)).toBe('true');
+    expect(scalar?.scalar).toBe(true);
+
+    const subtree = memberRange(NODE, whole, ['componentProps']);
+    expect(subtree?.scalar).toBe(false);
+  });
+
+  it('свойство первого уровня — тоже путь, только короткий', () => {
+    const found = memberRange(NODE, whole, ['component']);
+    expect(slice(NODE, found!.name!)).toBe('"component"');
+    expect(slice(NODE, found!.value)).toBe('"$component(Input)"');
+  });
+
+  it('у элемента массива имени нет, и выдумывать его нечем', () => {
+    const found = memberRange(NODE, whole, ['children', 0]);
+    expect(found?.name).toBeNull();
+    expect(slice(NODE, found!.value)).toBe('{ "component": "$html(span)" }');
+  });
+
+  it('пустой путь — это «узел целиком», а не свойство', () => {
+    expect(memberRange(NODE, whole, [])).toBeUndefined();
+  });
+
+  it('имени, которого в тексте нет, не подставляется соседнее', () => {
+    expect(memberRange(NODE, whole, ['componentProps', 'readonly'])).toBeUndefined();
+    expect(memberRange(NODE, whole, ['componentProps', 'label', 'глубже'])).toBeUndefined();
+  });
+
+  it('за границы узла проход не выходит: одноимённое свойство соседа не подхватывается', () => {
+    const text = '[{ "a": 1 }, { "b": 2 }]';
+    const first = { start: 1, end: 11 };
+    expect(memberRange(text, first, ['a'])).toBeDefined();
+    expect(memberRange(text, first, ['b'])).toBeUndefined();
+  });
+
+  it('повтор имени в одном объекте: выигрывает первое — место должно быть одним и тем же', () => {
+    const text = '{ "x": 1, "x": 2 }';
+    const found = memberRange(text, { start: 0, end: text.length }, ['x']);
+    expect(found!.value.start).toBe(text.indexOf('1'));
+  });
+
+  it('имя с экранированием не совпадает с именем из модели — и это честнее промаха', () => {
+    const text = '{ "a\\"b": 1 }';
+    expect(memberRange(text, { start: 0, end: text.length }, ['a"b'])).toBeUndefined();
+  });
+
+  it('недочитанное значение места не даёт — ни себе, ни тому, что внутри него', () => {
+    // Узел с незакрытой скобкой и в указатель-то не попадает (он пишется на `}`), так что
+    // до сюда такой текст не доходит; проверка фиксирует, что проход не выдумывает границу.
+    const text = '{ "a": { "b": 1 ';
+    expect(memberRange(text, { start: 0, end: text.length }, ['a'])).toBeUndefined();
+    expect(memberRange(text, { start: 0, end: text.length }, ['a', 'b'])).toBeUndefined();
   });
 });

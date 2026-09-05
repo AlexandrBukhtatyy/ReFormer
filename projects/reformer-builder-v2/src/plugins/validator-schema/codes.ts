@@ -65,6 +65,26 @@ export const CODES = {
   UNKNOWN_PROPERTY: 'schema.unknown-property',
   /** Значение не того типа (`must be boolean`). */
   WRONG_TYPE: 'schema.wrong-type',
+
+  /**
+   * Значение не из перечисления (`enum`, `const`).
+   *
+   * Самый частый вид ошибки значения после типа: в схемах пропсов встроенного кита `enum`
+   * стоит 110 раз — варианты, размеры, направления, тип поля ввода. Список допустимого ajv
+   * в сообщении НЕ передаёт, но он восстановим из той же схемы каталога и попадает в
+   * `params.allowed` (`check.allowedValuesAt`); когда восстановить не вышло, `params.list`
+   * переводит фразу на короткую ветку без списка.
+   */
+  VALUE_NOT_ALLOWED: 'schema.value-not-allowed',
+  /** Число вне границ (`must be >= 1`): `params` несёт знак и предел раздельно. */
+  OUT_OF_RANGE: 'schema.out-of-range',
+  /**
+   * Значение записано не в той форме (`pattern` мета-схемы).
+   *
+   * В `params.expected` не сама регулярка, а форма, которой она требует (`$model(...)`), —
+   * `^\$model\(.+\)$` не подсказывает человеку написать `$model(price)`.
+   */
+  PATTERN_MISMATCH: 'schema.pattern-mismatch',
   /** `$component(X)`, которого нет в каталоге активного кита. */
   UNKNOWN_COMPONENT: 'schema.unknown-component',
   /** `$html(tag)` вне whitelist: разметочные теги, не `script`/`iframe`. */
