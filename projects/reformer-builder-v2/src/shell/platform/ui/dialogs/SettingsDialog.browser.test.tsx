@@ -51,6 +51,7 @@ async function mountDialog(options: { failing?: boolean } = {}): Promise<Fixture
   let theme = 'light';
   const sections: readonly SettingsSection[] = [
     {
+      kind: 'fields',
       id: 'appearance',
       titleKey: 'appearance.title',
       fields: [
@@ -71,6 +72,7 @@ async function mountDialog(options: { failing?: boolean } = {}): Promise<Fixture
       ],
     },
     {
+      kind: 'fields',
       id: 'language',
       titleKey: 'language.title',
       fields: [

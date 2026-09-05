@@ -201,5 +201,21 @@
   "templates.notify.failed": "The template was not saved. See the templates panel for details.",
   "templates.notify.generate-failed": "The form was not created. See the templates panel for details.",
   "templates.notify.generated": "The form has been created from the template.",
-  "templates.notify.gone": "That template is gone — the list has been refreshed."
+  "templates.notify.gone": "That template is gone — the list has been refreshed.",
+  "shell.settings.plugins": "Plugins",
+  "shell.settings.plugins.description": "Plugins from the .ui_builder/plugins directory of the open project. You enable them yourself — project code never runs on its own.",
+  "shell.settings.plugins.empty.no-project": "No project is open. Plugins live in the .ui_builder/plugins directory of the open project.",
+  "shell.settings.plugins.empty.loading": "Reading the plugin catalog…",
+  "shell.settings.plugins.empty.no-plugins": "This project has no plugins in .ui_builder/plugins.",
+  "shell.settings.plugins.enable": "Enable “{name}”",
+  "shell.settings.plugins.disable": "Disable “{name}”",
+  "shell.settings.plugins.retry": "Enable “{name}” again",
+  "shell.settings.plugins.configure": "Settings for “{name}”",
+  "shell.settings.plugins.dev": "in development",
+  "shell.settings.plugins.failed": "failed to load",
+  "shell.settings.plugins.dev.label": "Development mode",
+  "shell.settings.plugins.dev.description": "The plugin files are watched: editing them here, or returning to the window after editing them elsewhere, reloads the plugin.",
+  "shell.settings.plugins.reload": "Reload",
+  "shell.settings.plugins.identity": "Identifier: {id} · API: {api}",
+  "shell.settings.plugins.problem": "{code}: {message} ({file})"
 }

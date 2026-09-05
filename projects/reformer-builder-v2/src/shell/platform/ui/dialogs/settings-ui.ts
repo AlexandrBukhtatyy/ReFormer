@@ -17,8 +17,18 @@
  * добавятся вместе с первой настройкой, которой они нужны: вид поля, у которого нет ни одного
  * пользователя, невозможно проверить, и он расходится с действительностью молча.
  *
+ * ## Почему у раздела появился второй вид
+ *
+ * Правило «вид поля без единого пользователя невозможно проверить» осталось нетронутым:
+ * {@link SettingField} не изменился ни на символ. Список плагинов входит в окно МИМО модели
+ * поля — телом раздела ({@link CustomSettingsSection}), потому что он живой, подписан
+ * не ключами, а литералами из манифеста, и состояний у строки больше двух.
+ *
  * @module shell/platform/ui/dialogs/settings-ui
  */
+
+import type { ComponentType } from 'react';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 
 /** Один вариант выбора: значение и ключ его подписи. */
 export interface SettingChoice {
@@ -40,9 +50,49 @@ export interface SettingField {
   write(value: string): Promise<void>;
 }
 
-/** Раздел — то, что в окне стоит слева. */
-export interface SettingsSection {
+/** Общее у любого раздела: адрес в списке слева. */
+interface SettingsSectionBase {
   readonly id: string;
   readonly titleKey: string;
+}
+
+/** Раздел из полей — основной вид: список настроек, каждая знает, как читать и писать себя. */
+export interface FieldsSettingsSection extends SettingsSectionBase {
+  readonly kind: 'fields';
   readonly fields: readonly SettingField[];
 }
+
+/** Что тело раздела получает от окна. Ровно словарь — остальное тело приносит с собой. */
+export interface SettingsSectionBodyProps {
+  readonly i18n: RootI18nService;
+}
+
+/**
+ * Раздел с собственным телом — вид для того, что в поля не укладывается.
+ *
+ * Заведён под список плагинов, и это не «наконец-то произвольный UI в настройках», а признание
+ * трёх фактов, которых у поля нет и не будет: содержимое ЖИВОЕ (плагины включают и выключают
+ * не только отсюда, а массив разделов строится один раз за запуск), подписи в нём —
+ * пользовательские литералы из манифеста, а не ключи словаря, и состояний у строки четыре,
+ * а не два.
+ *
+ * Тело поставляет КОМПОЗИЦИЯ, как и `read`/`write` у полей: окно по-прежнему не знает
+ * ни одной службы приложения. Разделять раздел на «немного полей и немного тела» нельзя
+ * намеренно — размеченное объединение делает это невыразимым, иначе поиск и отрисовка
+ * получили бы по два пути каждая.
+ */
+export interface CustomSettingsSection extends SettingsSectionBase {
+  readonly kind: 'custom';
+  readonly Body: ComponentType<SettingsSectionBodyProps>;
+  /**
+   * Ключи, по которым раздел находится поиском, вдобавок к его названию.
+   *
+   * Поиск в окне идёт по ВИДИМОМУ тексту полей, а у тела полей нет — без этих ключей раздел
+   * пропадал бы из результатов, и «плагины» в строке поиска отвечало бы «ничего не найдено»
+   * при живом разделе рядом.
+   */
+  readonly searchKeys?: readonly string[];
+}
+
+/** Раздел — то, что в окне стоит слева. */
+export type SettingsSection = FieldsSettingsSection | CustomSettingsSection;

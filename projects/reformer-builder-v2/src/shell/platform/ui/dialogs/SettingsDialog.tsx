@@ -49,7 +49,7 @@ import { Search } from 'lucide-react';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { DIALOG_SCOPE, useScope, type ScopeStack } from '@/shell/platform/ui/keyboard/scope';
-import type { SettingField, SettingsSection } from './settings-ui';
+import type { CustomSettingsSection, SettingField, SettingsSection } from './settings-ui';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 
 /** Команда, открывающая окно. Идентификатор экспортирован: на него ссылается пункт меню. */
@@ -69,28 +69,52 @@ interface SettingRowModel {
   readonly field: SettingField;
 }
 
-/** Все поля всех разделов, отобранные запросом. Пустой запрос отбора не делает. */
+/**
+ * Строка результата поиска.
+ *
+ * У раздела с телом полей нет, и в результатах он представлен САМ СОБОЙ — одной строкой,
+ * открывающей раздел. Без неё запрос «плагины» отвечал бы «ничего не найдено» при живом
+ * разделе слева: искать внутри тела окно не умеет и уметь не должно — тело у него чужое.
+ */
+type SearchRow =
+  | { readonly type: 'field'; readonly row: SettingRowModel }
+  | { readonly type: 'section'; readonly section: CustomSettingsSection };
+
+/** Всё, что отвечает запросу. Пустой запрос отбора не делает. */
 function search(
   sections: readonly SettingsSection[],
   query: string,
   translate: (key: string) => string
-): readonly SettingRowModel[] {
+): readonly SearchRow[] {
   const needle = query.trim().toLowerCase();
-  const rows = sections.flatMap((section) =>
-    section.fields.map((field) => ({ section, field }) satisfies SettingRowModel)
-  );
-  if (needle === '') return rows;
-  return rows.filter(({ section, field }) => {
-    // Ищем по тому, что ВИДНО: подпись, пояснение и название раздела. Идентификаторы полей
-    // человеку не показаны, и попадание по ним выглядело бы как случайное.
-    const haystack = [
-      translate(section.titleKey),
-      translate(field.titleKey),
-      field.descriptionKey === undefined ? '' : translate(field.descriptionKey),
-    ]
+  const matches = (keys: readonly string[]): boolean =>
+    keys
+      .map((key) => translate(key))
       .join(' ')
-      .toLowerCase();
-    return haystack.includes(needle);
+      .toLowerCase()
+      .includes(needle);
+
+  return sections.flatMap((section): readonly SearchRow[] => {
+    if (section.kind === 'custom') {
+      if (needle === '') return [];
+      return matches([section.titleKey, ...(section.searchKeys ?? [])])
+        ? [{ type: 'section', section }]
+        : [];
+    }
+    const rows = section.fields.map((field) => ({ section, field }) satisfies SettingRowModel);
+    const kept =
+      needle === ''
+        ? rows
+        : rows.filter(({ field }) =>
+            // Ищем по тому, что ВИДНО: подпись, пояснение и название раздела. Идентификаторы
+            // полей человеку не показаны, и попадание по ним выглядело бы как случайное.
+            matches([
+              section.titleKey,
+              field.titleKey,
+              ...(field.descriptionKey === undefined ? [] : [field.descriptionKey]),
+            ])
+          );
+    return kept.map((row) => ({ type: 'field', row }) satisfies SearchRow);
   });
 }
 
@@ -210,21 +234,41 @@ export function SettingsDialog({
 
           <ScrollArea className="min-h-0 flex-1">
             <div className="px-6 py-2">
-              {rows.length === 0 ? (
+              {!searching && active?.kind === 'custom' ? (
+                // Тело раздела рисует себя само и о поиске не знает: искать внутри чужого
+                // тела окно не умеет — за это отвечают `searchKeys` раздела.
+                <active.Body i18n={i18n} />
+              ) : rows.length === 0 ? (
                 <p className="text-muted-foreground py-6 text-[13px]">
                   {i18n.t('shell.settings.no-results')}
                 </p>
               ) : (
-                rows.map((row) => (
-                  <SettingRow
-                    key={`${row.section.id}:${row.field.id}`}
-                    row={row}
-                    i18n={i18n}
-                    // Раздел подписывают только результаты поиска: внутри выбранного раздела
-                    // его название стояло бы над каждой строкой без нужды.
-                    withSection={searching}
-                  />
-                ))
+                rows.map((entry) =>
+                  entry.type === 'section' ? (
+                    <Button
+                      key={`section:${entry.section.id}`}
+                      variant="ghost"
+                      size="sm"
+                      data-testid={`settings-result-${entry.section.id}`}
+                      className="w-full justify-start font-normal"
+                      onClick={() => {
+                        setQuery('');
+                        setActiveId(entry.section.id);
+                      }}
+                    >
+                      {i18n.t(entry.section.titleKey)}
+                    </Button>
+                  ) : (
+                    <SettingRow
+                      key={`${entry.row.section.id}:${entry.row.field.id}`}
+                      row={entry.row}
+                      i18n={i18n}
+                      // Раздел подписывают только результаты поиска: внутри выбранного раздела
+                      // его название стояло бы над каждой строкой без нужды.
+                      withSection={searching}
+                    />
+                  )
+                )
               )}
             </div>
           </ScrollArea>

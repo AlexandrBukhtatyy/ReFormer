@@ -664,10 +664,19 @@ export function boot(options: BootOptions = {}): BuilderApp {
   // и первый же вызов без проекта обязан быть бесплатным.
   let syncedSource: Source | null = null;
   let syncing: Promise<void> = Promise.resolve();
+  /**
+   * Догнал ли каталог текущий проект.
+   *
+   * Нужен разделу настроек: между сменой проекта и перечитыванием каталога список ещё содержит
+   * плагины ПРЕЖНЕГО, и показывать их как действующие — врать. Признак не выводится из
+   * `syncedSource`: тот меняется в начале цепочки, а верным ответ становится в её конце.
+   */
+  let pluginsSynced = true;
   const syncProjectPlugins = (): Promise<void> => {
     const source = project.get()?.source ?? null;
     if (source === syncedSource) return syncing;
     syncedSource = source;
+    pluginsSynced = false;
     // Цепочкой, а не параллельно: две смены проекта подряд не должны включать плагины
     // прежнего каталога поверх нового.
     syncing = syncing
@@ -708,6 +717,13 @@ export function boot(options: BootOptions = {}): BuilderApp {
       .then(() => undefined)
       .catch((error: unknown) => {
         console.error('[boot] плагины каталога проекта не загрузились', error);
+      })
+      .finally(() => {
+        // В `finally`, а не в `then`: отказ обхода тоже завершает синхронизацию. Иначе раздел
+        // настроек навсегда остался бы на «читаю каталог» вместо того, чтобы показать пустоту.
+        // Проверка источника — на случай, если проект успели сменить ещё раз: тогда признак
+        // поднимет уже следующая цепочка.
+        if (syncedSource === source) pluginsSynced = true;
       });
     return syncing;
   };
@@ -819,7 +835,32 @@ export function boot(options: BootOptions = {}): BuilderApp {
     i18n,
     // Разделы настроек: их состав знает композиция — тему применяет служба темы,
     // язык — служба локализации, и обе собраны здесь.
-    settingsSections: createSettingsSections({ settings, i18n, theme }),
+    settingsSections: createSettingsSections({
+      settings,
+      i18n,
+      theme,
+      /**
+       * Порт раздела «Плагины» — перечислением, а не самим каталогом.
+       *
+       * Каталог структурно шире, и передай мы его целиком, раздел получил бы `deactivateAll`
+       * и `restoreEnabled` — операции жизненного цикла, которыми окно настроек распоряжаться
+       * не должно. Шесть строк ниже и есть граница: что в списке нет, то разделу недоступно.
+       */
+      plugins: {
+        list: () => projectPlugins.list(),
+        subscribe: (listener) => projectPlugins.subscribe(listener),
+        enable: (id) => projectPlugins.enable(id),
+        disable: (id) => {
+          projectPlugins.disable(id);
+        },
+        setDev: (id, on) => {
+          projectPlugins.setDev(id, on);
+        },
+        reload: (id) => projectPlugins.reload(id),
+        synced: () => pluginsSynced,
+        hasProject: () => project.get() !== null,
+      },
+    }),
     // Обе службы уходят в оболочку, а не только в реестр: тосты и диалоги рисует она,
     // и без этих двух полей отказ операции виден только в консоли, а запрос имени —
     // нигде вовсе.

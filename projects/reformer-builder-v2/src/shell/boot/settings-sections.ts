@@ -21,6 +21,8 @@ import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { SettingsService } from '@/shell/platform/services/settings';
 import type { ThemePreference, ThemeService } from '@/shell/platform/services/theme';
 import type { SettingsSection } from '@/shell/platform/ui/dialogs/settings-ui';
+import { createPluginsSettingsBody } from './settings/PluginsSettings';
+import type { PluginsSettingsPort } from './settings/plugins-list';
 
 /** Ключ настройки языка. Тот же, что читает `boot` при старте. */
 export const LOCALE_SETTINGS_KEY = 'host.locale';
@@ -33,6 +35,14 @@ export interface SettingsSectionsDeps {
   readonly i18n: RootI18nService;
   /** Служба темы. Без неё раздела внешнего вида нет — применять выбор нечем. */
   readonly theme?: ThemeService | null;
+  /**
+   * Каталог плагинов. Без него раздела «Плагины» нет — показывать нечего и управлять нечем.
+   *
+   * Раздел единственный, у кого вместо полей собственное тело: список ЖИВОЙ (его меняют
+   * палитра, обход проекта и авто-перезагрузка), а массив разделов строится один раз
+   * за запуск. Поле такого не выражает — см. `platform/ui/dialogs/settings-ui`.
+   */
+  readonly plugins?: PluginsSettingsPort | null;
 }
 
 /**
@@ -43,10 +53,11 @@ export interface SettingsSectionsDeps {
  */
 export function createSettingsSections(deps: SettingsSectionsDeps): readonly SettingsSection[] {
   const sections: SettingsSection[] = [];
-  const { settings, i18n, theme } = deps;
+  const { settings, i18n, theme, plugins } = deps;
 
   if (theme != null) {
     sections.push({
+      kind: 'fields',
       id: 'appearance',
       titleKey: 'shell.settings.appearance',
       fields: [
@@ -69,6 +80,7 @@ export function createSettingsSections(deps: SettingsSectionsDeps): readonly Set
   }
 
   sections.push({
+    kind: 'fields',
     id: 'language',
     titleKey: 'shell.settings.language',
     fields: [
@@ -92,6 +104,18 @@ export function createSettingsSections(deps: SettingsSectionsDeps): readonly Set
       },
     ],
   });
+
+  if (plugins != null) {
+    sections.push({
+      kind: 'custom',
+      id: 'plugins',
+      titleKey: 'shell.settings.plugins',
+      Body: createPluginsSettingsBody(plugins),
+      // Поиск идёт по видимому тексту полей, а у тела полей нет: без этих ключей запрос
+      // «плагин» отвечал бы «ничего не найдено» при живом разделе слева.
+      searchKeys: ['shell.settings.plugins.description'],
+    });
+  }
 
   return sections;
 }

@@ -201,5 +201,21 @@
   "templates.notify.failed": "Шаблон не сохранён. Подробности — на панели шаблонов.",
   "templates.notify.generate-failed": "Форму создать не удалось. Подробности — на панели шаблонов.",
   "templates.notify.generated": "Форма создана по шаблону.",
-  "templates.notify.gone": "Шаблона больше нет — список обновлён."
+  "templates.notify.gone": "Шаблона больше нет — список обновлён.",
+  "shell.settings.plugins": "Плагины",
+  "shell.settings.plugins.description": "Плагины из каталога .ui_builder/plugins открытого проекта. Включает их человек — код из проекта не запускается сам.",
+  "shell.settings.plugins.empty.no-project": "Проект не открыт. Плагины лежат в каталоге .ui_builder/plugins открытого проекта.",
+  "shell.settings.plugins.empty.loading": "Читаю каталог плагинов…",
+  "shell.settings.plugins.empty.no-plugins": "В .ui_builder/plugins этого проекта плагинов нет.",
+  "shell.settings.plugins.enable": "Включить «{name}»",
+  "shell.settings.plugins.disable": "Выключить «{name}»",
+  "shell.settings.plugins.retry": "Включить «{name}» ещё раз",
+  "shell.settings.plugins.configure": "Настройки плагина «{name}»",
+  "shell.settings.plugins.dev": "в разработке",
+  "shell.settings.plugins.failed": "не загрузился",
+  "shell.settings.plugins.dev.label": "Режим разработки",
+  "shell.settings.plugins.dev.description": "Файлы плагина наблюдаются: правка в редакторе или возврат в окно после правки снаружи перезагружают его.",
+  "shell.settings.plugins.reload": "Перезагрузить",
+  "shell.settings.plugins.identity": "Идентификатор: {id} · API: {api}",
+  "shell.settings.plugins.problem": "{code}: {message} ({file})"
 }
