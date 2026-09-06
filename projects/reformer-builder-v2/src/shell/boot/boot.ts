@@ -400,6 +400,11 @@ export function boot(options: BootOptions = {}): BuilderApp {
   // конфиг запуска; выбор человека в настройках всё равно сильнее умолчания.
   settings.registerDefault(LOCALE_SETTINGS_KEY, launchConfig.defaults?.locale ?? DEFAULT_LOCALE);
   settings.registerDefault(dockSettingsKey('panel.left', 'open'), true);
+  // Правый док при первом запуске закрыт. Открытым он показывает ассистента — первую свою
+  // панель без условия видимости, — то есть встречает человека формой ключа API, за которой
+  // он не приходил; инспектор рядом до выделения тоже пуст. Рейл справа остаётся на месте,
+  // поэтому вернуть панель — один щелчок, и с этого щелчка выбор живёт в настройках.
+  settings.registerDefault(dockSettingsKey('panel.right', 'open'), 'hidden');
 
   // 2. Источники. Вид `fs` заводит композиция, а не плагин: реестра источников в
   //    `PluginContext` нет, и до появления плагинов источников это единственное место,
