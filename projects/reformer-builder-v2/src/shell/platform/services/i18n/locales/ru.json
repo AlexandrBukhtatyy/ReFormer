@@ -217,5 +217,7 @@
   "shell.settings.plugins.dev.description": "Файлы плагина наблюдаются: правка в редакторе или возврат в окно после правки снаружи перезагружают его.",
   "shell.settings.plugins.reload": "Перезагрузить",
   "shell.settings.plugins.identity": "Идентификатор: {id} · API: {api}",
-  "shell.settings.plugins.problem": "{code}: {message} ({file})"
+  "shell.settings.plugins.problem": "{code}: {message} ({file})",
+  "shell.settings.plugins.settings.off": "Настройки доступны, когда плагин работает.",
+  "shell.settings.plugins.settings.broken": "Схему настроек этого плагина не удалось собрать: {message}"
 }

@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { toDisposable } from '@/shell/platform/primitives/disposable';
 import {
   emptyStateOf,
+  settingsCardStateOf,
   toRows,
   type PluginCatalogEntry,
   type PluginsSettingsPort,
@@ -123,4 +124,26 @@ describe('чем раздел заменяет список', () => {
   it('есть что показать — заменять нечем', () => {
     expect(emptyStateOf(port([entry({ id: 'a' })]))).toBeNull();
   });
+});
+
+describe('форма настроек в карточке', () => {
+  const rowOf = (state: 'enabled' | 'disabled' | 'failed') =>
+    toRows([entry({ id: 'a', name: 'A', state })])[0]!;
+
+  it('работает и объявил схему — рисуем форму', () => {
+    expect(settingsCardStateOf(rowOf('enabled'), true)).toBe('form');
+  });
+
+  it('работает и схемы не объявлял — не обещаем настроек вовсе', () => {
+    expect(settingsCardStateOf(rowOf('enabled'), false)).toBe('none');
+  });
+
+  it.each([['disabled'] as const, ['failed'] as const])(
+    'не работает (%s) — объясняем, а не показываем пустую форму',
+    (state) => {
+      // Вклад снимается вместе с плагином, поэтому «выключен» и «настроек нет» — разные
+      // ответы: в первом случае человеку надо включить плагин, во втором делать нечего.
+      expect(settingsCardStateOf(rowOf(state), false)).toBe('plugin-off');
+    }
+  );
 });

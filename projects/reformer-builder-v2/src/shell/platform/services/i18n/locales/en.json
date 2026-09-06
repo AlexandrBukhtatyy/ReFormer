@@ -217,5 +217,7 @@
   "shell.settings.plugins.dev.description": "The plugin files are watched: editing them here, or returning to the window after editing them elsewhere, reloads the plugin.",
   "shell.settings.plugins.reload": "Reload",
   "shell.settings.plugins.identity": "Identifier: {id} · API: {api}",
-  "shell.settings.plugins.problem": "{code}: {message} ({file})"
+  "shell.settings.plugins.problem": "{code}: {message} ({file})",
+  "shell.settings.plugins.settings.off": "Settings become available once the plugin is running.",
+  "shell.settings.plugins.settings.broken": "The settings schema of this plugin could not be built: {message}"
 }

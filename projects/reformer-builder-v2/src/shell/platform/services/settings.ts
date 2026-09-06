@@ -138,6 +138,13 @@ const SettingsDidChange = defineEvent<string>('settings.didChange');
  * Незнакомый префикс попадает в `user` сознательно: глобальная запись переживает смену
  * рабочей области, поэтому ошибка в имени ключа приводит к «настройка сохранилась не туда»,
  * а не к «настройка исчезла при открытии другого проекта».
+ *
+ * Два соглашения про плагины, и они РАЗНЫЕ:
+ * - `plugin.<id>.*` (область `user`) — встроенные плагины оболочки; живой пример
+ *   `plugin.kits.active`. Они есть всегда, и их выбор не принадлежит проекту;
+ * - `workspace.plugin.<id>.settings` — плагины КАТАЛОГА (`services/plugin-settings`).
+ *   Такой плагин лежит в `.ui_builder/plugins` открытого проекта, и его настройка вне
+ *   проекта бессмысленна: «база, настроенная в проекте A» не должна подставиться в проект B.
  */
 export function scopeForKey(key: string): SettingsScope {
   return key.startsWith('workspace.') ? 'workspace' : 'user';

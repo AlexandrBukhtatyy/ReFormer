@@ -110,6 +110,13 @@ export type {
 } from '@/shell/platform/ui/contributions/decorations';
 export { PaletteItemsPoint } from '@/shell/platform/ui/menu/palette';
 export type { PaletteItem, PaletteItemProvider } from '@/shell/platform/ui/menu/palette';
+// Настройки плагина каталога: он вносит СХЕМУ ФОРМЫ, а рисует её раздел «Плагины» окна
+// настроек — теми же компонентами, которыми билдер рисует формы. Значения плагин читает
+// сам, службой настроек по ключу `pluginSettingsKey(ctx.id)`, и там же объявляет умолчания
+// через `registerDefault` — второго источника умолчаний нет намеренно.
+export { CatalogPluginSettingsPoint } from '@/shell/platform/ui/contributions/plugin-settings';
+export type { CatalogPluginSettingsContribution } from '@/shell/platform/ui/contributions/plugin-settings';
+export { pluginSettingsKey } from '@/shell/platform/services/plugin-settings';
 export type { CommandContribution } from '@/shell/platform/primitives/command';
 export type { WhenContext, FocusTarget } from '@/shell/platform/primitives/when-context';
 

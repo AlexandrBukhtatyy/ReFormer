@@ -22,7 +22,7 @@ import type { SettingsService } from '@/shell/platform/services/settings';
 import type { ThemePreference, ThemeService } from '@/shell/platform/services/theme';
 import type { SettingsSection } from '@/shell/platform/ui/dialogs/settings-ui';
 import { createPluginsSettingsBody } from './settings/PluginsSettings';
-import type { PluginsSettingsPort } from './settings/plugins-list';
+import type { PluginSettingsHost, PluginsSettingsPort } from './settings/plugins-list';
 
 /** Ключ настройки языка. Тот же, что читает `boot` при старте. */
 export const LOCALE_SETTINGS_KEY = 'host.locale';
@@ -43,6 +43,14 @@ export interface SettingsSectionsDeps {
    * за запуск. Поле такого не выражает — см. `platform/ui/dialogs/settings-ui`.
    */
   readonly plugins?: PluginsSettingsPort | null;
+  /**
+   * Настройки САМИХ плагинов: схемы, которые они внесли, и значения к ним.
+   *
+   * Отдельно от {@link plugins}, потому что это разные способности: список плагинов есть
+   * всегда, а настройки — только когда есть кому их хранить и показывать. Без неё раздел
+   * работает ровно как работал.
+   */
+  readonly pluginSettings?: PluginSettingsHost | null;
 }
 
 /**
@@ -53,7 +61,7 @@ export interface SettingsSectionsDeps {
  */
 export function createSettingsSections(deps: SettingsSectionsDeps): readonly SettingsSection[] {
   const sections: SettingsSection[] = [];
-  const { settings, i18n, theme, plugins } = deps;
+  const { settings, i18n, theme, plugins, pluginSettings } = deps;
 
   if (theme != null) {
     sections.push({
@@ -110,7 +118,7 @@ export function createSettingsSections(deps: SettingsSectionsDeps): readonly Set
       kind: 'custom',
       id: 'plugins',
       titleKey: 'shell.settings.plugins',
-      Body: createPluginsSettingsBody(plugins),
+      Body: createPluginsSettingsBody(plugins, pluginSettings ?? null),
       // Поиск идёт по видимому тексту полей, а у тела полей нет: без этих ключей запрос
       // «плагин» отвечал бы «ничего не найдено» при живом разделе слева.
       searchKeys: ['shell.settings.plugins.description'],

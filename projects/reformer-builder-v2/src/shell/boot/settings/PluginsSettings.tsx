@@ -20,7 +20,14 @@ import { Label } from '@reformer/ui-kit/label';
 import { Separator } from '@reformer/ui-kit/separator';
 import { Settings2 } from 'lucide-react';
 import type { SettingsSectionBodyProps } from '@/shell/platform/ui/dialogs/settings-ui';
-import { emptyStateOf, toRows, type PluginRow, type PluginsSettingsPort } from './plugins-list';
+import {
+  emptyStateOf,
+  toRows,
+  type PluginRow,
+  type PluginSettingsHost,
+  type PluginsSettingsPort,
+} from './plugins-list';
+import { PluginSettingsSlot } from './PluginSettingsSlot';
 
 /** Подписка на каталог: список живой, его меняют палитра, обход проекта и авто-перезагрузка. */
 function useCatalog(port: PluginsSettingsPort): readonly PluginRow[] {
@@ -36,12 +43,36 @@ function useCatalog(port: PluginsSettingsPort): readonly PluginRow[] {
   return toRows(port.list());
 }
 
-/** Собирает тело раздела над конкретным портом. Композиция зовёт её один раз. */
+/**
+ * Подписка на настройки: состав вкладов и значения меняются мимо окна — плагин включили,
+ * перезагрузили, второе окно записало значение.
+ */
+function useSettingsHost(host: PluginSettingsHost | null): void {
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (host === null) return undefined;
+    const subscription = host.subscribe(() => {
+      force((value) => value + 1);
+    });
+    return () => {
+      subscription.dispose();
+    };
+  }, [host]);
+}
+
+/**
+ * Собирает тело раздела над конкретным портом. Композиция зовёт её один раз.
+ *
+ * Второй порт НЕОБЯЗАТЕЛЕН: список плагинов и их настройки — разные способности, и раздел
+ * обязан работать без второй (как он и работал до её появления).
+ */
 export function createPluginsSettingsBody(
-  port: PluginsSettingsPort
+  port: PluginsSettingsPort,
+  settingsHost: PluginSettingsHost | null = null
 ): (props: SettingsSectionBodyProps) => ReactElement {
   return function PluginsSettings({ i18n }: SettingsSectionBodyProps): ReactElement {
     const rows = useCatalog(port);
+    useSettingsHost(settingsHost);
     const [expanded, setExpanded] = useState<string | null>(null);
     const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
     const empty = emptyStateOf(port);
@@ -173,6 +204,18 @@ export function createPluginsSettingsBody(
                       api: row.apiVersion ?? '—',
                     })}
                   </p>
+                  {settingsHost !== null && (
+                    <PluginSettingsSlot
+                      row={row}
+                      host={settingsHost}
+                      i18n={i18n}
+                      // Отказ записи показываем строкой в карточке: молча не применившуюся
+                      // настройку человек вводит второй и третий раз.
+                      onFailure={(message) => {
+                        console.error('[shell] настройка плагина не записана', message);
+                      }}
+                    />
+                  )}
                   {row.problem !== null && (
                     <p
                       className="text-destructive"

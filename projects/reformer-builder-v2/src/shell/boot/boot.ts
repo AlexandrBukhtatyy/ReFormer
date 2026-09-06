@@ -130,7 +130,10 @@ import { createCodegenHost } from '@/shell/boot/ports/codegen';
 import { createTemplatesHost } from '@/shell/boot/ports/templates';
 import { attachFocusChecks } from '@/shell/platform/workspace/merge/divergence';
 import { installPluginStyles } from '@/shell/platform/plugin/styles';
-import type { Disposable as HostDisposable } from '@/shell/platform/primitives/disposable';
+import {
+  toDisposable,
+  type Disposable as HostDisposable,
+} from '@/shell/platform/primitives/disposable';
 import { createPreviewSessions } from '@/plugins/preview';
 import {
   createFocusRegistry,
@@ -149,6 +152,9 @@ import {
 import { createBuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import { createPluginModules } from './plugin-modules';
 import { createEagerBuiltinPlugins, loadLazyBuiltinPlugins } from './plugins';
+import { CatalogPluginSettingsPoint } from '@/shell/platform/ui/contributions/plugin-settings';
+import { createPluginSettings } from '@/shell/platform/services/plugin-settings';
+import { asFormSchema } from './settings/schema-guard';
 import type { BuiltinPluginsOptions } from './plugins';
 import {
   createProjectHost,
@@ -859,6 +865,39 @@ export function boot(options: BootOptions = {}): BuilderApp {
         reload: (id) => projectPlugins.reload(id),
         synced: () => pluginsSynced,
         hasProject: () => project.get() !== null,
+      },
+      /**
+       * Настройки самих плагинов: схемы из вкладов, значения из службы настроек.
+       *
+       * Схема здесь ПРОВЕРЯЕТСЯ — раздел получает либо пригодную, либо `null`. Проверка стоит
+       * в композиции, а не в платформе и не в теле раздела: платформа не знает про формы,
+       * а тело не должно решать, доверять ли чужому вкладу.
+       */
+      pluginSettings: {
+        schemaOf: (pluginId) => {
+          const contribution = extensions
+            .get(CatalogPluginSettingsPoint)
+            // Идентификатор вклада проставляет реестр, а не вносящий, поэтому сверка с ним —
+            // это и есть запрет «плагин настраивает соседа».
+            .find(
+              ({ pluginId: owner, value }) => owner === pluginId && value.pluginId === pluginId
+            );
+          return contribution === undefined ? null : asFormSchema(contribution.value.schema);
+        },
+        read: (pluginId) => createPluginSettings(settings, pluginId).read(),
+        write: (pluginId, values) => createPluginSettings(settings, pluginId).write(values),
+        subscribe: (listener) => {
+          // Двое меняют показанное мимо окна: состав вкладов (плагин включили, перезагрузили)
+          // и значения (второе окно, сам плагин). Подписка одна на обоих.
+          const contributions = extensions.observe(CatalogPluginSettingsPoint, listener);
+          const values = settings.onDidChange((key) => {
+            if (key.startsWith('workspace.plugin.')) listener();
+          });
+          return toDisposable(() => {
+            contributions.dispose();
+            values.dispose();
+          });
+        },
       },
     }),
     // Обе службы уходят в оболочку, а не только в реестр: тосты и диалоги рисует она,

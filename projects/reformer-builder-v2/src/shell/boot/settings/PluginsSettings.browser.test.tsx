@@ -25,7 +25,7 @@ import { toDisposable } from '@/shell/platform/primitives/disposable';
 import { renderReact } from '@/testing/render';
 import hostRu from '@/shell/platform/services/i18n/locales/ru.json';
 import { createPluginsSettingsBody } from './PluginsSettings';
-import type { PluginCatalogEntry, PluginsSettingsPort } from './plugins-list';
+import type { PluginCatalogEntry, PluginSettingsHost, PluginsSettingsPort } from './plugins-list';
 
 /** Каталог-двойник: помнит вызовы и умеет сообщить подписчикам, что список изменился. */
 function fakeCatalog(initial: readonly PluginCatalogEntry[], state?: { hasProject?: boolean }) {
@@ -69,13 +69,16 @@ function fakeCatalog(initial: readonly PluginCatalogEntry[], state?: { hasProjec
   };
 }
 
-async function mount(catalog: { port: PluginsSettingsPort }): Promise<{ unmount: () => void }> {
+async function mount(
+  catalog: { port: PluginsSettingsPort },
+  settingsHost: PluginSettingsHost | null = null
+): Promise<{ unmount: () => void }> {
   const i18n = createI18nService({
     loadHostMessages: () => Promise.resolve(hostRu as Record<string, string>),
     dev: false,
   });
   await i18n.setLocale('ru');
-  const Body = createPluginsSettingsBody(catalog.port);
+  const Body = createPluginsSettingsBody(catalog.port, settingsHost);
   return renderReact(<Body i18n={i18n} />);
 }
 
@@ -191,6 +194,98 @@ describe('раздел настроек «Плагины»', () => {
 
     const empty = page.getByTestId('settings-plugins-empty');
     await expect.element(empty).toHaveTextContent('Проект не открыт');
+    view.unmount();
+  });
+});
+
+/** Двойник настроек плагина: схема одного поля и значения в памяти. */
+function fakeSettingsHost(schema: unknown, initial: Record<string, unknown> = {}) {
+  let values = { ...initial };
+  const listeners = new Set<() => void>();
+  const writes: Record<string, unknown>[] = [];
+  const host: PluginSettingsHost = {
+    schemaOf: () => schema,
+    read: () => values,
+    write: (_id, next) => {
+      writes.push({ ...next });
+      values = { ...next };
+      for (const listener of [...listeners]) listener();
+      return Promise.resolve();
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return toDisposable(() => listeners.delete(listener));
+    },
+  };
+  return { host, writes };
+}
+
+/** Схема настроек «как её напишет автор плагина»: одно текстовое поле. */
+const ENDPOINT_SCHEMA = {
+  version: '1.0',
+  root: {
+    $nodeId: 'root',
+    component: '$html(div)',
+    children: [
+      {
+        $nodeId: 'endpoint',
+        component: '$component(Input)',
+        value: '$model(endpoint)',
+        componentProps: { label: 'Адрес сервиса', testId: 'endpoint' },
+      },
+    ],
+  },
+};
+
+describe('настройки плагина в карточке', () => {
+  it('схема плагина рисуется рендерером ReFormer, с сохранённым значением', async () => {
+    const catalog = fakeCatalog([entry({ id: 'hello', name: 'Hello', state: 'enabled' })]);
+    const settings = fakeSettingsHost(ENDPOINT_SCHEMA, { endpoint: 'https://saved.example' });
+    const view = await mount(catalog, settings.host);
+
+    await userEvent.click(page.getByTestId('settings-plugin-hello-configure'));
+
+    const form = page.getByTestId('settings-plugin-hello-settings');
+    await expect.element(form).toBeInTheDocument();
+    await expect.element(page.getByRole('textbox')).toHaveValue('https://saved.example');
+    view.unmount();
+  });
+
+  it('введённое доходит до хранилища', async () => {
+    const catalog = fakeCatalog([entry({ id: 'hello', name: 'Hello', state: 'enabled' })]);
+    const settings = fakeSettingsHost(ENDPOINT_SCHEMA, { endpoint: '' });
+    const view = await mount(catalog, settings.host);
+
+    await userEvent.click(page.getByTestId('settings-plugin-hello-configure'));
+    await userEvent.fill(page.getByRole('textbox'), 'https://typed.example');
+
+    await expect.poll(() => settings.writes.at(-1)?.endpoint).toBe('https://typed.example');
+    view.unmount();
+  });
+
+  it('плагин не работает — объясняем, а не показываем пустую форму', async () => {
+    const catalog = fakeCatalog([entry({ id: 'hello', name: 'Hello', state: 'disabled' })]);
+    const settings = fakeSettingsHost(ENDPOINT_SCHEMA);
+    const view = await mount(catalog, settings.host);
+
+    await userEvent.click(page.getByTestId('settings-plugin-hello-configure'));
+
+    await expect
+      .element(page.getByTestId('settings-plugin-hello-settings-off'))
+      .toBeInTheDocument();
+    view.unmount();
+  });
+
+  it('непригодная схема не роняет карточку, а объясняется словами', async () => {
+    const catalog = fakeCatalog([entry({ id: 'hello', name: 'Hello', state: 'enabled' })]);
+    // Композиция такую отсекает раньше, но тело обязано пережить и её: схема приходит
+    // из кода в проекте пользователя.
+    const settings = fakeSettingsHost({ version: '1.0', root: { component: '$component(Nope)' } });
+    const view = await mount(catalog, settings.host);
+
+    await userEvent.click(page.getByTestId('settings-plugin-hello-configure'));
+
+    await expect.element(page.getByTestId('settings-plugin-hello-card')).toBeInTheDocument();
     view.unmount();
   });
 });
