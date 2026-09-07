@@ -38,6 +38,10 @@
   "language": "russian",
   "permissions": {
     "allow": [
+      "Bash(*)",
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)",
       "Bash(npm:*)",
       "Bash(git:*)",
       "Edit(src/**)",
