@@ -2,12 +2,14 @@
   "$schema": "./form-schema.schema.json",
   "version": "1.0",
   "root": {
+    "$nodeId": "8emzj8fz",
     "component": "$html(div)",
     "componentProps": {
       "className": "space-y-4"
     },
     "children": [
       {
+        "$nodeId": "e2yf5n1v",
         "selector": "name",
         "value": "$model(name)",
         "component": "$component(Input)",
@@ -16,6 +18,7 @@
         }
       },
       {
+        "$nodeId": "p9ijt80t",
         "selector": "email",
         "value": "$model(email)",
         "component": "$component(Input)",
@@ -23,6 +26,14 @@
           "label": "Email",
           "type": "email"
         }
+      },
+      {
+        "$nodeId": "4cfxsohp",
+        "component": "$component(TypographyP)",
+        "componentProps": {
+          "className": "space-y-4"
+        },
+        "children": ["$model(name)"]
       }
     ]
   }
