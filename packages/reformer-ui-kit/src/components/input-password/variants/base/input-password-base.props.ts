@@ -27,6 +27,13 @@ export const inputPasswordBasePropsSchema = {
         'Показывать иконку переключения видимости (eye/eye-off). Появляется при непустом value.',
       'x-doc': { group: 'Behavior', type: 'boolean' },
     },
+    readOnly: {
+      type: 'boolean',
+      default: false,
+      description:
+        'Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.',
+      'x-doc': { group: 'State', type: 'boolean' },
+    },
     className: {
       type: 'string',
       description: 'Доп. CSS-класс.',

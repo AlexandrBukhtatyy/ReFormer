@@ -36,4 +36,8 @@ describe('TextareaField (field-версия)', () => {
     expect(html).toContain('id="control-a"');
     expect(html).toContain('aria-labelledby="label-a"');
   });
+  it('readOnly доезжает до DOM: значение видно, ввод закрыт', () => {
+    const html = renderToStaticMarkup(<TextareaField value="строка" readOnly />);
+    expect(html).toMatch(/readonly/i);
+  });
 });

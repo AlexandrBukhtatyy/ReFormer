@@ -31,6 +31,13 @@ export const textareaBasePropsSchema = {
       description: 'Максимальная длина ввода (HTML-атрибут maxLength). Не заменяет валидацию.',
       'x-doc': { group: 'Behavior', type: 'number' },
     },
+    readOnly: {
+      type: 'boolean',
+      default: false,
+      description:
+        'Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.',
+      'x-doc': { group: 'State', type: 'boolean' },
+    },
     className: {
       type: 'string',
       description: 'Доп. CSS-класс.',

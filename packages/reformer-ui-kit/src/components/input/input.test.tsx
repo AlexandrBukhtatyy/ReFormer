@@ -47,4 +47,9 @@ describe('InputField (диспетчер по type)', () => {
     expect(html).toContain('id="control-a"');
     expect(html).toContain('aria-labelledby="label-a"');
   });
+  it('readOnly доезжает до DOM: значение видно, ввод закрыт', () => {
+    const html = renderToStaticMarkup(<InputField value="Иван Петров" readOnly />);
+    expect(html).toMatch(/readonly/i);
+    expect(html).toContain('value="Иван Петров"');
+  });
 });

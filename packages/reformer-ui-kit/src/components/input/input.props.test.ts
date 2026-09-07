@@ -32,4 +32,10 @@ describe('input props-схема — страж от дрейфа', () => {
     expect(inputBasePropsSchema.properties.type.enum).toContain('number');
     expect(inputBasePropsSchema.properties.type.enum).toContain('date');
   });
+  it('readOnly объявлен: вычисляемое поле выражается без disabled', () => {
+    // disabled резолвит форма (seam), и componentProps.disabled мёртв — вычисляемому полю
+    // остаётся readOnly, поэтому он обязан быть в авторских props, а не в x-runtimeProps.
+    expect(inputBasePropsSchema.properties.readOnly.type).toBe('boolean');
+    expect(Object.keys(inputBasePropsSchema['x-runtimeProps'])).not.toContain('readOnly');
+  });
 });

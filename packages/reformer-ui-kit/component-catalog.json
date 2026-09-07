@@ -13495,6 +13495,15 @@
               "type": "string"
             }
           },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
           "required": {
             "type": "boolean",
             "default": false,
@@ -13843,6 +13852,15 @@
             "x-doc": {
               "group": "Textfield",
               "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
             }
           },
           "required": {
@@ -14202,6 +14220,15 @@
             "x-doc": {
               "group": "Textfield",
               "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
             }
           },
           "required": {
@@ -22703,6 +22730,15 @@
             "x-doc": {
               "group": "Textfield",
               "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
             }
           },
           "required": {
