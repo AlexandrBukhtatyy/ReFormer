@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reformer.dev/schemas/reformer-builder-config",
+  "title": "ReFormer Builder config",
+  "description": "Конфиг билдера из .ui_builder/config.json: уровень запуска (читает лаунчер) и уровень проекта (читается при открытии; defaults действуют только на уровне запуска). Все секции опциональны; отсутствие — встроенные дефолты.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "branding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Заголовок окна билдера."
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Значения, действующие пока человек не выбрал свои в настройках. Применяются только на уровне запуска.",
+      "properties": {
+        "locale": {
+          "type": "string",
+          "enum": ["ru", "en"],
+          "description": "Локаль интерфейса до первого выбора."
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["light", "dark", "system"],
+          "description": "Тема до первого выбора."
+        }
+      }
+    }
+  }
+}

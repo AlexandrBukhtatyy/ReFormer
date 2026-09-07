@@ -136,12 +136,12 @@
   },
   {
     "name": "@reformer/builder (корпус знаний: индекс)",
-    "path": "projects/reformer-builder/dist/assets/knowledge-index-*.js",
+    "path": "projects/reformer-builder/dist/assets/plugins/ai-knowledge-index-*.js",
     "limit": "215 kB"
   },
   {
     "name": "@reformer/builder (корпус знаний: документация)",
-    "path": "projects/reformer-builder/dist/assets/knowledge-docs-*.js",
+    "path": "projects/reformer-builder/dist/assets/plugins/ai-knowledge-docs-*.js",
     "limit": "280 kB"
   }
 ]

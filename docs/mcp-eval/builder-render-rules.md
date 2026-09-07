@@ -2,8 +2,8 @@
 
 > Замер 2026-08-25. Модель — `qwen3.8:27b` через Ollama, канал `providers/byok.ts`
 > (`openai-compatible`, `http://localhost:11434/v1`).
-> Инструмент — `set_render_rules` ([agent/core/tools/set-render-rules.ts](../../projects/reformer-builder/src/agent/core/tools/set-render-rules.ts)),
-> 971 символ поверхности. Харнесс — [agent/core/render-rules-eval.test.ts](../../projects/reformer-builder/src/agent/core/render-rules-eval.test.ts).
+> Инструмент — `set_render_rules` ([plugins/ai/tools/set-render-rules.ts](../../projects/reformer-builder/src/plugins/ai/tools/set-render-rules.ts)),
+> 971 символ поверхности. Харнесс — [plugins/ai/tools/render-rules-eval.test.ts](../../projects/reformer-builder/src/plugins/ai/tools/render-rules-eval.test.ts).
 
 ## Зачем понадобился замер
 
@@ -62,7 +62,7 @@
 
 ```bash
 cd projects/reformer-builder
-EVAL_MODEL=qwen3.8:27b npx vitest run src/agent/core/render-rules-eval.test.ts
+EVAL_MODEL=qwen3.8:27b npx vitest run src/plugins/ai/tools/render-rules-eval.test.ts
 ```
 
 Без `EVAL_MODEL` набор пропускается (`describe.skipIf`) — живой канал в обычном прогоне не нужен.

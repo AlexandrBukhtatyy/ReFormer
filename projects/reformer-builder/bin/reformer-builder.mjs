@@ -1,19 +1,25 @@
 #!/usr/bin/env node
 /**
- * reformer-builder — локальный запуск визуального билдера ReFormer-схем.
+ * reformer-builder — локальный запуск визуального билдера ReFormer.
  *
- * Опубликованный пакет несёт УЖЕ собранный SPA в `dist/` (каталог компонентов @reformer/ui-kit вшит
- * в бандл на этапе сборки). Этот скрипт — zero-dependency статик-сервер на встроенных модулях Node:
- * поднимает `dist/` на localhost и открывает браузер. Серверной логики у билдера нет — вся работа с
- * файлами проекта идёт в браузере через File System Access API (нужен Chromium-браузер).
+ * Опубликованный пакет несёт УЖЕ собранный SPA в `dist/`. Этот скрипт — zero-dependency
+ * статик-сервер на встроенных модулях Node (перенесён из первой версии билдера, она же
+ * в истории git): поднимает `dist/` на localhost и открывает браузер. Серверной
+ * логики у билдера нет — вся работа с файлами проекта идёт в браузере через File System Access
+ * (нужен Chromium-браузер).
  *
- * Клиент может передать 2 JSON-файла для локальной кастомизации: каталог компонентов (--catalog)
- * и конфиг билдера (--config). Launcher читает их с диска и отдаёт SPA по /__reformer-builder/
- * runtime.json; без флагов пытается авто-подхватить одноимённые файлы из cwd. Отсутствие файлов —
- * билдер работает на вшитых дефолтах.
+ * Конфигурация уровня запуска — ОДИН файл: конфиг билдера (брендинг, дефолты UI). Launcher
+ * читает его с диска и отдаёт SPA по `/__reformer-builder/runtime.json`; без флага `--config`
+ * пытается авто-подхватить `<cwd>/.ui_builder/config.json` — тот же конвенционный каталог,
+ * в котором живут плагины, шаблоны и цели кодогена открытого проекта. Частый случай «запустил
+ * в корне проекта и его же открыл» даёт один каталог конфигурации без дублей.
+ *
+ * Каталога компонентов (`--catalog` первой версии) здесь НЕТ намеренно: сторонний ui-kit
+ * встраивается плагином (`.ui_builder/plugins/`), а не файлом данных — плагин привозит
+ * и каталог, и код компонентов.
  *
  * Использование:
- *   npx reformer-builder [--port <n>] [--host <h>] [--no-open] [--catalog <path>] [--config <path>]
+ *   npx reformer-builder [--port <n>] [--host <h>] [--no-open] [--config <path>]
  */
 
 import { createServer } from 'node:http';
@@ -22,12 +28,11 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 
-/** URL, по которому SPA забирает клиентский bundle (совпадает с RUNTIME_BUNDLE_PATH в src/config/load). */
+/** URL, по которому SPA забирает конфиг (совпадает с RUNTIME_BUNDLE_PATH в shell/boot/runtime-config). */
 export const RUNTIME_BUNDLE_URL = '/__reformer-builder/runtime.json';
 
-/** Имена файлов для авто-детекта в cwd, если флаги `--catalog`/`--config` не заданы. */
-const DEFAULT_CATALOG_FILE = 'component-catalog.json';
-const DEFAULT_CONFIG_FILE = 'reformer-builder.config.json';
+/** Путь авто-детекта конфига в cwd, если флаг `--config` не задан. */
+const DEFAULT_CONFIG_FILE = join('.ui_builder', 'config.json');
 
 // Без хвостового разделителя: иначе `distDir + sep` даёт двойной слэш и проверка
 // границы каталога в resolveFsPath() никогда не совпадает (все запросы → 400).
@@ -64,61 +69,53 @@ async function readVersion() {
 }
 
 /**
- * Прочитать и распарсить клиентский JSON-файл. Явно переданный (`--catalog`/`--config`) файл
- * обязателен — при ошибке чтения/парсинга завершаемся с сообщением. Авто-детект: отсутствие файла
- * (ENOENT) — тихий пропуск (fallback на вшитые дефолты); присутствует, но битый JSON — ошибка
- * (файл явно предназначен к использованию).
+ * Прочитать и распарсить конфиг. Явно переданный (`--config`) файл обязателен — при ошибке
+ * чтения/парсинга завершаемся с сообщением. Авто-детект: отсутствие файла — тихий пропуск
+ * (вшитые дефолты); присутствует, но битый JSON — ошибка: файл явно предназначен
+ * к использованию, и молча проигнорировать его значило бы обмануть положившего.
  */
-async function readRuntimeFile(path, { explicit, label }) {
+async function readRuntimeFile(path, { explicit }) {
   let text;
   try {
     text = await readFile(path, 'utf8');
   } catch (err) {
     if (explicit) {
-      console.error(`reformer-builder: не удалось прочитать ${label} "${path}": ${err.message}`);
+      console.error(`reformer-builder: не удалось прочитать конфиг "${path}": ${err.message}`);
       process.exit(1);
     }
-    return null; // авто-детект: файла нет — работаем на вшитых дефолтах
+    return null;
   }
   try {
     return JSON.parse(text);
   } catch (err) {
-    console.error(`reformer-builder: невалидный JSON в ${label} "${path}": ${err.message}`);
+    console.error(`reformer-builder: невалидный JSON в конфиге "${path}": ${err.message}`);
     process.exit(1);
   }
 }
 
 /**
- * Собрать runtime-bundle для SPA из файлов клиента. Пути берутся из флагов, иначе — авто-детект
- * одноимённых файлов в cwd. Структурную валидацию делает SPA (реюз validateCatalog + AJV конфига);
- * здесь ловим только отсутствие/JSON-синтаксис.
+ * Собрать runtime-bundle для SPA. Путь берётся из флага, иначе — авто-детект
+ * `<cwd>/.ui_builder/config.json`. Структурную валидацию делает SPA (точные сообщения
+ * о полях — его словарь); здесь ловим только отсутствие и JSON-синтаксис.
  */
 export async function loadRuntimeBundle(opts, cwd) {
-  const catalogPath = resolve(cwd, opts.catalog ?? DEFAULT_CATALOG_FILE);
   const configPath = resolve(cwd, opts.config ?? DEFAULT_CONFIG_FILE);
-  const catalog = await readRuntimeFile(catalogPath, {
-    explicit: Boolean(opts.catalog),
-    label: 'каталог (--catalog)',
-  });
-  const config = await readRuntimeFile(configPath, {
-    explicit: Boolean(opts.config),
-    label: 'конфиг (--config)',
-  });
+  const config = await readRuntimeFile(configPath, { explicit: Boolean(opts.config) });
   return {
-    payload: { catalog: catalog ?? null, config: config ?? null },
-    sources: { catalog: catalog ? catalogPath : null, config: config ? configPath : null },
+    payload: { config: config ?? null },
+    sources: { config: config === null ? null : configPath },
   };
 }
 
 export function parseArgs(argv) {
   const opts = {
+    // 4321 — исторический порт билдера: он записан в чужих package.json и в памяти людей.
     port: 4321,
     host: '127.0.0.1',
     open: true,
     help: false,
     version: false,
-    // Явно переданные клиентом пути (null — не задан, будет авто-детект в cwd).
-    catalog: null,
+    /** Явно переданный путь к конфигу (null — не задан, будет авто-детект в cwd). */
     config: null,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -131,8 +128,6 @@ export function parseArgs(argv) {
     else if (a.startsWith('--port=')) opts.port = Number(a.slice('--port='.length));
     else if (a === '--host') opts.host = String(argv[++i]);
     else if (a.startsWith('--host=')) opts.host = a.slice('--host='.length);
-    else if (a === '--catalog') opts.catalog = String(argv[++i]);
-    else if (a.startsWith('--catalog=')) opts.catalog = a.slice('--catalog='.length);
     else if (a === '--config') opts.config = String(argv[++i]);
     else if (a.startsWith('--config=')) opts.config = a.slice('--config='.length);
     else {
@@ -157,13 +152,13 @@ function printHelp() {
   -p, --port <n>       Порт (по умолчанию 4321; занят — берётся следующий свободный)
       --host <h>       Хост (по умолчанию 127.0.0.1)
       --no-open        Не открывать браузер автоматически
-      --catalog <path> Каталог компонентов (JSON) для палитры/инспектора
-      --config <path>  Конфиг билдера (JSON): палитра, доступные компоненты, дефолты UI, брендинг
+      --config <path>  Конфиг билдера (JSON): брендинг, дефолты UI
   -h, --help           Показать эту справку
   -v, --version        Показать версию
 
-Без --catalog/--config билдер пытается подхватить component-catalog.json и
-reformer-builder.config.json из текущей папки; если их нет — работает на вшитых дефолтах.
+Без --config билдер пытается подхватить .ui_builder/config.json из текущей папки;
+если его нет — работает на вшитых дефолтах. Плагины, шаблоны форм и цели кодогена
+живут в .ui_builder/ ОТКРЫТОГО проекта и читаются самим приложением.
 
 Примечание: режим «открыть папку проекта» (File System Access API) работает только в
 Chromium-браузерах (Chrome/Edge/Arc/Brave).`);
@@ -201,7 +196,6 @@ function resolveFsPath(pathname) {
   } catch {
     return null;
   }
-  // Отбрасываем query/hash уже сделано вызывающим; нормализуем и запрещаем выход за distDir.
   const rel = normalize(decoded).replace(/^(\.\.(\/|\\|$))+/, '');
   const full = join(distDir, rel);
   if (full !== distDir && !full.startsWith(distDir + sep)) return null;
@@ -227,7 +221,7 @@ export function createRequestHandler(indexHtmlPath, runtimeBundleBody) {
       return;
     }
     const pathname = (req.url || '/').split('?')[0].split('#')[0];
-    // Клиентский runtime-bundle (каталог/конфиг из файлов) — отдаём ДО резолва static/dist.
+    // Конфиг уровня запуска — отдаём ДО резолва static/dist.
     if (pathname === RUNTIME_BUNDLE_URL) {
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
@@ -246,7 +240,6 @@ export function createRequestHandler(indexHtmlPath, runtimeBundleBody) {
     try {
       const info = await stat(target);
       if (info.isDirectory()) {
-        // Каталог → отдаём его index.html, иначе SPA-fallback.
         const dirIndex = join(target, 'index.html');
         try {
           await stat(dirIndex);
@@ -278,7 +271,7 @@ export function createRequestHandler(indexHtmlPath, runtimeBundleBody) {
 
 /** Поднять сервер, при EADDRINUSE — попробовать следующий порт (до +20). */
 function listenWithFallback(server, host, startPort, attemptsLeft = 20) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolvePort, reject) => {
     const tryPort = (port) => {
       const onError = (err) => {
         if (err.code === 'EADDRINUSE' && attemptsLeft > 0) {
@@ -291,7 +284,7 @@ function listenWithFallback(server, host, startPort, attemptsLeft = 20) {
       server.once('error', onError);
       server.listen(port, host, () => {
         server.removeListener('error', onError);
-        resolve(port);
+        resolvePort(port);
       });
     };
     tryPort(startPort);
@@ -315,13 +308,11 @@ async function main() {
   } catch {
     console.error(
       `reformer-builder: не найден собранный dist/ (ожидался ${indexHtmlPath}).\n` +
-        `Похоже, пакет установлен без бандла — переустановите @reformer/builder.`
+        `Похоже, пакет установлен без бандла — переустановите его.`
     );
     process.exit(1);
   }
 
-  // Клиентский конфиг/каталог из файлов (флаги или авто-детект в cwd). Отдаётся SPA по
-  // RUNTIME_BUNDLE_URL; отсутствие файлов ⇒ пустой bundle ⇒ билдер на вшитых дефолтах.
   const runtime = await loadRuntimeBundle(opts, process.cwd());
   const runtimeBundleBody = Buffer.from(JSON.stringify(runtime.payload));
 
@@ -338,7 +329,6 @@ async function main() {
   const url = `http://${displayHost}:${port}/`;
   console.log(`\n  reformer-builder v${await readVersion()}`);
   console.log(`  Локальный сервер:  ${url}`);
-  if (runtime.sources.catalog) console.log(`  Каталог из файла:  ${runtime.sources.catalog}`);
   if (runtime.sources.config) console.log(`  Конфиг из файла:   ${runtime.sources.config}`);
   console.log(`  Режим «открыть папку проекта» требует Chromium-браузер (File System Access API).`);
   console.log(`  Остановить: Ctrl+C\n`);
@@ -347,7 +337,6 @@ async function main() {
 
   const shutdown = () => {
     server.close(() => process.exit(0));
-    // На случай зависших соединений — жёсткий выход.
     setTimeout(() => process.exit(0), 500).unref();
   };
   process.on('SIGINT', shutdown);

@@ -3,7 +3,7 @@
  *
  * ## Что здесь СВОЁ, а что взято
  *
- * Взяты линковщик, реестр модулей и транспилятор (`@builder-src/host/modules/*`): копия
+ * Взяты линковщик, реестр модулей и транспилятор (`@builder-src/shell/platform/modules/*`): копия
  * разошлась бы с оригиналом на первой правке, а весь смысл демо — показать НАСТОЯЩИЙ механизм.
  * Своя здесь только сборка формы: билдер собирает её из каталога кита и аннотированной схемы,
  * а странице хватает реестра из пяти компонентов.
@@ -32,9 +32,9 @@ import * as rendererJson from '@reformer/renderer-json';
 import * as rendererReact from '@reformer/renderer-react';
 import * as signalsCore from '@preact/signals-core';
 
-import { createModuleLoader } from '@builder-src/host/modules/loader';
-import { createModuleRegistry } from '@builder-src/host/modules/registry';
-import { createTypeScriptSupport } from '@builder-src/host/plugin/typescript-transpiler';
+import { createModuleLoader } from '@builder-src/shell/platform/modules/loader';
+import { createModuleRegistry } from '@builder-src/shell/platform/modules/registry';
+import { createTypeScriptSupport } from '@builder-src/shell/platform/plugin/typescript-transpiler';
 import { createAmbient, type FormFixture } from '@builder-src/lib/form-fixture';
 
 /** Сбой сборки — данные, а не исключение: битый исходник это обычное состояние редактора. */

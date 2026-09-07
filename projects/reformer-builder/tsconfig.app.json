@@ -9,7 +9,6 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
 
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
@@ -17,7 +16,6 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -25,11 +23,17 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    /* For shadcn */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      // `vitest/browser` (пакет `vitest` в корне монорепо) реэкспортирует контекст
+      // из `@vitest/browser-playwright/context` под `@ts-ignore`, а сам провайдер npm положил
+      // НЕ в корень, а в node_modules этого проекта. Из корневого файла он не резолвится,
+      // и без этой строки тесты браузерного прогона теряют и `page`/`userEvent`,
+      // и объявление `expect.element`. На сборку не влияет: во время исполнения
+      // спецификатор разрешает Vite, а не TypeScript.
+      "vitest/browser": ["./node_modules/@vitest/browser/context"]
     }
   },
-  "include": ["src", "../../packages/reformer-ui-kit/src/lib"]
+  "include": ["src"]
 }

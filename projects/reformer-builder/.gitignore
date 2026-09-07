@@ -2,18 +2,11 @@
 logs
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
 node_modules
 dist
 dist-ssr
 *.local
-
-# Build-артефакт: рутовая копия authored-схемы конфига (источник — src/config/runtime-config.schema.json)
-/runtime-config.schema.json
 
 # Editor directories and files
 .vscode/*
@@ -21,12 +14,9 @@ dist-ssr
 .idea
 .DS_Store
 *.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
 
-# Корпус знаний ReFormer: производный артефакт сборки (генерится из packages/*/llms-*).
-# Не коммитится намеренно — его версия обязана совпадать со сборкой, а не с моментом,
-# когда его последний раз обновили руками.
-src/agent/knowledge/generated/
+# Корпус знаний ассистента: собирается из llms.txt установленных пакетов
+# (npm run generate:knowledge). Версия обязана совпадать со сборкой, а не с моментом,
+# когда его последний раз обновили руками, поэтому в git он не едет.
+src/plugins/ai/knowledge/generated/

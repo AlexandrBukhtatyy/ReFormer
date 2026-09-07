@@ -31,11 +31,16 @@ export default defineConfig({
       '@preact/signals-core',
     ],
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      // Исходники билдера v2: демо `examples/ui_builder` показывает ЕГО механизм компиляции
+      // Исходники билдера: демо `debug/ui_builder` показывает ЕГО механизм компиляции
       // формы в браузере, и копия здесь разошлась бы с оригиналом на первой же правке.
       // Тот же приём, каким tsconfig уже включает исходники ui-kit.
-      '@builder-src': path.resolve(__dirname, '../reformer-builder-v2/src'),
+      //
+      // `@/shell` обязан стоять ВЫШЕ `@`: vite перебирает псевдонимы по порядку, а модули
+      // билдера ходят друг к другу через собственный `@/…` — без этой записи первым совпал
+      // бы `@` playground'а и увёл их в его src.
+      '@/shell': path.resolve(__dirname, '../reformer-builder/src/shell'),
+      '@builder-src': path.resolve(__dirname, '../reformer-builder/src'),
+      '@': path.resolve(__dirname, './src'),
     },
   },
 });

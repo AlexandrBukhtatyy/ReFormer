@@ -1,5 +1,5 @@
 {
-  "$schema": "../../projects/reformer-builder/src/catalog/component-catalog.schema.json",
+  "$schema": "../../projects/reformer-builder/src/lib/catalog/component-catalog.schema.json",
   "version": "2.0",
   "kit": {
     "styles": {

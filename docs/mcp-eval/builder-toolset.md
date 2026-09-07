@@ -7,7 +7,7 @@
 ## Ограничение, из которого всё следует
 
 Поверхность инструментов редактора в билдере — **7684 символа при храповике 7700**
-(`TOOL_SURFACE_BUDGET`, `projects/reformer-builder/src/agent/core/types.ts`). Свободно
+(`TOOL_SURFACE_BUDGET`, `projects/reformer-builder/src/plugins/ai/model/types.ts`). Свободно
 **шестнадцать символов**. Измерено по той же формуле, которой меряет себя сам билдер
 (`registry.test.ts`): JSON от массива `{name, description, inputSchema}`.
 

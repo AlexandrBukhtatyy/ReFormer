@@ -1,6 +1,6 @@
 /**
- * Типы для тестируемых экспортов launcher'а (`reformer-builder.mjs` — zero-dependency JS без
- * деклараций). Позволяет `.ts`-тестам импортировать хелперы без implicit-any (TS7016).
+ * Типы для тестируемых экспортов лаунчера (`reformer-builder.mjs` — zero-dependency JS без
+ * деклараций). Позволяют `.ts`-тестам импортировать хелперы без implicit-any (TS7016).
  */
 
 export interface LauncherOpts {
@@ -9,24 +9,22 @@ export interface LauncherOpts {
   open: boolean;
   help: boolean;
   version: boolean;
-  /** Путь к каталогу компонентов (`--catalog`) или `null` (авто-детект в cwd). */
-  catalog: string | null;
-  /** Путь к конфигу билдера (`--config`) или `null` (авто-детект в cwd). */
+  /** Путь к конфигу билдера (`--config`) или `null` (авто-детект `.ui_builder/config.json` в cwd). */
   config: string | null;
 }
 
 export interface RuntimeBundleResult {
-  payload: { catalog: unknown; config: unknown };
-  sources: { catalog: string | null; config: string | null };
+  payload: { config: unknown };
+  sources: { config: string | null };
 }
 
-/** URL раздачи клиентского bundle. */
+/** URL раздачи конфига запуска. */
 export const RUNTIME_BUNDLE_URL: string;
 
 export function parseArgs(argv: string[]): LauncherOpts;
 
 export function loadRuntimeBundle(
-  opts: { catalog: string | null; config: string | null },
+  opts: { config: string | null },
   cwd: string
 ): Promise<RuntimeBundleResult>;
 

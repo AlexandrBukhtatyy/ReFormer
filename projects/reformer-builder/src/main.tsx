@@ -1,26 +1,41 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import App from './App';
+import { boot } from './shell/boot/boot';
+import { fetchRuntimeConfig } from './shell/boot/runtime-config';
 import './index.css';
 
-// Async-бут: сперва загружаем клиентский runtime-конфиг/каталог (config/boot), и ТОЛЬКО ПОТОМ
-// динамически импортируем App. Это обязательно — граф `store`/`catalog` инициализируется на импорте
-// модулей (editorStore = createStore(initialUi()), мемо getCatalog()), поэтому конфиг должен быть
-// установлен до того, как эти модули подтянутся. При невалидном переданном файле — экран BootError.
-const root = createRoot(document.getElementById('root')!);
+// Бут синхронный — в отличие от v1, где он async из-за модульной мемоизации в графе
+// `store`/`catalog` (конфиг обязан встать до первого импорта этих модулей). В v2 такого графа
+// нет: реестры и сервисы создаются явно, а не на импорте.
+//
+// Единственное, что стоит ПЕРЕД бутом, — конфиг уровня запуска от лаунчера
+// (`.ui_builder/config.json` каталога, где сделали `npx reformer-builder`). Это не возврат
+// старой болезни: сам boot остаётся синхронным и получает конфиг ПАРАМЕТРОМ, а ждать ответ
+// приходится потому, что дефолты темы и локали применяются регистрацией умолчаний настроек —
+// она однократная и происходит при сборке. Заход один, на localhost, и отказ (нет лаунчера —
+// vite dev, чужой статик-сервер) — это штатный `null`: билдер работает на вшитых дефолтах.
+void fetchRuntimeConfig().then((runtime) => {
+  const app = boot({ runtime });
+  const root = createRoot(document.getElementById('root')!);
 
-(async () => {
-  const { bootRuntime } = await import('./config/boot');
-  try {
-    await bootRuntime();
-  } catch (err) {
-    const { BootError } = await import('./config/BootError');
-    root.render(<BootError error={err} />);
-    return;
-  }
-  const { default: App } = await import('./App.tsx');
-  root.render(
-    <StrictMode>
-      <App />
-    </StrictMode>
-  );
-})();
+  // Отрисовка ждёт `ready` — шаги 2–3 последовательности запуска (настройки, словари, плагины).
+  // Это не «загрузочный экран»: обе вещи читаются оболочкой **один раз** при монтировании —
+  // раскладка панелей и словарь локали, — поэтому отрисовка раньше означала бы не «быстрее»,
+  // а «сохранённые размеры не применились и вместо строк маркеры промаха».
+  //
+  // Отказ уже обработан внутри `boot`, поэтому `then` здесь один и без ветки ошибки:
+  // приложение обязано открыться даже с недогруженными настройками.
+  void app.ready.then(() => {
+    root.render(
+      <StrictMode>
+        <App app={app} />
+      </StrictMode>
+    );
+
+    // Шаг 5: восстановление последнего проекта — ПОСЛЕ отрисовки и не блокируя её. Оно ждёт
+    // IndexedDB и, возможно, разрешения на каталог, а «проект не открыт» — это нормальное
+    // состояние интерфейса, которое обязано быть видно сразу.
+    void app.restore();
+  });
+});

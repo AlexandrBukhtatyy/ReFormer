@@ -502,7 +502,7 @@ const components = [...rich, ...minimal, ...parts, ...extra].sort((a, b) =>
 );
 // $schema — ссылка на контракт билдера (владелец схемы) для валидации/подсказок в IDE.
 // Относительный путь от расположения этого файла (packages/reformer-ui-kit/) до схемы.
-const SCHEMA_REF = '../../projects/reformer-builder/src/catalog/component-catalog.schema.json';
+const SCHEMA_REF = '../../projects/reformer-builder/src/lib/catalog/component-catalog.schema.json';
 // Блок `kit` — то, что кит рассказывает о себе сам. Пока это только стили: словарь классов для
 // автодополнения `className` в билдере (своего списка билдер НЕ держит) и дефолт «чем разрешено
 // стилизовать» по роли — полю можно править расположение в форме, но не вид. Остальные поля
