@@ -142,6 +142,9 @@ jobs:
         # токенов/вызовов. Метод и вскрытые ограничения — docs/mcp-eval/README.md.
         run: npm run mcp:evaluate
 
+      - name: Build @reformer/builder
+        run: npm run build -w @reformer/builder
+
       - name: Run @reformer/builder tests
         # Юниты билдера в CI не гонялись вовсе, и это оставляло без охраны храповик
         # `TOOL_SURFACE_BUDGET` (src/plugins/ai/model/types.ts, тест src/plugins/ai/tools/
