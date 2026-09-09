@@ -62,7 +62,7 @@
     "@reformer/cdk": "*",
     "@reformer/renderer-react": "*",
     "@reformer/ui-kit": "*",
-    "typescript": ">=5.0.0"
+    "typescript": ">=5.0.0 <=5.7.0"
   },
   "peerDependenciesMeta": {
     "@reformer/core": {
