@@ -30,11 +30,8 @@ import {
 } from '@/shell/platform/workspace/storage/testing';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { createSchemaModelProvider } from '@/plugins/editor-schema/model/provider';
-import {
-  createFocusRegistry,
-  createViewStateRegistry,
-  monacoEditorContribution,
-} from '@/plugins/editor-monaco';
+import { createViewStateRegistry, monacoEditorContribution } from '@/plugins/editor-monaco';
+import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createProjectHost } from '@/shell/boot/project/project';
 import { createSchemaHost } from '@/shell/boot/ports/schema';
@@ -351,7 +348,7 @@ describe('тело редактора кода', () => {
     const h = harness();
     const deps = {
       host: h.monaco,
-      focus: createFocusRegistry(),
+      focus: createTextEditorFocusRegistry(),
       viewStates: createViewStateRegistry(),
     };
 

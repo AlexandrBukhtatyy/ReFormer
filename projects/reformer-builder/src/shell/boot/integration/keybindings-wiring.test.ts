@@ -31,7 +31,7 @@ import { provablyDisjoint } from '@/shell/platform/primitives/when-expr';
 import { readWhenContext } from '@/shell/platform/services/context-keys';
 import { shouldDispatch } from '@/shell/platform/ui/keyboard/keybindings';
 import { whenContext } from '@/shell/platform/primitives/when-context';
-import { createFocusRegistry } from '@/plugins/editor-monaco';
+import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 import { createBuiltinPlugins } from '../plugins';
 
 /**
@@ -76,7 +76,7 @@ async function builtinCommands(): Promise<readonly CommandContribution[]> {
       },
       files: stubHost(),
       monaco: stubHost(),
-      monacoFocus: createFocusRegistry(),
+      monacoFocus: createTextEditorFocusRegistry(),
       markdown: stubHost(),
       schema: stubHost(),
       ai: stubHost(),

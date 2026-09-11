@@ -44,6 +44,7 @@ import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
+import type { TextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 
 // Статические: их значения нужны композиции или их отделение стоит дороже, чем даёт.
 import type { FilesHost } from '@/plugins/files';
@@ -52,7 +53,6 @@ import type { ViewStateRegistry } from '@/plugins/editor-monaco';
 import {
   createMonacoEditorPlugin,
   MONACO_PLUGIN_ID,
-  type MonacoFocusRegistry,
   type MonacoHost,
 } from '@/plugins/editor-monaco';
 import { createKitsPlugin, KITS_PLUGIN_ID } from '@/plugins/kits';
@@ -84,14 +84,16 @@ export interface BuiltinPluginsOptions {
   /** Порт платформы для редактора Monaco. */
   readonly monaco: MonacoHost;
   /**
-   * Общий реестр фокуса Monaco.
+   * Общий реестр фокуса текстового редактора — платформенный.
    *
-   * **Обязан быть тем же объектом**, что уходит в `createModelDocument({ isTextEditorFocused })`.
-   * Это условие правильности, а не удобство подключения: перерисовка буфера по модели
-   * откладывается, пока человек печатает, и «печатает ли он» знает только редактор. Два реестра
-   * означали бы, что ход ассистента затирает набранное на полуслове.
+   * **Обязан быть тем же объектом**, что зарегистрирован службой `TextEditorFocusToken` и
+   * уходит в `createDocumentModels({ isTextEditorFocused })`. Это условие правильности, а не
+   * удобство подключения: перерисовка буфера по модели откладывается, пока человек печатает,
+   * и «печатает ли он» знает только редактор. Два реестра означали бы, что ход ассистента
+   * затирает набранное на полуслове. Значением, а не службой, — потому что тело Monaco
+   * одалживают порты markdown и схемы до активации плагина.
    */
-  readonly monacoFocus: MonacoFocusRegistry;
+  readonly monacoFocus: TextEditorFocusRegistry;
   /**
    * Реестр снимков вида Monaco.
    *

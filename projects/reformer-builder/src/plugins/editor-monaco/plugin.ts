@@ -24,11 +24,12 @@ import { createElement } from 'react';
 import {
   definePlugin,
   EditorPoint,
+  TextEditorFocusToken,
   type EditorContribution,
   type Plugin,
   type ResourceId,
+  type TextEditorFocusRegistry,
 } from '@/sdk';
-import { createFocusRegistry, type MonacoFocusRegistry } from './sync/focus';
 import type { MessageSink, MonacoHost } from './host';
 import { MONACO_EDITOR_PRIORITY } from './runtime/language';
 import { contributeMessages, resolveMessageSink } from './messages';
@@ -45,13 +46,17 @@ export interface MonacoEditorPluginOptions {
   /** Порт платформы. Подставляется композицией — см. `./host`. */
   readonly host: MonacoHost;
   /**
-   * Реестр фокуса.
+   * Реестр фокуса текстового редактора — платформенный, см. `TextEditorFocusToken` в `@/sdk`.
    *
-   * Тот же объект обязан достаться рабочей области (`createModelDocument({ isTextEditorFocused })`),
-   * иначе перерисовка буфера по модели будет затирать набранное. Плагин создаст свой, если
-   * его не дали, — но тогда ответ на вопрос «в фокусе ли редактор» никто, кроме него, не увидит.
+   * Тот же объект композиция регистрирует службой и отдаёт рабочей области
+   * (`attachDocumentModel({ isTextEditorFocused })`): иначе перерисовка буфера по модели
+   * затирала бы набранное. Опция нужна, потому что тело редактора одалживают markdown и
+   * редактор схемы через {@link monacoEditorContribution} ДО активации плагина — то есть
+   * до того, как у него есть `ctx.services`. Без опции плагин берёт службу при активации.
+   * Своего реестра он не заводит: это был бы второй ответ на вопрос «печатает ли человек»,
+   * которого рабочая область не увидит.
    */
-  readonly focus?: MonacoFocusRegistry;
+  readonly focus?: TextEditorFocusRegistry;
   /** Реестр снимков вида. Обычно создаётся плагином; параметр — ради тестов. */
   readonly viewStates?: ViewStateRegistry;
   /**
@@ -76,7 +81,7 @@ export interface MonacoEditorPluginOptions {
  */
 export function monacoEditorContribution(options: {
   readonly host: MonacoHost;
-  readonly focus: MonacoFocusRegistry;
+  readonly focus: TextEditorFocusRegistry;
   readonly viewStates: ViewStateRegistry;
 }): EditorContribution {
   const { host, focus, viewStates } = options;
@@ -110,12 +115,15 @@ export function monacoEditorContribution(options: {
  */
 export function createMonacoEditorPlugin(options: MonacoEditorPluginOptions): Plugin {
   const host = options.host;
-  const focus = options.focus ?? createFocusRegistry();
   const viewStates = options.viewStates ?? createViewStateRegistry();
 
   return definePlugin({
     id: MONACO_PLUGIN_ID,
     activate(ctx) {
+      // Служба Host: композиция регистрирует её до активации любого плагина, поэтому `require`
+      // здесь законен — правило «искать сервис в момент использования» про сервисы ЧУЖИХ
+      // плагинов. Без реестра редактор не имеет права работать: набранное терялось бы молча.
+      const focus = options.focus ?? ctx.services.require(TextEditorFocusToken);
       const sink = resolveMessageSink(ctx, options.i18n);
       if (sink !== null) contributeMessages(sink);
 

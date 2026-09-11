@@ -128,6 +128,8 @@ import { attachPreviewLifecycle, createPreviewHost } from '@/shell/boot/ports/pr
 import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
 import { createCodegenHost } from '@/shell/boot/ports/codegen';
 import { createTemplatesHost } from '@/shell/boot/ports/templates';
+import { createDocumentsService } from '@/shell/boot/ports/documents';
+import { DocumentsServiceToken } from '@/shell/platform/services/documents';
 import { attachFocusChecks } from '@/shell/platform/workspace/merge/divergence';
 import { installPluginStyles } from '@/shell/platform/plugin/styles';
 import {
@@ -135,11 +137,11 @@ import {
   type Disposable as HostDisposable,
 } from '@/shell/platform/primitives/disposable';
 import { createPreviewSessions } from '@/plugins/preview';
+import { createViewStateRegistry, monacoEditorContribution } from '@/plugins/editor-monaco';
 import {
-  createFocusRegistry,
-  createViewStateRegistry,
-  monacoEditorContribution,
-} from '@/plugins/editor-monaco';
+  createTextEditorFocusRegistry,
+  TextEditorFocusToken,
+} from '@/shell/platform/workspace/model/text-editor-focus';
 import { KitsServiceToken } from '@/plugins/kits';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
@@ -417,12 +419,16 @@ export function boot(options: BootOptions = {}): BuilderApp {
   //    а база у них одна, и открывать её на каждую было бы четырьмя соединениями вместо одного.
   //    Само хранилище создано выше — его же делят настройки.
   const validation = createValidationOrchestrator({ extensions, diagnostics });
-  // Реестр фокуса Monaco создаётся ЗДЕСЬ, потому что читателей у него двое: сам редактор
-  // («перерисовывать ли буфер прямо сейчас») и надстройка модели над открываемым документом
-  // (`attachDocumentModel({ isTextEditorFocused })`). Два реестра означали бы, что ход
-  // ассистента затирает набранное на полуслове, поэтому объект обязан быть одним — и он
-  // уходит и в сессию, и в плагин.
-  const monacoFocus = createFocusRegistry();
+  // Реестр фокуса текстового редактора — платформенный (`workspace/model/text-editor-focus`)
+  // и создаётся ЗДЕСЬ, потому что читателей у него двое: надстройка модели над открываемым
+  // документом (`attachDocumentModel({ isTextEditorFocused })`) и каждый текстовый редактор
+  // («перерисовывать ли буфер прямо сейчас»). Два реестра означали бы, что ход ассистента
+  // затирает набранное на полуслове, поэтому объект обязан быть одним: он уходит в сессию,
+  // в службу `TextEditorFocusToken` — единственный путь к нему для внешнего редактора из
+  // каталога проекта — и значением в опцию Monaco: его тело одалживают markdown и редактор
+  // схемы через `monacoEditorContribution`, то есть реестр нужен им до активации плагина.
+  const monacoFocus = createTextEditorFocusRegistry();
+  services.register(TextEditorFocusToken, monacoFocus);
   // Снимки вида создаются здесь, а не внутри плагина: их делит с ним предпросмотр markdown,
   // и два реестра означали бы потерю позиции курсора при каждом переключении режима.
   const monacoViewStates = createViewStateRegistry();
@@ -446,6 +452,13 @@ export function boot(options: BootOptions = {}): BuilderApp {
   // Строка состояния получает ОДИН источник на всё время жизни приложения: смена проекта
   // для неё — смена содержимого, а не смена источника.
   const status = createProjectStatusSource(project);
+  // Служба документов — рабочая область по адресу, видимому через `ctx.services`. Встроенные
+  // редакторы получают её портами, а плагину из каталога проекта порт никто не соберёт: без
+  // этой регистрации внешний редактор кода невозможен. Стоит ПОСЛЕ держателя проекта, потому
+  // что читает его на каждый вызов, и ДО плагинов, потому что они спрашивают её при активации.
+  // Без проекта отвечает как порты — `null` и отказом записи.
+  const documents = createDocumentsService({ project });
+  services.register(DocumentsServiceToken, documents);
 
   const plugins = createPluginRegistry({
     services,
@@ -953,6 +966,7 @@ export function boot(options: BootOptions = {}): BuilderApp {
       pluginModules.dispose();
       plugins.deactivateAll();
       previewLifecycle.dispose();
+      documents.dispose();
       project.dispose();
       status.dispose();
       validation.dispose();

@@ -38,8 +38,7 @@ import Editor, { type Monaco, type OnMount } from '@monaco-editor/react';
 import type { editor as MonacoEditor } from 'monaco-editor';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import { Skeleton } from '@reformer/ui-kit/skeleton';
-import type { DiagnosticSeverity, ResourceId } from '@/sdk';
-import type { MonacoFocusRegistry } from '../sync/focus';
+import type { DiagnosticSeverity, ResourceId, TextEditorFocusRegistry } from '@/sdk';
 import type { MonacoDocument, MonacoHost, Translate } from '../host';
 import { shouldStopPropagation } from '../sync/input';
 import { languageFor, modelPathFor } from '../runtime/language';
@@ -120,7 +119,7 @@ function LoadingSkeleton({ label }: { label: string }): ReactElement {
 
 export interface MonacoEditorProps {
   readonly host: MonacoHost;
-  readonly focus: MonacoFocusRegistry;
+  readonly focus: TextEditorFocusRegistry;
   readonly viewStates: ViewStateRegistry;
   readonly documentId: ResourceId;
 }

@@ -208,6 +208,33 @@ export type { NotificationsService } from '@/shell/platform/services/notificatio
 export { DiagnosticsServiceToken } from '@/shell/platform/services/diagnostics/service';
 export type { DiagnosticsService } from '@/shell/platform/services/diagnostics/service';
 
+// Документы — рабочая область в объёме редактора: текст открытой вкладки, запись, активный
+// ресурс. Без этой службы внешний плагин из каталога проекта не может быть редактором кода:
+// его тело получает только `documentId`, а прочитать или записать текст средствами SDK было
+// нечем — встроенные редакторы получают рабочую область портами, которые собирает композиция.
+// Запись здесь — ТА ЖЕ дверь, что у человека и ассистента (`Workspace.writeText`): в рабочую
+// копию, наружу только через сохранение оболочки; поэтому отдельных прав редактору не нужно,
+// а `WriteOptions` лишь называет автора правки для журнала. `Document` — настоящий тип
+// платформы, а не копия: подписка на смену текста у копии молчала бы.
+export { DocumentsServiceToken } from '@/shell/platform/services/documents';
+export type { DocumentsService, OpenDocumentOptions } from '@/shell/platform/services/documents';
+export type { Document } from '@/shell/platform/workspace/document';
+export type { WriteOptions } from '@/shell/platform/workspace/workspace';
+
+// Фокус текстового редактора — контракт КАЖДОГО редактора текста, а не опция встроенного.
+// Рабочая область откладывает перерисовку буфера по модели (ход ассистента, структурная
+// правка), пока человек печатает, и «печатает ли он» узнаёт только отсюда. Редактор, который
+// сюда не пишет, теряет набранное молча: ошибок не будет, буфер просто перепишут под руками.
+// Обязанности редактора: `setFocused(id, true)` — текстовое поле документа получило фокус;
+// `setFocused(id, false)` — потеряло, и ПОТОМ просьба к рабочей области догнать буфер
+// (`flush` ручки документа: у Monaco это порт `MonacoHost.flush`; в `DocumentsService` глагола
+// пока нет, и без него буфер догонит модель при следующей её правке или сохранении). Порядок
+// несущий: `flush` спрашивает этот же реестр и при живом фокусе отложит перерисовку снова.
+// Образец — обработчики фокуса в `plugins/editor-monaco/ui/MonacoEditor.tsx`.
+// Токен, а не фабрика: реестр один на приложение, его создаёт и регистрирует композиция.
+export { TextEditorFocusToken } from '@/shell/platform/workspace/model/text-editor-focus';
+export type { TextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
+
 // Выделение — общий канал между плагинами, которые показывают ОДИН документ с разных сторон
 // (канвас редактора схемы и превью). Он обязан быть здесь, а не портом от композиции: плагины
 // не импортируют друг друга, поэтому единственный способ договориться о выделении — общая

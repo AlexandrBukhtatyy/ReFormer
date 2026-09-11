@@ -9,8 +9,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { PluginContext, ResourceRef } from '@/sdk';
-import { createFocusRegistry } from './sync/focus';
+import {
+  TextEditorFocusToken,
+  type PluginContext,
+  type ResourceRef,
+  type TextEditorFocusRegistry,
+} from '@/sdk';
 import type { MonacoHost } from './host';
 import { MONACO_EDITOR_PRIORITY } from './runtime/language';
 import {
@@ -47,10 +51,18 @@ function fakeHost(overrides: Partial<MonacoHost> = {}): MonacoHost {
   };
 }
 
+/**
+ * Подставной реестр фокуса. Настоящий — служба платформы, и плагин видит его только типом
+ * из `@/sdk`; здесь проверяется, что плагин берёт ЧУЖОЙ реестр, а не заводит свой.
+ */
+function fakeFocus(): TextEditorFocusRegistry {
+  return { isFocused: () => false, setFocused: () => {}, hasFocus: () => false };
+}
+
 function contribution() {
   return monacoEditorContribution({
     host: fakeHost(),
-    focus: createFocusRegistry(),
+    focus: fakeFocus(),
     viewStates: createViewStateRegistry(),
   });
 }
@@ -97,7 +109,7 @@ describe('состояние вида', () => {
     const viewStates = createViewStateRegistry();
     const editor = monacoEditorContribution({
       host: fakeHost(),
-      focus: createFocusRegistry(),
+      focus: fakeFocus(),
       viewStates,
     });
     viewStates.record('fs:a.ts', { scrollTop: 40, scrollLeft: 0, line: 5, column: 2 });
@@ -118,7 +130,7 @@ describe('состояние вида', () => {
     const viewStates = createViewStateRegistry();
     const editor = monacoEditorContribution({
       host: fakeHost(),
-      focus: createFocusRegistry(),
+      focus: fakeFocus(),
       viewStates,
     });
     expect(() => {
@@ -132,6 +144,7 @@ describe('createMonacoEditorPlugin', () => {
   function fakeContext() {
     const contributed: { point: string; id: string | undefined }[] = [];
     const locales: string[] = [];
+    const required: string[] = [];
     const subscriptions: { dispose: () => void }[] = [];
     const ctx = {
       id: MONACO_PLUGIN_ID,
@@ -141,6 +154,13 @@ describe('createMonacoEditorPlugin', () => {
           locales.push(locale);
         },
       },
+      // Службы Host: реестр фокуса композиция регистрирует до активации плагинов.
+      services: {
+        require: (token: { id: string }) => {
+          required.push(token.id);
+          return fakeFocus();
+        },
+      },
       extensions: {
         contribute: (point: { id: string }, _value: unknown, meta?: { id?: string }) => {
           contributed.push({ point: point.id, id: meta?.id });
@@ -148,7 +168,7 @@ describe('createMonacoEditorPlugin', () => {
         },
       },
     } as unknown as PluginContext;
-    return { ctx, contributed, locales, subscriptions };
+    return { ctx, contributed, locales, required, subscriptions };
   }
 
   it('вносит редактор в точку расширения и кладёт снятие в подписки', () => {
@@ -174,6 +194,7 @@ describe('createMonacoEditorPlugin', () => {
 
     createMonacoEditorPlugin({
       host: fakeHost(),
+      focus: fakeFocus(),
       i18n: {
         contribute: (locale: string) => {
           locales.push(locale);
@@ -184,13 +205,20 @@ describe('createMonacoEditorPlugin', () => {
     expect(locales.sort()).toEqual(['en', 'ru']);
   });
 
-  it('пользуется ОБЩИМ реестром фокуса, а не заводит свой', () => {
-    const focus = createFocusRegistry();
-    const plugin = createMonacoEditorPlugin({ host: fakeHost(), focus });
+  it('пользуется ОБЩИМ реестром фокуса из опции, а не заводит свой', () => {
+    const { ctx, required } = fakeContext();
+    const plugin = createMonacoEditorPlugin({ host: fakeHost(), focus: fakeFocus() });
     expect(plugin.id).toBe(MONACO_PLUGIN_ID);
-    // Реестр отдан плагину, но остаётся тем же объектом: тот же уходит в рабочую область.
-    focus.setFocused('fs:a.ts', true);
-    expect(focus.isFocused('fs:a.ts')).toBe(true);
+    plugin.activate(ctx);
+    // Реестр дан значением — службу плагин не спрашивает: второй объект был бы вторым ответом
+    // на вопрос «печатает ли человек», и рабочая область его бы не увидела.
+    expect(required).toEqual([]);
+  });
+
+  it('без опции берёт реестр фокуса из службы платформы — той же, что читает рабочая область', () => {
+    const { ctx, required } = fakeContext();
+    createMonacoEditorPlugin({ host: fakeHost() }).activate(ctx);
+    expect(required).toEqual([TextEditorFocusToken.id]);
   });
 
   it('на активации ничего не грузит: Monaco приходит с первым открытым файлом', () => {

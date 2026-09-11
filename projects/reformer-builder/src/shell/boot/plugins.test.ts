@@ -26,7 +26,7 @@ import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
 import { EditorPoint, resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
-import { createFocusRegistry } from '@/plugins/editor-monaco';
+import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 import {
   createBuiltinPlugins,
   createEagerBuiltinPlugins,
@@ -101,7 +101,7 @@ async function harness() {
     },
     files: stubHost(),
     monaco: stubHost(),
-    monacoFocus: createFocusRegistry(),
+    monacoFocus: createTextEditorFocusRegistry(),
     markdown: stubHost(),
     schema: stubHost(),
     ai: stubHost(),
@@ -393,7 +393,7 @@ describe('две фазы: что едет в entry, а что своим фай
       i18n: { forPlugin: () => ({ t: (key: string) => key, contribute: () => {} }) },
       files: stubHost(),
       monaco: stubHost(),
-      monacoFocus: createFocusRegistry(),
+      monacoFocus: createTextEditorFocusRegistry(),
       markdown: stubHost(),
       schema: stubHost(),
       ai: stubHost(),
