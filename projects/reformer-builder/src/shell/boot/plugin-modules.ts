@@ -7,13 +7,19 @@
  * и настоящий `react/jsx-runtime` сажает сюда композиция — единственный слой, которому
  * можно всё, — и ровно поэтому подмена этих имён плагином невыразима, а не запрещена.
  *
- * ## Почему именно эти три
+ * ## Почему именно эти четыре
  *
  * `@builder/sdk` — то, ради чего `sdk/` существует: буквально тот объект, который загрузчик
  * подставляет плагину. Второй экземпляр означал бы плагин, регистрирующий вклады в чужой
  * пустой реестр. React и его `jsx-runtime` — потому что панель плагина обязана строиться тем же
  * React, что и оболочка: два React дают два дерева хуков, а транспилированный `.tsx` требует
  * `react/jsx-runtime` по имени.
+ *
+ * `react-dom` добавлен последним и по необходимости: вклад плагина рисуется деревом оболочки
+ * не всегда. Поверхность превью монтируют СВОИМ корнем (`createRoot` из `react-dom/client`,
+ * см. `plugins/preview/surface/mount`), а портал зовёт `createPortal` из корня пакета. Пока
+ * этих имён в реестре не было, внешнему плагину было нечем нарисовать форму вовсе: React он
+ * получал, а смонтировать его не мог. Цена нулевая — пакет и так в графе оболочки.
  *
  * ## Почему `@reformer/*` здесь всё-таки появился
  *
@@ -61,6 +67,8 @@
 
 import * as react from 'react';
 import * as jsxRuntime from 'react/jsx-runtime';
+import * as reactDom from 'react-dom';
+import * as reactDomClient from 'react-dom/client';
 import * as signalsCore from '@preact/signals-core';
 import * as reformerCore from '@reformer/core';
 import * as reformerBehaviors from '@reformer/core/behaviors';
@@ -94,6 +102,8 @@ const BUILTINS: readonly (readonly [string, unknown])[] = [
   ['@builder/sdk', sdk],
   ['react', react],
   ['react/jsx-runtime', jsxRuntime],
+  ['react-dom', reactDom],
+  ['react-dom/client', reactDomClient],
 
   // Уже в графе билдера: регистрация бесплатна по чанкам.
   ['@preact/signals-core', signalsCore],

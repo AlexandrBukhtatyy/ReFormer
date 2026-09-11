@@ -18,6 +18,8 @@ import { createMemorySource } from '@/shell/platform/source/memory';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
 import type { Source } from '@/shell/platform/source/types';
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
+import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
+import { createLinesProvider } from '@/shell/platform/workspace/model/testing';
 import { createWorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 import { createWorkspaceFileStore } from '@/shell/platform/workspace/storage/opfs';
 import {
@@ -36,11 +38,18 @@ function harness() {
   const meta = createWorkspaceMetaStore({ factory, databaseName: `meta-documents-${seq}` });
   const opfs = createMemoryOpfs();
   const sources = createSourceRegistry();
+  // Модельный документ нужен ровно одному вопросу — `flush`. Провайдер строк из платформенных
+  // двойников надстраивает модель над `.lines`; остальные файлы остаются текстовыми, и на них
+  // проверяется, что `flush` над ними безвреден.
+  const extensions = createExtensionRegistry();
+  extensions.forPlugin('lines').contribute(DocumentModelPoint, createLinesProvider());
+  /** Кто «в фокусе»: тот самый ответ, по которому платформа откладывает перерисовку буфера. */
+  const focused = new Set<ResourceId>();
 
   const sourceId = `mem${seq}`;
   const source: Source = {
     ...createMemorySource(
-      { 'readme.md': '# привет', 'notes.txt': 'заметка' },
+      { 'readme.md': '# привет', 'notes.txt': 'заметка', 'notes.lines': 'n1 alpha' },
       { id: sourceId, label: `src-${seq}`, writable: true }
     ),
     descriptor: { kind: 'fs', handleKey: sourceId },
@@ -54,8 +63,8 @@ function harness() {
     handles: { keys: () => Promise.resolve([]) } as never,
     meta,
     whenContext: createWhenContextStore(),
-    extensions: createExtensionRegistry(),
-    isTextEditorFocused: () => false,
+    extensions,
+    isTextEditorFocused: (id) => focused.has(id),
     diagnostics: createDiagnosticsService(),
     supported: () => true,
     createFiles: (workspaceId) =>
@@ -70,6 +79,7 @@ function harness() {
   return {
     project,
     documents,
+    focused,
     id: (path: string): ResourceId => `${sourceId}:${path}`,
     open: async (path: string) => {
       await meta.putWorkspace({
@@ -207,6 +217,38 @@ describe('служба документов: пометка происхожде
 
     expect(marks).toEqual([undefined]);
     documents.dispose();
+  });
+});
+
+describe('служба документов: отложенная перерисовка буфера', () => {
+  it('`flush` догоняет буфер по модели, когда фокус ушёл из редактора', async () => {
+    // Вторая половина контракта редактора из SDK. Пока фокус жив, платформа откладывает
+    // перерисовку буфера по модели — иначе ход ассистента затирал бы набранное на полуслове.
+    // Фокус ушёл — откладывать больше не из-за чего, и редактор обязан сказать об этом сам.
+    const h = harness();
+    const session = await h.open('notes.lines');
+    const id = h.id('notes.lines');
+    const handle = session.models.handleOf(id);
+    if (handle === null) throw new Error('ожидалась ручка модели');
+
+    h.focused.add(id);
+    handle.apply({ type: 'set-text', target: 'n1', params: { text: 'ALPHA' } });
+    await Promise.resolve();
+    expect(handle.hasPendingSync()).toBe(true);
+
+    h.focused.delete(id);
+    await h.documents.flush(id);
+
+    expect(session.documents.documentOf(id)?.getText()).toBe('n1 ALPHA');
+    h.dispose();
+  });
+
+  it('у текстового документа откладывать нечего: вызов безвреден', async () => {
+    const h = harness();
+    await h.open('readme.md');
+
+    await expect(Promise.resolve(h.documents.flush(h.id('readme.md')))).resolves.toBeUndefined();
+    h.dispose();
   });
 });
 

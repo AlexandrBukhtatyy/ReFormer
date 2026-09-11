@@ -66,15 +66,33 @@ export interface PluginManifest {
 }
 
 /**
- * Декларативные вклады манифеста.
+ * Декларативные вклады манифеста — то есть видимые ДО того, как плагин включён.
  *
- * Пока здесь только клавиши, и они попали сюда по проверяемой причине, а не «для симметрии
- * с VS Code»: сочетание, объявленное КОДОМ, появляется в приложении только после активации
- * плагина. Значит до включения таблица клавиш о нём не знает, и переназначить его нельзя —
- * а человеку это нужно ровно тогда, когда новый плагин занял привычную ему клавишу.
+ * Клавиши попали сюда по проверяемой причине, а не «для симметрии с VS Code»: сочетание,
+ * объявленное КОДОМ, появляется в приложении только после активации плагина. Значит до
+ * включения таблица клавиш о нём не знает, и переназначить его нельзя — а человеку это нужно
+ * ровно тогда, когда новый плагин занял привычную ему клавишу.
+ *
+ * Словари попали сюда по причине жёстче: без них плагину каталога негде взять СВОЙ текст
+ * вовсе. Заголовок команды разрешается словарём её владельца (`primitives/command`, поле
+ * `titleKey`), сервиса i18n в `PluginContext` нет и не будет (вклад в словарь не снимается
+ * вместе с плагином, значит его подпиской быть не может), а словари встроенных вносит
+ * композиция — кодом, которого у внешнего плагина не существует. Итог без этого поля:
+ * КАЖДАЯ команда плагина каталога показана в палитре и меню маркером промаха
+ * `⟦mycode.command.format⟧`.
  */
 export interface PluginContributes {
   readonly keybindings?: readonly DeclaredKeybinding[];
+  /**
+   * Словари: локаль → путь к JSON внутри каталога плагина, например
+   * `{ "ru": "locales/ru.json", "en": "locales/en.json" }`.
+   *
+   * Путь, а не сам словарь. Манифесты читаются у ВСЕХ найденных плагинов на каждом обходе
+   * каталога, включая выключенные, и встроенный текст превратил бы обход в чтение всех
+   * переводов всех плагинов проекта. Файл читается один раз и только у того, кого включили
+   * (`./loader`).
+   */
+  readonly messages?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -143,7 +161,9 @@ export type PluginProblemCode =
   /** `activate` бросил. Плагин выключен и показан — автоповтора нет. */
   | 'activate-failed'
   /** Объявленная таблица стилей не разбирается или не изолируется (см. `./styles`). */
-  | 'styles-invalid';
+  | 'styles-invalid'
+  /** Объявленный файл словаря не читается или это не плоский объект «ключ → строка». */
+  | 'messages-invalid';
 
 /** Отказ как данные. Исключением он не бывает нигде: испорченный каталог — не авария. */
 export interface PluginProblem {
@@ -321,9 +341,65 @@ function parseContributes(
 
   const keybindings = parseKeybindings((raw as Record<string, unknown>).keybindings);
   if (keybindings !== undefined && 'ok' in keybindings) return keybindings;
+
+  const messages = parseMessages((raw as Record<string, unknown>).messages);
+  if (messages !== undefined && 'ok' in messages) return messages;
+
   return {
-    contributes: keybindings === undefined ? {} : { keybindings: keybindings.keybindings },
+    contributes: {
+      ...(keybindings === undefined ? {} : { keybindings: keybindings.keybindings }),
+      ...(messages === undefined ? {} : { messages: messages.messages }),
+    },
   };
+}
+
+/**
+ * Разбирает `contributes.messages`.
+ *
+ * Проверяется только ФОРМА объявления: объект, непустое имя локали, путь, не выводящий
+ * за каталог плагина (тем же `normalizePath`, что у точки входа и стилей). Содержимое файла
+ * здесь не смотрят вовсе — его читает загрузчик, и отказ у него свой (`messages-invalid`).
+ * Разделение не формальное: разбор манифеста обязан оставаться чтением ОДНОГО файла, иначе
+ * список плагинов открывался бы со скоростью чтения всех словарей всех найденных плагинов.
+ */
+function parseMessages(
+  raw: unknown
+):
+  | { messages: Readonly<Record<string, string>> }
+  | { ok: false; problem: PluginProblem }
+  | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    return problem(
+      'manifest-invalid',
+      'поле «contributes.messages» должно быть объектом «локаль → путь к файлу словаря»',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+
+  const parsed: Record<string, string> = {};
+  for (const [locale, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (locale.trim() === '') {
+      return problem('manifest-invalid', 'в «contributes.messages» есть пустое имя локали', {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+    const at = `contributes.messages[«${locale}»]`;
+    if (typeof value !== 'string' || value.trim() === '') {
+      return problem('manifest-invalid', `${at}: путь к словарю должен быть непустой строкой`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+    const file = normalizePath(value.trim());
+    if (file === undefined || file === '') {
+      return problem('manifest-invalid', `${at}: словарь «${value}» выходит за каталог плагина`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+    parsed[locale] = file;
+  }
+
+  return { messages: parsed };
 }
 
 /**

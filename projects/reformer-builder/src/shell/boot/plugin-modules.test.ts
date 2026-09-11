@@ -25,7 +25,7 @@ describe('модули, доступные плагину каталога', () 
     modules.dispose();
   });
 
-  it('React и его jsx-runtime — те же, что у оболочки', () => {
+  it('React, его jsx-runtime и react-dom — те же, что у оболочки', () => {
     const modules = createPluginModules();
     const registry = modules.modules.registry;
 
@@ -33,13 +33,23 @@ describe('модули, доступные плагину каталога', () 
     // по имени — поэтому оба обязаны быть заняты композицией.
     expect(registry.resolve('react', 'main.js')).toBeDefined();
     expect(registry.resolve('react/jsx-runtime', 'panel.tsx')).toBeDefined();
+    // `react-dom` — тем же доводом: поверхность превью и портал плагина монтируют своим корнем,
+    // а второй react-dom поверх одного React рисовал бы в чужое дерево.
+    expect(registry.resolve('react-dom', 'panel.tsx')).toBeDefined();
+    expect(registry.resolve('react-dom/client', 'surface.tsx')).toBeDefined();
     modules.dispose();
   });
 
   it('занятые композицией имена плагин подменить не может', () => {
     const modules = createPluginModules();
 
-    for (const specifier of ['@builder/sdk', 'react', 'react/jsx-runtime']) {
+    for (const specifier of [
+      '@builder/sdk',
+      'react',
+      'react/jsx-runtime',
+      'react-dom',
+      'react-dom/client',
+    ]) {
       expect(() => modules.modules.registry.register(specifier, { evil: true }), specifier).toThrow(
         ModuleRegistryError
       );

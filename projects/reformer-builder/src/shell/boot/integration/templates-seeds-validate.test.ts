@@ -11,7 +11,15 @@
  * затравке не бывает: селекторы render-правил проставляет кодоген из пути поля (builtin.ts:150),
  * поэтому до печати модуля правило указывает на ещё не существующий селектор.
  *
- * @module plugins/templates/stores/seeds-validate.test
+ * ## Почему тест лежит в композиции, а не рядом с затравками
+ *
+ * Он сверяет ДВА плагина: затравки шаблонов проверяются проверкой редактора схемы
+ * (`plugins/validator-schema`) против каталога кита. Плагину чужой плагин не виден — это
+ * держит линтер, — поэтому единственное место, где обе стороны встречаются, есть композиция.
+ * Лёжа рядом с затравками, тест два месяца валил `npm run lint` пакета двумя ошибками
+ * `no-restricted-imports`, и это было видно только в полном прогоне линтера.
+ *
+ * @module shell/boot/integration/templates-seeds-validate.test
  */
 
 import { describe, expect, it } from 'vitest';
@@ -20,7 +28,12 @@ import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '@/lib/catalog/__fixtures__/builtin-catalog';
 import { checkForm } from '@/plugins/validator-schema/check';
 import { CODES } from '@/plugins/validator-schema/codes';
-import { simpleSeed, simpleRules, wizardSeed, wizardRules } from './builtin';
+import {
+  simpleSeed,
+  simpleRules,
+  wizardSeed,
+  wizardRules,
+} from '@/plugins/templates/stores/builtin';
 
 const PROPERTY_CODES: string[] = [CODES.UNKNOWN_PROPERTY, CODES.UNKNOWN_COMPONENT];
 

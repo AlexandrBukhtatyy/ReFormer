@@ -39,6 +39,7 @@ import type { WhenContext } from '@/shell/platform/primitives/when-context';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { DocumentTabs } from './DocumentTabs';
 import { EditorActions, type EditorActionsCommands } from './EditorActions';
+import { PluginScope } from './PluginScope';
 import {
   createEditorChoiceStore,
   pickEditor,
@@ -143,7 +144,13 @@ function ActiveEditor({
   }
 
   const { Body } = entry.value;
-  return <Body key={`${entry.value.id} ${activeId}`} documentId={activeId} />;
+  // Ключ переехал на обёртку: пересоздаётся пара «редактор + документ» целиком, вместе
+  // с контейнером скоупа, — иначе тело меняло бы плагина под неизменным контейнером.
+  return (
+    <PluginScope key={`${entry.value.id} ${activeId}`} pluginId={entry.pluginId}>
+      <Body documentId={activeId} />
+    </PluginScope>
+  );
 }
 
 /**
@@ -243,7 +250,11 @@ function DocumentSurface({
             activeId={activeId}
           />
         ) : panels.length > 0 ? (
-          panels.map((panel) => <panel.value.Body key={panel.id} panelId={panel.value.id} />)
+          panels.map((panel) => (
+            <PluginScope key={panel.id} pluginId={panel.pluginId}>
+              <panel.value.Body panelId={panel.value.id} />
+            </PluginScope>
+          ))
         ) : (
           <EmptyState title={t('shell.editor.empty')} />
         )}
@@ -322,7 +333,11 @@ export function EditorArea({
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         {panels.length > 0 ? (
-          panels.map((entry) => <entry.value.Body key={entry.id} panelId={entry.value.id} />)
+          panels.map((entry) => (
+            <PluginScope key={entry.id} pluginId={entry.pluginId}>
+              <entry.value.Body panelId={entry.value.id} />
+            </PluginScope>
+          ))
         ) : (
           <EmptyState
             title={t('shell.editor.empty')}

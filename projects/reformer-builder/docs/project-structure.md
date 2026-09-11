@@ -65,13 +65,14 @@ projects/reformer-builder/
 │   │   │   ├── services/        службы платформы — один каталог, один ответ на вопрос
 │   │   │   │                    «какие они есть»: i18n/, diagnostics/, validation/,
 │   │   │   │                    settings, theme, notifications, prompt, selection,
-│   │   │   │                    context-keys, resource-clipboard
+│   │   │   │                    context-keys, resource-clipboard, documents
 │   │   │   ├── modules/         механика загрузки кода: registry, linker, transpilers, compile-cache
 │   │   │   ├── plugin/          рантайм плагинов: types, context, registry, loader, catalog, storage, styles
 │   │   │   └── ui/              оболочка и слоты
 │   │   │       ├── Shell.tsx  slots.ts        корень = точка сборки оболочки
 │   │   │       ├── chrome/      EditorArea, EditorActions, DocumentTabs, MenuBar, StatusBar,
-│   │   │       │                panels, layout-settings, usePanels, useWorkspaceViews
+│   │   │       │                PluginScope, panels, layout-settings, usePanels,
+│   │   │       │                useWorkspaceViews
 │   │   │       ├── keyboard/    keybindings, keybinding-rules, keybinding-editor, chords,
 │   │   │       │                focus, keymap, scope, KeybindingsDialog
 │   │   │       ├── menu/        menu, menu-issues, editor-menu, resource-menu, palette, CommandPalette
@@ -85,7 +86,8 @@ projects/reformer-builder/
 │   │       ├── plugin-modules.ts  защищённые слоты реестра модулей
 │   │       ├── settings-sections.ts  состав окна настроек
 │   │       ├── ports/           адаптеры портов плагинов: files, monaco, markdown, schema,
-│   │       │                    preview, ai, codegen, templates + мосты live-surface, kit-namespace
+│   │       │                    preview, ai, codegen, templates; documents — служба рабочей
+│   │       │                    области для ЛЮБОГО плагина; мосты live-surface, kit-namespace
 │   │       ├── project/         project, workspace-session, document-models, opened-tabs,
 │   │       │                    project-status, useProject, ProjectTree
 │   │       └── integration/     интеграционные тесты СБОРКИ — единственное узаконенное

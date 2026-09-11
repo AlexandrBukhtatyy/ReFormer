@@ -47,6 +47,7 @@ import {
 } from '@/shell/platform/ui/state/status';
 import type { ChordState } from '@/shell/platform/ui/keyboard/chords';
 import { useChord, useLocale, usePanels, type ExtensionReader } from './usePanels';
+import { PluginScope } from './PluginScope';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 
 /**
@@ -148,7 +149,11 @@ export function StatusBar({
         <div className="flex flex-1 items-center justify-end gap-3">
           {panels.map((entry) => {
             const { Body, id } = entry.value;
-            return <Body key={entry.id} panelId={id} />;
+            return (
+              <PluginScope key={entry.id} pluginId={entry.pluginId}>
+                <Body panelId={id} />
+              </PluginScope>
+            );
           })}
         </div>
       )}

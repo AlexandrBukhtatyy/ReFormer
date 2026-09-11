@@ -228,3 +228,81 @@ describe('contributes.keybindings', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe('contributes.messages', () => {
+  const withContributes = (contributes: unknown): string =>
+    JSON.stringify({ id: 'acme', apiVersion: '^1', main: 'main.js', contributes });
+
+  const withMessages = (messages: unknown): string => withContributes({ messages });
+
+  it('разбирает объявленные словари и нормализует их пути', () => {
+    const result = parsePluginManifest(
+      withMessages({ ru: 'locales/ru.json', en: './locales/./en.json' }),
+      'acme'
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.manifest.contributes?.messages).toEqual({
+      ru: 'locales/ru.json',
+      en: 'locales/en.json',
+    });
+  });
+
+  it('уживается с клавишами в одном contributes', () => {
+    const result = parsePluginManifest(
+      withContributes({
+        keybindings: [{ command: 'acme.insert', key: 'mod+alt+i' }],
+        messages: { ru: 'locales/ru.json' },
+      }),
+      'acme'
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.manifest.contributes?.keybindings).toHaveLength(1);
+    expect(result.manifest.contributes?.messages).toEqual({ ru: 'locales/ru.json' });
+  });
+
+  it('содержимое файла здесь не читается — проверена только форма объявления', () => {
+    // Разбор манифеста обязан оставаться чтением ОДНОГО файла: иначе список плагинов
+    // открывался бы со скоростью чтения всех словарей всех найденных плагинов.
+    const result = parsePluginManifest(withMessages({ ru: 'нет-такого-файла.json' }), 'acme');
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('не объект — отказ', () => {
+    for (const messages of ['locales/ru.json', ['locales/ru.json'], 42]) {
+      const result = parsePluginManifest(withMessages(messages), 'acme');
+
+      expect(result.ok, JSON.stringify(messages)).toBe(false);
+      expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+    }
+  });
+
+  it('значение не строка-путь — отказ', () => {
+    for (const value of [42, null, { file: 'ru.json' }, '', '   ']) {
+      const result = parsePluginManifest(withMessages({ ru: value }), 'acme');
+
+      expect(result.ok, JSON.stringify(value)).toBe(false);
+      expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+      expect(!result.ok && result.problem.message).toContain('ru');
+    }
+  });
+
+  it('путь, уводящий за каталог плагина, — отказ', () => {
+    // Та же граница, что у точки входа и таблицы стилей: загрузчик читает только
+    // собственные файлы плагина.
+    const result = parsePluginManifest(withMessages({ ru: '../../secrets.json' }), 'acme');
+
+    expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+  });
+
+  it('пустое имя локали — отказ', () => {
+    const result = parsePluginManifest(withMessages({ '': 'locales/ru.json' }), 'acme');
+
+    expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+    expect(!result.ok && result.problem.message).toContain('локали');
+  });
+});

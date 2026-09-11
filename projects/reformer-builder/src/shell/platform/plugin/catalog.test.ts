@@ -8,6 +8,7 @@ import {
   defineExtensionPoint,
 } from '@/shell/platform/primitives/extension-point';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
+import { createI18nService, type RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createMemorySource, type MemorySource } from '@/shell/platform/source/memory';
 import type { Source } from '@/shell/platform/source/types';
 import {
@@ -85,6 +86,7 @@ function createHarness(
     store?: TestStore;
     devStore?: TestStore;
     installStyles?: ProjectPluginCatalogDeps['installStyles'];
+    i18n?: ProjectPluginCatalogDeps['i18n'];
   } = {}
 ): Harness {
   const memory = createMemorySource(files);
@@ -120,6 +122,7 @@ function createHarness(
     dev: options.devStore,
     onProblem: problems,
     installStyles: options.installStyles,
+    i18n: options.i18n,
   });
 
   return {
@@ -455,6 +458,134 @@ describe('стили плагина живут ровно столько же, �
     await h.catalog.enable('acme');
 
     expect(f.installed).toEqual([]);
+  });
+});
+
+describe('словарь плагина приезжает манифестом', () => {
+  /**
+   * Настоящий сервис локализации плюс счётчик обращений.
+   *
+   * Двойник здесь проверял бы только сам себя: вклад в словарь виден ровно одним способом —
+   * `t` перестаёт отдавать маркер промаха. Поэтому сервис берётся настоящий, а `forPlugin`
+   * оборачивается, чтобы видеть, что каталог обратился именно к виду своего плагина.
+   * Словарь Host отключён: он к делу не относится, а грузится асинхронно.
+   */
+  function spyI18n() {
+    const i18n = createI18nService({ dev: true, loadHostMessages: () => Promise.resolve({}) });
+    const forPlugin = vi.fn((pluginId: string) => i18n.forPlugin(pluginId));
+    return { i18n, forPlugin, deps: { forPlugin } satisfies Pick<RootI18nService, 'forPlugin'> };
+  }
+
+  const withMessages = (
+    messages: Record<string, string>,
+    files: Record<string, string>
+  ): Record<string, string> => ({
+    [dir('acme', 'manifest.json')]: manifestOf('acme', { contributes: { messages } }),
+    [dir('acme', 'main.js')]: contributingPlugin('acme', 'панель Acme'),
+    ...files,
+  });
+
+  const enMessages = (title: string): Record<string, string> => ({
+    [dir('acme', 'locales/en.json')]: JSON.stringify({ 'command.hello': title }),
+  });
+
+  it('после включения команда показывается заголовком, а не маркером промаха', async () => {
+    const spy = spyI18n();
+    const h = createHarness(withMessages({ en: 'locales/en.json' }, enMessages('Say hello')), {
+      i18n: spy.deps,
+    });
+    await h.catalog.refresh();
+
+    // Ровно то, ради чего поле и заведено: без словаря заголовок команды внешнего плагина
+    // разрешить нечем, и палитра показывает промах.
+    expect(spy.i18n.forPlugin('acme').t('command.hello')).toBe('⟦acme.command.hello⟧');
+
+    await expect(h.catalog.enable('acme')).resolves.toBe(true);
+
+    expect(spy.forPlugin).toHaveBeenCalledWith('acme');
+    expect(spy.i18n.forPlugin('acme').t('command.hello')).toBe('Say hello');
+  });
+
+  it('вносятся все объявленные локали', async () => {
+    const spy = spyI18n();
+    const h = createHarness(
+      withMessages(
+        { en: 'locales/en.json', ru: 'locales/ru.json' },
+        {
+          ...enMessages('Say hello'),
+          [dir('acme', 'locales/ru.json')]: JSON.stringify({ 'command.hello': 'Поздороваться' }),
+        }
+      ),
+      { i18n: spy.deps }
+    );
+    await h.catalog.refresh();
+    await h.catalog.enable('acme');
+
+    await spy.i18n.setLocale('ru');
+
+    expect(spy.i18n.forPlugin('acme').t('command.hello')).toBe('Поздороваться');
+  });
+
+  it('выключение словарь НЕ снимает — это правило i18n, а не упущение', async () => {
+    const spy = spyI18n();
+    const h = createHarness(withMessages({ en: 'locales/en.json' }, enMessages('Say hello')), {
+      i18n: spy.deps,
+    });
+    await h.catalog.refresh();
+    await h.catalog.enable('acme');
+
+    h.catalog.disable('acme');
+
+    // Вклад в словарь не снимается ни у кого: снять его нечем, да и незачем — показывать
+    // заголовок уже снятой команды некому.
+    expect(h.panels()).toEqual([]);
+    expect(spy.i18n.forPlugin('acme').t('command.hello')).toBe('Say hello');
+  });
+
+  it('перезагрузка перекрывает ключи новой версией', async () => {
+    const spy = spyI18n();
+    const h = createHarness(withMessages({ en: 'locales/en.json' }, enMessages('Say hello')), {
+      i18n: spy.deps,
+    });
+    await h.catalog.refresh();
+    await h.catalog.enable('acme');
+
+    h.memory.put(dir('acme', 'locales/en.json'), JSON.stringify({ 'command.hello': 'Greet' }));
+
+    expect(await h.catalog.reload('acme')).toBe(true);
+
+    expect(spy.i18n.forPlugin('acme').t('command.hello')).toBe('Greet');
+  });
+
+  it('неразбираемое сообщение плагин не роняет, но доезжает отказом', async () => {
+    const spy = spyI18n();
+    const h = createHarness(
+      withMessages(
+        { en: 'locales/en.json' },
+        // Множественное число без обязательной ветки other — отказ разбора на регистрации.
+        {
+          [dir('acme', 'locales/en.json')]: JSON.stringify({
+            'files.count': '{count, plural, one{# file}}',
+          }),
+        }
+      ),
+      { i18n: spy.deps }
+    );
+    await h.catalog.refresh();
+
+    // Деградация, а не отказ — та же, что у CSS: код плагина важнее его подписей.
+    await expect(h.catalog.enable('acme')).resolves.toBe(true);
+    expect(h.panels()).toEqual(['панель Acme']);
+    expect(h.problems).toHaveBeenCalledOnce();
+    expect(h.problems.mock.calls[0][1]).toMatchObject({ code: 'messages-invalid' });
+  });
+
+  it('без сервиса локализации плагин со словарём всё равно включается', async () => {
+    const h = createHarness(withMessages({ en: 'locales/en.json' }, enMessages('Say hello')));
+
+    await h.catalog.refresh();
+
+    await expect(h.catalog.enable('acme')).resolves.toBe(true);
   });
 });
 

@@ -111,6 +111,11 @@ export interface LoadedPlugin {
    * Установка — `installPluginStyles` из `./styles`.
    */
   readonly styles?: { readonly css: string; readonly isolation: 'scoped' };
+  /**
+   * Прочитанные словари: локаль → «ключ → сообщение». Как и стили, уже прочитаны, но ещё
+   * никуда не внесены — вносит их каталог после успешной активации (`./catalog`).
+   */
+  readonly messages?: Readonly<Record<string, Readonly<Record<string, string>>>>;
 }
 
 export type PluginLoadResult =
@@ -194,6 +199,39 @@ function pluginFromExports(exports: unknown): Plugin | undefined {
     return asPlugin((exports as { default?: unknown }).default);
   }
   return undefined;
+}
+
+/**
+ * Разбирает файл словаря: плоский объект «ключ → строка», и ничего больше.
+ *
+ * Вложенные объекты не разворачиваются сознательно: ключ у нас и так составной
+ * (`command.format`), и второй способ записать тот же ключ дал бы словарь, в котором промах
+ * ищется в двух местах. Отказ возвращается ПРИЧИНОЙ, а не готовой проблемой: файл и локаль
+ * знает только вызывающий, и собирать сообщение дважды незачем.
+ */
+function parseMessagesBundle(
+  text: string
+):
+  | { ok: true; bundle: Readonly<Record<string, string>> }
+  | { ok: false; reason: string; cause?: unknown } {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (cause) {
+    return { ok: false, reason: 'не разбирается как JSON', cause };
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return { ok: false, reason: 'должен быть объектом JSON' };
+  }
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value !== 'string') {
+      return {
+        ok: false,
+        reason: `ключ «${key}» — не строка, а словарь обязан быть плоским «ключ → строка»`,
+      };
+    }
+  }
+  return { ok: true, bundle: raw as Record<string, string> };
 }
 
 function hasCodeExtension(name: string): boolean {
@@ -426,6 +464,37 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
         }
       }
 
+      // Словари — тем же порядком и по той же причине, что стили: `.json` не файл кода,
+      // в набор линковщика он не попадает, и `PLUGIN_FILE_LIMIT` этим чтением не двигается.
+      // Число чтений ограничено манифестом: ровно столько, сколько локалей в нём объявлено.
+      let messages: LoadedPlugin['messages'];
+      const declaredMessages = manifest.contributes?.messages;
+      if (declaredMessages !== undefined) {
+        const bundles: Record<string, Readonly<Record<string, string>>> = {};
+        for (const [locale, file] of Object.entries(declaredMessages)) {
+          let text: string;
+          try {
+            text = (await source.read(joinPath(found.dir, file))).text;
+          } catch (error) {
+            return fail(
+              'messages-invalid',
+              `словарь локали «${locale}»: «${file}» не читается: ${describe(error)}`,
+              { file, cause: error }
+            );
+          }
+          const bundle = parseMessagesBundle(text);
+          if (!bundle.ok) {
+            return fail(
+              'messages-invalid',
+              `словарь локали «${locale}»: «${file}» ${bundle.reason}`,
+              { file, cause: bundle.cause }
+            );
+          }
+          bundles[locale] = bundle.bundle;
+        }
+        messages = bundles;
+      }
+
       return {
         ok: true,
         loaded: {
@@ -433,6 +502,7 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
           plugin,
           files: [...files.keys()],
           ...(styles === undefined ? {} : { styles }),
+          ...(messages === undefined ? {} : { messages }),
         },
       };
     },

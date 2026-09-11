@@ -77,6 +77,7 @@ import {
 } from '@/shell/platform/ui/dialogs/SettingsDialog';
 import type { SettingsSection } from '@/shell/platform/ui/dialogs/settings-ui';
 import { MenuBar } from '@/shell/platform/ui/chrome/MenuBar';
+import { PluginScope } from '@/shell/platform/ui/chrome/PluginScope';
 import {
   storagePurgeCommand,
   STORAGE_PURGE_COMMAND_ID,
@@ -329,10 +330,20 @@ function useDock(
   };
 }
 
-/** Содержимое одной панели. Отдельным компонентом — чтобы `Body` не перерисовывался соседями. */
+/**
+ * Содержимое одной панели. Отдельным компонентом — чтобы `Body` не перерисовывался соседями.
+ *
+ * Через него проходят ВСЕ тела панелей оболочки — доки, рейл, тулбар, — поэтому контейнер
+ * скоупа стоит здесь: одно место вместо пяти мест вызова, и забыть его при добавлении шестого
+ * невозможно.
+ */
 function PanelBody({ entry }: { entry: PanelEntry }): ReactElement {
   const { Body, id } = entry.value;
-  return <Body panelId={id} />;
+  return (
+    <PluginScope pluginId={entry.pluginId}>
+      <Body panelId={id} />
+    </PluginScope>
+  );
 }
 
 /**

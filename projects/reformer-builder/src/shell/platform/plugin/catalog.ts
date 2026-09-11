@@ -25,9 +25,13 @@
  *
  * ## Выключение снимает вклады
  *
- * Целиком и без исключений: `deactivate` рантайма освобождает `subscriptions` контекста,
- * то есть панели, команды, вклады и подписки уходят вместе с плагином. Именно поэтому
- * динамические плагины сделали `deactivate` необходимостью, а не удобством для тестов.
+ * `deactivate` рантайма освобождает `subscriptions` контекста, то есть панели, команды, вклады
+ * и подписки уходят вместе с плагином. Именно поэтому динамические плагины сделали `deactivate`
+ * необходимостью, а не удобством для тестов.
+ *
+ * Исключение ровно одно, и оно названо: **словарь, объявленный манифестом, не снимается.**
+ * Это правило самого i18n (вклад в словарь не снимается ни у кого — см. `contributeMessages`
+ * ниже), а не поблажка каталогу.
  *
  * ## Перезагрузка: команда — всегда, автоматика — для помеченных «в разработке»
  *
@@ -48,6 +52,7 @@ import type { DiscoveredPlugin, PluginLoader } from './loader';
 import type { PluginManifest, PluginProblem } from './manifest';
 import { normalizeChord } from '@/shell/platform/primitives/command';
 import { compileWhen, WHEN_TRUE } from '@/shell/platform/primitives/when-expr';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { KeymapService } from '@/shell/platform/ui/keyboard/keymap';
 import type { PluginRegistry } from './registry';
 
@@ -114,6 +119,13 @@ export interface ProjectPluginCatalogDeps {
    * а всё остальное в каталоге работает как прежде.
    */
   readonly keymap?: Pick<KeymapService, 'registerRules'>;
+  /**
+   * Локализация — ради словарей, объявленных манифестом (`contributes.messages`).
+   *
+   * Необязательна, и деградация та же, что у стилей: без неё плагин работает, просто
+   * показывает маркеры промаха вместо заголовков собственных команд.
+   */
+  readonly i18n?: Pick<RootI18nService, 'forPlugin'>;
   readonly loader: PluginLoader;
   /** Тот же рантайм, в котором живут встроенные плагины: контракт у них один. */
   readonly plugins: PluginRegistry;
@@ -281,6 +293,40 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     report(id, result.problem);
   };
 
+  /**
+   * Вносит словари плагина.
+   *
+   * **Снятия здесь нет, и это правило i18n, а не упущение.** Вклад в словарь не снимается
+   * ни у кого: композиция вносит словарь встроенного плагина файлов прямо при запуске, вне
+   * его подписок (`boot.ts`). Снять его было бы нечем, да и незачем — показывать заголовок
+   * уже снятой команды некому. Поэтому и перезагрузка ничего не откатывает: `contribute`
+   * просто перекрывает ключи теми, что приехали с новой версией кода.
+   *
+   * Отказ разбора сообщения плагин не роняет: как и с CSS, он уходит в отчёт, а плагин
+   * продолжает работать — с маркерами промаха вместо заголовков. Регистрация атомарна
+   * по локалям, поэтому одна битая локаль не мешает остальным.
+   */
+  const contributeMessages = (
+    id: string,
+    messages?: Readonly<Record<string, Readonly<Record<string, string>>>>
+  ): void => {
+    if (messages === undefined || deps.i18n === undefined) return;
+    const view = deps.i18n.forPlugin(id);
+    for (const [locale, bundle] of Object.entries(messages)) {
+      try {
+        view.contribute(locale, bundle);
+      } catch (error) {
+        report(id, {
+          code: 'messages-invalid',
+          message:
+            `словарь локали «${locale}» не принят: ` +
+            (error instanceof Error ? error.message : String(error)),
+          cause: error,
+        });
+      }
+    }
+  };
+
   const deactivate = (id: string): void => {
     uninstallStyles(id);
     if (registered.has(id)) deps.plugins.deactivate(id);
@@ -433,6 +479,10 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     // на странице не оставляет. Отказ разбора CSS плагин не роняет — он записывается
     // в отчёт и виден человеком, а сам плагин продолжает работать без оформления.
     installStyles(id, result.loaded.styles);
+    // Словари — сразу за стилями и по тем же правилам: после активации, отказ не роняет
+    // плагин. Разница одна, и она в комментарии к `contributeMessages`: это единственный
+    // вклад, который выключение плагина НЕ снимает.
+    contributeMessages(id, result.loaded.messages);
 
     record.problem = undefined;
     enabled.add(id);

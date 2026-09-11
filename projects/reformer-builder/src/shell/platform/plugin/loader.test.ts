@@ -315,6 +315,105 @@ describe('загрузка отказывает', () => {
   });
 });
 
+describe('словари плагина', () => {
+  const loadFirst = async (harness: Harness) => {
+    const found = await harness.loader.discover();
+    return harness.loader.load(found[0]);
+  };
+
+  const withMessages = (
+    messages: Record<string, string>,
+    files: Record<string, string> = {}
+  ): Record<string, string> => ({
+    [dir('acme-forms', 'manifest.json')]: manifestOf({
+      id: 'acme-forms',
+      contributes: { messages },
+    }),
+    [dir('acme-forms', 'main.js')]: pluginCode('acme-forms'),
+    ...files,
+  });
+
+  it('читает объявленные файлы, но в набор файлов кода они не попадают', async () => {
+    const harness = createHarness(
+      withMessages(
+        { ru: 'locales/ru.json', en: 'locales/en.json' },
+        {
+          [dir('acme-forms', 'locales/ru.json')]: JSON.stringify({
+            'command.format': 'Форматировать',
+          }),
+          [dir('acme-forms', 'locales/en.json')]: JSON.stringify({ 'command.format': 'Format' }),
+        }
+      )
+    );
+
+    const result = await loadFirst(harness);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.loaded.messages).toEqual({
+      ru: { 'command.format': 'Форматировать' },
+      en: { 'command.format': 'Format' },
+    });
+    // `.json` — не файл кода: линковщику он не отдаётся, и потолок `PLUGIN_FILE_LIMIT`
+    // чтением словарей не двигается.
+    expect(result.loaded.files).toEqual(['main.js']);
+  });
+
+  it('плагин без словарей их и не получает', async () => {
+    const harness = createHarness({
+      [dir('acme-forms', 'manifest.json')]: manifestOf({ id: 'acme-forms' }),
+      [dir('acme-forms', 'main.js')]: pluginCode('acme-forms'),
+    });
+
+    const result = await loadFirst(harness);
+
+    expect(result.ok && result.loaded.messages).toBeUndefined();
+  });
+
+  it('объявленного файла нет — отказ называет файл', async () => {
+    const harness = createHarness(withMessages({ ru: 'locales/ru.json' }));
+
+    const result = await loadFirst(harness);
+
+    expect(!result.ok && result.problem.code).toBe('messages-invalid');
+    expect(!result.ok && result.problem.file).toBe('locales/ru.json');
+    expect(!result.ok && result.problem.message).toContain('ru');
+  });
+
+  it('словарь не разбирается как JSON — отказ', async () => {
+    const harness = createHarness(
+      withMessages(
+        { ru: 'locales/ru.json' },
+        { [dir('acme-forms', 'locales/ru.json')]: '{ "command.format": "Формат"' }
+      )
+    );
+
+    const result = await loadFirst(harness);
+
+    expect(!result.ok && result.problem.code).toBe('messages-invalid');
+    expect(!result.ok && result.problem.file).toBe('locales/ru.json');
+  });
+
+  it('словарь не плоский «ключ → строка» — отказ', async () => {
+    // Вложенность не разворачивается сознательно: ключ и так составной, и второй способ
+    // записать тот же ключ дал бы словарь, в котором промах ищется в двух местах.
+    for (const text of [
+      JSON.stringify({ command: { format: 'Форматировать' } }),
+      JSON.stringify({ 'command.format': 42 }),
+      JSON.stringify(['Форматировать']),
+    ]) {
+      const harness = createHarness(
+        withMessages({ ru: 'locales/ru.json' }, { [dir('acme-forms', 'locales/ru.json')]: text })
+      );
+
+      const result = await loadFirst(harness);
+
+      expect(result.ok, text).toBe(false);
+      expect(!result.ok && result.problem.code).toBe('messages-invalid');
+    }
+  });
+});
+
 describe('транспиляция на лету', () => {
   it('главный файл на TypeScript компилируется настоящим движком', async () => {
     const { source } = projectSource({

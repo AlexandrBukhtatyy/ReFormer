@@ -94,6 +94,11 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsSer
       return session.documents.open(id, options);
     },
 
+    // Тот же глагол и та же ручка, что у порта Monaco (`./monaco`): пока порты не переехали
+    // на службу (Фаза 5 плана), оба зовут одно и то же. У текстового документа ручки нет,
+    // и `undefined` здесь означает «отложенного не было».
+    flush: (id: ResourceId) => project.get()?.models.handleOf(id)?.flush(),
+
     onDidChange(cb) {
       listeners.add(cb);
       return toDisposable(() => {
