@@ -10,9 +10,11 @@ on:
     # каталог компонентов, и заметить это было нечем. Точный список уже один раз разошёлся со
     # сборкой и разойдётся снова при следующем пакете, поэтому здесь намеренно широкий шаблон.
     #
-    # Цена — лишний прогон, когда менялся пакет, в сайт не входящий (mcp, form-registry), или
-    # только тесты. Она мала: цикл 5–8 минут, а `concurrency` ниже схлопывает серию пушей в один
-    # деплой. Пропущенная публикация обошлась бы дороже — она молчалива.
+    # Цена — лишний прогон, когда менялись только тесты или пакет, в сайт не входящий (кит
+    # hexa-ui). mcp и form-registry к таким больше не относятся: оба попадают на Pages через
+    # билдер (см. «Build workspace packages»). Цена мала: цикл 5–8 минут, а `concurrency` ниже
+    # схлопывает серию пушей в один деплой. Пропущенная публикация обошлась бы дороже — она
+    # молчалива.
     paths:
       - 'projects/reformer-doc/**'
       - 'projects/reformer-builder/**'
@@ -59,12 +61,19 @@ jobs:
         # `generate:knowledge`, а тот берёт список пакетов и версию формата из `dist/core`
         # самого MCP и без него завершается с ошибкой. Пропустив эту сборку, деплой падает
         # не на доках, а сильно позже — на шаге «Build builder».
+        #
+        # @reformer/form-registry — тоже ради билдера: его реестр модулей отдаёт пакет коду формы
+        # (`shell/boot/plugin-modules.ts`), а `tsc -b` билдера берёт типы пакета из `dist/`.
+        # test.yml и release.yml его собирали, а этот список нет, и деплой падал на «Build
+        # builder» с TS2307 «Cannot find module '@reformer/form-registry'». Порядок — как
+        # в release.yml: после core, renderer-json и renderer-react, от которых он зависит пирами.
         run: |
           npm run build -w @reformer/core
           npm run build -w @reformer/cdk
           npm run build -w @reformer/renderer-json
           npm run build -w @reformer/renderer-react
           npm run build -w @reformer/ui-kit
+          npm run build -w @reformer/form-registry
           npm run build -w @reformer/mcp
 
       - name: Build documentation
