@@ -163,6 +163,56 @@ describe('workspaces', () => {
     await store.putWorkspace(workspace('w3', 20));
     expect((await store.listWorkspaces()).map((it) => it.id)).toEqual(['w2', 'w3', 'w1']);
   });
+
+  it('убранная из недавних область остаётся целой: это флаг, а не удаление', async () => {
+    const { store } = makeStore();
+    await store.putWorkspace(workspace('w1', 10));
+    await store.putWorkspaceSettings('w1', { a: 1 });
+
+    await store.hideWorkspaces(['w1']);
+
+    // Убрали строку списка, а не проект: запись, её настройки и свежесть на месте.
+    expect(await store.getWorkspace('w1')).toMatchObject({
+      id: 'w1',
+      lastOpenedAt: 10,
+      settings: { a: 1 },
+      hiddenFromRecent: true,
+    });
+  });
+
+  it('убирает пачкой одной транзакцией и пропускает неизвестные области', async () => {
+    const { store, control } = makeStore();
+    await store.putWorkspace(workspace('w1'));
+    await store.putWorkspace(workspace('w2'));
+    const before = control.commits;
+
+    await store.hideWorkspaces(['w1', 'нет', 'w2']);
+
+    // «Очистить список» — одно действие человека, и половина его не должна остаться на диске.
+    expect(control.commits).toBe(before + 1);
+    expect((await store.listWorkspaces()).map((it) => it.hiddenFromRecent)).toEqual([true, true]);
+    // Несуществующая область не заводится ради флага: запись без источника была бы неполной.
+    expect(await store.getWorkspace('нет')).toBeNull();
+  });
+
+  it('пустой пакет не заводит транзакции вовсе', async () => {
+    const { store, control } = makeStore();
+    const before = control.commits;
+
+    await store.hideWorkspaces([]);
+
+    expect(control.commits).toBe(before);
+  });
+
+  it('запись области заново возвращает её в список: флаг не переживает открытия', async () => {
+    const { store } = makeStore();
+    await store.putWorkspace(workspace('w1'));
+    await store.hideWorkspaces(['w1']);
+
+    await store.putWorkspace(workspace('w1', 2));
+
+    expect((await store.getWorkspace('w1'))?.hiddenFromRecent).toBeUndefined();
+  });
 });
 
 describe('настройки', () => {

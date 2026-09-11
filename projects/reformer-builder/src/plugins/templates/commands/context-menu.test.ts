@@ -144,6 +144,7 @@ describe('раскладка шаблона в каталог', () => {
         prompt: {
           input: () => Promise.resolve(name),
           confirm: () => Promise.resolve(true),
+          pick: () => Promise.resolve(null),
           current: () => null,
           resolve: () => undefined,
           cancelAll: () => undefined,

@@ -130,6 +130,11 @@ import { createCodegenHost } from '@/shell/boot/ports/codegen';
 import { createTemplatesHost } from '@/shell/boot/ports/templates';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { DocumentsServiceToken } from '@/shell/platform/services/documents';
+import {
+  projectFailureAction,
+  projectFailureMessageKey,
+  type ProjectFailureActions,
+} from '@/shell/boot/project/project-failure';
 import { attachFocusChecks } from '@/shell/platform/workspace/merge/divergence';
 import { installPluginStyles } from '@/shell/platform/plugin/styles';
 import {
@@ -235,39 +240,25 @@ function createSettingsPluginSet(settings: SettingsService, key: string): Enable
  * их в одно «не удалось» значит отнимать у человека единственную подсказку, что делать.
  */
 /**
- * Ключ сообщения об отказе открытия.
+ * Показывает отказ открытия проекта и не более того.
  *
- * Принимает отказ ЦЕЛИКОМ, а не только его вид: у недоступного источника есть причина,
- * и она решает, какую кнопку показать. «Источника больше нет» требует выбрать проект
- * заново, «доступ не дан» — одного нажатия «разрешить». Показывать их одинаково значит
- * посылать человека делать лишнюю работу в половине случаев.
- *
- * Причина отдельным полем, а не вторым видом отказа: вид отвечает «что случилось
- * с открытием» и выбирает уровень уведомления, причина — «что делать». Разложи мы второе
- * по первому, каждый, кому нужен только уровень, был бы обязан перечислять причины.
+ * Что сказать и какую кнопку дать, решает `project/project-failure`. Кнопка есть, только когда
+ * известно, какую область поднимали, — у восстановления на старте и у «Недавно открытых».
  */
-export function projectFailureMessageKey(failure: ProjectFailure): string | null {
-  switch (failure.kind) {
-    case 'cancelled':
-      return null;
-    case 'unsupported':
-      return 'files.notify.unsupported';
-    case 'unavailable':
-      return failure.reason === undefined
-        ? 'files.notify.unavailable'
-        : `files.notify.unavailable.${failure.reason}`;
-    case 'failed':
-      return 'files.notify.failed';
-  }
-}
-
-/** Показывает отказ открытия проекта и не более того. */
-function reportProjectFailure(notifications: NotificationsService, failure: ProjectFailure): void {
+function reportProjectFailure(
+  notifications: NotificationsService,
+  failure: ProjectFailure,
+  actions: ProjectFailureActions
+): void {
   const messageKey = projectFailureMessageKey(failure);
   if (messageKey === null) return;
   if (failure.kind === 'failed') console.error('[boot] проект не открыт', failure.error);
-  if (failure.kind === 'unavailable') notifications.info(messageKey);
-  else if (failure.kind === 'unsupported') notifications.warning(messageKey);
+  if (failure.kind === 'unavailable') {
+    const action = projectFailureAction(failure, actions);
+    notifications.info(messageKey, action === undefined ? undefined : { action });
+    return;
+  }
+  if (failure.kind === 'unsupported') notifications.warning(messageKey);
   else notifications.error(messageKey);
 }
 
@@ -446,7 +437,18 @@ export function boot(options: BootOptions = {}): BuilderApp {
     diagnostics,
     validation,
     onFailure: (failure) => {
-      reportProjectFailure(notifications, failure);
+      reportProjectFailure(notifications, failure, {
+        // Кнопка уведомления зовёт держателя, который к этой минуте уже собран: отказ
+        // приходит асинхронно, после того как `project` получил значение.
+        reopen: (workspaceId) => {
+          void project.openWorkspace(workspaceId);
+        },
+        forget: (workspaceId) => {
+          void project.recent.forget(workspaceId).catch((error: unknown) => {
+            console.error('[boot] проект не убран из недавних', error);
+          });
+        },
+      });
     },
   });
   // Строка состояния получает ОДИН источник на всё время жизни приложения: смена проекта

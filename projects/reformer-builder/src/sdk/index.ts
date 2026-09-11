@@ -319,7 +319,13 @@ export type { EditorMenuTarget } from '@/shell/platform/ui/menu/editor-menu';
 // шаблоны формы точно так же спросят имя, а вклад чужого плагина точно так же положит
 // в буфер свои записи.
 export { PromptServiceToken } from '@/shell/platform/services/prompt';
-export type { PromptService } from '@/shell/platform/services/prompt';
+// Выбор из списка — третий вид запроса («Недавно открытые» по `Ctrl+R`). Типы пункта и запроса
+// нужны тому, кто список собирает: иначе он выводил бы их из сигнатуры `pick` окольным путём.
+export type {
+  PromptPickItem,
+  PromptPickRequest,
+  PromptService,
+} from '@/shell/platform/services/prompt';
 export { ResourceClipboardServiceToken } from '@/shell/platform/services/resource-clipboard';
 export type {
   ClipboardMode,

@@ -27,6 +27,7 @@
 export const FILES_MESSAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
   Object.freeze({
     ru: Object.freeze({
+      'files.command.clearRecent': 'Очистить список недавних…',
       'files.command.copy': 'Копировать',
       'files.command.copyPath': 'Копировать путь',
       'files.command.cut': 'Вырезать',
@@ -34,6 +35,7 @@ export const FILES_MESSAGES: Readonly<Record<string, Readonly<Record<string, str
       'files.command.newFile': 'Новый файл…',
       'files.command.newFolder': 'Новая папка…',
       'files.command.openProject': 'Открыть папку…',
+      'files.command.openRecent': 'Открыть недавний проект…',
       'files.command.openToSide': 'Открыть рядом',
       'files.command.paste': 'Вставить',
       'files.command.refresh': 'Обновить',
@@ -69,8 +71,25 @@ export const FILES_MESSAGES: Readonly<Record<string, Readonly<Record<string, str
       'ops.name.too-long': 'Слишком длинное имя',
       'tree.problems.info':
         '{count, plural, one{# замечание} few{# замечания} many{# замечаний} other{# замечания}}',
+      'menu.recent': 'Недавно открытые',
+      'menu.recent.more': 'Ещё…',
+      'recent.pick.title': 'Недавно открытые проекты',
+      'recent.pick.placeholder': 'Имя проекта…',
+      'recent.pick.empty': 'Недавних проектов нет: открытые папки появятся здесь.',
+      'recent.pick.remove': 'Убрать из списка недавних',
+      'recent.clear.title': 'Очистить список недавних проектов?',
+      'recent.clear.description':
+        'Уйдут только строки списка: рабочие копии и несохранённые правки проектов останутся.',
+      'recent.clear.confirm': 'Очистить',
+      'welcome.title': 'Начало работы',
+      'welcome.start': 'Начало',
+      'welcome.recent': 'Недавно открытые',
+      'welcome.recent.empty': 'Недавних проектов пока нет — открытые папки появятся здесь.',
+      'welcome.unsupported':
+        'Этот браузер не умеет открывать локальные каталоги — нужен Chrome или Edge.',
     }),
     en: Object.freeze({
+      'files.command.clearRecent': 'Clear Recently Opened…',
       'files.command.copy': 'Copy',
       'files.command.copyPath': 'Copy path',
       'files.command.cut': 'Cut',
@@ -78,6 +97,7 @@ export const FILES_MESSAGES: Readonly<Record<string, Readonly<Record<string, str
       'files.command.newFile': 'New file…',
       'files.command.newFolder': 'New folder…',
       'files.command.openProject': 'Open folder…',
+      'files.command.openRecent': 'Open Recent Project…',
       'files.command.openToSide': 'Open to the side',
       'files.command.paste': 'Paste',
       'files.command.refresh': 'Refresh',
@@ -110,5 +130,20 @@ export const FILES_MESSAGES: Readonly<Record<string, Readonly<Record<string, str
       'ops.name.reserved': 'This is a device name: Windows will not allow it',
       'ops.name.trailing': 'A trailing dot or space is dropped when saving',
       'ops.name.too-long': 'The name is too long',
+      'menu.recent': 'Open Recent',
+      'menu.recent.more': 'More…',
+      'recent.pick.title': 'Recently opened projects',
+      'recent.pick.placeholder': 'Project name…',
+      'recent.pick.empty': 'No recent projects: folders you open will show up here.',
+      'recent.pick.remove': 'Remove from Recently Opened',
+      'recent.clear.title': 'Clear the list of recent projects?',
+      'recent.clear.description':
+        'Only the list entries go away: working copies and unsaved changes stay.',
+      'recent.clear.confirm': 'Clear',
+      'welcome.title': 'Get Started',
+      'welcome.start': 'Start',
+      'welcome.recent': 'Recent',
+      'welcome.recent.empty': 'No recent projects yet — folders you open will show up here.',
+      'welcome.unsupported': 'This browser cannot open local directories — use Chrome or Edge.',
     }),
   });

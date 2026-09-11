@@ -92,6 +92,14 @@ export interface WorkspaceRecord {
   readonly lastOpenedAt: number;
   /** Настройки области. Непрозрачны для хранилища: их смысл знает тот, кто их положил. */
   readonly settings?: Readonly<Record<string, unknown>>;
+  /**
+   * Человек убрал область из списка недавних проектов.
+   *
+   * Флаг, а не удаление: {@link WorkspaceMetaStore.removeWorkspace} стирает журнал и вкладки,
+   * а рабочая копия с несохранёнными правками осталась бы в OPFS без пути к ней. Открытие
+   * проекта пишет запись заново без флага — и область возвращается в список.
+   */
+  readonly hiddenFromRecent?: boolean;
 }
 
 /**
@@ -268,6 +276,15 @@ export interface WorkspaceMetaStore extends Disposable {
   listWorkspaces(): Promise<readonly WorkspaceRecord[]>;
   /** Удаляет область вместе со вкладками, свойствами и журналом — одной транзакцией. */
   removeWorkspace(id: string): Promise<void>;
+  /**
+   * Убирает области из списка недавних: ставит {@link WorkspaceRecord.hiddenFromRecent}.
+   *
+   * Чтение и запись идут ОДНОЙ транзакцией — по той же причине, что у
+   * {@link WorkspaceMetaStore.putWorkspaceSettings}: запись общая с `lastOpenedAt`, который
+   * пишет открытие проекта. Неизвестный идентификатор пропускается: область могли удалить
+   * между показом списка и щелчком, и «убрать то, чего нет» уже выполнено.
+   */
+  hideWorkspaces(ids: readonly string[]): Promise<void>;
   /**
    * Настройки области. Пустой объект — записи нет; отличать её от «настроек нет» незачем:
    * ответ на оба вопроса один.
@@ -656,6 +673,21 @@ export function createWorkspaceMetaStore(
       });
     },
 
+    async hideWorkspaces(ids) {
+      if (ids.length === 0) return;
+      // Область не названа: пакет касается многих областей, а освобождение места адресуется
+      // одной. `write` без идентификатора освобождает место только политикой владельца
+      // журнала — как у настроек приложения.
+      await write(undefined, [STORE_WORKSPACES], async (tx) => {
+        const store = tx.objectStore(STORE_WORKSPACES);
+        for (const id of ids) {
+          const found = await request(store.get(id) as IDBRequest<WorkspaceRecord | undefined>);
+          if (found === undefined || found.hiddenFromRecent === true) continue;
+          await request(store.put({ ...found, hiddenFromRecent: true }));
+        }
+      });
+    },
+
     async getWorkspaceSettings(id) {
       const found = await transact([STORE_WORKSPACES], 'readonly', (tx) =>
         request(tx.objectStore(STORE_WORKSPACES).get(id) as IDBRequest<WorkspaceRecord | undefined>)
@@ -836,6 +868,7 @@ function unavailableStore(): WorkspaceMetaStore {
     getWorkspace: fail,
     listWorkspaces: fail,
     removeWorkspace: fail,
+    hideWorkspaces: fail,
     getWorkspaceSettings: fail,
     putWorkspaceSettings: fail,
     getAppSettings: fail,

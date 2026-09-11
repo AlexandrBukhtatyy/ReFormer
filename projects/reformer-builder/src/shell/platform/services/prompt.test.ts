@@ -117,3 +117,51 @@ describe('наблюдение', () => {
     expect(prompt.current()).toBe(prompt.current());
   });
 });
+
+describe('выбор из списка', () => {
+  const items = [
+    { id: 'a', label: 'Альфа' },
+    { id: 'b', label: 'Бета', description: 'вчера' },
+  ];
+
+  it('ответ — идентификатор выбранного пункта', async () => {
+    const prompt = createPromptService();
+
+    const answer = prompt.pick({ titleKey: 'recent', items });
+    const pending = prompt.current();
+    expect(pending?.kind).toBe('pick');
+    prompt.resolve(pending?.id ?? '', 'b');
+
+    await expect(answer).resolves.toBe('b');
+  });
+
+  it('отмена — null: человек закрыл список, ничего не выбрав', async () => {
+    const prompt = createPromptService();
+
+    const answer = prompt.pick({ titleKey: 'recent', items });
+    prompt.resolve(prompt.current()?.id ?? '', null);
+
+    await expect(answer).resolves.toBeNull();
+  });
+
+  it('строка, которой в списке не было, — ответ не на этот вопрос', async () => {
+    const prompt = createPromptService();
+
+    const answer = prompt.pick({ titleKey: 'recent', items });
+    prompt.resolve(prompt.current()?.id ?? '', 'чужой');
+
+    await expect(answer).resolves.toBeNull();
+  });
+
+  it('встаёт в общую очередь и снимается общей отменой', async () => {
+    const prompt = createPromptService();
+
+    const name = prompt.input({ titleKey: 'rename' });
+    const choice = prompt.pick({ titleKey: 'recent', items });
+    expect(prompt.current()?.kind).toBe('input');
+    prompt.cancelAll();
+
+    await expect(name).resolves.toBeNull();
+    await expect(choice).resolves.toBeNull();
+  });
+});

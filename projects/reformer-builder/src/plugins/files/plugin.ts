@@ -46,10 +46,12 @@ import {
 } from '@/sdk';
 import { diagnosticDecoration, type CommandAccess } from './diagnostics';
 import { filesContextMenuItems, filesOperationCommands } from './operations';
+import { OPEN_RECENT_COMMAND_ID, recentCommands, recentMenuItems } from './recent';
 import type { ExtensionPointRef, FilesEditorSpec, FilesHost, FilesPanelSpec } from './host';
 import { ProblemsBadge } from './ui/ProblemsBadge';
 import { ProblemsPanel } from './ui/ProblemsPanel';
 import { TextEditor } from './ui/TextEditor';
+import { WelcomePage, type WelcomePageActions } from './ui/WelcomePage';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
 export const FILES_PLUGIN_ID = 'files';
@@ -65,6 +67,9 @@ export const FILES_DIAGNOSTICS_DECORATION_ID = 'files.diagnostics';
 
 /** Текстовый редактор — тот, что берётся за файл, если не взялся никто другой. */
 export const FILES_TEXT_EDITOR_ID = 'files.text';
+
+/** Стартовая страница: «Открыть папку…» и недавно открытые проекты. */
+export const FILES_WELCOME_PANEL_ID = 'files.welcome';
 
 export const OPEN_PROJECT_COMMAND_ID = 'files.openProject';
 export const SAVE_COMMAND_ID = 'files.save';
@@ -176,6 +181,22 @@ export function filesTextEditor(host: FilesHost): FilesEditorSpec {
 }
 
 /**
+ * Стартовая страница — в центре, пока открытых вкладок нет.
+ *
+ * Слот `editor.main` для неё и заведён, а вносить в него умеет только плагин. Здесь — потому
+ * что это тот же вопрос, что у «Открыть папку…»: с чем работать. Сама страница ничего
+ * не делает — действия приходят вызовами команд плагина.
+ */
+export function filesWelcomePanel(host: FilesHost, actions: WelcomePageActions): FilesPanelSpec {
+  return {
+    id: FILES_WELCOME_PANEL_ID,
+    slot: 'editor.main',
+    titleKey: 'welcome.title',
+    Body: () => createElement(WelcomePage, { host, ...actions }),
+  };
+}
+
+/**
  * Команды плагина.
  *
  * Заголовки разрешаются словарём ВЛАДЕЛЬЦА, то есть этого плагина: и палитра, и меню зовут
@@ -283,9 +304,10 @@ export function createFilesPlugin(options: FilesPluginOptions): Plugin {
       // Службы, без которых операции деградируют, а не падают: без запросов к человеку
       // недоступны создание и переименование, без буфера — копирование. Обе объявлены
       // в `@/sdk`, поэтому берутся из реестра, а не приходят портом.
+      const prompt = ctx.services.get(PromptServiceToken) ?? null;
       const operations = filesOperationCommands({
         host,
-        prompt: ctx.services.get(PromptServiceToken) ?? null,
+        prompt,
         clipboard: ctx.services.get(ResourceClipboardServiceToken) ?? null,
         notifications: ctx.services.get(NotificationsServiceToken) ?? null,
         // Системный буфер — единственное, что нельзя взять ни из реестра, ни из порта:
@@ -312,17 +334,42 @@ export function createFilesPlugin(options: FilesPluginOptions): Plugin {
         has: (commandId) => ctx.commands.get(commandId) !== undefined,
         run: (commandId, args) => {
           void ctx.commands.execute(commandId, args).catch((error: unknown) => {
-            console.error(`[files] исправление «${commandId}» отказало`, error);
+            console.error(`[files] команда «${commandId}» отказала`, error);
           });
         },
       };
+
+      // Недавние проекты — только там, где композиция дала список. Сам список при активации
+      // не читается: контракт — только регистрировать, читают его меню и страница при показе.
+      const recent = host.recent;
+      if (recent !== undefined) {
+        for (const command of recentCommands({ recent, prompt })) {
+          ctx.subscriptions.push(ctx.commands.register(command));
+        }
+        for (const item of recentMenuItems(recent)) {
+          ctx.subscriptions.push(ctx.extensions.contribute(MenuPoint, item.value, { id: item.id }));
+        }
+      }
 
       ctx.subscriptions.push(
         ctx.extensions.contribute(panelPoint, filesTreePanel(host), { id: FILES_TREE_PANEL_ID }),
         ctx.extensions.contribute(panelPoint, filesProblemsPanel(host, diagnostics, commands), {
           id: FILES_PROBLEMS_PANEL_ID,
         }),
-        ctx.extensions.contribute(editorPoint, filesTextEditor(host), { id: FILES_TEXT_EDITOR_ID })
+        ctx.extensions.contribute(editorPoint, filesTextEditor(host), { id: FILES_TEXT_EDITOR_ID }),
+        ctx.extensions.contribute(
+          panelPoint,
+          filesWelcomePanel(host, {
+            // Страница зовёт команды, а не порт: щелчок здесь и пункт меню — одно действие.
+            openFolder: () => {
+              commands.run(OPEN_PROJECT_COMMAND_ID);
+            },
+            openRecent: (id) => {
+              commands.run(OPEN_RECENT_COMMAND_ID, id === undefined ? undefined : { id });
+            },
+          }),
+          { id: FILES_WELCOME_PANEL_ID }
+        )
       );
 
       for (const item of [...filesMenuItems(), ...filesContextMenuItems()]) {

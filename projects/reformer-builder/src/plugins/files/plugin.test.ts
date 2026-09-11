@@ -19,9 +19,18 @@ import type {
   ResourceId,
   ResourceRef,
 } from '@/sdk';
-import type { ExtensionPointRef, FilesEditorSpec, FilesHost, FilesPanelSpec } from './host';
+import type {
+  ExtensionPointRef,
+  FilesEditorSpec,
+  FilesHost,
+  FilesPanelSpec,
+  FilesRecentProjects,
+} from './host';
+import { CLEAR_RECENT_COMMAND_ID, OPEN_RECENT_COMMAND_ID } from './recent';
 import {
   createFilesPlugin,
+  filesWelcomePanel,
+  FILES_WELCOME_PANEL_ID,
   filesCommands,
   filesDiagnosticsDecoration,
   filesProblemsPanel,
@@ -392,5 +401,81 @@ describe('пометка на файле', () => {
     subscription?.dispose();
     diagnostics.publish(file.id, 'validator.schema', []);
     expect(changed).toHaveBeenCalledOnce();
+  });
+});
+
+/** Список недавних в объёме порта; каждый метод — шпион, чтобы видеть, кто его трогал. */
+function fakeRecent() {
+  return {
+    list: vi.fn(() => []),
+    onDidChange: vi.fn(() => ({ dispose: () => undefined })),
+    open: vi.fn(() => Promise.resolve(true)),
+    forget: vi.fn(() => Promise.resolve()),
+    clear: vi.fn(() => Promise.resolve()),
+  } satisfies FilesRecentProjects;
+}
+
+describe('недавно открытые', () => {
+  it('без списка от композиции плагин не вносит ни подменю, ни команд', () => {
+    const plugin = createFilesPlugin({ host: fakeHost(), panelPoint, editorPoint });
+    const { ctx, contributed, registered } = fakeContext();
+
+    plugin.activate(ctx);
+
+    expect(registered.map((command) => command.id)).not.toContain(OPEN_RECENT_COMMAND_ID);
+    expect(contributed.map((entry) => entry.id)).not.toContain('files.menu.recent');
+  });
+
+  it('со списком — команды и подменю «Файл › Недавно открытые», всё в подписках', () => {
+    const plugin = createFilesPlugin({
+      host: fakeHost({ recent: fakeRecent() }),
+      panelPoint,
+      editorPoint,
+    });
+    const { ctx, contributed, registered } = fakeContext();
+
+    plugin.activate(ctx);
+
+    expect(registered.map((command) => command.id)).toEqual(
+      expect.arrayContaining([OPEN_RECENT_COMMAND_ID, CLEAR_RECENT_COMMAND_ID])
+    );
+    expect(contributed.map((entry) => `${entry.point}:${entry.id ?? ''}`)).toEqual(
+      expect.arrayContaining([
+        'menu:files.menu.recent',
+        'menu:files.menu.recent.projects',
+        'menu:files.menu.recent.more',
+        'menu:files.menu.recent.clear',
+      ])
+    );
+    expect(ctx.subscriptions).toHaveLength(registered.length + contributed.length);
+  });
+
+  it('активация список не читает: только регистрирует', () => {
+    const recent = fakeRecent();
+    const plugin = createFilesPlugin({ host: fakeHost({ recent }), panelPoint, editorPoint });
+
+    plugin.activate(fakeContext().ctx);
+
+    expect(recent.list).not.toHaveBeenCalled();
+    expect(recent.onDidChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('стартовая страница', () => {
+  it('стоит в центре: слот editor.main для неё и заведён', () => {
+    expect(
+      filesWelcomePanel(fakeHost(), { openFolder: () => undefined, openRecent: () => undefined })
+    ).toMatchObject({ id: FILES_WELCOME_PANEL_ID, slot: 'editor.main', titleKey: 'welcome.title' });
+  });
+
+  it('вносится и без списка недавних: «Открыть папку…» нужна всегда', () => {
+    const plugin = createFilesPlugin({ host: fakeHost(), panelPoint, editorPoint });
+    const { ctx, contributed } = fakeContext();
+
+    plugin.activate(ctx);
+
+    expect(contributed.map((entry) => `${entry.point}:${entry.id ?? ''}`)).toContain(
+      `panel:${FILES_WELCOME_PANEL_ID}`
+    );
   });
 });

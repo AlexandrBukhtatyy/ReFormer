@@ -1,5 +1,5 @@
 /**
- * Отрисовка запросов к человеку: одно поле ввода или одно подтверждение.
+ * Отрисовка запросов к человеку: одно поле ввода, одно подтверждение или выбор из списка.
  *
  * Правила живут в `../services/prompt`, здесь — окно и ввод. Разделение то же, что у диалога
  * слияния: очередь запросов, отмена как законный исход и проверка значения проверяются
@@ -47,6 +47,7 @@ import { DIALOG_SCOPE, useScope, type ScopeStack } from '@/shell/platform/ui/key
 import type { PendingPrompt, PromptService } from '@/shell/platform/services/prompt';
 import { splitName } from '@/shell/platform/workspace/resource-names';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
+import { PickPrompt } from './PickPrompt';
 
 export interface PromptHostProps {
   /**
@@ -86,7 +87,7 @@ function usePendingPrompt(prompt: PromptService | null | undefined): PendingProm
 export function PromptHost({ prompt, scopes, i18n }: PromptHostProps): ReactElement | null {
   const pending = usePendingPrompt(prompt);
   useScope(scopes, pending === null ? null : DIALOG_SCOPE);
-  useLocale(i18n);
+  const locale = useLocale(i18n);
 
   /**
    * Ключ ЗАПРОСА разрешается словарём того, кто его написал; ключ-УМОЛЧАНИЕ — словарём Host.
@@ -135,6 +136,20 @@ export function PromptHost({ prompt, scopes, i18n }: PromptHostProps): ReactElem
   const title = translate(pending.titleKey, pending.titleKey);
   const description =
     pending.descriptionKey === undefined ? null : translate(pending.descriptionKey, '');
+
+  if (pending.kind === 'pick') {
+    // Ключ — запрос: новый выбор начинается с пустого поиска и полного списка, даже если
+    // пришёл следом за точно таким же.
+    return (
+      <PickPrompt
+        key={pending.id}
+        pending={pending}
+        locale={locale}
+        translate={translate}
+        onClose={close}
+      />
+    );
+  }
 
   if (pending.kind === 'confirm') {
     return (

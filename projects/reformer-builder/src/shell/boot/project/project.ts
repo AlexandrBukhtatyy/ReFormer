@@ -46,7 +46,7 @@ import {
 } from '@/shell/platform/source/types';
 import type { ValidationOrchestrator } from '@/shell/platform/services/validation/orchestrator';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
-import type { WorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
+import type { WorkspaceMetaStore, WorkspaceRecord } from '@/shell/platform/workspace/storage/idb';
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
 import {
   createWorkspaceFileStore,
@@ -55,6 +55,7 @@ import {
 import type { DiagnosticsSink } from '@/shell/platform/workspace/workspace';
 import type { DirectoryHandleStore } from '@/shell/platform/source/fs-handles';
 import { restoreOpenedTabs } from './opened-tabs';
+import { createRecentProjects, type RecentProjects } from './recent';
 import { createWorkspaceSession, type WorkspaceSession } from './workspace-session';
 
 /**
@@ -102,6 +103,14 @@ export interface ProjectFailure {
    */
   readonly reason?: SourceUnavailableReason;
   readonly error?: unknown;
+  /**
+   * Какую рабочую область не удалось поднять — у переоткрытия по записи.
+   *
+   * По нему уведомление предлагает действие: «разрешить доступ» переоткрывает ИМЕННО эту
+   * область (из обработчика щелчка, то есть по жесту), «убрать из недавних» — убирает её.
+   * У выбора каталога его нет: записи там ещё нет, и предложить по ней нечего.
+   */
+  readonly workspaceId?: string;
 }
 
 export interface ProjectHostOptions {
@@ -154,8 +163,23 @@ export interface ProjectHost extends Disposable {
   canOpen(): boolean;
   /** Показывает выбор каталога и открывает проект. `false` — не открыли. */
   open(): Promise<boolean>;
-  /** Поднимает последний проект по дескриптору из метаданных. `false` — поднимать нечего. */
+  /**
+   * Поднимает последний проект по дескриптору из метаданных. `false` — поднимать нечего.
+   *
+   * Убранный человеком из недавних не поднимается и на старте: «убрать» значит «больше
+   * не предлагать», а восстановление — то же предложение, только без спроса.
+   */
   restoreLast(): Promise<boolean>;
+  /**
+   * Поднимает проект по записи рабочей области — «Недавно открытые». `false` — не открыли.
+   *
+   * Зовётся из щелчка или Enter, то есть по жесту, поэтому источник вправе спросить
+   * разрешение: перед `requestPermission` здесь только чтения IndexedDB, и окно активации
+   * ещё не истекло. Уже открытая область не пересоздаётся — второй сессии над ней не бывает.
+   */
+  openWorkspace(id: string): Promise<boolean>;
+  /** Недавние проекты: свежий первым, без открытого сейчас и без убранных человеком. */
+  readonly recent: RecentProjects;
   /** Закрывает проект. Содержимое рабочей копии остаётся в OPFS. */
   close(): void;
 }
@@ -188,6 +212,10 @@ export function createProjectHost(options: ProjectHostOptions): ProjectHost {
 
   let session: WorkspaceSession | null = null;
   const listeners = new Set<() => void>();
+  // Список недавних спрашивает открытую сессию на каждом пересчёте: открытый проект в нём
+  // не показывается, и «какой открыт» обязано быть ответом на сейчас, а не на момент создания.
+  const recent = createRecentProjects({ meta, currentId: () => session?.workspaceId ?? null });
+  void recent.refresh();
 
   const notify = (): void => {
     for (const listener of [...listeners]) {
@@ -207,6 +235,8 @@ export function createProjectHost(options: ProjectHostOptions): ProjectHost {
     // а `activeEditorId` закрытого проекта оставлял бы команды доступными над пустотой.
     if (next === null) whenContext.set({ activeEditorId: null, activeResourceKind: null });
     notify();
+    // Сменился открытый проект — сменилось и то, кого список недавних не показывает.
+    void recent.refresh();
   };
 
   /**
@@ -233,6 +263,8 @@ export function createProjectHost(options: ProjectHostOptions): ProjectHost {
     setSession(created);
 
     const existing = await meta.getWorkspace(workspaceId);
+    // Запись пишется заново, и `hiddenFromRecent` в неё НЕ переносится намеренно: открытие
+    // возвращает проект в список недавних — так VS Code возвращает текущую область при старте.
     await meta.putWorkspace({
       id: workspaceId,
       sourceId: source.id,
@@ -242,6 +274,8 @@ export function createProjectHost(options: ProjectHostOptions): ProjectHost {
       lastOpenedAt: now(),
       settings: existing?.settings,
     });
+    // Недавние — проекция этих записей: свежий `lastOpenedAt` меняет в них порядок.
+    await recent.refresh();
 
     // Ряд вкладок прошлого сеанса. ПОСЛЕ `setSession`: восстановление открывает документы
     // через сессию, и до неё открывать было бы нечем. Отказ не отменяет открытия проекта —
@@ -265,6 +299,35 @@ export function createProjectHost(options: ProjectHostOptions): ProjectHost {
       }
     }
     return null;
+  };
+
+  /**
+   * Поднимает источник по сохранённому дескриптору и строит над ним сессию.
+   *
+   * Общее у восстановления на старте и у «Недавно открытых»: разница между ними только в том,
+   * КАКУЮ запись поднимать. Отказ называет область — по ней уведомление предложит действие.
+   */
+  const reopen = async (
+    workspaceId: string,
+    descriptor: SourceDescriptor,
+    label: string | undefined
+  ): Promise<boolean> => {
+    try {
+      const source = await sources.restore(descriptor);
+      if (isSourceUnavailable(source)) {
+        // Обычный ход событий: источника больше нет либо доступ не подтверждён. Приложение
+        // обязано остаться рабочим — но сказать об этом надо РАЗНОЕ: в первом случае человеку
+        // остаётся выбрать проект заново, во втором хватит нажатия «разрешить», из обработчика
+        // которого переоткрытие спросит разрешение уже по жесту.
+        onFailure({ kind: 'unavailable', reason: source.unavailable, workspaceId });
+        return false;
+      }
+      await start(workspaceId, source, label);
+      return true;
+    } catch (error) {
+      onFailure({ kind: 'failed', error, workspaceId });
+      return false;
+    }
   };
 
   return {
@@ -320,29 +383,43 @@ export function createProjectHost(options: ProjectHostOptions): ProjectHost {
     },
 
     async restoreLast() {
+      let record: WorkspaceRecord | undefined;
       try {
         // Список отсортирован по свежести, поэтому «последний проект» — это первая запись,
         // а не отдельная настройка, которая рано или поздно разойдётся со списком.
-        const [record] = await meta.listWorkspaces();
-        if (record === undefined) return false;
-        if (!isSourceDescriptor(record.descriptor)) return false;
-
-        const source = await sources.restore(record.descriptor);
-        if (isSourceUnavailable(source)) {
-          // Обычный ход событий: источника больше нет либо доступ не подтверждён. Приложение
-          // обязано открыться без проекта — но сказать об этом надо РАЗНОЕ: в первом случае
-          // человеку остаётся выбрать проект заново, во втором хватит нажатия «разрешить»,
-          // из обработчика которого `restoreLast()` спросит разрешение уже по жесту.
-          onFailure({ kind: 'unavailable', reason: source.unavailable });
-          return false;
-        }
-        await start(record.id, source, record.label);
-        return true;
+        [record] = await meta.listWorkspaces();
       } catch (error) {
         onFailure({ kind: 'failed', error });
         return false;
       }
+      if (record === undefined) return false;
+      // Убранную из недавних не поднимаем и на старте — см. контракт `restoreLast`. Следующая
+      // по свежести на её место не встаёт: «последний проект» один, и подменить его другим
+      // значило бы открыть не то, с чем человек работал.
+      if (record.hiddenFromRecent === true) return false;
+      if (!isSourceDescriptor(record.descriptor)) return false;
+      return reopen(record.id, record.descriptor, record.label);
     },
+
+    async openWorkspace(id) {
+      if (session?.workspaceId === id) return true;
+      let record: WorkspaceRecord | null;
+      try {
+        record = await meta.getWorkspace(id);
+      } catch (error) {
+        onFailure({ kind: 'failed', error, workspaceId: id });
+        return false;
+      }
+      if (record === null || !isSourceDescriptor(record.descriptor)) {
+        // Записи нет (хранилище почистили в другой вкладке) или дескриптор чужого вида:
+        // поднимать нечего — то же, что пропавший хэндл, и предложить можно то же.
+        onFailure({ kind: 'unavailable', reason: 'missing', workspaceId: id });
+        return false;
+      }
+      return reopen(record.id, record.descriptor, record.label);
+    },
+
+    recent,
 
     close() {
       setSession(null);
@@ -351,6 +428,7 @@ export function createProjectHost(options: ProjectHostOptions): ProjectHost {
     dispose() {
       setSession(null);
       listeners.clear();
+      recent.dispose();
     },
   };
 }

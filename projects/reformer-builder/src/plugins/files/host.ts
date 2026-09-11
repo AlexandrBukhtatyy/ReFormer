@@ -81,6 +81,33 @@ export interface FilesDocument {
   onDidChangeContent(cb: (text: string) => void): Disposable;
 }
 
+/** Недавний проект — в объёме списка. Структурная копия `RecentProject` платформы. */
+export interface FilesRecentProject {
+  readonly id: string;
+  /** Имя каталога: пути File System Access не даёт. */
+  readonly label: string;
+  readonly lastOpenedAt: number;
+}
+
+/** Недавние проекты: список и глаголы над ним. */
+export interface FilesRecentProjects {
+  /** Свежий первым, без открытого сейчас и без убранных. Ссылка стабильна между изменениями. */
+  list(): readonly FilesRecentProject[];
+  /** Список сменился — по этому сигналу перерисовываются меню и стартовая страница. */
+  onDidChange(cb: () => void): Disposable;
+  /**
+   * Открывает проект из списка. `false` — не открылся; почему — уже сказало уведомление.
+   *
+   * Звать из обработчика щелчка или клавиши: разрешение на каталог браузер спрашивает только
+   * по жесту человека.
+   */
+  open(id: string): Promise<boolean>;
+  /** Убирает проект из списка. Рабочая копия остаётся — это не удаление. */
+  forget(id: string): Promise<void>;
+  /** Убирает из списка всё, кроме открытого сейчас проекта. */
+  clear(): Promise<void>;
+}
+
 /** Перевод в пространстве имён плагина. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
 
@@ -136,6 +163,15 @@ export interface FilesHost {
   hasProject(): boolean;
   /** Показывает выбор каталога и открывает проект. `false` — не открыли. */
   openProject(): Promise<boolean>;
+  /**
+   * Недавние проекты — «Файл › Недавно открытые», `Ctrl+R` и стартовая страница.
+   *
+   * Необязателен — та же деградация, что у {@link FilesHost.openResource}: без него плагин
+   * не вносит ни подменю, ни команд списка, а «Открыть папку…» работает как работало.
+   * Список — проекция записей рабочих областей, которой владеет платформа; здесь только
+   * его чтение и глаголы над ним.
+   */
+  readonly recent?: FilesRecentProjects;
 
   /** Сохраняет один ресурс в источник. `false` — не сохранилось (конфликт, отказ источника). */
   save(id: ResourceId): Promise<boolean>;

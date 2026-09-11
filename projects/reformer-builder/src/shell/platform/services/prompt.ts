@@ -1,5 +1,5 @@
 /**
- * Запрос к человеку: спросить имя, спросить подтверждение — и ничего больше.
+ * Запрос к человеку: спросить имя, подтверждение или выбор из списка — и ничего больше.
  *
  * ## Почему служба, а не диалог внутри панели
  *
@@ -32,6 +32,14 @@
  * Два запроса подряд — обычное дело (команда переименования сразу после создания), а
  * потерянный второй выглядит как зависший интерфейс. Показывается всегда первый в очереди;
  * ответ снимает его и открывает следующий.
+ *
+ * ## Выбор из списка — третий вид запроса, а не режим палитры
+ *
+ * «Недавно открытые» по `Ctrl+R` — это список, из которого выбирают с клавиатуры, и ответа
+ * ждёт КОМАНДА: та же форма, что у имени и подтверждения, — обещание ответа и отмена как
+ * `null`. Палитра для этого не годится: она общий список команд без своего режима и без кнопок
+ * у пунктов, а меню не открыть с клавиши и не отфильтровать набором. Пункты — готовые строки:
+ * это данные (имена проектов), а не сообщения, и переводить их нечем.
  *
  * @module shell/platform/services/prompt
  */
@@ -88,7 +96,43 @@ export interface PromptConfirmRequest extends PromptRequestBase {
   readonly tone?: 'default' | 'danger';
 }
 
-export type PromptRequest = PromptInputRequest | PromptConfirmRequest;
+/** Пункт выбора из списка. */
+export interface PromptPickItem {
+  /** Уникален в пределах запроса; его и возвращает {@link PromptService.pick}. */
+  readonly id: string;
+  /** Готовая строка: пункты — данные, а не сообщения. */
+  readonly label: string;
+  /** Пояснение справа: дата, раздел. Участвует в поиске — как пояснение пункта палитры. */
+  readonly description?: string;
+}
+
+/** Выбор из списка. */
+export interface PromptPickRequest extends PromptRequestBase {
+  readonly kind: 'pick';
+  /**
+   * Пункты в порядке показа. Порядок — решение спрашивающего (у недавних это свежесть):
+   * поиск его не пересчитывает, пока пункты совпадают с запросом одинаково.
+   */
+  readonly items: readonly PromptPickItem[];
+  /** Ключ i18n подсказки в поле поиска. */
+  readonly placeholderKey?: string;
+  /** Ключ i18n текста для пустого списка; без него оболочка возьмёт свой. */
+  readonly emptyKey?: string;
+  /**
+   * Кнопка «убрать» на каждом пункте — «Remove from Recently Opened» из VS Code.
+   *
+   * Зовёт её оболочка, и окно при этом остаётся открытым: человек чистит список, а не выбирает.
+   * Пункт исчезает сразу, не дожидаясь `run`: ответ хранилища ничего не меняет в том, что
+   * человек уже увидел. Отказ `run` уходит в консоль.
+   */
+  readonly remove?: {
+    /** Ключ i18n подписи кнопки — для скринридера и всплывающей подсказки. */
+    readonly labelKey: string;
+    run(id: string): void | Promise<void>;
+  };
+}
+
+export type PromptRequest = PromptInputRequest | PromptConfirmRequest | PromptPickRequest;
 
 /** Запрос, ждущий ответа: то, что оболочка сейчас рисует. */
 export type PendingPrompt = PromptRequest & {
@@ -104,6 +148,8 @@ export interface PromptService {
   input(request: Omit<PromptInputRequest, 'kind'>): Promise<string | null>;
   /** Спрашивает согласие. Отмена — `false`: несделанное действие и есть отказ. */
   confirm(request: Omit<PromptConfirmRequest, 'kind'>): Promise<boolean>;
+  /** Спрашивает выбор из списка. Ответ — `id` пункта; отмена — `null`. */
+  pick(request: Omit<PromptPickRequest, 'kind'>): Promise<string | null>;
   /**
    * Текущий запрос или `null`. Ссылка стабильна между изменениями — условие
    * `useSyncExternalStore`.
@@ -173,6 +219,16 @@ export function createPromptService(): PromptService {
 
     confirm(request) {
       return ask({ ...request, kind: 'confirm' }).then((answer) => answer === true);
+    },
+
+    pick(request) {
+      return ask({ ...request, kind: 'pick' }).then((answer) =>
+        // Ответ сверяется со списком: оболочка отвечает идентификатором пункта, и строка,
+        // которой в запросе не было, — ответ не на этот вопрос.
+        typeof answer === 'string' && request.items.some((item) => item.id === answer)
+          ? answer
+          : null
+      );
     },
 
     current() {

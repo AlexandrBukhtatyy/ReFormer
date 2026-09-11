@@ -87,6 +87,16 @@ export function createFilesHost(deps: FilesHostDeps): FilesHost {
     hasProject: () => project.get() !== null,
     openProject: () => project.open(),
 
+    // Недавние — проекция записей рабочих областей, которой владеет держатель проекта.
+    // Список живёт дольше любой сессии, поэтому и спрашивается у держателя, а не у сессии.
+    recent: {
+      list: () => project.recent.get(),
+      onDidChange: (cb) => project.recent.subscribe(cb),
+      open: (id) => project.openWorkspace(id),
+      forget: (id) => project.recent.forget(id),
+      clear: () => project.recent.clear(),
+    },
+
     // Отказ-конфликт виден ТОЛЬКО тому, кто позвал сохранение: `SaveResult` не событие,
     // а возврат. Значит каждое место вызова обязано провести отказ в наблюдение само —
     // иначе найденное источником расхождение никуда не попадёт и счётчик останется нулём.

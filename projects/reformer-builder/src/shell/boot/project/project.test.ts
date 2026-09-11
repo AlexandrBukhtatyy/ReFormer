@@ -241,7 +241,8 @@ describe('восстановление последнего проекта', () 
     await expect(h.project.restoreLast()).resolves.toBe(false);
 
     expect(h.project.get()).toBeNull();
-    expect(h.failures).toEqual([{ kind: 'unavailable', reason: 'denied' }]);
+    // Отказ называет область: кнопка «разрешить доступ» переоткроет именно её.
+    expect(h.failures).toEqual([{ kind: 'unavailable', reason: 'denied', workspaceId: 'key-1' }]);
     h.dispose();
   });
 
@@ -253,7 +254,7 @@ describe('восстановление последнего проекта', () 
 
     await expect(h.project.restoreLast()).resolves.toBe(false);
 
-    expect(h.failures).toEqual([{ kind: 'unavailable', reason: 'missing' }]);
+    expect(h.failures).toEqual([{ kind: 'unavailable', reason: 'missing', workspaceId: 'key-1' }]);
     h.dispose();
   });
 
@@ -298,6 +299,107 @@ describe('закрытие проекта', () => {
     h.project.close();
 
     expect(woken).toBe(2);
+    h.dispose();
+  });
+});
+
+describe('недавно открытые', () => {
+  it('открытый сейчас в списке не показывается, прошлый — показывается', async () => {
+    const h = harness();
+    await h.project.open();
+    h.pickDirectory('другой');
+    await h.project.open();
+
+    expect(h.project.recent.get().map((it) => it.label)).toEqual(['project']);
+    h.dispose();
+  });
+
+  it('открывает проект по записи, и прежний встаёт в список на его место', async () => {
+    const h = harness();
+    await h.project.open();
+    h.pickDirectory('другой');
+    await h.project.open();
+
+    await expect(h.project.openWorkspace('key-1')).resolves.toBe(true);
+
+    expect(h.project.get()?.workspaceId).toBe('key-1');
+    expect(h.project.recent.get().map((it) => it.id)).toEqual(['key-2']);
+    h.dispose();
+  });
+
+  it('уже открытый проект не пересоздаётся: второй сессии над ним не бывает', async () => {
+    const h = harness();
+    await h.project.open();
+    const session = h.project.get();
+
+    await expect(h.project.openWorkspace('key-1')).resolves.toBe(true);
+
+    expect(h.project.get()).toBe(session);
+    h.dispose();
+  });
+
+  it('неизвестная запись — «источника нет» с адресом области: уведомление предложит убрать', async () => {
+    const h = harness();
+
+    await expect(h.project.openWorkspace('нет')).resolves.toBe(false);
+
+    expect(h.failures).toEqual([{ kind: 'unavailable', reason: 'missing', workspaceId: 'нет' }]);
+    h.dispose();
+  });
+
+  it('недоступный источник называет область: «разрешить доступ» переоткроет именно её', async () => {
+    const h = harness();
+    await h.project.open();
+    h.project.close();
+    h.setRestored(() => ({ unavailable: 'denied' }));
+
+    await expect(h.project.openWorkspace('key-1')).resolves.toBe(false);
+
+    expect(h.project.get()).toBeNull();
+    expect(h.failures).toEqual([{ kind: 'unavailable', reason: 'denied', workspaceId: 'key-1' }]);
+    h.dispose();
+  });
+
+  it('убранный из недавних не поднимается и на старте', async () => {
+    const h = harness();
+    await h.project.open();
+    h.project.close();
+    await h.project.recent.forget('key-1');
+
+    await expect(h.project.restoreLast()).resolves.toBe(false);
+
+    expect(h.project.get()).toBeNull();
+    expect(h.failures).toEqual([]);
+    h.dispose();
+  });
+
+  it('открытие возвращает убранный проект в список', async () => {
+    const h = harness();
+    await h.project.open();
+    h.pickDirectory('другой');
+    await h.project.open();
+    await h.project.recent.forget('key-1');
+    expect(h.project.recent.get()).toEqual([]);
+
+    await h.project.openWorkspace('key-1');
+    h.pickDirectory('третий');
+    await h.project.open();
+
+    expect(h.project.recent.get().map((it) => it.id)).toEqual(['key-1', 'key-2']);
+    h.dispose();
+  });
+
+  it('«очистить» не трогает открытый проект — его и так нет в списке', async () => {
+    const h = harness();
+    await h.project.open();
+    h.pickDirectory('другой');
+    await h.project.open();
+
+    await h.project.recent.clear();
+
+    expect(h.project.recent.get()).toEqual([]);
+    expect(await h.meta.getWorkspace('key-2')).not.toHaveProperty('hiddenFromRecent');
+    expect(await h.meta.getWorkspace('key-1')).toMatchObject({ hiddenFromRecent: true });
     h.dispose();
   });
 });
