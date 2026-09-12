@@ -39,7 +39,7 @@ import { Button } from '@reformer/ui-kit/button';
 import { ScrollArea, ScrollBar } from '@reformer/ui-kit/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@reformer/ui-kit/tabs';
 import type { I18nService } from '@/shell/platform/services/i18n/i18n';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { findTab, type DocumentTabsStore, type Tab } from '@/shell/platform/ui/state/tabs';
 import { useLocale } from './usePanels';
 import { useDocumentTabs } from './useWorkspaceViews';

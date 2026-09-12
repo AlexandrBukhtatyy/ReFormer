@@ -35,7 +35,7 @@
 
 import { version as typescriptVersion } from 'typescript/package.json';
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import {
   TranspileError,
   type TranspileFinding,

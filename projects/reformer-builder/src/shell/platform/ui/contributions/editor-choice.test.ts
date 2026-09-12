@@ -10,7 +10,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import { makeResourceId, type ResourceRef } from '@/shell/platform/primitives/resource';
+import { makeResourceId, type ResourceRef } from '@reformer/builder-plugin-api/internal';
 import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
 import { createEditorChoiceStore, pickEditor } from './editor-choice';
 import {

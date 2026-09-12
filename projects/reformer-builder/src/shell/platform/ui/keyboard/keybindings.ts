@@ -49,9 +49,9 @@ import {
   whenOf,
   type CommandRegistry,
 } from '@/shell/platform/primitives/command';
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
-import type { WhenContext } from '@/shell/platform/primitives/when-context';
-import { evaluateWhen, type WhenExpr } from '@/shell/platform/primitives/when-expr';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import type { WhenContext } from '@reformer/builder-plugin-api/internal';
+import { evaluateWhen, type WhenExpr } from '@reformer/builder-plugin-api/internal';
 import { readWhenContext } from '@/shell/platform/services/context-keys';
 import type { ChordState } from './chords';
 

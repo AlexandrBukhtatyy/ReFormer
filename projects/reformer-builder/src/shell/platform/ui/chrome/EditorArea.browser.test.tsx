@@ -13,15 +13,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import type { ReactElement } from 'react';
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import {
   makeResourceId,
   mediaTypeFor,
   type ResourceId,
   type ResourceRef,
-} from '@/shell/platform/primitives/resource';
-import { whenContext } from '@/shell/platform/primitives/when-context';
+} from '@reformer/builder-plugin-api/internal';
+import { whenContext } from '@reformer/builder-plugin-api/internal';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createDocument, type Document } from '@/shell/platform/workspace/document';
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';

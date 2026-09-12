@@ -28,7 +28,7 @@
  * @module shell/platform/workspace/storage/opfs
  */
 
-import { basename, dirname, normalizePath } from '@/shell/platform/primitives/resource';
+import { basename, dirname, normalizePath } from '@reformer/builder-plugin-api/internal';
 import { StorageError } from './errors';
 import {
   STORAGE_LAYERS,

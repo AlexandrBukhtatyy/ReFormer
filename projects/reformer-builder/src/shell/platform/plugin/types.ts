@@ -44,7 +44,7 @@
 
 import type { CapabilityAccess } from '@/shell/platform/primitives/capability';
 import type { PluginCommandRegistry } from '@/shell/platform/primitives/command';
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import type { EventBus } from '@/shell/platform/primitives/event';
 import type { PluginI18n } from '@/shell/platform/services/i18n/i18n';
 import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';

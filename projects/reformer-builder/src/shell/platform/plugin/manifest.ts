@@ -46,8 +46,8 @@ import type {
   CapabilityRequirement,
 } from '@/shell/platform/primitives/capability';
 import { normalizeChord } from '@/shell/platform/primitives/command';
-import { parseRange, parseVersion, satisfies } from '@/shell/platform/primitives/semver';
-import { parseWhen } from '@/shell/platform/primitives/when-expr';
+import { parseRange, parseVersion, satisfies } from '@reformer/builder-plugin-api/internal';
+import { parseWhen } from '@reformer/builder-plugin-api/internal';
 import { normalizePath } from '@/shell/platform/modules/linker';
 
 /** Имя файла манифеста внутри каталога плагина. */

@@ -42,7 +42,7 @@ import {
   isTextMediaType,
   type ResourceId,
   type ResourceRef,
-} from '@/shell/platform/primitives/resource';
+} from '@reformer/builder-plugin-api/internal';
 import type { Document } from '@/shell/platform/workspace/document';
 import { createEditorProbe, type EditorProbe } from '@/shell/platform/workspace/model/provider';
 import type { PanelContribution } from '../slots';

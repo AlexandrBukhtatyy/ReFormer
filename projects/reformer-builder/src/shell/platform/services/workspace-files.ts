@@ -40,7 +40,7 @@
  */
 
 import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
-import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
+import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
 
 export interface WorkspaceFilesService {
   /**

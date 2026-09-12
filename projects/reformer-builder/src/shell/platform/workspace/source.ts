@@ -73,7 +73,7 @@ export interface SourceWritten {
  * над деревом, а часть донесения файла до источника.
  */
 export interface WorkspaceSource {
-  /** Идентификатор источника: первая половина {@link import('@/shell/platform/primitives/resource').ResourceId}. */
+  /** Идентификатор источника: первая половина {@link import('@reformer/builder-plugin-api/internal').ResourceId}. */
   readonly id: string;
 
   /**

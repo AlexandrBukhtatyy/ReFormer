@@ -42,7 +42,7 @@
  * @module shell/platform/modules/registry
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Реестр модулей — неприкосновенная часть контракта Э8.

@@ -33,9 +33,9 @@ import {
 import { Separator } from '@reformer/ui-kit/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
-import type { ResourceRef } from '@/shell/platform/primitives/resource';
+import type { ResourceRef } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@/shell/platform/primitives/when-context';
+import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
 import { EDITOR_TITLE_MENU } from '@/shell/platform/ui/menu/editor-menu';
 import {
   buildMenu,

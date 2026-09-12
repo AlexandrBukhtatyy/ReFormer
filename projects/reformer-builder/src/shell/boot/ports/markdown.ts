@@ -18,7 +18,7 @@
  * @module shell/boot/ports/markdown
  */
 
-import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
+import { makeResourceId, type ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { MarkdownDocument, MarkdownHost } from '@/plugins/editor-markdown';
 import type { ProjectHost } from '@/shell/boot/project/project';
 

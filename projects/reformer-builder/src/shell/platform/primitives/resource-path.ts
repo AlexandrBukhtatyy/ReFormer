@@ -12,7 +12,12 @@
  * @module shell/platform/primitives/resource-path
  */
 
-import { joinPath, makeResourceId, parseResourceId, type ResourceId } from './resource';
+import {
+  joinPath,
+  makeResourceId,
+  parseResourceId,
+  type ResourceId,
+} from '@reformer/builder-plugin-api/internal';
 
 /**
  * Каталог, в котором лежит ресурс.

@@ -15,7 +15,7 @@ import {
   makeResourceId,
   mediaTypeFor,
   type ResourceRef,
-} from '@/shell/platform/primitives/resource';
+} from '@reformer/builder-plugin-api/internal';
 import {
   createEditorProbe,
   DocumentModelPoint,

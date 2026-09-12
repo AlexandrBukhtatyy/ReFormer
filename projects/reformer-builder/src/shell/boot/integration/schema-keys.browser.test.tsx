@@ -24,7 +24,7 @@ import { renderReact } from '@/testing/render';
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { installKeybindings } from '@/shell/platform/ui/keyboard/keybindings';
 import { createKeymapService } from '@/shell/platform/ui/keyboard/keymap';
-import type { WhenContext } from '@/shell/platform/primitives/when-context';
+import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 import { schemaEditorCommands, type CommandAccess } from '@/plugins/editor-schema/editing/commands';
 import {
   createQuickAddStore,

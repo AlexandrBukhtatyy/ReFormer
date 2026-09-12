@@ -27,8 +27,8 @@
  */
 
 import type { RootExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import type { Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { LivePreviewPort, LiveSurfaceContext, LiveSurfaceInfo } from '@/plugins/editor-schema';
 import {

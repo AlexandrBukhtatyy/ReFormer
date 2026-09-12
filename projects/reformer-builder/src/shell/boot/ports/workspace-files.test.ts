@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createDiagnosticsService } from '@/shell/platform/services/diagnostics/service';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
 import type { Source } from '@/shell/platform/source/types';

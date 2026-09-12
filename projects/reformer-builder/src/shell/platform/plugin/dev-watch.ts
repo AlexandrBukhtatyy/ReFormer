@@ -33,8 +33,8 @@
  * @module shell/platform/plugin/dev-watch
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
-import { parseResourceId } from '@/shell/platform/primitives/resource';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import { parseResourceId } from '@reformer/builder-plugin-api/internal';
 import type { EventBus } from '@/shell/platform/primitives/event';
 import type { Source } from '@/shell/platform/source/types';
 import { WorkspaceDidChange } from '@/shell/platform/workspace/workspace';

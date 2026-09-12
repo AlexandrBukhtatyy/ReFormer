@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { ProjectHost } from '@/shell/boot/project/project';

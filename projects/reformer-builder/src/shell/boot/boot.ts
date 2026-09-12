@@ -141,7 +141,7 @@ import { installPluginStyles } from '@/shell/platform/plugin/styles';
 import {
   toDisposable,
   type Disposable as HostDisposable,
-} from '@/shell/platform/primitives/disposable';
+} from '@reformer/builder-plugin-api/internal';
 import { PreviewSessionsCapability } from '@/plugins/preview';
 import {
   createTextEditorFocusRegistry,

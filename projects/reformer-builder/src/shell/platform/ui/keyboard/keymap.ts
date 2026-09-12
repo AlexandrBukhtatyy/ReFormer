@@ -25,8 +25,8 @@
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import { normalizeChord, whenOf } from '@/shell/platform/primitives/command';
 import type { SettingsService } from '@/shell/platform/services/settings';
-import { parseWhen, WHEN_TRUE, type WhenExpr } from '@/shell/platform/primitives/when-expr';
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { parseWhen, WHEN_TRUE, type WhenExpr } from '@reformer/builder-plugin-api/internal';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { defineService } from '@/shell/platform/primitives/service';
 import {
   buildKeybindingIndex,

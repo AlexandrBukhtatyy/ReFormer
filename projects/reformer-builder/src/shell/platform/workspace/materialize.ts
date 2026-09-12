@@ -29,7 +29,7 @@
  */
 
 import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
-import { dirname, extname, joinPath } from '@/shell/platform/primitives/resource';
+import { dirname, extname, joinPath } from '@reformer/builder-plugin-api/internal';
 
 /** Потолки догрузки замыкания. */
 export interface ClosureBudget {

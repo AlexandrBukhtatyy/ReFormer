@@ -14,7 +14,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { isTextMediaType, type ResourceId } from '@/shell/platform/primitives/resource';
+import { isTextMediaType, type ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { DiagnosticsService } from '@/shell/platform/services/diagnostics/service';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';

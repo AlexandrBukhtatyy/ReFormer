@@ -31,8 +31,8 @@
  * @module shell/boot/project/opened-tabs
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { DocumentTabsStore } from '@/shell/platform/ui/state/tabs';
 import type { OpenedRecord, WorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 

@@ -5,7 +5,7 @@ import {
   type CommandContribution,
 } from '@/shell/platform/primitives/command';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import { whenContext } from '@/shell/platform/primitives/when-context';
+import { whenContext } from '@reformer/builder-plugin-api/internal';
 import {
   buildMenu,
   buildMenuBar,

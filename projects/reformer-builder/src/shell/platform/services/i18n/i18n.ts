@@ -45,8 +45,8 @@
  * @module shell/platform/services/i18n/i18n
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
-import { toDisposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import { formatPattern, parseMessage, type MessagePattern } from './message-format';
 
 /** Локаль, на которую откатывается сборка при промахе. Обоснование — в шапке модуля. */

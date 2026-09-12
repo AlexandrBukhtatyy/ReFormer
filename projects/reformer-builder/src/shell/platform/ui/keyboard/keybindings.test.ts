@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createCommandRegistry, normalizeKeybinding } from '@/shell/platform/primitives/command';
-import { whenContext } from '@/shell/platform/primitives/when-context';
+import { whenContext } from '@reformer/builder-plugin-api/internal';
 import { createChordState } from './chords';
 import { createKeymapService } from './keymap';
 import {

@@ -32,7 +32,7 @@
  */
 
 import { useEffect } from 'react';
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { defineService } from '@/shell/platform/primitives/service';
 
 /**

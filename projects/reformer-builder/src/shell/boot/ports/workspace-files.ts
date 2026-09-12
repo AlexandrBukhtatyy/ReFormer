@@ -18,7 +18,7 @@ import {
   makeResourceId,
   type ResourceId,
   type ResourceRef,
-} from '@/shell/platform/primitives/resource';
+} from '@reformer/builder-plugin-api/internal';
 import { fromRoot, parentOf, resolve } from '@/shell/platform/primitives/resource-path';
 import type { WorkspaceFilesService } from '@/shell/platform/services/workspace-files';
 import type { ProjectHost } from '@/shell/boot/project/project';

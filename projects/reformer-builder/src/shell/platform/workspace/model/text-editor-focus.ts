@@ -48,7 +48,7 @@
  * @module shell/platform/workspace/model/text-editor-focus
  */
 
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
 
 export interface TextEditorFocusRegistry {

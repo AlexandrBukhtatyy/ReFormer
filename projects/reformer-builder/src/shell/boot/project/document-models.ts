@@ -36,8 +36,8 @@
  * @module shell/boot/project/document-models
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import type { Document } from '@/shell/platform/workspace/document';
 import {

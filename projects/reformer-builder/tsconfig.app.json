@@ -26,6 +26,14 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      // Пакет контракта плагинов резолвится в ИСХОДНИКИ, а не в dist: он переезжает
+      // вместе с билдером, и сборка пакета между правкой и проверкой означала бы,
+      // что половину времени приложение компилируется против вчерашнего контракта.
+      // Публикуемый dist проверяет сборка самого пакета.
+      "@reformer/builder-plugin-api": ["../../packages/reformer-builder-plugin-api/src/index.ts"],
+      "@reformer/builder-plugin-api/internal": [
+        "../../packages/reformer-builder-plugin-api/src/internal.ts"
+      ],
       // `vitest/browser` (пакет `vitest` в корне монорепо) реэкспортирует контекст
       // из `@vitest/browser-playwright/context` под `@ts-ignore`, а сам провайдер npm положил
       // НЕ в корень, а в node_modules этого проекта. Из корневого файла он не резолвится,

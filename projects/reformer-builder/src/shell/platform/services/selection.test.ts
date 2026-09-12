@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { makeResourceId } from '@/shell/platform/primitives/resource';
+import { makeResourceId } from '@reformer/builder-plugin-api/internal';
 import { createSelectionService, SelectionServiceToken } from './selection';
 
 const A = makeResourceId('mem', 'a.json');

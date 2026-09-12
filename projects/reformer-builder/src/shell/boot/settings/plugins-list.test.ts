@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { toDisposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import {
   emptyStateOf,
   settingsCardStateOf,

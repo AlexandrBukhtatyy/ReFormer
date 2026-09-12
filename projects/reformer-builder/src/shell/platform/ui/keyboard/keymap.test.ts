@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import type { CommandContribution } from '@/shell/platform/primitives/command';
-import { compileWhen, WHEN_TRUE } from '@/shell/platform/primitives/when-expr';
+import { compileWhen, WHEN_TRUE } from '@reformer/builder-plugin-api/internal';
 import { createKeymapService, KEYMAP_SETTINGS_KEY } from './keymap';
 
 const command = (patch: Partial<CommandContribution> & { id: string }): CommandContribution => ({

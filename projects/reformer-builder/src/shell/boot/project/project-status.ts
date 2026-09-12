@@ -14,7 +14,7 @@
  * @module shell/boot/project/project-status
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import {
   NO_WORKSPACE_STATUS,
   type WorkspaceStatusSnapshot,

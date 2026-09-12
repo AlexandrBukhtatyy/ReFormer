@@ -64,7 +64,7 @@ import type { KeybindingLayer } from './keybinding-rules';
 import type { KeymapService } from './keymap';
 import { DIALOG_SCOPE, useScope, type ScopeStack } from './scope';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
-import { WHEN_TRUE } from '@/shell/platform/primitives/when-expr';
+import { WHEN_TRUE } from '@reformer/builder-plugin-api/internal';
 
 /** Команда, открывающая экран. Идентификатор экспортирован: на него ссылается пункт меню. */
 export const KEYBINDINGS_OPEN_COMMAND_ID = 'host.keybindings.open';

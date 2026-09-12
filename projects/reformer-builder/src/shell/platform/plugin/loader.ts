@@ -42,7 +42,7 @@
  */
 
 import type { ModuleLoader } from '@/shell/platform/modules/loader';
-import { joinPath } from '@/shell/platform/primitives/resource';
+import { joinPath } from '@reformer/builder-plugin-api/internal';
 import { isSourceError } from '@/shell/platform/source/errors';
 import type { Entry, Source } from '@/shell/platform/source/types';
 import {

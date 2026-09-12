@@ -28,7 +28,7 @@ import { createCapabilityAccess } from '@/shell/platform/primitives/capability';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { EventBus } from '@/shell/platform/primitives/event';
 import type { RootExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import { toDisposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import type { ServiceRegistry } from '@/shell/platform/primitives/service';
 import {
   FALLBACK_LOCALE,

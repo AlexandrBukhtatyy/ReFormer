@@ -14,7 +14,7 @@
 
 import type { ReactElement } from 'react';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';

@@ -31,7 +31,7 @@ import {
   defineExtensionPoint,
   type ExtensionRegistry,
 } from '@/shell/platform/primitives/extension-point';
-import type { ResourceRef } from '@/shell/platform/primitives/resource';
+import type { ResourceRef } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Адрес узла внутри модели.

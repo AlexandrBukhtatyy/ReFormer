@@ -24,7 +24,7 @@
  * @module shell/platform/ui/keyboard/chords
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Сколько ждать вторую ступень.

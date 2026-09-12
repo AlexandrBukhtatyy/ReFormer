@@ -23,7 +23,7 @@
 
 import type { ComponentType } from 'react';
 import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
-import type { WhenContext } from '@/shell/platform/primitives/when-context';
+import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Область оболочки, в которую можно внести панель.

@@ -14,8 +14,8 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import type { ServiceRegistry } from '@/shell/platform/primitives/service';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';

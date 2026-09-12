@@ -17,9 +17,14 @@
  * @module shell/platform/primitives/command
  */
 
-import { toDisposable, type Disposable } from './disposable';
-import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from './when-context';
-import { compileWhen, WHEN_TRUE, WhenSyntaxError, type WhenExpr } from './when-expr';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
+import {
+  compileWhen,
+  WHEN_TRUE,
+  WhenSyntaxError,
+  type WhenExpr,
+} from '@reformer/builder-plugin-api/internal';
 
 /**
  * Как команда выглядит для модели. Заполняется осознанно — см.

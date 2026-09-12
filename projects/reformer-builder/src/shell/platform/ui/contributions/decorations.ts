@@ -24,12 +24,12 @@
  */
 
 import type { ComponentType } from 'react';
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import {
   defineExtensionPoint,
   type Contribution,
 } from '@/shell/platform/primitives/extension-point';
-import type { ResourceRef } from '@/shell/platform/primitives/resource';
+import type { ResourceRef } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { EditorProbe } from '@/shell/platform/workspace/model/provider';
 

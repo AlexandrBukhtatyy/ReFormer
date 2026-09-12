@@ -30,7 +30,12 @@
     "paths": {
       "@/*": ["./src/*"],
       "@builder-src/*": ["../reformer-builder/src/*"],
-      "@/shell/*": ["../reformer-builder/src/shell/*"]
+      "@/shell/*": ["../reformer-builder/src/shell/*"],
+      // Исходники билдера, включённые ниже, импортируют пакет контракта плагинов.
+      "@reformer/builder-plugin-api": ["../../packages/reformer-builder-plugin-api/src/index.ts"],
+      "@reformer/builder-plugin-api/internal": [
+        "../../packages/reformer-builder-plugin-api/src/internal.ts"
+      ]
     }
   },
   "include": [
@@ -38,7 +43,7 @@
     "../../packages/reformer-ui-kit/src/lib",
     "../reformer-builder/src/shell/platform/modules",
     "../reformer-builder/src/shell/platform/plugin/typescript-transpiler.ts",
-    "../reformer-builder/src/shell/platform/primitives/disposable.ts",
+    "../../packages/reformer-builder-plugin-api/src/primitives/disposable.ts",
     "../reformer-builder/src/lib/form-fixture",
     "../reformer-builder/src/lib/form-inspect",
     "../reformer-builder/src/lib/form-mock"

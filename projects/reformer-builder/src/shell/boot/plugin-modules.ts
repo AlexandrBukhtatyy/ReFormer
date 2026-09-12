@@ -87,7 +87,7 @@ import {
   isTypeScriptFile,
   type TypeScriptSupport,
 } from '@/shell/platform/plugin/typescript-transpiler';
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import * as sdk from '@/sdk';
 
 /**
@@ -99,7 +99,12 @@ import * as sdk from '@/sdk';
  */
 const BUILTINS: readonly (readonly [string, unknown])[] = [
   // Оболочка и React — без них не соберётся ни плагин, ни `.tsx` формы.
+  // ОДИН объект под двумя именами, и это переходный период, а не два слота. Имя
+  // `@builder/sdk` останется, пока по нему написаны плагины; новое — то, под которым
+  // контракт опубликован в npm и против которого плагин каталога компилируется у себя.
+  // Второй ЭКЗЕМПЛЯР здесь был бы плагином, регистрирующим вклады в чужой пустой реестр.
   ['@builder/sdk', sdk],
+  ['@reformer/builder-plugin-api', sdk],
   ['react', react],
   ['react/jsx-runtime', jsxRuntime],
   ['react-dom', reactDom],

@@ -31,7 +31,7 @@
  * @module shell/boot/project/recent
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import type { WorkspaceMetaStore, WorkspaceRecord } from '@/shell/platform/workspace/storage/idb';
 
 /** Недавний проект — строка списка. */

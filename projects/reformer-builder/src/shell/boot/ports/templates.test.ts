@@ -17,7 +17,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { createFsAccessSource } from '@/shell/platform/source/fs-access';
 import { createFakeDirectory } from '@/shell/platform/source/testing';
 import { createWorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';

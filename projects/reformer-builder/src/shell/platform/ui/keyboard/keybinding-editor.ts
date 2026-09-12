@@ -22,7 +22,7 @@
 
 import type { CommandContribution } from '@/shell/platform/primitives/command';
 import { MAX_CHORD_STEPS } from '@/shell/platform/primitives/command';
-import type { WhenExpr } from '@/shell/platform/primitives/when-expr';
+import type { WhenExpr } from '@reformer/builder-plugin-api/internal';
 import type { KeybindingIndex, KeybindingLayer, KeybindingRule } from './keybinding-rules';
 import type { UserKeybinding } from './keymap';
 

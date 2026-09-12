@@ -41,7 +41,7 @@
  */
 
 import type { CapabilityDeclaration } from '@/shell/platform/primitives/capability';
-import { disposeAll } from '@/shell/platform/primitives/disposable';
+import { disposeAll } from '@reformer/builder-plugin-api/internal';
 import { createPluginContext } from './context';
 import type { PluginContextDeps } from './context';
 import { createSecretSessionStore } from './storage';

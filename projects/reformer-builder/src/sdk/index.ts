@@ -61,16 +61,16 @@ export type { Translate } from '@/shell/platform/ui/useTranslate';
 export type { PluginI18n } from '@/shell/platform/services/i18n/i18n';
 
 // Освобождение: всё, что плагин регистрирует, он кладёт в `ctx.subscriptions`.
-export type { Disposable } from '@/shell/platform/primitives/disposable';
+export type { Disposable } from '@reformer/builder-plugin-api';
 
 // Адресация: ресурс, на который смотрит документ.
-export type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
+export type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 
 // Правила имён записей — платформенные, потому что их проверяет не только плагин файлов:
 // шаблон формы спрашивает имя каталога ровно теми же правилами, и вторая их реализация
 // разошлась бы с первой на первом же `aux.ts`, который Windows не даёт создать.
-export { validateResourceName, splitName } from '@/shell/platform/workspace/resource-names';
-export type { NameRejection } from '@/shell/platform/workspace/resource-names';
+export { validateResourceName, splitName } from '@reformer/builder-plugin-api';
+export type { NameRejection } from '@reformer/builder-plugin-api';
 
 // Диагностика: то, во что плагин облекает найденное.
 export type {
@@ -131,7 +131,7 @@ export { CatalogPluginSettingsPoint } from '@/shell/platform/ui/contributions/pl
 export type { CatalogPluginSettingsContribution } from '@/shell/platform/ui/contributions/plugin-settings';
 export { pluginSettingsKey } from '@/shell/platform/services/plugin-settings';
 export type { CommandContribution } from '@/shell/platform/primitives/command';
-export type { WhenContext, FocusTarget } from '@/shell/platform/primitives/when-context';
+export type { WhenContext, FocusTarget } from '@reformer/builder-plugin-api';
 
 // ── Клавиатура: условие применимости как данные ─────────────────────────────────
 //
@@ -139,18 +139,13 @@ export type { WhenContext, FocusTarget } from '@/shell/platform/primitives/when-
 // обязаны трое одинаково — реестр команд, диспетчер клавиш и тот, кто её показывает.
 // Вторая реализация грамматики разошлась бы с первой на первом же операторе, а расхождение
 // проявилось бы не отказом, а молча не сработавшей клавишей.
-export {
-  parseWhen,
-  compileWhen,
-  evaluateWhen,
-  WHEN_TRUE,
-} from '@/shell/platform/primitives/when-expr';
+export { parseWhen, compileWhen, evaluateWhen, WHEN_TRUE } from '@reformer/builder-plugin-api';
 export type {
   WhenExpr,
   WhenNode,
   WhenParseError,
   WhenParseResult,
-} from '@/shell/platform/primitives/when-expr';
+} from '@reformer/builder-plugin-api';
 
 // Контекстные ключи. Без них плагин может выразить «узел выделен на канвасе» только
 // предикатом, читающим его собственный реестр сеансов, — то есть непрозрачно: такое условие

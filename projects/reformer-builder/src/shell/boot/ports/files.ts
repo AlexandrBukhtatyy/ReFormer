@@ -20,7 +20,7 @@ import {
   isTextMediaType,
   parseResourceId,
   type ResourceId,
-} from '@/shell/platform/primitives/resource';
+} from '@reformer/builder-plugin-api/internal';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';

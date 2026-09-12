@@ -23,8 +23,8 @@
  * @module shell/platform/ui/state/resource-tree
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
 import type { Workspace } from '@/shell/platform/workspace/workspace';
 
 /** Состояние загрузки уровня. Три состояния, потому что «пусто» и «ещё не спрашивали» — разное. */

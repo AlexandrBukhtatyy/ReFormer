@@ -22,7 +22,7 @@
  * @module shell/platform/workspace/testing
  */
 
-import { normalizePath } from '@/shell/platform/primitives/resource';
+import { normalizePath } from '@reformer/builder-plugin-api/internal';
 import type {
   SourceBytes,
   SourceContent,

@@ -19,7 +19,7 @@
  * @module shell/platform/source/errors
  */
 
-import { normalizePath } from '@/shell/platform/primitives/resource';
+import { normalizePath } from '@reformer/builder-plugin-api/internal';
 
 /** Виды отказов. Набор совпадает с `SourceErrorKind` Workspace — это один и тот же набор. */
 export type SourceErrorKind =

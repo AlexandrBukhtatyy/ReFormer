@@ -18,7 +18,7 @@
  * @module shell/platform/modules/transpilers
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 
 /** Результат транспиляции одного файла. `map` — sourcemap, если движок её отдаёт. */
 export interface TranspileOutput {

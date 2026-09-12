@@ -17,8 +17,8 @@ import {
   makeResourceId,
   mediaTypeFor,
   type ResourceRef,
-} from '@/shell/platform/primitives/resource';
-import { whenContext } from '@/shell/platform/primitives/when-context';
+} from '@reformer/builder-plugin-api/internal';
+import { whenContext } from '@reformer/builder-plugin-api/internal';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { renderReact } from '@/testing/render';
 import { EditorActions } from './EditorActions';

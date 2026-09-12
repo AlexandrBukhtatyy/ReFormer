@@ -26,13 +26,13 @@ import {
   mediaTypeFor,
   type ResourceId,
   type ResourceRef,
-} from '@/shell/platform/primitives/resource';
-import { whenContext } from '@/shell/platform/primitives/when-context';
+} from '@reformer/builder-plugin-api/internal';
+import { whenContext } from '@reformer/builder-plugin-api/internal';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { EditorArea } from '@/shell/platform/ui/chrome/EditorArea';
 import { createDocumentTabsStore, type TabsWorkspace } from '@/shell/platform/ui/state/tabs';
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { createDocument, type Document } from '@/shell/platform/workspace/document';
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
 import { renderReact } from '@/testing/render';

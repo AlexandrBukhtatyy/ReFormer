@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import {
   createWorkspaceMetaStore,

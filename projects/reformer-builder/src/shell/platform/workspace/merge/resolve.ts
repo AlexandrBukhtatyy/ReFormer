@@ -38,7 +38,7 @@
  * @module shell/platform/workspace/merge/resolve
  */
 
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { SaveConflict, Workspace } from '../workspace';
 import { mergeThreeWay, type MergeOptions, type MergeResult } from './text-merge';
 

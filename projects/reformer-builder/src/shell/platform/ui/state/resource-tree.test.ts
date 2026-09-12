@@ -5,7 +5,7 @@ import {
   mediaTypeFor,
   type ResourceId,
   type ResourceRef,
-} from '@/shell/platform/primitives/resource';
+} from '@reformer/builder-plugin-api/internal';
 import {
   collapseNode,
   createResourceTreeStore,

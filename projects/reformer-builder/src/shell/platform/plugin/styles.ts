@@ -55,7 +55,7 @@
  * @module shell/platform/plugin/styles
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import type { PluginProblem } from './manifest';
 
 /** Атрибут контейнера плагина. Его ставит тот, кто рисует поддерево плагина. */

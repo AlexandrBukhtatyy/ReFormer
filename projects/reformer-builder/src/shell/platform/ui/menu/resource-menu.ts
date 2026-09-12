@@ -30,8 +30,8 @@ import {
   makeResourceId,
   type ResourceId,
   type ResourceRef,
-} from '@/shell/platform/primitives/resource';
-import type { WhenContext } from '@/shell/platform/primitives/when-context';
+} from '@reformer/builder-plugin-api/internal';
+import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 import type { ContextMenuId, MenuTarget } from './menu';
 
 /** Адрес контекстного меню дерева: в него вносят пункты те, кому есть что предложить. */

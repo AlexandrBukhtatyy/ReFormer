@@ -35,7 +35,7 @@
  * @module shell/platform/workspace/journal/policy
  */
 
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { composeTextEdits } from './compose';
 import type { JournalIndexEntry, JournalRecord } from './record';
 

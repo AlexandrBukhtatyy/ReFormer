@@ -23,7 +23,7 @@
  * @module shell/platform/source/types
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Ответ источника на чтение текста.

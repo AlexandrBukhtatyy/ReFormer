@@ -27,7 +27,7 @@
  * @module shell/platform/services/plugin-settings
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import type { SettingsService } from './settings';
 
 /** Ключ настроек плагина каталога. Одна функция на всё приложение: адрес не должен разъехаться. */

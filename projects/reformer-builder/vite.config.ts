@@ -177,6 +177,18 @@ export default defineConfig({
     // Дедупликация singleton-рантаймов при workspace-линке: одна копия React, Radix и
     // @preact/signals-core на всё дерево (иначе `instanceof Signal` / контекст Radix ломаются).
     dedupe: ['react', 'react-dom', 'radix-ui', '@preact/signals-core'],
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      // Порядок значим: подпуть обязан стоять ПЕРЕД корнем, иначе корневой псевдоним
+      // съедает '/internal' и оболочка получает поверхность плагина вместо примитивов.
+      '@reformer/builder-plugin-api/internal': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-plugin-api/src/internal.ts'
+      ),
+      '@reformer/builder-plugin-api': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-plugin-api/src/index.ts'
+      ),
+    },
   },
 });

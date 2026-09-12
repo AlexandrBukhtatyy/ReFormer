@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { applyTextEdits, diffText, type TextEdit } from '../model/history';
 import { createWorkspaceMetaStore, type WorkspaceMetaStore } from '../storage/idb';
 import { createMemoryIndexedDb, type MemoryIndexedDbControl } from '../storage/testing';

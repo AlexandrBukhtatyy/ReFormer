@@ -39,9 +39,14 @@ import {
   makeResourceId,
   parseResourceId,
   type ResourceId,
-} from '@/shell/platform/primitives/resource';
+} from '@reformer/builder-plugin-api/internal';
 import type { Source } from '@/shell/platform/source/types';
-import { isInside, uniqueName, validateResourceName, type NameRejection } from './resource-names';
+import {
+  isInside,
+  uniqueName,
+  validateResourceName,
+  type NameRejection,
+} from '@reformer/builder-plugin-api/internal';
 
 /**
  * Источник в объёме, нужном операциям.

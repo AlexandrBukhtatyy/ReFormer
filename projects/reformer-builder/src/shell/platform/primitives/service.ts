@@ -25,8 +25,8 @@
  * @module shell/platform/primitives/service
  */
 
-import type { Disposable } from './disposable';
-import { toDisposable } from './disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import { toDisposable } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Типизированная ссылка на сервис.

@@ -19,8 +19,8 @@
  * @module shell/platform/ui/menu/editor-menu
  */
 
-import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
-import type { WhenContext } from '@/shell/platform/primitives/when-context';
+import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
+import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 import type { ContextMenuId, MenuTarget } from './menu';
 
 /** Адрес ряда действий над активным документом. */

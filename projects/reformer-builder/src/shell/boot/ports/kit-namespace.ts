@@ -38,7 +38,7 @@
  * @module shell/boot/ports/kit-namespace
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import type { KitNamespace } from '@/lib/kits/types';
 
 export interface KitNamespaceLoader {

@@ -35,9 +35,9 @@
  */
 
 import type { CommandContribution } from '@/shell/platform/primitives/command';
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
-import type { WhenContext } from '@/shell/platform/primitives/when-context';
+import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Пункт палитры.

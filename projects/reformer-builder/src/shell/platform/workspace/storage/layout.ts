@@ -28,7 +28,7 @@
  * @module shell/platform/workspace/storage/layout
  */
 
-import { normalizePath, type ResourceId } from '@/shell/platform/primitives/resource';
+import { normalizePath, type ResourceId } from '@reformer/builder-plugin-api/internal';
 import { StorageError } from './errors';
 
 /** Корень всех рабочих областей внутри OPFS. */

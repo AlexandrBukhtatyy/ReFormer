@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import { makeResourceId, type ResourceRef } from '@/shell/platform/primitives/resource';
+import { makeResourceId, type ResourceRef } from '@reformer/builder-plugin-api/internal';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
 import { createLazyEditorProbe } from './editors';

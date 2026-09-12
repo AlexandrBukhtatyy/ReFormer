@@ -10,8 +10,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import type { Document } from '@/shell/platform/workspace/document';
 import type { WorkspaceChange } from '@/shell/platform/workspace/workspace';

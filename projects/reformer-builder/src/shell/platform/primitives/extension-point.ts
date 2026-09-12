@@ -24,8 +24,8 @@
  * @module shell/platform/primitives/extension-point
  */
 
-import type { Disposable } from './disposable';
-import { toDisposable } from './disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import { toDisposable } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Типизированное имя точки расширения.

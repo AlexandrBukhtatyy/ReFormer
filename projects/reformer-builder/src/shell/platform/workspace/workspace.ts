@@ -62,7 +62,7 @@
  */
 
 import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { createEventBus, defineEvent, type EventBus } from '@/shell/platform/primitives/event';
 import {
   basename,
@@ -75,7 +75,7 @@ import {
   type ResourceId,
   type ResourceRef,
   type ResourceStat,
-} from '@/shell/platform/primitives/resource';
+} from '@reformer/builder-plugin-api/internal';
 import { createDocument, type Document, type DocumentHandle } from './document';
 import {
   DEFAULT_EVICTION_BUDGET,

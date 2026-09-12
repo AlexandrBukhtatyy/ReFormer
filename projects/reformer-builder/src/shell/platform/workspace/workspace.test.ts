@@ -23,7 +23,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
-import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
+import { makeResourceId, type ResourceId } from '@reformer/builder-plugin-api/internal';
 import { createWorkspaceMetaStore, type WorkspaceMetaStore } from './storage/idb';
 import { createWorkspaceFileStore } from './storage/opfs';
 import { createMemoryIndexedDb, createMemoryOpfs, type MemoryOpfs } from './storage/testing';

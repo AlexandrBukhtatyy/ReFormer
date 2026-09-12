@@ -15,7 +15,7 @@
  * @module shell/boot/ports/workspace-save
  */
 
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface WorkspaceSaveDeps {

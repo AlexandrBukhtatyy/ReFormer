@@ -27,8 +27,8 @@
  * @module shell/platform/workspace/storage/idb
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId, ResourceStat } from '@/shell/platform/primitives/resource';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId, ResourceStat } from '@reformer/builder-plugin-api/internal';
 import { StorageError } from './errors';
 import { openedKey, statKey, type HistoryKey } from './layout';
 

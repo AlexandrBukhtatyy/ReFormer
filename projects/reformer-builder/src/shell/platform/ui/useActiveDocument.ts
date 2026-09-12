@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useSyncExternalStore } from 'react';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { DocumentsService } from '@/shell/platform/services/documents';
 
 /** Служба документов в объёме хука: снимок и уведомление. */

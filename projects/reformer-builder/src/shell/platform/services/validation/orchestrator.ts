@@ -34,10 +34,10 @@
  * @module shell/platform/services/validation/orchestrator
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
-import { toDisposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import type { Document } from '@/shell/platform/workspace/document';
 import { isModelDocument } from '@/shell/platform/workspace/model/model-document';

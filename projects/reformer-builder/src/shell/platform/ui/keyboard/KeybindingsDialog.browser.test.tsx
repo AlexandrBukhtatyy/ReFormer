@@ -22,7 +22,7 @@ import { KeybindingsDialog, KEYBINDINGS_OPEN_COMMAND_ID } from './KeybindingsDia
 import { createKeymapService } from './keymap';
 import { installKeybindings } from './keybindings';
 import { createScopeStack } from './scope';
-import { whenContext } from '@/shell/platform/primitives/when-context';
+import { whenContext } from '@reformer/builder-plugin-api/internal';
 
 const MESSAGES: Readonly<Record<string, string>> = {
   'shell.keybindings.title': 'Горячие клавиши',

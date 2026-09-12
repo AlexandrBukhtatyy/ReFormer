@@ -21,7 +21,7 @@
 import { describe, expect, it } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
-import { toDisposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import { renderReact } from '@/testing/render';
 import hostRu from '@/shell/platform/services/i18n/locales/ru.json';
 import { createPluginsSettingsBody } from './PluginsSettings';

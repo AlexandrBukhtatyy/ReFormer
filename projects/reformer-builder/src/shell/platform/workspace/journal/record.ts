@@ -20,7 +20,7 @@
  * @module shell/platform/workspace/journal/record
  */
 
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { TextEdit } from '../model/history';
 import type { EditOp } from '../model/provider';
 import type { HistoryEntryRecord, HistoryRecord, HistorySnapshotRecord } from '../storage/idb';

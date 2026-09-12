@@ -77,6 +77,7 @@ Package scopes:
 - `reformer-renderer-json` — `@reformer/renderer-json`
 - `reformer-form-registry` — `@reformer/form-registry`
 - `reformer-mcp` — `@reformer/mcp`
+- `reformer-builder-plugin-api` — `@reformer/builder-plugin-api` (контракт плагинов билдера)
 
 Project scopes (не публикуются в npm):
 

@@ -53,8 +53,8 @@
  * @module shell/platform/services/documents
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
 import type { Document } from '@/shell/platform/workspace/document';
 import type { WriteOptions } from '@/shell/platform/workspace/workspace';

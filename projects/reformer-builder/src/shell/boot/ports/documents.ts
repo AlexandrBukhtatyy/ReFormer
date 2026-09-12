@@ -24,8 +24,8 @@
  * @module shell/boot/ports/documents
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { DocumentsService, OpenDocumentOptions } from '@/shell/platform/services/documents';
 import type { Document } from '@/shell/platform/workspace/document';
 import type { WriteOptions } from '@/shell/platform/workspace/workspace';

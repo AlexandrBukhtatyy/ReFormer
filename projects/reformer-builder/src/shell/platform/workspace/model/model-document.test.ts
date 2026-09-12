@@ -28,7 +28,7 @@ import {
   mediaTypeFor,
   type ResourceId,
   type ResourceRef,
-} from '@/shell/platform/primitives/resource';
+} from '@reformer/builder-plugin-api/internal';
 import { createDocument, type Document, type DocumentHandle } from '../document';
 import { createWorkspaceMetaStore } from './../storage/idb';
 import { createWorkspaceFileStore } from './../storage/opfs';

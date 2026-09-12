@@ -30,9 +30,9 @@
  * @module shell/platform/primitives/capability
  */
 
-import type { Disposable } from './disposable';
-import { toDisposable } from './disposable';
-import { parseRange, parseVersion, satisfiesRange } from './semver';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import { toDisposable } from '@reformer/builder-plugin-api/internal';
+import { parseRange, parseVersion, satisfiesRange } from '@reformer/builder-plugin-api/internal';
 import type { ServiceRegistry, ServiceToken } from './service';
 
 /**

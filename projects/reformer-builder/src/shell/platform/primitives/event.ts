@@ -17,7 +17,7 @@
  * @module shell/platform/primitives/event
  */
 
-import { toDisposable, type Disposable } from './disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Типизированный ключ события: связывает идентификатор с типом полезной нагрузки.

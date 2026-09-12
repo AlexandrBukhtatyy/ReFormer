@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createDiagnosticsService } from '@/shell/platform/services/diagnostics/service';
 import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import { makeResourceId, type ResourceRef } from '@/shell/platform/primitives/resource';
+import { makeResourceId, type ResourceRef } from '@reformer/builder-plugin-api/internal';
 import { createDocument, type Document } from '@/shell/platform/workspace/document';
 import { createModelDocument } from '@/shell/platform/workspace/model/model-document';
 import {

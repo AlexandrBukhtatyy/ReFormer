@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
+import { makeResourceId, type ResourceId } from '@reformer/builder-plugin-api/internal';
 import { createFsAccessSource } from '@/shell/platform/source/fs-access';
 import { createFakeDirectory } from '@/shell/platform/source/testing';
 import type { Source } from '@/shell/platform/source/types';

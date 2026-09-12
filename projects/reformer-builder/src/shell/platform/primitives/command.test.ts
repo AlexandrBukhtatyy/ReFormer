@@ -8,8 +8,8 @@ import {
   normalizeKeybinding,
 } from './command';
 import type { CommandContribution } from './command';
-import { NEUTRAL_WHEN_CONTEXT, whenContext } from './when-context';
-import type { WhenContext } from './when-context';
+import { NEUTRAL_WHEN_CONTEXT, whenContext } from '@reformer/builder-plugin-api/internal';
+import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 
 /** Команда с заполненными обязательными полями — в тесте значим один-два аргумента, не все. */
 const command = (patch: Partial<CommandContribution> & { id: string }): CommandContribution => ({

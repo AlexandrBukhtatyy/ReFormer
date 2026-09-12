@@ -142,6 +142,15 @@ jobs:
         # токенов/вызовов. Метод и вскрытые ограничения — docs/mcp-eval/README.md.
         run: npm run mcp:evaluate
 
+      # builder-plugin-api — публикуемый контракт плагинов билдера. Собираем ДО билдера:
+      # он его workspace-зависимость. Проверка «Dist deps ↔ manifest» ниже сканирует dist/
+      # всех packages/*, поэтому без сборки она падала бы на «нет dist/».
+      - name: Build @reformer/builder-plugin-api
+        run: npm run build -w @reformer/builder-plugin-api
+
+      - name: Run @reformer/builder-plugin-api tests
+        run: npm run test -w @reformer/builder-plugin-api
+
       - name: Build @reformer/builder
         run: npm run build -w @reformer/builder
 

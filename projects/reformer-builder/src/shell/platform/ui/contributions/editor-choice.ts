@@ -40,8 +40,8 @@
  * @module shell/platform/ui/contributions/editor-choice
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { EditorCandidate, EditorEntry } from './editors';
 
 /** Снимок выбора: ресурс → идентификатор редактора. Между изменениями — та же ссылка. */

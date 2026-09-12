@@ -25,6 +25,32 @@ describe('модули, доступные плагину каталога', () 
     modules.dispose();
   });
 
+  it('@reformer/builder-plugin-api и @builder/sdk — ОДИН объект, а не два слота', () => {
+    // Плагин каталога компилируется у себя против опубликованного пакета, а исполняется
+    // здесь. Отдай мы ему второй экземпляр — точки расширения и токены служб оказались бы
+    // копиями, и вклад ушёл бы в пустой реестр молча: ни отказа, ни исключения, просто
+    // не появившаяся панель. Имя `@builder/sdk` остаётся, пока по нему написаны плагины.
+    const modules = createPluginModules();
+    const registry = modules.modules.registry;
+
+    expect(registry.resolve('@reformer/builder-plugin-api', 'main.js')).toBe(sdk);
+    expect(registry.resolve('@reformer/builder-plugin-api', 'main.js')).toBe(
+      registry.resolve('@builder/sdk', 'main.js')
+    );
+    modules.dispose();
+  });
+
+  it('имя пакета контракта плагин подменить не может', () => {
+    // Защита у него не своя: `@reformer/` целиком закрыт префиксом (`PROTECTED_PREFIXES`),
+    // поэтому подмена отсекается тем же правилом, что у `@reformer/core`.
+    const modules = createPluginModules();
+
+    expect(() =>
+      modules.modules.registry.register('@reformer/builder-plugin-api', { evil: true })
+    ).toThrow(ModuleRegistryError);
+    modules.dispose();
+  });
+
   it('React, его jsx-runtime и react-dom — те же, что у оболочки', () => {
     const modules = createPluginModules();
     const registry = modules.modules.registry;

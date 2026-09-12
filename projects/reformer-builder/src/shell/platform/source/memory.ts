@@ -33,7 +33,7 @@
  * @module shell/platform/source/memory
  */
 
-import { joinPath, mediaTypeFor } from '@/shell/platform/primitives/resource';
+import { joinPath, mediaTypeFor } from '@reformer/builder-plugin-api/internal';
 import { SourceError, sourcePath } from './errors';
 import type { SourceErrorKind } from './errors';
 import type {

@@ -46,7 +46,19 @@ export default defineConfig({
     // Тот же dedupe, что в vite.config.ts: без одной копии React и Radix контекст диалога
     // не находится, и ловушка фокуса проверялась бы на другом дереве, чем в приложении.
     dedupe: ['react', 'react-dom', 'radix-ui', '@preact/signals-core'],
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      // Порядок значим: подпуть обязан стоять ПЕРЕД корнем, иначе корневой псевдоним
+      // съедает '/internal' и оболочка получает поверхность плагина вместо примитивов.
+      '@reformer/builder-plugin-api/internal': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-plugin-api/src/internal.ts'
+      ),
+      '@reformer/builder-plugin-api': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-plugin-api/src/index.ts'
+      ),
+    },
   },
   // Подсветка блоков кода грузится динамическим импортом, а Vite предзаготавливает
   // зависимости по СТАТИЧЕСКИМ импортам. Без этой строки первый же тест с блоком кода

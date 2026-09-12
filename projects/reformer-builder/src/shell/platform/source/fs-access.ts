@@ -33,7 +33,7 @@
  * @module shell/platform/source/fs-access
  */
 
-import { basename, dirname, joinPath, mediaTypeFor } from '@/shell/platform/primitives/resource';
+import { basename, dirname, joinPath, mediaTypeFor } from '@reformer/builder-plugin-api/internal';
 import { SourceError, isSourceError, sourcePath, unsupported } from './errors';
 import type {
   Entry,

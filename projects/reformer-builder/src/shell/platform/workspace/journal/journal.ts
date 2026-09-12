@@ -37,7 +37,7 @@
  * @module shell/platform/workspace/journal/journal
  */
 
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { applyTextEdits, invertTextEdits } from '../model/history';
 import type { EditOp } from '../model/provider';
 import type { HistorySnapshotRecord, QuotaPressure, WorkspaceMetaStore } from '../storage/idb';

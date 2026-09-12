@@ -30,9 +30,9 @@
  * @module shell/platform/services/context-keys
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { defineService } from '@/shell/platform/primitives/service';
-import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@/shell/platform/primitives/when-context';
+import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
 
 /** Порт источника пяти полей. `WhenContextStore` подходит под эту форму как есть. */
 export interface WhenContextSource {

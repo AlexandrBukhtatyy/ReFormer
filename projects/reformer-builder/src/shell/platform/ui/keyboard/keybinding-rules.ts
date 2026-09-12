@@ -28,7 +28,7 @@
  */
 
 import { normalizeChord } from '@/shell/platform/primitives/command';
-import { provablyDisjoint, WHEN_TRUE, type WhenExpr } from '@/shell/platform/primitives/when-expr';
+import { provablyDisjoint, WHEN_TRUE, type WhenExpr } from '@reformer/builder-plugin-api/internal';
 import { resolvePlatformChord, type PlatformModifier } from './keybindings';
 
 /**

@@ -75,6 +75,7 @@ jobs:
           npm run build -w @reformer/ui-kit
           npm run build -w @reformer/form-registry
           npm run build -w @reformer/mcp
+          npm run build -w @reformer/builder-plugin-api
 
       - name: Build documentation
         run: npm run build -w reformer-doc

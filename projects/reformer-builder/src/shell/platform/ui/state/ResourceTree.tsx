@@ -71,8 +71,8 @@ import {
 } from '@reformer/ui-kit/context-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
 import { TREE_ROW_ATTRIBUTE, Tree, type TreeNode } from '@reformer/ui-kit/tree';
-import type { ResourceId, ResourceRef } from '@/shell/platform/primitives/resource';
-import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@/shell/platform/primitives/when-context';
+import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
+import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import {
   ResourceDecorationPoint,

@@ -13,7 +13,7 @@
  * @module shell/boot/settings/plugins-list
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 
 /** Состояние плагина в каталоге. Копия перечисления каталога — структурно, без импорта. */
 export type PluginRowState = 'disabled' | 'enabled' | 'failed';

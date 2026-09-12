@@ -39,7 +39,7 @@
  */
 
 import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 
 /** Вид хранилища для ОДНОГО редактора: ровно то, чем пользуется его тело. */
 export interface EditorViewStateSlice {

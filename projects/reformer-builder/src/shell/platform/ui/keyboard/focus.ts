@@ -24,7 +24,7 @@
  * @module shell/platform/ui/keyboard/focus
  */
 
-import type { FocusTarget } from '@/shell/platform/primitives/when-context';
+import type { FocusTarget } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Атрибут, которым область объявляет свой вид фокуса: `data-focus-zone="canvas"`.

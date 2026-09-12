@@ -51,9 +51,9 @@
  * @module shell/platform/services/selection
  */
 
-import type { Disposable } from '@/shell/platform/primitives/disposable';
+import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
-import type { ResourceId } from '@/shell/platform/primitives/resource';
+import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { defineService } from '@/shell/platform/primitives/service';
 import type { NodeId } from '@/shell/platform/workspace/model/provider';
 

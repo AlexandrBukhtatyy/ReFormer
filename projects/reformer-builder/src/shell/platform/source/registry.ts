@@ -19,7 +19,7 @@
  * @module shell/platform/source/registry
  */
 
-import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
+import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { SourceError } from './errors';
 import type { RestoredSource, SourceDescriptor, SourceFactory } from './types';
 

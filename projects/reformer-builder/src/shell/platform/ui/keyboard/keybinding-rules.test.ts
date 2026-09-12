@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { compileWhen, WHEN_TRUE } from '@/shell/platform/primitives/when-expr';
+import { compileWhen, WHEN_TRUE } from '@reformer/builder-plugin-api/internal';
 import {
   applyRemovals,
   buildKeybindingIndex,
