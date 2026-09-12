@@ -747,6 +747,16 @@ export function boot(options: BootOptions): BuilderApp {
           ...(parsed?.config.defaults !== undefined
             ? ['«defaults» действуют только на уровне запуска — задайте их в конфиге лаунчера']
             : []),
+          // Состав приложения тем более: он фиксируется ДО `boot`, при сборке композиции
+          // (`application/builder-application`), а эта строка выполняется после открытия
+          // проекта — когда плагины уже активированы и вклады розданы. Применить его здесь
+          // означало бы перезапуск приложения на открытии папки.
+          ...(parsed?.config.preset !== undefined
+            ? ['«preset» действует только на уровне запуска — задайте его в конфиге лаунчера']
+            : []),
+          ...(parsed?.config.plugins !== undefined
+            ? ['«plugins» действуют только на уровне запуска — задайте их в конфиге лаунчера']
+            : []),
         ];
         if (problems.length > 0) {
           notifications.warning('config.problem.project', {

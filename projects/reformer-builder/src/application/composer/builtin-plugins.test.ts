@@ -10,6 +10,12 @@
  *
  * Оба случая в этом проекте уже происходили. Отсюда этот файл.
  *
+ * С появлением профилей это тест ПОЛНОГО профиля — того состава, который получает человек,
+ * открывший инструмент. Он собирается ровно тем же значением, что уходит в `boot` из
+ * `main.tsx` (`builderApplication`), а не отдельным списком «всех, кого знаем»: список,
+ * собранный для теста, проверял бы сам себя. Что даёт КОРОТКИЙ профиль — вопрос
+ * `compose.test`, и проверяется он там поимённо.
+ *
  * @module application/composer/builtin-plugins.test
  */
 
@@ -26,37 +32,10 @@ import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
 import { EditorPoint, resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
-import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
-import {
-  createBuiltinPlugins,
-  createEagerBuiltinPlugins,
-  LAZY_PLUGIN_IDS,
-  loadLazyBuiltinPlugins,
-} from './builtin-plugins';
-
-/**
- * Порты-пустышки: композиция проверяется на СОСТАВ вкладов, а не на поведение портов.
- *
- * Прокси, а не литерал с методами: у семи портов вместе больше шестидесяти методов, и держать
- * их список здесь значило бы переписывать этот файл на каждое изменение любого порта — то есть
- * получить вторую копию контрактов вдобавок к тем, что уже есть.
- */
-function stubHost(): never {
-  return new Proxy(
-    {},
-    {
-      get: (_t, prop) => {
-        if (prop === 'then') return undefined;
-        // Хуки обязаны быть функциями с именем на `use`: правила хуков смотрят на имя.
-        return typeof prop === 'string' && prop.startsWith('use')
-          ? function useStub(): unknown {
-              return () => '';
-            }
-          : () => null;
-      },
-    }
-  ) as never;
-}
+import { builderApplication } from '../builder-application';
+import { BUILTIN_PLUGINS, LAZY_PLUGIN_IDS } from './builtin-plugins';
+import { composeAll } from './compose';
+import { stubBuiltinOptions } from './testing';
 
 /**
  * Русский словарь плагина или `null`, если словаря у него нет.
@@ -93,28 +72,33 @@ async function harness() {
   });
 
   // Ждём ОБЕ фазы: состав проверяется целиком, а не только той половиной, что едет в entry.
-  const built = await createBuiltinPlugins({
-    // Словари в этом стенде не проверяются: перевод возвращает ключ, вклад глотается.
-    // Полнота словарей проверяется отдельно (integration/i18n-completeness).
-    i18n: {
-      forPlugin: () => ({ t: (key: string) => key, contribute: () => {} }),
-    },
-    files: stubHost(),
-    monaco: stubHost(),
-    monacoFocus: createTextEditorFocusRegistry(),
-    markdown: stubHost(),
-    schema: stubHost(),
-    ai: stubHost(),
-    preview: stubHost(),
-    codegen: stubHost(),
-    templates: stubHost(),
-    printTemplate: () => Promise.resolve([]),
-    kits: {},
-    pluginManager: { host: stubHost() },
-  });
+  const built = await composeAll(builderApplication, stubBuiltinOptions());
 
   return { built, plugins, extensions, commands, services, onError };
 }
+
+describe('карта встроенных плагинов', () => {
+  it('идентификаторы в карте уникальны: запись не может перекрыть соседнюю', () => {
+    // Карта строится из массива записей, а `new Map` на повторный ключ молча перезаписывает —
+    // то есть один плагин исчез бы из состава, а профиль, называющий его, остался бы зелёным.
+    expect(BUILTIN_PLUGINS.size).toBe([...BUILTIN_PLUGINS.keys()].length);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(11);
+  });
+
+  it('ключ карты — настоящий идентификатор плагина, а не соседнее имя', async () => {
+    // У ленивых записей идентификатор написан СТРОКОЙ: константа лежит в барели, и её импорт
+    // вернул бы плагин в стартовый граф. Значит расхождение строки с `plugin.id` возможно,
+    // и ловится оно только здесь — сборкой настоящих плагинов из карты.
+    const options = stubBuiltinOptions();
+    const mismatched: string[] = [];
+    for (const [id, entry] of BUILTIN_PLUGINS) {
+      const plugin = await entry.create(options);
+      if (plugin.id !== id) mismatched.push(`${id} → ${plugin.id}`);
+    }
+
+    expect(mismatched).toEqual([]);
+  });
+});
 
 describe('состав встроенных плагинов', () => {
   it('активируются ВСЕ до единого', async () => {
@@ -384,41 +368,29 @@ describe('канал выделения насквозь: настоящая с�
 });
 
 describe('две фазы: что едет в entry, а что своим файлом', () => {
-  /**
-   * Опции те же, что у стенда выше, но без реестра плагинов: здесь проверяется СОСТАВ фаз,
-   * а не поведение вкладов.
-   */
-  function options() {
-    return {
-      i18n: { forPlugin: () => ({ t: (key: string) => key, contribute: () => {} }) },
-      files: stubHost(),
-      monaco: stubHost(),
-      monacoFocus: createTextEditorFocusRegistry(),
-      markdown: stubHost(),
-      schema: stubHost(),
-      ai: stubHost(),
-      preview: stubHost(),
-      codegen: stubHost(),
-      templates: stubHost(),
-      printTemplate: () => Promise.resolve([]),
-      kits: {},
-      pluginManager: { host: stubHost() },
-    };
-  }
-
-  it('ленивая фаза отдаёт ровно объявленный список', async () => {
-    const lazy = await loadLazyBuiltinPlugins(options());
+  it('ленивая фаза полного профиля отдаёт ровно тех, кто объявлен ленивым', async () => {
+    const lazy = await builderApplication.lazy(stubBuiltinOptions());
 
     expect(lazy.map((plugin) => plugin.id).sort()).toEqual([...LAZY_PLUGIN_IDS].sort());
   });
 
   it('фазы не пересекаются и вместе дают весь набор', async () => {
-    const eager = createEagerBuiltinPlugins(options()).map((plugin) => plugin.id);
-    const lazy = (await loadLazyBuiltinPlugins(options())).map((plugin) => plugin.id);
-    const all = (await createBuiltinPlugins(options())).map((plugin) => plugin.id);
+    const options = stubBuiltinOptions();
+    const eager = builderApplication.eager(options).map((plugin) => plugin.id);
+    const lazy = (await builderApplication.lazy(options)).map((plugin) => plugin.id);
+    const all = (await composeAll(builderApplication, options)).map((plugin) => plugin.id);
 
     expect(eager.filter((id) => lazy.includes(id))).toEqual([]);
     expect([...eager, ...lazy].sort()).toEqual([...all].sort());
+  });
+
+  it('полный профиль собирает ВСЮ карту: ни одна запись не осталась невостребованной', async () => {
+    // Карта и профиль — разные списки, и разъехаться они могут в обе стороны. Плагин,
+    // добавленный в карту и забытый в профиле, не попал бы в приложение вовсе, а тест
+    // состава остался бы зелёным: он проверяет то, что собралось.
+    const all = await composeAll(builderApplication, stubBuiltinOptions());
+
+    expect(all.map((plugin) => plugin.id).sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
   });
 
   /**
@@ -465,5 +437,10 @@ describe('две фазы: что едет в entry, а что своим фай
     walk(root + '/application');
 
     expect(offenders).toEqual([]);
+  });
+
+  it('храповик не пуст: зоны обойдены и ленивые плагины у него есть', () => {
+    // Сломайся обход путём — проверка выше осталась бы зелёной на пустом множестве файлов.
+    expect(LAZY_PLUGIN_IDS.length).toBeGreaterThanOrEqual(6);
   });
 });

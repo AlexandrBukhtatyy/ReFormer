@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { builderApplication } from './application/builder-application';
+import { applicationFromRuntime } from './application/builder-application';
 import { boot } from './shell/boot/boot';
 import { fetchRuntimeConfig } from './shell/boot/runtime-config';
 import './index.css';
@@ -21,7 +21,14 @@ void fetchRuntimeConfig().then((runtime) => {
   // Builder» — вопрос приложения, а не механизма, который их поднимает: `boot` объявляет форму
   // композиции и получает её параметром. Знай он состав сам, второе приложение на той же оболочке
   // начиналось бы с правки `boot`, а список плагинов остался бы частью платформы запуска.
-  const app = boot({ runtime, application: builderApplication });
+  //
+  // Какой именно состав — решает конфиг уровня запуска: `preset` называет профиль, а
+  // `plugins.enable/disable` его поправляет. Без конфига и при любой ошибке в нём собирается
+  // полный профиль: опечатка в файле, который человек написал руками, не может стоить ему
+  // инструмента. Тот же уровень и по той же причине, что у `defaults`, — состав фиксируется
+  // ЗДЕСЬ, при сборке приложения, и проектный конфиг, читаемый после открытия проекта,
+  // изменить его уже не может.
+  const app = boot({ runtime, application: applicationFromRuntime(runtime?.config ?? {}) });
   const root = createRoot(document.getElementById('root')!);
 
   // Отрисовка ждёт `ready` — шаги 2–3 последовательности запуска (настройки, словари, плагины).

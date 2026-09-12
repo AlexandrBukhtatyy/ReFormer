@@ -31,28 +31,9 @@ import { provablyDisjoint } from '@/shell/platform/primitives/when-expr';
 import { readWhenContext } from '@/shell/platform/services/context-keys';
 import { shouldDispatch } from '@/shell/platform/ui/keyboard/keybindings';
 import { whenContext } from '@/shell/platform/primitives/when-context';
-import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
-import { createBuiltinPlugins } from '@/application/composer/builtin-plugins';
-
-/**
- * Порты-пустышки. Тот же приём и та же причина, что в `builtin-plugins.test.ts`: здесь проверяется
- * СОСТАВ объявленных сочетаний, а не поведение портов.
- */
-function stubHost(): never {
-  return new Proxy(
-    {},
-    {
-      get: (_t, prop) => {
-        if (prop === 'then') return undefined;
-        return typeof prop === 'string' && prop.startsWith('use')
-          ? function useStub(): unknown {
-              return () => '';
-            }
-          : () => null;
-      },
-    }
-  ) as never;
-}
+import { builderApplication } from '@/application/builder-application';
+import { composeAll } from '@/application/composer/compose';
+import { stubBuiltinOptions } from '@/application/composer/testing';
 
 /** Команды всех встроенных плагинов — ровно те, что получит собранное приложение. */
 async function builtinCommands(): Promise<readonly CommandContribution[]> {
@@ -67,27 +48,10 @@ async function builtinCommands(): Promise<readonly CommandContribution[]> {
   });
 
   // Ждём ОБЕ фазы: сочетания ленивых плагинов обязаны попадать в проверку так же,
-  // как сочетания тех, что едут в entry.
-  plugins.registerAll(
-    await createBuiltinPlugins({
-      // Словари здесь не проверяются: перевод возвращает ключ, вклад глотается.
-      i18n: {
-        forPlugin: () => ({ t: (key: string) => key, contribute: () => {} }),
-      },
-      files: stubHost(),
-      monaco: stubHost(),
-      monacoFocus: createTextEditorFocusRegistry(),
-      markdown: stubHost(),
-      schema: stubHost(),
-      ai: stubHost(),
-      preview: stubHost(),
-      codegen: stubHost(),
-      templates: stubHost(),
-      printTemplate: () => Promise.resolve([]),
-      kits: {},
-      pluginManager: { host: stubHost() },
-    })
-  );
+  // как сочетания тех, что едут в entry. Состав берётся ПОЛНЫЙ и тем же значением, что уходит
+  // в `boot` из `main.tsx`: раскладка, проверенная на другом наборе, ничего не значила бы —
+  // конфликт сочетаний живёт ровно между плагинами, которых собрали вместе.
+  plugins.registerAll(await composeAll(builderApplication, stubBuiltinOptions()));
   plugins.activateAll();
   return commands.getAll();
 }

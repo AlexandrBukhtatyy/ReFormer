@@ -19,10 +19,19 @@
  *
  * ## Почему разбор ручной, а не AJV
  *
- * Полей три. AJV в пути запуска — это цена чанка ради трёх проверок; ручной разбор даёт
- * те же точные сообщения бесплатно. Схема `runtime-config.schema.json` при этом существует —
+ * Полей единицы. AJV в пути запуска — это цена чанка ради нескольких проверок; ручной разбор
+ * даёт те же точные сообщения бесплатно. Схема `runtime-config.schema.json` при этом существует —
  * для `$schema`-автодополнения в IDE клиента — и НЕ имеет права разойтись с разбором:
  * согласие закреплено тестом (`runtime-config.test.ts`).
+ *
+ * ## Что действует только на уровне запуска
+ *
+ * {@link RuntimeConfig.defaults}, {@link RuntimeConfig.preset} и {@link RuntimeConfig.plugins}
+ * разбираются на обоих уровнях, а применяются только на уровне запуска. Разбор общий намеренно:
+ * у двух уровней не может быть двух пониманий формата, и «поле, о котором проектный конфиг
+ * не знает вовсе» превратилось бы в «неизвестное поле» — сообщение, уводящее в сторону от
+ * настоящей причины. Поэтому поле разбирается, а `boot` говорит словами, что оно не применено
+ * (см. `boot`, чтение проектного конфига).
  *
  * @module shell/boot/runtime-config
  */
@@ -54,6 +63,29 @@ export interface RuntimeConfig {
     /** Тема до первого выбора человеком: light | dark | system. */
     readonly theme?: ThemePreference;
   };
+  /**
+   * Имя профиля состава (`application/profiles`): из каких плагинов собрать приложение.
+   *
+   * Действует ТОЛЬКО на уровне запуска, и причина жёстче, чем у `defaults`: состав фиксируется
+   * при СБОРКЕ приложения, до `boot`, а проектный конфиг читается после открытия проекта —
+   * когда плагины уже активированы. Пресет из проектного конфига разбором принимается,
+   * но не применяется — с внятной строкой в problems, а не молча.
+   *
+   * Неизвестное имя не роняет запуск: предупреждение и полный профиль.
+   */
+  readonly preset?: string;
+  /**
+   * Поправки к составу профиля. Уровень тот же и по той же причине, что у {@link preset}.
+   *
+   * Поправка, а не профиль: «мне сегодня без ассистента» — решение того, кто запускает,
+   * а не решение о приложении. `disable` сильнее `enable`.
+   */
+  readonly plugins?: {
+    /** Добавить к составу профиля. */
+    readonly enable?: readonly string[];
+    /** Убрать из состава профиля. */
+    readonly disable?: readonly string[];
+  };
 }
 
 export interface ParsedRuntimeConfig {
@@ -64,6 +96,15 @@ export interface ParsedRuntimeConfig {
 
 const THEME_VALUES: readonly string[] = ['light', 'dark', 'system'];
 
+/** Что вообще бывает в корне конфига. `$schema` — подсказка IDE, а не поле формата. */
+const TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
+  '$schema',
+  'branding',
+  'defaults',
+  'preset',
+  'plugins',
+]);
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -73,16 +114,19 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
   const problems: string[] = [];
-  const config: { branding?: RuntimeConfig['branding']; defaults?: RuntimeConfig['defaults'] } = {};
+  const config: {
+    branding?: RuntimeConfig['branding'];
+    defaults?: RuntimeConfig['defaults'];
+    preset?: string;
+    plugins?: RuntimeConfig['plugins'];
+  } = {};
 
   if (!isRecord(value)) {
     return { config: {}, problems: ['конфиг должен быть JSON-объектом'] };
   }
 
   for (const key of Object.keys(value)) {
-    if (key !== 'branding' && key !== 'defaults' && key !== '$schema') {
-      problems.push(`неизвестное поле «${key}»`);
-    }
+    if (!TOP_LEVEL_KEYS.has(key)) problems.push(`неизвестное поле «${key}»`);
   }
 
   if (value.branding !== undefined) {
@@ -133,17 +177,65 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
     }
   }
 
+  if (value.preset !== undefined) {
+    // Имя профиля НЕ сверяется со списком известных: разбор живёт в оболочке, а профили —
+    // в `application/`, и знай он их поимённо, оболочка снова знала бы состав приложения.
+    // Неизвестное имя отвергает тот, кто собирает состав, — предупреждением и умолчанием.
+    if (typeof value.preset === 'string' && value.preset.trim() !== '') {
+      config.preset = value.preset;
+    } else {
+      problems.push('«preset» должен быть непустой строкой');
+    }
+  }
+
+  if (value.plugins !== undefined) {
+    if (!isRecord(value.plugins)) {
+      problems.push('«plugins» должен быть объектом');
+    } else {
+      const section = value.plugins;
+      const plugins: { enable?: readonly string[]; disable?: readonly string[] } = {};
+      for (const key of Object.keys(section)) {
+        if (key !== 'enable' && key !== 'disable')
+          problems.push(`неизвестное поле «plugins.${key}»`);
+      }
+      for (const key of ['enable', 'disable'] as const) {
+        const list: unknown = section[key];
+        if (list === undefined) continue;
+        if (Array.isArray(list) && list.every(isNonEmptyString)) {
+          plugins[key] = Object.freeze([...list]);
+        } else {
+          problems.push(`«plugins.${key}» должен быть списком непустых строк`);
+        }
+      }
+      if (plugins.enable !== undefined || plugins.disable !== undefined) config.plugins = plugins;
+    }
+  }
+
   return { config, problems };
 }
 
-/** Слияние уровней: проект перекрывает запуск по полю, а не по секции. */
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim() !== '';
+
+/**
+ * Слияние уровней: проект перекрывает запуск по полю, а не по секции.
+ *
+ * Сливаются ВСЕ поля, включая те, что применяются только на уровне запуска. Слияние отвечает
+ * на вопрос «что написано в конфиге», а не «что из этого сработает»: второй вопрос решает тот,
+ * кто поле применяет, и он же говорит человеку, что поле не применено.
+ */
 export function mergeRuntimeConfig(base: RuntimeConfig, over: RuntimeConfig): RuntimeConfig {
+  const preset = over.preset ?? base.preset;
   return {
     ...(base.branding !== undefined || over.branding !== undefined
       ? { branding: { ...base.branding, ...over.branding } }
       : {}),
     ...(base.defaults !== undefined || over.defaults !== undefined
       ? { defaults: { ...base.defaults, ...over.defaults } }
+      : {}),
+    ...(preset !== undefined ? { preset } : {}),
+    ...(base.plugins !== undefined || over.plugins !== undefined
+      ? { plugins: { ...base.plugins, ...over.plugins } }
       : {}),
   };
 }

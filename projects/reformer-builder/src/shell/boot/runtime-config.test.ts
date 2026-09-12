@@ -23,12 +23,16 @@ describe('parseRuntimeConfig', () => {
       $schema: 'https://reformer.dev/schemas/reformer-builder-config',
       branding: { title: 'Формы Acme' },
       defaults: { locale: 'en', theme: 'dark' },
+      preset: 'minimal',
+      plugins: { enable: ['ai'] },
     });
 
     expect(problems).toEqual([]);
     expect(config).toEqual({
       branding: { title: 'Формы Acme' },
       defaults: { locale: 'en', theme: 'dark' },
+      preset: 'minimal',
+      plugins: { enable: ['ai'] },
     });
   });
 
@@ -58,12 +62,54 @@ describe('parseRuntimeConfig', () => {
     const { problems } = parseRuntimeConfig({
       branding: { logo: 'x.svg' },
       defaults: { fontSize: 14 },
+      plugins: { enabled: ['ai'] },
     });
 
     expect(problems).toEqual([
       'неизвестное поле «branding.logo»',
       'неизвестное поле «defaults.fontSize»',
+      'неизвестное поле «plugins.enabled»',
     ]);
+  });
+
+  it('состав приложения: профиль и поправки разбираются', () => {
+    const { config, problems } = parseRuntimeConfig({
+      preset: 'minimal',
+      plugins: { enable: ['ai'], disable: ['preview'] },
+    });
+
+    expect(problems).toEqual([]);
+    expect(config).toEqual({
+      preset: 'minimal',
+      plugins: { enable: ['ai'], disable: ['preview'] },
+    });
+  });
+
+  it('мусор в составе называется по полю, а соседи выживают', () => {
+    // Имя профиля со списком известных здесь НЕ сверяется, и это решение: профили живут
+    // в `application/`, а разбор — в оболочке. Отвергает неизвестное имя тот, кто собирает
+    // состав, — предупреждением и полным профилем.
+    const { config, problems } = parseRuntimeConfig({
+      preset: '   ',
+      plugins: { enable: 'ai', disable: ['preview'] },
+    });
+
+    expect(config).toEqual({ plugins: { disable: ['preview'] } });
+    expect(problems).toEqual([
+      '«preset» должен быть непустой строкой',
+      '«plugins.enable» должен быть списком непустых строк',
+    ]);
+  });
+
+  it('«plugins» не объектом и пустые строки в списке — проблема, а не молчание', () => {
+    expect(parseRuntimeConfig({ plugins: ['ai'] }).problems).toEqual([
+      '«plugins» должен быть объектом',
+    ]);
+    expect(parseRuntimeConfig({ plugins: { disable: ['ai', ''] } }).problems).toEqual([
+      '«plugins.disable» должен быть списком непустых строк',
+    ]);
+    // Пустая секция не создаёт фиктивного поля: «plugins: {}» — это отсутствие поправок.
+    expect(parseRuntimeConfig({ plugins: {} }).config).toEqual({});
   });
 });
 
@@ -82,6 +128,18 @@ describe('mergeRuntimeConfig', () => {
 
   it('пустые уровни дают пустой результат без фиктивных секций', () => {
     expect(mergeRuntimeConfig({}, {})).toEqual({});
+  });
+
+  it('состав сливается наравне с остальным — «что написано», а не «что сработает»', () => {
+    // Применяет их всё равно только уровень запуска, но слияние отвечает на другой вопрос:
+    // что вообще сказано в конфигах. Не слейся `preset` — `boot` не смог бы назвать его
+    // человеку как неприменённое поле.
+    const merged = mergeRuntimeConfig(
+      { preset: 'reformer.builder', plugins: { disable: ['ai'] } },
+      { preset: 'minimal' }
+    );
+
+    expect(merged).toEqual({ preset: 'minimal', plugins: { disable: ['ai'] } });
   });
 });
 
@@ -151,11 +209,21 @@ describe('схема для IDE согласована с разбором', () 
   };
 
   it('состав полей совпадает', () => {
-    expect(Object.keys(schema.properties).sort()).toEqual(['$schema', 'branding', 'defaults']);
+    expect(Object.keys(schema.properties).sort()).toEqual([
+      '$schema',
+      'branding',
+      'defaults',
+      'plugins',
+      'preset',
+    ]);
     expect(Object.keys(schema.properties.branding.properties ?? {})).toEqual(['title']);
     expect(Object.keys(schema.properties.defaults.properties ?? {}).sort()).toEqual([
       'locale',
       'theme',
+    ]);
+    expect(Object.keys(schema.properties.plugins.properties ?? {}).sort()).toEqual([
+      'disable',
+      'enable',
     ]);
   });
 
