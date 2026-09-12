@@ -24,6 +24,8 @@
  * @module plugins/templates/contract
  */
 
+import manifest from './manifest.json';
+
 /** Откуда шаблон: напечатан билдером, лежит в каталоге проекта, сохранён локально в браузере. */
 export type TemplateSource = 'builtin' | 'project' | 'local';
 
@@ -178,4 +180,4 @@ export const TemplateStorePoint: ExtensionPointRef<TemplateStore> = Object.freez
 });
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const TEMPLATES_PLUGIN_ID = 'reformer.templates';
+export const TEMPLATES_PLUGIN_ID = manifest.id;

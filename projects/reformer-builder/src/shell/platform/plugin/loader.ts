@@ -48,9 +48,9 @@ import type { Entry, Source } from '@/shell/platform/source/types';
 import {
   parsePluginManifest,
   PLUGIN_MANIFEST_FILE,
-  type PluginManifest,
   type PluginProblem,
   type PluginProblemCode,
+  type ProjectPluginManifest,
 } from './manifest';
 import type { Plugin } from './types';
 
@@ -95,13 +95,13 @@ export interface DiscoveredPlugin {
   readonly id: string;
   /** Путь каталога плагина внутри источника. */
   readonly dir: string;
-  readonly manifest?: PluginManifest;
+  readonly manifest?: ProjectPluginManifest;
   readonly problem?: PluginProblem;
 }
 
 /** Плагин, готовый к регистрации: объект из его точки входа плюс манифест. */
 export interface LoadedPlugin {
-  readonly manifest: PluginManifest;
+  readonly manifest: ProjectPluginManifest;
   readonly plugin: Plugin;
   /** Файлы, из которых он собран, — путями внутри каталога плагина. Для диагностики. */
   readonly files: readonly string[];
@@ -355,7 +355,7 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
           continue;
         }
 
-        const parsed = parsePluginManifest(text, entry.name);
+        const parsed = parsePluginManifest(text, { kind: 'project', dir: entry.name });
         found.push(
           parsed.ok
             ? { id: entry.name, dir: pluginDir, manifest: parsed.manifest }

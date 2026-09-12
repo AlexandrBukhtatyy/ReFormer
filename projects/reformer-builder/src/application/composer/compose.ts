@@ -81,13 +81,16 @@ export function fromProfile(
   // Возможности разрешаются ЗДЕСЬ же, одним проходом с составом, и по той же причине, по
   // которой список разрешается один раз: ответ «этот состав собирается» обязан относиться
   // ровно к тому набору, который поедет в обе фазы. Ни одного плагина это не грузит — читаются
-  // объявления карты, то есть литералы.
+  // манифесты состава, то есть статически импортированный JSON.
   //
   // Часть «оболочка» идёт наравне с плагинами: рабочую область, фокус текстового редактора
   // и снимки вида даёт не плагин, а сама оболочка (`platform/services/host-capabilities`).
-  // Без неё внешний плагин с `requires: shell.documents@^1` получал бы отказ «никто
+  // Без неё внешний плагин с `requires: reformer.workspace@^1` получал бы отказ «никто
   // не предоставляет» ровно у той службы, которая заведена для него же.
-  const parts = [{ id: HOST_PROVIDER_ID, provides: HOST_CAPABILITIES }, ...entries];
+  const parts = [
+    { id: HOST_PROVIDER_ID, provides: HOST_CAPABILITIES },
+    ...entries.map((entry) => entry.manifest),
+  ];
   const chosen = resolveProviders({ profile, lookup: findProfile });
   const capabilities = resolveCapabilities({ parts, chosen });
   rejectEmptyChoices(profile, chosen, parts);
@@ -106,7 +109,10 @@ export function fromProfile(
     capabilities: capabilities.providers,
     eager: (options: BuiltinPluginsOptions): readonly ComposedPlugin[] =>
       Object.freeze(
-        eager.map((entry) => ({ plugin: entry.create(options), provides: entry.provides }))
+        eager.map((entry) => ({
+          plugin: entry.create(options),
+          provides: entry.manifest.provides,
+        }))
       ),
     // Все фабрики зовутся ДО первого `await`, поэтому их `import()` уходят в один тик —
     // столько параллельных запросов, сколько ленивых плагинов, а не цепочка из шести.
@@ -115,7 +121,7 @@ export function fromProfile(
         await Promise.all(
           lazy.map(async (entry) => ({
             plugin: await entry.create(options),
-            provides: entry.provides,
+            provides: entry.manifest.provides,
           }))
         )
       ),

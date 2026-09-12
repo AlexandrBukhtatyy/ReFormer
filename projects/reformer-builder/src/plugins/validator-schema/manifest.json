@@ -1,0 +1,17 @@
+{
+  "id": "reformer.validator-schema",
+  "name": "Проверка схемы",
+  "apiVersion": "^1",
+  "builtin": {
+    "loading": "eager",
+    "reason": "Его activate ЗАКАЗЫВАЕТ тяжёлую проверку (renderer-json/validate плюс ajv), чтобы она ехала параллельно оболочке. Ленивость сделала бы из одного параллельного запроса цепочку из двух ради десяти килобайт собственного кода."
+  },
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^1"
+      }
+    ]
+  }
+}

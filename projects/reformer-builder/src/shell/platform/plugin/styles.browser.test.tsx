@@ -291,7 +291,7 @@ describe('манифест', () => {
         main: 'main.js',
         styles: { file: 'styles.css', isolation: 'scoped' },
       }),
-      'acme'
+      { kind: 'project', dir: 'acme' } as const
     );
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;

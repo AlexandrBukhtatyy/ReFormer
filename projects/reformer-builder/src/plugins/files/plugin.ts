@@ -27,6 +27,7 @@
  * @module plugins/files/plugin
  */
 
+import manifest from './manifest.json';
 import { createElement, type ReactElement } from 'react';
 import { CircleAlert, FolderTree } from 'lucide-react';
 import {
@@ -54,7 +55,7 @@ import { TextEditor } from './ui/TextEditor';
 import { WelcomePage, type WelcomePageActions } from './ui/WelcomePage';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const FILES_PLUGIN_ID = 'reformer.files';
+export const FILES_PLUGIN_ID = manifest.id;
 
 /** Панель с деревом ресурсов. */
 export const FILES_TREE_PANEL_ID = 'files.tree';

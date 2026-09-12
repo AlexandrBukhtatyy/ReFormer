@@ -24,6 +24,7 @@
  * @module plugins/preview/plugin
  */
 
+import manifest from './manifest.json';
 import { createElement } from 'react';
 import {
   definePlugin,
@@ -51,7 +52,7 @@ import {
 import { ModelPanel, MODEL_PANEL_ID } from './ui/ModelPanel';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const PREVIEW_PLUGIN_ID = 'reformer.preview';
+export const PREVIEW_PLUGIN_ID = manifest.id;
 
 /**
  * Встроенные поверхности в порядке возрастания способностей.

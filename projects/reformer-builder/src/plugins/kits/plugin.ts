@@ -21,6 +21,7 @@
  * @module plugins/kits/plugin
  */
 
+import manifest from './manifest.json';
 import {
   SettingsServiceToken,
   definePlugin,
@@ -40,7 +41,7 @@ import {
 } from './service';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const KITS_PLUGIN_ID = 'reformer.kits';
+export const KITS_PLUGIN_ID = manifest.id;
 
 /** Идентификатор поставщика пунктов палитры. Он же — адрес вклада в точке расширения. */
 export const KITS_PALETTE_PROVIDER_ID = 'kits.switch';

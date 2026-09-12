@@ -31,6 +31,7 @@
  * @module plugins/codegen/contract
  */
 
+import manifest from './manifest.json';
 import type { EmitContext, FileClass } from '@/lib/codegen';
 
 /**
@@ -147,4 +148,4 @@ export interface TargetCatalog {
 }
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const CODEGEN_PLUGIN_ID = 'reformer.codegen';
+export const CODEGEN_PLUGIN_ID = manifest.id;

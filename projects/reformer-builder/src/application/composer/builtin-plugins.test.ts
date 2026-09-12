@@ -35,6 +35,8 @@ import { PanelPoint } from '@/shell/platform/ui/slots';
 import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits';
 import { builderApplication } from '../builder-application';
 import {
+  builtinPluginDirectory,
+  BUILTIN_MANIFESTS,
   BUILTIN_PLUGIN_NAMESPACE,
   BUILTIN_PLUGINS,
   canonicalPluginId,
@@ -51,13 +53,11 @@ import { stubBuiltinOptions, stubHostCapabilities } from './testing';
  * никто не помнит. Русский, а не английский, потому что он основная локаль, а совпадение
  * наборов ключей между локалями проверяет отдельный тест.
  *
- * Пространство имён из идентификатора снимается: каталог зовётся `ai`, а плагин —
- * `reformer.ai`, и с фазы 7 это РАЗНЫЕ строки.
+ * Каталог берётся у {@link builtinPluginDirectory}: он зовётся `ai`, а плагин — `reformer.ai`,
+ * и с фазы 7 это РАЗНЫЕ строки.
  */
 async function loadPluginLocale(id: string): Promise<Record<string, string> | null> {
-  const directory = id.startsWith(BUILTIN_PLUGIN_NAMESPACE)
-    ? id.slice(BUILTIN_PLUGIN_NAMESPACE.length)
-    : id;
+  const directory = builtinPluginDirectory(id);
   try {
     const mod = (await import(`../../plugins/${directory}/locales/ru.json`)) as {
       default: Record<string, string>;
@@ -137,11 +137,41 @@ describe('карта встроенных плагинов', () => {
     }
   });
 
-  it('объявленная возможность — ТОТ ЖЕ объект, что регистрирует плагин', () => {
-    // Объявление в карте и токен службы обязаны быть одним значением: две копии разошлись бы
-    // по версии молча, и резолвер обещал бы одно, а реестр служб держал бы другое.
-    expect(BUILTIN_PLUGINS.get(KITS_PLUGIN_ID)?.provides).toEqual([KitsCapability]);
+  it('объявленное манифестом совпадает с токеном, которым плагин регистрирует', () => {
+    // Прежде объявление и токен были ОДНИМ объектом, и разойтись им было нечем. Теперь
+    // объявление — данные манифеста, и сверка переехала сюда: рантайм проверяет только
+    // идентификатор («что-то под этим именем зарегистрировано»), а ВЕРСИЯ разошлась бы молча —
+    // резолвер обещал бы потребителю одну, а реестр служб держал бы другую.
+    expect(BUILTIN_PLUGINS.get(KITS_PLUGIN_ID)?.manifest.provides).toEqual([KitsCapability]);
     expect(KitsCapability.id).toBe(KitsServiceToken.id);
+  });
+
+  it('манифест ЕСТЬ у каждого, он встроенной поставки и назван своим каталогом', () => {
+    // Разбор происходит при загрузке модуля карты и бросает: сюда доходят только разобранные
+    // манифесты, поэтому проверять здесь остаётся то, чего разбор не знает, — что манифест
+    // взят у того плагина, чью фабрику зовёт запись.
+    for (const [id, entry] of BUILTIN_PLUGINS) {
+      expect(entry.manifest.id).toBe(id);
+      expect(entry.manifest.source).toEqual({ kind: 'builtin' });
+      expect(entry.manifest.builtin.loading).toBe(entry.loading);
+    }
+
+    expect(BUILTIN_MANIFESTS.map((manifest) => manifest.id).sort()).toEqual(
+      [...BUILTIN_PLUGINS.keys()].sort()
+    );
+  });
+
+  it('статический объясняет себя, ленивый — нет', () => {
+    // Требование разбора, и проверяется оно тут на НАСТОЯЩЕМ составе: правило без предмета
+    // проходит на выдуманном манифесте и молчит о том, что у половины состава довод потерян.
+    for (const entry of BUILTIN_PLUGINS.values()) {
+      const reason = entry.manifest.builtin.reason;
+      if (entry.loading === 'eager') {
+        expect(reason?.length ?? 0).toBeGreaterThan(40);
+      } else {
+        expect(reason).toBeUndefined();
+      }
+    }
   });
 
   it('объявленное в карте действительно регистрируется при активации', () => {
@@ -159,7 +189,7 @@ describe('карта встроенных плагинов', () => {
     const entry = BUILTIN_PLUGINS.get(KITS_PLUGIN_ID);
     if (entry === undefined || entry.loading !== 'eager') throw new Error('киты не в карте');
 
-    registry.register(entry.create(stubBuiltinOptions()), entry.provides);
+    registry.register(entry.create(stubBuiltinOptions()), entry.manifest.provides);
 
     expect(registry.activate(KITS_PLUGIN_ID)).toBe(true);
     expect(services.get(KitsCapability)).toBeDefined();
@@ -510,9 +540,14 @@ describe('две фазы: что едет в entry, а что своим фай
         if (!/\.tsx?$/.test(entry) || /\.test\.tsx?$/.test(entry)) continue;
         const text = readFileSync(full, 'utf8');
         for (const id of LAZY_PLUGIN_IDS) {
-          // Барель — это ТОЧНО `@/plugins/<id>`: `@/plugins/<id>/contract` под шаблон не подходит.
+          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/ai`, а плагин
+          // зовётся `reformer.ai`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
+          // и храповик молча перестал бы стеречь.
+          const directory = builtinPluginDirectory(id);
+          // Барель — это ТОЧНО `@/plugins/<каталог>`: `@/plugins/<каталог>/contract`
+          // под шаблон не подходит.
           const pattern = new RegExp(
-            "(^|\\n)import\\s+(?!type)[^;]*?from '@/plugins/" + id + "';",
+            "(^|\\n)import\\s+(?!type)[^;]*?from '@/plugins/" + directory + "';",
             's'
           );
           if (pattern.test(text)) offenders.push(full.slice(root.length) + ' → ' + id);

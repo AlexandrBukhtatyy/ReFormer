@@ -1,0 +1,22 @@
+{
+  "id": "reformer.codegen",
+  "name": "Генерация кода",
+  "apiVersion": "^1",
+  "builtin": {
+    "loading": "lazy"
+  },
+  "provides": [
+    {
+      "id": "reformer.codegen.printer",
+      "version": "1.0.0"
+    }
+  ],
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^1"
+      }
+    ]
+  }
+}

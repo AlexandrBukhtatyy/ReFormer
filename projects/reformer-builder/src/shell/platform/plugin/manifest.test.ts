@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BUILDER_API_VERSION, parsePluginManifest } from './manifest';
+import { BUILDER_API_VERSION, parsePluginManifest, parsePluginManifestValue } from './manifest';
 
 const good = {
   id: 'acme-forms',
@@ -10,8 +10,11 @@ const good = {
   main: 'main.js',
 };
 
+/** Поставка по умолчанию у этих проверок — плагин каталога: у него есть и каталог, и вход. */
+const project = (dir: string) => ({ kind: 'project', dir }) as const;
+
 const parse = (fields: Record<string, unknown>, dirName = 'acme-forms') =>
-  parsePluginManifest(JSON.stringify(fields), dirName);
+  parsePluginManifest(JSON.stringify(fields), project(dirName));
 
 describe('разбор манифеста', () => {
   it('читает манифест из контракта целиком', () => {
@@ -24,6 +27,7 @@ describe('разбор манифеста', () => {
         name: 'Acme Forms',
         version: '1.0.0',
         apiVersion: '^1',
+        source: { kind: 'project', dir: 'acme-forms' },
         main: 'main.js',
       },
     });
@@ -46,16 +50,94 @@ describe('разбор манифеста', () => {
   });
 });
 
+describe('манифест встроенного плагина', () => {
+  /**
+   * Встроенная поставка ПРОХОДИТ тот же разбор, что и плагин каталога, — в этом и состоит
+   * утверждение «один контракт». Отличий ровно два, и оба проверяются здесь: у встроенного
+   * нет каталога (значит, нечему совпадать с идентификатором) и нет точки входа (его код
+   * уже в бандле), зато есть способ доставки.
+   */
+  const builtin = { kind: 'builtin' } as const;
+  const lazy = {
+    id: 'reformer.ai',
+    name: 'Ассистент',
+    apiVersion: '^1',
+    builtin: { loading: 'lazy' },
+  };
+
+  it('разбирается без каталога и без точки входа', () => {
+    const result = parsePluginManifestValue(lazy, builtin);
+
+    expect(result).toEqual({
+      ok: true,
+      manifest: {
+        id: 'reformer.ai',
+        name: 'Ассистент',
+        version: '0.0.0',
+        apiVersion: '^1',
+        source: { kind: 'builtin' },
+        builtin: { loading: 'lazy' },
+      },
+    });
+  });
+
+  it('идентификатор с папкой не сверяется: у встроенного её нет', () => {
+    // `reformer.ai` лежит в `plugins/ai`, и требовать совпадения значило бы запретить
+    // пространство имён, ради которого оно и заведено.
+    expect(parsePluginManifestValue(lazy, builtin).ok).toBe(true);
+  });
+
+  it('точка входа отвергается: грузить из каталога нечего', () => {
+    const result = parsePluginManifestValue({ ...lazy, main: 'main.js' }, builtin);
+
+    expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+    expect(!result.ok && result.problem.message).toContain('main');
+  });
+
+  it('способ доставки обязателен и должен быть известным', () => {
+    expect(parsePluginManifestValue({ ...lazy, builtin: undefined }, builtin).ok).toBe(false);
+    expect(parsePluginManifestValue({ ...lazy, builtin: { loading: 'соон' } }, builtin).ok).toBe(
+      false
+    );
+  });
+
+  it('статический обязан объяснить себя, ленивый — не вправе', () => {
+    // Ленивость — умолчание, и объяснять надо ОТСТУПЛЕНИЕ от него. Необязательная причина
+    // у `eager` означала бы, что через полгода запись без довода не отличить от забытой.
+    expect(parsePluginManifestValue({ ...lazy, builtin: { loading: 'eager' } }, builtin).ok).toBe(
+      false
+    );
+    expect(
+      parsePluginManifestValue(
+        { ...lazy, builtin: { loading: 'eager', reason: 'его словарь вносит композиция' } },
+        builtin
+      ).ok
+    ).toBe(true);
+    expect(
+      parsePluginManifestValue(
+        { ...lazy, builtin: { loading: 'lazy', reason: 'просто так' } },
+        builtin
+      ).ok
+    ).toBe(false);
+  });
+
+  it('плагин каталога способа доставки не объявляет: им распоряжается не он', () => {
+    const result = parse({ ...good, builtin: { loading: 'eager', reason: 'хочу' } });
+
+    expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+  });
+});
+
 describe('манифест отвергается', () => {
   it('когда это не JSON', () => {
-    const result = parsePluginManifest('{ "id": "acme-forms"', 'acme-forms');
+    const result = parsePluginManifest('{ "id": "acme-forms"', project('acme-forms'));
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.problem.code).toBe('manifest-unreadable');
   });
 
   it('когда это JSON, но не объект', () => {
-    const result = parsePluginManifest('[1, 2, 3]', 'acme-forms');
+    const result = parsePluginManifest('[1, 2, 3]', project('acme-forms'));
 
     expect(!result.ok && result.problem.code).toBe('manifest-invalid');
   });
@@ -248,7 +330,7 @@ describe('contributes.keybindings', () => {
           },
         ],
       }),
-      'acme'
+      project('acme')
     );
 
     expect(result.ok).toBe(true);
@@ -267,7 +349,7 @@ describe('contributes.keybindings', () => {
   it('отсутствие contributes — норма, а не промах', () => {
     const result = parsePluginManifest(
       JSON.stringify({ id: 'acme', apiVersion: '^1', main: 'main.js' }),
-      'acme'
+      project('acme')
     );
 
     expect(result.ok).toBe(true);
@@ -277,7 +359,7 @@ describe('contributes.keybindings', () => {
   it('аккорд из двух ступеней принимается', () => {
     const result = parsePluginManifest(
       withContributes({ keybindings: [{ command: 'acme.insert', key: 'mod+k mod+i' }] }),
-      'acme'
+      project('acme')
     );
 
     expect(result.ok).toBe(true);
@@ -288,7 +370,7 @@ describe('contributes.keybindings', () => {
     // нажатия — самая дорогая из поломок, потому что она молчит.
     const result = parsePluginManifest(
       withContributes({ keybindings: [{ command: 'acme.insert', key: 'mod+' }] }),
-      'acme'
+      project('acme')
     );
 
     expect(result.ok).toBe(false);
@@ -298,7 +380,7 @@ describe('contributes.keybindings', () => {
   it('три ступени — отказ', () => {
     const result = parsePluginManifest(
       withContributes({ keybindings: [{ command: 'a', key: 'mod+k mod+s mod+x' }] }),
-      'acme'
+      project('acme')
     );
 
     expect(result.ok).toBe(false);
@@ -307,7 +389,7 @@ describe('contributes.keybindings', () => {
   it('неразбираемое условие — отказ манифеста', () => {
     const result = parsePluginManifest(
       withContributes({ keybindings: [{ command: 'a', key: 'mod+i', when: 'focus ==' }] }),
-      'acme'
+      project('acme')
     );
 
     expect(result.ok).toBe(false);
@@ -316,22 +398,24 @@ describe('contributes.keybindings', () => {
 
   it('запись без команды или без клавиши — отказ', () => {
     expect(
-      parsePluginManifest(withContributes({ keybindings: [{ key: 'mod+i' }] }), 'acme').ok
+      parsePluginManifest(withContributes({ keybindings: [{ key: 'mod+i' }] }), project('acme')).ok
     ).toBe(false);
     expect(
-      parsePluginManifest(withContributes({ keybindings: [{ command: 'a' }] }), 'acme').ok
+      parsePluginManifest(withContributes({ keybindings: [{ command: 'a' }] }), project('acme')).ok
     ).toBe(false);
   });
 
   it('contributes не объект и keybindings не массив — отказ', () => {
-    expect(parsePluginManifest(withContributes('нет'), 'acme').ok).toBe(false);
-    expect(parsePluginManifest(withContributes({ keybindings: 'нет' }), 'acme').ok).toBe(false);
+    expect(parsePluginManifest(withContributes('нет'), project('acme')).ok).toBe(false);
+    expect(parsePluginManifest(withContributes({ keybindings: 'нет' }), project('acme')).ok).toBe(
+      false
+    );
   });
 
   it('allowInEditable обязано быть булевым', () => {
     const result = parsePluginManifest(
       withContributes({ keybindings: [{ command: 'a', key: 'mod+i', allowInEditable: 'да' }] }),
-      'acme'
+      project('acme')
     );
 
     expect(result.ok).toBe(false);
@@ -347,7 +431,7 @@ describe('contributes.messages', () => {
   it('разбирает объявленные словари и нормализует их пути', () => {
     const result = parsePluginManifest(
       withMessages({ ru: 'locales/ru.json', en: './locales/./en.json' }),
-      'acme'
+      project('acme')
     );
 
     expect(result.ok).toBe(true);
@@ -364,7 +448,7 @@ describe('contributes.messages', () => {
         keybindings: [{ command: 'acme.insert', key: 'mod+alt+i' }],
         messages: { ru: 'locales/ru.json' },
       }),
-      'acme'
+      project('acme')
     );
 
     expect(result.ok).toBe(true);
@@ -376,14 +460,17 @@ describe('contributes.messages', () => {
   it('содержимое файла здесь не читается — проверена только форма объявления', () => {
     // Разбор манифеста обязан оставаться чтением ОДНОГО файла: иначе список плагинов
     // открывался бы со скоростью чтения всех словарей всех найденных плагинов.
-    const result = parsePluginManifest(withMessages({ ru: 'нет-такого-файла.json' }), 'acme');
+    const result = parsePluginManifest(
+      withMessages({ ru: 'нет-такого-файла.json' }),
+      project('acme')
+    );
 
     expect(result.ok).toBe(true);
   });
 
   it('не объект — отказ', () => {
     for (const messages of ['locales/ru.json', ['locales/ru.json'], 42]) {
-      const result = parsePluginManifest(withMessages(messages), 'acme');
+      const result = parsePluginManifest(withMessages(messages), project('acme'));
 
       expect(result.ok, JSON.stringify(messages)).toBe(false);
       expect(!result.ok && result.problem.code).toBe('manifest-invalid');
@@ -392,7 +479,7 @@ describe('contributes.messages', () => {
 
   it('значение не строка-путь — отказ', () => {
     for (const value of [42, null, { file: 'ru.json' }, '', '   ']) {
-      const result = parsePluginManifest(withMessages({ ru: value }), 'acme');
+      const result = parsePluginManifest(withMessages({ ru: value }), project('acme'));
 
       expect(result.ok, JSON.stringify(value)).toBe(false);
       expect(!result.ok && result.problem.code).toBe('manifest-invalid');
@@ -403,13 +490,13 @@ describe('contributes.messages', () => {
   it('путь, уводящий за каталог плагина, — отказ', () => {
     // Та же граница, что у точки входа и таблицы стилей: загрузчик читает только
     // собственные файлы плагина.
-    const result = parsePluginManifest(withMessages({ ru: '../../secrets.json' }), 'acme');
+    const result = parsePluginManifest(withMessages({ ru: '../../secrets.json' }), project('acme'));
 
     expect(!result.ok && result.problem.code).toBe('manifest-invalid');
   });
 
   it('пустое имя локали — отказ', () => {
-    const result = parsePluginManifest(withMessages({ '': 'locales/ru.json' }), 'acme');
+    const result = parsePluginManifest(withMessages({ '': 'locales/ru.json' }), project('acme'));
 
     expect(!result.ok && result.problem.code).toBe('manifest-invalid');
     expect(!result.ok && result.problem.message).toContain('локали');

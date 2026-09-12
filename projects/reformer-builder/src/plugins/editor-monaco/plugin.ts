@@ -20,6 +20,7 @@
  * @module plugins/editor-monaco/plugin
  */
 
+import manifest from './manifest.json';
 import { createElement, type ComponentType } from 'react';
 import {
   defineCapability,
@@ -39,7 +40,7 @@ import { MonacoEditorBody } from './ui/MonacoEditor';
 import { readViewState, viewStatesOver, type ViewStateRegistry } from './sync/view-state';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const MONACO_PLUGIN_ID = 'reformer.editor-monaco';
+export const MONACO_PLUGIN_ID = manifest.id;
 
 /** Идентификатор вклада редактора: ключ состояния вида и адрес в диагностике. */
 export const MONACO_EDITOR_ID = 'editor.monaco';

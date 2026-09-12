@@ -1,0 +1,8 @@
+{
+  "id": "reformer.plugin-manager",
+  "name": "Управление плагинами",
+  "apiVersion": "^1",
+  "builtin": {
+    "loading": "lazy"
+  }
+}

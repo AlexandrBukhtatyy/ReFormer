@@ -1,0 +1,16 @@
+{
+  "id": "reformer.editor-schema",
+  "name": "Редактор формы",
+  "apiVersion": "^1",
+  "builtin": {
+    "loading": "lazy"
+  },
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.editor",
+        "range": "^1"
+      }
+    ]
+  }
+}

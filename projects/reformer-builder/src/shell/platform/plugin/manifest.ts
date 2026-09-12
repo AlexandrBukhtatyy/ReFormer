@@ -64,25 +64,50 @@ export const PLUGIN_MANIFEST_FILE = 'manifest.json';
 export const BUILDER_API_VERSION = '1.0.0';
 
 /**
- * Разобранный манифест.
+ * Откуда плагин взялся. Разбор манифеста спрашивают об этом ЗАРАНЕЕ, а не выводят потом.
+ *
+ * Две поставки различаются не «происхождением вообще», а двумя проверками, которые нельзя
+ * сделать одинаковыми. У плагина ПРОЕКТА идентификатор обязан совпасть с именем каталога —
+ * каталог единственное, что видно до чтения манифеста, — и точка входа обязана быть, иначе
+ * грузить нечего. У ВСТРОЕННОГО каталога нет вовсе (он лежит в бандле оболочки, а имя его
+ * папки — `ai` против идентификатора `reformer.ai`), и точки входа тоже нет: его код уже
+ * здесь. Зато у него есть то, чего не бывает у плагина проекта, — способ доставки
+ * ({@link BuiltinDelivery}).
+ */
+export type PluginSource =
+  | { readonly kind: 'builtin' }
+  | { readonly kind: 'project'; readonly dir: string };
+
+/**
+ * Как встроенный плагин приезжает в браузер.
+ *
+ * Деление про СБОРКУ, а не про поведение: оба набора встают до первой отрисовки. Смысл в том,
+ * что иначе код всех плагинов лежит внутри entry одним файлом, а отдельный файл даёт только
+ * динамический импорт (`manualChunks` измерен и отвергнут — см. `vite.config.ts`).
+ *
+ * `reason` заполняется у СТАТИЧЕСКИХ и только у них: ленивость — умолчание, объяснять надо
+ * отступление от него. Живёт причина здесь, а не комментарием у записи состава, потому что
+ * относится к плагину, а не к карте: карта может смениться, а довод останется тем же.
+ */
+export interface BuiltinDelivery {
+  readonly loading: 'eager' | 'lazy';
+  /** Почему этот плагин не может приехать своим файлом. Обязателен при `eager`. */
+  readonly reason?: string;
+}
+
+/**
+ * Общее у манифестов обеих поставок.
  *
  * `name` и `version` необязательны в файле и получают умолчания: они нужны списку плагинов,
- * а не механике, и требовать их значило бы отвергать рабочий плагин из-за подписи. `id`,
- * `main` и `apiVersion` умолчаний не имеют — у них нет осмысленного «по умолчанию».
+ * а не механике, и требовать их значило бы отвергать рабочий плагин из-за подписи. `id`
+ * и `apiVersion` умолчаний не имеют — у них нет осмысленного «по умолчанию».
  */
-export interface PluginManifest {
+interface PluginManifestBase {
   readonly id: string;
   readonly name: string;
   readonly version: string;
   /** Диапазон API, объявленный плагином, как он написан в файле: `^1`, `1.2`, `~1.0.0`. */
   readonly apiVersion: string;
-  /** Точка входа ВНУТРИ каталога плагина, нормализованная: `main.js`, `dist/main.js`. */
-  readonly main: string;
-  /**
-   * Своя таблица стилей. Отсутствие поля — рекомендуемый путь: плагин пользуется классами
-   * оболочки и токенами кита и выглядит родным бесплатно.
-   */
-  readonly styles?: PluginStyles;
   /** Вклады, объявленные ДЕКЛАРАТИВНО — то есть видимые до того, как плагин включён. */
   readonly contributes?: PluginContributes;
   /**
@@ -107,6 +132,39 @@ export interface PluginManifest {
    */
   readonly requires?: PluginRequirements;
 }
+
+/** Манифест плагина каталога проекта: у него есть каталог и точка входа. */
+export interface ProjectPluginManifest extends PluginManifestBase {
+  readonly source: { readonly kind: 'project'; readonly dir: string };
+  /** Точка входа ВНУТРИ каталога плагина, нормализованная: `main.js`, `dist/main.js`. */
+  readonly main: string;
+  /**
+   * Своя таблица стилей. Отсутствие поля — рекомендуемый путь: плагин пользуется классами
+   * оболочки и токенами кита и выглядит родным бесплатно.
+   */
+  readonly styles?: PluginStyles;
+}
+
+/**
+ * Манифест встроенного плагина: точки входа нет, зато объявлен способ доставки.
+ *
+ * Своей таблицы стилей у встроенного не бывает и быть не может: его CSS собирается вместе
+ * с оболочкой, и изолировать его было бы нечего и не от чего.
+ */
+export interface BuiltinPluginManifest extends PluginManifestBase {
+  readonly source: { readonly kind: 'builtin' };
+  readonly builtin: BuiltinDelivery;
+}
+
+/**
+ * Разобранный манифест — одной из двух поставок.
+ *
+ * Объединение размечено {@link PluginSource}, а не двумя необязательными полями: «точка входа
+ * есть, но у встроенного её не бывает» пришлось бы проверять в загрузчике на каждом обращении,
+ * и отсутствие `main` у того, кого грузят из каталога, стало бы не ошибкой разбора,
+ * а исключением где-то посередине загрузки.
+ */
+export type PluginManifest = ProjectPluginManifest | BuiltinPluginManifest;
 
 /** Требования плагина. Оба списка есть всегда — пустые, если в манифесте их не написали. */
 export interface PluginRequirements {
@@ -239,9 +297,21 @@ export interface PluginProblem {
   readonly cause?: unknown;
 }
 
+/**
+ * Манифест той поставки, которую назвали разбору.
+ *
+ * Нужен затем, чтобы загрузчик каталога получал манифест С точкой входа, а не объединение,
+ * у которого её может не быть: спросив разбор про каталог проекта, он спросил про плагин,
+ * у которого `main` есть по определению, и проверять это второй раз ему незачем.
+ */
+export type ManifestOf<S extends PluginSource> = Extract<
+  PluginManifest,
+  { readonly source: { readonly kind: S['kind'] } }
+>;
+
 /** Результат разбора: либо манифест, либо причина, по которой его нет. */
-export type ManifestParseResult =
-  | { readonly ok: true; readonly manifest: PluginManifest }
+export type ManifestParseResult<M extends PluginManifest = PluginManifest> =
+  | { readonly ok: true; readonly manifest: M }
   | { readonly ok: false; readonly problem: PluginProblem };
 
 /**
@@ -271,15 +341,15 @@ function stringField(raw: Record<string, unknown>, key: string): string | undefi
  * Разбирает текст манифеста.
  *
  * @param text содержимое `manifest.json`
- * @param dirName имя каталога плагина — с ним сверяется `id`
+ * @param source откуда плагин — от этого зависят две проверки, см. {@link PluginSource}
  * @param apiVersion версия API оболочки; параметр ради тестов, умолчание —
  * {@link BUILDER_API_VERSION}
  */
-export function parsePluginManifest(
+export function parsePluginManifest<S extends PluginSource>(
   text: string,
-  dirName: string,
+  source: S,
   apiVersion: string = BUILDER_API_VERSION
-): ManifestParseResult {
+): ManifestParseResult<ManifestOf<S>> {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -289,7 +359,23 @@ export function parsePluginManifest(
       cause,
     });
   }
+  return parsePluginManifestValue(raw, source, apiVersion);
+}
 
+/**
+ * Разбирает УЖЕ разобранный JSON.
+ *
+ * Отдельный вход нужен встроенным: их манифест приезжает статическим импортом, то есть
+ * значением, а не текстом. Обратно в строку его сериализовать только затем, чтобы тут же
+ * разобрать, — значит завести второй путь, который однажды разойдётся с первым. Проверки
+ * же обязаны быть ТЕМИ ЖЕ: «встроенные и внешние — один контракт» держится на том, что
+ * манифест встроенного проходит разбор каталога целиком, а не свою облегчённую копию.
+ */
+export function parsePluginManifestValue<S extends PluginSource>(
+  raw: unknown,
+  source: S,
+  apiVersion: string = BUILDER_API_VERSION
+): ManifestParseResult<ManifestOf<S>> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return problem('manifest-invalid', `${PLUGIN_MANIFEST_FILE} должен быть объектом JSON`, {
       file: PLUGIN_MANIFEST_FILE,
@@ -310,10 +396,10 @@ export function parsePluginManifest(
       { file: PLUGIN_MANIFEST_FILE }
     );
   }
-  if (id !== dirName) {
+  if (source.kind === 'project' && id !== source.dir) {
     return problem(
       'id-mismatch',
-      `манифест объявляет «${id}», а каталог называется «${dirName}». ` +
+      `манифест объявляет «${id}», а каталог называется «${source.dir}». ` +
         'Идентификатор — ключ во всех реестрах, и он обязан совпадать с именем каталога: ' +
         'иначе список плагинов и команды перезагрузки говорят о разных вещах',
       { file: PLUGIN_MANIFEST_FILE }
@@ -344,6 +430,78 @@ export function parsePluginManifest(
     );
   }
 
+  const entry = parseEntry(fields, source);
+  if ('ok' in entry) return entry;
+
+  const contributes = parseContributes(fields.contributes);
+  if (contributes !== undefined && 'ok' in contributes) return contributes;
+
+  const provides = parseProvides(fields.provides);
+  if (provides !== undefined && 'ok' in provides) return provides;
+
+  const requires = parseRequires(fields.requires);
+  if (requires !== undefined && 'ok' in requires) return requires;
+
+  const common = {
+    id,
+    name: stringField(fields, 'name') ?? id,
+    version: stringField(fields, 'version') ?? '0.0.0',
+    apiVersion: declaredApi,
+    ...(contributes === undefined ? {} : { contributes: contributes.contributes }),
+    ...(provides === undefined ? {} : { provides: provides.provides }),
+    ...(requires === undefined ? {} : { requires: requires.requires }),
+  };
+
+  // Единственное приведение в модуле. Разбор поставки (`parseEntry`) отдаёт ровно тот
+  // вариант, о котором его спросили, — но связь «спросили про builtin, получили builtin»
+  // выражена ветвлением, а не типом, и вывод её не прослеживает. Проверяется она тестом:
+  // манифест каждой поставки разбирается и предъявляет своё поле.
+  return { ok: true, manifest: { ...common, ...entry } as ManifestOf<S> };
+}
+
+/**
+ * Разбирает то, что у двух поставок РАЗНОЕ: точку входа со стилями против способа доставки.
+ *
+ * Лишнее поле здесь отвергается, а не игнорируется. Манифест — то, во что верит резолвер
+ * до исполнения кода, и `"main"` у встроенного или `"builtin": { "loading": "lazy" }`
+ * у плагина каталога значат, что автор ошибся поставкой: первый объявил файл, которого никто
+ * не будет грузить, второй — способ доставки, которым никто не распоряжается. Промолчи
+ * разбор — поле осталось бы в файле как рабочее указание, ни на что не влияющее.
+ */
+function parseEntry(
+  fields: Record<string, unknown>,
+  source: PluginSource
+):
+  | {
+      readonly source: { readonly kind: 'project'; readonly dir: string };
+      readonly main: string;
+      readonly styles?: PluginStyles;
+    }
+  | { readonly source: { readonly kind: 'builtin' }; readonly builtin: BuiltinDelivery }
+  | { ok: false; problem: PluginProblem } {
+  if (source.kind === 'builtin') {
+    if (fields.main !== undefined) {
+      return problem(
+        'manifest-invalid',
+        'у встроенного плагина не бывает поля «main»: его код приезжает вместе с оболочкой, ' +
+          'и грузить из каталога нечего',
+        { file: PLUGIN_MANIFEST_FILE }
+      );
+    }
+    const builtin = parseBuiltin(fields.builtin);
+    if ('ok' in builtin) return builtin;
+    return { source, builtin: builtin.builtin };
+  }
+
+  if (fields.builtin !== undefined) {
+    return problem(
+      'manifest-invalid',
+      'поле «builtin» объявляет способ доставки встроенного плагина, и у плагина каталога ' +
+        'его быть не может: как он приезжает, решает не он',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+
   const mainRaw = stringField(fields, 'main');
   if (mainRaw === undefined) {
     return problem('manifest-invalid', 'в манифесте нет поля «main» или оно не строка', {
@@ -363,29 +521,58 @@ export function parsePluginManifest(
   const styles = parseStyles(fields.styles);
   if (styles !== undefined && 'ok' in styles) return styles;
 
-  const contributes = parseContributes(fields.contributes);
-  if (contributes !== undefined && 'ok' in contributes) return contributes;
+  return { source, main, ...(styles === undefined ? {} : { styles: styles.styles }) };
+}
 
-  const provides = parseProvides(fields.provides);
-  if (provides !== undefined && 'ok' in provides) return provides;
+/**
+ * Разбирает способ доставки встроенного.
+ *
+ * Причина обязательна у СТАТИЧЕСКОГО и запрещена у ленивого. Ленивость — умолчание, и её
+ * объяснять нечем; а статический плагин утяжеляет стартовый граф, и запись без довода через
+ * полгода не отличить от забытой. Это единственное место, где манифест требует прозы,
+ * и требует он её ровно там, где без неё принимается молчаливое решение.
+ */
+function parseBuiltin(
+  raw: unknown
+): { builtin: BuiltinDelivery } | { ok: false; problem: PluginProblem } {
+  const fields = objectFields(raw);
+  if (fields === undefined) {
+    return problem(
+      'manifest-invalid',
+      'в манифесте встроенного плагина нет поля «builtin» или оно не объект: ' +
+        'способ доставки читается ДО загрузки кода и умолчания не имеет',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
 
-  const requires = parseRequires(fields.requires);
-  if (requires !== undefined && 'ok' in requires) return requires;
+  const loading = stringField(fields, 'loading');
+  if (loading !== 'eager' && loading !== 'lazy') {
+    return problem(
+      'manifest-invalid',
+      `«builtin.loading» должен быть «eager» или «lazy», а не «${loading ?? ''}»`,
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
 
-  return {
-    ok: true,
-    manifest: {
-      id,
-      name: stringField(fields, 'name') ?? id,
-      version: stringField(fields, 'version') ?? '0.0.0',
-      apiVersion: declaredApi,
-      main,
-      ...(styles === undefined ? {} : { styles: styles.styles }),
-      ...(contributes === undefined ? {} : { contributes: contributes.contributes }),
-      ...(provides === undefined ? {} : { provides: provides.provides }),
-      ...(requires === undefined ? {} : { requires: requires.requires }),
-    },
-  };
+  const reason = stringField(fields, 'reason');
+  if (loading === 'eager' && reason === undefined) {
+    return problem(
+      'manifest-invalid',
+      'статический плагин обязан объяснить себя полем «builtin.reason»: он едет в стартовом ' +
+        'графе, и запись без довода через полгода не отличить от забытой',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+  if (loading === 'lazy' && reason !== undefined) {
+    return problem(
+      'manifest-invalid',
+      'у ленивого плагина «builtin.reason» лишний: ленивость — умолчание, объяснять надо ' +
+        'отступление от него',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+
+  return { builtin: { loading, ...(reason === undefined ? {} : { reason }) } };
 }
 
 /**
