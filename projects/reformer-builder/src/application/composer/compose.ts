@@ -22,6 +22,7 @@ import type { ApplicationComposition, BuiltinPluginsOptions } from '@/shell/boot
 import type { Plugin } from '@/shell/platform/plugin/types';
 import { findProfile } from '../profiles/registry';
 import type { ApplicationProfile } from '../profiles/profile';
+import { describeCapabilityProblems, resolveCapabilities } from '../resolver/capability-resolver';
 import { resolveProfile, type PluginOverrides } from '../resolver/profile-resolver';
 import {
   BUILTIN_PLUGINS,
@@ -32,9 +33,10 @@ import {
 /**
  * Состав приложения по профилю.
  *
- * @throws Error на неизвестное имя плагина, неизвестную основу профиля или круг в `extends` —
- * ровно то, чем отвечает резолвер. Тот, кто собирает приложение по КОНФИГУ, обязан этот отказ
- * поймать: имя в конфиге пишет человек.
+ * @throws Error на неизвестное имя плагина, неизвестную основу профиля, круг в `extends` —
+ * ровно то, чем отвечает резолвер профилей, — и на состав, который не собирается
+ * по возможностям (невыполненное требование, двое провайдеров без выбора). Тот, кто собирает
+ * приложение по КОНФИГУ, обязан этот отказ поймать: имя в конфиге пишет человек.
  */
 export function fromProfile(
   profile: ApplicationProfile,
@@ -56,10 +58,24 @@ export function fromProfile(
     return entry;
   });
 
+  // Возможности разрешаются ЗДЕСЬ же, одним проходом с составом, и по той же причине, по
+  // которой список разрешается один раз: ответ «этот состав собирается» обязан относиться
+  // ровно к тому набору, который поедет в обе фазы. Ни одного плагина это не грузит — читаются
+  // объявления карты, то есть литералы.
+  const capabilities = resolveCapabilities({ parts: entries });
+  const problems = describeCapabilityProblems(capabilities);
+  if (problems !== '') {
+    // Отказ, а не тихая сборка: состав, в котором плагину нечем работать, соберётся и упадёт
+    // позже — в `activate` или на первом обращении, то есть далеко от причины. Ловит его тот же,
+    // кто ловит неизвестное имя (`application/builder-application`), и тем же способом.
+    throw new Error(`состав «${profile.id}» не собирается по возможностям: ${problems}`);
+  }
+
   const eager = entries.filter((entry): entry is EagerBuiltinPlugin => entry.loading === 'eager');
   const lazy = entries.filter((entry): entry is LazyBuiltinPlugin => entry.loading === 'lazy');
 
   return Object.freeze({
+    capabilities: capabilities.providers,
     eager: (options: BuiltinPluginsOptions): readonly Plugin[] =>
       Object.freeze(eager.map((entry) => entry.create(options))),
     // Все фабрики зовутся ДО первого `await`, поэтому их `import()` уходят в один тик —

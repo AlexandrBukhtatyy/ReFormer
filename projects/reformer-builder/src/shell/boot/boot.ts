@@ -551,6 +551,11 @@ export function boot(options: BootOptions): BuilderApp {
       prepare: pluginModules.prepare,
     }),
     plugins,
+    // Что даёт остальное приложение: объявления встроенных из состава. Реестр служб на этот
+    // вопрос ответить не может — он знает занятые слоты, а не версии, — а спрашивать надо
+    // ДО того, как код внешнего плагина исполнится. Функцией, потому что каталог живёт дольше
+    // сборки и вправе спросить заново.
+    capabilities: () => options.application.capabilities,
     enabled: createSettingsEnabledPlugins(settings),
     dev: createSettingsDevPlugins(settings),
     // Отказ плагина — событие для человека, а не для консоли: тост говорит, ЧТО сломалось,

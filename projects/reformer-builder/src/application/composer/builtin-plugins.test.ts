@@ -32,6 +32,7 @@ import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
 import { EditorPoint, resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
+import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits';
 import { builderApplication } from '../builder-application';
 import { BUILTIN_PLUGINS, LAZY_PLUGIN_IDS } from './builtin-plugins';
 import { composeAll } from './compose';
@@ -97,6 +98,34 @@ describe('карта встроенных плагинов', () => {
     }
 
     expect(mismatched).toEqual([]);
+  });
+
+  it('объявленная возможность — ТОТ ЖЕ объект, что регистрирует плагин', () => {
+    // Объявление в карте и токен службы обязаны быть одним значением: две копии разошлись бы
+    // по версии молча, и резолвер обещал бы одно, а реестр служб держал бы другое.
+    expect(BUILTIN_PLUGINS.get(KITS_PLUGIN_ID)?.provides).toEqual([KitsCapability]);
+    expect(KitsCapability.id).toBe(KitsServiceToken.id);
+  });
+
+  it('объявленное в карте действительно регистрируется при активации', () => {
+    // Рантайм проверяет это сам (фаза `provides`), поэтому достаточно поднять состав:
+    // невыполненное обещание переводит плагин в `failed`, а не проходит молча.
+    const services = createServiceRegistry();
+    const registry = createPluginRegistry({
+      services,
+      extensions: createExtensionRegistry(),
+      commands: createCommandRegistry(),
+      events: createEventBus(),
+      storage: createMemoryStorageBackend(),
+      onError: vi.fn(),
+    });
+    const entry = BUILTIN_PLUGINS.get(KITS_PLUGIN_ID);
+    if (entry === undefined || entry.loading !== 'eager') throw new Error('киты не в карте');
+
+    registry.register(entry.create(stubBuiltinOptions()), entry.provides);
+
+    expect(registry.activate(KITS_PLUGIN_ID)).toBe(true);
+    expect(services.get(KitsCapability)).toBeDefined();
   });
 });
 

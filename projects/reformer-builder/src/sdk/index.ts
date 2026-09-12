@@ -199,6 +199,25 @@ export type {
 export { defineService } from '@/shell/platform/primitives/service';
 export type { ServiceToken, ServiceRegistry } from '@/shell/platform/primitives/service';
 
+// Возможности — то же объявление, но с версией, и ЗНАЧЕНИЕ здесь по той же причине, что
+// и `defineService`: `defineCapability` не описывает токен, а СОЗДАЁТ его — с проверкой версии
+// в месте объявления, чтобы диапазон, написанный вместо версии, не превращался в сравнение,
+// которое молча всегда ложно. Без этого имени плагин каталога не может ни объявить контракт,
+// который он даёт (`provides` манифеста ссылается на идентификатор, а типизировать службу
+// нечем), ни потребовать чужой средствами SDK, — то есть версионирование существовало бы
+// только для встроенных, а нужно оно ровно внешним.
+//
+// `CapabilityAccess` — тип поля `ctx.capabilities`, вида на тот же реестр служб. Второго
+// реестра нет намеренно: довод в шапке `primitives/capability`.
+export { defineCapability } from '@/shell/platform/primitives/capability';
+export type {
+  Capability,
+  CapabilityAccess,
+  CapabilityDeclaration,
+  CapabilityProvider,
+  CapabilityRequirement,
+} from '@/shell/platform/primitives/capability';
+
 // Сервисы платформы, к которым плагин обращается через `ctx.services`.
 //
 // Почему через реестр, а не полями контекста: **на момент активации плагина рабочей области

@@ -21,6 +21,7 @@
  * @module shell/platform/plugin/context
  */
 
+import { createCapabilityAccess } from '@/shell/platform/primitives/capability';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { EventBus } from '@/shell/platform/primitives/event';
 import type { RootExtensionRegistry } from '@/shell/platform/primitives/extension-point';
@@ -37,6 +38,15 @@ import type { PluginContext } from './types';
  */
 export interface PluginContextDeps {
   readonly services: ServiceRegistry;
+  /**
+   * Кто ОБЪЯВИЛ возможность — только ради текста отказа `capabilities.require`.
+   *
+   * Необязательна, и её отсутствие — названная деградация, а не поломка: отказ становится
+   * короче («ни один плагин её не объявляет» вместо «объявляет плагин «kits»»). Знание это
+   * есть у рантайма плагинов (он собирает декларации при регистрации), а не у реестра служб,
+   * который знает занятые слоты, а не паспорта.
+   */
+  readonly capabilityProviders?: (capabilityId: string) => readonly string[];
   readonly extensions: RootExtensionRegistry;
   readonly commands: CommandRegistry;
   readonly events: EventBus;
@@ -62,6 +72,11 @@ export function createPluginContext(pluginId: string, deps: PluginContextDeps): 
   return {
     id: pluginId,
     services: deps.services,
+    // Вид на ТОТ ЖЕ реестр служб: своего хранилища у возможностей нет и не будет — см. решение
+    // в шапке `primitives/capability`. Строка одна ровно потому, что дублировать нечего.
+    capabilities: createCapabilityAccess(deps.services, {
+      ...(deps.capabilityProviders === undefined ? {} : { providers: deps.capabilityProviders }),
+    }),
     extensions: deps.extensions.forPlugin(pluginId),
     // Вид реестра, а не сам реестр: команда обязана знать владельца, чтобы её заголовок
     // переводился словарём того, кто её внёс. Тем же приёмом, что у вкладов, — и по той же

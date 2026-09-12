@@ -87,6 +87,7 @@ function createHarness(
     devStore?: TestStore;
     installStyles?: ProjectPluginCatalogDeps['installStyles'];
     i18n?: ProjectPluginCatalogDeps['i18n'];
+    capabilities?: ProjectPluginCatalogDeps['capabilities'];
   } = {}
 ): Harness {
   const memory = createMemorySource(files);
@@ -123,6 +124,7 @@ function createHarness(
     onProblem: problems,
     installStyles: options.installStyles,
     i18n: options.i18n,
+    capabilities: options.capabilities,
   });
 
   return {
@@ -649,5 +651,141 @@ describe('пометка «в разработке»', () => {
     h.catalog.setDev('acme', true);
 
     expect(ticks).toBe(1);
+  });
+});
+
+describe('требования плагина сверяются ДО загрузки его кода', () => {
+  /** То, что даёт остальное приложение: так его передаёт композиция из состава. */
+  const builtinKits = () => [{ id: 'kits.active', version: '1.0.0', by: 'kits' }];
+
+  const requiring = (range: string, kind: 'required' | 'optional' = 'required') =>
+    manifestOf('acme-forms', { requires: { [kind]: [{ id: 'kits.active', range }] } });
+
+  it('выполненное требование включению не мешает', async () => {
+    const harness = createHarness(
+      {
+        [dir('acme-forms', 'manifest.json')]: requiring('^1'),
+        [dir('acme-forms', 'main.js')]: contributingPlugin('acme-forms', 'панель Acme'),
+      },
+      { capabilities: builtinKits }
+    );
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable('acme-forms')).toBe(true);
+    expect(harness.panels()).toEqual(['панель Acme']);
+  });
+
+  it('невыполненное — отказ, и код плагина не исполняется вовсе', async () => {
+    const harness = createHarness(
+      {
+        [dir('acme-forms', 'manifest.json')]: requiring('^2'),
+        // Код заведомо рабочий: провались проверка после загрузки — панель успела бы появиться.
+        [dir('acme-forms', 'main.js')]: contributingPlugin('acme-forms', 'панель Acme'),
+      },
+      { capabilities: builtinKits }
+    );
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable('acme-forms')).toBe(false);
+    expect(harness.panels()).toEqual([]);
+    // Плагин не дошёл даже до регистрации в рантайме — это и значит «до загрузки кода».
+    expect(harness.plugins.statuses()).toEqual([]);
+  });
+
+  it('причина видна строкой в списке и называет то, что есть на самом деле', async () => {
+    const harness = createHarness(
+      {
+        [dir('acme-forms', 'manifest.json')]: requiring('^2'),
+        [dir('acme-forms', 'main.js')]: contributingPlugin('acme-forms', 'панель Acme'),
+      },
+      { capabilities: builtinKits }
+    );
+    await harness.catalog.refresh();
+    await harness.catalog.enable('acme-forms');
+
+    const entry = harness.catalog.list()[0];
+    expect(entry.state).toBe('failed');
+    expect(entry.problem?.code).toBe('requires-unsatisfied');
+    // Разница между «поставь новее» и «поставь вообще» — первое, что спрашивает человек.
+    expect(entry.problem?.message).toContain('1.0.0');
+    expect(entry.problem?.message).toContain('«kits»');
+  });
+
+  it('без сведений о возможностях приложения требование не выполнено — и это честно', async () => {
+    const harness = createHarness({
+      [dir('acme-forms', 'manifest.json')]: requiring('^1'),
+      [dir('acme-forms', 'main.js')]: contributingPlugin('acme-forms', 'панель Acme'),
+    });
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable('acme-forms')).toBe(false);
+    expect(harness.catalog.list()[0].problem?.message).toContain('не предоставляет никто');
+  });
+
+  it('НЕОБЯЗАТЕЛЬНОЕ требование на включение не влияет', async () => {
+    const harness = createHarness(
+      {
+        [dir('acme-forms', 'manifest.json')]: requiring('^2', 'optional'),
+        [dir('acme-forms', 'main.js')]: contributingPlugin('acme-forms', 'панель Acme'),
+      },
+      { capabilities: builtinKits }
+    );
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable('acme-forms')).toBe(true);
+    expect(harness.panels()).toEqual(['панель Acme']);
+  });
+
+  it('требование удовлетворяется ВКЛЮЧЁННЫМ соседом по каталогу, а не найденным', async () => {
+    // Возможность выключенного плагина никому не доступна: включать один плагин потому, что
+    // другой когда-нибудь пообещал службу, — это и есть неявный порядок активации.
+    const harness = createHarness({
+      [dir('provider', 'manifest.json')]: JSON.stringify({
+        id: 'provider',
+        apiVersion: '^1',
+        main: 'main.js',
+        provides: [{ id: 'acme.forms', version: '1.2.0' }],
+      }),
+      [dir('provider', 'main.js')]: `
+        const { definePlugin } = require('@builder/sdk');
+        module.exports = definePlugin({
+          id: 'provider',
+          activate(ctx) {
+            ctx.subscriptions.push(ctx.services.register({ id: 'acme.forms' }, {}));
+          },
+        });
+      `,
+      [dir('consumer', 'manifest.json')]: JSON.stringify({
+        id: 'consumer',
+        apiVersion: '^1',
+        main: 'main.js',
+        requires: { required: [{ id: 'acme.forms', range: '^1' }] },
+      }),
+      [dir('consumer', 'main.js')]: contributingPlugin('consumer', 'панель consumer'),
+    });
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable('consumer')).toBe(false);
+
+    expect(await harness.catalog.enable('provider')).toBe(true);
+    expect(await harness.catalog.enable('consumer')).toBe(true);
+  });
+
+  it('объявленная возможность, не зарегистрированная в activate, — отдельная причина', async () => {
+    // `activate` при этом не бросал: отличать это от `activate-failed` нужно тому,
+    // кто чинит плагин, — ошибка в самом плагине, а не в его окружении.
+    const harness = createHarness({
+      [dir('acme-forms', 'manifest.json')]: manifestOf('acme-forms', {
+        provides: [{ id: 'acme.forms', version: '1.0.0' }],
+      }),
+      [dir('acme-forms', 'main.js')]: contributingPlugin('acme-forms', 'панель Acme'),
+    });
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable('acme-forms')).toBe(false);
+
+    const entry = harness.catalog.list()[0];
+    expect(entry.problem?.code).toBe('provides-unregistered');
+    expect(harness.panels()).toEqual([]);
   });
 });

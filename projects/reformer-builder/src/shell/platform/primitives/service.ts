@@ -61,6 +61,20 @@ export function defineService<T>(id: string): ServiceToken<T> {
   return Object.freeze({ id });
 }
 
+/**
+ * Слот занят или освобождён.
+ *
+ * Нагрузка — только идентификатор и факт: реализацию подписчик берёт `get`, потому что между
+ * уведомлением и чтением слот мог смениться ещё раз, и переданная в событии ссылка была бы
+ * устаревшей ровно в том сценарии, ради которого уведомление и заведено (перезагрузка плагина
+ * снимает регистрацию и ставит новую).
+ */
+export interface ServiceChange {
+  readonly id: string;
+  /** `true` — слот занят, `false` — освобождён. */
+  readonly present: boolean;
+}
+
 export interface ServiceRegistry {
   /**
    * Занимает слот токена.
@@ -73,6 +87,20 @@ export interface ServiceRegistry {
   get<T>(token: ServiceToken<T>): T | undefined;
   /** Бросает с внятным сообщением. Только для сервисов Host — см. правило доступности. */
   require<T>(token: ServiceToken<T>): T;
+  /**
+   * Слот заняли или освободили.
+   *
+   * Заведено для одного проверяемого случая: **наблюдать за появлением провайдера нечем**.
+   * Правило «сервис ищется в момент использования» закрывает команды и обработчики — они
+   * спрашивают реестр тогда, когда их позвали, — но не закрывает того, кто обязан ОТРЕАГИРОВАТЬ
+   * на появление службы: перерисовать панель, доставшую наконец своего провайдера, или снять
+   * деградацию. Без уведомления такому потребителю остаётся опрос по таймеру.
+   *
+   * Подписчик не должен полагаться на порядок и обязан быть дешёвым: доставка синхронная,
+   * внутри `register`/`dispose`. Его исключение не выходит наружу — оно бы превратило отказ
+   * наблюдателя в отказ регистрации, то есть уронило бы активацию чужого плагина.
+   */
+  onDidChange(listener: (event: ServiceChange) => void): Disposable;
 }
 
 /**
@@ -100,6 +128,19 @@ export interface ServiceRegistry {
  */
 export function createServiceRegistry(): ServiceRegistry {
   const impls = new Map<string, unknown>();
+  const listeners = new Set<(event: ServiceChange) => void>();
+
+  const notify = (id: string, present: boolean): void => {
+    // Копия набора: подписчик вправе отписаться прямо в обработчике, и обход живого набора
+    // в этот момент пропустил бы соседа.
+    for (const listener of [...listeners]) {
+      try {
+        listener({ id, present });
+      } catch (error) {
+        console.error(`[services] подписчик на «${id}» упал`, error);
+      }
+    }
+  };
 
   return {
     register<T>(token: ServiceToken<T>, impl: T): Disposable {
@@ -111,12 +152,14 @@ export function createServiceRegistry(): ServiceRegistry {
         );
       }
       impls.set(token.id, impl);
+      notify(token.id, true);
 
       // Снимать по id, не сверяя реализацию, безопасно: toDisposable одноразов, а занятый
       // слот повторно занять нельзя — значит устаревший dispose() не может снести чужую
       // регистрацию, пришедшую после освобождения.
       return toDisposable(() => {
         impls.delete(token.id);
+        notify(token.id, false);
       });
     },
 
@@ -133,6 +176,13 @@ export function createServiceRegistry(): ServiceRegistry {
         );
       }
       return impls.get(token.id) as T;
+    },
+
+    onDidChange(listener: (event: ServiceChange) => void): Disposable {
+      listeners.add(listener);
+      return toDisposable(() => {
+        listeners.delete(listener);
+      });
     },
   };
 }

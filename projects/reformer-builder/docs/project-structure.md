@@ -69,7 +69,9 @@ projects/reformer-builder/
 │   ├── shell/
 │   │   ├── platform/          ПЛАТФОРМА. Не знает слова «форма»
 │   │   │   ├── primitives/      resource (+ resource-path), service, extension-point,
-│   │   │   │                    command, event, disposable, when-expr, when-context
+│   │   │   │                    command, event, disposable, when-expr, when-context,
+│   │   │   │                    semver (свой разбор версий и диапазонов, без зависимостей),
+│   │   │   │                    capability (токен службы + версия; ВТОРОГО реестра нет)
 │   │   │   ├── workspace/       рабочая область; внутри journal/ merge/ model/ storage/
 │   │   │   ├── source/          контракт источника, fs-access, fs-handles, memory-двойник, registry
 │   │   │   ├── services/        службы платформы — один каталог, один ответ на вопрос
@@ -92,8 +94,9 @@ projects/reformer-builder/
 │   │   │       └── state/       tabs, status, resource-tree + ResourceTree, when-context-store
 │   │   └── boot/              СБОРКА. Платформа, порты, службы, последовательность запуска
 │   │       ├── boot.ts          сборка приложения, последовательность запуска
-│   │       ├── composition.ts   форма композиции: `ApplicationComposition` (две фазы) и
-│   │       │                    `BuiltinPluginsOptions` — то, что оболочка умеет ДАТЬ составу
+│   │       ├── composition.ts   форма композиции: `ApplicationComposition` (две фазы плюс
+│   │       │                    объявленные возможности) и `BuiltinPluginsOptions` — то,
+│   │       │                    что оболочка умеет ДАТЬ составу
 │   │       ├── plugin-modules.ts  защищённые слоты реестра модулей
 │   │       ├── settings-sections.ts  состав окна настроек
 │   │       ├── ports/           адаптеры портов плагинов: files, monaco, markdown, schema,
@@ -118,8 +121,10 @@ projects/reformer-builder/
 │   │   │                    `extends`. reformer.builder (полный), minimal, ai-builder;
 │   │   │                    registry.ts разрешает имя в профиль
 │   │   └── resolver/
-│   │       └── profile-resolver.ts  `extends` цепочкой, дедупликация с порядком,
-│   │                        enable/disable, отказ по имени на неизвестное и на круг
+│   │       ├── profile-resolver.ts  `extends` цепочкой, дедупликация с порядком,
+│   │       │                  enable/disable, отказ по имени на неизвестное и на круг
+│   │       └── capability-resolver.ts  кто что даёт, чего не хватает, кто спорит за слот —
+│   │                          ДО загрузки кода; отказ здесь данные, а не исключение
 │   │
 │   ├── sdk/                   ЧТО ВИДИТ ПЛАГИН
 │   │   └── index.ts             типы платформы, точки расширения, токены служб и чистые

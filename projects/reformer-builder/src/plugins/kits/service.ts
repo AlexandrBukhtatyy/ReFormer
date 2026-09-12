@@ -52,7 +52,7 @@ import { buildCatalog, type BuildCatalogOptions, type BuiltCatalog } from '@/lib
 import { CATALOG_CONTRACT_VERSION, type CatalogEntry, type CatalogJson } from '@/lib/catalog/types';
 import { toDescriptor } from '@/lib/kits/descriptor';
 import type { KitDescriptor, KitDescriptorJson } from '@/lib/kits/types';
-import type { Disposable } from '@/sdk';
+import { defineCapability, type Disposable } from '@/sdk';
 import type { KitsSettings } from './host';
 
 /**
@@ -185,8 +185,36 @@ export interface KitsService {
   onDidChange(cb: () => void): Disposable;
 }
 
-/** Токен сервиса. Один токен — одна реализация. */
-export const KitsServiceToken: ServiceTokenRef<KitsService> = Object.freeze({ id: 'kits.active' });
+/**
+ * Возможность «активный кит»: токен службы плюс версия контракта.
+ *
+ * Объявлена средствами SDK (`defineCapability`), а не структурной копией, — и это первое место,
+ * где обещание из шапки {@link ServiceTokenRef} исполнено: то, чего в `@/sdk` не было, теперь
+ * там есть.
+ *
+ * **Идентификатор прежний — `kits.active`.** Соблазн переименовать его в `reformer.kit.catalog`
+ * (как предлагает RFC) здесь отвергнут намеренно: `id` службы уже разошёлся по сохранённым
+ * данным и по коду портов, и его смена — это МИГРАЦИЯ, а не переименование. Она отдельная
+ * работа (фаза 7 плана v4), и делать её заодно значило бы спрятать миграцию внутри задачи
+ * про версии.
+ *
+ * Версия `1.0.0` — исходная: контракт {@link KitsService} на момент объявления. Растить её
+ * обязан тот, кто этот интерфейс меняет; минор — на добавление метода, мажор — на удаление
+ * или смену смысла существующего.
+ */
+export const KitsCapability = defineCapability<KitsService>({
+  id: 'kits.active',
+  version: '1.0.0',
+});
+
+/**
+ * Токен сервиса. Один токен — одна реализация.
+ *
+ * ТОТ ЖЕ объект, что и {@link KitsCapability}: возможность расширяет токен службы, второго
+ * реестра нет (см. `primitives/capability`). Имя оставлено, потому что им пользуются порты
+ * композиции, и переименование ничего бы не дало — кроме дифа.
+ */
+export const KitsServiceToken: ServiceTokenRef<KitsService> = KitsCapability;
 
 /**
  * Сервис вместе с тем, что принадлежит его владельцу.

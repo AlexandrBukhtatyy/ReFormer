@@ -26,6 +26,7 @@
  */
 
 import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CapabilityProvider } from '@/shell/platform/primitives/capability';
 import type { Plugin } from '@/shell/platform/plugin/types';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { TextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
@@ -61,6 +62,19 @@ export interface ApplicationComposition {
   eager(options: BuiltinPluginsOptions): readonly Plugin[];
   /** Плагины, приезжающие своим файлом: их дожидается `ready`, тоже до первой отрисовки. */
   lazy(options: BuiltinPluginsOptions): Promise<readonly Plugin[]>;
+  /**
+   * Что этот состав ОБЪЯВЛЯЕТ — возможности встроенных плагинов с версиями и владельцами.
+   *
+   * Данные, а не функция, и в этом всё дело: ни одного плагина этот список не тянет — он
+   * собирается из объявлений карты состава, то есть из литералов. Поэтому он есть у обеих
+   * фаз сразу, включая ленивую, чьих файлов в стартовом графе нет.
+   *
+   * Нужен он одному потребителю — каталогу плагинов проекта: чтобы отказать внешнему плагину
+   * с невыполнимым `requires` ДО загрузки его кода, надо знать, что даёт остальное приложение,
+   * а реестр служб на этот вопрос ещё не отвечает (в нём пусто до активации) и НИКОГДА
+   * не ответит про версии — он хранит реализацию, а не паспорт.
+   */
+  readonly capabilities: readonly CapabilityProvider[];
 }
 
 export interface BuiltinPluginsOptions {

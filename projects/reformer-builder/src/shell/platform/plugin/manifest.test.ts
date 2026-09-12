@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsePluginManifest, PLUGIN_API_MAJOR } from './manifest';
+import { BUILDER_API_VERSION, parsePluginManifest } from './manifest';
 
 const good = {
   id: 'acme-forms',
@@ -93,32 +93,138 @@ describe('манифест отвергается', () => {
     expect(!result.ok && result.problem.code).toBe('manifest-invalid');
   });
 
-  it('когда мажор API чужой — и это отдельный код, а не «манифест плохой»', () => {
+  it('когда API оболочки не покрыт диапазоном — и это отдельный код, а не «манифест плохой»', () => {
     const result = parse({ ...good, apiVersion: '^2' });
 
-    // Политики совместимости нет по решению: расхождение мажора — отказ загрузки
-    // с внятным сообщением, а не попытка что-то согласовать.
+    // Политики совместимости нет по решению: расхождение — отказ загрузки с внятным
+    // сообщением, а не попытка что-то согласовать.
     expect(!result.ok && result.problem.code).toBe('api-version');
-    expect(!result.ok && result.problem.message).toContain(String(PLUGIN_API_MAJOR));
+    expect(!result.ok && result.problem.message).toContain(BUILDER_API_VERSION);
   });
 
-  it('когда из apiVersion не читается число', () => {
+  it('когда apiVersion не читается как диапазон', () => {
     const result = parse({ ...good, apiVersion: 'latest' });
 
     expect(!result.ok && result.problem.code).toBe('manifest-invalid');
   });
 });
 
-describe('диапазон apiVersion', () => {
-  it('разбирается ровно до мажора и не дальше', () => {
-    // Всё, что сложнее «первое число», было бы обещанием семантики, которой у нас нет.
-    for (const range of ['1', '^1', '~1.2.3', '1.x', '>=1.0.0', 'v1']) {
+describe('диапазон apiVersion — настоящий semver, а не первое число', () => {
+  it('пропускает диапазоны, покрывающие версию оболочки', () => {
+    for (const range of ['1', '^1', '^1.0.0', '~1.0', '1.x', '>=1.0.0', '*', '1.0.0']) {
       expect(parse({ ...good, apiVersion: range }).ok, range).toBe(true);
     }
-    for (const range of ['^0.1', '2', '~10.0']) {
+  });
+
+  it('отвергает диапазоны, которые её НЕ покрывают', () => {
+    // Здесь и видна разница с прежним разбором «достать первое число»: `~1.2.3` начинается
+    // с единицы, но требует 1.2.x, а оболочка даёт 1.0.0 — раньше это проходило молча,
+    // и плагин получал API, которого нет.
+    for (const range of ['^0.1', '2', '~10.0', '~1.2.3', '>=1.5']) {
       const result = parse({ ...good, apiVersion: range });
       expect(!result.ok && result.problem.code, range).toBe('api-version');
     }
+  });
+
+  it('отвергает то, что диапазоном не является', () => {
+    for (const range of ['v1', 'latest', '1.x || 2.x', '>=1.0.0 <2.0.0', '^1.0.0-beta']) {
+      const result = parse({ ...good, apiVersion: range });
+      expect(!result.ok && result.problem.code, range).toBe('manifest-invalid');
+    }
+  });
+});
+
+describe('provides — объявление возможностей', () => {
+  it('разбирает список объявлений', () => {
+    const result = parse({
+      ...good,
+      provides: [{ id: 'acme.forms', version: '1.2.0' }],
+    });
+
+    expect(result.ok && result.manifest.provides).toEqual([{ id: 'acme.forms', version: '1.2.0' }]);
+  });
+
+  it('поля нет — и это норма, а не упущение', () => {
+    const result = parse(good);
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.manifest.provides).toBeUndefined();
+  });
+
+  it('отвергает диапазон вместо версии', () => {
+    // «У меня есть ^1» не значит ничего; молчаливое «возьмём нижнюю границу» спрятало бы
+    // путаницу с requires до первого несовпадения у потребителя.
+    const result = parse({ ...good, provides: [{ id: 'acme.forms', version: '^1' }] });
+
+    expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+    expect(!result.ok && result.problem.message).toContain('provides[0]');
+  });
+
+  it('отвергает повтор идентификатора', () => {
+    const result = parse({
+      ...good,
+      provides: [
+        { id: 'acme.forms', version: '1.0.0' },
+        { id: 'acme.forms', version: '2.0.0' },
+      ],
+    });
+
+    expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+    expect(!result.ok && result.problem.message).toContain('дважды');
+  });
+
+  it('отвергает не тот вид поля', () => {
+    for (const provides of [{}, ['acme.forms'], [{ version: '1.0.0' }]]) {
+      expect(parse({ ...good, provides }).ok, JSON.stringify(provides)).toBe(false);
+    }
+  });
+});
+
+describe('requires — требования двумя списками', () => {
+  it('разбирает оба списка', () => {
+    const result = parse({
+      ...good,
+      requires: {
+        required: [{ id: 'kits.active', range: '^1' }],
+        optional: [{ id: 'acme.telemetry', range: '>=0.2.0' }],
+      },
+    });
+
+    expect(result.ok && result.manifest.requires).toEqual({
+      required: [{ id: 'kits.active', range: '^1' }],
+      optional: [{ id: 'acme.telemetry', range: '>=0.2.0' }],
+    });
+  });
+
+  it('пропущенный список — пустой, а не отказ', () => {
+    const result = parse({ ...good, requires: { required: [{ id: 'kits.active', range: '^1' }] } });
+
+    expect(result.ok && result.manifest.requires?.optional).toEqual([]);
+  });
+
+  it('отвергает короткую запись списком строк', () => {
+    // Частая догадка автора; отвергнуть её внятно дешевле, чем дать ей молча не сработать.
+    const result = parse({ ...good, requires: ['kits.active'] });
+
+    expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+    expect(!result.ok && result.problem.message).toContain('required');
+  });
+
+  it('отвергает диапазон, которого утилита версий не понимает', () => {
+    const result = parse({
+      ...good,
+      requires: { required: [{ id: 'kits.active', range: '>=1 <2' }] },
+    });
+
+    expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+    expect(!result.ok && result.problem.message).toContain('requires.required[0]');
+  });
+
+  it('отвергает требование без идентификатора', () => {
+    const result = parse({ ...good, requires: { optional: [{ range: '^1' }] } });
+
+    expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+    expect(!result.ok && result.problem.message).toContain('requires.optional[0]');
   });
 });
 

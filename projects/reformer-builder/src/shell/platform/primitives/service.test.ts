@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createServiceRegistry, defineService } from './service';
 
@@ -154,5 +154,76 @@ describe('ключ реестра — строка id, а не объект то
 
     expect(registry.get(twin)).toBe(impl);
     expect(() => registry.register(twin, clock(4))).toThrow();
+  });
+});
+
+describe('onDidChange — наблюдать за появлением провайдера', () => {
+  it('сообщает о занятии и об освобождении слота', () => {
+    const registry = createServiceRegistry();
+    const seen: Array<[string, boolean]> = [];
+    registry.onDidChange((event) => seen.push([event.id, event.present]));
+
+    const sub = registry.register(ClockToken, clock(1));
+    sub.dispose();
+
+    expect(seen).toEqual([
+      ['test.clock', true],
+      ['test.clock', false],
+    ]);
+  });
+
+  it('нагрузка — факт, а не реализация: её подписчик берёт get', () => {
+    // Между уведомлением и чтением слот мог смениться ещё раз (перезагрузка плагина снимает
+    // регистрацию и ставит новую), и ссылка из события была бы устаревшей.
+    const registry = createServiceRegistry();
+    const impl = clock(7);
+    let read: Clock | undefined;
+    registry.onDidChange(() => {
+      read = registry.get(ClockToken);
+    });
+
+    registry.register(ClockToken, impl);
+
+    expect(read).toBe(impl);
+  });
+
+  it('исключение подписчика не выходит наружу из register', () => {
+    // Иначе отказ наблюдателя превратился бы в отказ регистрации, то есть уронил бы
+    // активацию чужого плагина.
+    const registry = createServiceRegistry();
+    const failure = vi.spyOn(console, 'error').mockImplementation(() => {});
+    registry.onDidChange(() => {
+      throw new Error('подписчик упал');
+    });
+    const quiet = vi.fn();
+    registry.onDidChange(quiet);
+
+    expect(() => registry.register(ClockToken, clock(1))).not.toThrow();
+    // Рассылка не прерывается: соседа отказ первого не касается.
+    expect(quiet).toHaveBeenCalledTimes(1);
+    expect(registry.get(ClockToken)).toBeDefined();
+    failure.mockRestore();
+  });
+
+  it('отписка прекращает уведомления', () => {
+    const registry = createServiceRegistry();
+    const listener = vi.fn();
+    registry.onDidChange(listener).dispose();
+
+    registry.register(ClockToken, clock(1));
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('подписчик вправе отписаться прямо в обработчике', () => {
+    // Обход живого набора в этот момент пропустил бы соседа — поэтому рассылка идёт по копии.
+    const registry = createServiceRegistry();
+    const second = vi.fn();
+    const first = registry.onDidChange(() => first.dispose());
+    registry.onDidChange(second);
+
+    registry.register(ClockToken, clock(1));
+
+    expect(second).toHaveBeenCalledTimes(1);
   });
 });

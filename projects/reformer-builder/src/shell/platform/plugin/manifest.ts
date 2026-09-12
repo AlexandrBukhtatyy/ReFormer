@@ -20,10 +20,20 @@
  * - **`main` не выходит за каталог плагина.** Нормализация — та же, что у линковщика
  *   (`normalizePath`), поэтому `../../secrets.ts` отсекается здесь, а не оказывается набором
  *   файлов, который загрузчик прочитал бы из чужого места.
- * - **Мажор `apiVersion` совпадает с нашим.** Политику совместимости мы не строим — решено
- *   (plugin-and-shell.md): при расхождении мажора плагин просто не грузится с внятным
- *   сообщением. Диапазон разбирается ровно настолько, чтобы достать из него первое число:
- *   всё, что сложнее, было бы обещанием семантики, которой у нас нет.
+ * - **Версия оболочки попадает в `apiVersion`.** Политику совместимости мы по-прежнему не строим
+ *   — решено (plugin-and-shell.md): при расхождении плагин просто не грузится с внятным
+ *   сообщением. Изменилось одно: диапазон разбирается НАСТОЯЩЕЙ утилитой версий
+ *   (`primitives/semver`), а не выуживанием первого числа регуляркой. Прежний `majorOf`
+ *   читал `^2` и `>=2` одинаково, то есть «^1» у нас совпадало бы с «1.5», хотя оболочка
+ *   объявляет {@link BUILDER_API_VERSION} целиком. Утилита всё равно нужна полям `provides`
+ *   и `requires`, поэтому вторая, самодельная, проверка версий здесь была бы ещё и лишней.
+ *
+ * - **`provides` и `requires` — это ФОРМА, а не разрешение конфликта.** Здесь проверяется, что
+ *   идентификатор непуст, версия — версия, а диапазон — диапазон. «Кто предоставляет и хватает
+ *   ли этого» решается уже снаружи: до загрузки кода — резолвером
+ *   (`application/resolver/capability-resolver`) и каталогом (`./catalog`), а после активации —
+ *   рантаймом (`./registry` сверяет объявленное с фактически зарегистрированным). Разбор
+ *   манифеста обязан оставаться чтением ОДНОГО файла, ничего вокруг себя не зная.
  *
  * **Поля `permissions` нет и не будет** — решено там же: включённый плагин может всё, и объявлять
  * намерения полем, которое ничего не принуждает, значит создавать ложное ощущение границы.
@@ -31,15 +41,27 @@
  * @module shell/platform/plugin/manifest
  */
 
+import type {
+  CapabilityDeclaration,
+  CapabilityRequirement,
+} from '@/shell/platform/primitives/capability';
 import { normalizeChord } from '@/shell/platform/primitives/command';
+import { parseRange, parseVersion, satisfies } from '@/shell/platform/primitives/semver';
 import { parseWhen } from '@/shell/platform/primitives/when-expr';
 import { normalizePath } from '@/shell/platform/modules/linker';
 
 /** Имя файла манифеста внутри каталога плагина. */
 export const PLUGIN_MANIFEST_FILE = 'manifest.json';
 
-/** Мажор API плагинов, который понимает эта сборка оболочки. */
-export const PLUGIN_API_MAJOR = 1;
+/**
+ * Версия API плагинов, которую даёт эта сборка оболочки.
+ *
+ * Константа, а не мажор числом: с ней `apiVersion: "^1.2"` наконец значит то, что написано, —
+ * прежний разбор доставал из диапазона первое число и не отличал `^1` от `1.5`. Растить её
+ * обязан тот, кто меняет `@/sdk`: минор — на добавление имени, мажор — на удаление или смену
+ * смысла. Политики совместимости между мажорами как не было, так и нет (plugin-and-shell.md).
+ */
+export const BUILDER_API_VERSION = '1.0.0';
 
 /**
  * Разобранный манифест.
@@ -63,6 +85,33 @@ export interface PluginManifest {
   readonly styles?: PluginStyles;
   /** Вклады, объявленные ДЕКЛАРАТИВНО — то есть видимые до того, как плагин включён. */
   readonly contributes?: PluginContributes;
+  /**
+   * Возможности, которые плагин ДАЁТ другим: `[{ "id": "kits.active", "version": "1.0.0" }]`.
+   *
+   * Объявление, а не регистрация: слот в реестре служб плагин занимает сам, в `activate`.
+   * Расхождение между объявленным и занятым ловит рантайм (`./registry`) — иначе резолвер
+   * верил бы манифесту, а реестр молчал бы, и «возможность есть» означало бы «написано,
+   * что есть».
+   */
+  readonly provides?: readonly CapabilityDeclaration[];
+  /**
+   * Возможности, которые плагину НУЖНЫ, — двумя списками.
+   *
+   * Деление на обязательные и необязательные не косметическое, оно про разные исходы.
+   * Невыполненное ОБЯЗАТЕЛЬНОЕ требование — отказ включения ДО того, как исполнится код
+   * плагина (`./catalog`, `requires-unsatisfied`): плагин, которому нечем работать, не должен
+   * получать шанс упасть на середине `activate` и оставить половину вкладов.
+   * Невыполненное НЕОБЯЗАТЕЛЬНОЕ — названная деградация, ровно по принципу «необязательный
+   * член контракта = названная деградация, а не поломка»: плагин включается и работает
+   * без этой возможности, спрашивая её через `ctx.capabilities.get`.
+   */
+  readonly requires?: PluginRequirements;
+}
+
+/** Требования плагина. Оба списка есть всегда — пустые, если в манифесте их не написали. */
+export interface PluginRequirements {
+  readonly required: readonly CapabilityRequirement[];
+  readonly optional: readonly CapabilityRequirement[];
 }
 
 /**
@@ -144,8 +193,23 @@ export type PluginProblemCode =
   | 'manifest-invalid'
   /** `id` в манифесте не совпадает с именем каталога. */
   | 'id-mismatch'
-  /** Мажор `apiVersion` не наш: плагин написан против другой оболочки. */
+  /** `apiVersion` не покрывает версию оболочки: плагин написан против другой. */
   | 'api-version'
+  /**
+   * Обязательное требование `requires.required` не выполнено ничем из доступного.
+   *
+   * Проверяется ДО загрузки кода (`./catalog`), поэтому плагин не получает шанса упасть
+   * на середине `activate`. Строка в списке плагинов остаётся — с этой причиной, как
+   * у `styles-invalid` и `messages-invalid`.
+   */
+  | 'requires-unsatisfied'
+  /**
+   * Плагин объявил в `provides` возможность, которую к концу `activate` не зарегистрировал.
+   *
+   * Отдельный код, а не `activate-failed`: `activate` тут как раз НЕ бросал. Отличать их
+   * нужно тому, кто чинит плагин, — это ошибка в самом плагине, а не в его окружении.
+   */
+  | 'provides-unregistered'
   /** Файла точки входа нет среди файлов плагина. */
   | 'entry-missing'
   /** В каталоге плагина слишком много файлов — это не плагин, а чужое дерево. */
@@ -189,14 +253,6 @@ export type ManifestParseResult =
  */
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 
-/** Первое число диапазона: `^1` → 1, `~1.2.3` → 1, `>=2.0` → 2. */
-function majorOf(range: string): number | undefined {
-  const found = /^\s*[\^~>=<v\s]*(\d+)/.exec(range);
-  if (found === null) return undefined;
-  const major = Number.parseInt(found[1], 10);
-  return Number.isNaN(major) ? undefined : major;
-}
-
 const problem = (
   code: PluginProblemCode,
   message: string,
@@ -216,12 +272,13 @@ function stringField(raw: Record<string, unknown>, key: string): string | undefi
  *
  * @param text содержимое `manifest.json`
  * @param dirName имя каталога плагина — с ним сверяется `id`
- * @param apiMajor мажор API оболочки; параметр ради тестов, умолчание — {@link PLUGIN_API_MAJOR}
+ * @param apiVersion версия API оболочки; параметр ради тестов, умолчание —
+ * {@link BUILDER_API_VERSION}
  */
 export function parsePluginManifest(
   text: string,
   dirName: string,
-  apiMajor: number = PLUGIN_API_MAJOR
+  apiVersion: string = BUILDER_API_VERSION
 ): ManifestParseResult {
   let raw: unknown;
   try {
@@ -263,24 +320,25 @@ export function parsePluginManifest(
     );
   }
 
-  const apiVersion = stringField(fields, 'apiVersion');
-  if (apiVersion === undefined) {
+  const declaredApi = stringField(fields, 'apiVersion');
+  if (declaredApi === undefined) {
     return problem('manifest-invalid', 'в манифесте нет поля «apiVersion» или оно не строка', {
       file: PLUGIN_MANIFEST_FILE,
     });
   }
-  const major = majorOf(apiVersion);
-  if (major === undefined) {
+  if (parseRange(declaredApi) === undefined) {
     return problem(
       'manifest-invalid',
-      `из «apiVersion»: «${apiVersion}» не читается номер версии`,
+      `из «apiVersion»: «${declaredApi}» не читается диапазон версий. ` +
+        'Допустимы «^1», «~1.2», «>=1.0.0», «1.x» и точная версия; составные диапазоны ' +
+        'и пререлизы не поддерживаются',
       { file: PLUGIN_MANIFEST_FILE }
     );
   }
-  if (major !== apiMajor) {
+  if (!satisfies(apiVersion, declaredApi)) {
     return problem(
       'api-version',
-      `плагин написан против API ${major}, а оболочка даёт API ${apiMajor}. ` +
+      `плагин написан против API «${declaredApi}», а оболочка даёт API ${apiVersion}. ` +
         'Совместимость между мажорами не обещана, поэтому плагин не загружается',
       { file: PLUGIN_MANIFEST_FILE }
     );
@@ -308,18 +366,172 @@ export function parsePluginManifest(
   const contributes = parseContributes(fields.contributes);
   if (contributes !== undefined && 'ok' in contributes) return contributes;
 
+  const provides = parseProvides(fields.provides);
+  if (provides !== undefined && 'ok' in provides) return provides;
+
+  const requires = parseRequires(fields.requires);
+  if (requires !== undefined && 'ok' in requires) return requires;
+
   return {
     ok: true,
     manifest: {
       id,
       name: stringField(fields, 'name') ?? id,
       version: stringField(fields, 'version') ?? '0.0.0',
-      apiVersion,
+      apiVersion: declaredApi,
       main,
       ...(styles === undefined ? {} : { styles: styles.styles }),
       ...(contributes === undefined ? {} : { contributes: contributes.contributes }),
+      ...(provides === undefined ? {} : { provides: provides.provides }),
+      ...(requires === undefined ? {} : { requires: requires.requires }),
     },
   };
+}
+
+/**
+ * Разбирает `provides` — список объявленных возможностей.
+ *
+ * Версия здесь обязана быть ВЕРСИЕЙ, а не диапазоном: `provides` говорит, что у плагина есть,
+ * и «у меня есть ^1» не значит ничего. Отказ, а не приведение: диапазон в этом поле почти
+ * наверняка означает, что автор перепутал его с `requires`, и молчаливое «возьмём нижнюю
+ * границу» спрятало бы ошибку до первого несовпадения у потребителя.
+ *
+ * Повтор идентификатора — тоже отказ. Две версии одной возможности у одного плагина
+ * невыразимы: слот в реестре служб один, и вторая запись просто не значила бы ничего.
+ */
+function parseProvides(
+  raw: unknown
+):
+  | { provides: readonly CapabilityDeclaration[] }
+  | { ok: false; problem: PluginProblem }
+  | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw)) {
+    return problem('manifest-invalid', 'поле «provides» должно быть массивом', {
+      file: PLUGIN_MANIFEST_FILE,
+    });
+  }
+
+  const parsed: CapabilityDeclaration[] = [];
+  const seen = new Set<string>();
+  for (const [index, item] of raw.entries()) {
+    const at = `provides[${String(index)}]`;
+    const fields = objectFields(item);
+    if (fields === undefined) {
+      return problem('manifest-invalid', `${at} должен быть объектом`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+
+    const id = stringField(fields, 'id');
+    if (id === undefined) {
+      return problem('manifest-invalid', `в ${at} нет поля «id» или оно не строка`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+    if (seen.has(id)) {
+      return problem(
+        'manifest-invalid',
+        `${at}: возможность «${id}» объявлена дважды. Слот в реестре служб один, ` +
+          'и вторая версия не значила бы ничего',
+        { file: PLUGIN_MANIFEST_FILE }
+      );
+    }
+
+    const version = stringField(fields, 'version');
+    if (version === undefined || parseVersion(version) === undefined) {
+      return problem(
+        'manifest-invalid',
+        `${at}: «version» должна быть версией вида «1.0.0», а не «${version ?? ''}». ` +
+          'Диапазон здесь недопустим: «provides» говорит, что ЕСТЬ, а не что требуется',
+        { file: PLUGIN_MANIFEST_FILE }
+      );
+    }
+
+    seen.add(id);
+    parsed.push({ id, version });
+  }
+
+  return { provides: parsed };
+}
+
+/**
+ * Разбирает `requires` — два списка требований.
+ *
+ * Оба списка необязательны, но само поле, если оно есть, обязано быть объектом с этими двумя
+ * именами: `requires: ["kits.active"]` — частая догадка автора, и отвергнуть её внятно дешевле,
+ * чем позволить ей молча не сработать.
+ */
+function parseRequires(
+  raw: unknown
+): { requires: PluginRequirements } | { ok: false; problem: PluginProblem } | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const fields = objectFields(raw);
+  if (fields === undefined) {
+    return problem(
+      'manifest-invalid',
+      'поле «requires» должно быть объектом с полями «required» и «optional»',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+
+  const required = parseRequirementList(fields.required, 'requires.required');
+  if ('ok' in required) return required;
+  const optional = parseRequirementList(fields.optional, 'requires.optional');
+  if ('ok' in optional) return optional;
+
+  return { requires: { required: required.items, optional: optional.items } };
+}
+
+/** Один список требований. `undefined` и `null` — пустой список, а не отказ. */
+function parseRequirementList(
+  raw: unknown,
+  at: string
+): { items: readonly CapabilityRequirement[] } | { ok: false; problem: PluginProblem } {
+  if (raw === undefined || raw === null) return { items: [] };
+  if (!Array.isArray(raw)) {
+    return problem('manifest-invalid', `поле «${at}» должно быть массивом`, {
+      file: PLUGIN_MANIFEST_FILE,
+    });
+  }
+
+  const items: CapabilityRequirement[] = [];
+  for (const [index, item] of raw.entries()) {
+    const where = `${at}[${String(index)}]`;
+    const fields = objectFields(item);
+    if (fields === undefined) {
+      return problem('manifest-invalid', `${where} должен быть объектом`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+
+    const id = stringField(fields, 'id');
+    if (id === undefined) {
+      return problem('manifest-invalid', `в ${where} нет поля «id» или оно не строка`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+
+    const range = stringField(fields, 'range');
+    if (range === undefined || parseRange(range) === undefined) {
+      return problem(
+        'manifest-invalid',
+        `${where}: «range» должен быть диапазоном вида «^1», «~1.2», «>=1.0.0» или «*», ` +
+          `а не «${range ?? ''}». Составные диапазоны и пререлизы не поддерживаются`,
+        { file: PLUGIN_MANIFEST_FILE }
+      );
+    }
+
+    items.push({ id, range });
+  }
+
+  return { items };
+}
+
+/** Объект JSON без массивов и `null`. Возвращает `undefined`, если это не он. */
+function objectFields(raw: unknown): Record<string, unknown> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  return raw as Record<string, unknown>;
 }
 
 /**

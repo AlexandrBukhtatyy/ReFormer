@@ -42,6 +42,7 @@
  * @module shell/platform/plugin/types
  */
 
+import type { CapabilityAccess } from '@/shell/platform/primitives/capability';
 import type { PluginCommandRegistry } from '@/shell/platform/primitives/command';
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import type { EventBus } from '@/shell/platform/primitives/event';
@@ -69,6 +70,21 @@ export interface PluginContext {
    * безопасности), но занят токен может быть только один раз: повторная регистрация бросает.
    */
   readonly services: ServiceRegistry;
+
+  /**
+   * Возможности — ВИД на тот же реестр служб, а не второе хранилище.
+   *
+   * Разница со `services` не в данных, а в вопросе. `services` отвечает «дай реализацию по
+   * токену»; `capabilities` отвечает «выполнен ли контракт, который я объявил в `requires`»,
+   * и потому умеет три вещи, которых у реестра нет: назвать в отказе версию и возможного
+   * провайдера (`require`), деградировать штатно (`get`) и дождаться появления реализации
+   * (`observe`) — без опроса по таймеру.
+   *
+   * Правило «сервис ищется в момент использования» здесь В СИЛЕ целиком: `require` в `activate`
+   * запрещён ровно так же, как `services.require` чужого сервиса, — провайдер имеет право
+   * подняться позже. `observe` для того и существует.
+   */
+  readonly capabilities: CapabilityAccess;
 
   /**
    * Точки расширения — **вид реестра для этого плагина** (`RootExtensionRegistry.forPlugin`),

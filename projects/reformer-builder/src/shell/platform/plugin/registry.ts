@@ -40,6 +40,7 @@
  * @module shell/platform/plugin/registry
  */
 
+import type { CapabilityDeclaration } from '@/shell/platform/primitives/capability';
 import { disposeAll } from '@/shell/platform/primitives/disposable';
 import { createPluginContext } from './context';
 import type { PluginContextDeps } from './context';
@@ -56,8 +57,14 @@ import type { Plugin, PluginContext } from './types';
  */
 export type PluginState = 'inactive' | 'active' | 'failed';
 
-/** Где именно упал плагин. Различение нужно, чтобы диагностика не сваливалась в одну кучу. */
-export type PluginFailurePhase = 'activate' | 'deactivate' | 'dispose';
+/**
+ * Где именно упал плагин. Различение нужно, чтобы диагностика не сваливалась в одну кучу.
+ *
+ * `provides` — не «упал», а «не сделал обещанного»: `activate` прошёл без исключения, но
+ * объявленная возможность в реестре служб так и не появилась. Отдельная фаза, потому что
+ * чинить это надо в самом плагине, а не в его окружении.
+ */
+export type PluginFailurePhase = 'activate' | 'deactivate' | 'dispose' | 'provides';
 
 /**
  * Отказ плагина.
@@ -113,8 +120,14 @@ export interface PluginRegistry {
    * Повторная регистрация того же `id` — ошибка, а не замена: иначе действующая реализация
    * зависела бы от порядка в списке, а список плагинов перестал бы отвечать на вопрос
    * «из чего собрано приложение». Для замены есть {@link reload}.
+   *
+   * `provides` — то, что плагин ОБЪЯВИЛ снаружи своего кода: у плагина каталога это поле
+   * манифеста, у встроенного — запись карты состава. Объявление приходит вторым аргументом,
+   * а не полем {@link Plugin}, ровно потому, что источник у него разный, а проверять надо
+   * одинаково: к концу `activate` каждая объявленная возможность обязана быть
+   * зарегистрирована, иначе плагин переводится в `failed` (фаза `provides`).
    */
-  register(plugin: Plugin): void;
+  register(plugin: Plugin, provides?: readonly CapabilityDeclaration[]): void;
   /** То же для набора. Порядок в массиве на поведение не влияет — см. правило выше. */
   registerAll(plugins: readonly Plugin[]): void;
 
@@ -152,8 +165,12 @@ export interface PluginRegistry {
    * `replacement` подставляет другой экземпляр под тем же `id` — это то, что делает команда
    * «перезагрузить плагин» для плагина из каталога проекта: файл перечитан, объект новый,
    * идентификатор прежний. Без него перезагружается тот же экземпляр.
+   *
+   * `provides` обновляется вместе с кодом: манифест перечитан, и объявление в нём могло
+   * измениться. Не передать его — значит оставить прежнее, и проверка обещанного сверяла бы
+   * новый код со старым манифестом.
    */
-  reload(id: string, replacement?: Plugin): boolean;
+  reload(id: string, replacement?: Plugin, provides?: readonly CapabilityDeclaration[]): boolean;
 
   isActive(id: string): boolean;
   /** `undefined` — плагин не зарегистрирован. */
@@ -170,6 +187,8 @@ interface PluginRecord {
   failure?: PluginFailure;
   /** Контекст текущей активации. `undefined` у неактивного — контекст живёт не дольше её. */
   context?: PluginContext;
+  /** Что плагин объявил снаружи кода: манифест или карта состава. Пусто — ничего не обещал. */
+  provides: readonly CapabilityDeclaration[];
 }
 
 /**
@@ -190,18 +209,26 @@ function defaultOnError(failure: PluginFailure): void {
 
 export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
   const onError = deps.onError ?? defaultOnError;
+
+  // Map сохраняет порядок вставки — это и есть «порядок регистрации» в отчётах и статусах.
+  // На поведение он не влияет (см. правило о порядке), но делает вывод воспроизводимым.
+  const records = new Map<string, PluginRecord>();
+
   const contextDeps: PluginContextDeps = {
     services: deps.services,
+    // Кто объявлял возможность — знает только этот реестр: у реестра служб есть занятые слоты,
+    // но не декларации. Отдаём ВСЕХ объявивших, включая неактивных: «плагин «kits» её даёт,
+    // включите его» — это ровно тот ответ, который нужен человеку в отказе `require`.
+    capabilityProviders: (capabilityId) =>
+      [...records.values()]
+        .filter((record) => record.provides.some((item) => item.id === capabilityId))
+        .map((record) => record.plugin.id),
     extensions: deps.extensions,
     commands: deps.commands,
     events: deps.events,
     storage: deps.storage,
     secrets: deps.secrets ?? createSecretSessionStore(),
   };
-
-  // Map сохраняет порядок вставки — это и есть «порядок регистрации» в отчётах и статусах.
-  // На поведение он не влияет (см. правило о порядке), но делает вывод воспроизводимым.
-  const records = new Map<string, PluginRecord>();
   /** Порядок фактической активации: деактивация идёт по нему в обратную сторону. */
   const activationOrder: string[] = [];
 
@@ -267,6 +294,32 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
       return false;
     }
 
+    // Обещанное проверяется ПОСЛЕ активации и ДО того, как плагин объявлен активным:
+    // резолвер и каталог верят декларации, а верить ей можно только если реестр служб с ней
+    // согласен. Иначе «возможность есть» значило бы «написано, что есть», а потребитель узнавал
+    // бы правду на первом `capabilities.require` — то есть далеко от причины.
+    const missing = record.provides.filter(
+      (item) => deps.services.get({ id: item.id }) === undefined
+    );
+    if (missing.length > 0) {
+      const names = missing.map((item) => `«${item.id}» версии ${item.version}`).join(', ');
+      const failure: PluginFailure = {
+        pluginId: record.plugin.id,
+        phase: 'provides',
+        message:
+          `плагин объявил ${names}, но к концу activate не зарегистрировал ` +
+          'эту службу. Объявление в манифесте — обещание реестру служб, а не описание намерений',
+        error: undefined,
+      };
+      // Вклады снимаются, как и при исключении: половина плагина, на которую никто
+      // не рассчитывал, хуже отсутствующего плагина.
+      releaseSubscriptions(record, 'dispose');
+      record.state = 'failed';
+      record.failure = failure;
+      report(failure);
+      return false;
+    }
+
     record.state = 'active';
     record.failure = undefined;
     activationOrder.push(record.plugin.id);
@@ -306,7 +359,7 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
 
   // Отдельная функция, а не метод возвращаемого объекта: registerAll зовёт её напрямую,
   // и реестр остаётся работоспособным после деструктуризации (`const { register } = registry`).
-  const register = (plugin: Plugin): void => {
+  const register = (plugin: Plugin, provides: readonly CapabilityDeclaration[] = []): void => {
     if (plugin.id.trim() === '') {
       throw new Error('PluginRegistry.register: идентификатор плагина не может быть пустым');
     }
@@ -317,7 +370,7 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
           'чтобы поднять другой экземпляр под тем же именем, используйте reload'
       );
     }
-    records.set(plugin.id, { plugin, state: 'inactive' });
+    records.set(plugin.id, { plugin, state: 'inactive', provides });
   };
 
   return {
@@ -365,7 +418,7 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
       }
     },
 
-    reload(id: string, replacement?: Plugin): boolean {
+    reload(id: string, replacement?: Plugin, provides?: readonly CapabilityDeclaration[]): boolean {
       const record = requireRecord(id, 'PluginRegistry.reload');
       if (replacement !== undefined && replacement.id !== id) {
         throw new Error(
@@ -377,6 +430,7 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
 
       deactivateRecord(record);
       if (replacement !== undefined) record.plugin = replacement;
+      if (provides !== undefined) record.provides = provides;
       // Перезагрузка — тоже явное действие: отказ прошлой попытки её не блокирует.
       record.state = 'inactive';
       record.failure = undefined;

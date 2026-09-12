@@ -47,6 +47,11 @@
  * @module shell/platform/plugin/catalog
  */
 
+import {
+  meetsRequirement,
+  type CapabilityProvider,
+  type CapabilityRequirement,
+} from '@/shell/platform/primitives/capability';
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 import type { DiscoveredPlugin, PluginLoader } from './loader';
 import type { PluginManifest, PluginProblem } from './manifest';
@@ -129,6 +134,18 @@ export interface ProjectPluginCatalogDeps {
   readonly loader: PluginLoader;
   /** Тот же рантайм, в котором живут встроенные плагины: контракт у них один. */
   readonly plugins: PluginRegistry;
+  /**
+   * Что предоставляет ОСТАЛЬНОЕ приложение: встроенные плагины состава.
+   *
+   * Функция, а не массив: состав известен при сборке, но каталог живёт дольше и обязан
+   * спрашивать заново — профиль сменился, плагин упал, возможность исчезла. Возможности
+   * СОСЕДЕЙ по каталогу сюда не входят: их каталог знает сам, из манифестов включённых.
+   *
+   * Отсутствие означает «за пределами каталога возможностей нет»: тогда обязательное
+   * требование к встроенной службе не выполняется, и плагин честно не включается. Это
+   * и есть проверяемое поведение, а не деградация, — поэтому композиция обязана её передать.
+   */
+  readonly capabilities?: () => readonly CapabilityProvider[];
   /** Без него включённые не переживают перезагрузку вкладки — но каталог работает. */
   readonly enabled?: EnabledPluginsStore;
   /**
@@ -409,6 +426,70 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
           );
   }
 
+  /**
+   * Что доступно ПРЯМО СЕЙЧАС: встроенные плюс включённые соседи по каталогу.
+   *
+   * Соседи считаются по манифестам ВКЛЮЧЁННЫХ, а не всех найденных: возможность выключенного
+   * плагина никому не доступна, и включать один плагин потому, что другой когда-нибудь
+   * пообещал службу, — это и есть тот неявный порядок активации, которого у нас нет.
+   *
+   * Сам включаемый из списка исключается вызывающим: требовать собственную возможность плагин
+   * не может, а разрешать это значило бы, что он удовлетворяет требование обещанием.
+   */
+  const availableCapabilities = (): readonly CapabilityProvider[] => {
+    const own = [...records.values()].flatMap((record) => {
+      if (!enabled.has(record.found.id)) return [];
+      const provides = record.found.manifest?.provides ?? [];
+      return provides.map((item) => ({ ...item, by: record.found.id }));
+    });
+    return [...(deps.capabilities?.() ?? []), ...own];
+  };
+
+  /** Требование → строка отказа. Называет и то, что просили, и то, что есть на самом деле. */
+  const describeUnmet = (
+    requirement: CapabilityRequirement,
+    available: readonly CapabilityProvider[]
+  ): string => {
+    const sameId = available.filter((item) => item.id === requirement.id);
+    if (sameId.length === 0) {
+      return `«${requirement.id}» версии ${requirement.range} — её не предоставляет никто`;
+    }
+    const actual = sameId.map((item) => `${item.version} (плагин «${item.by}»)`).join(', ');
+    return `«${requirement.id}» версии ${requirement.range} — доступно: ${actual}`;
+  };
+
+  /**
+   * Проверяет обязательные требования ДО загрузки кода.
+   *
+   * Именно до, а не после: смысл проверки в том, чтобы чужой код не исполнялся в мире, где
+   * ему нечем работать. Проверь мы после загрузки — плагин уже был бы разобран, слинкован
+   * и исполнен, то есть всё, чего проверка должна была избежать, уже случилось бы.
+   *
+   * Необязательные требования здесь не смотрят вовсе: их невыполнение — названная деградация,
+   * а не отказ, и плагин узнаёт о ней сам через `ctx.capabilities.get`.
+   */
+  const unsatisfiedRequires = (
+    id: string,
+    manifest?: PluginManifest
+  ): PluginProblem | undefined => {
+    const required = manifest?.requires?.required ?? [];
+    if (required.length === 0) return undefined;
+
+    const available = availableCapabilities().filter((item) => item.by !== id);
+    const unmet = required.filter(
+      (requirement) => !available.some((item) => meetsRequirement(item, requirement))
+    );
+    if (unmet.length === 0) return undefined;
+
+    return {
+      code: 'requires-unsatisfied',
+      message:
+        `плагину нужно то, чего в этом приложении нет: ` +
+        `${unmet.map((item) => describeUnmet(item, available)).join('; ')}`,
+      file: 'manifest.json',
+    };
+  };
+
   const enablePlugin = async (id: string): Promise<boolean> => {
     const record = records.get(id);
     if (record === undefined) return false;
@@ -420,6 +501,19 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
     if (deps.plugins.isActive(id) && registered.has(id)) {
       enabled.add(id);
       return true;
+    }
+
+    // Требования сверяются ДО загрузки: чужой код не должен исполниться в мире, где ему
+    // нечем работать. Отказ не гасит строку в списке — он её и объясняет, ровно как
+    // `styles-invalid` и `messages-invalid`.
+    const unmet = unsatisfiedRequires(id, record.found.manifest);
+    if (unmet !== undefined) {
+      record.problem = unmet;
+      enabled.delete(id);
+      persist();
+      report(id, unmet);
+      notify();
+      return false;
     }
 
     const result = await deps.loader.load(record.found);
@@ -449,20 +543,25 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
         notify();
         return false;
       }
-      deps.plugins.register(result.loaded.plugin);
+      // Объявленное манифестом уезжает в рантайм вместе с плагином: сверить обещание
+      // с фактической регистрацией может только тот, кто видит реестр служб после `activate`.
+      deps.plugins.register(result.loaded.plugin, record.found.manifest?.provides);
       registered.add(id);
       deps.plugins.activate(id);
     } else {
       // Уже зарегистрирован — значит это повторное включение или перезагрузка: подменяем
-      // экземпляр под тем же идентификатором, для чего `reload` и существует.
-      deps.plugins.reload(id, result.loaded.plugin);
+      // экземпляр под тем же идентификатором, для чего `reload` и существует. Манифест
+      // перечитан вместе с кодом, поэтому и объявление передаётся заново.
+      deps.plugins.reload(id, result.loaded.plugin, record.found.manifest?.provides ?? []);
     }
 
     const status = deps.plugins.status(id);
     if (status?.state !== 'active') {
       const failure = status?.failure;
       const problem: PluginProblem = {
-        code: 'activate-failed',
+        // Обещание, не выполненное к концу `activate`, — отдельная причина: `activate`
+        // при этом НЕ бросал, и чинить надо сам плагин, а не его окружение.
+        code: failure?.phase === 'provides' ? 'provides-unregistered' : 'activate-failed',
         message: failure?.message ?? 'плагин не активировался',
         cause: failure?.error,
       };

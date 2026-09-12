@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { defineCapability } from '@/shell/platform/primitives/capability';
 import { createCommandRegistry, type CommandRegistry } from '@/shell/platform/primitives/command';
 import { createEventBus, defineEvent, type EventBus } from '@/shell/platform/primitives/event';
 import {
@@ -21,6 +22,8 @@ interface Greeter {
 }
 
 const GreeterToken = defineService<Greeter>('test.greeter');
+/** Та же служба, объявленная возможностью: токен и есть capability, второго реестра нет. */
+const GreeterCap = defineCapability<Greeter>({ id: 'test.greeter', version: '1.0.0' });
 const PanelPoint = defineExtensionPoint<string>('test.panel');
 const PingEvent = defineEvent<string>('test.ping');
 
@@ -442,5 +445,168 @@ describe('регистрация набора', () => {
 
     expect(calls.count).toBe(1);
     expect(second.skipped).toEqual(['один']);
+  });
+});
+
+describe('объявленное в provides сверяется с реестром служб', () => {
+  const CAP = GreeterCap;
+  const greeter: Greeter = { greet: (name) => `привет, ${name}` };
+
+  it('зарегистрировал обещанное — плагин активен', () => {
+    const host = createHost();
+    host.registry.register(
+      definePlugin({
+        id: 'провайдер',
+        activate(ctx) {
+          ctx.subscriptions.push(ctx.services.register(GreeterToken, greeter));
+        },
+      }),
+      [CAP]
+    );
+
+    expect(host.registry.activate('провайдер')).toBe(true);
+    expect(host.registry.status('провайдер')?.state).toBe('active');
+  });
+
+  it('не зарегистрировал — failed с фазой provides, хотя activate не бросал', () => {
+    // Иначе резолвер верил бы манифесту, а реестр молчал бы, и потребитель узнавал бы
+    // правду на первом capabilities.require — то есть далеко от причины.
+    const host = createHost();
+    host.registry.register(
+      definePlugin({
+        id: 'обещал',
+        activate() {
+          /* ничего не регистрирует */
+        },
+      }),
+      [CAP]
+    );
+
+    expect(host.registry.activate('обещал')).toBe(false);
+    expect(host.registry.status('обещал')?.state).toBe('failed');
+    expect(host.registry.status('обещал')?.failure?.phase).toBe('provides');
+    expect(host.registry.status('обещал')?.failure?.message).toContain('test.greeter');
+  });
+
+  it('вклады невыполненного обещания снимаются', () => {
+    // Половина плагина, на которую никто не рассчитывал, хуже отсутствующего плагина.
+    const host = createHost();
+    host.registry.register(
+      definePlugin({
+        id: 'обещал',
+        activate(ctx) {
+          ctx.subscriptions.push(
+            ctx.extensions.contribute(PanelPoint, 'панель обещавшего', { id: 'promised.panel' })
+          );
+        },
+      }),
+      [CAP]
+    );
+
+    host.registry.activate('обещал');
+
+    expect(panelIds(host)).toEqual([]);
+  });
+
+  it('ничего не обещавший плагин проверку не проходит вовсе', () => {
+    const host = createHost();
+    host.registry.register(definePlugin({ id: 'молчун', activate() {} }));
+
+    expect(host.registry.activate('молчун')).toBe(true);
+  });
+
+  it('перезагрузка обновляет объявление вместе с кодом', () => {
+    // Манифест перечитан, и обещание в нём могло измениться: сверять новый код со старым
+    // манифестом значило бы ронять плагин за обещание, которого он больше не даёт.
+    const host = createHost();
+    host.registry.register(
+      definePlugin({
+        id: 'обещал',
+        activate(ctx) {
+          ctx.subscriptions.push(ctx.services.register(GreeterToken, greeter));
+        },
+      }),
+      [CAP]
+    );
+    host.registry.activate('обещал');
+
+    const reloaded = host.registry.reload(
+      'обещал',
+      definePlugin({ id: 'обещал', activate() {} }),
+      []
+    );
+
+    expect(reloaded).toBe(true);
+    expect(host.registry.status('обещал')?.state).toBe('active');
+  });
+
+  it('отказ уходит в канал диагностики, как и всякий другой', () => {
+    const host = createHost();
+    host.registry.register(definePlugin({ id: 'обещал', activate() {} }), [CAP]);
+
+    host.registry.activate('обещал');
+
+    const failure = host.onError.mock.calls[0][0] as PluginFailure;
+    expect(failure.phase).toBe('provides');
+    expect(failure.pluginId).toBe('обещал');
+  });
+});
+
+describe('ctx.capabilities — вид на тот же реестр служб', () => {
+  const CAP = GreeterCap;
+
+  it('видит службу, зарегистрированную обычным токеном', () => {
+    const host = createHost();
+    const greeter: Greeter = { greet: (name) => `привет, ${name}` };
+    let seen: Greeter | undefined;
+    host.registry.register(
+      definePlugin({
+        id: 'провайдер',
+        activate(ctx) {
+          ctx.subscriptions.push(ctx.services.register(GreeterToken, greeter));
+        },
+      })
+    );
+    host.registry.register(
+      definePlugin({
+        id: 'потребитель',
+        activate(ctx) {
+          // Порядок активации ничего не значит: читаем через observe, а не в activate.
+          ctx.subscriptions.push(
+            ctx.capabilities.observe(GreeterCap, (impl) => {
+              seen = impl;
+            })
+          );
+        },
+      })
+    );
+
+    host.registry.activateAll();
+
+    expect(seen).toBe(greeter);
+  });
+
+  it('отказ require называет того, кто эту возможность объявлял', () => {
+    // Знание «кто объявлял» есть только у рантайма: реестр служб знает занятые слоты,
+    // а не декларации.
+    const host = createHost();
+    let message = '';
+    host.registry.register(definePlugin({ id: 'провайдер', activate() {} }), [CAP]);
+    host.registry.register(
+      definePlugin({
+        id: 'потребитель',
+        activate(ctx) {
+          try {
+            ctx.capabilities.require(GreeterCap);
+          } catch (error) {
+            message = error instanceof Error ? error.message : '';
+          }
+        },
+      })
+    );
+
+    host.registry.activate('потребитель');
+
+    expect(message).toContain('«провайдер»');
   });
 });

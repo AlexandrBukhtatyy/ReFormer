@@ -46,6 +46,7 @@
 
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
+import type { CapabilityDeclaration } from '@/shell/platform/primitives/capability';
 import type { Plugin } from '@/shell/platform/plugin/types';
 import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
@@ -54,7 +55,7 @@ import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
 // Статические: их значения нужны композиции или их отделение стоит дороже, чем даёт.
 import { createFilesPlugin, FILES_PLUGIN_ID } from '@/plugins/files';
 import { createMonacoEditorPlugin, MONACO_PLUGIN_ID } from '@/plugins/editor-monaco';
-import { createKitsPlugin, KITS_PLUGIN_ID } from '@/plugins/kits';
+import { createKitsPlugin, KITS_PLUGIN_ID, KitsCapability } from '@/plugins/kits';
 import { createPreviewPlugin, PREVIEW_PLUGIN_ID } from '@/plugins/preview';
 import {
   createSchemaValidatorPlugin,
@@ -68,12 +69,31 @@ import {
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
 /**
+ * Общее у всех записей: имя и то, что плагин ОБЕЩАЕТ дать остальным.
+ *
+ * `provides` живёт в карте, а не в коде плагина, по той же причине, по которой у плагина
+ * каталога он живёт в манифесте: объявление обязано читаться ДО того, как код исполнится.
+ * Резолвер (`../resolver/capability-resolver`) собирает его отсюда и отвечает «хватает ли
+ * этого приложению» раньше первой активации; для ленивого плагина иначе и нельзя — его файла
+ * в стартовом графе нет вовсе.
+ *
+ * Заполнено оно пока у одного плагина — китов, и это честнее пустых списков у остальных:
+ * возможность объявляется тогда, когда на неё кто-то ссылается, а не «на будущее». Остальные
+ * четыре разделяемых состояния (фокус редактора, снимки вида, сессии превью, рабочая область)
+ * станут возможностями фазой 4, вместе с переездом портов.
+ */
+interface BuiltinPluginBase {
+  readonly id: string;
+  /** Возможности, которые плагин обязан зарегистрировать в `activate`. */
+  readonly provides?: readonly CapabilityDeclaration[];
+}
+
+/**
  * Плагин, приезжающий в стартовом графе вместе с оболочкой.
  *
  * Фабрика синхронна намеренно: значение такого плагина композиции уже нужно, ждать нечего.
  */
-export interface EagerBuiltinPlugin {
-  readonly id: string;
+export interface EagerBuiltinPlugin extends BuiltinPluginBase {
   readonly loading: 'eager';
   readonly create: (options: BuiltinPluginsOptions) => Plugin;
 }
@@ -85,8 +105,7 @@ export interface EagerBuiltinPlugin {
  * синхронно до первого `await`), — поэтому вызов всех ленивых фабрик подряд даёт столько же
  * параллельных запросов, сколько давал общий `Promise.all` до появления карты, а не цепочку.
  */
-export interface LazyBuiltinPlugin {
-  readonly id: string;
+export interface LazyBuiltinPlugin extends BuiltinPluginBase {
   readonly loading: 'lazy';
   readonly create: (options: BuiltinPluginsOptions) => Promise<Plugin>;
 }
@@ -137,6 +156,11 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // Статический: `KitsServiceToken` импортируется значением пятью портами композиции.
     id: KITS_PLUGIN_ID,
     loading: 'eager',
+    // Первая объявленная возможность в приложении. Идентификатор — тот же `kits.active`,
+    // что у службы: переименование `id` службы означало бы миграцию сохранённых данных
+    // (фаза 7 плана), и прятать её внутри задачи про версии нельзя. Объявление и токен —
+    // ОДИН объект (`KitsCapability`), поэтому разойтись им нечем.
+    provides: [KitsCapability],
     create: (options) =>
       createKitsPlugin({
         ...options.kits,

@@ -11,7 +11,7 @@
 
 export { createKitsPlugin, KITS_PLUGIN_ID } from './plugin';
 export type { KitsPluginOptions } from './plugin';
-export { createKitsService, KitsServiceToken, KIT_SETTINGS_KEY } from './service';
+export { createKitsService, KitsCapability, KitsServiceToken, KIT_SETTINGS_KEY } from './service';
 export type {
   KitsService,
   KitSource,
