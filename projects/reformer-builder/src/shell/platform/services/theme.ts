@@ -30,7 +30,15 @@ export type ThemeKind = 'light' | 'dark';
 /** Что выбрал пользователь. `system` — «следуй за системой», а не «светлая». */
 export type ThemePreference = ThemeKind | 'system';
 
-/** Ключ настройки. Область — `user`: тема принадлежит человеку, а не проекту. */
+/**
+ * Ключ настройки. Область — `user`: тема принадлежит человеку, а не проекту.
+ *
+ * Пространство имён здесь `host.*`, а НЕ `reformer.*`, которым назван токен службы ниже,
+ * и совпадение прежних строк было случайным. Это два разных пространства: имя службы
+ * адресует реализацию в реестре, ключ настройки адресует запись в хранилище человека
+ * и стоит в одном ряду с `host.locale` и `host.shell.*`. Переименуй мы ключ заодно с токеном —
+ * получили бы миграцию сохранённых тем ради косметики.
+ */
 export const THEME_SETTINGS_KEY = 'host.theme';
 
 /**
@@ -79,7 +87,7 @@ export interface ThemeService {
  */
 export interface HostThemeService extends ThemeService, Disposable {}
 
-export const ThemeServiceToken = defineService<ThemeService>('host.theme');
+export const ThemeServiceToken = defineService<ThemeService>('reformer.theme');
 
 const ThemeDidChange = defineEvent<ThemeKind>('theme.didChange');
 

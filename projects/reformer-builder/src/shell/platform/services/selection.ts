@@ -100,7 +100,7 @@ export interface SelectionService {
   forget(resource: ResourceId): void;
 }
 
-export const SelectionServiceToken = defineService<SelectionService>('host.selection');
+export const SelectionServiceToken = defineService<SelectionService>('reformer.selection');
 
 const SelectionDidChange = defineEvent<ResourceId>('selection.didChange');
 

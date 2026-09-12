@@ -147,4 +147,4 @@ export interface TargetCatalog {
 }
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const CODEGEN_PLUGIN_ID = 'codegen';
+export const CODEGEN_PLUGIN_ID = 'reformer.codegen';

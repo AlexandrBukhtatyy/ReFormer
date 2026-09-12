@@ -10,4 +10,4 @@
  */
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const MARKDOWN_PLUGIN_ID = 'editor-markdown';
+export const MARKDOWN_PLUGIN_ID = 'reformer.editor-markdown';

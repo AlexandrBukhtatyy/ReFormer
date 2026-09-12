@@ -53,6 +53,6 @@ describe('TextEditorFocusToken', () => {
 
   it('идентификатор службы — постоянный ключ: по нему её найдёт плагин из каталога', () => {
     // Токен сравнивается по строке, а не по объекту: у внешнего плагина свой экземпляр SDK.
-    expect(TextEditorFocusToken.id).toBe('shell.textEditorFocus');
+    expect(TextEditorFocusToken.id).toBe('reformer.editor.focus');
   });
 });

@@ -119,7 +119,7 @@ export interface ContextKeyService extends ContextKeyReader {
   declared(): readonly ContextKeyInfo[];
 }
 
-export const ContextKeyServiceToken = defineService<ContextKeyService>('host.contextKeys');
+export const ContextKeyServiceToken = defineService<ContextKeyService>('reformer.context-keys');
 
 /**
  * Пять полей контекста как ключи. Единственное место, где написано соответствие «имя ключа —

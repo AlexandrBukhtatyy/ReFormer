@@ -54,7 +54,7 @@ import { TextEditor } from './ui/TextEditor';
 import { WelcomePage, type WelcomePageActions } from './ui/WelcomePage';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const FILES_PLUGIN_ID = 'files';
+export const FILES_PLUGIN_ID = 'reformer.files';
 
 /** Панель с деревом ресурсов. */
 export const FILES_TREE_PANEL_ID = 'files.tree';

@@ -34,7 +34,12 @@ import { EditorPoint, resolveEditor } from '@/shell/platform/ui/contributions/ed
 import { PanelPoint } from '@/shell/platform/ui/slots';
 import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits';
 import { builderApplication } from '../builder-application';
-import { BUILTIN_PLUGINS, LAZY_PLUGIN_IDS } from './builtin-plugins';
+import {
+  BUILTIN_PLUGIN_NAMESPACE,
+  BUILTIN_PLUGINS,
+  canonicalPluginId,
+  LAZY_PLUGIN_IDS,
+} from './builtin-plugins';
 import { composeAll } from './compose';
 import { stubBuiltinOptions, stubHostCapabilities } from './testing';
 
@@ -45,10 +50,16 @@ import { stubBuiltinOptions, stubHostCapabilities } from './testing';
  * отстал бы от репозитория молча, и проверка стала бы проверять подмножество, о котором
  * никто не помнит. Русский, а не английский, потому что он основная локаль, а совпадение
  * наборов ключей между локалями проверяет отдельный тест.
+ *
+ * Пространство имён из идентификатора снимается: каталог зовётся `ai`, а плагин —
+ * `reformer.ai`, и с фазы 7 это РАЗНЫЕ строки.
  */
 async function loadPluginLocale(id: string): Promise<Record<string, string> | null> {
+  const directory = id.startsWith(BUILTIN_PLUGIN_NAMESPACE)
+    ? id.slice(BUILTIN_PLUGIN_NAMESPACE.length)
+    : id;
   try {
-    const mod = (await import(`../../plugins/${id}/locales/ru.json`)) as {
+    const mod = (await import(`../../plugins/${directory}/locales/ru.json`)) as {
       default: Record<string, string>;
     };
     return mod.default;
@@ -107,6 +118,23 @@ describe('карта встроенных плагинов', () => {
     }
 
     expect(mismatched).toEqual([]);
+  });
+
+  it('каждый встроенный живёт в пространстве имён, и прежнее имя ведёт к нему', () => {
+    // Таблица прежних имён ВЫВОДИТСЯ из ключей карты снятием префикса, поэтому запись
+    // без префикса дала бы псевдоним самому себе — то есть прежний конфиг перестал бы
+    // называть этот плагин, и заметить это можно было бы только по собранному составу.
+    const outside = [...BUILTIN_PLUGINS.keys()].filter(
+      (id) => !id.startsWith(BUILTIN_PLUGIN_NAMESPACE)
+    );
+    expect(outside).toEqual([]);
+
+    for (const id of BUILTIN_PLUGINS.keys()) {
+      expect(canonicalPluginId(id.slice(BUILTIN_PLUGIN_NAMESPACE.length))).toBe(id);
+      // Нынешнее имя через таблицу проходит НЕИЗМЕННЫМ: иначе повторное приведение
+      // (конфиг уже переписан человеком) уводило бы имя в несуществующее.
+      expect(canonicalPluginId(id)).toBe(id);
+    }
   });
 
   it('объявленная возможность — ТОТ ЖЕ объект, что регистрирует плагин', () => {
@@ -188,22 +216,22 @@ describe('состав встроенных плагинов', () => {
       [...new Set(h.extensions.get(point).map((c) => c.pluginId))].sort();
 
     expect(owners(PanelPoint)).toEqual([
-      'ai',
-      'codegen',
-      'editor-schema',
-      'files',
+      'reformer.ai',
+      'reformer.codegen',
+      'reformer.editor-schema',
+      'reformer.files',
       // Превью вносит панель модели: значения формы, состояние узлов и производные пути
       // не видны больше нигде. Форму оно по-прежнему не дублирует — её рисует редактор схемы.
-      'preview',
-      'templates',
+      'reformer.preview',
+      'reformer.templates',
     ]);
     expect(owners(EditorPoint)).toEqual([
-      'editor-markdown',
-      'editor-monaco',
-      'editor-schema',
-      'files',
+      'reformer.editor-markdown',
+      'reformer.editor-monaco',
+      'reformer.editor-schema',
+      'reformer.files',
     ]);
-    expect(owners(DocumentModelPoint)).toEqual(['editor-schema']);
+    expect(owners(DocumentModelPoint)).toEqual(['reformer.editor-schema']);
   });
 
   it('markdown-файл достаётся markdown-редактору, а не Monaco', async () => {

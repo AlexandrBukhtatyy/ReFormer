@@ -42,6 +42,7 @@ import {
 } from '../resolver/profile-resolver';
 import {
   BUILTIN_PLUGINS,
+  canonicalPluginId,
   type EagerBuiltinPlugin,
   type LazyBuiltinPlugin,
 } from './builtin-plugins';
@@ -62,7 +63,10 @@ export function fromProfile(
     profile,
     lookup: findProfile,
     known: BUILTIN_PLUGINS.keys(),
-    overrides,
+    // Поправки приходят из конфига, который пишет и хранит человек, поэтому прежние имена
+    // плагинов приводятся к нынешним ЗДЕСЬ. Список профиля через ту же таблицу не гоняется:
+    // профили — наш код, и прежнее имя в них означало бы забытую правку, а не чужой файл.
+    overrides: canonicalOverrides(overrides),
   });
 
   const entries = ids.map((id) => {
@@ -116,6 +120,25 @@ export function fromProfile(
         )
       ),
   });
+}
+
+/**
+ * Приводит имена поправок к нынешним — прежние остаются рабочими.
+ *
+ * Отсутствующий список остаётся отсутствующим, а не превращается в пустой: у резолвера
+ * «поправки не заданы» и «задан пустой список» и так совпадают, но пустое поле в объекте
+ * читалось бы как сделанный выбор.
+ */
+function canonicalOverrides(overrides?: PluginOverrides): PluginOverrides | undefined {
+  if (overrides === undefined) return undefined;
+  const map = (list?: readonly string[]): readonly string[] | undefined =>
+    list?.map(canonicalPluginId);
+  const enable = map(overrides.enable);
+  const disable = map(overrides.disable);
+  return {
+    ...(enable !== undefined ? { enable } : {}),
+    ...(disable !== undefined ? { disable } : {}),
+  };
 }
 
 /**

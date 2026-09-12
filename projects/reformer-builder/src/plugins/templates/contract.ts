@@ -178,4 +178,4 @@ export const TemplateStorePoint: ExtensionPointRef<TemplateStore> = Object.freez
 });
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const TEMPLATES_PLUGIN_ID = 'templates';
+export const TEMPLATES_PLUGIN_ID = 'reformer.templates';

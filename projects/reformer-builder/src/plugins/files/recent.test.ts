@@ -130,7 +130,7 @@ describe('«Открыть недавний проект…»', () => {
     expect(pick).toHaveBeenCalledWith(
       expect.objectContaining({
         titleKey: 'recent.pick.title',
-        pluginId: 'files',
+        pluginId: 'reformer.files',
         items: [
           { id: 'a', label: 'папка-a', description: 'в 10' },
           { id: 'b', label: 'папка-b', description: 'в 20' },
@@ -196,7 +196,7 @@ describe('«Очистить список недавних…»', () => {
     await command(CLEAR_RECENT_COMMAND_ID, { recent, prompt }).run();
 
     expect(confirm).toHaveBeenCalledWith(
-      expect.objectContaining({ titleKey: 'recent.clear.title', pluginId: 'files' })
+      expect.objectContaining({ titleKey: 'recent.clear.title', pluginId: 'reformer.files' })
     );
     expect(recent.clear).toHaveBeenCalledOnce();
   });

@@ -68,7 +68,7 @@ const KIT_B = kit('kit-b', 'Кит Б', 'Beta');
 
 describe('состав сервиса', () => {
   it('токен один на всех: ключом служит строка, а не объект объявления', () => {
-    expect(KitsServiceToken.id).toBe('kits.active');
+    expect(KitsServiceToken.id).toBe('reformer.kit.catalog');
   });
 
   it('без китов сервиса не бывает: делать активным нечего', () => {

@@ -206,7 +206,7 @@ describe('настройки приходят из реестра сервисо
     // путь оставался непроверенным — а другого у внешнего нет.
     const { ctx, services } = fakeContext();
     const settings = fakeSettings();
-    services.set('host.settings', settings);
+    services.set('reformer.settings', settings);
 
     createKitsPlugin({}).activate?.(ctx);
 
@@ -218,14 +218,14 @@ describe('настройки приходят из реестра сервисо
     const { ctx, services } = fakeContext();
 
     expect(() => createKitsPlugin({}).activate?.(ctx)).not.toThrow();
-    expect(services.get('kits.active')).toBeDefined();
+    expect(services.get('reformer.kit.catalog')).toBeDefined();
   });
 
   it('параметр перебивает реестр: он остался только для тестов', () => {
     const { ctx, services } = fakeContext();
     const byParam = fakeSettings();
     const byRegistry = fakeSettings();
-    services.set('host.settings', byRegistry);
+    services.set('reformer.settings', byRegistry);
 
     createKitsPlugin({ settings: byParam }).activate?.(ctx);
 

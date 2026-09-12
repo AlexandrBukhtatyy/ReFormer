@@ -203,7 +203,7 @@ export interface KitsService {
  * или смену смысла существующего.
  */
 export const KitsCapability = defineCapability<KitsService>({
-  id: 'kits.active',
+  id: 'reformer.kit.catalog',
   version: '1.0.0',
 });
 

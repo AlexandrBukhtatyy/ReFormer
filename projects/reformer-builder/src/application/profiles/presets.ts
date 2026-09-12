@@ -30,12 +30,12 @@ export const AI_BUILDER_PROFILE_ID = 'ai-builder';
 export const minimalProfile = defineProfile({
   id: MINIMAL_PROFILE_ID,
   name: 'Минимальный',
-  plugins: ['files', 'editor-monaco', 'validator-schema'],
+  plugins: ['reformer.files', 'reformer.editor-monaco', 'reformer.validator-schema'],
 });
 
 export const aiBuilderProfile = defineProfile({
   id: AI_BUILDER_PROFILE_ID,
   name: 'Минимальный с ассистентом',
   extends: MINIMAL_PROFILE_ID,
-  plugins: ['ai'],
+  plugins: ['reformer.ai'],
 });

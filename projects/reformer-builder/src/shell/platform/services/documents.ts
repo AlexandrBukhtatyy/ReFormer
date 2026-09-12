@@ -145,7 +145,7 @@ export interface DocumentsService {
  * мажор — удалённый или сменивший смысл.
  */
 export const DocumentsCapability: Capability<DocumentsService> = defineCapability<DocumentsService>(
-  { id: 'shell.documents', version: '1.0.0' }
+  { id: 'reformer.workspace', version: '1.0.0' }
 );
 
 /**

@@ -656,10 +656,10 @@ describe('пометка «в разработке»', () => {
 
 describe('требования плагина сверяются ДО загрузки его кода', () => {
   /** То, что даёт остальное приложение: так его передаёт композиция из состава. */
-  const builtinKits = () => [{ id: 'kits.active', version: '1.0.0', by: 'kits' }];
+  const builtinKits = () => [{ id: 'reformer.kit.catalog', version: '1.0.0', by: 'kits' }];
 
   const requiring = (range: string, kind: 'required' | 'optional' = 'required') =>
-    manifestOf('acme-forms', { requires: { [kind]: [{ id: 'kits.active', range }] } });
+    manifestOf('acme-forms', { requires: { [kind]: [{ id: 'reformer.kit.catalog', range }] } });
 
   it('выполненное требование включению не мешает', async () => {
     const harness = createHarness(

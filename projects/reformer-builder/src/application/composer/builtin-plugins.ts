@@ -18,8 +18,12 @@
  * КОНСТАНТОЙ плагина — их барели и так в стартовом графе, поэтому расхождение невыразимо.
  * У ленивых он написан СТРОКОЙ: константа лежит в барели, и её импорт вернул бы плагин
  * в стартовый граф целиком — ровно то, что стережёт храповик в тесте рядом. Совпадение
- * строки с настоящим `plugin.id` проверяется составом (`builtin-plugins.test`), а совпадение
- * с каталогом `@/plugins/<id>` — тем, что этой же строкой написан литерал `import()`.
+ * строки с настоящим `plugin.id` проверяется составом (`builtin-plugins.test`).
+ *
+ * Каталогу идентификатор больше НЕ равен: плагин зовётся `reformer.ai`, а лежит в `plugins/ai`.
+ * Пространство имён (`BUILTIN_PLUGIN_NAMESPACE`) разводит встроенных с плагинами каталога
+ * проекта, у которых имя — имя папки в `.ui_builder/plugins`, и эта разница стоит того, чтобы
+ * каталог назывался в литерале `import()` отдельно от идентификатора.
  *
  * Порядок записей на поведение не влияет — рантайм плагинов не строит графа зависимостей
  * (см. `shell/platform/plugin/registry`) и проверяет это тестом «порядок активации ничего
@@ -148,7 +152,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // Кит НЕОБЯЗАТЕЛЕН, и это названная деградация, а не забытое требование: без кита
     // валидатор проверяет структуру схемы и молчит о компонентах — сверять их не с чем.
     // Каталог он берёт из реестра служб сам; параметров здесь не осталось вовсе.
-    requires: { optional: [{ id: 'kits.active', range: '^1' }] },
+    requires: { optional: [{ id: 'reformer.kit.catalog', range: '^1' }] },
     create: () => createSchemaValidatorPlugin({}),
   },
   {
@@ -192,7 +196,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     create: (options) => createPreviewPlugin({ host: options.preview }),
   },
   {
-    id: 'editor-markdown',
+    id: 'reformer.editor-markdown',
     loading: 'lazy',
     // Приоритет 50: markdown забирает свои файлы у Monaco (10), потому что рендер — это то,
     // зачем .md открывают чаще всего. Порядок сборки на исход не влияет и влиять не должен:
@@ -204,7 +208,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     },
   },
   {
-    id: 'editor-schema',
+    id: 'reformer.editor-schema',
     loading: 'lazy',
     // Приоритет 100: структурный редактор забирает файл формы у Monaco, а Monaco остаётся
     // для всего остального текста. Оба отвечают `canOpen` по содержимому пробы, а не по
@@ -218,7 +222,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     },
   },
   {
-    id: 'plugin-manager',
+    id: 'reformer.plugin-manager',
     loading: 'lazy',
     create: async (options) => {
       const pluginManager = await import('@/plugins/plugin-manager');
@@ -226,7 +230,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     },
   },
   {
-    id: 'ai',
+    id: 'reformer.ai',
     loading: 'lazy',
     // Панель встаёт в правый слот без предиката: настройки провайдера и ключ должны быть
     // доступны и до того, как открыта форма, — иначе первый же запуск требует сначала
@@ -239,23 +243,23 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     },
   },
   {
-    id: 'codegen',
+    id: 'reformer.codegen',
     loading: 'lazy',
     // Печать модуля формы — наружу: её берут шаблоны, чтобы превратить схему встроенного
     // шаблона в файлы. Раньше переходник жил в `boot` и тянул кодоген динамическим импортом
     // МИМО состава — то есть профиль без генерации всё равно печатал бы её кодом.
-    provides: [{ id: 'codegen.modules', version: '1.0.0' }],
+    provides: [{ id: 'reformer.codegen.printer', version: '1.0.0' }],
     create: async (options) => {
       const codegen = await import('@/plugins/codegen');
       return codegen.createCodegenPlugin({ gaps: options.codegen });
     },
   },
   {
-    id: 'templates',
+    id: 'reformer.templates',
     loading: 'lazy',
     // Печатник НЕОБЯЗАТЕЛЕН: без генерации кода раздел встроенных шаблонов объявляет себя
     // недоступным, а проектные и локальные работают. Это названная деградация.
-    requires: { optional: [{ id: 'codegen.modules', range: '^1' }] },
+    requires: { optional: [{ id: 'reformer.codegen.printer', range: '^1' }] },
     create: async (options) => {
       const templates = await import('@/plugins/templates');
       return templates.createTemplatesPlugin({ gaps: options.templates });
@@ -288,3 +292,47 @@ export const BUILTIN_PLUGINS: ReadonlyMap<string, BuiltinPluginEntry> = new Map(
 export const LAZY_PLUGIN_IDS: readonly string[] = Object.freeze(
   ENTRIES.filter((entry) => entry.loading === 'lazy').map((entry) => entry.id)
 );
+
+/**
+ * Пространство имён встроенных плагинов.
+ *
+ * Префикс нужен ровно затем, зачем он нужен службам: плагин каталога проекта зовётся именем
+ * своего КАТАЛОГА, и `.ui_builder/plugins/ai/` без пространства имён столкнулся бы со встроенным
+ * ассистентом в одном реестре. Столкновение это неразрешимо изнутри — оба имени законны, —
+ * поэтому разводятся они заранее.
+ */
+export const BUILTIN_PLUGIN_NAMESPACE = 'reformer.';
+
+/**
+ * Прежние имена встроенных плагинов → нынешние.
+ *
+ * ВЫВОДИТСЯ из карты, а не перечисляется руками, и это то же решение, что у {@link LAZY_PLUGIN_IDS}:
+ * переименование было механическим (`ai` → `reformer.ai`), значит второй, написанный от руки
+ * список разошёлся бы с первым молча — а «молча» здесь означает состав, собранный не тот,
+ * который человек описал в конфиге.
+ *
+ * Что все встроенные живут в пространстве имён — утверждение ТЕСТА рядом, а не догадка,
+ * поэтому пересечься с нынешним именем псевдоним не может. Отбор по префиксу тут не страховка
+ * от этого, а условие осмысленности `slice`: снимать нечего у имени, которое префикса не имеет.
+ */
+const LEGACY_PLUGIN_IDS: ReadonlyMap<string, string> = new Map(
+  [...BUILTIN_PLUGINS.keys()]
+    .filter((id) => id.startsWith(BUILTIN_PLUGIN_NAMESPACE))
+    .map((id): readonly [string, string] => [id.slice(BUILTIN_PLUGIN_NAMESPACE.length), id])
+);
+
+/**
+ * Нынешнее имя плагина по тому, которое написал человек.
+ *
+ * Применяется к именам, пришедшим СНАРУЖИ, — поправкам состава из конфига запуска
+ * (`plugins.enable`/`plugins.disable`, файл `.ui_builder/config.json` проекта). Такой файл
+ * пишет и хранит пользователь, мигрировать его нам нечем и незачем: «без ассистента» обязано
+ * значить то же самое и через год после переименования.
+ *
+ * Незнакомое имя возвращается КАК ЕСТЬ — отказ на опечатку остаётся за резолвером профилей,
+ * и подменять его здесь «похожим» именем было бы ровно тем тихим пропуском, который тот
+ * резолвер и заведён ловить.
+ */
+export function canonicalPluginId(id: string): string {
+  return LEGACY_PLUGIN_IDS.get(id) ?? id;
+}

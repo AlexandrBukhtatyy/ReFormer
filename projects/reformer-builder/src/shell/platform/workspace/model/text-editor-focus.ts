@@ -74,7 +74,7 @@ export interface TextEditorFocusRegistry {
  */
 export const TextEditorFocusCapability: Capability<TextEditorFocusRegistry> =
   defineCapability<TextEditorFocusRegistry>({
-    id: 'shell.textEditorFocus',
+    id: 'reformer.editor.focus',
     version: '1.0.0',
   });
 

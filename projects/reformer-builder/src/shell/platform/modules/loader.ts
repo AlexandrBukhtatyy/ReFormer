@@ -102,7 +102,7 @@ export interface LoadOptions {
  * `host/primitives/service.ts` (Э1):
  *
  * ```ts
- * export const ModuleLoaderToken = defineService<ModuleLoader>('host.moduleLoader');
+ * export const ModuleLoaderToken = defineService<ModuleLoader>('reformer.modules');
  * ```
  */
 export interface ModuleLoader {

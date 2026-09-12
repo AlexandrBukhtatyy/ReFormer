@@ -126,7 +126,7 @@ export interface HydrateOptions {
   readonly forget?: readonly SettingsScope[];
 }
 
-export const SettingsServiceToken = defineService<SettingsService>('host.settings');
+export const SettingsServiceToken = defineService<SettingsService>('reformer.settings');
 
 /** Событие смены настройки. Полезная нагрузка — ключ, как в контракте `onDidChange`. */
 const SettingsDidChange = defineEvent<string>('settings.didChange');

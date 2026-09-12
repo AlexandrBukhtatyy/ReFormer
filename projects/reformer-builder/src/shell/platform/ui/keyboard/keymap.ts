@@ -45,6 +45,9 @@ import { detectPlatformModifier, type PlatformModifier } from './keybindings';
  *
  * Область — `user` (её даёт префикс, см. `scopeForKey`): клавиатура принадлежит человеку,
  * а не проекту. Перенеси мы её в `workspace` — открытие чужого проекта переучивало бы руки.
+ *
+ * Пространство имён — `host.*`, как у `host.locale`, а не `reformer.*` токена службы ниже:
+ * ключ настройки адресует запись в хранилище человека, а не реализацию в реестре.
  */
 export const KEYMAP_SETTINGS_KEY = 'host.keymap';
 
@@ -128,7 +131,7 @@ export interface ExternalKeybinding {
   readonly pluginId?: string;
 }
 
-export const KeymapServiceToken = defineService<KeymapService>('host.keymap');
+export const KeymapServiceToken = defineService<KeymapService>('reformer.keymap');
 
 export interface KeymapDeps {
   /** Реестр команд в объёме, нужном раскладке: набор и уведомление о его смене. */

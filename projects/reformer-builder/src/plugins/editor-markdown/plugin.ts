@@ -60,7 +60,7 @@ export const MARKDOWN_EDITOR_ID = 'markdown.editor';
  * обязан исчезнуть вместе с ним, а не показать пустую половину экрана.
  */
 export const TextEditorCapability = defineCapability<TextEditorProvider>({
-  id: 'editor.text',
+  id: 'reformer.editor',
   version: '1.0.0',
 });
 

@@ -59,7 +59,7 @@ import { checkForm, type ValidateFormSchema } from './check';
 import { SCHEMA_VALIDATOR_ID } from './codes';
 
 /** Идентификатор плагина: пространство имён во всех реестрах. */
-export const SCHEMA_VALIDATOR_PLUGIN_ID = 'validator-schema';
+export const SCHEMA_VALIDATOR_PLUGIN_ID = 'reformer.validator-schema';
 
 /**
  * Активный кит в объёме, нужном валидатору: один вопрос — «с чем сверять».
@@ -81,7 +81,7 @@ export interface KitCatalogReader {
  * ДО загрузки кода. Здесь — только адрес.
  */
 export const KitCatalogCapability = defineCapability<KitCatalogReader>({
-  id: 'kits.active',
+  id: 'reformer.kit.catalog',
   version: '1.0.0',
 });
 

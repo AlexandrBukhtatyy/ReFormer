@@ -199,6 +199,6 @@ describe('createSelectionService — непрозрачность адреса',
 
 describe('SelectionServiceToken', () => {
   it('идентификатор с пространством имён платформы', () => {
-    expect(SelectionServiceToken.id).toBe('host.selection');
+    expect(SelectionServiceToken.id).toBe('reformer.selection');
   });
 });

@@ -167,7 +167,7 @@ export interface PromptService {
   observe(cb: () => void): Disposable;
 }
 
-export const PromptServiceToken = defineService<PromptService>('host.prompt');
+export const PromptServiceToken = defineService<PromptService>('reformer.prompt');
 
 const PromptDidChange = defineEvent<void>('prompt.didChange');
 

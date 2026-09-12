@@ -62,7 +62,7 @@ export interface DiagnosticsService {
   onDidChange(cb: (resource: ResourceId) => void): Disposable;
 }
 
-export const DiagnosticsServiceToken = defineService<DiagnosticsService>('host.diagnostics');
+export const DiagnosticsServiceToken = defineService<DiagnosticsService>('reformer.diagnostics');
 
 const DiagnosticsDidChange = defineEvent<ResourceId>('diagnostics.didChange');
 

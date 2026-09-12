@@ -39,7 +39,7 @@ import { MonacoEditorBody } from './ui/MonacoEditor';
 import { readViewState, viewStatesOver, type ViewStateRegistry } from './sync/view-state';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const MONACO_PLUGIN_ID = 'editor-monaco';
+export const MONACO_PLUGIN_ID = 'reformer.editor-monaco';
 
 /** Идентификатор вклада редактора: ключ состояния вида и адрес в диагностике. */
 export const MONACO_EDITOR_ID = 'editor.monaco';
@@ -62,7 +62,7 @@ export const MONACO_EDITOR_ID = 'editor.monaco';
  * Версия `1.0.0` — исходная: компонент, принимающий `documentId`.
  */
 export const TextEditorCapability = defineCapability<TextEditorProvider>({
-  id: 'editor.text',
+  id: 'reformer.editor',
   version: '1.0.0',
 });
 

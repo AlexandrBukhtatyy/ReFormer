@@ -19,7 +19,7 @@ import type { PaletteItem, PaletteItemProvider, Plugin } from '@/sdk';
 import type { ManagedPlugin, PluginManagerHost, Translate } from './host';
 import { PLUGIN_MANAGER_MESSAGES } from './messages';
 
-export const PLUGIN_MANAGER_PLUGIN_ID = 'plugin-manager';
+export const PLUGIN_MANAGER_PLUGIN_ID = 'reformer.plugin-manager';
 
 /** Идентификатор поставщика пунктов — адрес вклада в точке палитры. */
 export const PLUGIN_MANAGER_PALETTE_PROVIDER_ID = 'plugin-manager.actions';

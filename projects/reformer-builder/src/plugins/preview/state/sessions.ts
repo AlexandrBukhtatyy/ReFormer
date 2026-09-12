@@ -117,7 +117,7 @@ export interface PreviewSessions {
  * Версия `1.0.0` — исходная: {@link PreviewSessions} на момент объявления.
  */
 export const PreviewSessionsCapability: Capability<PreviewSessions> =
-  defineCapability<PreviewSessions>({ id: 'preview.sessions', version: '1.0.0' });
+  defineCapability<PreviewSessions>({ id: 'reformer.preview.sessions', version: '1.0.0' });
 
 export function createPreviewSessions(): PreviewSessions {
   const stores = new Map<ResourceId, PreviewStore>();

@@ -103,7 +103,7 @@ export interface WorkspaceFilesService {
  * Версия `1.0.0` — исходная. Растит её тот, кто интерфейс меняет.
  */
 export const WorkspaceFilesCapability: Capability<WorkspaceFilesService> =
-  defineCapability<WorkspaceFilesService>({ id: 'shell.workspaceFiles', version: '1.0.0' });
+  defineCapability<WorkspaceFilesService>({ id: 'reformer.workspace.files', version: '1.0.0' });
 
 /** Токен службы — ТОТ ЖЕ объект: возможность расширяет токен, второго реестра нет. */
 export const WorkspaceFilesServiceToken = WorkspaceFilesCapability;

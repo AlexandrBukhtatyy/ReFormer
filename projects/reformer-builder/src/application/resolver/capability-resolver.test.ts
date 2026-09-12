@@ -9,12 +9,12 @@ import {
 /** Провайдер китов — та же пара, что объявлена в карте состава. */
 const kits: CapabilityPart = {
   id: 'kits',
-  provides: [{ id: 'kits.active', version: '1.0.0' }],
+  provides: [{ id: 'reformer.kit.catalog', version: '1.0.0' }],
 };
 
 const consumer = (range: string, kind: 'required' | 'optional' = 'required'): CapabilityPart => ({
   id: 'acme',
-  requires: { [kind]: [{ id: 'kits.active', range }] },
+  requires: { [kind]: [{ id: 'reformer.kit.catalog', range }] },
 });
 
 describe('кто что даёт', () => {
@@ -24,7 +24,7 @@ describe('кто что даёт', () => {
     });
 
     expect(result.providers).toEqual([
-      { id: 'kits.active', version: '1.0.0', by: 'kits' },
+      { id: 'reformer.kit.catalog', version: '1.0.0', by: 'kits' },
       { id: 'acme.forms', version: '2.1.0', by: 'acme' },
     ]);
   });
@@ -50,8 +50,8 @@ describe('требования проверяются ДО загрузки ко
     expect(result.missing).toEqual([
       {
         by: 'acme',
-        requirement: { id: 'kits.active', range: '^2' },
-        available: [{ id: 'kits.active', version: '1.0.0', by: 'kits' }],
+        requirement: { id: 'reformer.kit.catalog', range: '^2' },
+        available: [{ id: 'reformer.kit.catalog', version: '1.0.0', by: 'kits' }],
       },
     ]);
   });
@@ -92,7 +92,7 @@ describe('требования проверяются ДО загрузки ко
 describe('двое на одну возможность', () => {
   const twin: CapabilityPart = {
     id: 'kits-alt',
-    provides: [{ id: 'kits.active', version: '1.4.0' }],
+    provides: [{ id: 'reformer.kit.catalog', version: '1.4.0' }],
   };
 
   it('без выбора — конфликт, и провайдером не становится никто', () => {
@@ -100,10 +100,10 @@ describe('двое на одну возможность', () => {
 
     expect(result.conflicts).toEqual([
       {
-        id: 'kits.active',
+        id: 'reformer.kit.catalog',
         providers: [
-          { id: 'kits.active', version: '1.0.0', by: 'kits' },
-          { id: 'kits.active', version: '1.4.0', by: 'kits-alt' },
+          { id: 'reformer.kit.catalog', version: '1.0.0', by: 'kits' },
+          { id: 'reformer.kit.catalog', version: '1.4.0', by: 'kits-alt' },
         ],
       },
     ]);
@@ -114,11 +114,13 @@ describe('двое на одну возможность', () => {
   it('выбор снимает конфликт и отбрасывает остальных', () => {
     const result = resolveCapabilities({
       parts: [kits, twin],
-      chosen: { 'kits.active': 'kits-alt' },
+      chosen: { 'reformer.kit.catalog': 'kits-alt' },
     });
 
     expect(result.conflicts).toEqual([]);
-    expect(result.providers).toEqual([{ id: 'kits.active', version: '1.4.0', by: 'kits-alt' }]);
+    expect(result.providers).toEqual([
+      { id: 'reformer.kit.catalog', version: '1.4.0', by: 'kits-alt' },
+    ]);
   });
 
   it('требование сверяется с ВЫБРАННЫМ провайдером, а не с любым подходящим', () => {
@@ -128,9 +130,9 @@ describe('двое на одну возможность', () => {
       parts: [
         kits,
         twin,
-        { id: 'acme', requires: { required: [{ id: 'kits.active', range: '^1.4' }] } },
+        { id: 'acme', requires: { required: [{ id: 'reformer.kit.catalog', range: '^1.4' }] } },
       ],
-      chosen: { 'kits.active': 'kits' },
+      chosen: { 'reformer.kit.catalog': 'kits' },
     });
 
     expect(result.missing.map((item) => item.by)).toEqual(['acme']);
@@ -139,10 +141,10 @@ describe('двое на одну возможность', () => {
   it('выбор, называющий не объявлявшего, конфликт не снимает', () => {
     const result = resolveCapabilities({
       parts: [kits, twin],
-      chosen: { 'kits.active': 'ai' },
+      chosen: { 'reformer.kit.catalog': 'ai' },
     });
 
-    expect(result.conflicts.map((item) => item.id)).toEqual(['kits.active']);
+    expect(result.conflicts.map((item) => item.id)).toEqual(['reformer.kit.catalog']);
   });
 });
 
@@ -157,7 +159,7 @@ describe('describeCapabilityProblems', () => {
     const text = describeCapabilityProblems(resolveCapabilities({ parts: [kits, consumer('^2')] }));
 
     expect(text).toContain('«acme»');
-    expect(text).toContain('«kits.active»');
+    expect(text).toContain('«reformer.kit.catalog»');
     expect(text).toContain('^2');
     expect(text).toContain('1.0.0');
   });
@@ -165,7 +167,10 @@ describe('describeCapabilityProblems', () => {
   it('называет конфликтующих по именам', () => {
     const text = describeCapabilityProblems(
       resolveCapabilities({
-        parts: [kits, { id: 'kits-alt', provides: [{ id: 'kits.active', version: '1.4.0' }] }],
+        parts: [
+          kits,
+          { id: 'kits-alt', provides: [{ id: 'reformer.kit.catalog', version: '1.4.0' }] },
+        ],
       })
     );
 

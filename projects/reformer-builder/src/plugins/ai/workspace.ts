@@ -53,7 +53,10 @@ export interface KitReader {
 }
 
 /** Возможность «активный кит» — структурная копия с тем же идентификатором, что у провайдера. */
-export const KitCapability = defineCapability<KitReader>({ id: 'kits.active', version: '1.0.0' });
+export const KitCapability = defineCapability<KitReader>({
+  id: 'reformer.kit.catalog',
+  version: '1.0.0',
+});
 
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 

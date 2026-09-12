@@ -54,7 +54,7 @@ export interface ResourceClipboardService {
 }
 
 export const ResourceClipboardServiceToken =
-  defineService<ResourceClipboardService>('host.clipboard');
+  defineService<ResourceClipboardService>('reformer.clipboard');
 
 const ClipboardDidChange = defineEvent<void>('clipboard.didChange');
 

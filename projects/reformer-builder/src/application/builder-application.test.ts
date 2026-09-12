@@ -22,17 +22,17 @@ async function idsOf(composition: ApplicationComposition): Promise<readonly stri
 }
 
 const FULL = [
-  'ai',
-  'codegen',
-  'editor-markdown',
-  'editor-monaco',
-  'editor-schema',
-  'files',
-  'kits',
-  'plugin-manager',
-  'preview',
-  'templates',
-  'validator-schema',
+  'reformer.ai',
+  'reformer.codegen',
+  'reformer.editor-markdown',
+  'reformer.editor-monaco',
+  'reformer.editor-schema',
+  'reformer.files',
+  'reformer.kits',
+  'reformer.plugin-manager',
+  'reformer.preview',
+  'reformer.templates',
+  'reformer.validator-schema',
 ];
 
 afterEach(() => {
@@ -46,18 +46,23 @@ describe('applicationFromRuntime', () => {
 
   it('preset называет профиль, и состав становится его составом', async () => {
     await expect(idsOf(applicationFromRuntime({ preset: 'minimal' }))).resolves.toEqual([
-      'editor-monaco',
-      'files',
-      'validator-schema',
+      'reformer.editor-monaco',
+      'reformer.files',
+      'reformer.validator-schema',
     ]);
   });
 
   it('поправки применяются поверх профиля', async () => {
     const ids = await idsOf(
-      applicationFromRuntime({ preset: 'minimal', plugins: { enable: ['preview'] } })
+      applicationFromRuntime({ preset: 'minimal', plugins: { enable: ['reformer.preview'] } })
     );
 
-    expect(ids).toEqual(['editor-monaco', 'files', 'preview', 'validator-schema']);
+    expect(ids).toEqual([
+      'reformer.editor-monaco',
+      'reformer.files',
+      'reformer.preview',
+      'reformer.validator-schema',
+    ]);
   });
 
   it('неизвестный пресет — предупреждение и полный профиль, а не белый экран', async () => {

@@ -363,7 +363,7 @@ export interface Transpiler {
 и слинковать с реестром модулей. Поэтому механизм один и живёт в Host как служба:
 
 ```ts
-export const ModuleLoaderToken = defineService<ModuleLoader>('host.moduleLoader');
+export const ModuleLoaderToken = defineService<ModuleLoader>('reformer.modules');
 
 export interface ModuleLoader {
   readonly registry: ModuleRegistry;

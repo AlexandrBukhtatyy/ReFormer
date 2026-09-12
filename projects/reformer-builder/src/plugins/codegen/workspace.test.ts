@@ -198,6 +198,6 @@ describe('права и дыры', () => {
       },
     } as unknown as PluginContext;
 
-    expect(() => codegenWorkspace(ctx)).toThrow(/shell\.documents/);
+    expect(() => codegenWorkspace(ctx)).toThrow(/reformer\.workspace/);
   });
 });

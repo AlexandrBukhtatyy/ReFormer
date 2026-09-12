@@ -23,17 +23,17 @@ export const builderProfile = defineProfile({
   plugins: [
     // Статические: их значения нужны композиции при сборке — причина у каждого записана
     // у его записи в карте встроенных.
-    'files',
-    'validator-schema',
-    'editor-monaco',
-    'kits',
-    'preview',
+    'reformer.files',
+    'reformer.validator-schema',
+    'reformer.editor-monaco',
+    'reformer.kits',
+    'reformer.preview',
     // Ленивые: приезжают своим файлом, но встают до первой отрисовки — их дожидается `ready`.
-    'editor-markdown',
-    'editor-schema',
-    'plugin-manager',
-    'ai',
-    'codegen',
-    'templates',
+    'reformer.editor-markdown',
+    'reformer.editor-schema',
+    'reformer.plugin-manager',
+    'reformer.ai',
+    'reformer.codegen',
+    'reformer.templates',
   ],
 });

@@ -32,7 +32,7 @@ import {
   type PromptService,
   type ResourceId,
 } from '@/sdk';
-import { canSave, type FormTemplate, type TemplateStore } from '../contract';
+import { canSave, TEMPLATES_PLUGIN_ID, type FormTemplate, type TemplateStore } from '../contract';
 import type { TemplatesHost } from '../host';
 import {
   createTemplateFromDirectory,
@@ -173,7 +173,7 @@ export function templatesMenuCommands(
             const rejection = validateResourceName(value);
             return rejection === null ? null : 'menu.createTemplate.invalid';
           },
-          pluginId: 'templates',
+          pluginId: TEMPLATES_PLUGIN_ID,
         });
         if (name === null) return false;
 
@@ -220,7 +220,7 @@ export function templatesMenuCommands(
           // То же правило, что у имени шаблона: из имени формы выводятся имя каталога, тип
           // и импорты, и негодное лучше отклонить в поле, чем в середине раскладки.
           validate: (value) => (validateResourceName(value) === null ? null : 'form.name.invalid'),
-          pluginId: 'templates',
+          pluginId: TEMPLATES_PLUGIN_ID,
         });
         if (formName === null) return false;
 

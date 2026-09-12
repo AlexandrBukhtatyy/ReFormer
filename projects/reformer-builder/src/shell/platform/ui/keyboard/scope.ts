@@ -65,7 +65,7 @@ export interface ScopeStack {
   subscribe(listener: () => void): Disposable;
 }
 
-export const ScopeStackServiceToken = defineService<ScopeStack>('host.scopes');
+export const ScopeStackServiceToken = defineService<ScopeStack>('reformer.scopes');
 
 /**
  * Область модального окна — общая для всех диалогов оболочки.

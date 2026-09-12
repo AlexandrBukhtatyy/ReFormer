@@ -130,7 +130,7 @@ describe('канал выделения', () => {
 
   it('плагин берёт службу из реестра и публикует туда выбранный узел', () => {
     const selection = fakeSelectionService();
-    const { ctx } = fakeContext({ 'host.selection': selection.service });
+    const { ctx } = fakeContext({ 'reformer.selection': selection.service });
     const sessions = createPreviewSessions();
     createPreviewPlugin({ host: createFakeHost(), sessions }).activate(ctx);
 
@@ -143,7 +143,7 @@ describe('канал выделения', () => {
 
   it('деактивация плагина перестаёт писать в чужой канал', () => {
     const selection = fakeSelectionService();
-    const { ctx } = fakeContext({ 'host.selection': selection.service });
+    const { ctx } = fakeContext({ 'reformer.selection': selection.service });
     const sessions = createPreviewSessions();
     createPreviewPlugin({ host: createFakeHost(), sessions }).activate(ctx);
 

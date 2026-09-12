@@ -10,7 +10,7 @@
  */
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const SCHEMA_EDITOR_PLUGIN_ID = 'editor-schema';
+export const SCHEMA_EDITOR_PLUGIN_ID = 'reformer.editor-schema';
 
 /**
  * Идентификатор провайдера.

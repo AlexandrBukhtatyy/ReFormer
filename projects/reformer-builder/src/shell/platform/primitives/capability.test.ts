@@ -12,13 +12,16 @@ interface Kits {
   activeId(): string;
 }
 
-const KitsCap: Capability<Kits> = defineCapability<Kits>({ id: 'kits.active', version: '1.0.0' });
+const KitsCap: Capability<Kits> = defineCapability<Kits>({
+  id: 'reformer.kit.catalog',
+  version: '1.0.0',
+});
 
 const kits = (id: string): Kits => ({ activeId: () => id });
 
 describe('defineCapability', () => {
   it('возвращает токен с идентификатором и версией', () => {
-    expect(KitsCap).toEqual({ id: 'kits.active', version: '1.0.0' });
+    expect(KitsCap).toEqual({ id: 'reformer.kit.catalog', version: '1.0.0' });
   });
 
   it('не даёт объявить пустой идентификатор', () => {
@@ -47,7 +50,7 @@ describe('capability — это токен службы, а не второй р
     // Это и есть довод против параллельного реестра: ключ один — строка, и разойтись
     // «служба есть, а возможности нет» физически нечему.
     const services = createServiceRegistry();
-    const token = defineService<Kits>('kits.active');
+    const token = defineService<Kits>('reformer.kit.catalog');
     const impl = kits('material');
     services.register(token, impl);
 
@@ -57,13 +60,13 @@ describe('capability — это токен службы, а не второй р
 
 describe('meetsRequirement', () => {
   it('сверяет идентификатор и диапазон', () => {
-    expect(meetsRequirement(KitsCap, { id: 'kits.active', range: '^1' })).toBe(true);
-    expect(meetsRequirement(KitsCap, { id: 'kits.active', range: '^2' })).toBe(false);
+    expect(meetsRequirement(KitsCap, { id: 'reformer.kit.catalog', range: '^1' })).toBe(true);
+    expect(meetsRequirement(KitsCap, { id: 'reformer.kit.catalog', range: '^2' })).toBe(false);
     expect(meetsRequirement(KitsCap, { id: 'other', range: '^1' })).toBe(false);
   });
 
   it('неразбираемый диапазон не выполнен ничем', () => {
-    expect(meetsRequirement(KitsCap, { id: 'kits.active', range: '>=1 <2' })).toBe(false);
+    expect(meetsRequirement(KitsCap, { id: 'reformer.kit.catalog', range: '>=1 <2' })).toBe(false);
   });
 });
 
@@ -76,10 +79,10 @@ describe('CapabilityAccess — вид на реестр служб', () => {
 
   it('require называет и требование, и того, кто мог бы его дать', () => {
     const access = createCapabilityAccess(createServiceRegistry(), {
-      providers: (id) => (id === 'kits.active' ? ['kits'] : []),
+      providers: (id) => (id === 'reformer.kit.catalog' ? ['kits'] : []),
     });
 
-    expect(() => access.require(KitsCap)).toThrow(/kits\.active/);
+    expect(() => access.require(KitsCap)).toThrow(/reformer\.kit\.catalog/);
     expect(() => access.require(KitsCap)).toThrow(/1\.0\.0/);
     expect(() => access.require(KitsCap)).toThrow(/«kits»/);
   });

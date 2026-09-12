@@ -51,7 +51,7 @@ const dir = (file: string): string => `${PLUGIN_CATALOG_DIR}/ext/${file}`;
 const PLUGIN_CODE = `
 const { definePlugin, defineCapability } = require('@builder/sdk');
 
-const Kits = defineCapability({ id: 'kits.active', version: '1.0.0' });
+const Kits = defineCapability({ id: 'reformer.kit.catalog', version: '1.0.0' });
 
 module.exports = definePlugin({
   id: 'ext',
@@ -80,7 +80,7 @@ const manifest = (range: string, extra: readonly Requirement[] = []): string =>
     version: '1.0.0',
     apiVersion: '^1',
     main: 'main.js',
-    requires: { required: [{ id: 'kits.active', range }, ...extra] },
+    requires: { required: [{ id: 'reformer.kit.catalog', range }, ...extra] },
   });
 
 /** Крошечный кит: проверяется версия контракта службы, а не содержимое каталога. */
@@ -154,7 +154,7 @@ function harness(range: string, extra: readonly Requirement[] = []) {
 describe('внешний плагин с требованием к возможности', () => {
   it('состав приложения объявляет возможность китов — без этого проверять нечего', () => {
     expect(builderApplication.capabilities).toContainEqual({
-      id: 'kits.active',
+      id: 'reformer.kit.catalog',
       version: '1.0.0',
       by: KITS_PLUGIN_ID,
     });
@@ -179,7 +179,7 @@ describe('внешний плагин с требованием к возмож�
 
     expect(entry?.state).toBe('failed');
     expect(entry?.problem?.code).toBe('requires-unsatisfied');
-    expect(entry?.problem?.message).toContain('kits.active');
+    expect(entry?.problem?.message).toContain('reformer.kit.catalog');
     expect(entry?.problem?.message).toContain('^2');
     // «Поставь новее» и «поставь вообще» — разные ответы, и человеку нужен второй.
     expect(entry?.problem?.message).toContain('1.0.0');
@@ -191,7 +191,7 @@ describe('внешний плагин с требованием к возмож�
     // Рабочую область, фокус текстового редактора и снимки вида даёт сама оболочка, и без
     // части «builder.host» в составе (`composer/compose`) это требование выглядело бы как
     // «никто не предоставляет» — у службы, которая заведена ровно для внешнего плагина.
-    const h = harness('^1', [{ id: 'shell.documents', range: '^1' }]);
+    const h = harness('^1', [{ id: 'reformer.workspace', range: '^1' }]);
     await h.catalog.refresh();
 
     expect(await h.catalog.enable('ext')).toBe(true);
@@ -199,13 +199,13 @@ describe('внешний плагин с требованием к возмож�
   });
 
   it('несовпадение версии возможности оболочки отказывает и называет оболочку', async () => {
-    const h = harness('^1', [{ id: 'shell.documents', range: '^2' }]);
+    const h = harness('^1', [{ id: 'reformer.workspace', range: '^2' }]);
     await h.catalog.refresh();
     await h.catalog.enable('ext');
 
     const entry = h.catalog.list().find((item) => item.id === 'ext');
     expect(entry?.state).toBe('failed');
-    expect(entry?.problem?.message).toContain('shell.documents');
+    expect(entry?.problem?.message).toContain('reformer.workspace');
     expect(entry?.problem?.message).toContain('«builder.host»');
     h.dispose();
   });

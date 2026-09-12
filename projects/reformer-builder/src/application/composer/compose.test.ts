@@ -31,9 +31,13 @@ describe('fromProfile', () => {
   it('минимальный профиль: три плагина поимённо, без превью и редактора схемы', async () => {
     const ids = await idsOf(fromProfile(minimalProfile));
 
-    expect([...ids].sort()).toEqual(['editor-monaco', 'files', 'validator-schema']);
-    expect(ids).not.toContain('preview');
-    expect(ids).not.toContain('editor-schema');
+    expect([...ids].sort()).toEqual([
+      'reformer.editor-monaco',
+      'reformer.files',
+      'reformer.validator-schema',
+    ]);
+    expect(ids).not.toContain('reformer.preview');
+    expect(ids).not.toContain('reformer.editor-schema');
   });
 
   it('минимальный профиль целиком статичен: ленивая фаза пуста, а не «почти пуста»', async () => {
@@ -46,7 +50,12 @@ describe('fromProfile', () => {
   it('ai-builder добавляет ассистента к минимальному — и только его', async () => {
     const ids = await idsOf(fromProfile(aiBuilderProfile));
 
-    expect([...ids].sort()).toEqual(['ai', 'editor-monaco', 'files', 'validator-schema']);
+    expect([...ids].sort()).toEqual([
+      'reformer.ai',
+      'reformer.editor-monaco',
+      'reformer.files',
+      'reformer.validator-schema',
+    ]);
   });
 
   it('унаследованное идёт перед своим: порядок склейки доходит до состава', async () => {
@@ -54,7 +63,7 @@ describe('fromProfile', () => {
     // «основа, потом своё» — тот же, что отдал резолвер.
     const ids = await idsOf(fromProfile(aiBuilderProfile));
 
-    expect(ids.indexOf('ai')).toBe(ids.length - 1);
+    expect(ids.indexOf('reformer.ai')).toBe(ids.length - 1);
   });
 
   it('ассистент приезжает своим файлом и в коротком профиле тоже', async () => {
@@ -63,11 +72,11 @@ describe('fromProfile', () => {
     const composition = fromProfile(aiBuilderProfile);
     const lazy = await composition.lazy(stubBuiltinOptions());
 
-    expect(lazy.map((composed) => composed.plugin.id)).toEqual(['ai']);
+    expect(lazy.map((composed) => composed.plugin.id)).toEqual(['reformer.ai']);
     expect(composition.eager(stubBuiltinOptions()).map((composed) => composed.plugin.id)).toEqual([
-      'files',
-      'editor-monaco',
-      'validator-schema',
+      'reformer.files',
+      'reformer.editor-monaco',
+      'reformer.validator-schema',
     ]);
   });
 
@@ -78,19 +87,30 @@ describe('fromProfile', () => {
   });
 
   it('поправки запуска доходят до состава', async () => {
-    const ids = await idsOf(fromProfile(minimalProfile, { enable: ['preview'] }));
-    expect([...ids].sort()).toEqual(['editor-monaco', 'files', 'preview', 'validator-schema']);
+    const ids = await idsOf(fromProfile(minimalProfile, { enable: ['reformer.preview'] }));
+    expect([...ids].sort()).toEqual([
+      'reformer.editor-monaco',
+      'reformer.files',
+      'reformer.preview',
+      'reformer.validator-schema',
+    ]);
 
-    const without = await idsOf(fromProfile(builderProfile, { disable: ['ai', 'preview'] }));
-    expect(without).not.toContain('ai');
-    expect(without).not.toContain('preview');
-    expect(without).toContain('files');
+    const without = await idsOf(
+      fromProfile(builderProfile, { disable: ['reformer.ai', 'reformer.preview'] })
+    );
+    expect(without).not.toContain('reformer.ai');
+    expect(without).not.toContain('reformer.preview');
+    expect(without).toContain('reformer.files');
   });
 
   it('неизвестное имя в профиле — отказ при сборке приложения, а не позже', () => {
     // Отказ случается ТУТ ЖЕ, при `fromProfile`, а не внутри `ready` полсекунды спустя:
     // приложение, собранное наполовину, чинить некому.
-    const broken = defineProfile({ id: 'broken', name: 'Битый', plugins: ['files', 'previeww'] });
+    const broken = defineProfile({
+      id: 'broken',
+      name: 'Битый',
+      plugins: ['reformer.files', 'previeww'],
+    });
 
     expect(() => fromProfile(broken)).toThrow(/неизвестный плагин «previeww»/);
   });
@@ -101,6 +121,26 @@ describe('fromProfile', () => {
     );
   });
 
+  it('прежнее имя в поправках запуска работает: конфиг человека переименование переживает', async () => {
+    // `.ui_builder/config.json` пишет и хранит пользователь, мигрировать его нам нечем.
+    // «Без ассистента» обязано значить то же самое и через год после смены пространства имён,
+    // иначе переименование тихо ВЕРНУЛО бы в состав выключенный плагин.
+    const without = await idsOf(fromProfile(builderProfile, { disable: ['ai'] }));
+    expect(without).not.toContain('reformer.ai');
+    expect(without).toContain('reformer.files');
+
+    const wider = await idsOf(fromProfile(minimalProfile, { enable: ['preview'] }));
+    expect(wider).toContain('reformer.preview');
+  });
+
+  it('прежнее имя не отменяет отказа на опечатку', () => {
+    // Таблица псевдонимов переводит ИЗВЕСТНЫЕ имена и молчит об остальных: подставь она
+    // «похожее», опечатка собрала бы работающее приложение не того состава.
+    expect(() => fromProfile(minimalProfile, { disable: ['previeww'] })).toThrow(
+      /plugins\.disable.*«previeww»/s
+    );
+  });
+
   it('выбран провайдер, который эту возможность не объявляет, — отказ, а не тишина', () => {
     // Резолвер такой выбор просто не применяет: он разбирает данные. Но профиль пишет
     // человек, и при ДВУХ провайдерах его опечатка выглядела бы как жалоба на конфликт,
@@ -108,22 +148,24 @@ describe('fromProfile', () => {
     const wrong = defineProfile({
       id: 'wrong-choice',
       name: 'Не тот',
-      plugins: ['files', 'preview'],
-      providers: { 'preview.sessions': 'files' },
+      plugins: ['reformer.files', 'reformer.preview'],
+      providers: { 'reformer.preview.sessions': 'reformer.files' },
     });
 
-    expect(() => fromProfile(wrong)).toThrow(/«files» выбран провайдером «preview.sessions»/);
+    expect(() => fromProfile(wrong)).toThrow(
+      /«reformer.files» выбран провайдером «reformer.preview.sessions»/
+    );
   });
 
   it('выбран провайдер, которого нет в составе, — отказ по имени части', () => {
     const absent = defineProfile({
       id: 'absent-choice',
       name: 'Нет такого',
-      plugins: ['files'],
-      providers: { 'preview.sessions': 'preview' },
+      plugins: ['reformer.files'],
+      providers: { 'reformer.preview.sessions': 'reformer.preview' },
     });
 
-    expect(() => fromProfile(absent)).toThrow(/«preview».*такой части в составе нет/s);
+    expect(() => fromProfile(absent)).toThrow(/«reformer.preview».*такой части в составе нет/s);
   });
 
   it('extends разрешается через реестр профилей, а не через переданную основу', () => {

@@ -83,7 +83,8 @@ export interface NotificationsService {
   observe(cb: () => void): Disposable;
 }
 
-export const NotificationsServiceToken = defineService<NotificationsService>('host.notifications');
+export const NotificationsServiceToken =
+  defineService<NotificationsService>('reformer.notifications');
 
 const NotificationsDidChange = defineEvent<void>('notifications.didChange');
 

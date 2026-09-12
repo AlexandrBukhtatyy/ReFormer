@@ -25,6 +25,7 @@ import type {
   PromptService,
 } from '@/sdk';
 import type { FilesRecentProject, FilesRecentProjects } from './host';
+import { FILES_PLUGIN_ID } from './plugin';
 
 /** Открыть недавний проект: с `{ id }` — этот, без аргументов — выбор из списка. */
 export const OPEN_RECENT_COMMAND_ID = 'files.openRecent';
@@ -110,7 +111,7 @@ export function recentCommands(deps: RecentCommandsDeps): readonly CommandContri
             labelKey: 'recent.pick.remove',
             run: (projectId) => recent.forget(projectId),
           },
-          pluginId: 'files',
+          pluginId: FILES_PLUGIN_ID,
         });
         if (chosen === null) return false;
         return recent.open(chosen);
@@ -127,7 +128,7 @@ export function recentCommands(deps: RecentCommandsDeps): readonly CommandContri
           titleKey: 'recent.clear.title',
           descriptionKey: 'recent.clear.description',
           confirmKey: 'recent.clear.confirm',
-          pluginId: 'files',
+          pluginId: FILES_PLUGIN_ID,
         });
         if (!confirmed) return false;
         await recent.clear();

@@ -93,7 +93,7 @@ export function createEditorViewStates(): EditorViewStates {
  * ВСЕ редакторы, и принадлежать оно не может ни одному из них. Версия `1.0.0` — исходная.
  */
 export const EditorViewStatesCapability: Capability<EditorViewStates> =
-  defineCapability<EditorViewStates>({ id: 'shell.editorViewStates', version: '1.0.0' });
+  defineCapability<EditorViewStates>({ id: 'reformer.editor.view-state', version: '1.0.0' });
 
 /** Токен службы — ТОТ ЖЕ объект: возможность расширяет токен, второго реестра нет. */
 export const EditorViewStatesToken = EditorViewStatesCapability;

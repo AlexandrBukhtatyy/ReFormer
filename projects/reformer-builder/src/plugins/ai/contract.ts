@@ -10,4 +10,4 @@
  */
 
 /** Идентификатор плагина: пространство имён во всех реестрах, в хранилище и в словаре. */
-export const AI_PLUGIN_ID = 'ai';
+export const AI_PLUGIN_ID = 'reformer.ai';

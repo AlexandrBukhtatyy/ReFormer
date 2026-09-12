@@ -40,7 +40,7 @@ import {
   type ResourceRef,
 } from '@/sdk';
 import type { FilesHost, FilesResourceOperations, Translate } from './host';
-import type { FilesCommand } from './plugin';
+import { FILES_PLUGIN_ID, type FilesCommand } from './plugin';
 
 export const NEW_FILE_COMMAND_ID = 'files.newFile';
 export const NEW_FOLDER_COMMAND_ID = 'files.newFolder';
@@ -188,7 +188,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
       value,
       select,
       labelKey: 'ops.name.label',
-      pluginId: 'files',
+      pluginId: FILES_PLUGIN_ID,
       validate: nameValidator(),
     });
   };
@@ -276,7 +276,7 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
           params: { count: ids.length, name: nameOf(ids[0] ?? '') },
           confirmKey: 'ops.delete.confirm',
           tone: 'danger',
-          pluginId: 'files',
+          pluginId: FILES_PLUGIN_ID,
         });
         if (agreed !== true) return false;
 

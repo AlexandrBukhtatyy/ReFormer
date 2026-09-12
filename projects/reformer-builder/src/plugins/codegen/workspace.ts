@@ -53,7 +53,10 @@ export interface KitReader {
 }
 
 /** Возможность «активный кит» — тот же идентификатор, что у провайдера. */
-export const KitCapability = defineCapability<KitReader>({ id: 'kits.active', version: '1.0.0' });
+export const KitCapability = defineCapability<KitReader>({
+  id: 'reformer.kit.catalog',
+  version: '1.0.0',
+});
 
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
@@ -83,7 +86,7 @@ export interface PrintSeed {
  * Версия `1.0.0` — исходная.
  */
 export const ModulePrinterCapability = defineCapability<ModulePrinterService>({
-  id: 'codegen.modules',
+  id: 'reformer.codegen.printer',
   version: '1.0.0',
 });
 

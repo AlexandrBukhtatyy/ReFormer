@@ -142,7 +142,7 @@ export interface SchemaEditorStores {
  * что у провайдера (плагин Monaco). Находит ту же службу: реестр ключуется строкой.
  */
 export const TextEditorCapability = defineCapability<TextEditorProvider>({
-  id: 'editor.text',
+  id: 'reformer.editor',
   version: '1.0.0',
 });
 

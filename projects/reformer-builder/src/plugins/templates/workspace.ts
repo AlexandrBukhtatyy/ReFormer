@@ -54,7 +54,10 @@ export interface KitReader {
 }
 
 /** Возможность «активный кит» — структурная копия с тем же идентификатором, что у провайдера. */
-export const KitCapability = defineCapability<KitReader>({ id: 'kits.active', version: '1.0.0' });
+export const KitCapability = defineCapability<KitReader>({
+  id: 'reformer.kit.catalog',
+  version: '1.0.0',
+});
 
 /** Печатник модуля формы в объёме, нужном шаблонам. */
 export interface ModulePrinterService {
@@ -67,7 +70,7 @@ export interface ModulePrinterService {
 
 /** Возможность «напечатать модуль формы». Объявляет её генерация кода. */
 export const ModulePrinterCapability = defineCapability<ModulePrinterService>({
-  id: 'codegen.modules',
+  id: 'reformer.codegen.printer',
   version: '1.0.0',
 });
 

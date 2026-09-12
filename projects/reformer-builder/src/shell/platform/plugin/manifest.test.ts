@@ -185,26 +185,29 @@ describe('requires — требования двумя списками', () => 
     const result = parse({
       ...good,
       requires: {
-        required: [{ id: 'kits.active', range: '^1' }],
+        required: [{ id: 'reformer.kit.catalog', range: '^1' }],
         optional: [{ id: 'acme.telemetry', range: '>=0.2.0' }],
       },
     });
 
     expect(result.ok && result.manifest.requires).toEqual({
-      required: [{ id: 'kits.active', range: '^1' }],
+      required: [{ id: 'reformer.kit.catalog', range: '^1' }],
       optional: [{ id: 'acme.telemetry', range: '>=0.2.0' }],
     });
   });
 
   it('пропущенный список — пустой, а не отказ', () => {
-    const result = parse({ ...good, requires: { required: [{ id: 'kits.active', range: '^1' }] } });
+    const result = parse({
+      ...good,
+      requires: { required: [{ id: 'reformer.kit.catalog', range: '^1' }] },
+    });
 
     expect(result.ok && result.manifest.requires?.optional).toEqual([]);
   });
 
   it('отвергает короткую запись списком строк', () => {
     // Частая догадка автора; отвергнуть её внятно дешевле, чем дать ей молча не сработать.
-    const result = parse({ ...good, requires: ['kits.active'] });
+    const result = parse({ ...good, requires: ['reformer.kit.catalog'] });
 
     expect(!result.ok && result.problem.code).toBe('manifest-invalid');
     expect(!result.ok && result.problem.message).toContain('required');
@@ -213,7 +216,7 @@ describe('requires — требования двумя списками', () => 
   it('отвергает диапазон, которого утилита версий не понимает', () => {
     const result = parse({
       ...good,
-      requires: { required: [{ id: 'kits.active', range: '>=1 <2' }] },
+      requires: { required: [{ id: 'reformer.kit.catalog', range: '>=1 <2' }] },
     });
 
     expect(!result.ok && result.problem.code).toBe('manifest-invalid');
