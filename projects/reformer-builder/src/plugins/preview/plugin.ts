@@ -30,6 +30,7 @@ import {
   DiagnosticsServiceToken,
   DocumentsServiceToken,
   PanelPoint,
+  WorkspaceFilesServiceToken,
   SelectionServiceToken,
   type Plugin,
   type SlotId,
@@ -134,8 +135,9 @@ export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
       // нечего, потому что и открывать нечего. Так собирается и тест плагина, где реестра
       // служб нет вовсе.
       const documents = ctx.services.get(DocumentsServiceToken);
-      if (documents !== undefined) {
-        ctx.subscriptions.push(attachPreviewLifecycle(documents, sessions));
+      const files = ctx.services.get(WorkspaceFilesServiceToken);
+      if (documents !== undefined && files !== undefined) {
+        ctx.subscriptions.push(attachPreviewLifecycle(documents, files, sessions));
       }
 
       // Клик по форме уходит в общий канал выделения. `get`, а не `require`: плагину

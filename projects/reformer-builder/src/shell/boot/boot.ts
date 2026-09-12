@@ -126,9 +126,11 @@ import { createSchemaHost } from '@/shell/boot/ports/schema';
 import { createAiHost } from '@/shell/boot/ports/ai';
 import { createPreviewHost } from '@/shell/boot/ports/preview';
 import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
-import { createCodegenHost } from '@/shell/boot/ports/codegen';
+import { createCodegenGaps } from '@/shell/boot/ports/codegen';
 import { createTemplatesHost } from '@/shell/boot/ports/templates';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
+import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
+import { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
 import { DocumentsServiceToken } from '@/shell/platform/services/documents';
 import {
   projectFailureAction,
@@ -478,6 +480,9 @@ export function boot(options: BootOptions): BuilderApp {
   // Без проекта отвечает как порты — `null` и отказом записи.
   const documents = createDocumentsService({ project });
   services.register(DocumentsServiceToken, documents);
+  // Записи рабочей области — вторая её половина: что в ней лежит и где. Отдельной службой,
+  // а не методами первой, потому что права разные (см. шапку `services/workspace-files`).
+  services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project }));
 
   const plugins = createPluginRegistry({
     services,
@@ -679,7 +684,7 @@ export function boot(options: BootOptions): BuilderApp {
     },
     ai: createAiHost({ project, i18n, services }),
     preview: previewHost,
-    codegen: createCodegenHost({ project, i18n, services }),
+    codegen: createCodegenGaps({ project }),
     templates: createTemplatesHost({ project, i18n, services }),
     // Кита нет — встроенных шаблонов нет: печатать их нечем, а умолчание напечатало бы
     // импорты чужого пакета. Пустой список честнее неверного кода.

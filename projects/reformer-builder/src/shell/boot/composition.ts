@@ -40,7 +40,7 @@ import type { PluginManagerPluginOptions } from '@/plugins/plugin-manager';
 import type { MarkdownHost } from '@/plugins/editor-markdown';
 import type { SchemaEditorHost } from '@/plugins/editor-schema';
 import type { AiHost } from '@/plugins/ai';
-import type { CodegenHost } from '@/plugins/codegen';
+import type { CodegenGaps } from '@/plugins/codegen';
 import type { ModulePrinter, TemplatesHost } from '@/plugins/templates';
 
 /**
@@ -137,8 +137,14 @@ export interface BuiltinPluginsOptions {
   readonly ai: AiHost;
   /** Порт платформы для превью. */
   readonly preview: PreviewHost;
-  /** Порт платформы для генерации кода. */
-  readonly codegen: CodegenHost;
+  /**
+   * То, чего генерации кода не хватает в возможностях: сохранение в источник.
+   *
+   * Не порт: рабочую область плагин собирает сам, из служб контекста. Здесь остаётся
+   * единственная операция, выносящая написанное НАРУЖУ, — её нельзя отдать плагину каталога
+   * без политики прав (см. `shell/boot/ports/codegen`).
+   */
+  readonly codegen: CodegenGaps;
   /** Порт платформы для шаблонов форм. */
   readonly templates: TemplatesHost;
   /**

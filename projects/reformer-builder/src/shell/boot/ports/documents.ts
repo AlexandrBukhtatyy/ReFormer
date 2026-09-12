@@ -26,7 +26,6 @@
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
-import { parentOf } from '@/shell/platform/primitives/resource-path';
 import type { DocumentsService, OpenDocumentOptions } from '@/shell/platform/services/documents';
 import type { Document } from '@/shell/platform/workspace/document';
 import type { WriteOptions } from '@/shell/platform/workspace/workspace';
@@ -110,10 +109,6 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsSer
     // на службу (Фаза 5 плана), оба зовут одно и то же. У текстового документа ручки нет,
     // и `undefined` здесь означает «отложенного не было».
     flush: (id: ResourceId) => project.get()?.models.handleOf(id)?.flush(),
-
-    // Проекта здесь не спрашивается вовсе: каталог выводится из самого адреса, и ответ
-    // не зависит от того, открыт ли ресурс и существует ли он.
-    parentOf,
 
     onDidChange(cb) {
       listeners.add(cb);

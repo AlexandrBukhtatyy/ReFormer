@@ -44,6 +44,7 @@ import { ejectTemplate, type EjectOutcome } from './commands/eject';
 import { createFixture, type FixtureOutcome } from './commands/fixture-command';
 import type { CodegenProblem } from './pipeline/generate';
 import type { CodegenHost } from './host';
+import { codegenWorkspace, type CodegenGaps } from './workspace';
 import { CODEGEN_MESSAGES } from './messages';
 import { runCodegen } from './pipeline/run';
 import { applyOverrides, discoverUserTargets } from './pipeline/user-targets';
@@ -325,7 +326,21 @@ function notifyFixture(host: CodegenHost, outcome: FixtureOutcome): void {
 }
 
 export interface CodegenPluginOptions {
-  readonly host: CodegenHost;
+  /**
+   * Рабочая область ЦЕЛИКОМ — только для теста, зовущего плагин без реестра служб.
+   *
+   * В приложении её собирает сам плагин из возможностей контекста (`./workspace`), и порта
+   * у него больше нет. Оставленный параметр перебивает сборку, потому что стенд подделывает
+   * не службы, а их ответы: половина двойников здесь считает вызовы и подсовывает файлы,
+   * чего через настоящий реестр не выразить.
+   */
+  readonly host?: CodegenHost;
+  /**
+   * То, чему в возможностях места пока нет: сохранение (выносит наружу и ждёт политики прав),
+   * форматирование (нужна конфигурация prettier из проекта) и правила-сайдкар. Подставляет
+   * их композиция — см. `./workspace`.
+   */
+  readonly gaps?: CodegenGaps;
   /**
    * Точка расширения целей.
    *
@@ -345,8 +360,7 @@ export interface CodegenPluginOptions {
  * `activate` только регистрирует: реестр состояний создаётся пустым, состояние документа
  * рождается при первом показе панели.
  */
-export function createCodegenPlugin(options: CodegenPluginOptions): Plugin {
-  const { host } = options;
+export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin {
   const point = options.targetPoint ?? CodegenTargetPoint;
   const slot = options.slot ?? DEFAULT_CODEGEN_SLOT;
   const sessions = createCodegenSessions();
@@ -354,6 +368,9 @@ export function createCodegenPlugin(options: CodegenPluginOptions): Plugin {
   return definePlugin({
     id: CODEGEN_PLUGIN_ID,
     activate(ctx) {
+      // Рабочая область собирается ЗДЕСЬ, а не приходит параметром: службы живут в контексте
+      // активации, и раньше него их нет. Композиция подставляет только названные дыры.
+      const host = options.host ?? codegenWorkspace(ctx, options.gaps);
       for (const [locale, messages] of Object.entries(CODEGEN_MESSAGES)) {
         ctx.i18n.contribute(locale, messages);
       }

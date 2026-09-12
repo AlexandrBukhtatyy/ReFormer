@@ -76,7 +76,7 @@ export type { SurfaceChoice, SurfaceFallback, SurfaceOption } from './surface/se
 export { createPreviewSessions, PreviewSessionsCapability } from './state/sessions';
 export type { DiagnosticsSink, PreviewSessions } from './state/sessions';
 export { attachPreviewLifecycle } from './state/lifecycle';
-export type { PreviewLifecycleDocuments } from './state/lifecycle';
+export type { PreviewLifecycleDocuments, PreviewLifecycleFiles } from './state/lifecycle';
 /**
  * Правило адресации находок сборки — наружу, потому что им пользуется и композиция: живому
  * виду она отдаёт строкой только то, что человек не прочтёт из свода своего документа.

@@ -77,15 +77,18 @@ projects/reformer-builder/
 │   │   │   ├── services/        службы платформы — один каталог, один ответ на вопрос
 │   │   │   │                    «какие они есть»: i18n/, diagnostics/, validation/,
 │   │   │   │                    settings, theme, notifications, prompt, selection,
-│   │   │   │                    context-keys, resource-clipboard, documents,
-│   │   │   │                    host-capabilities (что даёт САМА оболочка: documents,
-│   │   │   │                    фокус текстового редактора, снимки вида)
+│   │   │   │                    context-keys, resource-clipboard, documents (что ОТКРЫТО),
+│   │   │   │                    workspace-files (что ЛЕЖИТ и где; записи здесь нет —
+│   │   │   │                    дверь одна, в documents), host-capabilities (что даёт
+│   │   │   │                    САМА оболочка: обе службы рабочей области, фокус
+│   │   │   │                    текстового редактора, снимки вида)
 │   │   │   ├── modules/         механика загрузки кода: registry, linker, transpilers, compile-cache
 │   │   │   ├── plugin/          рантайм плагинов: types, context, registry, loader, catalog, storage, styles
 │   │   │   └── ui/              оболочка и слоты
 │   │   │       ├── Shell.tsx  slots.ts        корень = точка сборки оболочки
-│   │   │       ├── useTranslate.ts  перевод как React-значение: то, чем плагин показывает
-│   │   │       │                строку, переживающую смену языка (отдаётся через @/sdk)
+│   │   │       ├── useTranslate.ts  useActiveDocument.ts  подписки на службы для плагина:
+│   │   │       │                строка, переживающая смену языка, и активная вкладка
+│   │   │       │                (обе отдаются через @/sdk — раньше их вёз каждый порт)
 │   │   │       ├── chrome/      EditorArea, EditorActions, DocumentTabs, MenuBar, StatusBar,
 │   │   │       │                PluginScope, panels, layout-settings, usePanels,
 │   │   │       │                useWorkspaceViews
@@ -104,8 +107,9 @@ projects/reformer-builder/
 │   │       ├── plugin-modules.ts  защищённые слоты реестра модулей
 │   │       ├── settings-sections.ts  состав окна настроек
 │   │       ├── ports/           адаптеры портов плагинов: files, monaco, markdown, schema,
-│   │       │                    preview, ai, codegen, templates; documents — служба рабочей
-│   │       │                    области для ЛЮБОГО плагина; мосты live-surface, kit-namespace.
+│   │       │                    preview, ai, templates; documents и workspace-files — службы
+│   │       │                    рабочей области для ЛЮБОГО плагина; codegen сузился до одной
+│   │       │                    операции (save); мосты live-surface, kit-namespace.
 │   │       │                    Разделяемых реестров здесь НЕТ: фокус и снимки вида — службы
 │   │       │                    платформы, состояния превью — возможность своего плагина
 │   │       ├── project/         project, workspace-session, document-models, opened-tabs,

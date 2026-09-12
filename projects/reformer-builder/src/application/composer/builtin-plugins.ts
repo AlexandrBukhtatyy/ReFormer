@@ -241,7 +241,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     loading: 'lazy',
     create: async (options) => {
       const codegen = await import('@/plugins/codegen');
-      return codegen.createCodegenPlugin({ host: options.codegen });
+      return codegen.createCodegenPlugin({ gaps: options.codegen });
     },
   },
   {

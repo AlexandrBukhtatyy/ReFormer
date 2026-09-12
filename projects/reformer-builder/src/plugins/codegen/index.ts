@@ -97,3 +97,8 @@ export type {
   MessageSink,
   Translate,
 } from './host';
+
+// Рабочая область генерации собирается из возможностей ЕЮ САМОЙ; композиции остаются
+// названные дыры (`CodegenGaps`) — см. шапку `./workspace`.
+export { codegenWorkspace, KitCapability } from './workspace';
+export type { CodegenGaps, KitReader } from './workspace';

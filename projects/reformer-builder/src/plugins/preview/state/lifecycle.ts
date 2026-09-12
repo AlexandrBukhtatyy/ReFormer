@@ -11,7 +11,8 @@
  *
  * Теперь реестр создаёт сам плагин и сам же вешает на него это правило, а вкладки узнаёт
  * у рабочей области (`DocumentsService`) — то есть у службы, а не у порта. Вкладок в `@/sdk`
- * по-прежнему нет; есть открытые документы, и их достаточно.
+ * по-прежнему нет; есть открытые документы, и их достаточно. Каталог адреса спрашивается
+ * у второй её половины (`WorkspaceFilesService`): разбирать адрес самому плагину нельзя.
  *
  * ## Граница — КАТАЛОГ формы, а не её вкладка
  *
@@ -30,23 +31,30 @@
  * @module plugins/preview/state/lifecycle
  */
 
-import type { Disposable, DocumentsService } from '@/sdk';
+import type { Disposable, DocumentsService, WorkspaceFilesService } from '@/sdk';
 import type { PreviewSessions } from './sessions';
 
-/** Рабочая область в объёме правила: что открыто, чей это каталог и когда спрашивать заново. */
-export type PreviewLifecycleDocuments = Pick<
-  DocumentsService,
-  'openDocuments' | 'parentOf' | 'onDidChange'
->;
+/** Открытые документы в объёме правила: что открыто и когда спрашивать заново. */
+export type PreviewLifecycleDocuments = Pick<DocumentsService, 'openDocuments' | 'onDidChange'>;
+
+/**
+ * Адресация в объёме правила: чей это каталог.
+ *
+ * Вторая служба, а не метод первой, и это не дробление: «что открыто» и «где лежит» —
+ * вопросы к разным половинам рабочей области (`platform/services/workspace-files`).
+ * Обе даёт сама оболочка, поэтому их всегда две и отсутствовать по отдельности они не могут.
+ */
+export type PreviewLifecycleFiles = Pick<WorkspaceFilesService, 'parentOf'>;
 
 export function attachPreviewLifecycle(
   documents: PreviewLifecycleDocuments,
+  files: PreviewLifecycleFiles,
   sessions: Pick<PreviewSessions, 'ids' | 'forget'>
 ): Disposable {
   const sync = (): void => {
-    const openDirs = new Set(documents.openDocuments().map((id) => documents.parentOf(id)));
+    const openDirs = new Set(documents.openDocuments().map((id) => files.parentOf(id)));
     for (const id of sessions.ids()) {
-      if (!openDirs.has(documents.parentOf(id))) sessions.forget(id);
+      if (!openDirs.has(files.parentOf(id))) sessions.forget(id);
     }
   };
 

@@ -11,7 +11,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { attachPreviewLifecycle, type PreviewLifecycleDocuments } from './lifecycle';
+import {
+  attachPreviewLifecycle,
+  type PreviewLifecycleDocuments,
+  type PreviewLifecycleFiles,
+} from './lifecycle';
 import { createPreviewSessions } from './sessions';
 
 /** Рабочая область в объёме правила: список открытых, каталог адреса и одно уведомление. */
@@ -21,11 +25,6 @@ function fakeDocuments() {
 
   const documents: PreviewLifecycleDocuments = {
     openDocuments: () => open,
-    // Та же арифметика, что у службы: до последнего «/», без подъёма выше корня источника.
-    parentOf: (id) => {
-      const at = id.lastIndexOf('/');
-      return at === -1 ? id : id.slice(0, at);
-    },
     onDidChange: (cb) => {
       listeners.add(cb);
       return {
@@ -36,8 +35,17 @@ function fakeDocuments() {
     },
   };
 
+  /** Та же арифметика, что у службы: до последнего «/», без подъёма выше корня источника. */
+  const files: PreviewLifecycleFiles = {
+    parentOf: (id) => {
+      const at = id.lastIndexOf('/');
+      return at === -1 ? id : id.slice(0, at);
+    },
+  };
+
   return {
     documents,
+    files,
     subscribers: () => listeners.size,
     setOpen(next: string[]): void {
       open = next;
@@ -51,7 +59,7 @@ describe('attachPreviewLifecycle', () => {
     const sessions = createPreviewSessions();
     const w = fakeDocuments();
     w.setOpen(['src:a/form.json', 'src:b/form.json']);
-    attachPreviewLifecycle(w.documents, sessions);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
     sessions.storeFor('src:a/form.json').select(['a1b2c3d4']);
     sessions.storeFor('src:b/form.json');
 
@@ -68,7 +76,7 @@ describe('attachPreviewLifecycle', () => {
     const sessions = createPreviewSessions();
     const w = fakeDocuments();
     w.setOpen(['src:credit/form.json']);
-    attachPreviewLifecycle(w.documents, sessions);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
     sessions.storeFor('src:credit/form.json');
 
     w.setOpen(['src:credit/validation.ts']);
@@ -82,7 +90,7 @@ describe('attachPreviewLifecycle', () => {
     const sessions = createPreviewSessions();
     const w = fakeDocuments();
     w.setOpen(['src:a/form.json']);
-    attachPreviewLifecycle(w.documents, sessions);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
     sessions.storeFor('src:a/form.json');
 
     w.setOpen([]);
@@ -97,7 +105,7 @@ describe('attachPreviewLifecycle', () => {
     const w = fakeDocuments();
     sessions.storeFor('src:a/form.json');
 
-    attachPreviewLifecycle(w.documents, sessions);
+    attachPreviewLifecycle(w.documents, w.files, sessions);
 
     expect(sessions.ids()).toEqual([]);
   });
@@ -106,7 +114,7 @@ describe('attachPreviewLifecycle', () => {
     const sessions = createPreviewSessions();
     const w = fakeDocuments();
     w.setOpen(['src:a/form.json']);
-    const lifecycle = attachPreviewLifecycle(w.documents, sessions);
+    const lifecycle = attachPreviewLifecycle(w.documents, w.files, sessions);
     sessions.storeFor('src:a/form.json');
 
     lifecycle.dispose();

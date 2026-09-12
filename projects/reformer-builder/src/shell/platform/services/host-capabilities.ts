@@ -31,6 +31,7 @@ import type { Capability } from '@/shell/platform/primitives/capability';
 import { EditorViewStatesCapability } from '@/shell/platform/workspace/model/editor-view-states';
 import { TextEditorFocusCapability } from '@/shell/platform/workspace/model/text-editor-focus';
 import { DocumentsCapability } from './documents';
+import { WorkspaceFilesCapability } from './workspace-files';
 
 /**
  * Имя провайдера в диагностике.
@@ -50,6 +51,7 @@ export const HOST_PROVIDER_ID = 'builder.host';
  */
 export const HOST_CAPABILITIES: readonly Capability<unknown>[] = Object.freeze([
   DocumentsCapability,
+  WorkspaceFilesCapability,
   TextEditorFocusCapability,
   EditorViewStatesCapability,
 ]);

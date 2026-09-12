@@ -16,6 +16,10 @@
 
 import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
 import type { ServiceRegistry } from '@/shell/platform/primitives/service';
+import { DocumentsServiceToken } from '@/shell/platform/services/documents';
+import { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
+import { createDocumentsService } from '@/shell/boot/ports/documents';
+import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
 import {
   createEditorViewStates,
   EditorViewStatesToken,
@@ -28,17 +32,21 @@ import {
 /**
  * Возможности оболочки, без которых встроенные плагины не поднимаются, — как в `boot`.
  *
- * Не пустышки: реестр фокуса и хранилище снимков вида настоящие, потому что подделывать
- * в них нечего — это карта и множество. Службы документов здесь НЕТ намеренно: она требует
- * рабочей области, а плагины, которым её не хватает, обязаны деградировать (`get`, не
- * `require`) — и стенд это проверяет самим своим существованием.
+ * Ни одна не пустышка. Реестр фокуса и хранилище снимков вида настоящие, потому что
+ * подделывать в них нечего — это карта и множество. Службы рабочей области тоже настоящие,
+ * но над ЗАКРЫТЫМ проектом: держатель отвечает `null`, и обе службы честно дают `null`,
+ * `false` и пустой список. Это не обеднённый стенд, а состояние приложения сразу после
+ * запуска — то самое, в котором плагины и активируются на самом деле.
  *
  * Вызывается стендом, который плагины АКТИВИРУЕТ. Тому, кто их только создаёт, не нужно:
  * службы спрашиваются в `activate`.
  */
 export function stubHostCapabilities(services: ServiceRegistry): void {
+  const closed = { get: () => null, subscribe: () => ({ dispose: () => {} }) };
   services.register(TextEditorFocusToken, createTextEditorFocusRegistry());
   services.register(EditorViewStatesToken, createEditorViewStates());
+  services.register(DocumentsServiceToken, createDocumentsService({ project: closed }));
+  services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project: closed }));
 }
 
 /**

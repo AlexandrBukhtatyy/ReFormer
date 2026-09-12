@@ -249,6 +249,13 @@ export type { DiagnosticsService } from '@/shell/platform/services/diagnostics/s
 // а `WriteOptions` лишь называет автора правки для журнала. `Document` — настоящий тип
 // платформы, а не копия: подписка на смену текста у копии молчала бы.
 export { DocumentsServiceToken } from '@/shell/platform/services/documents';
+// Вторая половина рабочей области: что в ней ЛЕЖИТ и где. Отдельной службой, потому что
+// права разные — здесь только чтение и адресация, а запись идёт одной дверью выше.
+export { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
+export type { WorkspaceFilesService } from '@/shell/platform/services/workspace-files';
+// Активная вкладка как React-значение: подписка на службу документов, без которой панель
+// показывала бы документ, с которого ушли.
+export { useActiveDocument } from '@/shell/platform/ui/useActiveDocument';
 export type { DocumentsService, OpenDocumentOptions } from '@/shell/platform/services/documents';
 export type { Document } from '@/shell/platform/workspace/document';
 export type { WriteOptions } from '@/shell/platform/workspace/workspace';
