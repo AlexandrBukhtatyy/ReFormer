@@ -17,7 +17,8 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  *   sdk/             поверхность плагина  → только типы из shell/platform/
  *   lib/             чистый домен         → только lib/ и внешние
  *   plugins/         предметная логика    → sdk/, lib/, свой каталог
- *   shell/boot/      композиция           → всё
+ *   shell/boot/      сборка оболочки      → всё, КРОМЕ состава приложения
+ *   application/     состав приложения    → всё
  *
  * ОГРАНИЧЕНИЕ реализации: правила ловят импорты через псевдоним `@/…` и глубокие относительные
  * пути — поэтому импорты, пересекающие границы подсистем, ОБЯЗАНЫ писаться через `@/…`
@@ -49,6 +50,22 @@ const denyFromLib = [
   { group: ['@/plugins/*', '@/plugins'], message: 'Домен не зависит от плагинов' },
 ];
 
+/**
+ * Оболочка не знает СОСТАВА приложения.
+ *
+ * `application/` объявляет, из каких плагинов собран ReFormer Builder, и зависимость идёт только
+ * оттуда сюда: `boot` получает состав параметром (`BootOptions.application`), а форму этого
+ * параметра объявляет сам (`shell/boot/composition`). Импорт в обратную сторону вернул бы список
+ * плагинов в оболочку — то единственное, ради чего слой и заведён, — и притом молча: тип
+ * скомпилировался бы, а значение приехало бы в стартовый граф со всеми шестью ленивыми.
+ */
+const denyApplication = [
+  {
+    group: ['@/application/*', '@/application'],
+    message: 'Оболочка не знает состава приложения: состав приходит параметром в boot',
+  },
+];
+
 const denyFromPlugins = [
   { group: ['@/shell/*', '@/shell'], message: 'Плагин видит платформу только через @/sdk' },
   {
@@ -71,8 +88,25 @@ export default defineConfig([
     languageOptions: { ecmaVersion: 2020, globals: globals.browser },
   },
   {
+    files: ['src/shell/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-imports': ['error', { patterns: denyApplication }] },
+  },
+  {
+    // Платформе — и запреты слоя, и запрет состава. Списки СКЛЕЕНЫ намеренно: блоки flat-config
+    // не складываются, и последний блок по одному и тому же правилу вытесняет предыдущий целиком.
+    // Задай мы здесь только `denyFromPlatform`, платформа тихо потеряла бы запрет на `@/application`.
     files: ['src/shell/platform/**/*.{ts,tsx}'],
-    rules: { 'no-restricted-imports': ['error', { patterns: denyFromPlatform }] },
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [...denyFromPlatform, ...denyApplication] }],
+    },
+  },
+  {
+    // Интеграционные тесты СБОРКИ — узаконенное исключение (см. project-structure, «Соглашения»):
+    // они проверяют собранное приложение, то есть обязаны знать его состав. Запрет выше адресован
+    // КОДУ оболочки, а не проверкам того, что из неё собирается. Каталог назван точечно: запретов
+    // у него не было и до появления `application/`, поэтому «off» здесь ничего не ослабляет.
+    files: ['src/shell/boot/integration/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-imports': 'off' },
   },
   {
     files: ['src/lib/**/*.{ts,tsx}'],
@@ -81,5 +115,13 @@ export default defineConfig([
   {
     files: ['src/plugins/**/*.{ts,tsx}'],
     rules: { 'no-restricted-imports': ['error', { patterns: denyFromPlugins }] },
+  },
+  {
+    // `application/` — композиция, и ей можно всё: `@/shell`, `@/plugins`, `@/lib`, `@/sdk`.
+    // Зона объявлена ЯВНО, хотя запретов у неё нет: отсутствие блока читалось бы как «про этот
+    // каталог забыли», а не как решение. Ровно тот же набор прав, что у `shell/boot`, — разница
+    // между ними не в правах, а в направлении зависимости.
+    files: ['src/application/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-imports': 'off' },
   },
 ]);

@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { builderApplication } from './application/builder-application';
 import { boot } from './shell/boot/boot';
 import { fetchRuntimeConfig } from './shell/boot/runtime-config';
 import './index.css';
@@ -16,7 +17,11 @@ import './index.css';
 // она однократная и происходит при сборке. Заход один, на localhost, и отказ (нет лаунчера —
 // vite dev, чужой статик-сервер) — это штатный `null`: билдер работает на вшитых дефолтах.
 void fetchRuntimeConfig().then((runtime) => {
-  const app = boot({ runtime });
+  // Состав приложения приходит ОТСЮДА, а не изнутри оболочки. «Какие плагины образуют ReFormer
+  // Builder» — вопрос приложения, а не механизма, который их поднимает: `boot` объявляет форму
+  // композиции и получает её параметром. Знай он состав сам, второе приложение на той же оболочке
+  // начиналось бы с правки `boot`, а список плагинов остался бы частью платформы запуска.
+  const app = boot({ runtime, application: builderApplication });
   const root = createRoot(document.getElementById('root')!);
 
   // Отрисовка ждёт `ready` — шаги 2–3 последовательности запуска (настройки, словари, плагины).

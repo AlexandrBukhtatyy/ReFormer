@@ -1,6 +1,12 @@
 /**
  * Единственное место со списком встроенных плагинов.
  *
+ * Место это — в `application/`, а не в оболочке, и разница не в адресе файла. Состав приложения
+ * оболочке НЕИЗВЕСТЕН: она объявляет форму композиции (`shell/boot/composition`) и получает её
+ * параметром, а «какие плагины образуют ReFormer Builder» отвечают отсюда. Поэтому и тип опций
+ * импортируется из оболочки, а не объявляется здесь: опции — это то, что `boot` умеет ДАТЬ,
+ * а список — то, что он получает.
+ *
  * Список собирается ФУНКЦИЕЙ, а не лежит константой: плагин файлов получает порт платформы,
  * а валидатор — каталог активного кита, и оба зависят от того, что создано в `boot`. Константа
  * заставила бы плагины дотягиваться до композиции самим — то есть ровно наоборот тому, ради
@@ -35,137 +41,25 @@
  *   плюс ajv), чтобы она ехала параллельно оболочке; ленивость сделала бы из одного
  *   параллельного запроса цепочку из двух ради десяти килобайт.
  *
- * @module shell/boot/plugins
+ * @module application/composer/builtin-plugins
  */
 
 import type { CatalogEntry } from '@/lib/catalog/types';
+import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
 import type { Plugin } from '@/shell/platform/plugin/types';
-import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
-import type { TextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 
 // Статические: их значения нужны композиции или их отделение стоит дороже, чем даёт.
-import type { FilesHost } from '@/plugins/files';
 import { createFilesPlugin } from '@/plugins/files';
-import type { ViewStateRegistry } from '@/plugins/editor-monaco';
-import {
-  createMonacoEditorPlugin,
-  MONACO_PLUGIN_ID,
-  type MonacoHost,
-} from '@/plugins/editor-monaco';
+import { createMonacoEditorPlugin, MONACO_PLUGIN_ID } from '@/plugins/editor-monaco';
 import { createKitsPlugin, KITS_PLUGIN_ID } from '@/plugins/kits';
-import type { KitsPluginOptions } from '@/plugins/kits';
 import { createPreviewPlugin, PREVIEW_PLUGIN_ID } from '@/plugins/preview';
-import type { PreviewHost } from '@/plugins/preview';
 import { createSchemaValidatorPlugin } from '@/plugins/validator-schema';
 
-// Ленивые: только ТИПЫ. `verbatimModuleSyntax` стирает такой импорт целиком, графа он
-// не создаёт — значения приезжают динамическим импортом в `loadLazyBuiltinPlugins`.
-import type { PluginManagerPluginOptions } from '@/plugins/plugin-manager';
-import type { MarkdownHost } from '@/plugins/editor-markdown';
-import type { SchemaEditorHost } from '@/plugins/editor-schema';
-import type { AiHost } from '@/plugins/ai';
-import type { CodegenHost } from '@/plugins/codegen';
-import type { ModulePrinter, TemplatesHost } from '@/plugins/templates';
-
-export interface BuiltinPluginsOptions {
-  /**
-   * Служба словарей.
-   *
-   * Композиция передаёт КОРЕНЬ, а не готовые виды `forPlugin(id)` по одному на плагин, — иначе
-   * `boot` обязан знать идентификатор каждого плагина ЗНАЧЕНИЕМ, а идентификаторы объявлены
-   * в барелях. Один такой импорт возвращает ленивый плагин в стартовый граф целиком.
-   */
-  readonly i18n: Pick<RootI18nService, 'forPlugin'>;
-  /** Порт платформы для плагина файлов. */
-  readonly files: FilesHost;
-  /** Порт платформы для редактора Monaco. */
-  readonly monaco: MonacoHost;
-  /**
-   * Общий реестр фокуса текстового редактора — платформенный.
-   *
-   * **Обязан быть тем же объектом**, что зарегистрирован службой `TextEditorFocusToken` и
-   * уходит в `createDocumentModels({ isTextEditorFocused })`. Это условие правильности, а не
-   * удобство подключения: перерисовка буфера по модели откладывается, пока человек печатает,
-   * и «печатает ли он» знает только редактор. Два реестра означали бы, что ход ассистента
-   * затирает набранное на полуслове. Значением, а не службой, — потому что тело Monaco
-   * одалживают порты markdown и схемы до активации плагина.
-   */
-  readonly monacoFocus: TextEditorFocusRegistry;
-  /**
-   * Реестр снимков вида Monaco.
-   *
-   * Приходит от композиции, потому что его делят двое: сам редактор и предпросмотр
-   * markdown, одалживающий тело редактора для режима «рядом». Два реестра означали бы
-   * потерянную позицию курсора при каждом переключении режима.
-   */
-  readonly monacoViewStates?: ViewStateRegistry;
-  /**
-   * Порт предпросмотра markdown.
-   *
-   * Отдельный плагин, а не режим редактора Monaco: «этот файл показывают рендером» —
-   * предметное знание о формате, и держать его внутри редактора кода значило бы, что
-   * выключение markdown требует правки чужого плагина.
-   */
-  readonly markdown: MarkdownHost;
-  /** Порт платформы для визуального редактора схемы. */
-  readonly schema: SchemaEditorHost;
-  /**
-   * Настройки плагина китов.
-   *
-   * Киты вносятся плагином, а не композицией, потому что «какой кит активен» — это
-   * состояние, которое читают трое: валидатор (с чем сверять), палитра (что предлагать)
-   * и инспектор (какие свойства у компонента). Сервис — единственный способ отдать одно
-   * состояние троим, не заводя его копию у каждого.
-   */
-  readonly kits: Pick<KitsPluginOptions, 'settings' | 'sources'>;
-  /**
-   * Порт управления плагинами каталога.
-   *
-   * Порт удовлетворяется каталогом плагинов КАК ЕСТЬ — `ProjectPluginCatalog` структурно
-   * шире `PluginManagerHost`, и это ровно то место, где их совместимость проверяется
-   * компиляцией. Управление — вклад плагина, а не действие композиции, потому что точки
-   * расширения заполняются только плагинами (см. `primitives/extension-point`).
-   */
-  readonly pluginManager: Omit<PluginManagerPluginOptions, 'translate'>;
-  /** Порт платформы для ассистента. */
-  readonly ai: AiHost;
-  /** Порт платформы для превью. */
-  readonly preview: PreviewHost;
-  /**
-   * Реестр состояний превью.
-   *
-   * Создаётся композицией, а не плагином, потому что показывающих поверхности стало двое:
-   * панель превью и живой вид редактора схемы. Общий реестр — то, из-за чего выбор поверхности,
-   * находки сборки и введённые значения у них ОДНИ, а не две похожие копии. Тот же приём и та же
-   * причина, что у реестров Monaco, делимых на троих.
-   */
-  readonly previewSessions?: Parameters<typeof createPreviewPlugin>[0]['sessions'];
-  /** Порт платформы для генерации кода. */
-  readonly codegen: CodegenHost;
-  /** Порт платформы для шаблонов форм. */
-  readonly templates: TemplatesHost;
-  /**
-   * Печатник встроенных шаблонов.
-   *
-   * Шаблоны печатает САМ генератор — тот же, что экспортирует форму. Иначе встроенный
-   * шаблон и результат экспорта разошлись бы: в v1 они и разошлись, потому что шаблоны
-   * были ~900 строк готового текста, который никто не пересобирал при правке эмиттеров.
-   * Переходник живёт здесь, потому что плагины не видят друг друга.
-   */
-  readonly printTemplate: ModulePrinter;
-  /**
-   * Каталог активного кита.
-   *
-   * Функция, а не список: кит переключают, и валидатор обязан сравнивать с тем каталогом,
-   * который действует СЕЙЧАС. Композиция читает его из сервиса китов `services.get(KitsServiceToken)`,
-   * то есть ЛЕНИВО: сервис появляется при активации плагина китов, а список плагинов
-   * собирается до неё. Захвати мы каталог здесь значением — получили бы снимок пустого.
-   */
-  readonly catalog?: () => readonly CatalogEntry[];
-}
+// Ленивых здесь нет ВОВСЕ — ни значением, ни типом: их значения приезжают литеральными
+// `import()` в `loadLazyBuiltinPlugins`, а типы нужны только опциям, то есть оболочке.
 
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);

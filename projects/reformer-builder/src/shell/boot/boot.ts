@@ -158,11 +158,10 @@ import {
 } from '@/shell/platform/plugin/typescript-transpiler';
 import { createBuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import { createPluginModules } from './plugin-modules';
-import { createEagerBuiltinPlugins, loadLazyBuiltinPlugins } from './plugins';
 import { CatalogPluginSettingsPoint } from '@/shell/platform/ui/contributions/plugin-settings';
 import { createPluginSettings } from '@/shell/platform/services/plugin-settings';
 import { asFormSchema } from './settings/schema-guard';
-import type { BuiltinPluginsOptions } from './plugins';
+import type { ApplicationComposition, BuiltinPluginsOptions } from './composition';
 import {
   createProjectHost,
   type ProjectFailure,
@@ -311,9 +310,21 @@ export interface BootOptions {
    * `null`/отсутствие — лаунчера нет (vite dev, чужой сервер): работа на вшитых дефолтах.
    */
   readonly runtime?: ParsedRuntimeConfig | null;
+  /**
+   * Состав приложения: какие встроенные плагины его образуют.
+   *
+   * Оболочка состава не знает и знать не должна — она объявляет его ФОРМУ
+   * ({@link ApplicationComposition}) и получает значение отсюда, из `main.tsx`.
+   *
+   * Поле ОБЯЗАТЕЛЬНОЕ и без умолчания, и это решение: умолчание `= builderApplication` вернуло бы
+   * в `boot` импорт из `@/application` — ровно ту зависимость, ради разворота которой слой заведён,
+   * и притом значением, то есть со всем составом в стартовом графе. Цена — каждый вызывающий
+   * называет состав сам; кроме `main.tsx` вызывают только тесты, а им это как раз и нужно.
+   */
+  readonly application: ApplicationComposition;
 }
 
-export function boot(options: BootOptions = {}): BuilderApp {
+export function boot(options: BootOptions): BuilderApp {
   /** Конфиг уровня запуска. Проектный уровень читается позже, на каждое открытие проекта. */
   const launchConfig: RuntimeConfig = options.runtime?.config ?? {};
   /** Титул до конфига — то, что написано в index.html; к нему возвращаемся без конфига. */
@@ -681,7 +692,7 @@ export function boot(options: BootOptions = {}): BuilderApp {
     catalog: activeCatalog,
   };
 
-  plugins.registerAll(createEagerBuiltinPlugins(builtinOptions));
+  plugins.registerAll(options.application.eager(builtinOptions));
 
   /**
    * Шаг 8: плагины каталога. Зовётся после того, как источник появился, — и повторно
@@ -831,7 +842,7 @@ export function boot(options: BootOptions = {}): BuilderApp {
     // отказ вместе с остальным шагом и снял бы активацию СТАТИЧЕСКИХ плагинов заодно.
     .then(async () => {
       try {
-        plugins.registerAll(await loadLazyBuiltinPlugins(builtinOptions));
+        plugins.registerAll(await options.application.lazy(builtinOptions));
       } catch (error) {
         console.error('[boot] ленивые плагины не загрузились', error);
         notifications.error('plugins.lazy-failed');

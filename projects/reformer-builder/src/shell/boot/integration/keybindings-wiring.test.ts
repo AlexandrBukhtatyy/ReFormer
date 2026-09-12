@@ -32,10 +32,10 @@ import { readWhenContext } from '@/shell/platform/services/context-keys';
 import { shouldDispatch } from '@/shell/platform/ui/keyboard/keybindings';
 import { whenContext } from '@/shell/platform/primitives/when-context';
 import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
-import { createBuiltinPlugins } from '../plugins';
+import { createBuiltinPlugins } from '@/application/composer/builtin-plugins';
 
 /**
- * Порты-пустышки. Тот же приём и та же причина, что в `plugins.test.ts`: здесь проверяется
+ * Порты-пустышки. Тот же приём и та же причина, что в `builtin-plugins.test.ts`: здесь проверяется
  * СОСТАВ объявленных сочетаний, а не поведение портов.
  */
 function stubHost(): never {
