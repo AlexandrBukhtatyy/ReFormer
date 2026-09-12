@@ -24,6 +24,7 @@ import { createElement } from 'react';
 import {
   definePlugin,
   EditorPoint,
+  EditorViewStatesToken,
   TextEditorFocusToken,
   type EditorContribution,
   type Plugin,
@@ -34,7 +35,7 @@ import type { MessageSink, MonacoHost } from './host';
 import { MONACO_EDITOR_PRIORITY } from './runtime/language';
 import { contributeMessages, resolveMessageSink } from './messages';
 import { MonacoEditorBody } from './ui/MonacoEditor';
-import { createViewStateRegistry, readViewState, type ViewStateRegistry } from './sync/view-state';
+import { readViewState, viewStatesOver, type ViewStateRegistry } from './sync/view-state';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
 export const MONACO_PLUGIN_ID = 'editor-monaco';
@@ -57,7 +58,11 @@ export interface MonacoEditorPluginOptions {
    * которого рабочая область не увидит.
    */
   readonly focus?: TextEditorFocusRegistry;
-  /** Реестр снимков вида. Обычно создаётся плагином; параметр — ради тестов. */
+  /**
+   * Снимки вида. Обычно плагин надевает свой вид на хранилище оболочки
+   * (`EditorViewStatesToken` в `@/sdk`); параметр — ради тестов и ради того же случая,
+   * что у {@link focus}: тело редактора одалживают ДО активации плагина.
+   */
   readonly viewStates?: ViewStateRegistry;
   /**
    * Приёмник словаря — на случай, если в контексте плагина ещё нет штатного `i18n`
@@ -115,15 +120,19 @@ export function monacoEditorContribution(options: {
  */
 export function createMonacoEditorPlugin(options: MonacoEditorPluginOptions): Plugin {
   const host = options.host;
-  const viewStates = options.viewStates ?? createViewStateRegistry();
 
   return definePlugin({
     id: MONACO_PLUGIN_ID,
     activate(ctx) {
-      // Служба Host: композиция регистрирует её до активации любого плагина, поэтому `require`
+      // Службы Host: композиция регистрирует их до активации любого плагина, поэтому `require`
       // здесь законен — правило «искать сервис в момент использования» про сервисы ЧУЖИХ
-      // плагинов. Без реестра редактор не имеет права работать: набранное терялось бы молча.
+      // плагинов. Без реестра фокуса редактор не имеет права работать: набранное терялось бы
+      // молча. Хранилище снимков — общее на все редакторы, и вид на него надевается именем
+      // ВКЛАДА: снимки Monaco и структурного редактора живут под разными ключами.
       const focus = options.focus ?? ctx.services.require(TextEditorFocusToken);
+      const viewStates =
+        options.viewStates ??
+        viewStatesOver(ctx.services.require(EditorViewStatesToken).forEditor(MONACO_EDITOR_ID));
       const sink = resolveMessageSink(ctx, options.i18n);
       if (sink !== null) contributeMessages(sink);
 

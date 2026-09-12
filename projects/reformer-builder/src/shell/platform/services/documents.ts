@@ -52,7 +52,7 @@
 
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
-import { defineService } from '@/shell/platform/primitives/service';
+import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
 import type { Document } from '@/shell/platform/workspace/document';
 import type { WriteOptions } from '@/shell/platform/workspace/workspace';
 
@@ -76,6 +76,19 @@ export interface DocumentsService {
   hasProject(): boolean;
   /** Ресурс активной вкладки; `null` без проекта и без вкладок. */
   activeResource(): ResourceId | null;
+  /**
+   * Ресурсы ВСЕХ открытых вкладок, в порядке вкладок. Без проекта — пусто.
+   *
+   * Не то же, что {@link activeResource}, и нужен тем, чьё состояние живёт дольше активной
+   * вкладки: превью помнит значения формы и находки сборки, пока открыт хоть один файл её
+   * каталога, и «хоть один» из активного не выводится — активным в этот миг бывает файл
+   * из совсем другого места.
+   *
+   * Список, а не событие «вкладку закрыли»: у хранилища вкладок событие одно — «снимок
+   * сменился», — и сведение по снимку не пропускает закрытие, случившееся мимо уведомления
+   * (смена проекта закрывает все вкладки разом).
+   */
+  openDocuments(): readonly ResourceId[];
   /**
    * Документ открытой вкладки. Настоящий {@link Document}, а не копия: `getText()` — то,
    * что уйдёт в файл при сохранении, а {@link Document.onDidChangeContent} — единственный
@@ -106,10 +119,49 @@ export interface DocumentsService {
   flush(id: ResourceId): void | Promise<void>;
 
   /**
+   * Каталог, в котором лежит ресурс. Для ресурса в корне источника — сам корень.
+   *
+   * Путевая арифметика даётся СЛУЖБОЙ, а не разрешается плагину: адрес ресурса для него
+   * непрозрачен намеренно (`primitives/resource-path`), иначе плагин начнёт различать
+   * источники, у которых внутри путь, и источники, у которых внутри ответ сервера. Спросить
+   * рабочую область — не то же, что разобрать строку самому: правило разбора остаётся одно
+   * и живёт там, где заведено.
+   *
+   * Нужно каждому, чьё состояние принадлежит КАТАЛОГУ, а не файлу: у превью значения формы
+   * и находки сборки общие на форму и её сайдкары.
+   */
+  parentOf(id: ResourceId): ResourceId;
+
+  /**
    * Сменился проект или вкладки: открытие, закрытие, активация. Нагрузки нет намеренно —
    * подписчик перечитывает снимок ({@link activeResource}, {@link documentOf}).
    */
   onDidChange(cb: () => void): Disposable;
 }
 
-export const DocumentsServiceToken = defineService<DocumentsService>('shell.documents');
+/**
+ * Рабочая область как ВОЗМОЖНОСТЬ: токен службы плюс версия контракта.
+ *
+ * Провайдер — сама оболочка, а не плагин (`services/host-capabilities`): служба существует
+ * с запуска, потому что без неё редактор из каталога проекта не редактор, и ставить её
+ * появление в зависимость от состава плагинов значило бы, что профиль без превью отнимает
+ * у внешнего редактора текст документа.
+ *
+ * Идентификатор ПРЕЖНИЙ — `shell.documents`, хотя RFC зовёт эту возможность
+ * `reformer.workspace`: смена `id` службы — это миграция сохранённых данных и чужих
+ * манифестов, и она отложена целиком в фазу 7 плана v4 (там же переименование `kits.active`).
+ *
+ * Версия `1.0.0` — исходная: {@link DocumentsService} на момент объявления, вместе
+ * с `openDocuments`. Растит её тот, кто интерфейс меняет: минор — добавленный метод,
+ * мажор — удалённый или сменивший смысл.
+ */
+export const DocumentsCapability: Capability<DocumentsService> = defineCapability<DocumentsService>(
+  { id: 'shell.documents', version: '1.0.0' }
+);
+
+/**
+ * Токен службы. ТОТ ЖЕ объект, что {@link DocumentsCapability}: возможность расширяет токен,
+ * второго реестра нет (`primitives/capability`). Имя оставлено — им пользуется `@/sdk`
+ * и каждый плагин, который уже берёт службу.
+ */
+export const DocumentsServiceToken = DocumentsCapability;

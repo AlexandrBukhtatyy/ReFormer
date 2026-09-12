@@ -56,7 +56,11 @@ import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
 import { createFilesPlugin, FILES_PLUGIN_ID } from '@/plugins/files';
 import { createMonacoEditorPlugin, MONACO_PLUGIN_ID } from '@/plugins/editor-monaco';
 import { createKitsPlugin, KITS_PLUGIN_ID, KitsCapability } from '@/plugins/kits';
-import { createPreviewPlugin, PREVIEW_PLUGIN_ID } from '@/plugins/preview';
+import {
+  createPreviewPlugin,
+  PREVIEW_PLUGIN_ID,
+  PreviewSessionsCapability,
+} from '@/plugins/preview';
 import {
   createSchemaValidatorPlugin,
   SCHEMA_VALIDATOR_PLUGIN_ID,
@@ -144,11 +148,12 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // Приоритет 10 против 1 у временного `textarea` в плагине файлов: Monaco его
     // вытесняет, но уступает структурному редактору схемы (100). Сам `TextEditor.tsx`
     // при этом остаётся запасным путём — на случай, когда движок не загрузился.
+    // Ни реестра фокуса, ни хранилища снимков вида здесь нет: оба — возможности оболочки,
+    // и плагин берёт их из `ctx.services`. Раньше они приезжали опциями, потому что общий
+    // объект приходилось раздавать троим руками; теперь общее — хранилище, а не объект.
     create: (options) =>
       createMonacoEditorPlugin({
         host: options.monaco,
-        focus: options.monacoFocus,
-        viewStates: options.monacoViewStates,
         i18n: options.i18n.forPlugin(MONACO_PLUGIN_ID),
       }),
   },
@@ -171,9 +176,15 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
       }),
   },
   {
-    // Статический: композиция сама создаёт реестр состояний и вешает на него жизненный цикл.
+    // Статический: поверхности нужны живому виду редактора схемы, а он ленивый — ждать
+    // его чанка, чтобы узнать, чем рисовать форму, значило бы показывать пустую полосу.
     id: PREVIEW_PLUGIN_ID,
     loading: 'eager',
+    // Состояния документов — наружу: их читает живой вид редактора схемы. Реестр заводит
+    // и чистит сам плагин (`plugins/preview/state/lifecycle`), поэтому состав без превью
+    // не заводит ни реестра, ни подписки на вкладки — а раньше заводил, для плагина,
+    // которого в нём нет.
+    provides: [PreviewSessionsCapability],
     // Точку поверхностей плагин объявляет структурно — `@/sdk` её пока не отдаёт, как и
     // `defineExtensionPoint`, которым чужой плагин мог бы объявить свою. Пока поверхности
     // вносит только сам превью, это ничего не стоит; появится вторая — точку надо вынести.
@@ -181,7 +192,6 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
       createPreviewPlugin({
         host: options.preview,
         i18n: options.i18n.forPlugin(PREVIEW_PLUGIN_ID),
-        sessions: options.previewSessions,
       }),
   },
   {

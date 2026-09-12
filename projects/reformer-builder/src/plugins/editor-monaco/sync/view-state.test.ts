@@ -5,14 +5,33 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  createViewStateRegistry,
-  isSameViewState,
-  readViewState,
-  type MonacoViewState,
-} from './view-state';
+import type { EditorViewStateSlice } from '@/sdk';
+import { isSameViewState, readViewState, viewStatesOver, type MonacoViewState } from './view-state';
 
 const state: MonacoViewState = { scrollTop: 120, scrollLeft: 0, line: 8, column: 3 };
+
+/**
+ * Хранилище оболочки в объёме вида — картой и со счётчиком записей.
+ *
+ * Двойник, а не настоящее `createEditorViewStates`: плагин платформу не импортирует, и это
+ * тот самый случай, ради которого вид принимает СРЕЗ, а не конкретное хранилище. Счётчик
+ * нужен одному утверждению — что повторная запись равного снимка до хранилища не доходит.
+ */
+function memorySlice(): EditorViewStateSlice & { readonly writes: () => number } {
+  const states = new Map<string, unknown>();
+  let writes = 0;
+  return {
+    record(id, value) {
+      writes += 1;
+      states.set(id, value);
+    },
+    peek: (id) => states.get(id),
+    forget(id) {
+      states.delete(id);
+    },
+    writes: () => writes,
+  };
+}
 
 describe('readViewState', () => {
   it('пропускает свой снимок целиком', () => {
@@ -43,37 +62,56 @@ describe('isSameViewState', () => {
   });
 });
 
-describe('createViewStateRegistry', () => {
+describe('viewStatesOver', () => {
   it('отдаёт последний записанный снимок', () => {
-    const registry = createViewStateRegistry();
+    const registry = viewStatesOver(memorySlice());
     registry.record('fs:a.ts', state);
     registry.record('fs:a.ts', { ...state, line: 9 });
     expect(registry.peek('fs:a.ts')).toEqual({ ...state, line: 9 });
   });
 
   it('снимки документов не смешиваются: у каждой вкладки своя прокрутка', () => {
-    const registry = createViewStateRegistry();
+    const registry = viewStatesOver(memorySlice());
     registry.record('fs:a.ts', state);
     registry.record('fs:b.ts', { ...state, scrollTop: 0 });
     expect(registry.peek('fs:a.ts')?.scrollTop).toBe(120);
   });
 
   it('без записи отвечает «нет снимка», а не выдумывает начало', () => {
-    expect(createViewStateRegistry().peek('fs:нет.ts')).toBeNull();
+    expect(viewStatesOver(memorySlice()).peek('fs:нет.ts')).toBeNull();
   });
 
-  it('повторная запись равного снимка ничего не меняет', () => {
-    const registry = createViewStateRegistry();
+  it('чужой снимок в хранилище равносилен его отсутствию, а не падению', () => {
+    // В общем хранилище лежат снимки ВСЕХ редакторов, и под ключом этого могло остаться
+    // значение прошлой версии — вид обязан его отвергнуть, а не отдать как свой.
+    const slice = memorySlice();
+    slice.record('fs:a.ts', { collapsed: ['узел'] });
+    expect(viewStatesOver(slice).peek('fs:a.ts')).toBeNull();
+  });
+
+  it('повторная запись равного снимка до хранилища не доходит', () => {
+    // Прокрутка сыплет событиями покадрово: без этого хранилище переписывалось бы на каждый
+    // кадр, а состояние у него теперь общее на все редакторы.
+    const slice = memorySlice();
+    const registry = viewStatesOver(slice);
     registry.record('fs:a.ts', state);
-    const first = registry.peek('fs:a.ts');
     registry.record('fs:a.ts', { ...state });
-    expect(registry.peek('fs:a.ts')).toBe(first);
+    expect(slice.writes()).toBe(1);
+    expect(registry.peek('fs:a.ts')).toEqual(state);
   });
 
   it('забывает документ: вкладку закрыли, восстанавливать нечего', () => {
-    const registry = createViewStateRegistry();
+    const registry = viewStatesOver(memorySlice());
     registry.record('fs:a.ts', state);
     registry.forget('fs:a.ts');
     expect(registry.peek('fs:a.ts')).toBeNull();
+  });
+
+  it('виды на ОДНО хранилище видят снимки друг друга: общее — оно, а не объект вида', () => {
+    // То, ради чего реестр переехал в платформу: раньше «тот же объект» приходилось раздавать
+    // композицией троим, и второй экземпляр молча терял позицию курсора.
+    const slice = memorySlice();
+    viewStatesOver(slice).record('fs:a.ts', state);
+    expect(viewStatesOver(slice).peek('fs:a.ts')).toEqual(state);
   });
 });

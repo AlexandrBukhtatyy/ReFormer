@@ -51,7 +51,9 @@ async function builtinCommands(): Promise<readonly CommandContribution[]> {
   // как сочетания тех, что едут в entry. Состав берётся ПОЛНЫЙ и тем же значением, что уходит
   // в `boot` из `main.tsx`: раскладка, проверенная на другом наборе, ничего не значила бы —
   // конфликт сочетаний живёт ровно между плагинами, которых собрали вместе.
-  plugins.registerAll(await composeAll(builderApplication, stubBuiltinOptions()));
+  for (const composed of await composeAll(builderApplication, stubBuiltinOptions())) {
+    plugins.register(composed.plugin, composed.provides);
+  }
   plugins.activateAll();
   return commands.getAll();
 }

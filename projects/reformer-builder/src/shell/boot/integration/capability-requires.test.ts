@@ -67,14 +67,20 @@ module.exports = definePlugin({
 });
 `;
 
-const manifest = (range: string): string =>
+/** Требование к возможности: идентификатор плюс диапазон — форма поля `requires` манифеста. */
+interface Requirement {
+  readonly id: string;
+  readonly range: string;
+}
+
+const manifest = (range: string, extra: readonly Requirement[] = []): string =>
   JSON.stringify({
     id: 'ext',
     name: 'External Kit Reader',
     version: '1.0.0',
     apiVersion: '^1',
     main: 'main.js',
-    requires: { required: [{ id: 'kits.active', range }] },
+    requires: { required: [{ id: 'kits.active', range }, ...extra] },
   });
 
 /** Крошечный кит: проверяется версия контракта службы, а не содержимое каталога. */
@@ -84,9 +90,9 @@ const KIT_CATALOG: CatalogJson = {
   components: [{ name: 'Alpha', role: 'field', propsSchema: { type: 'object' } }],
 };
 
-function harness(range: string) {
+function harness(range: string, extra: readonly Requirement[] = []) {
   const memory = createMemorySource({
-    [dir('manifest.json')]: manifest(range),
+    [dir('manifest.json')]: manifest(range, extra),
     [dir('main.js')]: PLUGIN_CODE,
   });
   // Каталог проекта — локальный диск, ему исполнение своего кода разрешено. Ветка запрета
@@ -181,6 +187,29 @@ describe('внешний плагин с требованием к возмож�
     // «Поставь новее» и «поставь вообще» — разные ответы, и человеку нужен второй.
     expect(entry?.problem?.message).toContain('1.0.0');
     expect(entry?.problem?.message).toContain(`«${KITS_PLUGIN_ID}»`);
+    h.dispose();
+  });
+
+  it('требование к возможности ОБОЛОЧКИ выполняется: её объявляет не плагин', async () => {
+    // Рабочую область, фокус текстового редактора и снимки вида даёт сама оболочка, и без
+    // части «builder.host» в составе (`composer/compose`) это требование выглядело бы как
+    // «никто не предоставляет» — у службы, которая заведена ровно для внешнего плагина.
+    const h = harness('^1', [{ id: 'shell.documents', range: '^1' }]);
+    await h.catalog.refresh();
+
+    expect(await h.catalog.enable('ext')).toBe(true);
+    h.dispose();
+  });
+
+  it('несовпадение версии возможности оболочки отказывает и называет оболочку', async () => {
+    const h = harness('^1', [{ id: 'shell.documents', range: '^2' }]);
+    await h.catalog.refresh();
+    await h.catalog.enable('ext');
+
+    const entry = h.catalog.list().find((item) => item.id === 'ext');
+    expect(entry?.state).toBe('failed');
+    expect(entry?.problem?.message).toContain('shell.documents');
+    expect(entry?.problem?.message).toContain('«builder.host»');
     h.dispose();
   });
 

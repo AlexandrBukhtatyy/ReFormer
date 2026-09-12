@@ -124,7 +124,7 @@ import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createSchemaHost } from '@/shell/boot/ports/schema';
 import { createAiHost } from '@/shell/boot/ports/ai';
-import { attachPreviewLifecycle, createPreviewHost } from '@/shell/boot/ports/preview';
+import { createPreviewHost } from '@/shell/boot/ports/preview';
 import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
 import { createCodegenHost } from '@/shell/boot/ports/codegen';
 import { createTemplatesHost } from '@/shell/boot/ports/templates';
@@ -141,12 +141,20 @@ import {
   toDisposable,
   type Disposable as HostDisposable,
 } from '@/shell/platform/primitives/disposable';
-import { createPreviewSessions } from '@/plugins/preview';
-import { createViewStateRegistry, monacoEditorContribution } from '@/plugins/editor-monaco';
+import { PreviewSessionsCapability } from '@/plugins/preview';
+import {
+  MONACO_EDITOR_ID,
+  monacoEditorContribution,
+  viewStatesOver,
+} from '@/plugins/editor-monaco';
 import {
   createTextEditorFocusRegistry,
   TextEditorFocusToken,
 } from '@/shell/platform/workspace/model/text-editor-focus';
+import {
+  createEditorViewStates,
+  EditorViewStatesToken,
+} from '@/shell/platform/workspace/model/editor-view-states';
 import { KitsServiceToken } from '@/plugins/kits';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
@@ -421,19 +429,19 @@ export function boot(options: BootOptions): BuilderApp {
   //    а база у них одна, и открывать её на каждую было бы четырьмя соединениями вместо одного.
   //    Само хранилище создано выше — его же делят настройки.
   const validation = createValidationOrchestrator({ extensions, diagnostics });
-  // Реестр фокуса текстового редактора — платформенный (`workspace/model/text-editor-focus`)
-  // и создаётся ЗДЕСЬ, потому что читателей у него двое: надстройка модели над открываемым
-  // документом (`attachDocumentModel({ isTextEditorFocused })`) и каждый текстовый редактор
-  // («перерисовывать ли буфер прямо сейчас»). Два реестра означали бы, что ход ассистента
-  // затирает набранное на полуслове, поэтому объект обязан быть одним: он уходит в сессию,
-  // в службу `TextEditorFocusToken` — единственный путь к нему для внешнего редактора из
-  // каталога проекта — и значением в опцию Monaco: его тело одалживают markdown и редактор
-  // схемы через `monacoEditorContribution`, то есть реестр нужен им до активации плагина.
-  const monacoFocus = createTextEditorFocusRegistry();
-  services.register(TextEditorFocusToken, monacoFocus);
-  // Снимки вида создаются здесь, а не внутри плагина: их делит с ним предпросмотр markdown,
-  // и два реестра означали бы потерю позиции курсора при каждом переключении режима.
-  const monacoViewStates = createViewStateRegistry();
+  // Разделяемые состояния редакторов — ВОЗМОЖНОСТИ оболочки, и регистрируются они здесь,
+  // до первой активации: их объявляет `platform/services/host-capabilities`, а сверяет
+  // объявленное с зарегистрированным интеграционный тест `integration/host-capabilities`.
+  //
+  // Фокус («печатает ли человек прямо сейчас») читают двое, и оба НИЖЕ любого плагина:
+  // надстройка модели над открываемым документом откладывает по нему перерисовку буфера,
+  // а каждый текстовый редактор в него пишет. Снимки вида («где была каретка») делят все
+  // редакторы: тело Monaco одалживают markdown и редактор схемы, и позиция курсора обязана
+  // пережить переключение вида. Раньше оба объекта раздавала композиция и правильность
+  // держалась на «это обязан быть тот же объект»; теперь общее — хранилище в реестре служб,
+  // и второй копии просто неоткуда взяться.
+  services.register(TextEditorFocusToken, createTextEditorFocusRegistry());
+  services.register(EditorViewStatesToken, createEditorViewStates());
   const project = createProjectHost({
     journals,
     sources,
@@ -443,7 +451,9 @@ export function boot(options: BootOptions): BuilderApp {
     // Провайдеры модели документа живут в реестре вкладов: без него сессия открывала бы
     // всё текстом, а структурный редактор не получил бы ни модели, ни истории.
     extensions,
-    isTextEditorFocused: (id) => monacoFocus.isFocused(id),
+    // Через реестр, а не захваченным объектом: владелец состояния — служба, и спрашивать
+    // её в момент вопроса дешевле, чем следить за тем, чтобы копия не разошлась.
+    isTextEditorFocused: (id) => services.get(TextEditorFocusToken)?.isFocused(id) ?? false,
     events,
     diagnostics,
     validation,
@@ -584,13 +594,17 @@ export function boot(options: BootOptions): BuilderApp {
    */
   const monacoTextEditor = monacoEditorContribution({
     host: monacoHost,
-    focus: monacoFocus,
-    viewStates: monacoViewStates,
+    // Из реестра, а не из локальных переменных: состояния — возможности оболочки (см. выше),
+    // и `require` здесь законен — обе зарегистрированы двадцатью строками раньше. Снимки
+    // адресуются именем ВКЛАДА редактора, поэтому Monaco видит только свои.
+    focus: services.require(TextEditorFocusToken),
+    viewStates: viewStatesOver(services.require(EditorViewStatesToken).forEditor(MONACO_EDITOR_ID)),
   }).Body;
 
-  // Порт превью и реестр его состояний создаются ЗДЕСЬ, потому что их берут двое: панель
-  // превью и живой вид редактора схемы. Общий реестр — то, из-за чего выбор поверхности,
-  // находки сборки и введённые в форму значения у них одни, а не две расходящиеся копии.
+  // Порт превью собирается ЗДЕСЬ — как и все порты. Реестра состояний рядом больше нет:
+  // его заводит сам плагин превью и отдаёт возможностью `preview.sessions`, а живой вид
+  // редактора схемы берёт его оттуда же. Общим он от этого быть не перестал — перестал быть
+  // общим ПО ДИСЦИПЛИНЕ композиции.
   const previewHost = createPreviewHost({
     project,
     i18n,
@@ -613,18 +627,16 @@ export function boot(options: BootOptions): BuilderApp {
       },
     },
   });
-  const previewSessions = createPreviewSessions();
-  // Состояния превью живут не дольше вкладок: закрытая вкладка забывает и режим, и находки
-  // сборки — иначе те висели бы в своде диагностик, а обновлять их было бы некому.
-  const previewLifecycle = attachPreviewLifecycle(project, previewSessions);
 
   /**
    * Опции встроенного набора — ОДИН объект на обе фазы.
    *
    * Статические плагины регистрируются здесь же, синхронно; ленивые доезжают внутри `ready`
    * (шаг 3 ниже) и получают ровно эти опции. Две копии объекта означали бы два порта у одного
-   * плагина — а порты держат разделяемые реестры, и второй экземпляр ломает ровно то, ради
-   * чего они разделяются.
+   * плагина: порт — это адаптер над платформой, и второй экземпляр ставил бы вторую подписку
+   * на те же события. Разделяемых РЕЕСТРОВ здесь больше нет ни одного — фокус, снимки вида
+   * и состояния превью стали возможностями и живут в реестре служб, — поэтому правильность
+   * больше не держится на «это обязан быть тот же объект».
    */
   const builtinOptions: BuiltinPluginsOptions = {
     i18n,
@@ -633,25 +645,32 @@ export function boot(options: BootOptions): BuilderApp {
     markdown: createMarkdownHost({
       project,
       i18n,
-      // Тот же порт и те же реестры, что у обычной code-вкладки: режим «рядом» показывает
-      // ровно тот редактор, в котором файл правится, а не его копию.
-      monaco: { host: monacoHost, focus: monacoFocus, viewStates: monacoViewStates },
+      // Тот же порт и то же хранилище, что у обычной code-вкладки: режим «рядом» показывает
+      // ровно тот редактор, в котором файл правится, а не его копию. Виды на хранилище
+      // здесь новые, и это теперь безразлично: состояние живёт в реестре, а не в них.
+      monaco: {
+        host: monacoHost,
+        focus: services.require(TextEditorFocusToken),
+        viewStates: viewStatesOver(
+          services.require(EditorViewStatesToken).forEditor(MONACO_EDITOR_ID)
+        ),
+      },
     }),
-    monacoFocus,
-    monacoViewStates,
     schema: createSchemaHost({
       project,
       i18n,
       services,
       // Один и тот же редактор кода на троих: обычная вкладка, «рядом» у markdown
-      // и исходник схемы. Общие реестры фокуса и снимков вида — условие того, что
+      // и исходник схемы. Общее хранилище фокуса и снимков вида — условие того, что
       // позиция курсора переживает переключение вида.
       TextEditor: monacoTextEditor,
       // И та же поверхность, что рисует форму в панели превью: «чем нарисована эта форма» —
       // один вопрос с одним ответом, где бы её ни показывали.
       live: createLiveSurfacePort({
         host: previewHost,
-        sessions: previewSessions,
+        // Состояния берутся у ВЛАДЕЛЬЦА — плагина превью — в момент обращения: порт
+        // собирается раньше активации, и захватывать тут нечего.
+        sessions: () => services.get(PreviewSessionsCapability),
         extensions,
         i18n,
       }),
@@ -668,7 +687,6 @@ export function boot(options: BootOptions): BuilderApp {
     },
     ai: createAiHost({ project, i18n, services }),
     preview: previewHost,
-    previewSessions,
     codegen: createCodegenHost({ project, i18n, services }),
     templates: createTemplatesHost({ project, i18n, services }),
     // Кита нет — встроенных шаблонов нет: печатать их нечем, а умолчание напечатало бы
@@ -697,7 +715,13 @@ export function boot(options: BootOptions): BuilderApp {
     catalog: activeCatalog,
   };
 
-  plugins.registerAll(options.application.eager(builtinOptions));
+  // По одному, а не `registerAll`: вместе с плагином в реестр уходит то, что он ОБЕЩАЛ дать
+  // остальным, — и к концу `activate` рантайм сверит обещанное с зарегистрированным. Без этой
+  // пары встроенный плагин мог бы объявить возможность в карте состава и не зарегистрировать
+  // её, а резолвер продолжал бы верить объявлению.
+  for (const composed of options.application.eager(builtinOptions)) {
+    plugins.register(composed.plugin, composed.provides);
+  }
 
   /**
    * Шаг 8: плагины каталога. Зовётся после того, как источник появился, — и повторно
@@ -857,7 +881,9 @@ export function boot(options: BootOptions): BuilderApp {
     // отказ вместе с остальным шагом и снял бы активацию СТАТИЧЕСКИХ плагинов заодно.
     .then(async () => {
       try {
-        plugins.registerAll(await options.application.lazy(builtinOptions));
+        for (const composed of await options.application.lazy(builtinOptions)) {
+          plugins.register(composed.plugin, composed.provides);
+        }
       } catch (error) {
         console.error('[boot] ленивые плагины не загрузились', error);
         notifications.error('plugins.lazy-failed');
@@ -998,7 +1024,6 @@ export function boot(options: BootOptions): BuilderApp {
       projectPlugins.dispose();
       pluginModules.dispose();
       plugins.deactivateAll();
-      previewLifecycle.dispose();
       documents.dispose();
       project.dispose();
       status.dispose();

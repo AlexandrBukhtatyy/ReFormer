@@ -10,7 +10,9 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  EditorViewStatesToken,
   TextEditorFocusToken,
+  type EditorViewStateSlice,
   type PluginContext,
   type ResourceRef,
   type TextEditorFocusRegistry,
@@ -23,7 +25,26 @@ import {
   MONACO_EDITOR_ID,
   MONACO_PLUGIN_ID,
 } from './plugin';
-import { createViewStateRegistry } from './sync/view-state';
+import { viewStatesOver, type ViewStateRegistry } from './sync/view-state';
+
+/** Хранилище оболочки в объёме среза: плагину в тесте взять его неоткуда. */
+function fakeSlice(): EditorViewStateSlice {
+  const states = new Map<string, unknown>();
+  return {
+    record: (id, value) => {
+      states.set(id, value);
+    },
+    peek: (id) => states.get(id),
+    forget: (id) => {
+      states.delete(id);
+    },
+  };
+}
+
+/** Снимки вида этого редактора — типизированный вид на такой срез. */
+function fakeViewStates(): ViewStateRegistry {
+  return viewStatesOver(fakeSlice());
+}
 
 /**
  * Приоритет временного редактора на `textarea` из плагина файлов.
@@ -63,7 +84,7 @@ function contribution() {
   return monacoEditorContribution({
     host: fakeHost(),
     focus: fakeFocus(),
-    viewStates: createViewStateRegistry(),
+    viewStates: fakeViewStates(),
   });
 }
 
@@ -106,7 +127,7 @@ describe('состояние вида', () => {
   });
 
   it('переживает круг «снять → вернуть»', () => {
-    const viewStates = createViewStateRegistry();
+    const viewStates = fakeViewStates();
     const editor = monacoEditorContribution({
       host: fakeHost(),
       focus: fakeFocus(),
@@ -127,7 +148,7 @@ describe('состояние вида', () => {
   });
 
   it('непонятный снимок не восстанавливается и не роняет открытие', () => {
-    const viewStates = createViewStateRegistry();
+    const viewStates = fakeViewStates();
     const editor = monacoEditorContribution({
       host: fakeHost(),
       focus: fakeFocus(),
@@ -154,11 +175,14 @@ describe('createMonacoEditorPlugin', () => {
           locales.push(locale);
         },
       },
-      // Службы Host: реестр фокуса композиция регистрирует до активации плагинов.
+      // Службы Host: и реестр фокуса, и хранилище снимков вида оболочка регистрирует
+      // до активации плагинов — обе объявлены в `platform/services/host-capabilities`.
       services: {
         require: (token: { id: string }) => {
           required.push(token.id);
-          return fakeFocus();
+          return token.id === EditorViewStatesToken.id
+            ? { forEditor: () => fakeSlice() }
+            : fakeFocus();
         },
       },
       extensions: {
@@ -194,7 +218,10 @@ describe('createMonacoEditorPlugin', () => {
 
     createMonacoEditorPlugin({
       host: fakeHost(),
+      // И реестр, и снимки — значениями: у этого контекста реестра служб нет вовсе,
+      // а проверяется здесь только путь словаря.
       focus: fakeFocus(),
+      viewStates: fakeViewStates(),
       i18n: {
         contribute: (locale: string) => {
           locales.push(locale);
@@ -210,15 +237,16 @@ describe('createMonacoEditorPlugin', () => {
     const plugin = createMonacoEditorPlugin({ host: fakeHost(), focus: fakeFocus() });
     expect(plugin.id).toBe(MONACO_PLUGIN_ID);
     plugin.activate(ctx);
-    // Реестр дан значением — службу плагин не спрашивает: второй объект был бы вторым ответом
-    // на вопрос «печатает ли человек», и рабочая область его бы не увидела.
-    expect(required).toEqual([]);
+    // Реестр дан значением — службу фокуса плагин не спрашивает: второй объект был бы вторым
+    // ответом на вопрос «печатает ли человек», и рабочая область его бы не увидела. Хранилище
+    // снимков он спрашивает всё равно: значением ему его не давали.
+    expect(required).toEqual([EditorViewStatesToken.id]);
   });
 
   it('без опции берёт реестр фокуса из службы платформы — той же, что читает рабочая область', () => {
     const { ctx, required } = fakeContext();
     createMonacoEditorPlugin({ host: fakeHost() }).activate(ctx);
-    expect(required).toEqual([TextEditorFocusToken.id]);
+    expect(required).toEqual([TextEditorFocusToken.id, EditorViewStatesToken.id]);
   });
 
   it('на активации ничего не грузит: Monaco приходит с первым открытым файлом', () => {

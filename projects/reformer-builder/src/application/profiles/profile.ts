@@ -42,6 +42,19 @@ export interface ApplicationProfile {
   readonly plugins: readonly string[];
   /** Профиль-основа: его список идёт ПЕРЕД своим. Цепочка любой длины, круги отвергаются. */
   readonly extends?: string;
+  /**
+   * Выбор провайдера: идентификатор возможности → идентификатор плагина.
+   *
+   * Нужен там, где одну возможность объявили двое: слот службы один, и «возьмём любого»
+   * сделало бы состав зависимым от порядка карты. Это вопрос к человеку, и отвечает на него
+   * профиль — то есть данные, а не код.
+   *
+   * Наследуется как список плагинов: запись наследника перекрывает запись основы по ключу.
+   * Выбор, называющий плагина, который эту возможность не объявляет, ОТВЕРГАЕТСЯ сборкой
+   * состава (`composer/compose`): молчаливое «тогда оставим как есть» пряталось бы ровно
+   * до первого запуска — а профиль пишет человек, как и имя плагина рядом.
+   */
+  readonly providers?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -53,5 +66,11 @@ export interface ApplicationProfile {
  * `readonly` в типе такая правка — всего лишь `as`, а при `Object.freeze` её нет вовсе.
  */
 export function defineProfile(profile: ApplicationProfile): ApplicationProfile {
-  return Object.freeze({ ...profile, plugins: Object.freeze([...profile.plugins]) });
+  return Object.freeze({
+    ...profile,
+    plugins: Object.freeze([...profile.plugins]),
+    ...(profile.providers === undefined
+      ? {}
+      : { providers: Object.freeze({ ...profile.providers }) }),
+  });
 }

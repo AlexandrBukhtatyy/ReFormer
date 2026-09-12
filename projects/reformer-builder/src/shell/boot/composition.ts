@@ -27,17 +27,17 @@
 
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { CapabilityProvider } from '@/shell/platform/primitives/capability';
+import type { CapabilityDeclaration } from '@/shell/platform/primitives/capability';
 import type { Plugin } from '@/shell/platform/plugin/types';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import type { TextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 
 // Порты и настройки встроенных — только ТИПЫ, до единого. `verbatimModuleSyntax` стирает такой
 // импорт целиком, графа он не создаёт: ни один барель плагина отсюда в стартовый граф не едет,
 // и ленивые шестеро остаются отдельными файлами. Стережёт это храповик в тесте состава.
 import type { FilesHost } from '@/plugins/files';
-import type { MonacoHost, ViewStateRegistry } from '@/plugins/editor-monaco';
+import type { MonacoHost } from '@/plugins/editor-monaco';
 import type { KitsPluginOptions } from '@/plugins/kits';
-import type { createPreviewPlugin, PreviewHost } from '@/plugins/preview';
+import type { PreviewHost } from '@/plugins/preview';
 import type { PluginManagerPluginOptions } from '@/plugins/plugin-manager';
 import type { MarkdownHost } from '@/plugins/editor-markdown';
 import type { SchemaEditorHost } from '@/plugins/editor-schema';
@@ -57,11 +57,28 @@ import type { ModulePrinter, TemplatesHost } from '@/plugins/templates';
  * не задаётся и задан быть не может: ответ на него — литеральные `import()`, а литерал обязан
  * лежать там же, где список.
  */
+/**
+ * Плагин вместе с тем, что он ОБЪЯВИЛ снаружи своего кода.
+ *
+ * Пара, а не поле {@link Plugin}, по той же причине, по которой объявление приходит вторым
+ * аргументом в `PluginRegistry.register`: источник у него другой — манифест у плагина
+ * каталога, карта состава у встроенного, — и читается оно ДО того, как код плагина исполнится.
+ * Поле внутри плагина означало бы, что объявление известно только после загрузки, то есть
+ * ровно тогда, когда проверять его уже поздно.
+ *
+ * Необязательное `provides` — это «ничего не обещал», а не «обещал пустое»: таких
+ * встроенных большинство.
+ */
+export interface ComposedPlugin {
+  readonly plugin: Plugin;
+  readonly provides?: readonly CapabilityDeclaration[];
+}
+
 export interface ApplicationComposition {
   /** Плагины стартового графа: регистрируются синхронно, при сборке приложения. */
-  eager(options: BuiltinPluginsOptions): readonly Plugin[];
+  eager(options: BuiltinPluginsOptions): readonly ComposedPlugin[];
   /** Плагины, приезжающие своим файлом: их дожидается `ready`, тоже до первой отрисовки. */
-  lazy(options: BuiltinPluginsOptions): Promise<readonly Plugin[]>;
+  lazy(options: BuiltinPluginsOptions): Promise<readonly ComposedPlugin[]>;
   /**
    * Что этот состав ОБЪЯВЛЯЕТ — возможности встроенных плагинов с версиями и владельцами.
    *
@@ -90,25 +107,6 @@ export interface BuiltinPluginsOptions {
   readonly files: FilesHost;
   /** Порт платформы для редактора Monaco. */
   readonly monaco: MonacoHost;
-  /**
-   * Общий реестр фокуса текстового редактора — платформенный.
-   *
-   * **Обязан быть тем же объектом**, что зарегистрирован службой `TextEditorFocusToken` и
-   * уходит в `createDocumentModels({ isTextEditorFocused })`. Это условие правильности, а не
-   * удобство подключения: перерисовка буфера по модели откладывается, пока человек печатает,
-   * и «печатает ли он» знает только редактор. Два реестра означали бы, что ход ассистента
-   * затирает набранное на полуслове. Значением, а не службой, — потому что тело Monaco
-   * одалживают порты markdown и схемы до активации плагина.
-   */
-  readonly monacoFocus: TextEditorFocusRegistry;
-  /**
-   * Реестр снимков вида Monaco.
-   *
-   * Приходит от композиции, потому что его делят двое: сам редактор и предпросмотр
-   * markdown, одалживающий тело редактора для режима «рядом». Два реестра означали бы
-   * потерянную позицию курсора при каждом переключении режима.
-   */
-  readonly monacoViewStates?: ViewStateRegistry;
   /**
    * Порт предпросмотра markdown.
    *
@@ -141,15 +139,6 @@ export interface BuiltinPluginsOptions {
   readonly ai: AiHost;
   /** Порт платформы для превью. */
   readonly preview: PreviewHost;
-  /**
-   * Реестр состояний превью.
-   *
-   * Создаётся композицией, а не плагином, потому что показывающих поверхности стало двое:
-   * панель превью и живой вид редактора схемы. Общий реестр — то, из-за чего выбор поверхности,
-   * находки сборки и введённые значения у них ОДНИ, а не две похожие копии. Тот же приём и та же
-   * причина, что у реестров Monaco, делимых на троих.
-   */
-  readonly previewSessions?: Parameters<typeof createPreviewPlugin>[0]['sessions'];
   /** Порт платформы для генерации кода. */
   readonly codegen: CodegenHost;
   /** Порт платформы для шаблонов форм. */

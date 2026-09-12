@@ -77,7 +77,9 @@ projects/reformer-builder/
 │   │   │   ├── services/        службы платформы — один каталог, один ответ на вопрос
 │   │   │   │                    «какие они есть»: i18n/, diagnostics/, validation/,
 │   │   │   │                    settings, theme, notifications, prompt, selection,
-│   │   │   │                    context-keys, resource-clipboard, documents
+│   │   │   │                    context-keys, resource-clipboard, documents,
+│   │   │   │                    host-capabilities (что даёт САМА оболочка: documents,
+│   │   │   │                    фокус текстового редактора, снимки вида)
 │   │   │   ├── modules/         механика загрузки кода: registry, linker, transpilers, compile-cache
 │   │   │   ├── plugin/          рантайм плагинов: types, context, registry, loader, catalog, storage, styles
 │   │   │   └── ui/              оболочка и слоты
@@ -101,7 +103,9 @@ projects/reformer-builder/
 │   │       ├── settings-sections.ts  состав окна настроек
 │   │       ├── ports/           адаптеры портов плагинов: files, monaco, markdown, schema,
 │   │       │                    preview, ai, codegen, templates; documents — служба рабочей
-│   │       │                    области для ЛЮБОГО плагина; мосты live-surface, kit-namespace
+│   │       │                    области для ЛЮБОГО плагина; мосты live-surface, kit-namespace.
+│   │       │                    Разделяемых реестров здесь НЕТ: фокус и снимки вида — службы
+│   │       │                    платформы, состояния превью — возможность своего плагина
 │   │       ├── project/         project, workspace-session, document-models, opened-tabs,
 │   │       │                    project-status, useProject, ProjectTree
 │   │       └── integration/     интеграционные тесты СБОРКИ — единственное узаконенное
@@ -118,11 +122,13 @@ projects/reformer-builder/
 │   │   │   ├── compose.ts   `fromProfile(profile, overrides?)` → пара фаз для boot
 │   │   │   └── testing.ts   опции-пустышки для трёх проверок состава
 │   │   ├── profiles/        профиль = ДАННЫЕ: имя, список плагинов, необязательный
-│   │   │                    `extends`. reformer.builder (полный), minimal, ai-builder;
-│   │   │                    registry.ts разрешает имя в профиль
+│   │   │                    `extends`, выбор провайдера (`providers`) там, где одну
+│   │   │                    возможность объявили двое. reformer.builder (полный),
+│   │   │                    minimal, ai-builder; registry.ts разрешает имя в профиль
 │   │   └── resolver/
 │   │       ├── profile-resolver.ts  `extends` цепочкой, дедупликация с порядком,
-│   │       │                  enable/disable, отказ по имени на неизвестное и на круг
+│   │       │                  enable/disable, склейка `providers` по цепочке,
+│   │       │                  отказ по имени на неизвестное и на круг
 │   │       └── capability-resolver.ts  кто что даёт, чего не хватает, кто спорит за слот —
 │   │                          ДО загрузки кода; отказ здесь данные, а не исключение
 │   │

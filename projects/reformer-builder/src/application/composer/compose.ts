@@ -6,6 +6,14 @@
  * незнакомые (`application/resolver`). Карта знает, КАК создаётся каждый плагин и каким
  * файлом он приезжает (`./builtin-plugins`). Здесь эти три знания встречаются, и только здесь.
  *
+ * ## Выбор провайдера — тоже данные профиля
+ *
+ * Возможность, объявленная двумя плагинами, — вопрос к человеку, а не повод «взять любого»:
+ * слот службы один. Ответ живёт в профиле (`providers`), приезжает сюда вместе с составом
+ * и уходит в резолвер. Здесь же он ПРОВЕРЯЕТСЯ на осмысленность: резолвер обязан отвечать
+ * списками, а не бросать, но профиль пишет человек — и его опечатка должна называться,
+ * а не молчать до первого запуска.
+ *
  * ## Список разрешается ОДИН раз, а не на каждую фазу
  *
  * `fromProfile` разрешает профиль немедленно и запирает результат в замыкания обеих фаз.
@@ -18,12 +26,20 @@
  * @module application/composer/compose
  */
 
-import type { ApplicationComposition, BuiltinPluginsOptions } from '@/shell/boot/composition';
-import type { Plugin } from '@/shell/platform/plugin/types';
+import type {
+  ApplicationComposition,
+  BuiltinPluginsOptions,
+  ComposedPlugin,
+} from '@/shell/boot/composition';
+import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/host-capabilities';
 import { findProfile } from '../profiles/registry';
 import type { ApplicationProfile } from '../profiles/profile';
 import { describeCapabilityProblems, resolveCapabilities } from '../resolver/capability-resolver';
-import { resolveProfile, type PluginOverrides } from '../resolver/profile-resolver';
+import {
+  resolveProfile,
+  resolveProviders,
+  type PluginOverrides,
+} from '../resolver/profile-resolver';
 import {
   BUILTIN_PLUGINS,
   type EagerBuiltinPlugin,
@@ -62,7 +78,15 @@ export function fromProfile(
   // которой список разрешается один раз: ответ «этот состав собирается» обязан относиться
   // ровно к тому набору, который поедет в обе фазы. Ни одного плагина это не грузит — читаются
   // объявления карты, то есть литералы.
-  const capabilities = resolveCapabilities({ parts: entries });
+  //
+  // Часть «оболочка» идёт наравне с плагинами: рабочую область, фокус текстового редактора
+  // и снимки вида даёт не плагин, а сама оболочка (`platform/services/host-capabilities`).
+  // Без неё внешний плагин с `requires: shell.documents@^1` получал бы отказ «никто
+  // не предоставляет» ровно у той службы, которая заведена для него же.
+  const parts = [{ id: HOST_PROVIDER_ID, provides: HOST_CAPABILITIES }, ...entries];
+  const chosen = resolveProviders({ profile, lookup: findProfile });
+  const capabilities = resolveCapabilities({ parts, chosen });
+  rejectEmptyChoices(profile, chosen, parts);
   const problems = describeCapabilityProblems(capabilities);
   if (problems !== '') {
     // Отказ, а не тихая сборка: состав, в котором плагину нечем работать, соберётся и упадёт
@@ -76,13 +100,53 @@ export function fromProfile(
 
   return Object.freeze({
     capabilities: capabilities.providers,
-    eager: (options: BuiltinPluginsOptions): readonly Plugin[] =>
-      Object.freeze(eager.map((entry) => entry.create(options))),
+    eager: (options: BuiltinPluginsOptions): readonly ComposedPlugin[] =>
+      Object.freeze(
+        eager.map((entry) => ({ plugin: entry.create(options), provides: entry.provides }))
+      ),
     // Все фабрики зовутся ДО первого `await`, поэтому их `import()` уходят в один тик —
     // столько параллельных запросов, сколько ленивых плагинов, а не цепочка из шести.
-    lazy: async (options: BuiltinPluginsOptions): Promise<readonly Plugin[]> =>
-      Object.freeze(await Promise.all(lazy.map((entry) => entry.create(options)))),
+    lazy: async (options: BuiltinPluginsOptions): Promise<readonly ComposedPlugin[]> =>
+      Object.freeze(
+        await Promise.all(
+          lazy.map(async (entry) => ({
+            plugin: await entry.create(options),
+            provides: entry.provides,
+          }))
+        )
+      ),
   });
+}
+
+/**
+ * Отвергает выбор провайдера, который ничего не выбирает.
+ *
+ * Резолвер такой выбор просто НЕ ПРИМЕНЯЕТ — и правильно делает: он разбирает данные и обязан
+ * отвечать списками, а не бросать. Но здесь данные пришли из ПРОФИЛЯ, который пишет человек,
+ * и «выбрали того, кто эту возможность не даёт» — такая же опечатка, как имя плагина, которого
+ * нет в карте. Промолчи мы — при одном провайдере не изменилось бы ничего, а при двух состав
+ * отказался бы собираться с жалобой на конфликт, ни словом не упомянув сделанный выбор.
+ */
+function rejectEmptyChoices(
+  profile: ApplicationProfile,
+  chosen: Readonly<Record<string, string>>,
+  parts: readonly { readonly id: string; readonly provides?: readonly { readonly id: string }[] }[]
+): void {
+  for (const [capabilityId, pluginId] of Object.entries(chosen)) {
+    const part = parts.find((candidate) => candidate.id === pluginId);
+    if (part === undefined) {
+      throw new Error(
+        `профиль «${profile.id}»: выбран провайдер «${pluginId}» для возможности ` +
+          `«${capabilityId}», но такой части в составе нет`
+      );
+    }
+    if (!(part.provides ?? []).some((declaration) => declaration.id === capabilityId)) {
+      throw new Error(
+        `профиль «${profile.id}»: «${pluginId}» выбран провайдером «${capabilityId}», ` +
+          'но этой возможности он не объявляет'
+      );
+    }
+  }
 }
 
 /**
@@ -95,7 +159,7 @@ export function fromProfile(
 export async function composeAll(
   composition: ApplicationComposition,
   options: BuiltinPluginsOptions
-): Promise<readonly Plugin[]> {
+): Promise<readonly ComposedPlugin[]> {
   const lazy = await composition.lazy(options);
   return Object.freeze([...composition.eager(options), ...lazy]);
 }

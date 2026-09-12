@@ -36,7 +36,7 @@ import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits
 import { builderApplication } from '../builder-application';
 import { BUILTIN_PLUGINS, LAZY_PLUGIN_IDS } from './builtin-plugins';
 import { composeAll } from './compose';
-import { stubBuiltinOptions } from './testing';
+import { stubBuiltinOptions, stubHostCapabilities } from './testing';
 
 /**
  * Русский словарь плагина или `null`, если словаря у него нет.
@@ -59,6 +59,9 @@ async function loadPluginLocale(id: string): Promise<Record<string, string> | nu
 
 async function harness() {
   const services = createServiceRegistry();
+  // Возможности оболочки — до активации, как в `boot`: без реестра фокуса и хранилища
+  // снимков вида редактор кода не имеет права работать и отказывается подниматься.
+  stubHostCapabilities(services);
   const extensions = createExtensionRegistry();
   const commands = createCommandRegistry();
   const events = createEventBus();
@@ -73,9 +76,15 @@ async function harness() {
   });
 
   // Ждём ОБЕ фазы: состав проверяется целиком, а не только той половиной, что едет в entry.
-  const built = await composeAll(builderApplication, stubBuiltinOptions());
+  const composed = await composeAll(builderApplication, stubBuiltinOptions());
+  const built = composed.map((entry) => entry.plugin);
 
-  return { built, plugins, extensions, commands, services, onError };
+  /** Регистрация как в `boot`: вместе с плагином уходит то, что он ОБЕЩАЛ дать остальным. */
+  const registerComposed = (): void => {
+    for (const entry of composed) plugins.register(entry.plugin, entry.provides);
+  };
+
+  return { built, composed, registerComposed, plugins, extensions, commands, services, onError };
 }
 
 describe('карта встроенных плагинов', () => {
@@ -140,6 +149,23 @@ describe('состав встроенных плагинов', () => {
     const failed = h.plugins.statuses().filter((s) => s.state !== 'active');
     expect(failed).toEqual([]);
     expect(h.onError).not.toHaveBeenCalled();
+  });
+
+  it('объявленное в карте состава РЕГИСТРИРУЕТСЯ: обещание доезжает до реестра служб', async () => {
+    // Объявление `provides` читается ДО загрузки кода и решает, поднимется ли внешний плагин
+    // с `requires`. Соврать в нём — значит отказать соседу по причине, которой нет, или
+    // пустить его к службе, которой не будет. У плагина каталога это стережёт проверка
+    // обещанного (`plugin/registry`, фаза `provides`); здесь проверяется, что встроенные
+    // регистрируются ТЕМ ЖЕ путём — парой «плагин + объявление», как в `boot`.
+    const h = await harness();
+    h.registerComposed();
+    h.plugins.activateAll();
+
+    const declared = h.composed.flatMap((entry) => entry.provides ?? []);
+    expect(declared.length).toBeGreaterThanOrEqual(2);
+    expect(declared.filter((capability) => h.services.get(capability) === undefined)).toEqual([]);
+    // Обратная сторона: ни один не переведён в `failed` за неисполненное обещание.
+    expect(h.plugins.failures().filter((failure) => failure.phase === 'provides')).toEqual([]);
   });
 
   it('идентификаторы уникальны', async () => {
@@ -400,14 +426,16 @@ describe('две фазы: что едет в entry, а что своим фай
   it('ленивая фаза полного профиля отдаёт ровно тех, кто объявлен ленивым', async () => {
     const lazy = await builderApplication.lazy(stubBuiltinOptions());
 
-    expect(lazy.map((plugin) => plugin.id).sort()).toEqual([...LAZY_PLUGIN_IDS].sort());
+    expect(lazy.map((composed) => composed.plugin.id).sort()).toEqual([...LAZY_PLUGIN_IDS].sort());
   });
 
   it('фазы не пересекаются и вместе дают весь набор', async () => {
     const options = stubBuiltinOptions();
-    const eager = builderApplication.eager(options).map((plugin) => plugin.id);
-    const lazy = (await builderApplication.lazy(options)).map((plugin) => plugin.id);
-    const all = (await composeAll(builderApplication, options)).map((plugin) => plugin.id);
+    const eager = builderApplication.eager(options).map((composed) => composed.plugin.id);
+    const lazy = (await builderApplication.lazy(options)).map((composed) => composed.plugin.id);
+    const all = (await composeAll(builderApplication, options)).map(
+      (composed) => composed.plugin.id
+    );
 
     expect(eager.filter((id) => lazy.includes(id))).toEqual([]);
     expect([...eager, ...lazy].sort()).toEqual([...all].sort());
@@ -419,7 +447,9 @@ describe('две фазы: что едет в entry, а что своим фай
     // состава остался бы зелёным: он проверяет то, что собралось.
     const all = await composeAll(builderApplication, stubBuiltinOptions());
 
-    expect(all.map((plugin) => plugin.id).sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
+    expect(all.map((composed) => composed.plugin.id).sort()).toEqual(
+      [...BUILTIN_PLUGINS.keys()].sort()
+    );
   });
 
   /**

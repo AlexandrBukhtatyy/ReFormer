@@ -49,7 +49,7 @@
  */
 
 import type { ResourceId } from '@/shell/platform/primitives/resource';
-import { defineService } from '@/shell/platform/primitives/service';
+import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
 
 export interface TextEditorFocusRegistry {
   /** В фокусе ли текстовый редактор этого документа. */
@@ -61,13 +61,25 @@ export interface TextEditorFocusRegistry {
 }
 
 /**
- * Служба фокуса текстового редактора.
+ * Возможность «кто сейчас печатает»: токен службы плюс версия контракта.
  *
- * Служба Host: композиция регистрирует её до активации плагинов, поэтому редактор вправе
- * взять её `require` прямо в `activate` — правило «сервис ищется в момент использования»
+ * Провайдер — оболочка (`services/host-capabilities`), а не редактор, и это то же решение,
+ * что у самого реестра: писать в него обязан КАЖДЫЙ текстовый редактор, поэтому принадлежать
+ * он не может ни одному. Регистрируется до активации плагинов, поэтому редактор вправе взять
+ * его `require` прямо в `activate` — правило «сервис ищется в момент использования»
  * (`plugin/types.ts`) касается сервисов ЧУЖИХ плагинов, а не платформы.
+ *
+ * Идентификатор ПРЕЖНИЙ — `shell.textEditorFocus`; переименование в `reformer.editor.focus`
+ * (как зовёт RFC) идёт общей миграцией идентификаторов в фазе 7 плана v4.
  */
-export const TextEditorFocusToken = defineService<TextEditorFocusRegistry>('shell.textEditorFocus');
+export const TextEditorFocusCapability: Capability<TextEditorFocusRegistry> =
+  defineCapability<TextEditorFocusRegistry>({
+    id: 'shell.textEditorFocus',
+    version: '1.0.0',
+  });
+
+/** Токен службы — ТОТ ЖЕ объект: возможность расширяет токен, второго реестра нет. */
+export const TextEditorFocusToken = TextEditorFocusCapability;
 
 /**
  * Создаёт реестр фокуса.

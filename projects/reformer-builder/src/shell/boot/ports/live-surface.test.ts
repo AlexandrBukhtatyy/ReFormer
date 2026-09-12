@@ -66,7 +66,10 @@ function fakeSurface(
   };
 }
 
-function harness(surfaces: readonly PreviewSurface[] = []) {
+function harness(
+  surfaces: readonly PreviewSurface[] = [],
+  options: { readonly sessions?: false } = {}
+) {
   const extensions = createExtensionRegistry();
   const i18n = createI18nService();
   for (const [locale, messages] of Object.entries(PREVIEW_MESSAGES)) {
@@ -77,7 +80,14 @@ function harness(surfaces: readonly PreviewSurface[] = []) {
 
   const sessions = createPreviewSessions();
   const host = createFakeHost();
-  const port = createLiveSurfacePort({ host, sessions, extensions, i18n });
+  // Состояния спрашиваются в момент обращения: `sessions: false` — состав без превью,
+  // где возможности в реестре нет вовсе.
+  const port = createLiveSurfacePort({
+    host,
+    sessions: () => (options.sessions === false ? undefined : sessions),
+    extensions,
+    i18n,
+  });
   return { port, sessions, extensions, host };
 }
 

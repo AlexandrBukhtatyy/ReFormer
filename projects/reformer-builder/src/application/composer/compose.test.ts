@@ -24,7 +24,7 @@ import { stubBuiltinOptions } from './testing';
 /** Идентификаторы собранного состава — в том порядке, в каком их отдала композиция. */
 async function idsOf(composition: ReturnType<typeof fromProfile>): Promise<readonly string[]> {
   const built = await composeAll(composition, stubBuiltinOptions());
-  return built.map((plugin) => plugin.id);
+  return built.map((composed) => composed.plugin.id);
 }
 
 describe('fromProfile', () => {
@@ -63,8 +63,8 @@ describe('fromProfile', () => {
     const composition = fromProfile(aiBuilderProfile);
     const lazy = await composition.lazy(stubBuiltinOptions());
 
-    expect(lazy.map((plugin) => plugin.id)).toEqual(['ai']);
-    expect(composition.eager(stubBuiltinOptions()).map((plugin) => plugin.id)).toEqual([
+    expect(lazy.map((composed) => composed.plugin.id)).toEqual(['ai']);
+    expect(composition.eager(stubBuiltinOptions()).map((composed) => composed.plugin.id)).toEqual([
       'files',
       'editor-monaco',
       'validator-schema',
@@ -99,6 +99,31 @@ describe('fromProfile', () => {
     expect(() => fromProfile(minimalProfile, { disable: ['prewiew'] })).toThrow(
       /plugins\.disable.*«prewiew»/s
     );
+  });
+
+  it('выбран провайдер, который эту возможность не объявляет, — отказ, а не тишина', () => {
+    // Резолвер такой выбор просто не применяет: он разбирает данные. Но профиль пишет
+    // человек, и при ДВУХ провайдерах его опечатка выглядела бы как жалоба на конфликт,
+    // ни словом не упомянув выбор.
+    const wrong = defineProfile({
+      id: 'wrong-choice',
+      name: 'Не тот',
+      plugins: ['files', 'preview'],
+      providers: { 'preview.sessions': 'files' },
+    });
+
+    expect(() => fromProfile(wrong)).toThrow(/«files» выбран провайдером «preview.sessions»/);
+  });
+
+  it('выбран провайдер, которого нет в составе, — отказ по имени части', () => {
+    const absent = defineProfile({
+      id: 'absent-choice',
+      name: 'Нет такого',
+      plugins: ['files'],
+      providers: { 'preview.sessions': 'preview' },
+    });
+
+    expect(() => fromProfile(absent)).toThrow(/«preview».*такой части в составе нет/s);
   });
 
   it('extends разрешается через реестр профилей, а не через переданную основу', () => {

@@ -102,6 +102,29 @@ export function resolveProfile(options: ResolveProfileOptions): readonly string[
 }
 
 /**
+ * Выбор провайдеров профиля — с учётом всей цепочки наследования.
+ *
+ * Склейка по ключу, основа первой: запись наследника перекрывает запись основы. Это то же
+ * правило, что у списка плагинов («основа, потом своё»), и другого быть не может — иначе
+ * профиль, наследующий чужой выбор, не мог бы его изменить, ради чего наследование и нужно.
+ *
+ * Отдельной функцией, а не полем результата {@link resolveProfile}: вопросы разные — «кто
+ * входит в состав» и «кого выбрали там, где спорят», — и второй нужен не всем.
+ *
+ * @throws Error на неизвестную основу или круг в `extends` — тем же обходом, что и состав.
+ */
+export function resolveProviders(options: {
+  readonly profile: ApplicationProfile;
+  readonly lookup?: (id: string) => ApplicationProfile | undefined;
+}): Readonly<Record<string, string>> {
+  const chosen: Record<string, string> = {};
+  for (const profile of inheritanceChain(options.profile, options.lookup)) {
+    Object.assign(chosen, profile.providers ?? {});
+  }
+  return Object.freeze(chosen);
+}
+
+/**
  * Цепочка наследования от самой дальней основы к самому профилю.
  *
  * Круг ищется списком пройденных, а не множеством: множество ответило бы «круг есть»,

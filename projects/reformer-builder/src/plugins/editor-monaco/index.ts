@@ -29,5 +29,5 @@
 export { createMonacoEditorPlugin, monacoEditorContribution } from './plugin';
 export { MONACO_EDITOR_ID, MONACO_PLUGIN_ID, type MonacoEditorPluginOptions } from './plugin';
 export { MONACO_EDITOR_PRIORITY } from './runtime/language';
-export { createViewStateRegistry, type ViewStateRegistry } from './sync/view-state';
+export { viewStatesOver, type ViewStateRegistry } from './sync/view-state';
 export type { MessageSink, MonacoDiagnostics, MonacoDocument, MonacoHost, Translate } from './host';

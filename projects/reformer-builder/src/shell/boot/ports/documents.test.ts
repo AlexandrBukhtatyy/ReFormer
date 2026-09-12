@@ -114,6 +114,20 @@ describe('служба документов: без проекта', () => {
     // Отказ, а не тишина: правка, ушедшая в никуда, выглядела бы сохранённой.
     await expect(h.documents.writeText(id, 'x')).rejects.toThrow(/проект не открыт/);
     await expect(h.documents.open(id)).rejects.toThrow(/проект не открыт/);
+    // Открытых документов нет — пусто, а не `null`: у этого вопроса есть честный ответ
+    // и без проекта, и на нём держится правило жизни состояний превью.
+    expect(h.documents.openDocuments()).toEqual([]);
+    h.dispose();
+  });
+
+  it('каталог ресурса отвечает и без проекта: он выводится из самого адреса', () => {
+    // Путевая арифметика — служба, а не разрешение плагину разбирать адрес: иначе плагин
+    // начнёт различать источники, у которых внутри путь, и те, у которых внутри ответ сервера.
+    const h = harness();
+
+    expect(h.documents.parentOf(h.id('forms/credit/form.json'))).toBe(h.id('forms/credit'));
+    // Из корня источника подниматься некуда — это был бы выход за его пределы.
+    expect(h.documents.parentOf(h.id('readme.md'))).toBe(h.id(''));
     h.dispose();
   });
 });
@@ -132,6 +146,22 @@ describe('служба документов: с открытым проекто�
     expect(document).toBe(session.documents.documentOf(id));
     expect(document?.getText()).toBe(session.documents.documentOf(id)?.getText());
     expect(document?.getText()).toBe('# привет');
+    h.dispose();
+  });
+
+  it('отдаёт ВСЕ открытые вкладки, а не только активную', async () => {
+    // Активная вкладка и набор открытых — разные вопросы: состояние превью живёт, пока открыт
+    // хоть один файл каталога формы, а активным в этот миг бывает файл из другого места.
+    const h = harness();
+    const session = await h.open('readme.md');
+    // Вторая вкладка ЗАКРЕПЛЁННАЯ: временная заместила бы первую — ровно тот щелчок в дереве,
+    // ради которого состояние превью привязано к каталогу, а не к вкладке.
+    await session.documents.open(h.id('notes.txt'), { preview: false });
+
+    expect([...h.documents.openDocuments()].sort()).toEqual(
+      [h.id('readme.md'), h.id('notes.txt')].sort()
+    );
+    expect(h.documents.activeResource()).toBe(h.id('notes.txt'));
     h.dispose();
   });
 

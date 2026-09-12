@@ -255,9 +255,21 @@ export type { WriteOptions } from '@/shell/platform/workspace/workspace';
 // Порядок несущий: `flush` спрашивает этот же реестр и при живом фокусе отложит перерисовку
 // снова.
 // Образец — обработчики фокуса в `plugins/editor-monaco/ui/MonacoEditor.tsx`.
-// Токен, а не фабрика: реестр один на приложение, его создаёт и регистрирует композиция.
+// Токен, а не фабрика: реестр один на приложение — это возможность ОБОЛОЧКИ
+// (`platform/services/host-capabilities`), и заводит её запуск, а не плагин.
 export { TextEditorFocusToken } from '@/shell/platform/workspace/model/text-editor-focus';
 export type { TextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
+
+// Снимки вида — прокрутка, каретка, свёрнутые ветки: то, что редактор обязан помнить между
+// открытиями вкладки, но не имеет права хранить в себе (тело размонтируют раньше, чем
+// оболочка спросит). Хранилище общее на все редакторы и ключуется ПАРОЙ «вклад + документ»,
+// поэтому `forEditor(id)` — не удобство, а граница: без неё снимок текстового редактора
+// подставлялся бы структурному.
+export { EditorViewStatesToken } from '@/shell/platform/workspace/model/editor-view-states';
+export type {
+  EditorViewStates,
+  EditorViewStateSlice,
+} from '@/shell/platform/workspace/model/editor-view-states';
 
 // Выделение — общий канал между плагинами, которые показывают ОДИН документ с разных сторон
 // (канвас редактора схемы и превью). Он обязан быть здесь, а не портом от композиции: плагины

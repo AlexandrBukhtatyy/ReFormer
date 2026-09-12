@@ -30,7 +30,12 @@ import {
 } from '@/shell/platform/workspace/storage/testing';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { createSchemaModelProvider } from '@/plugins/editor-schema/model/provider';
-import { createViewStateRegistry, monacoEditorContribution } from '@/plugins/editor-monaco';
+import {
+  MONACO_EDITOR_ID,
+  monacoEditorContribution,
+  viewStatesOver,
+} from '@/plugins/editor-monaco';
+import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-view-states';
 import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createProjectHost } from '@/shell/boot/project/project';
@@ -349,7 +354,7 @@ describe('тело редактора кода', () => {
     const deps = {
       host: h.monaco,
       focus: createTextEditorFocusRegistry(),
-      viewStates: createViewStateRegistry(),
+      viewStates: viewStatesOver(createEditorViewStates().forEditor(MONACO_EDITOR_ID)),
     };
 
     expect(monacoEditorContribution(deps).Body).not.toBe(monacoEditorContribution(deps).Body);

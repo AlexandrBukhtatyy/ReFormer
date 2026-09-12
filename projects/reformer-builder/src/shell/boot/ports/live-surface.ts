@@ -50,8 +50,17 @@ import {
 
 export interface LiveSurfaceDeps {
   readonly host: PreviewHost;
-  /** Тот же реестр, что получил плагин превью: состояние документа у них общее. */
-  readonly sessions: PreviewSessions;
+  /**
+   * Состояния превью — у их ВЛАДЕЛЬЦА, плагина превью, и спрашиваются в момент обращения.
+   *
+   * Функция, а не значение: порт собирается при сборке приложения, то есть раньше первой
+   * активации, а возможность `preview.sessions` появляется в реестре внутри `activate`
+   * превью. Захваченное здесь значение было бы `undefined` навсегда.
+   *
+   * `undefined` в ответе означает состав без превью — тогда рисовать живой вид всё равно
+   * нечем: поверхности вносит тот же плагин.
+   */
+  readonly sessions: () => PreviewSessions | undefined;
   readonly extensions: RootExtensionRegistry;
   readonly i18n: RootI18nService;
 }
@@ -65,7 +74,7 @@ function translator(
 }
 
 export function createLiveSurfacePort(deps: LiveSurfaceDeps): LivePreviewPort {
-  const { host, sessions, extensions, i18n } = deps;
+  const { host, extensions, i18n } = deps;
   const t = translator(i18n);
 
   const surfacesNow = (): readonly PreviewSurface[] =>
@@ -117,6 +126,12 @@ export function createLiveSurfacePort(deps: LiveSurfaceDeps): LivePreviewPort {
       const decided = decide(documentId);
       const surface = decided?.choice.surface ?? null;
       if (decided === null || surface === null) return null;
+      // Поверхность нашлась, а состояний нет — значит плагин превью внёс поверхности, но
+      // возможность не зарегистрировал. Такое не переживает проверку обещанного
+      // (`plugin/registry`, фаза `provides`), и живой вид здесь просто не монтируется:
+      // рисовать форму, чьи значения некуда девать, хуже, чем не рисовать.
+      const sessions = deps.sessions();
+      if (sessions === undefined) return null;
       const store = sessions.storeFor(documentId);
       const doc = documentRefOf(decided.document);
 

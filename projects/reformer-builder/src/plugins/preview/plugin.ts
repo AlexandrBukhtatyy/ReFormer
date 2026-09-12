@@ -28,6 +28,7 @@ import { createElement } from 'react';
 import {
   definePlugin,
   DiagnosticsServiceToken,
+  DocumentsServiceToken,
   PanelPoint,
   SelectionServiceToken,
   type Plugin,
@@ -40,7 +41,12 @@ import { PreviewSurfacePoint } from './contract';
 import type { MessageSink, PreviewHost } from './host';
 import { PREVIEW_MESSAGES } from './messages';
 import { createRuntimeSurface } from './runtime/surface';
-import { createPreviewSessions, type PreviewSessions } from './state/sessions';
+import { attachPreviewLifecycle } from './state/lifecycle';
+import {
+  createPreviewSessions,
+  PreviewSessionsCapability,
+  type PreviewSessions,
+} from './state/sessions';
 import { ModelPanel, MODEL_PANEL_ID } from './ui/ModelPanel';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
@@ -72,11 +78,9 @@ export interface PreviewPluginOptions {
   /** Приёмник словаря. Без него строки показываются маркерами промаха — см. `./messages`. */
   readonly i18n?: MessageSink;
   /**
-   * Реестр состояний.
-   *
-   * Создаётся композицией: состояние документа делят плагин превью и живой вид редактора схемы,
-   * и общий реестр — то, из-за чего находки сборки и введённые в форму значения у них ОДНИ.
-   * Тот же приём и та же причина, что у реестров Monaco, делимых на троих.
+   * Реестр состояний. Обычно плагин заводит его сам и отдаёт остальным возможностью
+   * {@link PreviewSessionsCapability}; параметр — ради тестов, которым нужен доступ к нему
+   * снаружи активации.
    */
   readonly sessions?: PreviewSessions;
 }
@@ -119,6 +123,21 @@ export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
 
       for (const surface of builtinSurfaces(host)) {
         ctx.subscriptions.push(ctx.extensions.contribute(point, surface, { id: surface.id }));
+      }
+
+      // Состояния документов — наружу возможностью: их читает живой вид редактора схемы,
+      // а плагины друг друга не импортируют. Регистрация в `subscriptions`, потому что слот
+      // обязан освободиться вместе с плагином: выключенное превью, оставившее за собой
+      // занятый слот, не дало бы поднять себя заново.
+      ctx.subscriptions.push(ctx.services.register(PreviewSessionsCapability, sessions));
+
+      // Состояние живёт, пока открыт хоть один файл каталога формы (см. `./state/lifecycle`).
+      // `get`, а не `require`: без рабочей области правило просто не действует — забывать
+      // нечего, потому что и открывать нечего. Так собирается и тест плагина, где реестра
+      // служб нет вовсе.
+      const documents = ctx.services.get(DocumentsServiceToken);
+      if (documents !== undefined) {
+        ctx.subscriptions.push(attachPreviewLifecycle(documents, sessions));
       }
 
       // Клик по форме уходит в общий канал выделения. `get`, а не `require`: плагину

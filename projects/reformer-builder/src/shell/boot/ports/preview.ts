@@ -28,7 +28,6 @@ import type {
   PreviewDocument,
   PreviewHost,
   PreviewModules,
-  PreviewSessions,
   PreviewSourceCapabilities,
   Translate,
 } from '@/plugins/preview';
@@ -63,61 +62,6 @@ function makeUseTranslate(i18n: RootI18nService): () => Translate {
  * загрузок. Отказ **не запоминаем** — иначе один сетевой сбой навсегда лишал бы человека живого
  * превью, а перезагрузка страницы не должна быть единственным лечением сетевой икоты.
  */
-/**
- * Состояния превью живут, пока открыт хоть один файл каталога формы.
- *
- * Плагин превью вкладок не видит — `@/sdk` их не отдаёт, — поэтому «вкладку закрыли» ему
- * сообщает композиция, у которой есть и проект, и реестр состояний. Забытое состояние снимает
- * с собой находки сборки из свода диагностик: обновлять их после закрытия некому, а висящая
- * находка про уже исправленный файл хуже отсутствующей.
- *
- * Граница — КАТАЛОГ формы, а не её вкладка, и это не щедрость. Одиночный щелчок в дереве
- * открывает вкладку предпросмотра, которая замещает предыдущую: человек увидел в живой форме
- * «validation.ts не компилируется», щёлкнул по `validation.ts` — и вкладка формы закрылась.
- * Забудь мы состояние здесь, находка исчезла бы ровно в тот момент, когда её пошли чинить.
- * Пока открыт сайдкар, находки формы нужны; закрыли последний файл каталога — некому.
- *
- * Сведение зовётся на каждое изменение вкладок, а не по событию «закрыта»: у хранилища вкладок
- * события одно — «снимок сменился», — и этого достаточно. Без проекта открытых вкладок нет,
- * и забывается всё.
- */
-export function attachPreviewLifecycle(
-  project: Pick<ProjectHost, 'get' | 'subscribe'>,
-  sessions: Pick<PreviewSessions, 'ids' | 'forget'>
-): Disposable {
-  let tabs: Disposable | null = null;
-
-  const sync = (): void => {
-    const open =
-      project
-        .get()
-        ?.documents.get()
-        .tabs.map((tab) => tab.ref.id) ?? [];
-    const openDirs = new Set(open.map((id) => parentOf(id)));
-    for (const id of sessions.ids()) {
-      if (!openDirs.has(parentOf(id))) sessions.forget(id);
-    }
-  };
-
-  const rebind = (): void => {
-    tabs?.dispose();
-    const session = project.get();
-    tabs = session === null ? null : session.documents.subscribe(sync);
-    sync();
-  };
-
-  const subscription = project.subscribe(rebind);
-  rebind();
-
-  return {
-    dispose(): void {
-      subscription.dispose();
-      tabs?.dispose();
-      tabs = null;
-    },
-  };
-}
-
 export function createPreviewHost(deps: PreviewHostDeps): PreviewHost {
   const { project, i18n, services, modules } = deps;
   // Импорт передаётся параметром, а не зашит в загрузчик: так его поведение проверяется

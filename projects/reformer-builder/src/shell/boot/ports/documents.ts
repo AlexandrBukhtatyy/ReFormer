@@ -26,6 +26,7 @@
 
 import { toDisposable, type Disposable } from '@/shell/platform/primitives/disposable';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
+import { parentOf } from '@/shell/platform/primitives/resource-path';
 import type { DocumentsService, OpenDocumentOptions } from '@/shell/platform/services/documents';
 import type { Document } from '@/shell/platform/workspace/document';
 import type { WriteOptions } from '@/shell/platform/workspace/workspace';
@@ -35,6 +36,9 @@ export interface DocumentsServiceDeps {
   /** Держатель проекта в объёме, которым пользуется служба: снимок и подписка. */
   readonly project: Pick<ProjectHost, 'get' | 'subscribe'>;
 }
+
+/** Пустой список открытых вкладок: одна замороженная ссылка вместо нового массива на вызов. */
+const NO_DOCUMENTS: readonly ResourceId[] = Object.freeze([]);
 
 /** Отказ без проекта — тот же текст, что у портов: правка в никуда не должна выглядеть удачей. */
 function noProject(id: ResourceId): Promise<never> {
@@ -76,6 +80,14 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsSer
 
     activeResource: () => project.get()?.documents.get().activeId ?? null,
 
+    // Снимок вкладок, а не хранимый список: вкладки переживают службу ровно наоборот —
+    // хранилище умирает вместе с сессией, а служба живёт весь запуск.
+    openDocuments: () =>
+      project
+        .get()
+        ?.documents.get()
+        .tabs.map((tab) => tab.ref.id) ?? NO_DOCUMENTS,
+
     documentOf: (id: ResourceId): Document | null =>
       project.get()?.documents.documentOf(id) ?? null,
 
@@ -98,6 +110,10 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsSer
     // на службу (Фаза 5 плана), оба зовут одно и то же. У текстового документа ручки нет,
     // и `undefined` здесь означает «отложенного не было».
     flush: (id: ResourceId) => project.get()?.models.handleOf(id)?.flush(),
+
+    // Проекта здесь не спрашивается вовсе: каталог выводится из самого адреса, и ответ
+    // не зависит от того, открыт ли ресурс и существует ли он.
+    parentOf,
 
     onDidChange(cb) {
       listeners.add(cb);

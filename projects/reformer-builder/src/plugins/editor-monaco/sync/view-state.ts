@@ -26,7 +26,7 @@
  * @module plugins/editor-monaco/sync/view-state
  */
 
-import type { ResourceId } from '@/sdk';
+import type { EditorViewStateSlice, ResourceId } from '@/sdk';
 
 /** Прокрутка в пикселях, позиция каретки в координатах Monaco (строка и колонка с единицы). */
 export interface MonacoViewState {
@@ -73,10 +73,10 @@ export function isSameViewState(a: MonacoViewState, b: MonacoViewState): boolean
 }
 
 /**
- * Реестр снимков по документам.
+ * Снимки ЭТОГО редактора: типизированный вид на хранилище оболочки.
  *
- * Ключ — документ, а не пара «редактор + документ»: пару различает уже хранилище оболочки,
- * а этот реестр принадлежит одному редактору и второго различия не несёт.
+ * Ключ снаружи — пара «редактор + документ» (`EditorViewStatesToken` в `@/sdk`), здесь —
+ * только документ: имя редактора подставлено видом, и внутри него различать нечего.
  */
 export interface ViewStateRegistry {
   record(id: ResourceId, state: MonacoViewState): void;
@@ -85,17 +85,29 @@ export interface ViewStateRegistry {
   forget(id: ResourceId): void;
 }
 
-export function createViewStateRegistry(): ViewStateRegistry {
-  const states = new Map<ResourceId, MonacoViewState>();
+/**
+ * Надевает тип на непрозрачное хранилище оболочки.
+ *
+ * Своего состояния у вида нет ВООБЩЕ, и это главное: раньше реестр был объектом с картой
+ * внутри, поэтому «тот же объект» приходилось передавать композицией троим (вкладка кода,
+ * режим «рядом» у markdown, исходник схемы), а второй экземпляр молча терял позицию курсора.
+ * Теперь общее — хранилище, и сколько видов на него надето, значения не имеет.
+ *
+ * `record` не переписывает совпадающий снимок: прокрутка сыплет событиями покадрово, и без
+ * сравнения хранилище переписывалось бы на каждый кадр.
+ */
+export function viewStatesOver(slice: EditorViewStateSlice): ViewStateRegistry {
   return {
     record(id, state) {
-      const previous = states.get(id);
-      if (previous !== undefined && isSameViewState(previous, state)) return;
-      states.set(id, state);
+      const previous = readViewState(slice.peek(id));
+      if (previous !== null && isSameViewState(previous, state)) return;
+      slice.record(id, state);
     },
-    peek: (id) => states.get(id) ?? null,
-    forget(id) {
-      states.delete(id);
+    // Проверка, а не приведение: в хранилище может лежать снимок прошлой версии редактора,
+    // и непонятное значение равносильно его отсутствию (см. шапку).
+    peek: (id) => readViewState(slice.peek(id)),
+    forget: (id) => {
+      slice.forget(id);
     },
   };
 }

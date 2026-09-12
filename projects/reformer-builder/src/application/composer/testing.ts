@@ -15,7 +15,31 @@
  */
 
 import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
-import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
+import type { ServiceRegistry } from '@/shell/platform/primitives/service';
+import {
+  createEditorViewStates,
+  EditorViewStatesToken,
+} from '@/shell/platform/workspace/model/editor-view-states';
+import {
+  createTextEditorFocusRegistry,
+  TextEditorFocusToken,
+} from '@/shell/platform/workspace/model/text-editor-focus';
+
+/**
+ * Возможности оболочки, без которых встроенные плагины не поднимаются, — как в `boot`.
+ *
+ * Не пустышки: реестр фокуса и хранилище снимков вида настоящие, потому что подделывать
+ * в них нечего — это карта и множество. Службы документов здесь НЕТ намеренно: она требует
+ * рабочей области, а плагины, которым её не хватает, обязаны деградировать (`get`, не
+ * `require`) — и стенд это проверяет самим своим существованием.
+ *
+ * Вызывается стендом, который плагины АКТИВИРУЕТ. Тому, кто их только создаёт, не нужно:
+ * службы спрашиваются в `activate`.
+ */
+export function stubHostCapabilities(services: ServiceRegistry): void {
+  services.register(TextEditorFocusToken, createTextEditorFocusRegistry());
+  services.register(EditorViewStatesToken, createEditorViewStates());
+}
 
 /**
  * Порт-пустышка.
@@ -44,16 +68,15 @@ export function stubHost(): never {
 /**
  * Опции, на которых собирается любой профиль.
  *
- * Новый объект на каждый вызов: реестр фокуса внутри — состояние, и два стенда, поделившие
- * его, проверяли бы друг друга. Словари не проверяются — перевод возвращает ключ; полнота
- * словарей живёт в `shell/boot/integration/i18n-completeness`.
+ * Разделяемых состояний здесь больше нет ни одного: фокус, снимки вида и состояния превью
+ * стали возможностями и живут в реестре служб, а не в опциях. Словари не проверяются —
+ * перевод возвращает ключ; полнота словарей живёт в `shell/boot/integration/i18n-completeness`.
  */
 export function stubBuiltinOptions(): BuiltinPluginsOptions {
   return {
     i18n: { forPlugin: () => ({ t: (key: string) => key, contribute: () => {} }) },
     files: stubHost(),
     monaco: stubHost(),
-    monacoFocus: createTextEditorFocusRegistry(),
     markdown: stubHost(),
     schema: stubHost(),
     ai: stubHost(),
