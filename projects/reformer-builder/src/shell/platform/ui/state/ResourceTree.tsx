@@ -75,14 +75,16 @@ import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/inter
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import {
-  ResourceDecorationPoint,
   decorationTooltip,
   mergeDecorations,
   observeDecorations,
   type DecorationEntry,
-  type DecorationTone,
   type MergedDecoration,
 } from '@/shell/platform/ui/contributions/decorations';
+import {
+  ResourceDecorationPoint,
+  type DecorationTone,
+} from '@reformer/builder-plugin-api/internal';
 import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import {
   createLazyEditorProbe,

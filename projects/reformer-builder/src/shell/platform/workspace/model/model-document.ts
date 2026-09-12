@@ -54,18 +54,17 @@
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
-import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
-import type { Document } from '../document';
+import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
+import type { Document } from '@reformer/builder-plugin-api/internal';
 import type { DiagnosticsSink } from '../workspace';
 import { createModelHistory, type ModelHistory, type ModelSnapshot } from './history';
+import { createEditorProbe, resolveModelProvider } from './provider';
 import {
-  createEditorProbe,
-  resolveModelProvider,
   type ApplyResult,
   type DocumentModelProvider,
   type EditOp,
   type NodeId,
-} from './provider';
+} from '@reformer/builder-plugin-api/internal';
 
 /** Источник диагностик разбора: по нему `publish` замещает прошлый результат. */
 export const PARSE_DIAGNOSTIC_SOURCE = 'document.model';

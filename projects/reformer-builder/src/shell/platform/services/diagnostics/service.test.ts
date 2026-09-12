@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { makeResourceId } from '@reformer/builder-plugin-api/internal';
 import { createDiagnosticsService } from './service';
-import type { Diagnostic } from './types';
+import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 
 const schema = makeResourceId('fs', 'src/forms/credit/schema.json');
 const other = makeResourceId('fs', 'src/forms/credit/validation.ts');

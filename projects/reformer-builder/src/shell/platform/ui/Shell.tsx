@@ -110,7 +110,7 @@ import {
   resolveActivePanelId,
   type PanelEntry,
 } from '@/shell/platform/ui/chrome/panels';
-import type { SlotId } from './slots';
+import type { SlotId } from '@reformer/builder-plugin-api/internal';
 import {
   useFocusTracking,
   type WhenContextStore,

@@ -38,8 +38,8 @@ import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
-import type { Document } from '@/shell/platform/workspace/document';
+import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
+import type { Document } from '@reformer/builder-plugin-api/internal';
 import { isModelDocument } from '@/shell/platform/workspace/model/model-document';
 import {
   asyncSource,
@@ -47,7 +47,7 @@ import {
   ValidatorPoint,
   type ValidateContext,
   type ValidatorContribution,
-} from './types';
+} from '@reformer/builder-plugin-api/internal';
 
 /**
  * Куда уходят находки. Форма совпадает с `DiagnosticsService.publish`, и сам сервис сюда

@@ -17,7 +17,12 @@
  */
 
 import type { ResourceRef } from '@reformer/builder-plugin-api/internal';
-import type { ApplyResult, DocumentModelProvider, EditOp, NodeId } from './provider';
+import type {
+  ApplyResult,
+  DocumentModelProvider,
+  EditOp,
+  NodeId,
+} from '@reformer/builder-plugin-api/internal';
 
 /** Узел подставной модели. */
 export interface LineNode {

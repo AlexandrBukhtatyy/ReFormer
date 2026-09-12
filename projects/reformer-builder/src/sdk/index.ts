@@ -80,25 +80,25 @@ export type {
   NodePart,
   QuickFix,
   TextRange,
-} from '@/shell/platform/services/diagnostics/types';
+} from '@reformer/builder-plugin-api';
 
 // Отбор быстрых исправлений по реестру команд. Здесь, а не у каждого потребителя: проверять
 // «команда вообще есть?» обязаны все, кто исправления ПОКАЗЫВАЕТ или применяет (панель проблем,
 // канвас, ассистент), а плагины не видят друг друга и завели бы по копии — которые совпадали бы
 // по договорённости, то есть до первой правки. Тот же довод, что у порядка строгости выше.
-export { usableFixes, withUsableFixes } from '@/shell/platform/services/diagnostics/fixes';
-export type { CommandLookup, FixesOptions } from '@/shell/platform/services/diagnostics/fixes';
+export { usableFixes, withUsableFixes } from '@reformer/builder-plugin-api';
+export type { CommandLookup, FixesOptions } from '@reformer/builder-plugin-api';
 
 // Валидация: точка расширения и контракт вклада.
-export { ValidatorPoint } from '@/shell/platform/services/validation/types';
+export { ValidatorPoint } from '@reformer/builder-plugin-api';
 export type {
   DocumentRef,
   ValidateContext,
   ValidatorContribution,
-} from '@/shell/platform/services/validation/types';
+} from '@reformer/builder-plugin-api';
 
 // Вид документа — дискриминант, по которому валидатор решает, ждать ли модель.
-export type { DocumentKind } from '@/shell/platform/workspace/document';
+export type { DocumentKind } from '@reformer/builder-plugin-api';
 
 // ── Оболочка: точки расширения интерфейса ───────────────────────────────────────
 //
@@ -111,24 +111,21 @@ export type { DocumentKind } from '@/shell/platform/workspace/document';
 // ключуется `id` точки, и структурная копия имени вклад не теряет. Потому, что копия несёт
 // СВОЙ параметр типа и расходится с оригиналом по контракту вклада — см. ниже про точку
 // модели документа, где это и произошло.
-export { PanelPoint } from '@/shell/platform/ui/slots';
-export type { PanelContribution, SlotId } from '@/shell/platform/ui/slots';
-export { EditorPoint } from '@/shell/platform/ui/contributions/editors';
-export type { EditorContribution } from '@/shell/platform/ui/contributions/editors';
-export type { EditorProbe } from '@/shell/platform/workspace/model/provider';
-export { ResourceDecorationPoint } from '@/shell/platform/ui/contributions/decorations';
-export type {
-  Decoration,
-  ResourceDecorationContribution,
-} from '@/shell/platform/ui/contributions/decorations';
+export { PanelPoint } from '@reformer/builder-plugin-api';
+export type { PanelContribution, SlotId } from '@reformer/builder-plugin-api';
+export { EditorPoint } from '@reformer/builder-plugin-api';
+export type { EditorContribution } from '@reformer/builder-plugin-api';
+export type { EditorProbe } from '@reformer/builder-plugin-api';
+export { ResourceDecorationPoint } from '@reformer/builder-plugin-api';
+export type { Decoration, ResourceDecorationContribution } from '@reformer/builder-plugin-api';
 export { PaletteItemsPoint } from '@/shell/platform/ui/menu/palette';
 export type { PaletteItem, PaletteItemProvider } from '@/shell/platform/ui/menu/palette';
 // Настройки плагина каталога: он вносит СХЕМУ ФОРМЫ, а рисует её раздел «Плагины» окна
 // настроек — теми же компонентами, которыми билдер рисует формы. Значения плагин читает
 // сам, службой настроек по ключу `pluginSettingsKey(ctx.id)`, и там же объявляет умолчания
 // через `registerDefault` — второго источника умолчаний нет намеренно.
-export { CatalogPluginSettingsPoint } from '@/shell/platform/ui/contributions/plugin-settings';
-export type { CatalogPluginSettingsContribution } from '@/shell/platform/ui/contributions/plugin-settings';
+export { CatalogPluginSettingsPoint } from '@reformer/builder-plugin-api';
+export type { CatalogPluginSettingsContribution } from '@reformer/builder-plugin-api';
 export { pluginSettingsKey } from '@/shell/platform/services/plugin-settings';
 export type { CommandContribution } from '@reformer/builder-plugin-api';
 export type { WhenContext, FocusTarget } from '@reformer/builder-plugin-api';
@@ -239,17 +236,17 @@ export type { DiagnosticsService } from '@/shell/platform/services/diagnostics/s
 // копию, наружу только через сохранение оболочки; поэтому отдельных прав редактору не нужно,
 // а `WriteOptions` лишь называет автора правки для журнала. `Document` — настоящий тип
 // платформы, а не копия: подписка на смену текста у копии молчала бы.
-export { DocumentsServiceToken } from '@/shell/platform/services/documents';
+export { DocumentsServiceToken } from '@reformer/builder-plugin-api';
 // Вторая половина рабочей области: что в ней ЛЕЖИТ и где. Отдельной службой, потому что
 // права разные — здесь только чтение и адресация, а запись идёт одной дверью выше.
-export { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
-export type { WorkspaceFilesService } from '@/shell/platform/services/workspace-files';
+export { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api';
+export type { WorkspaceFilesService } from '@reformer/builder-plugin-api';
 // Активная вкладка как React-значение: подписка на службу документов, без которой панель
 // показывала бы документ, с которого ушли.
 export { useActiveDocument } from '@/shell/platform/ui/useActiveDocument';
-export type { DocumentsService, OpenDocumentOptions } from '@/shell/platform/services/documents';
-export type { Document } from '@/shell/platform/workspace/document';
-export type { WriteOptions } from '@/shell/platform/workspace/workspace';
+export type { DocumentsService, OpenDocumentOptions } from '@reformer/builder-plugin-api';
+export type { Document } from '@reformer/builder-plugin-api';
+export type { WriteOptions } from '@reformer/builder-plugin-api';
 
 // Фокус текстового редактора — контракт КАЖДОГО редактора текста, а не опция встроенного.
 // Рабочая область откладывает перерисовку буфера по модели (ход ассистента, структурная
@@ -263,19 +260,16 @@ export type { WriteOptions } from '@/shell/platform/workspace/workspace';
 // Образец — обработчики фокуса в `plugins/editor-monaco/ui/MonacoEditor.tsx`.
 // Токен, а не фабрика: реестр один на приложение — это возможность ОБОЛОЧКИ
 // (`platform/services/host-capabilities`), и заводит её запуск, а не плагин.
-export { TextEditorFocusToken } from '@/shell/platform/workspace/model/text-editor-focus';
-export type { TextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
+export { TextEditorFocusToken } from '@reformer/builder-plugin-api';
+export type { TextEditorFocusRegistry } from '@reformer/builder-plugin-api';
 
 // Снимки вида — прокрутка, каретка, свёрнутые ветки: то, что редактор обязан помнить между
 // открытиями вкладки, но не имеет права хранить в себе (тело размонтируют раньше, чем
 // оболочка спросит). Хранилище общее на все редакторы и ключуется ПАРОЙ «вклад + документ»,
 // поэтому `forEditor(id)` — не удобство, а граница: без неё снимок текстового редактора
 // подставлялся бы структурному.
-export { EditorViewStatesToken } from '@/shell/platform/workspace/model/editor-view-states';
-export type {
-  EditorViewStates,
-  EditorViewStateSlice,
-} from '@/shell/platform/workspace/model/editor-view-states';
+export { EditorViewStatesToken } from '@reformer/builder-plugin-api';
+export type { EditorViewStates, EditorViewStateSlice } from '@reformer/builder-plugin-api';
 
 // Выделение — общий канал между плагинами, которые показывают ОДИН документ с разных сторон
 // (канвас редактора схемы и превью). Он обязан быть здесь, а не портом от композиции: плагины
@@ -296,18 +290,18 @@ export type { SelectionService } from '@/shell/platform/services/selection';
 //
 // Провайдер конкретной модели вносится в точку без приведения: методы в TypeScript
 // бивариантны, поэтому провайдер `JsonFormSchema` — это провайдер `unknown`.
-export { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
+export { DocumentModelPoint } from '@reformer/builder-plugin-api';
 export type {
   DocumentModelProvider,
   EditOp,
   ApplyResult,
   NodeId,
-} from '@/shell/platform/workspace/model/provider';
+} from '@reformer/builder-plugin-api';
 
 // Порядок строгости диагностик. Без него каждый показывающий плагин заводит свою копию,
 // и совпадение копий держится на комментарии, а не на компиляторе — ровно это и случилось
 // в дереве файлов и на канвасе, пока порядок жил у платформы без выхода наружу.
-export { SEVERITY_RANK } from '@/shell/platform/services/diagnostics/types';
+export { SEVERITY_RANK } from '@reformer/builder-plugin-api';
 
 // ── Меню ─────────────────────────────────────────────────────────────────────────
 //

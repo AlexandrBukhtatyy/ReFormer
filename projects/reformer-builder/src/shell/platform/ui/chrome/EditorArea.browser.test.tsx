@@ -23,11 +23,12 @@ import {
 } from '@reformer/builder-plugin-api/internal';
 import { whenContext } from '@reformer/builder-plugin-api/internal';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
-import { createDocument, type Document } from '@/shell/platform/workspace/document';
+import { createDocument } from '@/shell/platform/workspace/document';
+import { type Document } from '@reformer/builder-plugin-api/internal';
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
 import { renderReact } from '@/testing/render';
 import { EditorArea } from './EditorArea';
-import { EditorPoint, type EditorContribution } from '@/shell/platform/ui/contributions/editors';
+import { EditorPoint, type EditorContribution } from '@reformer/builder-plugin-api/internal';
 import { EDITOR_TITLE_MENU, whenEditor } from '@/shell/platform/ui/menu/editor-menu';
 import { MenuPoint, type MenuContribution } from '@/shell/platform/ui/menu/menu';
 import { createDocumentTabsStore, type TabsWorkspace } from '@/shell/platform/ui/state/tabs';

@@ -30,7 +30,7 @@ import { createEventBus } from '@/shell/platform/primitives/event';
 import { defineEvent } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { defineService } from '@reformer/builder-plugin-api/internal';
-import type { Diagnostic } from './types';
+import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 
 export interface DiagnosticsService {
   /**

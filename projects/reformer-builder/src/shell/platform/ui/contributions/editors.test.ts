@@ -2,13 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { makeResourceId, type ResourceRef } from '@reformer/builder-plugin-api/internal';
+import { createEditorProbe, isSyncEditorProbe } from '@/shell/platform/workspace/model/provider';
+import { type EditorProbe } from '@reformer/builder-plugin-api/internal';
 import {
-  createEditorProbe,
-  isSyncEditorProbe,
-  type EditorProbe,
-} from '@/shell/platform/workspace/model/provider';
-import {
-  EditorPoint,
   chooseEditor,
   createLazyEditorProbe,
   createUnreadableProbe,
@@ -16,9 +12,9 @@ import {
   rankEditors,
   resolveEditor,
   resolveEditorForDocument,
-  type EditorContribution,
   type EditorEntry,
 } from './editors';
+import { EditorPoint, type EditorContribution } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Редакторы теста — фиктивные и намеренно бессодержательные.

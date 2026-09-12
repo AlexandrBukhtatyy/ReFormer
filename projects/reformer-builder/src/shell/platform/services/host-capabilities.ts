@@ -28,10 +28,10 @@
  */
 
 import type { Capability } from '@reformer/builder-plugin-api/internal';
-import { EditorViewStatesCapability } from '@/shell/platform/workspace/model/editor-view-states';
-import { TextEditorFocusCapability } from '@/shell/platform/workspace/model/text-editor-focus';
-import { DocumentsCapability } from './documents';
-import { WorkspaceFilesCapability } from './workspace-files';
+import { EditorViewStatesCapability } from '@reformer/builder-plugin-api/internal';
+import { TextEditorFocusCapability } from '@reformer/builder-plugin-api/internal';
+import { DocumentsCapability } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceFilesCapability } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Имя провайдера в диагностике.

@@ -56,7 +56,7 @@ import { createEventBus } from '@/shell/platform/primitives/event';
 import { defineEvent } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { defineService } from '@reformer/builder-plugin-api/internal';
-import type { NodeId } from '@/shell/platform/workspace/model/provider';
+import type { NodeId } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Общий канал выделения.

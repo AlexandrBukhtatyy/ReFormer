@@ -6,13 +6,15 @@ import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
 import { createLazyEditorProbe } from './editors';
 import {
-  ResourceDecorationPoint,
   decorationTooltip,
   mergeDecorations,
   observeDecorations,
   type DecorationEntry,
-  type ResourceDecorationContribution,
 } from './decorations';
+import {
+  ResourceDecorationPoint,
+  type ResourceDecorationContribution,
+} from '@reformer/builder-plugin-api/internal';
 
 function ref(path: string, mediaType = 'application/json'): ResourceRef {
   return {

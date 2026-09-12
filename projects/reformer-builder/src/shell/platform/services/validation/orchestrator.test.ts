@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createDiagnosticsService } from '@/shell/platform/services/diagnostics/service';
-import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
+import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { makeResourceId, type ResourceRef } from '@reformer/builder-plugin-api/internal';
-import { createDocument, type Document } from '@/shell/platform/workspace/document';
+import { createDocument } from '@/shell/platform/workspace/document';
+import { type Document } from '@reformer/builder-plugin-api/internal';
 import { createModelDocument } from '@/shell/platform/workspace/model/model-document';
 import {
   createLinesProvider,
@@ -17,7 +18,7 @@ import {
   ValidatorPoint,
   type ValidateContext,
   type ValidatorContribution,
-} from './types';
+} from '@reformer/builder-plugin-api/internal';
 
 function refFor(path: string, mediaType = 'application/json'): ResourceRef {
   return {

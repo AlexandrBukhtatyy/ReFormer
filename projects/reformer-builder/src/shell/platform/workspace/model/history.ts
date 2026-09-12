@@ -22,7 +22,7 @@
  * @module shell/platform/workspace/model/history
  */
 
-import type { NodeId } from './provider';
+import type { NodeId } from '@reformer/builder-plugin-api/internal';
 
 /*
  * ─────────────────────────────  текст: патчи  ─────────────────────────────

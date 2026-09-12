@@ -129,8 +129,8 @@ import { createCodegenGaps } from '@/shell/boot/ports/codegen';
 import { createTemplatesGaps } from '@/shell/boot/ports/templates';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
-import { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
-import { DocumentsServiceToken } from '@/shell/platform/services/documents';
+import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
+import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import {
   projectFailureAction,
   projectFailureMessageKey,
@@ -143,14 +143,10 @@ import {
   type Disposable as HostDisposable,
 } from '@reformer/builder-plugin-api/internal';
 import { PreviewSessionsCapability } from '@/plugins/preview';
-import {
-  createTextEditorFocusRegistry,
-  TextEditorFocusToken,
-} from '@/shell/platform/workspace/model/text-editor-focus';
-import {
-  createEditorViewStates,
-  EditorViewStatesToken,
-} from '@/shell/platform/workspace/model/editor-view-states';
+import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
+import { TextEditorFocusToken } from '@reformer/builder-plugin-api/internal';
+import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-view-states';
+import { EditorViewStatesToken } from '@reformer/builder-plugin-api/internal';
 import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
 import { createCompileCache, type CompileCache } from '@/shell/platform/modules/compile-cache';
 import {
@@ -160,7 +156,7 @@ import {
 } from '@/shell/platform/plugin/typescript-transpiler';
 import { createBuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import { createPluginModules } from './plugin-modules';
-import { CatalogPluginSettingsPoint } from '@/shell/platform/ui/contributions/plugin-settings';
+import { CatalogPluginSettingsPoint } from '@reformer/builder-plugin-api/internal';
 import { createPluginSettings } from '@/shell/platform/services/plugin-settings';
 import { asFormSchema } from './settings/schema-guard';
 import type { ApplicationComposition, BuiltinPluginsOptions } from './composition';

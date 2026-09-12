@@ -20,7 +20,7 @@ import { createMemorySource } from '@/shell/platform/source/memory';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
 import type { Source } from '@/shell/platform/source/types';
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
-import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
+import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { createLinesProvider } from '@/shell/platform/workspace/model/testing';
 import { createWorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 import { createWorkspaceFileStore } from '@/shell/platform/workspace/storage/opfs';

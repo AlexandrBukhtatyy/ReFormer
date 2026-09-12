@@ -32,13 +32,13 @@
  * достаётся текст и — если документ модельный и его модель согласована с буфером — сама модель
  * как `unknown`. Сузить её до своего типа обязан тот, кто этот тип объявил, то есть плагин.
  *
- * @module shell/platform/services/validation/types
+ * @module @reformer/builder-plugin-api/services/validation/types
  */
 
-import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
-import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
-import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
-import type { DocumentKind } from '@/shell/platform/workspace/document';
+import { defineExtensionPoint } from '../../primitives/extension-point';
+import type { ResourceId, ResourceRef } from '../../primitives/resource';
+import type { Diagnostic } from '../diagnostics/types';
+import type { DocumentKind } from '../../workspace/document';
 
 /**
  * То, что валидатор знает о документе, ещё ничего не прочитав.

@@ -8,7 +8,8 @@ import {
   type ResourceId,
   type ResourceRef,
 } from '@reformer/builder-plugin-api/internal';
-import { createDocument, type Document } from '@/shell/platform/workspace/document';
+import { createDocument } from '@/shell/platform/workspace/document';
+import { type Document } from '@reformer/builder-plugin-api/internal';
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
 import {
   EMPTY_TABS,

@@ -17,7 +17,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import type { DocumentsService } from '@/shell/platform/services/documents';
+import type { DocumentsService } from '@reformer/builder-plugin-api/internal';
 
 /** Служба документов в объёме хука: снимок и уведомление. */
 export type ActiveDocumentSource = Pick<DocumentsService, 'activeResource' | 'onDidChange'>;

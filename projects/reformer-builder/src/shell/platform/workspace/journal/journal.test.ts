@@ -16,7 +16,8 @@ import { createWorkspaceMetaStore, type WorkspaceMetaStore } from '../storage/id
 import { createMemoryIndexedDb, type MemoryIndexedDbControl } from '../storage/testing';
 import { createJournal, createJournalRelief, type Journal } from './journal';
 import { checkSnapshotInvariant, type JournalPolicy } from './policy';
-import { indexOf, type JournalIndexEntry, type JournalOrigin } from './record';
+import { indexOf, type JournalIndexEntry } from './record';
+import { type JournalOrigin } from '@reformer/builder-plugin-api/internal';
 
 let dbSeq = 0;
 

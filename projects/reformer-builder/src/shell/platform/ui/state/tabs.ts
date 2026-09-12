@@ -40,7 +40,7 @@ import {
   type ResourceId,
   type ResourceRef,
 } from '@reformer/builder-plugin-api/internal';
-import type { Document } from '@/shell/platform/workspace/document';
+import type { Document } from '@reformer/builder-plugin-api/internal';
 import { isModelDocument } from '@/shell/platform/workspace/model/model-document';
 import type { Workspace } from '@/shell/platform/workspace/workspace';
 import type { WhenContextStore } from './when-context-store';

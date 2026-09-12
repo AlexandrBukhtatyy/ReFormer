@@ -60,9 +60,9 @@ import {
   type BuiltinPluginManifest,
 } from '@/shell/platform/plugin/manifest';
 import type { Plugin } from '@reformer/builder-plugin-api/internal';
-import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
-import { PanelPoint } from '@/shell/platform/ui/slots';
-import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
+import { EditorPoint } from '@reformer/builder-plugin-api/internal';
+import { PanelPoint } from '@reformer/builder-plugin-api/internal';
+import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 
 // Манифесты — ВСЕХ одиннадцати, включая ленивых: JSON это лист, кода плагина за ним нет.
 import aiManifest from '@/plugins/ai/manifest.json';

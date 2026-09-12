@@ -29,7 +29,7 @@ import type { ChordSnapshot, ChordState } from '@/shell/platform/ui/keyboard/cho
 import type { I18nService } from '@/shell/platform/services/i18n/i18n';
 import type { SettingsService } from '@/shell/platform/services/settings';
 import { selectPanels, type PanelEntry, type PanelPredicateErrorHandler } from './panels';
-import { PanelPoint, type SlotId } from '../slots';
+import { PanelPoint, type SlotId } from '@reformer/builder-plugin-api/internal';
 import {
   useWhenContext,
   type WhenContextStore,

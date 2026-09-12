@@ -6,7 +6,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
-import { createTextEditorFocusRegistry, TextEditorFocusToken } from './text-editor-focus';
+import { createTextEditorFocusRegistry } from './text-editor-focus';
+import { TextEditorFocusToken } from '@reformer/builder-plugin-api/internal';
 
 describe('createTextEditorFocusRegistry', () => {
   it('без объявления фокуса отвечает «не в фокусе»: документ без редактора перерисовывается', () => {

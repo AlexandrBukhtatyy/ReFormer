@@ -14,13 +14,12 @@ import { makeResourceId, type ResourceRef } from '@reformer/builder-plugin-api/i
 import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
 import { createEditorChoiceStore, pickEditor } from './editor-choice';
 import {
-  EditorPoint,
   rankEditors,
   rankEditorsForDocument,
   type EditorCandidate,
-  type EditorContribution,
   type EditorEntry,
 } from './editors';
+import { EditorPoint, type EditorContribution } from '@reformer/builder-plugin-api/internal';
 
 const NOOP_BODY: EditorContribution['Body'] = () => null;
 

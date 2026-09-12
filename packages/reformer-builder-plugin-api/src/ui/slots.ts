@@ -18,12 +18,12 @@
  * при этом пуст: там видимость панели была зашита в раскладку, здесь — в предикат вклада,
  * то есть у того, кто про содержимое панели знает.
  *
- * @module shell/platform/ui/slots
+ * @module @reformer/builder-plugin-api/ui/slots
  */
 
 import type { ComponentType } from 'react';
-import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
-import type { WhenContext } from '@reformer/builder-plugin-api/internal';
+import { defineExtensionPoint } from '../primitives/extension-point';
+import type { WhenContext } from '../primitives/when-context';
 
 /**
  * Область оболочки, в которую можно внести панель.

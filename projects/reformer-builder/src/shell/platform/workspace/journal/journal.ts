@@ -39,7 +39,7 @@
 
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { applyTextEdits, invertTextEdits } from '../model/history';
-import type { EditOp } from '../model/provider';
+import type { EditOp } from '@reformer/builder-plugin-api/internal';
 import type { HistorySnapshotRecord, QuotaPressure, WorkspaceMetaStore } from '../storage/idb';
 import {
   canMerge,
@@ -59,11 +59,11 @@ import {
   toStoredSnapshot,
   type JournalContent,
   type JournalIndexEntry,
-  type JournalOrigin,
   type JournalPayload,
   type JournalRecord,
   type JournalSnapshot,
 } from './record';
+import { type JournalOrigin } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Та часть хранилища метаданных, которая нужна журналу.

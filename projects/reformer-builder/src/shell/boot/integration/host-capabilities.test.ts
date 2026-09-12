@@ -33,7 +33,7 @@ import { minimalProfile } from '@/application/profiles/presets';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import { definePlugin } from '@reformer/builder-plugin-api/internal';
 import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/host-capabilities';
-import { DocumentsServiceToken } from '@/shell/platform/services/documents';
+import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
 
 /** Окружение браузера в объёме, который трогает `boot` при сборке (как в `./minimal-profile`). */

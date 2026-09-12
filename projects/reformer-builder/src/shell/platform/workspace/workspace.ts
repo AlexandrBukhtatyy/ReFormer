@@ -61,8 +61,9 @@
  * @module shell/platform/workspace/workspace
  */
 
-import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
+import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import type { WriteOptions } from '@reformer/builder-plugin-api/internal';
 import { createEventBus } from '@/shell/platform/primitives/event';
 import { defineEvent, type EventBus } from '@reformer/builder-plugin-api/internal';
 import {
@@ -77,7 +78,8 @@ import {
   type ResourceRef,
   type ResourceStat,
 } from '@reformer/builder-plugin-api/internal';
-import { createDocument, type Document, type DocumentHandle } from './document';
+import { createDocument, type DocumentHandle } from './document';
+import { type Document } from '@reformer/builder-plugin-api/internal';
 import {
   DEFAULT_EVICTION_BUDGET,
   planEviction,
@@ -95,7 +97,6 @@ import {
   type MaterializeResult,
 } from './materialize';
 import type { Journal } from './journal/journal';
-import type { JournalOrigin } from './journal/record';
 import { classifyDivergence, type ExternalCheck } from './merge/divergence';
 import { diffText, type TextEdit } from './model/history';
 import {
@@ -189,27 +190,6 @@ export interface SaveOptions {
    * значит оставить расхождение неразрешённым.
    */
   readonly expected?: string;
-}
-
-export interface WriteOptions {
-  /**
-   * Кто правит. По умолчанию `'user'`: `writeText` без пометки зовут от имени человека,
-   * и в этом случае догадка верна.
-   *
-   * Словарь — целиком журнальный ({@link JournalOrigin}), а не сокращённый до «человек или
-   * машина»: рабочая область здесь ПЕРЕДАТОЧНОЕ звено, и сужать чужой словарь по дороге
-   * значило бы завести второй, который разъедется с первым.
-   */
-  readonly origin?: JournalOrigin;
-  /**
-   * Логический шаг, которому принадлежит правка: ход ассистента, мультикурсорная правка.
-   *
-   * Нужен для `Journal.undoTransaction` — отката шага целиком. Ход, приземлившийся ДВУМЯ
-   * записями (например, ход со второй попыткой), отменяется одним действием только если обе
-   * записи названы одним `txId`; без него отменять пришлось бы по одной, и промежуточное
-   * состояние формы человек увидел бы как результат.
-   */
-  readonly txId?: string;
 }
 
 export interface Workspace {

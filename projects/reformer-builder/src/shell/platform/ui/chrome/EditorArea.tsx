@@ -46,14 +46,14 @@ import {
   type EditorChoiceStore,
 } from '@/shell/platform/ui/contributions/editor-choice';
 import {
-  EditorPoint,
   createViewStateStore,
   rankEditorsForDocument,
   type EditorCandidate,
   type EditorEntry,
   type ViewStateStore,
 } from '@/shell/platform/ui/contributions/editors';
-import type { Document } from '@/shell/platform/workspace/document';
+import { EditorPoint } from '@reformer/builder-plugin-api/internal';
+import type { Document } from '@reformer/builder-plugin-api/internal';
 import { hostMenuEntry, type MenuEntry } from '@/shell/platform/ui/menu/menu';
 import { EDITOR_TITLE_MENU } from '@/shell/platform/ui/menu/editor-menu';
 import type { PanelEntry } from './panels';

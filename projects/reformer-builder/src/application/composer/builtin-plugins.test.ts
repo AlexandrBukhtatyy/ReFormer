@@ -29,9 +29,10 @@ import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import { createSelectionService, SelectionServiceToken } from '@/shell/platform/services/selection';
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
-import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
-import { EditorPoint, resolveEditor } from '@/shell/platform/ui/contributions/editors';
-import { PanelPoint } from '@/shell/platform/ui/slots';
+import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
+import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
+import { EditorPoint } from '@reformer/builder-plugin-api/internal';
+import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits';
 import { builderApplication } from '../builder-application';
 import {

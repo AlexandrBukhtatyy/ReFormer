@@ -16,18 +16,14 @@
 
 import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
 import type { ServiceRegistry } from '@reformer/builder-plugin-api/internal';
-import { DocumentsServiceToken } from '@/shell/platform/services/documents';
-import { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
+import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
-import {
-  createEditorViewStates,
-  EditorViewStatesToken,
-} from '@/shell/platform/workspace/model/editor-view-states';
-import {
-  createTextEditorFocusRegistry,
-  TextEditorFocusToken,
-} from '@/shell/platform/workspace/model/text-editor-focus';
+import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-view-states';
+import { EditorViewStatesToken } from '@reformer/builder-plugin-api/internal';
+import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
+import { TextEditorFocusToken } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Возможности оболочки, без которых встроенные плагины не поднимаются, — как в `boot`.

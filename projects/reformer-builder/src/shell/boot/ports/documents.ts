@@ -26,9 +26,9 @@
 
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import type { DocumentsService, OpenDocumentOptions } from '@/shell/platform/services/documents';
-import type { Document } from '@/shell/platform/workspace/document';
-import type { WriteOptions } from '@/shell/platform/workspace/workspace';
+import type { DocumentsService, OpenDocumentOptions } from '@reformer/builder-plugin-api/internal';
+import type { Document } from '@reformer/builder-plugin-api/internal';
+import type { WriteOptions } from '@reformer/builder-plugin-api/internal';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface DocumentsServiceDeps {

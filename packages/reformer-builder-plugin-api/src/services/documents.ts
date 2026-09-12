@@ -50,14 +50,14 @@
  * по одному, и порты потеряют эти методы. До тех пор истина одна — `project.get()` на каждый
  * вызов — и расхождение исключено тем, что оба пути читают её одинаково.
  *
- * @module shell/platform/services/documents
+ * @module @reformer/builder-plugin-api/services/documents
  */
 
-import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import { defineCapability, type Capability } from '@reformer/builder-plugin-api/internal';
-import type { Document } from '@/shell/platform/workspace/document';
-import type { WriteOptions } from '@/shell/platform/workspace/workspace';
+import type { Disposable } from '../primitives/disposable';
+import type { ResourceId } from '../primitives/resource';
+import { defineCapability, type Capability } from '../primitives/capability';
+import type { Document } from '../workspace/document';
+import type { WriteOptions } from '../workspace/write-options';
 
 /**
  * Чем править открытие вкладки.

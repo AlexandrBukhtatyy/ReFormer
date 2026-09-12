@@ -21,7 +21,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
+import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import {
   makeResourceId,
@@ -29,7 +29,8 @@ import {
   type ResourceId,
   type ResourceRef,
 } from '@reformer/builder-plugin-api/internal';
-import { createDocument, type Document, type DocumentHandle } from '../document';
+import { createDocument, type DocumentHandle } from '../document';
+import { type Document } from '@reformer/builder-plugin-api/internal';
 import { createWorkspaceMetaStore } from './../storage/idb';
 import { createWorkspaceFileStore } from './../storage/opfs';
 import { createMemoryIndexedDb, createMemoryOpfs } from './../storage/testing';
@@ -44,7 +45,7 @@ import {
   PARSE_DIAGNOSTIC_SOURCE,
   type ModelDocumentHandle,
 } from './model-document';
-import { DocumentModelPoint } from './provider';
+import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import {
   createLinesProvider,
   insertLine,

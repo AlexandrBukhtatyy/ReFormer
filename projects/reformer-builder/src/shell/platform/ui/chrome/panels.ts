@@ -12,7 +12,7 @@
 import type { Contribution } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
-import type { PanelContribution, SlotId } from '../slots';
+import type { PanelContribution, SlotId } from '@reformer/builder-plugin-api/internal';
 
 /** Вклад панели: то, что лежит в точке расширения, вместе с происхождением и React-ключом. */
 export type PanelEntry = Contribution<PanelContribution>;

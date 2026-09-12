@@ -20,18 +20,10 @@
  * @module shell/platform/workspace/journal/record
  */
 
-import type { ResourceId } from '@reformer/builder-plugin-api/internal';
+import type { JournalOrigin, ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { TextEdit } from '../model/history';
-import type { EditOp } from '../model/provider';
+import type { EditOp } from '@reformer/builder-plugin-api/internal';
 import type { HistoryEntryRecord, HistoryRecord, HistorySnapshotRecord } from '../storage/idb';
-
-/**
- * Кто породил правку.
- *
- * Различие несущее: половина ценности аудита в том, что правку человека и правку машины
- * видно порознь. Поэтому же записи с разным происхождением никогда не схлопываются.
- */
-export type JournalOrigin = 'user' | 'agent' | 'external';
 
 /** Начинка записи: правка текста или операции над моделью. */
 export type JournalPayload =

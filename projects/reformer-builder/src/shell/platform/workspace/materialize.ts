@@ -28,7 +28,7 @@
  * @module shell/platform/workspace/materialize
  */
 
-import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
+import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 import { dirname, extname, joinPath } from '@reformer/builder-plugin-api/internal';
 
 /** Потолки догрузки замыкания. */

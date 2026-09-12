@@ -20,10 +20,10 @@
  * плагина узнал об этом отсюда, а не из пустого места в интерфейсе. Понадобятся настройки
  * встроенному — это отдельное решение: у него есть свой раздел или своё место в чужом.
  *
- * @module shell/platform/ui/contributions/plugin-settings
+ * @module @reformer/builder-plugin-api/ui/contributions/plugin-settings
  */
 
-import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
+import { defineExtensionPoint } from '../../primitives/extension-point';
 
 /**
  * Что плагин рассказывает о своих настройках.

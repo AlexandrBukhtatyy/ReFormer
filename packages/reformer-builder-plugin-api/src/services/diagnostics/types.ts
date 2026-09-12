@@ -27,7 +27,7 @@
  * по переведённой фразе не может. И одна ошибка выглядит одинаково в интерфейсе, в логе
  * и в тесте, потому что переводится в момент показа, а не в момент возникновения.
  *
- * @module shell/platform/services/diagnostics/types
+ * @module @reformer/builder-plugin-api/services/diagnostics/types
  */
 
 /**

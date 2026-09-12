@@ -44,8 +44,9 @@
  *
  * Пакет наполняется слоями. Здесь уже весь контракт плагина — `definePlugin`, `PluginContext`
  * и всё, на что его поля ссылаются: службы, возможности, точки расширения, команды, события,
- * хранилища, словарь, — плюс примитивы без зависимостей. Не переехали пока точки расширения
- * оболочки, токены её служб и хуки.
+ * хранилища, словарь, — плюс примитивы без зависимостей, документ и модель документа, службы
+ * рабочей области, вклады панелей, редакторов и декораций, диагностика и валидация. Не переехали
+ * пока меню и палитра, клавиатура, токены остальных служб оболочки и хуки.
  *
  * Пока переезд не кончен, ПОВЕРХНОСТЬЮ ПЛАГИНА остаётся `@/sdk` билдера, и он обязан
  * оставаться её единственным описанием: всё, что переехало сюда, там реэкспортируется,
@@ -103,3 +104,65 @@ export type { NameRejection } from './workspace/resource-names';
 export { parseWhen, compileWhen, evaluateWhen, WHEN_TRUE } from './primitives/when-expr';
 export type { WhenExpr, WhenNode, WhenParseError, WhenParseResult } from './primitives/when-expr';
 export type { WhenContext, FocusTarget } from './primitives/when-context';
+
+// ── Документ и рабочая область ──────────────────────────────────────────────────
+//
+// Документ — то, что уходит в редакторы, панели и ассистента: буфер без ручек управления.
+// Рабочая область отдаётся ДВУМЯ службами, разделёнными по правам: что ОТКРЫТО (единственная
+// дверь записи) и что ЛЕЖИТ и где (чтение и адресация). Сохранения наружу нет ни в одной.
+export type { Document, DocumentKind } from './workspace/document';
+export type { WriteOptions } from './workspace/write-options';
+export { DocumentsServiceToken } from './services/documents';
+export type { DocumentsService, OpenDocumentOptions } from './services/documents';
+export { WorkspaceFilesServiceToken } from './services/workspace-files';
+export type { WorkspaceFilesService } from './services/workspace-files';
+
+// Модель документа: знание о формате приходит вкладом, в платформе его нет и быть не может.
+export { DocumentModelPoint } from './workspace/model/provider';
+export type {
+  ApplyResult,
+  DocumentModelProvider,
+  EditOp,
+  EditorProbe,
+  NodeId,
+} from './workspace/model/provider';
+
+// Общее у текстовых редакторов: кто сейчас печатает и где была каретка. Провайдер — оболочка,
+// потому что писать в них обязан каждый редактор и принадлежать они не могут ни одному.
+export { TextEditorFocusToken } from './workspace/model/text-editor-focus';
+export type { TextEditorFocusRegistry } from './workspace/model/text-editor-focus';
+export { EditorViewStatesToken } from './workspace/model/editor-view-states';
+export type { EditorViewStates, EditorViewStateSlice } from './workspace/model/editor-view-states';
+
+// ── Вклады: панели, редакторы, декорации, настройки ─────────────────────────────
+export { PanelPoint } from './ui/slots';
+export type { PanelContribution, SlotId } from './ui/slots';
+export { EditorPoint } from './ui/contributions/editors';
+export type { EditorContribution } from './ui/contributions/editors';
+export { ResourceDecorationPoint } from './ui/contributions/decorations';
+export type { Decoration, ResourceDecorationContribution } from './ui/contributions/decorations';
+export { CatalogPluginSettingsPoint } from './ui/contributions/plugin-settings';
+export type { CatalogPluginSettingsContribution } from './ui/contributions/plugin-settings';
+
+// ── Диагностика и валидация ─────────────────────────────────────────────────────
+//
+// Находка — данные, а не текст: одна и та же ошибка обязана выглядеть одинаково в редакторе,
+// в панели проблем и в логе. Быстрые исправления называют команду строкой, и отбрасывать
+// недоступные обязан тот, кто показывает, — функцией отсюда, а не своей копией.
+export { SEVERITY_RANK } from './services/diagnostics/types';
+export type {
+  Diagnostic,
+  DiagnosticSeverity,
+  DiagnosticTarget,
+  NodePart,
+  QuickFix,
+  TextRange,
+} from './services/diagnostics/types';
+export { usableFixes, withUsableFixes } from './services/diagnostics/fixes';
+export type { CommandLookup, FixesOptions } from './services/diagnostics/fixes';
+export { ValidatorPoint } from './services/validation/types';
+export type {
+  DocumentRef,
+  ValidateContext,
+  ValidatorContribution,
+} from './services/validation/types';

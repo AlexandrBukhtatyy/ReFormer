@@ -16,13 +16,11 @@ import {
   mediaTypeFor,
   type ResourceRef,
 } from '@reformer/builder-plugin-api/internal';
+import { createEditorProbe, isSyncEditorProbe, resolveModelProvider } from './provider';
 import {
-  createEditorProbe,
   DocumentModelPoint,
-  isSyncEditorProbe,
-  resolveModelProvider,
   type DocumentModelProvider,
-} from './provider';
+} from '@reformer/builder-plugin-api/internal';
 import { createLinesProvider } from './testing';
 
 function refOf(path: string): ResourceRef {

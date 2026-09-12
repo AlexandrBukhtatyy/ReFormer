@@ -20,7 +20,7 @@ import {
   type ResourceRef,
 } from '@reformer/builder-plugin-api/internal';
 import { fromRoot, parentOf, resolve } from '@/shell/platform/primitives/resource-path';
-import type { WorkspaceFilesService } from '@/shell/platform/services/workspace-files';
+import type { WorkspaceFilesService } from '@reformer/builder-plugin-api/internal';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface WorkspaceFilesServiceDeps {

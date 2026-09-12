@@ -36,11 +36,11 @@
  * корень проекта» — методы службы. Семья из трёх вопросов живёт в одном месте: раздели их
  * между двумя службами, и через полгода никто не вспомнит, по какому правилу делили.
  *
- * @module shell/platform/services/workspace-files
+ * @module @reformer/builder-plugin-api/services/workspace-files
  */
 
-import { defineCapability, type Capability } from '@reformer/builder-plugin-api/internal';
-import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
+import { defineCapability, type Capability } from '../primitives/capability';
+import type { ResourceId, ResourceRef } from '../primitives/resource';
 
 export interface WorkspaceFilesService {
   /**

@@ -14,12 +14,12 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
+import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import { isModelDocument } from '@/shell/platform/workspace/model/model-document';
-import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';
+import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { createLinesProvider, setLineText } from '@/shell/platform/workspace/model/testing';
 import { createWorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 import { createWorkspaceFileStore } from '@/shell/platform/workspace/storage/opfs';

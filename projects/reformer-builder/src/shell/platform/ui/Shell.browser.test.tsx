@@ -20,8 +20,8 @@ import {
   createInMemorySettingsBackend,
   createSettingsService,
 } from '@/shell/platform/services/settings';
-import { PanelPoint } from './slots';
-import type { SlotId } from './slots';
+import { PanelPoint } from '@reformer/builder-plugin-api/internal';
+import type { SlotId } from '@reformer/builder-plugin-api/internal';
 import { Shell } from './Shell';
 import { renderReact } from '@/testing/render';
 
