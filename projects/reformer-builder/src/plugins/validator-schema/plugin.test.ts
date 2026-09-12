@@ -19,6 +19,7 @@ import {
   createSchemaValidator,
   createSchemaValidatorPlugin,
   isFormSchemaDocument,
+  KitCatalogCapability,
   SCHEMA_VALIDATOR_PLUGIN_ID,
 } from './plugin';
 import type { ValidateFormSchema } from './check';
@@ -207,8 +208,14 @@ describe('быстрые исправления отбираются по рее
 });
 
 describe('плагин', () => {
-  /** Контекст плагина в объёме, который нужен активации: реестр вкладов и список подписок. */
-  function fakeContext(commands: Set<string> = new Set()): {
+  /**
+   * Контекст плагина в объёме, который нужен активации: реестр вкладов, список подписок,
+   * реестр команд и реестр служб — из последнего плагин берёт каталог активного кита.
+   */
+  function fakeContext(
+    commands: Set<string> = new Set(),
+    kits?: { catalog(): readonly CatalogEntry[] }
+  ): {
     ctx: PluginContext;
     contributed: { point: string; id: string | undefined; value: unknown }[];
   } {
@@ -225,6 +232,11 @@ describe('плагин', () => {
       // Реестр команд в объёме, которым пользуется активация: по нему отбираются быстрые
       // исправления. Множество мутируемое — тем и проверяется, что реестр спрашивают позже.
       commands: { get: (id: string) => (commands.has(id) ? { id } : undefined) },
+      // Реестр служб: возможность «активный кит» либо занята, либо нет. Второй случай —
+      // состав без плагина китов, и он обязан работать.
+      services: {
+        get: (token: { id: string }) => (token.id === KitCatalogCapability.id ? kits : undefined),
+      },
     } as unknown as PluginContext;
     return { ctx, contributed };
   }
@@ -239,6 +251,37 @@ describe('плагин', () => {
       { point: ValidatorPoint.id, id: SCHEMA_VALIDATOR_ID },
     ]);
     expect(ctx.subscriptions).toHaveLength(1);
+  });
+
+  it('каталог берётся из СЛУЖБЫ и спрашивается на проходе, а не на активации', () => {
+    // Порядок активации объявлен незначимым: плагин китов вправе подняться позже валидатора,
+    // а кит — переключиться после. Захваченный на активации каталог остался бы прежним.
+    // Копия, а не сам список: `builtinEntries()` отдаёт массив встроенного каталога, и
+    // дописывание в него утекло бы в соседние тесты.
+    const entries: CatalogEntry[] = [...builtinEntries()];
+    const { ctx, contributed } = fakeContext(new Set(), { catalog: () => entries });
+    createSchemaValidatorPlugin({}).activate(ctx);
+    const validator = contributed[0].value as ValidatorContribution;
+
+    // Кит, действовавший на активации, про «Inpt» не знает.
+    expect(validator.validate?.(contextOf(schema))?.map((item) => item.code)).toEqual([
+      CODES.UNKNOWN_COMPONENT,
+    ]);
+
+    // Кит переключили ПОСЛЕ активации — и находка обязана исчезнуть на следующем проходе.
+    entries.push({ ...entries[0], name: 'Inpt' });
+
+    expect(validator.validate?.(contextOf(schema))).toEqual([]);
+  });
+
+  it('без плагина китов валидатор поднимается и проверяет: сверять компоненты просто нечем', () => {
+    // Требование к киту объявлено НЕобязательным (`composer/builtin-plugins`), поэтому состав
+    // без него собирается. Валидатор при этом обязан подняться и не падать на пустом реестре.
+    const { ctx, contributed } = fakeContext();
+    createSchemaValidatorPlugin({}).activate(ctx);
+    const validator = contributed[0].value as ValidatorContribution;
+
+    expect(validator.validate?.(contextOf(schema))).toEqual([]);
   });
 
   it('идентификатор плагина — пространство имён во всех реестрах', () => {

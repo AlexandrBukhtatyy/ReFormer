@@ -44,9 +44,11 @@
  * @module application/composer/builtin-plugins
  */
 
-import type { CatalogEntry } from '@/lib/catalog/types';
 import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
-import type { CapabilityDeclaration } from '@/shell/platform/primitives/capability';
+import type {
+  CapabilityDeclaration,
+  CapabilityRequirement,
+} from '@/shell/platform/primitives/capability';
 import type { Plugin } from '@/shell/platform/plugin/types';
 import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
@@ -69,9 +71,6 @@ import {
 // Ленивых здесь нет ВОВСЕ — ни значением, ни типом: их значения приезжают литеральными
 // `import()` внутри их же записей, а типы нужны только опциям, то есть оболочке.
 
-/** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
-const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
-
 /**
  * Общее у всех записей: имя и то, что плагин ОБЕЩАЕТ дать остальным.
  *
@@ -90,6 +89,18 @@ interface BuiltinPluginBase {
   readonly id: string;
   /** Возможности, которые плагин обязан зарегистрировать в `activate`. */
   readonly provides?: readonly CapabilityDeclaration[];
+  /**
+   * Что плагину НУЖНО от остальных — теми же двумя списками, что у манифеста плагина каталога.
+   *
+   * `required` означает «без этого не собираемся»: состав, где требование не выполнено,
+   * отвергается при сборке приложения, до первой активации. `optional` — НАЗВАННАЯ
+   * деградация: плагин поднимется и будет работать меньшим набором, но в разборе состава
+   * это видно строкой, а не остаётся молчаливым `?? []` где-то внутри его кода.
+   */
+  readonly requires?: {
+    readonly required?: readonly CapabilityRequirement[];
+    readonly optional?: readonly CapabilityRequirement[];
+  };
 }
 
 /**
@@ -134,10 +145,11 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // запроса цепочку из двух ради десяти килобайт.
     id: SCHEMA_VALIDATOR_PLUGIN_ID,
     loading: 'eager',
-    create: (options) =>
-      createSchemaValidatorPlugin({
-        catalog: options.catalog ?? ((): readonly CatalogEntry[] => NO_CATALOG),
-      }),
+    // Кит НЕОБЯЗАТЕЛЕН, и это названная деградация, а не забытое требование: без кита
+    // валидатор проверяет структуру схемы и молчит о компонентах — сверять их не с чем.
+    // Каталог он берёт из реестра служб сам; параметров здесь не осталось вовсе.
+    requires: { optional: [{ id: 'kits.active', range: '^1' }] },
+    create: () => createSchemaValidatorPlugin({}),
   },
   {
     // Статический: `boot` синхронно вычисляет тело редактора и раздаёт ОДНУ ссылку троим
@@ -151,11 +163,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // Ни реестра фокуса, ни хранилища снимков вида здесь нет: оба — возможности оболочки,
     // и плагин берёт их из `ctx.services`. Раньше они приезжали опциями, потому что общий
     // объект приходилось раздавать троим руками; теперь общее — хранилище, а не объект.
-    create: (options) =>
-      createMonacoEditorPlugin({
-        host: options.monaco,
-        i18n: options.i18n.forPlugin(MONACO_PLUGIN_ID),
-      }),
+    create: (options) => createMonacoEditorPlugin({ host: options.monaco }),
   },
   {
     // Статический: `KitsServiceToken` импортируется значением пятью портами композиции.
@@ -166,14 +174,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // (фаза 7 плана), и прятать её внутри задачи про версии нельзя. Объявление и токен —
     // ОДИН объект (`KitsCapability`), поэтому разойтись им нечем.
     provides: [KitsCapability],
-    create: (options) =>
-      createKitsPlugin({
-        ...options.kits,
-        // Перевод плагина китов НЕ реактивный: пункты палитры строятся провайдером, а не
-        // компонентом, и хука там быть не может. Смена локали перестроит их на следующем
-        // открытии палитры — это и есть та цена, которую платит не-компонентный вклад.
-        translate: (key, params) => options.i18n.forPlugin(KITS_PLUGIN_ID).t(key, params),
-      }),
+    create: (options) => createKitsPlugin({ ...options.kits }),
   },
   {
     // Статический: поверхности нужны живому виду редактора схемы, а он ленивый — ждать
@@ -188,11 +189,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // Точку поверхностей плагин объявляет структурно — `@/sdk` её пока не отдаёт, как и
     // `defineExtensionPoint`, которым чужой плагин мог бы объявить свою. Пока поверхности
     // вносит только сам превью, это ничего не стоит; появится вторая — точку надо вынести.
-    create: (options) =>
-      createPreviewPlugin({
-        host: options.preview,
-        i18n: options.i18n.forPlugin(PREVIEW_PLUGIN_ID),
-      }),
+    create: (options) => createPreviewPlugin({ host: options.preview }),
   },
   {
     id: 'editor-markdown',
@@ -203,10 +200,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // редактор не получил бы ни одного файла.
     create: async (options) => {
       const markdown = await import('@/plugins/editor-markdown');
-      return markdown.createMarkdownPlugin({
-        host: options.markdown,
-        i18n: options.i18n.forPlugin(markdown.MARKDOWN_PLUGIN_ID),
-      });
+      return markdown.createMarkdownPlugin({ host: options.markdown });
     },
   },
   {
@@ -220,7 +214,6 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
       return schemaEditor.createSchemaEditorPlugin({
         host: options.schema,
         modelPoint: DocumentModelPoint,
-        i18n: options.i18n.forPlugin(schemaEditor.SCHEMA_EDITOR_PLUGIN_ID),
       });
     },
   },
@@ -229,18 +222,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     loading: 'lazy',
     create: async (options) => {
       const pluginManager = await import('@/plugins/plugin-manager');
-      // Словарь регистрируется ЗДЕСЬ, а не в `boot`: он единственный из ленивых, чей словарь
-      // ставит композиция (вклад в словарь не снимается вместе с плагином, значит и частью
-      // его подписок быть не может), а взять его значением в `boot` нельзя — тот импорт
-      // вернул бы плагин в стартовый граф.
-      const i18n = options.i18n.forPlugin(pluginManager.PLUGIN_MANAGER_PLUGIN_ID);
-      for (const [locale, messages] of Object.entries(pluginManager.PLUGIN_MANAGER_MESSAGES)) {
-        i18n.contribute(locale, messages);
-      }
-      return pluginManager.createPluginManagerPlugin({
-        ...options.pluginManager,
-        translate: (key, params) => i18n.t(key, params),
-      });
+      return pluginManager.createPluginManagerPlugin({ ...options.pluginManager });
     },
   },
   {
@@ -251,10 +233,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // найти файл, а потом обнаружить, что ключа нет.
     create: async (options) => {
       const ai = await import('@/plugins/ai');
-      return ai.createAiPlugin({
-        host: options.ai,
-        i18n: options.i18n.forPlugin(ai.AI_PLUGIN_ID),
-      });
+      return ai.createAiPlugin({ host: options.ai });
     },
   },
   {
@@ -262,10 +241,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     loading: 'lazy',
     create: async (options) => {
       const codegen = await import('@/plugins/codegen');
-      return codegen.createCodegenPlugin({
-        host: options.codegen,
-        i18n: options.i18n.forPlugin(codegen.CODEGEN_PLUGIN_ID),
-      });
+      return codegen.createCodegenPlugin({ host: options.codegen });
     },
   },
   {
@@ -275,7 +251,6 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
       const templates = await import('@/plugins/templates');
       return templates.createTemplatesPlugin({
         host: options.templates,
-        i18n: options.i18n.forPlugin(templates.TEMPLATES_PLUGIN_ID),
         print: options.printTemplate,
       });
     },

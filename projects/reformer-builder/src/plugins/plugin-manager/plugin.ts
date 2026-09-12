@@ -17,6 +17,7 @@
 import { definePlugin, PaletteItemsPoint } from '@/sdk';
 import type { PaletteItem, PaletteItemProvider, Plugin } from '@/sdk';
 import type { ManagedPlugin, PluginManagerHost, Translate } from './host';
+import { PLUGIN_MANAGER_MESSAGES } from './messages';
 
 export const PLUGIN_MANAGER_PLUGIN_ID = 'plugin-manager';
 
@@ -25,7 +26,6 @@ export const PLUGIN_MANAGER_PALETTE_PROVIDER_ID = 'plugin-manager.actions';
 
 export interface PluginManagerPluginOptions {
   readonly host: PluginManagerHost;
-  readonly translate: Translate;
 }
 
 /** Пояснение справа от пункта: у упавшего — причина, у наблюдаемого — режим. */
@@ -93,10 +93,18 @@ export function createPluginManagerPlugin(options: PluginManagerPluginOptions): 
   return definePlugin({
     id: PLUGIN_MANAGER_PLUGIN_ID,
     activate(ctx) {
+      for (const [locale, messages] of Object.entries(PLUGIN_MANAGER_MESSAGES)) {
+        ctx.i18n.contribute(locale, messages);
+      }
+      // Перевод НЕ реактивный, и это цена не-компонентного вклада: пункты палитры строит
+      // поставщик, а не компонент, и хука там быть не может. Смена локали перестроит их
+      // на следующем открытии палитры.
       ctx.subscriptions.push(
         ctx.extensions.contribute(
           PaletteItemsPoint,
-          createPluginManagerPaletteProvider(options.host, options.translate),
+          createPluginManagerPaletteProvider(options.host, (key, params) =>
+            ctx.i18n.t(key, params)
+          ),
           { id: PLUGIN_MANAGER_PALETTE_PROVIDER_ID }
         )
       );

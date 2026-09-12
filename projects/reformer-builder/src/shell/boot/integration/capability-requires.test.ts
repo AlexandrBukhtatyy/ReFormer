@@ -117,10 +117,7 @@ function harness(range: string, extra: readonly Requirement[] = []) {
 
   // Провайдер поднимается ПО-НАСТОЯЩЕМУ и с тем же объявлением, что в карте состава: иначе
   // проверялась бы декларация против декларации, а не против реестра служб.
-  plugins.register(
-    createKitsPlugin({ translate: (key) => key, sources: [{ catalog: KIT_CATALOG }] }),
-    [KitsCapability]
-  );
+  plugins.register(createKitsPlugin({ sources: [{ catalog: KIT_CATALOG }] }), [KitsCapability]);
   plugins.activate(KITS_PLUGIN_ID);
 
   const pluginModules = createPluginModules();

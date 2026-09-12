@@ -12,14 +12,9 @@
  *
  * ## Куда словарь регистрируется
  *
- * По контракту (`docs/plugin-and-shell.md`, «PluginContext») у контекста есть поле `i18n` —
- * вид сервиса локализации в пространстве имён плагина. На момент написания этого модуля
- * поля в собранном контексте ещё нет (`host/plugin/context.ts` честно перечисляет `workspace`
- * и `i18n` как соседние работы Э4). Поэтому приёмник ИЩЕТСЯ: появится штатный `ctx.i18n` —
- * словарь уедет туда сам, не появится — его подставит композиция параметром.
- *
- * Проверка структурная, а не по типу: тип `PluginContext` сегодня поля не объявляет, и
- * дожидаться его, отказавшись от словаря, значило бы показывать маркеры вместо интерфейса.
+ * В `ctx.i18n` — поле контекста, вид сервиса локализации в пространстве имён плагина.
+ * Раньше приёмник ИСКАЛСЯ структурно, потому что поля в контексте не было и словарь
+ * подставляла композиция параметром; теперь поле есть, и искать нечего.
  *
  * @module plugins/editor-monaco/messages
  */
@@ -31,27 +26,6 @@ import type { MessageSink } from './host';
 /** Локаль → ключ (без пространства имён) → сообщение. */
 export const MONACO_MESSAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
   Object.freeze({ ru, en });
-
-function isMessageSink(value: unknown): value is MessageSink {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as Partial<MessageSink>).contribute === 'function'
-  );
-}
-
-/**
- * Приёмник словаря: сначала штатный `ctx.i18n`, затем подставленный композицией.
- *
- * `null` — регистрировать некуда. Это не отказ активации: без словаря интерфейс покажет
- * маркеры промахов, и они попадутся разработчику раньше, чем пользователю, — то же правило
- * видимости промаха, что и в самом сервисе локализации.
- */
-export function resolveMessageSink(ctx: object, fallback?: MessageSink): MessageSink | null {
-  const provided = (ctx as { readonly i18n?: unknown }).i18n;
-  if (isMessageSink(provided)) return provided;
-  return fallback ?? null;
-}
 
 /**
  * Отдаёт словарь приёмнику — по одной локали.

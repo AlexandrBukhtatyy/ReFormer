@@ -42,7 +42,6 @@ function mountPreview(
   options: { bytes?: Uint8Array | null; onOpen?: (id: ResourceId) => void } = {}
 ) {
   const host: MarkdownHost = {
-    useTranslate: () => (key: string) => key,
     documentOf: () => DOCUMENT,
     readBytes: () => Promise.resolve(options.bytes ?? null),
     resourceAt: (document, path) => `${document.ref.sourceId}:${path}`,

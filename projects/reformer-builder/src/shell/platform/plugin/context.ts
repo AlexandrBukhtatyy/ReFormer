@@ -11,12 +11,15 @@
  * простой операцией: снять `subscriptions` прежнего контекста и построить новый, вместо того
  * чтобы вычищать состояние из общего.
  *
- * ## Чего здесь пока нет
+ * ## Чего здесь нет
  *
- * Контракт (plugin-and-shell.md, «PluginContext») перечисляет ещё `workspace` и `i18n`.
- * Оба — соседние работы Э4, и когда они появятся, добавляются они сюда: поле в
- * {@link PluginContextDeps}, поле в контексте, одна строка в сборке. Рантайм от этого
- * не меняется, потому что он про жизненный цикл, а не про содержимое контекста.
+ * `workspace` — и не будет полем: на момент активации рабочей области ещё нет (проект
+ * открывают позже), поэтому она приходит СЛУЖБОЙ (`DocumentsServiceToken`), которая
+ * существует с запуска и без проекта отвечает `null` и отказом записи.
+ *
+ * `i18n`, наоборот, полем стал: словарь плагина существует ровно столько же, сколько его
+ * активация, и регистрировать его больше некуда — раньше приёмник ИСКАЛСЯ структурно
+ * (`plugins/<id>/messages.ts`: «появится штатный ctx.i18n — словарь уедет туда сам»).
  *
  * @module shell/platform/plugin/context
  */
@@ -25,7 +28,13 @@ import { createCapabilityAccess } from '@/shell/platform/primitives/capability';
 import type { CommandRegistry } from '@/shell/platform/primitives/command';
 import type { EventBus } from '@/shell/platform/primitives/event';
 import type { RootExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { toDisposable } from '@/shell/platform/primitives/disposable';
 import type { ServiceRegistry } from '@/shell/platform/primitives/service';
+import {
+  FALLBACK_LOCALE,
+  type PluginI18n,
+  type RootI18nService,
+} from '@/shell/platform/services/i18n/i18n';
 import { createPluginStorage, createSecretStorage } from './storage';
 import type { PluginStorageBackend, SecretSessionStore } from './storage';
 import type { PluginContext } from './types';
@@ -54,6 +63,34 @@ export interface PluginContextDeps {
   readonly storage: PluginStorageBackend;
   /** Память сессии для секретов. Живёт столько же, сколько рантайм плагинов. */
   readonly secrets: SecretSessionStore;
+  /**
+   * Служба локализации — КОРЕНЬ, а не вид: вид на пространство имён плагина умеет делать
+   * только этот модуль, ровно как с реестром вкладов.
+   *
+   * Необязательна, и отсутствие — названная деградация, а не поломка: контекст получает
+   * словарь-пустышку, у которой `t` возвращает ключ. Это тот же ответ, который служба даёт
+   * на промах, и видно его сразу — маркером в интерфейсе. Так собираются стенды, которым
+   * локализация не нужна вовсе; настоящую передаёт запуск.
+   */
+  readonly i18n?: Pick<RootI18nService, 'forPlugin'>;
+}
+
+/**
+ * Словарь-пустышка: отвечает МАРКЕРОМ ПРОМАХА, словарь принимает и забывает.
+ *
+ * Маркер — тот же и той же формы, что у настоящей службы на ненайденном ключе (`⟦id.key⟧`),
+ * и это не подражание ради красоты: стенд без локализации обязан выглядеть как приложение
+ * с недостающим переводом, а не как приложение с другим поведением. Верни он ключ как есть,
+ * разница вылезла бы в первом же тесте, сравнивающем строку, — и обнаружилась бы как
+ * «почему-то без скобок», а не как «локализации нет».
+ */
+function missingI18n(pluginId: string): PluginI18n {
+  return {
+    locale: FALLBACK_LOCALE,
+    t: (key) => `⟦${pluginId}.${key}⟧`,
+    contribute: () => {},
+    onDidChangeLocale: () => toDisposable(() => {}),
+  };
 }
 
 /**
@@ -83,6 +120,7 @@ export function createPluginContext(pluginId: string, deps: PluginContextDeps): 
     // причине: параметр забыли бы или подставили чужой.
     commands: deps.commands.forPlugin(pluginId),
     events: deps.events,
+    i18n: deps.i18n?.forPlugin(pluginId) ?? missingI18n(pluginId),
     storage: createPluginStorage(pluginId, deps.storage),
     secrets: createSecretStorage(pluginId, { session: deps.secrets, backend: deps.storage }),
     subscriptions: [],

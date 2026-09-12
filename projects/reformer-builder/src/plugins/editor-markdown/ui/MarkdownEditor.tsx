@@ -22,7 +22,7 @@ import {
 } from 'react';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
-import type { ResourceId } from '@/sdk';
+import { useTranslate, type PluginI18n, type ResourceId } from '@/sdk';
 import type { MarkdownHost } from '../host';
 import type { MarkdownViewStore } from '../state/sessions';
 /**
@@ -41,6 +41,8 @@ const MarkdownPreview = lazy(async () => {
 export interface MarkdownEditorProps {
   readonly host: MarkdownHost;
   readonly views: MarkdownViewStore;
+  /** Словарь плагина: тот же, что дал контекст активации. */
+  readonly i18n: PluginI18n;
   readonly documentId: ResourceId;
 }
 
@@ -100,8 +102,13 @@ function useView(views: MarkdownViewStore, documentId: ResourceId): string {
  */
 const SPLIT_SIZES = { source: 480, preview: 480 } as const;
 
-export function MarkdownEditor({ host, views, documentId }: MarkdownEditorProps): ReactElement {
-  const translate = host.useTranslate();
+export function MarkdownEditor({
+  host,
+  views,
+  i18n,
+  documentId,
+}: MarkdownEditorProps): ReactElement {
+  const translate = useTranslate(i18n);
   const document = host.documentOf(documentId);
   const text = useDocumentText(host, documentId);
   const view = useView(views, documentId);

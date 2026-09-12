@@ -23,9 +23,6 @@
 import type { ComponentType } from 'react';
 import type { Disposable, ResourceId, ResourceRef } from '@/sdk';
 
-/** Перевод в пространстве имён плагина. */
-export type Translate = (key: string, params?: Record<string, unknown>) => string;
-
 /** Открытый документ в объёме, нужном предпросмотру: текст и его изменения. */
 export interface MarkdownDocument {
   readonly ref: ResourceRef;
@@ -33,14 +30,14 @@ export interface MarkdownDocument {
   onDidChangeContent(cb: (text: string) => void): Disposable;
 }
 
-/** Всё, что предпросмотр получает от композиции. */
+/**
+ * Всё, что предпросмотр получает от композиции.
+ *
+ * Перевода здесь НЕТ: словарь плагина приходит полем контекста (`ctx.i18n`), а реактивным
+ * его делает `useTranslate` из `@/sdk`. Раньше хук вёз порт — по копии на каждый плагин,
+ * все с одинаковым телом, — потому что службы локализации в SDK не было.
+ */
 export interface MarkdownHost {
-  /**
-   * Реактивный перевод. Хук, а не функция: локаль меняется, и компонент обязан
-   * перерисоваться — подписку на смену локали держит композиция.
-   */
-  useTranslate(): Translate;
-
   /**
    * Адрес активной вкладки или `null`.
    *

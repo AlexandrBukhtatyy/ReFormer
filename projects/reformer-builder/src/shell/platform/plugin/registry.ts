@@ -232,6 +232,9 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
     extensions: deps.extensions,
     commands: deps.commands,
     events: deps.events,
+    // Необязательное поле пробрасывается УСЛОВНО: `exactOptionalPropertyTypes` отличает
+    // «поля нет» от «поле есть и равно undefined», и второе сборку контекста не устроит.
+    ...(deps.i18n === undefined ? {} : { i18n: deps.i18n }),
     storage: deps.storage,
     secrets: deps.secrets ?? createSecretSessionStore(),
   };

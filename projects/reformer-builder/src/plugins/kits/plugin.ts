@@ -56,8 +56,6 @@ export interface KitsPluginOptions {
    * и передать ему ничего не может.
    */
   readonly settings?: KitsSettings;
-  /** Перевод в пространстве имён плагина. Без него пункты палитры показывают маркер промаха. */
-  readonly translate: Translate;
   /** Киты, между которыми можно выбирать. По умолчанию — один встроенный. */
   readonly sources?: readonly KitSource[];
 }
@@ -122,7 +120,7 @@ export function createKitsPlugin(options: KitsPluginOptions): Plugin {
       ctx.subscriptions.push(
         ctx.extensions.contribute(
           PaletteItemsPoint,
-          createKitPaletteProvider(service, options.translate),
+          createKitPaletteProvider(service, (key, params) => ctx.i18n.t(key, params)),
           { id: KITS_PALETTE_PROVIDER_ID }
         )
       );

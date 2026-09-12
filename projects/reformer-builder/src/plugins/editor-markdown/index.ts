@@ -29,4 +29,3 @@ export type { MarkdownDocument, MarkdownHost } from './host';
 export { isMarkdown, MARKDOWN_MEDIA_TYPE } from './render/markdown';
 export { MARKDOWN_VIEW_SETTING, type MarkdownView } from './state/view';
 export { MARKDOWN_MESSAGES } from './messages';
-export type { Translate } from './host';

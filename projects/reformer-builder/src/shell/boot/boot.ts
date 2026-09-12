@@ -156,7 +156,6 @@ import {
   EditorViewStatesToken,
 } from '@/shell/platform/workspace/model/editor-view-states';
 import { KitsServiceToken } from '@/plugins/kits';
-import type { CatalogEntry } from '@/lib/catalog/types';
 import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
 import { createCompileCache, type CompileCache } from '@/shell/platform/modules/compile-cache';
 import {
@@ -199,9 +198,6 @@ const DEFAULT_LOCALE = 'ru';
  * понадобится снова.
  */
 const BUILD_CACHE_BUDGET_BYTES = 16 * 1024 * 1024;
-
-/** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
-const EMPTY_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
 /**
  * Список включённых плагинов поверх настроек.
@@ -488,15 +484,13 @@ export function boot(options: BootOptions): BuilderApp {
     extensions,
     commands,
     events,
+    // КОРЕНЬ службы локализации: вид в пространстве имён плагина делает сборка контекста,
+    // и только она, — иначе плагин мог бы попросить чужое пространство имён.
+    i18n,
     // Память сессии: постоянное хранилище плагинов — часть рабочей области (Э2), и до неё
     // плагину лучше не иметь хранилища вовсе, чем иметь исчезающее незаметно.
     storage: createMemoryStorageBackend(),
   });
-  // Каталог активного кита читается ЛЕНИВО из сервиса: сервис появляется при активации
-  // плагина китов, а список плагинов собирается до неё. Захвати мы каталог значением —
-  // получили бы снимок пустого, и палитра осталась бы пустой навсегда.
-  const activeCatalog = (): readonly CatalogEntry[] =>
-    services.get(KitsServiceToken)?.catalog() ?? EMPTY_CATALOG;
 
   /**
    * Кэш транспиляции текущей рабочей области.
@@ -639,12 +633,10 @@ export function boot(options: BootOptions): BuilderApp {
    * больше не держится на «это обязан быть тот же объект».
    */
   const builtinOptions: BuiltinPluginsOptions = {
-    i18n,
     files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
     monaco: monacoHost,
     markdown: createMarkdownHost({
       project,
-      i18n,
       // Тот же порт и то же хранилище, что у обычной code-вкладки: режим «рядом» показывает
       // ровно тот редактор, в котором файл правится, а не его копию. Виды на хранилище
       // здесь новые, и это теперь безразлично: состояние живёт в реестре, а не в них.
@@ -712,7 +704,6 @@ export function boot(options: BootOptions): BuilderApp {
       });
       return built.files.map(({ path, content }) => ({ path, content }));
     },
-    catalog: activeCatalog,
   };
 
   // По одному, а не `registerAll`: вместе с плагином в реестр уходит то, что он ОБЕЩАЛ дать

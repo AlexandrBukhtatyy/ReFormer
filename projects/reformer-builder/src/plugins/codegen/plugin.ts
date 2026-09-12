@@ -43,7 +43,7 @@ import { CodegenTargetPoint, type CodegenTarget, type ExtensionPointRef } from '
 import { ejectTemplate, type EjectOutcome } from './commands/eject';
 import { createFixture, type FixtureOutcome } from './commands/fixture-command';
 import type { CodegenProblem } from './pipeline/generate';
-import type { CodegenHost, MessageSink } from './host';
+import type { CodegenHost } from './host';
 import { CODEGEN_MESSAGES } from './messages';
 import { runCodegen } from './pipeline/run';
 import { applyOverrides, discoverUserTargets } from './pipeline/user-targets';
@@ -337,8 +337,6 @@ export interface CodegenPluginOptions {
   readonly targetPoint?: ExtensionPointRef<CodegenTarget>;
   /** Слот панели; по умолчанию {@link DEFAULT_CODEGEN_SLOT}. */
   readonly slot?: SlotId;
-  /** Приёмник словаря. Без него строки показываются маркерами промаха. */
-  readonly i18n?: MessageSink;
 }
 
 /**
@@ -357,7 +355,7 @@ export function createCodegenPlugin(options: CodegenPluginOptions): Plugin {
     id: CODEGEN_PLUGIN_ID,
     activate(ctx) {
       for (const [locale, messages] of Object.entries(CODEGEN_MESSAGES)) {
-        options.i18n?.contribute(locale, messages);
+        ctx.i18n.contribute(locale, messages);
       }
 
       // Список читается ЛЕНИВО, через реестр: цели вносят и снимают, в том числе чужие

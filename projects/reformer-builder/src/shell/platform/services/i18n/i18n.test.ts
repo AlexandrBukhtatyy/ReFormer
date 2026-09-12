@@ -154,7 +154,9 @@ describe('пространство имён плагина', () => {
     const i18n = create();
     const acme = i18n.forPlugin('acme');
 
-    expect(Object.keys(acme).sort()).toEqual(['contribute', 't']);
+    // Локаль и подписка на её смену — про язык ПРИЛОЖЕНИЯ, и назвать через них чужое
+    // пространство имён нечем; `forPlugin` в виде нет вовсе.
+    expect(Object.keys(acme).sort()).toEqual(['contribute', 'locale', 'onDidChangeLocale', 't']);
     expect('forPlugin' in acme).toBe(false);
   });
 

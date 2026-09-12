@@ -90,11 +90,11 @@ function fakeContext(): {
 
 describe('плагин', () => {
   it('идентификатор плагина — пространство имён во всех реестрах', () => {
-    expect(createKitsPlugin({ translate }).id).toBe(KITS_PLUGIN_ID);
+    expect(createKitsPlugin({}).id).toBe(KITS_PLUGIN_ID);
   });
 
   it('регистрирует сервис под токеном: у «какой кит активен» один ответ на всех', () => {
-    const plugin = createKitsPlugin({ translate, sources: [KIT_A, KIT_B] });
+    const plugin = createKitsPlugin({ sources: [KIT_A, KIT_B] });
     const { ctx, services } = fakeContext();
 
     plugin.activate(ctx);
@@ -105,7 +105,7 @@ describe('плагин', () => {
 
   it('объявляет умолчание настройки — встроенный кит', () => {
     const settings = fakeSettings();
-    const plugin = createKitsPlugin({ translate, settings, sources: [KIT_A, KIT_B] });
+    const plugin = createKitsPlugin({ settings, sources: [KIT_A, KIT_B] });
     const { ctx } = fakeContext();
 
     plugin.activate(ctx);
@@ -114,7 +114,7 @@ describe('плагин', () => {
   });
 
   it('вносит поставщика пунктов палитры', () => {
-    const plugin = createKitsPlugin({ translate, sources: [KIT_A] });
+    const plugin = createKitsPlugin({ sources: [KIT_A] });
     const { ctx, contributed } = fakeContext();
 
     plugin.activate(ctx);
@@ -125,7 +125,7 @@ describe('плагин', () => {
   });
 
   it('всё снятое кладётся в подписки: сервис, умолчание, пункты и подписка на настройки', () => {
-    const plugin = createKitsPlugin({ translate, settings: fakeSettings(), sources: [KIT_A] });
+    const plugin = createKitsPlugin({ settings: fakeSettings(), sources: [KIT_A] });
     const { ctx, services } = fakeContext();
 
     plugin.activate(ctx);
@@ -136,7 +136,7 @@ describe('плагин', () => {
   });
 
   it('без настроек умолчание не объявляется, но плагин работает', () => {
-    const plugin = createKitsPlugin({ translate, sources: [KIT_A] });
+    const plugin = createKitsPlugin({ sources: [KIT_A] });
     const { ctx } = fakeContext();
 
     plugin.activate(ctx);
@@ -208,7 +208,7 @@ describe('настройки приходят из реестра сервисо
     const settings = fakeSettings();
     services.set('host.settings', settings);
 
-    createKitsPlugin({ translate: (k) => k }).activate?.(ctx);
+    createKitsPlugin({}).activate?.(ctx);
 
     expect(settings.defaults.has(KIT_SETTINGS_KEY)).toBe(true);
   });
@@ -217,7 +217,7 @@ describe('настройки приходят из реестра сервисо
     // Деградация, а не отказ: у службы могло отказать хранилище.
     const { ctx, services } = fakeContext();
 
-    expect(() => createKitsPlugin({ translate: (k) => k }).activate?.(ctx)).not.toThrow();
+    expect(() => createKitsPlugin({}).activate?.(ctx)).not.toThrow();
     expect(services.get('kits.active')).toBeDefined();
   });
 
@@ -227,7 +227,7 @@ describe('настройки приходят из реестра сервисо
     const byRegistry = fakeSettings();
     services.set('host.settings', byRegistry);
 
-    createKitsPlugin({ translate: (k) => k, settings: byParam }).activate?.(ctx);
+    createKitsPlugin({ settings: byParam }).activate?.(ctx);
 
     expect(byParam.defaults.has(KIT_SETTINGS_KEY)).toBe(true);
     expect(byRegistry.defaults.has(KIT_SETTINGS_KEY)).toBe(false);

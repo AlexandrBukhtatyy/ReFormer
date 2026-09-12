@@ -38,7 +38,6 @@ import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/wor
 import { renderReact } from '@/testing/render';
 import type { MarkdownHost } from '@/plugins/editor-markdown';
 import { createMarkdownPlugin } from '@/plugins/editor-markdown';
-import { MARKDOWN_MESSAGES } from '@/plugins/editor-markdown';
 
 const HOST_MESSAGES: Readonly<Record<string, string>> = {
   'shell.editor.empty': 'Нет открытых редакторов',
@@ -114,10 +113,6 @@ async function mountWithPlugin(): Promise<{ readonly unmount: () => void }> {
     dev: false,
   });
   await i18n.setLocale('ru');
-  const pluginI18n = i18n.forPlugin('editor-markdown');
-  for (const [locale, messages] of Object.entries(MARKDOWN_MESSAGES)) {
-    pluginI18n.contribute(locale, messages);
-  }
 
   const workspace = fakeWorkspace({ [README]: '# Заголовок' });
   const documents = createDocumentTabsStore({
@@ -127,7 +122,6 @@ async function mountWithPlugin(): Promise<{ readonly unmount: () => void }> {
 
   // Порт: то же, что даёт композиция, включая редактор кода для режима «рядом».
   const host: MarkdownHost = {
-    useTranslate: () => (key: string) => pluginI18n.t(key),
     activeDocument: () => documents.get().activeId,
     documentOf: (id) => documents.documentOf(id),
     readBytes: () => Promise.resolve(null),
@@ -142,6 +136,9 @@ async function mountWithPlugin(): Promise<{ readonly unmount: () => void }> {
     extensions,
     commands,
     events,
+    // Настоящий корень локализации: словарь плагин везёт САМ, полем контекста, и подставлять
+    // его тесту больше не надо — а заодно проверяется, что этот путь работает.
+    i18n,
     storage: createMemoryStorageBackend(),
   });
   const plugin = createMarkdownPlugin({ host });

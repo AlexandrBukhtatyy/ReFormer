@@ -31,9 +31,9 @@ import {
   type ResourceId,
   type TextEditorFocusRegistry,
 } from '@/sdk';
-import type { MessageSink, MonacoHost } from './host';
+import type { MonacoHost } from './host';
 import { MONACO_EDITOR_PRIORITY } from './runtime/language';
-import { contributeMessages, resolveMessageSink } from './messages';
+import { contributeMessages } from './messages';
 import { MonacoEditorBody } from './ui/MonacoEditor';
 import { readViewState, viewStatesOver, type ViewStateRegistry } from './sync/view-state';
 
@@ -64,11 +64,6 @@ export interface MonacoEditorPluginOptions {
    * что у {@link focus}: тело редактора одалживают ДО активации плагина.
    */
   readonly viewStates?: ViewStateRegistry;
-  /**
-   * Приёмник словаря — на случай, если в контексте плагина ещё нет штатного `i18n`
-   * (см. `./messages`). Когда поле в контексте появится, параметр перестанет использоваться.
-   */
-  readonly i18n?: MessageSink;
 }
 
 /**
@@ -133,8 +128,7 @@ export function createMonacoEditorPlugin(options: MonacoEditorPluginOptions): Pl
       const viewStates =
         options.viewStates ??
         viewStatesOver(ctx.services.require(EditorViewStatesToken).forEditor(MONACO_EDITOR_ID));
-      const sink = resolveMessageSink(ctx, options.i18n);
-      if (sink !== null) contributeMessages(sink);
+      contributeMessages(ctx.i18n);
 
       ctx.subscriptions.push(
         ctx.extensions.contribute(

@@ -32,9 +32,17 @@ const DOC = {
 function fakeContext(services: Readonly<Record<string, unknown>> = {}) {
   const contributed: { point: string; id?: string }[] = [];
   const commands: string[] = [];
+  const locales: string[] = [];
   const ctx = {
     id: PREVIEW_PLUGIN_ID,
     subscriptions: [],
+    // Словарь плагина — поле контекста: композиция его больше не раздаёт.
+    i18n: {
+      locale: 'ru',
+      t: (key: string) => key,
+      contribute: (locale: string) => locales.push(locale),
+      onDidChangeLocale: () => ({ dispose: () => undefined }),
+    },
     services: {
       get: (token: { id: string }) => services[token.id],
       require: (token: { id: string }) => services[token.id],
@@ -56,7 +64,7 @@ function fakeContext(services: Readonly<Record<string, unknown>> = {}) {
       execute: () => Promise.resolve(true),
     },
   } as unknown as PluginContext;
-  return { ctx, contributed, commands };
+  return { ctx, contributed, commands, locales };
 }
 
 describe('activate', () => {
@@ -89,13 +97,9 @@ describe('activate', () => {
     expect(commands).toEqual([]);
   });
 
-  it('везёт словарь сам, если есть куда его положить', () => {
-    const { ctx } = fakeContext();
-    const locales: string[] = [];
-    createPreviewPlugin({
-      host: createFakeHost(),
-      i18n: { contribute: (locale) => locales.push(locale) },
-    }).activate(ctx);
+  it('везёт словарь сам — в своё пространство имён, а не в общее', () => {
+    const { ctx, locales } = fakeContext();
+    createPreviewPlugin({ host: createFakeHost() }).activate(ctx);
     expect(locales.sort()).toEqual(['en', 'ru']);
   });
 

@@ -51,7 +51,7 @@ import {
 import { createEditorToolRegistry, type ToolRegistry } from './tools';
 import type { AgentCommand } from './tools/command-tools';
 import type { LoadValidateForm, ValidateFormSchema } from './model/validate';
-import type { AiHost, MessageSink } from './host';
+import type { AiHost } from './host';
 import { createKnowledgeLoader, type KnowledgeLoader } from './knowledge';
 import { AI_MESSAGES } from './messages';
 import { activateProvider, fetchModels, restoreProvider } from './providers/load';
@@ -94,14 +94,6 @@ export const AI_SERVICE_TOKEN: ServiceTokenOf<AiAssistant> = Object.freeze({ id:
 export interface AiPluginOptions {
   /** Порт платформы: рабочая область, каталог, переводы. */
   readonly host: AiHost;
-  /**
-   * Приёмник словаря. Без него строки показываются маркерами промаха — так задумано в i18n.
-   *
-   * Регистрирует словарь композиция, а не `activate`: `PluginContext` сервиса локализации не
-   * содержит, и это не упущение — вклад в словарь не снимается вместе с плагином, а значит
-   * и не может быть частью его подписок.
-   */
-  readonly i18n?: MessageSink;
 }
 
 /**
@@ -293,7 +285,7 @@ export function createAiPlugin(options: AiPluginOptions): Plugin {
     id: AI_PLUGIN_ID,
     activate(ctx: PluginContext) {
       for (const [locale, messages] of Object.entries(AI_MESSAGES)) {
-        options.i18n?.contribute(locale, messages);
+        ctx.i18n.contribute(locale, messages);
       }
 
       const assistant = createAiAssistant(host, ctx);

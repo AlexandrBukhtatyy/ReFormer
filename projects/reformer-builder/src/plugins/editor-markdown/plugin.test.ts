@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { MenuItemContribution, ResourceRef, WhenContext } from '@/sdk';
+import type {
+  MenuItemContribution,
+  PluginContext,
+  PluginI18n,
+  ResourceRef,
+  WhenContext,
+} from '@/sdk';
 import type { MarkdownDocument, MarkdownHost } from './host';
 import {
   CYCLE_VIEW_COMMAND_ID,
@@ -9,6 +15,7 @@ import {
   MARKDOWN_EDITOR_ID,
   MARKDOWN_EDITOR_PRIORITY,
   markdownCommands,
+  createMarkdownPlugin,
   markdownEditor,
   markdownMenuItems,
   OPEN_PREVIEW_COMMAND_ID,
@@ -58,11 +65,25 @@ interface Harness {
   readonly opened: string[];
 }
 
+/**
+ * Словарь плагина в объёме вклада: перевод возвращает ключ.
+ *
+ * Двойник, а не настоящая служба: проверяется здесь вклад редактора, а не переводы. Форма
+ * та же, что у `ctx.i18n`, — её и подставляет активация.
+ */
+function stubI18n(): PluginI18n {
+  return {
+    locale: 'ru',
+    t: (key: string) => key,
+    contribute: () => {},
+    onDidChangeLocale: () => ({ dispose: () => {} }),
+  };
+}
+
 function harness(options: { active?: ResourceRef; withTextEditor?: boolean } = {}): Harness {
   const active = options.active ?? README;
   const opened: string[] = [];
   const host: MarkdownHost = {
-    useTranslate: () => (key: string) => key,
     activeDocument: () => active.id,
     documentOf: (id) => (id === active.id ? documentOf(active) : null),
     readBytes: () => Promise.resolve(null),
@@ -89,7 +110,7 @@ function command(h: Harness, id: string) {
 describe('вклад редактора', () => {
   it('берётся за markdown и отказывается от прочего — по ссылке, без чтения', () => {
     const h = harness();
-    const editor = markdownEditor(h.host, h.views);
+    const editor = markdownEditor(h.host, h.views, stubI18n());
 
     const probe = {
       text: () => Promise.reject(new Error('содержимое читать нельзя')),
@@ -318,5 +339,37 @@ describe('тумблер вида', () => {
       ?.run();
 
     expect(h.views.get(README.id)).toBe('code');
+  });
+});
+
+describe('активация плагина', () => {
+  /** Контекст в объёме активации: вклады, команды, настройки и словарь. */
+  function fakeContext() {
+    const locales: string[] = [];
+    const ctx = {
+      id: 'editor-markdown',
+      subscriptions: [],
+      // Словарь плагина — поле контекста: композиция его больше не раздаёт.
+      i18n: {
+        locale: 'ru',
+        t: (key: string) => key,
+        contribute: (locale: string) => locales.push(locale),
+        onDidChangeLocale: () => ({ dispose: (): void => {} }),
+      },
+      services: { get: () => undefined },
+      extensions: { contribute: () => ({ dispose: (): void => {} }) },
+      commands: { register: () => ({ dispose: (): void => {} }) },
+    } as unknown as PluginContext;
+    return { ctx, locales };
+  }
+
+  it('везёт словарь сам — в своё пространство имён, а не в общее', () => {
+    // `editor.label` у markdown и у Monaco — две разные строки, и общего пространства имён
+    // у словарей нет: его подставляет сборка контекста по идентификатору плагина.
+    const { ctx, locales } = fakeContext();
+
+    createMarkdownPlugin({ host: harness().host }).activate(ctx);
+
+    expect(locales.sort()).toEqual(['en', 'ru']);
   });
 });

@@ -25,11 +25,9 @@
  * @module shell/boot/composition
  */
 
-import type { CatalogEntry } from '@/lib/catalog/types';
 import type { CapabilityProvider } from '@/shell/platform/primitives/capability';
 import type { CapabilityDeclaration } from '@/shell/platform/primitives/capability';
 import type { Plugin } from '@/shell/platform/plugin/types';
-import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 
 // Порты и настройки встроенных — только ТИПЫ, до единого. `verbatimModuleSyntax` стирает такой
 // импорт целиком, графа он не создаёт: ни один барель плагина отсюда в стартовый граф не едет,
@@ -94,15 +92,15 @@ export interface ApplicationComposition {
   readonly capabilities: readonly CapabilityProvider[];
 }
 
+/**
+ * Что оболочка УМЕЕТ ДАТЬ составу: порты и настройки встроенных.
+ *
+ * Словарей здесь больше нет ни у одного плагина: каждый регистрирует свой сам, полем
+ * контекста (`ctx.i18n`), и пространство имён ему подставляет сборка контекста, а не
+ * композиция. Раньше это было невозможно — поля в контексте не было, — и композиция раздавала
+ * виды `forPlugin(id)` по одному на плагин.
+ */
 export interface BuiltinPluginsOptions {
-  /**
-   * Служба словарей.
-   *
-   * Композиция передаёт КОРЕНЬ, а не готовые виды `forPlugin(id)` по одному на плагин, — иначе
-   * `boot` обязан знать идентификатор каждого плагина ЗНАЧЕНИЕМ, а идентификаторы объявлены
-   * в барелях. Один такой импорт возвращает ленивый плагин в стартовый граф целиком.
-   */
-  readonly i18n: Pick<RootI18nService, 'forPlugin'>;
   /** Порт платформы для плагина файлов. */
   readonly files: FilesHost;
   /** Порт платформы для редактора Monaco. */
@@ -152,13 +150,4 @@ export interface BuiltinPluginsOptions {
    * Переходник живёт здесь, потому что плагины не видят друг друга.
    */
   readonly printTemplate: ModulePrinter;
-  /**
-   * Каталог активного кита.
-   *
-   * Функция, а не список: кит переключают, и валидатор обязан сравнивать с тем каталогом,
-   * который действует СЕЙЧАС. Композиция читает его из сервиса китов `services.get(KitsServiceToken)`,
-   * то есть ЛЕНИВО: сервис появляется при активации плагина китов, а список плагинов
-   * собирается до неё. Захвати мы каталог здесь значением — получили бы снимок пустого.
-   */
-  readonly catalog?: () => readonly CatalogEntry[];
 }

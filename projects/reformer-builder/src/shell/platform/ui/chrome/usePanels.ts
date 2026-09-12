@@ -144,7 +144,7 @@ export function useSetting(settings: SettingsService, key: string): unknown {
  * не является React-состоянием. Этот хук и есть недостающая связь: он ничего не переводит,
  * он делает перевод реактивным.
  */
-export function useLocale(i18n: I18nService): string {
+export function useLocale(i18n: Pick<I18nService, 'locale' | 'onDidChangeLocale'>): string {
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       const subscription = i18n.onDidChangeLocale(onStoreChange);

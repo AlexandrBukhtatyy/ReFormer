@@ -17,19 +17,15 @@
  */
 
 import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
-import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
 import type { TextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 import { monacoEditorContribution } from '@/plugins/editor-monaco';
 import type { ViewStateRegistry } from '@/plugins/editor-monaco';
 import type { MonacoHost } from '@/plugins/editor-monaco';
-import { MARKDOWN_PLUGIN_ID } from '@/plugins/editor-markdown/contract';
-import type { MarkdownDocument, MarkdownHost, Translate } from '@/plugins/editor-markdown';
+import type { MarkdownDocument, MarkdownHost } from '@/plugins/editor-markdown';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface MarkdownHostDeps {
   readonly project: ProjectHost;
-  readonly i18n: RootI18nService;
   /**
    * Порт Monaco и его реестры — ровно те же, что у самого плагина Monaco.
    *
@@ -44,18 +40,8 @@ export interface MarkdownHostDeps {
   };
 }
 
-/** Реактивный перевод в пространстве имён плагина (именованная функция — ради правил хуков). */
-function makeUseTranslate(i18n: RootI18nService): () => Translate {
-  const view = i18n.forPlugin(MARKDOWN_PLUGIN_ID);
-  function useTranslate(): Translate {
-    useLocale(i18n);
-    return (key, params) => view.t(key, params);
-  }
-  return useTranslate;
-}
-
 export function createMarkdownHost(deps: MarkdownHostDeps): MarkdownHost {
-  const { project, i18n, monaco } = deps;
+  const { project, monaco } = deps;
 
   // Тело редактора берётся один раз, и это не оптимизация: React сравнивает тип элемента
   // по ссылке, поэтому новая функция на каждой отрисовке — это размонтирование Monaco
@@ -71,8 +57,6 @@ export function createMarkdownHost(deps: MarkdownHostDeps): MarkdownHost {
         }).Body;
 
   return {
-    useTranslate: makeUseTranslate(i18n),
-
     activeDocument: () => project.get()?.documents.get().activeId ?? null,
 
     documentOf(id: ResourceId): MarkdownDocument | null {

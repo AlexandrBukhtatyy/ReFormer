@@ -52,6 +52,14 @@
 export { definePlugin } from '@/shell/platform/plugin/types';
 export type { Plugin, PluginContext } from '@/shell/platform/plugin/types';
 
+// Локализация. Словарь плагина приходит полем контекста (`ctx.i18n`), а не портом: строки
+// принадлежат тому, кто их рисует, и пространство имён у них — идентификатор плагина.
+// Хук здесь потому, что `t` отвечает «как звучит СЕЙЧАС»: без подписки на смену языка панель
+// осталась бы на прежних строках до случайного щелчка.
+export { useTranslate } from '@/shell/platform/ui/useTranslate';
+export type { Translate } from '@/shell/platform/ui/useTranslate';
+export type { PluginI18n } from '@/shell/platform/services/i18n/i18n';
+
 // Освобождение: всё, что плагин регистрирует, он кладёт в `ctx.subscriptions`.
 export type { Disposable } from '@/shell/platform/primitives/disposable';
 

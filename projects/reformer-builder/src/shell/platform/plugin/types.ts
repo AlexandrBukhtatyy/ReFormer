@@ -46,6 +46,7 @@ import type { CapabilityAccess } from '@/shell/platform/primitives/capability';
 import type { PluginCommandRegistry } from '@/shell/platform/primitives/command';
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import type { EventBus } from '@/shell/platform/primitives/event';
+import type { PluginI18n } from '@/shell/platform/services/i18n/i18n';
 import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import type { ServiceRegistry } from '@/shell/platform/primitives/service';
 import type { PluginStorage, SecretStorage } from './storage';
@@ -109,6 +110,23 @@ export interface PluginContext {
 
   /** Шина событий. Доставка синхронная, ошибка подписчика не касается отправителя. */
   readonly events: EventBus;
+
+  /**
+   * Словарь плагина: его строки в ЕГО пространстве имён.
+   *
+   * Ключи префиксуются идентификатором плагина автоматически, поэтому `editor.label` двух
+   * разных плагинов — две разные строки; общего пространства имён у словарей нет и быть
+   * не должно. `contribute` регистрирует словарь (обычно в `activate`, но можно и по частям —
+   * например, вместе с ленивой панелью), `t` переводит.
+   *
+   * Показывать переведённое в React надо через `useTranslate` из `@/sdk`: `t` отвечает,
+   * как строка звучит СЕЙЧАС, и сама по себе смену языка не переживает.
+   *
+   * Что НЕ переводится здесь: тексты диагностик (`errors.<code>`). Одна и та же ошибка обязана
+   * выглядеть одинаково в редакторе, в панели проблем и в логе, поэтому её строки живут
+   * в словаре оболочки, а плагин просит перевод, а не переводит сам.
+   */
+  readonly i18n: PluginI18n;
 
   /** Изолированное хранилище плагина. Пространство имён — идентификатор плагина. */
   readonly storage: PluginStorage;

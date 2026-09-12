@@ -105,13 +105,22 @@ describe('поставщик пунктов', () => {
 });
 
 describe('плагин', () => {
-  it('вносит поставщика в точку палитры и снимает его через subscriptions', () => {
+  it('вносит поставщика в точку палитры, везёт словарь и снимает вклад через subscriptions', () => {
     const { host } = fakeHost([]);
     const contributed: { point: string; id: string | undefined }[] = [];
     const subscriptions: { dispose(): void }[] = [];
+    const locales: string[] = [];
     const ctx = {
       id: PLUGIN_MANAGER_PLUGIN_ID,
       subscriptions,
+      // Словарь плагина — поле контекста. Раньше его регистрировала композиция, потому что
+      // поля не было; теперь плагин везёт его сам, в своё пространство имён.
+      i18n: {
+        locale: 'ru',
+        t: (key: string) => key,
+        contribute: (locale: string) => locales.push(locale),
+        onDidChangeLocale: () => ({ dispose: (): void => {} }),
+      },
       extensions: {
         contribute: (point: { id: string }, _value: unknown, meta?: { id?: string }) => {
           contributed.push({ point: point.id, id: meta?.id });
@@ -120,11 +129,12 @@ describe('плагин', () => {
       },
     } as unknown as PluginContext;
 
-    createPluginManagerPlugin({ host, translate }).activate(ctx);
+    createPluginManagerPlugin({ host }).activate(ctx);
 
     expect(contributed).toEqual([
       { point: 'palette.items', id: PLUGIN_MANAGER_PALETTE_PROVIDER_ID },
     ]);
+    expect(locales.sort()).toEqual(['en', 'ru']);
     expect(subscriptions).toHaveLength(1);
   });
 });

@@ -85,10 +85,19 @@ function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
 function fakeContext() {
   const contributed: { point: string; id?: string }[] = [];
   const commands: string[] = [];
+  const messagesByLocale: { locale: string; messages: Readonly<Record<string, string>> }[] = [];
   const ctx = {
     id: SCHEMA_EDITOR_PLUGIN_ID,
     subscriptions: [],
     services: { get: () => undefined },
+    // Словарь плагина — поле контекста: композиция его больше не раздаёт.
+    i18n: {
+      locale: 'ru',
+      t: (key: string) => key,
+      contribute: (locale: string, messages: Readonly<Record<string, string>>) =>
+        messagesByLocale.push({ locale, messages }),
+      onDidChangeLocale: () => ({ dispose: () => undefined }),
+    },
     extensions: {
       contribute: (point: { id: string }, _value: unknown, meta?: { id?: string }) => {
         contributed.push({ point: point.id, id: meta?.id });
@@ -104,7 +113,7 @@ function fakeContext() {
       execute: () => Promise.resolve(true),
     },
   } as unknown as PluginContext;
-  return { ctx, contributed, commands };
+  return { ctx, contributed, commands, messagesByLocale };
 }
 
 /** Реестр команд, которого в этих тестах нет: кнопок исправлений не будет. */
@@ -170,19 +179,14 @@ describe('activate', () => {
 
   it('везёт словарь сам, если есть куда его положить', () => {
     const { host } = harness();
-    const { ctx } = fakeContext();
-    const locales: string[] = [];
-    createSchemaEditorPlugin({
-      host,
-      modelPoint: MODEL_POINT,
-      i18n: {
-        contribute: (locale, messages) => {
-          locales.push(locale);
-          expect(messages['palette.title']).toBeTruthy();
-        },
-      },
-    }).activate(ctx);
-    expect(locales.sort()).toEqual(['en', 'ru']);
+    const { ctx, messagesByLocale } = fakeContext();
+
+    createSchemaEditorPlugin({ host, modelPoint: MODEL_POINT }).activate(ctx);
+
+    expect(messagesByLocale.map((item) => item.locale).sort()).toEqual(['en', 'ru']);
+    for (const { messages } of messagesByLocale) {
+      expect(messages['palette.title']).toBeTruthy();
+    }
   });
 
   it('всё зарегистрированное складывается в подписки — иначе выключение ничего не снимет', () => {

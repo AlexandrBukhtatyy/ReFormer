@@ -32,7 +32,7 @@ import {
   templatesContextMenuItems,
   templatesMenuCommands,
 } from './commands/context-menu';
-import type { MessageSink, TemplatesHost } from './host';
+import type { TemplatesHost } from './host';
 import { TEMPLATES_MESSAGES } from './messages';
 import { createTemplatesRefresh, type TemplatesRefresh } from './content/refresh';
 import { createBuiltinStore, type ModulePrinter } from './stores/builtin';
@@ -109,8 +109,6 @@ export interface TemplatesPluginOptions {
   readonly storePoint?: ExtensionPointRef<TemplateStore>;
   /** Слот панели; по умолчанию {@link DEFAULT_TEMPLATES_SLOT}. */
   readonly slot?: SlotId;
-  /** Приёмник словаря. Без него строки показываются маркерами промаха. */
-  readonly i18n?: MessageSink;
 }
 
 /**
@@ -129,7 +127,7 @@ export function createTemplatesPlugin(options: TemplatesPluginOptions): Plugin {
     id: TEMPLATES_PLUGIN_ID,
     activate(ctx) {
       for (const [locale, messages] of Object.entries(TEMPLATES_MESSAGES)) {
-        options.i18n?.contribute(locale, messages);
+        ctx.i18n.contribute(locale, messages);
       }
 
       const builtin = createBuiltinStore({ print: options.print });

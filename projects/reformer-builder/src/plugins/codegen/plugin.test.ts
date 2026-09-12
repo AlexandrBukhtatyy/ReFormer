@@ -40,9 +40,17 @@ function whenContext(patch: Partial<WhenContext> = {}): WhenContext {
 function fakeContext() {
   const contributed: { point: string; id?: string; order?: number }[] = [];
   const commands: string[] = [];
+  const locales: string[] = [];
   const ctx = {
     id: CODEGEN_PLUGIN_ID,
     subscriptions: [],
+    // Словарь плагина — поле контекста: композиция его больше не раздаёт.
+    i18n: {
+      locale: 'ru',
+      t: (key: string) => key,
+      contribute: (locale: string) => locales.push(locale),
+      onDidChangeLocale: () => ({ dispose: () => undefined }),
+    },
     extensions: {
       contribute: (
         point: { id: string },
@@ -66,7 +74,7 @@ function fakeContext() {
     // и плагин обязан активироваться без них — молча, а не отказом.
     services: { get: () => undefined },
   } as unknown as PluginContext;
-  return { ctx, contributed, commands };
+  return { ctx, contributed, commands, locales };
 }
 
 describe('activate', () => {
@@ -131,13 +139,9 @@ describe('activate', () => {
     ]);
   });
 
-  it('везёт словарь сам, если есть куда его положить', () => {
-    const { ctx } = fakeContext();
-    const locales: string[] = [];
-    createCodegenPlugin({
-      host: createFakeHost(),
-      i18n: { contribute: (locale) => locales.push(locale) },
-    }).activate(ctx);
+  it('везёт словарь сам — в своё пространство имён, а не в общее', () => {
+    const { ctx, locales } = fakeContext();
+    createCodegenPlugin({ host: createFakeHost() }).activate(ctx);
     expect(locales.sort()).toEqual(['en', 'ru']);
   });
 });

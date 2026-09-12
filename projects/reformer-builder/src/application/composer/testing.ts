@@ -74,7 +74,6 @@ export function stubHost(): never {
  */
 export function stubBuiltinOptions(): BuiltinPluginsOptions {
   return {
-    i18n: { forPlugin: () => ({ t: (key: string) => key, contribute: () => {} }) },
     files: stubHost(),
     monaco: stubHost(),
     markdown: stubHost(),

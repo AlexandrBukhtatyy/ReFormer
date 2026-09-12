@@ -6,7 +6,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import type { MessageSink } from './host';
-import { contributeMessages, MONACO_MESSAGES, resolveMessageSink } from './messages';
+import { contributeMessages, MONACO_MESSAGES } from './messages';
 
 function sink(): MessageSink & { calls: { locale: string; keys: string[] }[] } {
   const calls: { locale: string; keys: string[] }[] = [];
@@ -33,28 +33,6 @@ describe('MONACO_MESSAGES', () => {
         expect(value.trim(), key).not.toBe('');
       }
     }
-  });
-});
-
-describe('resolveMessageSink', () => {
-  it('предпочитает штатный `ctx.i18n`, когда платформа его уже даёт', () => {
-    const own = sink();
-    const fallback = sink();
-    expect(resolveMessageSink({ i18n: own }, fallback)).toBe(own);
-  });
-
-  it('берёт подставленный композицией, пока поля в контексте нет', () => {
-    const fallback = sink();
-    expect(resolveMessageSink({}, fallback)).toBe(fallback);
-  });
-
-  it('не принимает за приёмник что попало под тем же именем', () => {
-    const fallback = sink();
-    expect(resolveMessageSink({ i18n: 'ru' }, fallback)).toBe(fallback);
-  });
-
-  it('без обоих отвечает «регистрировать некуда», а не бросает', () => {
-    expect(resolveMessageSink({})).toBeNull();
   });
 });
 

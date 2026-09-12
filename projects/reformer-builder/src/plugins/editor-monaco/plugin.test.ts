@@ -208,30 +208,6 @@ describe('createMonacoEditorPlugin', () => {
     expect(locales.sort()).toEqual(['en', 'ru']);
   });
 
-  it('регистрирует словарь через подставленный приёмник, когда своего у контекста нет', () => {
-    const locales: string[] = [];
-    const ctx = {
-      id: MONACO_PLUGIN_ID,
-      subscriptions: [],
-      extensions: { contribute: () => ({ dispose: () => {} }) },
-    } as unknown as PluginContext;
-
-    createMonacoEditorPlugin({
-      host: fakeHost(),
-      // И реестр, и снимки — значениями: у этого контекста реестра служб нет вовсе,
-      // а проверяется здесь только путь словаря.
-      focus: fakeFocus(),
-      viewStates: fakeViewStates(),
-      i18n: {
-        contribute: (locale: string) => {
-          locales.push(locale);
-        },
-      },
-    }).activate(ctx);
-
-    expect(locales.sort()).toEqual(['en', 'ru']);
-  });
-
   it('пользуется ОБЩИМ реестром фокуса из опции, а не заводит свой', () => {
     const { ctx, required } = fakeContext();
     const plugin = createMonacoEditorPlugin({ host: fakeHost(), focus: fakeFocus() });

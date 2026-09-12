@@ -76,12 +76,21 @@ const { definePlugin, EditorPoint, DocumentsServiceToken } = require('@builder/s
 module.exports = definePlugin({
   id: 'ext',
   activate(ctx) {
+    // Словарь СВОИМ кодом, а не файлом манифеста: у собранного плагина из npm строки обычно
+    // лежат в коде, и другого способа их отдать, кроме поля контекста, у него нет.
+
+    ctx.i18n.contribute('ru', { 'command.own': 'Своя строка' });
     ctx.subscriptions.push(
       ctx.extensions.contribute(EditorPoint, {
         id: 'ext.editor',
         titleKey: 'editor.title',
         canOpen: (ref) => (ref.path.endsWith('.txt') ? 1000 : false),
         Body: () => null,
+      }),
+      ctx.commands.register({
+        id: 'ext.own',
+        titleKey: 'command.own',
+        run: () => true,
       }),
       ctx.commands.register({
         id: 'ext.upper',
@@ -182,18 +191,22 @@ function harness() {
   const documents = createDocumentsService({ project });
   services.register(DocumentsServiceToken, documents);
 
+  const i18n = createI18nService({ dev: true, loadHostMessages: () => Promise.resolve({}) });
+
   const plugins = createPluginRegistry({
     services,
     extensions,
     commands,
     events,
+    // Корень службы локализации: из него сборка контекста делает `ctx.i18n` — вид
+    // в пространстве имён плагина. Без него плагин получил бы словарь-пустышку.
+    i18n,
     storage: createMemoryStorageBackend(),
   });
 
   // Реестр модулей — тот же, что собирает композиция: под именем `@builder/sdk` окажется
   // подлинный объект `@/sdk`, а не его двойник.
   const pluginModules = createPluginModules();
-  const i18n = createI18nService({ dev: true, loadHostMessages: () => Promise.resolve({}) });
   // Установка стилей подменена, но ФОРМА ответа настоящая: каталог читает `ok` и держит
   // подписку, чтобы снять таблицу при выключении плагина.
   const installStyles = vi.fn(() => ({ ok: true as const, subscription: { dispose: () => {} } }));
@@ -300,6 +313,22 @@ describe('внешний плагин каталога как редактор �
 
     expect(command?.pluginId).toBe('ext');
     expect(h.i18n.forPlugin('ext').t(command?.titleKey ?? '')).toBe('Верхний регистр');
+    h.dispose();
+  });
+
+  it('словарь, отданный ЕГО КОДОМ, попадает в его же пространство имён', async () => {
+    // Второй путь словаря, и он важнее первого: у собранного плагина из npm строки обычно
+    // лежат в коде, а не отдельным файлом манифеста. До поля `ctx.i18n` отдать их было
+    // некуда — сервиса локализации в `@/sdk` не было вовсе.
+    const h = harness();
+    await h.start();
+    await h.i18n.setLocale('ru');
+
+    const command = h.commands.getAll().find((entry) => entry.id === 'ext.own');
+
+    expect(h.i18n.forPlugin('ext').t(command?.titleKey ?? '')).toBe('Своя строка');
+    // И то же пространство имён: у оболочки этого ключа нет, подмешаться он не мог.
+    expect(h.i18n.t('command.own')).toBe('⟦command.own⟧');
     h.dispose();
   });
 

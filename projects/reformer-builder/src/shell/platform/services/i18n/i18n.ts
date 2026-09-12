@@ -62,7 +62,20 @@ export interface I18nService {
 
 /** Вид сервиса для плагина: ключи автоматически префиксуются его идентификатором. */
 export interface PluginI18n {
+  /**
+   * Действующая локаль — та же, что у корня: у вида своей быть не может.
+   *
+   * Нужна не для показа, а для перерисовки: снимок для `useSyncExternalStore` обязан меняться
+   * вместе с языком, иначе панель плагина осталась бы на прежних строках до следующей правки
+   * своего состояния (см. `ui/useTranslate`).
+   */
+  readonly locale: string;
   t(key: string, params?: Record<string, unknown>): string;
+  /**
+   * Локаль сменилась. Тот же канал, что у корня: подписка идёт НАПРЯМУЮ к нему, потому что
+   * язык у приложения один, а вид — всего лишь пространство имён ключей.
+   */
+  onDidChangeLocale(cb: (locale: string) => void): Disposable;
   /**
    * Регистрирует словарь в пространстве имён плагина.
    *
@@ -253,8 +266,17 @@ export function createI18nService(options: I18nServiceOptions = {}): RootI18nSer
       let view = views.get(pluginId);
       if (view === undefined) {
         view = {
+          get locale(): string {
+            return current;
+          },
           t: (key: string, params?: Record<string, unknown>): string =>
             translate(pluginId, key, params),
+          onDidChangeLocale: (cb: (next: string) => void): Disposable => {
+            listeners.add(cb);
+            return toDisposable(() => {
+              listeners.delete(cb);
+            });
+          },
           contribute: (locale: string, messages: Readonly<Record<string, string>>): void => {
             register(pluginId, locale, messages);
           },

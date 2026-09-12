@@ -38,7 +38,7 @@ import {
 import { createCompilingSurface } from './compiling/surface';
 import type { ExtensionPointRef, PreviewSurface } from './contract';
 import { PreviewSurfacePoint } from './contract';
-import type { MessageSink, PreviewHost } from './host';
+import type { PreviewHost } from './host';
 import { PREVIEW_MESSAGES } from './messages';
 import { createRuntimeSurface } from './runtime/surface';
 import { attachPreviewLifecycle } from './state/lifecycle';
@@ -75,8 +75,6 @@ export interface PreviewPluginOptions {
    * и до переезда.
    */
   readonly surfacePoint?: ExtensionPointRef<PreviewSurface>;
-  /** Приёмник словаря. Без него строки показываются маркерами промаха — см. `./messages`. */
-  readonly i18n?: MessageSink;
   /**
    * Реестр состояний. Обычно плагин заводит его сам и отдаёт остальным возможностью
    * {@link PreviewSessionsCapability}; параметр — ради тестов, которым нужен доступ к нему
@@ -101,7 +99,7 @@ export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
     id: PREVIEW_PLUGIN_ID,
     activate(ctx) {
       for (const [locale, messages] of Object.entries(PREVIEW_MESSAGES)) {
-        options.i18n?.contribute(locale, messages);
+        ctx.i18n.contribute(locale, messages);
       }
 
       // Панель модели: единственный вклад превью в оболочку помимо поверхностей. Слот нижний —

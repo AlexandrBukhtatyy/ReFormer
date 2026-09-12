@@ -69,7 +69,7 @@ import {
   readCollapsedState,
   type CollapseRegistry,
 } from './session/view-state';
-import type { ExtensionPointRef, MessageSink, SchemaDiagnostics, SchemaEditorHost } from './host';
+import type { ExtensionPointRef, SchemaDiagnostics, SchemaEditorHost } from './host';
 
 // Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
 // взять его, не втягивая плагин в стартовый граф.
@@ -238,8 +238,6 @@ export interface SchemaEditorPluginOptions {
    * приложение. Тип при этом настоящий, поэтому разойтись с платформой он больше не может.
    */
   readonly modelPoint: ExtensionPointRef<DocumentModelProvider<unknown>>;
-  /** Приёмник словаря. Без него строки показываются маркерами промаха — см. `./messages`. */
-  readonly i18n?: MessageSink;
   /** Генератор идентификаторов узлов. В тестах — детерминированный. */
   readonly newId?: NodeIdFactory;
 }
@@ -263,7 +261,7 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
     id: SCHEMA_EDITOR_PLUGIN_ID,
     activate(ctx) {
       for (const [locale, messages] of Object.entries(SCHEMA_EDITOR_MESSAGES)) {
-        options.i18n?.contribute(locale, messages);
+        ctx.i18n.contribute(locale, messages);
       }
 
       // Служба диагностик объявлена в `@/sdk`, поэтому берётся из реестра сервисов,

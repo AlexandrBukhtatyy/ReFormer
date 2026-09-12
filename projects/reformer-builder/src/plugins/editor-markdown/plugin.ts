@@ -18,6 +18,7 @@
  */
 
 import { createElement, type ReactElement } from 'react';
+import type { PluginI18n } from '@/sdk';
 import { Code2, Columns2, Eye } from 'lucide-react';
 import {
   argsOfEditor,
@@ -97,7 +98,11 @@ export function firstResourceOf(args: unknown): ResourceId | null {
 }
 
 /** Вклад редактора: за markdown берётся по медиатипу и по имени. */
-export function markdownEditor(host: MarkdownHost, views: MarkdownViewStore): EditorContribution {
+export function markdownEditor(
+  host: MarkdownHost,
+  views: MarkdownViewStore,
+  i18n: PluginI18n
+): EditorContribution {
   return {
     id: MARKDOWN_EDITOR_ID,
     titleKey: 'editor.label',
@@ -107,7 +112,7 @@ export function markdownEditor(host: MarkdownHost, views: MarkdownViewStore): Ed
       return isMarkdown(ref.name, ref.mediaType) ? MARKDOWN_EDITOR_PRIORITY : false;
     },
     Body: ({ documentId }: { documentId: ResourceId }) =>
-      createElement(MarkdownEditor, { host, views, documentId }),
+      createElement(MarkdownEditor, { host, views, i18n, documentId }),
   };
 }
 
@@ -327,8 +332,10 @@ export function createMarkdownPlugin(options: MarkdownPluginOptions): Plugin {
   return definePlugin({
     id: MARKDOWN_PLUGIN_ID,
     activate(ctx) {
+      // Словарь уходит в ЕГО пространство имён — поле контекста, а не подставленный порт:
+      // `editor.label` у markdown и у Monaco — две разные строки.
       for (const [locale, messages] of Object.entries(MARKDOWN_MESSAGES)) {
-        options.i18n?.contribute(locale, messages);
+        ctx.i18n.contribute(locale, messages);
       }
 
       // Настройки — из реестра служб: предпочтение вида принадлежит человеку, а не проекту,
@@ -351,7 +358,7 @@ export function createMarkdownPlugin(options: MarkdownPluginOptions): Plugin {
       }
 
       ctx.subscriptions.push(
-        ctx.extensions.contribute(EditorPoint, markdownEditor(host, views), {
+        ctx.extensions.contribute(EditorPoint, markdownEditor(host, views, ctx.i18n), {
           id: MARKDOWN_EDITOR_ID,
         })
       );

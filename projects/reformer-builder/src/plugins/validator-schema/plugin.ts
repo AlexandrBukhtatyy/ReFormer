@@ -25,10 +25,15 @@
  * Окно между активацией плагина и открытием первого документа человеком заведомо длиннее
  * одного динамического импорта, но нулём оно не становится, и притворяться иначе нечем.
  *
- * ## Каталог и правила — параметры, а не импорты
+ * ## Каталог берётся ВОЗМОЖНОСТЬЮ, правила — параметром
  *
- * Каталог активного кита — состояние приложения (кит переключают), а правила формы живут
- * САЙДКАРОМ: `JsonFormSchema` — закрытый контракт рендерера, положить их внутрь нельзя.
+ * Каталог активного кита — состояние приложения (кит переключают), и приходит он теперь
+ * из реестра служб по возможности `kits.active`, а не параметром от композиции. Объявление
+ * структурное ({@link KitCatalogCapability}): плагины друг друга не импортируют, а реестр
+ * ключуется строкой — тем же способом до него дотянется и внешний плагин из каталога проекта.
+ *
+ * Правила формы живут САЙДКАРОМ: `JsonFormSchema` — закрытый контракт рендерера, положить
+ * их внутрь нельзя.
  * `ValidateContext` описывает ОДИН документ и способа прочитать соседний ресурс не даёт,
  * поэтому сайдкар приходит функцией от документа. Это ограничение контракта, а не решение:
  * пока валидатор не умеет читать соседей, склеивать схему с правилами обязан тот, кто их
@@ -40,6 +45,7 @@
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { FormRules } from '@/lib/form-model/rules';
 import {
+  defineCapability,
   definePlugin,
   withUsableFixes,
   ValidatorPoint,
@@ -55,12 +61,42 @@ import { SCHEMA_VALIDATOR_ID } from './codes';
 /** Идентификатор плагина: пространство имён во всех реестрах. */
 export const SCHEMA_VALIDATOR_PLUGIN_ID = 'validator-schema';
 
+/**
+ * Активный кит в объёме, нужном валидатору: один вопрос — «с чем сверять».
+ *
+ * Структурная копия, а не импорт из плагина китов: `plugins/**` не импортируют друг друга
+ * (проверяется линтером), и это не формальность — иначе выключенный кит утащил бы за собой
+ * валидатор. Находит она ту же службу, потому что реестр ключуется СТРОКОЙ, а не объектом;
+ * ровно так же до неё дотянется внешний плагин из каталога проекта.
+ */
+export interface KitCatalogReader {
+  catalog(): readonly CatalogEntry[];
+}
+
+/**
+ * Возможность «активный кит», объявленная средствами SDK.
+ *
+ * Версия та же, что у провайдера (`plugins/kits`), и это проверяется не здесь: требование
+ * объявлено в карте состава (`application/composer/builtin-plugins`) и сверяется резолвером
+ * ДО загрузки кода. Здесь — только адрес.
+ */
+export const KitCatalogCapability = defineCapability<KitCatalogReader>({
+  id: 'kits.active',
+  version: '1.0.0',
+});
+
+/** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый проход. */
+const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
+
 export interface SchemaValidatorOptions {
   /**
    * Каталог активного кита. Функция, а не список: кит переключают, и валидатор обязан
    * сравнивать с тем каталогом, который действует СЕЙЧАС, а не с тем, что был на активации.
+   *
+   * Необязателен: плагин берёт каталог из реестра служб (`kits.active`), и это его штатный
+   * путь. Параметр остаётся для теста вклада в одиночку — там реестра нет вовсе.
    */
-  readonly catalog: () => readonly CatalogEntry[];
+  readonly catalog?: () => readonly CatalogEntry[];
   /** Правила-сайдкар документа, если тот, кто их держит, может их отдать. */
   readonly rules?: (doc: DocumentRef) => FormRules | undefined;
   /** Чем сузить круг документов. По умолчанию — {@link isFormSchemaDocument}. */
@@ -175,7 +211,7 @@ export function createSchemaValidator(
       const found = checkForm(
         { resource: ctx.doc.id, text: ctx.text(), model: ctx.model() },
         {
-          catalog: options.catalog(),
+          catalog: options.catalog?.() ?? NO_CATALOG,
           rules: options.rules?.(ctx.doc),
           ...(deferred.get() !== undefined ? { validateSchema: deferred.get()! } : {}),
         }
@@ -211,6 +247,14 @@ export function createSchemaValidatorPlugin(options: SchemaValidatorOptions): Pl
       const deferred = createDeferredSchemaCheck();
       const withCommands: SchemaValidatorOptions = {
         ...options,
+        // Служба СПРАШИВАЕТСЯ на каждом проходе, а не читается сейчас, и по той же причине,
+        // что реестр команд ниже: кит переключают, а плагин китов вправе подняться позже —
+        // порядок активации объявлен незначимым. Захваченный здесь каталог был бы каталогом
+        // на момент активации, то есть пустым.
+        catalog:
+          options.catalog ??
+          ((): readonly CatalogEntry[] =>
+            ctx.services.get(KitCatalogCapability)?.catalog() ?? NO_CATALOG),
         hasCommand: options.hasCommand ?? ((id) => ctx.commands.get(id) !== undefined),
       };
       ctx.subscriptions.push(

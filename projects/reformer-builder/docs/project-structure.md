@@ -84,6 +84,8 @@ projects/reformer-builder/
 │   │   │   ├── plugin/          рантайм плагинов: types, context, registry, loader, catalog, storage, styles
 │   │   │   └── ui/              оболочка и слоты
 │   │   │       ├── Shell.tsx  slots.ts        корень = точка сборки оболочки
+│   │   │       ├── useTranslate.ts  перевод как React-значение: то, чем плагин показывает
+│   │   │       │                строку, переживающую смену языка (отдаётся через @/sdk)
 │   │   │       ├── chrome/      EditorArea, EditorActions, DocumentTabs, MenuBar, StatusBar,
 │   │   │       │                PluginScope, panels, layout-settings, usePanels,
 │   │   │       │                useWorkspaceViews
