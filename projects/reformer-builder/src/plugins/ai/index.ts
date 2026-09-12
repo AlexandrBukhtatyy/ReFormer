@@ -29,6 +29,9 @@ export {
 // Порт платформы: его подставляет композиция.
 export type { AiDocument, AiHost, MessageSink, Translate, WriteMark } from './host';
 
+// Рабочую область ассистент собирает из возможностей САМ: порта у него больше нет.
+export { aiWorkspace } from './workspace';
+
 // Настройки канала: их правит панель, их читает мост.
 export {
   clearProviderConfig,

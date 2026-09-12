@@ -13,48 +13,23 @@
  * режима, а «в фокусе ли редактор» имело бы два разных ответа — и ход ассистента затирал бы
  * набранное на полуслове.
  *
+ * Тела редактора здесь больше НЕТ: режим «рядом» берёт его возможностью `editor.text`
+ * у того, кто его даёт (плагин Monaco). Раньше композиция собирала вклад редактора сама
+ * и передавала `Body` параметром — и вкладов получалось два, с разными телами.
+ *
  * @module shell/boot/ports/markdown
  */
 
 import { makeResourceId, type ResourceId } from '@/shell/platform/primitives/resource';
-import type { TextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
-import { monacoEditorContribution } from '@/plugins/editor-monaco';
-import type { ViewStateRegistry } from '@/plugins/editor-monaco';
-import type { MonacoHost } from '@/plugins/editor-monaco';
 import type { MarkdownDocument, MarkdownHost } from '@/plugins/editor-markdown';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface MarkdownHostDeps {
   readonly project: ProjectHost;
-  /**
-   * Порт Monaco и его реестры — ровно те же, что у самого плагина Monaco.
-   *
-   * Необязательны: без них markdown работает, но показывает только рендер. Это законная
-   * сборка (Monaco выключен плагином-каталогом), а не поломка, и человек видит её как
-   * отсутствие кнопки «рядом», а не как пустую половину экрана.
-   */
-  readonly monaco?: {
-    readonly host: MonacoHost;
-    readonly focus: TextEditorFocusRegistry;
-    readonly viewStates: ViewStateRegistry;
-  };
 }
 
 export function createMarkdownHost(deps: MarkdownHostDeps): MarkdownHost {
-  const { project, monaco } = deps;
-
-  // Тело редактора берётся один раз, и это не оптимизация: React сравнивает тип элемента
-  // по ссылке, поэтому новая функция на каждой отрисовке — это размонтирование Monaco
-  // и монтирование заново, то есть потеря курсора и набранного. Здесь стояла обёртка,
-  // создававшая `Body` внутри себя на каждый вызов, — она это и делала.
-  const TextEditor =
-    monaco === undefined
-      ? undefined
-      : monacoEditorContribution({
-          host: monaco.host,
-          focus: monaco.focus,
-          viewStates: monaco.viewStates,
-        }).Body;
+  const { project } = deps;
 
   return {
     activeDocument: () => project.get()?.documents.get().activeId ?? null,
@@ -89,7 +64,5 @@ export function createMarkdownHost(deps: MarkdownHostDeps): MarkdownHost {
         console.error(`[markdown] переход по ссылке не удался: ${id}`, error);
       });
     },
-
-    TextEditor,
   };
 }

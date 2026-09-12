@@ -50,7 +50,7 @@ export function schemaViewCommands(deps: SchemaViewCommandDeps): readonly Comman
       // Без редактора кода переключать не на что, и команда честно объявляет себя
       // недоступной, а не показывает пустоту вместо схемы.
       enabled: () => {
-        if (host.TextEditor === undefined) return false;
+        if (host.textEditor?.() === undefined) return false;
         const id = host.activeDocument?.() ?? null;
         return id !== null && isSchema(id);
       },

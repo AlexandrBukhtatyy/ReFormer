@@ -23,6 +23,7 @@ import { Code2, Columns2, Eye } from 'lucide-react';
 import {
   argsOfEditor,
   argsOfResource,
+  defineCapability,
   definePlugin,
   EDITOR_TITLE_MENU,
   EditorPoint,
@@ -37,7 +38,7 @@ import {
   type Plugin,
   type ResourceId,
 } from '@/sdk';
-import type { MarkdownHost } from './host';
+import type { MarkdownHost, TextEditorProvider } from './host';
 import { isMarkdown } from './render/markdown';
 import { MARKDOWN_MESSAGES } from './messages';
 import { createMarkdownViewStore, type MarkdownViewStore } from './state/sessions';
@@ -51,6 +52,17 @@ export { MARKDOWN_PLUGIN_ID };
 
 /** Редактор markdown. */
 export const MARKDOWN_EDITOR_ID = 'markdown.editor';
+
+/**
+ * Возможность «тело текстового редактора» — структурная копия с тем же идентификатором,
+ * что у провайдера (плагин Monaco). Спрашивается В МОМЕНТ вопроса: провайдер вправе
+ * подняться позже, а его плагин — быть выключенным человеком на ходу, и режим «рядом»
+ * обязан исчезнуть вместе с ним, а не показать пустую половину экрана.
+ */
+export const TextEditorCapability = defineCapability<TextEditorProvider>({
+  id: 'editor.text',
+  version: '1.0.0',
+});
 
 export const SHOW_CODE_COMMAND_ID = 'markdown.showCode';
 export const SHOW_PREVIEW_COMMAND_ID = 'markdown.showPreview';
@@ -101,7 +113,8 @@ export function firstResourceOf(args: unknown): ResourceId | null {
 export function markdownEditor(
   host: MarkdownHost,
   views: MarkdownViewStore,
-  i18n: PluginI18n
+  i18n: PluginI18n,
+  editor: () => TextEditorProvider | undefined
 ): EditorContribution {
   return {
     id: MARKDOWN_EDITOR_ID,
@@ -112,18 +125,26 @@ export function markdownEditor(
       return isMarkdown(ref.name, ref.mediaType) ? MARKDOWN_EDITOR_PRIORITY : false;
     },
     Body: ({ documentId }: { documentId: ResourceId }) =>
-      createElement(MarkdownEditor, { host, views, i18n, documentId }),
+      createElement(MarkdownEditor, { host, views, i18n, editor, documentId }),
   };
 }
 
 export interface MarkdownCommandDeps {
   readonly host: MarkdownHost;
   readonly views: MarkdownViewStore;
+  /**
+   * Есть ли чем показать исходник ПРЯМО СЕЙЧАС.
+   *
+   * Функция, а не флаг: провайдер редактора — соседний плагин, его вправе выключить человеком
+   * на ходу, и «рядом» обязан исчезнуть вместе с ним. Снятый однажды ответ сделал бы команду
+   * доступной у половины пустого экрана.
+   */
+  readonly hasTextEditor: () => boolean;
 }
 
 /** Команды плагина: три вида, цикл по кругу и открытие предпросмотром из дерева. */
 export function markdownCommands(deps: MarkdownCommandDeps): readonly CommandContribution[] {
-  const { host, views } = deps;
+  const { host, views, hasTextEditor } = deps;
 
   /** К какому документу относится команда: названный аргументом либо активный. */
   const target = (args: unknown): ResourceId | null =>
@@ -161,8 +182,7 @@ export function markdownCommands(deps: MarkdownCommandDeps): readonly CommandCon
       titleKey: 'command.showSplit',
       // Без редактора кода режим «рядом» неотличим от предпросмотра, и команда честно
       // объявляет себя недоступной, а не показывает половину экрана пустой.
-      enabled: () =>
-        host.TextEditor !== undefined && isMarkdownDocument(host.activeDocument?.() ?? null),
+      enabled: () => hasTextEditor() && isMarkdownDocument(host.activeDocument?.() ?? null),
       run: show('split'),
     },
     {
@@ -190,7 +210,7 @@ export function markdownCommands(deps: MarkdownCommandDeps): readonly CommandCon
       run: (args) => {
         const id = target(args);
         if (id === null) return false;
-        const available = availableViews(host.TextEditor !== undefined);
+        const available = availableViews(hasTextEditor());
         let next = cycleView(views.get(id));
         // Круг идёт по ДОСТУПНЫМ видам: без редактора кода «рядом» пропускается, иначе
         // одно нажатие из трёх не меняло бы ничего.
@@ -341,7 +361,9 @@ export function createMarkdownPlugin(options: MarkdownPluginOptions): Plugin {
       // Настройки — из реестра служб: предпочтение вида принадлежит человеку, а не проекту,
       // и хранит его платформа. Без службы режимы работают, но не переживают перезагрузку.
       const settings = ctx.services.get(SettingsServiceToken) ?? null;
-      const hasTextEditor = (): boolean => host.TextEditor !== undefined;
+      // Провайдер спрашивается на КАЖДЫЙ вопрос: он поднимается отдельным плагином,
+      // и его выключение обязано убирать режим «рядом», а не оставлять пустую половину.
+      const hasTextEditor = (): boolean => ctx.services.get(TextEditorCapability) !== undefined;
       const views = createMarkdownViewStore({
         settings,
         settingKey: MARKDOWN_VIEW_SETTING,
@@ -353,14 +375,16 @@ export function createMarkdownPlugin(options: MarkdownPluginOptions): Plugin {
         },
       });
 
-      for (const command of markdownCommands({ host, views })) {
+      for (const command of markdownCommands({ host, views, hasTextEditor })) {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
       ctx.subscriptions.push(
-        ctx.extensions.contribute(EditorPoint, markdownEditor(host, views, ctx.i18n), {
-          id: MARKDOWN_EDITOR_ID,
-        })
+        ctx.extensions.contribute(
+          EditorPoint,
+          markdownEditor(host, views, ctx.i18n, () => ctx.services.get(TextEditorCapability)),
+          { id: MARKDOWN_EDITOR_ID }
+        )
       );
 
       for (const item of markdownMenuItems(views, hasTextEditor)) {

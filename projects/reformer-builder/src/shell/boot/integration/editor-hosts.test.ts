@@ -40,7 +40,6 @@ import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createProjectHost } from '@/shell/boot/project/project';
 import { createSchemaHost } from '@/shell/boot/ports/schema';
-import { createAiHost } from '@/shell/boot/ports/ai';
 import { KitsServiceToken } from '@/plugins/kits';
 import type { CatalogEntry } from '@/lib/catalog/types';
 
@@ -280,74 +279,6 @@ describe('порт редактора схемы: смена каталога д
   });
 });
 
-describe('порт ассистента: пометка происхождения доходит до рабочей области', () => {
-  it('третий аргумент пробрасывается, а не глотается', () => {
-    // Этот класс ошибки компилятор НЕ ловит: реализация с меньшим числом параметров
-    // присваивается функции с бо́льшим. Тесты плагина тоже молчат — они проверяют плагин,
-    // а не композицию. Поймать потерю может только проверка самого шва, то есть эта.
-    const calls: Array<{ id: string; text: string; mark?: unknown }> = [];
-    const host = createAiHost({
-      project: {
-        get: () => ({
-          workspace: {
-            writeText: (id: string, text: string, mark?: unknown) => {
-              calls.push({ id, text, mark });
-              return Promise.resolve();
-            },
-          },
-        }),
-      } as never,
-      i18n: createI18nService(),
-      services: createServiceRegistry(),
-    });
-
-    void host.writeText('mem:form.json' as ResourceId, '{}', {
-      origin: 'agent',
-      txId: 'turn-1',
-    });
-
-    expect(calls).toEqual([
-      { id: 'mem:form.json', text: '{}', mark: { origin: 'agent', txId: 'turn-1' } },
-    ]);
-  });
-
-  it('без пометки зовёт с тем же числом аргументов: умолчание решает рабочая область', () => {
-    const marks: Array<unknown> = [];
-    const host = createAiHost({
-      project: {
-        get: () => ({
-          workspace: {
-            writeText: (_id: string, _text: string, mark?: unknown) => {
-              marks.push(mark);
-              return Promise.resolve();
-            },
-          },
-        }),
-      } as never,
-      i18n: createI18nService(),
-      services: createServiceRegistry(),
-    });
-
-    void host.writeText('mem:a.json' as ResourceId, '{}');
-
-    expect(marks).toEqual([undefined]);
-  });
-});
-
-/**
- * Предпосылка, на которой держится способ отдавать тело редактора кода.
- *
- * Композиция обязана взять `Body` ОДИН раз и раздать эту ссылку всем троим (обычная вкладка,
- * markdown «рядом», исходник схемы). Именно здесь это чуть не стоило редактора: тело отдавалось
- * обёрткой, которая звала `monacoEditorContribution(...)` внутри себя, — сама обёртка была
- * стабильной, а `Body` рождался заново на каждой отрисовке. React сравнивает тип элемента
- * по ссылке, поэтому любая перерисовка родителя размонтировала Monaco и монтировала заново:
- * курсор и набранное пропадали, то есть править исходник схемы было нельзя вовсе.
- *
- * Тест охраняет не саму композицию, а факт, который делает такую обёртку разрушительной.
- * Станет `Body` стабильным между вызовами — тест упадёт, и это будет поводом перечитать
- * решение, а не молча вернуть обёртку.
- */
 describe('тело редактора кода', () => {
   it('рождается заново на каждый вызов вклада — потому и берётся один раз', () => {
     const h = harness();

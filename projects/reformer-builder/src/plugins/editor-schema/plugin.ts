@@ -28,6 +28,7 @@ import { createElement, type ReactElement } from 'react';
 import { Blocks, SlidersHorizontal } from 'lucide-react';
 import type { NodeIdFactory } from '@/lib/form-model/node-id';
 import {
+  defineCapability,
   definePlugin,
   DiagnosticsServiceToken,
   EditorPoint,
@@ -69,7 +70,12 @@ import {
   readCollapsedState,
   type CollapseRegistry,
 } from './session/view-state';
-import type { ExtensionPointRef, SchemaDiagnostics, SchemaEditorHost } from './host';
+import type {
+  ExtensionPointRef,
+  SchemaDiagnostics,
+  SchemaEditorHost,
+  TextEditorProvider,
+} from './host';
 
 // Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
 // взять его, не втягивая плагин в стартовый граф.
@@ -130,6 +136,15 @@ export interface SchemaEditorStores {
   /** Быстрое добавление: команда открывает диалог через этот стор, тело редактора его рисует. */
   readonly quickAdd: QuickAddStore;
 }
+
+/**
+ * Возможность «тело текстового редактора» — структурная копия с тем же идентификатором,
+ * что у провайдера (плагин Monaco). Находит ту же службу: реестр ключуется строкой.
+ */
+export const TextEditorCapability = defineCapability<TextEditorProvider>({
+  id: 'editor.text',
+  version: '1.0.0',
+});
 
 /**
  * Вклад редактора. Отдельно от плагина, чтобы тест звал его без реестров.
@@ -251,15 +266,22 @@ export interface SchemaEditorPluginOptions {
  * не кладётся.
  */
 export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Plugin {
-  const { host, modelPoint, newId } = options;
+  const { modelPoint, newId } = options;
   const provider = createSchemaModelProvider({ newId });
   // Реестру сеансов провайдер больше не нужен: разбор и печать делает платформа, взяв
   // этот же вклад из точки `document.model`. Сеанс остался только видом на её ручку.
-  const registry = createSessionRegistry({ host });
+  const registry = createSessionRegistry({ host: options.host });
 
   return definePlugin({
     id: SCHEMA_EDITOR_PLUGIN_ID,
     activate(ctx) {
+      // Тело редактора кода — ВОЗМОЖНОСТЬ соседа, и спрашивается она в момент вопроса:
+      // провайдер поднимается отдельным плагином и может быть выключен человеком на ходу.
+      // Режим исходника обязан исчезнуть вместе с ним, а не показать пустую половину экрана.
+      const host: SchemaEditorHost = {
+        ...options.host,
+        textEditor: () => ctx.services.get(TextEditorCapability),
+      };
       for (const [locale, messages] of Object.entries(SCHEMA_EDITOR_MESSAGES)) {
         ctx.i18n.contribute(locale, messages);
       }
@@ -316,7 +338,7 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
       // Чем показан документ — конструктором или исходником.
       const views = createSchemaViewStore({
         settings,
-        hasTextEditor: () => host.TextEditor !== undefined,
+        hasTextEditor: () => host.textEditor?.() !== undefined,
       });
       ctx.subscriptions.push({
         dispose: () => {
@@ -349,7 +371,7 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
         // что открытой формы.
         sessions: registry,
         editorId: SCHEMA_EDITOR_ID,
-        hasTextEditor: () => host.TextEditor !== undefined,
+        hasTextEditor: () => host.textEditor?.() !== undefined,
         // Спрашивается у порта на каждый вызов: поверхности вносятся вкладами, и плагин
         // превью можно выключить, пока вкладка открыта.
         hasLive: () => host.live?.available() === true,

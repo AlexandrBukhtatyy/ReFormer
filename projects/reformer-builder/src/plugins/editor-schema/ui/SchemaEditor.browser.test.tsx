@@ -51,7 +51,10 @@ describe('режим исходника', () => {
         documentId: DOCUMENT,
         text: JSON.stringify(sampleSchema(), null, 2),
       }),
-      TextEditor,
+      // Провайдер тела, а не само тело: редактор кода приходит возможностью соседа,
+      // и спрашивается она на каждой отрисовке. Ссылка при этом обязана быть ОДНОЙ —
+      // ровно это здесь и проверяется счётчиком монтирований.
+      textEditor: () => ({ TextEditor }),
     };
     const registry = createSessionRegistry({ host });
     const views = createSchemaViewStore({ settings: null, hasTextEditor: () => true });

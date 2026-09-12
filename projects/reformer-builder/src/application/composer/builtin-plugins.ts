@@ -231,14 +231,20 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     // Панель встаёт в правый слот без предиката: настройки провайдера и ключ должны быть
     // доступны и до того, как открыта форма, — иначе первый же запуск требует сначала
     // найти файл, а потом обнаружить, что ключа нет.
-    create: async (options) => {
+    // Опций нет ВОВСЕ: рабочую область ассистент собирает из возможностей сам, и порта
+    // у него не осталось ни одного члена.
+    create: async () => {
       const ai = await import('@/plugins/ai');
-      return ai.createAiPlugin({ host: options.ai });
+      return ai.createAiPlugin();
     },
   },
   {
     id: 'codegen',
     loading: 'lazy',
+    // Печать модуля формы — наружу: её берут шаблоны, чтобы превратить схему встроенного
+    // шаблона в файлы. Раньше переходник жил в `boot` и тянул кодоген динамическим импортом
+    // МИМО состава — то есть профиль без генерации всё равно печатал бы её кодом.
+    provides: [{ id: 'codegen.modules', version: '1.0.0' }],
     create: async (options) => {
       const codegen = await import('@/plugins/codegen');
       return codegen.createCodegenPlugin({ gaps: options.codegen });
@@ -247,12 +253,12 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
   {
     id: 'templates',
     loading: 'lazy',
+    // Печатник НЕОБЯЗАТЕЛЕН: без генерации кода раздел встроенных шаблонов объявляет себя
+    // недоступным, а проектные и локальные работают. Это названная деградация.
+    requires: { optional: [{ id: 'codegen.modules', range: '^1' }] },
     create: async (options) => {
       const templates = await import('@/plugins/templates');
-      return templates.createTemplatesPlugin({
-        host: options.templates,
-        print: options.printTemplate,
-      });
+      return templates.createTemplatesPlugin({ gaps: options.templates });
     },
   },
 ]);

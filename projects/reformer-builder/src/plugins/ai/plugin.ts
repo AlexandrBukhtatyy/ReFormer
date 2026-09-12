@@ -52,6 +52,7 @@ import { createEditorToolRegistry, type ToolRegistry } from './tools';
 import type { AgentCommand } from './tools/command-tools';
 import type { LoadValidateForm, ValidateFormSchema } from './model/validate';
 import type { AiHost } from './host';
+import { aiWorkspace } from './workspace';
 import { createKnowledgeLoader, type KnowledgeLoader } from './knowledge';
 import { AI_MESSAGES } from './messages';
 import { activateProvider, fetchModels, restoreProvider } from './providers/load';
@@ -92,8 +93,13 @@ export const AI_SERVICE_TOKEN: ServiceTokenOf<AiAssistant> = Object.freeze({ id:
 
 /** Что плагину приходится получить снаружи. */
 export interface AiPluginOptions {
-  /** Порт платформы: рабочая область, каталог, переводы. */
-  readonly host: AiHost;
+  /**
+   * Рабочая область ЦЕЛИКОМ — только для теста, зовущего плагин без реестра служб.
+   *
+   * В приложении её собирает сам плагин из возможностей контекста (`./workspace`), и порта
+   * у него больше нет ни одного члена.
+   */
+  readonly host?: AiHost;
 }
 
 /**
@@ -278,12 +284,13 @@ export function aiCommands(
  * сервис, когда поднимется. Отказ восстановления не должен ронять активацию — канала просто не
  * будет, и панель скажет об этом словами.
  */
-export function createAiPlugin(options: AiPluginOptions): Plugin {
-  const { host } = options;
-
+export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
   return definePlugin({
     id: AI_PLUGIN_ID,
     activate(ctx: PluginContext) {
+      // Рабочая область собирается ЗДЕСЬ: службы живут в контексте активации, и раньше него
+      // их нет. Названных дыр у ассистента не осталось — порт закрыт целиком.
+      const host = options.host ?? aiWorkspace(ctx);
       for (const [locale, messages] of Object.entries(AI_MESSAGES)) {
         ctx.i18n.contribute(locale, messages);
       }

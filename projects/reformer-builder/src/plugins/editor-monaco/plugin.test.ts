@@ -162,8 +162,9 @@ describe('состояние вида', () => {
 });
 
 describe('createMonacoEditorPlugin', () => {
-  function fakeContext() {
+  function fakeContext(options: { onRegister?: (impl: unknown) => void } = {}) {
     const contributed: { point: string; id: string | undefined }[] = [];
+    const contributedValues: unknown[] = [];
     const locales: string[] = [];
     const required: string[] = [];
     const subscriptions: { dispose: () => void }[] = [];
@@ -184,22 +185,42 @@ describe('createMonacoEditorPlugin', () => {
             ? { forEditor: () => fakeSlice() }
             : fakeFocus();
         },
+        // Тело редактора уходит НАРУЖУ возможностью: его показывают соседи.
+        register: (_token: unknown, impl: unknown) => {
+          options.onRegister?.(impl);
+          return { dispose: () => {} };
+        },
       },
       extensions: {
-        contribute: (point: { id: string }, _value: unknown, meta?: { id?: string }) => {
+        contribute: (point: { id: string }, value: unknown, meta?: { id?: string }) => {
           contributed.push({ point: point.id, id: meta?.id });
+          contributedValues.push(value);
           return { dispose: () => {} };
         },
       },
     } as unknown as PluginContext;
-    return { ctx, contributed, locales, required, subscriptions };
+    return { ctx, contributed, contributedValues, locales, required, subscriptions };
   }
 
-  it('вносит редактор в точку расширения и кладёт снятие в подписки', () => {
+  it('вносит редактор в точку расширения и отдаёт его тело наружу возможностью', () => {
     const { ctx, contributed, subscriptions } = fakeContext();
     createMonacoEditorPlugin({ host: fakeHost() }).activate(ctx);
     expect(contributed).toEqual([{ point: 'editor', id: MONACO_EDITOR_ID }]);
-    expect(subscriptions).toHaveLength(1);
+    // Две подписки: вклад в точку редакторов и занятый слот возможности. Обе снимаются
+    // вместе с плагином — выключенный Monaco не должен оставлять за собой ни того, ни другого.
+    expect(subscriptions).toHaveLength(2);
+  });
+
+  it('тело редактора у вклада и у возможности — ОДНА ссылка', () => {
+    // React сравнивает тип элемента по ссылке. Раньше вкладов было два — один собирала
+    // композиция для соседей, второй плагин вносил в точку, — и «тот же редактор» в режиме
+    // «рядом» держался на том, что это разные вкладки.
+    const registered: unknown[] = [];
+    const { ctx, contributedValues } = fakeContext({ onRegister: (impl) => registered.push(impl) });
+    createMonacoEditorPlugin({ host: fakeHost() }).activate(ctx);
+
+    const contribution = contributedValues[0] as { Body: unknown };
+    expect((registered[0] as { TextEditor: unknown }).TextEditor).toBe(contribution.Body);
   });
 
   it('везёт словарь сам: обе локали уходят в приёмник', () => {

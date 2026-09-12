@@ -36,6 +36,7 @@ import type { TemplatesHost } from './host';
 import { TEMPLATES_MESSAGES } from './messages';
 import { createTemplatesRefresh, type TemplatesRefresh } from './content/refresh';
 import { createBuiltinStore, type ModulePrinter } from './stores/builtin';
+import { hasPrinter, templatesPrinter, templatesWorkspace, type TemplatesGaps } from './workspace';
 import { createLocalStore } from './stores/local';
 import { createProjectStore } from './stores/project';
 import { TemplatesActions } from './ui/TemplatesActions';
@@ -92,14 +93,19 @@ export function templatesPanel(
 }
 
 export interface TemplatesPluginOptions {
-  readonly host: TemplatesHost;
   /**
-   * Печатник модуля формы для встроенных шаблонов.
+   * Рабочая область ЦЕЛИКОМ — только для теста, зовущего плагин без реестра служб.
    *
-   * Параметром, потому что печатает его КОДОГЕН, а плагины друг друга не импортируют.
-   * Композиция даёт трёхстрочный переходник поверх `generateModule(BUILTIN_TARGETS, …)`.
-   * Без него встроенных шаблонов нет — и это лучше, чем 900 строк «рыб», повторяющих вывод
-   * кодогена руками и расходящихся с ним молча.
+   * В приложении её собирает сам плагин из возможностей контекста (`./workspace`).
+   */
+  readonly host?: TemplatesHost;
+  /** То, чему в возможностях места пока нет: сохранение. Подставляет композиция. */
+  readonly gaps?: TemplatesGaps;
+  /**
+   * Печатник модуля формы для встроенных шаблонов — только для теста.
+   *
+   * В приложении он берётся возможностью `codegen.modules` у генерации кода, в момент
+   * печати: плагины друг друга не импортируют, а оба ленивые, и порядок активации незначим.
    */
   readonly print?: ModulePrinter;
   /**
@@ -118,19 +124,26 @@ export interface TemplatesPluginOptions {
  * «хранилище одно, бэкендов сколько угодно» проверяемым: наши не имеют никаких привилегий,
  * кроме порядка.
  */
-export function createTemplatesPlugin(options: TemplatesPluginOptions): Plugin {
-  const { host } = options;
+export function createTemplatesPlugin(options: TemplatesPluginOptions = {}): Plugin {
   const point = options.storePoint ?? TemplateStorePoint;
   const slot = options.slot ?? DEFAULT_TEMPLATES_SLOT;
 
   return definePlugin({
     id: TEMPLATES_PLUGIN_ID,
     activate(ctx) {
+      // Рабочая область собирается ЗДЕСЬ: службы живут в контексте активации, и раньше него
+      // их нет. Композиция подставляет только названные дыры.
+      const host = options.host ?? templatesWorkspace(ctx, options.gaps);
       for (const [locale, messages] of Object.entries(TEMPLATES_MESSAGES)) {
         ctx.i18n.contribute(locale, messages);
       }
 
-      const builtin = createBuiltinStore({ print: options.print });
+      // Печатник спрашивается у возможности на каждый вызов, а «есть ли он» — отдельным
+      // вопросом: оба плагина ленивые, и генерация кода вправе подняться позже шаблонов.
+      const builtin = createBuiltinStore({
+        print: options.print ?? templatesPrinter(ctx),
+        ...(options.print === undefined ? { ready: () => hasPrinter(ctx) } : {}),
+      });
       const project = createProjectStore(host);
       const local = createLocalStore(host.local);
 

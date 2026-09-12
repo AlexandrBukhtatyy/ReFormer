@@ -274,6 +274,15 @@ function requiresOf(files: readonly TemplateFile[]): Record<string, string[]> {
 export interface BuiltinStoreOptions {
   /** Печатник модуля. Без него встроенных шаблонов нет. */
   readonly print?: ModulePrinter;
+  /**
+   * Есть ли чем печатать ПРЯМО СЕЙЧАС. По умолчанию — «дан ли печатник».
+   *
+   * Отдельный вопрос, потому что печатник теперь берётся возможностью соседнего плагина
+   * и появляется, когда тот активируется. Ответ «печатать нечем» обязан меняться вместе
+   * с этим, иначе раздел встроенных шаблонов либо пуст навсегда, либо показывает
+   * пустой список вместо честного «недоступно».
+   */
+  readonly ready?: () => boolean;
 }
 
 /**
@@ -283,7 +292,7 @@ export interface BuiltinStoreOptions {
 export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore {
   return {
     source: 'builtin',
-    available: () => options.print !== undefined,
+    available: () => options.ready?.() ?? options.print !== undefined,
     async list(): Promise<readonly FormTemplate[]> {
       const print = options.print;
       if (print === undefined) return [];

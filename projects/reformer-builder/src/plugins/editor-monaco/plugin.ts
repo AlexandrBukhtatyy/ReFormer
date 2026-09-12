@@ -20,8 +20,9 @@
  * @module plugins/editor-monaco/plugin
  */
 
-import { createElement } from 'react';
+import { createElement, type ComponentType } from 'react';
 import {
+  defineCapability,
   definePlugin,
   EditorPoint,
   EditorViewStatesToken,
@@ -42,6 +43,33 @@ export const MONACO_PLUGIN_ID = 'editor-monaco';
 
 /** Идентификатор вклада редактора: ключ состояния вида и адрес в диагностике. */
 export const MONACO_EDITOR_ID = 'editor.monaco';
+
+/**
+ * Тело текстового редактора как ВОЗМОЖНОСТЬ.
+ *
+ * Заведена ради соседей: предпросмотр markdown показывает исходник в режиме «рядом»,
+ * а редактор схемы — в режиме исходника, и оба обязаны показывать ТОТ ЖЕ редактор,
+ * в котором файл правится, а не его копию. Плагины друг друга не импортируют, поэтому
+ * до недавнего времени тело раздавала композиция: она звала {@link monacoEditorContribution}
+ * сама и передавала `Body` параметром двоим.
+ *
+ * У этого была цена, которую видно только в коде: вкладов получалось ДВА — один собирала
+ * композиция для соседей, второй плагин вносил в точку редакторов, — и `Body` у них были
+ * разными функциями. React сравнивает тип элемента по ссылке, поэтому «тот же редактор»
+ * держался на том, что вкладка кода и режим «рядом» — разные вкладки. Теперь тело одно
+ * на всех, и это утверждение кода, а не совпадение.
+ *
+ * Версия `1.0.0` — исходная: компонент, принимающий `documentId`.
+ */
+export const TextEditorCapability = defineCapability<TextEditorProvider>({
+  id: 'editor.text',
+  version: '1.0.0',
+});
+
+export interface TextEditorProvider {
+  /** Тело редактора. Ссылка стабильна: её гарантирует провайдер, а не вызывающий. */
+  readonly TextEditor: ComponentType<{ documentId: ResourceId }>;
+}
 
 export interface MonacoEditorPluginOptions {
   /** Порт платформы. Подставляется композицией — см. `./host`. */
@@ -130,14 +158,13 @@ export function createMonacoEditorPlugin(options: MonacoEditorPluginOptions): Pl
         viewStatesOver(ctx.services.require(EditorViewStatesToken).forEditor(MONACO_EDITOR_ID));
       contributeMessages(ctx.i18n);
 
+      // Вклад собирается ОДИН раз, и его тело уходит и в точку редакторов, и наружу
+      // возможностью: «тот же редактор» для соседей — это та же ссылка, а не похожий
+      // компонент (см. {@link TextEditorCapability}).
+      const contribution = monacoEditorContribution({ host, focus, viewStates });
       ctx.subscriptions.push(
-        ctx.extensions.contribute(
-          EditorPoint,
-          monacoEditorContribution({ host, focus, viewStates }),
-          {
-            id: MONACO_EDITOR_ID,
-          }
-        )
+        ctx.extensions.contribute(EditorPoint, contribution, { id: MONACO_EDITOR_ID }),
+        ctx.services.register(TextEditorCapability, { TextEditor: contribution.Body })
       );
     },
   });

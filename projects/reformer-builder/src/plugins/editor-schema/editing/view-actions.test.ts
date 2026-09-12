@@ -26,11 +26,11 @@ interface Harness {
 function harness(options: { withTextEditor?: boolean; active?: ResourceId } = {}): Harness {
   const host = {
     activeDocument: () => options.active ?? SCHEMA_ID,
-    TextEditor: options.withTextEditor === false ? undefined : () => null,
+    textEditor: () => (options.withTextEditor === false ? undefined : { TextEditor: () => null }),
   } as unknown as SchemaEditorHost;
   const views = createSchemaViewStore({
     settings: null,
-    hasTextEditor: () => host.TextEditor !== undefined,
+    hasTextEditor: () => host.textEditor?.() !== undefined,
   });
   return { host, views };
 }

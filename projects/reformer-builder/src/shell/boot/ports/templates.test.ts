@@ -2,17 +2,20 @@
  * Порт шаблонов — против НАСТОЯЩЕЙ сессии: рабочая область, дерево и файловый источник
  * поверх подставного каталога.
  *
- * Проверяется сквозняк, которого не видит ни один тест плагина: плагин доволен, когда порт
+ * Проверяется сквозняк, которого не видит ни один тест плагина: плагин доволен, когда службу
  * позвали, а человеку нужно, чтобы после «форма создана» каталог появился В ДЕРЕВЕ. Между
- * этими двумя утверждениями лежит вся композиция — запись в рабочую копию, отправка
- * в источник и забывание прочитанного уровня, — и ломается она молча: операция сообщает
- * об успехе в любом случае.
+ * этими двумя утверждениями лежит весь путь — запись в рабочую копию, отправка в источник
+ * и забывание прочитанного уровня, — и ломается он молча: операция сообщает об успехе
+ * в любом случае.
+ *
+ * Рабочая область здесь собирается ТЕМ ЖЕ способом, что в приложении: службы регистрируются
+ * в реестре, а плагин достаёт их оттуда (`plugins/templates/workspace`). Порт остался
+ * единственной операцией — сохранением.
  *
  * @module shell/boot/ports/templates.test
  */
 
 import { describe, expect, it } from 'vitest';
-import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
 import { createFsAccessSource } from '@/shell/platform/source/fs-access';
@@ -24,14 +27,23 @@ import {
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
+import { DocumentsServiceToken } from '@/shell/platform/services/documents';
+import { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
+import type { PluginContext } from '@/shell/platform/plugin/types';
 import type { FormTemplate } from '@/plugins/templates';
-import { generateFormFromTemplate } from '@/plugins/templates';
+import {
+  generateFormFromTemplate,
+  TEMPLATES_PLUGIN_ID,
+  templatesWorkspace,
+} from '@/plugins/templates';
+import { createDocumentsService } from './documents';
+import { createWorkspaceFilesService } from './workspace-files';
 import {
   createWorkspaceSession,
   type WorkspaceSession,
 } from '@/shell/boot/project/workspace-session';
 import type { ProjectHost } from '@/shell/boot/project/project';
-import { createTemplatesHost } from './templates';
+import { createTemplatesGaps } from './templates';
 
 let seq = 0;
 
@@ -81,11 +93,22 @@ function harness(files: Readonly<Record<string, string>>) {
     dispose: () => undefined,
   } as unknown as ProjectHost;
 
-  const host = createTemplatesHost({
-    project,
-    i18n: createI18nService(),
-    services: createServiceRegistry(),
-  });
+  // Рабочая область собирается ТАК ЖЕ, как в приложении: службы регистрируются в реестре,
+  // плагин достаёт их оттуда. Порт даёт только сохранение — единственную дыру.
+  const services = createServiceRegistry();
+  services.register(DocumentsServiceToken, createDocumentsService({ project }));
+  services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project }));
+  const ctx = {
+    id: TEMPLATES_PLUGIN_ID,
+    services,
+    i18n: {
+      locale: 'ru',
+      t: (key: string) => key,
+      contribute: () => {},
+      onDidChangeLocale: () => ({ dispose: () => {} }),
+    },
+  } as unknown as PluginContext;
+  const host = templatesWorkspace(ctx, createTemplatesGaps({ project }));
 
   return {
     session,

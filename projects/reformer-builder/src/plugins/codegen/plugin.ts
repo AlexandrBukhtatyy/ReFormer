@@ -42,9 +42,10 @@ import {
 import { CodegenTargetPoint, type CodegenTarget, type ExtensionPointRef } from './contract';
 import { ejectTemplate, type EjectOutcome } from './commands/eject';
 import { createFixture, type FixtureOutcome } from './commands/fixture-command';
-import type { CodegenProblem } from './pipeline/generate';
+import type { CodegenInput } from '@/lib/codegen';
+import { generateModule, type CodegenProblem } from './pipeline/generate';
 import type { CodegenHost } from './host';
-import { codegenWorkspace, type CodegenGaps } from './workspace';
+import { codegenWorkspace, ModulePrinterCapability, type CodegenGaps } from './workspace';
 import { CODEGEN_MESSAGES } from './messages';
 import { runCodegen } from './pipeline/run';
 import { applyOverrides, discoverUserTargets } from './pipeline/user-targets';
@@ -374,6 +375,30 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
       for (const [locale, messages] of Object.entries(CODEGEN_MESSAGES)) {
         ctx.i18n.contribute(locale, messages);
       }
+
+      // Печать модуля — наружу возможностью: её берут шаблоны, чтобы превратить схему
+      // встроенного шаблона в файлы. Кит спрашивается в момент печати, а не сейчас: его
+      // переключают, и напечатать надо тем, что действует СЕЙЧАС. Кита нет — печатать нечем,
+      // и пустой список честнее модуля с импортами чужого пакета.
+      ctx.subscriptions.push(
+        ctx.services.register(ModulePrinterCapability, {
+          print: async (schema, formName, seed) => {
+            const kit = host.kit();
+            if (kit === null) return [];
+            // Приведение на границе возможности: снаружи она описана `unknown`, потому что
+            // ни схема формы, ни правила не выразимы в SDK — их типы принадлежат рендереру.
+            // Проверять их здесь нечем и не нужно: печатает тот же конвейер, что и панель.
+            const built = await generateModule(BUILTIN_TARGETS, {
+              schema: schema as CodegenInput['schema'],
+              formName,
+              rules: seed?.rules as CodegenInput['rules'],
+              mock: seed?.mock as CodegenInput['mock'],
+              kit: { kit, catalog: host.catalog() },
+            });
+            return built.files.map(({ path, content }) => ({ path, content }));
+          },
+        })
+      );
 
       // Список читается ЛЕНИВО, через реестр: цели вносят и снимают, в том числе чужие
       // плагины, и захваченный массив показывал бы состав на момент активации.

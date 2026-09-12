@@ -16,7 +16,6 @@
  * @module shell/boot/ports/schema
  */
 
-import type { ComponentType } from 'react';
 import type { Disposable } from '@/shell/platform/primitives/disposable';
 import type { ResourceId } from '@/shell/platform/primitives/resource';
 import type { ServiceRegistry } from '@/shell/platform/primitives/service';
@@ -48,7 +47,6 @@ export interface SchemaHostDeps {
    * текстом» обязано показывать ТОТ ЖЕ редактор, в котором файл правится, — иначе это была
    * бы его урезанная копия со своими сочетаниями клавиш и своей подсветкой.
    */
-  readonly TextEditor?: ComponentType<{ documentId: ResourceId }>;
   /**
    * Живой рендер формы.
    *
@@ -82,7 +80,6 @@ export function createSchemaHost(deps: SchemaHostDeps): SchemaEditorHost {
 
     // Приходит от композиции и уходит в редактор как есть: плагин не выбирает ни редактор,
     // ни поверхность и не знает, чьи они.
-    TextEditor: deps.TextEditor,
     live: deps.live,
     // Тот же словарь Host, что у Monaco: находка на узле канваса и подчёркивание в тексте —
     // это одна ошибка, показанная дважды, и звучать она обязана одинаково.

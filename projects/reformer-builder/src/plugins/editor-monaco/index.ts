@@ -30,4 +30,8 @@ export { createMonacoEditorPlugin, monacoEditorContribution } from './plugin';
 export { MONACO_EDITOR_ID, MONACO_PLUGIN_ID, type MonacoEditorPluginOptions } from './plugin';
 export { MONACO_EDITOR_PRIORITY } from './runtime/language';
 export { viewStatesOver, type ViewStateRegistry } from './sync/view-state';
+
+// Тело редактора наружу — возможностью: его показывают соседи (markdown «рядом», исходник
+// схемы), а плагины друг друга не импортируют.
+export { TextEditorCapability, type TextEditorProvider } from './plugin';
 export type { MessageSink, MonacoDiagnostics, MonacoDocument, MonacoHost, Translate } from './host';

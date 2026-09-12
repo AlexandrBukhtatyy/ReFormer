@@ -123,11 +123,10 @@ import { createFilesHost } from '@/shell/boot/ports/files';
 import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createSchemaHost } from '@/shell/boot/ports/schema';
-import { createAiHost } from '@/shell/boot/ports/ai';
 import { createPreviewHost } from '@/shell/boot/ports/preview';
 import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
 import { createCodegenGaps } from '@/shell/boot/ports/codegen';
-import { createTemplatesHost } from '@/shell/boot/ports/templates';
+import { createTemplatesGaps } from '@/shell/boot/ports/templates';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
 import { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
@@ -145,11 +144,6 @@ import {
 } from '@/shell/platform/primitives/disposable';
 import { PreviewSessionsCapability } from '@/plugins/preview';
 import {
-  MONACO_EDITOR_ID,
-  monacoEditorContribution,
-  viewStatesOver,
-} from '@/plugins/editor-monaco';
-import {
   createTextEditorFocusRegistry,
   TextEditorFocusToken,
 } from '@/shell/platform/workspace/model/text-editor-focus';
@@ -157,7 +151,6 @@ import {
   createEditorViewStates,
   EditorViewStatesToken,
 } from '@/shell/platform/workspace/model/editor-view-states';
-import { KitsServiceToken } from '@/plugins/kits';
 import { createDirectoryHandleStore, HANDLES_DB_NAME } from '@/shell/platform/source/fs-handles';
 import { createCompileCache, type CompileCache } from '@/shell/platform/modules/compile-cache';
 import {
@@ -578,28 +571,6 @@ export function boot(options: BootOptions): BuilderApp {
   // Один порт Monaco на двоих: сам редактор и предпросмотр markdown, который одалживает
   // его тело для режима «рядом».
   const monacoHost = createMonacoHost({ project, i18n, diagnostics });
-  /**
-   * Тело редактора кода как компонент.
-   *
-   * Берётся ОДИН раз, и это не оптимизация: React сравнивает тип элемента по ссылке, поэтому
-   * новая функция на каждой отрисовке — это размонтирование Monaco и монтирование заново.
-   * Здесь стояла обёртка, вызывавшая `monacoEditorContribution(...)` внутри себя: сама она
-   * создавалась один раз, а `Body` — на каждый вызов. Любая перерисовка родителя (клик,
-   * пришедшая диагностика, смена фокуса) роняла позицию курсора и набранное, то есть
-   * редактировать исходник схемы было нельзя вовсе.
-   *
-   * Тело берут двое — предпросмотр markdown (режим «рядом») и редактор схемы (режим
-   * исходника), — и оба обязаны получить ОДНУ ссылку.
-   */
-  const monacoTextEditor = monacoEditorContribution({
-    host: monacoHost,
-    // Из реестра, а не из локальных переменных: состояния — возможности оболочки (см. выше),
-    // и `require` здесь законен — обе зарегистрированы двадцатью строками раньше. Снимки
-    // адресуются именем ВКЛАДА редактора, поэтому Monaco видит только свои.
-    focus: services.require(TextEditorFocusToken),
-    viewStates: viewStatesOver(services.require(EditorViewStatesToken).forEditor(MONACO_EDITOR_ID)),
-  }).Body;
-
   // Порт превью собирается ЗДЕСЬ — как и все порты. Реестра состояний рядом больше нет:
   // его заводит сам плагин превью и отдаёт возможностью `preview.sessions`, а живой вид
   // редактора схемы берёт его оттуда же. Общим он от этого быть не перестал — перестал быть
@@ -640,27 +611,11 @@ export function boot(options: BootOptions): BuilderApp {
   const builtinOptions: BuiltinPluginsOptions = {
     files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
     monaco: monacoHost,
-    markdown: createMarkdownHost({
-      project,
-      // Тот же порт и то же хранилище, что у обычной code-вкладки: режим «рядом» показывает
-      // ровно тот редактор, в котором файл правится, а не его копию. Виды на хранилище
-      // здесь новые, и это теперь безразлично: состояние живёт в реестре, а не в них.
-      monaco: {
-        host: monacoHost,
-        focus: services.require(TextEditorFocusToken),
-        viewStates: viewStatesOver(
-          services.require(EditorViewStatesToken).forEditor(MONACO_EDITOR_ID)
-        ),
-      },
-    }),
+    markdown: createMarkdownHost({ project }),
     schema: createSchemaHost({
       project,
       i18n,
       services,
-      // Один и тот же редактор кода на троих: обычная вкладка, «рядом» у markdown
-      // и исходник схемы. Общее хранилище фокуса и снимков вида — условие того, что
-      // позиция курсора переживает переключение вида.
-      TextEditor: monacoTextEditor,
       // И та же поверхность, что рисует форму в панели превью: «чем нарисована эта форма» —
       // один вопрос с одним ответом, где бы её ни показывали.
       live: createLiveSurfacePort({
@@ -682,33 +637,9 @@ export function boot(options: BootOptions): BuilderApp {
       // и эта строка — то единственное место, где их совместимость проверяется компиляцией.
       host: projectPlugins,
     },
-    ai: createAiHost({ project, i18n, services }),
     preview: previewHost,
     codegen: createCodegenGaps({ project }),
-    templates: createTemplatesHost({ project, i18n, services }),
-    // Кита нет — встроенных шаблонов нет: печатать их нечем, а умолчание напечатало бы
-    // импорты чужого пакета. Пустой список честнее неверного кода.
-    printTemplate: async (schema, formName, seed) => {
-      const kits = services.get(KitsServiceToken);
-      const kit = kits?.descriptor() ?? null;
-      if (kit === null || kits === undefined) return [];
-      // Генератор берётся динамическим импортом, и это не оптимизация, а условие: статический
-      // импорт вернул бы плагин кодогена в стартовый граф целиком, ради функции, которая
-      // нужна только когда шаблон действительно печатают. Модуль уже загружен — печатник
-      // зовут после активации, — поэтому ожидание здесь нулевое.
-      const { BUILTIN_TARGETS, generateModule } = await import('@/plugins/codegen');
-      // Правила затравки доезжают до эмиттеров: из них печатаются НАСТОЯЩИЕ
-      // и  (мост к билдерам MCP), а не заглушки. Без них шаблон давал
-      // структуру модуля, в которой нечего проверять.
-      const built = await generateModule(BUILTIN_TARGETS, {
-        schema,
-        formName,
-        rules: seed?.rules,
-        mock: seed?.mock,
-        kit: { kit, catalog: kits.catalog() },
-      });
-      return built.files.map(({ path, content }) => ({ path, content }));
-    },
+    templates: createTemplatesGaps({ project }),
   };
 
   // По одному, а не `registerAll`: вместе с плагином в реестр уходит то, что он ОБЕЩАЛ дать

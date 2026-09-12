@@ -143,7 +143,7 @@ export function SchemaEditor({
   const view = useSchemaView(views, documentId);
   const quickAddOpen = useQuickAddOpen(quickAdd);
   const catalog = useCatalog(host);
-  const TextEditor = host.TextEditor;
+  const TextEditor = host.textEditor?.()?.TextEditor;
 
   // Исходник рисуется ДО всех хуков конструктора? Нет: хук по условию звать нельзя.
   // Поэтому режим выбирается ниже, когда все хуки уже вызваны, — а сюда вынесено

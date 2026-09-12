@@ -58,6 +58,40 @@ export const KitCapability = defineCapability<KitReader>({ id: 'kits.active', ve
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
+/** Один файл напечатанного модуля: путь от каталога формы и содержимое. */
+export interface PrintedFile {
+  readonly path: string;
+  readonly content: string;
+}
+
+/** Чем затравка дополняет схему: правила формы и мок источников данных. */
+export interface PrintSeed {
+  readonly rules?: unknown;
+  readonly mock?: unknown;
+}
+
+/**
+ * Возможность «напечатать модуль формы» — то, ради чего у генерации кода есть потребители
+ * помимо её собственной панели.
+ *
+ * Заведена ради шаблонов: встроенный шаблон формы — это схема, которую надо превратить
+ * в модуль, и печатает его ровно тот же конвейер, что и панель экспорта. Раньше переходник
+ * жил в композиции и тянул кодоген динамическим импортом МИМО состава: профиль без генерации
+ * всё равно печатал бы шаблоны её кодом. Теперь это возможность, и «нет кодогена — нет
+ * встроенных шаблонов» стало честной деградацией вместо тихого исключения из правил.
+ *
+ * Версия `1.0.0` — исходная.
+ */
+export const ModulePrinterCapability = defineCapability<ModulePrinterService>({
+  id: 'codegen.modules',
+  version: '1.0.0',
+});
+
+export interface ModulePrinterService {
+  /** Схема и имя формы — набор файлов модуля. Пустой список означает «печатать нечем». */
+  print(schema: unknown, formName: string, seed?: PrintSeed): Promise<readonly PrintedFile[]>;
+}
+
 /** То, чему в возможностях места пока нет. Всё остальное собирается из служб. */
 export type CodegenGaps = Pick<CodegenHost, 'save' | 'format' | 'rulesOf'>;
 

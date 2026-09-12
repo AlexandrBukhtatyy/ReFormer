@@ -37,7 +37,7 @@ import { createDocument, type Document } from '@/shell/platform/workspace/docume
 import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/workspace';
 import { renderReact } from '@/testing/render';
 import type { MarkdownHost } from '@/plugins/editor-markdown';
-import { createMarkdownPlugin } from '@/plugins/editor-markdown';
+import { createMarkdownPlugin, TextEditorCapability } from '@/plugins/editor-markdown';
 
 const HOST_MESSAGES: Readonly<Record<string, string>> = {
   'shell.editor.empty': 'Нет открытых редакторов',
@@ -126,10 +126,16 @@ async function mountWithPlugin(): Promise<{ readonly unmount: () => void }> {
     documentOf: (id) => documents.documentOf(id),
     readBytes: () => Promise.resolve(null),
     resourceAt: (document, path) => makeResourceId(document.ref.sourceId, path),
+  };
+
+  // Тело редактора приходит ВОЗМОЖНОСТЬЮ соседа, как в приложении: markdown берёт его
+  // из реестра служб, а не из порта. Двойник вместо Monaco: проверяется режим «рядом»,
+  // а не сам редактор.
+  services.register(TextEditorCapability, {
     TextEditor: ({ documentId }: { documentId: ResourceId }) => (
       <div data-testid="source">исходник {documentId}</div>
     ),
-  };
+  });
 
   const plugins = createPluginRegistry({
     services,

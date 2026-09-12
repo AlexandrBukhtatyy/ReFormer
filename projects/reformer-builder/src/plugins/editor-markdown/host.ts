@@ -23,6 +23,18 @@
 import type { ComponentType } from 'react';
 import type { Disposable, ResourceId, ResourceRef } from '@/sdk';
 
+/**
+ * Тело текстового редактора — ВОЗМОЖНОСТЬ соседа, а не член порта.
+ *
+ * Режим «рядом» показывает исходник тем же редактором, в котором файл правится. Плагины
+ * друг друга не импортируют, поэтому возможность объявлена структурной копией: находит она
+ * ту же службу, потому что реестр ключуется строкой. Нет провайдера — нет режима «рядом»,
+ * и это названная деградация: кнопка не показывается вовсе.
+ */
+export interface TextEditorProvider {
+  readonly TextEditor: ComponentType<{ documentId: ResourceId }>;
+}
+
 /** Открытый документ в объёме, нужном предпросмотру: текст и его изменения. */
 export interface MarkdownDocument {
   readonly ref: ResourceRef;
@@ -73,12 +85,4 @@ export interface MarkdownHost {
    * а не выглядит поломкой.
    */
   openResource?(id: ResourceId): void;
-
-  /**
-   * Тело текстового редактора для режима «рядом».
-   *
-   * Компонент, а не флаг: плагин не выбирает редактор и не знает, чей он. Отсутствие
-   * означает, что режима «рядом» нет — см. `./view`.
-   */
-  readonly TextEditor?: ComponentType<{ documentId: ResourceId }>;
 }

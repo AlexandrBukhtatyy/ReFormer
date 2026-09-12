@@ -108,8 +108,9 @@ projects/reformer-builder/
 │   │       ├── settings-sections.ts  состав окна настроек
 │   │       ├── ports/           адаптеры портов плагинов: files, monaco, markdown, schema,
 │   │       │                    preview, ai, templates; documents и workspace-files — службы
-│   │       │                    рабочей области для ЛЮБОГО плагина; codegen сузился до одной
-│   │       │                    операции (save); мосты live-surface, kit-namespace.
+│   │       │                    рабочей области для ЛЮБОГО плагина; codegen и templates
+│   │       │                    сузились до одной операции — workspace-save (наружу, в источник);
+│   │       │                    мосты live-surface, kit-namespace.
 │   │       │                    Разделяемых реестров здесь НЕТ: фокус и снимки вида — службы
 │   │       │                    платформы, состояния превью — возможность своего плагина
 │   │       ├── project/         project, workspace-session, document-models, opened-tabs,

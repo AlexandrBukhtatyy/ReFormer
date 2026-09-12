@@ -39,9 +39,8 @@ import type { PreviewHost } from '@/plugins/preview';
 import type { PluginManagerPluginOptions } from '@/plugins/plugin-manager';
 import type { MarkdownHost } from '@/plugins/editor-markdown';
 import type { SchemaEditorHost } from '@/plugins/editor-schema';
-import type { AiHost } from '@/plugins/ai';
 import type { CodegenGaps } from '@/plugins/codegen';
-import type { ModulePrinter, TemplatesHost } from '@/plugins/templates';
+import type { TemplatesGaps } from '@/plugins/templates';
 
 /**
  * Состав приложения — двумя фазами, ровно теми, что нужны запуску.
@@ -133,27 +132,16 @@ export interface BuiltinPluginsOptions {
    * расширения заполняются только плагинами (см. `primitives/extension-point`).
    */
   readonly pluginManager: Omit<PluginManagerPluginOptions, 'translate'>;
-  /** Порт платформы для ассистента. */
-  readonly ai: AiHost;
   /** Порт платформы для превью. */
   readonly preview: PreviewHost;
   /**
-   * То, чего генерации кода не хватает в возможностях: сохранение в источник.
+   * То, чего генерации кода и шаблонам не хватает в возможностях: сохранение в источник.
    *
-   * Не порт: рабочую область плагин собирает сам, из служб контекста. Здесь остаётся
+   * Не порты: рабочую область оба плагина собирают сами, из служб контекста. Здесь остаётся
    * единственная операция, выносящая написанное НАРУЖУ, — её нельзя отдать плагину каталога
-   * без политики прав (см. `shell/boot/ports/codegen`).
+   * без политики прав (см. `shell/boot/ports/workspace-save`).
    */
   readonly codegen: CodegenGaps;
-  /** Порт платформы для шаблонов форм. */
-  readonly templates: TemplatesHost;
-  /**
-   * Печатник встроенных шаблонов.
-   *
-   * Шаблоны печатает САМ генератор — тот же, что экспортирует форму. Иначе встроенный
-   * шаблон и результат экспорта разошлись бы: в v1 они и разошлись, потому что шаблоны
-   * были ~900 строк готового текста, который никто не пересобирал при правке эмиттеров.
-   * Переходник живёт здесь, потому что плагины не видят друг друга.
-   */
-  readonly printTemplate: ModulePrinter;
+  /** То же самое у шаблонов форм: сохранение и ничего сверх. */
+  readonly templates: TemplatesGaps;
 }

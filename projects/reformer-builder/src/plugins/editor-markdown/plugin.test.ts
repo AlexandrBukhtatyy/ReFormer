@@ -63,6 +63,9 @@ interface Harness {
   readonly host: MarkdownHost;
   readonly views: MarkdownViewStore;
   readonly opened: string[];
+  /** Провайдер тела редактора — возможность соседа; `undefined` означает «Monaco выключен». */
+  readonly editor: { readonly TextEditor: () => null } | undefined;
+  readonly hasTextEditor: () => boolean;
 }
 
 /**
@@ -91,18 +94,24 @@ function harness(options: { active?: ResourceRef; withTextEditor?: boolean } = {
     openResource: (id) => {
       opened.push(id);
     },
-    TextEditor: options.withTextEditor === false ? undefined : () => null,
   };
+  // Провайдер тела редактора — возможность соседа; в стенде он либо есть, либо нет.
+  const editor = options.withTextEditor === false ? undefined : { TextEditor: () => null };
+  const hasTextEditor = (): boolean => editor !== undefined;
   const views = createMarkdownViewStore({
     settings: null,
     settingKey: MARKDOWN_VIEW_SETTING,
-    hasTextEditor: () => host.TextEditor !== undefined,
+    hasTextEditor,
   });
-  return { host, views, opened };
+  return { host, views, opened, editor, hasTextEditor };
 }
 
 function command(h: Harness, id: string) {
-  const found = markdownCommands({ host: h.host, views: h.views }).find((item) => item.id === id);
+  const found = markdownCommands({
+    host: h.host,
+    views: h.views,
+    hasTextEditor: h.hasTextEditor,
+  }).find((item) => item.id === id);
   if (found === undefined) throw new Error(`нет команды ${id}`);
   return found;
 }
@@ -110,7 +119,7 @@ function command(h: Harness, id: string) {
 describe('вклад редактора', () => {
   it('берётся за markdown и отказывается от прочего — по ссылке, без чтения', () => {
     const h = harness();
-    const editor = markdownEditor(h.host, h.views, stubI18n());
+    const editor = markdownEditor(h.host, h.views, stubI18n(), () => h.editor);
 
     const probe = {
       text: () => Promise.reject(new Error('содержимое читать нельзя')),
@@ -198,7 +207,7 @@ describe('открытие предпросмотром', () => {
       },
     };
 
-    const open = markdownCommands({ host, views }).find(
+    const open = markdownCommands({ host, views, hasTextEditor: () => true }).find(
       (item) => item.id === OPEN_PREVIEW_COMMAND_ID
     );
     open?.run({ ids: [README.id] });
@@ -216,7 +225,7 @@ describe('открытие предпросмотром', () => {
 });
 
 describe('кнопки в строке вкладок', () => {
-  const items = (h: Harness) => markdownMenuItems(h.views, () => h.host.TextEditor !== undefined);
+  const items = (h: Harness) => markdownMenuItems(h.views, h.hasTextEditor);
   const itemOf = (h: Harness, id: string): MenuItemContribution => {
     const found = items(h).find((item) => item.id === id);
     if (found === undefined || found.value.kind !== 'item') throw new Error(`нет пункта ${id}`);
@@ -320,9 +329,11 @@ describe('кнопки в строке вкладок', () => {
 describe('тумблер вида', () => {
   it('ведёт из кода в предпросмотр и обратно', () => {
     const h = harness();
-    const toggle = markdownCommands({ host: h.host, views: h.views }).find(
-      (item) => item.id === TOGGLE_VIEW_COMMAND_ID
-    );
+    const toggle = markdownCommands({
+      host: h.host,
+      views: h.views,
+      hasTextEditor: h.hasTextEditor,
+    }).find((item) => item.id === TOGGLE_VIEW_COMMAND_ID);
 
     toggle?.run();
     expect(h.views.get(README.id)).toBe('preview');
@@ -334,7 +345,7 @@ describe('тумблер вида', () => {
     const h = harness();
     h.views.set(README.id, 'split');
 
-    markdownCommands({ host: h.host, views: h.views })
+    markdownCommands({ host: h.host, views: h.views, hasTextEditor: h.hasTextEditor })
       .find((item) => item.id === TOGGLE_VIEW_COMMAND_ID)
       ?.run();
 

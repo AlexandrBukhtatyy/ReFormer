@@ -68,6 +68,11 @@ export function createWorkspaceFilesService(
       return session.workspace.readText(id).catch(() => null);
     },
 
+    async refresh(dir: ResourceId) {
+      // Тот же глагол, которым чинит себя дерево после операций над записями.
+      await project.get()?.resources.refresh(dir);
+    },
+
     // Источник у проекта пока один, и `id` в ответе не участвует. Параметр всё равно есть:
     // право на запись принадлежит ИСТОЧНИКУ, а не приложению, и когда источников станет
     // несколько, менять придётся реализацию, а не всех вызывающих.

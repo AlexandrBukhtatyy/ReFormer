@@ -89,6 +89,11 @@ export {
   WIZARD_TEMPLATE_ID,
 } from './stores/builtin';
 export type { ModulePrinter } from './stores/builtin';
+
+// Рабочая область шаблонов собирается из возможностей ЕЮ САМОЙ; композиции остаётся
+// названная дыра — см. шапку `./workspace`.
+export { hasPrinter, templatesPrinter, templatesWorkspace } from './workspace';
+export type { TemplatesGaps } from './workspace';
 export { createProjectStore, TEMPLATES_DIR } from './stores/project';
 export { createLocalStore } from './stores/local';
 

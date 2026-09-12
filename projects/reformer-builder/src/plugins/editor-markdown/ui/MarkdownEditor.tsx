@@ -23,7 +23,7 @@ import {
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import { useTranslate, type PluginI18n, type ResourceId } from '@/sdk';
-import type { MarkdownHost } from '../host';
+import type { MarkdownHost, TextEditorProvider } from '../host';
 import type { MarkdownViewStore } from '../state/sessions';
 /**
  * Рендер грузится ЛЕНИВО, и это не оптимизация «на всякий случай».
@@ -43,6 +43,13 @@ export interface MarkdownEditorProps {
   readonly views: MarkdownViewStore;
   /** Словарь плагина: тот же, что дал контекст активации. */
   readonly i18n: PluginI18n;
+  /**
+   * Провайдер тела редактора — спрашивается на КАЖДОЙ отрисовке.
+   *
+   * Функция, а не компонент: провайдер поднимается отдельным плагином и может быть выключен
+   * на ходу. Захваченный однажды компонент остался бы на экране после выключения Monaco.
+   */
+  readonly editor: () => TextEditorProvider | undefined;
   readonly documentId: ResourceId;
 }
 
@@ -106,6 +113,7 @@ export function MarkdownEditor({
   host,
   views,
   i18n,
+  editor,
   documentId,
 }: MarkdownEditorProps): ReactElement {
   const translate = useTranslate(i18n);
@@ -126,7 +134,7 @@ export function MarkdownEditor({
     );
   }
 
-  const TextEditor = host.TextEditor;
+  const TextEditor = editor()?.TextEditor;
 
   const preview = (
     // Заглушка — пустой блок, а не надпись: рендер приезжает за десятки миллисекунд,

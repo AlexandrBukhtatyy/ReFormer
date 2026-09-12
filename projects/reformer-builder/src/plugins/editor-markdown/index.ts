@@ -23,7 +23,12 @@
  * @module plugins/editor-markdown/index
  */
 
-export { createMarkdownPlugin, MARKDOWN_EDITOR_ID, MARKDOWN_PLUGIN_ID } from './plugin';
+export {
+  createMarkdownPlugin,
+  MARKDOWN_EDITOR_ID,
+  MARKDOWN_PLUGIN_ID,
+  TextEditorCapability,
+} from './plugin';
 export type { MarkdownPluginOptions } from './plugin';
 export type { MarkdownDocument, MarkdownHost } from './host';
 export { isMarkdown, MARKDOWN_MEDIA_TYPE } from './render/markdown';

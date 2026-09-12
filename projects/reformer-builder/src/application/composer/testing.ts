@@ -86,11 +86,9 @@ export function stubBuiltinOptions(): BuiltinPluginsOptions {
     monaco: stubHost(),
     markdown: stubHost(),
     schema: stubHost(),
-    ai: stubHost(),
     preview: stubHost(),
     codegen: stubHost(),
     templates: stubHost(),
-    printTemplate: () => Promise.resolve([]),
     kits: {},
     pluginManager: { host: stubHost() },
   };
