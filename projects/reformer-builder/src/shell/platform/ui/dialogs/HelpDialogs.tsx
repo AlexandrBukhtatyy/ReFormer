@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@reformer/ui-kit/dialog';
-import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { DIALOG_SCOPE, useScope, type ScopeStack } from '@/shell/platform/ui/keyboard/scope';
 import { useLocale } from '@/shell/platform/ui/chrome/usePanels';

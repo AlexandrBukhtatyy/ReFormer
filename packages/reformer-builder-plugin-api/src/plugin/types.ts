@@ -32,23 +32,23 @@
  * в момент активации**. Поэтому графа зависимостей с топологической сортировкой нет вовсе,
  * а вместе с ним нет и класса ошибок «активировался слишком рано». Правило приёмки —
  * активация в обратном порядке даёт то же поведение — проверяется тестом
- * `registry.test.ts` («порядок активации ничего не значит»).
+ * тестом рантайма оболочки («порядок активации ничего не значит»).
  *
  * Следствие для автора плагина: в `activate` нельзя вызывать `services.require(...)` чужого
  * сервиса и нельзя читать чужие вклады. Можно только регистрировать своё и **захватывать
  * контекст в замыкание**, чтобы обратиться к чужому сервису тогда, когда команда действительно
  * выполняется.
  *
- * @module shell/platform/plugin/types
+ * @module @reformer/builder-plugin-api/plugin/types
  */
 
-import type { CapabilityAccess } from '@/shell/platform/primitives/capability';
-import type { PluginCommandRegistry } from '@/shell/platform/primitives/command';
-import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import type { EventBus } from '@/shell/platform/primitives/event';
-import type { PluginI18n } from '@/shell/platform/services/i18n/i18n';
-import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import type { ServiceRegistry } from '@/shell/platform/primitives/service';
+import type { CapabilityAccess } from '../primitives/capability';
+import type { PluginCommandRegistry } from '../primitives/command';
+import type { Disposable } from '../primitives/disposable';
+import type { EventBus } from '../primitives/event';
+import type { ExtensionRegistry } from '../primitives/extension-point';
+import type { ServiceRegistry } from '../primitives/service';
+import type { PluginI18n } from '../services/i18n';
 import type { PluginStorage, SecretStorage } from './storage';
 
 /**
@@ -119,7 +119,7 @@ export interface PluginContext {
    * не должно. `contribute` регистрирует словарь (обычно в `activate`, но можно и по частям —
    * например, вместе с ленивой панелью), `t` переводит.
    *
-   * Показывать переведённое в React надо через `useTranslate` из `@/sdk`: `t` отвечает,
+   * Показывать переведённое в React надо через `useTranslate` из этого же пакета: `t` отвечает,
    * как строка звучит СЕЙЧАС, и сама по себе смену языка не переживает.
    *
    * Что НЕ переводится здесь: тексты диагностик (`errors.<code>`). Одна и та же ошибка обязана

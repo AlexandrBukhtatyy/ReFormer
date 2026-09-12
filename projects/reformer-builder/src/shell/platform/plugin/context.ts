@@ -25,19 +25,16 @@
  */
 
 import { createCapabilityAccess } from '@/shell/platform/primitives/capability';
-import type { CommandRegistry } from '@/shell/platform/primitives/command';
-import type { EventBus } from '@/shell/platform/primitives/event';
+import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
+import type { EventBus } from '@reformer/builder-plugin-api/internal';
 import type { RootExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { toDisposable } from '@reformer/builder-plugin-api/internal';
-import type { ServiceRegistry } from '@/shell/platform/primitives/service';
-import {
-  FALLBACK_LOCALE,
-  type PluginI18n,
-  type RootI18nService,
-} from '@/shell/platform/services/i18n/i18n';
+import type { ServiceRegistry } from '@reformer/builder-plugin-api/internal';
+import { FALLBACK_LOCALE, type RootI18nService } from '@/shell/platform/services/i18n/i18n';
+import { type PluginI18n } from '@reformer/builder-plugin-api/internal';
 import { createPluginStorage, createSecretStorage } from './storage';
 import type { PluginStorageBackend, SecretSessionStore } from './storage';
-import type { PluginContext } from './types';
+import type { PluginContext } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Платформа, из которой собирается контекст. Одна на всё приложение, общая для всех плагинов.

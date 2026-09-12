@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createEventBus, defineEvent } from './event';
+import { createEventBus } from './event';
+import { defineEvent } from '@reformer/builder-plugin-api/internal';
 
 interface Saved {
   readonly id: string;

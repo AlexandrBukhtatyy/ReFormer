@@ -38,7 +38,7 @@
  * @module shell/platform/workspace/model/editor-view-states
  */
 
-import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
+import { defineCapability, type Capability } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 
 /** Вид хранилища для ОДНОГО редактора: ровно то, чем пользуется его тело. */

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { CommandContribution } from '@/shell/platform/primitives/command';
+import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
 import { whenContext } from '@reformer/builder-plugin-api/internal';
 import {
   commandPaletteItems,

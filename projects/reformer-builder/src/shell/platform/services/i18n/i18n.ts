@@ -45,8 +45,11 @@
  * @module shell/platform/services/i18n/i18n
  */
 
-import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import { toDisposable } from '@reformer/builder-plugin-api/internal';
+import {
+  toDisposable,
+  type Disposable,
+  type PluginI18n,
+} from '@reformer/builder-plugin-api/internal';
 import { formatPattern, parseMessage, type MessagePattern } from './message-format';
 
 /** Локаль, на которую откатывается сборка при промахе. Обоснование — в шапке модуля. */
@@ -58,34 +61,6 @@ export interface I18nService {
   t(key: string, params?: Record<string, unknown>): string;
   setLocale(locale: string): Promise<void>;
   onDidChangeLocale(cb: (locale: string) => void): Disposable;
-}
-
-/** Вид сервиса для плагина: ключи автоматически префиксуются его идентификатором. */
-export interface PluginI18n {
-  /**
-   * Действующая локаль — та же, что у корня: у вида своей быть не может.
-   *
-   * Нужна не для показа, а для перерисовки: снимок для `useSyncExternalStore` обязан меняться
-   * вместе с языком, иначе панель плагина осталась бы на прежних строках до следующей правки
-   * своего состояния (см. `ui/useTranslate`).
-   */
-  readonly locale: string;
-  t(key: string, params?: Record<string, unknown>): string;
-  /**
-   * Локаль сменилась. Тот же канал, что у корня: подписка идёт НАПРЯМУЮ к нему, потому что
-   * язык у приложения один, а вид — всего лишь пространство имён ключей.
-   */
-  onDidChangeLocale(cb: (locale: string) => void): Disposable;
-  /**
-   * Регистрирует словарь в пространстве имён плагина.
-   *
-   * Повторный вызов для той же локали **дополняет** словарь, а не заменяет его: плагин вправе
-   * везти словарь по частям — например, догружать раздел вместе с панелью.
-   *
-   * Бросает, если сообщение не разбирается, называя ключ. Ни одно сообщение этого вызова
-   * при этом не регистрируется.
-   */
-  contribute(locale: string, messages: Readonly<Record<string, string>>): void;
 }
 
 /**

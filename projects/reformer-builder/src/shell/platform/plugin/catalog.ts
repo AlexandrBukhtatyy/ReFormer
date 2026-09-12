@@ -51,11 +51,11 @@ import {
   meetsRequirement,
   type CapabilityProvider,
   type CapabilityRequirement,
-} from '@/shell/platform/primitives/capability';
+} from '@reformer/builder-plugin-api/internal';
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import type { DiscoveredPlugin, PluginLoader } from './loader';
 import type { PluginManifest, PluginProblem } from './manifest';
-import { normalizeChord } from '@/shell/platform/primitives/command';
+import { normalizeChord } from '@reformer/builder-plugin-api/internal';
 import { compileWhen, WHEN_TRUE } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { KeymapService } from '@/shell/platform/ui/keyboard/keymap';

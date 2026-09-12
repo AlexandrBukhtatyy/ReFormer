@@ -27,7 +27,7 @@
  * @module shell/platform/services/host-capabilities
  */
 
-import type { Capability } from '@/shell/platform/primitives/capability';
+import type { Capability } from '@reformer/builder-plugin-api/internal';
 import { EditorViewStatesCapability } from '@/shell/platform/workspace/model/editor-view-states';
 import { TextEditorFocusCapability } from '@/shell/platform/workspace/model/text-editor-focus';
 import { DocumentsCapability } from './documents';

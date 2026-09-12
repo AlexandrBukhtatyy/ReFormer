@@ -83,7 +83,7 @@ import {
   type DecorationTone,
   type MergedDecoration,
 } from '@/shell/platform/ui/contributions/decorations';
-import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import {
   createLazyEditorProbe,
   createUnreadableProbe,

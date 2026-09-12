@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  createCommandRegistry,
-  type CommandContribution,
-} from '@/shell/platform/primitives/command';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { type CommandContribution } from '@reformer/builder-plugin-api/internal';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { whenContext } from '@reformer/builder-plugin-api/internal';
 import {

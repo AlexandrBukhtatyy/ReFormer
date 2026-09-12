@@ -30,7 +30,7 @@
 import {
   defineExtensionPoint,
   type ExtensionRegistry,
-} from '@/shell/platform/primitives/extension-point';
+} from '@reformer/builder-plugin-api/internal';
 import type { ResourceRef } from '@reformer/builder-plugin-api/internal';
 
 /**

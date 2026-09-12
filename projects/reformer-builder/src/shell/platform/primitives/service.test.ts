@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createServiceRegistry, defineService } from './service';
+import { createServiceRegistry } from './service';
+import { defineService } from '@reformer/builder-plugin-api/internal';
 
 interface Clock {
   now(): number;

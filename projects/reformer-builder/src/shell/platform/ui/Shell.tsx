@@ -57,7 +57,7 @@ import { Button } from '@reformer/ui-kit/button';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
-import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 import type { ContextKeyReader } from '@/shell/platform/services/context-keys';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';

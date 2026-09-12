@@ -15,8 +15,8 @@
  */
 
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
-import type { EventBus } from '@/shell/platform/primitives/event';
-import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import type { EventBus } from '@reformer/builder-plugin-api/internal';
+import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
 import { makeResourceId, type ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { Source } from '@/shell/platform/source/types';
 import type { ValidationOrchestrator } from '@/shell/platform/services/validation/orchestrator';

@@ -19,14 +19,15 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { createCommandRegistry, whenOf } from '@/shell/platform/primitives/command';
-import type { CommandContribution } from '@/shell/platform/primitives/command';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { whenOf } from '@reformer/builder-plugin-api/internal';
+import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
 import { createEventBus } from '@/shell/platform/primitives/event';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
-import { normalizeKeybinding } from '@/shell/platform/primitives/command';
+import { normalizeKeybinding } from '@reformer/builder-plugin-api/internal';
 import { provablyDisjoint } from '@reformer/builder-plugin-api/internal';
 import { readWhenContext } from '@/shell/platform/services/context-keys';
 import { shouldDispatch } from '@/shell/platform/ui/keyboard/keybindings';

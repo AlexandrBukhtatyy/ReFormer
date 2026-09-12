@@ -52,7 +52,7 @@ import {
   type PluginProblemCode,
   type ProjectPluginManifest,
 } from './manifest';
-import type { Plugin } from './types';
+import type { Plugin } from '@reformer/builder-plugin-api/internal';
 
 /** Где в проекте лежат плагины. Путь из контракта; по образцу Obsidian. */
 export const PLUGIN_CATALOG_DIR = '.ui_builder/plugins';

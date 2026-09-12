@@ -34,7 +34,7 @@
 import { useEffect, useLayoutEffect, useMemo, type ReactElement } from 'react';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { DocumentTabs } from './DocumentTabs';

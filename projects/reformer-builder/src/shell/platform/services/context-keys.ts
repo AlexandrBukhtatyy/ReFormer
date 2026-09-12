@@ -31,7 +31,7 @@
  */
 
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
-import { defineService } from '@/shell/platform/primitives/service';
+import { defineService } from '@reformer/builder-plugin-api/internal';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
 
 /** Порт источника пяти полей. `WhenContextStore` подходит под эту форму как есть. */

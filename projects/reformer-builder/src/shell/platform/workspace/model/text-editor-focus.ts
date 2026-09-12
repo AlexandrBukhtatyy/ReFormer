@@ -49,7 +49,7 @@
  */
 
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
+import { defineCapability, type Capability } from '@reformer/builder-plugin-api/internal';
 
 export interface TextEditorFocusRegistry {
   /** В фокусе ли текстовый редактор этого документа. */

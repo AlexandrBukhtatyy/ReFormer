@@ -27,7 +27,7 @@
  * @module shell/platform/ui/keyboard/keybinding-rules
  */
 
-import { normalizeChord } from '@/shell/platform/primitives/command';
+import { normalizeChord } from '@reformer/builder-plugin-api/internal';
 import { provablyDisjoint, WHEN_TRUE, type WhenExpr } from '@reformer/builder-plugin-api/internal';
 import { resolvePlatformChord, type PlatformModifier } from './keybindings';
 

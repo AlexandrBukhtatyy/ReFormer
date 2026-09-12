@@ -44,8 +44,8 @@
 import type {
   CapabilityDeclaration,
   CapabilityRequirement,
-} from '@/shell/platform/primitives/capability';
-import { normalizeChord } from '@/shell/platform/primitives/command';
+} from '@reformer/builder-plugin-api/internal';
+import { normalizeChord } from '@reformer/builder-plugin-api/internal';
 import { parseRange, parseVersion, satisfies } from '@reformer/builder-plugin-api/internal';
 import { parseWhen } from '@reformer/builder-plugin-api/internal';
 import { normalizePath } from '@/shell/platform/modules/linker';

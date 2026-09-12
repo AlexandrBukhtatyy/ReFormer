@@ -44,7 +44,7 @@ import {
   type CapabilityDeclaration,
   type CapabilityProvider,
   type CapabilityRequirement,
-} from '@/shell/platform/primitives/capability';
+} from '@reformer/builder-plugin-api/internal';
 
 /**
  * Часть приложения глазами резолвера: имя плюс объявления.

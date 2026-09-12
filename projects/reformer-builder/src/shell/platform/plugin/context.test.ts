@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { createEventBus } from '@/shell/platform/primitives/event';
-import {
-  createExtensionRegistry,
-  defineExtensionPoint,
-} from '@/shell/platform/primitives/extension-point';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import { createI18nService, type RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createPluginContext, type PluginContextDeps } from './context';

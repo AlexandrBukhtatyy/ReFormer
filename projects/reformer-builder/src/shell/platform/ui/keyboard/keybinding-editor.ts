@@ -20,8 +20,8 @@
  * @module shell/platform/ui/keyboard/keybinding-editor
  */
 
-import type { CommandContribution } from '@/shell/platform/primitives/command';
-import { MAX_CHORD_STEPS } from '@/shell/platform/primitives/command';
+import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
+import { MAX_CHORD_STEPS } from '@reformer/builder-plugin-api/internal';
 import type { WhenExpr } from '@reformer/builder-plugin-api/internal';
 import type { KeybindingIndex, KeybindingLayer, KeybindingRule } from './keybinding-rules';
 import type { UserKeybinding } from './keymap';

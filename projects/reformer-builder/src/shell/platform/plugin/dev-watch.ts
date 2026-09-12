@@ -35,7 +35,7 @@
 
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { parseResourceId } from '@reformer/builder-plugin-api/internal';
-import type { EventBus } from '@/shell/platform/primitives/event';
+import type { EventBus } from '@reformer/builder-plugin-api/internal';
 import type { Source } from '@/shell/platform/source/types';
 import { WorkspaceDidChange } from '@/shell/platform/workspace/workspace';
 import { PLUGIN_CATALOG_DIR } from './loader';

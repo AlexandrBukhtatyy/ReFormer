@@ -30,7 +30,7 @@
  */
 
 import { useMemo } from 'react';
-import type { PluginI18n } from '@/shell/platform/services/i18n/i18n';
+import type { PluginI18n } from '@reformer/builder-plugin-api/internal';
 import { useLocale } from './chrome/usePanels';
 
 /** Перевод: ключ и параметры сообщения. Совпадает по форме с `PluginI18n.t`. */

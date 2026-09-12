@@ -48,7 +48,7 @@ import {
   normalizeKeybinding,
   whenOf,
   type CommandRegistry,
-} from '@/shell/platform/primitives/command';
+} from '@reformer/builder-plugin-api/internal';
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 import { evaluateWhen, type WhenExpr } from '@reformer/builder-plugin-api/internal';

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createExtensionRegistry, defineExtensionPoint } from './extension-point';
+import { createExtensionRegistry } from './extension-point';
+import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
 
 interface Panel {
   readonly title: string;

@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createCapabilityAccess } from './capability';
 import {
-  createCapabilityAccess,
   defineCapability,
   meetsRequirement,
   type Capability,
-} from './capability';
-import { createServiceRegistry, defineService } from './service';
+} from '@reformer/builder-plugin-api/internal';
+import { createServiceRegistry } from './service';
+import { defineService } from '@reformer/builder-plugin-api/internal';
 
 interface Kits {
   activeId(): string;

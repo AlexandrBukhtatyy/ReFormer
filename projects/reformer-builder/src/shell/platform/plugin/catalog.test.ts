@@ -3,10 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { createModuleLoader } from '@/shell/platform/modules/loader';
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { createEventBus } from '@/shell/platform/primitives/event';
-import {
-  createExtensionRegistry,
-  defineExtensionPoint,
-} from '@/shell/platform/primitives/extension-point';
+import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import { createI18nService, type RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createMemorySource, type MemorySource } from '@/shell/platform/source/memory';
@@ -20,7 +18,7 @@ import {
 import { createPluginLoader, PLUGIN_CATALOG_DIR } from './loader';
 import { createPluginRegistry, type PluginRegistry } from './registry';
 import { createMemoryStorageBackend } from './storage';
-import { definePlugin } from './types';
+import { definePlugin } from '@reformer/builder-plugin-api/internal';
 
 const PanelPoint = defineExtensionPoint<string>('test.panel');
 

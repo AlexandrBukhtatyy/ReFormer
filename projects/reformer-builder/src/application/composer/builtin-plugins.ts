@@ -59,7 +59,7 @@ import {
   parsePluginManifestValue,
   type BuiltinPluginManifest,
 } from '@/shell/platform/plugin/manifest';
-import type { Plugin } from '@/shell/platform/plugin/types';
+import type { Plugin } from '@reformer/builder-plugin-api/internal';
 import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';

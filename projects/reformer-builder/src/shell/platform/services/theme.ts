@@ -20,8 +20,9 @@
  */
 
 import { disposeAll, toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
-import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
-import { defineService } from '@/shell/platform/primitives/service';
+import { createEventBus } from '@/shell/platform/primitives/event';
+import { defineEvent } from '@reformer/builder-plugin-api/internal';
+import { defineService } from '@reformer/builder-plugin-api/internal';
 import type { SettingsService } from './settings';
 
 /** Тема, которая реально применена. Третьего состояния у оболочки нет. */

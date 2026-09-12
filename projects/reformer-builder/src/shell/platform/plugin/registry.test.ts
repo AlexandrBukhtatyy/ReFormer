@@ -1,21 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { defineCapability } from '@/shell/platform/primitives/capability';
-import { createCommandRegistry, type CommandRegistry } from '@/shell/platform/primitives/command';
-import { createEventBus, defineEvent, type EventBus } from '@/shell/platform/primitives/event';
+import { defineCapability } from '@reformer/builder-plugin-api/internal';
+import { createCommandRegistry } from '@/shell/platform/primitives/command';
+import { type CommandRegistry } from '@reformer/builder-plugin-api/internal';
+import { createEventBus } from '@/shell/platform/primitives/event';
+import { defineEvent, type EventBus } from '@reformer/builder-plugin-api/internal';
 import {
   createExtensionRegistry,
-  defineExtensionPoint,
   type RootExtensionRegistry,
 } from '@/shell/platform/primitives/extension-point';
-import {
-  createServiceRegistry,
-  defineService,
-  type ServiceRegistry,
-} from '@/shell/platform/primitives/service';
+import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
+import { createServiceRegistry } from '@/shell/platform/primitives/service';
+import { defineService, type ServiceRegistry } from '@reformer/builder-plugin-api/internal';
 import { createPluginRegistry, type PluginFailure, type PluginRegistry } from './registry';
 import { createMemoryStorageBackend, type PluginStorageBackend } from './storage';
-import { definePlugin, type Plugin, type PluginContext } from './types';
+import {
+  definePlugin,
+  type Plugin,
+  type PluginContext,
+} from '@reformer/builder-plugin-api/internal';
 
 interface Greeter {
   greet(name: string): string;

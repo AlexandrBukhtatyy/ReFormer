@@ -39,7 +39,7 @@
  * @module shell/platform/services/workspace-files
  */
 
-import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
+import { defineCapability, type Capability } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
 
 export interface WorkspaceFilesService {

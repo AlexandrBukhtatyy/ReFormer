@@ -79,7 +79,7 @@ import {
 } from '@reformer/ui-kit/command';
 import { Dialog, DialogContent, DialogTitle } from '@reformer/ui-kit/dialog';
 import { Kbd, KbdGroup } from '@reformer/ui-kit/kbd';
-import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';

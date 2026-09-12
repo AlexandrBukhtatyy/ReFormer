@@ -53,7 +53,7 @@
 
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { toDisposable } from '@reformer/builder-plugin-api/internal';
-import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
 import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import type { Document } from '../document';
 import type { DiagnosticsSink } from '../workspace';

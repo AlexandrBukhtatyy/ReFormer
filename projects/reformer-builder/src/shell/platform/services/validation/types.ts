@@ -35,7 +35,7 @@
  * @module shell/platform/services/validation/types
  */
 
-import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
+import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
 import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import type { DocumentKind } from '@/shell/platform/workspace/document';

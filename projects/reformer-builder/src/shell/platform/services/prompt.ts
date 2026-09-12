@@ -45,8 +45,9 @@
  */
 
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
-import { defineService } from '@/shell/platform/primitives/service';
+import { createEventBus } from '@/shell/platform/primitives/event';
+import { defineEvent } from '@reformer/builder-plugin-api/internal';
+import { defineService } from '@reformer/builder-plugin-api/internal';
 
 /** Проверка введённого значения: ключ сообщения об ошибке или `null`, если всё хорошо. */
 export type PromptValidator = (value: string) => string | null;

@@ -32,7 +32,7 @@ import {
 } from '@reformer/ui-kit/dropdown-menu';
 import { Separator } from '@reformer/ui-kit/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
-import type { CommandRegistry } from '@/shell/platform/primitives/command';
+import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { ResourceRef } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';

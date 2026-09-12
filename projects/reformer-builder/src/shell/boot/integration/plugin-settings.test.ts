@@ -25,7 +25,7 @@ import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { createModuleLoader } from '@/shell/platform/modules/loader';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import type { Source } from '@/shell/platform/source/types';
-import { definePlugin } from '@/shell/platform/plugin/types';
+import { definePlugin } from '@reformer/builder-plugin-api/internal';
 import { CatalogPluginSettingsPoint } from '@/shell/platform/ui/contributions/plugin-settings';
 import { asFormSchema } from '../settings/schema-guard';
 

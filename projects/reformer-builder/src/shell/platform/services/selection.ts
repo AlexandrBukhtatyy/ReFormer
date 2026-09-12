@@ -52,9 +52,10 @@
  */
 
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
+import { createEventBus } from '@/shell/platform/primitives/event';
+import { defineEvent } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import { defineService } from '@/shell/platform/primitives/service';
+import { defineService } from '@reformer/builder-plugin-api/internal';
 import type { NodeId } from '@/shell/platform/workspace/model/provider';
 
 /**

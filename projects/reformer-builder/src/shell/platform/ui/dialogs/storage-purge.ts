@@ -32,7 +32,7 @@
  * @module shell/platform/ui/dialogs/storage-purge
  */
 
-import type { CommandContribution } from '@/shell/platform/primitives/command';
+import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
 import type { NotificationsService } from '@/shell/platform/services/notifications';
 import type { PromptService } from '@/shell/platform/services/prompt';
 import type { PurgeReport } from '@/shell/platform/workspace/storage/purge';

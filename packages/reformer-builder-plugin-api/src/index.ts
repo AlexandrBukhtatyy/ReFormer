@@ -42,13 +42,45 @@
  *
  * ## Переезд идёт по частям
  *
- * Пакет наполняется слоями: здесь пока примитивы без единой зависимости, остальное пока
- * реэкспортирует `@/sdk` билдера. Пока переезд не кончен, ПОВЕРХНОСТЬЮ ПЛАГИНА остаётся
- * `@/sdk`, и он же обязан оставаться её единственным описанием: всё, что переехало сюда,
- * там реэкспортируется, а не объявляется заново.
+ * Пакет наполняется слоями. Здесь уже весь контракт плагина — `definePlugin`, `PluginContext`
+ * и всё, на что его поля ссылаются: службы, возможности, точки расширения, команды, события,
+ * хранилища, словарь, — плюс примитивы без зависимостей. Не переехали пока точки расширения
+ * оболочки, токены её служб и хуки.
+ *
+ * Пока переезд не кончен, ПОВЕРХНОСТЬЮ ПЛАГИНА остаётся `@/sdk` билдера, и он обязан
+ * оставаться её единственным описанием: всё, что переехало сюда, там реэкспортируется,
+ * а не объявляется заново. Разойтись им нечем — источник один.
  *
  * @module @reformer/builder-plugin-api
  */
+
+// Плагин: контракт и объявление.
+export { definePlugin } from './plugin/types';
+export type { Plugin, PluginContext } from './plugin/types';
+
+// Служба: токен, объявитель и контракт реестра. Реестр плагин получает полем контекста,
+// заводить свой ему нечем и незачем.
+export { defineService } from './primitives/service';
+export type { ServiceToken, ServiceRegistry } from './primitives/service';
+
+// Возможность — это токен службы плюс версия, а не второй реестр. Довод — в шапке модуля.
+export { defineCapability } from './primitives/capability';
+export type {
+  Capability,
+  CapabilityAccess,
+  CapabilityDeclaration,
+  CapabilityProvider,
+  CapabilityRequirement,
+} from './primitives/capability';
+
+// Команда: вклад, который плагин вносит в реестр видом из контекста. Разбор аккорда — тем же
+// кодом, что и регистрация: разъедься написание, подпись плагина перестала бы совпадать с тем,
+// что человек нажимает.
+export type { CommandContribution } from './primitives/command';
+export { MAX_CHORD_STEPS, normalizeChord, normalizeKeybinding } from './primitives/command';
+
+// Словарь плагина: его строки в ЕГО пространстве имён.
+export type { PluginI18n } from './services/i18n';
 
 // Освобождение: всё, что плагин регистрирует, он кладёт в `ctx.subscriptions`.
 export type { Disposable } from './primitives/disposable';

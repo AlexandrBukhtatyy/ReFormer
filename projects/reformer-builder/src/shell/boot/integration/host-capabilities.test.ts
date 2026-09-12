@@ -31,7 +31,7 @@ import { fromProfile } from '@/application/composer/compose';
 import { builderProfile } from '@/application/profiles/builder';
 import { minimalProfile } from '@/application/profiles/presets';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
-import { definePlugin } from '@/shell/platform/plugin/types';
+import { definePlugin } from '@reformer/builder-plugin-api/internal';
 import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/host-capabilities';
 import { DocumentsServiceToken } from '@/shell/platform/services/documents';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';

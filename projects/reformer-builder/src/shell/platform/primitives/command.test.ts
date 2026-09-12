@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createCommandRegistry } from './command';
 import {
   CommandError,
-  createCommandRegistry,
   MAX_CHORD_STEPS,
   normalizeChord,
   normalizeKeybinding,
-} from './command';
-import type { CommandContribution } from './command';
+} from '@reformer/builder-plugin-api/internal';
+import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
 import { NEUTRAL_WHEN_CONTEXT, whenContext } from '@reformer/builder-plugin-api/internal';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 

@@ -33,11 +33,8 @@
  */
 
 import type { ComponentType } from 'react';
-import type { CommandContribution } from '@/shell/platform/primitives/command';
-import {
-  defineExtensionPoint,
-  type Contribution,
-} from '@/shell/platform/primitives/extension-point';
+import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
+import { defineExtensionPoint, type Contribution } from '@reformer/builder-plugin-api/internal';
 import {
   isTextMediaType,
   type ResourceId,

@@ -22,12 +22,9 @@
  */
 
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
-import type {
-  Contribution,
-  ExtensionPoint,
-  RootExtensionRegistry,
-} from '@/shell/platform/primitives/extension-point';
-import type { CommandContribution, CommandRegistry } from '@/shell/platform/primitives/command';
+import type { RootExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import type { Contribution, ExtensionPoint } from '@reformer/builder-plugin-api/internal';
+import type { CommandContribution, CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { ChordSnapshot, ChordState } from '@/shell/platform/ui/keyboard/chords';
 import type { I18nService } from '@/shell/platform/services/i18n/i18n';
 import type { SettingsService } from '@/shell/platform/services/settings';

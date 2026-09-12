@@ -49,8 +49,8 @@
  */
 
 // Плагин: контракт и объявление.
-export { definePlugin } from '@/shell/platform/plugin/types';
-export type { Plugin, PluginContext } from '@/shell/platform/plugin/types';
+export { definePlugin } from '@reformer/builder-plugin-api';
+export type { Plugin, PluginContext } from '@reformer/builder-plugin-api';
 
 // Локализация. Словарь плагина приходит полем контекста (`ctx.i18n`), а не портом: строки
 // принадлежат тому, кто их рисует, и пространство имён у них — идентификатор плагина.
@@ -58,7 +58,7 @@ export type { Plugin, PluginContext } from '@/shell/platform/plugin/types';
 // осталась бы на прежних строках до случайного щелчка.
 export { useTranslate } from '@/shell/platform/ui/useTranslate';
 export type { Translate } from '@/shell/platform/ui/useTranslate';
-export type { PluginI18n } from '@/shell/platform/services/i18n/i18n';
+export type { PluginI18n } from '@reformer/builder-plugin-api';
 
 // Освобождение: всё, что плагин регистрирует, он кладёт в `ctx.subscriptions`.
 export type { Disposable } from '@reformer/builder-plugin-api';
@@ -130,7 +130,7 @@ export type { PaletteItem, PaletteItemProvider } from '@/shell/platform/ui/menu/
 export { CatalogPluginSettingsPoint } from '@/shell/platform/ui/contributions/plugin-settings';
 export type { CatalogPluginSettingsContribution } from '@/shell/platform/ui/contributions/plugin-settings';
 export { pluginSettingsKey } from '@/shell/platform/services/plugin-settings';
-export type { CommandContribution } from '@/shell/platform/primitives/command';
+export type { CommandContribution } from '@reformer/builder-plugin-api';
 export type { WhenContext, FocusTarget } from '@reformer/builder-plugin-api';
 
 // ── Клавиатура: условие применимости как данные ─────────────────────────────────
@@ -174,11 +174,7 @@ export type { PlatformModifier } from '@/shell/platform/ui/keyboard/keybindings'
 
 // Разбор аккорда — тем же кодом, что и регистрация: разъедься написание, подпись плагина
 // перестала бы совпадать с тем, что человек нажимает.
-export {
-  MAX_CHORD_STEPS,
-  normalizeChord,
-  normalizeKeybinding,
-} from '@/shell/platform/primitives/command';
+export { MAX_CHORD_STEPS, normalizeChord, normalizeKeybinding } from '@reformer/builder-plugin-api';
 
 export { ContextKeyServiceToken } from '@/shell/platform/services/context-keys';
 export type {
@@ -199,8 +195,8 @@ export type {
 // и гигиене: две копии расходятся по типу службы, и компилятор узнаёт об этом только там, где
 // обе стороны встречаются. Дублировать объявление в каждом плагине всё равно нельзя:
 // `plugins/**` не могут импортировать друг друга.
-export { defineService } from '@/shell/platform/primitives/service';
-export type { ServiceToken, ServiceRegistry } from '@/shell/platform/primitives/service';
+export { defineService } from '@reformer/builder-plugin-api';
+export type { ServiceToken, ServiceRegistry } from '@reformer/builder-plugin-api';
 
 // Возможности — то же объявление, но с версией, и ЗНАЧЕНИЕ здесь по той же причине, что
 // и `defineService`: `defineCapability` не описывает токен, а СОЗДАЁТ его — с проверкой версии
@@ -212,14 +208,14 @@ export type { ServiceToken, ServiceRegistry } from '@/shell/platform/primitives/
 //
 // `CapabilityAccess` — тип поля `ctx.capabilities`, вида на тот же реестр служб. Второго
 // реестра нет намеренно: довод в шапке `primitives/capability`.
-export { defineCapability } from '@/shell/platform/primitives/capability';
+export { defineCapability } from '@reformer/builder-plugin-api';
 export type {
   Capability,
   CapabilityAccess,
   CapabilityDeclaration,
   CapabilityProvider,
   CapabilityRequirement,
-} from '@/shell/platform/primitives/capability';
+} from '@reformer/builder-plugin-api';
 
 // Сервисы платформы, к которым плагин обращается через `ctx.services`.
 //

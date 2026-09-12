@@ -23,7 +23,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fromProfile } from '@/application/composer/compose';
 import { minimalProfile } from '@/application/profiles/presets';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
-import type { ExtensionPoint } from '@/shell/platform/primitives/extension-point';
+import type { ExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import { EditorPoint } from '@/shell/platform/ui/contributions/editors';
 import { PanelPoint } from '@/shell/platform/ui/slots';
 import { DocumentModelPoint } from '@/shell/platform/workspace/model/provider';

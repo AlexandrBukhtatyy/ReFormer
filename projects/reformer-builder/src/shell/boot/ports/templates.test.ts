@@ -29,7 +29,7 @@ import {
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { DocumentsServiceToken } from '@/shell/platform/services/documents';
 import { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
-import type { PluginContext } from '@/shell/platform/plugin/types';
+import type { PluginContext } from '@reformer/builder-plugin-api/internal';
 import type { FormTemplate } from '@/plugins/templates';
 import {
   generateFormFromTemplate,

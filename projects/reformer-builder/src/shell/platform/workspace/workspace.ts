@@ -63,7 +63,8 @@
 
 import type { Diagnostic } from '@/shell/platform/services/diagnostics/types';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import { createEventBus, defineEvent, type EventBus } from '@/shell/platform/primitives/event';
+import { createEventBus } from '@/shell/platform/primitives/event';
+import { defineEvent, type EventBus } from '@reformer/builder-plugin-api/internal';
 import {
   basename,
   dirname,

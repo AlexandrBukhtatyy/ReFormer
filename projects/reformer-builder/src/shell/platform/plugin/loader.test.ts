@@ -7,7 +7,7 @@ import { createMemorySource, type MemorySource } from '@/shell/platform/source/m
 import type { Source } from '@/shell/platform/source/types';
 import { createPluginLoader, PLUGIN_CATALOG_DIR, type PluginLoader } from './loader';
 import { createTypeScriptSupport, type TypeScriptEngine } from './typescript-transpiler';
-import type { Plugin } from './types';
+import type { Plugin } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Источник проекта, которому разрешено исполнять свой код.

@@ -23,7 +23,7 @@
  * @module shell/platform/ui/contributions/plugin-settings
  */
 
-import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
+import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Что плагин рассказывает о своих настройках.

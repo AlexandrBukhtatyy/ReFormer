@@ -33,7 +33,7 @@
 
 import { useEffect } from 'react';
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
-import { defineService } from '@/shell/platform/primitives/service';
+import { defineService } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Имя области: `palette`, `dialog`. Непрозрачная строка, как `activeResourceKind`.

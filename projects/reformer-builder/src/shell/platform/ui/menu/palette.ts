@@ -34,9 +34,9 @@
  * @module shell/platform/ui/menu/palette
  */
 
-import type { CommandContribution } from '@/shell/platform/primitives/command';
+import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import { defineExtensionPoint } from '@/shell/platform/primitives/extension-point';
+import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 
 /**

@@ -15,7 +15,7 @@
  */
 
 import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
-import type { ServiceRegistry } from '@/shell/platform/primitives/service';
+import type { ServiceRegistry } from '@reformer/builder-plugin-api/internal';
 import { DocumentsServiceToken } from '@/shell/platform/services/documents';
 import { WorkspaceFilesServiceToken } from '@/shell/platform/services/workspace-files';
 import { createDocumentsService } from '@/shell/boot/ports/documents';

@@ -38,7 +38,7 @@
 
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import type { ExtensionRegistry } from '@/shell/platform/primitives/extension-point';
+import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
 import type { Document } from '@/shell/platform/workspace/document';
 import {
   attachDocumentModel,

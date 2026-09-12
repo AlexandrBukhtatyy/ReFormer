@@ -24,7 +24,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { createEventBus } from '@/shell/platform/primitives/event';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import type { ExtensionPoint } from '@/shell/platform/primitives/extension-point';
+import type { ExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import { createSelectionService, SelectionServiceToken } from '@/shell/platform/services/selection';
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';

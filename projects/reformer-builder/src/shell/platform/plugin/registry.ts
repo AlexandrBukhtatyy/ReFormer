@@ -40,13 +40,13 @@
  * @module shell/platform/plugin/registry
  */
 
-import type { CapabilityDeclaration } from '@/shell/platform/primitives/capability';
+import type { CapabilityDeclaration } from '@reformer/builder-plugin-api/internal';
 import { disposeAll } from '@reformer/builder-plugin-api/internal';
 import { createPluginContext } from './context';
 import type { PluginContextDeps } from './context';
 import { createSecretSessionStore } from './storage';
 import type { SecretSessionStore } from './storage';
-import type { Plugin, PluginContext } from './types';
+import type { Plugin, PluginContext } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Состояние плагина в реестре.

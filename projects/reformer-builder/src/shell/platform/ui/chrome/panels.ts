@@ -9,7 +9,7 @@
  * @module shell/platform/ui/chrome/panels
  */
 
-import type { Contribution } from '@/shell/platform/primitives/extension-point';
+import type { Contribution } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
 import type { PanelContribution, SlotId } from '../slots';

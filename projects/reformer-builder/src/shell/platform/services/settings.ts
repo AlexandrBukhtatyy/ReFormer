@@ -29,8 +29,9 @@
  */
 
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
-import { createEventBus, defineEvent } from '@/shell/platform/primitives/event';
-import { defineService } from '@/shell/platform/primitives/service';
+import { createEventBus } from '@/shell/platform/primitives/event';
+import { defineEvent } from '@reformer/builder-plugin-api/internal';
+import { defineService } from '@reformer/builder-plugin-api/internal';
 
 /** Куда пишется значение. Читается всегда из обеих: `workspace` перекрывает `user`. */
 export type SettingsScope = 'user' | 'workspace';

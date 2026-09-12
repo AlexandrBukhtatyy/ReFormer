@@ -13,9 +13,17 @@
  * @module @reformer/builder-plugin-api/internal
  */
 
+export * from './plugin/storage';
+export * from './plugin/types';
+export * from './primitives/capability';
+export * from './primitives/command';
 export * from './primitives/disposable';
+export * from './primitives/event';
+export * from './primitives/extension-point';
 export * from './primitives/resource';
 export * from './primitives/semver';
+export * from './primitives/service';
 export * from './primitives/when-context';
 export * from './primitives/when-expr';
+export * from './services/i18n';
 export * from './workspace/resource-names';

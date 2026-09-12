@@ -25,9 +25,9 @@
  * @module shell/boot/composition
  */
 
-import type { CapabilityProvider } from '@/shell/platform/primitives/capability';
-import type { CapabilityDeclaration } from '@/shell/platform/primitives/capability';
-import type { Plugin } from '@/shell/platform/plugin/types';
+import type { CapabilityProvider } from '@reformer/builder-plugin-api/internal';
+import type { CapabilityDeclaration } from '@reformer/builder-plugin-api/internal';
+import type { Plugin } from '@reformer/builder-plugin-api/internal';
 
 // Порты и настройки встроенных — только ТИПЫ, до единого. `verbatimModuleSyntax` стирает такой
 // импорт целиком, графа он не создаёт: ни один барель плагина отсюда в стартовый граф не едет,

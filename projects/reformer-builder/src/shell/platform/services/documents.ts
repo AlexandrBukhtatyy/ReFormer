@@ -55,7 +55,7 @@
 
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import { defineCapability, type Capability } from '@/shell/platform/primitives/capability';
+import { defineCapability, type Capability } from '@reformer/builder-plugin-api/internal';
 import type { Document } from '@/shell/platform/workspace/document';
 import type { WriteOptions } from '@/shell/platform/workspace/workspace';
 

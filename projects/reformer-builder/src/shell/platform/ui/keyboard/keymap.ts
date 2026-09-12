@@ -22,12 +22,12 @@
  * @module shell/platform/ui/keyboard/keymap
  */
 
-import type { CommandRegistry } from '@/shell/platform/primitives/command';
-import { normalizeChord, whenOf } from '@/shell/platform/primitives/command';
+import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
+import { normalizeChord, whenOf } from '@reformer/builder-plugin-api/internal';
 import type { SettingsService } from '@/shell/platform/services/settings';
 import { parseWhen, WHEN_TRUE, type WhenExpr } from '@reformer/builder-plugin-api/internal';
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
-import { defineService } from '@/shell/platform/primitives/service';
+import { defineService } from '@reformer/builder-plugin-api/internal';
 import {
   buildKeybindingIndex,
   findConflicts,
