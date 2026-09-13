@@ -23,7 +23,7 @@
  */
 
 import { formatTargetFile } from '@/lib/codegen';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import type { CodegenHost } from '../host';
 import { USER_TARGETS_DIR } from '../pipeline/user-targets';

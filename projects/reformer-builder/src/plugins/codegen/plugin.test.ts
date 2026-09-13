@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { PluginContext, WhenContext } from '@/sdk';
+import type { PluginContext, WhenContext } from '@reformer/builder-plugin-api';
 import {
   codegenPanel,
   CODEGEN_PANEL_ID,

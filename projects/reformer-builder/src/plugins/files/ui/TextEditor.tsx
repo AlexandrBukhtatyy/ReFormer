@@ -22,7 +22,7 @@
 
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { Textarea } from '@reformer/ui-kit/textarea';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { FilesDocument, FilesHost } from '../host';
 
 /** Тело редактора над УЖЕ открытым документом: он есть всегда, иначе компонент не рисуется. */

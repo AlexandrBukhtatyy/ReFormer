@@ -15,8 +15,8 @@
  */
 
 import manifest from './manifest.json';
-import { definePlugin, PaletteItemsPoint } from '@/sdk';
-import type { PaletteItem, PaletteItemProvider, Plugin } from '@/sdk';
+import { definePlugin, PaletteItemsPoint } from '@reformer/builder-plugin-api';
+import type { PaletteItem, PaletteItemProvider, Plugin } from '@reformer/builder-plugin-api';
 import type { ManagedPlugin, PluginManagerHost, Translate } from './host';
 import { PLUGIN_MANAGER_MESSAGES } from './messages';
 

@@ -15,7 +15,7 @@
  * @module plugins/editor-schema/editing/view-actions
  */
 
-import type { CommandContribution, ResourceId } from '@/sdk';
+import type { CommandContribution, ResourceId } from '@reformer/builder-plugin-api';
 import type { SchemaEditorHost } from '../host';
 import type { SchemaViewStore } from '../session/view-mode';
 

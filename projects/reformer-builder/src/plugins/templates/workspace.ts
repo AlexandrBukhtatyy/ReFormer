@@ -42,7 +42,7 @@ import {
   type PluginContext,
   type ResourceId,
   type ResourceRef,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { TemplatesHost, TemplatesSourceCapabilities } from './host';
 import type { ModulePrinter } from './stores/builtin';
 

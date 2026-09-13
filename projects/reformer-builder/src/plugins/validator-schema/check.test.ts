@@ -5,7 +5,7 @@ import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '@/lib/catalog/__fixtures__/builtin-catalog';
 import { ensureNodeIds, type NodeIdFactory } from '@/lib/form-model/node-id';
 import { emptyRules, type FormRules } from '@/lib/form-model/rules';
-import type { Diagnostic } from '@/sdk';
+import type { Diagnostic } from '@reformer/builder-plugin-api';
 import { checkForm, dedupe } from './check';
 import { CODES, COMMANDS, QUICKFIX } from './codes';
 

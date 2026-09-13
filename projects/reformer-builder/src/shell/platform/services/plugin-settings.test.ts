@@ -10,7 +10,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { createInMemorySettingsBackend, createSettingsService } from './settings';
-import { createPluginSettings, pluginSettingsKey } from './plugin-settings';
+import { createPluginSettings } from './plugin-settings';
+import { pluginSettingsKey } from '@reformer/builder-plugin-api/internal';
 
 async function service() {
   const settings = createSettingsService(createInMemorySettingsBackend({}));

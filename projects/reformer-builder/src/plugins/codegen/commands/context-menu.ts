@@ -46,7 +46,7 @@ import {
   type NotificationsService,
   type ResourceId,
   type ResourceRef,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import { deliverInto, SourceReadOnlyError, type DeliveryResult } from '../pipeline/deliver';
 import { generateModule, type ModuleFile } from '../pipeline/generate';

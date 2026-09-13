@@ -11,7 +11,7 @@
  * createPreviewPlugin({
  *   host: previewHost,                    // порт платформы, см. ниже
  *   i18n: i18n.forPlugin('preview'),      // пока в PluginContext нет своего i18n
- *   // surfacePoint: PreviewSurfacePoint, // когда точка появится в @/sdk — подставить её
+ *   // surfacePoint: PreviewSurfacePoint, // когда точка появится в @reformer/builder-plugin-api — подставить её
  *   // slot: 'panel.bottom',              // раскладка — дело композиции
  * });
  * ```
@@ -19,7 +19,7 @@
  * Порт (`app/preview-host.ts` по образцу `app/schema-host.ts`) обязан дать:
  *
  * - **документ и активную вкладку** — `documentOf`, `useActiveDocument`: рабочей области
- *   в `@/sdk` нет, а без ответа «на что смотрят сейчас» панель не знает, что показывать;
+ *   в `@reformer/builder-plugin-api` нет, а без ответа «на что смотрят сейчас» панель не знает, что показывать;
  * - **возможности источника** — `sourceOf(id)`: по ним и только по ним решается, монтировать ли
  *   компилирующую поверхность (`SourceCapabilities.executesCode`);
  * - **кит тремя разными вещами** — `catalog()` (какие имена бывают), `kit()` (как их резолвить),

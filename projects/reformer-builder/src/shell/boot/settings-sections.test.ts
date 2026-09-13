@@ -15,7 +15,7 @@ import {
   createSettingsService,
   createInMemorySettingsBackend,
 } from '@/shell/platform/services/settings';
-import type { ThemePreference, ThemeService } from '@/shell/platform/services/theme';
+import type { ThemePreference, ThemeService } from '@reformer/builder-plugin-api/internal';
 import { createSettingsSections, LOCALE_SETTINGS_KEY } from './settings-sections';
 import type { SettingField, SettingsSection } from '@/shell/platform/ui/dialogs/settings-ui';
 import { toDisposable } from '@reformer/builder-plugin-api/internal';

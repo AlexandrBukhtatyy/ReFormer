@@ -21,7 +21,7 @@
  * @module plugins/editor-schema/session/canvas-prefs
  */
 
-import type { Disposable } from '@/sdk';
+import type { Disposable } from '@reformer/builder-plugin-api';
 import type { SchemaViewSettings } from './view-mode';
 
 /**

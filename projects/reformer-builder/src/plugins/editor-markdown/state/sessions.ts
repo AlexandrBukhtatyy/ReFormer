@@ -18,7 +18,7 @@
  * @module plugins/editor-markdown/state/sessions
  */
 
-import type { Disposable, ResourceId } from '@/sdk';
+import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import { clampView, readView, type MarkdownView } from './view';
 
 /** Настройки в объёме, нужном режиму. `Pick` от службы: форма обязана совпадать буква в букву. */

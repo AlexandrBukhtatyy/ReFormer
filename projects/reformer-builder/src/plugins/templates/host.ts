@@ -19,7 +19,7 @@
 
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor } from '@/lib/kits/types';
-import type { Disposable, ResourceId, ResourceRef } from '@/sdk';
+import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 
 /** Перевод: ключ и параметры. Совпадает по форме с `I18nService.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;

@@ -16,20 +16,22 @@
  *    ни к `matchMedia` напрямую — иначе её нельзя было бы проверить без браузера, а
  *    «системное предпочтение как умолчание» — ровно то свойство, которое обязано быть в тестах.
  *
+ * Служба темы: применение к документу и слежение за системной темой.
+ *
+ * Объявление службы и токен живут в пакете `@reformer/builder-plugin-api`.
+ *
  * @module shell/platform/services/theme
  */
 
 import { disposeAll, toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { createEventBus } from '@/shell/platform/primitives/event';
 import { defineEvent } from '@reformer/builder-plugin-api/internal';
-import { defineService } from '@reformer/builder-plugin-api/internal';
-import type { SettingsService } from './settings';
-
-/** Тема, которая реально применена. Третьего состояния у оболочки нет. */
-export type ThemeKind = 'light' | 'dark';
-
-/** Что выбрал пользователь. `system` — «следуй за системой», а не «светлая». */
-export type ThemePreference = ThemeKind | 'system';
+import type { SettingsService } from '@reformer/builder-plugin-api/internal';
+import {
+  type ThemeKind,
+  type ThemePreference,
+  type ThemeService,
+} from '@reformer/builder-plugin-api/internal';
 
 /**
  * Ключ настройки. Область — `user`: тема принадлежит человеку, а не проекту.
@@ -72,23 +74,11 @@ export interface SystemTheme {
   subscribe(cb: (theme: ThemeKind) => void): Disposable;
 }
 
-export interface ThemeService {
-  /** Применённая тема: то, что сейчас на корневом элементе. */
-  readonly theme: ThemeKind;
-  /** Выбор пользователя. `system` означает «действующая тема берётся у системы». */
-  readonly preference: ThemePreference;
-  /** Записывает выбор в настройки; тема применяется сразу, не дожидаясь хранилища. */
-  setPreference(preference: ThemePreference): Promise<void>;
-  onDidChange(cb: (theme: ThemeKind) => void): Disposable;
-}
-
 /**
  * Вид службы для Host: служба держит подписки на настройки и на систему, и кто-то обязан
  * их отпустить. Плагину `dispose` не виден — иначе один плагин мог бы выключить тему всем.
  */
 export interface HostThemeService extends ThemeService, Disposable {}
-
-export const ThemeServiceToken = defineService<ThemeService>('reformer.theme');
 
 const ThemeDidChange = defineEvent<ThemeKind>('theme.didChange');
 

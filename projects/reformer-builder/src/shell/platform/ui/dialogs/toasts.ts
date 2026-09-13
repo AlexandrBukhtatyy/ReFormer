@@ -37,7 +37,7 @@
  * @module shell/platform/ui/dialogs/toasts
  */
 
-import type { Notification, NotificationLevel } from '@/shell/platform/services/notifications';
+import type { Notification, NotificationLevel } from '@reformer/builder-plugin-api/internal';
 
 /** Сколько идентификаторов помнить. Больше очереди службы (100) — с запасом на устаревший кадр. */
 export const SHOWN_LIMIT = 200;

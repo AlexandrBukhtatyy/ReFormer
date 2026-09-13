@@ -23,8 +23,12 @@
 import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
 import { MAX_CHORD_STEPS } from '@reformer/builder-plugin-api/internal';
 import type { WhenExpr } from '@reformer/builder-plugin-api/internal';
-import type { KeybindingIndex, KeybindingLayer, KeybindingRule } from './keybinding-rules';
-import type { UserKeybinding } from './keymap';
+import type {
+  KeybindingIndex,
+  KeybindingLayer,
+  KeybindingRule,
+} from '@reformer/builder-plugin-api/internal';
+import type { UserKeybinding } from '@reformer/builder-plugin-api/internal';
 
 /** Строка таблицы редактора. */
 export interface EditorRow {

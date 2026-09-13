@@ -12,7 +12,7 @@ import { builtinKit } from '@/lib/codegen/__fixtures__/kit';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { FormRules } from '@/lib/form-model/rules';
 import type { KitDescriptor } from '@/lib/kits/types';
-import type { Disposable, ResourceId } from '@/sdk';
+import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost } from './host';
 
 export interface FakeHostOptions {

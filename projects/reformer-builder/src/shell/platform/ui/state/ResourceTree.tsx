@@ -91,14 +91,11 @@ import {
   createUnreadableProbe,
   type ReadResourceText,
 } from '@/shell/platform/ui/contributions/editors';
-import { detectPlatformModifier, formatChord } from '@/shell/platform/ui/keyboard/keybindings';
-import {
-  buildMenu,
-  MenuPoint,
-  type MenuActionNode,
-  type MenuNode,
-} from '@/shell/platform/ui/menu/menu';
-import { RESOURCE_CONTEXT_MENU, resourceMenuTarget } from '@/shell/platform/ui/menu/resource-menu';
+import { detectPlatformModifier, formatChord } from '@reformer/builder-plugin-api/internal';
+import { buildMenu, type MenuActionNode, type MenuNode } from '@/shell/platform/ui/menu/menu';
+import { MenuPoint } from '@reformer/builder-plugin-api/internal';
+import { resourceMenuTarget } from '@/shell/platform/ui/menu/resource-menu';
+import { RESOURCE_CONTEXT_MENU } from '@reformer/builder-plugin-api/internal';
 import {
   actionTargets,
   flattenTree,
@@ -106,11 +103,8 @@ import {
   type ResourceTreeState,
   type ResourceTreeStore,
 } from './resource-tree';
-import {
-  useContributions,
-  useLocale,
-  type ExtensionReader,
-} from '@/shell/platform/ui/chrome/usePanels';
+import { useContributions, type ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import { useResourceTree } from '@/shell/platform/ui/chrome/useWorkspaceViews';
 
 /** Тон пометки → вариант значка кита. Соответствие визуальное, поэтому живёт в отрисовке. */

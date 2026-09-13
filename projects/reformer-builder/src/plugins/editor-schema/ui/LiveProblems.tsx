@@ -13,7 +13,7 @@
 
 import type { ComponentType, ReactElement } from 'react';
 import { CircleAlert, CircleX, Info } from 'lucide-react';
-import type { DiagnosticSeverity } from '@/sdk';
+import type { DiagnosticSeverity } from '@reformer/builder-plugin-api';
 import { splitLiveProblems, type LiveProblemRow } from '../live/live-problems';
 import type { Translate } from '../host';
 

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CatalogJson } from '@/lib/catalog/types';
-import { PaletteItemsPoint, type Disposable, type PluginContext, type WhenContext } from '@/sdk';
+import {
+  PaletteItemsPoint,
+  type Disposable,
+  type PluginContext,
+  type WhenContext,
+} from '@reformer/builder-plugin-api';
 import type { KitsSettings } from './host';
 import {
   createKitPaletteProvider,

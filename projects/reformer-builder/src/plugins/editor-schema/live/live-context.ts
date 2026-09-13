@@ -27,7 +27,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { Disposable, NodeId } from '@/sdk';
+import type { Disposable, NodeId } from '@reformer/builder-plugin-api';
 import type { LiveSurfaceContext } from '../host';
 import type { SchemaEditorState } from '../session/sessions';
 

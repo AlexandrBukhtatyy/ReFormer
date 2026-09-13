@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { withMarker } from '@/lib/codegen';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { deliverModule, SourceReadOnlyError } from './deliver';
 import type { ModuleFile } from './generate';
 import { createFakeHost } from '../testing';

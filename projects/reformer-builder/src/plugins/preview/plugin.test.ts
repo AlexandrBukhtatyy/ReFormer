@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { PluginContext } from '@/sdk';
+import type { PluginContext } from '@reformer/builder-plugin-api';
 import { chooseSurface } from './surface/selection';
 import { builtinSurfaces, createPreviewPlugin, PREVIEW_PLUGIN_ID } from './plugin';
 import { MODEL_PANEL_ID } from './ui/ModelPanel';

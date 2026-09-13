@@ -4,7 +4,7 @@
  * **Почему это плагин, а не часть Host.** Дизайн-система — предметное знание: что такое
  * `InputField`, чем поле отличается от контейнера, какие компоненты нельзя рисовать вживую.
  * В платформе оно означало бы, что второй кит вносится правкой ядра. Граница проверяется
- * линтером: `src/plugins/**` не видит `@/shell/*` — только `@/sdk` и `@/lib`.
+ * линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api` и `@/lib`.
  *
  * **Что регистрируется и в каком порядке.** Порядок здесь не значит ничего (рантайм плагинов
  * не строит графа зависимостей), но состав значит:
@@ -29,7 +29,7 @@ import {
   type PaletteItem,
   type PaletteItemProvider,
   type Plugin,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { BUILTIN_KIT } from './builtin';
 import type { KitsSettings, Translate } from './host';
 import {

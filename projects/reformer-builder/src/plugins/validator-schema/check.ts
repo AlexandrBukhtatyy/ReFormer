@@ -58,7 +58,7 @@ import type {
   QuickFix,
   ResourceId,
   TextRange,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { CODES, COMMANDS, QUICKFIX, SCHEMA_VALIDATOR_ID, type DiagnosticCode } from './codes';
 import { nodeSiteAt, parseJson, splitLocation, targetAt } from './locate';
 import { nearestName } from './nearest';

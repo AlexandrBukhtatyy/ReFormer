@@ -37,7 +37,7 @@
  */
 
 import type { Source } from '@/shell/platform/source/types';
-import type { ThemePreference } from '@/shell/platform/services/theme';
+import type { ThemePreference } from '@reformer/builder-plugin-api/internal';
 import { SUPPORTED_LOCALES } from './settings-sections';
 
 /** URL, по которому лаунчер отдаёт конфиг (относительно корня; совпадает с bin). */

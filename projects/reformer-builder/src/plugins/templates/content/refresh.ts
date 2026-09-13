@@ -18,7 +18,7 @@
  * @module plugins/templates/content/refresh
  */
 
-import type { Disposable } from '@/sdk';
+import type { Disposable } from '@reformer/builder-plugin-api';
 
 export interface TemplatesRefresh {
   /** Позвать перечитывание. Без слушателей — ничего не делает и не копится. */

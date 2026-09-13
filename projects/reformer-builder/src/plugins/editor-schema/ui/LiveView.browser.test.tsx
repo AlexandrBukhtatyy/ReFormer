@@ -20,7 +20,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { useMemo, type ReactElement } from 'react';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { Diagnostic } from '@/sdk';
+import type { Diagnostic } from '@reformer/builder-plugin-api';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { NODE_CLASS_PREFIX } from '@/lib/form-model/node-token';
 import { renderReact } from '@/testing/render';

@@ -33,8 +33,8 @@
  */
 
 import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
-import type { NotificationsService } from '@/shell/platform/services/notifications';
-import type { PromptService } from '@/shell/platform/services/prompt';
+import type { NotificationsService } from '@reformer/builder-plugin-api/internal';
+import type { PromptService } from '@reformer/builder-plugin-api/internal';
 import type { PurgeReport } from '@/shell/platform/workspace/storage/purge';
 
 /** Идентификатор команды. Экспортирован: на него ссылается пункт меню «Файл». */

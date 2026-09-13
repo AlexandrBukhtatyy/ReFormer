@@ -9,7 +9,7 @@
 import { builtinKit } from '@/lib/codegen/__fixtures__/kit';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor } from '@/lib/kits/types';
-import type { Disposable, ResourceId, ResourceRef } from '@/sdk';
+import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import type { TemplateKeyValue, TemplatesHost } from './host';
 
 const noop: Disposable = { dispose: () => {} };

@@ -25,16 +25,18 @@
  * Хранилище внедряется ({@link SettingsBackend}) и здесь не реализуется: слой IndexedDB —
  * часть рабочей области, у него свой владелец.
  *
+ * Служба настроек: хранилище областей, загрузка кэша и память в тестах.
+ *
+ * Объявление службы и токен живут в пакете `@reformer/builder-plugin-api`. Здесь — то, что плагину
+ * не принадлежит: бэкенд, `hydrate` и правило «область выводится из префикса ключа».
+ *
  * @module shell/platform/services/settings
  */
 
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
 import { createEventBus } from '@/shell/platform/primitives/event';
 import { defineEvent } from '@reformer/builder-plugin-api/internal';
-import { defineService } from '@reformer/builder-plugin-api/internal';
-
-/** Куда пишется значение. Читается всегда из обеих: `workspace` перекрывает `user`. */
-export type SettingsScope = 'user' | 'workspace';
+import { type SettingsScope, type SettingsService } from '@reformer/builder-plugin-api/internal';
 
 /** Обе области в фиксированном порядке — от слабой к сильной. */
 const SCOPES: readonly SettingsScope[] = ['user', 'workspace'];
@@ -52,47 +54,6 @@ export interface SettingsBackend {
   write(scope: SettingsScope, key: string, value: unknown): Promise<void>;
   /** Снятие записи: значение проваливается на слой ниже. */
   remove(scope: SettingsScope, key: string): Promise<void>;
-}
-
-/** То, что видит плагин. */
-export interface SettingsService {
-  /**
-   * Действующее значение: `workspace` → `user` → умолчание вклада → `undefined`.
-   *
-   * Тип не проверяется в рантайме: в хранилище лежит то, что туда положили прошлые версии
-   * приложения. Потребитель, для которого чужое значение опасно, обязан его провалидировать —
-   * так делает служба темы.
-   */
-  get<T>(key: string): T | undefined;
-  /**
-   * Записывает значение. Без `scope` область берётся из префикса ключа
-   * ({@link scopeForKey}); явный `scope` позволяет перекрыть глобальную настройку
-   * в рабочей области — ради этого слои и существуют.
-   *
-   * `value === undefined` снимает запись именно этой области, и значение проваливается
-   * на слой ниже. Без этого «workspace перекрывает user» было бы дверью в одну сторону:
-   * перекрыть можно, вернуться к глобальному значению нельзя.
-   *
-   * Кэш и подписчики обновляются сразу, до того как хранилище подтвердит запись, — иначе
-   * переключатель в интерфейсе ждал бы IndexedDB. Если запись отказала, кэш откатывается,
-   * подписчики уведомляются повторно, а отказ пробрасывается вызывающему.
-   */
-  set<T>(key: string, value: T, scope?: SettingsScope): Promise<void>;
-  /**
-   * Уведомление о смене **действующего** значения ключа.
-   *
-   * Запись, перекрытая более сильной областью, уведомления не вызывает: подписчик реагирует
-   * на то, что вернёт `get`, а перерисовка ради того же самого значения — просто трата кадра.
-   */
-  onDidChange(cb: (key: string) => void): Disposable;
-  /**
-   * Объявляет умолчание вклада. `dispose()` снимает его — вместе с плагином.
-   *
-   * Повторное объявление того же ключа — ошибка, а не замена: два умолчания на один ключ
-   * означают, что действующее значение зависит от порядка активации плагинов, а он ничего
-   * не значит.
-   */
-  registerDefault<T>(key: string, value: T): Disposable;
 }
 
 /**
@@ -126,8 +87,6 @@ export interface HydrateOptions {
    */
   readonly forget?: readonly SettingsScope[];
 }
-
-export const SettingsServiceToken = defineService<SettingsService>('reformer.settings');
 
 /** Событие смены настройки. Полезная нагрузка — ключ, как в контракте `onDidChange`. */
 const SettingsDidChange = defineEvent<string>('settings.didChange');

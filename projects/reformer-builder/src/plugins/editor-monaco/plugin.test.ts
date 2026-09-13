@@ -16,7 +16,7 @@ import {
   type PluginContext,
   type ResourceRef,
   type TextEditorFocusRegistry,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { MonacoHost } from './host';
 import { MONACO_EDITOR_PRIORITY } from './runtime/language';
 import {
@@ -74,7 +74,7 @@ function fakeHost(overrides: Partial<MonacoHost> = {}): MonacoHost {
 
 /**
  * Подставной реестр фокуса. Настоящий — служба платформы, и плагин видит его только типом
- * из `@/sdk`; здесь проверяется, что плагин берёт ЧУЖОЙ реестр, а не заводит свой.
+ * из `@reformer/builder-plugin-api`; здесь проверяется, что плагин берёт ЧУЖОЙ реестр, а не заводит свой.
  */
 function fakeFocus(): TextEditorFocusRegistry {
   return { isFocused: () => false, setFocused: () => {}, hasFocus: () => false };

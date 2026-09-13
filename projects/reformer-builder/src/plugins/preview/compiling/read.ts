@@ -15,7 +15,7 @@
  * @module plugins/preview/compiling/read
  */
 
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewProblem } from '../contract';
 import type { PreviewHost } from '../host';
 import { selectSidecars } from './sources';

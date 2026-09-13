@@ -4,10 +4,10 @@
  * @module plugins/files/diagnostics.test
  */
 
-import { SEVERITY_RANK } from '@/sdk';
+import { SEVERITY_RANK } from '@reformer/builder-plugin-api';
 import { describe, expect, it } from 'vitest';
 
-import type { Diagnostic, DiagnosticSeverity } from '@/sdk';
+import type { Diagnostic, DiagnosticSeverity } from '@reformer/builder-plugin-api';
 import { diagnosticDecoration, groupProblems, summarize, totalCounts } from './diagnostics';
 
 const schema = 'fs:forms/credit/schema.json';

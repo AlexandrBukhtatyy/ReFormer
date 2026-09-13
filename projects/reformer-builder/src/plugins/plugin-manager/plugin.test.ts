@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { PluginContext } from '@/sdk';
+import type { PluginContext } from '@reformer/builder-plugin-api';
 import type { ManagedPlugin, PluginManagerHost } from './host';
 import {
   createPluginManagerPaletteProvider,

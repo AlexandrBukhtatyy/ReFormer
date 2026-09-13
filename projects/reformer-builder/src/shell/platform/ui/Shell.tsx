@@ -59,11 +59,11 @@ import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
 import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
-import type { ContextKeyReader } from '@/shell/platform/services/context-keys';
+import type { ContextKeyReader } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import type { NotificationsService } from '@/shell/platform/services/notifications';
-import type { PromptService } from '@/shell/platform/services/prompt';
-import type { SettingsService } from '@/shell/platform/services/settings';
+import type { NotificationsService } from '@reformer/builder-plugin-api/internal';
+import type { PromptService } from '@reformer/builder-plugin-api/internal';
+import type { SettingsService } from '@reformer/builder-plugin-api/internal';
 import { CommandPalette } from '@/shell/platform/ui/menu/CommandPalette';
 import { EditorArea, EDITOR_NEXT_COMMAND_ID } from '@/shell/platform/ui/chrome/EditorArea';
 import { HelpDialogs, HELP_ABOUT_COMMAND_ID } from '@/shell/platform/ui/dialogs/HelpDialogs';
@@ -88,8 +88,9 @@ import { NotificationCenter } from '@/shell/platform/ui/dialogs/NotificationCent
 import { PromptHost } from '@/shell/platform/ui/dialogs/PromptHost';
 import { useKeybindings } from '@/shell/platform/ui/keyboard/keybindings';
 import { createChordState, type ChordState } from '@/shell/platform/ui/keyboard/chords';
-import { createKeymapService, type KeymapService } from '@/shell/platform/ui/keyboard/keymap';
-import type { ScopeStack } from '@/shell/platform/ui/keyboard/scope';
+import { createKeymapService } from '@/shell/platform/ui/keyboard/keymap';
+import { type KeymapService } from '@reformer/builder-plugin-api/internal';
+import type { ScopeStack } from '@reformer/builder-plugin-api/internal';
 import type { DocumentTabsStore } from '@/shell/platform/ui/state/tabs';
 import { StatusBar } from '@/shell/platform/ui/chrome/StatusBar';
 import type { WorkspaceStatusSource } from '@/shell/platform/ui/state/status';
@@ -115,12 +116,8 @@ import {
   useFocusTracking,
   type WhenContextStore,
 } from '@/shell/platform/ui/state/when-context-store';
-import {
-  useLocale,
-  usePanels,
-  useSetting,
-  type ExtensionReader,
-} from '@/shell/platform/ui/chrome/usePanels';
+import { usePanels, useSetting, type ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 
 /** Платформа в объёме, который нужен оболочке. Больше она ни до чего не дотягивается. */
 export interface ShellHost {

@@ -11,7 +11,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { createRef } from 'react';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { renderReact } from '@/testing/render';
 import type { MarkdownDocument, MarkdownHost } from '../host';
 import { MarkdownPreview } from './MarkdownPreview';

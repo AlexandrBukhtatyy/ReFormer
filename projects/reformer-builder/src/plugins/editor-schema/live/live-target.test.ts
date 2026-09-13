@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { ensureNodeIds, newNodeId } from '@/lib/form-model/node-id';
-import type { NodeId } from '@/sdk';
+import type { NodeId } from '@reformer/builder-plugin-api';
 import type { DragPayload } from '../editing/drag';
 import { siblingsOf, targetAt } from './live-target';
 import { indexNodes } from '../model/node-index';

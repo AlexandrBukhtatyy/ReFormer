@@ -4,7 +4,7 @@
  * **Почему это плагин, а не часть Host.** Разбор и проверка схемы формы — предметное знание:
  * что такое `$component`, чем шаг отличается от вкладки, какие пропсы у поля. В платформе оно
  * означало бы, что второй формат (или второй продукт поверх той же платформы) вносится правкой
- * ядра. Граница проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только `@/sdk`
+ * ядра. Граница проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api`
  * и `@/lib`.
  *
  * ## Уровень только быстрый
@@ -60,7 +60,7 @@ import {
   type Plugin,
   type QuickFix,
   type ValidatorContribution,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { checkForm, type ValidateFormSchema } from './check';
 import { SCHEMA_VALIDATOR_ID } from './codes';
 
@@ -108,7 +108,7 @@ export interface SchemaValidatorOptions {
   /** Чем сузить круг документов. По умолчанию — {@link isFormSchemaDocument}. */
   readonly applies?: (doc: DocumentRef) => boolean;
   /**
-   * Зарегистрирована ли команда — по ней отбираются быстрые исправления (`@/sdk`.`usableFixes`).
+   * Зарегистрирована ли команда — по ней отбираются быстрые исправления (`@reformer/builder-plugin-api`.`usableFixes`).
    *
    * **Спрашивается на каждом проходе, а не на активации.** Проход идёт по каждой правке
    * текста, то есть заведомо позже подъёма плагинов, и ответ на нём верен; проверка же на

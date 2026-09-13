@@ -55,7 +55,12 @@ import {
   ItemTitle,
 } from '@reformer/ui-kit/item';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import type { DiagnosticSeverity, DiagnosticsService, QuickFix, ResourceId } from '@/sdk';
+import type {
+  DiagnosticSeverity,
+  DiagnosticsService,
+  QuickFix,
+  ResourceId,
+} from '@reformer/builder-plugin-api';
 import {
   groupProblems,
   type CommandAccess,
@@ -118,7 +123,7 @@ export interface ProblemsPanelProps {
   /**
    * Служба диагностик. `null` — её нет в реестре сервисов, и показывать нечего.
    *
-   * Плагин берёт её из `ctx.services` сам: она объявлена в `@/sdk`, поэтому проходить
+   * Плагин берёт её из `ctx.services` сам: она объявлена в `@reformer/builder-plugin-api`, поэтому проходить
    * через порт композиции ей незачем — в отличие от рабочей области и словаря Host.
    */
   readonly diagnostics: DiagnosticsService | null;

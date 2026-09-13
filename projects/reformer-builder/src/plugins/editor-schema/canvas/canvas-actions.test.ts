@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { MenuItemContribution, ResourceId, WhenContext } from '@/sdk';
+import type { MenuItemContribution, ResourceId, WhenContext } from '@reformer/builder-plugin-api';
 import {
   canvasViewCommands,
   canvasViewMenuItems,

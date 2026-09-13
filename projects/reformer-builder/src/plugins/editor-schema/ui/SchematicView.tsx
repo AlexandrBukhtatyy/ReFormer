@@ -42,7 +42,7 @@ import {
 import { ArrowDown, ArrowRight, GripVertical, Wrench } from 'lucide-react';
 import { Badge } from '@reformer/ui-kit/badge';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import type { CommandLookup, Diagnostic, QuickFix } from '@/sdk';
+import type { CommandLookup, Diagnostic, QuickFix } from '@reformer/builder-plugin-api';
 import { type NavDir } from '@/lib/form-model/query';
 import type { Orientation } from '@/lib/form-model/node-kind';
 import { FLIP_COMMAND_ID, type CommandAccess } from '../editing/commands';

@@ -12,7 +12,7 @@ import {
   TYPESCRIPT_TRANSPILER_ID,
 } from '@/shell/platform/plugin/typescript-transpiler';
 import type { BuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
-import * as sdk from '@/sdk';
+import * as sdk from '@reformer/builder-plugin-api';
 import { createPluginModules } from './plugin-modules';
 
 describe('модули, доступные плагину каталога', () => {

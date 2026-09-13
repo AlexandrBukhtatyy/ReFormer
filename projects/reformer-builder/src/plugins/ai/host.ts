@@ -3,7 +3,7 @@
  *
  * ## Почему порт, а не импорт
  *
- * Плагин видит платформу только через `@/sdk` (проверяется линтером), а рабочей области и
+ * Плагин видит платформу только через `@reformer/builder-plugin-api` (проверяется линтером), а рабочей области и
  * сервиса локализации там нет — это состав сданной поверхности, а не упущение. Недостающее
  * приходит ПАРАМЕТРОМ, тем же приёмом, что у `plugins/editor-monaco/host.ts` и
  * `plugins/files/host.ts`: потребность объявляет потребитель, а удовлетворяет её композиция.
@@ -30,7 +30,7 @@
  */
 
 import type { CatalogEntry } from '@/lib/catalog/types';
-import type { Disposable, ResourceId, ResourceRef } from '@/sdk';
+import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import type { PackageFiles } from './knowledge';
 
 /** Перевод: ключ и параметры сообщения. Совпадает по форме с `I18nService.t`. */

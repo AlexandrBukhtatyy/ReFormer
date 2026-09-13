@@ -22,13 +22,13 @@ import {
 import { whenContext } from '@reformer/builder-plugin-api/internal';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { renderReact } from '@/testing/render';
-import { MenuPoint, type MenuContribution } from '@/shell/platform/ui/menu/menu';
+import { MenuPoint, type MenuContribution } from '@reformer/builder-plugin-api/internal';
 import {
   RESOURCE_CONTEXT_MENU,
   argsOfResource,
   selectedIds,
   whenResource,
-} from '@/shell/platform/ui/menu/resource-menu';
+} from '@reformer/builder-plugin-api/internal';
 import { createResourceTreeStore, type TreeWorkspace } from './resource-tree';
 import { ResourceTree } from './ResourceTree';
 

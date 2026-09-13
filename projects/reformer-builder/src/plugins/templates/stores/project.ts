@@ -12,7 +12,7 @@
  * @module plugins/templates/stores/project
  */
 
-import type { ResourceId, ResourceRef } from '@/sdk';
+import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import {
   TEMPLATE_MANIFEST,
   TEMPLATE_MANIFEST_VERSION,

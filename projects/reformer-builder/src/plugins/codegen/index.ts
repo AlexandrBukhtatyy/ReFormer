@@ -7,7 +7,7 @@
  * createCodegenPlugin({
  *   host: codegenHost,                    // порт платформы, см. ниже
  *   i18n: i18n.forPlugin('codegen'),      // пока в PluginContext нет своего i18n
- *   // targetPoint: CodegenTargetPoint,   // когда точка появится в @/sdk — подставить её
+ *   // targetPoint: CodegenTargetPoint,   // когда точка появится в @reformer/builder-plugin-api — подставить её
  *   // slot: 'panel.right',               // раскладка — дело композиции
  * });
  * ```
@@ -15,7 +15,7 @@
  * Порт (`app/codegen-host.ts` по образцу `app/preview-host.ts`) обязан дать:
  *
  * - **документ и активную вкладку** — `documentOf`, `useActiveDocument`: рабочей области
- *   в `@/sdk` нет, а без ответа «на что смотрят сейчас» экспортировать нечего;
+ *   в `@reformer/builder-plugin-api` нет, а без ответа «на что смотрят сейчас» экспортировать нечего;
  * - **кит двумя вещами** — `catalog()` (какие имена бывают) и `kit()` (как их резолвить и откуда
  *   импортировать) плюс `onDidChangeKit`. Обе берутся из `services.get(KitsServiceToken)` ЛЕНИВО,
  *   на каждый вызов. Namespace кита кодогену не нужен: он печатает имена, а не рисует;

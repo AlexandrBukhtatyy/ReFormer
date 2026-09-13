@@ -21,7 +21,7 @@
  * @module plugins/editor-schema/session/view-mode
  */
 
-import type { Disposable, ResourceId } from '@/sdk';
+import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 
 /** Чем нарисован документ схемы. */
 export type SchemaView = 'design' | 'code';

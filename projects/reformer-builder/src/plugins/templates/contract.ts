@@ -161,7 +161,7 @@ export function canRemove(store: TemplateStore): store is RemovingStore {
 /**
  * Типизированное имя точки расширения — структурная копия `host/primitives/extension-point`.
  *
- * Та же минимальная копия, что в контракте кодогена, и по той же причине: `@/sdk` точки не
+ * Та же минимальная копия, что в контракте кодогена, и по той же причине: `@reformer/builder-plugin-api` точки не
  * отдаёт, `defineExtensionPoint` оттуда не экспортируется, а реестр ключуется по `id`.
  */
 export interface ExtensionPointRef<T> {

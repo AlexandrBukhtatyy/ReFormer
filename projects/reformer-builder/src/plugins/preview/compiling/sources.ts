@@ -31,7 +31,7 @@
  */
 
 import { isFixturePath } from '@/lib/form-fixture';
-import type { ResourceRef } from '@/sdk';
+import type { ResourceRef } from '@reformer/builder-plugin-api';
 
 /** Расширения, которые превью исполняет. */
 const EXECUTABLE = /\.tsx?$/;

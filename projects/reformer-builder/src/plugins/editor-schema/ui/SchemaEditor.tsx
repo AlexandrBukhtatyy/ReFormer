@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore, type ReactElement } from 'react';
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { Canvas } from './Canvas';
 import { QuickAddDialog } from './QuickAddDialog';
 import { useCatalog } from './useCatalog';
@@ -49,7 +49,7 @@ export interface SchemaEditorProps {
    * Свод диагностик. `null` — службы в реестре нет, и меток на узлах не будет.
    *
    * Приходит вкладом редактора (плагин берёт службу из `ctx.services`), а не портом
-   * композиции: служба объявлена в `@/sdk`, и второй канал к ней означал бы два ответа
+   * композиции: служба объявлена в `@reformer/builder-plugin-api`, и второй канал к ней означал бы два ответа
    * на вопрос «где свод».
    */
   readonly diagnostics?: SchemaDiagnostics | null;

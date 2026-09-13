@@ -25,7 +25,7 @@ import {
   type Plugin,
   type SlotId,
   type WhenContext,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { TemplateStorePoint, type ExtensionPointRef, type TemplateStore } from './contract';
 import {
   createTemplateSnapshot,

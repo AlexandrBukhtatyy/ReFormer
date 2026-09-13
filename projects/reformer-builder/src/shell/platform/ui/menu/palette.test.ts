@@ -10,11 +10,10 @@ import {
   mergePaletteItems,
   queryTokens,
   resolvePaletteItem,
-  type PaletteItem,
-  type PaletteItemProvider,
   type ResolvedPaletteItem,
   type TimerHandle,
 } from './palette';
+import { type PaletteItem, type PaletteItemProvider } from '@reformer/builder-plugin-api/internal';
 
 /** Перевод теста — видимая подстановка: так сразу заметно, что пришло через словарь. */
 const translate = (key: string): string => `«${key}»`;

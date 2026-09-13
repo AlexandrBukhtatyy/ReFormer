@@ -15,7 +15,13 @@
 import { toDescriptor } from '@/lib/kits/descriptor';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
-import type { Disposable, DocumentKind, NodeId, ResourceId, ResourceRef } from '@/sdk';
+import type {
+  Disposable,
+  DocumentKind,
+  NodeId,
+  ResourceId,
+  ResourceRef,
+} from '@reformer/builder-plugin-api';
 import type {
   PreviewDocument,
   PreviewHost,

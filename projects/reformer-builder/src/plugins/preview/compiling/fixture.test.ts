@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewHost, PreviewModuleGraph, PreviewModules } from '../host';
 import { loadFixture } from './fixture';
 

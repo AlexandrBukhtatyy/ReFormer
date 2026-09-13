@@ -27,12 +27,21 @@
  * тем же приёмом, что `WorkspaceStatusSource` в `ui/status.ts`. Настоящий `WhenContextStore`
  * подходит под форму порта структурно, приводить его ни к чему не нужно.
  *
+ * Служба контекстных ключей: хранилище, зарезервированные ключи, контекст условия.
+ *
+ * Объявление службы и токен живут в пакете `@reformer/builder-plugin-api`.
+ *
  * @module shell/platform/services/context-keys
  */
 
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
-import { defineService } from '@reformer/builder-plugin-api/internal';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
+import {
+  type ContextKey,
+  type ContextKeyInfo,
+  type ContextKeyService,
+  type ContextKeySnapshot,
+} from '@reformer/builder-plugin-api/internal';
 
 /** Порт источника пяти полей. `WhenContextStore` подходит под эту форму как есть. */
 export interface WhenContextSource {
@@ -64,62 +73,6 @@ export const RESERVED_CONTEXT_KEYS: ReadonlySet<string> = new Set([
   'scope',
   'scopes',
 ]);
-
-/** Снимок состояния: одно значение, две проекции. */
-export interface ContextKeySnapshot {
-  /** Чтение любого ключа — платформенного, областного, плагинного. */
-  read(key: string): unknown;
-  /**
-   * Проекция на пять полей — для `CommandRegistry.execute` и `isEnabled`, которые по
-   * контракту принимают {@link WhenContext}. Один снимок обслуживает обоих, поэтому
-   * предикат и условие видят одно и то же состояние, а не два соседних во времени.
-   */
-  whenContext(): WhenContext;
-}
-
-export interface ContextKeyReader {
-  /** Значение ключа. Неизвестный ключ — `undefined`, и это норма, а не отказ. */
-  read(key: string): unknown;
-  /** Снимок. Ссылка стабильна между изменениями — требование `useSyncExternalStore`. */
-  snapshot(): ContextKeySnapshot;
-  /**
-   * Подписка на изменения. Уведомление НЕСЁТ имена изменившихся ключей: подписчик, который
-   * знает читаемые ключи своих условий, сравнивает пересечение и молчит, если оно пусто.
-   * Ради этого свойства `WhenExpr.keys` и считается один раз при разборе.
-   */
-  subscribe(listener: (changed: ReadonlySet<string>) => void): Disposable;
-}
-
-/** Объявленный ключ. `dispose()` снимает объявление — на этом держится выключение плагина. */
-export interface ContextKey<T> extends Disposable {
-  readonly key: string;
-  get(): T;
-  set(value: T): void;
-  /** Возвращает начальное значение, с которым ключ объявлен. */
-  reset(): void;
-}
-
-export interface ContextKeyInfo {
-  readonly key: string;
-  /** Идентификатор плагина либо `host`. */
-  readonly owner: string;
-}
-
-export interface ContextKeyService extends ContextKeyReader {
-  /**
-   * Объявляет ключ.
-   *
-   * @throws Error если имя зарезервировано платформой либо ключ уже объявлен. Повторное
-   * объявление — отказ, а не замена, по тому же доводу, что у умолчаний настроек: две
-   * записи одного ключа означали бы, что действующее значение зависит от порядка активации
-   * плагинов, а он по контракту рантайма ничего не значит.
-   */
-  createKey<T>(key: string, initial: T, owner?: string): ContextKey<T>;
-  /** Объявленные ключи — редактору клавиш для подсказки и диагностике «такого ключа нет». */
-  declared(): readonly ContextKeyInfo[];
-}
-
-export const ContextKeyServiceToken = defineService<ContextKeyService>('reformer.context-keys');
 
 /**
  * Пять полей контекста как ключи. Единственное место, где написано соответствие «имя ключа —

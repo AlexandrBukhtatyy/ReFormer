@@ -17,7 +17,7 @@
 import { appSnippet } from '@/lib/codegen';
 import { isFormSchema } from '@/lib/form-model/normalize';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import { deliverModule, SourceReadOnlyError } from './deliver';
 import { generateModule, type CodegenProblem } from './generate';

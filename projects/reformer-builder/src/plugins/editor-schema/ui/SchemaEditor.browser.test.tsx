@@ -21,7 +21,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { useEffect, type ReactElement } from 'react';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { renderReact } from '@/testing/render';
 import type { CommandAccess } from '../editing/commands';
 import { indexNodes } from '../model/node-index';

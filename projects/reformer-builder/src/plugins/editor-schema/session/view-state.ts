@@ -31,7 +31,7 @@
  */
 
 import { isNodeId } from '@/lib/form-model/node-id';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { NodeId } from '../host';
 
 /**

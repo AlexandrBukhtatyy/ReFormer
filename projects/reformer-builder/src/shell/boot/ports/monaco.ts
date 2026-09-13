@@ -15,9 +15,9 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { isTextMediaType, type ResourceId } from '@reformer/builder-plugin-api/internal';
-import type { DiagnosticsService } from '@/shell/platform/services/diagnostics/service';
+import type { DiagnosticsService } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import type { JsonPath } from '@/lib/form-model/paths';
 import { indexNodePaths } from '@/lib/form-model/query';
 import type { MonacoDocument, MonacoHost, Translate } from '@/plugins/editor-monaco';

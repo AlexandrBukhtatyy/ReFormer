@@ -3,9 +3,9 @@
  *
  * ## Почему порт, а не импорт
  *
- * Плагин видит платформу только через `@/sdk` (проверяется линтером), и точки расширения
+ * Плагин видит платформу только через `@reformer/builder-plugin-api` (проверяется линтером), и точки расширения
  * редактора и панели там уже есть — их этот плагин берёт напрямую. А вот рабочей области,
- * службы диагностик и сервиса локализации в `@/sdk` нет: это не упущение, а состав
+ * службы диагностик и сервиса локализации в `@reformer/builder-plugin-api` нет: это не упущение, а состав
  * сданной поверхности. Недостающее приходит ПАРАМЕТРОМ — тем же приёмом, которым свою
  * потребность объявляет `plugins/files/host.ts`: потребность объявляет потребитель,
  * а удовлетворяет её композиция.
@@ -24,7 +24,7 @@
  * @module plugins/editor-monaco/host
  */
 
-import type { Diagnostic, Disposable, ResourceId, ResourceRef } from '@/sdk';
+import type { Diagnostic, Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 
 /** Перевод: ключ и параметры сообщения. Совпадает по форме с `I18nService.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;

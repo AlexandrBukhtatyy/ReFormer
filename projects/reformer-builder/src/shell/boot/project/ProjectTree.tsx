@@ -19,7 +19,8 @@ import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { ResourceTree } from '@/shell/platform/ui/state/ResourceTree';
-import { useLocale, type ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
+import { type ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import type { ProjectReader } from './useProject';
 import { useProjectSession } from './useProject';
 

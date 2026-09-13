@@ -31,7 +31,7 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { emptyRules, type FormRules } from '@/lib/form-model/rules';
-import type { CommandContribution, ResourceId } from '@/sdk';
+import type { CommandContribution, ResourceId } from '@reformer/builder-plugin-api';
 import { applyChangeSet } from './apply';
 import { createChangeSet, hasChanges, type ChangeSet } from '../model/changeset';
 import { commandTools, type AgentCommand, type ExecuteCommand } from '../tools/command-tools';

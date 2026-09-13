@@ -24,7 +24,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import type { ReactElement } from 'react';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { TooltipProvider } from '@reformer/ui-kit/tooltip';
 import { renderReact } from '@/testing/render';
 import type { FormTemplate, TemplateStore } from '../contract';

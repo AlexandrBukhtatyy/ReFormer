@@ -21,7 +21,7 @@
  * Не потому, что плагин её находит (находит валидатор), а потому, что он владеет ПОКАЗОМ
  * проекта: дерево ресурсов внёс он, и пометка на строке дерева — продолжение того же
  * решения. Служба диагностик при этом берётся из `ctx.services`, а не портом: она
- * объявлена в `@/sdk`, и второй канал к ней через композицию означал бы два ответа
+ * объявлена в `@reformer/builder-plugin-api`, и второй канал к ней через композицию означал бы два ответа
  * на вопрос «где свод».
  *
  * @module plugins/files/plugin
@@ -44,7 +44,7 @@ import {
   type MenuContribution,
   type ResourceDecorationContribution,
   type ResourceId,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { diagnosticDecoration, type CommandAccess } from './diagnostics';
 import { filesContextMenuItems, filesOperationCommands } from './operations';
 import { OPEN_RECENT_COMMAND_ID, recentCommands, recentMenuItems } from './recent';
@@ -79,7 +79,7 @@ export const SAVE_ALL_COMMAND_ID = 'files.saveAll';
 /**
  * Команда в том виде, в каком её принимает реестр.
  *
- * Тип извлечён из `PluginContext`, а не импортирован: `@/sdk` его не экспортирует, а
+ * Тип извлечён из `PluginContext`, а не импортирован: `@reformer/builder-plugin-api` его не экспортирует, а
  * дотягиваться до `@/shell` плагину нельзя. Извлечение даёт ТОТ ЖЕ тип, а не его копию,
  * поэтому разойтись они не могут.
  */
@@ -304,7 +304,7 @@ export function createFilesPlugin(options: FilesPluginOptions): Plugin {
 
       // Службы, без которых операции деградируют, а не падают: без запросов к человеку
       // недоступны создание и переименование, без буфера — копирование. Обе объявлены
-      // в `@/sdk`, поэтому берутся из реестра, а не приходят портом.
+      // в `@reformer/builder-plugin-api`, поэтому берутся из реестра, а не приходят портом.
       const prompt = ctx.services.get(PromptServiceToken) ?? null;
       const operations = filesOperationCommands({
         host,
@@ -322,7 +322,7 @@ export function createFilesPlugin(options: FilesPluginOptions): Plugin {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
-      // Служба диагностик объявлена в `@/sdk`, поэтому берётся из реестра сервисов,
+      // Служба диагностик объявлена в `@reformer/builder-plugin-api`, поэтому берётся из реестра сервисов,
       // а не приходит портом. `undefined` — штатная деградация: панель проблем покажет
       // пустоту, пометок в дереве не будет. Роняться на этом нельзя — это правило
       // `get` против `require` в реестре сервисов.

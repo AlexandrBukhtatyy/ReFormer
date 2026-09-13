@@ -24,19 +24,17 @@
  * они вместе с ним. Второй источник умолчаний (например, поле во вкладе) означал бы правило
  * приоритета между ними и отказ включения при повторном объявлении одного ключа.
  *
+ * Настройки одного плагина каталога поверх службы настроек.
+ *
+ * Ключ (`pluginSettingsKey`) живёт в пакете `@reformer/builder-plugin-api`: им пользуется и сам
+ * плагин, объявляя умолчания, и оболочка, рисуя форму.
+ *
  * @module shell/platform/services/plugin-settings
  */
 
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import type { SettingsService } from './settings';
-
-/** Ключ настроек плагина каталога. Одна функция на всё приложение: адрес не должен разъехаться. */
-export function pluginSettingsKey(pluginId: string): string {
-  if (pluginId.trim() === '') {
-    throw new Error('pluginSettingsKey: идентификатор плагина не может быть пустым');
-  }
-  return `workspace.plugin.${pluginId}.settings`;
-}
+import type { SettingsService } from '@reformer/builder-plugin-api/internal';
+import { pluginSettingsKey } from '@reformer/builder-plugin-api/internal';
 
 /** Значения формы настроек: то, что кладётся в хранилище как есть. */
 export type PluginSettingsValues = Readonly<Record<string, unknown>>;

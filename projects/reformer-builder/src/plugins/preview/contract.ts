@@ -1,15 +1,15 @@
 /**
  * Контракт превью: точка расширения поверхностей и то, что поверхность про документ знает.
  *
- * ## Почему объявление здесь, а не в `@/sdk`
+ * ## Почему объявление здесь, а не в `@reformer/builder-plugin-api`
  *
  * `PreviewSurfacePoint` — СТРУКТУРНАЯ КОПИЯ точки расширения, ровно того же сорта, что
- * `KitsServiceToken` в плагине китов: `@/sdk` сдан и точки превью не отдаёт, а `defineExtensionPoint`
+ * `KitsServiceToken` в плагине китов: `@reformer/builder-plugin-api` сдан и точки превью не отдаёт, а `defineExtensionPoint`
  * оттуда не экспортируется вовсе. Копия работает, потому что реестр вкладов ключуется по `id`,
  * а не по идентичности объекта (см. `host/primitives/extension-point`), — то есть две копии
  * объявления находят ОДНУ точку.
  *
- * Это временное место, и его надо назвать вслух: как только `@/sdk` начнёт отдавать
+ * Это временное место, и его надо назвать вслух: как только `@reformer/builder-plugin-api` начнёт отдавать
  * `PreviewSurfacePoint`, этот модуль обязан РЕЭКСПОРТИРОВАТЬ точку оттуда, а не объявлять свою.
  * Урок Э6 записан в журнале решений: копия, описывающая ПРЕДМЕТНУЮ область, разъезжается
  * с оригиналом (там копия сузила `DocumentModelProvider<unknown>` до своей модели). Здесь риск
@@ -34,7 +34,13 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { Disposable, DocumentRef, NodeId, ResourceId, TextRange } from '@/sdk';
+import type {
+  Disposable,
+  DocumentRef,
+  NodeId,
+  ResourceId,
+  TextRange,
+} from '@reformer/builder-plugin-api';
 
 /**
  * Типизированное имя точки расширения — структурная копия `host/primitives/extension-point`.

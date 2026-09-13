@@ -24,7 +24,7 @@ import { childSlots } from '@/lib/form-model/node-kind';
 import { componentOf } from '@/lib/form-model/node-ref';
 import { walkNodes } from '@/lib/form-model/query';
 import type { JsonPath } from '@/lib/form-model/paths';
-import type { NodePart } from '@/sdk';
+import type { NodePart } from '@reformer/builder-plugin-api';
 import { CODES, type DiagnosticCode } from './codes';
 
 /** Замечание до того, как оно стало диагностикой: код, данные и узел-виновник. */

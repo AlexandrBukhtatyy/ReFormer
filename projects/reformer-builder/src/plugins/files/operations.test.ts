@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { WhenContext } from '@/sdk';
+import type { WhenContext } from '@reformer/builder-plugin-api';
 import type { FilesBatchResult, FilesHost, FilesResourceOperations } from './host';
 import {
   COPY_COMMAND_ID,

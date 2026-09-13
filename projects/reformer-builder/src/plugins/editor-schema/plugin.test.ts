@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { emptyRules, type FormRules, type ValidationRuleIntent } from '@/lib/form-model/rules';
-import type { EditorProbe, PluginContext, WhenContext } from '@/sdk';
+import type { EditorProbe, PluginContext, WhenContext } from '@reformer/builder-plugin-api';
 import {
   COLLAPSE_SELECTION_COMMAND_ID,
   DELETE_BACK_COMMAND_ID,

@@ -12,7 +12,7 @@
  */
 
 import type { AnchorHTMLAttributes, MouseEvent, ReactElement, RefObject } from 'react';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { isExternalUrl, resolveRelativePath, splitHash } from '../render/markdown';
 import { withoutProps } from './props';
 

@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Diagnostic } from '@/sdk';
+import type { Diagnostic } from '@reformer/builder-plugin-api';
 import {
   liveProblemRows,
   MAX_LIVE_PROBLEMS,

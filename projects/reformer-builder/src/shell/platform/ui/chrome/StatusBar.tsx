@@ -46,7 +46,8 @@ import {
   type WorkspaceStatusSource,
 } from '@/shell/platform/ui/state/status';
 import type { ChordState } from '@/shell/platform/ui/keyboard/chords';
-import { useChord, useLocale, usePanels, type ExtensionReader } from './usePanels';
+import { useChord, usePanels, type ExtensionReader } from './usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import { PluginScope } from './PluginScope';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 

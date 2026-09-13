@@ -10,7 +10,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
-import type { Disposable } from '@/sdk';
+import type { Disposable } from '@reformer/builder-plugin-api';
 import { renderReact } from '@/testing/render';
 import type { FilesHost, FilesRecentProject, FilesRecentProjects } from '../host';
 import { WelcomePage } from './WelcomePage';

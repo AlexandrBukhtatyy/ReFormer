@@ -3,7 +3,7 @@
  *
  * ## Почему порт, а не импорт
  *
- * Плагин видит платформу только через `@/sdk` (проверяется линтером), а в `@/sdk` нет ни рабочей
+ * Плагин видит платформу только через `@reformer/builder-plugin-api` (проверяется линтером), а в `@reformer/builder-plugin-api` нет ни рабочей
  * области, ни возможностей источника, ни загрузчика модулей, ни сервиса китов. Недостающее
  * приходит ПАРАМЕТРОМ — тем же приёмом, каким объявляют свою потребность `plugins/files/host`,
  * `plugins/editor-monaco/host` и `plugins/editor-schema/host`: потребность объявляет потребитель,
@@ -37,7 +37,13 @@
 
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
-import type { Disposable, DocumentKind, ResourceId, ResourceRef, TextRange } from '@/sdk';
+import type {
+  Disposable,
+  DocumentKind,
+  ResourceId,
+  ResourceRef,
+  TextRange,
+} from '@reformer/builder-plugin-api';
 
 /** Перевод: ключ и параметры. Совпадает по форме с `I18nService.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -160,7 +166,7 @@ export interface PreviewHost {
    * Документ активной вкладки — на него и смотрит панель превью.
    *
    * Хук, потому что вкладки переключают, и панель обязана перерисоваться. Своего способа узнать
-   * активную вкладку у плагина нет: вкладки принадлежат рабочей области, а её `@/sdk` не отдаёт.
+   * активную вкладку у плагина нет: вкладки принадлежат рабочей области, а её `@reformer/builder-plugin-api` не отдаёт.
    */
   useActiveDocument(): ResourceId | null;
 

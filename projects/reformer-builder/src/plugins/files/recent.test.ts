@@ -9,7 +9,12 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Disposable, MenuContribution, PromptService, WhenContext } from '@/sdk';
+import type {
+  Disposable,
+  MenuContribution,
+  PromptService,
+  WhenContext,
+} from '@reformer/builder-plugin-api';
 import type { FilesRecentProject, FilesRecentProjects } from './host';
 import {
   CLEAR_RECENT_COMMAND_ID,

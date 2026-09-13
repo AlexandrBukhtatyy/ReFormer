@@ -88,7 +88,7 @@ import {
   type TypeScriptSupport,
 } from '@/shell/platform/plugin/typescript-transpiler';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import * as sdk from '@/sdk';
+import * as sdk from '@reformer/builder-plugin-api';
 
 /**
  * Модули оболочки, отдаваемые исполняемому коду.

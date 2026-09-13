@@ -83,27 +83,24 @@ import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { useScope, type ScopeStack } from '@/shell/platform/ui/keyboard/scope';
+import { useScope } from '@/shell/platform/ui/keyboard/scope';
+import { type ScopeStack } from '@reformer/builder-plugin-api/internal';
 import {
   detectPlatformModifier,
   formatKeybinding,
   type PlatformModifier,
-} from '@/shell/platform/ui/keyboard/keybindings';
+} from '@reformer/builder-plugin-api/internal';
 import {
-  PaletteItemsPoint,
   commandPaletteItems,
   createPaletteQueryRunner,
   filterPaletteItems,
   mergePaletteItems,
   resolvePaletteItem,
-  type PaletteItem,
   type ResolvedPaletteItem,
 } from './palette';
-import {
-  useContributions,
-  useLocale,
-  type ExtensionReader,
-} from '@/shell/platform/ui/chrome/usePanels';
+import { PaletteItemsPoint, type PaletteItem } from '@reformer/builder-plugin-api/internal';
+import { useContributions, type ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 
 /**

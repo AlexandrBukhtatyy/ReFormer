@@ -36,16 +36,17 @@ import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { ResourceRef } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { NEUTRAL_WHEN_CONTEXT, type WhenContext } from '@reformer/builder-plugin-api/internal';
-import { EDITOR_TITLE_MENU } from '@/shell/platform/ui/menu/editor-menu';
+import { EDITOR_TITLE_MENU } from '@reformer/builder-plugin-api/internal';
 import {
   buildMenu,
-  MenuPoint,
   observeMenuEntries,
   type MenuActionNode,
   type MenuEntry,
   type MenuNode,
 } from '@/shell/platform/ui/menu/menu';
-import { useContributions, useLocale, type ExtensionReader } from './usePanels';
+import { MenuPoint } from '@reformer/builder-plugin-api/internal';
+import { useContributions, type ExtensionReader } from './usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 
 /** Реестр команд в объёме, нужном ряду: прочитать, спросить применимость, выполнить. */
 export type EditorActionsCommands = Pick<CommandRegistry, 'get' | 'isEnabled' | 'execute'>;

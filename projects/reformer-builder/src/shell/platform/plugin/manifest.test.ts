@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { BUILDER_API_VERSION, parsePluginManifest, parsePluginManifestValue } from './manifest';
+import { parsePluginManifest, parsePluginManifestValue } from './manifest';
+import { BUILDER_API_VERSION } from '@reformer/builder-plugin-api/internal';
 
 const good = {
   id: 'acme-forms',

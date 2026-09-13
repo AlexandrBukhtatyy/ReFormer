@@ -12,7 +12,7 @@ import {
   type PluginContext,
   type ValidateContext,
   type ValidatorContribution,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { CODES, COMMANDS, SCHEMA_VALIDATOR_ID } from './codes';
 import {
   createDeferredSchemaCheck,

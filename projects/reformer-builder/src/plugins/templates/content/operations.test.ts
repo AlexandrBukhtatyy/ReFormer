@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { FormTemplate } from '../contract';
 import {
   createTemplateFromDirectory,

@@ -20,7 +20,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { useMemo, useState, type ReactElement } from 'react';
-import type { Diagnostic } from '@/sdk';
+import type { Diagnostic } from '@reformer/builder-plugin-api';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { renderReact } from '@/testing/render';
 import type { CommandAccess } from '../editing/commands';

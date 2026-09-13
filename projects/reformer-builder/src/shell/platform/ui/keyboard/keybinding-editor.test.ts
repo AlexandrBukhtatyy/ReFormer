@@ -14,7 +14,7 @@ import {
   withUnbinding,
 } from './keybinding-editor';
 import { createKeymapService } from './keymap';
-import type { UserKeybinding } from './keymap';
+import type { UserKeybinding } from '@reformer/builder-plugin-api/internal';
 
 const command = (patch: Partial<CommandContribution> & { id: string }): CommandContribution => ({
   titleKey: patch.id,

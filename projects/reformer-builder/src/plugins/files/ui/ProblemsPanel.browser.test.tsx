@@ -20,7 +20,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { useMemo, useState, type ReactElement } from 'react';
-import type { Diagnostic, DiagnosticsService, Disposable, ResourceId } from '@/sdk';
+import type {
+  Diagnostic,
+  DiagnosticsService,
+  Disposable,
+  ResourceId,
+} from '@reformer/builder-plugin-api';
 import { renderReact } from '@/testing/render';
 import type { CommandAccess } from '../diagnostics';
 import type { FilesHost } from '../host';

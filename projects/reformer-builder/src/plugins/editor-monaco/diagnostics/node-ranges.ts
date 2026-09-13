@@ -62,7 +62,7 @@
  * @module plugins/editor-monaco/diagnostics/node-ranges
  */
 
-import type { TextRange } from '@/sdk';
+import type { TextRange } from '@reformer/builder-plugin-api';
 
 /**
  * Имя поля идентификатора. Форма — `^[0-9a-z]{8}$`, но проверять её здесь незачем:

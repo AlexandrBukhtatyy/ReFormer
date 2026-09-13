@@ -37,7 +37,7 @@ import {
   CommandList,
 } from '@reformer/ui-kit/command';
 import { Dialog, DialogContent, DialogTitle } from '@reformer/ui-kit/dialog';
-import type { PendingPrompt } from '@/shell/platform/services/prompt';
+import type { PendingPrompt } from '@reformer/builder-plugin-api/internal';
 import { filterPaletteItems, type ResolvedPaletteItem } from '@/shell/platform/ui/menu/palette';
 
 /** Запрос выбора, ждущий ответа. */

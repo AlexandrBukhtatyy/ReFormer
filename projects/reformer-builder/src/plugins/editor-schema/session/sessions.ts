@@ -49,7 +49,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { Disposable, ResourceId, SelectionService } from '@/sdk';
+import type { Disposable, ResourceId, SelectionService } from '@reformer/builder-plugin-api';
 import { indexNodes } from '../model/node-index';
 import { mergeKeyOf } from '../model/ops';
 import { pruneSelection as keepAlive } from './selection';

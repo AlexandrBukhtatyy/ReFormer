@@ -26,8 +26,7 @@ import type { RootExtensionRegistry } from '@/shell/platform/primitives/extensio
 import type { Contribution, ExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import type { CommandContribution, CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { ChordSnapshot, ChordState } from '@/shell/platform/ui/keyboard/chords';
-import type { I18nService } from '@/shell/platform/services/i18n/i18n';
-import type { SettingsService } from '@/shell/platform/services/settings';
+import type { SettingsService } from '@reformer/builder-plugin-api/internal';
 import { selectPanels, type PanelEntry, type PanelPredicateErrorHandler } from './panels';
 import { PanelPoint, type SlotId } from '@reformer/builder-plugin-api/internal';
 import {
@@ -131,27 +130,6 @@ export function useSetting(settings: SettingsService, key: string): unknown {
     [settings, key]
   );
   const getSnapshot = useCallback(() => settings.get<unknown>(key), [settings, key]);
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-}
-
-/**
- * Текущая локаль — как повод перерисоваться, а не как значение.
- *
- * `t()` читается прямо из сервиса, но результат меняется при смене локали, а сервис
- * не является React-состоянием. Этот хук и есть недостающая связь: он ничего не переводит,
- * он делает перевод реактивным.
- */
-export function useLocale(i18n: Pick<I18nService, 'locale' | 'onDidChangeLocale'>): string {
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const subscription = i18n.onDidChangeLocale(onStoreChange);
-      return () => {
-        subscription.dispose();
-      };
-    },
-    [i18n]
-  );
-  const getSnapshot = useCallback(() => i18n.locale, [i18n]);
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 

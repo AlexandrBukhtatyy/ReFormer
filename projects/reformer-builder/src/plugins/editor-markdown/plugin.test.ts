@@ -6,7 +6,7 @@ import type {
   PluginI18n,
   ResourceRef,
   WhenContext,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { MarkdownDocument, MarkdownHost } from './host';
 import {
   CYCLE_VIEW_COMMAND_ID,

@@ -18,7 +18,7 @@ import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/inter
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import type { ServiceRegistry } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
 import { createKitNamespaceLoader } from './kit-namespace';

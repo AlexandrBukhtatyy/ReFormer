@@ -29,10 +29,10 @@
 
 import { useCallback, useEffect, useRef, useSyncExternalStore, type ReactElement } from 'react';
 import { Toaster, toast } from '@reformer/ui-kit/sonner';
-import type { NotificationsService } from '@/shell/platform/services/notifications';
+import type { NotificationsService } from '@reformer/builder-plugin-api/internal';
 import type { I18nService } from '@/shell/platform/services/i18n/i18n';
 import { drainNotifications, type ToastSpec } from './toasts';
-import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 
 /** Показ одного тоста. Отдельно от компонента — чтобы соответствие уровней читалось целиком. */
 function present(spec: ToastSpec): void {

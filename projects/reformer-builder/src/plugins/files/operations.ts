@@ -38,7 +38,7 @@ import {
   type ResourceClipboardService,
   type ResourceId,
   type ResourceRef,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { FilesHost, FilesResourceOperations, Translate } from './host';
 import { FILES_PLUGIN_ID, type FilesCommand } from './plugin';
 

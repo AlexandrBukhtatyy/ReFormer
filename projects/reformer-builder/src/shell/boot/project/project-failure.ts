@@ -21,7 +21,7 @@
  * @module shell/boot/project/project-failure
  */
 
-import type { NotificationAction } from '@/shell/platform/services/notifications';
+import type { NotificationAction } from '@reformer/builder-plugin-api/internal';
 import type { ProjectFailure } from './project';
 
 /**

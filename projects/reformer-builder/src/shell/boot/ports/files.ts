@@ -26,7 +26,7 @@ import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { actionTargets, flattenTree } from '@/shell/platform/ui/state/resource-tree';
 import type { ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
-import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import type { FilesDocument, FilesHost, Translate } from '@/plugins/files';
 import { FILES_PLUGIN_ID } from '@/plugins/files';
 import { makeUseDiagnosticMessage, makeUseHostMessage } from './monaco';

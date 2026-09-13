@@ -40,17 +40,18 @@ import {
   detectPlatformModifier,
   formatChord,
   type PlatformModifier,
-} from '@/shell/platform/ui/keyboard/keybindings';
-import { chordOfCommand, type KeymapService } from '@/shell/platform/ui/keyboard/keymap';
+} from '@reformer/builder-plugin-api/internal';
+import { chordOfCommand, type KeymapService } from '@reformer/builder-plugin-api/internal';
 import {
   buildMenuBar,
-  MenuPoint,
   observeMenuEntries,
   type MenuEntry,
   type MenuNode,
 } from '@/shell/platform/ui/menu/menu';
+import { MenuPoint } from '@reformer/builder-plugin-api/internal';
 import { createMenuIssueReporter, formatMenuIssue } from '@/shell/platform/ui/menu/menu-issues';
-import { useCommandSnapshot, useContributions, useLocale } from './usePanels';
+import { useCommandSnapshot, useContributions } from './usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import {
   useWhenContext,
   type WhenContextStore,

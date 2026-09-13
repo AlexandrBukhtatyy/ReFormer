@@ -3,7 +3,7 @@
  *
  * ## Почему порт, а не импорт
  *
- * Плагин видит платформу только через `@/sdk` (проверяется линтером), а в `@/sdk` сегодня нет
+ * Плагин видит платформу только через `@reformer/builder-plugin-api` (проверяется линтером), а в `@reformer/builder-plugin-api` сегодня нет
  * ни точки `document.model`, ни рабочей области, ни сервиса локализации. Недостающее приходит
  * ПАРАМЕТРОМ — тем же приёмом, каким объявляет свою потребность `plugins/files/host`:
  * потребность объявляет потребитель, а удовлетворяет её композиция.
@@ -38,7 +38,7 @@ import type {
   NodeId,
   ResourceId,
   ResourceRef,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 
 /**
  * Типизированное имя точки расширения — структурная копия `host/primitives/extension-point`.
@@ -54,10 +54,10 @@ export interface ExtensionPointRef<T> {
 }
 
 /**
- * Точка провайдеров модели и словарь правок — НАСТОЯЩИЕ, из `@/sdk`.
+ * Точка провайдеров модели и словарь правок — НАСТОЯЩИЕ, из `@reformer/builder-plugin-api`.
  *
  * Здесь были структурные копии `ExtensionPointRef`, `EditOp`, `ApplyResult` и
- * `DocumentModelProvider`. Они появились потому, что `@/sdk` точки модели не отдавал,
+ * `DocumentModelProvider`. Они появились потому, что `@reformer/builder-plugin-api` точки модели не отдавал,
  * и немедленно разошлись с оригиналом: копия описывала точку СВОЕЙ модели, а настоящая
  * точка держит `DocumentModelProvider<unknown>` — ядро моделей не различает, потому что
  * держит их разом несколько. Компилятор поймал это на композиции, в единственном месте,
@@ -66,7 +66,7 @@ export interface ExtensionPointRef<T> {
  * Провайдер конкретной модели вносится в общую точку без приведения: методы в TypeScript
  * бивариантны, поэтому провайдер `JsonFormSchema` годится там, где ждут `unknown`.
  */
-export type { ApplyResult, EditOp, NodeId } from '@/sdk';
+export type { ApplyResult, EditOp, NodeId } from '@reformer/builder-plugin-api';
 
 /** Провайдер модели схемы формы: тот же контракт платформы, суженный до своей модели. */
 export type SchemaModelProviderSpec = DocumentModelProvider<JsonFormSchema>;
@@ -131,7 +131,7 @@ export type Translate = (key: string, params?: Record<string, unknown>) => strin
  * Служба диагностик — в объёме «читать и следить».
  *
  * Сужение намеренное: публикует находки валидатор, а редактор их только показывает.
- * Настоящая служба объявлена в `@/sdk`, поэтому плагин берёт её из `ctx.services` сам
+ * Настоящая служба объявлена в `@reformer/builder-plugin-api`, поэтому плагин берёт её из `ctx.services` сам
  * и через порт композиции она не идёт — но принимает её редактор вот в этом объёме,
  * а не целиком: право писать в общий свод у него отсутствует не по договорённости,
  * а потому, что метода нет в типе.

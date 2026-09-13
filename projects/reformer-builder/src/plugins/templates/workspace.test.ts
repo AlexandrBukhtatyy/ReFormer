@@ -17,7 +17,7 @@ import {
   WorkspaceFilesServiceToken,
   type PluginContext,
   type ResourceId,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import {
   hasPrinter,
   ModulePrinterCapability,

@@ -26,7 +26,7 @@
  * @module plugins/preview/state/problem-diagnostics
  */
 
-import type { Diagnostic, ResourceId } from '@/sdk';
+import type { Diagnostic, ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewProblem, PreviewProblemPhase } from '../contract';
 
 /**

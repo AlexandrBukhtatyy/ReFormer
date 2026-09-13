@@ -19,7 +19,7 @@
  */
 
 import { isGenerated } from '@/lib/codegen';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { ModuleFile } from './generate';
 import type { CodegenHost } from '../host';
 

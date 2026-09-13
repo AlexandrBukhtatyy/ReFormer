@@ -23,7 +23,7 @@
  */
 
 import type { FormRules } from '@/lib/form-model/rules';
-import type { Disposable, ResourceId } from '@/sdk';
+import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import type { ChangeSet } from '../model/changeset';
 
 /** Что делает ассистент прямо сейчас. */

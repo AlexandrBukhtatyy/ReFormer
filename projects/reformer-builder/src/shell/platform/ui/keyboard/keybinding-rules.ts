@@ -24,20 +24,22 @@
  *
  * Сортировка считается ОДИН раз при сборке указателя, а не на нажатии.
  *
+ * Правило, слой и индекс живут в пакете `@reformer/builder-plugin-api`; здесь — сборка индекса
+ * из команд, применение снятий и поиск конфликтов.
+ *
  * @module shell/platform/ui/keyboard/keybinding-rules
  */
 
+import type { KeybindingConflict } from '@reformer/builder-plugin-api/internal';
 import { normalizeChord } from '@reformer/builder-plugin-api/internal';
 import { provablyDisjoint, WHEN_TRUE, type WhenExpr } from '@reformer/builder-plugin-api/internal';
-import { resolvePlatformChord, type PlatformModifier } from './keybindings';
-
-/**
- * Откуда правило пришло. Порядок в {@link LAYER_RANK} и есть порядок старшинства.
- *
- * Плагин каталога стоит выше встроенного намеренно: встроенный набор — это то, что мы
- * решили за человека, а плагин, положенный в проект, — то, что он решил сам.
- */
-export type KeybindingLayer = 'host' | 'builtin-plugin' | 'catalog-plugin' | 'user';
+import { resolvePlatformChord } from './keybindings';
+import { type PlatformModifier } from '@reformer/builder-plugin-api/internal';
+import {
+  type KeybindingIndex,
+  type KeybindingLayer,
+  type KeybindingRule,
+} from '@reformer/builder-plugin-api/internal';
 
 export const LAYER_RANK: Readonly<Record<KeybindingLayer, number>> = Object.freeze({
   host: 0,
@@ -45,29 +47,6 @@ export const LAYER_RANK: Readonly<Record<KeybindingLayer, number>> = Object.free
   'catalog-plugin': 2,
   user: 3,
 });
-
-/** Привязка сочетания к команде. */
-export interface KeybindingRule {
-  /** Устойчивый адрес правила: его показывает редактор клавиш и называет диагностика. */
-  readonly id: string;
-  /**
-   * Ступени аккорда в каноническом написании. Одна ступень — обычное сочетание.
-   *
-   * Массив, а не строка, с самого начала: аккорд появляется позже, но переписывать под него
-   * указатель, редактор и диагностику дороже, чем сразу назвать вещь тем, что она есть.
-   */
-  readonly chord: readonly string[];
-  readonly commandId: string;
-  /** Аргументы вызова. Есть у правил из манифеста и раскладки, у команд их не бывает. */
-  readonly args?: unknown;
-  readonly when: WhenExpr;
-  readonly layer: KeybindingLayer;
-  /** Кто принёс правило: идентификатор плагина либо `undefined` у оболочки и человека. */
-  readonly pluginId?: string;
-  readonly allowInEditable: boolean;
-  /** Порядковый номер появления. Последний критерий сортировки. */
-  readonly seq: number;
-}
 
 /**
  * Правило-снятие: само не срабатывает, а убирает совпадающие правила слоёв не выше своего.
@@ -81,18 +60,6 @@ export interface KeybindingRemoval {
   readonly commandId: string | null;
   readonly layer: KeybindingLayer;
   readonly seq: number;
-}
-
-/** Указатель по первой ступени сочетания. */
-export interface KeybindingIndex {
-  /** Правила, у которых первая ступень равна `binding`. Уже отсортированы. */
-  rulesFor(binding: string): readonly KeybindingRule[];
-  /** Является ли сочетание НАЧАЛОМ аккорда — признак входа в режим ожидания. */
-  isChordPrefix(binding: string): boolean;
-  /** Продолжения после уже нажатых ступеней. */
-  rulesAfter(prefix: readonly string[], binding: string): readonly KeybindingRule[];
-  /** Все действующие правила — редактору клавиш и справке. */
-  all(): readonly KeybindingRule[];
 }
 
 /** Пустой результат: одна замороженная ссылка вместо нового массива на каждый промах. */
@@ -255,14 +222,6 @@ export function rulesFromCommands(
     });
   }
   return rules;
-}
-
-/** Пара правил на одном сочетании, которую разрешить нечем. */
-export interface KeybindingConflict {
-  readonly chord: readonly string[];
-  /** Не меньше двух, в порядке указателя: первый и есть победитель. */
-  readonly rules: readonly KeybindingRule[];
-  readonly winner: string;
 }
 
 /**

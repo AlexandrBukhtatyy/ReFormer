@@ -38,7 +38,11 @@ import Editor, { type Monaco, type OnMount } from '@monaco-editor/react';
 import type { editor as MonacoEditor } from 'monaco-editor';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
 import { Skeleton } from '@reformer/ui-kit/skeleton';
-import type { DiagnosticSeverity, ResourceId, TextEditorFocusRegistry } from '@/sdk';
+import type {
+  DiagnosticSeverity,
+  ResourceId,
+  TextEditorFocusRegistry,
+} from '@reformer/builder-plugin-api';
 import type { MonacoDocument, MonacoHost, Translate } from '../host';
 import { shouldStopPropagation } from '../sync/input';
 import { languageFor, modelPathFor } from '../runtime/language';

@@ -33,7 +33,7 @@
  * @module plugins/preview/surface/selection
  */
 
-import type { DocumentRef } from '@/sdk';
+import type { DocumentRef } from '@reformer/builder-plugin-api';
 import type { PreviewCapabilities, PreviewSurface } from '../contract';
 import type { PreviewSourceCapabilities } from '../host';
 import { canMountSurface, type PreviewRefusalReason } from '../schema/source-guard';

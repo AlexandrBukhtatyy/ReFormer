@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { CatalogJson } from '@/lib/catalog/types';
-import type { Disposable } from '@/sdk';
+import type { Disposable } from '@reformer/builder-plugin-api';
 import { BUILTIN_KIT } from './builtin';
 import type { KitsSettings } from './host';
 import { createKitsService, KIT_SETTINGS_KEY, KitsServiceToken, type KitSource } from './service';

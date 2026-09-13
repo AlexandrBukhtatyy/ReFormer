@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ResourceId, WhenContext } from '@/sdk';
+import type { ResourceId, WhenContext } from '@reformer/builder-plugin-api';
 import type { SchemaEditorHost } from '../host';
 import { documentIdOf, schemaViewCommands } from './view-actions';
 import { createSchemaViewStore, type SchemaViewStore } from '../session/view-mode';

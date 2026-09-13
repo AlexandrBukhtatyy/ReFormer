@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { plainSchema } from '@/lib/codegen/__fixtures__/kit';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { defaultFormName, runCodegen, schemaOf } from './run';
 import { createCodegenSessions } from './state';
 import { BUILTIN_TARGETS } from './targets';

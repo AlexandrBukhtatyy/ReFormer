@@ -64,7 +64,7 @@ import {
   type ReactElement,
 } from 'react';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
-import type { Diagnostic, NodeId, ResourceId } from '@/sdk';
+import type { Diagnostic, NodeId, ResourceId } from '@reformer/builder-plugin-api';
 import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../session/drag-session';
 import { createLiveContext } from '../live/live-context';
 import { elementOf, hitAt } from '../live/live-hit';

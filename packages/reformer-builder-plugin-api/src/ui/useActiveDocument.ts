@@ -5,19 +5,19 @@
  * живёт в службе документов, вне React, а панель обязана перерисоваться, когда человек
  * переключил вкладку. Без подписки панель показывала бы документ, с которого ушли.
  *
- * Отдаётся плагину через `@/sdk`, потому что до сих пор такой хук вёз КАЖДЫЙ порт
+ * Отдаётся плагину контрактом, потому что до сих пор такой хук вёз КАЖДЫЙ порт
  * (`useActiveDocument` есть у генерации кода, у шаблонов, у превью) — по копии на плагин,
  * все с одинаковым телом: службы документов в SDK не было.
  *
  * Снимок — строка или `null`, то есть примитив: `useSyncExternalStore` сравнивает его
  * по ссылке, и объект здесь означал бы бесконечную перерисовку.
  *
- * @module shell/platform/ui/useActiveDocument
+ * @module @reformer/builder-plugin-api/ui/useActiveDocument
  */
 
 import { useCallback, useSyncExternalStore } from 'react';
-import type { ResourceId } from '@reformer/builder-plugin-api/internal';
-import type { DocumentsService } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId } from '../primitives/resource';
+import type { DocumentsService } from '../services/documents';
 
 /** Служба документов в объёме хука: снимок и уведомление. */
 export type ActiveDocumentSource = Pick<DocumentsService, 'activeResource' | 'onDidChange'>;

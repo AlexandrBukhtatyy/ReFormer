@@ -24,7 +24,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import rehypeSlug from 'rehype-slug';
 import type { PluggableList } from 'unified';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { createAssetCache } from '../render/assets';
 import type { MarkdownDocument, MarkdownHost } from '../host';
 import { directoryOf, fenceLanguageFromClass } from '../render/markdown';

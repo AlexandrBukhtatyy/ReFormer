@@ -3,7 +3,7 @@
  *
  * ## Почему порт, а не импорт
  *
- * Плагин видит платформу только через `@/sdk` (проверяется линтером), а в `@/sdk` нет ни рабочей
+ * Плагин видит платформу только через `@reformer/builder-plugin-api` (проверяется линтером), а в `@reformer/builder-plugin-api` нет ни рабочей
  * области, ни возможностей источника, ни сервиса китов. Недостающее приходит ПАРАМЕТРОМ — тем же
  * приёмом, каким объявляют свою потребность `plugins/preview/host` и `plugins/editor-monaco/host`.
  *
@@ -34,7 +34,12 @@
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { FormRules } from '@/lib/form-model/rules';
 import type { KitDescriptor } from '@/lib/kits/types';
-import type { Disposable, DocumentKind, ResourceId, ResourceRef } from '@/sdk';
+import type {
+  Disposable,
+  DocumentKind,
+  ResourceId,
+  ResourceRef,
+} from '@reformer/builder-plugin-api';
 
 /** Перевод: ключ и параметры. Совпадает по форме с `I18nService.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;

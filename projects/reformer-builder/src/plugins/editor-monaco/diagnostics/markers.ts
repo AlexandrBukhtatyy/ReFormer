@@ -45,7 +45,12 @@
  * @module plugins/editor-monaco/diagnostics/markers
  */
 
-import type { Diagnostic, DiagnosticSeverity, NodePart, TextRange } from '@/sdk';
+import type {
+  Diagnostic,
+  DiagnosticSeverity,
+  NodePart,
+  TextRange,
+} from '@reformer/builder-plugin-api';
 import { memberRange, type NodeLocation, type TextPath } from './node-ranges';
 
 /**

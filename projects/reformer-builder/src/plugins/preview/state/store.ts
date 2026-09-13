@@ -48,7 +48,7 @@
  * @module plugins/preview/state/store
  */
 
-import type { Disposable, NodeId } from '@/sdk';
+import type { Disposable, NodeId } from '@reformer/builder-plugin-api';
 import type { PreviewProblem, PreviewValues } from '../contract';
 
 /** Снимок состояния превью одного документа. */

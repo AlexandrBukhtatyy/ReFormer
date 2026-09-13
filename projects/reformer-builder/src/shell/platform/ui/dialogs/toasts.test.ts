@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createNotificationsService } from '@/shell/platform/services/notifications';
 import {
-  createNotificationsService,
   type Notification,
   type NotificationsService,
-} from '@/shell/platform/services/notifications';
+} from '@reformer/builder-plugin-api/internal';
 import { drainNotifications, SHOWN_LIMIT, toToast, type ToastSpec } from './toasts';
 
 /** Перевод-заглушка: ключ и параметры видны в результате, словарь для этого не нужен. */

@@ -25,7 +25,7 @@
  */
 
 import { FIXTURE_EXPORT, fixturePathOf, type FormFixture } from '@/lib/form-fixture';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewProblem } from '../contract';
 import type { PreviewHost, PreviewModules } from '../host';
 import { stripFilePrefix } from './compile';

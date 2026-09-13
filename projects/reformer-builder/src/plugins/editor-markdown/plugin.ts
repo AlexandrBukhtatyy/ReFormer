@@ -18,7 +18,7 @@
  */
 
 import { createElement, type ReactElement } from 'react';
-import type { PluginI18n } from '@/sdk';
+import type { PluginI18n } from '@reformer/builder-plugin-api';
 import { Code2, Columns2, Eye } from 'lucide-react';
 import {
   argsOfEditor,
@@ -37,7 +37,7 @@ import {
   type MenuContribution,
   type Plugin,
   type ResourceId,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { MarkdownHost, TextEditorProvider } from './host';
 import { isMarkdown } from './render/markdown';
 import { MARKDOWN_MESSAGES } from './messages';

@@ -22,7 +22,7 @@
  * @module plugins/files/diagnostics
  */
 
-import { SEVERITY_RANK, usableFixes } from '@/sdk';
+import { SEVERITY_RANK, usableFixes } from '@reformer/builder-plugin-api';
 import type {
   CommandLookup,
   Decoration,
@@ -31,7 +31,7 @@ import type {
   DiagnosticTarget,
   QuickFix,
   ResourceId,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 
 /**
  * Реестр команд в объёме, нужном панели проблем.

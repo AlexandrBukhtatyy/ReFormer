@@ -46,7 +46,7 @@
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { ensureNodeIds, newNodeId, type NodeIdFactory } from '@/lib/form-model/node-id';
 import { ensureSchema, isFormSchema } from '@/lib/form-model/normalize';
-import type { EditorProbe, ResourceRef } from '@/sdk';
+import type { EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
 import { applyEditOp } from './ops';
 import type { ApplyResult, EditOp, SchemaModelProviderSpec } from '../host';
 

@@ -46,7 +46,7 @@ export interface AgentCommandSpec {
  * Команда, объявившая себя инструментом.
  *
  * Структурная копия `CommandContribution & { agent }`: настоящая команда платформы сюда
- * присваивается, а обратной зависимости не возникает — ядро остаётся без импорта `@/sdk`.
+ * присваивается, а обратной зависимости не возникает — ядро остаётся без импорта `@reformer/builder-plugin-api`.
  */
 export interface AgentCommand {
   readonly id: string;

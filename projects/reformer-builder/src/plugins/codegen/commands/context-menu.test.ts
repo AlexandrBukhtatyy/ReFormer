@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import type { NotificationsService, ResourceId, ResourceRef } from '@/sdk';
+import type { NotificationsService, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import {
   codegenContextMenuItems,
   findSchemaIn,

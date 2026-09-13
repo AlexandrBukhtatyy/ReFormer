@@ -82,7 +82,7 @@ import {
   ItemTitle,
 } from '@reformer/ui-kit/item';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import type { CommandLookup, Diagnostic, QuickFix } from '@/sdk';
+import type { CommandLookup, Diagnostic, QuickFix } from '@reformer/builder-plugin-api';
 import { navTarget, type NavDir } from '@/lib/form-model/query';
 import { canvasOrder, flattenCanvas, type CanvasRow } from '../canvas/canvas-tree';
 import {

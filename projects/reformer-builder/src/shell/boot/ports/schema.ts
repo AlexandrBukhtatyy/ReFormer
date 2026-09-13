@@ -20,7 +20,7 @@ import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { ServiceRegistry } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { KitsServiceToken } from '@/plugins/kits';
 import {

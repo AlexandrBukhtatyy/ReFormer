@@ -30,8 +30,9 @@ import {
 } from '@reformer/ui-kit/dialog';
 import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import { DIALOG_SCOPE, useScope, type ScopeStack } from '@/shell/platform/ui/keyboard/scope';
-import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
+import { useScope } from '@/shell/platform/ui/keyboard/scope';
+import { DIALOG_SCOPE, type ScopeStack } from '@reformer/builder-plugin-api/internal';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 
 /** Команда «о программе». Идентификатор экспортирован: на него ссылается пункт меню. */
 export const HELP_ABOUT_COMMAND_ID = 'host.help.about';

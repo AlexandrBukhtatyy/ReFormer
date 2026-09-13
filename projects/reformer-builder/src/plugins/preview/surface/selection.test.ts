@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import type { DocumentRef } from '@/sdk';
+import type { DocumentRef } from '@reformer/builder-plugin-api';
 import type { PreviewCapabilities, PreviewSurface } from '../contract';
 import { chooseSurface, surfaceRank } from './selection';
 

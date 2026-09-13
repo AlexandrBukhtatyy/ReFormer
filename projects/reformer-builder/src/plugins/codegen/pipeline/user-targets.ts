@@ -31,7 +31,7 @@
  */
 
 import { buildView, parseTargetFile, type EmitContext } from '@/lib/codegen';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import type { CodegenProblem } from './generate';
 import type { CodegenHost } from '../host';

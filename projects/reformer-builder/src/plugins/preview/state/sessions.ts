@@ -37,7 +37,7 @@ import {
   type Disposable,
   type ResourceId,
   type SelectionService,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { BUILD_DIAGNOSTICS_SOURCE, groupByResource } from './problem-diagnostics';
 import { createPreviewStore, type PreviewStore } from './store';
 

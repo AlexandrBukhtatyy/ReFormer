@@ -16,11 +16,11 @@
  * команде аргументом, — а адрес в контексте непрозрачен и не несёт ни имени, ни медиатипа.
  * Цель приносит ссылку целиком, поэтому вклад решает по тому же, по чему решал бы редактор.
  *
- * @module shell/platform/ui/menu/editor-menu
+ * @module @reformer/builder-plugin-api/ui/menu/editor-menu
  */
 
-import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api/internal';
-import type { WhenContext } from '@reformer/builder-plugin-api/internal';
+import type { ResourceId, ResourceRef } from '../../primitives/resource';
+import type { WhenContext } from '../../primitives/when-context';
 import type { ContextMenuId, MenuTarget } from './menu';
 
 /** Адрес ряда действий над активным документом. */

@@ -46,7 +46,7 @@ import {
   type Disposable,
   type MenuContribution,
   type ResourceId,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { CanvasPrefs, CanvasView } from '../session/canvas-prefs';
 import { documentIdOf } from '../editing/view-actions';
 import type { SchemaViewStore } from '../session/view-mode';

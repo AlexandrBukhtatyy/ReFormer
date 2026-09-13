@@ -13,7 +13,7 @@
 
 import { useSyncExternalStore, type ReactElement } from 'react';
 import { Badge } from '@reformer/ui-kit/badge';
-import type { DiagnosticsService, ResourceId } from '@/sdk';
+import type { DiagnosticsService, ResourceId } from '@reformer/builder-plugin-api';
 import { summarize, totalCounts } from '../diagnostics';
 
 /**

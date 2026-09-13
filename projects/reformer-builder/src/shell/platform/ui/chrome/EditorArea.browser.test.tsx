@@ -29,8 +29,8 @@ import type { SaveResult, WorkspaceChange } from '@/shell/platform/workspace/wor
 import { renderReact } from '@/testing/render';
 import { EditorArea } from './EditorArea';
 import { EditorPoint, type EditorContribution } from '@reformer/builder-plugin-api/internal';
-import { EDITOR_TITLE_MENU, whenEditor } from '@/shell/platform/ui/menu/editor-menu';
-import { MenuPoint, type MenuContribution } from '@/shell/platform/ui/menu/menu';
+import { EDITOR_TITLE_MENU, whenEditor } from '@reformer/builder-plugin-api/internal';
+import { MenuPoint, type MenuContribution } from '@reformer/builder-plugin-api/internal';
 import { createDocumentTabsStore, type TabsWorkspace } from '@/shell/platform/ui/state/tabs';
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 

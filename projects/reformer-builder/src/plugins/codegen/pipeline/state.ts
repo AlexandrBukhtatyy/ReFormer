@@ -11,7 +11,7 @@
  * @module plugins/codegen/pipeline/state
  */
 
-import type { Disposable, ResourceId } from '@/sdk';
+import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import type { DeliveryResult } from './deliver';
 import type { CodegenProblem } from './generate';
 

@@ -37,7 +37,7 @@ import {
   type Disposable,
   type PluginContext,
   type ResourceId,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost, CodegenSourceCapabilities } from './host';
 
 /**

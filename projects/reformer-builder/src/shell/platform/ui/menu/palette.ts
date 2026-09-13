@@ -31,51 +31,16 @@
  * i18n-сервиса. Перевод приходит функцией `translate`, потому что окружение тестов — `node`,
  * а правило «пункт с `title` не переводится» проверяется без словаря.
  *
+ * Пункт палитры и точка расширения живут в пакете `@reformer/builder-plugin-api`; здесь — слияние,
+ * ранжирование и исполнитель запросов.
+ *
  * @module shell/platform/ui/menu/palette
  */
 
 import type { CommandContribution } from '@reformer/builder-plugin-api/internal';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import { defineExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
-
-/**
- * Пункт палитры.
- *
- * `titleKey` **либо** `title`: первое — для того, что переводится, второе — для динамических
- * данных. Указаны оба — выигрывает `title`: готовая строка уже содержит то, что человек
- * ожидает увидеть, а ключ рядом с ней означает, что вносящий не решил, и молча предпочесть
- * перевод значило бы показать не тот текст.
- */
-export interface PaletteItem {
-  /** Уникален в пределах палитры. Служит React-ключом и адресом при слиянии. */
-  readonly id: string;
-  /** Ключ i18n — либо он… */
-  readonly titleKey?: string;
-  /** …либо готовая строка для динамических данных (имя файла). */
-  readonly title?: string;
-  /** Пояснение справа: путь, раздел, сочетание клавиш. Участвует в поиске. */
-  readonly detail?: string;
-  readonly run: () => unknown | Promise<unknown>;
-  /** Меньше — выше. По умолчанию `0`. */
-  readonly order?: number;
-}
-
-/**
- * Поставщик динамических пунктов.
- *
- * `provide` получает запрос и контекст и вправе отвечать асинхронно. Отмены в сигнатуре нет
- * намеренно: поставщик не обязан уметь прерываться, а устаревший ответ отбрасывает вызывающий
- * (см. {@link createPaletteQueryRunner}). Требовать `AbortSignal` от каждого поставщика значило
- * бы усложнить простой случай ради того, что и так решается на стороне палитры.
- */
-export interface PaletteItemProvider {
-  readonly id: string;
-  provide(query: string, ctx: WhenContext): PaletteItem[] | Promise<PaletteItem[]>;
-}
-
-/** Точка расширения динамических пунктов палитры. */
-export const PaletteItemsPoint = defineExtensionPoint<PaletteItemProvider>('palette.items');
+import { type PaletteItem, type PaletteItemProvider } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Пункт, готовый к показу: заголовок уже строка, порядок уже число.
@@ -202,8 +167,11 @@ export function mergePaletteItems(
  * от неё неотличима, зато невоспроизводима глазом и не проверяется тестом.
  */
 const RANK_TITLE_PREFIX = 0;
+
 const RANK_TITLE_MATCH = 1;
+
 const RANK_DETAIL_MATCH = 2;
+
 const RANK_NONE = -1;
 
 function normalizeForSearch(value: string): string {

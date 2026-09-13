@@ -22,16 +22,16 @@
  * ## Почему здесь, а не в плагине
  *
  * Это единственный способ для плагина показать переведённую строку реактивно, а плагину
- * доступен только `@/sdk`. Раньше такой хук вёз КАЖДЫЙ порт (`useTranslate` есть у превью,
+ * доступен только контракт. Раньше такой хук вёз КАЖДЫЙ порт (`useTranslate` есть у превью,
  * у ассистента, у файлов, у markdown) — по копии на плагин, все с одинаковым телом: службы
  * локализации в SDK не было. Теперь она есть полем контекста, и копии не нужны.
  *
- * @module shell/platform/ui/useTranslate
+ * @module @reformer/builder-plugin-api/ui/useTranslate
  */
 
 import { useMemo } from 'react';
-import type { PluginI18n } from '@reformer/builder-plugin-api/internal';
-import { useLocale } from './chrome/usePanels';
+import type { PluginI18n } from '../services/i18n';
+import { useLocale } from './useLocale';
 
 /** Перевод: ключ и параметры сообщения. Совпадает по форме с `PluginI18n.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;

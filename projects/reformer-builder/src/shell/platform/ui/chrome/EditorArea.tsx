@@ -55,7 +55,7 @@ import {
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import type { Document } from '@reformer/builder-plugin-api/internal';
 import { hostMenuEntry, type MenuEntry } from '@/shell/platform/ui/menu/menu';
-import { EDITOR_TITLE_MENU } from '@/shell/platform/ui/menu/editor-menu';
+import { EDITOR_TITLE_MENU } from '@reformer/builder-plugin-api/internal';
 import type { PanelEntry } from './panels';
 import type { DocumentTabsStore } from '@/shell/platform/ui/state/tabs';
 import { useContributions, type ExtensionReader } from './usePanels';

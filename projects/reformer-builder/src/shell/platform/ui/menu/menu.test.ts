@@ -9,15 +9,14 @@ import {
   buildMenuBar,
   hostMenuEntry,
   MAX_MENU_DEPTH,
-  MenuPoint,
   sortMenuRoots,
   unknownMenuPaths,
   type MenuBarNode,
-  type MenuContribution,
   type MenuEntry,
   type MenuIssue,
   type MenuNode,
 } from './menu';
+import { MenuPoint, type MenuContribution } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Команды теста — фиктивные и бессодержательные.

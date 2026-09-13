@@ -24,7 +24,7 @@
  * @module shell/platform/ui/chrome/layout-settings
  */
 
-import type { SettingsService } from '@/shell/platform/services/settings';
+import type { SettingsService } from '@reformer/builder-plugin-api/internal';
 import type { SlotId } from '@reformer/builder-plugin-api/internal';
 
 /**

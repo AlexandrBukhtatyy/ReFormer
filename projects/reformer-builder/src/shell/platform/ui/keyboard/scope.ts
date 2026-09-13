@@ -28,53 +28,14 @@
  * палитрой и `defaultPrevented` у Monaco остаются на месте. Смешать эти два механизма —
  * значит снова сломать палитру.
  *
+ * Объявление стека областей и токен живут в пакете `@reformer/builder-plugin-api`.
+ *
  * @module shell/platform/ui/keyboard/scope
  */
 
 import { useEffect } from 'react';
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
-import { defineService } from '@reformer/builder-plugin-api/internal';
-
-/**
- * Имя области: `palette`, `dialog`. Непрозрачная строка, как `activeResourceKind`.
- *
- * Платформа её не интерпретирует и списка не держит: окна заводят плагины, и перечислить
- * их Host не может — ровно как пути подменю.
- */
-export type ScopeId = string;
-
-export interface ScopeStack {
-  /** Верх стека или `null`, если окон нет. Это значение ключа `scope`. */
-  top(): ScopeId | null;
-  /**
-   * Весь стек снизу вверх. Значение ключа `scopes` — правая часть оператора `in`,
-   * которым пишут «где-то внутри диалога, пусть и не в самом верхнем».
-   *
-   * Ссылка стабильна между изменениями: её читает снимок контекстных ключей.
-   */
-  all(): readonly ScopeId[];
-  /**
-   * Кладёт область. `dispose()` снимает ИМЕННО эту запись, где бы она ни оказалась в стеке.
-   *
-   * Снятие по идентичности записи, а не «снять верхнюю»: два вложенных диалога, оба
-   * объявившие `dialog`, дают `['dialog', 'dialog']`, и закрытие внутреннего не должно
-   * снимать внешний. Тот же приём, что у реестра команд, где `dispose` сверяет значение,
-   * а не только ключ.
-   */
-  push(scope: ScopeId): Disposable;
-  subscribe(listener: () => void): Disposable;
-}
-
-export const ScopeStackServiceToken = defineService<ScopeStack>('reformer.scopes');
-
-/**
- * Область модального окна — общая для всех диалогов оболочки.
- *
- * Одна на всех, а не своя у каждого: условие «пока открыт какой-нибудь диалог» пишется
- * человеком чаще, чем «пока открыт именно этот», а вложенные окна различает уже стек.
- * Диалогу, которому нужна своя клавиша, ничто не мешает положить рядом собственную область.
- */
-export const DIALOG_SCOPE = 'dialog';
+import { type ScopeId, type ScopeStack } from '@reformer/builder-plugin-api/internal';
 
 /** Пустой стек: одна замороженная ссылка вместо нового массива на каждое чтение. */
 const EMPTY: readonly ScopeId[] = Object.freeze([]);

@@ -18,8 +18,8 @@
  */
 
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import type { SettingsService } from '@/shell/platform/services/settings';
-import type { ThemePreference, ThemeService } from '@/shell/platform/services/theme';
+import type { SettingsService } from '@reformer/builder-plugin-api/internal';
+import type { ThemePreference, ThemeService } from '@reformer/builder-plugin-api/internal';
 import type { SettingsSection } from '@/shell/platform/ui/dialogs/settings-ui';
 import { createPluginsSettingsBody } from './settings/PluginsSettings';
 import type { PluginSettingsHost, PluginsSettingsPort } from './settings/plugins-list';

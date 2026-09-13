@@ -23,7 +23,7 @@ import type {
   MenuDynamicItem,
   PromptPickItem,
   PromptService,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { FilesRecentProject, FilesRecentProjects } from './host';
 import { FILES_PLUGIN_ID } from './plugin';
 

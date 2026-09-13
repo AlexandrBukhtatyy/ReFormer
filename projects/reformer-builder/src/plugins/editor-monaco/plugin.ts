@@ -9,7 +9,7 @@
  * **Что плагин делает сам, а что получает.** Сам: идентификатор, словарь, приоритет, тело
  * редактора, состояние вида, разметку по диагностикам, связь с буфером. Получает: рабочую
  * область, службу диагностик и перевод — четырьмя глаголами через порт (см. `./host`).
- * Точку расширения редакторов он берёт прямо из `@/sdk`: она там уже есть, и подставлять
+ * Точку расширения редакторов он берёт прямо из `@reformer/builder-plugin-api`: она там уже есть, и подставлять
  * её параметром, как это вынужден делать плагин файлов, больше не нужно.
  *
  * **Почему фабрика, а не готовый объект.** `definePlugin` возвращает замороженный плагин,
@@ -32,7 +32,7 @@ import {
   type Plugin,
   type ResourceId,
   type TextEditorFocusRegistry,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { MonacoHost } from './host';
 import { MONACO_EDITOR_PRIORITY } from './runtime/language';
 import { contributeMessages } from './messages';
@@ -76,7 +76,7 @@ export interface MonacoEditorPluginOptions {
   /** Порт платформы. Подставляется композицией — см. `./host`. */
   readonly host: MonacoHost;
   /**
-   * Реестр фокуса текстового редактора — платформенный, см. `TextEditorFocusToken` в `@/sdk`.
+   * Реестр фокуса текстового редактора — платформенный, см. `TextEditorFocusToken` в `@reformer/builder-plugin-api`.
    *
    * Тот же объект композиция регистрирует службой и отдаёт рабочей области
    * (`attachDocumentModel({ isTextEditorFocused })`): иначе перерисовка буфера по модели
@@ -89,7 +89,7 @@ export interface MonacoEditorPluginOptions {
   readonly focus?: TextEditorFocusRegistry;
   /**
    * Снимки вида. Обычно плагин надевает свой вид на хранилище оболочки
-   * (`EditorViewStatesToken` в `@/sdk`); параметр — ради тестов и ради того же случая,
+   * (`EditorViewStatesToken` в `@reformer/builder-plugin-api`); параметр — ради тестов и ради того же случая,
    * что у {@link focus}: тело редактора одалживают ДО активации плагина.
    */
   readonly viewStates?: ViewStateRegistry;

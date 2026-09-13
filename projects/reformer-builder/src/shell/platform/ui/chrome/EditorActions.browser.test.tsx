@@ -22,8 +22,9 @@ import { whenContext } from '@reformer/builder-plugin-api/internal';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { renderReact } from '@/testing/render';
 import { EditorActions } from './EditorActions';
-import { EDITOR_TITLE_MENU, whenEditor } from '@/shell/platform/ui/menu/editor-menu';
-import { hostMenuEntry, MenuPoint, type MenuContribution } from '@/shell/platform/ui/menu/menu';
+import { EDITOR_TITLE_MENU, whenEditor } from '@reformer/builder-plugin-api/internal';
+import { hostMenuEntry } from '@/shell/platform/ui/menu/menu';
+import { MenuPoint, type MenuContribution } from '@reformer/builder-plugin-api/internal';
 
 const MESSAGES: Readonly<Record<string, string>> = {
   'shell.editor.actions.more': 'Ещё действия',

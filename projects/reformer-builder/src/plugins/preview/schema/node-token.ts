@@ -11,7 +11,7 @@
  */
 
 import { decodeNodeToken, tokenFromClassName } from '@/lib/form-model/node-token';
-import type { NodeId } from '@/sdk';
+import type { NodeId } from '@reformer/builder-plugin-api';
 
 export {
   decodeNodeToken,

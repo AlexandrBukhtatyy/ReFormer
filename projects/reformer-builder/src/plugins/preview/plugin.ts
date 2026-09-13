@@ -4,7 +4,7 @@
  * **Почему это плагин, а не часть Host.** Всё содержимое каталога — предметное знание: что такое
  * схема формы, какие файлы её составляют, чем рисуется `$component(...)`, что считать точкой
  * входа. В платформе оно означало бы, что второй вид превью вносится правкой ядра. Граница
- * проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только `@/sdk` и `@/lib`.
+ * проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api` и `@/lib`.
  *
  * ## Своего интерфейса у плагина нет
  *
@@ -36,7 +36,7 @@ import {
   type Plugin,
   type SlotId,
   type WhenContext,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { createCompilingSurface } from './compiling/surface';
 import type { ExtensionPointRef, PreviewSurface } from './contract';
 import { PreviewSurfacePoint } from './contract';
@@ -72,7 +72,7 @@ export interface PreviewPluginOptions {
    * Точка расширения поверхностей.
    *
    * Параметром, а не импортом из `./contract` прямо в `activate`: вклад обязан уходить в ТОТ
-   * объект, который дала композиция, — иначе, когда точка переедет в `@/sdk`, чужие поверхности
+   * объект, который дала композиция, — иначе, когда точка переедет в `@reformer/builder-plugin-api`, чужие поверхности
    * окажутся в одной точке, а наши в другой. Умолчание — наша же копия, чтобы плагин работал
    * и до переезда.
    */

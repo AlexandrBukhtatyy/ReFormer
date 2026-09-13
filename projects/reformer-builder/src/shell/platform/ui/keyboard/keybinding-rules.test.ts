@@ -7,9 +7,8 @@ import {
   compareRules,
   findConflicts,
   rulesFromCommands,
-  type KeybindingLayer,
-  type KeybindingRule,
 } from './keybinding-rules';
+import { type KeybindingLayer, type KeybindingRule } from '@reformer/builder-plugin-api/internal';
 
 let seq = 0;
 

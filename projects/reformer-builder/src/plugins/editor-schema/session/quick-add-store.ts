@@ -16,7 +16,7 @@
  * @module plugins/editor-schema/session/quick-add-store
  */
 
-import type { Disposable } from '@/sdk';
+import type { Disposable } from '@reformer/builder-plugin-api';
 
 export interface QuickAddStore extends Disposable {
   isOpen(): boolean;

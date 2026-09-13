@@ -18,7 +18,7 @@
  * @module plugins/templates/content/operations
  */
 
-import type { ResourceId, ResourceRef } from '@/sdk';
+import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import {
   canRemove,
   canSave,

@@ -26,7 +26,7 @@
  * @module plugins/editor-monaco/sync/view-state
  */
 
-import type { EditorViewStateSlice, ResourceId } from '@/sdk';
+import type { EditorViewStateSlice, ResourceId } from '@reformer/builder-plugin-api';
 
 /** Прокрутка в пикселях, позиция каретки в координатах Monaco (строка и колонка с единицы). */
 export interface MonacoViewState {
@@ -75,7 +75,7 @@ export function isSameViewState(a: MonacoViewState, b: MonacoViewState): boolean
 /**
  * Снимки ЭТОГО редактора: типизированный вид на хранилище оболочки.
  *
- * Ключ снаружи — пара «редактор + документ» (`EditorViewStatesToken` в `@/sdk`), здесь —
+ * Ключ снаружи — пара «редактор + документ» (`EditorViewStatesToken` в `@reformer/builder-plugin-api`), здесь —
  * только документ: имя редактора подставлено видом, и внутри него различать нечего.
  */
 export interface ViewStateRegistry {

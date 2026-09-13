@@ -6,17 +6,19 @@ import { whenContext } from '@reformer/builder-plugin-api/internal';
 import { createChordState } from './chords';
 import { createKeymapService } from './keymap';
 import {
-  detectPlatformModifier,
   dispatchKeydown,
   eventToKeybinding,
-  formatKeybinding,
   installKeybindings,
-  resolvePlatformKeybinding,
   shouldDispatch,
   type DispatchableEvent,
   type KeyEventLike,
   type KeydownTarget,
 } from './keybindings';
+import {
+  detectPlatformModifier,
+  formatKeybinding,
+  resolvePlatformKeybinding,
+} from '@reformer/builder-plugin-api/internal';
 
 /** Событие клавиатуры в объёме, который читает диспетчер. DOM здесь нет — окружение `node`. */
 function keyEvent(patch: Partial<KeyEventLike> & { key: string }): KeyEventLike {

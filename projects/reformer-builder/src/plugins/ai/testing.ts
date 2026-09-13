@@ -11,7 +11,7 @@
 
 import { builtinEntries } from '@/lib/catalog/__fixtures__/builtin-catalog';
 import type { CatalogEntry } from '@/lib/catalog/types';
-import type { Disposable, ResourceId } from '@/sdk';
+import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import type { AiDocument, AiHost, Translate, WriteMark } from './host';
 
 /** Двойник рабочей области: карта документов, активная вкладка и журнал записей. */

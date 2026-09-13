@@ -26,7 +26,7 @@
  * @module plugins/editor-schema/editing/commands
  */
 
-import type { CommandContribution, ResourceId } from '@/sdk';
+import type { CommandContribution, ResourceId } from '@reformer/builder-plugin-api';
 import { isDivContainer } from '@/lib/form-model/node-kind';
 import type { NavDir } from '@/lib/form-model/query';
 import { planDuplicate } from './duplicate';

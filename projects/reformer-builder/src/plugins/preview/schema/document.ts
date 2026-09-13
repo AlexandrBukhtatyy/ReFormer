@@ -24,7 +24,7 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { isFormSchema } from '@/lib/form-model/normalize';
-import type { DocumentRef } from '@/sdk';
+import type { DocumentRef } from '@reformer/builder-plugin-api';
 import type { PreviewDocument } from '../host';
 
 /** Медиатип, под которым сегодня открывается схема формы, пока документы текстовые. */

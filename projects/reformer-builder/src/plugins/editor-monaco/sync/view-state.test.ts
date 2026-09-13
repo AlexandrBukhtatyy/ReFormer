@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { EditorViewStateSlice } from '@/sdk';
+import type { EditorViewStateSlice } from '@reformer/builder-plugin-api';
 import { isSameViewState, readViewState, viewStatesOver, type MonacoViewState } from './view-state';
 
 const state: MonacoViewState = { scrollTop: 120, scrollLeft: 0, line: 8, column: 3 };

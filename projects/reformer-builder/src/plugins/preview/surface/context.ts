@@ -18,7 +18,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { Disposable, DocumentRef, NodeId } from '@/sdk';
+import type { Disposable, DocumentRef, NodeId } from '@reformer/builder-plugin-api';
 import type { PreviewContext, PreviewMock, PreviewProblem, PreviewValues } from '../contract';
 import { schemaOf } from '../schema/document';
 import type { PreviewDocument } from '../host';

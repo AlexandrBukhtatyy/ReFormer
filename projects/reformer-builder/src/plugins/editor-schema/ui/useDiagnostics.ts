@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useSyncExternalStore } from 'react';
-import type { Diagnostic, ResourceId } from '@/sdk';
+import type { Diagnostic, ResourceId } from '@reformer/builder-plugin-api';
 import type { SchemaDiagnostics, Translate } from '../host';
 
 /** Пустой свод: одна ссылка на все документы без находок и на случай отсутствия службы. */

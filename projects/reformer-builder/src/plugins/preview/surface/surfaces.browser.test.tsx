@@ -22,7 +22,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import type { Disposable, DocumentRef, NodeId } from '@/sdk';
+import type { Disposable, DocumentRef, NodeId } from '@reformer/builder-plugin-api';
 import type { PreviewContext, PreviewProblem, PreviewSurface, PreviewValues } from '../contract';
 import { builtinSurfaces } from '../plugin';
 import { RUNTIME_SURFACE_ID } from '../runtime/surface';

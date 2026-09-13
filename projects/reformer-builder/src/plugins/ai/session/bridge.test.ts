@@ -16,7 +16,7 @@ import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '@/lib/catalog/__fixtures__/builtin-catalog';
 import { listComponents } from '../model/catalog-digest';
-import type { WhenContext } from '@/sdk';
+import type { WhenContext } from '@reformer/builder-plugin-api';
 import { AI_UNDO_TURN_COMMAND_ID, aiUndoTurnCommand, createAgentBridge } from './bridge';
 import { createEditorToolRegistry } from '../tools';
 import type { AgentCommand } from '../tools/command-tools';

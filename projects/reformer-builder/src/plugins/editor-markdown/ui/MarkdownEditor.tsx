@@ -22,7 +22,7 @@ import {
 } from 'react';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@reformer/ui-kit/resizable';
 import { Empty, EmptyHeader, EmptyTitle } from '@reformer/ui-kit/empty';
-import { useTranslate, type PluginI18n, type ResourceId } from '@/sdk';
+import { useTranslate, type PluginI18n, type ResourceId } from '@reformer/builder-plugin-api';
 import type { MarkdownHost, TextEditorProvider } from '../host';
 import type { MarkdownViewStore } from '../state/sessions';
 /**

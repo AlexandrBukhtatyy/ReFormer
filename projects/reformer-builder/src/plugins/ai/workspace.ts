@@ -42,7 +42,7 @@ import {
   type Disposable,
   type PluginContext,
   type ResourceId,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type { AiDocument, AiHost, WriteMark } from './host';
 import type { PackageFiles } from './knowledge';
 

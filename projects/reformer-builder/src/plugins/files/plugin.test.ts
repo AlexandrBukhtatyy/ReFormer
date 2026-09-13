@@ -10,7 +10,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { DiagnosticsServiceToken } from '@/sdk';
+import { DiagnosticsServiceToken } from '@reformer/builder-plugin-api';
 import type {
   Diagnostic,
   DiagnosticsService,
@@ -18,7 +18,7 @@ import type {
   PluginContext,
   ResourceId,
   ResourceRef,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import type {
   ExtensionPointRef,
   FilesEditorSpec,

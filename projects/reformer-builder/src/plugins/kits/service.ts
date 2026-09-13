@@ -52,7 +52,7 @@ import { buildCatalog, type BuildCatalogOptions, type BuiltCatalog } from '@/lib
 import { CATALOG_CONTRACT_VERSION, type CatalogEntry, type CatalogJson } from '@/lib/catalog/types';
 import { toDescriptor } from '@/lib/kits/descriptor';
 import type { KitDescriptor, KitDescriptorJson } from '@/lib/kits/types';
-import { defineCapability, type Disposable } from '@/sdk';
+import { defineCapability, type Disposable } from '@reformer/builder-plugin-api';
 import type { KitsSettings } from './host';
 
 /**
@@ -67,9 +67,9 @@ export const KIT_SETTINGS_KEY = 'plugin.kits.active';
  * `__type` существует только для вывода типов и в рантайме отсутствует; ключом служит `id`,
  * поэтому две копии объявления токена (встроенный плагин и плагин каталога, собранный своим
  * линкером) находят ОДИН И ТОТ ЖЕ сервис. Ровно то же свойство, ради которого `ValidatorPoint`
- * реэкспортируется из `@/sdk`, а не переобъявляется у потребителей.
+ * реэкспортируется из `@reformer/builder-plugin-api`, а не переобъявляется у потребителей.
  *
- * Место объявления здесь — вынужденное: `@/sdk` сдан, и токен кита в него ещё не внесён.
+ * Место объявления здесь — вынужденное: `@reformer/builder-plugin-api` сдан, и токен кита в него ещё не внесён.
  * Как только внесут, этот модуль обязан реэкспортировать токен ОТТУДА, а не объявлять свой.
  */
 export interface ServiceTokenRef<T> {
@@ -189,7 +189,7 @@ export interface KitsService {
  * Возможность «активный кит»: токен службы плюс версия контракта.
  *
  * Объявлена средствами SDK (`defineCapability`), а не структурной копией, — и это первое место,
- * где обещание из шапки {@link ServiceTokenRef} исполнено: то, чего в `@/sdk` не было, теперь
+ * где обещание из шапки {@link ServiceTokenRef} исполнено: то, чего в `@reformer/builder-plugin-api` не было, теперь
  * там есть.
  *
  * **Идентификатор прежний — `kits.active`.** Соблазн переименовать его в `reformer.kit.catalog`

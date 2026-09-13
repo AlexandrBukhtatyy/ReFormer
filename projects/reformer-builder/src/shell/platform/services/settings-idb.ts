@@ -55,7 +55,8 @@
 
 import { isStorageError } from '@/shell/platform/workspace/storage/errors';
 import type { WorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
-import type { SettingsBackend, SettingsScope } from './settings';
+import type { SettingsBackend } from './settings';
+import type { SettingsScope } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Хранилище, каким его видят настройки: четыре метода из {@link WorkspaceMetaStore}.

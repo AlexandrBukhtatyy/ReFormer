@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import * as sdkModule from '@/sdk';
+import * as sdkModule from '@reformer/builder-plugin-api';
 import { createModuleLoader, type ModuleLoader } from '@/shell/platform/modules/loader';
 import { ModuleRegistryError } from '@/shell/platform/modules/registry';
 import { createMemorySource, type MemorySource } from '@/shell/platform/source/memory';

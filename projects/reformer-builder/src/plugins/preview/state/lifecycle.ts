@@ -10,7 +10,7 @@
  * в ней нет.
  *
  * Теперь реестр создаёт сам плагин и сам же вешает на него это правило, а вкладки узнаёт
- * у рабочей области (`DocumentsService`) — то есть у службы, а не у порта. Вкладок в `@/sdk`
+ * у рабочей области (`DocumentsService`) — то есть у службы, а не у порта. Вкладок в `@reformer/builder-plugin-api`
  * по-прежнему нет; есть открытые документы, и их достаточно. Каталог адреса спрашивается
  * у второй её половины (`WorkspaceFilesService`): разбирать адрес самому плагину нельзя.
  *
@@ -31,7 +31,11 @@
  * @module plugins/preview/state/lifecycle
  */
 
-import type { Disposable, DocumentsService, WorkspaceFilesService } from '@/sdk';
+import type {
+  Disposable,
+  DocumentsService,
+  WorkspaceFilesService,
+} from '@reformer/builder-plugin-api';
 import type { PreviewSessions } from './sessions';
 
 /** Открытые документы в объёме правила: что открыто и когда спрашивать заново. */

@@ -13,6 +13,7 @@
  * @module @reformer/builder-plugin-api/internal
  */
 
+export * from './plugin/manifest';
 export * from './plugin/storage';
 export * from './plugin/types';
 export * from './primitives/capability';
@@ -25,16 +26,36 @@ export * from './primitives/semver';
 export * from './primitives/service';
 export * from './primitives/when-context';
 export * from './primitives/when-expr';
+export * from './services/context-keys';
 export * from './services/diagnostics/fixes';
+export * from './services/diagnostics/service';
 export * from './services/diagnostics/types';
 export * from './services/documents';
 export * from './services/i18n';
+export * from './services/notifications';
+export * from './services/plugin-settings';
+export * from './services/prompt';
+export * from './services/resource-clipboard';
+export * from './services/selection';
+export * from './services/settings';
+export * from './services/theme';
 export * from './services/validation/types';
 export * from './services/workspace-files';
 export * from './ui/contributions/decorations';
 export * from './ui/contributions/editors';
 export * from './ui/contributions/plugin-settings';
+export * from './ui/keyboard/keybinding-rules';
+export * from './ui/keyboard/keybindings';
+export * from './ui/keyboard/keymap';
+export * from './ui/keyboard/scope';
+export * from './ui/menu/editor-menu';
+export * from './ui/menu/menu';
+export * from './ui/menu/palette';
+export * from './ui/menu/resource-menu';
 export * from './ui/slots';
+export * from './ui/useActiveDocument';
+export * from './ui/useLocale';
+export * from './ui/useTranslate';
 export * from './workspace/document';
 export * from './workspace/model/editor-view-states';
 export * from './workspace/model/provider';

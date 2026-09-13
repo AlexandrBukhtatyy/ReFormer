@@ -44,7 +44,7 @@ import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { findByPath } from '@/lib/form-model/query';
 import { nodeIdOf } from '@/lib/form-model/node-id';
 import type { JsonPath } from '@/lib/form-model/paths';
-import type { DiagnosticTarget, NodePart, TextRange } from '@/sdk';
+import type { DiagnosticTarget, NodePart, TextRange } from '@reformer/builder-plugin-api';
 
 /** Результат разбора текста документа. */
 export type ParseOutcome =

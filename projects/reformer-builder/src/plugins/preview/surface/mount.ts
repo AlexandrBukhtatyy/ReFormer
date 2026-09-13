@@ -15,7 +15,7 @@
 
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { Disposable } from '@/sdk';
+import type { Disposable } from '@reformer/builder-plugin-api';
 
 /**
  * Рисует узел в элементе и отдаёт освобождение.

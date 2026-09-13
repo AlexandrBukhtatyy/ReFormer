@@ -41,7 +41,7 @@ import {
   SelectValue,
 } from '@reformer/ui-kit/select';
 import { ChevronRight } from 'lucide-react';
-import type { ResourceId } from '@/sdk';
+import type { ResourceId } from '@reformer/builder-plugin-api';
 import { canRemove, canUpdate, type FormTemplate, type TemplateStore } from '../contract';
 import { resolvePicked } from '../content/files';
 import type { TemplatesHost, Translate } from '../host';

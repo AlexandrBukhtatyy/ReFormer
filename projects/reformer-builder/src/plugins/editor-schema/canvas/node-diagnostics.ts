@@ -24,8 +24,13 @@
  * @module plugins/editor-schema/canvas/node-diagnostics
  */
 
-import { SEVERITY_RANK, usableFixes } from '@/sdk';
-import type { CommandLookup, Diagnostic, DiagnosticSeverity, QuickFix } from '@/sdk';
+import { SEVERITY_RANK, usableFixes } from '@reformer/builder-plugin-api';
+import type {
+  CommandLookup,
+  Diagnostic,
+  DiagnosticSeverity,
+  QuickFix,
+} from '@reformer/builder-plugin-api';
 import type { NodeId, Translate } from '../host';
 
 /**

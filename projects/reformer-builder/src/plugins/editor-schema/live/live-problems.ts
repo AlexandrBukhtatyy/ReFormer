@@ -23,8 +23,8 @@
  * @module plugins/editor-schema/live/live-problems
  */
 
-import { SEVERITY_RANK } from '@/sdk';
-import type { Diagnostic, DiagnosticSeverity } from '@/sdk';
+import { SEVERITY_RANK } from '@reformer/builder-plugin-api';
+import type { Diagnostic, DiagnosticSeverity } from '@reformer/builder-plugin-api';
 import { indexNodeDiagnostics } from '../canvas/node-diagnostics';
 import type { NodeId, Translate } from '../host';
 

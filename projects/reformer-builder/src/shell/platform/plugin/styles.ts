@@ -56,7 +56,7 @@
  */
 
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
-import type { PluginProblem } from './manifest';
+import type { PluginProblem } from '@reformer/builder-plugin-api/internal';
 
 /** Атрибут контейнера плагина. Его ставит тот, кто рисует поддерево плагина. */
 export const PLUGIN_SCOPE_ATTRIBUTE = 'data-rb-plugin';

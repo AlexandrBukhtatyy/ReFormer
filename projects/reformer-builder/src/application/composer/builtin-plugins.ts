@@ -55,10 +55,8 @@
  */
 
 import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
-import {
-  parsePluginManifestValue,
-  type BuiltinPluginManifest,
-} from '@/shell/platform/plugin/manifest';
+import { parsePluginManifestValue } from '@/shell/platform/plugin/manifest';
+import { type BuiltinPluginManifest } from '@reformer/builder-plugin-api/internal';
 import type { Plugin } from '@reformer/builder-plugin-api/internal';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
@@ -180,7 +178,7 @@ function lazyBuiltin(
 
 const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[]>([
   // Точки расширения подставляются ЗДЕСЬ: плагин объявил их структурно (`plugins/files/host`),
-  // потому что `@/sdk` панелей и редакторов не отдаёт, а импортировать `@/shell` ему нельзя.
+  // потому что `@reformer/builder-plugin-api` панелей и редакторов не отдаёт, а импортировать `@/shell` ему нельзя.
   eagerBuiltin(filesManifest, (options) =>
     createFilesPlugin({ host: options.files, panelPoint: PanelPoint, editorPoint: EditorPoint })
   ),
@@ -192,7 +190,7 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
   // снимков вида здесь нет: оба — возможности оболочки, и плагин берёт их из `ctx.services`.
   eagerBuiltin(monacoManifest, (options) => createMonacoEditorPlugin({ host: options.monaco })),
   eagerBuiltin(kitsManifest, (options) => createKitsPlugin({ ...options.kits })),
-  // Точку поверхностей плагин объявляет структурно — `@/sdk` её пока не отдаёт, как и
+  // Точку поверхностей плагин объявляет структурно — `@reformer/builder-plugin-api` её пока не отдаёт, как и
   // `defineExtensionPoint`, которым чужой плагин мог бы объявить свою. Пока поверхности
   // вносит только сам превью, это ничего не стоит; появится вторая — точку надо вынести.
   eagerBuiltin(previewManifest, (options) => createPreviewPlugin({ host: options.preview })),

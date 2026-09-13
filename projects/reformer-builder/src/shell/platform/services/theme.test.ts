@@ -10,9 +10,9 @@ import {
   THEME_SETTINGS_KEY,
   createFixedSystemTheme,
   createThemeService,
-  type ThemeKind,
   type ThemeRoot,
 } from './theme';
+import { type ThemeKind } from '@reformer/builder-plugin-api/internal';
 
 /** Корень в объёме, который нужен службе: класс есть или его нет. */
 function fakeRoot(): ThemeRoot & { has(token: string): boolean } {

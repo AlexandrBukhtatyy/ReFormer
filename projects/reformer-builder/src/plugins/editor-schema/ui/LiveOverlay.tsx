@@ -27,7 +27,7 @@ import {
   type RefObject,
 } from 'react';
 import { GripVertical } from 'lucide-react';
-import type { NodeId } from '@/sdk';
+import type { NodeId } from '@reformer/builder-plugin-api';
 import type { Indicator } from '../live/live-zone';
 import type { Rect } from '../schematic/schematic-zone';
 

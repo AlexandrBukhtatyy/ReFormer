@@ -66,46 +66,38 @@ import {
 } from './runtime-config';
 import { createPluginRegistry, type PluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
-import {
-  createDiagnosticsService,
-  DiagnosticsServiceToken,
-} from '@/shell/platform/services/diagnostics/service';
-import { createSelectionService, SelectionServiceToken } from '@/shell/platform/services/selection';
+import { createDiagnosticsService } from '@/shell/platform/services/diagnostics/service';
+import { DiagnosticsServiceToken } from '@reformer/builder-plugin-api/internal';
+import { createSelectionService } from '@/shell/platform/services/selection';
+import { SelectionServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createFsSourceFactory } from '@/shell/platform/source/fs-access';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
 import type { Source } from '@/shell/platform/source/types';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
-import { createPromptService, PromptServiceToken } from '@/shell/platform/services/prompt';
+import { createPromptService } from '@/shell/platform/services/prompt';
+import { PromptServiceToken } from '@reformer/builder-plugin-api/internal';
+import { createResourceClipboardService } from '@/shell/platform/services/resource-clipboard';
+import { ResourceClipboardServiceToken } from '@reformer/builder-plugin-api/internal';
+import { createNotificationsService } from '@/shell/platform/services/notifications';
 import {
-  createResourceClipboardService,
-  ResourceClipboardServiceToken,
-} from '@/shell/platform/services/resource-clipboard';
-import {
-  createNotificationsService,
   NotificationsServiceToken,
   type NotificationsService,
-} from '@/shell/platform/services/notifications';
+} from '@reformer/builder-plugin-api/internal';
 import { createIdbSettingsBackend } from '@/shell/platform/services/settings-idb';
-import {
-  createSettingsService,
-  SettingsServiceToken,
-  type SettingsService,
-} from '@/shell/platform/services/settings';
-import {
-  createBrowserSystemTheme,
-  createThemeService,
-  ThemeServiceToken,
-} from '@/shell/platform/services/theme';
+import { createSettingsService } from '@/shell/platform/services/settings';
+import { SettingsServiceToken, type SettingsService } from '@reformer/builder-plugin-api/internal';
+import { createBrowserSystemTheme, createThemeService } from '@/shell/platform/services/theme';
+import { ThemeServiceToken } from '@reformer/builder-plugin-api/internal';
 import { dockSettingsKey } from '@/shell/platform/ui/chrome/layout-settings';
 import type { ShellHost } from '@/shell/platform/ui/Shell';
 import { createValidationOrchestrator } from '@/shell/platform/services/validation/orchestrator';
-import {
-  ContextKeyServiceToken,
-  createContextKeyService,
-} from '@/shell/platform/services/context-keys';
+import { createContextKeyService } from '@/shell/platform/services/context-keys';
+import { ContextKeyServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createChordState } from '@/shell/platform/ui/keyboard/chords';
-import { createKeymapService, KeymapServiceToken } from '@/shell/platform/ui/keyboard/keymap';
-import { createScopeStack, ScopeStackServiceToken } from '@/shell/platform/ui/keyboard/scope';
+import { createKeymapService } from '@/shell/platform/ui/keyboard/keymap';
+import { KeymapServiceToken } from '@reformer/builder-plugin-api/internal';
+import { createScopeStack } from '@/shell/platform/ui/keyboard/scope';
+import { ScopeStackServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import {
   createWorkspaceMetaStore,

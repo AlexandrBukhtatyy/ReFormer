@@ -6,14 +6,13 @@ import {
   type ResourceRef,
 } from '@reformer/builder-plugin-api/internal';
 import { whenContext } from '@reformer/builder-plugin-api/internal';
+import { parentIdOf, resourceMenuTarget } from './resource-menu';
 import {
   argsOfResource,
   asResourceTarget,
-  parentIdOf,
-  resourceMenuTarget,
   selectedIds,
   whenResource,
-} from './resource-menu';
+} from '@reformer/builder-plugin-api/internal';
 
 const ROOT = makeResourceId('fs', '');
 

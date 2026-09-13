@@ -13,7 +13,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
-import type { Disposable, NodeId } from '@/sdk';
+import type { Disposable, NodeId } from '@reformer/builder-plugin-api';
 import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import type { LiveSurfaceContext } from '@/plugins/editor-schema';
 import {

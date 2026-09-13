@@ -24,7 +24,7 @@
 
 import { encodeNodeToken, EMPTY_CLASS } from '@/lib/form-model/node-token';
 import { NODE_ID_PATTERN } from '@/lib/form-model/node-id';
-import type { DiagnosticSeverity, NodeId } from '@/sdk';
+import type { DiagnosticSeverity, NodeId } from '@reformer/builder-plugin-api';
 
 export interface LiveStyleInput {
   /** Значение `data-rb-live` корня живого вида. Санируется вызывающим. */

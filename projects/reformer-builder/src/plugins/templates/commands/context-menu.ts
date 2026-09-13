@@ -31,7 +31,7 @@ import {
   type NotificationsService,
   type PromptService,
   type ResourceId,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { canSave, TEMPLATES_PLUGIN_ID, type FormTemplate, type TemplateStore } from '../contract';
 import type { TemplatesHost } from '../host';
 import {

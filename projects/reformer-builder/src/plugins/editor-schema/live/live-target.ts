@@ -21,7 +21,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { NodeId } from '@/sdk';
+import type { NodeId } from '@reformer/builder-plugin-api';
 import type { DragPayload } from '../editing/drag';
 import { orientationFromRects } from './live-zone';
 import { planSchematicDrop, type SchematicSpot } from '../schematic/schematic-drop';

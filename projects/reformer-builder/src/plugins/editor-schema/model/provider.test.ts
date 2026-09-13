@@ -14,7 +14,7 @@ import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
 import { nodeIdOf, type NodeIdFactory } from '@/lib/form-model/node-id';
 import { getAt } from '@/lib/form-model/paths';
 import { walkNodes } from '@/lib/form-model/query';
-import type { EditorProbe, ResourceRef } from '@/sdk';
+import type { EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
 import { indexNodes } from './node-index';
 import { insertOp } from './ops';
 import {

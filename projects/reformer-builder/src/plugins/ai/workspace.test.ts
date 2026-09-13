@@ -18,7 +18,7 @@ import {
   WorkspaceFilesServiceToken,
   type PluginContext,
   type ResourceId,
-} from '@/sdk';
+} from '@reformer/builder-plugin-api';
 import { aiWorkspace, KitCapability } from './workspace';
 
 const FORM = 'fs:forms/credit/form.json';

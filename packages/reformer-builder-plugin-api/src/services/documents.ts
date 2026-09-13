@@ -1,7 +1,7 @@
 /**
  * Служба документов — рабочая область в том объёме, который нужен редактору.
  *
- * Заведена ради дыры, которую нельзя закрыть ни одним именем из `@/sdk`: там нет ни одного
+ * Заведена ради дыры, которую нельзя закрыть ни одним именем из `@reformer/builder-plugin-api`: там нет ни одного
  * способа прочитать или записать текст документа. Встроенные редакторы получают рабочую
  * область ПОРТАМИ (`MonacoHost.documentOf/writeText`, `AiHost`, `FilesHost`), а порт собирает
  * композиция — плагину из каталога проекта его никто не соберёт. Тело внешнего редактора
@@ -150,7 +150,7 @@ export const DocumentsCapability: Capability<DocumentsService> = defineCapabilit
 
 /**
  * Токен службы. ТОТ ЖЕ объект, что {@link DocumentsCapability}: возможность расширяет токен,
- * второго реестра нет (`primitives/capability`). Имя оставлено — им пользуется `@/sdk`
+ * второго реестра нет (`primitives/capability`). Имя оставлено — им пользуется `@reformer/builder-plugin-api`
  * и каждый плагин, который уже берёт службу.
  */
 export const DocumentsServiceToken = DocumentsCapability;

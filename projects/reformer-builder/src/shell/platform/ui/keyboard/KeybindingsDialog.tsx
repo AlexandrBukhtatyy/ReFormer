@@ -54,16 +54,17 @@ import {
   type EditorRow,
   type RecordingState,
 } from './keybinding-editor';
+import { eventToKeybinding } from './keybindings';
 import {
   detectPlatformModifier,
-  eventToKeybinding,
   formatKeybinding,
   type PlatformModifier,
-} from './keybindings';
-import type { KeybindingLayer } from './keybinding-rules';
-import type { KeymapService } from './keymap';
-import { DIALOG_SCOPE, useScope, type ScopeStack } from './scope';
-import { useLocale } from '@/shell/platform/ui/chrome/usePanels';
+} from '@reformer/builder-plugin-api/internal';
+import type { KeybindingLayer } from '@reformer/builder-plugin-api/internal';
+import type { KeymapService } from '@reformer/builder-plugin-api/internal';
+import { useScope } from './scope';
+import { DIALOG_SCOPE, type ScopeStack } from '@reformer/builder-plugin-api/internal';
+import { useLocale } from '@reformer/builder-plugin-api/internal';
 import { WHEN_TRUE } from '@reformer/builder-plugin-api/internal';
 
 /** Команда, открывающая экран. Идентификатор экспортирован: на него ссылается пункт меню. */
