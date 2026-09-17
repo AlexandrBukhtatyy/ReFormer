@@ -5,7 +5,6 @@ import {
   evaluateCommonJs,
   ModuleCycleError,
   ModuleLinkError,
-  normalizePath,
   resolveFilePath,
   type Linker,
 } from './linker';
@@ -25,16 +24,6 @@ function linkerOf(
 }
 
 describe('арифметика путей', () => {
-  it('схлопывает . и ..', () => {
-    expect(normalizePath('a/./b/../c.ts')).toBe('a/c.ts');
-    expect(normalizePath('./model.ts')).toBe('model.ts');
-  });
-
-  it('отказывается выйти за корень набора файлов', () => {
-    expect(normalizePath('../secrets.ts')).toBeUndefined();
-    expect(normalizePath('a/../../b.ts')).toBeUndefined();
-  });
-
   it('дописывает расширение и index', () => {
     const files = new Map([
       ['form/model.ts', ''],

@@ -16,13 +16,8 @@
  * @module shell/platform/modules/loader
  */
 
-import {
-  createLinker,
-  normalizeFiles,
-  normalizePath,
-  ModuleLinkError,
-  type LinkPhase,
-} from './linker';
+import { createLinker, normalizeFiles, ModuleLinkError, type LinkPhase } from './linker';
+import { normalizeModulePath } from '@reformer/builder-plugin-api/internal';
 import { createModuleRegistry, type HostModuleRegistry, type ModuleRegistry } from './registry';
 import {
   createTranspilerRegistry,
@@ -200,7 +195,7 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
         ambient: loadOptions?.ambient,
       });
 
-      const entryPath = normalizePath(entry);
+      const entryPath = normalizeModulePath(entry);
       const entryFile =
         entryPath === undefined || entryPath === ''
           ? undefined

@@ -20,6 +20,7 @@
  * @module shell/platform/modules/linker
  */
 
+import { normalizeModulePath } from '@reformer/builder-plugin-api/internal';
 import { isRelativeSpecifier, type ModuleRegistry } from './registry';
 
 /** Резолвер импортов, который получает исполняемый код под именем `require`. */
@@ -81,26 +82,6 @@ const EXTENSIONS: readonly string[] = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.c
 /** Имена, которые пробуются, когда спецификатор указывает на каталог. */
 const INDEX_NAMES: readonly string[] = ['index'];
 
-/**
- * Нормализует путь: убирает `.`, схлопывает `..`, приводит разделители к `/`.
- *
- * Возвращает `undefined`, если путь вылез за корень набора файлов. Это не педантизм: набор
- * файлов — весь мир исполняемого кода, и `../../../etc` обязан быть отказом, а не промахом.
- */
-export function normalizePath(path: string): string | undefined {
-  const out: string[] = [];
-  for (const segment of path.replace(/\\/g, '/').split('/')) {
-    if (segment === '' || segment === '.') continue;
-    if (segment === '..') {
-      if (out.length === 0) return undefined;
-      out.pop();
-      continue;
-    }
-    out.push(segment);
-  }
-  return out.join('/');
-}
-
 /** Каталог файла. Для файла в корне — пустая строка. */
 function dirOf(path: string): string {
   const at = path.lastIndexOf('/');
@@ -111,7 +92,7 @@ function dirOf(path: string): string {
 export function normalizeFiles(files: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
   const out = new Map<string, string>();
   for (const [path, code] of files) {
-    const normalized = normalizePath(path);
+    const normalized = normalizeModulePath(path);
     if (normalized === undefined || normalized === '') continue;
     out.set(normalized, code);
   }
@@ -130,7 +111,7 @@ export function resolveFilePath(
   files: ReadonlyMap<string, string>
 ): string | undefined {
   const base = specifier.startsWith('/') ? specifier.slice(1) : `${dirOf(fromPath)}/${specifier}`;
-  const target = normalizePath(base);
+  const target = normalizeModulePath(base);
   if (target === undefined || target === '') return undefined;
 
   if (files.has(target)) return target;

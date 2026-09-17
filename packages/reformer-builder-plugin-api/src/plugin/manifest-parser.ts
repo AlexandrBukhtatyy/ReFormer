@@ -18,7 +18,7 @@
  *   плагин зовётся не так, как папка, и команда «перезагрузить `acme-forms`» перезагружала бы
  *   что-то другое.
  * - **`main` не выходит за каталог плагина.** Нормализация — та же, что у линковщика
- *   (`normalizePath`), поэтому `../../secrets.ts` отсекается здесь, а не оказывается набором
+ *   (`normalizeModulePath`), поэтому `../../secrets.ts` отсекается здесь, а не оказывается набором
  *   файлов, который загрузчик прочитал бы из чужого места.
  * - **Версия оболочки попадает в `apiVersion`.** Политику совместимости мы по-прежнему не строим
  *   — решено (plugin-and-shell.md): при расхождении плагин просто не грузится с внятным
@@ -31,41 +31,43 @@
  * - **`provides` и `requires` — это ФОРМА, а не разрешение конфликта.** Здесь проверяется, что
  *   идентификатор непуст, версия — версия, а диапазон — диапазон. «Кто предоставляет и хватает
  *   ли этого» решается уже снаружи: до загрузки кода — резолвером
- *   (`application/resolver/capability-resolver`) и каталогом (`./catalog`), а после активации —
- *   рантаймом (`./registry` сверяет объявленное с фактически зарегистрированным). Разбор
+ *   (`application/resolver/capability-resolver` билдера) и каталогом плагинов оболочки, а после активации —
+ *   рантаймом плагинов оболочки (он сверяет объявленное с фактически зарегистрированным). Разбор
  *   манифеста обязан оставаться чтением ОДНОГО файла, ничего вокруг себя не зная.
  *
  * **Поля `permissions` нет и не будет** — решено там же: включённый плагин может всё, и объявлять
  * намерения полем, которое ничего не принуждает, значит создавать ложное ощущение границы.
  *
- * Форма манифеста, версия API оболочки и коды отказов живут в пакете `@reformer/builder-plugin-api`;
- * здесь — сам разбор: чтение JSON, проверки полей и нормализация путей линковщиком.
+ * ## Почему разбор в пакете контракта
  *
- * @module shell/platform/plugin/manifest
+ * Манифест читают ДВОЕ: оболочка, решая, грузить ли плагин, и инструменты автора плагина
+ * (`reformer-plugin validate`), решая, пропустить ли его. Два разбора разошлись бы на первой
+ * же правке правил, и валидатор пропускал бы плагин, который оболочка отвергнет, — ровно
+ * тот отказ, ради предупреждения которого валидатор и нужен. Поэтому разбор один и живёт
+ * там, откуда его берут оба: оболочка — входом `./internal`, инструменты — входом `./tooling`.
+ *
+ * @module @reformer/builder-plugin-api/plugin/manifest-parser
  */
 
-import type {
-  CapabilityDeclaration,
-  CapabilityRequirement,
-} from '@reformer/builder-plugin-api/internal';
-import { normalizeChord } from '@reformer/builder-plugin-api/internal';
-import { parseRange, parseVersion, satisfies } from '@reformer/builder-plugin-api/internal';
-import { parseWhen } from '@reformer/builder-plugin-api/internal';
-import { normalizePath } from '@/shell/platform/modules/linker';
+import type { CapabilityDeclaration, CapabilityRequirement } from '../primitives/capability';
+import { normalizeChord } from '../primitives/command';
+import { parseRange, parseVersion, satisfies } from '../primitives/semver';
+import { parseWhen } from '../primitives/when-expr';
+import { normalizeModulePath } from '../primitives/module-path';
 import {
   BUILDER_API_VERSION,
+  PLUGIN_MANIFEST_FILE,
   type BuiltinDelivery,
   type DeclaredKeybinding,
   type ManifestOf,
   type ManifestParseResult,
-  PLUGIN_MANIFEST_FILE,
   type PluginContributes,
   type PluginProblem,
   type PluginProblemCode,
   type PluginRequirements,
   type PluginSource,
   type PluginStyles,
-} from '@reformer/builder-plugin-api/internal';
+} from './manifest';
 
 /**
  * Идентификатор плагина: буквы, цифры, `.`, `_`, `-`, начиная с буквы или цифры.
@@ -261,7 +263,7 @@ function parseEntry(
       file: PLUGIN_MANIFEST_FILE,
     });
   }
-  const main = normalizePath(mainRaw);
+  const main = normalizeModulePath(mainRaw);
   if (main === undefined || main === '') {
     return problem(
       'manifest-invalid',
@@ -542,7 +544,7 @@ function parseMessages(
         file: PLUGIN_MANIFEST_FILE,
       });
     }
-    const file = normalizePath(value.trim());
+    const file = normalizeModulePath(value.trim());
     if (file === undefined || file === '') {
       return problem('manifest-invalid', `${at}: словарь «${value}» выходит за каталог плагина`, {
         file: PLUGIN_MANIFEST_FILE,
@@ -658,7 +660,7 @@ function parseStyles(
       file: PLUGIN_MANIFEST_FILE,
     });
   }
-  const file = normalizePath(fileRaw);
+  const file = normalizeModulePath(fileRaw);
   if (file === undefined || file === '') {
     return problem('manifest-invalid', `таблица стилей «${fileRaw}» выходит за каталог плагина`, {
       file: PLUGIN_MANIFEST_FILE,

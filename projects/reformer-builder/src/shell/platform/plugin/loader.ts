@@ -45,7 +45,7 @@ import type { ModuleLoader } from '@/shell/platform/modules/loader';
 import { joinPath } from '@reformer/builder-plugin-api/internal';
 import { isSourceError } from '@/shell/platform/source/errors';
 import type { Entry, Source } from '@/shell/platform/source/types';
-import { parsePluginManifest } from './manifest';
+import { parsePluginManifest } from '@reformer/builder-plugin-api/internal';
 import {
   PLUGIN_MANIFEST_FILE,
   type PluginProblem,

@@ -55,7 +55,7 @@
  */
 
 import type { BuiltinPluginsOptions } from '@/shell/boot/composition';
-import { parsePluginManifestValue } from '@/shell/platform/plugin/manifest';
+import { parsePluginManifestValue } from '@reformer/builder-plugin-api/internal';
 import { type BuiltinPluginManifest } from '@reformer/builder-plugin-api/internal';
 import type { Plugin } from '@reformer/builder-plugin-api/internal';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';

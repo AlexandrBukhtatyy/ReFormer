@@ -13,7 +13,8 @@ import {
 } from '@/shell/platform/plugin/typescript-transpiler';
 import type { BuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import * as sdk from '@reformer/builder-plugin-api';
-import { createPluginModules } from './plugin-modules';
+import { PLUGIN_RUNTIME_MODULES } from '@reformer/builder-plugin-api/internal';
+import { createPluginModules, PLUGIN_MODULE_SPECIFIERS } from './plugin-modules';
 
 describe('модули, доступные плагину каталога', () => {
   it('под именем @builder/sdk лежит тот самый объект, что видит оболочка', () => {
@@ -49,6 +50,14 @@ describe('модули, доступные плагину каталога', () 
       modules.modules.registry.register('@reformer/builder-plugin-api', { evil: true })
     ).toThrow(ModuleRegistryError);
     modules.dispose();
+  });
+
+  it('реестр занят РОВНО теми модулями, которые пакет контракта обещает инструментам', () => {
+    // Список — обещание сборщику плагина: всё из него он держит внешним. Лишний модуль
+    // в реестре безвреден для сборки, но недостающий означает плагин, собранный «правильно»
+    // и падающий на спецификаторе, которого оболочка не подставляет. Сверка в обе стороны:
+    // разойтись молча списку и реестру нечем, кроме этого теста.
+    expect([...PLUGIN_MODULE_SPECIFIERS].sort()).toEqual([...PLUGIN_RUNTIME_MODULES].sort());
   });
 
   it('React, его jsx-runtime и react-dom — те же, что у оболочки', () => {

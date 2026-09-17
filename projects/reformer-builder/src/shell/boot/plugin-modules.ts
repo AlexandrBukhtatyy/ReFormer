@@ -135,6 +135,17 @@ const BUILTINS: readonly (readonly [string, unknown])[] = [
   ['@reformer/cdk/list', lazyBuiltin(() => import('@reformer/cdk/list'))],
 ];
 
+/**
+ * Спецификаторы реестра — для сверки с обещанием пакета контракта (`PLUGIN_RUNTIME_MODULES`).
+ *
+ * Отдельным значением, потому что реестр загрузчика сужен до контракта и перечислить себя
+ * не умеет. Совпадение проверяет тест: сборщик плагина выносит из сборки ровно список пакета,
+ * и модуль, которого здесь нет, стал бы падением собранного «правильно» плагина.
+ */
+export const PLUGIN_MODULE_SPECIFIERS: readonly string[] = Object.freeze(
+  BUILTINS.map(([specifier]) => specifier)
+);
+
 /** Загрузка кода плагинов: реестр модулей плюс прогретые по требованию транспиляторы. */
 export interface PluginModules extends Disposable {
   readonly modules: ModuleLoader;

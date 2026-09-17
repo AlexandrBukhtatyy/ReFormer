@@ -13,7 +13,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { parsePluginManifest } from './manifest';
+import { parsePluginManifest } from '@reformer/builder-plugin-api/internal';
 import {
   PLUGIN_SCOPE_ATTRIBUTE,
   installPluginStyles,
