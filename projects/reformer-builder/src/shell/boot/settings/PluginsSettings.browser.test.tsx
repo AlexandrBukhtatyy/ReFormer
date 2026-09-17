@@ -26,6 +26,7 @@ import { renderReact } from '@/testing/render';
 import hostRu from '@/shell/platform/services/i18n/locales/ru.json';
 import { createPluginsSettingsBody } from './PluginsSettings';
 import type { PluginCatalogEntry, PluginSettingsHost, PluginsSettingsPort } from './plugins-list';
+import type { PluginsMarketplacePort } from './plugins-tabs';
 
 /** Каталог-двойник: помнит вызовы и умеет сообщить подписчикам, что список изменился. */
 function fakeCatalog(initial: readonly PluginCatalogEntry[], state?: { hasProject?: boolean }) {
@@ -71,14 +72,15 @@ function fakeCatalog(initial: readonly PluginCatalogEntry[], state?: { hasProjec
 
 async function mount(
   catalog: { port: PluginsSettingsPort },
-  settingsHost: PluginSettingsHost | null = null
+  settingsHost: PluginSettingsHost | null = null,
+  marketplace: PluginsMarketplacePort | null = null
 ): Promise<{ unmount: () => void }> {
   const i18n = createI18nService({
     loadHostMessages: () => Promise.resolve(hostRu as Record<string, string>),
     dev: false,
   });
   await i18n.setLocale('ru');
-  const Body = createPluginsSettingsBody(catalog.port, settingsHost);
+  const Body = createPluginsSettingsBody(catalog.port, settingsHost, marketplace);
   return renderReact(<Body i18n={i18n} />);
 }
 
@@ -286,6 +288,239 @@ describe('настройки плагина в карточке', () => {
     await userEvent.click(page.getByTestId('settings-plugin-hello-configure'));
 
     await expect.element(page.getByTestId('settings-plugin-hello-card')).toBeInTheDocument();
+    view.unmount();
+  });
+});
+
+/** Двойник установки из npm: помнит вызовы, отвечает заранее заданным каталогом. */
+function fakeMarketplace(over: Partial<PluginsMarketplacePort> = {}): {
+  port: PluginsMarketplacePort;
+  calls: string[];
+} {
+  const calls: string[] = [];
+  const port: PluginsMarketplacePort = {
+    configured: () => true,
+    catalog: () => {
+      calls.push('catalog');
+      return Promise.resolve({
+        ok: true as const,
+        entries: [
+          { id: 'acme', package: '@acme/plugin', name: 'Acme', publisher: 'Acme Inc' },
+          { id: 'hello', package: '@acme/hello', name: 'Hello' },
+        ],
+      });
+    },
+    installed: () =>
+      Promise.resolve([
+        { id: 'hello', package: '@acme/hello', version: '1.0.0', versions: ['1.0.0'] },
+      ]),
+    install: (packageName) => {
+      calls.push(`install:${packageName}`);
+      return Promise.resolve({ ok: true });
+    },
+    checkUpdates: () => {
+      calls.push('checkUpdates');
+      return Promise.resolve({
+        ok: true as const,
+        rows: [
+          {
+            id: 'hello',
+            package: '@acme/hello',
+            name: 'Hello',
+            current: '1.0.0',
+            available: '1.2.0',
+          },
+        ],
+      });
+    },
+    update: (row) => {
+      calls.push(`update:${row.id}`);
+      return Promise.resolve({ ok: true });
+    },
+    rollback: (id) => {
+      calls.push(`rollback:${id}`);
+      return Promise.resolve();
+    },
+    uninstall: (id) => {
+      calls.push(`uninstall:${id}`);
+      return Promise.resolve();
+    },
+    ...over,
+  };
+  return { port, calls };
+}
+
+describe('вкладки раздела', () => {
+  it('без установки из npm каталога и обновлений нет', async () => {
+    // Вкладка, которой не у кого спросить, хуже отсутствующей: она обещает то, чего не будет.
+    const view = await mount(fakeCatalog([entry({ id: 'hello', name: 'Hello' })]));
+
+    await expect.element(page.getByTestId('settings-plugins-tab-installed')).toBeInTheDocument();
+    await expect.element(page.getByTestId('settings-plugins-tab-development')).toBeInTheDocument();
+    expect(document.querySelector('[data-testid="settings-plugins-tab-marketplace"]')).toBeNull();
+    expect(document.querySelector('[data-testid="settings-plugins-tab-updates"]')).toBeNull();
+    view.unmount();
+  });
+
+  it('«В разработке» показывает только помеченные', async () => {
+    const catalog = fakeCatalog([
+      entry({ id: 'hello', name: 'Hello' }),
+      entry({ id: 'acme', name: 'Acme', dev: true }),
+    ]);
+    const view = await mount(catalog);
+
+    await userEvent.click(page.getByTestId('settings-plugins-tab-development'));
+
+    await expect.element(page.getByTestId('settings-plugin-acme-toggle')).toBeInTheDocument();
+    expect(document.querySelector('[data-testid="settings-plugin-hello-toggle"]')).toBeNull();
+    view.unmount();
+  });
+
+  it('каталог читается при переходе на вкладку, а не при открытии окна', async () => {
+    // Человек зашёл поменять тему — ходить за него в сеть незачем.
+    const market = fakeMarketplace();
+    const view = await mount(fakeCatalog([entry({ id: 'hello' })]), null, market.port);
+
+    expect(market.calls).toEqual([]);
+    await userEvent.click(page.getByTestId('settings-plugins-tab-marketplace'));
+
+    await expect.element(page.getByTestId('marketplace-list')).toBeInTheDocument();
+    expect(market.calls).toEqual(['catalog']);
+    view.unmount();
+  });
+
+  it('установленное в каталоге помечено, и ставить его второй раз нельзя', async () => {
+    const market = fakeMarketplace();
+    const view = await mount(fakeCatalog([entry({ id: 'hello' })]), null, market.port);
+
+    await userEvent.click(page.getByTestId('settings-plugins-tab-marketplace'));
+
+    await expect.element(page.getByTestId('marketplace-hello-install')).toBeDisabled();
+    await userEvent.click(page.getByTestId('marketplace-acme-install'));
+
+    expect(market.calls).toContain('install:@acme/plugin');
+    view.unmount();
+  });
+
+  it('каталог без проекта всё равно открывается', async () => {
+    // Каталог про то, что стоит в браузере, а не в проекте: закрывать его пустым состоянием
+    // списка плагинов значило бы прятать работающую вещь.
+    const market = fakeMarketplace();
+    const view = await mount(fakeCatalog([], { hasProject: false }), null, market.port);
+
+    // Про проект по-прежнему сказано — но панель вкладок пустое состояние не съедает.
+    await expect.element(page.getByTestId('settings-plugins-empty')).toBeInTheDocument();
+    await userEvent.click(page.getByTestId('settings-plugins-tab-marketplace'));
+
+    await expect.element(page.getByTestId('marketplace-list')).toBeInTheDocument();
+    view.unmount();
+  });
+
+  it('обновления не спрашивают npm до нажатия', async () => {
+    const market = fakeMarketplace();
+    const view = await mount(fakeCatalog([entry({ id: 'hello' })]), null, market.port);
+
+    await userEvent.click(page.getByTestId('settings-plugins-tab-updates'));
+    await expect.element(page.getByTestId('updates-check')).toBeInTheDocument();
+    expect(market.calls).toEqual([]);
+
+    await userEvent.click(page.getByTestId('updates-check'));
+    await expect.element(page.getByTestId('updates-hello-apply')).toBeInTheDocument();
+    await userEvent.click(page.getByTestId('updates-hello-apply'));
+
+    expect(market.calls).toContain('update:hello');
+    view.unmount();
+  });
+
+  it('пусто после проверки значит «нечего обновлять», а не «не смотрели»', async () => {
+    const market = fakeMarketplace({
+      checkUpdates: () => Promise.resolve({ ok: true as const, rows: [] }),
+    });
+    const view = await mount(fakeCatalog([entry({ id: 'hello' })]), null, market.port);
+
+    await userEvent.click(page.getByTestId('settings-plugins-tab-updates'));
+    expect(document.querySelector('[data-testid="updates-none"]')).toBeNull();
+
+    await userEvent.click(page.getByTestId('updates-check'));
+
+    await expect.element(page.getByTestId('updates-none')).toBeInTheDocument();
+    view.unmount();
+  });
+
+  it('отказ реестра объясняется словами, а не пустым списком', async () => {
+    const market = fakeMarketplace({
+      catalog: () => Promise.resolve({ ok: false as const, message: 'реестр недоступен' }),
+    });
+    const view = await mount(fakeCatalog([entry({ id: 'hello' })]), null, market.port);
+
+    await userEvent.click(page.getByTestId('settings-plugins-tab-marketplace'));
+
+    await expect
+      .element(page.getByTestId('marketplace-problem'))
+      .toHaveTextContent('реестр недоступен');
+    view.unmount();
+  });
+});
+
+describe('карточка установленного из npm', () => {
+  const installedRow = (id: string) =>
+    entry({ id, name: id, state: 'enabled', layer: 'installed' });
+
+  it('слой и перекрытие видны в строке', async () => {
+    const view = await mount(
+      fakeCatalog([
+        installedRow('acme'),
+        entry({ id: 'hello', name: 'hello', layer: 'project', shadowed: 'installed' }),
+      ]),
+      null,
+      fakeMarketplace().port
+    );
+
+    await expect.element(page.getByText('из npm')).toBeInTheDocument();
+    await expect.element(page.getByText('перекрывает установленный')).toBeInTheDocument();
+    view.unmount();
+  });
+
+  it('удаление и откат — только у приехавшего из npm', async () => {
+    const market = fakeMarketplace();
+    const view = await mount(
+      fakeCatalog([installedRow('acme'), entry({ id: 'hello', name: 'hello', layer: 'project' })]),
+      null,
+      market.port
+    );
+
+    await userEvent.click(page.getByTestId('settings-plugin-hello-configure'));
+    // У плагина проекта и то и другое означало бы правку чужой папки.
+    expect(document.querySelector('[data-testid="settings-plugin-hello-uninstall"]')).toBeNull();
+
+    await userEvent.click(page.getByTestId('settings-plugin-acme-configure'));
+    await userEvent.click(page.getByTestId('settings-plugin-acme-uninstall'));
+
+    expect(market.calls).toContain('uninstall:acme');
+    view.unmount();
+  });
+
+  it('откат предлагается, только если на диске есть вторая версия', async () => {
+    const market = fakeMarketplace({
+      installed: () =>
+        Promise.resolve([
+          { id: 'acme', package: '@acme/plugin', version: '1.0.0', versions: ['1.0.0'] },
+          { id: 'two', package: '@acme/two', version: '2.0.0', versions: ['1.0.0', '2.0.0'] },
+        ]),
+    });
+    const view = await mount(
+      fakeCatalog([installedRow('acme'), installedRow('two')]),
+      null,
+      market.port
+    );
+
+    await userEvent.click(page.getByTestId('settings-plugin-acme-configure'));
+    await expect.element(page.getByTestId('settings-plugin-acme-rollback')).toBeDisabled();
+
+    await userEvent.click(page.getByTestId('settings-plugin-two-configure'));
+    await userEvent.click(page.getByTestId('settings-plugin-two-rollback'));
+
+    expect(market.calls).toContain('rollback:two');
     view.unmount();
   });
 });

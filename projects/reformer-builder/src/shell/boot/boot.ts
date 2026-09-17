@@ -69,6 +69,8 @@ import {
   createNpmRegistryClient,
   DEFAULT_NPM_REGISTRY,
 } from '@/shell/platform/plugin/npm/registry';
+import { createMarketplaceClient } from '@/shell/platform/plugin/marketplace/registry';
+import { updateRows } from '@/shell/boot/settings/plugins-tabs';
 import { createPluginLoader } from '@/shell/platform/plugin/loader';
 import {
   mergeRuntimeConfig,
@@ -576,6 +578,50 @@ export function boot(options: BootOptions): BuilderApp {
   // раз, а проектов у него много. Проектным остаётся запуск — включённость и права спрашивает
   // каталог, поэтому чужой код не поднимется в проекте, которого человек ещё не открывал.
   const installedStore = createInstalledPluginStore();
+  /** Клиент npm — один на приложение: состояния у него нет, кроме адреса реестра. */
+  const npmRegistry = createNpmRegistryClient();
+  /**
+   * Каталог реестра ReFormer. Адрес — из конфига ЗАПУСКА: «куда ходить за списком плагинов»
+   * решает тот, кто разворачивает билдер, а не человек за экраном. Без адреса клиент честно
+   * отвечает «не настроен», и раздел показывает это состоянием, а не пустотой.
+   */
+  const marketplace = createMarketplaceClient(
+    launchConfig.marketplace?.registry === undefined
+      ? {}
+      : { url: launchConfig.marketplace.registry }
+  );
+
+  /**
+   * Откат установленного плагина к другой скачанной версии.
+   *
+   * Функцией, а не двумя копиями в портах: откат зовут палитра и раздел настроек, и разойдись
+   * они — одна поверхность перезагружала бы плагин после переключения, а другая нет.
+   */
+  const rollbackInstalled = async (id: string): Promise<void> => {
+    const record = (await installedStore.list()).find((item) => item.id === id);
+    if (record === undefined || record.versions.length < 2) {
+      notifications.info('plugins.rollback-none', { params: { id } });
+      return;
+    }
+    const chosen = await prompt.pick({
+      titleKey: 'shell.plugins.rollback.title',
+      descriptionKey: 'shell.plugins.rollback.description',
+      items: record.versions.map((version) => ({
+        id: version,
+        label: version,
+        ...(version === record.version ? { description: '—' } : {}),
+      })),
+    });
+    if (chosen === null || chosen === record.version) return;
+
+    await installedStore.activate(id, chosen);
+    // Перечитываем И перезагружаем: версия сменилась на диске, а в системе продолжали бы
+    // работать вклады прежней — ровно то, ради чего откат и делают.
+    await projectPlugins.refresh();
+    if (projectPlugins.list().some((item) => item.id === id && item.state === 'enabled')) {
+      await projectPlugins.reload(id);
+    }
+  };
   const installedLoader = createPluginLoader({
     source: () =>
       createInstalledFiles({
@@ -724,7 +770,7 @@ export function boot(options: BootOptions): BuilderApp {
 
           const result = await installPluginFromNpm(
             {
-              registry: createNpmRegistryClient(),
+              registry: npmRegistry,
               store: installedStore,
               registryUrl: DEFAULT_NPM_REGISTRY,
             },
@@ -743,31 +789,7 @@ export function boot(options: BootOptions): BuilderApp {
             params: { id: result.record.id, version: result.record.version },
           });
         },
-        rollback: async (id: string) => {
-          const record = (await installedStore.list()).find((item) => item.id === id);
-          if (record === undefined || record.versions.length < 2) {
-            notifications.info('plugins.rollback-none', { params: { id } });
-            return;
-          }
-          const chosen = await prompt.pick({
-            titleKey: 'shell.plugins.rollback.title',
-            descriptionKey: 'shell.plugins.rollback.description',
-            items: record.versions.map((version) => ({
-              id: version,
-              label: version,
-              ...(version === record.version ? { description: '—' } : {}),
-            })),
-          });
-          if (chosen === null || chosen === record.version) return;
-
-          await installedStore.activate(id, chosen);
-          // Перечитываем И перезагружаем: версия сменилась на диске, а в системе продолжали бы
-          // работать вклады прежней — ровно то, ради чего откат и делают.
-          await projectPlugins.refresh();
-          if (projectPlugins.list().some((item) => item.id === id && item.state === 'enabled')) {
-            await projectPlugins.reload(id);
-          }
-        },
+        rollback: (id: string) => rollbackInstalled(id),
         uninstall: async (id: string) => {
           projectPlugins.disable(id);
           await installedStore.uninstall(id);
@@ -1009,6 +1031,66 @@ export function boot(options: BootOptions): BuilderApp {
         reload: (id) => projectPlugins.reload(id),
         synced: () => pluginsSynced,
         hasProject: () => project.get() !== null,
+        refresh: () => projectPlugins.refresh(),
+      },
+      /**
+       * Каталог реестра и установка. Порт собирается ЗДЕСЬ, потому что склеивает три вещи,
+       * которые друг о друге не знают: реестр ReFormer (что бывает), npm (какие версии есть)
+       * и хранилище установленных (что стоит). Ни одна из них не должна знать про две другие.
+       */
+      pluginsMarketplace: {
+        configured: () => marketplace.configured(),
+        catalog: async () => {
+          const result = await marketplace.list();
+          return result.ok
+            ? { ok: true as const, entries: result.entries }
+            : { ok: false as const, message: result.problem.message };
+        },
+        installed: () => installedStore.list(),
+        install: async (packageName: string) => {
+          const result = await installPluginFromNpm(
+            { registry: npmRegistry, store: installedStore, registryUrl: DEFAULT_NPM_REGISTRY },
+            { package: packageName }
+          );
+          if (!result.ok) return { ok: false, message: result.problem.message };
+          await projectPlugins.refresh();
+          return { ok: true };
+        },
+        checkUpdates: async () => {
+          const installed = await installedStore.list();
+          const latest = new Map<string, string>();
+          const names = new Map<string, string>();
+          for (const record of installed) {
+            names.set(record.id, record.id);
+            // Спрашиваем npm, а не реестр ReFormer: какая версия есть — знает тот, кто их
+            // хранит. Диапазон «любая выпущенная»: обновление предлагается, а не ставится.
+            const found = await npmRegistry.resolve(record.package, '>=0.0.0');
+            if (found.ok) latest.set(record.id, found.value.version);
+          }
+          return { ok: true as const, rows: updateRows(installed, latest, names) };
+        },
+        update: async (row) => {
+          const result = await installPluginFromNpm(
+            { registry: npmRegistry, store: installedStore, registryUrl: DEFAULT_NPM_REGISTRY },
+            { package: row.package, range: row.available }
+          );
+          if (!result.ok) return { ok: false, message: result.problem.message };
+          await projectPlugins.refresh();
+          // Работающий плагин обязан перезапуститься на новой версии: иначе в системе
+          // остались бы вклады прежней, а список показывал бы новую.
+          if (
+            projectPlugins.list().some((item) => item.id === row.id && item.state === 'enabled')
+          ) {
+            await projectPlugins.reload(row.id);
+          }
+          return { ok: true };
+        },
+        rollback: (id: string) => rollbackInstalled(id),
+        uninstall: async (id: string) => {
+          projectPlugins.disable(id);
+          await installedStore.uninstall(id);
+          await projectPlugins.refresh();
+        },
       },
       /**
        * Настройки самих плагинов: схемы из вкладов, значения из службы настроек.

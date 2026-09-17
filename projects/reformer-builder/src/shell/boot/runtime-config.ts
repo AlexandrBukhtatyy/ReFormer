@@ -86,6 +86,19 @@ export interface RuntimeConfig {
     /** Убрать из состава профиля. */
     readonly disable?: readonly string[];
   };
+  /**
+   * Каталог плагинов, которые предлагается ставить.
+   *
+   * Уровень запуска, а не настройка человека: «куда ходить за списком плагинов» решает тот,
+   * кто разворачивает билдер, — у команды это может быть внутренний реестр, а у публичной
+   * сборки его может не быть вовсе. Умолчания НЕТ: вписать сюда будущий адрес значило бы
+   * ходить в никуда у каждого, кто запустит билдер, а без адреса раздел честно говорит
+   * «реестр не настроен».
+   */
+  readonly marketplace?: {
+    /** Адрес каталога-JSON. */
+    readonly registry?: string;
+  };
 }
 
 export interface ParsedRuntimeConfig {
@@ -103,10 +116,21 @@ const TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   'defaults',
   'preset',
   'plugins',
+  'marketplace',
 ]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Адрес, по которому можно ходить из браузера: только http и https. */
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Разбирает содержимое config.json. Чистая функция: и лаунчер-уровень, и проектный файл
@@ -119,6 +143,7 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
     defaults?: RuntimeConfig['defaults'];
     preset?: string;
     plugins?: RuntimeConfig['plugins'];
+    marketplace?: RuntimeConfig['marketplace'];
   } = {};
 
   if (!isRecord(value)) {
@@ -143,6 +168,26 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
         else problems.push('«branding.title» должен быть непустой строкой');
       }
       if (branding.title !== undefined) config.branding = branding;
+    }
+  }
+
+  if (value.marketplace !== undefined) {
+    if (!isRecord(value.marketplace)) {
+      problems.push('«marketplace» должен быть объектом');
+    } else {
+      for (const key of Object.keys(value.marketplace)) {
+        if (key !== 'registry') problems.push(`неизвестное поле «marketplace.${key}»`);
+      }
+      const registry = value.marketplace.registry;
+      if (registry !== undefined) {
+        // Адрес проверяется РАЗБОРОМ, а не на непустоту: строка, которая не URL, всё равно
+        // не сработает, и узнать об этом лучше при чтении конфига, чем при открытии раздела.
+        if (typeof registry !== 'string' || !isHttpUrl(registry)) {
+          problems.push('«marketplace.registry» должен быть адресом http(s)');
+        } else {
+          config.marketplace = { registry: registry.trim() };
+        }
+      }
     }
   }
 
@@ -236,6 +281,9 @@ export function mergeRuntimeConfig(base: RuntimeConfig, over: RuntimeConfig): Ru
     ...(preset !== undefined ? { preset } : {}),
     ...(base.plugins !== undefined || over.plugins !== undefined
       ? { plugins: { ...base.plugins, ...over.plugins } }
+      : {}),
+    ...(base.marketplace !== undefined || over.marketplace !== undefined
+      ? { marketplace: { ...base.marketplace, ...over.marketplace } }
       : {}),
   };
 }

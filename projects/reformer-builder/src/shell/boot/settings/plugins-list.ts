@@ -25,6 +25,13 @@ export interface PluginRowProblem {
   readonly file?: string;
 }
 
+/**
+ * Откуда плагин взят. Копия перечисления каталога — структурно, без импорта.
+ *
+ * `installed` — слой OPFS (приехал из npm), `project` — папка открытого проекта.
+ */
+export type PluginLayer = 'installed' | 'project';
+
 /** Запись каталога в том объёме, в каком её читает раздел. */
 export interface PluginCatalogEntry {
   readonly id: string;
@@ -34,6 +41,10 @@ export interface PluginCatalogEntry {
   readonly dev: boolean;
   readonly problem?: PluginRowProblem;
   readonly manifest?: { readonly apiVersion?: string };
+  /** Слой, из которого взят действующий плагин. Отсутствует у сборок без установки. */
+  readonly layer?: PluginLayer;
+  /** Слой, который перекрыт: тот же `id` нашёлся и там, но работает не он. */
+  readonly shadowed?: PluginLayer;
 }
 
 /**
@@ -59,6 +70,11 @@ export interface PluginsSettingsPort {
   synced(): boolean;
   /** Открыт ли проект. Без него каталогу неоткуда взяться, и это отдельный ответ человеку. */
   hasProject(): boolean;
+  /**
+   * Перечитать каталог. Необязателен: разделу он нужен только после установки и обновления,
+   * а список плагинов работал и без установки вовсе.
+   */
+  refresh?(): Promise<unknown>;
 }
 
 /** Что делает переключатель строки. У `failed` включение — это «попробовать снова». */
@@ -79,6 +95,15 @@ export interface PluginRow {
   readonly canReload: boolean;
   readonly problem: PluginRowProblem | null;
   readonly apiVersion: string | null;
+  /** Слой действующего плагина; `null` — сборка без установки, вопрос не стоит. */
+  readonly layer: PluginLayer | null;
+  /**
+   * Тот же `id` есть и в другом слое, но работает не он.
+   *
+   * Показывается словами, а не скрывается: без пометки человек правит файлы в проекте
+   * (или, наоборот, ждёт установленную версию) и не понимает, почему ничего не меняется.
+   */
+  readonly shadowed: PluginLayer | null;
 }
 
 /** Строки раздела в порядке показа. */
@@ -101,6 +126,8 @@ export function toRows(entries: readonly PluginCatalogEntry[]): readonly PluginR
         canReload: entry.state === 'enabled',
         problem: entry.problem ?? null,
         apiVersion: entry.manifest?.apiVersion ?? null,
+        layer: entry.layer ?? null,
+        shadowed: entry.shadowed ?? null,
       }))
   );
 }

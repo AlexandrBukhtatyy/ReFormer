@@ -43,9 +43,9 @@ function fakeFetch(
   body: string,
   tarball: { bytes?: Uint8Array; status?: number; contentLength?: string } = {}
 ) {
-  // `init` не используется телом, но объявлен: тест сверяет заголовок Accept, а он приходит
-  // именно вторым аргументом.
-  return vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
+  // Подпись задана типом, а не параметрами: тело о заголовках не знает, но тест сверяет
+  // `Accept` по второму аргументу вызова — и без подписи он был бы `unknown`.
+  return vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>((input) => {
     const url = String(input);
     if (url.endsWith('.tgz')) {
       const bytes = tarball.bytes ?? new Uint8Array([1, 2, 3]);

@@ -105,6 +105,21 @@ describe('строки раздела «Плагины»', () => {
     expect(none?.version).toBeNull();
     expect(some?.version).toBe('1.2.0');
   });
+
+  it('слой и перекрытие доезжают до строки', () => {
+    // Без этого человек правит файлы в проекте и не понимает, почему работает не они:
+    // каталог перекрытие знает, а список бы о нём молчал.
+    const [fromNpm, fromProject, plain] = toRows([
+      entry({ id: 'a', name: 'A', layer: 'installed' }),
+      entry({ id: 'b', name: 'B', layer: 'project', shadowed: 'installed' }),
+      entry({ id: 'c', name: 'C' }),
+    ]);
+
+    expect([fromNpm?.layer, fromNpm?.shadowed]).toEqual(['installed', null]);
+    expect([fromProject?.layer, fromProject?.shadowed]).toEqual(['project', 'installed']);
+    // Сборка без установки вопроса о слое не задаёт — и строка о нём не врёт.
+    expect([plain?.layer, plain?.shadowed]).toEqual([null, null]);
+  });
 });
 
 describe('чем раздел заменяет список', () => {

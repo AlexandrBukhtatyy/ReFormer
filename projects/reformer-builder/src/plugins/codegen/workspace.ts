@@ -26,7 +26,6 @@
  * @module plugins/codegen/workspace
  */
 
-import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor } from '@/lib/kits/types';
 import {
@@ -35,6 +34,7 @@ import {
   useActiveDocument,
   useTranslate,
   WorkspaceFilesServiceToken,
+  WorkspaceSaveServiceToken,
   type Disposable,
   type PluginContext,
   type ResourceId,

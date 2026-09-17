@@ -16,10 +16,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor } from '@/lib/kits/types';
-import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
 import {
   DocumentsServiceToken,
   WorkspaceFilesServiceToken,
+  WorkspaceSaveServiceToken,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';

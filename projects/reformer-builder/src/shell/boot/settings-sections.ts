@@ -23,6 +23,7 @@ import type { ThemePreference, ThemeService } from '@reformer/builder-plugin-api
 import type { SettingsSection } from '@/shell/platform/ui/dialogs/settings-ui';
 import { createPluginsSettingsBody } from './settings/PluginsSettings';
 import type { PluginSettingsHost, PluginsSettingsPort } from './settings/plugins-list';
+import type { PluginsMarketplacePort } from './settings/plugins-tabs';
 
 /** Ключ настройки языка. Тот же, что читает `boot` при старте. */
 export const LOCALE_SETTINGS_KEY = 'host.locale';
@@ -51,6 +52,12 @@ export interface SettingsSectionsDeps {
    * работает ровно как работал.
    */
   readonly pluginSettings?: PluginSettingsHost | null;
+  /**
+   * Установка из npm и каталог реестра. Третья способность и третий порт — по тому же доводу,
+   * по которому настройки плагинов отделены от списка: раздел обязан работать без неё, и без
+   * неё он просто не показывает вкладок каталога и обновлений.
+   */
+  readonly pluginsMarketplace?: PluginsMarketplacePort | null;
 }
 
 /**
@@ -61,7 +68,7 @@ export interface SettingsSectionsDeps {
  */
 export function createSettingsSections(deps: SettingsSectionsDeps): readonly SettingsSection[] {
   const sections: SettingsSection[] = [];
-  const { settings, i18n, theme, plugins, pluginSettings } = deps;
+  const { settings, i18n, theme, plugins, pluginSettings, pluginsMarketplace } = deps;
 
   if (theme != null) {
     sections.push({
@@ -118,7 +125,7 @@ export function createSettingsSections(deps: SettingsSectionsDeps): readonly Set
       kind: 'custom',
       id: 'plugins',
       titleKey: 'shell.settings.plugins',
-      Body: createPluginsSettingsBody(plugins, pluginSettings ?? null),
+      Body: createPluginsSettingsBody(plugins, pluginSettings ?? null, pluginsMarketplace ?? null),
       // Поиск идёт по видимому тексту полей, а у тела полей нет: без этих ключей запрос
       // «плагин» отвечал бы «ничего не найдено» при живом разделе слева.
       searchKeys: ['shell.settings.plugins.description'],
