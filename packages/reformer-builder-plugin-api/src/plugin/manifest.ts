@@ -8,6 +8,7 @@
  */
 
 import type { CapabilityDeclaration, CapabilityRequirement } from '../primitives/capability';
+import type { PluginPermission } from './permissions';
 
 /** Имя файла манифеста внутри каталога плагина. */
 export const PLUGIN_MANIFEST_FILE = 'manifest.json';
@@ -90,6 +91,16 @@ export interface PluginManifestBase {
    * без этой возможности, спрашивая её через `ctx.capabilities.get`.
    */
   readonly requires?: PluginRequirements;
+  /**
+   * Права, которые плагин просит: `["workspace.save"]`.
+   *
+   * Не декорация и не намерение — ключ к привилегированной службе. Оболочка отдаёт такую
+   * службу только тому, кто её здесь назвал И кому человек это подтвердил; не назвавший
+   * получает `undefined` на месте объекта. Поэтому список закрыт ({@link PluginPermission}):
+   * право, за которым не стоит запертой двери, было бы ровно тем ложным ощущением границы,
+   * из-за которого поля `permissions` не было до появления первой такой двери.
+   */
+  readonly permissions?: readonly PluginPermission[];
 }
 
 /** Манифест плагина каталога проекта: у него есть каталог и точка входа. */
@@ -257,7 +268,14 @@ export type PluginProblemCode =
   /** Объявленная таблица стилей не разбирается или не изолируется (см. `./styles`). */
   | 'styles-invalid'
   /** Объявленный файл словаря не читается или это не плоский объект «ключ → строка». */
-  | 'messages-invalid';
+  | 'messages-invalid'
+  /**
+   * Право, объявленное манифестом, человек не подтвердил.
+   *
+   * Проверяется ДО загрузки кода, как и требования: плагин, которому откажут в его главной
+   * службе, не должен исполниться наполовину. Отказ не гасит строку в списке — он её объясняет.
+   */
+  | 'permissions-denied';
 
 /** Отказ как данные. Исключением он не бывает нигде: испорченный каталог — не авария. */
 export interface PluginProblem {

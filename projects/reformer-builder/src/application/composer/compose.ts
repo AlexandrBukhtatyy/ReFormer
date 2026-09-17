@@ -112,6 +112,7 @@ export function fromProfile(
         eager.map((entry) => ({
           plugin: entry.create(options),
           provides: entry.manifest.provides,
+          permissions: entry.manifest.permissions,
         }))
       ),
     // Все фабрики зовутся ДО первого `await`, поэтому их `import()` уходят в один тик —
@@ -122,6 +123,7 @@ export function fromProfile(
           lazy.map(async (entry) => ({
             plugin: await entry.create(options),
             provides: entry.manifest.provides,
+            permissions: entry.manifest.permissions,
           }))
         )
       ),

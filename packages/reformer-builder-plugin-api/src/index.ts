@@ -233,6 +233,13 @@ export { DocumentsServiceToken } from './services/documents';
 // права разные — здесь только чтение и адресация, а запись идёт одной дверью выше.
 export { WorkspaceFilesServiceToken } from './services/workspace-files';
 export type { WorkspaceFilesService } from './services/workspace-files';
+// Единственная дверь НАРУЖУ, в источник, и единственная служба, которую оболочка отдаёт
+// не всем: её просит право `workspace.save` в манифесте, и подтверждает его человек.
+export { WorkspaceSaveServiceToken, WorkspaceSaveCapability } from './services/workspace-save';
+export type { WorkspaceSaveService } from './services/workspace-save';
+// Имена прав — чтобы манифест писался против типа, а не против строки в документации.
+export { PLUGIN_PERMISSIONS } from './plugin/permissions';
+export type { PluginPermission } from './plugin/permissions';
 // Активная вкладка как React-значение: подписка на службу документов, без которой панель
 // показывала бы документ, с которого ушли.
 export { useActiveDocument } from './ui/useActiveDocument';

@@ -53,6 +53,7 @@ import {
   type CapabilityRequirement,
 } from '@reformer/builder-plugin-api/internal';
 import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import type { PluginPermission } from '@reformer/builder-plugin-api/internal';
 import type { DiscoveredPlugin, PluginLoader } from './loader';
 import type { PluginManifest, PluginProblem } from '@reformer/builder-plugin-api/internal';
 import { normalizeChord } from '@reformer/builder-plugin-api/internal';
@@ -155,6 +156,35 @@ export interface ProjectPluginCatalogDeps {
   readonly dev?: EnabledPluginsStore;
   /** Куда сообщать об отказе плагина. По умолчанию — `console.error`. */
   readonly onProblem?: (id: string, problem: PluginProblem) => void;
+  /**
+   * Где живут подтверждённые права: идентификатор → список.
+   *
+   * Отдельно от списка включённых, хотя и там и там решение человека: включённость
+   * плагин теряет и возвращает сам (упал, выключили, перезагрузили), а подтверждение права
+   * переживает всё это. Связать их значило бы переспрашивать разрешение после каждого отказа
+   * активации — то есть приучать соглашаться не глядя.
+   */
+  readonly permissions?: PluginPermissionsStore;
+  /**
+   * Спросить человека про права, которых плагину ещё не подтверждали.
+   *
+   * Отсутствие — ОТКАЗ, а не «разрешить»: каталог без канала к человеку не вправе решать
+   * за него. Тесты, которым права не важны, ставят плагины без `permissions` в манифесте
+   * и вопроса не видят вовсе.
+   */
+  readonly confirmPermissions?: (
+    id: string,
+    permissions: readonly PluginPermission[]
+  ) => Promise<boolean>;
+}
+
+/**
+ * Хранилище подтверждённых прав. Форма как у {@link EnabledPluginsStore} и по той же причине:
+ * каталог обязан проверяться без хранилища, а живёт оно в настройках рабочей области.
+ */
+export interface PluginPermissionsStore {
+  read(): Promise<Readonly<Record<string, readonly PluginPermission[]>>>;
+  write(granted: Readonly<Record<string, readonly PluginPermission[]>>): Promise<void>;
 }
 
 export interface ProjectPluginCatalog extends Disposable {
@@ -219,6 +249,8 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
   const records = new Map<string, CatalogRecord>();
   /** Что человек включил. Это и есть содержимое {@link EnabledPluginsStore}. */
   const enabled = new Set<string>();
+  /** Подтверждённые права по плагинам. Пусто, пока хранилище не прочитано. */
+  let grants: Record<string, readonly PluginPermission[]> = {};
   /** Что человек пометил «в разработке». Живёт по тем же правилам, что и `enabled`. */
   const dev = new Set<string>();
   /**
@@ -468,6 +500,44 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
    * Необязательные требования здесь не смотрят вовсе: их невыполнение — названная деградация,
    * а не отказ, и плагин узнаёт о ней сам через `ctx.capabilities.get`.
    */
+  /**
+   * Спрашивает про недостающие права и запоминает ответ.
+   *
+   * Вопрос задаётся ОДИН раз на набор: «этому плагину — вот это», а не по праву на диалог.
+   * Отказ не запоминается: человек, передумавший завтра, включит плагин и подтвердит, а запись
+   * «отказано» превратила бы это в поиск места, где отказ отменяют.
+   */
+  const permissionsGranted = async (
+    id: string,
+    manifest?: PluginManifest
+  ): Promise<PluginProblem | undefined> => {
+    const asked = manifest?.permissions ?? [];
+    if (asked.length === 0) return undefined;
+
+    const already = grants[id] ?? [];
+    const missing = asked.filter((permission) => !already.includes(permission));
+    if (missing.length === 0) return undefined;
+
+    const agreed = (await deps.confirmPermissions?.(id, missing)) ?? false;
+    if (!agreed) {
+      return {
+        code: 'permissions-denied',
+        message:
+          `плагин просит права, которых ему не подтвердили: ${missing.join(', ')}. ` +
+          'Без них он не получит служб, ради которых их просил, поэтому не включается',
+        file: 'manifest.json',
+      };
+    }
+
+    grants = { ...grants, [id]: [...already, ...missing] };
+    await deps.permissions?.write(grants).catch((error: unknown) => {
+      // Не откатываем: право подтверждено человеком здесь и сейчас, и терять его из-за
+      // хранилища неверно. Цена незаписи — вопрос повторится после перезагрузки вкладки.
+      console.error('не удалось сохранить подтверждённые права', error);
+    });
+    return undefined;
+  };
+
   const unsatisfiedRequires = (
     id: string,
     manifest?: PluginManifest
@@ -516,6 +586,19 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       return false;
     }
 
+    // Права — после требований и ДО загрузки: чужой код не должен исполниться, если главной
+    // его службы ему всё равно не дадут. Вопрос человеку задаётся здесь же, на включении:
+    // это единственный момент, когда он думает именно об этом плагине.
+    const denied = await permissionsGranted(id, record.found.manifest);
+    if (denied !== undefined) {
+      record.problem = denied;
+      enabled.delete(id);
+      persist();
+      report(id, denied);
+      notify();
+      return false;
+    }
+
     const result = await deps.loader.load(record.found);
     if (!result.ok) {
       record.problem = result.problem;
@@ -545,14 +628,23 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       }
       // Объявленное манифестом уезжает в рантайм вместе с плагином: сверить обещание
       // с фактической регистрацией может только тот, кто видит реестр служб после `activate`.
-      deps.plugins.register(result.loaded.plugin, record.found.manifest?.provides);
+      deps.plugins.register(
+        result.loaded.plugin,
+        record.found.manifest?.provides,
+        grants[id] ?? []
+      );
       registered.add(id);
       deps.plugins.activate(id);
     } else {
       // Уже зарегистрирован — значит это повторное включение или перезагрузка: подменяем
       // экземпляр под тем же идентификатором, для чего `reload` и существует. Манифест
       // перечитан вместе с кодом, поэтому и объявление передаётся заново.
-      deps.plugins.reload(id, result.loaded.plugin, record.found.manifest?.provides ?? []);
+      deps.plugins.reload(
+        id,
+        result.loaded.plugin,
+        record.found.manifest?.provides ?? [],
+        grants[id] ?? []
+      );
     }
 
     const status = deps.plugins.status(id);
@@ -661,6 +753,18 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
           for (const id of marks) dev.add(id);
         } catch (error) {
           console.error('[plugins] пометки «в разработке» не прочитаны', error);
+        }
+      }
+
+      if (deps.permissions !== undefined) {
+        try {
+          // Как и включённые: хранилище — истина, и подтверждения принадлежат ПРОЕКТУ.
+          // Перенести разрешение, данное в одном проекте, на другой значило бы отдать
+          // чужому каталогу право, о котором человека спрашивали не про него.
+          grants = { ...(await deps.permissions.read()) };
+        } catch (error) {
+          grants = {};
+          console.error('[plugins] подтверждённые права не прочитаны', error);
         }
       }
 

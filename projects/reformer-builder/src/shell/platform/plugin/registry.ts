@@ -40,7 +40,10 @@
  * @module shell/platform/plugin/registry
  */
 
-import type { CapabilityDeclaration } from '@reformer/builder-plugin-api/internal';
+import type {
+  CapabilityDeclaration,
+  PluginPermission,
+} from '@reformer/builder-plugin-api/internal';
 import { disposeAll } from '@reformer/builder-plugin-api/internal';
 import { createPluginContext } from './context';
 import type { PluginContextDeps } from './context';
@@ -127,7 +130,11 @@ export interface PluginRegistry {
    * одинаково: к концу `activate` каждая объявленная возможность обязана быть
    * зарегистрирована, иначе плагин переводится в `failed` (фаза `provides`).
    */
-  register(plugin: Plugin, provides?: readonly CapabilityDeclaration[]): void;
+  register(
+    plugin: Plugin,
+    provides?: readonly CapabilityDeclaration[],
+    permissions?: readonly PluginPermission[]
+  ): void;
   /**
    * То же для набора. Порядок в массиве на поведение не влияет — см. правило выше.
    *
@@ -176,7 +183,12 @@ export interface PluginRegistry {
    * измениться. Не передать его — значит оставить прежнее, и проверка обещанного сверяла бы
    * новый код со старым манифестом.
    */
-  reload(id: string, replacement?: Plugin, provides?: readonly CapabilityDeclaration[]): boolean;
+  reload(
+    id: string,
+    replacement?: Plugin,
+    provides?: readonly CapabilityDeclaration[],
+    permissions?: readonly PluginPermission[]
+  ): boolean;
 
   isActive(id: string): boolean;
   /** `undefined` — плагин не зарегистрирован. */
@@ -195,6 +207,8 @@ interface PluginRecord {
   context?: PluginContext;
   /** Что плагин объявил снаружи кода: манифест или карта состава. Пусто — ничего не обещал. */
   provides: readonly CapabilityDeclaration[];
+  /** Права, подтверждённые плагину. Уезжают в его контекст и сужают видимые службы. */
+  permissions: readonly PluginPermission[];
 }
 
 /**
@@ -282,7 +296,10 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
   const activateRecord = (record: PluginRecord): boolean => {
     if (record.state === 'active') return true;
 
-    const context = createPluginContext(record.plugin.id, contextDeps);
+    const context = createPluginContext(record.plugin.id, {
+      ...contextDeps,
+      permissions: record.permissions,
+    });
     record.context = context;
 
     try {
@@ -368,7 +385,11 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
 
   // Отдельная функция, а не метод возвращаемого объекта: registerAll зовёт её напрямую,
   // и реестр остаётся работоспособным после деструктуризации (`const { register } = registry`).
-  const register = (plugin: Plugin, provides: readonly CapabilityDeclaration[] = []): void => {
+  const register = (
+    plugin: Plugin,
+    provides: readonly CapabilityDeclaration[] = [],
+    permissions: readonly PluginPermission[] = []
+  ): void => {
     if (plugin.id.trim() === '') {
       throw new Error('PluginRegistry.register: идентификатор плагина не может быть пустым');
     }
@@ -379,7 +400,7 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
           'чтобы поднять другой экземпляр под тем же именем, используйте reload'
       );
     }
-    records.set(plugin.id, { plugin, state: 'inactive', provides });
+    records.set(plugin.id, { plugin, state: 'inactive', provides, permissions });
   };
 
   return {
@@ -427,7 +448,12 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
       }
     },
 
-    reload(id: string, replacement?: Plugin, provides?: readonly CapabilityDeclaration[]): boolean {
+    reload(
+      id: string,
+      replacement?: Plugin,
+      provides?: readonly CapabilityDeclaration[],
+      permissions?: readonly PluginPermission[]
+    ): boolean {
       const record = requireRecord(id, 'PluginRegistry.reload');
       if (replacement !== undefined && replacement.id !== id) {
         throw new Error(
@@ -440,6 +466,9 @@ export function createPluginRegistry(deps: PluginRuntimeDeps): PluginRegistry {
       deactivateRecord(record);
       if (replacement !== undefined) record.plugin = replacement;
       if (provides !== undefined) record.provides = provides;
+      // Права перечитаны вместе с манифестом: автор мог попросить новое, и молча дать его
+      // нельзя — подтверждение спрашивает каталог ДО перезагрузки.
+      if (permissions !== undefined) record.permissions = permissions;
       // Перезагрузка — тоже явное действие: отказ прошлой попытки её не блокирует.
       record.state = 'inactive';
       record.failure = undefined;

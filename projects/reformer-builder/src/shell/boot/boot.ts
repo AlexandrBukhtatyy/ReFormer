@@ -54,8 +54,10 @@ import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import {
   createProjectPluginCatalog,
   type EnabledPluginsStore,
+  type PluginPermissionsStore,
   type ProjectPluginCatalog,
 } from '@/shell/platform/plugin/catalog';
+import { isPluginPermission, type PluginPermission } from '@reformer/builder-plugin-api/internal';
 import { createPluginDevWatch } from '@/shell/platform/plugin/dev-watch';
 import { createPluginLoader } from '@/shell/platform/plugin/loader';
 import {
@@ -117,11 +119,11 @@ import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createSchemaHost } from '@/shell/boot/ports/schema';
 import { createPreviewHost } from '@/shell/boot/ports/preview';
 import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
-import { createCodegenGaps } from '@/shell/boot/ports/codegen';
-import { createTemplatesGaps } from '@/shell/boot/ports/templates';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
 import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
+import { createWorkspaceSave } from '@/shell/boot/ports/workspace-save';
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import {
   projectFailureAction,
@@ -203,6 +205,42 @@ export const DEV_PLUGINS_SETTINGS_KEY = 'workspace.plugins.dev';
 /** Пометки «в разработке» поверх настроек — контракт хранилища у обоих списков один. */
 export function createSettingsDevPlugins(settings: SettingsService): EnabledPluginsStore {
   return createSettingsPluginSet(settings, DEV_PLUGINS_SETTINGS_KEY);
+}
+
+/**
+ * Ключ подтверждённых прав. Область та же, что у включённых: право даётся плагину В ЭТОМ
+ * проекте, и переносить его на другой каталог значило бы отвечать за человека на вопрос,
+ * которого ему не задавали.
+ */
+export const PLUGIN_PERMISSIONS_SETTINGS_KEY = 'workspace.plugins.permissions';
+
+/**
+ * Подтверждённые права поверх настроек: идентификатор → список.
+ *
+ * Значение валидируется на чтении, и строже, чем список включённых: здесь лежит не «что
+ * запустить», а «что кому разрешено», и мусор обязан читаться как «ничего никому».
+ * Незнакомое имя права отбрасывается молча — оно могло принадлежать прошлой версии оболочки,
+ * и превращать это в отказ чтения значило бы потерять заодно все остальные подтверждения.
+ */
+export function createSettingsPluginPermissions(settings: SettingsService): PluginPermissionsStore {
+  return {
+    read(): Promise<Readonly<Record<string, readonly PluginPermission[]>>> {
+      const raw = settings.get<unknown>(PLUGIN_PERMISSIONS_SETTINGS_KEY);
+      if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return Promise.resolve({});
+      const granted: Record<string, readonly PluginPermission[]> = {};
+      for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+        if (!Array.isArray(value)) continue;
+        const permissions = value.filter(
+          (item): item is PluginPermission => typeof item === 'string' && isPluginPermission(item)
+        );
+        if (permissions.length > 0) granted[id] = permissions;
+      }
+      return Promise.resolve(granted);
+    },
+    write(granted: Readonly<Record<string, readonly PluginPermission[]>>): Promise<void> {
+      return settings.set(PLUGIN_PERMISSIONS_SETTINGS_KEY, { ...granted }, 'workspace');
+    },
+  };
 }
 
 function createSettingsPluginSet(settings: SettingsService, key: string): EnabledPluginsStore {
@@ -464,6 +502,10 @@ export function boot(options: BootOptions): BuilderApp {
   // Записи рабочей области — вторая её половина: что в ней лежит и где. Отдельной службой,
   // а не методами первой, потому что права разные (см. шапку `services/workspace-files`).
   services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project }));
+  // Дверь НАРУЖУ, и единственная: раньше её раздавала композиция портом — по одному
+  // на плагин, — потому что без политики прав отдавать её реестром было нельзя. Политика
+  // появилась, и служба встала на общий адрес: кому её видно, решает право в манифесте.
+  services.register(WorkspaceSaveServiceToken, { save: createWorkspaceSave({ project }) });
 
   const plugins = createPluginRegistry({
     services,
@@ -548,6 +590,17 @@ export function boot(options: BootOptions): BuilderApp {
     capabilities: () => options.application.capabilities,
     enabled: createSettingsEnabledPlugins(settings),
     dev: createSettingsDevPlugins(settings),
+    permissions: createSettingsPluginPermissions(settings),
+    // Вопрос человеку — обычным подтверждением оболочки, тем же, каким спрашивают про очистку
+    // хранилища. Права перечисляются В ТЕКСТЕ параметром: список короткий, и показать его
+    // надо целиком — «плагин просит прав» без называния прав не вопрос, а формальность.
+    confirmPermissions: (id, permissions) =>
+      prompt.confirm({
+        titleKey: 'shell.plugins.permissions.title',
+        descriptionKey: 'shell.plugins.permissions.description',
+        params: { id, permissions: permissions.join(', ') },
+        confirmKey: 'shell.plugins.permissions.confirm',
+      }),
     // Отказ плагина — событие для человека, а не для консоли: тост говорит, ЧТО сломалось,
     // подробности (код, файл) остаются в списке плагинов и в консоли.
     onProblem: (id, problem) => {
@@ -630,8 +683,10 @@ export function boot(options: BootOptions): BuilderApp {
       host: projectPlugins,
     },
     preview: previewHost,
-    codegen: createCodegenGaps({ project }),
-    templates: createTemplatesGaps({ project }),
+    // Дыр у обоих не осталось: сохранение уехало в привилегированную службу, и композиции
+    // больше нечего им передавать.
+    codegen: {},
+    templates: {},
   };
 
   // По одному, а не `registerAll`: вместе с плагином в реестр уходит то, что он ОБЕЩАЛ дать
@@ -639,7 +694,7 @@ export function boot(options: BootOptions): BuilderApp {
   // пары встроенный плагин мог бы объявить возможность в карте состава и не зарегистрировать
   // её, а резолвер продолжал бы верить объявлению.
   for (const composed of options.application.eager(builtinOptions)) {
-    plugins.register(composed.plugin, composed.provides);
+    plugins.register(composed.plugin, composed.provides, composed.permissions);
   }
 
   /**
@@ -801,7 +856,7 @@ export function boot(options: BootOptions): BuilderApp {
     .then(async () => {
       try {
         for (const composed of await options.application.lazy(builtinOptions)) {
-          plugins.register(composed.plugin, composed.provides);
+          plugins.register(composed.plugin, composed.provides, composed.permissions);
         }
       } catch (error) {
         console.error('[boot] ленивые плагины не загрузились', error);

@@ -87,6 +87,8 @@ function createHarness(
     installStyles?: ProjectPluginCatalogDeps['installStyles'];
     i18n?: ProjectPluginCatalogDeps['i18n'];
     capabilities?: ProjectPluginCatalogDeps['capabilities'];
+    permissions?: ProjectPluginCatalogDeps['permissions'];
+    confirmPermissions?: ProjectPluginCatalogDeps['confirmPermissions'];
   } = {}
 ): Harness {
   const memory = createMemorySource(files);
@@ -124,6 +126,8 @@ function createHarness(
     installStyles: options.installStyles,
     i18n: options.i18n,
     capabilities: options.capabilities,
+    permissions: options.permissions,
+    confirmPermissions: options.confirmPermissions,
   });
 
   return {
@@ -786,5 +790,86 @@ describe('требования плагина сверяются ДО загру
     const entry = harness.catalog.list()[0];
     expect(entry.problem?.code).toBe('provides-unregistered');
     expect(harness.panels()).toEqual([]);
+  });
+});
+
+describe('права плагина', () => {
+  const PLUGIN = 'acme-forms';
+  const files = (permissions: readonly string[] = ['workspace.save']) => ({
+    [dir(PLUGIN, 'manifest.json')]: manifestOf(PLUGIN, { permissions }),
+    [dir(PLUGIN, 'main.js')]: contributingPlugin(PLUGIN, 'Панель Acme'),
+  });
+
+  it('спрашивает человека и включает плагин, когда он согласился', async () => {
+    const confirmPermissions = vi.fn(() => Promise.resolve(true));
+    const harness = createHarness(files(), { confirmPermissions });
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable(PLUGIN)).toBe(true);
+    expect(confirmPermissions).toHaveBeenCalledWith(PLUGIN, ['workspace.save']);
+    expect(harness.panels()).toEqual(['Панель Acme']);
+  });
+
+  it('отказ человека — плагин НЕ включается, и причина видна строкой', async () => {
+    const harness = createHarness(files(), { confirmPermissions: () => Promise.resolve(false) });
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable(PLUGIN)).toBe(false);
+    // Код не исполнился вовсе: права спрашиваются ДО загрузки, поэтому вкладов нет.
+    expect(harness.panels()).toEqual([]);
+    expect(harness.catalog.list()[0]).toMatchObject({
+      state: 'failed',
+      problem: { code: 'permissions-denied' },
+    });
+  });
+
+  it('без канала к человеку — отказ, а не молчаливое «разрешить»', async () => {
+    // Каталог, которому не дали, чем спросить, не вправе решать за человека сам.
+    const harness = createHarness(files());
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable(PLUGIN)).toBe(false);
+    expect(harness.problems).toHaveBeenCalledWith(
+      PLUGIN,
+      expect.objectContaining({ code: 'permissions-denied' })
+    );
+  });
+
+  it('подтверждённое запоминается: второй раз не переспрашивает', async () => {
+    const granted: Record<string, readonly string[]> = {};
+    const confirmPermissions = vi.fn(() => Promise.resolve(true));
+    const permissions = {
+      read: () => Promise.resolve(granted as never),
+      write: (next: Readonly<Record<string, readonly string[]>>) => {
+        Object.assign(granted, next);
+        return Promise.resolve();
+      },
+    };
+    const harness = createHarness(files(), { permissions, confirmPermissions });
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable(PLUGIN)).toBe(true);
+    harness.catalog.disable(PLUGIN);
+    expect(await harness.catalog.enable(PLUGIN)).toBe(true);
+
+    // Вопрос один на набор прав, а не на каждое включение: иначе человек приучается
+    // соглашаться не глядя.
+    expect(confirmPermissions).toHaveBeenCalledTimes(1);
+    expect(granted[PLUGIN]).toEqual(['workspace.save']);
+  });
+
+  it('не просивший прав вопроса не вызывает', async () => {
+    const confirmPermissions = vi.fn(() => Promise.resolve(true));
+    const harness = createHarness(
+      {
+        [dir(PLUGIN, 'manifest.json')]: manifestOf(PLUGIN),
+        [dir(PLUGIN, 'main.js')]: contributingPlugin(PLUGIN, 'Панель Acme'),
+      },
+      { confirmPermissions }
+    );
+    await harness.catalog.refresh();
+
+    expect(await harness.catalog.enable(PLUGIN)).toBe(true);
+    expect(confirmPermissions).not.toHaveBeenCalled();
   });
 });

@@ -223,5 +223,8 @@
   "shell.settings.plugins.identity": "Identifier: {id} · API: {api}",
   "shell.settings.plugins.problem": "{code}: {message} ({file})",
   "shell.settings.plugins.settings.off": "Settings become available once the plugin is running.",
-  "shell.settings.plugins.settings.broken": "The settings schema of this plugin could not be built: {message}"
+  "shell.settings.plugins.settings.broken": "The settings schema of this plugin could not be built: {message}",
+  "shell.plugins.permissions.title": "Plugin “{id}” requests permissions",
+  "shell.plugins.permissions.description": "It asks for: {permissions}. Without your confirmation the plugin stays off; with it, the plugin gains the matching shell services.",
+  "shell.plugins.permissions.confirm": "Allow"
 }

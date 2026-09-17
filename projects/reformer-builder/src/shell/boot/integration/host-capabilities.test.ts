@@ -32,6 +32,8 @@ import { builderProfile } from '@/application/profiles/builder';
 import { minimalProfile } from '@/application/profiles/presets';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import { definePlugin } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceSaveCapability } from '@reformer/builder-plugin-api/internal';
+import type { PluginPermission } from '@reformer/builder-plugin-api/internal';
 import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/host-capabilities';
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
@@ -62,7 +64,10 @@ afterEach(() => {
  * Плагин регистрируется уже после `ready` — как плагин из каталога проекта, включённый
  * человеком: возможности оболочки обязаны быть на месте и в этот момент тоже.
  */
-async function askFromPlugin(profile: Parameters<typeof fromProfile>[0]): Promise<{
+async function askFromPlugin(
+  profile: Parameters<typeof fromProfile>[0],
+  permissions: readonly PluginPermission[] = []
+): Promise<{
   readonly found: readonly string[];
   readonly missing: readonly string[];
   readonly documentsWorks: boolean;
@@ -88,7 +93,9 @@ async function askFromPlugin(profile: Parameters<typeof fromProfile>[0]): Promis
         // а не просто занимает слот: проекта нет, и это её штатный ответ, а не отказ.
         documentsWorks = ctx.capabilities.require(DocumentsServiceToken).hasProject() === false;
       },
-    })
+    }),
+    [],
+    permissions
   );
   expect(app.plugins.activate('probe')).toBe(true);
 
@@ -109,16 +116,30 @@ describe('возможности оболочки', () => {
     expect(HOST_CAPABILITIES.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('на полном составе плагин находит каждую объявленную', async () => {
+  it('на полном составе плагин находит каждую объявленную, кроме запертой правом', async () => {
     const asked = await askFromPlugin(builderProfile);
 
-    expect(asked.missing).toEqual([]);
-    expect(asked.found).toEqual(HOST_CAPABILITIES.map((capability) => capability.id));
+    // Сохранение объявлено оболочкой, как и остальные, но ПЛАГИНУ его не видно: права
+    // `workspace.save` ему не подтверждали. Резолвер при этом отвечает «возможность
+    // в приложении есть» — это разные вопросы, и отвечают на них в разных местах.
+    expect(asked.missing).toEqual([WorkspaceSaveCapability.id]);
+    expect(asked.found).toEqual(
+      HOST_CAPABILITIES.map((capability) => capability.id).filter(
+        (id) => id !== WorkspaceSaveCapability.id
+      )
+    );
     expect(asked.documentsWorks).toBe(true);
   });
 
+  it('с подтверждённым правом находит и запертую', async () => {
+    const asked = await askFromPlugin(builderProfile, ['workspace.save']);
+
+    expect(asked.missing).toEqual([]);
+    expect(asked.found).toContain(WorkspaceSaveCapability.id);
+  });
+
   it('на коротком составе — те же: они не зависят от набора плагинов', async () => {
-    const asked = await askFromPlugin(minimalProfile);
+    const asked = await askFromPlugin(minimalProfile, ['workspace.save']);
 
     expect(asked.missing).toEqual([]);
     expect(asked.documentsWorks).toBe(true);

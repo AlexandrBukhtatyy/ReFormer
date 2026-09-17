@@ -25,11 +25,12 @@
  */
 
 import { createCapabilityAccess } from '@/shell/platform/primitives/capability';
+import { createPermittedServices } from './permissions';
 import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { EventBus } from '@reformer/builder-plugin-api/internal';
 import type { RootExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { toDisposable } from '@reformer/builder-plugin-api/internal';
-import type { ServiceRegistry } from '@reformer/builder-plugin-api/internal';
+import type { PluginPermission, ServiceRegistry } from '@reformer/builder-plugin-api/internal';
 import { FALLBACK_LOCALE, type RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { type PluginI18n } from '@reformer/builder-plugin-api/internal';
 import { createPluginStorage, createSecretStorage } from './storage';
@@ -44,6 +45,12 @@ import type { PluginContext } from '@reformer/builder-plugin-api/internal';
  */
 export interface PluginContextDeps {
   readonly services: ServiceRegistry;
+  /**
+   * Права, подтверждённые ЭТОМУ плагину. Отсутствие — то же, что пустой список: привилегированные
+   * службы ему не видны. Умолчание именно такое, потому что права даёт человек, а не забывчивость
+   * вызывающего: контекст, собранный без них, обязан быть самым узким, а не самым широким.
+   */
+  readonly permissions?: readonly PluginPermission[];
   /**
    * Кто ОБЪЯВИЛ возможность — только ради текста отказа `capabilities.require`.
    *
@@ -103,12 +110,20 @@ export function createPluginContext(pluginId: string, deps: PluginContextDeps): 
     throw new Error('createPluginContext: идентификатор плагина не может быть пустым');
   }
 
+  // Вид, суженный правами: привилегированные адреса отдаются только тому, кому их подтвердили
+  // (`./permissions`). Сужается ОДИН объект, и от него же строится доступ к возможностям, —
+  // иначе запертая служба осталась бы открытой через `ctx.capabilities`.
+  const services = createPermittedServices(deps.services, {
+    pluginId,
+    granted: deps.permissions ?? [],
+  });
+
   return {
     id: pluginId,
-    services: deps.services,
+    services,
     // Вид на ТОТ ЖЕ реестр служб: своего хранилища у возможностей нет и не будет — см. решение
     // в шапке `primitives/capability`. Строка одна ровно потому, что дублировать нечего.
-    capabilities: createCapabilityAccess(deps.services, {
+    capabilities: createCapabilityAccess(services, {
       ...(deps.capabilityProviders === undefined ? {} : { providers: deps.capabilityProviders }),
     }),
     extensions: deps.extensions.forPlugin(pluginId),

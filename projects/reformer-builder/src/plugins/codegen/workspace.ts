@@ -14,18 +14,19 @@
  *
  * ## Что осталось порту и почему
  *
- * Три члена: `save`, `format`, `rulesOf`. Это не остаток переноса, а названная неполнота.
+ * Два члена: `format` и `rulesOf`. Это не остаток переноса, а названная неполнота.
  *
- * - **`save` выносит написанное НАРУЖУ**, в источник. Это единственная операция рабочей
- *   области, которую нельзя отдать плагину каталога без политики прав, а политики нет
- *   (см. шапку `platform/services/workspace-files`). Пока её нет, сохранение остаётся
- *   у композиции — то есть у того, кого пользователь уже впустил.
+ * `save` отсюда ушёл: он и был тем местом, ради которого завели политику прав. Теперь это
+ * привилегированная служба (`WorkspaceSaveServiceToken`), плагин просит право `workspace.save`
+ * манифестом, а человек его подтверждает.
+ *
  * - **`format`** требует конфигурации prettier из открытого проекта — её чтение не написано.
  * - **`rulesOf`** — сайдкар правил формы, который в v2 не проброшен ни к кому.
  *
  * @module plugins/codegen/workspace
  */
 
+import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor } from '@/lib/kits/types';
 import {
@@ -96,7 +97,7 @@ export interface ModulePrinterService {
 }
 
 /** То, чему в возможностях места пока нет. Всё остальное собирается из служб. */
-export type CodegenGaps = Pick<CodegenHost, 'save' | 'format' | 'rulesOf'>;
+export type CodegenGaps = Pick<CodegenHost, 'format' | 'rulesOf'>;
 
 /**
  * Собирает рабочую область генерации.
@@ -151,6 +152,16 @@ export function codegenWorkspace(ctx: PluginContext, gaps: CodegenGaps = {}): Co
         console.error(`[codegen] открыть «${id}» не удалось`, error);
       });
     },
+
+    /**
+     * Сохранение — ПРИВИЛЕГИРОВАННАЯ служба, и спрашивается она на каждый вызов.
+     *
+     * `get`, а не `require`, и не разовый захват в замыкание: право может быть не подтверждено
+     * (тогда службы нет вовсе), а подтверждено — позже, чем собрана рабочая область. Отказ
+     * сохранения — названная деградация: файлы остаются в рабочей копии, и это ровно то же
+     * поведение, что было у плагина без порта.
+     */
+    save: async (ids) => (await ctx.services.get(WorkspaceSaveServiceToken)?.save(ids)) ?? false,
 
     ...gaps,
   };

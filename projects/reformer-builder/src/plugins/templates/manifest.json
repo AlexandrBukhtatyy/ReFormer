@@ -5,6 +5,7 @@
   "builtin": {
     "loading": "lazy"
   },
+  "permissions": ["workspace.save"],
   "requires": {
     "optional": [
       {

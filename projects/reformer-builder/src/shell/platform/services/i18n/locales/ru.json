@@ -223,5 +223,8 @@
   "shell.settings.plugins.identity": "Идентификатор: {id} · API: {api}",
   "shell.settings.plugins.problem": "{code}: {message} ({file})",
   "shell.settings.plugins.settings.off": "Настройки доступны, когда плагин работает.",
-  "shell.settings.plugins.settings.broken": "Схему настроек этого плагина не удалось собрать: {message}"
+  "shell.settings.plugins.settings.broken": "Схему настроек этого плагина не удалось собрать: {message}",
+  "shell.plugins.permissions.title": "Плагин «{id}» просит права",
+  "shell.plugins.permissions.description": "Он запрашивает: {permissions}. Без подтверждения плагин не включится, а с ним получит соответствующие службы оболочки.",
+  "shell.plugins.permissions.confirm": "Разрешить"
 }

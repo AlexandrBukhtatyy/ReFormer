@@ -556,3 +556,37 @@ describe('манифест исходников плагина', () => {
     expect(result.ok || result.problem.code).toBe('manifest-unreadable');
   });
 });
+
+describe('права плагина', () => {
+  const withPermissions = (permissions: unknown) =>
+    parsePluginManifest(JSON.stringify({ ...good, permissions }), project('acme-forms'));
+
+  it('читает права из закрытого списка', () => {
+    const result = withPermissions(['workspace.save']);
+
+    expect(result.ok && result.manifest.permissions).toEqual(['workspace.save']);
+  });
+
+  it('незнакомое право — отказ, а не пропуск', () => {
+    // Пропусти разбор опечатку — и «прав не просил» стало бы неотличимо от «просил не то»:
+    // плагин молча остался бы без службы, ради которой право и объявлял.
+    const result = withPermissions(['workspace.write']);
+
+    expect(result.ok || result.problem.code).toBe('manifest-invalid');
+    expect(result.ok || result.problem.message).toContain('не право');
+  });
+
+  it('повтор и не массив — отказ', () => {
+    const twice = withPermissions(['workspace.save', 'workspace.save']);
+    const notArray = withPermissions('workspace.save');
+
+    expect(twice.ok || twice.problem.message).toContain('дважды');
+    expect(notArray.ok || notArray.problem.message).toContain('должно быть массивом');
+  });
+
+  it('прав не просивший получает манифест без поля', () => {
+    const result = parsePluginManifest(JSON.stringify(good), project('acme-forms'));
+
+    expect(result.ok && 'permissions' in result.manifest).toBe(false);
+  });
+});

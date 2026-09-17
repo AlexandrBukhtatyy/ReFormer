@@ -31,6 +31,11 @@ export {
   parsePluginSourceManifest,
 } from './plugin/manifest-parser';
 export { parseMessagesBundle } from './plugin/messages-bundle';
+export {
+  isPluginPermission,
+  PLUGIN_PERMISSIONS,
+  type PluginPermission,
+} from './plugin/permissions';
 export { pluginFromExports } from './plugin/plugin-exports';
 export {
   BUILDER_API_VERSION,

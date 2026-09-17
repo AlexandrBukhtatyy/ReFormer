@@ -9,8 +9,8 @@
  * в любом случае.
  *
  * Рабочая область здесь собирается ТЕМ ЖЕ способом, что в приложении: службы регистрируются
- * в реестре, а плагин достаёт их оттуда (`plugins/templates/workspace`). Порт остался
- * единственной операцией — сохранением.
+ * в реестре, а плагин достаёт их оттуда (`plugins/templates/workspace`) — включая сохранение:
+ * порта у шаблонов больше нет, дверь наружу стала привилегированной службой.
  *
  * @module shell/boot/ports/templates.test
  */
@@ -29,6 +29,7 @@ import {
 import { createWhenContextStore } from '@/shell/platform/ui/state/when-context-store';
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
 import type { PluginContext } from '@reformer/builder-plugin-api/internal';
 import type { FormTemplate } from '@/plugins/templates';
 import {
@@ -43,7 +44,7 @@ import {
   type WorkspaceSession,
 } from '@/shell/boot/project/workspace-session';
 import type { ProjectHost } from '@/shell/boot/project/project';
-import { createTemplatesGaps } from './templates';
+import { createWorkspaceSave } from './workspace-save';
 
 let seq = 0;
 
@@ -98,6 +99,9 @@ function harness(files: Readonly<Record<string, string>>) {
   const services = createServiceRegistry();
   services.register(DocumentsServiceToken, createDocumentsService({ project }));
   services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project }));
+  // Сохранение — привилегированная служба: здесь она есть, потому что тест проверяет путь
+  // ДО источника. Отказ по праву проверяется отдельно, на реестре и каталоге.
+  services.register(WorkspaceSaveServiceToken, { save: createWorkspaceSave({ project }) });
   const ctx = {
     id: TEMPLATES_PLUGIN_ID,
     services,
@@ -108,7 +112,7 @@ function harness(files: Readonly<Record<string, string>>) {
       onDidChangeLocale: () => ({ dispose: () => {} }),
     },
   } as unknown as PluginContext;
-  const host = templatesWorkspace(ctx, createTemplatesGaps({ project }));
+  const host = templatesWorkspace(ctx);
 
   return {
     session,

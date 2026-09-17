@@ -26,7 +26,10 @@
  */
 
 import type { CapabilityProvider } from '@reformer/builder-plugin-api/internal';
-import type { CapabilityDeclaration } from '@reformer/builder-plugin-api/internal';
+import type {
+  CapabilityDeclaration,
+  PluginPermission,
+} from '@reformer/builder-plugin-api/internal';
 import type { Plugin } from '@reformer/builder-plugin-api/internal';
 
 // Порты и настройки встроенных — только ТИПЫ, до единого. `verbatimModuleSyntax` стирает такой
@@ -69,6 +72,16 @@ import type { TemplatesGaps } from '@/plugins/templates';
 export interface ComposedPlugin {
   readonly plugin: Plugin;
   readonly provides?: readonly CapabilityDeclaration[];
+  /**
+   * Права, объявленные манифестом встроенного плагина.
+   *
+   * У встроенного они НЕ спрашиваются: его код приехал вместе с приложением, и спрашивать
+   * разрешения на то, что человек уже установил, — театр. Объявление здесь всё равно нужно,
+   * и по двум причинам: привратник служб один на всех (без прав привилегированная служба
+   * не видна и встроенному), а список прав в манифесте — то, чем встроенный объясняет себя
+   * в списке плагинов ровно так же, как внешний.
+   */
+  readonly permissions?: readonly PluginPermission[];
 }
 
 export interface ApplicationComposition {

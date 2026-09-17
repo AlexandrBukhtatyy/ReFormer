@@ -16,6 +16,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor } from '@/lib/kits/types';
+import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
 import {
   DocumentsServiceToken,
   WorkspaceFilesServiceToken,
@@ -27,7 +28,14 @@ import { codegenWorkspace, KitCapability } from './workspace';
 const FORM = 'fs:forms/credit/form.json';
 
 /** Службы в объёме раскладки: каждая помнит, о чём её спросили. */
-function harness(options: { readonly kit?: boolean; readonly project?: boolean } = {}) {
+function harness(
+  options: {
+    readonly kit?: boolean;
+    readonly project?: boolean;
+    /** Привилегированная служба сохранения; без неё — право не подтверждено. */
+    readonly save?: (ids: readonly ResourceId[]) => Promise<boolean>;
+  } = {}
+) {
   const calls: string[] = [];
   const document = { id: FORM, kind: 'model' as const };
 
@@ -87,8 +95,13 @@ function harness(options: { readonly kit?: boolean; readonly project?: boolean }
       onDidChangeLocale: () => ({ dispose: () => {} }),
     },
     services: {
-      get: (token: { id: string }) =>
-        token.id === KitCapability.id && options.kit !== false ? kits : undefined,
+      get: (token: { id: string }) => {
+        if (token.id === KitCapability.id) return options.kit !== false ? kits : undefined;
+        if (token.id === WorkspaceSaveServiceToken.id) {
+          return options.save === undefined ? undefined : { save: options.save };
+        }
+        return undefined;
+      },
       require: (token: { id: string }) => {
         if (token.id === DocumentsServiceToken.id) return documents;
         if (token.id === WorkspaceFilesServiceToken.id) return files;
@@ -177,12 +190,20 @@ describe('права и дыры', () => {
     expect(codegenWorkspace(h.ctx).sourceOf(FORM)).toEqual({ write: true });
   });
 
-  it('названные дыры проходят насквозь: сохранение остаётся у композиции', async () => {
+  it('сохранение берётся у привилегированной службы, а не у композиции', async () => {
     const save = vi.fn(() => Promise.resolve(true));
+    const h = harness({ save });
+
+    await expect(codegenWorkspace(h.ctx).save?.([FORM])).resolves.toBe(true);
+    expect(save).toHaveBeenCalledWith([FORM]);
+  });
+
+  it('без права сохранения плагин работает, а сохранение отвечает «не сохранил»', async () => {
+    // Право не подтверждено — службы для этого плагина не существует (`get` → undefined).
+    // Это названная деградация, а не поломка: файлы остаются в рабочей копии.
     const h = harness();
 
-    await expect(codegenWorkspace(h.ctx, { save }).save?.([FORM])).resolves.toBe(true);
-    expect(save).toHaveBeenCalledWith([FORM]);
+    await expect(codegenWorkspace(h.ctx).save?.([FORM])).resolves.toBe(false);
   });
 
   it('без служб рабочей области сборка ОТКАЗЫВАЕТ, а не собирает половину', () => {

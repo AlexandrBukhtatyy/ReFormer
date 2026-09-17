@@ -35,8 +35,12 @@
  *   рантаймом плагинов оболочки (он сверяет объявленное с фактически зарегистрированным). Разбор
  *   манифеста обязан оставаться чтением ОДНОГО файла, ничего вокруг себя не зная.
  *
- * **Поля `permissions` нет и не будет** — решено там же: включённый плагин может всё, и объявлять
- * намерения полем, которое ничего не принуждает, значит создавать ложное ощущение границы.
+ * - **`permissions` — ключ, а не намерение.** Поля не было, пока оболочке нечего было запирать:
+ *   объявление, которое ничего не принуждает, создаёт ложное ощущение границы. Оно появилось
+ *   вместе с первой привилегированной службой, и здесь проверяется ровно то, что делает его
+ *   ключом: имя ИЗ ЗАКРЫТОГО списка (`primitives`… нет — `./permissions`) и без повторов.
+ *   Незнакомое имя — отказ, а не пропуск: иначе опечатка в праве читалась бы как «прав не просил»,
+ *   и плагин молча остался бы без службы, которую просил.
  *
  * ## Почему разбор в пакете контракта
  *
@@ -54,6 +58,7 @@ import { normalizeChord } from '../primitives/command';
 import { parseRange, parseVersion, satisfies } from '../primitives/semver';
 import { parseWhen } from '../primitives/when-expr';
 import { normalizeModulePath } from '../primitives/module-path';
+import { isPluginPermission, PLUGIN_PERMISSIONS, type PluginPermission } from './permissions';
 import {
   BUILDER_API_VERSION,
   PLUGIN_MANIFEST_FILE,
@@ -281,6 +286,9 @@ function parseStage(
   const requires = parseRequires(fields.requires);
   if (requires !== undefined && 'ok' in requires) return requires;
 
+  const permissions = parsePermissions(fields.permissions);
+  if (permissions !== undefined && 'ok' in permissions) return permissions;
+
   const common = {
     id,
     name: stringField(fields, 'name') ?? id,
@@ -289,6 +297,7 @@ function parseStage(
     ...(contributes === undefined ? {} : { contributes: contributes.contributes }),
     ...(provides === undefined ? {} : { provides: provides.provides }),
     ...(requires === undefined ? {} : { requires: requires.requires }),
+    ...(permissions === undefined ? {} : { permissions: permissions.permissions }),
   };
 
   return { ok: true, manifest: { ...common, ...entry } };
@@ -404,6 +413,46 @@ function parseBuiltin(
   }
 
   return { builtin: { loading, ...(reason === undefined ? {} : { reason }) } };
+}
+
+/**
+ * Разбирает `permissions` — права, которые плагин просит.
+ *
+ * Повтор — отказ по той же причине, что у `provides`: второе упоминание не значит ничего,
+ * а означает почти наверняка, что автор правил список невнимательно.
+ */
+function parsePermissions(
+  raw: unknown
+):
+  | { permissions: readonly PluginPermission[] }
+  | { ok: false; problem: PluginProblem }
+  | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw)) {
+    return problem('manifest-invalid', 'поле «permissions» должно быть массивом', {
+      file: PLUGIN_MANIFEST_FILE,
+    });
+  }
+
+  const parsed: PluginPermission[] = [];
+  for (const [index, item] of raw.entries()) {
+    const at = `permissions[${String(index)}]`;
+    if (typeof item !== 'string' || !isPluginPermission(item)) {
+      return problem(
+        'manifest-invalid',
+        `${at}: «${String(item)}» не право. Оболочка знает: ${PLUGIN_PERMISSIONS.join(', ')}`,
+        { file: PLUGIN_MANIFEST_FILE }
+      );
+    }
+    if (parsed.includes(item)) {
+      return problem('manifest-invalid', `${at}: право «${item}» названо дважды`, {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+    }
+    parsed.push(item);
+  }
+
+  return { permissions: parsed };
 }
 
 /**

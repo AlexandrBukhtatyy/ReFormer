@@ -18,8 +18,9 @@
  *
  * ## Что осталось композиции и чего нет ни у кого
  *
- * `save` — единственная операция, выносящая написанное наружу, и отдать её службой нельзя
- * без политики прав (см. `shell/boot/ports/workspace-save`).
+ * `save` — единственная операция, выносящая написанное наружу, и до появления политики прав
+ * отдать её службой было нельзя. Политика появилась: служба привилегированная, право
+ * `workspace.save` объявлено манифестом плагина и подтверждается человеком.
  *
  * `local` и `remove` не заполняются ВООБЩЕ, и это прежний осознанный отказ, а не потеря
  * при переезде. Постоянного хранилища у плагинов пока нет — `ctx.storage` живёт памятью
@@ -30,6 +31,7 @@
  * @module plugins/templates/workspace
  */
 
+import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import type { KitDescriptor } from '@/lib/kits/types';
 import {
@@ -77,7 +79,12 @@ export const ModulePrinterCapability = defineCapability<ModulePrinterService>({
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
 /** То, чему в возможностях места пока нет. */
-export type TemplatesGaps = Pick<TemplatesHost, 'save'>;
+/**
+ * Дыр у шаблонов не осталось: `save` стал привилегированной службой. Тип сохранён пустым
+ * намеренно — параметр `gaps` есть у обоих плагинов, и убирать его в одном из двух значило бы
+ * развести их формы ради одной строки.
+ */
+export type TemplatesGaps = Partial<Pick<TemplatesHost, never>>;
 
 /**
  * Печатник поверх возможности: спрашивает её на каждую печать.
@@ -140,6 +147,16 @@ export function templatesWorkspace(ctx: PluginContext, gaps: TemplatesGaps = {})
     catalog: () => kit()?.catalog() ?? NO_CATALOG,
     kit: (): KitDescriptor | null => kit()?.descriptor() ?? null,
     onDidChangeKit: (cb: () => void): Disposable => kit()?.onDidChange(cb) ?? { dispose: () => {} },
+
+    /**
+     * Сохранение — ПРИВИЛЕГИРОВАННАЯ служба, и спрашивается она на каждый вызов.
+     *
+     * `get`, а не `require`, и не разовый захват в замыкание: право может быть не подтверждено
+     * (тогда службы нет вовсе), а подтверждено — позже, чем собрана рабочая область. Отказ
+     * сохранения — названная деградация: файлы остаются в рабочей копии, и это ровно то же
+     * поведение, что было у плагина без порта.
+     */
+    save: async (ids) => (await ctx.services.get(WorkspaceSaveServiceToken)?.save(ids)) ?? false,
 
     ...gaps,
   };
