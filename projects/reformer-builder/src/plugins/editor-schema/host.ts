@@ -193,8 +193,6 @@ export interface LiveSurfaceContext {
   onDidChangeSelection(cb: () => void): Disposable;
   /** Обратная связь хит-теста поверхности: она сообщает, куда ткнули. */
   select(ids: readonly NodeId[]): void;
-  /** Находки сборки — уже сведёнными строками: словарь превью встраивающему не принадлежит. */
-  report?(messages: readonly string[]): void;
 }
 
 /**

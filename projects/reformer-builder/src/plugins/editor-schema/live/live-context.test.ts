@@ -24,15 +24,13 @@ function state(overrides: Partial<SchemaEditorState> = {}): SchemaEditorState {
 
 function harness(options: { accepts?: boolean } = {}) {
   const chosen: (readonly NodeId[])[] = [];
-  const problems: string[][] = [];
   const initial = state();
   const ctx = createLiveContext({
     initial,
     accepts: () => options.accepts ?? true,
     onSelect: (ids) => chosen.push(ids),
-    onProblems: (messages) => problems.push([...messages]),
   });
-  return { ctx, chosen, problems, initial };
+  return { ctx, chosen, initial };
 }
 
 describe('createLiveContext', () => {
@@ -94,12 +92,6 @@ describe('createLiveContext', () => {
     ctx.select(['a1b2c3d4']);
     // Клик по чекбоксу переключает чекбокс; выбор узла — это Alt+клик, и ловит его сам вид.
     expect(chosen).toEqual([]);
-  });
-
-  it('находки сборки доходят строками', () => {
-    const { ctx, problems } = harness();
-    ctx.report?.(['схема не разобралась']);
-    expect(problems).toEqual([['схема не разобралась']]);
   });
 
   it('отписка перестаёт уведомлять', () => {

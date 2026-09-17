@@ -237,7 +237,7 @@ describe('живой вид', () => {
     }
   });
 
-  it('находки валидатора видны в форме: контур на узле и строка в полосе', async () => {
+  it('находки валидатора видны в форме контуром на узле', async () => {
     const fixture = mount({
       problemsOf: (model) => {
         const id = indexNodes(model).idAt(['root', 'componentProps', 'steps', 0]);
@@ -259,29 +259,14 @@ describe('живой вид', () => {
       });
       const target = fixture.idAt(['root', 'componentProps', 'steps', 0]);
 
-      // Полоса называет находку — перевод в тесте тождественный, поэтому виден код.
-      await vi.waitFor(() => {
-        expect(document.querySelector('[data-testid="live-problems"]')?.textContent).toContain(
-          'schema.unknown-component'
-        );
-      });
       // Контур — правилом по классу-токену узла, цветом ошибки: DOM формы не тронут.
-      const css = [...document.querySelectorAll('style')]
-        .map((style) => style.textContent ?? '')
-        .join('\n');
-      expect(css).toMatch(new RegExp(`${NODE_CLASS_PREFIX}${target}[^\\n]*--color-destructive`));
-    } finally {
-      fixture.unmount();
-    }
-  });
-
-  it('без находок полосы нет — высота принадлежит форме', async () => {
-    const fixture = mount();
-    try {
+      // Списком находки здесь не повторяются: их целиком показывает панель проблем.
       await vi.waitFor(() => {
-        expect(fixture.live.mounts()).toBe(1);
+        const css = [...document.querySelectorAll('style')]
+          .map((style) => style.textContent ?? '')
+          .join('\n');
+        expect(css).toMatch(new RegExp(`${NODE_CLASS_PREFIX}${target}[^\\n]*--color-destructive`));
       });
-      expect(document.querySelector('[data-testid="live-problems"]')).toBeNull();
     } finally {
       fixture.unmount();
     }

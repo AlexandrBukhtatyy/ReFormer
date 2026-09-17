@@ -197,29 +197,18 @@ describe('контекст, который получает поверхност
     expect(surface.seen()?.values()).toEqual({ loanType: 'ипотека' });
   });
 
-  it('находки уходят и в общий свод, и во встраивающего', () => {
+  it('находки уходят в общий свод и только туда', () => {
     const surface = fakeSurface('runtime');
     const { port, sessions } = harness([surface]);
-    const messages: string[] = [];
-    port.mount(
-      DOC,
-      ELEMENT,
-      liveContext({
-        report: (next) => {
-          messages.push(...next);
-        },
-      })
-    );
+    port.mount(DOC, ELEMENT, liveContext());
     surface.seen()?.report('runtime', [
       { file: '', phase: 'render', message: 'без файла' },
       { file: 'model.ts', phase: 'evaluate', message: 'с файлом', resource: 'fake:form/model.ts' },
     ]);
-    // Состояние документа держит все находки — оттуда превью кладёт их в свод диагностик.
+    // Состояние документа держит все находки — оттуда превью кладёт их в свод диагностик,
+    // а свод целиком показывает панель проблем. Второго канала, к встраивающему, нет:
+    // живой вид рисует находки контуром на узле, а списком их не повторяет.
     expect(sessions.storeFor(DOC).get().problems).toHaveLength(2);
-    // Встраивающему строкой уходит только чужой файл: находку самого документа он прочтёт
-    // из свода рядом с находками валидаторов, и вторая копия стояла бы рядом с первой.
-    // Строкой, а не кодом, потому что словарь превью ему не принадлежит.
-    expect(messages).toEqual(['model.ts: с файлом']);
   });
 
   it('клик по форме доходит до редактора схемы, а не в состояние превью', () => {

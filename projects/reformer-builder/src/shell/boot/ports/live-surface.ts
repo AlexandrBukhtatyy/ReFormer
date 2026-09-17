@@ -18,8 +18,8 @@
  *
  * ## Что достраивается, а что приходит от редактора
  *
- * От редактора — схема, выделение и приёмник находок: схему он берёт из МОДЕЛИ, а не из буфера
- * (буфер перерисовывается с задержкой, пока в текстовом редакторе печатают), и выделение у него
+ * От редактора — схема и выделение: схему он берёт из МОДЕЛИ, а не из буфера (буфер
+ * перерисовывается с задержкой, пока в текстовом редакторе печатают), и выделение у него
  * своё. Отсюда — адрес документа, мок-данные, хранилище введённых значений и имя источника
  * находок: всё это принадлежит превью и редактору не видно.
  *
@@ -37,7 +37,6 @@ import {
   fallbackMessage,
   PreviewSurfacePoint,
   PREVIEW_PLUGIN_ID,
-  problemResource,
   surfaceTitle,
   type PreviewContext,
   type PreviewDocument,
@@ -155,15 +154,10 @@ export function createLiveSurfacePort(deps: LiveSurfaceDeps): LivePreviewPort {
         },
         report: (source: string, problems: readonly PreviewProblem[]) => {
           // В состояние документа — оттуда превью кладёт находки в общий свод диагностик под
-          // адресом файла, где чинить. Встраивающему строкой уходят только находки ЧУЖИХ
-          // файлов (сайдкаров): находки самого документа он читает из свода вместе с находками
-          // валидаторов, и вторая копия стояла бы рядом с первой.
+          // адресом файла, где чинить, и оттуда их целиком показывает панель проблем. Своего
+          // канала к встраивающему здесь нет: живой вид рисует находки контуром на узле, а
+          // списком не повторяет — вторая копия стояла бы рядом с первой.
           store.report(source, problems);
-          ctx.report?.(
-            problems
-              .filter((problem) => problemResource(doc.id, problem) !== doc.id)
-              .map(describeProblem)
-          );
         },
       };
 
@@ -183,9 +177,4 @@ export function createLiveSurfacePort(deps: LiveSurfaceDeps): LivePreviewPort {
       return extensions.observe(PreviewSurfacePoint, cb);
     },
   };
-}
-
-/** Находка одной строкой: имя файла имеет смысл только когда оно есть. */
-function describeProblem(problem: PreviewProblem): string {
-  return problem.file === '' ? problem.message : `${problem.file}: ${problem.message}`;
 }

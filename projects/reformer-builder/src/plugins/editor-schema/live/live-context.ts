@@ -51,8 +51,6 @@ export interface LiveContextDeps {
   readonly accepts: () => boolean;
   /** Куда уходит выбор, когда его принимают. */
   readonly onSelect: (ids: readonly NodeId[]) => void;
-  /** Находки сборки — уже сведёнными строками. */
-  readonly onProblems?: (messages: readonly string[]) => void;
 }
 
 export function createLiveContext(deps: LiveContextDeps): LiveContextHandle {
@@ -90,10 +88,6 @@ export function createLiveContext(deps: LiveContextDeps): LiveContextHandle {
     select(ids: readonly NodeId[]): void {
       if (!deps.accepts()) return;
       deps.onSelect(ids);
-    },
-
-    report(messages: readonly string[]): void {
-      deps.onProblems?.(messages);
     },
 
     push(next: SchemaEditorState): void {
