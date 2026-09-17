@@ -14,7 +14,11 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import { buildPlugin, type BuildResult } from './commands/build.js';
 import { createPlugin } from './commands/create.js';
+import { startDev, type DevSession } from './commands/dev.js';
+import { formatFinding, type Finding } from './commands/findings.js';
+import { packPlugin } from './commands/pack.js';
 import { validatePlugin } from './commands/validate.js';
 
 export interface CliIo {
@@ -22,6 +26,11 @@ export interface CliIo {
   readonly err: (line: string) => void;
   /** Каталог, относительно которого читаются пути аргументов. */
   readonly cwd: string;
+  /**
+   * Чем ждать конца `dev`: сеанс наблюдения живёт, пока его не закроют. Процесс ждёт сигнала,
+   * тест — закрывает сразу после первой сборки.
+   */
+  readonly waitDev?: (session: DevSession) => Promise<void>;
 }
 
 const USAGE = `Использование: reformer-plugin <команда> [аргументы]
@@ -29,6 +38,9 @@ const USAGE = `Использование: reformer-plugin <команда> [а�
 Команды:
   create <каталог> [--id <id>] [--name <имя>]  новый плагин из шаблона
   validate [каталог]                           проверить плагин правилами оболочки
+  build [каталог] [--out <каталог>]            собрать в каталог, который оболочка грузит как есть
+  dev [каталог] --project <каталог проекта>    собирать в .ui_builder/plugins/<id>/ на каждое сохранение
+  pack [каталог] [--out <каталог>]             собрать и упаковать в npm-архив
 
 Параметры:
   -h, --help     эта справка
@@ -51,6 +63,8 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
       options: {
         id: { type: 'string' },
         name: { type: 'string' },
+        out: { type: 'string' },
+        project: { type: 'string' },
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'v' },
       },
@@ -77,6 +91,35 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
   }
 
   const path = (value: string): string => resolve(io.cwd, value);
+  const printFindings = (findings: readonly Finding[]): void => {
+    for (const finding of findings) io.err(formatFinding(finding));
+  };
+  /** Печатает отказы или заметки сборки; `true` — сборка удалась. */
+  const printBuild = (result: BuildResult): result is Extract<BuildResult, { ok: true }> => {
+    if (!result.ok) {
+      printFindings(result.findings);
+      return false;
+    }
+    for (const notice of result.notices) io.out(`! ${notice}`);
+    return true;
+  };
+
+  // Параметры принимаются только теми командами, которым они что-то значат: молча
+  // проигнорированный `--out` у validate хуже отказа.
+  const accepted: Record<string, readonly string[]> = {
+    create: ['id', 'name'],
+    validate: [],
+    build: ['out'],
+    dev: ['project'],
+    pack: ['out'],
+  };
+  const extra = Object.keys(values).filter(
+    (key) => key !== 'help' && key !== 'version' && !(accepted[command] ?? []).includes(key)
+  );
+  if (command in accepted && extra.length > 0) {
+    io.err(`${command}: параметры ${extra.map((key) => `--${key}`).join(', ')} не принимаются`);
+    return 2;
+  }
 
   switch (command) {
     case 'create': {
@@ -99,27 +142,67 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
       return 0;
     }
     case 'validate': {
-      if (values.id !== undefined || values.name !== undefined) {
-        io.err('validate: параметры --id и --name не принимаются');
-        return 2;
-      }
       const result = await validatePlugin(path(target ?? '.'));
       if (result.ok) {
         io.out(`✓ ${result.manifest.id} ${result.manifest.version}: оболочка его примет`);
         return 0;
       }
-      for (const finding of result.findings) {
-        io.err(
-          `✗ ${finding.file ?? ''}${finding.file === undefined ? '' : ': '}${finding.message}`
-        );
-      }
+      printFindings(result.findings);
       return 1;
+    }
+    case 'build': {
+      const result = await buildPlugin({
+        dir: path(target ?? '.'),
+        outDir: values.out === undefined ? undefined : path(values.out),
+      });
+      if (!printBuild(result)) return 1;
+      io.out(`✓ ${result.manifest.id} ${result.manifest.version} собран в ${result.outDir}`);
+      return 0;
+    }
+    case 'dev': {
+      if (values.project === undefined) {
+        io.err('dev: не указан --project — корень проекта, в котором плагин будет подхвачен');
+        return 2;
+      }
+      const session = startDev({
+        dir: path(target ?? '.'),
+        project: path(values.project),
+        onBuild: (result) => {
+          if (printBuild(result)) {
+            io.out(`✓ ${new Date().toLocaleTimeString()} собран в ${result.outDir}`);
+          }
+        },
+      });
+      await session.ready;
+      await (io.waitDev ?? waitForSignal)(session);
+      session.close();
+      return 0;
+    }
+    case 'pack': {
+      const result = await packPlugin({
+        dir: path(target ?? '.'),
+        destination: values.out === undefined ? undefined : path(values.out),
+      });
+      if (!result.ok) {
+        printFindings(result.findings);
+        return 1;
+      }
+      for (const notice of result.notices) io.out(`! ${notice}`);
+      io.out(`✓ ${result.file}`);
+      return 0;
     }
     default:
       io.err(`неизвестная команда «${command}»`);
       io.err(USAGE);
       return 2;
   }
+}
+
+/** Ждёт Ctrl+C: `dev` работает, пока его не остановят. */
+function waitForSignal(): Promise<void> {
+  return new Promise((done) => {
+    process.once('SIGINT', () => done());
+  });
 }
 
 /** Запущен ли файл как программа, а не импортирован (тестом). Через ссылку npm — тоже. */

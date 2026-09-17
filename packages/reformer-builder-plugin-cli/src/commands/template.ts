@@ -68,6 +68,8 @@ export function pluginTemplate(input: TemplateInput): TemplateFiles {
       type: 'module',
       scripts: {
         validate: 'reformer-plugin validate',
+        build: 'reformer-plugin build',
+        pack: 'reformer-plugin pack',
         test: 'vitest run',
       },
       devDependencies: {

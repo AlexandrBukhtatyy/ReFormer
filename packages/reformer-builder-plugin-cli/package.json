@@ -1,7 +1,7 @@
 {
   "name": "@reformer/builder-plugin-cli",
   "version": "1.0.0",
-  "description": "Command-line tools for ReFormer Builder plugin authors: scaffold and validate a plugin",
+  "description": "Command-line tools for ReFormer Builder plugin authors: scaffold, validate, build, develop and pack a plugin",
   "type": "module",
   "bin": {
     "reformer-plugin": "./dist/cli.js"
@@ -25,7 +25,7 @@
     "cli"
   ],
   "engines": {
-    "node": ">=18.3.0"
+    "node": ">=20.0.0"
   },
   "author": "Alexandr Bukhtatyy",
   "license": "MIT",
@@ -47,7 +47,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@reformer/builder-plugin-api": "*"
+    "@reformer/builder-plugin-api": "*",
+    "esbuild": "^0.27.1"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

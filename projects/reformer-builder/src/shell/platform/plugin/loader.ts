@@ -49,6 +49,7 @@ import {
   isPluginCodeFile,
   parseMessagesBundle,
   parsePluginManifest,
+  pluginFromExports,
   PLUGIN_CATALOG_DIR,
   PLUGIN_CODE_EXTENSIONS,
   PLUGIN_FILE_LIMIT,
@@ -153,32 +154,6 @@ const fail = (
   ok: false,
   problem: { code, message, file: extra?.file, cause: extra?.cause },
 });
-
-/** Похоже ли значение на плагин. Больше рантайму знать о нём нечего. */
-function asPlugin(value: unknown): Plugin | undefined {
-  if (typeof value !== 'object' || value === null) return undefined;
-  const candidate = value as { id?: unknown; activate?: unknown };
-  if (typeof candidate.id !== 'string' || candidate.id.trim() === '') return undefined;
-  if (typeof candidate.activate !== 'function') return undefined;
-  return value as Plugin;
-}
-
-/**
- * Достаёт плагин из экспортов точки входа.
- *
- * Две формы, потому что их две в жизни: `module.exports = definePlugin(...)` у собранного
- * `main.js` и `export default definePlugin(...)` у `main.ts`, который транспилируется
- * в `exports.default`. Требовать одну из них значило бы отвергать половину рабочих плагинов
- * ради формальности.
- */
-function pluginFromExports(exports: unknown): Plugin | undefined {
-  const direct = asPlugin(exports);
-  if (direct !== undefined) return direct;
-  if (typeof exports === 'object' && exports !== null) {
-    return asPlugin((exports as { default?: unknown }).default);
-  }
-  return undefined;
-}
 
 /**
  * Точка входа среди файлов плагина.

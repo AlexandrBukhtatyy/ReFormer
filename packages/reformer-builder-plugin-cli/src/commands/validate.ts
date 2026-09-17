@@ -32,20 +32,13 @@ import {
   parseMessagesBundle,
   parsePluginSourceManifest,
   PLUGIN_MANIFEST_FILE,
-  type PluginProblem,
   type PluginSourceManifest,
 } from '@reformer/builder-plugin-api/tooling';
 
-/**
- * Замечание валидатора.
- *
- * Отказы оболочки — её же кодами ({@link PluginProblem}): автор ищет их в документации оболочки,
- * и второй словарь кодов для тех же бед ему бы только мешал. Свой код у CLI один —
- * для того, чего оболочка не проверяет.
- */
-export type ValidationFinding =
-  | PluginProblem
-  | { readonly code: 'package-version'; readonly message: string; readonly file: string };
+import type { Finding } from './findings.js';
+
+/** Замечание валидатора; общий тип всех команд — `./findings`. */
+export type ValidationFinding = Finding;
 
 export type ValidationResult =
   | { readonly ok: true; readonly manifest: PluginSourceManifest }

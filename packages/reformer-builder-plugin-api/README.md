@@ -134,6 +134,8 @@ npm install --save-dev @reformer/builder-plugin-api
 - **раскладка каталога и словари** (`PLUGIN_CATALOG_DIR`, `PLUGIN_FILE_LIMIT`,
   `isPluginCodeFile`, `parseMessagesBundle`) — потолок файлов, расширения кода и форма
   `locales/*.json`, по которым загрузчик оболочки отказывает плагину;
+- **узнавание плагина в экспортах** (`pluginFromExports`) — то же, что у загрузчика: сборка
+  проверяет им собранный `main.js`, чтобы не выпустить то, что оболочка отвергнет с `not-a-plugin`;
 - **манифест исходников** (`parsePluginSourceManifest`) — тот же разбор для репозитория автора
   до сборки. Отличий два: имя каталога с `id` не сверяется, `version` обязательна.
 
