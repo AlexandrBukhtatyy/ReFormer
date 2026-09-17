@@ -32,7 +32,9 @@ describe('нужен ли форме шим визарда', () => {
   it('визард в схеме и адаптер у кита — шим печатается', () => {
     const shim = wizardShimOf(ctxOf({ schema: wizardSchema() }));
     expect(shim?.symbol).toBe('FormWizard');
-    expect(shim?.importFrom).toBe('@reformer/ui-kit/form-wizard');
+    // Корень, а не подпуть: символ лежит в бочке кита, а подпути кита оболочка
+    // в превью не отдаёт — см. дескриптор кита и тест реестра модулей.
+    expect(shim?.importFrom).toBe('@reformer/ui-kit');
   });
 
   it('чужой кит даёт свой символ и свой subpath', () => {

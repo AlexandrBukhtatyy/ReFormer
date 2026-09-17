@@ -14,6 +14,9 @@ import {
 import type { BuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import * as sdk from '@reformer/builder-plugin-api';
 import { PLUGIN_RUNTIME_MODULES } from '@reformer/builder-plugin-api/internal';
+import { builtinKit, wizardSchema } from '@/lib/codegen/__fixtures__/kit';
+import { prepare } from '@/lib/codegen/context';
+import { wizardShimOf } from '@/lib/codegen/view/wizard';
 import { createPluginModules, PLUGIN_MODULE_SPECIFIERS } from './plugin-modules';
 
 describe('модули, доступные плагину каталога', () => {
@@ -58,6 +61,19 @@ describe('модули, доступные плагину каталога', () 
     // и падающий на спецификаторе, которого оболочка не подставляет. Сверка в обе стороны:
     // разойтись молча списку и реестру нечем, кроме этого теста.
     expect([...PLUGIN_MODULE_SPECIFIERS].sort()).toEqual([...PLUGIN_RUNTIME_MODULES].sort());
+  });
+
+  it('спецификатор, который кодоген печатает для встроенного кита, реестр отдаёт', () => {
+    // Отказ, который это удерживает, уже случался: адаптер визарда объявлял подпуть, шим
+    // печатал `import … from '@reformer/ui-kit/form-wizard'`, и выгруженная форма не
+    // поднималась в превью — подпути кита реестр не отдаёт намеренно (см. шапку модуля).
+    // Снимок текста файла такое не ловит: он сверяет строку с собой же.
+    const shim = wizardShimOf(
+      prepare({ schema: wizardSchema(), formName: 'Заявка', kit: builtinKit() })
+    );
+
+    expect(shim).not.toBeNull();
+    expect(PLUGIN_MODULE_SPECIFIERS).toContain(shim?.importFrom);
   });
 
   it('React, его jsx-runtime и react-dom — те же, что у оболочки', () => {

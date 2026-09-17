@@ -225,7 +225,14 @@ export const LEGACY_KIT: Required<
   label: 'ReFormer UI Kit',
   package: '@reformer/ui-kit',
   infra: { fieldWrapper: 'FormField', asyncBoundary: 'AsyncBoundary', list: 'List' },
-  adapters: { wizard: { symbol: 'FormWizard', subpath: 'form-wizard' }, step: null },
+  // `subpath` у адаптера НЕТ, и это не упущение: `FormWizard` лежит в бочке кита
+  // (`export * from './components/form-wizard'`), а `subpath` объявляют тому, чего в бочке нет.
+  // Пока здесь стоял `form-wizard`, шим печатал `import … from '@reformer/ui-kit/form-wizard'`,
+  // и выгруженная форма не поднималась в превью: подпути кита реестр модулей оболочки
+  // не отдаёт намеренно (`shell/boot/plugin-modules` — бочка неполна, и подпуть, вернувший
+  // бочку, дал бы `undefined` вместо компонента). Удерживает это тест реестра: спецификаторы,
+  // которые кодоген печатает для этого кита, обязаны быть среди отдаваемых оболочкой.
+  adapters: { wizard: { symbol: 'FormWizard' }, step: null },
   palette: { categoryByName: CATEGORY_BY_NAME },
   styles: { mode: 'tokens' },
   codegen: { importSpecifier: '@reformer/ui-kit', needsShim: [...NEEDS_SHIM] },
