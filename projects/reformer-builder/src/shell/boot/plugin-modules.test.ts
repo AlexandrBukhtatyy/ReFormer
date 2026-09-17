@@ -228,7 +228,15 @@ describe('модули, доступные коду формы', () => {
   it('после warm отдаёт ленивый кит и подпуть cdk, которого нет в его бочке', async () => {
     const modules = createPluginModules();
 
-    await modules.warm();
+    await modules.warm(
+      new Map([
+        [
+          'form/registry.ts',
+          `import { Button } from '@reformer/ui-kit';\n` +
+            `import { Step } from '@reformer/cdk/form-wizard';\n`,
+        ],
+      ])
+    );
     const registry = modules.modules.registry;
 
     expect(registry.resolve('@reformer/ui-kit', 'form/registry.ts')).toBeDefined();
@@ -236,6 +244,53 @@ describe('модули, доступные коду формы', () => {
     // подпути перечислены поимённо, а не сведены к «любой подпуть = бочка».
     const wizard = registry.resolve('@reformer/cdk/form-wizard', 'form/registry.ts');
     expect((wizard as Record<string, unknown>).Step).toBeDefined();
+
+    modules.dispose();
+  });
+
+  it('греет только то, что форма импортирует: остальное остаётся холодным', async () => {
+    // Иначе форма с одним текстовым полем платила бы за `recharts`, `cmdk` и прочие
+    // зависимости подпутей кита, которых в ней нет. Ленивыми они объявлены ровно за этим.
+    const modules = createPluginModules();
+
+    await modules.warm(
+      new Map([
+        ['form/registry.ts', `import { ComboboxMultiField } from '@reformer/ui-kit/combobox';`],
+      ])
+    );
+    const registry = modules.modules.registry;
+
+    expect(registry.resolve('@reformer/ui-kit/combobox', 'form/registry.ts')).toBeDefined();
+    // Непрогретый отвечает отказом `cold`, а не `undefined`: «не зарегистрирован» и «не прогрет»
+    // чинятся в разных местах, поэтому здесь видно именно второе.
+    for (const specifier of ['@reformer/ui-kit/chart', '@reformer/cdk']) {
+      expect(() => registry.resolve(specifier, 'form/registry.ts'), specifier).toThrowError(
+        ModuleRegistryError
+      );
+    }
+
+    modules.dispose();
+  });
+
+  it('подпуть, целиком лежащий в бочке, отдаётся ею — тем же объектом', async () => {
+    const modules = createPluginModules();
+
+    await modules.warm(
+      new Map([
+        [
+          'form/registry.ts',
+          `import { Button } from '@reformer/ui-kit';\n` +
+            `import { FormWizard } from '@reformer/ui-kit/form-wizard';\n`,
+        ],
+      ])
+    );
+    const registry = modules.modules.registry;
+
+    const viaSubpath = registry.resolve('@reformer/ui-kit/form-wizard', 'form/registry.ts');
+    expect((viaSubpath as Record<string, unknown>).FormWizard).toBeDefined();
+    // Тот же объект, что и корень: алиас, а не вторая загрузка кита. Слоты реестра при этом
+    // разные — прогрев одного не греет другой, — и это правильно: греется то, что импортируют.
+    expect(viaSubpath).toBe(registry.resolve('@reformer/ui-kit', 'form/registry.ts'));
 
     modules.dispose();
   });

@@ -86,14 +86,20 @@ export interface ModuleRegistryWarmup {
   /** Объявленные, но ещё не прогретые спецификаторы. Пусто ⇔ `resolve` не откажет по `cold`. */
   cold(): readonly string[];
   /**
-   * Разрешает все ленивые модули. Идемпотентна: параллельные вызовы получают один промис,
-   * а после успеха прогревать уже нечего.
+   * Разрешает ленивые модули — названные, а без аргумента все.
    *
-   * Отказ НЕ запоминается — иначе одна сетевая икота навсегда лишила бы человека кита,
-   * и лечилась бы только перезагрузкой страницы (тот же довод, что у ленивого namespace
-   * в `app/preview-host`).
+   * Набор появился вместе с подпутями кита: их 77, и за пятнадцатью стоят свои зависимости
+   * (`recharts`, `cmdk`, `embla-carousel-react`). Греть их «на всякий случай» значило бы
+   * заставить каждую форму платить за компоненты, которых в ней нет, — а ленивыми они
+   * объявлены ровно затем, чтобы этого не было. Кого именно греть, знает тот, кто держит
+   * исходники: их импорты и есть ответ (`./specifiers`).
+   *
+   * Идемпотентна: параллельные вызовы об одном модуле получают один промис, а после успеха
+   * прогревать уже нечего. Отказ НЕ запоминается — иначе одна сетевая икота навсегда лишила бы
+   * человека кита и лечилась бы только перезагрузкой страницы (тот же довод, что у ленивого
+   * namespace в `app/preview-host`).
    */
-  warm(): Promise<void>;
+  warm(specifiers?: readonly string[]): Promise<void>;
 }
 
 /** Реализация реестра в Host: контракт плюс диагностика плюс прогрев. */
@@ -247,11 +253,45 @@ export function createModuleRegistry(
     );
   }
 
-  /** Промис текущего прогрева. Сбрасывается на отказе — см. {@link ModuleRegistryWarmup.warm}. */
-  let warming: Promise<void> | undefined;
+  /**
+   * Идущие прогревы — ПО МОДУЛЯМ, а не один на реестр.
+   *
+   * Прогрев выборочный (см. {@link ModuleRegistryWarmup.warm}), и общий промис означал бы,
+   * что второй вызов с другим набором дожидается чужой загрузки и считает своё готовым.
+   * Запись снимается на отказе: одна сетевая икота не должна навсегда лишать человека кита.
+   */
+  const warming = new Map<string, Promise<void>>();
 
   const coldEntries = (): [string, Entry][] =>
     [...entries].filter(([, entry]) => entry.load !== undefined);
+
+  /** Грузит ОДИН ленивый модуль, не более одного раза за успех. */
+  function warmOne(specifier: string, entry: Entry): Promise<void> {
+    const started = warming.get(specifier);
+    if (started !== undefined) return started;
+
+    const load = entry.load;
+    if (load === undefined) return Promise.resolve();
+
+    const promise = load()
+      .then((exports) => {
+        entry.exports = exports;
+        // Метка снимается последней: пока она стоит, `resolve` честно отвечает «не прогрет».
+        entry.load = undefined;
+      })
+      .catch((error: unknown) => {
+        warming.delete(specifier);
+        throw new ModuleRegistryError(
+          'cold',
+          specifier,
+          `ленивый модуль «${specifier}» не загрузился: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      });
+    warming.set(specifier, promise);
+    return promise;
+  }
 
   return {
     resolve(specifier, fromPath) {
@@ -335,34 +375,15 @@ export function createModuleRegistry(
         .sort();
     },
 
-    warm() {
-      const pending = coldEntries();
+    warm(specifiers) {
+      const pending =
+        specifiers === undefined
+          ? coldEntries()
+          : coldEntries().filter(([specifier]) => specifiers.includes(specifier));
       if (pending.length === 0) return Promise.resolve();
-      warming ??= Promise.all(
-        pending.map(async ([specifier, entry]) => {
-          const load = entry.load;
-          if (load === undefined) return;
-          try {
-            entry.exports = await load();
-          } catch (error) {
-            throw new ModuleRegistryError(
-              'cold',
-              specifier,
-              `ленивый модуль «${specifier}» не загрузился: ${
-                error instanceof Error ? error.message : String(error)
-              }`
-            );
-          }
-          // Снимаем метку последней: пока она стоит, `resolve` честно отвечает «не прогрет».
-          entry.load = undefined;
-        })
-      )
-        .then(() => undefined)
-        .catch((error: unknown) => {
-          warming = undefined;
-          throw error;
-        });
-      return warming;
+      return Promise.all(pending.map(([specifier, entry]) => warmOne(specifier, entry))).then(
+        () => undefined
+      );
     },
   };
 }

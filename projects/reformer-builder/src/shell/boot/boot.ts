@@ -574,12 +574,16 @@ export function boot(options: BootOptions): BuilderApp {
     // тянут кит почти всегда (его печатает `registry.ts`), а превью грузит кит и без того —
     // ленивым namespace. Плагину каталога кит обычно не нужен, поэтому ему прогрев ленивых
     // не достаётся.
+    //
+    // Шире — но не «всё подряд»: греется то, что импортируют САМИ файлы формы. Иначе каждая
+    // форма платила бы за пятнадцать подпутей кита с их зависимостями (`recharts`, `cmdk`),
+    // которых в ней нет.
     modules: {
       load: pluginModules.modules.load,
       prepare: async (files) => {
         const [primed] = await Promise.all([
           pluginModules.prepareCached(files),
-          pluginModules.warm(),
+          pluginModules.warm(files),
         ]);
         return primed;
       },

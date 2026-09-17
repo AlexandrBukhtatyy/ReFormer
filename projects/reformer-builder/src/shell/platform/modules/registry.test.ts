@@ -222,6 +222,29 @@ describe('реестр модулей: ленивые встроенные', () 
     expect(calls).toBe(1);
   });
 
+  it('греет названное, а не всё: за неназванным могут стоять его зависимости', async () => {
+    const loaded: string[] = [];
+    const lazy = (name: string) =>
+      lazyBuiltin(async () => {
+        loaded.push(name);
+        return { name };
+      });
+    const registry = createModuleRegistry([
+      ['@reformer/ui-kit/combobox', lazy('combobox')],
+      ['@reformer/ui-kit/chart', lazy('chart')],
+    ]);
+
+    await registry.warm(['@reformer/ui-kit/combobox']);
+
+    expect(loaded).toEqual(['combobox']);
+    expect(registry.cold()).toEqual(['@reformer/ui-kit/chart']);
+    // Неназванный отвечает отказом `cold`, а не `undefined`: «не зарегистрирован» и «не прогрет»
+    // чинятся в разных местах.
+    expect(() => registry.resolve('@reformer/ui-kit/chart', 'form/registry.ts')).toThrowError(
+      ModuleRegistryError
+    );
+  });
+
   it('НЕ запоминает отказ: сетевая икота не должна лишать кита навсегда', async () => {
     let attempt = 0;
     const kit = { Button: 'кнопка' };

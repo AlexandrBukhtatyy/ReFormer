@@ -40,27 +40,25 @@
  * билдера отсутствует вовсе. Обоим — {@link lazyBuiltin}: обещание вместо значения, разрешаемое
  * в фазе прогрева, до линковки.
  *
- * ## Подпутей `@reformer/ui-kit/*` здесь нет, и это решение, а не пропуск
+ * ## Подпути перечисляются поимённо, и «плоского пакета» здесь нет
  *
  * Соблазн велик: объявить корень «плоским» и отдавать бочку на любой подпуть. Так делал v1.
- * Здесь это неверно и ломается ТИХО — бочка `@reformer/ui-kit` собрана из `export *` по 61 модулю
- * из 78, и семнадцати в ней нет (`combobox`, `date-picker`, `table`, `command`, `sonner`, …).
- * Подпуть вернул бы бочку, `import { DatePicker }` дал бы `undefined`, а рендерер нарисовал бы
- * пустоту вместо компонента — то есть ровно тот класс дефектов, ради которого реестр и заводился.
+ * Ломается это ТИХО — бочка `@reformer/ui-kit` собрана из `export *` не по всем модулям кита,
+ * и подпуть, вернувший бочку, отдал бы `undefined` вместо компонента, а рендерер нарисовал бы
+ * пустоту: ровно тот класс дефектов, ради которого реестр и заводился.
  *
  * У `@reformer/cdk` та же ловушка с другой стороны: подпуть БОГАЧЕ корня (`Step`, `Slot`,
  * `FormWizardPrev` есть в `./form-wizard`, но не в бочке), поэтому его подпути перечислены
  * поимённо — их шесть, и они закрыты полностью.
  *
- * Пока подпуть кита не зарегистрирован, отказ виден словами («модуль недоступен, доступны: …»),
- * а форма всё равно рисуется: реестр компонентов превью строится из каталога кита, и `registry.ts`
- * формы для этого не нужен.
+ * Подпути кита — все 77, списком в `./kit-modules`: там же объяснено, почему часть из них
+ * отдаётся бочкой, а часть своим чанком, и почему выбор между этими двумя способами сделан
+ * не на глаз, а проверяется тестом на настоящих модулях кита. До этого списка подпути кита
+ * не отдавались вовсе, и форма с `import { FormWizard } from '@reformer/ui-kit/form-wizard'`
+ * в билдере не поднималась, хотя у пользователя собиралась.
  *
- * Обход сайдкаров всех примеров `react-playground` (23 каталога) показывает, чего это стоит
- * сегодня: не покрыты `@reformer/ui-kit/form-wizard` (6 упоминаний), `/form-array` (3)
- * и `/combobox` (1) — против 64 у `@reformer/core` и 41 у корня кита. Задача на подпути кита
- * заведена отдельно; `axios` и `lucide-react` в том же обходе покрывать не надо вовсе —
- * это зависимости приложения, и отказ по ним честный.
+ * Не покрыты и покрыты не будут `axios` и `lucide-react` из тех же примеров: это зависимости
+ * приложения, а не оболочки, и отказ по ним честный.
  *
  * @module shell/boot/plugin-modules
  */
@@ -82,11 +80,13 @@ import * as rendererReact from '@reformer/renderer-react';
 import type { CompileCache, PrimedCompile } from '@/shell/platform/modules/compile-cache';
 import { createModuleLoader, type ModuleLoader } from '@/shell/platform/modules/loader';
 import { createModuleRegistry, lazyBuiltin } from '@/shell/platform/modules/registry';
+import { collectBareSpecifiers } from '@/shell/platform/modules/specifiers';
 import {
   createTypeScriptSupport,
   isTypeScriptFile,
   type TypeScriptSupport,
 } from '@/shell/platform/plugin/typescript-transpiler';
+import { KIT_SUBPATH_MODULES } from './kit-modules';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import * as sdk from '@reformer/builder-plugin-api';
 
@@ -133,6 +133,9 @@ const BUILTINS: readonly (readonly [string, unknown])[] = [
   ['@reformer/cdk/form-field', lazyBuiltin(() => import('@reformer/cdk/form-field'))],
   ['@reformer/cdk/form-wizard', lazyBuiltin(() => import('@reformer/cdk/form-wizard'))],
   ['@reformer/cdk/list', lazyBuiltin(() => import('@reformer/cdk/list'))],
+
+  // Подпути кита — списком в соседнем модуле: их 77, и здесь они утопили бы всё остальное.
+  ...KIT_SUBPATH_MODULES,
 ];
 
 /**
@@ -175,8 +178,14 @@ export interface PluginModules extends Disposable {
    * не нужен вовсе, а прогрев стоит настоящей загрузки чанка (измерено: +2 с на прогон одного
    * теста композиции в node). Разделение здесь и есть та точность, ради которой ленивость
    * заводилась: платит тот, кому нужно.
+   *
+   * Той же точности ради прогрев берёт ФАЙЛЫ: греются модули, которые они импортируют, а не
+   * все ленивые разом. С подпутями кита разница перестала быть косметической — за пятнадцатью
+   * из них стоят `recharts`, `cmdk`, `embla-carousel-react`, и форма с одним текстовым полем
+   * тянула бы их все. Без аргумента греет всё: так зовут тесты композиции, которым нужен
+   * заполненный реестр, а не экономия.
    */
-  warm(): Promise<void>;
+  warm(files?: ReadonlyMap<string, string>): Promise<void>;
   /** Поддержка TypeScript. Наружу — ради тестов композиции и диагностики. */
   readonly typescript: TypeScriptSupport;
 }
@@ -206,7 +215,9 @@ export function createPluginModules(options: PluginModulesOptions = {}): PluginM
     modules,
     typescript,
     prepare: (fileNames) => typescript.ensure(fileNames),
-    warm: () => registry.warm(),
+    // Файлы, а не список имён: у вызывающего они уже есть, а спецификаторы из них читаются
+    // одним проходом. Без файлов — прогрев всего: так зовут тесты композиции.
+    warm: (files) => registry.warm(files === undefined ? undefined : collectBareSpecifiers(files)),
 
     async prepareCached(files) {
       // Кэшируются только те файлы, которым нужен движок: для собранного `main.js` ключ
