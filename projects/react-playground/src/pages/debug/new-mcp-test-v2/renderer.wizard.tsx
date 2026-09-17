@@ -10,9 +10,9 @@
 import { useMemo, type ReactNode, type Ref } from 'react';
 
 import type { FormProxy } from '@reformer/core';
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 import type { FormWizardConfig, FormWizardHandle } from '@reformer/cdk/form-wizard';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 
 type StepNode<T> = RenderNode<T> & {
   componentProps?: { title?: string; icon?: string };

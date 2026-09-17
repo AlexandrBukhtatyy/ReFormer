@@ -3,9 +3,13 @@
 // Все 6 шагов inline (FC-bodies), массивы inline через FormArraySection. Schema-driven UI.
 import { useEffect, useMemo, type FC } from 'react';
 import { createCoreForm, useFormControlValue, type FormProxy } from '@reformer/core';
-import { FormField, Section } from '@reformer/ui-kit';
-import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
-import { FormArraySection } from '@reformer/ui-kit/form-array';
+import {
+  FormField,
+  Section,
+  FormWizard,
+  type FormWizardStep,
+  FormArraySection,
+} from '@reformer/ui-kit';
 
 import { creditBehavior } from './form.behavior';
 import { buildCreditSchema } from './form.schema';

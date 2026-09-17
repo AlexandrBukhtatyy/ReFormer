@@ -27,8 +27,7 @@ import {
 } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
-import { AsyncBoundary } from '@reformer/ui-kit';
-import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+import { AsyncBoundary, FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 import { ValidationMessagesProvider } from '@reformer/cdk';
 import { fileUploadMessages } from './constants/file-upload-messages';

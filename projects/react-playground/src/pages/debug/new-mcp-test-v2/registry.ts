@@ -17,8 +17,8 @@ import {
   Section,
   SelectField,
   TextareaField,
+  FormArray,
 } from '@reformer/ui-kit';
-import { FormArray } from '@reformer/ui-kit/form-array';
 
 import type { Dictionaries } from './api';
 import { CAR_BRANDS, CURRENT_YEAR_PLUS_ONE, REGIONS } from './data-sources';

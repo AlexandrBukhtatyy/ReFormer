@@ -1,7 +1,7 @@
 /**
  * Compatibility shim for complex-multy-step-form-renderer pages.
  *
- * Real implementation lives in `@reformer/ui-kit/form-wizard` as `FormWizard`
+ * Real implementation lives in `@reformer/ui-kit` as `FormWizard`
  * (Path C unified API — `step.body: FC | ReactNode | RenderNode<T>`).
  *
  * Old consumers pass `steps[]` as RenderNode-shaped entries:
@@ -21,8 +21,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type ReactNode } from 'react';
-import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormWizardConfig, FormWizardHandle } from '@reformer/cdk/form-wizard';
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 import type { FormProxy } from '@reformer/core';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 

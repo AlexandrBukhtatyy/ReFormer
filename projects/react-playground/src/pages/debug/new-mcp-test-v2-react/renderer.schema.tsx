@@ -21,9 +21,9 @@ import {
   Section,
   Select,
   Textarea,
+  FormWizard,
+  FormArray,
 } from '@reformer/ui-kit';
-import { FormArray } from '@reformer/ui-kit/form-array';
-import { FormWizard } from '@reformer/ui-kit/form-wizard';
 
 import {
   EDUCATION_OPTIONS,

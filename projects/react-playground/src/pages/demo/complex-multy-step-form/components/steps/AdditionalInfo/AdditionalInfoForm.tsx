@@ -11,11 +11,10 @@
 
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
-import { FormField } from '@reformer/ui-kit';
+import { FormField, FormArraySection } from '@reformer/ui-kit';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';
 import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';
-import { FormArraySection } from '@reformer/ui-kit/form-array';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 import {
   createBlankProperty,

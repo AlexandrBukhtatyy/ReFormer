@@ -5,7 +5,6 @@
 
 import type { FormModel, FormProxy } from '@reformer/core';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import { FormWizard } from '@reformer/ui-kit/form-wizard';
 import {
   Box,
   CheckboxField,
@@ -16,6 +15,7 @@ import {
   Section,
   SelectField,
   TextareaField,
+  FormWizard,
 } from '@reformer/ui-kit';
 import type { CoBorrower, CreditApplicationForm, ExistingLoan, PropertyItem } from './types';
 import {

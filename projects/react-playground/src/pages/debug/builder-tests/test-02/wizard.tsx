@@ -11,8 +11,8 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ReactNode } from 'react';
-import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormProxy } from '@reformer/core';
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import type { FormShape } from './model';
 

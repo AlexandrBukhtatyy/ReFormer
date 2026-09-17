@@ -14,8 +14,9 @@ import {
   Section,
   SelectField,
   TextareaField,
+  FormWizard,
+  type FormWizardStep,
 } from '@reformer/ui-kit';
-import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import { Step } from '@reformer/cdk/form-wizard';
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
