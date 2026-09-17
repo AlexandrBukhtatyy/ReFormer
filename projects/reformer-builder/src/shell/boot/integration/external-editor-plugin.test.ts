@@ -37,7 +37,8 @@ import {
   createProjectPluginCatalog,
   type EnabledPluginsStore,
 } from '@/shell/platform/plugin/catalog';
-import { createPluginLoader, PLUGIN_CATALOG_DIR } from '@/shell/platform/plugin/loader';
+import { createPluginLoader } from '@/shell/platform/plugin/loader';
+import { PLUGIN_CATALOG_DIR } from '@reformer/builder-plugin-api/internal';
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { createDiagnosticsService } from '@/shell/platform/services/diagnostics/service';

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsePluginManifest, parsePluginManifestValue } from './manifest-parser';
+import {
+  parsePluginManifest,
+  parsePluginManifestValue,
+  parsePluginSourceManifest,
+} from './manifest-parser';
 import { BUILDER_API_VERSION } from './manifest';
 
 const good = {
@@ -501,5 +505,54 @@ describe('contributes.messages', () => {
 
     expect(!result.ok && result.problem.code).toBe('manifest-invalid');
     expect(!result.ok && result.problem.message).toContain('локали');
+  });
+});
+
+describe('манифест исходников плагина', () => {
+  /**
+   * Стадия ДО поставки: тот же разбор, отличий два — каталог не сверяется, версия обязательна.
+   * Всё остальное обязано отказывать ровно как у плагина каталога, иначе валидатор пропускал бы
+   * то, что оболочка отвергнет.
+   */
+  const source = (fields: Record<string, unknown>) =>
+    parsePluginSourceManifest(JSON.stringify(fields));
+
+  it('не сверяет идентификатор с каталогом и не приписывает поставку', () => {
+    const result = source({ ...good, main: 'src/main.ts' });
+
+    expect(result).toEqual({
+      ok: true,
+      manifest: {
+        id: 'acme-forms',
+        name: 'Acme Forms',
+        version: '1.0.0',
+        apiVersion: '^1',
+        main: 'src/main.ts',
+      },
+    });
+  });
+
+  it('требует версию: у исходников по ней публикуется пакет', () => {
+    const missing = source({ id: 'acme-forms', apiVersion: '^1', main: 'src/main.ts' });
+    const range = source({ ...good, version: '^1.0.0' });
+
+    expect(missing.ok || missing.problem.code).toBe('manifest-invalid');
+    expect(range.ok || range.problem.message).toContain('«version» исходников');
+  });
+
+  it('отказывает там же, где плагин каталога: выход за корень и способ доставки', () => {
+    const escape = source({ ...good, main: '../outside.ts' });
+    const builtin = source({ ...good, builtin: { loading: 'lazy' } });
+    const api = source({ ...good, apiVersion: '^2' });
+
+    expect(escape.ok || escape.problem.message).toContain('выходит за каталог плагина');
+    expect(builtin.ok || builtin.problem.message).toContain('«builtin»');
+    expect(api.ok || api.problem.code).toBe('api-version');
+  });
+
+  it('не разбирающийся JSON — отказ чтения, а не исключение', () => {
+    const result = parsePluginSourceManifest('{ id: ');
+
+    expect(result.ok || result.problem.code).toBe('manifest-unreadable');
   });
 });

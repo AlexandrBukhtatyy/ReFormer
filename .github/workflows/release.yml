@@ -72,7 +72,7 @@ jobs:
         run: |
           for pkg in @reformer/core @reformer/cdk @reformer/renderer-react \
                      @reformer/ui-kit @reformer/renderer-json @reformer/form-registry \
-                     @reformer/mcp @reformer/builder-plugin-api; do
+                     @reformer/mcp @reformer/builder-plugin-api @reformer/builder-plugin-cli; do
             echo "::group::Build $pkg"
             npm run build -w "$pkg"
             echo "::endgroup::"
@@ -111,6 +111,7 @@ jobs:
             "@reformer/form-registry:packages/reformer-form-registry"
             "@reformer/mcp:packages/reformer-mcp"
             "@reformer/builder-plugin-api:packages/reformer-builder-plugin-api"
+            "@reformer/builder-plugin-cli:packages/reformer-builder-plugin-cli"
             "@reformer/builder:projects/reformer-builder"
           )
           failed=()

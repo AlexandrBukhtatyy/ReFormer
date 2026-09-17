@@ -45,7 +45,15 @@ import type { ModuleLoader } from '@/shell/platform/modules/loader';
 import { joinPath } from '@reformer/builder-plugin-api/internal';
 import { isSourceError } from '@/shell/platform/source/errors';
 import type { Entry, Source } from '@/shell/platform/source/types';
-import { parsePluginManifest } from '@reformer/builder-plugin-api/internal';
+import {
+  isPluginCodeFile,
+  parseMessagesBundle,
+  parsePluginManifest,
+  PLUGIN_CATALOG_DIR,
+  PLUGIN_CODE_EXTENSIONS,
+  PLUGIN_FILE_LIMIT,
+  PLUGIN_SKIPPED_DIRS,
+} from '@reformer/builder-plugin-api/internal';
 import {
   PLUGIN_MANIFEST_FILE,
   type PluginProblem,
@@ -53,35 +61,6 @@ import {
   type ProjectPluginManifest,
 } from '@reformer/builder-plugin-api/internal';
 import type { Plugin } from '@reformer/builder-plugin-api/internal';
-
-/** Где в проекте лежат плагины. Путь из контракта; по образцу Obsidian. */
-export const PLUGIN_CATALOG_DIR = '.ui_builder/plugins';
-
-/**
- * Потолок числа файлов одного плагина.
- *
- * Загрузка читает каталог плагина ЦЕЛИКОМ (линковщик резолвит импорты по набору файлов,
- * а `require` синхронен — дочитать по требованию нельзя). Значит нужен предел: каталог
- * на тысячи файлов — это не плагин, а чужое дерево, случайно оказавшееся под этим именем,
- * и вычитывать его по сети или через File System Access мы не будем. Отказ, а не усечение:
- * молча недочитанный плагин ломался бы «необъяснимо» на первом же импорте.
- */
-export const PLUGIN_FILE_LIMIT = 200;
-
-/** Что вообще может быть модулем. Остальное в набор не попадает — читать его незачем. */
-export const PLUGIN_CODE_EXTENSIONS: readonly string[] = [
-  '.js',
-  '.mjs',
-  '.cjs',
-  '.jsx',
-  '.ts',
-  '.tsx',
-  '.mts',
-  '.cts',
-];
-
-/** Каталоги, в которые загрузчик не заходит. */
-const SKIPPED_DIRS: readonly string[] = ['node_modules'];
 
 /**
  * Найденный в каталоге плагин.
@@ -202,44 +181,6 @@ function pluginFromExports(exports: unknown): Plugin | undefined {
 }
 
 /**
- * Разбирает файл словаря: плоский объект «ключ → строка», и ничего больше.
- *
- * Вложенные объекты не разворачиваются сознательно: ключ у нас и так составной
- * (`command.format`), и второй способ записать тот же ключ дал бы словарь, в котором промах
- * ищется в двух местах. Отказ возвращается ПРИЧИНОЙ, а не готовой проблемой: файл и локаль
- * знает только вызывающий, и собирать сообщение дважды незачем.
- */
-function parseMessagesBundle(
-  text: string
-):
-  | { ok: true; bundle: Readonly<Record<string, string>> }
-  | { ok: false; reason: string; cause?: unknown } {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch (cause) {
-    return { ok: false, reason: 'не разбирается как JSON', cause };
-  }
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return { ok: false, reason: 'должен быть объектом JSON' };
-  }
-  for (const [key, value] of Object.entries(raw)) {
-    if (typeof value !== 'string') {
-      return {
-        ok: false,
-        reason: `ключ «${key}» — не строка, а словарь обязан быть плоским «ключ → строка»`,
-      };
-    }
-  }
-  return { ok: true, bundle: raw as Record<string, string> };
-}
-
-function hasCodeExtension(name: string): boolean {
-  const lower = name.toLowerCase();
-  return PLUGIN_CODE_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
-
-/**
  * Точка входа среди файлов плагина.
  *
  * Точное совпадение — основной случай. Замена расширения нужна для того, что контракт называет
@@ -294,11 +235,11 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
       for (const entry of entries) {
         if (entry.name.startsWith('.')) continue;
         if (entry.kind === 'directory') {
-          if (SKIPPED_DIRS.includes(entry.name)) continue;
+          if (PLUGIN_SKIPPED_DIRS.includes(entry.name)) continue;
           queue.push(relative === '' ? entry.name : `${relative}/${entry.name}`);
           continue;
         }
-        if (!hasCodeExtension(entry.name)) continue;
+        if (!isPluginCodeFile(entry.name)) continue;
         paths.push(relative === '' ? entry.name : `${relative}/${entry.name}`);
         if (paths.length > fileLimit) {
           return fail(

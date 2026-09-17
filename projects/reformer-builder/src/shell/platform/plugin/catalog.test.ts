@@ -15,7 +15,8 @@ import {
   type EnabledPluginsStore,
   type ProjectPluginCatalog,
 } from './catalog';
-import { createPluginLoader, PLUGIN_CATALOG_DIR } from './loader';
+import { createPluginLoader } from './loader';
+import { PLUGIN_CATALOG_DIR } from '@reformer/builder-plugin-api/internal';
 import { createPluginRegistry, type PluginRegistry } from './registry';
 import { createMemoryStorageBackend } from './storage';
 import { definePlugin } from '@reformer/builder-plugin-api/internal';

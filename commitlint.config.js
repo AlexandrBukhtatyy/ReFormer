@@ -31,6 +31,7 @@ export default {
         'reformer-mcp',
         'reformer-builder',
         'reformer-builder-plugin-api',
+        'reformer-builder-plugin-cli',
         'react-playground',
         'react-playground-e2e',
         'docs',

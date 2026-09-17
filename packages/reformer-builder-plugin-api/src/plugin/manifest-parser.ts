@@ -61,11 +61,13 @@ import {
   type DeclaredKeybinding,
   type ManifestOf,
   type ManifestParseResult,
+  type PluginManifestBase,
   type PluginContributes,
   type PluginProblem,
   type PluginProblemCode,
   type PluginRequirements,
   type PluginSource,
+  type PluginSourceManifest,
   type PluginStyles,
 } from './manifest';
 
@@ -131,6 +133,88 @@ export function parsePluginManifestValue<S extends PluginSource>(
   source: S,
   apiVersion: string = BUILDER_API_VERSION
 ): ManifestParseResult<ManifestOf<S>> {
+  const parsed = parseStage(raw, source, apiVersion);
+  if (!parsed.ok) return parsed;
+  // Единственное приведение в модуле. Разбор поставки (`parseEntry`) отдаёт ровно тот
+  // вариант, о котором его спросили, — но связь «спросили про builtin, получили builtin»
+  // выражена ветвлением, а не типом, и вывод её не прослеживает. Проверяется она тестом:
+  // манифест каждой поставки разбирается и предъявляет своё поле.
+  return { ok: true, manifest: { ...parsed.manifest, source } as ManifestOf<S> };
+}
+
+/**
+ * Разбирает манифест ИСХОДНИКОВ плагина — тот, что лежит в репозитории автора.
+ *
+ * Это не третья поставка, а стадия ДО поставки: такой манифест оболочка не читает никогда,
+ * его читают инструменты (`reformer-plugin validate`, `build`). Правила — те же самые, одним
+ * кодом, и отличий ровно два, оба названы:
+ *
+ * - **имя каталога не сверяется с `id`.** Репозиторий автора зовётся как угодно (`acme-forms-plugin`),
+ *   а каталогом с именем `id` плагин становится только при установке. Сверка возвращается
+ *   на выходе сборки: собранный каталог проверяется разбором поставки `project` целиком.
+ * - **`version` обязательна и обязана быть версией.** Оболочка подставляет `0.0.0` — ей нужна
+ *   подпись в списке, а не номер. Исходники же идут в сборку и упаковку, где версия — это
+ *   адрес пакета, и умолчание тихо опубликовало бы `0.0.0`.
+ *
+ * `main` при этом указывает на исходник (`src/main.ts`), а не на собранный файл: проверяется
+ * тем же `normalizeModulePath`, поэтому выход за корень отсекается и здесь.
+ */
+export function parsePluginSourceManifest(
+  text: string,
+  apiVersion: string = BUILDER_API_VERSION
+): ManifestParseResult<PluginSourceManifest> {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (cause) {
+    return problem('manifest-unreadable', `${PLUGIN_MANIFEST_FILE} не разбирается как JSON`, {
+      file: PLUGIN_MANIFEST_FILE,
+      cause,
+    });
+  }
+  const parsed = parseStage(raw, { kind: 'source' }, apiVersion);
+  if (!parsed.ok) return parsed;
+
+  const version = stringField(raw as Record<string, unknown>, 'version');
+  if (version === undefined || parseVersion(version) === undefined) {
+    return problem(
+      'manifest-invalid',
+      `«version» исходников должна быть версией вида «1.0.0», а не «${version ?? ''}»: ` +
+        'по ней собирается и публикуется пакет, и умолчания у неё нет',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+  // У стадии `source` разбор поставки отдаёт точку входа, а не способ доставки; сужение —
+  // для вывода типов, ветвь «без main» недостижима.
+  const { manifest } = parsed;
+  return 'main' in manifest
+    ? { ok: true, manifest }
+    : problem('manifest-invalid', 'в манифесте нет поля «main» или оно не строка', {
+        file: PLUGIN_MANIFEST_FILE,
+      });
+}
+
+/**
+ * Что разбору известно о месте манифеста: поставка оболочки или исходники автора.
+ *
+ * Внутренний тип: наружу стадия «исходники» выходит отдельной функцией, а не третьим вариантом
+ * {@link PluginSource}. Оболочка исходников не видит никогда, и вариант, который каждый её
+ * `switch` обязан был бы разбирать ради невозможного случая, был бы ложью в типе.
+ */
+type ManifestStage = PluginSource | { readonly kind: 'source' };
+
+/** Манифест без `source`: его приписывает тот, кто знает поставку. */
+type StagedManifest = PluginManifestBase &
+  (
+    | { readonly main: string; readonly styles?: PluginStyles }
+    | { readonly builtin: BuiltinDelivery }
+  );
+
+function parseStage(
+  raw: unknown,
+  source: ManifestStage,
+  apiVersion: string
+): { ok: true; manifest: StagedManifest } | { ok: false; problem: PluginProblem } {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return problem('manifest-invalid', `${PLUGIN_MANIFEST_FILE} должен быть объектом JSON`, {
       file: PLUGIN_MANIFEST_FILE,
@@ -207,11 +291,7 @@ export function parsePluginManifestValue<S extends PluginSource>(
     ...(requires === undefined ? {} : { requires: requires.requires }),
   };
 
-  // Единственное приведение в модуле. Разбор поставки (`parseEntry`) отдаёт ровно тот
-  // вариант, о котором его спросили, — но связь «спросили про builtin, получили builtin»
-  // выражена ветвлением, а не типом, и вывод её не прослеживает. Проверяется она тестом:
-  // манифест каждой поставки разбирается и предъявляет своё поле.
-  return { ok: true, manifest: { ...common, ...entry } as ManifestOf<S> };
+  return { ok: true, manifest: { ...common, ...entry } };
 }
 
 /**
@@ -225,14 +305,10 @@ export function parsePluginManifestValue<S extends PluginSource>(
  */
 function parseEntry(
   fields: Record<string, unknown>,
-  source: PluginSource
+  source: ManifestStage
 ):
-  | {
-      readonly source: { readonly kind: 'project'; readonly dir: string };
-      readonly main: string;
-      readonly styles?: PluginStyles;
-    }
-  | { readonly source: { readonly kind: 'builtin' }; readonly builtin: BuiltinDelivery }
+  | { readonly main: string; readonly styles?: PluginStyles }
+  | { readonly builtin: BuiltinDelivery }
   | { ok: false; problem: PluginProblem } {
   if (source.kind === 'builtin') {
     if (fields.main !== undefined) {
@@ -245,7 +321,7 @@ function parseEntry(
     }
     const builtin = parseBuiltin(fields.builtin);
     if ('ok' in builtin) return builtin;
-    return { source, builtin: builtin.builtin };
+    return { builtin: builtin.builtin };
   }
 
   if (fields.builtin !== undefined) {
@@ -276,7 +352,7 @@ function parseEntry(
   const styles = parseStyles(fields.styles);
   if (styles !== undefined && 'ok' in styles) return styles;
 
-  return { source, main, ...(styles === undefined ? {} : { styles: styles.styles }) };
+  return { main, ...(styles === undefined ? {} : { styles: styles.styles }) };
 }
 
 /**

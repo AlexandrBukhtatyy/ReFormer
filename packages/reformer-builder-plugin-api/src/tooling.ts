@@ -7,7 +7,9 @@
  * - **разбор манифеста** — тот же, которым оболочка решает, грузить ли плагин;
  * - **список модулей рантайма** — те же спецификаторы, которые оболочка подставляет своими
  *   объектами и которые сборка обязана держать внешними;
- * - **нормализация пути модуля** — та же, которой линковщик ищет точку входа.
+ * - **нормализация пути модуля** — та же, которой линковщик ищет точку входа;
+ * - **раскладка каталога и разбор словаря** — те же потолок файлов, расширения кода и форма
+ *   `locales/*.json`, по которым загрузчик оболочки отказывает плагину.
  *
  * В отличие от `./internal`, это контракт: он версионируется вместе с пакетом, потому что
  * инструмент, собранный против одной версии, проверяет плагины для оболочек этой версии.
@@ -15,7 +17,19 @@
  * @module @reformer/builder-plugin-api/tooling
  */
 
-export { parsePluginManifest, parsePluginManifestValue } from './plugin/manifest-parser';
+export {
+  isPluginCodeFile,
+  PLUGIN_CATALOG_DIR,
+  PLUGIN_CODE_EXTENSIONS,
+  PLUGIN_FILE_LIMIT,
+  PLUGIN_SKIPPED_DIRS,
+} from './plugin/layout';
+export {
+  parsePluginManifest,
+  parsePluginManifestValue,
+  parsePluginSourceManifest,
+} from './plugin/manifest-parser';
+export { parseMessagesBundle } from './plugin/messages-bundle';
 export {
   BUILDER_API_VERSION,
   PLUGIN_MANIFEST_FILE,
@@ -31,6 +45,7 @@ export {
   type PluginProblemCode,
   type PluginRequirements,
   type PluginSource,
+  type PluginSourceManifest,
   type PluginStyles,
   type ProjectPluginManifest,
 } from './plugin/manifest';

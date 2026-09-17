@@ -1,0 +1,57 @@
+{
+  "name": "@reformer/builder-plugin-cli",
+  "version": "1.0.0",
+  "description": "Command-line tools for ReFormer Builder plugin authors: scaffold and validate a plugin",
+  "type": "module",
+  "bin": {
+    "reformer-plugin": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "test": "node ../../scripts/run-vitest.mjs"
+  },
+  "keywords": [
+    "reformer",
+    "builder",
+    "plugin",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=18.3.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-builder-plugin-cli"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@reformer/builder-plugin-api": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
+  }
+}

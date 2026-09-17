@@ -5,7 +5,8 @@ import { createModuleLoader, type ModuleLoader } from '@/shell/platform/modules/
 import { ModuleRegistryError } from '@/shell/platform/modules/registry';
 import { createMemorySource, type MemorySource } from '@/shell/platform/source/memory';
 import type { Source } from '@/shell/platform/source/types';
-import { createPluginLoader, PLUGIN_CATALOG_DIR, type PluginLoader } from './loader';
+import { createPluginLoader, type PluginLoader } from './loader';
+import { PLUGIN_CATALOG_DIR } from '@reformer/builder-plugin-api/internal';
 import { createTypeScriptSupport, type TypeScriptEngine } from './typescript-transpiler';
 import type { Plugin } from '@reformer/builder-plugin-api/internal';
 

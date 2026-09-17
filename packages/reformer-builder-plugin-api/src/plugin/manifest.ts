@@ -1,9 +1,8 @@
 /**
  * Манифест плагина как ТИП: то, что автор пишет в `manifest.json`, и то, чем разбор отвечает.
  *
- * Здесь только форма. Разбор (`parsePluginManifest`) живёт в оболочке билдера: он нормализует
- * пути тем же кодом, что линковщик модулей, а линковщик плагину не принадлежит. Типы же нужны
- * автору плагина и его инструментам — чтобы манифест проверялся до запуска билдера.
+ * Здесь только форма. Разбор — `./manifest-parser`: один на оболочку и инструменты автора
+ * плагина, чтобы манифест проверялся до запуска билдера теми же правилами, что и в нём.
  *
  * @module @reformer/builder-plugin-api/plugin/manifest
  */
@@ -114,6 +113,19 @@ export interface ProjectPluginManifest extends PluginManifestBase {
 export interface BuiltinPluginManifest extends PluginManifestBase {
   readonly source: { readonly kind: 'builtin' };
   readonly builtin: BuiltinDelivery;
+}
+
+/**
+ * Манифест исходников плагина: то, что лежит в репозитории автора ДО сборки.
+ *
+ * Не поставка — оболочка такого манифеста не видит, — поэтому и не вариант {@link PluginManifest}.
+ * Форма та же, что у плагина каталога, без одного: каталога ещё нет, и `source` описывать нечему.
+ * `main` указывает на исходник (`src/main.ts`); собранный манифест получит `main.js`.
+ * Разбор — `parsePluginSourceManifest`.
+ */
+export interface PluginSourceManifest extends PluginManifestBase {
+  readonly main: string;
+  readonly styles?: PluginStyles;
 }
 
 /**
@@ -270,6 +282,6 @@ export type ManifestOf<S extends PluginSource> = Extract<
 >;
 
 /** Результат разбора: либо манифест, либо причина, по которой его нет. */
-export type ManifestParseResult<M extends PluginManifest = PluginManifest> =
+export type ManifestParseResult<M extends PluginManifestBase = PluginManifest> =
   | { readonly ok: true; readonly manifest: M }
   | { readonly ok: false; readonly problem: PluginProblem };

@@ -13,8 +13,10 @@
  * @module @reformer/builder-plugin-api/internal
  */
 
+export * from './plugin/layout';
 export * from './plugin/manifest';
 export * from './plugin/manifest-parser';
+export * from './plugin/messages-bundle';
 export * from './plugin/runtime-modules';
 export * from './plugin/storage';
 export * from './plugin/types';

@@ -38,7 +38,7 @@ import { parseResourceId } from '@reformer/builder-plugin-api/internal';
 import type { EventBus } from '@reformer/builder-plugin-api/internal';
 import type { Source } from '@/shell/platform/source/types';
 import { WorkspaceDidChange } from '@/shell/platform/workspace/workspace';
-import { PLUGIN_CATALOG_DIR } from './loader';
+import { PLUGIN_CATALOG_DIR } from '@reformer/builder-plugin-api/internal';
 import type { ProjectPluginCatalog, ProjectPluginEntry } from './catalog';
 
 /** Как часто разрешено проверять по фокусу. То же значение, что у расхождения документов. */

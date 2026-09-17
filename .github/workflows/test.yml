@@ -151,6 +151,14 @@ jobs:
       - name: Run @reformer/builder-plugin-api tests
         run: npm run test -w @reformer/builder-plugin-api
 
+      # builder-plugin-cli — `reformer-plugin`, инструменты автора плагина. Идёт сразу после
+      # контракта: берёт из его dist вход ./tooling (разбор манифеста, правила каталога).
+      - name: Build @reformer/builder-plugin-cli
+        run: npm run build -w @reformer/builder-plugin-cli
+
+      - name: Run @reformer/builder-plugin-cli tests
+        run: npm run test -w @reformer/builder-plugin-cli
+
       - name: Build @reformer/builder
         run: npm run build -w @reformer/builder
 

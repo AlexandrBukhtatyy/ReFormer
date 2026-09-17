@@ -78,6 +78,7 @@ Package scopes:
 - `reformer-form-registry` — `@reformer/form-registry`
 - `reformer-mcp` — `@reformer/mcp`
 - `reformer-builder-plugin-api` — `@reformer/builder-plugin-api` (контракт плагинов билдера)
+- `reformer-builder-plugin-cli` — `@reformer/builder-plugin-cli` (CLI `reformer-plugin` для авторов плагинов)
 
 Project scopes (не публикуются в npm):
 
