@@ -88,6 +88,8 @@ function createHarness(
     i18n?: ProjectPluginCatalogDeps['i18n'];
     capabilities?: ProjectPluginCatalogDeps['capabilities'];
     permissions?: ProjectPluginCatalogDeps['permissions'];
+    /** Файлы слоя установленных: путь `plugins/<id>/<файл>` → содержимое. */
+    installed?: Record<string, string>;
     confirmPermissions?: ProjectPluginCatalogDeps['confirmPermissions'];
   } = {}
 ): Harness {
@@ -117,8 +119,24 @@ function createHarness(
   const loader = createPluginLoader({ source: () => source, modules });
   const store = options.store ?? createStore();
   const problems = vi.fn();
+
+  // Слой установленных — тот же загрузчик над другим набором файлов и другим корнем.
+  // Ровно так он собран и в композиции: OPFS-хранилище отвечает на те же четыре вопроса.
+  const installedMemory = createMemorySource(options.installed ?? {});
+  const installedLoader =
+    options.installed === undefined
+      ? undefined
+      : createPluginLoader({
+          source: () => ({
+            ...installedMemory,
+            capabilities: { ...installedMemory.capabilities, executesCode: true },
+          }),
+          modules,
+          dir: 'plugins',
+        });
   const catalog = createProjectPluginCatalog({
     loader,
+    installed: installedLoader,
     plugins,
     enabled: store,
     dev: options.devStore,
@@ -871,5 +889,69 @@ describe('права плагина', () => {
 
     expect(await harness.catalog.enable(PLUGIN)).toBe(true);
     expect(confirmPermissions).not.toHaveBeenCalled();
+  });
+});
+
+describe('слой установленных из npm', () => {
+  const PLUGIN = 'acme-forms';
+  const installedFiles = (label: string) => ({
+    [`plugins/${PLUGIN}/manifest.json`]: manifestOf(PLUGIN, { name: 'Acme из npm' }),
+    [`plugins/${PLUGIN}/main.js`]: contributingPlugin(PLUGIN, label),
+  });
+
+  it('установленный виден в списке и помечен своим слоем', async () => {
+    const harness = createHarness({}, { installed: installedFiles('Панель из npm') });
+    await harness.catalog.refresh();
+
+    expect(harness.catalog.list()[0]).toMatchObject({
+      id: PLUGIN,
+      name: 'Acme из npm',
+      layer: 'installed',
+    });
+    expect(await harness.catalog.enable(PLUGIN)).toBe(true);
+    expect(harness.panels()).toEqual(['Панель из npm']);
+  });
+
+  it('проект перекрывает установленное — и работает код ИЗ ПРОЕКТА', async () => {
+    const harness = createHarness(
+      {
+        [dir(PLUGIN, 'manifest.json')]: manifestOf(PLUGIN, { name: 'Acme из проекта' }),
+        [dir(PLUGIN, 'main.js')]: contributingPlugin(PLUGIN, 'Панель из проекта'),
+      },
+      { installed: installedFiles('Панель из npm') }
+    );
+    await harness.catalog.refresh();
+
+    // Перекрытие названо в списке: иначе человек правил бы файлы в проекте, не понимая,
+    // почему работает не они, — или наоборот.
+    expect(harness.catalog.list()[0]).toMatchObject({
+      name: 'Acme из проекта',
+      layer: 'project',
+      shadowed: 'installed',
+    });
+
+    expect(await harness.catalog.enable(PLUGIN)).toBe(true);
+    expect(harness.panels()).toEqual(['Панель из проекта']);
+  });
+
+  it('исчез из проекта — возвращается установленный, без перезапуска', async () => {
+    const harness = createHarness(
+      {
+        [dir(PLUGIN, 'manifest.json')]: manifestOf(PLUGIN, { name: 'Acme из проекта' }),
+        [dir(PLUGIN, 'main.js')]: contributingPlugin(PLUGIN, 'Панель из проекта'),
+      },
+      { installed: installedFiles('Панель из npm') }
+    );
+    await harness.catalog.refresh();
+    expect(harness.catalog.list()[0]?.layer).toBe('project');
+
+    harness.memory.drop(dir(PLUGIN, 'manifest.json'));
+    harness.memory.drop(dir(PLUGIN, 'main.js'));
+    await harness.catalog.refresh();
+
+    const entry = harness.catalog.list()[0];
+    expect(entry).toMatchObject({ layer: 'installed' });
+    // Пометки о перекрытии больше нет: перекрывать стало нечем.
+    expect(entry !== undefined && 'shadowed' in entry).toBe(false);
   });
 });

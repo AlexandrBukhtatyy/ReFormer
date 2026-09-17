@@ -226,5 +226,13 @@
   "shell.settings.plugins.settings.broken": "Схему настроек этого плагина не удалось собрать: {message}",
   "shell.plugins.permissions.title": "Плагин «{id}» просит права",
   "shell.plugins.permissions.description": "Он запрашивает: {permissions}. Без подтверждения плагин не включится, а с ним получит соответствующие службы оболочки.",
-  "shell.plugins.permissions.confirm": "Разрешить"
+  "shell.plugins.permissions.confirm": "Разрешить",
+  "shell.plugins.install.title": "Установить плагин из npm",
+  "shell.plugins.install.description": "Пакет скачается в этот браузер и появится в списке выключенным: включать его — отдельное решение.",
+  "shell.plugins.install.label": "Имя пакета npm",
+  "plugins.installed": "Плагин «{id}» {version} установлен. Включите его в списке плагинов.",
+  "plugins.install-failed": "Плагин «{package}» не установлен: {message}",
+  "shell.plugins.rollback.title": "Откатить плагин к другой версии",
+  "shell.plugins.rollback.description": "Версии, уже скачанные в этот браузер. Текущая помечена тире; сеть не понадобится.",
+  "plugins.rollback-none": "У плагина «{id}» есть только одна скачанная версия — откатывать не к чему."
 }

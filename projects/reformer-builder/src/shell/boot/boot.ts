@@ -59,6 +59,16 @@ import {
 } from '@/shell/platform/plugin/catalog';
 import { isPluginPermission, type PluginPermission } from '@reformer/builder-plugin-api/internal';
 import { createPluginDevWatch } from '@/shell/platform/plugin/dev-watch';
+import { createInstalledFiles } from '@/shell/platform/plugin/installed/files';
+import { installPluginFromNpm } from '@/shell/platform/plugin/installed/install';
+import {
+  createInstalledPluginStore,
+  INSTALLED_ROOT_DIR,
+} from '@/shell/platform/plugin/installed/store';
+import {
+  createNpmRegistryClient,
+  DEFAULT_NPM_REGISTRY,
+} from '@/shell/platform/plugin/npm/registry';
 import { createPluginLoader } from '@/shell/platform/plugin/loader';
 import {
   mergeRuntimeConfig,
@@ -562,7 +572,26 @@ export function boot(options: BootOptions): BuilderApp {
   //     Сам каталог здесь только СОЗДАЁТСЯ: читать его до открытия проекта неоткуда,
   //     поэтому обход каталога — шаг 8, ниже. Стоит он ВЫШЕ встроенных плагинов, потому
   //     что один из них — управление плагинами — получает каталог своим портом.
+  // Установленные из npm живут в OPFS и НЕ принадлежат проекту: человек ставит плагин один
+  // раз, а проектов у него много. Проектным остаётся запуск — включённость и права спрашивает
+  // каталог, поэтому чужой код не поднимется в проекте, которого человек ещё не открывал.
+  const installedStore = createInstalledPluginStore();
+  const installedLoader = createPluginLoader({
+    source: () =>
+      createInstalledFiles({
+        store: installedStore,
+        // Право исполнять принадлежит ПРОЕКТУ: источник, запрещающий свой код, запрещает
+        // и установленный. Иначе read-only проект стал бы местом, где чужой код всё-таки
+        // исполняется, — достаточно поставить его из npm.
+        executesCode: () => project.get()?.source.capabilities.executesCode ?? false,
+      }),
+    modules: pluginModules.modules,
+    prepare: pluginModules.prepare,
+    dir: INSTALLED_ROOT_DIR,
+  });
+
   const projectPlugins = createProjectPluginCatalog({
+    installed: installedLoader,
     // Словарь плагина каталога вносит каталог — по тому же правилу, по которому словарь
     // встроенного вносит композиция (см. шаг 4): вклад в словарь не снимается вместе
     // с плагином, поэтому сервиса i18n в `PluginContext` нет. Без этого каждая команда
@@ -680,7 +709,71 @@ export function boot(options: BootOptions): BuilderApp {
     pluginManager: {
       // Порт — сам каталог: `ProjectPluginCatalog` структурно шире `PluginManagerHost`,
       // и эта строка — то единственное место, где их совместимость проверяется компиляцией.
-      host: projectPlugins,
+      // Установка и удаление дописываются здесь: каталог о реестре npm не знает и знать
+      // не должен, а спросить имя пакета можно только там, где есть служба диалогов.
+      host: {
+        ...projectPlugins,
+        list: () => projectPlugins.list(),
+        install: async () => {
+          const name = await prompt.input({
+            titleKey: 'shell.plugins.install.title',
+            descriptionKey: 'shell.plugins.install.description',
+            labelKey: 'shell.plugins.install.label',
+          });
+          if (name === null || name.trim() === '') return;
+
+          const result = await installPluginFromNpm(
+            {
+              registry: createNpmRegistryClient(),
+              store: installedStore,
+              registryUrl: DEFAULT_NPM_REGISTRY,
+            },
+            { package: name.trim() }
+          );
+          if (!result.ok) {
+            notifications.error('plugins.install-failed', {
+              params: { package: name.trim(), message: result.problem.message },
+            });
+            return;
+          }
+          // Установка не включает: плагин появляется в списке выключенным, как и положенный
+          // в каталог руками. Решение «пусть этот код работает» остаётся за человеком.
+          await projectPlugins.refresh();
+          notifications.info('plugins.installed', {
+            params: { id: result.record.id, version: result.record.version },
+          });
+        },
+        rollback: async (id: string) => {
+          const record = (await installedStore.list()).find((item) => item.id === id);
+          if (record === undefined || record.versions.length < 2) {
+            notifications.info('plugins.rollback-none', { params: { id } });
+            return;
+          }
+          const chosen = await prompt.pick({
+            titleKey: 'shell.plugins.rollback.title',
+            descriptionKey: 'shell.plugins.rollback.description',
+            items: record.versions.map((version) => ({
+              id: version,
+              label: version,
+              ...(version === record.version ? { description: '—' } : {}),
+            })),
+          });
+          if (chosen === null || chosen === record.version) return;
+
+          await installedStore.activate(id, chosen);
+          // Перечитываем И перезагружаем: версия сменилась на диске, а в системе продолжали бы
+          // работать вклады прежней — ровно то, ради чего откат и делают.
+          await projectPlugins.refresh();
+          if (projectPlugins.list().some((item) => item.id === id && item.state === 'enabled')) {
+            await projectPlugins.reload(id);
+          }
+        },
+        uninstall: async (id: string) => {
+          projectPlugins.disable(id);
+          await installedStore.uninstall(id);
+          await projectPlugins.refresh();
+        },
+      },
     },
     preview: previewHost,
     // Дыр у обоих не осталось: сохранение уехало в привилегированную службу, и композиции

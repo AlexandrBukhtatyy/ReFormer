@@ -226,5 +226,13 @@
   "shell.settings.plugins.settings.broken": "The settings schema of this plugin could not be built: {message}",
   "shell.plugins.permissions.title": "Plugin “{id}” requests permissions",
   "shell.plugins.permissions.description": "It asks for: {permissions}. Without your confirmation the plugin stays off; with it, the plugin gains the matching shell services.",
-  "shell.plugins.permissions.confirm": "Allow"
+  "shell.plugins.permissions.confirm": "Allow",
+  "shell.plugins.install.title": "Install a plugin from npm",
+  "shell.plugins.install.description": "The package is downloaded into this browser and appears in the list disabled: enabling it is a separate decision.",
+  "shell.plugins.install.label": "npm package name",
+  "plugins.installed": "Plugin “{id}” {version} installed. Enable it in the plugin list.",
+  "plugins.install-failed": "Plugin “{package}” was not installed: {message}",
+  "shell.plugins.rollback.title": "Roll the plugin back to another version",
+  "shell.plugins.rollback.description": "Versions already downloaded into this browser. The current one is marked with a dash; no network needed.",
+  "plugins.rollback-none": "Plugin “{id}” has only one downloaded version — there is nothing to roll back to."
 }

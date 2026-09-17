@@ -6,5 +6,9 @@
   "palette.dev-on": "Plugins: watch “{name}” — development mode",
   "palette.dev-off": "Plugins: stop watching “{name}”",
   "detail.failed": "error: {message}",
-  "detail.dev": "in development — reloads when files change"
+  "detail.dev": "in development — reloads when files change",
+  "palette.install": "Plugins: install from npm…",
+  "palette.uninstall": "Plugins: uninstall “{name}”",
+  "detail.install": "asks for a package name and installs it into this browser",
+  "palette.rollback": "Plugins: roll “{name}” back to another version"
 }

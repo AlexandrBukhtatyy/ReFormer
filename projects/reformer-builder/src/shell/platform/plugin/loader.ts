@@ -44,7 +44,7 @@
 import type { ModuleLoader } from '@/shell/platform/modules/loader';
 import { joinPath } from '@reformer/builder-plugin-api/internal';
 import { isSourceError } from '@/shell/platform/source/errors';
-import type { Entry, Source } from '@/shell/platform/source/types';
+import type { Entry } from '@/shell/platform/source/types';
 import {
   isPluginCodeFile,
   parseMessagesBundle,
@@ -102,12 +102,29 @@ export type PluginLoadResult =
   | { readonly ok: true; readonly loaded: LoadedPlugin }
   | { readonly ok: false; readonly problem: PluginProblem };
 
+/**
+ * Откуда загрузчик берёт файлы плагинов — РОВНО то, чем он пользуется у источника.
+ *
+ * Порт, а не `Source`, потому что источников таких два: каталог открытого проекта и слой
+ * установленных из npm (`./installed`). Второй — не транспорт до чужой папки: у него нет
+ * ни дескриптора, ни записи, ни ревизий, и требовать от него весь `Source` значило бы
+ * заставить его врать о десятке членов ради четырёх используемых. Настоящий `Source`
+ * этот порт удовлетворяет структурно, поэтому каталог проекта передаётся как был.
+ */
+export interface PluginFilesSource {
+  /** Имя в сообщениях об отказе: человек должен понимать, о каком слое речь. */
+  readonly id: string;
+  readonly capabilities: { readonly executesCode: boolean };
+  read(path: string): Promise<{ readonly text: string }>;
+  list(dir: string): Promise<readonly Entry[]>;
+}
+
 export interface PluginLoaderDeps {
   /**
-   * Источник открытого проекта. Функция, а не объект: проект открывают, закрывают и меняют,
-   * а загрузчик живёт дольше любого из них. `null` — проекта нет, и находить нечего.
+   * Откуда читать плагины. Функция, а не объект: проект открывают, закрывают и меняют,
+   * а загрузчик живёт дольше любого из них. `null` — читать нечего.
    */
-  readonly source: () => Source | null;
+  readonly source: () => PluginFilesSource | null;
   /**
    * Загрузка кода. Реестр модулей внутри уже содержит `@builder/sdk` — заполняет его тот,
    * кто создаёт реестр (см. `app/plugin-modules`).
@@ -175,7 +192,7 @@ function resolveEntry(files: ReadonlyMap<string, string>, main: string): string 
 }
 
 /** Читаемые записи одного уровня. Отсутствие каталога — пустой уровень, а не отказ. */
-async function listOrEmpty(source: Source, dir: string): Promise<readonly Entry[]> {
+async function listOrEmpty(source: PluginFilesSource, dir: string): Promise<readonly Entry[]> {
   try {
     return await source.list(dir);
   } catch (error) {
@@ -196,7 +213,7 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
    * затем отвергнут.
    */
   const collectFiles = async (
-    source: Source,
+    source: PluginFilesSource,
     pluginDir: string
   ): Promise<
     { ok: true; files: ReadonlyMap<string, string> } | { ok: false; problem: PluginProblem }

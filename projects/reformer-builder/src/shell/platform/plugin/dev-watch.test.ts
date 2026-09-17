@@ -21,7 +21,8 @@ import { createPluginDevWatch } from './dev-watch';
 const SOURCE_ID = 'memory';
 
 function entry(id: string, state: ProjectPluginState, dev: boolean): ProjectPluginEntry {
-  return { id, name: id, state, dev };
+  // Слой здесь ни на что не влияет: наблюдение за файлами одинаково для обоих.
+  return { id, name: id, state, dev, layer: 'project' };
 }
 
 /** Каталог-двойник: список подставляется тестом, вызовы записываются. */

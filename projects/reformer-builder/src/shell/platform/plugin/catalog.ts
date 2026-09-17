@@ -71,6 +71,15 @@ import type { PluginRegistry } from './registry';
  */
 export type ProjectPluginState = 'disabled' | 'enabled' | 'failed';
 
+/**
+ * Откуда плагин взялся.
+ *
+ * Показывается человеку и потому обязано существовать: при совпадении идентификаторов
+ * побеждает каталог проекта, и без этой пометки человек правил бы файлы в проекте, не понимая,
+ * почему работает не он, — или наоборот.
+ */
+export type ProjectPluginLayer = 'project' | 'installed';
+
 /** Строка списка плагинов — всё, что нужно показать человеку. */
 export interface ProjectPluginEntry {
   readonly id: string;
@@ -86,6 +95,10 @@ export interface ProjectPluginEntry {
    * компиляции выключал бы автоматику ровно в тот момент, когда она нужнее всего.
    */
   readonly dev: boolean;
+  /** Слой, из которого взят ДЕЙСТВУЮЩИЙ экземпляр. */
+  readonly layer: ProjectPluginLayer;
+  /** Тот же плагин есть и в другом слое — значит этот его перекрыл. */
+  readonly shadowed?: ProjectPluginLayer;
   readonly manifest?: PluginManifest;
   /** Почему `failed`. У остальных состояний отсутствует. */
   readonly problem?: PluginProblem;
@@ -147,6 +160,15 @@ export interface ProjectPluginCatalogDeps {
    * и есть проверяемое поведение, а не деградация, — поэтому композиция обязана её передать.
    */
   readonly capabilities?: () => readonly CapabilityProvider[];
+  /**
+   * Загрузчик слоя УСТАНОВЛЕННЫХ из npm (`./installed`).
+   *
+   * Отдельной зависимостью, а не списком загрузчиков: слоёв ровно два, они неравноправны
+   * (проект перекрывает установленное), и список из двух элементов с правилом «побеждает
+   * второй» читался бы хуже, чем два названных поля. Отсутствие — законный состав:
+   * приложение без установки из npm работает как раньше.
+   */
+  readonly installed?: PluginLoader;
   /** Без него включённые не переживают перезагрузку вкладки — но каталог работает. */
   readonly enabled?: EnabledPluginsStore;
   /**
@@ -233,6 +255,10 @@ export interface ProjectPluginCatalog extends Disposable {
 
 interface CatalogRecord {
   found: DiscoveredPlugin;
+  /** Каким загрузчиком он найден — им же и грузится. */
+  layer: ProjectPluginLayer;
+  /** Перекрытый слой, если тот же идентификатор нашёлся дважды. */
+  shadowed?: ProjectPluginLayer;
   /** Отказ загрузки или активации. Отказ разбора живёт в `found.problem` — он неустраним. */
   problem?: PluginProblem;
 }
@@ -301,6 +327,8 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       version: manifest?.version,
       state,
       dev: dev.has(record.found.id),
+      layer: record.layer,
+      ...(record.shadowed === undefined ? {} : { shadowed: record.shadowed }),
       manifest,
       problem,
     };
@@ -385,16 +413,33 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
   let keybindingsSubscription: Disposable | null = null;
 
   const rediscover = async (): Promise<void> => {
-    const found = await deps.loader.discover();
+    // Порядок несущий: установленные читаются ПЕРВЫМИ, проект вторым и затирает совпадения.
+    // Так «положить плагин в проект» всегда значит «работать будет он» — то самое правило,
+    // которым автор плагина правит его у себя, не удаляя установленную версию.
+    const layers: readonly { layer: ProjectPluginLayer; found: readonly DiscoveredPlugin[] }[] = [
+      { layer: 'installed', found: (await deps.installed?.discover()) ?? [] },
+      { layer: 'project', found: await deps.loader.discover() },
+    ];
     const seen = new Set<string>();
 
-    for (const item of found) {
-      seen.add(item.id);
-      const previous = records.get(item.id);
-      if (previous === undefined) {
-        records.set(item.id, { found: item });
-      } else {
+    for (const { layer, found } of layers) {
+      for (const item of found) {
+        const shadowed = seen.has(item.id) ? 'installed' : undefined;
+        seen.add(item.id);
+        const previous = records.get(item.id);
+        if (previous === undefined) {
+          records.set(item.id, {
+            found: item,
+            layer,
+            ...(shadowed === undefined ? {} : { shadowed }),
+          });
+          continue;
+        }
         previous.found = item;
+        // Слой пересчитывается на каждом обходе: плагин, положенный в проект поверх
+        // установленного, обязан перехватить его без перезапуска приложения.
+        previous.layer = layer;
+        previous.shadowed = shadowed;
       }
     }
 
@@ -599,7 +644,9 @@ export function createProjectPluginCatalog(deps: ProjectPluginCatalogDeps): Proj
       return false;
     }
 
-    const result = await deps.loader.load(record.found);
+    const loader = record.layer === 'installed' ? deps.installed : deps.loader;
+    if (loader === undefined) return false;
+    const result = await loader.load(record.found);
     if (!result.ok) {
       record.problem = result.problem;
       enabled.delete(id);

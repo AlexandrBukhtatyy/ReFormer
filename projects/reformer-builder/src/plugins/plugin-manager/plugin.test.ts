@@ -138,3 +138,73 @@ describe('плагин', () => {
     expect(subscriptions).toHaveLength(1);
   });
 });
+
+describe('установленные из npm', () => {
+  const installed = (id: string): ManagedPlugin => ({
+    id,
+    name: id,
+    state: 'disabled',
+    dev: false,
+    layer: 'installed',
+  });
+
+  /** Хост со всеми необязательными операциями. */
+  function hostWithInstall(entries: readonly ManagedPlugin[]) {
+    const base = fakeHost(entries);
+    const host: PluginManagerHost = {
+      ...base.host,
+      install: () => {
+        base.calls.push('install');
+        return Promise.resolve();
+      },
+      uninstall: (id) => {
+        base.calls.push(`uninstall:${id}`);
+        return Promise.resolve();
+      },
+      rollback: (id) => {
+        base.calls.push(`rollback:${id}`);
+        return Promise.resolve();
+      },
+    };
+    return { host, calls: base.calls };
+  }
+
+  const idsOf = (host: PluginManagerHost): string[] =>
+    (
+      createPluginManagerPaletteProvider(host, translate).provide('', {} as never) as {
+        id: string;
+      }[]
+    ).map((item) => item.id);
+
+  it('пункт установки появляется только там, где установка есть', () => {
+    // Команда, которая ничего не делает, хуже отсутствующей: сборка без установки из npm
+    // не должна предлагать её в палитре.
+    expect(idsOf(fakeHost([]).host)).not.toContain('plugin-manager.install');
+    expect(idsOf(hostWithInstall([]).host)).toContain('plugin-manager.install');
+  });
+
+  it('удаление и откат предлагаются установленному, но не плагину проекта', () => {
+    const { host } = hostWithInstall([installed('from-npm'), managed('from-project', 'disabled')]);
+
+    const ids = idsOf(host);
+    expect(ids).toContain('plugin-manager.uninstall.from-npm');
+    expect(ids).toContain('plugin-manager.rollback.from-npm');
+    // Плагин лежит в каталоге проекта: удалять его — дело файлов проекта, а не оболочки.
+    expect(ids).not.toContain('plugin-manager.uninstall.from-project');
+    expect(ids).not.toContain('plugin-manager.rollback.from-project');
+  });
+
+  it('пункты зовут именно те операции хоста', async () => {
+    const { host, calls } = hostWithInstall([installed('from-npm')]);
+    const items = createPluginManagerPaletteProvider(host, translate).provide('', {} as never) as {
+      id: string;
+      run: () => unknown;
+    }[];
+
+    for (const id of ['plugin-manager.install', 'plugin-manager.uninstall.from-npm']) {
+      await items.find((item) => item.id === id)?.run();
+    }
+
+    expect(calls).toEqual(['install', 'uninstall:from-npm']);
+  });
+});

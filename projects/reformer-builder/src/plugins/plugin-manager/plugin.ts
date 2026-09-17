@@ -51,6 +51,16 @@ export function createPluginManagerPaletteProvider(
           run: () => host.refresh(),
         },
       ];
+      // Пункт появляется, только если установка в этой сборке вообще есть: команда,
+      // которая ничего не делает, хуже отсутствующей.
+      if (host.install !== undefined) {
+        items.push({
+          id: 'plugin-manager.install',
+          title: t('palette.install'),
+          detail: t('detail.install'),
+          run: () => host.install?.(),
+        });
+      }
       for (const plugin of host.list()) {
         const params = { name: plugin.name };
         const detail = detailOf(plugin, t);
@@ -77,6 +87,24 @@ export function createPluginManagerPaletteProvider(
             detail,
             run: () => host.enable(plugin.id),
           });
+        }
+        if (plugin.layer === 'installed') {
+          if (host.rollback !== undefined) {
+            items.push({
+              id: `plugin-manager.rollback.${plugin.id}`,
+              title: t('palette.rollback', params),
+              detail,
+              run: () => host.rollback?.(plugin.id),
+            });
+          }
+          if (host.uninstall !== undefined) {
+            items.push({
+              id: `plugin-manager.uninstall.${plugin.id}`,
+              title: t('palette.uninstall', params),
+              detail,
+              run: () => host.uninstall?.(plugin.id),
+            });
+          }
         }
         items.push({
           id: `plugin-manager.dev.${plugin.id}`,
