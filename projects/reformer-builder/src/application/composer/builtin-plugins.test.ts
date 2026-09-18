@@ -34,6 +34,7 @@ import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
+import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
 import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits';
 import { builderApplication } from '../builder-application';
 import {
@@ -252,11 +253,14 @@ describe('состав встроенных плагинов', () => {
       'reformer.codegen',
       'reformer.editor-schema',
       'reformer.files',
-      // Превью вносит панель модели: значения формы, состояние узлов и производные пути
-      // не видны больше нигде. Форму оно по-прежнему не дублирует — её рисует редактор схемы.
-      'reformer.preview',
+      // Поверхности формы ReFormer вносят панель модели: значения формы, состояние узлов
+      // и производные пути не видны больше нигде. Форму она не дублирует — её рисует редактор.
+      // Превью-хост панелей не вносит: своего интерфейса у него нет.
+      'reformer.preview-runtime',
       'reformer.templates',
     ]);
+    // Поверхности вносит плагин стека, а не хост: чем рисовать схему — знание стека.
+    expect(owners(PreviewSurfacePoint)).toEqual(['reformer.preview-runtime']);
     expect(owners(EditorPoint)).toEqual([
       'reformer.editor-markdown',
       'reformer.editor-monaco',

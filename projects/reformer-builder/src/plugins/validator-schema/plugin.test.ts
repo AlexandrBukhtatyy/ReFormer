@@ -24,10 +24,15 @@ import {
 } from './plugin';
 import type { ValidateFormSchema } from './check';
 
-function docRef(kind: 'text' | 'model', mediaType = 'application/json'): DocumentRef {
+function docRef(
+  kind: 'text' | 'model',
+  mediaType = 'application/json',
+  providerId: string | undefined = kind === 'model' ? 'form.schema' : undefined
+): DocumentRef {
   return {
     id: 'fs:forms/credit.json',
     kind,
+    ...(providerId === undefined ? {} : { providerId }),
     ref: {
       id: 'fs:forms/credit.json',
       sourceId: 'fs',
@@ -63,8 +68,12 @@ function contextOf(model: unknown, doc = docRef('model')): ValidateContext {
 }
 
 describe('за какие документы валидатор берётся', () => {
-  it('модельный JSON — да: провайдер модели взялся, значит это схема формы', () => {
+  it('документ провайдера схемы формы — да: он взялся, значит это схема формы', () => {
     expect(isFormSchemaDocument(docRef('model'))).toBe(true);
+  });
+
+  it('модельный JSON ДРУГОГО провайдера — нет: `.json` бывает схемой любого стека', () => {
+    expect(isFormSchemaDocument(docRef('model', 'application/json', 'plain.form'))).toBe(false);
   });
 
   it('текстовый JSON — нет: за него не взялся никто, и это может быть любой конфиг', () => {
@@ -72,7 +81,7 @@ describe('за какие документы валидатор берётся',
   });
 
   it('модельный документ другого формата — нет', () => {
-    expect(isFormSchemaDocument(docRef('model', 'text/typescript'))).toBe(false);
+    expect(isFormSchemaDocument(docRef('model', 'text/typescript', 'ts.module'))).toBe(false);
   });
 
   it('круг документов сужается снаружи', () => {
@@ -365,6 +374,7 @@ describe('проверка по мета-схеме грузится по тре
   });
 
   it('подходящий документ заводит загрузку: applies зовут раньше validate', () => {
+    // Подходящий — тот, что разобрал провайдер схемы формы (см. `isFormSchemaDocument`).
     const source = deferredLoader();
     const validator = createSchemaValidator(
       { catalog: () => builtinEntries() },
@@ -375,6 +385,7 @@ describe('проверка по мета-схеме грузится по тре
     validator.applies({
       id: 'fs:forms/a.json',
       kind: 'model',
+      providerId: 'form.schema',
       ref: { mediaType: 'application/json' },
     } as unknown as DocumentRef);
 

@@ -1,0 +1,20 @@
+{
+  "id": "reformer.preview-runtime",
+  "name": "Предпросмотр формы ReFormer",
+  "apiVersion": "^1",
+  "builtin": {
+    "loading": "lazy"
+  },
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.preview.live",
+        "range": "^1"
+      },
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^1"
+      }
+    ]
+  }
+}

@@ -23,14 +23,14 @@ import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
 import { createKitNamespaceLoader } from './kit-namespace';
 import { KitsServiceToken } from '@/plugins/kits';
-import { PREVIEW_PLUGIN_ID } from '@/plugins/preview';
+import { PREVIEW_RUNTIME_PLUGIN_ID } from '@/plugins/preview-runtime/contract';
 import type {
   PreviewDocument,
   PreviewHost,
   PreviewModules,
   PreviewSourceCapabilities,
   Translate,
-} from '@/plugins/preview';
+} from '@/plugins/preview-runtime';
 import { fromRoot as resolveFromRoot, parentOf } from '@/shell/platform/primitives/resource-path';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
@@ -47,7 +47,7 @@ const NO_SIBLINGS: readonly ResourceRef[] = Object.freeze([]);
 
 /** Реактивный перевод (именованная функция — ради правил хуков). */
 function makeUseTranslate(i18n: RootI18nService): () => Translate {
-  const view = i18n.forPlugin(PREVIEW_PLUGIN_ID);
+  const view = i18n.forPlugin(PREVIEW_RUNTIME_PLUGIN_ID);
   function useTranslate(): Translate {
     useLocale(i18n);
     return (key, params) => view.t(key, params);

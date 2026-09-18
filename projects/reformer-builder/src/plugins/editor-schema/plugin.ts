@@ -34,6 +34,7 @@ import {
   EditorPoint,
   MenuPoint,
   PanelPoint,
+  PreviewLiveCapability,
   SelectionServiceToken,
   SettingsServiceToken,
   type DocumentModelProvider,
@@ -278,9 +279,11 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
       // Тело редактора кода — ВОЗМОЖНОСТЬ соседа, и спрашивается она в момент вопроса:
       // провайдер поднимается отдельным плагином и может быть выключен человеком на ходу.
       // Режим исходника обязан исчезнуть вместе с ним, а не показать пустую половину экрана.
+      // Живой вид — возможность превью, тем же приёмом: превью выключаемо на ходу.
       const host: SchemaEditorHost = {
         ...options.host,
         textEditor: () => ctx.services.get(TextEditorCapability),
+        live: () => ctx.services.get(PreviewLiveCapability),
       };
       for (const [locale, messages] of Object.entries(SCHEMA_EDITOR_MESSAGES)) {
         ctx.i18n.contribute(locale, messages);
@@ -374,7 +377,7 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
         hasTextEditor: () => host.textEditor?.() !== undefined,
         // Спрашивается у порта на каждый вызов: поверхности вносятся вкладами, и плагин
         // превью можно выключить, пока вкладка открыта.
-        hasLive: () => host.live?.available() === true,
+        hasLive: () => host.live?.()?.available() === true,
         activeDocument: () => host.activeDocument?.() ?? null,
       };
       for (const command of canvasViewCommands(canvasActions)) {

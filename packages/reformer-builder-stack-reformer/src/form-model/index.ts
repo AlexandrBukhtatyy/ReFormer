@@ -9,6 +9,7 @@
  * @module @reformer/builder-stack-reformer/form-model
  */
 
+export * from './document';
 export * from './mutate';
 export * from './node-id';
 export * from './node-kind';

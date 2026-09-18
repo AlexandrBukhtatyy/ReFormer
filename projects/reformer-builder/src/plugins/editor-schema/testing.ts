@@ -22,13 +22,18 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
+import type {
+  Disposable,
+  LiveSurfaceContext,
+  PreviewLiveService,
+  ResourceId,
+  ResourceRef,
+} from '@reformer/builder-plugin-api';
+import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
 import { createSchemaModelProvider } from './model/provider';
 import { NODE_CLASS_PREFIX } from '@reformer/builder-stack-reformer/form-model';
 import type {
   EditOp,
-  LivePreviewPort,
-  LiveSurfaceContext,
   NodeId,
   SchemaApplyOutcome,
   SchemaEditorHost,
@@ -308,7 +313,7 @@ export function createFakeSelectionChannel(): FakeSelectionChannel {
  * «в моём DOM стоят токены аннотированной схемы», — и настоящая рантайм-поверхность в тестовом
  * окружении даёт то же самое, только через подписанные стабы и втрое медленнее.
  */
-export interface FakeLivePort extends LivePreviewPort {
+export interface FakeLivePort extends PreviewLiveService {
   /** Сколько раз поверхность монтировали. Инвариант живого вида: ровно один на документ. */
   mounts(): number;
   /** Контекст последнего монтирования: тест дёргает его так, как это делала бы поверхность. */
@@ -331,8 +336,10 @@ export function createFakeLivePort(options: FakeLivePortOptions = {}): FakeLiveP
   let ctx: LiveSurfaceContext | null = null;
 
   /** Плоский обход схемы: каждому узлу с адресом — свой элемент с токеном. */
-  const draw = (element: HTMLElement, schema: JsonFormSchema | null): void => {
+  const draw = (element: HTMLElement, model: unknown): void => {
     element.replaceChildren();
+    // Контракт отдаёт модель `unknown`: сужает её поверхность, и двойник — так же.
+    const schema: JsonFormSchema | null = isFormSchema(model) ? model : null;
     if (schema === null) return;
     const visit = (node: unknown, parent: HTMLElement): void => {
       if (typeof node !== 'object' || node === null) return;
@@ -391,6 +398,10 @@ export function createFakeLivePort(options: FakeLivePortOptions = {}): FakeLiveP
         },
       };
     },
+
+    // Формы двойник не собирает — публиковать нечего, как у поверхности-каркаса.
+    formOf: () => null,
+    onDidChangeForm: () => ({ dispose: () => undefined }),
 
     mounts: () => mounts,
     ctx: () => ctx,

@@ -1,86 +1,45 @@
 /**
- * Плагин превью: точка расширения поверхностей и две реализации.
+ * Превью-хост: КАК показывать документ — одно на все стеки.
  *
- * **Почему это плагин, а не часть Host.** Всё содержимое каталога — предметное знание: что такое
- * схема формы, какие файлы её составляют, чем рисуется `$component(...)`, что считать точкой
- * входа. В платформе оно означало бы, что второй вид превью вносится правкой ядра. Граница
- * проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api` и пакеты стеков.
+ * **Что здесь.** Правило выбора поверхности, состояния документов (введённые значения,
+ * опубликованная форма, находки сборки), канал выделения, свод диагностик и живой вид —
+ * возможность `reformer.preview.live`, которой редакторы показывают документ. Точка поверхностей
+ * объявлена в `@reformer/builder-plugin-api`, и заполняют её ДРУГИЕ плагины.
  *
- * ## Своего интерфейса у плагина нет
+ * **Чего здесь нет.** Ни одной поверхности. Чем рисовать схему — знание стека: поверхности
+ * формы ReFormer вносит `plugins/preview-runtime`, другой стек вносит свои. Пока поверхности жили
+ * здесь, второй стек получал превью только вместе с чужим рендерером.
  *
- * Панель превью с переключателем поверхностей отсюда убрана, и это не упрощение, а следствие:
- * форма стала ПРЕДСТАВЛЕНИЕМ редактора схемы (см. `plugins/editor-schema/ui/LiveView`), а панель
- * показывала ровно её же — только в полосе внизу и в другом масштабе. Две одинаковые картинки
- * на одном экране стоили двух сборок формы и заставляли выбирать, на какую смотреть.
- *
- * Вместе с панелью ушёл и переключатель: поверхность выбирается правилом по объявленным
- * возможностям (`./selection`), а живой вид называет выбранную и объясняет отказ источника.
- * Ручной выбор существовал ради вопроса «а как оно без моего кода», и это отладочная нужда,
- * а не рабочая, — вернуть её можно командой, не заводя полосу.
- *
- * Плагин остался поставщиком поверхностей, и точка расширения открыта по-прежнему: чужая
- * поверхность вносится вкладом и участвует в выборе наравне со встроенными.
+ * **Своего интерфейса у плагина нет.** Форма — ПРЕДСТАВЛЕНИЕ редактора (живой вид), а не полоса
+ * внизу экрана: две одинаковые картинки на одном экране стоили двух сборок формы.
  *
  * @module plugins/preview/plugin
  */
 
 import manifest from './manifest.json';
-import { createElement } from 'react';
 import {
   definePlugin,
   DiagnosticsServiceToken,
   DocumentsServiceToken,
-  PanelPoint,
-  WorkspaceFilesServiceToken,
+  PreviewLiveCapability,
   SelectionServiceToken,
+  WorkspaceFilesServiceToken,
   type Plugin,
-  type SlotId,
-  type WhenContext,
 } from '@reformer/builder-plugin-api';
-import { createCompilingSurface } from './compiling/surface';
-import type { ExtensionPointRef, PreviewSurface } from './contract';
-import { PreviewSurfacePoint } from './contract';
-import type { PreviewHost } from './host';
+import type { PreviewHostPort } from './host';
+import { createLiveService } from './live/live-service';
 import { PREVIEW_MESSAGES } from './messages';
-import { createRuntimeSurface } from './runtime/surface';
 import { attachPreviewLifecycle } from './state/lifecycle';
-import {
-  createPreviewSessions,
-  PreviewSessionsCapability,
-  type PreviewSessions,
-} from './state/sessions';
-import { ModelPanel, MODEL_PANEL_ID } from './ui/ModelPanel';
+import { createPreviewSessions, type PreviewSessions } from './state/sessions';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
 export const PREVIEW_PLUGIN_ID = manifest.id;
 
-/**
- * Встроенные поверхности в порядке возрастания способностей.
- *
- * Каркасной среди них больше нет: она рисовала структуру формы рамками, а структуру уже
- * показывают дерево и схема — два вида того же конструктора, и оба умеют её ПРАВИТЬ, а не только
- * показывать. Третье представление той же структуры отвечало на вопрос, на который уже есть
- * два лучших ответа.
- */
-export function builtinSurfaces(host: PreviewHost): readonly PreviewSurface[] {
-  return [createRuntimeSurface(host), createCompilingSurface(host)];
-}
-
 export interface PreviewPluginOptions {
-  readonly host: PreviewHost;
+  readonly host: PreviewHostPort;
   /**
-   * Точка расширения поверхностей.
-   *
-   * Параметром, а не импортом из `./contract` прямо в `activate`: вклад обязан уходить в ТОТ
-   * объект, который дала композиция, — иначе, когда точка переедет в `@reformer/builder-plugin-api`, чужие поверхности
-   * окажутся в одной точке, а наши в другой. Умолчание — наша же копия, чтобы плагин работал
-   * и до переезда.
-   */
-  readonly surfacePoint?: ExtensionPointRef<PreviewSurface>;
-  /**
-   * Реестр состояний. Обычно плагин заводит его сам и отдаёт остальным возможностью
-   * {@link PreviewSessionsCapability}; параметр — ради тестов, которым нужен доступ к нему
-   * снаружи активации.
+   * Реестр состояний. Обычно плагин заводит его сам; параметр — ради тестов, которым нужен
+   * доступ к нему снаружи активации.
    */
   readonly sessions?: PreviewSessions;
 }
@@ -89,12 +48,10 @@ export interface PreviewPluginOptions {
  * Собирает плагин.
  *
  * `activate` только регистрирует: реестр состояний создаётся пустым, состояние документа
- * рождается при первом обращении. Словарь регистрируется здесь же, если приёмник дан, —
- * он не является подпиской и в `subscriptions` не кладётся.
+ * рождается при первом обращении.
  */
 export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
   const { host } = options;
-  const point = options.surfacePoint ?? PreviewSurfacePoint;
   const sessions = options.sessions ?? createPreviewSessions();
 
   return definePlugin({
@@ -104,32 +61,21 @@ export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
         ctx.i18n.contribute(locale, messages);
       }
 
-      // Панель модели: единственный вклад превью в оболочку помимо поверхностей. Слот нижний —
-      // строки значений читают в ширину, а не в высоту, и форме при этом остаётся весь экран.
+      // Живой вид — наружу возможностью: его читают редакторы стеков, а плагины друг друга
+      // не импортируют. Регистрация в `subscriptions`, потому что слот обязан освободиться
+      // вместе с плагином: выключенное превью, оставившее занятый слот, не дало бы поднять
+      // себя заново.
       ctx.subscriptions.push(
-        ctx.extensions.contribute(
-          PanelPoint,
-          {
-            id: MODEL_PANEL_ID,
-            slot: 'panel.bottom' as SlotId,
-            titleKey: 'model.title',
-            when: (when: WhenContext) => when.activeResourceKind === 'form.schema',
-            order: 30,
-            Body: () => createElement(ModelPanel, { host, sessions }),
-          },
-          { id: MODEL_PANEL_ID }
+        ctx.services.register(
+          PreviewLiveCapability,
+          createLiveService({
+            host,
+            sessions,
+            extensions: ctx.extensions,
+            t: (key, params) => ctx.i18n.t(key, params),
+          })
         )
       );
-
-      for (const surface of builtinSurfaces(host)) {
-        ctx.subscriptions.push(ctx.extensions.contribute(point, surface, { id: surface.id }));
-      }
-
-      // Состояния документов — наружу возможностью: их читает живой вид редактора схемы,
-      // а плагины друг друга не импортируют. Регистрация в `subscriptions`, потому что слот
-      // обязан освободиться вместе с плагином: выключенное превью, оставившее за собой
-      // занятый слот, не дало бы поднять себя заново.
-      ctx.subscriptions.push(ctx.services.register(PreviewSessionsCapability, sessions));
 
       // Состояние живёт, пока открыт хоть один файл каталога формы (см. `./state/lifecycle`).
       // `get`, а не `require`: без рабочей области правило просто не действует — забывать
@@ -141,24 +87,22 @@ export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
         ctx.subscriptions.push(attachPreviewLifecycle(documents, files, sessions));
       }
 
-      // Клик по форме уходит в общий канал выделения. `get`, а не `require`: плагину
-      // доступен только он, и отсутствие службы — штатная деградация, а не отказ. Так
-      // собирается и тест плагина, где реестра сервисов нет вовсе.
+      // Клик по форме уходит в общий канал выделения. `get`, а не `require`: отсутствие
+      // службы — штатная деградация, а не отказ.
       const selection = ctx.services.get(SelectionServiceToken);
       if (selection !== undefined) ctx.subscriptions.push(sessions.connectSelection(selection));
 
-      // Находки сборки уходят в общий свод диагностик — под адресом файла, где чинить. Тот же
-      // `get`, а не `require`, и та же деградация: без службы находки остаются в состоянии
-      // превью, и живой вид показывает их, как и раньше.
+      // Находки сборки уходят в общий свод диагностик — под адресом файла, где чинить. Без
+      // службы находки остаются в состоянии превью, и живой вид показывает их, как и раньше.
       const diagnostics = ctx.services.get(DiagnosticsServiceToken);
       if (diagnostics !== undefined) {
         ctx.subscriptions.push(sessions.connectDiagnostics(diagnostics));
         // Правка файла снимает его находки сборки до следующей сборки: они про текст, которого
-        // уже нет. Порт вправе канала не дать — тогда находки живут до пересборки, как и раньше.
-        const files = host.onDidChangeFiles?.((changed) => {
+        // уже нет. Порт вправе канала не дать — тогда находки живут до пересборки.
+        const changes = host.onDidChangeFiles?.((changed) => {
           sessions.invalidate(changed);
         });
-        if (files !== undefined) ctx.subscriptions.push(files);
+        if (changes !== undefined) ctx.subscriptions.push(changes);
       }
     },
     deactivate() {

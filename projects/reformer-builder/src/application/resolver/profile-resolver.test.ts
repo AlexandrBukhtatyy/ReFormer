@@ -142,7 +142,7 @@ describe('resolveProviders', () => {
     id: 'with-choice',
     name: 'С выбором',
     plugins: ['preview'],
-    providers: { 'reformer.preview.sessions': 'preview', 'acme.telemetry': 'base-telemetry' },
+    providers: { 'reformer.preview.live': 'preview', 'acme.telemetry': 'base-telemetry' },
   });
   const heir = defineProfile({
     id: 'heir',
@@ -160,7 +160,7 @@ describe('resolveProviders', () => {
     // Ради этого наследование и нужно: профиль, унаследовавший чужой выбор, обязан мочь
     // его изменить, не переписывая соседние.
     expect(resolveProviders({ profile: heir, lookup: lookupOf(withChoice, heir) })).toEqual({
-      'reformer.preview.sessions': 'preview',
+      'reformer.preview.live': 'preview',
       'acme.telemetry': 'own-telemetry',
     });
   });

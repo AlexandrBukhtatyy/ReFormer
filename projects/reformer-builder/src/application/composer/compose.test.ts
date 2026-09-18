@@ -160,11 +160,11 @@ describe('fromProfile', () => {
       id: 'wrong-choice',
       name: 'Не тот',
       plugins: ['reformer.files', 'reformer.preview'],
-      providers: { 'reformer.preview.sessions': 'reformer.files' },
+      providers: { 'reformer.preview.live': 'reformer.files' },
     });
 
     expect(() => fromProfile(wrong)).toThrow(
-      /«reformer.files» выбран провайдером «reformer.preview.sessions»/
+      /«reformer.files» выбран провайдером «reformer.preview.live»/
     );
   });
 
@@ -173,7 +173,7 @@ describe('fromProfile', () => {
       id: 'absent-choice',
       name: 'Нет такого',
       plugins: ['reformer.files'],
-      providers: { 'reformer.preview.sessions': 'reformer.preview' },
+      providers: { 'reformer.preview.live': 'reformer.preview' },
     });
 
     expect(() => fromProfile(absent)).toThrow(/«reformer.preview».*такой части в составе нет/s);

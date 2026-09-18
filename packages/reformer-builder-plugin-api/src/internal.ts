@@ -51,6 +51,7 @@ export * from './services/workspace-files.js';
 export * from './services/plugins-catalog.js';
 export * from './services/workspace-resources.js';
 export * from './services/workspace-save.js';
+export * from './services/preview.js';
 export * from './ui/contributions/decorations.js';
 export * from './ui/contributions/editors.js';
 export * from './ui/contributions/plugin-settings.js';

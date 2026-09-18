@@ -1,20 +1,12 @@
 /**
- * Подставной порт платформы — для тестов плагина.
+ * Помощники тестов превью-хоста: адрес ресурса, двойник канала выделения и двойник порта.
  *
- * Настоящий порт собирается композицией и требует рабочей области, сервиса китов и загрузчика
- * модулей. Проверять на нём то, чем владеет плагин, значило бы поднимать половину приложения
- * ради ответа на вопрос «в какую точку ушёл вклад».
- *
- * Двойник намеренно БЕДЕН: `modules` по умолчанию нет, namespace кита пуст, источник исполнять
- * код не разрешает. Это худший из штатных случаев, и поведение плагина в нём — самое интересное:
- * именно так выглядит проект, открытый по сети.
+ * Двойник порта поверхностей (кит, загрузчик модулей, соседние файлы) уехал вместе
+ * с поверхностями в `plugins/preview-runtime`: хосту от документа нужен только адрес.
  *
  * @module plugins/preview/testing
  */
 
-import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
 import type {
   Disposable,
   DocumentKind,
@@ -22,28 +14,7 @@ import type {
   ResourceId,
   ResourceRef,
 } from '@reformer/builder-plugin-api';
-import type {
-  PreviewDocument,
-  PreviewHost,
-  PreviewModules,
-  PreviewSourceCapabilities,
-} from './host';
-
-const NOOP: Disposable = Object.freeze({ dispose: () => undefined });
-
-export interface FakeHostOptions {
-  readonly text?: string;
-  readonly model?: unknown;
-  readonly kind?: DocumentKind;
-  readonly mediaType?: string;
-  readonly catalog?: readonly CatalogEntry[];
-  readonly descriptor?: KitDescriptor;
-  readonly namespace?: KitNamespace | null;
-  readonly source?: PreviewSourceCapabilities | null;
-  readonly modules?: PreviewModules;
-  /** Соседние файлы каталога формы: имя → текст. */
-  readonly siblings?: Readonly<Record<string, string>>;
-}
+import type { LiveDocument, PreviewHostPort, PreviewSourceCapabilities } from './host';
 
 /** Ссылка на ресурс с разумными умолчаниями. */
 export function fakeRef(id: ResourceId, overrides: Partial<ResourceRef> = {}): ResourceRef {
@@ -56,41 +27,6 @@ export function fakeRef(id: ResourceId, overrides: Partial<ResourceRef> = {}): R
     kind: 'file',
     mediaType: 'application/json',
     ...overrides,
-  };
-}
-
-export function createFakeHost(options: FakeHostOptions = {}): PreviewHost {
-  const text = options.text ?? '{}';
-  const siblings = options.siblings ?? {};
-
-  const document = (id: ResourceId): PreviewDocument => ({
-    id,
-    ref: fakeRef(id, { mediaType: options.mediaType ?? 'application/json' }),
-    kind: options.kind ?? 'text',
-    getText: () => text,
-    model: () => options.model,
-    onDidChangeContent: () => NOOP,
-  });
-
-  return {
-    useTranslate: () => (key) => key,
-    documentOf: (id) => document(id),
-    useActiveDocument: () => null,
-    sourceOf: () => options.source ?? { executesCode: false },
-    catalog: () => options.catalog ?? [],
-    kit: () => options.descriptor ?? toDescriptor({ version: '1.0', components: [] }),
-    kitNamespace: () => options.namespace ?? null,
-    onDidChangeKit: () => NOOP,
-    siblings: () =>
-      Promise.resolve(Object.keys(siblings).map((name) => fakeRef(`fake:form/${name}`))),
-    readText: (id) => {
-      const name = id.slice(id.lastIndexOf('/') + 1);
-      const found = siblings[name];
-      return found === undefined
-        ? Promise.reject(new Error(`нет файла ${id}`))
-        : Promise.resolve(found);
-    },
-    modules: options.modules,
   };
 }
 
@@ -159,6 +95,104 @@ export function createFakeSelectionChannel(): FakeSelectionChannel {
       return {
         dispose: () => {
           listeners.delete(cb);
+        },
+      };
+    },
+  };
+}
+
+export interface FakeHostPortOptions {
+  readonly kind?: DocumentKind;
+  readonly providerId?: string;
+  readonly mediaType?: string;
+  readonly source?: PreviewSourceCapabilities | null;
+}
+
+/**
+ * Двойник порта хоста: любой адрес — открытый документ с заданным видом и провайдером.
+ *
+ * Источник по умолчанию исполнять код НЕ разрешает — худший из штатных случаев, и выбор
+ * поверхности в нём самый интересный: так выглядит проект, открытый по сети.
+ */
+export function createFakeHostPort(options: FakeHostPortOptions = {}): PreviewHostPort {
+  const document = (id: ResourceId): LiveDocument => ({
+    id,
+    ref: fakeRef(id, { mediaType: options.mediaType ?? 'application/json' }),
+    kind: options.kind ?? 'model',
+    ...(options.providerId === undefined && options.kind === 'text'
+      ? {}
+      : { providerId: options.providerId ?? 'form.schema' }),
+  });
+  return {
+    documentOf: (id) => document(id),
+    sourceOf: () => (options.source === undefined ? { executesCode: false } : options.source),
+  };
+}
+
+/** Заглушка подписки: отписываться не от чего. */
+export const NOOP: Disposable = Object.freeze({ dispose: () => undefined });
+
+/** Вклад в точку — структурно тот же, что у реестра оболочки (`Contribution`). */
+export interface FakeContribution<T> {
+  readonly id: string;
+  readonly pluginId: string;
+  readonly order: number;
+  readonly value: T;
+}
+
+/** Двойник реестра вкладов в объёме, который читает живой вид: вносить, читать, следить. */
+export interface FakeExtensions {
+  contribute<T>(
+    point: { readonly id: string },
+    value: T,
+    meta?: { readonly id?: string }
+  ): Disposable;
+  get<T>(point: { readonly id: string }): readonly FakeContribution<T>[];
+  observe(point: { readonly id: string }, cb: () => void): Disposable;
+}
+
+/**
+ * Реестр вкладов с настоящей семантикой в той части, что нужна живому виду: порядок внесения,
+ * снятие вклада и уведомление ОБ ЭТОЙ ТОЧКЕ, а не обо всех. Настоящий реестр живёт в оболочке,
+ * а плагину её импортировать нельзя — правило проверяется линтером.
+ */
+export function createFakeExtensions(pluginId = 'reformer.preview-runtime'): FakeExtensions {
+  const items = new Map<string, FakeContribution<unknown>[]>();
+  const watchers = new Map<string, Set<() => void>>();
+  const notify = (point: string): void => {
+    for (const cb of [...(watchers.get(point) ?? [])]) cb();
+  };
+  let order = 0;
+  return {
+    contribute(point, value, meta) {
+      const list = items.get(point.id) ?? [];
+      const entry: FakeContribution<unknown> = Object.freeze({
+        id: meta?.id ?? `${point.id}#${order}`,
+        pluginId,
+        order: order++,
+        value,
+      });
+      items.set(point.id, [...list, entry]);
+      notify(point.id);
+      return {
+        dispose(): void {
+          items.set(
+            point.id,
+            (items.get(point.id) ?? []).filter((item) => item !== entry)
+          );
+          notify(point.id);
+        },
+      };
+    },
+    get: <T>(point: { readonly id: string }) =>
+      (items.get(point.id) ?? []) as readonly FakeContribution<T>[],
+    observe(point, cb) {
+      const set = watchers.get(point.id) ?? new Set();
+      set.add(cb);
+      watchers.set(point.id, set);
+      return {
+        dispose(): void {
+          set.delete(cb);
         },
       };
     },

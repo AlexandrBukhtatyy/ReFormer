@@ -108,7 +108,8 @@ import { SchematicView } from './SchematicView';
 import { useCanvasPrefs } from './usePrefs';
 import type { CollapseRegistry } from '../session/view-state';
 import type { CommandAccess } from '../editing/commands';
-import type { LivePreviewPort, NodeId, Translate } from '../host';
+import type { PreviewLiveService } from '@reformer/builder-plugin-api';
+import type { NodeId, Translate } from '../host';
 import type { SchemaEditorState, SchemaSession } from '../session/sessions';
 
 /** Отступ уровня в пикселях. Динамическая величина, классом Tailwind невыразима. */
@@ -172,7 +173,7 @@ export interface CanvasProps {
    * предпочтение падает на дерево. Так бывает и в сборке без плагина превью, и в тесте
    * канваса, которому нужны только клавиши.
    */
-  readonly live?: LivePreviewPort | null;
+  readonly live?: PreviewLiveService | null;
 }
 
 /** Пустой свод: одна ссылка вместо нового массива на каждую отрисовку. */

@@ -3,12 +3,11 @@
   "name": "Предпросмотр",
   "apiVersion": "^1",
   "builtin": {
-    "loading": "eager",
-    "reason": "Проверено выносом идентификатора в лист (как у monaco и files) — не помогает: порт живого вида берёт у превью не только идентификатор, а РАБОЧИЕ функции выбора поверхности (chooseSurface, surfaceTitle, fallbackMessage, documentRefOf) и точку поверхностей, и собирается порт до первой активации. Ленивым плагин станет вместе с ленивым портом, а не переносом имён."
+    "loading": "lazy"
   },
   "provides": [
     {
-      "id": "reformer.preview.sessions",
+      "id": "reformer.preview.live",
       "version": "1.0.0"
     }
   ]

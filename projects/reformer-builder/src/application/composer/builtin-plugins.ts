@@ -63,7 +63,7 @@ import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { BUILDER_VERSION } from '@/shell/platform/version';
 
-// Манифесты — ВСЕХ одиннадцати, включая ленивых: JSON это лист, кода плагина за ним нет.
+// Манифесты — ВСЕХ встроенных, включая ленивых: JSON это лист, кода плагина за ним нет.
 import aiManifest from '@/plugins/ai/manifest.json';
 import codegenManifest from '@/plugins/codegen/manifest.json';
 import filesManifest from '@/plugins/files/manifest.json';
@@ -72,6 +72,7 @@ import markdownManifest from '@/plugins/editor-markdown/manifest.json';
 import monacoManifest from '@/plugins/editor-monaco/manifest.json';
 import pluginManagerManifest from '@/plugins/plugin-manager/manifest.json';
 import previewManifest from '@/plugins/preview/manifest.json';
+import previewRuntimeManifest from '@/plugins/preview-runtime/manifest.json';
 import schemaEditorManifest from '@/plugins/editor-schema/manifest.json';
 import templatesManifest from '@/plugins/templates/manifest.json';
 import validatorManifest from '@/plugins/validator-schema/manifest.json';
@@ -80,7 +81,6 @@ import validatorManifest from '@/plugins/validator-schema/manifest.json';
 // Ленивых здесь нет ВОВСЕ — ни значением, ни типом: их код приезжает литеральными `import()`
 // внутри их же записей, а типы нужны только опциям, то есть оболочке.
 import { createKitsPlugin } from '@/plugins/kits';
-import { createPreviewPlugin } from '@/plugins/preview';
 import { createSchemaValidatorPlugin } from '@/plugins/validator-schema';
 
 /**
@@ -202,10 +202,19 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     return monaco.createMonacoEditorPlugin({ host: options.monaco });
   }),
   eagerBuiltin(kitsManifest, (options) => createKitsPlugin({ ...options.kits })),
-  // Точку поверхностей плагин объявляет структурно — `@reformer/builder-plugin-api` её пока не отдаёт, как и
-  // `defineExtensionPoint`, которым чужой плагин мог бы объявить свою. Пока поверхности
-  // вносит только сам превью, это ничего не стоит; появится вторая — точку надо вынести.
-  eagerBuiltin(previewManifest, (options) => createPreviewPlugin({ host: options.preview })),
+  // Превью — два плагина. Хост (`preview`) знает, КАК показывать документ: правило выбора
+  // поверхности, состояния, живой вид; он общий для стеков. Поверхности формы ReFormer
+  // (`preview-runtime`) — знание стека. Оба ленивые: прежний довод статичности (порт живого
+  // вида собирала композиция из рабочих функций превью) снят — живой вид теперь возможность
+  // самого превью. Порт у них один, и хосту из него нужны только адрес и права источника.
+  lazyBuiltin(previewManifest, async (options) => {
+    const preview = await import('@/plugins/preview');
+    return preview.createPreviewPlugin({ host: options.preview });
+  }),
+  lazyBuiltin(previewRuntimeManifest, async (options) => {
+    const previewRuntime = await import('@/plugins/preview-runtime');
+    return previewRuntime.createPreviewRuntimePlugin({ host: options.preview });
+  }),
   // Приоритет 50: markdown забирает свои файлы у Monaco (10), потому что рендер — это то,
   // зачем .md открывают чаще всего. Порядок сборки на исход не влияет и влиять не должен:
   // при РАВНОМ приоритете победил бы зарегистрированный раньше, то есть Monaco, и предметный

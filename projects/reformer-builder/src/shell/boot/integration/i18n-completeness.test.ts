@@ -55,6 +55,7 @@ import { FILES_MESSAGES } from '@/plugins/files';
 import { KITS_MESSAGES } from '@/plugins/kits/messages';
 import { PLUGIN_MANAGER_MESSAGES } from '@/plugins/plugin-manager';
 import { PREVIEW_MESSAGES } from '@/plugins/preview/messages';
+import { PREVIEW_RUNTIME_MESSAGES } from '@/plugins/preview-runtime/messages';
 import { TEMPLATES_MESSAGES } from '@/plugins/templates/messages';
 
 /** Словарь одного владельца: локаль → ключ → сообщение. */
@@ -85,6 +86,7 @@ const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['kits', KITS_MESSAGES],
   ['plugin-manager', PLUGIN_MANAGER_MESSAGES],
   ['preview', PREVIEW_MESSAGES],
+  ['preview-runtime', PREVIEW_RUNTIME_MESSAGES],
   ['templates', TEMPLATES_MESSAGES],
 ];
 

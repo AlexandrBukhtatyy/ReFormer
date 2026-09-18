@@ -38,7 +38,7 @@ import type { Plugin } from '@reformer/builder-plugin-api/internal';
 import type { FilesHost } from '@/plugins/files';
 import type { MonacoHost } from '@/plugins/editor-monaco';
 import type { KitsPluginOptions } from '@/plugins/kits';
-import type { PreviewHost } from '@/plugins/preview';
+import type { PreviewHost } from '@/plugins/preview-runtime';
 import type { MarkdownHost } from '@/plugins/editor-markdown';
 import type { SchemaEditorHost } from '@/plugins/editor-schema';
 import type { CodegenGaps } from '@/plugins/codegen';
@@ -135,7 +135,11 @@ export interface BuiltinPluginsOptions {
    * состояние троим, не заводя его копию у каждого.
    */
   readonly kits: Pick<KitsPluginOptions, 'settings' | 'sources'>;
-  /** Порт платформы для превью. */
+  /**
+   * Порт платформы для превью. Его берут двое: превью-хост — адрес документа и права
+   * источника, чтобы выбрать поверхность, — и поверхности стека ReFormer, которым нужны кит,
+   * загрузчик модулей и соседние файлы формы. Порт хоста — подмножество этого.
+   */
   readonly preview: PreviewHost;
   /**
    * То, чего генерации кода и шаблонам не хватает в возможностях: сохранение в источник.

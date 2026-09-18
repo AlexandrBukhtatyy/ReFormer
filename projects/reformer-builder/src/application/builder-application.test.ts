@@ -31,6 +31,7 @@ const FULL = [
   'reformer.kits',
   'reformer.plugin-manager',
   'reformer.preview',
+  'reformer.preview-runtime',
   'reformer.templates',
   'reformer.validator-schema',
 ];

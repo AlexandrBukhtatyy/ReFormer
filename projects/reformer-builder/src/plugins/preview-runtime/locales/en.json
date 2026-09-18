@@ -1,0 +1,18 @@
+{
+  "empty.build-failed": "Could not build the form",
+  "empty.compiling": "Compiling sidecars…",
+  "empty.no-loader": "Execution unavailable",
+  "empty.no-loader.detail": "Composition gave the preview no module loader, so sidecars are not executed.",
+  "empty.no-schema": "Schema does not parse",
+  "empty.no-schema.detail": "The buffer holds what you typed; the preview will render once the text is a schema.",
+  "surface.compiling": "With code",
+  "surface.runtime": "Runtime",
+  "model.title": "Model",
+  "model.empty": "No form right now: values appear once it builds",
+  "model.raw": "Raw write",
+  "model.raw.hint": "no change event, no touched — like data from the backend",
+  "model.copy": "Copy model",
+  "model.reset": "reset",
+  "model.disable": "disable",
+  "model.enable": "enable"
+}

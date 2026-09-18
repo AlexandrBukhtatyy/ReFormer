@@ -132,7 +132,6 @@ import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createSchemaHost } from '@/shell/boot/ports/schema';
 import { createPreviewHost } from '@/shell/boot/ports/preview';
-import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
 import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
@@ -153,7 +152,6 @@ import {
   toDisposable,
   type Disposable as HostDisposable,
 } from '@reformer/builder-plugin-api/internal';
-import { PreviewSessionsCapability } from '@/plugins/preview';
 import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 import { TextEditorFocusToken } from '@reformer/builder-plugin-api/internal';
 import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-view-states';
@@ -702,10 +700,9 @@ export function boot(options: BootOptions): BuilderApp {
   // Один порт Monaco на двоих: сам редактор и предпросмотр markdown, который одалживает
   // его тело для режима «рядом».
   const monacoHost = createMonacoHost({ project, i18n, diagnostics });
-  // Порт превью собирается ЗДЕСЬ — как и все порты. Реестра состояний рядом больше нет:
-  // его заводит сам плагин превью и отдаёт возможностью `preview.sessions`, а живой вид
-  // редактора схемы берёт его оттуда же. Общим он от этого быть не перестал — перестал быть
-  // общим ПО ДИСЦИПЛИНЕ композиции.
+  // Порт превью собирается ЗДЕСЬ — как и все порты. Его берут два плагина: превью-хост
+  // (адрес документа и права источника, чтобы выбрать поверхность) и поверхности стека
+  // ReFormer (кит, загрузчик модулей, соседние файлы). Реестр состояний и живой вид — у хоста.
   const previewHost = createPreviewHost({
     project,
     i18n,
@@ -795,21 +792,9 @@ export function boot(options: BootOptions): BuilderApp {
     files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
     monaco: monacoHost,
     markdown: createMarkdownHost({ project }),
-    schema: createSchemaHost({
-      project,
-      i18n,
-      services,
-      // И та же поверхность, что рисует форму в панели превью: «чем нарисована эта форма» —
-      // один вопрос с одним ответом, где бы её ни показывали.
-      live: createLiveSurfacePort({
-        host: previewHost,
-        // Состояния берутся у ВЛАДЕЛЬЦА — плагина превью — в момент обращения: порт
-        // собирается раньше активации, и захватывать тут нечего.
-        sessions: () => services.get(PreviewSessionsCapability),
-        extensions,
-        i18n,
-      }),
-    }),
+    // Живого вида в порту больше нет: его отдаёт плагин превью возможностью
+    // `reformer.preview.live`, и редактор схемы спрашивает её сам.
+    schema: createSchemaHost({ project, i18n, services }),
     kits: {
       // `settings` НЕ передаются намеренно: плагин берёт их из реестра сервисов —
       // единственным путём, доступным плагину из каталога. Передай мы параметром,

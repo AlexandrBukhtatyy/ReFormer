@@ -30,13 +30,11 @@
  * @module plugins/preview/state/sessions
  */
 
-import {
-  defineCapability,
-  type Capability,
-  type DiagnosticsService,
-  type Disposable,
-  type ResourceId,
-  type SelectionService,
+import type {
+  DiagnosticsService,
+  Disposable,
+  ResourceId,
+  SelectionService,
 } from '@reformer/builder-plugin-api';
 import { BUILD_DIAGNOSTICS_SOURCE, groupByResource } from './problem-diagnostics';
 import { createPreviewStore, type PreviewStore } from './store';
@@ -102,22 +100,6 @@ export interface PreviewSessions {
   forget(id: ResourceId): void;
   dispose(): void;
 }
-
-/**
- * Возможность «состояния превью»: тот же реестр, но по адресу, доступному чужому плагину.
- *
- * Заведена ради одного потребителя с настоящей нуждой — живого вида редактора схемы. Форма
- * в панели превью и форма в полосе живого вида обязаны быть ОДНОЙ: тот же выбор поверхности,
- * те же введённые значения, те же находки сборки. Плагины друг друга не импортируют, поэтому
- * до недавнего времени реестр им раздавала композиция — одним объектом на двоих, по дисциплине,
- * которую компилятор не проверяет. Теперь реестр принадлежит превью, а сосед берёт его
- * возможностью: нет превью — нет и живого вида, и это честная деградация вместо реестра,
- * который завела оболочка для плагина, которого в составе нет.
- *
- * Версия `1.0.0` — исходная: {@link PreviewSessions} на момент объявления.
- */
-export const PreviewSessionsCapability: Capability<PreviewSessions> =
-  defineCapability<PreviewSessions>({ id: 'reformer.preview.sessions', version: '1.0.0' });
 
 export function createPreviewSessions(): PreviewSessions {
   const stores = new Map<ResourceId, PreviewStore>();

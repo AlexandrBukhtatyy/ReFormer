@@ -74,7 +74,8 @@ import { hoverCss, liveCss } from '../live/live-style';
 import { gripBox, indicatorFor, type Indicator } from '../live/live-zone';
 import { targetAt, type LiveTarget } from '../live/live-target';
 import { planSchematicDrop } from '../schematic/schematic-drop';
-import type { LivePreviewPort, LiveSurfaceInfo, Translate } from '../host';
+import type { LiveSurfaceInfo, PreviewLiveService } from '@reformer/builder-plugin-api';
+import type { Translate } from '../host';
 import { indexNodes } from '../model/node-index';
 import { buildSchematic, schematicOrder } from '../schematic/schematic-tree';
 import type { Rect } from '../schematic/schematic-zone';
@@ -89,7 +90,7 @@ export interface LiveViewProps {
   readonly session: SchemaSession;
   readonly state: SchemaEditorState;
   readonly t: Translate;
-  readonly live: LivePreviewPort;
+  readonly live: PreviewLiveService;
   /** Свод диагностик документа — тот же, что рисует метки на строках дерева. */
   readonly problems?: readonly Diagnostic[];
   /**
@@ -110,7 +111,7 @@ export interface LiveViewProps {
  * ошибку, которую в этом проекте ловили трижды. Здесь есть событие «пересчитай», и число
  * выражает его точнее выдуманного значения. Тот же приём, что у `useKitVersion` в превью.
  */
-function useSurfaceVersion(live: LivePreviewPort, documentId: ResourceId): number {
+function useSurfaceVersion(live: PreviewLiveService, documentId: ResourceId): number {
   const [version, setVersion] = useState(0);
   useEffect(() => {
     const subscription = live.onDidChange(documentId, () => {

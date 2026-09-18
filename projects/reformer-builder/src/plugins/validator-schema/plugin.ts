@@ -61,6 +61,7 @@ import {
   type QuickFix,
   type ValidatorContribution,
 } from '@reformer/builder-plugin-api';
+import { isFormSchemaDocument as isStackFormSchemaDocument } from '@reformer/builder-stack-reformer/form-model';
 import { checkForm, type ValidateFormSchema } from './check';
 import { SCHEMA_VALIDATOR_ID } from './codes';
 
@@ -124,15 +125,15 @@ export interface SchemaValidatorOptions {
 }
 
 /**
- * Умолчание для `applies`: модельный документ с JSON-медиатипом.
+ * Умолчание для `applies`: документ, который разобрал провайдер схемы формы.
  *
- * Самая узкая проверка, доступная синхронно по одному {@link DocumentRef}. Вид `'model'`
- * означает, что за документ ВЗЯЛСЯ провайдер модели, а провайдер схемы формы берётся ровно
- * за схемы формы — он читает содержимое пробой, чего валидатору нельзя. Проверка по одному
- * расширению отдала бы валидатору весь `package.json` в рабочей области.
+ * Самая узкая проверка, доступная синхронно по одному {@link DocumentRef}. Провайдер схемы
+ * берётся ровно за схемы формы — он читает содержимое пробой, чего валидатору нельзя. Прежняя
+ * проверка «модельный документ с JSON-медиатипом» отдала бы валидатору форму ЛЮБОГО стека:
+ * `.json` бывает схемой не только ReFormer, и валидатор находил бы в чужой форме «ошибки».
  */
 export function isFormSchemaDocument(doc: DocumentRef): boolean {
-  return doc.kind === 'model' && doc.ref.mediaType === 'application/json';
+  return isStackFormSchemaDocument(doc);
 }
 
 /**

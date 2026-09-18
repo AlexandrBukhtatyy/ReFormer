@@ -306,6 +306,28 @@ export type {
 export { SelectionServiceToken } from './services/selection.js';
 export type { SelectionService } from './services/selection.js';
 
+// Превью — поверхности, которые рисуют документ, и живой вид, которым их показывают редакторы.
+// Точка здесь, потому что поверхности вносят плагины РАЗНЫХ стеков: стек ReFormer рисует схему
+// renderer-json, другой стек — свой формат, и структурная копия точки у каждого поставщика
+// разъехалась бы с оригиналом. Модель документа в контракте `unknown`: какой провайдер модели
+// разобрал документ (`DocumentRef.providerId`), та поверхность и берётся, и она же сужает модель.
+// Живой вид — возможность плагина превью: одно правило выбора поверхности на всех, кто
+// показывает документ, поэтому «чем нарисована эта форма» имеет один ответ.
+export { PreviewSurfacePoint, PreviewLiveCapability } from './services/preview.js';
+export type {
+  LiveSurfaceContext,
+  LiveSurfaceInfo,
+  PreviewCapabilities,
+  PreviewContext,
+  PreviewFormHandle,
+  PreviewLiveService,
+  PreviewMock,
+  PreviewProblem,
+  PreviewProblemPhase,
+  PreviewSurface,
+  PreviewValues,
+} from './services/preview.js';
+
 // ── Модель документа: второй вид документа поверх текста ────────────────────────
 //
 // Точка провайдеров модели обязана быть здесь, потому что структурный редактор — это
