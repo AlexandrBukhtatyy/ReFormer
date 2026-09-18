@@ -373,6 +373,16 @@ toolkit), плагин `reformer.plain`, профиль `plain.builder`. Жив�
 - `docs/plans/builder-v4-plugin-platform-plan.md`: пометки «Сделано» у Ф0 п. 6 и §1.2 п. 10.
 - beads: эпик «Builder: стеки», задачи по фазам; follow‑ups из раздела ниже.
 
+**Сделано 2026‑09‑19.** `project-structure.md` — пятый запрет («оболочка не знает стека»),
+раскладка без портов стека, раздел «Стек как единица состава» с таблицами стеков и возможностей,
+проверка границы; `plugin-and-shell.md` — возможности оболочки `reformer.workspace.models`,
+`reformer.modules`, `reformer.host.messages` и коды находок с владельцем; `editors-and-preview.md` —
+живой вид как возможность; `decisions-log.md` (журнал билдера) — запись «Ось стека»; README SDK,
+стека ReFormer и демо‑стека; в плане v4 отмечены Ф0 п. 6, §1.2 п. 10 и пункт 4 списка долгов.
+Follow‑ups из раздела «Не входит» задачами не заводились — они уже покрыты эпиком ReFormer‑s0j
+или названы здесь как направление; заведены только пробелы, найденные в работе (ReFormer‑es12.6,
+‑360y, ‑r8oc, ‑oa3g).
+
 ## Не входит (заводится задачами)
 
 - Дефолты ReFormer‑кита, зашитые в код стека: `COMPOUND_TEMPLATES` и `LEAF_COMPONENT_NAMES`

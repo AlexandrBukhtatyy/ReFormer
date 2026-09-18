@@ -33,12 +33,13 @@ platform» читается из самого дерева, а слово «host
 | ----------------- | ---------------------------------------------------------- | ---------------------------------------------- |
 | `shell/platform/` | платформа: примитивы, Workspace, Source, сервисы, оболочка | только `shell/platform/` и внешние             |
 | `plugins/*`       | вся предметная логика как вклады                           | контракт плагинов, пакеты стеков, свой каталог |
-| `shell/boot/`     | сборка оболочки: платформа, порты, службы, запуск          | всё, кроме `application/`                      |
+| `shell/boot/`     | сборка оболочки: платформа, порты, службы, запуск          | всё, кроме `application/` и стеков             |
 | `application/`    | СОСТАВ приложения: из каких плагинов оно собрано           | всё                                            |
 
 Предметный код, общий для плагинов одного стека, живёт не в билдере, а пакетами в `packages/`:
 `@reformer/builder-stack-reformer` — модель схемы, каталог, киты, моки, фикстуры и печать модуля
-формы для `@reformer/renderer-json`; `@reformer/builder-toolkit` — то, что нужно любому стеку
+формы для `@reformer/renderer-json`; `@reformer/builder-stack-plain` — демо-стек со своим
+форматом схемы и нативной отрисовкой; `@reformer/builder-toolkit` — то, что нужно любому стеку
 (печать шаблонов, маркер происхождения, имена). Раньше это был каталог `src/lib`: его видели
 встроенные плагины, но не видел никто снаружи, а назывался он «общим», хотя говорил на языке
 одного формата схемы.
@@ -53,7 +54,7 @@ platform» читается из самого дерева, а слово «host
 объявляет форму композиции (`shell/boot/composition.ts`) и получает её ПАРАМЕТРОМ, тем же
 приёмом, которым устроены порты плагинов: потребность объявляет потребитель.
 
-Четыре запрета, ради которых всё это и делается:
+Пять запретов, ради которых всё это и делается:
 
 1. **`shell/platform/` не импортирует пакеты стеков и `plugins/`.** Это буквальное выражение
    принципа «платформа не знает предметных сущностей». Нарушение видно сразу.
@@ -64,6 +65,11 @@ platform» читается из самого дерева, а слово «host
    список плагинов снова становится её частью, и второе приложение на той же оболочке
    начинается с правки `boot.ts`. Исключение одно и названное: `shell/boot/integration/`,
    интеграционные тесты СБОРКИ, которые обязаны знать, что именно собирается.
+5. **`shell/` не знает стека**: не импортирует пакеты стеков и плагины, которых нет
+   в профиле `builder.base`. Всё, что стеку нужно от оболочки, он берёт возможностями
+   (`reformer.workspace.models`, `reformer.modules`, `reformer.host.messages`, службы рабочей
+   области), а не портами, собранными в `boot`: иначе оболочка собирала бы порты для всех стеков
+   сразу. Исключение то же — `shell/boot/integration/`.
 
 Импорты между подсистемами пишутся через псевдоним `@/…` — это не косметика: правила
 `no-restricted-imports` ловят только такие пути, поэтому относительный импорт, пересекающий
@@ -90,8 +96,9 @@ projects/reformer-builder/
 │   │   │   │                    context-keys, resource-clipboard, documents (что ОТКРЫТО),
 │   │   │   │                    workspace-files (что ЛЕЖИТ и где; записи здесь нет —
 │   │   │   │                    дверь одна, в documents), host-capabilities (что даёт
-│   │   │   │                    САМА оболочка: обе службы рабочей области, фокус
-│   │   │   │                    текстового редактора, снимки вида)
+│   │   │   │                    САМА оболочка: службы рабочей области, модели
+│   │   │   │                    документов, загрузчик модулей, словарь оболочки,
+│   │   │   │                    фокус текстового редактора, снимки вида)
 │   │   │   ├── modules/         механика загрузки кода: registry, linker, transpilers, compile-cache
 │   │   │   ├── plugin/          рантайм плагинов: types, context, registry, loader, catalog, storage, styles
 │   │   │   └── ui/              оболочка и слоты
@@ -116,13 +123,13 @@ projects/reformer-builder/
 │   │       │                    что оболочка умеет ДАТЬ составу
 │   │       ├── plugin-modules.ts  защищённые слоты реестра модулей
 │   │       ├── settings-sections.ts  состав окна настроек
-│   │       ├── ports/           адаптеры портов плагинов: files, monaco, markdown, schema,
-│   │       │                    preview, ai, templates; documents и workspace-files — службы
-│   │       │                    рабочей области для ЛЮБОГО плагина; codegen и templates
-│   │       │                    сузились до одной операции — workspace-save (наружу, в источник);
-│   │       │                    мосты live-surface, kit-namespace.
-│   │       │                    Разделяемых реестров здесь НЕТ: фокус и снимки вида — службы
-│   │       │                    платформы, состояния превью — возможность своего плагина
+│   │       ├── settings/        форма настроек плагинов на renderer-json (UI-технология
+│   │       │                    самого билдера) и свой синтез начальных значений
+│   │       ├── ports/           адаптеры портов ТРЁХ нейтральных плагинов основы: files, monaco,
+│   │       │                    markdown; documents, workspace-files, workspace-resources
+│   │       │                    и workspace-save — службы рабочей области для ЛЮБОГО плагина.
+│   │       │                    Портов стека здесь нет: редактор схемы, превью, киты, кодоген
+│   │       │                    и шаблоны собирают себе всё из возможностей в `activate`
 │   │       ├── project/         project, workspace-session, document-models, opened-tabs,
 │   │       │                    project-status, useProject, ProjectTree
 │   │       └── integration/     интеграционные тесты СБОРКИ — единственное узаконенное
@@ -134,14 +141,16 @@ projects/reformer-builder/
 │   │   │                    по конфигу запуска (`preset`, `plugins.enable/disable`)
 │   │   ├── composer/
 │   │   │   ├── builtin-plugins.ts  КАРТА встроенных: запись = идентификатор, способ
-│   │   │   │                приезда (eager|lazy) и фабрика; здесь же шесть литеральных
+│   │   │   │                приезда (eager|lazy) и фабрика; здесь же литеральные
 │   │   │   │                `import()` ленивых
 │   │   │   ├── compose.ts   `fromProfile(profile, overrides?)` → пара фаз для boot
 │   │   │   └── testing.ts   опции-пустышки для трёх проверок состава
 │   │   ├── profiles/        профиль = ДАННЫЕ: имя, список плагинов, необязательный
 │   │   │                    `extends`, выбор провайдера (`providers`) там, где одну
-│   │   │                    возможность объявили двое. reformer.builder (полный),
-│   │   │                    minimal, ai-builder; registry.ts разрешает имя в профиль
+│   │   │                    возможность объявили двое. builder.base (основа без стека),
+│   │   │                    reformer.builder (основа + стек ReFormer), plain.builder
+│   │   │                    (основа + демо-стек), minimal, ai-builder; registry.ts
+│   │   │                    разрешает имя в профиль
 │   │   └── resolver/
 │   │       ├── profile-resolver.ts  `extends` цепочкой, дедупликация с порядком,
 │   │       │                  enable/disable, склейка `providers` по цепочке,
@@ -155,12 +164,15 @@ projects/reformer-builder/
 │   │   ├── editor-monaco/       runtime/ sync/ diagnostics/ ui/
 │   │   ├── editor-markdown/     render/ state/ ui/
 │   │   ├── validator-schema/    валидатор схемы (флат — размер позволяет)
-│   │   ├── preview/             compiling/ runtime/ schema/ surface/ state/ ui/
+│   │   ├── preview/             ХОСТ превью, общий для стеков: live/ state/ surface/ schema/
+│   │   ├── preview-runtime/     поверхности формы ReFormer и панель модели: compiling/
+│   │   │                        runtime/ schema/ surface/ ui/
 │   │   ├── codegen/             pipeline/ (+ __golden__) commands/ ui/
 │   │   ├── templates/           content/ render/ commands/ stores/ ui/
 │   │   ├── files/               ui/
 │   │   ├── kits/                активный кит как сервис (флат)
 │   │   ├── plugin-manager/      управление плагинами каталога из палитры (флат)
+│   │   ├── plain/               демо-стек: провайдер, поверхность, валидатор, редактор, команды
 │   │   └── ai/                  model/ loop/ tools/ session/ knowledge/ providers/ ui/
 │   │                            (каталога core/ нет: имя не сообщало ничего и притягивало всё)
 │   │
@@ -192,6 +204,36 @@ projects/reformer-builder/
 на языке которого он говорит: модель схемы ReFormer нужна плагинам стека ReFormer и не нужна
 никому больше. То, что нужно ЛЮБОМУ стеку, — в `@reformer/builder-toolkit`; критерий туда —
 «нужно двум стекам», а не «не знает про ReFormer».
+
+### Стек как единица состава
+
+Стек — набор плагинов со своим форматом схемы: провайдер модели (`document.model`), поверхность
+превью (`preview.surface`), валидатор, редактор, кодоген. Документ стека узнаётся по
+`DocumentRef.providerId` — провайдеру, который его разобрал, — а не по расширению: `.json`
+бывает схемой любого стека. Сегодня стеков два:
+
+| Стек                | Пакет                              | Плагины                                                                        | Профиль            |
+| ------------------- | ---------------------------------- | ------------------------------------------------------------------------------ | ------------------ |
+| ReFormer            | `@reformer/builder-stack-reformer` | kits, validator-schema, editor-schema, preview-runtime, ai, codegen, templates | `reformer.builder` |
+| демо `plain-form/1` | `@reformer/builder-stack-plain`    | plain                                                                          | `plain.builder`    |
+
+Оба профиля наследуют `builder.base` — файлы, Monaco, markdown, управление плагинами и хост
+превью. Основа поднимается без единого плагина стека, и это проверено интеграционным тестом.
+
+Что стеку нужно от оболочки, он берёт возможностями, а не портами:
+
+| Нужно                                     | Возможность                                      |
+| ----------------------------------------- | ------------------------------------------------ |
+| ручка модельного документа                | `reformer.workspace.models`                      |
+| текст, соседи, права источника, правки    | `reformer.workspace`, `reformer.workspace.files` |
+| исполнить код рабочей копии               | `reformer.modules`                               |
+| показать документ живым видом             | `reformer.preview.live` (плагин превью)          |
+| перевести код чужой находки               | `reformer.host.messages`                         |
+| сохранить наружу (право `workspace.save`) | `reformer.workspace.save`                        |
+
+Тексты своих находок стек кладёт в СВОЙ словарь и помечает код владельцем:
+`<plugin-id>:<code>` (`pluginDiagnosticCode` в SDK) переводится по ключу `errors.<code>`
+словарём плагина; голый код — словарём оболочки.
 
 ## Устройство плагина
 
@@ -260,6 +302,12 @@ plugins/editor-schema/
 
 Раскладка каталогов — [structure.test.ts](../src/structure.test.ts): порог модулей,
 устройство плагина, словарь в корне, фасад плагина.
+
+Граница «оболочка не знает стека» держится двумя проверками. Пакеты стеков
+(`@reformer/builder-stack-*`) запрещены во всём `src/shell/**` линтером. Плагины стека —
+храповиком в [builtin-plugins.test.ts](../src/application/composer/builtin-plugins.test.ts)
+(«оболочка не знает стека»): список нейтральных плагинов выводится из профиля `builder.base`,
+а не пишется руками, поэтому новый плагин стека попадает под запрет сам.
 
 **Правило приёмки:** нарушение границы валит `npm run lint --workspace @reformer/builder`
 (именно workspace-level: корневой `npm run lint` правил слоёв не содержит — см. decisions-log,
@@ -345,7 +393,7 @@ plugins/editor-schema/
 | `catalog/`                         | `stack-reformer/catalog/`                              |
 | `kits/` (дескрипторы)              | `stack-reformer/kits/`                                 |
 | `kits/` (активный кит)             | `plugins/kits/`                                        |
-| `preview-runtime/live/`            | `shell/platform/modules/` + `plugins/preview/`         |
+| `preview-runtime/live/`            | `shell/platform/modules/` + `plugins/preview-runtime/` |
 | `codegen/`                         | `stack-reformer/codegen/` + `plugins/codegen/`         |
 | `templates/`, `app/*-templates.ts` | `plugins/templates/`                                   |
 | `canvas/`, `panels/`               | `plugins/editor-*/`                                    |
@@ -354,3 +402,8 @@ plugins/editor-schema/
 | `io/opfs`, `io/idb`, `draft-store` | `shell/platform/workspace/storage/`                    |
 | `app/EditorLayout.tsx`             | `shell/platform/ui/Shell.tsx` + вклады                 |
 | `store/reducers.ts`                | `shell/platform/workspace/` + `plugins/editor-schema/` |
+
+Порты стека, которые собирал `shell/boot/ports` (`schema`, `preview`, мосты `live-surface`
+и `kit-namespace`), сняты в 2026-09 (ось стеков, Ф2–Ф3): живой вид стал возможностью плагина
+превью, загрузчик пространства имён кита уехал в `plugins/kits`, а редактор схемы и поверхности
+превью собирают свои порты из возможностей оболочки (`host-from-context.ts`).
