@@ -1,0 +1,76 @@
+import { useState } from 'react';
+
+export interface <%= it.name %>Values {
+<% it.fields.forEach(function (field) { -%>
+  <%= field.key %>: <%= field.tsType %>;
+<% }) -%>
+}
+
+export const initial<%= it.name %>Values: <%= it.name %>Values = {
+<% it.fields.forEach(function (field) { -%>
+  <%= field.key %>: <%= field.initial %>,
+<% }) -%>
+};
+
+export function <%= it.name %>(props: { onSubmit?: (values: <%= it.name %>Values) => void }) {
+  const [values, setValues] = useState<<%= it.name %>Values>(initial<%= it.name %>Values);
+  const set = <K extends keyof <%= it.name %>Values>(name: K, value: <%= it.name %>Values[K]) =>
+    setValues((previous) => ({ ...previous, [name]: value }));
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        props.onSubmit?.(values);
+      }}
+    >
+<% if (it.title) { -%>
+      <h2>{<%= it.title %>}</h2>
+<% } -%>
+<% it.fields.forEach(function (field) { -%>
+<% if (field.type === 'checkbox') { -%>
+      <label>
+        <input
+          type="checkbox"
+          checked={values[<%= field.key %>]}
+          onChange={(event) => set(<%= field.key %>, event.target.checked)}
+        />
+        {<%= field.label %>}
+      </label>
+<% } else if (field.type === 'select') { -%>
+      <label>
+        {<%= field.label %>}
+        <select
+          value={values[<%= field.key %>]}
+          onChange={(event) => set(<%= field.key %>, event.target.value)}
+        >
+<% field.options.forEach(function (option) { -%>
+          <option value={<%= option %>}>{<%= option %>}</option>
+<% }) -%>
+        </select>
+      </label>
+<% } else if (field.type === 'number') { -%>
+      <label>
+        {<%= field.label %>}
+        <input
+          type="number"
+          value={values[<%= field.key %>] ?? ''}
+          onChange={(event) =>
+            set(<%= field.key %>, event.target.value === '' ? null : Number(event.target.value))
+          }
+        />
+      </label>
+<% } else { -%>
+      <label>
+        {<%= field.label %>}
+        <input
+          value={values[<%= field.key %>]}
+          onChange={(event) => set(<%= field.key %>, event.target.value)}
+        />
+      </label>
+<% } -%>
+<% }) -%>
+      <button type="submit">Отправить</button>
+    </form>
+  );
+}

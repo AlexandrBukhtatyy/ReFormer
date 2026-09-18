@@ -91,10 +91,13 @@ describe('fromProfile', () => {
     ]);
   });
 
-  it('полный профиль собирает всю карту', async () => {
+  it('полный профиль собирает всю карту, кроме демо-стека', async () => {
+    // Демо-стек — другой стек: в состав ReFormer он не входит, его собирает `plain.builder`.
     const ids = await idsOf(fromProfile(builderProfile));
 
-    expect([...ids].sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
+    expect([...ids].sort()).toEqual(
+      [...BUILTIN_PLUGINS.keys()].filter((id) => id !== 'reformer.plain').sort()
+    );
   });
 
   it('поправки запуска доходят до состава', async () => {

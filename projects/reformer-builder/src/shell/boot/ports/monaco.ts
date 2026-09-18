@@ -16,6 +16,7 @@
 import {
   DocumentModelPoint,
   isTextMediaType,
+  splitDiagnosticCode,
   type ExtensionRegistry,
   type ResourceId,
 } from '@reformer/builder-plugin-api/internal';
@@ -45,14 +46,6 @@ function makeUseTranslate(i18n: RootI18nService): () => Translate {
 }
 
 /**
- * Перевод кода диагностики словарём Host. Приставка `errors.` — здесь, а не в плагине.
- *
- * Экспортируется и переиспользуется тремя портами (Monaco, редактор схемы, дерево файлов):
- * одна и та же ошибка обязана выглядеть одинаково в подчёркивании, на узле канваса,
- * значком в дереве и строкой в панели проблем. Скопируй эту функцию в каждый порт —
- * и приставка разъедется на первой же правке раскладки словаря.
- */
-/**
  * Перевод ключа словарём Host БЕЗ приставки.
  *
  * Близнец {@link makeUseDiagnosticMessage}, и разница между ними содержательная:
@@ -68,10 +61,25 @@ export function makeUseHostMessage(i18n: RootI18nService): () => Translate {
   return useHostMessage;
 }
 
+/**
+ * Перевод кода диагностики словарём Host. Приставка `errors.` — здесь, а не в плагине.
+ *
+ * Экспортируется и переиспользуется тремя портами (Monaco, редактор схемы, дерево файлов):
+ * одна и та же ошибка обязана выглядеть одинаково в подчёркивании, на узле канваса,
+ * значком в дереве и строкой в панели проблем. Скопируй эту функцию в каждый порт —
+ * и приставка разъедется на первой же правке раскладки словаря.
+ */
 export function makeUseDiagnosticMessage(i18n: RootI18nService): () => Translate {
   function useDiagnosticMessage(): Translate {
     useLocale(i18n);
-    return (code, params) => i18n.t(`errors.${code}`, params);
+    return (code, params) => {
+      // Код с владельцем (`<plugin-id>:<code>`) переводит словарь владельца: стек, пришедший
+      // плагином, в словарь оболочки не пишет, и оболочка его ошибок не знает.
+      const owned = splitDiagnosticCode(code);
+      return owned.pluginId === null
+        ? i18n.t(`errors.${owned.code}`, params)
+        : i18n.forPlugin(owned.pluginId).t(`errors.${owned.code}`, params);
+    };
   }
   return useDiagnosticMessage;
 }

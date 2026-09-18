@@ -381,7 +381,11 @@ export type { HostMessagesService } from './services/host-messages.js';
 // Порядок строгости диагностик. Без него каждый показывающий плагин заводит свою копию,
 // и совпадение копий держится на комментарии, а не на компиляторе — ровно это и случилось
 // в дереве файлов и на канвасе, пока порядок жил у платформы без выхода наружу.
-export { SEVERITY_RANK } from './services/diagnostics/types.js';
+export {
+  SEVERITY_RANK,
+  pluginDiagnosticCode,
+  splitDiagnosticCode,
+} from './services/diagnostics/types.js';
 
 // ── Меню ─────────────────────────────────────────────────────────────────────────
 //

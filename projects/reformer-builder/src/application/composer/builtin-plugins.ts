@@ -71,6 +71,7 @@ import kitsManifest from '@/plugins/kits/manifest.json';
 import markdownManifest from '@/plugins/editor-markdown/manifest.json';
 import monacoManifest from '@/plugins/editor-monaco/manifest.json';
 import pluginManagerManifest from '@/plugins/plugin-manager/manifest.json';
+import plainManifest from '@/plugins/plain/manifest.json';
 import previewManifest from '@/plugins/preview/manifest.json';
 import previewRuntimeManifest from '@/plugins/preview-runtime/manifest.json';
 import schemaEditorManifest from '@/plugins/editor-schema/manifest.json';
@@ -250,6 +251,12 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
   lazyBuiltin(templatesManifest, async () => {
     const templates = await import('@/plugins/templates');
     return templates.createTemplatesPlugin();
+  }),
+  // Демо-стек: другой формат схемы, другой рендер, свой экспорт. В полный профиль ReFormer
+  // не входит — его собирает профиль `plain.builder` поверх основы.
+  lazyBuiltin(plainManifest, async () => {
+    const plain = await import('@/plugins/plain');
+    return plain.createPlainPlugin();
   }),
 ]);
 

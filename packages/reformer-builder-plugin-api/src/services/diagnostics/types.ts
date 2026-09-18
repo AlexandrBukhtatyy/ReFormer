@@ -127,9 +127,40 @@ export interface Diagnostic {
   /** Идентификатор валидатора. По нему `publish` замещает прошлый результат. */
   readonly source: string;
   readonly severity: DiagnosticSeverity;
-  /** Ключ i18n: `errors.<code>`. Не текст. */
+  /**
+   * Ключ i18n, не текст. Голый код (`schema.unknown-component`) переводится словарём
+   * оболочки по ключу `errors.<code>`; код вида `<plugin-id>:<code>` — словарём ВНЁСШЕГО
+   * плагина по ключу `errors.<code>` (см. {@link pluginDiagnosticCode}).
+   */
   readonly code: string;
   readonly params?: Record<string, unknown>;
   readonly target: DiagnosticTarget;
   readonly fixes?: readonly QuickFix[];
+}
+
+/** Разделитель владельца и кода в {@link Diagnostic.code}. */
+const OWNER_SEPARATOR = ':';
+
+/**
+ * Код находки, текст которой лежит в словаре плагина-владельца.
+ *
+ * Словарь оболочки общий (`errors.<code>`): одна ошибка звучит одинаково в подчёркивании,
+ * на канвасе и в панели проблем. Но стек, пришедший плагином, в словарь оболочки писать
+ * не может — и не должен: оболочка тогда знала бы его ошибки. Такой код несёт владельца,
+ * и переводчик ищет `errors.<code>` в его пространстве имён; плагин кладёт текст туда же,
+ * куда и остальные свои строки (`ctx.i18n.contribute`).
+ */
+export function pluginDiagnosticCode(pluginId: string, code: string): string {
+  return `${pluginId}${OWNER_SEPARATOR}${code}`;
+}
+
+/** Владелец кода находки (`null` — оболочка) и сам код без владельца. */
+export function splitDiagnosticCode(code: string): {
+  readonly pluginId: string | null;
+  readonly code: string;
+} {
+  const at = code.indexOf(OWNER_SEPARATOR);
+  return at <= 0
+    ? { pluginId: null, code }
+    : { pluginId: code.slice(0, at), code: code.slice(at + OWNER_SEPARATOR.length) };
 }

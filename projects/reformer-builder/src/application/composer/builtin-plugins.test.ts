@@ -38,6 +38,7 @@ import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
 import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits';
 import { builderApplication } from '../builder-application';
 import { baseProfile } from '../profiles/builder';
+import { PROFILES } from '../profiles/registry';
 import {
   builtinPluginDirectory,
   BUILTIN_MANIFESTS,
@@ -46,8 +47,11 @@ import {
   canonicalPluginId,
   LAZY_PLUGIN_IDS,
 } from './builtin-plugins';
-import { composeAll } from './compose';
+import { composeAll, fromProfile } from './compose';
 import { stubBuiltinOptions, stubHostCapabilities } from './testing';
+
+/** Демо-стек: в карте есть, в полный профиль ReFormer не входит. */
+const PLAIN_PLUGIN = 'reformer.plain';
 
 /**
  * Русский словарь плагина или `null`, если словаря у него нет.
@@ -491,7 +495,10 @@ describe('две фазы: что едет в entry, а что своим фай
   it('ленивая фаза полного профиля отдаёт ровно тех, кто объявлен ленивым', async () => {
     const lazy = await builderApplication.lazy(stubBuiltinOptions());
 
-    expect(lazy.map((composed) => composed.plugin.id).sort()).toEqual([...LAZY_PLUGIN_IDS].sort());
+    // Демо-стек в полный профиль ReFormer не входит — см. тест ниже.
+    expect(lazy.map((composed) => composed.plugin.id).sort()).toEqual(
+      LAZY_PLUGIN_IDS.filter((id) => id !== PLAIN_PLUGIN).sort()
+    );
   });
 
   it('фазы не пересекаются и вместе дают весь набор', async () => {
@@ -506,14 +513,27 @@ describe('две фазы: что едет в entry, а что своим фай
     expect([...eager, ...lazy].sort()).toEqual([...all].sort());
   });
 
-  it('полный профиль собирает ВСЮ карту: ни одна запись не осталась невостребованной', async () => {
-    // Карта и профиль — разные списки, и разъехаться они могут в обе стороны. Плагин,
-    // добавленный в карту и забытый в профиле, не попал бы в приложение вовсе, а тест
+  it('ни одна запись карты не осталась невостребованной: её собирает хоть один профиль', async () => {
+    // Карта и профили — разные списки, и разъехаться они могут в обе стороны. Плагин,
+    // добавленный в карту и забытый во всех профилях, не попал бы в приложение вовсе, а тест
     // состава остался бы зелёным: он проверяет то, что собралось.
+    const used = new Set<string>();
+    for (const profile of PROFILES.values()) {
+      for (const composed of await composeAll(fromProfile(profile), stubBuiltinOptions())) {
+        used.add(composed.plugin.id);
+      }
+    }
+
+    expect([...used].sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
+  });
+
+  it('полный профиль ReFormer — вся карта, кроме демо-стека', async () => {
+    // Демо-стек — ДРУГОЙ стек: его собирает `plain.builder` поверх основы, а в состав ReFormer
+    // он не входит. Попади он туда — у `.json` появилось бы два предметных редактора.
     const all = await composeAll(builderApplication, stubBuiltinOptions());
 
     expect(all.map((composed) => composed.plugin.id).sort()).toEqual(
-      [...BUILTIN_PLUGINS.keys()].sort()
+      [...BUILTIN_PLUGINS.keys()].filter((id) => id !== PLAIN_PLUGIN).sort()
     );
   });
 

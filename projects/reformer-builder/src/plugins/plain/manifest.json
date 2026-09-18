@@ -1,0 +1,17 @@
+{
+  "id": "reformer.plain",
+  "name": "Демо-стек: простая форма",
+  "apiVersion": "^1",
+  "builtin": {
+    "loading": "lazy"
+  },
+  "permissions": ["workspace.save"],
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.preview.live",
+        "range": "^1"
+      }
+    ]
+  }
+}

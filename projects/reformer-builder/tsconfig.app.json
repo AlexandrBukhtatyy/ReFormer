@@ -37,6 +37,7 @@
       // Пакеты стеков — тем же доводом. Подпуть стека адресует КАТАЛОГ модуля, и его
       // `index.ts` находит резолюция `bundler`.
       "@reformer/builder-toolkit": ["../../packages/reformer-builder-toolkit/src/index.ts"],
+      "@reformer/builder-stack-plain": ["../../packages/reformer-builder-stack-plain/src/index.ts"],
       "@reformer/builder-stack-reformer/*": [
         "../../packages/reformer-builder-stack-reformer/src/*"
       ],

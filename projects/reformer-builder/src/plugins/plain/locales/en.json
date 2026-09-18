@@ -1,0 +1,21 @@
+{
+  "command.new": "New plain form",
+  "command.addField": "Plain form: add field",
+  "command.export": "Plain form: export Form.tsx",
+  "editor.label": "Plain form",
+  "editor.add": "Add field",
+  "editor.export": "Export Form.tsx",
+  "editor.fields": "Form fields",
+  "editor.remove": "Remove field {name}",
+  "editor.noLive": "Nothing to show the form with: no preview in this build.",
+  "editor.notPlain": "The document is still opening or is not a plain form.",
+  "editor.export.saved": "Form.tsx written and saved.",
+  "editor.export.unsaved": "Form.tsx written to the working copy — save it.",
+  "editor.export.no-document": "Nothing to export: the document is not a plain form.",
+  "editor.export.read-only": "The source is read-only.",
+  "surface.title": "Native fields",
+  "surface.invalid": "The schema does not parse as a plain form.",
+  "errors.empty-name": "Field #{index}: empty name — the value has no place in the model.",
+  "errors.duplicate-name": "The name \"{name}\" is already taken by field #{first}.",
+  "errors.no-options": "The select \"{name}\" has no options."
+}

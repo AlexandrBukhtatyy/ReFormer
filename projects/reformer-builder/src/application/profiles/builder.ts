@@ -55,3 +55,16 @@ export const builderProfile = defineProfile({
     'reformer.templates',
   ],
 });
+
+export const PLAIN_PROFILE_ID = 'plain.builder';
+
+/**
+ * Демо-стек поверх основы: ни одного плагина стека ReFormer. Доказывает, что основа билдера
+ * принимает другой формат схемы, другой рендер и свой экспорт — одним плагином.
+ */
+export const plainProfile = defineProfile({
+  id: PLAIN_PROFILE_ID,
+  name: 'Простая форма (демо-стек)',
+  extends: BASE_PROFILE_ID,
+  plugins: ['reformer.plain'],
+});

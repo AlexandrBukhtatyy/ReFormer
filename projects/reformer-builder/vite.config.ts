@@ -195,6 +195,10 @@ export default defineConfig({
         __dirname,
         '../../packages/reformer-builder-toolkit/src/index.ts'
       ),
+      '@reformer/builder-stack-plain': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-stack-plain/src/index.ts'
+      ),
       '@reformer/builder-stack-reformer': path.resolve(
         __dirname,
         '../../packages/reformer-builder-stack-reformer/src'

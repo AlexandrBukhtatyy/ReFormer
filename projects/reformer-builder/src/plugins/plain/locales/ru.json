@@ -1,0 +1,21 @@
+{
+  "command.new": "Новая простая форма",
+  "command.addField": "Простая форма: добавить поле",
+  "command.export": "Простая форма: экспорт Form.tsx",
+  "editor.label": "Простая форма",
+  "editor.add": "Добавить поле",
+  "editor.export": "Экспорт Form.tsx",
+  "editor.fields": "Поля формы",
+  "editor.remove": "Удалить поле {name}",
+  "editor.noLive": "Показать форму нечем: в составе нет превью.",
+  "editor.notPlain": "Документ ещё открывается или это не простая форма.",
+  "editor.export.saved": "Form.tsx записан и сохранён.",
+  "editor.export.unsaved": "Form.tsx записан в рабочую копию — сохраните его.",
+  "editor.export.no-document": "Экспортировать нечего: документ не простая форма.",
+  "editor.export.read-only": "Источник открыт только на чтение.",
+  "surface.title": "Нативные поля",
+  "surface.invalid": "Схема не разбирается как простая форма.",
+  "errors.empty-name": "Поле №{index}: пустое имя — у значения нет места в модели.",
+  "errors.duplicate-name": "Имя «{name}» уже занято полем №{first}.",
+  "errors.no-options": "У выбора «{name}» нет вариантов."
+}

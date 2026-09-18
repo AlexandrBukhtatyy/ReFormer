@@ -175,6 +175,13 @@ jobs:
       - name: Run @reformer/builder-stack-reformer tests
         run: npm run test -w @reformer/builder-stack-reformer
 
+      # Демо-стек: приватный, в выпуск не входит, но проверяется — он доказывает ось стеков.
+      - name: Build @reformer/builder-stack-plain
+        run: npm run build -w @reformer/builder-stack-plain
+
+      - name: Run @reformer/builder-stack-plain tests
+        run: npm run test -w @reformer/builder-stack-plain
+
       - name: Build @reformer/builder
         run: npm run build -w @reformer/builder
 
