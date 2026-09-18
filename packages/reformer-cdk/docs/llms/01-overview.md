@@ -11,12 +11,13 @@
 
 ## Components
 
-| Component       | Purpose                                                    |
-| --------------- | ---------------------------------------------------------- |
-| `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)     |
-| `FormArray`     | Manage dynamic form arrays                                  |
-| `FormField`     | Accessible field anatomy (label/control/…)                  |
-| `FormWizard`    | Multi-step form wizard                                      |
+| Component       | Purpose                                                   |
+| --------------- | --------------------------------------------------------- |
+| `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)   |
+| `Autocomplete`  | Free-text input with suggestions (static or async source) |
+| `FormArray`     | Manage dynamic form arrays                                |
+| `FormField`     | Accessible field anatomy (label/control/…)                |
+| `FormWizard`    | Multi-step form wizard                                    |
 
 ## Installation
 
@@ -32,6 +33,8 @@ import { AsyncBoundary, FormArray, FormField, FormWizard } from '@reformer/cdk';
 
 // Tree-shaking (recommended)
 import { AsyncBoundary, useAsyncBoundary } from '@reformer/cdk/async-boundary';
+import { Autocomplete, useAutocomplete } from '@reformer/cdk/autocomplete';
+import { useResourceOptions, type ResourceConfig } from '@reformer/cdk/option-source';
 import { FormArray, useFormArray } from '@reformer/cdk/form-array';
 import { FormField, useFormField } from '@reformer/cdk/form-field';
 import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';

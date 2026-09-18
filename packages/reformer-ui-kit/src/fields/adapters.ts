@@ -16,6 +16,17 @@ export const nativeInputAdapter: FieldAdapter = {
   toValue: (v) => v ?? '',
 };
 
+/**
+ * Текстовые композиты с value-based `onChange(text: string)` (Input с подсказками) — та же
+ * семантика, что у {@link nativeInputAdapter}, но без события: пустой текст → `null`.
+ */
+export const textValueAdapter: FieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (v) => (v as string) || null,
+  toValue: (v) => v ?? '',
+};
+
 /** Checkbox / Switch — Radix `checked` + `onCheckedChange(boolean | 'indeterminate')`. */
 export const checkedAdapter: FieldAdapter = {
   valueProp: 'checked',

@@ -21,6 +21,8 @@ export default defineConfig({
         'form-wizard': resolve(__dirname, 'src/components/form-wizard/index.ts'),
         'form-field': resolve(__dirname, 'src/components/form-field/index.ts'),
         'file-upload': resolve(__dirname, 'src/components/file-upload/index.ts'),
+        'option-source': resolve(__dirname, 'src/components/option-source/index.ts'),
+        autocomplete: resolve(__dirname, 'src/components/autocomplete/index.ts'),
       },
       formats: ['es'],
     },

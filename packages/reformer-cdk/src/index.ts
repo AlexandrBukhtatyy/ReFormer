@@ -197,6 +197,74 @@ export type {
 } from './components/file-upload';
 
 // ============================================================================
+// Option source - async options loading shared by list fields (Select, Autocomplete)
+// ============================================================================
+export {
+  resolveStrategyFlags,
+  normalizeItems,
+  mergeOptions,
+  filterClient,
+  resourceReducer,
+  initialResourceState,
+  hasMore,
+  isNearBottom,
+  useResourceOptions,
+} from './components/option-source';
+
+export type {
+  ResourceLoadParams,
+  ResourceItem,
+  ResourceResult,
+  ResourceStrategy,
+  ResourceConfig,
+  NormalizedOption,
+  StrategyFlags,
+  ResourceState,
+  ResourceAction,
+  UseResourceOptionsResult,
+} from './components/option-source';
+
+// ============================================================================
+// Autocomplete - Headless free-text input with suggestions
+// ============================================================================
+export {
+  Autocomplete,
+  AutocompleteRoot,
+  AutocompleteInput,
+  AutocompleteListbox,
+  AutocompleteOption,
+  AutocompleteLoading,
+  useAutocomplete,
+  AutocompleteContext,
+  useAutocompleteContext,
+  autocompleteReducer,
+  initialAutocompleteState,
+  isSuggestionResource,
+  normalizeSuggestions,
+  matchSuggestions,
+} from './components/autocomplete';
+
+export type {
+  AutocompleteComponent,
+  AutocompleteRootProps,
+  AutocompleteInputProps,
+  AutocompleteListboxProps,
+  AutocompleteOptionProps,
+  AutocompleteLoadingProps,
+  UseAutocompleteOptions,
+  UseAutocompleteReturn,
+  AutocompleteIds,
+  AutocompleteContextValue,
+  AutocompleteState,
+  AutocompleteAction,
+  AutocompleteSuggestionItem,
+  AutocompleteSuggestionList,
+  AutocompleteSuggestions,
+  AutocompleteFilter,
+  MatchSuggestionsOptions,
+} from './components/autocomplete';
+
+// ============================================================================
 // Validation messages - i18n resolver for field error display (code → message)
 // ============================================================================
 export {

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { describe, it, expect } from 'vitest';
 import { inputBasePropsSchema } from './variants/base/input-base.props';
+import type { InputSuggestProps } from './variants/suggest/input-suggest';
 
 /**
  * Страж от дрейфа. Для Input тип варианта — `React.ComponentProps<'input'>` (native, ~300 ключей),
@@ -14,8 +15,13 @@ type SchemaPropKeys = keyof typeof inputBasePropsSchema.properties;
 type SchemaRuntimeKeys = keyof (typeof inputBasePropsSchema)['x-runtimeProps'];
 type SchemaKeys = SchemaPropKeys | SchemaRuntimeKeys;
 
-/** A: каждый ключ схемы существует среди props native input (нет опечаток/чужих ключей). */
-type _A_NoStrayKeys = Assert<SchemaKeys extends keyof React.ComponentProps<'input'> ? true : false>;
+/**
+ * A: каждый ключ схемы существует среди props native input или варианта `suggest`
+ * (нет опечаток/чужих ключей).
+ */
+type _A_NoStrayKeys = Assert<
+  SchemaKeys extends keyof React.ComponentProps<'input'> | keyof InputSuggestProps ? true : false
+>;
 
 describe('input props-схема — страж от дрейфа', () => {
   it('рантайм: properties ∩ x-runtimeProps = ∅', () => {

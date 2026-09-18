@@ -13487,6 +13487,24 @@
               "type": "number"
             }
           },
+          "minChars": {
+            "type": "number",
+            "default": 0,
+            "description": "С какой длины введённого текста показывать подсказки (при заданном suggestions).",
+            "x-doc": {
+              "group": "Options",
+              "type": "number"
+            }
+          },
+          "openOnFocus": {
+            "type": "boolean",
+            "default": false,
+            "description": "Раскрывать подсказки при фокусе, не дожидаясь ввода (при заданном suggestions).",
+            "x-doc": {
+              "group": "Options",
+              "type": "boolean"
+            }
+          },
           "placeholder": {
             "type": "string",
             "description": "Подсказка внутри поля.",
@@ -13519,6 +13537,35 @@
             "x-doc": {
               "group": "Behavior",
               "type": "number"
+            }
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "required": ["value"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            },
+            "description": "Подсказки при вводе: строки или { value, label? }. Значение остаётся свободным текстом — выбор подсказки лишь подставляет её value. Из кода можно передать и асинхронный ResourceConfig (как у Select), в JSON — через $dataSource. Не действует при type=number.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<string | { value; label? }> | ResourceConfig",
+              "kind": "readonly"
             }
           },
           "testId": {
@@ -13566,6 +13613,11 @@
             "kind": "boolean",
             "default": false,
             "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "filter": {
+            "group": "Options",
+            "type": "(option: NormalizedOption, query: string) => boolean",
+            "description": "Свой предикат совпадения подсказки. По умолчанию — подстрока label без учёта регистра."
           }
         },
         "x-inherits": {
@@ -14299,6 +14351,79 @@
       },
       "variantGroup": "Input",
       "variant": "Пароль"
+    },
+    {
+      "name": "InputSuggest",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс поля ввода.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "filter": {
+            "description": "Свой предикат совпадения. По умолчанию — подстрока подписи без учёта регистра.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "AutocompleteFilter",
+              "kind": "readonly"
+            }
+          },
+          "minChars": {
+            "type": "number",
+            "default": 0,
+            "description": "Минимальная длина текста, с которой показываются подсказки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "openOnFocus": {
+            "type": "boolean",
+            "default": false,
+            "description": "Раскрывать список при фокусе, не дожидаясь ввода.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "suggestions": {
+            "description": "Подсказки: строки, `{ value, label? }` или асинхронный `ResourceConfig` (как у Select). Выбор подсказки пишет в поле её `value`; `label` — только текст пункта списка.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "AutocompleteSuggestions | null",
+              "kind": "readonly"
+            }
+          },
+          "value": {
+            "type": "string",
+            "description": "Текст поля. `null` — пусто.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string | null"
+            }
+          }
+        },
+        "x-inherits": {
+          "react": [
+            "AriaAttributes",
+            "Attributes",
+            "DOMAttributes",
+            "HTMLAttributes",
+            "InputHTMLAttributes",
+            "RefAttributes"
+          ],
+          "packages": []
+        }
+      },
+      "compoundParent": "Input",
+      "palette": false
     },
     {
       "name": "Item",

@@ -12,6 +12,7 @@
 - 05-async-boundary.md — AsyncBoundary
 - 06-recipes.md — Advanced Recipes
 - 07-troubleshooting.md — Troubleshooting / FAQ
+- 08-autocomplete.md — Autocomplete
 - API Reference (auto-generated from JSDoc)
 
 ## 1. Key Concepts
@@ -27,12 +28,13 @@
 
 ## 2. Components
 
-| Component       | Purpose                                                    |
-| --------------- | ---------------------------------------------------------- |
-| `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)     |
-| `FormArray`     | Manage dynamic form arrays                                  |
-| `FormField`     | Accessible field anatomy (label/control/…)                  |
-| `FormWizard`    | Multi-step form wizard                                      |
+| Component       | Purpose                                                   |
+| --------------- | --------------------------------------------------------- |
+| `AsyncBoundary` | Data-loading UI states (idle / loading / ready / error)   |
+| `Autocomplete`  | Free-text input with suggestions (static or async source) |
+| `FormArray`     | Manage dynamic form arrays                                |
+| `FormField`     | Accessible field anatomy (label/control/…)                |
+| `FormWizard`    | Multi-step form wizard                                    |
 
 ## 3. Installation
 
@@ -48,6 +50,8 @@ import { AsyncBoundary, FormArray, FormField, FormWizard } from '@reformer/cdk';
 
 // Tree-shaking (recommended)
 import { AsyncBoundary, useAsyncBoundary } from '@reformer/cdk/async-boundary';
+import { Autocomplete, useAutocomplete } from '@reformer/cdk/autocomplete';
+import { useResourceOptions, type ResourceConfig } from '@reformer/cdk/option-source';
 import { FormArray, useFormArray } from '@reformer/cdk/form-array';
 import { FormField, useFormField } from '@reformer/cdk/form-field';
 import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
@@ -1411,7 +1415,116 @@ const handleSubmit = async () => {
 - [01-overview.md](01-overview.md), [04-form-field.md](04-form-field.md), [06-recipes.md](06-recipes.md).
 - [@reformer/core troubleshooting](../../../reformer/docs/llms/) — общие проблемы с валидацией и behaviors.
 
-## 53. API Reference
+## 53. Источник подсказок — `suggestions`
+
+**Autocomplete**
+
+Headless-автокомплит со **свободным вводом**: значение поля — всегда введённый текст, подсказки
+лишь помогают его набрать. Выбор подсказки подставляет её `value` в текст. Этим он отличается от
+выбора из списка (Select / Combobox), где значение обязано быть одной из опций.
+
+Разметки и стилей не рендерит. Готовый визуальный слой — `InputField` с пропом `suggestions`
+из `@reformer/ui-kit`.
+
+```typescript
+import { Autocomplete, useAutocomplete } from '@reformer/cdk/autocomplete';
+```
+
+| Форма                                   | Поведение                                                               |
+| --------------------------------------- | ----------------------------------------------------------------------- |
+| `string[]`                              | Подсказка = текст.                                                      |
+| `{ value: string; label?: string }[]`   | В поле уходит `value`, в списке виден `label` (по умолчанию = `value`). |
+| `ResourceConfig` (`static` / `preload`) | Один `load({})`, фильтрация на клиенте по введённому тексту.            |
+| `ResourceConfig` (`partial`)            | Серверный поиск `load({ search, page })` с debounce, догрузка страниц.  |
+
+`ResourceConfig` — тот же контракт, что у Select из ui-kit; живёт в `@reformer/cdk/option-source`
+вместе с `useResourceOptions`.
+
+## 54. useAutocomplete
+
+```typescript
+interface UseAutocompleteOptions {
+  value: string; // текст поля — он же значение
+  onChange: (value: string) => void; // на каждый ввод и при выборе подсказки
+  onBlur?: () => void;
+  suggestions?: AutocompleteSuggestions | null;
+  minChars?: number; // @default 0
+  openOnFocus?: boolean; // @default false
+  filter?: (option: NormalizedOption, query: string) => boolean;
+  disabled?: boolean;
+  id?: string; // префикс id (иначе useId)
+}
+```
+
+Возвращает `{ open, items, activeIndex, loading, loadingMore, error, hasMore, loadMore, setOpen,
+select, ids, getInputProps, getListboxProps, getOptionProps }`.
+
+- `getInputProps(props?)` — `role="combobox"`, `aria-autocomplete="list"`, `aria-expanded`,
+  `aria-controls`, `aria-activedescendant`, `autoComplete="off"` и обработчики. Свои обработчики
+  передавайте аргументом — они вызываются первыми; `preventDefault()` в `onKeyDown` отключает
+  встроенную клавиатуру.
+- `getListboxProps(props?)` — `role="listbox"`; `mousedown` не уводит фокус из поля.
+- `getOptionProps(item, index, props?)` — `role="option"`, `aria-selected`, `data-active` у
+  подсвеченного пункта; клик выбирает подсказку.
+
+Клавиатура: ↓/↑ — навигация по кругу (раскрывает список), Enter — выбрать подсвеченную (без
+подсветки Enter не перехватывается и отправляет форму), Esc — закрыть.
+
+Список не раскрывается, когда предлагать нечего: нет совпадений, текст короче `minChars` или
+единственная подсказка совпадает с текстом. Позиционирование списка — забота вызывающего.
+
+```tsx
+function CityInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ac = useAutocomplete({ value, onChange, suggestions: ['Москва', 'Мурманск', 'Казань'] });
+  return (
+    <div className="relative">
+      <input {...ac.getInputProps()} />
+      {ac.open && (
+        <ul {...ac.getListboxProps({ className: 'absolute' })}>
+          {ac.items.map((item, i) => (
+            <li key={item.id} {...ac.getOptionProps(item, i)}>
+              {item.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+```
+
+## 55. Compound API
+
+| Слот                   | Назначение                                                             |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `Autocomplete.Root`    | Провайдер, принимает опции `useAutocomplete`                           |
+| `Autocomplete.Input`   | Поле (`asChild` — свой элемент)                                        |
+| `Autocomplete.Listbox` | Список; рендерится, пока раскрыт; children — render-функция от `items` |
+| `Autocomplete.Option`  | Пункт (`item`, `index`); без children выводит `label`                  |
+| `Autocomplete.Loading` | Виден, пока ресурс грузит подсказки                                    |
+
+```tsx
+<Autocomplete.Root value={city} onChange={setCity} suggestions={CITIES}>
+  <Autocomplete.Input placeholder="Город" />
+  <Autocomplete.Listbox className="dropdown">
+    {(items) => items.map((item, i) => <Autocomplete.Option key={item.id} item={item} index={i} />)}
+  </Autocomplete.Listbox>
+</Autocomplete.Root>
+```
+
+## 56. Pure core
+
+`autocompleteReducer`, `normalizeSuggestions`, `matchSuggestions`, `isSuggestionResource` —
+React-free, пригодны для своих обёрток и тестов без DOM.
+
+## 57. Anti-patterns
+
+- Использовать для выбора кода/id (`{ value: 'spb', label: 'Санкт-Петербург' }` покажет в поле
+  `spb`). Значение здесь — текст для пользователя; для кодов — Select/Combobox.
+- Передавать новый массив `suggestions` на каждый рендер — нормализация пересчитывается по ссылке;
+  выносите статический список в константу или `useMemo`.
+
+## 58. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -2225,6 +2338,379 @@ export type AsyncStatus = 'idle' | 'loading' | 'ready' | 'error';
 ```
 
 _Source: src/components/async-boundary/types.ts_
+
+### Autocomplete
+
+**Kind:** `const`
+
+Autocomplete — headless compound-компонент поля со свободным вводом и подсказками.
+
+Значение — всегда введённый текст; выбор подсказки подставляет её `value`. Этим он отличается
+от выбора из списка (Select / Combobox), где значение обязано быть одной из опций.
+
+#### Слоты
+- `Autocomplete.Root` — провайдер: `value`, `onChange`, `suggestions`, …
+- `Autocomplete.Input` — поле с ролью `combobox`
+- `Autocomplete.Listbox` — список, рендерится пока раскрыт
+- `Autocomplete.Option` — пункт списка
+- `Autocomplete.Loading` — индикатор загрузки ресурса
+
+**Signature:**
+```typescript
+export const Autocomplete
+```
+
+**Examples:**
+
+```tsx
+import { Autocomplete } from '@reformer/cdk/autocomplete';
+
+<Autocomplete.Root value={city} onChange={setCity} suggestions={['Москва', 'Казань']}>
+  <Autocomplete.Input placeholder="Город" />
+  <Autocomplete.Listbox className="dropdown">
+    {(items) =>
+      items.map((item, i) => <Autocomplete.Option key={item.id} item={item} index={i} />)
+    }
+  </Autocomplete.Listbox>
+</Autocomplete.Root>
+```
+
+**See also:**
+- {@link useAutocomplete} — то же без compound-дерева.
+
+_Source: src/components/autocomplete/Autocomplete.tsx_
+
+### AutocompleteAction
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type AutocompleteAction =
+  | { type: 'open' }
+  | { type: 'close' }
+  /** Пользователь изменил текст: список раскрывается, подсветка сбрасывается. */
+  | { type: 'input' }
+  /** ↓ / ↑. Закрытый список раскрывается с первой (↓) или последней (↑) подсказки. */
+  | { type: 'move'; delta: 1 | -1; count: number }
+  /** Подсветка наведением мыши. */
+  | { type: 'highlight'; index: number }
+  /** Список подсказок сменился — подсветка за его пределами сбрасывается. */
+  | { type: 'items'; count: number };
+```
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
+### AutocompleteComponent
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type AutocompleteComponent = typeof AutocompleteRoot & {
+  Root: typeof AutocompleteRoot;
+  Input: typeof AutocompleteInput;
+  Listbox: typeof AutocompleteListbox;
+  Option: typeof AutocompleteOption;
+  Loading: typeof AutocompleteLoading;
+};
+```
+
+_Source: src/components/autocomplete/Autocomplete.tsx_
+
+### AutocompleteContext
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const AutocompleteContext
+```
+
+_Source: src/components/autocomplete/AutocompleteContext.tsx_
+
+### AutocompleteContextValue
+
+**Kind:** `type`
+
+Значение контекста `Autocomplete` — целиком {@link UseAutocompleteReturn}.
+
+**Signature:**
+```typescript
+export type AutocompleteContextValue = UseAutocompleteReturn;
+```
+
+_Source: src/components/autocomplete/AutocompleteContext.tsx_
+
+### AutocompleteFilter
+
+**Kind:** `type`
+
+Предикат совпадения подсказки с введённым текстом.
+
+**Signature:**
+```typescript
+export type AutocompleteFilter = (option: NormalizedOption, query: string) => boolean;
+```
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
+### AutocompleteIds
+
+**Kind:** `interface`
+
+id элементов автокомплита — для связки ARIA.
+
+**Signature:**
+```typescript
+export interface AutocompleteIds {
+  input: string;
+  listbox: string;
+  /** id пункта списка по индексу. */
+  option: (index: number) => string;
+}
+```
+
+_Source: src/components/autocomplete/useAutocomplete.ts_
+
+### AutocompleteInput
+
+**Kind:** `const`
+
+Autocomplete.Input — поле ввода с ролью `combobox`. Свои обработчики (`onKeyDown`, `onBlur`…)
+вызываются перед встроенными; `preventDefault()` в `onKeyDown` отключает встроенную клавиатуру.
+
+**Signature:**
+```typescript
+export const AutocompleteInput
+```
+
+_Source: src/components/autocomplete/AutocompleteInput.tsx_
+
+### AutocompleteInputProps
+
+**Kind:** `interface`
+
+Props `Autocomplete.Input`. `value`/`onChange` приходят из `Autocomplete.Root`.
+
+**Signature:**
+```typescript
+export interface AutocompleteInputProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'defaultValue'
+> {
+  /** Рендерить собственный элемент вместо `<input>` (пропсы мержатся в него). */
+  asChild?: boolean;
+}
+```
+
+_Source: src/components/autocomplete/AutocompleteInput.tsx_
+
+### AutocompleteListbox
+
+**Kind:** `const`
+
+Autocomplete.Listbox — контейнер подсказок (`role="listbox"`). Рендерится, только пока список
+раскрыт; позиционирование — через `className`/`style` или внешний Popover.
+
+**Signature:**
+```typescript
+export const AutocompleteListbox
+```
+
+_Source: src/components/autocomplete/AutocompleteListbox.tsx_
+
+### AutocompleteListboxProps
+
+**Kind:** `interface`
+
+Props `Autocomplete.Listbox`.
+
+**Signature:**
+```typescript
+export interface AutocompleteListboxProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+  /** Пункты списка. Render-функция получает текущие подсказки. */
+  children?: ReactNode | ((items: NormalizedOption[]) => ReactNode);
+  /** Рендерить и при закрытом списке (для анимаций выхода). @default false */
+  forceMount?: boolean;
+}
+```
+
+_Source: src/components/autocomplete/AutocompleteListbox.tsx_
+
+### AutocompleteLoading
+
+**Kind:** `function`
+
+Autocomplete.Loading — показывает `children`, пока ресурс грузит подсказки
+(первичная загрузка или следующая страница).
+
+**Signature:**
+```typescript
+export function AutocompleteLoading({ children }: AutocompleteLoadingProps)
+```
+
+_Source: src/components/autocomplete/AutocompleteLoading.tsx_
+
+### AutocompleteLoadingProps
+
+**Kind:** `interface`
+
+Props `Autocomplete.Loading`.
+
+**Signature:**
+```typescript
+export interface AutocompleteLoadingProps {
+  children?: ReactNode;
+}
+```
+
+_Source: src/components/autocomplete/AutocompleteLoading.tsx_
+
+### AutocompleteOption
+
+**Kind:** `const`
+
+Autocomplete.Option — пункт списка (`role="option"`). Подсвеченный получает `data-active`;
+без `children` выводит `item.label`.
+
+**Signature:**
+```typescript
+export const AutocompleteOption
+```
+
+_Source: src/components/autocomplete/AutocompleteOption.tsx_
+
+### AutocompleteOptionProps
+
+**Kind:** `interface`
+
+Props `Autocomplete.Option`.
+
+**Signature:**
+```typescript
+export interface AutocompleteOptionProps extends HTMLAttributes<HTMLDivElement> {
+  /** Подсказка из `items`. */
+  item: NormalizedOption;
+  /** Её индекс в `items` (для подсветки и `aria-activedescendant`). */
+  index: number;
+  /** Рендерить собственный элемент вместо `<div>`. */
+  asChild?: boolean;
+}
+```
+
+_Source: src/components/autocomplete/AutocompleteOption.tsx_
+
+### autocompleteReducer
+
+**Kind:** `function`
+
+Reducer навигации по подсказкам. Навигация циклическая: после последней — первая.
+
+**Signature:**
+```typescript
+export function autocompleteReducer(
+  state: AutocompleteState,
+  action: AutocompleteAction
+): AutocompleteState
+```
+
+**Parameters:**
+- `state` — - текущее состояние
+- `action` — - действие {@link AutocompleteAction}
+
+**Returns:** новое состояние
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
+### AutocompleteRoot
+
+**Kind:** `function`
+
+Autocomplete.Root — провайдер состояния автокомплита. Разметки не рендерит.
+
+**Signature:**
+```typescript
+export function AutocompleteRoot({ children, ...options }: AutocompleteRootProps)
+```
+
+_Source: src/components/autocomplete/AutocompleteRoot.tsx_
+
+### AutocompleteRootProps
+
+**Kind:** `interface`
+
+Props `Autocomplete.Root`: опции {@link useAutocomplete} + дерево слотов.
+
+**Signature:**
+```typescript
+export interface AutocompleteRootProps extends UseAutocompleteOptions {
+  children?: ReactNode;
+}
+```
+
+_Source: src/components/autocomplete/AutocompleteRoot.tsx_
+
+### AutocompleteState
+
+**Kind:** `interface`
+
+Навигационное состояние списка подсказок.
+
+**Signature:**
+```typescript
+export interface AutocompleteState {
+  /** Список раскрыт (показывается, только если есть что показать). */
+  open: boolean;
+  /** Индекс подсвеченной подсказки, `-1` — ничего не подсвечено. */
+  activeIndex: number;
+}
+```
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
+### AutocompleteSuggestionItem
+
+**Kind:** `interface`
+
+Подсказка в объектной форме: `value` уходит в поле, `label` — текст пункта (по умолчанию = `value`).
+
+**Signature:**
+```typescript
+export interface AutocompleteSuggestionItem {
+  value: string;
+  label?: string;
+}
+```
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
+### AutocompleteSuggestionList
+
+**Kind:** `type`
+
+Статический список подсказок: строки или объекты {@link AutocompleteSuggestionItem}.
+
+**Signature:**
+```typescript
+export type AutocompleteSuggestionList = ReadonlyArray<string | AutocompleteSuggestionItem>;
+```
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
+### AutocompleteSuggestions
+
+**Kind:** `type`
+
+Источник подсказок: статический список или асинхронный {@link ResourceConfig}
+(тот же контракт, что у Select). Различаются через `Array.isArray`.
+
+**Signature:**
+```typescript
+export type AutocompleteSuggestions = AutocompleteSuggestionList | ResourceConfig<unknown>;
+```
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
 
 ### createMessageResolver
 
@@ -3230,6 +3716,26 @@ export type FileUploadValue = File[] | RemoteFileRef[] | null;
 ```
 
 _Source: src/components/file-upload/types.ts_
+
+### filterClient
+
+**Kind:** `function`
+
+Клиентская фильтрация опций по подстроке `label` (case-insensitive).
+Используется стратегией `preload`; пустой запрос возвращает исходный список.
+
+**Signature:**
+```typescript
+export function filterClient(options: NormalizedOption[], query: string): NormalizedOption[]
+```
+
+**Parameters:**
+- `options` — - загруженные опции
+- `query` — - строка поиска
+
+**Returns:** отфильтрованные опции
+
+_Source: src/components/option-source/option-source.ts_
 
 ### FormArray
 
@@ -5633,6 +6139,24 @@ export interface FormWizardSubmitRenderProps extends FormWizardButtonProps {
 
 _Source: src/components/form-wizard/FormWizardActions.tsx_
 
+### hasMore
+
+**Kind:** `function`
+
+Есть ли ещё непогруженные страницы (для infinite-scroll в стратегии `partial`).
+
+**Signature:**
+```typescript
+export function hasMore(state: ResourceState): boolean
+```
+
+**Parameters:**
+- `state` — - состояние источника
+
+**Returns:** `true`, если загружено меньше опций, чем `totalCount`
+
+_Source: src/components/option-source/option-source.ts_
+
 ### initialAsyncResourceState
 
 **Kind:** `function`
@@ -5646,6 +6170,19 @@ export function initialAsyncResourceState<T, E>(): AsyncResourceState<T, E>
 
 _Source: src/components/async-boundary/async-resource.ts_
 
+### initialAutocompleteState
+
+**Kind:** `function`
+
+Начальное состояние: список закрыт, подсветки нет.
+
+**Signature:**
+```typescript
+export function initialAutocompleteState(): AutocompleteState
+```
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
 ### initialFileUploadState
 
 **Kind:** `function`
@@ -5658,6 +6195,61 @@ export function initialFileUploadState(): FileUploadState
 ```
 
 _Source: src/components/file-upload/file-upload-core.ts_
+
+### initialResourceState
+
+**Kind:** `function`
+
+Начальное состояние источника.
+
+**Signature:**
+```typescript
+export function initialResourceState(): ResourceState
+```
+
+_Source: src/components/option-source/option-source.ts_
+
+### isNearBottom
+
+**Kind:** `function`
+
+Достигнут ли порог подгрузки при прокрутке контейнера опций.
+
+**Signature:**
+```typescript
+export function isNearBottom(
+  el: { scrollTop: number; clientHeight: number; scrollHeight: number },
+  threshold = 48
+): boolean
+```
+
+**Parameters:**
+- `el` — - метрики скролла контейнера
+- `threshold` — - запас в пикселях до низа (по умолчанию 48)
+
+**Returns:** `true`, если пора грузить следующую страницу
+
+_Source: src/components/option-source/option-source.ts_
+
+### isSuggestionResource
+
+**Kind:** `function`
+
+Проверить, что источник — асинхронный {@link ResourceConfig}, а не статический список.
+
+**Signature:**
+```typescript
+export function isSuggestionResource(
+  suggestions: AutocompleteSuggestions | null | undefined
+): suggestions is ResourceConfig<unknown>
+```
+
+**Parameters:**
+- `suggestions` — - источник подсказок
+
+**Returns:** `true` для `ResourceConfig`
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
 
 ### List
 
@@ -5860,6 +6452,131 @@ export function makeFileError(code: string, params?: FileError['params']): FileE
 
 _Source: src/components/file-upload/file-upload-core.ts_
 
+### matchSuggestions
+
+**Kind:** `function`
+
+Подсказки, которые стоит показать для введённого текста.
+
+Кроме фильтрации прячет список, когда предлагать нечего: единственная подсказка
+совпадает с уже введённым текстом (обычно — сразу после её выбора).
+
+**Signature:**
+```typescript
+export function matchSuggestions(
+  options: NormalizedOption[],
+  query: string,
+  opts: MatchSuggestionsOptions = {}
+): NormalizedOption[]
+```
+
+**Parameters:**
+- `options` — - все подсказки источника
+- `query` — - введённый текст
+- `opts` — - {@link MatchSuggestionsOptions}
+
+**Returns:** подсказки для списка
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
+### MatchSuggestionsOptions
+
+**Kind:** `interface`
+
+Опции {@link matchSuggestions}.
+
+**Signature:**
+```typescript
+export interface MatchSuggestionsOptions {
+  /** Минимальная длина текста, с которой показываются подсказки. @default 0 */
+  minChars?: number;
+  /** Свой предикат совпадения. По умолчанию — подстрока `label` без учёта регистра. */
+  filter?: AutocompleteFilter;
+  /** Фильтровать ли на клиенте. `false` — список уже отфильтрован сервером. @default true */
+  clientFilter?: boolean;
+}
+```
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
+### mergeOptions
+
+**Kind:** `function`
+
+Слить ранее загруженные опции со страницей новых, отбрасывая дубли по `id`
+(сервер может вернуть пересечение при гонке страниц).
+
+**Signature:**
+```typescript
+export function mergeOptions(
+  prev: NormalizedOption[],
+  next: NormalizedOption[]
+): NormalizedOption[]
+```
+
+**Parameters:**
+- `prev` — - уже загруженные опции
+- `next` — - опции новой страницы
+
+**Returns:** объединённый список без повторов `id`
+
+_Source: src/components/option-source/option-source.ts_
+
+### NormalizedOption
+
+**Kind:** `interface`
+
+Нормализованная опция: `value` приведён к строке для Radix и `onChange`.
+
+**Signature:**
+```typescript
+export interface NormalizedOption {
+  id: string | number;
+  label: string;
+  value: string;
+  group?: string;
+}
+```
+
+_Source: src/components/option-source/option-source.ts_
+
+### normalizeItems
+
+**Kind:** `function`
+
+Привести «сырые» элементы ответа к {@link NormalizedOption} (`value` → строка).
+
+**Signature:**
+```typescript
+export function normalizeItems<T>(items: ResourceItem<T>[]): NormalizedOption[]
+```
+
+**Parameters:**
+- `items` — - элементы из {@link ResourceResult.items}
+
+**Returns:** нормализованные опции
+
+_Source: src/components/option-source/option-source.ts_
+
+### normalizeSuggestions
+
+**Kind:** `function`
+
+Привести статический список к {@link NormalizedOption}. Строка `s` → `{ value: s, label: s }`.
+Повторы по `value` отбрасываются (у каждой подсказки должен быть уникальный id для ARIA).
+
+**Signature:**
+```typescript
+export function normalizeSuggestions(list: AutocompleteSuggestionList): NormalizedOption[]
+```
+
+**Parameters:**
+- `list` — - строки и/или объекты подсказок
+
+**Returns:** нормализованные подсказки
+
+_Source: src/components/autocomplete/autocomplete-core.ts_
+
 ### projectValue
 
 **Kind:** `function`
@@ -5948,6 +6665,195 @@ export interface RemoteFileRef {
 ```
 
 _Source: src/components/file-upload/types.ts_
+
+### resolveStrategyFlags
+
+**Kind:** `function`
+
+Разложить {@link ResourceStrategy} в поведенческие флаги.
+
+**Signature:**
+```typescript
+export function resolveStrategyFlags(type: ResourceStrategy | undefined): StrategyFlags
+```
+
+**Parameters:**
+- `type` — - стратегия (undefined трактуется как `'static'`)
+
+**Returns:** флаги {@link StrategyFlags}
+
+_Source: src/components/option-source/option-source.ts_
+
+### ResourceAction
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type ResourceAction<T> =
+  | { kind: 'load-start'; search: string }
+  | { kind: 'load-success'; result: ResourceResult<T>; page: number }
+  | { kind: 'load-more-start' }
+  | { kind: 'load-more-success'; result: ResourceResult<T>; page: number }
+  | { kind: 'load-error'; more?: boolean }
+  | { kind: 'reset' };
+```
+
+_Source: src/components/option-source/option-source.ts_
+
+### ResourceConfig
+
+**Kind:** `interface`
+
+Конфигурация асинхронного источника опций списочного поля.
+
+**Signature:**
+```typescript
+export interface ResourceConfig<T> {
+  /** Стратегия загрузки. По умолчанию (если не задана) трактуется как `'static'`. */
+  type: ResourceStrategy;
+  /** Функция загрузки опций. Должна вернуть `{ items, totalCount }`. */
+  load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
+  /** Размер страницы для стратегии `partial`. По умолчанию 20. */
+  pageSize?: number;
+}
+```
+
+_Source: src/components/option-source/option-source.ts_
+
+### ResourceItem
+
+**Kind:** `interface`
+
+Один элемент, возвращаемый {@link ResourceConfig.load}.
+
+**Signature:**
+```typescript
+export interface ResourceItem<T> {
+  /** Уникальный ключ элемента (для React `key` и дедупликации страниц). */
+  id: string | number;
+  /** Видимая подпись опции. */
+  label: string;
+  /** Значение, которое попадает в `onChange` (всегда приводится к строке). */
+  value: T;
+  /** Опциональное имя группы — варианты с одинаковым `group` выводятся одной группой списка. */
+  group?: string;
+  /** Дополнительные поля бек-данных. */
+  [key: string]: unknown;
+}
+```
+
+_Source: src/components/option-source/option-source.ts_
+
+### ResourceLoadParams
+
+**Kind:** `interface`
+
+Параметры запроса к {@link ResourceConfig.load}.
+
+**Signature:**
+```typescript
+export interface ResourceLoadParams {
+  /** Поисковый запрос (серверная фильтрация в стратегии `partial`). */
+  search?: string;
+  /** Номер страницы (1-based) для пагинации. */
+  page?: number;
+  /** Размер страницы. */
+  pageSize?: number;
+  /** Дополнительные пользовательские параметры. */
+  [key: string]: unknown;
+}
+```
+
+_Source: src/components/option-source/option-source.ts_
+
+### resourceReducer
+
+**Kind:** `function`
+
+Чистый reducer состояния асинхронного источника опций.
+
+- `load-start` сбрасывает список (новый запрос/маунт) и поднимает `loading`;
+- `load-success` заменяет опции первой страницей;
+- `load-more-*` аппендит следующую страницу (с дедупликацией по `id`);
+- `load-error` гасит флаги загрузки и ставит `error`.
+
+**Signature:**
+```typescript
+export function resourceReducer<T>(state: ResourceState, action: ResourceAction<T>): ResourceState
+```
+
+**Parameters:**
+- `state` — - текущее состояние
+- `action` — - действие {@link ResourceAction}
+
+**Returns:** новое состояние
+
+_Source: src/components/option-source/option-source.ts_
+
+### ResourceResult
+
+**Kind:** `interface`
+
+Ответ {@link ResourceConfig.load}.
+
+**Signature:**
+```typescript
+export interface ResourceResult<T> {
+  /** Список вариантов текущей страницы. */
+  items: ResourceItem<T>[];
+  /** Общее число доступных вариантов (для пагинации). */
+  totalCount: number;
+}
+```
+
+_Source: src/components/option-source/option-source.ts_
+
+### ResourceState
+
+**Kind:** `interface`
+
+Состояние загрузки асинхронного источника.
+
+**Signature:**
+```typescript
+export interface ResourceState {
+  /** Накопленные (по страницам) опции — уже нормализованные. */
+  options: NormalizedOption[];
+  /** Последняя загруженная страница (1-based). */
+  page: number;
+  /** Общее число опций по данным сервера. */
+  totalCount: number;
+  /** Первичная загрузка (маунт или смена запроса). */
+  loading: boolean;
+  /** Догрузка следующей страницы. */
+  loadingMore: boolean;
+  /** Последняя загрузка завершилась ошибкой. */
+  error: boolean;
+  /** Активный (применённый) поисковый запрос. */
+  search: string;
+}
+```
+
+_Source: src/components/option-source/option-source.ts_
+
+### ResourceStrategy
+
+**Kind:** `type`
+
+Стратегия загрузки опций:
+- `'static'` — один `load({})` при монтировании; без поиска и пагинации (снимок);
+- `'preload'` — один `load({})` (сервер возвращает всё), поиск фильтрует
+  загруженные опции на клиенте; пагинации нет;
+- `'partial'` — серверные поиск и пагинация: `load({ search, page })`,
+  догрузка следующих страниц при скролле до `totalCount`.
+
+**Signature:**
+```typescript
+export type ResourceStrategy = 'static' | 'preload' | 'partial';
+```
+
+_Source: src/components/option-source/option-source.ts_
 
 ### selectFiles
 
@@ -6110,6 +7016,26 @@ export interface StepValidationConfig {
 ```
 
 _Source: src/components/form-wizard/use-wizard-step-validation.ts_
+
+### StrategyFlags
+
+**Kind:** `interface`
+
+Поведенческие флаги стратегии.
+
+**Signature:**
+```typescript
+export interface StrategyFlags {
+  /** Поиск уходит на сервер (`load({ search })`) vs фильтруется на клиенте. */
+  serverSearch: boolean;
+  /** Опции подгружаются постранично по мере скролла. */
+  paginated: boolean;
+  /** Показывать ли поле поиска в дропдауне. */
+  searchable: boolean;
+}
+```
+
+_Source: src/components/option-source/option-source.ts_
 
 ### useAsyncBoundary
 
@@ -6388,6 +7314,147 @@ export interface UseAsyncResourceReturn<T, E = string> extends AsyncResourceStat
 ```
 
 _Source: src/components/async-boundary/useAsyncResource.ts_
+
+### useAutocomplete
+
+**Kind:** `function`
+
+Headless-автокомплит со свободным вводом: поле хранит введённый текст, список подсказок
+помогает его набрать. Реализует ARIA-паттерн combobox (list autocomplete): фокус всегда в
+поле, подсветка — через `aria-activedescendant`.
+
+Клавиатура: ↓/↑ — навигация (раскрывает список), Enter — выбрать подсвеченную подсказку
+(без подсветки Enter не перехватывается и отправляет форму), Esc — закрыть список.
+Позиционирование списка — забота вызывающего (Popover, absolute и т.п.).
+
+**Signature:**
+```typescript
+export function useAutocomplete(options: UseAutocompleteOptions): UseAutocompleteReturn
+```
+
+**Parameters:**
+- `options` — - {@link UseAutocompleteOptions}
+
+**Returns:** состояние, действия и prop-getters {@link UseAutocompleteReturn}
+
+**Examples:**
+
+Своя разметка без compound-дерева
+```tsx
+import { useAutocomplete } from '@reformer/cdk/autocomplete';
+
+function CityInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+const ac = useAutocomplete({ value, onChange, suggestions: ['Москва', 'Мурманск', 'Казань'] });
+return (
+<div className="relative">
+<input {...ac.getInputProps()} />
+{ac.open && (
+<ul {...ac.getListboxProps({ className: 'absolute' })}>
+ {ac.items.map((item, i) => (
+   <li key={item.id} {...ac.getOptionProps(item, i)}>{item.label}</li>
+ ))}
+</ul>
+)}
+</div>
+);
+}
+```
+
+_Source: src/components/autocomplete/useAutocomplete.ts_
+
+### useAutocompleteContext
+
+**Kind:** `function`
+
+Хук доступа к контексту `Autocomplete`. Бросает исключение вне `Autocomplete.Root`.
+
+**Signature:**
+```typescript
+export function useAutocompleteContext(): AutocompleteContextValue
+```
+
+**Returns:** Текущее {@link AutocompleteContextValue}.
+
+_Source: src/components/autocomplete/AutocompleteContext.tsx_
+
+### UseAutocompleteOptions
+
+**Kind:** `interface`
+
+Опции {@link useAutocomplete}. Совпадают с props `Autocomplete.Root`.
+
+**Signature:**
+```typescript
+export interface UseAutocompleteOptions {
+  /** Текущий текст поля. Он же — значение: подсказки только помогают его набрать. */
+  value: string;
+  /** Изменение текста: на каждый ввод и при выборе подсказки (приходит её `value`). */
+  onChange: (value: string) => void;
+  /** Потеря фокуса полем ввода (клик по подсказке фокус не забирает). */
+  onBlur?: () => void;
+  /** Статический список или асинхронный `ResourceConfig`. Без него — обычное поле ввода. */
+  suggestions?: AutocompleteSuggestions | null;
+  /** Минимальная длина текста, с которой показываются подсказки. @default 0 */
+  minChars?: number;
+  /** Раскрывать список при фокусе, не дожидаясь ввода. @default false */
+  openOnFocus?: boolean;
+  /** Свой предикат совпадения (для статики и `static`/`preload`-ресурса). */
+  filter?: AutocompleteFilter;
+  /** Поле выключено: список не раскрывается. */
+  disabled?: boolean;
+  /** Явный префикс для генерируемых id (иначе `useId`). */
+  id?: string;
+}
+```
+
+_Source: src/components/autocomplete/useAutocomplete.ts_
+
+### UseAutocompleteReturn
+
+**Kind:** `interface`
+
+Возвращаемое значение {@link useAutocomplete}.
+
+**Signature:**
+```typescript
+export interface UseAutocompleteReturn {
+  /** Список раскрыт И в нём есть что показать (подсказки или индикатор первичной загрузки). */
+  open: boolean;
+  /** Подсказки для текущего текста. */
+  items: NormalizedOption[];
+  /** Индекс подсвеченной подсказки, `-1` — нет. */
+  activeIndex: number;
+  /** Идёт первичная загрузка ресурса. */
+  loading: boolean;
+  /** Догружается следующая страница ресурса. */
+  loadingMore: boolean;
+  /** Последняя загрузка ресурса упала. */
+  error: boolean;
+  /** У ресурса есть непогруженные страницы. */
+  hasMore: boolean;
+  /** Догрузить следующую страницу (`partial`-ресурс). */
+  loadMore: () => void;
+  /** Раскрыть / закрыть список программно. */
+  setOpen: (open: boolean) => void;
+  /** Выбрать подсказку: `onChange(item.value)` и закрыть список. */
+  select: (item: NormalizedOption) => void;
+  ids: AutocompleteIds;
+  /** Пропсы поля ввода: роль `combobox`, ARIA-связки и обработчики. Свои обработчики — через аргумент. */
+  getInputProps: (
+    props?: InputHTMLAttributes<HTMLInputElement>
+  ) => InputHTMLAttributes<HTMLInputElement>;
+  /** Пропсы контейнера списка (`role="listbox"`). */
+  getListboxProps: (props?: HTMLAttributes<HTMLElement>) => HTMLAttributes<HTMLElement>;
+  /** Пропсы пункта списка (`role="option"`). */
+  getOptionProps: (
+    item: NormalizedOption,
+    index: number,
+    props?: HTMLAttributes<HTMLElement>
+  ) => HTMLAttributes<HTMLElement> & { 'data-active'?: true };
+}
+```
+
+_Source: src/components/autocomplete/useAutocomplete.ts_
 
 ### useFileUpload
 
@@ -7228,6 +8295,42 @@ export interface UseListReturn<T extends object> {
 ```
 
 _Source: src/components/list/useList.ts_
+
+### useResourceOptions
+
+**Kind:** `function`
+
+Хук управления асинхронным источником опций по стратегии {@link ResourceConfig.type}.
+Тонкая React-обёртка над чистым reducer из `select-resource.ts` (вся логика стратегий — там).
+
+**Signature:**
+```typescript
+export function useResourceOptions<T>(resource?: ResourceConfig<T>): UseResourceOptionsResult
+```
+
+_Source: src/components/option-source/useResourceOptions.ts_
+
+### UseResourceOptionsResult
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface UseResourceOptionsResult {
+  options: NormalizedOption[];
+  loading: boolean;
+  loadingMore: boolean;
+  error: boolean;
+  hasMore: boolean;
+  loadMore: () => void;
+  reload: () => void;
+  searchInput: string;
+  setSearchInput: (v: string) => void;
+  flags: ReturnType<typeof resolveStrategyFlags>;
+}
+```
+
+_Source: src/components/option-source/useResourceOptions.ts_
 
 ### useValidationErrorResolver
 

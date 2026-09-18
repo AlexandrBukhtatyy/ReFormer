@@ -34,6 +34,14 @@
     "./file-upload": {
       "types": "./dist/file-upload.d.ts",
       "import": "./dist/file-upload.js"
+    },
+    "./option-source": {
+      "types": "./dist/option-source.d.ts",
+      "import": "./dist/option-source.js"
+    },
+    "./autocomplete": {
+      "types": "./dist/autocomplete.d.ts",
+      "import": "./dist/autocomplete.js"
     }
   },
   "sideEffects": false,

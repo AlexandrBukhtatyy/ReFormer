@@ -197,6 +197,13 @@ export default defineConfig({
       testDir: './tests/pages/multi-select',
       use: { ...devices['Desktop Chrome'] },
     },
+    // Input с подсказками: список живёт в Portal, клавиатура и «фокус остаётся в поле» —
+    // юниты кита (renderToStaticMarkup) этого не видят.
+    {
+      name: 'input-suggest',
+      testDir: './tests/pages/input-suggest',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // Дерево: свободный Tree и комбобоксы с деревом (ComboboxTree / ComboboxTreeMulti).
     // Юниты кита идут через renderToStaticMarkup и всего этого не видят: список живёт в Portal,
     // ленивый уровень приезжает уже после первой отрисовки, а состояние раскрытия хранится

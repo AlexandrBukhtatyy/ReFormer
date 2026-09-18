@@ -18,6 +18,7 @@ import RegistrationFormJson from './pages/demo/registration-form-renderer-json/R
 import AlertsListRendererJson from './pages/demo/alerts-list-renderer-json/AlertsListRendererJson';
 import FileUploadDemo from './pages/demo/file-upload/FileUploadDemo';
 import MultiSelectDemo from './pages/demo/multi-select/MultiSelectDemo';
+import InputSuggestDemo from './pages/demo/input-suggest/InputSuggestDemo';
 import TreeDemo from './pages/demo/tree/TreeDemo';
 import FormRegistryLab from './pages/debug/form-registry-lab/FormRegistryLab';
 import UiBuilderDemo from './pages/debug/ui_builder';
@@ -43,6 +44,7 @@ type ExamplePage =
   | 'alerts-json'
   | 'file-upload'
   | 'multi-select'
+  | 'input-suggest'
   | 'tree'
   | 'form-registry-lab'
   | 'ui-builder';
@@ -179,6 +181,13 @@ const exampleGroups: ExampleGroup[] = [
         title: 'Множественный выбор',
         description:
           'SelectMulti / ComboboxMulti / NativeSelectMulti / ToggleGroupMulti: единый контракт string[] | null, префилл, валидация',
+      },
+      {
+        id: 'input-suggest',
+        path: '/demo/input-suggest',
+        title: 'Input с подсказками',
+        description:
+          'Свободный ввод + список подсказок: suggestions у InputField (статика, value≠label, серверный поиск)',
       },
       {
         id: 'tree',
@@ -399,6 +408,7 @@ function Layout() {
             <Route path="/demo/alerts-json" element={<AlertsListRendererJson />} />
             <Route path="/demo/file-upload" element={<FileUploadDemo />} />
             <Route path="/demo/multi-select" element={<MultiSelectDemo />} />
+            <Route path="/demo/input-suggest" element={<InputSuggestDemo />} />
             <Route path="/demo/tree" element={<TreeDemo />} />
             <Route path="/debug/ui-builder" element={<UiBuilderDemo />} />
             <Route path="/debug/registry-lab" element={<FormRegistryLab />} />

@@ -21,7 +21,7 @@
 
 | Name            | Purpose                                                                                | When to use                           |
 | --------------- | -------------------------------------------------------------------------------------- | ------------------------------------- |
-| `Input`         | Однострочное поле, поддерживает `type='text'/'email'/'number'/'tel'/'url'/'password'`. | По умолчанию для строк и чисел.       |
+| `Input`         | Однострочное поле, поддерживает `type='text'/'email'/'number'/'tel'/'url'/'password'`; с `suggestions` — свободный ввод с подсказками. | По умолчанию для строк и чисел.       |
 | `InputMask`     | `Input` + строковая маска (`'9'` → цифра).                                             | Телефоны, ИНН, даты.                  |
 | `InputPassword` | Поле пароля с переключателем «глаз».                                                   | Регистрация, логин, смена пароля.     |
 | `Textarea`      | Многострочное поле с `rows`/`maxLength`.                                               | Комментарии, адрес, длинные описания. |
@@ -122,6 +122,60 @@ const form = createForm<{ email: string }>({ model, schema });
   `<input>`: его `onChange` отдаёт `SyntheticEvent`, и в модель уедет объект события,
   а не строка. Ни TypeScript, ни `validate_form` этого не поймают — поле выглядит
   рабочим. То же для `Textarea`/`TextareaField`, `InputMask`/`InputMaskField`.
+
+### Подсказки при вводе — `suggestions`
+
+Автокомплит со **свободным вводом**: значение — всегда введённый текст (`string | null`), список
+лишь помогает его набрать. Включается одним пропом — отдельного компонента в реестре нет,
+контракт `InputField` не меняется.
+
+| Prop          | Тип                                                    | Default | Описание                                                                     |
+| ------------- | ------------------------------------------------------ | ------- | ---------------------------------------------------------------------------- |
+| `suggestions` | `Array<string \| { value; label? }> \| ResourceConfig` | —       | Подсказки. Выбор пишет в поле `value`; `label` — только текст пункта списка. |
+| `minChars`    | `number`                                               | `0`     | С какой длины текста показывать подсказки.                                   |
+| `openOnFocus` | `boolean`                                              | `false` | Раскрывать список при фокусе, не дожидаясь ввода.                            |
+| `filter`      | `(option, query) => boolean`                           | —       | Свой предикат совпадения (только из кода). По умолчанию — подстрока `label`. |
+
+```tsx
+// Статика: строки или { value, label? }
+{
+  value: model.$.city,
+  component: InputField,
+  componentProps: { label: 'Город', suggestions: ['Москва', 'Казань', 'Новосибирск'] },
+}
+
+// Серверный поиск — тот же ResourceConfig, что у Select (static / preload / partial)
+{
+  value: model.$.company,
+  component: InputField,
+  componentProps: {
+    suggestions: { type: 'partial', pageSize: 20, load: ({ search, page }) => api.companies(search, page) },
+    minChars: 2,
+  },
+}
+```
+
+В JSON-DSL: `"suggestions": ["Москва", "Казань"]` или `"suggestions": "$dataSource(CITIES)"` — через
+`$dataSource` можно отдать и `ResourceConfig` с функцией `load`.
+
+Клавиатура: ↓/↑ — по подсказкам, Enter — подставить подсвеченную (без подсветки Enter отправляет
+форму), Esc — закрыть список. Фокус всё время остаётся в поле.
+
+**`suggestions` или `Combobox creatable`?**
+
+| Нужно                                                        | Берите                        |
+| ------------------------------------------------------------ | ----------------------------- |
+| Любой текст, список — подсказка (город, должность, компания) | `InputField` + `suggestions`  |
+| Значение — одна из опций, изредка добавить свою              | `ComboboxField` + `creatable` |
+| Строго одна из опций                                         | `SelectField` / `Combobox`    |
+
+Anti-patterns:
+
+- Ждать, что значением станет `id` опции (`{ value: 'spb', label: 'Санкт-Петербург' }` → в поле
+  окажется `spb`, и пользователь увидит `spb`). Для кодов берите `Select`/`Combobox`: здесь `value`
+  подсказки — это текст, который увидит пользователь.
+- Ставить `suggestions` на `type="number"` — игнорируется.
+- Headless-ядро без ui-kit — `useAutocomplete` / `Autocomplete.*` из `@reformer/cdk/autocomplete`.
 
 ## InputMask
 

@@ -10,7 +10,7 @@ import {
   isNearBottom,
   type NormalizedOption,
   type ResourceResult,
-} from './select-resource';
+} from './option-source';
 
 const opt = (id: string | number, label: string, group?: string): NormalizedOption => ({
   id,

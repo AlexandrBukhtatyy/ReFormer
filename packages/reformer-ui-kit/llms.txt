@@ -301,7 +301,7 @@ options, mask пропускает символы, forwardRef + Slot конфл�
 
 | Name            | Purpose                                                                                | When to use                           |
 | --------------- | -------------------------------------------------------------------------------------- | ------------------------------------- |
-| `Input`         | Однострочное поле, поддерживает `type='text'/'email'/'number'/'tel'/'url'/'password'`. | По умолчанию для строк и чисел.       |
+| `Input`         | Однострочное поле, поддерживает `type='text'/'email'/'number'/'tel'/'url'/'password'`; с `suggestions` — свободный ввод с подсказками. | По умолчанию для строк и чисел.       |
 | `InputMask`     | `Input` + строковая маска (`'9'` → цифра).                                             | Телефоны, ИНН, даты.                  |
 | `InputPassword` | Поле пароля с переключателем «глаз».                                                   | Регистрация, логин, смена пароля.     |
 | `Textarea`      | Многострочное поле с `rows`/`maxLength`.                                               | Комментарии, адрес, длинные описания. |
@@ -402,6 +402,60 @@ const form = createForm<{ email: string }>({ model, schema });
   `<input>`: его `onChange` отдаёт `SyntheticEvent`, и в модель уедет объект события,
   а не строка. Ни TypeScript, ни `validate_form` этого не поймают — поле выглядит
   рабочим. То же для `Textarea`/`TextareaField`, `InputMask`/`InputMaskField`.
+
+### Подсказки при вводе — `suggestions`
+
+Автокомплит со **свободным вводом**: значение — всегда введённый текст (`string | null`), список
+лишь помогает его набрать. Включается одним пропом — отдельного компонента в реестре нет,
+контракт `InputField` не меняется.
+
+| Prop          | Тип                                                    | Default | Описание                                                                     |
+| ------------- | ------------------------------------------------------ | ------- | ---------------------------------------------------------------------------- |
+| `suggestions` | `Array<string \| { value; label? }> \| ResourceConfig` | —       | Подсказки. Выбор пишет в поле `value`; `label` — только текст пункта списка. |
+| `minChars`    | `number`                                               | `0`     | С какой длины текста показывать подсказки.                                   |
+| `openOnFocus` | `boolean`                                              | `false` | Раскрывать список при фокусе, не дожидаясь ввода.                            |
+| `filter`      | `(option, query) => boolean`                           | —       | Свой предикат совпадения (только из кода). По умолчанию — подстрока `label`. |
+
+```tsx
+// Статика: строки или { value, label? }
+{
+  value: model.$.city,
+  component: InputField,
+  componentProps: { label: 'Город', suggestions: ['Москва', 'Казань', 'Новосибирск'] },
+}
+
+// Серверный поиск — тот же ResourceConfig, что у Select (static / preload / partial)
+{
+  value: model.$.company,
+  component: InputField,
+  componentProps: {
+    suggestions: { type: 'partial', pageSize: 20, load: ({ search, page }) => api.companies(search, page) },
+    minChars: 2,
+  },
+}
+```
+
+В JSON-DSL: `"suggestions": ["Москва", "Казань"]` или `"suggestions": "$dataSource(CITIES)"` — через
+`$dataSource` можно отдать и `ResourceConfig` с функцией `load`.
+
+Клавиатура: ↓/↑ — по подсказкам, Enter — подставить подсвеченную (без подсветки Enter отправляет
+форму), Esc — закрыть список. Фокус всё время остаётся в поле.
+
+**`suggestions` или `Combobox creatable`?**
+
+| Нужно                                                        | Берите                        |
+| ------------------------------------------------------------ | ----------------------------- |
+| Любой текст, список — подсказка (город, должность, компания) | `InputField` + `suggestions`  |
+| Значение — одна из опций, изредка добавить свою              | `ComboboxField` + `creatable` |
+| Строго одна из опций                                         | `SelectField` / `Combobox`    |
+
+Anti-patterns:
+
+- Ждать, что значением станет `id` опции (`{ value: 'spb', label: 'Санкт-Петербург' }` → в поле
+  окажется `spb`, и пользователь увидит `spb`). Для кодов берите `Select`/`Combobox`: здесь `value`
+  подсказки — это текст, который увидит пользователь.
+- Ставить `suggestions` на `type="number"` — игнорируется.
+- Headless-ядро без ui-kit — `useAutocomplete` / `Autocomplete.*` из `@reformer/cdk/autocomplete`.
 
 ## 9. InputMask
 
@@ -8600,12 +8654,12 @@ _Source: src/components/input/variants/base/input-base.props.ts_
 
 **Kind:** `const`
 
-Field-версия Input — диспетчер по `type`: `number` → буфер (InputNumberField),
-иначе строковый (InputBaseField). Экспортируется как алиас `InputField`.
+Field-версия Input — диспетчер: `type: 'number'` → буфер (InputNumberField); задан
+`suggestions` → текст с подсказками (InputSuggestField); иначе строковый (InputBaseField).
+Экспортируется как алиас `InputField`. У числового поля `suggestions` игнорируется.
 
-`forwardRef`: оба пути форвардят ref и отдают baseline {@link FieldHandle} — строковый через
-{@link InputBaseField} (HOC), числовой через собственный `useImperativeHandle` в
-{@link InputNumberField}.
+`forwardRef`: все пути форвардят ref и отдают baseline {@link FieldHandle} — строковые через
+HOC, числовой через собственный `useImperativeHandle` в {@link InputNumberField}.
 
 **Signature:**
 ```typescript
@@ -9089,6 +9143,70 @@ export interface InputPasswordProps extends Omit<
 ```
 
 _Source: src/components/input-password/variants/base/input-password-base.tsx_
+
+### InputSuggest
+
+**Kind:** `const`
+
+InputSuggest (вариант `suggest`): текстовое поле со свободным вводом и списком подсказок.
+В форме используется через `InputField` — достаточно передать `suggestions`.
+
+Клавиатура: ↓/↑ — по подсказкам, Enter — подставить подсвеченную (без подсветки Enter
+отправляет форму как обычно), Esc — закрыть список.
+
+**Signature:**
+```typescript
+const InputSuggest
+```
+
+_Source: src/components/input/variants/suggest/input-suggest.tsx_
+
+### InputSuggestField
+
+**Kind:** `const`
+
+Строковое поле с подсказками: InputSuggest + textValueAdapter (пустой текст → null).
+
+**Signature:**
+```typescript
+export const InputSuggestField
+```
+
+_Source: src/components/input/variants/suggest/input-suggest.field.tsx_
+
+### InputSuggestProps
+
+**Kind:** `interface`
+
+Props {@link InputSuggest}.
+
+**Signature:**
+```typescript
+export interface InputSuggestProps extends Omit<
+  React.ComponentProps<'input'>,
+  'value' | 'defaultValue' | 'onChange' | 'ref'
+> {
+  /** Доп. CSS-класс поля ввода. */
+  className?: string;
+  /** Текст поля. `null` — пусто. */
+  value?: string | null;
+  /** Изменение текста: на каждый ввод и при выборе подсказки. Пустое поле → `''`. */
+  onChange?: (value: string) => void;
+  /**
+   * Подсказки: строки, `{ value, label? }` или асинхронный `ResourceConfig` (как у Select).
+   * Выбор подсказки пишет в поле её `value`; `label` — только текст пункта списка.
+   */
+  suggestions?: AutocompleteSuggestions | null;
+  /** Минимальная длина текста, с которой показываются подсказки. @default 0 */
+  minChars?: number;
+  /** Раскрывать список при фокусе, не дожидаясь ввода. @default false */
+  openOnFocus?: boolean;
+  /** Свой предикат совпадения. По умолчанию — подстрока подписи без учёта регистра. */
+  filter?: AutocompleteFilter;
+}
+```
+
+_Source: src/components/input/variants/suggest/input-suggest.tsx_
 
 ### isBranch
 
@@ -10344,24 +10462,6 @@ function NavigationMenuViewport({
 
 _Source: src/components/navigation-menu/variants/base/navigation-menu-base.tsx_
 
-### NormalizedOption
-
-**Kind:** `interface`
-
-Нормализованная опция: `value` приведён к строке для Radix и `onChange`.
-
-**Signature:**
-```typescript
-export interface NormalizedOption {
-  id: string | number;
-  label: string;
-  value: string;
-  group?: string;
-}
-```
-
-_Source: src/components/select/variants/async/select-resource.ts_
-
 ### Pagination
 
 **Kind:** `function`
@@ -10874,108 +10974,6 @@ function ResizablePanelGroup({ className, ...props }: ResizablePrimitive.GroupPr
 ```
 
 _Source: src/components/resizable/variants/base/resizable-base.tsx_
-
-### ResourceConfig
-
-**Kind:** `interface`
-
-Конфигурация асинхронного источника опций для {@link Select}.
-
-**Signature:**
-```typescript
-export interface ResourceConfig<T> {
-  /** Стратегия загрузки. По умолчанию (если не задана) трактуется как `'static'`. */
-  type: ResourceStrategy;
-  /** Функция загрузки опций. Должна вернуть `{ items, totalCount }`. */
-  load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
-  /** Размер страницы для стратегии `partial`. По умолчанию 20. */
-  pageSize?: number;
-}
-```
-
-_Source: src/components/select/variants/async/select-resource.ts_
-
-### ResourceItem
-
-**Kind:** `interface`
-
-Один элемент, возвращаемый {@link ResourceConfig.load}.
-
-**Signature:**
-```typescript
-export interface ResourceItem<T> {
-  /** Уникальный ключ элемента (для React `key` и дедупликации страниц). */
-  id: string | number;
-  /** Видимая подпись опции. */
-  label: string;
-  /** Значение, которое попадает в `onChange` (всегда приводится к строке). */
-  value: T;
-  /** Опциональное имя группы — варианты с одинаковым `group` объединяются в `SelectGroup`. */
-  group?: string;
-  /** Дополнительные поля бек-данных. */
-  [key: string]: unknown;
-}
-```
-
-_Source: src/components/select/variants/async/select-resource.ts_
-
-### ResourceLoadParams
-
-**Kind:** `interface`
-
-Параметры запроса к {@link ResourceConfig.load}.
-
-**Signature:**
-```typescript
-export interface ResourceLoadParams {
-  /** Поисковый запрос (серверная фильтрация в стратегии `partial`). */
-  search?: string;
-  /** Номер страницы (1-based) для пагинации. */
-  page?: number;
-  /** Размер страницы. */
-  pageSize?: number;
-  /** Дополнительные пользовательские параметры. */
-  [key: string]: unknown;
-}
-```
-
-_Source: src/components/select/variants/async/select-resource.ts_
-
-### ResourceResult
-
-**Kind:** `interface`
-
-Ответ {@link ResourceConfig.load}.
-
-**Signature:**
-```typescript
-export interface ResourceResult<T> {
-  /** Список вариантов текущей страницы. */
-  items: ResourceItem<T>[];
-  /** Общее число доступных вариантов (для пагинации). */
-  totalCount: number;
-}
-```
-
-_Source: src/components/select/variants/async/select-resource.ts_
-
-### ResourceStrategy
-
-**Kind:** `type`
-
-Стратегия загрузки опций {@link Select}:
-- `'static'` — один `load({})` при монтировании; без поиска и пагинации (снимок);
-- `'preload'` — один `load({})` (сервер возвращает всё), поиск фильтрует
-  загруженные опции на клиенте; пагинации нет;
-- `'partial'` — серверные поиск и пагинация: `load({ search, page })`,
-  догрузка следующих страниц при скролле до `totalCount`.
-
-**Signature:**
-```typescript
-export type ResourceStrategy = 'static' | 'preload' | 'partial';
-```
-
-_Source: src/components/select/variants/async/select-resource.ts_
 
 ### rowRange
 

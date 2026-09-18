@@ -42,6 +42,44 @@ export const inputBasePropsSchema = {
       description: 'Шаг (type=number).',
       'x-doc': { group: 'Behavior', type: 'number' },
     },
+    suggestions: {
+      type: 'array',
+      items: {
+        anyOf: [
+          { type: 'string' },
+          {
+            type: 'object',
+            required: ['value'],
+            additionalProperties: false,
+            properties: {
+              value: { type: 'string' },
+              label: { type: 'string' },
+            },
+          },
+        ],
+      },
+      description:
+        'Подсказки при вводе: строки или { value, label? }. Значение остаётся свободным текстом — выбор подсказки лишь подставляет её value. Из кода можно передать и асинхронный ResourceConfig (как у Select), в JSON — через $dataSource. Не действует при type=number.',
+      'x-doc': {
+        group: 'Options',
+        type: 'Array<string | { value; label? }> | ResourceConfig',
+        kind: 'readonly',
+      },
+    },
+    minChars: {
+      type: 'number',
+      default: 0,
+      description:
+        'С какой длины введённого текста показывать подсказки (при заданном suggestions).',
+      'x-doc': { group: 'Options', type: 'number' },
+    },
+    openOnFocus: {
+      type: 'boolean',
+      default: false,
+      description:
+        'Раскрывать подсказки при фокусе, не дожидаясь ввода (при заданном suggestions).',
+      'x-doc': { group: 'Options', type: 'boolean' },
+    },
     readOnly: {
       type: 'boolean',
       default: false,
@@ -66,6 +104,12 @@ export const inputBasePropsSchema = {
       type: '(value: string | number | null) => void',
       description:
         'Изменение. Пустой ввод → null. Для number частичный ввод («-», «1.») не эмитится.',
+    },
+    filter: {
+      group: 'Options',
+      type: '(option: NormalizedOption, query: string) => boolean',
+      description:
+        'Свой предикат совпадения подсказки. По умолчанию — подстрока label без учёта регистра.',
     },
   },
 } as const satisfies PropsSchema;
