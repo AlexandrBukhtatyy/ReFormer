@@ -191,6 +191,15 @@ export interface MenuActionNode {
   readonly enabled: boolean;
   /** Значок пункта, если он объявлен. Рисует его та поверхность, которой значки нужны. */
   readonly icon?: ComponentType;
+  /**
+   * Чей это пункт. Есть, когда пункт внесён плагином; у пунктов оболочки отсутствует.
+   *
+   * Нужен не подписи, а СТИЛЯМ: значок рисует чужой компонент, и без контейнера скоупа
+   * (ui/chrome/PluginScope) его CSS не применяется ни к чему. Едет вместе с узлом по той же
+   * причине, по которой рядом едет владелец словаря у декорации: слияние теряет
+   * происхождение, а вернуть его потом неоткуда.
+   */
+  readonly pluginId?: string;
   /** Галочка/радио. `undefined` — обычный пункт. */
   readonly checked?: boolean;
   /**
@@ -364,6 +373,7 @@ function actionNode(
     enabled: options.commands.isEnabled(command.id, options.ctx) && spec.enabledAt !== false,
     checked: spec.checked,
     icon: spec.icon,
+    ...(entry.pluginId === undefined ? {} : { pluginId: entry.pluginId }),
     // Сочетание показывается ТОЛЬКО у пункта без аргументов, потому что клавиши вызывают
     // команду без них. Найдено запуском: подменю «Панели» — это одна команда с адресом
     // панели, и каждая строка обещала «Ctrl+B», хотя это сочетание переключает боковую

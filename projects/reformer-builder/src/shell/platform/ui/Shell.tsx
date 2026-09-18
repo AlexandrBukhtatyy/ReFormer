@@ -364,7 +364,11 @@ function PanelHeading({ title, entry }: { title: string; entry: PanelEntry }): R
       {Actions === undefined ? null : (
         <TooltipProvider>
           <div className="flex flex-none items-center gap-0.5">
-            <Actions panelId={entry.value.id} />
+            {/* Действия — вклад того же плагина, что и панель, но рисуются ВНЕ её тела:
+                без своей обёртки они остались бы единственной частью вклада без стилей. */}
+            <PluginScope pluginId={entry.pluginId}>
+              <Actions panelId={entry.value.id} />
+            </PluginScope>
           </div>
         </TooltipProvider>
       )}
@@ -420,7 +424,15 @@ function RailTab({
           }}
           className="text-muted-foreground data-[state=on]:text-accent-foreground size-8 cursor-pointer text-[12px] font-medium"
         >
-          {Icon === undefined ? <span aria-hidden="true">{panelInitial(title)}</span> : <Icon />}
+          {Icon === undefined ? (
+            <span aria-hidden="true">{panelInitial(title)}</span>
+          ) : (
+            // Значок — такой же вклад плагина, как и тело панели, и стили ему нужны те же.
+            // Обёртка на span: он живёт внутри кнопки, где div нарушал бы контентную модель.
+            <PluginScope pluginId={entry.pluginId} as="span">
+              <Icon />
+            </PluginScope>
+          )}
         </Toggle>
       </TooltipTrigger>
       <TooltipContent side="right">{title}</TooltipContent>
@@ -507,7 +519,11 @@ function BottomTabs({
             }`}
           >
             {title}
-            {Badge !== undefined && <Badge panelId={entry.value.id} />}
+            {Badge !== undefined && (
+              <PluginScope pluginId={entry.pluginId} as="span">
+                <Badge panelId={entry.value.id} />
+              </PluginScope>
+            )}
           </Toggle>
         );
       })}

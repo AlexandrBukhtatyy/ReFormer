@@ -33,6 +33,17 @@ export type DecorationEntry = Contribution<ResourceDecorationContribution>;
 export interface MergedDecoration extends Decoration {
   /** Плагин, чей `tooltipKey` попал в слияние. Есть ровно тогда, когда есть `tooltipKey`. */
   readonly tooltipPluginId?: string;
+  /**
+   * Плагин, чей `icon` попал в слияние. Есть ровно тогда, когда есть `icon`.
+   *
+   * По той же причине, что и владелец подсказки, но ради стилей, а не словаря: значок рисует
+   * компонент плагина, а стоит он в строке дерева — то есть ВНУТРИ панели ДРУГОГО плагина,
+   * в его контейнере скоупа. Без собственного контейнера CSS автора значка не применяется
+   * ни к чему, а применяется чужой.
+   */
+  readonly iconPluginId?: string;
+  /** Плагин, чей `badge` попал в слияние. Есть ровно тогда, когда есть `badge`. */
+  readonly badgePluginId?: string;
 }
 
 /**
@@ -128,7 +139,9 @@ export function mergeDecorations(
   onError: DecorationErrorHandler = defaultOnDecorationError
 ): MergedDecoration | null {
   let badge: string | undefined;
+  let badgePluginId: string | undefined;
   let icon: ComponentType | undefined;
+  let iconPluginId: string | undefined;
   let tooltipKey: string | undefined;
   let tooltipParams: Record<string, unknown> | undefined;
   let tooltipPluginId: string | undefined;
@@ -144,8 +157,17 @@ export function mergeDecorations(
     }
     if (decoration === null || decoration === undefined) continue;
 
-    badge ??= decoration.badge;
-    icon ??= decoration.icon;
+    // Владелец едет ВМЕСТЕ со значением, а не отдельным полем «первый, кто задал»: слияние
+    // берёт поля у разных вкладов, и разойдись они — стили одного плагина применились бы
+    // к значку другого.
+    if (badge === undefined && decoration.badge !== undefined) {
+      badge = decoration.badge;
+      badgePluginId = entry.pluginId;
+    }
+    if (icon === undefined && decoration.icon !== undefined) {
+      icon = decoration.icon;
+      iconPluginId = entry.pluginId;
+    }
     if (tooltipKey === undefined && decoration.tooltipKey !== undefined) {
       tooltipKey = decoration.tooltipKey;
       // Параметры едут ВМЕСТЕ с ключом, а не отдельным полем по общему правилу «первый,
@@ -164,7 +186,16 @@ export function mergeDecorations(
   if (badge === undefined && icon === undefined && tooltipKey === undefined && tone === undefined) {
     return null;
   }
-  return { badge, icon, tooltipKey, tooltipParams, tooltipPluginId, tone };
+  return {
+    badge,
+    badgePluginId,
+    icon,
+    iconPluginId,
+    tooltipKey,
+    tooltipParams,
+    tooltipPluginId,
+    tone,
+  };
 }
 
 /**

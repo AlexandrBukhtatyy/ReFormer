@@ -58,6 +58,7 @@ import {
   type ReactElement,
 } from 'react';
 import { Badge } from '@reformer/ui-kit/badge';
+import { PluginScope } from '@/shell/platform/ui/chrome/PluginScope';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -272,8 +273,19 @@ export function ResourceTree({
   /** Значок вклада бьёт умолчание: «это схема формы» знает вклад, а не дерево. */
   const renderIcon = useCallback(
     (node: TreeNode): ReactElement | null => {
-      const Icon = decorate(node.id)?.icon;
-      return Icon === undefined ? null : <Icon />;
+      const decoration = decorate(node.id);
+      const Icon = decoration?.icon;
+      if (Icon === undefined) return null;
+      // Значок стоит в строке дерева, то есть внутри панели ДРУГОГО плагина и в его
+      // контейнере скоупа. Своя обёртка возвращает значку его собственные стили; без неё
+      // к нему применялся бы чужой CSS, а его собственный — ничей.
+      return decoration?.iconPluginId === undefined ? (
+        <Icon />
+      ) : (
+        <PluginScope pluginId={decoration.iconPluginId} as="span">
+          <Icon />
+        </PluginScope>
+      );
     },
     [decorate]
   );
@@ -282,7 +294,7 @@ export function ResourceTree({
     (node: TreeNode): ReactElement | null => {
       const decoration = decorate(node.id);
       if (decoration?.badge === undefined) return null;
-      const badge = (
+      const label = (
         <Badge
           variant={BADGE_VARIANT[decoration.tone ?? 'default']}
           className="h-4 px-1.5 py-0 text-[10px]"
@@ -290,6 +302,16 @@ export function ResourceTree({
           {decoration.badge}
         </Badge>
       );
+      // Та же причина, что у значка: пометка приехала от одного плагина, а нарисована
+      // внутри панели другого.
+      const badge =
+        decoration.badgePluginId === undefined ? (
+          label
+        ) : (
+          <PluginScope pluginId={decoration.badgePluginId} as="span">
+            {label}
+          </PluginScope>
+        );
       const tooltip = decorationTooltip(i18n, decoration);
       if (tooltip === null) return badge;
       return (

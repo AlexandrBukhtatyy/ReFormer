@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from '@reformer/ui-kit/dropdown-menu';
 import { Separator } from '@reformer/ui-kit/separator';
+import { PluginScope } from './PluginScope';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@reformer/ui-kit/tooltip';
 import type { CommandRegistry } from '@reformer/builder-plugin-api/internal';
 import type { ResourceRef } from '@reformer/builder-plugin-api/internal';
@@ -186,7 +187,17 @@ export function EditorActions({
                   disabled={!item.enabled}
                   onClick={item.run}
                 >
-                  {Icon !== undefined && <Icon />}
+                  {Icon !== undefined &&
+                    (item.pluginId === undefined ? (
+                      <Icon />
+                    ) : (
+                      // Значок рисует компонент ПЛАГИНА, а стоит он в кнопке оболочки.
+                      // Без контейнера скоупа его CSS не применяется ни к чему; span —
+                      // потому что внутри кнопки, где div нарушал бы контентную модель.
+                      <PluginScope pluginId={item.pluginId} as="span">
+                        <Icon />
+                      </PluginScope>
+                    ))}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{item.title}</TooltipContent>

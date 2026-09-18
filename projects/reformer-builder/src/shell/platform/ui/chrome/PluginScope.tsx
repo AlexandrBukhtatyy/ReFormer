@@ -37,7 +37,7 @@
  * @module shell/platform/ui/chrome/PluginScope
  */
 
-import type { ReactElement, ReactNode } from 'react';
+import { createElement, type ReactElement, type ReactNode } from 'react';
 import { PLUGIN_SCOPE_ATTRIBUTE } from '@/shell/platform/plugin/styles';
 
 export interface PluginScopeProps {
@@ -49,6 +49,16 @@ export interface PluginScopeProps {
    */
   readonly pluginId: string;
   readonly children: ReactNode;
+  /**
+   * Каким элементом быть. По умолчанию `div`, но не везде можно.
+   *
+   * Мелкие аффордансы вклада — значок на вкладке рейла, значок-счётчик на вкладке нижнего
+   * дока, значок пункта меню — живут ВНУТРИ `button`, а `div` в кнопке нарушает контентную
+   * модель HTML: браузер такую разметку чинит по-своему, и React отдельно ругается на неё
+   * в разработке. `display: contents` от элемента не зависит, поэтому цена варианта нулевая,
+   * а без него пришлось бы выбирать между сломанной разметкой и неизолированными стилями.
+   */
+  readonly as?: 'div' | 'span';
 }
 
 /**
@@ -58,10 +68,6 @@ export interface PluginScopeProps {
  * расходиться только вместе. Второй литерал `data-rb-plugin` в проекте означал бы, что их можно
  * рассинхронизировать правкой одного файла — и узнать об этом по пропавшим стилям.
  */
-export function PluginScope({ pluginId, children }: PluginScopeProps): ReactElement {
-  return (
-    <div {...{ [PLUGIN_SCOPE_ATTRIBUTE]: pluginId }} className="contents">
-      {children}
-    </div>
-  );
+export function PluginScope({ pluginId, children, as = 'div' }: PluginScopeProps): ReactElement {
+  return createElement(as, { [PLUGIN_SCOPE_ATTRIBUTE]: pluginId, className: 'contents' }, children);
 }

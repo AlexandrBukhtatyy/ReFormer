@@ -27,11 +27,15 @@ import { PluginScope } from './PluginScope';
 /** Тело вклада теста — узнаваемое и бессодержательное: проверяется обёртка, а не оно. */
 const BODY = '<span>тело вклада</span>';
 
-function markupOf(pluginId: string): string {
+function markupOf(pluginId: string, as?: 'div' | 'span'): string {
   // `children` — в объекте свойств, а не третьим аргументом: у обёртки они обязательны,
   // и перегрузка `createElement` с отдельными детьми такого типа не принимает.
   return renderToStaticMarkup(
-    createElement(PluginScope, { pluginId, children: createElement('span', null, 'тело вклада') })
+    createElement(PluginScope, {
+      pluginId,
+      ...(as === undefined ? {} : { as }),
+      children: createElement('span', null, 'тело вклада'),
+    })
   );
 }
 
@@ -73,6 +77,16 @@ describe('PluginScope', () => {
     // и разойдись он с разметкой хоть одним знаком — CSS плагина не применится ни к чему.
     expect(scopeFromMarkup(markupOf('files'))).toBe(pluginScopeSelector('files'));
     expect(scopeFromMarkup(markupOf('acme.forms'))).toBe(pluginScopeSelector('acme.forms'));
+  });
+
+  it('вариант на span — для того, что живёт внутри кнопки', () => {
+    // Значок вклада на вкладке рейла и счётчик на вкладке дока рисуются ВНУТРИ `button`,
+    // а `div` там нарушает контентную модель. Атрибут и отсутствие бокса — те же.
+    const markup = markupOf('files', 'span');
+
+    expect(markup).toMatch(new RegExp(`^<span [^>]*>${BODY}</span>$`));
+    expect(scopeFromMarkup(markup)).toBe(pluginScopeSelector('files'));
+    expect(markup).toContain('class="contents"');
   });
 
   it('контейнер не создаёт бокса', () => {

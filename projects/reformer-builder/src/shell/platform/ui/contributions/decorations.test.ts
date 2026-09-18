@@ -69,8 +69,13 @@ describe('точка расширения декораций', () => {
 
     expect(mergeDecorations(entries, SCHEMA, PROBE)).toEqual({
       badge: 'S',
+      // Владелец пометки едет вместе с ней: значок рисуется внутри панели ДРУГОГО плагина,
+      // и без этого поля ему нечем вернуть его собственные стили.
+      badgePluginId: 'schema',
       icon: undefined,
+      iconPluginId: undefined,
       tooltipKey: undefined,
+      tooltipParams: undefined,
       tooltipPluginId: undefined,
       tone: 'accent',
     });
@@ -122,11 +127,29 @@ describe('mergeDecorations', () => {
 
     expect(mergeDecorations(entries, SCHEMA, PROBE)).toEqual({
       badge: 'S',
+      badgePluginId: 'test',
       icon: undefined,
+      iconPluginId: undefined,
       tooltipKey: 'errors.two',
+      tooltipParams: undefined,
       tooltipPluginId: 'test',
       tone: undefined,
     });
+  });
+
+  it('у значка и пометки владельцы СВОИ, а не общий на слияние', () => {
+    // Слияние собирает поля у разных вкладов, и происхождение у каждого своё. Один общий
+    // владелец на всё слияние означал бы, что к значку одного плагина применяются стили
+    // другого — и молча: разметка та же, каскад другой.
+    const entries = entriesOf([
+      { plugin: 'kinds', decoration: { id: 'kind', decorate: () => ({ icon: () => null }) } },
+      { plugin: 'errors', decoration: { id: 'errors', decorate: () => ({ badge: '2' }) } },
+    ]);
+
+    const merged = mergeDecorations(entries, SCHEMA, PROBE);
+
+    expect(merged?.iconPluginId).toBe('kinds');
+    expect(merged?.badgePluginId).toBe('errors');
   });
 
   it('подсказка помнит, чей словарь её разрешает', async () => {
