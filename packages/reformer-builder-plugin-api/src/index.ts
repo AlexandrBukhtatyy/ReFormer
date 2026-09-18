@@ -240,7 +240,10 @@ export type { DiagnosticsService } from './services/diagnostics/service.js';
 export { DocumentsServiceToken } from './services/documents.js';
 // Вторая половина рабочей области: что в ней ЛЕЖИТ и где. Отдельной службой, потому что
 // права разные — здесь только чтение и адресация, а запись идёт одной дверью выше.
-export { WorkspaceFilesServiceToken } from './services/workspace-files.js';
+export {
+  WorkspaceFilesServiceToken,
+  WorkspaceFilesCapability,
+} from './services/workspace-files.js';
 export type { WorkspaceFilesService } from './services/workspace-files.js';
 // Единственная дверь НАРУЖУ, в источник, и единственная служба, которую оболочка отдаёт
 // не всем: её просит право `workspace.save` в манифесте, и подтверждает его человек.
@@ -347,6 +350,33 @@ export type {
   ApplyResult,
   NodeId,
 } from './workspace/model/provider.js';
+
+// Модели открытых документов, загрузчик модулей и словарь оболочки — возможности ОБОЛОЧКИ,
+// которыми плагин стека берёт то, что раньше ему собирал порт в композиции. Порт знал стек:
+// «этот провайдер — того плагина», «этот кит — тем превью». Возможность отдаёт механизм без
+// знания о формате: ручку модели с `unknown` сужает сам плагин, сверив `providerId`.
+export { DocumentModelsCapability } from './services/document-models.js';
+export type { DocumentModelsService } from './services/document-models.js';
+export type {
+  ApplyOptions,
+  ApplyOutcome,
+  ApplyRejection,
+  DocumentSyncState,
+  ModelChange,
+  ModelChangeReason,
+  ModelDocument,
+  ModelDocumentHandle,
+  ParseFailure,
+} from './workspace/model/model-document.js';
+export { ModuleLoaderCapability } from './services/modules.js';
+export type {
+  ModuleGraph,
+  ModuleLoadProblem,
+  ModuleLoaderService,
+  PrimedCompile,
+} from './services/modules.js';
+export { HostMessagesCapability } from './services/host-messages.js';
+export type { HostMessagesService } from './services/host-messages.js';
 
 // Порядок строгости диагностик. Без него каждый показывающий плагин заводит свою копию,
 // и совпадение копий держится на комментарии, а не на компиляторе — ровно это и случилось

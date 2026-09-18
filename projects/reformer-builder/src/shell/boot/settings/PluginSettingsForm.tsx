@@ -17,9 +17,9 @@
  *
  * Модель обязана знать ВСЕ пути, которые называет схема: иначе рендерер пишет «нет form-node
  * для сигнала» и рисует пустоту вместо поля. Поэтому основа — синтез из самой схемы
- * (`@reformer/builder-stack-reformer/form-mock`), а сохранённые значения кладутся поверх. Умолчания САМОГО плагина сюда
- * не попадают отдельным слоем: их объявляет плагин через `registerDefault`, и служба настроек
- * уже вернула их в `values`.
+ * (`./initial-values`, своё у оболочки — см. его шапку), а сохранённые значения кладутся поверх.
+ * Умолчания САМОГО плагина сюда не попадают отдельным слоем: их объявляет плагин через
+ * `registerDefault`, и служба настроек уже вернула их в `values`.
  *
  * @module shell/boot/settings/PluginSettingsForm
  */
@@ -32,10 +32,7 @@ import {
   type JsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import {
-  buildInitialValues,
-  collectFieldDefaults,
-} from '@reformer/builder-stack-reformer/form-mock';
+import { initialValuesOf } from './initial-values';
 import type { PluginSettingsValues } from '@/shell/platform/services/plugin-settings';
 import { buildChromeRegistry } from './chrome-registry';
 
@@ -64,7 +61,7 @@ export function PluginSettingsForm({
   // потерять фокус в поле. Значения после сборки живут в модели, а не в пропе.
   const built = useMemo<BuildResult>(() => {
     try {
-      const initial = { ...buildInitialValues(collectFieldDefaults(schema)), ...values };
+      const initial = { ...initialValuesOf(schema), ...values };
       const bundle = createJsonForm<Record<string, unknown>>({
         schema,
         registry: buildChromeRegistry(schema),

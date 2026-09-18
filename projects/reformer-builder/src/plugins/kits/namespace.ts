@@ -35,10 +35,10 @@
  * подписанными стабами и остаётся понятной, поэтому отказ логируется и на этом заканчивается.
  * Повторная попытка разрешена: `loading` снимается в любом случае.
  *
- * @module shell/boot/ports/kit-namespace
+ * @module plugins/kits/namespace
  */
 
-import type { Disposable } from '@reformer/builder-plugin-api/internal';
+import type { Disposable } from '@reformer/builder-plugin-api';
 import type { KitNamespace } from '@reformer/builder-stack-reformer/kits';
 
 export interface KitNamespaceLoader {

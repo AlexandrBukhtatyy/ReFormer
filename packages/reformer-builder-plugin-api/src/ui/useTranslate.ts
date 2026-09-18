@@ -36,7 +36,9 @@ import { useLocale } from './useLocale.js';
 /** Перевод: ключ и параметры сообщения. Совпадает по форме с `PluginI18n.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
 
-export function useTranslate(i18n: PluginI18n): Translate {
+export function useTranslate(
+  i18n: Pick<PluginI18n, 'locale' | 't' | 'onDidChangeLocale'>
+): Translate {
   // Подписка на смену локали: значение нужно не переводчику, а перерисовке.
   const locale = useLocale(i18n);
   return useMemo<Translate>(() => {

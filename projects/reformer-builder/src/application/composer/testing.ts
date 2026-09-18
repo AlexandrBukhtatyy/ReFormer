@@ -24,6 +24,7 @@ import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-
 import { EditorViewStatesToken } from '@reformer/builder-plugin-api/internal';
 import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 import { TextEditorFocusToken } from '@reformer/builder-plugin-api/internal';
+import { DocumentModelsCapability } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Возможности оболочки, без которых встроенные плагины не поднимаются, — как в `boot`.
@@ -43,12 +44,13 @@ export function stubHostCapabilities(services: ServiceRegistry): void {
   services.register(EditorViewStatesToken, createEditorViewStates());
   services.register(DocumentsServiceToken, createDocumentsService({ project: closed }));
   services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project: closed }));
+  services.register(DocumentModelsCapability, { handleOf: () => null });
 }
 
 /**
  * Порт-пустышка.
  *
- * Прокси, а не литерал с методами: у семи портов вместе больше шестидесяти методов, и держать
+ * Прокси, а не литерал с методами: у трёх портов вместе несколько десятков методов, и держать
  * их список здесь значило бы переписывать этот файл на каждое изменение любого порта — то есть
  * получить вторую копию контрактов вдобавок к тем, что уже есть.
  */
@@ -81,10 +83,5 @@ export function stubBuiltinOptions(): BuiltinPluginsOptions {
     files: stubHost(),
     monaco: stubHost(),
     markdown: stubHost(),
-    schema: stubHost(),
-    preview: stubHost(),
-    codegen: stubHost(),
-    templates: stubHost(),
-    kits: {},
   };
 }

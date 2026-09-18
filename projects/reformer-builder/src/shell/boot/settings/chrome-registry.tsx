@@ -38,7 +38,7 @@ import { Section } from '@reformer/ui-kit/section';
 import { SelectField } from '@reformer/ui-kit/select';
 import { SwitchField } from '@reformer/ui-kit/switch';
 import { TextareaField } from '@reformer/ui-kit/textarea';
-import { collectOperatorNames } from '@reformer/builder-stack-reformer/form-model';
+import { operatorNamesOf } from './initial-values';
 
 /**
  * Что плагин вправе назвать в `$component(...)`.
@@ -82,7 +82,7 @@ function makeUnknown(name: string): ComponentType<Record<string, unknown>> {
  * который автор плагина не собирался наполнять из билдера.
  */
 export function buildChromeRegistry(schema: JsonFormSchema): ComponentRegistry {
-  const used = collectOperatorNames(schema);
+  const used = operatorNamesOf(schema);
 
   return defineRegistry((builder) => {
     for (const [name, component] of Object.entries(CHROME_COMPONENTS)) {

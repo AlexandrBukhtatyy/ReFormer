@@ -5,12 +5,12 @@
  * собранная до загрузки кита, обязана пересобраться после неё. Проверять это на настоящем
  * импорте нечем — он тянет чанк на сотни килобайт, — поэтому загрузка внедряется параметром.
  *
- * @module shell/boot/ports/kit-namespace.test
+ * @module plugins/kits/namespace.test
  */
 
 import { describe, expect, it, vi } from 'vitest';
 import type { KitNamespace } from '@reformer/builder-stack-reformer/kits';
-import { createKitNamespaceLoader } from './kit-namespace';
+import { createKitNamespaceLoader } from './namespace';
 
 const KIT: KitNamespace = Object.freeze({ InputField: () => null }) as unknown as KitNamespace;
 

@@ -156,7 +156,7 @@ describe('внешний плагин с требованием к возмож�
   it('состав приложения объявляет возможность китов — без этого проверять нечего', () => {
     expect(builderApplication.capabilities).toContainEqual({
       id: 'reformer.kit.catalog',
-      version: '1.0.0',
+      version: '1.1.0',
       by: KITS_PLUGIN_ID,
     });
   });
@@ -183,7 +183,7 @@ describe('внешний плагин с требованием к возмож�
     expect(entry?.problem?.message).toContain('reformer.kit.catalog');
     expect(entry?.problem?.message).toContain('^2');
     // «Поставь новее» и «поставь вообще» — разные ответы, и человеку нужен второй.
-    expect(entry?.problem?.message).toContain('1.0.0');
+    expect(entry?.problem?.message).toContain('1.1.0');
     expect(entry?.problem?.message).toContain(`«${KITS_PLUGIN_ID}»`);
     h.dispose();
   });

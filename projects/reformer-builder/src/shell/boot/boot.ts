@@ -130,11 +130,14 @@ import { FILES_PLUGIN_ID } from '@/plugins/files/contract';
 import { createFilesHost } from '@/shell/boot/ports/files';
 import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
-import { createSchemaHost } from '@/shell/boot/ports/schema';
-import { createPreviewHost } from '@/shell/boot/ports/preview';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
 import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
+import {
+  DocumentModelsCapability,
+  HostMessagesCapability,
+  ModuleLoaderCapability,
+} from '@reformer/builder-plugin-api/internal';
 import { PluginsCatalogServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceResourcesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
@@ -419,6 +422,16 @@ export function boot(options: BootOptions): BuilderApp {
     createLayeredSettingsBackend({ browser: settingsStore, project: projectSettings })
   );
   const i18n = createI18nService();
+  // Словарь оболочки на чтение: коды диагностик (`errors.<code>`) и заголовки исправлений
+  // переводит ОН, чтобы одна ошибка звучала одинаково в любом редакторе. Обёртка, а не сам
+  // корень: `contribute` корня плагину не принадлежит.
+  services.register(HostMessagesCapability, {
+    get locale() {
+      return i18n.locale;
+    },
+    t: (key, params) => i18n.t(key, params),
+    onDidChangeLocale: (cb) => i18n.onDidChangeLocale(cb),
+  });
   const theme = createThemeService({
     settings,
     system: createBrowserSystemTheme(),
@@ -524,6 +537,12 @@ export function boot(options: BootOptions): BuilderApp {
   // Записи рабочей области — вторая её половина: что в ней лежит и где. Отдельной службой,
   // а не методами первой, потому что права разные (см. шапку `services/workspace-files`).
   services.register(WorkspaceFilesServiceToken, createWorkspaceFilesService({ project }));
+  // Ручки модельных документов — тому плагину стека, чей провайдер документ разобрал. Раньше
+  // ручку отдавал порт редактора схемы, и оболочка знала, какой провайдер чей; служба отдаёт
+  // ручку ЛЮБОЙ модели с `unknown`, а сужает её сам плагин по `providerId`.
+  services.register(DocumentModelsCapability, {
+    handleOf: (id) => project.get()?.models.handleOf(id) ?? null,
+  });
   // Дверь НАРУЖУ, и единственная: раньше её раздавала композиция портом — по одному
   // на плагин, — потому что без политики прав отдавать её реестром было нельзя. Политика
   // появилась, и служба встала на общий адрес: кому её видно, решает право в манифесте.
@@ -581,6 +600,23 @@ export function boot(options: BootOptions): BuilderApp {
   // плагинов каталога (шаг 3а) и компилирующей поверхности превью, которая собирается прямо
   // здесь. Второй экземпляр означал бы второй чанк TypeScript на 3.5 МБ.
   const pluginModules = createPluginModules({ cache: buildCacheOf });
+  // Загрузчик модулей — возможностью, а не портом превью: компилирующую поверхность вносит
+  // плагин стека, и оболочка не должна знать, какой. Движок тот же, что у загрузчика плагинов.
+  //
+  // Прогрев здесь ШИРЕ, чем у загрузчика плагинов: сайдкары формы тянут кит почти всегда
+  // (его печатает `registry.ts`), а превью грузит кит и без того — ленивым namespace.
+  // Греется то, что импортируют САМИ файлы, а не всё подряд: иначе каждая форма платила бы
+  // за подпути кита с их зависимостями, которых в ней нет.
+  services.register(ModuleLoaderCapability, {
+    load: pluginModules.modules.load,
+    prepare: async (files) => {
+      const [primed] = await Promise.all([
+        pluginModules.prepareCached(files),
+        pluginModules.warm(files),
+      ]);
+      return primed;
+    },
+  });
 
   // 3a. Плагины каталога проекта. Реестр модулей с настоящим `@builder/sdk` собирает
   //     композиция — только она вправе занять защищённые слоты (см. `./plugin-modules`).
@@ -699,36 +735,7 @@ export function boot(options: BootOptions): BuilderApp {
 
   // Один порт Monaco на двоих: сам редактор и предпросмотр markdown, который одалживает
   // его тело для режима «рядом».
-  const monacoHost = createMonacoHost({ project, i18n, diagnostics });
-  // Порт превью собирается ЗДЕСЬ — как и все порты. Его берут два плагина: превью-хост
-  // (адрес документа и права источника, чтобы выбрать поверхность) и поверхности стека
-  // ReFormer (кит, загрузчик модулей, соседние файлы). Реестр состояний и живой вид — у хоста.
-  const previewHost = createPreviewHost({
-    project,
-    i18n,
-    services,
-    // Загрузчик модулей — ТОТ ЖЕ, что у плагинов каталога: движок TypeScript один на
-    // приложение, и второй экземпляр означал бы второй чанк на 3.5 МБ.
-    //
-    // Прогрев здесь ШИРЕ, чем у загрузчика плагинов, и это решение композиции: сайдкары формы
-    // тянут кит почти всегда (его печатает `registry.ts`), а превью грузит кит и без того —
-    // ленивым namespace. Плагину каталога кит обычно не нужен, поэтому ему прогрев ленивых
-    // не достаётся.
-    //
-    // Шире — но не «всё подряд»: греется то, что импортируют САМИ файлы формы. Иначе каждая
-    // форма платила бы за пятнадцать подпутей кита с их зависимостями (`recharts`, `cmdk`),
-    // которых в ней нет.
-    modules: {
-      load: pluginModules.modules.load,
-      prepare: async (files) => {
-        const [primed] = await Promise.all([
-          pluginModules.prepareCached(files),
-          pluginModules.warm(files),
-        ]);
-        return primed;
-      },
-    },
-  });
+  const monacoHost = createMonacoHost({ project, i18n, diagnostics, extensions });
 
   /**
    * Опции встроенного набора — ОДИН объект на обе фазы.
@@ -792,19 +799,6 @@ export function boot(options: BootOptions): BuilderApp {
     files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
     monaco: monacoHost,
     markdown: createMarkdownHost({ project }),
-    // Живого вида в порту больше нет: его отдаёт плагин превью возможностью
-    // `reformer.preview.live`, и редактор схемы спрашивает её сам.
-    schema: createSchemaHost({ project, i18n, services }),
-    kits: {
-      // `settings` НЕ передаются намеренно: плагин берёт их из реестра сервисов —
-      // единственным путём, доступным плагину из каталога. Передай мы параметром,
-      // этот путь остался бы непроверенным, а другого у внешнего плагина нет.
-    },
-    preview: previewHost,
-    // Дыр у обоих не осталось: сохранение уехало в привилегированную службу, и композиции
-    // больше нечего им передавать.
-    codegen: {},
-    templates: {},
   };
 
   // По одному, а не `registerAll`: вместе с плагином в реестр уходит то, что он ОБЕЩАЛ дать

@@ -35,6 +35,9 @@ import { WorkspaceFilesCapability } from '@reformer/builder-plugin-api/internal'
 import { WorkspaceResourcesCapability } from '@reformer/builder-plugin-api/internal';
 import { PluginsCatalogCapability } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveCapability } from '@reformer/builder-plugin-api/internal';
+import { DocumentModelsCapability } from '@reformer/builder-plugin-api/internal';
+import { ModuleLoaderCapability } from '@reformer/builder-plugin-api/internal';
+import { HostMessagesCapability } from '@reformer/builder-plugin-api/internal';
 
 /**
  * Имя провайдера в диагностике.
@@ -55,6 +58,9 @@ export const HOST_PROVIDER_ID = 'builder.host';
 export const HOST_CAPABILITIES: readonly Capability<unknown>[] = Object.freeze([
   DocumentsCapability,
   WorkspaceFilesCapability,
+  DocumentModelsCapability,
+  ModuleLoaderCapability,
+  HostMessagesCapability,
   TextEditorFocusCapability,
   EditorViewStatesCapability,
   // Три ПРИВИЛЕГИРОВАННЫЕ: объявлены как все, но отдаются только тому, кому подтверждено

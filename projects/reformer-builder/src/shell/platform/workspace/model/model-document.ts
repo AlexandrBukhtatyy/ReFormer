@@ -51,7 +51,6 @@
  * @module shell/platform/workspace/model/model-document
  */
 
-import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
 import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
@@ -62,8 +61,13 @@ import { createEditorProbe, resolveModelProvider } from './provider';
 import {
   type ApplyResult,
   type DocumentModelProvider,
-  type EditOp,
+  type DocumentSyncState,
+  type ModelChange,
+  type ModelChangeReason,
+  type ModelDocument,
+  type ModelDocumentHandle as SdkModelDocumentHandle,
   type NodeId,
+  type ParseFailure,
 } from '@reformer/builder-plugin-api/internal';
 
 /** Источник диагностик разбора: по нему `publish` замещает прошлый результат. */
@@ -74,100 +78,27 @@ export interface TextDocument extends Document {
   readonly kind: 'text';
 }
 
-/** Согласован ли буфер с моделью. */
-export type DocumentSyncState = 'synced' | 'diverged';
-
-/** Почему буфер не разобрался. Текста для человека тут нет — он собирается по коду i18n. */
-export interface ParseFailure {
-  readonly providerId: string;
-  /** Сообщение провайдера: годится для диагностики и для лога, не для интерфейса. */
-  readonly message: string;
-  /** Исходная ошибка: у разбора с позициями в ней лежит смещение. */
-  readonly error?: unknown;
-}
-
-/** Что вызвало смену состояния документа. */
-export type ModelChangeReason = 'apply' | 'parse' | 'undo' | 'redo' | 'selection';
-
-export interface ModelChange<M> {
-  readonly model: M;
-  readonly selection: readonly NodeId[];
-  readonly syncState: DocumentSyncState;
-  readonly reason: ModelChangeReason;
-}
+// Форма модельного документа — в SDK (`workspace/model/model-document`): редактор модели —
+// плагин стека, и тип ручки у него обязан быть ТЕМ ЖЕ, что отдаёт оболочка, а не копией.
+// Здесь — реализация и то, что принадлежит только владельцу: время жизни ручки.
+export type {
+  ApplyOptions,
+  ApplyOutcome,
+  ApplyRejection,
+  DocumentSyncState,
+  ModelChange,
+  ModelChangeReason,
+  ModelDocument,
+  ParseFailure,
+} from '@reformer/builder-plugin-api/internal';
 
 /**
- * Документ с моделью: истина — модель, буфер — её сериализация.
+ * Ручка модельного документа вместе с временем жизни.
  *
- * Наследует `Document` целиком: для текстового редактора модельный документ ничем не отличается
- * от обычного, и это осознанно — иначе Monaco пришлось бы знать про два вида документов.
+ * `dispose` — только у владельца: ручку открыла оболочка вместе с вкладкой, и закрыть её
+ * вправе только она. Плагины получают ту же ручку службой моделей — без этого метода.
  */
-export interface ModelDocument<M = unknown> extends Document {
-  readonly kind: 'model';
-  /** Чей разбор. Попадает в диагностику и в отчёт об отказе операции. */
-  readonly providerId: string;
-  /** Последняя валидная модель. В расхождении — та, что была до поломки буфера. */
-  getModel(): M;
-  getSyncState(): DocumentSyncState;
-  /** `undefined`, когда согласовано. */
-  getParseFailure(): ParseFailure | undefined;
-  /**
-   * Выделение — часть модели правки, а не состояния вида: операция переносит его на `focus`,
-   * оно входит в снимок отмены и читается командами. В `viewState` редактора уходит другое.
-   */
-  getSelection(): readonly NodeId[];
-  /** Ложь в расхождении: структурные редакторы там только на чтение. */
-  isStructurallyEditable(): boolean;
-  onDidChangeModel(cb: (change: ModelChange<M>) => void): Disposable;
-}
-
-/** Отказ применить операцию. Не исключение: оба случая — нормальные состояния, а не аварии. */
-export type ApplyRejection =
-  /** Буфер не разбирается: правка модели затёрла бы работу пользователя при перерисовке. */
-  | { readonly status: 'rejected'; readonly reason: 'diverged'; readonly failure: ParseFailure }
-  /** Провайдер не смог применить операцию: неизвестный тип, исчезнувшая цель, битые параметры. */
-  | { readonly status: 'rejected'; readonly reason: 'provider-error'; readonly error: unknown };
-
-export type ApplyOutcome<M> = ({ readonly status: 'applied' } & ApplyResult<M>) | ApplyRejection;
-
-export interface ApplyOptions {
-  /** Ключ схлопывания в истории, обычно `свойство@узел` (см. `mergeKeyOf`). */
-  readonly mergeKey?: string;
-}
-
-/**
- * Ручки управления модельным документом.
- *
- * Разведено так же, как `Document`/`DocumentHandle`: наружу уходит документ, который читают,
- * а править его может только тот, кто им владеет. Иначе любая панель, получившая ссылку,
- * могла бы применить операцию мимо истории и мимо перерисовки буфера.
- */
-export interface ModelDocumentHandle<M> {
-  readonly document: ModelDocument<M>;
-  /** Применяет операцию: история, перенос выделения на `focus`, перерисовка буфера. */
-  apply(op: EditOp, options?: ApplyOptions): ApplyOutcome<M>;
-  setSelection(selection: readonly NodeId[]): void;
-  /** `false`, если отменять нечего или документ в расхождении. */
-  undo(): boolean;
-  redo(): boolean;
-  /**
-   * Ответит ли {@link undo} согласием. Расхождение учитывается здесь же, а не отдельным
-   * вопросом: иначе команда «Отменить» была бы доступна там, где отмена откажет, —
-   * а пункт меню, который обещает то, чего не сделает, хуже отсутствующего.
-   */
-  canUndo(): boolean;
-  canRedo(): boolean;
-  /** Явная граница схлопывания: конец хода ассистента, уход фокуса с поля. */
-  breakUndoMerge(): void;
-  /**
-   * Выполняет отложенную перерисовку буфера и дожидается записи.
-   *
-   * Вызывается при уходе фокуса из текстового редактора и в конце операции, которой важно,
-   * что буфер уже согласован (сохранение, компиляция, снимок для превью).
-   */
-  flush(): Promise<void>;
-  /** Ждёт ли документ перерисовки буфера, отложенной из-за фокуса. */
-  hasPendingSync(): boolean;
+export interface ModelDocumentHandle<M> extends SdkModelDocumentHandle<M> {
   dispose(): void;
 }
 

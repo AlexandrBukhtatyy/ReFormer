@@ -49,7 +49,12 @@ import {
   newNodeId,
   type NodeIdFactory,
 } from '@reformer/builder-stack-reformer/form-model';
-import { ensureSchema, isFormSchema } from '@reformer/builder-stack-reformer/form-model';
+import {
+  ensureSchema,
+  indexNodePaths,
+  isFormSchema,
+  type JsonPath,
+} from '@reformer/builder-stack-reformer/form-model';
 import type { EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
 import { applyEditOp } from './ops';
 import type { ApplyResult, EditOp, SchemaModelProviderSpec } from '../host';
@@ -112,6 +117,25 @@ export interface SchemaModelProviderOptions {
   readonly newId?: NodeIdFactory;
 }
 
+/**
+ * Пути узлов по модели — запоминаются по ССЫЛКЕ на модель.
+ *
+ * `WeakMap`, а не поле: модель — замороженный объект со structural sharing, и новая ссылка
+ * означает новую правку; та же ссылка — тот же ответ. Текстовый редактор спрашивает пути на
+ * каждую публикацию находок, а обход схемы ради того же ответа стоил бы столько же, сколько
+ * сам показ. Кэш общий на все провайдеры: ответ зависит только от модели.
+ */
+const nodePathsCache = new WeakMap<object, ReadonlyMap<string, JsonPath>>();
+
+function nodePathsOf(model: JsonFormSchema): ReadonlyMap<string, JsonPath> {
+  let paths = nodePathsCache.get(model);
+  if (paths === undefined) {
+    paths = indexNodePaths(model);
+    nodePathsCache.set(model, paths);
+  }
+  return paths;
+}
+
 /** Собирает провайдер модели. Отдельно от плагина, чтобы тест звал его без реестров. */
 export function createSchemaModelProvider(
   options: SchemaModelProviderOptions = {}
@@ -124,5 +148,7 @@ export function createSchemaModelProvider(
     print: printFormSchema,
     apply: (model: JsonFormSchema, op: EditOp): ApplyResult<JsonFormSchema> =>
       applyEditOp(model, op, { newId }),
+    // Пути узлов — для текстового редактора: подчеркнуть находку на узле без `$nodeId` в тексте.
+    nodePaths: nodePathsOf,
   };
 }

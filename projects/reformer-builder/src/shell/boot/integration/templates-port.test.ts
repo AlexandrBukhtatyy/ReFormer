@@ -12,7 +12,7 @@
  * в реестре, а плагин достаёт их оттуда (`plugins/templates/workspace`) — включая сохранение:
  * порта у шаблонов больше нет, дверь наружу стала привилегированной службой.
  *
- * @module shell/boot/ports/templates.test
+ * @module shell/boot/integration/templates-port.test
  */
 
 import { describe, expect, it } from 'vitest';
@@ -37,14 +37,14 @@ import {
   TEMPLATES_PLUGIN_ID,
   templatesWorkspace,
 } from '@/plugins/templates';
-import { createDocumentsService } from './documents';
-import { createWorkspaceFilesService } from './workspace-files';
+import { createDocumentsService } from '@/shell/boot/ports/documents';
+import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
 import {
   createWorkspaceSession,
   type WorkspaceSession,
 } from '@/shell/boot/project/workspace-session';
 import type { ProjectHost } from '@/shell/boot/project/project';
-import { createWorkspaceSave } from './workspace-save';
+import { createWorkspaceSave } from '@/shell/boot/ports/workspace-save';
 
 let seq = 0;
 

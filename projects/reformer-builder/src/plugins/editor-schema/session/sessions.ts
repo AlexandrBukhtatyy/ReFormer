@@ -139,7 +139,7 @@ interface Entry {
 }
 
 export interface SessionRegistryDeps {
-  readonly host: SchemaEditorHost;
+  readonly host: Pick<SchemaEditorHost, 'modelOf'>;
 }
 
 /**

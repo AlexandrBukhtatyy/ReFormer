@@ -37,6 +37,7 @@ import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
 import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits';
 import { builderApplication } from '../builder-application';
+import { baseProfile } from '../profiles/builder';
 import {
   builtinPluginDirectory,
   BUILTIN_MANIFESTS,
@@ -570,5 +571,63 @@ describe('две фазы: что едет в entry, а что своим фай
   it('храповик не пуст: зоны обойдены и ленивые плагины у него есть', () => {
     // Сломайся обход путём — проверка выше осталась бы зелёной на пустом множестве файлов.
     expect(LAZY_PLUGIN_IDS.length).toBeGreaterThanOrEqual(6);
+  });
+});
+
+/**
+ * ХРАПОВИК границы «оболочка не знает стека».
+ *
+ * Плагины стека берут от оболочки всё возможностями, а не портами, — и держится это ровно до
+ * первого импорта: одна строка `import { KitsServiceToken } from '@/plugins/kits'` в `boot`
+ * возвращает порт, а вместе с ним знание о стеке. Пакеты стеков стережёт линтер; плагины стека
+ * — этот тест, потому что их список не пишется руками, а выводится из профиля `builder.base`:
+ * что в основе — нейтрально, остальное — чей-то стек.
+ *
+ * Обходится `shell/` целиком, с тестами, КРОМЕ `shell/boot/integration/`: интеграционные тесты
+ * проверяют собранное приложение и обязаны знать его состав (то же исключение у линтера).
+ * Импорт ТИПА тоже нарушение: тип порта — это и есть знание, которое убирали.
+ */
+describe('оболочка не знает стека', () => {
+  const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+  const neutral = new Set(baseProfile.plugins);
+  const stackDirectories = BUILTIN_MANIFESTS.map((manifest) => manifest.id)
+    .filter((id) => !neutral.has(id))
+    .map((id) => builtinPluginDirectory(id));
+
+  const scan = (): { readonly files: number; readonly offenders: readonly string[] } => {
+    const offenders: string[] = [];
+    let files = 0;
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir)) {
+        const full = dir + '/' + entry;
+        if (statSync(full).isDirectory()) {
+          if (full.endsWith('/shell/boot/integration')) continue;
+          walk(full);
+          continue;
+        }
+        if (!/\.tsx?$/.test(entry)) continue;
+        files += 1;
+        const text = readFileSync(full, 'utf8');
+        for (const directory of stackDirectories) {
+          // Барель и любой подмодуль: `@/plugins/kits`, `@/plugins/kits/manifest.json`.
+          const pattern = new RegExp("from '@/plugins/" + directory + "(/[^']*)?'");
+          if (pattern.test(text)) offenders.push(full.slice(root.length) + ' → ' + directory);
+        }
+      }
+    };
+    walk(root + '/shell');
+    return { files, offenders };
+  };
+
+  it('src/shell не импортирует плагины, которых нет в builder.base', () => {
+    expect(scan().offenders).toEqual([]);
+  });
+
+  it('храповик не пуст: файлы обойдены и плагины стека у него есть', () => {
+    // Сломайся путь или выведи профиль основы весь набор — проверка выше осталась бы зелёной.
+    expect(scan().files).toBeGreaterThan(100);
+    expect(stackDirectories).toEqual(
+      expect.arrayContaining(['kits', 'editor-schema', 'preview-runtime', 'codegen'])
+    );
   });
 });

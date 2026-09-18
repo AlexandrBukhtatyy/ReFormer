@@ -17,7 +17,7 @@ import { PLUGIN_RUNTIME_MODULES } from '@reformer/builder-plugin-api/internal';
 import { builtinKit, wizardSchema } from '@reformer/builder-stack-reformer/testing';
 import { prepare } from '@reformer/builder-stack-reformer/codegen';
 import { wizardShimOf } from '@reformer/builder-stack-reformer/codegen';
-import { createPluginModules, PLUGIN_MODULE_SPECIFIERS } from './plugin-modules';
+import { createPluginModules, PLUGIN_MODULE_SPECIFIERS } from '@/shell/boot/plugin-modules';
 
 describe('модули, доступные плагину каталога', () => {
   it('под именем @builder/sdk лежит тот самый объект, что видит оболочка', () => {

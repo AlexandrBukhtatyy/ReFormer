@@ -40,6 +40,7 @@
  */
 
 import { defineCapability, type Capability } from '../primitives/capability.js';
+import type { Disposable } from '../primitives/disposable.js';
 import type { ResourceId, ResourceRef } from '../primitives/resource.js';
 
 export interface WorkspaceFilesService {
@@ -85,6 +86,15 @@ export interface WorkspaceFilesService {
    */
   canWrite(id: ResourceId): boolean;
   /**
+   * Разрешает ли ИСТОЧНИК этого ресурса исполнять его код. Без проекта — `false`.
+   *
+   * Близнец {@link canWrite} и по той же причине вопрос к источнику, а не к плагину: сайдкары
+   * формы — это код, и придёт он оттуда же, откуда схема. Задают его поверхности превью,
+   * которые компилируют и исполняют файлы рабочей копии; `false` для них — отказ, а не повод
+   * исполнять «на всякий случай».
+   */
+  executesCode(id: ResourceId): boolean;
+  /**
    * Перечитать каталог: в нём появились или исчезли записи мимо интерфейса.
    *
    * Дерево проекта читает уровни ЛЕНИВО и помнит прочитанное, поэтому каталог, созданный
@@ -92,6 +102,14 @@ export interface WorkspaceFilesService {
    * это тот, кто ТОЛЬКО ЧТО записал, и знает, куда именно.
    */
   refresh(dir: ResourceId): Promise<void>;
+  /**
+   * ТЕКСТ ресурсов рабочей копии изменился или они исчезли.
+   *
+   * В `changed` — только такие адреса: «загрузился» и «сохранился» текста не меняют, и тот,
+   * кто держит находки по этим файлам, стёр бы их на каждое сохранение. Подписка переживает
+   * смену проекта: служба существует с запуска, а проект открывают и закрывают.
+   */
+  onDidChange(cb: (changed: readonly ResourceId[]) => void): Disposable;
 }
 
 /**
@@ -100,10 +118,12 @@ export interface WorkspaceFilesService {
  * Провайдер — оболочка (`./host-capabilities`): рабочая область существует с запуска и
  * отвечает без проекта — `null`, `false`, пустым списком, — как и служба документов рядом.
  *
- * Версия `1.0.0` — исходная. Растит её тот, кто интерфейс меняет.
+ * Версия `1.1.0`: к исходной добавлены {@link WorkspaceFilesService.executesCode} и
+ * {@link WorkspaceFilesService.onDidChange} — ими поверхности превью перестали зависеть от порта,
+ * который собирала оболочка. Растит её тот, кто интерфейс меняет.
  */
 export const WorkspaceFilesCapability: Capability<WorkspaceFilesService> =
-  defineCapability<WorkspaceFilesService>({ id: 'reformer.workspace.files', version: '1.0.0' });
+  defineCapability<WorkspaceFilesService>({ id: 'reformer.workspace.files', version: '1.1.0' });
 
 /** Токен службы — ТОТ ЖЕ объект: возможность расширяет токен, второго реестра нет. */
 export const WorkspaceFilesServiceToken = WorkspaceFilesCapability;

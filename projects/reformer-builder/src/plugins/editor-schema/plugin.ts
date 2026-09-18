@@ -77,6 +77,7 @@ import type {
   SchemaEditorHost,
   TextEditorProvider,
 } from './host';
+import { schemaHostFromContext } from './host-from-context';
 
 // Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
 // взять его, не втягивая плагин в стартовый граф.
@@ -238,7 +239,11 @@ export function schemaEditorPanels(
 }
 
 export interface SchemaEditorPluginOptions {
-  readonly host: SchemaEditorHost;
+  /**
+   * Порт редактора. Обычно плагин собирает его сам из возможностей оболочки
+   * (`./host-from-context`); параметр — ради тестов, которым нужна модель без приложения.
+   */
+  readonly host?: SchemaEditorHost;
   /**
    * Точка расширения провайдеров модели (`document.model`).
    *
@@ -271,7 +276,13 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
   const provider = createSchemaModelProvider({ newId });
   // Реестру сеансов провайдер больше не нужен: разбор и печать делает платформа, взяв
   // этот же вклад из точки `document.model`. Сеанс остался только видом на её ручку.
-  const registry = createSessionRegistry({ host: options.host });
+  //
+  // Порт собирается при активации (ему нужен контекст), а реестр — здесь, поэтому ручку модели
+  // реестр спрашивает у порта в момент вопроса. До активации открывать нечего.
+  let bound: SchemaEditorHost | null = options.host ?? null;
+  const registry = createSessionRegistry({
+    host: { modelOf: (id) => bound?.modelOf(id) ?? null },
+  });
 
   return definePlugin({
     id: SCHEMA_EDITOR_PLUGIN_ID,
@@ -281,10 +292,11 @@ export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Pl
       // Режим исходника обязан исчезнуть вместе с ним, а не показать пустую половину экрана.
       // Живой вид — возможность превью, тем же приёмом: превью выключаемо на ходу.
       const host: SchemaEditorHost = {
-        ...options.host,
+        ...(options.host ?? schemaHostFromContext(ctx)),
         textEditor: () => ctx.services.get(TextEditorCapability),
         live: () => ctx.services.get(PreviewLiveCapability),
       };
+      bound = host;
       for (const [locale, messages] of Object.entries(SCHEMA_EDITOR_MESSAGES)) {
         ctx.i18n.contribute(locale, messages);
       }

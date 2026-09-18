@@ -59,9 +59,14 @@ import {
   type CatalogJson,
 } from '@reformer/builder-stack-reformer/catalog';
 import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
-import type { KitDescriptor, KitDescriptorJson } from '@reformer/builder-stack-reformer/kits';
+import type {
+  KitDescriptor,
+  KitDescriptorJson,
+  KitNamespace,
+} from '@reformer/builder-stack-reformer/kits';
 import { defineCapability, type Disposable } from '@reformer/builder-plugin-api';
 import type { KitsSettings } from './host';
+import { createKitNamespaceLoader, type KitNamespaceLoader } from './namespace';
 
 /**
  * Ключ настройки выбора. Область — `user`: кит выбирает человек, и выбор переживает смену
@@ -137,6 +142,14 @@ export interface KitSource {
   readonly kit?: KitDescriptorJson;
   /** Ограничения набора и переопределения категорий от клиента. */
   readonly options?: BuildCatalogOptions;
+  /**
+   * Пространство имён кита — сами компоненты: имя экспорта → значение. Только загрузчиком:
+   * это самый тяжёлый чанк приложения, и нужен он лишь тому, кто рисует форму по-настоящему.
+   *
+   * Объявляет его КИТ, а не превью: чем рисовать `$component(Input)` — утверждение
+   * дизайн-системы о себе. Без него превью рисует подписанные заглушки.
+   */
+  readonly namespace?: () => Promise<KitNamespace>;
 }
 
 /**
@@ -191,6 +204,16 @@ export interface KitsService {
    * устарело». Различать их пришлось бы каждому, а пользы от различия нет ни у кого.
    */
   onDidChange(cb: () => void): Disposable;
+  /**
+   * Пространство имён активного кита либо `null`: кит его не объявил или оно ещё едет.
+   * Первый вызов заводит загрузку — синхронный читатель ждать не может.
+   */
+  namespace(): KitNamespace | null;
+  /**
+   * Пространство имён доехало. Отдельно от {@link onDidChange}: «кит тот же, но теперь он есть» —
+   * другое событие, и опоздавший подписчик узнаёт о нём лично (см. `./namespace`).
+   */
+  onDidLoadNamespace(cb: () => void): Disposable;
 }
 
 /**
@@ -212,7 +235,9 @@ export interface KitsService {
  */
 export const KitsCapability = defineCapability<KitsService>({
   id: 'reformer.kit.catalog',
-  version: '1.0.0',
+  // 1.1.0: пространство имён кита (`namespace`, `onDidLoadNamespace`) — раньше его грузила
+  // оболочка портом превью, и чем рисовать компоненты, решала она, а не кит.
+  version: '1.1.0',
 });
 
 /**
@@ -420,6 +445,18 @@ export function createKitsService(options: KitsServiceOptions): OwnedKitsService
     return result;
   };
 
+  /**
+   * Загрузчики пространств имён — по одному на кит, объявивший его. Заводятся сразу: сам
+   * загрузчик ничего не грузит до первого `get`, а подписка на «доехало» обязана существовать
+   * раньше, чем кит станет активным.
+   */
+  const namespaces = new Map<string, KitNamespaceLoader>();
+  for (const [id, source] of sources) {
+    if (source.namespace !== undefined) {
+      namespaces.set(id, createKitNamespaceLoader(source.namespace));
+    }
+  }
+
   // Правка настройки мимо сервиса (панель настроек, второе окно) — такая же смена кита,
   // как нажатие в переключателе. Без этой подписки записанное и действующее разъехались бы.
   const subscription = settings?.onDidChange((key) => {
@@ -462,6 +499,17 @@ export function createKitsService(options: KitsServiceOptions): OwnedKitsService
     },
 
     whenReady: () => load(activeId),
+
+    namespace: () => namespaces.get(activeId)?.get() ?? null,
+
+    onDidLoadNamespace(cb) {
+      const subscriptions = [...namespaces.values()].map((loader) => loader.onDidLoad(cb));
+      return {
+        dispose(): void {
+          for (const subscription of subscriptions) subscription.dispose();
+        },
+      };
+    },
 
     onDidChange(cb) {
       listeners.add(cb);

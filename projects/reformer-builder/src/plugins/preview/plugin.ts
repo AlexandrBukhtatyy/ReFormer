@@ -20,13 +20,14 @@ import manifest from './manifest.json';
 import {
   definePlugin,
   DiagnosticsServiceToken,
+  DocumentModelsCapability,
   DocumentsServiceToken,
   PreviewLiveCapability,
   SelectionServiceToken,
   WorkspaceFilesServiceToken,
   type Plugin,
 } from '@reformer/builder-plugin-api';
-import type { PreviewHostPort } from './host';
+import { hostFromServices, type PreviewHostPort } from './host';
 import { createLiveService } from './live/live-service';
 import { PREVIEW_MESSAGES } from './messages';
 import { attachPreviewLifecycle } from './state/lifecycle';
@@ -36,7 +37,11 @@ import { createPreviewSessions, type PreviewSessions } from './state/sessions';
 export const PREVIEW_PLUGIN_ID = manifest.id;
 
 export interface PreviewPluginOptions {
-  readonly host: PreviewHostPort;
+  /**
+   * Адрес документа и права источника. Обычно плагин собирает их сам из возможностей оболочки
+   * (`./host`); параметр — ради тестов, которым нужен документ без рабочей области.
+   */
+  readonly host?: PreviewHostPort;
   /**
    * Реестр состояний. Обычно плагин заводит его сам; параметр — ради тестов, которым нужен
    * доступ к нему снаружи активации.
@@ -50,8 +55,7 @@ export interface PreviewPluginOptions {
  * `activate` только регистрирует: реестр состояний создаётся пустым, состояние документа
  * рождается при первом обращении.
  */
-export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
-  const { host } = options;
+export function createPreviewPlugin(options: PreviewPluginOptions = {}): Plugin {
   const sessions = options.sessions ?? createPreviewSessions();
 
   return definePlugin({
@@ -60,6 +64,16 @@ export function createPreviewPlugin(options: PreviewPluginOptions): Plugin {
       for (const [locale, messages] of Object.entries(PREVIEW_MESSAGES)) {
         ctx.i18n.contribute(locale, messages);
       }
+
+      // Порт — из возможностей оболочки, и спрашиваются они на каждый вызов, а не здесь: без
+      // рабочей области документов нет, и ответ «нечего показывать» честен.
+      const host =
+        options.host ??
+        hostFromServices({
+          documents: () => ctx.services.get(DocumentsServiceToken),
+          files: () => ctx.services.get(WorkspaceFilesServiceToken),
+          models: () => ctx.services.get(DocumentModelsCapability),
+        });
 
       // Живой вид — наружу возможностью: его читают редакторы стеков, а плагины друг друга
       // не импортируют. Регистрация в `subscriptions`, потому что слот обязан освободиться

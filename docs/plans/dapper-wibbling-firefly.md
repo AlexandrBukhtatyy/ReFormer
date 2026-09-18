@@ -277,6 +277,36 @@ projects/reformer-builder/src/
 проходит те же browser‑тесты, что в Ф2; интеграционные тесты `capability-requires`,
 `host-capabilities` расширены на `shell.models` и `shell.modules`.
 
+**Сделано 2026‑09‑19.** `BuiltinPluginsOptions` = `{ files, monaco, markdown }`; порты схемы и
+превью удалены, плагины стека собирают их сами в `activate` (`host-from-context.ts` у
+`editor-schema` и `preview-runtime`, `hostFromServices` у превью‑хоста; параметр `host` остался
+для тестов). Отступления и добавления:
+
+- **Имена возможностей** — по соглашению SDK, а не `shell.*`: `reformer.workspace.models`
+  (`DocumentModelsCapability`), `reformer.modules` (`ModuleLoaderCapability`). Третьей понадобился
+  **словарь оболочки** `reformer.host.messages` (`HostMessagesCapability`, только чтение): коды
+  находок `errors.<code>` и заголовки исправлений переводит оболочка, и до этого перевод доезжал
+  до редактора схемы портом.
+- **Типы модельного документа переехали в SDK** (`workspace/model/model-document`): у ручки,
+  которую отдаёт служба, и у той, что держит оболочка, теперь один тип; платформа добавляет
+  к нему только `dispose`. Структурная копия ручки у редактора схемы осталась (он сужает её
+  до `JsonFormSchema`).
+- **`WorkspaceFilesService` 1.1.0**: `executesCode(id)` и `onDidChange(cb)` (п. 3 и правки
+  файлов для находок превью) — методами, а не `capabilities()`: так же устроен `canWrite`.
+- **Пространство имён кита** — у плагина китов: `KitSource.namespace`, `KitsService.namespace()`
+  и `onDidLoadNamespace` (возможность 1.1.0). Загрузчик `kit-namespace` переехал в `plugins/kits`.
+- **Monaco `locateNodes`** — через `DocumentModelProvider.nodePaths?` провайдера, найденного
+  в точке `document.model` по `providerId`; кэш по модели переехал к провайдеру схемы.
+- **Киты остались статичными**, но причина в манифесте новая: `activate` заказывает загрузку
+  каталога параллельно оболочке. Прежний довод (токен импортировали порты) снят. Поэтому entry
+  по‑прежнему содержит два статичных плагина стека (киты, валидатор) — их тянет карта состава
+  `application/`, а не оболочка; оболочка сама не импортирует ни одного файла стека.
+- Два теста, проверявшие оболочку на фикстурах стека (`plugin-modules`, порт шаблонов),
+  переехали в `shell/boot/integration/`.
+- Храповик: линтер запрещает `@reformer/builder-stack-*` во всём `src/shell/**` (кроме
+  `integration`), тест состава — плагины вне `builder.base` (список из профиля), оба проверены
+  пробой. Стартовый чанк −1.6 КБ, состав чанков тот же.
+
 ### Ф4. Демо‑стек `plain` (~1 неделя)
 
 Смысл — доказать швы, а не сделать продукт: другой формат схемы, другой рендер, свой экспорт,

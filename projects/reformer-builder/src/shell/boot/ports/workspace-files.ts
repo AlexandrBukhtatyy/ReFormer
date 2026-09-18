@@ -16,6 +16,7 @@
 
 import {
   makeResourceId,
+  type Disposable,
   type ResourceId,
   type ResourceRef,
 } from '@reformer/builder-plugin-api/internal';
@@ -24,8 +25,8 @@ import type { WorkspaceFilesService } from '@reformer/builder-plugin-api/interna
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface WorkspaceFilesServiceDeps {
-  /** Держатель проекта в объёме, которым пользуется служба: только снимок. */
-  readonly project: Pick<ProjectHost, 'get'>;
+  /** Держатель проекта в объёме, которым пользуется служба: снимок и его смена. */
+  readonly project: Pick<ProjectHost, 'get' | 'subscribe'>;
 }
 
 /** Пустой листинг: одна замороженная ссылка вместо нового массива на каждый отказ. */
@@ -79,6 +80,48 @@ export function createWorkspaceFilesService(
     canWrite: (id: ResourceId): boolean => {
       void id;
       return project.get()?.source.capabilities?.write === true;
+    },
+
+    // Право на исполнение объявляет ИСТОЧНИК, а не настройка билдера, — тем же приёмом, что
+    // запись: источника нет — исполнять нечего.
+    executesCode: (id: ResourceId): boolean => {
+      void id;
+      return project.get()?.source.capabilities?.executesCode === true;
+    },
+
+    // Подписка переживает смену проекта: служба регистрируется один раз на запуск, а рабочая
+    // область у каждого проекта своя. Поэтому слушаем держателя и переставляем подписку
+    // на рабочую область нового проекта.
+    onDidChange(cb: (changed: readonly ResourceId[]) => void): Disposable {
+      let session: ReturnType<ProjectHost['get']> = null;
+      let attached: Disposable | null = null;
+      const attach = (): void => {
+        const next = project.get();
+        if (next === session) return;
+        attached?.dispose();
+        session = next;
+        // Наружу уходят адреса, чей ТЕКСТ изменился или исчез: «загрузился» и «сохранился»
+        // текста не меняют, и снимать по ним находки значило бы стирать их на каждое Ctrl+S.
+        attached =
+          next === null
+            ? null
+            : next.workspace.onDidChange((event) => {
+                cb(
+                  event.changes
+                    .filter((change) => change.type === 'written' || change.type === 'removed')
+                    .map((change) => change.id)
+                );
+              });
+      };
+      attach();
+      const off = project.subscribe(attach);
+      return {
+        dispose(): void {
+          off.dispose();
+          attached?.dispose();
+          attached = null;
+        },
+      };
     },
   };
 }

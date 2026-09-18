@@ -31,6 +31,7 @@ import { FORM_SCHEMA_PROVIDER_ID } from '@reformer/builder-stack-reformer/form-m
 import { createCompilingSurface } from './compiling/surface';
 import { PREVIEW_RUNTIME_PLUGIN_ID } from './contract';
 import type { PreviewHost, Translate } from './host';
+import { previewHostFromContext } from './host-from-context';
 import { PREVIEW_RUNTIME_MESSAGES } from './messages';
 import { createRuntimeSurface } from './runtime/surface';
 import { ModelPanel, MODEL_PANEL_ID } from './ui/ModelPanel';
@@ -48,12 +49,14 @@ export function builtinSurfaces(host: PreviewHost, t: Translate): readonly Previ
 }
 
 export interface PreviewRuntimePluginOptions {
-  readonly host: PreviewHost;
+  /**
+   * Порт превью. Обычно плагин собирает его сам из возможностей оболочки
+   * (`./host-from-context`); параметр — ради тестов, которым нужен кит и файлы без приложения.
+   */
+  readonly host?: PreviewHost;
 }
 
-export function createPreviewRuntimePlugin(options: PreviewRuntimePluginOptions): Plugin {
-  const { host } = options;
-
+export function createPreviewRuntimePlugin(options: PreviewRuntimePluginOptions = {}): Plugin {
   return definePlugin({
     id: PREVIEW_RUNTIME_PLUGIN_ID,
     activate(ctx) {
@@ -61,6 +64,7 @@ export function createPreviewRuntimePlugin(options: PreviewRuntimePluginOptions)
         ctx.i18n.contribute(locale, messages);
       }
       const t: Translate = (key, params) => ctx.i18n.t(key, params);
+      const host = options.host ?? previewHostFromContext(ctx);
 
       // Панель модели — значения собранной формы и состояние её узлов. Слот нижний: строки
       // значений читают в ширину, а не в высоту, и форме при этом остаётся весь экран.

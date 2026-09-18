@@ -39,7 +39,8 @@ import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-
 import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createProjectHost } from '@/shell/boot/project/project';
-import { createSchemaHost } from '@/shell/boot/ports/schema';
+import { schemaHostFromContext } from '@/plugins/editor-schema/host-from-context';
+import { DocumentModelsCapability } from '@reformer/builder-plugin-api/internal';
 import { KitsServiceToken } from '@/plugins/kits';
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 
@@ -95,13 +96,17 @@ function harness() {
       }),
   });
 
+  services.register(DocumentModelsCapability, {
+    handleOf: (id) => project.get()?.models.handleOf(id) ?? null,
+  });
+
   return {
     project,
     focused,
     services,
     i18n,
-    monaco: createMonacoHost({ project, i18n, diagnostics }),
-    schema: createSchemaHost({ project, i18n, services }),
+    monaco: createMonacoHost({ project, i18n, diagnostics, extensions }),
+    schema: schemaHostFromContext({ services, i18n: i18n.forPlugin('reformer.editor-schema') }),
     id: (path: string): ResourceId => `${sourceId}:${path}`,
     open: async (path: string) => {
       await meta.putWorkspace({
@@ -268,10 +273,9 @@ describe('порт редактора схемы: смена каталога д
     // Панель может отрисоваться до активации плагина китов. Отказ здесь означал бы, что
     // порядок активации плагинов стал значимым, — а он объявлен незначимым и проверен тестом.
     const services = createServiceRegistry();
-    const host = createSchemaHost({
-      project: { get: () => null } as never,
-      i18n: createI18nService(),
+    const host = schemaHostFromContext({
       services,
+      i18n: createI18nService().forPlugin('reformer.editor-schema'),
     });
 
     expect(() => host.onCatalogChange(() => {}).dispose()).not.toThrow();

@@ -13,41 +13,25 @@
  * @module shell/boot/ports/monaco
  */
 
-import type { JsonFormSchema } from '@reformer/renderer-json';
-import { isTextMediaType, type ResourceId } from '@reformer/builder-plugin-api/internal';
+import {
+  DocumentModelPoint,
+  isTextMediaType,
+  type ExtensionRegistry,
+  type ResourceId,
+} from '@reformer/builder-plugin-api/internal';
 import type { DiagnosticsService } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
-import type { JsonPath } from '@reformer/builder-stack-reformer/form-model';
-import { indexNodePaths } from '@reformer/builder-stack-reformer/form-model';
 import type { MonacoDocument, MonacoHost, Translate } from '@/plugins/editor-monaco';
 import { MONACO_PLUGIN_ID } from '@/plugins/editor-monaco/contract';
-import { SCHEMA_MODEL_PROVIDER_ID } from '@/plugins/editor-schema/contract';
 import type { ProjectHost } from '@/shell/boot/project/project';
-
-/**
- * Указатель «узел → путь» по модели, запомненный по самой модели.
- *
- * `WeakMap`, а не поле порта: модель — замороженный объект со structural sharing, и новая
- * ссылка означает новую правку; та же ссылка — тот же указатель. Разметка спрашивает пути
- * на каждое нажатие клавиши и на каждую публикацию, а обход схемы ради одного и того же
- * ответа стоил бы столько же, сколько сам показ.
- */
-const nodePathsCache = new WeakMap<object, ReadonlyMap<string, JsonPath>>();
-
-function nodePathsOf(model: JsonFormSchema): ReadonlyMap<string, JsonPath> {
-  let paths = nodePathsCache.get(model);
-  if (paths === undefined) {
-    paths = indexNodePaths(model);
-    nodePathsCache.set(model, paths);
-  }
-  return paths;
-}
 
 export interface MonacoHostDeps {
   readonly project: ProjectHost;
   readonly i18n: RootI18nService;
   readonly diagnostics: DiagnosticsService;
+  /** Реестр вкладов: провайдер модели документа отвечает, где в тексте его узлы. */
+  readonly extensions: Pick<ExtensionRegistry, 'get'>;
 }
 
 /** Реактивный перевод в пространстве имён плагина (именованная функция — ради правил хуков). */
@@ -93,7 +77,7 @@ export function makeUseDiagnosticMessage(i18n: RootI18nService): () => Translate
 }
 
 export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
-  const { project, i18n, diagnostics } = deps;
+  const { project, i18n, diagnostics, extensions } = deps;
 
   return {
     useTranslate: makeUseTranslate(i18n),
@@ -117,15 +101,18 @@ export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
     // читающая половина `DiagnosticsService`, и оборачивать её значило бы завести второй канал.
     diagnostics,
 
-    // Пути узлов — только по модели, которую разобрал провайдер схемы формы: та же проверка
-    // идентификатора провайдера, что в порту редактора схемы, и по той же причине — чужая
-    // модель под видом схемы дала бы пути, которых в тексте нет. Расходящаяся модель
-    // не отдаётся вовсе: её пути описывают текст, который человек уже переписал.
+    // Пути узлов спрашиваются у ТОГО провайдера, который разобрал документ: путь узла —
+    // знание о формате, и у оболочки его нет. Провайдер без `nodePaths` — штатный ответ
+    // «не знаю». Расходящаяся модель не отдаётся вовсе: её пути описывают текст, который
+    // человек уже переписал.
     locateNodes: (id) => {
       const handle = project.get()?.models.handleOf(id) ?? null;
-      if (handle === null || handle.document.providerId !== SCHEMA_MODEL_PROVIDER_ID) return null;
-      if (handle.document.getSyncState() !== 'synced') return null;
-      return nodePathsOf(handle.document.getModel() as JsonFormSchema);
+      if (handle === null || handle.document.getSyncState() !== 'synced') return null;
+      const providerId = handle.document.providerId;
+      const provider = extensions
+        .get(DocumentModelPoint)
+        .find((contribution) => contribution.value.id === providerId)?.value;
+      return provider?.nodePaths?.(handle.document.getModel()) ?? null;
     },
 
     // Уход фокуса из редактора — момент, когда откладывать перерисовку буфера по модели больше

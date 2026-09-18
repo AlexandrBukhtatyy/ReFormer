@@ -201,19 +201,19 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     const monaco = await import('@/plugins/editor-monaco');
     return monaco.createMonacoEditorPlugin({ host: options.monaco });
   }),
-  eagerBuiltin(kitsManifest, (options) => createKitsPlugin({ ...options.kits })),
+  // Настройки выбора кита плагин берёт из реестра служб сам; параметров не осталось.
+  eagerBuiltin(kitsManifest, () => createKitsPlugin({})),
   // Превью — два плагина. Хост (`preview`) знает, КАК показывать документ: правило выбора
   // поверхности, состояния, живой вид; он общий для стеков. Поверхности формы ReFormer
-  // (`preview-runtime`) — знание стека. Оба ленивые: прежний довод статичности (порт живого
-  // вида собирала композиция из рабочих функций превью) снят — живой вид теперь возможность
-  // самого превью. Порт у них один, и хосту из него нужны только адрес и права источника.
-  lazyBuiltin(previewManifest, async (options) => {
+  // (`preview-runtime`) — знание стека. Портов у них нет: документы, записи рабочей области,
+  // загрузчик модулей и кит оба берут возможностями.
+  lazyBuiltin(previewManifest, async () => {
     const preview = await import('@/plugins/preview');
-    return preview.createPreviewPlugin({ host: options.preview });
+    return preview.createPreviewPlugin();
   }),
-  lazyBuiltin(previewRuntimeManifest, async (options) => {
+  lazyBuiltin(previewRuntimeManifest, async () => {
     const previewRuntime = await import('@/plugins/preview-runtime');
-    return previewRuntime.createPreviewRuntimePlugin({ host: options.preview });
+    return previewRuntime.createPreviewRuntimePlugin();
   }),
   // Приоритет 50: markdown забирает свои файлы у Monaco (10), потому что рендер — это то,
   // зачем .md открывают чаще всего. Порядок сборки на исход не влияет и влиять не должен:
@@ -226,12 +226,9 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
   // Приоритет 100: структурный редактор забирает файл формы у Monaco, а Monaco остаётся
   // для всего остального текста. Оба отвечают `canOpen` по содержимому пробы, а не по
   // расширению, — потому и уживаются на одном `.json` без ветвления по имени файла.
-  lazyBuiltin(schemaEditorManifest, async (options) => {
+  lazyBuiltin(schemaEditorManifest, async () => {
     const schemaEditor = await import('@/plugins/editor-schema');
-    return schemaEditor.createSchemaEditorPlugin({
-      host: options.schema,
-      modelPoint: DocumentModelPoint,
-    });
+    return schemaEditor.createSchemaEditorPlugin({ modelPoint: DocumentModelPoint });
   }),
   lazyBuiltin(pluginManagerManifest, async () => {
     const pluginManager = await import('@/plugins/plugin-manager');
@@ -245,13 +242,14 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     const ai = await import('@/plugins/ai');
     return ai.createAiPlugin();
   }),
-  lazyBuiltin(codegenManifest, async (options) => {
+  // Опций нет ни у кодогена, ни у шаблонов: сохранение уехало в привилегированную службу.
+  lazyBuiltin(codegenManifest, async () => {
     const codegen = await import('@/plugins/codegen');
-    return codegen.createCodegenPlugin({ gaps: options.codegen });
+    return codegen.createCodegenPlugin();
   }),
-  lazyBuiltin(templatesManifest, async (options) => {
+  lazyBuiltin(templatesManifest, async () => {
     const templates = await import('@/plugins/templates');
-    return templates.createTemplatesPlugin({ gaps: options.templates });
+    return templates.createTemplatesPlugin();
   }),
 ]);
 

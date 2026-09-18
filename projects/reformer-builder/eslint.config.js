@@ -16,7 +16,7 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  * код стеков — пакеты `@reformer/builder-toolkit` и `@reformer/builder-stack-*` в `packages/`):
  *   shell/platform/  платформа            → только shell/platform/ и внешние библиотеки
  *   plugins/         предметная логика    → контракт плагина, пакеты стеков, свой каталог
- *   shell/boot/      сборка оболочки      → всё, КРОМЕ состава приложения
+ *   shell/boot/      сборка оболочки      → всё, КРОМЕ состава приложения и пакетов стеков
  *   application/     состав приложения    → всё
  *
  * ОГРАНИЧЕНИЕ реализации: правила ловят импорты через псевдоним `@/…` и глубокие относительные
@@ -59,6 +59,23 @@ const denyApplication = [
   },
 ];
 
+/**
+ * Оболочка не знает СТЕКА.
+ *
+ * Стек — набор плагинов со своим форматом схемы, редактором, превью и кодогеном. Всё, что ему
+ * нужно от оболочки, он берёт возможностями (`reformer.workspace.models`, `reformer.modules`,
+ * словарь оболочки), а не портами, которые собирает `boot`: иначе оболочка собирала бы порты
+ * для всех стеков сразу. Импорт пакета стека из `shell/**` — ровно такой порт в зародыше.
+ * Плагины стека (`@/plugins/<стек>`) стережёт храповик в тесте состава: их список выводится
+ * из профиля `builder.base`, а не пишется здесь руками.
+ */
+const denyStack = [
+  {
+    group: ['@reformer/builder-stack-*'],
+    message: 'Оболочка не знает стека: возьми механизм возможностью, а формат оставь плагину',
+  },
+];
+
 const denyFromPlugins = [
   {
     group: ['@/shell/*', '@/shell'],
@@ -92,7 +109,7 @@ export default defineConfig([
   },
   {
     files: ['src/shell/**/*.{ts,tsx}'],
-    rules: { 'no-restricted-imports': ['error', { patterns: denyApplication }] },
+    rules: { 'no-restricted-imports': ['error', { patterns: [...denyStack, ...denyApplication] }] },
   },
   {
     // Платформе — и запреты слоя, и запрет состава. Списки СКЛЕЕНЫ намеренно: блоки flat-config

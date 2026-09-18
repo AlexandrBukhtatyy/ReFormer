@@ -40,11 +40,22 @@
  */
 
 import type { CatalogJson } from '@reformer/builder-stack-reformer/catalog';
+import type { KitNamespace } from '@reformer/builder-stack-reformer/kits';
 import type { CatalogLoader, KitSource } from './service';
 
 /** Загрузчик каталога встроенного кита. Отдельный чанк — в этом весь смысл. */
 export const loadBuiltinCatalog: CatalogLoader = () =>
   import('@reformer/ui-kit/catalog').then((module) => module.default as unknown as CatalogJson);
 
+/**
+ * Компоненты встроенного кита — самый крупный чанк приложения, поэтому тоже загрузчиком: нужен он
+ * только тому, кто рисует форму по-настоящему.
+ */
+export const loadBuiltinNamespace = (): Promise<KitNamespace> =>
+  import('@reformer/ui-kit') as unknown as Promise<KitNamespace>;
+
 /** Каталог встроенного кита. Идентификатор и название приходят из него же — см. `toDescriptor`. */
-export const BUILTIN_KIT: KitSource = Object.freeze({ catalog: loadBuiltinCatalog });
+export const BUILTIN_KIT: KitSource = Object.freeze({
+  catalog: loadBuiltinCatalog,
+  namespace: loadBuiltinNamespace,
+});
