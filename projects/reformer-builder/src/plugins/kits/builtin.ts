@@ -24,7 +24,7 @@
  * `KitSource.kit` объявляет личность кита до загрузки каталога. Встроенный кит её не объявляет,
  * и это не упущение: его `component-catalog.json` в блоке `kit` не называет ни `id`, ни
  * `label`, ни `package` — всё это приходит из дефолтов билдера («неявный кит», см.
- * `lib/kits/descriptor`). Объявленная шапка была бы ВТОРЫМ источником тех же значений и
+ * `@reformer/builder-stack-reformer/kits`). Объявленная шапка была бы ВТОРЫМ источником тех же значений и
  * разъехалась бы с первым; отсутствие шапки даёт ровно те же id, label и package до загрузки
  * и после, а сервис это ещё и сверяет.
  *
@@ -39,7 +39,7 @@
  * @module plugins/kits/builtin
  */
 
-import type { CatalogJson } from '@/lib/catalog/types';
+import type { CatalogJson } from '@reformer/builder-stack-reformer/catalog';
 import type { CatalogLoader, KitSource } from './service';
 
 /** Загрузчик каталога встроенного кита. Отдельный чанк — в этом весь смысл. */

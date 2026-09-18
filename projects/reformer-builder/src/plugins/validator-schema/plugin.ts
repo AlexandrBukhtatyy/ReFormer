@@ -5,7 +5,7 @@
  * что такое `$component`, чем шаг отличается от вкладки, какие пропсы у поля. В платформе оно
  * означало бы, что второй формат (или второй продукт поверх той же платформы) вносится правкой
  * ядра. Граница проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api`
- * и `@/lib`.
+ * и пакеты стеков.
  *
  * ## Уровень только быстрый
  *
@@ -48,8 +48,8 @@
  */
 
 import manifest from './manifest.json';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { FormRules } from '@/lib/form-model/rules';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
 import {
   defineCapability,
   definePlugin,

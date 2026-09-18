@@ -26,9 +26,9 @@
  * @module plugins/preview/runtime/policy
  */
 
-import type { CatalogEntry } from '@/lib/catalog/types';
-import { exportNameFor } from '@/lib/kits/descriptor';
-import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { exportNameFor } from '@reformer/builder-stack-reformer/kits';
+import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
 
 /** Решение политики для одной записи каталога. */
 export type EntryPolicy =

@@ -33,7 +33,7 @@
  * @module plugins/codegen/commands/context-menu
  */
 
-import { isFormSchema } from '@/lib/form-model/normalize';
+import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   argsOfResource,

@@ -11,7 +11,7 @@
 
 import type { ReactNode } from 'react';
 import type { NodeId } from '@reformer/builder-plugin-api';
-import { NODE_ID_PATTERN } from '@/lib/form-model/node-id';
+import { NODE_ID_PATTERN } from '@reformer/builder-stack-reformer/form-model';
 import { NODE_CLASS_PREFIX } from '../schema/node-token';
 
 export interface HighlightProps {

@@ -8,7 +8,7 @@
  *
  * ## Ось измеряется, а не объявляется
  *
- * Схематичный вид выводит ось из `className` ({@link '@/lib/form-model/node-kind'.orientationOf}),
+ * Схематичный вид выводит ось из `className` (`orientationOf` из `@reformer/builder-stack-reformer/form-model`),
  * и для нарисованных им коробок это верно по построению — он сам их так и раскладывает.
  * В живой форме раскладку делает браузер, и объявленная ось врёт везде, где класс сложнее
  * `flex-row`: у `grid` с брейкпоинтами, у переносящегося ряда, у абсолютного позиционирования.
@@ -18,7 +18,7 @@
  * @module plugins/editor-schema/live/live-zone
  */
 
-import type { Orientation } from '@/lib/form-model/node-kind';
+import type { Orientation } from '@reformer/builder-stack-reformer/form-model';
 import type { Rect, SchematicZone } from '../schematic/schematic-zone';
 import { zoneEdge } from '../schematic/schematic-zone';
 

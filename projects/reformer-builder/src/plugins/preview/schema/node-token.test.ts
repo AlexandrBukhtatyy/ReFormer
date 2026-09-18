@@ -1,5 +1,5 @@
 /**
- * Подъём от элемента DOM к узлу. Кодек проверяется в домене — `@/lib/form-model/node-token`.
+ * Подъём от элемента DOM к узлу. Кодек проверяется в домене — `@reformer/builder-stack-reformer/form-model`.
  *
  * @module plugins/preview/schema/node-token.test
  */

@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinKit, plainSchema, wizardSchema } from '@/lib/codegen/__fixtures__/kit';
+import { builtinKit, plainSchema, wizardSchema } from '@reformer/builder-stack-reformer/testing';
 import type { FormTemplate, TemplateFile } from '../contract';
 import { materializeFiles } from '../content/files';
 import { buildTemplateView } from './render';

@@ -57,9 +57,23 @@ import {
   type JsonFormSchema,
   type JsonNode,
 } from '@reformer/renderer-json';
-import { canAcceptChildren, childSlots, isNodeLike } from '@/lib/form-model/node-kind';
-import { newNodeId, nodeIdOf, reissueNodeIds, type NodeIdFactory } from '@/lib/form-model/node-id';
-import { getAt, removeAt, updateAt, type JsonPath } from '@/lib/form-model/paths';
+import {
+  canAcceptChildren,
+  childSlots,
+  isNodeLike,
+} from '@reformer/builder-stack-reformer/form-model';
+import {
+  newNodeId,
+  nodeIdOf,
+  reissueNodeIds,
+  type NodeIdFactory,
+} from '@reformer/builder-stack-reformer/form-model';
+import {
+  getAt,
+  removeAt,
+  updateAt,
+  type JsonPath,
+} from '@reformer/builder-stack-reformer/form-model';
 import {
   flipDirection,
   groupBlock,
@@ -71,7 +85,7 @@ import {
   setTextChild,
   textChildIndex,
   ungroupNode,
-} from '@/lib/form-model/mutate';
+} from '@reformer/builder-stack-reformer/form-model';
 import { indexNodes, type NodeIndex } from './node-index';
 import type { ApplyResult, EditOp, NodeId } from '../host';
 

@@ -40,8 +40,9 @@ import {
   richSchema,
   seededRules,
   wizardSchema,
-} from '@/lib/codegen/__fixtures__/kit';
-import { acceptsMarker, MARKER_PREFIX, originOf, type CodegenInput } from '@/lib/codegen';
+} from '@reformer/builder-stack-reformer/testing';
+import { acceptsMarker, MARKER_PREFIX, originOf } from '@reformer/builder-toolkit';
+import { type CodegenInput } from '@reformer/builder-stack-reformer/codegen';
 import { generateModule } from './generate';
 import { BUILTIN_TARGETS } from './targets';
 

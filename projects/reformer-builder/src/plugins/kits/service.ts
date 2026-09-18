@@ -3,7 +3,7 @@
  *
  * ## Почему это сервис, а не значение в домене
  *
- * Дескрипторы китов уже переехали в `@/lib/kits` ЧИСТЫМИ ДАННЫМИ: домен умеет разобрать
+ * Дескрипторы китов уже переехали в `@reformer/builder-stack-reformer/kits` ЧИСТЫМИ ДАННЫМИ: домен умеет разобрать
  * catalog-JSON в {@link KitDescriptor} и собрать по нему палитру, но не имеет права помнить,
  * какой из китов выбран. Помнить это обязан кто-то один: редактор рисует палитру активного
  * кита, превью резолвит его компоненты, валидатор сверяет `$component(...)` с его каталогом —
@@ -48,10 +48,18 @@
  * @module plugins/kits/service
  */
 
-import { buildCatalog, type BuildCatalogOptions, type BuiltCatalog } from '@/lib/catalog/catalog';
-import { CATALOG_CONTRACT_VERSION, type CatalogEntry, type CatalogJson } from '@/lib/catalog/types';
-import { toDescriptor } from '@/lib/kits/descriptor';
-import type { KitDescriptor, KitDescriptorJson } from '@/lib/kits/types';
+import {
+  buildCatalog,
+  type BuildCatalogOptions,
+  type BuiltCatalog,
+} from '@reformer/builder-stack-reformer/catalog';
+import {
+  CATALOG_CONTRACT_VERSION,
+  type CatalogEntry,
+  type CatalogJson,
+} from '@reformer/builder-stack-reformer/catalog';
+import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
+import type { KitDescriptor, KitDescriptorJson } from '@reformer/builder-stack-reformer/kits';
 import { defineCapability, type Disposable } from '@reformer/builder-plugin-api';
 import type { KitsSettings } from './host';
 
@@ -113,7 +121,7 @@ export type CatalogLoader = () => Promise<CatalogJson>;
  * расхождении: иначе ключ выбора менялся бы под ногами.
  *
  * Шапку можно не объявлять — тогда личность берётся из дефолтов билдера («неявный кит»,
- * см. `lib/kits/descriptor`). Это верно ровно для встроенного кита: его каталог `kit`-блока
+ * см. `@reformer/builder-stack-reformer/kits`). Это верно ровно для встроенного кита: его каталог `kit`-блока
  * с идентификатором не содержит и сам разрешается теми же дефолтами.
  */
 export interface KitSource {

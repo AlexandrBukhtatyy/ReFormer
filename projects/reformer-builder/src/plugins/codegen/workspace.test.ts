@@ -14,8 +14,8 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { KitDescriptor } from '@/lib/kits/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
 import {
   DocumentsServiceToken,
   WorkspaceFilesServiceToken,

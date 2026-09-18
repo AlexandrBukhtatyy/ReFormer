@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { KitDescriptor } from '@/lib/kits/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
 import { classifyEntry, isComponentLike, isRegistrable, resolveInfra } from './policy';
 
 function entry(patch: Partial<CatalogEntry> = {}): CatalogEntry {

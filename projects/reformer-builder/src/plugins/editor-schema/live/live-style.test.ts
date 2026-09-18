@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { EMPTY_CLASS } from '@/lib/form-model/node-token';
+import { EMPTY_CLASS } from '@reformer/builder-stack-reformer/form-model';
 import { hoverCss, liveCss } from './live-style';
 
 const SCOPE = 'rb1';

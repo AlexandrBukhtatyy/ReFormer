@@ -11,8 +11,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import { getAt } from '@/lib/form-model/paths';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { getAt } from '@reformer/builder-stack-reformer/form-model';
 import { indexNodes } from '../model/node-index';
 import { removeOp, setPropOp } from '../model/ops';
 import { createSessionRegistry, type SchemaSession } from './sessions';

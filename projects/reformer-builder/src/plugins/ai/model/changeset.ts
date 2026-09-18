@@ -11,7 +11,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { emptyRules, type FormRules } from '@/lib/form-model/rules';
+import { emptyRules, type FormRules } from '@reformer/builder-stack-reformer/form-model';
 import type { ChangeOp, ToolOutcome } from './types';
 
 /** Черновик хода вместе с журналом операций. */

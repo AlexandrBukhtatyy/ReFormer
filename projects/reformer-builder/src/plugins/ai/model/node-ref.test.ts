@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonNode } from '@reformer/renderer-json';
-import { appendNode } from '@/lib/form-model/mutate';
-import { emptySchema } from '@/lib/form-model/normalize';
-import { getAt } from '@/lib/form-model/paths';
-import { P, sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
+import { appendNode } from '@reformer/builder-stack-reformer/form-model';
+import { emptySchema } from '@reformer/builder-stack-reformer/form-model';
+import { getAt } from '@reformer/builder-stack-reformer/form-model';
+import { P, sampleSchema } from '@reformer/builder-stack-reformer/testing';
 import {
   componentOf,
   isResolved,

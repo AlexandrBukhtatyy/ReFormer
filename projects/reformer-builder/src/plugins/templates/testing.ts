@@ -6,9 +6,9 @@
  * @module plugins/templates/testing
  */
 
-import { builtinKit } from '@/lib/codegen/__fixtures__/kit';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { KitDescriptor } from '@/lib/kits/types';
+import { builtinKit } from '@reformer/builder-stack-reformer/testing';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
 import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import type { TemplateKeyValue, TemplatesHost } from './host';
 

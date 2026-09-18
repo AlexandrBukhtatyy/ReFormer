@@ -21,7 +21,7 @@ import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { ServiceRegistry } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
-import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import { KitsServiceToken } from '@/plugins/kits';
 import {
   SCHEMA_EDITOR_PLUGIN_ID,

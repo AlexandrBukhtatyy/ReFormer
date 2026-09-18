@@ -21,7 +21,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
 import type { Disposable, DocumentRef, NodeId } from '@reformer/builder-plugin-api';
 import type { PreviewContext, PreviewProblem, PreviewSurface, PreviewValues } from '../contract';
 import { builtinSurfaces } from '../plugin';

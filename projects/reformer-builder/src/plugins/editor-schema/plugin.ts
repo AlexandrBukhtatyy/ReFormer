@@ -5,7 +5,7 @@
  * что такое `$component`, чем шаг отличается от вкладки, какие свойства бывают у поля, куда
  * встаёт узел из палитры. В платформе оно означало бы, что второй формат вносится правкой
  * ядра. Граница проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api`
- * и `@/lib`.
+ * и пакеты стеков.
  *
  * ## Провайдер модели вносится на РЕСУРС, редактор — на его содержимое
  *
@@ -26,7 +26,7 @@
 
 import { createElement, type ReactElement } from 'react';
 import { Blocks, SlidersHorizontal } from 'lucide-react';
-import type { NodeIdFactory } from '@/lib/form-model/node-id';
+import type { NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
 import {
   defineCapability,
   definePlugin,

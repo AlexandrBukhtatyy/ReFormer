@@ -10,8 +10,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import { toDescriptor } from '@/lib/kits/descriptor';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
 import type { PreviewModules } from '../host';
 import { buildRuntimeBundle } from '../runtime/build';
 import { createFakeHost } from '../testing';

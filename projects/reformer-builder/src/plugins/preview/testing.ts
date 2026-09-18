@@ -12,9 +12,9 @@
  * @module plugins/preview/testing
  */
 
-import { toDescriptor } from '@/lib/kits/descriptor';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
+import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
 import type {
   Disposable,
   DocumentKind,

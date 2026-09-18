@@ -5,7 +5,7 @@
  * билдера, которой нужен КИТ ЦЕЛИКОМ, а не сведения о нём. Каталог говорит, какие компоненты
  * бывают; дескриптор — что с ними можно; а нарисовать их можно только имея сами компоненты.
  *
- * Отсюда `kitNamespace()`, которого больше нет ни у кого: `lib/kits` намеренно не тянет
+ * Отсюда `kitNamespace()`, которого больше нет ни у кого: `@reformer/builder-stack-reformer/kits` намеренно не тянет
  * React-адаптеры, поэтому пространство имён собирает композиция — и **лениво**, потому что это
  * единственное место, тянущее кит целиком. Пока чанк в пути, поверхность рисует подписанные
  * заглушки: не отказ, а честное «компонент ещё едет».
@@ -19,8 +19,8 @@ import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import type { ServiceRegistry } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
 import { createKitNamespaceLoader } from './kit-namespace';
 import { KitsServiceToken } from '@/plugins/kits';
 import { PREVIEW_PLUGIN_ID } from '@/plugins/preview';

@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { prepare } from '@/lib/codegen';
-import { builtinKit, plainSchema, wizardSchema } from '@/lib/codegen/__fixtures__/kit';
+import { prepare } from '@reformer/builder-stack-reformer/codegen';
+import { builtinKit, plainSchema, wizardSchema } from '@reformer/builder-stack-reformer/testing';
 import type { CodegenTarget } from '../contract';
 import { createFakeHost } from '../testing';
 import { applyOverrides, discoverUserTargets, USER_TARGETS_DIR } from './user-targets';

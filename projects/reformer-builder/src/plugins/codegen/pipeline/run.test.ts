@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { plainSchema } from '@/lib/codegen/__fixtures__/kit';
+import { plainSchema } from '@reformer/builder-stack-reformer/testing';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import { defaultFormName, runCodegen, schemaOf } from './run';
 import { createCodegenSessions } from './state';

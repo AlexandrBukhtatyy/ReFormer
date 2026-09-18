@@ -6,7 +6,7 @@
  * наивную оценку размера. Дайджест даёт по строке на узел — адрес, компонент, модель, подпись —
  * а полный узел запрашивается точечно (`get_form_node`).
  *
- * Обход идёт через `childSlots` (`@/lib/form-model/node-kind`) — единственное место, знающее про неоднородную
+ * Обход идёт через `childSlots` (`@reformer/builder-stack-reformer/form-model`) — единственное место, знающее про неоднородную
  * вложенность (`children` / `componentProps.steps` / `item.$template` / `wrapper`), поэтому
  * дайджест не хардкодит правила размещения повторно.
  *
@@ -20,8 +20,8 @@ import {
   kindOf,
   type ChildSlotKind,
   type NodeKind,
-} from '@/lib/form-model/node-kind';
-import { type JsonPath } from '@/lib/form-model/paths';
+} from '@reformer/builder-stack-reformer/form-model';
+import { type JsonPath } from '@reformer/builder-stack-reformer/form-model';
 import { componentOf, labelOf, modelOf, nodeRef } from './node-ref';
 import { joinWithinBudget } from '../loop/render-budget';
 

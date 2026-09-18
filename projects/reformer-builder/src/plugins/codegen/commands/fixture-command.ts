@@ -11,7 +11,7 @@
  * ## Правки человека не трутся
  *
  * Тем же механизмом, что и у генерации модуля: маркер происхождения в первой строке
- * ({@link '../../lib/codegen/marker'}). Файл со сходящимся хэшем перезаписывается, правленый —
+ * (`@reformer/builder-toolkit`). Файл со сходящимся хэшем перезаписывается, правленый —
  * пропускается СО СЛОВАМИ. Молчаливый `skip-if-exists` не годится: человек, нажавший «создать»,
  * обязан узнать, что ничего не произошло и почему.
  *
@@ -19,8 +19,8 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { emitFixture, fixturePathOf } from '@/lib/form-fixture';
-import { isGenerated, withMarker } from '@/lib/codegen';
+import { emitFixture, fixturePathOf } from '@reformer/builder-stack-reformer/form-fixture';
+import { isGenerated, withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenHost } from '../host';
 

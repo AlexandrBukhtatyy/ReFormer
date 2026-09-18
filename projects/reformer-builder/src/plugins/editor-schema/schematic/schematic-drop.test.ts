@@ -13,10 +13,10 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@/lib/form-model/mutate';
-import { ensureNodeIds, type NodeIdFactory } from '@/lib/form-model/node-id';
-import { getAt, type JsonPath } from '@/lib/form-model/paths';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@reformer/builder-stack-reformer/form-model';
+import { ensureNodeIds, type NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
+import { getAt, type JsonPath } from '@reformer/builder-stack-reformer/form-model';
 import { indexNodes } from '../model/node-index';
 import { applyEditOp } from '../model/ops';
 import { planSchematicDrop } from './schematic-drop';

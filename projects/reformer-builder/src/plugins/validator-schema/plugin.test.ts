@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@/lib/catalog/__fixtures__/builtin-catalog';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import { ensureNodeIds } from '@/lib/form-model/node-id';
-import { emptyRules, type FormRules } from '@/lib/form-model/rules';
+import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { ensureNodeIds } from '@reformer/builder-stack-reformer/form-model';
+import { emptyRules, type FormRules } from '@reformer/builder-stack-reformer/form-model';
 import {
   ValidatorPoint,
   type DocumentRef,

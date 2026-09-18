@@ -1,10 +1,10 @@
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@/lib/catalog/__fixtures__/builtin-catalog';
+import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
 import { describe, expect, it } from 'vitest';
-import { emptyRules } from '@/lib/form-model/rules';
+import { emptyRules } from '@reformer/builder-stack-reformer/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { getAt } from '@/lib/form-model/paths';
-import { P, sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
+import { getAt } from '@reformer/builder-stack-reformer/form-model';
+import { P, sampleSchema } from '@reformer/builder-stack-reformer/testing';
 import { createEditorToolRegistry } from '../index';
 import type { ToolContext } from '../model/types';
 

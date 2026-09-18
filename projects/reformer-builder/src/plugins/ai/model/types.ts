@@ -9,14 +9,14 @@
  *    запись отмены, а не по одной на каждую правку.
  *
  * Адресация узлов — JSON Pointer (RFC 6901) поверх `toPointer`/`fromPointer`
- * (`@/lib/form-model/paths`), см. {@link module:plugins/ai/core/node-ref}.
+ * (`@reformer/builder-stack-reformer/form-model`), см. {@link module:plugins/ai/core/node-ref}.
  *
  * @module plugins/ai/model/types
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { FormRules } from '@/lib/form-model/rules';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
 import type { ValidateFormSchema } from './validate';
 
 /**
@@ -162,7 +162,7 @@ export interface ToolContext {
    * Правила формы черновика (валидация, поведение, видимость).
    *
    * Отдельно от схемы, а не внутри неё, потому что контракт `@reformer/renderer-json` закрыт:
-   * `additionalProperties: false` и на корне, и в `meta`. См. `@/lib/form-model/rules`.
+   * `additionalProperties: false` и на корне, и в `meta`. См. `@reformer/builder-stack-reformer/form-model`.
    */
   readonly rules: FormRules;
   /**
@@ -170,7 +170,7 @@ export interface ToolContext {
    *
    * В v1 он читался модульным синглтоном (`getCatalog()`), и это было ошибкой ровно того же рода,
    * что ключ в `localStorage`: кит переключают, а застывшее значение молча продолжает описывать
-   * прежний. В v2 каталог — состояние приложения, домену не видное (`lib/catalog` умеет собрать
+   * прежний. В v2 каталог — состояние приложения, домену не видное (`@reformer/builder-stack-reformer/catalog` умеет собрать
    * его из любого источника, но не решает, из какого), поэтому он приходит ВХОДОМ вызова — тем же
    * приёмом, что `MakeNodeKit` у `makeNodeFor` и `catalog: () => entries` у валидатора схемы.
    */

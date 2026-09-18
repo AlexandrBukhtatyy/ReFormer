@@ -12,7 +12,7 @@
  * @module plugins/templates/render/placeholders
  */
 
-import { translit } from '@/lib/form-model/naming';
+import { translit } from '@reformer/builder-toolkit';
 
 /** Токены-плейсхолдеры по написаниям. */
 export const TOKENS = {
@@ -52,7 +52,7 @@ const VARIANT_ORDER: readonly NameCase[] = ['pascal', 'camel', 'snake', 'kebab']
  * созданная по шаблону с русским именем, приезжала с плейсхолдерами вместо имён и не
  * компилировалась. Отказа при этом не было: подстановка молча ничего не делала.
  *
- * Транслитерация берётся у домена (`lib/form-model/naming`) — той же, которой кодоген выводит
+ * Транслитерация берётся у домена (`@reformer/builder-toolkit`) — той же, которой кодоген выводит
  * имя каталога и типа. Своя копия правила дала бы шаблон и экспорт, называющие одну и ту же
  * форму по-разному.
  */

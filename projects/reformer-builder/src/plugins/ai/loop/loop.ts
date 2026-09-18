@@ -8,8 +8,8 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { FormRules } from '@/lib/form-model/rules';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
 import { joinWithinBudget } from './render-budget';
 import type { AiMessage, AiProvider, AiStop, AiToolDef, AiUsage } from '../providers/types';
 import { createChangeSet, withOutcome, type ChangeSet } from '../model/changeset';

@@ -28,7 +28,7 @@ import {
   createMemoryIndexedDb,
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
 import { createSchemaModelProvider } from '@/plugins/editor-schema/model/provider';
 import {
   MONACO_EDITOR_ID,
@@ -41,7 +41,7 @@ import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createProjectHost } from '@/shell/boot/project/project';
 import { createSchemaHost } from '@/shell/boot/ports/schema';
 import { KitsServiceToken } from '@/plugins/kits';
-import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 
 let seq = 0;
 

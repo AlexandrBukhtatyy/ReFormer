@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CatalogJson } from '@/lib/catalog/types';
+import type { CatalogJson } from '@reformer/builder-stack-reformer/catalog';
 import {
   PaletteItemsPoint,
   type Disposable,

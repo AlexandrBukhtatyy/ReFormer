@@ -10,10 +10,14 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import { ensureNodeIds, nodeIdOf, type NodeIdFactory } from '@/lib/form-model/node-id';
-import { getAt } from '@/lib/form-model/paths';
-import { walkNodes } from '@/lib/form-model/query';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import {
+  ensureNodeIds,
+  nodeIdOf,
+  type NodeIdFactory,
+} from '@reformer/builder-stack-reformer/form-model';
+import { getAt } from '@reformer/builder-stack-reformer/form-model';
+import { walkNodes } from '@reformer/builder-stack-reformer/form-model';
 import {
   applyEditOp,
   batchOp,

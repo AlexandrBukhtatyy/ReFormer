@@ -17,7 +17,7 @@
  *
  * Модель обязана знать ВСЕ пути, которые называет схема: иначе рендерер пишет «нет form-node
  * для сигнала» и рисует пустоту вместо поля. Поэтому основа — синтез из самой схемы
- * (`@/lib/form-mock`), а сохранённые значения кладутся поверх. Умолчания САМОГО плагина сюда
+ * (`@reformer/builder-stack-reformer/form-mock`), а сохранённые значения кладутся поверх. Умолчания САМОГО плагина сюда
  * не попадают отдельным слоем: их объявляет плагин через `registerDefault`, и служба настроек
  * уже вернула их в `values`.
  *
@@ -32,7 +32,10 @@ import {
   type JsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import { buildInitialValues, collectFieldDefaults } from '@/lib/form-mock';
+import {
+  buildInitialValues,
+  collectFieldDefaults,
+} from '@reformer/builder-stack-reformer/form-mock';
 import type { PluginSettingsValues } from '@/shell/platform/services/plugin-settings';
 import { buildChromeRegistry } from './chrome-registry';
 

@@ -9,8 +9,8 @@
  */
 
 import type { JsonNode } from '@reformer/renderer-json';
-import { childSlots } from '@/lib/form-model/node-kind';
-import { type JsonPath } from '@/lib/form-model/paths';
+import { childSlots } from '@reformer/builder-stack-reformer/form-model';
+import { type JsonPath } from '@reformer/builder-stack-reformer/form-model';
 import { isResolved, resolveRef } from '../model/node-ref';
 import { ok, type AgentTool } from '../model/types';
 import { REF_PROP } from './params';

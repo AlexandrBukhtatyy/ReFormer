@@ -131,7 +131,7 @@ export default defineConfig({
 
           // Чанк плагина: и сам барель, и его ленивые внутренности (BYOK, корпус знаний,
           // превью markdown). «Все модули этого плагина» — условие СЛИШКОМ строгое: рядом
-          // с кодом плагина в чанк почти всегда попадает общий `lib/`, и по такому правилу
+          // с кодом плагина в чанк почти всегда попадает код пакетов стеков, и по такому правилу
           // плагин уезжал в `assets/js/` под именем `index`. Поэтому владелец — единственный
           // плагин среди владельцев, и его модулей должно быть не меньше половины: иначе это
           // общий чанк, куда чужой модуль попал попутчиком.
@@ -188,6 +188,16 @@ export default defineConfig({
       '@reformer/builder-plugin-api': path.resolve(
         __dirname,
         '../../packages/reformer-builder-plugin-api/src/index.ts'
+      ),
+      // Пакеты стеков — в исходники тем же доводом. Подпуть стека адресует КАТАЛОГ модуля
+      // (`/form-model` → `src/form-model/index.ts`), поэтому псевдоним — префикс, а не файл.
+      '@reformer/builder-toolkit': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-toolkit/src/index.ts'
+      ),
+      '@reformer/builder-stack-reformer': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-stack-reformer/src'
       ),
     },
   },

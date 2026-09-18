@@ -64,10 +64,10 @@
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { validateFormSchema } from '@reformer/renderer-json/validate';
 import type { PropsSchema } from '@reformer/ui-kit/meta';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import { collectOperatorNames } from '@/lib/form-model/query';
-import { ruleWarnings } from '@/lib/form-model/rules-integrity';
-import type { FormRules } from '@/lib/form-model/rules';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { collectOperatorNames } from '@reformer/builder-stack-reformer/form-model';
+import { ruleWarnings } from '@reformer/builder-stack-reformer/form-model';
+import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
 
 /**
  * Имена, которые схема вправе называть помимо каталога: враппер поля, граница async и `List` —

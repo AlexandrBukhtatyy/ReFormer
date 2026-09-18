@@ -12,7 +12,7 @@
  * @module plugins/ai/tools/validate-form
  */
 
-import { getAt } from '@/lib/form-model/paths';
+import { getAt } from '@reformer/builder-stack-reformer/form-model';
 import { parseErrorPath, splitErrorMessage } from '../model/error-path';
 import { validateSchema } from '../model/validate';
 import { componentOf, nodeRef } from '../model/node-ref';

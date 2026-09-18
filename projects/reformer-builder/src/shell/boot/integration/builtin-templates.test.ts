@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinKit } from '@/lib/codegen/__fixtures__/kit';
+import { builtinKit } from '@reformer/builder-stack-reformer/testing';
 import { BUILTIN_TARGETS, generateModule } from '@/plugins/codegen';
 import { looksLikeFormSchema } from '@/plugins/editor-schema/model/provider';
 import {

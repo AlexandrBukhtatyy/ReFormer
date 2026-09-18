@@ -30,7 +30,7 @@
  * @module plugins/editor-schema/session/view-state
  */
 
-import { isNodeId } from '@/lib/form-model/node-id';
+import { isNodeId } from '@reformer/builder-stack-reformer/form-model';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { NodeId } from '../host';
 

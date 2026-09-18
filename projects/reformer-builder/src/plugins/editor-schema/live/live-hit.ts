@@ -6,7 +6,7 @@
  * Та функция отвечает на вопрос «какой узел», и этого хватает для выбора кликом. Живому виду
  * нужен ещё и ЭЛЕМЕНТ: по нему считается прямоугольник цели, а по прямоугольнику — зона броска
  * и место ручки перетаскивания. Общее у них — правило «как выглядит токен», и оно живёт
- * в домене (`@/lib/form-model/node-token`), а не копируется.
+ * в домене (`@reformer/builder-stack-reformer/form-model`), а не копируется.
  *
  * ## Экземпляр под курсором, а не первый в документе
  *
@@ -18,8 +18,12 @@
  * @module plugins/editor-schema/live/live-hit
  */
 
-import { decodeNodeToken, encodeNodeToken, tokenFromClassName } from '@/lib/form-model/node-token';
-import { NODE_ID_PATTERN } from '@/lib/form-model/node-id';
+import {
+  decodeNodeToken,
+  encodeNodeToken,
+  tokenFromClassName,
+} from '@reformer/builder-stack-reformer/form-model';
+import { NODE_ID_PATTERN } from '@reformer/builder-stack-reformer/form-model';
 import type { NodeId } from '@reformer/builder-plugin-api';
 
 /** Узел и тот его экземпляр, по которому попали. */

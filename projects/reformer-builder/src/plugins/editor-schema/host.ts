@@ -28,8 +28,8 @@
 
 import type { ComponentType } from 'react';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { FormRules } from '@/lib/form-model/rules';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
 import type {
   Diagnostic,
   Disposable,

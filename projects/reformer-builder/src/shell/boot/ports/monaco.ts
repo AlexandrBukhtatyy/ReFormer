@@ -18,8 +18,8 @@ import { isTextMediaType, type ResourceId } from '@reformer/builder-plugin-api/i
 import type { DiagnosticsService } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
-import type { JsonPath } from '@/lib/form-model/paths';
-import { indexNodePaths } from '@/lib/form-model/query';
+import type { JsonPath } from '@reformer/builder-stack-reformer/form-model';
+import { indexNodePaths } from '@reformer/builder-stack-reformer/form-model';
 import type { MonacoDocument, MonacoHost, Translate } from '@/plugins/editor-monaco';
 import { MONACO_PLUGIN_ID } from '@/plugins/editor-monaco/contract';
 import { SCHEMA_MODEL_PROVIDER_ID } from '@/plugins/editor-schema/contract';

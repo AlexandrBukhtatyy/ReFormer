@@ -7,9 +7,9 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import type { PropsSchema } from '@reformer/ui-kit/meta';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import { ensureNodeIds, type NodeIdFactory } from '@/lib/form-model/node-id';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { ensureNodeIds, type NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
 import { editorFor, inspectorModelFor, inspectorModelOf } from './inspector-model';
 import { indexNodes } from '../model/node-index';
 

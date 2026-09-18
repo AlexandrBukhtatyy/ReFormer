@@ -4,8 +4,8 @@
  * @module plugins/ai/tools/group-nodes
  */
 
-import { groupBlock } from '@/lib/form-model/mutate';
-import { siblingInfo } from '@/lib/form-model/query';
+import { groupBlock } from '@reformer/builder-stack-reformer/form-model';
+import { siblingInfo } from '@reformer/builder-stack-reformer/form-model';
 import { commitMutation } from '../loop/gate';
 import { isResolved, refToPath, resolveRef } from '../model/node-ref';
 import { layoutClassName, type LayoutParams } from '../model/layout';

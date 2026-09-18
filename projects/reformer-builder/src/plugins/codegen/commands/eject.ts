@@ -22,7 +22,7 @@
  * @module plugins/codegen/commands/eject
  */
 
-import { formatTargetFile } from '@/lib/codegen';
+import { formatTargetFile } from '@reformer/builder-stack-reformer/codegen';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import type { CodegenHost } from '../host';

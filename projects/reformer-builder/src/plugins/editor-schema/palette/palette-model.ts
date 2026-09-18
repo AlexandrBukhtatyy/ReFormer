@@ -5,15 +5,15 @@
  * Разделение проходит по проверяемости: «HTML идёт первым, незнакомая категория уезжает
  * в хвост, поиск не различает регистр» — правила, и проверяются они в окружении `node`.
  *
- * Группировку и порядок разделов даёт домен (`lib/catalog/grouping`): тем же порядком
+ * Группировку и порядок разделов даёт домен (`@reformer/builder-stack-reformer/catalog`): тем же порядком
  * пользуется модалка быстрого добавления, и второй список категорий разошёлся бы с первым.
  *
  * @module plugins/editor-schema/palette/palette-model
  */
 
 import type { JsonNode } from '@reformer/renderer-json';
-import { displayName, groupByCategory, htmlTag } from '@/lib/catalog/grouping';
-import type { CatalogEntry, CatalogRole } from '@/lib/catalog/types';
+import { displayName, groupByCategory, htmlTag } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry, CatalogRole } from '@reformer/builder-stack-reformer/catalog';
 
 /** Пункт палитры — запись каталога вместе с тем, что показывает строка. */
 export interface PaletteEntry {

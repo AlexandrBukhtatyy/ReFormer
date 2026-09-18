@@ -45,8 +45,8 @@ import {
 } from 'react';
 import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import { toDescriptor } from '@/lib/kits/descriptor';
-import type { KitDescriptor, KitNamespace } from '@/lib/kits/types';
+import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
+import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
 import type { PreviewContext, PreviewProblem, PreviewValues } from '../contract';
 import type { PreviewHost } from '../host';
 import { nodeAt } from '../schema/node-token';
@@ -55,7 +55,7 @@ import { Highlight } from '../ui/Highlight';
 import { Notice } from '../ui/Notice';
 import { useFilesVersion, useKitVersion, usePreviewSchema, usePreviewSelection } from '../ui/hooks';
 import type { ComponentRegistry } from '@reformer/renderer-json';
-import { createAmbient, type FormFixture } from '@/lib/form-fixture';
+import { createAmbient, type FormFixture } from '@reformer/builder-stack-reformer/form-fixture';
 import { compileForm } from './compile';
 import { loadFixture } from './fixture';
 import {

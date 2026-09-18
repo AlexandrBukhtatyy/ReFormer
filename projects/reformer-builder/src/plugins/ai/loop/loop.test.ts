@@ -1,10 +1,10 @@
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@/lib/catalog/__fixtures__/builtin-catalog';
+import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { emptySchema } from '@/lib/form-model/normalize';
-import { getAt } from '@/lib/form-model/paths';
-import { P, sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
+import { emptySchema } from '@reformer/builder-stack-reformer/form-model';
+import { getAt } from '@reformer/builder-stack-reformer/form-model';
+import { P, sampleSchema } from '@reformer/builder-stack-reformer/testing';
 import { createFakeProvider, type FakeStep } from '../providers/fake';
 import type { AiProvider, AiRequest, AiUsage } from '../providers/types';
 import { describeChangeSet } from '../model/changeset';
@@ -12,7 +12,7 @@ import { createEditorToolRegistry } from '../tools';
 import { runAgentTurn, type TurnEvent } from './loop';
 import { buildOutline } from '../model/outline';
 import { listComponents } from '../model/catalog-digest';
-import type { FormRules } from '@/lib/form-model/rules';
+import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
 
 const catalog = builtinEntries();
 const FIELD = listComponents(catalog, { role: 'field' })[0].name;

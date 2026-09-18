@@ -14,9 +14,13 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import { ensureNodeIds, nodeIdOf, type NodeIdFactory } from '@/lib/form-model/node-id';
-import { getAt } from '@/lib/form-model/paths';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import {
+  ensureNodeIds,
+  nodeIdOf,
+  type NodeIdFactory,
+} from '@reformer/builder-stack-reformer/form-model';
+import { getAt } from '@reformer/builder-stack-reformer/form-model';
 import { canDropInside, dropPositionAt, planDrop } from './drag';
 import { indexNodes } from '../model/node-index';
 import { applyEditOp, groupOp } from '../model/ops';

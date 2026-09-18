@@ -26,8 +26,8 @@
  * @module plugins/codegen/workspace
  */
 
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { KitDescriptor } from '@/lib/kits/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
 import {
   defineCapability,
   DocumentsServiceToken,

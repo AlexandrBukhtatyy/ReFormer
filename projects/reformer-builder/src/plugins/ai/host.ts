@@ -29,7 +29,7 @@
  * @module plugins/ai/host
  */
 
-import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import type { PackageFiles } from './knowledge';
 

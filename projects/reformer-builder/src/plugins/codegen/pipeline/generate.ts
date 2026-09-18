@@ -23,18 +23,16 @@
 import {
   prepare,
   withFiles,
-  acceptsMarker,
   buildView,
-  renderTemplate,
   withLocal,
-  withMarker,
   withViewFiles,
   type CodegenInput,
   type CodegenView,
   type EmitContext,
   type EmittedFileRef,
   type FileClass,
-} from '@/lib/codegen';
+} from '@reformer/builder-stack-reformer/codegen';
+import { acceptsMarker, renderTemplate, withMarker } from '@reformer/builder-toolkit';
 import type { CodegenTarget } from '../contract';
 
 /** Файл модуля вместе с тем, что доставке нужно знать о его происхождении. */

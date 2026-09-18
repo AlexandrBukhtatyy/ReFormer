@@ -6,9 +6,9 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
-import { ensureNodeIds, newNodeId, nodeIdOf } from '@/lib/form-model/node-id';
-import { walkNodes } from '@/lib/form-model/query';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { ensureNodeIds, newNodeId, nodeIdOf } from '@reformer/builder-stack-reformer/form-model';
+import { walkNodes } from '@reformer/builder-stack-reformer/form-model';
 import { annotateSchema } from './annotate';
 import { EMPTY_CLASS, encodeNodeToken } from './node-token';
 

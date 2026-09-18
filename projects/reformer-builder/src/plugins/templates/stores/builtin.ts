@@ -17,18 +17,19 @@
  *
  * ## Затравки — данные, а не текст
  *
- * Схемы собираются фабриками узлов домена (`lib/catalog/make-node`), а не литералами JSON:
+ * Схемы собираются фабриками узлов домена (`@reformer/builder-stack-reformer/catalog`), а не литералами JSON:
  * так «пошаговая форма» остаётся пошаговой, даже когда изменится внутреннее устройство
  * узла-визарда.
  *
  * @module plugins/templates/stores/builtin
  */
 
-import { fieldNode, stepNode } from '@/lib/catalog/make-node';
-import { emitFixture, FIXTURE_FILE } from '@/lib/form-fixture';
-import { synthMock, type FormMock } from '@/lib/form-mock';
-import type { FormRules } from '@/lib/form-model/rules';
-import { emptySchema } from '@/lib/form-model/normalize';
+import { fieldNode, stepNode } from '@reformer/builder-stack-reformer/catalog';
+import { emitFixture, FIXTURE_FILE } from '@reformer/builder-stack-reformer/form-fixture';
+import { synthMock } from '@reformer/builder-stack-reformer/form-mock';
+import { type FormMock } from '@reformer/builder-stack-reformer/codegen';
+import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
+import { emptySchema } from '@reformer/builder-stack-reformer/form-model';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile, TemplateStore } from '../contract';
 import { tokenize } from '../render/placeholders';
@@ -127,7 +128,7 @@ export function simpleSeed(): JsonFormSchema {
 /**
  * Правила простой формы: то, из чего кодоген напечатает `validation.ts` и `form.behavior.ts`.
  *
- * Печатает их не этот модуль, а существующий мост к билдерам MCP (`lib/codegen/emit/rules-bridge`):
+ * Печатает их не этот модуль, а существующий мост к билдерам MCP (`@reformer/builder-stack-reformer/codegen`):
  * второй комплект эмиттеров для того же самого разошёлся бы с первым молча.
  */
 export function simpleRules(): FormRules {
@@ -147,7 +148,7 @@ export function simpleRules(): FormRules {
     ],
     // Поведение РЕНДЕРА — третий вид правил, и он не выражается двумя предыдущими: видимость
     // принадлежит УЗЛУ схемы, а не значению модели. Селектор проставляет сам кодоген из пути
-    // (`fullName` → `full-name`, см. `lib/codegen/selectors`), поэтому здесь он предсказуем.
+    // (`fullName` → `full-name`, см. `@reformer/builder-stack-reformer/codegen`), поэтому здесь он предсказуем.
     render: [
       {
         kind: 'hideWhen',

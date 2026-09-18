@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseTargetFile } from '@/lib/codegen';
+import { parseTargetFile } from '@reformer/builder-stack-reformer/codegen';
 import type { CodegenTarget } from '../contract';
 import { ejectTemplate, slugOf } from './eject';
 import { createFakeHost } from '../testing';

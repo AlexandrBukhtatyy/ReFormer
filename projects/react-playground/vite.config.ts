@@ -39,6 +39,16 @@ export default defineConfig({
       // билдера ходят друг к другу через собственный `@/…` — без этой записи первым совпал
       // бы `@` playground'а и увёл их в его src.
       '@/shell': path.resolve(__dirname, '../reformer-builder/src/shell'),
+      // Данные формы — из пакета стека, в исходники тем же доводом. Подпуть адресует
+      // КАТАЛОГ модуля (`/form-fixture` → `src/form-fixture/index.ts`), поэтому псевдоним — префикс.
+      '@reformer/builder-toolkit': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-toolkit/src/index.ts'
+      ),
+      '@reformer/builder-stack-reformer': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-stack-reformer/src'
+      ),
       '@builder-src': path.resolve(__dirname, '../reformer-builder/src'),
       '@': path.resolve(__dirname, './src'),
     },

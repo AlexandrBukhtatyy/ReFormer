@@ -24,7 +24,11 @@
  * @module plugins/preview/compiling/fixture
  */
 
-import { FIXTURE_EXPORT, fixturePathOf, type FormFixture } from '@/lib/form-fixture';
+import {
+  FIXTURE_EXPORT,
+  fixturePathOf,
+  type FormFixture,
+} from '@reformer/builder-stack-reformer/form-fixture';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewProblem } from '../contract';
 import type { PreviewHost, PreviewModules } from '../host';

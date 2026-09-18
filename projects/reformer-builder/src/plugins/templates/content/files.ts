@@ -8,10 +8,10 @@
  * @module plugins/templates/content/files
  */
 
-import { isFormSchema } from '@/lib/form-model/normalize';
+import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile } from '../contract';
-import type { KitView } from '@/lib/codegen';
+import type { KitView } from '@reformer/builder-stack-reformer/codegen';
 import { materialize, tokenize } from '../render/placeholders';
 import { buildTemplateView, renderTemplateFile } from '../render/render';
 

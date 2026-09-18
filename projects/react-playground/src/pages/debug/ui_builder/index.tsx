@@ -47,8 +47,8 @@ import {
   type JsonForm,
 } from '@reformer/renderer-json';
 import { useFormControl } from '@reformer/core';
-import { mergeFormData } from '@builder-src/lib/form-fixture';
-import { synthMock } from '@builder-src/lib/form-mock';
+import { mergeFormData } from '@reformer/builder-stack-reformer/form-fixture';
+import { synthMock } from '@reformer/builder-stack-reformer/form-mock';
 
 import { ModelInspector } from './ModelInspector';
 import { compileSources, extractContract, knownSpecifiers, type BuildProblem } from './compile';

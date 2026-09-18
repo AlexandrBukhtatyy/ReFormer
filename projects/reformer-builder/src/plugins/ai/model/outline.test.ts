@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { emptySchema } from '@/lib/form-model/normalize';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
+import { emptySchema } from '@reformer/builder-stack-reformer/form-model';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
 import { buildOutline, renderOutline } from './outline';
 import { componentOf, isResolved, resolveRef } from './node-ref';
 

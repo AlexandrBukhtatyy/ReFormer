@@ -27,8 +27,8 @@
  */
 
 import type { CommandContribution, ResourceId } from '@reformer/builder-plugin-api';
-import { isDivContainer } from '@/lib/form-model/node-kind';
-import type { NavDir } from '@/lib/form-model/query';
+import { isDivContainer } from '@reformer/builder-stack-reformer/form-model';
+import type { NavDir } from '@reformer/builder-stack-reformer/form-model';
 import { planDuplicate } from './duplicate';
 import { planMove } from './move';
 import type { QuickAddStore } from '../session/quick-add-store';

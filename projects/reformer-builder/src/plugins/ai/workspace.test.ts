@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import {
   DocumentsServiceToken,
   WorkspaceFilesServiceToken,

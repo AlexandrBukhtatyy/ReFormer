@@ -79,6 +79,9 @@ Package scopes:
 - `reformer-mcp` — `@reformer/mcp`
 - `reformer-builder-plugin-api` — `@reformer/builder-plugin-api` (контракт плагинов билдера)
 - `reformer-builder-plugin-cli` — `@reformer/builder-plugin-cli` (CLI `reformer-plugin` для авторов плагинов)
+- `reformer-builder-toolkit` — `@reformer/builder-toolkit` (нейтральные кирпичи стеков билдера: печать, маркер, имена)
+- `reformer-builder-stack-reformer` — `@reformer/builder-stack-reformer` (стек ReFormer: модель схемы, каталог, киты, кодоген)
+- `reformer-builder-stack-plain` — `@reformer/builder-stack-plain` (демо-стек с другим форматом схемы)
 
 Project scopes (не публикуются в npm):
 

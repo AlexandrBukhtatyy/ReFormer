@@ -1,0 +1,60 @@
+{
+  "name": "@reformer/builder-toolkit",
+  "version": "0.0.0",
+  "description": "Stack-neutral building blocks for ReFormer Builder plugin stacks: template printing, generated-file marker, naming",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build",
+    "build:stackblitz": "vite build",
+    "test": "node ../../scripts/run-vitest.mjs"
+  },
+  "keywords": [
+    "reformer",
+    "builder",
+    "plugin",
+    "codegen",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-builder-toolkit"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "eta": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.8"
+  }
+}

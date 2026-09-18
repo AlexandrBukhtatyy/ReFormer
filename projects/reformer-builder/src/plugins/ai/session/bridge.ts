@@ -30,7 +30,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { emptyRules, type FormRules } from '@/lib/form-model/rules';
+import { emptyRules, type FormRules } from '@reformer/builder-stack-reformer/form-model';
 import type { CommandContribution, ResourceId } from '@reformer/builder-plugin-api';
 import { applyChangeSet } from './apply';
 import { createChangeSet, hasChanges, type ChangeSet } from '../model/changeset';
@@ -264,7 +264,7 @@ export function createAgentBridge(deps: BridgeDeps): AgentBridge {
   /**
    * Правила формы по документам — В ПАМЯТИ СЕССИИ, и это честно названное ограничение.
    *
-   * Правила формы (`@/lib/form-model/rules`) — сайдкар: они лежат рядом со схемой отдельным
+   * Правила формы (`@reformer/builder-stack-reformer/form-model`) — сайдкар: они лежат рядом со схемой отдельным
    * файлом. Плумбинга этого сайдкара в v2 ещё нет вовсе — валидатор схемы получает правила
    * параметром, и композиция сегодня не передаёт ничего. Пока файла нет, единственная
    * альтернатива памяти — отказать ассистенту в правилах совсем, то есть в валидации и

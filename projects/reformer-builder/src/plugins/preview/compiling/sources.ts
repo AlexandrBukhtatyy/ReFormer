@@ -30,7 +30,7 @@
  * @module plugins/preview/compiling/sources
  */
 
-import { isFixturePath } from '@/lib/form-fixture';
+import { isFixturePath } from '@reformer/builder-stack-reformer/form-fixture';
 import type { ResourceRef } from '@reformer/builder-plugin-api';
 
 /** Расширения, которые превью исполняет. */

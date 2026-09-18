@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import { gridTarget, quickAddView } from './quick-add';
 
 function entry(name: string, category: string, role: CatalogEntry['role'] = 'field'): CatalogEntry {

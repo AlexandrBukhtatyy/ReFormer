@@ -12,11 +12,10 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  * до первого дедлайна. Здесь оно становится ошибкой сборки. Прецедент в монорепо есть:
  * у @reformer/mcp отсутствие node-глобалов в ядре проверяется отдельной командой.
  *
- * Слои и что кому можно:
+ * Слои и что кому можно (контракт плагина — пакет `@reformer/builder-plugin-api`; предметный
+ * код стеков — пакеты `@reformer/builder-toolkit` и `@reformer/builder-stack-*` в `packages/`):
  *   shell/platform/  платформа            → только shell/platform/ и внешние библиотеки
- *   sdk/             поверхность плагина  → только типы из shell/platform/
- *   lib/             чистый домен         → только lib/ и внешние
- *   plugins/         предметная логика    → sdk/, lib/, свой каталог
+ *   plugins/         предметная логика    → контракт плагина, пакеты стеков, свой каталог
  *   shell/boot/      сборка оболочки      → всё, КРОМЕ состава приложения
  *   application/     состав приложения    → всё
  *
@@ -29,8 +28,10 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  */
 const denyFromPlatform = [
   {
-    group: ['@/lib/*', '@/lib'],
-    message: 'Платформа не знает предметной логики: перенеси в plugins/ или обратись через сервис',
+    // Предметный код живёт пакетами стеков. Платформа их не знает: формат схемы, каталог
+    // и печать модуля формы приходят к ней только вкладами плагинов и службами.
+    group: ['@reformer/builder-stack-*'],
+    message: 'Платформа не знает предметной логики стека: обратись через вклад или службу',
   },
   {
     group: ['@/plugins/*', '@/plugins'],
@@ -40,14 +41,6 @@ const denyFromPlatform = [
     group: ['@/shell/boot/*', '@/shell/boot'],
     message: 'Платформа не зависит от композиции',
   },
-];
-
-const denyFromLib = [
-  {
-    group: ['@/shell/*', '@/shell'],
-    message: 'Домен обязан оставаться переносимым: не импортируй оболочку',
-  },
-  { group: ['@/plugins/*', '@/plugins'], message: 'Домен не зависит от плагинов' },
 ];
 
 /**
@@ -119,16 +112,12 @@ export default defineConfig([
     rules: { 'no-restricted-imports': 'off' },
   },
   {
-    files: ['src/lib/**/*.{ts,tsx}'],
-    rules: { 'no-restricted-imports': ['error', { patterns: denyFromLib }] },
-  },
-  {
     files: ['src/plugins/**/*.{ts,tsx}'],
     rules: { 'no-restricted-imports': ['error', { patterns: denyFromPlugins }] },
   },
   {
-    // `application/` — композиция, и ей можно всё: `@/shell`, `@/plugins`, `@/lib` и оба входа пакета
-    // контракта плагинов.
+    // `application/` — композиция, и ей можно всё: `@/shell`, `@/plugins`, пакеты стеков
+    // и оба входа пакета контракта плагинов.
     // Зона объявлена ЯВНО, хотя запретов у неё нет: отсутствие блока читалось бы как «про этот
     // каталог забыли», а не как решение. Ровно тот же набор прав, что у `shell/boot`, — разница
     // между ними не в правах, а в направлении зависимости.

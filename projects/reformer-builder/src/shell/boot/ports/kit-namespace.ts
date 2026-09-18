@@ -39,7 +39,7 @@
  */
 
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
-import type { KitNamespace } from '@/lib/kits/types';
+import type { KitNamespace } from '@reformer/builder-stack-reformer/kits';
 
 export interface KitNamespaceLoader {
   /** Пространство имён либо `null`, если ещё не загружено. Первый вызов начинает загрузку. */

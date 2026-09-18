@@ -27,7 +27,13 @@
  * @module plugins/templates/render/render
  */
 
-import { buildView, prepare, renderTemplate, type CodegenView, type KitView } from '@/lib/codegen';
+import {
+  buildView,
+  prepare,
+  type CodegenView,
+  type KitView,
+} from '@reformer/builder-stack-reformer/codegen';
+import { renderTemplate } from '@reformer/builder-toolkit';
 import { nameVariants } from './placeholders';
 import type { FormTemplate, TemplateFile } from '../contract';
 import { formSchemaFileOf } from '../content/files';

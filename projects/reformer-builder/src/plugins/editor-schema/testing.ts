@@ -21,10 +21,10 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import { createSchemaModelProvider } from './model/provider';
-import { NODE_CLASS_PREFIX } from '@/lib/form-model/node-token';
+import { NODE_CLASS_PREFIX } from '@reformer/builder-stack-reformer/form-model';
 import type {
   EditOp,
   LivePreviewPort,

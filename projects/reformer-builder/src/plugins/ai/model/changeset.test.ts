@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { emptySchema } from '@/lib/form-model/normalize';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
+import { emptySchema } from '@reformer/builder-stack-reformer/form-model';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
 import { createChangeSet, describeChangeSet, hasChanges, withOutcome } from './changeset';
 import type { ToolOutcome } from './types';
 

@@ -35,7 +35,11 @@
       "@reformer/builder-plugin-api": ["../../packages/reformer-builder-plugin-api/src/index.ts"],
       "@reformer/builder-plugin-api/internal": [
         "../../packages/reformer-builder-plugin-api/src/internal.ts"
-      ]
+      ],
+      // Данные формы (фикстура, мок, инспектор модели) — из пакета стека, в исходники,
+      // тем же доводом, что и контракт плагинов выше.
+      "@reformer/builder-toolkit": ["../../packages/reformer-builder-toolkit/src/index.ts"],
+      "@reformer/builder-stack-reformer/*": ["../../packages/reformer-builder-stack-reformer/src/*"]
     }
   },
   "include": [
@@ -44,9 +48,9 @@
     "../reformer-builder/src/shell/platform/modules",
     "../reformer-builder/src/shell/platform/plugin/typescript-transpiler.ts",
     "../../packages/reformer-builder-plugin-api/src/primitives/disposable.ts",
-    "../reformer-builder/src/lib/form-fixture",
-    "../reformer-builder/src/lib/form-inspect",
-    "../reformer-builder/src/lib/form-mock"
+    "../../packages/reformer-builder-stack-reformer/src/form-fixture",
+    "../../packages/reformer-builder-stack-reformer/src/form-inspect",
+    "../../packages/reformer-builder-stack-reformer/src/form-mock"
   ],
   "exclude": ["src/mocks/_generated"]
 }

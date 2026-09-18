@@ -159,6 +159,22 @@ jobs:
       - name: Run @reformer/builder-plugin-cli tests
         run: npm run test -w @reformer/builder-plugin-cli
 
+      # Пакеты стеков билдера. toolkit — нейтральный слой, stack-reformer берёт его из dist,
+      # поэтому порядок именно такой; stack-reformer вдобавок печатает правила генераторами
+      # @reformer/mcp, собранного выше. Билдер резолвит оба в исходники и их dist не ждёт,
+      # но «Dist deps ↔ manifest» и «Exports ↔ dist» ниже сканируют dist/ всех packages/*.
+      - name: Build @reformer/builder-toolkit
+        run: npm run build -w @reformer/builder-toolkit
+
+      - name: Run @reformer/builder-toolkit tests
+        run: npm run test -w @reformer/builder-toolkit
+
+      - name: Build @reformer/builder-stack-reformer
+        run: npm run build -w @reformer/builder-stack-reformer
+
+      - name: Run @reformer/builder-stack-reformer tests
+        run: npm run test -w @reformer/builder-stack-reformer
+
       - name: Build @reformer/builder
         run: npm run build -w @reformer/builder
 

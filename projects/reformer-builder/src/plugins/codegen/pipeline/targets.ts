@@ -25,7 +25,7 @@ import {
   apiTemplate,
   emitSchema,
   wizardShimOf,
-} from '@/lib/codegen';
+} from '@reformer/builder-stack-reformer/codegen';
 import type { CodegenTarget } from '../contract';
 
 /**

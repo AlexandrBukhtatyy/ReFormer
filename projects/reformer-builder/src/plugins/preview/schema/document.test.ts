@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sampleSchema } from '@/lib/form-model/__fixtures__/sample-schema';
+import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
 import type { DocumentRef } from '@reformer/builder-plugin-api';
 import { isFormDocument, schemaOf } from './document';
 import type { PreviewDocument } from '../host';

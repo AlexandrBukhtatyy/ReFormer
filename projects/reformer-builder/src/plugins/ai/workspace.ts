@@ -33,7 +33,7 @@
  * @module plugins/ai/workspace
  */
 
-import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import {
   defineCapability,
   DocumentsServiceToken,

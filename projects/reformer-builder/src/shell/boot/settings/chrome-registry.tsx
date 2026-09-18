@@ -38,7 +38,7 @@ import { Section } from '@reformer/ui-kit/section';
 import { SelectField } from '@reformer/ui-kit/select';
 import { SwitchField } from '@reformer/ui-kit/switch';
 import { TextareaField } from '@reformer/ui-kit/textarea';
-import { collectOperatorNames } from '@/lib/form-model/query';
+import { collectOperatorNames } from '@reformer/builder-stack-reformer/form-model';
 
 /**
  * Что плагин вправе назвать в `$component(...)`.

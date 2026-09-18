@@ -22,8 +22,8 @@
  * @module plugins/editor-schema/palette/quick-add
  */
 
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { NavDir } from '@/lib/form-model/query';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { NavDir } from '@reformer/builder-stack-reformer/form-model';
 import { paletteSections, type PaletteEntry, type PaletteSection } from './palette-model';
 
 /** Запись сетки: пункт палитры вместе с его местом в плоском порядке. */

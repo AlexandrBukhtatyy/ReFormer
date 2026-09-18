@@ -24,7 +24,7 @@
  * и генерируют чужими инструментами; копипаста поддерева приносит двойника, и с ним ломается
  * адресация целиком: правка уходит не в тот узел, диагностика встаёт не на тот, выделение
  * подсвечивает не то. Разбор его снимает — второму носителю адрес перевыдаётся
- * ({@link '../../lib/form-model/node-id'.assignNodeIds}), — и **отказывать в открытии файла
+ * (`assignNodeIds` из `@reformer/builder-stack-reformer/form-model`), — и **отказывать в открытии файла
  * из-за этого нельзя**: отказ оставил бы человека наедине с текстовым редактором ровно там,
  * где структурный и нужен. Правило то же, что для отсутствующего и для негодного по форме
  * адреса: адрес выдаёт машина, и починка его — её работа, а не пользователя.
@@ -44,8 +44,12 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { ensureNodeIds, newNodeId, type NodeIdFactory } from '@/lib/form-model/node-id';
-import { ensureSchema, isFormSchema } from '@/lib/form-model/normalize';
+import {
+  ensureNodeIds,
+  newNodeId,
+  type NodeIdFactory,
+} from '@reformer/builder-stack-reformer/form-model';
+import { ensureSchema, isFormSchema } from '@reformer/builder-stack-reformer/form-model';
 import type { EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
 import { applyEditOp } from './ops';
 import type { ApplyResult, EditOp, SchemaModelProviderSpec } from '../host';

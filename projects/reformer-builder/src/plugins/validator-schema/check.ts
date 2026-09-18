@@ -7,7 +7,7 @@
  * validateFormSchema  структура узлов, операторы, componentProps   io/validate.ts
  * имена компонентов   $component(X) против каталога активного кита io/validate.ts
  * структурный линт    вкладки и шаги                               io/structure-lint.ts
- * целостность правил  правило, указывающее в никуда                lib/form-model/rules-integrity
+ * целостность правил  правило, указывающее в никуда                @reformer/builder-stack-reformer/form-model
  * ```
  *
  * ## Имена компонентов проверяются ЗДЕСЬ, а не переданы в `validateFormSchema`
@@ -43,14 +43,14 @@
 
 import type { validateFormSchema } from '@reformer/renderer-json/validate';
 import { parseOperator, type JsonFormSchema, type JsonNode } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@/lib/catalog/types';
-import { isFormSchema } from '@/lib/form-model/normalize';
-import { findDuplicateNodeIds, nodeIdOf } from '@/lib/form-model/node-id';
-import { componentOf } from '@/lib/form-model/node-ref';
-import { walkNodes } from '@/lib/form-model/query';
-import { checkRules } from '@/lib/form-model/rules-integrity';
-import type { FormRules } from '@/lib/form-model/rules';
-import type { JsonPath } from '@/lib/form-model/paths';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
+import { findDuplicateNodeIds, nodeIdOf } from '@reformer/builder-stack-reformer/form-model';
+import { componentOf } from '@reformer/builder-stack-reformer/form-model';
+import { walkNodes } from '@reformer/builder-stack-reformer/form-model';
+import { checkRules } from '@reformer/builder-stack-reformer/form-model';
+import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
+import type { JsonPath } from '@reformer/builder-stack-reformer/form-model';
 import type {
   Diagnostic,
   DiagnosticTarget,

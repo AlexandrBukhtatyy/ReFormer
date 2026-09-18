@@ -31,9 +31,9 @@
  * @module plugins/codegen/host
  */
 
-import type { CatalogEntry } from '@/lib/catalog/types';
-import type { FormRules } from '@/lib/form-model/rules';
-import type { KitDescriptor } from '@/lib/kits/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
+import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
 import type {
   Disposable,
   DocumentKind,

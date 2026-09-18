@@ -38,7 +38,7 @@
  * @module plugins/editor-schema/schematic/schematic-zone
  */
 
-import type { Orientation } from '@/lib/form-model/node-kind';
+import type { Orientation } from '@reformer/builder-stack-reformer/form-model';
 
 /**
  * Куда метится бросок относительно коробки.

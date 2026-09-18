@@ -1,7 +1,7 @@
 /**
  * Подъём от элемента DOM к узлу — и РЕЭКСПОРТ доменного кодека.
  *
- * Кодек («как выглядит токен») переехал в `@/lib/form-model/node-token`, когда потребителей
+ * Кодек («как выглядит токен») переехал в `@reformer/builder-stack-reformer/form-model`, когда потребителей
  * стало двое в разных плагинах: превью ставит токен, а редактор схемы читает DOM смонтированной
  * поверхности, чтобы выделять узел и принимать бросок. Довод целиком — в шапке доменного модуля.
  *
@@ -10,7 +10,7 @@
  * @module plugins/preview/schema/node-token
  */
 
-import { decodeNodeToken, tokenFromClassName } from '@/lib/form-model/node-token';
+import { decodeNodeToken, tokenFromClassName } from '@reformer/builder-stack-reformer/form-model';
 import type { NodeId } from '@reformer/builder-plugin-api';
 
 export {
@@ -19,7 +19,7 @@ export {
   EMPTY_CLASS,
   NODE_CLASS_PREFIX,
   tokenFromClassName,
-} from '@/lib/form-model/node-token';
+} from '@reformer/builder-stack-reformer/form-model';
 
 /**
  * Узел, которому принадлежит элемент DOM, — поиск вверх по предкам.

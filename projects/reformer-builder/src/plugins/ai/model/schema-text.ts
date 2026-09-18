@@ -6,7 +6,7 @@
  * Разбор и печать того же формата уже написаны в `plugins/editor-schema/provider`, но плагины
  * не импортируют друг друга — и это не формальность: сегодня схему открывает структурный
  * редактор, завтра её может не быть в списке включённых вовсе, а ассистент обязан работать и
- * тогда. Общее у обоих не код провайдера, а домен (`@/lib/form-model`), и оба зовут именно его.
+ * тогда. Общее у обоих не код провайдера, а домен (`@reformer/builder-stack-reformer/form-model`), и оба зовут именно его.
  *
  * ## Идентификаторы узлов НЕ выдаются
  *
@@ -27,7 +27,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { ensureSchema, isFormSchema } from '@/lib/form-model/normalize';
+import { ensureSchema, isFormSchema } from '@reformer/builder-stack-reformer/form-model';
 
 /** Отступ печати. Два пробела — то, чем набраны схемы в репозитории. */
 const INDENT = 2;

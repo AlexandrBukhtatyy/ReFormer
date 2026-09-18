@@ -8,7 +8,7 @@
  */
 
 import { isArrayNode, isFieldNode } from '@reformer/renderer-json';
-import { setNodeKey } from '@/lib/form-model/mutate';
+import { setNodeKey } from '@reformer/builder-stack-reformer/form-model';
 import { commitMutation } from '../loop/gate';
 import { componentOf, isResolved, labelOf, resolveRef } from '../model/node-ref';
 import { fail, type AgentTool } from '../model/types';

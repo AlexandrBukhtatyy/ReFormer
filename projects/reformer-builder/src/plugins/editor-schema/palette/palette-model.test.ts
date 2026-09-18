@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinEntries } from '@/lib/catalog/__fixtures__/builtin-catalog';
-import type { CatalogEntry } from '@/lib/catalog/types';
+import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import { DEFAULT_COLLAPSED_CATEGORIES, paletteNode, paletteSections } from './palette-model';
 
 function entry(name: string, category: string, extra: Partial<CatalogEntry> = {}): CatalogEntry {

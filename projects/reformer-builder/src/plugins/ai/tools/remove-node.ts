@@ -4,7 +4,7 @@
  * @module plugins/ai/tools/remove-node
  */
 
-import { removeNode } from '@/lib/form-model/mutate';
+import { removeNode } from '@reformer/builder-stack-reformer/form-model';
 import { buildOutline } from '../model/outline';
 import { commitBatch, type BatchEntry } from '../loop/gate';
 import type { NodeExpectation } from '../model/node-ref';

@@ -34,6 +34,12 @@
       "@reformer/builder-plugin-api/internal": [
         "../../packages/reformer-builder-plugin-api/src/internal.ts"
       ],
+      // Пакеты стеков — тем же доводом. Подпуть стека адресует КАТАЛОГ модуля, и его
+      // `index.ts` находит резолюция `bundler`.
+      "@reformer/builder-toolkit": ["../../packages/reformer-builder-toolkit/src/index.ts"],
+      "@reformer/builder-stack-reformer/*": [
+        "../../packages/reformer-builder-stack-reformer/src/*"
+      ],
       // `vitest/browser` (пакет `vitest` в корне монорепо) реэкспортирует контекст
       // из `@vitest/browser-playwright/context` под `@ts-ignore`, а сам провайдер npm положил
       // НЕ в корень, а в node_modules этого проекта. Из корневого файла он не резолвится,

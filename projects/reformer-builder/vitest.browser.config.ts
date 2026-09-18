@@ -58,6 +58,16 @@ export default defineConfig({
         __dirname,
         '../../packages/reformer-builder-plugin-api/src/index.ts'
       ),
+      // Пакеты стеков — в исходники тем же доводом. Подпуть стека адресует КАТАЛОГ модуля
+      // (`/form-model` → `src/form-model/index.ts`), поэтому псевдоним — префикс, а не файл.
+      '@reformer/builder-toolkit': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-toolkit/src/index.ts'
+      ),
+      '@reformer/builder-stack-reformer': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-stack-reformer/src'
+      ),
     },
   },
   // Подсветка блоков кода грузится динамическим импортом, а Vite предзаготавливает

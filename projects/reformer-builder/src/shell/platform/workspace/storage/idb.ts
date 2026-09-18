@@ -196,7 +196,7 @@ export interface HistoryEntryRecord extends HistoryRecordBase {
   readonly payload:
     | { readonly kind: 'text'; readonly edits: readonly StoredTextEdit[] }
     /**
-     * Операции над моделью. Их форму знает предметный слой (`lib/form-model`), а Host
+     * Операции над моделью. Их форму знает предметный слой (`@reformer/builder-stack-reformer/form-model`), а Host
      * предметной логики не знает вовсе — для журнала это транспорт, и `unknown` здесь
      * не лень, а граница слоя.
      */

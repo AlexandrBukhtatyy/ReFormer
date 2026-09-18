@@ -2,7 +2,7 @@
  * Инспектор модели: что форма насчитала и чем это поправить.
  *
  * Ровно та панель, что живёт в билдере (`plugins/preview/ui/ModelPanel`), но без его оболочки:
- * читает и пишет через `@builder-src/lib/form-inspect`, то есть той же цепочкой
+ * читает и пишет через `@reformer/builder-stack-reformer/form-inspect`, то есть той же цепочкой
  * `путь → signalAt → getNodeForSignal → узел`. Правка идёт ТЕМ ЖЕ вызовом, каким пишет
  * контрол, поэтому `compute` пересчитывается сам — это и есть главное, что демо показывает.
  *
@@ -19,7 +19,7 @@ import {
   writeValue,
   type ModelRow,
   type NodeState,
-} from '@builder-src/lib/form-inspect';
+} from '@reformer/builder-stack-reformer/form-inspect';
 
 /** Модель как источник подписки: `model.$` — сигнал значений целиком. */
 interface ObservableModel {

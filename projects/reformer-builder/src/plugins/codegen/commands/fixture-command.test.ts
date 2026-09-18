@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { withMarker } from '@/lib/codegen';
+import { withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import { createFixture } from './fixture-command';
 import type { CodegenHost } from '../host';

@@ -2,14 +2,14 @@
  * Адресация узлов для агента: JSON Pointer вместо массива-пути.
  *
  * Почему Pointer, а не собственные ID узлов в side-map: указатель уже есть в модели
- * (`toPointer`/`fromPointer`, `@/lib/form-model/paths`) и используется для подсветки raw-JSON, тогда как
+ * (`toPointer`/`fromPointer`, `@reformer/builder-stack-reformer/form-model`) и используется для подсветки raw-JSON, тогда как
  * реестр ID пришлось бы синхронизировать с каждой мутацией. Плата за Pointer — он «съезжает»,
  * если соседей вставили/удалили; лечится не реестром, а проверкой {@link NodeExpectation}:
  * инструмент объявляет, ЧТО он рассчитывает найти по адресу, и получает `STALE_POINTER`
  * вместо тихой правки чужого узла.
  *
  * `fromPointer` намеренно оставляет индексы строками (Pointer не различает индекс и ключ), но
- * {@link refToPath} приводит их к числам. Это не косметика: большинство функций `@/lib/form-model/*` приводят
+ * {@link refToPath} приводит их к числам. Это не косметика: большинство функций `@reformer/builder-stack-reformer/form-model` приводят
  * сегмент сами, а `ungroupNode` проверяет `typeof last === 'number'` и на строке молча ничего не
  * делает. Нормализация в одном месте убирает весь класс таких расхождений — путь из адреса
  * неотличим от пути, который строит сам редактор.
@@ -18,7 +18,7 @@
  *
  * Читатели узла — `componentOf`, `modelOf`, `labelOf` — в v1 жили здесь, и `model/selectors`
  * импортировал их ОТСЮДА: домен зависел от агента. В v2 они переехали в
- * `@/lib/form-model/node-ref`, а здесь остались реэкспортом ради одного правила: имя компонента
+ * `@reformer/builder-stack-reformer/form-model`, а здесь остались реэкспортом ради одного правила: имя компонента
  * узла обязано читаться ОДИНАКОВО палитрой и ассистентом. Вторая копия разошлась бы с первой на
  * первом же новом виде узла, и разошлась бы молча.
  *
@@ -29,12 +29,22 @@
  */
 
 import type { JsonNode, JsonFormSchema } from '@reformer/renderer-json';
-import { componentOf, modelOf } from '@/lib/form-model/node-ref';
-import { isNodeLike } from '@/lib/form-model/node-kind';
-import { fromPointer, getAt, toPointer, type JsonPath } from '@/lib/form-model/paths';
+import { componentOf, modelOf } from '@reformer/builder-stack-reformer/form-model';
+import { isNodeLike } from '@reformer/builder-stack-reformer/form-model';
+import {
+  fromPointer,
+  getAt,
+  toPointer,
+  type JsonPath,
+} from '@reformer/builder-stack-reformer/form-model';
 import { fail, type ToolOutcome } from './types';
 
-export { ARRAY_COMPONENT_NAME, componentOf, labelOf, modelOf } from '@/lib/form-model/node-ref';
+export {
+  ARRAY_COMPONENT_NAME,
+  componentOf,
+  labelOf,
+  modelOf,
+} from '@reformer/builder-stack-reformer/form-model';
 
 /** Что вызывающий рассчитывает найти по адресу. Любое заданное поле обязано совпасть. */
 export interface NodeExpectation {
@@ -62,7 +72,7 @@ export interface ResolvedNode {
   path: JsonPath;
 }
 
-/** Хвосты адреса, которыми заканчивается СЛОТ, а не узел (см. `@/lib/form-model/node-kind`). */
+/** Хвосты адреса, которыми заканчивается СЛОТ, а не узел (см. `@reformer/builder-stack-reformer/form-model`). */
 const SLOT_TAILS = ['/children', '/componentProps/steps', '/item/$template'];
 
 /**

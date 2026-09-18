@@ -5,7 +5,7 @@
  * формы, чем шаг отличается от вкладки, какие имена компонентов законны, каким оператором
  * выражается валидация. В платформе это означало бы, что второй продукт поверх той же платформы
  * несёт ассистента чужой предметной области. Граница проверяется линтером: `src/plugins/**` не
- * видит `@/shell/*` — только `@reformer/builder-plugin-api` и `@/lib`.
+ * видит `@/shell/*` — только `@reformer/builder-plugin-api` и пакеты стеков.
  *
  * ## Из чего плагин собран
  *
@@ -31,7 +31,7 @@
 
 import { createElement, type ReactElement } from 'react';
 import { Sparkles } from 'lucide-react';
-import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import {
   definePlugin,
   PanelPoint,
