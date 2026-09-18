@@ -39,7 +39,6 @@ import type { FilesHost } from '@/plugins/files';
 import type { MonacoHost } from '@/plugins/editor-monaco';
 import type { KitsPluginOptions } from '@/plugins/kits';
 import type { PreviewHost } from '@/plugins/preview';
-import type { PluginManagerPluginOptions } from '@/plugins/plugin-manager';
 import type { MarkdownHost } from '@/plugins/editor-markdown';
 import type { SchemaEditorHost } from '@/plugins/editor-schema';
 import type { CodegenGaps } from '@/plugins/codegen';
@@ -136,15 +135,6 @@ export interface BuiltinPluginsOptions {
    * состояние троим, не заводя его копию у каждого.
    */
   readonly kits: Pick<KitsPluginOptions, 'settings' | 'sources'>;
-  /**
-   * Порт управления плагинами каталога.
-   *
-   * Порт удовлетворяется каталогом плагинов КАК ЕСТЬ — `ProjectPluginCatalog` структурно
-   * шире `PluginManagerHost`, и это ровно то место, где их совместимость проверяется
-   * компиляцией. Управление — вклад плагина, а не действие композиции, потому что точки
-   * расширения заполняются только плагинами (см. `primitives/extension-point`).
-   */
-  readonly pluginManager: Omit<PluginManagerPluginOptions, 'translate'>;
   /** Порт платформы для превью. */
   readonly preview: PreviewHost;
   /**

@@ -157,12 +157,8 @@ export interface FilesHost {
    */
   useQuickFixTitle?(): Translate;
 
-  /** Умеет ли движок выбрать каталог вообще. Ответ не меняется за время жизни вкладки. */
-  canOpenProject(): boolean;
   /** Открыт ли проект прямо сейчас. */
   hasProject(): boolean;
-  /** Показывает выбор каталога и открывает проект. `false` — не открыли. */
-  openProject(): Promise<boolean>;
   /**
    * Недавние проекты — «Файл › Недавно открытые», `Ctrl+R` и стартовая страница.
    *
@@ -211,16 +207,6 @@ export interface FilesHost {
   isTextual(mediaType: string): boolean;
 
   /**
-   * Операции над записями проекта. `null` — проект не открыт, и делать их не над чем.
-   *
-   * Портом, а не службой из `@reformer/builder-plugin-api`, в отличие от запросов к человеку и буфера: операции
-   * живут и умирают вместе с ОТКРЫТЫМ ПРОЕКТОМ (они пишут в его источник и чинят его
-   * дерево), а служба в реестре пережила бы закрытие проекта и продолжала бы указывать
-   * на исчезнувший источник.
-   */
-  resources(): FilesResourceOperations | null;
-
-  /**
    * Что выделено в дереве проекта — набор, если щёлкнули по его строке, иначе одна строка.
    *
    * Нужен командам, вызванным С КЛАВИШИ: у пункта меню цель приходит аргументом, а у клавиши
@@ -233,25 +219,13 @@ export interface FilesHost {
 }
 
 /**
- * Операции над записями проекта — структурная копия платформенных.
+ * Операции над записями проекта ушли из порта в привилегированную службу.
  *
- * Копия, а не импорт: `plugins/**` не видит `@/shell`, и это правило слоёв, а не неудобство.
- * Совместимость проверяется компиляцией в одном месте — там, где композиция подставляет
- * настоящие операции.
+ * `reformer.workspace.resources` (`@reformer/builder-plugin-api`): создать, переименовать,
+ * перенести, удалить, скопировать, открыть каталог проекта. Портом они существовали только
+ * для встроенного плагина — внешнему такой порт не собрал бы никто, — а службой их видит
+ * любой, кто объявил право `workspace.resources` и получил подтверждение человека.
+ *
+ * `refresh` в переезд не попал: он уже был у соседней, НЕпривилегированной службы записей
+ * (`WorkspaceFilesService.refresh`), и второй его адрес означал бы два ответа на один вопрос.
  */
-export interface FilesResourceOperations {
-  createFile(dir: ResourceId, name: string, text?: string): Promise<ResourceId>;
-  createDirectory(dir: ResourceId, name: string): Promise<ResourceId>;
-  rename(id: ResourceId, name: string): Promise<ResourceId>;
-  move(id: ResourceId, dir: ResourceId): Promise<ResourceId>;
-  remove(ids: readonly ResourceId[]): Promise<FilesBatchResult>;
-  copy(ids: readonly ResourceId[], dir: ResourceId): Promise<FilesBatchResult>;
-  /** Перечитать уровень каталога: содержимое изменилось не нами. */
-  refresh(dir: ResourceId): Promise<void>;
-}
-
-/** Итог пакетной операции: что получилось и что нет. */
-export interface FilesBatchResult {
-  readonly done: readonly ResourceId[];
-  readonly failed: readonly { readonly id: ResourceId; readonly error: unknown }[];
-}

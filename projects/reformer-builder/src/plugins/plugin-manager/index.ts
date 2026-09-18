@@ -12,4 +12,4 @@
 export { createPluginManagerPlugin, PLUGIN_MANAGER_PLUGIN_ID } from './plugin';
 export type { PluginManagerPluginOptions } from './plugin';
 export { PLUGIN_MANAGER_MESSAGES } from './messages';
-export type { ManagedPlugin, PluginManagerHost, Translate } from './host';
+export type { Translate } from './host';

@@ -171,6 +171,7 @@
   "shell.settings.theme": "Theme",
   "shell.settings.theme.dark": "Dark",
   "shell.settings.theme.description": "Light, dark or follow the system.",
+  "shell.settings.origin.workspace": "Set by project settings (.ui_builder/settings.json); overrides the global value.",
   "shell.settings.theme.light": "Light",
   "shell.settings.theme.system": "Follow the system",
   "shell.settings.title": "Settings",

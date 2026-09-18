@@ -40,11 +40,20 @@ describe('fromProfile', () => {
     expect(ids).not.toContain('reformer.editor-schema');
   });
 
-  it('минимальный профиль целиком статичен: ленивая фаза пуста, а не «почти пуста»', async () => {
-    // Ни один из троих не приезжает своим файлом — значит `ready` не ждёт ни одного импорта.
+  it('способ доставки берётся из карты, а не из профиля', async () => {
+    // Редактор кода приезжает своим файлом ВЕЗДЕ, включая минимальный профиль: ленивость —
+    // свойство плагина (Monaco весит больше всего остального состава), и короткий профиль
+    // не вправе втянуть его в стартовый граф ради круглого «ленивая фаза пуста».
     const composition = fromProfile(minimalProfile);
+    const lazy = await composition.lazy(stubBuiltinOptions());
 
-    await expect(composition.lazy(stubBuiltinOptions())).resolves.toEqual([]);
+    expect(lazy.map((composed) => composed.plugin.id).sort()).toEqual([
+      'reformer.editor-monaco',
+      'reformer.files',
+    ]);
+    expect(composition.eager(stubBuiltinOptions()).map((composed) => composed.plugin.id)).toEqual([
+      'reformer.validator-schema',
+    ]);
   });
 
   it('ai-builder добавляет ассистента к минимальному — и только его', async () => {
@@ -72,10 +81,12 @@ describe('fromProfile', () => {
     const composition = fromProfile(aiBuilderProfile);
     const lazy = await composition.lazy(stubBuiltinOptions());
 
-    expect(lazy.map((composed) => composed.plugin.id)).toEqual(['reformer.ai']);
-    expect(composition.eager(stubBuiltinOptions()).map((composed) => composed.plugin.id)).toEqual([
-      'reformer.files',
+    expect(lazy.map((composed) => composed.plugin.id).sort()).toEqual([
+      'reformer.ai',
       'reformer.editor-monaco',
+      'reformer.files',
+    ]);
+    expect(composition.eager(stubBuiltinOptions()).map((composed) => composed.plugin.id)).toEqual([
       'reformer.validator-schema',
     ]);
   });
@@ -168,11 +179,13 @@ describe('fromProfile', () => {
     expect(() => fromProfile(absent)).toThrow(/«reformer.preview».*такой части в составе нет/s);
   });
 
-  it('extends разрешается через реестр профилей, а не через переданную основу', () => {
+  it('extends разрешается через реестр профилей, а не через переданную основу', async () => {
     // `ai-builder` называет основу именем; найти её умеет только реестр. Собери `fromProfile`
     // состав без него — унаследованных троих в приложении не было бы вовсе.
     const composition = fromProfile(aiBuilderProfile);
 
-    expect(composition.eager(stubBuiltinOptions()).length).toBe(3);
+    // Четверо унаследованных и своих: один статический и трое своими файлами.
+    expect(composition.eager(stubBuiltinOptions()).length).toBe(1);
+    expect((await composition.lazy(stubBuiltinOptions())).length).toBe(3);
   });
 });

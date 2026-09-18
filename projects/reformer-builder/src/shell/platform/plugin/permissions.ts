@@ -32,6 +32,8 @@
  */
 
 import {
+  PluginsCatalogCapability,
+  WorkspaceResourcesCapability,
   WorkspaceSaveCapability,
   type PluginPermission,
   type ServiceRegistry,
@@ -48,7 +50,11 @@ import type { Disposable } from '@reformer/builder-plugin-api/internal';
 export const PRIVILEGED_SERVICES: ReadonlyMap<string, PluginPermission> = new Map<
   string,
   PluginPermission
->([[WorkspaceSaveCapability.id, 'workspace.save']]);
+>([
+  [WorkspaceSaveCapability.id, 'workspace.save'],
+  [WorkspaceResourcesCapability.id, 'workspace.resources'],
+  [PluginsCatalogCapability.id, 'plugins.manage'],
+]);
 
 /** Отказ по праву. Отдельный класс, чтобы интерфейс не разбирал текст сообщения. */
 export class PluginPermissionError extends Error {

@@ -4,5 +4,6 @@
   "apiVersion": "^1",
   "builtin": {
     "loading": "lazy"
-  }
+  },
+  "permissions": ["plugins.manage"]
 }

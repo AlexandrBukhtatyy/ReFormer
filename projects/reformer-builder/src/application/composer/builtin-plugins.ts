@@ -61,6 +61,7 @@ import type { Plugin } from '@reformer/builder-plugin-api/internal';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
+import { BUILDER_VERSION } from '@/shell/platform/version';
 
 // Манифесты — ВСЕХ одиннадцати, включая ленивых: JSON это лист, кода плагина за ним нет.
 import aiManifest from '@/plugins/ai/manifest.json';
@@ -78,8 +79,6 @@ import validatorManifest from '@/plugins/validator-schema/manifest.json';
 // Код — только статических: их значения нужны композиции, и довод у каждого в его манифесте.
 // Ленивых здесь нет ВОВСЕ — ни значением, ни типом: их код приезжает литеральными `import()`
 // внутри их же записей, а типы нужны только опциям, то есть оболочке.
-import { createFilesPlugin } from '@/plugins/files';
-import { createMonacoEditorPlugin } from '@/plugins/editor-monaco';
 import { createKitsPlugin } from '@/plugins/kits';
 import { createPreviewPlugin } from '@/plugins/preview';
 import { createSchemaValidatorPlugin } from '@/plugins/validator-schema';
@@ -134,7 +133,7 @@ export type BuiltinPluginEntry = EagerBuiltinPlugin | LazyBuiltinPlugin;
  * данные, а сломанное приложение. Падает оно при загрузке модуля, то есть в первом же тесте.
  */
 function builtinManifest(raw: unknown): BuiltinPluginManifest {
-  const parsed = parsePluginManifestValue(raw, { kind: 'builtin' });
+  const parsed = parsePluginManifestValue(raw, { kind: 'builtin' }, { builder: BUILDER_VERSION });
   if (!parsed.ok) {
     const id = (raw as { id?: unknown }).id;
     throw new Error(
@@ -179,16 +178,29 @@ function lazyBuiltin(
 const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[]>([
   // Точки расширения подставляются ЗДЕСЬ: плагин объявил их структурно (`plugins/files/host`),
   // потому что `@reformer/builder-plugin-api` панелей и редакторов не отдаёт, а импортировать `@/shell` ему нельзя.
-  eagerBuiltin(filesManifest, (options) =>
-    createFilesPlugin({ host: options.files, panelPoint: PanelPoint, editorPoint: EditorPoint })
-  ),
+  // Панель файлов приезжает своим файлом: композиции от неё нужны только идентификатор
+  // и словарь, и оба живут листами (`files/contract`, `files/messages`).
+  lazyBuiltin(filesManifest, async (options) => {
+    const files = await import('@/plugins/files');
+    return files.createFilesPlugin({
+      host: options.files,
+      panelPoint: PanelPoint,
+      editorPoint: EditorPoint,
+    });
+  }),
   // Каталог кита плагин берёт из реестра служб сам; параметров здесь не осталось вовсе.
   eagerBuiltin(validatorManifest, () => createSchemaValidatorPlugin({})),
   // Приоритет 10 против 1 у временного `textarea` в плагине файлов: Monaco его вытесняет,
   // но уступает структурному редактору схемы (100). Сам `TextEditor.tsx` при этом остаётся
   // запасным путём — на случай, когда движок не загрузился. Ни реестра фокуса, ни хранилища
   // снимков вида здесь нет: оба — возможности оболочки, и плагин берёт их из `ctx.services`.
-  eagerBuiltin(monacoManifest, (options) => createMonacoEditorPlugin({ host: options.monaco })),
+  // Редактор кода — самый тяжёлый плагин состава (Monaco целиком), и держало его в стартовом
+  // графе не поведение, а один импорт значения: порт брал идентификатор из бареля. Довод снят
+  // выносом идентификатора в `contract.ts`.
+  lazyBuiltin(monacoManifest, async (options) => {
+    const monaco = await import('@/plugins/editor-monaco');
+    return monaco.createMonacoEditorPlugin({ host: options.monaco });
+  }),
   eagerBuiltin(kitsManifest, (options) => createKitsPlugin({ ...options.kits })),
   // Точку поверхностей плагин объявляет структурно — `@reformer/builder-plugin-api` её пока не отдаёт, как и
   // `defineExtensionPoint`, которым чужой плагин мог бы объявить свою. Пока поверхности
@@ -212,9 +224,11 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
       modelPoint: DocumentModelPoint,
     });
   }),
-  lazyBuiltin(pluginManagerManifest, async (options) => {
+  lazyBuiltin(pluginManagerManifest, async () => {
     const pluginManager = await import('@/plugins/plugin-manager');
-    return pluginManager.createPluginManagerPlugin({ ...options.pluginManager });
+    // Опций не осталось: каталог плагинов плагин берёт ПРИВИЛЕГИРОВАННОЙ службой из
+    // `ctx.services`, объявив право `plugins.manage` манифестом.
+    return pluginManager.createPluginManagerPlugin();
   }),
   // Опций нет ВОВСЕ: рабочую область ассистент собирает из возможностей сам, и порта
   // у него не осталось ни одного члена.

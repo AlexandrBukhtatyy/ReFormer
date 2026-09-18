@@ -98,6 +98,8 @@ import {
   type NotificationsService,
 } from '@reformer/builder-plugin-api/internal';
 import { createIdbSettingsBackend } from '@/shell/platform/services/settings-idb';
+import { createLayeredSettingsBackend } from '@/shell/platform/services/settings-layers';
+import { createProjectSettingsBackend } from '@/shell/platform/services/settings-project';
 import { createSettingsService } from '@/shell/platform/services/settings';
 import { SettingsServiceToken, type SettingsService } from '@reformer/builder-plugin-api/internal';
 import { createBrowserSystemTheme, createThemeService } from '@/shell/platform/services/theme';
@@ -123,8 +125,8 @@ import {
 } from '@/shell/platform/workspace/storage/purge';
 import { createJournalRelief } from '@/shell/platform/workspace/journal/journal';
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
-import { FILES_MESSAGES } from '@/plugins/files';
-import { FILES_PLUGIN_ID } from '@/plugins/files';
+import { FILES_MESSAGES } from '@/plugins/files/messages';
+import { FILES_PLUGIN_ID } from '@/plugins/files/contract';
 import { createFilesHost } from '@/shell/boot/ports/files';
 import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
@@ -134,8 +136,11 @@ import { createLiveSurfacePort } from '@/shell/boot/ports/live-surface';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
 import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
+import { PluginsCatalogServiceToken } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceResourcesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createWorkspaceSave } from '@/shell/boot/ports/workspace-save';
+import { createWorkspaceResourcesService } from '@/shell/boot/ports/workspace-resources';
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import {
   projectFailureAction,
@@ -407,7 +412,14 @@ export function boot(options: BootOptions): BuilderApp {
     onQuotaPressure: createJournalRelief((id) => journals.get(id)),
   });
   const settingsStore = createIdbSettingsBackend(meta);
-  const settings = createSettingsService(settingsStore);
+  // Настройки ПРОЕКТА живут файлом в самом проекте, а не в браузере: они про то, как настроен
+  // этот проект, и обязаны ехать в git вместе с формами, которые настраивают. Прежнее место
+  // (IndexedDB) остаётся читаемым, пока файла нет, и принимает запись, когда источник
+  // её не принимает (см. `services/settings-layers`).
+  const projectSettings = createProjectSettingsBackend();
+  const settings = createSettingsService(
+    createLayeredSettingsBackend({ browser: settingsStore, project: projectSettings })
+  );
   const i18n = createI18nService();
   const theme = createThemeService({
     settings,
@@ -518,6 +530,9 @@ export function boot(options: BootOptions): BuilderApp {
   // на плагин, — потому что без политики прав отдавать её реестром было нельзя. Политика
   // появилась, и служба встала на общий адрес: кому её видно, решает право в манифесте.
   services.register(WorkspaceSaveServiceToken, { save: createWorkspaceSave({ project }) });
+  // Правка записей проекта — вторая привилегированная служба и по той же причине, что первая:
+  // действие выходит наружу, за пределы рабочей копии в браузере.
+  services.register(WorkspaceResourcesServiceToken, createWorkspaceResourcesService({ project }));
 
   const plugins = createPluginRegistry({
     services,
@@ -728,6 +743,54 @@ export function boot(options: BootOptions): BuilderApp {
    * и состояния превью стали возможностями и живут в реестре служб, — поэтому правильность
    * больше не держится на «это обязан быть тот же объект».
    */
+  /**
+   * Каталог плагинов — ПРИВИЛЕГИРОВАННАЯ служба (право `plugins.manage`).
+   *
+   * Сам каталог структурно шире интерфейса службы, и эта регистрация — то единственное
+   * место, где их совместимость проверяется компиляцией. Установка и удаление дописываются
+   * здесь: каталог о реестре npm не знает и знать не должен, а спросить имя пакета можно
+   * только там, где есть служба диалогов.
+   */
+  services.register(PluginsCatalogServiceToken, {
+    ...projectPlugins,
+    list: () => projectPlugins.list(),
+    install: async () => {
+      const name = await prompt.input({
+        titleKey: 'shell.plugins.install.title',
+        descriptionKey: 'shell.plugins.install.description',
+        labelKey: 'shell.plugins.install.label',
+      });
+      if (name === null || name.trim() === '') return;
+
+      const result = await installPluginFromNpm(
+        {
+          registry: npmRegistry,
+          store: installedStore,
+          registryUrl: DEFAULT_NPM_REGISTRY,
+        },
+        { package: name.trim() }
+      );
+      if (!result.ok) {
+        notifications.error('plugins.install-failed', {
+          params: { package: name.trim(), message: result.problem.message },
+        });
+        return;
+      }
+      // Установка не включает: плагин появляется в списке выключенным, как и положенный
+      // в каталог руками. Решение «пусть этот код работает» остаётся за человеком.
+      await projectPlugins.refresh();
+      notifications.info('plugins.installed', {
+        params: { id: result.record.id, version: result.record.version },
+      });
+    },
+    rollback: (id: string) => rollbackInstalled(id),
+    uninstall: async (id: string) => {
+      projectPlugins.disable(id);
+      await installedStore.uninstall(id);
+      await projectPlugins.refresh();
+    },
+  });
+
   const builtinOptions: BuiltinPluginsOptions = {
     files: createFilesHost({ project, extensions, i18n, commands, whenContext }),
     monaco: monacoHost,
@@ -751,51 +814,6 @@ export function boot(options: BootOptions): BuilderApp {
       // `settings` НЕ передаются намеренно: плагин берёт их из реестра сервисов —
       // единственным путём, доступным плагину из каталога. Передай мы параметром,
       // этот путь остался бы непроверенным, а другого у внешнего плагина нет.
-    },
-    pluginManager: {
-      // Порт — сам каталог: `ProjectPluginCatalog` структурно шире `PluginManagerHost`,
-      // и эта строка — то единственное место, где их совместимость проверяется компиляцией.
-      // Установка и удаление дописываются здесь: каталог о реестре npm не знает и знать
-      // не должен, а спросить имя пакета можно только там, где есть служба диалогов.
-      host: {
-        ...projectPlugins,
-        list: () => projectPlugins.list(),
-        install: async () => {
-          const name = await prompt.input({
-            titleKey: 'shell.plugins.install.title',
-            descriptionKey: 'shell.plugins.install.description',
-            labelKey: 'shell.plugins.install.label',
-          });
-          if (name === null || name.trim() === '') return;
-
-          const result = await installPluginFromNpm(
-            {
-              registry: npmRegistry,
-              store: installedStore,
-              registryUrl: DEFAULT_NPM_REGISTRY,
-            },
-            { package: name.trim() }
-          );
-          if (!result.ok) {
-            notifications.error('plugins.install-failed', {
-              params: { package: name.trim(), message: result.problem.message },
-            });
-            return;
-          }
-          // Установка не включает: плагин появляется в списке выключенным, как и положенный
-          // в каталог руками. Решение «пусть этот код работает» остаётся за человеком.
-          await projectPlugins.refresh();
-          notifications.info('plugins.installed', {
-            params: { id: result.record.id, version: result.record.version },
-          });
-        },
-        rollback: (id: string) => rollbackInstalled(id),
-        uninstall: async (id: string) => {
-          projectPlugins.disable(id);
-          await installedStore.uninstall(id);
-          await projectPlugins.refresh();
-        },
-      },
     },
     preview: previewHost,
     // Дыр у обоих не осталось: сохранение уехало в привилегированную службу, и композиции
@@ -852,6 +870,7 @@ export function boot(options: BootOptions): BuilderApp {
         // `forget` обязателен: без него запись, сделанная в прежнем проекте, считалась бы
         // «своей, более новой» и переехала бы в новый.
         settingsStore.useWorkspace(project.get()?.workspaceId ?? null);
+        projectSettings.useSource(project.get()?.source ?? null);
         return settings.hydrate({ forget: ['workspace'] });
       })
       .then(async () => {

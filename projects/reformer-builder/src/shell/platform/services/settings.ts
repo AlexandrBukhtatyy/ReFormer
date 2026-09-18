@@ -71,6 +71,18 @@ export interface HostSettingsService extends SettingsService {
    * пока читалось хранилище, и вернуть ему прежнюю было бы откатом уже совершённого действия.
    */
   hydrate(options?: HydrateOptions): Promise<void>;
+  /**
+   * Откуда пришло ДЕЙСТВУЮЩЕЕ значение ключа.
+   *
+   * Слои без указания источника превращаются в «почему у меня не применяется»: человек правит
+   * настройку, она перекрыта проектом, и на экране ничего не меняется. Ответ на этот вопрос
+   * знает только кэш, поэтому он и отвечает.
+   *
+   * `'default'` — умолчание вклада, `undefined` — ключа не знает никто. Не в
+   * {@link SettingsService} по той же причине, что и `hydrate`: плагину нужно значение,
+   * а происхождение — вопрос того, кто рисует настройки.
+   */
+  scopeOf(key: string): SettingsScope | 'default' | undefined;
 }
 
 /** Как перечитывать хранилище. */
@@ -159,6 +171,14 @@ export function createSettingsService(backend: SettingsBackend): HostSettingsSer
     get<T>(key: string): T | undefined {
       // Единственное приведение: в кэше лежит `unknown`, типом ключа служба не располагает.
       return effective(key) as T | undefined;
+    },
+
+    scopeOf(key: string): SettingsScope | 'default' | undefined {
+      // Порядок тот же, что у `effective`, и это не совпадение: ответ обязан описывать
+      // ровно то значение, которое вернёт `get`.
+      if (stores.workspace.has(key)) return 'workspace';
+      if (stores.user.has(key)) return 'user';
+      return defaults.has(key) ? 'default' : undefined;
     },
 
     async set<T>(key: string, value: T, scope: SettingsScope = scopeForKey(key)): Promise<void> {

@@ -50,9 +50,7 @@ function fakeHost(overrides: Partial<FilesHost> = {}): FilesHost {
   return {
     ResourceTreePanel: () => null,
     useTranslate: () => (key: string) => key,
-    canOpenProject: () => true,
     hasProject: () => false,
-    openProject: () => Promise.resolve(true),
     save: () => Promise.resolve(true),
     saveAll: () => Promise.resolve(true),
     activeResource: () => null,
@@ -60,7 +58,6 @@ function fakeHost(overrides: Partial<FilesHost> = {}): FilesHost {
     documentOf: () => null,
     writeText: () => Promise.resolve(),
     isTextual: () => true,
-    resources: () => null,
     treeSelection: () => [],
     treeRoot: () => null,
     ...overrides,
@@ -139,17 +136,26 @@ describe('стартовая страница', () => {
     const openFolder = vi.fn();
 
     renderReact(
-      <WelcomePage host={fakeHost()} openFolder={openFolder} openRecent={() => undefined} />
+      <WelcomePage
+        host={fakeHost()}
+        canOpenFolder
+        openFolder={openFolder}
+        openRecent={() => undefined}
+      />
     );
     await userEvent.click(page.getByRole('button', { name: 'files.command.openProject' }));
 
     expect(openFolder).toHaveBeenCalledOnce();
   });
 
-  it('браузер без выбора каталога — кнопка погашена и объяснено почему', async () => {
+  it('выбирать каталог нельзя — кнопка погашена и объяснено почему', async () => {
+    // Два разных «нельзя» приходят сюда ОДНИМ ответом: движок браузера не умеет выбирать
+    // каталог или плагину не подтвердили право `workspace.resources`. Странице разбирать
+    // их незачем — объяснение на экране одно и то же.
     renderReact(
       <WelcomePage
-        host={fakeHost({ canOpenProject: () => false })}
+        host={fakeHost()}
+        canOpenFolder={false}
         openFolder={() => undefined}
         openRecent={() => undefined}
       />

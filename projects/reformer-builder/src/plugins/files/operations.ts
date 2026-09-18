@@ -39,7 +39,11 @@ import {
   type ResourceId,
   type ResourceRef,
 } from '@reformer/builder-plugin-api';
-import type { FilesHost, FilesResourceOperations, Translate } from './host';
+import type {
+  WorkspaceFilesService,
+  WorkspaceResourcesService,
+} from '@reformer/builder-plugin-api';
+import type { FilesHost, Translate } from './host';
 import { FILES_PLUGIN_ID, type FilesCommand } from './plugin';
 
 export const NEW_FILE_COMMAND_ID = 'files.newFile';
@@ -67,6 +71,22 @@ export interface ResourceCommandArgs {
 
 export interface FilesOperationsDeps {
   readonly host: FilesHost;
+  /**
+   * Правка записей проекта — привилегированная служба (право `workspace.resources`).
+   *
+   * Необязательна, и это названная деградация, а не поломка: без права команды создания,
+   * переименования, удаления и копирования недоступны, а панель файлов продолжает работать
+   * как просмотр. Ровно так же здесь ведут себя запросы к человеку и буфер записей.
+   */
+  readonly resources?: WorkspaceResourcesService | null;
+  /**
+   * Чтение записей рабочей области — НЕпривилегированная служба, нужна ради `refresh`.
+   *
+   * Перечитывание уровня каталога не правит проект, оно правит НАШ снимок: дерево читает
+   * уровни лениво, и созданное мимо интерфейса в нём само не появится. Поэтому `refresh`
+   * остался у службы чтения и права не требует — команда «Обновить» работает и без него.
+   */
+  readonly workspaceFiles?: Pick<WorkspaceFilesService, 'refresh'> | null;
   /** Запросы к человеку. Без них команды, которым нужно имя или согласие, недоступны. */
   readonly prompt?: PromptService | null;
   /** Буфер записей. Без него копирование и вставка недоступны. */
@@ -164,10 +184,19 @@ function report(deps: FilesOperationsDeps, messageKey: string, error?: unknown):
   deps.notifications?.error(messageKey);
 }
 
-/** Операции открытого проекта или отказ с уведомлением: без проекта делать нечего. */
-function operationsOf(deps: FilesOperationsDeps): FilesResourceOperations | null {
-  const operations = deps.host.resources();
-  if (operations === null) report(deps, 'files.notify.noProject');
+/**
+ * Операции открытого проекта или отказ с уведомлением.
+ *
+ * Два разных «нельзя» отвечают одинаково человеку и по-разному нам: службы нет — права
+ * не дали; проекта нет — менять нечего. Второе проверяется по `hasProject`, потому что
+ * сама служба без проекта бросает, а исключение из команды выглядело бы поломкой.
+ */
+function operationsOf(deps: FilesOperationsDeps): WorkspaceResourcesService | null {
+  const operations = deps.resources ?? null;
+  if (operations === null || !deps.host.hasProject()) {
+    report(deps, 'files.notify.noProject');
+    return null;
+  }
   return operations;
 }
 
@@ -373,12 +402,11 @@ export function filesOperationCommands(deps: FilesOperationsDeps): readonly File
       titleKey: 'files.command.refresh',
       enabled: () => host.hasProject(),
       run: async (args) => {
-        const operations = operationsOf(deps);
         const dir = directory(args, host);
-        if (operations === null || dir === null) return false;
-        // Перечитывание уровня выражено пустым копированием? Нет: у операций для этого
-        // есть собственный глагол — дерево чинит тот, кто его же и портит.
-        await operations.refresh(dir);
+        // Права здесь не спрашиваем: перечитать уровень — это поправить свой снимок,
+        // а не проект. Глагол у службы чтения свой, и пустым копированием он не выражается.
+        if (deps.workspaceFiles == null || dir === null) return false;
+        await deps.workspaceFiles.refresh(dir);
         return true;
       },
     },

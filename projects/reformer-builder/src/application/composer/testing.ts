@@ -86,6 +86,5 @@ export function stubBuiltinOptions(): BuiltinPluginsOptions {
     codegen: stubHost(),
     templates: stubHost(),
     kits: {},
-    pluginManager: { host: stubHost() },
   };
 }

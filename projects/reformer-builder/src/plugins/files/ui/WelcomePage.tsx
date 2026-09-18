@@ -27,6 +27,13 @@ export interface WelcomePageActions {
 
 export interface WelcomePageProps extends WelcomePageActions {
   readonly host: FilesHost;
+  /**
+   * Умеет ли приложение выбрать каталог И разрешено ли это плагину.
+   *
+   * Значением, а не вопросом к порту: ответ складывается из движка браузера и права
+   * `workspace.resources`, а страница ни о том, ни о другом знать не должна.
+   */
+  readonly canOpenFolder?: boolean;
 }
 
 /** Пустой список: одна ссылка вместо нового массива — её сравнивает `useSyncExternalStore`. */
@@ -48,10 +55,15 @@ function useRecentProjects(recent: FilesRecentProjects | undefined): readonly Fi
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
-export function WelcomePage({ host, openFolder, openRecent }: WelcomePageProps): ReactElement {
+export function WelcomePage({
+  host,
+  openFolder,
+  openRecent,
+  canOpenFolder = false,
+}: WelcomePageProps): ReactElement {
   const t = host.useTranslate();
   const projects = useRecentProjects(host.recent);
-  const canOpen = host.canOpenProject();
+  const canOpen = canOpenFolder;
   const shown = projects.slice(0, WELCOME_RECENT_LIMIT);
 
   return (

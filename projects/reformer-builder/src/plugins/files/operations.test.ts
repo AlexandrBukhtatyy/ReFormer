@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { WhenContext } from '@reformer/builder-plugin-api';
-import type { FilesBatchResult, FilesHost, FilesResourceOperations } from './host';
+import type { WorkspaceBatchResult, WorkspaceResourcesService } from '@reformer/builder-plugin-api';
+import type { FilesHost } from './host';
 import {
   COPY_COMMAND_ID,
   CUT_COMMAND_ID,
@@ -43,7 +44,8 @@ function context(focus: WhenContext['focus'] = 'tree'): WhenContext {
 
 interface Harness {
   readonly commands: ReturnType<typeof filesOperationCommands>;
-  readonly operations: FilesResourceOperations & {
+  readonly operations: WorkspaceResourcesService & {
+    refresh(dir: string): Promise<void>;
     readonly calls: { name: string; args: unknown[] }[];
   };
   readonly prompt: {
@@ -73,7 +75,9 @@ function harness(
     clipboardState?: { mode: 'copy' | 'cut'; items: readonly string[] };
     answer?: string | null;
     agreed?: boolean;
-    batch?: FilesBatchResult;
+    /** `false` — право `workspace.resources` не подтверждено, службы нет. */
+    permitted?: boolean;
+    batch?: WorkspaceBatchResult;
   } = {}
 ): Harness {
   const calls: { name: string; args: unknown[] }[] = [];
@@ -132,13 +136,16 @@ function harness(
   const errors: string[] = [];
   const host = {
     hasProject: () => options.hasProject ?? true,
-    resources: () => ((options.hasProject ?? true) ? operations : null),
     treeSelection: () => options.selection ?? [],
     treeRoot: () => ROOT,
   } as unknown as FilesHost;
 
   const commands = filesOperationCommands({
     host,
+    // Право `workspace.resources` подтверждено — служба пришла. Случай «не подтверждено»
+    // проверяется отдельно: там её нет вовсе.
+    resources: options.permitted === false ? null : operations,
+    workspaceFiles: { refresh: (dir: string) => operations.refresh(dir) },
     prompt: prompt as never,
     clipboard: clipboard as never,
     notifications: {

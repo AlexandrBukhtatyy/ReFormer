@@ -33,6 +33,7 @@
 
 import { parsePluginManifest, PLUGIN_MANIFEST_FILE } from '@reformer/builder-plugin-api/internal';
 import type { PluginProblem } from '@reformer/builder-plugin-api/internal';
+import { BUILDER_VERSION } from '@/shell/platform/version';
 
 import { readNpmPackage } from '../npm/package';
 import type { NpmRegistryClient } from '../npm/registry';
@@ -100,7 +101,11 @@ export async function installPluginFromNpm(
   if (declaredId === undefined) {
     return fail('manifest-invalid', `${PLUGIN_MANIFEST_FILE} пакета не содержит строкового «id»`);
   }
-  const parsed = parsePluginManifest(text, { kind: 'project', dir: declaredId });
+  const parsed = parsePluginManifest(
+    text,
+    { kind: 'project', dir: declaredId },
+    { builder: BUILDER_VERSION }
+  );
   if (!parsed.ok) return { ok: false, problem: parsed.problem };
 
   await deps.store.install({

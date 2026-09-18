@@ -15,9 +15,14 @@
  */
 
 import manifest from './manifest.json';
-import { definePlugin, PaletteItemsPoint } from '@reformer/builder-plugin-api';
+import {
+  definePlugin,
+  PaletteItemsPoint,
+  PluginsCatalogServiceToken,
+} from '@reformer/builder-plugin-api';
 import type { PaletteItem, PaletteItemProvider, Plugin } from '@reformer/builder-plugin-api';
-import type { ManagedPlugin, PluginManagerHost, Translate } from './host';
+import type { ManagedPlugin, PluginsCatalogService } from '@reformer/builder-plugin-api';
+import type { Translate } from './host';
 import { PLUGIN_MANAGER_MESSAGES } from './messages';
 
 export const PLUGIN_MANAGER_PLUGIN_ID = manifest.id;
@@ -25,9 +30,14 @@ export const PLUGIN_MANAGER_PLUGIN_ID = manifest.id;
 /** Идентификатор поставщика пунктов — адрес вклада в точке палитры. */
 export const PLUGIN_MANAGER_PALETTE_PROVIDER_ID = 'plugin-manager.actions';
 
-export interface PluginManagerPluginOptions {
-  readonly host: PluginManagerHost;
-}
+/**
+ * Опций у плагина нет.
+ *
+ * Каталог приезжал портом, пока распоряжаться плагинами мог только встроенный: собрать такой
+ * порт внешнему было некому. Теперь это привилегированная служба с правом `plugins.manage`,
+ * и путь у встроенного тот же, что у внешнего, — иначе он остался бы непроверенным.
+ */
+export type PluginManagerPluginOptions = Record<string, never>;
 
 /** Пояснение справа от пункта: у упавшего — причина, у наблюдаемого — режим. */
 const detailOf = (plugin: ManagedPlugin, t: Translate): string | undefined => {
@@ -38,7 +48,7 @@ const detailOf = (plugin: ManagedPlugin, t: Translate): string | undefined => {
 };
 
 export function createPluginManagerPaletteProvider(
-  host: PluginManagerHost,
+  host: PluginsCatalogService,
   t: Translate
 ): PaletteItemProvider {
   return {
@@ -118,22 +128,26 @@ export function createPluginManagerPaletteProvider(
   };
 }
 
-export function createPluginManagerPlugin(options: PluginManagerPluginOptions): Plugin {
+export function createPluginManagerPlugin(): Plugin {
   return definePlugin({
     id: PLUGIN_MANAGER_PLUGIN_ID,
     activate(ctx) {
       for (const [locale, messages] of Object.entries(PLUGIN_MANAGER_MESSAGES)) {
         ctx.i18n.contribute(locale, messages);
       }
+
+      // Право `plugins.manage` не подтвердили — распоряжаться нечем, и пунктов палитры нет.
+      // Это названная деградация, а не поломка: словарь плагин всё равно внёс, и человек
+      // видит в настройках, какого права ему не хватает.
+      const catalog = ctx.services.get(PluginsCatalogServiceToken);
+      if (catalog === undefined) return;
       // Перевод НЕ реактивный, и это цена не-компонентного вклада: пункты палитры строит
       // поставщик, а не компонент, и хука там быть не может. Смена локали перестроит их
       // на следующем открытии палитры.
       ctx.subscriptions.push(
         ctx.extensions.contribute(
           PaletteItemsPoint,
-          createPluginManagerPaletteProvider(options.host, (key, params) =>
-            ctx.i18n.t(key, params)
-          ),
+          createPluginManagerPaletteProvider(catalog, (key, params) => ctx.i18n.t(key, params)),
           { id: PLUGIN_MANAGER_PALETTE_PROVIDER_ID }
         )
       );

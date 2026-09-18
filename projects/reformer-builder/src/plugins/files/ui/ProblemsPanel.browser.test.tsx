@@ -75,9 +75,7 @@ function fakeHost(openResource: (id: ResourceId) => void): FilesHost {
     useDiagnosticMessage: () => (code: string) => `⟨${code}⟩`,
     useQuickFixTitle: () => (key: string) =>
       key === FIX.titleKey ? 'Убрать осиротевшее правило' : key,
-    canOpenProject: () => true,
     hasProject: () => true,
-    openProject: () => Promise.resolve(true),
     save: () => Promise.resolve(true),
     saveAll: () => Promise.resolve(true),
     activeResource: () => RESOURCE,
@@ -88,7 +86,6 @@ function fakeHost(openResource: (id: ResourceId) => void): FilesHost {
     isTextual: () => true,
     // Операции, дерево и корень — то, чем пользуются команды дерева; двойник отвечает
     // «проекта нет», и этого хватает всем тестам, которые про них не спрашивают.
-    resources: () => null,
     treeSelection: () => [],
     treeRoot: () => null,
   };

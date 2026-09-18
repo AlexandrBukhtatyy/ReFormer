@@ -329,6 +329,17 @@ function SettingRow({
             {i18n.t(field.descriptionKey)}
           </p>
         )}
+        {/* Пометка только про ПЕРЕКРЫТИЕ: «значение из проекта» объясняет, почему правка
+            глобальной настройки ничего не меняет. Остальные слои человека не удивляют,
+            и подписывать их значило бы приучить не читать пометки вовсе. */}
+        {field.origin?.() === 'workspace' && (
+          <p
+            className="text-muted-foreground mt-1 text-[11px]"
+            data-testid={`setting-${field.id}-origin`}
+          >
+            {i18n.t('shell.settings.origin.workspace')}
+          </p>
+        )}
       </div>
 
       <div className="w-64 flex-none">

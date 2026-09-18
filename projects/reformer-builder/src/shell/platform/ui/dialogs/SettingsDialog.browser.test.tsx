@@ -46,7 +46,9 @@ interface Fixture {
   unmount(): void;
 }
 
-async function mountDialog(options: { failing?: boolean } = {}): Promise<Fixture> {
+async function mountDialog(
+  options: { failing?: boolean; origin?: 'user' | 'workspace' | 'default' } = {}
+): Promise<Fixture> {
   const written: string[] = [];
   let theme = 'light';
   const sections: readonly SettingsSection[] = [
@@ -68,6 +70,7 @@ async function mountDialog(options: { failing?: boolean } = {}): Promise<Fixture
             written.push(value);
             theme = value;
           },
+          ...(options.origin === undefined ? {} : { origin: () => options.origin }),
         },
       ],
     },
@@ -204,5 +207,22 @@ describe('окно настроек', () => {
 
     await expect.element(page.getByText('Не удалось применить')).toBeVisible();
     fixture.unmount();
+  });
+});
+
+describe('слой значения', () => {
+  it('перекрытое проектом значение объясняется, а остальное молчит', async () => {
+    // Без этой пометки человек правит глобальную настройку, она перекрыта проектом,
+    // на экране ничего не меняется — и вывод «билдер сломан» делается сам собой.
+    const overridden = await mountDialog({ origin: 'workspace' });
+    await overridden.open();
+    await expect.element(page.getByTestId('setting-theme-origin')).toBeVisible();
+    overridden.unmount();
+
+    const own = await mountDialog({ origin: 'user' });
+    await own.open();
+    // Подписывать непримечательное — значит приучить не читать пометки вовсе.
+    expect(document.querySelector('[data-testid="setting-theme-origin"]')).toBeNull();
+    own.unmount();
   });
 });

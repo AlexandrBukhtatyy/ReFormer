@@ -62,6 +62,7 @@ import {
   type ProjectPluginManifest,
 } from '@reformer/builder-plugin-api/internal';
 import type { Plugin } from '@reformer/builder-plugin-api/internal';
+import { BUILDER_VERSION } from '@/shell/platform/version';
 
 /**
  * Найденный в каталоге плагин.
@@ -288,7 +289,11 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
           continue;
         }
 
-        const parsed = parsePluginManifest(text, { kind: 'project', dir: entry.name });
+        const parsed = parsePluginManifest(
+          text,
+          { kind: 'project', dir: entry.name },
+          { builder: BUILDER_VERSION }
+        );
         found.push(
           parsed.ok
             ? { id: entry.name, dir: pluginDir, manifest: parsed.manifest }

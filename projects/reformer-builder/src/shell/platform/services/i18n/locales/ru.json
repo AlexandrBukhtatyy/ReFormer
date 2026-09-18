@@ -171,6 +171,7 @@
   "shell.settings.theme": "Тема",
   "shell.settings.theme.dark": "Тёмная",
   "shell.settings.theme.description": "Светлая, тёмная или как в системе.",
+  "shell.settings.origin.workspace": "Значение задано настройками проекта (.ui_builder/settings.json) и перекрывает глобальное.",
   "shell.settings.theme.light": "Светлая",
   "shell.settings.theme.system": "Как в системе",
   "shell.settings.title": "Настройки",

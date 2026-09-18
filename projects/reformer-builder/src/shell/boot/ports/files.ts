@@ -28,7 +28,7 @@ import { actionTargets, flattenTree } from '@/shell/platform/ui/state/resource-t
 import type { ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
 import type { FilesDocument, FilesHost, Translate } from '@/plugins/files';
-import { FILES_PLUGIN_ID } from '@/plugins/files';
+import { FILES_PLUGIN_ID } from '@/plugins/files/contract';
 import { makeUseDiagnosticMessage, makeUseHostMessage } from './monaco';
 import { ProjectTree } from '@/shell/boot/project/ProjectTree';
 import type { ProjectHost } from '@/shell/boot/project/project';
@@ -65,6 +65,7 @@ export function createFilesHost(deps: FilesHostDeps): FilesHost {
     createElement(ProjectTree, { project, extensions, i18n, commands, whenContext });
 
   return {
+    hasProject: () => project.get() !== null,
     ResourceTreePanel,
     useTranslate: makeUseTranslate(i18n),
     useDiagnosticMessage: makeUseDiagnosticMessage(i18n),
@@ -82,10 +83,6 @@ export function createFilesHost(deps: FilesHostDeps): FilesHost {
         console.error(`[files] переход к «${id}» не удался`, error);
       });
     },
-
-    canOpenProject: () => project.canOpen(),
-    hasProject: () => project.get() !== null,
-    openProject: () => project.open(),
 
     // Недавние — проекция записей рабочих областей, которой владеет держатель проекта.
     // Список живёт дольше любой сессии, поэтому и спрашивается у держателя, а не у сессии.
@@ -139,11 +136,6 @@ export function createFilesHost(deps: FilesHostDeps): FilesHost {
     },
 
     isTextual: (mediaType: string) => isTextMediaType(mediaType),
-
-    // Операции читаются из ТЕКУЩЕЙ сессии на каждый вызов: проект закрывают и открывают
-    // заново, а плагин активируется один раз — захваченные операции писали бы в источник,
-    // которого уже нет.
-    resources: () => project.get()?.resources ?? null,
 
     // К чему применится действие, вызванное С КЛАВИШИ: у пункта меню цель приходит
     // аргументом, а у клавиши аргументов нет вовсе. Правило «набор, если фокус внутри

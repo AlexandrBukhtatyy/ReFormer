@@ -11,6 +11,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { DiagnosticsServiceToken } from '@reformer/builder-plugin-api';
+import type { WorkspaceResourcesService } from '@reformer/builder-plugin-api';
 import type {
   Diagnostic,
   DiagnosticsService,
@@ -92,13 +93,28 @@ function ref(path: string, mediaType: string): ResourceRef {
   return { id: `fs:${path}`, sourceId: 'fs', path, name: path, kind: 'file', mediaType };
 }
 
+/** Двойник привилегированной службы записей: по умолчанию всё разрешено и всё получается. */
+function fakeResources(
+  overrides: Partial<WorkspaceResourcesService> = {}
+): WorkspaceResourcesService {
+  return {
+    canOpenProject: () => true,
+    openProject: () => Promise.resolve(true),
+    createFile: () => Promise.resolve('fs:new.txt'),
+    createDirectory: () => Promise.resolve('fs:dir'),
+    rename: () => Promise.resolve('fs:renamed.txt'),
+    move: () => Promise.resolve('fs:moved.txt'),
+    remove: () => Promise.resolve({ done: [], failed: [] }),
+    copy: () => Promise.resolve({ done: [], failed: [] }),
+    ...overrides,
+  };
+}
+
 function fakeHost(overrides: Partial<FilesHost> = {}): FilesHost {
   return {
     ResourceTreePanel: () => null,
     useTranslate: () => (key: string) => key,
-    canOpenProject: () => true,
     hasProject: () => true,
-    openProject: () => Promise.resolve(true),
     save: () => Promise.resolve(true),
     saveAll: () => Promise.resolve(true),
     activeResource: () => 'fs:a.txt',
@@ -106,9 +122,8 @@ function fakeHost(overrides: Partial<FilesHost> = {}): FilesHost {
     documentOf: () => null,
     writeText: () => Promise.resolve(),
     isTextual: (mediaType: string) => mediaType.startsWith('text/'),
-    // Операции, дерево и корень — то, чем пользуются команды дерева; двойник отвечает
-    // «проекта нет», и этого хватает всем тестам, которые про них не спрашивают.
-    resources: () => null,
+    // Дерево и корень — то, чем пользуются команды дерева; двойник отвечает «пусто»,
+    // и этого хватает всем тестам, которые про них не спрашивают.
     treeSelection: () => [],
     treeRoot: () => null,
     ...overrides,
@@ -240,9 +255,18 @@ describe('команды', () => {
   });
 
   it('открытие проекта недоступно там, где движок не умеет выбирать каталог', () => {
-    const [open] = filesCommands(fakeHost({ canOpenProject: () => false }));
+    const [open] = filesCommands(fakeHost(), fakeResources({ canOpenProject: () => false }));
 
     expect(open.enabled?.(context(null))).toBe(false);
+  });
+
+  it('без права открытия каталога команда недоступна, а не падает при нажатии', async () => {
+    // `workspace.resources` не подтверждено — служба не пришла. Это названная деградация:
+    // панель остаётся просмотром, и нажать «Открыть папку…» нельзя.
+    const [open] = filesCommands(fakeHost(), null);
+
+    expect(open.enabled?.(context(null))).toBe(false);
+    await expect(open.run?.(undefined)).resolves.toBe(false);
   });
 });
 

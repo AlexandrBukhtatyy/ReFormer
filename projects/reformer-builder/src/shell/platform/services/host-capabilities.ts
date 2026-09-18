@@ -32,6 +32,8 @@ import { EditorViewStatesCapability } from '@reformer/builder-plugin-api/interna
 import { TextEditorFocusCapability } from '@reformer/builder-plugin-api/internal';
 import { DocumentsCapability } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceFilesCapability } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceResourcesCapability } from '@reformer/builder-plugin-api/internal';
+import { PluginsCatalogCapability } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveCapability } from '@reformer/builder-plugin-api/internal';
 
 /**
@@ -55,9 +57,11 @@ export const HOST_CAPABILITIES: readonly Capability<unknown>[] = Object.freeze([
   WorkspaceFilesCapability,
   TextEditorFocusCapability,
   EditorViewStatesCapability,
-  // Единственная ПРИВИЛЕГИРОВАННАЯ из списка: объявлена как все, но отдаётся только тому,
-  // кому подтверждено право «workspace.save» (`platform/plugin/permissions`). Резолверу она
-  // видна одинаково — он отвечает на «есть ли такая возможность в приложении», а не на
-  // «дадут ли её этому плагину»: второе решается позже и человеком.
+  // Три ПРИВИЛЕГИРОВАННЫЕ: объявлены как все, но отдаются только тому, кому подтверждено
+  // соответствующее право (`platform/plugin/permissions`). Резолверу они видны одинаково —
+  // он отвечает на «есть ли такая возможность в приложении», а не на «дадут ли её этому
+  // плагину»: второе решается позже и человеком.
   WorkspaceSaveCapability,
+  WorkspaceResourcesCapability,
+  PluginsCatalogCapability,
 ]);

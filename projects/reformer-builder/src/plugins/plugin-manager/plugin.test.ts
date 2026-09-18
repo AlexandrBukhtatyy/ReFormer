@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PluginContext } from '@reformer/builder-plugin-api';
-import type { ManagedPlugin, PluginManagerHost } from './host';
+import type { ManagedPlugin, PluginsCatalogService } from '@reformer/builder-plugin-api';
 import {
   createPluginManagerPaletteProvider,
   createPluginManagerPlugin,
@@ -31,7 +31,7 @@ function managed(id: string, state: ManagedPlugin['state'], dev = false): Manage
 
 /** Хост-двойник: список подставляется, вызовы записываются. */
 function fakeHost(entries: readonly ManagedPlugin[]): {
-  host: PluginManagerHost;
+  host: PluginsCatalogService;
   calls: string[];
 } {
   const calls: string[] = [];
@@ -127,15 +127,48 @@ describe('плагин', () => {
           return { dispose: (): void => {} };
         },
       },
+      // Каталог плагинов — привилегированная служба: право `plugins.manage` подтверждено,
+      // значит `get` её отдаёт.
+      services: { get: () => host },
     } as unknown as PluginContext;
 
-    createPluginManagerPlugin({ host }).activate(ctx);
+    createPluginManagerPlugin().activate(ctx);
 
     expect(contributed).toEqual([
       { point: 'palette.items', id: PLUGIN_MANAGER_PALETTE_PROVIDER_ID },
     ]);
     expect(locales.sort()).toEqual(['en', 'ru']);
     expect(subscriptions).toHaveLength(1);
+  });
+
+  it('без права распоряжаться плагинами пунктов нет, но словарь внесён', () => {
+    // Названная деградация: нечем распоряжаться — нечего и предлагать. Словарь всё равно
+    // везём: без него в настройках на месте объяснения был бы маркер промаха.
+    const contributed: { point: string }[] = [];
+    const locales: string[] = [];
+    const ctx = {
+      id: PLUGIN_MANAGER_PLUGIN_ID,
+      subscriptions: [],
+      i18n: {
+        locale: 'ru',
+        t: (key: string) => key,
+        contribute: (locale: string) => locales.push(locale),
+        onDidChangeLocale: () => ({ dispose: (): void => {} }),
+      },
+      extensions: {
+        contribute: (point: { id: string }) => {
+          contributed.push({ point: point.id });
+          return { dispose: (): void => {} };
+        },
+      },
+      // Право не подтверждено — привратник отдаёт `undefined`, а не объект-заглушку.
+      services: { get: () => undefined },
+    } as unknown as PluginContext;
+
+    createPluginManagerPlugin().activate(ctx);
+
+    expect(contributed).toEqual([]);
+    expect(locales.sort()).toEqual(['en', 'ru']);
   });
 });
 
@@ -151,7 +184,7 @@ describe('установленные из npm', () => {
   /** Хост со всеми необязательными операциями. */
   function hostWithInstall(entries: readonly ManagedPlugin[]) {
     const base = fakeHost(entries);
-    const host: PluginManagerHost = {
+    const host: PluginsCatalogService = {
       ...base.host,
       install: () => {
         base.calls.push('install');
@@ -169,7 +202,7 @@ describe('установленные из npm', () => {
     return { host, calls: base.calls };
   }
 
-  const idsOf = (host: PluginManagerHost): string[] =>
+  const idsOf = (host: PluginsCatalogService): string[] =>
     (
       createPluginManagerPaletteProvider(host, translate).provide('', {} as never) as {
         id: string;

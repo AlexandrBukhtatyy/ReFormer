@@ -32,6 +32,8 @@ import { builderProfile } from '@/application/profiles/builder';
 import { minimalProfile } from '@/application/profiles/presets';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import { definePlugin } from '@reformer/builder-plugin-api/internal';
+import { PluginsCatalogCapability } from '@reformer/builder-plugin-api/internal';
+import { WorkspaceResourcesCapability } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveCapability } from '@reformer/builder-plugin-api/internal';
 import type { PluginPermission } from '@reformer/builder-plugin-api/internal';
 import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/host-capabilities';
@@ -119,27 +121,49 @@ describe('возможности оболочки', () => {
   it('на полном составе плагин находит каждую объявленную, кроме запертой правом', async () => {
     const asked = await askFromPlugin(builderProfile);
 
-    // Сохранение объявлено оболочкой, как и остальные, но ПЛАГИНУ его не видно: права
-    // `workspace.save` ему не подтверждали. Резолвер при этом отвечает «возможность
-    // в приложении есть» — это разные вопросы, и отвечают на них в разных местах.
-    expect(asked.missing).toEqual([WorkspaceSaveCapability.id]);
+    // Все три привилегированные объявлены оболочкой, как и остальные, но ПЛАГИНУ не видны:
+    // прав ему не подтверждали. Резолвер при этом отвечает «возможность в приложении есть» —
+    // это разные вопросы, и отвечают на них в разных местах.
+    const locked: readonly string[] = [
+      WorkspaceSaveCapability.id,
+      WorkspaceResourcesCapability.id,
+      PluginsCatalogCapability.id,
+    ];
+    expect(asked.missing).toEqual(locked);
     expect(asked.found).toEqual(
-      HOST_CAPABILITIES.map((capability) => capability.id).filter(
-        (id) => id !== WorkspaceSaveCapability.id
-      )
+      HOST_CAPABILITIES.map((capability) => capability.id).filter((id) => !locked.includes(id))
     );
     expect(asked.documentsWorks).toBe(true);
   });
 
-  it('с подтверждённым правом находит и запертую', async () => {
-    const asked = await askFromPlugin(builderProfile, ['workspace.save']);
+  it('с подтверждёнными правами находит и запертые', async () => {
+    const asked = await askFromPlugin(builderProfile, [
+      'workspace.save',
+      'workspace.resources',
+      'plugins.manage',
+    ]);
 
     expect(asked.missing).toEqual([]);
     expect(asked.found).toContain(WorkspaceSaveCapability.id);
+    expect(asked.found).toContain(WorkspaceResourcesCapability.id);
+    expect(asked.found).toContain(PluginsCatalogCapability.id);
+  });
+
+  it('право открывает ровно свою дверь, а не обе сразу', async () => {
+    // Иначе «право» значило бы «привилегированный плагин», и второе право было бы
+    // украшением первого.
+    const asked = await askFromPlugin(builderProfile, ['workspace.resources']);
+
+    expect(asked.missing).toEqual([WorkspaceSaveCapability.id, PluginsCatalogCapability.id]);
+    expect(asked.found).toContain(WorkspaceResourcesCapability.id);
   });
 
   it('на коротком составе — те же: они не зависят от набора плагинов', async () => {
-    const asked = await askFromPlugin(minimalProfile, ['workspace.save']);
+    const asked = await askFromPlugin(minimalProfile, [
+      'workspace.save',
+      'workspace.resources',
+      'plugins.manage',
+    ]);
 
     expect(asked.missing).toEqual([]);
     expect(asked.documentsWorks).toBe(true);

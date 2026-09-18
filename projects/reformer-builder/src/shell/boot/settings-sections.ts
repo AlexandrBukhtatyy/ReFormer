@@ -18,7 +18,8 @@
  */
 
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
-import type { SettingsService } from '@reformer/builder-plugin-api/internal';
+import type { HostSettingsService } from '@/shell/platform/services/settings';
+import { THEME_SETTINGS_KEY } from '@/shell/platform/services/theme';
 import type { ThemePreference, ThemeService } from '@reformer/builder-plugin-api/internal';
 import type { SettingsSection } from '@/shell/platform/ui/dialogs/settings-ui';
 import { createPluginsSettingsBody } from './settings/PluginsSettings';
@@ -32,7 +33,11 @@ export const LOCALE_SETTINGS_KEY = 'host.locale';
 export const SUPPORTED_LOCALES: readonly string[] = Object.freeze(['ru', 'en']);
 
 export interface SettingsSectionsDeps {
-  readonly settings: SettingsService;
+  /**
+   * Служба настроек — в виде ОБОЛОЧКИ: разделу нужен не только доступ к значению, но и
+   * ответ, из какого слоя оно пришло (`scopeOf`). Плагину этот вопрос не задают.
+   */
+  readonly settings: HostSettingsService;
   readonly i18n: RootI18nService;
   /** Служба темы. Без неё раздела внешнего вида нет — применять выбор нечем. */
   readonly theme?: ThemeService | null;
@@ -89,6 +94,7 @@ export function createSettingsSections(deps: SettingsSectionsDeps): readonly Set
           // «Светлая» там, где выбрано «Как в системе», значило бы соврать про настройку.
           read: () => theme.preference,
           write: (value) => theme.setPreference(value as ThemePreference),
+          origin: () => settings.scopeOf(THEME_SETTINGS_KEY),
         },
       ],
     });
@@ -116,6 +122,7 @@ export function createSettingsSections(deps: SettingsSectionsDeps): readonly Set
           // пережить перезагрузку и встретить человека сломанным интерфейсом.
           await settings.set(LOCALE_SETTINGS_KEY, value);
         },
+        origin: () => settings.scopeOf(LOCALE_SETTINGS_KEY),
       },
     ],
   });

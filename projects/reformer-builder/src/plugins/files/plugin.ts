@@ -27,7 +27,7 @@
  * @module plugins/files/plugin
  */
 
-import manifest from './manifest.json';
+import { FILES_PLUGIN_ID } from './contract';
 import { createElement, type ReactElement } from 'react';
 import { CircleAlert, FolderTree } from 'lucide-react';
 import {
@@ -46,6 +46,11 @@ import {
   type ResourceId,
 } from '@reformer/builder-plugin-api';
 import { diagnosticDecoration, type CommandAccess } from './diagnostics';
+import {
+  WorkspaceFilesServiceToken,
+  WorkspaceResourcesServiceToken,
+  type WorkspaceResourcesService,
+} from '@reformer/builder-plugin-api';
 import { filesContextMenuItems, filesOperationCommands } from './operations';
 import { OPEN_RECENT_COMMAND_ID, recentCommands, recentMenuItems } from './recent';
 import type { ExtensionPointRef, FilesEditorSpec, FilesHost, FilesPanelSpec } from './host';
@@ -55,7 +60,9 @@ import { TextEditor } from './ui/TextEditor';
 import { WelcomePage, type WelcomePageActions } from './ui/WelcomePage';
 
 /** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const FILES_PLUGIN_ID = manifest.id;
+// Идентификатор живёт в `./contract` — листе, который берёт композиция: импорт значения
+// отсюда втянул бы в стартовый граф весь плагин.
+export { FILES_PLUGIN_ID } from './contract';
 
 /** Панель с деревом ресурсов. */
 export const FILES_TREE_PANEL_ID = 'files.tree';
@@ -188,12 +195,18 @@ export function filesTextEditor(host: FilesHost): FilesEditorSpec {
  * что это тот же вопрос, что у «Открыть папку…»: с чем работать. Сама страница ничего
  * не делает — действия приходят вызовами команд плагина.
  */
-export function filesWelcomePanel(host: FilesHost, actions: WelcomePageActions): FilesPanelSpec {
+export function filesWelcomePanel(
+  host: FilesHost,
+  actions: WelcomePageActions,
+  canOpenFolder = false
+): FilesPanelSpec {
   return {
     id: FILES_WELCOME_PANEL_ID,
     slot: 'editor.main',
     titleKey: 'welcome.title',
-    Body: () => createElement(WelcomePage, { host, ...actions }),
+    // «Можно ли выбрать каталог» — теперь ответ ПРИВИЛЕГИРОВАННОЙ службы, а не порта,
+    // поэтому он приходит значением: страница о правах не знает и знать не должна.
+    Body: () => createElement(WelcomePage, { host, canOpenFolder, ...actions }),
   };
 }
 
@@ -208,13 +221,19 @@ export function filesWelcomePanel(host: FilesHost, actions: WelcomePageActions):
  * `mod+s` помечен {@link allowInEditable}: сохранять надо ровно тогда, когда курсор в тексте,
  * то есть почти всегда.
  */
-export function filesCommands(host: FilesHost): readonly FilesCommand[] {
+export function filesCommands(
+  host: FilesHost,
+  resources?: WorkspaceResourcesService | null
+): readonly FilesCommand[] {
   return [
     {
+      // Открыть каталог — привилегированная операция: она меняет то, с чем работает всё
+      // приложение, и спрашивает человека диалогом браузера. Без права команда недоступна,
+      // а не падает при нажатии.
       id: OPEN_PROJECT_COMMAND_ID,
       titleKey: 'files.command.openProject',
-      enabled: () => host.canOpenProject(),
-      run: () => host.openProject(),
+      enabled: () => resources != null && resources.canOpenProject(),
+      run: () => resources?.openProject() ?? Promise.resolve(false),
     },
     {
       id: SAVE_COMMAND_ID,
@@ -298,7 +317,11 @@ export function createFilesPlugin(options: FilesPluginOptions): Plugin {
   return definePlugin({
     id: FILES_PLUGIN_ID,
     activate(ctx) {
-      for (const command of filesCommands(host)) {
+      // Правка записей проекта — ПРИВИЛЕГИРОВАННАЯ служба: плагин просит право
+      // `workspace.resources` манифестом. Без него `get` отдаёт `undefined`, и это названная
+      // деградация: панель остаётся просмотром, а команды, меняющие проект, недоступны.
+      const resources = ctx.services.get(WorkspaceResourcesServiceToken) ?? null;
+      for (const command of filesCommands(host, resources)) {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
@@ -308,6 +331,10 @@ export function createFilesPlugin(options: FilesPluginOptions): Plugin {
       const prompt = ctx.services.get(PromptServiceToken) ?? null;
       const operations = filesOperationCommands({
         host,
+        resources,
+        // Перечитывание уровня — у службы ЧТЕНИЯ: оно правит наш снимок, а не проект,
+        // и права не требует.
+        workspaceFiles: ctx.services.get(WorkspaceFilesServiceToken) ?? null,
         prompt,
         clipboard: ctx.services.get(ResourceClipboardServiceToken) ?? null,
         notifications: ctx.services.get(NotificationsServiceToken) ?? null,
@@ -360,15 +387,19 @@ export function createFilesPlugin(options: FilesPluginOptions): Plugin {
         ctx.extensions.contribute(editorPoint, filesTextEditor(host), { id: FILES_TEXT_EDITOR_ID }),
         ctx.extensions.contribute(
           panelPoint,
-          filesWelcomePanel(host, {
-            // Страница зовёт команды, а не порт: щелчок здесь и пункт меню — одно действие.
-            openFolder: () => {
-              commands.run(OPEN_PROJECT_COMMAND_ID);
+          filesWelcomePanel(
+            host,
+            {
+              // Страница зовёт команды, а не порт: щелчок здесь и пункт меню — одно действие.
+              openFolder: () => {
+                commands.run(OPEN_PROJECT_COMMAND_ID);
+              },
+              openRecent: (id) => {
+                commands.run(OPEN_RECENT_COMMAND_ID, id === undefined ? undefined : { id });
+              },
             },
-            openRecent: (id) => {
-              commands.run(OPEN_RECENT_COMMAND_ID, id === undefined ? undefined : { id });
-            },
-          }),
+            resources != null && resources.canOpenProject()
+          ),
           { id: FILES_WELCOME_PANEL_ID }
         )
       );

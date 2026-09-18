@@ -20,7 +20,6 @@
  * @module plugins/editor-monaco/plugin
  */
 
-import manifest from './manifest.json';
 import { createElement, type ComponentType } from 'react';
 import {
   defineCapability,
@@ -38,12 +37,11 @@ import { MONACO_EDITOR_PRIORITY } from './runtime/language';
 import { contributeMessages } from './messages';
 import { MonacoEditorBody } from './ui/MonacoEditor';
 import { readViewState, viewStatesOver, type ViewStateRegistry } from './sync/view-state';
+import { MONACO_EDITOR_ID, MONACO_PLUGIN_ID } from './contract';
 
-/** Идентификатор плагина: пространство имён во всех реестрах и в словаре. */
-export const MONACO_PLUGIN_ID = manifest.id;
-
-/** Идентификатор вклада редактора: ключ состояния вида и адрес в диагностике. */
-export const MONACO_EDITOR_ID = 'editor.monaco';
+// Идентификаторы живут в `./contract` — отдельном листе графа: их берёт композиция,
+// а импорт из этого модуля втянул бы в стартовый граф весь редактор вместе с Monaco.
+export { MONACO_EDITOR_ID, MONACO_PLUGIN_ID };
 
 /**
  * Тело текстового редактора как ВОЗМОЖНОСТЬ.
