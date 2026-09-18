@@ -107,6 +107,22 @@ describe('validate', () => {
     expect(errors[0]).toContain('оболочка даёт API');
   });
 
+  it('compatibility.builder: диапазон пропускается, опечатка — отказ', async () => {
+    // Сверять версию билдера CLI не может и не пытается: в каком билдере плагин запустят,
+    // решает не он. Зато форму диапазона он проверяет там, где это дешевле всего.
+    const dir = await create();
+    await patchJson(join(dir, 'manifest.json'), (m) => {
+      m.compatibility = { builder: '>=2.1' };
+    });
+    expect(await runCli(['validate', dir], io())).toBe(0);
+
+    await patchJson(join(dir, 'manifest.json'), (m) => {
+      m.compatibility = { builder: 'последний' };
+    });
+    const errors = await findings('acme-hello');
+    expect(errors[0]).toContain('compatibility.builder');
+  });
+
   it('собирает ВСЕ отказы файлов вокруг манифеста', async () => {
     const dir = await create();
     await rm(join(dir, 'src/main.ts'));

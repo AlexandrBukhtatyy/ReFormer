@@ -27,10 +27,10 @@
  */
 
 import type { ComponentType } from 'react';
-import type { Disposable } from '../../primitives/disposable';
-import { defineExtensionPoint } from '../../primitives/extension-point';
-import type { ResourceRef } from '../../primitives/resource';
-import type { EditorProbe } from '../../workspace/model/provider';
+import type { Disposable } from '../../primitives/disposable.js';
+import { defineExtensionPoint } from '../../primitives/extension-point.js';
+import type { ResourceRef } from '../../primitives/resource.js';
+import type { EditorProbe } from '../../workspace/model/provider.js';
 
 /**
  * Тон пометки. Предметного смысла у Host нет: он переносит значение от вклада к отрисовке.

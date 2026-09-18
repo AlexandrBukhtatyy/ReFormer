@@ -23,7 +23,7 @@
  * @module @reformer/builder-plugin-api/ui/contributions/plugin-settings
  */
 
-import { defineExtensionPoint } from '../../primitives/extension-point';
+import { defineExtensionPoint } from '../../primitives/extension-point.js';
 
 /**
  * Что плагин рассказывает о своих настройках.

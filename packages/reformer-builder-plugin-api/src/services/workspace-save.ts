@@ -23,8 +23,8 @@
  * @module @reformer/builder-plugin-api/services/workspace-save
  */
 
-import { defineCapability, type Capability } from '../primitives/capability';
-import type { ResourceId } from '../primitives/resource';
+import { defineCapability, type Capability } from '../primitives/capability.js';
+import type { ResourceId } from '../primitives/resource.js';
 
 export interface WorkspaceSaveService {
   /**

@@ -32,8 +32,8 @@
  * @module @reformer/builder-plugin-api/workspace/document
  */
 
-import type { Disposable } from '../primitives/disposable';
-import type { ResourceId, ResourceRef } from '../primitives/resource';
+import type { Disposable } from '../primitives/disposable.js';
+import type { ResourceId, ResourceRef } from '../primitives/resource.js';
 
 /**
  * Вид документа — дискриминант союза `TextDocument | ModelDocument`.

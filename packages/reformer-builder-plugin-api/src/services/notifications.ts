@@ -6,8 +6,8 @@
  * @module @reformer/builder-plugin-api/services/notifications
  */
 
-import type { Disposable } from '../primitives/disposable';
-import { defineService } from '../primitives/service';
+import type { Disposable } from '../primitives/disposable.js';
+import { defineService } from '../primitives/service.js';
 
 /** Уровень тоста. Определяет вид и озвучку для скринридера, но не поведение очереди. */
 export type NotificationLevel = 'info' | 'success' | 'warning' | 'error';

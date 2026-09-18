@@ -42,6 +42,12 @@
  *   Незнакомое имя — отказ, а не пропуск: иначе опечатка в праве читалась бы как «прав не просил»,
  *   и плагин молча остался бы без службы, которую просил.
  *
+ * - **`compatibility.builder` — вторая ось, а не уточнение первой.** `apiVersion` спрашивает
+ *   про контракт, `compatibility.builder` — про приложение, и чинятся они разным: первое —
+ *   правкой плагина, второе — обновлением билдера. Поэтому и код отказа отдельный
+ *   (`builder-version`). Сверка делается, только если спрашивающий назвал свою версию:
+ *   CLI автора плагина её не знает и проверяет форму диапазона.
+ *
  * ## Почему разбор в пакете контракта
  *
  * Манифест читают ДВОЕ: оболочка, решая, грузить ли плагин, и инструменты автора плагина
@@ -53,12 +59,12 @@
  * @module @reformer/builder-plugin-api/plugin/manifest-parser
  */
 
-import type { CapabilityDeclaration, CapabilityRequirement } from '../primitives/capability';
-import { normalizeChord } from '../primitives/command';
-import { parseRange, parseVersion, satisfies } from '../primitives/semver';
-import { parseWhen } from '../primitives/when-expr';
-import { normalizeModulePath } from '../primitives/module-path';
-import { isPluginPermission, PLUGIN_PERMISSIONS, type PluginPermission } from './permissions';
+import type { CapabilityDeclaration, CapabilityRequirement } from '../primitives/capability.js';
+import { normalizeChord } from '../primitives/command.js';
+import { parseRange, parseVersion, satisfies } from '../primitives/semver.js';
+import { parseWhen } from '../primitives/when-expr.js';
+import { normalizeModulePath } from '../primitives/module-path.js';
+import { isPluginPermission, PLUGIN_PERMISSIONS, type PluginPermission } from './permissions.js';
 import {
   BUILDER_API_VERSION,
   PLUGIN_MANIFEST_FILE,
@@ -67,6 +73,7 @@ import {
   type ManifestOf,
   type ManifestParseResult,
   type PluginManifestBase,
+  type PluginCompatibility,
   type PluginContributes,
   type PluginProblem,
   type PluginProblemCode,
@@ -74,7 +81,7 @@ import {
   type PluginSource,
   type PluginSourceManifest,
   type PluginStyles,
-} from './manifest';
+} from './manifest.js';
 
 /**
  * Идентификатор плагина: буквы, цифры, `.`, `_`, `-`, начиная с буквы или цифры.
@@ -104,13 +111,12 @@ function stringField(raw: Record<string, unknown>, key: string): string | undefi
  *
  * @param text содержимое `manifest.json`
  * @param source откуда плагин — от этого зависят две проверки, см. {@link PluginSource}
- * @param apiVersion версия API оболочки; параметр ради тестов, умолчание —
- * {@link BUILDER_API_VERSION}
+ * @param versions версии спрашивающего, см. {@link ShellVersions}
  */
 export function parsePluginManifest<S extends PluginSource>(
   text: string,
   source: S,
-  apiVersion: string = BUILDER_API_VERSION
+  versions: ShellVersions = {}
 ): ManifestParseResult<ManifestOf<S>> {
   let raw: unknown;
   try {
@@ -121,7 +127,7 @@ export function parsePluginManifest<S extends PluginSource>(
       cause,
     });
   }
-  return parsePluginManifestValue(raw, source, apiVersion);
+  return parsePluginManifestValue(raw, source, versions);
 }
 
 /**
@@ -136,9 +142,9 @@ export function parsePluginManifest<S extends PluginSource>(
 export function parsePluginManifestValue<S extends PluginSource>(
   raw: unknown,
   source: S,
-  apiVersion: string = BUILDER_API_VERSION
+  versions: ShellVersions = {}
 ): ManifestParseResult<ManifestOf<S>> {
-  const parsed = parseStage(raw, source, apiVersion);
+  const parsed = parseStage(raw, source, versions);
   if (!parsed.ok) return parsed;
   // Единственное приведение в модуле. Разбор поставки (`parseEntry`) отдаёт ровно тот
   // вариант, о котором его спросили, — но связь «спросили про builtin, получили builtin»
@@ -166,7 +172,7 @@ export function parsePluginManifestValue<S extends PluginSource>(
  */
 export function parsePluginSourceManifest(
   text: string,
-  apiVersion: string = BUILDER_API_VERSION
+  versions: ShellVersions = {}
 ): ManifestParseResult<PluginSourceManifest> {
   let raw: unknown;
   try {
@@ -177,7 +183,7 @@ export function parsePluginSourceManifest(
       cause,
     });
   }
-  const parsed = parseStage(raw, { kind: 'source' }, apiVersion);
+  const parsed = parseStage(raw, { kind: 'source' }, versions);
   if (!parsed.ok) return parsed;
 
   const version = stringField(raw as Record<string, unknown>, 'version');
@@ -200,6 +206,24 @@ export function parsePluginSourceManifest(
 }
 
 /**
+ * Версии того, кто спрашивает разбор.
+ *
+ * Обе необязательны, и необязательность у них разная. `api` умалчивается до
+ * {@link BUILDER_API_VERSION} — версия контракта известна самому пакету, и подменяют её
+ * только тесты. `builder` умолчания не имеет и иметь не может: пакет не знает, каким
+ * приложением он подан. Её отсутствие означает «спрашивающий не билдер» — так манифест
+ * читает CLI автора плагина, и тогда `compatibility.builder` проверяется ФОРМОЙ, без
+ * сверки. Подставь пакет сюда что-нибудь «по умолчанию», CLI отвергал бы плагины по версии
+ * приложения, которого не видел.
+ */
+export interface ShellVersions {
+  /** Версия контракта плагинов. Умолчание — {@link BUILDER_API_VERSION}. */
+  readonly api?: string;
+  /** Версия приложения-билдера. Без неё `compatibility.builder` только разбирается. */
+  readonly builder?: string;
+}
+
+/**
  * Что разбору известно о месте манифеста: поставка оболочки или исходники автора.
  *
  * Внутренний тип: наружу стадия «исходники» выходит отдельной функцией, а не третьим вариантом
@@ -218,8 +242,9 @@ type StagedManifest = PluginManifestBase &
 function parseStage(
   raw: unknown,
   source: ManifestStage,
-  apiVersion: string
+  versions: ShellVersions
 ): { ok: true; manifest: StagedManifest } | { ok: false; problem: PluginProblem } {
+  const apiVersion = versions.api ?? BUILDER_API_VERSION;
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return problem('manifest-invalid', `${PLUGIN_MANIFEST_FILE} должен быть объектом JSON`, {
       file: PLUGIN_MANIFEST_FILE,
@@ -274,6 +299,9 @@ function parseStage(
     );
   }
 
+  const compatibility = parseCompatibility(fields.compatibility, versions.builder);
+  if (compatibility !== undefined && 'ok' in compatibility) return compatibility;
+
   const entry = parseEntry(fields, source);
   if ('ok' in entry) return entry;
 
@@ -298,6 +326,7 @@ function parseStage(
     ...(provides === undefined ? {} : { provides: provides.provides }),
     ...(requires === undefined ? {} : { requires: requires.requires }),
     ...(permissions === undefined ? {} : { permissions: permissions.permissions }),
+    ...(compatibility === undefined ? {} : { compatibility: compatibility.compatibility }),
   };
 
   return { ok: true, manifest: { ...common, ...entry } };
@@ -453,6 +482,55 @@ function parsePermissions(
   }
 
   return { permissions: parsed };
+}
+
+/**
+ * Разбирает `compatibility` — совместимость с ПРИЛОЖЕНИЕМ.
+ *
+ * Сверка делается, только если спрашивающий назвал свою версию. Без неё (CLI автора плагина)
+ * проверяется форма: диапазон обязан читаться. Это не половинчатая проверка, а вся, какая
+ * возможна: CLI не знает, в каком билдере плагин запустят, и отказ «версия не подходит»
+ * от него означал бы отказ по выдуманному числу. Зато опечатку в диапазоне («2.х» кириллицей,
+ * «latest») он ловит там, где она дешевле всего, — у автора на машине.
+ */
+function parseCompatibility(
+  raw: unknown,
+  builderVersion: string | undefined
+): { compatibility: PluginCompatibility } | { ok: false; problem: PluginProblem } | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    return problem('manifest-invalid', 'поле «compatibility» должно быть объектом', {
+      file: PLUGIN_MANIFEST_FILE,
+    });
+  }
+
+  const builder = stringField(raw as Record<string, unknown>, 'builder');
+  if (builder === undefined) {
+    return problem(
+      'manifest-invalid',
+      'в «compatibility» нет поля «builder» или оно не строка. Пустой объект совместимости ' +
+        'ничего не значит: либо диапазон версий билдера, либо поля нет вовсе',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+  if (parseRange(builder) === undefined) {
+    return problem(
+      'manifest-invalid',
+      `из «compatibility.builder»: «${builder}» не читается диапазон версий. ` +
+        'Допустимы «^2», «~2.1», «>=2.0.0», «2.x» и точная версия',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+  if (builderVersion !== undefined && !satisfies(builderVersion, builder)) {
+    return problem(
+      'builder-version',
+      `плагину нужен билдер «${builder}», а этот — ${builderVersion}. ` +
+        'Контракт тут ни при чём: чинится обновлением билдера, а не правкой плагина',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+
+  return { compatibility: { builder } };
 }
 
 /**

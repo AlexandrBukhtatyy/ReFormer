@@ -29,7 +29,7 @@
  * @module @reformer/builder-plugin-api/primitives/service
  */
 
-import type { Disposable } from './disposable';
+import type { Disposable } from './disposable.js';
 
 /**
  * Типизированная ссылка на сервис.

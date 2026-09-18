@@ -21,9 +21,9 @@
  * @module @reformer/builder-plugin-api/primitives/command
  */
 
-import type { Disposable } from './disposable';
-import type { WhenContext } from './when-context';
-import { compileWhen, WHEN_TRUE, type WhenExpr } from './when-expr';
+import type { Disposable } from './disposable.js';
+import type { WhenContext } from './when-context.js';
+import { compileWhen, WHEN_TRUE, type WhenExpr } from './when-expr.js';
 
 /**
  * Как команда выглядит для модели. Заполняется осознанно — см.

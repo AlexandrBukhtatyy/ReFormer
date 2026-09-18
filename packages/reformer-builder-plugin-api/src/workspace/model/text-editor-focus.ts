@@ -50,8 +50,8 @@
  * @module @reformer/builder-plugin-api/workspace/model/text-editor-focus
  */
 
-import type { ResourceId } from '../../primitives/resource';
-import { defineCapability, type Capability } from '../../primitives/capability';
+import type { ResourceId } from '../../primitives/resource.js';
+import { defineCapability, type Capability } from '../../primitives/capability.js';
 
 export interface TextEditorFocusRegistry {
   /** В фокусе ли текстовый редактор этого документа. */

@@ -8,9 +8,9 @@
  */
 
 import type { ComponentType } from 'react';
-import type { Disposable } from '../../primitives/disposable';
-import { defineExtensionPoint } from '../../primitives/extension-point';
-import type { WhenContext } from '../../primitives/when-context';
+import type { Disposable } from '../../primitives/disposable.js';
+import { defineExtensionPoint } from '../../primitives/extension-point.js';
+import type { WhenContext } from '../../primitives/when-context.js';
 
 /**
  * Корневые меню, объявленные Host.

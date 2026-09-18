@@ -20,7 +20,7 @@
  * @module @reformer/builder-plugin-api/primitives/event
  */
 
-import type { Disposable } from './disposable';
+import type { Disposable } from './disposable.js';
 
 /**
  * Типизированный ключ события: связывает идентификатор с типом полезной нагрузки.

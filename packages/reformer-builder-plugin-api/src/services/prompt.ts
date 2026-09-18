@@ -7,8 +7,8 @@
  * @module @reformer/builder-plugin-api/services/prompt
  */
 
-import type { Disposable } from '../primitives/disposable';
-import { defineService } from '../primitives/service';
+import type { Disposable } from '../primitives/disposable.js';
+import { defineService } from '../primitives/service.js';
 
 /** Проверка введённого значения: ключ сообщения об ошибке или `null`, если всё хорошо. */
 export type PromptValidator = (value: string) => string | null;

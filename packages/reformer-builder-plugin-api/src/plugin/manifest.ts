@@ -7,8 +7,8 @@
  * @module @reformer/builder-plugin-api/plugin/manifest
  */
 
-import type { CapabilityDeclaration, CapabilityRequirement } from '../primitives/capability';
-import type { PluginPermission } from './permissions';
+import type { CapabilityDeclaration, CapabilityRequirement } from '../primitives/capability.js';
+import type { PluginPermission } from './permissions.js';
 
 /** Имя файла манифеста внутри каталога плагина. */
 export const PLUGIN_MANIFEST_FILE = 'manifest.json';
@@ -101,6 +101,28 @@ export interface PluginManifestBase {
    * из-за которого поля `permissions` не было до появления первой такой двери.
    */
   readonly permissions?: readonly PluginPermission[];
+  /**
+   * Совместимость с ПРИЛОЖЕНИЕМ: `{ "builder": ">=2.1" }`.
+   *
+   * Отдельная ось от {@link PluginManifestBase.apiVersion}, а не её уточнение. `apiVersion`
+   * отвечает «какие имена доступны плагину» — это версия контракта; `compatibility.builder`
+   * отвечает «какое приложение их подаёт». Расходятся они по построению: контракт растёт,
+   * когда меняется поверхность плагина, а билдер выпускается по своим причинам, и плагину
+   * бывает нужно сказать «мне нужна сборка, где это уже чинено», не требуя нового контракта.
+   *
+   * Поля не было, пока у оболочки не появилось своей версии в рантайме: проверять его было
+   * нечем, а объявление, которое ничего не принуждает, — то же ложное ощущение границы,
+   * из-за которого до первой запертой службы не было `permissions`. Теперь несовпадение —
+   * отказ загрузки (`builder-version`), а у того, кто своей версии не знает (CLI автора
+   * плагина), проверяется форма диапазона.
+   */
+  readonly compatibility?: PluginCompatibility;
+}
+
+/** Совместимость с приложением. Один член; растёт вместе с тем, у чего появится версия. */
+export interface PluginCompatibility {
+  /** Диапазон версий билдера: `^2`, `>=2.1`, `~2.1.0`. */
+  readonly builder: string;
 }
 
 /** Манифест плагина каталога проекта: у него есть каталог и точка входа. */
@@ -236,6 +258,13 @@ export type PluginProblemCode =
   | 'id-mismatch'
   /** `apiVersion` не покрывает версию оболочки: плагин написан против другой. */
   | 'api-version'
+  /**
+   * `compatibility.builder` не покрывает версию ПРИЛОЖЕНИЯ.
+   *
+   * Отдельный код, а не `api-version`: контракт может совпадать полностью, и чинится это
+   * иначе — обновлением билдера, а не переписыванием плагина под другой контракт.
+   */
+  | 'builder-version'
   /**
    * Обязательное требование `requires.required` не выполнено ничем из доступного.
    *

@@ -6,7 +6,7 @@
  * @module @reformer/builder-plugin-api/ui/keyboard/keybinding-rules
  */
 
-import type { WhenExpr } from '../../primitives/when-expr';
+import type { WhenExpr } from '../../primitives/when-expr.js';
 
 /**
  * Откуда правило пришло. Порядок в {@link LAYER_RANK} и есть порядок старшинства.

@@ -7,8 +7,8 @@
  * @module @reformer/builder-plugin-api/services/settings
  */
 
-import type { Disposable } from '../primitives/disposable';
-import { defineService } from '../primitives/service';
+import type { Disposable } from '../primitives/disposable.js';
+import { defineService } from '../primitives/service.js';
 
 /** Куда пишется значение. Читается всегда из обеих: `workspace` перекрывает `user`. */
 export type SettingsScope = 'user' | 'workspace';

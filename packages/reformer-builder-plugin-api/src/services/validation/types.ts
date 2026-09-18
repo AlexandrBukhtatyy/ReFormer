@@ -35,10 +35,10 @@
  * @module @reformer/builder-plugin-api/services/validation/types
  */
 
-import { defineExtensionPoint } from '../../primitives/extension-point';
-import type { ResourceId, ResourceRef } from '../../primitives/resource';
-import type { Diagnostic } from '../diagnostics/types';
-import type { DocumentKind } from '../../workspace/document';
+import { defineExtensionPoint } from '../../primitives/extension-point.js';
+import type { ResourceId, ResourceRef } from '../../primitives/resource.js';
+import type { Diagnostic } from '../diagnostics/types.js';
+import type { DocumentKind } from '../../workspace/document.js';
 
 /**
  * То, что валидатор знает о документе, ещё ничего не прочитав.

@@ -30,8 +30,8 @@
  * @module @reformer/builder-plugin-api/workspace/model/provider
  */
 
-import { defineExtensionPoint } from '../../primitives/extension-point';
-import type { ResourceRef } from '../../primitives/resource';
+import { defineExtensionPoint } from '../../primitives/extension-point.js';
+import type { ResourceRef } from '../../primitives/resource.js';
 
 /**
  * Адрес узла внутри модели.

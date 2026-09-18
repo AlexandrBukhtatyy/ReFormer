@@ -32,7 +32,7 @@
  * @module @reformer/builder-plugin-api/services/diagnostics/fixes
  */
 
-import type { Diagnostic, QuickFix } from './types';
+import type { Diagnostic, QuickFix } from './types.js';
 
 /**
  * Есть ли сейчас команда с таким идентификатором.

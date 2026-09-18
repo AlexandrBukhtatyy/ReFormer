@@ -17,7 +17,7 @@
  * @module @reformer/builder-plugin-api/services/i18n
  */
 
-import type { Disposable } from '../primitives/disposable';
+import type { Disposable } from '../primitives/disposable.js';
 
 /** Вид сервиса для плагина: ключи автоматически префиксуются его идентификатором. */
 export interface PluginI18n {

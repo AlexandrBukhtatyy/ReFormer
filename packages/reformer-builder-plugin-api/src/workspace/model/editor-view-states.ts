@@ -40,8 +40,8 @@
  * @module @reformer/builder-plugin-api/workspace/model/editor-view-states
  */
 
-import { defineCapability, type Capability } from '../../primitives/capability';
-import type { ResourceId } from '../../primitives/resource';
+import { defineCapability, type Capability } from '../../primitives/capability.js';
+import type { ResourceId } from '../../primitives/resource.js';
 
 /** Вид хранилища для ОДНОГО редактора: ровно то, чем пользуется его тело. */
 export interface EditorViewStateSlice {

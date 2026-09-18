@@ -7,14 +7,14 @@
  * @module @reformer/builder-plugin-api/ui/keyboard/keymap
  */
 
-import type { Disposable } from '../../primitives/disposable';
-import { defineService } from '../../primitives/service';
+import type { Disposable } from '../../primitives/disposable.js';
+import { defineService } from '../../primitives/service.js';
 import type {
   KeybindingIndex,
   KeybindingLayer,
   KeybindingRule,
   KeybindingConflict,
-} from './keybinding-rules';
+} from './keybinding-rules.js';
 
 /**
  * Запись раскладки, как её пишет человек.

@@ -39,8 +39,8 @@
  * @module @reformer/builder-plugin-api/services/workspace-files
  */
 
-import { defineCapability, type Capability } from '../primitives/capability';
-import type { ResourceId, ResourceRef } from '../primitives/resource';
+import { defineCapability, type Capability } from '../primitives/capability.js';
+import type { ResourceId, ResourceRef } from '../primitives/resource.js';
 
 export interface WorkspaceFilesService {
   /**

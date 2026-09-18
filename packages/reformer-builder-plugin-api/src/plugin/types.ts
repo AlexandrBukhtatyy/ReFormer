@@ -42,14 +42,14 @@
  * @module @reformer/builder-plugin-api/plugin/types
  */
 
-import type { CapabilityAccess } from '../primitives/capability';
-import type { PluginCommandRegistry } from '../primitives/command';
-import type { Disposable } from '../primitives/disposable';
-import type { EventBus } from '../primitives/event';
-import type { ExtensionRegistry } from '../primitives/extension-point';
-import type { ServiceRegistry } from '../primitives/service';
-import type { PluginI18n } from '../services/i18n';
-import type { PluginStorage, SecretStorage } from './storage';
+import type { CapabilityAccess } from '../primitives/capability.js';
+import type { PluginCommandRegistry } from '../primitives/command.js';
+import type { Disposable } from '../primitives/disposable.js';
+import type { EventBus } from '../primitives/event.js';
+import type { ExtensionRegistry } from '../primitives/extension-point.js';
+import type { ServiceRegistry } from '../primitives/service.js';
+import type { PluginI18n } from '../services/i18n.js';
+import type { PluginStorage, SecretStorage } from './storage.js';
 
 /**
  * Всё, что плагин получает от платформы. Другого способа дотянуться до Host у него нет.

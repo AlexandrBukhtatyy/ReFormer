@@ -19,9 +19,9 @@
  * @module @reformer/builder-plugin-api/ui/menu/editor-menu
  */
 
-import type { ResourceId, ResourceRef } from '../../primitives/resource';
-import type { WhenContext } from '../../primitives/when-context';
-import type { ContextMenuId, MenuTarget } from './menu';
+import type { ResourceId, ResourceRef } from '../../primitives/resource.js';
+import type { WhenContext } from '../../primitives/when-context.js';
+import type { ContextMenuId, MenuTarget } from './menu.js';
 
 /** Адрес ряда действий над активным документом. */
 export const EDITOR_TITLE_MENU: ContextMenuId = 'editor/title';

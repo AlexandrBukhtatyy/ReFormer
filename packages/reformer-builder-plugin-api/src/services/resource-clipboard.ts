@@ -6,9 +6,9 @@
  * @module @reformer/builder-plugin-api/services/resource-clipboard
  */
 
-import type { Disposable } from '../primitives/disposable';
-import type { ResourceId } from '../primitives/resource';
-import { defineService } from '../primitives/service';
+import type { Disposable } from '../primitives/disposable.js';
+import type { ResourceId } from '../primitives/resource.js';
+import { defineService } from '../primitives/service.js';
 
 /**
  * Что сделали с записями.

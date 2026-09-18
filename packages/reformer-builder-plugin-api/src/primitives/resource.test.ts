@@ -22,7 +22,7 @@ import {
   normalizePath,
   parseResourceId,
   relativePath,
-} from './resource';
+} from './resource.js';
 
 describe('normalizePath', () => {
   it('срезает ведущий и хвостовой слэш', () => {

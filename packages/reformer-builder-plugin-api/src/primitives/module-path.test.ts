@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeModulePath } from './module-path';
+import { normalizeModulePath } from './module-path.js';
 
 describe('нормализация пути модуля', () => {
   it('схлопывает . и ..', () => {

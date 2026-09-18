@@ -7,8 +7,8 @@
  * @module @reformer/builder-plugin-api/services/theme
  */
 
-import type { Disposable } from '../primitives/disposable';
-import { defineService } from '../primitives/service';
+import type { Disposable } from '../primitives/disposable.js';
+import { defineService } from '../primitives/service.js';
 
 /** Тема, которая реально применена. Третьего состояния у оболочки нет. */
 export type ThemeKind = 'light' | 'dark';

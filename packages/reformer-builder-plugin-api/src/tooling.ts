@@ -24,19 +24,19 @@ export {
   PLUGIN_CODE_EXTENSIONS,
   PLUGIN_FILE_LIMIT,
   PLUGIN_SKIPPED_DIRS,
-} from './plugin/layout';
+} from './plugin/layout.js';
 export {
   parsePluginManifest,
   parsePluginManifestValue,
   parsePluginSourceManifest,
-} from './plugin/manifest-parser';
-export { parseMessagesBundle } from './plugin/messages-bundle';
+} from './plugin/manifest-parser.js';
+export { parseMessagesBundle } from './plugin/messages-bundle.js';
 export {
   isPluginPermission,
   PLUGIN_PERMISSIONS,
   type PluginPermission,
-} from './plugin/permissions';
-export { pluginFromExports } from './plugin/plugin-exports';
+} from './plugin/permissions.js';
+export { pluginFromExports } from './plugin/plugin-exports.js';
 export {
   BUILDER_API_VERSION,
   PLUGIN_MANIFEST_FILE,
@@ -55,6 +55,6 @@ export {
   type PluginSourceManifest,
   type PluginStyles,
   type ProjectPluginManifest,
-} from './plugin/manifest';
-export { PLUGIN_RUNTIME_MODULES } from './plugin/runtime-modules';
-export { normalizeModulePath } from './primitives/module-path';
+} from './plugin/manifest.js';
+export { PLUGIN_RUNTIME_MODULES } from './plugin/runtime-modules.js';
+export { normalizeModulePath } from './primitives/module-path.js';

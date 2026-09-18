@@ -28,7 +28,7 @@
  * @module @reformer/builder-plugin-api/primitives/extension-point
  */
 
-import type { Disposable } from './disposable';
+import type { Disposable } from './disposable.js';
 
 /**
  * Типизированное имя точки расширения.

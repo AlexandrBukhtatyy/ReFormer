@@ -53,11 +53,11 @@
  * @module @reformer/builder-plugin-api/services/documents
  */
 
-import type { Disposable } from '../primitives/disposable';
-import type { ResourceId } from '../primitives/resource';
-import { defineCapability, type Capability } from '../primitives/capability';
-import type { Document } from '../workspace/document';
-import type { WriteOptions } from '../workspace/write-options';
+import type { Disposable } from '../primitives/disposable.js';
+import type { ResourceId } from '../primitives/resource.js';
+import { defineCapability, type Capability } from '../primitives/capability.js';
+import type { Document } from '../workspace/document.js';
+import type { WriteOptions } from '../workspace/write-options.js';
 
 /**
  * Чем править открытие вкладки.

@@ -6,10 +6,10 @@
  * @module @reformer/builder-plugin-api/services/selection
  */
 
-import type { Disposable } from '../primitives/disposable';
-import type { ResourceId } from '../primitives/resource';
-import { defineService } from '../primitives/service';
-import type { NodeId } from '../workspace/model/provider';
+import type { Disposable } from '../primitives/disposable.js';
+import type { ResourceId } from '../primitives/resource.js';
+import { defineService } from '../primitives/service.js';
+import type { NodeId } from '../workspace/model/provider.js';
 
 /**
  * Общий канал выделения.

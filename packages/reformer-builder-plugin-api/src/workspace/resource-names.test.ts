@@ -6,7 +6,7 @@ import {
   splitName,
   uniqueName,
   validateResourceName,
-} from './resource-names';
+} from './resource-names.js';
 
 describe('проверка имени', () => {
   it('обычное имя проходит', () => {

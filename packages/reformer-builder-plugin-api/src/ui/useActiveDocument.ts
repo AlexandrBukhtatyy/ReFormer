@@ -16,8 +16,8 @@
  */
 
 import { useCallback, useSyncExternalStore } from 'react';
-import type { ResourceId } from '../primitives/resource';
-import type { DocumentsService } from '../services/documents';
+import type { ResourceId } from '../primitives/resource.js';
+import type { DocumentsService } from '../services/documents.js';
 
 /** Служба документов в объёме хука: снимок и уведомление. */
 export type ActiveDocumentSource = Pick<DocumentsService, 'activeResource' | 'onDidChange'>;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { definePlugin } from './types';
+import { definePlugin } from './types.js';
 
 describe('definePlugin', () => {
   it('возвращает тот же объект', () => {

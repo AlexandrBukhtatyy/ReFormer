@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { usableFixes, withUsableFixes } from './fixes';
-import type { Diagnostic, QuickFix } from './types';
+import { usableFixes, withUsableFixes } from './fixes.js';
+import type { Diagnostic, QuickFix } from './types.js';
 
 const REPLACE: QuickFix = {
   titleKey: 'quickfix.replace-component',

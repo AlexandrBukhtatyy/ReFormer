@@ -7,8 +7,8 @@
  * @module @reformer/builder-plugin-api/ui/menu/palette
  */
 
-import { defineExtensionPoint } from '../../primitives/extension-point';
-import type { WhenContext } from '../../primitives/when-context';
+import { defineExtensionPoint } from '../../primitives/extension-point.js';
+import type { WhenContext } from '../../primitives/when-context.js';
 
 /**
  * Пункт палитры.

@@ -33,9 +33,9 @@
  * @module @reformer/builder-plugin-api/primitives/capability
  */
 
-import type { Disposable } from './disposable';
-import { parseRange, parseVersion, satisfiesRange } from './semver';
-import type { ServiceToken } from './service';
+import type { Disposable } from './disposable.js';
+import { parseRange, parseVersion, satisfiesRange } from './semver.js';
+import type { ServiceToken } from './service.js';
 
 /**
  * Токен службы с объявленной версией контракта.

@@ -7,7 +7,7 @@ import {
   parseVersion,
   satisfies,
   satisfiesRange,
-} from './semver';
+} from './semver.js';
 
 describe('parseVersion', () => {
   it('разбирает полную и неполную версию, дополняя нулями', () => {

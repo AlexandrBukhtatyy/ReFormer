@@ -30,8 +30,8 @@
  */
 
 import { useMemo } from 'react';
-import type { PluginI18n } from '../services/i18n';
-import { useLocale } from './useLocale';
+import type { PluginI18n } from '../services/i18n.js';
+import { useLocale } from './useLocale.js';
 
 /** Перевод: ключ и параметры сообщения. Совпадает по форме с `PluginI18n.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;

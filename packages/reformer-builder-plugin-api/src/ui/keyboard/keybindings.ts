@@ -8,7 +8,7 @@
  * @module @reformer/builder-plugin-api/ui/keyboard/keybindings
  */
 
-import { normalizeKeybinding } from '../../primitives/command';
+import { normalizeKeybinding } from '../../primitives/command.js';
 
 /**
  * Модификатор, в который разворачивается `mod` на этой платформе.

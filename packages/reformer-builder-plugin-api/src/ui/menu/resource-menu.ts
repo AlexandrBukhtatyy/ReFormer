@@ -6,9 +6,9 @@
  * @module @reformer/builder-plugin-api/ui/menu/resource-menu
  */
 
-import type { ResourceId, ResourceRef } from '../../primitives/resource';
-import type { WhenContext } from '../../primitives/when-context';
-import type { ContextMenuId, MenuTarget } from './menu';
+import type { ResourceId, ResourceRef } from '../../primitives/resource.js';
+import type { WhenContext } from '../../primitives/when-context.js';
+import type { ContextMenuId, MenuTarget } from './menu.js';
 
 /** Адрес контекстного меню дерева: в него вносят пункты те, кому есть что предложить. */
 export const RESOURCE_CONTEXT_MENU: ContextMenuId = 'resource/context';

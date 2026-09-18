@@ -6,10 +6,10 @@
  * @module @reformer/builder-plugin-api/services/diagnostics/service
  */
 
-import type { Disposable } from '../../primitives/disposable';
-import type { ResourceId } from '../../primitives/resource';
-import { defineService } from '../../primitives/service';
-import type { Diagnostic } from './types';
+import type { Disposable } from '../../primitives/disposable.js';
+import type { ResourceId } from '../../primitives/resource.js';
+import { defineService } from '../../primitives/service.js';
+import type { Diagnostic } from './types.js';
 
 export interface DiagnosticsService {
   /**

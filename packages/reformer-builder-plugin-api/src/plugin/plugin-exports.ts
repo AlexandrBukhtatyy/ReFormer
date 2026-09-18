@@ -8,7 +8,7 @@
  * @module @reformer/builder-plugin-api/plugin/plugin-exports
  */
 
-import type { Plugin } from './types';
+import type { Plugin } from './types.js';
 
 /** Похоже ли значение на плагин. Больше рантайму знать о нём нечего. */
 function asPlugin(value: unknown): Plugin | undefined {

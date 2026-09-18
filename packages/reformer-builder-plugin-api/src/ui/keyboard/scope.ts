@@ -6,8 +6,8 @@
  * @module @reformer/builder-plugin-api/ui/keyboard/scope
  */
 
-import type { Disposable } from '../../primitives/disposable';
-import { defineService } from '../../primitives/service';
+import type { Disposable } from '../../primitives/disposable.js';
+import { defineService } from '../../primitives/service.js';
 
 /**
  * Имя области: `palette`, `dialog`. Непрозрачная строка, как `activeResourceKind`.

@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useSyncExternalStore } from 'react';
-import type { PluginI18n } from '../services/i18n';
+import type { PluginI18n } from '../services/i18n.js';
 
 /**
  * Текущая локаль — как повод перерисоваться, а не как значение.

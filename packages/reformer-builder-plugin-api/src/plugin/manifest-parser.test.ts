@@ -4,8 +4,8 @@ import {
   parsePluginManifest,
   parsePluginManifestValue,
   parsePluginSourceManifest,
-} from './manifest-parser';
-import { BUILDER_API_VERSION } from './manifest';
+} from './manifest-parser.js';
+import { BUILDER_API_VERSION } from './manifest.js';
 
 const good = {
   id: 'acme-forms',
@@ -588,5 +588,51 @@ describe('права плагина', () => {
     const result = parsePluginManifest(JSON.stringify(good), project('acme-forms'));
 
     expect(result.ok && 'permissions' in result.manifest).toBe(false);
+  });
+});
+
+describe('compatibility.builder — вторая ось совместимости', () => {
+  const withBuilder = (compatibility: unknown, builder?: string) =>
+    parsePluginManifest(JSON.stringify({ ...good, compatibility }), project('acme-forms'), {
+      ...(builder === undefined ? {} : { builder }),
+    });
+
+  it('диапазон покрывает версию приложения — плагин проходит и поле сохраняется', () => {
+    const result = withBuilder({ builder: '^2' }, '2.3.0');
+
+    expect(result.ok && result.manifest.compatibility).toEqual({ builder: '^2' });
+  });
+
+  it('не покрывает — отказ ОТДЕЛЬНЫМ кодом, а не «api-version»', () => {
+    // Чинится это иначе: обновлением билдера, а не переписыванием плагина под другой
+    // контракт. Один код на два разных действия человека был бы подсказкой в никуда.
+    const result = withBuilder({ builder: '^3' }, '2.3.0');
+
+    expect(!result.ok && result.problem.code).toBe('builder-version');
+    expect(!result.ok && result.problem.message).toContain('2.3.0');
+  });
+
+  it('спрашивающий не назвал своей версии — проверяется только форма', () => {
+    // Так манифест читает CLI автора плагина: в каком билдере плагин запустят, он не знает,
+    // и отказ по версии означал бы отказ по выдуманному числу.
+    expect(withBuilder({ builder: '^3' }).ok).toBe(true);
+    // Форма при этом проверяется: опечатку в диапазоне ловим у автора на машине.
+    const typo = withBuilder({ builder: 'последний' });
+    expect(!typo.ok && typo.problem.code).toBe('manifest-invalid');
+  });
+
+  it('форма проверяется всегда: не объект, пустой объект, не диапазон', () => {
+    for (const bad of [{ builder: 'latest' }, {}, { builder: 42 }, '2.0.0', ['^2']]) {
+      const result = withBuilder(bad, '2.3.0');
+      expect(!result.ok && result.problem.code, JSON.stringify(bad)).toBe('manifest-invalid');
+    }
+  });
+
+  it('поля нет — ничего не проверяется и в манифесте его не появляется', () => {
+    const result = parsePluginManifest(JSON.stringify(good), project('acme-forms'), {
+      builder: '2.3.0',
+    });
+
+    expect(result.ok && 'compatibility' in result.manifest).toBe(false);
   });
 });

@@ -36,11 +36,11 @@
  */
 
 import type { ComponentType } from 'react';
-import type { CommandContribution } from '../../primitives/command';
-import { defineExtensionPoint } from '../../primitives/extension-point';
-import type { ResourceId, ResourceRef } from '../../primitives/resource';
-import type { EditorProbe } from '../../workspace/model/provider';
-import type { PanelContribution } from '../slots';
+import type { CommandContribution } from '../../primitives/command.js';
+import { defineExtensionPoint } from '../../primitives/extension-point.js';
+import type { ResourceId, ResourceRef } from '../../primitives/resource.js';
+import type { EditorProbe } from '../../workspace/model/provider.js';
+import type { PanelContribution } from '../slots.js';
 
 /**
  * Редактор — вклад, отвечающий на два вопроса: берётся ли он за ресурс и чем его рисовать.

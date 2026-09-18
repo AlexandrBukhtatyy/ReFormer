@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { isPluginCodeFile } from './layout';
-import { parseMessagesBundle } from './messages-bundle';
+import { isPluginCodeFile } from './layout.js';
+import { parseMessagesBundle } from './messages-bundle.js';
 
 describe('раскладка каталога плагина', () => {
   it('код узнаётся по расширению без учёта регистра', () => {

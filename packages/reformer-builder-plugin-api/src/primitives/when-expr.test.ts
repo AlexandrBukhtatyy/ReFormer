@@ -8,8 +8,8 @@ import {
   WHEN_TRUE,
   WhenSyntaxError,
   whenSpecificity,
-} from './when-expr';
-import type { WhenExpr } from './when-expr';
+} from './when-expr.js';
+import type { WhenExpr } from './when-expr.js';
 
 /** Читатель ключей из простой карты — ровно то, чем будет служба контекстных ключей. */
 const reader =

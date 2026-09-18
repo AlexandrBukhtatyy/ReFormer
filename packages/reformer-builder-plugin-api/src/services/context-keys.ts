@@ -7,9 +7,9 @@
  * @module @reformer/builder-plugin-api/services/context-keys
  */
 
-import type { Disposable } from '../primitives/disposable';
-import { defineService } from '../primitives/service';
-import { type WhenContext } from '../primitives/when-context';
+import type { Disposable } from '../primitives/disposable.js';
+import { defineService } from '../primitives/service.js';
+import { type WhenContext } from '../primitives/when-context.js';
 
 /** Снимок состояния: одно значение, две проекции. */
 export interface ContextKeySnapshot {
