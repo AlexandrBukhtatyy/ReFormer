@@ -14,17 +14,17 @@
  * const factory = new NodeFactory();
  *
  * // Создание FieldNode
- * const field = factory.createNode({ value: '', component: InputField });
+ * const field = factory.createNode({ value: '', component: Input });
  *
  * // Создание GroupNode
  * const group = factory.createNode({
- *   email: { value: '', component: InputField },
- *   password: { value: '', component: InputField }
+ *   email: { value: '', component: Input },
+ *   password: { value: '', component: Input }
  * });
  *
  * // Создание ArrayNode
  * const array = factory.createNode({
- *   schema: { title: { value: '', component: InputField } },
+ *   schema: { title: { value: '', component: Input } },
  *   initialItems: []
  * });
  * ```
@@ -47,7 +47,7 @@ import type { ConfigWithSchema, ConfigWithValue, UnknownRecord } from '../types/
  * import { NodeFactory } from '@reformer/core';
  *
  * const factory = new NodeFactory();
- * const node = factory.createNode({ value: '', component: InputField }); // → FieldNode<string>
+ * const node = factory.createNode({ value: '', component: Input }); // → FieldNode<string>
  * ```
  */
 export class NodeFactory {
@@ -73,25 +73,25 @@ export class NodeFactory {
    * // FieldNode
    * const field = factory.createNode({
    *   value: 'test@mail.com',
-   *   component: InputField,
+   *   component: Input,
    *   validators: [required, email]
    * });
    *
    * // GroupNode
    * const group = factory.createNode({
-   *   email: { value: '', component: InputField },
-   *   password: { value: '', component: InputField }
+   *   email: { value: '', component: Input },
+   *   password: { value: '', component: Input }
    * });
    *
    * // ArrayNode (объект)
    * const array = factory.createNode({
-   *   schema: { title: { value: '', component: InputField } },
+   *   schema: { title: { value: '', component: Input } },
    *   initialItems: [{ title: 'Item 1' }]
    * });
    *
    * // ArrayNode (массив) - новый формат
    * const array2 = factory.createNode([
-   *   { title: { value: '', component: InputField } }, // schema
+   *   { title: { value: '', component: Input } }, // schema
    *   { title: 'Item 1' }, // initial item 1
    *   { title: 'Item 2' }  // initial item 2
    * ]);
@@ -148,7 +148,7 @@ export class NodeFactory {
    *
    * // Массив с начальными элементами
    * const array = factory.createArrayNodeFromArray([
-   *   { title: { value: '', component: InputField } }, // schema
+   *   { title: { value: '', component: Input } }, // schema
    *   { title: 'Item 1' }, // initial value
    *   { title: 'Item 2' }  // initial value
    * ]);
@@ -188,7 +188,7 @@ export class NodeFactory {
    * ✅ НОВОЕ: Извлечено из GroupNode для централизации логики
    *
    * Преобразует схему формы в объект со значениями:
-   * - `{ name: { value: 'John', component: InputField } } → { name: 'John' }`
+   * - `{ name: { value: 'John', component: Input } } → { name: 'John' }`
    * - Поддерживает вложенные группы
    * - Поддерживает массивы
    *
@@ -200,10 +200,10 @@ export class NodeFactory {
    * const factory = new NodeFactory();
    *
    * const schema = {
-   *   name: { value: 'John', component: InputField },
-   *   age: { value: 30, component: InputField },
+   *   name: { value: 'John', component: Input },
+   *   age: { value: 30, component: Input },
    *   address: {
-   *     city: { value: 'Moscow', component: InputField }
+   *     city: { value: 'Moscow', component: Input }
    *   }
    * };
    *
@@ -251,7 +251,7 @@ export class NodeFactory {
    * ```typescript
    * const factory = new NodeFactory();
    *
-   * factory.isFieldConfig({ value: '', component: InputField }); // true
+   * factory.isFieldConfig({ value: '', component: Input }); // true
    * factory.isFieldConfig({ email: { value: '' } }); // false
    * factory.isFieldConfig(null); // false
    * ```
@@ -294,7 +294,7 @@ export class NodeFactory {
    * const factory = new NodeFactory();
    *
    * factory.isArrayConfig({ schema: {}, initialItems: [] }); // true
-   * factory.isArrayConfig({ value: '', component: InputField }); // false
+   * factory.isArrayConfig({ value: '', component: Input }); // false
    * factory.isArrayConfig({ email: { value: '' } }); // false
    * ```
    */
@@ -320,11 +320,11 @@ export class NodeFactory {
    * const factory = new NodeFactory();
    *
    * factory.isGroupConfig({
-   *   email: { value: '', component: InputField },
-   *   password: { value: '', component: InputField }
+   *   email: { value: '', component: Input },
+   *   password: { value: '', component: Input }
    * }); // true
    *
-   * factory.isGroupConfig({ value: '', component: InputField }); // false
+   * factory.isGroupConfig({ value: '', component: Input }); // false
    * factory.isGroupConfig({ schema: {} }); // false
    * factory.isGroupConfig(null); // false
    * ```

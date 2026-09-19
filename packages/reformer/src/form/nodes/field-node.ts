@@ -33,7 +33,7 @@ import { FormStatusMachine } from '../status-machine';
  * ```typescript
  * const field = new FieldNode({
  *   value: '',
- *   component: InputField,
+ *   component: Input,
  *   validators: [required, email],
  * });
  *
@@ -244,7 +244,7 @@ export class FieldNode<T> extends FormNode<T> {
    *
    * @example
    * ```typescript
-   * const field = new FieldNode({ value: 'initial', component: InputField });
+   * const field = new FieldNode({ value: 'initial', component: Input });
    *
    * field.setValue('changed');
    * field.reset('temp value');
@@ -570,7 +570,7 @@ export class FieldNode<T> extends FormNode<T> {
    * const form = createForm({
    *   email: {
    *     value: '',
-   *     component: InputField,
+   *     component: Input,
    *     updateOn: 'submit', // Изначально валидация только при submit
    *     validators: [required, email],
    *   },

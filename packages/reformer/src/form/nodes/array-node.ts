@@ -28,8 +28,8 @@ import { SubscriptionManager } from './subscription-manager';
  * @example
  * ```typescript
  * const array = new ArrayNode({
- *   title: { value: '', component: InputField },
- *   price: { value: 0, component: InputField },
+ *   title: { value: '', component: Input },
+ *   price: { value: 0, component: Input },
  * });
  *
  * array.push({ title: 'Item 1', price: 100 });
@@ -347,7 +347,7 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
    * @example
    * ```typescript
    * const arrayNode = new ArrayNode(
-   *   { name: { value: '', component: InputField } },
+   *   { name: { value: '', component: Input } },
    *   [{ name: 'Initial 1' }, { name: 'Initial 2' }]
    * );
    *

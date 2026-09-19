@@ -22,3 +22,14 @@ export type { UseFormValidationArgs, UseFormValidationResult } from './hooks/use
 export { useFormBundle } from './hooks/use-form-bundle';
 export type { FormBundleLike } from './hooks/use-form-bundle';
 export type { FieldControlState, ArrayControlState } from './hooks/types';
+
+// Связка поля с контролом: адаптер диалекта (статика `reformerAdapter`) и императивный handle.
+// Общие для `FormField.Control` (@reformer/cdk) и рендерера (@reformer/renderer-react).
+export {
+  getFieldAdapter,
+  bindFieldProps,
+  FIELD_WRAPPER_ONLY_PROPS,
+} from './field-binding/field-adapter';
+export type { FieldAdapter, FieldAdapterCarrier, FieldSeam } from './field-binding/field-adapter';
+export { makeElementFieldHandle, useFieldHandleRef } from './field-binding/field-handle';
+export type { FieldHandle } from './field-binding/field-handle';
