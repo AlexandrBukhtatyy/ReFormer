@@ -151,7 +151,7 @@ mkdir -p projects/react-playground/src/pages/debug/mcp-credit-application-{TARGE
 
 ❌ **НЕ ДЕЛАЙ**: свои Input/Select/Checkbox компоненты с label-prop'ами в JSX. Это anti-pattern, ломает schema-driven архитектуру и удваивает код.
 
-`FormField` живёт в `@reformer/ui-kit`. Подключай через `import { FormField, Input, Select, Checkbox, Button } from '@reformer/ui-kit'`. Это **peer-dependency**, не нарушает sandbox или архитектуру.
+`FormField` живёт в `@reformer/ui-kit`. Подключай через `import { FormField, Input, InputNumber, SelectAsync, CheckboxWithLabel, Button } from '@reformer/ui-kit'`. Это **peer-dependency**, не нарушает sandbox или архитектуру.
 
 ### Convention testId = path-with-dashes (CRITICAL — orchestrator запустит abstract tests)
 
@@ -163,7 +163,7 @@ mkdir -p projects/react-playground/src/pages/debug/mcp-credit-application-{TARGE
 // — nested groups: testId === parentField '-' childField (через дефис, camelCase parts)
 // — array items: testId per item leaf БЕЗ префикса (POM ставит индекс сам)
 loanAmount: { value: null, component: Input, componentProps: { label: '...', testId: 'loanAmount' } },
-loanType:   { value: 'consumer', component: Select, componentProps: { label: '...', testId: 'loanType', options: [...] } } satisfies FieldConfig<LoanType>,
+loanType:   { value: 'consumer', component: SelectAsync, componentProps: { label: '...', testId: 'loanType', options: [...] } } satisfies FieldConfig<LoanType>,
 
 personalData: {
   // testId с префиксом 'personalData-' — POM ожидает иерархические имена
@@ -192,9 +192,9 @@ residenceAddress: {
 // FormArraySection items — POM ставит индекс сам (`data-testid="input-properties-0-type"`).
 // Внутри item-template используй имена полей item, БЕЗ префикса массива:
 properties: [{
-  type:           { value: 'apartment', component: Select, componentProps: { label: 'Тип', testId: 'type', options: [...] } },
+  type:           { value: 'apartment', component: SelectAsync, componentProps: { label: 'Тип', testId: 'type', options: [...] } },
   description:    { value: '',          component: Textarea, componentProps: { label: 'Описание',  testId: 'description' } },
-  estimatedValue: { value: 0,           component: Input,  componentProps: { label: 'Стоимость', testId: 'estimatedValue', type: 'number' } },
+  estimatedValue: { value: 0,           component: InputNumber,  componentProps: { label: 'Стоимость', testId: 'estimatedValue' } },
 }],
 ```
 

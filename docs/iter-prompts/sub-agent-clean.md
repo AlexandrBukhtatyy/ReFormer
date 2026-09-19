@@ -58,8 +58,8 @@ personalData: {
 },
 
 properties: [{
-  type:           { value: 'apartment', component: Select,   componentProps: { label: 'Тип',       testId: 'type' } },
-  estimatedValue: { value: 0,           component: Input,    componentProps: { label: 'Стоимость', testId: 'estimatedValue', type: 'number' } },
+  type:           { value: 'apartment', component: SelectAsync,   componentProps: { label: 'Тип',       testId: 'type' } },
+  estimatedValue: { value: 0,           component: InputNumber,    componentProps: { label: 'Стоимость', testId: 'estimatedValue' } },
 }],
 ```
 

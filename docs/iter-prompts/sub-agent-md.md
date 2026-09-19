@@ -162,7 +162,7 @@ mkdir -p .tmp/iter-artifacts/{RUN_ID}/{TARGET}
 
 ❌ **НЕ ДЕЛАЙ**: свои Input/Select/Checkbox компоненты с label-prop'ами в JSX. Это anti-pattern, ломает schema-driven архитектуру и удваивает код.
 
-`FormField` живёт в `@reformer/ui-kit`. Подключай через `import { FormField, Input, Select, Checkbox, Button } from '@reformer/ui-kit'`. Это peer-dependency, не нарушает sandbox или архитектуру.
+`FormField` живёт в `@reformer/ui-kit`. Подключай через `import { FormField, Input, InputNumber, SelectAsync, CheckboxWithLabel, Button } from '@reformer/ui-kit'`. Это peer-dependency, не нарушает sandbox или архитектуру.
 
 ### Convention testId = path-with-dashes (CRITICAL)
 
@@ -171,7 +171,7 @@ mkdir -p .tmp/iter-artifacts/{RUN_ID}/{TARGET}
 ```ts
 // schema.ts ✓
 loanAmount: { value: null, component: Input, componentProps: { label: '...', testId: 'loanAmount' } },
-loanType:   { value: 'consumer', component: Select, componentProps: { label: '...', testId: 'loanType', options: [...] } } satisfies FieldConfig<LoanType>,
+loanType:   { value: 'consumer', component: SelectAsync, componentProps: { label: '...', testId: 'loanType', options: [...] } } satisfies FieldConfig<LoanType>,
 
 personalData: {
   lastName:  { value: '', component: Input, componentProps: { label: 'Фамилия', testId: 'personalData-lastName' } },
@@ -186,8 +186,8 @@ passportData: {
 
 // FormArraySection items — consumer ставит индекс сам. Внутри item-template имена полей БЕЗ префикса массива:
 properties: [{
-  type:           { value: 'apartment', component: Select,   componentProps: { label: 'Тип',       testId: 'type', options: [...] } },
-  estimatedValue: { value: 0,           component: Input,    componentProps: { label: 'Стоимость', testId: 'estimatedValue', type: 'number' } },
+  type:           { value: 'apartment', component: SelectAsync,   componentProps: { label: 'Тип',       testId: 'type', options: [...] } },
+  estimatedValue: { value: 0,           component: InputNumber,    componentProps: { label: 'Стоимость', testId: 'estimatedValue' } },
 }],
 ```
 
