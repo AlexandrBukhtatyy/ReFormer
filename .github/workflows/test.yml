@@ -151,14 +151,6 @@ jobs:
       - name: Run @reformer/builder-plugin-api tests
         run: npm run test -w @reformer/builder-plugin-api
 
-      # builder-plugin-cli — `reformer-plugin`, инструменты автора плагина. Идёт сразу после
-      # контракта: берёт из его dist вход ./tooling (разбор манифеста, правила каталога).
-      - name: Build @reformer/builder-plugin-cli
-        run: npm run build -w @reformer/builder-plugin-cli
-
-      - name: Run @reformer/builder-plugin-cli tests
-        run: npm run test -w @reformer/builder-plugin-cli
-
       # Пакеты стеков билдера. toolkit — нейтральный слой, stack-reformer берёт его из dist,
       # поэтому порядок именно такой; stack-reformer вдобавок печатает правила генераторами
       # @reformer/mcp, собранного выше. Билдер резолвит оба в исходники и их dist не ждёт,
@@ -181,6 +173,15 @@ jobs:
 
       - name: Run @reformer/builder-stack-plain tests
         run: npm run test -w @reformer/builder-stack-plain
+
+      # builder-plugin-cli — `reformer-plugin`, инструменты автора плагина. Берёт из dist контракта
+      # вход ./tooling, а его тесты собирают плагины, вкладывающие пакеты стеков, — поэтому идёт
+      # ПОСЛЕ их сборки: сборка плагина находит стек по dist.
+      - name: Build @reformer/builder-plugin-cli
+        run: npm run build -w @reformer/builder-plugin-cli
+
+      - name: Run @reformer/builder-plugin-cli tests
+        run: npm run test -w @reformer/builder-plugin-cli
 
       - name: Build @reformer/builder
         run: npm run build -w @reformer/builder
