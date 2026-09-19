@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { withFormControl } from '@/fields/with-form-control';
+import { defineFieldControl } from '@/fields/field-control';
 import { checkedAdapter } from '@/fields/adapters';
 import { useFieldTooltip, type FieldTooltipProps } from '@/fields/field-tooltip';
 import { Checkbox } from './checkbox-base';
@@ -21,7 +21,7 @@ export interface CheckboxWithLabelProps
  * (htmlFor↔id), поэтому висячий `aria-labelledby` (ids.labelId от FormField — верхняя подпись не
  * рендерится) сбрасываем, когда подпись есть.
  */
-function CheckboxWithLabel({
+function CheckboxWithLabelBase({
   label,
   tooltip,
   id,
@@ -68,16 +68,16 @@ function CheckboxWithLabel({
   );
 }
 
-CheckboxWithLabel.displayName = 'CheckboxWithLabel';
+CheckboxWithLabelBase.displayName = 'CheckboxWithLabel';
 
 /**
- * Field-версия Checkbox: pure Checkbox + подпись справа, привязка через `checkedAdapter`
- * (`checked` / `onCheckedChange`, boolean). Экспортируется как алиас `CheckboxField`.
+ * Чекбокс с подписью справа — компонент для формы (`component: CheckboxWithLabel`, registry
+ * `Checkbox`). Диалект `checked`/`onCheckedChange` (boolean) — статика {@link checkedAdapter};
+ * маркер `inline-label` — FormField НЕ рендерит верхнюю подпись (иначе задвоится с внутренней).
  */
-export const CheckboxBaseField = withFormControl(CheckboxWithLabel, checkedAdapter);
-
-// inline-label маркер: FormField НЕ рендерит верхнюю подпись (иначе задвоится с внутренней <label>).
-// Неэнфорсимая конвенция (form-field.tsx:hasInlineLabel) — обязательна для Checkbox/Switch/Toggle.
-(CheckboxBaseField as { reformerLayout?: string }).reformerLayout = 'inline-label';
+const CheckboxWithLabel = defineFieldControl(CheckboxWithLabelBase, {
+  adapter: checkedAdapter,
+  layout: 'inline-label',
+});
 
 export { CheckboxWithLabel };

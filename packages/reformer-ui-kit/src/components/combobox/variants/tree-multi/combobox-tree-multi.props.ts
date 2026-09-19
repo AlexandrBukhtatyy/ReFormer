@@ -10,8 +10,8 @@ import {
  *
  * `x-registryName: 'ComboboxTreeMulti'` — отдельная запись каталога, а не проп `multiple`
  * у `ComboboxTree`: тип значения другой (`string[] | null` против `string | null`), а
- * `x-runtimeProps.value` у записи ровно один. Адаптер вшит в замыкание HOC на этапе вызова
- * `withFormControl` и переключаться на рендере не может.
+ * `x-runtimeProps.value` у записи ровно один. Адаптер — статика компонента, по пропу на рендере
+ * он не переключается.
  */
 export const comboboxTreeMultiPropsSchema = {
   type: 'object',

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Input, InputField } from './index';
+import { Input, InputNumber } from './index';
+import { Bound } from '@/test-utils/bound';
 
 describe('Input (base, pure shadcn)', () => {
   it('рендерит native input с data-slot=input', () => {
@@ -12,43 +13,38 @@ describe('Input (base, pure shadcn)', () => {
   });
 });
 
-describe('InputField (диспетчер по type)', () => {
+describe('Input в форме (nativeInputAdapter)', () => {
   it('строковый: рендерит value', () => {
-    const html = renderToStaticMarkup(<InputField value="привет" />);
+    const html = renderToStaticMarkup(<Bound component={Input} value="привет" />);
     expect(html).toContain('value="привет"');
     expect(html).toContain('data-slot="input"');
   });
 
   it('строковый: value=null → пустое поле', () => {
-    const html = renderToStaticMarkup(<InputField value={null} />);
+    const html = renderToStaticMarkup(<Bound component={Input} value={null} />);
     expect(html).toContain('value=""');
   });
 
-  it('number: type=number + число из value', () => {
-    const html = renderToStaticMarkup(<InputField type="number" value={42} />);
+  it('InputNumber: type=number + число из value', () => {
+    const html = renderToStaticMarkup(<Bound component={InputNumber} value={42} />);
     expect(html).toContain('type="number"');
     expect(html).toContain('value="42"');
   });
 
-  it('number: value=null → пустое поле (буфер отдаёт "")', () => {
-    const html = renderToStaticMarkup(<InputField type="number" value={null} />);
+  it('InputNumber: value=null → пустое поле (буфер отдаёт "")', () => {
+    const html = renderToStaticMarkup(<Bound component={InputNumber} value={null} />);
     expect(html).toContain('value=""');
-  });
-
-  it('strip control: renderer-путь не течёт в DOM', () => {
-    const html = renderToStaticMarkup(<InputField value="x" control={{ id: 1 } as never} />);
-    expect(html).not.toContain('[object Object]');
   });
 
   it('прокидывает aria/id на input (seam-контракт)', () => {
     const html = renderToStaticMarkup(
-      <InputField value="x" id="control-a" aria-labelledby="label-a" aria-invalid />
+      <Bound component={Input} value="x" id="control-a" aria-labelledby="label-a" aria-invalid />
     );
     expect(html).toContain('id="control-a"');
     expect(html).toContain('aria-labelledby="label-a"');
   });
   it('readOnly доезжает до DOM: значение видно, ввод закрыт', () => {
-    const html = renderToStaticMarkup(<InputField value="Иван Петров" readOnly />);
+    const html = renderToStaticMarkup(<Bound component={Input} value="Иван Петров" readOnly />);
     expect(html).toMatch(/readonly/i);
     expect(html).toContain('value="Иван Петров"');
   });

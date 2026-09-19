@@ -29,7 +29,7 @@ describe('input-otp props-схема — страж от дрейфа', () => {
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = InputOTP (на него смотрит алиас InputOTPField)', () => {
+  it('x-registryName = InputOTP (на него смотрит алиас InputOTPDefault)', () => {
     expect(inputOtpBasePropsSchema['x-registryName']).toBe('InputOTP');
   });
 

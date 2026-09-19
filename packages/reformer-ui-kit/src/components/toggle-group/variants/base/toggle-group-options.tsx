@@ -1,13 +1,13 @@
 import * as React from 'react';
 import type { VariantProps } from 'class-variance-authority';
 
-import { withFormControl } from '@/fields/with-form-control';
+import { defineFieldControl } from '@/fields/field-control';
 import { valueChangeAdapter } from '@/fields/adapters';
 import { withFieldTooltip, OUTSIDE_CENTER } from '@/fields/field-tooltip';
 import { toggleVariants } from '@/components/toggle';
 import { ToggleGroup, ToggleGroupItem } from './toggle-group-base';
 
-/** Один вариант выбора для {@link ToggleGroupField}. */
+/** Один вариант выбора для {@link ToggleGroupOptions}. */
 export interface ToggleGroupOption {
   /** Значение, попадающее в `onChange`. Radix ToggleGroup оперирует строками. */
   value: string;
@@ -15,7 +15,7 @@ export interface ToggleGroupOption {
   label: string;
 }
 
-/** Props презентационной обёртки {@link ToggleGroupOptions}. */
+/** Props {@link ToggleGroupOptions}. */
 export interface ToggleGroupOptionsProps {
   /** Список вариантов. Каждый рендерится как `ToggleGroupItem` (кнопка `role=radio`). */
   options?: ToggleGroupOption[];
@@ -36,17 +36,16 @@ export interface ToggleGroupOptionsProps {
 }
 
 /**
- * Презентационная обёртка над base ToggleGroup/ToggleGroupItem: рендерит опции из массива
- * `options` в single-режиме (`type="single"` → Radix эмитит выбранную строку). Контракт
- * `value` / `onValueChange` совпадает с Radix Root — поэтому field-версия =
- * `withFormControl(ToggleGroupOptions, valueChangeAdapter)` (без ручного маппинга событий).
+ * Вариант ToggleGroup, собранный из массива `options` в single-режиме (`type="single"` → Radix
+ * эмитит выбранную строку). Контракт `value` / `onValueChange` — как у Radix Root, в форме его
+ * сводит {@link valueChangeAdapter}.
  *
  * Контейнер — Radix Root (`role="group"`); каждый Item получает per-option
  * `data-testid = <data-testid>-<value>`: FormField передаёт контролу `data-testid="input-<field>"`,
  * поэтому в форме выходит `input-<field>-<value>` (POM ждёт именно этот идентификатор).
  * aria-атрибуты и id приходят через spread `...props` и ложатся на контейнер (seam-контракт).
  */
-function ToggleGroupOptions({
+function ToggleGroupOptionsBase({
   options = [],
   value,
   onValueChange,
@@ -78,14 +77,12 @@ function ToggleGroupOptions({
   );
 }
 
-ToggleGroupOptions.displayName = 'ToggleGroupOptions';
-
 /**
- * Value-based контракт field-версии ToggleGroup. Значение — `string` (`option.value`); форма
+ * Value-based контракт ToggleGroup в форме. Значение — `string` (`option.value`); форма
  * резолвит `value`/`onChange`/`onBlur`/`disabled`, автор задаёт `options`/`variant`/`className`
  * в `componentProps`. Служит типом для стража props-схемы (base — Radix `value`/`onValueChange`).
  */
-export interface ToggleGroupFieldProps {
+export interface ToggleGroupFormProps {
   value?: string;
   onChange?: (value: string) => void;
   onBlur?: () => void;
@@ -96,13 +93,14 @@ export interface ToggleGroupFieldProps {
 }
 
 /**
- * Field-версия ToggleGroup: value-based (`value: string | null`, `onChange(value)`), рендерит
- * `options`. Привязка через {@link valueChangeAdapter} (`value` / `onValueChange`, string).
- * НЕ inline-label — подпись группы рисует FormField сверху. Экспортируется как алиас `ToggleGroupField`.
+ * Группа переключателей из `options` — компонент для формы (`component: ToggleGroupOptions`,
+ * registry `ToggleGroup`): `value: string | null`, `onChange(value)` через
+ * {@link valueChangeAdapter} (статика) + проп `tooltip`. Подпись группы рисует FormField сверху.
  */
-export const ToggleGroupBaseField = withFormControl(
-  withFieldTooltip(ToggleGroupOptions, OUTSIDE_CENTER),
-  valueChangeAdapter
+const ToggleGroupOptions = defineFieldControl(
+  withFieldTooltip(ToggleGroupOptionsBase, OUTSIDE_CENTER),
+  { adapter: valueChangeAdapter }
 );
+ToggleGroupOptions.displayName = 'ToggleGroupOptions';
 
 export { ToggleGroupOptions };

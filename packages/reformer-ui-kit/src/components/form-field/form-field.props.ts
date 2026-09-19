@@ -8,7 +8,7 @@ import type { PropsSchema } from '../../fields/props-schema';
  * `testId` — meta-проп: уходит в `data-testid`, в примитив/DOM как проп не течёт.
  * `description` — под shadcn `Field` (`FieldDescription`); FormField перестроен на нём в волне 0.
  * `labelTooltip` — иконка (i) после подписи; как и `testId`, до контрола не доходит (срезает
- * `withFormControl`). Подсказка ВНУТРИ контрола — отдельный проп `tooltip` (`field-common.props.ts`).
+ * обёртка поля — `bindFieldProps` в `@reformer/core`). Подсказка ВНУТРИ контрола — отдельный проп `tooltip` (`field-common.props.ts`).
  */
 export const fieldWrapperPropsSchema: PropsSchema = {
   type: 'object',

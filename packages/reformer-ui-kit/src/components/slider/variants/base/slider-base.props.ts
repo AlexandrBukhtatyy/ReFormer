@@ -4,7 +4,7 @@ import type { PropsSchema } from '@/fields/props-schema';
  * Props-схема Slider — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
  * `componentProps` (renderer-json). Поверхность в DSL — `min`/`max`/`step` (диапазон Radix)
  * + `className`; `additionalProperties: false` ловит опечатки. `x-registryName: 'Slider'` —
- * на этот вариант смотрит алиас `SliderField`.
+ * компонент `Slider`.
  *
  * `value`/`onChange` скалярны (`number | null`): base — Radix `value: number[]` /
  * `onValueChange(number[])`, но `sliderAdapter` сводит одно-thumb режим к числу.

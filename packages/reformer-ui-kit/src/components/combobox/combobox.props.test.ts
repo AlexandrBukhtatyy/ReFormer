@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { comboboxBasePropsSchema } from './variants/base/combobox-base.props';
 import type { ComboboxProps } from './variants/base/combobox-base';
 import { comboboxMultiPropsSchema } from './variants/multi/combobox-multi.props';
-import type { ComboboxMultiFieldProps } from './variants/multi/combobox-multi.field';
+import type { ComboboxMultiFormProps } from './variants/multi/combobox-multi';
 import { comboboxTreePropsSchema } from './variants/tree/combobox-tree.props';
-import type { ComboboxTreeFieldProps } from './variants/tree/combobox-tree.field';
+import type { ComboboxTreeFormProps } from './variants/tree/combobox-tree';
 import { comboboxTreeMultiPropsSchema } from './variants/tree-multi/combobox-tree-multi.props';
-import type { ComboboxTreeMultiFieldProps } from './variants/tree-multi/combobox-tree-multi.field';
+import type { ComboboxTreeMultiFormProps } from './variants/tree-multi/combobox-tree-multi';
 
 /**
  * Страж от дрейфа схемы (фаза E2). Тип-левел часть (A) падает на `tsc`, НЕ на vitest
@@ -29,7 +29,7 @@ describe('combobox props-схема — страж от дрейфа', () => {
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = Combobox (на него смотрит алиас ComboboxField)', () => {
+  it('x-registryName = Combobox (на него смотрит алиас Combobox)', () => {
     expect(comboboxBasePropsSchema['x-registryName']).toBe('Combobox');
   });
 
@@ -46,7 +46,7 @@ type MultiRuntimeKeys = keyof (typeof comboboxMultiPropsSchema)['x-runtimeProps'
 type MultiKeys = MultiPropKeys | MultiRuntimeKeys;
 
 /** A: каждый ключ мульти-схемы существует в props мульти-контракта. */
-type _A_MultiNoStrayKeys = Assert<MultiKeys extends keyof ComboboxMultiFieldProps ? true : false>;
+type _A_MultiNoStrayKeys = Assert<MultiKeys extends keyof ComboboxMultiFormProps ? true : false>;
 
 describe('combobox-multi props-схема — страж от дрейфа', () => {
   it('рантайм: properties ∩ x-runtimeProps = ∅ (проп не в двух местах)', () => {
@@ -55,7 +55,7 @@ describe('combobox-multi props-схема — страж от дрейфа', () 
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = ComboboxMulti (на него смотрит экспорт ComboboxMultiField)', () => {
+  it('x-registryName = ComboboxMulti (на него смотрит экспорт ComboboxMulti)', () => {
     expect(comboboxMultiPropsSchema['x-registryName']).toBe('ComboboxMulti');
   });
 
@@ -77,14 +77,14 @@ type TreeKeys =
   | keyof (typeof comboboxTreePropsSchema)['x-runtimeProps'];
 
 /** A: каждый ключ схемы существует в контракте поля. */
-type _A_TreeNoStrayKeys = Assert<TreeKeys extends keyof ComboboxTreeFieldProps ? true : false>;
+type _A_TreeNoStrayKeys = Assert<TreeKeys extends keyof ComboboxTreeFormProps ? true : false>;
 
 type TreeMultiKeys =
   | keyof typeof comboboxTreeMultiPropsSchema.properties
   | keyof (typeof comboboxTreeMultiPropsSchema)['x-runtimeProps'];
 
 type _A_TreeMultiNoStrayKeys = Assert<
-  TreeMultiKeys extends keyof ComboboxTreeMultiFieldProps ? true : false
+  TreeMultiKeys extends keyof ComboboxTreeMultiFormProps ? true : false
 >;
 
 describe('combobox-tree props-схема — страж от дрейфа', () => {
@@ -94,7 +94,7 @@ describe('combobox-tree props-схема — страж от дрейфа', () =
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = ComboboxTree (на него смотрит экспорт ComboboxTreeField)', () => {
+  it('x-registryName = ComboboxTree (на него смотрит экспорт ComboboxTree)', () => {
     expect(comboboxTreePropsSchema['x-registryName']).toBe('ComboboxTree');
   });
 

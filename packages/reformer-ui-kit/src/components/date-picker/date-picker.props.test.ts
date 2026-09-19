@@ -33,7 +33,7 @@ describe('date-picker props-схема — страж от дрейфа', () => 
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = DatePicker (на него смотрит алиас DatePickerField)', () => {
+  it('x-registryName = DatePicker (на него смотрит алиас DatePicker)', () => {
     expect(datePickerBasePropsSchema['x-registryName']).toBe('DatePicker');
   });
 

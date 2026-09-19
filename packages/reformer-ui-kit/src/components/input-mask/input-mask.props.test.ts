@@ -23,7 +23,7 @@ describe('input-mask props-схема — страж от дрейфа', () => {
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = InputMask (на него смотрит алиас InputMaskField)', () => {
+  it('x-registryName = InputMask (на него смотрит алиас InputMask)', () => {
     expect(inputMaskBasePropsSchema['x-registryName']).toBe('InputMask');
   });
 

@@ -10,6 +10,8 @@ import { useValidationErrorResolver } from '@reformer/cdk';
 import { cn } from '@/lib/utils';
 import { useFieldTooltip } from '@/fields/field-tooltip';
 import { makeElementFieldHandle } from '@/fields/field-handle';
+import { defineFieldControl } from '@/fields/field-control';
+import type { KitFieldAdapter } from '@/fields/adapters';
 import {
   splitFileUploadProps,
   type FileUploadBaseProps,
@@ -167,3 +169,16 @@ export function FileUploadAvatar({
     </div>
   );
 }
+
+/**
+ * Avatar — single-файл: значение поля `File | RemoteFileRef | null`, а CDK-слой работает с
+ * массивом. Адаптер конвертирует single ↔ массив длины 1.
+ */
+export const fileUploadSingleAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (v) => (Array.isArray(v) ? (v[0] ?? null) : null),
+  toValue: (v) => (v == null ? null : [v]),
+};
+
+defineFieldControl(FileUploadAvatar, { adapter: fileUploadSingleAdapter });

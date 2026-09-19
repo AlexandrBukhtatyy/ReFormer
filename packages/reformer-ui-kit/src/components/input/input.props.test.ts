@@ -30,13 +30,13 @@ describe('input props-схема — страж от дрейфа', () => {
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = Input (алиас InputField)', () => {
+  it('x-registryName = Input (алиас Input)', () => {
     expect(inputBasePropsSchema['x-registryName']).toBe('Input');
   });
 
-  it('type enum включает number и date (боевая форма использует type=date)', () => {
-    expect(inputBasePropsSchema.properties.type.enum).toContain('number');
+  it('type enum включает date (боевая форма), но не number — для чисел вариант InputNumber', () => {
     expect(inputBasePropsSchema.properties.type.enum).toContain('date');
+    expect(inputBasePropsSchema.properties.type.enum).not.toContain('number');
   });
   it('readOnly объявлен: вычисляемое поле выражается без disabled', () => {
     // disabled резолвит форма (seam), и componentProps.disabled мёртв — вычисляемому полю

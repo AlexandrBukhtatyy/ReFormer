@@ -11,6 +11,8 @@ import { useValidationErrorResolver } from '@reformer/cdk';
 import { cn } from '@/lib/utils';
 import { useFieldTooltip } from '@/fields/field-tooltip';
 import { makeElementFieldHandle } from '@/fields/field-handle';
+import { defineFieldControl } from '@/fields/field-control';
+import { fileUploadAdapter } from '../base/file-upload-base';
 import {
   splitFileUploadProps,
   type FileUploadBaseProps,
@@ -170,3 +172,6 @@ export function FileUploadInput({
     </div>
   );
 }
+
+// Тот же контракт значения, что у base (визуал разный) — статика адаптера.
+defineFieldControl(FileUploadInput, { adapter: fileUploadAdapter });

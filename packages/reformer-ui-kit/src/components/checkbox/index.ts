@@ -1,10 +1,9 @@
 // base — pure shadcn Radix Checkbox (button role=checkbox + CheckIcon indicator).
 export { Checkbox } from './variants/base/checkbox-base';
 
-// field-версия (checkbox + подпись справа, inline-label) + алиас CheckboxField (дефолтный для форм).
-export { CheckboxBaseField, CheckboxWithLabel } from './variants/base/checkbox-base.field';
-export { CheckboxBaseField as CheckboxField } from './variants/base/checkbox-base.field';
-export type { CheckboxWithLabelProps } from './variants/base/checkbox-base.field';
+// with-label — чекбокс + подпись справа (inline-label). Компонент для формы (registry Checkbox).
+export { CheckboxWithLabel } from './variants/base/checkbox-with-label';
+export type { CheckboxWithLabelProps } from './variants/base/checkbox-with-label';
 
 // props-схема.
 export { checkboxBasePropsSchema } from './variants/base/checkbox-base.props';

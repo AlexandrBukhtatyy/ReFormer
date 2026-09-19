@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { InputPassword, InputPasswordField } from './index';
+import { InputPassword } from './index';
+import { Bound } from '@/test-utils/bound';
 
 describe('InputPassword (base)', () => {
   it('рендерит native input с data-slot=input и type=password по умолчанию', () => {
@@ -41,36 +42,35 @@ describe('InputPassword (base)', () => {
   });
 });
 
-describe('InputPasswordField (form-версия)', () => {
+describe('InputPassword (form-версия)', () => {
   it('value → значение в input', () => {
-    const html = renderToStaticMarkup(<InputPasswordField value="секрет" />);
+    const html = renderToStaticMarkup(<Bound component={InputPassword} value="секрет" />);
     expect(html).toContain('value="секрет"');
     expect(html).toContain('data-slot="input"');
   });
 
   it('value=null → пустое поле', () => {
-    const html = renderToStaticMarkup(<InputPasswordField value={null} />);
+    const html = renderToStaticMarkup(<Bound component={InputPassword} value={null} />);
     expect(html).toContain('value=""');
-  });
-
-  it('strip control: renderer-путь не течёт в DOM', () => {
-    const html = renderToStaticMarkup(
-      <InputPasswordField value="x" control={{ id: 1 } as never} />
-    );
-    expect(html).not.toContain('[object Object]');
   });
 
   it('прокидывает aria/id на input (seam-контракт)', () => {
     const html = renderToStaticMarkup(
-      <InputPasswordField value="x" id="control-a" aria-labelledby="label-a" aria-invalid />
+      <Bound
+        component={InputPassword}
+        value="x"
+        id="control-a"
+        aria-labelledby="label-a"
+        aria-invalid
+      />
     );
     expect(html).toContain('id="control-a"');
     expect(html).toContain('aria-labelledby="label-a"');
   });
 
-  it('field — forwardRef passthrough (exposesHandle): InputPassword сам владеет InputPasswordHandle', () => {
-    // withFormControl(..., { exposesHandle: true }) → forwardRef exotic (объект), не функция.
+  it('forwardRef: InputPassword сам владеет InputPasswordHandle', () => {
+    // forwardRef exotic (объект), не функция: обёртка поля публикует handle композита как есть.
     // Рантайм-поведение handle (toggleVisibility/setVisible) проверяется в e2e (Playwright).
-    expect(typeof InputPasswordField).toBe('object');
+    expect(typeof InputPassword).toBe('object');
   });
 });

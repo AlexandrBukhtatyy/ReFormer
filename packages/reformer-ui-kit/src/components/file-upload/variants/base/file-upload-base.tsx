@@ -10,10 +10,12 @@ import { cn } from '@/lib/utils';
 import { useFieldTooltip } from '@/fields/field-tooltip';
 import { Button } from '@/components/button';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { defineFieldControl } from '@/fields/field-control';
+import type { KitFieldAdapter } from '@/fields/adapters';
 import { FileUploadItemList } from './file-upload-item-list';
 
 /**
- * Императивный handle field-версий FileUpload: baseline {@link FieldHandle}
+ * Императивный handle FileUpload-вариантов: базовый {@link FieldHandle}
  * (focus/blur/scrollIntoView/getElement от интерактивного элемента) + управление
  * пикером и списком. Достаётся из render-схемы:
  * `schema.node('documents').getRef<FileUploadFieldHandle>().current?.openFilePicker()`.
@@ -180,3 +182,17 @@ export function FileUploadBase({
     </div>
   );
 }
+
+/**
+ * Диалект формы для FileUpload-вариантов (base/dropzone/input): композит уже value-based
+ * (`value: File[] | RemoteFileRef[] | null`, `onChange(value)`), адаптер лишь нормализует пустой
+ * массив в `null`, чтобы `required()` срабатывал без изменений.
+ */
+export const fileUploadAdapter: KitFieldAdapter = {
+  valueProp: 'value',
+  changeProp: 'onChange',
+  fromEmit: (v) => (Array.isArray(v) && v.length > 0 ? v : null),
+  toValue: (v) => v ?? null,
+};
+
+defineFieldControl(FileUploadBase, { adapter: fileUploadAdapter });

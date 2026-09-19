@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { withFormControl } from '@/fields/with-form-control';
+import { defineFieldControl } from '@/fields/field-control';
 import { nativeInputAdapter } from '@/fields/adapters';
 import { withFieldTooltip, INSIDE_NATIVE_SELECT } from '@/fields/field-tooltip';
 import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from './native-select-base';
@@ -12,7 +12,7 @@ export interface NativeSelectOptionItem {
   group?: string;
 }
 
-/** Props враппера {@link NativeSelectWithOptions}: pure NativeSelect + декларативные `options`. */
+/** Props {@link NativeSelectWithOptions}: pure NativeSelect + декларативные `options`. */
 export interface NativeSelectWithOptionsProps extends Omit<
   React.ComponentProps<typeof NativeSelect>,
   'children'
@@ -30,7 +30,7 @@ export interface NativeSelectWithOptionsProps extends Omit<
  *
  * `data-testid`/`id`/`aria-*`/`value`/`onChange` уходят на `<select>` (Root примитива), НЕ на wrapper.
  */
-function NativeSelectWithOptions({
+function NativeSelectWithOptionsBase({
   options = [],
   placeholder,
   ...props
@@ -65,15 +65,15 @@ function NativeSelectWithOptions({
   );
 }
 
-NativeSelectWithOptions.displayName = 'NativeSelectWithOptions';
-
 /**
- * Field-версия NativeSelect: `NativeSelectWithOptions` (options → `<option>`) + `nativeInputAdapter`
- * (`e.target.value || null`). Экспортируется как алиас `NativeSelectField`.
+ * Нативный select из декларативных `options` — компонент для формы (`component:
+ * NativeSelectWithOptions`, registry `NativeSelect`): `e.target.value || null` через
+ * {@link nativeInputAdapter} (статика) + проп `tooltip`.
  */
-export const NativeSelectBaseField = withFormControl(
-  withFieldTooltip(NativeSelectWithOptions, INSIDE_NATIVE_SELECT),
-  nativeInputAdapter
+const NativeSelectWithOptions = defineFieldControl(
+  withFieldTooltip(NativeSelectWithOptionsBase, INSIDE_NATIVE_SELECT),
+  { adapter: nativeInputAdapter }
 );
+NativeSelectWithOptions.displayName = 'NativeSelectWithOptions';
 
 export { NativeSelectWithOptions };

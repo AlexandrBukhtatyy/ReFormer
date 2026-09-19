@@ -1,10 +1,9 @@
 // base — pure shadcn Switch (Radix, role=switch).
 export { Switch } from './variants/base/switch-base';
 
-// field-версия + алиас SwitchField (дефолтный для форм; inline-label).
-export { SwitchBaseField } from './variants/base/switch-base.field';
-export { SwitchBaseField as SwitchField } from './variants/base/switch-base.field';
-export type { SwitchControlProps, SwitchFieldProps } from './variants/base/switch-base.field';
+// with-label — переключатель + подпись справа (inline-label). Компонент для формы (registry Switch).
+export { SwitchWithLabel } from './variants/base/switch-with-label';
+export type { SwitchWithLabelProps, SwitchFormProps } from './variants/base/switch-with-label';
 
 // props-схема.
 export { switchBasePropsSchema } from './variants/base/switch-base.props';

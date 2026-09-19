@@ -30,6 +30,7 @@ const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 interface CatalogRecord {
   name: string;
+  exportName?: string;
   propsSchema?: {
     properties?: Record<string, { description?: string }>;
     'x-runtimeProps'?: object;
@@ -59,7 +60,7 @@ let totalProps = 0;
 for (const record of catalog.components) {
   const props = record.propsSchema?.properties ?? {};
   totalProps += Object.keys(props).length;
-  const intro = introFor(record.name);
+  const intro = introFor(record.exportName ?? record.name);
   // Записи без экспорта в ките: синтетические/агрегатные — не ошибка, но стоит знать.
   if (!intro && Object.keys(props).length > 0) orphanRecords.push(record.name);
   for (const [prop, schema] of Object.entries(props))
@@ -67,7 +68,9 @@ for (const record of catalog.components) {
 }
 
 const exportsWithProps = [...introspected.values()].filter((c) => c.props.length > 0);
-const inCatalog = new Set(catalog.components.map((c) => c.name));
+const inCatalog = new Set(
+  catalog.components.flatMap((c) => (c.exportName ? [c.name, c.exportName] : [c.name]))
+);
 const missingExports = exportsWithProps.filter((c) => !inCatalog.has(c.name));
 
 console.log(

@@ -3,10 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import {
   NativeSelect,
   NativeSelectOption,
-  NativeSelectField,
+  NativeSelectWithOptions,
   NativeSelectMulti,
-  NativeSelectMultiField,
 } from './index';
+import { Bound } from '@/test-utils/bound';
 
 const OPTS = [
   { value: 'a', label: 'A' },
@@ -40,22 +40,31 @@ describe('NativeSelect (base, pure shadcn)', () => {
   });
 });
 
-describe('NativeSelectField (field-версия)', () => {
+describe('NativeSelectWithOptions (field-версия)', () => {
   it('строит <option> из componentProps.options', () => {
-    const html = renderToStaticMarkup(<NativeSelectField value="a" options={OPTS} />);
+    const html = renderToStaticMarkup(
+      <Bound component={NativeSelectWithOptions} value="a" options={OPTS} />
+    );
     expect(html).toContain('>A</option>');
     expect(html).toContain('>B</option>');
   });
 
   it('value → выбранная опция (selected)', () => {
-    const html = renderToStaticMarkup(<NativeSelectField value="b" options={OPTS} />);
+    const html = renderToStaticMarkup(
+      <Bound component={NativeSelectWithOptions} value="b" options={OPTS} />
+    );
     expect(html).toContain('selected');
     expect(html).toContain('value="b"');
   });
 
   it('value=null → выбран placeholder (адаптер отдаёт "")', () => {
     const html = renderToStaticMarkup(
-      <NativeSelectField value={null} options={OPTS} placeholder="Выберите" />
+      <Bound
+        component={NativeSelectWithOptions}
+        value={null}
+        options={OPTS}
+        placeholder="Выберите"
+      />
     );
     expect(html).toContain('Выберите');
     expect(html).toContain('value=""');
@@ -66,22 +75,18 @@ describe('NativeSelectField (field-версия)', () => {
       { value: 'msk', label: 'Москва', group: 'Россия' },
       { value: 'minsk', label: 'Минск', group: 'Беларусь' },
     ];
-    const html = renderToStaticMarkup(<NativeSelectField value="msk" options={grouped} />);
+    const html = renderToStaticMarkup(
+      <Bound component={NativeSelectWithOptions} value="msk" options={grouped} />
+    );
     expect(html).toContain('data-slot="native-select-optgroup"');
     expect(html).toContain('label="Россия"');
     expect(html).toContain('label="Беларусь"');
   });
 
-  it('strip control: renderer-путь не течёт в DOM', () => {
-    const html = renderToStaticMarkup(
-      <NativeSelectField value="a" options={OPTS} control={{ id: 1 } as never} />
-    );
-    expect(html).not.toContain('[object Object]');
-  });
-
   it('прокидывает id/aria-*/data-testid на <select> (seam-контракт)', () => {
     const html = renderToStaticMarkup(
-      <NativeSelectField
+      <Bound
+        component={NativeSelectWithOptions}
         value="a"
         options={OPTS}
         id="control-a"
@@ -157,22 +162,19 @@ describe('NativeSelectMulti (вариант multi, нативный <select mult
   });
 });
 
-describe('NativeSelectMultiField (field-версия, значение string[] | null)', () => {
+describe('NativeSelectMulti (field-версия, значение string[] | null)', () => {
   it('null из формы не роняет рендер — адаптер разворачивает его в []', () => {
-    const html = renderToStaticMarkup(<NativeSelectMultiField value={null} options={OPTS} />);
+    const html = renderToStaticMarkup(
+      <Bound component={NativeSelectMulti} value={null} options={OPTS} />
+    );
     expect(html).not.toContain('selected=""');
     expect(html).toContain('multiple=""');
   });
 
   it('массив из формы доезжает до контрола', () => {
-    const html = renderToStaticMarkup(<NativeSelectMultiField value={['b']} options={OPTS} />);
-    expect(html).toContain('selected=""');
-  });
-
-  it('control (renderer-путь) не протекает в DOM', () => {
     const html = renderToStaticMarkup(
-      <NativeSelectMultiField value={null} options={OPTS} control={{} as never} />
+      <Bound component={NativeSelectMulti} value={['b']} options={OPTS} />
     );
-    expect(html).not.toContain('control=');
+    expect(html).toContain('selected=""');
   });
 });

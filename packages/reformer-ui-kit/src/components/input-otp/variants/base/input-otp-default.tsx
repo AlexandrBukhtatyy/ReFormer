@@ -1,6 +1,7 @@
 import * as React from 'react';
 
-import { withFormControl, type FieldAdapter } from '@/fields/with-form-control';
+import { defineFieldControl } from '@/fields/field-control';
+import type { KitFieldAdapter } from '@/fields/adapters';
 import { withFieldTooltip, OUTSIDE_CENTER } from '@/fields/field-tooltip';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from './input-otp-base';
 
@@ -11,14 +12,14 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from './input-otp-base';
  *
  * value-based контракт seam: `value: string | null` (пустой ввод → null), `onChange(string | null)`.
  */
-const otpAdapter: FieldAdapter = {
+export const otpAdapter: KitFieldAdapter = {
   valueProp: 'value',
   changeProp: 'onChange',
   fromEmit: (v) => (v as string) || null,
   toValue: (v) => (v ?? '') as string,
 };
 
-interface InputOTPDefaultProps {
+export interface InputOTPDefaultProps {
   /** Число слотов (длина кода). По умолчанию 6. */
   maxLength?: number;
   containerClassName?: string;
@@ -33,7 +34,7 @@ interface InputOTPDefaultProps {
  * из `maxLength` слотов. Кастомная раскладка (разбивка на группы + `InputOTPSeparator`) достижима
  * передачей `children` или ручной сборкой из base-примитивов.
  */
-function InputOTPDefault(props: InputOTPDefaultProps) {
+function InputOTPDefaultBase(props: InputOTPDefaultProps) {
   const { maxLength = 6, children, ...rest } = props;
   const slots = children ?? (
     <InputOTPGroup>
@@ -50,8 +51,13 @@ function InputOTPDefault(props: InputOTPDefaultProps) {
   return <InputOTP {...otpProps} />;
 }
 
-/** OTP-поле: `InputOTP` (дефолтная раскладка слотов) + строковый `otpAdapter`. Алиас `InputOTPField`. */
-export const InputOTPBaseField = withFormControl(
-  withFieldTooltip(InputOTPDefault, OUTSIDE_CENTER),
-  otpAdapter
-);
+/**
+ * OTP-поле с дефолтной раскладкой слотов — компонент для формы (`component: InputOTPDefault`,
+ * registry `InputOTP`): строковый {@link otpAdapter} (статика) + проп `tooltip`.
+ */
+const InputOTPDefault = defineFieldControl(withFieldTooltip(InputOTPDefaultBase, OUTSIDE_CENTER), {
+  adapter: otpAdapter,
+});
+InputOTPDefault.displayName = 'InputOTPDefault';
+
+export { InputOTPDefault };

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { checkboxBasePropsSchema } from './variants/base/checkbox-base.props';
-import type { CheckboxWithLabelProps } from './variants/base/checkbox-base.field';
+import type { CheckboxWithLabelProps } from './variants/base/checkbox-with-label';
 
 /**
  * Страж от дрейфа схемы (фаза E2). Тип-левел часть (A) падает на `tsc`, НЕ на vitest
@@ -23,7 +23,7 @@ describe('checkbox props-схема — страж от дрейфа', () => {
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = Checkbox (на него смотрит алиас CheckboxField)', () => {
+  it('x-registryName = Checkbox (на него смотрит алиас CheckboxWithLabel)', () => {
     expect(checkboxBasePropsSchema['x-registryName']).toBe('Checkbox');
   });
 

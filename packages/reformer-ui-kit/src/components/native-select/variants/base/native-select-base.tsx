@@ -4,8 +4,8 @@ import { ChevronDownIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Дословный порт shadcn/ui (new-york-v4) native-select. Правки только: `@/lib/utils`. Стилизованный
-// native <select> (с иконкой-шевроном), НЕ Radix — семантика/клавиатура браузерные. Field-версия
-// (nativeInputAdapter + рендер <option> из options) живёт в native-select-base.field.tsx, примитив pure.
+// native <select> (с иконкой-шевроном), НЕ Radix — семантика/клавиатура браузерные. Вариант для
+// формы (рендер <option> из options + nativeInputAdapter) — native-select-with-options.tsx, примитив pure.
 function NativeSelect({
   className,
   size = 'default',

@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/popover';
 import { Spinner } from '@/components/spinner';
 import { Input } from '../base/input-base';
+import { defineFieldControl } from '@/fields/field-control';
+import { textValueAdapter } from '@/fields/adapters';
 
 // ReFormer-original (не shadcn): Input с подсказками. Логика — headless `useAutocomplete` из
 // @reformer/cdk; здесь только разметка: shadcn Input + список в Popover, привязанном к полю через
@@ -45,7 +47,7 @@ const ITEM_CLASS =
 
 /**
  * InputSuggest (вариант `suggest`): текстовое поле со свободным вводом и списком подсказок.
- * В форме используется через `InputField` — достаточно передать `suggestions`.
+ * В форме кладётся в `component` как есть (registry `InputSuggest`); пустой текст → null.
  *
  * Клавиатура: ↓/↑ — по подсказкам, Enter — подставить подсвеченную (без подсветки Enter
  * отправляет форму как обычно), Esc — закрыть список.
@@ -121,5 +123,8 @@ const InputSuggest = React.forwardRef<HTMLInputElement, InputSuggestProps>(funct
     </Popover>
   );
 });
+
+// Диалект формы: пустой текст → null (статика). Ввод остаётся свободным текстом.
+defineFieldControl(InputSuggest, { adapter: textValueAdapter });
 
 export { InputSuggest };

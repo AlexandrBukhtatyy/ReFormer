@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator, InputOTPField } from './index';
+import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator, InputOTPDefault } from './index';
+import { Bound } from '@/test-utils/bound';
 
 describe('InputOTP (base, pure shadcn)', () => {
   it('рендерит скрытый input с data-slot=input-otp', () => {
@@ -23,33 +24,33 @@ describe('InputOTP (base, pure shadcn)', () => {
   });
 });
 
-describe('InputOTPField (field-версия)', () => {
+describe('InputOTPDefault (field-версия)', () => {
   it('разворачивает maxLength слотов из дефолтной раскладки', () => {
-    const html = renderToStaticMarkup(<InputOTPField maxLength={4} value={null} />);
+    const html = renderToStaticMarkup(
+      <Bound component={InputOTPDefault} maxLength={4} value={null} />
+    );
     const slots = html.match(/data-slot="input-otp-slot"/g) ?? [];
     expect(slots).toHaveLength(4);
   });
 
   it('value прокидывается в скрытый input', () => {
-    const html = renderToStaticMarkup(<InputOTPField maxLength={6} value="123" />);
+    const html = renderToStaticMarkup(
+      <Bound component={InputOTPDefault} maxLength={6} value="123" />
+    );
     expect(html).toContain('value="123"');
   });
 
   it('value=null → пустое поле (адаптер отдаёт "")', () => {
-    const html = renderToStaticMarkup(<InputOTPField maxLength={6} value={null} />);
-    expect(html).toContain('value=""');
-  });
-
-  it('strip control: renderer-путь не течёт в DOM', () => {
     const html = renderToStaticMarkup(
-      <InputOTPField maxLength={6} value="12" control={{ id: 1 } as never} />
+      <Bound component={InputOTPDefault} maxLength={6} value={null} />
     );
-    expect(html).not.toContain('[object Object]');
+    expect(html).toContain('value=""');
   });
 
   it('прокидывает aria/id на скрытый input (seam-контракт)', () => {
     const html = renderToStaticMarkup(
-      <InputOTPField
+      <Bound
+        component={InputOTPDefault}
         maxLength={6}
         value="1"
         id="control-a"

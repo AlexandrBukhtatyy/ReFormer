@@ -1,8 +1,9 @@
 import type { PropsSchema } from '@/fields/props-schema';
 
 /**
- * Props-схема Input. `type` enum включает `number` и `date` (боевая форма использует `type: 'date'` ×4 —
- * v6-контракт их не заявлял, из-за чего JSON-DSL пропускал невалид). `x-registryName: 'Input'` — алиас InputField.
+ * Props-схема Input (registry `Input`, компонент `Input`) — строковое поле. `type` включает
+ * `date` (боевая форма использует `type: 'date'`). Числовое поле — отдельный вариант `InputNumber`,
+ * поле с подсказками — `InputSuggest`.
  */
 export const inputBasePropsSchema = {
   type: 'object',
@@ -13,12 +14,12 @@ export const inputBasePropsSchema = {
   properties: {
     type: {
       type: 'string',
-      enum: ['text', 'email', 'tel', 'url', 'password', 'number', 'date'],
+      enum: ['text', 'email', 'tel', 'url', 'password', 'date'],
       default: 'text',
-      description: 'HTML-тип input. number включает числовой буфер, остальные — строковые.',
+      description: 'HTML-тип input. Для чисел — вариант InputNumber.',
       'x-doc': {
         group: 'Textfield',
-        type: "'text' | 'email' | 'number' | 'date' | …",
+        type: "'text' | 'email' | 'tel' | 'url' | 'password' | 'date'",
         kind: 'enum',
       },
     },
@@ -26,59 +27,6 @@ export const inputBasePropsSchema = {
       type: 'string',
       description: 'Подсказка внутри поля.',
       'x-doc': { group: 'Textfield', type: 'string' },
-    },
-    min: {
-      type: 'number',
-      description: 'Минимум (type=number). При min>=0 отрицательные значения зажимаются к 0.',
-      'x-doc': { group: 'Behavior', type: 'number' },
-    },
-    max: {
-      type: 'number',
-      description: 'Максимум (type=number).',
-      'x-doc': { group: 'Behavior', type: 'number' },
-    },
-    step: {
-      type: 'number',
-      description: 'Шаг (type=number).',
-      'x-doc': { group: 'Behavior', type: 'number' },
-    },
-    suggestions: {
-      type: 'array',
-      items: {
-        anyOf: [
-          { type: 'string' },
-          {
-            type: 'object',
-            required: ['value'],
-            additionalProperties: false,
-            properties: {
-              value: { type: 'string' },
-              label: { type: 'string' },
-            },
-          },
-        ],
-      },
-      description:
-        'Подсказки при вводе: строки или { value, label? }. Значение остаётся свободным текстом — выбор подсказки лишь подставляет её value. Из кода можно передать и асинхронный ResourceConfig (как у Select), в JSON — через $dataSource. Не действует при type=number.',
-      'x-doc': {
-        group: 'Options',
-        type: 'Array<string | { value; label? }> | ResourceConfig',
-        kind: 'readonly',
-      },
-    },
-    minChars: {
-      type: 'number',
-      default: 0,
-      description:
-        'С какой длины введённого текста показывать подсказки (при заданном suggestions).',
-      'x-doc': { group: 'Options', type: 'number' },
-    },
-    openOnFocus: {
-      type: 'boolean',
-      default: false,
-      description:
-        'Раскрывать подсказки при фокусе, не дожидаясь ввода (при заданном suggestions).',
-      'x-doc': { group: 'Options', type: 'boolean' },
     },
     readOnly: {
       type: 'boolean',
@@ -96,20 +44,13 @@ export const inputBasePropsSchema = {
   'x-runtimeProps': {
     value: {
       group: 'Control',
-      type: 'string | number | null',
-      description: 'Значение поля. Для type=number — number|null, иначе string|null.',
+      type: 'string | null',
+      description: 'Значение поля. Пустой ввод — null.',
     },
     onChange: {
       group: 'Control',
-      type: '(value: string | number | null) => void',
-      description:
-        'Изменение. Пустой ввод → null. Для number частичный ввод («-», «1.») не эмитится.',
-    },
-    filter: {
-      group: 'Options',
-      type: '(option: NormalizedOption, query: string) => boolean',
-      description:
-        'Свой предикат совпадения подсказки. По умолчанию — подстрока label без учёта регистра.',
+      type: '(value: string | null) => void',
+      description: 'Изменение. Пустой ввод → null.',
     },
   },
 } as const satisfies PropsSchema;

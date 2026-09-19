@@ -26,7 +26,7 @@ describe('textarea props-схема — страж от дрейфа', () => {
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = Textarea (алиас TextareaField)', () => {
+  it('x-registryName = Textarea (алиас Textarea)', () => {
     expect(textareaBasePropsSchema['x-registryName']).toBe('Textarea');
   });
 });

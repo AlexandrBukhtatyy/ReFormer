@@ -6,7 +6,7 @@ import type { FileUploadAvatarProps } from './variants/avatar/file-upload-avatar
 
 /**
  * Страж от дрейфа props-схем FileUpload. Направление A (ключи схемы ⊆ props варианта):
- * ловит опечатки и чужие ключи. `variant` — ключ ДИСПЕТЧЕРА (FileUploadField), в props
+ * ловит опечатки и чужие ключи. `variant` — ключ ДИСПЕТЧЕРА (FileUploadBase), в props
  * варианта его нет — исключается явно.
  */
 
@@ -31,18 +31,14 @@ describe('file-upload props-схемы — страж от дрейфа', () => 
     }
   });
 
-  it('registry-имена: FileUpload (диспетчер) и FileUploadAvatar (single)', () => {
+  it('registry-имена: FileUpload (кнопка) и FileUploadAvatar (single)', () => {
     expect(fileUploadBasePropsSchema['x-registryName']).toBe('FileUpload');
     expect(fileUploadAvatarPropsSchema['x-registryName']).toBe('FileUploadAvatar');
   });
 
-  it('variant enum соответствует диспетчеру FileUploadField', () => {
-    expect(fileUploadBasePropsSchema.properties.variant.enum).toEqual([
-      'button',
-      'dropzone',
-      'input',
-    ]);
-    expect(fileUploadBasePropsSchema.properties.variant.default).toBe('button');
+  it('визуал — отдельными вариантами, не пропом variant', () => {
+    expect('variant' in fileUploadBasePropsSchema.properties).toBe(false);
+    expect(fileUploadBasePropsSchema['x-exportName']).toBe('FileUploadBase');
   });
 
   it('invalid объявлен в обеих схемах (State)', () => {

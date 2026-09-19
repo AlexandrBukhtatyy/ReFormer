@@ -3,7 +3,7 @@ import type { PropsSchema } from '@/fields/props-schema';
 /**
  * Props-схема Switch — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
  * `componentProps` (renderer-json). Поверхность в DSL — `label` + `className`;
- * `additionalProperties: false` ловит опечатки. `x-registryName: 'Switch'` — алиас `SwitchField`.
+ * `additionalProperties: false` ловит опечатки. `x-registryName: 'Switch'` → экспорт `SwitchWithLabel`.
  *
  * Inline-раскладка: `label` рисуется САМИМ контролом справа (FormField верхнюю метку не дублирует).
  */
@@ -11,6 +11,7 @@ export const switchBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'Switch',
+  'x-exportName': 'SwitchWithLabel',
   properties: {
     label: {
       type: 'string',

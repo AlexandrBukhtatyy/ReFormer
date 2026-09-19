@@ -3,7 +3,10 @@ import type { VariantProps } from 'class-variance-authority';
 
 import { toggleVariants } from '@/components/toggle';
 import { ToggleGroup, ToggleGroupItem } from '../base/toggle-group-base';
-import type { ToggleGroupOption } from '../base/toggle-group-base.field';
+import type { ToggleGroupOption } from '../base/toggle-group-options';
+import { defineFieldControl } from '@/fields/field-control';
+import { multiValueAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_CENTER } from '@/fields/field-tooltip';
 
 /** Props презентационного {@link ToggleGroupMulti}. */
 export interface ToggleGroupMultiProps {
@@ -50,10 +53,10 @@ export interface ToggleGroupMultiProps {
  * причине — у `FileUpload` / `FileUploadAvatar`.
  *
  * Наружу выставлен value-based контракт (`value`/`onChange`), а не Radix-shape
- * (`onValueChange`), чтобы field-версия собиралась общим `multiValueAdapter` — тем же, что у
+ * (`onValueChange`), чтобы форма связывала его общим `multiValueAdapter` — тем же, что у
  * трёх остальных мультивыборов кита.
  */
-function ToggleGroupMulti({
+function ToggleGroupMultiBase({
   options = [],
   value,
   onChange,
@@ -91,6 +94,30 @@ function ToggleGroupMulti({
   );
 }
 
+/**
+ * Value-based контракт ToggleGroupMulti в форме. Значение — `string[] | null`; форма резолвит
+ * `value`/`onChange`/`onBlur`/`disabled`, автор задаёт `options`/`maxItems`/`variant`/`className`
+ * в `componentProps`. Служит типом для стража props-схемы.
+ */
+export interface ToggleGroupMultiFormProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  options?: ToggleGroupOption[];
+  maxItems?: number;
+  variant?: VariantProps<typeof toggleVariants>['variant'];
+  className?: string;
+}
+
+/**
+ * Множественный выбор кнопками — компонент для формы: `string[] | null` через
+ * {@link multiValueAdapter} (статика) + проп `tooltip`. Подпись группы рисует FormField сверху.
+ */
+const ToggleGroupMulti = defineFieldControl(
+  withFieldTooltip(ToggleGroupMultiBase, OUTSIDE_CENTER),
+  { adapter: multiValueAdapter }
+);
 ToggleGroupMulti.displayName = 'ToggleGroupMulti';
 
 export { ToggleGroupMulti };

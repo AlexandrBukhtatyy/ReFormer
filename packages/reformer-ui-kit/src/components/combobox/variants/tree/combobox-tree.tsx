@@ -364,4 +364,26 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
 });
 ComboboxTree.displayName = 'ComboboxTree';
 
+/**
+ * Value-based контракт ComboboxTree в форме. Значение — `string | null` (адрес узла); форма
+ * резолвит `value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в `componentProps`.
+ * Служит типом для стража props-схемы. Адаптер не нужен — композит уже value-based.
+ */
+export interface ComboboxTreeFormProps {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  nodes?: readonly TreeNode[];
+  loadChildren?: (node: TreeNode | null) => Promise<readonly TreeNode[]>;
+  defaultExpandedIds?: readonly string[];
+  selectable?: 'all' | 'leaf';
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  clearable?: boolean;
+  maxRows?: number;
+  className?: string;
+}
+
 export { ComboboxTree };

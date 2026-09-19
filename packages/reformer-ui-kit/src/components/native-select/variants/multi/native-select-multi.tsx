@@ -2,7 +2,10 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 import { NativeSelectOptGroup, NativeSelectOption } from '../base/native-select-base';
-import type { NativeSelectOptionItem } from '../base/native-select-base.field';
+import type { NativeSelectOptionItem } from '../base/native-select-with-options';
+import { defineFieldControl } from '@/fields/field-control';
+import { multiValueAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_FILL_START } from '@/fields/field-tooltip';
 
 /** Props презентационного {@link NativeSelectMulti}. */
 export interface NativeSelectMultiProps {
@@ -59,7 +62,7 @@ export interface NativeSelectMultiProps {
  * `placeholder` здесь отсутствует намеренно: у одиночного варианта это `<option value="">` в начале
  * списка, а в multiple-листбоксе такая опция становится ВЫБИРАЕМЫМ мусорным пунктом.
  */
-function NativeSelectMulti({
+function NativeSelectMultiBase({
   options = [],
   value,
   onChange,
@@ -127,6 +130,31 @@ function NativeSelectMulti({
   );
 }
 
+/**
+ * Value-based контракт NativeSelectMulti в форме. Значение — `string[] | null`; форма резолвит
+ * `value`/`onChange`/`onBlur`/`disabled`, автор задаёт `options`/`rows`/`maxItems`/`className`.
+ * Служит типом для стража props-схемы.
+ */
+export interface NativeSelectMultiFormProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  options?: NativeSelectOptionItem[];
+  rows?: number;
+  maxItems?: number;
+  className?: string;
+}
+
+/**
+ * Нативный множественный выбор — компонент для формы: `string[] | null` через
+ * {@link multiValueAdapter} (статика) + проп `tooltip`. Штатный `nativeInputAdapter` тут непригоден:
+ * `e.target.value` у `<select multiple>` даёт только первое выбранное значение.
+ */
+const NativeSelectMulti = defineFieldControl(
+  withFieldTooltip(NativeSelectMultiBase, OUTSIDE_FILL_START),
+  { adapter: multiValueAdapter }
+);
 NativeSelectMulti.displayName = 'NativeSelectMulti';
 
 export { NativeSelectMulti };

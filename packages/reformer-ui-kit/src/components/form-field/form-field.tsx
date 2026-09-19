@@ -28,12 +28,12 @@ export interface FormFieldProps {
 }
 
 /**
- * Контролы с inline-раскладкой (Checkbox/Switch/Toggle — сами рисуют подпись рядом с контролом)
- * помечают field-версию статическим маркером `reformerLayout = 'inline-label'`. Для них FormField
+ * Контролы с inline-раскладкой (CheckboxWithLabel/SwitchWithLabel — сами рисуют подпись рядом с
+ * контролом) объявляют маркер `reformerLayout = 'inline-label'` (`defineFieldControl`). Для них FormField
  * НЕ рендерит верхнюю подпись (иначе она задвоится).
  *
- * ⚠️ ИНВАРИАНТ (playbook, фаза D2): каждая inline-field-версия (CheckboxField/SwitchField/ToggleField)
- * ОБЯЗАНА проставить `Field.reformerLayout = 'inline-label'`. Маркер — неэнфорсимая конвенция: если
+ * ⚠️ ИНВАРИАНТ: каждый контрол, рисующий подпись сам (CheckboxWithLabel/SwitchWithLabel), ОБЯЗАН
+ * объявить `layout: 'inline-label'`. Маркер — неэнфорсимая конвенция: если
  * inline-контрол его не выставит, верхняя подпись задвоится молча (замена v6-детекции `=== Checkbox`).
  */
 function hasInlineLabel(component: unknown): boolean {

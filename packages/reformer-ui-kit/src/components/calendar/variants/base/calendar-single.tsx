@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { PropsBase, PropsSingle } from 'react-day-picker';
 
-import { withFormControl } from '@/fields/with-form-control';
+import { defineFieldControl } from '@/fields/field-control';
 import { dateAdapter } from '@/fields/adapters';
 import { withFieldTooltip, OUTSIDE_START_GROUP } from '@/fields/field-tooltip';
 import { Calendar } from './calendar-base';
@@ -12,7 +12,7 @@ import { Calendar } from './calendar-base';
  * Плоская интерсекция (а не union `React.ComponentProps<typeof Calendar>`) осознанно: спред union
  * с discriminated `mode` в `<Calendar mode="single" …>` не сужается и падает на tsc.
  */
-type CalendarSingleProps = Omit<PropsBase, 'mode' | 'required'> &
+export type CalendarSingleProps = Omit<PropsBase, 'mode' | 'required'> &
   Omit<PropsSingle, 'mode'> & {
     buttonVariant?: React.ComponentProps<typeof Calendar>['buttonVariant'];
   };
@@ -22,16 +22,18 @@ type CalendarSingleProps = Omit<PropsBase, 'mode' | 'required'> &
  * Селект одной даты (`selected` / `onSelect(Date | undefined)`) — контракт, который {@link dateAdapter}
  * сводит к value-based `value: Date | null` + `onChange(Date | null)`.
  */
-function CalendarSingle(props: CalendarSingleProps) {
+function CalendarSingleBase(props: CalendarSingleProps) {
   return <Calendar mode="single" {...props} />;
 }
-CalendarSingle.displayName = 'CalendarSingle';
 
 /**
- * Field-версия single-date Calendar: pure Calendar(mode=single) + {@link dateAdapter}
- * (`selected`/`onSelect` ↔ `value: Date | null`). HOC отбрасывает `control` (renderer-путь).
+ * Календарь одной даты — компонент для формы (`component: CalendarSingle`, registry `Calendar`):
+ * `selected`/`onSelect` ↔ `value: Date | null` через {@link dateAdapter} (статика) + проп `tooltip`.
  */
-export const CalendarBaseField = withFormControl(
-  withFieldTooltip(CalendarSingle, OUTSIDE_START_GROUP),
-  dateAdapter
+const CalendarSingle = defineFieldControl(
+  withFieldTooltip(CalendarSingleBase, OUTSIDE_START_GROUP),
+  { adapter: dateAdapter }
 );
+CalendarSingle.displayName = 'CalendarSingle';
+
+export { CalendarSingle };

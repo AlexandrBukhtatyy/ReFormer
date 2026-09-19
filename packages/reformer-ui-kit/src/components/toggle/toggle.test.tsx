@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Toggle, ToggleField, toggleVariants } from './index';
+import { Toggle, toggleVariants } from './index';
+import { Bound } from '@/test-utils/bound';
 
 describe('Toggle (base, pure shadcn Radix)', () => {
   it('рендерит button с data-slot=toggle, aria-pressed и дефолтным data-state', () => {
@@ -38,38 +39,50 @@ describe('Toggle (base, pure shadcn Radix)', () => {
   });
 });
 
-describe('ToggleField (field, boolean value-based, НЕ inline-label)', () => {
+describe('Toggle (field, boolean value-based, НЕ inline-label)', () => {
   it('НЕ выставляет reformerLayout (подпись рисует FormField сверху)', () => {
-    expect((ToggleField as { reformerLayout?: string }).reformerLayout).toBeUndefined();
+    expect((Toggle as { reformerLayout?: string }).reformerLayout).toBeUndefined();
   });
 
   it('value=true → нажат (data-state=on, aria-pressed=true) на Root примитива', () => {
-    const html = renderToStaticMarkup(<ToggleField value={true}>B</ToggleField>);
+    const html = renderToStaticMarkup(
+      <Bound component={Toggle} value={true}>
+        B
+      </Bound>
+    );
     expect(html).toContain('data-slot="toggle"');
     expect(html).toContain('data-state="on"');
     expect(html).toContain('aria-pressed="true"');
   });
 
   it('value=false → отжат (data-state=off)', () => {
-    expect(renderToStaticMarkup(<ToggleField value={false}>B</ToggleField>)).toContain(
-      'data-state="off"'
-    );
+    expect(
+      renderToStaticMarkup(
+        <Bound component={Toggle} value={false}>
+          B
+        </Bound>
+      )
+    ).toContain('data-state="off"');
   });
 
   it('value=undefined (null-coerce) → отжат, без падения', () => {
-    expect(renderToStaticMarkup(<ToggleField>B</ToggleField>)).toContain('data-state="off"');
+    expect(renderToStaticMarkup(<Bound component={Toggle}>B</Bound>)).toContain('data-state="off"');
   });
 
   it('контент рендерится ВНУТРИ toggle (children)', () => {
-    const html = renderToStaticMarkup(<ToggleField value={false}>Полужирный</ToggleField>);
+    const html = renderToStaticMarkup(
+      <Bound component={Toggle} value={false}>
+        Полужирный
+      </Bound>
+    );
     expect(html).toMatch(/data-slot="toggle"[\s\S]*Полужирный/);
   });
 
   it('data-testid ложится на Root примитива (button), единственным вхождением', () => {
     const html = renderToStaticMarkup(
-      <ToggleField value={false} data-testid="input-bold">
+      <Bound component={Toggle} value={false} data-testid="input-bold">
         B
-      </ToggleField>
+      </Bound>
     );
     expect(html).toMatch(/data-slot="toggle"[^>]*data-testid="input-bold"/);
     expect(html.match(/data-testid="input-bold"/g)).toHaveLength(1);
@@ -77,29 +90,19 @@ describe('ToggleField (field, boolean value-based, НЕ inline-label)', () => {
 
   it('variant/size прокидываются как componentProps (cva-классы)', () => {
     const html = renderToStaticMarkup(
-      <ToggleField value={false} variant="outline" size="lg">
+      <Bound component={Toggle} value={false} variant="outline" size="lg">
         B
-      </ToggleField>
+      </Bound>
     );
     expect(html).toContain('border');
     expect(html).toContain('h-10');
   });
 
-  it('strip control: renderer-путь не течёт в DOM', () => {
-    const html = renderToStaticMarkup(
-      <ToggleField value={true} control={{ id: 1 } as never}>
-        B
-      </ToggleField>
-    );
-    expect(html).not.toContain('[object Object]');
-    expect(html).not.toContain('control=');
-  });
-
   it('прокидывает id/aria-* на контрол (seam-контракт)', () => {
     const html = renderToStaticMarkup(
-      <ToggleField value={false} id="control-a" aria-describedby="desc-a" aria-invalid>
+      <Bound component={Toggle} value={false} id="control-a" aria-describedby="desc-a" aria-invalid>
         B
-      </ToggleField>
+      </Bound>
     );
     expect(html).toContain('id="control-a"');
     expect(html).toContain('aria-describedby="desc-a"');

@@ -3,13 +3,14 @@ import type { PropsSchema } from '@/fields/props-schema';
 /**
  * Props-схема NativeSelect — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
  * `componentProps` (renderer-json). Стилизованный native `<select>`: значение — строка (`option.value`),
- * пустой выбор → null (nativeInputAdapter). `x-registryName: 'NativeSelect'` — на него смотрит алиас
- * `NativeSelectField`.
+ * пустой выбор → null (nativeInputAdapter). `x-registryName: 'NativeSelect'` → экспорт
+ * `NativeSelectWithOptions` (`x-exportName`).
  */
 export const nativeSelectBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'NativeSelect',
+  'x-exportName': 'NativeSelectWithOptions',
   'x-variantGroup': 'NativeSelect',
   'x-variant': 'Один',
   properties: {

@@ -5,12 +5,13 @@ import type { PropsSchema } from '@/fields/props-schema';
  * `componentProps` (renderer-json). Реальная поверхность в DSL — 2 ключа (`maxLength`/`className`);
  * `additionalProperties: false` ловит опечатки (враппер подмешивает label/required/…).
  *
- * `x-registryName: 'InputOTP'` — на этот вариант смотрит алиас `InputOTPField`.
+ * `x-registryName: 'InputOTP'` → экспорт `InputOTPDefault` (`x-exportName`).
  */
 export const inputOtpBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'InputOTP',
+  'x-exportName': 'InputOTPDefault',
   'x-variantGroup': 'Input',
   'x-variant': 'OTP',
   properties: {

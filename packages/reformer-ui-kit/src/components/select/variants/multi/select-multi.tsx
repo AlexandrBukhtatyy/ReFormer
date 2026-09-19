@@ -3,6 +3,9 @@ import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { defineFieldControl } from '@/fields/field-control';
+import { multiValueAdapter } from '@/fields/adapters';
+
 import {
   useFieldTooltip,
   CHEVRON_RESERVE,
@@ -405,5 +408,31 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
   );
 });
 SelectMulti.displayName = 'SelectMulti';
+
+/**
+ * Value-based контракт SelectMulti в форме. Значение — `string[] | null`; форма резолвит
+ * `value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в `componentProps`
+ * (кроме `resource` — он требует функцию и передаётся через реестр компонентов).
+ * Служит типом для стража props-схемы.
+ */
+export interface SelectMultiFormProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  options?: SelectMultiOption[];
+  selectedOptions?: SelectMultiOption[];
+  resource?: ResourceConfig<unknown>;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  clearable?: boolean;
+  maxItems?: number;
+  summaryThreshold?: number;
+  className?: string;
+}
+
+// Диалект формы: `string[] | null` ↔ массив композита (пустой выбор → null) — статика.
+defineFieldControl(SelectMulti, { adapter: multiValueAdapter });
 
 export { SelectMulti };

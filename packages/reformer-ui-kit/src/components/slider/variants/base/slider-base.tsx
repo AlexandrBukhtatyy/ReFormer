@@ -2,12 +2,15 @@ import * as React from 'react';
 import { Slider as SliderPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
+import { defineFieldControl } from '@/fields/field-control';
+import { sliderAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_FILL } from '@/fields/field-tooltip';
 
 // Дословный порт shadcn/ui (new-york-v4) slider. Правки только: снят 'use client'
 // (unified `radix-ui` (Slider.Root/Track/Range/Thumb) и `@/lib/utils` уже в upstream-исходнике).
 // data-slot сохранён. data-testid/aria-* приходят через spread `...props` и ложатся на
-// SliderPrimitive.Root. Одно-thumb режим (field, value: number|null) даёт _values.length === 1.
-function Slider({
+// SliderPrimitive.Root. Одно-thumb режим (форма, value: number|null) даёт _values.length === 1.
+function SliderBase({
   className,
   defaultValue,
   value,
@@ -56,5 +59,32 @@ function Slider({
     </SliderPrimitive.Root>
   );
 }
+
+/**
+ * Value-based контракт Slider в форме. Значение — `number | null`; форма резолвит
+ * `value`/`onChange`/`onBlur`/`disabled`, автор задаёт `min`/`max`/`step`/`className` в
+ * `componentProps`. Служит типом для стража props-схемы: сам компонент — Radix `value: number[]` /
+ * `onValueChange`, а контракт формы скалярный (`sliderAdapter`, одно-thumb режим).
+ */
+export interface SliderFormProps {
+  value?: number | null;
+  onChange?: (value: number | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  className?: string;
+}
+
+/**
+ * Slider кита: порт shadcn + проп `tooltip` (иконка справа). В форме — скалярный контракт
+ * `value: number | null`: {@link sliderAdapter} (статика) сводит его к Radix-массиву
+ * (`[v ?? 0]` ↔ `arr[0]`, одно-thumb режим). Подпись поля — сверху, от FormField.
+ */
+const Slider = defineFieldControl(withFieldTooltip(SliderBase, OUTSIDE_FILL), {
+  adapter: sliderAdapter,
+});
+Slider.displayName = 'Slider';
 
 export { Slider };

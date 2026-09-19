@@ -10,7 +10,7 @@ import type { PropsSchema } from '@/fields/props-schema';
  *
  * Отдельной записи `SelectAsyncMulti` НЕ существует и существовать не может: `Select` и
  * `SelectAsync` — одна запись каталога (`x-registryName: 'Select'` стоит на `select-async.props.ts`,
- * а `SelectField` — алиас `SelectAsyncField`). Асинхронный источник, поиск и пагинация здесь —
+ * экспорт — `SelectAsync`). Асинхронный источник, поиск и пагинация здесь —
  * это ПРОПСЫ (`resource`), а не отдельный вариант.
  */
 export const selectMultiPropsSchema = {

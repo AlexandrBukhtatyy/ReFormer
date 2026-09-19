@@ -1,11 +1,11 @@
 import type { PropsSchema } from '@/fields/props-schema';
 
 /**
- * Props-схема Combobox (field-версия) — единый источник `api.controls[]` (reformer-doc) и
+ * Props-схема Combobox — единый источник `api.controls[]` (reformer-doc) и
  * DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
  *
  * `value`/`onChange` — seam (Combobox уже value-based), поэтому в `x-runtimeProps`, а не в
- * `properties`. `x-registryName: 'Combobox'` — на этот вариант смотрит алиас `ComboboxField`.
+ * `properties`. `x-registryName: 'Combobox'` — компонент `Combobox`.
  */
 export const comboboxBasePropsSchema = {
   type: 'object',

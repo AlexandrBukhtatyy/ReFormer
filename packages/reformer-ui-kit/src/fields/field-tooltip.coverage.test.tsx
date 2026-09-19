@@ -4,33 +4,29 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ComponentType } from 'react';
 
-import { CalendarField } from '@/components/calendar';
-import { CheckboxField } from '@/components/checkbox';
+import { CalendarSingle } from '@/components/calendar';
+import { CheckboxWithLabel } from '@/components/checkbox';
+import { Combobox, ComboboxMulti, ComboboxTree, ComboboxTreeMulti } from '@/components/combobox';
+import { DatePicker } from '@/components/date-picker';
 import {
-  ComboboxField,
-  ComboboxMultiField,
-  ComboboxTreeField,
-  ComboboxTreeMultiField,
-} from '@/components/combobox';
-import { DatePickerField } from '@/components/date-picker';
-import {
-  FileUploadField,
-  FileUploadAvatarField,
-  FileUploadDropzoneField,
-  FileUploadInputField,
+  FileUploadBase,
+  FileUploadAvatar,
+  FileUploadDropzone,
+  FileUploadInput,
 } from '@/components/file-upload';
-import { InputField } from '@/components/input';
-import { InputMaskField } from '@/components/input-mask';
-import { InputOTPField } from '@/components/input-otp';
-import { InputPasswordField } from '@/components/input-password';
-import { NativeSelectField, NativeSelectMultiField } from '@/components/native-select';
-import { RadioGroupField } from '@/components/radio-group';
-import { SelectField, SelectMultiField } from '@/components/select';
-import { SliderField } from '@/components/slider';
-import { SwitchField } from '@/components/switch';
-import { TextareaField } from '@/components/textarea';
-import { ToggleField } from '@/components/toggle';
-import { ToggleGroupField, ToggleGroupMultiField } from '@/components/toggle-group';
+import { Input, InputNumber, InputSuggest } from '@/components/input';
+import { InputMask } from '@/components/input-mask';
+import { InputOTPDefault } from '@/components/input-otp';
+import { InputPassword } from '@/components/input-password';
+import { NativeSelectWithOptions, NativeSelectMulti } from '@/components/native-select';
+import { RadioGroupOptions } from '@/components/radio-group';
+import { SelectAsync, SelectMulti } from '@/components/select';
+import { Slider } from '@/components/slider';
+import { SwitchWithLabel } from '@/components/switch';
+import { Textarea } from '@/components/textarea';
+import { Toggle } from '@/components/toggle';
+import { ToggleGroupOptions, ToggleGroupMulti } from '@/components/toggle-group';
+import { Bound } from '@/test-utils/bound';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -38,6 +34,8 @@ import { ToggleGroupField, ToggleGroupMultiField } from '@/components/toggle-gro
  * Страж охвата: КАЖДОЕ поле кита обязано уметь проп `tooltip`. Он объявлен в общей схеме
  * (`field-common.props.ts`), поэтому поле без поддержки молча принимало бы проп и ничего не рисовало.
  * Список сверяется с каталогом: новое поле без строки здесь роняет тест.
+ *
+ * Контрол рендерится так, как его связывает обёртка поля ({@link Bound}: адаптер из статики + seam).
  */
 
 const OPTIONS = [
@@ -50,37 +48,34 @@ type Row = [name: string, Field: ComponentType<any>, props: Record<string, unkno
 
 /** Ключ — регистр-имя из каталога (`x-registryName`). */
 const FIELDS: Row[] = [
-  ['Calendar', CalendarField, {}],
-  ['Checkbox', CheckboxField, { label: 'Согласен' }],
-  ['Combobox', ComboboxField, { options: OPTIONS }],
-  ['ComboboxMulti', ComboboxMultiField, { options: OPTIONS }],
-  ['ComboboxTree', ComboboxTreeField, { nodes: TREE }],
-  ['ComboboxTreeMulti', ComboboxTreeMultiField, { nodes: TREE }],
-  ['DatePicker', DatePickerField, {}],
-  ['FileUpload', FileUploadField, {}],
-  ['FileUploadAvatar', FileUploadAvatarField, {}],
-  ['Input', InputField, {}],
-  ['InputMask', InputMaskField, { mask: '99-99' }],
-  ['InputOTP', InputOTPField, {}],
-  ['InputPassword', InputPasswordField, {}],
-  ['NativeSelect', NativeSelectField, { options: OPTIONS }],
-  ['NativeSelectMulti', NativeSelectMultiField, { options: OPTIONS }],
-  ['RadioGroup', RadioGroupField, { options: OPTIONS }],
-  ['Select', SelectField, { options: OPTIONS }],
-  ['SelectMulti', SelectMultiField, { options: OPTIONS }],
-  ['Slider', SliderField, {}],
-  ['Switch', SwitchField, { label: 'Включить' }],
-  ['Textarea', TextareaField, {}],
-  ['Toggle', ToggleField, { children: 'B' }],
-  ['ToggleGroup', ToggleGroupField, { options: OPTIONS }],
-  ['ToggleGroupMulti', ToggleGroupMultiField, { options: OPTIONS }],
-];
-
-/** Варианты вне каталожных имён: у них своя разметка и своя поддержка подсказки. */
-const VARIANTS: Row[] = [
-  ['Input type=number', InputField, { type: 'number' }],
-  ['FileUpload dropzone', FileUploadDropzoneField, {}],
-  ['FileUpload input', FileUploadInputField, {}],
+  ['Calendar', CalendarSingle, {}],
+  ['Checkbox', CheckboxWithLabel, { label: 'Согласен' }],
+  ['Combobox', Combobox, { options: OPTIONS }],
+  ['ComboboxMulti', ComboboxMulti, { options: OPTIONS }],
+  ['ComboboxTree', ComboboxTree, { nodes: TREE }],
+  ['ComboboxTreeMulti', ComboboxTreeMulti, { nodes: TREE }],
+  ['DatePicker', DatePicker, {}],
+  ['FileUpload', FileUploadBase, {}],
+  ['FileUploadAvatar', FileUploadAvatar, {}],
+  ['FileUploadDropzone', FileUploadDropzone, {}],
+  ['FileUploadInput', FileUploadInput, {}],
+  ['Input', Input, {}],
+  ['InputNumber', InputNumber, {}],
+  ['InputSuggest', InputSuggest, { suggestions: ['альфа'] }],
+  ['InputMask', InputMask, { mask: '99-99' }],
+  ['InputOTP', InputOTPDefault, {}],
+  ['InputPassword', InputPassword, {}],
+  ['NativeSelect', NativeSelectWithOptions, { options: OPTIONS }],
+  ['NativeSelectMulti', NativeSelectMulti, { options: OPTIONS }],
+  ['RadioGroup', RadioGroupOptions, { options: OPTIONS }],
+  ['Select', SelectAsync, { options: OPTIONS }],
+  ['SelectMulti', SelectMulti, { options: OPTIONS }],
+  ['Slider', Slider, {}],
+  ['Switch', SwitchWithLabel, { label: 'Включить' }],
+  ['Textarea', Textarea, {}],
+  ['Toggle', Toggle, { children: 'B' }],
+  ['ToggleGroup', ToggleGroupOptions, { options: OPTIONS }],
+  ['ToggleGroupMulti', ToggleGroupMulti, { options: OPTIONS }],
 ];
 
 const TEXT = 'Текст подсказки поля';
@@ -101,11 +96,11 @@ describe('tooltip — охват всех полей кита', () => {
     expect(FIELDS.map(([name]) => name).sort()).toEqual(catalogFields);
   });
 
-  describe.each([...FIELDS, ...VARIANTS])('%s', (_name, Field, props) => {
+  describe.each(FIELDS)('%s', (_name, Field, props) => {
     const common = { id: 'control-x', 'data-testid': 'input-x', value: null, ...props };
 
     it('с tooltip: одна иконка, скрытый текст, его id в aria-describedby контрола', () => {
-      const html = renderToStaticMarkup(<Field {...common} tooltip={TEXT} />);
+      const html = renderToStaticMarkup(<Bound component={Field} {...common} tooltip={TEXT} />);
       expect(html.match(/data-slot="info-hint"/g)).toHaveLength(1);
       expect(html).toContain('data-testid="input-x-tooltip"');
 
@@ -119,7 +114,7 @@ describe('tooltip — охват всех полей кита', () => {
 
     it('проп не течёт в DOM, labelTooltip срезается', () => {
       const html = renderToStaticMarkup(
-        <Field {...common} tooltip={TEXT} labelTooltip="Подсказка у подписи" />
+        <Bound component={Field} {...common} tooltip={TEXT} labelTooltip="Подсказка у подписи" />
       );
       expect(html).not.toMatch(/\stooltip="/);
       expect(html.toLowerCase()).not.toContain('labeltooltip');
@@ -127,8 +122,12 @@ describe('tooltip — охват всех полей кита', () => {
     });
 
     it('без tooltip и с пустой строкой иконки нет', () => {
-      expect(renderToStaticMarkup(<Field {...common} />)).not.toContain('info-hint');
-      expect(renderToStaticMarkup(<Field {...common} tooltip="" />)).not.toContain('info-hint');
+      expect(renderToStaticMarkup(<Bound component={Field} {...common} />)).not.toContain(
+        'info-hint'
+      );
+      expect(
+        renderToStaticMarkup(<Bound component={Field} {...common} tooltip="" />)
+      ).not.toContain('info-hint');
     });
   });
 });

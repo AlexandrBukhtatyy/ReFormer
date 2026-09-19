@@ -8,7 +8,8 @@ import {
   INSIDE_INPUT,
   OUTSIDE_CENTER,
 } from './field-tooltip';
-import { withFormControl } from './with-form-control';
+import { Bound } from '@/test-utils/bound';
+import { defineFieldControl } from './field-control';
 import { nativeInputAdapter } from './adapters';
 
 /** Локальный аналог shadcn-примитива Input (React-19 ref-as-prop plain-функция). */
@@ -69,14 +70,15 @@ describe('withFieldTooltip', () => {
     expect(html.match(/<input[^>]*>/)?.[0]).not.toMatch(/\stooltip=/);
   });
 
-  it('сохраняет displayName примитива — Field(Input) остаётся Field(Input)', () => {
+  it('сохраняет displayName примитива', () => {
     expect(Inside.displayName).toBe('Input');
-    expect(withFormControl(Inside, nativeInputAdapter).displayName).toBe('Field(Input)');
   });
 
-  it('под withFormControl: value-контракт цел, иконка на месте', () => {
-    const Field = withFormControl(Inside, nativeInputAdapter);
-    const html = renderToStaticMarkup(<Field value="привет" tooltip="Подсказка" />);
+  it('в форме (адаптер из статики): value-контракт цел, иконка на месте', () => {
+    const Control = defineFieldControl(Inside, { adapter: nativeInputAdapter });
+    const html = renderToStaticMarkup(
+      <Bound component={Control} value="привет" tooltip="Подсказка" />
+    );
     expect(html).toContain('value="привет"');
     expect(html).toContain('data-slot="info-hint"');
   });

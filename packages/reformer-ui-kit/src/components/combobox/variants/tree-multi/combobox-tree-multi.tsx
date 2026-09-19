@@ -3,6 +3,9 @@ import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { defineFieldControl } from '@/fields/field-control';
+import { multiValueAdapter } from '@/fields/adapters';
+
 import {
   useFieldTooltip,
   CHEVRON_RESERVE,
@@ -323,5 +326,32 @@ const ComboboxTreeMulti = React.forwardRef<ComboboxTreeMultiHandle, ComboboxTree
   }
 );
 ComboboxTreeMulti.displayName = 'ComboboxTreeMulti';
+
+/**
+ * Value-based контракт ComboboxTreeMulti в форме. Значение — `string[] | null` (адреса узлов);
+ * форма резолвит `value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в
+ * `componentProps`. Служит типом для стража props-схемы.
+ */
+export interface ComboboxTreeMultiFormProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  nodes?: readonly TreeNode[];
+  loadChildren?: (node: TreeNode | null) => Promise<readonly TreeNode[]>;
+  defaultExpandedIds?: readonly string[];
+  selectable?: 'all' | 'leaf';
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  clearable?: boolean;
+  maxItems?: number;
+  summaryThreshold?: number;
+  maxRows?: number;
+  className?: string;
+}
+
+// Диалект формы: `string[] | null` ↔ массив композита (пустой выбор → null) — статика.
+defineFieldControl(ComboboxTreeMulti, { adapter: multiValueAdapter });
 
 export { ComboboxTreeMulti };

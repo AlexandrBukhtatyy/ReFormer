@@ -2,8 +2,8 @@ import type { PropsSchema } from '@/fields/props-schema';
 
 /**
  * Props-схема Checkbox — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
- * `componentProps` (renderer-json). `x-registryName: 'Checkbox'` — на этот вариант смотрит алиас
- * `CheckboxField`.
+ * `componentProps` (renderer-json). `x-registryName: 'Checkbox'` → экспорт
+ * `CheckboxWithLabel` (`x-exportName`).
  *
  * `label` объявлен и здесь (не только во враппере): для inline-контрола подпись рендерит САМ
  * field-компонент (FormField верхнюю подпись подавляет), поэтому она приходит как `componentProps.label`.
@@ -13,6 +13,7 @@ export const checkboxBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'Checkbox',
+  'x-exportName': 'CheckboxWithLabel',
   properties: {
     label: {
       type: 'string',

@@ -106,9 +106,9 @@ const NO_PARTS_DIRS = new Set([
 
 /**
  * Суффиксы служебных экспортов, которые частями компонента НЕ являются: cva-функции (`alertVariants`),
- * field-обёртки (покрыты rich-записями), провайдеры/порталы/оверлеи (рантайм-инфра без своего визуала).
+ * провайдеры/порталы/оверлеи (рантайм-инфра без своего визуала).
  */
-const PART_NAME_SKIP = /(Variants|BaseField|Field|Provider|Portal|Overlay|Style)$/;
+const PART_NAME_SKIP = /(Variants|Provider|Portal|Overlay|Style)$/;
 
 /**
  * Пропсы частей, без которых часть не работает (Radix-`value`, ссылки, источники картинок). Знание
@@ -181,7 +181,7 @@ type Record = {
   name: string;
   role: 'field' | 'container';
   propsSchema: object;
-  /** Имя символа в barrel, когда оно отличается от `name` записи (`Input` → `InputField`). */
+  /** Имя символа в barrel, когда оно отличается от `name` записи (`Checkbox` → `CheckboxWithLabel`). */
   exportName?: string;
   variantGroup?: string;
   variant?: string;
@@ -289,18 +289,18 @@ for (const c of introspected.values()) {
 }
 
 /**
- * Имя символа field-записи. Каталог обязан назвать его сам: контракт билдера не задаёт правила
- * «имя записи + суффикс», а под именем записи (`Input`) barrel отдаёт БАЗОВЫЙ компонент, не
- * подключённый к форме. Форму-контрол публикует `withFormControl` под `${name}Field` — проверяем,
- * что такой экспорт действительно есть, иначе запись молча указывала бы не на тот компонент.
+ * Имя символа field-записи — компонента, который кладут в `component` поля. Под именем записи
+ * (`Checkbox`) barrel может отдавать базовый примитив, а форме нужен вариант (`CheckboxWithLabel`):
+ * его называет `x-exportName` props-схемы, иначе — само имя записи. Экспорт обязан существовать,
+ * иначе запись молча указывала бы не на тот компонент.
  */
-function fieldExportName(name: string): { exportName: string } {
-  const alias = `${name}Field`;
-  if (!introspected.has(alias))
+function fieldExportName(name: string, variant: PropsSchema): { exportName?: string } {
+  const exportName = (variant['x-exportName'] as string | undefined) ?? name;
+  if (!introspected.has(exportName))
     throw new Error(
-      `field-запись '${name}': экспорта '${alias}' нет среди экспортов кита — каталог не может назвать символ.`
+      `field-запись '${name}': экспорта '${exportName}' нет среди экспортов кита — каталог не может назвать символ.`
     );
-  return { exportName: alias };
+  return exportName === name ? {} : { exportName };
 }
 
 /** Отображаемый TS-тип для `x-doc.type`: для enum'а — сам union, иначе тип без `| undefined`. */
@@ -382,7 +382,12 @@ const rich: Record[] = Object.values(meta)
     seen.add(name);
     const role = roleOf(variant);
     const overlay = role === 'field' ? mergeFieldPropsSchema(variant) : variant;
-    const intro = byRegistryName.get(name) ?? introspected.get(name);
+    // Типы — у того экспорта, что реально кладут в форму (`x-exportName`), иначе по registry-имени.
+    const exportName = variant['x-exportName'] as string | undefined;
+    const intro =
+      (exportName ? introspected.get(exportName) : undefined) ??
+      byRegistryName.get(name) ??
+      introspected.get(name);
     const propsSchema: PropsSchema = {
       ...overlay,
       properties: buildProperties(
@@ -398,7 +403,7 @@ const rich: Record[] = Object.values(meta)
     return {
       name,
       role,
-      ...(role === 'field' ? fieldExportName(name) : {}),
+      ...(role === 'field' ? fieldExportName(name, variant) : {}),
       propsSchema,
       ...(variantGroup ? { variantGroup } : {}),
       ...(variantLabel ? { variant: variantLabel } : {}),
@@ -472,11 +477,12 @@ const parts: Record[] = dirs
 // нет», а «мы про них не рассказали»: у `AsyncBoundary` 17 пропсов, у `ChartTooltipContent` — 37.
 // Теперь описываются все; шума в палитре это не создаёт — части несут `compoundParent`, а такие
 // записи по контракту предлагаются в контексте своего корня, а не в общем списке.
-const covered = new Set([...rich, ...minimal, ...parts].map((r) => r.name));
+// Экспорт, названный записью через `exportName` (`CheckboxWithLabel` у записи `Checkbox`), уже описан ею.
+const covered = new Set(
+  [...rich, ...minimal, ...parts].flatMap((r) => (r.exportName ? [r.name, r.exportName] : [r.name]))
+);
 const extra: Record[] = [...introspected.values()]
-  // Экспорт без единого пропа не несёт информации. Все такие — field-алиасы `withFormControl`
-  // (`InputField`, `SelectField`): HOC возвращает `Record<string, unknown>`, поэтому имена пропсов
-  // в типе стёрты, а сама поверхность уже описана записью базового варианта (`Input`, `Select`).
+  // Экспорт без единого пропа не несёт информации.
   .filter((c) => !covered.has(c.name) && c.props.length > 0)
   .map((c) => {
     const root = pascalCase(c.dir);

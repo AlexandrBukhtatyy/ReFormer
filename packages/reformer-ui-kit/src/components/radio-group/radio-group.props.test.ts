@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { radioGroupBasePropsSchema } from './variants/base/radio-group-base.props';
-import type { RadioGroupOptionsProps } from './variants/base/radio-group-base.field';
+import type { RadioGroupOptionsProps } from './variants/base/radio-group-options';
 
 /**
  * Страж от дрейфа схемы (фаза E2). Тип-левел часть (A) падает на `tsc`, НЕ на vitest
@@ -23,7 +23,7 @@ describe('radio-group props-схема — страж от дрейфа', () => 
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = RadioGroup (на него смотрит алиас RadioGroupField)', () => {
+  it('x-registryName = RadioGroup (на него смотрит алиас RadioGroupOptions)', () => {
     expect(radioGroupBasePropsSchema['x-registryName']).toBe('RadioGroup');
   });
 

@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { toggleBasePropsSchema } from './variants/base/toggle-base.props';
-import type { ToggleFieldProps } from './variants/base/toggle-base.field';
+import type { ToggleFormProps } from './variants/base/toggle-base';
 
 /**
  * Страж от дрейфа схемы (фаза E2). Тип-левел часть (A) падает на `tsc`, НЕ на vitest
  * (esbuild транспилирует без проверки типов) — держать в tsc-scope.
  *
- * Тип варианта — value-based `ToggleFieldProps` (base — Radix `pressed`/`onPressedChange`,
+ * Тип варианта — value-based `ToggleFormProps` (base — Radix `pressed`/`onPressedChange`,
  * не `value`; поэтому страж смотрит на field-контракт, а не на примитив).
  */
 
@@ -17,7 +17,7 @@ type SchemaRuntimeKeys = keyof (typeof toggleBasePropsSchema)['x-runtimeProps'];
 type SchemaKeys = SchemaPropKeys | SchemaRuntimeKeys;
 
 /** A: каждый ключ схемы существует в props field-контракта (нет опечаток/чужих ключей). */
-type _A_NoStrayKeys = Assert<SchemaKeys extends keyof ToggleFieldProps ? true : false>;
+type _A_NoStrayKeys = Assert<SchemaKeys extends keyof ToggleFormProps ? true : false>;
 
 describe('toggle props-схема — страж от дрейфа', () => {
   it('рантайм: properties ∩ x-runtimeProps = ∅ (проп не в двух местах)', () => {
@@ -26,7 +26,7 @@ describe('toggle props-схема — страж от дрейфа', () => {
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = Toggle (на него смотрит алиас ToggleField)', () => {
+  it('x-registryName = Toggle (на него смотрит алиас Toggle)', () => {
     expect(toggleBasePropsSchema['x-registryName']).toBe('Toggle');
   });
 

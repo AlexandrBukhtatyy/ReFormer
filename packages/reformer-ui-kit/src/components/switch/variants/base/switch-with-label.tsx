@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { withFormControl } from '@/fields/with-form-control';
+import { defineFieldControl } from '@/fields/field-control';
 import { checkedAdapter } from '@/fields/adapters';
 import { useFieldTooltip, type FieldTooltipProps } from '@/fields/field-tooltip';
 import { Label } from '@/components/label';
@@ -12,12 +12,13 @@ import { Switch } from './switch-base';
  * связанный `<Label>`. Поэтому висячий `aria-labelledby` (FormField для inline-раскладки НЕ
  * рендерит верхнюю метку — IDREF указывал бы в пустоту) сбрасываем, когда рисуем свою подпись.
  */
-export interface SwitchControlProps extends React.ComponentProps<typeof Switch>, FieldTooltipProps {
+export interface SwitchWithLabelProps
+  extends React.ComponentProps<typeof Switch>, FieldTooltipProps {
   /** Подпись справа от переключателя. Если опущена — рендерится только сам контрол. */
   label?: string;
 }
 
-function SwitchControl({
+function SwitchWithLabelBase({
   label,
   tooltip,
   id,
@@ -25,7 +26,7 @@ function SwitchControl({
   'aria-describedby': ariaDescribedBy,
   'data-testid': dataTestId,
   ...props
-}: SwitchControlProps & { 'data-testid'?: string }) {
+}: SwitchWithLabelProps & { 'data-testid'?: string }) {
   const reactId = React.useId();
   const switchId = id ?? reactId;
   const hasLabel = label != null && label !== '';
@@ -54,14 +55,12 @@ function SwitchControl({
   );
 }
 
-SwitchControl.displayName = 'SwitchControl';
-
 /**
- * Value-based контракт field-версии Switch. Значение — `boolean`; форма резолвит
+ * Value-based контракт Switch в форме. Значение — `boolean`; форма резолвит
  * `value`/`onChange`/`onBlur`/`disabled`, автор задаёт `label`/`className` в `componentProps`.
- * Служит типом для стража props-схемы (base — Radix `checked`/`onCheckedChange`, не `value`).
+ * Служит типом для стража props-схемы (сам компонент — Radix `checked`/`onCheckedChange`).
  */
-export interface SwitchFieldProps {
+export interface SwitchFormProps {
   value?: boolean;
   onChange?: (value: boolean) => void;
   onBlur?: () => void;
@@ -71,12 +70,16 @@ export interface SwitchFieldProps {
   className?: string;
 }
 
+SwitchWithLabelBase.displayName = 'SwitchWithLabel';
+
 /**
- * Field-версия Switch: обёртка `SwitchControl` (переключатель + подпись справа) + `checkedAdapter`
- * (boolean value-based: `checked` + `onCheckedChange`, `'indeterminate'` → `false`).
- *
- * Маркер `reformerLayout = 'inline-label'` — ИНВАРИАНТ playbook (фаза D2): FormField НЕ рисует
- * верхнюю подпись (иначе задвоится с той, что контрол рендерит справа из `componentProps.label`).
+ * Переключатель с подписью справа — компонент для формы (`component: SwitchWithLabel`, registry
+ * `Switch`). Диалект `checked`/`onCheckedChange` — статика {@link checkedAdapter}
+ * (`'indeterminate'` → `false`); маркер `inline-label` — FormField НЕ рисует верхнюю подпись.
  */
-export const SwitchBaseField = withFormControl(SwitchControl, checkedAdapter);
-(SwitchBaseField as { reformerLayout?: string }).reformerLayout = 'inline-label';
+const SwitchWithLabel = defineFieldControl(SwitchWithLabelBase, {
+  adapter: checkedAdapter,
+  layout: 'inline-label',
+});
+
+export { SwitchWithLabel };

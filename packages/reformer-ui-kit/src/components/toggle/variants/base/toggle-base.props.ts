@@ -3,7 +3,7 @@ import type { PropsSchema } from '@/fields/props-schema';
 /**
  * Props-схема Toggle — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
  * `componentProps` (renderer-json). Поверхность в DSL — `variant`/`size`/`className`;
- * `additionalProperties: false` ловит опечатки. `x-registryName: 'Toggle'` — алиас `ToggleField`.
+ * `additionalProperties: false` ловит опечатки. `x-registryName: 'Toggle'` — компонент `Toggle`.
  *
  * НЕ inline-label: подпись поля рисует FormField сверху (`componentProps.label`), контент toggle —
  * через `children` (несериализуемый, в схему не выносится). `value`/`onChange` переопределяют seam

@@ -33,7 +33,7 @@ describe('calendar props-схема — страж от дрейфа', () => {
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = Calendar (на него смотрит алиас CalendarField)', () => {
+  it('x-registryName = Calendar (на него смотрит алиас CalendarSingle)', () => {
     expect(calendarBasePropsSchema['x-registryName']).toBe('Calendar');
   });
 

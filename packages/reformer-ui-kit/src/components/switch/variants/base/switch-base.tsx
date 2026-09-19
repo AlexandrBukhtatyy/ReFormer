@@ -2,6 +2,8 @@ import * as React from 'react';
 import { Switch as SwitchPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
+import { defineFieldControl } from '@/fields/field-control';
+import { checkedAdapter } from '@/fields/adapters';
 
 // Дословный порт shadcn/ui (new-york-v4) switch. Правки только: unified `radix-ui`
 // (Switch.Root/Switch.Thumb), `@/lib/utils`, снят 'use client'. data-slot сохранён.
@@ -31,5 +33,9 @@ function Switch({
     </SwitchPrimitive.Root>
   );
 }
+
+// Голый переключатель годится в `component` поля (без подписи): диалект `checked` +
+// `onCheckedChange` — статикой. С подписью справа — вариант SwitchWithLabel.
+defineFieldControl(Switch, { adapter: checkedAdapter });
 
 export { Switch };

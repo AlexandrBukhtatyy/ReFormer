@@ -2,20 +2,21 @@
 // (toggleVariants живёт в компоненте `toggle`; toggle-group его импортирует, как upstream — не реэкспортит.)
 export { ToggleGroup, ToggleGroupItem } from './variants/base/toggle-group-base';
 
-// field-версия (рендерит options, per-option data-testid) + алиас ToggleGroupField (дефолтный для форм).
-export { ToggleGroupBaseField, ToggleGroupOptions } from './variants/base/toggle-group-base.field';
-export { ToggleGroupBaseField as ToggleGroupField } from './variants/base/toggle-group-base.field';
+// options — группа из массива options (per-option data-testid) + проп tooltip. Компонент для формы
+// (registry ToggleGroup).
+export { ToggleGroupOptions } from './variants/base/toggle-group-options';
 export type {
   ToggleGroupOption,
   ToggleGroupOptionsProps,
-  ToggleGroupFieldProps,
-} from './variants/base/toggle-group-base.field';
+  ToggleGroupFormProps,
+} from './variants/base/toggle-group-options';
 
 // multi — множественный выбор (value: string[] | null). Отдельная запись каталога: другой тип значения.
 export { ToggleGroupMulti } from './variants/multi/toggle-group-multi';
-export { ToggleGroupMultiField } from './variants/multi/toggle-group-multi.field';
-export type { ToggleGroupMultiProps } from './variants/multi/toggle-group-multi';
-export type { ToggleGroupMultiFieldProps } from './variants/multi/toggle-group-multi.field';
+export type {
+  ToggleGroupMultiProps,
+  ToggleGroupMultiFormProps,
+} from './variants/multi/toggle-group-multi';
 
 // props-схемы.
 export { toggleGroupBasePropsSchema } from './variants/base/toggle-group-base.props';

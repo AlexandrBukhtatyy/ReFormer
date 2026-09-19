@@ -1,10 +1,11 @@
 /**
- * Статический рендер Input с подсказками: разметка combobox и маршрутизация диспетчера InputField.
+ * Статический рендер InputSuggest: разметка combobox и связка с формой (адаптер из статики).
  * Клавиатура/мышь — в cdk (`autocomplete-core.test.ts`) и e2e.
  */
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { InputField, InputSuggest } from '../../index';
+import { InputSuggest } from '../../index';
+import { Bound } from '@/test-utils/bound';
 
 describe('InputSuggest', () => {
   it('shadcn Input с ролью combobox и свободным текстом', () => {
@@ -25,22 +26,20 @@ describe('InputSuggest', () => {
   });
 });
 
-describe('InputField — диспетчер по suggestions', () => {
-  it('suggestions задан → combobox', () => {
-    const html = renderToStaticMarkup(<InputField value="x" suggestions={['a']} />);
+describe('InputSuggest в форме (textValueAdapter)', () => {
+  it('рендерит combobox со значением поля', () => {
+    const html = renderToStaticMarkup(
+      <Bound component={InputSuggest} value="x" suggestions={['a']} />
+    );
     expect(html).toContain('role="combobox"');
+    expect(html).toContain('value="x"');
   });
 
-  it('без suggestions — обычный input, настройки подсказок в DOM не текут', () => {
-    const html = renderToStaticMarkup(<InputField value="x" minChars={2} openOnFocus />);
-    expect(html).not.toContain('role="combobox"');
+  it('value=null → пустое поле; настройки подсказок в DOM не текут', () => {
+    const html = renderToStaticMarkup(
+      <Bound component={InputSuggest} value={null} suggestions={['a']} minChars={2} openOnFocus />
+    );
+    expect(html).toContain('value=""');
     expect(html).not.toMatch(/minchars|openonfocus/i);
-  });
-
-  it('type=number игнорирует suggestions', () => {
-    const html = renderToStaticMarkup(<InputField type="number" value={1} suggestions={['1']} />);
-    expect(html).toContain('type="number"');
-    expect(html).not.toContain('role="combobox"');
-    expect(html).not.toContain('suggestions');
   });
 });

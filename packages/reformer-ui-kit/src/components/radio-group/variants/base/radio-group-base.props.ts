@@ -3,7 +3,7 @@ import type { PropsSchema } from '@/fields/props-schema';
 /**
  * Props-схема RadioGroup — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
  * `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки. `x-registryName:
- * 'RadioGroup'` — на этот вариант смотрит алиас `RadioGroupField`.
+ * 'RadioGroup'` → экспорт `RadioGroupOptions` (`x-exportName`).
  *
  * `value`/`onChange` переопределяют seam под string-контракт группы (выбранное `option.value`).
  */
@@ -11,6 +11,7 @@ export const radioGroupBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'RadioGroup',
+  'x-exportName': 'RadioGroupOptions',
   properties: {
     options: {
       type: 'array',

@@ -3438,13 +3438,13 @@
     {
       "name": "Calendar",
       "role": "field",
-      "exportName": "CalendarField",
+      "exportName": "CalendarSingle",
       "propsSchema": {
         "type": "object",
         "properties": {
           "animate": {
             "type": "boolean",
-            "description": "Анимировать смену месяцев при навигации.",
+            "description": "Animate navigating between months.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3452,7 +3452,7 @@
           },
           "autoFocus": {
             "type": "boolean",
-            "description": "Ставить фокус на выбранный день (или на сегодня) при монтировании — для возврата фокуса после действия пользователя.",
+            "description": "When a selection mode is set, DayPicker will focus the first selected day (if set) or today's date (if not disabled). Use this prop when you need to focus DayPicker after a user action, for improved accessibility.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3460,7 +3460,7 @@
           },
           "broadcastCalendar": {
             "type": "boolean",
-            "description": "Раскладка недель по broadcast-календарю: неделя всегда с понедельника, weekStartsOn игнорируется, showOutsideDays включается по умолчанию.",
+            "description": "Display the weeks in the month following the broadcast calendar. Setting this prop will ignore {@link weekStartsOn} (always Monday) and {@link showOutsideDays} will default to true.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3469,8 +3469,6 @@
           "buttonVariant": {
             "type": "string",
             "enum": ["link", "default", "destructive", "outline", "secondary", "ghost"],
-            "default": "ghost",
-            "description": "Собственный проп обёртки кита: оформление кнопок навигации по месяцам, значения — варианты Button.",
             "x-doc": {
               "group": "Behavior",
               "type": "'link' | 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost'"
@@ -3479,13 +3477,13 @@
           "captionLayout": {
             "type": "string",
             "enum": ["label", "dropdown", "dropdown-months", "dropdown-years"],
-            "default": "label",
             "description": "Шапка месяца: статичная подпись или дропдауны выбора месяца/года.",
             "x-doc": {
               "group": "Behavior",
               "type": "'label' | 'dropdown' | 'dropdown-months' | 'dropdown-years'",
               "kind": "enum"
-            }
+            },
+            "default": "label"
           },
           "className": {
             "type": "string",
@@ -3498,39 +3496,35 @@
           },
           "classNames": {
             "type": "object",
-            "description": "Карта CSS-классов внутренних узлов календаря (сетка, шапка, неделя, день); перекрывает подготовленные обёрткой классы поключево.",
+            "description": "Change the class names used by DayPicker. Use this prop when you need to change the default class names — for example, when importing the style via CSS modules or when using a CSS framework.",
             "x-doc": {
-              "group": "Control",
-              "type": "Partial<ClassNames>",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "Partial<ClassNames>"
             }
           },
           "components": {
             "type": "object",
-            "description": "Замена React-компонентов, которыми рисуются части календаря; перекрывает Root/Chevron/DayButton/WeekNumber, заданные обёрткой.",
+            "description": "Change the components used for rendering the calendar elements.",
             "x-doc": {
-              "group": "Control",
-              "type": "Partial<CustomComponents>",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "Partial<CustomComponents>"
             }
           },
           "dateLib": {
             "type": "object",
-            "description": "Подмена библиотеки работы с датами; экспериментально, вне гарантий semver.",
+            "description": "Replace the default date library with a custom one. Experimental: not guaranteed to be stable (may not respect semver).",
             "x-doc": {
               "group": "Behavior",
-              "type": "Partial<DateLib>",
-              "kind": "readonly"
+              "type": "Partial<DateLib>"
             }
           },
           "defaultMonth": {
             "type": "object",
             "default": "The current month",
-            "description": "Месяц, открытый при первом рендере, когда навигацией управляет сам календарь.",
+            "description": "The initial month to show in the calendar. Use this prop to let DayPicker control the current month. If you need to set the month programmatically, use {@link month} and {@link onMonthChange}.",
             "x-doc": {
-              "group": "State",
-              "type": "Date",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "Date"
             }
           },
           "description": {
@@ -3543,7 +3537,7 @@
           },
           "dir": {
             "type": "string",
-            "description": "Направление письма: ltr или rtl (в rtl стрелки навигации разворачиваются).",
+            "description": "The text direction of the calendar. Use `ltr` for left-to-right (default) or `rtl` for right-to-left.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -3551,7 +3545,7 @@
           },
           "disableNavigation": {
             "type": "boolean",
-            "description": "Запретить переход между месяцами, оставив кнопки навигации на месте.",
+            "description": "Disable the navigation between months. This prop won't hide the navigation: to hide the navigation, use {@link hideNavigation}.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3559,24 +3553,15 @@
           },
           "endMonth": {
             "type": "object",
-            "description": "Последний месяц, до которого доходит навигация.",
+            "description": "The latest month to end the month navigation.",
             "x-doc": {
               "group": "Behavior",
-              "type": "Date",
-              "kind": "readonly"
-            }
-          },
-          "excludeDisabled": {
-            "type": "boolean",
-            "description": "When `true`, the range will reset when including a disabled day.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
+              "type": "Date"
             }
           },
           "firstWeekContainsDate": {
             "type": "number",
-            "description": "День января, который всегда попадает в первую неделю года.",
+            "description": "The day of January that is always in the first week of the year.",
             "x-doc": {
               "group": "Behavior",
               "type": "1 | 4"
@@ -3584,40 +3569,39 @@
           },
           "fixedWeeks": {
             "type": "boolean",
-            "description": "Всегда рисовать шесть недель в месяце, добирая дни следующего месяца.",
+            "description": "Display always 6 weeks per each month, regardless of the month’s number of weeks. Weeks will be filled with the days from the next month.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
             }
           },
           "footer": {
-            "description": "Подвал календаря, работающий как live-region для скринридеров; предпочтительна строка, а не сложная разметка.",
+            "description": "Add a footer to the calendar, acting as a live region. Use this prop to communicate the calendar's status to screen readers. Prefer strings over complex UI elements.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "ReactNode",
               "kind": "readonly"
             }
           },
           "formatters": {
             "type": "object",
-            "description": "Переопределение функций форматирования подписей дат; обёртка уже задаёт свой formatMonthDropdown, остальные ключи добавляются поверх.",
+            "description": "Formatters used to format dates to strings. Use this prop to override the default functions.",
             "x-doc": {
               "group": "Behavior",
-              "type": "Partial<Formatters>",
-              "kind": "readonly"
+              "type": "Partial<Formatters>"
             }
           },
           "hidden": {
-            "description": "Матчер дней, которые не показываются в сетке.",
+            "description": "Apply the `hidden` modifier to the matching days. Will hide them from the calendar.",
             "x-doc": {
-              "group": "State",
+              "group": "Behavior",
               "type": "Matcher | Matcher[]",
               "kind": "readonly"
             }
           },
           "hideNavigation": {
             "type": "boolean",
-            "description": "Скрыть кнопки навигации, не отключая саму навигацию.",
+            "description": "Hide the navigation buttons. This prop won't disable the navigation: to disable the navigation, use {@link disableNavigation}.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3625,7 +3609,7 @@
           },
           "hideWeekdays": {
             "type": "boolean",
-            "description": "Скрыть строку с названиями дней недели.",
+            "description": "Hide the row displaying the weekday row header.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3633,15 +3617,15 @@
           },
           "id": {
             "type": "string",
-            "description": "Идентификатор корневого элемента.",
+            "description": "A unique id to add to the root element.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
           "ISOWeek": {
             "type": "boolean",
-            "description": "Считать недели по ISO вместо настроек локали; weekStartsOn и firstWeekContainsDate при этом игнорируются.",
+            "description": "Use ISO week dates instead of the locale setting. Setting this prop will ignore `weekStartsOn` and `firstWeekContainsDate`.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3657,11 +3641,10 @@
           },
           "labels": {
             "type": "object",
-            "description": "Переопределение генераторов aria-label для элементов календаря.",
+            "description": "Labels creators to override the defaults. Use this prop to customize the aria-label attributes in DayPicker.",
             "x-doc": {
-              "group": "Control",
-              "type": "Partial<Labels>",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "Partial<Labels>"
             }
           },
           "labelTooltip": {
@@ -3674,89 +3657,68 @@
           },
           "lang": {
             "type": "string",
-            "description": "Языковой тег контейнера; без него берётся код активной локали.",
+            "description": "Add the language tag to the container element. When omitted, DayPicker uses the active locale code (`locale.code`). Set this prop to override the language tag.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
           "locale": {
             "type": "object",
             "default": "enUS - The English locale default of `date-fns`.",
-            "description": "Объект локали для подписей месяцев и дней недели (импортируется из react-day-picker/locale).",
+            "description": "The locale object used to localize dates. Pass a locale from `react-day-picker/locale` to localize the calendar.",
             "x-doc": {
               "group": "Behavior",
-              "type": "Partial<DayPickerLocale>",
-              "kind": "readonly"
-            }
-          },
-          "max": {
-            "type": "number",
-            "description": "The maximum number of selectable days.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
-            }
-          },
-          "min": {
-            "type": "number",
-            "description": "The minimum number of selectable days.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
+              "type": "Partial<DayPickerLocale>"
             }
           },
           "mode": {
             "type": "string",
             "enum": ["single"],
-            "description": "Режим выбора. Field-версия — только single (одна дата, value: Date | null).",
+            "default": "single",
+            "description": "Режим выбора. В форме — только single (одна дата, value: Date | null).",
             "x-doc": {
               "group": "Behavior",
               "type": "'single'",
               "kind": "enum"
-            },
-            "default": "single"
+            }
           },
           "modifiers": {
             "type": "object",
-            "description": "Именованные модификаторы, навешиваемые на дни по матчеру.",
+            "description": "Add modifiers to the matching days.",
             "x-doc": {
-              "group": "State",
-              "type": "Record<string, Matcher | Matcher[] | undefined>",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "Record<string, Matcher | Matcher[] | undefined>"
             }
           },
           "modifiersClassNames": {
             "type": "object",
-            "description": "CSS-классы для дней, попавших под соответствующий модификатор.",
+            "description": "Change the class name for the day matching the `modifiers`.",
             "x-doc": {
-              "group": "Control",
-              "type": "ModifiersClassNames",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "ModifiersClassNames"
             }
           },
           "modifiersStyles": {
             "type": "object",
-            "description": "Инлайн-стили для дней, попавших под соответствующий модификатор.",
+            "description": "Change the class name for the day matching the {@link modifiers}.",
             "x-doc": {
-              "group": "Control",
-              "type": "ModifiersStyles",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "ModifiersStyles"
             }
           },
           "month": {
             "type": "object",
-            "description": "Показываемый месяц под внешним управлением; используется в паре с onMonthChange.",
+            "description": "The month displayed in the calendar. As opposed to `defaultMonth`, use this prop with `onMonthChange` to change the month programmatically.",
             "x-doc": {
-              "group": "State",
-              "type": "Date",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "Date"
             }
           },
           "navLayout": {
             "type": "string",
             "enum": ["around", "after"],
-            "description": "Расположение кнопок навигации: по краям шапки или после неё — второе выравнивает порядок табуляции с визуальным.",
+            "description": "Adjust the positioning of the navigation buttons. - `around`: Displays the buttons on either side of the caption. - `after`: Displays the buttons after the caption. This ensures the tab order matches the visual order. If not set, DayPicker preserves its legacy layout, but the tab order may not align with the visual order when using `captionLayout=\"dropdown\"`.",
             "x-doc": {
               "group": "Behavior",
               "type": "'around' | 'after'"
@@ -3764,15 +3726,15 @@
           },
           "nonce": {
             "type": "string",
-            "description": "CSP-nonce для инлайновых стилей календаря.",
+            "description": "A cryptographic nonce (\"number used once\") which can be used by Content Security Policy for the inline `style` attributes.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
           "noonSafe": {
             "type": "boolean",
-            "description": "Вести расчёты на полдень выбранной таймзоны, чтобы исторические сдвиги смещения не переносили дату через полночь.",
+            "description": "Keep calendar math at noon in the configured {@link timeZone} to avoid historical second-level offsets drifting dates across midnight. This prop sets the time of the dates to noon (12:00).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3781,7 +3743,7 @@
           "numberOfMonths": {
             "type": "number",
             "default": 1,
-            "description": "Сколько месяцев показывать одновременно.",
+            "description": "The number of displayed months.",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
@@ -3810,7 +3772,7 @@
               "tibt"
             ],
             "default": "latn` Latin (Western Arabic)",
-            "description": "Система записи цифр в датах — латинская, арабо-индийская, деванагари и другие письменности.",
+            "description": "The numeral system to use when formatting dates. - `latn`: Latin (Western Arabic) - `arab`: Arabic-Indic - `arabext`: Eastern Arabic-Indic (Persian) - `deva`: Devanagari - `beng`: Bengali - `guru`: Gurmukhi - `gujr`: Gujarati - `orya`: Oriya - `tamldec`: Tamil - `telu`: Telugu - `knda`: Kannada - `mlym`: Malayalam",
             "x-doc": {
               "group": "Behavior",
               "type": "'latn' | 'arab' | 'arabext' | 'deva' | 'geez' | 'beng' | 'guru' | 'gujr' | 'orya' | 'tamldec' | 'telu' | 'knda' | 'mlym' | 'thai' | 'mymr' | 'khmr' | 'laoo' | 'tibt'"
@@ -3890,7 +3852,7 @@
           },
           "pagedNavigation": {
             "type": "boolean",
-            "description": "Листать сразу на numberOfMonths месяцев, а не по одному.",
+            "description": "Paginate the month navigation displaying the `numberOfMonths` at a time.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3898,24 +3860,16 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Маркер «*» у метки + aria-required.",
             "x-doc": {
               "group": "State",
               "type": "boolean"
             },
-            "default": false
-          },
-          "resetOnSelect": {
-            "type": "boolean",
-            "description": "When `true`, clicking a day starts a new range if there is no current start date or if a range is already complete. In those cases, the clicked day becomes the start of the new range. When `required` is `false`, clicking the same day of a single-day range clears the selection.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required."
           },
           "reverseMonths": {
             "type": "boolean",
-            "description": "Обратный порядок месяцев при numberOfMonths > 1 — самый поздний первым.",
+            "description": "Render the months in reversed order (when {@link numberOfMonths} is set) to display the most recent month first.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3923,7 +3877,7 @@
           },
           "reverseYears": {
             "type": "boolean",
-            "description": "Обратный порядок лет в дропдауне выбора года.",
+            "description": "Reverse the order of years in the dropdown when using `captionLayout=\"dropdown\"` or `captionLayout=\"dropdown-years\"`.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3932,9 +3886,9 @@
           "role": {
             "type": "string",
             "enum": ["application", "dialog"],
-            "description": "Роль контейнера для вспомогательных технологий: диалог или самостоятельное приложение.",
+            "description": "The role attribute to add to the container element.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "'application' | 'dialog'"
             }
           },
@@ -3948,16 +3902,16 @@
           },
           "showOutsideDays": {
             "type": "boolean",
-            "default": true,
             "description": "Показывать дни соседних месяцев в первой и последней неделе.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
-            }
+            },
+            "default": true
           },
           "showWeekNumber": {
             "type": "boolean",
-            "description": "Показывать колонку с номерами недель.",
+            "description": "Show the week numbers column. Weeks are numbered according to the local week index.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -3965,20 +3919,18 @@
           },
           "startMonth": {
             "type": "object",
-            "description": "Первый месяц, с которого начинается навигация.",
+            "description": "The earliest month to start the month navigation.",
             "x-doc": {
               "group": "Behavior",
-              "type": "Date",
-              "kind": "readonly"
+              "type": "Date"
             }
           },
           "styles": {
             "type": "object",
-            "description": "Инлайн-стили внутренних узлов календаря.",
+            "description": "Change the inline styles of the HTML elements.",
             "x-doc": {
-              "group": "Control",
-              "type": "Partial<Styles>",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "Partial<Styles>"
             }
           },
           "testId": {
@@ -3992,7 +3944,7 @@
           },
           "timeZone": {
             "type": "string",
-            "description": "Таймзона расчётов — имя IANA или смещение от UTC; экспериментально.",
+            "description": "The time zone (IANA or UTC offset) to use in the calendar (experimental). See [Wikipedia](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) for the possible values.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -4000,19 +3952,18 @@
           },
           "title": {
             "type": "string",
-            "description": "Атрибут title контейнера.",
+            "description": "Add a `title` attribute to the container element.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
           "today": {
             "type": "object",
-            "description": "Какая дата считается сегодняшней и получает модификатор today; по умолчанию текущая.",
+            "description": "The today’s date. Default is the current date. This date will get the `today` modifier to style the day.",
             "x-doc": {
-              "group": "State",
-              "type": "Date",
-              "kind": "readonly"
+              "group": "Behavior",
+              "type": "Date"
             }
           },
           "tooltip": {
@@ -4025,7 +3976,7 @@
           },
           "useAdditionalDayOfYearTokens": {
             "type": "boolean",
-            "description": "Разрешить дополнительные токены дня года (D, DD) при форматировании и разборе дат.",
+            "description": "Enable `YY` and `YYYY` for day of year tokens when formatting or parsing dates.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -4033,7 +3984,7 @@
           },
           "useAdditionalWeekYearTokens": {
             "type": "boolean",
-            "description": "Разрешить дополнительные токены недельного года (YY, YYYY) при форматировании и разборе дат.",
+            "description": "Enable `DD` and `DDDD` for week year tokens when formatting or parsing dates.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -4041,7 +3992,7 @@
           },
           "weekStartsOn": {
             "type": "number",
-            "description": "Индекс первого дня недели (0 — воскресенье); перебивает настройку локали.",
+            "description": "The index of the first day of the week (0 - Sunday). Overrides the locale's default.",
             "x-doc": {
               "group": "Behavior",
               "type": "0 | 1 | 2 | 3 | 4 | 5 | 6"
@@ -4075,7 +4026,7 @@
           }
         },
         "x-inherits": {
-          "react": ["AriaAttributes", "DOMAttributes"],
+          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
           "packages": ["react-day-picker"]
         }
       }
@@ -5653,40 +5604,36 @@
     {
       "name": "Checkbox",
       "role": "field",
-      "exportName": "CheckboxField",
+      "exportName": "CheckboxWithLabel",
       "propsSchema": {
         "type": "object",
         "properties": {
           "asChild": {
             "type": "boolean",
-            "description": "Слот-режим: вместо собственного элемента рендерится единственный дочерний узел, в него переносятся классы, обработчики и атрибуты доступности.",
             "x-doc": {
               "group": "Behavior",
-              "type": "boolean",
-              "kind": "readonly"
+              "type": "boolean"
             }
           },
           "checked": {
-            "description": "Контролируемая отметка: `true`, `false` или `'indeterminate'` (aria-checked=\"mixed\", клик из него даёт `true`); в field-режиме приходит от формы через checkedAdapter.",
             "x-doc": {
-              "group": "State",
+              "group": "Behavior",
               "type": "CheckedState",
               "kind": "readonly"
             }
           },
           "className": {
             "type": "string",
-            "description": "Доп. CSS-класс контрола (CheckboxPrimitive.Root).",
             "x-doc": {
               "group": "Control",
               "type": "string",
               "kind": "readonly"
-            }
+            },
+            "description": "Доп. CSS-класс контрола (CheckboxPrimitive.Root)."
           },
           "defaultChecked": {
-            "description": "Начальная отметка неконтролируемого режима; игнорируется, как только задан `checked` (в field-режиме форма контролирует его всегда).",
             "x-doc": {
-              "group": "State",
+              "group": "Behavior",
               "type": "CheckedState",
               "kind": "readonly"
             }
@@ -5716,21 +5663,20 @@
             }
           },
           "onCheckedChange": {
-            "description": "Эмиттер отметки (контракт Radix Root): `true`, `false` или `'indeterminate'`; в field-версии сюда checkedAdapter кладёт onChange формы, приводя `'indeterminate'` к `false`.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "((checked: CheckedState) => void)",
               "kind": "readonly"
             }
           },
           "required": {
             "type": "boolean",
-            "description": "Маркер «*» у метки + aria-required.",
             "x-doc": {
               "group": "State",
               "type": "boolean"
             },
-            "default": false
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required."
           },
           "testId": {
             "type": "string",
@@ -5788,95 +5734,6 @@
           "packages": []
         }
       }
-    },
-    {
-      "name": "CheckboxWithLabel",
-      "role": "container",
-      "propsSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "asChild": {
-            "type": "boolean",
-            "description": "Слот-режим: вместо собственного элемента рендерится единственный дочерний узел, в него переносятся классы, обработчики и атрибуты доступности.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean",
-              "kind": "readonly"
-            }
-          },
-          "checked": {
-            "description": "Та же отметка, что у Checkbox — враппер пробрасывает её на примитив; под withFormControl подставляется формой и перекрывает значение из componentProps.",
-            "x-doc": {
-              "group": "State",
-              "type": "CheckedState",
-              "kind": "readonly"
-            }
-          },
-          "className": {
-            "type": "string",
-            "description": "Дополнительный CSS-класс корневого элемента: примешивается к собственным классам компонента, не заменяя их.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string",
-              "kind": "readonly"
-            }
-          },
-          "defaultChecked": {
-            "description": "Начальная отметка неконтролируемого режима; в field-версии не работает — HOC всегда передаёт `checked`.",
-            "x-doc": {
-              "group": "State",
-              "type": "CheckedState",
-              "kind": "readonly"
-            }
-          },
-          "label": {
-            "type": "string",
-            "description": "Текстовая подпись рядом с контролом.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "onCheckedChange": {
-            "description": "Тот же эмиттер, что у Checkbox — враппер пробрасывает его на примитив; под withFormControl сюда checkedAdapter кладёт onChange формы (`'indeterminate'` → `false`).",
-            "x-doc": {
-              "group": "Control",
-              "type": "((checked: CheckedState) => void)",
-              "kind": "readonly"
-            }
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Пробрасывается на примитив (aria-required + `required` у bubble-input); не путать с одноимённым `required` field-обёртки, который рисует маркер «*» у метки.",
-            "x-doc": {
-              "group": "State",
-              "type": "boolean"
-            }
-          },
-          "tooltip": {
-            "type": "string",
-            "description": "Текст подсказки-тултипа у иконки (i) в самом контроле.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          }
-        },
-        "x-inherits": {
-          "react": [
-            "AriaAttributes",
-            "Attributes",
-            "ButtonHTMLAttributes",
-            "DOMAttributes",
-            "HTMLAttributes",
-            "RefAttributes"
-          ],
-          "packages": []
-        }
-      },
-      "compoundParent": "Checkbox",
-      "palette": false
     },
     {
       "name": "Collapsible",
@@ -6041,7 +5898,6 @@
     {
       "name": "Combobox",
       "role": "field",
-      "exportName": "ComboboxField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -6217,7 +6073,6 @@
     {
       "name": "ComboboxMulti",
       "role": "field",
-      "exportName": "ComboboxMultiField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -6412,7 +6267,6 @@
     {
       "name": "ComboboxTree",
       "role": "field",
-      "exportName": "ComboboxTreeField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -6654,7 +6508,6 @@
     {
       "name": "ComboboxTreeMulti",
       "role": "field",
-      "exportName": "ComboboxTreeMultiField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -8494,7 +8347,6 @@
     {
       "name": "DatePicker",
       "role": "field",
-      "exportName": "DatePickerField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -8518,12 +8370,12 @@
           },
           "dateFormat": {
             "type": "string",
-            "default": "PPP",
             "description": "Формат отображения выбранной даты — токены date-fns (напр. dd.MM.yyyy).",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
-            }
+            },
+            "default": "PPP"
           },
           "description": {
             "type": "string",
@@ -8551,12 +8403,12 @@
           },
           "placeholder": {
             "type": "string",
-            "default": "Выберите дату",
             "description": "Текст кнопки-триггера, когда дата не выбрана.",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
-            }
+            },
+            "default": "Выберите дату"
           },
           "required": {
             "type": "boolean",
@@ -11412,7 +11264,7 @@
     {
       "name": "FileUpload",
       "role": "field",
-      "exportName": "FileUploadField",
+      "exportName": "FileUploadBase",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -11487,9 +11339,8 @@
           },
           "id": {
             "type": "string",
-            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
@@ -11564,7 +11415,7 @@
             }
           },
           "onAccept": {
-            "description": "Вызывается со списком файлов, прошедших отбор (до загрузки).",
+            "description": "Файлы приняты отбором (до загрузки).",
             "x-doc": {
               "group": "Behavior",
               "type": "((files: File[]) => void)",
@@ -11572,7 +11423,7 @@
             }
           },
           "onFilesChange": {
-            "description": "Вызывается на любое изменение внутреннего списка, включая прогресс и смену статусов.",
+            "description": "Любое изменение внутреннего списка (включая прогресс и смену статусов).",
             "x-doc": {
               "group": "Behavior",
               "type": "((items: FileUploadItem[]) => void)",
@@ -11580,7 +11431,7 @@
             }
           },
           "onUploadError": {
-            "description": "Вызывается, когда загрузка файла упала (uploader-режим).",
+            "description": "Загрузка файла упала (uploader-режим).",
             "x-doc": {
               "group": "Behavior",
               "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationError; progress?: number | undefined; }) => void)",
@@ -11588,7 +11439,7 @@
             }
           },
           "onUploadSuccess": {
-            "description": "Вызывается после успешной загрузки файла (uploader-режим).",
+            "description": "Файл успешно загружен (uploader-режим).",
             "x-doc": {
               "group": "Behavior",
               "type": "((item: { key: string; status: \"uploaded\"; file?: File | undefined; remote: RemoteFileRef; }) => void)",
@@ -11640,21 +11491,11 @@
             }
           },
           "validate": {
-            "description": "Кастомная проверка файла при отборе: возвращает список ошибок либо `null`, если файл принят.",
+            "description": "Кастомная валидация файла при отборе. `null` — файл принят.",
             "x-doc": {
               "group": "Behavior",
               "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationError[] | null)",
               "kind": "readonly"
-            }
-          },
-          "variant": {
-            "type": "string",
-            "enum": ["button", "dropzone", "input"],
-            "default": "button",
-            "description": "Представление: кнопка-триггер, зона drag-and-drop или компактный инпут с кнопкой-иконкой.",
-            "x-doc": {
-              "group": "Control",
-              "type": "'button' | 'dropzone' | 'input'"
             }
           }
         },
@@ -11705,7 +11546,6 @@
     {
       "name": "FileUploadAvatar",
       "role": "field",
-      "exportName": "FileUploadAvatarField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -11952,255 +11792,14 @@
       "variant": "Аватар"
     },
     {
-      "name": "FileUploadBase",
-      "role": "container",
-      "propsSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "accept": {
-            "type": "string",
-            "description": "Допустимые типы файлов в синтаксисе нативного `accept` (`'image/*,.pdf'`) — работают и в пикере, и при drag-and-drop/paste.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "allowDrop": {
-            "type": "boolean",
-            "default": true,
-            "description": "Принимать файлы, брошенные на зону; вариант `button` зоны не рендерит — настройка на него не влияет.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "allowPaste": {
-            "type": "boolean",
-            "default": false,
-            "description": "Принимать файлы из буфера обмена по Ctrl+V; вариант `button` зоны не рендерит — настройка на него не влияет.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "autoUpload": {
-            "type": "boolean",
-            "default": true,
-            "description": "Начинать загрузку сразу после отбора файлов (uploader-режим); при `false` загрузку инициирует консумент — по умолчанию включено.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "capture": {
-            "type": "string",
-            "enum": ["user", "environment"],
-            "description": "Какую камеру открывает мобильный пикер: `user` — фронтальную, `environment` — тыловую.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'user' | 'environment'"
-            }
-          },
-          "className": {
-            "type": "string",
-            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string",
-              "kind": "readonly"
-            }
-          },
-          "disabled": {
-            "type": "boolean",
-            "description": "Поле недоступно: пикер не открывается, drop/paste игнорируются.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "hint": {
-            "type": "string",
-            "description": "Подсказка справа от кнопки с ограничениями («PDF, до 5 МБ, максимум 3 файла»).",
-            "x-doc": {
-              "group": "Textfield",
-              "type": "string"
-            }
-          },
-          "id": {
-            "type": "string",
-            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "invalid": {
-            "type": "boolean",
-            "description": "Явно пометить поле невалидным; вариант `button` внешний вид не меняет — ошибку показывает FormField.Error.",
-            "x-doc": {
-              "group": "State",
-              "type": "boolean"
-            }
-          },
-          "label": {
-            "type": "string",
-            "description": "Текстовая подпись рядом с контролом.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "maxFiles": {
-            "type": "number",
-            "description": "Максимум файлов в списке; действует только при `multiple`, лишние отклоняются с кодом `maxFiles`.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
-            }
-          },
-          "maxFileSize": {
-            "type": "number",
-            "description": "Максимальный размер одного файла в байтах.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
-            }
-          },
-          "maxTotalFileSize": {
-            "type": "number",
-            "description": "Максимальный суммарный размер всех файлов в байтах.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
-            }
-          },
-          "minFileSize": {
-            "type": "number",
-            "description": "Минимальный размер одного файла в байтах (`1` отсеивает пустые).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
-            }
-          },
-          "multiple": {
-            "type": "boolean",
-            "default": false,
-            "description": "Разрешить несколько файлов; при `false` новый выбор заменяет текущий, а лимит списка — один файл.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "onAccept": {
-            "description": "Вызывается со списком файлов, прошедших отбор (до загрузки).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((files: File[]) => void)",
-              "kind": "readonly"
-            }
-          },
-          "onFilesChange": {
-            "description": "Вызывается на любое изменение внутреннего списка, включая прогресс и смену статусов.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((items: FileUploadItem[]) => void)",
-              "kind": "readonly"
-            }
-          },
-          "onReject": {
-            "description": "Вызывается со списком файлов, отклонённых отбором — в значение поля они не попадают.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((rejections: FileRejection[]) => void)",
-              "kind": "readonly"
-            }
-          },
-          "onUploadError": {
-            "description": "Вызывается, когда загрузка файла упала (uploader-режим).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((item: { key: string; status: \"error\"; file: File; error: ValidationError; progress?: number | undefined; }) => void)",
-              "kind": "readonly"
-            }
-          },
-          "onUploadSuccess": {
-            "description": "Вызывается после успешной загрузки файла (uploader-режим).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((item: { key: string; status: \"uploaded\"; file?: File | undefined; remote: RemoteFileRef; }) => void)",
-              "kind": "readonly"
-            }
-          },
-          "placeholder": {
-            "type": "string",
-            "default": "Выбрать файлы' (button)",
-            "description": "Подсказка, видимая пока значение не задано.",
-            "x-doc": {
-              "group": "Textfield",
-              "type": "string"
-            }
-          },
-          "preventDuplicates": {
-            "type": "boolean",
-            "default": true,
-            "description": "Отклонять повторный выбор того же файла (совпадение имени и размера) — включено по умолчанию.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "tooltip": {
-            "type": "string",
-            "description": "Подсказка-тултип у иконки (i) в самом контроле (не путать с текстовым `hint`).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "uploader": {
-            "description": "Загрузчик immediate-режима: задан — файлы уходят на сервер при выборе и значением поля становятся дескрипторы `RemoteFileRef`; не задан — значение остаётся `File[]`, а отправка на консументе.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "FileUploadUploader",
-              "kind": "readonly"
-            }
-          },
-          "validate": {
-            "description": "Кастомная проверка файла при отборе: возвращает список ошибок либо `null`, если файл принят.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationError[] | null)",
-              "kind": "readonly"
-            }
-          },
-          "value": {
-            "type": "array",
-            "description": "Текущее значение поля.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "FileUploadValue"
-            }
-          }
-        },
-        "x-inherits": {
-          "react": ["DOMAttributes"],
-          "packages": []
-        }
-      },
-      "compoundParent": "FileUpload",
-      "palette": false
-    },
-    {
       "name": "FileUploadDropzone",
-      "role": "container",
+      "role": "field",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": false,
         "properties": {
           "accept": {
             "type": "string",
-            "description": "Допустимые типы файлов в синтаксисе нативного `accept` (`'image/*,.pdf'`) — работают и в пикере, и при drag-and-drop/paste.",
+            "description": "Допустимые типы в синтаксисе нативного accept: \".pdf\", \"image/png\", \"image/*\", список через запятую. Применяется и к drag-and-drop.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -12209,7 +11808,7 @@
           "allowDrop": {
             "type": "boolean",
             "default": true,
-            "description": "Принимать файлы, брошенные на зону (включено по умолчанию).",
+            "description": "Принимать drag-and-drop на зоне.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12218,7 +11817,7 @@
           "allowPaste": {
             "type": "boolean",
             "default": false,
-            "description": "Принимать файлы из буфера обмена по Ctrl+V, когда зона в фокусе (по умолчанию выключено).",
+            "description": "Принимать файлы из буфера обмена (paste на сфокусированной зоне).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12227,7 +11826,7 @@
           "autoUpload": {
             "type": "boolean",
             "default": true,
-            "description": "Начинать загрузку сразу после отбора файлов (uploader-режим); при `false` загрузку инициирует консумент — по умолчанию включено.",
+            "description": "Автозагрузка принятых файлов (действует при заданном uploader).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12236,7 +11835,7 @@
           "capture": {
             "type": "string",
             "enum": ["user", "environment"],
-            "description": "Какую камеру открывает мобильный пикер: `user` — фронтальную, `environment` — тыловую.",
+            "description": "Источник камеры для мобильного пикера (фронтальная/тыловая).",
             "x-doc": {
               "group": "Behavior",
               "type": "'user' | 'environment'"
@@ -12244,24 +11843,24 @@
           },
           "className": {
             "type": "string",
-            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
+            "description": "Доп. CSS-класс контейнера.",
             "x-doc": {
               "group": "Control",
               "type": "string",
               "kind": "readonly"
             }
           },
-          "disabled": {
-            "type": "boolean",
-            "description": "Поле недоступно: пикер не открывается, drop/paste игнорируются.",
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
             "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "hint": {
             "type": "string",
-            "description": "Подсказка внутри зоны, под основным текстом — ограничения по типам и размеру.",
+            "description": "Подсказка с ограничениями («PDF, до 5 МБ, максимум 3 файла»).",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
@@ -12277,56 +11876,69 @@
           },
           "invalid": {
             "type": "boolean",
-            "description": "Явно подсветить рамку зоны как невалидную; под FormField не нужен — `aria-invalid` приходит от обёртки при ошибке валидации.",
+            "description": "Явно пометить поле невалидным (подсветка рамки у dropzone/input). Под FormField не нужен: aria-invalid приходит от обёртки при ошибке валидации; button показывает ошибку текстом (FormField.Error).",
             "x-doc": {
               "group": "State",
               "type": "boolean"
-            }
+            },
+            "default": false
           },
           "label": {
             "type": "string",
-            "description": "Текстовая подпись рядом с контролом.",
+            "description": "Подпись поля (рендерит FormField.Label).",
             "x-doc": {
-              "group": "Control",
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
               "type": "string"
             }
           },
           "maxFiles": {
             "type": "number",
-            "description": "Максимум файлов в списке; действует только при `multiple`, лишние отклоняются с кодом `maxFiles`.",
+            "description": "Максимум файлов в списке (действует при multiple).",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "minimum": 1
           },
           "maxFileSize": {
             "type": "number",
-            "description": "Максимальный размер одного файла в байтах.",
+            "description": "Максимальный размер одного файла, байты.",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "minimum": 0
           },
           "maxTotalFileSize": {
             "type": "number",
-            "description": "Максимальный суммарный размер всех файлов в байтах.",
+            "description": "Максимальный суммарный размер всех файлов, байты.",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "minimum": 0
           },
           "minFileSize": {
             "type": "number",
-            "description": "Минимальный размер одного файла в байтах (`1` отсеивает пустые).",
+            "description": "Минимальный размер одного файла, байты (1 — отсев пустых).",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "minimum": 0
           },
           "multiple": {
             "type": "boolean",
             "default": false,
-            "description": "Разрешить несколько файлов; при `false` новый выбор заменяет текущий, а лимит списка — один файл.",
+            "description": "Несколько файлов. При false новая селекция заменяет текущую.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12345,14 +11957,6 @@
             "x-doc": {
               "group": "Behavior",
               "type": "((items: FileUploadItem[]) => void)",
-              "kind": "readonly"
-            }
-          },
-          "onReject": {
-            "description": "Вызывается со списком файлов, отклонённых отбором — в значение поля они не попадают.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((rejections: FileRejection[]) => void)",
               "kind": "readonly"
             }
           },
@@ -12375,7 +11979,7 @@
           "placeholder": {
             "type": "string",
             "default": "Выбрать файлы' (button)",
-            "description": "Подсказка, видимая пока значение не задано.",
+            "description": "Видимый текст кнопки (button), зоны (dropzone) или пустого инпута (input). Подпись поля — отдельная конвенция label (рендерит FormField).",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
@@ -12384,26 +11988,36 @@
           "preventDuplicates": {
             "type": "boolean",
             "default": true,
-            "description": "Отклонять повторный выбор того же файла (совпадение имени и размера) — включено по умолчанию.",
+            "description": "Отклонять дубликаты (совпадение имени и размера).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
             }
           },
-          "tooltip": {
-            "type": "string",
-            "description": "Подсказка-тултип у иконки (i) в самом контроле (не путать с текстовым `hint`).",
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
             "x-doc": {
-              "group": "Behavior",
-              "type": "string"
+              "group": "State",
+              "type": "boolean"
             }
           },
-          "uploader": {
-            "description": "Загрузчик immediate-режима: задан — файлы уходят на сервер при выборе и значением поля становятся дескрипторы `RemoteFileRef`; не задан — значение остаётся `File[]`, а отправка на консументе.",
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
             "x-doc": {
               "group": "Behavior",
-              "type": "FileUploadUploader",
+              "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "validate": {
@@ -12413,14 +12027,42 @@
               "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationError[] | null)",
               "kind": "readonly"
             }
-          },
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
           "value": {
-            "type": "array",
-            "description": "Текущее значение поля.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "FileUploadValue"
-            }
+            "group": "Control",
+            "type": "File[] | RemoteFileRef[] | null",
+            "description": "Выбранные файлы. Без uploader — File[]; с uploader — сериализуемые дескрипторы загруженных. null — пусто."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: File[] | RemoteFileRef[] | null) => void",
+            "description": "Изменение списка; пустой список приходит как null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "uploader": {
+            "group": "Behavior",
+            "type": "(file: File, ctx: { onProgress; signal }) => Promise<RemoteFileRef>",
+            "description": "Загрузчик immediate-режима. В JSON-форме недостижим: требует функцию — передаётся через реестр."
+          },
+          "onReject": {
+            "group": "Behavior",
+            "type": "(rejections: FileRejection[]) => void",
+            "description": "Файлы, отклонённые отбором (в значение поля не попадают)."
           }
         },
         "x-inherits": {
@@ -12428,19 +12070,18 @@
           "packages": []
         }
       },
-      "compoundParent": "FileUpload",
-      "palette": false
+      "variantGroup": "FileUpload",
+      "variant": "Зона"
     },
     {
       "name": "FileUploadInput",
-      "role": "container",
+      "role": "field",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": false,
         "properties": {
           "accept": {
             "type": "string",
-            "description": "Допустимые типы файлов в синтаксисе нативного `accept` (`'image/*,.pdf'`) — работают и в пикере, и при drag-and-drop/paste.",
+            "description": "Допустимые типы в синтаксисе нативного accept: \".pdf\", \"image/png\", \"image/*\", список через запятую. Применяется и к drag-and-drop.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -12449,7 +12090,7 @@
           "allowDrop": {
             "type": "boolean",
             "default": true,
-            "description": "Принимать файлы, брошенные на поле (включено по умолчанию).",
+            "description": "Принимать drag-and-drop на зоне.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12458,7 +12099,7 @@
           "allowPaste": {
             "type": "boolean",
             "default": false,
-            "description": "Принимать файлы из буфера обмена по Ctrl+V, когда поле в фокусе (по умолчанию выключено).",
+            "description": "Принимать файлы из буфера обмена (paste на сфокусированной зоне).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12467,7 +12108,7 @@
           "autoUpload": {
             "type": "boolean",
             "default": true,
-            "description": "Начинать загрузку сразу после отбора файлов (uploader-режим); при `false` загрузку инициирует консумент — по умолчанию включено.",
+            "description": "Автозагрузка принятых файлов (действует при заданном uploader).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12476,7 +12117,7 @@
           "capture": {
             "type": "string",
             "enum": ["user", "environment"],
-            "description": "Какую камеру открывает мобильный пикер: `user` — фронтальную, `environment` — тыловую.",
+            "description": "Источник камеры для мобильного пикера (фронтальная/тыловая).",
             "x-doc": {
               "group": "Behavior",
               "type": "'user' | 'environment'"
@@ -12484,24 +12125,24 @@
           },
           "className": {
             "type": "string",
-            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
+            "description": "Доп. CSS-класс контейнера.",
             "x-doc": {
               "group": "Control",
               "type": "string",
               "kind": "readonly"
             }
           },
-          "disabled": {
-            "type": "boolean",
-            "description": "Поле недоступно: пикер не открывается, drop/paste игнорируются.",
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
             "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "hint": {
             "type": "string",
-            "description": "Подсказка под полем с ограничениями по типам и размеру.",
+            "description": "Подсказка с ограничениями («PDF, до 5 МБ, максимум 3 файла»).",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
@@ -12517,56 +12158,69 @@
           },
           "invalid": {
             "type": "boolean",
-            "description": "Явно подсветить рамку поля как невалидную; под FormField не нужен — `aria-invalid` приходит от обёртки при ошибке валидации.",
+            "description": "Явно пометить поле невалидным (подсветка рамки у dropzone/input). Под FormField не нужен: aria-invalid приходит от обёртки при ошибке валидации; button показывает ошибку текстом (FormField.Error).",
             "x-doc": {
               "group": "State",
               "type": "boolean"
-            }
+            },
+            "default": false
           },
           "label": {
             "type": "string",
-            "description": "Текстовая подпись рядом с контролом.",
+            "description": "Подпись поля (рендерит FormField.Label).",
             "x-doc": {
-              "group": "Control",
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
               "type": "string"
             }
           },
           "maxFiles": {
             "type": "number",
-            "description": "Максимум файлов в списке; действует только при `multiple`, лишние отклоняются с кодом `maxFiles`.",
+            "description": "Максимум файлов в списке (действует при multiple).",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "minimum": 1
           },
           "maxFileSize": {
             "type": "number",
-            "description": "Максимальный размер одного файла в байтах.",
+            "description": "Максимальный размер одного файла, байты.",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "minimum": 0
           },
           "maxTotalFileSize": {
             "type": "number",
-            "description": "Максимальный суммарный размер всех файлов в байтах.",
+            "description": "Максимальный суммарный размер всех файлов, байты.",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "minimum": 0
           },
           "minFileSize": {
             "type": "number",
-            "description": "Минимальный размер одного файла в байтах (`1` отсеивает пустые).",
+            "description": "Минимальный размер одного файла, байты (1 — отсев пустых).",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "minimum": 0
           },
           "multiple": {
             "type": "boolean",
             "default": false,
-            "description": "Разрешить несколько файлов; при `false` новый выбор заменяет текущий, а лимит списка — один файл.",
+            "description": "Несколько файлов. При false новая селекция заменяет текущую.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -12585,14 +12239,6 @@
             "x-doc": {
               "group": "Behavior",
               "type": "((items: FileUploadItem[]) => void)",
-              "kind": "readonly"
-            }
-          },
-          "onReject": {
-            "description": "Вызывается со списком файлов, отклонённых отбором — в значение поля они не попадают.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((rejections: FileRejection[]) => void)",
               "kind": "readonly"
             }
           },
@@ -12615,7 +12261,7 @@
           "placeholder": {
             "type": "string",
             "default": "Выбрать файлы' (button)",
-            "description": "Подсказка, видимая пока значение не задано.",
+            "description": "Видимый текст кнопки (button), зоны (dropzone) или пустого инпута (input). Подпись поля — отдельная конвенция label (рендерит FormField).",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
@@ -12624,26 +12270,36 @@
           "preventDuplicates": {
             "type": "boolean",
             "default": true,
-            "description": "Отклонять повторный выбор того же файла (совпадение имени и размера) — включено по умолчанию.",
+            "description": "Отклонять дубликаты (совпадение имени и размера).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
             }
           },
-          "tooltip": {
-            "type": "string",
-            "description": "Подсказка-тултип у иконки (i) в самом контроле (не путать с текстовым `hint`).",
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
             "x-doc": {
-              "group": "Behavior",
-              "type": "string"
+              "group": "State",
+              "type": "boolean"
             }
           },
-          "uploader": {
-            "description": "Загрузчик immediate-режима: задан — файлы уходят на сервер при выборе и значением поля становятся дескрипторы `RemoteFileRef`; не задан — значение остаётся `File[]`, а отправка на консументе.",
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
             "x-doc": {
               "group": "Behavior",
-              "type": "FileUploadUploader",
+              "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "validate": {
@@ -12653,14 +12309,42 @@
               "type": "((file: File, ctx: { existing: FileUploadItem[]; }) => ValidationError[] | null)",
               "kind": "readonly"
             }
-          },
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
           "value": {
-            "type": "array",
-            "description": "Текущее значение поля.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "FileUploadValue"
-            }
+            "group": "Control",
+            "type": "File[] | RemoteFileRef[] | null",
+            "description": "Выбранные файлы. Без uploader — File[]; с uploader — сериализуемые дескрипторы загруженных. null — пусто."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: File[] | RemoteFileRef[] | null) => void",
+            "description": "Изменение списка; пустой список приходит как null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "uploader": {
+            "group": "Behavior",
+            "type": "(file: File, ctx: { onProgress; signal }) => Promise<RemoteFileRef>",
+            "description": "Загрузчик immediate-режима. В JSON-форме недостижим: требует функцию — передаётся через реестр."
+          },
+          "onReject": {
+            "group": "Behavior",
+            "type": "(rejections: FileRejection[]) => void",
+            "description": "Файлы, отклонённые отбором (в значение поля не попадают)."
           }
         },
         "x-inherits": {
@@ -12668,8 +12352,8 @@
           "packages": []
         }
       },
-      "compoundParent": "FileUpload",
-      "palette": false
+      "variantGroup": "FileUpload",
+      "variant": "Инпут"
     },
     {
       "name": "FileUploadItemList",
@@ -13683,7 +13367,6 @@
     {
       "name": "Input",
       "role": "field",
-      "exportName": "InputField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -13720,40 +13403,6 @@
               "type": "string"
             }
           },
-          "max": {
-            "type": "number",
-            "description": "Максимум (type=number).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
-            }
-          },
-          "min": {
-            "type": "number",
-            "description": "Минимум (type=number). При min>=0 отрицательные значения зажимаются к 0.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
-            }
-          },
-          "minChars": {
-            "type": "number",
-            "default": 0,
-            "description": "С какой длины введённого текста показывать подсказки (при заданном suggestions).",
-            "x-doc": {
-              "group": "Options",
-              "type": "number"
-            }
-          },
-          "openOnFocus": {
-            "type": "boolean",
-            "default": false,
-            "description": "Раскрывать подсказки при фокусе, не дожидаясь ввода (при заданном suggestions).",
-            "x-doc": {
-              "group": "Options",
-              "type": "boolean"
-            }
-          },
           "placeholder": {
             "type": "string",
             "description": "Подсказка внутри поля.",
@@ -13780,43 +13429,6 @@
               "type": "boolean"
             }
           },
-          "step": {
-            "type": "number",
-            "description": "Шаг (type=number).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
-            }
-          },
-          "suggestions": {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "object",
-                  "required": ["value"],
-                  "additionalProperties": false,
-                  "properties": {
-                    "value": {
-                      "type": "string"
-                    },
-                    "label": {
-                      "type": "string"
-                    }
-                  }
-                }
-              ]
-            },
-            "description": "Подсказки при вводе: строки или { value, label? }. Значение остаётся свободным текстом — выбор подсказки лишь подставляет её value. Из кода можно передать и асинхронный ResourceConfig (как у Select), в JSON — через $dataSource. Не действует при type=number.",
-            "x-doc": {
-              "group": "Options",
-              "type": "Array<string | { value; label? }> | ResourceConfig",
-              "kind": "readonly"
-            }
-          },
           "testId": {
             "type": "string",
             "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
@@ -13836,12 +13448,12 @@
           },
           "type": {
             "type": "string",
-            "enum": ["text", "email", "tel", "url", "password", "number", "date"],
+            "enum": ["text", "email", "tel", "url", "password", "date"],
             "default": "text",
-            "description": "HTML-тип input. number включает числовой буфер, остальные — строковые.",
+            "description": "HTML-тип input. Для чисел — вариант InputNumber.",
             "x-doc": {
               "group": "Textfield",
-              "type": "'text' | 'email' | 'number' | 'date' | …",
+              "type": "'text' | 'email' | 'tel' | 'url' | 'password' | 'date'",
               "kind": "enum"
             }
           }
@@ -13850,13 +13462,13 @@
         "x-runtimeProps": {
           "value": {
             "group": "Control",
-            "type": "string | number | null",
-            "description": "Значение поля. Для type=number — number|null, иначе string|null."
+            "type": "string | null",
+            "description": "Значение поля. Пустой ввод — null."
           },
           "onChange": {
             "group": "Control",
-            "type": "(value: string | number | null) => void",
-            "description": "Изменение. Пустой ввод → null. Для number частичный ввод («-», «1.») не эмитится."
+            "type": "(value: string | null) => void",
+            "description": "Изменение. Пустой ввод → null."
           },
           "onBlur": {
             "group": "Control",
@@ -13870,11 +13482,6 @@
             "kind": "boolean",
             "default": false,
             "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
-          },
-          "filter": {
-            "group": "Options",
-            "type": "(option: NormalizedOption, query: string) => boolean",
-            "description": "Свой предикат совпадения подсказки. По умолчанию — подстрока label без учёта регистра."
           }
         },
         "x-inherits": {
@@ -14118,7 +13725,6 @@
     {
       "name": "InputMask",
       "role": "field",
-      "exportName": "InputMaskField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -14249,26 +13855,173 @@
       "variant": "Маска"
     },
     {
-      "name": "InputOTP",
+      "name": "InputNumber",
       "role": "field",
-      "exportName": "InputOTPField",
       "propsSchema": {
         "type": "object",
         "properties": {
           "className": {
             "type": "string",
-            "description": "Доп. CSS-класс скрытого input.",
+            "description": "Доп. CSS-класс.",
             "x-doc": {
               "group": "Control",
               "type": "string",
               "kind": "readonly"
             }
           },
-          "containerClassName": {
+          "description": {
             "type": "string",
-            "description": "Доп. CSS-класс контейнера слотов (div[data-input-otp-container]); className при этом уходит на скрытый input, а не на контейнер.",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "max": {
+            "type": "number",
+            "description": "Максимум.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "min": {
+            "type": "number",
+            "description": "Минимум. При min>=0 отрицательные значения зажимаются к 0.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "step": {
+            "type": "number",
+            "description": "Шаг.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "number | null",
+            "description": "Текущее число. null — пусто."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: number | null) => void",
+            "description": "Изменение. Пустой ввод → null; частичный ввод («-», «1.») не эмитится."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          }
+        },
+        "x-inherits": {
+          "react": [
+            "AriaAttributes",
+            "Attributes",
+            "DOMAttributes",
+            "HTMLAttributes",
+            "InputHTMLAttributes",
+            "RefAttributes"
+          ],
+          "packages": []
+        }
+      },
+      "variantGroup": "Input",
+      "variant": "Число"
+    },
+    {
+      "name": "InputOTP",
+      "role": "field",
+      "exportName": "InputOTPDefault",
+      "propsSchema": {
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string",
             "x-doc": {
               "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            },
+            "description": "Доп. CSS-класс скрытого input."
+          },
+          "containerClassName": {
+            "type": "string",
+            "x-doc": {
+              "group": "Behavior",
               "type": "string"
             }
           },
@@ -14306,47 +14059,6 @@
             "default": 6,
             "minimum": 1
           },
-          "noScriptCSSFallback": {
-            "type": "string",
-            "description": "CSS, который input-otp кладёт в <noscript> для показа поля без JS; null полностью отключает вставку стилей.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string | null"
-            }
-          },
-          "onComplete": {
-            "description": "Срабатывает в момент, когда длина набранного кода достигает maxLength — точка для автоотправки; шов формы это не он, значение отдаёт onChange (otpAdapter).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((...args: any[]) => unknown)",
-              "kind": "readonly"
-            }
-          },
-          "pasteTransformer": {
-            "description": "Преобразует текст из буфера перед записью в код (убрать пробелы, дефисы, префикс); заодно включает собственную обработку вставки вне iOS.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((pasted: string) => string)",
-              "kind": "readonly"
-            }
-          },
-          "pushPasswordManagerStrategy": {
-            "type": "string",
-            "enum": ["increase-width", "none"],
-            "description": "Как расходиться с бейджем менеджера паролей: расширять поле, освобождая ему место справа, либо не реагировать вовсе.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'increase-width' | 'none'"
-            }
-          },
-          "render": {
-            "description": "Альтернатива children: сам рисует раскладку по слотам ({ slots, isFocused, isHovering }); задавать вместе с children нельзя — тип это ветка union'а.",
-            "x-doc": {
-              "group": "Control",
-              "type": "InputOTPRenderFn",
-              "kind": "readonly"
-            }
-          },
           "required": {
             "type": "boolean",
             "default": false,
@@ -14363,15 +14075,6 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
-            }
-          },
-          "textAlign": {
-            "type": "string",
-            "enum": ["left", "center", "right"],
-            "description": "Выравнивание текста скрытого input — определяет, у какого края встаёт каретка, пока код набран не полностью.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'left' | 'center' | 'right'"
             }
           },
           "tooltip": {
@@ -14410,15 +14113,8 @@
           }
         },
         "x-inherits": {
-          "react": [
-            "AriaAttributes",
-            "Attributes",
-            "DOMAttributes",
-            "HTMLAttributes",
-            "InputHTMLAttributes",
-            "RefAttributes"
-          ],
-          "packages": ["input-otp"]
+          "react": ["Attributes", "DOMAttributes", "RefAttributes"],
+          "packages": []
         }
       },
       "variantGroup": "Input",
@@ -14525,7 +14221,6 @@
     {
       "name": "InputPassword",
       "role": "field",
-      "exportName": "InputPasswordField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -14659,60 +14354,174 @@
     },
     {
       "name": "InputSuggest",
-      "role": "container",
+      "role": "field",
       "propsSchema": {
         "type": "object",
-        "additionalProperties": false,
         "properties": {
           "className": {
             "type": "string",
-            "description": "Доп. CSS-класс поля ввода.",
+            "description": "Доп. CSS-класс.",
             "x-doc": {
-              "group": "Behavior",
+              "group": "Control",
+              "type": "string",
+              "kind": "readonly"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение под полем (shadcn FieldDescription).",
+            "x-doc": {
+              "group": "Textfield",
               "type": "string"
             }
           },
-          "filter": {
-            "description": "Свой предикат совпадения. По умолчанию — подстрока подписи без учёта регистра.",
+          "label": {
+            "type": "string",
+            "description": "Подпись поля (рендерит FormField.Label).",
             "x-doc": {
-              "group": "Behavior",
-              "type": "AutocompleteFilter",
-              "kind": "readonly"
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "minChars": {
             "type": "number",
             "default": 0,
-            "description": "Минимальная длина текста, с которой показываются подсказки.",
+            "description": "С какой длины введённого текста показывать подсказки.",
             "x-doc": {
-              "group": "Behavior",
+              "group": "Options",
               "type": "number"
             }
           },
           "openOnFocus": {
             "type": "boolean",
             "default": false,
-            "description": "Раскрывать список при фокусе, не дожидаясь ввода.",
+            "description": "Раскрывать подсказки при фокусе, не дожидаясь ввода.",
             "x-doc": {
-              "group": "Behavior",
+              "group": "Options",
+              "type": "boolean"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Подсказка внутри поля.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "readOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "Значение видно и уходит с формой, но не редактируется. Отличие от disabled: поле остаётся фокусируемым и не выглядит выключенным.",
+            "x-doc": {
+              "group": "State",
+              "type": "boolean"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required.",
+            "x-doc": {
+              "group": "State",
               "type": "boolean"
             }
           },
           "suggestions": {
-            "description": "Подсказки: строки, `{ value, label? }` или асинхронный `ResourceConfig` (как у Select). Выбор подсказки пишет в поле её `value`; `label` — только текст пункта списка.",
+            "description": "Подсказки при вводе: строки или { value, label? }. Значение остаётся свободным текстом — выбор подсказки лишь подставляет её value. Из кода можно передать и асинхронный ResourceConfig (как у Select), в JSON — через $dataSource.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<string | { value; label? }> | ResourceConfig",
+              "kind": "readonly"
+            },
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "required": ["value"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "testId": {
+            "type": "string",
+            "description": "data-testid для e2e (meta-проп; в DOM примитива не течёт).",
             "x-doc": {
               "group": "Behavior",
-              "type": "AutocompleteSuggestions | null",
+              "type": "string",
               "kind": "readonly"
             }
           },
-          "value": {
+          "tooltip": {
             "type": "string",
-            "description": "Текст поля. `null` — пусто.",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
             "x-doc": {
-              "group": "Behavior",
-              "type": "string | null"
+              "group": "Textfield",
+              "type": "string"
             }
+          },
+          "type": {
+            "type": "string",
+            "enum": ["text", "email", "tel", "url"],
+            "default": "text",
+            "description": "HTML-тип input.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "'text' | 'email' | 'tel' | 'url'",
+              "kind": "enum"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-runtimeProps": {
+          "value": {
+            "group": "Control",
+            "type": "string | null",
+            "description": "Введённый текст. Пустой ввод — null."
+          },
+          "onChange": {
+            "group": "Control",
+            "type": "(value: string | null) => void",
+            "description": "Изменение текста (ввод или выбор подсказки). Пустой ввод → null."
+          },
+          "onBlur": {
+            "group": "Control",
+            "type": "() => void",
+            "kind": "readonly",
+            "description": "Отметка touched. Форма подставляет control.markAsTouched."
+          },
+          "disabled": {
+            "group": "State",
+            "type": "boolean",
+            "kind": "boolean",
+            "default": false,
+            "description": "Блокировка поля. Задаётся через control.disable()/enable(), НЕ через componentProps: FormFieldControl.tsx:104-115 ставит disabled ПОСЛЕ спреда componentProps, поэтому componentProps.disabled мёртв."
+          },
+          "filter": {
+            "group": "Options",
+            "type": "(option: NormalizedOption, query: string) => boolean",
+            "description": "Свой предикат совпадения подсказки. По умолчанию — подстрока label без учёта регистра."
           }
         },
         "x-inherits": {
@@ -14727,8 +14536,8 @@
           "packages": []
         }
       },
-      "compoundParent": "Input",
-      "palette": false
+      "variantGroup": "Input",
+      "variant": "Подсказки"
     },
     {
       "name": "Item",
@@ -16921,18 +16730,18 @@
     {
       "name": "NativeSelect",
       "role": "field",
-      "exportName": "NativeSelectField",
+      "exportName": "NativeSelectWithOptions",
       "propsSchema": {
         "type": "object",
         "properties": {
           "className": {
             "type": "string",
-            "description": "Доп. CSS-класс select.",
             "x-doc": {
               "group": "Control",
               "type": "string",
               "kind": "readonly"
-            }
+            },
+            "description": "Доп. CSS-класс select."
           },
           "description": {
             "type": "string",
@@ -16960,6 +16769,12 @@
           },
           "options": {
             "type": "array",
+            "description": "Опции списка. Одинаковый group объединяется в <optgroup>.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; group? }>",
+              "kind": "readonly"
+            },
             "items": {
               "type": "object",
               "required": ["value", "label"],
@@ -16975,12 +16790,6 @@
                   "type": "string"
                 }
               }
-            },
-            "description": "Опции списка. Одинаковый group объединяется в <optgroup>.",
-            "x-doc": {
-              "group": "Options",
-              "type": "Array<{ value; label; group? }>",
-              "kind": "readonly"
             }
           },
           "placeholder": {
@@ -17003,8 +16812,6 @@
           "size": {
             "type": "string",
             "enum": ["sm", "default"],
-            "default": "default",
-            "description": "Типоразмер — ступень шкалы размеров из cva-конфига; набор ступеней и значение по умолчанию у каждого компонента свои, а там, где размер задаётся числом, это пиксели.",
             "x-doc": {
               "group": "Behavior",
               "type": "'sm' | 'default'"
@@ -17072,7 +16879,6 @@
     {
       "name": "NativeSelectMulti",
       "role": "field",
-      "exportName": "NativeSelectMultiField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -17214,7 +17020,7 @@
           }
         },
         "x-inherits": {
-          "react": ["AriaAttributes", "DOMAttributes"],
+          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
           "packages": []
         }
       },
@@ -17278,64 +17084,6 @@
             "HTMLAttributes",
             "OptionHTMLAttributes",
             "RefAttributes"
-          ],
-          "packages": []
-        }
-      },
-      "compoundParent": "NativeSelect",
-      "palette": false
-    },
-    {
-      "name": "NativeSelectWithOptions",
-      "role": "container",
-      "propsSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "className": {
-            "type": "string",
-            "description": "Дополнительный CSS-класс корневого элемента: примешивается к собственным классам компонента, не заменяя их.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string",
-              "kind": "readonly"
-            }
-          },
-          "options": {
-            "type": "array",
-            "description": "Список вариантов выбора: `value` — записываемое значение, `label` — видимая подпись.",
-            "x-doc": {
-              "group": "Options",
-              "type": "NativeSelectOptionItem[]",
-              "kind": "readonly"
-            }
-          },
-          "placeholder": {
-            "type": "string",
-            "description": "Подсказка, видимая пока значение не задано.",
-            "x-doc": {
-              "group": "Textfield",
-              "type": "string"
-            }
-          },
-          "size": {
-            "type": "string",
-            "enum": ["sm", "default"],
-            "description": "Типоразмер — ступень шкалы размеров из cva-конфига; набор ступеней и значение по умолчанию у каждого компонента свои, а там, где размер задаётся числом, это пиксели.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'sm' | 'default'"
-            }
-          }
-        },
-        "x-inherits": {
-          "react": [
-            "AriaAttributes",
-            "Attributes",
-            "DOMAttributes",
-            "HTMLAttributes",
-            "RefAttributes",
-            "SelectHTMLAttributes"
           ],
           "packages": []
         }
@@ -18593,33 +18341,30 @@
     {
       "name": "RadioGroup",
       "role": "field",
-      "exportName": "RadioGroupField",
+      "exportName": "RadioGroupOptions",
       "propsSchema": {
         "type": "object",
         "properties": {
           "asChild": {
             "type": "boolean",
-            "description": "Слот-режим: вместо собственного элемента рендерится единственный дочерний узел, в него переносятся классы, обработчики и атрибуты доступности.",
             "x-doc": {
               "group": "Behavior",
-              "type": "boolean",
-              "kind": "readonly"
+              "type": "boolean"
             }
           },
           "className": {
             "type": "string",
-            "description": "Доп. CSS-класс контейнера группы (по умолчанию grid gap-3).",
             "x-doc": {
               "group": "Control",
               "type": "string",
               "kind": "readonly"
-            }
+            },
+            "description": "Доп. CSS-класс контейнера группы (по умолчанию grid gap-3)."
           },
           "defaultValue": {
             "type": "string",
-            "description": "Начальный выбор в неконтролируемом режиме; при заданном value игнорируется.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
@@ -18634,7 +18379,6 @@
           "dir": {
             "type": "string",
             "enum": ["ltr", "rtl"],
-            "description": "Направление письма — задаёт, какая стрелка двигает фокус вперёд; без значения берётся из DirectionProvider (иначе ltr).",
             "x-doc": {
               "group": "Behavior",
               "type": "'ltr' | 'rtl'"
@@ -18642,9 +18386,8 @@
           },
           "form": {
             "type": "string",
-            "description": "id внешнего <form>, к которому привязан скрытый input группы; на reset этой формы значение возвращается к начальному.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
@@ -18666,7 +18409,6 @@
           },
           "loop": {
             "type": "boolean",
-            "description": "Зацикливает переход стрелками с последнего варианта на первый (в Radix включено по умолчанию).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -18674,22 +18416,26 @@
           },
           "name": {
             "type": "string",
-            "description": "Имя поля для нативной отправки формы — попадает в скрытый input, который Radix рендерит внутри <form>.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
           "onValueChange": {
-            "description": "Эмиттер выбранного значения (RadioGroupItem.value, контракт Radix Root); в field-версии сюда valueChangeAdapter кладёт onChange формы (пустой выбор → null).",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "((value: string) => void)",
               "kind": "readonly"
             }
           },
           "options": {
             "type": "array",
+            "description": "Варианты выбора. Каждый рендерится как radio + подпись справа; `tooltip` — иконка-подсказка (i) после подписи варианта.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label; tooltip? }>",
+              "kind": "readonly"
+            },
             "items": {
               "type": "object",
               "required": ["value", "label"],
@@ -18705,18 +18451,11 @@
                   "type": "string"
                 }
               }
-            },
-            "description": "Варианты выбора. Каждый рендерится как radio + подпись справа; `tooltip` — иконка-подсказка (i) после подписи варианта.",
-            "x-doc": {
-              "group": "Options",
-              "type": "Array<{ value; label; tooltip? }>",
-              "kind": "readonly"
             }
           },
           "orientation": {
             "type": "string",
             "enum": ["horizontal", "vertical"],
-            "description": "Ось навигации стрелками: вертикальная слушает ↑/↓, горизонтальная — ←/→, без значения работают обе.",
             "x-doc": {
               "group": "Behavior",
               "type": "'horizontal' | 'vertical'"
@@ -18724,12 +18463,12 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Маркер «*» у метки + aria-required.",
             "x-doc": {
               "group": "State",
               "type": "boolean"
             },
-            "default": false
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required."
           },
           "testId": {
             "type": "string",
@@ -18842,138 +18581,6 @@
             "AriaAttributes",
             "Attributes",
             "ButtonHTMLAttributes",
-            "DOMAttributes",
-            "HTMLAttributes",
-            "RefAttributes"
-          ],
-          "packages": []
-        }
-      },
-      "compoundParent": "RadioGroup",
-      "palette": false
-    },
-    {
-      "name": "RadioGroupOptions",
-      "role": "container",
-      "propsSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "asChild": {
-            "type": "boolean",
-            "description": "Слот-режим: вместо собственного элемента рендерится единственный дочерний узел, в него переносятся классы, обработчики и атрибуты доступности.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean",
-              "kind": "readonly"
-            }
-          },
-          "className": {
-            "type": "string",
-            "description": "Дополнительный CSS-класс корневого элемента: примешивается к собственным классам компонента, не заменяя их.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string",
-              "kind": "readonly"
-            }
-          },
-          "defaultValue": {
-            "type": "string",
-            "description": "Начальный выбор в неконтролируемом режиме; при заданном value игнорируется.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "dir": {
-            "type": "string",
-            "enum": ["ltr", "rtl"],
-            "description": "Направление письма — задаёт, какая стрелка двигает фокус вперёд; без значения берётся из DirectionProvider (иначе ltr).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'ltr' | 'rtl'"
-            }
-          },
-          "disabled": {
-            "type": "boolean",
-            "description": "Блокирует все варианты сразу; в форме приходит от seam (control.disable()), а не из componentProps.",
-            "x-doc": {
-              "group": "State",
-              "type": "boolean"
-            }
-          },
-          "form": {
-            "type": "string",
-            "description": "id внешнего <form>, к которому привязан скрытый input группы; на reset этой формы значение возвращается к начальному.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "loop": {
-            "type": "boolean",
-            "description": "Зацикливает переход стрелками с последнего варианта на первый (в Radix включено по умолчанию).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "name": {
-            "type": "string",
-            "description": "Имя поля для нативной отправки формы — попадает в скрытый input, который Radix рендерит внутри <form>.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "onValueChange": {
-            "description": "Эмиттер выбранного option.value (контракт Radix Root); в field-версии сюда valueChangeAdapter кладёт onChange формы (пустой выбор → null).",
-            "x-doc": {
-              "group": "Control",
-              "type": "((value: string) => void)",
-              "kind": "readonly"
-            }
-          },
-          "options": {
-            "type": "array",
-            "description": "Список вариантов выбора: `value` — записываемое значение, `label` — видимая подпись.",
-            "x-doc": {
-              "group": "Options",
-              "type": "RadioOption[]",
-              "kind": "readonly"
-            }
-          },
-          "orientation": {
-            "type": "string",
-            "enum": ["horizontal", "vertical"],
-            "description": "Ось навигации стрелками: вертикальная слушает ↑/↓, горизонтальная — ←/→, без значения работают обе.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'horizontal' | 'vertical'"
-            }
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Обязательность для нативной валидации формы; в ReFormer обязательность задаёт валидатор модели, а не этот проп.",
-            "x-doc": {
-              "group": "State",
-              "type": "boolean"
-            }
-          },
-          "value": {
-            "type": "string",
-            "description": "Выбранный option.value, null — ничего не выбрано; в форме резолвится seam'ом.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string | null",
-              "kind": "readonly"
-            }
-          }
-        },
-        "x-inherits": {
-          "react": [
-            "AriaAttributes",
-            "Attributes",
             "DOMAttributes",
             "HTMLAttributes",
             "RefAttributes"
@@ -19587,13 +19194,12 @@
     {
       "name": "Select",
       "role": "field",
-      "exportName": "SelectField",
+      "exportName": "SelectAsync",
       "propsSchema": {
         "type": "object",
         "properties": {
           "autoComplete": {
             "type": "string",
-            "description": "Подсказка браузеру для автозаполнения — пробрасывается в скрытый нативный input Radix.",
             "x-doc": {
               "group": "Behavior",
               "type": "string"
@@ -19601,12 +19207,12 @@
           },
           "className": {
             "type": "string",
-            "description": "Доп. CSS-класс триггера.",
             "x-doc": {
               "group": "Control",
               "type": "string",
               "kind": "readonly"
-            }
+            },
+            "description": "Доп. CSS-класс триггера."
           },
           "clearable": {
             "type": "boolean",
@@ -19619,17 +19225,15 @@
           },
           "defaultOpen": {
             "type": "boolean",
-            "description": "Не действует: дропдаун переведён в контролируемое состояние внутри SelectAsync.",
             "x-doc": {
-              "group": "State",
+              "group": "Behavior",
               "type": "boolean"
             }
           },
           "defaultValue": {
             "type": "string",
-            "description": "Не действует: Root всегда получает контролируемый value от SelectAsync.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
@@ -19644,7 +19248,6 @@
           "dir": {
             "type": "string",
             "enum": ["ltr", "rtl"],
-            "description": "Направление чтения — влияет на раскладку и навигацию с клавиатуры.",
             "x-doc": {
               "group": "Behavior",
               "type": "'ltr' | 'rtl'"
@@ -19652,17 +19255,15 @@
           },
           "form": {
             "type": "string",
-            "description": "id внешней формы, к которой привязывается скрытый нативный input со значением.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
           "id": {
             "type": "string",
-            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
@@ -19684,14 +19285,12 @@
           },
           "name": {
             "type": "string",
-            "description": "Имя поля для нативной отправки формы — под ним значение попадёт в FormData.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "string"
             }
           },
           "onOpenChange": {
-            "description": "Не действует: состояние дропдауна принадлежит SelectAsync, и свой обработчик он ставит после спреда пропсов — о закрытии компонент сообщает через onBlur.",
             "x-doc": {
               "group": "Behavior",
               "type": "((open: boolean) => void)",
@@ -19700,9 +19299,8 @@
           },
           "open": {
             "type": "boolean",
-            "description": "Не действует: состояние дропдауна принадлежит SelectAsync и перекрывает проп после спреда.",
             "x-doc": {
-              "group": "State",
+              "group": "Behavior",
               "type": "boolean"
             }
           },
@@ -19742,12 +19340,12 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Маркер «*» у метки + aria-required.",
             "x-doc": {
               "group": "State",
               "type": "boolean"
             },
-            "default": false
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required."
           },
           "testId": {
             "type": "string",
@@ -19805,171 +19403,6 @@
       },
       "variantGroup": "Select",
       "variant": "Один"
-    },
-    {
-      "name": "SelectAsync",
-      "role": "container",
-      "propsSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "autoComplete": {
-            "type": "string",
-            "description": "Подсказка браузеру для автозаполнения — пробрасывается в скрытый нативный input Radix.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "className": {
-            "type": "string",
-            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string",
-              "kind": "readonly"
-            }
-          },
-          "clearable": {
-            "type": "boolean",
-            "default": false,
-            "description": "Показывать кнопку очистки значения: сброс возвращает поле в пустое состояние (`null`).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
-          "defaultOpen": {
-            "type": "boolean",
-            "description": "Не действует: дропдаун переведён в контролируемое состояние внутри SelectAsync.",
-            "x-doc": {
-              "group": "State",
-              "type": "boolean"
-            }
-          },
-          "defaultValue": {
-            "type": "string",
-            "description": "Не действует: Root всегда получает контролируемый value от SelectAsync.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "dir": {
-            "type": "string",
-            "enum": ["ltr", "rtl"],
-            "description": "Направление чтения — влияет на раскладку и навигацию с клавиатуры.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'ltr' | 'rtl'"
-            }
-          },
-          "disabled": {
-            "type": "boolean",
-            "description": "Блокировка поля; форма задаёт её через control.disable()/enable(), а не через componentProps.",
-            "x-doc": {
-              "group": "State",
-              "type": "boolean"
-            }
-          },
-          "form": {
-            "type": "string",
-            "description": "id внешней формы, к которой привязывается скрытый нативный input со значением.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "id": {
-            "type": "string",
-            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "name": {
-            "type": "string",
-            "description": "Имя поля для нативной отправки формы — под ним значение попадёт в FormData.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "onOpenChange": {
-            "description": "Не действует: состояние дропдауна принадлежит SelectAsync, и свой обработчик он ставит после спреда пропсов — о закрытии компонент сообщает через onBlur.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "((open: boolean) => void)",
-              "kind": "readonly"
-            }
-          },
-          "open": {
-            "type": "boolean",
-            "description": "Не действует: состояние дропдауна принадлежит SelectAsync и перекрывает проп после спреда.",
-            "x-doc": {
-              "group": "State",
-              "type": "boolean"
-            }
-          },
-          "options": {
-            "type": "array",
-            "description": "Список вариантов выбора: `value` — записываемое значение, `label` — видимая подпись.",
-            "x-doc": {
-              "group": "Options",
-              "type": "{ value: string | number; label: string; group?: string | undefined; }[]",
-              "kind": "readonly"
-            }
-          },
-          "placeholder": {
-            "type": "string",
-            "description": "Подсказка, видимая пока значение не задано.",
-            "x-doc": {
-              "group": "Textfield",
-              "type": "string"
-            }
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Делает скрытый нативный input обязательным для нативной валидации формы.",
-            "x-doc": {
-              "group": "State",
-              "type": "boolean"
-            }
-          },
-          "resource": {
-            "type": "object",
-            "description": "Асинхронный источник опций (static / preload / partial); при заданном options приоритет у options.",
-            "x-doc": {
-              "group": "Options",
-              "type": "ResourceConfig<unknown>",
-              "kind": "readonly"
-            }
-          },
-          "tooltip": {
-            "type": "string",
-            "description": "Подсказка-тултип у иконки (i) внутри поля: правее крестика очистки, левее шеврона.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "value": {
-            "type": "string",
-            "description": "Выбранное значение (строка из `option.value`). `null` — ничего не выбрано.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string | null"
-            }
-          }
-        },
-        "x-inherits": {
-          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
-          "packages": ["@radix-ui/react-select"]
-        }
-      },
-      "compoundParent": "Select",
-      "palette": false
     },
     {
       "name": "SelectContent",
@@ -20309,7 +19742,6 @@
     {
       "name": "SelectMulti",
       "role": "field",
-      "exportName": "SelectMultiField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -21597,6 +21029,14 @@
               "type": "string",
               "kind": "readonly"
             }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Текст подсказки-тултипа у иконки (i) в самом контроле.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
           }
         },
         "x-inherits": {
@@ -22272,7 +21712,6 @@
     {
       "name": "Slider",
       "role": "field",
-      "exportName": "SliderField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -22353,21 +21792,21 @@
           },
           "max": {
             "type": "number",
-            "default": 100,
             "description": "Максимум диапазона (Radix max).",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "default": 100
           },
           "min": {
             "type": "number",
-            "default": 0,
             "description": "Минимум диапазона (Radix min).",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
-            }
+            },
+            "default": 0
           },
           "minStepsBetweenThumbs": {
             "type": "number",
@@ -22594,41 +22033,37 @@
     {
       "name": "Switch",
       "role": "field",
-      "exportName": "SwitchField",
+      "exportName": "SwitchWithLabel",
       "propsSchema": {
         "type": "object",
         "properties": {
           "asChild": {
             "type": "boolean",
-            "description": "Слот-режим: вместо собственного элемента рендерится единственный дочерний узел, в него переносятся классы, обработчики и атрибуты доступности.",
             "x-doc": {
               "group": "Behavior",
-              "type": "boolean",
-              "kind": "readonly"
+              "type": "boolean"
             }
           },
           "checked": {
             "type": "boolean",
-            "description": "Включён ли переключатель; в field-версии это шов — значение подставляет форма (checkedAdapter: value → checked).",
             "x-doc": {
-              "group": "State",
+              "group": "Behavior",
               "type": "boolean"
             }
           },
           "className": {
             "type": "string",
-            "description": "Доп. CSS-класс переключателя.",
             "x-doc": {
               "group": "Control",
               "type": "string",
               "kind": "readonly"
-            }
+            },
+            "description": "Доп. CSS-класс переключателя."
           },
           "defaultChecked": {
             "type": "boolean",
-            "description": "Стартовое состояние в неуправляемом режиме — работает только без checked, то есть у базового Switch вне формы.",
             "x-doc": {
-              "group": "State",
+              "group": "Behavior",
               "type": "boolean"
             }
           },
@@ -22657,27 +22092,24 @@
             }
           },
           "onCheckedChange": {
-            "description": "Эмиттер нового состояния переключателя (boolean, контракт Radix Root); в field-версии сюда checkedAdapter кладёт onChange формы.",
             "x-doc": {
-              "group": "Control",
+              "group": "Behavior",
               "type": "((checked: boolean) => void)",
               "kind": "readonly"
             }
           },
           "required": {
             "type": "boolean",
-            "description": "Маркер «*» у метки + aria-required.",
             "x-doc": {
               "group": "State",
               "type": "boolean"
             },
-            "default": false
+            "default": false,
+            "description": "Маркер «*» у метки + aria-required."
           },
           "size": {
             "type": "string",
             "enum": ["sm", "default"],
-            "default": "default",
-            "description": "Типоразмер — ступень шкалы размеров из cva-конфига; набор ступеней и значение по умолчанию у каждого компонента свои, а там, где размер задаётся числом, это пиксели.",
             "x-doc": {
               "group": "Behavior",
               "type": "'sm' | 'default'"
@@ -23240,7 +22672,6 @@
     {
       "name": "Textarea",
       "role": "field",
-      "exportName": "TextareaField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -23559,7 +22990,6 @@
     {
       "name": "Toggle",
       "role": "field",
-      "exportName": "ToggleField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -23721,33 +23151,16 @@
     {
       "name": "ToggleGroup",
       "role": "field",
-      "exportName": "ToggleGroupField",
+      "exportName": "ToggleGroupOptions",
       "propsSchema": {
         "type": "object",
         "properties": {
-          "asChild": {
-            "type": "boolean",
-            "description": "Слот-режим: вместо собственного элемента рендерится единственный дочерний узел, в него переносятся классы, обработчики и атрибуты доступности.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean",
-              "kind": "readonly"
-            }
-          },
           "className": {
             "type": "string",
             "description": "Доп. CSS-класс контейнера группы.",
             "x-doc": {
               "group": "Control",
               "type": "string",
-              "kind": "readonly"
-            }
-          },
-          "defaultValue": {
-            "description": "Начальный выбор неуправляемой группы (той же формы, что value); дальше состояние живёт внутри Radix.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string | string[]",
               "kind": "readonly"
             }
           },
@@ -23759,13 +23172,12 @@
               "type": "string"
             }
           },
-          "dir": {
+          "id": {
             "type": "string",
-            "enum": ["ltr", "rtl"],
-            "description": "Направление письма: определяет, в какую сторону стрелки двигают фокус; без значения наследуется от DirectionProvider или документа.",
+            "description": "id контейнера (seam — форма связывает подпись).",
             "x-doc": {
               "group": "Behavior",
-              "type": "'ltr' | 'rtl'"
+              "type": "string"
             }
           },
           "label": {
@@ -23784,24 +23196,22 @@
               "type": "string"
             }
           },
-          "loop": {
-            "type": "boolean",
-            "description": "Зацикливать перемещение фокуса стрелками — с последней кнопки на первую и обратно.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
           "onValueChange": {
-            "description": "The callback that fires when the value of the toggle group changes. The callback that fires when the state of the toggle group changes.",
+            "description": "Radix `onValueChange(string)` — сюда `valueChangeAdapter` кладёт эмиттер.",
             "x-doc": {
               "group": "Behavior",
-              "type": "((value: string) => void) | ((value: string[]) => void)",
+              "type": "((value: string) => void)",
               "kind": "readonly"
             }
           },
           "options": {
             "type": "array",
+            "description": "Варианты выбора. Каждый рендерится как кнопка-переключатель.",
+            "x-doc": {
+              "group": "Options",
+              "type": "Array<{ value; label }>",
+              "kind": "readonly"
+            },
             "items": {
               "type": "object",
               "required": ["value", "label"],
@@ -23814,21 +23224,6 @@
                   "type": "string"
                 }
               }
-            },
-            "description": "Варианты выбора. Каждый рендерится как кнопка-переключатель.",
-            "x-doc": {
-              "group": "Options",
-              "type": "Array<{ value; label }>",
-              "kind": "readonly"
-            }
-          },
-          "orientation": {
-            "type": "string",
-            "enum": ["horizontal", "vertical"],
-            "description": "Ось группы для клавиатуры: задаёт, какая пара стрелок перемещает фокус, и проставляет aria-orientation (раскладку по-прежнему делает CSS).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'horizontal' | 'vertical'"
             }
           },
           "required": {
@@ -23840,31 +23235,13 @@
               "type": "boolean"
             }
           },
-          "rovingFocus": {
-            "type": "boolean",
-            "default": true,
-            "description": "Группа — один tab-stop: Tab входит в неё один раз, переключение между кнопками идёт стрелками; при выключении каждая кнопка становится отдельным tab-stop.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "boolean"
-            }
-          },
           "size": {
             "type": "string",
             "enum": ["default", "sm", "lg"],
-            "description": "Типоразмер — ступень шкалы размеров из cva-конфига; набор ступеней и значение по умолчанию у каждого компонента свои, а там, где размер задаётся числом, это пиксели.",
+            "description": "Размер кнопок.",
             "x-doc": {
               "group": "Behavior",
               "type": "'default' | 'sm' | 'lg'"
-            }
-          },
-          "spacing": {
-            "type": "number",
-            "default": 0,
-            "description": "Зазор между кнопками в единицах spacing-шкалы; 0 склеивает их в единый сегментированный контрол (общие скругления по краям, без внутренних границ).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "number"
             }
           },
           "testId": {
@@ -23882,15 +23259,6 @@
             "x-doc": {
               "group": "Textfield",
               "type": "string"
-            }
-          },
-          "type": {
-            "type": "string",
-            "enum": ["single", "multiple"],
-            "description": "Режим выбора: одна активная кнопка или несколько одновременно — от него зависит форма value/defaultValue (строка либо массив строк).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'single' | 'multiple'"
             }
           },
           "variant": {
@@ -23931,13 +23299,7 @@
           }
         },
         "x-inherits": {
-          "react": [
-            "AriaAttributes",
-            "Attributes",
-            "DOMAttributes",
-            "HTMLAttributes",
-            "RefAttributes"
-          ],
+          "react": ["Attributes", "RefAttributes"],
           "packages": []
         }
       },
@@ -24014,7 +23376,6 @@
     {
       "name": "ToggleGroupMulti",
       "role": "field",
-      "exportName": "ToggleGroupMultiField",
       "propsSchema": {
         "type": "object",
         "properties": {
@@ -24163,88 +23524,12 @@
           }
         },
         "x-inherits": {
-          "react": ["AriaAttributes", "DOMAttributes"],
+          "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
           "packages": []
         }
       },
       "variantGroup": "ToggleGroup",
       "variant": "Несколько"
-    },
-    {
-      "name": "ToggleGroupOptions",
-      "role": "container",
-      "propsSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "className": {
-            "type": "string",
-            "description": "Дополнительный CSS-класс: сливается с классами компонента через cn(), последним словом остаётся переданный класс.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string",
-              "kind": "readonly"
-            }
-          },
-          "id": {
-            "type": "string",
-            "description": "id корневого элемента — по нему форма связывает подпись, описание и сообщение об ошибке.",
-            "x-doc": {
-              "group": "Control",
-              "type": "string"
-            }
-          },
-          "onValueChange": {
-            "description": "Radix `onValueChange(string)` — сюда `valueChangeAdapter` кладёт эмиттер.",
-            "x-doc": {
-              "group": "Control",
-              "type": "((value: string) => void)",
-              "kind": "readonly"
-            }
-          },
-          "options": {
-            "type": "array",
-            "description": "Список вариантов выбора: `value` — записываемое значение, `label` — видимая подпись.",
-            "x-doc": {
-              "group": "Options",
-              "type": "ToggleGroupOption[]",
-              "kind": "readonly"
-            }
-          },
-          "size": {
-            "type": "string",
-            "enum": ["default", "sm", "lg"],
-            "description": "Типоразмер — ступень шкалы размеров из cva-конфига; набор ступеней и значение по умолчанию у каждого компонента свои, а там, где размер задаётся числом, это пиксели.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'default' | 'sm' | 'lg'"
-            }
-          },
-          "value": {
-            "type": "string",
-            "description": "Выбранное значение (single-режим Radix: `value: string`).",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "string"
-            }
-          },
-          "variant": {
-            "type": "string",
-            "enum": ["default", "outline"],
-            "description": "Визуальный вариант оформления из cva-конфига; набор вариантов и значение по умолчанию у каждого компонента свои.",
-            "x-doc": {
-              "group": "Behavior",
-              "type": "'default' | 'outline'"
-            }
-          }
-        },
-        "x-inherits": {
-          "react": [],
-          "packages": []
-        }
-      },
-      "compoundParent": "ToggleGroup",
-      "palette": false
     },
     {
       "name": "Tooltip",

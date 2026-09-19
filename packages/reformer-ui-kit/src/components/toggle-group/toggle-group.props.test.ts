@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { toggleGroupBasePropsSchema } from './variants/base/toggle-group-base.props';
-import type { ToggleGroupFieldProps } from './variants/base/toggle-group-base.field';
+import type { ToggleGroupFormProps } from './variants/base/toggle-group-options';
 import { toggleGroupMultiPropsSchema } from './variants/multi/toggle-group-multi.props';
-import type { ToggleGroupMultiFieldProps } from './variants/multi/toggle-group-multi.field';
+import type { ToggleGroupMultiFormProps } from './variants/multi/toggle-group-multi';
 
 /**
  * Страж от дрейфа схемы (фаза E2). Тип-левел часть (A) падает на `tsc`, НЕ на vitest
  * (esbuild транспилирует без проверки типов) — держать в tsc-scope.
  *
- * Тип варианта — value-based `ToggleGroupFieldProps` (base — Radix `value`/`onValueChange`,
+ * Тип варианта — value-based `ToggleGroupFormProps` (base — Radix `value`/`onValueChange`,
  * не `onChange`; поэтому страж смотрит на field-контракт, а не на примитив).
  */
 
@@ -19,7 +19,7 @@ type SchemaRuntimeKeys = keyof (typeof toggleGroupBasePropsSchema)['x-runtimePro
 type SchemaKeys = SchemaPropKeys | SchemaRuntimeKeys;
 
 /** A: каждый ключ схемы существует в props field-контракта (нет опечаток/чужих ключей). */
-type _A_NoStrayKeys = Assert<SchemaKeys extends keyof ToggleGroupFieldProps ? true : false>;
+type _A_NoStrayKeys = Assert<SchemaKeys extends keyof ToggleGroupFormProps ? true : false>;
 
 describe('toggle-group props-схема — страж от дрейфа', () => {
   it('рантайм: properties ∩ x-runtimeProps = ∅ (проп не в двух местах)', () => {
@@ -28,7 +28,7 @@ describe('toggle-group props-схема — страж от дрейфа', () =>
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = ToggleGroup (на него смотрит алиас ToggleGroupField)', () => {
+  it('x-registryName = ToggleGroup (на него смотрит алиас ToggleGroupOptions)', () => {
     expect(toggleGroupBasePropsSchema['x-registryName']).toBe('ToggleGroup');
   });
 
@@ -46,9 +46,7 @@ type MultiRuntimeKeys = keyof (typeof toggleGroupMultiPropsSchema)['x-runtimePro
 type MultiKeys = MultiPropKeys | MultiRuntimeKeys;
 
 /** A: каждый ключ мульти-схемы существует в props мульти-контракта. */
-type _A_MultiNoStrayKeys = Assert<
-  MultiKeys extends keyof ToggleGroupMultiFieldProps ? true : false
->;
+type _A_MultiNoStrayKeys = Assert<MultiKeys extends keyof ToggleGroupMultiFormProps ? true : false>;
 
 describe('toggle-group-multi props-схема — страж от дрейфа', () => {
   it('рантайм: properties ∩ x-runtimeProps = ∅ (проп не в двух местах)', () => {
@@ -57,7 +55,7 @@ describe('toggle-group-multi props-схема — страж от дрейфа',
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = ToggleGroupMulti (на него смотрит экспорт ToggleGroupMultiField)', () => {
+  it('x-registryName = ToggleGroupMulti (на него смотрит экспорт ToggleGroupMulti)', () => {
     expect(toggleGroupMultiPropsSchema['x-registryName']).toBe('ToggleGroupMulti');
   });
 

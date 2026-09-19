@@ -3,6 +3,9 @@ import { ChevronsUpDownIcon, PlusIcon, XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { defineFieldControl } from '@/fields/field-control';
+import { multiValueAdapter } from '@/fields/adapters';
+
 import {
   useFieldTooltip,
   CHEVRON_RESERVE,
@@ -317,5 +320,29 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
   }
 );
 ComboboxMulti.displayName = 'ComboboxMulti';
+
+/**
+ * Value-based контракт ComboboxMulti в форме. Значение — `string[] | null`; форма резолвит
+ * `value`/`onChange`/`onBlur`/`disabled`, автор задаёт остальное в `componentProps`.
+ * Служит типом для стража props-схемы.
+ */
+export interface ComboboxMultiFormProps {
+  value?: string[] | null;
+  onChange?: (value: string[] | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  options?: ComboboxOption[];
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  clearable?: boolean;
+  creatable?: boolean;
+  maxItems?: number;
+  summaryThreshold?: number;
+  className?: string;
+}
+
+// Диалект формы: `string[] | null` ↔ массив композита (пустой выбор → null) — статика.
+defineFieldControl(ComboboxMulti, { adapter: multiValueAdapter });
 
 export { ComboboxMulti };

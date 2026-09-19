@@ -1,36 +1,30 @@
 /**
- * Публичный слой создания собственных form-полей (`@reformer/ui-kit/fields`).
+ * Публичный слой form-интеграции кита (`@reformer/ui-kit/fields`).
  *
- * Даёт консюмеру ровно то, чем ui-kit строит свои `*Field`-компоненты: HOC
- * {@link withFormControl}, набор адаптеров event-shape и хелпер императивного handle.
- * Без него тип {@link FieldHandle} из корневого barrel было бы можно объявить,
- * но нечем построить и некуда передать.
+ * Отдельных «field-версий» компонентов нет: в `component` поля кладётся сам компонент, а связь с
+ * формой выполняет обёртка поля — `FormField.Control` из `@reformer/cdk` или рендерер. Диалект
+ * контрола (`checked`/`onCheckedChange`, `onValueChange`, DOM-событие, …) компонент объявляет
+ * статикой через {@link defineFieldControl}; готовые пресеты адаптеров — здесь же.
  *
- * @example Своё поле из стороннего примитива
+ * @example Свой контрол из стороннего примитива
  * ```tsx
- * import { withFormControl, nativeInputAdapter } from '@reformer/ui-kit/fields';
+ * import { defineFieldControl, checkedAdapter } from '@reformer/ui-kit/fields';
  *
- * export const MyInputField = withFormControl(MyInput, nativeInputAdapter);
+ * export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: checkedAdapter });
+ * // модель формы: { value: model.$.agree, component: MyCheckbox }
  * ```
  *
- * @example Композит со своим императивным handle
- * ```tsx
- * import { withFormControl, type FieldHandle } from '@reformer/ui-kit/fields';
- *
- * export interface MySelectHandle extends FieldHandle {
- *   open(): void;
- * }
- * // MySelect сам реализует useImperativeHandle → passthrough, HOC свой handle не вешает
- * export const MySelectField = withFormControl(MySelect, myAdapter, { exposesHandle: true });
- * ```
+ * Императивный handle (`FieldHandle`) строит обёртка поля: из DOM-узла контрола либо берёт handle
+ * самого композита, если тот его реализует (`useImperativeHandle`).
  *
  * Схемы пропсов (`PropsSchema`, `mergeFieldPropsSchema`) сюда НЕ входят — они
  * публикуются отдельной точкой `@reformer/ui-kit/meta`.
  */
 
-// HOC + его контракты.
-export { withFormControl } from './with-form-control';
-export type { FieldAdapter, WithFormControlOptions } from './with-form-control';
+// Контракт контрола с формой: статики адаптера и раскладки.
+export { defineFieldControl } from './field-control';
+export type { FieldControlLayout, FieldControlStatics } from './field-control';
+export type { FieldAdapter } from '@reformer/core';
 
 // Подсказка-иконка (i) у контрола — проп `tooltip`: декоратор для примитивов и хук для композитов.
 export {
@@ -54,17 +48,20 @@ export type {
   UseFieldTooltipResult,
 } from './field-tooltip';
 
-// Императивный handle поля.
+// Императивный handle поля (контракт — в @reformer/core).
 export { makeElementFieldHandle } from './field-handle';
 export type { FieldHandle } from './field-handle';
 
 // Пресеты event-shape под семейства shadcn-контролов.
 export {
   nativeInputAdapter,
+  textValueAdapter,
   checkedAdapter,
   pressedAdapter,
   valueChangeAdapter,
   multiValueAdapter,
   sliderAdapter,
   dateAdapter,
+  datePickerAdapter,
 } from './adapters';
+export type { KitFieldAdapter } from './adapters';

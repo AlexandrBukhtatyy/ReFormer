@@ -3,7 +3,7 @@ import type { PropsSchema } from '@/fields/props-schema';
 /**
  * Props-схема Section — единый источник `props[]` (reformer-doc) и DSL-валидации
  * `componentProps` (renderer-json). Section — DSL-контейнер (не form-control): у него нет
- * seam (`value`/`onChange`/`onBlur`/`disabled`), поэтому нет `x-runtimeProps` и field-версии.
+ * seam (`value`/`onChange`/`onBlur`/`disabled`), поэтому нет `x-runtimeProps`.
  * Реальная поверхность в DSL — 4 сериализуемых ключа; `children` — не `componentProps`, а
  * отдельный массив дочерних нод листа (валидатор его не касается).
  *

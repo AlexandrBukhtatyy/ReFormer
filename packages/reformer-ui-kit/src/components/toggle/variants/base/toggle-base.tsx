@@ -3,6 +3,9 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { Toggle as TogglePrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
+import { defineFieldControl } from '@/fields/field-control';
+import { pressedAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_CENTER } from '@/fields/field-tooltip';
 
 // Дословный порт shadcn/ui (new-york-v4) toggle. Правки только: снят 'use client'
 // (unified `radix-ui` — Toggle.Root — и `@/lib/utils` уже в upstream-исходнике). data-slot сохранён.
@@ -29,7 +32,7 @@ const toggleVariants = cva(
   }
 );
 
-function Toggle({
+function TogglePrimitiveBase({
   className,
   variant,
   size,
@@ -43,5 +46,35 @@ function Toggle({
     />
   );
 }
+
+/**
+ * Value-based контракт Toggle в форме. Значение — `boolean` (нажат/pressed); форма резолвит
+ * `value`/`onChange`/`onBlur`/`disabled`, автор задаёт `variant`/`size`/`className` в
+ * `componentProps`, а контент (иконка/текст) — через `children`. Служит типом для стража
+ * props-схемы (сам компонент — Radix `pressed`/`onPressedChange`, не `value`).
+ */
+export interface ToggleFormProps {
+  value?: boolean;
+  onChange?: (value: boolean) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  /** Стиль cva: `default` (заливка при нажатии) | `outline` (граница). */
+  variant?: 'default' | 'outline';
+  /** Размер cva: `default` | `sm` | `lg`. */
+  size?: 'default' | 'sm' | 'lg';
+  className?: string;
+  /** Контент внутри toggle (иконка/текст). Рендерится в кнопке; НЕ является подписью поля. */
+  children?: React.ReactNode;
+}
+
+/**
+ * Toggle кита: порт shadcn + проп `tooltip` (иконка справа). В форме — `value: boolean` через
+ * {@link pressedAdapter} (статика). НЕ inline-label: подпись поля рисует FormField сверху, а
+ * `children` — контент кнопки.
+ */
+const Toggle = defineFieldControl(withFieldTooltip(TogglePrimitiveBase, OUTSIDE_CENTER), {
+  adapter: pressedAdapter,
+});
+Toggle.displayName = 'Toggle';
 
 export { Toggle, toggleVariants };

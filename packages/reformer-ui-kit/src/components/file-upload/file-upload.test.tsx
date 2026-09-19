@@ -5,12 +5,10 @@ import {
   FileUploadDropzone,
   FileUploadInput,
   FileUploadAvatar,
-  FileUploadField,
-  FileUploadBaseField,
-  FileUploadAvatarField,
   fileUploadAdapter,
   fileUploadSingleAdapter,
 } from './index';
+import { Bound } from '@/test-utils/bound';
 
 /**
  * SSR-тесты вариантов FileUpload (конвенция ui-kit: renderToStaticMarkup, без jsdom).
@@ -144,30 +142,24 @@ describe('FileUploadAvatar', () => {
   });
 });
 
-describe('FileUploadField — диспетчер', () => {
+describe('FileUploadBase — диспетчер', () => {
   it('variant=dropzone/input → зона/инпут, по умолчанию → кнопка; variant не течёт в DOM', () => {
-    const dropzone = renderToStaticMarkup(<FileUploadField variant="dropzone" value={null} />);
+    const dropzone = renderToStaticMarkup(
+      <Bound component={FileUploadBase} variant="dropzone" value={null} />
+    );
     expect(dropzone).toContain('data-variant="dropzone"');
-    const input = renderToStaticMarkup(<FileUploadField variant="input" value={null} />);
+    const input = renderToStaticMarkup(
+      <Bound component={FileUploadBase} variant="input" value={null} />
+    );
     expect(input).toContain('data-variant="input"');
-    const button = renderToStaticMarkup(<FileUploadField value={null} />);
+    const button = renderToStaticMarkup(<Bound component={FileUploadBase} value={null} />);
     expect(button).toContain('data-variant="button"');
     // bare-атрибут `variant` (в отличие от data-variant) означал бы утечку пропа в DOM
     expect(button).not.toContain(' variant="');
   });
 
-  it('field-версии отбрасывают control (renderer-путь)', () => {
-    const html = renderToStaticMarkup(
-      <FileUploadBaseField value={null} control={{ id: 1 } as never} />
-    );
-    expect(html).toContain('data-slot="file-upload"');
-    expect(html).not.toContain('control');
-  });
-
   it('AvatarField: single value → массив внутрь, обратно single', () => {
-    const html = renderToStaticMarkup(
-      <FileUploadAvatarField value={png as never} control={undefined as never} />
-    );
+    const html = renderToStaticMarkup(<Bound component={FileUploadAvatar} value={png as never} />);
     expect(html).toContain('data-variant="avatar"');
     expect(html).toContain('rounded-full');
   });

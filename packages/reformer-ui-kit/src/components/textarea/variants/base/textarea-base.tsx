@@ -1,10 +1,12 @@
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';
+import { defineFieldControl } from '@/fields/field-control';
+import { nativeInputAdapter } from '@/fields/adapters';
+import { withFieldTooltip, INSIDE_TEXTAREA } from '@/fields/field-tooltip';
 
-// Дословный порт shadcn/ui (new-york-v4) textarea. Правки только: `@/lib/utils`. Чистый native
-// textarea — field-версия (nativeInputAdapter) живёт в textarea-base.field.tsx, примитив остаётся pure.
-function Textarea({ className, ...props }: React.ComponentProps<'textarea'>) {
+// Дословный порт shadcn/ui (new-york-v4) textarea. Правки только: `@/lib/utils`.
+function TextareaPrimitive({ className, ...props }: React.ComponentProps<'textarea'>) {
   return (
     <textarea
       data-slot="textarea"
@@ -16,5 +18,14 @@ function Textarea({ className, ...props }: React.ComponentProps<'textarea'>) {
     />
   );
 }
+
+/**
+ * Textarea кита: порт shadcn + проп `tooltip` (иконка в правом верхнем углу). Диалект формы —
+ * {@link nativeInputAdapter} (статика; связывает обёртка поля).
+ */
+const Textarea = defineFieldControl(withFieldTooltip(TextareaPrimitive, INSIDE_TEXTAREA), {
+  adapter: nativeInputAdapter,
+});
+Textarea.displayName = 'Textarea';
 
 export { Textarea };

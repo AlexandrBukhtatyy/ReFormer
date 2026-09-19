@@ -1,12 +1,12 @@
 import * as React from 'react';
 
-import { withFormControl } from '@/fields/with-form-control';
+import { defineFieldControl } from '@/fields/field-control';
 import { valueChangeAdapter } from '@/fields/adapters';
 import { withFieldTooltip, tooltipText, OUTSIDE_FILL_START } from '@/fields/field-tooltip';
 import { InfoHint } from '@/components/info-hint';
 import { RadioGroup, RadioGroupItem } from './radio-group-base';
 
-/** Один вариант выбора для {@link RadioGroupField}. */
+/** Один вариант выбора для {@link RadioGroupOptions}. */
 export interface RadioOption {
   /** Значение, попадающее в `onChange`. DOM `value` всегда строка. */
   value: string;
@@ -16,7 +16,7 @@ export interface RadioOption {
   tooltip?: string;
 }
 
-/** Props презентационной обёртки {@link RadioGroupOptions}. */
+/** Props {@link RadioGroupOptions}. */
 export interface RadioGroupOptionsProps extends Omit<
   React.ComponentProps<typeof RadioGroup>,
   'children'
@@ -28,16 +28,15 @@ export interface RadioGroupOptionsProps extends Omit<
 }
 
 /**
- * Презентационная обёртка над base RadioGroup/RadioGroupItem: рендерит опции из массива
- * `options`. Контракт `value` / `onValueChange` совпадает с Radix Root — поэтому field-версия
- * = `withFormControl(RadioGroupOptions, valueChangeAdapter)` (без ручного маппинга событий).
+ * Вариант RadioGroup, собранный из массива `options` (base RadioGroup/RadioGroupItem). Контракт
+ * `value` / `onValueChange` — как у Radix Root, в форме его сводит {@link valueChangeAdapter}.
  *
  * Контейнер — `role="radiogroup"` (Radix Root). Каждый Item получает per-option
  * `data-testid = <data-testid>-<value>`: FormField передаёт контролу `data-testid="input-<field>"`,
  * поэтому в форме выходит `input-<field>-<value>` (POM ждёт именно этот идентификатор). `id` Item
  * связывает `<label htmlFor>`, чтобы клик по подписи выбирал вариант.
  */
-function RadioGroupOptions({
+function RadioGroupOptionsBase({
   options = [],
   'data-testid': dataTestId,
   ...props
@@ -85,16 +84,15 @@ function RadioGroupOptions({
   );
 }
 
-RadioGroupOptions.displayName = 'RadioGroupOptions';
-
 /**
- * Field-версия RadioGroup: value-based (`value: string | null`, `onChange(value)`), рендерит
- * `options`. Привязка через {@link valueChangeAdapter} (`value` / `onValueChange`, string).
- * НЕ inline-label — подпись группы рисует FormField сверху. Экспортируется как алиас `RadioGroupField`.
+ * Группа радиокнопок из `options` — компонент для формы (`component: RadioGroupOptions`, registry
+ * `RadioGroup`): `value: string | null`, `onChange(value)` через {@link valueChangeAdapter}
+ * (статика) + проп `tooltip`. НЕ inline-label — подпись группы рисует FormField сверху.
  */
-export const RadioGroupBaseField = withFormControl(
-  withFieldTooltip(RadioGroupOptions, OUTSIDE_FILL_START),
-  valueChangeAdapter
+const RadioGroupOptions = defineFieldControl(
+  withFieldTooltip(RadioGroupOptionsBase, OUTSIDE_FILL_START),
+  { adapter: valueChangeAdapter }
 );
+RadioGroupOptions.displayName = 'RadioGroupOptions';
 
 export { RadioGroupOptions };

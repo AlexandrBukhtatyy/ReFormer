@@ -48,10 +48,16 @@ export type PropsSchema = Omit<
   'x-doc'?: PropDoc;
   'x-runtimeProps'?: Record<string, RuntimePropDoc>;
   /**
-   * Каноническое имя в реестре renderer-json. Ставит вариант, на который смотрит алиас
-   * `<Cmp>Field`. По нему `generate-meta.mjs` собирает `defaultPropSchemas`.
+   * Каноническое имя в реестре renderer-json (`Checkbox`, `Select`, …). По нему `generate-meta.mjs`
+   * собирает `defaultPropSchemas`.
    */
   'x-registryName'?: string;
+  /**
+   * Экспорт кита, который регистрируется под `x-registryName` — компонент, который кладут в
+   * `component` поля (`Checkbox` → `CheckboxWithLabel`, `Select` → `SelectAsync`). Не задан —
+   * совпадает с `x-registryName` (`Input` → `Input`).
+   */
+  'x-exportName'?: string;
   /**
    * Имя группы вариантов (напр. `'Input'`). Члены группы делят это имя; дефолт группы — член, чей
    * `x-registryName === x-variantGroup`. Билдер по нему группирует палитру/QuickAdd/инспектор.

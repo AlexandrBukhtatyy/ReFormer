@@ -6,9 +6,12 @@ export {
   InputOTPSeparator,
 } from './variants/base/input-otp-base';
 
-// field-версия + алиас InputOTPField (дефолтный для форм).
-export { InputOTPBaseField } from './variants/base/input-otp-base.field';
-export { InputOTPBaseField as InputOTPField } from './variants/base/input-otp-base.field';
+// default — дефолтная раскладка слотов + проп tooltip. Компонент для формы (registry InputOTP).
+export {
+  InputOTPDefault,
+  otpAdapter,
+  type InputOTPDefaultProps,
+} from './variants/base/input-otp-default';
 
 // props-схема.
 export { inputOtpBasePropsSchema } from './variants/base/input-otp-base.props';

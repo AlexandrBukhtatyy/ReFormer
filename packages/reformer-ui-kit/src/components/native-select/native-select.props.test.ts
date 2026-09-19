@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { nativeSelectBasePropsSchema } from './variants/base/native-select-base.props';
-import type { NativeSelectWithOptionsProps } from './variants/base/native-select-base.field';
+import type { NativeSelectWithOptionsProps } from './variants/base/native-select-with-options';
 import { nativeSelectMultiPropsSchema } from './variants/multi/native-select-multi.props';
-import type { NativeSelectMultiFieldProps } from './variants/multi/native-select-multi.field';
+import type { NativeSelectMultiFormProps } from './variants/multi/native-select-multi';
 
 /**
  * Страж от дрейфа схемы (фаза E2). Тип-левел часть (A) падает на `tsc`, НЕ на vitest
@@ -25,7 +25,7 @@ describe('native-select props-схема — страж от дрейфа', () =
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = NativeSelect (на него смотрит алиас NativeSelectField)', () => {
+  it('x-registryName = NativeSelect (на него смотрит алиас NativeSelectWithOptions)', () => {
     expect(nativeSelectBasePropsSchema['x-registryName']).toBe('NativeSelect');
   });
 
@@ -43,7 +43,7 @@ type MultiKeys = MultiPropKeys | MultiRuntimeKeys;
 
 /** A: каждый ключ мульти-схемы существует в props мульти-контракта. */
 type _A_MultiNoStrayKeys = Assert<
-  MultiKeys extends keyof NativeSelectMultiFieldProps ? true : false
+  MultiKeys extends keyof NativeSelectMultiFormProps ? true : false
 >;
 
 describe('native-select-multi props-схема — страж от дрейфа', () => {
@@ -53,7 +53,7 @@ describe('native-select-multi props-схема — страж от дрейфа'
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = NativeSelectMulti (на него смотрит экспорт NativeSelectMultiField)', () => {
+  it('x-registryName = NativeSelectMulti (на него смотрит экспорт NativeSelectMulti)', () => {
     expect(nativeSelectMultiPropsSchema['x-registryName']).toBe('NativeSelectMulti');
   });
 

@@ -3,6 +3,8 @@ import { CheckIcon } from 'lucide-react';
 import { Checkbox as CheckboxPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
+import { defineFieldControl } from '@/fields/field-control';
+import { checkedAdapter } from '@/fields/adapters';
 
 // Дословный порт shadcn/ui (new-york-v4) checkbox. Правки только: снят 'use client'
 // (unified `radix-ui` и `@/lib/utils` уже в upstream-исходнике). data-testid/aria-* приходят
@@ -26,5 +28,9 @@ function Checkbox({ className, ...props }: React.ComponentProps<typeof CheckboxP
     </CheckboxPrimitive.Root>
   );
 }
+
+// Голый чекбокс тоже годится в `component` поля (без подписи): диалект Radix `checked` +
+// `onCheckedChange` объявлен статикой. С подписью справа — вариант CheckboxWithLabel.
+defineFieldControl(Checkbox, { adapter: checkedAdapter });
 
 export { Checkbox };

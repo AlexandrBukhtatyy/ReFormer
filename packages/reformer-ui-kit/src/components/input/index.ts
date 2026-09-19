@@ -1,14 +1,13 @@
-// base — pure shadcn Input (native).
+// base — shadcn Input (native) + проп tooltip. Компонент для формы (registry Input).
 export { Input } from './variants/base/input-base';
-export { InputBaseField } from './variants/base/input-base.field';
-export { InputNumberField } from './variants/number/input-number.field';
 
-// suggest — свободный ввод + подсказки (headless-ядро: @reformer/cdk/autocomplete).
+// number — числовое поле с сырым буфером ввода (value: number | null; registry InputNumber).
+export { InputNumber, type InputNumberProps } from './variants/number/input-number';
+
+// suggest — свободный ввод + подсказки (headless-ядро: @reformer/cdk/autocomplete; registry InputSuggest).
 export { InputSuggest, type InputSuggestProps } from './variants/suggest/input-suggest';
-export { InputSuggestField } from './variants/suggest/input-suggest.field';
 
-// field-версия + алиас InputField (диспетчер по type).
-export { InputField } from './input-field';
-
-// props-схема.
+// props-схемы.
 export { inputBasePropsSchema } from './variants/base/input-base.props';
+export { inputNumberPropsSchema } from './variants/number/input-number.props';
+export { inputSuggestPropsSchema } from './variants/suggest/input-suggest.props';

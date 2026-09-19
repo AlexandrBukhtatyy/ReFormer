@@ -4,7 +4,7 @@ import type { PropsSchema } from '@/fields/props-schema';
  * Props-схема InputMask. Реальная поверхность в DSL — `mask`/`placeholder`/`className`;
  * `value`/`onChange`/`onBlur`/`disabled` приходят из seam (`mergeFieldPropsSchema`).
  * `additionalProperties: false` ловит опечатки `componentProps`.
- * `x-registryName: 'InputMask'` — на этот вариант смотрит алиас `InputMaskField`.
+ * `x-registryName: 'InputMask'` — компонент `InputMask`.
  */
 export const inputMaskBasePropsSchema = {
   type: 'object',

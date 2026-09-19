@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createModel, createForm } from '@reformer/core';
 import { FormField } from './form-field';
-import { InputField } from '@/components/input';
+import { Input } from '@/components/input';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /** Минимальный value-based контрол (Input портируется в волне 1). SSR-тест: события не вызываются. */
 const TestInput = (props: Record<string, unknown>) => {
-  // labelTooltip сторонний контрол срезает сам (полям кита это делает withFormControl).
+  // labelTooltip срезает обёртка поля (FormField.Control → bindFieldProps); здесь — для надёжности.
   const {
     value,
     onChange: _onChange,
@@ -125,10 +125,10 @@ describe('FormField — shadcn Field поверх @reformer/cdk', () => {
       expect(html.match(/<input[^>]*aria-describedby="([^"]*)"/)?.[1]).toBe(`${hintId} ${descId}`);
     });
 
-    it('проп не течёт в DOM контрола кита (срезает withFormControl)', () => {
+    it('проп не течёт в DOM контрола кита (срезает обёртка поля)', () => {
       const control = buildField(
         { label: 'Email', testId: 'email', labelTooltip: 'Нужен для чеков' },
-        InputField
+        Input
       );
       const html = renderToStaticMarkup(<FormField control={control} />);
       expect(html.match(/<input[^>]*>/)?.[0].toLowerCase()).not.toContain('labeltooltip');

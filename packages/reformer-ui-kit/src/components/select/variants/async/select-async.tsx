@@ -79,7 +79,7 @@ export interface SelectAsyncHandle extends FieldHandle {
 /**
  * Высокоуровневый Select (вариант `async`): inline `options` ИЛИ асинхронный `resource`
  * (`static` / `preload` / `partial`) с поиском, пагинацией и очисткой. Value-based контракт
- * (`value` / `onChange(string|null)` / `onBlur`) — пригоден для формы напрямую (см. `SelectAsyncField`).
+ * (`value` / `onChange(string|null)` / `onBlur`) — пригоден для формы напрямую (`component: SelectAsync`).
  */
 const SelectAsync = React.forwardRef<
   SelectAsyncHandle,

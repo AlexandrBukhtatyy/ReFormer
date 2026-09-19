@@ -1,12 +1,12 @@
 import type { PropsSchema } from '@/fields/props-schema';
 
 /**
- * Props-схема DatePicker (field-версия single-date) — единый источник `api.controls[]` (reformer-doc)
+ * Props-схема DatePicker (single-date) — единый источник `api.controls[]` (reformer-doc)
  * и DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
  *
- * `value`/`onChange` — seam (маппятся адаптером на `selected`/`onSelect` Calendar), поэтому в
- * `x-runtimeProps`, а не в `properties`. `x-registryName: 'DatePicker'` — на этот вариант смотрит
- * алиас `DatePickerField`.
+ * `value`/`onChange` — seam (адаптер `datePickerAdapter` сворачивает `undefined` сброса в `null`),
+ * поэтому в `x-runtimeProps`, а не в `properties`. `x-registryName: 'DatePicker'` — компонент
+ * `DatePicker`.
  */
 export const datePickerBasePropsSchema = {
   type: 'object',

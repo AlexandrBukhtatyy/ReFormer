@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { selectAsyncPropsSchema } from './variants/async/select-async.props';
 import type { SelectAsyncProps } from './variants/async/select-async';
 import { selectMultiPropsSchema } from './variants/multi/select-multi.props';
-import type { SelectMultiFieldProps } from './variants/multi/select-multi.field';
+import type { SelectMultiFormProps } from './variants/multi/select-multi';
 
 /**
  * Страж от дрейфа схемы (фаза E2). Тип-левел часть (A) падает на `tsc`, НЕ на vitest
@@ -25,7 +25,7 @@ describe('select-async props-схема — страж от дрейфа', () =>
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = Select (на него смотрит алиас SelectField)', () => {
+  it('x-registryName = Select (на него смотрит алиас SelectAsync)', () => {
     expect(selectAsyncPropsSchema['x-registryName']).toBe('Select');
   });
 
@@ -42,7 +42,7 @@ type MultiRuntimeKeys = keyof (typeof selectMultiPropsSchema)['x-runtimeProps'];
 type MultiKeys = MultiPropKeys | MultiRuntimeKeys;
 
 /** A: каждый ключ мульти-схемы существует в props мульти-контракта. */
-type _A_MultiNoStrayKeys = Assert<MultiKeys extends keyof SelectMultiFieldProps ? true : false>;
+type _A_MultiNoStrayKeys = Assert<MultiKeys extends keyof SelectMultiFormProps ? true : false>;
 
 describe('select-multi props-схема — страж от дрейфа', () => {
   it('рантайм: properties ∩ x-runtimeProps = ∅ (проп не в двух местах)', () => {
@@ -51,7 +51,7 @@ describe('select-multi props-схема — страж от дрейфа', () =>
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = SelectMulti (на него смотрит экспорт SelectMultiField)', () => {
+  it('x-registryName = SelectMulti (на него смотрит экспорт SelectMulti)', () => {
     expect(selectMultiPropsSchema['x-registryName']).toBe('SelectMulti');
   });
 

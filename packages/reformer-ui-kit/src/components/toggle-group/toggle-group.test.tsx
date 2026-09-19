@@ -1,12 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-  ToggleGroupField,
-  ToggleGroupMulti,
-  ToggleGroupMultiField,
-} from './index';
+import { ToggleGroup, ToggleGroupItem, ToggleGroupOptions, ToggleGroupMulti } from './index';
+import { Bound } from '@/test-utils/bound';
 
 const GENDER = [
   { value: 'male', label: 'Мужской' },
@@ -37,9 +32,11 @@ describe('ToggleGroup (base, pure shadcn)', () => {
   });
 });
 
-describe('ToggleGroupField (вариант base, рендерит options)', () => {
+describe('ToggleGroupOptions (вариант base, рендерит options)', () => {
   it('рендерит по одному Item на опцию + подписи', () => {
-    const html = renderToStaticMarkup(<ToggleGroupField value={null} options={GENDER} />);
+    const html = renderToStaticMarkup(
+      <Bound component={ToggleGroupOptions} value={null} options={GENDER} />
+    );
     const items = html.match(/role="radio"/g) ?? [];
     expect(items).toHaveLength(2);
     expect(html).toContain('Мужской');
@@ -48,14 +45,21 @@ describe('ToggleGroupField (вариант base, рендерит options)', () 
 
   it('per-option data-testid = input-<field>-<value>', () => {
     const html = renderToStaticMarkup(
-      <ToggleGroupField value={null} options={GENDER} data-testid="input-gender" />
+      <Bound
+        component={ToggleGroupOptions}
+        value={null}
+        options={GENDER}
+        data-testid="input-gender"
+      />
     );
     expect(html).toContain('data-testid="input-gender-male"');
     expect(html).toContain('data-testid="input-gender-female"');
   });
 
   it('value → выбран только соответствующий Item (data-state=on)', () => {
-    const html = renderToStaticMarkup(<ToggleGroupField value="female" options={GENDER} />);
+    const html = renderToStaticMarkup(
+      <Bound component={ToggleGroupOptions} value="female" options={GENDER} />
+    );
     const on = html.match(/data-state="on"/g) ?? [];
     const off = html.match(/data-state="off"/g) ?? [];
     expect(on).toHaveLength(1);
@@ -63,28 +67,27 @@ describe('ToggleGroupField (вариант base, рендерит options)', () 
   });
 
   it('value=null (null-coerce) → ничего не выбрано (нет on)', () => {
-    const html = renderToStaticMarkup(<ToggleGroupField value={null} options={GENDER} />);
+    const html = renderToStaticMarkup(
+      <Bound component={ToggleGroupOptions} value={null} options={GENDER} />
+    );
     expect(html).not.toContain('data-state="on"');
   });
 
   it('variant прокидывается в data-variant контейнера', () => {
     const html = renderToStaticMarkup(
-      <ToggleGroupField value={null} options={GENDER} variant="outline" />
+      <Bound component={ToggleGroupOptions} value={null} options={GENDER} variant="outline" />
     );
     expect(html).toContain('data-variant="outline"');
   });
 
-  it('strip control: renderer-путь не течёт в DOM', () => {
-    const html = renderToStaticMarkup(
-      <ToggleGroupField value="male" options={GENDER} control={{ id: 1 } as never} />
-    );
-    expect(html).not.toContain('[object Object]');
-    expect(html).not.toContain('control=');
-  });
-
   it('data-testid контейнера + per-option, НЕ на wrapper (Root — контейнер)', () => {
     const html = renderToStaticMarkup(
-      <ToggleGroupField value={null} options={GENDER} data-testid="input-gender" />
+      <Bound
+        component={ToggleGroupOptions}
+        value={null}
+        options={GENDER}
+        data-testid="input-gender"
+      />
     );
     // Root-контейнер несёт префикс, Item — суффикс -<value>.
     expect(html).toContain('data-testid="input-gender"');
@@ -93,7 +96,8 @@ describe('ToggleGroupField (вариант base, рендерит options)', () 
 
   it('прокидывает id/aria-* на контейнер (seam-контракт)', () => {
     const html = renderToStaticMarkup(
-      <ToggleGroupField
+      <Bound
+        component={ToggleGroupOptions}
         value="male"
         options={GENDER}
         id="control-x"
@@ -160,22 +164,19 @@ describe('ToggleGroupMulti (вариант multi, множественный в�
   });
 });
 
-describe('ToggleGroupMultiField (field-версия, значение string[] | null)', () => {
+describe('ToggleGroupMulti (field-версия, значение string[] | null)', () => {
   it('null из формы не роняет рендер — адаптер разворачивает его в []', () => {
-    const html = renderToStaticMarkup(<ToggleGroupMultiField value={null} options={TAGS} />);
+    const html = renderToStaticMarkup(
+      <Bound component={ToggleGroupMulti} value={null} options={TAGS} />
+    );
     expect(html.match(/aria-pressed="false"/g) ?? []).toHaveLength(3);
   });
 
   it('массив из формы доезжает до контрола', () => {
-    const html = renderToStaticMarkup(<ToggleGroupMultiField value={['b']} options={TAGS} />);
+    const html = renderToStaticMarkup(
+      <Bound component={ToggleGroupMulti} value={['b']} options={TAGS} />
+    );
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('Бета');
-  });
-
-  it('control (renderer-путь) не протекает в DOM', () => {
-    const html = renderToStaticMarkup(
-      <ToggleGroupMultiField value={null} options={TAGS} control={{} as never} />
-    );
-    expect(html).not.toContain('control=');
   });
 });

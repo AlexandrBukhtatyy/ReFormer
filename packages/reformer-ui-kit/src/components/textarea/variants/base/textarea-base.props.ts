@@ -3,7 +3,7 @@ import type { PropsSchema } from '@/fields/props-schema';
 /**
  * Props-схема Textarea — многострочный аналог Input (native textarea). Единый источник
  * `api.controls[]` (reformer-doc) и DSL-валидации `componentProps` (renderer-json).
- * `x-registryName: 'Textarea'` — на этот вариант смотрит алиас TextareaField.
+ * `x-registryName: 'Textarea'` — компонент `Textarea`.
  */
 export const textareaBasePropsSchema = {
   type: 'object',

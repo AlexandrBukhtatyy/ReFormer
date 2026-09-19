@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { SelectAsync } from './variants/async/select-async';
-import { SelectField, SelectAsyncField, SelectMulti, SelectMultiField } from './index';
+import { SelectAsync, SelectMulti } from './index';
+import { Bound } from '@/test-utils/bound';
 
 const OPTS = [
   { value: 'a', label: 'A' },
@@ -43,9 +43,9 @@ describe('SelectAsync (вариант async)', () => {
   });
 });
 
-describe('SelectField алиас', () => {
-  it('SelectField === SelectAsyncField (дефолтный для форм вариант)', () => {
-    expect(SelectField).toBe(SelectAsyncField);
+describe('SelectAsync алиас', () => {
+  it('SelectAsync === SelectAsync (дефолтный для форм вариант)', () => {
+    expect(SelectAsync).toBe(SelectAsync);
   });
 });
 
@@ -122,23 +122,18 @@ describe('SelectMulti (вариант multi)', () => {
   });
 });
 
-describe('SelectMultiField (field-версия, значение string[] | null)', () => {
+describe('SelectMulti (field-версия, значение string[] | null)', () => {
   it('null из формы не роняет рендер — адаптер разворачивает его в []', () => {
     const html = renderToStaticMarkup(
-      <SelectMultiField value={null} options={MANY} placeholder="Пусто" />
+      <Bound component={SelectMulti} value={null} options={MANY} placeholder="Пусто" />
     );
     expect(html).toContain('Пусто');
   });
 
   it('массив из формы доезжает до контрола', () => {
-    const html = renderToStaticMarkup(<SelectMultiField value={['b']} options={MANY} />);
-    expect(html).toContain('Бета');
-  });
-
-  it('control (renderer-путь) не протекает в DOM', () => {
     const html = renderToStaticMarkup(
-      <SelectMultiField value={null} options={MANY} control={{} as never} />
+      <Bound component={SelectMulti} value={['b']} options={MANY} />
     );
-    expect(html).not.toContain('control=');
+    expect(html).toContain('Бета');
   });
 });

@@ -4,6 +4,9 @@ import { CalendarIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { defineFieldControl } from '@/fields/field-control';
+import { datePickerAdapter } from '@/fields/adapters';
+import { withFieldTooltip, INSIDE_BUTTON } from '@/fields/field-tooltip';
 import { Button } from '@/components/button';
 import { Calendar } from '@/components/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/popover';
@@ -44,7 +47,7 @@ export interface DatePickerHandle extends FieldHandle {
  * при выборе даты. Стандартное standalone-использование:
  * `<DatePicker value={date} onChange={setDate} />`.
  */
-const DatePicker = React.forwardRef<DatePickerHandle, DatePickerProps>(function DatePicker(
+const DatePickerBase = React.forwardRef<DatePickerHandle, DatePickerProps>(function DatePicker(
   {
     value,
     onChange,
@@ -102,6 +105,14 @@ const DatePicker = React.forwardRef<DatePickerHandle, DatePickerProps>(function 
       </PopoverContent>
     </Popover>
   );
+});
+/**
+ * DatePicker кита + проп `tooltip` (иконка у правого края кнопки). В форме — `value: Date | null`:
+ * {@link datePickerAdapter} (статика) сворачивает `undefined` сброса в `null`. Свой
+ * {@link DatePickerHandle} композит отдаёт сам — обёртка поля публикует его как есть.
+ */
+const DatePicker = defineFieldControl(withFieldTooltip(DatePickerBase, INSIDE_BUTTON), {
+  adapter: datePickerAdapter,
 });
 DatePicker.displayName = 'DatePicker';
 

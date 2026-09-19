@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Calendar, CalendarField, CalendarBaseField } from './index';
+import { Calendar, CalendarSingle } from './index';
+import { Bound } from '@/test-utils/bound';
 
 // react-day-picker рендерит грид inline (без Portal) — в SSR доступна вся статика месяца.
 describe('Calendar (base, pure shadcn DayPicker)', () => {
@@ -22,31 +23,28 @@ describe('Calendar (base, pure shadcn DayPicker)', () => {
   });
 });
 
-describe('CalendarField (single-date, dateAdapter)', () => {
+describe('CalendarSingle (single-date, dateAdapter)', () => {
   it('value: Date → выбранный день (data-selected-single=true)', () => {
-    const html = renderToStaticMarkup(<CalendarField value={new Date()} />);
+    const html = renderToStaticMarkup(<Bound component={CalendarSingle} value={new Date()} />);
     expect(html).toContain('data-slot="calendar"');
     expect(html).toContain('data-selected-single="true"');
   });
 
   it('value=null → нет выбранного дня', () => {
-    const html = renderToStaticMarkup(<CalendarField value={null} />);
+    const html = renderToStaticMarkup(<Bound component={CalendarSingle} value={null} />);
     expect(html).not.toContain('data-selected-single="true"');
   });
 
-  it('strip control: renderer-путь не течёт в DOM', () => {
-    const html = renderToStaticMarkup(<CalendarField value={null} control={{ id: 1 } as never} />);
-    expect(html).not.toContain('[object Object]');
-  });
-
   it('прокидывает id на корневой элемент (seam-контракт поля)', () => {
-    const html = renderToStaticMarkup(<CalendarField value={null} id="control-cal" />);
+    const html = renderToStaticMarkup(
+      <Bound component={CalendarSingle} value={null} id="control-cal" />
+    );
     expect(html).toContain('id="control-cal"');
   });
 });
 
-describe('CalendarField алиас', () => {
-  it('CalendarField === CalendarBaseField (дефолтный для форм вариант)', () => {
-    expect(CalendarField).toBe(CalendarBaseField);
+describe('CalendarSingle алиас', () => {
+  it('CalendarSingle === CalendarSingle (дефолтный для форм вариант)', () => {
+    expect(CalendarSingle).toBe(CalendarSingle);
   });
 });

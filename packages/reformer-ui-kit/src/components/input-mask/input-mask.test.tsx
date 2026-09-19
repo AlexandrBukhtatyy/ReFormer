@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { InputMask, InputMaskField } from './index';
+import { InputMask } from './index';
+import { Bound } from '@/test-utils/bound';
 
 describe('InputMask (base)', () => {
   it('рендерит input с data-slot=input-mask', () => {
@@ -27,27 +28,30 @@ describe('InputMask (base)', () => {
   });
 });
 
-describe('InputMaskField (seam)', () => {
+describe('InputMask (seam)', () => {
   it('value → рендерится в input', () => {
     const html = renderToStaticMarkup(
-      <InputMaskField value="+7 (900) 000-00-00" mask="+7 (999) 999-99-99" />
+      <Bound component={InputMask} value="+7 (900) 000-00-00" mask="+7 (999) 999-99-99" />
     );
     expect(html).toContain('value="+7 (900) 000-00-00"');
     expect(html).toContain('data-slot="input-mask"');
   });
 
   it('value=null → пустое поле', () => {
-    expect(renderToStaticMarkup(<InputMaskField value={null} />)).toContain('value=""');
-  });
-
-  it('strip control: renderer-путь не течёт в DOM', () => {
-    const html = renderToStaticMarkup(<InputMaskField value="x" control={{ id: 1 } as never} />);
-    expect(html).not.toContain('[object Object]');
+    expect(renderToStaticMarkup(<Bound component={InputMask} value={null} />)).toContain(
+      'value=""'
+    );
   });
 
   it('прокидывает aria/id на input (seam-контракт)', () => {
     const html = renderToStaticMarkup(
-      <InputMaskField value="x" id="control-a" aria-labelledby="label-a" aria-invalid />
+      <Bound
+        component={InputMask}
+        value="x"
+        id="control-a"
+        aria-labelledby="label-a"
+        aria-invalid
+      />
     );
     expect(html).toContain('id="control-a"');
     expect(html).toContain('aria-labelledby="label-a"');

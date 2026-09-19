@@ -1,22 +1,23 @@
 import type { PropsSchema } from '@/fields/props-schema';
 
 /**
- * Props-схема Calendar (field-версия single-date) — единый источник `api.controls[]` (reformer-doc)
+ * Props-схема Calendar (single-date, компонент формы `CalendarSingle`) — единый источник `api.controls[]` (reformer-doc)
  * и DSL-валидации `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки.
  *
  * `value`/`onChange` — seam (маппятся адаптером на `selected`/`onSelect`), поэтому в `x-runtimeProps`,
- * а не в `properties`. `x-registryName: 'Calendar'` — на этот вариант смотрит алиас `CalendarField`.
+ * а не в `properties`. `x-registryName: 'Calendar'` → экспорт `CalendarSingle` (`x-exportName`).
  */
 export const calendarBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'Calendar',
+  'x-exportName': 'CalendarSingle',
   properties: {
     mode: {
       type: 'string',
       enum: ['single'],
       default: 'single',
-      description: 'Режим выбора. Field-версия — только single (одна дата, value: Date | null).',
+      description: 'Режим выбора. В форме — только single (одна дата, value: Date | null).',
       'x-doc': { group: 'Behavior', type: "'single'", kind: 'enum' },
     },
     captionLayout: {

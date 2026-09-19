@@ -225,17 +225,17 @@ function FieldTooltipShell({
 }
 
 /**
- * Декоратор: добавляет примитиву проп `tooltip`. Применяется ДО `withFormControl`:
- * `withFormControl(withFieldTooltip(Input, INSIDE_INPUT), nativeInputAdapter)`.
+ * Декоратор: добавляет примитиву проп `tooltip`. Адаптер формы объявляется уже на результате:
+ * `defineFieldControl(withFieldTooltip(Input, INSIDE_INPUT), { adapter: nativeInputAdapter })`.
  *
  * - Без подсказки (нет пропа / пустая строка) рендерит голый примитив — ни хуков, ни обёртки:
  *   DOM побайтно прежний, существующие снапшоты и SSR-тесты не меняются.
- * - `ref` уходит на примитив — baseline `FieldHandle` HOC по-прежнему строится из его DOM-узла.
+ * - `ref` уходит на примитив — обёртка поля строит базовый `FieldHandle` из его DOM-узла.
  * - id скрытого текста подсказки дописывается к входящему `aria-describedby`.
- * - `displayName` примитива сохраняется: `Field(Input)` остаётся `Field(Input)`.
+ * - `displayName` примитива сохраняется.
  *
- * Дословные порты shadcn (`variants/base/*-base.tsx`) при этом не меняются — декорация живёт
- * в `*.field.tsx`, как презентационные обёртки Checkbox/Switch/RadioGroup.
+ * Тело дословного порта shadcn при этом не меняется: декоратор оборачивает его, и экспорт компонента
+ * (`Input`, `Textarea`, …) — уже декорированный.
  */
 export function withFieldTooltip<P extends object>(
   Primitive: ComponentType<P>,

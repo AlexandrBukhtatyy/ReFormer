@@ -5,7 +5,7 @@ import type { PropsSchema } from '@/fields/props-schema';
  * `componentProps` (renderer-json). Реальная поверхность в DSL — 3 ключа; `additionalProperties: false`
  * ловит опечатки (`lable` вместо `label` подмешивается враппером).
  *
- * `x-registryName: 'InputPassword'` — на эту схему смотрит алиас `InputPasswordField`.
+ * `x-registryName: 'InputPassword'` — компонент `InputPassword`.
  */
 export const inputPasswordBasePropsSchema = {
   type: 'object',

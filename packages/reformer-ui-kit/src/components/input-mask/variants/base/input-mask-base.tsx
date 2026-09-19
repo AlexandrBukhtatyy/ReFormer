@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import { Input } from '@/components/input';
+import { withFieldTooltip, INSIDE_INPUT } from '@/fields/field-tooltip';
 
 /** Props компонента {@link InputMask}. */
 export interface InputMaskProps extends Omit<
@@ -58,7 +59,7 @@ export interface InputMaskProps extends Omit<
  * />
  * ```
  */
-const InputMask = React.forwardRef<HTMLInputElement, InputMaskProps>(
+const InputMaskBase = React.forwardRef<HTMLInputElement, InputMaskProps>(
   ({ className, value, onChange, onBlur, mask, placeholder, disabled, ...props }, ref) => {
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = event.target.value;
@@ -87,6 +88,11 @@ const InputMask = React.forwardRef<HTMLInputElement, InputMaskProps>(
   }
 );
 
+/**
+ * InputMask + проп `tooltip`. Уже value-based (`value: string | null`, `onChange(string | null)`) —
+ * адаптер не нужен, в форме кладётся в `component` как есть.
+ */
+const InputMask = withFieldTooltip(InputMaskBase, INSIDE_INPUT);
 InputMask.displayName = 'InputMask';
 
 export { InputMask };

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { RadioGroup, RadioGroupItem, RadioGroupField } from './index';
+import { RadioGroup, RadioGroupItem, RadioGroupOptions } from './index';
+import { Bound } from '@/test-utils/bound';
 
 const LOAN = [
   { value: 'consumer', label: 'Потребительский' },
@@ -29,9 +30,11 @@ describe('RadioGroup (base, pure shadcn)', () => {
   });
 });
 
-describe('RadioGroupField (вариант base, рендерит options)', () => {
+describe('RadioGroupOptions (вариант base, рендерит options)', () => {
   it('рендерит по одному Item на опцию + подписи', () => {
-    const html = renderToStaticMarkup(<RadioGroupField value={null} options={LOAN} />);
+    const html = renderToStaticMarkup(
+      <Bound component={RadioGroupOptions} value={null} options={LOAN} />
+    );
     const radios = html.match(/role="radio"/g) ?? [];
     expect(radios).toHaveLength(2);
     expect(html).toContain('Потребительский');
@@ -40,14 +43,21 @@ describe('RadioGroupField (вариант base, рендерит options)', () =
 
   it('per-option data-testid = input-<field>-<value>', () => {
     const html = renderToStaticMarkup(
-      <RadioGroupField value={null} options={LOAN} data-testid="input-loanType" />
+      <Bound
+        component={RadioGroupOptions}
+        value={null}
+        options={LOAN}
+        data-testid="input-loanType"
+      />
     );
     expect(html).toContain('data-testid="input-loanType-consumer"');
     expect(html).toContain('data-testid="input-loanType-mortgage"');
   });
 
   it('value → выбран только соответствующий Item', () => {
-    const html = renderToStaticMarkup(<RadioGroupField value="mortgage" options={LOAN} />);
+    const html = renderToStaticMarkup(
+      <Bound component={RadioGroupOptions} value="mortgage" options={LOAN} />
+    );
     // из двух опций ровно одна остаётся unchecked (consumer), значит mortgage — единственный checked
     const unchecked = html.match(/data-state="unchecked"/g) ?? [];
     expect(unchecked).toHaveLength(1);
@@ -55,20 +65,16 @@ describe('RadioGroupField (вариант base, рендерит options)', () =
   });
 
   it('value=null → ничего не выбрано (нет checked)', () => {
-    const html = renderToStaticMarkup(<RadioGroupField value={null} options={LOAN} />);
-    expect(html).not.toContain('data-state="checked"');
-  });
-
-  it('strip control: renderer-путь не течёт в DOM', () => {
     const html = renderToStaticMarkup(
-      <RadioGroupField value="consumer" options={LOAN} control={{ id: 1 } as never} />
+      <Bound component={RadioGroupOptions} value={null} options={LOAN} />
     );
-    expect(html).not.toContain('[object Object]');
+    expect(html).not.toContain('data-state="checked"');
   });
 
   it('прокидывает id/aria-* на контейнер (seam-контракт)', () => {
     const html = renderToStaticMarkup(
-      <RadioGroupField
+      <Bound
+        component={RadioGroupOptions}
         value="consumer"
         options={LOAN}
         id="control-x"

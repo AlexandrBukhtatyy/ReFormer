@@ -5,24 +5,19 @@ export {
   NativeSelectOptGroup,
 } from './variants/base/native-select-base';
 
-// field-версия (options → <option>, nativeInputAdapter) + wrapper.
-export {
-  NativeSelectBaseField,
-  NativeSelectWithOptions,
-} from './variants/base/native-select-base.field';
+// with-options — select из декларативных options + проп tooltip. Компонент для формы (registry NativeSelect).
+export { NativeSelectWithOptions } from './variants/base/native-select-with-options';
 export type {
   NativeSelectWithOptionsProps,
   NativeSelectOptionItem,
-} from './variants/base/native-select-base.field';
-
-// алиас NativeSelectField (дефолтный для форм).
-export { NativeSelectBaseField as NativeSelectField } from './variants/base/native-select-base.field';
+} from './variants/base/native-select-with-options';
 
 // multi — нативный <select multiple> (value: string[] | null). Отдельная запись каталога.
 export { NativeSelectMulti } from './variants/multi/native-select-multi';
-export { NativeSelectMultiField } from './variants/multi/native-select-multi.field';
-export type { NativeSelectMultiProps } from './variants/multi/native-select-multi';
-export type { NativeSelectMultiFieldProps } from './variants/multi/native-select-multi.field';
+export type {
+  NativeSelectMultiProps,
+  NativeSelectMultiFormProps,
+} from './variants/multi/native-select-multi';
 
 // props-схемы.
 export { nativeSelectBasePropsSchema } from './variants/base/native-select-base.props';

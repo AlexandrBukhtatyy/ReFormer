@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/popover';
 // (new-york-v4 combobox.json — это demo на @base-ui, чужой стек). Собран по каноничному
 // shadcn-паттерну «триггер-кнопка с текущим label + Popover со списком Command (поиск + опции)».
 // Value-based контракт (`value: string|null` / `onChange(string|null)` / `onBlur`) — пригоден
-// для формы напрямую (см. ComboboxField).
+// для формы напрямую (`component: Combobox`).
 
 /** Опция комбобокса: `value` — хранимое значение, `label` — отображаемый и искомый текст. */
 export interface ComboboxOption {

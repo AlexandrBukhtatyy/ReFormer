@@ -23,7 +23,7 @@ describe('input-password props-схема — страж от дрейфа', () 
     expect(propKeys.filter((k) => runtimeKeys.includes(k))).toEqual([]);
   });
 
-  it('x-registryName = InputPassword (на него смотрит алиас InputPasswordField)', () => {
+  it('x-registryName = InputPassword (на него смотрит алиас InputPassword)', () => {
     expect(inputPasswordBasePropsSchema['x-registryName']).toBe('InputPassword');
   });
 

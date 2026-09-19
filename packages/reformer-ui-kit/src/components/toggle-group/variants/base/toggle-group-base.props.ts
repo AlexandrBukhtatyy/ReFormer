@@ -3,7 +3,7 @@ import type { PropsSchema } from '@/fields/props-schema';
 /**
  * Props-схема ToggleGroup — единый источник `api.controls[]` (reformer-doc) и DSL-валидации
  * `componentProps` (renderer-json). `additionalProperties: false` ловит опечатки. `x-registryName:
- * 'ToggleGroup'` — на этот вариант смотрит алиас `ToggleGroupField`.
+ * 'ToggleGroup'` → экспорт `ToggleGroupOptions` (`x-exportName`).
  *
  * `value`/`onChange` переопределяют seam под string-контракт группы (выбранное `option.value`).
  */
@@ -11,6 +11,7 @@ export const toggleGroupBasePropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'ToggleGroup',
+  'x-exportName': 'ToggleGroupOptions',
   'x-variantGroup': 'ToggleGroup',
   'x-variant': 'Один',
   properties: {

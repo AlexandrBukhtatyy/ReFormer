@@ -1,17 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Combobox } from './variants/base/combobox-base';
-import {
-  ComboboxField,
-  ComboboxBaseField,
-  ComboboxMulti,
-  ComboboxMultiField,
-  ComboboxTree,
-  ComboboxTreeField,
-  ComboboxTreeMulti,
-  ComboboxTreeMultiField,
-} from './index';
+import { Combobox, ComboboxMulti, ComboboxTree, ComboboxTreeMulti } from './index';
 import type { TreeNode } from '@/components/tree';
+import { Bound } from '@/test-utils/bound';
 
 const OPTS = [
   { value: 'a', label: 'Первый' },
@@ -68,31 +59,24 @@ describe('Combobox (вариант base)', () => {
   });
 });
 
-describe('ComboboxField (base, comboboxAdapter)', () => {
+describe('Combobox (base, comboboxAdapter)', () => {
   it('value → label выбранной опции в триггере', () => {
-    const html = renderToStaticMarkup(<ComboboxField value="a" options={OPTS} />);
+    const html = renderToStaticMarkup(<Bound component={Combobox} value="a" options={OPTS} />);
     expect(html).toContain('data-slot="popover-trigger"');
     expect(html).toContain('Первый');
   });
 
-  it('strip control: renderer-путь не течёт в DOM', () => {
-    const html = renderToStaticMarkup(
-      <ComboboxField value={null} options={OPTS} control={{ id: 1 } as never} />
-    );
-    expect(html).not.toContain('[object Object]');
-  });
-
   it('прокидывает id на триггер (seam-контракт поля)', () => {
     const html = renderToStaticMarkup(
-      <ComboboxField value={null} options={OPTS} id="control-cb" />
+      <Bound component={Combobox} value={null} options={OPTS} id="control-cb" />
     );
     expect(html).toContain('id="control-cb"');
   });
 });
 
-describe('ComboboxField алиас', () => {
-  it('ComboboxField === ComboboxBaseField (дефолтный для форм вариант)', () => {
-    expect(ComboboxField).toBe(ComboboxBaseField);
+describe('Combobox алиас', () => {
+  it('Combobox === Combobox (дефолтный для форм вариант)', () => {
+    expect(Combobox).toBe(Combobox);
   });
 });
 
@@ -159,24 +143,19 @@ describe('ComboboxMulti (вариант multi)', () => {
   });
 });
 
-describe('ComboboxMultiField (field-версия, значение string[] | null)', () => {
+describe('ComboboxMulti (field-версия, значение string[] | null)', () => {
   it('null из формы не роняет рендер — адаптер разворачивает его в []', () => {
     const html = renderToStaticMarkup(
-      <ComboboxMultiField value={null} options={MANY} placeholder="Пусто" />
+      <Bound component={ComboboxMulti} value={null} options={MANY} placeholder="Пусто" />
     );
     expect(html).toContain('Пусто');
   });
 
   it('массив из формы доезжает до контрола', () => {
-    const html = renderToStaticMarkup(<ComboboxMultiField value={['b']} options={MANY} />);
-    expect(html).toContain('Бета');
-  });
-
-  it('control (renderer-путь) не протекает в DOM', () => {
     const html = renderToStaticMarkup(
-      <ComboboxMultiField value={null} options={MANY} control={{} as never} />
+      <Bound component={ComboboxMulti} value={['b']} options={MANY} />
     );
-    expect(html).not.toContain('control=');
+    expect(html).toContain('Бета');
   });
 });
 
@@ -253,19 +232,12 @@ describe('ComboboxTree (вариант tree)', () => {
   });
 });
 
-describe('ComboboxTreeField (field-версия, значение string | null)', () => {
+describe('ComboboxTree (field-версия, значение string | null)', () => {
   it('null из формы не роняет рендер', () => {
     const html = renderToStaticMarkup(
-      <ComboboxTreeField value={null} nodes={FILES} placeholder="Пусто" />
+      <Bound component={ComboboxTree} value={null} nodes={FILES} placeholder="Пусто" />
     );
     expect(html).toContain('Пусто');
-  });
-
-  it('control (renderer-путь) не протекает в DOM', () => {
-    const html = renderToStaticMarkup(
-      <ComboboxTreeField value={null} nodes={FILES} control={{} as never} />
-    );
-    expect(html).not.toContain('control=');
   });
 });
 
@@ -303,17 +275,17 @@ describe('ComboboxTreeMulti (вариант tree-multi)', () => {
   });
 });
 
-describe('ComboboxTreeMultiField (field-версия, значение string[] | null)', () => {
+describe('ComboboxTreeMulti (field-версия, значение string[] | null)', () => {
   it('null из формы не роняет рендер — адаптер разворачивает его в []', () => {
     const html = renderToStaticMarkup(
-      <ComboboxTreeMultiField value={null} nodes={FILES} placeholder="Пусто" />
+      <Bound component={ComboboxTreeMulti} value={null} nodes={FILES} placeholder="Пусто" />
     );
     expect(html).toContain('Пусто');
   });
 
   it('массив из формы доезжает до контрола', () => {
     const html = renderToStaticMarkup(
-      <ComboboxTreeMultiField value={['src/app.tsx']} nodes={FILES} />
+      <Bound component={ComboboxTreeMulti} value={['src/app.tsx']} nodes={FILES} />
     );
     expect(html).toContain('app.tsx');
   });

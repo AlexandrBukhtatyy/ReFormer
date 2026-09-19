@@ -5,12 +5,13 @@ import type { PropsSchema } from '@/fields/props-schema';
  * DSL-валидации `componentProps` (renderer-json). Реальная поверхность в DSL — 4 ключа;
  * `additionalProperties: false` ловит опечатки (`lable` вместо `label` подмешивается враппером).
  *
- * `x-registryName: 'Select'` — на этот вариант смотрит алиас `SelectField`.
+ * `x-registryName: 'Select'` → экспорт `SelectAsync` (`x-exportName`).
  */
 export const selectAsyncPropsSchema = {
   type: 'object',
   additionalProperties: false,
   'x-registryName': 'Select',
+  'x-exportName': 'SelectAsync',
   'x-variantGroup': 'Select',
   'x-variant': 'Один',
   properties: {
