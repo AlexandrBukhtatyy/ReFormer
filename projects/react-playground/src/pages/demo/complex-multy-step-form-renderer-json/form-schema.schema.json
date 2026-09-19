@@ -45,6 +45,7 @@
       "description": "Registry component: \"$component(Name)\". Name is tightened to a registry enum by buildFormSchemaMetaSchema.",
       "enum": [
         "$component(Input)",
+        "$component(InputNumber)",
         "$component(InputPassword)",
         "$component(InputMask)",
         "$component(Textarea)",
@@ -52,6 +53,7 @@
         "$component(Checkbox)",
         "$component(RadioGroup)",
         "$component(FileUpload)",
+        "$component(FileUploadDropzone)",
         "$component(Box)",
         "$component(Section)",
         "$component(FormArray)",
