@@ -48,11 +48,14 @@ export const FormFieldControl = forwardRef<HTMLElement, FormFieldControlProps>(
       required,
       ids,
       hasDescription,
+      hasHint,
       componentProps,
     } = useFormFieldContext();
 
+    // Порядок id — как визуально: ряд подписи (hint) → описание → ошибка.
     const ariaDescribedBy =
       [
+        hasHint ? ids.hintId : null,
         hasDescription ? ids.descriptionId : null,
         shouldShowError && errors.length > 0 ? ids.errorId : null,
       ]

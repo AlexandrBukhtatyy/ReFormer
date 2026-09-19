@@ -40,8 +40,10 @@ function ctxWithErrors(errors: ValidationError[]): FormFieldContextValue {
       labelId: 'label-x',
       descriptionId: 'desc-x',
       errorId: 'error-x',
+      hintId: 'hint-x',
     },
     hasDescription: false,
+    hasHint: false,
   };
 }
 

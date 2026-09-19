@@ -58,6 +58,11 @@ export interface UseFormFieldDescriptionProps {
   id: string;
 }
 
+/** Props to spread onto a hint element (e.g. hidden text of an info tooltip) */
+export interface UseFormFieldHintProps {
+  id: string;
+}
+
 /**
  * Return type of useFormField hook
  */
@@ -70,6 +75,8 @@ export interface UseFormFieldReturn<T extends FormValue = FormValue> {
   errorProps: UseFormFieldErrorProps;
   /** Spread onto the description paragraph */
   descriptionProps: UseFormFieldDescriptionProps;
+  /** Spread onto the hint element; add `ids.hintId` to aria-describedby manually */
+  hintProps: UseFormFieldHintProps;
   /** Structured field state */
   state: UseFormFieldState<T>;
   /** Field actions */
@@ -134,6 +141,7 @@ export function useFormField<T extends FormValue>(
       labelId: `label-${baseId}`,
       descriptionId: `desc-${baseId}`,
       errorId: `error-${baseId}`,
+      hintId: `hint-${baseId}`,
     }),
     [baseId]
   );
@@ -177,6 +185,9 @@ export function useFormField<T extends FormValue>(
       },
       descriptionProps: {
         id: ids.descriptionId,
+      },
+      hintProps: {
+        id: ids.hintId,
       },
       state: {
         value: value as T,

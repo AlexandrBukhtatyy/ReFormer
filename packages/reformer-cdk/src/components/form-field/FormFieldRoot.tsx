@@ -7,7 +7,7 @@ import type { FormFieldContextValue, FormFieldIds, FormFieldRootProps } from './
 /**
  * FormField.Root - Context provider for form field compound component.
  *
- * Computes stable accessible IDs (controlId, labelId, descriptionId, errorId)
+ * Computes stable accessible IDs (controlId, labelId, descriptionId, errorId, hintId)
  * and provides all field state to child FormField.* components.
  *
  * @example Minimal usage
@@ -28,12 +28,22 @@ import type { FormFieldContextValue, FormFieldIds, FormFieldRootProps } from './
  *   <FormField.Error />
  * </FormField.Root>
  * ```
+ *
+ * @example With hint (e.g. info-tooltip text; pass hasHint to auto-wire aria-describedby)
+ * ```tsx
+ * <FormField.Root control={control.email} hasHint>
+ *   <FormField.Label />
+ *   <FormField.Hint hidden>Shown in a tooltip next to the label</FormField.Hint>
+ *   <FormField.Control />
+ * </FormField.Root>
+ * ```
  */
 function FormFieldRoot<T extends FormValue>({
   control,
   children,
   id,
   hasDescription = false,
+  hasHint = false,
 }: FormFieldRootProps<T>) {
   const reactId = useId();
   const baseId = id ?? reactId;
@@ -44,6 +54,7 @@ function FormFieldRoot<T extends FormValue>({
       labelId: `label-${baseId}`,
       descriptionId: `desc-${baseId}`,
       errorId: `error-${baseId}`,
+      hintId: `hint-${baseId}`,
     }),
     [baseId]
   );
@@ -82,8 +93,9 @@ function FormFieldRoot<T extends FormValue>({
       control,
       ids,
       hasDescription,
+      hasHint,
     };
-  }, [raw, control, ids, hasDescription, resolve]);
+  }, [raw, control, ids, hasDescription, hasHint, resolve]);
 
   return <FormFieldContext.Provider value={contextValue}>{children}</FormFieldContext.Provider>;
 }

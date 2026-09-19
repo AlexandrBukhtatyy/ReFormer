@@ -13,6 +13,8 @@ export interface FormFieldIds {
   descriptionId: string;
   /** ID placed on the first error paragraph */
   errorId: string;
+  /** ID placed on the hint element (FormField.Hint), e.g. the text of an info tooltip */
+  hintId: string;
 }
 
 /**
@@ -41,6 +43,8 @@ export interface FormFieldContextValue<T extends FormValue = FormValue> {
   ids: FormFieldIds;
   /** Whether a FormField.Description is present (drives aria-describedby on Control) */
   hasDescription: boolean;
+  /** Whether a FormField.Hint is present (drives aria-describedby on Control) */
+  hasHint: boolean;
 }
 
 /**
@@ -59,6 +63,13 @@ export interface FormFieldRootProps<T extends FormValue = FormValue> {
    * @default false
    */
   hasDescription?: boolean;
+  /**
+   * Set to true when the field renders a FormField.Hint element so that
+   * FormField.Control automatically adds its id to aria-describedby.
+   * Mirror of `hasDescription`: the id must never dangle, so wiring is opt-in.
+   * @default false
+   */
+  hasHint?: boolean;
 }
 
 /**
@@ -132,6 +143,14 @@ export interface FormFieldDescriptionProps extends Omit<
   HTMLAttributes<HTMLParagraphElement>,
   'id'
 > {
+  asChild?: boolean;
+  children: ReactNode;
+}
+
+/**
+ * Props for FormField.Hint
+ */
+export interface FormFieldHintProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'id'> {
   asChild?: boolean;
   children: ReactNode;
 }

@@ -3,6 +3,7 @@ import { FormFieldLabel } from './FormFieldLabel';
 import { FormFieldControl } from './FormFieldControl';
 import { FormFieldError } from './FormFieldError';
 import { FormFieldDescription } from './FormFieldDescription';
+import { FormFieldHint } from './FormFieldHint';
 
 /**
  * Compound component type with all sub-components attached
@@ -13,6 +14,7 @@ type FormFieldComponent = typeof FormFieldRoot & {
   Control: typeof FormFieldControl;
   Error: typeof FormFieldError;
   Description: typeof FormFieldDescription;
+  Hint: typeof FormFieldHint;
 };
 
 /**
@@ -34,6 +36,7 @@ type FormFieldComponent = typeof FormFieldRoot & {
  * - `FormField.Control` — auto-renders `control.component` or wraps custom children
  * - `FormField.Error` — error message with `role="alert"`, supports multi-error
  * - `FormField.Description` — helper text with stable `id` for `aria-describedby`
+ * - `FormField.Hint` — auxiliary description (e.g. info-tooltip text) with stable `id` for `aria-describedby`
  *
  * @example Minimal (auto-renders everything from field config)
  * ```tsx
@@ -112,3 +115,4 @@ FormField.Label = FormFieldLabel;
 FormField.Control = FormFieldControl;
 FormField.Error = FormFieldError;
 FormField.Description = FormFieldDescription;
+FormField.Hint = FormFieldHint;

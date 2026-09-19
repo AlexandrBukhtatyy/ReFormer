@@ -47,8 +47,10 @@ function makeCtx(overrides: Partial<FormFieldContextValue> = {}): {
       labelId: 'label-x',
       descriptionId: 'desc-x',
       errorId: 'error-x',
+      hintId: 'hint-x',
     },
     hasDescription: false,
+    hasHint: false,
     ...overrides,
   };
   return { ctx, setValue, markAsTouched };
@@ -103,5 +105,45 @@ describe('FormField.Control — asChild wiring (#48)', () => {
     expect(captured.id).toBe('control-x');
     expect(captured['aria-labelledby']).toBe('label-x');
     expect(captured['aria-required']).toBe(true);
+  });
+});
+
+describe('FormField.Control — aria-describedby', () => {
+  const error = { code: 'required', message: 'Обязательное поле' };
+
+  it('без описания, подсказки и ошибки атрибут не выставляется', () => {
+    const { ctx } = makeCtx();
+    expect(renderCapturingChild(ctx)['aria-describedby']).toBeUndefined();
+  });
+
+  it('hasHint добавляет ids.hintId', () => {
+    const { ctx } = makeCtx({ hasHint: true });
+    expect(renderCapturingChild(ctx)['aria-describedby']).toBe('hint-x');
+  });
+
+  it('порядок id — подсказка, описание, ошибка', () => {
+    const { ctx } = makeCtx({
+      hasHint: true,
+      hasDescription: true,
+      shouldShowError: true,
+      errors: [error],
+    });
+    expect(renderCapturingChild(ctx)['aria-describedby']).toBe('hint-x desc-x error-x');
+  });
+
+  it('авто-рендер control.component получает тот же aria-describedby', () => {
+    const box: { props: Record<string, unknown> } = { props: {} };
+    const Auto = (props: Record<string, unknown>) => {
+      box.props = props;
+      return null;
+    };
+    const { ctx } = makeCtx({ hasHint: true, hasDescription: true });
+    const control = { ...ctx.control, component: Auto } as unknown as FieldNode<FormValue>;
+    renderToStaticMarkup(
+      <FormFieldContext.Provider value={{ ...ctx, control }}>
+        <FormFieldControl />
+      </FormFieldContext.Provider>
+    );
+    expect(box.props['aria-describedby']).toBe('hint-x desc-x');
   });
 });

@@ -7,6 +7,7 @@ export { FormFieldLabel } from './FormFieldLabel';
 export { FormFieldControl } from './FormFieldControl';
 export { FormFieldError } from './FormFieldError';
 export { FormFieldDescription } from './FormFieldDescription';
+export { FormFieldHint } from './FormFieldHint';
 
 // Hook (primary standalone API for power users)
 export { useFormField } from './useFormField';
@@ -17,6 +18,7 @@ export type {
   UseFormFieldControlProps,
   UseFormFieldErrorProps,
   UseFormFieldDescriptionProps,
+  UseFormFieldHintProps,
 } from './useFormField';
 
 // Context and context hook
@@ -31,4 +33,5 @@ export type {
   FormFieldControlProps,
   FormFieldErrorProps,
   FormFieldDescriptionProps,
+  FormFieldHintProps,
 } from './types';
