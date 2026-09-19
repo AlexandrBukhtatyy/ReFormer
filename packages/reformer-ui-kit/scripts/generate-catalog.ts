@@ -73,6 +73,9 @@ const NON_PALETTE_DIRS = new Set([
   'seam',
   'field',
   'form-field',
+  // info-hint — строительный блок подсказок полей (`labelTooltip`/`tooltip`), в форме его рисуют
+  // FormField и сами контролы; отдельным узлом палитры не идёт.
+  'info-hint',
   'form-array',
   'form-wizard',
   'list',

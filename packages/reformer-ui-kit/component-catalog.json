@@ -3664,6 +3664,14 @@
               "kind": "readonly"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "lang": {
             "type": "string",
             "description": "Языковой тег контейнера; без него берётся код активной локали.",
@@ -4005,6 +4013,14 @@
               "group": "State",
               "type": "Date",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "useAdditionalDayOfYearTokens": {
@@ -5691,6 +5707,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "onCheckedChange": {
             "description": "Эмиттер отметки (контракт Radix Root): `true`, `false` или `'indeterminate'`; в field-версии сюда checkedAdapter кладёт onChange формы, приводя `'indeterminate'` к `false`.",
             "x-doc": {
@@ -5715,6 +5739,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -5820,6 +5852,14 @@
             "x-doc": {
               "group": "State",
               "type": "boolean"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Текст подсказки-тултипа у иконки (i) в самом контроле.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
             }
           }
         },
@@ -6065,6 +6105,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "options": {
             "type": "array",
             "description": "Список опций { value, label }. Поиск идёт по label.",
@@ -6121,6 +6169,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -6225,6 +6281,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "maxItems": {
             "type": "number",
             "description": "Потолок числа выбранных: по достижении невыбранные пункты выключаются. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
@@ -6300,6 +6364,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -6402,6 +6474,14 @@
           "label": {
             "type": "string",
             "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
@@ -6522,6 +6602,14 @@
               "type": "string",
               "kind": "readonly"
             }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false,
@@ -6628,6 +6716,14 @@
           "label": {
             "type": "string",
             "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
@@ -6768,6 +6864,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -8437,6 +8541,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "placeholder": {
             "type": "string",
             "default": "Выберите дату",
@@ -8471,6 +8583,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "variant": {
@@ -11390,6 +11510,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "maxFiles": {
             "type": "number",
             "description": "Максимум файлов в списке (действует при multiple).",
@@ -11501,6 +11629,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "validate": {
@@ -11652,6 +11788,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "maxFileSize": {
             "type": "number",
             "description": "Максимальный размер файла, байты.",
@@ -11744,6 +11888,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "validate": {
@@ -11998,6 +12150,14 @@
               "type": "boolean"
             }
           },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле (не путать с текстовым `hint`).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
           "uploader": {
             "description": "Загрузчик immediate-режима: задан — файлы уходят на сервер при выборе и значением поля становятся дескрипторы `RemoteFileRef`; не задан — значение остаётся `File[]`, а отправка на консументе.",
             "x-doc": {
@@ -12230,6 +12390,14 @@
               "type": "boolean"
             }
           },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле (не путать с текстовым `hint`).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
           "uploader": {
             "description": "Загрузчик immediate-режима: задан — файлы уходят на сервер при выборе и значением поля становятся дескрипторы `RemoteFileRef`; не задан — значение остаётся `File[]`, а отправка на консументе.",
             "x-doc": {
@@ -12460,6 +12628,14 @@
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле (не путать с текстовым `hint`).",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
             }
           },
           "uploader": {
@@ -13440,6 +13616,71 @@
       }
     },
     {
+      "name": "InfoHint",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "Доп. CSS-класс кнопки — обычно позиционирование иконки поверх контрола.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "content": {
+            "type": "string",
+            "description": "Текст подсказки. Пустая строка — компонент ничего не рендерит.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "delayDuration": {
+            "type": "number",
+            "default": 150,
+            "description": "Задержка показа по наведению, мс. По умолчанию `150` — без неё тултип мигает при проезде курсора.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "number"
+            }
+          },
+          "descriptionId": {
+            "type": "string",
+            "description": "id скрытого дубля текста. Контент Radix Tooltip живёт в Portal и отсутствует в DOM, пока тултип закрыт, — сослаться на него из `aria-describedby` контрола нельзя (висячий IDREF). Дубль `hidden`: по ссылке он участвует в описании контрола, но не читается повторно и не влияет на раскладку.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "side": {
+            "type": "string",
+            "enum": ["top", "bottom", "left", "right"],
+            "default": "top",
+            "description": "Сторона показа тултипа. По умолчанию `'top'`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "'top' | 'bottom' | 'left' | 'right'"
+            }
+          }
+        },
+        "x-inherits": {
+          "react": [
+            "AriaAttributes",
+            "Attributes",
+            "ButtonHTMLAttributes",
+            "DOMAttributes",
+            "HTMLAttributes",
+            "RefAttributes"
+          ],
+          "packages": []
+        }
+      },
+      "palette": false
+    },
+    {
       "name": "Input",
       "role": "field",
       "exportName": "InputField",
@@ -13466,6 +13707,14 @@
           "label": {
             "type": "string",
             "description": "Подпись поля (рендерит FormField.Label).",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
             "x-doc": {
               "group": "Textfield",
               "type": "string"
@@ -13575,6 +13824,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "type": {
@@ -13890,6 +14147,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "mask": {
             "type": "string",
             "description": "Шаблон маски-подсказки: '9' — цифра, прочие символы — литералы (уходят в placeholder). Напр. '+7 (999) 999-99-99'. Автовставки литералов нет — компонент только помечает формат.",
@@ -13931,6 +14196,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -14015,6 +14288,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "maxLength": {
             "type": "number",
             "description": "Число слотов (длина кода). Дефолтная раскладка разворачивает одну группу из maxLength слотов.",
@@ -14091,6 +14372,14 @@
             "x-doc": {
               "group": "Behavior",
               "type": "'left' | 'center' | 'right'"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -14265,6 +14554,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "placeholder": {
             "type": "string",
             "default": "Password",
@@ -14308,6 +14605,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -16645,6 +16950,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "options": {
             "type": "array",
             "items": {
@@ -16704,6 +17017,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -16788,6 +17109,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "maxItems": {
             "type": "number",
             "description": "Потолок числа выбранных: по достижении невыбранные опции выключаются. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
@@ -16847,6 +17176,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -18319,6 +18656,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "loop": {
             "type": "boolean",
             "description": "Зацикливает переход стрелками с последнего варианта на первый (в Radix включено по умолчанию).",
@@ -18355,13 +18700,16 @@
                 },
                 "label": {
                   "type": "string"
+                },
+                "tooltip": {
+                  "type": "string"
                 }
               }
             },
-            "description": "Варианты выбора. Каждый рендерится как radio + подпись справа.",
+            "description": "Варианты выбора. Каждый рендерится как radio + подпись справа; `tooltip` — иконка-подсказка (i) после подписи варианта.",
             "x-doc": {
               "group": "Options",
-              "type": "Array<{ value; label }>",
+              "type": "Array<{ value; label; tooltip? }>",
               "kind": "readonly"
             }
           },
@@ -18390,6 +18738,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -19318,6 +19674,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "name": {
             "type": "string",
             "description": "Имя поля для нативной отправки формы — под ним значение попадёт в FormData.",
@@ -19392,6 +19756,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -19572,6 +19944,14 @@
               "group": "Options",
               "type": "ResourceConfig<unknown>",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) внутри поля: правее крестика очистки, левее шеврона.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
             }
           },
           "value": {
@@ -19984,6 +20364,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "maxItems": {
             "type": "number",
             "description": "Потолок числа выбранных: по достижении невыбранные пункты выключаются. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
@@ -20087,6 +20475,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -21947,6 +22343,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "max": {
             "type": "number",
             "default": 100,
@@ -22031,6 +22435,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -22236,6 +22648,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "onCheckedChange": {
             "description": "Эмиттер нового состояния переключателя (boolean, контракт Radix Root); в field-версии сюда checkedAdapter кладёт onChange формы.",
             "x-doc": {
@@ -22270,6 +22690,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -22841,6 +23269,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "maxLength": {
             "type": "number",
             "description": "Максимальная длина ввода (HTML-атрибут maxLength). Не заменяет валидацию.",
@@ -22890,6 +23326,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           }
         },
@@ -23162,6 +23606,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "onPressedChange": {
             "description": "The callback that fires when the state of the toggle changes.",
             "x-doc": {
@@ -23205,6 +23657,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "variant": {
@@ -23316,6 +23776,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "loop": {
             "type": "boolean",
             "description": "Зацикливать перемещение фокуса стрелками — с последней кнопки на первую и обратно.",
@@ -23406,6 +23874,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "type": {
@@ -23575,6 +24051,14 @@
               "type": "string"
             }
           },
+          "labelTooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
+            }
+          },
           "maxItems": {
             "type": "number",
             "description": "Потолок числа выбранных: по достижении невыбранные кнопки выключаются. Подсказка интерфейса, а не правило формы — ограничение задавайте валидатором maxLength(n).",
@@ -23631,6 +24115,14 @@
               "group": "Behavior",
               "type": "string",
               "kind": "readonly"
+            }
+          },
+          "tooltip": {
+            "type": "string",
+            "description": "Подсказка-тултип у иконки (i) в самом контроле: у полей ввода и селектов — внутри справа (правее крестика очистки, левее шеврона/глаза), у Checkbox/Switch — после текста, у остальных — справа от контрола.",
+            "x-doc": {
+              "group": "Textfield",
+              "type": "string"
             }
           },
           "variant": {

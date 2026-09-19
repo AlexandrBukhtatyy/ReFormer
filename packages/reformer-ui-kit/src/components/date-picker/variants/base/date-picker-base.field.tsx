@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { withFormControl } from '@/fields/with-form-control';
 import { dateAdapter } from '@/fields/adapters';
+import { withFieldTooltip, INSIDE_BUTTON } from '@/fields/field-tooltip';
 import { DatePicker, type DatePickerProps, type DatePickerHandle } from './date-picker-base';
 
 /**
@@ -37,6 +38,10 @@ DatePickerControlled.displayName = 'DatePickerControlled';
  * `exposesHandle: true` — DatePicker сам реализует {@link DatePickerHandle}, ref форвардится
  * через мост прямо в него (passthrough).
  */
-export const DatePickerBaseField = withFormControl(DatePickerControlled, dateAdapter, {
-  exposesHandle: true,
-});
+export const DatePickerBaseField = withFormControl(
+  withFieldTooltip(DatePickerControlled, INSIDE_BUTTON),
+  dateAdapter,
+  {
+    exposesHandle: true,
+  }
+);

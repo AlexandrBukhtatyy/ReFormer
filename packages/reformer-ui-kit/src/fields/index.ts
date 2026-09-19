@@ -32,6 +32,28 @@
 export { withFormControl } from './with-form-control';
 export type { FieldAdapter, WithFormControlOptions } from './with-form-control';
 
+// Подсказка-иконка (i) у контрола — проп `tooltip`: декоратор для примитивов и хук для композитов.
+export {
+  withFieldTooltip,
+  useFieldTooltip,
+  mergeIds,
+  INSIDE_INPUT,
+  INSIDE_TEXTAREA,
+  INSIDE_NATIVE_SELECT,
+  INSIDE_BUTTON,
+  OUTSIDE_CENTER,
+  OUTSIDE_START,
+  OUTSIDE_START_GROUP,
+  OUTSIDE_FILL,
+  OUTSIDE_FILL_START,
+} from './field-tooltip';
+export type {
+  FieldTooltipProps,
+  FieldTooltipPlacement,
+  UseFieldTooltipOptions,
+  UseFieldTooltipResult,
+} from './field-tooltip';
+
 // Императивный handle поля.
 export { makeElementFieldHandle } from './field-handle';
 export type { FieldHandle } from './field-handle';

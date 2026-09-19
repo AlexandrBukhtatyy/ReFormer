@@ -34,6 +34,12 @@ describe('withFormControl — forwardRef + baseline handle', () => {
     expect(html).not.toContain('[object Object]');
   });
 
+  it('SSR: labelTooltip (его рисует FormField) снимается, не течёт в DOM', () => {
+    const html = renderToStaticMarkup(<Field value="x" labelTooltip="Подсказка у подписи" />);
+    expect(html.toLowerCase()).not.toContain('labeltooltip');
+    expect(html).not.toContain('Подсказка у подписи');
+  });
+
   it('SSR: aria/id прокидываются на примитив (seam-контракт)', () => {
     const html = renderToStaticMarkup(
       <Field value="x" id="control-a" aria-labelledby="label-a" aria-invalid />

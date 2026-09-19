@@ -1,5 +1,6 @@
 import type { JSONSchema7 } from 'json-schema';
 import { seamRuntimeProps } from './seam.props';
+import { fieldCommonPropsSchema } from './field-common.props';
 import { fieldWrapperPropsSchema } from '../components/form-field/form-field.props';
 
 /**
@@ -67,7 +68,8 @@ export type PropsSchema = Omit<
 };
 
 /**
- * Полная схема `componentProps` field-ноды: контракт враппера + seam + вариант.
+ * Полная схема `componentProps` field-ноды: контракт враппера + общие props контролов (`tooltip`)
+ * + seam + вариант.
  *
  * Именно структурный merge `properties`, а НЕ `allOf: [wrapper, variant]`: в draft-07
  * `additionalProperties` смотрит только на `properties` СВОЕЙ схемы → в `allOf` каждая ветка
@@ -77,7 +79,11 @@ export function mergeFieldPropsSchema(variantSchema: PropsSchema): PropsSchema {
   const strict = variantSchema.additionalProperties === false;
   return {
     type: 'object',
-    properties: { ...fieldWrapperPropsSchema.properties, ...variantSchema.properties },
+    properties: {
+      ...fieldWrapperPropsSchema.properties,
+      ...fieldCommonPropsSchema.properties,
+      ...variantSchema.properties,
+    },
     ...(strict ? { additionalProperties: false } : {}),
     // Вариант переопределяет value/onChange под свой адаптер — его спред идёт последним.
     'x-runtimeProps': { ...seamRuntimeProps, ...variantSchema['x-runtimeProps'] },

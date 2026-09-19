@@ -4,6 +4,12 @@ import { Select as SelectPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import {
+  useFieldTooltip,
+  SELECT_VALUE_RESERVE,
+  TRAILING_CLEAR,
+  TRAILING_CLUSTER,
+} from '@/fields/field-tooltip';
 // Стратегии, поиск и пагинация живут в `use-resource-options` (React-обёртка над чистым
 // редьюсером `select-resource`): их делит с мульти-вариантом, который Radix Select не использует.
 import { useResourceOptions } from './use-resource-options';
@@ -48,6 +54,8 @@ export interface SelectAsyncProps extends Omit<
   disabled?: boolean;
   /** Показывать ли кнопку очистки (X) справа от значения. По умолчанию `false`. */
   clearable?: boolean;
+  /** Подсказка-тултип у иконки (i) внутри поля: правее крестика очистки, левее шеврона. */
+  tooltip?: string;
 }
 
 /**
@@ -96,6 +104,7 @@ const SelectAsync = React.forwardRef<
       placeholder,
       disabled,
       clearable = false,
+      tooltip,
       id,
       'data-testid': dataTestId,
       'aria-invalid': ariaInvalid,
@@ -167,6 +176,10 @@ const SelectAsync = React.forwardRef<
 
     const showClearButton = clearable && value && !disabled && !initialLoading;
 
+    // Правая зона — кластер [крестик][(i)] левее шеврона (он flex-ребёнок триггера и остаётся у края).
+    const hint = useFieldTooltip(tooltip, { id, describedBy: ariaDescribedBy, testId: dataTestId });
+    const trailingCount = (showClearButton ? 1 : 0) + (hint.node ? 1 : 0);
+
     const searchHeader = showSearch ? (
       <div className="sticky top-0 z-10 border-b bg-popover p-1">
         <input
@@ -198,13 +211,15 @@ const SelectAsync = React.forwardRef<
         >
           <SelectTrigger
             ref={triggerRef}
-            className={cn('w-full', className, showClearButton && 'pr-9')}
+            // Резерв под кластер — margin значения, а не padding: при overflow:hidden текст клипуется
+            // по padding-box и залез бы под иконки. select-base.tsx (дословный порт) не трогаем.
+            className={cn('w-full', className, SELECT_VALUE_RESERVE[trailingCount])}
             disabled={initialLoading}
             id={id}
             data-testid={dataTestId}
             aria-invalid={ariaInvalid}
             aria-labelledby={ariaLabelledBy}
-            aria-describedby={ariaDescribedBy}
+            aria-describedby={hint.describedBy}
             aria-errormessage={ariaErrorMessage}
             aria-required={ariaRequired}
           >
@@ -270,16 +285,21 @@ const SelectAsync = React.forwardRef<
           </SelectContent>
         </SelectPrimitive.Root>
 
-        {showClearButton && (
-          <button
-            type="button"
-            className="absolute right-3 top-1/2 -translate-y-1/2 transform cursor-pointer border-none bg-transparent p-0 text-muted-foreground transition-colors hover:text-foreground focus:outline-none z-10"
-            onClick={handleClear}
-            aria-label="Clear selection"
-            tabIndex={-1}
-          >
-            <XIcon className="size-4" />
-          </button>
+        {trailingCount > 0 && (
+          <div data-slot="select-trailing" className={TRAILING_CLUSTER}>
+            {showClearButton && (
+              <button
+                type="button"
+                className={TRAILING_CLEAR}
+                onClick={handleClear}
+                aria-label="Clear selection"
+                tabIndex={-1}
+              >
+                <XIcon className="size-4" />
+              </button>
+            )}
+            {hint.node}
+          </div>
         )}
       </div>
     );

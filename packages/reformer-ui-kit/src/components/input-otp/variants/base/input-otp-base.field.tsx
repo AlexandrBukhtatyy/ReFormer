@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import { withFormControl, type FieldAdapter } from '@/fields/with-form-control';
+import { withFieldTooltip, OUTSIDE_CENTER } from '@/fields/field-tooltip';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from './input-otp-base';
 
 /**
@@ -50,4 +51,7 @@ function InputOTPDefault(props: InputOTPDefaultProps) {
 }
 
 /** OTP-поле: `InputOTP` (дефолтная раскладка слотов) + строковый `otpAdapter`. Алиас `InputOTPField`. */
-export const InputOTPBaseField = withFormControl(InputOTPDefault, otpAdapter);
+export const InputOTPBaseField = withFormControl(
+  withFieldTooltip(InputOTPDefault, OUTSIDE_CENTER),
+  otpAdapter
+);

@@ -1,5 +1,6 @@
 import { withFormControl } from '@/fields/with-form-control';
 import { sliderAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_FILL } from '@/fields/field-tooltip';
 import { Slider } from './slider-base';
 
 /**
@@ -25,4 +26,7 @@ export interface SliderFieldProps {
  * `fromEmit: arr => arr[0] ?? null`. НЕ inline-раскладка — верхнюю подпись рисует FormField
  * (маркер `reformerLayout` не ставится). Экспортируется как алиас `SliderField`.
  */
-export const SliderBaseField = withFormControl(Slider, sliderAdapter);
+export const SliderBaseField = withFormControl(
+  withFieldTooltip(Slider, OUTSIDE_FILL),
+  sliderAdapter
+);

@@ -8,6 +8,7 @@ import {
 import { useValidationErrorResolver } from '@reformer/cdk';
 
 import { cn } from '@/lib/utils';
+import { useFieldTooltip } from '@/fields/field-tooltip';
 import { makeElementFieldHandle } from '@/fields/field-handle';
 import {
   splitFileUploadProps,
@@ -101,7 +102,13 @@ export function FileUploadAvatar({
   shape = 'circle',
   ...props
 }: FileUploadAvatarProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> }) {
-  const { options, label, invalid, className, id, rest } = splitFileUploadProps(props);
+  const { options, label, tooltip, invalid, className, id, rest } = splitFileUploadProps(props);
+
+  const tooltipHint = useFieldTooltip(tooltip, {
+    id,
+    describedBy: rest['aria-describedby'] as string | undefined,
+    testId: rest['data-testid'] as string | undefined,
+  });
   const cdkOptions = { ...options, accept: options.accept ?? 'image/*', multiple: false };
 
   const cdkRef = React.useRef<FileUploadHandle>(null);
@@ -118,7 +125,7 @@ export function FileUploadAvatar({
     []
   );
 
-  return (
+  const avatar = (
     <div
       data-slot="file-upload"
       data-variant="avatar"
@@ -133,6 +140,7 @@ export function FileUploadAvatar({
           // Явный `invalid` — до rest: aria-invalid от FormField (ошибка валидации) главнее.
           aria-invalid={invalid || undefined}
           {...rest}
+          aria-describedby={tooltipHint.describedBy}
           className={cn(
             'relative flex size-20 cursor-pointer items-center justify-center overflow-hidden border-2 border-dashed border-input bg-muted transition-colors outline-none',
             shape === 'circle' ? 'rounded-full' : 'rounded-xl',
@@ -146,6 +154,16 @@ export function FileUploadAvatar({
         </CdkFileUpload.Dropzone>
         <AvatarDeleteButton />
       </CdkFileUpload.Root>
+    </div>
+  );
+
+  if (!tooltipHint.node) return avatar;
+
+  // Снаружи корня `relative w-fit`: внутри иконка сбила бы позицию кнопки удаления.
+  return (
+    <div data-slot="field-tooltip" className="flex w-fit items-start gap-2">
+      {avatar}
+      {tooltipHint.node}
     </div>
   );
 }

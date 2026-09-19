@@ -21,10 +21,12 @@ export const radioGroupBasePropsSchema = {
         properties: {
           value: { type: 'string' },
           label: { type: 'string' },
+          tooltip: { type: 'string' },
         },
       },
-      description: 'Варианты выбора. Каждый рендерится как radio + подпись справа.',
-      'x-doc': { group: 'Options', type: 'Array<{ value; label }>', kind: 'readonly' },
+      description:
+        'Варианты выбора. Каждый рендерится как radio + подпись справа; `tooltip` — иконка-подсказка (i) после подписи варианта.',
+      'x-doc': { group: 'Options', type: 'Array<{ value; label; tooltip? }>', kind: 'readonly' },
     },
     className: {
       type: 'string',

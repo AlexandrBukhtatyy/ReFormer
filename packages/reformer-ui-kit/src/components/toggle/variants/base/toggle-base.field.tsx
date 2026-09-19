@@ -2,6 +2,7 @@ import type * as React from 'react';
 
 import { withFormControl } from '@/fields/with-form-control';
 import { pressedAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_CENTER } from '@/fields/field-tooltip';
 import { Toggle } from './toggle-base';
 
 /**
@@ -32,4 +33,7 @@ export interface ToggleFieldProps {
  * (`componentProps.label` → FormField.Label), а контент toggle (`children`) живёт ВНУТРИ кнопки.
  * Поэтому маркер `reformerLayout='inline-label'` НЕ ставится (иначе верхняя подпись пропала бы).
  */
-export const ToggleBaseField = withFormControl(Toggle, pressedAdapter);
+export const ToggleBaseField = withFormControl(
+  withFieldTooltip(Toggle, OUTSIDE_CENTER),
+  pressedAdapter
+);

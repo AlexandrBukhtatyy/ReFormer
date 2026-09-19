@@ -3,6 +3,7 @@ import type { PropsBase, PropsSingle } from 'react-day-picker';
 
 import { withFormControl } from '@/fields/with-form-control';
 import { dateAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_START_GROUP } from '@/fields/field-tooltip';
 import { Calendar } from './calendar-base';
 
 /**
@@ -30,4 +31,7 @@ CalendarSingle.displayName = 'CalendarSingle';
  * Field-версия single-date Calendar: pure Calendar(mode=single) + {@link dateAdapter}
  * (`selected`/`onSelect` ↔ `value: Date | null`). HOC отбрасывает `control` (renderer-путь).
  */
-export const CalendarBaseField = withFormControl(CalendarSingle, dateAdapter);
+export const CalendarBaseField = withFormControl(
+  withFieldTooltip(CalendarSingle, OUTSIDE_START_GROUP),
+  dateAdapter
+);

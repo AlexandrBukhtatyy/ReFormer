@@ -10,6 +10,35 @@
 | `RadioGroup` | `string \| null` | `string` (ровно один из `options`)        |
 | `Select`     | `string \| null` | `string \| null` (`null` при `clearable`) |
 
+## Подсказка-иконка (i) — `tooltip`
+
+Поля выбора принимают `tooltip: string` — иконку (i) с тултипом в самом контроле:
+
+| Поле                                                     | Где иконка                                                                                                |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `Checkbox`, `Switch`                                     | После текста подписи, снаружи `<label>` — клик по иконке контрол не переключает.                          |
+| `RadioGroup`                                             | У каждого варианта — `options: [{ value, label, tooltip }]`, после его подписи. Групповой — справа.       |
+| `Select`, `SelectMulti`                                  | Внутри триггера: **крестик очистки → (i) → шеврон**. Шеврон остаётся у края, текст под иконки не заходит. |
+| `Combobox` (все 4 варианта)                              | То же, что у `Select`.                                                                                    |
+| `NativeSelect`                                           | Внутри, левее шеврона.                                                                                    |
+| `ToggleGroup`, `NativeSelectMulti`, `Slider`, `Calendar` | Справа от контрола.                                                                                       |
+
+```tsx
+<SelectField value={city} onChange={setCity} options={cities} clearable tooltip="Город регистрации" />
+
+<RadioGroupField
+  value={plan}
+  onChange={setPlan}
+  options={[
+    { value: 'basic', label: 'Базовый', tooltip: 'До 3 пользователей' },
+    { value: 'pro', label: 'Профи' },
+  ]}
+/>
+```
+
+Иконка у ПОДПИСИ поля — отдельный проп `labelTooltip`, его рисует `FormField`
+(см. [05-form-field-integration.md](05-form-field-integration.md)).
+
 ## Checkbox
 
 ### API
@@ -90,6 +119,7 @@ type="checkbox">`) — у field-версии пропа `checked` нет, нуж
 interface RadioOption {
   value: string;
   label: string;
+  tooltip?: string; // иконка (i) после подписи варианта
 }
 
 interface RadioGroupProps {
@@ -220,15 +250,15 @@ interface SelectProps<T> {
 }
 ```
 
-| Prop          | Тип                               | Default                 | Описание                                                                                                                                        |
-| ------------- | --------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`. |
-| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `Select` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`.                |
-| `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                           |
-| `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                   |
-| `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                           |
-| `clearable`   | `boolean`                         | `false`                 | Показать кнопку очистки справа от значения (только когда `value` непустой).                                                                     |
-| `disabled`    | `boolean`                         | `false`                 | Блокирует выбор.                                                                                                                                |
+| Prop          | Тип                               | Default                 | Описание                                                                                                                                                                                                          |
+| ------------- | --------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`.                                                                   |
+| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `Select` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`. |
+| `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                                                                                             |
+| `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                                                                                     |
+| `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                                                                                             |
+| `clearable`   | `boolean`                         | `false`                 | Показать кнопку очистки справа от значения (только когда `value` непустой).                                                                                                                                       |
+| `disabled`    | `boolean`                         | `false`                 | Блокирует выбор.                                                                                                                                                                                                  |
 
 ### Sub-components
 
@@ -380,13 +410,13 @@ const form = createForm<{ city: string }>({ model, schema });
 одиночных: тип значения другой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у
 `FileUpload` / `FileUploadAvatar`).
 
-| Field-компонент          | На чём построен                        | Когда брать                                                       |
-| ------------------------ | -------------------------------------- | ----------------------------------------------------------------- |
-| `ToggleGroupMulti`       | Radix ToggleGroup `type="multiple"`     | 2–7 вариантов, все видны сразу                                    |
-| `ComboboxMulti`          | Popover + Command (cmdk) + Badge        | длинный список с поиском; есть `creatable`                        |
-| `SelectMulti`            | Popover + свой listbox                  | длинный список, в т.ч. асинхронный (`resource`); **без cmdk**     |
-| `NativeSelectMulti`      | нативный `<select multiple>`            | no-JS / legacy / киоски. **Не для тач-устройств**                 |
-| `ComboboxTreeMulti`      | Popover + `Tree` кита; **без cmdk**     | значения лежат в иерархии: файлы, разделы каталога                |
+| Field-компонент     | На чём построен                     | Когда брать                                                   |
+| ------------------- | ----------------------------------- | ------------------------------------------------------------- |
+| `ToggleGroupMulti`  | Radix ToggleGroup `type="multiple"` | 2–7 вариантов, все видны сразу                                |
+| `ComboboxMulti`     | Popover + Command (cmdk) + Badge    | длинный список с поиском; есть `creatable`                    |
+| `SelectMulti`       | Popover + свой listbox              | длинный список, в т.ч. асинхронный (`resource`); **без cmdk** |
+| `NativeSelectMulti` | нативный `<select multiple>`        | no-JS / legacy / киоски. **Не для тач-устройств**             |
+| `ComboboxTreeMulti` | Popover + `Tree` кита; **без cmdk** | значения лежат в иерархии: файлы, разделы каталога            |
 
 ### Единый контракт значения
 

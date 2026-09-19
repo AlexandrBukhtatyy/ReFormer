@@ -2,6 +2,7 @@ import type { VariantProps } from 'class-variance-authority';
 
 import { withFormControl } from '@/fields/with-form-control';
 import { multiValueAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_CENTER } from '@/fields/field-tooltip';
 import type { toggleVariants } from '@/components/toggle';
 import { ToggleGroupMulti } from './toggle-group-multi';
 import type { ToggleGroupOption } from '../base/toggle-group-base.field';
@@ -27,4 +28,7 @@ export interface ToggleGroupMultiFieldProps {
  * Привязка через {@link multiValueAdapter} — общий для всех мультивыборов кита.
  * НЕ inline-label: подпись группы рисует FormField сверху.
  */
-export const ToggleGroupMultiField = withFormControl(ToggleGroupMulti, multiValueAdapter);
+export const ToggleGroupMultiField = withFormControl(
+  withFieldTooltip(ToggleGroupMulti, OUTSIDE_CENTER),
+  multiValueAdapter
+);

@@ -1,4 +1,5 @@
 import { withFormControl, type FieldAdapter } from '@/fields/with-form-control';
+import { withFieldTooltip, INSIDE_INPUT } from '@/fields/field-tooltip';
 import { InputMask } from './input-mask-base';
 
 /**
@@ -14,4 +15,7 @@ const inputMaskAdapter: FieldAdapter = {
   toValue: (v) => v ?? null, // InputMask принимает string|null (внутри → '' для native input)
 };
 
-export const InputMaskBaseField = withFormControl(InputMask, inputMaskAdapter);
+export const InputMaskBaseField = withFormControl(
+  withFieldTooltip(InputMask, INSIDE_INPUT),
+  inputMaskAdapter
+);

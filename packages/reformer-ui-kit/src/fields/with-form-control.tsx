@@ -49,6 +49,19 @@ export interface WithFormControlOptions<H extends FieldHandle = FieldHandle> {
 }
 
 /**
+ * Снимает props, которые потребляет НЕ контрол, а его окружение: `control` (renderer-react передаёт
+ * ноду формы) и `labelTooltip` (иконку у подписи рисует `FormField`). Оба долетают до контрола в
+ * общем мешке `componentProps` и без среза утекли бы в DOM (camelCase-атрибут → React-warning).
+ * Поля в обход HOC (`InputNumberField`) зовут хелпер сами.
+ */
+export function stripWrapperProps(props: Record<string, unknown>): Record<string, unknown> {
+  const { control: _control, labelTooltip: _labelTooltip, ...rest } = props;
+  void _control;
+  void _labelTooltip;
+  return rest;
+}
+
+/**
  * Разбирает props поля на `rest` (спред в примитив) и `bind` (value/onChange/onBlur под
  * event-shape примитива через {@link FieldAdapter}). Логика идентична прежней реализации HOC.
  */
@@ -57,8 +70,7 @@ function bindField(
   adapter: FieldAdapter
 ): { rest: Record<string, unknown>; bind: Record<string, unknown> } {
   // `control` (renderer-путь) и value/onChange/onBlur вынимаются из спреда в примитив.
-  const { value, onChange, onBlur, control: _control, ...rest } = props;
-  void _control;
+  const { value, onChange, onBlur, ...rest } = stripWrapperProps(props);
   for (const key of adapter.strip ?? []) delete rest[key];
 
   const emit = onChange as ((v: unknown) => void) | undefined;
@@ -78,7 +90,7 @@ function bindField(
  * `onBlur`, `disabled`, `id`, `aria-*`, весь `componentProps` кроме `testId`.
  *
  * HOC отбрасывает `control` (renderer-react дополнительно передаёт `control={fieldNode}` — в DOM
- * он не нужен) и любые `strip`-ключи, чтобы ничего не текло в DOM, и маппит value/onChange под
+ * он не нужен), `labelTooltip` (его рисует `FormField`) и любые `strip`-ключи, чтобы ничего не текло в DOM, и маппит value/onChange под
  * event-shape примитива через {@link FieldAdapter}.
  *
  * Компонент — `forwardRef` и экспонирует императивный {@link FieldHandle}: по умолчанию baseline

@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { withFormControl } from '@/fields/with-form-control';
 import { nativeInputAdapter } from '@/fields/adapters';
+import { withFieldTooltip, INSIDE_NATIVE_SELECT } from '@/fields/field-tooltip';
 import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from './native-select-base';
 
 /** Один пункт списка native select. Одинаковый `group` объединяется в `<optgroup>`. */
@@ -70,6 +71,9 @@ NativeSelectWithOptions.displayName = 'NativeSelectWithOptions';
  * Field-версия NativeSelect: `NativeSelectWithOptions` (options → `<option>`) + `nativeInputAdapter`
  * (`e.target.value || null`). Экспортируется как алиас `NativeSelectField`.
  */
-export const NativeSelectBaseField = withFormControl(NativeSelectWithOptions, nativeInputAdapter);
+export const NativeSelectBaseField = withFormControl(
+  withFieldTooltip(NativeSelectWithOptions, INSIDE_NATIVE_SELECT),
+  nativeInputAdapter
+);
 
 export { NativeSelectWithOptions };

@@ -3,6 +3,12 @@ import { ChevronsUpDownIcon, PlusIcon, XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import {
+  useFieldTooltip,
+  CHEVRON_RESERVE,
+  TRAILING_CLEAR,
+  TRAILING_CLUSTER,
+} from '@/fields/field-tooltip';
 import { Badge } from '@/components/badge';
 import { Button } from '@/components/button';
 import { Checkbox } from '@/components/checkbox';
@@ -42,6 +48,8 @@ export interface ComboboxMultiProps {
   emptyText?: string;
   /** Показывать крестик сброса ВСЕГО выбора. */
   clearable?: boolean;
+  /** Подсказка-тултип у иконки (i) внутри поля: правее крестика очистки, левее шеврона. */
+  tooltip?: string;
   /**
    * Creatable-режим: введённое значение, не совпавшее ни с одной опцией, добавляется в выбор
    * пунктом «Создать». Лейблом для него служит само значение.
@@ -105,6 +113,7 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
       searchPlaceholder,
       emptyText,
       clearable = false,
+      tooltip,
       creatable = false,
       maxItems,
       summaryThreshold = DEFAULT_SUMMARY_THRESHOLD,
@@ -180,6 +189,12 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
     };
 
     const showClearButton = clearable && selected.length > 0 && !disabled;
+
+    // Правая зона — кластер [крестик][(i)] левее шеврона (он flex-ребёнок триггера и остаётся у края).
+
+    const hint = useFieldTooltip(tooltip, { id, describedBy: ariaDescribedBy, testId: dataTestId });
+
+    const trailingCount = (showClearButton ? 1 : 0) + (hint.node ? 1 : 0);
     const collapsed = selected.length > summaryThreshold;
 
     return (
@@ -197,14 +212,10 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
               data-testid={dataTestId}
               aria-invalid={ariaInvalid}
               aria-labelledby={ariaLabelledBy}
-              aria-describedby={ariaDescribedBy}
+              aria-describedby={hint.describedBy}
               aria-errormessage={ariaErrorMessage}
               aria-required={ariaRequired}
-              className={cn(
-                'h-auto min-h-9 w-full justify-between font-normal',
-                showClearButton && 'pr-14',
-                className
-              )}
+              className={cn('h-auto min-h-9 w-full justify-between font-normal', className)}
             >
               {selected.length === 0 ? (
                 <span className="truncate text-muted-foreground">
@@ -223,7 +234,9 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
                   ))}
                 </span>
               )}
-              <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
+              <ChevronsUpDownIcon
+                className={cn('size-4 shrink-0 opacity-50', CHEVRON_RESERVE[trailingCount])}
+              />
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
@@ -283,16 +296,21 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
           </PopoverContent>
         </Popover>
 
-        {showClearButton && (
-          <button
-            type="button"
-            className="absolute top-1/2 right-8 z-10 -translate-y-1/2 transform cursor-pointer border-none bg-transparent p-0 text-muted-foreground transition-colors hover:text-foreground focus:outline-none"
-            onClick={handleClear}
-            aria-label="Clear selection"
-            tabIndex={-1}
-          >
-            <XIcon className="size-4" />
-          </button>
+        {trailingCount > 0 && (
+          <div data-slot="select-trailing" className={TRAILING_CLUSTER}>
+            {showClearButton && (
+              <button
+                type="button"
+                className={TRAILING_CLEAR}
+                onClick={handleClear}
+                aria-label="Clear selection"
+                tabIndex={-1}
+              >
+                <XIcon className="size-4" />
+              </button>
+            )}
+            {hint.node}
+          </div>
         )}
       </div>
     );

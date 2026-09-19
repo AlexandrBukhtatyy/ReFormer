@@ -7,6 +7,7 @@ import {
 } from '@reformer/cdk/file-upload';
 
 import { cn } from '@/lib/utils';
+import { useFieldTooltip } from '@/fields/field-tooltip';
 import { Button } from '@/components/button';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import { FileUploadItemList } from './file-upload-item-list';
@@ -37,6 +38,8 @@ export interface FileUploadBaseProps extends Omit<UseFileUploadOptions, 'id'> {
   placeholder?: string;
   /** Подсказка под триггером (ограничения: типы, размер). */
   hint?: string;
+  /** Подсказка-тултип у иконки (i) в самом контроле (не путать с текстовым `hint`). */
+  tooltip?: string;
   /**
    * Явно пометить поле невалидным (стилизация рамки у dropzone/input/avatar).
    * Под FormField не нужен: обёртка сама передаёт `aria-invalid` при ошибке валидации.
@@ -76,6 +79,7 @@ export function splitFileUploadProps(props: FileUploadBaseProps & Record<string,
     label,
     placeholder,
     hint,
+    tooltip,
     invalid,
     className,
     id,
@@ -106,7 +110,7 @@ export function splitFileUploadProps(props: FileUploadBaseProps & Record<string,
     onUploadError,
     id,
   };
-  return { options, label, placeholder, hint, invalid, className, id, rest };
+  return { options, label, placeholder, hint, tooltip, invalid, className, id, rest };
 }
 
 /**
@@ -121,7 +125,13 @@ export function FileUploadBase({
   ref,
   ...props
 }: FileUploadBaseProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> }) {
-  const { options, placeholder, hint, className, id, rest } = splitFileUploadProps(props);
+  const { options, placeholder, hint, tooltip, className, id, rest } = splitFileUploadProps(props);
+
+  const tooltipHint = useFieldTooltip(tooltip, {
+    id,
+    describedBy: rest['aria-describedby'] as string | undefined,
+    testId: rest['data-testid'] as string | undefined,
+  });
 
   const cdkRef = React.useRef<FileUploadHandle>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
@@ -147,11 +157,18 @@ export function FileUploadBase({
         <div className="flex items-center gap-3">
           <CdkFileUpload.Trigger asChild>
             {/* id — на интерактивном элементе: клик по <label htmlFor> фокусирует кнопку. */}
-            <Button ref={triggerRef} id={id} variant="outline" {...rest}>
+            <Button
+              ref={triggerRef}
+              id={id}
+              variant="outline"
+              {...rest}
+              aria-describedby={tooltipHint.describedBy}
+            >
               <UploadIcon />
               {placeholder ?? 'Выбрать файлы'}
             </Button>
           </CdkFileUpload.Trigger>
+          {tooltipHint.node}
           {hint && (
             <span data-slot="file-upload-hint" className="text-xs text-muted-foreground">
               {hint}

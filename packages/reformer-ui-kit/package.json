@@ -165,6 +165,10 @@
       "types": "./dist/icon.d.ts",
       "import": "./dist/icon.js"
     },
+    "./info-hint": {
+      "types": "./dist/info-hint.d.ts",
+      "import": "./dist/info-hint.js"
+    },
     "./input": {
       "types": "./dist/input.d.ts",
       "import": "./dist/input.js"

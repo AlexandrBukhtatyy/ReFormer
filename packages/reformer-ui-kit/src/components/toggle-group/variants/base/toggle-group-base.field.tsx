@@ -3,6 +3,7 @@ import type { VariantProps } from 'class-variance-authority';
 
 import { withFormControl } from '@/fields/with-form-control';
 import { valueChangeAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_CENTER } from '@/fields/field-tooltip';
 import { toggleVariants } from '@/components/toggle';
 import { ToggleGroup, ToggleGroupItem } from './toggle-group-base';
 
@@ -99,6 +100,9 @@ export interface ToggleGroupFieldProps {
  * `options`. Привязка через {@link valueChangeAdapter} (`value` / `onValueChange`, string).
  * НЕ inline-label — подпись группы рисует FormField сверху. Экспортируется как алиас `ToggleGroupField`.
  */
-export const ToggleGroupBaseField = withFormControl(ToggleGroupOptions, valueChangeAdapter);
+export const ToggleGroupBaseField = withFormControl(
+  withFieldTooltip(ToggleGroupOptions, OUTSIDE_CENTER),
+  valueChangeAdapter
+);
 
 export { ToggleGroupOptions };

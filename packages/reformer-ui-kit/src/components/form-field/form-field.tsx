@@ -3,6 +3,7 @@ import { type FieldNode } from '@reformer/core';
 import { FormField as CdkFormField, useFormFieldContext } from '@reformer/cdk/form-field';
 
 import { Field, FieldContent } from '@/components/field';
+import { InfoHint } from '@/components/info-hint';
 
 /** Props компонента {@link FormField}. */
 export interface FormFieldProps {
@@ -44,6 +45,7 @@ interface FormFieldInnerProps {
   testIdProp?: string;
   inlineLabel: boolean;
   description?: string;
+  labelTooltip?: string;
   customChildren?: React.ReactNode;
 }
 
@@ -56,28 +58,67 @@ function FormFieldInner({
   testIdProp,
   inlineLabel,
   description,
+  labelTooltip,
   customChildren,
 }: FormFieldInnerProps) {
-  const { componentProps, pending } = useFormFieldContext();
+  const { componentProps, pending, ids, label, disabled } = useFormFieldContext();
   const testId = testIdProp ?? (componentProps as { testId?: string })?.testId ?? 'unknown';
 
+  // Иконка-подсказка живёт снаружи <label>: внутри него клик активировал бы контрол. Скрытый дубль
+  // текста (ids.hintId) — цель aria-describedby контрола, см. hasHint у Root.
+  const hint = labelTooltip ? (
+    <InfoHint
+      content={labelTooltip}
+      descriptionId={ids.hintId}
+      aria-label={label ? `Подсказка: ${label}` : undefined}
+      data-testid={`label-tooltip-${testId}`}
+    />
+  ) : null;
+
+  // CdkFormField.Label остаётся нативным <label> (htmlFor→controlId): asChild уронил бы htmlFor.
+  // shadcn-вид даём классами field-label.
+  const fieldLabel = (
+    <CdkFormField.Label
+      data-slot="field-label"
+      className="flex w-fit items-center gap-2 text-sm leading-snug font-medium select-none group-data-[disabled=true]/field:opacity-50"
+      data-testid={`label-${testId}`}
+    />
+  );
+
+  const fieldControl = customChildren ? (
+    <CdkFormField.Control asChild>{customChildren}</CdkFormField.Control>
+  ) : (
+    <CdkFormField.Control data-testid={`input-${testId}`} />
+  );
+
   return (
-    <Field className={className} data-testid={`field-${testId}`}>
-      {/* CdkFormField.Label остаётся нативным <label> (htmlFor→controlId): asChild уронил бы htmlFor.
-          shadcn-вид даём классами field-label. */}
-      {!inlineLabel && (
-        <CdkFormField.Label
-          data-slot="field-label"
-          className="flex w-fit items-center gap-2 text-sm leading-snug font-medium select-none group-data-[disabled=true]/field:opacity-50"
-          data-testid={`label-${testId}`}
-        />
-      )}
+    <Field
+      className={className}
+      data-testid={`field-${testId}`}
+      // Маркер для `group-data-[disabled=true]/field:*` (shadcn Field): без него подпись выключенного
+      // поля оставалась яркой. Атрибут ставится только у выключенного поля — иначе DOM прежний.
+      data-disabled={disabled ? true : undefined}
+    >
+      {/* Ряды-обёртки добавляются ТОЛЬКО при подсказке — без неё DOM прежний. */}
+      {!inlineLabel &&
+        (hint ? (
+          <div data-slot="field-label-row" className="flex items-center gap-1.5">
+            {fieldLabel}
+            {hint}
+          </div>
+        ) : (
+          fieldLabel
+        ))}
 
       <FieldContent>
-        {customChildren ? (
-          <CdkFormField.Control asChild>{customChildren}</CdkFormField.Control>
+        {/* Inline-контрол (Checkbox/Switch) рисует подпись сам — иконка встаёт справа от него. */}
+        {inlineLabel && hint ? (
+          <div data-slot="field-control-row" className="flex items-center gap-1.5">
+            {fieldControl}
+            {hint}
+          </div>
         ) : (
-          <CdkFormField.Control data-testid={`input-${testId}`} />
+          fieldControl
         )}
 
         {description && (
@@ -111,15 +152,24 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
   // фиксируется первым рендером (компонент memo'ится по control). Динамическая смена description
   // через updateComponentProps не подхватится (в отличие от реактивных label/required из контекста).
   // Допущение осознанное: description поля статичен, как и раскладка. Нужна динамика — пересоздать поле.
-  const description = (control.componentProps.peek() as { description?: string })?.description;
+  // labelTooltip читается так же: hasHint обязан совпадать с фактом рендера скрытого текста подсказки,
+  // иначе aria-describedby получит висячий id. Пустая строка = подсказки нет.
+  const own = control.componentProps.peek() as { description?: string; labelTooltip?: string };
+  const description = own?.description;
+  const labelTooltip = own?.labelTooltip || undefined;
 
   return (
-    <CdkFormField.Root control={control} hasDescription={Boolean(description)}>
+    <CdkFormField.Root
+      control={control}
+      hasDescription={Boolean(description)}
+      hasHint={Boolean(labelTooltip)}
+    >
       <FormFieldInner
         className={className}
         testIdProp={testId}
         inlineLabel={inlineLabel}
         description={description}
+        labelTooltip={labelTooltip}
         customChildren={children}
       />
     </CdkFormField.Root>
@@ -132,6 +182,8 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
  * Подключается `<FormField control={…} />` или как `fieldWrapper` для `FormRenderer`.
  *
  * - Для inline-контролов (Checkbox/Switch — `reformerLayout='inline-label'`) верхняя подпись не рендерится.
+ * - `componentProps.labelTooltip` — иконка (i) с тултипом после подписи (у inline-контролов — справа от
+ *   контрола). Подсказка внутри самого контрола — отдельный проп `tooltip`.
  * - При `pending` (async-валидация) под полем показывается «Проверка…».
  * - `React.memo` по ссылке `control` — критично для больших форм.
  */

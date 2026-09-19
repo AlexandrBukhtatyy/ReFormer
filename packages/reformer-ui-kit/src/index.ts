@@ -30,6 +30,7 @@ export * from './components/form-field';
 export * from './components/form-wizard';
 export * from './components/hover-card';
 export * from './components/icon';
+export * from './components/info-hint';
 export * from './components/input';
 export * from './components/input-group';
 export * from './components/input-mask';

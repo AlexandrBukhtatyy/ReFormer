@@ -3,6 +3,12 @@ import { ChevronsUpDownIcon, SearchIcon, XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import {
+  useFieldTooltip,
+  CHEVRON_RESERVE,
+  TRAILING_CLEAR,
+  TRAILING_CLUSTER,
+} from '@/fields/field-tooltip';
 import { Button } from '@/components/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/popover';
 import { Tree, type TreeHandle, type TreeNode, type TreeSelectable } from '@/components/tree';
@@ -142,6 +148,8 @@ export interface ComboboxTreeProps {
   emptyText?: string;
   /** Показывать ли крестик очистки справа от значения. По умолчанию `false`. */
   clearable?: boolean;
+  /** Подсказка-тултип у иконки (i) внутри поля: правее крестика очистки, левее шеврона. */
+  tooltip?: string;
   /** Сколько строк дерева показать до появления прокрутки. По умолчанию 12. */
   maxRows?: number;
   disabled?: boolean;
@@ -201,6 +209,7 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
     searchPlaceholder,
     emptyText,
     clearable = false,
+    tooltip,
     maxRows = DEFAULT_MAX_ROWS,
     disabled,
     id,
@@ -266,6 +275,12 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
 
   const showClearButton = clearable && value != null && value !== '' && !disabled;
 
+  // Правая зона — кластер [крестик][(i)] левее шеврона (он flex-ребёнок триггера и остаётся у края).
+
+  const hint = useFieldTooltip(tooltip, { id, describedBy: ariaDescribedBy, testId: dataTestId });
+
+  const trailingCount = (showClearButton ? 1 : 0) + (hint.node ? 1 : 0);
+
   return (
     <div className="relative w-full">
       <Popover open={open} onOpenChange={handleOpenChange}>
@@ -282,14 +297,10 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
             title={selectedLabel}
             aria-invalid={ariaInvalid}
             aria-labelledby={ariaLabelledBy}
-            aria-describedby={ariaDescribedBy}
+            aria-describedby={hint.describedBy}
             aria-errormessage={ariaErrorMessage}
             aria-required={ariaRequired}
-            className={cn(
-              'w-full justify-between font-normal',
-              showClearButton && 'pr-14',
-              className
-            )}
+            className={cn('w-full justify-between font-normal', className)}
           >
             <span
               data-slot="combobox-tree-value"
@@ -297,7 +308,9 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
             >
               {selectedLabel ?? placeholder ?? 'Выберите файл...'}
             </span>
-            <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
+            <ChevronsUpDownIcon
+              className={cn('size-4 shrink-0 opacity-50', CHEVRON_RESERVE[trailingCount])}
+            />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
@@ -329,17 +342,22 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
         </PopoverContent>
       </Popover>
 
-      {showClearButton && (
-        <button
-          type="button"
-          className="absolute top-1/2 right-8 z-10 -translate-y-1/2 transform cursor-pointer border-none bg-transparent p-0 text-muted-foreground transition-colors hover:text-foreground focus:outline-none"
-          onClick={handleClear}
-          aria-label="Clear selection"
-          data-testid={dataTestId === undefined ? undefined : `${dataTestId}-clear`}
-          tabIndex={-1}
-        >
-          <XIcon className="size-4" />
-        </button>
+      {trailingCount > 0 && (
+        <div data-slot="select-trailing" className={TRAILING_CLUSTER}>
+          {showClearButton && (
+            <button
+              type="button"
+              className={TRAILING_CLEAR}
+              onClick={handleClear}
+              aria-label="Clear selection"
+              data-testid={dataTestId === undefined ? undefined : `${dataTestId}-clear`}
+              tabIndex={-1}
+            >
+              <XIcon className="size-4" />
+            </button>
+          )}
+          {hint.node}
+        </div>
       )}
     </div>
   );

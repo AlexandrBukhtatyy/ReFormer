@@ -2,6 +2,7 @@ import * as React from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { useFieldTooltip } from '@/fields/field-tooltip';
 
 /** Props компонента {@link InputPassword}. */
 export interface InputPasswordProps extends Omit<
@@ -25,6 +26,11 @@ export interface InputPasswordProps extends Omit<
    * `true`. Иконка появляется только когда `value` непустой.
    */
   showToggle?: boolean;
+  /**
+   * Подсказка-тултип у иконки (i) внутри поля. Стоит левее глаза; пока глаза нет (пустое
+   * значение / `showToggle={false}`) — у правого края.
+   */
+  tooltip?: string;
 }
 
 /**
@@ -77,6 +83,7 @@ const InputPassword = React.forwardRef<InputPasswordHandle, InputPasswordProps>(
       placeholder = 'Password',
       disabled,
       showToggle = true,
+      tooltip,
       ...props
     },
     ref
@@ -105,6 +112,20 @@ const InputPassword = React.forwardRef<InputPasswordHandle, InputPasswordProps>(
     };
 
     const hasValue = Boolean(value);
+    const toggleVisible = showToggle && hasValue;
+
+    // Порядок справа: [(i)][глаз]. Глаз занимает слот у края — иконка сдвигается на шаг левее.
+    const hint = useFieldTooltip(tooltip, {
+      id: props.id,
+      describedBy: props['aria-describedby'],
+      testId: (props as { 'data-testid'?: string })['data-testid'],
+      className: cn(
+        'absolute top-1/2 z-10 -translate-y-1/2',
+        toggleVisible ? 'right-9' : 'right-3'
+      ),
+    });
+    // Резерв под правую зону: только глаз — pr-10 (как было), только (i) — pr-9, оба — pr-15.
+    const reserve = hint.node ? (toggleVisible ? 'pr-15' : 'pr-9') : toggleVisible && 'pr-10';
 
     return (
       <div data-slot="input-password" style={{ position: 'relative', width: '100%' }}>
@@ -121,18 +142,22 @@ const InputPassword = React.forwardRef<InputPasswordHandle, InputPasswordProps>(
             'focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
             'disabled:cursor-not-allowed disabled:opacity-50',
             'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
-            showToggle && hasValue && 'pr-10',
+            reserve,
             className
           )}
           onChange={handleInputChange}
           onBlur={onBlur}
           {...props}
+          aria-describedby={hint.describedBy}
         />
-        {showToggle && hasValue && (
+        {hint.node}
+        {toggleVisible && (
           <button
             type="button"
             data-slot="input-password-toggle"
-            className="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer focus:outline-none"
+            // У выключенного поля кнопка не реагирует ни на клик, ни на наведение: одного атрибута
+            // `disabled` мало — `:hover` и `cursor-pointer` у disabled-кнопки продолжают работать.
+            className="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer focus:outline-none disabled:pointer-events-none disabled:opacity-50"
             onClick={togglePasswordVisibility}
             disabled={disabled}
             aria-label={showPassword ? 'Hide password' : 'Show password'}

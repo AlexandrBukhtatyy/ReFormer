@@ -1,5 +1,6 @@
 import { withFormControl } from '@/fields/with-form-control';
 import { multiValueAdapter } from '@/fields/adapters';
+import { withFieldTooltip, OUTSIDE_FILL_START } from '@/fields/field-tooltip';
 import { NativeSelectMulti } from './native-select-multi';
 import type { NativeSelectOptionItem } from '../base/native-select-base.field';
 
@@ -25,4 +26,7 @@ export interface NativeSelectMultiFieldProps {
  * Штатный `nativeInputAdapter` тут непригоден: он читает `e.target.value`, что у `<select multiple>`
  * даёт только первое выбранное значение.
  */
-export const NativeSelectMultiField = withFormControl(NativeSelectMulti, multiValueAdapter);
+export const NativeSelectMultiField = withFormControl(
+  withFieldTooltip(NativeSelectMulti, OUTSIDE_FILL_START),
+  multiValueAdapter
+);

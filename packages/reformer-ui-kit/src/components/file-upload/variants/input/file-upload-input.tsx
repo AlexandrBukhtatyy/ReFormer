@@ -9,6 +9,7 @@ import {
 import { useValidationErrorResolver } from '@reformer/cdk';
 
 import { cn } from '@/lib/utils';
+import { useFieldTooltip } from '@/fields/field-tooltip';
 import { makeElementFieldHandle } from '@/fields/field-handle';
 import {
   splitFileUploadProps,
@@ -87,7 +88,14 @@ export function FileUploadInput({
   ref,
   ...props
 }: FileUploadInputProps & Record<string, unknown> & { ref?: React.Ref<FileUploadFieldHandle> }) {
-  const { options, placeholder, hint, invalid, className, id, rest } = splitFileUploadProps(props);
+  const { options, placeholder, hint, tooltip, invalid, className, id, rest } =
+    splitFileUploadProps(props);
+
+  const tooltipHint = useFieldTooltip(tooltip, {
+    id,
+    describedBy: rest['aria-describedby'] as string | undefined,
+    testId: rest['data-testid'] as string | undefined,
+  });
 
   const cdkRef = React.useRef<FileUploadHandle>(null);
   const zoneRef = React.useRef<HTMLElement | null>(null);
@@ -117,13 +125,16 @@ export function FileUploadInput({
             // Явный `invalid` — до rest: aria-invalid от FormField (ошибка валидации) главнее.
             aria-invalid={invalid || undefined}
             {...rest}
+            aria-describedby={tooltipHint.describedBy}
             className={cn(
               // Визуально — Input (shadcn), но это кликабельная зона (role=button).
-              'flex h-9 w-full min-w-0 cursor-pointer items-center rounded-md border border-input bg-transparent px-3 py-1 pr-16 text-base shadow-xs transition-[color,box-shadow] outline-none md:text-sm dark:bg-input/30',
+              'flex h-9 w-full min-w-0 cursor-pointer items-center rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none md:text-sm dark:bg-input/30',
               'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
               'aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20 dark:aria-[invalid=true]:ring-destructive/40',
               'data-[dragging]:border-ring data-[dragging]:bg-muted/50',
-              'data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50'
+              'data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
+              // Резерв под правый кластер: [крестик][скрепка] — pr-16, с иконкой-подсказкой — pr-23.
+              tooltipHint.node ? 'pr-23' : 'pr-16'
             )}
           >
             <InputValueText placeholder={placeholder ?? 'Выберите файлы…'} />
@@ -131,10 +142,18 @@ export function FileUploadInput({
           {/* Кнопки-иконки — СОСЕДИ зоны (не потомки role=button): клик не открывает пикер лишний раз. */}
           <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-0.5">
             <InputClearButton />
+            {/* Порядок кластера: [крестик][(i)][скрепка]. Ячейка size-6 — как у соседних кнопок. */}
+            {tooltipHint.node && (
+              <span className="pointer-events-auto flex size-6 items-center justify-center">
+                {tooltipHint.node}
+              </span>
+            )}
             <CdkFileUpload.Trigger asChild>
               <button
                 aria-label="Выбрать файлы"
-                className="pointer-events-auto flex size-6 items-center justify-center rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                // `disabled` приходит от CdkFileUpload.Trigger; гасим ещё и наведение — `:hover` у
+                // disabled-кнопки иначе продолжает работать.
+                className="pointer-events-auto flex size-6 items-center justify-center rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
               >
                 <PaperclipIcon className="size-4" />
               </button>

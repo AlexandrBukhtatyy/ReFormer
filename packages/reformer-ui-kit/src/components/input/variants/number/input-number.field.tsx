@@ -1,7 +1,8 @@
 import * as React from 'react';
 
-import { Input } from '../base/input-base';
+import { InputWithTooltip } from '../base/input-base.field';
 import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
+import { stripWrapperProps } from '@/fields/with-form-control';
 import { deriveNumberDisplay, resolveEmittedNumber } from './input-number-buffer';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -20,8 +21,7 @@ import { deriveNumberDisplay, resolveEmittedNumber } from './input-number-buffer
  */
 export const InputNumberField = React.forwardRef<FieldHandle, Record<string, unknown>>(
   function InputNumberField(props, ref) {
-    const { value, onChange, onBlur, control: _control, min, ...rest } = props;
-    void _control;
+    const { value, onChange, onBlur, min, ...rest } = stripWrapperProps(props);
     const emit = onChange as ((v: number | null) => void) | undefined;
     const [rawNumberInput, setRawNumberInput] = React.useState<string | null>(null);
     const elRef = React.useRef<HTMLInputElement | null>(null);
@@ -40,7 +40,7 @@ export const InputNumberField = React.forwardRef<FieldHandle, Record<string, unk
     const display = deriveNumberDisplay(rawNumberInput, value as number | null | undefined);
 
     return (
-      <Input
+      <InputWithTooltip
         ref={elRef}
         {...(rest as any)}
         type="number"

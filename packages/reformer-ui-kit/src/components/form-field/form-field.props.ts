@@ -7,6 +7,8 @@ import type { PropsSchema } from '../../fields/props-schema';
  * `label`/`required` — живые (рисуются `FormField.Label`: `FormFieldRoot.tsx:80` → `FormFieldLabel.tsx:51`).
  * `testId` — meta-проп: уходит в `data-testid`, в примитив/DOM как проп не течёт.
  * `description` — под shadcn `Field` (`FieldDescription`); FormField перестроен на нём в волне 0.
+ * `labelTooltip` — иконка (i) после подписи; как и `testId`, до контрола не доходит (срезает
+ * `withFormControl`). Подсказка ВНУТРИ контрола — отдельный проп `tooltip` (`field-common.props.ts`).
  */
 export const fieldWrapperPropsSchema: PropsSchema = {
   type: 'object',
@@ -25,6 +27,12 @@ export const fieldWrapperPropsSchema: PropsSchema = {
     description: {
       type: 'string',
       description: 'Пояснение под полем (shadcn FieldDescription).',
+      'x-doc': { group: 'Textfield', type: 'string' },
+    },
+    labelTooltip: {
+      type: 'string',
+      description:
+        'Подсказка-тултип у иконки (i) после подписи поля (рисует FormField). У inline-контролов (Checkbox/Switch) иконка встаёт справа от контрола.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     testId: {

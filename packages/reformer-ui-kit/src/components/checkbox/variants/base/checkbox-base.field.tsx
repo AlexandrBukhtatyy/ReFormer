@@ -2,10 +2,12 @@ import * as React from 'react';
 
 import { withFormControl } from '@/fields/with-form-control';
 import { checkedAdapter } from '@/fields/adapters';
+import { useFieldTooltip, type FieldTooltipProps } from '@/fields/field-tooltip';
 import { Checkbox } from './checkbox-base';
 
 /** Props враппера {@link CheckboxWithLabel}: pure Checkbox + опциональная подпись справа. */
-export interface CheckboxWithLabelProps extends React.ComponentProps<typeof Checkbox> {
+export interface CheckboxWithLabelProps
+  extends React.ComponentProps<typeof Checkbox>, FieldTooltipProps {
   /** Подпись справа от чекбокса (inline-раскладка). Берётся из `componentProps.label`. */
   label?: string;
 }
@@ -21,16 +23,24 @@ export interface CheckboxWithLabelProps extends React.ComponentProps<typeof Chec
  */
 function CheckboxWithLabel({
   label,
+  tooltip,
   id,
   className,
   'aria-labelledby': ariaLabelledBy,
+  'aria-describedby': ariaDescribedBy,
+  'data-testid': dataTestId,
   ...props
-}: CheckboxWithLabelProps) {
+}: CheckboxWithLabelProps & { 'data-testid'?: string }) {
   const reactId = React.useId();
   const inputId = id ?? reactId;
   const resolvedAriaLabelledBy = label ? undefined : ariaLabelledBy;
+  const hint = useFieldTooltip(tooltip, {
+    id: inputId,
+    describedBy: ariaDescribedBy,
+    testId: dataTestId,
+  });
 
-  return (
+  const labelled = (
     <label
       htmlFor={inputId}
       className="flex w-fit items-center gap-2 text-sm leading-none font-medium select-none has-[button:disabled]:cursor-not-allowed has-[button:disabled]:opacity-70"
@@ -39,10 +49,22 @@ function CheckboxWithLabel({
         id={inputId}
         className={className}
         aria-labelledby={resolvedAriaLabelledBy}
+        aria-describedby={hint.describedBy}
+        data-testid={dataTestId}
         {...props}
       />
       {label}
     </label>
+  );
+
+  if (!hint.node) return labelled;
+
+  // Иконка — СНАРУЖИ <label>: внутри него клик по ней переключал бы чекбокс.
+  return (
+    <div data-slot="field-tooltip" className="flex w-fit items-center gap-2">
+      {labelled}
+      {hint.node}
+    </div>
   );
 }
 
