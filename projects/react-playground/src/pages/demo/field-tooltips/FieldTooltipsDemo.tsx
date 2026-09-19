@@ -13,19 +13,19 @@ import { FormRenderer, createReactForm, useReactForm } from '@reformer/renderer-
 import type { ReactForm, RenderNode } from '@reformer/renderer-react';
 import {
   Button,
-  CheckboxField,
+  CheckboxWithLabel,
   ExampleCard,
   FormField,
-  InputField,
-  InputPasswordField,
-  RadioGroupField,
-  SelectField,
-  SliderField,
-  SwitchField,
-  TextareaField,
+  Input,
+  InputPassword,
+  RadioGroupOptions,
+  SelectAsync,
+  Slider,
+  SwitchWithLabel,
+  Textarea,
 } from '@reformer/ui-kit';
 // Combobox — тяжёлый компонент (cmdk), живёт только в сабпате, вне главного barrel.
-import { ComboboxField } from '@reformer/ui-kit/combobox';
+import { Combobox } from '@reformer/ui-kit/combobox';
 
 interface FieldTooltipsForm {
   email: string;
@@ -79,7 +79,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
     fields: [
       {
         value: model.$.email,
-        component: InputField,
+        component: Input,
         componentProps: {
           label: 'Email',
           testId: 'email',
@@ -90,7 +90,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
       },
       {
         value: model.$.inn,
-        component: InputField,
+        component: Input,
         componentProps: {
           label: 'ИНН',
           testId: 'inn',
@@ -99,7 +99,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
       },
       {
         value: model.$.password,
-        component: InputPasswordField,
+        component: InputPassword,
         componentProps: {
           label: 'Пароль',
           testId: 'password',
@@ -109,7 +109,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
       },
       {
         value: model.$.city,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: {
           label: 'Город',
           testId: 'city',
@@ -121,7 +121,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
       },
       {
         value: model.$.framework,
-        component: ComboboxField,
+        component: Combobox,
         componentProps: {
           label: 'Фреймворк',
           testId: 'framework',
@@ -132,7 +132,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
       },
       {
         value: model.$.comment,
-        component: TextareaField,
+        component: Textarea,
         componentProps: {
           label: 'Комментарий',
           testId: 'comment',
@@ -141,7 +141,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
       },
       {
         value: model.$.agree,
-        component: CheckboxField,
+        component: CheckboxWithLabel,
         componentProps: {
           label: 'Согласен с офертой',
           testId: 'agree',
@@ -150,7 +150,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
       },
       {
         value: model.$.notify,
-        component: SwitchField,
+        component: SwitchWithLabel,
         componentProps: {
           label: 'Уведомления',
           testId: 'notify',
@@ -159,7 +159,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
       },
       {
         value: model.$.plan,
-        component: RadioGroupField,
+        component: RadioGroupOptions,
         componentProps: {
           label: 'Тариф',
           testId: 'plan',
@@ -169,7 +169,7 @@ function buildSchema(model: FormModel<FieldTooltipsForm>) {
       },
       {
         value: model.$.volume,
-        component: SliderField,
+        component: Slider,
         componentProps: {
           label: 'Громкость',
           testId: 'volume',
@@ -195,7 +195,7 @@ function buildRendererSchema(model: FormModel<RendererForm>): RenderNode<Rendere
     children: [
       {
         value: model.$.phone,
-        component: InputField,
+        component: Input,
         componentProps: {
           label: 'Телефон',
           testId: 'r-phone',
@@ -205,7 +205,7 @@ function buildRendererSchema(model: FormModel<RendererForm>): RenderNode<Rendere
       },
       {
         value: model.$.country,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: {
           label: 'Страна',
           testId: 'r-country',

@@ -33,7 +33,7 @@ test.describe('Императивные handle по селектору', { tag: 
     await expect(email).toBeFocused();
   });
 
-  test('IMP-002: baseline focus() у number-варианта (InputNumberField)', async ({ page }) => {
+  test('IMP-002: baseline focus() у number-варианта (InputNumber)', async ({ page }) => {
     const amount = page.getByTestId('input-amount');
 
     await page.getByTestId('btn-focus-amount').click();

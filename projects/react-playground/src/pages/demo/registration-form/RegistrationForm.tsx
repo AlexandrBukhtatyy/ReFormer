@@ -27,13 +27,7 @@ import {
   type AsyncRule,
 } from '@reformer/core/validation';
 import { required, email, minLength, pattern } from '@reformer/core/validators';
-import {
-  InputField,
-  InputPasswordField,
-  InputMaskField,
-  CheckboxField,
-  FormField,
-} from '@reformer/ui-kit';
+import { Input, InputPassword, InputMask, CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 import { FormStateDisplay } from './FormSateDisplay';
 
 export interface RegistrationFormData {
@@ -151,7 +145,7 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
     children: [
       {
         value: model.$.username,
-        component: InputField,
+        component: Input,
         componentProps: {
           label: 'Имя пользователя',
           placeholder: 'Логин (латиница)',
@@ -160,7 +154,7 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
       },
       {
         value: model.$.email,
-        component: InputField,
+        component: Input,
         componentProps: {
           label: 'Email',
           placeholder: 'your@email.com',
@@ -170,12 +164,12 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
       },
       {
         value: model.$.password,
-        component: InputPasswordField,
+        component: InputPassword,
         componentProps: { label: 'Пароль', placeholder: 'Минимум 8 символов', testId: 'password' },
       },
       {
         value: model.$.confirmPassword,
-        component: InputPasswordField,
+        component: InputPassword,
         componentProps: {
           label: 'Подтвердите пароль',
           placeholder: 'Повторите пароль',
@@ -184,12 +178,12 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
       },
       {
         value: model.$.fullName,
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Полное имя', placeholder: 'Иван Иванов', testId: 'fullName' },
       },
       {
         value: model.$.phone,
-        component: InputMaskField,
+        component: InputMask,
         componentProps: {
           label: 'Телефон',
           placeholder: '+7 (999) 123-45-67',
@@ -199,7 +193,7 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
       },
       {
         value: model.$.captcha,
-        component: InputField,
+        component: Input,
         componentProps: {
           label: 'Введите captcha',
           placeholder: 'Подсказка: ABC123',
@@ -208,7 +202,7 @@ function buildSchema(model: FormModel<RegistrationFormData>) {
       },
       {
         value: model.$.acceptTerms,
-        component: CheckboxField,
+        component: CheckboxWithLabel,
         componentProps: { label: 'Я принимаю условия использования', testId: 'acceptTerms' },
       },
     ],

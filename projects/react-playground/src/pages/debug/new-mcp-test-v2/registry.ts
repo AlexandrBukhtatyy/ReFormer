@@ -9,14 +9,15 @@ import { Step } from '@reformer/cdk/form-wizard';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 import {
   Box,
-  CheckboxField,
+  CheckboxWithLabel,
   FormField,
-  InputField,
-  InputMaskField,
-  RadioGroupField,
+  Input,
+  InputNumber,
+  InputMask,
+  RadioGroupOptions,
   Section,
-  SelectField,
-  TextareaField,
+  SelectAsync,
+  Textarea,
   FormArray,
 } from '@reformer/ui-kit';
 
@@ -44,12 +45,13 @@ export function createRegistry(dictionaries: Dictionaries): ComponentRegistry {
     reg.component(FIELD_WRAPPER, FormField);
 
     /* --- контролы --- */
-    reg.component('Input', InputField);
-    reg.component('InputMask', InputMaskField);
-    reg.component('Textarea', TextareaField);
-    reg.component('Select', SelectField);
-    reg.component('Checkbox', CheckboxField);
-    reg.component('RadioGroup', RadioGroupField);
+    reg.component('Input', Input);
+    reg.component('InputNumber', InputNumber);
+    reg.component('InputMask', InputMask);
+    reg.component('Textarea', Textarea);
+    reg.component('Select', SelectAsync);
+    reg.component('Checkbox', CheckboxWithLabel);
+    reg.component('RadioGroup', RadioGroupOptions);
 
     /* --- контейнеры --- */
     reg.component('Box', Box);

@@ -28,7 +28,7 @@ import {
   integer,
   pastDate,
 } from '@reformer/core/validators';
-import { InputField, FormField, ExampleCard } from '@reformer/ui-kit';
+import { Input, FormField, ExampleCard, InputNumber } from '@reformer/ui-kit';
 
 interface ValidationDemoForm {
   requiredField: string;
@@ -75,62 +75,62 @@ function buildSchema(model: FormModel<ValidationDemoForm>) {
     children: [
       {
         value: model.$.requiredField,
-        component: InputField,
+        component: Input,
         componentProps: { placeholder: 'Обязательное поле' },
       },
       {
         value: model.$.emailField,
-        component: InputField,
+        component: Input,
         componentProps: { placeholder: 'email@example.com', type: 'email' },
       },
       {
         value: model.$.minLengthField,
-        component: InputField,
+        component: Input,
         componentProps: { placeholder: 'Минимум 5 символов' },
       },
       {
         value: model.$.maxLengthField,
-        component: InputField,
+        component: Input,
         componentProps: { placeholder: 'Максимум 10 символов' },
       },
       {
         value: model.$.minField,
-        component: InputField,
-        componentProps: { placeholder: 'Минимум 10', type: 'number' },
+        component: InputNumber,
+        componentProps: { placeholder: 'Минимум 10' },
       },
       {
         value: model.$.maxField,
-        component: InputField,
-        componentProps: { placeholder: 'Максимум 100', type: 'number' },
+        component: InputNumber,
+        componentProps: { placeholder: 'Максимум 100' },
       },
       {
         value: model.$.patternField,
-        component: InputField,
+        component: Input,
         componentProps: { placeholder: 'Только буквы' },
       },
       {
         value: model.$.urlField,
-        component: InputField,
+        component: Input,
         componentProps: { placeholder: 'https://example.com' },
       },
       {
         value: model.$.phoneField,
-        component: InputField,
+        component: Input,
         componentProps: { placeholder: '+7 900 123-45-67', type: 'tel' },
       },
       {
         value: model.$.numberField,
-        component: InputField,
-        componentProps: { placeholder: 'Целое число', type: 'number' },
+        component: InputNumber,
+        componentProps: { placeholder: 'Целое число' },
       },
       {
         value: model.$.dateField,
-        component: InputField,
+        component: Input,
         componentProps: { type: 'date' },
       },
       {
         value: model.$.customField,
-        component: InputField,
+        component: Input,
         componentProps: { placeholder: 'Пароль (мин. 8 символов, цифра, буква)' },
       },
     ],

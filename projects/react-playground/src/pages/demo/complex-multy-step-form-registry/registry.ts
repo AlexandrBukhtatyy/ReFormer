@@ -15,14 +15,14 @@
 import type { FormProxy } from '@reformer/core';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 import {
-  InputField,
-  InputPasswordField,
-  InputMaskField,
-  TextareaField,
-  SelectField,
-  CheckboxField,
-  RadioGroupField,
-  FileUploadField,
+  Input,
+  InputPassword,
+  InputMask,
+  Textarea,
+  SelectAsync,
+  CheckboxWithLabel,
+  RadioGroupOptions,
+  FileUploadBase,
   Box,
   Section,
   Collapsible,
@@ -30,6 +30,8 @@ import {
   FormArray,
   Button,
   AsyncBoundary,
+  InputNumber,
+  FileUploadDropzone,
 } from '@reformer/ui-kit';
 import { Step } from '@reformer/cdk/form-wizard';
 import { RendererFormWizard } from '../../../components/RendererFormWizard';
@@ -60,14 +62,16 @@ import type { CoBorrower } from '../complex-multy-step-form/components/nested-fo
 export function createCreditApplicationRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
     // ui-kit base
-    reg.component('Input', InputField);
-    reg.component('InputPassword', InputPasswordField);
-    reg.component('InputMask', InputMaskField);
-    reg.component('Textarea', TextareaField);
-    reg.component('Select', SelectField);
-    reg.component('Checkbox', CheckboxField);
-    reg.component('RadioGroup', RadioGroupField);
-    reg.component('FileUpload', FileUploadField);
+    reg.component('Input', Input);
+    reg.component('InputNumber', InputNumber);
+    reg.component('InputPassword', InputPassword);
+    reg.component('InputMask', InputMask);
+    reg.component('Textarea', Textarea);
+    reg.component('Select', SelectAsync);
+    reg.component('Checkbox', CheckboxWithLabel);
+    reg.component('RadioGroup', RadioGroupOptions);
+    reg.component('FileUpload', FileUploadBase);
+    reg.component('FileUploadDropzone', FileUploadDropzone);
 
     reg.component('Box', Box);
     reg.component('Section', Section);

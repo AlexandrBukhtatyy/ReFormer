@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * E2E Input с подсказками (`InputField` + `suggestions`). Главный инвариант: значение — всегда
+ * E2E Input с подсказками (`InputSuggest`). Главный инвариант: значение — всегда
  * введённый текст; подсказка лишь подставляет свой `value`, а свой вариант не теряется.
  */
 const SCREENSHOTS = 'screenshots/input-suggest';

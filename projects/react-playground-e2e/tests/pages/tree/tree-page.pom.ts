@@ -21,10 +21,10 @@ import { type Page, type Locator, expect } from '@playwright/test';
 
 /** Снимок модели формы демо. */
 export interface TreeDemoModel {
-  /** `ComboboxTreeField` — адрес одного файла. */
+  /** `ComboboxTree` — адрес одного файла. */
   configFile: string | null;
   /**
-   * `ComboboxTreeMultiField` — адреса файлов. Пустой выбор приходит как `null`, никогда `[]`:
+   * `ComboboxTreeMulti` — адреса файлов. Пустой выбор приходит как `null`, никогда `[]`:
    * массив в модели построил бы ArrayNode, и поля не существовало бы вовсе.
    */
   assetFiles: string[] | null;

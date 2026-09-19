@@ -8,11 +8,12 @@
 
 import { defineRegistry, FIELD_WRAPPER, createLocaleResolver } from '@reformer/renderer-json';
 import type { ComponentRegistry } from '@reformer/renderer-json';
-import { InputField, FormField } from '@reformer/ui-kit';
+import { Input, FormField, InputNumber } from '@reformer/ui-kit';
 
 export function createHtmlNodesRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
-    reg.component('Input', InputField);
+    reg.component('Input', Input);
+    reg.component('InputNumber', InputNumber);
     reg.component(FIELD_WRAPPER, FormField);
     // Текст html-узла принимает и `$locale(...)` — заголовок берётся из каталога.
     reg.locale(createLocaleResolver({ 'installment.title': 'Рассрочка' }));

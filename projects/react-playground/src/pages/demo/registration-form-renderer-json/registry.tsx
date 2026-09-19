@@ -12,10 +12,10 @@ import { useSyncExternalStore, type ComponentProps, type ReactElement } from 're
 import { computed, type Signal } from '@reformer/core/signals';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 import {
-  InputField,
-  InputPasswordField,
-  InputMaskField,
-  CheckboxField,
+  Input,
+  InputPassword,
+  InputMask,
+  CheckboxWithLabel,
   FormField,
   Button,
   AsyncBoundary,
@@ -65,10 +65,10 @@ export function createRegistrationRegistry(ui: FormUiState): ComponentRegistry {
 
   return defineRegistry((reg) => {
     // Поля: имя в схеме → компонент ui-kit.
-    reg.component('Input', InputField);
-    reg.component('InputPassword', InputPasswordField);
-    reg.component('InputMask', InputMaskField);
-    reg.component('Checkbox', CheckboxField);
+    reg.component('Input', Input);
+    reg.component('InputPassword', InputPassword);
+    reg.component('InputMask', InputMask);
+    reg.component('Checkbox', CheckboxWithLabel);
     // Кнопки формы блокируются на время отправки (см. createPendingButton).
     reg.component('Button', createPendingButton(ui.pending));
 

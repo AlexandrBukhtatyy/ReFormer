@@ -25,22 +25,20 @@
                 },
                 {
                   "value": "$model(loanAmount)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Сумма кредита (₽)",
                     "testId": "loanAmount",
-                    "type": "number",
                     "step": 10000,
                     "placeholder": "Введите сумму"
                   }
                 },
                 {
                   "value": "$model(loanTerm)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Срок кредита (месяцев)",
                     "testId": "loanTerm",
-                    "type": "number",
                     "placeholder": "Введите срок"
                   }
                 },
@@ -56,21 +54,19 @@
                 },
                 {
                   "value": "$model(interestRate)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Процентная ставка (%)",
                     "testId": "interestRate",
-                    "type": "number",
                     "disabled": true
                   }
                 },
                 {
                   "value": "$model(monthlyPayment)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Ежемесячный платёж (₽)",
                     "testId": "monthlyPayment",
-                    "type": "number",
                     "disabled": true
                   }
                 }
@@ -83,21 +79,19 @@
               "children": [
                 {
                   "value": "$model(propertyValue)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Стоимость недвижимости (₽)",
                     "testId": "propertyValue",
-                    "type": "number",
                     "placeholder": "Введите стоимость"
                   }
                 },
                 {
                   "value": "$model(initialPayment)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Первоначальный взнос (₽)",
                     "testId": "initialPayment",
-                    "type": "number",
                     "disabled": true
                   }
                 }
@@ -129,11 +123,10 @@
                 },
                 {
                   "value": "$model(carYear)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Год выпуска",
                     "testId": "carYear",
-                    "type": "number",
                     "min": 2000,
                     "max": "$dataSource(CURRENT_YEAR_PLUS_ONE)",
                     "placeholder": "2020"
@@ -141,11 +134,10 @@
                 },
                 {
                   "value": "$model(carPrice)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Стоимость автомобиля (₽)",
                     "testId": "carPrice",
-                    "type": "number",
                     "placeholder": "Введите стоимость"
                   }
                 }
@@ -226,11 +218,10 @@
                 },
                 {
                   "value": "$model(age)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Возраст (лет)",
                     "testId": "age",
-                    "type": "number",
                     "disabled": true
                   }
                 }
@@ -632,41 +623,37 @@
               "children": [
                 {
                   "value": "$model(workExperienceTotal)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Общий стаж работы (месяцев)",
                     "testId": "workExperienceTotal",
-                    "type": "number",
                     "min": 0
                   }
                 },
                 {
                   "value": "$model(workExperienceCurrent)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Стаж на текущем месте (месяцев)",
                     "testId": "workExperienceCurrent",
-                    "type": "number",
                     "min": 0
                   }
                 },
                 {
                   "value": "$model(monthlyIncome)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Ежемесячный доход (₽)",
                     "testId": "monthlyIncome",
-                    "type": "number",
                     "min": 0
                   }
                 },
                 {
                   "value": "$model(additionalIncome)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Дополнительный доход (₽)",
                     "testId": "additionalIncome",
-                    "type": "number",
                     "min": 0
                   }
                 },
@@ -681,21 +668,19 @@
                 },
                 {
                   "value": "$model(totalIncome)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Общий доход (₽)",
                     "testId": "totalIncome",
-                    "type": "number",
                     "disabled": true
                   }
                 },
                 {
                   "value": "$model(paymentToIncomeRatio)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Процент платежа от дохода (%)",
                     "testId": "paymentToIncomeRatio",
-                    "type": "number",
                     "disabled": true
                   }
                 }
@@ -722,11 +707,10 @@
                 },
                 {
                   "value": "$model(dependents)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Количество иждивенцев",
                     "testId": "dependents",
-                    "type": "number",
                     "min": 0,
                     "max": 10
                   }
@@ -793,11 +777,10 @@
                         },
                         {
                           "value": "$model(estimatedValue)",
-                          "component": "$component(Input)",
+                          "component": "$component(InputNumber)",
                           "componentProps": {
                             "label": "Оценочная стоимость (₽)",
                             "testId": "estimatedValue",
-                            "type": "number",
                             "min": 0
                           }
                         },
@@ -870,31 +853,28 @@
                         },
                         {
                           "value": "$model(amount)",
-                          "component": "$component(Input)",
+                          "component": "$component(InputNumber)",
                           "componentProps": {
                             "label": "Сумма кредита (₽)",
                             "testId": "amount",
-                            "type": "number",
                             "min": 0
                           }
                         },
                         {
                           "value": "$model(remainingAmount)",
-                          "component": "$component(Input)",
+                          "component": "$component(InputNumber)",
                           "componentProps": {
                             "label": "Остаток задолженности (₽)",
                             "testId": "remainingAmount",
-                            "type": "number",
                             "min": 0
                           }
                         },
                         {
                           "value": "$model(monthlyPayment)",
-                          "component": "$component(Input)",
+                          "component": "$component(InputNumber)",
                           "componentProps": {
                             "label": "Ежемесячный платёж (₽)",
                             "testId": "monthlyPayment",
-                            "type": "number",
                             "min": 0
                           }
                         },
@@ -1002,11 +982,10 @@
                         },
                         {
                           "value": "$model(monthlyIncome)",
-                          "component": "$component(Input)",
+                          "component": "$component(InputNumber)",
                           "componentProps": {
                             "label": "Ежемесячный доход (₽)",
                             "testId": "monthlyIncome",
-                            "type": "number",
                             "min": 0
                           }
                         }
@@ -1016,11 +995,10 @@
                 },
                 {
                   "value": "$model(coBorrowersIncome)",
-                  "component": "$component(Input)",
+                  "component": "$component(InputNumber)",
                   "componentProps": {
                     "label": "Доход созаёмщиков (₽)",
                     "testId": "coBorrowersIncome",
-                    "type": "number",
                     "disabled": true
                   }
                 }

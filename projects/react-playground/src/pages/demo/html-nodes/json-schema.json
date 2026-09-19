@@ -34,20 +34,18 @@
           },
           {
             "value": "$model(amount)",
-            "component": "$component(Input)",
+            "component": "$component(InputNumber)",
             "componentProps": {
               "label": "Сумма (₽)",
-              "type": "number",
               "step": 1000,
               "testId": "amount"
             }
           },
           {
             "value": "$model(months)",
-            "component": "$component(Input)",
+            "component": "$component(InputNumber)",
             "componentProps": {
               "label": "Срок (мес.)",
-              "type": "number",
               "min": 1,
               "testId": "months"
             }

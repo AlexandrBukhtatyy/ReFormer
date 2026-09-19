@@ -3,7 +3,7 @@
  * `FIELD_WRAPPER` (FormField) оборачивает каждый лист: label + ошибки. Добавили в схему новый
  * `$component(X)` — зарегистрируйте X здесь (field-компоненты ui-kit: `XField`). Docs: @reformer/renderer-json.
  */
-import { InputField, FormField } from '@reformer/ui-kit';
+import { Input, FormField } from '@reformer/ui-kit';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 
 export function createRegistry(): ComponentRegistry {
@@ -11,6 +11,6 @@ export function createRegistry(): ComponentRegistry {
     // Системная обёртка поля: label + ошибки вокруг каждого листа.
     reg.component(FIELD_WRAPPER, FormField);
     // Поля: имя в схеме → компонент ui-kit.
-    reg.component('Input', InputField);
+    reg.component('Input', Input);
   });
 }

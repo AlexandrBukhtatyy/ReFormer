@@ -11,7 +11,7 @@
 import { computed } from '@reformer/core/signals';
 import type { FormModel } from '@reformer/core';
 import type { RenderNode } from '@reformer/renderer-react';
-import { InputField } from '@reformer/ui-kit';
+import { Input, InputNumber } from '@reformer/ui-kit';
 import type { InstallmentRequest } from './model';
 
 /** Платёж без процентов — вычисляемый сигнал, который уедет прямо в `children` узла. */
@@ -60,18 +60,18 @@ export function buildInstallmentSchema(
         children: [
           {
             value: model.$.fullName,
-            component: InputField,
+            component: Input,
             componentProps: { label: 'ФИО', placeholder: 'Иванов Иван', testId: 'fullName' },
           },
           {
             value: model.$.amount,
-            component: InputField,
-            componentProps: { label: 'Сумма (₽)', type: 'number', step: 1000, testId: 'amount' },
+            component: InputNumber,
+            componentProps: { label: 'Сумма (₽)', step: 1000, testId: 'amount' },
           },
           {
             value: model.$.months,
-            component: InputField,
-            componentProps: { label: 'Срок (мес.)', type: 'number', min: 1, testId: 'months' },
+            component: InputNumber,
+            componentProps: { label: 'Срок (мес.)', min: 1, testId: 'months' },
           },
         ],
       },

@@ -26,12 +26,13 @@ import type { RenderNode, RenderSchemaProxy } from '@reformer/renderer-react';
 import {
   Box,
   FormField,
-  InputField,
-  InputPasswordField,
-  SelectField,
+  Input,
+  InputPassword,
+  SelectAsync,
   type FieldHandle,
   type InputPasswordHandle,
   type SelectAsyncHandle,
+  InputNumber,
 } from '@reformer/ui-kit';
 
 interface ImperativeDemoForm {
@@ -67,19 +68,19 @@ function buildSchema(model: FormModel<ImperativeDemoForm>): RenderNode<Imperativ
     children: [
       {
         value: model.$.email,
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Email', placeholder: 'you@example.com' },
       },
       {
         // Явный selector — проверяет ветку адресации по селектору (а не по __path).
         selector: 'pwd',
         value: model.$.password,
-        component: InputPasswordField,
+        component: InputPassword,
         componentProps: { label: 'Пароль', placeholder: 'Пароль' },
       },
       {
         value: model.$.city,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: {
           label: 'Город',
           placeholder: 'Выберите город',
@@ -89,12 +90,12 @@ function buildSchema(model: FormModel<ImperativeDemoForm>): RenderNode<Imperativ
       },
       {
         value: model.$.amount,
-        component: InputField,
-        componentProps: { label: 'Сумма', type: 'number', placeholder: '0' },
+        component: InputNumber,
+        componentProps: { label: 'Сумма', placeholder: '0' },
       },
       {
         value: model.$.nickname,
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Никнейм', placeholder: 'nickname' },
       },
     ],

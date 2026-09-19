@@ -29,7 +29,7 @@ import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk
 import { Tree, type TreeNode, FormField, ExampleCard, Button } from '@reformer/ui-kit';
 // Combobox — тяжёлый компонент (Popover + Command у соседних вариантов), живёт только
 // в сабпате, вне главного barrel. Tree, наоборот, экспортируется из корня.
-import { ComboboxTreeField, ComboboxTreeMultiField } from '@reformer/ui-kit/combobox';
+import { ComboboxTree, ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
 
 interface TreeDemoForm {
   /** Адрес одного узла. Пустой выбор — `null`. */
@@ -167,7 +167,7 @@ function buildSchema(model: FormModel<TreeDemoForm>) {
       {
         // Скалярное поле — `model.$.configFile` уже сигнал, `signalAt` тут не нужен.
         value: model.$.configFile,
-        component: ComboboxTreeField,
+        component: ComboboxTree,
         componentProps: {
           label: 'Файл конфигурации',
           // POM ждёт `data-testid="input-<testId>"`; тот же префикс уходит в дерево, и строки
@@ -187,7 +187,7 @@ function buildSchema(model: FormModel<TreeDemoForm>) {
         // `model.signalAt(path)!`, а НЕ `model.$.assetFiles`: у поля типа `T[]` `$`-тип
         // разворачивается в ModelArraySignals, и `$.assetFiles` — контейнер-прокси, а не сигнал.
         value: model.signalAt('assetFiles')!,
-        component: ComboboxTreeMultiField,
+        component: ComboboxTreeMulti,
         componentProps: {
           label: 'Ресурсы сборки',
           testId: 'assetFiles',
@@ -323,7 +323,7 @@ export default function TreeDemo() {
             bgColor="bg-white"
             code={`{
   value: model.$.configFile,          // скаляр — сигнал напрямую
-  component: ComboboxTreeField,
+  component: ComboboxTree,
   componentProps: { nodes: FILE_TREE, clearable: true, maxRows: 10 },
 }
 validate(model.signalAt('configFile')!, [required()]);
@@ -339,7 +339,7 @@ validate(model.signalAt('configFile')!, [required()]);
             bgColor="bg-white"
             code={`{
   value: model.signalAt('assetFiles')!, // МАССИВ — только signalAt, не model.$
-  component: ComboboxTreeMultiField,
+  component: ComboboxTreeMulti,
   componentProps: { nodes: FILE_TREE, maxItems: 4, summaryThreshold: 3 },
 }
 validate(model.signalAt('assetFiles')!, [required()]); // не minLength(1)!

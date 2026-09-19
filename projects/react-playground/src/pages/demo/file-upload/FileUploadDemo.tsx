@@ -17,11 +17,10 @@ import { required, maxFiles, maxFileSize, fileType } from '@reformer/core/valida
 import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
 import type { FileUploadUploader, FileUploadValue, RemoteFileRef } from '@reformer/cdk/file-upload';
 import {
-  FileUploadField,
-  FileUploadAvatarField,
+  FileUploadBase,
+  FileUploadAvatar,
   FileUploadDropzone,
   FileUploadInput,
-  FileUploadAvatar,
   FormField,
   ExampleCard,
   Button,
@@ -107,7 +106,7 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
     children: [
       {
         value: model.$.documents,
-        component: FileUploadField,
+        component: FileUploadBase,
         componentProps: {
           testId: 'documents',
           label: 'Документы',
@@ -120,10 +119,9 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
       },
       {
         value: model.$.dropzoneFiles,
-        component: FileUploadField,
+        component: FileUploadDropzone,
         componentProps: {
           testId: 'dropzoneFiles',
-          variant: 'dropzone',
           hint: 'До 10 файлов, любые типы',
           multiple: true,
           maxFiles: 10,
@@ -132,10 +130,9 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
       },
       {
         value: model.$.attachments,
-        component: FileUploadField,
+        component: FileUploadInput,
         componentProps: {
           testId: 'attachments',
-          variant: 'input',
           label: 'Вложения',
           placeholder: 'Прикрепите файлы…',
           hint: 'До 3 файлов',
@@ -145,10 +142,9 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
       },
       {
         value: model.$.uploadedDocs,
-        component: FileUploadField,
+        component: FileUploadDropzone,
         componentProps: {
           testId: 'uploadedDocs',
-          variant: 'dropzone',
           placeholder: 'Файлы уходят на сервер сразу',
           hint: 'Имя с «fail» — упадёт (retry)',
           multiple: true,
@@ -157,7 +153,7 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
       },
       {
         value: model.$.preloadedDocs,
-        component: FileUploadField,
+        component: FileUploadBase,
         componentProps: {
           testId: 'preloadedDocs',
           label: 'Ранее загруженные',
@@ -168,7 +164,7 @@ function buildSchema(model: FormModel<FileUploadDemoForm>) {
       },
       {
         value: model.$.avatar,
-        component: FileUploadAvatarField,
+        component: FileUploadAvatar,
         componentProps: {
           testId: 'avatar',
           maxFileSize: 2 * 1024 * 1024,
@@ -239,7 +235,7 @@ export default function FileUploadDemo() {
             bgColor="bg-white"
             code={`{
   value: model.$.documents,
-  component: FileUploadField,
+  component: FileUploadBase,
   componentProps: {
     accept: 'image/*,.pdf',
     multiple: true, maxFiles: 3,
@@ -256,8 +252,8 @@ validate(model.signalAt('documents')!, [required(), maxFiles(3), maxFileSize(5 *
             title="Dropzone (deferred)"
             description="Перетаскивание, клик и Enter/Space, paste из буфера"
             bgColor="bg-white"
-            code={`componentProps: {
-  variant: 'dropzone',
+            code={`component: FileUploadDropzone,
+componentProps: {
   multiple: true, maxFiles: 10,
   allowPaste: true,
 }`}
@@ -269,8 +265,8 @@ validate(model.signalAt('documents')!, [required(), maxFiles(3), maxFileSize(5 *
             title="Input с кнопкой-иконкой"
             description="Компактный вариант: выглядит как текстовое поле, имена файлов строкой, скрепка и крестик очистки"
             bgColor="bg-white"
-            code={`componentProps: {
-  variant: 'input',
+            code={`component: FileUploadInput,
+componentProps: {
   placeholder: 'Прикрепите файлы…',
   multiple: true, maxFiles: 3,
 }`}
@@ -299,8 +295,9 @@ validate(model.signalAt('documents')!, [required(), maxFiles(3), maxFileSize(5 *
             title="Immediate upload"
             description="uploader инжектируется; value = сериализуемые дескрипторы {id, name, size}"
             bgColor="bg-white"
-            code={`componentProps: {
-  variant: 'dropzone', multiple: true,
+            code={`component: FileUploadDropzone,
+componentProps: {
+  multiple: true,
   uploader: (file, { onProgress, signal }) =>
     api.upload(file, { onProgress, signal }), // => Promise<RemoteFileRef>
 }`}
@@ -326,7 +323,7 @@ model.signalAt('preloadedDocs')!.value = [
             bgColor="bg-white"
             code={`{
   value: model.$.avatar,
-  component: FileUploadAvatarField,
+  component: FileUploadAvatar,
   componentProps: { maxFileSize: 2 * 1024 * 1024 },
 }`}
           >

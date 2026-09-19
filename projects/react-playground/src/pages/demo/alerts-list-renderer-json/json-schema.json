@@ -23,8 +23,8 @@
       },
       {
         "value": "$model(amount)",
-        "component": "$component(Input)",
-        "componentProps": { "label": "Сумма кредита, ₽", "type": "number", "testId": "amount" }
+        "component": "$component(InputNumber)",
+        "componentProps": { "label": "Сумма кредита, ₽", "testId": "amount" }
       },
       {
         "value": "$model(email)",

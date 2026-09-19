@@ -59,10 +59,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     {
                       selector: 'loanAmount',
                       value: '$model(loanAmount)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Сумма кредита (₽)',
-                        type: 'number',
                         placeholder: 'Введите сумму',
                         min: 50000,
                         max: 10000000,
@@ -72,10 +71,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     {
                       selector: 'loanTerm',
                       value: '$model(loanTerm)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Срок кредита (месяцев)',
-                        type: 'number',
                         placeholder: 'Введите срок',
                         min: 6,
                         max: 240,
@@ -116,10 +114,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     {
                       selector: 'propertyValue',
                       value: '$model(propertyValue)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Стоимость недвижимости (₽)',
-                        type: 'number',
                         placeholder: 'Введите стоимость',
                         min: 1000000,
                         testId: 'propertyValue',
@@ -128,10 +125,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     {
                       selector: 'initialPayment',
                       value: '$model(initialPayment)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Первоначальный взнос (₽) — 20 % от стоимости',
-                        type: 'number',
                         testId: 'initialPayment',
                       },
                     },
@@ -189,10 +185,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     {
                       selector: 'carYear',
                       value: '$model(carYear)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Год выпуска',
-                        type: 'number',
                         placeholder: '2020',
                         min: 2000,
                         max: '$dataSource(CURRENT_YEAR_PLUS_ONE)',
@@ -202,10 +197,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     {
                       selector: 'carPrice',
                       value: '$model(carPrice)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Стоимость автомобиля (₽)',
-                        type: 'number',
                         placeholder: 'Введите стоимость',
                         min: 300000,
                         max: 10000000,
@@ -234,20 +228,18 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     {
                       selector: 'interestRate',
                       value: '$model(interestRate)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Процентная ставка (%)',
-                        type: 'number',
                         testId: 'interestRate',
                       },
                     },
                     {
                       selector: 'monthlyPayment',
                       value: '$model(monthlyPayment)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Ежемесячный платёж (₽)',
-                        type: 'number',
                         testId: 'monthlyPayment',
                       },
                     },
@@ -364,8 +356,8 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     {
                       selector: 'age',
                       value: '$model(age)',
-                      component: '$component(Input)',
-                      componentProps: { label: 'Возраст (лет)', type: 'number', testId: 'age' },
+                      component: '$component(InputNumber)',
+                      componentProps: { label: 'Возраст (лет)', testId: 'age' },
                     },
                   ],
                 },
@@ -878,20 +870,18 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                   children: [
                     {
                       value: '$model(workExperienceTotal)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Общий стаж работы (месяцев)',
-                        type: 'number',
                         min: 0,
                         testId: 'workExperienceTotal',
                       },
                     },
                     {
                       value: '$model(workExperienceCurrent)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Стаж на текущем месте (месяцев)',
-                        type: 'number',
                         min: 0,
                         testId: 'workExperienceCurrent',
                       },
@@ -921,20 +911,18 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                   children: [
                     {
                       value: '$model(monthlyIncome)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Ежемесячный доход (₽)',
-                        type: 'number',
                         min: 0,
                         testId: 'monthlyIncome',
                       },
                     },
                     {
                       value: '$model(additionalIncome)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Дополнительный доход (₽)',
-                        type: 'number',
                         min: 0,
                         testId: 'additionalIncome',
                       },
@@ -958,20 +946,18 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     {
                       selector: 'totalIncome',
                       value: '$model(totalIncome)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Общий доход (₽)',
-                        type: 'number',
                         testId: 'totalIncome',
                       },
                     },
                     {
                       selector: 'paymentToIncomeRatio',
                       value: '$model(paymentToIncomeRatio)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Платёж от дохода (%)',
-                        type: 'number',
                         testId: 'paymentToIncomeRatio',
                       },
                     },
@@ -1023,10 +1009,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                     },
                     {
                       value: '$model(dependents)',
-                      component: '$component(Input)',
+                      component: '$component(InputNumber)',
                       componentProps: {
                         label: 'Количество иждивенцев',
-                        type: 'number',
                         min: 0,
                         max: 10,
                         testId: 'dependents',
@@ -1090,10 +1075,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                         },
                         {
                           value: '$model(estimatedValue)',
-                          component: '$component(Input)',
+                          component: '$component(InputNumber)',
                           componentProps: {
                             label: 'Оценочная стоимость (₽)',
-                            type: 'number',
                             min: 0,
                             testId: 'estimatedValue',
                           },
@@ -1192,30 +1176,27 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                       children: [
                         {
                           value: '$model(amount)',
-                          component: '$component(Input)',
+                          component: '$component(InputNumber)',
                           componentProps: {
                             label: 'Сумма кредита (₽)',
-                            type: 'number',
                             min: 0,
                             testId: 'amount',
                           },
                         },
                         {
                           value: '$model(remainingAmount)',
-                          component: '$component(Input)',
+                          component: '$component(InputNumber)',
                           componentProps: {
                             label: 'Остаток задолженности (₽)',
-                            type: 'number',
                             min: 0,
                             testId: 'remainingAmount',
                           },
                         },
                         {
                           value: '$model(monthlyPayment)',
-                          component: '$component(Input)',
+                          component: '$component(InputNumber)',
                           componentProps: {
                             label: 'Ежемесячный платёж (₽)',
-                            type: 'number',
                             min: 0,
                             testId: 'monthlyPayment',
                           },
@@ -1359,10 +1340,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
                         },
                         {
                           value: '$model(monthlyIncome)',
-                          component: '$component(Input)',
+                          component: '$component(InputNumber)',
                           componentProps: {
                             label: 'Ежемесячный доход (₽)',
-                            type: 'number',
                             min: 0,
                             testId: 'monthlyIncome',
                           },
@@ -1376,10 +1356,9 @@ export const creditFormSchema = defineJsonSchema<CreditApplicationForm>({
             {
               selector: 'coBorrowersIncome',
               value: '$model(coBorrowersIncome)',
-              component: '$component(Input)',
+              component: '$component(InputNumber)',
               componentProps: {
                 label: 'Доход созаемщиков (₽)',
-                type: 'number',
                 testId: 'coBorrowersIncome',
               },
             },

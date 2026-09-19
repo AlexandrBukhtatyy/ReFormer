@@ -14,15 +14,15 @@ import { defineValidationSchema, validate, validateModel } from '@reformer/core/
 import { required, maxLength } from '@reformer/core/validators';
 import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
 import {
-  SelectMultiField,
-  NativeSelectMultiField,
-  ToggleGroupMultiField,
+  SelectMulti,
+  NativeSelectMulti,
+  ToggleGroupMulti,
   FormField,
   ExampleCard,
   Button,
 } from '@reformer/ui-kit';
 // Combobox — тяжёлый компонент (cmdk), живёт только в сабпате, вне главного barrel.
-import { ComboboxMultiField } from '@reformer/ui-kit/combobox';
+import { ComboboxMulti } from '@reformer/ui-kit/combobox';
 
 interface MultiSelectDemoForm {
   /**
@@ -103,7 +103,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
         // в ModelArraySignals, и `$.tags` — контейнер-прокси, а не сигнал. Запись в него не бросает
         // исключение и выглядит успешной, но модель не меняется.
         value: model.signalAt('tags')!,
-        component: ToggleGroupMultiField,
+        component: ToggleGroupMulti,
         componentProps: {
           label: 'Метки задачи',
           testId: 'tags',
@@ -113,7 +113,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
       },
       {
         value: model.signalAt('frameworks')!,
-        component: ComboboxMultiField,
+        component: ComboboxMulti,
         componentProps: {
           label: 'Фреймворки',
           testId: 'frameworks',
@@ -126,7 +126,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
       },
       {
         value: model.signalAt('countries')!,
-        component: SelectMultiField,
+        component: SelectMulti,
         componentProps: {
           label: 'Страны',
           testId: 'countries',
@@ -138,7 +138,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
       },
       {
         value: model.signalAt('days')!,
-        component: NativeSelectMultiField,
+        component: NativeSelectMulti,
         componentProps: {
           label: 'Рабочие дни',
           testId: 'days',
@@ -149,7 +149,7 @@ function buildSchema(model: FormModel<MultiSelectDemoForm>) {
       },
       {
         value: model.signalAt('skills')!,
-        component: ComboboxMultiField,
+        component: ComboboxMulti,
         componentProps: {
           label: 'Навыки (с префиллом)',
           testId: 'skills',
@@ -211,7 +211,7 @@ export default function MultiSelectDemo() {
             bgColor="bg-white"
             code={`{
   value: model.signalAt('tags')!,
-  component: ToggleGroupMultiField,
+  component: ToggleGroupMulti,
   componentProps: { options: TAGS },
 }
 validate(model.signalAt('tags')!, [required()]);`}

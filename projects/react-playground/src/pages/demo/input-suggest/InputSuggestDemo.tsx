@@ -1,14 +1,14 @@
 /**
  * Input с подсказками — свободный ввод, список лишь помогает набрать текст.
  *
- * Контракт поля не меняется: это обычный `InputField` с `value: string | null`. Режим включает
- * один проп `suggestions` — статический список или асинхронный `ResourceConfig` (как у Select).
+ * Контракт поля не меняется: это `InputSuggest` с `value: string | null` (как у `Input`). Список задаёт
+ * проп `suggestions` — статический список или асинхронный `ResourceConfig` (как у Select).
  * Отличие от `Combobox creatable`: там значение — выбранная опция, здесь — любой текст.
  */
 
 import { useState } from 'react';
 import { createCoreForm, useFormBundle } from '@reformer/core';
-import { InputField, FormField, ExampleCard, Button } from '@reformer/ui-kit';
+import { FormField, ExampleCard, Button, InputSuggest } from '@reformer/ui-kit';
 import type { ResourceConfig } from '@reformer/cdk/option-source';
 
 interface InputSuggestDemoForm {
@@ -62,7 +62,7 @@ export default function InputSuggestDemo() {
         fields: [
           {
             value: m.$.city,
-            component: InputField,
+            component: InputSuggest,
             componentProps: {
               label: 'Город',
               testId: 'city',
@@ -72,7 +72,7 @@ export default function InputSuggestDemo() {
           },
           {
             value: m.$.position,
-            component: InputField,
+            component: InputSuggest,
             componentProps: {
               label: 'Должность',
               testId: 'position',
@@ -83,7 +83,7 @@ export default function InputSuggestDemo() {
           },
           {
             value: m.$.company,
-            component: InputField,
+            component: InputSuggest,
             componentProps: {
               label: 'Компания',
               testId: 'company',

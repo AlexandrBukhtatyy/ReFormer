@@ -4,7 +4,7 @@
  * - `Alert` — display-компонент элемента: получает поля элемента (`type`/`message`) как пропсы через
  *   `$model(...)` в `$template` (рендерер разворачивает сигналы в значения).
  */
-import { InputField, FormField, List } from '@reformer/ui-kit';
+import { Input, FormField, List, InputNumber } from '@reformer/ui-kit';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 
 const ALERT_STYLES: Record<string, string> = {
@@ -28,7 +28,8 @@ function Alert({ type = 'info', message }: { type?: string; message?: string }) 
 export function createAlertsRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
     reg.component(FIELD_WRAPPER, FormField);
-    reg.component('Input', InputField);
+    reg.component('Input', Input);
+    reg.component('InputNumber', InputNumber);
     reg.component('List', List);
     reg.component('Alert', Alert);
   });

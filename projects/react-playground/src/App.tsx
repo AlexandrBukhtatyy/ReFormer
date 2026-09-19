@@ -189,7 +189,7 @@ const exampleGroups: ExampleGroup[] = [
         path: '/demo/input-suggest',
         title: 'Input с подсказками',
         description:
-          'Свободный ввод + список подсказок: suggestions у InputField (статика, value≠label, серверный поиск)',
+          'Свободный ввод + список подсказок: InputSuggest (статика, value≠label, серверный поиск)',
       },
       {
         id: 'field-tooltips',
