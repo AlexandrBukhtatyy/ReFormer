@@ -153,7 +153,7 @@ describe('collectOperatorNames', () => {
     const s = sampleSchema();
     const n = collectOperatorNames(s);
     expect(n.components).toEqual(
-      expect.arrayContaining(['RendererFormWizard', 'Step', 'Select', 'Input', 'Box'])
+      expect.arrayContaining(['RendererFormWizard', 'Step', 'Select', 'InputNumber', 'Box'])
     );
     expect(n.dataSources).toEqual(expect.arrayContaining(['LOAN_TYPES', 'PROP_LABEL']));
     expect(n.fns).toEqual([]);

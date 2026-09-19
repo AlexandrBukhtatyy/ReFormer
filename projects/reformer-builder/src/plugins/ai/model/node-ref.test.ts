@@ -53,7 +53,7 @@ describe('resolveRef', () => {
     const schema = sampleSchema();
     const found = resolveRef(schema, nodeRef(P.step0field1));
     expect(isResolved(found)).toBe(true);
-    if (isResolved(found)) expect(componentOf(found.node)).toBe('Input');
+    if (isResolved(found)) expect(componentOf(found.node)).toBe('InputNumber');
   });
 
   it('несуществующий адрес → STALE_POINTER', () => {

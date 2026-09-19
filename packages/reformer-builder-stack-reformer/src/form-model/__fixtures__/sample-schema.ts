@@ -24,8 +24,8 @@ export function sampleSchema(): JsonFormSchema {
               },
               {
                 value: '$model(loanAmount)',
-                component: '$component(Input)',
-                componentProps: { label: 'Сумма', type: 'number' },
+                component: '$component(InputNumber)',
+                componentProps: { label: 'Сумма', step: 1000 },
               },
             ],
           },

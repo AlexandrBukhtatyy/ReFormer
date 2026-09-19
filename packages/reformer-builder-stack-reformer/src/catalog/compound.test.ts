@@ -42,12 +42,15 @@ describe('compound-части каталога', () => {
 
   it('служебные экспорты ui-kit частями не считаются', () => {
     const names = new Set(catalog.map((e) => e.name));
-    // cva-функции, field-обёртки, порталы/оверлеи/провайдеры — не визуальные узлы формы.
+    // cva-функции, порталы/оверлеи/провайдеры — не визуальные узлы формы. Экспорт поля с именем,
+    // отличным от записи (`CheckboxWithLabel` — символ записи `Checkbox`), отдельной записью тоже
+    // не становится: он приходит в каталог через `exportName`.
     for (const junk of [
       'alertVariants',
       'AlertDialogPortal',
       'DialogOverlay',
-      'InputBaseField',
+      'CheckboxWithLabel',
+      'SelectAsync',
       'MessageScrollerProvider',
     ]) {
       expect(names.has(junk), junk).toBe(false);

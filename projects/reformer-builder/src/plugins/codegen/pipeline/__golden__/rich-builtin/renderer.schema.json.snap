@@ -22,10 +22,10 @@
             },
             {
               "value": "$model(loanAmount)",
-              "component": "$component(Input)",
+              "component": "$component(InputNumber)",
               "componentProps": {
                 "label": "Сумма",
-                "type": "number"
+                "step": 1000
               }
             },
             {

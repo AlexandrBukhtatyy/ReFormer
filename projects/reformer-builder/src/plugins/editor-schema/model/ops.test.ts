@@ -582,7 +582,7 @@ describe('set-component', () => {
 
     expect(getAt(result.model, [...STEP_0, 'children', 1, 'componentProps'])).toEqual({
       label: 'Сумма',
-      type: 'number',
+      step: 1000,
     });
   });
 
@@ -618,8 +618,8 @@ describe('rename-prop', () => {
     const result = applyEditOp(model, renamePropOp(field, 'label', 'caption'));
 
     const props = getAt(result.model, [...STEP_0, 'children', 1, 'componentProps']) as object;
-    expect(Object.keys(props)).toEqual(['caption', 'type']);
-    expect(props).toEqual({ caption: 'Сумма', type: 'number' });
+    expect(Object.keys(props)).toEqual(['caption', 'step']);
+    expect(props).toEqual({ caption: 'Сумма', step: 1000 });
   });
 
   it('отмена возвращает и значение, и порядок ключей', () => {
@@ -642,7 +642,7 @@ describe('rename-prop', () => {
   it('отказ, если новый ключ занят: правка затёрла бы чужое значение', () => {
     const model = schema();
     const field = idAt(model, [...STEP_0, 'children', 1]);
-    expect(() => applyEditOp(model, renamePropOp(field, 'label', 'type'))).toThrow(SchemaOpError);
+    expect(() => applyEditOp(model, renamePropOp(field, 'label', 'step'))).toThrow(SchemaOpError);
   });
 
   it('отказ на совпадающих именах: пустая запись в истории — тоже потеря', () => {

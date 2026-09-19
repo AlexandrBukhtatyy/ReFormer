@@ -1,8 +1,8 @@
 /**
  * ReFormer-кит поверх дизайн-системы Kaspersky HexaUI.
  *
- * Пакет самодостаточен: несёт собственную зависимость на `@kaspersky/hexa-ui`, адаптеры полей к
- * seam ReFormer, обёртку поля поверх их `Field`, провайдер темы и каталог компонентов
+ * Пакет самодостаточен: несёт собственную зависимость на `@kaspersky/hexa-ui`, поля с адаптерами к
+ * seam ReFormer (статика `reformerAdapter`), обёртку поля поверх их `Field`, провайдер темы и каталог компонентов
  * (`@reformer/kit-hexa-ui/catalog`). Билдер про HexaUI ничего не знает — только перечисляет кит в
  * своём реестре и грузит этот namespace через `import()`.
  *
@@ -18,10 +18,13 @@ export { HEXA_UI_NAMESPACE } from './namespace';
 export { FormField } from './form-field';
 export { KitProvider, Box, Section } from './provider';
 export {
-  InputField,
-  TextareaField,
-  InputPasswordField,
-  InputNumberField,
-  CheckboxField,
-  SelectField,
+  Input,
+  Textarea,
+  InputPassword,
+  InputNumber,
+  CheckboxWithLabel,
+  Select,
+  type CheckboxWithLabelProps,
+  type FieldControlLayout,
+  type FieldControlStatics,
 } from './fields';

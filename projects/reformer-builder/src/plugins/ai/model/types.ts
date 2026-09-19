@@ -106,9 +106,11 @@ export const TOOL_SURFACE_BUDGET = 9914;
  * перечислены поимённо намеренно (так первый `list_components` становится необязательным, см.
  * `prompt.ts`), поэтому промпт растёт вместе с китом, а не только с правками этого файла. Значит
  * и двигать константу можно ровно по этой причине: 4000 → 4100 понадобилось, когда в кит приехали
- * `ComboboxTree` и `ComboboxTreeMulti`. Для прозы храповик прежний — сжимать, а не поднимать.
+ * `ComboboxTree` и `ComboboxTreeMulti`; 4100 → 4200 — когда варианты полей стали отдельными записями
+ * (`InputNumber`, `InputSuggest`, `FileUploadDropzone`, `FileUploadInput` вместо пропов `type`/
+ * `suggestions`/`variant`). Для прозы храповик прежний — сжимать, а не поднимать.
  */
-export const PROMPT_BUDGET = 4100;
+export const PROMPT_BUDGET = 4200;
 
 /**
  * Код ошибки инструмента. Коды существуют, чтобы модель чинилась САМА: по коду и `suggestions`

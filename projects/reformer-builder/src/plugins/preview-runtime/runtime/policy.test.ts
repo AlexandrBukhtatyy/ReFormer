@@ -93,8 +93,8 @@ describe('classifyEntry', () => {
 
   it('имя экспорта берётся из записи, а не угадывается', () => {
     const decision = classifyEntry(
-      entry({ exportName: 'InputField' }),
-      { InputField: Component },
+      entry({ name: 'Checkbox', exportName: 'CheckboxWithLabel' }),
+      { Checkbox: () => null, CheckboxWithLabel: Component },
       descriptor()
     );
     expect(decision).toEqual({ policy: 'live', component: Component });

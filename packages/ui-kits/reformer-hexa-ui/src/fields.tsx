@@ -1,126 +1,128 @@
 /**
- * Адаптеры полей HexaUI к seam ReFormer.
+ * Поля HexaUI для формы ReFormer — тем же способом, что в `@reformer/ui-kit`: без per-control
+ * «field-обёрток». Контрол объявляет свой диалект статикой `reformerAdapter` ({@link FieldAdapter}
+ * из `@reformer/core`), а связывает его с формой обёртка поля — `FormField.Control` из
+ * `@reformer/cdk` (путь `<FormField control>`) или рендерер `@reformer/renderer-react`.
  *
- * Контракт формы ReFormer — `value` + `onChange(value)` + `onBlur` (см. `withFormControl` в
- * `@reformer/ui-kit`). HexaUI, в отличие от голого antd, уже нормализует колбэки к value-based,
- * поэтому адаптеры тонкие: снять лишние аргументы (`Textbox` отдаёт `(value, mask)`, `Select` —
- * `(value, option)`), привести имя value-пропа и убрать из спреда служебный `control`.
+ * ## Почему статика висит не на самих компонентах HexaUI
  *
- * Имена экспортов — КАНОНИЧЕСКИЕ для ReFormer (`InputField`, `SelectField`, …), а не HexaUI'шные.
- * Благодаря этому одна и та же схема формы рендерится и на `@reformer/ui-kit`, и на HexaUI: каталог
- * связывает каноническое имя записи с экспортом кита через `exportName`.
+ * `Textbox`, `Select`, `Textbox.Password` — объекты ЧУЖОГО модуля. Повесить на них
+ * `reformerAdapter` — значит мутировать `@kaspersky/hexa-ui` для всего приложения: каждый, кто
+ * импортирует тот же `Textbox` вне формы, получит скрытую статику, а два кита с разными адаптерами
+ * к одному компоненту перетирали бы друг друга (побеждает последний импорт). `resolveFieldAdapter`
+ * рендерера эту мутацию не заменяет: путь `<FormField control>` из cdk читает ТОЛЬКО статику.
+ *
+ * Поэтому каждое поле — собственная идентичность кита ({@link fieldControl}): функция, которая
+ * рендерит компонент HexaUI с теми же пропсами, без логики. Статика вешается на неё.
+ *
+ * ## Что делает адаптер вместо прежних обёрток
+ *
+ * - `strip` — снимает пропсы обёртки поля (`label`/`required`/`description`/`tooltip`; `labelTooltip`
+ *   срезает сам `bindFieldProps`). Их рисует `FormField` кита (HexaUI `Field`), а без среза HexaUI
+ *   прокинул бы их в DOM: `<input label="Сумма">` — строковые атрибуты React не фильтрует.
+ * - Лишние аргументы колбэков (`Textbox` отдаёт `(value, mask)`, `Select` — `(value, option)`)
+ *   снимать не нужно: адаптер получает только первый аргумент эмита.
+ * - `toValue` — коэрсия `null` → `''` у текстовых полей (HexaUI `Textbox` контролируемый).
+ * - Служебный `control` рендерер контролу больше не передаёт (нет `passControl`).
+ *
+ * Имена экспортов — канонические, как у `@reformer/ui-kit` (`Input`, `Textarea`, `InputPassword`,
+ * `InputNumber`, `CheckboxWithLabel`, `Select`): каталог кита связывает имя записи с экспортом
+ * через `exportName`, и одна и та же схема формы рендерится на обоих китах.
  *
  * @module reformer/kit-hexa-ui/fields
  */
 
-import { Textbox, Checkbox, Select } from '@kaspersky/hexa-ui';
+import { createElement } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+import { Checkbox as HexaCheckbox, Select as HexaSelect, Textbox } from '@kaspersky/hexa-ui';
+import type { FieldAdapter } from '@reformer/core';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** Пропсы, которые рендерер кладёт полю. `control` — служебный, в примитив его пускать нельзя. */
-interface FieldProps {
-  value?: unknown;
-  onChange?: (value: unknown) => void;
-  onBlur?: () => void;
-  control?: unknown;
+/** Раскладка в `FormField` кита: `inline-label` — контрол сам рисует подпись рядом с собой. */
+export type FieldControlLayout = 'inline-label';
+
+/** Статики поля, которые читают обёртка поля (`reformerAdapter`) и `FormField` кита (`reformerLayout`). */
+export interface FieldControlStatics {
+  reformerAdapter?: FieldAdapter;
+  reformerLayout?: FieldControlLayout;
+}
+
+/**
+ * Пропсы, адресованные обёртке поля, а не контролу: их рисует `FormField` кита (HexaUI `Field`).
+ * `labelTooltip` здесь нет — его срезает `bindFieldProps` из `@reformer/core` у любого контрола.
+ */
+const WRAPPER_PROPS = ['label', 'required', 'description', 'tooltip'];
+
+/**
+ * Собственная идентичность кита для компонента HexaUI: рендерит его с теми же пропсами (без
+ * логики) и несёт статики формы. Нужна ровно затем, чтобы не мутировать чужой модуль (см. шапку).
+ */
+function fieldControl<P>(
+  component: ComponentType<P>,
+  displayName: string,
+  statics: FieldControlStatics
+): ComponentType<P> & FieldControlStatics {
+  const Control = (props: P) => createElement(component as ComponentType<any>, props as any);
+  Control.displayName = displayName;
+  return Object.assign(Control, statics) as ComponentType<P> & FieldControlStatics;
+}
+
+/** Текстовые поля HexaUI: value-based `onChange(value)`, контролируемый `value` — без `null`. */
+const textAdapter: FieldAdapter = { toValue: (v) => v ?? '', strip: WRAPPER_PROPS };
+
+/** Число и выбор: value-based `onChange(value)`, значение как есть. */
+const valueAdapter: FieldAdapter = { strip: WRAPPER_PROPS };
+
+/** Текстовое поле: HexaUI `Textbox`. */
+export const Input = fieldControl(Textbox, 'Input', { reformerAdapter: textAdapter });
+
+/** Многострочное поле: вариант compound-компонента `Textbox.Textarea`. */
+export const Textarea = fieldControl(Textbox.Textarea, 'Textarea', {
+  reformerAdapter: textAdapter,
+});
+
+/** Пароль: `Textbox.Password`. */
+export const InputPassword = fieldControl(Textbox.Password, 'InputPassword', {
+  reformerAdapter: textAdapter,
+});
+
+/** Числовое поле: `Textbox.Number`. */
+export const InputNumber = fieldControl(Textbox.Number, 'InputNumber', {
+  reformerAdapter: valueAdapter,
+});
+
+/** Выпадающий список: `Select` (`onChange(value, option)` — адаптер берёт только `value`). */
+export const Select = fieldControl(HexaSelect, 'Select', { reformerAdapter: valueAdapter });
+
+/** Пропсы {@link CheckboxWithLabel}: пропсы HexaUI `Checkbox` плюс подпись. */
+export interface CheckboxWithLabelProps {
+  label?: ReactNode;
   [key: string]: unknown;
 }
 
 /**
- * Пропсы, адресованные ОБЁРТКЕ поля, а не контролу: их читает `FormField` из cdk-контекста.
- * Если не снять — HexaUI прокинет неизвестный проп в DOM, и в разметке появится
- * `<input label="Сумма">`. React такие атрибуты не фильтрует, потому что они строковые.
+ * Чекбокс с подписью. Единственное поле, которому нужен свой компонент, а не только адаптер:
+ * HexaUI `Checkbox` рисует подпись из `children`, а приходит она пропом `label` — переименовать
+ * проп в `children` адаптер не умеет (он переименовывает только value-проп). Прежняя обёртка
+ * `label` просто срезала, а `FormField` для inline-контрола верхнюю подпись подавляет — подписи
+ * не было вовсе.
+ *
+ * `required`/`tooltip` HexaUI `Checkbox` рисует сам у своей подписи — поэтому их адаптер НЕ
+ * срезает (у inline-контрола верхней подписи со звёздочкой нет). `description` рисует `Field`.
  */
-const WRAPPER_PROPS = ['label', 'required', 'description', 'labelTooltip', 'tooltip'] as const;
-
-/** Снять со спреда служебные ключи seam'а и пропсы обёртки. */
-function rest(props: FieldProps): Record<string, unknown> {
-  const { value: _v, onChange: _c, onBlur: _b, control: _ctl, ...other } = props;
-  void _v;
-  void _c;
-  void _b;
-  void _ctl;
-  for (const key of WRAPPER_PROPS) delete other[key];
-  return other;
+export function CheckboxWithLabel({ label, ...rest }: CheckboxWithLabelProps) {
+  return createElement(HexaCheckbox as ComponentType<any>, rest, label);
 }
-
-/** Текстовое поле: HexaUI `Textbox` уже отдаёт `onChange(value)`, второй аргумент (маска) лишний. */
-export function InputField(props: FieldProps) {
-  const { value, onChange, onBlur } = props;
-  return (
-    <Textbox
-      {...(rest(props) as any)}
-      value={(value ?? '') as string}
-      onChange={(next: string) => onChange?.(next)}
-      onBlur={onBlur as any}
-    />
-  );
-}
-
-/** Многострочное поле: вариант compound-компонента `Textbox.Textarea`. */
-export function TextareaField(props: FieldProps) {
-  const { value, onChange, onBlur } = props;
-  return (
-    <Textbox.Textarea
-      {...(rest(props) as any)}
-      value={(value ?? '') as string}
-      onChange={(next: string) => onChange?.(next)}
-      onBlur={onBlur as any}
-    />
-  );
-}
-
-/** Пароль: `Textbox.Password`. */
-export function InputPasswordField(props: FieldProps) {
-  const { value, onChange, onBlur } = props;
-  return (
-    <Textbox.Password
-      {...(rest(props) as any)}
-      value={(value ?? '') as string}
-      onChange={(next: string) => onChange?.(next)}
-      onBlur={onBlur as any}
-    />
-  );
-}
-
-/** Числовое поле: `Textbox.Number`. */
-export function InputNumberField(props: FieldProps) {
-  const { value, onChange, onBlur } = props;
-  return (
-    <Textbox.Number
-      {...(rest(props) as any)}
-      value={value as any}
-      onChange={(next: unknown) => onChange?.(next)}
-      onBlur={onBlur as any}
-    />
-  );
-}
-
-/**
- * Чекбокс. Значение живёт в `checked`, а подпись компонент рисует сам — поэтому помечаем
- * `reformerLayout = 'inline-label'`, иначе обёртка поля нарисует вторую подпись сверху.
- */
-export function CheckboxField(props: FieldProps) {
-  const { value, onChange } = props;
-  return (
-    <Checkbox
-      {...(rest(props) as any)}
-      checked={Boolean(value)}
-      onChange={(next: any) => onChange?.(typeof next === 'boolean' ? next : next?.target?.checked)}
-    />
-  );
-}
-CheckboxField.reformerLayout = 'inline-label';
-
-/** Выпадающий список: `onChange(value, option)` — второй аргумент отбрасываем. */
-export function SelectField(props: FieldProps) {
-  const { value, onChange, onBlur } = props;
-  return (
-    <Select
-      {...(rest(props) as any)}
-      value={value as any}
-      onChange={(next: unknown) => onChange?.(next)}
-      onBlur={onBlur as any}
-    />
-  );
-}
+CheckboxWithLabel.reformerAdapter = {
+  valueProp: 'checked',
+  // antd-чекбокс эмитит событие (`e.target.checked`); булево — на случай value-based эмита.
+  fromEmit: (next: unknown) =>
+    typeof next === 'boolean'
+      ? next
+      : Boolean((next as { target?: { checked?: boolean } } | null)?.target?.checked),
+  toValue: (v: unknown) => Boolean(v),
+  strip: ['description'],
+} satisfies FieldAdapter;
+// Подпись рисует сам контрол — `FormField` кита вторую сверху не даёт.
+CheckboxWithLabel.reformerLayout = 'inline-label' as const;

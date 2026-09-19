@@ -45,15 +45,15 @@ describe('setComponentProp', () => {
 
   it('undefined удаляет проп', () => {
     const s = sampleSchema();
-    const { schema } = setComponentProp(s, P.step0field1, 'type', undefined);
-    expect(getAt(schema, [...P.step0field1, 'componentProps', 'type'])).toBeUndefined();
+    const { schema } = setComponentProp(s, P.step0field1, 'step', undefined);
+    expect(getAt(schema, [...P.step0field1, 'componentProps', 'step'])).toBeUndefined();
   });
 });
 
 describe('switchVariant', () => {
   it('меняет компонент и прунит несовместимые пропсы, общие — сохраняет', () => {
     const s = sampleSchema();
-    // step0field1: Input { label:'Сумма', type:'number' }. Цель знает label, но не type.
+    // step0field1: InputNumber { label:'Сумма', step:1000 }. Цель знает label, но не step.
     const { schema, newPath } = switchVariant(
       s,
       P.step0field1,
@@ -62,11 +62,11 @@ describe('switchVariant', () => {
     );
     expect(getAt(schema, [...P.step0field1, 'component'])).toBe('$component(InputPassword)');
     expect(getAt(schema, [...P.step0field1, 'componentProps', 'label'])).toBe('Сумма');
-    expect(getAt(schema, [...P.step0field1, 'componentProps', 'type'])).toBeUndefined();
+    expect(getAt(schema, [...P.step0field1, 'componentProps', 'step'])).toBeUndefined();
     expect(newPath).toEqual([...P.step0field1]);
     // оригинал не тронут
-    expect(getAt(s, [...P.step0field1, 'component'])).toBe('$component(Input)');
-    expect(getAt(s, [...P.step0field1, 'componentProps', 'type'])).toBe('number');
+    expect(getAt(s, [...P.step0field1, 'component'])).toBe('$component(InputNumber)');
+    expect(getAt(s, [...P.step0field1, 'componentProps', 'step'])).toBe(1000);
   });
 
   it('узел без componentProps — только меняет компонент', () => {

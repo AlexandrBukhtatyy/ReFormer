@@ -254,9 +254,7 @@ describe('модули, доступные коду формы', () => {
     const modules = createPluginModules();
 
     await modules.warm(
-      new Map([
-        ['form/registry.ts', `import { ComboboxMultiField } from '@reformer/ui-kit/combobox';`],
-      ])
+      new Map([['form/registry.ts', `import { ComboboxMulti } from '@reformer/ui-kit/combobox';`]])
     );
     const registry = modules.modules.registry;
 

@@ -146,7 +146,7 @@ describe('validate_form', () => {
     expect(res.text).toContain('/root/componentProps/steps/0/children/1');
     expect(res.text).not.toContain('root.componentProps');
     // Рядом с адресом — компонент: он же нужен для expect в следующей правке.
-    expect(res.text).toContain('(Input)');
+    expect(res.text).toContain('(InputNumber)');
   });
 
   it('свойство, из-за которого ошибка, названо явно', async () => {

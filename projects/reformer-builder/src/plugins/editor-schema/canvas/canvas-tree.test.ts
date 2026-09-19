@@ -62,7 +62,7 @@ describe('flattenCanvas', () => {
     const rows = flattenCanvas(SCHEMA);
     const field = rows.find((row) => row.binding === 'loanAmount');
     expect(field?.kind).toBe('field');
-    expect(field?.component).toBe('Input');
+    expect(field?.component).toBe('InputNumber');
     const array = rows.find((row) => row.binding === 'properties');
     expect(array?.kind).toBe('array');
   });

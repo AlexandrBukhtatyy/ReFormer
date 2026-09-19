@@ -30,14 +30,14 @@ import {
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import { Box } from '@reformer/ui-kit/box';
-import { CheckboxField } from '@reformer/ui-kit/checkbox';
+import { CheckboxWithLabel } from '@reformer/ui-kit/checkbox';
 import { FormField } from '@reformer/ui-kit/form-field';
-import { InputField } from '@reformer/ui-kit/input';
-import { RadioGroupField } from '@reformer/ui-kit/radio-group';
+import { Input } from '@reformer/ui-kit/input';
+import { RadioGroupOptions } from '@reformer/ui-kit/radio-group';
 import { Section } from '@reformer/ui-kit/section';
-import { SelectField } from '@reformer/ui-kit/select';
-import { SwitchField } from '@reformer/ui-kit/switch';
-import { TextareaField } from '@reformer/ui-kit/textarea';
+import { SelectAsync } from '@reformer/ui-kit/select';
+import { SwitchWithLabel } from '@reformer/ui-kit/switch';
+import { Textarea } from '@reformer/ui-kit/textarea';
 import { operatorNamesOf } from './initial-values';
 
 /**
@@ -47,12 +47,12 @@ import { operatorNamesOf } from './initial-values';
  * писал бы форму в билдере, и не учит второй диалект.
  */
 export const CHROME_COMPONENTS: Readonly<Record<string, ComponentType<never>>> = Object.freeze({
-  Input: InputField,
-  Textarea: TextareaField,
-  Checkbox: CheckboxField,
-  Switch: SwitchField,
-  Select: SelectField,
-  RadioGroup: RadioGroupField,
+  Input,
+  Textarea,
+  Checkbox: CheckboxWithLabel,
+  Switch: SwitchWithLabel,
+  Select: SelectAsync,
+  RadioGroup: RadioGroupOptions,
   Box,
   Section,
   FormField,

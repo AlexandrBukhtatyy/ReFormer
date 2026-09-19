@@ -23,14 +23,7 @@ import {
   Space,
   Tag,
 } from '@kaspersky/hexa-ui';
-import {
-  CheckboxField,
-  InputField,
-  InputNumberField,
-  InputPasswordField,
-  SelectField,
-  TextareaField,
-} from './fields';
+import { CheckboxWithLabel, Input, InputNumber, InputPassword, Select, Textarea } from './fields';
 import { FormField } from './form-field';
 import { Box, KitProvider, Section } from './provider';
 
@@ -40,13 +33,14 @@ export const HEXA_UI_NAMESPACE: Record<string, unknown> = {
   FormField,
   KitProvider,
 
-  // Поля (canonical + суффикс Field, как требует descriptor.resolve).
-  InputField,
-  TextareaField,
-  InputPasswordField,
-  InputNumberField,
-  CheckboxField,
-  SelectField,
+  // Поля — канонические имена `@reformer/ui-kit`. Диалект контрола — статика `reformerAdapter`;
+  // запись каталога с другим именем называет экспорт сама (`Checkbox` → `CheckboxWithLabel`).
+  Input,
+  Textarea,
+  InputPassword,
+  InputNumber,
+  CheckboxWithLabel,
+  Select,
 
   // Контейнеры и презентационные компоненты.
   Box,

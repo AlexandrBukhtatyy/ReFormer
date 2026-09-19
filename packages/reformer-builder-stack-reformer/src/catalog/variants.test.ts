@@ -13,8 +13,10 @@ describe('variantGroupOf', () => {
     expect(g!.members.map((m) => m.name).sort()).toEqual([
       'Input',
       'InputMask',
+      'InputNumber',
       'InputOTP',
       'InputPassword',
+      'InputSuggest',
     ]);
   });
 

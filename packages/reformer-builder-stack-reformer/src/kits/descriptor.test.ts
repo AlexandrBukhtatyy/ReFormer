@@ -253,7 +253,9 @@ describe('exportNameFor — символ называет сам каталог'
   });
 
   it('exportName называет символ явно', () => {
-    expect(exportNameFor({ name: 'Input', exportName: 'InputField' })).toBe('InputField');
+    expect(exportNameFor({ name: 'Checkbox', exportName: 'CheckboxWithLabel' })).toBe(
+      'CheckboxWithLabel'
+    );
     expect(exportNameFor({ name: 'Chart', exportName: 'ChartContainer' })).toBe('ChartContainer');
   });
 });

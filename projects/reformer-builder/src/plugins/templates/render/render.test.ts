@@ -58,7 +58,7 @@ describe('вид шаблона формы', () => {
       kit: kit(),
     });
     expect(view.form?.names.TypeName).toBe('ZayavkaNaKreditForm');
-    expect(view.form?.registry.kitSymbols).toContain('InputField');
+    expect(view.form?.registry.kitSymbols).toContain('Input');
     expect(view.form?.wizard).toBeNull();
   });
 

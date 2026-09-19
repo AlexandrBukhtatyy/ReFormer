@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { KitNamespace } from '@reformer/builder-stack-reformer/kits';
 import { createKitNamespaceLoader } from './namespace';
 
-const KIT: KitNamespace = Object.freeze({ InputField: () => null }) as unknown as KitNamespace;
+const KIT: KitNamespace = Object.freeze({ Input: () => null }) as unknown as KitNamespace;
 
 /** Загрузка, которую можно разрешить вручную: гонки проверяются порядком, а не таймерами. */
 function deferred(): { load: () => Promise<KitNamespace>; resolve: () => Promise<void> } {

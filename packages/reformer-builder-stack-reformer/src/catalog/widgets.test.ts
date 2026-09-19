@@ -3,14 +3,18 @@ import { defaultPropSchemas, mergeFieldPropsSchema } from '@reformer/ui-kit/meta
 import { toInspectorProps, inspectorGroups } from './widgets';
 
 const inputProps = () => toInspectorProps(mergeFieldPropsSchema(defaultPropSchemas.Input));
+// Числовые пропсы (`min`/`max`/`step`) живут у отдельного варианта `InputNumber`: у `Input` их нет.
+const inputNumberProps = () =>
+  toInspectorProps(mergeFieldPropsSchema(defaultPropSchemas.InputNumber));
 
 describe('toInspectorProps', () => {
   it('виджет по x-doc.kind / выводу из типа', () => {
     const props = inputProps();
     const by = (k: string) => props.find((p) => p.key === k)!;
     expect(by('type').widget).toBe('enum');
-    expect(by('type').options).toEqual(expect.arrayContaining(['text', 'number', 'date']));
-    expect(by('min').widget).toBe('number');
+    expect(by('type').options).toEqual(expect.arrayContaining(['text', 'email', 'date']));
+    expect(by('type').options).not.toContain('number'); // число — вариант InputNumber
+    expect(inputNumberProps().find((p) => p.key === 'min')!.widget).toBe('number');
     expect(by('placeholder').widget).toBe('text');
     expect(by('className').widget).toBe('className'); // override по ключу поверх x-doc.kind:'readonly'
     expect(by('testId').widget).toBe('text'); // override: редактируемый (не readonly), билдер задаёт data-testid
@@ -28,7 +32,7 @@ describe('toInspectorProps', () => {
   it('секции берутся из x-doc.group', () => {
     const props = inputProps();
     expect(props.find((p) => p.key === 'type')!.group).toBe('Textfield');
-    expect(props.find((p) => p.key === 'min')!.group).toBe('Behavior');
+    expect(inputNumberProps().find((p) => p.key === 'min')!.group).toBe('Behavior');
   });
 
   it('x-runtimeProps (value/onChange) НЕ попадают в инспектор', () => {

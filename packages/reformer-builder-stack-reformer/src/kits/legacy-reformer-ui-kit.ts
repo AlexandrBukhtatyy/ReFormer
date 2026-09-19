@@ -33,6 +33,8 @@ import type { KitDescriptorJson, KitRecordPreview } from './types';
 export const CATEGORY_BY_NAME: Record<string, string> = {
   // Поля ввода
   Input: 'Поля ввода',
+  InputNumber: 'Поля ввода',
+  InputSuggest: 'Поля ввода',
   InputPassword: 'Поля ввода',
   InputMask: 'Поля ввода',
   InputOTP: 'Поля ввода',
@@ -41,6 +43,8 @@ export const CATEGORY_BY_NAME: Record<string, string> = {
   Calendar: 'Поля ввода',
   FileUpload: 'Поля ввода',
   FileUploadAvatar: 'Поля ввода',
+  FileUploadDropzone: 'Поля ввода',
+  FileUploadInput: 'Поля ввода',
   // Выбор и переключатели
   Select: 'Выбор и переключатели',
   SelectMulti: 'Выбор и переключатели',

@@ -4,9 +4,11 @@ import { resolveComponent } from './components';
 
 describe('резолв компонента', () => {
   it('символ берётся из каталога кита, а не из имени записи', () => {
-    // `Input` в `@reformer/ui-kit` экспортируется как `InputField` — это и должно попасть
-    // в сгенерированный импорт.
-    expect(resolveComponent('Input', builtinKit()).symbol).toBe('InputField');
+    // `Checkbox` в `@reformer/ui-kit` экспортируется как `CheckboxWithLabel` — это и должно
+    // попасть в сгенерированный импорт.
+    expect(resolveComponent('Checkbox', builtinKit()).symbol).toBe('CheckboxWithLabel');
+    // Без `exportName` символ равен имени записи.
+    expect(resolveComponent('Input', builtinKit()).symbol).toBe('Input');
   });
 
   it('ЧУЖОЙ кит даёт ЧУЖИЕ символы: захардкоженного ui-kit больше нет', () => {

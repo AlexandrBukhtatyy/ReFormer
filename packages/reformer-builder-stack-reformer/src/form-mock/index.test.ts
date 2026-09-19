@@ -23,6 +23,14 @@ describe('синтез мока', () => {
   it('мультивыбор и файлы получают null, а не массив', () => {
     expect(fieldKindOf(field('$component(SelectMulti)'))).toBe('multi');
     expect(fieldKindOf(field('$component(FileUpload)'))).toBe('file');
+    // Варианты FileUpload — отдельные записи каталога, значение у всех — список файлов.
+    expect(fieldKindOf(field('$component(FileUploadDropzone)'))).toBe('file');
+    expect(fieldKindOf(field('$component(FileUploadInput)'))).toBe('file');
+  });
+
+  it('InputNumber — число без пропа type; старый Input + type:number читается так же', () => {
+    expect(fieldKindOf(field('$component(InputNumber)'))).toBe('number');
+    expect(fieldKindOf(field('$component(Input)', { type: 'number' }))).toBe('number');
   });
 
   it('детерминирован: два вызова дают побайтово одно и то же', () => {
@@ -87,8 +95,8 @@ describe('начальное значение поля', () => {
   it('у числа с нижней границей — сама граница, иначе null', () => {
     // Ноль вместо границы был бы значением ВНЕ допустимого диапазона: форма открывалась бы
     // сразу невалидной, и человек видел бы ошибку, которой не делал.
-    expect(defaultForField(field('$component(Input)', { type: 'number', min: 18 }))).toBe(18);
-    expect(defaultForField(field('$component(Input)', { type: 'number' }))).toBeNull();
+    expect(defaultForField(field('$component(InputNumber)', { min: 18 }))).toBe(18);
+    expect(defaultForField(field('$component(InputNumber)'))).toBeNull();
   });
 
   it('нижняя граница ноль берётся, а не считается отсутствующей', () => {

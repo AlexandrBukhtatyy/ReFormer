@@ -32,7 +32,7 @@ export const KIT_CONTRACT_VERSION = '1.0';
 
 /**
  * Плоская карта «имя экспорта → значение» из модулей кита. Именно по ней резолвятся компоненты:
- * достаточно, чтобы нужный экспорт (`InputField`, `Table`, `FormWizard`, …) в объекте присутствовал,
+ * достаточно, чтобы нужный экспорт (`CheckboxWithLabel`, `Table`, `FormWizard`, …) в объекте присутствовал,
  * из barrel он пришёл или из subpath — неважно.
  */
 export type KitNamespace = Record<string, unknown>;
@@ -147,7 +147,7 @@ export interface KitRecordPreview {
  * (`name`/`role`/`propsSchema`/…). Отсутствие любого — поведение как сегодня.
  */
 export interface KitRecordExt {
-  /** Имя символа в namespace кита, если оно отличается от `name` записи (`Input` → `InputField`). */
+  /** Имя символа в namespace кита, если оно отличается от `name` записи (`Checkbox` → `CheckboxWithLabel`). */
   exportName?: string;
   /** Subpath кита, за которым лежит символ (когда его нет в barrel). */
   subpath?: string;

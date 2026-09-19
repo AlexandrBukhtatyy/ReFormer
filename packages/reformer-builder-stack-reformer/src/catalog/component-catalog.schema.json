@@ -51,7 +51,7 @@
           "exportName": {
             "type": "string",
             "minLength": 1,
-            "description": "Контракт 2.0. Имя символа в namespace кита, если оно отличается от name записи (Input → InputField, Chart → ChartContainer). По умолчанию символ ищется по name: неявного правила «имя + суффикс» контракт не задаёт — кит, у которого имена расходятся, называет экспорт явно."
+            "description": "Контракт 2.0. Имя символа в namespace кита, если оно отличается от name записи (Checkbox → CheckboxWithLabel, Chart → ChartContainer). По умолчанию символ ищется по name: неявного правила «имя + суффикс» контракт не задаёт — кит, у которого имена расходятся, называет экспорт явно."
           },
           "subpath": {
             "type": "string",

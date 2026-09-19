@@ -108,7 +108,7 @@ describe('ошибка в значении, а не в типе', () => {
 
     const problem = found.find((item) => item.code === CODES.VALUE_NOT_ALLOWED);
     expect(problem?.params?.list).toBe('yes');
-    expect(problem?.params?.allowed).toBe('text, email, tel, url, password, number, date');
+    expect(problem?.params?.allowed).toBe('text, email, tel, url, password, date');
     // Виновато значение, а не имя поля: подчёркивать надо «вбок», а не «type».
     expect(problem?.target).toEqual({
       kind: 'node',

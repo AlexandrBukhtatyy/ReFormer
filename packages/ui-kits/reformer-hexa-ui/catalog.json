@@ -50,7 +50,6 @@
     {
       "name": "Input",
       "role": "field",
-      "exportName": "InputField",
       "propsSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -102,7 +101,6 @@
     {
       "name": "Textarea",
       "role": "field",
-      "exportName": "TextareaField",
       "propsSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -142,7 +140,6 @@
     {
       "name": "InputPassword",
       "role": "field",
-      "exportName": "InputPasswordField",
       "propsSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -176,7 +173,6 @@
     {
       "name": "InputNumber",
       "role": "field",
-      "exportName": "InputNumberField",
       "propsSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -211,7 +207,7 @@
     {
       "name": "Checkbox",
       "role": "field",
-      "exportName": "CheckboxField",
+      "exportName": "CheckboxWithLabel",
       "propsSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -248,7 +244,6 @@
     {
       "name": "Select",
       "role": "field",
-      "exportName": "SelectField",
       "propsSchema": {
         "type": "object",
         "additionalProperties": false,

@@ -39,6 +39,8 @@ export type { FormMock } from '../codegen/types';
 const FILE_COMPONENTS: ReadonlySet<string> = new Set([
   'FileUpload',
   'FileUploadAvatar',
+  'FileUploadDropzone',
+  'FileUploadInput',
   'Attachment',
 ]);
 
@@ -79,8 +81,10 @@ export function fieldKindOf(node: JsonFieldNode): FieldKind {
     if (FILE_COMPONENTS.has(component)) return 'file';
     if (MULTI_COMPONENTS.has(component)) return 'multi';
     if (BOOLEAN_COMPONENTS.has(component)) return 'boolean';
-    if (component === 'Slider') return 'number';
+    if (component === 'Slider' || component === 'InputNumber') return 'number';
   }
+  // Старые схемы (до выделения InputNumber) задавали число пропом `type: 'number'` у Input —
+  // схемы Input его больше не принимают, но мок читает такие схемы по-прежнему как число.
   if (node.componentProps?.type === 'number') return 'number';
   const props = node.componentProps ?? {};
   for (const key of LIST_PROP_KEYS) {

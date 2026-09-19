@@ -1,6 +1,6 @@
 // registry.ts — привязка $component/$dataSource к реализациям. Регенерируется.
 
-import { Box, FormField, InputField } from '@reformer/ui-kit';
+import { Box, FormField, Input } from '@reformer/ui-kit';
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { Step, Wizard } from './renderer.wizard';
 
@@ -11,6 +11,6 @@ export function createRegistry() {
     reg.component('Wizard', Wizard);
     reg.component('Step', Step);
     reg.component('Box', Box);
-    reg.component('Input', InputField);
+    reg.component('Input', Input);
   });
 }
