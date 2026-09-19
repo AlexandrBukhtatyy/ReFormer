@@ -54,6 +54,7 @@ function HexaFieldShell({
     testId?: string;
     label?: string;
     description?: string;
+    labelTooltip?: string;
   };
   const label = ctx.label ?? props.label;
   const id = testId ?? props.testId ?? 'unknown';
@@ -75,6 +76,7 @@ function HexaFieldShell({
       control={control}
       testId={`field-${id}`}
       description={props?.description}
+      tooltip={props?.labelTooltip || undefined}
     />
   );
 }

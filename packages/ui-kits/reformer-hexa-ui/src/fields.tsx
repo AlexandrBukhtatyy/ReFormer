@@ -31,7 +31,7 @@ interface FieldProps {
  * Если не снять — HexaUI прокинет неизвестный проп в DOM, и в разметке появится
  * `<input label="Сумма">`. React такие атрибуты не фильтрует, потому что они строковые.
  */
-const WRAPPER_PROPS = ['label', 'required', 'description'] as const;
+const WRAPPER_PROPS = ['label', 'required', 'description', 'labelTooltip', 'tooltip'] as const;
 
 /** Снять со спреда служебные ключи seam'а и пропсы обёртки. */
 function rest(props: FieldProps): Record<string, unknown> {
