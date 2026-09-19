@@ -250,3 +250,73 @@ describe('командная строка', () => {
     );
   });
 });
+
+describe('build: пакеты стеков вкладываются', () => {
+  // Каталог плагина — ВНУТРИ репозитория: пакеты стеков вкладываются, и сборке нужно их найти
+  // обычным разрешением через `node_modules` рабочей области. Во временном каталоге ОС его нет.
+  let local: string;
+  let plugin: string;
+
+  beforeEach(async () => {
+    const base = join(process.cwd(), '..', '..', '.tmp', 'cli-build-tests');
+    await mkdir(base, { recursive: true });
+    local = await mkdtemp(join(base, 'stack-'));
+    plugin = join(local, 'acme-stack');
+    expect((await createPlugin({ dir: plugin, cliVersion: '1.0.0' })).ok).toBe(true);
+  });
+
+  afterEach(async () => {
+    await rm(local, { recursive: true, force: true });
+  });
+
+  it('демо-стек вложен в main.js, а не оставлен внешним', async () => {
+    await writeFile(
+      join(plugin, 'src/main.ts'),
+      [
+        "import { definePlugin } from '@reformer/builder-plugin-api';",
+        "import { PLAIN_SCHEMA_ID } from '@reformer/builder-stack-plain';",
+        "export default definePlugin({ id: 'acme-stack', activate() { void PLAIN_SCHEMA_ID; } });",
+        '',
+      ].join('\n')
+    );
+
+    const result = await buildPlugin({ dir: plugin });
+    expect(result.ok ? [] : result.findings).toEqual([]);
+    const code = await readFile(join(plugin, 'dist/main.js'), 'utf8');
+    expect(code).toContain('plain-form/1');
+    expect(code).not.toContain('require("@reformer/builder-stack-plain")');
+  });
+
+  it('стек ReFormer: его рантайм остаётся внешним, внутренности — вложены', async () => {
+    await writeFile(
+      join(plugin, 'src/main.ts'),
+      [
+        "import { definePlugin } from '@reformer/builder-plugin-api';",
+        "import { prepare } from '@reformer/builder-stack-reformer/codegen';",
+        "export default definePlugin({ id: 'acme-stack', activate() { void prepare; } });",
+        '',
+      ].join('\n')
+    );
+
+    const result = await buildPlugin({ dir: plugin });
+    expect(result.ok ? [] : result.findings).toEqual([]);
+    const code = await readFile(join(plugin, 'dist/main.js'), 'utf8');
+    // Рендерер — модуль рантайма: второй экземпляр был бы тихой поломкой.
+    expect(code).toContain('require("@reformer/renderer-json")');
+    // Глубокий импорт @reformer/mcp — внутренность пакета стека, оболочка его не подставляет.
+    expect(code).not.toContain('require("@reformer/mcp');
+    expect(code).not.toContain('require("@reformer/builder-stack-reformer');
+  });
+
+  it('@reformer/* вне списков из кода САМОГО плагина — по-прежнему отказ', async () => {
+    await writeFile(
+      join(plugin, 'src/main.ts'),
+      "import { x } from '@reformer/mcp/dist/core/generate/form-intent.js';\nexport default x;\n"
+    );
+
+    const result = await buildPlugin({ dir: plugin });
+    expect(result.ok ? [] : result.findings.map((finding) => finding.code)).toEqual([
+      'module-unavailable',
+    ]);
+  });
+});

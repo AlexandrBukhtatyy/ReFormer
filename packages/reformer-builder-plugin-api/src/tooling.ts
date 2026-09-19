@@ -57,4 +57,9 @@ export {
   type ProjectPluginManifest,
 } from './plugin/manifest.js';
 export { PLUGIN_RUNTIME_MODULES } from './plugin/runtime-modules.js';
+export {
+  isBundledPluginModule,
+  packageNameOf,
+  PLUGIN_BUNDLED_PACKAGES,
+} from './plugin/bundled-modules.js';
 export { normalizeModulePath } from './primitives/module-path.js';
