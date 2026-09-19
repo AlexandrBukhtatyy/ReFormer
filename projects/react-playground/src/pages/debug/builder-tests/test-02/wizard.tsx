@@ -53,3 +53,16 @@ export function Wizard({ form, steps = [], className, onSubmit }: WizardProps): 
 
 // Контракт с рендерером: получить `form` пропом и сырые `steps`, без обхода детей.
 (Wizard as any).__selfManagedChildren = true;
+
+export interface StepProps {
+  className?: string;
+  children?: ReactNode;
+}
+
+/**
+ * Тело шага — компонент под `$component(Step)`. Маркер: `title`/`icon` из его
+ * `componentProps` снимает `Wizard` выше, сюда доезжает только вёрстка.
+ */
+export function Step({ className, children }: StepProps): ReactNode {
+  return <div className={className}>{children}</div>;
+}
