@@ -65,6 +65,7 @@ export const KIT_BARREL_SUBPATHS: readonly string[] = [
   '@reformer/ui-kit/form-wizard',
   '@reformer/ui-kit/hover-card',
   '@reformer/ui-kit/icon',
+  '@reformer/ui-kit/info-hint',
   '@reformer/ui-kit/input',
   '@reformer/ui-kit/input-group',
   '@reformer/ui-kit/input-mask',
