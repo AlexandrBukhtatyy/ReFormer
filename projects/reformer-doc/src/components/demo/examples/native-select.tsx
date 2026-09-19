@@ -1,7 +1,7 @@
 import {
-  NativeSelectField,
+  NativeSelectWithOptions,
   nativeSelectBasePropsSchema,
-  NativeSelectMultiField,
+  NativeSelectMulti,
 } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
@@ -25,7 +25,7 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
   name: 'NativeSelect',
   importFrom: '@reformer/ui-kit',
   description:
-    'Стилизованный native <select> (не Radix — семантика и клавиатура браузерные). Значение — строка (option.value), пустой выбор → null. Для форм — NativeSelectField (options → <option>).',
+    'Стилизованный native <select> (не Radix — семантика и клавиатура браузерные). Значение — строка (option.value), пустой выбор → null. Для форм — NativeSelectWithOptions (options → <option>).',
   variants: [
     {
       id: 'single',
@@ -34,12 +34,12 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
         'Плоский список опций через проп options. Значение — строка (value: string | null).',
       render: makeFieldVariant({
         initial: null,
-        component: NativeSelectField,
+        component: NativeSelectWithOptions,
         componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
       }),
       code: `{
   value: model.$.loanType,
-  component: NativeSelectField,
+  component: NativeSelectWithOptions,
   componentProps: {
     label: 'Тип кредита',
     placeholder: 'Выберите тип',
@@ -56,7 +56,7 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
       description: 'Опции с одинаковым group объединяются в нативный <optgroup>.',
       render: makeFieldVariant({
         initial: null,
-        component: NativeSelectField,
+        component: NativeSelectWithOptions,
         componentProps: { label: 'Город', placeholder: 'Выберите город', options: GROUPED },
       }),
       code: `componentProps: {
@@ -74,7 +74,7 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
         'Нативный <select multiple>: no-JS/legacy, клавиатура браузера (Ctrl+клик, Shift+стрелки). Не для тач-устройств. placeholder отсутствует намеренно — в листбоксе он стал бы выбираемым пунктом.',
       render: makeFieldVariant({
         initial: null,
-        component: NativeSelectMultiField,
+        component: NativeSelectMulti,
         componentProps: {
           label: 'Цели кредита',
           options: LOAN,
@@ -83,7 +83,7 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
       }),
       code: `{
   value: model.signalAt('purposes')!,
-  component: NativeSelectMultiField,
+  component: NativeSelectMulti,
   componentProps: { options: LOAN, rows: 5 },
 }`,
     },
@@ -96,14 +96,14 @@ export const nativeSelectDocConfig: ComponentDocConfig = {
         'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
-        component: NativeSelectField,
+        component: NativeSelectWithOptions,
         componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
         validators: [required({ message: 'Выберите тип кредита' })],
         touched: true,
       }),
       code: `{
   value: model.$.loanType,
-  component: NativeSelectField,
+  component: NativeSelectWithOptions,
   componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
 }
 
@@ -112,7 +112,7 @@ validate(model.$.loanType, [required({ message: 'Выберите тип кре�
     },
   ],
   api: {
-    component: NativeSelectField,
+    component: NativeSelectWithOptions,
     initialValue: null,
     baseComponentProps: { label: 'Тип кредита', options: LOAN },
     validators: [required({ message: 'Выберите тип' })],
@@ -129,7 +129,7 @@ validate(model.$.loanType, [required({ message: 'Выберите тип кре�
     code: (v) =>
       `{
   value: model.$.loanType,
-  component: NativeSelectField,
+  component: NativeSelectWithOptions,
   componentProps: {
     label: 'Тип кредита',
     options: LOAN,

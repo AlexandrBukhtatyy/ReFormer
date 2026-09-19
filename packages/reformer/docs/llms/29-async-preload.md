@@ -31,16 +31,16 @@ Initial values задаются в `createModel(initial)`; `reset()` возвр�
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
-import { InputField, SelectField } from '@reformer/ui-kit';
+import { Input, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
 type ProfileForm = { username: string; language: 'ru' | 'en'; marketing: boolean };
 
 const model = createModel<ProfileForm>({ username: '', language: 'ru', marketing: true });
 const schema = {
-  username: { value: model.$.username, component: InputField, componentProps: { label: 'Username' } },
+  username: { value: model.$.username, component: Input, componentProps: { label: 'Username' } },
   language: {
     value: model.$.language,
-    component: SelectField,
+    component: SelectAsync,
     componentProps: {
       label: 'Язык',
       options: [
@@ -49,7 +49,7 @@ const schema = {
       ],
     },
   },
-  marketing: { value: model.$.marketing, component: InputField, componentProps: { type: 'checkbox' } },
+  marketing: { value: model.$.marketing, component: CheckboxWithLabel, componentProps: { label: 'Рассылка' } },
 };
 const form = createForm({ model, schema });
 // model.get() === { username: '', language: 'ru', marketing: true }

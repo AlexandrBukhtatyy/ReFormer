@@ -5,7 +5,7 @@ import { defineValidationSchema, validate, apply, validateModel } from '@reforme
 import { required, email } from '@reformer/core/validators';
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
-import { FormField, InputField, InputMaskField, Button } from '@reformer/ui-kit';
+import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 type WForm = { name: string; email: string; phone: string };
@@ -25,15 +25,15 @@ function useWizardForm() {
   return useMemo(() => {
     const model = createModel<WForm>({ name: '', email: '', phone: '' });
     const schema = {
-      name: { value: model.$.name, component: InputField, componentProps: { label: 'Имя' } },
+      name: { value: model.$.name, component: Input, componentProps: { label: 'Имя' } },
       email: {
         value: model.$.email,
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Email', type: 'email' },
       },
       phone: {
         value: model.$.phone,
-        component: InputMaskField,
+        component: InputMask,
         componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
       },
     } as any;

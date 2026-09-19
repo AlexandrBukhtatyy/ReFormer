@@ -136,8 +136,8 @@ const schema: JsonFormSchema = {
       children: [
         { value: '$model(type)', component: '$component(Select)',
           componentProps: { label: 'Тип', options: '$dataSource(PROPERTY_TYPES)' } },
-        { value: '$model(estimatedValue)', component: '$component(Input)',
-          componentProps: { label: 'Стоимость', type: 'number' } },
+        { value: '$model(estimatedValue)', component: '$component(InputNumber)',
+          componentProps: { label: 'Стоимость' } },
       ],
     },
   },

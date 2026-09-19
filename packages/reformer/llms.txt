@@ -128,7 +128,7 @@ const { value, errors, disabled } = useFormControl(control.loanType);
 import { createCoreForm, createModel, useFormBundle, type FormProxy } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
-import { FormField, InputField, Button } from '@reformer/ui-kit';
+import { FormField, Input, Button } from '@reformer/ui-kit';
 
 // 1. Define form type as `type` alias (not `interface` — see Recipe 2)
 type ContactForm = {
@@ -144,12 +144,12 @@ const model = createModel<ContactForm>({ name: '', email: '' });
 const schema = {
   name: {
     value: model.$.name,
-    component: InputField,
+    component: Input,
     componentProps: { label: 'Name', placeholder: 'Your name' },
   },
   email: {
     value: model.$.email,
-    component: InputField,
+    component: Input,
     componentProps: { label: 'Email', type: 'email' },
   },
 };
@@ -223,14 +223,14 @@ const model = createModel<MyForm>({ properties: [] });
 const propertyItem = (item: FormModel<PropertyItem>) => ({
   type: {
     value: item.$.type,
-    component: SelectField,
+    component: SelectAsync,
     componentProps: { label: 'Тип', options: [/* ... */] },
   },
-  description: { value: item.$.description, component: TextareaField, componentProps: { label: 'Описание' } },
+  description: { value: item.$.description, component: Textarea, componentProps: { label: 'Описание' } },
   estimatedValue: {
     value: item.$.estimatedValue,
-    component: InputField,
-    componentProps: { label: 'Стоимость', type: 'number' },
+    component: InputNumber,
+    componentProps: { label: 'Стоимость' },
   },
 });
 
@@ -328,16 +328,16 @@ import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
 
-type Loan = { email: string; age: number; amount: number };
-const model = createModel<Loan>({ email: '', age: 0, amount: 0 });
+type Loan = { email: string; age: number | null; amount: number | null };
+const model = createModel<Loan>({ email: '', age: null, amount: null });
 
 // layout-схема createForm НЕ несёт validators — только привязка поля к сигналу + компонент
 const form = createForm({
   model,
   schema: {
-    email:  { value: model.$.email,  component: InputField },
-    age:    { value: model.$.age,    component: InputField },
-    amount: { value: model.$.amount, component: InputField },
+    email:  { value: model.$.email,  component: Input },
+    age:    { value: model.$.age,    component: InputNumber },
+    amount: { value: model.$.amount, component: InputNumber },
   },
 });
 
@@ -837,7 +837,7 @@ computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => pr
 ```typescript
 // ❌ WRONG - дерево { value, validators } и позиционная строка удалены
 const schema = {
-  email: { value: model.$.email, component: InputField, validators: [required(), email()] },
+  email: { value: model.$.email, component: Input, validators: [required(), email()] },
 };
 validate(path.email, required(), 'Email is required'); // старая сигнатура validate() — удалена
 
@@ -1090,7 +1090,7 @@ layout-схеме НЕТ — правила живут в отдельной с�
 ```typescript
 {
   value: model.$.fieldName,   // сигнал модели (PathAwareSignal) — обязателен
-  component: InputField,           // React-компонент
+  component: Input,           // React-компонент
   componentProps?: object,    // пропсы (label, placeholder, options, type, ...)
   disabled?: boolean,
   updateOn?: 'change' | 'blur' | 'submit',
@@ -1108,7 +1108,7 @@ layout-схеме НЕТ — правила живут в отдельной с�
 import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
-import { InputField, SelectField, CheckboxField } from '@reformer/ui-kit';
+import { Input, InputNumber, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
 const model = createModel<MyForm>({ name: '', age: null, agree: false, status: 'active' });
 
@@ -1120,22 +1120,22 @@ const myValidation = defineValidationSchema<MyForm>(({ model }) => {
 const schema = {
   name: {
     value: model.$.name,
-    component: InputField,
+    component: Input,
     componentProps: { label: 'Name', placeholder: 'Enter name' },
   },
   age: {
     value: model.$.age,
-    component: InputField,
-    componentProps: { type: 'number', label: 'Age' },
+    component: InputNumber,
+    componentProps: { label: 'Age' },
   },
   agree: {
     value: model.$.agree,
-    component: CheckboxField,
+    component: CheckboxWithLabel,
     componentProps: { label: 'I agree to terms' },
   },
   status: {
     value: model.$.status,
-    component: SelectField,
+    component: SelectAsync,
     componentProps: {
       label: 'Status',
       options: [
@@ -1159,9 +1159,9 @@ const form = createForm<MyForm>({ model, schema });
 import type { FormModel } from '@reformer/core';
 
 const addressNodes = (m: FormModel<Address>) => ({
-  street: { value: m.$.street, component: InputField, componentProps: { label: 'Street' } },
-  city:   { value: m.$.city,   component: InputField, componentProps: { label: 'City' } },
-  zip:    { value: m.$.zip,    component: InputField, componentProps: { label: 'ZIP' } },
+  street: { value: m.$.street, component: Input, componentProps: { label: 'Street' } },
+  city:   { value: m.$.city,   component: Input, componentProps: { label: 'City' } },
+  zip:    { value: m.$.zip,    component: Input, componentProps: { label: 'ZIP' } },
 });
 
 const schema = {
@@ -1178,8 +1178,8 @@ const schema = {
 import type { FormModel } from '@reformer/core';
 
 const itemSchema = (item: FormModel<Item>) => ({
-  id:   { value: item.$.id,   component: InputField, componentProps: { label: 'ID' } },
-  name: { value: item.$.name, component: InputField, componentProps: { label: 'Name' } },
+  id:   { value: item.$.id,   component: Input, componentProps: { label: 'ID' } },
+  name: { value: item.$.name, component: Input, componentProps: { label: 'Name' } },
 });
 
 const schema = {
@@ -1233,7 +1233,7 @@ if (isFieldNode(node)) { /* ... */ }
 
 ```typescript
 import { createModel, createForm, type FormModel } from '@reformer/core';
-import { InputField } from '@reformer/ui-kit';
+import { Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
 type MyForm = { items: Item[] };
@@ -1242,9 +1242,9 @@ const model = createModel<MyForm>({ items: [] });
 
 // под-схема одного элемента (item.$.field — сигнал под-модели)
 const itemSchema = (item: FormModel<Item>) => ({
-  id:    { value: item.$.id,    component: InputField },
-  name:  { value: item.$.name,  component: InputField },
-  price: { value: item.$.price, component: InputField, componentProps: { type: 'number' } },
+  id:    { value: item.$.id,    component: Input },
+  name:  { value: item.$.name,  component: Input },
+  price: { value: item.$.price, component: InputNumber },
 });
 
 const schema = {
@@ -1645,7 +1645,7 @@ import { revalidateWhen, type ValidationError } from '@reformer/core';
 // ❌ старое (УДАЛЕНО): дерево { value, validators }, ModelValidator (value, scope, root), validateFormModel
 const legacyRule: ModelValidator<number, unknown, Form> = (_value, _scope, root) =>
   root.field1 > root.field2 ? { code: 'error', message: 'Invalid' } : null;
-const legacySchema = { field1: { value: model.$.field1, component: InputField, validators: [legacyRule] } };
+const legacySchema = { field1: { value: model.$.field1, component: Input, validators: [legacyRule] } };
 validateFormModel(model, legacySchema);
 
 // ✅ новое: cross-правило — обычная функция над снапшотом (model.get()), не читает scope/root
@@ -1722,7 +1722,7 @@ export const createCreditApplicationModel = (): FormModel<CreditApplicationForm>
 // forms/credit-application/form.schema.ts
 import type { FormModel } from '@reformer/core';
 export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
-  loanType: { value: model.$.loanType, component: SelectField, componentProps: { /* ... */ } },
+  loanType: { value: model.$.loanType, component: SelectAsync, componentProps: { /* ... */ } },
   personalData: personalDataNodes(model.$.personalData),
   properties: { array: model.properties, item: propertyItem },
 });
@@ -1810,12 +1810,13 @@ the guide below.
 
 > **Default rule (read first)**: для UI используй `FormField` из
 > [`@reformer/ui-kit`](../../reformer-ui-kit/) — он покрывает 95% случаев одной
-> строкой `<FormField control={form.x} />`. Свои field-обёртки пиши ТОЛЬКО если
+> строкой `<FormField control={form.x} />`. Свои обёртки поля пиши ТОЛЬКО если
 > ui-kit не подходит (другая design system, особый low-level input).
 >
 > Канонический schema-driven подход:
 >
-> - **компонент** объявляется в схеме как `component: InputField` (или `Select`, `Checkbox`, etc.)
+> - **компонент** объявляется в схеме как `component: Input` (или `SelectAsync`, `CheckboxWithLabel`, …) —
+>   сам компонент кита, отдельных «field-версий» нет: связывает его с полем обёртка (`FormField`)
 > - **пропсы** компонента — в `componentProps: { label, placeholder, options, type, ... }`
 > - **JSX рендерит**: `<FormField control={form.x} />` БЕЗ дополнительных props
 >
@@ -1827,7 +1828,7 @@ the guide below.
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createForm } from '@reformer/core';
-import { FormField, InputField, SelectField, CheckboxField, Button } from '@reformer/ui-kit';
+import { FormField, Input, SelectAsync, CheckboxWithLabel, Button } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   email: string;
@@ -1841,12 +1842,12 @@ function RegistrationPage() {
     const schema = {
       email: {
         value: model.$.email,
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
       },
       country: {
         value: model.$.country,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: {
           label: 'Country',
           options: [
@@ -1857,7 +1858,7 @@ function RegistrationPage() {
       },
       agree: {
         value: model.$.agree,
-        component: CheckboxField,
+        component: CheckboxWithLabel,
         componentProps: { label: 'I agree to terms' },
       },
     };
@@ -1900,7 +1901,7 @@ function RegistrationPage() {
 ✅ Всё это в схеме:
 
 ```ts
-{ email: { component: InputField, componentProps: { label: 'Email' } } }
+{ email: { component: Input, componentProps: { label: 'Email' } } }
 ```
 
 ```tsx
@@ -1921,7 +1922,8 @@ import { InputMask } from 'react-input-mask';
 ```
 
 `children` оборачивается в `CdkFormField.Control asChild` и получает все нужные
-props (`value`, `onChange`, `onBlur`, `aria-invalid`).
+props (`value`, `onChange`, `onBlur`, `aria-invalid`) — в диалекте ребёнка, если тот объявил
+статику `reformerAdapter` (`defineFieldControl` из `@reformer/ui-kit/fields`), иначе value-based.
 
 ### Advanced — write your own from scratch (rare)
 
@@ -1963,12 +1965,37 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 <MyFormField control={form.email} /> // ← без label-prop
 ```
 
+### Связывание поля с контролом — `FieldAdapter` (`@reformer/core`)
+
+Контролы говорят на разных диалектах (`checked` + `onCheckedChange`, `onValueChange`, DOM-событие
+в `onChange`), форма — на value-based seam (`value` + `onChange(value)` + `onBlur`). Перевод
+описывает `FieldAdapter` (`valueProp`, `changeProp`, `fromEmit`, `toValue`, `bindBlur`, `strip`,
+`passControl` — все необязательны). Компонент объявляет его статикой `reformerAdapter`, а обёртка
+поля (`FormField.Control` из `@reformer/cdk`, рендерер `@reformer/renderer-react`) читает статику
+и связывает поле сама — отдельные «field-версии» компонентов не нужны.
+
+| Символ                        | Назначение                                                                  |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| `FieldAdapter`                | Тип адаптера: диалект контрола                                              |
+| `getFieldAdapter(component)`  | Статика `component.reformerAdapter` либо `undefined`                        |
+| `bindFieldProps(adapter, seam, props)` | Props контрола под адаптер (без адаптера — seam как есть)          |
+| `FieldHandle`                 | Императивный handle поля: `focus` / `blur` / `scrollIntoView` / `getElement` |
+| `makeElementFieldHandle(ref)` | Базовый `FieldHandle` из DOM-узла                                           |
+| `useFieldHandleRef(outerRef)` | Ref для контрола + публикация handle потребителю (строит ОБЁРТКА поля)     |
+
+В приложении обычно достаточно `defineFieldControl(MyControl, { adapter })` из
+`@reformer/ui-kit/fields` (плюс готовые пресеты `checkedAdapter`, `valueChangeAdapter`, …); для
+компонентов чужой библиотеки без статики — `RendererSettings.resolveFieldAdapter`.
+
 ### Integration with UI libraries (shadcn etc.)
 
 > **Через рендерер — без обёртки.** Если ты рендеришь форму через `@reformer/renderer-react` /
 > `@reformer/renderer-json`, вместо ручной обёртки на каждый контрол можно зарегистрировать сырой
 > компонент и передать `settings.resolveFieldAdapter` — рендерер сам сведёт value-seam к диалекту
-> контрола. Ручная обёртка на `useFormControl` (ниже) нужна для прямого JSX без рендерера.
+> контрола. Свой компонент можно подготовить и один раз — статикой
+> `defineFieldControl(MyInput, { adapter })` из `@reformer/ui-kit/fields`: его поймут и рендерер,
+> и `FormField.Control` из `@reformer/cdk`. Ручная обёртка на `useFormControl` (ниже) нужна для
+> прямого JSX без `FormField` и рендерера.
 
 Если есть существующая design system — оборачивай её компоненты в один
 `MyFormField` (как выше) и используй один прop `control`. Не множь обёртки на
@@ -2026,6 +2053,20 @@ function ShadcnFormField({ control }: { control: FieldNode<string> }) {
 | `FormProvider`, `control` prop, `register()` | `<Component form={form} />`, `useFormControl(form.field)` | Форма передаётся через props |
 | `getFieldValue()`                | `model.field` / `useFormControlValue(form.field)`| Не существует                                   |
 
+### UI: удалённые field-версии компонентов (`@reformer/ui-kit`)
+
+Отдельных «field-версий» у компонентов кита больше нет: в `component` поля кладётся сам
+компонент, диалект он объявляет статикой `reformerAdapter`, связывает поле обёртка
+(`FormField.Control` / рендерер).
+
+| Wrong                                          | Correct                                                   |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| `InputField`, `SelectField`, `CheckboxField`, … (любой `*Field`) | `Input`, `SelectAsync`, `CheckboxWithLabel`, … — таблица в ui-kit `01-overview.md` |
+| `InputField` + `type: 'number'`                | `InputNumber`                                             |
+| `InputField` + `suggestions`                   | `InputSuggest`                                            |
+| `FileUploadField` + `variant: 'dropzone' \| 'input'` | `FileUploadDropzone` / `FileUploadInput` (без `variant`) |
+| `withFormControl(MyControl, adapter)`          | `defineFieldControl(MyControl, { adapter })` из `@reformer/ui-kit/fields` |
+
 ### Common Import Errors
 
 ```typescript
@@ -2064,8 +2105,8 @@ const schema = {
 
 // CORRECT - layout только связывает поле с сигналом модели...
 const layout = {
-  name:  { value: model.$.name,  component: InputField, componentProps: { label: 'Name' } },
-  email: { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
+  name:  { value: model.$.name,  component: Input, componentProps: { label: 'Name' } },
+  email: { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
 };
 
 // ...а правила — отдельная ambient-схема (прогоняется раннером validateModel):
@@ -3656,16 +3697,16 @@ Initial values задаются в `createModel(initial)`; `reset()` возвр�
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
-import { InputField, SelectField } from '@reformer/ui-kit';
+import { Input, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
 type ProfileForm = { username: string; language: 'ru' | 'en'; marketing: boolean };
 
 const model = createModel<ProfileForm>({ username: '', language: 'ru', marketing: true });
 const schema = {
-  username: { value: model.$.username, component: InputField, componentProps: { label: 'Username' } },
+  username: { value: model.$.username, component: Input, componentProps: { label: 'Username' } },
   language: {
     value: model.$.language,
-    component: SelectField,
+    component: SelectAsync,
     componentProps: {
       label: 'Язык',
       options: [
@@ -3674,7 +3715,7 @@ const schema = {
       ],
     },
   },
-  marketing: { value: model.$.marketing, component: InputField, componentProps: { type: 'checkbox' } },
+  marketing: { value: model.$.marketing, component: CheckboxWithLabel, componentProps: { label: 'Рассылка' } },
 };
 const form = createForm({ model, schema });
 // model.get() === { username: '', language: 'ru', marketing: true }
@@ -3880,7 +3921,7 @@ Layout-схема БЕЗ валидаторов — правила живут в
 const model = createModel<CreditApplicationForm>(initial);
 
 const schema = {
-  loanAmount: { value: model.$.loanAmount, component: InputField },
+  loanAmount: { value: model.$.loanAmount, component: InputNumber },
   // вложенная группа — builder, принимающий ModelSignals<Sub>
   personalData: personalDataNodes(model.$.personalData),
   // массив — { array, item }
@@ -4693,8 +4734,8 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
 
 ```typescript
 const array = new ArrayNode({
-  title: { value: '', component: InputField },
-  price: { value: 0, component: InputField },
+  title: { value: '', component: Input },
+  price: { value: 0, component: Input },
 });
 
 array.push({ title: 'Item 1', price: 100 });
@@ -4822,6 +4863,35 @@ export type BehaviorScope<T> = { model: FormModel<T>; form: FormProxy<T> };
 ```
 
 _Source: src/form/behaviors/types.ts_
+
+### bindFieldProps
+
+**Kind:** `function`
+
+Props контрола под адаптер: срезает служебные ключи обёртки и `strip` адаптера, кладёт значение
+в `valueProp` (через `toValue`), вешает `changeProp`, который прогоняет эмит контрола через
+`fromEmit` в value-based `onChange` поля, и пробрасывает blur (`bindBlur` либо `onBlur`).
+Без адаптера seam проходит как есть (`value` / `onChange` / `onBlur`).
+
+`componentProps` спредятся ПЕРВЫМИ — seam их перекрывает при совпадении ключей.
+
+**Signature:**
+```typescript
+export function bindFieldProps(
+  adapter: FieldAdapter | undefined,
+  seam: FieldSeam,
+  componentProps: Record<string, unknown> = {}
+): Record<string, unknown>
+```
+
+**Parameters:**
+- `adapter` — - Адаптер контрола или `undefined` (value-based контрол).
+- `seam` — - Значение поля и его колбэки.
+- `componentProps` — - Прочие props контрола.
+
+**Returns:** Плоский объект props для спреда в контрол.
+
+_Source: src/platforms/react/field-binding/field-adapter.ts_
 
 ### buildValidation
 
@@ -5114,8 +5184,8 @@ const model = createModel<UserForm>({ email: '', password: '' });
 // Layout-схема НЕ несёт validators — только component/componentProps.
 const schema = {
 children: [
-{ value: model.$.email, component: InputField },
-{ value: model.$.password, component: InputField },
+{ value: model.$.email, component: Input },
+{ value: model.$.password, component: Input },
 ],
 };
 
@@ -5207,9 +5277,9 @@ const schema = {
 component: Section,
 children: [
 // Layout несёт только component/componentProps; правила — в отдельной ValidationSchema.
-{ value: model.$.email, component: InputField },
+{ value: model.$.email, component: Input },
 // вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
-{ value: model.$.profile.name, component: InputField },
+{ value: model.$.profile.name, component: Input },
 ],
 };
 
@@ -5641,6 +5711,83 @@ exclusiveFlag(model.$.contacts, (row) => row.$.primary);
 
 _Source: src/form/behaviors/collections.ts_
 
+### FIELD_WRAPPER_ONLY_PROPS
+
+**Kind:** `const`
+
+Props, которые адресованы обёртке поля, а не контролу: `labelTooltip` рисует `FormField` у
+подписи. Они приходят в общем мешке `componentProps`, и без среза утекли бы в DOM контрола.
+
+**Signature:**
+```typescript
+export const FIELD_WRAPPER_ONLY_PROPS: readonly string[]
+```
+
+_Source: src/platforms/react/field-binding/field-adapter.ts_
+
+### FieldAdapter
+
+**Kind:** `interface`
+
+Адаптер поля: описывает диалект контрола (`checked`/`onCheckedChange`, `value`/`onValueChange`,
+DOM-событие в `onChange`, …). Все ключи необязательны — по умолчанию seam проходит как есть.
+
+**Signature:**
+```typescript
+export interface FieldAdapter {
+  /** Проп, из которого контрол читает значение (по умолчанию `'value'`). */
+  valueProp?: string;
+  /** Колбэк, через который контрол эмитит изменение (по умолчанию `'onChange'`). */
+  changeProp?: string;
+  /**
+   * Эмит контрола → значение поля (по умолчанию — как есть). `rest` — прочие props контрола
+   * (например, чтобы достать `options` при резолве значения).
+   */
+  fromEmit?: (arg: unknown, rest: Record<string, unknown>) => unknown;
+  /** Значение поля → `valueProp` контрола (коэрсия `null`/`undefined`; по умолчанию — как есть). */
+  toValue?: (value: unknown) => unknown;
+  /** Проброс blur нестандартным каналом (по умолчанию — `onBlur`). */
+  bindBlur?: (onBlur: () => void) => Record<string, unknown>;
+  /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
+  strip?: string[];
+  /**
+   * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
+   * errors/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
+   * `useFormControl(control)`.
+   */
+  passControl?: boolean;
+}
+```
+
+**Examples:**
+
+Radix Checkbox
+```ts
+const checkedAdapter: FieldAdapter = {
+valueProp: 'checked',
+changeProp: 'onCheckedChange',
+fromEmit: (c) => c === true,
+toValue: (v) => v ?? false,
+};
+```
+
+_Source: src/platforms/react/field-binding/field-adapter.ts_
+
+### FieldAdapterCarrier
+
+**Kind:** `interface`
+
+Компонент, объявивший свой диалект статикой.
+
+**Signature:**
+```typescript
+export interface FieldAdapterCarrier {
+  reformerAdapter?: FieldAdapter;
+}
+```
+
+_Source: src/platforms/react/field-binding/field-adapter.ts_
+
 ### FieldConfig
 
 **Kind:** `interface`
@@ -5903,6 +6050,38 @@ onChange={e => control.setValue(e.target.value)}
 
 _Source: src/platforms/react/hooks/types.ts_
 
+### FieldHandle
+
+**Kind:** `interface`
+
+Базовый императивный контракт поля формы.
+
+Обёртка поля (`FormField.Control` из `@reformer/cdk`, рендерер `@reformer/renderer-react`)
+строит его из DOM-узла контрола. Композиты со своим handle (`open`/`close`/`reload`/…) отдают
+его как есть — он расширяет этот контракт.
+
+Достаётся из render-схемы по селектору:
+`schema.node(sel).getRef<FieldHandle>().current?.focus()`.
+
+Покрывает ТОЛЬКО императивные действия. Реактивное состояние (value / disabled / options /
+validation) живёт в behaviors и через handle не дублируется.
+
+**Signature:**
+```typescript
+export interface FieldHandle {
+  /** Сфокусировать поле (делегирует на DOM-элемент контрола). */
+  focus(): void;
+  /** Снять фокус. */
+  blur(): void;
+  /** Проскроллить поле в область видимости. */
+  scrollIntoView(opts?: ScrollIntoViewOptions): void;
+  /** Живой DOM-элемент поля (или `null` до монтирования / для размонтированной ноды). */
+  getElement(): HTMLElement | null;
+}
+```
+
+_Source: src/platforms/react/field-binding/field-handle.ts_
+
 ### FieldNode
 
 **Kind:** `class`
@@ -5923,7 +6102,7 @@ export class FieldNode<T> extends FormNode<T> {
 ```typescript
 const field = new FieldNode({
   value: '',
-  component: InputField,
+  component: Input,
   validators: [required, email],
 });
 
@@ -5933,6 +6112,23 @@ console.log(field.valid.value); // true
 ```
 
 _Source: src/form/nodes/field-node.ts_
+
+### FieldSeam
+
+**Kind:** `interface`
+
+Seam поля: текущее значение и value-based колбэки.
+
+**Signature:**
+```typescript
+export interface FieldSeam {
+  value: unknown;
+  onChange: (value: unknown) => void;
+  onBlur: () => void;
+}
+```
+
+_Source: src/platforms/react/field-binding/field-adapter.ts_
 
 ### FieldStatus
 
@@ -6374,14 +6570,14 @@ interface Form {
 }
 
 const schema: FormSchema<Form> = {
-  name: { value: '', component: InputField },
+  name: { value: '', component: Input },
   address: {
-    city: { value: '', component: InputField },
-    street: { value: '', component: InputField },
+    city: { value: '', component: Input },
+    street: { value: '', component: Input },
   },
   items: [{
-    title: { value: '', component: InputField },
-    price: { value: 0, component: InputField },
+    title: { value: '', component: Input },
+    price: { value: 0, component: Input },
   }],
 };
 ```
@@ -6642,6 +6838,26 @@ validate(model.$.appointmentDate, [required(), futureDate({ message: 'Дата �
 
 _Source: src/form/validators/future-date.ts_
 
+### getFieldAdapter
+
+**Kind:** `function`
+
+Адаптер, объявленный компонентом статикой `reformerAdapter`, либо `undefined`.
+
+**Signature:**
+```typescript
+export function getFieldAdapter(component: unknown): FieldAdapter | undefined
+```
+
+**Examples:**
+
+```ts
+Checkbox.reformerAdapter = checkedAdapter;
+getFieldAdapter(Checkbox); // → checkedAdapter
+```
+
+_Source: src/platforms/react/field-binding/field-adapter.ts_
+
 ### getNodeForSignal
 
 **Kind:** `function`
@@ -6738,8 +6954,8 @@ export class GroupNode<T> extends FormNode<T> {
 
 ```typescript
 const form = new GroupNode({
-  email: { valueSignal: model.$.email, component: InputField },
-  password: { valueSignal: model.$.password, component: InputField },
+  email: { valueSignal: model.$.email, component: Input },
+  password: { valueSignal: model.$.password, component: Input },
 });
 
 // Прямой доступ к полям через Proxy
@@ -7074,6 +7290,20 @@ validate(model.$.amount, [required(), isNumber({ message: 'Введите чис
 ```
 
 _Source: src/form/validators/is-number.ts_
+
+### makeElementFieldHandle
+
+**Kind:** `function`
+
+Собирает базовый {@link FieldHandle}, делегирующий на DOM-элемент по ссылке `el`.
+Все вызовы null-safe: до монтирования (`el.current === null`) — no-op, без исключений.
+
+**Signature:**
+```typescript
+export function makeElementFieldHandle(el: RefObject<HTMLElement | null>): FieldHandle
+```
+
+_Source: src/platforms/react/field-binding/field-handle.ts_
 
 ### markDerived
 
@@ -7796,8 +8026,8 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> { /* … */ 
 const model = createModel<{ rows: { name: string; qty: number }[] }>({ rows: [] });
 
 const rowItem = (item: FormModel<{ name: string; qty: number }>) => ({
-name: { value: item.$.name, component: InputField },
-qty: { value: item.$.qty, component: InputField },
+name: { value: item.$.name, component: Input },
+qty: { value: item.$.qty, component: Input },
 });
 
 const form = createForm({
@@ -7980,25 +8210,25 @@ export class NodeFactory {
    * // FieldNode
    * const field = factory.createNode({
    *   value: 'test@mail.com',
-   *   component: InputField,
+   *   component: Input,
    *   validators: [required, email]
    * });
    *
    * // GroupNode
    * const group = factory.createNode({
-   *   email: { value: '', component: InputField },
-   *   password: { value: '', component: InputField }
+   *   email: { value: '', component: Input },
+   *   password: { value: '', component: Input }
    * });
    *
    * // ArrayNode (объект)
    * const array = factory.createNode({
-   *   schema: { title: { value: '', component: InputField } },
+   *   schema: { title: { value: '', component: Input } },
    *   initialItems: [{ title: 'Item 1' }]
    * });
    *
    * // ArrayNode (массив) - новый формат
    * const array2 = factory.createNode([
-   *   { title: { value: '', component: InputField } }, // schema
+   *   { title: { value: '', component: Input } }, // schema
    *   { title: 'Item 1' }, // initial item 1
    *   { title: 'Item 2' }  // initial item 2
    * ]);
@@ -8012,7 +8242,7 @@ export class NodeFactory {
 import { NodeFactory } from '@reformer/core';
 
 const factory = new NodeFactory();
-const node = factory.createNode({ value: '', component: InputField }); // → FieldNode<string>
+const node = factory.createNode({ value: '', component: Input }); // → FieldNode<string>
 ```
 
 _Source: src/form/factories/node-factory.ts_
@@ -8900,6 +9130,33 @@ function ArrayRenderer({ arrayNode }) {
 ```
 
 _Source: src/platforms/react/hooks/useArrayLength.ts_
+
+### useFieldHandleRef
+
+**Kind:** `function`
+
+Ref для контрола поля + императивный handle для потребителя.
+
+Возвращённый ref вешается на контрол. На `outerRef` публикуется:
+- handle самого контрола, если тот его реализует (`useImperativeHandle` композита);
+- иначе — базовый {@link FieldHandle}, построенный из DOM-узла контрола.
+
+Хук вызывается безусловно; вешать ref на контрол стоит только при заданном `outerRef` —
+так function-компонент без ref-поддержки не получает лишний ref.
+
+**Signature:**
+```typescript
+export function useFieldHandleRef<H = FieldHandle>(
+  outerRef: Ref<H> | undefined
+): RefObject<unknown>
+```
+
+**Parameters:**
+- `outerRef` — - ref потребителя (из `forwardRef` или `schema.node(sel).getRef()`).
+
+**Returns:** ref, который нужно передать контролу.
+
+_Source: src/platforms/react/field-binding/field-handle.ts_
 
 ### useFormBundle
 

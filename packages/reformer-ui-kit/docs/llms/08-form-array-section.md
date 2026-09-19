@@ -126,11 +126,7 @@ defineRegistry((reg) => {
           "componentProps": { "label": "Тип", "options": "$dataSource(PROPERTY_TYPES)" },
         },
         { "value": "$model(description)", "component": "$component(Textarea)" },
-        {
-          "value": "$model(estimatedValue)",
-          "component": "$component(Input)",
-          "componentProps": { "type": "number" },
-        },
+        { "value": "$model(estimatedValue)", "component": "$component(InputNumber)" },
       ],
     },
   },
@@ -179,7 +175,7 @@ defineRegistry((reg) => {
 
 ```tsx
 // ❌ silent corruption (FieldConfig as value)
-initialValue={{ type: { value: 'apartment', component: SelectField }, ... }}
+initialValue={{ type: { value: 'apartment', component: SelectAsync }, ... }}
 
 // ✅ plain primitives matching item shape
 initialValue={{ type: 'apartment', description: '', estimatedValue: 0 }}

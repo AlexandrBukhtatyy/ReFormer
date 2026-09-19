@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { createModel, createForm, type FormModel } from '@reformer/core';
 import { FormArray, useFormArray } from '@reformer/cdk/form-array';
 import { FormArraySection } from '@reformer/ui-kit/form-array';
-import { FormField, InputField, InputMaskField, Button } from '@reformer/ui-kit';
+import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 type Phone = { kind: string; number: string };
@@ -22,12 +22,12 @@ function usePhoneForm(initial: Phone[] = [{ kind: 'Мобильный', number: 
     const phoneItem = (item: FormModel<Phone>) => ({
       kind: {
         value: item.$.kind,
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Тип', placeholder: 'Мобильный / Рабочий' },
       },
       number: {
         value: item.$.number,
-        component: InputMaskField,
+        component: InputMask,
         componentProps: { label: 'Номер', mask: '+7 (999) 999-99-99' },
       },
     });

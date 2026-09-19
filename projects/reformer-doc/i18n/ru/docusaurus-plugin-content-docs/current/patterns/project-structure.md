@@ -60,7 +60,7 @@ export const createCreditApplicationModel = (): FormModel<CreditApplicationForm>
 
 ```typescript title="forms/credit-application/form.schema.ts"
 import type { FormModel } from '@reformer/core';
-import { Input, Select } from '@reformer/ui-kit';
+import { Input, InputNumber, SelectAsync } from '@reformer/ui-kit';
 import { LOAN_TYPES } from './data-sources';
 import type { CreditApplicationForm } from './types';
 
@@ -68,13 +68,13 @@ import type { CreditApplicationForm } from './types';
 export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
   loanType: {
     value: model.$.loanType,
-    component: Select,
+    component: SelectAsync,
     componentProps: { label: 'Тип кредита', options: LOAN_TYPES },
   },
   loanAmount: {
     value: model.$.loanAmount,
-    component: Input,
-    componentProps: { label: 'Сумма', type: 'number' },
+    component: InputNumber,
+    componentProps: { label: 'Сумма' },
   },
   monthlyPayment: { value: model.$.monthlyPayment, component: Input, disabled: true },
 });

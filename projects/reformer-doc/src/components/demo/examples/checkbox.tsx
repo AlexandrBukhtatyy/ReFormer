@@ -1,4 +1,4 @@
-import { CheckboxField, checkboxBasePropsSchema } from '@reformer/ui-kit';
+import { CheckboxWithLabel, checkboxBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -18,12 +18,12 @@ export const checkboxDocConfig: ComponentDocConfig = {
         'Значение — boolean. Подпись из componentProps.label рендерится справа от чекбокса.',
       render: makeFieldVariant({
         initial: false,
-        component: CheckboxField,
+        component: CheckboxWithLabel,
         componentProps: { label: 'Согласен с условиями обработки данных' },
       }),
       code: `{
   value: model.$.agree,
-  component: CheckboxField,
+  component: CheckboxWithLabel,
   componentProps: { label: 'Согласен с условиями обработки данных' },
 }`,
     },
@@ -33,12 +33,12 @@ export const checkboxDocConfig: ComponentDocConfig = {
       description: 'initial: true — чекбокс отмечен на маунте.',
       render: makeFieldVariant({
         initial: true,
-        component: CheckboxField,
+        component: CheckboxWithLabel,
         componentProps: { label: 'Получать уведомления' },
       }),
       code: `{
   value: model.$.subscribe, // initial: true
-  component: CheckboxField,
+  component: CheckboxWithLabel,
   componentProps: { label: 'Получать уведомления' },
 }`,
     },
@@ -51,14 +51,14 @@ export const checkboxDocConfig: ComponentDocConfig = {
         'required() для boolean требует значение true. touched-поле со снятым чекбоксом показывает ошибку.',
       render: makeFieldVariant({
         initial: false,
-        component: CheckboxField,
+        component: CheckboxWithLabel,
         componentProps: { label: 'Принимаю оферту' },
         validators: [required({ message: 'Необходимо принять условия' })],
         touched: true,
       }),
       code: `{
   value: model.$.acceptTerms,
-  component: CheckboxField,
+  component: CheckboxWithLabel,
   componentProps: { label: 'Принимаю оферту' },
 }
 
@@ -67,7 +67,7 @@ validate(model.$.acceptTerms, [required({ message: 'Необходимо при�
     },
   ],
   api: {
-    component: CheckboxField,
+    component: CheckboxWithLabel,
     initialValue: false,
     baseComponentProps: { label: 'Согласен с условиями' },
     validators: [required({ message: 'Необходимо согласие' })],
@@ -83,7 +83,7 @@ validate(model.$.acceptTerms, [required({ message: 'Необходимо при�
     code: (v) =>
       `{
   value: model.$.agree,
-  component: CheckboxField,
+  component: CheckboxWithLabel,
   componentProps: {
     label: 'Согласен с условиями',${v.required ? '\n    required: true,' : ''}
   },

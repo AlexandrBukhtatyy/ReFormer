@@ -1,8 +1,4 @@
-import {
-  ToggleGroupField,
-  toggleGroupBasePropsSchema,
-  ToggleGroupMultiField,
-} from '@reformer/ui-kit';
+import { ToggleGroupOptions, toggleGroupBasePropsSchema, ToggleGroupMulti } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -24,7 +20,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
   name: 'ToggleGroup',
   importFrom: '@reformer/ui-kit',
   description:
-    'Группа кнопок-переключателей на Radix (single-режим, контейнер role=radiogroup). Field-версия рендерит опции из массива options; значение — строка (option.value | null). Для форм — ToggleGroupField.',
+    'Группа кнопок-переключателей на Radix (single-режим, контейнер role=radiogroup). Для форм — ToggleGroupOptions: рендерит опции из массива options; значение — строка (option.value | null).',
   variants: [
     {
       id: 'default',
@@ -33,12 +29,12 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
         'Плоский список опций через проп options. Значение — строка (value: string | null). variant по умолчанию — сплошные кнопки без рамки.',
       render: makeFieldVariant({
         initial: 'male',
-        component: ToggleGroupField,
+        component: ToggleGroupOptions,
         componentProps: { label: 'Пол', options: GENDER },
       }),
       code: `{
   value: model.$.gender,
-  component: ToggleGroupField,
+  component: ToggleGroupOptions,
   componentProps: {
     label: 'Пол',
     options: [
@@ -55,7 +51,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
         'variant="outline" рисует кнопки с рамкой (сегментированный контрол). Удобно для более длинных наборов.',
       render: makeFieldVariant({
         initial: 'quarter',
-        component: ToggleGroupField,
+        component: ToggleGroupOptions,
         componentProps: { label: 'Период', options: PLAN, variant: 'outline' },
       }),
       code: `componentProps: {
@@ -75,7 +71,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
         'Отдельный компонент, а не проп: значение — string[] | null. Пустой выбор приходит как null (массив в initial модели создал бы ArrayNode, и поля бы не было).',
       render: makeFieldVariant({
         initial: null,
-        component: ToggleGroupMultiField,
+        component: ToggleGroupMulti,
         componentProps: {
           label: 'Интересы',
           options: GENDER,
@@ -84,7 +80,7 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
       }),
       code: `{
   value: model.signalAt('interests')!,
-  component: ToggleGroupMultiField,
+  component: ToggleGroupMulti,
   componentProps: { options: GENDER, maxItems: 2 },
 }
 // maxItems — подсказка UI; правило формы задаёт maxLength(2)`,
@@ -98,14 +94,14 @@ export const toggleGroupDocConfig: ComponentDocConfig = {
         'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
-        component: ToggleGroupField,
+        component: ToggleGroupOptions,
         componentProps: { label: 'Пол', options: GENDER },
         validators: [required({ message: 'Выберите пол' })],
         touched: true,
       }),
       code: `{
   value: model.$.gender,
-  component: ToggleGroupField,
+  component: ToggleGroupOptions,
   componentProps: { label: 'Пол', options: GENDER },
 }
 
@@ -119,7 +115,7 @@ validate(model.$.gender, [required({ message: 'Выберите пол' })]);`,
         'disabled приходит из состояния узла (control.disable()), а не из componentProps — блокирует все варианты.',
       render: makeFieldVariant({
         initial: 'female',
-        component: ToggleGroupField,
+        component: ToggleGroupOptions,
         componentProps: { label: 'Пол', options: GENDER },
         disabled: true,
       }),
@@ -128,7 +124,7 @@ control.disable(); // блокирует всю группу`,
     },
   ],
   api: {
-    component: ToggleGroupField,
+    component: ToggleGroupOptions,
     initialValue: null,
     baseComponentProps: { label: 'Пол', options: GENDER },
     validators: [required({ message: 'Выберите вариант' })],
@@ -145,7 +141,7 @@ control.disable(); // блокирует всю группу`,
     code: (v) =>
       `{
   value: model.$.gender,
-  component: ToggleGroupField,
+  component: ToggleGroupOptions,
   componentProps: {
     label: 'Пол',
     options: GENDER,${v.variant ? `\n    variant: '${v.variant}',` : ''}${v.required ? '\n    required: true,' : ''}${v.description ? `\n    description: '${v.description}',` : ''}

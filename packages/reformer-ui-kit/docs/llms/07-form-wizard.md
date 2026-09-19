@@ -9,7 +9,7 @@ TS-схема, renderer-react RenderSchema, renderer-json.
 ```tsx
 import { useMemo, useRef, type FC } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
-import { FormField, InputField, CheckboxField } from '@reformer/ui-kit';
+import { FormField, Input, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { FormWizardHandle, FormWizardConfig } from '@reformer/cdk/form-wizard';
 import { createModel, createForm, type FormProxy, type FormModel } from '@reformer/core';
 import {
@@ -37,17 +37,17 @@ const model = createModel<MyForm>({ email: '', password: '', confirmation: false
 const schema = {
   email: {
     value: model.$.email,
-    component: InputField,
+    component: Input,
     componentProps: { label: 'Email', testId: 'email' },
   },
   password: {
     value: model.$.password,
-    component: InputField,
+    component: Input,
     componentProps: { label: 'Пароль', testId: 'password' },
   },
   confirmation: {
     value: model.$.confirmation,
-    component: CheckboxField,
+    component: CheckboxWithLabel,
     componentProps: { label: 'Подтверждаю' },
   },
 };
@@ -169,7 +169,7 @@ M1: схема без аргумента `path` — листья ссылают�
 
 ```tsx
 import { createRenderSchema, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import { Box, InputField } from '@reformer/ui-kit';
+import { Box, InputNumber } from '@reformer/ui-kit';
 
 const renderSchema = createRenderSchema<CreditApplication>(() => ({
   selector: 'wizard',
@@ -191,8 +191,8 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
           component: Box,
           componentProps: { className: 'space-y-4' },
           children: [
-            { value: model.$.loanAmount, component: InputField },
-            { value: model.$.loanTerm, component: InputField },
+            { value: model.$.loanAmount, component: InputNumber },
+            { value: model.$.loanTerm, component: InputNumber },
           ],
         },
       },

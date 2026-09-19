@@ -58,7 +58,7 @@ import {
   useReactForm,
   type RenderNode,
 } from '@reformer/renderer-react';
-import { Box, Section, InputField, FormField } from '@reformer/ui-kit';
+import { Box, Section, Input, FormField } from '@reformer/ui-kit';
 
 interface MyForm {
   email: string;
@@ -75,10 +75,10 @@ function buildSchema(model: FormModel<MyForm>): RenderNode<MyForm> {
         component: Section,
         componentProps: { title: 'Вход' },
         children: [
-          { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
+          { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
           {
             value: model.$.password,
-            component: InputField,
+            component: Input,
             componentProps: { label: 'Пароль', type: 'password' },
           },
         ],
@@ -128,7 +128,7 @@ Wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`: форма
 - **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Возвращает корневой узел дерева. Аргумента-пути нет: привязка к данным идёт через сигналы модели в листьях.
 - **`RenderNode<T>`** — узел дерева, дискриминированный union: **field** (`ModelFieldRenderNode` — есть `value: Signal`), **array** (`ArrayRenderNode` — есть `array` + `item`), **container** (`ContainerRenderNode` — есть `component` + `children`).
 - **`fieldWrapper`** — общая обёртка вокруг каждого поля (label, error). Передаётся через `settings`. Можно перекрыть для конкретного поля через `componentProps.fieldWrapper`.
-- **`resolveFieldAdapter` / `FieldAdapter`** — вторая настройка `settings` (рядом с `fieldWrapper`): по компоненту поля (`node.component`) резолвит адаптер, который переводит value-based seam рендерера (`value` + `onChange(value)`) в диалект сырого контрола (`checked` + `onChange(event)`, `value` + `onChange(value, option)`, `value` + `onChange(event)` и т.д.). Позволяет регистрировать СЫРЫЕ контролы любого UI-kit, не оборачивая каждый; нет адаптера → seam применяется как есть (обратная совместимость, текущее поведение). Рецепт — [05-cookbook.md](05-cookbook.md).
+- **Связывание поля и `FieldAdapter`** — лист связывает с моделью сам рендерер: seam (`value` + `onChange(value)` + `onBlur`) переводится в диалект контрола (`checked` + `onCheckedChange`, `value` + `onChange(event)`, `value` + `onChange(value, option)` и т.д.) по `FieldAdapter`. Адаптер берётся из статики компонента `reformerAdapter` (компоненты `@reformer/ui-kit` её уже объявляют — в `component` кладётся сам компонент, «field-версий» нет; свой контрол — `defineFieldControl(C, { adapter })` из `@reformer/ui-kit/fields`). Для чужих компонентов без статики — вторая настройка `settings` рядом с `fieldWrapper`: `resolveFieldAdapter(component)`, она приоритетнее статики. Нет ни того, ни другого → seam применяется как есть. Императивный `FieldHandle` для `schema.node(sel).getRef()` тоже строит рендерер: handle контрола либо базовый handle из его DOM-узла. Рецепт — [05-cookbook.md](05-cookbook.md).
 - **`createRenderSchema(fn)`** — превращает `RenderSchemaFn` в `RenderSchemaProxy` для программного управления узлами (`setHidden`, `patchProps`, `getRef`) и точкой подключения декларативного behavior.
 - **`RenderBehaviorFn<T>`** — функция `(schema) => void`, применяющая standalone-хелперы (`hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount`) к `RenderSchemaProxy`.
 
@@ -217,7 +217,7 @@ if (isHtmlTagRenderNode(node)) {
 ```tsx
 import type { FormModel } from '@reformer/core';
 import type { RenderSchemaFn } from '@reformer/renderer-react';
-import { Box, Section, InputField } from '@reformer/ui-kit';
+import { Box, Section, Input } from '@reformer/ui-kit';
 
 const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
   return () => ({
@@ -228,8 +228,8 @@ const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
         component: Section,
         componentProps: { title: 'Личные данные', className: 'space-y-4' },
         children: [
-          { value: model.$.firstName, component: InputField, componentProps: { label: 'Имя' } },
-          { value: model.$.lastName, component: InputField, componentProps: { label: 'Фамилия' } },
+          { value: model.$.firstName, component: Input, componentProps: { label: 'Имя' } },
+          { value: model.$.lastName, component: Input, componentProps: { label: 'Фамилия' } },
         ],
       },
     ],
@@ -242,7 +242,7 @@ const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
 Узел-массив: `array` — реактивный массив модели, `item(itemModel)` строит поддерево по под-модели элемента, `initialValue` — фабрика нового элемента для кнопки «Добавить», `component` — компонент-рендерер секции. Оформление (заголовок, кнопки, empty-message, reorder) — в `componentProps`:
 
 ```tsx
-import { Box, FormArray, InputField, SelectField } from '@reformer/ui-kit';
+import { Box, FormArray, Input, SelectAsync } from '@reformer/ui-kit';
 
 const coBorrowersNode = {
   selector: 'co-borrowers-array',
@@ -260,8 +260,8 @@ const coBorrowersNode = {
     component: Box,
     componentProps: { className: 'space-y-3' },
     children: [
-      { value: im.$.phone, component: InputField, componentProps: { label: 'Телефон' } },
-      { value: im.$.relationship, component: SelectField, componentProps: { label: 'Отношение' } },
+      { value: im.$.phone, component: Input, componentProps: { label: 'Телефон' } },
+      { value: im.$.relationship, component: SelectAsync, componentProps: { label: 'Отношение' } },
     ],
   }),
 };
@@ -508,7 +508,7 @@ wizard-узла по-прежнему передают через `componentProp
 
 ## 23. `TS2353: 'validators' does not exist in type 'RenderNode<T>'`
 
-Валидаторы вписаны прямо в лист render-схемы (`{ value: model.$.x, component: InputField, validators: [...] }`). У `RenderNode` нет поля `validators` — дерево рендера несёт только layout. Правила валидации значений живут в **отдельной validation-схеме над моделью** (`defineValidationSchema<T>(({ model }) => { validate(model.$.path, [...]) })` из `@reformer/core/validation`), исполняются `validateModel` и прокидываются в wizard как `{ validateStep, validateAll }`. Полный поток — [06-validation.md](06-validation.md).
+Валидаторы вписаны прямо в лист render-схемы (`{ value: model.$.x, component: Input, validators: [...] }`). У `RenderNode` нет поля `validators` — дерево рендера несёт только layout. Правила валидации значений живут в **отдельной validation-схеме над моделью** (`defineValidationSchema<T>(({ model }) => { validate(model.$.path, [...]) })` из `@reformer/core/validation`), исполняются `validateModel` и прокидываются в wizard как `{ validateStep, validateAll }`. Полный поток — [06-validation.md](06-validation.md).
 
 ## 24. `TS2741: Property '__path' is missing in type 'ModelArray<T>' ... required in 'RenderModelArrayControl'`
 
@@ -523,9 +523,9 @@ wizard-узла по-прежнему передают через `componentProp
 
 ## 26. Сырой контрол пишет в модель событие или течёт пропом `control` (Checkbox/Select/Radio)
 
-Дефолтный seam рендерера — value-based: контрол получает `value` и `onChange(value)`, а нода пишет в модель то, что пришло **первым** аргументом. У сырых контролов чужого UI-kit два симптома. (1) **Не то значение** — если `onChange` эмитит СОБЫТИЕ (Checkbox — `onChange(e)`, antd Radio.Group — `onChange(e)`), в `setValue` уйдёт DOM-`event`, а не `checked`/`value`. (2) **Проп `control` течёт в DOM** — рендерер по умолчанию пробрасывает в контрол `control={fieldNode}`, и antd-контрол разольёт неизвестный проп с React-warning. Например, `Select` эмитит `onChange(value, option)`: значение приходит первым и пишется в модель **верно** (лишний `option` обработчик отбрасывает сам) — остаётся только утечка `control`, которую снимает адаптер (даже пустой `{}`).
+Дефолтный seam рендерера — value-based: контрол получает `value` и `onChange(value)`, а нода пишет в модель то, что пришло **первым** аргументом. У сырых контролов чужого UI-kit два симптома. (1) **Не то значение** — если `onChange` эмитит СОБЫТИЕ (Checkbox — `onChange(e)`, antd Radio.Group — `onChange(e)`), в `setValue` уйдёт DOM-`event`, а не `checked`/`value`. (2) **Проп `control` течёт в DOM** — только если контрол его запросил (`reformerNeedsControl` / `passControl`); по умолчанию `control` в контрол не передаётся. `Select` с `onChange(value, option)` адаптера не требует: значение приходит первым и пишется в модель **верно** (лишний `option` обработчик отбрасывает сам).
 
-Не оборачивай контрол ради этого — зарегистрируй `FieldAdapter` через `settings.resolveFieldAdapter`: рендерер сам переложит seam на диалект контрола (`valueProp`/`changeProp`/`fromEmit`/`toValue`), `control` в сырой контрол не пробрасывается.
+Не оборачивай контрол ради этого — задай ему `FieldAdapter`: статикой на компоненте (`defineFieldControl(Checkbox, { adapter })` из `@reformer/ui-kit/fields`) или, если компонент чужой и трогать его нельзя, через `settings.resolveFieldAdapter` (приоритетнее статики). Рендерер сам переложит seam на диалект контрола (`valueProp`/`changeProp`/`fromEmit`/`toValue`).
 
 ```tsx
 <FormRenderer
@@ -540,7 +540,7 @@ wizard-узла по-прежнему передают через `componentProp
 />;
 ```
 
-Текстовым / уже value-based контролам адаптер не нужен: `resolveFieldAdapter` возвращает `undefined` — и seam применяется как есть (обратная совместимость). Рецепты по контролам — [05-cookbook.md](05-cookbook.md).
+Компонентам `@reformer/ui-kit` адаптер в настройках не нужен — диалект объявлен их статикой `reformerAdapter`. Уже value-based контролам — тоже: `resolveFieldAdapter` возвращает `undefined`, статики нет — и seam применяется как есть. Рецепты по контролам — [05-cookbook.md](05-cookbook.md).
 
 ## 27. See also
 
@@ -603,7 +603,7 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
 ```tsx
 import { useEffect, useMemo } from 'react';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
-import { Section, InputField } from '@reformer/ui-kit';
+import { Section, InputNumber } from '@reformer/ui-kit';
 
 function CreditApplicationPage() {
   const schema = useMemo(
@@ -611,7 +611,7 @@ function CreditApplicationPage() {
       createRenderSchema<CreditForm>(() => ({
         selector: 'mortgage-section',
         component: Section,
-        children: [{ value: model.$.propertyValue, component: InputField }],
+        children: [{ value: model.$.propertyValue, component: InputNumber }],
       })),
     []
   );
@@ -679,8 +679,8 @@ export function CollapsibleSection({
   component: CollapsibleSection,
   componentProps: { title: 'Дополнительно', defaultOpen: false },
   children: [
-    { value: model.$.notes, component: TextareaField },
-    { value: model.$.tags, component: InputField },
+    { value: model.$.notes, component: Textarea },
+    { value: model.$.tags, component: Input },
   ],
 }
 ```
@@ -802,7 +802,7 @@ const schema: RenderSchemaFn<Installment> = () => ({
       ],
     },
 
-    { value: model.$.amount, component: InputField, componentProps: { label: 'Сумма (₽)' } },
+    { value: model.$.amount, component: InputNumber, componentProps: { label: 'Сумма (₽)' } },
     { component: 'hr' },
 
     // Живая сводка: сигналы среди детей подписываются точечно
@@ -827,9 +827,9 @@ const schema: RenderSchemaFn<Installment> = () => ({
 
 ## 34. Сырой контрол сторонней UI-kit (FieldAdapter)
 
-**Problem.** Нужно подключить контрол чужой библиотеки (antd `Checkbox`, MUI `Select`, свой `Radio`) напрямую, без обёртки. Но рендерер отдаёт полю value-based seam — `value` + `onChange(value)`, — а сырой контрол говорит на своём диалекте: `Checkbox` эмитит DOM-событие (`onChange(e) => e.target.checked`), `Select` — `onChange(value, option)`, `Radio` — `onChange(e) => e.target.value`. Если зарегистрировать такой контрол как есть, в модель попадёт объект события вместо значения, а «неизвестный» проп `control` утечёт в DOM с React-warning.
+**Problem.** Нужно подключить контрол чужой библиотеки (antd `Checkbox`, MUI `Select`, свой `Radio`) напрямую, без обёртки. Но рендерер отдаёт полю value-based seam — `value` + `onChange(value)`, — а сырой контрол говорит на своём диалекте: `Checkbox` эмитит DOM-событие (`onChange(e) => e.target.checked`), `Select` — `onChange(value, option)`, `Radio` — `onChange(e) => e.target.value`. Статики `reformerAdapter` (как у компонентов `@reformer/ui-kit`) у чужого контрола нет, поэтому зарегистрированный как есть, он запишет в модель объект события вместо значения.
 
-**Solution.** `settings.resolveFieldAdapter(component)` возвращает `FieldAdapter` для нужного компонента — рендерер сам переложит seam на его диалект. Адаптер описывает, из какого пропа контрол читает значение (`valueProp`, default `'value'`), каким колбэком эмитит (`changeProp`, default `'onChange'`), как из эмита достать значение (`fromEmit(arg, rest)`) и как значение поля привести к пропу (`toValue`). При наличии адаптера `control` в контрол **не** пробрасывается; `disabled` — всегда. Нет адаптера → seam применяется как есть (обратная совместимость: для text и уже-value-based контролов регистрировать ничего не нужно).
+**Solution.** `settings.resolveFieldAdapter(component)` возвращает `FieldAdapter` для нужного компонента — рендерер сам переложит seam на его диалект. Резолв приоритетнее статики компонента; если компонент свой (можно повесить статику), проще `defineFieldControl(MyControl, { adapter })` из `@reformer/ui-kit/fields` — тот же адаптер поймёт и `FormField.Control` из `@reformer/cdk`. Адаптер описывает, из какого пропа контрол читает значение (`valueProp`, default `'value'`), каким колбэком эмитит (`changeProp`, default `'onChange'`), как из эмита достать значение (`fromEmit(arg, rest)`) и как значение поля привести к пропу (`toValue`). `control` в контрол по умолчанию **не** пробрасывается (opt-in — `passControl` / `reformerNeedsControl`); `disabled` — всегда. Нет ни резолва, ни статики → seam применяется как есть (для value-based контролов регистрировать ничего не нужно).
 
 ```tsx
 import { Checkbox, Select, Radio } from 'some-ui-kit';
@@ -839,9 +839,6 @@ import { FormRenderer, type FieldAdapter } from '@reformer/renderer-react';
 const adapters = new Map<unknown, FieldAdapter>([
   // checked + DOM-событие: значение живёт в `checked`, эмит — событие.
   [Checkbox, { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }],
-  // value + onChange(value, option): второй аргумент (option) отбрасывается сам —
-  // обработчик забирает только первый arg. Пустой адаптер нужен, чтобы НЕ пробросить `control`.
-  [Select, {}],
   // value + событие: достаём из target.
   [Radio, { fromEmit: (e) => (e as any).target.value }],
 ]);
@@ -854,12 +851,12 @@ const adapters = new Map<unknown, FieldAdapter>([
 
 **Notes.**
 
-- Резолв идёт по `node.component` (по ссылке на компонент), поэтому `Map`/`switch` по идентичности — типичная реализация. Вернул `undefined` → default value-based seam (с `control`).
+- Резолв идёт по `node.component` (по ссылке на компонент), поэтому `Map`/`switch` по идентичности — типичная реализация. Вернул `undefined` → статика компонента `reformerAdapter`, а без неё — value-based seam как есть.
 - `fromEmit` получает `(arg, rest)`, где `arg` — ПЕРВЫЙ аргумент эмита контрола, `rest` — остальные props (после `strip`). Обработчик берёт только первый аргумент, поэтому лишние (`option` у `Select`) отбрасываются сами. `rest` нужен, когда значение достаётся с оглядкой на props (например, найти выбранное в `options`).
 - `toValue` — обратный путь: coerce `null`/`undefined` под контракт контрола (`Checkbox` не любит `undefined` в `checked`).
 - `componentProps` (после `strip`) спредятся ПЕРВЫМИ — seam (`value`/`onChange`/`onBlur`) перекрывает их при совпадении ключей. `strip` убирает служебные ключи, на которые контрол ругается неизвестным пропом. Blur по умолчанию идёт как `onBlur`; нестандартный канал — через `bindBlur(onBlur) => props`.
 - `data-testid="input-{testId}"` проставляется автоматически, если его нет в props (testId — из `componentProps.testId` или пути сигнала).
-- Не путать с `FieldAdapter` из `@reformer/ui-kit/fields` (адаптер для `withFormControl` при сборке `*Field`-компонента, там основные поля `valueProp`/`changeProp`/`fromEmit`/`toValue` обязательны, `bindBlur`/`strip` — опциональны) — это другой тип другого слоя; здешний `FieldAdapter` резолвится рендерером через `resolveFieldAdapter`, и все его поля опциональны.
+- `FieldAdapter` — один тип на всех (`@reformer/core`, реэкспорт в `@reformer/renderer-react` и `@reformer/ui-kit/fields`): его же кладут в статику `reformerAdapter` через `defineFieldControl`, все поля опциональны. Пресеты кита (`checkedAdapter`, `valueChangeAdapter`, `nativeInputAdapter`, …) из `@reformer/ui-kit/fields` годятся и для `resolveFieldAdapter`.
 - То же работает в `@reformer/renderer-json` без изменений кода: `resolveFieldAdapter` передаётся в `settings` у `JsonRendererProvider` и применяется к контролам, зарегистрированным в реестре по имени (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md)).
 
 ## 35. See also
@@ -1064,7 +1061,7 @@ export function makeCreditValidationConfig(model: M) {
 import type { FormModel, FormProxy } from '@reformer/core';
 import type { RenderNode } from '@reformer/renderer-react';
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
-import { InputField } from '@reformer/ui-kit';
+import { Input } from '@reformer/ui-kit';
 import { makeCreditValidationConfig } from './validation';
 import type { CreditForm } from './types';
 
@@ -1083,7 +1080,7 @@ export function buildSchema(
           number: 1,
           title: 'Кредит',
           body: {
-            component: InputField, // лист несёт только value/component/componentProps — без validators
+            component: Input, // лист несёт только value/component/componentProps — без validators
             value: model.$.loanAmount,
             componentProps: { label: 'Сумма' },
           },
@@ -1096,7 +1093,7 @@ export function buildSchema(
 
 ## 41. Anti-patterns
 
-- **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: InputField, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной `ValidationSchema` над моделью (Шаг 1), а не в render-дереве.
+- **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: Input, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной `ValidationSchema` над моделью (Шаг 1), а не в render-дереве.
 - **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает ошибки, уже проставленные в ноды. Значения проверяет `validateModel(model, schema)`; без её вызова (обычно из `validateStep`/`validateAll` wizard-а) поля не подсветятся.
 - **Читать текущее значение вместо сигнала в `validate`** — оператор это `validate(model.$.path, [rules])`, где `model.$.path` — СИГНАЛ (стабильная ссылка на форму модели), а не текущее значение поля. Значения читает раннер в момент прогона; cross-field берёт снапшот через `model.get()` внутри `cross(sig, fn)`. Не передавайте в `validate` результат `model.get()` / `.value`.
 - **Пересоздавать схему на каждый вызов конфига** (`validateModel(model, defineValidationSchema(...))` инлайн) — раннер отменяет **устаревший прогон той же `(model, schema)`** по ссылке на схему. Новый объект схемы на каждый вызов ломает отмену и гашение полей. Держите схемы стабильными module-level `const` (`STEP_SCHEMAS`, `fullSchema`).
@@ -1130,7 +1127,7 @@ M1-схемы шага. `body` самостоятелен: оборачиват�
 ```tsx
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import { Box, InputField } from '@reformer/ui-kit';
+import { Box, InputNumber } from '@reformer/ui-kit';
 
 // form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form.
 function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): RenderNode<MyForm> {
@@ -1153,8 +1150,8 @@ function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): Render
             component: Box,
             componentProps: { className: 'space-y-4' },
             children: [
-              { value: model.$.loanAmount, component: InputField, componentProps: { label: 'Сумма' } },
-              { value: model.$.loanTerm, component: InputField, componentProps: { label: 'Срок' } },
+              { value: model.$.loanAmount, component: InputNumber, componentProps: { label: 'Сумма' } },
+              { value: model.$.loanTerm, component: InputNumber, componentProps: { label: 'Срок' } },
             ],
           },
         },
@@ -1343,7 +1340,7 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
 
 ```typescript
 { array: model.coBorrowers, initialValue: createBlankCoBorrower,
-  item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: InputField }] }) }
+  item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
 ```
 
 _Source: src/core/types.ts_
@@ -1423,8 +1420,8 @@ title: 'Личные данные',
 className: 'grid grid-cols-2 gap-4',
 },
 children: [
-{ value: model.$.firstName, component: InputField },
-{ value: model.$.lastName, component: InputField },
+{ value: model.$.firstName, component: Input },
+{ value: model.$.lastName, component: Input },
 ],
 }
 ```
@@ -1573,35 +1570,31 @@ _Source: src/core/render-schema-proxy.ts_
 
 **Kind:** `interface`
 
-Адаптер поля: как свести value-based seam рендерера (`value` + `onChange(value)`) к контракту
-конкретного контрола библиотеки. Резолвится через {@link RendererSettings.resolveFieldAdapter}
-по компоненту поля (`node.component`). Позволяет регистрировать СЫРЫЕ контролы любого UI-kit —
-рендерер сам переложит seam на их диалект (`checked` + `onChange(event)`, `value` + `(value, option)`
-и т.д.). Нет адаптера → контрол получает seam как есть (текущее поведение, обратная совместимость).
+Адаптер поля: описывает диалект контрола (`checked`/`onCheckedChange`, `value`/`onValueChange`,
+DOM-событие в `onChange`, …). Все ключи необязательны — по умолчанию seam проходит как есть.
 
 **Signature:**
 ```typescript
 export interface FieldAdapter {
-  /** Проп, из которого контрол читает значение (default `'value'`). */
+  /** Проп, из которого контрол читает значение (по умолчанию `'value'`). */
   valueProp?: string;
-  /** Колбэк, через который контрол эмитит изменение (default `'onChange'`). */
+  /** Колбэк, через который контрол эмитит изменение (по умолчанию `'onChange'`). */
   changeProp?: string;
   /**
-   * emit контрола → значение поля (default — как есть). `rest` — прочие props контрола
+   * Эмит контрола → значение поля (по умолчанию — как есть). `rest` — прочие props контрола
    * (например, чтобы достать `options` при резолве значения).
    */
   fromEmit?: (arg: unknown, rest: Record<string, unknown>) => unknown;
-  /** значение поля → `valueProp` контрола (coerce `null`/`undefined`; default — как есть). */
+  /** Значение поля → `valueProp` контрола (коэрсия `null`/`undefined`; по умолчанию — как есть). */
   toValue?: (value: unknown) => unknown;
-  /** Проброс blur нестандартным каналом (default — прокидывается `onBlur`). */
+  /** Проброс blur нестандартным каналом (по умолчанию — `onBlur`). */
   bindBlur?: (onBlur: () => void) => Record<string, unknown>;
   /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
   strip?: string[];
   /**
-   * Передавать ли контролу ноду формы пропом `control` (§3.1). По умолчанию `false`: `control`
-   * контролу не нужен (реактивные пропы мёржит рендерер, errors/touched — FieldWrapper). Ставь
-   * `true`, если контрол сам потребляет ноду (напр. вызывает `useFormControl(control)`). Альтернатива
-   * без адаптера — статик на компоненте: `MyControl.reformerNeedsControl = true`.
+   * Передавать ли контролу ноду формы пропом `control` (только рендерер). По умолчанию `false`:
+   * errors/touched обслуживает обёртка поля. Ставь `true`, если контрол сам вызывает
+   * `useFormControl(control)`.
    */
   passControl?: boolean;
 }
@@ -1609,12 +1602,17 @@ export interface FieldAdapter {
 
 **Examples:**
 
-Checkbox (значение в `checked`, эмитит DOM-событие)
+Radix Checkbox
 ```ts
-{ valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }
+const checkedAdapter: FieldAdapter = {
+valueProp: 'checked',
+changeProp: 'onCheckedChange',
+fromEmit: (c) => c === true,
+toValue: (v) => v ?? false,
+};
 ```
 
-_Source: src/core/types.ts_
+_Source: ../reformer/src/platforms/react/field-binding/field-adapter.ts_
 
 ### FieldWrapperProps
 
@@ -1929,7 +1927,7 @@ export interface ModelFieldRenderNode extends FormSchemaNode {
 **Examples:**
 
 ```typescript
-{ value: model.$.loanType, component: SelectField, componentProps: { label: 'Тип', options } }
+{ value: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип', options } }
 ```
 
 _Source: src/core/types.ts_
@@ -2234,10 +2232,10 @@ export interface RendererSettings {
    */
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
   /**
-   * Резолв {@link FieldAdapter} по компоненту поля (`node.component`). Возвращает адаптер для
-   * контролов с нестандартным диалектом (Checkbox/Select/Radio) либо `undefined` — тогда seam
-   * применяется как есть. Позволяет подключать сырые компоненты любого UI-kit, не оборачивая
-   * каждый контрол. Ядро при этом остаётся UI-агностичным (адаптер — данные приложения).
+   * Резолв {@link FieldAdapter} по компоненту поля (`node.component`) — для компонентов, которые
+   * НЕ объявляют свой диалект статикой `reformerAdapter` (компоненты сторонних библиотек).
+   * Приоритет: этот резолв → статика компонента → value-based seam как есть. Позволяет подключать
+   * сырые компоненты любого UI-kit, не оборачивая каждый контрол.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;
@@ -2372,8 +2370,8 @@ export type RenderSchemaFn<T> = () => RenderNode<T>;
 const renderSchema: RenderSchemaFn<MyForm> = () => ({
   component: Box,
   children: [
-    { value: model.$.email, component: InputField },
-    { value: model.$.password, component: InputPasswordField },
+    { value: model.$.email, component: Input },
+    { value: model.$.password, component: InputPassword },
   ],
 });
 ```

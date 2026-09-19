@@ -16,7 +16,7 @@ sidebar_position: 2
 
 ```typescript
 import { createModel, createForm, type FormModel } from '@reformer/core';
-import { Input } from '@reformer/ui-kit';
+import { Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { title: string; amount: number | null };
 type OrderForm = { items: Item[] };
@@ -28,8 +28,8 @@ const itemSchema = (item: FormModel<Item>) => ({
   title: { value: item.$.title, component: Input, componentProps: { label: 'Позиция' } },
   amount: {
     value: item.$.amount,
-    component: Input,
-    componentProps: { label: 'Сумма', type: 'number' },
+    component: InputNumber,
+    componentProps: { label: 'Сумма' },
   },
 });
 

@@ -68,7 +68,7 @@ wizard-узла по-прежнему передают через `componentProp
 
 ## `TS2353: 'validators' does not exist in type 'RenderNode<T>'`
 
-Валидаторы вписаны прямо в лист render-схемы (`{ value: model.$.x, component: InputField, validators: [...] }`). У `RenderNode` нет поля `validators` — дерево рендера несёт только layout. Правила валидации значений живут в **отдельной validation-схеме над моделью** (`defineValidationSchema<T>(({ model }) => { validate(model.$.path, [...]) })` из `@reformer/core/validation`), исполняются `validateModel` и прокидываются в wizard как `{ validateStep, validateAll }`. Полный поток — [06-validation.md](06-validation.md).
+Валидаторы вписаны прямо в лист render-схемы (`{ value: model.$.x, component: Input, validators: [...] }`). У `RenderNode` нет поля `validators` — дерево рендера несёт только layout. Правила валидации значений живут в **отдельной validation-схеме над моделью** (`defineValidationSchema<T>(({ model }) => { validate(model.$.path, [...]) })` из `@reformer/core/validation`), исполняются `validateModel` и прокидываются в wizard как `{ validateStep, validateAll }`. Полный поток — [06-validation.md](06-validation.md).
 
 ## `TS2741: Property '__path' is missing in type 'ModelArray<T>' ... required in 'RenderModelArrayControl'`
 
@@ -83,9 +83,9 @@ wizard-узла по-прежнему передают через `componentProp
 
 ## Сырой контрол пишет в модель событие или течёт пропом `control` (Checkbox/Select/Radio)
 
-Дефолтный seam рендерера — value-based: контрол получает `value` и `onChange(value)`, а нода пишет в модель то, что пришло **первым** аргументом. У сырых контролов чужого UI-kit два симптома. (1) **Не то значение** — если `onChange` эмитит СОБЫТИЕ (Checkbox — `onChange(e)`, antd Radio.Group — `onChange(e)`), в `setValue` уйдёт DOM-`event`, а не `checked`/`value`. (2) **Проп `control` течёт в DOM** — рендерер по умолчанию пробрасывает в контрол `control={fieldNode}`, и antd-контрол разольёт неизвестный проп с React-warning. Например, `Select` эмитит `onChange(value, option)`: значение приходит первым и пишется в модель **верно** (лишний `option` обработчик отбрасывает сам) — остаётся только утечка `control`, которую снимает адаптер (даже пустой `{}`).
+Дефолтный seam рендерера — value-based: контрол получает `value` и `onChange(value)`, а нода пишет в модель то, что пришло **первым** аргументом. У сырых контролов чужого UI-kit два симптома. (1) **Не то значение** — если `onChange` эмитит СОБЫТИЕ (Checkbox — `onChange(e)`, antd Radio.Group — `onChange(e)`), в `setValue` уйдёт DOM-`event`, а не `checked`/`value`. (2) **Проп `control` течёт в DOM** — только если контрол его запросил (`reformerNeedsControl` / `passControl`); по умолчанию `control` в контрол не передаётся. `Select` с `onChange(value, option)` адаптера не требует: значение приходит первым и пишется в модель **верно** (лишний `option` обработчик отбрасывает сам).
 
-Не оборачивай контрол ради этого — зарегистрируй `FieldAdapter` через `settings.resolveFieldAdapter`: рендерер сам переложит seam на диалект контрола (`valueProp`/`changeProp`/`fromEmit`/`toValue`), `control` в сырой контрол не пробрасывается.
+Не оборачивай контрол ради этого — задай ему `FieldAdapter`: статикой на компоненте (`defineFieldControl(Checkbox, { adapter })` из `@reformer/ui-kit/fields`) или, если компонент чужой и трогать его нельзя, через `settings.resolveFieldAdapter` (приоритетнее статики). Рендерер сам переложит seam на диалект контрола (`valueProp`/`changeProp`/`fromEmit`/`toValue`).
 
 ```tsx
 <FormRenderer
@@ -100,7 +100,7 @@ wizard-узла по-прежнему передают через `componentProp
 />;
 ```
 
-Текстовым / уже value-based контролам адаптер не нужен: `resolveFieldAdapter` возвращает `undefined` — и seam применяется как есть (обратная совместимость). Рецепты по контролам — [05-cookbook.md](05-cookbook.md).
+Компонентам `@reformer/ui-kit` адаптер в настройках не нужен — диалект объявлен их статикой `reformerAdapter`. Уже value-based контролам — тоже: `resolveFieldAdapter` возвращает `undefined`, статики нет — и seam применяется как есть. Рецепты по контролам — [05-cookbook.md](05-cookbook.md).
 
 ## See also
 

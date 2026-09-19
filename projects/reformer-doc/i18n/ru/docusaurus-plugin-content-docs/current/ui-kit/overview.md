@@ -9,8 +9,8 @@ sidebar_position: 1
 интегрированный с формами `@reformer/core`.
 
 Там, где [`@reformer/cdk`](../cdk/overview) даёт headless-примитивы без стилей, ui-kit даёт
-стилизованные, доступные (a11y) контролы и их **form-версии** (`*Field`), которые привязываются
-прямо к ноде формы через один универсальный `<FormField control={form.x} />`.
+стилизованные, доступные (a11y) контролы, которые кладутся в схему формы как есть и привязываются
+к ноде формы через один универсальный `<FormField control={form.x} />`.
 
 ## Установка
 
@@ -87,19 +87,25 @@ ui-kit добавляет к ней разметку и стили:
 
 Если готовая разметка не подходит — берите headless-версию из cdk напрямую и стройте свой UI.
 
-### 3. Form-интеграция: `*Field`-версии
+### 3. Form-интеграция: компонент + `reformerAdapter`
 
-Форме нужен единый value-based контракт (`value` + `onChange(value)`), а у примитивов event-shape
-разный. Поэтому рядом с каждым form-control лежит его **field-версия**, порождённая внутренним HOC
-`withFormControl`: `InputField`, `SelectField`, `CheckboxField`, `RadioGroupField`,
-`TextareaField`, `SwitchField`, `SliderField`, `DatePickerField`, …
+Форма говорит на едином value-based контракте (`value` + `onChange(value)` + `onBlur`), а у
+контролов event-shape разный. Отдельных «field-версий» для этого нет: form-контрол объявляет свой
+диалект **статикой** `reformerAdapter` через `defineFieldControl` (`@reformer/ui-kit/fields`), а
+связывает его с полем **обёртка** — `FormField.Control` из `@reformer/cdk` (его использует
+`<FormField>` кита) или рендерер. Она читает статику, кладёт значение в нужный проп, переводит эмит
+контрола в `onChange(value)`, пробрасывает `disabled` / `aria-*` и строит императивный
+`FieldHandle`.
 
-В схеме формы `component` указывает именно на field-версию — `<FormField>` сам резолвит
-`value` / `onChange` / `onBlur` / `disabled` / ошибку ноды:
+В `component` поля кладётся **сам компонент**: `Input`, `InputNumber`, `SelectAsync`,
+`CheckboxWithLabel`, `RadioGroupOptions`, `Textarea`, `SwitchWithLabel`, `Slider`, `DatePicker`,
+`FileUploadDropzone`, … Для составных примитивов (Radix-`Select`, `RadioGroup` + `RadioGroupItem`)
+в форму берётся готовый вариант, который рисует пункты из `options`. Числовое поле — `InputNumber`
+(не `Input` с `type: 'number'`).
 
 ```tsx
 import { createModel, createForm } from '@reformer/core';
-import { FormField, InputField } from '@reformer/ui-kit';
+import { FormField, Input } from '@reformer/ui-kit';
 
 const model = createModel<{ email: string }>({ email: '' });
 const form = createForm({
@@ -107,7 +113,7 @@ const form = createForm({
   schema: {
     email: {
       value: model.$.email,
-      component: InputField, // ← field-версия, не голый Input
+      component: Input, // ← сам компонент: диалект — в его статике reformerAdapter
       componentProps: { label: 'Email', type: 'email' },
     },
   },
@@ -117,6 +123,18 @@ const form = createForm({
 <FormField control={form.email} />;
 ```
 
+Свой контрол подключается так же:
+
+```tsx
+import { defineFieldControl, checkedAdapter } from '@reformer/ui-kit/fields';
+
+export const MyCheckbox = defineFieldControl(ThirdPartyCheckbox, { adapter: checkedAdapter });
+// схема: { value: model.$.agree, component: MyCheckbox }
+```
+
+Компоненту чужой библиотеки, на который статику не повесить, диалект задаёт
+`RendererSettings.resolveFieldAdapter` рендерера.
+
 ## Импорты
 
 ```tsx
@@ -124,7 +142,7 @@ const form = createForm({
 import { Input, Select, Checkbox, Button, Box, FormField } from '@reformer/ui-kit';
 
 // Через subpath отдельного компонента (tree-shaking)
-import { Input, InputField } from '@reformer/ui-kit/input';
+import { Input } from '@reformer/ui-kit/input';
 
 // Тяжёлые компоненты — ТОЛЬКО через subpath (вне barrel)
 import { ChartContainer } from '@reformer/ui-kit/chart';

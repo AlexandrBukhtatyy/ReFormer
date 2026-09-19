@@ -85,7 +85,7 @@ export const infoHintDocConfig: ComponentDocConfig = {
       ),
       code: `{
   value: model.$.email,
-  component: InputField,
+  component: Input,
   componentProps: {
     label: 'Email',
     labelTooltip: 'Нужен для отправки чеков', // (i) после подписи
@@ -93,9 +93,11 @@ export const infoHintDocConfig: ComponentDocConfig = {
   },
 }
 
-// своё поле:
-import { withFormControl, withFieldTooltip, INSIDE_INPUT, nativeInputAdapter } from '@reformer/ui-kit/fields';
-export const MyInputField = withFormControl(withFieldTooltip(MyInput, INSIDE_INPUT), nativeInputAdapter);`,
+// своё поле: подсказка (i) + диалект контрола статикой — компонент кладётся в component как есть
+import { defineFieldControl, withFieldTooltip, INSIDE_INPUT, nativeInputAdapter } from '@reformer/ui-kit/fields';
+export const MyInput = defineFieldControl(withFieldTooltip(MyInputPrimitive, INSIDE_INPUT), {
+  adapter: nativeInputAdapter,
+});`,
     },
   ],
   props: [

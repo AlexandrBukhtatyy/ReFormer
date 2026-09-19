@@ -25,9 +25,14 @@ headless-компонента `FormField` из [`@reformer/cdk`](../../../reform
 </CdkFormField.Root>
 ```
 
-`Control` сам инстанцирует `control.component` (`Input`, `Select`, `Checkbox`...)
-и прокидывает `value`/`onChange`/`onBlur`/`error` из `FieldNode` без
-дополнительного кода.
+`Control` сам инстанцирует `control.component` (`Input`, `SelectAsync`,
+`CheckboxWithLabel`...) и связывает его с `FieldNode`: значение, `onChange`, `onBlur`,
+`disabled` и `aria-*` — в диалекте контрола. Диалект берётся из статики компонента
+`reformerAdapter` (`defineFieldControl` из `@reformer/ui-kit/fields`): `Input` получает
+`value` + `onChange(event)`, `CheckboxWithLabel` — `checked` + `onCheckedChange`, value-based
+контрол без статики — seam как есть. Отдельных «field-версий» компонентов нет — в `component`
+поля кладётся сам компонент. Ref, переданный в `Control`, получает императивный handle
+контрола или базовый `FieldHandle`, построенный из его DOM-узла.
 
 ## API
 
@@ -69,7 +74,7 @@ interface FormFieldProps {
 ```tsx
 {
   value: model.$.email,
-  component: InputField,
+  component: Input,
   componentProps: {
     label: 'Email',
     description: 'Не передаём третьим лицам',   // под полем
@@ -111,7 +116,7 @@ NativeSelectMulti, аватар) иконка встаёт справа от к�
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createForm } from '@reformer/core';
-import { Button, FormField, InputField, SelectField } from '@reformer/ui-kit';
+import { Button, FormField, Input, SelectAsync } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   email: string;
@@ -125,12 +130,12 @@ function RegistrationPage() {
       children: [
         {
           value: model.$.email,
-          component: InputField,
+          component: Input,
           componentProps: { label: 'Email', placeholder: 'you@example.com', testId: 'email' },
         },
         {
           value: model.$.country,
-          component: SelectField,
+          component: SelectAsync,
           componentProps: {
             label: 'Страна',
             testId: 'country',
@@ -168,7 +173,7 @@ function RegistrationPage() {
 import { useMemo } from 'react';
 import { createForm } from '@reformer/core';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
-import { FormField, InputField, Section } from '@reformer/ui-kit';
+import { FormField, Input, InputNumber, Section } from '@reformer/ui-kit';
 import { createCreditApplicationModel } from './schemas/model';
 
 function CreditApplicationPage() {
@@ -179,9 +184,9 @@ function CreditApplicationPage() {
       component: Section,
       componentProps: { title: 'Заявка', className: 'space-y-4' },
       children: [
-        { value: model.$.email, component: InputField, componentProps: { testId: 'email' } },
-        { value: model.$.phone, component: InputField, componentProps: { testId: 'phone' } },
-        { value: model.$.amount, component: InputField, componentProps: { testId: 'amount' } },
+        { value: model.$.email, component: Input, componentProps: { testId: 'email' } },
+        { value: model.$.phone, component: Input, componentProps: { testId: 'phone' } },
+        { value: model.$.amount, component: InputNumber, componentProps: { testId: 'amount' } },
       ],
     }));
     const form = createForm<CreditApplication>({ model, schema });
@@ -196,19 +201,21 @@ function CreditApplicationPage() {
 `testId` рендерер берёт из `componentProps.testId` листа schema:
 
 ```tsx
-{ value: itemModel.$.bank, component: InputField, componentProps: { testId: 'existingLoan-bank' } }
+{ value: itemModel.$.bank, component: Input, componentProps: { testId: 'existingLoan-bank' } }
 // → <FormField control={...} testId="existingLoan-bank" />
 // → data-testid="field-existingLoan-bank", "input-existingLoan-bank", ...
 ```
 
-> `fieldWrapper` отвечает только за обвязку поля (label / error / `testId`) — сам
-> контрол (`node.component`) получает value-based seam рендерера (`value` +
-> `onChange(value)` + `onBlur`). Если в схеме стоят СЫРЫЕ контролы чужого UI-kit
-> (checkbox с `checked` + `onChange(event)`, select с `onChange(value, option)`
-> и т.п.), в тех же `settings` рядом с `fieldWrapper` задаётся
-> `resolveFieldAdapter` — он переводит seam на диалект каждого контрола, без
-> обёртки под каждый контрол. Компоненты `@reformer/ui-kit` уже value-based —
-> адаптер им не нужен. Детали (`FieldAdapter` / `resolveFieldAdapter`) — в docs
+> `fieldWrapper` отвечает только за обвязку поля (label / error / `testId`). Сам
+> контрол (`node.component`) связывает рендерер: seam (`value` + `onChange(value)` +
+> `onBlur`) переводится в диалект контрола по его статике `reformerAdapter` — у
+> компонентов `@reformer/ui-kit` она уже объявлена. Готовый связанный контрол
+> приходит в `FormField` как `children`, и `FormField.Control asChild` второй раз его
+> не привязывает. Если в схеме стоят СЫРЫЕ контролы чужого UI-kit без статики
+> (checkbox с `checked` + `onChange(event)`, select с `onChange(value, option)` и т.п.),
+> в тех же `settings` рядом с `fieldWrapper` задаётся `resolveFieldAdapter` — он
+> приоритетнее статики и переводит seam на диалект каждого контрола без обёртки под
+> каждый контрол. Детали (`FieldAdapter` / `resolveFieldAdapter`) — в docs
 > [`@reformer/renderer-react`](../../../reformer-renderer-react/docs/llms/05-cookbook.md).
 
 ### 3. Кастомизация через `children`
@@ -216,11 +223,13 @@ function CreditApplicationPage() {
 Для случаев, когда нужен нестандартный контрол (например, маска, которая не
 зарегистрирована в `control.component`, или комбинированный input). `children`
 оборачивается в `CdkFormField.Control asChild`, и в кастомный input
-прокидываются все нужные props (`value`, `onChange`, `onBlur`, `aria-invalid`).
+прокидываются все нужные props (`value`, `onChange`, `onBlur`, `aria-invalid`) — в диалекте
+ребёнка (его `reformerAdapter`, иначе value-based seam). Привязки, которые у ребёнка уже
+заданы явно, не перекрываются.
 
 ```tsx
 import { FormField } from '@reformer/ui-kit';
-import { InputMaskField } from '@reformer/ui-kit/input-mask';
+import { InputMask } from '@reformer/ui-kit/input-mask';
 
 <FormField control={form.phone} testId="phone">
   <InputMask mask="+7 (999) 999-99-99" />
@@ -228,18 +237,19 @@ import { InputMaskField } from '@reformer/ui-kit/input-mask';
 ```
 
 > Важно: кастомный child должен быть единичным React-элементом и принимать
-> `value`/`onChange`/`onBlur`/`aria-invalid` (см. контракт ui-kit-полей). Для
+> `value`/`onChange(value)`/`onBlur`/`aria-invalid` — либо объявить свой диалект через
+> `defineFieldControl(MyInput, { adapter })` из `@reformer/ui-kit/fields`. Для
 > сложных случаев — двух input-ов рядом — используй `CdkFormField.Root` напрямую,
 > минуя ui-kit-обёртку.
 
 ### 4. Inline-label контролы (Checkbox, Switch)
 
-`CheckboxField` и `SwitchField` сами рендерят `label` рядом с собственным контролом.
+`CheckboxWithLabel` и `SwitchWithLabel` сами рендерят `label` рядом с собственным контролом.
 Если бы `FormField` ставил `Label` сверху, мы получили бы дубль:
 
 ```
 Условия использования       <-- FormField.Label (нежелательно)
-[ ] Условия использования    <-- сам CheckboxField
+[ ] Условия использования    <-- сам CheckboxWithLabel
 ```
 
 Поэтому `FormField` не рендерит верхний `Label` для контролов со статическим маркером
@@ -247,19 +257,20 @@ import { InputMaskField } from '@reformer/ui-kit/input-mask';
 (`control.component === Checkbox`) снято в v7: маркер работает для любого варианта и
 для пользовательских контролов.
 
-> Маркер — неэнфорсимая конвенция. Свой inline-контрол обязан выставить
-> `MyControl.reformerLayout = 'inline-label'`, иначе подпись задвоится молча.
+> Маркер — неэнфорсимая конвенция. Свой inline-контрол обязан его объявить —
+> `defineFieldControl(MyControl, { adapter, layout: 'inline-label' })` из
+> `@reformer/ui-kit/fields`, — иначе подпись задвоится молча.
 
 ```tsx
 import { createModel, createForm } from '@reformer/core';
-import { CheckboxField, FormField } from '@reformer/ui-kit';
+import { CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 
 const model = createModel<{ accept: boolean }>({ accept: false });
 const schema = {
   children: [
     {
       value: model.$.accept,
-      component: CheckboxField,
+      component: CheckboxWithLabel,
       componentProps: { label: 'Принимаю условия' },
     },
   ],
@@ -267,15 +278,16 @@ const schema = {
 const form = createForm<{ accept: boolean }>({ model, schema });
 
 <FormField control={form.accept} testId="accept" />;
-// рендерится только Checkbox с label справа + error снизу.
+// рендерится только чекбокс с label справа + error снизу.
 ```
 
-Проверка идёт по `===`, поэтому если ты сам реэкспортируешь `Checkbox` через
-обёртку — детектор не сработает. Решения:
+Маркер — статика на компоненте, поэтому если ты оборачиваешь `CheckboxWithLabel` в свой
+компонент (HOC, `forwardRef`-обёртка), статики `reformerLayout` и `reformerAdapter` на
+обёртке нет — подпись задвоится, а значение не свяжется. Решения:
 
-- Использовать оригинальный `Checkbox` из `@reformer/ui-kit`.
-- Либо вручную скрывать label через `componentProps.label = undefined` и
-  оборачивать обвязку самостоятельно.
+- Класть в схему сам `CheckboxWithLabel` из `@reformer/ui-kit`.
+- Либо объявить статики на обёртке: `defineFieldControl(MyCheckbox, { adapter: checkedAdapter,
+  layout: 'inline-label' })`.
 
 ## Anti-patterns
 

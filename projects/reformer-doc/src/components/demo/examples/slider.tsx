@@ -1,4 +1,4 @@
-import { SliderField, sliderBasePropsSchema } from '@reformer/ui-kit';
+import { Slider, sliderBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -17,12 +17,12 @@ export const sliderDocConfig: ComponentDocConfig = {
       description: 'Значение — number. Диапазон по умолчанию 0…100, шаг 1.',
       render: makeFieldVariant({
         initial: 50,
-        component: SliderField,
+        component: Slider,
         componentProps: { label: 'Громкость', min: 0, max: 100, step: 1 },
       }),
       code: `{
   value: model.$.volume, // initial: 50
-  component: SliderField,
+  component: Slider,
   componentProps: { label: 'Громкость', min: 0, max: 100, step: 1 },
 }`,
     },
@@ -32,12 +32,12 @@ export const sliderDocConfig: ComponentDocConfig = {
       description: 'min/max/step задают дискретную шкалу (напр. оценка 0…10 с шагом 2).',
       render: makeFieldVariant({
         initial: 6,
-        component: SliderField,
+        component: Slider,
         componentProps: { label: 'Оценка', min: 0, max: 10, step: 2 },
       }),
       code: `{
   value: model.$.rating, // initial: 6
-  component: SliderField,
+  component: Slider,
   componentProps: { label: 'Оценка', min: 0, max: 10, step: 2 },
 }`,
     },
@@ -50,18 +50,18 @@ export const sliderDocConfig: ComponentDocConfig = {
         'Крупная денежная шкала: min/max/step масштабируют слайдер под сумму кредита (шаг 10 000).',
       render: makeFieldVariant({
         initial: 300000,
-        component: SliderField,
+        component: Slider,
         componentProps: { label: 'Сумма кредита, ₽', min: 50000, max: 1000000, step: 10000 },
       }),
       code: `{
   value: model.$.amount,
-  component: SliderField,
+  component: Slider,
   componentProps: { label: 'Сумма кредита, ₽', min: 50000, max: 1000000, step: 10000 },
 }`,
     },
   ],
   api: {
-    component: SliderField,
+    component: Slider,
     initialValue: 50,
     baseComponentProps: { label: 'Громкость' },
     validators: [required({ message: 'Укажите значение' })],
@@ -78,7 +78,7 @@ export const sliderDocConfig: ComponentDocConfig = {
     code: (v) =>
       `{
   value: model.$.volume,
-  component: SliderField,
+  component: Slider,
   componentProps: {
     label: 'Громкость',
     min: ${v.min ?? 0},

@@ -1,14 +1,15 @@
 # Choice fields
 
-Поля выбора: `Checkbox`, `RadioGroup`, `Select` (+ 8 sub-компонентов из Radix).
-Контракт `value`/`onChange`/`onBlur` тот же, что у текстовых полей, но `value`
-бывает разных типов:
+Поля выбора: `CheckboxWithLabel`, `RadioGroupOptions`, `SelectAsync` (+ 8 sub-компонентов
+`Select*` из Radix для ручной сборки). В форме каждое кладётся в `component` поля как есть:
+форма говорит на `value`/`onChange(value)`/`onBlur`, а в диалект контрола её переводит обёртка
+поля по статике `reformerAdapter`. Значение в модели бывает разных типов:
 
-| Component    | `value` type     | `onChange` payload                        |
-| ------------ | ---------------- | ----------------------------------------- |
-| `Checkbox`   | `boolean`        | `boolean`                                 |
-| `RadioGroup` | `string \| null` | `string` (ровно один из `options`)        |
-| `Select`     | `string \| null` | `string \| null` (`null` при `clearable`) |
+| Component           | Значение в модели | Собственный диалект контрола (standalone)                  |
+| ------------------- | ----------------- | ---------------------------------------------------------- |
+| `CheckboxWithLabel` | `boolean`         | `checked` + `onCheckedChange(boolean)` (`checkedAdapter`)  |
+| `RadioGroupOptions` | `string \| null`  | `value` + `onValueChange(string)` (`valueChangeAdapter`)   |
+| `SelectAsync`       | `string \| null`  | `value` + `onChange(string \| null)` — уже value-based     |
 
 ## Подсказка-иконка (i) — `tooltip`
 
@@ -16,19 +17,19 @@
 
 | Поле                                                     | Где иконка                                                                                                |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `Checkbox`, `Switch`                                     | После текста подписи, снаружи `<label>` — клик по иконке контрол не переключает.                          |
-| `RadioGroup`                                             | У каждого варианта — `options: [{ value, label, tooltip }]`, после его подписи. Групповой — справа.       |
-| `Select`, `SelectMulti`                                  | Внутри триггера: **крестик очистки → (i) → шеврон**. Шеврон остаётся у края, текст под иконки не заходит. |
-| `Combobox` (все 4 варианта)                              | То же, что у `Select`.                                                                                    |
-| `NativeSelect`                                           | Внутри, левее шеврона.                                                                                    |
-| `ToggleGroup`, `NativeSelectMulti`, `Slider`, `Calendar` | Справа от контрола.                                                                                       |
+| `CheckboxWithLabel`, `SwitchWithLabel`                   | После текста подписи, снаружи `<label>` — клик по иконке контрол не переключает.                          |
+| `RadioGroupOptions`                                      | У каждого варианта — `options: [{ value, label, tooltip }]`, после его подписи. Групповой — справа.       |
+| `SelectAsync`, `SelectMulti`                             | Внутри триггера: **крестик очистки → (i) → шеврон**. Шеврон остаётся у края, текст под иконки не заходит. |
+| `Combobox` (все 4 варианта)                              | То же, что у `SelectAsync`.                                                                               |
+| `NativeSelectWithOptions`                                | Внутри, левее шеврона.                                                                                    |
+| `ToggleGroupOptions`, `NativeSelectMulti`, `Slider`, `CalendarSingle` | Справа от контрола.                                                                                       |
 
 ```tsx
-<SelectField value={city} onChange={setCity} options={cities} clearable tooltip="Город регистрации" />
+<SelectAsync value={city} onChange={setCity} options={cities} clearable tooltip="Город регистрации" />
 
-<RadioGroupField
+<RadioGroupOptions
   value={plan}
-  onChange={setPlan}
+  onValueChange={setPlan}
   options={[
     { value: 'basic', label: 'Базовый', tooltip: 'До 3 пользователей' },
     { value: 'pro', label: 'Профи' },
@@ -41,57 +42,42 @@
 
 ## Checkbox
 
+В форму — `CheckboxWithLabel` (registry `Checkbox`): чекбокс с подписью справа. Голый `Checkbox`
+тоже связывается с полем (у него та же статика `checkedAdapter`), но подписи не рисует.
+
 ### API
 
 ```typescript
-interface CheckboxProps {
-  className?: string;
-  value?: boolean;
-  onChange?: (value: boolean) => void;
-  onBlur?: () => void;
+interface CheckboxWithLabelProps extends React.ComponentProps<typeof Checkbox> {
+  checked?: boolean | 'indeterminate';
+  onCheckedChange?: (checked: boolean | 'indeterminate') => void;
   label?: string;
+  tooltip?: string;
   disabled?: boolean;
   'data-testid'?: string;
 }
 ```
 
-| Prop       | Тип                        | Default | Описание                                                                 |
-| ---------- | -------------------------- | ------- | ------------------------------------------------------------------------ |
-| `value`    | `boolean`                  | `false` | Чекнут или нет. `undefined` → `false`.                                   |
-| `onChange` | `(value: boolean) => void` | —       | Вызывается с `event.target.checked`.                                     |
-| `label`    | `string`                   | —       | Подпись справа от чекбокса. Если опущен — рендерится только сам чекбокс. |
-| `disabled` | `boolean`                  | `false` | Блокирует переключение.                                                  |
+| Prop              | Тип                                             | Default | Описание                                                                 |
+| ----------------- | ----------------------------------------------- | ------- | ------------------------------------------------------------------------ |
+| `checked`         | `boolean \| 'indeterminate'`                    | `false` | Чекнут или нет. В форме — из значения поля (`null`/`undefined` → `false`). |
+| `onCheckedChange` | `(checked: boolean \| 'indeterminate') => void` | —       | Radix-колбэк. В форме в модель уходит `checked === true`.                |
+| `label`           | `string`                                        | —       | Подпись справа от чекбокса. Если опущен — рендерится только сам чекбокс. |
+| `disabled`        | `boolean`                                       | `false` | Блокирует переключение.                                                  |
 
 ### Common Patterns
 
-Согласие с условиями:
-
-```tsx
-import { CheckboxField } from '@reformer/ui-kit';
-
-<CheckboxField value={agree} onChange={setAgree} label="Согласен с условиями" />;
-```
-
-Чекбокс без подписи (label рендерится снаружи или не нужен):
-
-```tsx
-<div className="flex items-center gap-2">
-  <CheckboxField value={hasMortgage} onChange={setHasMortgage} />
-  <span>У меня уже есть ипотека</span>
-</div>
-```
-
-В составе формы (`FormField` сам определяет, что это checkbox, и не дублирует
+В составе формы (`FormField` видит маркер `reformerLayout = 'inline-label'` и не дублирует
 label сверху):
 
 ```tsx
 import { createModel, createForm } from '@reformer/core';
-import { CheckboxField, FormField } from '@reformer/ui-kit';
+import { CheckboxWithLabel, FormField } from '@reformer/ui-kit';
 
 const model = createModel<{ accept: boolean }>({ accept: false });
 const schema = {
   children: [
-    { value: model.$.accept, component: CheckboxField, componentProps: { label: 'Принять' } },
+    { value: model.$.accept, component: CheckboxWithLabel, componentProps: { label: 'Принять' } },
   ],
 };
 const form = createForm<{ accept: boolean }>({ model, schema });
@@ -99,19 +85,34 @@ const form = createForm<{ accept: boolean }>({ model, schema });
 <FormField control={form.accept} testId="accept" />;
 ```
 
+Вне формы — Radix-диалект:
+
+```tsx
+import { CheckboxWithLabel } from '@reformer/ui-kit';
+
+<CheckboxWithLabel
+  checked={agree}
+  onCheckedChange={(c) => setAgree(c === true)}
+  label="Согласен с условиями"
+/>;
+```
+
 ### Anti-patterns
 
-- Передавать `value: 'yes' | 'no'` (строку) — `CheckboxField` ожидает `boolean`. Для
-  строкового выбора используйте `RadioGroupField` (два варианта) или `SelectField`.
-- Делать `<CheckboxField checked={x} onChange={…}>` (как с нативным `<input
-type="checkbox">`) — у field-версии пропа `checked` нет, нужно `value`.
-- **Ставить в форму примитив `Checkbox` вместо `CheckboxField`.** У примитива всё
-  наоборот: он Radix-контрол с `checked`, и `value={true}` он проигнорирует —
-  чекбокс останется `aria-checked="false"`, а `label`/`value` утекут в DOM-атрибуты.
-  То же для `RadioGroup`/`RadioGroupField` (примитив отрисуется пустым) и
-  `Select`/`SelectField`.
+- Передавать `value: 'yes' | 'no'` (строку) — `CheckboxWithLabel` ожидает `boolean`. Для
+  строкового выбора используйте `RadioGroupOptions` (два варианта) или `SelectAsync`.
+- Вне формы писать `<CheckboxWithLabel value={x} onChange={…}>` — standalone это Radix-контрол:
+  `checked` + `onCheckedChange`. Value-based `value`/`onChange` у него появляются только внутри
+  обёртки поля (`FormField` / рендерер).
+- **Ставить в форму составной примитив вместо form-компонента.** Radix-`RadioGroup` без
+  `RadioGroupItem` отрисуется пустым — нужен `RadioGroupOptions`; Radix-`Select` не понимает
+  `onChange` — нужен `SelectAsync`. Голый `Checkbox` связывается, но теряет подпись — для
+  поля с label берите `CheckboxWithLabel`.
 
 ## RadioGroup
+
+В форму — `RadioGroupOptions` (registry `RadioGroup`): рисует пункты из `options`.
+Radix-`RadioGroup` с `RadioGroupItem` — для ручной вёрстки вне формы.
 
 ### API
 
@@ -122,23 +123,24 @@ interface RadioOption {
   tooltip?: string; // иконка (i) после подписи варианта
 }
 
-interface RadioGroupProps {
+interface RadioGroupOptionsProps {
   className?: string;
-  value?: string | null;
-  onChange?: (value: string) => void;
+  value?: string;
+  onValueChange?: (value: string) => void;
   onBlur?: () => void;
+  tooltip?: string;
   options: RadioOption[];
   disabled?: boolean;
   'data-testid'?: string;
 }
 ```
 
-| Prop       | Тип                       | Default | Описание                                                           |
-| ---------- | ------------------------- | ------- | ------------------------------------------------------------------ |
-| `options`  | `RadioOption[]`           | —       | Список вариантов. `value` обязан быть строкой.                     |
-| `value`    | `string \| null`          | `null`  | Выбранный вариант. Должен совпадать с одним из `options[i].value`. |
-| `onChange` | `(value: string) => void` | —       | Вызывается при выборе. Передаётся `event.target.value`.            |
-| `disabled` | `boolean`                 | `false` | Блокирует все варианты.                                            |
+| Prop            | Тип                       | Default | Описание                                                           |
+| --------------- | ------------------------- | ------- | ------------------------------------------------------------------ |
+| `options`       | `RadioOption[]`           | —       | Список вариантов. `value` обязан быть строкой.                     |
+| `value`         | `string`                  | —       | Выбранный вариант. Должен совпадать с одним из `options[i].value`. |
+| `onValueChange` | `(value: string) => void` | —       | Radix-колбэк выбора. В форме в модель уходит строка (`''` → `null`). |
+| `disabled`      | `boolean`                 | `false` | Блокирует все варианты.                                            |
 
 По умолчанию варианты раскладываются вертикально (`flex flex-col gap-2`).
 
@@ -147,7 +149,7 @@ interface RadioGroupProps {
 Вертикальная раскладка (default):
 
 ```tsx
-import { RadioGroupField } from '@reformer/ui-kit';
+import { RadioGroupOptions } from '@reformer/ui-kit';
 
 const LOAN_TYPES = [
   { value: 'consumer', label: 'Потребительский' },
@@ -155,15 +157,15 @@ const LOAN_TYPES = [
   { value: 'auto', label: 'Авто' },
 ];
 
-<RadioGroupField value={loanType} onChange={setLoanType} options={LOAN_TYPES} />;
+<RadioGroupOptions value={loanType} onValueChange={setLoanType} options={LOAN_TYPES} />;
 ```
 
 Горизонтальная раскладка (через `className`):
 
 ```tsx
-<RadioGroupField
+<RadioGroupOptions
   value={size}
-  onChange={setSize}
+  onValueChange={setSize}
   options={[
     { value: 's', label: 'S' },
     { value: 'm', label: 'M' },
@@ -183,7 +185,7 @@ const schema = {
   children: [
     {
       value: model.$.loanType,
-      component: RadioGroupField,
+      component: RadioGroupOptions,
       componentProps: { options: LOAN_TYPES },
     },
   ],
@@ -196,18 +198,19 @@ const form = createForm<{ loanType: string }>({ model, schema });
 ### Anti-patterns
 
 - Передавать `options` с числовыми `value` — компонент ставит их в DOM-атрибут
-  `value`, который всегда строка, и `onChange` вернёт строку. Это рассинхронит
+  `value`, который всегда строка, и в модель уйдёт строка. Это рассинхронит
   типы. Если нужны числа — конвертируй на уровне behavior `transformValue`.
 - Динамически менять список `options` без пересоздания компонента — текущее
   `value` может оказаться вне набора, и ничего не выбрано визуально.
 - Ожидать, что `onBlur` сработает после клика на radio — он срабатывает на
   `blur` нативного input, как обычно. Для пометки `touched` после взаимодействия
-  обычно достаточно `onChange`.
+  обычно достаточно выбора (изменение значения).
 
 ## Select
 
-`Select` построен поверх `@radix-ui/react-select`. Имеет два режима источника
-данных:
+В форму — `SelectAsync` (registry `Select`), построенный поверх `@radix-ui/react-select`.
+Контракт уже value-based (`value` / `onChange(string | null)`), поэтому и вне формы он
+используется так же. Имеет два режима источника данных:
 
 - **Inline**: `options={[…]}` — массив `{ value, label, group? }`.
 - **Resource**: `resource={{ type, load }}` — асинхронная загрузка со стратегией `type`:
@@ -235,7 +238,7 @@ interface ResourceConfig<T> {
   pageSize?: number; // размер страницы для partial (по умолчанию 20)
 }
 
-interface SelectProps<T> {
+interface SelectAsyncProps<T> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;
@@ -253,7 +256,7 @@ interface SelectProps<T> {
 | Prop          | Тип                               | Default                 | Описание                                                                                                                                                                                                          |
 | ------------- | --------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`.                                                                   |
-| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `Select` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`. |
+| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `SelectAsync` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`. |
 | `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                                                                                             |
 | `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                                                                                     |
 | `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                                                                                             |
@@ -262,7 +265,7 @@ interface SelectProps<T> {
 
 ### Sub-components
 
-Все рендерятся `Select` автоматически, но при необходимости их можно
+Все рендерятся `SelectAsync` автоматически, но при необходимости их можно
 импортировать и собрать кастомный layout:
 
 | Component                | Purpose                                                                                 |
@@ -281,9 +284,9 @@ interface SelectProps<T> {
 Inline `options`:
 
 ```tsx
-import { SelectField } from '@reformer/ui-kit';
+import { SelectAsync } from '@reformer/ui-kit';
 
-<SelectField
+<SelectAsync
   value={loanType}
   onChange={setLoanType}
   placeholder="Тип кредита"
@@ -297,7 +300,7 @@ import { SelectField } from '@reformer/ui-kit';
 Async `resource`, стратегия `preload` (грузим всё, поиск на клиенте):
 
 ```tsx
-import { SelectField, type ResourceConfig } from '@reformer/ui-kit';
+import { SelectAsync, type ResourceConfig } from '@reformer/ui-kit';
 
 const banksResource: ResourceConfig<string> = {
   type: 'preload',
@@ -311,7 +314,7 @@ const banksResource: ResourceConfig<string> = {
   },
 };
 
-<SelectField value={bankId} onChange={setBankId} resource={banksResource} />;
+<SelectAsync value={bankId} onChange={setBankId} resource={banksResource} />;
 ```
 
 Стратегия `partial` (серверные поиск + пагинация больших списков):
@@ -326,18 +329,18 @@ const usersResource: ResourceConfig<string> = {
       await res.json();
     return {
       items: rows.map((u) => ({ id: u.id, value: String(u.id), label: u.name })),
-      totalCount: total, // Select догружает страницы, пока items.length < totalCount
+      totalCount: total, // SelectAsync догружает страницы, пока items.length < totalCount
     };
   },
 };
 
-<SelectField value={userId} onChange={setUserId} resource={usersResource} clearable />;
+<SelectAsync value={userId} onChange={setUserId} resource={usersResource} clearable />;
 ```
 
 Grouped options:
 
 ```tsx
-<SelectField
+<SelectAsync
   value={city}
   onChange={setCity}
   options={[
@@ -352,7 +355,7 @@ Grouped options:
 `clearable` (с очисткой):
 
 ```tsx
-<SelectField
+<SelectAsync
   value={status}
   onChange={setStatus}
   clearable
@@ -374,7 +377,7 @@ const schema = {
   children: [
     {
       value: model.$.city,
-      component: SelectField,
+      component: SelectAsync,
       componentProps: {
         placeholder: 'Город',
         options: [
@@ -397,10 +400,10 @@ const form = createForm<{ city: string }>({ model, schema });
   источник.
 - Опускать `value` (`undefined`) — Radix покажет placeholder, но сам компонент
   всегда мапит `undefined` в пустую строку. Лучше явно `null`.
-- Использовать `value: number` напрямую — `Select` приводит к строке внутри
+- Использовать `value: number` напрямую — `SelectAsync` приводит к строке внутри
   (`String(value)`); `onChange` вернёт строку. В schema формы тип поля должен
   быть `string` или `string | null`.
-- Регистрировать `Select` без `placeholder` и ждать понятного UX —
+- Регистрировать `SelectAsync` без `placeholder` и ждать понятного UX —
   пользователь увидит дефолт `'Select an option...'`. Для русскоязычных форм
   это, как правило, нежелательно.
 
@@ -410,7 +413,7 @@ const form = createForm<{ city: string }>({ model, schema });
 одиночных: тип значения другой, а `x-runtimeProps.value` у записи ровно один (тот же приём, что у
 `FileUpload` / `FileUploadAvatar`).
 
-| Field-компонент     | На чём построен                     | Когда брать                                                   |
+| Компонент           | На чём построен                     | Когда брать                                                   |
 | ------------------- | ----------------------------------- | ------------------------------------------------------------- |
 | `ToggleGroupMulti`  | Radix ToggleGroup `type="multiple"` | 2–7 вариантов, все видны сразу                                |
 | `ComboboxMulti`     | Popover + Command (cmdk) + Badge    | длинный список с поиском; есть `creatable`                    |
@@ -441,8 +444,8 @@ const model = createModel({ tags: [] });
 ### Использование в схеме
 
 ```typescript
-import { ToggleGroupMultiField } from '@reformer/ui-kit';
-import { ComboboxMultiField } from '@reformer/ui-kit/combobox'; // combobox — только subpath
+import { ToggleGroupMulti } from '@reformer/ui-kit';
+import { ComboboxMulti } from '@reformer/ui-kit/combobox'; // combobox — только subpath
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
@@ -450,7 +453,7 @@ const schema = {
   tags: {
     // Для поля типа T[] `model.$.tags` — НЕ сигнал (ModelArraySignals), нужен signalAt.
     value: model.signalAt('tags')!,
-    component: ToggleGroupMultiField,
+    component: ToggleGroupMulti,
     componentProps: {
       label: 'Теги',
       options: [
@@ -514,15 +517,15 @@ const validation = defineValidationSchema<Form>(({ model }) => {
 адресуется путём, а не выбирается из перечня: файл в репозитории, раздел каталога, узел
 оргструктуры.
 
-| Field-компонент          | `value` в модели                  | Что выбирается            |
+| Компонент                | `value` в модели                  | Что выбирается            |
 | ------------------------ | --------------------------------- | ------------------------- |
-| `ComboboxTreeField`      | `string \| null` — адрес узла     | один узел, обычно файл    |
-| `ComboboxTreeMultiField` | `string[] \| null` — адреса узлов | набор узлов, обычно файлы |
+| `ComboboxTree`      | `string \| null` — адрес узла     | один узел, обычно файл    |
+| `ComboboxTreeMulti` | `string[] \| null` — адреса узлов | набор узлов, обычно файлы |
 
 Оба живут вне главного barrel:
 
 ```typescript
-import { ComboboxTreeField, ComboboxTreeMultiField } from '@reformer/ui-kit/combobox';
+import { ComboboxTree, ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
 import type { TreeNode } from '@reformer/ui-kit';
 ```
 
@@ -570,7 +573,7 @@ Subpath `./combobox` тянет опциональный peer `cmdk` — не р
 ```tsx
 import { createModel, createForm } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
-import { ComboboxTreeField } from '@reformer/ui-kit/combobox';
+import { ComboboxTree } from '@reformer/ui-kit/combobox';
 import type { TreeNode } from '@reformer/ui-kit';
 
 // id — полный путь: два index.ts в разных каталогах обязаны различаться.
@@ -590,7 +593,7 @@ const model = createModel<{ entry: string | null }>({ entry: null });
 const schema = {
   entry: {
     value: model.$.entry,
-    component: ComboboxTreeField,
+    component: ComboboxTree,
     componentProps: {
       label: 'Точка входа',
       nodes: FILES,
@@ -609,7 +612,7 @@ const form = createForm<{ entry: string | null }>({ model, schema });
 через `signalAt`, а правила живут в отдельной validation-схеме:
 
 ```typescript
-import { ComboboxTreeMultiField } from '@reformer/ui-kit/combobox';
+import { ComboboxTreeMulti } from '@reformer/ui-kit/combobox';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, maxLength } from '@reformer/core/validators';
 
@@ -619,7 +622,7 @@ const model = createModel<Form>({ attachments: null }); // не [] — инач�
 const schema = {
   attachments: {
     value: model.signalAt('attachments')!,
-    component: ComboboxTreeMultiField,
+    component: ComboboxTreeMulti,
     componentProps: {
       label: 'Файлы заявки',
       // Уровень читается при первом раскрытии ветки; null — верхний уровень.
@@ -650,13 +653,13 @@ const validation = defineValidationSchema<Form>(({ model }) => {
   ничего не знает.
 - Импортировать `ComboboxTree*` из `'@reformer/ui-kit'` — их там нет, `combobox` живёт только в
   своём subpath.
-- Ставить в схему примитив `ComboboxTree` / `ComboboxTreeMulti` вместо `*Field`-версии —
-  value-seam остаётся неподключённым, поле рисуется и не реагирует на выбор.
+- Ставить в схему сам `Tree` вместо `ComboboxTree` / `ComboboxTreeMulti` — `Tree` не поле формы:
+  value-seam остаётся неподключённым, дерево рисуется и не пишет выбор в модель.
 
 ## See also
 
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — сам `Tree`: узлы, ленивое чтение уровней, виртуализация.
 - [10-imperative-handles.md](10-imperative-handles.md) — императивные handle мультивыборов (open/close/clear).
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
-- [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт `Checkbox` и не дублирует label.
+- [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт inline-label контролы (`CheckboxWithLabel`, `SwitchWithLabel`) и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».

@@ -17,7 +17,7 @@ Headless compound component для построения доступной (a11y
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FormField.Root`             | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`/`hasHint`.                                                                   | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                                                                        |
 | `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label.                                                   |
-| `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur`.                                                                                              |
+| `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur` — в диалекте контрола: по статике `reformerAdapter` компонента (`getFieldAdapter` из `@reformer/core`), без неё — value-based seam. Ref получает handle контрола либо базовый `FieldHandle` из его DOM-узла. |
 | `FormField.Error`            | `<p role="alert">` с `errors[0].message`. Поддерживает `multi`, `render`, кастомные `children`.                                                                       | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                                                                                 |
 | `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                                                                                 |
 | `FormField.Hint`             | `<span>` со стабильным `id={ids.hintId}` — дополнительное описание поля, которое НЕ показывается под ним (обычно текст тултипа у иконки (i) рядом с label).           | Чтобы `Control` добавил id в `aria-describedby`, передайте `hasHint` в `Root`. Элемент можно пометить `hidden`: по ссылке `aria-describedby` он всё равно участвует в описании. |
@@ -44,7 +44,34 @@ function EmailField({ control }: { control: typeof form.email }) {
 }
 ```
 
-`Label` рендерит текст из `componentProps.label`, `Control` — компонент, заданный через `component:` в схеме формы (`Input`, `InputPassword`, `Select`...).
+`Label` рендерит текст из `componentProps.label`, `Control` — компонент, заданный через `component:` в схеме формы (`Input`, `InputPassword`, `SelectAsync`...), и сам связывает его с полем.
+
+### Связывание контрола: `reformerAdapter`
+
+`Control` сам связывает поле с контролом (так же, как рендерер `@reformer/renderer-react`); отдельных «field-обёрток» над
+компонентами не нужно. Форма говорит на value-based seam (`value` + `onChange(value)` + `onBlur`),
+а контрол — на своём диалекте (`checked` + `onCheckedChange`, `onValueChange`, DOM-событие в
+`onChange`, …). Диалект компонент объявляет статикой `reformerAdapter` (тип `FieldAdapter` из
+`@reformer/core`); `Control` читает её через `getFieldAdapter(component)` и применяет
+`bindFieldProps`. Нет статики — seam проходит как есть.
+
+```tsx
+import type { FieldAdapter } from '@reformer/core';
+
+const checkedAdapter: FieldAdapter = {
+  valueProp: 'checked',
+  changeProp: 'onCheckedChange',
+  fromEmit: (c) => c === true,
+  toValue: (v) => v ?? false,
+};
+MyCheckbox.reformerAdapter = checkedAdapter; // в ui-kit: defineFieldControl(MyCheckbox, { adapter })
+
+// схема: { value: model.$.agree, component: MyCheckbox } → <FormField.Control /> свяжет сам
+```
+
+В режиме `asChild`/`children` привязки добавляются в диалекте ребёнка и **только те, которых у
+него ещё нет**: рендерер отдаёт обёртке поля уже привязанный контрол, и повторная привязка
+склеила бы два `onChange`.
 
 ### Custom layout — обёртки и стилизация
 
@@ -161,7 +188,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 
 - **`Error: FormField.* components must be used within <FormField.Root>`.** Проверьте, что вызов `FormField.Label` / `Control` / `Error` обёрнут в `FormField.Root` и компонент не рендерится в портале выше провайдера.
 - **`Label` ничего не показывает.** В схеме поля нет `componentProps.label`. Вариант: задайте `label` в схеме, или передайте `children` в `FormField.Label`, или поставьте `forceRender`.
-- **`Control` рендерит «голый» `<input>` без стилей.** Auto-mode рендерит `control.component` — убедитесь, что в схеме указан компонент (`component: InputField`). Иначе используйте `asChild` + свой компонент.
+- **`Control` рендерит «голый» `<input>` без стилей.** Auto-mode рендерит `control.component` — убедитесь, что в схеме указан компонент (`component: Input`). Иначе используйте `asChild` + свой компонент.
 - **Сырой контрол с event-диалектом (Checkbox/Radio) пишет в модель `event` вместо значения.** И auto-mode, и `asChild` вешают value-based seam (`value` + `onChange(value)` + `onBlur`). Контрол с диалектом `checked` + `onChange(event)` получит `value`, но в `setValue` уйдёт DOM-`event`. (`Select` с `onChange(value, option)` привязывается корректно сам — значение идёт первым аргументом, а лишний `option` обработчик отбрасывает; адаптер ему нужен, только если значение надо вывести ИЗ `option`/props, либо чтобы снять утечку пропа `control` в DOM.) Решение на уровне CDK: `asChild` с value-based обёрткой (переложите `event.target.checked` в `onChange(value)` руками) либо регистрация value-based обёртки как `component:` в схеме. Когда поле рисует не CDK-compound, а рендерер (`@reformer/renderer-react` / `@reformer/renderer-json`) из схемы — сырые контролы подключаются без обёрток через `RendererSettings.resolveFieldAdapter` (`FieldAdapter`: `valueProp`/`fromEmit`/`toValue`).
 - **`aria-describedby` пустой при наличии `Description`.** Не передан `hasDescription` в `Root`. Это не «магический» флаг — без него `Control` не знает, что description есть в дереве.
 - **Screen reader не зачитывает текст тултипа при фокусе на поле.** Контент тултипа рендерится в портале только в открытом состоянии. Продублируйте текст в `<FormField.Hint hidden>` и передайте `hasHint` в `Root`.

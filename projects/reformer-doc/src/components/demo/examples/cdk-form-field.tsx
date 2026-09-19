@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FormField as FieldRoot } from '@reformer/cdk/form-field';
-import { InfoHint, InputField } from '@reformer/ui-kit';
+import { InfoHint, Input } from '@reformer/ui-kit';
 import { required, email } from '@reformer/core/validators';
 import { useDemoField } from '../harness';
 import type { ComponentDocConfig } from '../types';
@@ -8,7 +8,7 @@ import type { ComponentDocConfig } from '../types';
 function AutoRender() {
   const { control } = useDemoField({
     initial: '',
-    component: InputField,
+    component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
     validators: [required({ message: 'Введите email' }), email()],
   });
@@ -26,7 +26,7 @@ function AutoRender() {
 function CustomLayout() {
   const { control } = useDemoField({
     initial: '',
-    component: InputField,
+    component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
     validators: [required({ message: 'Введите email' }), email()],
   });
@@ -63,7 +63,7 @@ const HINT_TEXT = 'Нужен только для отправки чеков';
 function HintLayout() {
   const { control } = useDemoField({
     initial: '',
-    component: InputField,
+    component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
     validators: [required({ message: 'Введите email' }), email()],
   });

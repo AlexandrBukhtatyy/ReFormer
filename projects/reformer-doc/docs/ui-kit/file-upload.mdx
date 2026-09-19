@@ -32,10 +32,11 @@ drag-and-drop не действует, `maxFiles`, `maxFileSize`, дублика
 (`fileType`, `maxFileSize`, …) резолвятся через `ValidationMessagesProvider`
 (`createMessageResolver`) из `@reformer/cdk`.
 
-Представления — один контракт значения, одно registry-имя `FileUpload`:
-`variant: 'button' | 'dropzone' | 'input'`. Single-изображение с превью —
-отдельный `FileUploadAvatarField` (значение `File | RemoteFileRef | null`,
-registry-имя `FileUploadAvatar`).
+Представления — один контракт значения, но **отдельные компоненты** (пропа `variant` нет):
+`FileUploadBase` (кнопка, registry `FileUpload`), `FileUploadDropzone` (зона перетаскивания,
+registry `FileUploadDropzone`), `FileUploadInput` (поле с кнопкой, registry `FileUploadInput`).
+Single-изображение с превью — `FileUploadAvatar` (значение `File | RemoteFileRef | null`,
+registry-имя `FileUploadAvatar`). Каждый кладётся в `component` поля как есть.
 
 Доступность — из headless-слоя: скрытый настоящий `input[type=file]`, зона —
 кнопка (клик и Enter/Space открывают пикер, drop — не единственный канал),

@@ -86,17 +86,21 @@ signals by the built-in converter.
 
 ## Raw controls (field adapters)
 
-By default the renderer drives each field through a value-based seam — `value` +
-`onChange(value)` (plus `disabled` / `onBlur` and a `control` prop). Text-like or already
-value-based components work as-is. A **raw** third-party control that speaks a different
+The renderer drives each field through a value-based seam — `value` + `onChange(value)`
+(plus `disabled` / `onBlur`) — translated into the control's own dialect by its
+`FieldAdapter`. A component declares the adapter as the static `reformerAdapter`
+(`defineFieldControl(C, { adapter })` from `@reformer/ui-kit/fields`); `@reformer/ui-kit`
+components already do, so they are registered as-is. Components without the static get the
+seam unchanged — already value-based components work as-is. A **raw** third-party control that speaks a different
 dialect (a `Checkbox` reading `checked` and emitting a DOM event, a `Select` emitting
 `(value, option)`, a `Radio` emitting `event`) would otherwise write the raw event object
 straight into the model.
 
 Register such controls by name and translate the seam with `resolveFieldAdapter` — inherited
 from `@reformer/renderer-react`'s `RendererSettings` and passed through the same
-`JsonRendererProvider` settings (zero extra API on this package). Returning `undefined` for a
-component keeps the default seam, so the change is fully backward compatible.
+`JsonRendererProvider` settings (zero extra API on this package). The resolver takes precedence over
+the static; returning `undefined` falls back to the component's `reformerAdapter`, then to the
+plain seam.
 
 ```tsx
 import { Checkbox } from 'some-ui-kit'; // raw control: `checked` + `onChange(event)`
@@ -115,7 +119,7 @@ reg.component('Checkbox', Checkbox); // schema leaf: { value: '$model(agree)', c
             fromEmit: (e) => (e as { target: { checked: boolean } }).target.checked,
             toValue: (v) => v ?? false,
           }
-        : undefined, // undefined → default value seam (unchanged)
+        : undefined, // undefined → the component's reformerAdapter static, else the plain seam
   }}
 >
   <JsonFormRenderer<MyForm> schema={schema} />

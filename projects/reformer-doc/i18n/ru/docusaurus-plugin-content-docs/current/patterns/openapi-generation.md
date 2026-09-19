@@ -45,7 +45,7 @@ export type CreateUserRequest = {
 
 ```typescript title="form.schema.ts"
 import { createModel, createForm } from '@reformer/core';
-import { Input } from '@reformer/ui-kit';
+import { Input, InputNumber } from '@reformer/ui-kit';
 import type { CreateUserRequest } from './types';
 
 const model = createModel<CreateUserRequest>({
@@ -69,8 +69,8 @@ const schema = {
   },
   age: {
     value: model.$.age,
-    component: Input,
-    componentProps: { label: 'Возраст', type: 'number' },
+    component: InputNumber,
+    componentProps: { label: 'Возраст' },
   },
 };
 

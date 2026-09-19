@@ -1,4 +1,4 @@
-import { ExampleCard, Button, InputField } from '@reformer/ui-kit';
+import { ExampleCard, Button, Input } from '@reformer/ui-kit';
 import { useState } from 'react';
 import type { ComponentDocConfig } from '../types';
 
@@ -11,8 +11,8 @@ import type { ComponentDocConfig } from '../types';
  */
 
 const InputDemo = () => {
-  const [v, setV] = useState<string | null>(null);
-  return <InputField value={v} onChange={setV} placeholder="Email" />;
+  const [v, setV] = useState('');
+  return <Input value={v} onChange={(e) => setV(e.target.value)} placeholder="Email" />;
 };
 
 export const exampleCardDocConfig: ComponentDocConfig = {
@@ -30,19 +30,19 @@ export const exampleCardDocConfig: ComponentDocConfig = {
         <ExampleCard
           title="Input — базовый"
           description="Однострочное поле с placeholder"
-          code={`<Input value={v} onChange={setV} placeholder="Email" />`}
+          code={`<Input value={v} onChange={(e) => setV(e.target.value)} placeholder="Email" />`}
         >
           <InputDemo />
         </ExampleCard>
       ),
-      code: `const [v, setV] = useState<string | null>(null);
+      code: `const [v, setV] = useState('');
 
 <ExampleCard
   title="Input — базовый"
   description="Однострочное поле с placeholder"
-  code={\`<Input value={v} onChange={setV} placeholder="Email" />\`}
+  code={\`<Input value={v} onChange={(e) => setV(e.target.value)} placeholder="Email" />\`}
 >
-  <Input value={v} onChange={setV} placeholder="Email" />
+  <Input value={v} onChange={(e) => setV(e.target.value)} placeholder="Email" />
 </ExampleCard>`,
     },
     {

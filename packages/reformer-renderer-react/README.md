@@ -14,7 +14,7 @@ Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer
 - Render schema carries **layout only** — field validators live in a separate `ValidationSchema` over the model, run by `validateModel` (see [Validation](#validation))
 - Reactive: fields update from the model's signals with no manual wiring
 - Pluggable field wrapper (label + control + error) via `settings.fieldWrapper`
-- Register **raw third-party controls** (Checkbox, Select, Radio…) via `settings.resolveFieldAdapter` — the renderer translates its value-based seam (`value` + `onChange(value)`) into each control's own dialect (`checked` + `onChange(event)`, `value` + `onChange(value, option)`), no per-control wrapper needed
+- Binds each field itself: the value-based seam (`value` + `onChange(value)`) is translated into the control's own dialect (`checked` + `onChange(event)`, `value` + `onChange(value, option)`) by the component's `reformerAdapter` static (declared by `@reformer/ui-kit` components) — put the component itself into `component`, no per-control wrapper needed; **raw third-party controls** without the static (Checkbox, Select, Radio…) are adapted via `settings.resolveFieldAdapter`
 - `createRenderSchema` proxy for programmatic node control and render behaviors
 - TypeScript support, tree-shakable exports
 

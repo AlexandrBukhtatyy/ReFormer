@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 import {
-  SelectField,
+  SelectAsync,
   selectAsyncPropsSchema,
   type ResourceConfig,
-  SelectMultiField,
+  SelectMulti,
 } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
@@ -269,7 +269,7 @@ export const selectDocConfig: ComponentDocConfig = {
       render: () => <SelectOpenPreview label="Тип кредита" options={LOAN} initial="mortgage" />,
       code: `{
   value: model.$.loanType,
-  component: SelectField,
+  component: SelectAsync,
   componentProps: {
     label: 'Тип кредита',
     placeholder: 'Выберите тип',
@@ -323,7 +323,7 @@ export const selectDocConfig: ComponentDocConfig = {
         'Popover со своим listbox (без cmdk — каталог select лёгкий и едет в главный barrel). Чипы выбранного в триггере, сводка при превышении summaryThreshold, поддержка resource и selectedOptions для лейблов вне текущей страницы.',
       render: makeFieldVariant({
         initial: null,
-        component: SelectMultiField,
+        component: SelectMulti,
         componentProps: {
           label: 'Города',
           options: GROUPED,
@@ -333,7 +333,7 @@ export const selectDocConfig: ComponentDocConfig = {
       }),
       code: `{
   value: model.signalAt('cities')!,
-  component: SelectMultiField,
+  component: SelectMulti,
   componentProps: { options: GROUPED, clearable: true, summaryThreshold: 2 },
 }
 // асинхронно: resource={{ type: 'partial', load }} + selectedOptions для лейблов выбранного`,
@@ -347,7 +347,7 @@ export const selectDocConfig: ComponentDocConfig = {
         'clearable=true добавляет крестик; клик сбрасывает выбор в null через onChange(null).',
       render: makeFieldVariant({
         initial: 'mortgage',
-        component: SelectField,
+        component: SelectAsync,
         componentProps: { label: 'Тип кредита', options: LOAN, clearable: true },
       }),
       code: `componentProps: { label: 'Тип кредита', options: LOAN, clearable: true }`,
@@ -358,7 +358,7 @@ export const selectDocConfig: ComponentDocConfig = {
       description: 'type="static" — один load({}) при маунте, без поля поиска и пагинации.',
       render: makeFieldVariant({
         initial: null,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: {
           label: 'Страна',
           placeholder: 'Выберите страну',
@@ -378,7 +378,7 @@ componentProps: { label: 'Страна', resource: countries }`,
         'type="preload" грузит всё сразу; поле Search фильтрует загруженные опции на клиенте.',
       render: makeFieldVariant({
         initial: null,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: {
           label: 'Страна',
           placeholder: 'Выберите страну',
@@ -394,7 +394,7 @@ componentProps: { label: 'Страна', resource: countries }`,
         'type="partial" — debounce-поиск на сервер (load({ search })), догрузка страниц по скроллу.',
       render: makeFieldVariant({
         initial: null,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: {
           label: 'Город',
           placeholder: 'Выберите город',
@@ -416,7 +416,7 @@ componentProps: { label: 'Страна', resource: countries }`,
         'Когда load() падает и опций нет — дропдаун показывает «Failed to load options» и кнопку Retry.',
       render: makeFieldVariant({
         initial: null,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: {
           label: 'Страна',
           placeholder: 'Выберите страну',
@@ -432,14 +432,14 @@ componentProps: { label: 'Страна', resource: countries }`,
         'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
         validators: [required({ message: 'Выберите тип кредита' })],
         touched: true,
       }),
       code: `{
   value: model.$.loanType,
-  component: SelectField,
+  component: SelectAsync,
   componentProps: { label: 'Тип кредита', options: LOAN },
 }
 
@@ -448,7 +448,7 @@ validate(model.$.loanType, [required({ message: 'Выберите тип кре�
     },
   ],
   api: {
-    component: SelectField,
+    component: SelectAsync,
     initialValue: null,
     baseComponentProps: { label: 'Тип кредита', options: LOAN },
     validators: [required({ message: 'Выберите тип' })],
@@ -465,7 +465,7 @@ validate(model.$.loanType, [required({ message: 'Выберите тип кре�
     code: (v) =>
       `{
   value: model.$.loanType,
-  component: SelectField,
+  component: SelectAsync,
   componentProps: {
     label: 'Тип кредита',
     options: LOAN,

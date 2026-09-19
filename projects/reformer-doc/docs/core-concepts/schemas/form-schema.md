@@ -53,7 +53,7 @@ submit, на шаге wizard'а или по реакции behavior. Layout-сх
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
-import { Input, Select, Checkbox } from '@reformer/ui-kit';
+import { Input, InputNumber, SelectAsync, CheckboxWithLabel } from '@reformer/ui-kit';
 
 type MyForm = { name: string; age: number | null; agree: boolean; status: string };
 
@@ -67,17 +67,17 @@ const schema = {
   },
   age: {
     value: model.$.age,
-    component: Input,
-    componentProps: { type: 'number', label: 'Возраст' },
+    component: InputNumber,
+    componentProps: { label: 'Возраст' },
   },
   agree: {
     value: model.$.agree,
-    component: Checkbox,
+    component: CheckboxWithLabel,
     componentProps: { label: 'Согласен с условиями' },
   },
   status: {
     value: model.$.status,
-    component: Select,
+    component: SelectAsync,
     componentProps: {
       label: 'Статус',
       options: [
@@ -134,7 +134,7 @@ Builder привязывает каждое поле к сигналам пер�
 
 ```typescript
 import { createModel, createForm, type FormModel } from '@reformer/core';
-import { Input } from '@reformer/ui-kit';
+import { Input, InputNumber } from '@reformer/ui-kit';
 
 type Item = { id: string; name: string; price: number };
 type MyForm = { items: Item[] };
@@ -145,7 +145,7 @@ const model = createModel<MyForm>({ items: [] });
 const itemSchema = (item: FormModel<Item>) => ({
   id: { value: item.$.id, component: Input },
   name: { value: item.$.name, component: Input },
-  price: { value: item.$.price, component: Input, componentProps: { type: 'number' } },
+  price: { value: item.$.price, component: InputNumber },
 });
 
 const schema = {

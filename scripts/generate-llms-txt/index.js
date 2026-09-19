@@ -367,8 +367,8 @@ function findSubpathSource(pkg, sub) {
  *
  * Раньше здесь был `Set` ЛОКАЛЬНЫХ имён, и переименование терялось:
  * `export { X as Y } from '...'` попадал в API Reference как `X`. Так 15 field-обёрток
- * ui-kit (`SelectField`, `CheckboxField`, …) — то, что консумент реально пишет — были
- * задокументированы под внутренними именами (`SelectAsyncField`, `CheckboxBaseField`, …),
+ * ui-kit (`SelectAsync`, `CheckboxWithLabel`, …) — то, что консумент реально пишет — были
+ * задокументированы под внутренними именами (`SelectAsync`, `CheckboxWithLabel`, …),
  * которые не пишет никто.
  *
  * `null` — фильтра нет, имя берётся из объявления.

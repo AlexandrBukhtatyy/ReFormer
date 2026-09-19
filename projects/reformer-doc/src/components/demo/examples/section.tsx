@@ -27,7 +27,7 @@ export const sectionDocConfig: ComponentDocConfig = {
   name: 'Section',
   importFrom: '@reformer/ui-kit',
   description:
-    'Семантический <section>-контейнер для группировки связанных полей формы с опциональным заголовком (titleAs управляет уровнем h1-h6). DSL-контейнер — без seam, без field-версии.',
+    'Семантический <section>-контейнер для группировки связанных полей формы с опциональным заголовком (titleAs управляет уровнем h1-h6). DSL-контейнер — без seam (value/onChange).',
   variants: [
     {
       id: 'with-title',

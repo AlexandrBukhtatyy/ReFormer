@@ -16,22 +16,21 @@ Behavior — это реактивная логика формы: вычисля
 ```typescript
 import { createModel, createForm } from '@reformer/core';
 import { defineFormBehavior, compute, enableWhen } from '@reformer/core/behaviors';
-import { Input } from '@reformer/ui-kit';
+import { Input, InputNumber } from '@reformer/ui-kit';
 
 type OrderForm = { price: number; quantity: number; total: number; discount: number };
 
 const model = createModel<OrderForm>({ price: 100, quantity: 1, total: 0, discount: 0 });
 
 const schema = {
-  price: { value: model.$.price, component: Input, componentProps: { type: 'number' } },
-  quantity: { value: model.$.quantity, component: Input, componentProps: { type: 'number' } },
+  price: { value: model.$.price, component: InputNumber },
+  quantity: { value: model.$.quantity, component: InputNumber },
   total: {
     value: model.$.total,
-    component: Input,
-    componentProps: { type: 'number' },
+    component: InputNumber,
     disabled: true,
   },
-  discount: { value: model.$.discount, component: Input, componentProps: { type: 'number' } },
+  discount: { value: model.$.discount, component: InputNumber },
 };
 
 const behavior = defineFormBehavior<OrderForm>(({ model }) => {

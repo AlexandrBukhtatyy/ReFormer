@@ -15,7 +15,7 @@ sidebar_position: 4
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
-import { Input, Select } from '@reformer/ui-kit';
+import { Input, SelectAsync } from '@reformer/ui-kit';
 
 type ProfileForm = { username: string; language: 'ru' | 'en' };
 
@@ -25,7 +25,7 @@ const schema = {
   username: { value: model.$.username, component: Input, componentProps: { label: 'Username' } },
   language: {
     value: model.$.language,
-    component: Select,
+    component: SelectAsync,
     componentProps: {
       label: 'Язык',
       options: [

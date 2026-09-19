@@ -270,10 +270,10 @@ Controlled — когда загрузкой владеет кто-то друг
 иерархию: дерево проекта, разделы каталога, оргструктуру. Живёт в главном barrel
 (`@reformer/ui-kit`) и в своём subpath (`@reformer/ui-kit/tree`); тяжёлых зависимостей не тянет.
 
-**`Tree` — не поле формы.** У него нет ни `value`, ни `onChange`, и `TreeField` не существует:
+**`Tree` — не поле формы.** У него нет ни `value`, ни `onChange`, ни статики `reformerAdapter`:
 раскрытие, выделение и отмеченный набор он держит сам, а наружу отдаёт события. Когда от иерархии
-нужно именно значение поля, берут построенные поверх него `ComboboxTreeField` /
-`ComboboxTreeMultiField` — см. [03-choice-fields.md](03-choice-fields.md).
+нужно именно значение поля, берут построенные поверх него `ComboboxTree` /
+`ComboboxTreeMulti` — см. [03-choice-fields.md](03-choice-fields.md).
 
 ### Key Concepts
 
@@ -421,7 +421,7 @@ const [query, setQuery] = useState('');
 - Оставлять виртуализацию включённой при серверной отрисовке — без метрик вьюпорта в разметку
   попадает только окно из девяти строк. Для страниц документации `virtualized={false}`.
 - Ставить дерево в форму как поле (`component: Tree`) — value-seam ему нечем принять: ни `value`,
-  ни `onChange` у него нет. Значение из иерархии даёт `ComboboxTreeField`.
+  ни `onChange` у него нет. Значение из иерархии даёт `ComboboxTree`.
 - Обвешивать строки собственными классами фона и рамки: вид строки — часть компонента, а темой
   управляют токены. Своё содержимое добавляют слотами `renderIcon` / `renderLabel` /
   `renderActions`.
@@ -454,14 +454,14 @@ interface ExampleCardProps {
 ### Common Patterns
 
 ```tsx
-import { ExampleCard, InputField } from '@reformer/ui-kit';
+import { ExampleCard, Input } from '@reformer/ui-kit';
 
 <ExampleCard
   title="Input — базовый"
   description="Однострочное поле с placeholder"
-  code={`<Input value={v} onChange={setV} placeholder="Email" />`}
+  code={`<Input value={v} onChange={(e) => setV(e.target.value)} placeholder="Email" />`}
 >
-  <Input value={v} onChange={setV} placeholder="Email" />
+  <Input value={v} onChange={(e) => setV(e.target.value)} placeholder="Email" />
 </ExampleCard>;
 ```
 
@@ -508,7 +508,7 @@ const Card = React.forwardRef<HTMLDivElement, { className?: string }>(
 
 ## See also
 
-- [03-choice-fields.md](03-choice-fields.md) — `ComboboxTreeField` / `ComboboxTreeMultiField`: значение из иерархии.
+- [03-choice-fields.md](03-choice-fields.md) — `ComboboxTree` / `ComboboxTreeMulti`: значение из иерархии.
 - [05-form-field-integration.md](05-form-field-integration.md) — как `Button` используется в `FormWizard.Actions`.
 - [10-imperative-handles.md](10-imperative-handles.md) — `TreeHandle`: раскрытие уровней, `refresh`, цели действия.
 - [06-troubleshooting.md](06-troubleshooting.md) — «forwardRef + Slot конфликты», «AsyncBoundary не переключает состояние», ловушки дерева.

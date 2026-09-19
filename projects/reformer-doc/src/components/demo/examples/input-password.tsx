@@ -1,4 +1,4 @@
-import { InputPasswordField, inputPasswordBasePropsSchema } from '@reformer/ui-kit';
+import { InputPassword, inputPasswordBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required, minLength } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -22,12 +22,12 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
         'showToggle по умолчанию true — иконка eye/eye-off появляется при непустом значении.',
       render: makeFieldVariant({
         initial: '',
-        component: InputPasswordField,
+        component: InputPassword,
         componentProps: { label: 'Пароль', placeholder: 'Введите пароль' },
       }),
       code: `{
   value: model.$.password,
-  component: InputPasswordField,
+  component: InputPassword,
   componentProps: { label: 'Пароль', placeholder: 'Введите пароль' },
 }`,
     },
@@ -37,7 +37,7 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
       description: 'showToggle=false скрывает иконку — например, для поля «Повторите пароль».',
       render: makeFieldVariant({
         initial: '',
-        component: InputPasswordField,
+        component: InputPassword,
         componentProps: {
           label: 'Повторите пароль',
           placeholder: 'Повторите пароль',
@@ -46,7 +46,7 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
       }),
       code: `{
   value: model.$.confirmPassword,
-  component: InputPasswordField,
+  component: InputPassword,
   componentProps: { label: 'Повторите пароль', showToggle: false },
 }`,
     },
@@ -59,7 +59,7 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
         'правила в validation-схеме (validate из @reformer/core/validation); touched-поле с пустым/коротким паролем показывает ошибку.',
       render: makeFieldVariant({
         initial: '',
-        component: InputPasswordField,
+        component: InputPassword,
         componentProps: { label: 'Пароль' },
         validators: [
           required({ message: 'Укажите пароль' }),
@@ -69,7 +69,7 @@ export const inputPasswordDocConfig: ComponentDocConfig = {
       }),
       code: `{
   value: model.$.password,
-  component: InputPasswordField,
+  component: InputPassword,
   componentProps: { label: 'Пароль' },
 }
 
@@ -78,7 +78,7 @@ validate(model.$.password, [required(), minLength(8)]);`,
     },
   ],
   api: {
-    component: InputPasswordField,
+    component: InputPassword,
     initialValue: '',
     baseComponentProps: { label: 'Пароль' },
     validators: [required({ message: 'Обязательно' })],
@@ -92,7 +92,7 @@ validate(model.$.password, [required(), minLength(8)]);`,
     code: (v) =>
       `{
   value: model.$.password,
-  component: InputPasswordField,
+  component: InputPassword,
   componentProps: {
     label: 'Пароль',
     placeholder: '${v.placeholder}',

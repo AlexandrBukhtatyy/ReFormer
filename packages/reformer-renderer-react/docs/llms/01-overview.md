@@ -42,7 +42,7 @@ import {
   useReactForm,
   type RenderNode,
 } from '@reformer/renderer-react';
-import { Box, Section, InputField, FormField } from '@reformer/ui-kit';
+import { Box, Section, Input, FormField } from '@reformer/ui-kit';
 
 interface MyForm {
   email: string;
@@ -59,10 +59,10 @@ function buildSchema(model: FormModel<MyForm>): RenderNode<MyForm> {
         component: Section,
         componentProps: { title: 'Вход' },
         children: [
-          { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
+          { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
           {
             value: model.$.password,
-            component: InputField,
+            component: Input,
             componentProps: { label: 'Пароль', type: 'password' },
           },
         ],
@@ -112,7 +112,7 @@ Wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`: форма
 - **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Возвращает корневой узел дерева. Аргумента-пути нет: привязка к данным идёт через сигналы модели в листьях.
 - **`RenderNode<T>`** — узел дерева, дискриминированный union: **field** (`ModelFieldRenderNode` — есть `value: Signal`), **array** (`ArrayRenderNode` — есть `array` + `item`), **container** (`ContainerRenderNode` — есть `component` + `children`).
 - **`fieldWrapper`** — общая обёртка вокруг каждого поля (label, error). Передаётся через `settings`. Можно перекрыть для конкретного поля через `componentProps.fieldWrapper`.
-- **`resolveFieldAdapter` / `FieldAdapter`** — вторая настройка `settings` (рядом с `fieldWrapper`): по компоненту поля (`node.component`) резолвит адаптер, который переводит value-based seam рендерера (`value` + `onChange(value)`) в диалект сырого контрола (`checked` + `onChange(event)`, `value` + `onChange(value, option)`, `value` + `onChange(event)` и т.д.). Позволяет регистрировать СЫРЫЕ контролы любого UI-kit, не оборачивая каждый; нет адаптера → seam применяется как есть (обратная совместимость, текущее поведение). Рецепт — [05-cookbook.md](05-cookbook.md).
+- **Связывание поля и `FieldAdapter`** — лист связывает с моделью сам рендерер: seam (`value` + `onChange(value)` + `onBlur`) переводится в диалект контрола (`checked` + `onCheckedChange`, `value` + `onChange(event)`, `value` + `onChange(value, option)` и т.д.) по `FieldAdapter`. Адаптер берётся из статики компонента `reformerAdapter` (компоненты `@reformer/ui-kit` её уже объявляют — в `component` кладётся сам компонент, «field-версий» нет; свой контрол — `defineFieldControl(C, { adapter })` из `@reformer/ui-kit/fields`). Для чужих компонентов без статики — вторая настройка `settings` рядом с `fieldWrapper`: `resolveFieldAdapter(component)`, она приоритетнее статики. Нет ни того, ни другого → seam применяется как есть. Императивный `FieldHandle` для `schema.node(sel).getRef()` тоже строит рендерер: handle контрола либо базовый handle из его DOM-узла. Рецепт — [05-cookbook.md](05-cookbook.md).
 - **`createRenderSchema(fn)`** — превращает `RenderSchemaFn` в `RenderSchemaProxy` для программного управления узлами (`setHidden`, `patchProps`, `getRef`) и точкой подключения декларативного behavior.
 - **`RenderBehaviorFn<T>`** — функция `(schema) => void`, применяющая standalone-хелперы (`hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount`) к `RenderSchemaProxy`.
 

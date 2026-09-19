@@ -1,4 +1,4 @@
-import { RadioGroupField, radioGroupBasePropsSchema } from '@reformer/ui-kit';
+import { RadioGroupOptions, radioGroupBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -21,7 +21,7 @@ export const radioGroupDocConfig: ComponentDocConfig = {
   name: 'RadioGroup',
   importFrom: '@reformer/ui-kit',
   description:
-    'Группа радио-кнопок на Radix (контейнер role=radiogroup). Field-версия рендерит опции из массива options; значение — строка (option.value | null). Для форм — RadioGroupField.',
+    'Группа радио-кнопок на Radix (контейнер role=radiogroup). Для форм — RadioGroupOptions: рендерит опции из массива options; значение — строка (option.value | null).',
   variants: [
     {
       id: 'vertical',
@@ -30,12 +30,12 @@ export const radioGroupDocConfig: ComponentDocConfig = {
         'Плоский список опций через проп options. Значение — строка (value: string | null). По умолчанию вертикальная раскладка (grid gap-3).',
       render: makeFieldVariant({
         initial: null,
-        component: RadioGroupField,
+        component: RadioGroupOptions,
         componentProps: { label: 'Тип кредита', options: LOAN },
       }),
       code: `{
   value: model.$.loanType,
-  component: RadioGroupField,
+  component: RadioGroupOptions,
   componentProps: {
     label: 'Тип кредита',
     options: [
@@ -53,7 +53,7 @@ export const radioGroupDocConfig: ComponentDocConfig = {
         'className переопределяет раскладку контейнера: grid-flow-col раскладывает варианты в строку.',
       render: makeFieldVariant({
         initial: 'm',
-        component: RadioGroupField,
+        component: RadioGroupOptions,
         componentProps: {
           label: 'Размер',
           options: SIZES,
@@ -79,14 +79,14 @@ export const radioGroupDocConfig: ComponentDocConfig = {
         'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
-        component: RadioGroupField,
+        component: RadioGroupOptions,
         componentProps: { label: 'Тип кредита', options: LOAN },
         validators: [required({ message: 'Выберите тип кредита' })],
         touched: true,
       }),
       code: `{
   value: model.$.loanType,
-  component: RadioGroupField,
+  component: RadioGroupOptions,
   componentProps: { label: 'Тип кредита', options: LOAN },
 }
 
@@ -100,7 +100,7 @@ validate(model.$.loanType, [required({ message: 'Выберите тип кре�
         'disabled приходит из состояния узла (control.disable()), а не из componentProps — блокирует все варианты.',
       render: makeFieldVariant({
         initial: 'mortgage',
-        component: RadioGroupField,
+        component: RadioGroupOptions,
         componentProps: { label: 'Тип кредита', options: LOAN },
         disabled: true,
       }),
@@ -109,7 +109,7 @@ control.disable(); // блокирует всю группу`,
     },
   ],
   api: {
-    component: RadioGroupField,
+    component: RadioGroupOptions,
     initialValue: null,
     baseComponentProps: { label: 'Тип кредита', options: LOAN },
     validators: [required({ message: 'Выберите тип' })],
@@ -126,7 +126,7 @@ control.disable(); // блокирует всю группу`,
     code: (v) =>
       `{
   value: model.$.loanType,
-  component: RadioGroupField,
+  component: RadioGroupOptions,
   componentProps: {
     label: 'Тип кредита',
     options: LOAN,${v.required ? '\n    required: true,' : ''}${v.description ? `\n    description: '${v.description}',` : ''}

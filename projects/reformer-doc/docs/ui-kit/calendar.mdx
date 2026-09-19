@@ -11,8 +11,9 @@ import { calendarDocConfig } from '@site/src/components/demo/examples/calendar';
 
 Календарь выбора даты на [react-day-picker](https://daypicker.dev) (v10). Вариант **base** —
 чистая обёртка `DayPicker` (`Calendar` / `CalendarDayButton`) с режимами `single` / `multiple` /
-`range`. Для форм — `CalendarField` (алиас на field-версию single-date: значение `Date | null`,
-`selected` / `onSelect` сводятся к `value` / `onChange`). Навигация настраивается через
+`range`. Для форм — `CalendarSingle` (registry `Calendar`): single-date, значение `Date | null`;
+кладётся в `component` как есть — `selected` / `onSelect` к `value` / `onChange` сводит обёртка поля
+по статике `dateAdapter`. Навигация настраивается через
 `captionLayout`, дни соседних месяцев — через `showOutsideDays`.
 
 <ComponentDoc config={calendarDocConfig} />

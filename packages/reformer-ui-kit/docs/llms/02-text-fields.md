@@ -1,45 +1,55 @@
 # Text fields
 
-Текстовые поля ввода: `Input`, `InputMask`, `InputPassword`, `Textarea`. Все
-четыре компонента следуют единому контракту:
+Текстовые поля ввода: `Input`, `InputNumber`, `InputSuggest`, `InputMask`, `InputPassword`,
+`Textarea`. В форме каждое кладётся в `component` поля как есть — значение модели, `onChange`
+и `onBlur` подключает обёртка поля (`FormField.Control` / рендерер). Диалекты разные:
 
-- `value: string | number | null`,
-- `onChange(value: string | number | null)` — пустая строка передаётся как `null`,
-- `onBlur()` — без аргументов; используется `FormField` для пометки `touched`.
+| Компонент       | Собственный контракт                                     | Как связывается с формой                               |
+| --------------- | -------------------------------------------------------- | ------------------------------------------------------ |
+| `Input`         | нативный `<input>`: `value`, `onChange(event)`           | статика `nativeInputAdapter`: `e.target.value \|\| null` |
+| `Textarea`      | нативный `<textarea>`: `value`, `onChange(event)`        | статика `nativeInputAdapter`                           |
+| `InputNumber`   | `value: number \| null`, `onChange(number \| null)`      | seam как есть (уже value-based)                        |
+| `InputSuggest`  | `value: string \| null`, `onChange(string)`              | статика `textValueAdapter`: пустой текст → `null`      |
+| `InputMask`     | `value: string \| null`, `onChange(string \| null)`      | seam как есть                                          |
+| `InputPassword` | `value: string \| null`, `onChange(string \| null)`      | seam как есть                                          |
 
-Это нужно, чтобы их можно было прозрачно подсунуть в `FormField` /
-`RenderSchema`, не оборачивая в адаптеры.
+Во всех случаях в модель уходит значение, а не событие: пустая строка → `null`, `onBlur()`
+помечает поле `touched`. Формальный `FieldAdapter` в `RendererSettings.resolveFieldAdapter`
+для них не нужен — он нужен только чужим компонентам без статики `reformerAdapter`.
 
-> **Уже value-based — `FieldAdapter` не нужен.** Раз эти поля говорят на `value` +
-> `onChange(value)`, рендерер (`@reformer/renderer-react`, а через наследование и
-> `renderer-json`) отдаёт им seam как есть — `resolveFieldAdapter` возвращает для них
-> `undefined`. Формальный `FieldAdapter` из `RendererSettings` требуется только СЫРЫМ
-> контролам чужого UI-kit, которые эмитят не значение, а event/`checked`/`(value, option)`;
-> четыре поля выше в нём не участвуют.
+> **Вне формы** (standalone) `Input` и `Textarea` — обычные нативные контролы: их `onChange`
+> получает событие. Value-based `onChange(value)` у них появляется только внутри обёртки поля.
 
 ## Components
 
-| Name            | Purpose                                                                                                                                | When to use                           |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `Input`         | Однострочное поле, поддерживает `type='text'/'email'/'number'/'tel'/'url'/'password'`; с `suggestions` — свободный ввод с подсказками. | По умолчанию для строк и чисел.       |
-| `InputMask`     | `Input` + строковая маска (`'9'` → цифра).                                                                                             | Телефоны, ИНН, даты.                  |
-| `InputPassword` | Поле пароля с переключателем «глаз».                                                                                                   | Регистрация, логин, смена пароля.     |
-| `Textarea`      | Многострочное поле с `rows`/`maxLength`.                                                                                               | Комментарии, адрес, длинные описания. |
+| Name            | Purpose                                                                                     | When to use                           |
+| --------------- | ------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `Input`         | Однострочное поле, `type='text'/'email'/'tel'/'url'/'date'`.                                | По умолчанию для строк.               |
+| `InputNumber`   | Числовое поле: `number \| null`, буфер промежуточного ввода («1.», «-»).                    | Суммы, сроки, возраст.                |
+| `InputSuggest`  | Свободный ввод с подсказками (`suggestions`).                                               | Город, должность, компания.           |
+| `InputMask`     | Поле + строковая маска-подсказка (`'9'` → цифра).                                           | Телефоны, ИНН, даты.                  |
+| `InputPassword` | Поле пароля с переключателем «глаз».                                                        | Регистрация, логин, смена пароля.     |
+| `Textarea`      | Многострочное поле с `rows`/`maxLength`.                                                    | Комментарии, адрес, длинные описания. |
 
 ## Подсказка-иконка (i) — `tooltip`
 
-Все четыре поля (как и любое поле кита) принимают `tooltip: string` — иконку (i) с тултипом внутри
+Все поля (как и любое поле кита) принимают `tooltip: string` — иконку (i) с тултипом внутри
 поля, у правого края. Если справа уже есть родной элемент контрола, иконка встаёт левее него:
 
-| Поле            | Где иконка                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------------- |
-| `Input`         | У правого края. У `type="number"`/`"date"` нативные спиннер и индикатор календаря — левее (i). |
-| `InputMask`     | У правого края.                                                                                |
-| `InputPassword` | Левее «глаза»; пока глаза нет (пустое значение / `showToggle={false}`) — у правого края.       |
-| `Textarea`      | В правом верхнем углу, на уровне первой строки.                                                |
+| Поле            | Где иконка                                                                                   |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| `Input`         | У правого края. У `type="date"` нативный индикатор календаря — левее (i).                    |
+| `InputNumber`   | У правого края; нативный спиннер — левее (i).                                                |
+| `InputMask`     | У правого края.                                                                              |
+| `InputPassword` | Левее «глаза»; пока глаза нет (пустое значение / `showToggle={false}`) — у правого края.     |
+| `Textarea`      | В правом верхнем углу, на уровне первой строки.                                              |
 
 ```tsx
-<InputField value={inn} onChange={setInn} tooltip="10 цифр для юрлица, 12 — для ИП" />
+{
+  value: model.$.inn,
+  component: Input,
+  componentProps: { label: 'ИНН', tooltip: '10 цифр для юрлица, 12 — для ИП' },
+}
 ```
 
 Иконка у ПОДПИСИ поля — отдельный проп `labelTooltip`, его рисует `FormField`
@@ -51,56 +61,28 @@
 ### API
 
 ```typescript
-interface InputProps {
-  className?: string;
-  value?: string | number | null;
-  onChange?: (value: string | number | null) => void;
-  onBlur?: () => void;
-  type?: 'text' | 'email' | 'number' | 'tel' | 'url' | 'password';
-  placeholder?: string;
-  disabled?: boolean;
-  // плюс все нативные props кроме value/onChange:
-  // min, max, step, autoComplete, name, id, aria-*, data-*
+interface InputProps extends React.ComponentProps<'input'> {
+  tooltip?: string; // иконка (i) у правого края
 }
 ```
 
-| Prop          | Тип                                         | Default         | Описание                                                                                                                           |
-| ------------- | ------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `value`       | `string \| number \| null`                  | `''` рендерится | Текущее значение. `null`/`undefined` → пустое поле.                                                                                |
-| `onChange`    | `(value: string \| number \| null) => void` | —               | Вызывается при вводе. Пустая строка → `null`. Для `type='number'` — число.                                                         |
-| `onBlur`      | `() => void`                                | —               | Срабатывает при потере фокуса.                                                                                                     |
-| `type`        | union                                       | `'text'`        | HTML `type`. Для `'number'` включается числовой парсинг.                                                                           |
-| `placeholder` | `string`                                    | —               | Подсказка.                                                                                                                         |
-| `disabled`    | `boolean`                                   | `false`         | Блокирует ввод. **Seam-проп:** внутри формы приходит из состояния узла (`control.disable()`), а не из `componentProps` — см. ниже. |
+| Prop          | Тип                | Default  | Описание                                                                                                                           |
+| ------------- | ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `value`       | `string`           | —        | Текущее значение. В форме `null`/`undefined` → пустое поле (адаптер).                                                              |
+| `onChange`    | `(e) => void`      | —        | Нативное событие. В форме обёртка поля переводит его в значение: `e.target.value \|\| null`.                                       |
+| `type`        | `string`           | `'text'` | HTML `type`. Для чисел — не `'number'`, а компонент `InputNumber`.                                                                 |
+| `placeholder` | `string`           | —        | Подсказка.                                                                                                                         |
+| `disabled`    | `boolean`          | `false`  | Блокирует ввод. **Seam-проп:** внутри формы приходит из состояния узла (`control.disable()`), а не из `componentProps` — см. ниже. |
 
-> **`disabled` внутри формы задаётся не пропом.** Перечисленные выше `value`/`onChange`/`onBlur`/`disabled` — это
-> контракт «сырого» компонента. Когда поле рендерится формой (`FormField`, renderer-react, renderer-json), их
-> подставляет seam: `FormFieldControl` ставит `disabled` из состояния узла ПОСЛЕ спреда `componentProps`, поэтому
-> `componentProps.disabled` затирается и не работает. Props-схемы field-компонентов его намеренно не объявляют —
-> в JSON-DSL он вернёт `has unknown property "disabled"`. Управляйте через `control.disable()` / `control.enable()`.
+> **`disabled` внутри формы задаётся не пропом.** `value`/`onChange`/`onBlur`/`disabled` подставляет
+> обёртка поля (`FormField`, renderer-react, renderer-json): `FormFieldControl` ставит `disabled` из
+> состояния узла ПОСЛЕ спреда `componentProps`, поэтому `componentProps.disabled` затирается и не
+> работает. Props-схемы form-компонентов его намеренно не объявляют — в JSON-DSL он вернёт
+> `has unknown property "disabled"`. Управляйте через `control.disable()` / `control.enable()`.
 
 ### Common Patterns
 
-Базовый ввод (текст):
-
-```tsx
-import { InputField } from '@reformer/ui-kit';
-
-<InputField value={name} onChange={setName} placeholder="Имя" />;
-```
-
-Числовое поле (с `min`):
-
-```tsx
-<InputField type="number" value={age} onChange={setAge} min={0} placeholder="Возраст" />
-```
-
-> **Edge case `type='number'`.** Пустой ввод даёт `null` (а не `''`). При `min >= 0`
-> любое отрицательное значение принудительно становится `0`. `NaN` не
-> прокидывается — `onChange` просто не вызывается. Поэтому в форме поле должно
-> иметь тип `number | null`, а не `number`.
-
-Email-валидация на уровне формы (M1: `createModel` → layout-схема с листом
+Email-поле формы (M1: `createModel` → layout-схема с листом
 `{ value: model.$.email, component }` → `createForm({ model, schema })`; правила — в
 отдельной `defineValidationSchema`, запуск `validateModel`):
 
@@ -108,14 +90,14 @@ Email-валидация на уровне формы (M1: `createModel` → lay
 import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, email } from '@reformer/core/validators';
-import { InputField, FormField } from '@reformer/ui-kit';
+import { Input, FormField } from '@reformer/ui-kit';
 
 const model = createModel<{ email: string }>({ email: '' });
 const schema = {
   children: [
     {
       value: model.$.email,
-      component: InputField,
+      component: Input,
       componentProps: { type: 'email', label: 'Email', testId: 'email' },
     },
   ],
@@ -129,25 +111,50 @@ const form = createForm<{ email: string }>({ model, schema });
 <FormField control={form.email} testId="email" />;
 ```
 
+Вне формы — как обычный `<input>`:
+
+```tsx
+<Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Имя" />
+```
+
 ### Anti-patterns
 
-- Передавать `value: number` для `type='text'` — компонент сделает
-  `String(value)`, но при следующем `onChange` значение придёт строкой и
+- **Ставить `Input` с `type: 'number'` для числа.** `Input` отдаёт строку (`'42'`), а схема
+  `Input` не объявляет `type: 'number'`. Числовое поле — `InputNumber`.
+- Передавать `value: number` в `Input` — при следующем `onChange` значение придёт строкой и
   типы в форме разойдутся.
-- Опускать `min={0}` и ожидать, что отрицательные числа отсекутся сами — нет,
-  без `min` отрицательные значения проходят.
-- Перехватывать `onChange={(e) => …}` напрямую (как у нативного `<input>`).
-  `InputField` отдаёт сразу значение, а не event.
-- **Ставить в форму примитив `Input` вместо `InputField`.** Примитив — нативный
-  `<input>`: его `onChange` отдаёт `SyntheticEvent`, и в модель уедет объект события,
-  а не строка. Ни TypeScript, ни `validate_form` этого не поймают — поле выглядит
-  рабочим. То же для `Textarea`/`TextareaField`, `InputMask`/`InputMaskField`.
+- Ждать value-based `onChange(value)` от `Input` вне формы — standalone это нативное событие.
+  Внутри формы (`FormField` / рендерер) событие в значение переводит обёртка поля.
 
-### Подсказки при вводе — `suggestions`
+## InputNumber
+
+Числовое поле: `value: number | null`, `onChange(number | null)`. Контракт уже value-based,
+поэтому в форме кладётся в `component` как есть. Registry-имя в JSON-DSL — `InputNumber`.
+
+```tsx
+{
+  value: model.$.age,
+  component: InputNumber,
+  componentProps: { label: 'Возраст', min: 0, testId: 'age' },
+}
+```
+
+> **Edge cases.** Пустой ввод даёт `null` (а не `0`). При `min >= 0` любое отрицательное
+> значение принудительно становится `0`. Частичный ввод («-», «.», «1e») не эмитится — поле
+> не откатывается, буфер хранит набранное. Поэтому в модели поле должно иметь тип
+> `number | null`, а не `number`.
+
+Anti-patterns:
+
+- Опускать `min={0}` и ожидать, что отрицательные числа отсекутся сами — нет, без `min`
+  отрицательные значения проходят.
+- Передавать `type` — у `InputNumber` его нет (всегда `number`).
+
+## InputSuggest
 
 Автокомплит со **свободным вводом**: значение — всегда введённый текст (`string | null`), список
-лишь помогает его набрать. Включается одним пропом — отдельного компонента в реестре нет,
-контракт `InputField` не меняется.
+лишь помогает его набрать. Registry-имя в JSON-DSL — `InputSuggest` (у `Input` пропа
+`suggestions` нет).
 
 | Prop          | Тип                                                    | Default | Описание                                                                     |
 | ------------- | ------------------------------------------------------ | ------- | ---------------------------------------------------------------------------- |
@@ -160,14 +167,14 @@ const form = createForm<{ email: string }>({ model, schema });
 // Статика: строки или { value, label? }
 {
   value: model.$.city,
-  component: InputField,
+  component: InputSuggest,
   componentProps: { label: 'Город', suggestions: ['Москва', 'Казань', 'Новосибирск'] },
 }
 
 // Серверный поиск — тот же ResourceConfig, что у Select (static / preload / partial)
 {
   value: model.$.company,
-  component: InputField,
+  component: InputSuggest,
   componentProps: {
     suggestions: { type: 'partial', pageSize: 20, load: ({ search, page }) => api.companies(search, page) },
     minChars: 2,
@@ -175,26 +182,28 @@ const form = createForm<{ email: string }>({ model, schema });
 }
 ```
 
-В JSON-DSL: `"suggestions": ["Москва", "Казань"]` или `"suggestions": "$dataSource(CITIES)"` — через
-`$dataSource` можно отдать и `ResourceConfig` с функцией `load`.
+В JSON-DSL: `"$component": "InputSuggest"` и `"suggestions": ["Москва", "Казань"]` или
+`"suggestions": "$dataSource(CITIES)"` — через `$dataSource` можно отдать и `ResourceConfig` с
+функцией `load`.
 
 Клавиатура: ↓/↑ — по подсказкам, Enter — подставить подсвеченную (без подсветки Enter отправляет
 форму), Esc — закрыть список. Фокус всё время остаётся в поле.
 
-**`suggestions` или `Combobox creatable`?**
+**`InputSuggest` или `Combobox creatable`?**
 
-| Нужно                                                        | Берите                        |
-| ------------------------------------------------------------ | ----------------------------- |
-| Любой текст, список — подсказка (город, должность, компания) | `InputField` + `suggestions`  |
-| Значение — одна из опций, изредка добавить свою              | `ComboboxField` + `creatable` |
-| Строго одна из опций                                         | `SelectField` / `Combobox`    |
+| Нужно                                                        | Берите                     |
+| ------------------------------------------------------------ | -------------------------- |
+| Любой текст, список — подсказка (город, должность, компания) | `InputSuggest`             |
+| Значение — одна из опций, изредка добавить свою              | `Combobox` + `creatable`   |
+| Строго одна из опций                                         | `SelectAsync` / `Combobox` |
 
 Anti-patterns:
 
 - Ждать, что значением станет `id` опции (`{ value: 'spb', label: 'Санкт-Петербург' }` → в поле
-  окажется `spb`, и пользователь увидит `spb`). Для кодов берите `Select`/`Combobox`: здесь `value`
-  подсказки — это текст, который увидит пользователь.
-- Ставить `suggestions` на `type="number"` — игнорируется.
+  окажется `spb`, и пользователь увидит `spb`). Для кодов берите `SelectAsync`/`Combobox`: здесь
+  `value` подсказки — это текст, который увидит пользователь.
+- Класть `suggestions` в `componentProps` компонента `Input` — у `Input` такого пропа нет
+  (props-схема отклонит его в JSON-DSL). Нужен `InputSuggest`.
 - Headless-ядро без ui-kit — `useAutocomplete` / `Autocomplete.*` из `@reformer/cdk/autocomplete`.
 
 ## InputMask
@@ -223,21 +232,21 @@ interface InputMaskProps {
 Российский телефон:
 
 ```tsx
-import { InputMaskField } from '@reformer/ui-kit';
+import { InputMask } from '@reformer/ui-kit';
 
-<InputMaskField value={phone} onChange={setPhone} mask="+7 (999) 999-99-99" />;
+<InputMask value={phone} onChange={setPhone} mask="+7 (999) 999-99-99" />;
 ```
 
 ИНН (10 цифр):
 
 ```tsx
-<InputMaskField value={inn} onChange={setInn} mask="9999999999" placeholder="ИНН" />
+<InputMask value={inn} onChange={setInn} mask="9999999999" placeholder="ИНН" />
 ```
 
 Дата `DD.MM.YYYY`:
 
 ```tsx
-<InputMaskField value={birthDate} onChange={setBirthDate} mask="99.99.9999" />
+<InputMask value={birthDate} onChange={setBirthDate} mask="99.99.9999" />
 ```
 
 ### Anti-patterns
@@ -279,22 +288,22 @@ interface InputPasswordProps {
 Дефолт (с переключателем):
 
 ```tsx
-import { InputPasswordField } from '@reformer/ui-kit';
+import { InputPassword } from '@reformer/ui-kit';
 
-<InputPasswordField value={password} onChange={setPassword} placeholder="Пароль" />;
+<InputPassword value={password} onChange={setPassword} placeholder="Пароль" />;
 ```
 
 Без переключателя видимости:
 
 ```tsx
-<InputPasswordField value={password} onChange={setPassword} showToggle={false} />
+<InputPassword value={password} onChange={setPassword} showToggle={false} />
 ```
 
 Подтверждение пароля (через `compute-from` / `revalidate-when` на уровне формы):
 
 ```tsx
-<InputPasswordField value={form.password.value} onChange={form.password.setValue} />
-<InputPasswordField
+<InputPassword value={form.password.value} onChange={form.password.setValue} />
+<InputPassword
   value={form.passwordConfirm.value}
   onChange={form.passwordConfirm.setValue}
   placeholder="Повторите пароль"
@@ -303,7 +312,7 @@ import { InputPasswordField } from '@reformer/ui-kit';
 
 ### Anti-patterns
 
-- Использовать `<InputField type="password">` вместо `InputPassword`, если нужен
+- Использовать `<Input type="password">` вместо `InputPassword`, если нужен
   переключатель видимости — `Input` его не имеет.
 - Хранить пароль с побочными состояниями (`maskedValue`, `realValue`). Компонент
   всегда отдаёт raw-строку через `onChange`; маскирование — задача браузера.
@@ -313,15 +322,8 @@ import { InputPasswordField } from '@reformer/ui-kit';
 ### API
 
 ```typescript
-interface TextareaProps {
-  className?: string;
-  value?: string | null;
-  onChange?: (value: string | null) => void;
-  onBlur?: () => void;
-  placeholder?: string;
-  disabled?: boolean;
-  rows?: number; // default: 3
-  maxLength?: number;
+interface TextareaProps extends React.ComponentProps<'textarea'> {
+  tooltip?: string; // иконка (i) в правом верхнем углу
 }
 ```
 
@@ -330,26 +332,27 @@ interface TextareaProps {
 | `rows`      | `number` | `3`     | Видимая высота в строках. Resize по вертикали оставлен (`resize-y`). |
 | `maxLength` | `number` | —       | Жёсткое ограничение длины (нативное HTML-поведение).                 |
 
+Как и `Input`, standalone `Textarea` эмитит нативное событие; в форме обёртка поля переводит его
+в значение (`e.target.value || null`).
+
 ### Common Patterns
 
 Комментарий с лимитом:
 
 ```tsx
-import { TextareaField } from '@reformer/ui-kit';
+import { Textarea } from '@reformer/ui-kit';
 
-<TextareaField
-  value={comment}
-  onChange={setComment}
-  rows={5}
-  maxLength={500}
-  placeholder="Опишите проблему"
-/>;
+{
+  value: model.$.comment,
+  component: Textarea,
+  componentProps: { label: 'Комментарий', rows: 5, maxLength: 500, placeholder: 'Опишите проблему' },
+}
 ```
 
-Адрес доставки:
+Адрес доставки вне формы:
 
 ```tsx
-<TextareaField value={address} onChange={setAddress} rows={3} placeholder="Адрес" />
+<Textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={3} placeholder="Адрес" />
 ```
 
 ### Anti-patterns
@@ -362,6 +365,6 @@ import { TextareaField } from '@reformer/ui-kit';
 
 ## See also
 
-- [03-choice-fields.md](03-choice-fields.md) — Select, CheckboxField, RadioGroupField.
+- [03-choice-fields.md](03-choice-fields.md) — `SelectAsync`, `CheckboxWithLabel`, `RadioGroupOptions`.
 - [05-form-field-integration.md](05-form-field-integration.md) — как все эти поля автоматически подключаются через `FormField`.
 - [06-troubleshooting.md](06-troubleshooting.md) — «number возвращает строку», «mask пропускает символы», «password toggle не появляется».

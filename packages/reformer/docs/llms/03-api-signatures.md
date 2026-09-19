@@ -65,16 +65,16 @@ import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel } from '@reformer/core/validation';
 import { required, min, max, email } from '@reformer/core/validators';
 
-type Loan = { email: string; age: number; amount: number };
-const model = createModel<Loan>({ email: '', age: 0, amount: 0 });
+type Loan = { email: string; age: number | null; amount: number | null };
+const model = createModel<Loan>({ email: '', age: null, amount: null });
 
 // layout-схема createForm НЕ несёт validators — только привязка поля к сигналу + компонент
 const form = createForm({
   model,
   schema: {
-    email:  { value: model.$.email,  component: InputField },
-    age:    { value: model.$.age,    component: InputField },
-    amount: { value: model.$.amount, component: InputField },
+    email:  { value: model.$.email,  component: Input },
+    age:    { value: model.$.age,    component: InputNumber },
+    amount: { value: model.$.amount, component: InputNumber },
   },
 });
 

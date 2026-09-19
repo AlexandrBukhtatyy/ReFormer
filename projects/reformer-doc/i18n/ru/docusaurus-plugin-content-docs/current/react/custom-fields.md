@@ -5,7 +5,7 @@ sidebar_position: 3
 # Свои компоненты полей
 
 Готовые поля живут в [`@reformer/ui-kit`](../ui-kit/overview): `<FormField control={form.x} />`
-закрывает почти все случаи одной строкой. Свои field-компоненты пишут, **только когда ui-kit не
+закрывает почти все случаи одной строкой. Свои компоненты полей пишут, **только когда ui-kit не
 подходит** — другая design-система, особый low-level input (маска, комбобокс). При этом остаётся в
 силе главный принцип M1: поле **schema-driven**.
 
@@ -159,7 +159,27 @@ single-source-of-truth.
 
 ## Интеграция с готовой design-системой
 
-Если уже есть свой набор компонентов (shadcn, MUI и т.п.) — оберните его в **один**
+Если уже есть свой набор компонентов (shadcn, MUI и т.п.), есть два пути.
+
+**Отдать контрол обёртке поля.** Объявите компоненту его диалект статикой — и кладите его в
+`component` поля как есть: связывание с полем (значение, `onChange`, `onBlur`, `disabled`,
+`aria-*`) выполнит `FormField` (`FormField.Control` из `@reformer/cdk`) или рендерер. Отдельная
+«field-обёртка» под каждый контрол не нужна:
+
+```tsx
+import { defineFieldControl, checkedAdapter } from '@reformer/ui-kit/fields';
+import { Checkbox } from '@/components/ui/checkbox';
+
+// Checkbox говорит на checked / onCheckedChange — адаптер сводит его к значению поля.
+export const FormCheckbox = defineFieldControl(Checkbox, { adapter: checkedAdapter });
+
+// схема: { value: model.$.agree, component: FormCheckbox, componentProps: { label: 'Согласен' } }
+```
+
+Для компонентов, на которые статику не повесить, при рендере через `@reformer/renderer-react` /
+`@reformer/renderer-json` диалект задаёт `settings.resolveFieldAdapter`.
+
+**Своя обёртка поля.** Если нужна собственная разметка label/error — оберните набор в **один**
 `MyFormField` с одним пропом `control`, а тип input'а диспатчьте по `componentProps.type` внутри.
 Так вся форма остаётся schema-driven, а разметка — единообразной.
 

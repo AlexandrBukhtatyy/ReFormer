@@ -2,9 +2,10 @@ import { useState } from 'react';
 import clsx from 'clsx';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
-import { useFormControlValue } from '@reformer/core';
+import { getFieldAdapter, useFormControlValue } from '@reformer/core';
 import { validateModel } from '@reformer/core/validation';
 import { FormField } from '@reformer/ui-kit';
+import { nativeInputAdapter, sliderAdapter } from '@reformer/ui-kit/fields';
 import { ChevronDown } from 'lucide-react';
 import { useDemoField } from './harness';
 import { ApiPreview, type CodeFlavor } from './ApiPreview';
@@ -209,6 +210,23 @@ function jsxAttr(key: string, val: unknown): string | null {
   return null;
 }
 
+/**
+ * Привязка значения в «сыром» сниппете — в диалекте компонента. Вне формы компонент говорит на
+ * своём контракте: его объявляет статика `reformerAdapter` (в форме её применяет обёртка поля).
+ */
+function bindingAttrs(comp: unknown): string[] {
+  const adapter = getFieldAdapter(comp);
+  if (!adapter) return ['value={value}', 'onChange={setValue}'];
+  if (adapter === nativeInputAdapter) {
+    return ['value={value}', 'onChange={(e) => setValue(e.target.value)}'];
+  }
+  if (adapter === sliderAdapter) return ['value={[value]}', 'onValueChange={([v]) => setValue(v)}'];
+  return [
+    `${adapter.valueProp ?? 'value'}={value}`,
+    `${adapter.changeProp ?? 'onChange'}={setValue}`,
+  ];
+}
+
 /** Автогенерация «сырого» React-сниппета компонента с текущими настройками. */
 function buildReactSnippet(api: ApiConfig, values: ApiValues): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -219,7 +237,7 @@ function buildReactSnippet(api: ApiConfig, values: ApiValues): string {
   delete props.testId;
   delete props.label;
   for (const c of api.controls) if (c.kind !== 'readonly') props[c.prop] = values[c.prop];
-  const attrs = ['value={value}', 'onChange={setValue}'];
+  const attrs = bindingAttrs(comp);
   for (const [k, v] of Object.entries(props)) {
     const a = jsxAttr(k, v);
     if (a) attrs.push(a);

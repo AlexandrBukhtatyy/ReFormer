@@ -1,4 +1,4 @@
-import { ToggleField, toggleBasePropsSchema } from '@reformer/ui-kit';
+import { Toggle, toggleBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -17,12 +17,12 @@ export const toggleDocConfig: ComponentDocConfig = {
       description: 'Значение — boolean. Контент кнопки — children; подпись поля — сверху из label.',
       render: makeFieldVariant({
         initial: false,
-        component: ToggleField,
+        component: Toggle,
         componentProps: { label: 'Форматирование', children: 'Полужирный' },
       }),
       code: `{
   value: model.$.bold,
-  component: ToggleField,
+  component: Toggle,
   componentProps: { label: 'Форматирование', children: 'Полужирный' },
 }`,
     },
@@ -33,12 +33,12 @@ export const toggleDocConfig: ComponentDocConfig = {
         'variant=outline (граница вместо заливки), initial: true — кнопка в положении «нажато».',
       render: makeFieldVariant({
         initial: true,
-        component: ToggleField,
+        component: Toggle,
         componentProps: { label: 'Курсив', children: 'Курсив', variant: 'outline' },
       }),
       code: `{
   value: model.$.italic, // initial: true
-  component: ToggleField,
+  component: Toggle,
   componentProps: { label: 'Курсив', children: 'Курсив', variant: 'outline' },
 }`,
     },
@@ -50,12 +50,12 @@ export const toggleDocConfig: ComponentDocConfig = {
       description: 'size управляет высотой и минимальной шириной кнопки.',
       render: makeFieldVariant({
         initial: false,
-        component: ToggleField,
+        component: Toggle,
         componentProps: { label: 'Подчёркнутый', children: 'U', size: 'lg' },
       }),
       code: `{
   value: model.$.underline,
-  component: ToggleField,
+  component: Toggle,
   componentProps: { label: 'Подчёркнутый', children: 'U', size: 'lg' },
 }`,
     },
@@ -66,14 +66,14 @@ export const toggleDocConfig: ComponentDocConfig = {
         'required() на boolean требует значение true. touched-поле в положении «отжато» показывает ошибку.',
       render: makeFieldVariant({
         initial: false,
-        component: ToggleField,
+        component: Toggle,
         componentProps: { label: 'Подтверждение', children: 'Готово' },
         validators: [required({ message: 'Необходимо нажать' })],
         touched: true,
       }),
       code: `{
   value: model.$.confirmed,
-  component: ToggleField,
+  component: Toggle,
   componentProps: { label: 'Подтверждение', children: 'Готово' },
 }
 
@@ -82,7 +82,7 @@ validate(model.$.confirmed, [required({ message: 'Необходимо нажа�
     },
   ],
   api: {
-    component: ToggleField,
+    component: Toggle,
     initialValue: false,
     // children/label фиксированы (не управляются контролами): children несериализуем, label задаёт подпись.
     baseComponentProps: { label: 'Форматирование', children: 'Полужирный' },
@@ -98,7 +98,7 @@ validate(model.$.confirmed, [required({ message: 'Необходимо нажа�
     code: (v) =>
       `{
   value: model.$.bold,
-  component: ToggleField,
+  component: Toggle,
   componentProps: {
     label: 'Форматирование',
     children: 'Полужирный',

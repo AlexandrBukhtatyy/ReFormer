@@ -11,8 +11,8 @@ import { toggleGroupDocConfig } from '@site/src/components/demo/examples/toggle-
 
 Группа кнопок-переключателей на Radix. Вариант **base** — чистый примитив (`ToggleGroup` —
 контейнер, `ToggleGroupItem` — кнопка) для ручной сборки. В single-режиме (`type="single"`)
-контейнер получает `role="radiogroup"`, а активная кнопка — `data-state="on"`. Field-версия рендерит
-опции из массива `options` (`{ value, label }`); значение — строка (`option.value | null`), каждый
-вариант получает per-option `data-testid`. Для форм — `ToggleGroupField`.
+контейнер получает `role="radiogroup"`, а активная кнопка — `data-state="on"`. Для форм —
+`ToggleGroupOptions` (registry `ToggleGroup`): рендерит опции из массива `options` (`{ value, label }`);
+значение — строка (`option.value | null`), каждый вариант получает per-option `data-testid`.
 
 <ComponentDoc config={toggleGroupDocConfig} />

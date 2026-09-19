@@ -37,7 +37,7 @@ import {
 Минимальный рабочий монтаж:
 
 ```tsx
-import { InputField, Box, FormField } from '@reformer/ui-kit';
+import { Input, Box, FormField } from '@reformer/ui-kit';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -65,7 +65,7 @@ const jsonSchema = defineJsonSchema<MyForm>({
 
 // 2. Реестр: имена из JSON → React-компоненты (глобальная настройка).
 const registry = defineRegistry((reg) => {
-  reg.component('Input', InputField); // *Field-версии уже value-based — адаптер не нужен
+  reg.component('Input', Input); // компонент кита как есть: диалект — в его статике reformerAdapter
   reg.component('Box', Box);
   reg.component(FIELD_WRAPPER, FormField);
 });
@@ -99,7 +99,7 @@ function MyFormPage() {
 - **Модель (`model`)** — `FormModel`, источник данных. Передаётся пропом `model` в `JsonFormRenderer` (per-form состояние); листья биндятся к её сигналам.
 - **Реестр** — карта имени из `$component(...)`/`$dataSource(...)` на React-компонент или source-значение. Без регистрации схема не сконвертируется (ошибка `Component "X" not found in registry`).
 - **`FIELD_WRAPPER`** — зарезервированный ключ реестра (`'$fieldWrapper'`) для компонента-обёртки полей (label, error, hint). Обычно `FormField` из `@reformer/ui-kit`.
-- **Адаптеры контролов (`resolveFieldAdapter`)** — `JsonRendererSettings extends RendererSettings`, поэтому в `JsonRendererProvider` settings можно передать `resolveFieldAdapter(component) => FieldAdapter | undefined`. Value-based контролы (`Input` и пр.) регистрируются как есть; СЫРОЙ контрол чужого диалекта (Checkbox `checked` + `onChange(event)`, Select `onChange(value, option)`, Radio `onChange(event)`) регистрируется по имени в реестре, а адаптер переводит seam `value` + `onChange(value)` на его диалект — без обёртки на каждый контрол. Детали — [03-registry.md](03-registry.md).
+- **Адаптеры контролов (`resolveFieldAdapter`)** — `JsonRendererSettings extends RendererSettings`, поэтому в `JsonRendererProvider` settings можно передать `resolveFieldAdapter(component) => FieldAdapter | undefined`. Компоненты `@reformer/ui-kit` регистрируются как есть — свой диалект они объявляют статикой `reformerAdapter`, и рендерер применяет её сам; СЫРОЙ контрол чужой библиотеки без статики (Checkbox `checked` + `onChange(event)`, Select `onChange(value, option)`, Radio `onChange(event)`) регистрируется по имени в реестре, а адаптер переводит seam `value` + `onChange(value)` на его диалект — без обёртки на каждый контрол. Детали — [03-registry.md](03-registry.md).
 - **`createJsonForm` / `useJsonForm`** — сборка формы одним проходом: `createJsonForm({ schema, registry, initial | model, behavior?, validation?, renderBehavior?, seed?, setup? })` → `{ model, form, schema, registry, validation?, renderBehavior? }`; `useJsonForm(factory)` (тот же `useFormBundle` из core) держит бандл стабильным и армит живую валидацию. Отдаётся рендереру пропом `form`. См. [05-cookbook.md](05-cookbook.md).
 - **`defineJsonSchema<T>`** — идентити-хелпер, типизирующий литерал схемы по форме `T`: пути `$model(...)` сужаются до `Path<T>` (опечатка — ошибка компиляции), не нужен `as unknown as JsonFormSchema`. См. [02-json-schema.md](02-json-schema.md).
 - **`convertJsonToM1Tree`** — низкоуровневый конвертер JSON → RenderNode-дерево для `createForm({ model, schema })` (обычно скрыт за `createJsonForm`).

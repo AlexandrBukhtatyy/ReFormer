@@ -24,8 +24,8 @@ Wizard — обычная container-нода со `selector: 'wizard'` (чтоб
             "component": "$component(Section)",
             "componentProps": { "title": "Ипотека" },
             "children": [
-              { "value": "$model(loanAmount)", "component": "$component(Input)",
-                "componentProps": { "label": "Сумма кредита (₽)", "type": "number" } }
+              { "value": "$model(loanAmount)", "component": "$component(InputNumber)",
+                "componentProps": { "label": "Сумма кредита (₽)" } }
             ]
           }
         ]

@@ -59,7 +59,7 @@ export const addressNodesBad = {
 
 ```typescript title="schemas/common-fields.ts"
 import type { PathAwareSignal } from '@reformer/core';
-import { Input, Checkbox } from '@reformer/ui-kit';
+import { Input, CheckboxWithLabel } from '@reformer/ui-kit';
 
 // Только вёрстка поля — никаких validators.
 export const emailField = (value: PathAwareSignal<string>) => ({
@@ -82,7 +82,7 @@ export const dateField = (value: PathAwareSignal<Date | null>) => ({
 
 export const booleanField = (value: PathAwareSignal<boolean>) => ({
   value,
-  component: Checkbox,
+  component: CheckboxWithLabel,
 });
 ```
 
@@ -433,7 +433,7 @@ modules/
 
 ```typescript title="modules/contact-info/schema.ts"
 import type { FormModel } from '@reformer/core';
-import { Input, Select } from '@reformer/ui-kit';
+import { Input, SelectAsync } from '@reformer/ui-kit';
 
 export type ContactInfo = {
   email: string;
@@ -447,7 +447,7 @@ export const contactInfoNodes = (m: FormModel<ContactInfo>) => ({
   phone: { value: m.$.phone, component: Input },
   preferredContact: {
     value: m.$.preferredContact,
-    component: Select,
+    component: SelectAsync,
     componentProps: {
       options: [
         { value: 'email', label: 'Email' },

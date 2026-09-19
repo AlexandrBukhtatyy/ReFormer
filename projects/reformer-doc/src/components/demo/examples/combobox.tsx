@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import {
   Combobox,
-  ComboboxField,
-  ComboboxMultiField,
-  ComboboxTreeField,
-  ComboboxTreeMultiField,
+  ComboboxMulti,
+  ComboboxTree,
+  ComboboxTreeMulti,
   comboboxBasePropsSchema,
 } from '@reformer/ui-kit/combobox';
 import type { TreeNode } from '@reformer/ui-kit';
@@ -80,7 +79,7 @@ export const comboboxDocConfig: ComponentDocConfig = {
   name: 'Combobox',
   importFrom: '@reformer/ui-kit/combobox',
   description:
-    'Автодополнение на композиции Popover + Command + Button: триггер-кнопка с текущим label открывает список опций с поиском. Value-based (value: string | null); для форм — ComboboxField.',
+    'Автодополнение на композиции Popover + Command + Button: триггер-кнопка с текущим label открывает список опций с поиском. Value-based (value: string | null) — в форме Combobox кладётся в component как есть.',
   variants: [
     {
       id: 'single',
@@ -89,7 +88,7 @@ export const comboboxDocConfig: ComponentDocConfig = {
         'Список inline-опций с поиском по label. Значение — строка (value: string | null).',
       render: makeFieldVariant({
         initial: null,
-        component: ComboboxField,
+        component: Combobox,
         componentProps: {
           label: 'Фреймворк',
           placeholder: 'Выберите фреймворк',
@@ -99,7 +98,7 @@ export const comboboxDocConfig: ComponentDocConfig = {
       }),
       code: `{
   value: model.$.framework,
-  component: ComboboxField,
+  component: Combobox,
   componentProps: {
     label: 'Фреймворк',
     placeholder: 'Выберите фреймворк',
@@ -118,7 +117,7 @@ export const comboboxDocConfig: ComponentDocConfig = {
         'clearable=true добавляет крестик; клик по нему (или повторный выбор опции) сбрасывает значение в null через onChange(null).',
       render: makeFieldVariant({
         initial: 'by',
-        component: ComboboxField,
+        component: Combobox,
         componentProps: {
           label: 'Страна',
           placeholder: 'Выберите страну',
@@ -158,7 +157,7 @@ const [value, setValue] = useState<string | null>(null);
         'Тот же рецепт Popover + Command, но со списком-чекбоксами и чипами в триггере. Список НЕ закрывается после выбора и не сбрасывает поиск — иначе отметить несколько подряд было бы нельзя.',
       render: makeFieldVariant({
         initial: null,
-        component: ComboboxMultiField,
+        component: ComboboxMulti,
         componentProps: {
           label: 'Фреймворки',
           options: FRAMEWORKS,
@@ -168,7 +167,7 @@ const [value, setValue] = useState<string | null>(null);
       }),
       code: `{
   value: model.signalAt('frameworks')!,
-  component: ComboboxMultiField,
+  component: ComboboxMulti,
   componentProps: { options: FRAMEWORKS, clearable: true },
 }`,
     },
@@ -179,7 +178,7 @@ const [value, setValue] = useState<string | null>(null);
         'Вместо плоского options — дерево (nodes); значение поля это id выбранного узла, для файла — его полный путь. По умолчанию selectable="leaf": щелчок по каталогу раскрывает его, а не выбирает. Список в поповере — Tree кита, а не Command: cmdk при поиске размонтирует несовпавшие строки вместе с детьми, чего иерархия не переживает.',
       render: makeFieldVariant({
         initial: null,
-        component: ComboboxTreeField,
+        component: ComboboxTree,
         componentProps: {
           label: 'Файл',
           nodes: FILES,
@@ -189,7 +188,7 @@ const [value, setValue] = useState<string | null>(null);
       }),
       code: `{
   value: model.$.file,
-  component: ComboboxTreeField,
+  component: ComboboxTree,
   componentProps: {
     label: 'Файл',
     nodes: FILES,
@@ -205,7 +204,7 @@ const [value, setValue] = useState<string | null>(null);
         'Тот же список-дерево, но с чипами в триггере и набором адресов в значении (string[] | null; пустой выбор эмитится как null, никогда не []). Поповер после выбора не закрывается и поиск не сбрасывает — иначе отметить несколько файлов подряд было бы нельзя.',
       render: makeFieldVariant({
         initial: null,
-        component: ComboboxTreeMultiField,
+        component: ComboboxTreeMulti,
         componentProps: {
           label: 'Файлы',
           nodes: FILES,
@@ -215,7 +214,7 @@ const [value, setValue] = useState<string | null>(null);
       }),
       code: `{
   value: model.signalAt('files')!,
-  component: ComboboxTreeMultiField,
+  component: ComboboxTreeMulti,
   componentProps: {
     label: 'Файлы',
     nodes: FILES,
@@ -236,7 +235,7 @@ validate(model.signalAt('files')!, [required()]);`,
         'searchPlaceholder задаёт подсказку в поле ввода поиска внутри выпадающего списка.',
       render: makeFieldVariant({
         initial: null,
-        component: ComboboxField,
+        component: Combobox,
         componentProps: {
           label: 'Фреймворк',
           placeholder: 'Выберите фреймворк',
@@ -257,7 +256,7 @@ validate(model.signalAt('files')!, [required()]);`,
         'Когда по запросу ничего не найдено (или список опций пуст) — показывается emptyText.',
       render: makeFieldVariant({
         initial: null,
-        component: ComboboxField,
+        component: Combobox,
         componentProps: {
           label: 'Фреймворк',
           placeholder: 'Список пуст',
@@ -278,7 +277,7 @@ validate(model.signalAt('files')!, [required()]);`,
         'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
-        component: ComboboxField,
+        component: Combobox,
         componentProps: {
           label: 'Фреймворк',
           placeholder: 'Выберите фреймворк',
@@ -289,7 +288,7 @@ validate(model.signalAt('files')!, [required()]);`,
       }),
       code: `{
   value: model.$.framework,
-  component: ComboboxField,
+  component: Combobox,
   componentProps: { label: 'Фреймворк', options: FRAMEWORKS },
 }
 
@@ -298,7 +297,7 @@ validate(model.$.framework, [required({ message: 'Выберите фреймв�
     },
   ],
   api: {
-    component: ComboboxField,
+    component: Combobox,
     initialValue: null,
     baseComponentProps: { label: 'Фреймворк', options: FRAMEWORKS },
     validators: [required({ message: 'Выберите фреймворк' })],
@@ -315,7 +314,7 @@ validate(model.$.framework, [required({ message: 'Выберите фреймв�
     code: (v) =>
       `{
   value: model.$.framework,
-  component: ComboboxField,
+  component: Combobox,
   componentProps: {
     label: 'Фреймворк',
     options: FRAMEWORKS,

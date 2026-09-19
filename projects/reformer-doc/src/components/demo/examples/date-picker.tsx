@@ -1,10 +1,6 @@
 import { useState } from 'react';
 // heavy subpath: DatePicker тянет Calendar (react-day-picker) — импорт из своего subpath, не из barrel.
-import {
-  DatePicker,
-  DatePickerField,
-  datePickerBasePropsSchema,
-} from '@reformer/ui-kit/date-picker';
+import { DatePicker, datePickerBasePropsSchema } from '@reformer/ui-kit/date-picker';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -29,21 +25,21 @@ export const datePickerDocConfig: ComponentDocConfig = {
   name: 'DatePicker',
   importFrom: '@reformer/ui-kit/date-picker',
   description:
-    'Выбор даты: Popover с Calendar (single) и кнопкой-триггером, показывающей выбранную дату. Field-версия DatePickerField привязана к полю формы значением Date | null.',
+    'Выбор даты: Popover с Calendar (single) и кнопкой-триггером, показывающей выбранную дату. В форме DatePicker кладётся в component как есть и привязывается к полю значением Date | null.',
   variants: [
     {
       id: 'single',
       title: 'Выбор даты (single, field)',
       description:
-        'DatePickerField привязан к полю формы: значение — Date | null. Выбор даты в календаре закрывает поповер.',
+        'DatePicker привязан к полю формы: значение — Date | null. Выбор даты в календаре закрывает поповер.',
       render: makeFieldVariant({
         initial: null,
-        component: DatePickerField,
+        component: DatePicker,
         componentProps: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
       }),
       code: `{
   value: model.$.date,
-  component: DatePickerField,
+  component: DatePicker,
   componentProps: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
 }`,
     },
@@ -68,14 +64,14 @@ const [date, setDate] = useState<Date | undefined>();
         'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
-        component: DatePickerField,
+        component: DatePicker,
         componentProps: { label: 'Дата', dateFormat: 'dd.MM.yyyy' },
         validators: [required({ message: 'Выберите дату' })],
         touched: true,
       }),
       code: `{
   value: model.$.date,
-  component: DatePickerField,
+  component: DatePicker,
   componentProps: { label: 'Дата' },
 }
 
@@ -84,7 +80,7 @@ validate(model.$.date, [required({ message: 'Выберите дату' })]);`,
     },
   ],
   api: {
-    component: DatePickerField,
+    component: DatePicker,
     initialValue: null,
     baseComponentProps: { label: 'Дата' },
     validators: [required({ message: 'Выберите дату' })],
@@ -100,7 +96,7 @@ validate(model.$.date, [required({ message: 'Выберите дату' })]);`,
     code: (v) =>
       `{
   value: model.$.date,
-  component: DatePickerField,
+  component: DatePicker,
   componentProps: {
     label: 'Дата',
     placeholder: '${v.placeholder}',

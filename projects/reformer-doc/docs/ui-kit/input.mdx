@@ -9,8 +9,11 @@ import { inputDocConfig } from '@site/src/components/demo/examples/input';
 
 # Input
 
-Текстовое поле на pure shadcn `Input`. Вариант **base** — строковый (`text` / `email` / `tel` / `url`),
-вариант **number** — числовой буфер, удерживающий промежуточный ввод (`1.`, `0.05`, `-`, ведущие нули).
-Для форм — `InputField`, диспетчеризующий по `type` (`number` → буфер, иначе строковый).
+Текстовое поле на pure shadcn `Input`. Вариант **base** — `Input`, строковый (`text` / `email` / `tel` /
+`url`); вариант **number** — `InputNumber`: числовой буфер, удерживающий промежуточный ввод (`1.`,
+`0.05`, `-`, ведущие нули), значение `number | null`; вариант **suggest** — `InputSuggest`: свободный
+ввод с подсказками `suggestions`. Это разные компоненты (и разные registry-имена): у `Input` нет
+`type: 'number'` и `suggestions`. В форме каждый кладётся в `component` как есть — `Input` эмитит
+DOM-событие, и в значение поля его переводит обёртка поля (статика `nativeInputAdapter`).
 
 <ComponentDoc config={inputDocConfig} />

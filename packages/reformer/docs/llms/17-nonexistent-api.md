@@ -26,6 +26,20 @@
 | `FormProvider`, `control` prop, `register()` | `<Component form={form} />`, `useFormControl(form.field)` | Форма передаётся через props |
 | `getFieldValue()`                | `model.field` / `useFormControlValue(form.field)`| Не существует                                   |
 
+### UI: удалённые field-версии компонентов (`@reformer/ui-kit`)
+
+Отдельных «field-версий» у компонентов кита больше нет: в `component` поля кладётся сам
+компонент, диалект он объявляет статикой `reformerAdapter`, связывает поле обёртка
+(`FormField.Control` / рендерер).
+
+| Wrong                                          | Correct                                                   |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| `InputField`, `SelectField`, `CheckboxField`, … (любой `*Field`) | `Input`, `SelectAsync`, `CheckboxWithLabel`, … — таблица в ui-kit `01-overview.md` |
+| `InputField` + `type: 'number'`                | `InputNumber`                                             |
+| `InputField` + `suggestions`                   | `InputSuggest`                                            |
+| `FileUploadField` + `variant: 'dropzone' \| 'input'` | `FileUploadDropzone` / `FileUploadInput` (без `variant`) |
+| `withFormControl(MyControl, adapter)`          | `defineFieldControl(MyControl, { adapter })` из `@reformer/ui-kit/fields` |
+
 ### Common Import Errors
 
 ```typescript
@@ -64,8 +78,8 @@ const schema = {
 
 // CORRECT - layout только связывает поле с сигналом модели...
 const layout = {
-  name:  { value: model.$.name,  component: InputField, componentProps: { label: 'Name' } },
-  email: { value: model.$.email, component: InputField, componentProps: { label: 'Email' } },
+  name:  { value: model.$.name,  component: Input, componentProps: { label: 'Name' } },
+  email: { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
 };
 
 // ...а правила — отдельная ambient-схема (прогоняется раннером validateModel):

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  InputOTPField,
+  InputOTPDefault,
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
@@ -48,12 +48,12 @@ export const inputOtpDocConfig: ComponentDocConfig = {
       description: 'maxLength=6 (дефолт). Значение — string | null.',
       render: makeFieldVariant({
         initial: '',
-        component: InputOTPField,
+        component: InputOTPDefault,
         componentProps: { label: 'Код подтверждения', maxLength: 6 },
       }),
       code: `{
   value: model.$.otp,
-  component: InputOTPField,
+  component: InputOTPDefault,
   componentProps: { label: 'Код подтверждения', maxLength: 6 },
 }`,
     },
@@ -63,7 +63,7 @@ export const inputOtpDocConfig: ComponentDocConfig = {
       description: 'maxLength=4 — четыре слота в одной группе.',
       render: makeFieldVariant({
         initial: '',
-        component: InputOTPField,
+        component: InputOTPDefault,
         componentProps: { label: 'PIN', maxLength: 4 },
       }),
       code: `componentProps: { label: 'PIN', maxLength: 4 }`,
@@ -99,7 +99,7 @@ export const inputOtpDocConfig: ComponentDocConfig = {
         'правила в validation-схеме (validate из @reformer/core/validation); touched-поле с неполным кодом показывает ошибку до набора всех 6 цифр.',
       render: makeFieldVariant({
         initial: '',
-        component: InputOTPField,
+        component: InputOTPDefault,
         componentProps: { label: 'Код подтверждения', maxLength: 6 },
         validators: [
           required({ message: 'Введите код' }),
@@ -109,7 +109,7 @@ export const inputOtpDocConfig: ComponentDocConfig = {
       }),
       code: `{
   value: model.$.otp,
-  component: InputOTPField,
+  component: InputOTPDefault,
   componentProps: { label: 'Код подтверждения', maxLength: 6 },
 }
 
@@ -118,7 +118,7 @@ validate(model.$.otp, [required(), minLength(6)]);`,
     },
   ],
   api: {
-    component: InputOTPField,
+    component: InputOTPDefault,
     initialValue: '',
     baseComponentProps: { label: 'Код подтверждения' },
     validators: [required({ message: 'Введите код' })],
@@ -134,7 +134,7 @@ validate(model.$.otp, [required(), minLength(6)]);`,
     code: (v) =>
       `{
   value: model.$.otp,
-  component: InputOTPField,
+  component: InputOTPDefault,
   componentProps: {
     label: 'Код подтверждения',
     maxLength: ${v.maxLength || 6},${v.required ? '\n    required: true,' : ''}

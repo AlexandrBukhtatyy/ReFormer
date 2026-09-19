@@ -156,8 +156,8 @@ const jsonForm = useJsonForm(() =>
       children: [
         { value: '$model(type)', component: '$component(Select)',
           componentProps: { label: 'Тип', options: '$dataSource(PROPERTY_TYPES)' } },
-        { value: '$model(estimatedValue)', component: '$component(Input)',
-          componentProps: { label: 'Стоимость', type: 'number' } },
+        { value: '$model(estimatedValue)', component: '$component(InputNumber)',
+          componentProps: { label: 'Стоимость' } },
         { value: '$model(description)', component: '$component(Textarea)',
           componentProps: { label: 'Описание', rows: 2 } },
       ],
@@ -255,8 +255,8 @@ const registry = defineRegistry((reg) => {
   children: [
     { value: '$model(loanType)', component: '$component(Select)',
       componentProps: { options: '$dataSource(LOAN_TYPES)' } },   // → массив
-    { value: '$model(carYear)', component: '$component(Input)',
-      componentProps: { type: 'number', max: '$dataSource(CURRENT_YEAR_PLUS_ONE)' } }, // → число
+    { value: '$model(carYear)', component: '$component(InputNumber)',
+      componentProps: { max: '$dataSource(CURRENT_YEAR_PLUS_ONE)' } }, // → число
   ],
 }
 ```
@@ -269,9 +269,9 @@ const registry = defineRegistry((reg) => {
 
 ## Сырые контролы UI-kit без обёрток (FieldAdapter) { #field-adapter }
 
-**Problem.** JSON-реестр удобно наполнять готовыми контролами UI-kit (antd/MUI) прямо по имени: `reg.component('Checkbox', Checkbox)`. Но seam рендерера **value-based** — он читает `value` и зовёт `onChange(value)`. Сырой antd `Checkbox` держит значение в `checked` и эмитит DOM-событие (`onChange(e)`), `Radio` — тоже событие: без перевода в модель попадёт `event`, а не значение. `Select` эмитит `(value, option)` — значение приходит **первым** и пишется в модель верно (лишний `option` отбрасывается сам), но по умолчанию рендерер пробрасывает в контрол `control={fieldNode}`, и сырой antd-контрол разольёт неизвестный проп в DOM с React-warning.
+**Problem.** JSON-реестр удобно наполнять готовыми контролами чужого UI-kit (antd/MUI) прямо по имени: `reg.component('Checkbox', Checkbox)`. Компоненты `@reformer/ui-kit` объявляют свой диалект статикой `reformerAdapter`, и рендерер применяет её сам, — а у чужих контролов статики нет, и они получают seam **как есть**: `value` + `onChange(value)`. Сырой antd `Checkbox` держит значение в `checked` и эмитит DOM-событие (`onChange(e)`), `Radio` — тоже событие: без перевода в модель попадёт `event`, а не значение. `Select` эмитит `(value, option)` — значение приходит **первым** и пишется в модель верно (лишний `option` отбрасывается сам) — ему адаптер не нужен.
 
-**Solution.** `resolveFieldAdapter(component) => FieldAdapter | undefined` в настройках рендерера. `JsonRendererSettings` наследует его от `RendererSettings`, поэтому адаптер передаётся тем же `JsonRendererProvider settings` и доходит до листового рендерера **без единой строки** в renderer-json (`JsonFormRenderer` спредит `...rendererSettings` в `FormRenderer`). Адаптер резолвится по **резолвнутому** `node.component` (тому, что реестр вернул на `$component(Checkbox)`), поэтому ключуй по ссылке на компонент, а не по имени.
+**Solution.** `resolveFieldAdapter(component) => FieldAdapter | undefined` в настройках рендерера (он приоритетнее статики `reformerAdapter`). Если компонент можно подготовить в своём коде, альтернатива без настроек — статика: `defineFieldControl(Checkbox, { adapter })` из `@reformer/ui-kit/fields`. `JsonRendererSettings` наследует его от `RendererSettings`, поэтому адаптер передаётся тем же `JsonRendererProvider settings` и доходит до листового рендерера **без единой строки** в renderer-json (`JsonFormRenderer` спредит `...rendererSettings` в `FormRenderer`). Адаптер резолвится по **резолвнутому** `node.component` (тому, что реестр вернул на `$component(Checkbox)`), поэтому ключуй по ссылке на компонент, а не по имени.
 
 ```tsx
 import { Checkbox, Select, Radio } from 'antd';
@@ -290,9 +290,6 @@ const registry = defineRegistry((reg) => {
 const adapters = new Map<unknown, FieldAdapter>([
   // checked + onChange(event) → e.target.checked; null/undefined → false.
   [Checkbox, { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }],
-  // value/onChange уже как надо; пустой адаптер нужен лишь чтобы НЕ прокинуть `control`
-  // (второй аргумент onChange(value, option) отбрасывается сам — колбэк берёт только первый).
-  [Select, {}],
   // значение приходит в событии.
   [Radio, { fromEmit: (e) => (e as any).target.value }],
 ]);
@@ -311,8 +308,8 @@ const adapters = new Map<unknown, FieldAdapter>([
 **Notes.**
 
 - `resolveFieldAdapter` получает **резолвнутый** `node.component` (React-компонент), а не строку `$component(...)`. Ключуй `Map` по той же ссылке, что отдал в `reg.component`.
-- С адаптером `control` в контрол **не** пробрасывается (сырой antd-контрол его не потребляет); `disabled` пробрасывается всегда. Без адаптера — прежний seam (`control` + `value` + `onChange(value)`), полная обратная совместимость.
-- Контролам с уже value-based контрактом (`Input`, `Textarea`, собственные поля `@reformer/ui-kit`) адаптер не нужен — верни для них `undefined`.
+- `control` (нода формы) в контрол по умолчанию **не** пробрасывается — ни с адаптером, ни без (opt-in: `reformerNeedsControl` / `passControl`, см. [03-registry.md](03-registry.md)); `disabled` пробрасывается всегда.
+- Компонентам `@reformer/ui-kit` (`Input`, `Textarea`, `CheckboxWithLabel`, …) и контролам с уже value-based контрактом адаптер не нужен — верни для них `undefined`: у первых диалект объявлен статикой.
 - Полный справочник полей `FieldAdapter` (`valueProp`/`changeProp`/`fromEmit`/`toValue`/`bindBlur`/`strip`) — в JSDoc типа `FieldAdapter` и кукбуке `@reformer/renderer-react`; здесь важно лишь, что `JsonRendererSettings` наследует `resolveFieldAdapter` без изменений в renderer-json.
 
 ## Инъекция runtime-сущностей в компонент (form, validation) { #inject-runtime }
@@ -401,8 +398,8 @@ function createReadonlyBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 
 | TS RenderSchema (`@reformer/renderer-react`)                                             | JSON-схема (`@reformer/renderer-json`, M1)                                                                 |
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `{ value: path.email, component: InputField }`                                                | `{ value: '$model(email)', component: '$component(Input)' }`                                               |
-| `{ value: path.personalData.firstName, component: InputField }`                               | `{ value: '$model(personalData.firstName)', component: '$component(Input)' }`                              |
+| `{ value: path.email, component: Input }`                                                | `{ value: '$model(email)', component: '$component(Input)' }`                                               |
+| `{ value: path.personalData.firstName, component: Input }`                               | `{ value: '$model(personalData.firstName)', component: '$component(Input)' }`                              |
 | `{ component: Box, componentProps: { className: 'grid' }, children: [...] }`             | `{ component: '$component(Box)', componentProps: { className: 'grid' }, children: [...] }`                 |
 | `{ component: Section, componentProps: { title: 'X' }, children: [...] }`                | `{ component: '$component(Section)', componentProps: { title: 'X' }, children: [...] }`                    |
 | `{ selector: 'mortgage-section', component: Section, ... }`                              | то же — `selector` сохраняется (plain-строка)                                                             |
@@ -429,7 +426,7 @@ const schema: JsonFormSchema = {
 };
 
 const registry = defineRegistry((reg) => {
-  reg.component('Input', InputField);
+  reg.component('Input', Input);
   reg.component('Box', Box);
   reg.component('Section', Section);
   reg.component(FIELD_WRAPPER, FormField);
@@ -474,8 +471,8 @@ const registry = defineRegistry((reg) => {
     },
     {
       "value": "$model(amount)",
-      "component": "$component(Input)",
-      "componentProps": { "label": "Сумма (₽)", "type": "number" }
+      "component": "$component(InputNumber)",
+      "componentProps": { "label": "Сумма (₽)" }
     },
     { "component": "$html(hr)" },
     {
@@ -498,7 +495,7 @@ const registry = defineRegistry((reg) => {
 
 ```typescript
 defineRegistry((reg) => {
-  reg.component('Input', InputField);
+  reg.component('InputNumber', InputNumber);
   reg.component(FIELD_WRAPPER, FormField);
   reg.locale(createLocaleResolver({ 'installment.title': 'Рассрочка' }));
 });

@@ -1,7 +1,7 @@
 # Императивные handle полей — управление компонентом по селектору
 
-Каждое поле ui-kit экспонирует типизированный императивный handle через `ref`. Из render-схемы он
-достаётся по селектору: `schema.node(sel).getRef<H>()`. Это мост «узел схемы → живой компонент»,
+Каждое поле ui-kit отдаёт типизированный императивный handle через `ref` (строит его обёртка
+поля — см. «Своё поле с handle»). Из render-схемы он достаётся по селектору: `schema.node(sel).getRef<H>()`. Это мост «узел схемы → живой компонент»,
 тот же, что уже использовался для `FormWizard`/`FormArray`, но теперь работает и для листовых полей.
 
 ## Когда императив, а когда реактив
@@ -25,11 +25,11 @@ Handle покрывает ТОЛЬКО то, что не выражается р
 
 ```tsx
 import { createRenderSchema, renderEffect } from '@reformer/renderer-react';
-import { InputField, type FieldHandle } from '@reformer/ui-kit';
+import { Input, type FieldHandle } from '@reformer/ui-kit';
 
 const schema = createRenderSchema<MyForm>(() => ({
   component: Box,
-  children: [{ value: model.$.email, component: InputField, componentProps: { label: 'Email' } }],
+  children: [{ value: model.$.email, component: Input, componentProps: { label: 'Email' } }],
 }));
 
 // Поведение схемы: ref запрашивается ЗДЕСЬ (до первого рендера — см. ниже).
@@ -66,11 +66,11 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 
 ```tsx
 // без selector → адресуется индексным путём модели
-{ value: model.$.email, component: InputField }          // → schema.node('email')
-{ value: model.$.phones[0].number, component: InputField } // → schema.node('phones.0.number')
+{ value: model.$.email, component: Input }          // → schema.node('email')
+{ value: model.$.phones[0].number, component: Input } // → schema.node('phones.0.number')
 
 // с явным selector → адресуется им
-{ selector: 'pwd', value: model.$.password, component: InputPasswordField } // → schema.node('pwd')
+{ selector: 'pwd', value: model.$.password, component: InputPassword } // → schema.node('pwd')
 ```
 
 Благодаря `__path` путь модели — **одновременно ключ ref и адрес сигнала** (`model.signalAt(path)`),
@@ -84,12 +84,12 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 | Компонент                | Handle                    | Дополнительно к baseline                                                        | Импорт                         |
 | ------------------------ | ------------------------- | ------------------------------------------------------------------------------- | ------------------------------ |
 | любое поле               | `FieldHandle`             | `focus` `blur` `scrollIntoView` `getElement`                                    | `@reformer/ui-kit`             |
-| `InputPasswordField`     | `InputPasswordHandle`     | `toggleVisibility` `setVisible`                                                 | `@reformer/ui-kit`             |
-| `SelectField`            | `SelectAsyncHandle`       | `open` `close` `clear` `reload` `loadMore`                                      | `@reformer/ui-kit`             |
-| `ComboboxField`          | `ComboboxHandle`          | `open` `close` `clear`                                                          | `@reformer/ui-kit/combobox`    |
-| `ComboboxTreeField`      | `ComboboxTreeHandle`      | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
-| `ComboboxTreeMultiField` | `ComboboxTreeMultiHandle` | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
-| `DatePickerField`        | `DatePickerHandle`        | `open` `close`                                                                  | `@reformer/ui-kit/date-picker` |
+| `InputPassword`          | `InputPasswordHandle`     | `toggleVisibility` `setVisible`                                                 | `@reformer/ui-kit`             |
+| `SelectAsync`            | `SelectAsyncHandle`       | `open` `close` `clear` `reload` `loadMore`                                      | `@reformer/ui-kit`             |
+| `Combobox`               | `ComboboxHandle`          | `open` `close` `clear`                                                          | `@reformer/ui-kit/combobox`    |
+| `ComboboxTree`           | `ComboboxTreeHandle`      | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
+| `ComboboxTreeMulti`      | `ComboboxTreeMultiHandle` | `open` `close` `clear` `refresh`                                                | `@reformer/ui-kit/combobox`    |
+| `DatePicker`             | `DatePickerHandle`        | `open` `close`                                                                  | `@reformer/ui-kit/date-picker` |
 | `Tree` (не поле)         | `TreeHandle`              | `expand` `collapse` `toggle` `refresh` `focusNode` `getRows` `getActionTargets` | `@reformer/ui-kit`             |
 
 `Combobox` и `DatePicker` — heavy-компоненты, они вне главного barrel и доступны только своим subpath.
@@ -98,7 +98,7 @@ const behavior: RenderBehaviorFn<MyForm> = (schema) => {
 пока поповер открыт: закрытый Radix содержимое размонтирует, и перечитывать нечего — следующее
 открытие прочитает уровень заново.
 
-`Tree` в таблице — исключение: это не поле, `*Field`-версии у него нет, и в схеме он живёт
+`Tree` в таблице — исключение: это не поле формы (статики `reformerAdapter` у него нет), и в схеме он живёт
 контейнерным узлом. Его handle берут обычным React-ref'ом там, где дерево отрисовано; если узел
 объявлен в схеме со своим `selector`, работает и `schema.node(sel).getRef<TreeHandle>()` — тем же
 способом, что у `FormWizard` и `FormArray`.
@@ -185,31 +185,38 @@ queueMicrotask(() => {
 
 ## Своё поле с handle
 
-Слой создания полей публикуется точкой `@reformer/ui-kit/fields` — оттуда доступны
-`withFormControl`, все адаптеры-пресеты (`nativeInputAdapter`, `checkedAdapter`, `pressedAdapter`,
-`valueChangeAdapter`, `multiValueAdapter`, `sliderAdapter`, `dateAdapter`),
-`makeElementFieldHandle` и типы
-`FieldAdapter` / `WithFormControlOptions` / `FieldHandle`.
+Handle строит **обёртка поля** (`FormField.Control` из `@reformer/cdk`, рендерер
+`@reformer/renderer-react`), а не сам контрол: она вешает ref на `component` и публикует
+потребителю
 
-> **Внимание — коллизия имён.** Этот `FieldAdapter` (из `@reformer/ui-kit/fields`, для
-> `withFormControl`; основные поля `valueProp`/`changeProp`/`fromEmit`/`toValue` обязательны,
-> `bindBlur`/`strip` — опциональны) — **не** тот же тип, что `FieldAdapter` из
-> `@reformer/renderer-react` (резолвится через `RendererSettings.resolveFieldAdapter` во время
-> рендера, все поля опциональны). Первый описывает event-shape примитива при сборке
-> `*Field`-компонента; второй — как рендерер сводит value-seam к сырому контролу без обёртки.
+- handle самого контрола, если тот его реализует (`useImperativeHandle` внутри композита);
+- иначе — базовый `FieldHandle`, построенный из DOM-узла контрола (`makeElementFieldHandle`).
 
-`withFormControl` принимает третий аргумент:
+Поэтому своему контролу для baseline-handle делать ничего не нужно — достаточно пробросить `ref`
+на DOM-элемент (`forwardRef` или React 19 ref-as-prop). Слой создания полей публикуется точкой
+`@reformer/ui-kit/fields`: `defineFieldControl`, адаптеры-пресеты (`nativeInputAdapter`,
+`textValueAdapter`, `checkedAdapter`, `pressedAdapter`, `valueChangeAdapter`, `multiValueAdapter`,
+`sliderAdapter`, `dateAdapter`, `datePickerAdapter`), `makeElementFieldHandle` и типы
+`FieldAdapter` / `FieldHandle`.
 
 ```tsx
-import { withFormControl, type FieldHandle } from '@reformer/ui-kit/fields';
+import { defineFieldControl, type FieldHandle } from '@reformer/ui-kit/fields';
 
-// 1) baseline по умолчанию — handle синтезируется из DOM-узла примитива, ничего делать не нужно:
-export const MyField = withFormControl(MyPrimitive, myAdapter);
+// 1) baseline — ref уходит на DOM-узел, обёртка сама соберёт FieldHandle:
+export const MyInput = defineFieldControl(MyPrimitive, { adapter: myAdapter });
 
-// 2) композит сам владеет handle (useImperativeHandle внутри) — passthrough:
-export const MySelectField = withFormControl(MySelect, myAdapter, { exposesHandle: true });
+// 2) композит сам владеет handle (useImperativeHandle внутри) — обёртка отдаст его как есть:
+export interface MySelectHandle extends FieldHandle {
+  open(): void;
+  close(): void;
+}
+export const MySelect = defineFieldControl(MySelectBase, { adapter: myAdapter });
 ```
 
-При `exposesHandle: true` HOC форвардит ref потребителя прямо в примитив и **не** вешает свой
-`useImperativeHandle` — иначе один ref писался бы дважды. Rich-handle объявляйте рядом с композитом
-(`export interface MySelectHandle extends FieldHandle { … }`) и реэкспортируйте из barrel компонента.
+`defineFieldControl` не создаёт обёртку — он вешает на компонент статику `reformerAdapter` и
+возвращает тот же компонент, поэтому ref не проходит через лишний слой и не пишется дважды.
+
+`FieldAdapter` — один тип на всех (`@reformer/core`, реэкспорт в `@reformer/ui-kit/fields` и
+`@reformer/renderer-react`): статика `reformerAdapter` компонента и
+`RendererSettings.resolveFieldAdapter` (для чужих компонентов без статики) описывают диалект
+одинаково. Rich-handle объявляйте рядом с композитом и реэкспортируйте из barrel компонента.

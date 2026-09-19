@@ -2,12 +2,13 @@
 
 > **Default rule (read first)**: для UI используй `FormField` из
 > [`@reformer/ui-kit`](../../reformer-ui-kit/) — он покрывает 95% случаев одной
-> строкой `<FormField control={form.x} />`. Свои field-обёртки пиши ТОЛЬКО если
+> строкой `<FormField control={form.x} />`. Свои обёртки поля пиши ТОЛЬКО если
 > ui-kit не подходит (другая design system, особый low-level input).
 >
 > Канонический schema-driven подход:
 >
-> - **компонент** объявляется в схеме как `component: InputField` (или `Select`, `Checkbox`, etc.)
+> - **компонент** объявляется в схеме как `component: Input` (или `SelectAsync`, `CheckboxWithLabel`, …) —
+>   сам компонент кита, отдельных «field-версий» нет: связывает его с полем обёртка (`FormField`)
 > - **пропсы** компонента — в `componentProps: { label, placeholder, options, type, ... }`
 > - **JSX рендерит**: `<FormField control={form.x} />` БЕЗ дополнительных props
 >
@@ -19,7 +20,7 @@
 ```tsx
 import { useMemo } from 'react';
 import { createModel, createForm } from '@reformer/core';
-import { FormField, InputField, SelectField, CheckboxField, Button } from '@reformer/ui-kit';
+import { FormField, Input, SelectAsync, CheckboxWithLabel, Button } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   email: string;
@@ -33,12 +34,12 @@ function RegistrationPage() {
     const schema = {
       email: {
         value: model.$.email,
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
       },
       country: {
         value: model.$.country,
-        component: SelectField,
+        component: SelectAsync,
         componentProps: {
           label: 'Country',
           options: [
@@ -49,7 +50,7 @@ function RegistrationPage() {
       },
       agree: {
         value: model.$.agree,
-        component: CheckboxField,
+        component: CheckboxWithLabel,
         componentProps: { label: 'I agree to terms' },
       },
     };
@@ -92,7 +93,7 @@ function RegistrationPage() {
 ✅ Всё это в схеме:
 
 ```ts
-{ email: { component: InputField, componentProps: { label: 'Email' } } }
+{ email: { component: Input, componentProps: { label: 'Email' } } }
 ```
 
 ```tsx
@@ -113,7 +114,8 @@ import { InputMask } from 'react-input-mask';
 ```
 
 `children` оборачивается в `CdkFormField.Control asChild` и получает все нужные
-props (`value`, `onChange`, `onBlur`, `aria-invalid`).
+props (`value`, `onChange`, `onBlur`, `aria-invalid`) — в диалекте ребёнка, если тот объявил
+статику `reformerAdapter` (`defineFieldControl` из `@reformer/ui-kit/fields`), иначе value-based.
 
 ### Advanced — write your own from scratch (rare)
 
@@ -155,12 +157,37 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 <MyFormField control={form.email} /> // ← без label-prop
 ```
 
+### Связывание поля с контролом — `FieldAdapter` (`@reformer/core`)
+
+Контролы говорят на разных диалектах (`checked` + `onCheckedChange`, `onValueChange`, DOM-событие
+в `onChange`), форма — на value-based seam (`value` + `onChange(value)` + `onBlur`). Перевод
+описывает `FieldAdapter` (`valueProp`, `changeProp`, `fromEmit`, `toValue`, `bindBlur`, `strip`,
+`passControl` — все необязательны). Компонент объявляет его статикой `reformerAdapter`, а обёртка
+поля (`FormField.Control` из `@reformer/cdk`, рендерер `@reformer/renderer-react`) читает статику
+и связывает поле сама — отдельные «field-версии» компонентов не нужны.
+
+| Символ                        | Назначение                                                                  |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| `FieldAdapter`                | Тип адаптера: диалект контрола                                              |
+| `getFieldAdapter(component)`  | Статика `component.reformerAdapter` либо `undefined`                        |
+| `bindFieldProps(adapter, seam, props)` | Props контрола под адаптер (без адаптера — seam как есть)          |
+| `FieldHandle`                 | Императивный handle поля: `focus` / `blur` / `scrollIntoView` / `getElement` |
+| `makeElementFieldHandle(ref)` | Базовый `FieldHandle` из DOM-узла                                           |
+| `useFieldHandleRef(outerRef)` | Ref для контрола + публикация handle потребителю (строит ОБЁРТКА поля)     |
+
+В приложении обычно достаточно `defineFieldControl(MyControl, { adapter })` из
+`@reformer/ui-kit/fields` (плюс готовые пресеты `checkedAdapter`, `valueChangeAdapter`, …); для
+компонентов чужой библиотеки без статики — `RendererSettings.resolveFieldAdapter`.
+
 ### Integration with UI libraries (shadcn etc.)
 
 > **Через рендерер — без обёртки.** Если ты рендеришь форму через `@reformer/renderer-react` /
 > `@reformer/renderer-json`, вместо ручной обёртки на каждый контрол можно зарегистрировать сырой
 > компонент и передать `settings.resolveFieldAdapter` — рендерер сам сведёт value-seam к диалекту
-> контрола. Ручная обёртка на `useFormControl` (ниже) нужна для прямого JSX без рендерера.
+> контрола. Свой компонент можно подготовить и один раз — статикой
+> `defineFieldControl(MyInput, { adapter })` из `@reformer/ui-kit/fields`: его поймут и рендерер,
+> и `FormField.Control` из `@reformer/cdk`. Ручная обёртка на `useFormControl` (ниже) нужна для
+> прямого JSX без `FormField` и рендерера.
 
 Если есть существующая design system — оборачивай её компоненты в один
 `MyFormField` (как выше) и используй один прop `control`. Не множь обёртки на

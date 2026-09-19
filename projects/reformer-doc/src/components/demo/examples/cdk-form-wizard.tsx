@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { createModel, createForm } from '@reformer/core';
 import { defineValidationSchema, validate, apply, validateModel } from '@reformer/core/validation';
 import { FormWizard } from '@reformer/cdk/form-wizard';
-import { FormField, InputField, InputMaskField, Button } from '@reformer/ui-kit';
+import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
 import { required, email } from '@reformer/core/validators';
 import type { ComponentDocConfig } from '../types';
 
@@ -29,15 +29,15 @@ function useWizard() {
     const model = createModel<WForm>({ name: '', email: '', phone: '' });
     // Layout-схема без валидаторов — только component/componentProps.
     const schema = {
-      name: { value: model.$.name, component: InputField, componentProps: { label: 'Имя' } },
+      name: { value: model.$.name, component: Input, componentProps: { label: 'Имя' } },
       email: {
         value: model.$.email,
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Email', type: 'email' },
       },
       phone: {
         value: model.$.phone,
-        component: InputMaskField,
+        component: InputMask,
         componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
       },
     } as any;

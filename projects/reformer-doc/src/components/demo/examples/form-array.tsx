@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { createModel, createForm, useFormControlValue, type FormModel } from '@reformer/core';
 import { FormArraySection } from '@reformer/ui-kit/form-array';
-import { FormField, InputField, InputMaskField, CheckboxField } from '@reformer/ui-kit';
+import { FormField, Input, InputMask, CheckboxWithLabel } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 type Phone = { kind: string; number: string };
@@ -17,19 +17,19 @@ function usePhonesForm(initial: Phone[] = [{ kind: 'Мобильный', number:
     const phoneItem = (item: FormModel<Phone>) => ({
       kind: {
         value: item.$.kind,
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Тип', placeholder: 'Мобильный / Рабочий' },
       },
       number: {
         value: item.$.number,
-        component: InputMaskField,
+        component: InputMask,
         componentProps: { label: 'Номер', mask: '+7 (999) 999-99-99' },
       },
     });
     const schema = {
       hasPhones: {
         value: model.$.hasPhones,
-        component: CheckboxField,
+        component: CheckboxWithLabel,
         componentProps: { label: 'У меня есть телефоны' },
       },
       phones: { array: model.phones, item: phoneItem },

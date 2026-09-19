@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, CalendarField, calendarBasePropsSchema } from '@reformer/ui-kit/calendar';
+import { Calendar, CalendarSingle, calendarBasePropsSchema } from '@reformer/ui-kit/calendar';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -24,21 +24,21 @@ export const calendarDocConfig: ComponentDocConfig = {
   name: 'Calendar',
   importFrom: '@reformer/ui-kit',
   description:
-    'Календарь выбора даты на react-day-picker (v10). Вариант base — чистая обёртка DayPicker (mode single/multiple/range), field-версия CalendarField — single-date со связкой value: Date | null.',
+    'Календарь выбора даты на react-day-picker (v10). Вариант base — чистая обёртка DayPicker (mode single/multiple/range), для форм — CalendarSingle: single-date, value: Date | null; кладётся в component поля как есть.',
   variants: [
     {
       id: 'single',
       title: 'Выбор даты (single, field)',
       description:
-        'CalendarField привязан к полю формы: значение — Date | null, повторный клик по дате сбрасывает выбор в null.',
+        'CalendarSingle привязан к полю формы: значение — Date | null, повторный клик по дате сбрасывает выбор в null.',
       render: makeFieldVariant({
         initial: null,
-        component: CalendarField,
+        component: CalendarSingle,
         componentProps: { label: 'Дата' },
       }),
       code: `{
   value: model.$.date,
-  component: CalendarField,
+  component: CalendarSingle,
   componentProps: { label: 'Дата' },
 }`,
     },
@@ -49,7 +49,7 @@ export const calendarDocConfig: ComponentDocConfig = {
         'captionLayout="dropdown" заменяет статичную подпись месяца на выпадающие списки месяца и года — быстрый переход к далёким датам.',
       render: makeFieldVariant({
         initial: null,
-        component: CalendarField,
+        component: CalendarSingle,
         componentProps: { label: 'Дата рождения', captionLayout: 'dropdown' },
       }),
       code: `componentProps: { label: 'Дата рождения', captionLayout: 'dropdown' }`,
@@ -80,7 +80,7 @@ const [date, setDate] = useState<Date>();
         'showOutsideDays=false убирает «хвосты» предыдущего и следующего месяцев в первой и последней неделях.',
       render: makeFieldVariant({
         initial: null,
-        component: CalendarField,
+        component: CalendarSingle,
         componentProps: { label: 'Дата', showOutsideDays: false },
       }),
       code: `componentProps: { label: 'Дата', showOutsideDays: false }`,
@@ -92,14 +92,14 @@ const [date, setDate] = useState<Date>();
         'правило required в validation-схеме (validate из @reformer/core/validation). touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
-        component: CalendarField,
+        component: CalendarSingle,
         componentProps: { label: 'Дата' },
         validators: [required({ message: 'Выберите дату' })],
         touched: true,
       }),
       code: `{
   value: model.$.date,
-  component: CalendarField,
+  component: CalendarSingle,
   componentProps: { label: 'Дата' },
 }
 
@@ -108,7 +108,7 @@ validate(model.$.date, [required({ message: 'Выберите дату' })]);`,
     },
   ],
   api: {
-    component: CalendarField,
+    component: CalendarSingle,
     initialValue: null,
     baseComponentProps: { label: 'Дата' },
     validators: [required({ message: 'Выберите дату' })],
@@ -124,7 +124,7 @@ validate(model.$.date, [required({ message: 'Выберите дату' })]);`,
     code: (v) =>
       `{
   value: model.$.date,
-  component: CalendarField,
+  component: CalendarSingle,
   componentProps: {
     label: 'Дата',
     captionLayout: '${v.captionLayout}',${v.showOutsideDays ? '' : '\n    showOutsideDays: false,'}${v.required ? '\n    required: true,' : ''}

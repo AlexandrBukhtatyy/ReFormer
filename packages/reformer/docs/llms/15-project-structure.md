@@ -47,7 +47,7 @@ export const createCreditApplicationModel = (): FormModel<CreditApplicationForm>
 // forms/credit-application/form.schema.ts
 import type { FormModel } from '@reformer/core';
 export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
-  loanType: { value: model.$.loanType, component: SelectField, componentProps: { /* ... */ } },
+  loanType: { value: model.$.loanType, component: SelectAsync, componentProps: { /* ... */ } },
   personalData: personalDataNodes(model.$.personalData),
   properties: { array: model.properties, item: propertyItem },
 });

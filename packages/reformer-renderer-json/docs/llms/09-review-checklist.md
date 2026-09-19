@@ -37,6 +37,9 @@
 
 - [ ] `renderBehavior` стабилен по ссылке (иначе дерево пересобирается каждый рендер — в dev теперь
       есть предупреждение);
+- [ ] в реестре — сами компоненты `@reformer/ui-kit` (`Input`, `InputNumber`, `SelectAsync`, …): диалект
+      поля они объявляют статикой `reformerAdapter`; число — `InputNumber`, а не `Input` с
+      `type: 'number'`; чужим контролам без статики — `resolveFieldAdapter`;
 - [ ] у каждого контрола в реестре, который сам потребляет ноду формы, стоит `reformerNeedsControl`
       либо `passControl` в его `FieldAdapter`; остальным `control` не нужен;
 - [ ] модель и форма собираются **один раз** — через `createJsonForm` + `useJsonForm` (ленивый

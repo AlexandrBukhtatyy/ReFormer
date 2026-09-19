@@ -1,4 +1,4 @@
-import { SwitchField, switchBasePropsSchema } from '@reformer/ui-kit';
+import { SwitchWithLabel, switchBasePropsSchema } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -9,7 +9,7 @@ export const switchDocConfig: ComponentDocConfig = {
   name: 'Switch',
   importFrom: '@reformer/ui-kit',
   description:
-    'Переключатель on/off на Radix (button role=switch). Значение — boolean. Для форм — SwitchField с inline-раскладкой: подпись рисуется справа из componentProps.label, верхнюю метку FormField не дублирует.',
+    'Переключатель on/off на Radix (button role=switch). Значение — boolean. Для форм — SwitchWithLabel с inline-раскладкой: подпись рисуется справа из componentProps.label, верхнюю метку FormField не дублирует.',
   variants: [
     {
       id: 'basic',
@@ -17,12 +17,12 @@ export const switchDocConfig: ComponentDocConfig = {
       description: 'Значение — boolean. По умолчанию выключен (false); подпись справа из label.',
       render: makeFieldVariant({
         initial: false,
-        component: SwitchField,
+        component: SwitchWithLabel,
         componentProps: { label: 'Push-уведомления' },
       }),
       code: `{
   value: model.$.notifications,
-  component: SwitchField,
+  component: SwitchWithLabel,
   componentProps: { label: 'Push-уведомления' },
 }`,
     },
@@ -32,12 +32,12 @@ export const switchDocConfig: ComponentDocConfig = {
       description: 'initial: true — переключатель в положении «включено».',
       render: makeFieldVariant({
         initial: true,
-        component: SwitchField,
+        component: SwitchWithLabel,
         componentProps: { label: 'Автосохранение' },
       }),
       code: `{
   value: model.$.autosave, // initial: true
-  component: SwitchField,
+  component: SwitchWithLabel,
   componentProps: { label: 'Автосохранение' },
 }`,
     },
@@ -50,7 +50,7 @@ export const switchDocConfig: ComponentDocConfig = {
         'Без label контрол рендерит только сам переключатель — подпись остаётся на потребителе.',
       render: makeFieldVariant({
         initial: true,
-        component: SwitchField,
+        component: SwitchWithLabel,
         componentProps: {},
       }),
       code: `componentProps: {} // подпись рисуется рядом вручную`,
@@ -62,14 +62,14 @@ export const switchDocConfig: ComponentDocConfig = {
         'required() на boolean требует значение true. touched-поле в положении «выкл» показывает ошибку.',
       render: makeFieldVariant({
         initial: false,
-        component: SwitchField,
+        component: SwitchWithLabel,
         componentProps: { label: 'Согласен с условиями' },
         validators: [required({ message: 'Необходимо принять условия' })],
         touched: true,
       }),
       code: `{
   value: model.$.agree,
-  component: SwitchField,
+  component: SwitchWithLabel,
   componentProps: { label: 'Согласен с условиями' },
 }
 
@@ -78,7 +78,7 @@ validate(model.$.agree, [required({ message: 'Необходимо принят�
     },
   ],
   api: {
-    component: SwitchField,
+    component: SwitchWithLabel,
     initialValue: false,
     baseComponentProps: { label: 'Push-уведомления' },
     valuePresets: [
@@ -93,7 +93,7 @@ validate(model.$.agree, [required({ message: 'Необходимо принят�
     code: (v) =>
       `{
   value: model.$.notifications,
-  component: SwitchField,
+  component: SwitchWithLabel,
   componentProps: {
     label: 'Push-уведомления',${v.required ? '\n    required: true,' : ''}
   },

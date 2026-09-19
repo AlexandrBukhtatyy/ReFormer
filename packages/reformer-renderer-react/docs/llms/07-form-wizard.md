@@ -17,7 +17,7 @@ M1-схемы шага. `body` самостоятелен: оборачиват�
 ```tsx
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import { Box, InputField } from '@reformer/ui-kit';
+import { Box, InputNumber } from '@reformer/ui-kit';
 
 // form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form.
 function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): RenderNode<MyForm> {
@@ -40,8 +40,8 @@ function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): Render
             component: Box,
             componentProps: { className: 'space-y-4' },
             children: [
-              { value: model.$.loanAmount, component: InputField, componentProps: { label: 'Сумма' } },
-              { value: model.$.loanTerm, component: InputField, componentProps: { label: 'Срок' } },
+              { value: model.$.loanAmount, component: InputNumber, componentProps: { label: 'Сумма' } },
+              { value: model.$.loanTerm, component: InputNumber, componentProps: { label: 'Срок' } },
             ],
           },
         },

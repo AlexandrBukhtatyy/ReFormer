@@ -10,6 +10,7 @@ import { textareaDocConfig } from '@site/src/components/demo/examples/textarea';
 # Textarea
 
 Многострочное текстовое поле на pure shadcn `Textarea`. Значение — `string | null`
-(пустой ввод → `null`). Для форм — `TextareaField`, биндится к M1-полю через `nativeInputAdapter`.
+(пустой ввод → `null`). В форме `Textarea` кладётся в `component` как есть: DOM-событие
+в значение поля переводит обёртка поля по статике `nativeInputAdapter`.
 
 <ComponentDoc config={textareaDocConfig} />

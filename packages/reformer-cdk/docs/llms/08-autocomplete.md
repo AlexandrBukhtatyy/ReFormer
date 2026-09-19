@@ -4,8 +4,8 @@ Headless-автокомплит со **свободным вводом**: зна
 лишь помогают его набрать. Выбор подсказки подставляет её `value` в текст. Этим он отличается от
 выбора из списка (Select / Combobox), где значение обязано быть одной из опций.
 
-Разметки и стилей не рендерит. Готовый визуальный слой — `InputField` с пропом `suggestions`
-из `@reformer/ui-kit`.
+Разметки и стилей не рендерит. Готовый визуальный слой — компонент `InputSuggest` (проп
+`suggestions`) из `@reformer/ui-kit`.
 
 ```typescript
 import { Autocomplete, useAutocomplete } from '@reformer/cdk/autocomplete';

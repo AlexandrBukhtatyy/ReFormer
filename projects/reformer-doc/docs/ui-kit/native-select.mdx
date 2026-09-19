@@ -11,7 +11,7 @@ import { nativeSelectDocConfig } from '@site/src/components/demo/examples/native
 
 Стилизованный **native** `<select>` (с иконкой-шевроном). В отличие от `Select` — это НЕ Radix:
 разметка, семантика и клавиатурная навигация браузерные, дропдаун нативный. Значение — строка
-(`option.value`), пустой выбор → `null`. Для форм — `NativeSelectField`: строит `<option>` из
-декларативного `options` (одинаковый `group` объединяется в `<optgroup>`).
+(`option.value`), пустой выбор → `null`. Для форм — `NativeSelectWithOptions` (registry `NativeSelect`): строит
+`<option>` из декларативного `options` (одинаковый `group` объединяется в `<optgroup>`).
 
 <ComponentDoc config={nativeSelectDocConfig} />

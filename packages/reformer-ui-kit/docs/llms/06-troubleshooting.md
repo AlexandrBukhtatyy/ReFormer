@@ -2,23 +2,24 @@
 
 Частые ошибки при использовании `@reformer/ui-kit` и пути их решения.
 
-## 1. `Input type="number"` возвращает строку, а не число (или `null`)
+## 1. Числовое поле возвращает строку, а не число (или `null`)
 
-**Симптом.** В schema поле `age: number`, но в `getValue()` приходит `'42'` или
+**Симптом.** В модели поле `age: number`, но в `getValue()` приходит `'42'` или
 никогда не приходит `null` для пустого ввода.
 
-**Причина.** Скорее всего, ты обходишь контракт `Input` и подписываешься на
-`event` вручную: `<input onChange={(e) => setAge(e.target.value)}>`. Нативный
-`<input>` всегда отдаёт строку, даже при `type="number"`.
+**Причина.** В `component` поля стоит `Input` с `type: 'number'`. `Input` — нативный `<input>`:
+его адаптер (`nativeInputAdapter`) отдаёт в модель `e.target.value`, то есть строку, даже при
+`type="number"`. Props-схема `Input` `type: 'number'` не объявляет — в JSON-DSL такой
+`componentProps` отклоняется.
 
-**Решение.** Использовать ui-kit-`Input` через `value`/`onChange`-контракт:
+**Решение.** Числовое поле — отдельный компонент `InputNumber` (registry `InputNumber`):
 
 ```tsx
-<Input type="number" value={age} onChange={setAge} min={0} />
-// onChange приходит number | null. Пустой ввод → null. NaN не прокидывается.
+{ value: model.$.age, component: InputNumber, componentProps: { label: 'Возраст', min: 0 } }
+// в модель приходит number | null. Пустой ввод → null. Частичный ввод («-», «.») не эмитится.
 ```
 
-В schema поле должно быть `number | null`, а не `number`:
+В модели поле должно быть `number | null`, а не `number`:
 
 ```typescript
 interface Form {
@@ -26,7 +27,7 @@ interface Form {
 }
 ```
 
-## 2. `Select` не показывает options (пустой дропдаун)
+## 2. `SelectAsync` не показывает options (пустой дропдаун)
 
 **Симптом.** Триггер открывается, но в нём `'No options available'`.
 
@@ -37,7 +38,7 @@ interface Form {
   DevTools Network и посмотри статус. Скорее всего бек вернул не тот формат
   (`items: [...]` обязательно, `id` обязательно у каждого item).
 
-- **Передан `options`, но `value` не строка** — внутри `Select` все `value`
+- **Передан `options`, но `value` не строка** — внутри `SelectAsync` все `value`
   приводятся к строке (`String(opt.value)`). Если ты передаёшь
   `value: 42` (число), а `options[i].value: '42'` (строка) — Radix не
   подсветит выбранный вариант, но options будут.
@@ -107,15 +108,16 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
 </Button>;
 ```
 
-## 5. `Checkbox` value не сохраняется (всегда `false`)
+## 5. `CheckboxWithLabel` value не сохраняется (всегда `false`)
 
 **Симптом.** Пользователь чекает, в форме пишется `true`, но при следующем
 рендере чекбокс снова пуст.
 
 **Причины.**
 
-- Передан `checked` вместо `value` (`<Checkbox checked={...}>`) — пропа
-  `checked` нет, нужно `value`.
+- Чекбокс используется руками вне формы с `value`/`onChange` (`<CheckboxWithLabel value={...}>`)
+  — standalone это Radix-контрол: нужны `checked` + `onCheckedChange`. `value`/`onChange` ему
+  подставляет только обёртка поля (`FormField` / рендерер) по статике `checkedAdapter`.
 - В модели поле имеет тип `boolean`, но начальное значение `undefined` —
   компонент отрендерится как `false`, и при `setValue(true)` без вмешательства
   React re-render не произойдёт. Указывай `accept: false` явно в initial-значениях
@@ -124,7 +126,7 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
 ```typescript
 const model = createModel<{ accept: boolean }>({ accept: false }); // false, не undefined!
 const schema = {
-  children: [{ value: model.$.accept, component: CheckboxField }],
+  children: [{ value: model.$.accept, component: CheckboxWithLabel }],
 };
 const form = createForm<{ accept: boolean }>({ model, schema });
 ```
@@ -167,36 +169,36 @@ import { FormField } from '@reformer/ui-kit'; // готовый wrapper
 import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 ```
 
-## 7. `onBlur` не срабатывает на `Select` / `RadioGroup`
+## 7. `onBlur` не срабатывает на `SelectAsync` / `RadioGroupOptions`
 
 **Симптом.** `touched`-флаг не появляется при выборе значения, поле «вечно»
 без подсветки ошибки.
 
 **Причины.**
 
-- `Select` (Radix) — `onBlur` пробрасывается через `onOpenChange(false)`, то
+- `SelectAsync` (Radix) — `onBlur` пробрасывается через `onOpenChange(false)`, то
   есть срабатывает при закрытии дропдауна. Если пользователь кликает мимо без
   открытия — `onBlur` не сработает.
-- `RadioGroup` — `onBlur` приходит на каждый `<input>` радио. Если фокус
+- `RadioGroupOptions` — `onBlur` приходит на каждый `<input>` радио. Если фокус
   перемещается между radio внутри группы, `blur`/`focus` чередуются. Это
   нормально для нативного поведения.
 
-**Решение.** Для гарантированного `touched` используй `onChange` как trigger
+**Решение.** Для гарантированного `touched` используй изменение значения как trigger
 (ведь выбор — это явное взаимодействие):
 
 ```tsx
-<Select
+<SelectAsync
   value={form.city.value}
   onChange={(v) => {
     form.city.setValue(v);
-    form.city.blur(); // принудительно помечаем touched
+    form.city.markAsTouched(); // принудительно помечаем touched
   }}
   options={CITIES}
 />
 ```
 
-`FormField` делает это автоматически (читает `componentProps` из `FieldNode`).
-Проблема обычно возникает, если Select используется руками без `FormField`.
+Проблема обычно возникает, если контрол используется руками без `FormField`: внутри формы
+`value`/`onChange`/`onBlur` подключает обёртка поля.
 
 ## 8. `cn` стирает мои классы или, наоборот, оставляет лишние
 
@@ -280,13 +282,13 @@ const hasValue = Boolean(value);
 **Симптом.** Регистрируется dataSource `LOAN_TYPES` через `reg.dataSource('LOAN_TYPES', list)`,
 в JSON-схеме `componentProps: { options: '$LOAN_TYPES' }`, но опции пустые.
 
-**Причина.** `Select` ждёт `options: Array<{value, label, group?}>`, а из
+**Причина.** `SelectAsync` (registry `Select`) ждёт `options: Array<{value, label, group?}>`, а из
 реестра приходит уже обработанная строкой ссылка `'$LOAN_TYPES'`. Нужен
 правильный синтаксис dataSource-ссылки в реестре.
 
 **Решение.** Проверь convention для dataSource-ссылок в
 [`renderer-json/03-registry.md`](../../../reformer-renderer-json/docs/llms/03-registry.md).
-Внутри `Select` дальнейших магий нет — он просто читает `directOptions`
+Внутри `SelectAsync` дальнейших магий нет — он просто читает `directOptions`
 один в один.
 
 ## 12. Мультивыбор не рендерится, а submit молча не проходит

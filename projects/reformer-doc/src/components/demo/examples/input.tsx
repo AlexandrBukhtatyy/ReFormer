@@ -1,4 +1,4 @@
-import { InputField, inputBasePropsSchema } from '@reformer/ui-kit';
+import { Input, inputBasePropsSchema, InputNumber, InputSuggest } from '@reformer/ui-kit';
 import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required, min } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
@@ -9,7 +9,7 @@ export const inputDocConfig: ComponentDocConfig = {
   name: 'Input',
   importFrom: '@reformer/ui-kit',
   description:
-    'Текстовое поле на pure shadcn Input. Вариант base — строковый; вариант number — числовой буфер (частичный ввод «1.», «-», ведущие нули). InputField диспетчеризует по type.',
+    'Текстовое поле на pure shadcn Input. Вариант base — Input (строка); вариант number — InputNumber (числовой буфер: частичный ввод «1.», «-», ведущие нули); вариант suggest — InputSuggest (свободный ввод с подсказками). Каждый кладётся в component поля как есть.',
   variants: [
     {
       id: 'text',
@@ -17,12 +17,12 @@ export const inputDocConfig: ComponentDocConfig = {
       description: 'type=text/email/tel/url. Значение — string | null (пустой ввод → null).',
       render: makeFieldVariant({
         initial: '',
-        component: InputField,
+        component: Input,
         componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
       }),
       code: `{
   value: model.$.email,
-  component: InputField,
+  component: Input,
   componentProps: { label: 'Email', type: 'email' },
 }`,
     },
@@ -30,21 +30,36 @@ export const inputDocConfig: ComponentDocConfig = {
       id: 'number',
       title: 'Числовое поле (буфер)',
       description:
-        'type=number. Значение — number | null. Буфер сохраняет промежуточный ввод («1.», «0.05», «-»), который не эмитится до валидного числа.',
+        'Отдельный компонент InputNumber (не Input с type=number). Значение — number | null. Буфер сохраняет промежуточный ввод («1.», «0.05», «-»), который не эмитится до валидного числа.',
       render: makeFieldVariant({
         initial: null,
-        component: InputField,
+        component: InputNumber,
         componentProps: {
           label: 'Возраст',
-          type: 'number',
           min: 0,
           placeholder: 'Введите возраст',
         },
       }),
       code: `{
   value: model.$.age,
-  component: InputField,
-  componentProps: { label: 'Возраст', type: 'number', min: 0 },
+  component: InputNumber,
+  componentProps: { label: 'Возраст', min: 0 },
+}`,
+    },
+    {
+      id: 'suggest',
+      title: 'Подсказки при вводе',
+      description:
+        'Отдельный компонент InputSuggest (у Input пропа suggestions нет). Значение — введённый текст (string | null); подсказка лишь подставляет свой value.',
+      render: makeFieldVariant({
+        initial: null,
+        component: InputSuggest,
+        componentProps: { label: 'Город', suggestions: ['Москва', 'Казань', 'Новосибирск'] },
+      }),
+      code: `{
+  value: model.$.city,
+  component: InputSuggest,
+  componentProps: { label: 'Город', suggestions: ['Москва', 'Казань', 'Новосибирск'] },
 }`,
     },
   ],
@@ -56,15 +71,15 @@ export const inputDocConfig: ComponentDocConfig = {
         'правила в validation-схеме (validate из @reformer/core/validation); touched-поле с пустым/малым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
-        component: InputField,
-        componentProps: { label: 'Возраст', type: 'number', min: 18 },
+        component: InputNumber,
+        componentProps: { label: 'Возраст', min: 18 },
         validators: [required({ message: 'Укажите возраст' }), min(18, { message: 'Минимум 18' })],
         touched: true,
       }),
       code: `{
   value: model.$.age,
-  component: InputField,
-  componentProps: { label: 'Возраст', type: 'number', min: 18 },
+  component: InputNumber,
+  componentProps: { label: 'Возраст', min: 18 },
 }
 
 // правила — в validation-схеме (@reformer/core/validation):
@@ -72,7 +87,7 @@ validate(model.$.age, [required(), min(18)]);`,
     },
   ],
   api: {
-    component: InputField,
+    component: Input,
     initialValue: '',
     baseComponentProps: { label: 'Email' },
     validators: [required({ message: 'Обязательно' })],
@@ -86,7 +101,7 @@ validate(model.$.age, [required(), min(18)]);`,
     code: (v) =>
       `{
   value: model.$.value,
-  component: InputField,
+  component: Input,
   componentProps: {
     label: 'Email',
     type: '${v.type}',

@@ -12,6 +12,7 @@ import { checkboxDocConfig } from '@site/src/components/demo/examples/checkbox';
 Чекбокс на Radix (`button` role=checkbox + `CheckIcon`). Значение — `boolean` (контракт `checked` /
 `onCheckedChange`). Раскладка **inline**: подпись из `componentProps.label` рисуется справа от контрола,
 а `FormField` верхнюю подпись не рендерит (маркер `reformerLayout='inline-label'`), чтобы она не задвоилась.
-Для форм — `CheckboxField`.
+Для форм — `CheckboxWithLabel` (registry `Checkbox`): кладётся в `component` как есть, диалект
+`checked` / `onCheckedChange` сводит к значению поля обёртка (статика `checkedAdapter`).
 
 <ComponentDoc config={checkboxDocConfig} />

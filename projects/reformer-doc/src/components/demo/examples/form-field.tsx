@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { CSSProperties, ReactNode } from 'react';
 import { FormField as FieldRoot } from '@reformer/cdk/form-field';
-import { FormField, InputField } from '@reformer/ui-kit';
+import { FormField, Input } from '@reformer/ui-kit';
 import { required, email } from '@reformer/core/validators';
 import { useDemoField } from '../harness';
 import type { ComponentDocConfig } from '../types';
@@ -54,7 +54,7 @@ function Zone({ name, color, children }: { name: string; color: string; children
 function AnatomyField() {
   const { control } = useDemoField({
     initial: '',
-    component: InputField,
+    component: Input,
     componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
     validators: [required({ message: 'Введите email' }), email()],
     touched: true,
@@ -99,7 +99,7 @@ function AnatomyField() {
 function PlainUsage() {
   const { control } = useDemoField({
     initial: '',
-    component: InputField,
+    component: Input,
     componentProps: {
       label: 'Email',
       type: 'email',
@@ -120,7 +120,7 @@ function PlainUsage() {
 function TooltipUsage() {
   const { control } = useDemoField({
     initial: '',
-    component: InputField,
+    component: Input,
     componentProps: {
       label: 'ИНН',
       placeholder: '7700000000',
@@ -147,12 +147,12 @@ export const uiKitFormFieldDocConfig: ComponentDocConfig = {
       description:
         'Сверху вниз: label → input → hint → validation. Hint — светлая подсказка под полем (выравнивается слева или справа); ошибка валидации показывается после hint.',
       render: AnatomyField,
-      code: `import { FormField, InputField } from '@reformer/ui-kit';
+      code: `import { FormField, Input } from '@reformer/ui-kit';
 
 // Зоны задаются через componentProps поля:
 email: {
   value: model.$.email,
-  component: InputField,
+  component: Input,
   componentProps: {
     label: 'Email',                        // → зона label
     placeholder: 'you@example.com',        // → зона input
@@ -184,7 +184,7 @@ email: {
       render: TooltipUsage,
       code: `inn: {
   value: model.$.inn,
-  component: InputField,
+  component: Input,
   componentProps: {
     label: 'ИНН',
     labelTooltip: 'Нужен для выставления счёта',     // (i) после подписи
@@ -205,7 +205,7 @@ email: {
       name: 'input',
       type: 'component · componentProps',
       description:
-        'Зона input — контрол из control.component (InputField и т.п.); placeholder/type берутся из componentProps.',
+        'Зона input — контрол из control.component (Input и т.п.); placeholder/type берутся из componentProps.',
     },
     {
       name: 'description',
