@@ -147,3 +147,94 @@ describe('FormField.Control — aria-describedby', () => {
     expect(box.props['aria-describedby']).toBe('hint-x desc-x');
   });
 });
+
+describe('FormField.Control — адаптер контрола (статика reformerAdapter)', () => {
+  const checkedAdapter = {
+    valueProp: 'checked',
+    changeProp: 'onCheckedChange',
+    fromEmit: (c: unknown) => c === true,
+    toValue: (v: unknown) => v ?? false,
+  };
+
+  function renderAuto(
+    component: unknown,
+    ctxOverrides: Partial<FormFieldContextValue> = {}
+  ): { props: Record<string, unknown>; setValue: ReturnType<typeof vi.fn> } {
+    const { ctx, setValue } = makeCtx(ctxOverrides);
+    const control = { ...ctx.control, component } as unknown as FieldNode<FormValue>;
+    renderToStaticMarkup(
+      <FormFieldContext.Provider value={{ ...ctx, control }}>
+        <FormFieldControl />
+      </FormFieldContext.Provider>
+    );
+    return { props: box.props, setValue };
+  }
+  const box: { props: Record<string, unknown> } = { props: {} };
+  const capture = (props: Record<string, unknown>) => {
+    box.props = props;
+    return null;
+  };
+
+  it('авто-рендер переводит seam в диалект контрола', () => {
+    const Checkbox = Object.assign((p: Record<string, unknown>) => capture(p), {
+      reformerAdapter: checkedAdapter,
+    });
+    const { props, setValue } = renderAuto(Checkbox, { value: true });
+
+    expect(props.checked).toBe(true);
+    expect('value' in props).toBe(false);
+    expect('onChange' in props).toBe(false);
+    (props.onCheckedChange as (c: unknown) => void)('indeterminate');
+    expect(setValue).toHaveBeenCalledWith(false);
+  });
+
+  it('без адаптера — value-based seam; labelTooltip в контрол не уходит', () => {
+    const { props } = renderAuto((p: Record<string, unknown>) => capture(p), {
+      componentProps: { labelTooltip: 'hint', placeholder: 'p', testId: 'x' },
+    });
+
+    expect(props.value).toBe('hello');
+    expect(props.placeholder).toBe('p');
+    expect('labelTooltip' in props).toBe(false);
+    expect('testId' in props).toBe(false);
+  });
+
+  it('asChild: уже привязанный ребёнок не привязывается второй раз', () => {
+    const { ctx } = makeCtx();
+    const Spy = Object.assign((p: Record<string, unknown>) => capture(p), {
+      reformerAdapter: checkedAdapter,
+    });
+    const upstreamChange = vi.fn();
+    renderToStaticMarkup(
+      <FormFieldContext.Provider value={ctx}>
+        <FormFieldControl asChild>
+          <Spy checked={false} onCheckedChange={upstreamChange} onBlur={() => {}} />
+        </FormFieldControl>
+      </FormFieldContext.Provider>
+    );
+
+    // Нет value-based onChange/value поверх диалекта контрола, onCheckedChange не склеен.
+    expect('onChange' in box.props).toBe(false);
+    expect('value' in box.props).toBe(false);
+    expect(box.props.onCheckedChange).toBe(upstreamChange);
+    expect(box.props.id).toBe('control-x');
+  });
+
+  it('asChild: непривязанный ребёнок с адаптером получает привязки в своём диалекте', () => {
+    const { ctx, setValue } = makeCtx({ value: true });
+    const Spy = Object.assign((p: Record<string, unknown>) => capture(p), {
+      reformerAdapter: checkedAdapter,
+    });
+    renderToStaticMarkup(
+      <FormFieldContext.Provider value={ctx}>
+        <FormFieldControl asChild>
+          <Spy />
+        </FormFieldControl>
+      </FormFieldContext.Provider>
+    );
+
+    expect(box.props.checked).toBe(true);
+    (box.props.onCheckedChange as (c: unknown) => void)(false);
+    expect(setValue).toHaveBeenCalledWith(false);
+  });
+});

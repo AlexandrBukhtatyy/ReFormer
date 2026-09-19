@@ -1,6 +1,13 @@
-import { forwardRef } from 'react';
+import { Children, forwardRef, isValidElement } from 'react';
 import type React from 'react';
-import type { FormValue } from '@reformer/core';
+import {
+  bindFieldProps,
+  getFieldAdapter,
+  useFieldHandleRef,
+  type FieldHandle,
+  type FieldSeam,
+  type FormValue,
+} from '@reformer/core';
 import { Slot } from '../form-wizard/Slot';
 import { useFormFieldContext } from './FormFieldContext';
 import type { FormFieldControlProps } from './types';
@@ -12,8 +19,15 @@ import type { FormFieldControlProps } from './types';
  * props pre-wired: `value`, `onChange`, `onBlur`, `disabled`, `aria-*` attributes,
  * and all `componentProps` from the field config.
  *
+ * The control's own dialect (`checked`/`onCheckedChange`, `value`/`onValueChange`, DOM event,
+ * …) is taken from its `reformerAdapter` static (see `getFieldAdapter` in `@reformer/core`) —
+ * a component is bound as is, no per-control "field" wrapper is needed. The forwarded ref gets
+ * the control's own imperative handle, or a baseline `FieldHandle` built from its DOM node.
+ *
  * **Custom children mode** (`asChild` or `children`): merges accessible props
- * into the provided child element via Slot, letting you use any custom component.
+ * into the provided child element via Slot, letting you use any custom component. Field
+ * bindings are added only where the child does not already carry them — so a control that was
+ * bound upstream (renderer passes a ready control to the field wrapper) is not bound twice.
  *
  * @example Auto-render (renders control.component)
  * ```tsx
@@ -37,7 +51,7 @@ import type { FormFieldControlProps } from './types';
  * </FormField.Control>
  * ```
  */
-export const FormFieldControl = forwardRef<HTMLElement, FormFieldControlProps>(
+export const FormFieldControl = forwardRef<FieldHandle | HTMLElement, FormFieldControlProps>(
   ({ asChild = false, children, ...props }, ref) => {
     const {
       control,
@@ -51,6 +65,9 @@ export const FormFieldControl = forwardRef<HTMLElement, FormFieldControlProps>(
       hasHint,
       componentProps,
     } = useFormFieldContext();
+    // Хук — безусловно (правила хуков); ref контролу вешается только в авто-рендере и только
+    // когда потребитель его запросил.
+    const handleRef = useFieldHandleRef(ref);
 
     // Порядок id — как визуально: ряд подписи (hint) → описание → ошибка.
     const ariaDescribedBy =
@@ -71,21 +88,30 @@ export const FormFieldControl = forwardRef<HTMLElement, FormFieldControlProps>(
       'aria-required': required ? (true as const) : undefined,
     };
 
+    const seam: FieldSeam = {
+      value,
+      onChange: (v: unknown) => control.setValue(v as FormValue),
+      onBlur: () => control.markAsTouched(),
+    };
+
     if (children || asChild) {
-      // asChild/children: подключаем поле к Slot ровно так же, как в авто-рендере —
-      // value/disabled + value-based onChange/onBlur (контракт контрола в библиотеке
-      // value-based, ср. useFormField.controlProps:163-173). Без этого кастомный input
-      // получает корректный ARIA, но остаётся полностью отсоединённым от FieldNode:
-      // ввод не обновляет поле, disabled игнорируется, ошибки не всплывают.
-      const fieldBindings: Record<string, unknown> = {
-        value,
-        disabled,
-        onChange: (v: unknown) => control.setValue(v as FormValue),
-        onBlur: () => control.markAsTouched(),
-      };
+      // asChild/children: подключаем поле к Slot так же, как в авто-рендере — в диалекте
+      // дочернего контрола (его `reformerAdapter`, иначе value-based seam). Без этого кастомный
+      // input получает корректный ARIA, но остаётся отсоединённым от FieldNode.
+      //
+      // Привязки, которые у ребёнка УЖЕ есть, не добавляем: рендерер отдаёт обёртке поля готовый,
+      // привязанный контрол, и Slot склеил бы два onChange — второй получил бы сырой эмит
+      // контрола (DOM-событие) и записал бы его в поле поверх правильного значения.
+      const child = Children.count(children) === 1 ? Children.only(children) : null;
+      const childProps = isValidElement(child) ? (child.props as Record<string, unknown>) : {};
+      const adapter = isValidElement(child) ? getFieldAdapter(child.type) : undefined;
+      const fieldBindings: Record<string, unknown> = { disabled };
+      for (const [key, bound] of Object.entries(bindFieldProps(adapter, seam))) {
+        if (childProps[key] === undefined) fieldBindings[key] = bound;
+      }
       return (
         <Slot
-          ref={ref}
+          ref={ref as React.Ref<HTMLElement>}
           {...(accessibleProps as Record<string, unknown>)}
           {...(props as Record<string, unknown>)}
           {...fieldBindings}
@@ -104,18 +130,12 @@ export const FormFieldControl = forwardRef<HTMLElement, FormFieldControlProps>(
       unknown
     >;
     void _testId;
-    return (
-      <Component
-        ref={ref}
-        {...domComponentProps}
-        {...(accessibleProps as Record<string, unknown>)}
-        {...(props as Record<string, unknown>)}
-        value={value}
-        disabled={disabled}
-        onChange={(v: unknown) => control.setValue(v as FormValue)}
-        onBlur={() => control.markAsTouched()}
-      />
-    );
+    const bound = bindFieldProps(getFieldAdapter(Component), seam, {
+      ...domComponentProps,
+      ...(accessibleProps as Record<string, unknown>),
+      ...(props as Record<string, unknown>),
+    });
+    return <Component {...(ref ? { ref: handleRef } : {})} {...bound} disabled={disabled} />;
   }
 );
 
