@@ -10,6 +10,7 @@
  */
 
 export * from './document';
+export * from './model-scopes';
 export * from './mutate';
 export * from './node-id';
 export * from './node-kind';
