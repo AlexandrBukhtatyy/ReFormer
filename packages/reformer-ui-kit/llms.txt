@@ -10770,6 +10770,24 @@ function NavigationMenuViewport({
 
 _Source: src/components/navigation-menu/variants/base/navigation-menu-base.tsx_
 
+### NormalizedOption
+
+**Kind:** `interface`
+
+Нормализованная опция: `value` приведён к строке для Radix и `onChange`.
+
+**Signature:**
+```typescript
+export interface NormalizedOption {
+  id: string | number;
+  label: string;
+  value: string;
+  group?: string;
+}
+```
+
+_Source: ../reformer-cdk/src/components/option-source/option-source.ts_
+
 ### OUTSIDE_CENTER
 
 **Kind:** `const`
@@ -11349,6 +11367,108 @@ function ResizablePanelGroup({ className, ...props }: ResizablePrimitive.GroupPr
 ```
 
 _Source: src/components/resizable/variants/base/resizable-base.tsx_
+
+### ResourceConfig
+
+**Kind:** `interface`
+
+Конфигурация асинхронного источника опций списочного поля.
+
+**Signature:**
+```typescript
+export interface ResourceConfig<T> {
+  /** Стратегия загрузки. По умолчанию (если не задана) трактуется как `'static'`. */
+  type: ResourceStrategy;
+  /** Функция загрузки опций. Должна вернуть `{ items, totalCount }`. */
+  load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
+  /** Размер страницы для стратегии `partial`. По умолчанию 20. */
+  pageSize?: number;
+}
+```
+
+_Source: ../reformer-cdk/src/components/option-source/option-source.ts_
+
+### ResourceItem
+
+**Kind:** `interface`
+
+Один элемент, возвращаемый {@link ResourceConfig.load}.
+
+**Signature:**
+```typescript
+export interface ResourceItem<T> {
+  /** Уникальный ключ элемента (для React `key` и дедупликации страниц). */
+  id: string | number;
+  /** Видимая подпись опции. */
+  label: string;
+  /** Значение, которое попадает в `onChange` (всегда приводится к строке). */
+  value: T;
+  /** Опциональное имя группы — варианты с одинаковым `group` выводятся одной группой списка. */
+  group?: string;
+  /** Дополнительные поля бек-данных. */
+  [key: string]: unknown;
+}
+```
+
+_Source: ../reformer-cdk/src/components/option-source/option-source.ts_
+
+### ResourceLoadParams
+
+**Kind:** `interface`
+
+Параметры запроса к {@link ResourceConfig.load}.
+
+**Signature:**
+```typescript
+export interface ResourceLoadParams {
+  /** Поисковый запрос (серверная фильтрация в стратегии `partial`). */
+  search?: string;
+  /** Номер страницы (1-based) для пагинации. */
+  page?: number;
+  /** Размер страницы. */
+  pageSize?: number;
+  /** Дополнительные пользовательские параметры. */
+  [key: string]: unknown;
+}
+```
+
+_Source: ../reformer-cdk/src/components/option-source/option-source.ts_
+
+### ResourceResult
+
+**Kind:** `interface`
+
+Ответ {@link ResourceConfig.load}.
+
+**Signature:**
+```typescript
+export interface ResourceResult<T> {
+  /** Список вариантов текущей страницы. */
+  items: ResourceItem<T>[];
+  /** Общее число доступных вариантов (для пагинации). */
+  totalCount: number;
+}
+```
+
+_Source: ../reformer-cdk/src/components/option-source/option-source.ts_
+
+### ResourceStrategy
+
+**Kind:** `type`
+
+Стратегия загрузки опций:
+- `'static'` — один `load({})` при монтировании; без поиска и пагинации (снимок);
+- `'preload'` — один `load({})` (сервер возвращает всё), поиск фильтрует
+  загруженные опции на клиенте; пагинации нет;
+- `'partial'` — серверные поиск и пагинация: `load({ search, page })`,
+  догрузка следующих страниц при скролле до `totalCount`.
+
+**Signature:**
+```typescript
+export type ResourceStrategy = 'static' | 'preload' | 'partial';
+```
+
+_Source: ../reformer-cdk/src/components/option-source/option-source.ts_
 
 ### rowRange
 

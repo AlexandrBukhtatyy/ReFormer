@@ -690,8 +690,24 @@ function resolveModule(fromFile, spec) {
     if (!spec.startsWith('@reformer/')) return null; // react и прочие зависимости — вне зоны
     const root = reformerPackageDir(spec.split('/').slice(0, 2).join('/'));
     const sub = spec.split('/').slice(2).join('/');
+    // Подпуть ищется там, где пакеты монорепо его на самом деле держат: `src/<sub>.ts`
+    // (core, renderer-json), `src/<sub>/index.ts` и `src/components/<sub>/index.ts` (cdk:
+    // `@reformer/cdk/option-source` → `src/components/option-source/index.ts`), и только
+    // потом — собранная декларация `dist/<sub>.d.ts`, как у разбора AST в @reformer/mcp
+    // (symbols-parser). Без последних вариантов реэкспорт из cdk пропадал молча: ui-kit
+    // реэкспортирует типы источника опций (`ResourceConfig`, `NormalizedOption`, …) из
+    // `@reformer/cdk/option-source`, и в llms-index их не было, а сервер их видел — тест
+    // паритета mcp (index-artifacts) падал.
     const candidates = sub
-      ? [path.join(root, 'src', `${sub}.ts`), path.join(root, 'src', `${sub}.tsx`)]
+      ? [
+          path.join(root, 'src', `${sub}.ts`),
+          path.join(root, 'src', `${sub}.tsx`),
+          path.join(root, 'src', sub, 'index.ts'),
+          path.join(root, 'src', sub, 'index.tsx'),
+          path.join(root, 'src', 'components', sub, 'index.ts'),
+          path.join(root, 'src', 'components', sub, 'index.tsx'),
+          path.join(root, 'dist', `${sub}.d.ts`),
+        ]
       : [path.join(root, 'src', 'index.ts'), path.join(root, 'src', 'index.tsx')];
     for (const abs of candidates) {
       if (fs.existsSync(abs)) return abs;
