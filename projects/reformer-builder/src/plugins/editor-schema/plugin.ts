@@ -27,6 +27,7 @@
 import { createElement, type ReactElement } from 'react';
 import { Blocks, SlidersHorizontal } from 'lucide-react';
 import type { NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import {
   defineCapability,
   definePlugin,
@@ -83,6 +84,12 @@ import { schemaHostFromContext } from './host-from-context';
 // взять его, не втягивая плагин в стартовый граф.
 import { SCHEMA_EDITOR_PLUGIN_ID } from './contract';
 export { SCHEMA_EDITOR_PLUGIN_ID };
+
+/**
+ * Каталог до активации: одна замороженная ссылка. Схема подсказок запоминается по ссылке
+ * на каталог, и новый пустой массив на каждый вопрос строил бы её заново.
+ */
+const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
 /** Структурный редактор схемы. */
 export const SCHEMA_EDITOR_ID = 'editor-schema.canvas';
@@ -273,13 +280,20 @@ export interface SchemaEditorPluginOptions {
  */
 export function createSchemaEditorPlugin(options: SchemaEditorPluginOptions): Plugin {
   const { modelPoint, newId } = options;
-  const provider = createSchemaModelProvider({ newId });
   // Реестру сеансов провайдер больше не нужен: разбор и печать делает платформа, взяв
   // этот же вклад из точки `document.model`. Сеанс остался только видом на её ручку.
   //
   // Порт собирается при активации (ему нужен контекст), а реестр — здесь, поэтому ручку модели
   // реестр спрашивает у порта в момент вопроса. До активации открывать нечего.
   let bound: SchemaEditorHost | null = options.host ?? null;
+  // Каталог для подсказок — тем же приёмом: провайдер собран до активации, спрашивает в момент
+  // вопроса. Подписка до активации пустая, но и подписываться тогда некому — текстовый редактор
+  // открывает документ позже.
+  const provider = createSchemaModelProvider({
+    newId,
+    catalog: () => bound?.catalog() ?? NO_CATALOG,
+    onCatalogChange: (cb) => bound?.onCatalogChange(cb) ?? { dispose() {} },
+  });
   const registry = createSessionRegistry({
     host: { modelOf: (id) => bound?.modelOf(id) ?? null },
   });

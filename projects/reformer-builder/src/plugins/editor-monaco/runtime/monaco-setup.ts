@@ -17,9 +17,16 @@
  * @module plugins/editor-monaco/runtime/monaco-setup
  */
 
+import type { JsonSchemaRegistry } from '../hints/json-schemas';
 import type { MonacoApi } from './monaco-runtime';
 
-let pending: Promise<MonacoApi> | null = null;
+/** Что даёт загруженный чанк: сам Monaco и реестр схем его языковой службы JSON. */
+export interface MonacoRuntime {
+  readonly monaco: MonacoApi;
+  readonly jsonSchemas: JsonSchemaRegistry;
+}
+
+let pending: Promise<MonacoRuntime> | null = null;
 
 /**
  * Загружает и настраивает Monaco. Повторный вызов отдаёт тот же промис.
@@ -29,8 +36,16 @@ let pending: Promise<MonacoApi> | null = null;
  * до перезагрузки страницы.
  */
 export function ensureMonaco(): Promise<MonacoApi> {
+  return ensureMonacoRuntime().then((runtime) => runtime.monaco);
+}
+
+/**
+ * То же, что {@link ensureMonaco}, вместе с реестром схем: он живёт в том же чанке, потому что
+ * держит `jsonDefaults`, а статический импорт утащил бы Monaco в главный чанк.
+ */
+export function ensureMonacoRuntime(): Promise<MonacoRuntime> {
   pending ??= import('./monaco-runtime')
-    .then((runtime) => runtime.monaco)
+    .then((runtime) => ({ monaco: runtime.monaco, jsonSchemas: runtime.jsonSchemas }))
     .catch((error: unknown) => {
       pending = null;
       throw error;

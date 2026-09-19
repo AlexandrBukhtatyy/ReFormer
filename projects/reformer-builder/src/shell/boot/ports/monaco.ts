@@ -87,6 +87,22 @@ export function makeUseDiagnosticMessage(i18n: RootI18nService): () => Translate
 export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
   const { project, i18n, diagnostics, extensions } = deps;
 
+  /**
+   * Ручка модели документа и провайдер, который его разобрал.
+   *
+   * Один поиск на все вопросы о формате: где узлы, какая схема, что подсказать. Разойдись он
+   * в двух местах — подчёркивание и подсказка спрашивали бы разных провайдеров.
+   */
+  const modelOf = (id: ResourceId) => {
+    const handle = project.get()?.models.handleOf(id) ?? null;
+    if (handle === null) return null;
+    const providerId = handle.document.providerId;
+    const provider = extensions
+      .get(DocumentModelPoint)
+      .find((contribution) => contribution.value.id === providerId)?.value;
+    return provider === undefined ? null : { handle, provider };
+  };
+
   return {
     useTranslate: makeUseTranslate(i18n),
     useDiagnosticMessage: makeUseDiagnosticMessage(i18n),
@@ -114,13 +130,23 @@ export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
     // «не знаю». Расходящаяся модель не отдаётся вовсе: её пути описывают текст, который
     // человек уже переписал.
     locateNodes: (id) => {
-      const handle = project.get()?.models.handleOf(id) ?? null;
-      if (handle === null || handle.document.getSyncState() !== 'synced') return null;
-      const providerId = handle.document.providerId;
-      const provider = extensions
-        .get(DocumentModelPoint)
-        .find((contribution) => contribution.value.id === providerId)?.value;
-      return provider?.nodePaths?.(handle.document.getModel()) ?? null;
+      const found = modelOf(id);
+      if (found === null || found.handle.document.getSyncState() !== 'synced') return null;
+      return found.provider.nodePaths?.(found.handle.document.getModel()) ?? null;
+    },
+
+    // Подсказки — у того же провайдера. Расхождение модели здесь НЕ отказ, в отличие от путей
+    // узлов: подсказка нужна ровно пока человек печатает, а пути модели из последнего удачного
+    // разбора годятся и для недописанного текста.
+    jsonSchemaFor: (id) => modelOf(id)?.provider.jsonSchema?.() ?? null,
+
+    onDidChangeJsonSchema: (id, cb) =>
+      modelOf(id)?.provider.onDidChangeJsonSchema?.(cb) ?? { dispose() {} },
+
+    completeString: (id, site) => {
+      const found = modelOf(id);
+      if (found === null) return [];
+      return found.provider.completeString?.(found.handle.document.getModel(), site) ?? [];
     },
 
     // Уход фокуса из редактора — момент, когда откладывать перерисовку буфера по модели больше

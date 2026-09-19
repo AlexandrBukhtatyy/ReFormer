@@ -40,6 +40,7 @@ import {
   removeOp,
   renamePropOp,
   setComponentOp,
+  setModelReadOp,
   ungroupOp,
 } from '../model/ops';
 import type { EditOp, NodeId, SchemaEditorHost } from '../host';
@@ -105,6 +106,7 @@ export const QUICK_ADD_COMMAND_ID = 'editor-schema.quick-add';
  */
 export const SET_COMPONENT_COMMAND_ID = 'schema.set-component';
 export const RENAME_PROP_COMMAND_ID = 'schema.rename-prop';
+export const SET_MODEL_READ_COMMAND_ID = 'schema.set-model-read';
 export const REMOVE_RULE_COMMAND_ID = 'rules.remove';
 
 /**
@@ -352,6 +354,17 @@ function readRuleList(args: unknown): 'validation' | 'behavior' | 'render' | nul
 }
 
 /** Целое неотрицательное по ключу. Дробное и отрицательное — не индекс списка. */
+/** Путь внутри узла: непустой список ключей и индексов. */
+function pathAt(args: unknown, key: string): (string | number)[] | null {
+  if (typeof args !== 'object' || args === null) return null;
+  const value = (args as Record<string, unknown>)[key];
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const ok = value.every(
+    (segment) => typeof segment === 'string' || (typeof segment === 'number' && segment >= 0)
+  );
+  return ok ? (value as (string | number)[]) : null;
+}
+
 function indexAt(args: unknown, key: string): number | null {
   if (typeof args !== 'object' || args === null) return null;
   const value = (args as Record<string, unknown>)[key];
@@ -390,6 +403,25 @@ export function schemaFixCommands(host: SchemaEditorHost): readonly CommandContr
         const to = stringAt(args, 'to');
         if (target === null || from === undefined || to === undefined) return false;
         return applyToDocument(host, target.resource, renamePropOp(target.nodeId, from, to));
+      },
+    },
+    {
+      id: SET_MODEL_READ_COMMAND_ID,
+      titleKey: 'command.set-model-read',
+      enabled: (ctx) => ctx.activeEditorId !== null,
+      run: (args) => {
+        const target = readNodeFix(args);
+        const within = pathAt(args, 'within');
+        const from = stringAt(args, 'from');
+        const to = stringAt(args, 'to');
+        if (target === null || within === null || from === undefined || to === undefined) {
+          return false;
+        }
+        return applyToDocument(
+          host,
+          target.resource,
+          setModelReadOp(target.nodeId, within, from, to)
+        );
       },
     },
   ];

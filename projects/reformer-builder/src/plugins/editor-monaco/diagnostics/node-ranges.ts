@@ -424,3 +424,114 @@ export function memberRange(
   }
   return undefined;
 }
+
+/** Строковое значение под курсором. Структурная копия `TextStringSite` из SDK. */
+export interface StringSite {
+  /** Путь значения в дереве текста. */
+  readonly path: TextPath;
+  /** Содержимое без кавычек, как записано (экранирование не снято). */
+  readonly value: string;
+  /** Позиция курсора внутри {@link value}. */
+  readonly offset: number;
+  /** Где в тексте начинается {@link value} — сразу за открывающей кавычкой. */
+  readonly start: number;
+}
+
+/** Кадр прохода {@link stringSiteAt}: от кадра указателя остаётся только адресация. */
+interface SiteFrame {
+  readonly object: boolean;
+  readonly path: TextPath;
+  key: string | null;
+  index: number;
+}
+
+/**
+ * Строковое ЗНАЧЕНИЕ, внутри которого стоит курсор, вместе с его путём.
+ *
+ * Нужно подсказке: провайдер формата отвечает по пути и содержимому строки, а где она в тексте —
+ * знает только тот, кто смотрит на текст. Тот же проход, что у {@link indexTextNodes}, и по той же
+ * причине не `JSON.parse`: позиций он не отдаёт, а текст в момент подсказки обычно недописан.
+ *
+ * Незакрытая строка — штатный случай (кавычку ещё не набрали): значением считается остаток
+ * строки текста. Ключ объекта значением не считается — там подсказывает JSON Schema.
+ * `null` — курсор не внутри строкового значения.
+ */
+export function stringSiteAt(text: string, offset: number): StringSite | null {
+  const stack: SiteFrame[] = [];
+  const top = (): SiteFrame | undefined => stack[stack.length - 1];
+  const pathOf = (parent: SiteFrame | undefined): TextPath => {
+    if (parent === undefined) return [];
+    return parent.object ? [...parent.path, parent.key ?? ''] : [...parent.path, parent.index];
+  };
+  const done = (parent: SiteFrame | undefined): void => {
+    if (parent === undefined) return;
+    if (parent.object) parent.key = null;
+    else parent.index += 1;
+  };
+  let i = 0;
+
+  while (i < text.length && i < offset) {
+    const ch = text[i];
+
+    if (ch === '"') {
+      const frame = top();
+      const token = readString(text, i);
+      if (token === null) {
+        // Незакрытая строка: значение — до конца строки текста.
+        const lineEnd = text.indexOf('\n', i);
+        const end = lineEnd === -1 ? text.length : lineEnd;
+        if (offset > end || (frame?.object === true && frame.key === null)) return null;
+        return {
+          path: pathOf(frame),
+          value: text.slice(i + 1, end),
+          offset: offset - i - 1,
+          start: i + 1,
+        };
+      }
+      const after = skipWhitespace(text, token.end);
+      if (frame?.object === true && text[after] === ':') {
+        frame.key = token.value;
+        i = after + 1;
+        continue;
+      }
+      if (offset < token.end) {
+        return { path: pathOf(frame), value: token.value, offset: offset - i - 1, start: i + 1 };
+      }
+      done(frame);
+      i = token.end;
+      continue;
+    }
+
+    if (ch === '{' || ch === '[') {
+      stack.push({ object: ch === '{', path: pathOf(top()), key: null, index: 0 });
+      i += 1;
+      continue;
+    }
+
+    if (ch === '}' || ch === ']') {
+      stack.pop();
+      done(top());
+      i += 1;
+      continue;
+    }
+
+    if (ch === ',') {
+      const frame = top();
+      if (frame?.object === true) frame.key = null;
+      i += 1;
+      continue;
+    }
+
+    if (ch === ':' || /\s/.test(ch)) {
+      i += 1;
+      continue;
+    }
+
+    let end = i;
+    while (end < text.length && !/[\s,\]}]/.test(text[end])) end += 1;
+    done(top());
+    i = Math.max(end, i + 1);
+  }
+
+  return null;
+}

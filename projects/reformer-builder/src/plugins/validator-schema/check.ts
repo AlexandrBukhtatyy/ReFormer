@@ -63,6 +63,7 @@ import { CODES, COMMANDS, QUICKFIX, SCHEMA_VALIDATOR_ID, type DiagnosticCode } f
 import { nodeSiteAt, parseJson, splitLocation, targetAt } from './locate';
 import { nearestName } from './nearest';
 import { structureFindings } from './structure';
+import { unboundModelReads, type ModelPathFinding } from './checks/model-paths';
 import { translateMessage } from './translate';
 
 /** Что валидатору дали на проход. */
@@ -307,6 +308,25 @@ function fromSchemaValidator(
   });
 }
 
+/** Исправление чтения модели: подставить ближайший объявленный путь, если он есть. */
+function modelReadFix(finding: ModelPathFinding, resource: ResourceId): QuickFix[] {
+  const nodeId = nodeIdOf(finding.node);
+  if (finding.suggestion === undefined || nodeId === undefined) return [];
+  return [
+    {
+      titleKey: QUICKFIX.REPLACE_MODEL_PATH,
+      commandId: COMMANDS.SET_MODEL_READ,
+      args: {
+        resource,
+        nodeId,
+        within: finding.within,
+        from: finding.path,
+        to: finding.suggestion,
+      },
+    },
+  ];
+}
+
 /** `$component(X)`, которых нет в каталоге, — с ближайшим именем как быстрым исправлением. */
 function unknownComponents(
   schema: JsonFormSchema,
@@ -538,6 +558,17 @@ export function checkSchema(
         'warning',
         targetOf(finding.node, finding.within, finding.at),
         finding.params
+      )
+    ),
+    // Чтение пути, которого никто не объявил. Предупреждение: объявить его мог сайдкар
+    // `model.ts`, которого валидатор не видит (см. `checks/model-paths`).
+    ...unboundModelReads(schema).map((finding) =>
+      make(
+        finding.code,
+        'warning',
+        targetOf(finding.node, finding.within, 'value'),
+        finding.params,
+        modelReadFix(finding, input.resource)
       )
     ),
     ...orphanRules(schema, input, options.rules),

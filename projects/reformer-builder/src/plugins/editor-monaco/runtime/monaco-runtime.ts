@@ -59,6 +59,8 @@ import 'monaco-editor/languages/definitions/html/register';
 import 'monaco-editor/languages/definitions/xml/register';
 import 'monaco-editor/languages/definitions/yaml/register';
 
+import { createJsonSchemaRegistry, type JsonSchemaRegistry } from '../hints/json-schemas';
+
 import editorWorker from 'monaco-editor/editor/editor.worker?worker';
 import jsonWorker from 'monaco-editor/languages/features/json/json.worker?worker';
 
@@ -88,13 +90,22 @@ interface MonacoEnvironment {
  * в файле схемы формы иначе заставил бы редактор сходить в сеть, и запрет CDN обошёлся бы
  * через чёрный ход. Подсказки, форматирование, сворачивание и переход по символам при этом
  * работают: их даёт `modeConfiguration`, которого этот вызов не касается.
+ *
+ * Набор `schemas` собирает реестр (`hints/json-schemas`) — ЕДИНСТВЕННЫЙ, кто зовёт
+ * `setDiagnosticsOptions`: метод замещает набор целиком, и второй вызывающий затирал бы первого.
+ * Схемы в наборе служат подсказкам, а не проверке: `validate: false` действует и на них.
  */
-jsonDefaults.setDiagnosticsOptions({
+const JSON_OPTIONS = {
   validate: false,
   allowComments: false,
   enableSchemaRequest: false,
-  schemas: [],
+} as const;
+
+/** Какая схема подсказывает в каком документе. */
+export const jsonSchemas: JsonSchemaRegistry = createJsonSchemaRegistry((schemas) => {
+  jsonDefaults.setDiagnosticsOptions({ ...JSON_OPTIONS, schemas });
 });
+jsonDefaults.setDiagnosticsOptions({ ...JSON_OPTIONS, schemas: [] });
 
 // С этого момента `loader.init()` отдаёт НАШ экземпляр и в сеть не ходит.
 loader.config({ monaco });

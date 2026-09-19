@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { indexNodeRanges, indexTextNodes, memberRange, pathKey } from './node-ranges';
+import { indexNodeRanges, indexTextNodes, memberRange, pathKey, stringSiteAt } from './node-ranges';
 
 /** Кусок текста по диапазону: так утверждения читаются, а не считаются в уме. */
 function slice(text: string, range: { start: number; end: number }): string {
@@ -216,5 +216,57 @@ describe('memberRange: место свойства внутри узла', () =>
     const text = '{ "a": { "b": 1 ';
     expect(memberRange(text, { start: 0, end: text.length }, ['a'])).toBeUndefined();
     expect(memberRange(text, { start: 0, end: text.length }, ['a', 'b'])).toBeUndefined();
+  });
+});
+
+describe('stringSiteAt: строковое значение под курсором', () => {
+  /** Позиция маркера `|` в тексте; сам маркер вырезается. */
+  function at(marked: string): [string, number] {
+    const offset = marked.indexOf('|');
+    return [marked.slice(0, offset) + marked.slice(offset + 1), offset];
+  }
+
+  it('значение ключа: путь, содержимое и позиция внутри', () => {
+    const [text, offset] = at('{"root": {"value": "$model(fu|ll)"}}');
+    expect(stringSiteAt(text, offset)).toEqual({
+      path: ['root', 'value'],
+      value: '$model(full)',
+      offset: 9,
+      start: text.indexOf('$model'),
+    });
+  });
+
+  it('элемент массива: индекс считает и строки, и числа', () => {
+    const [text, offset] = at('{"children": [1, "a", "$mo|"]}');
+    expect(stringSiteAt(text, offset)?.path).toEqual(['children', 2]);
+  });
+
+  it('ключ объекта — не значение', () => {
+    const [text, offset] = at('{"val|ue": "x"}');
+    expect(stringSiteAt(text, offset)).toBeNull();
+  });
+
+  it('курсор вне строк — null', () => {
+    const [text, offset] = at('{"a": "x", |"b": 1}');
+    expect(stringSiteAt(text, offset)).toBeNull();
+  });
+
+  it('сразу за закрывающей кавычкой — уже не внутри', () => {
+    const [text, offset] = at('{"a": "x"|}');
+    expect(stringSiteAt(text, offset)).toBeNull();
+  });
+
+  it('незакрытая строка: значение до конца строки текста', () => {
+    const [text, offset] = at('{\n  "value": "$model(|\n}');
+    expect(stringSiteAt(text, offset)).toMatchObject({
+      path: ['value'],
+      value: '$model(',
+      offset: 7,
+    });
+  });
+
+  it('путь после вложенного объекта и экранированной кавычки', () => {
+    const [text, offset] = at('{"a": {"b": "q\\"x"}, "c": ["|"]}');
+    expect(stringSiteAt(text, offset)?.path).toEqual(['c', 0]);
   });
 });

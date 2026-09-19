@@ -24,7 +24,15 @@
  * @module plugins/editor-monaco/host
  */
 
-import type { Diagnostic, Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
+import type {
+  Diagnostic,
+  Disposable,
+  JsonSchemaHint,
+  ResourceId,
+  ResourceRef,
+  TextCompletion,
+  TextStringSite,
+} from '@reformer/builder-plugin-api';
 
 /** Перевод: ключ и параметры сообщения. Совпадает по форме с `I18nService.t`. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -107,6 +115,24 @@ export interface MonacoHost {
    * Необязателен: без него узлы без идентификатора остаются в нерешённых, как было.
    */
   locateNodes?(id: ResourceId): ReadonlyMap<string, readonly (string | number)[]> | null;
+
+  /**
+   * JSON Schema формата документа — для подсказок: ключи, допустимые значения, описания.
+   *
+   * Отвечает провайдер модели документа, как и на {@link locateNodes}: схема — знание о формате.
+   * `null` — у документа нет модели или провайдер схемы не даёт. Проверкой схема не служит:
+   * `validate: false` в языковой службе остаётся, находки идут общим сводом.
+   */
+  jsonSchemaFor?(id: ResourceId): JsonSchemaHint | null;
+
+  /** Схема документа устарела (сменился кит) — спросить {@link jsonSchemaFor} заново. */
+  onDidChangeJsonSchema?(id: ResourceId, cb: () => void): Disposable;
+
+  /**
+   * Подсказки в строковом значении под курсором — то, что зависит от содержимого документа
+   * (пути модели). Пустой список — подсказывать нечего.
+   */
+  completeString?(id: ResourceId, site: TextStringSite): readonly TextCompletion[];
 
   /**
    * Выполнить отложенную перерисовку буфера по модели. Зовётся на уходе фокуса.

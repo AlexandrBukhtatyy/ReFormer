@@ -173,3 +173,51 @@ describe('текстовое содержимое', () => {
     expect(inspectorModelOf(field, 'abcd1234', []).text).toBeNull();
   });
 });
+
+describe('варианты привязки', () => {
+  const schema = ensureNodeIds(
+    {
+      root: {
+        component: '$html(div)',
+        children: [
+          { value: '$model(fullName)', component: '$component(Input)' },
+          { value: '$model(email)', component: '$component(Input)' },
+          {
+            array: '$model(items)',
+            item: {
+              $template: {
+                component: '$component(Box)',
+                children: [
+                  { value: '$model(price)', component: '$component(Input)' },
+                  { value: '$model(qty)', component: '$component(Input)' },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    } as JsonFormSchema,
+    sequentialIds()
+  );
+  const idAt = (path: (string | number)[]): string => {
+    const entry = indexNodes(schema)
+      .entries()
+      .find((candidate) => JSON.stringify(candidate.path) === JSON.stringify(path));
+    if (entry === undefined) throw new Error(`нет узла ${JSON.stringify(path)}`);
+    return entry.id;
+  };
+
+  it('поле формы — пути формы без своего', () => {
+    const model = inspectorModelFor(schema, [], [idAt(['root', 'children', 0])]);
+    expect(model?.bindingOptions).toEqual(['email', 'items']);
+  });
+
+  it('поле внутри шаблона — пути элемента', () => {
+    const at = ['root', 'children', 2, 'item', '$template', 'children', 1];
+    expect(inspectorModelFor(schema, [], [idAt(at)])?.bindingOptions).toEqual(['price']);
+  });
+
+  it('контейнеру подсказывать нечего', () => {
+    expect(inspectorModelFor(schema, [], [idAt(['root'])])?.bindingOptions).toEqual([]);
+  });
+});

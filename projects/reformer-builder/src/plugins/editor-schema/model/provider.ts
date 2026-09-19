@@ -55,8 +55,10 @@ import {
   isFormSchema,
   type JsonPath,
 } from '@reformer/builder-stack-reformer/form-model';
-import type { EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
+import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { Disposable, EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
 import { applyEditOp } from './ops';
+import { completeModelPath, formJsonSchema } from './hints';
 import type { ApplyResult, EditOp, SchemaModelProviderSpec } from '../host';
 
 // Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
@@ -115,6 +117,13 @@ export function isFormSchemaResource(ref: ResourceRef, probe: EditorProbe): bool
 export interface SchemaModelProviderOptions {
   /** Генератор идентификаторов. В тестах — детерминированный. */
   readonly newId?: NodeIdFactory;
+  /**
+   * Каталог активного кита — для JSON Schema подсказок. Функция, а не список: провайдер
+   * собирается до активации плагина, а кит переключают. Без него схема подсказок не строится.
+   */
+  readonly catalog?: () => readonly CatalogEntry[];
+  /** Каталог сменился — схема подсказок устарела. */
+  readonly onCatalogChange?: (cb: () => void) => Disposable;
 }
 
 /**
@@ -141,6 +150,7 @@ export function createSchemaModelProvider(
   options: SchemaModelProviderOptions = {}
 ): SchemaModelProviderSpec {
   const newId = options.newId ?? newNodeId;
+  const { catalog, onCatalogChange } = options;
   return {
     id: SCHEMA_MODEL_PROVIDER_ID,
     applies: (ref, probe) => isFormSchemaResource(ref, probe),
@@ -150,5 +160,14 @@ export function createSchemaModelProvider(
       applyEditOp(model, op, { newId }),
     // Пути узлов — для текстового редактора: подчеркнуть находку на узле без `$nodeId` в тексте.
     nodePaths: nodePathsOf,
+    // Подсказки текстового редактора: схема кита и пути модели под курсором. Схема строится
+    // и при пустом каталоге — структура узлов и теги `$html` от кита не зависят.
+    ...(catalog === undefined
+      ? {}
+      : {
+          jsonSchema: () => formJsonSchema(catalog()),
+          ...(onCatalogChange === undefined ? {} : { onDidChangeJsonSchema: onCatalogChange }),
+        }),
+    completeString: completeModelPath,
   };
 }

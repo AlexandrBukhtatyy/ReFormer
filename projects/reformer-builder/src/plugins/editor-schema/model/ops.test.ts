@@ -29,6 +29,7 @@ import {
   moveOp,
   removeOp,
   renamePropOp,
+  setModelReadOp,
   SchemaOpError,
   setBindingOp,
   setComponentOp,
@@ -654,5 +655,37 @@ describe('rename-prop', () => {
     expect(() => applyEditOp(schema(), renamePropOp('zzzzzzzz', 'label', 'caption'))).toThrow(
       SchemaOpError
     );
+  });
+});
+
+describe('set-model-read', () => {
+  /** Шаг с подписью, читающей модель: `componentProps.title` и текстовая часть. */
+  function withReads(): { model: JsonFormSchema; step: string } {
+    const model = structuredClone(schema()) as unknown as Record<string, unknown>;
+    const step = getAt(model, STEP_0) as Record<string, unknown>;
+    step.componentProps = { ...(step.componentProps as object), title: '$model(loanAmout)' };
+    const typed = model as unknown as JsonFormSchema;
+    return { model: typed, step: idAt(typed, STEP_0) };
+  }
+
+  it('меняет путь на месте чтения, отмена возвращает прежний', () => {
+    const { model, step } = withReads();
+    const op = setModelReadOp(step, ['componentProps', 'title'], 'loanAmout', 'loanAmount');
+    const result = applyEditOp(model, op);
+    expect(getAt(result.model, [...STEP_0, 'componentProps', 'title'])).toBe('$model(loanAmount)');
+    expect(applyEditOp(result.model, result.inverse).model).toEqual(model);
+  });
+
+  it('отказ, если на месте уже не прежний путь: исправление устарело', () => {
+    const { model, step } = withReads();
+    const op = setModelReadOp(step, ['componentProps', 'title'], 'other', 'loanAmount');
+    expect(() => applyEditOp(model, op)).toThrow(SchemaOpError);
+  });
+
+  it('отказ вне позиций чтения: привязку правит set-binding', () => {
+    const model = schema();
+    const field = idAt(model, [...STEP_0, 'children', 1]);
+    const op = setModelReadOp(field, ['value'], 'loanAmount', 'x');
+    expect(() => applyEditOp(model, op)).toThrow(SchemaOpError);
   });
 });

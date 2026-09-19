@@ -47,7 +47,13 @@ import type { MonacoDocument, MonacoHost, Translate } from '../host';
 import { shouldStopPropagation } from '../sync/input';
 import { languageFor, modelPathFor } from '../runtime/language';
 import { hasNodeTargets, planMarkers, type MarkerDraft } from '../diagnostics/markers';
-import { ensureMonaco } from '../runtime/monaco-setup';
+import { ensureMonacoRuntime } from '../runtime/monaco-setup';
+import {
+  declaredSchema,
+  resolveDeclaredSchema,
+  type JsonSchemaRegistry,
+} from '../hints/json-schemas';
+import { stringCompletionsFor } from '../hints/completion';
 import { indexTextNodes, pathKey, type TextNodeIndex } from '../diagnostics/node-ranges';
 import { createSyncState, reduceSync, type SyncEvent, type SyncState } from '../sync/sync';
 import { monacoThemeFor, useDarkTheme } from '../runtime/theme';
@@ -144,6 +150,8 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
 
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  /** Реестр схем языковой службы JSON — приезжает вместе с чанком Monaco. */
+  const jsonSchemasRef = useRef<JsonSchemaRegistry | null>(null);
   const syncRef = useRef<SyncState>(createSyncState());
   /** Что показано сейчас: нужен, пока редактор ещё не смонтирован и спросить его нечего. */
   const shownRef = useRef(value);
@@ -192,8 +200,9 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
   // он пойдёт за редактором в сеть (см. `monaco-setup.ts`).
   useEffect(() => {
     let alive = true;
-    void ensureMonaco().then(
-      () => {
+    void ensureMonacoRuntime().then(
+      (runtime) => {
+        jsonSchemasRef.current = runtime.jsonSchemas;
         if (alive) setLoaded(true);
       },
       (error: unknown) => {
@@ -286,6 +295,52 @@ function Body({ host, focus, viewStates, documentId, document }: BodyProps): Rea
     },
     [dispatch, documentId, focus, host, viewStates]
   );
+
+  // Подсказки по формату документа: схема его провайдера модели — языковой службе JSON, строки
+  // под курсором — провайдеру же (`completeString`). У документа без провайдера ответов нет,
+  // и редактор ведёт себя как прежде.
+  useEffect(() => {
+    if (!mounted) return;
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    const model = editor?.getModel();
+    if (editor === null || monaco === null || model === undefined || model === null) return;
+    const modelUri = model.uri.toString();
+
+    const completion = stringCompletionsFor(monaco).bind(
+      modelUri,
+      (site) => host.completeString?.(documentId, site) ?? []
+    );
+
+    // Сопоставление схемы. Повтор с тем же ответом реестр не публикует, поэтому звать можно
+    // смело: на монтировании, на смену схемы (сменили кит) и на уход фокуса — `$schema`
+    // в тексте могли поправить, а разбирать документ на каждое нажатие ради этого незачем.
+    const associate = (): void => {
+      const hint = host.jsonSchemaFor?.(documentId) ?? null;
+      const registry = jsonSchemasRef.current;
+      if (hint === null || registry === null) return;
+      const declared = declaredSchema(editor.getValue());
+      registry.associate(
+        // Адрес без кодирования — в той форме, в которой служба сверяет `fileMatch`
+        // (`normalizeResourceForMatching`), иначе `%3A` в адресе источника не совпал бы с `:`.
+        model.uri.toString(true),
+        hint,
+        declared === null
+          ? null
+          : resolveDeclaredSchema(declared, modelUri, (uri) => monaco.Uri.parse(uri))
+      );
+    };
+    associate();
+    const subscriptions = [
+      host.onDidChangeJsonSchema?.(documentId, associate),
+      editor.onDidBlurEditorText(associate),
+    ];
+
+    return () => {
+      completion.dispose();
+      for (const subscription of subscriptions) subscription?.dispose();
+    };
+  }, [mounted, host, documentId]);
 
   // Разметка: свод диагностик ресурса целиком, при каждом его изменении и при каждой правке
   // текста — места узлов считаются по ТОМУ тексту, который сейчас в редакторе.

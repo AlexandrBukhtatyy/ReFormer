@@ -38,6 +38,7 @@
   "command.redo": "Redo",
   "command.remove-rule": "Remove rule",
   "command.rename-prop": "Rename property",
+  "command.set-model-read": "Replace model path",
   "command.set-component": "Replace component",
   "command.showCode": "Show the source",
   "command.showDesign": "Show the designer",

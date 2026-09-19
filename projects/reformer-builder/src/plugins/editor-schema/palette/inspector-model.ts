@@ -37,7 +37,13 @@ import {
   kindOf,
   type NodeKind,
 } from '@reformer/builder-stack-reformer/form-model';
-import { componentOf, modelOf } from '@reformer/builder-stack-reformer/form-model';
+import {
+  boundPathsIn,
+  collectModelScopes,
+  componentOf,
+  modelOf,
+  scopeOfPath,
+} from '@reformer/builder-stack-reformer/form-model';
 import { indexNodes } from '../model/node-index';
 import { nodeTitle } from '../canvas/canvas-tree';
 import type { NodeId } from '../host';
@@ -113,6 +119,13 @@ export interface InspectorModel {
   /** Привязывается ли узел к модели вообще (поле и массив — да, контейнер — нет). */
   readonly bindable: boolean;
   /**
+   * Пути, уже объявленные в той области модели, где лежит узел, — подсказка полю привязки.
+   *
+   * Внутри шаблона элемента массива это пути ЭЛЕМЕНТА: там пишется `price`, а не
+   * `items.price`. Своя привязка узла в список не входит — подсказывать её незачем.
+   */
+  readonly bindingOptions: readonly string[];
+  /**
    * Текстовое содержимое; `null` — узел его не принимает.
    *
    * Принимают те же узлы, что принимают вложенные компоненты: текст и узел лежат в `children`
@@ -157,14 +170,16 @@ export function inspectorModelFor(
   if (selection.length !== 1) return null;
   const entry = indexNodes(schema).find(selection[0]);
   if (!entry) return null;
-  return inspectorModelOf(entry.node, entry.id, catalog);
+  const bound = boundPathsIn(collectModelScopes(schema), scopeOfPath(entry.path));
+  return inspectorModelOf(entry.node, entry.id, catalog, bound);
 }
 
 /** Та же модель для уже найденного узла — отдельно, чтобы тест не собирал схему ради узла. */
 export function inspectorModelOf(
   node: JsonNode,
   nodeId: NodeId,
-  catalog: readonly CatalogEntry[]
+  catalog: readonly CatalogEntry[],
+  bound: readonly string[] = []
 ): InspectorModel {
   const component = componentOf(node) ?? null;
   const record = component === null ? undefined : catalog.find((e) => e.name === component);
@@ -188,6 +203,7 @@ export function inspectorModelOf(
     known: record !== undefined,
     binding: modelOf(node) ?? null,
     bindable: kind !== 'container',
+    bindingOptions: kind === 'container' ? [] : bound.filter((path) => path !== modelOf(node)),
     text: textOf(node),
     sections,
   };

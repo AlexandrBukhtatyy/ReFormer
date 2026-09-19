@@ -107,6 +107,7 @@ export const SCHEMA_OP_TYPES = [
   'set-text',
   'set-component',
   'rename-prop',
+  'set-model-read',
   'batch',
 ] as const;
 
@@ -272,6 +273,24 @@ export function renamePropOp(target: NodeId, from: string, to: string): EditOp {
 }
 
 /**
+ * Заменить путь в `$model(...)` там, где модель ЧИТАЕТСЯ: текстовая часть `children` или
+ * значение `componentProps` на любой глубине (`within` — путь от узла).
+ *
+ * `set-binding` сюда не годится: он правит `value`/`array`, позицию ОБЪЯВЛЕНИЯ. Чтение же —
+ * строка внутри текста или пропа, и адресуется она местом, а не ключом узла. Прежний путь
+ * (`from`) сверяется: исправление, выданное по старому тексту, не должно затереть то, что
+ * человек успел поправить сам. Обратная — та же замена назад, место не меняется.
+ */
+export function setModelReadOp(
+  target: NodeId,
+  within: readonly (string | number)[],
+  from: string,
+  to: string
+): EditOp {
+  return { type: 'set-model-read', target, params: { within: [...within], from, to } };
+}
+
+/**
  * Ключ схлопывания истории — `свойство@узел`, как в v1.
  *
  * Без него набор текста в поле инспектора забивает стек отмены посимвольно. Схлопываются
@@ -344,6 +363,8 @@ export function applyEditOp(
       return applySetComponent(model, op, index);
     case 'rename-prop':
       return applyRenameProp(model, op, index);
+    case 'set-model-read':
+      return applySetModelRead(model, op, index);
     case 'batch':
       return applyBatch(model, op, options);
     default:
@@ -791,6 +812,42 @@ function applyRenameProp(
     return out;
   });
   return { model: next, inverse: renamePropOp(id, to, from), focus: id };
+}
+
+/** Позиции чтения модели: только внутри них операция вправе менять строку. */
+const MODEL_READ_ROOTS: ReadonlySet<unknown> = new Set(['children', 'componentProps']);
+
+function applySetModelRead(
+  model: JsonFormSchema,
+  op: EditOp,
+  index: NodeIndex
+): ApplyResult<JsonFormSchema> {
+  const { path, id } = requireTarget(index, op);
+  const within = op.params?.within;
+  const from = op.params?.from;
+  const to = op.params?.to;
+  if (
+    !Array.isArray(within) ||
+    within.length < 2 ||
+    !within.every((segment) => typeof segment === 'string' || typeof segment === 'number') ||
+    !MODEL_READ_ROOTS.has(within[0])
+  ) {
+    throw new SchemaOpError('set-model-read: место чтения — внутри children или componentProps');
+  }
+  if (typeof from !== 'string' || typeof to !== 'string' || to === '') {
+    throw new SchemaOpError('set-model-read: не указан путь модели');
+  }
+  const at = [...path, ...(within as (string | number)[])];
+  const current = getAt(model, at);
+  if (current !== `$model(${from})`) {
+    throw new SchemaOpError(`set-model-read: на месте уже не «$model(${from})»`);
+  }
+  const next = updateAt(model, at, () => `$model(${to})`);
+  return {
+    model: next,
+    inverse: setModelReadOp(id, within as (string | number)[], to, from),
+    focus: id,
+  };
 }
 
 /**

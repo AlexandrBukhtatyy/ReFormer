@@ -82,13 +82,23 @@ export function InspectorPanel({ host, registry }: InspectorPanelProps): ReactEl
 
         {inspector.bindable && (
           <Field label={t('inspector.binding')} hint={t('inspector.binding.hint')}>
-            <Input
-              value={inspector.binding ?? ''}
-              className="h-7 font-mono text-[12px]"
-              onChange={(event) => {
-                session.apply(setBindingOp(inspector.nodeId, event.target.value));
-              }}
-            />
+            {/* Родной `datalist`, а не выпадающий выбор: привязка — СВОБОДНЫЙ текст, новый
+                путь объявляется ровно здесь, а список лишь предлагает уже объявленные. */}
+            <>
+              <Input
+                value={inspector.binding ?? ''}
+                list={`binding-options-${inspector.nodeId}`}
+                className="h-7 font-mono text-[12px]"
+                onChange={(event) => {
+                  session.apply(setBindingOp(inspector.nodeId, event.target.value));
+                }}
+              />
+              <datalist id={`binding-options-${inspector.nodeId}`}>
+                {inspector.bindingOptions.map((path) => (
+                  <option key={path} value={path} />
+                ))}
+              </datalist>
+            </>
           </Field>
         )}
 

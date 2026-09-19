@@ -480,3 +480,59 @@ describe('двойники $nodeId в исходном тексте', () => {
     expect(found.filter((d) => d.code === 'schema.duplicate-node-id')).toEqual([]);
   });
 });
+
+describe('$model читает необъявленный путь', () => {
+  const text = (...parts: string[]): JsonNode =>
+    ({ component: '$html(p)', children: parts }) as unknown as JsonNode;
+
+  it('опечатка в текстовой части — предупреждение на значении с ближайшим путём', () => {
+    const found = check(schemaOf(box([field('$component(Input)'), text('$model(loanAmout)')])));
+    const problem = found.find((item) => item.code === CODES.MODEL_PATH_UNBOUND);
+    expect(problem).toMatchObject({
+      severity: 'warning',
+      target: { kind: 'node', within: ['children', 0], at: 'value' },
+      params: { path: 'loanAmout', hint: 'yes', suggestion: 'loanAmount' },
+    });
+    expect(problem?.fixes).toEqual([
+      {
+        titleKey: QUICKFIX.REPLACE_MODEL_PATH,
+        commandId: COMMANDS.SET_MODEL_READ,
+        args: {
+          resource,
+          nodeId: problem?.target.kind === 'node' ? problem.target.nodeId : '',
+          within: ['children', 0],
+          from: 'loanAmout',
+          to: 'loanAmount',
+        },
+      },
+    ]);
+  });
+
+  it('объявленный путь и его продолжение — не находка', () => {
+    const found = check(
+      schemaOf(
+        box([field('$component(Input)'), text('$model(loanAmount)', '$model(loanAmount.x)')])
+      )
+    );
+    expect(codes(found)).not.toContain(CODES.MODEL_PATH_UNBOUND);
+  });
+
+  it('внутри шаблона массива виден путь элемента, а не формы', () => {
+    const array = {
+      array: '$model(items)',
+      initialValue: { price: 0 },
+      item: {
+        $template: box([
+          { value: '$model(price)', component: '$component(Input)' } as unknown as JsonNode,
+          text('$model(price)', '$model(loanAmount)'),
+        ]),
+      },
+    } as unknown as JsonNode;
+    const found = check(schemaOf(box([field('$component(Input)'), array])));
+    const unbound = found.filter((item) => item.code === CODES.MODEL_PATH_UNBOUND);
+    expect(unbound.map((item) => item.params?.path)).toEqual(['loanAmount']);
+    expect(unbound[0].params).toMatchObject({ hint: 'no' });
+    // Подставить нечего — и исправления нет.
+    expect(unbound[0].fixes).toBeUndefined();
+  });
+});

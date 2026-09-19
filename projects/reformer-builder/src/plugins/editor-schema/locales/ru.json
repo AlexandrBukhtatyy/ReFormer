@@ -38,6 +38,7 @@
   "command.redo": "Повторить",
   "command.remove-rule": "Убрать правило",
   "command.rename-prop": "Переименовать свойство",
+  "command.set-model-read": "Заменить путь модели",
   "command.set-component": "Заменить компонент",
   "command.showCode": "Показать исходник",
   "command.showDesign": "Показать конструктор",

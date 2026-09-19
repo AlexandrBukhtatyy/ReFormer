@@ -92,6 +92,12 @@ export const CODES = {
   UNKNOWN_DATA_SOURCE: 'schema.unknown-data-source',
   UNKNOWN_FN: 'schema.unknown-fn',
   UNKNOWN_LOCALE_KEY: 'schema.unknown-locale-key',
+  /**
+   * `$model(...)` в текстовой части или пропе читает путь, который ни одно поле и ни один
+   * массив в этой области не объявляет: сигнала не будет, в рантайме — пустота.
+   * `params.hint` выбирает ветку фразы, `params.suggestion` — ближайший объявленный путь.
+   */
+  MODEL_PATH_UNBOUND: 'schema.model-path-unbound',
   /** Массив без `initialValue`: «Добавить» создаст пустой элемент, и его поля не отрисуются. */
   ARRAY_INITIAL_VALUE_MISSING: 'schema.array-initial-value-missing',
   /** В `initialValue` нет части ключей элемента — у этих полей не будет сигнала. */
@@ -142,6 +148,8 @@ export const COMMANDS = {
   SET_COMPONENT: 'schema.set-component',
   /** `{ resource, nodeId, from, to }` — переименовать проп в `componentProps`. */
   RENAME_PROP: 'schema.rename-prop',
+  /** `{ resource, nodeId, within, from, to }` — заменить путь в `$model(...)` на месте чтения. */
+  SET_MODEL_READ: 'schema.set-model-read',
   /** `{ resource, list, index }` — убрать осиротевшее правило из сайдкара. */
   REMOVE_RULE: 'rules.remove',
 } as const;
@@ -150,5 +158,6 @@ export const COMMANDS = {
 export const QUICKFIX = {
   REPLACE_COMPONENT: 'quickfix.replace-component',
   RENAME_PROPERTY: 'quickfix.rename-property',
+  REPLACE_MODEL_PATH: 'quickfix.replace-model-path',
   REMOVE_ORPHAN_RULE: 'quickfix.remove-orphan-rule',
 } as const;
