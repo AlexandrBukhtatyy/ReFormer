@@ -21,6 +21,7 @@ import { symbolsByName } from '../index/merge.js';
 import { KNOWN_PACKAGES } from '../docs/packages.js';
 import type { Knowledge } from '../knowledge.js';
 import type { Diagnostic } from './codes.js';
+import { REMOVED_UI_KIT_SYMBOLS, replacementExportFor } from '../generate/ui-kit-components.js';
 
 /** Один разобранный импорт. */
 interface ParsedImport {
@@ -133,6 +134,19 @@ export async function validateCode(
     const basePackage = imp.from.split('/').slice(0, 2).join('/');
     for (const { imported } of imp.names) {
       const matches = await findSymbolAnywhere(k, imported);
+      // Удалённые `*Field`-обёртки ui-kit и `withFormControl` — не опечатка (RF002), а снятое
+      // API с известной заменой: называем её прямо, а не угадываем похожие имена.
+      const removed = matches.length === 0 ? removedUiKitReplacement(imported) : undefined;
+      if (removed) {
+        diagnostics.push({
+          code: 'RF010',
+          severity: 'error',
+          message: `\`${imported}\` удалён из @reformer/ui-kit: field-версий компонентов больше нет.`,
+          line: imp.line,
+          suggestion: `Замена: ${removed}.`,
+        });
+        continue;
+      }
       if (matches.length === 0) {
         const suggestions = await suggestNames(k, imported);
         diagnostics.push({
@@ -237,6 +251,36 @@ export async function validateCode(
     }
   }
 
+  // --- RF010: `Input` с `type: 'number'` / `FileUpload*` с `variant` -----------------
+  // Диспетчеры `InputField` и `FileUploadField` удалены: число рисует `InputNumber`, варианты
+  // загрузки — отдельные компоненты. Схема пропсов `Input` закрыта: `type: 'number'` не пройдёт
+  // проверку JSON-схемы, а в TS-разметке отдаст в модель строку вместо числа.
+  for (let i = 0; i < lines.length; i++) {
+    const text = lines[i];
+    if (/^\s*(\/\/|\*|\/\*)/.test(text)) continue;
+    const component = text.match(/component:\s*['"]?(?:\$component\()?([A-Za-z]+)/)?.[1];
+    if (component === 'Input' && /\btype:\s*['"]number['"]/.test(text)) {
+      diagnostics.push({
+        code: 'RF010',
+        severity: 'error',
+        message:
+          "Числовое поле через `Input` + `type: 'number'`: числового режима у `Input` больше нет.",
+        line: i + 1,
+        suggestion: 'Используйте `InputNumber` (registry-имя тоже `InputNumber`) без `type`.',
+      });
+    }
+    if (component?.startsWith('FileUpload') && /\bvariant:\s*['"]\w+['"]/.test(text)) {
+      diagnostics.push({
+        code: 'RF010',
+        severity: 'error',
+        message: 'Пропа `variant` у `FileUpload*` больше нет — вариант задаётся компонентом.',
+        line: i + 1,
+        suggestion:
+          "`variant: 'dropzone'` → `FileUploadDropzone`, `'input'` → `FileUploadInput`, кнопка — `FileUploadBase` (registry `FileUpload`).",
+      });
+    }
+  }
+
   const limitations = [
     'Разбор построчный, без TypeScript-AST: переименование при импорте (`X as Y`) отслеживается, ' +
       'но вложенные фабрики и динамические вызовы — нет.',
@@ -244,6 +288,13 @@ export async function validateCode(
       'со скобками в строках — поэтому это warning, а не error.',
   ];
   return { diagnostics, limitations };
+}
+
+/** Замена удалённого символа ui-kit (`*Field`, `withFormControl`); `undefined` — не удалён. */
+function removedUiKitReplacement(name: string): string | undefined {
+  const exp = replacementExportFor(name);
+  if (exp) return `\`${exp}\` — в \`component\` поля кладётся сам компонент`;
+  return REMOVED_UI_KIT_SYMBOLS[name];
 }
 
 /** Спецификаторы импорта символа в этом пакете. Пусто — индекса нет, проверку пропускаем. */

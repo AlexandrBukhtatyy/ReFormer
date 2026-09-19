@@ -70,7 +70,8 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe('спека → intent: читается то, что в спеке написано', () => {
   it('типы и компоненты взяты из колонки «Тип поля», а не угаданы по имени', () => {
-    expect(field('loanAmount')).toMatchObject({ type: 'number', component: 'Input' });
+    // `Input[number]` в спеке — запись времён диспетчера `InputField`; число рисует `InputNumber`.
+    expect(field('loanAmount')).toMatchObject({ type: 'number', component: 'InputNumber' });
     expect(field('hasCoBorrower')).toMatchObject({ type: 'boolean', component: 'Checkbox' });
     expect(field('comment')).toMatchObject({ type: 'string', component: 'Textarea' });
     // `carBrand` по имени угадался бы как строка и так, но `Input[number]` у `loanAmount`

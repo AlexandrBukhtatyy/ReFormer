@@ -16,6 +16,8 @@
  * пришлось бы заменить надеждой.
  */
 
+import { normalizeFieldComponent } from './ui-kit-components.js';
+
 /** Тип значения поля в модели. */
 export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
 
@@ -198,9 +200,30 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
       return false;
     });
 
+  // Компонент поля — к актуальному registry-имени ui-kit: удалённые `*Field`, `Input` для
+  // числа (`InputNumber`), `FileUpload` + `variant`. Исправление видно в warnings.
+  const withComponent = <T extends FieldIntent>(f: T, at: string): T => {
+    if (typeof f.component !== 'string') return f;
+    const fixed = normalizeFieldComponent(f.component, f.type, f.componentProps);
+    for (const note of fixed.notes) warnings.push(`${at}: ${note}`);
+    if (fixed.notes.length === 0 && fixed.component === f.component) return f;
+    const { componentProps: _drop, ...rest } = f;
+    void _drop;
+    return {
+      ...rest,
+      component: fixed.component,
+      ...(Object.keys(fixed.componentProps).length > 0
+        ? { componentProps: fixed.componentProps }
+        : {}),
+    } as T;
+  };
+
   const fields = named(partial.fields ?? [], 'поле').map((f) => {
     const name = usableName(f) as string;
-    return { ...f, name, modelPath: f.modelPath ?? name, selector: f.selector ?? name };
+    return withComponent(
+      { ...f, name, modelPath: f.modelPath ?? name, selector: f.selector ?? name },
+      `Поле \`${name}\``
+    );
   });
 
   const arrays = named(partial.arrays ?? [], 'массив').map((a) => {
@@ -218,12 +241,15 @@ export function normalizeIntent(partial: Partial<FormIntent>): FormIntent {
       itemInterfaceName: declared || `${toPascal(name.split('.').pop() ?? name) || 'Array'}Item`,
       itemFields: named(a.itemFields ?? [], `поле массива \`${name}\``).map((f) => {
         const fieldName = usableName(f) as string;
-        return {
-          ...f,
-          name: fieldName,
-          modelPath: f.modelPath ?? fieldName,
-          selector: f.selector ?? fieldName,
-        };
+        return withComponent(
+          {
+            ...f,
+            name: fieldName,
+            modelPath: f.modelPath ?? fieldName,
+            selector: f.selector ?? fieldName,
+          },
+          `Поле \`${name}[].${fieldName}\``
+        );
       }),
       // Массив без начального значения падает на первом добавлении строки.
       initialValue: Array.isArray(a.initialValue) ? a.initialValue : [],
@@ -417,7 +443,7 @@ const FIELD_TYPE_ALIASES: Record<string, FieldType> = {
 /** Компонент по умолчанию — по типу значения; подставляется, только если своего не назвали. */
 const DEFAULT_COMPONENT: Record<FieldType, string> = {
   string: 'Input',
-  number: 'Input',
+  number: 'InputNumber',
   boolean: 'Checkbox',
   date: 'DatePicker',
   array: 'FormArray',

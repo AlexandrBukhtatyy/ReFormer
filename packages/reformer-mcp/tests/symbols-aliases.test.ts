@@ -9,12 +9,13 @@
  *     этого же сервера (start-here, create-form, to-renderer) учат звать `useReactForm`.
  *     Плюс спецификатор был кросс-пакетным (`from '@reformer/core'`), а `resolveModule`
  *     отбрасывал любой не-относительный путь — символ терялся дважды.
- *  2. 15 field-обёрток ui-kit (`SelectField`, `CheckboxField`, `InputMaskField`, …) —
- *     то, что консумент реально пишет — были видны только под внутренними именами
- *     (`SelectAsyncField`, `CheckboxBaseField`, …), которые не пишет никто.
+ *  2. 15 field-обёрток ui-kit (`SelectField`, `CheckboxField`, …) были видны только под
+ *     внутренними именами (`SelectAsyncField`, `CheckboxBaseField`, …), которые не пишет никто.
  *
- * Замерено: таких реэкспортов в исходниках ровно 17 (cdk 1 + ui-kit 15 + renderer-react 1),
- * и поверхность выросла ровно на 17 — то есть добавились именно они, без дублей.
+ * Тогда таких реэкспортов было 17 (cdk 1 + ui-kit 15 + renderer-react 1). Field-обёртки ui-kit
+ * с тех пор удалены вовсе: в `component` поля кладётся сам компонент (`SelectAsync`,
+ * `CheckboxWithLabel`, …), и он экспортируется под своим именем. Проверка ui-kit ниже теперь
+ * страхует именно это — что компоненты полей, которые учат промпты и генератор, резолвятся.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -40,16 +41,19 @@ describe('symbols-parser — переименовывающие реэкспор
     AST_HEAVY_TIMEOUT_MS
   );
 
-  it.runIf(hasSymbols)('field-обёртки ui-kit видны под публичными именами', () => {
+  it.runIf(hasSymbols)('компоненты полей ui-kit видны под публичными именами', () => {
     const missing = [
-      'SelectField',
-      'CheckboxField',
-      'InputMaskField',
-      'DatePickerField',
-      'RadioGroupField',
-      'TextareaField',
+      'SelectAsync',
+      'CheckboxWithLabel',
+      'InputMask',
+      'DatePicker',
+      'RadioGroupOptions',
+      'Textarea',
+      'InputNumber',
+      'SwitchWithLabel',
+      'FileUploadDropzone',
     ].filter((n) => findSymbol(n, '@reformer/ui-kit') === null);
-    expect(missing, `публичные field-обёртки не резолвятся: ${missing.join(', ')}`).toEqual([]);
+    expect(missing, `компоненты полей ui-kit не резолвятся: ${missing.join(', ')}`).toEqual([]);
   });
 
   it.runIf(hasSymbols)('каждое имя, которое учат промпты, резолвится', () => {

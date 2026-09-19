@@ -254,15 +254,23 @@ export function parseTypeCell(cell: string): { type: FieldType; component: strin
 
   const byComponent: Record<string, FieldType> = {
     Input: 'string',
+    InputNumber: 'number',
+    InputSuggest: 'string',
     Textarea: 'string',
     InputMask: 'string',
     InputPassword: 'string',
     Select: 'string',
     Combobox: 'string',
     RadioGroup: 'string',
+    NativeSelect: 'string',
+    ToggleGroup: 'string',
+    InputOTP: 'string',
+    Slider: 'number',
     Checkbox: 'boolean',
     Switch: 'boolean',
+    Toggle: 'boolean',
     DatePicker: 'date',
+    Calendar: 'date',
     FormArray: 'array',
   };
   if (!(component in byComponent)) return null;
@@ -274,7 +282,13 @@ export function parseTypeCell(cell: string): { type: FieldType; component: strin
     date: 'date',
     text: 'string',
   };
-  return { type: (hint && byHint[hint]) || byComponent[component], component };
+  const type = (hint && byHint[hint]) || byComponent[component];
+  // `Input[number]` — запись спеки времён диспетчера `InputField`. Числа теперь рисует отдельный
+  // `InputNumber`: у `Input` пропа `type: 'number'` больше нет.
+  return {
+    type,
+    component: component === 'Input' && type === 'number' ? 'InputNumber' : component,
+  };
 }
 
 /**
@@ -391,7 +405,7 @@ function guessField(name: string, note: string): { type: FieldType; component: s
   const hay = `${name} ${note}`.toLowerCase();
   if (/дата|date|birth|рожден/.test(hay)) return { type: 'date', component: 'DatePicker' };
   if (/сумм|amount|цена|price|количеств|count|срок|term|доход|income|\bчисл/.test(hay)) {
-    return { type: 'number', component: 'Input' };
+    return { type: 'number', component: 'InputNumber' };
   }
   if (/да\/нет|чекбокс|checkbox|флаг|согласи|есть ли/.test(hay)) {
     return { type: 'boolean', component: 'Checkbox' };

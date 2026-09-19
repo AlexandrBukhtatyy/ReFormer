@@ -21,6 +21,7 @@ import type {
   ReformerTargetStack,
   ValidationRuleIntent,
 } from './form-intent.js';
+import { UI_KIT_CONTAINER_EXPORTS, UI_KIT_FIELD_EXPORTS } from './ui-kit-components.js';
 
 /** Один файл бандла. */
 export interface BundleFile {
@@ -556,21 +557,13 @@ export function buildRendererSchemaTs(intent: FormIntent): string {
 // registry.ts (только renderer-json)
 // ---------------------------------------------------------------------------
 
-/** Имя в схеме → импорт из ui-kit. Курируемая таблица: неизвестное имя даёт TODO + warning. */
-const COMPONENT_IMPORTS: Record<string, string> = {
-  Input: 'InputField',
-  Textarea: 'TextareaField',
-  Select: 'SelectField',
-  Checkbox: 'CheckboxField',
-  RadioGroup: 'RadioGroupField',
-  DatePicker: 'DatePickerField',
-  InputMask: 'InputMaskField',
-  InputPassword: 'InputPasswordField',
-  Switch: 'SwitchField',
-  Combobox: 'ComboboxField',
-  Box: 'Box',
-  Section: 'Section',
-  FormArray: 'FormArray',
+/**
+ * Имя в схеме → импорт из ui-kit. Таблица полей сверена с `x-exportName` каталога ui-kit
+ * (см. `ui-kit-components.ts`); неизвестное имя даёт TODO + warning.
+ */
+const COMPONENT_IMPORTS: Readonly<Record<string, string>> = {
+  ...UI_KIT_FIELD_EXPORTS,
+  ...UI_KIT_CONTAINER_EXPORTS,
 };
 
 /**

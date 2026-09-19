@@ -18,14 +18,14 @@ An array is declared in the schema as a dedicated node: `{ array: model.<path>, 
 
    ```typescript
    // ❌ silent corruption
-   () => ({ type: { value: 'x', component: SelectField } })
+   () => ({ type: { value: 'x', component: SelectAsync } })
    // ✅
    () => ({ type: 'x', description: '', estimatedValue: 0 })
    ```
 
 2. **Never `enableWhen({ resetOnDisable: true })` on a whole ArrayNode** — browser hang. Conditional array visibility = JSX conditional or `setHidden`.
 
-3. **renderer-react Checkbox in array item**: don't wrap in `CdkFormField.Label` — Checkbox draws its own label, double-rendered otherwise. Pass label via `componentProps.label`.
+3. **renderer-react checkbox in array item**: don't wrap in `CdkFormField.Label` — `CheckboxWithLabel` (registry `Checkbox`) draws its own label, double-rendered otherwise. Pass label via `componentProps.label`.
 
 4. **Schema array node = `{ array: model.<path>, item }`**: `properties: { array: model.properties, item: (im) => ({ … }) }`, NEVER a tuple `arrField: [itemSchema]` and NEVER `{ value: [], itemSchema: {…} }` (both are removed legacy shapes → silent corruption). The `item` callback receives the element sub-model (`FormModel<Item>`); bind leaves via its signals `im.$.<field>`. When the same node is also RENDERED (renderer-react / renderer-json), add `component: FormArray` (`$component(FormArray)` in JSON) — the renderer ships no array markup of its own, so without a component you get the items but no add/remove/reorder UI.
 
@@ -46,10 +46,10 @@ An array is declared in the schema as a dedicated node: `{ array: model.<path>, 
    { "selector": "step1.loanAmount", "component": "Input", "componentProps": { "testId": "step1.loanAmount" } }
 
    // ✅ correct — value carries the $model operator, component carries $component, testId is just for DOM
-   { "value": "$model(loanAmount)", "component": "$component(Input)", "componentProps": { "testId": "step1.loanAmount" } }
+   { "value": "$model(loanAmount)", "component": "$component(InputNumber)", "componentProps": { "testId": "step1.loanAmount" } }
 
    // ✅ also valid — selector for orchestration alongside the $model value
-   { "selector": "loan-amount-field", "value": "$model(loanAmount)", "component": "$component(Input)" }
+   { "selector": "loan-amount-field", "value": "$model(loanAmount)", "component": "$component(InputNumber)" }
    ```
 
 8. **All targets — `FormArraySection` from `@reformer/ui-kit/form-array` is the single component for both TS-flow and renderer-flow.** Polymorphic `control` (accepts `FormArrayProxy<T>` / `ArrayNode<T>` / `FieldPathNode`). **Single `itemComponent: ComponentType<{ control: FormProxy<T> }>` shape.** Do NOT use a node-factory `(itemPath) => RenderNode<T>` — that's the legacy `RendererFormArraySection` shape; use FC instead.
@@ -81,7 +81,7 @@ An array is declared in the schema as a dedicated node: `{ array: model.<path>, 
          "component": "$component(Section)",
          "children": [
            { "value": "$model(type)", "component": "$component(Select)" },
-           { "value": "$model(estimatedValue)", "component": "$component(Input)" },
+           { "value": "$model(estimatedValue)", "component": "$component(InputNumber)" },
          ],
        },
      },

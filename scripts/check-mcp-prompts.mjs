@@ -33,25 +33,26 @@ const REMOVED_API = [
 ];
 
 /**
- * Presentational-примитив в позиции поля формы.
+ * Не тот компонент в позиции поля формы.
  *
- * У ui-kit две линейки: `*Field` — value-based (`value` + `onChange(value)`), примитивы —
- * shadcn/Radix-контролы с нативным `onChange(event)`. В форме примитив пишет в модель объект
- * события, `Checkbox` игнорирует `value`, `RadioGroup` рендерится пустым. Ни tsc, ни
+ * Field-версий (`*Field`, `withFormControl`) в ui-kit больше нет: в `component:` кладётся сам
+ * компонент, а его диалект (`checked`/`onCheckedChange`, событие, …) обёртка поля берёт из статики
+ * `reformerAdapter`. Ошибкой остаются (а) удалённые `*Field`-имена и (б) корни compound-компонентов,
+ * которые без детей ничего не рисуют: `Select` (форме нужен `SelectAsync`), `RadioGroup` /
+ * `ToggleGroup` / `NativeSelect` (нужны варианты `*Options` / `NativeSelectWithOptions`),
+ * `Calendar` (нужен `CalendarSingle`), `InputOTP` (нужен `InputOTPDefault`). Ни tsc, ни
  * `validate_form` этого не видят — поле выглядит рабочим, расходится только модель.
  *
- * Миграция v7 разъезжалась ДВАЖДЫ: сначала корпус `docs/llms` отстал от кода, потом починили
- * только сторону renderer-json. Оба раза не заметили, потому что сигнала не было ни одного.
- * Отсюда гейт: `component:` в примере обязан называть field-версию.
- *
- * Имена — из `packages/reformer-ui-kit/component-catalog.json` (role: 'field'); отрицательный
- * контекст («не ставьте», «❌», «анти-паттерн») по общему правилу пропускается, поэтому
- * разделы, объясняющие саму разницу линеек, гейт не трогает.
+ * Отрицательный контекст («не ставьте», «❌», «анти-паттерн») по общему правилу пропускается.
  */
 const PRESENTATIONAL_AS_FIELD = [
   {
-    name: 'примитив ui-kit в `component:` вместо *Field-версии',
-    re: /component:\s*(Input|InputMask|InputPassword|InputOTP|Textarea|Select|NativeSelect|Checkbox|Switch|RadioGroup|Slider|Calendar|DatePicker|Combobox|Toggle|ToggleGroup)(?![A-Za-z])/,
+    name: 'удалённая *Field-версия ui-kit в `component:`',
+    re: /component:\s*(?!Form)[A-Z]\w*Field(?![A-Za-z])/,
+  },
+  {
+    name: 'корень compound-компонента в `component:` вместо варианта для формы',
+    re: /component:\s*(Select|RadioGroup|ToggleGroup|NativeSelect|Calendar|InputOTP)(?![A-Za-z])/,
   },
 ];
 

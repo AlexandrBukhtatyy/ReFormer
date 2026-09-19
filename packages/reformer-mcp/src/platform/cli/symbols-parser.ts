@@ -178,8 +178,8 @@ export function findAllSymbols(symbolName: string, pkg: string = '*'): PublicSym
  * Раньше здесь был `Set<string>` из ЛОКАЛЬНЫХ имён, и переименование терялось:
  * `export { useFormBundle as useReactForm }` регистрировался как `useFormBundle`, поэтому
  * `get_symbol_docs('useReactForm')` отвечал «not found», хотя три шаблона промптов этого
- * же сервера учат звать именно `useReactForm`. Так же были невидимы 15 field-обёрток
- * ui-kit (`SelectField`, `CheckboxField`, …) — то, что консумент реально пишет.
+ * же сервера учат звать именно `useReactForm`. Так же были невидимы 15 (ныне удалённых)
+ * field-обёрток ui-kit (`SelectField`, `CheckboxField`, …) — то, что консумент тогда писал.
  *
  * `null` — фильтра нет, имя берётся из самого объявления.
  */

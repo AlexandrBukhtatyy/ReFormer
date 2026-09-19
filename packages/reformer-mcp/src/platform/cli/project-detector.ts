@@ -184,9 +184,11 @@ export function renderStackDetectionBlock(stack: ProjectStack): string {
     lines.push('');
     lines.push('```typescript');
     lines.push('// Поля формы');
-    lines.push("import { Input, InputMask, InputPassword, Textarea } from '@reformer/ui-kit';");
     lines.push(
-      "import { Checkbox, RadioGroup, Select, SelectGroup, SelectItem } from '@reformer/ui-kit';"
+      "import { Input, InputNumber, InputMask, InputPassword, Textarea } from '@reformer/ui-kit';"
+    );
+    lines.push(
+      "import { CheckboxWithLabel, RadioGroupOptions, SelectAsync, DatePicker } from '@reformer/ui-kit';"
     );
     lines.push('// Layout-контейнеры (для RenderSchema или ручной разметки)');
     lines.push("import { Section, Box, Collapsible } from '@reformer/ui-kit';");
@@ -199,7 +201,7 @@ export function renderStackDetectionBlock(stack: ProjectStack): string {
     lines.push('```');
     lines.push('');
     lines.push(
-      'Все компоненты совместимы с `FieldNode` (`value`/`onChange`/`onBlur`) — подключай через `<FormField control={form.email} />` или регистрируй в `RenderSchema`.'
+      "В `component` поля кладётся САМ компонент (`InputNumber`, `CheckboxWithLabel`, …): свой диалект (`checked`/`onCheckedChange` и т.п.) он объявляет статикой, обёртка поля (`FormField` / лист RenderSchema) связывает его с моделью сама. Числовое поле — `InputNumber`, не `Input` с `type: 'number'`; `*Field`-версий (`InputField`, `CheckboxField`, …) больше нет."
     );
   } else {
     lines.push('> ⚠️ `@reformer/ui-kit` НЕ найден в зависимостях. **Уточни у оркестратора:**');
@@ -289,14 +291,12 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push("      componentProps: { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },");
     lines.push('      children: [');
     lines.push(
-      "        { value: model.$.step1.loanAmount, component: InputField, componentProps: { testId: 'step1.loanAmount' } },"
+      "        { value: model.$.step1.loanAmount, component: InputNumber, componentProps: { testId: 'step1.loanAmount' } },"
     );
-    lines.push('        { value: model.$.step1.loanTerm, component: InputField },');
+    lines.push('        { value: model.$.step1.loanTerm, component: InputNumber },');
     lines.push('      ],');
     lines.push('    },');
-    lines.push(
-      '    { value: model.$.step1.loanPurpose, component: TextareaField },  // full-width'
-    );
+    lines.push('    { value: model.$.step1.loanPurpose, component: Textarea },  // full-width');
     lines.push('  ],');
     lines.push('}');
     lines.push('```');
