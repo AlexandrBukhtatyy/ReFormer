@@ -204,6 +204,14 @@ export default defineConfig({
       testDir: './tests/pages/input-suggest',
       use: { ...devices['Desktop Chrome'] },
     },
+    // Подсказки-иконки (i): labelTooltip (FormField) и tooltip (в самом контроле).
+    // Контент Radix Tooltip живёт в Portal, а порядок «крестик → (i) → шеврон» — это координаты:
+    // ни того, ни другого юниты кита (renderToStaticMarkup) не видят.
+    {
+      name: 'field-tooltips',
+      testDir: './tests/pages/field-tooltips',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // Дерево: свободный Tree и комбобоксы с деревом (ComboboxTree / ComboboxTreeMulti).
     // Юниты кита идут через renderToStaticMarkup и всего этого не видят: список живёт в Portal,
     // ленивый уровень приезжает уже после первой отрисовки, а состояние раскрытия хранится
