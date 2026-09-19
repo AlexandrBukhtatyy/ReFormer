@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FormField as FieldRoot } from '@reformer/cdk/form-field';
-import { InputField } from '@reformer/ui-kit';
+import { InfoHint, InputField } from '@reformer/ui-kit';
 import { required, email } from '@reformer/core/validators';
 import { useDemoField } from '../harness';
 import type { ComponentDocConfig } from '../types';
@@ -57,11 +57,37 @@ function CustomLayout() {
   );
 }
 
+const HINT_TEXT = 'Нужен только для отправки чеков';
+
+/** Подсказка-тултип у подписи: видимый триггер — любой, текст для aria — в FormField.Hint. */
+function HintLayout() {
+  const { control } = useDemoField({
+    initial: '',
+    component: InputField,
+    componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
+    validators: [required({ message: 'Введите email' }), email()],
+  });
+  return (
+    <div style={{ maxWidth: 380, width: '100%' }}>
+      <FieldRoot.Root control={control as any} hasHint>
+        {/* Триггер — РЯДОМ с Label, не внутри: клик внутри <label htmlFor> активировал бы контрол. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <FieldRoot.Label className="text-sm font-medium" />
+          <InfoHint content={HINT_TEXT} aria-label="Подсказка: Email" />
+        </div>
+        <FieldRoot.Hint hidden>{HINT_TEXT}</FieldRoot.Hint>
+        <FieldRoot.Control />
+        <FieldRoot.Error className="text-destructive text-sm mt-1 block" />
+      </FieldRoot.Root>
+    </div>
+  );
+}
+
 export const cdkFormFieldDocConfig: ComponentDocConfig = {
   name: 'FormField (cdk)',
   importFrom: '@reformer/cdk/form-field',
   description:
-    'Headless-анатомия поля: Root/Label/Control/Error/Description с автопровязкой id и aria. UI вы строите сами.',
+    'Headless-анатомия поля: Root/Label/Control/Error/Description/Hint с автопровязкой id и aria. UI вы строите сами.',
   variants: [
     {
       id: 'auto',
@@ -93,6 +119,28 @@ export const cdkFormFieldDocConfig: ComponentDocConfig = {
     </div>
   </div>
 </FormField.Root>`,
+    },
+    {
+      id: 'hint',
+      title: 'Подсказка-тултип у подписи (FormField.Hint)',
+      description:
+        'Контент тултипа живёт в портале и отсутствует в DOM, пока тултип закрыт, — сослаться на него из aria-describedby нельзя. FormField.Hint держит тот же текст в скрытом элементе со стабильным id, а hasHint добавляет этот id в aria-describedby контрола: screen reader зачитывает подсказку при фокусе на поле.',
+      render: HintLayout,
+      code: `import { FormField } from '@reformer/cdk/form-field';
+import { InfoHint } from '@reformer/ui-kit';
+
+<FormField.Root control={form.email} hasHint>
+  {/* триггер — рядом с Label, не внутри <label> */}
+  <div className="flex items-center gap-1.5">
+    <FormField.Label />
+    <InfoHint content="Нужен только для отправки чеков" />
+  </div>
+  <FormField.Hint hidden>Нужен только для отправки чеков</FormField.Hint>
+  <FormField.Control />
+  <FormField.Error />
+</FormField.Root>
+
+// В ui-kit это уже собрано: componentProps.labelTooltip у готового FormField.`,
     },
   ],
   examples: [
@@ -134,6 +182,12 @@ export const cdkFormFieldDocConfig: ComponentDocConfig = {
       name: 'FormField.Description',
       type: '—',
       description: '<p> с id для aria-describedby (нужен hasDescription на Root).',
+    },
+    {
+      name: 'FormField.Hint',
+      type: 'asChild?',
+      description:
+        '<span> с id для aria-describedby (нужен hasHint на Root) — описание, которое не показывается под полем: обычно скрытый (hidden) текст тултипа у иконки (i). Порядок id: hint → description → error.',
     },
     {
       name: 'useFormFieldContext()',

@@ -137,7 +137,12 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
   return (
     <div className={styles.apiExplorer}>
       <ApiPreview codeFlavors={codeFlavors} footer={footer}>
-        <FormField control={control} />
+        {/* description и labelTooltip FormField читает один раз при монтировании (peek) — чтобы их
+            ручки были живыми, перемонтируем обёртку при смене именно этих значений. */}
+        <FormField
+          key={`${String(values.description ?? '')}|${String(values.labelTooltip ?? '')}`}
+          control={control}
+        />
       </ApiPreview>
 
       {/* Grouped prop controls */}

@@ -1,0 +1,20 @@
+---
+id: info-hint
+title: InfoHint
+sidebar_label: InfoHint
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { infoHintDocConfig } from '@site/src/components/demo/examples/info-hint';
+
+# InfoHint
+
+Иконка-подсказка (i) с тултипом поверх shadcn / Radix `Tooltip`. Открывается по наведению, фокусу с
+клавиатуры и клику/тапу (штатный Radix Tooltip на тач-устройствах по тапу не открывается),
+закрывается по `Escape` и клику вне. Приносит свой `TooltipProvider`, поэтому работает в любом
+месте без обёрток. Кнопка никогда не `disabled` — подсказка читается и у выключенного поля.
+
+В полях формы `InfoHint` вручную не нужен: иконку после подписи даёт `componentProps.labelTooltip`
+(рисует [`FormField`](./form-field)), иконку в самом контроле — `componentProps.tooltip`.
+
+<ComponentDoc config={infoHintDocConfig} />

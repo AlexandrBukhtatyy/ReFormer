@@ -17,4 +17,9 @@ import { uiKitFormFieldDocConfig } from '@site/src/components/demo/examples/form
 валидации — уже после hint. Нужна нестандартная раскладка — спускайтесь на
 уровень cdk-слотов.
 
+Кроме текста под полем есть подсказки-иконки (i) с тултипом — два независимых пропа
+`componentProps`: `labelTooltip` ставит иконку после подписи (её рисует сам `FormField`), `tooltip` —
+в самом контроле (её рисует поле: у `Input`/`Select` внутри справа, у `Checkbox`/`Radio` после
+текста). Строительный блок обеих — [`InfoHint`](./info-hint).
+
 <ComponentDoc config={uiKitFormFieldDocConfig} />

@@ -116,6 +116,25 @@ function PlainUsage() {
   );
 }
 
+/** Подсказки-иконки: labelTooltip — после подписи (FormField), tooltip — в самом контроле. */
+function TooltipUsage() {
+  const { control } = useDemoField({
+    initial: '',
+    component: InputField,
+    componentProps: {
+      label: 'ИНН',
+      placeholder: '7700000000',
+      labelTooltip: 'Нужен для выставления счёта',
+      tooltip: '10 цифр для юрлица, 12 — для ИП',
+    },
+  });
+  return (
+    <div style={{ maxWidth: 380, width: '100%' }}>
+      <FormField control={control as any} />
+    </div>
+  );
+}
+
 export const uiKitFormFieldDocConfig: ComponentDocConfig = {
   name: 'FormField',
   importFrom: '@reformer/ui-kit',
@@ -157,6 +176,24 @@ email: {
 
 <FormField control={form.email} />`,
     },
+    {
+      id: 'tooltips',
+      title: 'Подсказки-иконки (i)',
+      description:
+        'Два независимых пропа componentProps: labelTooltip — иконка после подписи (рисует FormField, снаружи <label>), tooltip — иконка в самом контроле. Тултип открывается по наведению, фокусу и клику/тапу; текст попадает в aria-describedby поля.',
+      render: TooltipUsage,
+      code: `inn: {
+  value: model.$.inn,
+  component: InputField,
+  componentProps: {
+    label: 'ИНН',
+    labelTooltip: 'Нужен для выставления счёта',     // (i) после подписи
+    tooltip: '10 цифр для юрлица, 12 — для ИП',       // (i) внутри инпута
+  },
+}
+
+<FormField control={form.inn} />`,
+    },
   ],
   props: [
     {
@@ -175,6 +212,18 @@ email: {
       type: 'string · componentProps',
       description:
         'Зона hint — светлая подсказка под полем (text-muted-foreground). Рендерится перед ошибкой.',
+    },
+    {
+      name: 'labelTooltip',
+      type: 'string · componentProps',
+      description:
+        'Иконка (i) с тултипом после подписи, снаружи <label>. У inline-контролов (Checkbox/Switch) — справа от контрола. Текст попадает в aria-describedby контрола. Читается один раз при монтировании, как description.',
+    },
+    {
+      name: 'tooltip',
+      type: 'string · componentProps',
+      description:
+        'Иконка (i) в самом контроле — её рисует не FormField, а поле: у Input/Select внутри справа (крестик → (i) → шеврон/глаз), у Checkbox/Switch/Radio после текста. Независим от labelTooltip.',
     },
     {
       name: 'validation',

@@ -192,6 +192,7 @@ const sidebars: SidebarsConfig = {
         'ui-kit/popover',
         'ui-kit/hover-card',
         'ui-kit/tooltip',
+        'ui-kit/info-hint',
         'ui-kit/dropdown-menu',
         'ui-kit/context-menu',
         'ui-kit/drawer',
