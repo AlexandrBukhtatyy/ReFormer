@@ -14,10 +14,12 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
         'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
         'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
         // Осознанное отклонение от upstream: shadcn для дат предлагает DatePicker и native
-        // `type="date"` не стилизует. У нас он используется в боевых формах, а Chrome рисует
-        // `::-webkit-calendar-picker-indicator` вплотную к дате (margin-left: 0) — прижимаем к
-        // правому краю поля. На остальных типах input этого псевдоэлемента нет, класс безвреден.
-        '[&::-webkit-calendar-picker-indicator]:ml-auto',
+        // `type="date"` не стилизует. У нас он используется в боевых формах, а при `display: flex`
+        // (класс `flex` выше) Chrome сжимает внутренний контейнер даты по содержимому, и иконка
+        // `::-webkit-calendar-picker-indicator` встаёт вплотную к дате, посреди поля. С `display: block`
+        // контейнер растягивается на всю ширину, иконка прижимается к правому краю (`ml-auto` на
+        // самой иконке не помогает — у неё нет свободного места в родителе).
+        '[&:is([type=date],[type=datetime-local],[type=month],[type=week],[type=time])]:block',
         className
       )}
       {...props}
