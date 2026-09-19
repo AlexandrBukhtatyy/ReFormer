@@ -7,7 +7,12 @@
 import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { effect, Signal } from '@reformer/core/signals';
 import type { FieldNode, FormProxy } from '@reformer/core';
-import { getNodeForSignal } from '@reformer/core';
+import {
+  bindFieldProps,
+  getFieldAdapter,
+  getNodeForSignal,
+  useFieldHandleRef,
+} from '@reformer/core';
 import type {
   RenderNode,
   FieldWrapperProps,
@@ -33,7 +38,6 @@ import {
   RenderSchemaOverrideContext,
 } from './render-schema-proxy';
 import { useCondition, useNodeLifecycle, useRefAttachmentWarning } from './render-behavior';
-import { buildAdaptedFieldProps } from './field-adapter';
 
 /**
  * Props для RenderNodeComponent
@@ -156,6 +160,9 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   // поэтому React.memo на пользовательском Component держится.
   const onChange = useCallback((v: unknown) => fieldNode.setValue(v as never), [fieldNode]);
   const onBlur = useCallback(() => fieldNode.markAsTouched(), [fieldNode]);
+  // Императивный handle поля для `schema.node(sel).getRef()`: собственный handle контрола либо
+  // базовый FieldHandle из его DOM-узла. Хук — до early-return.
+  const handleRef = useFieldHandleRef(nodeRef as React.Ref<unknown> | undefined);
   const Component = node.component;
   if (!Component) {
     if (typeof console !== 'undefined') {
@@ -184,60 +191,36 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
         ? path.replace(/\./g, '-')
         : undefined;
 
-  // Адаптер по компоненту поля: сырой контрол UI-kit получает seam в своём диалекте
-  // (`checked`+событие, `value`+`(value, option)` и т.д.). Нет адаптера → value-based seam как есть.
-  const adapter = resolveFieldAdapter?.(Component);
+  // Адаптер по компоненту поля: контрол получает seam в своём диалекте (`checked`+событие,
+  // `value`+`(value, option)` и т.д.). Явный резолв из настроек (чужие компоненты) приоритетнее
+  // статики `reformerAdapter`; нет ни того, ни другого → value-based seam как есть.
+  const adapter = resolveFieldAdapter?.(Component) ?? getFieldAdapter(Component);
 
   // §3.1 (BREAKING): нода формы (`control`) передаётся контролу ТОЛЬКО по явному запросу — статикой
   // `Component.reformerNeedsControl === true` либо `adapter.passControl`. По умолчанию НЕ передаётся:
-  // leaf-контролы UI-kit её не потребляют (иначе `control` тёк бы в DOM, и адаптеры заводились лишь
-  // чтобы её вырезать), а errors/touched/label обслуживает FieldWrapper — он получает `control`
-  // отдельно (ниже). Реактивные рантайм-пропы теперь мёржит сам рендерер (см. useFieldRenderState),
-  // поэтому ради них `control` контролу больше не нужен.
+  // leaf-контролы UI-kit её не потребляют, а errors/touched/label обслуживает FieldWrapper — он
+  // получает `control` отдельно (ниже). Реактивные рантайм-пропы мёржит сам рендерер
+  // (см. useFieldRenderState), поэтому ради них `control` контролу не нужен.
   const needsControl =
     adapter?.passControl === true ||
     (Component as { reformerNeedsControl?: boolean }).reformerNeedsControl === true;
-  const controlProp = needsControl ? { control: fieldNode } : {};
 
-  let input: ReactNode;
-  if (adapter) {
-    const adaptedProps = buildAdaptedFieldProps(
-      adapter,
-      value,
-      onChange,
-      onBlur,
-      inputComponentProps as Record<string, unknown>
-    );
-    if (testId && adaptedProps['data-testid'] === undefined) {
-      adaptedProps['data-testid'] = `input-${testId}`;
-    }
-    input = (
-      <Component
-        disabled={disabled}
-        {...adaptedProps}
-        {...controlProp}
-        {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
-      />
-    );
-  } else {
-    const inputProps: Record<string, unknown> = {
-      value,
-      disabled,
-      ...inputComponentProps,
-    };
-    if (testId && inputProps['data-testid'] === undefined) {
-      inputProps['data-testid'] = `input-${testId}`;
-    }
-    input = (
-      <Component
-        {...controlProp}
-        {...inputProps}
-        {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
-        onChange={onChange}
-        onBlur={onBlur}
-      />
-    );
+  const inputProps = bindFieldProps(
+    adapter,
+    { value, onChange, onBlur },
+    inputComponentProps as Record<string, unknown>
+  );
+  if (testId && inputProps['data-testid'] === undefined) {
+    inputProps['data-testid'] = `input-${testId}`;
   }
+  const input = (
+    <Component
+      {...inputProps}
+      disabled={disabled}
+      {...(needsControl ? { control: fieldNode } : {})}
+      {...(nodeRef !== undefined ? { ref: handleRef } : {})}
+    />
+  );
 
   const EffectiveWrapper = perFieldWrapper ?? FieldWrapper;
   return EffectiveWrapper ? (

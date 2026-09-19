@@ -26,8 +26,8 @@ import type { FormSchemaNode, SchemaArrayControl } from '@reformer/core';
  * const renderSchema: RenderSchemaFn<MyForm> = () => ({
  *   component: Box,
  *   children: [
- *     { value: model.$.email, component: InputField },
- *     { value: model.$.password, component: InputPasswordField },
+ *     { value: model.$.email, component: Input },
+ *     { value: model.$.password, component: InputPassword },
  *   ],
  * });
  * ```
@@ -85,7 +85,7 @@ export type RenderChild<T> = RenderNode<T> | RenderTextPart;
  *
  * @example
  * ```typescript
- * { value: model.$.loanType, component: SelectField, componentProps: { label: 'Тип', options } }
+ * { value: model.$.loanType, component: SelectAsync, componentProps: { label: 'Тип', options } }
  * ```
  */
 export interface ModelFieldRenderNode extends FormSchemaNode {
@@ -167,7 +167,7 @@ export interface ArrayComponentProps {
  * @example
  * ```typescript
  * { array: model.coBorrowers, initialValue: createBlankCoBorrower,
- *   item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: InputField }] }) }
+ *   item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
  * ```
  */
 export interface ArrayRenderNode<T> extends FormSchemaNode {
@@ -246,8 +246,8 @@ export interface ContainerRenderNodeProps {
  *     className: 'grid grid-cols-2 gap-4',
  *   },
  *   children: [
- *     { value: model.$.firstName, component: InputField },
- *     { value: model.$.lastName, component: InputField },
+ *     { value: model.$.firstName, component: Input },
+ *     { value: model.$.lastName, component: Input },
  *   ],
  * }
  * ```
@@ -316,41 +316,13 @@ export interface FieldWrapperProps {
 }
 
 /**
- * Адаптер поля: как свести value-based seam рендерера (`value` + `onChange(value)`) к контракту
- * конкретного контрола библиотеки. Резолвится через {@link RendererSettings.resolveFieldAdapter}
- * по компоненту поля (`node.component`). Позволяет регистрировать СЫРЫЕ контролы любого UI-kit —
- * рендерер сам переложит seam на их диалект (`checked` + `onChange(event)`, `value` + `(value, option)`
- * и т.д.). Нет адаптера → контрол получает seam как есть (текущее поведение, обратная совместимость).
- *
- * @example Checkbox (значение в `checked`, эмитит DOM-событие)
- * ```ts
- * { valueProp: 'checked', fromEmit: (e) => (e as any).target.checked, toValue: (v) => v ?? false }
- * ```
+ * Адаптер поля — общий тип ядра (`@reformer/core`). Реэкспортируется здесь для обратной
+ * совместимости импорта из рендерера. Контрол объявляет свой адаптер статикой
+ * `reformerAdapter`; {@link RendererSettings.resolveFieldAdapter} нужен только для чужих
+ * компонентов, на которые статику не повесить.
  */
-export interface FieldAdapter {
-  /** Проп, из которого контрол читает значение (default `'value'`). */
-  valueProp?: string;
-  /** Колбэк, через который контрол эмитит изменение (default `'onChange'`). */
-  changeProp?: string;
-  /**
-   * emit контрола → значение поля (default — как есть). `rest` — прочие props контрола
-   * (например, чтобы достать `options` при резолве значения).
-   */
-  fromEmit?: (arg: unknown, rest: Record<string, unknown>) => unknown;
-  /** значение поля → `valueProp` контрола (coerce `null`/`undefined`; default — как есть). */
-  toValue?: (value: unknown) => unknown;
-  /** Проброс blur нестандартным каналом (default — прокидывается `onBlur`). */
-  bindBlur?: (onBlur: () => void) => Record<string, unknown>;
-  /** Ключи, которые убрать из `componentProps` перед спредом в контрол. */
-  strip?: string[];
-  /**
-   * Передавать ли контролу ноду формы пропом `control` (§3.1). По умолчанию `false`: `control`
-   * контролу не нужен (реактивные пропы мёржит рендерер, errors/touched — FieldWrapper). Ставь
-   * `true`, если контрол сам потребляет ноду (напр. вызывает `useFormControl(control)`). Альтернатива
-   * без адаптера — статик на компоненте: `MyControl.reformerNeedsControl = true`.
-   */
-  passControl?: boolean;
-}
+export type { FieldAdapter } from '@reformer/core';
+import type { FieldAdapter } from '@reformer/core';
 
 /**
  * Настройки рендерера формы
@@ -364,10 +336,10 @@ export interface RendererSettings {
    */
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
   /**
-   * Резолв {@link FieldAdapter} по компоненту поля (`node.component`). Возвращает адаптер для
-   * контролов с нестандартным диалектом (Checkbox/Select/Radio) либо `undefined` — тогда seam
-   * применяется как есть. Позволяет подключать сырые компоненты любого UI-kit, не оборачивая
-   * каждый контрол. Ядро при этом остаётся UI-агностичным (адаптер — данные приложения).
+   * Резолв {@link FieldAdapter} по компоненту поля (`node.component`) — для компонентов, которые
+   * НЕ объявляют свой диалект статикой `reformerAdapter` (компоненты сторонних библиотек).
+   * Приоритет: этот резолв → статика компонента → value-based seam как есть. Позволяет подключать
+   * сырые компоненты любого UI-kit, не оборачивая каждый контрол.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   resolveFieldAdapter?: (component: React.ComponentType<any>) => FieldAdapter | undefined;

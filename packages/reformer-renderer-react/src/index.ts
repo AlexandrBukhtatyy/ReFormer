@@ -17,8 +17,8 @@
  *       component: Section,
  *       componentProps: { title: 'Личные данные' },
  *       children: [
- *         { value: model.$.firstName, component: InputField },
- *         { value: model.$.lastName, component: InputField },
+ *         { value: model.$.firstName, component: Input },
+ *         { value: model.$.lastName, component: Input },
  *       ],
  *     },
  *   ],
