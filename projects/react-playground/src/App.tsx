@@ -19,6 +19,7 @@ import AlertsListRendererJson from './pages/demo/alerts-list-renderer-json/Alert
 import FileUploadDemo from './pages/demo/file-upload/FileUploadDemo';
 import MultiSelectDemo from './pages/demo/multi-select/MultiSelectDemo';
 import InputSuggestDemo from './pages/demo/input-suggest/InputSuggestDemo';
+import FieldTooltipsDemo from './pages/demo/field-tooltips/FieldTooltipsDemo';
 import TreeDemo from './pages/demo/tree/TreeDemo';
 import FormRegistryLab from './pages/debug/form-registry-lab/FormRegistryLab';
 import UiBuilderDemo from './pages/debug/ui_builder';
@@ -45,6 +46,7 @@ type ExamplePage =
   | 'file-upload'
   | 'multi-select'
   | 'input-suggest'
+  | 'field-tooltips'
   | 'tree'
   | 'form-registry-lab'
   | 'ui-builder';
@@ -188,6 +190,13 @@ const exampleGroups: ExampleGroup[] = [
         title: 'Input с подсказками',
         description:
           'Свободный ввод + список подсказок: suggestions у InputField (статика, value≠label, серверный поиск)',
+      },
+      {
+        id: 'field-tooltips',
+        path: '/demo/field-tooltips',
+        title: 'Подсказки-иконки (i)',
+        description:
+          'labelTooltip — иконка после подписи (FormField), tooltip — иконка в самом контроле: Input/Select внутри, Checkbox/Radio после текста',
       },
       {
         id: 'tree',
@@ -409,6 +418,7 @@ function Layout() {
             <Route path="/demo/file-upload" element={<FileUploadDemo />} />
             <Route path="/demo/multi-select" element={<MultiSelectDemo />} />
             <Route path="/demo/input-suggest" element={<InputSuggestDemo />} />
+            <Route path="/demo/field-tooltips" element={<FieldTooltipsDemo />} />
             <Route path="/demo/tree" element={<TreeDemo />} />
             <Route path="/debug/ui-builder" element={<UiBuilderDemo />} />
             <Route path="/debug/registry-lab" element={<FormRegistryLab />} />
