@@ -102,6 +102,11 @@ export interface CodegenView {
    * обращение к его полям безопасно: без шима цель не применяется.
    */
   readonly wizard: WizardShim | null;
+  /**
+   * Пошаговая проверка визарда либо `null`: визарда нет, шим напечатать нечем или валидацию
+   * печатают правила формы (у тела из правил своей раскладки по шагам нет).
+   */
+  readonly stepValidation: StepValidationView | null;
   /** Привязки реестра: символы кита, заглушки с причинами, источники. */
   readonly registry: RegistryView;
   /** Обвязка render-слоя: импорты, цель отправки, правила и подсказки секций. */
@@ -205,6 +210,37 @@ function dataSourcesView(ctx: EmitContext): DataSourcesView {
   };
 }
 
+/** Один шаг визарда глазами `validation.ts`. */
+export interface StepValidationStep {
+  /** Имя константы под-схемы: `step1`, `step2`, … */
+  readonly name: string;
+  /** Селектор шага в схеме — уезжает в комментарий, чтобы шаг находился глазами. */
+  readonly selector: string | null;
+  readonly required: readonly string[];
+}
+
+export interface StepValidationView {
+  readonly steps: readonly StepValidationStep[];
+  /** Обязательные поля вне шагов: проверяются только полной проверкой (отправка). */
+  readonly rest: readonly string[];
+}
+
+function stepValidationView(ctx: EmitContext): StepValidationView | null {
+  const steps = ctx.collected.steps;
+  if (steps.length === 0 || wizardShimOf(ctx) === null || hasValidationRules(ctx.rules)) {
+    return null;
+  }
+  const inSteps = new Set(steps.flatMap((step) => step.required));
+  return {
+    steps: steps.map((step, index) => ({
+      name: `step${index + 1}`,
+      selector: step.selector,
+      required: [...new Set(step.required)],
+    })),
+    rest: [...new Set(ctx.collected.requiredPaths)].filter((path) => !inSteps.has(path)),
+  };
+}
+
 /** Собрать вид из контекста эмиссии. Чистая функция, как и `prepare`. */
 export function buildView(ctx: EmitContext): CodegenView {
   return {
@@ -217,6 +253,7 @@ export function buildView(ctx: EmitContext): CodegenView {
     rules: rulesView(ctx),
     required: [...new Set(ctx.collected.requiredPaths)],
     wizard: wizardShimOf(ctx),
+    stepValidation: stepValidationView(ctx),
     registry: registryView(ctx),
     renderBehavior: renderBehaviorView(ctx),
     files: ctx.files,

@@ -3,6 +3,7 @@ import { sampleSchema } from '../form-model/__fixtures__/sample-schema';
 import { plainSchema } from './__fixtures__/kit';
 import { collect } from './collect';
 import { synthMock } from '../form-mock';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 
 function collectOf(schema = plainSchema()) {
   return collect(schema, synthMock(schema));
@@ -40,14 +41,15 @@ describe('collect', () => {
     expect(properties.t === 'arr' && properties.elem.t).toBe('obj');
   });
 
-  it('select с известными опциями получает union строковых литералов', () => {
+  it('select с известными опциями получает union строковых литералов и пустой выбор', () => {
     const schema = sampleSchema();
     const mock = synthMock(schema);
     const c = collect(schema, mock);
     // Опции синтезированы моком по `$dataSource(LOAN_TYPES)`.
     expect(c.root.fields.loanType).toEqual({
       t: 'leaf',
-      ts: "'option1' | 'option2' | 'option3'",
+      // `''` — стартовое значение списка без выбора: без него model.ts не проходит tsc.
+      ts: "'' | 'option1' | 'option2' | 'option3'",
     });
   });
 
@@ -55,5 +57,59 @@ describe('collect', () => {
     const schema = sampleSchema();
     const c = collect(schema, synthMock(schema));
     expect(c.root.fields.loanAmount).toEqual({ t: 'leaf', ts: 'number' });
+  });
+});
+
+describe('обязательные поля по шагам визарда', () => {
+  const field = (path: string, required: boolean) => ({
+    value: `$model(${path})`,
+    component: '$component(Input)',
+    componentProps: { label: path, ...(required ? { required: true } : {}) },
+  });
+  const schema = {
+    version: '1.0',
+    root: {
+      component: '$component(Box)',
+      children: [
+        field('agree', true),
+        {
+          component: '$component(Wizard)',
+          componentProps: {
+            steps: [
+              {
+                selector: 'one-section',
+                component: '$component(Step)',
+                children: [
+                  {
+                    component: '$html(div)',
+                    children: [field('lastName', true), field('nick', false)],
+                  },
+                ],
+              },
+              {
+                selector: 'two-section',
+                component: '$component(Step)',
+                children: [field('email', true)],
+              },
+            ],
+          },
+        },
+      ],
+    },
+  } as unknown as JsonFormSchema;
+
+  it('каждый шаг знает свои обязательные поля, вложенные тоже', () => {
+    const c = collect(schema, synthMock(schema));
+    expect(c.steps).toEqual([
+      { selector: 'one-section', required: ['lastName'] },
+      { selector: 'two-section', required: ['email'] },
+    ]);
+    // Поле вне визарда — только в общем списке: его проверяет отправка, а не «Далее».
+    expect(c.requiredPaths).toEqual(expect.arrayContaining(['agree', 'lastName', 'email']));
+  });
+
+  it('без визарда шагов нет', () => {
+    const plain = { version: '1.0', root: field('x', true) } as unknown as JsonFormSchema;
+    expect(collect(plain, synthMock(plain)).steps).toEqual([]);
   });
 });

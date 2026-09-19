@@ -3,7 +3,7 @@
 export type SelectOption = { value: string; label: string };
 
 export type ZayavkaNaKreditForm = {
-  loanType: 'option1' | 'option2' | 'option3';
+  loanType: '' | 'option1' | 'option2' | 'option3';
   loanAmount: number;
   comment: string;
   properties: Array<{

@@ -7,6 +7,15 @@ import type { FormProxy } from '@reformer/core';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import type { <%= it.names.TypeName %> } from './types';
 
+/**
+ * Пошаговая проверка визарда. Структурно, а не типом кита: контракт `config` один у любого
+ * кита на cdk-визарде, а импорт типа привязал бы шим к конкретному пакету.
+ */
+export interface WizardValidationConfig {
+  validateStep?: (step: number) => boolean | Promise<boolean>;
+  validateAll?: () => boolean | Promise<boolean>;
+}
+
 /** Узел шага после конвертации: `title`/`icon` лежат в его `componentProps`. */
 interface StepNode {
   componentProps?: { title?: string; icon?: string; [key: string]: unknown };
@@ -19,6 +28,11 @@ export interface WizardProps {
   /** Узлы шагов из `componentProps.steps`. */
   steps?: StepNode[];
   className?: string;
+  /**
+   * Проверка шагов — приходит от renderer.behavior.ts через `patchProps`. Без неё «Далее»
+   * не проверяет шаг: визард пропустил бы пустые обязательные поля.
+   */
+  config?: WizardValidationConfig;
   /** Вешается снаружи — renderer.behavior.ts через onComponentEvent(node, 'onSubmit'). */
   onSubmit?: (values: <%= it.names.TypeName %>) => void | Promise<void>;
 }
@@ -27,7 +41,7 @@ export interface WizardProps {
  * Визард: узлы шагов из схемы — в шаги кита. Отрисовку тела шага даём пропом
  * `renderStepBody`: кит намеренно не зависит от `@reformer/renderer-react`.
  */
-export function Wizard({ form, steps = [], className, onSubmit }: WizardProps): ReactNode {
+export function Wizard({ form, steps = [], className, config, onSubmit }: WizardProps): ReactNode {
   const wizardSteps: FormWizardStep<<%= it.names.TypeName %>, RenderNode<<%= it.names.TypeName %>>>[] = steps.map(
     (node, i) => ({
       number: i + 1,
@@ -42,7 +56,7 @@ export function Wizard({ form, steps = [], className, onSubmit }: WizardProps): 
       form={form as FormProxy<<%= it.names.TypeName %>>}
       className={className}
       steps={wizardSteps}
-      config={{}}
+      config={config ?? {}}
       renderStepBody={(body, wizardForm) => <RenderNodeComponent node={body} form={wizardForm} />}
       onSubmit={onSubmit ? () => onSubmit(form?.getValue() as <%= it.names.TypeName %>) : undefined}
     />

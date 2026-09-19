@@ -51,6 +51,20 @@ export interface Collected {
   readonly requiredPaths: readonly string[];
   /** `$model`-пути узлов-массивов. */
   readonly arrayPaths: readonly string[];
+  /**
+   * Обязательные поля КАЖДОГО шага визарда, по порядку шагов. Пусто, если визарда нет.
+   *
+   * Нужны пошаговой проверке: «Далее» обязано проверять только поля своего шага. Проверка всей
+   * модели не пустила бы дальше первого шага из-за обязательного поля последнего, а без
+   * проверки визард пропускал пустые шаги.
+   */
+  readonly steps: readonly StepRequired[];
+}
+
+/** Шаг визарда глазами валидации: его селектор (адрес в схеме) и обязательные поля. */
+export interface StepRequired {
+  readonly selector: string | null;
+  readonly required: readonly string[];
 }
 
 /** Значения опций поля — из мока по `$dataSource` либо инлайн — для string-union типа. */
@@ -71,11 +85,14 @@ function optionValues(node: JsonFieldNode, mock: FormMock): string[] | null {
   return null;
 }
 
-/** Union строковых литералов из значений опций; `null`, если опции неизвестны. */
-function optionUnion(node: JsonFieldNode, mock: FormMock): string | null {
+/**
+ * Union строковых литералов из значений опций; `null`, если опции неизвестны.
+ * `empty` добавляет в начало `''` — «ничего не выбрано».
+ */
+function optionUnion(node: JsonFieldNode, mock: FormMock, empty = false): string | null {
   const values = optionValues(node, mock);
   if (values === null || values.length === 0) return null;
-  const unique = [...new Set(values)].map(
+  const unique = [...new Set(empty ? ['', ...values] : values)].map(
     (v) => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
   );
   return unique.join(' | ');
@@ -84,7 +101,12 @@ function optionUnion(node: JsonFieldNode, mock: FormMock): string | null {
 /** TS-тип листа: список с известными опциями — union, иначе по виду значения. */
 function leafType(node: JsonFieldNode, mock: FormMock): string {
   const kind = fieldKindOf(node);
-  if (kind === 'select') return optionUnion(node, mock) ?? 'string';
+  if (kind === 'select') {
+    // `''` — «ничего не выбрано»: с него список стартует (`defaultForField` в form-mock),
+    // и `model.ts` печатает его начальным значением. Союз одних опций это значение отвергал —
+    // напечатанный модуль не проходил tsc на любой форме со списком без выбора по умолчанию.
+    return optionUnion(node, mock, true) ?? 'string';
+  }
   if (kind === 'multi') {
     const union = optionUnion(node, mock);
     // Тип nullable: пустой выбор приходит как `null` — массив в начальном значении модели
@@ -154,6 +176,19 @@ function buildTree(
   return root;
 }
 
+/** Узлы шагов первого визарда схемы (контейнера с `componentProps.steps`), в порядке шагов. */
+function wizardStepsOf(node: JsonNode): readonly JsonNode[] {
+  if (!isContainerNode(node)) return [];
+  const steps = node.componentProps?.steps;
+  if (Array.isArray(steps)) return steps.filter(isNodeLike);
+  for (const child of node.children ?? []) {
+    if (!isNodeLike(child)) continue;
+    const found = wizardStepsOf(child);
+    if (found.length > 0) return found;
+  }
+  return [];
+}
+
 /** Собрать всё для эмиттеров из (уже трансформированной) схемы и мока. */
 export function collect(schema: JsonFormSchema, mock: FormMock): Collected {
   const requiredPaths: string[] = [];
@@ -161,11 +196,22 @@ export function collect(schema: JsonFormSchema, mock: FormMock): Collected {
   const root = isNodeLike(schema.root)
     ? buildTree(schema.root, mock, true, requiredPaths, arrayPaths)
     : ({ t: 'obj', fields: {} } as TsObject);
+  // Тот же обход, что у корня, — только от узла шага: «обязательное поле» определяется одним
+  // правилом, и два обхода разошлись бы на первом же новом виде узла.
+  const steps = isNodeLike(schema.root)
+    ? wizardStepsOf(schema.root).map((step): StepRequired => {
+        const required: string[] = [];
+        buildTree(step, mock, true, required, []);
+        const selector = (step as { selector?: unknown }).selector;
+        return { selector: typeof selector === 'string' ? selector : null, required };
+      })
+    : [];
   return {
     root,
     components: collectOperatorNames(schema).components,
     ds: classifyDataSources(schema),
     requiredPaths,
     arrayPaths,
+    steps,
   };
 }

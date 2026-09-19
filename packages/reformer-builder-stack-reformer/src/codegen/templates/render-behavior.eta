@@ -3,7 +3,11 @@
 import { <%= it.renderBehavior.imports.join(', ') %>, type RenderBehaviorFn } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
 import type { FormModel, FormProxy } from '@reformer/core';
+<% if (it.stepValidation !== null) { -%>
+import { formValidation, makeValidationConfig } from './validation';
+<% } else { -%>
 import { formValidation } from './validation';
+<% } -%>
 import { submitForm } from './api';
 import type { <%= it.names.TypeName %> } from './types';
 
@@ -24,8 +28,16 @@ export function createJsonRenderBehavior(
     const <%= it.renderBehavior.target %> = schema.node('<%= it.selectors.submitSelector %>');
 <% if (it.renderBehavior.isWizard) { -%>
 
+<% if (it.stepValidation !== null) { -%>
+    // Визард — self-managed компонент: форму и пошаговую проверку ему передаём явно.
+    // Без `config` «Далее» не проверяет шаг вовсе и пропускает пустые обязательные поля.
+    onInit(<%= it.renderBehavior.target %>, () =>
+      <%= it.renderBehavior.target %>.patchProps({ form, config: makeValidationConfig(model) })
+    );
+<% } else { -%>
     // Визард — self-managed компонент: форму ему передаём явно.
     onInit(<%= it.renderBehavior.target %>, () => <%= it.renderBehavior.target %>.patchProps({ form }));
+<% } -%>
 <% } -%>
 
     onComponentEvent(<%= it.renderBehavior.target %>, '<%= it.selectors.submitEvent %>', async () => {
