@@ -8,7 +8,7 @@
       "className": "rounded-lg bg-white p-6 shadow-sm",
       "steps": [
         {
-          "component": "$component(Box)",
+          "component": "$component(Step)",
           "componentProps": {
             "title": "Контакты",
             "icon": "👤",
@@ -36,7 +36,7 @@
           ]
         },
         {
-          "component": "$component(Box)",
+          "component": "$component(Step)",
           "componentProps": {
             "title": "Адрес",
             "icon": "🏠",
