@@ -17,7 +17,14 @@ interface InputSuggestDemoForm {
   company: string | null;
 }
 
-const CITIES = ['Москва', 'Мурманск', 'Санкт-Петербург', 'Казань', 'Новосибирск', 'Нижний Новгород'];
+const CITIES = [
+  'Москва',
+  'Мурманск',
+  'Санкт-Петербург',
+  'Казань',
+  'Новосибирск',
+  'Нижний Новгород',
+];
 
 const POSITIONS = [
   { value: 'Frontend-разработчик', label: 'Frontend-разработчик (React, TypeScript)' },
