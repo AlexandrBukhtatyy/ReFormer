@@ -31,6 +31,7 @@
  */
 
 import { defineExtensionPoint } from '../../primitives/extension-point.js';
+import type { Disposable } from '../../primitives/disposable.js';
 import type { ResourceRef } from '../../primitives/resource.js';
 
 /**
@@ -113,6 +114,59 @@ export interface DocumentModelProvider<M> {
    * Зовётся часто — на каждую публикацию находок, — поэтому ответ стоит запоминать по модели.
    */
   nodePaths?(model: M): ReadonlyMap<NodeId, readonly (string | number)[]>;
+  /**
+   * JSON Schema формата — для подсказок текстового редактора: имена ключей, допустимые
+   * значения, описания при наведении.
+   *
+   * Проверкой она НЕ служит: находки публикуют валидаторы в общий свод, и второй канал
+   * подчёркиваний от редактора был бы невидим платформе. `null` — подсказывать нечем
+   * (например, каталог, из которого схема строится, ещё не загружен).
+   *
+   * Необязателен. Зовётся на каждое открытие документа — ответ стоит запоминать.
+   */
+  jsonSchema?(): JsonSchemaHint | null;
+  /** Схема из {@link jsonSchema} устарела — её надо спросить заново. */
+  onDidChangeJsonSchema?(cb: () => void): Disposable;
+  /**
+   * Подсказки в строковом значении под курсором — то, чего JSON Schema выразить не может,
+   * потому что зависит от содержимого документа (пути модели, имена из самого файла).
+   *
+   * `model` — последняя разобранная модель: пока человек печатает, текст бывает неразборчив,
+   * а подсказка нужна именно тогда. Пустой список — «здесь подсказывать нечего».
+   */
+  completeString?(model: M, site: TextStringSite): readonly TextCompletion[];
+}
+
+/** JSON Schema, которой провайдер описывает свой формат. */
+export interface JsonSchemaHint {
+  /**
+   * Идентификатор схемы. Стабилен, пока схема та же: по нему редактор решает,
+   * перерегистрировать её или нет.
+   */
+  readonly uri: string;
+  readonly schema: unknown;
+}
+
+/** Строковое значение в тексте документа, внутри которого стоит курсор. */
+export interface TextStringSite {
+  /** Путь значения в дереве печати — ключи объектов и индексы массивов. */
+  readonly path: readonly (string | number)[];
+  /** Содержимое строки без кавычек, как оно записано в тексте (экранирование не снято). */
+  readonly value: string;
+  /** Позиция курсора внутри {@link value}. */
+  readonly offset: number;
+}
+
+/** Одна подсказка в строковом значении. */
+export interface TextCompletion {
+  /** Что показать в списке. */
+  readonly label: string;
+  /** Пояснение справа от метки. */
+  readonly detail?: string;
+  /** Что вставить вместо {@link replace}. */
+  readonly insert: string;
+  /** Заменяемый участок ВНУТРИ `site.value`: полуинтервал `[start, end)`. */
+  readonly replace: { readonly start: number; readonly end: number };
 }
 
 /**

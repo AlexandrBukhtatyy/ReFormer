@@ -349,6 +349,9 @@ export type {
   EditOp,
   ApplyResult,
   NodeId,
+  JsonSchemaHint,
+  TextStringSite,
+  TextCompletion,
 } from './workspace/model/provider.js';
 
 // Модели открытых документов, загрузчик модулей и словарь оболочки — возможности ОБОЛОЧКИ,
