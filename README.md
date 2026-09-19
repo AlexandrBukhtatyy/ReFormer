@@ -421,7 +421,7 @@ import { FormArray } from '@reformer/cdk/form-array';
 
 ```tsx
 import { useMemo, type FC } from 'react';
-import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
 import type { FormWizardConfig } from '@reformer/cdk/form-wizard';
 import { createModel, createForm, type FormModel, type FormProxy } from '@reformer/core';
 import { defineValidationSchema, validate, validateModel, apply } from '@reformer/core/validation';
