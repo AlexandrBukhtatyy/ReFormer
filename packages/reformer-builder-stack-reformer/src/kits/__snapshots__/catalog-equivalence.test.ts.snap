@@ -109,7 +109,7 @@ exports[`каталог: отпечаток не меняется > состав
   "FileUploadAvatar|field|Поля ввода|FileUpload|Аватар||FileUploadAvatarField||72b7b8f3|{"component":"$component(FileUploadAvatar)","componentProps":{"label":"FileUploadAvatar"},"value":"$model(newField)"}",
   "HoverCard|container|Оверлеи||||||d6f7d29e|{"children":[],"component":"$component(HoverCard)","componentProps":{"className":"space-y-4"}}",
   "Icon|container|Отображение||||||5bdac745|{"component":"$component(Icon)","componentProps":{}}",
-  "Input|field|Поля ввода|Input|Текст||InputField||4d384de2|{"component":"$component(Input)","componentProps":{"label":"Input"},"value":"$model(newField)"}",
+  "Input|field|Поля ввода|Input|Текст||InputField||6d3d066e|{"component":"$component(Input)","componentProps":{"label":"Input"},"value":"$model(newField)"}",
   "InputGroup|container|Контейнеры||||||1f36577e|{"children":[{"children":[],"component":"$component(InputGroupAddon)","componentProps":{"align":"inline-start"}},{"children":[],"component":"$component(InputGroupInput)"}],"component":"$component(InputGroup)"}",
   "InputGroupAddon|container|Контейнеры|||InputGroup|||5af4755a|{"children":[],"component":"$component(InputGroupAddon)"}",
   "InputGroupButton|container|Контейнеры|||InputGroup|||18d83b1d|{"children":[],"component":"$component(InputGroupButton)"}",
