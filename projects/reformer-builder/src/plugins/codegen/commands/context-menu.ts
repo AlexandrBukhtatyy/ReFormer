@@ -52,6 +52,8 @@ import { deliverInto, SourceReadOnlyError, type DeliveryResult } from '../pipeli
 import { generateModule, type ModuleFile } from '../pipeline/generate';
 import type { CodegenHost } from '../host';
 import { schemaOf } from '../pipeline/run';
+import { pluginMessageKey } from '@reformer/builder-plugin-api';
+import { CODEGEN_PLUGIN_ID } from '../contract';
 
 /** Команда «сгенерировать в этот каталог». */
 export const GENERATE_INTO_COMMAND_ID = 'codegen.generateInto';
@@ -264,43 +266,45 @@ export function notifyOutcome(
   if (notifications === null) return;
   switch (outcome.kind) {
     case 'no-directory':
-      notifications.warning('codegen.notify.no-directory');
+      notifications.warning(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.no-directory'));
       return;
     case 'no-listing':
-      notifications.error('codegen.notify.no-listing');
+      notifications.error(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.no-listing'));
       return;
     case 'no-schema':
-      notifications.warning('codegen.notify.no-schema');
+      notifications.warning(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.no-schema'));
       return;
     case 'no-kit':
-      notifications.error('codegen.notify.no-kit');
+      notifications.error(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.no-kit'));
       return;
     case 'not-applicable':
-      notifications.info('codegen.notify.not-applicable');
+      notifications.info(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.not-applicable'));
       return;
     case 'read-only':
-      notifications.error('codegen.notify.read-only');
+      notifications.error(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.read-only'));
       return;
     case 'failed':
-      notifications.error('codegen.notify.failed', { params: { message: outcome.message } });
+      notifications.error(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.failed'), {
+        params: { message: outcome.message },
+      });
       return;
     case 'delivered': {
       const { written, skipped, failed } = outcome.delivery;
       // Пропуск — главное, что обязано доехать: авторский файл не тронут, и человек, ждавший
       // перезаписи, иначе узнал бы об этом только открыв файл.
       if (failed.length > 0) {
-        notifications.error('codegen.notify.partial', {
+        notifications.error(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.partial'), {
           params: { written: written.length, failed: failed.length },
         });
         return;
       }
       if (written.length === 0) {
-        notifications.info('codegen.notify.nothing-written', {
+        notifications.info(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.nothing-written'), {
           params: { skipped: skipped.length },
         });
         return;
       }
-      notifications.success('codegen.notify.written', {
+      notifications.success(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.written'), {
         params: { written: written.length, skipped: skipped.length },
       });
       return;

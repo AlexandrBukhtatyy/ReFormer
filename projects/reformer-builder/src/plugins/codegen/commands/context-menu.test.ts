@@ -22,6 +22,8 @@ import {
 } from './context-menu';
 import { BUILTIN_TARGETS } from '../pipeline/targets';
 import { createFakeDocument, createFakeHost } from '../testing';
+import { pluginMessageKey } from '@reformer/builder-plugin-api';
+import { CODEGEN_PLUGIN_ID } from '../contract';
 
 /** Минимальная схема, которую `isFormSchema` признаёт формой. */
 const SCHEMA = JSON.stringify({
@@ -227,7 +229,9 @@ describe('исход говорится словами', () => {
     for (const [outcome, level] of cases) {
       const { calls, notifications } = sink();
       notifyOutcome(notifications, outcome);
-      expect(calls).toEqual([{ level, key: expect.stringContaining('codegen.notify.') }]);
+      expect(calls).toEqual([
+        { level, key: expect.stringContaining(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.')) },
+      ]);
     }
   });
 

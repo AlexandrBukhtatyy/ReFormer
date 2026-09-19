@@ -56,6 +56,7 @@ import { ExportPanel } from './ui/ExportPanel';
 // Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
 // взять его, не втягивая плагин в стартовый граф.
 import { CODEGEN_PLUGIN_ID } from './contract';
+import { pluginMessageKey } from '@reformer/builder-plugin-api';
 export { CODEGEN_PLUGIN_ID };
 
 /** Панель экспорта. */
@@ -262,7 +263,9 @@ export function userTargetCommands(
         void reload().then((count) => {
           // Число называется всегда, включая ноль: «перечитал и не нашёл ничего» —
           // это ответ, а молчание читается как «кнопка не сработала».
-          notifications?.info('codegen.notify.targets-refreshed', { params: { count } });
+          notifications?.info(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.targets-refreshed'), {
+            params: { count },
+          });
         });
       },
     },
@@ -298,19 +301,23 @@ function notifyEject(notifications: NotificationsService | null, outcome: EjectO
   if (notifications === null) return;
   switch (outcome.kind) {
     case 'written':
-      notifications.success('codegen.notify.eject-written', { params: { name: outcome.name } });
+      notifications.success(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.eject-written'), {
+        params: { name: outcome.name },
+      });
       return;
     case 'no-project':
-      notifications.warning('codegen.notify.eject-no-project');
+      notifications.warning(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.eject-no-project'));
       return;
     case 'not-a-template':
-      notifications.info('codegen.notify.eject-not-a-template');
+      notifications.info(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.eject-not-a-template'));
       return;
     case 'read-only':
-      notifications.error('codegen.notify.eject-read-only');
+      notifications.error(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.eject-read-only'));
       return;
     case 'failed':
-      notifications.error('codegen.notify.eject-failed', { params: { message: outcome.message } });
+      notifications.error(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.eject-failed'), {
+        params: { message: outcome.message },
+      });
       return;
   }
 }

@@ -5,7 +5,15 @@ import {
   type Notification,
   type NotificationsService,
 } from '@reformer/builder-plugin-api/internal';
-import { drainNotifications, SHOWN_LIMIT, toToast, type ToastSpec } from './toasts';
+import {
+  drainNotifications,
+  ownedTranslator,
+  SHOWN_LIMIT,
+  toToast,
+  type ToastSpec,
+} from './toasts';
+import { pluginMessageKey } from '@reformer/builder-plugin-api/internal';
+import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 
 /** Перевод-заглушка: ключ и параметры видны в результате, словарь для этого не нужен. */
 const translate = (key: string, params?: Record<string, unknown>): string =>
@@ -161,5 +169,19 @@ describe('опустошение очереди', () => {
     h.drain();
 
     expect(h.shown).toEqual([]);
+  });
+});
+
+describe('ключ с владельцем', () => {
+  it('голый ключ — словарь оболочки, ключ с владельцем — словарь плагина', () => {
+    const i18n = createI18nService();
+    i18n.forPlugin('acme.stack').contribute(i18n.locale, { 'notify.done': 'Готово: {name}' });
+    const translate = ownedTranslator(i18n);
+
+    expect(translate(pluginMessageKey('acme.stack', 'notify.done'), { name: 'форма' })).toBe(
+      'Готово: форма'
+    );
+    // Тот же ключ без владельца ищется в словаре оболочки — и там его нет.
+    expect(translate('notify.done')).toBe(i18n.t('notify.done'));
   });
 });

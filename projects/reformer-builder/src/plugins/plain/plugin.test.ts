@@ -20,9 +20,15 @@ import {
   componentNameOf,
   createPlainForm,
   exportPlainForm,
+  plainCommands,
   type PlainServices,
 } from './commands';
-import { PLAIN_PLUGIN_ID, PLAIN_PROVIDER_ID } from './contract';
+import {
+  PLAIN_PLUGIN_ID,
+  PLAIN_PROVIDER_ID,
+  PLAIN_REDO_COMMAND_ID,
+  PLAIN_UNDO_COMMAND_ID,
+} from './contract';
 import { PLAIN_MESSAGES } from './messages';
 import { createPlainModelProvider, isPlainResource } from './provider';
 import { createPlainValidator, nameRanges } from './validator';
@@ -40,6 +46,8 @@ const peek = (text: string) => ({ text: () => Promise.resolve(text), peek: () =>
 /** Ручка модели в объёме команд: модель, `apply` через операции стека, провайдер. */
 function fakeHandle(initial: PlainForm, name = 'contact.plain.json') {
   let model = initial;
+  const undone: PlainForm[] = [];
+  const history: PlainForm[] = [];
   const handle = {
     document: {
       providerId: PLAIN_PROVIDER_ID,
@@ -47,8 +55,26 @@ function fakeHandle(initial: PlainForm, name = 'contact.plain.json') {
       getModel: () => model,
     },
     apply: (op: PlainOp) => {
+      history.push(model);
       model = applyPlainOp(model, op).model;
+      undone.length = 0;
       return { status: 'applied' };
+    },
+    canUndo: () => history.length > 0,
+    canRedo: () => undone.length > 0,
+    undo: () => {
+      const previous = history.pop();
+      if (previous === undefined) return false;
+      undone.push(model);
+      model = previous;
+      return true;
+    },
+    redo: () => {
+      const next = undone.pop();
+      if (next === undefined) return false;
+      history.push(model);
+      model = next;
+      return true;
     },
   };
   return { handle: handle as unknown as ModelDocumentHandle<unknown>, model: () => model };
@@ -59,7 +85,7 @@ function fakeServices(handle: ModelDocumentHandle<unknown> | null = null) {
   const opened: ResourceId[] = [];
   const save = vi.fn(() => Promise.resolve(true));
   const documents = {
-    activeResource: () => null,
+    activeResource: () => (handle === null ? null : 'mem:contact.plain.json'),
     writeText: (id: ResourceId, text: string) => {
       written.set(id, text);
       return Promise.resolve();
@@ -178,6 +204,24 @@ describe('команды', () => {
       status: 'refused',
       reason: 'no-document',
     });
+  });
+
+  it('отмена и повтор идут через историю ручки активного документа', () => {
+    const fake = fakeHandle(sampleForm());
+    const { services } = fakeServices(fake.handle);
+    const commands = new Map(plainCommands(services).map((command) => [command.id, command]));
+    const undo = commands.get(PLAIN_UNDO_COMMAND_ID)!;
+    const redo = commands.get(PLAIN_REDO_COMMAND_ID)!;
+
+    expect(undo.enabled?.({} as never)).toBe(false);
+    addPlainField(services, 'mem:contact.plain.json');
+    expect(undo.enabled?.({} as never)).toBe(true);
+    expect(undo.run()).toBe(true);
+    expect(fake.model().fields.map((field) => field.name)).not.toContain('field1');
+    expect(redo.run()).toBe(true);
+    expect(fake.model().fields.at(-1)?.name).toBe('field1');
+    // Клавиши сужены видом документа стека: `mod+z` схемы ReFormer с ними не спорит.
+    expect(undo.when).toBe(`activeResourceKind == ${PLAIN_PROVIDER_ID}`);
   });
 
   it('имя компонента из имени файла', () => {

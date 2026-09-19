@@ -19,6 +19,8 @@ import {
   type TemplateSnapshot,
 } from './context-menu';
 import { createFakeTemplatesHost } from '../testing';
+import { pluginMessageKey } from '@reformer/builder-plugin-api';
+import { TEMPLATES_PLUGIN_ID } from '../contract';
 
 const DIR = 'fake:src/forms' as ResourceId;
 
@@ -170,7 +172,7 @@ describe('раскладка шаблона в каталог', () => {
       `${DIR}/credit/model.ts`,
       `${DIR}/credit/renderer.schema.json`,
     ]);
-    expect(notified).toEqual(['templates.notify.generated']);
+    expect(notified).toEqual([pluginMessageKey(TEMPLATES_PLUGIN_ID, 'notify.generated')]);
   });
 
   it('отказ от имени ничего не пишет', async () => {
@@ -185,7 +187,7 @@ describe('раскладка шаблона в каталог', () => {
     const { command, notified } = deps({ ...readySnapshot([]), refresh });
 
     await expect(command.run({ dir: DIR, templateId: 'gone' })).resolves.toBe(false);
-    expect(notified).toEqual(['templates.notify.gone']);
+    expect(notified).toEqual([pluginMessageKey(TEMPLATES_PLUGIN_ID, 'notify.gone')]);
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 

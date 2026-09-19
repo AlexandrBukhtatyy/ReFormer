@@ -19,6 +19,8 @@ export const PLAIN_VALIDATOR_ID = 'plain.check';
 export const PLAIN_NEW_COMMAND_ID = 'plain.new';
 export const PLAIN_EXPORT_COMMAND_ID = 'plain.export';
 export const PLAIN_ADD_FIELD_COMMAND_ID = 'plain.addField';
+export const PLAIN_UNDO_COMMAND_ID = 'plain.undo';
+export const PLAIN_REDO_COMMAND_ID = 'plain.redo';
 
 /** Имя файла новой формы и расширение, по которому её узнаёт дерево. */
 export const PLAIN_FILE_SUFFIX = '.plain.json';

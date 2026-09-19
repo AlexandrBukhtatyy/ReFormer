@@ -24,7 +24,10 @@ export interface NotificationAction {
 export interface NotificationRequest {
   /** По умолчанию `info`. */
   readonly level?: NotificationLevel;
-  /** Ключ i18n сообщения. */
+  /**
+   * Ключ i18n сообщения. Голый ключ переводит словарь оболочки; свою строку плагин называет
+   * ключом с владельцем — `pluginMessageKey(pluginId, key)` — и она берётся из ЕГО словаря.
+   */
   readonly messageKey: string;
   readonly params?: Record<string, unknown>;
   readonly action?: NotificationAction;

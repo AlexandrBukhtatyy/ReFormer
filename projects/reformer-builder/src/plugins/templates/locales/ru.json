@@ -64,5 +64,10 @@
   "source.builtin": "встроенный",
   "source.local": "локальный",
   "source.project": "проект",
-  "template.files": "Файлов: {count}"
+  "template.files": "Файлов: {count}",
+  "notify.created": "Шаблон сохранён.",
+  "notify.failed": "Шаблон не сохранён. Подробности — на панели шаблонов.",
+  "notify.generate-failed": "Форму создать не удалось. Подробности — на панели шаблонов.",
+  "notify.generated": "Форма создана по шаблону.",
+  "notify.gone": "Шаблона больше нет — список обновлён."
 }

@@ -30,8 +30,8 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore, type ReactElement } from 'react';
 import { Toaster, toast } from '@reformer/ui-kit/sonner';
 import type { NotificationsService } from '@reformer/builder-plugin-api/internal';
-import type { I18nService } from '@/shell/platform/services/i18n/i18n';
-import { drainNotifications, type ToastSpec } from './toasts';
+import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
+import { drainNotifications, ownedTranslator, type ToastSpec } from './toasts';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
 
 /** Показ одного тоста. Отдельно от компонента — чтобы соответствие уровней читалось целиком. */
@@ -87,12 +87,11 @@ export interface NotificationCenterProps {
   /**
    * Локализация Host: сообщения уведомлений разрешаются ЕЁ словарём.
    *
-   * Пространства имён плагинов здесь нет намеренно: `messageKey` приходит от кого угодно —
-   * от Host, от плагина, от ассистента, — а различать их по ключу невозможно. Пока все ключи
-   * уведомлений лежат в словаре Host (`files.notify.*` — там же), и это то же соглашение,
-   * что у заголовков команд: переводит тот, кто рисует.
+   * `messageKey` приходит от кого угодно — от Host, от плагина, от ассистента. Голый ключ —
+   * строка Host; ключ с владельцем (`<plugin-id>:<key>`) переводится словарём плагина
+   * (`ownedTranslator`), поэтому корень словаря нужен целиком, с `forPlugin`.
    */
-  readonly i18n: I18nService;
+  readonly i18n: RootI18nService;
   /** Подпись области для скринридера. */
   readonly label: string;
 }
@@ -135,7 +134,7 @@ export function NotificationCenter({
       dismiss: (id) => {
         notifications.dismiss(id);
       },
-      translate: (key, params) => i18n.t(key, params),
+      translate: ownedTranslator(i18n),
       onError: reportPresentError,
     });
   }, [pending, notifications, i18n]);

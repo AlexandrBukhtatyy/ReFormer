@@ -54,5 +54,21 @@
   "target.form-behavior": "Поведение формы",
   "target.validation": "Схема валидации",
   "target.api": "Бэкенд",
-  "target.readme": "README"
+  "target.readme": "README",
+  "notify.eject-failed": "Выгрузить не удалось: {message}",
+  "notify.eject-no-project": "Проект не открыт: выгружать некуда",
+  "notify.eject-not-a-template": "Этот файл печатается кодом, а не шаблоном",
+  "notify.eject-read-only": "Источник не принимает запись",
+  "notify.eject-written": "Шаблон выгружен: {name}",
+  "notify.failed": "Сгенерировать не удалось: {message}",
+  "notify.no-directory": "Не выбран каталог: генерировать некуда.",
+  "notify.no-kit": "Кит не выбран: неизвестно, откуда импортировать компоненты.",
+  "notify.no-listing": "Содержимое каталога недоступно — искать схему негде.",
+  "notify.no-schema": "В этом каталоге нет схемы формы: генерировать не из чего.",
+  "notify.not-applicable": "Этот файл к такой форме не относится — печатать нечего.",
+  "notify.nothing-written": "Ничего не записано: ваших файлов {skipped} — они не тронуты.",
+  "notify.partial": "Записано файлов: {written}, не записано: {failed}.",
+  "notify.read-only": "Источник не принимает запись — сгенерированное сохранить некуда.",
+  "notify.targets-refreshed": "Шаблоны генерации перечитаны: {count}",
+  "notify.written": "Записано файлов: {written}, пропущено ваших: {skipped}."
 }

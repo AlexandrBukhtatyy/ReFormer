@@ -60,6 +60,7 @@ export type { Plugin, PluginContext } from './plugin/types.js';
 export { useTranslate } from './ui/useTranslate.js';
 export type { Translate } from './ui/useTranslate.js';
 export type { PluginI18n } from './services/i18n.js';
+export { pluginMessageKey, splitMessageKey } from './services/i18n.js';
 
 // Освобождение: всё, что плагин регистрирует, он кладёт в `ctx.subscriptions`.
 export type { Disposable } from './primitives/disposable.js';

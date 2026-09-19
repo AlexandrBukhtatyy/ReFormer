@@ -39,6 +39,7 @@ import {
   generateFormFromTemplate,
   listTemplates,
 } from '../content/operations';
+import { pluginMessageKey } from '@reformer/builder-plugin-api';
 
 /** Создать шаблон из каталога, по которому щёлкнули. */
 export const CREATE_TEMPLATE_COMMAND_ID = 'templates.createFromDirectory';
@@ -181,8 +182,9 @@ export function templatesMenuCommands(
         // Ключи отказов принадлежат словарю плагина, а уведомления переводит словарь Host,
         // поэтому сообщение собирается здесь: показываем один общий текст, а подробность
         // остаётся в панели шаблонов, где ей и место.
-        if (result.ok) deps.notifications?.success('templates.notify.created');
-        else deps.notifications?.error('templates.notify.failed');
+        if (result.ok)
+          deps.notifications?.success(pluginMessageKey(TEMPLATES_PLUGIN_ID, 'notify.created'));
+        else deps.notifications?.error(pluginMessageKey(TEMPLATES_PLUGIN_ID, 'notify.failed'));
         // Свой же шаблон в списке меню появится только после перечитывания: снимок обновляют
         // события, а запись — как раз одно из них.
         snapshot?.refresh();
@@ -205,7 +207,7 @@ export function templatesMenuCommands(
         // Шаблон исчез между открытием меню и щелчком (его удалили, сменили кит) — законное
         // состояние, а не поломка: снимок на то и снимок.
         if (template === undefined) {
-          deps.notifications?.error('templates.notify.gone');
+          deps.notifications?.error(pluginMessageKey(TEMPLATES_PLUGIN_ID, 'notify.gone'));
           snapshot?.refresh();
           return false;
         }
@@ -235,8 +237,12 @@ export function templatesMenuCommands(
           template.files.map((file) => file.path)
         );
 
-        if (result.ok) deps.notifications?.success('templates.notify.generated');
-        else deps.notifications?.error('templates.notify.generate-failed');
+        if (result.ok)
+          deps.notifications?.success(pluginMessageKey(TEMPLATES_PLUGIN_ID, 'notify.generated'));
+        else
+          deps.notifications?.error(
+            pluginMessageKey(TEMPLATES_PLUGIN_ID, 'notify.generate-failed')
+          );
         if (result.ok && result.openId !== null) deps.host.openResource?.(result.openId);
         return result.ok;
       },

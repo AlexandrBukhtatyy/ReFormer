@@ -39,7 +39,7 @@
  * @module shell/boot/integration/i18n-completeness.test
  */
 
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { FALLBACK_LOCALE } from '@/shell/platform/services/i18n/i18n';
@@ -211,5 +211,50 @@ describe('словари: список проверяемых не отстаё�
     const checked = new Set(DICTIONARIES.map(([owner]) => owner));
     const uncovered = pluginsWithMessages().filter((name) => !checked.has(name));
     expect(uncovered).toEqual([]);
+  });
+});
+
+describe('находки самой платформы переведены словарём оболочки', () => {
+  /**
+   * Коды находок, которые публикует рабочая область, — по исходникам, а не по списку.
+   *
+   * У платформы нет плагина-владельца, и её коды переводит только словарь оболочки. Забытый
+   * текст не ломает ничего, кроме панели проблем: там вместо фразы стоит маркер
+   * `⟦errors.document.parse-failed⟧` — ровно так и было, пока эту проверку не завели.
+   */
+  function platformDiagnosticCodes(): string[] {
+    const root = fileURLToPath(new URL('../../platform/workspace', import.meta.url));
+    const codes = new Set<string>();
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const path = `${dir}/${name}`;
+        if (statSync(path).isDirectory()) {
+          walk(path);
+          continue;
+        }
+        if (!/\.ts$/.test(name) || /\.test\.ts$/.test(name)) continue;
+        const text = readFileSync(path, 'utf8');
+        if (!text.includes('Diagnostic')) continue;
+        for (const match of text.matchAll(/\bcode: '([^']+)'/g)) codes.add(match[1]!);
+      }
+    };
+    walk(root);
+    return [...codes].sort();
+  }
+
+  it('у каждого кода есть текст на каждой локали', () => {
+    const codes = platformDiagnosticCodes();
+    const missing = codes.flatMap((code) =>
+      Object.entries(HOST_MESSAGES)
+        .filter(([, messages]) => messages[`errors.${code}`] === undefined)
+        .map(([locale]) => `${locale}: errors.${code}`)
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it('проверка не пуста: коды платформы найдены', () => {
+    expect(platformDiagnosticCodes()).toEqual(
+      expect.arrayContaining(['document.parse-failed', 'workspace.import-unresolved'])
+    );
   });
 });

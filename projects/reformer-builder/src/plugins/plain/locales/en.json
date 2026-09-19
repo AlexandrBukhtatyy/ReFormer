@@ -17,5 +17,7 @@
   "surface.invalid": "The schema does not parse as a plain form.",
   "errors.empty-name": "Field #{index}: empty name — the value has no place in the model.",
   "errors.duplicate-name": "The name \"{name}\" is already taken by field #{first}.",
-  "errors.no-options": "The select \"{name}\" has no options."
+  "errors.no-options": "The select \"{name}\" has no options.",
+  "command.undo": "Plain form: undo",
+  "command.redo": "Plain form: redo"
 }

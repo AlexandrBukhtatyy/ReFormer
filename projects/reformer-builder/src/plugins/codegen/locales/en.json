@@ -54,5 +54,21 @@
   "target.form-behavior": "Form behavior",
   "target.validation": "Validation schema",
   "target.api": "Backend",
-  "target.readme": "README"
+  "target.readme": "README",
+  "notify.eject-failed": "Eject failed: {message}",
+  "notify.eject-no-project": "No project open: nowhere to eject",
+  "notify.eject-not-a-template": "This file is printed by code, not a template",
+  "notify.eject-read-only": "Source does not accept writes",
+  "notify.eject-written": "Template ejected: {name}",
+  "notify.failed": "Generation failed: {message}",
+  "notify.no-directory": "No directory chosen: there is nowhere to generate into.",
+  "notify.no-kit": "No kit selected: there is no way to know where to import components from.",
+  "notify.no-listing": "The directory listing is unavailable — there is nowhere to look for a schema.",
+  "notify.no-schema": "This directory holds no form schema: there is nothing to generate from.",
+  "notify.not-applicable": "This file does not apply to that form — nothing to print.",
+  "notify.nothing-written": "Nothing written: {skipped} of your files were left untouched.",
+  "notify.partial": "Files written: {written}, failed: {failed}.",
+  "notify.read-only": "The source refuses writes — there is nowhere to put what was generated.",
+  "notify.targets-refreshed": "Codegen templates reloaded: {count}",
+  "notify.written": "Files written: {written}, yours skipped: {skipped}."
 }

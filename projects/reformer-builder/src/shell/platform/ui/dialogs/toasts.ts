@@ -37,13 +37,40 @@
  * @module shell/platform/ui/dialogs/toasts
  */
 
-import type { Notification, NotificationLevel } from '@reformer/builder-plugin-api/internal';
+import {
+  splitMessageKey,
+  type Notification,
+  type NotificationLevel,
+} from '@reformer/builder-plugin-api/internal';
 
 /** Сколько идентификаторов помнить. Больше очереди службы (100) — с запасом на устаревший кадр. */
 export const SHOWN_LIMIT = 200;
 
 /** Перевод сообщения. Функция, а не сервис: правилу нужен результат, а не источник. */
 export type TranslateMessage = (key: string, params?: Record<string, unknown>) => string;
+
+/** Словарь в объёме перевода: свой ключ и вид в пространстве имён плагина. */
+export interface OwnedMessages {
+  t(key: string, params?: Record<string, unknown>): string;
+  forPlugin(pluginId: string): { t(key: string, params?: Record<string, unknown>): string };
+}
+
+/**
+ * Перевод, знающий владельца ключа.
+ *
+ * Уведомление присылает кто угодно, а показывает одна оболочка. Голый ключ — строка оболочки;
+ * ключ `<plugin-id>:<key>` (`pluginMessageKey` в SDK) — строка плагина, и берётся она из ЕГО
+ * словаря: иначе тексты стека пришлось бы держать в словаре оболочки, а стек из каталога
+ * проекта не смог бы показать ни одного тоста.
+ */
+export function ownedTranslator(messages: OwnedMessages): TranslateMessage {
+  return (key, params) => {
+    const owned = splitMessageKey(key);
+    return owned.pluginId === null
+      ? messages.t(owned.key, params)
+      : messages.forPlugin(owned.pluginId).t(owned.key, params);
+  };
+}
 
 /** Кнопка тоста: подпись уже переведена, действие — то, что дал заказчик уведомления. */
 export interface ToastAction {

@@ -17,5 +17,7 @@
   "surface.invalid": "Схема не разбирается как простая форма.",
   "errors.empty-name": "Поле №{index}: пустое имя — у значения нет места в модели.",
   "errors.duplicate-name": "Имя «{name}» уже занято полем №{first}.",
-  "errors.no-options": "У выбора «{name}» нет вариантов."
+  "errors.no-options": "У выбора «{name}» нет вариантов.",
+  "command.undo": "Простая форма: отменить",
+  "command.redo": "Простая форма: повторить"
 }

@@ -30,6 +30,8 @@
  * @module @reformer/builder-plugin-api/services/diagnostics/types
  */
 
+import { pluginMessageKey, splitMessageKey } from '../i18n.js';
+
 /**
  * Полуинтервал `[start, end)` в тексте ресурса, **в кодовых единицах UTF-16**.
  *
@@ -138,9 +140,6 @@ export interface Diagnostic {
   readonly fixes?: readonly QuickFix[];
 }
 
-/** Разделитель владельца и кода в {@link Diagnostic.code}. */
-const OWNER_SEPARATOR = ':';
-
 /**
  * Код находки, текст которой лежит в словаре плагина-владельца.
  *
@@ -151,7 +150,7 @@ const OWNER_SEPARATOR = ':';
  * куда и остальные свои строки (`ctx.i18n.contribute`).
  */
 export function pluginDiagnosticCode(pluginId: string, code: string): string {
-  return `${pluginId}${OWNER_SEPARATOR}${code}`;
+  return pluginMessageKey(pluginId, code);
 }
 
 /** Владелец кода находки (`null` — оболочка) и сам код без владельца. */
@@ -159,8 +158,6 @@ export function splitDiagnosticCode(code: string): {
   readonly pluginId: string | null;
   readonly code: string;
 } {
-  const at = code.indexOf(OWNER_SEPARATOR);
-  return at <= 0
-    ? { pluginId: null, code }
-    : { pluginId: code.slice(0, at), code: code.slice(at + OWNER_SEPARATOR.length) };
+  const owned = splitMessageKey(code);
+  return { pluginId: owned.pluginId, code: owned.key };
 }

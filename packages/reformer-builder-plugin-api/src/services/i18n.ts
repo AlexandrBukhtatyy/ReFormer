@@ -46,3 +46,30 @@ export interface PluginI18n {
    */
   contribute(locale: string, messages: Readonly<Record<string, string>>): void;
 }
+
+/** Разделитель владельца и ключа в ключе с владельцем. */
+const OWNER_SEPARATOR = ':';
+
+/**
+ * Ключ сообщения, текст которого лежит в словаре плагина-владельца: `<plugin-id>:<key>`.
+ *
+ * Нужен там, где строку переводит НЕ плагин, а тот, кто показывает, — уведомления и находки.
+ * Показывающий общий на всех, и без владельца он знал бы только свой словарь: стек, пришедший
+ * плагином, либо писал бы в словарь оболочки (которой его строки не принадлежат), либо
+ * показывал бы маркер промаха. Ключ с владельцем переводится словарём владельца, голый — словарём
+ * оболочки, как раньше.
+ */
+export function pluginMessageKey(pluginId: string, key: string): string {
+  return `${pluginId}${OWNER_SEPARATOR}${key}`;
+}
+
+/** Владелец ключа (`null` — оболочка) и сам ключ без владельца. */
+export function splitMessageKey(key: string): {
+  readonly pluginId: string | null;
+  readonly key: string;
+} {
+  const at = key.indexOf(OWNER_SEPARATOR);
+  return at <= 0
+    ? { pluginId: null, key }
+    : { pluginId: key.slice(0, at), key: key.slice(at + OWNER_SEPARATOR.length) };
+}

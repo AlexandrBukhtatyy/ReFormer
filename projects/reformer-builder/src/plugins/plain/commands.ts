@@ -32,7 +32,19 @@ import {
   PLAIN_FILE_SUFFIX,
   PLAIN_NEW_COMMAND_ID,
   PLAIN_PROVIDER_ID,
+  PLAIN_REDO_COMMAND_ID,
+  PLAIN_UNDO_COMMAND_ID,
 } from './contract';
+
+/**
+ * Условие клавиш отмены: активна вкладка документа ЭТОГО стека.
+ *
+ * Отмена принадлежит документу, а историю держит его ручка модели (`undo`/`redo`), поэтому
+ * клавиши вносит редактор стека, а не оболочка: у каждого стека свой вид документа, и условие
+ * по нему делает сочетания стеков непересекающимися — `mod+z` схемы ReFormer и `mod+z` простой
+ * формы не спорят за одну вкладку.
+ */
+const IN_PLAIN = `activeResourceKind == ${PLAIN_PROVIDER_ID}`;
 
 /** Службы, которыми живут команды. Функции: службы спрашиваются в момент вызова. */
 export interface PlainServices {
@@ -136,6 +148,10 @@ export function plainCommands(services: PlainServices): readonly CommandContribu
     documentIdOf(args) ?? services.documents()?.activeResource() ?? null;
   const isPlain = (id: ResourceId | null): boolean =>
     id !== null && plainHandleOf(services, id) !== null;
+  const activeHandle = (): ModelDocumentHandle<PlainForm> | null => {
+    const id = services.documents()?.activeResource() ?? null;
+    return id === null ? null : plainHandleOf(services, id);
+  };
 
   return [
     {
@@ -152,6 +168,22 @@ export function plainCommands(services: PlainServices): readonly CommandContribu
         const id = target(args);
         return id === null ? false : addPlainField(services, id);
       },
+    },
+    {
+      id: PLAIN_UNDO_COMMAND_ID,
+      titleKey: 'command.undo',
+      keybinding: 'mod+z',
+      when: IN_PLAIN,
+      enabled: () => activeHandle()?.canUndo() === true,
+      run: () => activeHandle()?.undo() ?? false,
+    },
+    {
+      id: PLAIN_REDO_COMMAND_ID,
+      titleKey: 'command.redo',
+      keybinding: 'mod+shift+z',
+      when: IN_PLAIN,
+      enabled: () => activeHandle()?.canRedo() === true,
+      run: () => activeHandle()?.redo() ?? false,
     },
     {
       id: PLAIN_EXPORT_COMMAND_ID,
