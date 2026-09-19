@@ -1,0 +1,79 @@
+// @reformer-generated 7e05d89ccef7
+// renderer.wizard.tsx — шим под $component(Wizard) и тело шага. Регенерируется.
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { ReactNode } from 'react';
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit';
+import type { FormProxy } from '@reformer/core';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
+import type { W03Form } from './types';
+
+/**
+ * Пошаговая проверка визарда. Структурно, а не типом кита: контракт `config` один у любого
+ * кита на cdk-визарде, а импорт типа привязал бы шим к конкретному пакету.
+ */
+export interface WizardValidationConfig {
+  validateStep?: (step: number) => boolean | Promise<boolean>;
+  validateAll?: () => boolean | Promise<boolean>;
+}
+
+/** Узел шага после конвертации: `title`/`icon` лежат в его `componentProps`. */
+interface StepNode {
+  componentProps?: { title?: string; icon?: string; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
+export interface WizardProps {
+  /** Приходит от рендерера (см. `__selfManagedChildren`). */
+  form?: FormProxy<W03Form>;
+  /** Узлы шагов из `componentProps.steps`. */
+  steps?: StepNode[];
+  className?: string;
+  /**
+   * Проверка шагов — приходит от renderer.behavior.ts через `patchProps`. Без неё «Далее»
+   * не проверяет шаг: визард пропустил бы пустые обязательные поля.
+   */
+  config?: WizardValidationConfig;
+  /** Вешается снаружи — renderer.behavior.ts через onComponentEvent(node, 'onSubmit'). */
+  onSubmit?: (values: W03Form) => void | Promise<void>;
+}
+
+/**
+ * Визард: узлы шагов из схемы — в шаги кита. Отрисовку тела шага даём пропом
+ * `renderStepBody`: кит намеренно не зависит от `@reformer/renderer-react`.
+ */
+export function Wizard({ form, steps = [], className, config, onSubmit }: WizardProps): ReactNode {
+  const wizardSteps: FormWizardStep<W03Form, RenderNode<W03Form>>[] = steps.map((node, i) => ({
+    number: i + 1,
+    title: node.componentProps?.title ?? `Шаг ${i + 1}`,
+    icon: node.componentProps?.icon,
+    body: node as any,
+  }));
+
+  return (
+    <FormWizard<W03Form, RenderNode<W03Form>>
+      form={form as FormProxy<W03Form>}
+      className={className}
+      steps={wizardSteps}
+      config={config ?? {}}
+      renderStepBody={(body, wizardForm) => <RenderNodeComponent node={body} form={wizardForm} />}
+      onSubmit={onSubmit ? () => onSubmit(form?.getValue() as W03Form) : undefined}
+    />
+  );
+}
+
+// Контракт с рендерером: получить `form` пропом и сырые `steps`, без обхода детей.
+(Wizard as any).__selfManagedChildren = true;
+
+export interface StepProps {
+  className?: string;
+  children?: ReactNode;
+}
+
+/**
+ * Тело шага — компонент под `$component(Step)`. Маркер: `title`/`icon` из его
+ * `componentProps` снимает `Wizard` выше, сюда доезжает только вёрстка.
+ */
+export function Step({ className, children }: StepProps): ReactNode {
+  return <div className={className}>{children}</div>;
+}
