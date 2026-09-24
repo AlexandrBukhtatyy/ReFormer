@@ -1,20 +1,20 @@
-// @reformer-generated dc2c46a0e5ca
-// renderer.behavior.ts — рантайм-обвязка (submit, условная видимость, события узлов).
+// @reformer-generated ca32a1a95157
+// form.render.ts — рантайм-обвязка (submit, условная видимость, события узлов).
 
 import { hideWhen, onComponentEvent, type RenderBehaviorFn } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
 import type { FormModel, FormProxy } from '@reformer/core';
-import { formValidation } from './validation';
+import { formValidation } from './form.validation';
 import { submitForm } from './api';
-import type { Test03Form } from './types';
+import type { Test04BreakForm } from './types';
 
 export type RenderBehaviorOptions = { onResult?: (message: string, ok: boolean) => void };
 
 export function createJsonRenderBehavior(
-  form: FormProxy<Test03Form>,
-  model: FormModel<Test03Form>,
+  form: FormProxy<Test04BreakForm>,
+  model: FormModel<Test04BreakForm>,
   options: RenderBehaviorOptions = {}
-): RenderBehaviorFn<Test03Form> {
+): RenderBehaviorFn<Test04BreakForm> {
   const { onResult } = options;
   return (schema) => {
     void form; // используется в условиях hideWhen (form.<поле>.value.value)

@@ -1,5 +1,6 @@
-// @reformer-generated 3dab6aeaeece
-// renderer.behavior.ts — рантайм-обвязка (submit, условная видимость, события узлов).
+// @reformer-generated 8a80dfa90009
+// form.render.ts — рантайм-обвязка (submit, условная видимость, события узлов).
+// Узлы шагов визарда обслуживает steps/<шаг>/form.render.ts — здесь их вызов по порядку.
 
 import {
   hideWhen,
@@ -9,7 +10,8 @@ import {
 } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
 import type { FormModel, FormProxy } from '@reformer/core';
-import { formValidation, makeValidationConfig } from './validation';
+import { formValidation, makeValidationConfig } from './form.validation';
+import { stepRenders } from './steps';
 import { submitForm } from './api';
 import type { W03Form } from './types';
 
@@ -43,8 +45,7 @@ export function createJsonRenderBehavior(
       onResult?.(res.success ? 'Форма отправлена' : res.error, res.success);
     });
 
-    // Условная видимость секций — раскомментируйте и впишите условие:
-    // hideWhen(schema.node('dannye-section'), () => /* TODO: условие для «Данные» */ false);
-    // hideWhen(schema.node('kontakty-section'), () => /* TODO: условие для «Контакты» */ false);
+    // Правила и заготовки узлов шагов — в steps/<шаг>/form.render.ts.
+    for (const render of stepRenders) render(schema, { form, model });
   };
 }

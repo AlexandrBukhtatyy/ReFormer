@@ -31,16 +31,31 @@ import W03Page from './pages/demo/w03';
 
 ## Файлы
 
-Набор — канон раскладки renderer-json (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1),
-плоский: без `lib/` и `components/steps/`, запись реестра форм — в `index.tsx`.
+Набор — канон раскладки renderer-json (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1)
+для многошаговой формы: общее — в корне, код каждого шага — в своей папке `steps/<шаг>/`.
 
-- **Регенерируемые** (перезаписываются при повторной генерации): `renderer.schema.json`, `types.ts`, `model.ts`, `registry.ts`, `index.tsx`, `renderer.wizard.tsx`, `README.md`.
-- **Ваши** (пишутся один раз, не затираются): `data-sources.ts`, `renderer.behavior.ts`, `form.behavior.ts`, `validation.ts`, `api.ts`.
+```
+w03/
+├── form.schema.json   схема формы целиком (её открывает билдер)
+├── form.validation.ts   сборка правил шагов + поля вне шагов
+├── form.render.ts   submit, передача визарду формы и проверки, вызов шагов
+└── steps/
+    ├── index.ts   шаги по порядку (регенерируется)
+    ├── dannye/   «Данные»: form.validation.ts, form.render.ts
+    └── kontakty/   «Контакты»: form.validation.ts, form.render.ts
+```
 
-Схема лежит в `renderer.schema.json` — допустимый вариант канона («схема как данные»), выбранный
+Папка шага названа по его заголовку. Порядок шагов задаёт `steps/index.ts`, поэтому перестановка
+шагов папки не трогает. Переименование шага даёт новую папку, а старая остаётся с вашими правками —
+перенесите их и удалите её.
+
+- **Регенерируемые** (перезаписываются при повторной генерации): `form.schema.json`, `types.ts`, `model.ts`, `registry.ts`, `index.tsx`, `wizard.tsx`, `steps/index.ts`, `README.md`.
+- **Ваши** (пишутся один раз, не затираются): `data-sources.ts`, `form.render.ts`, `steps/dannye/form.render.ts`, `steps/kontakty/form.render.ts`, `form.behavior.ts`, `form.validation.ts`, `steps/dannye/form.validation.ts`, `steps/kontakty/form.validation.ts`, `api.ts`.
+
+Схема лежит в `form.schema.json` — допустимый вариант канона («схема как данные»), выбранный
 ради того, чтобы форма открывалась обратно в билдере. Цена — пути `$model(...)` не проверяются на
 компиляции: опечатка внутри них останется до рантайма, и никто её не поймает. Нужна проверка —
-переложите схему в `renderer.schema.ts` литералом `defineJsonSchema<W03Form>({ ... })`;
+переложите схему в `form.schema.ts` литералом `defineJsonSchema<W03Form>({ ... })`;
 править её в билдере после этого будет нельзя.
 
 Компоненты импортируются из `@reformer/ui-kit` — того кита, который был
@@ -49,7 +64,7 @@ import W03Page from './pages/demo/w03';
 ## Методы для реализации
 
 - `api.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
-- `renderer.behavior.ts` → раскомментируйте `hideWhen` для секций: `dannye-section`, `kontakty-section`.
+- `steps/<шаг>/form.render.ts` → раскомментируйте `hideWhen` для секций: `dannye-section`, `kontakty-section`.
 - `data-sources.ts` → замените синтетические опции реальными словарями или загрузчиками.
-- `validation.ts` → допишите правила (сейчас — только `required`).
+- `steps/<шаг>/form.validation.ts` → допишите правила (сейчас — только `required`).
 - `form.behavior.ts` → вычисляемые поля и условное включение (по желанию).

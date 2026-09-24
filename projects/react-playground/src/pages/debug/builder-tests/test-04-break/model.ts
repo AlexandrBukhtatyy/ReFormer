@@ -1,4 +1,4 @@
-// @reformer-generated 5577f2528f27
+// @reformer-generated 252df167dce6
 // model.ts — начальные значения (из мока) и фабрика модели. Регенерируется.
 
 import { createModel, type FormModel } from '@reformer/core';

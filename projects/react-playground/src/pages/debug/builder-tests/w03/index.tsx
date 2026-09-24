@@ -1,4 +1,4 @@
-// @reformer-generated 0bbd4296d7a9
+// @reformer-generated a76df728b5cf
 // index.tsx — сборка формы одним проходом: createJsonForm → JsonFormRenderer (проп form).
 // Здесь же запись реестра форм. Регенерируется билдером; правки будут перезаписаны.
 
@@ -11,11 +11,11 @@ import {
   useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import rawSchema from './renderer.schema.json';
+import rawSchema from './form.schema.json';
 import { createRegistry } from './registry';
 import { createW03FormModel } from './model';
 import { formBehavior } from './form.behavior';
-import { createJsonRenderBehavior } from './renderer.behavior';
+import { createJsonRenderBehavior } from './form.render';
 import type { W03Form } from './types';
 
 type SubmitResult = { message: string; ok: boolean };

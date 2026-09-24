@@ -1,13 +1,13 @@
-// @reformer-generated f36bbf4f8537
+// @reformer-generated 87a66384a1c4
 /**
- * Валидация формы «Test03» — правила над МОДЕЛЬЮ, не в layout-схеме.
+ * Валидация формы «Test04 break» — правила над МОДЕЛЬЮ, не в layout-схеме.
  * Запуск: validateModel(model, formValidation).
  */
 import { validate, defineValidationSchema } from '@reformer/core/validation';
 import { email, required } from '@reformer/core/validators';
-import type { Test03Form } from './types';
+import type { Test04BreakForm } from './types';
 
-export const formValidation = defineValidationSchema<Test03Form>(({ model }) => {
+export const formValidation = defineValidationSchema<Test04BreakForm>(({ model }) => {
   validate(model.$.lastName, [required()]);
   validate(model.$.firstName, [required()]);
   validate(model.$.email, [required(), email()]);

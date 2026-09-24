@@ -1,4 +1,4 @@
-// @reformer-generated bf0821154294
+// @reformer-generated 6739720404ad
 /**
  * Поведение формы «Test03» — реактивные связи над моделью.
  */

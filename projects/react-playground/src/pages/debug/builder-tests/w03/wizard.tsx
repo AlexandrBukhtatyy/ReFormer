@@ -1,5 +1,5 @@
-// @reformer-generated 7e05d89ccef7
-// renderer.wizard.tsx — шим под $component(Wizard) и тело шага. Регенерируется.
+// @reformer-generated 23e9f933fbed
+// wizard.tsx — шим под $component(Wizard) и тело шага. Регенерируется.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ReactNode } from 'react';
@@ -30,11 +30,11 @@ export interface WizardProps {
   steps?: StepNode[];
   className?: string;
   /**
-   * Проверка шагов — приходит от renderer.behavior.ts через `patchProps`. Без неё «Далее»
+   * Проверка шагов — приходит от form.render.ts через `patchProps`. Без неё «Далее»
    * не проверяет шаг: визард пропустил бы пустые обязательные поля.
    */
   config?: WizardValidationConfig;
-  /** Вешается снаружи — renderer.behavior.ts через onComponentEvent(node, 'onSubmit'). */
+  /** Вешается снаружи — form.render.ts через onComponentEvent(node, 'onSubmit'). */
   onSubmit?: (values: W03Form) => void | Promise<void>;
 }
 

@@ -1,4 +1,4 @@
-// @reformer-generated 842e0b2eb270
+// @reformer-generated 3e4fc872f1ad
 // registry.ts — привязка $component/$dataSource к реализациям. Регенерируется.
 
 import { Box, Button, FormField, Input, SelectAsync } from '@reformer/ui-kit';

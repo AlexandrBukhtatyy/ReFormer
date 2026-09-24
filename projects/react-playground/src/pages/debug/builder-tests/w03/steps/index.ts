@@ -1,0 +1,14 @@
+// @reformer-generated a09db67bb50b
+// steps/index.ts — шаги визарда по порядку: валидация и render-слой каждого шага.
+// Регенерируется билдером (порядок шагов берётся из схемы); правки будут перезаписаны.
+
+import { stepValidation as step1Validation } from './dannye/form.validation';
+import { stepRender as step1Render } from './dannye/form.render';
+import { stepValidation as step2Validation } from './kontakty/form.validation';
+import { stepRender as step2Render } from './kontakty/form.render';
+
+/** Под-схемы валидации шагов: индекс — номер шага минус один. */
+export const stepValidations = [step1Validation, step2Validation];
+
+/** Render-слой шагов по порядку: корневой form.render.ts вызывает каждый. */
+export const stepRenders = [step1Render, step2Render];

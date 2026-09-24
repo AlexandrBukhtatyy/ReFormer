@@ -1,6 +1,6 @@
-// @reformer-generated bf0821154294
+// @reformer-generated 11506dda68cf
 /**
- * Поведение формы «Test04Break» — реактивные связи над моделью.
+ * Поведение формы «Test04 break» — реактивные связи над моделью.
  */
 import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
 import type { Test04BreakForm } from './types';

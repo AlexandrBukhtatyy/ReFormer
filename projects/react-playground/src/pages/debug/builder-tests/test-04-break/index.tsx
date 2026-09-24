@@ -1,4 +1,4 @@
-// @reformer-generated abff2ed6c168
+// @reformer-generated d3cac0d96400
 // index.tsx — сборка формы одним проходом: createJsonForm → JsonFormRenderer (проп form).
 // Здесь же запись реестра форм. Регенерируется билдером; правки будут перезаписаны.
 
@@ -11,11 +11,11 @@ import {
   useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import rawSchema from './renderer.schema.json';
+import rawSchema from './form.schema.json';
 import { createRegistry } from './registry';
 import { createTest04BreakFormModel } from './model';
 import { formBehavior } from './form.behavior';
-import { createJsonRenderBehavior } from './renderer.behavior';
+import { createJsonRenderBehavior } from './form.render';
 import type { Test04BreakForm } from './types';
 
 type SubmitResult = { message: string; ok: boolean };
@@ -45,7 +45,7 @@ export default function Test04BreakPage() {
   return (
     <div className="mx-auto max-w-3xl p-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold">Test04Break</h1>
+        <h1 className="text-2xl font-bold">Test04 break</h1>
       </header>
 
       {result && (
@@ -71,21 +71,21 @@ export default function Test04BreakPage() {
 }
 
 /**
- * Запись формы «Test04Break» в реестре форм.
+ * Запись формы «Test04 break» в реестре форм.
  *
  * Регистрация в приложении — одна строка:
  * ```ts
  * import { getFormRegistry } from '@reformer/form-registry';
- * import { test04BreakFormEntry } from './pages/demo/test04Break';
+ * import { test04BreakFormEntry } from './pages/demo/test04-break';
  *
  * getFormRegistry().register(test04BreakFormEntry);
  * ```
  *
- * После этого форма монтируется где угодно: `<FormOutlet id="test04Break" />`, либо через
+ * После этого форма монтируется где угодно: `<FormOutlet id="test04-break" />`, либо через
  * слот или маршрут, если заполнить `placement`.
  */
 export const test04BreakFormEntry: FormEntry<Test04BreakForm> = {
-  id: 'test04Break',
+  id: 'test04-break',
   version: '1.0.0',
   // Кто зарегистрировал: по этому полю различаются одинаковые id из разных микрофронтов.
   owner: 'app', // TODO: имя вашего приложения-хоста
@@ -112,10 +112,10 @@ export const test04BreakFormEntry: FormEntry<Test04BreakForm> = {
 
   // Где показывать. Пусто — форма доступна только по id; заполните, чтобы показывать её
   // в слоте хоста или на маршруте.
-  placement: { slots: [], routes: ['/examples/test04Break'] },
+  placement: { slots: [], routes: ['/examples/test04-break'] },
 
   meta: {
-    name: 'Test04Break',
+    name: 'Test04 break',
     tags: ['renderer-json', 'form-registry'],
   },
 };
