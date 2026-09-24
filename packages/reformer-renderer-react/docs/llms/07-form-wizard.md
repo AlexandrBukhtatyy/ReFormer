@@ -68,7 +68,7 @@ child, и React бросает `Objects are not valid as a React child (found: o
 Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`.
 
 Из-за JSX в стратегии файл схемы обычно получает расширение `.tsx` — канон раскладки это
-допускает (`renderer.schema.tsx`).
+допускает (`form.schema.tsx`).
 
 ## Листья внутри `steps[].body` тоже harvest'ятся
 

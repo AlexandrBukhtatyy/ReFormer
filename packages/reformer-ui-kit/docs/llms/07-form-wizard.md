@@ -262,7 +262,7 @@ import { RenderContextProvider } from '@reformer/renderer-react';
 
 Канон раскладки держит шим **внутри модуля формы**, и мест под него ровно два — оба каноничны, выбирается одно:
 
-- `renderer.wizard.tsx` — отдельный файл модуля (единственный файл сверх набора, который канон разрешает, и только для renderer-json + wizard);
+- `wizard.tsx` — отдельный файл модуля (единственный файл сверх набора, который канон разрешает, и только для renderer-json + wizard; прежнее имя `renderer.wizard.tsx` работает с предупреждением);
 - инлайном в `registry.ts` — рядом со строкой `reg.component('Wizard', …)`, которая его и регистрирует.
 
 Полное правило — `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1, он же `find_recipe directory-layout`.

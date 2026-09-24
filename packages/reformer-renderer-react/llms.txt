@@ -273,7 +273,7 @@ const coBorrowersNode = {
 
 **`component` обязателен, если нужен UI управления.** Рендерер сам разметку не шипает: он итерирует массив и отдаёт компоненту готовые элементы. Узел **без** `component` рендерится безхромным fallback'ом — элементы есть, кнопок «Добавить»/«Удалить»/↑↓ нет, в консоль идёт предупреждение. Бери `FormArray` (редактируемая секция) или `List` (display-список без add/remove) из `@reformer/ui-kit` либо свой компонент.
 
-**Привязка `array` — это `model.<path>` (value-доступ), НЕ `model.$.<path>`** (напр. `array: model.coBorrowers`). Один нюанс типов: рантайм-массив совместим с требуемым `RenderModelArrayControl`, но в публичном типе `ModelArray<U>` не объявлен `__path`, поэтому под строгим контекстом узла TS даёт `TS2741: Property '__path' is missing in type 'ModelArray<T>'`. Канон (пример `complex-multy-step-form-renderer`; файл схемы там назван по-старому `render-schema.ts` — канон имени `renderer.schema.ts`) — билдер строит дерево и в конце кастует его `as unknown as RenderNode<T>`; привязка при этом остаётся `array: model.<path>`. Каст также снимает лишние проверки для листьев-полей.
+**Привязка `array` — это `model.<path>` (value-доступ), НЕ `model.$.<path>`** (напр. `array: model.coBorrowers`). Один нюанс типов: рантайм-массив совместим с требуемым `RenderModelArrayControl`, но в публичном типе `ModelArray<U>` не объявлен `__path`, поэтому под строгим контекстом узла TS даёт `TS2741: Property '__path' is missing in type 'ModelArray<T>'`. Канон (пример `complex-multy-step-form-renderer`; файл схемы там назван по-старому `render-schema.ts` — канон имени `form.schema.ts`) — билдер строит дерево и в конце кастует его `as unknown as RenderNode<T>`; привязка при этом остаётся `array: model.<path>`. Каст также снимает лишние проверки для листьев-полей.
 
 **Полный контракт `componentProps`** для `component: FormArray` (`@reformer/ui-kit`) — других полей нет:
 
@@ -312,7 +312,7 @@ function MyArraySection({ items, onAdd, onRemove }: ArrayComponentProps) {
 }
 ```
 
-`ArrayRenderNode` (`{ array, item, component }`) — канон для render-schema пути (одинаково для renderer-react и renderer-json; пример — `complex-multy-step-form-renderer`, его `render-schema.ts` — историческое имя файла схемы, канон `renderer.schema.ts`); `FormArraySection` из [ui-kit](../../../reformer-ui-kit/docs/llms/08-form-array-section.md) и `FormArray` из [cdk](../../../reformer-cdk/docs/llms/02-form-array.md) — для рукописного JSX. Они параллельны, а не конкурируют: array-нода описывает массив декларативно в дереве, compound-компоненты собирают его руками.
+`ArrayRenderNode` (`{ array, item, component }`) — канон для render-schema пути (одинаково для renderer-react и renderer-json; пример — `complex-multy-step-form-renderer`, его `render-schema.ts` — историческое имя файла схемы, канон `form.schema.ts`); `FormArraySection` из [ui-kit](../../../reformer-ui-kit/docs/llms/08-form-array-section.md) и `FormArray` из [cdk](../../../reformer-cdk/docs/llms/02-form-array.md) — для рукописного JSX. Они параллельны, а не конкурируют: array-нода описывает массив декларативно в дереве, compound-компоненты собирают его руками.
 
 Testid-конвенции секции (для e2e): `array-add`, `array-item-{i}`, `array-item-{i}-remove`, `array-item-{i}-move-up`, `array-item-{i}-move-down`.
 
@@ -512,7 +512,7 @@ wizard-узла по-прежнему передают через `componentProp
 
 ## 24. `TS2741: Property '__path' is missing in type 'ModelArray<T>' ... required in 'RenderModelArrayControl'`
 
-Привязка array-узла верная (`array: model.<path>`, напр. `model.coBorrowers`), но публичный тип `ModelArray<U>` не объявляет `__path`, которого требует `RenderModelArrayControl`. Канон (файл схемы формы — `renderer.schema.ts`, с JSX — `.tsx`) — билдер строит дерево и кастует его в конце `as unknown as RenderNode<T>`; привязка остаётся `array: model.<path>`, менять на `model.$.<path>` НЕ нужно. См. [02-render-schema.md](02-render-schema.md#array).
+Привязка array-узла верная (`array: model.<path>`, напр. `model.coBorrowers`), но публичный тип `ModelArray<U>` не объявляет `__path`, которого требует `RenderModelArrayControl`. Канон (файл схемы формы — `form.schema.ts`, с JSX — `.tsx`) — билдер строит дерево и кастует его в конце `as unknown as RenderNode<T>`; привязка остаётся `array: model.<path>`, менять на `model.$.<path>` НЕ нужно. См. [02-render-schema.md](02-render-schema.md#array).
 
 ## 25. Form changes don't trigger re-render
 
@@ -869,7 +869,7 @@ const adapters = new Map<unknown, FieldAdapter>([
 
 **Validation**
 
-Как валидировать **значения** формы, собранной из render-схемы (`@reformer/renderer-react`, M1). Всё сверено с рабочим кодом: типы узла — [types.ts](../../src/core/types.ts), исполнение над моделью — `validateModel` из `@reformer/core/validation`, рабочий пример — `complex-multy-step-form-renderer` (файл схемы там назван по-старому `render-schema.ts` — канон имени `renderer.schema.ts`) + core-каталог `complex-multy-step-form/schemas/validation.ts`.
+Как валидировать **значения** формы, собранной из render-схемы (`@reformer/renderer-react`, M1). Всё сверено с рабочим кодом: типы узла — [types.ts](../../src/core/types.ts), исполнение над моделью — `validateModel` из `@reformer/core/validation`, рабочий пример — `complex-multy-step-form-renderer` (файл схемы там назван по-старому `render-schema.ts` — канон имени `form.schema.ts`) + core-каталог `complex-multy-step-form/schemas/validation.ts`.
 
 Одна ключевая мысль: **`RenderNode` несёт только layout, а не правила валидации.**
 
@@ -946,7 +946,7 @@ export function makeValidationConfig(model: FormModel<Root>) {
 В отличие от JSON-варианта (JSON не умеет носить рантайм-функции, поэтому там инъекция идёт через render-behavior `patchProps`), render-схема — это **обычный TS-код**, поэтому валидацию вкладывают **инлайн**, в `componentProps` wizard-узла при построении дерева. Канонический `FormWizard` из `@reformer/ui-kit/form-wizard` принимает конфиг под ключом `config: FormWizardConfig` (см. [01-overview.md](01-overview.md)):
 
 ```tsx
-// renderer.schema.ts — валидация инъектится ИНЛАЙН в componentProps wizard-узла
+// form.schema.ts — валидация инъектится ИНЛАЙН в componentProps wizard-узла
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
 import { makeCreditValidationConfig } from '../complex-multy-step-form/schemas/validation';
 
@@ -969,7 +969,7 @@ export function buildCreditApplicationSchema(
 }
 ```
 
-> **Нюанс примера.** Флагман `complex-multy-step-form-renderer` монтирует не сам `FormWizard`, а совместимый app-shim `RendererFormWizard` (не экспорт библиотеки), который принимает `validateStep`/`validateAll` **top-level** пропсами и сам заворачивает их в `config`. Поэтому в его файле схемы конфиг спредится плоско: `...makeCreditValidationConfig(model)`. Файл там назван по-старому `render-schema.ts` — канон имени `renderer.schema.ts` (`.tsx`, если в схеме есть JSX), см. `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1. Для нового кода на каноническом `FormWizard` передавай `config: makeCreditValidationConfig(model)`, как выше.
+> **Нюанс примера.** Флагман `complex-multy-step-form-renderer` монтирует не сам `FormWizard`, а совместимый app-shim `RendererFormWizard` (не экспорт библиотеки), который принимает `validateStep`/`validateAll` **top-level** пропсами и сам заворачивает их в `config`. Поэтому в его файле схемы конфиг спредится плоско: `...makeCreditValidationConfig(model)`. Файл там назван по-старому `render-schema.ts` — канон имени `form.schema.ts` (`.tsx`, если в схеме есть JSX), см. `@reformer/mcp` [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1. Для нового кода на каноническом `FormWizard` передавай `config: makeCreditValidationConfig(model)`, как выше.
 
 **Альтернатива — render-behavior.** Если конфиг доступен не в момент построения дерева (или хочется держать layout и рантайм-сущности раздельно, как в JSON-варианте), тот же результат даёт `onInit` + `patchProps` на wizard-узле (узел должен нести `selector: 'wizard'`):
 
@@ -1005,7 +1005,7 @@ const behavior = defineFormBehavior<Root>(({ model }) => {
 Зеркалит рабочий пример (`complex-multy-step-form-renderer`): валидация — `ValidationSchema` над моделью, переиспользуемая всеми вариантами рендера, вкладывается инлайн в wizard-узел render-схемы. Submit и навигация между шагами приходят из render-behavior (`onComponentEvent('onSubmit')` / `renderEffect`), а не отсюда — см. [03-render-behavior.md](03-render-behavior.md).
 
 ```typescript
-// validation.ts — ValidationSchema над МОДЕЛЬЮ (переиспользуется React/JSON/handwritten вариантами)
+// form.validation.ts — ValidationSchema над МОДЕЛЬЮ (переиспользуется React/JSON/handwritten вариантами)
 import { type FormModel } from '@reformer/core';
 import {
   validate,
@@ -1057,12 +1057,12 @@ export function makeCreditValidationConfig(model: M) {
 ```
 
 ```tsx
-// renderer.schema.ts — layout БЕЗ validators; конфиг валидации инлайн в wizard-узле
+// form.schema.ts — layout БЕЗ validators; конфиг валидации инлайн в wizard-узле
 import type { FormModel, FormProxy } from '@reformer/core';
 import type { RenderNode } from '@reformer/renderer-react';
 import { FormWizard } from '@reformer/ui-kit/form-wizard';
 import { Input } from '@reformer/ui-kit';
-import { makeCreditValidationConfig } from './validation';
+import { makeCreditValidationConfig } from './form.validation';
 import type { CreditForm } from './types';
 
 export function buildSchema(
@@ -1098,7 +1098,7 @@ export function buildSchema(
 - **Читать текущее значение вместо сигнала в `validate`** — оператор это `validate(model.$.path, [rules])`, где `model.$.path` — СИГНАЛ (стабильная ссылка на форму модели), а не текущее значение поля. Значения читает раннер в момент прогона; cross-field берёт снапшот через `model.get()` внутри `cross(sig, fn)`. Не передавайте в `validate` результат `model.get()` / `.value`.
 - **Пересоздавать схему на каждый вызов конфига** (`validateModel(model, defineValidationSchema(...))` инлайн) — раннер отменяет **устаревший прогон той же `(model, schema)`** по ссылке на схему. Новый объект схемы на каждый вызов ломает отмену и гашение полей. Держите схемы стабильными module-level `const` (`STEP_SCHEMAS`, `fullSchema`).
 - **Забыть `selector: 'wizard'` при инъекции через render-behavior** — без `selector` узел не адресуется через `schema.node('wizard')`, `onInit`/`patchProps` не найдут его и валидация не прокинется. (При инлайн-инъекции в `componentProps` это не нужно.)
-- **`array` на array-узле + строгая типизация листа = `TS2741`.** Привязка массива это `array: model.<path>` (value-доступ, напр. `model.coBorrowers`), НЕ `model.$.coBorrowers`. Тип `ModelArray<U>` рантайм-совместим с требуемым `RenderModelArrayControl`, но в публичном типе у него **не объявлен** `__path`, поэтому под строгим контекстом узла TS ругается `Property '__path' is missing in type 'ModelArray<T>' but required in 'RenderModelArrayControl'`. Пример `complex-multy-step-form-renderer` обходит это кастом всего дерева `as unknown as RenderNode<T>` в конце билдера (файл схемы там назван по-старому `render-schema.ts` — канон имени `renderer.schema.ts`) — сам каст и есть канон для схемы с array-узлами; привязка при этом остаётся `array: model.<path>` (см. [02-render-schema.md](02-render-schema.md#array)). Per-item **валидация** таких массивов — оператор `each(model.<path>, im => { … })` в схеме, не в render-дереве.
+- **`array` на array-узле + строгая типизация листа = `TS2741`.** Привязка массива это `array: model.<path>` (value-доступ, напр. `model.coBorrowers`), НЕ `model.$.coBorrowers`. Тип `ModelArray<U>` рантайм-совместим с требуемым `RenderModelArrayControl`, но в публичном типе у него **не объявлен** `__path`, поэтому под строгим контекстом узла TS ругается `Property '__path' is missing in type 'ModelArray<T>' but required in 'RenderModelArrayControl'`. Пример `complex-multy-step-form-renderer` обходит это кастом всего дерева `as unknown as RenderNode<T>` в конце билдера (файл схемы там назван по-старому `render-schema.ts` — канон имени `form.schema.ts`) — сам каст и есть канон для схемы с array-узлами; привязка при этом остаётся `array: model.<path>` (см. [02-render-schema.md](02-render-schema.md#array)). Per-item **валидация** таких массивов — оператор `each(model.<path>, im => { … })` в схеме, не в render-дереве.
 
 ## 42. See also
 
@@ -1178,7 +1178,7 @@ child, и React бросает `Objects are not valid as a React child (found: o
 Тип тела расширяется вторым generic-параметром: `FormWizard<T, RenderNode<T>>`.
 
 Из-за JSX в стратегии файл схемы обычно получает расширение `.tsx` — канон раскладки это
-допускает (`renderer.schema.tsx`).
+допускает (`form.schema.tsx`).
 
 ## 45. Листья внутри `steps[].body` тоже harvest'ятся
 

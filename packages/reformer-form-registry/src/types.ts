@@ -2,8 +2,8 @@
  * Модель данных реестра форм.
  *
  * Ключевое разделение, из которого следует всё остальное: **форма — это один файл данных
- * из десяти**. Канонический пакет формы состоит из `renderer.schema.json` (данные) и девяти
- * файлов кода — `validation.ts`, `form.behavior.ts`, `renderer.behavior.ts`, `api.ts`,
+ * из десяти**. Канонический пакет формы состоит из `form.schema.json` (данные) и девяти
+ * файлов кода — `form.validation.ts`, `form.behavior.ts`, `form.render.ts`, `api.ts`,
  * `registry.ts`, `data-sources.ts`, `model.ts`, `types.ts`, `index.tsx`. Секции валидации
  * в мета-схеме JSON-DSL нет вовсе: верхний уровень схемы — только `$schema`, `id`, `version`,
  * `meta`, `root`.

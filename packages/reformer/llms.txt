@@ -1677,11 +1677,13 @@ revalidateWhen([model.$.field2], () => void validateModel(model, schema));
 
 One form is one module folder. **Default layout — flat minimalist:** every concern is a single
 file at the module root, and the whole form (entry + all wizard steps inline) lives in one
-`index.tsx`. Filenames are flat with no prefix — **the dot-prefix (`form.` / `renderer.`) is
-carried only by `schema` and `behavior`**, the two concerns that have both a model-layer and a
-render-layer version (`form.schema.ts` / `form.behavior.ts` here; renderer slices add
-`renderer.schema.*` / `renderer.behavior.ts`). No `lib/` / `schema/` / `components/steps/`
-nesting until the form grows (see "Scaling up" below). Arrays are declared in `form.schema.ts`
+`index.tsx`. Naming rule: **`form.<role>` is a form artefact, the suffix names its role** —
+`form.schema.*` (layout), `form.behavior.ts` (model behavior), `form.render.ts` (render-layer
+behavior, renderer targets only), `form.validation.ts` (validation rules); every other file has
+no prefix. A wizard may instead keep each
+step's code in `steps/<slug>/` (same file names inside) with a `steps/index.ts` aggregator. The old
+`renderer.schema.*` / `renderer.behavior.ts` / `renderer.wizard.tsx` / `validation.ts` names still
+work with a warning. No `lib/` / `schema/` / `components/` nesting until the form grows (see "Scaling up" below). Arrays are declared in `form.schema.ts`
 and rendered with `FormArraySection` — no per-step component files.
 
 ```
@@ -1695,13 +1697,13 @@ src/
 │       ├── model.ts              # createModel + initial values + empty-array-element factories
 │       ├── form.schema.ts        # FormSchema: { value: model.$.x, component, componentProps }
 │       ├── form.behavior.ts      # defineFormBehavior: compute / enableWhen / hideWhen / copyFrom / onChange
-│       ├── validation.ts         # ALL validation → { validateStep, validateAll }
+│       ├── form.validation.ts    # ALL validation → { validateStep, validateAll }
 │       ├── data-sources.ts       # options + async loaders (dataSources)
 │       └── api.ts                # submit + prefill/load
 ```
 
 Rule of thumb: **one concern → one file at the module root; the whole component tree (all steps) →
-`index.tsx`; validation is a single `validation.ts`.** This is the working default for
+`index.tsx`; validation is a single `form.validation.ts`.** This is the working default for
 almost every form — reach for folders only when a file stops fitting on a screen.
 
 ### Key Files
@@ -1770,7 +1772,7 @@ forms/
     ├── schema/                   # The form definition
     │   ├── model.ts             # createModel factory + initial values + array-element factories
     │   ├── form.schema.ts       # schema builder (model) => tree ({ value: model.$.x, component })
-    │   ├── validation.ts        # defineValidationSchema + validateModel config ({ validateStep, validateAll })
+    │   ├── form.validation.ts   # defineValidationSchema + validateModel config ({ validateStep, validateAll })
     │   ├── form.behavior.ts     # defineFormBehavior(...)
     │   └── create-form.ts       # Assembly: createCoreForm({ model, schema, behavior, validation })
     │
@@ -1782,7 +1784,7 @@ forms/
 
 Rule of thumb for this layout: **domain raw material → `lib/`; anything describing the form →
 `schema/`; React layout → `components/`; root = entry + `index.ts`.** In very large forms you
-may co-locate each step's `form.schema.ts` / `validation.ts` / `form.behavior.ts` inside its
+may co-locate each step's `form.schema.ts` / `form.validation.ts` / `form.behavior.ts` inside its
 `steps/[Step]/` folder, keeping only the shared `model` and cross-step rules in `schema/` — see
 the guide below.
 
@@ -1798,9 +1800,9 @@ the guide below.
 > when registering the MCP server to choose which structure the generators lead with. Default
 > is `minimalist`.
 
-> Cross-target variants (renderer-react `renderer.schema.ts` + `renderer.behavior.ts` /
-> renderer-json `renderer.schema.ts` + `renderer.behavior.ts` + `registry.ts`, plus an optional
-> `renderer.wizard.tsx` shim), the `.tsx` / `.json` schema variants, the centralized-vs-co-located
+> Cross-target variants (renderer-react `form.schema.ts` + `form.render.ts` /
+> renderer-json `form.schema.ts` + `form.render.ts` + `registry.ts`, plus an optional
+> `wizard.tsx` shim), the `.tsx` / `.json` schema variants, the centralized-vs-co-located
 > choice, and the full reuse map live in the **form-directory-layout** guide (`@reformer/mcp`) —
 > `find_recipe directory-layout`.
 

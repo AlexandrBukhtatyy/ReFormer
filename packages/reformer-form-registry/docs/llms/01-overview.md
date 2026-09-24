@@ -45,14 +45,14 @@ npm install @reformer/form-registry @reformer/core @reformer/renderer-json @refo
 
 Канонический пакет формы состоит из десяти файлов, и только один из них — данные:
 
-- `renderer.schema.json` — **данные**, сериализуемо, может приехать по сети;
-- `validation.ts`, `form.behavior.ts`, `renderer.behavior.ts`, `api.ts`, `registry.ts`,
+- `form.schema.json` — **данные**, сериализуемо, может приехать по сети;
+- `form.validation.ts`, `form.behavior.ts`, `form.render.ts`, `api.ts`, `registry.ts`,
   `data-sources.ts`, `model.ts`, `types.ts` — **код**.
 
 > Расширение `.json` у схемы здесь не случайно и не противоречит канону раскладки: дефолт для
-> renderer-json — `renderer.schema.ts` с `defineJsonSchema<T>` (типизирует пути `$model(...)` на
+> renderer-json — `form.schema.ts` с `defineJsonSchema<T>` (типизирует пути `$model(...)` на
 > этапе компиляции), а `.json` — допустимый вариант «схема как данные» ровно для этого случая —
-> когда схема едет по сети и компилятора на другом конце нет. Имя файла (стем `renderer.schema`)
+> когда схема едет по сети и компилятора на другом конце нет. Имя файла (стем `form.schema`)
 > одинаковое в обоих вариантах. Полный набор имён — `@reformer/mcp`
 > [06-form-directory-layout.md](../../../reformer-mcp/docs/llms/06-form-directory-layout.md) §1.
 
