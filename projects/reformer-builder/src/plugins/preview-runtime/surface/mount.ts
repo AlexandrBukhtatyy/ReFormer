@@ -20,17 +20,29 @@ import type { Disposable } from '@reformer/builder-plugin-api';
 /**
  * Рисует узел в элементе и отдаёт освобождение.
  *
- * `unmount` синхронный: он зовётся из очистки эффекта, а очистка эффекта — не фаза отрисовки,
- * поэтому предупреждения React про синхронный демонтаж здесь не возникает. Откладывать его
- * микрозадачей было бы хуже: быстрое переключение поверхностей размонтировало бы уже НОВЫЙ
- * корень.
+ * Поверхность снимают из очистки эффекта того, кто её показывает, а такая очистка бывает и
+ * внутри коммита родительского корня (двойной запуск эффектов StrictMode, синхронный сброс при
+ * размонтировании). Синхронный `unmount` там React запрещает — «Attempted to synchronously
+ * unmount a root while React was already rendering».
+ *
+ * Поэтому снятие в два хода. Сразу — DOM: элемент поверхности отсоединяется, и следующая
+ * поверхность встаёт в тот же `host` на чистое место (у каждого монтирования свой элемент, так
+ * что живой корень новой не мешает). Микрозадачей — сам корень: его очистки (в том числе
+ * сохранение значений формы) успевают раньше первой отрисовки новой поверхности, потому что
+ * та идёт задачей планировщика React, а не микрозадачей. Тот же приём — у поверхности `plain`.
  */
 export function mountReact(host: HTMLElement, node: ReactNode): Disposable {
-  const root = createRoot(host);
+  const element = document.createElement('div');
+  element.style.display = 'contents';
+  host.append(element);
+  const root = createRoot(element);
   root.render(node);
   return {
     dispose(): void {
-      root.unmount();
+      element.remove();
+      queueMicrotask(() => {
+        root.unmount();
+      });
     },
   };
 }

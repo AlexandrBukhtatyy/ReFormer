@@ -100,6 +100,14 @@ function fakeContext(schema: JsonFormSchema | null): FakeContext {
   };
 }
 
+/**
+ * Отрисовала ли поверхность хоть что-то. Не `childElementCount` самого `host`: у каждого
+ * монтирования свой элемент-обёртка (`./mount`), и он появляется раньше первой отрисовки.
+ */
+function rendered(element: HTMLElement): boolean {
+  return (element.firstElementChild?.childElementCount ?? 0) > 0;
+}
+
 /** Ждёт первой отрисовки: `createRoot().render()` асинхронен, синхронной проверки тут нет. */
 async function mounted(surface: PreviewSurface, ctx: PreviewContext): Promise<HTMLElement> {
   const element = host();
@@ -108,7 +116,7 @@ async function mounted(surface: PreviewSurface, ctx: PreviewContext): Promise<HT
     subscription.dispose();
   });
   await vi.waitFor(() => {
-    expect(element.childElementCount).toBeGreaterThan(0);
+    expect(rendered(element)).toBe(true);
   });
   return element;
 }
@@ -139,7 +147,7 @@ describe.each(surfaces.map((surface) => [surface.id, surface] as const))(
       const element = host();
       const subscription = surface.mount(element, fakeContext(sampleSchema()));
       await vi.waitFor(() => {
-        expect(element.childElementCount).toBeGreaterThan(0);
+        expect(rendered(element)).toBe(true);
       });
       subscription.dispose();
       // Переключение поверхностей свободно только если предыдущая уходит целиком.
@@ -233,15 +241,18 @@ describe('значения переживают размонтирование �
     const element = host();
     const subscription = runtime.mount(element, ctx);
     await vi.waitFor(() => {
-      expect(element.childElementCount).toBeGreaterThan(0);
+      expect(rendered(element)).toBe(true);
     });
     // До снятия хранилище пусто: поверхность отдаёт значения ровно один раз и в конце.
     expect(ctx.kept()).toBeUndefined();
 
     subscription.dispose();
 
-    // Схема из фикстуры даёт эти два пути — значит модель дожила и была прочитана.
-    expect(ctx.kept()).toMatchObject({ loanType: '', properties: [] });
+    // Схема из фикстуры даёт эти два пути — значит модель дожила и была прочитана. Ждём:
+    // корень снимается микрозадачей (`./mount`), и значения отдаёт его очистка.
+    await vi.waitFor(() => {
+      expect(ctx.kept()).toMatchObject({ loanType: '', properties: [] });
+    });
   });
 
   it('сохранённое возвращается в форму, а не заменяется дефолтом мока', async () => {
@@ -251,7 +262,7 @@ describe('значения переживают размонтирование �
     const element = host();
     const subscription = runtime.mount(element, ctx);
     await vi.waitFor(() => {
-      expect(element.childElementCount).toBeGreaterThan(0);
+      expect(rendered(element)).toBe(true);
     });
     subscription.dispose();
     // Полный круг: хранилище → сборка формы → модель → снова хранилище. Синтезированный мок
