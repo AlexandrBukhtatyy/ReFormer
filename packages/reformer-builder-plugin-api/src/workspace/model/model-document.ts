@@ -17,7 +17,14 @@
 
 import type { Disposable } from '../../primitives/disposable.js';
 import type { Document } from '../document.js';
-import type { ApplyResult, EditOp, NodeId } from './provider.js';
+import type { ResourceId } from '../../primitives/resource.js';
+import type {
+  ApplyResult,
+  CompositionLayout,
+  CompositionRestructure,
+  EditOp,
+  NodeId,
+} from './provider.js';
 
 /** Согласован ли буфер с моделью. `diverged` — буфер не разбирается, модель прежняя. */
 export type DocumentSyncState = 'synced' | 'diverged';
@@ -59,6 +66,22 @@ export interface ModelDocument<M = unknown> extends Document {
   /** Ложь в расхождении: структурные редакторы там только на чтение. */
   isStructurallyEditable(): boolean;
   onDidChangeModel(cb: (change: ModelChange<M>) => void): Disposable;
+  /**
+   * Документ из нескольких файлов: его части и раскладка модели по ним. `undefined` — документ
+   * одним файлом (провайдер без `composition`, либо частей нет).
+   *
+   * Нужен тем, кто печатает документ заново (кодоген): им важно не только ЧТО в модели, но и
+   * КАК она лежит по файлам, иначе перепечатка собрала бы разбитый документ в один файл.
+   */
+  getComposition?(): DocumentCompositionState | undefined;
+}
+
+/** Состояние составного документа. */
+export interface DocumentCompositionState {
+  /** Раскладка модели по файлам — та, что отдал провайдер (для оболочки непрозрачна). */
+  readonly layout: CompositionLayout;
+  /** Файлы частей, открытые сейчас документом. */
+  readonly parts: readonly ResourceId[];
 }
 
 /** Отказ применить операцию. Не исключение: оба случая — нормальные состояния, а не аварии. */
@@ -99,4 +122,12 @@ export interface ModelDocumentHandle<M> {
   flush(): Promise<void>;
   /** Ждёт ли документ перерисовки буфера, отложенной из-за фокуса. */
   hasPendingSync(): boolean;
+  /**
+   * Перестроить раскладку составного документа: `'split'` — вынести части в свои файлы,
+   * `'join'` — собрать всё в корень. Одна запись истории; модель при этом не меняется.
+   *
+   * Есть только у документа, чей провайдер умеет {@link DocumentModelProvider.composition}.
+   * `false` — перестраивать нечего (уже разбит / уже один файл) или документ в расхождении.
+   */
+  restructure?(mode: CompositionRestructure): boolean;
 }

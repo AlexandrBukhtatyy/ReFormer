@@ -353,6 +353,11 @@ export type {
   JsonSchemaHint,
   TextStringSite,
   TextCompletion,
+  ComposedModel,
+  CompositionLayout,
+  CompositionRestructure,
+  DecomposedModel,
+  DocumentComposition,
 } from './workspace/model/provider.js';
 
 // Модели открытых документов, загрузчик модулей и словарь оболочки — возможности ОБОЛОЧКИ,
@@ -365,6 +370,7 @@ export type {
   ApplyOptions,
   ApplyOutcome,
   ApplyRejection,
+  DocumentCompositionState,
   DocumentSyncState,
   ModelChange,
   ModelChangeReason,
