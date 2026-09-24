@@ -1,0 +1,50 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "$nodeId": "7a4cq60i",
+    "component": "$component(Step)",
+    "componentProps": {
+      "className": "flex flex-col gap-4",
+      "title": "Данные"
+    },
+    "children": [
+      {
+        "$nodeId": "jzlhfhwa",
+        "component": "$html(div)",
+        "componentProps": {
+          "className": "flex gap-4"
+        },
+        "children": [
+          {
+            "$nodeId": "iyd70nyq",
+            "value": "$model(lastName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Фамилия",
+              "required": true
+            }
+          },
+          {
+            "$nodeId": "h7vfi783",
+            "value": "$model(firstName)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя",
+              "required": true
+            }
+          }
+        ]
+      },
+      {
+        "$nodeId": "szxgutvb",
+        "value": "$model(fullName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Полное имя",
+          "readOnly": true
+        }
+      }
+    ],
+    "selector": "dannye-section"
+  }
+}

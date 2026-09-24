@@ -1,0 +1,32 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "$nodeId": "ikk2xkqf",
+    "component": "$component(Step)",
+    "componentProps": {
+      "className": "flex flex-col gap-4",
+      "title": "Контакты"
+    },
+    "children": [
+      {
+        "$nodeId": "8wirwe9f",
+        "value": "$model(city)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Город",
+          "options": "$dataSource(CITY_LIST)"
+        }
+      },
+      {
+        "$nodeId": "fblcuhfc",
+        "value": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Электронная почта",
+          "required": true
+        }
+      }
+    ],
+    "selector": "kontakty-section"
+  }
+}

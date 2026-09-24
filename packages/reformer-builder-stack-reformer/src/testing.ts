@@ -25,4 +25,5 @@ export {
   wizardRulesSchema,
   wizardRules,
   wizardSlugsSchema,
+  wizardSplitSource,
 } from './codegen/__fixtures__/kit';

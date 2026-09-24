@@ -27,6 +27,7 @@
 
 import { hasBehaviorRules, hasValidationRules } from '../../form-model/rules';
 import type { EmitContext, EmittedFileRef } from '../context';
+import { normalizeStepRef } from '@reformer/renderer-json';
 import { MODULE_FILES, STEPS_INDEX, importOf } from '../layout';
 import type { StepInfo } from '../steps';
 import {
@@ -304,11 +305,20 @@ export interface StepIndexEntry {
   readonly validationImport: string;
   /** Импорт render-файла шага из агрегатора (`./kontakty/form.render`). */
   readonly renderImport: string;
+  /** Спецификатор схемы шага в корне (`./steps/kontakty/form.schema.json`) — у вынесенного шага. */
+  readonly schemaRef: string | null;
+  /** Импорт схемы шага из агрегатора (`./kontakty/form.schema.json`) — у вынесенного шага. */
+  readonly schemaImport: string | null;
 }
 
 export interface LayoutView {
   readonly kind: 'simple' | 'wizard';
   readonly isWizard: boolean;
+  /**
+   * Визард разбит по шагам: корневая схема держит ссылки, и `index.tsx` собирает её
+   * `composeJsonFormSchema` из `stepSchemas` агрегатора.
+   */
+  readonly isSplit: boolean;
   readonly imports: RootImportsView;
   /** Имена файлов корня — для README и комментариев. */
   readonly files: typeof MODULE_FILES;
@@ -343,6 +353,7 @@ function layoutView(ctx: EmitContext): LayoutView {
   return {
     kind: ctx.layout.kind,
     isWizard: ctx.layout.kind === 'wizard',
+    isSplit: ctx.composition !== null,
     imports: {
       schema: rel(MODULE_FILES.schema),
       types: rel(MODULE_FILES.types),
@@ -363,6 +374,9 @@ function layoutView(ctx: EmitContext): LayoutView {
       title: step.title,
       validationImport: importOf(STEPS_INDEX, step.files.validation),
       renderImport: importOf(STEPS_INDEX, step.files.render),
+      schemaRef: step.schemaRef,
+      schemaImport:
+        step.schemaRef === null ? null : importOf(STEPS_INDEX, normalizeStepRef(step.schemaRef)),
     })),
     stepsIndex: STEPS_INDEX,
   };

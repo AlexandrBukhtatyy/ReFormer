@@ -1,9 +1,28 @@
-// steps/index.ts — шаги визарда по порядку: валидация и render-слой каждого шага.
+// steps/index.ts — шаги визарда по порядку: <%= it.layout.isSplit ? 'схема, валидация и render-слой' : 'валидация и render-слой' %> каждого шага.
 // Регенерируется билдером (порядок шагов берётся из схемы); правки будут перезаписаны.
+<% if (it.layout.isSplit) { -%>
+
+import type { JsonFormStep } from '@reformer/renderer-json';
+<% } -%>
 
 <% for (const step of it.layout.steps) { -%>
+<% if (step.schemaImport) { -%>
+import <%= step.alias %>Schema from '<%= step.schemaImport %>';
+<% } -%>
 import { stepValidation as <%= step.alias %>Validation } from '<%= step.validationImport %>';
 import { stepRender as <%= step.alias %>Render } from '<%= step.renderImport %>';
+<% } -%>
+<% if (it.layout.isSplit) { -%>
+
+/**
+ * Схемы шагов по ссылке из корневого form.schema.json: index.tsx собирает из них форму
+ * (`composeJsonFormSchema`). В чистом JSON операторы типизируются как `string` — отсюда приведение.
+ */
+export const stepSchemas: Record<string, JsonFormStep> = {
+<% for (const step of it.layout.steps.filter((s) => s.schemaImport)) { -%>
+  '<%= step.schemaRef %>': <%= step.alias %>Schema as unknown as JsonFormStep,
+<% } -%>
+};
 <% } -%>
 
 /** Под-схемы валидации шагов: индекс — номер шага минус один. */

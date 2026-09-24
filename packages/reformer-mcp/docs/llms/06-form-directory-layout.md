@@ -100,6 +100,13 @@ steps/
 Cross-step rules and behavior stay in the root `form.validation.ts` / `form.behavior.ts` /
 `form.render.ts`.
 
+A **data** schema (`form.schema.json`, renderer-json) is split by reference: the root keeps
+`{ "$ref": "./steps/<slug>/form.schema.json" }` in `componentProps.steps`, the step file is
+`{ "$schema", "node": <Step> }` (key `node`, not `root`), `steps/index.ts` exports
+`stepSchemas: Record<ref, JsonFormStep>`, and `index.tsx` assembles the form with
+`composeJsonFormSchema(rawSchema, stepSchemas)` before `createJsonForm` — see renderer-json
+[07-form-wizard.md](../../../reformer-renderer-json/docs/llms/07-form-wizard.md#split-steps).
+
 → per-target file sets:
 
 ```

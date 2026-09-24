@@ -42,6 +42,8 @@ export const STEPS_INDEX = `${STEPS_DIR}/index.ts`;
 
 /** Файлы внутри папки шага. */
 export const STEP_FILES = Object.freeze({
+  /** Схема шага — только у визарда, разбитого по шагам (`{ "$schema", "node" }`). */
+  schema: 'form.schema.json',
   validation: 'form.validation.ts',
   render: 'form.render.ts',
 } as const);

@@ -14,6 +14,7 @@ import { builtinCatalog } from '../../catalog/__fixtures__/builtin-catalog';
 import { containerNode, fieldNode } from '../../catalog/make-node';
 import type { CatalogEntry } from '../../catalog/types';
 import type { FormRules } from '../../form-model/rules';
+import { joinFormSchema, STEP_SCHEMA_MARKER, type StepOrigins } from '../../form-model/composite';
 import { toDescriptor } from '../../kits/descriptor';
 import type { KitDescriptor } from '../../kits/types';
 import type { KitView } from '../components';
@@ -308,4 +309,58 @@ export function wizardSlugsSchema(): JsonFormSchema {
     ],
   };
   return { version: '1.0', root };
+}
+
+/**
+ * Визард, разбитый по шагам, в том виде, в каком его видит генерация: собранная схема и карта
+ * происхождения шагов.
+ *
+ * Первый шаг лежит в `steps/anketa/` при заголовке «Данные» — папку задаёт ссылка, а не слаг
+ * заголовка (шаг переименовали после разбиения). Второй шаг инлайн — его добавили в разбитую
+ * форму, и он обязан получить свой файл `steps/kontakty/`.
+ */
+export function wizardSplitSource(): { schema: JsonFormSchema; origins: StepOrigins } {
+  const step = (id: string, title: string, path: string): JsonNode =>
+    ({
+      component: '$component(Step)',
+      componentProps: { title },
+      $nodeId: id,
+      children: [
+        {
+          value: `$model(${path})`,
+          component: '$component(Input)',
+          componentProps: { label: title, required: true },
+          $nodeId: `${id.slice(0, 6)}0f`,
+        },
+      ],
+    }) as JsonNode;
+  const skeleton: JsonFormSchema = {
+    version: '1.0',
+    root: {
+      component: '$component(Box)',
+      $nodeId: 'root0000',
+      children: [
+        {
+          component: '$component(Wizard)',
+          $nodeId: 'wizard00',
+          componentProps: {
+            steps: [
+              { $ref: './steps/anketa/form.schema.json' },
+              step('kontakt0', 'Контакты', 'email'),
+            ],
+          },
+        } as unknown as JsonNode,
+      ],
+    } as JsonNode,
+  };
+  const { schema, origins } = joinFormSchema(
+    skeleton,
+    new Map([
+      [
+        './steps/anketa/form.schema.json',
+        { $schema: STEP_SCHEMA_MARKER, node: step('anketa00', 'Данные', 'name') },
+      ],
+    ])
+  );
+  return { schema, origins };
 }

@@ -25,7 +25,8 @@ export {
   formNameOfSchemaPath,
   importOf,
 } from './layout';
-export { layoutOf, stepDirName, type ModuleLayout, type StepInfo } from './steps';
+export { layoutOf, type ModuleLayout, type StepInfo } from './steps';
+export { stepDirName } from '../form-model/step-dir';
 export { makeNames, pascal, humanize, type Names } from './naming';
 export { assignSelectors, type AssignResult, type SelectorInfo } from './selectors';
 export { collect, wizardStepsOf, type Collected, type TsNode, type TsObject } from './collect';
@@ -44,7 +45,7 @@ export {
 } from '../form-mock';
 export { resolveComponent, type ComponentResolution, type KitView } from './components';
 
-export { emitSchema } from './emit/schema';
+export { emitSchema, emitStepSchema } from './emit/schema';
 export { wizardShimOf, STEP_NAME, type WizardShim } from './view/wizard';
 export { appSnippet } from './emit/snippet';
 

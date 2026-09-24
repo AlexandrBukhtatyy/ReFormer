@@ -1,3 +1,4 @@
+// @reformer-generated 1ba4337bebc4
 // index.tsx — сборка формы одним проходом: createJsonForm → JsonFormRenderer (проп form).
 // Здесь же запись реестра форм. Регенерируется билдером; правки будут перезаписаны.
 
@@ -6,48 +7,39 @@ import type { FormEntry } from '@reformer/form-registry';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
-<% if (it.layout.isSplit) { -%>
   composeJsonFormSchema,
-<% } -%>
   createJsonForm,
   useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import rawSchema from '<%= it.layout.imports.schema %>';
-import { createRegistry } from '<%= it.layout.imports.registry %>';
-import { <%= it.names.modelFactory %> } from '<%= it.layout.imports.model %>';
-import { formBehavior } from '<%= it.layout.imports.behavior %>';
-import { createJsonRenderBehavior } from '<%= it.layout.imports.render %>';
-import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
-<% if (it.layout.isSplit) { -%>
-import { stepSchemas } from '<%= it.layout.imports.steps %>';
-<% } -%>
+import rawSchema from './form.schema.json';
+import { createRegistry } from './registry';
+import { createW04SplitFormModel } from './model';
+import { formBehavior } from './form.behavior';
+import { createJsonRenderBehavior } from './form.render';
+import type { W04SplitForm } from './types';
+import { stepSchemas } from './steps';
 
 type SubmitResult = { message: string; ok: boolean };
 
-<% if (it.layout.isSplit) { -%>
 // Шаги визарда лежат в своих файлах: корневая схема держит ссылки, форма собирается здесь.
 // В чистом JSON операторы типизируются как `string` — приведение к схеме модели формы.
 const typedSchema = composeJsonFormSchema(
   rawSchema as unknown as JsonFormSchema,
   stepSchemas
-) as unknown as JsonFormSchema<<%= it.names.TypeName %>>;
-<% } else { -%>
-// В чистом JSON операторы типизируются как `string` — приведение к схеме модели формы.
-const typedSchema = rawSchema as unknown as JsonFormSchema<<%= it.names.TypeName %>>;
-<% } -%>
+) as unknown as JsonFormSchema<W04SplitForm>;
 
-export default function <%= it.names.pageComponent %>() {
+export default function W04SplitPage() {
   const [result, setResult] = useState<SubmitResult | null>(null);
 
   // Сборка ОДНИМ вызовом: model + form + registry + behavior + render-behavior из одной схемы.
   // useJsonForm (ленивый useState) зовёт фабрику ровно один раз, поэтому ссылка на поведение
   // стабильна, а колбэк хоста (onResult) безопасно замыкается прямо здесь.
   const jsonForm = useJsonForm(() =>
-    createJsonForm<<%= it.names.TypeName %>>({
+    createJsonForm<W04SplitForm>({
       schema: typedSchema,
       registry: createRegistry(),
-      model: <%= it.names.modelFactory %>(),
+      model: createW04SplitFormModel(),
       behavior: formBehavior,
       renderBehavior: (form, model) =>
         createJsonRenderBehavior(form, model, {
@@ -59,7 +51,7 @@ export default function <%= it.names.pageComponent %>() {
   return (
     <div className="mx-auto max-w-3xl p-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold"><%= it.names.title %></h1>
+        <h1 className="text-2xl font-bold">W04 split</h1>
       </header>
 
       {result && (
@@ -78,28 +70,28 @@ export default function <%= it.names.pageComponent %>() {
       )}
 
       <JsonRendererProvider settings={{ registry: jsonForm.registry }}>
-        <JsonFormRenderer<<%= it.names.TypeName %>> form={jsonForm} validateSchema={import.meta.env.DEV} />
+        <JsonFormRenderer<W04SplitForm> form={jsonForm} validateSchema={import.meta.env.DEV} />
       </JsonRendererProvider>
     </div>
   );
 }
 
 /**
- * Запись формы «<%= it.names.title %>» в реестре форм.
+ * Запись формы «W04 split» в реестре форм.
  *
  * Регистрация в приложении — одна строка:
  * ```ts
  * import { getFormRegistry } from '@reformer/form-registry';
- * import { <%= it.names.entryConst %> } from './pages/demo/<%= it.names.dir %>';
+ * import { w04SplitFormEntry } from './pages/demo/w04-split';
  *
- * getFormRegistry().register(<%= it.names.entryConst %>);
+ * getFormRegistry().register(w04SplitFormEntry);
  * ```
  *
- * После этого форма монтируется где угодно: `<FormOutlet id="<%= it.names.exampleId %>" />`, либо через
+ * После этого форма монтируется где угодно: `<FormOutlet id="w04-split" />`, либо через
  * слот или маршрут, если заполнить `placement`.
  */
-export const <%= it.names.entryConst %>: FormEntry<<%= it.names.TypeName %>> = {
-  id: '<%= it.names.exampleId %>',
+export const w04SplitFormEntry: FormEntry<W04SplitForm> = {
+  id: 'w04-split',
   version: '1.0.0',
   // Кто зарегистрировал: по этому полю различаются одинаковые id из разных микрофронтов.
   owner: 'app', // TODO: имя вашего приложения-хоста
@@ -109,7 +101,7 @@ export const <%= it.names.entryConst %>: FormEntry<<%= it.names.TypeName %>> = {
 
   // Код — только из бандла.
   registry: { kind: 'inline', value: createRegistry() },
-  model: { kind: 'inline', value: <%= it.names.modelFactory %> },
+  model: { kind: 'inline', value: createW04SplitFormModel },
   behavior: { kind: 'inline', value: formBehavior },
   // Адаптер, а не прямая ссылка: у `createJsonRenderBehavior` третий параметр — настройки места
   // (`{ onResult }`), а реестр третьим отдаёт правила валидации и только четвёртым — настройки
@@ -126,10 +118,10 @@ export const <%= it.names.entryConst %>: FormEntry<<%= it.names.TypeName %>> = {
 
   // Где показывать. Пусто — форма доступна только по id; заполните, чтобы показывать её
   // в слоте хоста или на маршруте.
-  placement: { slots: [], routes: ['<%= it.names.routePath %>'] },
+  placement: { slots: [], routes: ['/examples/w04-split'] },
 
   meta: {
-    name: '<%= it.names.title %>',
+    name: 'W04 split',
     tags: ['renderer-json', 'form-registry'],
   },
 };

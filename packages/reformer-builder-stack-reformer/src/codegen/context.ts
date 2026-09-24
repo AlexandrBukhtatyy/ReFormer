@@ -16,6 +16,7 @@
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { emptyRules, type FormRules } from '../form-model/rules';
+import { splitFormSchema, type SplitFormSchema, type StepOrigins } from '../form-model/composite';
 import { collect, type Collected } from './collect';
 import type { KitView } from './components';
 import { synthMock } from '../form-mock';
@@ -36,6 +37,13 @@ export interface CodegenInput {
   readonly rules?: FormRules;
   /** Авторские мок-данные. Без них синтезируются из схемы ({@link synthMock}). */
   readonly mock?: FormMock;
+  /**
+   * Какие шаги собранной схемы пришли из своих файлов (`$nodeId` → файл). Кодоген повторяет
+   * структуру источника: разбитая форма печатается разбитой, шаги остаются в своих папках.
+   */
+  readonly origins?: StepOrigins;
+  /** Вынести в файлы все шаги визарда — так печатается шаблон «Пошаговая форма». */
+  readonly splitSteps?: boolean;
 }
 
 /**
@@ -69,6 +77,11 @@ export interface EmitContext {
    */
   readonly layout: ModuleLayout;
   /**
+   * Схема, разложенная по файлам шагов, — у визарда, разбитого по шагам; иначе `null`.
+   * Считается по схеме С селекторами, поэтому файлы шагов печатаются теми же, что `schema`.
+   */
+  readonly composition: SplitFormSchema | null;
+  /**
    * Шаг, для которого печатается файл, — у целей, размноженных по шагам. У файлов корня нет.
    */
   readonly step?: StepInfo;
@@ -87,12 +100,15 @@ export function prepare(input: CodegenInput): EmitContext {
   const { schema, info } = assignSelectors(input.schema);
   const mock = input.mock ?? synthMock(schema);
   const collected = collect(schema, mock);
+  const split = splitFormSchema(schema, input.origins ?? new Map(), { all: input.splitSteps });
+  const composition = split.parts.size > 0 ? split : null;
   return {
     schema,
+    composition,
     names: makeNames(input.formName),
     collected,
     selectors: info,
-    layout: layoutOf(schema, collected, info),
+    layout: layoutOf(schema, collected, info, composition),
     mock,
     rules: input.rules ?? emptyRules(),
     kit: input.kit,

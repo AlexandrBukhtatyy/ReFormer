@@ -9,6 +9,7 @@
  * @module @reformer/builder-stack-reformer/form-model
  */
 
+export * from './composite';
 export * from './document';
 export * from './model-scopes';
 export * from './mutate';
@@ -22,4 +23,5 @@ export * from './query';
 export * from './rules';
 export * from './rules-integrity';
 export * from './selectors';
+export * from './step-dir';
 export * from './tw-tokens';

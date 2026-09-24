@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { plainSchema } from './__fixtures__/kit';
 import { prepare } from './context';
-import { stepDirName } from './steps';
+import { stepDirName } from '../form-model/step-dir';
 import { builtinKit } from './__fixtures__/kit';
 
 /** Визард из шагов с заданными заголовками; в каждом шаге — одно обязательное поле. */

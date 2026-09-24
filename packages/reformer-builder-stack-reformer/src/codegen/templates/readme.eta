@@ -19,19 +19,25 @@
 
 ```
 <%= it.names.dir %>/
-├── <%= it.layout.files.schema %>   схема формы целиком (её открывает билдер)
+├── <%= it.layout.files.schema %>   <%= it.layout.isSplit ? 'схема формы, шаги — ссылками на свои файлы' : 'схема формы целиком (её открывает билдер)' %>
 ├── <%= it.layout.files.validation %>   сборка правил шагов + поля вне шагов
 ├── <%= it.layout.files.render %>   submit, передача визарду формы и проверки, вызов шагов
 └── steps/
     ├── index.ts   шаги по порядку (регенерируется)
 <% it.layout.steps.forEach((step, i) => { -%>
-    <%= i === it.layout.steps.length - 1 ? '└──' : '├──' %> <%= step.dir %>/   «<%= step.title %>»: form.validation.ts, form.render.ts
+    <%= i === it.layout.steps.length - 1 ? '└──' : '├──' %> <%= step.dir %>/   «<%= step.title %>»: <%= step.schemaImport ? 'form.schema.json, ' : '' %>form.validation.ts, form.render.ts
 <% }) -%>
 ```
 
+<% if (it.layout.isSplit) { -%>
+Схема разбита по шагам: корень держит `{ "$ref": "./steps/<шаг>/form.schema.json" }`, `index.tsx`
+собирает форму `composeJsonFormSchema`. Билдер открывает корень как одну форму и раскладывает правки
+по файлам сам. Папка шага закреплена ссылкой: переименование шага её не меняет.
+<% } else { -%>
 Папка шага названа по его заголовку. Порядок шагов задаёт `steps/index.ts`, поэтому перестановка
 шагов папки не трогает. Переименование шага даёт новую папку, а старая остаётся с вашими правками —
 перенесите их и удалите её.
+<% } -%>
 <% } else { -%>
 Набор — канон раскладки renderer-json (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1),
 плоский: без `lib/` и `components/`, запись реестра форм — в `index.tsx`.
