@@ -18,26 +18,29 @@ forms/
     ├── model.ts                 # createModel + начальные значения + фабрики элементов массива
     ├── form.schema.ts           # схема: { value: model.$.x, component, componentProps }
     ├── form.behavior.ts         # defineFormBehavior: compute / enableWhen / onChange
-    ├── validation.ts            # ВСЯ валидация формы
+    ├── form.validation.ts       # ВСЯ валидация формы
     ├── data-sources.ts          # опции + асинхронные загрузчики
     └── api.ts                   # submit + prefill
 ```
 
-| Файл               | За что отвечает                                                          |
-| ------------------ | ------------------------------------------------------------------------ |
-| `types.ts`         | тип формы (`type`-алиас), enum'ы полей, тип `{ value, label }` для опций |
-| `model.ts`         | `createModel<T>(initial)` — источник истины для значений                 |
-| `form.schema.ts`   | привязка полей к сигналам модели, `component` и `componentProps`         |
-| `form.behavior.ts` | реактивные правила: вычисляемые поля, условная доступность, реакции      |
-| `validation.ts`    | `defineValidationSchema` (все правила) + запуск `validateModel`          |
-| `data-sources.ts`  | словари опций и загрузчики (держим их вне схемы)                         |
-| `api.ts`           | отправка и предзаполнение                                                |
-| `index.tsx`        | сборка `createXxxForm()` + разметка                                      |
+| Файл                 | За что отвечает                                                          |
+| -------------------- | ------------------------------------------------------------------------ |
+| `types.ts`           | тип формы (`type`-алиас), enum'ы полей, тип `{ value, label }` для опций |
+| `model.ts`           | `createModel<T>(initial)` — источник истины для значений                 |
+| `form.schema.ts`     | привязка полей к сигналам модели, `component` и `componentProps`         |
+| `form.behavior.ts`   | реактивные правила: вычисляемые поля, условная доступность, реакции      |
+| `form.validation.ts` | `defineValidationSchema` (все правила) + запуск `validateModel`          |
+| `data-sources.ts`    | словари опций и загрузчики (держим их вне схемы)                         |
+| `api.ts`             | отправка и предзаполнение                                                |
+| `index.tsx`          | сборка `createXxxForm()` + разметка                                      |
 
-:::note Почему dot-префикс у schema/behavior
-Только у `schema` и `behavior` есть два слоя — модельный (`form.schema.ts`, `form.behavior.ts`) и
-рендер-слой у renderer-пакетов (`renderer.schema.*`, `renderer.behavior.ts`). Остальные concern'ы
-общие на всю форму, поэтому их файлы плоские: `types.ts`, `model.ts`, `validation.ts`, …
+:::note Одно правило имён — `form.<роль>`
+Всё, что описывает саму форму, называется `form.<роль>`: `form.schema.ts` (разметка),
+`form.behavior.ts` (поведение модели), `form.validation.ts` (валидация) и у renderer-пакетов
+`form.render.ts` (поведение разметки). Общие файлы модуля — без префикса: `types.ts`, `model.ts`,
+`data-sources.ts`, `api.ts`. Прежние имена `renderer.schema.*`, `renderer.behavior.ts`,
+`renderer.wizard.tsx` и `validation.ts` работают, но `validate_form kind="layout"` в MCP предлагает
+их переименовать.
 :::
 
 ## Сборка формы
@@ -80,7 +83,7 @@ export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>)
 });
 ```
 
-```typescript title="forms/credit-application/validation.ts"
+```typescript title="forms/credit-application/form.validation.ts"
 import { defineValidationSchema, validate } from '@reformer/core/validation';
 import { required, min } from '@reformer/core/validators';
 import type { CreditApplicationForm } from './types';
@@ -226,24 +229,54 @@ export function CreditApplicationView() {
 | ------------------------------------------ | ------------------------------------------------------------------------------------ |
 | Простая форма                              | один файл `index.tsx` (модель + схема + behavior + компонент)                        |
 | **Плоский модуль**                         | **по умолчанию.** Один файл на concern + `index.tsx` со всеми шагами инлайн          |
+| Визард: папка на шаг `steps/<шаг>/`        | шаги со своей валидацией и render-правилами; общее — в корне модуля                  |
 | Папки (`lib/` + `schema/` + `components/`) | большие формы: concern'ы по папкам, по компоненту на шаг, переиспользуемые под-формы |
 
 Когда плоский модуль становится неудобным (много шагов, отдельные владельцы, переиспользуемые
 под-формы) — вынесите в три папки: `lib/` (доменные помощники), `schema/` (описание формы),
 `components/` (React-раскладка), оставив в корне только entry-компонент и `index.ts`.
-`model` / `form.behavior` / `validation` / `data-sources` при этом **переиспользуются как есть** —
+`model` / `form.behavior` / `form.validation` / `data-sources` при этом **переиспользуются как есть** —
 никогда не дублируйте их между таргетами.
+
+## Визард: папка на шаг
+
+У многошаговой формы код шага можно держать рядом с шагом. Папка названа по заголовку шага
+(`Контакты` → `kontakty`), без номера: порядок задаёт агрегатор `steps/index.ts`, поэтому
+перестановка шагов папки не трогает. Имена внутри папки — те же, что в корне.
+
+```
+forms/credit-application/
+├── form.validation.ts          # сборка валидации шагов + правила вне шагов
+├── form.render.ts              # submit, навигация визарда, вызов render-слоя шагов
+└── steps/
+    ├── index.ts                # шаги по порядку: stepValidations, stepRenders (и stepSchemas)
+    ├── kredit/
+    │   ├── form.validation.ts  # правила полей шага → stepValidation
+    │   ├── form.render.ts      # render-правила узлов шага
+    │   └── form.schema.json    # разметка шага (renderer-json, опционально)
+    └── kontakty/…
+```
+
+Межшаговые правила и поведение модели остаются в корневых файлах. «Далее» проверяет только
+валидацию текущего шага.
+
+У renderer-json схему-данные тоже можно разрезать по шагам: корневой `form.schema.json` держит в
+`componentProps.steps` ссылки `{ "$ref": "./steps/<шаг>/form.schema.json" }`, файл шага —
+`{ "$schema", "node": … }`, а `index.tsx` собирает форму `composeJsonFormSchema(rawSchema, stepSchemas)`
+до `createJsonForm`. Билдер открывает такую форму как одну и сам раскладывает правки по файлам
+шагов; команды «Разбить визард по файлам шагов» и «Собрать форму в один файл» переключают
+раскладку.
 
 ## Правила
 
-| Правило                           | Зачем                                                     |
-| --------------------------------- | --------------------------------------------------------- |
-| Начинать с плоской раскладки      | один файл на concern; без преждевременных папок           |
-| Тип формы через `type`            | нужна структурная индекс-сигнатура для `FormProxy<T>`     |
-| Собирать форму в `useMemo(…, [])` | стабильный инстанс, форма не теряет состояние             |
-| Пробрасывать форму пропсами       | предсказуемость и тестируемость вместо неявного контекста |
-| Вся валидация в `validation.ts`   | одно место, куда смотреть                                 |
-| Data sources — отдельный файл     | схема читаемее, renderer-json ссылается по имени          |
+| Правило                              | Зачем                                                     |
+| ------------------------------------ | --------------------------------------------------------- |
+| Начинать с плоской раскладки         | один файл на concern; без преждевременных папок           |
+| Тип формы через `type`               | нужна структурная индекс-сигнатура для `FormProxy<T>`     |
+| Собирать форму в `useMemo(…, [])`    | стабильный инстанс, форма не теряет состояние             |
+| Пробрасывать форму пропсами          | предсказуемость и тестируемость вместо неявного контекста |
+| Вся валидация в `form.validation.ts` | одно место, куда смотреть                                 |
+| Data sources — отдельный файл        | схема читаемее, renderer-json ссылается по имени          |
 
 ## Дальше
 

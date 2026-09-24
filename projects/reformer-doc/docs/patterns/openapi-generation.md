@@ -85,7 +85,7 @@ const form = createForm<CreateUserRequest>({ model, schema });
 **схему валидации** `defineValidationSchema<T>(({ model }) => …)`. Каждое поле проверяется оператором
 `validate(sig, [rules])` над той же моделью:
 
-```typescript title="validation.ts"
+```typescript title="form.validation.ts"
 import { validate, defineValidationSchema } from '@reformer/core/validation';
 import { required, email, minLength, min } from '@reformer/core/validators';
 import type { CreateUserRequest } from './types';
@@ -110,7 +110,7 @@ export const userValidation = defineValidationSchema<CreateUserRequest>(({ model
 | `pattern`                 | `pattern(regexp)`               |
 
 :::info Layout и валидация — независимые слои
-Вёрстку (`form.schema.ts`) и правила (`validation.ts`) можно менять порознь: layout приходит хоть с
+Вёрстку (`form.schema.ts`) и правила (`form.validation.ts`) можно менять порознь: layout приходит хоть с
 сервера, а схема валидации пишется один раз над той же моделью. Cross-field правила из OpenAPI-инвариантов
 объявляются оператором `cross(sig, fn)`, условные ветки — `validateWhen`, элементы массивов — `each`. См.
 [Схему валидации](../core-concepts/schemas/validation-schema).
