@@ -135,6 +135,8 @@ interface Bench {
   /** Записи частей в порядке. */
   readonly partWrites: string[];
   readonly rootWrites: string[];
+  /** Пометки записей (корня и частей) — по порядку записей. */
+  readonly marks: (string | undefined)[];
   /** Правка части «со стороны»: рабочая копия меняется, документ узнаёт событием. */
   touch(path: string, text: string): Promise<void>;
   settle(): Promise<void>;
@@ -150,6 +152,7 @@ function makeBench(root: string, parts: Record<string, string>): Bench {
   const files = new Map(Object.entries(parts));
   const partWrites: string[] = [];
   const rootWrites: string[] = [];
+  const marks: (string | undefined)[] = [];
   const listeners = new Set<(ids: readonly ResourceId[]) => void>();
   const idOf = (path: string): ResourceId => makeResourceId(SOURCE_ID, path);
   const pathOf = (id: ResourceId): string => id.slice(SOURCE_ID.length + 1);
@@ -160,15 +163,17 @@ function makeBench(root: string, parts: Record<string, string>): Bench {
   const handle = createModelDocument<LinesModel>({
     document: buffer.document,
     provider,
-    writeText: (text) => {
+    writeText: (text, mark) => {
       rootWrites.push(text);
+      marks.push(mark?.origin);
       buffer.setText(text);
     },
     parts: {
       initial: new Map(files),
       resolve: idOf,
-      write: async (id, text) => {
+      write: async (id, text, _created, mark) => {
         partWrites.push(pathOf(id));
+        marks.push(mark?.origin);
         files.set(pathOf(id), text);
         emit(pathOf(id));
       },
@@ -190,6 +195,7 @@ function makeBench(root: string, parts: Record<string, string>): Bench {
     files,
     partWrites,
     rootWrites,
+    marks,
     settle,
     async touch(path, text) {
       files.set(path, text);
@@ -265,6 +271,19 @@ describe('составной документ', () => {
     bench.handle.undo();
     // Команды редактора решают «доступна ли» по числу частей из снимка, взятого в уведомлении.
     expect(seen).toEqual([0, 1]);
+  });
+
+  it('пометка правки уходит в запись каждого файла; у отмены её нет', async () => {
+    const bench = makeBench(ROOT, { 'a.lines': PART_A });
+    // Правка части и корня одной операцией недоступна подставному формату — две правки подряд.
+    bench.handle.apply(setLineText('n2', 'ALPHA'), { write: { origin: 'agent' } });
+    bench.handle.apply(setLineText('n1', 'INTRO'), { write: { origin: 'agent' } });
+    await bench.settle();
+    expect(bench.marks).toEqual(['agent', 'agent']);
+
+    bench.handle.undo();
+    await bench.settle();
+    expect(bench.marks.at(-1)).toBeUndefined();
   });
 
   it('«разбить» создаёт файл для безфайловых узлов', async () => {

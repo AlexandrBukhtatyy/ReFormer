@@ -161,8 +161,8 @@ export function createDocumentModels(options: DocumentModelsOptions): DocumentMo
     const { sourceId, path } = parseResourceId(id);
     return {
       resolve: (spec) => makeResourceId(sourceId, joinPath(dirname(path), spec)),
-      write: async (part, text, created) => {
-        await workspace.writeText(part, text);
+      write: async (part, text, created, mark) => {
+        await workspace.writeText(part, text, mark);
         if (created) {
           // Каталог шага мог появиться вместе с файлом — перечитывается и уровень выше.
           const { sourceId: partSource, path: partPath } = parseResourceId(part);
@@ -193,7 +193,7 @@ export function createDocumentModels(options: DocumentModelsOptions): DocumentMo
       const attached = attachDocumentModel({
         document,
         extensions,
-        writeText: (text) => workspace.writeText(id, text),
+        writeText: (text, mark) => workspace.writeText(id, text, mark),
         isTextEditorFocused: () => focused(id),
         diagnostics: options.diagnostics,
         historyLimit: options.historyLimit,

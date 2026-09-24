@@ -114,10 +114,11 @@ export function aiWorkspace(ctx: PluginContext): AiHost {
     writeText: (id: ResourceId, text: string, options?: WriteMark) => {
       const handle = compositeOf(id);
       if (handle === null) return documents.writeText(id, text, options);
-      const outcome = handle.apply({
-        type: 'replace-schema',
-        params: { schema: parseSchemaText(text) },
-      });
+      // Пометка — дальше, в запись каждого файла, который ход трогает: корня и шагов.
+      const outcome = handle.apply(
+        { type: 'replace-schema', params: { schema: parseSchemaText(text) } },
+        options === undefined ? undefined : { write: options }
+      );
       return outcome.status === 'applied'
         ? Promise.resolve()
         : Promise.reject(new Error(`форма не принимает правку: ${outcome.reason}`));

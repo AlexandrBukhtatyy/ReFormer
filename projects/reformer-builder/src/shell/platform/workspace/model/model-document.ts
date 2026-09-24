@@ -55,7 +55,7 @@ import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
 import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 import type { Document } from '@reformer/builder-plugin-api/internal';
-import type { Disposable, ResourceId } from '@reformer/builder-plugin-api/internal';
+import type { Disposable, ResourceId, WriteOptions } from '@reformer/builder-plugin-api/internal';
 import type { DiagnosticsSink } from '../workspace';
 import { createModelHistory, type ModelHistory, type ModelSnapshot } from './history';
 import { createEditorProbe, resolveModelProvider } from './provider';
@@ -127,7 +127,7 @@ export interface ModelPartsPort {
    * Записать часть в рабочую копию; несуществующий файл создаётся. `created` — части у документа
    * до этой записи не было (новый шаг, «разбить»): дереву проекта пора перечитать её каталог.
    */
-  write(id: ResourceId, text: string, created: boolean): Promise<void>;
+  write(id: ResourceId, text: string, created: boolean, options?: WriteOptions): Promise<void>;
   /** Рабочая копия части; `null` — файла нет. */
   read(id: ResourceId): Promise<string | null>;
   /** Ресурсы рабочей области изменились: запись, слияние, откат. */
@@ -144,7 +144,7 @@ export interface ModelDocumentOptions<M> {
    * Внедряется, а не берётся из Workspace: документ не знает ни про рабочую область,
    * ни про хранилище, и это знание не должно протечь в модель.
    */
-  readonly writeText: (text: string) => void | Promise<void>;
+  readonly writeText: (text: string, options?: WriteOptions) => void | Promise<void>;
   /**
    * В фокусе ли текстовый редактор ЭТОГО документа.
    *
@@ -242,6 +242,12 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
   /** Части, которых нет в рабочей области: повторно не читаются, пока их не запишут. */
   const unavailable = new Set<string>();
   let layout: CompositionLayout = undefined;
+  /**
+   * Пометка записей последней правки (`ApplyOptions.write`): кто правит и каким шагом. Идёт
+   * со ВСЕМИ файлами, которые правка трогает, — корнем и частями. Отмена и перестройка —
+   * действия человека, у них пометки нет.
+   */
+  let mark: WriteOptions | undefined;
 
   const initialText = buffer.getText();
   let model: M;
@@ -331,7 +337,7 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
       // Отправленное запоминается ДО записи: событие буфера прилетит внутри `writeText`.
       echoes.push(text);
       try {
-        await writeText(text);
+        await writeText(text, mark);
       } finally {
         // Эхо не вернулось: запись отказала или буфер и так был такой. Ждать его больше нечего.
         const at = echoes.indexOf(text);
@@ -374,7 +380,7 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
       if (known === text) continue;
       // Соответствие запоминается ДО записи: событие рабочей области прилетит внутри неё.
       partTexts.set(spec, text);
-      port.write(port.resolve(spec), text, known === undefined).catch((err: unknown) => {
+      port.write(port.resolve(spec), text, known === undefined, mark).catch((err: unknown) => {
         console.error(`[document.model] не удалось записать часть «${spec}»`, err);
       });
     }
@@ -569,6 +575,7 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
   const snapshot = (): ModelSnapshot<Laid<M>> => ({ model: { model, layout }, selection });
 
   const restore = (state: ModelSnapshot<Laid<M>>, reason: ModelChangeReason): void => {
+    mark = undefined;
     model = state.model.model;
     layout = state.model.layout;
     selection = state.selection;
@@ -596,6 +603,7 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
       }
 
       history.record(snapshot(), { mergeKey: applyOptions?.mergeKey });
+      mark = applyOptions?.write;
       model = result.model;
       // «Куда смотреть после операции» знает только сама операция: вставка родила узел,
       // перемещение сместило его, удаление оставило соседа.
@@ -665,6 +673,7 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
               [...parts.keys()].every((spec) => partTexts.has(spec));
             if (same) return false;
             history.record(snapshot());
+            mark = undefined;
             layout = next;
             const root = layOut();
             notify('apply');
@@ -702,7 +711,7 @@ export interface AttachOptions {
   readonly document: Document;
   /** Реестр вкладов: годится и корневой, и вид плагина. */
   readonly extensions: Pick<ExtensionRegistry, 'get'>;
-  readonly writeText: (text: string) => void | Promise<void>;
+  readonly writeText: (text: string, options?: WriteOptions) => void | Promise<void>;
   readonly isTextEditorFocused?: () => boolean;
   readonly diagnostics?: DiagnosticsSink;
   readonly historyLimit?: number;

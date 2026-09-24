@@ -18,6 +18,7 @@
 import type { Disposable } from '../../primitives/disposable.js';
 import type { Document } from '../document.js';
 import type { ResourceId } from '../../primitives/resource.js';
+import type { WriteOptions } from '../write-options.js';
 import type {
   ApplyResult,
   CompositionLayout,
@@ -96,6 +97,12 @@ export type ApplyOutcome<M> = ({ readonly status: 'applied' } & ApplyResult<M>) 
 export interface ApplyOptions {
   /** Ключ схлопывания в истории, обычно `свойство@узел`. */
   readonly mergeKey?: string;
+  /**
+   * Пометка записи для журнала: кто правит и каким шагом. Правку модели в файлы пишет сам
+   * документ (корень и части), поэтому пометку ему передают здесь — без неё ход ассистента
+   * лёг бы в журнал как правка человека.
+   */
+  readonly write?: WriteOptions;
 }
 
 /**
