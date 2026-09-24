@@ -84,6 +84,11 @@ export function makeUseDiagnosticMessage(i18n: RootI18nService): () => Translate
   return useDiagnosticMessage;
 }
 
+/** Идентификаторы узлов, записанные в текст: `"$nodeId": "…"` с любыми пробелами. */
+function writtenNodeIds(text: string): ReadonlySet<string> {
+  return new Set([...text.matchAll(/"\$nodeId"\s*:\s*"([^"]+)"/g)].map((match) => match[1]));
+}
+
 export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
   const { project, i18n, diagnostics, extensions } = deps;
 
@@ -104,13 +109,37 @@ export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
   };
 
   /** Составной документ, частью которого является ресурс. */
-  const ownerOf = (id: ResourceId) => {
+  const ownerRootOf = (id: ResourceId): ResourceId | null => {
     const opened = project.get()?.models.opened();
     if (opened === undefined) return null;
     for (const [root, handle] of opened) {
-      if (handle.parts().includes(id)) return modelOf(root);
+      if (handle.parts().includes(id)) return root;
     }
     return null;
+  };
+
+  const ownerOf = (id: ResourceId) => {
+    const root = ownerRootOf(id);
+    return root === null ? null : modelOf(root);
+  };
+
+  /**
+   * Находки ресурса — вместе с находками его составного документа по узлам, лежащим в этой части.
+   *
+   * Валидатор проверяет СОБРАННУЮ форму и публикует находки на корень: у файла шага своей модели
+   * нет, он открыт текстом. Но идентификаторы узлов записаны в текст части, и место находки
+   * редактор найдёт сам — ему нужно только её увидеть. Отбор по тексту, а не по модели: вкладка
+   * части показывает ровно то, что в её тексте.
+   */
+  const diagnosticsOf = (id: ResourceId) => {
+    const own = diagnostics.get(id);
+    const root = ownerRootOf(id);
+    if (root === null) return own;
+    const written = writtenNodeIds(project.get()?.documents.documentOf(id)?.getText() ?? '');
+    const borrowed = diagnostics
+      .get(root)
+      .filter((item) => item.target.kind === 'node' && written.has(item.target.nodeId));
+    return borrowed.length === 0 ? own : [...own, ...borrowed];
   };
 
   return {
@@ -131,9 +160,17 @@ export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
 
     isTextual: (mediaType: string) => isTextMediaType(mediaType),
 
-    // Свод диагностик платформы отдаётся плагину напрямую: `MonacoDiagnostics` — это в точности
-    // читающая половина `DiagnosticsService`, и оборачивать её значило бы завести второй канал.
-    diagnostics,
+    // Свод диагностик платформы — с одним дополнением: файл части составного документа видит
+    // находки документа по своим узлам (`diagnosticsOf`). Смена находок корня — повод
+    // перечитать и его части.
+    diagnostics: {
+      get: diagnosticsOf,
+      onDidChange: (cb) =>
+        diagnostics.onDidChange((resource) => {
+          cb(resource);
+          for (const part of project.get()?.models.handleOf(resource)?.parts() ?? []) cb(part);
+        }),
+    },
 
     // Пути узлов спрашиваются у ТОГО провайдера, который разобрал документ: путь узла —
     // знание о формате, и у оболочки его нет. Провайдер без `nodePaths` — штатный ответ
