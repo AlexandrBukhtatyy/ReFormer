@@ -97,12 +97,12 @@ describe('extractSectionByMeta — `#` внутри блока кода не о�
     'core (8):  index.tsx  model.ts',
     '',
     '# same names, allowed shapes:',
-    'renderer-json  schema as raw data  -> renderer.schema.json',
+    'renderer-json  schema as raw data  -> form.schema.json',
     '```',
     '',
     'Rules:',
     '',
-    '- **All steps inline in `index.tsx`**',
+    '- **Wizard steps inline in `index.tsx` or in `steps/<slug>/`**',
     '',
     '## 2. App-level infrastructure',
     '',
@@ -113,7 +113,7 @@ describe('extractSectionByMeta — `#` внутри блока кода не о�
     const body = bodyOf(docs, '1. Minimalist');
     expect(body).toContain('# same names, allowed shapes:');
     expect(body).toContain('Rules:');
-    expect(body).toContain('All steps inline in `index.tsx`');
+    expect(body).toContain('Wizard steps inline in `index.tsx` or in `steps/<slug>/`');
   });
 
   it('всё так же останавливается на СЛЕДУЮЩЕМ настоящем заголовке', () => {
@@ -213,7 +213,7 @@ describe('корпус — обрывов внутри блоков кода н�
     '§1 гайда раскладки отдаётся с блоком «Rules:» и полным набором имён',
     () => {
       // Именно эта секция и была обрезана; проверяем не длину, а те строки, ради которых
-      // её читают: контракт именования и правило «все шаги инлайном».
+      // её читают: контракт именования и правило «шаги инлайном или в steps/<slug>/».
       const docs = getFullDocs('@reformer/mcp');
       const meta = listSections('@reformer/mcp').find(
         (s) => s.slug === 'minimalist-default-flat-one-file-per-concern'
@@ -221,10 +221,11 @@ describe('корпус — обрывов внутри блоков кода н�
       expect(meta, 'секция раскладки пропала из llms.txt').toBeDefined();
       const body = extractSectionByMeta(docs, meta!) ?? '';
       expect(body).toContain('Rules:');
-      expect(body).toContain('All steps inline in `index.tsx`');
+      expect(body).toContain('Wizard steps inline in `index.tsx` or in `steps/<slug>/`');
       for (const file of [
         'form.schema.ts',
-        'renderer.schema.ts',
+        'form.render.ts',
+        'steps/index.ts',
         'form.behavior.ts',
         'registry.ts',
       ]) {

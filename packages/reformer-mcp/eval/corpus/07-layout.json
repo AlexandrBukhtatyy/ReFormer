@@ -7,14 +7,14 @@
       "task": "начать новую форму: под какими именами создавать файлы модуля",
       "target": "renderer-json",
       "queries": ["create-form", "form file names", "directory-layout"],
-      "expectAny": ["renderer.schema.ts", "renderer.behavior.ts"]
+      "expectAny": ["form.schema.ts", "form.render.ts"]
     },
     {
       "id": "layout/render-behavior-file",
       "task": "куда положить поведение слоя рендера — renderEffect, onComponentEvent, hideWhen по узлам схемы",
       "target": "renderer-react",
       "queries": ["form file names", "file-naming", "directory-layout"],
-      "expectAny": ["renderer.behavior.ts"]
+      "expectAny": ["form.render.ts"]
     },
     {
       "id": "layout/model-behavior-file",
@@ -28,14 +28,14 @@
       "task": "как назвать файл JSON-схемы формы на renderer-json",
       "target": "renderer-json",
       "queries": ["form directory layout", "file-naming", "form-files"],
-      "expectAny": ["renderer.schema.ts"]
+      "expectAny": ["form.schema.ts"]
     },
     {
       "id": "layout/wizard-shim-file",
       "task": "куда положить app-shim компонента визарда для формы на JSON-схеме",
       "target": "renderer-json",
       "queries": ["directory-layout", "form-files", "form file names"],
-      "expectAny": ["renderer.wizard.tsx"]
+      "expectAny": ["wizard.tsx"]
     }
   ]
 }

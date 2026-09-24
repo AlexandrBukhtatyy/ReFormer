@@ -219,7 +219,7 @@ describe.runIf(hasCore)('сгенерированная форма работа�
 
     const url = (p: string) => pathToFileURL(join(sandbox, p)).href;
     initialFormModel = (await import(/* @vite-ignore */ url('model.ts'))).initialFormModel;
-    formValidation = (await import(/* @vite-ignore */ url('validation.ts'))).formValidation;
+    formValidation = (await import(/* @vite-ignore */ url('form.validation.ts'))).formValidation;
     formBehavior = (await import(/* @vite-ignore */ url('form.behavior.ts'))).formBehavior;
   });
 

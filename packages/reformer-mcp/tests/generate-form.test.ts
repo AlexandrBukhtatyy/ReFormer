@@ -15,11 +15,13 @@ import {
   readIntent,
   deriveInterfaceName,
   type FormIntent,
+  type ValidationRuleIntent,
 } from '../src/core/generate/form-intent.js';
 import {
   buildBundle,
   buildModelTs,
   buildValidationTs,
+  buildValidationSchemaTs,
   buildBehaviorTs,
   buildLayoutJson,
   collectUsedComponents,
@@ -265,6 +267,120 @@ describe('builders', () => {
     expect(ts).not.toContain('validateAsync');
   });
 
+  describe('buildValidationSchemaTs — одна схема над подмножеством правил', () => {
+    const MIX: ValidationRuleIntent[] = [
+      { target: 'name', rules: ['required', 'minLength(2)'] },
+      { target: 'email', rules: ['required', 'email()'], async: 'checkEmail' },
+      { target: 'inn', rules: ['minLength(10)'], when: 'model.type.value === "legal"' },
+      { target: 'amount', each: 'items', rules: ['required', 'min(1)'] },
+      { target: 'x', rules: [], async: 'checkX' },
+    ];
+
+    it('validation.ts после выделения — байт-в-байт прежний (закреплённый вывод)', () => {
+      // Вывод снят с `buildValidationTs` ДО выделения общей части и вставлен сюда целиком:
+      // билдер кладёт этот файл в проекты пользователей, и любая «косметика» в нём — дифф
+      // у каждого, кто перегенерирует форму.
+      const ts = buildValidationTs(
+        normalizeIntent({ formName: 'Mix', interfaceName: 'MixForm', validation: MIX })
+      );
+      expect(ts).toBe(
+        [
+          '/**',
+          ' * Валидация формы «Mix» — правила над МОДЕЛЬЮ, не в layout-схеме.',
+          ' * Запуск: validateModel(model, formValidation).',
+          ' */',
+          "import { validate, defineValidationSchema, validateAsync, validateWhen, each } from '@reformer/core/validation';",
+          "import { email, min, minLength, required } from '@reformer/core/validators';",
+          "import type { MixForm } from './model';",
+          '',
+          'export const formValidation = defineValidationSchema<MixForm>(({ model }) => {',
+          '  validate(model.$.name, [required(), minLength(2)]);',
+          '  validate(model.$.email, [required(), email()]);',
+          '  validateAsync(model.$.email, [checkEmail]);',
+          '  validateWhen(() => model.type.value === "legal", () => {',
+          '    validate(model.$.inn, [minLength(10)]);',
+          '  });',
+          '  each(model.$.items, (item) => {',
+          '    validate(item.$.amount, [required(), min(1)]);',
+          '  });',
+          '  validateAsync(model.$.x, [checkX]);',
+          '});',
+          '',
+        ].join('\n')
+      );
+      const empty = buildValidationTs(
+        normalizeIntent({ formName: 'Empty', interfaceName: 'EmptyForm', validation: [] })
+      );
+      expect(empty).toBe(
+        [
+          '/**',
+          ' * Валидация формы «Empty» — правила над МОДЕЛЬЮ, не в layout-схеме.',
+          ' * Запуск: validateModel(model, formValidation).',
+          ' */',
+          "import { validate, defineValidationSchema } from '@reformer/core/validation';",
+          "import type { EmptyForm } from './model';",
+          '',
+          'export const formValidation = defineValidationSchema<EmptyForm>(({ model }) => {',
+          '  // Правил в intent не было — добавьте их здесь.',
+          '});',
+          '',
+        ].join('\n')
+      );
+    });
+
+    it('buildValidationTs — та же функция с именами корня', () => {
+      const intent = normalizeIntent({
+        formName: 'Mix',
+        interfaceName: 'MixForm',
+        validation: MIX,
+      });
+      const viaSchema = buildValidationSchemaTs(intent.validation, {
+        interfaceName: 'MixForm',
+        exportName: 'formValidation',
+        typeImport: './model',
+        header:
+          'Валидация формы «Mix» — правила над МОДЕЛЬЮ, не в layout-схеме.\n' +
+          'Запуск: validateModel(model, formValidation).',
+      });
+      expect(viaSchema).toBe(buildValidationTs(intent));
+    });
+
+    it('модуль шага: своё имя экспорта, свой путь до типа, импорты ровно под свои правила', () => {
+      const ts = buildValidationSchemaTs([MIX[0]], {
+        interfaceName: 'MixForm',
+        exportName: 'stepValidation',
+        typeImport: '../../types',
+      });
+      expect(ts).toBe(
+        [
+          "import { validate, defineValidationSchema } from '@reformer/core/validation';",
+          "import { minLength, required } from '@reformer/core/validators';",
+          "import type { MixForm } from '../../types';",
+          '',
+          'export const stepValidation = defineValidationSchema<MixForm>(({ model }) => {',
+          '  validate(model.$.name, [required(), minLength(2)]);',
+          '});',
+          '',
+        ].join('\n')
+      );
+      // Сборка корня — дело потребителя: ни apply, ни makeValidationConfig здесь нет.
+      expect(ts).not.toMatch(/makeValidationConfig|apply/);
+    });
+
+    it('операторы берутся по подмножеству: each/validateWhen только когда нужны', () => {
+      const opts = { interfaceName: 'T', exportName: 'v', typeImport: './types' };
+      const eachOnly = buildValidationSchemaTs([MIX[3]], opts);
+      expect(eachOnly).toContain('import { validate, defineValidationSchema, each } from');
+      expect(eachOnly).not.toContain('validateWhen');
+      expect(eachOnly).not.toContain('validateAsync');
+      const header = buildValidationSchemaTs([], {
+        ...opts,
+        header: 'Шаг «Контакты».\n\nПравила полей.',
+      });
+      expect(header.startsWith('/**\n * Шаг «Контакты».\n *\n * Правила полей.\n */\n')).toBe(true);
+    });
+  });
+
   it('behavior.ts импортирует только использованные операторы', () => {
     const ts = buildBehaviorTs(goodIntent());
     expect(ts).toContain('computeFrom');
@@ -288,12 +404,15 @@ describe('builders', () => {
   it('бандл для renderer-json содержит реестр, для core — нет', () => {
     const json = buildBundle(goodIntent());
     expect(json.files.map((f) => f.path)).toContain('registry.ts');
-    // Схема отдаётся каноничным `renderer.schema.ts`, а не `.json`: предупреждение о потере
+    // Валидация — тоже артефакт формы: `form.validation.ts`, прежний `validation.ts` не печатается.
+    expect(json.files.map((f) => f.path)).toContain('form.validation.ts');
+    expect(json.files.map((f) => f.path)).not.toContain('validation.ts');
+    // Схема отдаётся каноничным `form.schema.ts`, а не `.json`: предупреждение о потере
     // типизации читают не все, а блок кода из манифеста копируют все.
-    const schema = json.files.find((f) => f.path === 'renderer.schema.ts');
-    expect(schema, 'схема renderer-json отдаётся как renderer.schema.ts').toBeDefined();
+    const schema = json.files.find((f) => f.path === 'form.schema.ts');
+    expect(schema, 'схема renderer-json отдаётся как form.schema.ts').toBeDefined();
     expect(schema?.content).toContain(`defineJsonSchema<${deriveInterfaceName('Order')}>(`);
-    expect(json.files.map((f) => f.path)).not.toContain('renderer.schema.json');
+    expect(json.files.map((f) => f.path)).not.toContain('form.schema.json');
     const core = buildBundle(normalizeIntent({ ...goodIntent(), target: 'core' }));
     expect(core.files.map((f) => f.path)).not.toContain('registry.ts');
     expect(core.warnings.join(' '), 'ограничение target должно быть названо').toMatch(
@@ -305,13 +424,16 @@ describe('builders', () => {
     // Генератор отдаёт схему renderer-json как канонический `.ts`, но `.json` остаётся
     // допустимым вариантом — консумент может прийти с ним. Строка в таблице обязана остаться
     // канонической, иначе чек-лист переучивает консумента на вариант.
-    const out = renderLayoutChecklist('renderer-json', ['model.ts', 'renderer.schema.json']);
-    expect(out).toMatch(/`renderer\.schema\.ts`.*сгенерирован ниже как `renderer\.schema\.json`/);
+    const out = renderLayoutChecklist('renderer-json', ['model.ts', 'form.schema.json']);
+    expect(out).toMatch(/`form\.schema\.ts`.*сгенерирован ниже как `form\.schema\.json`/);
     // Несгенерированные файлы названы поимённо — это и есть сигнал неполноты, которого не было.
     expect(out).toMatch(/`registry\.ts`.*создайте сами/);
     expect(out).toContain('find_recipe directory-layout');
     // У core рендер-слоя нет: иначе консумент создаст мёртвый файл.
-    expect(renderLayoutChecklist('core', [])).not.toContain('renderer.behavior.ts');
+    expect(renderLayoutChecklist('core', [])).not.toContain('form.render.ts');
+    // Раскладка шагов названа поимённо — иначе агент заводит `components/steps/Step1.tsx`.
+    expect(out).toContain('steps/index.ts');
+    expect(out).toContain('steps/<slug>/');
   });
 });
 

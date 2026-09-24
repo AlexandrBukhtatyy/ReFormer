@@ -10,7 +10,7 @@ import {
   isReformerTarget,
   type ReformerTarget,
 } from '../platform/cli/sampling-helpers.js';
-import { FORM_LAYOUT_CANON } from '../core/generate/builders.js';
+import { FORM_LAYOUT_CANON, STEP_LAYOUT_CANON } from '../core/generate/builders.js';
 
 export const createFormPromptDefinition = {
   name: 'create-form',
@@ -82,8 +82,8 @@ function normalizeLayout(raw: string | undefined): LayoutMode {
  * Текст minimalist-раскладки СОБИРАЕТСЯ из `FORM_LAYOUT_CANON` (`core/generate/builders.ts`) —
  * единственного источника истины о каноне. Своего списка имён здесь нет намеренно: это уже
  * четвёртый канал, где правило доезжает до консумента, и разошедшаяся копия — ровно то, что
- * чинил `docs/plans/mcp-layout-authority.md` (здесь дефолтом renderer-json стоял
- * `renderer.schema.json`, хотя канон — `renderer.schema.ts`).
+ * чинил `docs/plans/mcp-layout-authority.md` (здесь дефолтом renderer-json стоял файл
+ * схемы `.json`, хотя канон — `.ts` с `defineJsonSchema<T>`).
  */
 function layoutGuidanceFor(mode: LayoutMode, target: ReformerTarget): string {
   if (mode === 'folders') {
@@ -103,18 +103,25 @@ function layoutGuidanceFor(mode: LayoutMode, target: ReformerTarget): string {
       .join(' ');
   const optionalNames = names(true);
 
+  const stepFiles = STEP_LAYOUT_CANON[target]
+    .filter((f) => f.scope === 'step')
+    .map((f) => `\`${f.path}\``)
+    .join(', ');
+
   return (
     '**Default layout = `minimalist`** (flat, one file per concern). Flat form module — no ' +
-    '`lib/` / `schema/` / `components/steps/` nesting: a single `index.tsx` with ALL steps ' +
-    `inline. Canonical set for \`${target}\`: ${names(false)}` +
+    '`lib/` / `schema/` / `components/steps/` nesting. Wizard steps live inline in `index.tsx` ' +
+    'OR one folder per step `steps/<slug>/` (kebab slug of the step title, no number) holding ' +
+    `${stepFiles}, with the aggregator \`steps/index.ts\`. ` +
+    `Canonical set for \`${target}\`: ${names(false)}` +
     (optionalNames ? ` (optional: ${optionalNames})` : '') +
-    '. Only the two layer-variable concerns carry a dot-prefix (`form.` = M1/model layer, ' +
-    '`renderer.` = render layer); every other file is plain-named, and the base is identical ' +
-    'across targets. ' +
+    '. Naming rule, identical across targets: `form.<role>` is a form artifact and its suffix ' +
+    'names the role (`schema` = markup, `behavior` = model behavior, `render` = render ' +
+    'behavior, `validation` = validation rules); every other file is plain-named, and a step folder reuses the same names. ' +
     (target === 'renderer-json'
-      ? 'The schema is `renderer.schema.ts` — the same JSON-DSL literal wrapped in ' +
+      ? 'The schema is `form.schema.ts` — the same JSON-DSL literal wrapped in ' +
         '`defineJsonSchema<T>({ … })`, which keeps `$model(...)` paths checked at compile time; ' +
-        'a plain `renderer.schema.json` is an accepted variant that gives that up. '
+        'a plain `form.schema.json` is an accepted variant that gives that up. '
       : '') +
     'Scale up to the `folders` layout only for large forms. See `find_recipe directory-layout` ' +
     'for the full per-target tree, and check the names you picked with ' +

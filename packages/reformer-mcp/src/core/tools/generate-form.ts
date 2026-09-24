@@ -52,7 +52,7 @@ export const planFormToolDefinition = {
 export const generateFormToolDefinition = {
   name: 'generate_form',
   description:
-    'Compile a FormIntent into a form bundle (model.ts, validation.ts, form.behavior.ts, layout, registry) and cross-check the files against each other: every $model path exists in the model, every $component is registered, every rule and behaviour targets a real path, no compute cycles. Returns a manifest — you write the files yourself, under the canonical file names it prints for the target (rule: find_recipe directory-layout).',
+    'Compile a FormIntent into a form bundle (model.ts, form.validation.ts, form.behavior.ts, layout, registry) and cross-check the files against each other: every $model path exists in the model, every $component is registered, every rule and behaviour targets a real path, no compute cycles. Returns a manifest — you write the files yourself, under the canonical file names it prints for the target (rule: find_recipe directory-layout).',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -221,7 +221,7 @@ function buildManifest(args: GenerateFormArgs): {
   const { files, warnings, layoutJson } = buildBundle(intent);
 
   // Проверяем layout как ДАННЫЕ, а не файл с расширением `.json`. Для renderer-json схема
-  // теперь отдаётся каноничным `renderer.schema.ts`, и поиск по расширению молча выключил бы
+  // теперь отдаётся каноничным `form.schema.ts`, и поиск по расширению молча выключил бы
   // кросс-проверку: манифест печатал бы «✅ пройдена», не проверив ничего.
   const report = crossCheckBundle(intent, JSON.parse(layoutJson));
 

@@ -128,7 +128,7 @@ describe('get_context', () => {
       task: 'собрать многошаговую форму кредитной заявки',
       target: 'renderer-json',
     });
-    for (const file of ['renderer.schema.ts', 'renderer.behavior.ts', 'form.behavior.ts']) {
+    for (const file of ['form.schema.ts', 'form.render.ts', 'form.behavior.ts']) {
       expect(r.text, `имя ${file} не доехало телом ответа`).toContain(file);
     }
     // Спорные имена доставлены — значит есть чем сверить: обе ручки названы тут же.
@@ -140,11 +140,14 @@ describe('get_context', () => {
     const task = 'сделать форму заявки на кредит';
     const core = await buildContext(k, { task, target: 'core' });
     expect(core.text).toContain('form.schema.ts');
-    expect(core.text, 'core не знает слоя рендера').not.toContain('renderer.schema.ts');
+    expect(core.text, 'core не знает слоя рендера').not.toContain('form.render.ts');
     expect(core.text, 'реестр компонентов — только у renderer-json').not.toContain('registry.ts');
 
     const react = await buildContext(k, { task, target: 'renderer-react' });
-    expect(react.text).toContain('renderer.behavior.ts');
+    expect(react.text).toContain('form.render.ts');
+    // Раскладка шагов — опциональные имена, но именно их агенты выдумывали сами.
+    expect(react.text).toContain('steps/index.ts');
+    expect(react.text).toContain('steps/<slug>/form.validation.ts');
     expect(react.text).not.toContain('registry.ts');
   });
 
@@ -161,14 +164,14 @@ describe('get_context', () => {
       [
         'куда положить поведение слоя рендера — renderEffect, hideWhen по узлам схемы',
         'renderer-react',
-        'renderer.behavior.ts',
+        'form.render.ts',
       ],
-      ['как назвать файл JSON-схемы формы на renderer-json', 'renderer-json', 'renderer.schema.ts'],
+      ['как назвать файл JSON-схемы формы на renderer-json', 'renderer-json', 'form.schema.ts'],
       [
         'куда положить app-shim компонента визарда для формы на JSON-схеме',
         'renderer-json',
         // Опциональный файл — то самое имя, вместо которого придумывали `json-wizard.tsx`.
-        'renderer.wizard.tsx',
+        'wizard.tsx',
       ],
     ];
     for (const [task, target, expected] of cases) {

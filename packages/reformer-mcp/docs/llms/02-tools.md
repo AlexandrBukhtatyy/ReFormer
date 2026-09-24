@@ -139,7 +139,7 @@ E.g. all functions of `@reformer/core` enumerate every validator and behavior. T
 
 ## generate_form
 
-`FormIntent` → бандл файлов (`model.ts`, `validation.ts`, `form.behavior.ts`, layout,
+`FormIntent` → бандл файлов (`model.ts`, `form.validation.ts`, `form.behavior.ts`, layout,
 `registry.ts`) плюс кросс-проверка файлов между собой. Возвращает МАНИФЕСТ — файлы пишет
 клиент через свой Write и свой permission-гейт: сервер живёт в своём процессе и корня
 репозитория не знает.

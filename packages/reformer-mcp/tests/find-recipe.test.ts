@@ -96,7 +96,7 @@ describe('findRecipeTool — алиасы раскладки файлов фор
     // Ссылки на файл мало: расхождение чинится переименованием, значит имена обязаны быть
     // в теле ответа, а не за ещё одним вызовом. Потолок рецепта не должен их срезать.
     const { content } = await findRecipeTool({ topic: 'create-form' }, k);
-    for (const file of ['form.behavior.ts', 'validation.ts', 'data-sources.ts']) {
+    for (const file of ['form.behavior.ts', 'form.validation.ts', 'data-sources.ts']) {
       expect(content[0].text, `имя ${file} не доехало до агента`).toContain(file);
     }
   });
@@ -111,7 +111,9 @@ describe('findRecipeTool — алиасы раскладки файлов фор
     const { content } = await findRecipeTool({ topic: 'directory-layout' }, k);
     expect(content[0].text).toContain('docs/llms/06-form-directory-layout.md');
     expect(content[0].text).toContain('Rules:');
-    expect(content[0].text).toContain('All steps inline in `index.tsx`');
+    expect(content[0].text).toContain('Wizard steps inline in `index.tsx` or in `steps/<slug>/`');
+    // Раздел прежних имён — в конце файла; он может срезаться бюджетом, §1 — нет.
+    expect(content[0].text).toContain('steps/index.ts');
   });
 
   it.runIf(hasDocs)('подмена топика помечена в ответе', async () => {

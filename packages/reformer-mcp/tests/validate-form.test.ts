@@ -341,7 +341,7 @@ describe('validate_form kind=layout', () => {
       'model.ts',
       'form.schema.ts',
       'form.behavior.ts',
-      'validation.ts',
+      'form.validation.ts',
       'data-sources.ts',
       'api.ts',
     ],
@@ -349,10 +349,10 @@ describe('validate_form kind=layout', () => {
       'index.tsx',
       'types.ts',
       'model.ts',
-      'renderer.schema.ts',
+      'form.schema.ts',
       'form.behavior.ts',
-      'renderer.behavior.ts',
-      'validation.ts',
+      'form.render.ts',
+      'form.validation.ts',
       'data-sources.ts',
       'api.ts',
     ],
@@ -360,10 +360,10 @@ describe('validate_form kind=layout', () => {
       'index.tsx',
       'types.ts',
       'model.ts',
-      'renderer.schema.ts',
+      'form.schema.ts',
       'form.behavior.ts',
-      'renderer.behavior.ts',
-      'validation.ts',
+      'form.render.ts',
+      'form.validation.ts',
       'data-sources.ts',
       'api.ts',
       'registry.ts',
@@ -381,7 +381,8 @@ describe('validate_form kind=layout', () => {
   it('отчёт всегда печатает сам канон и границы проверки', async () => {
     const text = await layout(CANON['renderer-json'], 'renderer-json');
     expect(text).toMatch(/## Канон раскладки — target=`renderer-json`/);
-    expect(text).toContain('renderer.wizard.tsx');
+    expect(text).toContain('wizard.tsx');
+    expect(text, 'раскладка шагов доезжает вместе с каноном').toContain('steps/<slug>/');
     expect(text).toMatch(/Что эта проверка НЕ видит/);
     expect(text, 'правило целиком — одним вызовом').toMatch(/find_recipe directory-layout/);
   });
@@ -410,17 +411,40 @@ describe('validate_form kind=layout', () => {
     expect(errors).toMatch(/`behavior\.ts`[\s\S]*?`form\.behavior\.ts`/);
     expect(errors).toMatch(/`dictionaries\.ts`[\s\S]*?`data-sources\.ts`/);
     expect(errors).toMatch(/`initial-values\.ts`[\s\S]*?`model\.ts`/);
-    expect(errors).toMatch(/`json-schema\.ts`[\s\S]*?`renderer\.schema\.ts`/);
-    expect(errors).toMatch(/`render-behavior\.ts`[\s\S]*?`renderer\.behavior\.ts`/);
+    expect(errors).toMatch(/`json-schema\.ts`[\s\S]*?`form\.schema\.ts`/);
+    expect(errors).toMatch(/`render-behavior\.ts`[\s\S]*?`form\.render\.ts`/);
     expect(errors, 'имя названо — про «нет файла» второй раз не сообщаем').not.toMatch(/RF012/);
 
     const warnings = section(text, 'Warnings');
-    expect(warnings).toMatch(/`wizard\.tsx`[\s\S]*?`renderer\.wizard\.tsx`/);
+    // `wizard.tsx` — теперь каноническое имя шима, претензии к нему нет.
+    expect(warnings).not.toMatch(/`wizard\.tsx`/);
     expect(warnings).toMatch(/README\.md/);
   });
 
-  it('замер run B (renderer-react, 8/9 + `.tsx`) проходит', async () => {
+  it('замер run B (renderer-react, `.tsx`) по новому канону проходит', async () => {
     const text = await layout(
+      [
+        'api.ts',
+        'data-sources.ts',
+        'form.behavior.ts',
+        'index.tsx',
+        'model.ts',
+        'form.render.ts',
+        'form.schema.tsx',
+        'types.ts',
+        'form.validation.ts',
+      ],
+      'renderer-react'
+    );
+    // `.tsx` у схемы — обоснованное отличие расширения (в схеме бывает JSX), а не нарушение.
+    expect(text).toMatch(/✅ ошибок нет/);
+    expect(text).not.toMatch(/предупреждений \d/);
+  });
+
+  it('прежние имена `renderer.*` — только предупреждения «переименуйте», без ошибок', async () => {
+    // Ровно тот набор, что замер run B написал по прежнему канону: форма рабочая, ломать её
+    // ради имени незачем, но новое имя обязано прозвучать.
+    const react = await layout(
       [
         'api.ts',
         'data-sources.ts',
@@ -434,9 +458,35 @@ describe('validate_form kind=layout', () => {
       ],
       'renderer-react'
     );
-    // `.tsx` у схемы — обоснованное отличие расширения (в схеме бывает JSX), а не нарушение.
-    expect(text).toMatch(/✅ ошибок нет/);
-    expect(text).not.toMatch(/предупреждений \d/);
+    expect(react).toMatch(/✅ ошибок нет, предупреждений 3/);
+    const warnings = section(react, 'Warnings');
+    expect(warnings).toMatch(/RF011/);
+    expect(warnings).toMatch(/устаревшее имя/);
+    expect(warnings).toMatch(/`renderer\.behavior\.ts` → `form\.render\.ts`/);
+    expect(warnings).toMatch(/`validation\.ts` → `form\.validation\.ts`/);
+    expect(react, 'прежнее имя покрывает роль валидации — «нет файла» не сообщаем').not.toMatch(
+      /RF012/
+    );
+    // Расширение сохраняется: `.tsx` переименовывается в `.tsx`, а не в дефолтный `.ts`.
+    expect(warnings).toMatch(/`renderer\.schema\.tsx` → `form\.schema\.tsx`/);
+
+    const json = await layout(
+      CANON['renderer-json']
+        .map((f) =>
+          f === 'form.schema.ts'
+            ? 'renderer.schema.json'
+            : f === 'form.render.ts'
+              ? 'renderer.behavior.ts'
+              : f
+        )
+        .concat('renderer.wizard.tsx'),
+      'renderer-json'
+    );
+    expect(errorCount(json)).toBe(0);
+    const jsonWarnings = section(json, 'Warnings');
+    expect(jsonWarnings).toMatch(/`renderer\.schema\.json` → `form\.schema\.json`/);
+    expect(jsonWarnings).toMatch(/`renderer\.wizard\.tsx` → `wizard\.tsx`/);
+    expect(json, 'прежнее имя покрывает роль — «нет файла» не сообщаем').not.toMatch(/RF012/);
   });
 
   it('форма new-mcp-test падает ровно на двух именах', async () => {
@@ -458,15 +508,15 @@ describe('validate_form kind=layout', () => {
     );
     expect(errorCount(text)).toBe(2);
     const errors = section(text, 'Errors');
-    expect(errors).toMatch(/`schema\.ts`[\s\S]*?`renderer\.schema\.ts`/);
-    expect(errors).toMatch(/`render\.behavior\.ts`[\s\S]*?`renderer\.behavior\.ts`/);
+    expect(errors).toMatch(/`schema\.ts`[\s\S]*?`form\.schema\.ts`/);
+    expect(errors).toMatch(/`render\.behavior\.ts`[\s\S]*?`form\.render\.ts`/);
     // Шим опционален — имя вне канона у него предупреждение, а не ошибка.
-    expect(section(text, 'Warnings')).toMatch(/`json-wizard\.tsx`[\s\S]*?`renderer\.wizard\.tsx`/);
+    expect(section(text, 'Warnings')).toMatch(/`json-wizard\.tsx`[\s\S]*?`wizard\.tsx`/);
   });
 
-  it('`renderer.schema.json` допустим, но предупреждает о потере типизации', async () => {
+  it('`form.schema.json` допустим, но предупреждает о потере типизации', async () => {
     const files = CANON['renderer-json'].map((f) =>
-      f === 'renderer.schema.ts' ? 'renderer.schema.json' : f
+      f === 'form.schema.ts' ? 'form.schema.json' : f
     );
     const text = await layout(files, 'renderer-json');
     expect(text).toMatch(/✅ ошибок нет/);
@@ -485,14 +535,18 @@ describe('validate_form kind=layout', () => {
   });
 
   it('роль чужого таргета — предупреждение с указанием, куда свернуть', async () => {
-    const text = await layout([...CANON['core'], 'renderer.behavior.ts', 'registry.ts'], 'core');
+    const text = await layout(
+      [...CANON['core'], 'form.render.ts', 'renderer.behavior.ts', 'registry.ts'],
+      'core'
+    );
     expect(text).toMatch(/✅ ошибок нет/);
     const warnings = section(text, 'Warnings');
+    expect(warnings).toMatch(/form\.render\.ts[\s\S]*?`form\.behavior\.ts`/);
     expect(warnings).toMatch(/renderer\.behavior\.ts[\s\S]*?`form\.behavior\.ts`/);
     expect(warnings).toMatch(/registry\.ts[\s\S]*?renderer-json/);
   });
 
-  it('вложенные каталоги — ошибка: раскладка плоская', async () => {
+  it('вложенные каталоги вне `steps/` — ошибка: раскладка плоская', async () => {
     const text = await layout(
       [
         'index.tsx',
@@ -500,17 +554,128 @@ describe('validate_form kind=layout', () => {
         'schema/model.ts',
         'form.schema.ts',
         'form.behavior.ts',
-        'validation.ts',
+        'form.validation.ts',
         'data-sources.ts',
         'api.ts',
         'components/steps/Step1.tsx',
+        'lib/x.ts',
       ],
       'core'
     );
+    expect(errorCount(text)).toBe(3);
     const errors = section(text, 'Errors');
     expect(errors).toMatch(/schema\/model\.ts/);
     expect(errors).toMatch(/корне модуля/);
-    expect(section(text, 'Warnings')).toMatch(/инлайном в `index\.tsx`/);
+    expect(errors).toMatch(/lib\/x\.ts/);
+    // Шаги не запрещены — запрещено их место: подсказка ведёт в `steps/<slug>/`.
+    expect(errors).toMatch(/components\/steps\/Step1\.tsx[\s\S]*?`steps\/<slug>\/`/);
+    expect(errors, 'модель названа — «нет model.ts» не сообщаем').not.toMatch(/RF012/);
+  });
+
+  it('`lib/x.ts` — ошибка вложенности', async () => {
+    const text = await layout([...CANON['renderer-json'], 'lib/x.ts'], 'renderer-json');
+    expect(errorCount(text)).toBe(1);
+    expect(section(text, 'Errors')).toMatch(/lib\/x\.ts[\s\S]*?вложенный каталог вне канона/);
+  });
+
+  describe('визард по шагам — `steps/<slug>/`', () => {
+    const STEPS = [
+      'steps/index.ts',
+      'steps/kontakty/form.validation.ts',
+      'steps/kontakty/form.render.ts',
+      'steps/kontakty/form.schema.json',
+      'steps/dannye-zayomshchika/form.validation.ts',
+      'steps/dannye-zayomshchika/form.render.ts',
+    ];
+
+    it('канон + папки шагов проходят без единой претензии', async () => {
+      const text = await layout(
+        [...CANON['renderer-json'], 'wizard.tsx', ...STEPS],
+        'renderer-json'
+      );
+      expect(text).toMatch(/✅ ошибок нет/);
+      expect(text).not.toMatch(/предупреждений \d/);
+    });
+
+    it('`steps/<slug>/form.validation.ts` принят и в core', async () => {
+      const text = await layout(
+        [...CANON['core'], 'steps/index.ts', 'steps/kontakty/form.validation.ts'],
+        'core'
+      );
+      expect(text).toMatch(/✅ ошибок нет/);
+      expect(text).not.toMatch(/предупреждений \d/);
+    });
+
+    it('общий каталог модуля снимается и у набора с шагами', async () => {
+      const text = await layout(
+        [...CANON['renderer-react'], 'steps/index.ts', 'steps/kontakty/form.validation.ts'].map(
+          (f) => `src/forms/credit/${f}`
+        ),
+        'renderer-react'
+      );
+      expect(text).toMatch(/✅ ошибок нет/);
+    });
+
+    it('файл вне канона папки шага — ошибка с подсказкой', async () => {
+      const text = await layout(
+        [
+          ...CANON['renderer-react'],
+          'steps/index.ts',
+          'steps/kontakty/utils.ts',
+          'steps/kontakty/rules.ts',
+          'steps/kontakty/model.ts',
+        ],
+        'renderer-react'
+      );
+      expect(errorCount(text)).toBe(3);
+      const errors = section(text, 'Errors');
+      expect(errors).toMatch(/steps\/kontakty\/rules\.ts[\s\S]*?`form\.validation\.ts`/);
+      expect(errors).toMatch(/steps\/kontakty\/model\.ts[\s\S]*?корневой `model\.ts`/);
+    });
+
+    it('более глубокая вложенность в `steps/` — ошибка', async () => {
+      const text = await layout(
+        [...CANON['core'], 'steps/index.ts', 'steps/kontakty/parts/a.ts', 'steps/misc.ts'],
+        'core'
+      );
+      expect(errorCount(text)).toBe(2);
+    });
+
+    it('прежнее имя в папке шага — предупреждение, номер в имени папки — предупреждение', async () => {
+      const text = await layout(
+        [...CANON['renderer-react'], 'steps/index.ts', 'steps/01-kontakty/renderer.behavior.ts'],
+        'renderer-react'
+      );
+      expect(text).toMatch(/✅ ошибок нет/);
+      const warnings = section(text, 'Warnings');
+      expect(warnings).toMatch(/`renderer\.behavior\.ts` → `form\.render\.ts`/);
+      expect(warnings).toMatch(/01-kontakty[\s\S]*?без номера/);
+    });
+
+    it('прежний `validation.ts` в папке шага и в корне — только предупреждения', async () => {
+      const text = await layout(
+        [
+          ...CANON['core'].map((f) => (f === 'form.validation.ts' ? 'validation.ts' : f)),
+          'steps/index.ts',
+          'steps/kontakty/validation.ts',
+        ],
+        'core'
+      );
+      expect(text).toMatch(/✅ ошибок нет, предупреждений 2/);
+      const warnings = section(text, 'Warnings');
+      expect(warnings).toMatch(
+        /at validation\.ts[\s\S]*?`validation\.ts` → `form\.validation\.ts`/
+      );
+      expect(warnings).toMatch(
+        /steps\/kontakty\/validation\.ts[\s\S]*?`validation\.ts` → `form\.validation\.ts`/
+      );
+    });
+
+    it('папки шагов без `steps/index.ts` — предупреждение про агрегатор', async () => {
+      const text = await layout([...CANON['core'], 'steps/kontakty/form.validation.ts'], 'core');
+      expect(text).toMatch(/✅ ошибок нет/);
+      expect(section(text, 'Warnings')).toMatch(/RF012[\s\S]*?`steps\/index\.ts`/);
+    });
   });
 
   it('общий каталог модуля снимается, а не считается вложенностью', async () => {
@@ -531,9 +696,23 @@ describe('validate_form kind=layout', () => {
   });
 
   it('target выводится по составу файлов и догадка проговаривается', async () => {
-    const text = await layout(CANON['renderer-json']);
-    expect(text).toMatch(/`target` не передан — принят `renderer-json`/);
-    expect(text).toMatch(/✅ ошибок нет/);
+    const json = await layout(CANON['renderer-json']);
+    expect(json).toMatch(
+      /`target` не передан — принят `renderer-json` по составу файлов \(есть `registry\.ts`\)/
+    );
+    expect(json).toMatch(/✅ ошибок нет/);
+
+    const react = await layout(CANON['renderer-react']);
+    expect(react).toMatch(/принят `renderer-react`[\s\S]*?`form\.render\.ts`/);
+    expect(react).toMatch(/✅ ошибок нет/);
+  });
+
+  it('набор без различающих файлов — догадка «наугад» и совет передать target', async () => {
+    // После выравнивания имён `form.schema.ts` есть у всех таргетов: по нему одному таргет
+    // не определяется, и отчёт обязан это сказать, а не выдать догадку за вывод.
+    const text = await layout(CANON['core']);
+    expect(text).toMatch(/принят `core` НАУГАД/);
+    expect(text).toMatch(/явным\s+`target`/);
   });
 
   it('неопознаваемый набор без target — отказ с перечнем значений', async () => {

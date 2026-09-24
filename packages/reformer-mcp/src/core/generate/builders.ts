@@ -199,7 +199,7 @@ function renderInitial(level: Map<string, ModelNode>, depth: number): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// validation.ts
+// form.validation.ts
 // ---------------------------------------------------------------------------
 
 /** Какие валидаторы реально использованы — импортируем ровно их. */
@@ -228,59 +228,124 @@ function collectValidators(rules: ValidationRuleIntent[]): string[] {
   return [...used].sort();
 }
 
-export function buildValidationTs(intent: FormIntent): string {
-  const validators = collectValidators(intent.validation);
-  const usesAsync = intent.validation.some((r) => r.async);
-  const usesWhen = intent.validation.some((r) => r.when);
-  const usesEach = intent.validation.some((r) => r.each);
+/** Параметры `buildValidationSchemaTs`: всё, что модуль берёт не из правил. */
+export interface ValidationSchemaTsOptions {
+  /** Тип модели — параметр `defineValidationSchema<…>`. */
+  interfaceName: string;
+  /** Имя экспортируемой константы схемы (`formValidation`, `stepValidation`, …). */
+  exportName: string;
+  /**
+   * Откуда импортировать тип модели — спецификатор модуля как есть (`'./model'`, `'../../types'`).
+   * Раскладка файлов — решение потребителя: MCP держит тип в `model.ts`, билдер — в `types.ts`,
+   * а файл шага лежит двумя каталогами глубже корня.
+   */
+  typeImport: string;
+  /**
+   * Текст JSDoc-шапки модуля — строки без `/**`, ` * ` и `*\/`; перевод строки делит строки.
+   * Без него модуль печатается без шапки.
+   */
+  header?: string;
+}
 
+/**
+ * Валидаторы и операторы, которые реально нужны набору правил.
+ *
+ * Импортируется только использованное: проекты собираются с `noUnusedLocals`, и лишний импорт
+ * «на всякий случай» не даст форме скомпилироваться. Поэтому набор считается по ТОМУ
+ * подмножеству правил, которое печатается в модуль, — у файла шага он свой.
+ */
+function validationImports(rules: readonly ValidationRuleIntent[]): {
+  ops: string[];
+  validators: string[];
+} {
   const ops = ['validate', 'defineValidationSchema'];
-  if (usesAsync) ops.push('validateAsync');
-  if (usesWhen) ops.push('validateWhen');
-  if (usesEach) ops.push('each');
+  if (rules.some((r) => r.async)) ops.push('validateAsync');
+  if (rules.some((r) => r.when)) ops.push('validateWhen');
+  if (rules.some((r) => r.each)) ops.push('each');
+  return { ops, validators: collectValidators([...rules]) };
+}
+
+/** Одно правило intent → строки тела схемы (с отступом тела). */
+function validationRuleBlock(rule: ValidationRuleIntent): string {
+  const body: string[] = [];
+  if (rule.rules.length > 0) {
+    body.push(`validate(model.$.${rule.target}, [${rule.rules.map(callValidator).join(', ')}]);`);
+  }
+  if (rule.async) {
+    body.push(`validateAsync(model.$.${rule.target}, [${rule.async}]);`);
+  }
+  let block = body.map((b) => `  ${b}`).join('\n');
+  if (rule.when) {
+    block = `  validateWhen(() => ${rule.when}, () => {\n${body.map((b) => `    ${b}`).join('\n')}\n  });`;
+  }
+  if (rule.each) {
+    block = `  each(model.$.${rule.each}, (item) => {\n${body
+      .map((b) => `    ${b.replace(`model.$.${rule.target}`, `item.$.${rule.target}`)}`)
+      .join('\n')}\n  });`;
+  }
+  return block;
+}
+
+/**
+ * Модуль с ОДНОЙ схемой валидации для заданного подмножества правил.
+ *
+ * Зачем отдельно от `buildValidationTs`. Билдер раскладывает правила визарда по шагам
+ * (`steps/<slug>/form.validation.ts` — правила полей шага, корневой `form.validation.ts` — межшаговые),
+ * и каждому файлу нужен свой полноценный модуль: свои импорты ровно под свои правила, своё имя
+ * экспорта, свой путь до типа модели. Второй эмиттер правил в билдере разошёлся бы с этим на
+ * первой же правке — поэтому печать тела живёт здесь одна, а `buildValidationTs` — обёртка над ней.
+ *
+ * Печатает `import …` + `export const <exportName> = defineValidationSchema<…>(…)` и ничего
+ * сверх: сборка корня (`apply(...)`, `makeValidationConfig`) — дело потребителя.
+ *
+ * @example
+ * buildValidationSchemaTs([{ target: 'email', rules: ['required', 'email()'] }], {
+ *   interfaceName: 'Contacts',
+ *   exportName: 'stepValidation',
+ *   typeImport: '../../types',
+ * });
+ */
+export function buildValidationSchemaTs(
+  rules: readonly ValidationRuleIntent[],
+  opts: ValidationSchemaTsOptions
+): string {
+  const { ops, validators } = validationImports(rules);
 
   const lines: string[] = [];
-  lines.push('/**');
-  lines.push(` * Валидация формы «${intent.formName}» — правила над МОДЕЛЬЮ, не в layout-схеме.`);
-  lines.push(' * Запуск: validateModel(model, formValidation).');
-  lines.push(' */');
-  // Импортируем только использованное: проекты собираются с `noUnusedLocals`, и лишний
-  // импорт «на всякий случай» не даст форме скомпилироваться.
+  if (opts.header !== undefined) {
+    lines.push('/**');
+    for (const line of opts.header.split('\n')) lines.push(line ? ` * ${line}` : ' *');
+    lines.push(' */');
+  }
   lines.push(`import { ${ops.join(', ')} } from '@reformer/core/validation';`);
   if (validators.length > 0) {
     lines.push(`import { ${validators.join(', ')} } from '@reformer/core/validators';`);
   }
-  lines.push(`import type { ${intent.interfaceName} } from './model';`);
+  lines.push(`import type { ${opts.interfaceName} } from '${opts.typeImport}';`);
   lines.push('');
   lines.push(
-    `export const formValidation = defineValidationSchema<${intent.interfaceName}>(({ model }) => {`
+    `export const ${opts.exportName} = defineValidationSchema<${opts.interfaceName}>(({ model }) => {`
   );
 
-  if (intent.validation.length === 0) {
+  if (rules.length === 0) {
     lines.push('  // Правил в intent не было — добавьте их здесь.');
   }
-  for (const rule of intent.validation) {
-    const body: string[] = [];
-    if (rule.rules.length > 0) {
-      body.push(`validate(model.$.${rule.target}, [${rule.rules.map(callValidator).join(', ')}]);`);
-    }
-    if (rule.async) {
-      body.push(`validateAsync(model.$.${rule.target}, [${rule.async}]);`);
-    }
-    let block = body.map((b) => `  ${b}`).join('\n');
-    if (rule.when) {
-      block = `  validateWhen(() => ${rule.when}, () => {\n${body.map((b) => `    ${b}`).join('\n')}\n  });`;
-    }
-    if (rule.each) {
-      block = `  each(model.$.${rule.each}, (item) => {\n${body
-        .map((b) => `    ${b.replace(`model.$.${rule.target}`, `item.$.${rule.target}`)}`)
-        .join('\n')}\n  });`;
-    }
-    lines.push(block);
-  }
+  for (const rule of rules) lines.push(validationRuleBlock(rule));
 
   lines.push('});');
   return lines.join('\n') + '\n';
+}
+
+/** `form.validation.ts` формы целиком: одна схема `formValidation` над всеми правилами intent. */
+export function buildValidationTs(intent: FormIntent): string {
+  return buildValidationSchemaTs(intent.validation, {
+    interfaceName: intent.interfaceName,
+    exportName: 'formValidation',
+    typeImport: './model',
+    header:
+      `Валидация формы «${intent.formName}» — правила над МОДЕЛЬЮ, не в layout-схеме.\n` +
+      'Запуск: validateModel(model, formValidation).',
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -496,7 +561,7 @@ function layoutToJson(node: LayoutNode, intent: FormIntent): JsonNode | null {
       // названный так в самом корпусе (renderer-json, «Anti-patterns»). Конвертер резолвит
       // вложенные ноды внутри componentProps рекурсивно, поэтому форма валидна.
       // Компонент — `Wizard`: библиотека визарда не экспортирует, приложение регистрирует
-      // под этим именем свой шим (см. канон раскладки, `renderer.wizard.tsx`).
+      // под этим именем свой шим (см. канон раскладки, `wizard.tsx`).
       if (steps.length > 0 && steps.length === node.children.length) {
         return {
           selector: node.selector ?? 'wizard',
@@ -528,7 +593,7 @@ export function buildLayoutJson(intent: FormIntent): string {
 }
 
 /**
- * `renderer.schema.ts` — тот же JSON-DSL, обёрнутый в `defineJsonSchema<T>`.
+ * `form.schema.ts` для renderer-json — тот же JSON-DSL, обёрнутый в `defineJsonSchema<T>`.
  *
  * Канонический дефолт схемы для renderer-json именно такой, а не чистый `.json`: хелпер сужает
  * пути `$model(...)` до `Path<T>`, и опечатка в пути становится ошибкой компиляции. У чистого
@@ -642,7 +707,9 @@ export function buildRenderBehaviorTs(intent: FormIntent): string {
   lines.push('/**');
   lines.push(` * Render-поведение формы «${intent.formName}» — правила над деревом разметки`);
   lines.push(' * по `selector` из layout-схемы. Скрытие узла НЕ убирает поле из модели:');
-  lines.push(' * если оно должно перестать валидироваться, используйте enableWhen в behavior.ts.');
+  lines.push(
+    ' * если оно должно перестать валидироваться, используйте enableWhen в form.behavior.ts.'
+  );
   lines.push(' */');
   lines.push("import { hideWhen, type RenderBehaviorFn } from '@reformer/renderer-react';");
   lines.push(`import type { ${intent.interfaceName} } from './model';`);
@@ -666,7 +733,10 @@ export function buildRenderBehaviorTs(intent: FormIntent): string {
 
 /** Один файл канонической раскладки модуля формы. */
 export interface LayoutFileSpec {
-  /** Каноничное имя. */
+  /**
+   * Каноничное имя. Для `scope: 'step'` — имя ВНУТРИ папки шага (`form.validation.ts`), для
+   * остальных — путь от корня модуля (`index.tsx`, `steps/index.ts`).
+   */
   path: string;
   /** Зачем файл нужен — одной строкой. */
   role: string;
@@ -674,6 +744,12 @@ export interface LayoutFileSpec {
   variants?: string[];
   /** Файл появляется не всегда. */
   optional?: boolean;
+  /**
+   * Где файл живёт: `root` (по умолчанию) — в корне модуля или по пути от корня, `step` — в
+   * каждой папке шага `steps/<slug>/`. Имена внутри папки шага те же, что в корне: роль
+   * называет суффикс, а не место.
+   */
+  scope?: 'root' | 'step';
 }
 
 /**
@@ -685,55 +761,176 @@ export interface LayoutFileSpec {
  * правило раскладки не получает вовсе, а манифест печатал 5 имён из 10 и ничем не сообщал, что
  * остальные консумент обязан создать сам. Поэтому список печатается ПОЛНЫЙ, с пометкой
  * происхождения у каждой строки.
+ *
+ * Правило имён одно на все таргеты: `form.<роль>` — артефакт формы, суффикс называет роль
+ * (`schema` — разметка, `behavior` — поведение модели, `render` — поведение разметки,
+ * `validation` — правила валидации); остальные файлы без префикса. Прежний префикс `renderer.` у слоя рендера давал два имени
+ * одной роли в разных таргетах (`form.schema.ts` у core, `renderer.schema.ts` у рендереров) —
+ * и таргет, в котором форма «переехала», находил чужие имена; `validation.ts` без префикса
+ * выбивался из правила, хотя это такой же артефакт формы. Старые имена принимаются
+ * валидатором с предупреждением (`LEGACY_STEMS` в `validate/layout.ts`).
  */
 export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = {
   core: [
-    { path: 'index.tsx', role: 'точка входа; ВСЕ шаги wizard-а инлайном' },
+    { path: 'index.tsx', role: 'точка входа; шаги wizard-а — инлайном или в `steps/<slug>/`' },
     { path: 'types.ts', role: 'локальные типы модуля' },
     { path: 'model.ts', role: 'интерфейс модели и начальные значения' },
     { path: 'form.schema.ts', role: 'схема разметки в TS', variants: ['form.schema.tsx'] },
     { path: 'form.behavior.ts', role: 'поведение модели: computeFrom / enableWhen / copyFrom' },
-    { path: 'validation.ts', role: 'правила валидации' },
+    { path: 'form.validation.ts', role: 'правила валидации' },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
   ],
   'renderer-react': [
-    { path: 'index.tsx', role: 'точка входа; ВСЕ шаги wizard-а инлайном' },
+    { path: 'index.tsx', role: 'точка входа; шаги wizard-а — инлайном или в `steps/<slug>/`' },
     { path: 'types.ts', role: 'локальные типы модуля' },
     { path: 'model.ts', role: 'интерфейс модели и начальные значения' },
     {
-      path: 'renderer.schema.ts',
+      path: 'form.schema.ts',
       role: 'схема разметки в TS (`.tsx`, если внутри есть JSX)',
-      variants: ['renderer.schema.tsx'],
+      variants: ['form.schema.tsx'],
     },
     { path: 'form.behavior.ts', role: 'поведение модели: computeFrom / enableWhen / copyFrom' },
-    { path: 'renderer.behavior.ts', role: 'поведение разметки: hideWhen по selector' },
-    { path: 'validation.ts', role: 'правила валидации' },
+    { path: 'form.render.ts', role: 'поведение разметки: hideWhen по selector' },
+    { path: 'form.validation.ts', role: 'правила валидации' },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
   ],
   'renderer-json': [
-    { path: 'index.tsx', role: 'точка входа; ВСЕ шаги wizard-а инлайном' },
+    { path: 'index.tsx', role: 'точка входа; шаги wizard-а — инлайном или в `steps/<slug>/`' },
     { path: 'types.ts', role: 'локальные типы модуля' },
     { path: 'model.ts', role: 'интерфейс модели и начальные значения' },
     {
-      path: 'renderer.schema.ts',
+      path: 'form.schema.ts',
       role: 'схема в JSON-DSL через `defineJsonSchema<T>` — с ним пути `$model(...)` проверяются на компиляции, с чистым `.json` нет',
-      variants: ['renderer.schema.tsx', 'renderer.schema.json'],
+      variants: ['form.schema.tsx', 'form.schema.json'],
     },
     { path: 'form.behavior.ts', role: 'поведение модели: computeFrom / enableWhen / copyFrom' },
-    { path: 'renderer.behavior.ts', role: 'поведение разметки: hideWhen по selector' },
-    { path: 'validation.ts', role: 'правила валидации' },
+    { path: 'form.render.ts', role: 'поведение разметки: hideWhen по selector' },
+    { path: 'form.validation.ts', role: 'правила валидации' },
     { path: 'data-sources.ts', role: 'справочники и списки значений' },
     { path: 'api.ts', role: 'загрузка и submit' },
     { path: 'registry.ts', role: 'реестр: `$component(...)` → React-компонент' },
     {
-      path: 'renderer.wizard.tsx',
+      path: 'wizard.tsx',
       role: 'прикладной шим wizard-а (библиотека `RendererFormWizard` не экспортирует); допустимо держать его и внутри `registry.ts`',
       optional: true,
     },
   ],
 };
+
+/** Каталог шагов визарда и его агрегатор — одни на все таргеты. */
+export const STEPS_DIR = 'steps';
+
+/**
+ * Раскладка визарда по шагам — опциональная надстройка над `FORM_LAYOUT_CANON`.
+ *
+ * Шаги можно держать инлайном в `index.tsx` (и тогда этих файлов нет вовсе), а можно — по папке
+ * на шаг: `steps/<slug>/`, где `<slug>` — kebab-слаг заголовка шага БЕЗ номера (порядок задаёт
+ * `steps/index.ts`, поэтому перестановка шагов папки не трогает). Внутри папки шага имена те же,
+ * что в корне: `form.validation.ts` — правила полей шага, `form.render.ts` — поведение разметки шага,
+ * `form.schema.*` — разметка шага. Межшаговое остаётся в корневых файлах.
+ *
+ * Все записи опциональны: обязательность шагов проверять нечем — сколько их и есть ли они,
+ * знает только форма.
+ */
+export const STEP_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = {
+  core: [
+    {
+      path: 'steps/index.ts',
+      role: 'агрегатор шагов: порядок и массивы `stepValidations` / схем шагов',
+      optional: true,
+    },
+    {
+      path: 'form.validation.ts',
+      role: 'правила полей шага (межшаговые — в корневом `form.validation.ts`)',
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.schema.ts',
+      role: 'разметка шага',
+      variants: ['form.schema.tsx'],
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.behavior.ts',
+      role: 'поведение модели в пределах шага (межшаговое — в корневом `form.behavior.ts`)',
+      optional: true,
+      scope: 'step',
+    },
+  ],
+  'renderer-react': [
+    {
+      path: 'steps/index.ts',
+      role: 'агрегатор шагов: порядок и массивы `stepValidations` / `stepRenders`',
+      optional: true,
+    },
+    {
+      path: 'form.validation.ts',
+      role: 'правила полей шага (межшаговые — в корневом `form.validation.ts`)',
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.render.ts',
+      role: 'поведение разметки шага: hideWhen по selector узлов шага',
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.schema.ts',
+      role: 'разметка шага',
+      variants: ['form.schema.tsx'],
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.behavior.ts',
+      role: 'поведение модели в пределах шага (межшаговое — в корневом `form.behavior.ts`)',
+      optional: true,
+      scope: 'step',
+    },
+  ],
+  'renderer-json': [
+    {
+      path: 'steps/index.ts',
+      role: 'агрегатор шагов: порядок и массивы `stepValidations` / `stepRenders`',
+      optional: true,
+    },
+    {
+      path: 'form.validation.ts',
+      role: 'правила полей шага (межшаговые — в корневом `form.validation.ts`)',
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.render.ts',
+      role: 'поведение разметки шага: hideWhen по selector узлов шага',
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.schema.ts',
+      role: 'разметка шага',
+      variants: ['form.schema.tsx', 'form.schema.json'],
+      optional: true,
+      scope: 'step',
+    },
+    {
+      path: 'form.behavior.ts',
+      role: 'поведение модели в пределах шага (межшаговое — в корневом `form.behavior.ts`)',
+      optional: true,
+      scope: 'step',
+    },
+  ],
+};
+
+/** Путь файла шага от корня модуля: `steps/<slug>/<file>` для `scope: 'step'`. */
+export function layoutSpecPath(spec: LayoutFileSpec, slug = '<slug>'): string {
+  return spec.scope === 'step' ? `${STEPS_DIR}/${slug}/${spec.path}` : spec.path;
+}
 
 /**
  * Тот же канон одной строкой — для каналов, где таблица `renderLayoutChecklist` не по бюджету.
@@ -742,10 +939,11 @@ export const FORM_LAYOUT_CANON: Record<ReformerTargetStack, LayoutFileSpec[]> = 
  * `FORM_LAYOUT_CANON`, а не пишется руками, иначе копии расходятся с каноном — ровно эта
  * поломка и разбирается в `docs/plans/mcp-layout-authority.md`.
  *
- * @param withOptional - Дописать опциональные файлы. По умолчанию нет: в `plan_form` строка
- *   отвечает на «какие файлы завести сейчас». В `get_context` — да: там она единственный
- *   источник имён, а `renderer.wizard.tsx` (шим wizard-а, библиотека его не экспортирует) —
- *   как раз то имя, которое агенты выдумывали сами (`json-wizard.tsx`, `wizard.tsx`).
+ * @param withOptional - Дописать опциональные файлы и раскладку шагов. По умолчанию нет: в
+ *   `plan_form` строка отвечает на «какие файлы завести сейчас». В `get_context` — да: там она
+ *   единственный источник имён, а `wizard.tsx` (шим wizard-а, библиотека его не экспортирует) и
+ *   файлы `steps/<slug>/` — как раз те имена, которые агенты выдумывали сами
+ *   (`json-wizard.tsx`, `components/steps/Step1.tsx`).
  */
 export function renderLayoutLine(target: ReformerTargetStack, withOptional = false): string {
   const canon = FORM_LAYOUT_CANON[target];
@@ -754,15 +952,40 @@ export function renderLayoutLine(target: ReformerTargetStack, withOptional = fal
     .map((f) => `\`${f.path}\``)
     .join(' ');
   const optional = withOptional
-    ? canon
-        .filter((f) => f.optional)
-        .map((f) => `\`${f.path}\``)
+    ? [
+        ...canon.filter((f) => f.optional).map((f) => f.path),
+        ...STEP_LAYOUT_CANON[target].map((f) => layoutSpecPath(f)),
+      ]
+        .map((p) => `\`${p}\``)
         .join(' ')
     : '';
   return (
-    `Файлы модуля (${target}, плоский модуль, шаги инлайн): ${files}` +
+    `Файлы модуля (${target}, плоский модуль; шаги wizard-а — инлайном или в \`steps/<slug>/\`): ${files}` +
     (optional ? ` (+ по необходимости ${optional})` : '') +
     '. Правило — `find_recipe directory-layout`, сверка имён — `validate_form kind="layout"`.'
+  );
+}
+
+/** Имя файла с вариантами — `` `a` (или `b`, `c`) ``. */
+function specNames(spec: LayoutFileSpec, path = spec.path): string {
+  const variants = spec.variants ?? [];
+  return variants.length === 0
+    ? `\`${path}\``
+    : `\`${path}\` (или ${variants.map((v) => `\`${v}\``).join(', ')})`;
+}
+
+/**
+ * Раскладка шагов одной строкой — чтобы агент, решивший разнести визард по файлам, взял
+ * канонические имена, а не `components/steps/Step1.tsx`.
+ */
+export function renderStepLayoutNote(target: ReformerTargetStack): string {
+  const canon = STEP_LAYOUT_CANON[target];
+  const index = canon.filter((f) => f.scope !== 'step').map((f) => `\`${f.path}\``);
+  const inStep = canon.filter((f) => f.scope === 'step').map((f) => specNames(f));
+  return (
+    `Wizard по шагам (опционально): ${index.join(', ')} + папка на шаг \`${STEPS_DIR}/<slug>/\` ` +
+    `(kebab-слаг заголовка без номера) с файлами ${inStep.join(', ')}. ` +
+    'Межшаговое — в корневых файлах; иной вложенности канон не предусматривает.'
   );
 }
 
@@ -789,9 +1012,11 @@ export function renderLayoutChecklist(
   lines.push('## Раскладка модуля — канонические имена');
   lines.push('');
   lines.push(
-    'Модуль формы плоский: без `lib/` / `schema/` / `components/steps/`, все шаги wizard-а ' +
-      'инлайном в `index.tsx`. Точка-префикс только у слоевых концернов (`form.` — слой модели, ' +
-      '`renderer.` — слой рендера), остальные файлы plain-named. Полное правило — ' +
+    'Модуль формы плоский: без `lib/` / `schema/` / `components/steps/`; шаги wizard-а — ' +
+      'инлайном в `index.tsx` или по папке на шаг `steps/<slug>/` (имена внутри те же). ' +
+      'Префикс `form.` — у артефактов формы, суффикс называет роль (`schema` — разметка, ' +
+      '`behavior` — поведение модели, `render` — поведение разметки, `validation` — ' +
+      'валидация); остальные файлы plain-named. Полное правило — ' +
       '`find_recipe directory-layout`.'
   );
   lines.push('');
@@ -809,11 +1034,7 @@ export function renderLayoutChecklist(
     } else {
       origin = spec.optional ? 'создайте сами, если нужен' : '**создайте сами**';
     }
-    const names =
-      spec.variants && spec.variants.length > 0
-        ? `\`${spec.path}\` (или ${spec.variants.map((v) => `\`${v}\``).join(', ')})`
-        : `\`${spec.path}\``;
-    rows.push(`| ${names} | ${spec.role} | ${origin} |`);
+    rows.push(`| ${specNames(spec)} | ${spec.role} | ${origin} |`);
   }
 
   lines.push(
@@ -832,6 +1053,9 @@ export function renderLayoutChecklist(
   }
 
   lines.push('');
+  lines.push(renderStepLayoutNote(target));
+
+  lines.push('');
   lines.push(
     'Когда состав файлов известен, сверьте его: `validate_form kind="layout"` со списком имён.'
   );
@@ -846,9 +1070,9 @@ export function renderLayoutChecklist(
 /**
  * Файлы бандла для целевого стека.
  *
- * Раскладка — плоская (`minimalist`), с точкой-префиксом только у файлов, у которых есть
- * две слоевые версии (`form.` — модель, `renderer.` — разметка). Это конвенция репозитория,
- * зафиксированная в `docs/plans/mcp-staged-moonbeam.md`.
+ * Раскладка — плоская (`minimalist`); артефакты формы названы `form.<роль>` (`form.schema`,
+ * `form.behavior`, `form.render`, `form.validation`), остальные файлы — без префикса. Правило имён одно на все
+ * таргеты (`FORM_LAYOUT_CANON`).
  *
  * Генерируется ПОДМНОЖЕСТВО набора: остальные файлы (`index.tsx`, `types.ts`, схема для core и
  * renderer-react, `data-sources.ts`, `api.ts`) пишет консумент. Полный набор с пометкой
@@ -865,7 +1089,7 @@ export function buildBundle(intent: FormIntent): {
   const layoutJson = buildLayoutJson(intent);
   const files: BundleFile[] = [
     { path: 'model.ts', content: buildModelTs(intent) },
-    { path: 'validation.ts', content: buildValidationTs(intent) },
+    { path: 'form.validation.ts', content: buildValidationTs(intent) },
     { path: 'form.behavior.ts', content: buildBehaviorTs(intent) },
   ];
 
@@ -874,7 +1098,7 @@ export function buildBundle(intent: FormIntent): {
     // compile-time проверку путей `$model(...)` — ни ajv, ни обход реестра опечатку в пути не
     // ловят. Раньше здесь печатался `.json` с оговоркой в `## Warnings`; оговорку читают не все,
     // а блок кода копируют все, и неканоничное имя расходилось дальше по проекту.
-    files.push({ path: 'renderer.schema.ts', content: buildRendererSchemaTs(intent) });
+    files.push({ path: 'form.schema.ts', content: buildRendererSchemaTs(intent) });
     const registry = buildRegistryTs(intent);
     files.push({ path: 'registry.ts', content: registry.content });
     warnings.push(...registry.warnings);
@@ -885,14 +1109,14 @@ export function buildBundle(intent: FormIntent): {
     warnings.push(
       'Для target `' +
         intent.target +
-        '` layout отдан как `layout.json` — перенесите его в form.schema.ts / renderer.schema.ts вручную: TS-схема держит ссылки на сигналы модели, которые в JSON невыразимы.'
+        '` layout отдан как `layout.json` — перенесите его в form.schema.ts вручную: TS-схема держит ссылки на сигналы модели, которые в JSON невыразимы.'
     );
   }
 
   // Файл render-поведения эмитим, только если есть что в него положить: пустой файл
   // пришлось бы удалять руками, и он бы дезориентировал.
   if (intent.visibility.length > 0 && intent.target !== 'core') {
-    files.push({ path: 'renderer.behavior.ts', content: buildRenderBehaviorTs(intent) });
+    files.push({ path: 'form.render.ts', content: buildRenderBehaviorTs(intent) });
   }
 
   return { files, warnings, layoutJson };

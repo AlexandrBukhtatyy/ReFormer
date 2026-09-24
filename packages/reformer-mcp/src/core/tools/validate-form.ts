@@ -27,7 +27,7 @@ import { validateJsonSchemaTool } from './validate-json-schema.js';
 export const validateFormToolDefinition = {
   name: 'validate_form',
   description:
-    'Check a ReFormer form before running it. kind="code": generated TS — unknown or wrongly imported @reformer symbols, operators called outside their schema, deprecated API. kind="json-schema": the layout DSL. kind="behaviors": compute cycles. kind="bundle": a whole FormIntent + layout, cross-checked against each other. kind="layout": form-module FILE NAMES against the canonical per-target set (files[] + target) — catches schema.ts / render-behavior.ts drift and names the expected file; run it before writing them. Returns RF0xx diagnostics with line, what to do and the next call to make.',
+    'Check a ReFormer form before running it. kind="code": generated TS — unknown or wrongly imported @reformer symbols, operators called outside their schema, deprecated API. kind="json-schema": the layout DSL. kind="behaviors": compute cycles. kind="bundle": a whole FormIntent + layout, cross-checked against each other. kind="layout": form-module FILE NAMES against the canonical per-target set (files[] + target) — catches schema.ts / render-behavior.ts drift, accepts the optional steps/<slug>/ wizard folders, flags former renderer.* names as warnings, and names the expected file; run it before writing them. Returns RF0xx diagnostics with line, what to do and the next call to make.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -238,13 +238,14 @@ export async function validateFormTool(
       if (files.length === 0) {
         return text(
           'Для `kind: "layout"` нужен непустой массив `files` — имена или пути файлов модуля формы ' +
-            '(`["index.tsx", "types.ts", "model.ts", "renderer.schema.ts", …]`) и `target` — ' +
+            '(`["index.tsx", "types.ts", "model.ts", "form.schema.ts", …]`) и `target` — ' +
             '`core` | `renderer-react` | `renderer-json`.'
         );
       }
 
       const explicit = resolveLayoutTarget(args.target);
-      const target = explicit ?? inferLayoutTarget(files);
+      const guess = explicit ? null : inferLayoutTarget(files);
+      const target = explicit ?? guess?.target ?? null;
       if (!target) {
         return text(
           'Для `kind: "layout"` нужен `target`: `core` | `renderer-react` | `renderer-json`. ' +
@@ -254,12 +255,18 @@ export async function validateFormTool(
 
       const { diagnostics, limitations } = validateLayout(files, target);
       const parts = [report('layout', diagnostics, limitations)];
-      if (!explicit) {
+      if (guess) {
         // Догадку проговариваем вслух: молчаливо выбранный таргет превращает отчёт
-        // в претензии по чужому канону, и опровергнуть их будет нечем.
+        // в претензии по чужому канону, и опровергнуть их будет нечем. После выравнивания имён
+        // (`form.schema.*` у всех таргетов) набор без различающих файлов определяется только
+        // наугад — об этом говорится отдельно, а не выдаётся за вывод.
         parts.push(
-          `> \`target\` не передан — принят \`${target}\` по составу файлов. Если это не так, ` +
-            'повторите вызов с явным `target`.'
+          guess.certain
+            ? `> \`target\` не передан — принят \`${target}\` по составу файлов (${guess.basis}). ` +
+                'Если это не так, повторите вызов с явным `target`.'
+            : `> \`target\` не передан, а ${guess.basis} — принят \`${target}\` НАУГАД. ` +
+                'Отчёт может предъявлять претензии по чужому канону: повторите вызов с явным ' +
+                '`target` (`core` | `renderer-react` | `renderer-json`).'
         );
       }
       parts.push(renderLayoutCanon(target));
