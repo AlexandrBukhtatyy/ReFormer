@@ -11,6 +11,11 @@
  * // registry.ts — …
  * ```
  *
+ * Цель по шагам визарда — `"each": "step"` и сегмент `{step}` в пути:
+ * `{ "id": "user.step-validation", "path": "steps/{step}/validation.ts", "each": "step", … }`.
+ * Проверку шаблона пути (ровно один `{step}` у `each`, ни одного у прочих) делает отбор
+ * целей при печати, а не разбор: правило одно на встроенные и пользовательские цели.
+ *
  * ## Почему `---` и JSON, а не что-то ещё
  *
  * **Не YAML** — парсера в репозитории нет, а тащить его ради шести полей значит отдать
@@ -37,8 +42,19 @@ import type { FileClass } from './types';
 export interface TargetFileMeta {
   /** Уникален в точке расширения. Совпадение с чужим — отказ реестра, а не тихая замена. */
   readonly id: string;
-  /** Имя файла относительно каталога модуля. */
+  /**
+   * Имя файла относительно каталога модуля.
+   *
+   * У цели с {@link TargetFileMeta.each} — шаблон пути с сегментом `{step}`
+   * (`steps/{step}/validation.ts`): на его место встаёт папка шага.
+   */
   readonly path: string;
+  /**
+   * `step` — файл печатается по разу на каждый шаг визарда. У простой формы экземпляров ноль.
+   *
+   * Строкой в заголовке, а не функцией: заголовок — JSON, и ничего исполняемого в нём нет.
+   */
+  readonly each?: 'step';
   /** `derived` перезаписывается всегда, `user` пишется один раз. */
   readonly cls: FileClass;
   /** Порядок среди целей; у встроенных кратен десяти. */
@@ -117,6 +133,11 @@ export function parseTargetFile(text: string): TargetFileResult {
     return fail('«order» должно быть числом');
   }
 
+  const each = record.each;
+  if (each !== undefined && each !== 'step') {
+    return fail('«each» может быть только «step»');
+  }
+
   const regenerable = record.regenerable;
   if (regenerable !== undefined && typeof regenerable !== 'boolean') {
     return fail('«regenerable» должно быть true или false');
@@ -134,6 +155,7 @@ export function parseTargetFile(text: string): TargetFileResult {
       id,
       path,
       cls,
+      ...(each === undefined ? {} : { each }),
       ...(order === undefined ? {} : { order }),
       ...(regenerable === undefined ? {} : { regenerable }),
       ...(typeof record.title === 'string' ? { title: record.title.trim() } : {}),
@@ -156,6 +178,7 @@ export function formatTargetFile(meta: TargetFileMeta, body: string): string {
       ? []
       : ([['overrides', meta.overrides]] as [string, unknown][])),
     ['path', meta.path],
+    ...(meta.each === undefined ? [] : ([['each', meta.each]] as [string, unknown][])),
     ['cls', meta.cls],
     ...(meta.order === undefined ? [] : ([['order', meta.order]] as [string, unknown][])),
     ...(meta.regenerable === undefined

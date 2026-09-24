@@ -30,6 +30,9 @@ import wizardTemplate from './wizard.eta?raw';
 import registryTemplate from './registry.eta?raw';
 import renderBehaviorTemplate from './render-behavior.eta?raw';
 import snippetTemplate from './_snippet.eta?raw';
+import stepsIndexTemplate from './steps-index.eta?raw';
+import stepValidationTemplate from './step-validation.eta?raw';
+import stepRenderTemplate from './step-render.eta?raw';
 
 /**
  * Имя сниппета во внутреннем сторе включений.
@@ -58,4 +61,7 @@ export {
   wizardTemplate,
   registryTemplate,
   renderBehaviorTemplate,
+  stepsIndexTemplate,
+  stepValidationTemplate,
+  stepRenderTemplate,
 };

@@ -22,4 +22,7 @@ export {
   richSchema,
   seededRules,
   wizardSchema,
+  wizardRulesSchema,
+  wizardRules,
+  wizardSlugsSchema,
 } from './codegen/__fixtures__/kit';

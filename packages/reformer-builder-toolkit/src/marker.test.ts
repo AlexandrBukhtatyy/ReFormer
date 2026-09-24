@@ -43,6 +43,7 @@ describe(`где маркер допустим`, () => {
     expect(acceptsMarker(`theme.css`)).toBe(true);
     // JSON комментариев не знает: маркер сделал бы файл неразбираемым — и для редактора
     // схемы, и для импорта в сгенерированном модуле.
+    expect(acceptsMarker(`form.schema.json`)).toBe(false);
     expect(acceptsMarker(`renderer.schema.json`)).toBe(false);
     expect(acceptsMarker(`README.md`)).toBe(false);
     // Неизвестный формат безопаснее оставить без пометки, чем испортить.

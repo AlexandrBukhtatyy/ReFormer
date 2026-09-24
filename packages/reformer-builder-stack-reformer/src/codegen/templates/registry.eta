@@ -6,10 +6,10 @@ import type { ReactNode } from 'react';
 import { <%= it.registry.kitSymbols.join(', ') %> } from '<%= it.kit.importSpecifier %>';
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 <% if (it.wizard !== null) { -%>
-import { <% if (it.wizard.hasStep) { %><%= it.wizard.stepName %>, <% } %>Wizard } from './renderer.wizard';
+import { <% if (it.wizard.hasStep) { %><%= it.wizard.stepName %>, <% } %>Wizard } from '<%= it.layout.imports.wizard %>';
 <% } -%>
 <% if (it.registry.dataSourceNames.length > 0) { -%>
-import { <%= it.registry.dataSourceNames.join(', ') %> } from './data-sources';
+import { <%= it.registry.dataSourceNames.join(', ') %> } from '<%= it.layout.imports.dataSources %>';
 <% } -%>
 <% if (it.registry.hasPlaceholder) { -%>
 
@@ -21,7 +21,7 @@ export function createRegistry() {
   return defineRegistry((reg) => {
     reg.component(FIELD_WRAPPER, <%= it.registry.fieldWrapper %>);
 <% if (it.wizard !== null) { -%>
-    // Визард и тело шага — из шима renderer.wizard.tsx.
+    // Визард и тело шага — из шима <%= it.layout.files.wizard %>.
 <% for (const name of it.wizard.hostNames) { -%>
     reg.component('<%= name %>', Wizard);
 <% } -%>

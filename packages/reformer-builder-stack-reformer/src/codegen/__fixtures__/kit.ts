@@ -130,7 +130,7 @@ export function noWizardKit(): KitView {
 /**
  * Затравочные правила формы — единственный вход в билдеры `@reformer/mcp`.
  *
- * Без них `validation.ts` и `form.behavior.ts` уезжают заглушками, то есть мост
+ * Без них `form.validation.ts` и `form.behavior.ts` уезжают заглушками, то есть мост
  * `emit/rules-bridge` не исполняется ни в одном тесте вовсе. Состав подобран по ВЕТКАМ, а не
  * по правдоподобию: валидатор с аргументом (`minLength(2)`) поднимает `collectValidators`,
  * `when` — `validateWhen`, `computeFrom` с двумя источниками — вывод имён параметров колбэка,
@@ -214,4 +214,98 @@ export function richSchema(): JsonFormSchema {
     },
   ];
   return schema;
+}
+
+/**
+ * Визард с ПРАВИЛАМИ формы: два шага и секция вне визарда.
+ *
+ * Держит ветку раскладки правил по шагам: правило про поле шага уходит в
+ * `steps/<шаг>/form.validation.ts`, правило про поле вне шагов — в корневой `restValidation`,
+ * render-правило узла шага — в `steps/<шаг>/form.render.ts`, узла вне шагов — в корень.
+ */
+export function wizardRulesSchema(): JsonFormSchema {
+  const field = (path: string, label: string): JsonNode => ({
+    value: `$model(${path})`,
+    component: '$component(Input)',
+    componentProps: { label },
+  });
+  const root: JsonNode = {
+    component: '$component(Box)',
+    children: [
+      {
+        component: '$component(Wizard)',
+        componentProps: {
+          steps: [
+            {
+              component: '$component(Step)',
+              componentProps: { title: 'Данные' },
+              children: [field('fullName', 'ФИО')],
+            },
+            {
+              component: '$component(Step)',
+              componentProps: { title: 'Контакты' },
+              children: [field('contacts.email', 'Почта'), field('contacts.phone', 'Телефон')],
+            },
+          ],
+        },
+      },
+      {
+        component: '$component(Section)',
+        componentProps: { title: 'Дополнительно' },
+        children: [field('comment', 'Комментарий')],
+      },
+    ],
+  };
+  return { version: '1.0', root };
+}
+
+/** Правила к {@link wizardRulesSchema}: по одному в каждый шаг, одно вне шагов, render — шаг и корень. */
+export function wizardRules(): FormRules {
+  return {
+    validation: [
+      { target: 'fullName', rules: ['required', 'minLength(2)'] },
+      { target: 'contacts.email', rules: ['required', 'email'] },
+      {
+        target: 'contacts.phone',
+        rules: ['required'],
+        when: 'model.contacts.email === null',
+      },
+      { target: 'comment', rules: ['maxLength(500)'] },
+    ],
+    behavior: [],
+    render: [
+      { kind: 'hideWhen', selector: 'kontakty-section', condition: '!form.fullName.value.value' },
+      { kind: 'hideWhen', selector: 'dopolnitelno-section', condition: 'false' },
+    ],
+  };
+}
+
+/**
+ * Визард с «трудными» заголовками шагов: кириллица, два одинаковых, пустой. Держит правило имени
+ * папки шага (транслит, суффикс у совпадения, запасное имя без заголовка).
+ */
+export function wizardSlugsSchema(): JsonFormSchema {
+  const step = (title: string | undefined, path: string): JsonNode => ({
+    component: '$component(Step)',
+    componentProps: title === undefined ? {} : { title },
+    children: [
+      {
+        value: `$model(${path})`,
+        component: '$component(Input)',
+        componentProps: { label: path, required: true },
+      },
+    ],
+  });
+  const root: JsonNode = {
+    component: '$component(Box)',
+    children: [
+      {
+        component: '$component(Wizard)',
+        componentProps: {
+          steps: [step('Контакты', 'phone'), step('Контакты', 'email'), step(undefined, 'note')],
+        },
+      },
+    ],
+  };
+  return { version: '1.0', root };
 }

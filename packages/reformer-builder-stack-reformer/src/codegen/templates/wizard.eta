@@ -1,11 +1,11 @@
-// renderer.wizard.tsx — шим под $component(Wizard) и тело шага. Регенерируется.
+// wizard.tsx — шим под $component(Wizard) и тело шага. Регенерируется.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ReactNode } from 'react';
 import { <%= it.wizard.symbol %>, type FormWizardStep } from '<%= it.wizard.importFrom %>';
 import type { FormProxy } from '@reformer/core';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import type { <%= it.names.TypeName %> } from './types';
+import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
 /**
  * Пошаговая проверка визарда. Структурно, а не типом кита: контракт `config` один у любого
@@ -29,11 +29,11 @@ export interface WizardProps {
   steps?: StepNode[];
   className?: string;
   /**
-   * Проверка шагов — приходит от renderer.behavior.ts через `patchProps`. Без неё «Далее»
+   * Проверка шагов — приходит от form.render.ts через `patchProps`. Без неё «Далее»
    * не проверяет шаг: визард пропустил бы пустые обязательные поля.
    */
   config?: WizardValidationConfig;
-  /** Вешается снаружи — renderer.behavior.ts через onComponentEvent(node, 'onSubmit'). */
+  /** Вешается снаружи — form.render.ts через onComponentEvent(node, 'onSubmit'). */
   onSubmit?: (values: <%= it.names.TypeName %>) => void | Promise<void>;
 }
 

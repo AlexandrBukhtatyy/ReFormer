@@ -5,7 +5,7 @@
 // МОК: заготовка, реализуйте по необходимости. Пишется один раз.
 
 import { defineFormBehavior } from '@reformer/core/behaviors';
-import type { <%= it.names.TypeName %> } from './types';
+import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
 export const formBehavior = defineFormBehavior<<%= it.names.TypeName %>>(() => {});
 

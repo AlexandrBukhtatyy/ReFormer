@@ -1,7 +1,7 @@
 // model.ts — начальные значения (из мока) и фабрика модели. Регенерируется.
 
 import { createModel, type FormModel } from '@reformer/core';
-import type { <%= it.names.TypeName %> } from './types';
+import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
 export function createInitialValues(): <%= it.names.TypeName %> {
   return <%= it.json(it.mock.model, 2) %> as <%= it.names.TypeName %>;

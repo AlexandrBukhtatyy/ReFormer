@@ -1,0 +1,34 @@
+// steps/<%= it.step.dir %>/form.render.ts — render-слой шага «<%= it.step.title %>»: условная видимость и
+// события узлов шага. Вызывается из корневого form.render.ts.
+
+<% if (it.step.render.imports.length > 0) { -%>
+import { <%= it.step.render.imports.join(', ') %>, type RenderSchemaProxy } from '@reformer/renderer-react';
+<% } else { -%>
+import type { RenderSchemaProxy } from '@reformer/renderer-react';
+<% } -%>
+import type { FormModel, FormProxy } from '@reformer/core';
+import type { <%= it.names.TypeName %> } from '<%= it.step.imports.types %>';
+
+export function stepRender(
+  schema: RenderSchemaProxy<<%= it.names.TypeName %>>,
+  ctx: { form: FormProxy<<%= it.names.TypeName %>>; model: FormModel<<%= it.names.TypeName %>> }
+): void {
+  // form и model — под теми же именами, что в корневом form.render.ts: правила переносятся
+  // между файлами без правки (условия hideWhen читают form.<поле>.value.value).
+  const { form, model } = ctx;
+  void schema;
+  void form;
+  void model;
+<% if (it.step.render.rules.length > 0) { %>
+  // Правила render-слоя шага (из правил формы — правьте здесь или в панели правил):
+<% for (const rule of it.step.render.rules) { -%>
+<%~ it.indent(rule.lines, 2) %>
+<% } -%>
+<% } -%>
+<% if (it.step.render.scaffold.length > 0) { %>
+  // Условная видимость секций шага — раскомментируйте и впишите условие:
+<% for (const s of it.step.render.scaffold) { -%>
+  // hideWhen(schema.node('<%= s.selector %>'), () => /* TODO: условие для «<%= s.label %>» */ false);
+<% } -%>
+<% } -%>
+}

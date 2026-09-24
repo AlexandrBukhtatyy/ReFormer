@@ -1,15 +1,21 @@
-// renderer.behavior.ts — рантайм-обвязка (submit, условная видимость, события узлов).
+// form.render.ts — рантайм-обвязка (submit, условная видимость, события узлов).
+<% if (it.renderBehavior.callSteps) { -%>
+// Узлы шагов визарда обслуживает steps/<шаг>/form.render.ts — здесь их вызов по порядку.
+<% } -%>
 
 import { <%= it.renderBehavior.imports.join(', ') %>, type RenderBehaviorFn } from '@reformer/renderer-react';
 import { validateModel } from '@reformer/core/validation';
 import type { FormModel, FormProxy } from '@reformer/core';
 <% if (it.stepValidation !== null) { -%>
-import { formValidation, makeValidationConfig } from './validation';
+import { formValidation, makeValidationConfig } from '<%= it.layout.imports.validation %>';
 <% } else { -%>
-import { formValidation } from './validation';
+import { formValidation } from '<%= it.layout.imports.validation %>';
 <% } -%>
-import { submitForm } from './api';
-import type { <%= it.names.TypeName %> } from './types';
+<% if (it.renderBehavior.callSteps) { -%>
+import { stepRenders } from '<%= it.layout.imports.steps %>';
+<% } -%>
+import { submitForm } from '<%= it.layout.imports.api %>';
+import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
 export type RenderBehaviorOptions = { onResult?: (message: string, ok: boolean) => void };
 
@@ -51,6 +57,10 @@ export function createJsonRenderBehavior(
       const res = await submitForm(model.get());
       onResult?.(res.success ? 'Форма отправлена' : res.error, res.success);
     });
+<% if (it.renderBehavior.callSteps) { %>
+    // Правила и заготовки узлов шагов — в steps/<шаг>/form.render.ts.
+    for (const render of stepRenders) render(schema, { form, model });
+<% } -%>
 <% if (it.renderBehavior.rules.length > 0) { %>
     // Правила render-слоя (из правил формы — правьте здесь или в панели правил):
 <% for (const rule of it.renderBehavior.rules) { -%>

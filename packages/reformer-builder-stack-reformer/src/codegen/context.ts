@@ -9,7 +9,7 @@
  * Контекст СОБИРАЕТСЯ один раз на генерацию ({@link prepare}) и передаётся всем целям: обход
  * схемы, классификация источников и проставление селекторов стоят одинаково для каждого файла,
  * а результат обязан быть один и тот же — иначе `types.ts` описывал бы не ту схему, которую
- * напечатал `renderer.schema.json`.
+ * напечатал `form.schema.json`.
  *
  * @module @reformer/builder-stack-reformer/codegen/context
  */
@@ -21,6 +21,7 @@ import type { KitView } from './components';
 import { synthMock } from '../form-mock';
 import { makeNames, type Names } from './naming';
 import { assignSelectors, type SelectorInfo } from './selectors';
+import { layoutOf, type ModuleLayout, type StepInfo } from './steps';
 import type { FileClass, FormMock } from './types';
 
 /** Что подаётся на вход генерации. */
@@ -49,11 +50,13 @@ export interface CodegenInput {
 export interface EmittedFileRef {
   readonly path: string;
   readonly cls: FileClass;
+  /** Шаг визарда, которому принадлежит файл (номер с единицы); у файлов корня — нет. */
+  readonly step?: number;
 }
 
 /** Всё, что эмиттеры читают, и ничего сверх. */
 export interface EmitContext {
-  /** Схема С ПРОСТАВЛЕННЫМИ селекторами — та, что уйдёт в `renderer.schema.json`. */
+  /** Схема С ПРОСТАВЛЕННЫМИ селекторами — та, что уйдёт в `form.schema.json`. */
   readonly schema: JsonFormSchema;
   readonly names: Names;
   readonly collected: Collected;
@@ -61,6 +64,14 @@ export interface EmitContext {
   readonly mock: FormMock;
   readonly rules: FormRules;
   readonly kit: KitView;
+  /**
+   * Раскладка модуля: простая форма или визард с шагами. Решает схема, а не кит (см. `./steps`).
+   */
+  readonly layout: ModuleLayout;
+  /**
+   * Шаг, для которого печатается файл, — у целей, размноженных по шагам. У файлов корня нет.
+   */
+  readonly step?: StepInfo;
   /**
    * Состав модуля этого прогона.
    *
@@ -75,11 +86,13 @@ export interface EmitContext {
 export function prepare(input: CodegenInput): EmitContext {
   const { schema, info } = assignSelectors(input.schema);
   const mock = input.mock ?? synthMock(schema);
+  const collected = collect(schema, mock);
   return {
     schema,
     names: makeNames(input.formName),
-    collected: collect(schema, mock),
+    collected,
     selectors: info,
+    layout: layoutOf(schema, collected, info),
     mock,
     rules: input.rules ?? emptyRules(),
     kit: input.kit,
@@ -90,4 +103,9 @@ export function prepare(input: CodegenInput): EmitContext {
 /** Тот же контекст с известным составом модуля. */
 export function withFiles(ctx: EmitContext, files: readonly EmittedFileRef[]): EmitContext {
   return { ...ctx, files };
+}
+
+/** Тот же контекст для файла шага. */
+export function withStep(ctx: EmitContext, step: StepInfo): EmitContext {
+  return { ...ctx, step };
 }

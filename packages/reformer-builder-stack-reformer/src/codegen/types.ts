@@ -24,7 +24,7 @@
  * `user` — то, что дописывает человек под свой бэкенд; пишется один раз.
  *
  * Третьего класса нет намеренно: «user-файл, который всё-таки производится из правил»
- * (`validation.ts`, `form.behavior.ts`, `renderer.behavior.ts`) — не класс файла, а свойство
+ * (`form.validation.ts`, `form.behavior.ts`, `form.render.ts`) — не класс файла, а свойство
  * ЦЕЛИ, и живёт оно у цели (`CodegenTarget.regenerable` в плагине). В v1 это был третий
  * литеральный набор имён в `codegen/deliver.ts`, который надо было держать синхронным с
  * четвёртым в `codegen/regenerate.ts`.

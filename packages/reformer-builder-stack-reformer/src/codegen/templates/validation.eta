@@ -2,50 +2,34 @@
 <%~ it.rules.validationCode -%>
 <% } else if (it.stepValidation !== null) { -%>
 <% const sv = it.stepValidation; -%>
-<% const anyRequired = sv.rest.length > 0 || sv.steps.some((s) => s.required.length > 0); -%>
-// validation.ts — валидация модели по шагам визарда. МОК: required выведены из схемы,
-// допишите правила. Пишется один раз и при регенерации не затирается.
+// form.validation.ts — валидация модели визарда. Правила шагов — в steps/<шаг>/form.validation.ts,
+// здесь их сборка и поля вне шагов. Пишется один раз и при регенерации не затирается.
 
 import { type FormModel } from '@reformer/core';
-<% if (anyRequired) { -%>
+<% if (sv.rest.length > 0) { -%>
 import { apply, validate, defineValidationSchema, validateModel } from '@reformer/core/validation';
 import { required } from '@reformer/core/validators';
 <% } else { -%>
 import { apply, defineValidationSchema, validateModel } from '@reformer/core/validation';
 <% } -%>
-import type { <%= it.names.TypeName %> } from './types';
+import { stepValidations } from '<%= it.layout.imports.steps %>';
+import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
 type Root = <%= it.names.TypeName %>;
-<% sv.steps.forEach((step, i) => { %>
-/** Шаг <%= i + 1 %><%= step.selector === null ? '' : ' — ' + step.selector %>. «Далее» проверяет только эти правила. */
-<% if (step.required.length > 0) { -%>
-export const <%= step.name %> = defineValidationSchema<Root>(({ model }) => {
-<% for (const path of step.required) { -%>
-  validate(model.$.<%= path %>, [required({ message: 'Обязательное поле' })]);
-<% } -%>
-});
-<% } else { -%>
-export const <%= step.name %> = defineValidationSchema<Root>(() => {
-  // TODO: правила шага
-});
-<% } -%>
-<% }) %>
+
 /** Полная проверка (отправка): правила всех шагов<%= sv.rest.length > 0 ? ' и поля вне шагов' : '' %>. */
 <% if (sv.rest.length > 0) { -%>
 export const formValidation = defineValidationSchema<Root>(({ model }) => {
-  apply(<%= sv.steps.map((s) => s.name).join(', ') %>);
+  apply(...stepValidations);
 <% for (const path of sv.rest) { -%>
   validate(model.$.<%= path %>, [required({ message: 'Обязательное поле' })]);
 <% } -%>
 });
 <% } else { -%>
 export const formValidation = defineValidationSchema<Root>(() => {
-  apply(<%= sv.steps.map((s) => s.name).join(', ') %>);
+  apply(...stepValidations);
 });
 <% } -%>
-
-/** Под-схемы по порядку шагов: индекс — номер шага минус один. */
-const stepValidations = [<%= sv.steps.map((s) => s.name).join(', ') %>];
 
 /**
  * Пошаговый контракт визарда (`FormWizard` → `config`). `touch: true` обязателен: киты показывают
@@ -63,7 +47,7 @@ export function makeValidationConfig(model: FormModel<Root>) {
   };
 }
 <% } else { -%>
-// validation.ts — валидация модели. МОК: required выведены из схемы, допишите правила.
+// form.validation.ts — валидация модели. МОК: required выведены из схемы, допишите правила.
 // Пишется один раз и при регенерации не затирается.
 
 import { type FormModel } from '@reformer/core';
@@ -73,7 +57,7 @@ import { required } from '@reformer/core/validators';
 <% } else { -%>
 import { defineValidationSchema, validateModel } from '@reformer/core/validation';
 <% } -%>
-import type { <%= it.names.TypeName %> } from './types';
+import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
 type Root = <%= it.names.TypeName %>;
 

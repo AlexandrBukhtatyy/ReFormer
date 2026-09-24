@@ -10,12 +10,12 @@ import {
   useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import rawSchema from './renderer.schema.json';
-import { createRegistry } from './registry';
-import { <%= it.names.modelFactory %> } from './model';
-import { formBehavior } from './form.behavior';
-import { createJsonRenderBehavior } from './renderer.behavior';
-import type { <%= it.names.TypeName %> } from './types';
+import rawSchema from '<%= it.layout.imports.schema %>';
+import { createRegistry } from '<%= it.layout.imports.registry %>';
+import { <%= it.names.modelFactory %> } from '<%= it.layout.imports.model %>';
+import { formBehavior } from '<%= it.layout.imports.behavior %>';
+import { createJsonRenderBehavior } from '<%= it.layout.imports.render %>';
+import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
 type SubmitResult = { message: string; ok: boolean };
 

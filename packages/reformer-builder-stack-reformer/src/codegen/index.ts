@@ -13,10 +13,22 @@
 
 export type { FileClass, GeneratedFile, FormMock } from './types';
 export type { CodegenInput, EmitContext, EmittedFileRef } from './context';
-export { prepare, withFiles } from './context';
+export { prepare, withFiles, withStep } from './context';
+export {
+  MODULE_FILES,
+  STEPS_DIR,
+  STEPS_INDEX,
+  STEP_FILES,
+  LEGACY_FILES,
+  SCHEMA_FILE_NAMES,
+  stepFilePath,
+  formNameOfSchemaPath,
+  importOf,
+} from './layout';
+export { layoutOf, stepDirName, type ModuleLayout, type StepInfo } from './steps';
 export { makeNames, pascal, humanize, type Names } from './naming';
 export { assignSelectors, type AssignResult, type SelectorInfo } from './selectors';
-export { collect, type Collected, type TsNode, type TsObject } from './collect';
+export { collect, wizardStepsOf, type Collected, type TsNode, type TsObject } from './collect';
 export {
   buildInitialValues,
   classifyDataSources,
@@ -45,7 +57,11 @@ export {
   buildView,
   withLocal,
   withViewFiles,
+  withStepView,
+  stepView,
   type CodegenView,
+  type LayoutView,
+  type StepView,
   type Indent,
   type Json,
 } from './view';
@@ -61,4 +77,7 @@ export {
   wizardTemplate,
   registryTemplate,
   renderBehaviorTemplate,
+  stepsIndexTemplate,
+  stepValidationTemplate,
+  stepRenderTemplate,
 } from './templates';

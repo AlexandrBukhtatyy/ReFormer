@@ -2,7 +2,7 @@
 // Пишется один раз и при регенерации не затирается.
 
 <% if (it.dataSources.options.length > 0) { -%>
-import type { SelectOption } from './types';
+import type { SelectOption } from '<%= it.layout.imports.types %>';
 
 <% } -%>
 <%~ it.blocks([

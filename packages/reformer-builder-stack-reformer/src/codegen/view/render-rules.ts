@@ -20,6 +20,7 @@
 
 import type { RenderRuleIntent } from '../../form-model/rules';
 import type { EmitContext } from '../context';
+import type { StepInfo } from '../steps';
 
 /** Ключ объектного литерала: идентификатор — как есть, всё прочее — строкой. */
 function propKey(key: string): string {
@@ -69,6 +70,11 @@ export interface ScaffoldSectionView {
 export interface RenderBehaviorView {
   /** Визард отправляет форму сам и требует инъекции `form` — отсюда две ветки обвязки. */
   readonly isWizard: boolean;
+  /**
+   * Звать ли render-файлы шагов (`stepRenders` из `steps/index.ts`). Истинно у раскладки визарда:
+   * правила и заготовки узлов шага лежат в его папке, корень их только вызывает.
+   */
+  readonly callSteps: boolean;
   /** Имя локальной переменной узла отправки: `wizard` либо `submit`. */
   readonly target: string;
   /** Символы `@reformer/renderer-react` для импорта: по алфавиту и только нужные. */
@@ -85,20 +91,60 @@ export interface RenderBehaviorView {
   readonly scaffold: readonly ScaffoldSectionView[];
 }
 
+/** Render-слой шага: правила и заготовки узлов его поддерева. */
+export interface StepRenderView {
+  /** Символы `@reformer/renderer-react` для импорта (только нужные). */
+  readonly imports: readonly string[];
+  readonly rules: readonly { readonly lines: readonly string[] }[];
+  readonly scaffold: readonly ScaffoldSectionView[];
+}
+
+/** Селекторы, которыми владеют шаги визарда. Пусто у простой формы. */
+function stepOwned(ctx: EmitContext): ReadonlySet<string> {
+  return new Set(ctx.layout.steps.flatMap((step) => step.selectors));
+}
+
 export function renderBehaviorView(ctx: EmitContext): RenderBehaviorView {
-  const rules = ctx.rules.render;
+  const owned = stepOwned(ctx);
+  const rules = ctx.rules.render.filter((rule) => !owned.has(rule.selector));
   const hidden = new Set(
-    rules.filter((rule) => rule.kind === 'hideWhen').map((rule) => rule.selector)
+    ctx.rules.render.filter((rule) => rule.kind === 'hideWhen').map((rule) => rule.selector)
   );
   const isWizard = ctx.selectors.submitEvent === 'onSubmit';
+  const usesHideWhen = rules.some((rule) => rule.kind === 'hideWhen');
 
   return {
     isWizard,
+    callSteps: ctx.layout.kind === 'wizard',
     target: isWizard ? 'wizard' : 'submit',
     imports: ['hideWhen', 'onComponentEvent', ...(isWizard ? ['onInit'] : [])].sort(),
-    voidHideWhen: hidden.size === 0,
+    voidHideWhen: !usesHideWhen,
     rules: rules.map((rule) => ({ lines: ruleLines(rule) })),
     scaffold: ctx.selectors.sections
+      .filter((section) => !hidden.has(section.selector) && !owned.has(section.selector))
+      .map((section) => ({ selector: section.selector, label: section.label })),
+  };
+}
+
+/**
+ * Render-слой одного шага: правила, чей селектор лежит в поддереве шага, и заготовки `hideWhen`
+ * для его секций. Импортируется только то, чем файл пользуется: у шага без правил и секций
+ * импортов нет вовсе (`noUnusedLocals`).
+ */
+export function stepRenderView(ctx: EmitContext, step: StepInfo): StepRenderView {
+  const own = new Set(step.selectors);
+  const rules = ctx.rules.render.filter((rule) => own.has(rule.selector));
+  const hidden = new Set(
+    rules.filter((rule) => rule.kind === 'hideWhen').map((rule) => rule.selector)
+  );
+  const kinds = new Set(rules.map((rule) => rule.kind));
+  const imports: string[] = [];
+  if (kinds.has('hideWhen')) imports.push('hideWhen');
+  if (kinds.has('onEvent')) imports.push('onComponentEvent');
+  return {
+    imports: imports.sort(),
+    rules: rules.map((rule) => ({ lines: ruleLines(rule) })),
+    scaffold: step.sections
       .filter((section) => !hidden.has(section.selector))
       .map((section) => ({ selector: section.selector, label: section.label })),
   };

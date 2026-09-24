@@ -1,0 +1,13 @@
+// steps/index.ts — шаги визарда по порядку: валидация и render-слой каждого шага.
+// Регенерируется билдером (порядок шагов берётся из схемы); правки будут перезаписаны.
+
+<% for (const step of it.layout.steps) { -%>
+import { stepValidation as <%= step.alias %>Validation } from '<%= step.validationImport %>';
+import { stepRender as <%= step.alias %>Render } from '<%= step.renderImport %>';
+<% } -%>
+
+/** Под-схемы валидации шагов: индекс — номер шага минус один. */
+export const stepValidations = [<%= it.layout.steps.map((s) => s.alias + 'Validation').join(', ') %>];
+
+/** Render-слой шагов по порядку: корневой form.render.ts вызывает каждый. */
+export const stepRenders = [<%= it.layout.steps.map((s) => s.alias + 'Render').join(', ') %>];

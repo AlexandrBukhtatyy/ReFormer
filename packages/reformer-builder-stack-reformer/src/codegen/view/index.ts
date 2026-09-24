@@ -27,12 +27,24 @@
 
 import { hasBehaviorRules, hasValidationRules } from '../../form-model/rules';
 import type { EmitContext, EmittedFileRef } from '../context';
-import { formBehaviorFromRules, validationFromRules } from '../emit/rules-bridge';
+import { MODULE_FILES, STEPS_INDEX, importOf } from '../layout';
+import type { StepInfo } from '../steps';
+import {
+  formBehaviorFromRules,
+  stepValidationFromRules,
+  validationFromRules,
+  wizardValidationFromRules,
+} from '../emit/rules-bridge';
 import type { Names } from '../naming';
 import type { SelectorInfo } from '../selectors';
 import type { FormMock } from '../types';
 import { registryView, type RegistryView } from './registry';
-import { renderBehaviorView, type RenderBehaviorView } from './render-rules';
+import {
+  renderBehaviorView,
+  stepRenderView,
+  type RenderBehaviorView,
+  type StepRenderView,
+} from './render-rules';
 import { typesView, type TypesView } from './types';
 import { wizardShimOf, type WizardShim } from './wizard';
 
@@ -109,6 +121,18 @@ export interface CodegenView {
   readonly stepValidation: StepValidationView | null;
   /** Привязки реестра: символы кита, заглушки с причинами, источники. */
   readonly registry: RegistryView;
+  /**
+   * Раскладка модуля: вид формы, спецификаторы импорта файлов корня и шаги визарда.
+   *
+   * Имена файлов приезжают сюда из `../layout`, а не пишутся в шаблонах литералами: иначе
+   * переименование файла требовало бы правки каждого шаблона, который его импортирует.
+   */
+  readonly layout: LayoutView;
+  /**
+   * Шаг, для которого печатается файл, — у целей, размноженных по шагам (`each: 'step'`).
+   * У файлов корня — `null`.
+   */
+  readonly step: StepView | null;
   /** Обвязка render-слоя: импорты, цель отправки, правила и подсказки секций. */
   readonly renderBehavior: RenderBehaviorView;
   /**
@@ -150,7 +174,7 @@ const json: Json = (value, spaces = 0) => {
  * разом. Лениво же отказ остаётся отказом одной цели — ровно как было у эмиттеров.
  */
 export interface RulesView {
-  /** Тело `validation.ts` целиком либо `null`, если правил валидации нет. */
+  /** Тело `form.validation.ts` целиком либо `null`, если правил валидации нет. */
   readonly validationCode: string | null;
   /** Тело `form.behavior.ts` целиком либо `null`, если реактивных связей нет. */
   readonly behaviorCode: string | null;
@@ -159,7 +183,12 @@ export interface RulesView {
 function rulesView(ctx: EmitContext): RulesView {
   return {
     get validationCode() {
-      return hasValidationRules(ctx.rules) ? validationFromRules(ctx.rules, ctx.names) : null;
+      if (!hasValidationRules(ctx.rules)) return null;
+      // У визарда правила разложены по шагам: корень печатает код только ради правил вне шагов,
+      // иначе — шаблон-агрегатор.
+      return ctx.layout.kind === 'wizard'
+        ? wizardValidationFromRules(ctx.rules, ctx.names, ctx.layout)
+        : validationFromRules(ctx.rules, ctx.names);
     },
     get behaviorCode() {
       return hasBehaviorRules(ctx.rules) ? formBehaviorFromRules(ctx.rules, ctx.names) : null;
@@ -210,9 +239,9 @@ function dataSourcesView(ctx: EmitContext): DataSourcesView {
   };
 }
 
-/** Один шаг визарда глазами `validation.ts`. */
+/** Шаг визарда глазами корневого `form.validation.ts`. */
 export interface StepValidationStep {
-  /** Имя константы под-схемы: `step1`, `step2`, … */
+  /** Имя шага в агрегаторе: `step1`, `step2`, … */
   readonly name: string;
   /** Селектор шага в схеме — уезжает в комментарий, чтобы шаг находился глазами. */
   readonly selector: string | null;
@@ -225,19 +254,136 @@ export interface StepValidationView {
   readonly rest: readonly string[];
 }
 
+/**
+ * Пошаговая проверка визарда: `null` у простой формы.
+ *
+ * От кита НЕ зависит: без адаптера визарда форма остаётся визардом (`steps/` печатается), просто
+ * `registry.ts` регистрирует заглушку. Раньше в этом случае форма печаталась как простая.
+ */
 function stepValidationView(ctx: EmitContext): StepValidationView | null {
-  const steps = ctx.collected.steps;
-  if (steps.length === 0 || wizardShimOf(ctx) === null || hasValidationRules(ctx.rules)) {
-    return null;
-  }
+  if (ctx.layout.kind !== 'wizard') return null;
+  const steps = ctx.layout.steps;
+  // С правилами формы обязательность задают ПРАВИЛА, а не флаг required в схеме: печатать оба
+  // значило бы проверять поле дважды и расходиться при правке одного из них.
+  const fromRules = hasValidationRules(ctx.rules);
   const inSteps = new Set(steps.flatMap((step) => step.required));
   return {
-    steps: steps.map((step, index) => ({
-      name: `step${index + 1}`,
+    steps: steps.map((step) => ({
+      name: step.alias,
       selector: step.selector,
-      required: [...new Set(step.required)],
+      required: fromRules ? [] : step.required,
     })),
-    rest: [...new Set(ctx.collected.requiredPaths)].filter((path) => !inSteps.has(path)),
+    rest: fromRules
+      ? []
+      : [...new Set(ctx.collected.requiredPaths)].filter((path) => !inSteps.has(path)),
+  };
+}
+
+/** Спецификаторы импорта файлов корня — из файла корня. */
+export interface RootImportsView {
+  readonly schema: string;
+  readonly types: string;
+  readonly model: string;
+  readonly registry: string;
+  readonly wizard: string;
+  readonly dataSources: string;
+  readonly render: string;
+  readonly behavior: string;
+  readonly validation: string;
+  readonly api: string;
+  /** Агрегатор шагов (`./steps`). */
+  readonly steps: string;
+}
+
+/** Шаг в агрегаторе `steps/index.ts`. */
+export interface StepIndexEntry {
+  readonly alias: string;
+  readonly dir: string;
+  readonly title: string;
+  /** Импорт файла валидации шага из агрегатора (`./kontakty/validation`). */
+  readonly validationImport: string;
+  /** Импорт render-файла шага из агрегатора (`./kontakty/form.render`). */
+  readonly renderImport: string;
+}
+
+export interface LayoutView {
+  readonly kind: 'simple' | 'wizard';
+  readonly isWizard: boolean;
+  readonly imports: RootImportsView;
+  /** Имена файлов корня — для README и комментариев. */
+  readonly files: typeof MODULE_FILES;
+  readonly steps: readonly StepIndexEntry[];
+  /** Имя агрегатора шагов (`steps/index.ts`). */
+  readonly stepsIndex: string;
+}
+
+/** Файл шага глазами шаблона. */
+export interface StepView {
+  readonly index: number;
+  readonly dir: string;
+  readonly title: string;
+  readonly selector: string | null;
+  readonly alias: string;
+  /** Обязательные поля шага (пусто, если валидацию задают правила формы). */
+  readonly required: readonly string[];
+  /**
+   * `form.validation.ts` шага, напечатанный из правил формы, либо `null` — тогда заготовка шаблона.
+   * Геттер: печатают его билдеры `@reformer/mcp`, и отказ одного шага не должен ронять вид.
+   */
+  readonly validationCode: string | null;
+  /** Спецификаторы импорта из файла шага. */
+  readonly imports: { readonly types: string };
+  /** Render-правила и заготовки шага. */
+  readonly render: StepRenderView;
+}
+
+function layoutView(ctx: EmitContext): LayoutView {
+  const from = MODULE_FILES.index;
+  const rel = (to: string): string => importOf(from, to);
+  return {
+    kind: ctx.layout.kind,
+    isWizard: ctx.layout.kind === 'wizard',
+    imports: {
+      schema: rel(MODULE_FILES.schema),
+      types: rel(MODULE_FILES.types),
+      model: rel(MODULE_FILES.model),
+      registry: rel(MODULE_FILES.registry),
+      wizard: rel(MODULE_FILES.wizard),
+      dataSources: rel(MODULE_FILES.dataSources),
+      render: rel(MODULE_FILES.render),
+      behavior: rel(MODULE_FILES.behavior),
+      validation: rel(MODULE_FILES.validation),
+      api: rel(MODULE_FILES.api),
+      steps: rel(STEPS_INDEX),
+    },
+    files: MODULE_FILES,
+    steps: ctx.layout.steps.map((step) => ({
+      alias: step.alias,
+      dir: step.dir,
+      title: step.title,
+      validationImport: importOf(STEPS_INDEX, step.files.validation),
+      renderImport: importOf(STEPS_INDEX, step.files.render),
+    })),
+    stepsIndex: STEPS_INDEX,
+  };
+}
+
+/** Вид файла шага. */
+export function stepView(ctx: EmitContext, step: StepInfo): StepView {
+  return {
+    index: step.index,
+    dir: step.dir,
+    title: step.title,
+    selector: step.selector,
+    alias: step.alias,
+    required: hasValidationRules(ctx.rules) ? [] : step.required,
+    get validationCode() {
+      return hasValidationRules(ctx.rules)
+        ? stepValidationFromRules(ctx.rules, ctx.names, ctx.layout, step)
+        : null;
+    },
+    imports: { types: importOf(step.files.validation, MODULE_FILES.types) },
+    render: stepRenderView(ctx, step),
   };
 }
 
@@ -255,6 +401,8 @@ export function buildView(ctx: EmitContext): CodegenView {
     wizard: wizardShimOf(ctx),
     stepValidation: stepValidationView(ctx),
     registry: registryView(ctx),
+    layout: layoutView(ctx),
+    step: null,
     renderBehavior: renderBehaviorView(ctx),
     files: ctx.files,
     indent,
@@ -271,4 +419,9 @@ export function withViewFiles(view: CodegenView, files: readonly EmittedFileRef[
 /** Вид с частными данными цели. Отдельная функция, чтобы `local` нельзя было выставить мимо. */
 export function withLocal(view: CodegenView, local: object): CodegenView {
   return { ...view, local };
+}
+
+/** Вид для файла шага. Отдельная функция, чтобы `step` нельзя было выставить мимо. */
+export function withStepView(view: CodegenView, step: StepView): CodegenView {
+  return { ...view, step };
 }

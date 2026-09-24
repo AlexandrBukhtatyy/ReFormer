@@ -1,6 +1,6 @@
 // api.ts — заготовка бэкенда (submit). Реализуйте реальные запросы. Пишется один раз.
 
-import type { <%= it.names.TypeName %> } from './types';
+import type { <%= it.names.TypeName %> } from '<%= it.layout.imports.types %>';
 
 export type ApiResult<T> = { success: true; data: T } | { success: false; error: string };
 

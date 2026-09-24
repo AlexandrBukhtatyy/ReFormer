@@ -177,7 +177,7 @@ function buildTree(
 }
 
 /** Узлы шагов первого визарда схемы (контейнера с `componentProps.steps`), в порядке шагов. */
-function wizardStepsOf(node: JsonNode): readonly JsonNode[] {
+export function wizardStepsOf(node: JsonNode): readonly JsonNode[] {
   if (!isContainerNode(node)) return [];
   const steps = node.componentProps?.steps;
   if (Array.isArray(steps)) return steps.filter(isNodeLike);

@@ -103,3 +103,45 @@ describe('обратная сборка — для выгрузки встрое
     ]);
   });
 });
+
+describe('цель по шагам визарда — each: step', () => {
+  const header = (extra: string): string =>
+    `---\n{ "id": "u.step", "path": "steps/{step}/validation.ts", "cls": "user"${extra} }\n---\nтело\n`;
+
+  it('разбирает «each»: «step» и возвращает его в заголовке', () => {
+    const result = parseTargetFile(header(', "each": "step"'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.meta.each).toBe('step');
+    expect(result.meta.path).toBe('steps/{step}/validation.ts');
+  });
+
+  it('без «each» поля нет вовсе — а не undefined', () => {
+    const result = parseTargetFile(header(''));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect('each' in result.meta).toBe(false);
+  });
+
+  it('иное значение «each» — отказ, а не молчаливая цель на один файл', () => {
+    const result = parseTargetFile(header(', "each": "field"'));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toMatch(/each/);
+  });
+
+  it('выгрузка печатает «each» после «path», и файл разбирается обратно', () => {
+    const meta = {
+      id: 'user.step-validation',
+      overrides: 'codegen.step-validation',
+      path: 'steps/{step}/validation.ts',
+      each: 'step' as const,
+      cls: 'user' as const,
+      regenerable: true,
+    };
+    const text = formatTargetFile(meta, 'тело\n');
+    expect(text).toContain('"path": "steps/{step}/validation.ts",\n  "each": "step",');
+    const back = parseTargetFile(text);
+    expect(back.ok && back.meta).toEqual(meta);
+  });
+});
