@@ -28,6 +28,7 @@ import {
 } from './schema';
 import { parseOperator, isModelOp } from './operators';
 import { isAllowedHtmlTag } from './html/html-tags';
+import { isJsonStepRef } from './compose';
 import type { ComponentRegistry } from './registry/types';
 
 /** Результат валидации схемы. */
@@ -215,6 +216,32 @@ function walkComponentProps(
   }
 }
 
+/**
+ * Фаза (e): ссылки на файлы шагов (`{ "$ref" }` в `componentProps.steps`). Структурно такая схема
+ * проходит — `componentProps` для мета-схемы непрозрачен, — а мастер получил бы объект вместо шага.
+ */
+function walkStepRefs(node: unknown, path: string, errors: string[]): void {
+  if (Array.isArray(node)) {
+    node.forEach((v, i) => walkStepRefs(v, `${path}[${i}]`, errors));
+    return;
+  }
+  if (node === null || typeof node !== 'object') return;
+  const n = node as Record<string, unknown>;
+  const props = n.componentProps as Record<string, unknown> | undefined;
+  if (props !== null && typeof props === 'object' && Array.isArray(props.steps)) {
+    props.steps.forEach((step, i) => {
+      if (isJsonStepRef(step)) {
+        errors.push(
+          `${path ? `${path}.` : ''}componentProps.steps[${i}]: step reference "${step.$ref}" is not resolved — assemble the schema with composeJsonFormSchema(schema, stepSchemas) before rendering or validating.`
+        );
+      }
+    });
+  }
+  for (const [k, v] of Object.entries(n)) {
+    walkStepRefs(v, path ? `${path}.${k}` : k, errors);
+  }
+}
+
 /** Похож ли объект на array-узел (`array: '$model(...)'` + `item.$template`)? */
 function looksLikeArrayNode(n: Record<string, unknown>): boolean {
   return (
@@ -342,6 +369,9 @@ export function validateFormSchema(
 
   // (c) Array-узлы без initialValue → молчаливо ломающиеся элементы (см. walkArrayInitialValue)
   walkArrayInitialValue(schema, '', errors);
+
+  // (e) Несобранная схема: ссылка на файл шага дошла бы до мастера объектом вместо шага.
+  walkStepRefs(schema, '', errors);
 
   // (d) componentProps каждой компонент-ноды против карты propSchemas (если задана). По образцу (b):
   // рекурсивный обход достаёт ноды, вложенные в opaque componentProps. Нет propSchemas → пропуск.

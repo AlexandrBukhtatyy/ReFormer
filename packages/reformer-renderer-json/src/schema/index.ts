@@ -246,3 +246,57 @@ export function buildFormSchemaMetaSchema(
   }
   return schema as unknown as Record<string, unknown>;
 }
+
+/** `$id` мета-схемы файла шага. */
+export const FORM_STEP_SCHEMA_ID = 'https://reformer.dev/schemas/form-step.schema.json';
+
+/**
+ * Мета-схема файла шага визарда (`{ "$schema", "node" }`, см. `JsonFormStep`) из мета-схемы формы:
+ * те же `definitions`, другой корень. Строится из уже суженной схемы, поэтому имена компонентов и
+ * `componentProps` подсвечиваются в файле шага так же, как в корневой схеме.
+ *
+ * @param formMetaSchema - Мета-схема формы: {@link formSchemaMetaSchema} или результат
+ *   {@link buildFormSchemaMetaSchema}.
+ * @returns Мета-схема файла шага (draft-07).
+ *
+ * @example
+ * ```ts
+ * const step = toFormStepMetaSchema(buildFormSchemaMetaSchema({ componentNames }));
+ * ```
+ */
+export function toFormStepMetaSchema(
+  formMetaSchema: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    $schema: formMetaSchema.$schema,
+    $id: FORM_STEP_SCHEMA_ID,
+    title: 'ReFormer JSON form step (a wizard step moved to its own file)',
+    description:
+      'A wizard step referenced from the form schema via { "$ref": "./steps/<step>/form.schema.json" } in componentProps.steps. Assemble with composeJsonFormSchema before rendering.',
+    type: 'object',
+    required: ['node'],
+    additionalProperties: false,
+    properties: {
+      $schema: { type: 'string' },
+      node: { $ref: '#/definitions/node' },
+    },
+    definitions: formMetaSchema.definitions,
+  };
+}
+
+/**
+ * Мета-схема файла шага для реестра: {@link buildFormSchemaMetaSchema} + {@link toFormStepMetaSchema}.
+ *
+ * @param opts - Те же опции, что у {@link buildFormSchemaMetaSchema}.
+ * @returns Мета-схема файла шага (draft-07).
+ *
+ * @example
+ * ```ts
+ * const schema = buildFormStepMetaSchema({ componentNames: getComponentNames(registry) });
+ * ```
+ */
+export function buildFormStepMetaSchema(
+  opts?: BuildFormSchemaMetaSchemaOptions
+): Record<string, unknown> {
+  return toFormStepMetaSchema(buildFormSchemaMetaSchema(opts));
+}

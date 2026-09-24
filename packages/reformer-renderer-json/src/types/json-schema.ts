@@ -170,6 +170,37 @@ export interface JsonFormSchema<T = unknown> {
 }
 
 /**
+ * Ссылка на шаг визарда, вынесенный в свой файл: элемент `componentProps.steps` в схеме,
+ * разбитой по шагам. Конвертер её не понимает — перед рендером схему собирает
+ * {@link composeJsonFormSchema}.
+ *
+ * @example
+ * ```json
+ * { "$ref": "./steps/contacts/form.schema.json" }
+ * ```
+ */
+export interface JsonStepRef {
+  /** Относительный путь файла шага ({@link JsonFormStep}) от файла корневой схемы. */
+  $ref: string;
+}
+
+/**
+ * Файл шага визарда: узел шага без корня формы. Ключ — `node`, а не `root`, чтобы файл шага
+ * не принимался за самостоятельную форму.
+ *
+ * @example
+ * ```json
+ * { "$schema": "../../form-step.schema.json", "node": { "component": "$component(Step)", "children": [] } }
+ * ```
+ */
+export interface JsonFormStep<T = unknown> {
+  /** Путь к мета-схеме файла шага для IDE. Игнорируется при сборке. */
+  $schema?: string;
+  /** Узел шага — то, что встаёт в `componentProps.steps` на место ссылки. */
+  node: JsonNode<T>;
+}
+
+/**
  * Идентити-хелпер, ТИПИЗИРУЮЩИЙ литерал схемы по форме модели `T`: внутри `$model(...)` пути
  * сужаются до {@link Path}<T> (опечатка ловится компилятором), и не нужен `as unknown as JsonFormSchema`.
  * Для схемы-строки-с-сервера (тип формы неизвестен) используйте `JsonFormSchema` без параметра.

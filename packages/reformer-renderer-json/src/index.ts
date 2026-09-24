@@ -29,8 +29,13 @@ export type {
   JsonContainerNode,
   JsonChild,
   JsonTextChild,
+  JsonFormStep,
+  JsonStepRef,
 } from './types/json-schema';
 export { isFieldNode, isArrayNode, isContainerNode, defineJsonSchema } from './types/json-schema';
+
+// Схема визарда, разбитая по шагам: сборка перед createJsonForm.
+export { composeJsonFormSchema, isJsonStepRef, normalizeStepRef } from './compose';
 
 // Сборка формы из JSON-схемы одним проходом (§7): createJsonForm + стабильный хук useJsonForm.
 export { createJsonForm, useJsonForm } from './create-json-form';
@@ -129,6 +134,9 @@ export {
 export {
   formSchemaMetaSchema,
   buildFormSchemaMetaSchema,
+  buildFormStepMetaSchema,
+  toFormStepMetaSchema,
+  FORM_STEP_SCHEMA_ID,
   getComponentNames,
   getDataSourceNames,
   getFnNames,

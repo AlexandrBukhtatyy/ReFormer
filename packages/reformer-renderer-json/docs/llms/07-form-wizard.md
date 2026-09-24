@@ -47,6 +47,40 @@ Wizard — обычная container-нода со `selector: 'wizard'` (чтоб
 
 > Отличие от `@reformer/renderer-react`: там шаг — объект `{ number, title, icon, body }`, где `body` — самостоятельный `RenderNode` (см. renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms)). В JSON-DSL нельзя вписать `RenderNode` как значение пропа, поэтому шаг выражается **container-нодой** `Step` + `children`, а wizard-компонент адаптирует эту форму под `step.body`.
 
+### Шаги в отдельных файлах: `$ref` + `composeJsonFormSchema` { #split-steps }
+
+Схему-данные (`form.schema.json`) большого wizard-а можно разрезать по шагам. Корень держит в `componentProps.steps` **ссылки**, каждый шаг — свой файл `steps/<slug>/form.schema.json` с ключом **`node`** (не `root`: файл шага — не самостоятельная форма). Мета-схема файла шага — `buildFormStepMetaSchema(opts)` (или `toFormStepMetaSchema(buildFormSchemaMetaSchema(opts))`).
+
+```json
+// form.schema.json
+{ "root": { "selector": "wizard", "component": "$component(Wizard)",
+  "componentProps": { "steps": [
+    { "$ref": "./steps/kredit/form.schema.json" },
+    { "$ref": "./steps/zayavitel/form.schema.json" } ] } } }
+
+// steps/kredit/form.schema.json
+{ "$schema": "../../form-step.schema.json",
+  "node": { "component": "$component(Step)", "componentProps": { "title": "Кредит" }, "children": [] } }
+```
+
+Конвертер ссылок **не понимает** — собери схему до `createJsonForm`. Агрегатор `steps/index.ts` экспортирует файлы шагов по той же ссылке, что в корне:
+
+```ts
+import { composeJsonFormSchema, type JsonFormSchema, type JsonFormStep } from '@reformer/renderer-json';
+import rawSchema from './form.schema.json';
+import kredit from './steps/kredit/form.schema.json';
+
+const stepSchemas: Record<string, JsonFormStep> = {
+  './steps/kredit/form.schema.json': kredit as unknown as JsonFormStep,
+};
+const schema = composeJsonFormSchema(rawSchema as unknown as JsonFormSchema, stepSchemas);
+```
+
+- Ссылка — объект ровно с одним ключом `$ref` (`isJsonStepRef`); `./` в начале не различает ключи (`normalizeStepRef`). Инлайн-шаги рядом со ссылками допустимы.
+- Нет файла для ссылки — `composeJsonFormSchema` бросает ошибку с путём ссылки.
+- Несобранная схема не рендерится: `validateFormSchema` сообщает `step reference "…" is not resolved`.
+- Билдер открывает такую форму как одну и сам раскладывает правки по файлам шагов.
+
 ## Регистрируй свой wizard-компонент в реестре { #register }
 
 `$component(Wizard)` — это **запись в реестре**, а не библиотечный экспорт: имя резолвится через registry (`reg.component('Wizard', <твой компонент>)`). Имя произвольное — важно лишь совпадение строки в JSON и ключа в реестре.
