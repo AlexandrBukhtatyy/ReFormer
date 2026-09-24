@@ -63,11 +63,14 @@ function baseName(path: string): string {
  */
 export function isExecutableSidecar(path: string): boolean {
   const name = baseName(path);
+  const nested = path.includes('/');
+  // Схема шага визарда (`steps/<шаг>/form.schema.json`) — данные, которые импортирует агрегатор
+  // шагов. Корневая схема — нет: её превью берёт из модели редактора, а не из файла.
+  if (nested && name.endsWith('.json')) return true;
   if (!EXECUTABLE.test(name)) return false;
   if (DECLARATION.test(name)) return false;
   if (TESTS.test(name)) return false;
   if (isFixturePath(name)) return false;
-  const nested = path.includes('/');
   return nested || !PAGE_ENTRY.has(name);
 }
 

@@ -30,7 +30,7 @@ export function createWorkspaceSave(deps: WorkspaceSaveDeps): WorkspaceSave {
   return async (ids: readonly ResourceId[]) => {
     const session = deps.project.get();
     if (session === null) return false;
-    const results = await Promise.all(ids.map((id) => session.workspace.save(id)));
+    const results = await Promise.all(ids.map((id) => session.saving.save(id)));
     // Расхождения с источником — не отказ сохранения, а состояние рабочей области: их
     // показывает диалог слияния, и знать о них обязан тот, кто его открывает.
     session.divergence.noteConflicts(results.flatMap((r) => r.conflicts ?? []));

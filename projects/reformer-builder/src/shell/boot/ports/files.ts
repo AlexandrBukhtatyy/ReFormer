@@ -100,7 +100,7 @@ export function createFilesHost(deps: FilesHostDeps): FilesHost {
     async save(id: ResourceId) {
       const session = project.get();
       if (session === null) return false;
-      const result = await session.workspace.save(id);
+      const result = await session.saving.save(id);
       session.divergence.noteConflicts(result.conflicts ?? []);
       return result.ok;
     },
@@ -108,7 +108,7 @@ export function createFilesHost(deps: FilesHostDeps): FilesHost {
     async saveAll() {
       const session = project.get();
       if (session === null) return false;
-      const result = await session.workspace.save();
+      const result = await session.saving.save();
       session.divergence.noteConflicts(result.conflicts ?? []);
       return result.ok;
     },

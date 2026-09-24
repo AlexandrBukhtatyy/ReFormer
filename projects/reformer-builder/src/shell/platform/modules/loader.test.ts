@@ -76,6 +76,21 @@ describe('ModuleLoader: транспиляция плюс линковка', () 
     expect((result.entry as { activate: () => string }).activate()).toBe('включён');
   });
 
+  it('JSON импортируется значением — как схема шага из агрегатора', async () => {
+    const loader = createModuleLoader();
+
+    const result = await loader.load(
+      files({
+        'form/steps/a/form.schema.json': '{ "node": { "component": "$component(Step)" } }',
+        'form/steps/index.js': 'exports.step = require("./a/form.schema.json").node.component;',
+      }),
+      'form/steps/index.js'
+    );
+
+    expect(result.errors).toEqual([]);
+    expect((result.entry as { step: string }).step).toBe('$component(Step)');
+  });
+
   it('точка входа без расширения резолвится по набору файлов', async () => {
     const loader = createModuleLoader();
     loader.transpilers.register(tsStripper);

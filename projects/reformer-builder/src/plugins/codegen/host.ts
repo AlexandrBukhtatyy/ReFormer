@@ -62,6 +62,12 @@ export interface CodegenDocument {
   readonly kind: DocumentKind;
   getText(): string;
   model(): unknown;
+  /**
+   * Раскладка документа из нескольких файлов (схема визарда, разбитая по шагам): модель уже
+   * собрана, а `layout` говорит, какой шаг из какого файла. `undefined` — документ одним файлом
+   * либо среда, которая составных документов не знает.
+   */
+  composition?(): { readonly layout: unknown } | undefined;
   onDidChangeContent(cb: (text: string) => void): Disposable;
 }
 

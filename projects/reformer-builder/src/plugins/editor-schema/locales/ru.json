@@ -30,6 +30,8 @@
   "command.duplicate.up": "Дублировать вверх",
   "command.flip": "Перевернуть направление",
   "command.group": "Сгруппировать",
+  "command.split-steps": "Разбить визард по файлам шагов",
+  "command.join-steps": "Собрать форму в один файл",
   "command.move.down": "Переместить вниз",
   "command.move.left": "Переместить влево",
   "command.move.right": "Переместить вправо",

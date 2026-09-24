@@ -1,0 +1,25 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "$nodeId": "root0000",
+    "children": [
+      {
+        "component": "$component(Wizard)",
+        "$nodeId": "wizard00",
+        "componentProps": {
+          "steps": [
+            {
+              "$ref": "./steps/anketa/form.schema.json"
+            },
+            {
+              "$ref": "./steps/kontakty/form.schema.json"
+            }
+          ]
+        },
+        "selector": "wizard"
+      }
+    ]
+  }
+}

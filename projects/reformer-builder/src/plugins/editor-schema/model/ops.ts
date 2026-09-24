@@ -87,6 +87,7 @@ import {
   ungroupNode,
 } from '@reformer/builder-stack-reformer/form-model';
 import { indexNodes, type NodeIndex } from './node-index';
+import { ensureNodeIds, ensureSchema } from '@reformer/builder-stack-reformer/form-model';
 import type { ApplyResult, EditOp, NodeId } from '../host';
 
 /** Массив-слот, в который кладут узлы. Одиночные (`template`/`wrapper`) вставку не принимают. */
@@ -328,6 +329,22 @@ export interface ApplyOptions {
  *   Исключение здесь нормальное состояние, а не авария: документ ловит его и отвечает отказом
  *   применения, оставляя модель нетронутой.
  */
+/**
+ * Заменить схему целиком — ход ассистента в документе из нескольких файлов.
+ *
+ * Ассистент правит ТЕКСТ собранной схемы, а у разбитой формы текста одного файла, в который его
+ * записать, нет: раскладку по файлам шагов делает документ. Поэтому ход приходит операцией, и
+ * он — одна запись истории, как у одиночного файла одна запись буфера.
+ */
+function applyReplaceSchema(
+  model: JsonFormSchema,
+  op: EditOp,
+  newId: NodeIdFactory
+): ApplyResult<JsonFormSchema> {
+  const next = ensureNodeIds(ensureSchema(op.params?.schema), newId);
+  return { model: next, inverse: { type: 'replace-schema', params: { schema: model } } };
+}
+
 export function applyEditOp(
   model: JsonFormSchema,
   op: EditOp,
@@ -367,6 +384,8 @@ export function applyEditOp(
       return applySetModelRead(model, op, index);
     case 'batch':
       return applyBatch(model, op, options);
+    case 'replace-schema':
+      return applyReplaceSchema(model, op, newId);
     default:
       throw new SchemaOpError(`неизвестная операция: «${op.type}»`);
   }

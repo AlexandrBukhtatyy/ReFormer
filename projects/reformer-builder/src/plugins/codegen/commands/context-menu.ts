@@ -55,8 +55,9 @@ import {
 import type { CodegenTarget } from '../contract';
 import { deliverInto, SourceReadOnlyError, type DeliveryResult } from '../pipeline/deliver';
 import { generateModule, type ModuleFile } from '../pipeline/generate';
-import type { CodegenHost } from '../host';
+import type { CodegenDocument, CodegenHost } from '../host';
 import { schemaOf } from '../pipeline/run';
+import { formSourceOf, loadFormSource, StepPartsError, type FormSource } from '../pipeline/source';
 import { pluginMessageKey } from '@reformer/builder-plugin-api';
 import { CODEGEN_PLUGIN_ID } from '../contract';
 
@@ -116,6 +117,8 @@ export function schemaCandidates(entries: readonly ResourceRef[]): readonly Reso
 export interface FoundSchema {
   readonly ref: ResourceRef;
   readonly schema: JsonFormSchema;
+  /** Открытый документ, из которого взята схема; нет — прочитана с диска. */
+  readonly document?: CodegenDocument;
 }
 
 /**
@@ -138,7 +141,7 @@ export async function findSchemaIn(
     const document = host.documentOf(ref.id);
     if (document !== null) {
       const fromDocument = schemaOf(document);
-      if (fromDocument !== null) return { ref, schema: fromDocument };
+      if (fromDocument !== null) return { ref, schema: fromDocument, document };
       continue;
     }
     const text = await host.readText(ref.id).catch(() => null);
@@ -229,10 +232,22 @@ export async function generateInto(
 
   const formName = (args.formName ?? '').trim() || formNameOfSchemaPath(found.ref.path);
 
+  let source: FormSource;
+  try {
+    source =
+      found.document === undefined
+        ? await loadFormSource(host, found.ref.id, found.schema)
+        : await formSourceOf(host, found.document, found.schema);
+  } catch (error) {
+    if (!(error instanceof StepPartsError)) throw error;
+    return { kind: 'failed', message: error.message };
+  }
+
   const module = await generateModule(
     deps.targets(),
     {
-      schema: found.schema,
+      schema: source.schema,
+      origins: source.origins,
       formName,
       kit: { kit, catalog: host.catalog() },
       rules: host.rulesOf?.(found.ref.id) ?? undefined,

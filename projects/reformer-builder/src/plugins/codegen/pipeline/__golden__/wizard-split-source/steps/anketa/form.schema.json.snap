@@ -1,0 +1,22 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Данные"
+    },
+    "$nodeId": "anketa00",
+    "children": [
+      {
+        "value": "$model(name)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Данные",
+          "required": true
+        },
+        "$nodeId": "anketa0f"
+      }
+    ],
+    "selector": "dannye-section"
+  }
+}

@@ -152,6 +152,11 @@ function toLoadError(error: unknown, fallbackFile: string): ModuleLoadError {
   return { file: fallbackFile, phase: 'evaluate', message: describe(error), cause: error };
 }
 
+/** Модуль из JSON-файла: `module.exports` — разобранное значение (как у Node и бандлеров). */
+function jsonModule(code: string): string {
+  return `module.exports = ${code.trim() === '' ? 'null' : code};`;
+}
+
 /** Создаёт службу загрузки модулей. */
 export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoader {
   const registry = options.registry ?? createModuleRegistry(options.builtins);
@@ -180,7 +185,9 @@ export function createModuleLoader(options: ModuleLoaderOptions = {}): ModuleLoa
         const cached = ready?.get(fileName);
         if (cached !== undefined) return cached;
         const transpiler = transpilers.find(fileName);
-        if (transpiler === undefined) return code;
+        // JSON — данные, а не код: `import x from './a.json'` получает разобранное значение.
+        // Корректный JSON — корректное выражение JS, поэтому обёртки достаточно.
+        if (transpiler === undefined) return fileName.endsWith('.json') ? jsonModule(code) : code;
         const js = transpiler.transpile(code, fileName).js;
         compiled.set(fileName, js);
         return js;

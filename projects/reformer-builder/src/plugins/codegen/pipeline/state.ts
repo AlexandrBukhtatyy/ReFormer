@@ -39,6 +39,8 @@ export interface CodegenState {
   readonly delivery: DeliveryResult | null;
   /** Отказ, из-за которого прогон не состоялся. Ключ словаря плагина. */
   readonly errorKey: string | null;
+  /** Подробность отказа, которую ключ словаря не передаёт (какой файл шага не собрался). */
+  readonly errorDetail?: string;
   /**
    * Данные, которые видели шаблоны (`it`). `null` — прогона ещё не было.
    *

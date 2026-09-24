@@ -69,6 +69,7 @@ import { defineEvent, type EventBus } from '@reformer/builder-plugin-api/interna
 import {
   basename,
   dirname,
+  isInside,
   isTextMediaType,
   makeResourceId,
   mediaTypeFor,
@@ -265,6 +266,12 @@ export interface Workspace {
   save(id?: ResourceId, options?: SaveOptions): Promise<SaveResult>;
   /** Возвращает рабочую копию к BASE. Локально созданный файл при этом исчезает. */
   revert(id: ResourceId): Promise<void>;
+  /**
+   * Забыть ресурс (и всё под ним, если это каталог): его больше нет в источнике — удалили или
+   * перенесли мимо рабочей области. Без этого материализованная запись оставалась бы
+   * «призраком»: `list` показывает рабочую копию вместе с источником.
+   */
+  forget(id: ResourceId): Promise<void>;
 
   /**
    * Принимает версию источника как свою: рабочая копия, BASE и ревизия становятся её.
@@ -1196,6 +1203,24 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           conflicts,
           failures,
         };
+      });
+    },
+
+    forget(resource) {
+      return batched(async () => {
+        await ready();
+        const gone = pathOf(resource);
+        let changed = false;
+        for (const path of [...materialized.keys()]) {
+          if (path !== gone && !isInside(path, gone)) continue;
+          await store.removePair(path);
+          materialized.delete(path);
+          dirtyStats.delete(path);
+          droppedStats.add(path);
+          note(path, 'removed');
+          changed = true;
+        }
+        if (changed) await persist();
       });
     },
 

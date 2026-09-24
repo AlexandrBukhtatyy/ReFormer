@@ -41,8 +41,16 @@ import type { ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
 import type { Document } from '@reformer/builder-plugin-api/internal';
 import {
+  dirname,
+  joinPath,
+  makeResourceId,
+  parseResourceId,
+} from '@reformer/builder-plugin-api/internal';
+import {
   attachDocumentModel,
+  preloadParts,
   type ModelDocumentHandle,
+  type PartsAccess,
 } from '@/shell/platform/workspace/model/model-document';
 import type { DiagnosticsSink, Workspace } from '@/shell/platform/workspace/workspace';
 
@@ -55,7 +63,7 @@ import type { DiagnosticsSink, Workspace } from '@/shell/platform/workspace/work
  */
 export type ModelsWorkspace = Pick<
   Workspace,
-  'open' | 'close' | 'writeText' | 'openedResources' | 'onDidChange'
+  'open' | 'close' | 'writeText' | 'readText' | 'openedResources' | 'onDidChange'
 >;
 
 export interface DocumentModelsOptions {
@@ -74,6 +82,11 @@ export interface DocumentModelsOptions {
    */
   readonly isTextEditorFocused?: (id: ResourceId) => boolean;
   readonly historyLimit?: number;
+  /**
+   * Каталог изменился: в нём появился файл части составного документа. Дерево проекта само
+   * рабочую область не слушает и перечитывает уровень только по просьбе.
+   */
+  readonly onDidCreatePart?: (dir: ResourceId) => void;
 }
 
 /** Держатель модельных документов рабочей сессии. */
@@ -106,6 +119,8 @@ export interface DocumentModels extends Disposable {
    * право на правку получил бы каждый, кто попросил документ вкладки.
    */
   handleOf(id: ResourceId): ModelDocumentHandle<unknown> | null;
+  /** Открытые модельные документы по ресурсу: сохранение ищет среди них части и удалённое. */
+  opened(): ReadonlyMap<ResourceId, ModelDocumentHandle<unknown>>;
 }
 
 export function createDocumentModels(options: DocumentModelsOptions): DocumentModels {
@@ -136,6 +151,31 @@ export function createDocumentModels(options: DocumentModelsOptions): DocumentMo
     }
   });
 
+  /**
+   * Файлы частей документа `id` — рядом с ним, по спецификатору ссылки из корня.
+   *
+   * Изменения частей документ узнаёт тем же пакетом изменений рабочей области, что и все:
+   * своя запись вернётся туда же, и документ отсеет её сам.
+   */
+  const partsAccess = (id: ResourceId): PartsAccess => {
+    const { sourceId, path } = parseResourceId(id);
+    return {
+      resolve: (spec) => makeResourceId(sourceId, joinPath(dirname(path), spec)),
+      write: async (part, text, created) => {
+        await workspace.writeText(part, text);
+        if (created) {
+          // Каталог шага мог появиться вместе с файлом — перечитывается и уровень выше.
+          const { sourceId: partSource, path: partPath } = parseResourceId(part);
+          const dir = dirname(partPath);
+          options.onDidCreatePart?.(makeResourceId(partSource, dirname(dir)));
+          options.onDidCreatePart?.(makeResourceId(partSource, dir));
+        }
+      },
+      read: (part) => workspace.readText(part).catch(() => null),
+      onDidChange: (cb) => workspace.onDidChange((e) => cb(e.changes.map((c) => c.id))),
+    };
+  };
+
   return {
     async open(id) {
       const document = await workspace.open(id);
@@ -145,6 +185,11 @@ export function createDocumentModels(options: DocumentModelsOptions): DocumentMo
       if (existing !== undefined) return existing.document;
       if (document.kind === 'model') return document;
 
+      const parts = await preloadParts(document, extensions, partsAccess(id));
+      // Пока читались части, тот же ресурс мог открыться вторым вызовом — надстройка одна.
+      const raced = handles.get(id);
+      if (raced !== undefined) return raced.document;
+
       const attached = attachDocumentModel({
         document,
         extensions,
@@ -152,6 +197,7 @@ export function createDocumentModels(options: DocumentModelsOptions): DocumentMo
         isTextEditorFocused: () => focused(id),
         diagnostics: options.diagnostics,
         historyLimit: options.historyLimit,
+        parts,
       });
       if (attached.handle === undefined) return attached.document;
       handles.set(id, attached.handle);
@@ -159,6 +205,8 @@ export function createDocumentModels(options: DocumentModelsOptions): DocumentMo
     },
 
     handleOf: (id) => handles.get(id) ?? null,
+
+    opened: () => handles,
 
     close(id) {
       drop(id);

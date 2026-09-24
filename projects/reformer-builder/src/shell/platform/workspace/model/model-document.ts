@@ -55,11 +55,13 @@ import { toDisposable } from '@reformer/builder-plugin-api/internal';
 import type { ExtensionRegistry } from '@reformer/builder-plugin-api/internal';
 import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
 import type { Document } from '@reformer/builder-plugin-api/internal';
+import type { Disposable, ResourceId } from '@reformer/builder-plugin-api/internal';
 import type { DiagnosticsSink } from '../workspace';
 import { createModelHistory, type ModelHistory, type ModelSnapshot } from './history';
 import { createEditorProbe, resolveModelProvider } from './provider';
 import {
   type ApplyResult,
+  type CompositionLayout,
   type DocumentModelProvider,
   type DocumentSyncState,
   type ModelChange,
@@ -100,6 +102,36 @@ export type {
  */
 export interface ModelDocumentHandle<M> extends SdkModelDocumentHandle<M> {
   dispose(): void;
+  /** Файлы частей, которые документ держит сейчас. У документа одним файлом — пусто. */
+  parts(): readonly ResourceId[];
+  /**
+   * Части, выпавшие из документа (шаг удалили, форму собрали в один файл). Их файлы удаляются
+   * при сохранении документа, а не сразу: удаление идёт мимо рабочей копии прямо в источник,
+   * и отмена до сохранения должна возвращать часть без следа.
+   */
+  removedParts(): readonly ResourceId[];
+  /** Эти части удалены (сохранением) — ждать их удаления больше не нужно. */
+  forgetRemoved(ids: readonly ResourceId[]): void;
+}
+
+/**
+ * Файлы частей составного документа — то, что документу нужно от рабочей области сверх буфера
+ * корня. Внедряется, как и `writeText`: документ не знает ни рабочей области, ни путей.
+ */
+export interface ModelPartsPort {
+  /** Тексты частей, прочитанные до открытия, по спецификатору ссылки. */
+  readonly initial: ReadonlyMap<string, string>;
+  /** Адрес части по спецификатору ссылки (относительно файла корня). */
+  resolve(spec: string): ResourceId;
+  /**
+   * Записать часть в рабочую копию; несуществующий файл создаётся. `created` — части у документа
+   * до этой записи не было (новый шаг, «разбить»): дереву проекта пора перечитать её каталог.
+   */
+  write(id: ResourceId, text: string, created: boolean): Promise<void>;
+  /** Рабочая копия части; `null` — файла нет. */
+  read(id: ResourceId): Promise<string | null>;
+  /** Ресурсы рабочей области изменились: запись, слияние, откат. */
+  onDidChange(cb: (ids: readonly ResourceId[]) => void): Disposable;
 }
 
 export interface ModelDocumentOptions<M> {
@@ -126,6 +158,17 @@ export interface ModelDocumentOptions<M> {
   readonly diagnostics?: DiagnosticsSink;
   readonly selection?: readonly NodeId[];
   readonly historyLimit?: number;
+  /**
+   * Файлы частей — у провайдера с `composition`. Без порта документ одним файлом, даже если
+   * провайдер умеет больше: читать части ему нечем.
+   */
+  readonly parts?: ModelPartsPort;
+}
+
+/** Модель вместе с раскладкой по файлам — единица истории отмены. */
+interface Laid<M> {
+  readonly model: M;
+  readonly layout: CompositionLayout;
 }
 
 /** Документ этого вида. Предикат, а не сравнение поля: сужает союз на месте вызова. */
@@ -180,12 +223,41 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
   const { document: buffer, provider, writeText } = options;
   const focused = options.isTextEditorFocused ?? ((): boolean => false);
   const diagnostics = options.diagnostics;
-  const history: ModelHistory<M> = createModelHistory<M>({ limit: options.historyLimit });
+  // В снимке отмены — модель ВМЕСТЕ с раскладкой по файлам: «разбить по файлам» модель не
+  // меняет, и без раскладки в снимке такой шаг было бы нечем отменить.
+  const history: ModelHistory<Laid<M>> = createModelHistory<Laid<M>>({
+    limit: options.historyLimit,
+  });
+  const composite =
+    options.parts !== undefined && provider.composition !== undefined
+      ? { port: options.parts, composition: provider.composition }
+      : undefined;
+  /**
+   * Тексты частей, которым соответствует модель, — по спецификатору ссылки. Та же защита от
+   * эха, что `modelText` у корня: вернувшаяся своя запись с этим текстом не разбирается.
+   */
+  const partTexts = new Map<string, string>();
+  /** Части, выпавшие из документа: их файлы удаляются при сохранении. */
+  const removed = new Map<string, ResourceId>();
+  /** Части, которых нет в рабочей области: повторно не читаются, пока их не запишут. */
+  const unavailable = new Set<string>();
+  let layout: CompositionLayout = undefined;
 
   const initialText = buffer.getText();
   let model: M;
   try {
-    model = provider.parse(initialText);
+    const root = provider.parse(initialText);
+    if (composite === undefined) {
+      model = root;
+    } else {
+      for (const spec of composite.composition.references(root)) {
+        const text = composite.port.initial.get(spec);
+        if (text !== undefined) partTexts.set(spec, text);
+      }
+      const composed = composite.composition.compose(root, partTexts);
+      model = composed.model;
+      layout = composed.layout;
+    }
   } catch (err) {
     throw new ModelParseError(toFailure(provider.id, err));
   }
@@ -284,9 +356,43 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
       });
   };
 
-  /** Перерисовывает буфер из `print(model)` — или откладывает, если редактор в фокусе. */
-  const serialize = (): void => {
-    const text = provider.print(model);
+  /**
+   * Раскладывает модель по файлам: части пишутся сразу (их редактор человек сейчас не держит),
+   * выпавшие ждут сохранения. Возвращает модель корня.
+   */
+  const layOut = (): M => {
+    if (composite === undefined) return model;
+    const { port, composition } = composite;
+    const laid = composition.decompose(model, layout);
+    layout = laid.layout;
+    const stale = new Set(partTexts.keys());
+    for (const [spec, text] of laid.parts) {
+      stale.delete(spec);
+      removed.delete(spec);
+      unavailable.delete(spec);
+      const known = partTexts.get(spec);
+      if (known === text) continue;
+      // Соответствие запоминается ДО записи: событие рабочей области прилетит внутри неё.
+      partTexts.set(spec, text);
+      port.write(port.resolve(spec), text, known === undefined).catch((err: unknown) => {
+        console.error(`[document.model] не удалось записать часть «${spec}»`, err);
+      });
+    }
+    for (const spec of stale) {
+      partTexts.delete(spec);
+      removed.set(spec, port.resolve(spec));
+    }
+    return laid.root;
+  };
+
+  /**
+   * Перерисовывает буфер из `print(model)` — или откладывает, если редактор в фокусе.
+   *
+   * `root` — модель корня, уже разложенная {@link layOut} ДО уведомления подписчиков: они
+   * спрашивают у документа его части, и ответ обязан описывать ту модель, о которой уведомили.
+   */
+  const serialize = (root: M = layOut()): void => {
+    const text = provider.print(root);
     // Соответствие запоминается всегда, даже когда писать нечего: иначе следующее событие
     // буфера сочтёт наш же текст пользовательским и переразберёт его в новую модель.
     modelText = text;
@@ -301,6 +407,95 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
     pending = false;
     scheduleWrite();
   };
+
+  /**
+   * Модель из разобранного корня: у составного документа — сборка с частями. Части, на которые
+   * корень сослался впервые (ссылку дописали руками), дочитываются, и документ пересобирается.
+   *
+   * @throws если сборка не удалась — тем же путём, что неразбор корня.
+   */
+  const composeRoot = (root: M): void => {
+    if (composite === undefined) {
+      model = root;
+      return;
+    }
+    const references = composite.composition.references(root);
+    const missing = references.filter((spec) => !partTexts.has(spec) && !unavailable.has(spec));
+    if (missing.length > 0) loadParts(missing);
+    const composed = composite.composition.compose(root, partTexts);
+    model = composed.model;
+    layout = composed.layout;
+    // Ссылку на часть убрали из корня руками — часть выпала из документа.
+    const referenced = new Set(references);
+    for (const spec of [...partTexts.keys()]) {
+      if (referenced.has(spec)) continue;
+      partTexts.delete(spec);
+      removed.set(spec, composite.port.resolve(spec));
+    }
+  };
+
+  /** Пересобрать документ из корня и частей — после внешней правки части. */
+  const recompose = (): void => {
+    // В расхождении истина корня — буфер; иначе — последняя печать модели (буфер мог отстать
+    // из-за фокуса, и собирать из него значило бы потерять последнюю правку).
+    const text = failure === undefined ? modelText : buffer.getText();
+    try {
+      composeRoot(provider.parse(text));
+      modelText = text;
+      if (failure !== undefined) {
+        failure = undefined;
+        publish([]);
+      }
+    } catch (err) {
+      failure = toFailure(provider.id, err);
+      publish([parseDiagnostic(failure)]);
+    }
+    history.breakMerge();
+    notify('parse');
+  };
+
+  /** Дочитать части, на которые корень сослался впервые, и пересобрать документ. */
+  const loadParts = (specs: readonly string[]): void => {
+    if (composite === undefined) return;
+    const { port } = composite;
+    for (const spec of specs) unavailable.add(spec);
+    void Promise.all(
+      specs.map(async (spec) => {
+        const text = await port.read(port.resolve(spec)).catch(() => null);
+        if (text === null) return;
+        unavailable.delete(spec);
+        partTexts.set(spec, text);
+      })
+    ).then(recompose);
+  };
+
+  /**
+   * Правка части со стороны: вкладка части, слияние, откат. Своя запись возвращается сюда же и
+   * отсеивается сравнением с `partTexts` — как эхо корня.
+   */
+  const partsSubscription = composite?.port.onDidChange((ids) => {
+    const { port } = composite;
+    const touched = [...partTexts.keys(), ...unavailable].filter((spec) =>
+      ids.includes(port.resolve(spec))
+    );
+    if (touched.length === 0) return;
+    void (async () => {
+      let changed = false;
+      for (const spec of touched) {
+        const text = await port.read(port.resolve(spec)).catch(() => null);
+        unavailable.delete(spec);
+        if (text === null) {
+          changed = partTexts.delete(spec) || changed;
+        } else if (partTexts.get(spec) !== text) {
+          partTexts.set(spec, text);
+          changed = true;
+        }
+      }
+      if (changed) recompose();
+    })().catch((err: unknown) => {
+      console.error('[document.model] не удалось перечитать часть документа', err);
+    });
+  });
 
   const subscription = buffer.onDidChangeContent((text) => {
     const echo = echoes.indexOf(text);
@@ -325,7 +520,7 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
     pending = false;
 
     try {
-      model = provider.parse(text);
+      composeRoot(provider.parse(text));
       modelText = text;
       failure = undefined;
       publish([]);
@@ -356,6 +551,13 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
     getParseFailure: () => failure,
     getSelection: () => selection,
     isStructurallyEditable: () => failure === undefined,
+    getComposition:
+      composite === undefined
+        ? undefined
+        : () => ({
+            layout,
+            parts: [...partTexts.keys()].map((spec) => composite.port.resolve(spec)),
+          }),
     onDidChangeModel(cb) {
       listeners.add(cb);
       return toDisposable(() => {
@@ -364,13 +566,15 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
     },
   };
 
-  const snapshot = (): ModelSnapshot<M> => ({ model, selection });
+  const snapshot = (): ModelSnapshot<Laid<M>> => ({ model: { model, layout }, selection });
 
-  const restore = (state: ModelSnapshot<M>, reason: ModelChangeReason): void => {
-    model = state.model;
+  const restore = (state: ModelSnapshot<Laid<M>>, reason: ModelChangeReason): void => {
+    model = state.model.model;
+    layout = state.model.layout;
     selection = state.selection;
+    const root = layOut();
     notify(reason);
-    serialize();
+    serialize(root);
   };
 
   return {
@@ -396,8 +600,9 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
       // «Куда смотреть после операции» знает только сама операция: вставка родила узел,
       // перемещение сместило его, удаление оставило соседа.
       if (result.focus !== undefined) selection = [result.focus];
+      const root = layOut();
       notify('apply');
-      serialize();
+      serialize(root);
       return { status: 'applied', ...result };
     },
 
@@ -449,8 +654,38 @@ export function createModelDocument<M>(options: ModelDocumentOptions<M>): ModelD
 
     hasPendingSync: () => pending,
 
+    restructure:
+      composite === undefined
+        ? undefined
+        : (mode) => {
+            if (failure !== undefined) return false;
+            const { layout: next, parts } = composite.composition.decompose(model, layout, mode);
+            const same =
+              parts.size === partTexts.size &&
+              [...parts.keys()].every((spec) => partTexts.has(spec));
+            if (same) return false;
+            history.record(snapshot());
+            layout = next;
+            const root = layOut();
+            notify('apply');
+            serialize(root);
+            return true;
+          },
+
+    parts: () =>
+      composite === undefined
+        ? []
+        : [...partTexts.keys()].map((spec) => composite.port.resolve(spec)),
+
+    removedParts: () => [...removed.values()],
+
+    forgetRemoved(ids) {
+      for (const [spec, id] of [...removed]) if (ids.includes(id)) removed.delete(spec);
+    },
+
     dispose() {
       subscription.dispose();
+      partsSubscription?.dispose();
       listeners.clear();
       history.clear();
     },
@@ -471,6 +706,51 @@ export interface AttachOptions {
   readonly isTextEditorFocused?: () => boolean;
   readonly diagnostics?: DiagnosticsSink;
   readonly historyLimit?: number;
+  /** Части составного документа — из {@link preloadParts}. */
+  readonly parts?: ModelPartsPort;
+}
+
+/** Доступ к файлам частей без прочитанных текстов — их дочитывает {@link preloadParts}. */
+export type PartsAccess = Omit<ModelPartsPort, 'initial'>;
+
+/**
+ * Дочитать части документа ДО открытия: модель составного документа обязана собраться сразу —
+ * у документа с моделью «последняя валидная модель» есть с первой секунды.
+ *
+ * Асинхронна, в отличие от {@link attachDocumentModel}: чтение рабочей копии — промис, а разбор
+ * и сборка — нет. Отсюда два шага: прочитать здесь, собрать там.
+ *
+ * @returns Порт частей — у ресурса, чей провайдер умеет `composition`; иначе `undefined`.
+ */
+export async function preloadParts(
+  document: Document,
+  extensions: Pick<ExtensionRegistry, 'get'>,
+  access: PartsAccess
+): Promise<ModelPartsPort | undefined> {
+  const text = document.getText();
+  const provider = resolveModelProvider(extensions, document.ref, createEditorProbe(text));
+  const composition = provider?.composition;
+  if (provider === undefined || composition === undefined) return undefined;
+
+  let references: readonly string[] = [];
+  try {
+    references = composition.references(provider.parse(text));
+  } catch {
+    // Корень не разбирается — документ откроется текстом, читать части незачем.
+  }
+  const initial = new Map<string, string>();
+  for (const spec of references) {
+    let id: ResourceId;
+    try {
+      id = access.resolve(spec);
+    } catch {
+      // Ссылка за корень источника: такой части нет, и сборка скажет об этом сама.
+      continue;
+    }
+    const part = await access.read(id);
+    if (part !== null) initial.set(spec, part);
+  }
+  return { ...access, initial };
 }
 
 /**
@@ -505,6 +785,7 @@ export function attachDocumentModel(options: AttachOptions): Attached<unknown> {
       isTextEditorFocused: options.isTextEditorFocused,
       diagnostics: options.diagnostics,
       historyLimit: options.historyLimit,
+      parts: options.parts,
     });
     options.diagnostics?.publish(document.id, PARSE_DIAGNOSTIC_SOURCE, []);
     return { document: handle.document, handle };

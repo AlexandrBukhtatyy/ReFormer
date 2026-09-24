@@ -30,7 +30,11 @@ describe('isExecutableSidecar', () => {
   it('фильтры по базовому имени действуют и в папках шагов', () => {
     expect(isExecutableSidecar('steps/kontakty/validation.test.ts')).toBe(false);
     expect(isExecutableSidecar('steps/kontakty/fixture.ts')).toBe(false);
-    expect(isExecutableSidecar('steps/kontakty/form.schema.json')).toBe(false);
+  });
+
+  it('схема шага — в наборе: её импортирует агрегатор шагов; корневая схема — нет', () => {
+    expect(isExecutableSidecar('steps/kontakty/form.schema.json')).toBe(true);
+    expect(isExecutableSidecar('form.schema.json')).toBe(false);
   });
 
   it('тесты и объявления типов не исполняются', () => {

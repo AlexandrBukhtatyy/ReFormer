@@ -27,7 +27,7 @@
  */
 
 import type { CommandContribution, ResourceId } from '@reformer/builder-plugin-api';
-import { isDivContainer } from '@reformer/builder-stack-reformer/form-model';
+import { isDivContainer, splitFormSchema } from '@reformer/builder-stack-reformer/form-model';
 import type { NavDir } from '@reformer/builder-stack-reformer/form-model';
 import { planDuplicate } from './duplicate';
 import { planMove } from './move';
@@ -59,6 +59,8 @@ export const DELETE_BACK_COMMAND_ID = 'editor-schema.delete.backspace';
 export const DUPLICATE_COMMAND_ID = 'editor-schema.duplicate';
 export const GROUP_COMMAND_ID = 'editor-schema.group';
 export const UNGROUP_COMMAND_ID = 'editor-schema.ungroup';
+export const SPLIT_STEPS_COMMAND_ID = 'editor-schema.split-steps';
+export const JOIN_STEPS_COMMAND_ID = 'editor-schema.join-steps';
 export const FLIP_COMMAND_ID = 'editor-schema.flip';
 export const UNDO_COMMAND_ID = 'editor-schema.undo';
 export const REDO_COMMAND_ID = 'editor-schema.redo';
@@ -203,6 +205,17 @@ const ON_CANVAS = 'focus == canvas';
  * `mod+z` на вкладке markdown перебирает историю схемы, открытой в соседней вкладке.
  */
 const IN_SCHEMA = 'activeResourceKind == form.schema';
+
+/**
+ * Есть ли что выносить в файлы: шагов первого визарда больше, чем файлов у документа.
+ *
+ * Спрашивается у стека тем же разбиением, что сделает команда, — иначе кнопка включалась бы
+ * на форме, которую разбить нечем (визарда нет), или уже разбитой целиком.
+ */
+function canSplit(session: SchemaSession): boolean {
+  const { model, parts } = session.get();
+  return splitFormSchema(model, new Map(), { all: true }).parts.size > parts;
+}
 
 const MOVE_KEYBINDINGS: Readonly<Record<NavDir, string>> = {
   up: 'mod+arrowup',
@@ -474,6 +487,26 @@ export function schemaEditorCommands(
   };
 
   return [
+    {
+      // Разбить визард по шагам: каждый шаг — в свой файл steps/<шаг>/form.schema.json.
+      // Модель не меняется, меняется раскладка по файлам — одна запись истории.
+      id: SPLIT_STEPS_COMMAND_ID,
+      titleKey: 'command.split-steps',
+      when: IN_SCHEMA,
+      enabled: () => {
+        const session = editable(registry);
+        return session !== null && canSplit(session);
+      },
+      run: () => editable(registry)?.restructure('split') ?? false,
+    },
+    {
+      // Обратно: шаги — в корневую схему, файлы шагов удалятся при сохранении.
+      id: JOIN_STEPS_COMMAND_ID,
+      titleKey: 'command.join-steps',
+      when: IN_SCHEMA,
+      enabled: () => (editable(registry)?.get().parts ?? 0) > 0,
+      run: () => editable(registry)?.restructure('join') ?? false,
+    },
     {
       id: DELETE_COMMAND_ID,
       titleKey: 'command.delete',

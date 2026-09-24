@@ -22,6 +22,7 @@ import {
   buildFormSchemaMetaSchema,
   parseOperator,
   toComponentPropsValidatorSchema,
+  toFormStepMetaSchema,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
@@ -59,6 +60,35 @@ export function formJsonSchema(catalog: readonly CatalogEntry[]): JsonSchemaHint
       schema: buildHintSchema(catalog),
     };
     schemaCache.set(catalog, hint);
+  }
+  return hint;
+}
+
+/** Ссылка на файл шага в `componentProps.steps`. */
+const STEP_REF_SCHEMA = {
+  type: 'object',
+  required: ['$ref'],
+  additionalProperties: false,
+  properties: {
+    $ref: { type: 'string', description: 'Файл шага: ./steps/<шаг>/form.schema.json' },
+  },
+};
+
+const stepSchemaCache = new WeakMap<readonly CatalogEntry[], JsonSchemaHint>();
+
+/**
+ * Схема подсказок файла шага (`{ "$schema", "node" }`) — те же узлы и пропсы кита, другой корень.
+ * Запоминается по каталогу, как {@link formJsonSchema}, и строится из неё же.
+ */
+export function formStepJsonSchema(catalog: readonly CatalogEntry[]): JsonSchemaHint {
+  let hint = stepSchemaCache.get(catalog);
+  if (hint === undefined) {
+    const form = formJsonSchema(catalog);
+    hint = {
+      uri: form.uri.replace('reformer-form/', 'reformer-form-step/'),
+      schema: toFormStepMetaSchema(form.schema as Record<string, unknown>),
+    };
+    stepSchemaCache.set(catalog, hint);
   }
   return hint;
 }
@@ -107,7 +137,13 @@ function buildHintSchema(catalog: readonly CatalogEntry[]): unknown {
     ),
     ...[...STEPS_HOST_NAMES].map((name) =>
       whenComponent(`$component(${name})`, {
-        properties: { steps: { type: 'array', items: { $ref: '#/definitions/node' } } },
+        properties: {
+          steps: {
+            type: 'array',
+            // Шаг — узел либо ссылка на файл шага (визард, разбитый по шагам).
+            items: { anyOf: [{ $ref: '#/definitions/node' }, STEP_REF_SCHEMA] },
+          },
+        },
       })
     ),
   ];

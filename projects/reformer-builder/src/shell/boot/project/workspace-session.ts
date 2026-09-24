@@ -46,6 +46,7 @@ import { createWorkspace } from '@/shell/platform/workspace/workspace';
 import type { WorkspaceFileStore } from '@/shell/platform/workspace/storage/opfs';
 import type { WorkspaceMetaStore } from '@/shell/platform/workspace/storage/idb';
 import { createDocumentModels, type DocumentModels } from './document-models';
+import { createDocumentSave, type DocumentSave } from './document-save';
 import { watchOpenedTabs } from './opened-tabs';
 
 /**
@@ -215,6 +216,12 @@ export interface WorkspaceSession extends Disposable {
    */
   readonly resources: ResourceOperations;
   readonly status: WorkspaceStatusSource;
+  /**
+   * Сохранение и «изменён ли» с частями документов из нескольких файлов. Все пути сохранения
+   * (Ctrl+S, «Сохранить всё», закрытие вкладки, сохранение из панелей) идут через него, а не
+   * через `workspace.save`: иначе сохранение корня разбитой формы оставляло бы шаги несохранёнными.
+   */
+  readonly saving: DocumentSave;
 }
 
 export interface WorkspaceSessionOptions {
@@ -300,7 +307,23 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     extensions: options.extensions ?? { get: () => [] },
     diagnostics: options.diagnostics,
     isTextEditorFocused: options.isTextEditorFocused,
+    // Дерево создаётся ниже; к моменту первой записи части оно уже есть.
+    onDidCreatePart: (dir) => {
+      void tree.refresh(dir);
+    },
   });
+
+  // Операции над записями идут К ИСТОЧНИКУ напрямую (см. `host/workspace/resource-ops`),
+  // а последствия достаются рабочей области и дереву: вкладка исчезнувшего файла
+  // закрывается, прочитанный уровень забывается. Живут они ровно столько, сколько живёт
+  // сессия, — поэтому создаются здесь, а не в композиции.
+  const resources = createResourceOperations({
+    source,
+    workspace,
+    invalidate: (dir) => tree.refresh(dir),
+  });
+
+  const saving = createDocumentSave({ workspace, models, resources });
 
   /**
    * Вкладки открывают документ ЧЕРЕЗ надстройку модели.
@@ -312,10 +335,19 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
   const tabsWorkspace: TabsWorkspace = {
     open: (id) => models.open(id),
     close: (id) => models.close(id),
-    save: (id) => workspace.save(id),
+    save: (id) => saving.save(id),
     openedResources: () => workspace.openedResources(),
-    isDirty: (id) => workspace.isDirty(id),
-    onDidChange: (cb) => workspace.onDidChange(cb),
+    isDirty: (id) => (id === undefined ? workspace.isDirty() : saving.isDirty(id)),
+    // Удаление частей составного документа меняет его изменённость без записи в рабочую
+    // область — вкладкам об этом сообщает сохранение.
+    onDidChange: (cb) => {
+      const own = workspace.onDidChange(cb);
+      const saved = saving.onDidSave((root) => cb({ changes: [{ id: root, type: 'saved' }] }));
+      return toDisposable(() => {
+        own.dispose();
+        saved.dispose();
+      });
+    },
   };
 
   const documents = createDocumentTabsStore({ workspace: tabsWorkspace, whenContext });
@@ -325,16 +357,6 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     rootId: makeResourceId(source.id, ''),
   });
   const status = createWorkspaceStatusSource(workspace, divergence);
-
-  // Операции над записями идут К ИСТОЧНИКУ напрямую (см. `host/workspace/resource-ops`),
-  // а последствия достаются рабочей области и дереву: вкладка исчезнувшего файла
-  // закрывается, прочитанный уровень забывается. Живут они ровно столько, сколько живёт
-  // сессия, — поэтому создаются здесь, а не в композиции.
-  const resources = createResourceOperations({
-    source,
-    workspace,
-    invalidate: (dir) => tree.refresh(dir),
-  });
 
   const subscriptions: Disposable[] = [];
   if (options.validation !== undefined) {
@@ -354,6 +376,7 @@ export function createWorkspaceSession(options: WorkspaceSessionOptions): Worksp
     tree,
     resources,
     status,
+    saving,
     dispose() {
       for (const subscription of subscriptions) subscription.dispose();
       subscriptions.length = 0;

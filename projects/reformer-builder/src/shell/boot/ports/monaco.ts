@@ -103,6 +103,16 @@ export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
     return provider === undefined ? null : { handle, provider };
   };
 
+  /** Составной документ, частью которого является ресурс. */
+  const ownerOf = (id: ResourceId) => {
+    const opened = project.get()?.models.opened();
+    if (opened === undefined) return null;
+    for (const [root, handle] of opened) {
+      if (handle.parts().includes(id)) return modelOf(root);
+    }
+    return null;
+  };
+
   return {
     useTranslate: makeUseTranslate(i18n),
     useDiagnosticMessage: makeUseDiagnosticMessage(i18n),
@@ -138,10 +148,16 @@ export function createMonacoHost(deps: MonacoHostDeps): MonacoHost {
     // Подсказки — у того же провайдера. Расхождение модели здесь НЕ отказ, в отличие от путей
     // узлов: подсказка нужна ровно пока человек печатает, а пути модели из последнего удачного
     // разбора годятся и для недописанного текста.
-    jsonSchemaFor: (id) => modelOf(id)?.provider.jsonSchema?.() ?? null,
+    // Файл части (шаг разбитой формы) своей модели не имеет — открыт текстом, — и подсказку
+    // ему даёт провайдер документа, частью которого он является.
+    jsonSchemaFor: (id) => {
+      const own = modelOf(id);
+      if (own !== null) return own.provider.jsonSchema?.() ?? null;
+      return ownerOf(id)?.provider.composition?.partJsonSchema?.() ?? null;
+    },
 
     onDidChangeJsonSchema: (id, cb) =>
-      modelOf(id)?.provider.onDidChangeJsonSchema?.(cb) ?? { dispose() {} },
+      (modelOf(id) ?? ownerOf(id))?.provider.onDidChangeJsonSchema?.(cb) ?? { dispose() {} },
 
     completeString: (id, site) => {
       const found = modelOf(id);

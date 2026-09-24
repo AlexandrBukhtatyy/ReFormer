@@ -58,7 +58,8 @@ import {
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import type { Disposable, EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
 import { applyEditOp } from './ops';
-import { completeModelPath, formJsonSchema } from './hints';
+import { completeModelPath, formJsonSchema, formStepJsonSchema } from './hints';
+import { formSchemaComposition } from './composition';
 import type { ApplyResult, EditOp, SchemaModelProviderSpec } from '../host';
 
 // Реэкспорт, а не объявление: идентификатор живёт в contract.ts, чтобы композиция могла
@@ -169,5 +170,11 @@ export function createSchemaModelProvider(
           ...(onCatalogChange === undefined ? {} : { onDidChangeJsonSchema: onCatalogChange }),
         }),
     completeString: completeModelPath,
+    // Визард, разбитый по шагам: шаги — в своих файлах, редактор видит одну форму.
+    composition: {
+      ...formSchemaComposition(newId),
+      // Подсказки в файле шага — схема шага из того же каталога кита.
+      ...(catalog === undefined ? {} : { partJsonSchema: () => formStepJsonSchema(catalog()) }),
+    },
   };
 }

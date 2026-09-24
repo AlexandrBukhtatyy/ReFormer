@@ -77,6 +77,8 @@ export type OperationsSource = Pick<
 export interface OperationsWorkspace {
   openedResources(): readonly ResourceId[];
   close(id: ResourceId): Promise<void>;
+  /** Забыть рабочую копию исчезнувшего ресурса — иначе она показывалась бы в дереве. */
+  forget?(id: ResourceId): Promise<void>;
 }
 
 /** Почему операция не состоялась. Код, а не фраза: текст строит интерфейс на своём языке. */
@@ -257,6 +259,12 @@ export function createResourceOperations(deps: ResourceOperationsDeps): Resource
       } catch (error) {
         console.error(`[workspace] вкладка «${opened}» не закрыта`, error);
       }
+    }
+    // Рабочая копия исчезнувшего — тоже: `list` показывает её вместе с источником.
+    try {
+      await workspace.forget?.(id);
+    } catch (error) {
+      console.error(`[workspace] рабочая копия «${id}» не забыта`, error);
     }
   };
 

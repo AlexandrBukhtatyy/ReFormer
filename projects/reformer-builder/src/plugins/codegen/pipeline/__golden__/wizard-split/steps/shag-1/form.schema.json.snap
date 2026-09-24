@@ -1,0 +1,19 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Шаг 1"
+    },
+    "children": [
+      {
+        "value": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Почта"
+        }
+      }
+    ],
+    "selector": "shag-1-section"
+  }
+}

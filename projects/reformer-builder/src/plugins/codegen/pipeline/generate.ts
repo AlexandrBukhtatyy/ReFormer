@@ -180,23 +180,24 @@ function selectTargets(
       });
       continue;
     }
-    let applies = true;
-    try {
-      applies = target.applies === undefined ? true : target.applies(ctx);
-    } catch (error) {
-      problems.push({
-        targetId: target.id,
-        path: target.path,
-        reason: 'threw',
-        message: messageOf(error),
-      });
-      continue;
-    }
-    if (!applies) continue;
-
     // Путь и дубли проверяются на КАЖДОМ экземпляре: имя папки шага приходит из схемы, и шаблон,
     // безопасный на вид, после подстановки мог бы выйти за каталог или столкнуться с соседом.
+    // Применимость — тоже: у цели шага её спрашивают про шаг (схема есть не у каждого шага).
     for (const instance of instancesOf(target, ctx)) {
+      let applies = true;
+      try {
+        const at = instance.step === undefined ? ctx : withStep(ctx, instance.step);
+        applies = target.applies === undefined ? true : target.applies(at);
+      } catch (error) {
+        problems.push({
+          targetId: target.id,
+          path: instance.path,
+          reason: 'threw',
+          message: messageOf(error),
+        });
+        continue;
+      }
+      if (!applies) continue;
       if (!isInsideModule(instance.path)) {
         problems.push({
           targetId: target.id,

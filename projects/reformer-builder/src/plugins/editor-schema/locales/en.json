@@ -30,6 +30,8 @@
   "command.duplicate.up": "Duplicate up",
   "command.flip": "Flip direction",
   "command.group": "Group",
+  "command.split-steps": "Split wizard into step files",
+  "command.join-steps": "Join form into one file",
   "command.move.down": "Move down",
   "command.move.left": "Move left",
   "command.move.right": "Move right",

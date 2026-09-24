@@ -23,6 +23,7 @@ import { deliverModule, SourceReadOnlyError } from './deliver';
 import { generateModule, type CodegenProblem } from './generate';
 import type { CodegenDocument, CodegenHost } from '../host';
 import type { CodegenStore } from './state';
+import { formSourceOf, StepPartsError, type FormSource } from './source';
 
 /**
  * Имя формы по умолчанию — из пути файла схемы ({@link formNameOfSchemaPath}).
@@ -90,6 +91,15 @@ export async function runCodegen(options: RunOptions): Promise<void> {
     return;
   }
 
+  let source: FormSource;
+  try {
+    source = await formSourceOf(host, document, schema);
+  } catch (error) {
+    if (!(error instanceof StepPartsError)) throw error;
+    store.patch({ phase: 'idle', errorKey: 'error.step-parts', errorDetail: error.message });
+    return;
+  }
+
   const kit = host.kit();
   if (kit === null) {
     // Без кита неизвестно, откуда импортировать компоненты. Умолчание здесь вернуло бы
@@ -99,12 +109,13 @@ export async function runCodegen(options: RunOptions): Promise<void> {
   }
 
   const formName = (options.formName ?? '').trim() || defaultFormName(document);
-  store.patch({ phase: 'running', errorKey: null, delivery: null });
+  store.patch({ phase: 'running', errorKey: null, errorDetail: undefined, delivery: null });
 
   const module = await generateModule(
     targets,
     {
-      schema,
+      schema: source.schema,
+      origins: source.origins,
       formName,
       kit: { kit, catalog: host.catalog() },
       rules: host.rulesOf?.(documentId) ?? undefined,

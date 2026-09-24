@@ -18,6 +18,7 @@ function state(overrides: Partial<SchemaEditorState> = {}): SchemaEditorState {
     parseError: null,
     canUndo: false,
     canRedo: false,
+    parts: 0,
     ...overrides,
   });
 }

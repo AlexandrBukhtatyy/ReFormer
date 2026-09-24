@@ -400,6 +400,7 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
               formName,
               rules: seed?.rules as CodegenInput['rules'],
               mock: seed?.mock as CodegenInput['mock'],
+              splitSteps: seed?.splitSteps,
               kit: { kit, catalog: host.catalog() },
             });
             return built.files.map(({ path, content }) => ({ path, content }));

@@ -76,6 +76,8 @@ export type ModulePrinter = (
 export interface SeedExtras {
   readonly rules?: FormRules;
   readonly mock?: FormMock;
+  /** Вынести шаги визарда в свои файлы `steps/<шаг>/form.schema.json`. */
+  readonly splitSteps?: boolean;
 }
 
 function withField(
@@ -232,8 +234,10 @@ interface Seed {
   readonly name: string;
   readonly description: string;
   readonly schema: () => JsonFormSchema;
-  /** Правила: из них печатаются `validation.ts` и `form.behavior.ts`. */
+  /** Правила: из них печатаются `form.validation.ts` и `form.behavior.ts`. */
   readonly rules: () => FormRules;
+  /** Шаги визарда — каждый в своём файле схемы: так пошаговая форма и хранится в билдере. */
+  readonly splitSteps?: boolean;
 }
 
 const SEEDS: readonly Seed[] = [
@@ -251,6 +255,7 @@ const SEEDS: readonly Seed[] = [
     description: 'То же в два шага, плюс шим визарда под активный кит.',
     schema: wizardSeed,
     rules: wizardRules,
+    splitSteps: true,
   },
 ];
 
@@ -308,6 +313,7 @@ export function createBuiltinStore(options: BuiltinStoreOptions): TemplateStore 
             // Тот же набор данных, что уходит в фикстуру: источники в модуле и в предпросмотре
             // обязаны совпадать, иначе форма в билдере и форма в приложении покажут разное.
             mock: seedMock(schema),
+            ...(seed.splitSteps === true ? { splitSteps: true } : {}),
           });
           const files: TemplateFile[] = printed.map((file) => ({
             path: tokenize(file.path, BUILTIN_BASE_NAME),

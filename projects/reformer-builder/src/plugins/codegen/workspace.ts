@@ -36,6 +36,8 @@ import {
   WorkspaceFilesServiceToken,
   WorkspaceSaveServiceToken,
   type Disposable,
+  type Document,
+  type ModelDocument,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
@@ -72,6 +74,8 @@ export interface PrintedFile {
 export interface PrintSeed {
   readonly rules?: unknown;
   readonly mock?: unknown;
+  /** Вынести шаги визарда в свои файлы — шаблон «Пошаговая форма». */
+  readonly splitSteps?: boolean;
 }
 
 /**
@@ -100,6 +104,30 @@ export interface ModulePrinterService {
 export type CodegenGaps = Pick<CodegenHost, 'format' | 'rulesOf'>;
 
 /**
+ * Документ службы в объёме генерации.
+ *
+ * Переходник, а не приведение типа: у документа службы модель — `getModel()` модельного вида,
+ * а генерации нужна модель, СОГЛАСОВАННАЯ с буфером (`model()`), и раскладка составного
+ * документа. Приведение `as CodegenDocument` давало объект без `model` — и первый же прогон
+ * падал бы на вызове.
+ */
+export function asCodegenDocument(document: Document): CodegenDocument {
+  const modelDocument = document.kind === 'model' ? (document as ModelDocument) : null;
+  return {
+    id: document.id,
+    ref: document.ref,
+    kind: document.kind,
+    getText: () => document.getText(),
+    model: () =>
+      modelDocument !== null && modelDocument.getSyncState() === 'synced'
+        ? modelDocument.getModel()
+        : undefined,
+    composition: () => modelDocument?.getComposition?.(),
+    onDidChangeContent: (cb) => document.onDidChangeContent(cb),
+  };
+}
+
+/**
  * Собирает рабочую область генерации.
  *
  * Службы берутся `require`, а не `get`: документы и записи рабочей области даёт САМА оболочка
@@ -123,8 +151,10 @@ export function codegenWorkspace(ctx: PluginContext, gaps: CodegenGaps = {}): Co
       return useActiveDocument(documents);
     },
 
-    documentOf: (id: ResourceId): CodegenDocument | null =>
-      (documents.documentOf(id) as CodegenDocument | null) ?? null,
+    documentOf: (id: ResourceId): CodegenDocument | null => {
+      const document = documents.documentOf(id);
+      return document === null ? null : asCodegenDocument(document);
+    },
 
     // Право на запись объявляет ИСТОЧНИК, а не билдер: сгенерированные файлы уезжают туда же,
     // откуда приехала схема, и сказать «сюда писать нельзя» надо ДО первого файла.

@@ -1,0 +1,22 @@
+{
+  "$schema": "../../form-step.schema.json",
+  "node": {
+    "component": "$component(Step)",
+    "componentProps": {
+      "title": "Контакты"
+    },
+    "$nodeId": "kontakt0",
+    "children": [
+      {
+        "value": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Контакты",
+          "required": true
+        },
+        "$nodeId": "kontak0f"
+      }
+    ],
+    "selector": "kontakty-section"
+  }
+}

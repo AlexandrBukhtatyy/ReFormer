@@ -37,7 +37,16 @@ function harness(
   } = {}
 ) {
   const calls: string[] = [];
-  const document = { id: FORM, kind: 'model' as const };
+  const model = { root: { component: '$component(Box)' } };
+  const layout = new Map([['step0001', { ref: './steps/a/form.schema.json' }]]);
+  let sync: 'synced' | 'diverged' = 'synced';
+  const document = {
+    id: FORM,
+    kind: 'model' as const,
+    getModel: () => model,
+    getSyncState: () => sync,
+    getComposition: () => ({ layout, parts: [] }),
+  };
 
   const documents = {
     hasProject: () => options.project !== false,
@@ -110,15 +119,32 @@ function harness(
     },
   } as unknown as PluginContext;
 
-  return { ctx, calls, catalog, document };
+  return {
+    ctx,
+    calls,
+    catalog,
+    document,
+    model,
+    layout,
+    diverge: () => {
+      sync = 'diverged';
+    },
+  };
 }
 
 describe('раскладка по службам', () => {
   it('документ берётся у службы документов, а не у записей рабочей области', () => {
     const h = harness();
 
-    expect(codegenWorkspace(h.ctx).documentOf(FORM)).toBe(h.document);
+    const document = codegenWorkspace(h.ctx).documentOf(FORM);
     expect(h.calls).toContain(`documents.documentOf(${FORM})`);
+    expect(document?.id).toBe(FORM);
+    // Переходник, а не приведение: модель и раскладка — из модельного документа.
+    expect(document?.model()).toBe(h.model);
+    expect(document?.composition?.()?.layout).toBe(h.layout);
+    // Модель в расхождении генерации не отдаётся: она не та, что в тексте перед человеком.
+    h.diverge();
+    expect(document?.model()).toBeUndefined();
   });
 
   it('запись идёт ОДНОЙ дверью — службой документов', () => {

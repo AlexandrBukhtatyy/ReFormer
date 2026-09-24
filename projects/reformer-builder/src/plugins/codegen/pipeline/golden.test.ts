@@ -43,6 +43,7 @@ import {
   wizardRulesSchema,
   wizardRules,
   wizardSlugsSchema,
+  wizardSplitSource,
 } from '@reformer/builder-stack-reformer/testing';
 import { acceptsMarker, MARKER_PREFIX, originOf } from '@reformer/builder-toolkit';
 import { type CodegenInput } from '@reformer/builder-stack-reformer/codegen';
@@ -117,6 +118,18 @@ const COMBOS: readonly Combo[] = [
     holds:
       'имена папок шагов: транслит, суффикс у одинаковых заголовков, запасное имя без заголовка',
     input: { schema: wizardSlugsSchema(), formName: FORM_NAME, kit: builtinKit() },
+  },
+  {
+    dir: 'wizard-split',
+    holds:
+      'шаблон «Пошаговая форма»: все шаги в своих файлах, корень со ссылками, index.tsx собирает схему',
+    input: { schema: wizardSchema(), formName: FORM_NAME, kit: builtinKit(), splitSteps: true },
+  },
+  {
+    dir: 'wizard-split-source',
+    holds:
+      'разбитый источник: папка шага — из ссылки, а не из заголовка; новый шаг получает свой файл',
+    input: { ...wizardSplitSource(), formName: FORM_NAME, kit: builtinKit() },
   },
 ];
 

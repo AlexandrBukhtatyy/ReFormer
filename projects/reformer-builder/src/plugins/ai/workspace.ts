@@ -34,15 +34,19 @@
  */
 
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   defineCapability,
+  DocumentModelsCapability,
   DocumentsServiceToken,
   useTranslate,
   WorkspaceFilesServiceToken,
   type Disposable,
+  type ModelDocumentHandle,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
+import { parseSchemaText, printSchemaText } from './model/schema-text';
 import type { AiDocument, AiHost, WriteMark } from './host';
 import type { PackageFiles } from './knowledge';
 
@@ -70,6 +74,20 @@ export function aiWorkspace(ctx: PluginContext): AiHost {
   const documents = ctx.services.require(DocumentsServiceToken);
   const files = ctx.services.require(WorkspaceFilesServiceToken);
 
+  /**
+   * Ручка документа из нескольких файлов (визард, разбитый по шагам) — или `null`.
+   *
+   * Ассистент правит ТЕКСТ формы. У разбитой формы текст корня — скелет со ссылками на шаги, и
+   * править его значило бы не видеть шагов вовсе. Поэтому такой документ ассистент видит
+   * собранной схемой, а записывает операцией через ручку: раскладку по файлам делает документ,
+   * и ход остаётся одной записью истории. Форма одним файлом идёт прежним путём — текстом.
+   */
+  const compositeOf = (id: ResourceId): ModelDocumentHandle<unknown> | null => {
+    const handle = ctx.services.get(DocumentModelsCapability)?.handleOf(id) ?? null;
+    const parts = handle?.document.getComposition?.()?.parts.length ?? 0;
+    return handle !== null && parts > 0 ? handle : null;
+  };
+
   return {
     // Именованная функция: правила хуков опознают хук по имени объявления.
     useTranslate: function useAiTranslate() {
@@ -78,13 +96,32 @@ export function aiWorkspace(ctx: PluginContext): AiHost {
     translate: (key, params) => ctx.i18n.t(key, params),
 
     activeResource: () => documents.activeResource(),
-    documentOf: (id: ResourceId): AiDocument | null =>
-      (documents.documentOf(id) as AiDocument | null) ?? null,
+    documentOf: (id: ResourceId): AiDocument | null => {
+      const document = documents.documentOf(id);
+      if (document === null) return null;
+      const handle = compositeOf(id);
+      if (handle === null) return document;
+      const text = (): string => printSchemaText(handle.document.getModel() as JsonFormSchema);
+      return {
+        ref: document.ref,
+        getText: text,
+        onDidChangeContent: (cb) => handle.document.onDidChangeModel(() => cb(text())),
+      };
+    },
 
     // Третий аргумент обязателен к пробросу, и компилятор потерю НЕ ловит: без него ход
     // ассистента лёг бы в журнал как правка человека.
-    writeText: (id: ResourceId, text: string, options?: WriteMark) =>
-      documents.writeText(id, text, options),
+    writeText: (id: ResourceId, text: string, options?: WriteMark) => {
+      const handle = compositeOf(id);
+      if (handle === null) return documents.writeText(id, text, options);
+      const outcome = handle.apply({
+        type: 'replace-schema',
+        params: { schema: parseSchemaText(text) },
+      });
+      return outcome.status === 'applied'
+        ? Promise.resolve()
+        : Promise.reject(new Error(`форма не принимает правку: ${outcome.reason}`));
+    },
 
     catalog: () => ctx.services.get(KitCapability)?.catalog() ?? NO_CATALOG,
 

@@ -8,7 +8,12 @@
  * @module plugins/templates/content/files
  */
 
-import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
+import {
+  isFormSchema,
+  joinFormSchema,
+  stepRefsOf,
+  type StepOrigins,
+} from '@reformer/builder-stack-reformer/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile } from '../contract';
 import { SCHEMA_FILE_NAMES, type KitView } from '@reformer/builder-stack-reformer/codegen';
@@ -206,19 +211,66 @@ function schemaRank(path: string): number {
  * канонический первым (см. {@link schemaRank}), дальше в порядке набора.
  * `null` — в наборе схемы нет, и тогда после генерации ничего не открывается.
  */
-export function formSchemaFileOf(
-  files: readonly TemplateFile[]
-): { readonly file: TemplateFile; readonly schema: JsonFormSchema } | null {
+export function formSchemaFileOf(files: readonly TemplateFile[]): {
+  readonly file: TemplateFile;
+  readonly schema: JsonFormSchema;
+  /** Шаги, вынесенные в свои файлы шаблона; нет — схема одним файлом. */
+  readonly origins?: StepOrigins;
+} | null {
   // Сортировка устойчива: при равном ранге порядок набора сохраняется.
   const ordered = [...files].sort((a, b) => schemaRank(a.path) - schemaRank(b.path));
   for (const file of ordered) {
     if (!file.path.endsWith('.json')) continue;
     try {
       const parsed: unknown = JSON.parse(file.content);
-      if (isFormSchema(parsed)) return { file, schema: parsed };
+      if (isFormSchema(parsed)) return { file, ...composed(files, file.path, parsed) };
     } catch {
       /* не JSON — не схема */
     }
   }
   return null;
+}
+
+/** Путь файла шаблона по ссылке из файла `from`: `./` и `../` разрешаются, наружу — `null`. */
+function resolveInside(from: string, ref: string): string | null {
+  const segments = from.split('/').slice(0, -1);
+  for (const segment of ref.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') {
+      if (segments.length === 0) return null;
+      segments.pop();
+    } else {
+      segments.push(segment);
+    }
+  }
+  return segments.join('/');
+}
+
+/**
+ * Схема визарда, разбитого по шагам, — собранной: вид шаблона и раскладка модуля видят шаги
+ * узлами, а не ссылками. Файла шага нет среди файлов шаблона — схема остаётся как есть.
+ */
+function composed(
+  files: readonly TemplateFile[],
+  path: string,
+  schema: JsonFormSchema
+): { readonly schema: JsonFormSchema; readonly origins?: StepOrigins } {
+  const refs = stepRefsOf(schema);
+  if (refs.length === 0) return { schema };
+  const parts = new Map<string, unknown>();
+  for (const ref of refs) {
+    const target = resolveInside(path, ref);
+    const file = target === null ? undefined : files.find((f) => f.path === target);
+    if (file === undefined) return { schema };
+    try {
+      parts.set(ref, JSON.parse(file.content) as unknown);
+    } catch {
+      return { schema };
+    }
+  }
+  try {
+    return joinFormSchema(schema, parts);
+  } catch {
+    return { schema };
+  }
 }

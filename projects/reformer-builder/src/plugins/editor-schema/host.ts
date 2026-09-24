@@ -95,6 +95,8 @@ export interface SchemaModelDocument {
   getParseFailure(): { readonly message: string } | undefined;
   getSelection(): readonly NodeId[];
   onDidChangeModel(cb: (change: { readonly reason: SchemaModelChangeReason }) => void): Disposable;
+  /** Документ из нескольких файлов: файлы шагов, которые он держит. Нет — один файл. */
+  getComposition?(): { readonly parts: readonly ResourceId[] } | undefined;
 }
 
 /** Отказ применить операцию. Не исключение: оба случая — нормальные состояния, а не аварии. */
@@ -123,6 +125,11 @@ export interface SchemaModelHandle {
   /** Ответит ли `undo` согласием: расхождение учитывается платформой здесь же. */
   canUndo(): boolean;
   canRedo(): boolean;
+  /**
+   * Разбить визард по файлам шагов (`'split'`) или собрать форму в один файл (`'join'`).
+   * Нет — платформа составных документов не знает. `false` — перестраивать нечего.
+   */
+  restructure?(mode: 'split' | 'join'): boolean;
 }
 
 /** Перевод в пространстве имён плагина. */

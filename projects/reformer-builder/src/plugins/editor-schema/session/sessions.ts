@@ -79,6 +79,8 @@ export interface SchemaEditorState {
   readonly parseError: string | null;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
+  /** Сколько файлов шагов держит документ: 0 — форма одним файлом. */
+  readonly parts: number;
 }
 
 /** Вид на ручку документа: то, чем пользуются канвас, палитра, инспектор и команды. */
@@ -90,6 +92,8 @@ export interface SchemaSession {
   setSelection(selection: readonly NodeId[]): void;
   undo(): boolean;
   redo(): boolean;
+  /** Разбить визард по файлам шагов или собрать в один файл. `false` — нечего перестраивать. */
+  restructure(mode: 'split' | 'join'): boolean;
 }
 
 export interface SessionRegistry {
@@ -184,6 +188,7 @@ function createSession(
         parseError: handle.document.getParseFailure()?.message ?? null,
         canUndo: handle.canUndo(),
         canRedo: handle.canRedo(),
+        parts: handle.document.getComposition?.()?.parts.length ?? 0,
       });
       return snapshot;
     },
@@ -199,6 +204,7 @@ function createSession(
     },
     undo: () => handle.undo(),
     redo: () => handle.redo(),
+    restructure: (mode) => handle.restructure?.(mode) ?? false,
   };
 
   return { session, subscription };

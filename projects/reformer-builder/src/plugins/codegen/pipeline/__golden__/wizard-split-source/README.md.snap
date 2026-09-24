@@ -1,0 +1,69 @@
+# Zayavka na kredit
+
+Сгенерированная форма (renderer-json). Рендерится и работает сразу на синтетических данных —
+«доведение» сводится к реализации методов в ваших файлах.
+
+## Встраивание
+
+Скопируйте папку в `src/pages/demo/zayavka-na-kredit/` и зарегистрируйте форму:
+
+```tsx
+// ── Способ 1 (рекомендуемый): через реестр форм — одна строка на регистрацию.
+// Всё остальное (схема, реестр компонентов, модель, поведение) описано записью реестра
+// в index.tsx (zayavkaNaKreditFormEntry) — билдер перегенерирует её при изменениях.
+import { getFormRegistry } from '@reformer/form-registry';
+import { zayavkaNaKreditFormEntry } from './pages/demo/zayavka-na-kredit';
+
+getFormRegistry().register(zayavkaNaKreditFormEntry);
+
+// Дальше форму можно смонтировать где угодно, зная только её id:
+//   <FormOutlet id="zayavka-na-kredit" />
+
+// ── Способ 2: как обычную страницу, если реестр не используется.
+import ZayavkaNaKreditPage from './pages/demo/zayavka-na-kredit';
+
+// пункт в списке примеров:
+{ id: 'zayavka-na-kredit', path: '/examples/zayavka-na-kredit', title: 'Zayavka na kredit', description: '' },
+
+// маршрут внутри <Routes>:
+<Route path="/examples/zayavka-na-kredit" element={<ZayavkaNaKreditPage />} />
+```
+
+## Файлы
+
+Набор — канон раскладки renderer-json (`@reformer/mcp` docs/llms/06-form-directory-layout.md §1)
+для многошаговой формы: общее — в корне, код каждого шага — в своей папке `steps/<шаг>/`.
+
+```
+zayavka-na-kredit/
+├── form.schema.json   схема формы, шаги — ссылками на свои файлы
+├── form.validation.ts   сборка правил шагов + поля вне шагов
+├── form.render.ts   submit, передача визарду формы и проверки, вызов шагов
+└── steps/
+    ├── index.ts   шаги по порядку (регенерируется)
+    ├── anketa/   «Данные»: form.schema.json, form.validation.ts, form.render.ts
+    └── kontakty/   «Контакты»: form.schema.json, form.validation.ts, form.render.ts
+```
+
+Схема разбита по шагам: корень держит `{ "$ref": "./steps/<шаг>/form.schema.json" }`, `index.tsx`
+собирает форму `composeJsonFormSchema`. Билдер открывает корень как одну форму и раскладывает правки
+по файлам сам. Папка шага закреплена ссылкой: переименование шага её не меняет.
+
+- **Регенерируемые** (перезаписываются при повторной генерации): `form.schema.json`, `steps/anketa/form.schema.json`, `steps/kontakty/form.schema.json`, `types.ts`, `model.ts`, `registry.ts`, `index.tsx`, `wizard.tsx`, `steps/index.ts`, `README.md`.
+- **Ваши** (пишутся один раз, не затираются): `data-sources.ts`, `form.render.ts`, `steps/anketa/form.render.ts`, `steps/kontakty/form.render.ts`, `form.behavior.ts`, `form.validation.ts`, `steps/anketa/form.validation.ts`, `steps/kontakty/form.validation.ts`, `api.ts`.
+
+Схема лежит в `form.schema.json` — допустимый вариант канона («схема как данные»), выбранный
+ради того, чтобы форма открывалась обратно в билдере. Цена — пути `$model(...)` не проверяются на
+компиляции: опечатка внутри них останется до рантайма, и никто её не поймает. Нужна проверка —
+переложите схему в `form.schema.ts` литералом `defineJsonSchema<ZayavkaNaKreditForm>({ ... })`;
+править её в билдере после этого будет нельзя.
+
+Компоненты импортируются из `@reformer/ui-kit` — того кита, который был
+активен при генерации (`ReFormer UI Kit`).
+
+## Методы для реализации
+
+- `api.ts` → `submitForm(values)` — отправка на реальный бэкенд (сейчас `console.info` и успех).
+- `steps/<шаг>/form.render.ts` → раскомментируйте `hideWhen` для секций: `dannye-section`, `kontakty-section`.
+- `steps/<шаг>/form.validation.ts` → допишите правила (сейчас — только `required`).
+- `form.behavior.ts` → вычисляемые поля и условное включение (по желанию).

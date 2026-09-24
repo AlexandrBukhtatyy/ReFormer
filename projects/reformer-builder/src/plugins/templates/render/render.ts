@@ -83,7 +83,7 @@ export function buildTemplateView(
     form:
       found === null || kit === null
         ? null
-        : buildView(prepare({ schema: found.schema, formName, kit })),
+        : buildView(prepare({ schema: found.schema, origins: found.origins, formName, kit })),
   };
 }
 

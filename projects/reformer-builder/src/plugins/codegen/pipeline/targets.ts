@@ -27,6 +27,7 @@ import {
   stepValidationTemplate,
   stepRenderTemplate,
   emitSchema,
+  emitStepSchema,
   wizardShimOf,
   MODULE_FILES,
   LEGACY_FILES,
@@ -40,7 +41,7 @@ import type { CodegenTarget } from '../contract';
  *
  * `order` кратен десяти: между любыми двумя нашими целями помещается чужая, и вставка не
  * требует перенумеровать соседей. Цели шагов визарда встают рядом с корневыми файлами того же
- * слоя (`55`, `85`, `105`).
+ * слоя (`15`, `55`, `85`, `105`).
  *
  * Имена файлов — из `MODULE_FILES` стека: они же нужны шаблонам (импорты), поиску схемы в
  * каталоге и превью, и литерал здесь разошёлся бы с ними при первом переименовании. Id целей
@@ -56,6 +57,18 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       cls: 'derived',
       order: 10,
       emit: emitSchema,
+    },
+    {
+      // Схема шага — только у визарда, разбитого по шагам: корень держит на неё ссылку.
+      // Производная, как и корневая схема: её источник — форма в редакторе.
+      id: 'codegen.step-schema',
+      titleKey: 'target.step-schema',
+      path: `steps/{step}/${STEP_FILES.schema}`,
+      each: 'step',
+      cls: 'derived',
+      order: 15,
+      applies: (ctx) => ctx.step?.files.schema != null,
+      emit: emitStepSchema,
     },
     {
       id: 'codegen.types',
