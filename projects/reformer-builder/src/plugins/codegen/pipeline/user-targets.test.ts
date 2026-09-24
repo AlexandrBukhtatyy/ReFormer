@@ -9,7 +9,13 @@ import { prepare } from '@reformer/builder-stack-reformer/codegen';
 import { builtinKit, plainSchema, wizardSchema } from '@reformer/builder-stack-reformer/testing';
 import type { CodegenTarget } from '../contract';
 import { createFakeHost } from '../testing';
-import { applyOverrides, discoverUserTargets, USER_TARGETS_DIR } from './user-targets';
+import { generateModule } from './generate';
+import {
+  applyOverrides,
+  discoverUserTargets,
+  overrideDrift,
+  USER_TARGETS_DIR,
+} from './user-targets';
 
 const ROOT = 'fake:';
 const DIR = [ROOT, ...USER_TARGETS_DIR].join('/');
@@ -174,5 +180,107 @@ describe('переопределение', () => {
   it('без переопределений список возвращается тем же — лишней работы нет', () => {
     const all = [target('a'), target('b')];
     expect(applyOverrides(all)).toBe(all);
+  });
+});
+
+describe('цель по шагам из проекта — each: step', () => {
+  it('«each» доезжает до цели, и печать размножает её по шагам визарда', async () => {
+    const found = await discoverUserTargets(
+      hostWith({
+        [`${DIR}/step-note.eta`]: file(
+          '{ "id": "user.step-note", "path": "steps/{step}/NOTE.md", "each": "step", "cls": "derived" }',
+          'шаг <%= it.step.index %>\n'
+        ),
+      })
+    );
+    expect(found.problems).toEqual([]);
+    expect(found.targets[0]).toMatchObject({ each: 'step', path: 'steps/{step}/NOTE.md' });
+
+    const module = await generateModule(found.targets, {
+      schema: wizardSchema(),
+      formName: 'Визард',
+      kit: builtinKit(),
+    });
+    expect(module.problems).toEqual([]);
+    const notes = module.files.filter((f) => f.targetId === 'user.step-note');
+    expect(notes.length).toBe(module.context.layout.steps.length);
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.every((f) => /^steps\/[^/]+\/NOTE\.md$/.test(f.path))).toBe(true);
+  });
+
+  it('у простой формы цель по шагам не печатает ничего', async () => {
+    const target: CodegenTarget = {
+      id: 'u.step',
+      path: 'steps/{step}/x.ts',
+      each: 'step',
+      cls: 'derived',
+      template: 'x',
+    };
+    const module = await generateModule([target], {
+      schema: plainSchema(),
+      formName: 'Простая',
+      kit: builtinKit(),
+    });
+    expect(module.files).toEqual([]);
+    expect(module.problems).toEqual([]);
+  });
+});
+
+describe('замена со сдвинутым путём — override-path-drift', () => {
+  const builtinRender: CodegenTarget = {
+    id: 'codegen.render-behavior',
+    path: 'form.render.ts',
+    legacyPaths: ['renderer.behavior.ts'],
+    cls: 'user',
+    template: 'b',
+  };
+  const builtinStep: CodegenTarget = {
+    id: 'codegen.step-validation',
+    path: 'steps/{step}/validation.ts',
+    each: 'step',
+    cls: 'user',
+    template: 'b',
+  };
+
+  it('замена с прежним именем файла — предупреждение с подсказкой', () => {
+    const user: CodegenTarget = {
+      id: 'user.render-behavior',
+      overrides: 'codegen.render-behavior',
+      path: 'renderer.behavior.ts',
+      cls: 'user',
+      template: 'u',
+    };
+    const problems = overrideDrift([builtinRender, user]);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatchObject({
+      targetId: 'user.render-behavior',
+      path: 'renderer.behavior.ts',
+      reason: 'override-path-drift',
+    });
+    expect(problems[0]?.message).toMatch(/прежнее имя.*form\.render\.ts/);
+  });
+
+  it('замена по шагам без «each» — тоже сдвиг', () => {
+    const user: CodegenTarget = {
+      id: 'user.step-validation',
+      overrides: 'codegen.step-validation',
+      path: 'steps/{step}/validation.ts',
+      cls: 'user',
+      template: 'u',
+    };
+    expect(overrideDrift([builtinStep, user])[0]?.message).toMatch(/each/);
+  });
+
+  it('замена по тому же пути — молчит', () => {
+    const user: CodegenTarget = {
+      id: 'user.render-behavior',
+      overrides: 'codegen.render-behavior',
+      path: 'form.render.ts',
+      cls: 'user',
+      template: 'u',
+    };
+    expect(overrideDrift([builtinRender, user])).toEqual([]);
+    // Порядок в списке значения не имеет: реестр отдаёт вклады по `order`.
+    expect(overrideDrift([user, builtinRender])).toEqual([]);
   });
 });

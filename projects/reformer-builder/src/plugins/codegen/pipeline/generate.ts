@@ -23,9 +23,13 @@
 import {
   prepare,
   withFiles,
+  withStep,
   buildView,
   withLocal,
   withViewFiles,
+  withStepView,
+  stepView,
+  type StepInfo,
   type CodegenInput,
   type CodegenView,
   type EmitContext,
@@ -44,6 +48,10 @@ export interface ModuleFile {
   readonly regenerable: boolean;
   /** Кто напечатал — для отчёта и диагностики. */
   readonly targetId: string;
+  /** Номер шага визарда (с единицы) у файлов, размноженных по шагам. */
+  readonly step?: number;
+  /** Прежние имена этого файла — для переноса правленного под старым именем. */
+  readonly legacyPaths?: readonly string[];
   /**
    * Откуда цель приехала.
    *
@@ -63,8 +71,16 @@ export interface CodegenProblem {
     | 'escaping-path'
     | 'no-body'
     | 'both-bodies'
+    /** Шаблон пути у цели `each` без сегмента `{step}` либо `{step}` у цели без `each`. */
+    | 'bad-pattern'
     /** Файл цели из проекта не разбирается: битый заголовок либо `applies`. */
-    | 'template-invalid';
+    | 'template-invalid'
+    /**
+     * Цель заменяет встроенную, но печатает под ДРУГИМ путём (обычно — прежним,
+     * `renderer.behavior.ts`). Предупреждение, а не отказ: файл печатается, но модуль
+     * импортирует уже новое имя. Ставит `overrideDrift` из `./user-targets`.
+     */
+    | 'override-path-drift';
   readonly message: string;
 }
 
@@ -97,13 +113,45 @@ function isInsideModule(path: string): boolean {
   return !path.split('/').some((segment) => segment === '..' || segment === '.' || segment === '');
 }
 
-/** Отобрать применимые цели, отбросив пути наружу и дубликаты. */
+/** Сегмент пути, на место которого встаёт имя папки шага. */
+const STEP_SEGMENT = '{step}';
+
+/** Экземпляр цели: сама цель, фактический путь и шаг, если цель размножена. */
+interface TargetInstance {
+  readonly target: CodegenTarget;
+  readonly path: string;
+  readonly step?: StepInfo;
+}
+
+/** Шаблон пути корректен: у `each`-цели ровно один сегмент `{step}`, у прочих — ни одного. */
+function patternProblem(target: CodegenTarget): string | null {
+  const segments = target.path.split('/').filter((segment) => segment === STEP_SEGMENT).length;
+  const inline = target.path.split(STEP_SEGMENT).length - 1;
+  if (target.each === 'step') {
+    return segments === 1 && inline === 1
+      ? null
+      : 'шаблон пути обязан содержать ровно один сегмент {step}';
+  }
+  return inline > 0 ? 'сегмент {step} допустим только у цели с each: step' : null;
+}
+
+/** Раскрыть цель в экземпляры: одна цель — один путь, `each`-цель — путь на шаг. */
+function instancesOf(target: CodegenTarget, ctx: EmitContext): readonly TargetInstance[] {
+  if (target.each !== 'step') return [{ target, path: target.path }];
+  return ctx.layout.steps.map((step) => ({
+    target,
+    path: target.path.split(STEP_SEGMENT).join(step.dir),
+    step,
+  }));
+}
+
+/** Отобрать применимые цели, раскрыть их по шагам, отбросив пути наружу и дубликаты. */
 function selectTargets(
   targets: readonly CodegenTarget[],
   ctx: EmitContext
-): { readonly selected: readonly CodegenTarget[]; readonly problems: readonly CodegenProblem[] } {
+): { readonly selected: readonly TargetInstance[]; readonly problems: readonly CodegenProblem[] } {
   const problems: CodegenProblem[] = [];
-  const selected: CodegenTarget[] = [];
+  const selected: TargetInstance[] = [];
   const claimed = new Map<string, string>();
 
   for (const target of targets) {
@@ -122,12 +170,13 @@ function selectTargets(
       });
       continue;
     }
-    if (!isInsideModule(target.path)) {
+    const pattern = patternProblem(target);
+    if (pattern !== null) {
       problems.push({
         targetId: target.id,
         path: target.path,
-        reason: 'escaping-path',
-        message: 'путь выходит за каталог модуля',
+        reason: 'bad-pattern',
+        message: pattern,
       });
       continue;
     }
@@ -145,18 +194,31 @@ function selectTargets(
     }
     if (!applies) continue;
 
-    const owner = claimed.get(target.path);
-    if (owner !== undefined) {
-      problems.push({
-        targetId: target.id,
-        path: target.path,
-        reason: 'duplicate-path',
-        message: `файл уже печатает цель «${owner}»`,
-      });
-      continue;
+    // Путь и дубли проверяются на КАЖДОМ экземпляре: имя папки шага приходит из схемы, и шаблон,
+    // безопасный на вид, после подстановки мог бы выйти за каталог или столкнуться с соседом.
+    for (const instance of instancesOf(target, ctx)) {
+      if (!isInsideModule(instance.path)) {
+        problems.push({
+          targetId: target.id,
+          path: instance.path,
+          reason: 'escaping-path',
+          message: 'путь выходит за каталог модуля',
+        });
+        continue;
+      }
+      const owner = claimed.get(instance.path);
+      if (owner !== undefined) {
+        problems.push({
+          targetId: target.id,
+          path: instance.path,
+          reason: 'duplicate-path',
+          message: `файл уже печатает цель «${owner}»`,
+        });
+        continue;
+      }
+      claimed.set(instance.path, target.id);
+      selected.push(instance);
     }
-    claimed.set(target.path, target.id);
-    selected.push(target);
   }
 
   return { selected, problems };
@@ -173,8 +235,11 @@ function messageOf(error: unknown): string {
  * цели: оно уникально в пределах точки расширения по построению и попадает в сообщение
  * об ошибке, а значит человек видит, КАКОЙ шаблон сломался, а не только чем.
  */
-function bodyOf(target: CodegenTarget, ctx: EmitContext, view: CodegenView): string {
+function bodyOf(instance: TargetInstance, base: EmitContext, baseView: CodegenView): string {
+  const { target, step } = instance;
+  const ctx = step === undefined ? base : withStep(base, step);
   if (target.template !== undefined) {
+    const view = step === undefined ? baseView : withStepView(baseView, stepView(ctx, step));
     const local = target.view?.(ctx);
     const data = local === undefined ? view : withLocal(view, local);
     return renderTemplate(target.id, target.template, data);
@@ -200,7 +265,11 @@ export async function generateModule(
   const base = prepare(input);
   const { selected, problems } = selectTargets(targets, base);
 
-  const refs: readonly EmittedFileRef[] = selected.map((t) => ({ path: t.path, cls: t.cls }));
+  const refs: readonly EmittedFileRef[] = selected.map((instance) => ({
+    path: instance.path,
+    cls: instance.target.cls,
+    ...(instance.step === undefined ? {} : { step: instance.step.index }),
+  }));
   const ctx = withFiles(base, refs);
   // Вид для шаблонов собирается ОДИН раз на прогон и по тем же данным, что видит код:
   // два способа узнать состав модуля разошлись бы на первой же цели, читающей `files`.
@@ -208,20 +277,23 @@ export async function generateModule(
 
   const printed: ModuleFile[] = [];
   const emitProblems: CodegenProblem[] = [];
-  for (const target of selected) {
+  for (const instance of selected) {
+    const { target } = instance;
     try {
       printed.push({
-        path: target.path,
-        content: bodyOf(target, ctx, view),
+        path: instance.path,
+        content: bodyOf(instance, ctx, view),
         cls: target.cls,
         regenerable: target.regenerable === true,
         targetId: target.id,
+        ...(instance.step === undefined ? {} : { step: instance.step.index }),
+        legacyPaths: target.legacyPaths ?? [],
         origin: target.origin ?? 'builtin',
       });
     } catch (error) {
       emitProblems.push({
         targetId: target.id,
-        path: target.path,
+        path: instance.path,
         reason: 'threw',
         message: messageOf(error),
       });
@@ -235,7 +307,7 @@ export async function generateModule(
     // и `data-sources.ts` его не получают: перевыводить их не из чего, и маркер обещал бы
     // перезапись, которой не будет.
     //
-    // И только там, где строка `//` — комментарий: в `renderer.schema.json` она делала файл
+    // И только там, где строка `//` — комментарий: в `form.schema.json` она делала файл
     // неразбираемым, а читают его и редактор схемы билдера, и сгенерированный `index.tsx`.
     const wanted = file.cls === 'derived' || file.regenerable;
     const marked = wanted && acceptsMarker(file.path) ? withMarker(content) : content;

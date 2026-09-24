@@ -45,6 +45,7 @@ import {
 } from 'react';
 import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
+import { MODULE_FILES } from '@reformer/builder-stack-reformer/codegen';
 import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
 import type { PreviewContext, PreviewProblem, PreviewValues } from '@reformer/builder-plugin-api';
@@ -190,7 +191,7 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
           registry = contract.createRegistry();
         } catch (error) {
           problems.push({
-            file: 'registry.ts',
+            file: MODULE_FILES.registry,
             phase: 'evaluate',
             message: error instanceof Error ? error.message : String(error),
           });

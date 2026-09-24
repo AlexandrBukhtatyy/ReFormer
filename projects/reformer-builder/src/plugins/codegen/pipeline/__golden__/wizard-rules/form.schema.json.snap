@@ -1,0 +1,72 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "children": [
+      {
+        "component": "$component(Wizard)",
+        "componentProps": {
+          "steps": [
+            {
+              "component": "$component(Step)",
+              "componentProps": {
+                "title": "Данные"
+              },
+              "children": [
+                {
+                  "value": "$model(fullName)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "ФИО"
+                  }
+                }
+              ],
+              "selector": "dannye-section"
+            },
+            {
+              "component": "$component(Step)",
+              "componentProps": {
+                "title": "Контакты"
+              },
+              "children": [
+                {
+                  "value": "$model(contacts.email)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Почта"
+                  }
+                },
+                {
+                  "value": "$model(contacts.phone)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Телефон"
+                  }
+                }
+              ],
+              "selector": "kontakty-section"
+            }
+          ]
+        },
+        "selector": "wizard"
+      },
+      {
+        "component": "$component(Section)",
+        "componentProps": {
+          "title": "Дополнительно"
+        },
+        "children": [
+          {
+            "value": "$model(comment)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Комментарий"
+            }
+          }
+        ],
+        "selector": "dopolnitelno-section"
+      }
+    ]
+  }
+}

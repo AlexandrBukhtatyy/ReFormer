@@ -51,6 +51,9 @@
   "target.wizard": "Wizard shim",
   "target.data-sources": "Data sources",
   "target.render-behavior": "UI behavior",
+  "target.steps-index": "Wizard steps (order)",
+  "target.step-render": "Step UI behavior",
+  "target.step-validation": "Step validation",
   "target.form-behavior": "Form behavior",
   "target.validation": "Validation schema",
   "target.api": "Backend",
@@ -70,5 +73,16 @@
   "notify.partial": "Files written: {written}, failed: {failed}.",
   "notify.read-only": "The source refuses writes — there is nowhere to put what was generated.",
   "notify.targets-refreshed": "Codegen templates reloaded: {count}",
-  "notify.written": "Files written: {written}, yours skipped: {skipped}."
+  "notify.written": "Files written: {written}, yours skipped: {skipped}.",
+  "problem.bad-pattern": "{message}",
+  "problem.override-path-drift": "{message}",
+  "legacy.title": "Old file names",
+  "legacy.carried": "{path} → {replacedBy}: your edits carried over, the old file can be deleted",
+  "legacy.fresh": "{path} → {replacedBy}: printed afresh, the old file can be deleted",
+  "legacy.open-schema": "Open {name}",
+  "orphans.title": "Step folders without a step",
+  "orphans.detail": "The step was renamed or removed — the folder was left alone. Move your edits and delete it.",
+  "notify.legacy": "Files under old names remain next to the new ones ({files}); edited ones carried over: {carried}. The old files can be deleted.",
+  "notify.legacy.open-schema": "Open form.schema.json",
+  "notify.orphans": "Step folders no longer in the form: {dirs}. They were left alone — move your edits and delete them."
 }

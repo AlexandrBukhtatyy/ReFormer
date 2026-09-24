@@ -33,6 +33,11 @@
  * @module plugins/codegen/commands/context-menu
  */
 
+import {
+  formNameOfSchemaPath,
+  MODULE_FILES,
+  SCHEMA_FILE_NAMES,
+} from '@reformer/builder-stack-reformer/codegen';
 import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
@@ -72,31 +77,38 @@ export const CODEGEN_CONTEXT_SUBMENU = 'resource/context/codegen';
  *
  * Список, а не «любой .json»: перебрать все json-файлы каталога значит прочитать их все,
  * и цена такого поиска зависела бы от того, что ещё лежит рядом. Канон раскладки называет
- * файл схемы однозначно (`renderer.schema.json`), два остальных шаблона — то, чем схему
- * называют, когда форм в каталоге несколько.
+ * файл схемы однозначно ({@link SCHEMA_FILE_NAMES}: `form.schema.json`, затем прежнее
+ * `renderer.schema.json`), два остальных шаблона — то, чем схему называют, когда форм
+ * в каталоге несколько.
  */
-const SCHEMA_NAME = 'renderer.schema.json';
 const SCHEMA_SUFFIXES: readonly string[] = ['.schema.json', '.form.json'];
 
 /** Похоже ли имя на файл схемы формы. Порядок ответа задаёт {@link schemaCandidates}. */
 function looksLikeSchema(name: string): boolean {
-  return name === SCHEMA_NAME || SCHEMA_SUFFIXES.some((suffix) => name.endsWith(suffix));
+  return (
+    SCHEMA_FILE_NAMES.includes(name) || SCHEMA_SUFFIXES.some((suffix) => name.endsWith(suffix))
+  );
+}
+
+/** Ранг имени: канон — 0, прежнее имя — 1, прочие — после них. */
+function schemaRank(name: string): number {
+  const rank = SCHEMA_FILE_NAMES.indexOf(name);
+  return rank === -1 ? SCHEMA_FILE_NAMES.length : rank;
 }
 
 /**
  * Кандидаты в схему, канон первым.
  *
- * Порядок важнее полноты: в каталоге может лежать и `renderer.schema.json`, и черновик
- * `old.schema.json`, и «первый попавшийся» тогда зависел бы от того, в каком порядке
- * источник отдал листинг.
+ * Порядок важнее полноты: в каталоге может лежать и `form.schema.json`, и прежний
+ * `renderer.schema.json` (форма, перегенерированная по новой раскладке, старый файл не
+ * удаляет), и черновик `old.schema.json` — и «первый попавшийся» тогда зависел бы от того,
+ * в каком порядке источник отдал листинг. Канон первым, затем прежнее имя, затем по алфавиту.
  */
 export function schemaCandidates(entries: readonly ResourceRef[]): readonly ResourceRef[] {
   const files = entries.filter((entry) => entry.kind === 'file' && looksLikeSchema(entry.name));
   return [...files].sort((a, b) => {
-    if (a.name === b.name) return 0;
-    if (a.name === SCHEMA_NAME) return -1;
-    if (b.name === SCHEMA_NAME) return 1;
-    return a.name.localeCompare(b.name);
+    const byRank = schemaRank(a.name) - schemaRank(b.name);
+    return byRank !== 0 ? byRank : a.name.localeCompare(b.name);
   });
 }
 
@@ -140,12 +152,6 @@ export async function findSchemaIn(
     }
   }
   return null;
-}
-
-/** Имя формы по имени файла схемы: до ПЕРВОЙ точки — `credit.schema.json` → `credit`. */
-function nameOfSchemaFile(name: string): string {
-  const dot = name.indexOf('.');
-  return dot <= 0 ? name : name.slice(0, dot);
 }
 
 /** Аргументы команды. Проверяются, а не приводятся: их шлют меню, палитра и ассистент. */
@@ -221,7 +227,7 @@ export async function generateInto(
   // и по той же причине: напечатать `@reformer/ui-kit` наугад хуже, чем не печатать.
   if (kit === null) return { kind: 'no-kit' };
 
-  const formName = (args.formName ?? '').trim() || nameOfSchemaFile(found.ref.name);
+  const formName = (args.formName ?? '').trim() || formNameOfSchemaPath(found.ref.path);
 
   const module = await generateModule(
     deps.targets(),
@@ -245,7 +251,10 @@ export async function generateInto(
   }
 
   try {
-    return { kind: 'delivered', delivery: await deliverInto(host, dir, files), formName };
+    // Весь модуль — для поиска сирот: при записи одной цели файлов шагов среди доставляемых
+    // нет, и без полного состава каждая папка шага выглядела бы брошенной.
+    const delivery = await deliverInto(host, dir, files, { module: module.files });
+    return { kind: 'delivered', delivery, formName };
   } catch (error) {
     if (error instanceof SourceReadOnlyError) return { kind: 'read-only' };
     return { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
@@ -261,9 +270,15 @@ export async function generateInto(
  */
 export function notifyOutcome(
   notifications: NotificationsService | null,
-  outcome: GenerateIntoOutcome
+  outcome: GenerateIntoOutcome,
+  /**
+   * Порт — ради действия «Открыть form.schema.json» у уведомления о прежних именах.
+   * Без него (или без `openResource`) уведомление остаётся, кнопки нет.
+   */
+  host?: Pick<CodegenHost, 'resolve' | 'openResource'>
 ): void {
   if (notifications === null) return;
+  if (outcome.kind === 'delivered') notifyLayout(notifications, outcome.delivery, host);
   switch (outcome.kind) {
     case 'no-directory':
       notifications.warning(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.no-directory'));
@@ -313,6 +328,49 @@ export function notifyOutcome(
 }
 
 /**
+ * Сказать про раскладку: прежние имена рядом с новыми и брошенные папки шагов.
+ *
+ * Отдельными уведомлениями, а не хвостом основного: «записано 12 файлов» — исход, а эти два —
+ * просьба к человеку что-то сделать руками (удалить старый файл, разобраться с папкой),
+ * и склеенные в одну строку они терялись бы за числами.
+ */
+export function notifyLayout(
+  notifications: NotificationsService,
+  delivery: DeliveryResult,
+  host?: Pick<CodegenHost, 'resolve' | 'openResource'>
+): void {
+  if (delivery.legacy.length > 0) {
+    const carried = delivery.legacy.filter((entry) => entry.carried).length;
+    const schema = delivery.legacy.find((entry) => entry.replacedBy === MODULE_FILES.schema);
+    const open = host?.openResource;
+    // Схема — особый случай: редактор держит открытым СТАРЫЙ файл, и дальнейшие правки ушли бы
+    // в него, а генерация уже читает новый. Отсюда действие, а не только текст.
+    const action =
+      schema === undefined || open === undefined || host === undefined
+        ? undefined
+        : {
+            titleKey: pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.legacy.open-schema'),
+            run: () => {
+              open(host.resolve(delivery.dir, ...schema.replacedBy.split('/')));
+            },
+          };
+    notifications.warning(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.legacy'), {
+      params: {
+        count: delivery.legacy.length,
+        carried,
+        files: delivery.legacy.map((entry) => `${entry.path} → ${entry.replacedBy}`).join(', '),
+      },
+      ...(action === undefined ? {} : { action }),
+    });
+  }
+  if (delivery.orphans.length > 0) {
+    notifications.warning(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.orphans'), {
+      params: { count: delivery.orphans.length, dirs: delivery.orphans.join(', ') },
+    });
+  }
+}
+
+/**
  * Команда генерации в каталог.
  *
  * `enabled` не объявлен: «применима ли» здесь — вопрос про ЦЕЛЬ щелчка, а контекст
@@ -330,7 +388,7 @@ export function codegenContextCommands(
       titleKey: 'command.generateInto',
       async run(args) {
         const outcome = await generateInto(deps, generateIntoArgs(args));
-        notifyOutcome(notifications, outcome);
+        notifyOutcome(notifications, outcome, deps.host);
         // Один записанный файл открывается — так вёл себя каждый пункт «Сгенерировать» в v1,
         // и это верно ровно для одного: открыть двенадцать вкладок «Всем модулем» значило бы
         // спрятать за ними ту, из которой человек пришёл.

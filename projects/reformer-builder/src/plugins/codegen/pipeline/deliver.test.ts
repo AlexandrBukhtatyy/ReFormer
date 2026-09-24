@@ -101,3 +101,99 @@ describe('доставка модуля', () => {
     expect(host.saved).toEqual(['src/pages/my-form/types.ts', 'src/pages/my-form/model.ts']);
   });
 });
+
+describe('доставка: папки шагов, которых нет в модуле', () => {
+  const DIR = 'src/pages/my-form';
+  const step = (dir: string, name = 'form.validation.ts'): ModuleFile =>
+    file({ path: `steps/${dir}/${name}`, cls: 'user', regenerable: true });
+
+  it('называет папку шага на диске, которой нет среди файлов, и НЕ удаляет её', async () => {
+    const host = createFakeHost({
+      files: {
+        [`${DIR}/steps/dannye/validation.ts`]: 'старое\n',
+        [`${DIR}/steps/kontakty/validation.ts`]: 'моя валидация\n',
+      },
+    });
+    const result = await deliverModule(host, PARENT, 'my-form', [
+      step('dannye'),
+      step('adres'),
+      file({ path: 'steps/index.ts' }),
+    ]);
+    expect(result.orphans).toEqual(['steps/kontakty']);
+    expect(host.written.get(`${DIR}/steps/kontakty/validation.ts`)).toBe('моя валидация\n');
+  });
+
+  it('при записи одной цели сироты считаются по ВСЕМУ модулю', async () => {
+    const host = createFakeHost({
+      files: { [`${DIR}/steps/dannye/validation.ts`]: 'x\n' },
+    });
+    const module = [file({ path: 'types.ts' }), step('dannye')];
+    const result = await deliverModule(host, PARENT, 'my-form', [module[0]], { module });
+    expect(result.orphans).toEqual([]);
+  });
+
+  it('простая форма без steps/ сирот не имеет', async () => {
+    const host = createFakeHost();
+    const result = await deliverModule(host, PARENT, 'my-form', [file({ path: 'types.ts' })]);
+    expect(result.orphans).toEqual([]);
+    expect(result.legacy).toEqual([]);
+  });
+});
+
+describe('доставка: прежние имена файлов', () => {
+  const DIR = 'src/pages/my-form';
+  const render = (content = 'свежий\n'): ModuleFile =>
+    file({
+      path: 'form.render.ts',
+      cls: 'user',
+      regenerable: true,
+      content,
+      legacyPaths: ['renderer.behavior.ts'],
+    });
+
+  it('правленный руками старый файл ПЕРЕНОСИТСЯ под новое имя, старый остаётся', async () => {
+    const edited = `${withMarker('старое\n')}// моя правка\n`;
+    const host = createFakeHost({ files: { [`${DIR}/renderer.behavior.ts`]: edited } });
+    const result = await deliverModule(host, PARENT, 'my-form', [render()]);
+    expect(result.legacy).toEqual([
+      { path: 'renderer.behavior.ts', replacedBy: 'form.render.ts', carried: true },
+    ]);
+    expect(result.written).toEqual(['form.render.ts']);
+    expect(host.written.get(`${DIR}/form.render.ts`)).toBe(edited);
+    expect(host.written.get(`${DIR}/renderer.behavior.ts`)).toBe(edited);
+  });
+
+  it('нетронутый старый файл НЕ переносится: под новым именем печатается свежий текст', async () => {
+    const host = createFakeHost({
+      files: { [`${DIR}/renderer.behavior.ts`]: withMarker('старое\n') },
+    });
+    const result = await deliverModule(host, PARENT, 'my-form', [render()]);
+    expect(result.legacy).toEqual([
+      { path: 'renderer.behavior.ts', replacedBy: 'form.render.ts', carried: false },
+    ]);
+    expect(host.written.get(`${DIR}/form.render.ts`)).toBe('свежий\n');
+  });
+
+  it('производный файл (схема) печатается заново, даже если старый правили', async () => {
+    const host = createFakeHost({ files: { [`${DIR}/renderer.schema.json`]: '{"мой":1}' } });
+    const result = await deliverModule(host, PARENT, 'my-form', [
+      file({ path: 'form.schema.json', content: '{}', legacyPaths: ['renderer.schema.json'] }),
+    ]);
+    expect(result.legacy).toEqual([
+      { path: 'renderer.schema.json', replacedBy: 'form.schema.json', carried: false },
+    ]);
+    expect(host.written.get(`${DIR}/form.schema.json`)).toBe('{}');
+  });
+
+  it('если новый файл уже есть, старое имя больше не вспоминается', async () => {
+    const host = createFakeHost({
+      files: {
+        [`${DIR}/renderer.behavior.ts`]: 'давнее\n',
+        [`${DIR}/form.render.ts`]: withMarker('текущее\n'),
+      },
+    });
+    const result = await deliverModule(host, PARENT, 'my-form', [render()]);
+    expect(result.legacy).toEqual([]);
+    expect(host.written.get(`${DIR}/form.render.ts`)).toBe('свежий\n');
+  });
+});

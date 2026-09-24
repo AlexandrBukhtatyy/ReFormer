@@ -1,0 +1,47 @@
+// form.render.ts — рантайм-обвязка (submit, условная видимость, события узлов).
+// Узлы шагов визарда обслуживает steps/<шаг>/form.render.ts — здесь их вызов по порядку.
+
+import { hideWhen, onComponentEvent, onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
+import { validateModel } from '@reformer/core/validation';
+import type { FormModel, FormProxy } from '@reformer/core';
+import { formValidation, makeValidationConfig } from './form.validation';
+import { stepRenders } from './steps';
+import { submitForm } from './api';
+import type { ZayavkaNaKreditForm } from './types';
+
+export type RenderBehaviorOptions = { onResult?: (message: string, ok: boolean) => void };
+
+export function createJsonRenderBehavior(
+  form: FormProxy<ZayavkaNaKreditForm>,
+  model: FormModel<ZayavkaNaKreditForm>,
+  options: RenderBehaviorOptions = {}
+): RenderBehaviorFn<ZayavkaNaKreditForm> {
+  const { onResult } = options;
+  return (schema) => {
+    void form; // используется в условиях hideWhen (form.<поле>.value.value)
+    void hideWhen;
+
+    const wizard = schema.node('wizard');
+
+    // Визард — self-managed компонент: форму и пошаговую проверку ему передаём явно.
+    // Без `config` «Далее» не проверяет шаг вовсе и пропускает пустые обязательные поля.
+    onInit(wizard, () =>
+      wizard.patchProps({ form, config: makeValidationConfig(model) })
+    );
+
+    onComponentEvent(wizard, 'onSubmit', async () => {
+      // `touch: true` обязателен: киты показывают ошибку только у ТРОНУТОГО поля
+      // (`invalid && (touched || dirty)`). Без него неудачная отправка выглядела бы так,
+      // будто кнопка не работает: форма не отправлена, а почему — нигде не сказано.
+      if (!(await validateModel(model, formValidation, { touch: true }))) {
+        onResult?.('Проверьте заполнение формы', false);
+        return;
+      }
+      const res = await submitForm(model.get());
+      onResult?.(res.success ? 'Форма отправлена' : res.error, res.success);
+    });
+
+    // Правила и заготовки узлов шагов — в steps/<шаг>/form.render.ts.
+    for (const render of stepRenders) render(schema, { form, model });
+  };
+}

@@ -31,7 +31,7 @@ function template(patch: Partial<FormTemplate> = {}): FormTemplate {
     source: 'builtin',
     files: [
       {
-        path: 'renderer.schema.json',
+        path: 'form.schema.json',
         content: '{"version":"1.0","root":{"component":"$html(div)"}}',
       },
       { path: 'model.ts', content: 'export const model = {};\n' },
@@ -169,8 +169,8 @@ describe('раскладка шаблона в каталог', () => {
     await expect(command.run({ dir: DIR, templateId: 'builtin-simple-form' })).resolves.toBe(true);
 
     expect([...host.files.keys()].sort()).toEqual([
+      `${DIR}/credit/form.schema.json`,
       `${DIR}/credit/model.ts`,
-      `${DIR}/credit/renderer.schema.json`,
     ]);
     expect(notified).toEqual([pluginMessageKey(TEMPLATES_PLUGIN_ID, 'notify.generated')]);
   });

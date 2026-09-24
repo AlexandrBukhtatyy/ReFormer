@@ -51,6 +51,9 @@
   "target.wizard": "Шим визарда",
   "target.data-sources": "Справочники",
   "target.render-behavior": "Поведение UI",
+  "target.steps-index": "Шаги визарда (порядок)",
+  "target.step-render": "Поведение UI шага",
+  "target.step-validation": "Валидация шага",
   "target.form-behavior": "Поведение формы",
   "target.validation": "Схема валидации",
   "target.api": "Бэкенд",
@@ -70,5 +73,16 @@
   "notify.partial": "Записано файлов: {written}, не записано: {failed}.",
   "notify.read-only": "Источник не принимает запись — сгенерированное сохранить некуда.",
   "notify.targets-refreshed": "Шаблоны генерации перечитаны: {count}",
-  "notify.written": "Записано файлов: {written}, пропущено ваших: {skipped}."
+  "notify.written": "Записано файлов: {written}, пропущено ваших: {skipped}.",
+  "problem.bad-pattern": "{message}",
+  "problem.override-path-drift": "{message}",
+  "legacy.title": "Прежние имена файлов",
+  "legacy.carried": "{path} → {replacedBy}: ваши правки перенесены, старый файл можно удалить",
+  "legacy.fresh": "{path} → {replacedBy}: напечатан заново, старый файл можно удалить",
+  "legacy.open-schema": "Открыть {name}",
+  "orphans.title": "Папки шагов без шага",
+  "orphans.detail": "Шаг переименовали или удалили — папку не трогали. Перенесите правки и удалите её.",
+  "notify.legacy": "Файлы под прежними именами остались рядом с новыми ({files}); правленных перенесено: {carried}. Старые можно удалить.",
+  "notify.legacy.open-schema": "Открыть form.schema.json",
+  "notify.orphans": "Папки шагов, которых больше нет в форме: {dirs}. Их не трогали — перенесите правки и удалите."
 }

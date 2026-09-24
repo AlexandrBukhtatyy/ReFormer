@@ -22,6 +22,7 @@
  * @module plugins/preview-runtime/compiling/exports
  */
 
+import { LEGACY_FILES, MODULE_FILES } from '@reformer/builder-stack-reformer/codegen';
 import type { ComponentRegistry, CreateJsonFormConfig } from '@reformer/renderer-json';
 
 /** Форма данных модели превью: она приходит из исполненного кода, и сузить её нечем. */
@@ -49,19 +50,28 @@ export type AppliedArtifact = 'model' | 'validation' | 'behavior' | 'renderBehav
 /**
  * Файлы-кандидаты по каждому артефакту.
  *
- * Первым идёт каноничное имя, дальше — легаси: дефисные имена прежних шаблонов билдера и совсем
- * ранние `behavior.ts` / `ui.ts`. Форма, сгенерированная давно, обязана оживать тоже — иначе
- * «превью не работает» будет означать «превью не работает на моём проекте».
+ * Первым идёт каноничное имя (из раскладки кодогена — `MODULE_FILES`), дальше — легаси:
+ * прежнее `renderer.behavior.ts` (`LEGACY_FILES`), дефисные имена прежних шаблонов билдера и
+ * совсем ранние `behavior.ts` / `ui.ts`. Форма, сгенерированная давно, обязана оживать тоже —
+ * иначе «превью не работает» будет означать «превью не работает на моём проекте».
+ *
+ * Только корневые файлы: файлы папок шагов визарда энтри не требует (см. `./entry`), их
+ * правила доходят сюда через корневой `validation.ts` и `form.render.ts`.
  */
-const MODEL_FILES: readonly string[] = ['model.ts', 'model.tsx'];
-const VALIDATION_FILES: readonly string[] = ['validation.ts'];
-const BEHAVIOR_FILES: readonly string[] = ['form.behavior.ts', 'form-behavior.ts', 'behavior.ts'];
-const RENDER_BEHAVIOR_FILES: readonly string[] = [
-  'renderer.behavior.ts',
+const MODEL_FILES: readonly string[] = [MODULE_FILES.model, 'model.tsx'];
+const VALIDATION_FILES: readonly string[] = [MODULE_FILES.validation, ...LEGACY_FILES.validation];
+const BEHAVIOR_FILES: readonly string[] = [
+  MODULE_FILES.behavior,
+  'form-behavior.ts',
+  'behavior.ts',
+];
+export const RENDER_BEHAVIOR_FILES: readonly string[] = [
+  MODULE_FILES.render,
+  ...LEGACY_FILES.render,
   'render-behavior.ts',
   'ui.ts',
 ];
-const REGISTRY_FILES: readonly string[] = ['registry.ts', 'registry.tsx'];
+const REGISTRY_FILES: readonly string[] = [MODULE_FILES.registry, 'registry.tsx'];
 
 /** Первый модуль из списка, в котором есть экспорт с таким именем. */
 function pick(

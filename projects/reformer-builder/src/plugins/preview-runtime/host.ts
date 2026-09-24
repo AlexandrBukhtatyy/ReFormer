@@ -211,6 +211,19 @@ export interface PreviewHost {
    */
   siblings(id: ResourceId): Promise<readonly ResourceRef[]>;
 
+  /**
+   * Содержимое каталога — один уровень, с подкаталогами.
+   *
+   * Нужен визарду: его сайдкары лежат и в `steps/<шаг>/`, а {@link PreviewHost.siblings}
+   * отвечает только про уровень документа. Необязателен вместе с {@link PreviewHost.parentOf}:
+   * без пары превью читает один уровень, и визард по новой раскладке собирается без правил
+   * шагов (корневой `validation.ts` не найдёт `./steps`).
+   */
+  list?(dir: ResourceId): Promise<readonly ResourceRef[]>;
+
+  /** Каталог ресурса — откуда начинать обход. Арифметику путей делает платформа. */
+  parentOf?(id: ResourceId): ResourceId;
+
   /** Текст рабочей копии. В источник не ходит: компиляция читает Workspace, а не Source. */
   readText(id: ResourceId): Promise<string>;
 

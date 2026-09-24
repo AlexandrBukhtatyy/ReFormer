@@ -3,20 +3,23 @@
  *
  * Проверяется стык, который не виден ни одному из тестов по отдельности: шаблоны печатает
  * КОДОГЕН, а открывает напечатанное РЕДАКТОР СХЕМЫ, и плагины друг друга не импортируют —
- * встретиться они могут только здесь, в композиции. Разошлись они молча: `renderer.schema.json`
- * уезжал со строкой-маркером `//` первой, переставал быть JSON, и форма, созданная по шаблону,
- * открывалась голым текстом вместо канваса.
+ * встретиться они могут только здесь, в композиции. Разошлись они молча: схема (тогда ещё
+ * `renderer.schema.json`, теперь `form.schema.json`) уезжала со строкой-маркером `//` первой,
+ * переставала быть JSON, и форма, созданная по шаблону, открывалась голым текстом вместо канваса.
  *
  * @module shell/boot/integration/builtin-templates.test
  */
 
 import { describe, expect, it } from 'vitest';
+import { MODULE_FILES, STEPS_INDEX } from '@reformer/builder-stack-reformer/codegen';
 import { builtinKit } from '@reformer/builder-stack-reformer/testing';
 import { BUILTIN_TARGETS, generateModule } from '@/plugins/codegen';
 import { looksLikeFormSchema } from '@/plugins/editor-schema/model/provider';
 import {
   createBuiltinStore,
   materializeFiles,
+  SIMPLE_TEMPLATE_ID,
+  WIZARD_TEMPLATE_ID,
   TOKENS,
   type ModulePrinter,
 } from '@/plugins/templates';
@@ -47,13 +50,35 @@ describe('форма по встроенному шаблону открывае
         template.files.map((file) => file.path),
         'test'
       );
-      const schema = files.find((file) => file.path === 'renderer.schema.json');
+      const schema = files.find((file) => file.path === MODULE_FILES.schema);
 
       expect(schema, `шаблон «${template.name}» без схемы`).toBeDefined();
       // Предикат ТОТ ЖЕ, по которому оболочка выбирает редактор: два разных ответа на этот
       // вопрос означали бы вкладку с текстом там, где ожидается канвас.
       expect(looksLikeFormSchema(schema?.content ?? ''), template.name).toBe(true);
     }
+  });
+
+  it('«Пошаговая форма» создаёт папки шагов, простая — нет', async () => {
+    const templates = await createBuiltinStore({ print: printer() }).list();
+    const pathsOf = (id: string): readonly string[] => {
+      const template = templates.find((t) => t.id === id);
+      if (template === undefined) throw new Error(`нет шаблона ${id}`);
+      // Отмечена только точка входа — остальное обязано приехать зависимостями, включая шаги.
+      return materializeFiles(template, ['index.tsx'], 'test').map((file) => file.path);
+    };
+
+    const wizard = pathsOf(WIZARD_TEMPLATE_ID);
+    expect(wizard).toContain(STEPS_INDEX);
+    const stepFiles = wizard.filter((path) =>
+      /^steps\/[^/]+\/form\.(validation|render)\.ts$/.test(path)
+    );
+    // Два шага затравки — по два файла на шаг.
+    expect(stepFiles.length).toBeGreaterThanOrEqual(4);
+    expect(wizard).toContain(MODULE_FILES.wizard);
+
+    const simple = pathsOf(SIMPLE_TEMPLATE_ID);
+    expect(simple.some((path) => path.startsWith('steps/'))).toBe(false);
   });
 });
 

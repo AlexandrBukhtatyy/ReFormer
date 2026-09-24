@@ -1,0 +1,10 @@
+/**
+ * Шаг «Данные» — правила полей шага. «Далее» проверяет только их.
+ */
+import { validate, defineValidationSchema } from '@reformer/core/validation';
+import { minLength, required } from '@reformer/core/validators';
+import type { ZayavkaNaKreditForm } from '../../types';
+
+export const stepValidation = defineValidationSchema<ZayavkaNaKreditForm>(({ model }) => {
+  validate(model.$.fullName, [required(), minLength(2)]);
+});

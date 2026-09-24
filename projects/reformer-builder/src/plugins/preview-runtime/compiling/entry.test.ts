@@ -31,6 +31,12 @@ describe('buildEntrySource', () => {
     expect(exported?.errors).toEqual([]);
   });
 
+  it('требует только корневые файлы: шаги подтянет линковщик по импортам', () => {
+    const source = buildEntrySource(['steps/index.ts', 'steps/a/validation.ts', 'validation.ts']);
+    expect(source).toContain('require("./validation.ts")');
+    expect(source).not.toContain('steps/');
+  });
+
   it('сбой одного файла не лишает превью остальных', () => {
     const exported = readEntryExports(
       run(['model.ts', 'validation.ts'], {

@@ -1,5 +1,5 @@
 /**
- * Поведение UI: условная видимость, события узлов и динамические пропсы (`renderer.behavior.ts`).
+ * Поведение UI: условная видимость, события узлов и динамические пропсы (`form.render.ts`).
  *
  * **Почему отдельный инструмент, а не параметр `set_form_rules`.** Тот адресует ПОЛЯ МОДЕЛИ и
  * проверяет пути, циклы и двойную запись. Этот адресует УЗЛЫ РАЗМЕТКИ и проверяет совсем другое.
@@ -96,7 +96,7 @@ function describe(rule: RenderRuleIntent): { summary: string; report: string } {
 export const setRenderRulesTool: AgentTool<Params> = {
   name: 'set_render_rules',
   description:
-    'UI behaviour of nodes (renderer.behavior.ts): hide a node by a condition, handle its event, ' +
+    'UI behaviour of nodes (form.render.ts): hide a node by a condition, handle its event, ' +
     'patch its props. Node addresses, not model paths. Conditions read the form: ' +
     'form.pickup.value.value === true.',
   inputSchema: {

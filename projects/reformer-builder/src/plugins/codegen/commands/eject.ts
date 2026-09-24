@@ -84,6 +84,9 @@ export async function ejectTemplate(deps: EjectDeps, targetId: string): Promise<
         id: `user.${slugOf(target.id)}`,
         overrides: target.id,
         path: target.path,
+        // Цель по шагам выгружается шаблоном пути (`steps/{step}/…`) и с `each` — без него
+        // отбор отверг бы путь с `{step}` как `bad-pattern`, и замена не напечатала бы ничего.
+        ...(target.each === undefined ? {} : { each: target.each }),
         cls: target.cls,
         ...(order === undefined ? {} : { order }),
         ...(target.regenerable === undefined ? {} : { regenerable: target.regenerable }),

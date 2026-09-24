@@ -22,11 +22,11 @@ const template: FormTemplate = {
   name: 'Кредит',
   source: 'builtin',
   files: [
-    { path: 'renderer.schema.json', content: '{"root":{"component":"$html(div)"}}' },
+    { path: 'form.schema.json', content: '{"root":{"component":"$html(div)"}}' },
     { path: 'model.ts', content: 'export const __formName__Model = 1;' },
     { path: 'README.md', content: '# __FormName__' },
   ],
-  requires: { 'model.ts': ['renderer.schema.json'] },
+  requires: { 'model.ts': ['form.schema.json'] },
 };
 
 describe('создание формы по шаблону', () => {
@@ -34,13 +34,13 @@ describe('создание формы по шаблону', () => {
     const host = createFakeTemplatesHost();
     const result = await generateFormFromTemplate(host, PARENT, 'Профиль', template, [
       'model.ts',
-      'renderer.schema.json',
+      'form.schema.json',
     ]);
     expect(result.ok).toBe(true);
     expect(host.files.get('src/forms/Профиль/model.ts')).toBe('export const profilModel = 1;');
     // Операция НАЗЫВАЕТ схему, но не открывает её сама: открытие — решение интерфейса,
     // и команда палитры вправе его не принимать.
-    expect(result.openId).toBe('src/forms/Профиль/renderer.schema.json');
+    expect(result.openId).toBe('src/forms/Профиль/form.schema.json');
     expect(host.opened).toEqual([]);
   });
 
@@ -52,7 +52,7 @@ describe('создание формы по шаблону', () => {
 
     await generateFormFromTemplate(host, PARENT, 'Профиль', template, [
       'model.ts',
-      'renderer.schema.json',
+      'form.schema.json',
     ]);
 
     // Родитель — чтобы появился сам каталог формы; каталог формы — чтобы в нём были файлы.
@@ -96,7 +96,7 @@ describe('создание формы по шаблону', () => {
     };
 
     await generateFormFromTemplate(host, PARENT, 'Профиль', withFixture, [
-      'renderer.schema.json',
+      'form.schema.json',
       'fixture.ts',
     ]);
 
@@ -117,7 +117,7 @@ describe('создание формы по шаблону', () => {
     };
 
     await generateFormFromTemplate(host, PARENT, 'Профиль', withFixture, [
-      'renderer.schema.json',
+      'form.schema.json',
       'fixture.ts',
     ]);
 
@@ -141,7 +141,7 @@ describe('создание формы по шаблону', () => {
     };
 
     const result = await generateFormFromTemplate(host, PARENT, 'Профиль', withFixture, [
-      'renderer.schema.json',
+      'form.schema.json',
       'fixture.ts',
     ]);
 
@@ -153,7 +153,7 @@ describe('создание формы по шаблону', () => {
   it('зависимости добираются сами: отметили модель — приехала и схема', async () => {
     const host = createFakeTemplatesHost();
     await generateFormFromTemplate(host, PARENT, 'Профиль', template, ['model.ts']);
-    expect(host.files.has('src/forms/Профиль/renderer.schema.json')).toBe(true);
+    expect(host.files.has('src/forms/Профиль/form.schema.json')).toBe(true);
     expect(host.files.has('src/forms/Профиль/README.md')).toBe(false);
   });
 

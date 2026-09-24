@@ -97,8 +97,11 @@ describe('activate', () => {
       .filter((item) => item.point === 'codegen.target')
       .map((item) => item.order);
     expect(orders).toEqual(BUILTIN_TARGETS.map((t) => t.order));
-    // Шаг кратен десяти: между любыми двумя нашими целями помещается чужая.
-    expect(orders.every((order) => order !== undefined && order % 10 === 0)).toBe(true);
+    // Между любыми двумя нашими целями помещается чужая: соседи отстоят больше чем на единицу.
+    const sorted = [...orders].sort((a, b) => (a ?? 0) - (b ?? 0));
+    expect(sorted.every((order, i) => i === 0 || (order ?? 0) - (sorted[i - 1] ?? 0) > 1)).toBe(
+      true
+    );
   });
 
   it('вносит панель', () => {

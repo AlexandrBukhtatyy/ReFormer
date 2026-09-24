@@ -25,15 +25,15 @@ describe('прогон целей', () => {
   it('встроенные цели дают канонический состав модуля', async () => {
     const module = await generateModule(BUILTIN_TARGETS, input());
     expect(module.files.map((f) => f.path)).toEqual([
-      'renderer.schema.json',
+      'form.schema.json',
       'types.ts',
       'model.ts',
       'registry.ts',
       'index.tsx',
       'data-sources.ts',
-      'renderer.behavior.ts',
+      'form.render.ts',
       'form.behavior.ts',
-      'validation.ts',
+      'form.validation.ts',
       'api.ts',
       'README.md',
     ]);
@@ -42,7 +42,37 @@ describe('прогон целей', () => {
 
   it('шим визарда появляется только у формы с визардом', async () => {
     const module = await generateModule(BUILTIN_TARGETS, input({ schema: wizardSchema() }));
-    expect(module.files.map((f) => f.path)).toContain('renderer.wizard.tsx');
+    expect(module.files.map((f) => f.path)).toContain('wizard.tsx');
+  });
+
+  it('у визарда код каждого шага — в своей папке steps/, порядок — в steps/index.ts', async () => {
+    const module = await generateModule(BUILTIN_TARGETS, input({ schema: wizardSchema() }));
+    const paths = module.files.map((f) => f.path);
+    expect(paths).toContain('steps/index.ts');
+    const stepFiles = paths.filter((p) => /^steps\/[^/]+\//.test(p));
+    expect(stepFiles.length).toBeGreaterThan(0);
+    expect(stepFiles.every((p) => /\/form\.(validation|render)\.ts$/.test(p))).toBe(true);
+    // Файл шага знает свой шаг: README и меню группируют по нему.
+    expect(module.files.filter((f) => f.step !== undefined).map((f) => f.path)).toEqual(stepFiles);
+    expect(module.problems).toEqual([]);
+  });
+
+  it('у простой формы нет ни steps/, ни шима', async () => {
+    const module = await generateModule(BUILTIN_TARGETS, input());
+    expect(module.files.some((f) => f.path.startsWith('steps/'))).toBe(false);
+    expect(module.files.map((f) => f.path)).not.toContain('wizard.tsx');
+  });
+
+  it('раскладку визарда решает схема, а не кит: без адаптера steps/ всё равно печатается', async () => {
+    const kit = foreignKit();
+    const module = await generateModule(
+      BUILTIN_TARGETS,
+      input({
+        schema: wizardSchema(),
+        kit: { ...kit, kit: { ...kit.kit, adapters: { wizard: null, step: null } } },
+      })
+    );
+    expect(module.files.map((f) => f.path)).toContain('steps/index.ts');
   });
 
   it('кит без адаптера визарда не даёт файла шима', async () => {
@@ -54,7 +84,7 @@ describe('прогон целей', () => {
         kit: { ...kit, kit: { ...kit.kit, adapters: { wizard: null, step: null } } },
       })
     );
-    expect(module.files.map((f) => f.path)).not.toContain('renderer.wizard.tsx');
+    expect(module.files.map((f) => f.path)).not.toContain('wizard.tsx');
   });
 
   it('чужая цель добавляет файл, не трогая ни одной существующей строки', async () => {
@@ -124,18 +154,18 @@ describe('маркеры происхождения', () => {
     const module = await generateModule(BUILTIN_TARGETS, input());
     const by = (path: string) => module.files.find((f) => f.path === path)?.content ?? '';
     expect(isGenerated(by('types.ts'))).toBe(true);
-    expect(isGenerated(by('validation.ts'))).toBe(true);
+    expect(isGenerated(by('form.validation.ts'))).toBe(true);
     expect(originOf(by('api.ts'))).toBe('handwritten');
     expect(originOf(by('data-sources.ts'))).toBe('handwritten');
   });
 
   it('схема остаётся РАЗБИРАЕМЫМ json: маркер туда не ставится', async () => {
-    // Отказ был ровно здесь: `renderer.schema.json` уезжал со строкой `// @reformer-generated`
+    // Отказ был ровно здесь: `form.schema.json` уезжал со строкой `// @reformer-generated`
     // первой, то есть переставал быть JSON. Редактор схемы такой файл не брал (вкладка
     // открывалась голым текстом), и сгенерированный `index.tsx`, который импортирует эту же
     // схему, тоже не собрался бы.
     const module = await generateModule(BUILTIN_TARGETS, input());
-    const schema = module.files.find((f) => f.path === 'renderer.schema.json')?.content ?? '';
+    const schema = module.files.find((f) => f.path === 'form.schema.json')?.content ?? '';
 
     expect(schema.startsWith(MARKER_PREFIX)).toBe(false);
     expect(() => JSON.parse(schema)).not.toThrow();

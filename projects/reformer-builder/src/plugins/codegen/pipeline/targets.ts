@@ -23,8 +23,15 @@ import {
   modelTemplate,
   indexTemplate,
   apiTemplate,
+  stepsIndexTemplate,
+  stepValidationTemplate,
+  stepRenderTemplate,
   emitSchema,
   wizardShimOf,
+  MODULE_FILES,
+  LEGACY_FILES,
+  STEPS_INDEX,
+  STEP_FILES,
 } from '@reformer/builder-stack-reformer/codegen';
 import type { CodegenTarget } from '../contract';
 
@@ -32,14 +39,20 @@ import type { CodegenTarget } from '../contract';
  * Встроенные цели в каноническом порядке раскладки renderer-json.
  *
  * `order` кратен десяти: между любыми двумя нашими целями помещается чужая, и вставка не
- * требует перенумеровать соседей.
+ * требует перенумеровать соседей. Цели шагов визарда встают рядом с корневыми файлами того же
+ * слоя (`55`, `85`, `105`).
+ *
+ * Имена файлов — из `MODULE_FILES` стека: они же нужны шаблонам (импорты), поиску схемы в
+ * каталоге и превью, и литерал здесь разошёлся бы с ними при первом переименовании. Id целей
+ * прежние: пользовательские шаблоны заменяют цель по id (`overrides`).
  */
 export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number })[] =
   Object.freeze([
     {
       id: 'codegen.schema',
       titleKey: 'target.schema',
-      path: 'renderer.schema.json',
+      path: MODULE_FILES.schema,
+      legacyPaths: LEGACY_FILES.schema,
       cls: 'derived',
       order: 10,
       emit: emitSchema,
@@ -47,7 +60,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     {
       id: 'codegen.types',
       titleKey: 'target.types',
-      path: 'types.ts',
+      path: MODULE_FILES.types,
       cls: 'derived',
       order: 20,
       template: typesTemplate,
@@ -55,7 +68,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     {
       id: 'codegen.model',
       titleKey: 'target.model',
-      path: 'model.ts',
+      path: MODULE_FILES.model,
       cls: 'derived',
       order: 30,
       template: modelTemplate,
@@ -63,7 +76,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     {
       id: 'codegen.registry',
       titleKey: 'target.registry',
-      path: 'registry.ts',
+      path: MODULE_FILES.registry,
       cls: 'derived',
       order: 40,
       template: registryTemplate,
@@ -71,7 +84,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     {
       id: 'codegen.index',
       titleKey: 'target.index',
-      path: 'index.tsx',
+      path: MODULE_FILES.index,
       cls: 'derived',
       order: 50,
       template: indexTemplate,
@@ -83,16 +96,28 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       // чужого пакета, который у пользователя не соберётся.
       id: 'codegen.wizard',
       titleKey: 'target.wizard',
-      path: 'renderer.wizard.tsx',
+      path: MODULE_FILES.wizard,
+      legacyPaths: LEGACY_FILES.wizard,
       cls: 'derived',
       order: 60,
       applies: (ctx) => wizardShimOf(ctx) !== null,
       template: wizardTemplate,
     },
     {
+      // Агрегатор шагов визарда: порядок шагов берётся из схемы, поэтому файл производный —
+      // перестановка шагов не требует ручной правки ни одного файла человека.
+      id: 'codegen.steps-index',
+      titleKey: 'target.steps-index',
+      path: STEPS_INDEX,
+      cls: 'derived',
+      order: 55,
+      applies: (ctx) => ctx.layout.kind === 'wizard',
+      template: stepsIndexTemplate,
+    },
+    {
       id: 'codegen.data-sources',
       titleKey: 'target.data-sources',
-      path: 'data-sources.ts',
+      path: MODULE_FILES.dataSources,
       cls: 'user',
       order: 70,
       template: dataSourcesTemplate,
@@ -102,16 +127,29 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
       // пока его не правили руками.
       id: 'codegen.render-behavior',
       titleKey: 'target.render-behavior',
-      path: 'renderer.behavior.ts',
+      path: MODULE_FILES.render,
+      legacyPaths: LEGACY_FILES.render,
       cls: 'user',
       regenerable: true,
       order: 80,
       template: renderBehaviorTemplate,
     },
     {
+      // Render-слой шага: правила и заготовки hideWhen узлов шага. Корневой form.render.ts
+      // вызывает его через steps/index.ts.
+      id: 'codegen.step-render',
+      titleKey: 'target.step-render',
+      path: `steps/{step}/${STEP_FILES.render}`,
+      each: 'step',
+      cls: 'user',
+      regenerable: true,
+      order: 85,
+      template: stepRenderTemplate,
+    },
+    {
       id: 'codegen.form-behavior',
       titleKey: 'target.form-behavior',
-      path: 'form.behavior.ts',
+      path: MODULE_FILES.behavior,
       cls: 'user',
       regenerable: true,
       order: 90,
@@ -120,17 +158,29 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     {
       id: 'codegen.validation',
       titleKey: 'target.validation',
-      path: 'validation.ts',
+      path: MODULE_FILES.validation,
+      legacyPaths: LEGACY_FILES.validation,
       cls: 'user',
       regenerable: true,
       order: 100,
       template: validationTemplate,
     },
+    {
+      // Валидация шага: «Далее» проверяет только её. Корневой form.validation.ts собирает шаги.
+      id: 'codegen.step-validation',
+      titleKey: 'target.step-validation',
+      path: `steps/{step}/${STEP_FILES.validation}`,
+      each: 'step',
+      cls: 'user',
+      regenerable: true,
+      order: 105,
+      template: stepValidationTemplate,
+    },
     // Заготовка под бэкенд: регенерировать её не из чего, поэтому маркера она не несёт.
     {
       id: 'codegen.api',
       titleKey: 'target.api',
-      path: 'api.ts',
+      path: MODULE_FILES.api,
       cls: 'user',
       order: 110,
       template: apiTemplate,
@@ -140,7 +190,7 @@ export const BUILTIN_TARGETS: readonly (CodegenTarget & { readonly order: number
     {
       id: 'codegen.readme',
       titleKey: 'target.readme',
-      path: 'README.md',
+      path: MODULE_FILES.readme,
       cls: 'derived',
       order: 120,
       template: readmeTemplate,

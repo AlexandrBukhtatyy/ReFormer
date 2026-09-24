@@ -24,7 +24,9 @@ import { Item, ItemContent, ItemTitle } from '@reformer/ui-kit/item';
 import { Label } from '@reformer/ui-kit/label';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Separator } from '@reformer/ui-kit/separator';
+import { MODULE_FILES } from '@reformer/builder-stack-reformer/codegen';
 import type { CodegenTarget } from '../contract';
+import type { DeliveryResult } from '../pipeline/deliver';
 import type { CodegenProblem } from '../pipeline/generate';
 import type { CodegenHost, Translate } from '../host';
 import { defaultFormName, runCodegen } from '../pipeline/run';
@@ -165,7 +167,7 @@ function ExportFor({
       <Separator />
 
       <ScrollArea className="min-h-0 flex-1">
-        <Report state={state} t={t} onEject={onEject} />
+        <Report state={state} t={t} onEject={onEject} host={host} />
       </ScrollArea>
     </div>
   );
@@ -207,9 +209,75 @@ interface ReportProps {
   readonly state: CodegenState;
   readonly t: Translate;
   readonly onEject?: (targetId: string) => void;
+  /** Порт — ради «Открыть form.schema.json» у прежнего имени схемы. */
+  readonly host?: Pick<CodegenHost, 'resolve' | 'openResource'>;
 }
 
-function Report({ state, t, onEject }: ReportProps): ReactNode {
+/**
+ * Раскладка на диске: прежние имена рядом с новыми и папки шагов, которых нет в форме.
+ *
+ * Отдельной секцией, а не пометкой у файла: оба случая — про файлы, которых в составе модуля
+ * НЕТ (старое имя, брошенная папка), и строки для них в списке файлов модуля не нашлось бы.
+ */
+function LayoutReport({
+  delivery,
+  t,
+  host,
+}: {
+  readonly delivery: DeliveryResult;
+  readonly t: Translate;
+  readonly host?: Pick<CodegenHost, 'resolve' | 'openResource'>;
+}): ReactNode {
+  const open = host?.openResource;
+  return (
+    <>
+      {delivery.legacy.length === 0 ? null : (
+        <section className="flex flex-col gap-1" data-testid="codegen-legacy">
+          <h3 className="text-foreground text-[12px] font-semibold">{t('legacy.title')}</h3>
+          {delivery.legacy.map((entry) => (
+            <Alert key={entry.path}>
+              <AlertDescription className="flex flex-col gap-1 text-[11px]">
+                <span className="font-mono">
+                  {t(entry.carried ? 'legacy.carried' : 'legacy.fresh', {
+                    path: entry.path,
+                    replacedBy: entry.replacedBy,
+                  })}
+                </span>
+                {entry.replacedBy !== MODULE_FILES.schema ||
+                open === undefined ||
+                host === undefined ? null : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="self-start"
+                    onClick={() => {
+                      open(host.resolve(delivery.dir, ...entry.replacedBy.split('/')));
+                    }}
+                  >
+                    {t('legacy.open-schema', { name: entry.replacedBy })}
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          ))}
+        </section>
+      )}
+      {delivery.orphans.length === 0 ? null : (
+        <section className="flex flex-col gap-1" data-testid="codegen-orphans">
+          <h3 className="text-foreground text-[12px] font-semibold">{t('orphans.title')}</h3>
+          <span className="text-muted-foreground text-[11px]">{t('orphans.detail')}</span>
+          {delivery.orphans.map((dir) => (
+            <span key={dir} className="font-mono text-[11px]">
+              {dir}/
+            </span>
+          ))}
+        </section>
+      )}
+    </>
+  );
+}
+
+function Report({ state, t, onEject, host }: ReportProps): ReactNode {
   if (state.files.length === 0) {
     return <Empty title={t('empty.not-run')} detail={t('empty.not-run.detail')} />;
   }
@@ -271,6 +339,8 @@ function Report({ state, t, onEject }: ReportProps): ReactNode {
           </span>
         </section>
       )}
+
+      {delivery === null ? null : <LayoutReport delivery={delivery} t={t} host={host} />}
 
       {state.problems.length === 0 ? null : (
         <section className="flex flex-col gap-1">

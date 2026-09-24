@@ -1,0 +1,21 @@
+// steps/kredit/form.render.ts — render-слой шага «Кредит»: условная видимость и
+// события узлов шага. Вызывается из корневого form.render.ts.
+
+import type { RenderSchemaProxy } from '@reformer/renderer-react';
+import type { FormModel, FormProxy } from '@reformer/core';
+import type { ZayavkaNaKreditForm } from '../../types';
+
+export function stepRender(
+  schema: RenderSchemaProxy<ZayavkaNaKreditForm>,
+  ctx: { form: FormProxy<ZayavkaNaKreditForm>; model: FormModel<ZayavkaNaKreditForm> }
+): void {
+  // form и model — под теми же именами, что в корневом form.render.ts: правила переносятся
+  // между файлами без правки (условия hideWhen читают form.<поле>.value.value).
+  const { form, model } = ctx;
+  void schema;
+  void form;
+  void model;
+
+  // Условная видимость секций шага — раскомментируйте и впишите условие:
+  // hideWhen(schema.node('kredit-section'), () => /* TODO: условие для «Кредит» */ false);
+}

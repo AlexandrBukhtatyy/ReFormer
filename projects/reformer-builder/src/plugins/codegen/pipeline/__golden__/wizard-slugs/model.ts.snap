@@ -1,0 +1,18 @@
+// model.ts — начальные значения (из мока) и фабрика модели. Регенерируется.
+
+import { createModel, type FormModel } from '@reformer/core';
+import type { ZayavkaNaKreditForm } from './types';
+
+export function createInitialValues(): ZayavkaNaKreditForm {
+  return {
+    "phone": "",
+    "email": "",
+    "note": ""
+  } as ZayavkaNaKreditForm;
+}
+
+export function createZayavkaNaKreditFormModel(
+  initial?: Partial<ZayavkaNaKreditForm>
+): FormModel<ZayavkaNaKreditForm> {
+  return createModel<ZayavkaNaKreditForm>({ ...createInitialValues(), ...initial });
+}

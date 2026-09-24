@@ -20,6 +20,7 @@ import {
   GENERATE_INTO_COMMAND_ID,
   type GenerateIntoOutcome,
 } from './context-menu';
+import { wizardSchema } from '@reformer/builder-stack-reformer/testing';
 import { BUILTIN_TARGETS } from '../pipeline/targets';
 import { createFakeDocument, createFakeHost } from '../testing';
 import { pluginMessageKey } from '@reformer/builder-plugin-api';
@@ -55,10 +56,18 @@ describe('поиск схемы в каталоге', () => {
       file('zebra.schema.json'),
       file('renderer.schema.json'),
       file('alpha.form.json'),
+      file('form.schema.json'),
       file('types.ts'),
     ]).map((ref) => ref.name);
 
-    expect(names).toEqual(['renderer.schema.json', 'alpha.form.json', 'zebra.schema.json']);
+    // Канон, затем прежнее имя (форма, перегенерированная по новой раскладке, старый файл
+    // не удаляет), затем по алфавиту.
+    expect(names).toEqual([
+      'form.schema.json',
+      'renderer.schema.json',
+      'alpha.form.json',
+      'zebra.schema.json',
+    ]);
   });
 
   it('файлы, не похожие на схему, не читаются вовсе', async () => {
@@ -83,15 +92,20 @@ describe('поиск схемы в каталоге', () => {
       root: { component: '$html(section)', children: [] },
     });
     const host = createFakeHost({
-      files: { [`${DIR}/renderer.schema.json`]: SCHEMA },
-      document: createFakeDocument(`${DIR}/renderer.schema.json`, edited),
+      files: { [`${DIR}/form.schema.json`]: SCHEMA },
+      document: createFakeDocument(`${DIR}/form.schema.json`, edited),
     });
 
     expect((await findSchemaIn(host, DIR))?.schema.root.component).toBe('$html(section)');
   });
 
-  it('без листинга искать негде', async () => {
+  it('форма под прежним именем схемы тоже находится', async () => {
     const host = createFakeHost({ files: { [`${DIR}/renderer.schema.json`]: SCHEMA } });
+    expect((await findSchemaIn(host, DIR))?.ref.name).toBe('renderer.schema.json');
+  });
+
+  it('без листинга искать негде', async () => {
+    const host = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
     delete host.list;
 
     expect(await findSchemaIn(host, DIR)).toBeNull();
@@ -100,7 +114,7 @@ describe('поиск схемы в каталоге', () => {
 
 describe('генерация в каталог', () => {
   it('кладёт файлы В САМ каталог, а не в подпапку под ним', async () => {
-    const host = createFakeHost({ files: { [`${DIR}/renderer.schema.json`]: SCHEMA } });
+    const host = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
 
     const outcome = await generateInto({ host, targets }, { dir: DIR, targetId: 'codegen.types' });
 
@@ -110,8 +124,8 @@ describe('генерация в каталог', () => {
   });
 
   it('одна цель печатается так же, как в составе всего модуля', async () => {
-    const one = createFakeHost({ files: { [`${DIR}/renderer.schema.json`]: SCHEMA } });
-    const all = createFakeHost({ files: { [`${DIR}/renderer.schema.json`]: SCHEMA } });
+    const one = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
+    const all = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
 
     await generateInto({ host: one, targets }, { dir: DIR, targetId: 'codegen.registry' });
     await generateInto({ host: all, targets }, { dir: DIR });
@@ -136,8 +150,49 @@ describe('генерация в каталог', () => {
     expect(fallback.written.get(`${DIR}/types.ts`)).toContain('CreditForm');
   });
 
+  it('для канонического имени схемы имя формы — имя каталога, а не «form»', async () => {
+    const host = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
+    const outcome = await generateInto({ host, targets }, { dir: DIR, targetId: 'codegen.types' });
+    expect(outcome).toMatchObject({ kind: 'delivered', formName: 'credit' });
+    expect(host.written.get(`${DIR}/types.ts`)).toContain('CreditForm');
+  });
+
+  it('цель по шагам пишет ВСЕ свои экземпляры — по файлу на шаг', async () => {
+    const host = createFakeHost({
+      files: { [`${DIR}/form.schema.json`]: JSON.stringify(wizardSchema()) },
+    });
+    const outcome = await generateInto(
+      { host, targets },
+      { dir: DIR, targetId: 'codegen.step-validation' }
+    );
+    expect(outcome.kind).toBe('delivered');
+    if (outcome.kind !== 'delivered') return;
+    expect(outcome.delivery.written.length).toBeGreaterThan(0);
+    expect(
+      outcome.delivery.written.every((p) => /^steps\/[^/]+\/form\.validation\.ts$/.test(p))
+    ).toBe(true);
+  });
+
+  it('прежние имена и брошенные папки шагов доезжают до исхода', async () => {
+    const host = createFakeHost({
+      files: {
+        [`${DIR}/renderer.schema.json`]: JSON.stringify(wizardSchema()),
+        [`${DIR}/steps/pereimenovannyi/validation.ts`]: 'моё\n',
+      },
+    });
+    const outcome = await generateInto({ host, targets }, { dir: DIR });
+    if (outcome.kind !== 'delivered') throw new Error(outcome.kind);
+    expect(outcome.delivery.legacy).toContainEqual({
+      path: 'renderer.schema.json',
+      replacedBy: 'form.schema.json',
+      carried: false,
+    });
+    expect(outcome.delivery.orphans).toEqual(['steps/pereimenovannyi']);
+    expect(host.written.get(`${DIR}/steps/pereimenovannyi/validation.ts`)).toBe('моё\n');
+  });
+
   it('цель, не применившаяся к форме, названа, а не пропущена молча', async () => {
-    const host = createFakeHost({ files: { [`${DIR}/renderer.schema.json`]: SCHEMA } });
+    const host = createFakeHost({ files: { [`${DIR}/form.schema.json`]: SCHEMA } });
 
     // Шим визарда печатается только у формы с узлом-визардом; здесь его нет.
     const outcome = await generateInto({ host, targets }, { dir: DIR, targetId: 'codegen.wizard' });
@@ -151,13 +206,13 @@ describe('генерация в каталог', () => {
     expect((await generateInto({ host: empty, targets }, { dir: DIR })).kind).toBe('no-schema');
 
     const noKit = createFakeHost({
-      files: { [`${DIR}/renderer.schema.json`]: SCHEMA },
+      files: { [`${DIR}/form.schema.json`]: SCHEMA },
       kit: null,
     });
     expect((await generateInto({ host: noKit, targets }, { dir: DIR })).kind).toBe('no-kit');
 
     const readOnly = createFakeHost({
-      files: { [`${DIR}/renderer.schema.json`]: SCHEMA },
+      files: { [`${DIR}/form.schema.json`]: SCHEMA },
       write: false,
     });
     expect((await generateInto({ host: readOnly, targets }, { dir: DIR })).kind).toBe('read-only');
@@ -212,7 +267,15 @@ describe('исход говорится словами', () => {
         {
           kind: 'delivered',
           formName: 'credit',
-          delivery: { dir: DIR, written: [], skipped: [], failed: [], saved: null },
+          delivery: {
+            dir: DIR,
+            written: [],
+            skipped: [],
+            failed: [],
+            saved: null,
+            orphans: [],
+            legacy: [],
+          },
         },
         'info',
       ],
@@ -220,7 +283,15 @@ describe('исход говорится словами', () => {
         {
           kind: 'delivered',
           formName: 'credit',
-          delivery: { dir: DIR, written: ['types.ts'], skipped: [], failed: [], saved: true },
+          delivery: {
+            dir: DIR,
+            written: ['types.ts'],
+            skipped: [],
+            failed: [],
+            saved: true,
+            orphans: [],
+            legacy: [],
+          },
         },
         'success',
       ],
@@ -233,6 +304,49 @@ describe('исход говорится словами', () => {
         { level, key: expect.stringContaining(pluginMessageKey(CODEGEN_PLUGIN_ID, 'notify.')) },
       ]);
     }
+  });
+
+  it('прежние имена и сироты — отдельные предупреждения; у схемы — действие «открыть»', () => {
+    const shown: { key: string; action?: { titleKey: string; run(): void } }[] = [];
+    const record = (key: string, options?: { action?: { titleKey: string; run(): void } }) =>
+      shown.push({ key, action: options?.action }) as never;
+    const notifications = {
+      info: record,
+      success: record,
+      warning: record,
+      error: record,
+    } as unknown as NotificationsService;
+    const opened: string[] = [];
+    notifyOutcome(
+      notifications,
+      {
+        kind: 'delivered',
+        formName: 'credit',
+        delivery: {
+          dir: DIR,
+          written: ['form.schema.json'],
+          skipped: [],
+          failed: [],
+          saved: null,
+          orphans: ['steps/old'],
+          legacy: [
+            { path: 'renderer.schema.json', replacedBy: 'form.schema.json', carried: false },
+          ],
+        },
+      },
+      {
+        resolve: (dir, ...segments) => [dir, ...segments].join('/') as ResourceId,
+        openResource: (id) => opened.push(id),
+      }
+    );
+    const key = (k: string) => pluginMessageKey(CODEGEN_PLUGIN_ID, k);
+    expect(shown.map((n) => n.key)).toEqual([
+      key('notify.legacy'),
+      key('notify.orphans'),
+      key('notify.written'),
+    ]);
+    shown[0]?.action?.run();
+    expect(opened).toEqual([`${DIR}/form.schema.json`]);
   });
 
   it('без сервиса уведомлений молчит, а не падает', () => {

@@ -10,11 +10,11 @@ import {
   useJsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import rawSchema from './renderer.schema.json';
+import rawSchema from './form.schema.json';
 import { createRegistry } from './registry';
 import { createZayavkaNaKreditFormModel } from './model';
 import { formBehavior } from './form.behavior';
-import { createJsonRenderBehavior } from './renderer.behavior';
+import { createJsonRenderBehavior } from './form.render';
 import type { ZayavkaNaKreditForm } from './types';
 
 type SubmitResult = { message: string; ok: boolean };

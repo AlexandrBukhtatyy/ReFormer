@@ -134,6 +134,18 @@ export function previewHostFromContext(ctx: Pick<PluginContext, 'services' | 'i1
       return service === undefined ? NO_SIBLINGS : service.list(service.parentOf(id));
     },
 
+    // Обход каталога формы вглубь (папки шагов визарда) — та же служба, по уровню за вызов.
+    list: async (dir: ResourceId) => {
+      const service = files();
+      return service === undefined ? NO_SIBLINGS : service.list(dir);
+    },
+
+    parentOf: (id: ResourceId) => {
+      const service = files();
+      if (service === undefined) throw new Error(`рабочей области нет: ${id}`);
+      return service.parentOf(id);
+    },
+
     readText: async (id: ResourceId) => {
       const text = (await files()?.readText(id)) ?? null;
       if (text === null) throw new Error(`не читается: ${id}`);

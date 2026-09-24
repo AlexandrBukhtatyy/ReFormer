@@ -11,7 +11,7 @@
 import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile } from '../contract';
-import type { KitView } from '@reformer/builder-stack-reformer/codegen';
+import { SCHEMA_FILE_NAMES, type KitView } from '@reformer/builder-stack-reformer/codegen';
 import { materialize, tokenize } from '../render/placeholders';
 import { buildTemplateView, renderTemplateFile } from '../render/render';
 
@@ -187,13 +187,31 @@ export function materializeFiles(
 }
 
 /**
- * Какой из файлов открыть после генерации: первый `.json`, распознанный как схема формы.
+ * Ранг файла в поиске схемы: корневой `form.schema.json` (затем прежнее имя) — первым,
+ * прочие корневые — за ним, вложенные — последними.
+ *
+ * Порядок, а не фильтр: в пользовательском шаблоне схема может называться как угодно
+ * (`__FormName__.schema.json`), и её надо найти. Но у визарда по шагам будут и под-схемы шагов
+ * (`steps/<шаг>/form.schema.json`) — открыть после генерации нужно корневую, а не первую
+ * попавшуюся по порядку набора.
+ */
+function schemaRank(path: string): number {
+  if (path.includes('/')) return SCHEMA_FILE_NAMES.length + 1;
+  const known = SCHEMA_FILE_NAMES.indexOf(path);
+  return known === -1 ? SCHEMA_FILE_NAMES.length : known;
+}
+
+/**
+ * Какой из файлов открыть после генерации: `.json`, распознанный как схема формы, — корневой
+ * канонический первым (см. {@link schemaRank}), дальше в порядке набора.
  * `null` — в наборе схемы нет, и тогда после генерации ничего не открывается.
  */
 export function formSchemaFileOf(
   files: readonly TemplateFile[]
 ): { readonly file: TemplateFile; readonly schema: JsonFormSchema } | null {
-  for (const file of files) {
+  // Сортировка устойчива: при равном ранге порядок набора сохраняется.
+  const ordered = [...files].sort((a, b) => schemaRank(a.path) - schemaRank(b.path));
+  for (const file of ordered) {
     if (!file.path.endsWith('.json')) continue;
     try {
       const parsed: unknown = JSON.parse(file.content);

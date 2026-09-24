@@ -28,7 +28,7 @@ describe('extractContract', () => {
         'model.ts': { initialFormModel: { a: 1 } },
         'validation.ts': { formValidation: rules },
         'form.behavior.ts': { formBehavior: behavior },
-        'renderer.behavior.ts': { formRenderBehavior: renderBehavior },
+        'form.render.ts': { formRenderBehavior: renderBehavior },
         'registry.ts': { createRegistry },
       })
     );
@@ -62,7 +62,7 @@ describe('extractContract', () => {
     const factory = (): string => 'из фабрики';
     const contract = extractContract(
       modules({
-        'renderer.behavior.ts': {
+        'form.render.ts': {
           formRenderBehavior: () => 'готовая',
           createRenderBehavior: factory,
         },
@@ -77,6 +77,23 @@ describe('extractContract', () => {
       modules({ 'renderer.behavior.ts': { createJsonRenderBehavior: factory } })
     );
     expect(contract.renderBehavior).toBe(factory);
+  });
+
+  it('прежнее имя renderer.behavior.ts тоже подхватывается, но каноничное — первым', () => {
+    const legacy = (): string => 'прежнее';
+    const canon = (): string => 'каноничное';
+    expect(
+      extractContract(modules({ 'renderer.behavior.ts': { createJsonRenderBehavior: legacy } }))
+        .renderBehavior
+    ).toBe(legacy);
+    expect(
+      extractContract(
+        modules({
+          'renderer.behavior.ts': { createJsonRenderBehavior: legacy },
+          'form.render.ts': { createJsonRenderBehavior: canon },
+        })
+      ).renderBehavior
+    ).toBe(canon);
   });
 
   it('пустые модули дают пустой контракт, а не выдуманные артефакты', () => {

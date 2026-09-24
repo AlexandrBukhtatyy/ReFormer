@@ -53,7 +53,7 @@ const TEMPLATE: FormTemplate = {
   name: 'Кредит',
   source: 'builtin',
   files: [
-    { path: 'renderer.schema.json', content: '{"root":{"component":"$html(div)"}}' },
+    { path: 'form.schema.json', content: '{"root":{"component":"$html(div)"}}' },
     { path: 'model.ts', content: 'export const __formName__Model = 1;' },
   ],
 };
@@ -140,7 +140,7 @@ describe('форма по шаблону доходит до дерева', () =
     expect(level(h.session, forms)).toEqual(['old.json']);
 
     const result = await generateFormFromTemplate(h.host, forms, 'credit', TEMPLATE, [
-      'renderer.schema.json',
+      'form.schema.json',
       'model.ts',
     ]);
 

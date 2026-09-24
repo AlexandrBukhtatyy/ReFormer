@@ -14,7 +14,7 @@
  * @module plugins/codegen/pipeline/run
  */
 
-import { appSnippet } from '@reformer/builder-stack-reformer/codegen';
+import { appSnippet, formNameOfSchemaPath } from '@reformer/builder-stack-reformer/codegen';
 import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
@@ -25,16 +25,16 @@ import type { CodegenDocument, CodegenHost } from '../host';
 import type { CodegenStore } from './state';
 
 /**
- * Имя формы по умолчанию — имя файла схемы до ПЕРВОЙ точки.
+ * Имя формы по умолчанию — из пути файла схемы ({@link formNameOfSchemaPath}).
  *
- * До первой, а не до последней: каноничное имя схемы двусоставное (`credit.schema.json`),
- * и отрезание одного расширения оставило бы `credit.schema` — из чего `kebab` делает
- * `creditschema`, то есть каталог `creditschema/` и тип `CreditschemaForm`.
+ * Для канонического имени (`form.schema.json`, прежнее `renderer.schema.json`) это имя ПАПКИ:
+ * срез по точке дал бы `form` (или `renderer`) для любой формы проекта. Для прочих — имя
+ * файла до ПЕРВОЙ точки: каноничное имя схемы двусоставное (`credit.schema.json`), и отрезание
+ * одного расширения оставило бы `credit.schema` — из чего `kebab` делает `creditschema`,
+ * то есть каталог `creditschema/` и тип `CreditschemaForm`.
  */
 export function defaultFormName(document: CodegenDocument): string {
-  const name = document.ref.name;
-  const dot = name.indexOf('.');
-  return dot <= 0 ? name : name.slice(0, dot);
+  return formNameOfSchemaPath(document.ref.path);
 }
 
 /**

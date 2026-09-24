@@ -14,6 +14,14 @@
  * Поэтому набору дописывается сгенерированный файл, который требует все сайдкары разом.
  * Один `load` — один граф — каждый модуль исполнен один раз, как в настоящем CommonJS.
  *
+ * ## Требуются только КОРНЕВЫЕ файлы
+ *
+ * Файлы папок шагов визарда (`steps/index.ts`, `steps/<шаг>/validation.ts`) в наборе есть,
+ * но энтри их не требует: их подтягивает линковщик по импортам корневых (`./steps` резолвится
+ * в `steps/index.ts`). Требовать их напрямую значило бы исполнять то, что форма не импортирует
+ * (брошенную папку переименованного шага, чужой пример в подпапке), и выставлять их экспорты
+ * в разбор контракта, где имена шагов (`validation.ts` у каждого) совпадали бы с корневыми.
+ *
  * ## Почему изоляция ошибок внутри энтри, а не снаружи
  *
  * Битый `validation.ts` не должен лишать превью работающего `form.behavior.ts` — это правило
@@ -81,14 +89,16 @@ export function buildEntrySource(files: readonly string[]): string {
     );
   }
 
-  const lines = files.map((file) => {
-    const specifier = JSON.stringify(`./${file}`);
-    const key = JSON.stringify(file);
-    return (
-      `try { modules[${key}] = require(${specifier}); } ` +
-      `catch (error) { errors.push(failure(${key}, error)); }`
-    );
-  });
+  const lines = files
+    .filter((file) => !file.includes('/'))
+    .map((file) => {
+      const specifier = JSON.stringify(`./${file}`);
+      const key = JSON.stringify(file);
+      return (
+        `try { modules[${key}] = require(${specifier}); } ` +
+        `catch (error) { errors.push(failure(${key}, error)); }`
+      );
+    });
 
   // Ошибка линковщика знает больше, чем её текст: файл, фазу и — через находки движка —
   // место. Энтри исполняется чужим кодом и импортировать класс ошибки не может, поэтому читает

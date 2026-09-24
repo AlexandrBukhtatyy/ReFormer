@@ -100,6 +100,7 @@ function targetOf(name: string, text: string): UserTarget | CodegenProblem {
     id: meta.id,
     path: meta.path,
     cls: meta.cls,
+    ...(meta.each === undefined ? {} : { each: meta.each }),
     template: body,
     origin: 'user',
     ...(meta.order === undefined ? {} : { order: meta.order }),
@@ -173,4 +174,48 @@ export function applyOverrides(targets: readonly CodegenTarget[]): readonly Code
     targets.flatMap((target) => (target.overrides === undefined ? [] : [target.overrides]))
   );
   return overridden.size === 0 ? targets : targets.filter((target) => !overridden.has(target.id));
+}
+
+/**
+ * Замены, которые печатают НЕ туда, куда печатала заменённая цель.
+ *
+ * Типичный случай — шаблон, выгруженный до переименования файлов: встроенная
+ * `codegen.render-behavior` теперь печатает `form.render.ts`, а выгруженная копия так и осталась
+ * с `"path": "renderer.behavior.ts"`. Печать при этом не падает — файл появляется, — но
+ * `index.tsx` импортирует уже новое имя, и правки из шаблона молча перестают действовать.
+ *
+ * Отдельной функцией рядом с {@link applyOverrides}, а не внутри неё: та отвечает на вопрос
+ * «кто печатает», и её результат — список целей; предупреждение — другой канал, и его
+ * показывает панель наравне с отказами разбора. Смотрит на полный список ДО снятия замен:
+ * после {@link applyOverrides} заменённой цели в нём уже нет, и сравнивать было бы не с чем.
+ */
+export function overrideDrift(targets: readonly CodegenTarget[]): readonly CodegenProblem[] {
+  const byId = new Map(targets.map((target) => [target.id, target]));
+  const problems: CodegenProblem[] = [];
+  for (const target of targets) {
+    if (target.overrides === undefined) continue;
+    const replaced = byId.get(target.overrides);
+    if (replaced === undefined) continue;
+    const samePath = replaced.path === target.path;
+    const sameEach = (replaced.each ?? null) === (target.each ?? null);
+    if (samePath && sameEach) continue;
+    const legacy = replaced.legacyPaths?.includes(target.path) === true;
+    const message = !samePath
+      ? legacy
+        ? `«${target.id}» заменяет «${replaced.id}», но печатает прежнее имя «${target.path}» — ` +
+          `модуль импортирует «${replaced.path}». Поправьте «path» в заголовке шаблона.`
+        : `«${target.id}» заменяет «${replaced.id}», но печатает «${target.path}» вместо ` +
+          `«${replaced.path}».`
+      : `«${target.id}» заменяет «${replaced.id}», но ` +
+        (replaced.each === 'step'
+          ? 'печатается один раз, а заменённая — по файлу на шаг: добавьте «"each": "step"».'
+          : 'печатается по шагам, а заменённая — один раз.');
+    problems.push({
+      targetId: target.id,
+      path: target.path,
+      reason: 'override-path-drift',
+      message,
+    });
+  }
+  return problems;
 }

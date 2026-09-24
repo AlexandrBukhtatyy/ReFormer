@@ -32,6 +32,13 @@ describe('прогон генерации', () => {
     expect(defaultFormName(createFakeDocument(DOC, '{}', 'credit.schema.json'))).toBe('credit');
   });
 
+  it('для канонического имени схемы имя формы — имя ПАПКИ, а не «form»/«renderer»', () => {
+    const canon = 'src/forms/loan/form.schema.json';
+    const legacy = 'src/forms/loan/renderer.schema.json';
+    expect(defaultFormName(createFakeDocument(canon, '{}', 'form.schema.json'))).toBe('loan');
+    expect(defaultFormName(createFakeDocument(legacy, '{}', 'renderer.schema.json'))).toBe('loan');
+  });
+
   it('без кита отказывает НАЗВАННО и ничего не пишет', async () => {
     const { host, store } = setup({ kit: null });
     await runCodegen({ host, targets: BUILTIN_TARGETS, documentId: DOC, store });

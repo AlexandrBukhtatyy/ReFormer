@@ -1,11 +1,14 @@
-renderer.schema.json	derived
+form.schema.json	derived
 types.ts	derived
 model.ts	derived
 registry.ts	derived
 index.tsx	derived
+steps/index.ts	derived
 data-sources.ts	user
-renderer.behavior.ts	user	regenerable
+form.render.ts	user	regenerable
+steps/shag-1/form.render.ts	user	regenerable
 form.behavior.ts	user	regenerable
-validation.ts	user	regenerable
+form.validation.ts	user	regenerable
+steps/shag-1/form.validation.ts	user	regenerable
 api.ts	user
 README.md	derived

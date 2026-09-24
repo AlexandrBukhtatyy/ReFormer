@@ -8,6 +8,7 @@
  * @module plugins/codegen/testing
  */
 
+import { MODULE_FILES } from '@reformer/builder-stack-reformer/codegen';
 import { builtinKit } from '@reformer/builder-stack-reformer/testing';
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
@@ -61,9 +62,14 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
     // Листинг выводится из той же плоской карты: «в каталоге» — значит адрес начинается с него
     // и не уходит глубже. Отдельного дерева каталогов у двойника нет — оно было бы вторым
     // ответом на вопрос «что лежит на диске».
-    list: async (dir) =>
-      [...written.keys()]
-        .filter((id) => id.startsWith(`${dir}/`) && !id.slice(dir.length + 1).includes('/'))
+    //
+    // Каталоги — тоже выводом: адрес глубже одного уровня называет подкаталог своим первым
+    // сегментом. Файлы идут первыми, каталоги за ними — порядок листинга не обещан, и тесты
+    // на него не опираются.
+    list: async (dir) => {
+      const inside = [...written.keys()].filter((id) => id.startsWith(`${dir}/`));
+      const files = inside
+        .filter((id) => !id.slice(dir.length + 1).includes('/'))
         .map((id) => {
           const name = id.slice(dir.length + 1);
           return {
@@ -74,7 +80,24 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
             kind: 'file' as const,
             mediaType: name.endsWith('.json') ? 'application/json' : 'text/plain',
           };
-        }),
+        });
+      const dirs = [
+        ...new Set(
+          inside
+            .map((id) => id.slice(dir.length + 1))
+            .filter((rest) => rest.includes('/'))
+            .map((rest) => rest.slice(0, rest.indexOf('/')))
+        ),
+      ].map((name) => ({
+        id: `${dir}/${name}` as ResourceId,
+        sourceId: 'fake',
+        path: `${dir}/${name}`,
+        name,
+        kind: 'directory' as const,
+        mediaType: 'inode/directory',
+      }));
+      return [...files, ...dirs];
+    },
     readText: async (id) => written.get(id) ?? null,
     writeText: async (id, text) => {
       written.set(id, text);
@@ -102,7 +125,7 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
 export function createFakeDocument(
   id: string,
   text: string,
-  name = 'renderer.schema.json'
+  name: string = MODULE_FILES.schema
 ): CodegenDocument {
   return {
     id: id as ResourceId,

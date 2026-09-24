@@ -1,0 +1,13 @@
+/**
+ * Шаг «Контакты» — правила полей шага. «Далее» проверяет только их.
+ */
+import { validate, defineValidationSchema, validateWhen } from '@reformer/core/validation';
+import { email, required } from '@reformer/core/validators';
+import type { ZayavkaNaKreditForm } from '../../types';
+
+export const stepValidation = defineValidationSchema<ZayavkaNaKreditForm>(({ model }) => {
+  validate(model.$.contacts.email, [required(), email()]);
+  validateWhen(() => model.contacts.email === null, () => {
+    validate(model.$.contacts.phone, [required()]);
+  });
+});

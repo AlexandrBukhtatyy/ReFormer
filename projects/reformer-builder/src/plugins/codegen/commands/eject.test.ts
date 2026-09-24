@@ -24,7 +24,7 @@ const registryTarget: CodegenTarget & { readonly order: number } = {
 
 const codeTarget: CodegenTarget = {
   id: 'codegen.schema',
-  path: 'renderer.schema.json',
+  path: 'form.schema.json',
   cls: 'derived',
   emit: () => '{}',
 };
@@ -118,5 +118,29 @@ describe('отказы называются', () => {
       kind: 'read-only',
     });
     expect(host.written.size).toBe(0);
+  });
+});
+
+describe('выгрузка цели по шагам', () => {
+  it('в заголовке — шаблон пути и «each»: «step», и файл снова цель по шагам', async () => {
+    const stepTarget: CodegenTarget = {
+      id: 'codegen.step-validation',
+      path: 'steps/{step}/validation.ts',
+      each: 'step',
+      cls: 'user',
+      regenerable: true,
+      template: '// steps/<%= it.step.dir %>/validation.ts\n',
+    };
+    const host = createFakeHost({ root: ROOT });
+    const outcome = await ejectTemplate(deps(host, [stepTarget]), stepTarget.id);
+    expect(outcome).toMatchObject({ kind: 'written', name: 'step-validation.eta' });
+
+    const parsed = parseTargetFile(host.written.get(`${DIR}/step-validation.eta`) ?? '');
+    expect(parsed.ok && parsed.meta).toMatchObject({
+      overrides: 'codegen.step-validation',
+      path: 'steps/{step}/validation.ts',
+      each: 'step',
+      regenerable: true,
+    });
   });
 });

@@ -48,7 +48,7 @@ import type { CodegenHost } from './host';
 import { codegenWorkspace, ModulePrinterCapability, type CodegenGaps } from './workspace';
 import { CODEGEN_MESSAGES } from './messages';
 import { runCodegen } from './pipeline/run';
-import { applyOverrides, discoverUserTargets } from './pipeline/user-targets';
+import { applyOverrides, discoverUserTargets, overrideDrift } from './pipeline/user-targets';
 import { createCodegenSessions, type CodegenSessions } from './pipeline/state';
 import { BUILTIN_TARGETS } from './pipeline/targets';
 import { ExportPanel } from './ui/ExportPanel';
@@ -445,6 +445,14 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
       };
       ctx.subscriptions.push({ dispose: dropUserTargets });
       void reloadUserTargets();
+
+      // Отказы разбора и предупреждения о заменах — одним списком: панель показывает их
+      // вместе с отказами печати. Замены считаются по ПОЛНОМУ списку вкладов, лениво —
+      // цели вносят и снимают, в том числе чужие плагины.
+      const allProblems = (): readonly CodegenProblem[] => [
+        ...userProblems,
+        ...overrideDrift(ctx.extensions.get(point).map((contribution) => contribution.value)),
+      ];
       // Проект в момент активации может быть ещё не открыт, и тогда первое чтение вернуло бы
       // пустой список навсегда — до тех пор, пока человек не догадается нажать «перечитать».
       // Смена кита — тот же признак «проект появился», по которому перечитывает себя панель
@@ -461,7 +469,7 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
         );
       }
 
-      for (const command of codegenCommands(host, sessions, targets, () => userProblems)) {
+      for (const command of codegenCommands(host, sessions, targets, allProblems)) {
         ctx.subscriptions.push(ctx.commands.register(command));
       }
 
@@ -492,7 +500,7 @@ export function createCodegenPlugin(options: CodegenPluginOptions = {}): Plugin 
           // самое, что палитра и клавиатурное сочетание, — иначе путей к действию два.
           ctx.commands.get(EJECT_TEMPLATE_COMMAND_ID)?.run({ targetId });
         },
-        () => userProblems
+        allProblems
       );
       ctx.subscriptions.push(ctx.extensions.contribute(PanelPoint, panel, { id: panel.id }));
     },

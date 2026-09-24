@@ -21,6 +21,18 @@ describe('isExecutableSidecar', () => {
     expect(isExecutableSidecar('index.ts')).toBe(false);
   });
 
+  it('агрегатор шагов визарда — не страница: исключается только корневой index', () => {
+    expect(isExecutableSidecar('steps/index.ts')).toBe(true);
+    expect(isExecutableSidecar('steps/kontakty/validation.ts')).toBe(true);
+    expect(isExecutableSidecar('steps/kontakty/form.render.ts')).toBe(true);
+  });
+
+  it('фильтры по базовому имени действуют и в папках шагов', () => {
+    expect(isExecutableSidecar('steps/kontakty/validation.test.ts')).toBe(false);
+    expect(isExecutableSidecar('steps/kontakty/fixture.ts')).toBe(false);
+    expect(isExecutableSidecar('steps/kontakty/form.schema.json')).toBe(false);
+  });
+
   it('тесты и объявления типов не исполняются', () => {
     expect(isExecutableSidecar('validation.test.ts')).toBe(false);
     expect(isExecutableSidecar('model.spec.tsx')).toBe(false);

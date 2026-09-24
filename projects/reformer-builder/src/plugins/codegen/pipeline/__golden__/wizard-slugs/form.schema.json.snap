@@ -1,0 +1,65 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "children": [
+      {
+        "component": "$component(Wizard)",
+        "componentProps": {
+          "steps": [
+            {
+              "component": "$component(Step)",
+              "componentProps": {
+                "title": "Контакты"
+              },
+              "children": [
+                {
+                  "value": "$model(phone)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "phone",
+                    "required": true
+                  }
+                }
+              ],
+              "selector": "kontakty-section"
+            },
+            {
+              "component": "$component(Step)",
+              "componentProps": {
+                "title": "Контакты"
+              },
+              "children": [
+                {
+                  "value": "$model(email)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "email",
+                    "required": true
+                  }
+                }
+              ],
+              "selector": "kontakty-section-2"
+            },
+            {
+              "component": "$component(Step)",
+              "componentProps": {},
+              "children": [
+                {
+                  "value": "$model(note)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "note",
+                    "required": true
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "selector": "wizard"
+      }
+    ]
+  }
+}

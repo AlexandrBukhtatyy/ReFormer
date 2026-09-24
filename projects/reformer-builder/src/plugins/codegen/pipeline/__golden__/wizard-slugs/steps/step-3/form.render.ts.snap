@@ -1,0 +1,18 @@
+// steps/step-3/form.render.ts — render-слой шага «Шаг 3»: условная видимость и
+// события узлов шага. Вызывается из корневого form.render.ts.
+
+import type { RenderSchemaProxy } from '@reformer/renderer-react';
+import type { FormModel, FormProxy } from '@reformer/core';
+import type { ZayavkaNaKreditForm } from '../../types';
+
+export function stepRender(
+  schema: RenderSchemaProxy<ZayavkaNaKreditForm>,
+  ctx: { form: FormProxy<ZayavkaNaKreditForm>; model: FormModel<ZayavkaNaKreditForm> }
+): void {
+  // form и model — под теми же именами, что в корневом form.render.ts: правила переносятся
+  // между файлами без правки (условия hideWhen читают form.<поле>.value.value).
+  const { form, model } = ctx;
+  void schema;
+  void form;
+  void model;
+}

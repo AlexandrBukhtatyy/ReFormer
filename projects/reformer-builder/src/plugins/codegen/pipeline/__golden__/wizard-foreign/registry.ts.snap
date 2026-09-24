@@ -2,12 +2,12 @@
 
 import { HexBox, HexField, HexInput } from '@hexa/ui';
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import { Step, Wizard } from './renderer.wizard';
+import { Step, Wizard } from './wizard';
 
 export function createRegistry() {
   return defineRegistry((reg) => {
     reg.component(FIELD_WRAPPER, HexField);
-    // Визард и тело шага — из шима renderer.wizard.tsx.
+    // Визард и тело шага — из шима wizard.tsx.
     reg.component('Wizard', Wizard);
     reg.component('Step', Step);
     reg.component('Box', HexBox);

@@ -24,7 +24,7 @@ function template(files: readonly TemplateFile[], over: Partial<FormTemplate> = 
 }
 
 const schemaFile = (schema: object): TemplateFile => ({
-  path: 'renderer.schema.json',
+  path: 'form.schema.json',
   content: JSON.stringify(schema, null, 2),
 });
 

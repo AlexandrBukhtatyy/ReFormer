@@ -40,6 +40,9 @@ import {
   richSchema,
   seededRules,
   wizardSchema,
+  wizardRulesSchema,
+  wizardRules,
+  wizardSlugsSchema,
 } from '@reformer/builder-stack-reformer/testing';
 import { acceptsMarker, MARKER_PREFIX, originOf } from '@reformer/builder-toolkit';
 import { type CodegenInput } from '@reformer/builder-stack-reformer/codegen';
@@ -97,6 +100,23 @@ const COMBOS: readonly Combo[] = [
     dir: 'wizard-no-adapter',
     holds: 'визард в схеме есть, шима напечатать нечем — цель не применяется, а не бросает',
     input: { schema: wizardSchema(), formName: FORM_NAME, kit: noWizardKit() },
+  },
+  {
+    dir: 'wizard-rules',
+    holds:
+      'правила визарда по шагам: правило шага — в его папку, вне шагов — restValidation в корне; render-правило шага — в steps/',
+    input: {
+      schema: wizardRulesSchema(),
+      formName: FORM_NAME,
+      kit: builtinKit(),
+      rules: wizardRules(),
+    },
+  },
+  {
+    dir: 'wizard-slugs',
+    holds:
+      'имена папок шагов: транслит, суффикс у одинаковых заголовков, запасное имя без заголовка',
+    input: { schema: wizardSlugsSchema(), formName: FORM_NAME, kit: builtinKit() },
   },
 ];
 

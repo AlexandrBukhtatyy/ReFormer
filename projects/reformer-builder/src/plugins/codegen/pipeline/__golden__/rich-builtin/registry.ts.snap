@@ -2,13 +2,13 @@
 
 import { Box, FormField, Input, InputNumber, SelectAsync } from '@reformer/ui-kit';
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import { Step, Wizard } from './renderer.wizard';
+import { Step, Wizard } from './wizard';
 import { LOAN_TYPES, HINT_TEXT, PROP_LABEL } from './data-sources';
 
 export function createRegistry() {
   return defineRegistry((reg) => {
     reg.component(FIELD_WRAPPER, FormField);
-    // Визард и тело шага — из шима renderer.wizard.tsx.
+    // Визард и тело шага — из шима wizard.tsx.
     reg.component('RendererFormWizard', Wizard);
     reg.component('Step', Step);
     reg.component('Select', SelectAsync);

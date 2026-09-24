@@ -104,9 +104,23 @@ describe('подготовка файлов формы', () => {
   it('схему для открытия ищет среди json и отличает её от прочего json', () => {
     const files = [
       { path: 'package.json', content: '{"name":"x"}' },
-      { path: 'renderer.schema.json', content: '{"root":{"component":"$html(div)"}}' },
+      { path: 'form.schema.json', content: '{"root":{"component":"$html(div)"}}' },
     ];
-    expect(formSchemaFileOf(files)?.file.path).toBe('renderer.schema.json');
+    expect(formSchemaFileOf(files)?.file.path).toBe('form.schema.json');
     expect(formSchemaFileOf([{ path: 'x.json', content: 'не json' }])).toBeNull();
+  });
+
+  it('корневой form.schema.json важнее под-схемы шага и прежнего имени, где бы ни стоял', () => {
+    const schema = '{"root":{"component":"$html(div)"}}';
+    const files = [
+      { path: 'steps/dannye/form.schema.json', content: schema },
+      { path: 'renderer.schema.json', content: schema },
+      { path: 'loan.schema.json', content: schema },
+      { path: 'form.schema.json', content: schema },
+    ];
+    expect(formSchemaFileOf(files)?.file.path).toBe('form.schema.json');
+    // Без канона — прежнее имя, затем прочие корневые; вложенные — последними.
+    expect(formSchemaFileOf(files.slice(0, 3))?.file.path).toBe('renderer.schema.json');
+    expect(formSchemaFileOf([files[0], files[2]])?.file.path).toBe('loan.schema.json');
   });
 });
