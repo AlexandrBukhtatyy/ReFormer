@@ -156,7 +156,9 @@ Record a ReFormer problem + its fix as a JSON report on disk — one file per re
 
 The directory is configurable via the `REFORMER_ISSUE_REPORTS_DIR` env var (relative values
 resolve against the server cwd). Project root = nearest `package.json` with dependencies above
-cwd; when there is none, reports land in cwd itself.
+cwd, searched from outside `node_modules` (an npx run from `node_modules/@reformer/mcp` still writes
+to the app); when there is none, reports land in cwd itself. The default `.reformer/` gets its own
+`.gitignore`, so reports never reach your commits.
 
 Use when you discover and fix a non-obvious ReFormer error, to help future runs.
 

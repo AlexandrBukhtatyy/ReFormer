@@ -20,7 +20,9 @@ The model owns all values. Decisions: the data shape as a `type` (NOT `interface
 
 - Numbers optional → `null`; strings → `''`; arrays → `[]`.
 - Array items must initialise **every** field, or the item's sub-model has no signals for the missing ones.
-- Stabilise the instance in `useMemo` so it isn't rebuilt each render.
+- Don't build the model by hand in a component: the one-call assembly in step 3 creates it inside
+  `useFormBundle` (a lazy `useState`). Not `useMemo` — React may drop its cache and rebuild the model,
+  losing typed input.
 
 ```ts
 import { createModel } from '@reformer/core';

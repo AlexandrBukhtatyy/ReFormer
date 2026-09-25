@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'fs';
-import { resolve, dirname, join } from 'path';
+import { resolve, dirname, join, sep } from 'path';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { discoverUnknownStack } from './sampling-helpers.js';
 
@@ -29,12 +29,25 @@ export interface ProjectStack {
 }
 
 /**
+ * Каталог вне `node_modules`: для пути внутри него — каталог над самым внешним сегментом
+ * `node_modules`, иначе сам путь. Сервер, запущенный через npx из
+ * `<app>/node_modules/@reformer/mcp`, иначе принял бы за проект собственный пакет — и писал бы
+ * туда то, что стирает следующий `npm ci`.
+ */
+export function outsideNodeModules(dir: string): string {
+  const parts = resolve(dir).split(sep);
+  const at = parts.indexOf('node_modules');
+  return at > 0 ? resolve(parts.slice(0, at).join(sep) + sep) : resolve(dir);
+}
+
+/**
  * Walk up from cwd looking for the nearest package.json that is not a workspace
- * root descriptor (i.e. has dependencies). Stops at filesystem root or 8 levels
- * up. Returns null if not found.
+ * root descriptor (i.e. has dependencies). Starts outside `node_modules` (installed
+ * packages are never the project). Stops at filesystem root or 8 levels up.
+ * Returns null if not found.
  */
 function findProjectPackageJson(startDir: string): string | null {
-  let dir = startDir;
+  let dir = outsideNodeModules(startDir);
   for (let i = 0; i < 8; i++) {
     const candidate = join(dir, 'package.json');
     if (existsSync(candidate)) {
@@ -305,7 +318,7 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
       '**Settings.fieldWrapper = FormField** — оборачивает каждое поле в label + error + pending:'
     );
     lines.push('```tsx');
-    lines.push('<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />');
+    lines.push('<FormRenderer form={bundle} settings={{ fieldWrapper: FormField }} />');
     lines.push('```');
   } else {
     lines.push('**Step-обёртка в ручном React (карточка — компонентом, не классами):**');

@@ -38,8 +38,10 @@ Report an issue encountered while working with ReFormer and its solution.
 **Storage:** One JSON file per report, written to
 `<project root>/.reformer/issue_reports/<timestamp>-<slug>.json`. Set the
 `REFORMER_ISSUE_REPORTS_DIR` environment variable to write elsewhere (relative values resolve
-against the server's cwd). Project root = nearest `package.json` with dependencies above cwd;
-with no such file, the directory is created in cwd.
+against the server's cwd). Project root = nearest `package.json` with dependencies above cwd,
+searched from outside `node_modules` (an npx run from `node_modules/@reformer/mcp` still writes to
+the app); with no such file, the directory is created in cwd. The default `.reformer/` directory
+gets its own `.gitignore` (`*`), so reports never reach the project's commits.
 
 ---
 

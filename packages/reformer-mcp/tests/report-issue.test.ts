@@ -82,6 +82,33 @@ describe('reportIssueTool (defect 77)', () => {
     const files = readdirSync(dir);
     expect(files).toHaveLength(1);
     expect(res.content[0].text).toContain(join(dir, files[0]));
+    // У потребителя нет записи о .reformer/ в .gitignore — каталог игнорирует себя сам.
+    expect(readFileSync(join(projectRoot, '.reformer', '.gitignore'), 'utf-8')).toBe('*\n');
+  });
+
+  it('запуск из node_modules/@reformer/mcp (npx) пишет в корень приложения, а не в пакет', async () => {
+    delete process.env[ISSUE_REPORTS_DIR_ENV];
+    const write = (dir: string, json: object): void => {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'package.json'), JSON.stringify(json), 'utf-8');
+    };
+    write(base, { name: 'host-app', dependencies: { react: '^19.0.0' } });
+    const pkg = join(base, 'node_modules', '@reformer', 'mcp');
+    write(pkg, { name: '@reformer/mcp', dependencies: { zod: '^3.0.0' } });
+    process.chdir(pkg);
+    const appRoot = join(process.cwd(), '..', '..', '..');
+
+    await reportIssueTool({ error: 'from npx', solution: 's' }, k);
+
+    expect(readdirSync(join(appRoot, '.reformer', 'issue_reports'))).toHaveLength(1);
+    expect(readdirSync(pkg)).toEqual(['package.json']);
+  });
+
+  it('каталог из переменной окружения не получает чужой .gitignore', async () => {
+    const dir = join(base, 'mine', 'reports');
+    process.env[ISSUE_REPORTS_DIR_ENV] = dir;
+    await reportIssueTool({ error: 'e', solution: 's' }, k);
+    expect(readdirSync(join(base, 'mine'))).toEqual(['reports']);
   });
 
   it('does not overwrite an existing report with the same name', async () => {
@@ -153,5 +180,26 @@ describe('reportIssueTool (defect 77)', () => {
   it('вызов без аргументов не роняет инструмент', async () => {
     const res = await reportIssueTool(undefined, k);
     expect(res.content[0].text).toMatch(/`error` обязателен/);
+  });
+
+  it('error не строкой (число, null) — отказ текстом, а не исключение из CallTool', async () => {
+    for (const error of [123, null]) {
+      const res = await reportIssueTool({ error, solution: 's' }, k);
+      expect(res.content[0].text).toMatch(/`error` обязателен/);
+    }
+  });
+
+  it('нестроковые теги отбрасываются ДО записи — клиент не получает ошибку после записи', async () => {
+    // Прежде нестроковый тег ронял обработчик уже ПОСЛЕ записи файла: клиент видел ошибку,
+    // повторял вызов и плодил дубликаты отчётов.
+    process.env[ISSUE_REPORTS_DIR_ENV] = base;
+    const res = await reportIssueTool(
+      { error: 'e', solution: 's', tags: [1, 'category:schema', null] },
+      k
+    );
+    const text = res.content[0].text;
+    expect(text).toContain('Category: schema');
+    expect(text).toMatch(/нестроковых элементов в `tags`: 2/);
+    expect(readdirSync(base)).toHaveLength(1);
   });
 });
