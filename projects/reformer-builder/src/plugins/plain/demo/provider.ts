@@ -15,7 +15,7 @@ import {
   printPlainForm,
   type PlainForm,
   type PlainOp,
-} from '@reformer/builder-stack-plain';
+} from '@/plugins/plain/core';
 import type {
   DocumentModelProvider,
   EditOp,

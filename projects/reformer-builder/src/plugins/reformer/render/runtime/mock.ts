@@ -19,10 +19,10 @@ export {
   defaultForField,
   mockOptions,
   synthMock,
-} from '@reformer/builder-stack-reformer/form-mock';
+} from '@/plugins/reformer/core/form-mock';
 export type {
   DataSourceClasses,
   FieldDefault,
   MockOption,
-} from '@reformer/builder-stack-reformer/form-mock';
-export type { FormMock } from '@reformer/builder-stack-reformer/codegen';
+} from '@/plugins/reformer/core/form-mock';
+export type { FormMock } from '@/plugins/reformer/core/codegen';

@@ -25,10 +25,10 @@ import {
   type JsonFormSchema,
   type RegistryBuilder,
 } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import { INFRA_NAMES } from '@reformer/builder-stack-reformer/kits';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
+import { INFRA_NAMES } from '@/plugins/reformer/core/kits';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
-import { collectOperatorNames } from '@reformer/builder-stack-reformer/form-model';
+import { collectOperatorNames } from '@/plugins/reformer/core/form-model';
 import { classifyEntry, isRegistrable, resolveInfra } from './policy';
 import { classifyDataSources, mockOptions } from './mock';
 import { isolateComponent, makeLimitedComponent, makeUnknownComponent } from './stubs';

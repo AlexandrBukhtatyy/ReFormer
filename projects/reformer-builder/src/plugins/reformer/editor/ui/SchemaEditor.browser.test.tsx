@@ -20,7 +20,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { useEffect, type ReactElement } from 'react';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import { renderReact } from '@/testing/render';
 import type { CommandAccess } from '../editing/commands';

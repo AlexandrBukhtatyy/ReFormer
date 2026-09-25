@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { prepare } from '@reformer/builder-stack-reformer/codegen';
-import { builtinKit, plainSchema, wizardSchema } from '@reformer/builder-stack-reformer/testing';
+import { prepare } from '@/plugins/reformer/core/codegen';
+import { builtinKit, plainSchema, wizardSchema } from '@/plugins/reformer/core/testing';
 import type { CodegenTarget } from '../contract';
 import { createFakeHost } from '../testing';
 import { generateModule } from './generate';

@@ -13,10 +13,10 @@ import {
   joinFormSchema,
   stepRefsOf,
   type StepOrigins,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile } from '../contract';
-import { SCHEMA_FILE_NAMES, type KitView } from '@reformer/builder-stack-reformer/codegen';
+import { SCHEMA_FILE_NAMES, type KitView } from '@/plugins/reformer/core/codegen';
 import { materialize, tokenize } from '../render/placeholders';
 import { buildTemplateView, renderTemplateFile } from '../render/render';
 

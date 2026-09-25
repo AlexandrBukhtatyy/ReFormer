@@ -5,7 +5,7 @@
  */
 
 import { isContainerNode } from '@reformer/renderer-json';
-import { setComponentProp } from '@reformer/builder-stack-reformer/form-model';
+import { setComponentProp } from '@/plugins/reformer/core/form-model';
 import { commitMutation } from '../loop/gate';
 import { layoutClassName, type LayoutParams } from '../model/layout';
 import { componentOf, isResolved, labelOf, resolveRef } from '../model/node-ref';

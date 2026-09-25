@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinKit, plainSchema, wizardSchema } from '@reformer/builder-stack-reformer/testing';
+import { builtinKit, plainSchema, wizardSchema } from '@/plugins/reformer/core/testing';
 import type { FormTemplate, TemplateFile } from '../contract';
 import { materializeFiles } from '../content/files';
 import { buildTemplateView } from './render';

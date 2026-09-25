@@ -15,7 +15,7 @@
  *
  * ## Подпись строки собирается доменом
  *
- * `labelOf`/`componentOf`/`modelOf` живут в `@reformer/builder-stack-reformer/form-model` и отвечают на те же
+ * `labelOf`/`componentOf`/`modelOf` живут в `@/plugins/reformer/core/form-model` и отвечают на те же
  * вопросы для инспектора, диагностики и агента. Вторая функция «как назвать узел» разошлась бы
  * с первой на первом же составном компоненте.
  *
@@ -23,17 +23,17 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { htmlTag } from '@reformer/builder-stack-reformer/catalog';
-import { nodeIdOf } from '@reformer/builder-stack-reformer/form-model';
+import { htmlTag } from '@/plugins/reformer/core/catalog';
+import { nodeIdOf } from '@/plugins/reformer/core/form-model';
 import {
   childSlots,
   kindOf,
   type ChildSlotKind,
   type NodeKind,
-} from '@reformer/builder-stack-reformer/form-model';
-import { componentOf, labelOf, modelOf } from '@reformer/builder-stack-reformer/form-model';
-import { selectorOf } from '@reformer/builder-stack-reformer/form-model';
-import type { JsonPath } from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
+import { componentOf, labelOf, modelOf } from '@/plugins/reformer/core/form-model';
+import { selectorOf } from '@/plugins/reformer/core/form-model';
+import type { JsonPath } from '@/plugins/reformer/core/form-model';
 import type { NodeId } from '../host';
 
 /** Одна строка канваса — узел вместе с тем, что о нём нужно знать при отрисовке. */

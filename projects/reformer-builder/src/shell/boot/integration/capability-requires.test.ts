@@ -23,7 +23,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { builderApplication } from '@/application/builder-application';
-import type { CatalogJson } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogJson } from '@/plugins/reformer/core/catalog';
 import { createKitsPlugin, KITS_PLUGIN_ID } from '@/plugins/kits/registry';
 import { createProjectPluginCatalog } from '@/shell/platform/plugin/catalog';
 import { createPluginLoader } from '@/shell/platform/plugin/loader';

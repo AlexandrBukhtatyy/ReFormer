@@ -21,7 +21,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { useMemo, useState, type ReactElement } from 'react';
 import type { Diagnostic } from '@reformer/builder-plugin-api';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
 import { renderReact } from '@/testing/render';
 import type { CommandAccess } from '../editing/commands';
 import { indexNodes } from '../model/node-index';

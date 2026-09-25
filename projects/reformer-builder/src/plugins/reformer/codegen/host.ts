@@ -31,8 +31,8 @@
  * @module plugins/reformer/codegen/host
  */
 
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
+import type { FormRules } from '@/plugins/reformer/core/form-model';
 import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import type {
   Disposable,

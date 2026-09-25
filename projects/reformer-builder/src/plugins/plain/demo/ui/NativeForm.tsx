@@ -11,7 +11,7 @@ import {
   type PlainField,
   type PlainForm,
   type PlainValues,
-} from '@reformer/builder-stack-plain';
+} from '@/plugins/plain/core';
 import type { PreviewContext } from '@reformer/builder-plugin-api';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;

@@ -33,7 +33,7 @@
  * @module plugins/reformer/ai/workspace
  */
 
-import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { projectCatalog, type CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   KitsCapability,

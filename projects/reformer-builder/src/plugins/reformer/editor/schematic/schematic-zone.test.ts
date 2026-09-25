@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Orientation } from '@reformer/builder-stack-reformer/form-model';
+import type { Orientation } from '@/plugins/reformer/core/form-model';
 import { PERP_ZONES, zoneAt, zoneEdge, type Rect, type SchematicZone } from './schematic-zone';
 
 const RECT: Rect = { left: 0, top: 0, width: 100, height: 100 };

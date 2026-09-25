@@ -6,7 +6,7 @@
  * гейт (`core/validate` с `strict: true`) ловит те случаи, когда она всё же сочинила.
  *
  * Каталог — это «то, что можно поставить в форму»: записи с `palette: false` отсеиваются на
- * границе источника (`@reformer/builder-stack-reformer/catalog`). Он намеренно у́же множества имён, которые ПРОХОДЯТ
+ * границе источника (`@/plugins/reformer/core/catalog`). Он намеренно у́же множества имён, которые ПРОХОДЯТ
  * валидацию (строгий гейт добавляет к нему INFRA-имена вроде `List`): вставлять инфраструктурные
  * обёртки агент не должен, а встретить их в чужой схеме — может.
  *
@@ -16,10 +16,10 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { isCompoundPart, partNamesOf } from '@reformer/builder-stack-reformer/catalog';
-import { makeNodeFor } from '@reformer/builder-stack-reformer/catalog';
-import type { CatalogEntry, CatalogRole } from '@reformer/builder-stack-reformer/catalog';
-import { toInspectorProps } from '@reformer/builder-stack-reformer/catalog';
+import { isCompoundPart, partNamesOf } from '@/plugins/reformer/core/catalog';
+import { makeNodeFor } from '@/plugins/reformer/core/catalog';
+import type { CatalogEntry, CatalogRole } from '@/plugins/reformer/core/catalog';
+import { toInspectorProps } from '@/plugins/reformer/core/catalog';
 import { buildOutline, renderOutline } from './outline';
 import { joinWithinBudget } from '../loop/render-budget';
 

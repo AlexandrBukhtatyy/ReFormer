@@ -6,8 +6,8 @@
  * @module plugins/reformer/templates/testing
  */
 
-import { builtinKit } from '@reformer/builder-stack-reformer/testing';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { builtinKit } from '@/plugins/reformer/core/testing';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import type { TemplateKeyValue, TemplatesHost } from './host';

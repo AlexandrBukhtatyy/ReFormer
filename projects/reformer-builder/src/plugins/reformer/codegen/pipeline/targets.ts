@@ -33,7 +33,7 @@ import {
   LEGACY_FILES,
   STEPS_INDEX,
   STEP_FILES,
-} from '@reformer/builder-stack-reformer/codegen';
+} from '@/plugins/reformer/core/codegen';
 import type { CodegenTarget } from '../contract';
 
 /**

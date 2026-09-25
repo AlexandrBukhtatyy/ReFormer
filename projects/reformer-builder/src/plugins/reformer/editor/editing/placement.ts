@@ -13,8 +13,8 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { canAcceptChildren, childSlots } from '@reformer/builder-stack-reformer/form-model';
-import { getAt } from '@reformer/builder-stack-reformer/form-model';
+import { canAcceptChildren, childSlots } from '@/plugins/reformer/core/form-model';
+import { getAt } from '@/plugins/reformer/core/form-model';
 import { indexNodes } from '../model/node-index';
 import { slotPositionOf, type ArraySlot } from '../model/ops';
 import type { NodeId } from '../host';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import { completeModelPath, formJsonSchema } from './hints';
 
 const schema = {

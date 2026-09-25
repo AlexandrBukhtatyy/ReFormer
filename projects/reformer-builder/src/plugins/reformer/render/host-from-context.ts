@@ -32,7 +32,7 @@ import {
   type ResourceId,
   type ResourceRef,
 } from '@reformer/builder-plugin-api';
-import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { projectCatalog, type CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { PreviewDocument, PreviewHost, Translate } from './host';
 
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);

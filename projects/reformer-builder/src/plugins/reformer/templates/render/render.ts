@@ -32,7 +32,7 @@ import {
   prepare,
   type CodegenView,
   type KitView,
-} from '@reformer/builder-stack-reformer/codegen';
+} from '@/plugins/reformer/core/codegen';
 import { renderTemplate } from '@reformer/builder-toolkit';
 import { nameVariants } from './placeholders';
 import type { FormTemplate, TemplateFile } from '../contract';

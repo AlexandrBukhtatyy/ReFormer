@@ -19,7 +19,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { emitFixture, fixturePathOf } from '@reformer/builder-stack-reformer/form-fixture';
+import { emitFixture, fixturePathOf } from '@/plugins/reformer/core/form-fixture';
 import { isGenerated, withMarker } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenHost } from '../host';

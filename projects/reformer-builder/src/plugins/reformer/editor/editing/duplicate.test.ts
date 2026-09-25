@@ -10,10 +10,10 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@reformer/builder-stack-reformer/form-model';
-import { ensureNodeIds, type NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
-import { getAt, type JsonPath } from '@reformer/builder-stack-reformer/form-model';
-import { walkNodes } from '@reformer/builder-stack-reformer/form-model';
+import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@/plugins/reformer/core/form-model';
+import { ensureNodeIds, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
+import { getAt, type JsonPath } from '@/plugins/reformer/core/form-model';
+import { walkNodes } from '@/plugins/reformer/core/form-model';
 import { planDuplicate } from './duplicate';
 import { indexNodes } from '../model/node-index';
 import { applyEditOp } from '../model/ops';

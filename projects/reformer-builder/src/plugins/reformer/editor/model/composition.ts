@@ -17,7 +17,7 @@ import {
   stepRefsOf,
   type NodeIdFactory,
   type StepOrigins,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
 import type { DocumentComposition } from '@reformer/builder-plugin-api';
 
 /** Отступ печати файла шага — тот же, что у корня. */

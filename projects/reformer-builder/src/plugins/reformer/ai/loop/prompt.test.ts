@@ -6,7 +6,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
 import { commonProps, listComponents } from '../model/catalog-digest';
 import { systemPrompt } from './prompt';
 import { PROMPT_BUDGET } from '../model/types';

@@ -24,7 +24,7 @@
  * и генерируют чужими инструментами; копипаста поддерева приносит двойника, и с ним ломается
  * адресация целиком: правка уходит не в тот узел, диагностика встаёт не на тот, выделение
  * подсвечивает не то. Разбор его снимает — второму носителю адрес перевыдаётся
- * (`assignNodeIds` из `@reformer/builder-stack-reformer/form-model`), — и **отказывать в открытии файла
+ * (`assignNodeIds` из `@/plugins/reformer/core/form-model`), — и **отказывать в открытии файла
  * из-за этого нельзя**: отказ оставил бы человека наедине с текстовым редактором ровно там,
  * где структурный и нужен. Правило то же, что для отсутствующего и для негодного по форме
  * адреса: адрес выдаёт машина, и починка его — её работа, а не пользователя.
@@ -44,18 +44,14 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import {
-  ensureNodeIds,
-  newNodeId,
-  type NodeIdFactory,
-} from '@reformer/builder-stack-reformer/form-model';
+import { ensureNodeIds, newNodeId, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
 import {
   ensureSchema,
   indexNodePaths,
   isFormSchema,
   type JsonPath,
-} from '@reformer/builder-stack-reformer/form-model';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+} from '@/plugins/reformer/core/form-model';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { Disposable, EditorProbe, ResourceRef } from '@reformer/builder-plugin-api';
 import { applyEditOp } from './ops';
 import { completeModelPath, formJsonSchema, formStepJsonSchema } from './hints';

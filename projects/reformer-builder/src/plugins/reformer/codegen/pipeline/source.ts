@@ -12,11 +12,7 @@
  * @module plugins/reformer/codegen/pipeline/source
  */
 
-import {
-  joinFormSchema,
-  stepRefsOf,
-  type StepOrigins,
-} from '@reformer/builder-stack-reformer/form-model';
+import { joinFormSchema, stepRefsOf, type StepOrigins } from '@/plugins/reformer/core/form-model';
 import { normalizeStepRef, type JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost } from '../host';

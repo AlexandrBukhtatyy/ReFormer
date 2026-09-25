@@ -33,8 +33,6 @@ export default {
         'reformer-builder-plugin-api',
         'reformer-builder-plugin-cli',
         'reformer-builder-toolkit',
-        'reformer-builder-stack-reformer',
-        'reformer-builder-stack-plain',
         'react-playground',
         'react-playground-e2e',
         'docs',

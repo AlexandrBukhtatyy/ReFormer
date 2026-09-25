@@ -21,13 +21,9 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import {
-  newNodeId,
-  reissueNodeIds,
-  type NodeIdFactory,
-} from '@reformer/builder-stack-reformer/form-model';
-import { getAt, type JsonPath } from '@reformer/builder-stack-reformer/form-model';
-import { navIntentAt, type NavDir } from '@reformer/builder-stack-reformer/form-model';
+import { newNodeId, reissueNodeIds, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
+import { getAt, type JsonPath } from '@/plugins/reformer/core/form-model';
+import { navIntentAt, type NavDir } from '@/plugins/reformer/core/form-model';
 import { blockOf, slotSegments } from '../model/block';
 import { indexNodes } from '../model/node-index';
 import { batchOp, insertOp } from '../model/ops';

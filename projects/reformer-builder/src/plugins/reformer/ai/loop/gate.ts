@@ -14,8 +14,8 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { MutationResult } from '@reformer/builder-stack-reformer/form-model';
-import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
+import type { MutationResult } from '@/plugins/reformer/core/form-model';
+import type { FormRules } from '@/plugins/reformer/core/form-model';
 import { validateSchema } from '../model/validate';
 import { nodeRef } from '../model/node-ref';
 import { buildOutline, renderOutline } from '../model/outline';
@@ -131,7 +131,7 @@ export interface OpDescription {
  * Провести результат мутации через гейт.
  *
  * @param ctx - Контекст вызова (нужна база для сравнения ошибок).
- * @param result - Результат функции из `@reformer/builder-stack-reformer/form-model`.
+ * @param result - Результат функции из `@/plugins/reformer/core/form-model`.
  * @param describe - Описание операции; получает адрес затронутого узла ПОСЛЕ правки.
  * @returns Успех со схемой и операцией либо `SCHEMA_INVALID` с новыми ошибками.
  */

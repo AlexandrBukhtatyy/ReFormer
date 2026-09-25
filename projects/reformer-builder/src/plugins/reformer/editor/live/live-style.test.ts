@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { EMPTY_CLASS } from '@reformer/builder-stack-reformer/form-model';
+import { EMPTY_CLASS } from '@/plugins/reformer/core/form-model';
 import { hoverCss, liveCss } from './live-style';
 
 const SCOPE = 'rb1';

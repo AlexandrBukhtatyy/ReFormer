@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { emptyRules } from '@reformer/builder-stack-reformer/form-model';
+import { emptyRules } from '@/plugins/reformer/core/form-model';
 import { createAiSession, type TurnSnapshot } from './session';
 
 const SNAPSHOT: TurnSnapshot = { resource: 'form.json', text: '{}', rules: emptyRules() };

@@ -37,8 +37,8 @@ import {
   formNameOfSchemaPath,
   MODULE_FILES,
   SCHEMA_FILE_NAMES,
-} from '@reformer/builder-stack-reformer/codegen';
-import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/codegen';
+import { isFormSchema } from '@/plugins/reformer/core/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
   argsOfResource,

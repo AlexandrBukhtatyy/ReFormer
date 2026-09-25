@@ -6,7 +6,7 @@ import {
   sampleForm,
   type PlainForm,
   type PlainOp,
-} from '@reformer/builder-stack-plain';
+} from '@/plugins/plain/core';
 import {
   splitDiagnosticCode,
   type DocumentModelsService,

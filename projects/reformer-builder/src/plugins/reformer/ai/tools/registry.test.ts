@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { emptyRules } from '@reformer/builder-stack-reformer/form-model';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { emptyRules } from '@/plugins/reformer/core/form-model';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
 import { createToolRegistry } from './registry';
 import { readOnlyTools } from '../tools';
 import { ok, TOOL_TEXT_BUDGET, type AgentTool, type ToolContext } from '../model/types';

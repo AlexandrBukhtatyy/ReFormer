@@ -53,6 +53,12 @@ const EXCEPTIONS: Readonly<Record<string, { readonly limit: number; readonly why
       'группировка инструментов по темам спрятала бы её состав, а он под храповиком ' +
       'tool-surface.test.ts',
   },
+  'plugins/reformer/core/form-model': {
+    limit: 17,
+    why:
+      'бывший модуль пакета стека перенесён в ядро домена как есть — перенос без правок ' +
+      'поведения; раскладка на подкаталоги за барелем — ReFormer-tbbt.10',
+  },
 };
 
 /** Корневые каталоги `src/`, внутри которых считаем. */

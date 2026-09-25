@@ -14,7 +14,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
 import { listComponents } from '../model/catalog-digest';
 import type { WhenContext } from '@reformer/builder-plugin-api';
 import { AI_UNDO_TURN_COMMAND_ID, aiUndoTurnCommand, createAgentBridge } from './bridge';

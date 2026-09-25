@@ -2,7 +2,7 @@
  * Модель инспектора: какие свойства показывать у выделенного узла и чем их править.
  *
  * Отбор свойств — целиком дело каталога: инспектор показывает то, что кит объявил
- * в `propsSchema`, разложенное по секциям `x-doc.group` (`@reformer/builder-stack-reformer/catalog`). Своего
+ * в `propsSchema`, разложенное по секциям `x-doc.group` (`@/plugins/reformer/core/catalog`). Своего
  * списка полей у инспектора нет и быть не может — иначе он показывал бы у компонента
  * то, чего компонент не принимает, и не показывал бы того, что принимает.
  *
@@ -24,26 +24,22 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { inspectorGroups } from '@reformer/builder-stack-reformer/catalog';
+import { inspectorGroups } from '@/plugins/reformer/core/catalog';
 import type {
   CatalogEntry,
   InspectorProp,
   InspectorWidget,
   PropGroup,
-} from '@reformer/builder-stack-reformer/catalog';
-import { textChildIndex } from '@reformer/builder-stack-reformer/form-model';
-import {
-  canAcceptChildren,
-  kindOf,
-  type NodeKind,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/catalog';
+import { textChildIndex } from '@/plugins/reformer/core/form-model';
+import { canAcceptChildren, kindOf, type NodeKind } from '@/plugins/reformer/core/form-model';
 import {
   boundPathsIn,
   collectModelScopes,
   componentOf,
   modelOf,
   scopeOfPath,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
 import { indexNodes } from '../model/node-index';
 import { nodeTitle } from '../canvas/canvas-tree';
 import type { NodeId } from '../host';

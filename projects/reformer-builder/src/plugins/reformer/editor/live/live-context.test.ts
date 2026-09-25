@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
 import type { NodeId } from '@reformer/builder-plugin-api';
 import { createLiveContext } from './live-context';
 import type { SchemaEditorState } from '../session/sessions';

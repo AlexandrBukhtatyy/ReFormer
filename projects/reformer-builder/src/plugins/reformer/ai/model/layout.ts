@@ -8,7 +8,7 @@
  * @module plugins/reformer/ai/model/layout
  */
 
-import { hasVariant, isAxisToken, isGapToken } from '@reformer/builder-stack-reformer/form-model';
+import { hasVariant, isAxisToken, isGapToken } from '@/plugins/reformer/core/form-model';
 
 /** Семантические параметры раскладки контейнера. */
 export interface LayoutParams {

@@ -26,7 +26,7 @@
  * @module plugins/reformer/codegen/workspace
  */
 
-import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { projectCatalog, type CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import {
   defineCapability,

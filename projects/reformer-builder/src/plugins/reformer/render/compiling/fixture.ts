@@ -28,7 +28,7 @@ import {
   FIXTURE_EXPORT,
   fixturePathOf,
   type FormFixture,
-} from '@reformer/builder-stack-reformer/form-fixture';
+} from '@/plugins/reformer/core/form-fixture';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { PreviewProblem } from '@reformer/builder-plugin-api';
 import type { PreviewHost, PreviewModules } from '../host';

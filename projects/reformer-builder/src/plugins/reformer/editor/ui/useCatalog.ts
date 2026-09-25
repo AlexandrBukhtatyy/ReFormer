@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useSyncExternalStore } from 'react';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { SchemaEditorHost } from '../host';
 
 export function useCatalog(host: SchemaEditorHost): readonly CatalogEntry[] {

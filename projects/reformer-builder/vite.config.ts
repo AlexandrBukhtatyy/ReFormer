@@ -40,6 +40,16 @@ const pluginOf = (id: string): string | undefined => {
   return `${domain}-${plugin}`;
 };
 
+/** Чьё это ядро: `…/src/plugins/<домен>/core/…` → `<домен>`. */
+const coreOf = (id: string): string | undefined => {
+  const marker = '/src/plugins/';
+  const s = norm(id);
+  const at = s.lastIndexOf(marker);
+  if (at === -1) return undefined;
+  const [domain, folder, rest] = s.slice(at + marker.length).split('/', 3);
+  return folder === 'core' && rest !== undefined ? domain : undefined;
+};
+
 /** Словари оболочки: свой каталог, потому что их читают по одному и глазами. */
 const isShellLocale = (id: string): boolean =>
   norm(id).includes('/src/shell/platform/services/i18n/locales/');
@@ -134,15 +144,23 @@ export default defineConfig({
 
           if (own.every(isShellLocale)) return 'assets/i18n/[name]-[hash].js';
 
+          // Общий код домена: чанк только из ядра одного домена (и пакетов). Ядра — бывшие
+          // пакеты стеков, и раньше такие чанки лежали в `assets/vendor/<пакет стека>/`.
+          const cores = new Set(own.map(coreOf));
+          if (cores.size === 1 && !cores.has(undefined)) {
+            return `assets/core/${[...cores][0]}/[name]-[hash].js`;
+          }
+
           // Чанк плагина: и сам барель, и его ленивые внутренности (BYOK, корпус знаний,
           // превью markdown). «Все модули этого плагина» — условие СЛИШКОМ строгое: рядом
-          // с кодом плагина в чанк почти всегда попадает код пакетов стеков, и по такому правилу
-          // плагин уезжал в `assets/js/` под именем `index`. Поэтому владелец — единственный
-          // плагин среди владельцев, и его модулей должно быть не меньше половины: иначе это
-          // общий чанк, куда чужой модуль попал попутчиком.
+          // с кодом плагина в чанк почти всегда попадает код ядра домена и пакетов, и по такому
+          // правилу плагин уезжал в `assets/js/` под именем `index`. Поэтому владелец —
+          // единственный плагин среди владельцев, и его модулей должно быть не меньше половины
+          // собственного кода вне ядер: иначе это общий чанк, куда чужой модуль попал попутчиком.
           const owners = new Set(own.map(pluginOf).filter((id) => id !== undefined));
           const owned = own.filter((id) => pluginOf(id) !== undefined).length;
-          if (owners.size === 1 && owned * 2 >= own.length) {
+          const outsideCores = own.filter((id) => coreOf(id) === undefined).length;
+          if (owners.size === 1 && owned * 2 >= outsideCores) {
             const owner = [...owners][0];
             // У бареля `[name]` — всегда `index`, и `plugins/reformer-ai-index` ничего
             // не добавляет к `plugins/reformer-ai`. У остальных имя несёт смысл и остаётся.
@@ -199,19 +217,10 @@ export default defineConfig({
         __dirname,
         '../../packages/reformer-builder-plugin-api/src/index.ts'
       ),
-      // Пакеты стеков — в исходники тем же доводом. Подпуть стека адресует КАТАЛОГ модуля
-      // (`/form-model` → `src/form-model/index.ts`), поэтому псевдоним — префикс, а не файл.
+      // Нейтральные помощники печати стеков — в исходники тем же доводом.
       '@reformer/builder-toolkit': path.resolve(
         __dirname,
         '../../packages/reformer-builder-toolkit/src/index.ts'
-      ),
-      '@reformer/builder-stack-plain': path.resolve(
-        __dirname,
-        '../../packages/reformer-builder-stack-plain/src/index.ts'
-      ),
-      '@reformer/builder-stack-reformer': path.resolve(
-        __dirname,
-        '../../packages/reformer-builder-stack-reformer/src'
       ),
     },
   },

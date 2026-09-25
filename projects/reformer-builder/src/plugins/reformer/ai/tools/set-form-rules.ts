@@ -1,7 +1,7 @@
 /**
  * Правила формы: валидация, реактивные связи, условная видимость.
  *
- * Единственный write-инструмент, который правит НЕ схему. Правила — сайдкар (`@reformer/builder-stack-reformer/form-model`):
+ * Единственный write-инструмент, который правит НЕ схему. Правила — сайдкар (`@/plugins/reformer/core/form-model`):
  * в `JsonFormSchema` их положить некуда, контракт `@reformer/renderer-json` закрыт. Из них
  * генерируются `validation.ts` и `form.behavior.ts`, которые до сих пор были заглушками с TODO.
  *
@@ -26,9 +26,9 @@
  */
 
 import { findCycle } from '@reformer/mcp/dist/core/utils/graph.js';
-import { collectModelPaths } from '@reformer/builder-stack-reformer/form-model';
+import { collectModelPaths } from '@/plugins/reformer/core/form-model';
 import { similarNames } from '../loop/suggest';
-import { emptyRules, type FormRules } from '@reformer/builder-stack-reformer/form-model';
+import { emptyRules, type FormRules } from '@/plugins/reformer/core/form-model';
 import { fail, ok, type AgentTool, type ToolOutcome } from '../model/types';
 
 /** Виды реактивных связей — те же десять, что понимает `@reformer/core/behaviors`. */

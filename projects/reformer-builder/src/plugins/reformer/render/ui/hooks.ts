@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { NodeId } from '@reformer/builder-plugin-api';
 import type { PreviewContext } from '@reformer/builder-plugin-api';
-import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
+import { isFormSchema } from '@/plugins/reformer/core/form-model';
 import type { PreviewHost } from '../host';
 
 /**

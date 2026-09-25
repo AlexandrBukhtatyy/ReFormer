@@ -11,7 +11,7 @@
  * ## Правка идёт ТЕМ ЖЕ путём, что ввод
  *
  * Панель не заводит второй точки ввода: она зовёт `fieldNode.setValue` и `markAsTouched` —
- * ровно то, что зовёт рендерер (см. `@reformer/builder-stack-reformer/form-inspect`). Поэтому `compute`, `copyFrom`,
+ * ровно то, что зовёт рендерер (см. `@/plugins/reformer/core/form-inspect`). Поэтому `compute`, `copyFrom`,
  * `onChange` и `enableWhen` отрабатывают сами, а расходиться с формой нечему.
  *
  * ## Чего панель не делает
@@ -37,7 +37,7 @@ import {
   writeValue,
   type ModelRow,
   type NodeState,
-} from '@reformer/builder-stack-reformer/form-inspect';
+} from '@/plugins/reformer/core/form-inspect';
 import type {
   PreviewFormHandle,
   PreviewLiveService,

@@ -13,7 +13,7 @@
  */
 
 import { toDescriptor } from '@reformer/builder-plugin-api';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import type {
   Disposable,

@@ -9,8 +9,8 @@
  * @module plugins/reformer/ai/testing
  */
 
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import type { AiDocument, AiHost, Translate, WriteMark } from './host';
 

@@ -4,7 +4,7 @@
  * @module plugins/reformer/ai/tools/describe-component
  */
 
-import { collectOperatorNames } from '@reformer/builder-stack-reformer/form-model';
+import { collectOperatorNames } from '@/plugins/reformer/core/form-model';
 import { componentNames, describeComponent, renderComponentDetail } from '../model/catalog-digest';
 import { similarNames } from '../loop/suggest';
 import { fail, ok, TOOL_TEXT_BUDGET, type AgentTool } from '../model/types';

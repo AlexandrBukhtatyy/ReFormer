@@ -4,7 +4,7 @@
  * @module plugins/reformer/ai/tools/list-components
  */
 
-import type { CatalogRole } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogRole } from '@/plugins/reformer/core/catalog';
 import { listComponents, renderComponentList } from '../model/catalog-digest';
 import { ok, TOOL_TEXT_BUDGET, type AgentTool } from '../model/types';
 

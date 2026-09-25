@@ -5,7 +5,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyPlainOp, sampleForm, type PlainForm } from '@reformer/builder-stack-plain';
+import { applyPlainOp, sampleForm, type PlainForm } from '@/plugins/plain/core';
 import type {
   Disposable,
   DocumentRef,

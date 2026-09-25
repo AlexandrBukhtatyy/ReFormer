@@ -15,7 +15,7 @@
 
 import { createElement } from 'react';
 import type { PreviewSurface } from '@reformer/builder-plugin-api';
-import { isFormSchemaDocument } from '@reformer/builder-stack-reformer/form-model';
+import { isFormSchemaDocument } from '@/plugins/reformer/core/form-model';
 import type { PreviewHost, Translate } from '../host';
 import { mountReact } from '../surface/mount';
 import { CompilingView, COMPILING_SURFACE_ID } from './CompilingView';

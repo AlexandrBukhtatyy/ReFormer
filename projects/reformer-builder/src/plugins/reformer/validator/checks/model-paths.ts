@@ -29,7 +29,7 @@ import {
   collectModelScopes,
   isPathBound,
   type JsonPath,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
 import { CODES, type DiagnosticCode } from '../codes';
 import { nearestName } from '../nearest';
 

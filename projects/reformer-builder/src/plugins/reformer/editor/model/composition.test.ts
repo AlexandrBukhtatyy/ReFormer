@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { STEP_SCHEMA_MARKER } from '@reformer/builder-stack-reformer/form-model';
+import { STEP_SCHEMA_MARKER } from '@/plugins/reformer/core/form-model';
 import { formSchemaComposition } from './composition';
 import { parseFormSchema, printFormSchema } from './provider';
 

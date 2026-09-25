@@ -4,7 +4,8 @@
  * **Почему это плагин, а не часть Host.** Всё содержимое каталога — предметное знание: что такое
  * схема формы, из каких файлов состоит её модуль, откуда берутся имена компонентов. В платформе
  * оно означало бы, что тринадцатый файл модуля вносится правкой ядра. Граница проверяется
- * линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api` и пакеты стеков.
+ * линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api` и ядро
+ * своего домена.
  *
  * **Почему цели вносятся здесь, а не лежат массивом.** Ровно ради этого точка расширения
  * и заводилась: список файлов модуля обязан быть расширяемым и снимаемым. Встроенные цели
@@ -42,7 +43,7 @@ import {
 import { CodegenTargetPoint, type CodegenTarget, type ExtensionPointRef } from './contract';
 import { ejectTemplate, type EjectOutcome } from './commands/eject';
 import { createFixture, type FixtureOutcome } from './commands/fixture-command';
-import type { CodegenInput } from '@reformer/builder-stack-reformer/codegen';
+import type { CodegenInput } from '@/plugins/reformer/core/codegen';
 import { generateModule, type CodegenProblem } from './pipeline/generate';
 import type { CodegenHost } from './host';
 import { codegenWorkspace, ModulePrinterCapability, type CodegenGaps } from './workspace';

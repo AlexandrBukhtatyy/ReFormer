@@ -8,7 +8,7 @@
  * @module plugins/plain/demo/validator
  */
 
-import { checkPlainForm, isPlainForm } from '@reformer/builder-stack-plain';
+import { checkPlainForm, isPlainForm } from '@/plugins/plain/core';
 import {
   pluginDiagnosticCode,
   type Diagnostic,

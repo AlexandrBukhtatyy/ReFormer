@@ -20,10 +20,10 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { childSlots } from '@reformer/builder-stack-reformer/form-model';
-import { componentOf } from '@reformer/builder-stack-reformer/form-model';
-import { walkNodes } from '@reformer/builder-stack-reformer/form-model';
-import type { JsonPath } from '@reformer/builder-stack-reformer/form-model';
+import { childSlots } from '@/plugins/reformer/core/form-model';
+import { componentOf } from '@/plugins/reformer/core/form-model';
+import { walkNodes } from '@/plugins/reformer/core/form-model';
+import type { JsonPath } from '@/plugins/reformer/core/form-model';
 import type { NodePart } from '@reformer/builder-plugin-api';
 import { CODES, type DiagnosticCode } from './codes';
 

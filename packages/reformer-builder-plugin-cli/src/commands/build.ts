@@ -13,11 +13,9 @@
  *   React или ядра форм — второй экземпляр и тихая поломка. Импорт `@reformer/*` или
  *   `@builder/*`, которого в списке нет, — ОТКАЗ сборки: вложить его нельзя (тот же второй
  *   экземпляр), а оставить внешним — значит плагин, падающий на спецификаторе при загрузке.
- * - **Пакеты стеков — вкладываются** (`PLUGIN_BUNDLED_PACKAGES`): чистые функции без синглтонов,
- *   которых оболочка не подставляет, потому что стека не знает. Вместе с ними вкладывается то,
- *   что они сами берут из `@reformer/*` вне списка рантайма (глубокие импорты `@reformer/mcp`
- *   у стека ReFormer), — это их внутренность, а не выбор автора плагина. Модули рантайма и из
- *   пакета стека остаются внешними.
+ * - **Помощники печати — вкладываются** (`PLUGIN_BUNDLED_PACKAGES`, это `@reformer/builder-toolkit`):
+ *   чистые функции без синглтонов, которых оболочка не подставляет. Код домена (ядро ReFormer)
+ *   пакетом больше не бывает и не вкладывается: чужой домен расширяют возможностями.
  * - **CSS из кода — отказ.** Стили плагина объявляются в манифесте (`styles`), и только тогда
  *   оболочка их изолирует. Импорт `.css` из кода дал бы таблицу, о которой манифест молчит.
  *
@@ -35,7 +33,6 @@
  * @module @reformer/builder-plugin-cli/commands/build
  */
 
-import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
@@ -84,46 +81,8 @@ function isBareSpecifier(path: string): boolean {
 }
 
 /**
- * Имя пакета, которому принадлежит файл, — по ближайшему `package.json` вверх по дереву.
- *
- * По ИМЕНИ, а не по пути: пакет стека приходит и из `node_modules`, и ссылкой рабочей области
- * (`packages/…`), и путь у них разный, а имя одно.
- */
-const ownerCache = new Map<string, string | null>();
-function ownerPackageOf(file: string): string | null {
-  let dir = dirname(file);
-  const visited: string[] = [];
-  for (;;) {
-    const cached = ownerCache.get(dir);
-    if (cached !== undefined) {
-      for (const seen of visited) ownerCache.set(seen, cached);
-      return cached;
-    }
-    visited.push(dir);
-    const manifest = join(dir, 'package.json');
-    if (existsSync(manifest)) {
-      let name: string | null = null;
-      try {
-        const value = (JSON.parse(readFileSync(manifest, 'utf8')) as { name?: unknown }).name;
-        name = typeof value === 'string' ? value : null;
-      } catch {
-        name = null;
-      }
-      for (const seen of visited) ownerCache.set(seen, name);
-      return name;
-    }
-    const parent = dirname(dir);
-    if (parent === dir) {
-      for (const seen of visited) ownerCache.set(seen, null);
-      return null;
-    }
-    dir = parent;
-  }
-}
-
-/**
- * Модули рантайма — внешние; пакеты стеков и их внутренности — вкладываются; прочее
- * `@reformer/*` — отказ с объяснением.
+ * Модули рантайма — внешние; вкладываемые пакеты — вкладываются; прочее `@reformer/*` — отказ
+ * с объяснением.
  */
 const runtimeModules: esbuild.Plugin = {
   name: 'reformer-runtime-modules',
@@ -132,8 +91,6 @@ const runtimeModules: esbuild.Plugin = {
       if (args.kind === 'entry-point' || !isBareSpecifier(args.path)) return undefined;
       if (PLUGIN_RUNTIME_MODULES.includes(args.path)) return { path: args.path, external: true };
       if (isBundledPluginModule(args.path)) return undefined;
-      const owner = args.importer === '' ? null : ownerPackageOf(args.importer);
-      if (owner !== null && isBundledPluginModule(owner)) return undefined;
       if (args.path.startsWith('@reformer/') || args.path.startsWith('@builder/')) {
         return {
           errors: [

@@ -10,9 +10,9 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
-import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@reformer/builder-stack-reformer/form-model';
-import { ensureNodeIds, type NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
+import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@/plugins/reformer/core/form-model';
+import { ensureNodeIds, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
 import { buildSchematic, findBox, schematicOrder, type SchematicBox } from './schematic-tree';
 
 function sequentialIds(prefix = 'a'): NodeIdFactory {

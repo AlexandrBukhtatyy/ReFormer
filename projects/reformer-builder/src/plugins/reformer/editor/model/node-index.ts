@@ -18,9 +18,9 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { nodeIdOf } from '@reformer/builder-stack-reformer/form-model';
-import { toPointer, type JsonPath } from '@reformer/builder-stack-reformer/form-model';
-import { walkNodes } from '@reformer/builder-stack-reformer/form-model';
+import { nodeIdOf } from '@/plugins/reformer/core/form-model';
+import { toPointer, type JsonPath } from '@/plugins/reformer/core/form-model';
+import { walkNodes } from '@/plugins/reformer/core/form-model';
 import type { NodeId } from '../host';
 
 /** Узел вместе с адресом и путём — то, что операции нужно про цель. */
@@ -43,7 +43,7 @@ export interface NodeIndex {
 /**
  * Строит указатель по модели.
  *
- * Узлы без `$nodeId` пропускаются: идентификаторы выдаёт разбор (`ensureNodeIds` из `@reformer/builder-stack-reformer/form-model`),
+ * Узлы без `$nodeId` пропускаются: идентификаторы выдаёт разбор (`ensureNodeIds` из `@/plugins/reformer/core/form-model`),
  * и узел без него означает модель, собранную мимо провайдера. Молча выдать ему адрес здесь
  * значило бы спрятать эту ошибку до первой операции, которая по адресу не найдёт узла.
  */

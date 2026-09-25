@@ -30,13 +30,9 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import {
-  canAcceptChildren,
-  childSlots,
-  isNodeLike,
-} from '@reformer/builder-stack-reformer/form-model';
-import { getAt, type JsonPath } from '@reformer/builder-stack-reformer/form-model';
-import { navIntentAt, type NavDir } from '@reformer/builder-stack-reformer/form-model';
+import { canAcceptChildren, childSlots, isNodeLike } from '@/plugins/reformer/core/form-model';
+import { getAt, type JsonPath } from '@/plugins/reformer/core/form-model';
+import { navIntentAt, type NavDir } from '@/plugins/reformer/core/form-model';
 import { indexNodes, type NodeIndex } from '../model/node-index';
 import { blockOf, slotSegments, type Block } from '../model/block';
 import { moveOp, slotPositionOf } from '../model/ops';

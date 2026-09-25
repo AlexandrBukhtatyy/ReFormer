@@ -32,13 +32,9 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { isDegenerateWrapper } from '@reformer/builder-stack-reformer/form-model';
-import {
-  canAcceptChildren,
-  childSlots,
-  isNodeLike,
-} from '@reformer/builder-stack-reformer/form-model';
-import { getAt, type JsonPath } from '@reformer/builder-stack-reformer/form-model';
+import { isDegenerateWrapper } from '@/plugins/reformer/core/form-model';
+import { canAcceptChildren, childSlots, isNodeLike } from '@/plugins/reformer/core/form-model';
+import { getAt, type JsonPath } from '@/plugins/reformer/core/form-model';
 import { indexNodes, type NodeIndex } from '../model/node-index';
 import { batchOp, insertOp, moveOp, slotPositionOf, unwrapOp, type ArraySlot } from '../model/ops';
 import type { EditOp, NodeId } from '../host';

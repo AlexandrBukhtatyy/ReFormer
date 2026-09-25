@@ -14,9 +14,9 @@ import {
 import type { BuildCacheStore } from '@/shell/platform/workspace/storage/build-cache';
 import * as sdk from '@reformer/builder-plugin-api';
 import { PLUGIN_RUNTIME_MODULES } from '@reformer/builder-plugin-api/internal';
-import { builtinKit, wizardSchema } from '@reformer/builder-stack-reformer/testing';
-import { prepare } from '@reformer/builder-stack-reformer/codegen';
-import { wizardShimOf } from '@reformer/builder-stack-reformer/codegen';
+import { builtinKit, wizardSchema } from '@/plugins/reformer/core/testing';
+import { prepare } from '@/plugins/reformer/core/codegen';
+import { wizardShimOf } from '@/plugins/reformer/core/codegen';
 import { createPluginModules, PLUGIN_MODULE_SPECIFIERS } from '@/shell/boot/plugin-modules';
 
 describe('модули, доступные плагину каталога', () => {

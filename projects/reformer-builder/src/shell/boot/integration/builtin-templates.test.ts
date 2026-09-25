@@ -11,8 +11,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { MODULE_FILES, STEPS_INDEX } from '@reformer/builder-stack-reformer/codegen';
-import { builtinKit } from '@reformer/builder-stack-reformer/testing';
+import { MODULE_FILES, STEPS_INDEX } from '@/plugins/reformer/core/codegen';
+import { builtinKit } from '@/plugins/reformer/core/testing';
 import { BUILTIN_TARGETS, generateModule } from '@/plugins/reformer/codegen';
 import { looksLikeFormSchema } from '@/plugins/reformer/editor/model/provider';
 import {

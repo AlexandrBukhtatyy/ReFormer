@@ -9,12 +9,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
-import { ensureNodeIds, newNodeId } from '@reformer/builder-stack-reformer/form-model';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
+import { ensureNodeIds, newNodeId } from '@/plugins/reformer/core/form-model';
 import { toDescriptor } from '@reformer/builder-plugin-api';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { NODE_CLASS_PREFIX } from '../schema/node-token';
-import { deepMerge } from '@reformer/builder-stack-reformer/form-fixture';
+import { deepMerge } from '@/plugins/reformer/core/form-fixture';
 import { buildRuntimeBundle } from './build';
 
 const DESCRIPTOR = toDescriptor({ version: '1.0', components: [] });

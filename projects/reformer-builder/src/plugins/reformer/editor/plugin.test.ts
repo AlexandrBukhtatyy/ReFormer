@@ -9,12 +9,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
 import {
   emptyRules,
   type FormRules,
   type ValidationRuleIntent,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
 import type { EditorProbe, PluginContext, WhenContext } from '@reformer/builder-plugin-api';
 import {
   COLLAPSE_SELECTION_COMMAND_ID,
@@ -38,8 +38,8 @@ import { createCanvasPrefs } from './session/canvas-prefs';
 import { createQuickAddStore } from './session/quick-add-store';
 import { createDragSession } from './session/drag-session';
 import type { ExtensionPointRef, SchemaModelProviderSpec } from './host';
-import { getAt } from '@reformer/builder-stack-reformer/form-model';
-import { nodeIdOf } from '@reformer/builder-stack-reformer/form-model';
+import { getAt } from '@/plugins/reformer/core/form-model';
+import { nodeIdOf } from '@/plugins/reformer/core/form-model';
 import type { JsonNode } from '@reformer/renderer-json';
 import { indexNodes } from './model/node-index';
 import {

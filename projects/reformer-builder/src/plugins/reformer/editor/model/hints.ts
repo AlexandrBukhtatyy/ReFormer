@@ -25,14 +25,14 @@ import {
   toFormStepMetaSchema,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import {
   boundPathsIn,
   collectModelScopes,
   scopeOfPath,
   STEPS_HOST_NAMES,
   type ModelScope,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
 import type { JsonSchemaHint, TextCompletion, TextStringSite } from '@reformer/builder-plugin-api';
 
 /** Префикс оператора привязки вместе со скобкой. */

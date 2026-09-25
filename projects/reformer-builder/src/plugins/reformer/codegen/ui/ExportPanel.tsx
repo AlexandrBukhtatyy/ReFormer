@@ -24,7 +24,7 @@ import { Item, ItemContent, ItemTitle } from '@reformer/ui-kit/item';
 import { Label } from '@reformer/ui-kit/label';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import { Separator } from '@reformer/ui-kit/separator';
-import { MODULE_FILES } from '@reformer/builder-stack-reformer/codegen';
+import { MODULE_FILES } from '@/plugins/reformer/core/codegen';
 import type { CodegenTarget } from '../contract';
 import type { DeliveryResult } from '../pipeline/deliver';
 import type { CodegenProblem } from '../pipeline/generate';

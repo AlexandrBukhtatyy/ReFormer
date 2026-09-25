@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
-import { ensureNodeIds, type NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
-import { emptyRules, type FormRules } from '@reformer/builder-stack-reformer/form-model';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
+import { ensureNodeIds, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
+import { emptyRules, type FormRules } from '@/plugins/reformer/core/form-model';
 import type { Diagnostic } from '@reformer/builder-plugin-api';
 import { checkForm, dedupe } from './check';
 import { CODES, COMMANDS, QUICKFIX } from './codes';

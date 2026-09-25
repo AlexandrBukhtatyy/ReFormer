@@ -29,9 +29,9 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { childSlots, isNodeLike } from '@reformer/builder-stack-reformer/form-model';
-import { getAt, toPointer, type JsonPath } from '@reformer/builder-stack-reformer/form-model';
-import { navTarget, type NavDir } from '@reformer/builder-stack-reformer/form-model';
+import { childSlots, isNodeLike } from '@/plugins/reformer/core/form-model';
+import { getAt, toPointer, type JsonPath } from '@/plugins/reformer/core/form-model';
+import { navTarget, type NavDir } from '@/plugins/reformer/core/form-model';
 import { indexNodes } from '../model/node-index';
 import type { NodeId } from '../host';
 

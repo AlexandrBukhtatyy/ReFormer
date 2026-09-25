@@ -17,7 +17,7 @@
  * @module plugins/reformer/templates/host
  */
 
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import type { Disposable, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 

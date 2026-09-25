@@ -18,7 +18,7 @@
  * @module plugins/reformer/codegen/pipeline/deliver
  */
 
-import { STEPS_DIR } from '@reformer/builder-stack-reformer/codegen';
+import { STEPS_DIR } from '@/plugins/reformer/core/codegen';
 import { isGenerated } from '@reformer/builder-toolkit';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { ModuleFile } from './generate';

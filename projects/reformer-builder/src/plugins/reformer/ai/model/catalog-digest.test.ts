@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
 import {
   componentNames,
   describeComponent,

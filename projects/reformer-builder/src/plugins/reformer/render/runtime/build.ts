@@ -23,11 +23,11 @@ import {
   type JsonForm,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import { annotateSchema } from '../schema/annotate';
 import type { PreviewMock, PreviewProblem } from '@reformer/builder-plugin-api';
-import { mergeFormData, type FormFixture } from '@reformer/builder-stack-reformer/form-fixture';
+import { mergeFormData, type FormFixture } from '@/plugins/reformer/core/form-fixture';
 import { carryValues } from './carry';
 import { synthMock } from './mock';
 import { buildPreviewRegistry } from './registry';
@@ -96,7 +96,7 @@ export function buildRuntimeBundle(input: RuntimeBundleInput): RuntimeBundle {
     };
   }
 
-  // Порядок старшинства целиком живёт в `@reformer/builder-stack-reformer/form-fixture`: синтез < model.ts < фикстура.
+  // Порядок старшинства целиком живёт в `@/plugins/reformer/core/form-fixture`: синтез < model.ts < фикстура.
   // Фикстура старше `model.ts` потому, что пишется РАДИ проверки, — иначе «покажи форму
   // с пустой моделью» было бы невыразимо.
   const mock = mergeFormData(

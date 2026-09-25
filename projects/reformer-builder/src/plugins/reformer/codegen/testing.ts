@@ -8,10 +8,10 @@
  * @module plugins/reformer/codegen/testing
  */
 
-import { MODULE_FILES } from '@reformer/builder-stack-reformer/codegen';
-import { builtinKit } from '@reformer/builder-stack-reformer/testing';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
+import { MODULE_FILES } from '@/plugins/reformer/core/codegen';
+import { builtinKit } from '@/plugins/reformer/core/testing';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
+import type { FormRules } from '@/plugins/reformer/core/form-model';
 import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost } from './host';

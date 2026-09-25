@@ -18,9 +18,9 @@
  * ## Кит приходит портом, а не импортом
  *
  * Каталог, дескриптор и namespace активного кита — три РАЗНЫЕ вещи, и это не дробление:
- * каталог отвечает «какие имена бывают» (данные, `@reformer/builder-stack-reformer/catalog`), дескриптор — «как их резолвить»
- * (данные, `@reformer/builder-stack-reformer/kits`), namespace — «чем рисовать» (значения, React-компоненты). Первые два
- * сегодня отдаёт сервис китов; третьего в v2 нет ни у кого — `@reformer/builder-stack-reformer/kits` намеренно не тянет
+ * каталог отвечает «какие имена бывают» (данные, `@/plugins/reformer/core/catalog`), дескриптор — «как их резолвить»
+ * (данные, `@/plugins/reformer/core/kits`), namespace — «чем рисовать» (значения, React-компоненты). Первые два
+ * сегодня отдаёт сервис китов; третьего в v2 нет ни у кого — `@/plugins/reformer/core/kits` намеренно не тянет
  * React-адаптеры, — поэтому namespace объявлен необязательным, а рантайм-поверхность без него
  * штатно деградирует в подписанные стабы.
  *
@@ -35,7 +35,7 @@
  * @module plugins/reformer/render/host
  */
 
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import type {
   Disposable,

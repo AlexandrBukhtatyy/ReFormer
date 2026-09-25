@@ -14,8 +14,8 @@
  * @module plugins/reformer/codegen/pipeline/run
  */
 
-import { appSnippet, formNameOfSchemaPath } from '@reformer/builder-stack-reformer/codegen';
-import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
+import { appSnippet, formNameOfSchemaPath } from '@/plugins/reformer/core/codegen';
+import { isFormSchema } from '@/plugins/reformer/core/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';

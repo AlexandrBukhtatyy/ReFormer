@@ -26,7 +26,7 @@
  * @module plugins/reformer/render/runtime/policy
  */
 
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import { exportNameFor } from '@reformer/builder-plugin-api';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 

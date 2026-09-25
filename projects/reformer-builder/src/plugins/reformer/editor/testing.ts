@@ -21,7 +21,7 @@
  */
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type {
   Disposable,
   LiveSurfaceContext,
@@ -29,9 +29,9 @@ import type {
   ResourceId,
   ResourceRef,
 } from '@reformer/builder-plugin-api';
-import { isFormSchema } from '@reformer/builder-stack-reformer/form-model';
+import { isFormSchema } from '@/plugins/reformer/core/form-model';
 import { createSchemaModelProvider } from './model/provider';
-import { NODE_CLASS_PREFIX } from '@reformer/builder-stack-reformer/form-model';
+import { NODE_CLASS_PREFIX } from '@/plugins/reformer/core/form-model';
 import type {
   EditOp,
   NodeId,

@@ -11,7 +11,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { NodeId } from '@reformer/builder-plugin-api';
-import { encodeNodeToken } from '@reformer/builder-stack-reformer/form-model';
+import { encodeNodeToken } from '@/plugins/reformer/core/form-model';
 import { watchNodeTokens } from './live-sentry';
 
 const FIELD = 'abcd1234' as NodeId;

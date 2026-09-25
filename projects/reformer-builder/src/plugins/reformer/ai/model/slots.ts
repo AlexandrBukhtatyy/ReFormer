@@ -16,8 +16,8 @@ import {
   canAcceptChildren,
   childSlots,
   type ChildSlotKind,
-} from '@reformer/builder-stack-reformer/form-model';
-import { type JsonPath } from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
+import { type JsonPath } from '@/plugins/reformer/core/form-model';
 
 /** Куда встанет ребёнок: путь массива-слота и его вид. */
 export interface InsertSlot {

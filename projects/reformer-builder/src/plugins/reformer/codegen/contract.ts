@@ -32,7 +32,7 @@
  */
 
 import manifest from './manifest.json';
-import type { EmitContext, FileClass } from '@reformer/builder-stack-reformer/codegen';
+import type { EmitContext, FileClass } from '@/plugins/reformer/core/codegen';
 
 /**
  * Типизированное имя точки расширения — структурная копия `host/primitives/extension-point`.
@@ -140,7 +140,7 @@ export interface CodegenTarget {
    * Текст файла ШАБЛОНОМ на Eta — ИСХОДНИК, а не путь: цель приезжает откуда угодно,
    * в том числе из каталога проекта, где файловой системы у нас нет вовсе.
    *
-   * Вид, который шаблон видит как `it`, собирает генерация (`@reformer/builder-stack-reformer/codegen`), поэтому
+   * Вид, который шаблон видит как `it`, собирает генерация (`@/plugins/reformer/core/codegen`), поэтому
    * цель о нём ничего не объявляет — кроме частной добавки ниже.
    */
   readonly template?: string;

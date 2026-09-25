@@ -29,7 +29,7 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { nodeIdOf } from '@reformer/builder-stack-reformer/form-model';
+import { nodeIdOf } from '@/plugins/reformer/core/form-model';
 import {
   canAcceptChildren,
   childSlots,
@@ -39,9 +39,9 @@ import {
   type ChildSlotKind,
   type NodeKind,
   type Orientation,
-} from '@reformer/builder-stack-reformer/form-model';
-import { componentOf, modelOf } from '@reformer/builder-stack-reformer/form-model';
-import type { JsonPath } from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
+import { componentOf, modelOf } from '@/plugins/reformer/core/form-model';
+import type { JsonPath } from '@/plugins/reformer/core/form-model';
 import { nodeTitle } from '../canvas/canvas-tree';
 import type { NodeId } from '../host';
 

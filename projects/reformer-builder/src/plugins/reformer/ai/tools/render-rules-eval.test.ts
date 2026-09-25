@@ -13,12 +13,12 @@
  */
 
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { runAgentTurn } from '../loop/loop';
 import { createEditorToolRegistry } from '../tools';
-import { emptyRules } from '@reformer/builder-stack-reformer/form-model';
+import { emptyRules } from '@/plugins/reformer/core/form-model';
 import { createByokProvider } from '../providers/byok';
 
 const MODEL = process.env.EVAL_MODEL;

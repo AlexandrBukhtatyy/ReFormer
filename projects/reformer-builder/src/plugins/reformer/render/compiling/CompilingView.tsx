@@ -45,7 +45,7 @@ import {
 } from 'react';
 import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import { MODULE_FILES } from '@reformer/builder-stack-reformer/codegen';
+import { MODULE_FILES } from '@/plugins/reformer/core/codegen';
 import { toDescriptor } from '@reformer/builder-plugin-api';
 import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import type { PreviewContext, PreviewProblem, PreviewValues } from '@reformer/builder-plugin-api';
@@ -56,7 +56,7 @@ import { Highlight } from '../ui/Highlight';
 import { Notice } from '../ui/Notice';
 import { useFilesVersion, useKitVersion, usePreviewSchema, usePreviewSelection } from '../ui/hooks';
 import type { ComponentRegistry } from '@reformer/renderer-json';
-import { createAmbient, type FormFixture } from '@reformer/builder-stack-reformer/form-fixture';
+import { createAmbient, type FormFixture } from '@/plugins/reformer/core/form-fixture';
 import { compileForm } from './compile';
 import { loadFixture } from './fixture';
 import {

@@ -25,7 +25,7 @@ import {
   PreviewSurfacePoint,
   ValidatorPoint,
 } from '@reformer/builder-plugin-api/internal';
-import { printPlainForm, sampleForm } from '@reformer/builder-stack-plain';
+import { printPlainForm, sampleForm } from '@/plugins/plain/core';
 import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
 import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';

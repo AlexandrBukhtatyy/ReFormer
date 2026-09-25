@@ -8,7 +8,7 @@
  *
  * **Почему `ref`, а не `selector`.** Селектор — деталь, о которой модель знать не обязана и в
  * которой она будет ошибаться. Инструмент принимает тот же JSON Pointer, что и все остальные
- * write-инструменты, и сам обеспечивает узлу селектор (`@reformer/builder-stack-reformer/form-model`). Ровно этого условия и
+ * write-инструменты, и сам обеспечивает узлу селектор (`@/plugins/reformer/core/form-model`). Ровно этого условия и
  * не хватало раньше: `set_form_rules` отказывался принимать видимость, потому что «задать селектор
  * не умеет ни один инструмент агента», и принятое правило оказалось бы no-op.
  *
@@ -20,13 +20,13 @@
  */
 
 import { collectSchemaSelectors } from '@reformer/renderer-json';
-import { ensureSelector } from '@reformer/builder-stack-reformer/form-model';
+import { ensureSelector } from '@/plugins/reformer/core/form-model';
 import {
   emptyRules,
   RENDER_RULE_KINDS,
   type FormRules,
   type RenderRuleIntent,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
 import { refToPath, resolveRef } from '../model/node-ref';
 import { commitBatch } from '../loop/gate';
 import { fail, type AgentTool, type ToolOutcome } from '../model/types';

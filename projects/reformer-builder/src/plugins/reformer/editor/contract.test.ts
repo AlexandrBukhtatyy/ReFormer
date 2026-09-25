@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { FORM_SCHEMA_PROVIDER_ID } from '@reformer/builder-stack-reformer/form-model';
+import { FORM_SCHEMA_PROVIDER_ID } from '@/plugins/reformer/core/form-model';
 import { SCHEMA_MODEL_PROVIDER_ID } from './contract';
 
 describe('идентификатор провайдера схемы формы', () => {

@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import {
-  builtinKit,
-  foreignKit,
-  plainSchema,
-  wizardSchema,
-} from '@reformer/builder-stack-reformer/testing';
+import { builtinKit, foreignKit, plainSchema, wizardSchema } from '@/plugins/reformer/core/testing';
 import { isGenerated, MARKER_PREFIX, originOf } from '@reformer/builder-toolkit';
-import { type CodegenInput } from '@reformer/builder-stack-reformer/codegen';
+import { type CodegenInput } from '@/plugins/reformer/core/codegen';
 import type { CodegenTarget } from '../contract';
 import { generateModule } from './generate';
 import { BUILTIN_TARGETS } from './targets';

@@ -4,8 +4,8 @@
  * **Почему это плагин, а не часть Host.** Всё содержимое этого каталога — предметное знание:
  * что такое `$component`, чем шаг отличается от вкладки, какие свойства бывают у поля, куда
  * встаёт узел из палитры. В платформе оно означало бы, что второй формат вносится правкой
- * ядра. Граница проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api`
- * и пакеты стеков.
+ * ядра. Граница проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только
+ * `@reformer/builder-plugin-api` и ядро своего домена.
  *
  * ## Провайдер модели вносится на РЕСУРС, редактор — на его содержимое
  *
@@ -26,8 +26,8 @@
 
 import { createElement, type ReactElement } from 'react';
 import { Blocks, SlidersHorizontal } from 'lucide-react';
-import type { NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { NodeIdFactory } from '@/plugins/reformer/core/form-model';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import {
   defineCapability,
   definePlugin,

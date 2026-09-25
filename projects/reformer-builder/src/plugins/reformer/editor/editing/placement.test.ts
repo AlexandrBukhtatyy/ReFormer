@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
-import { ensureNodeIds, type NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
+import { ensureNodeIds, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
 import { indexNodes } from '../model/node-index';
 import { placementFor } from './placement';
 

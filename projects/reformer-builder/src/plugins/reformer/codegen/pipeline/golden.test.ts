@@ -44,9 +44,9 @@ import {
   wizardRules,
   wizardSlugsSchema,
   wizardSplitSource,
-} from '@reformer/builder-stack-reformer/testing';
+} from '@/plugins/reformer/core/testing';
 import { acceptsMarker, MARKER_PREFIX, originOf } from '@reformer/builder-toolkit';
-import { type CodegenInput } from '@reformer/builder-stack-reformer/codegen';
+import { type CodegenInput } from '@/plugins/reformer/core/codegen';
 import { generateModule } from './generate';
 import { BUILTIN_TARGETS } from './targets';
 

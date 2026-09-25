@@ -20,7 +20,7 @@ import {
   GENERATE_INTO_COMMAND_ID,
   type GenerateIntoOutcome,
 } from './context-menu';
-import { wizardSchema } from '@reformer/builder-stack-reformer/testing';
+import { wizardSchema } from '@/plugins/reformer/core/testing';
 import { BUILTIN_TARGETS } from '../pipeline/targets';
 import { createFakeDocument, createFakeHost } from '../testing';
 import { pluginMessageKey } from '@reformer/builder-plugin-api';

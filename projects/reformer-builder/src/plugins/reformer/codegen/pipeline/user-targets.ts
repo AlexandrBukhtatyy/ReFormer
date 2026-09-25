@@ -30,11 +30,7 @@
  * @module plugins/reformer/codegen/pipeline/user-targets
  */
 
-import {
-  buildView,
-  parseTargetFile,
-  type EmitContext,
-} from '@reformer/builder-stack-reformer/codegen';
+import { buildView, parseTargetFile, type EmitContext } from '@/plugins/reformer/core/codegen';
 import type { ResourceId } from '@reformer/builder-plugin-api';
 import type { CodegenTarget } from '../contract';
 import type { CodegenProblem } from './generate';

@@ -9,8 +9,8 @@
  */
 
 import type { JsonNode } from '@reformer/renderer-json';
-import { makeNodeFor } from '@reformer/builder-stack-reformer/catalog';
-import { insertNode } from '@reformer/builder-stack-reformer/form-model';
+import { makeNodeFor } from '@/plugins/reformer/core/catalog';
+import { insertNode } from '@/plugins/reformer/core/form-model';
 import { catalogEntry, componentNames, type Catalog } from '../model/catalog-digest';
 import { commitBatch, type BatchEntry, type OpDescription } from '../loop/gate';
 import { isResolved, nodeRef, resolveRef } from '../model/node-ref';

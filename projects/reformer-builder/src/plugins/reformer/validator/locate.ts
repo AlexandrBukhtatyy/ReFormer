@@ -41,9 +41,9 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { findByPath } from '@reformer/builder-stack-reformer/form-model';
-import { nodeIdOf } from '@reformer/builder-stack-reformer/form-model';
-import type { JsonPath } from '@reformer/builder-stack-reformer/form-model';
+import { findByPath } from '@/plugins/reformer/core/form-model';
+import { nodeIdOf } from '@/plugins/reformer/core/form-model';
+import type { JsonPath } from '@/plugins/reformer/core/form-model';
 import type { DiagnosticTarget, NodePart, TextRange } from '@reformer/builder-plugin-api';
 
 /** Результат разбора текста документа. */

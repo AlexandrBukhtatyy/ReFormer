@@ -35,7 +35,7 @@ import {
   type EmitContext,
   type EmittedFileRef,
   type FileClass,
-} from '@reformer/builder-stack-reformer/codegen';
+} from '@/plugins/reformer/core/codegen';
 import { acceptsMarker, renderTemplate, withMarker } from '@reformer/builder-toolkit';
 import type { CodegenTarget } from '../contract';
 

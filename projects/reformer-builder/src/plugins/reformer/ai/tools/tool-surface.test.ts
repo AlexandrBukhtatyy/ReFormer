@@ -39,7 +39,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
 import { commandTools, type AgentCommand } from './command-tools';
 import { systemPrompt } from '../loop/prompt';
 import { measureToolSurface } from './tool-surface';

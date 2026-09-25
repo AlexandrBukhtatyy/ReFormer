@@ -37,20 +37,15 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@reformer/builder-stack-reformer/form-model';
+import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@/plugins/reformer/core/form-model';
 import {
   newNodeId,
   nodeIdOf,
   reissueNodeIds,
   type NodeIdFactory,
-} from '@reformer/builder-stack-reformer/form-model';
-import { isFlexWrapper, isNodeLike } from '@reformer/builder-stack-reformer/form-model';
-import {
-  getAt,
-  isPrefix,
-  pathEquals,
-  type JsonPath,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
+import { isFlexWrapper, isNodeLike } from '@/plugins/reformer/core/form-model';
+import { getAt, isPrefix, pathEquals, type JsonPath } from '@/plugins/reformer/core/form-model';
 import { planDrop, wrapperLeftBehind, type DragPayload, type DropPosition } from '../editing/drag';
 import { indexNodes } from '../model/node-index';
 import { batchOp, flipOp, groupOp, insertOp, moveOp, slotPositionOf, unwrapOp } from '../model/ops';

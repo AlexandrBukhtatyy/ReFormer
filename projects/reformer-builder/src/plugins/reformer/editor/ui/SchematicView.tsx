@@ -43,8 +43,8 @@ import { ArrowDown, ArrowRight, GripVertical, Wrench } from 'lucide-react';
 import { Badge } from '@reformer/ui-kit/badge';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
 import type { CommandLookup, Diagnostic, QuickFix } from '@reformer/builder-plugin-api';
-import { type NavDir } from '@reformer/builder-stack-reformer/form-model';
-import type { Orientation } from '@reformer/builder-stack-reformer/form-model';
+import { type NavDir } from '@/plugins/reformer/core/form-model';
+import type { Orientation } from '@/plugins/reformer/core/form-model';
 import { FLIP_COMMAND_ID, type CommandAccess } from '../editing/commands';
 import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../session/drag-session';
 import {

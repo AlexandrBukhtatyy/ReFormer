@@ -10,9 +10,9 @@
 
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
-import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@reformer/builder-stack-reformer/form-model';
-import { ensureNodeIds, type NodeIdFactory } from '@reformer/builder-stack-reformer/form-model';
-import type { JsonPath } from '@reformer/builder-stack-reformer/form-model';
+import { DEFAULT_COL_CLASS, DEFAULT_ROW_CLASS } from '@/plugins/reformer/core/form-model';
+import { ensureNodeIds, type NodeIdFactory } from '@/plugins/reformer/core/form-model';
+import type { JsonPath } from '@/plugins/reformer/core/form-model';
 import { indexNodes } from '../model/node-index';
 import { visibleTarget } from './schematic-nav';
 import { buildSchematic, schematicOrder } from './schematic-tree';

@@ -22,8 +22,8 @@
  * @module plugins/reformer/editor/live/live-style
  */
 
-import { encodeNodeToken, EMPTY_CLASS } from '@reformer/builder-stack-reformer/form-model';
-import { NODE_ID_PATTERN } from '@reformer/builder-stack-reformer/form-model';
+import { encodeNodeToken, EMPTY_CLASS } from '@/plugins/reformer/core/form-model';
+import { NODE_ID_PATTERN } from '@/plugins/reformer/core/form-model';
 import type { DiagnosticSeverity, NodeId } from '@reformer/builder-plugin-api';
 
 export interface LiveStyleInput {

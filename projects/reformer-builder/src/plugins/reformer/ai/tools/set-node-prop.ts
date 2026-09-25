@@ -12,15 +12,11 @@
  */
 
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
-import { toInspectorProps } from '@reformer/builder-stack-reformer/catalog';
-import {
-  setComponentProp,
-  setTextChild,
-  textChildIndex,
-} from '@reformer/builder-stack-reformer/form-model';
+import { toInspectorProps } from '@/plugins/reformer/core/catalog';
+import { setComponentProp, setTextChild, textChildIndex } from '@/plugins/reformer/core/form-model';
 import { catalogEntry, type Catalog } from '../model/catalog-digest';
-import { isLeafComponent, kindOf } from '@reformer/builder-stack-reformer/form-model';
-import { type JsonPath } from '@reformer/builder-stack-reformer/form-model';
+import { isLeafComponent, kindOf } from '@/plugins/reformer/core/form-model';
+import { type JsonPath } from '@/plugins/reformer/core/form-model';
 import { commitBatch, type BatchEntry, type OpDescription } from '../loop/gate';
 import type { NodeExpectation } from '../model/node-ref';
 import { componentOf, isResolved, labelOf, nodeRef, resolveRef } from '../model/node-ref';

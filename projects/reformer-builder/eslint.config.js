@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import js from '@eslint/js';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -13,11 +14,13 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  * у @reformer/mcp отсутствие node-глобалов в ядре проверяется отдельной командой.
  *
  * Слои и что кому можно (контракт плагина — пакет `@reformer/builder-plugin-api`; предметный
- * код стеков — пакеты `@reformer/builder-toolkit` и `@reformer/builder-stack-*` в `packages/`):
- *   shell/platform/  платформа            → только shell/platform/ и внешние библиотеки
- *   plugins/         предметная логика    → контракт плагина, пакеты стеков, свой каталог
- *   shell/boot/      сборка оболочки      → всё, КРОМЕ состава приложения и пакетов стеков
- *   application/     состав приложения    → всё
+ * код домена — его ядро `plugins/<домен>/core`; нейтральные помощники печати —
+ * `@reformer/builder-toolkit`):
+ *   shell/platform/        платформа          → только shell/platform/ и внешние библиотеки
+ *   plugins/<домен>/core/  ядро домена        → контракт плагина и библиотеки; без React
+ *   plugins/<домен>/<п>/   плагин             → контракт плагина, ядро СВОЕГО домена, свой каталог
+ *   shell/boot/            сборка оболочки    → всё, КРОМЕ состава приложения и ядер доменов
+ *   application/           состав приложения  → всё
  *
  * ОГРАНИЧЕНИЕ реализации: правила ловят импорты через псевдоним `@/…` и глубокие относительные
  * пути — поэтому импорты, пересекающие границы подсистем, ОБЯЗАНЫ писаться через `@/…`
@@ -28,12 +31,8 @@ import { defineConfig, globalIgnores } from 'eslint/config';
  */
 const denyFromPlatform = [
   {
-    // Предметный код живёт пакетами стеков. Платформа их не знает: формат схемы, каталог
-    // и печать модуля формы приходят к ней только вкладами плагинов и службами.
-    group: ['@reformer/builder-stack-*'],
-    message: 'Платформа не знает предметной логики стека: обратись через вклад или службу',
-  },
-  {
+    // Ядра доменов — тоже `@/plugins`: формат схемы, каталог и печать модуля формы приходят
+    // к платформе только вкладами плагинов и службами.
     group: ['@/plugins/*', '@/plugins'],
     message: 'Платформа не зависит от плагинов: это перевёрнутая зависимость',
   },
@@ -60,23 +59,40 @@ const denyApplication = [
 ];
 
 /**
- * Оболочка не знает СТЕКА.
+ * Оболочка не знает ДОМЕНА.
  *
- * Стек — набор плагинов со своим форматом схемы, редактором, превью и кодогеном. Всё, что ему
- * нужно от оболочки, он берёт возможностями (`reformer.workspace.models`, `reformer.modules`,
- * словарь оболочки), а не портами, которые собирает `boot`: иначе оболочка собирала бы порты
- * для всех стеков сразу. Импорт пакета стека из `shell/**` — ровно такой порт в зародыше.
- * Плагины стека (`@/plugins/<стек>`) стережёт храповик в тесте состава: их список выводится
- * из профиля `builder.base`, а не пишется здесь руками.
+ * Домен (стек) — набор плагинов со своим форматом схемы, редактором, превью и кодогеном. Всё,
+ * что ему нужно от оболочки, он берёт возможностями (`reformer.workspace.models`,
+ * `reformer.modules`, словарь оболочки), а не портами, которые собирает `boot`: иначе оболочка
+ * собирала бы порты для всех доменов сразу. Импорт ядра домена из `shell/**` — ровно такой порт
+ * в зародыше. Плагины домена (`@/plugins/<домен>/<плагин>`) стережёт храповик в тесте состава:
+ * их список выводится из профиля `builder.base`, а не пишется здесь руками.
  */
-const denyStack = [
+const denyDomainCore = [
   {
-    group: ['@reformer/builder-stack-*'],
-    message: 'Оболочка не знает стека: возьми механизм возможностью, а формат оставь плагину',
+    group: ['@/plugins/*/core', '@/plugins/*/core/**'],
+    message: 'Оболочка не знает ядра домена: возьми механизм возможностью, а формат оставь плагину',
   },
 ];
 
-const denyFromPlugins = [
+/** Домены — каталоги `src/plugins/*`: новый домен получает свои правила без правки этого файла. */
+const DOMAINS = readdirSync(new URL('./src/plugins', import.meta.url), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
+
+/**
+ * Из `@/plugins` коду домена видно только ядро СВОЕГО домена: соседний плагин и чужой домен —
+ * через SDK (точки расширения, возможности), иначе их нельзя ни выключить, ни заменить.
+ *
+ * Регулярное выражение, а не группа: gitignore-группа не умеет вернуть потомка запрещённого
+ * каталога — `!@/plugins/reformer/core` не отменяет `@/plugins/*`.
+ */
+const denyForeignPlugins = (domain) => ({
+  regex: `^@/plugins(?!/${domain}/core(?:/|$))(?:/|$)`,
+  message: `Из @/plugins домену «${domain}» видно только своё ядро (@/plugins/${domain}/core): соседние плагины и чужие домены — через SDK`,
+});
+
+const denyFromPlugins = (domain) => [
   {
     group: ['@/shell/*', '@/shell'],
     message: 'Плагин видит платформу только через @reformer/builder-plugin-api',
@@ -88,11 +104,25 @@ const denyFromPlugins = [
     group: ['@reformer/builder-plugin-api/internal'],
     message: 'Плагину — только контракт: @reformer/builder-plugin-api, без /internal',
   },
-  {
-    group: ['@/plugins/*', '@/plugins'],
-    message: 'Плагины не импортируют друг друга: только сервисы, команды и события',
-  },
+  denyForeignPlugins(domain),
   { group: ['../../../**'], message: 'Глубокий относительный путь выходит за границу плагина' },
+];
+
+/**
+ * Ядро домена — чистый предметный код: формат, операции, проверки, печать. Его делят плагины
+ * домена, а интерфейс и связь с платформой — их работа: поэтому без React, оболочки и состава.
+ * SDK можно — чистые функции контракта кита (`toDescriptor`, `exportNameFor`) и типы.
+ */
+const denyFromCore = (domain) => [
+  ...denyFromPlugins(domain),
+  {
+    group: ['react', 'react/*', 'react-dom', 'react-dom/*'],
+    message: 'Ядро домена без React: интерфейс — работа плагинов домена',
+  },
+  {
+    group: ['@/application/*', '@/application'],
+    message: 'Ядро домена не знает состава приложения',
+  },
 ];
 
 export default defineConfig([
@@ -109,7 +139,9 @@ export default defineConfig([
   },
   {
     files: ['src/shell/**/*.{ts,tsx}'],
-    rules: { 'no-restricted-imports': ['error', { patterns: [...denyStack, ...denyApplication] }] },
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [...denyDomainCore, ...denyApplication] }],
+    },
   },
   {
     // Платформе — и запреты слоя, и запрет состава. Списки СКЛЕЕНЫ намеренно: блоки flat-config
@@ -128,12 +160,21 @@ export default defineConfig([
     files: ['src/shell/boot/integration/**/*.{ts,tsx}'],
     rules: { 'no-restricted-imports': 'off' },
   },
+  // Плагины и ядро — по домену: список `patterns` у каждого домена свой (своё ядро открыто).
+  // Блок ядра стоит ПОСЛЕ блока домена и вытесняет его для `core/**` целиком — поэтому
+  // `denyFromCore` включает запреты плагина, а не только свои.
+  ...DOMAINS.flatMap((domain) => [
+    {
+      files: [`src/plugins/${domain}/**/*.{ts,tsx}`],
+      rules: { 'no-restricted-imports': ['error', { patterns: denyFromPlugins(domain) }] },
+    },
+    {
+      files: [`src/plugins/${domain}/core/**/*.{ts,tsx}`],
+      rules: { 'no-restricted-imports': ['error', { patterns: denyFromCore(domain) }] },
+    },
+  ]),
   {
-    files: ['src/plugins/**/*.{ts,tsx}'],
-    rules: { 'no-restricted-imports': ['error', { patterns: denyFromPlugins }] },
-  },
-  {
-    // `application/` — композиция, и ей можно всё: `@/shell`, `@/plugins`, пакеты стеков
+    // `application/` — композиция, и ей можно всё: `@/shell`, `@/plugins` с ядрами доменов
     // и оба входа пакета контракта плагинов.
     // Зона объявлена ЯВНО, хотя запретов у неё нет: отсутствие блока читалось бы как «про этот
     // каталог забыли», а не как решение. Ровно тот же набор прав, что у `shell/boot`, — разница

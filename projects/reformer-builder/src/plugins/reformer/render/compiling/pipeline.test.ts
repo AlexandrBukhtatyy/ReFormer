@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
 import { toDescriptor } from '@reformer/builder-plugin-api';
 import type { PreviewModules } from '../host';
 import { buildRuntimeBundle } from '../runtime/build';

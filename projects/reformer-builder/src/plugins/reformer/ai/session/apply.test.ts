@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { emptyRules } from '@reformer/builder-stack-reformer/form-model';
+import { emptyRules } from '@/plugins/reformer/core/form-model';
 import { applyChangeSet, isStale, type ApplyDeps } from './apply';
 import { createChangeSet, type ChangeSet } from '../model/changeset';
 import { printSchemaText } from '../model/schema-text';

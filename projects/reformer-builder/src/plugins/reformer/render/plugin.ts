@@ -27,7 +27,7 @@ import {
   type SlotId,
   type WhenContext,
 } from '@reformer/builder-plugin-api';
-import { FORM_SCHEMA_PROVIDER_ID } from '@reformer/builder-stack-reformer/form-model';
+import { FORM_SCHEMA_PROVIDER_ID } from '@/plugins/reformer/core/form-model';
 import { createCompilingSurface } from './compiling/surface';
 import { PREVIEW_RUNTIME_PLUGIN_ID } from './contract';
 import type { PreviewHost, Translate } from './host';

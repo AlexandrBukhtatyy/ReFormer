@@ -25,7 +25,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
 import { checkForm } from '@/plugins/reformer/validator/check';
 import { CODES } from '@/plugins/reformer/validator/codes';
 import {

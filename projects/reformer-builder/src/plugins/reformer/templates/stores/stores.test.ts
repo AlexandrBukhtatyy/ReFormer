@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinKit } from '@reformer/builder-stack-reformer/testing';
+import { builtinKit } from '@/plugins/reformer/core/testing';
 import {
   buildView,
   typesTemplate,
@@ -18,7 +18,7 @@ import {
   makeNames,
   modelTemplate,
   prepare,
-} from '@reformer/builder-stack-reformer/codegen';
+} from '@/plugins/reformer/core/codegen';
 import { renderTemplate } from '@reformer/builder-toolkit';
 import type { FormTemplate, TemplateStore } from '../contract';
 import { canRemove, canSave, canUpdate } from '../contract';

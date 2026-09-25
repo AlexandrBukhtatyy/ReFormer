@@ -63,19 +63,10 @@ export default defineConfig({
         __dirname,
         '../../packages/reformer-builder-plugin-api/src/index.ts'
       ),
-      // Пакеты стеков — в исходники тем же доводом. Подпуть стека адресует КАТАЛОГ модуля
-      // (`/form-model` → `src/form-model/index.ts`), поэтому псевдоним — префикс, а не файл.
+      // Нейтральные помощники печати стеков — в исходники тем же доводом.
       '@reformer/builder-toolkit': path.resolve(
         __dirname,
         '../../packages/reformer-builder-toolkit/src/index.ts'
-      ),
-      '@reformer/builder-stack-plain': path.resolve(
-        __dirname,
-        '../../packages/reformer-builder-stack-plain/src/index.ts'
-      ),
-      '@reformer/builder-stack-reformer': path.resolve(
-        __dirname,
-        '../../packages/reformer-builder-stack-reformer/src'
       ),
     },
   },

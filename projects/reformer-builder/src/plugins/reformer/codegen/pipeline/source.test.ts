@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { ResourceId } from '@reformer/builder-plugin-api';
-import { STEP_SCHEMA_MARKER } from '@reformer/builder-stack-reformer/form-model';
+import { STEP_SCHEMA_MARKER } from '@/plugins/reformer/core/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { generateInto } from '../commands/context-menu';
 import { createFakeHost } from '../testing';

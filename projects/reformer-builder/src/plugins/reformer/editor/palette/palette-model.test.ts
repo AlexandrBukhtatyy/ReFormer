@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import { DEFAULT_COLLAPSED_CATEGORIES, paletteNode, paletteSections } from './palette-model';
 
 function entry(name: string, category: string, extra: Partial<CatalogEntry> = {}): CatalogEntry {

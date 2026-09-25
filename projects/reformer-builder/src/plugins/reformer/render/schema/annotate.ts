@@ -31,8 +31,8 @@ import {
   type JsonFormSchema,
   type JsonNode,
 } from '@reformer/renderer-json';
-import { nodeIdOf } from '@reformer/builder-stack-reformer/form-model';
-import { isNodeLike } from '@reformer/builder-stack-reformer/form-model';
+import { nodeIdOf } from '@/plugins/reformer/core/form-model';
+import { isNodeLike } from '@/plugins/reformer/core/form-model';
 import { EMPTY_CLASS, encodeNodeToken } from './node-token';
 
 /**

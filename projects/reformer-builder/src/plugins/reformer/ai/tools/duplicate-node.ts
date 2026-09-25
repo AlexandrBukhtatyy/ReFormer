@@ -4,7 +4,7 @@
  * @module plugins/reformer/ai/tools/duplicate-node
  */
 
-import { duplicateNode } from '@reformer/builder-stack-reformer/form-model';
+import { duplicateNode } from '@/plugins/reformer/core/form-model';
 import { commitMutation } from '../loop/gate';
 import { componentOf, isResolved, labelOf, resolveRef } from '../model/node-ref';
 import { fail, type AgentTool } from '../model/types';

@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinKit, wizardSchema } from '@reformer/builder-stack-reformer/testing';
+import { builtinKit, wizardSchema } from '@/plugins/reformer/core/testing';
 import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
 import { BUILTIN_TARGETS, generateModule } from '@/plugins/reformer/codegen';
 import type { PreviewHost, PreviewModules } from '@/plugins/reformer/render/host';

@@ -4,9 +4,9 @@
  * @module plugins/reformer/ai/tools/move-node
  */
 
-import { moveNode } from '@reformer/builder-stack-reformer/form-model';
-import { kindOf } from '@reformer/builder-stack-reformer/form-model';
-import { isPrefix } from '@reformer/builder-stack-reformer/form-model';
+import { moveNode } from '@/plugins/reformer/core/form-model';
+import { kindOf } from '@/plugins/reformer/core/form-model';
+import { isPrefix } from '@/plugins/reformer/core/form-model';
 import { commitMutation } from '../loop/gate';
 import { componentOf, isResolved, labelOf, resolveRef } from '../model/node-ref';
 import { insertSlotOf } from '../model/slots';

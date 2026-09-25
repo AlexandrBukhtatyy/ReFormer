@@ -10,7 +10,7 @@
  * @module plugins/reformer/editor/model/block
  */
 
-import type { JsonPath } from '@reformer/builder-stack-reformer/form-model';
+import type { JsonPath } from '@/plugins/reformer/core/form-model';
 import type { NodeIndex } from './node-index';
 import { slotPositionOf, type ArraySlot } from './ops';
 import type { NodeId } from '../host';

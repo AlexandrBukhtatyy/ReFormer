@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
 import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import { classifyEntry, isComponentLike, isRegistrable, resolveInfra } from './policy';
 

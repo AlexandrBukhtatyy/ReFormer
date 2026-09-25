@@ -49,7 +49,7 @@ import {
   type Disposable,
   type KitsService,
 } from '@reformer/builder-plugin-api/internal';
-import { BUILTIN_CATALOG } from '@reformer/builder-stack-reformer/testing';
+import { BUILTIN_CATALOG } from '@/plugins/reformer/core/testing';
 import { createSchemaModelProvider } from '@/plugins/reformer/editor/model/provider';
 import {
   createSchemaValidatorPlugin,

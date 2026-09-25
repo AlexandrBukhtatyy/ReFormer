@@ -4,8 +4,8 @@
  * **Почему это плагин, а не часть Host.** Разбор и проверка схемы формы — предметное знание:
  * что такое `$component`, чем шаг отличается от вкладки, какие пропсы у поля. В платформе оно
  * означало бы, что второй формат (или второй продукт поверх той же платформы) вносится правкой
- * ядра. Граница проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только `@reformer/builder-plugin-api`
- * и пакеты стеков.
+ * ядра. Граница проверяется линтером: `src/plugins/**` не видит `@/shell/*` — только
+ * `@reformer/builder-plugin-api` и ядро своего домена.
  *
  * ## Уровень только быстрый
  *
@@ -54,8 +54,8 @@
  */
 
 import manifest from './manifest.json';
-import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
+import { projectCatalog, type CatalogEntry } from '@/plugins/reformer/core/catalog';
+import type { FormRules } from '@/plugins/reformer/core/form-model';
 import {
   definePlugin,
   KitsCapability,
@@ -69,7 +69,7 @@ import {
   type QuickFix,
   type ValidatorContribution,
 } from '@reformer/builder-plugin-api';
-import { isFormSchemaDocument as isStackFormSchemaDocument } from '@reformer/builder-stack-reformer/form-model';
+import { isFormSchemaDocument as isStackFormSchemaDocument } from '@/plugins/reformer/core/form-model';
 import { checkForm, type ValidateFormSchema } from './check';
 import { SCHEMA_VALIDATOR_ID } from './codes';
 

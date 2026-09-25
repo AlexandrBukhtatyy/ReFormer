@@ -10,14 +10,14 @@
  */
 
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
 import { describe, expect, it } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { createToolRegistry } from './registry';
 import { setRenderRulesTool } from './set-render-rules';
-import { emptyRules, type FormRules } from '@reformer/builder-stack-reformer/form-model';
-import { selectorOf } from '@reformer/builder-stack-reformer/form-model';
-import { findByPath } from '@reformer/builder-stack-reformer/form-model';
+import { emptyRules, type FormRules } from '@/plugins/reformer/core/form-model';
+import { selectorOf } from '@/plugins/reformer/core/form-model';
+import { findByPath } from '@/plugins/reformer/core/form-model';
 import type { ToolContext } from '../model/types';
 
 function schema(): JsonFormSchema {

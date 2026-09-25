@@ -28,7 +28,7 @@ import {
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
-import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { projectCatalog, type CatalogEntry } from '@/plugins/reformer/core/catalog';
 import { SCHEMA_MODEL_PROVIDER_ID } from './contract';
 import type { SchemaEditorHost, SchemaModelHandle, Translate } from './host';
 

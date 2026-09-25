@@ -28,7 +28,7 @@ import {
   createMemoryIndexedDb,
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
-import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
+import { sampleSchema } from '@/plugins/reformer/core/testing';
 import { createSchemaModelProvider } from '@/plugins/reformer/editor/model/provider';
 import {
   MONACO_EDITOR_ID,

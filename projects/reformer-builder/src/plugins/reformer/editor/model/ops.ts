@@ -57,23 +57,14 @@ import {
   type JsonFormSchema,
   type JsonNode,
 } from '@reformer/renderer-json';
-import {
-  canAcceptChildren,
-  childSlots,
-  isNodeLike,
-} from '@reformer/builder-stack-reformer/form-model';
+import { canAcceptChildren, childSlots, isNodeLike } from '@/plugins/reformer/core/form-model';
 import {
   newNodeId,
   nodeIdOf,
   reissueNodeIds,
   type NodeIdFactory,
-} from '@reformer/builder-stack-reformer/form-model';
-import {
-  getAt,
-  removeAt,
-  updateAt,
-  type JsonPath,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
+import { getAt, removeAt, updateAt, type JsonPath } from '@/plugins/reformer/core/form-model';
 import {
   flipDirection,
   groupBlock,
@@ -85,9 +76,9 @@ import {
   setTextChild,
   textChildIndex,
   ungroupNode,
-} from '@reformer/builder-stack-reformer/form-model';
+} from '@/plugins/reformer/core/form-model';
 import { indexNodes, type NodeIndex } from './node-index';
-import { ensureNodeIds, ensureSchema } from '@reformer/builder-stack-reformer/form-model';
+import { ensureNodeIds, ensureSchema } from '@/plugins/reformer/core/form-model';
 import type { ApplyResult, EditOp, NodeId } from '../host';
 
 /** Массив-слот, в который кладут узлы. Одиночные (`template`/`wrapper`) вставку не принимают. */

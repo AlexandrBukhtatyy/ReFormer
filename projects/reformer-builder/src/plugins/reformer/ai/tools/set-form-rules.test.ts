@@ -8,11 +8,11 @@
  */
 
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import { builtinEntries } from '@/plugins/reformer/core/testing';
 import { describe, expect, it } from 'vitest';
 import { createToolRegistry } from './registry';
 import { setFormRulesTool } from './set-form-rules';
-import { emptyRules, type FormRules } from '@reformer/builder-stack-reformer/form-model';
+import { emptyRules, type FormRules } from '@/plugins/reformer/core/form-model';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import type { ToolContext } from '../model/types';
 

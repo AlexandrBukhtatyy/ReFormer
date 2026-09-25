@@ -251,8 +251,8 @@ describe('командная строка', () => {
   });
 });
 
-describe('build: пакеты стеков вкладываются', () => {
-  // Каталог плагина — ВНУТРИ репозитория: пакеты стеков вкладываются, и сборке нужно их найти
+describe('build: вкладываемые пакеты', () => {
+  // Каталог плагина — ВНУТРИ репозитория: toolkit вкладывается, и сборке нужно его найти
   // обычным разрешением через `node_modules` рабочей области. Во временном каталоге ОС его нет.
   let local: string;
   let plugin: string;
@@ -269,13 +269,13 @@ describe('build: пакеты стеков вкладываются', () => {
     await rm(local, { recursive: true, force: true });
   });
 
-  it('демо-стек вложен в main.js, а не оставлен внешним', async () => {
+  it('toolkit вложен в main.js, а не оставлен внешним', async () => {
     await writeFile(
       join(plugin, 'src/main.ts'),
       [
         "import { definePlugin } from '@reformer/builder-plugin-api';",
-        "import { PLAIN_SCHEMA_ID } from '@reformer/builder-stack-plain';",
-        "export default definePlugin({ id: 'acme-stack', activate() { void PLAIN_SCHEMA_ID; } });",
+        "import { withMarker } from '@reformer/builder-toolkit';",
+        "export default definePlugin({ id: 'acme-stack', activate() { void withMarker; } });",
         '',
       ].join('\n')
     );
@@ -283,11 +283,15 @@ describe('build: пакеты стеков вкладываются', () => {
     const result = await buildPlugin({ dir: plugin });
     expect(result.ok ? [] : result.findings).toEqual([]);
     const code = await readFile(join(plugin, 'dist/main.js'), 'utf8');
-    expect(code).toContain('plain-form/1');
-    expect(code).not.toContain('require("@reformer/builder-stack-plain")');
+    // Литерал маркера живёт только в исходнике toolkit: он есть — значит, toolkit вложен.
+    expect(code).toContain('// @reformer-generated');
+    expect(code).not.toContain('require("@reformer/builder-toolkit")');
   });
 
-  it('стек ReFormer: его рантайм остаётся внешним, внутренности — вложены', async () => {
+  it('бывший пакет стека ReFormer — отказ: код домена во внешний плагин не вкладывается', async () => {
+    // Опубликованный `@reformer/builder-stack-reformer` мог остаться у автора плагина в
+    // зависимостях. Вложить его — второй экземпляр домена без проверки совместимости; чужой
+    // домен расширяют возможностями.
     await writeFile(
       join(plugin, 'src/main.ts'),
       [
@@ -299,13 +303,9 @@ describe('build: пакеты стеков вкладываются', () => {
     );
 
     const result = await buildPlugin({ dir: plugin });
-    expect(result.ok ? [] : result.findings).toEqual([]);
-    const code = await readFile(join(plugin, 'dist/main.js'), 'utf8');
-    // Рендерер — модуль рантайма: второй экземпляр был бы тихой поломкой.
-    expect(code).toContain('require("@reformer/renderer-json")');
-    // Глубокий импорт @reformer/mcp — внутренность пакета стека, оболочка его не подставляет.
-    expect(code).not.toContain('require("@reformer/mcp');
-    expect(code).not.toContain('require("@reformer/builder-stack-reformer');
+    expect(result.ok ? [] : result.findings.map((finding) => finding.code)).toEqual([
+      'module-unavailable',
+    ]);
   });
 
   it('@reformer/* вне списков из кода САМОГО плагина — по-прежнему отказ', async () => {

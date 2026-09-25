@@ -22,7 +22,7 @@
  * @module plugins/reformer/render/compiling/exports
  */
 
-import { LEGACY_FILES, MODULE_FILES } from '@reformer/builder-stack-reformer/codegen';
+import { LEGACY_FILES, MODULE_FILES } from '@/plugins/reformer/core/codegen';
 import type { ComponentRegistry, CreateJsonFormConfig } from '@reformer/renderer-json';
 
 /** Форма данных модели превью: она приходит из исполненного кода, и сузить её нечем. */

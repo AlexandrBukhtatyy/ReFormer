@@ -34,7 +34,7 @@
  * @module plugins/reformer/render/compiling/sources
  */
 
-import { isFixturePath } from '@reformer/builder-stack-reformer/form-fixture';
+import { isFixturePath } from '@/plugins/reformer/core/form-fixture';
 import type { ResourceRef } from '@reformer/builder-plugin-api';
 
 /** Расширения, которые превью исполняет. */

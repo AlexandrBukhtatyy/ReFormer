@@ -22,7 +22,7 @@
  * @module plugins/reformer/ai/session/session
  */
 
-import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
+import type { FormRules } from '@/plugins/reformer/core/form-model';
 import type { Disposable, ResourceId } from '@reformer/builder-plugin-api';
 import type { ChangeSet } from '../model/changeset';
 

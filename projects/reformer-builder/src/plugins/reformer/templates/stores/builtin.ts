@@ -17,19 +17,19 @@
  *
  * ## Затравки — данные, а не текст
  *
- * Схемы собираются фабриками узлов домена (`@reformer/builder-stack-reformer/catalog`), а не литералами JSON:
+ * Схемы собираются фабриками узлов домена (`@/plugins/reformer/core/catalog`), а не литералами JSON:
  * так «пошаговая форма» остаётся пошаговой, даже когда изменится внутреннее устройство
  * узла-визарда.
  *
  * @module plugins/reformer/templates/stores/builtin
  */
 
-import { fieldNode, stepNode } from '@reformer/builder-stack-reformer/catalog';
-import { emitFixture, FIXTURE_FILE } from '@reformer/builder-stack-reformer/form-fixture';
-import { synthMock } from '@reformer/builder-stack-reformer/form-mock';
-import { type FormMock } from '@reformer/builder-stack-reformer/codegen';
-import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
-import { emptySchema } from '@reformer/builder-stack-reformer/form-model';
+import { fieldNode, stepNode } from '@/plugins/reformer/core/catalog';
+import { emitFixture, FIXTURE_FILE } from '@/plugins/reformer/core/form-fixture';
+import { synthMock } from '@/plugins/reformer/core/form-mock';
+import { type FormMock } from '@/plugins/reformer/core/codegen';
+import type { FormRules } from '@/plugins/reformer/core/form-model';
+import { emptySchema } from '@/plugins/reformer/core/form-model';
 import type { JsonFormSchema, JsonNode } from '@reformer/renderer-json';
 import type { FormTemplate, TemplateFile, TemplateStore } from '../contract';
 import { tokenize } from '../render/placeholders';
@@ -130,7 +130,7 @@ export function simpleSeed(): JsonFormSchema {
 /**
  * Правила простой формы: то, из чего кодоген напечатает `validation.ts` и `form.behavior.ts`.
  *
- * Печатает их не этот модуль, а существующий мост к билдерам MCP (`@reformer/builder-stack-reformer/codegen`):
+ * Печатает их не этот модуль, а существующий мост к билдерам MCP (`@/plugins/reformer/core/codegen`):
  * второй комплект эмиттеров для того же самого разошёлся бы с первым молча.
  */
 export function simpleRules(): FormRules {
@@ -150,7 +150,7 @@ export function simpleRules(): FormRules {
     ],
     // Поведение РЕНДЕРА — третий вид правил, и он не выражается двумя предыдущими: видимость
     // принадлежит УЗЛУ схемы, а не значению модели. Селектор проставляет сам кодоген из пути
-    // (`fullName` → `full-name`, см. `@reformer/builder-stack-reformer/codegen`), поэтому здесь он предсказуем.
+    // (`fullName` → `full-name`, см. `@/plugins/reformer/core/codegen`), поэтому здесь он предсказуем.
     render: [
       {
         kind: 'hideWhen',

@@ -18,7 +18,7 @@ import {
   useSyncExternalStore,
   type ReactElement,
 } from 'react';
-import type { PlainForm } from '@reformer/builder-stack-plain';
+import type { PlainForm } from '@/plugins/plain/core';
 import type {
   Disposable,
   LiveSurfaceContext,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as reexport from './mock';
-import * as domain from '@reformer/builder-stack-reformer/form-mock';
+import * as domain from '@/plugins/reformer/core/form-mock';
 
 describe('мок превью — реэкспорт домена, а не копия', () => {
   it('отдаёт ТЕ ЖЕ функции, а не одноимённые', () => {
