@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { classNamesFor, knownClassNames, suggestClasses, unknownClasses } from './class-names';
-import { toDescriptor } from '../kits/descriptor';
+import { toDescriptor } from '@reformer/builder-plugin-api';
 import { builtinCatalog } from './__fixtures__/builtin-catalog';
 import type { CatalogJson, CatalogRecord } from './types';
 

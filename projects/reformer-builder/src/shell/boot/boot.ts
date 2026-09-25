@@ -682,6 +682,7 @@ export function boot(options: BootOptions): BuilderApp {
       }),
     modules: pluginModules.modules,
     prepare: pluginModules.prepare,
+    warm: pluginModules.warm,
     dir: INSTALLED_ROOT_DIR,
   });
 
@@ -705,6 +706,7 @@ export function boot(options: BootOptions): BuilderApp {
       source: () => project.get()?.source ?? null,
       modules: pluginModules.modules,
       prepare: pluginModules.prepare,
+      warm: pluginModules.warm,
     }),
     plugins,
     // Что даёт остальное приложение: объявления встроенных из состава. Реестр служб на этот

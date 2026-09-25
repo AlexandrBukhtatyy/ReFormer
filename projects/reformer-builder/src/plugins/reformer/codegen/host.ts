@@ -33,7 +33,7 @@
 
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
-import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
+import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import type {
   Disposable,
   DocumentKind,

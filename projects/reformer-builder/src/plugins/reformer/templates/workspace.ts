@@ -31,10 +31,11 @@
  * @module plugins/reformer/templates/workspace
  */
 
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
+import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import {
   defineCapability,
+  KitsCapability,
   DocumentsServiceToken,
   useActiveDocument,
   useTranslate,
@@ -47,19 +48,6 @@ import {
 } from '@reformer/builder-plugin-api';
 import type { TemplatesHost, TemplatesSourceCapabilities } from './host';
 import type { ModulePrinter } from './stores/builtin';
-
-/** Активный кит в объёме, нужном шаблонам: каталог, дескриптор и «он сменился». */
-export interface KitReader {
-  catalog(): readonly CatalogEntry[];
-  descriptor(): KitDescriptor;
-  onDidChange(cb: () => void): Disposable;
-}
-
-/** Возможность «активный кит» — структурная копия с тем же идентификатором, что у провайдера. */
-export const KitCapability = defineCapability<KitReader>({
-  id: 'reformer.kit.catalog',
-  version: '1.0.0',
-});
 
 /** Печатник модуля формы в объёме, нужном шаблонам. */
 export interface ModulePrinterService {
@@ -110,7 +98,12 @@ function printerOver(ctx: PluginContext): ModulePrinter {
 export function templatesWorkspace(ctx: PluginContext, gaps: TemplatesGaps = {}): TemplatesHost {
   const documents = ctx.services.require(DocumentsServiceToken);
   const files = ctx.services.require(WorkspaceFilesServiceToken);
-  const kit = (): KitReader | undefined => ctx.services.get(KitCapability);
+  // Кит — служба китов SDK; записи и дескриптор — ReFormer-проекция её сырого каталога.
+  const kit = () => ctx.services.get(KitsCapability);
+  const projection = () => {
+    const service = kit();
+    return service === undefined ? undefined : projectCatalog(service.catalogJson());
+  };
 
   return {
     // Именованные функции: правила хуков опознают хук по имени объявления.
@@ -144,8 +137,8 @@ export function templatesWorkspace(ctx: PluginContext, gaps: TemplatesGaps = {})
       });
     },
 
-    catalog: () => kit()?.catalog() ?? NO_CATALOG,
-    kit: (): KitDescriptor | null => kit()?.descriptor() ?? null,
+    catalog: () => projection()?.entries ?? NO_CATALOG,
+    kit: (): KitDescriptor | null => projection()?.descriptor ?? null,
     onDidChangeKit: (cb: () => void): Disposable => kit()?.onDidChange(cb) ?? { dispose: () => {} },
 
     /**

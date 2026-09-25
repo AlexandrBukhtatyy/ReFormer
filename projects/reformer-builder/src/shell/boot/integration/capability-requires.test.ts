@@ -24,10 +24,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { builderApplication } from '@/application/builder-application';
 import type { CatalogJson } from '@reformer/builder-stack-reformer/catalog';
-import { createKitsPlugin, KitsCapability, KITS_PLUGIN_ID } from '@/plugins/kits/registry';
+import { createKitsPlugin, KITS_PLUGIN_ID } from '@/plugins/kits/registry';
 import { createProjectPluginCatalog } from '@/shell/platform/plugin/catalog';
 import { createPluginLoader } from '@/shell/platform/plugin/loader';
-import { PLUGIN_CATALOG_DIR } from '@reformer/builder-plugin-api/internal';
+import { KitsCapability, PLUGIN_CATALOG_DIR } from '@reformer/builder-plugin-api/internal';
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
@@ -52,7 +52,7 @@ const dir = (file: string): string => `${PLUGIN_CATALOG_DIR}/ext/${file}`;
 const PLUGIN_CODE = `
 const { definePlugin, defineCapability } = require('@builder/sdk');
 
-const Kits = defineCapability({ id: 'reformer.kit.catalog', version: '1.0.0' });
+const Kits = defineCapability({ id: 'reformer.kit.catalog', version: '2.0.0' });
 
 module.exports = definePlugin({
   id: 'ext',
@@ -156,13 +156,13 @@ describe('внешний плагин с требованием к возмож�
   it('состав приложения объявляет возможность китов — без этого проверять нечего', () => {
     expect(builderApplication.capabilities).toContainEqual({
       id: 'reformer.kit.catalog',
-      version: '1.1.0',
+      version: '2.0.0',
       by: KITS_PLUGIN_ID,
     });
   });
 
-  it('требование «^2» при провайдере 1.x — плагин НЕ включается', async () => {
-    const h = harness('^2');
+  it('требование «^3» при провайдере 2.x — плагин НЕ включается', async () => {
+    const h = harness('^3');
     await h.catalog.refresh();
 
     expect(await h.catalog.enable('ext')).toBe(false);
@@ -172,7 +172,7 @@ describe('внешний плагин с требованием к возмож�
   });
 
   it('причина видна СТРОКОЙ в списке плагинов и называет то, что есть', async () => {
-    const h = harness('^2');
+    const h = harness('^3');
     await h.catalog.refresh();
     await h.catalog.enable('ext');
 
@@ -181,9 +181,9 @@ describe('внешний плагин с требованием к возмож�
     expect(entry?.state).toBe('failed');
     expect(entry?.problem?.code).toBe('requires-unsatisfied');
     expect(entry?.problem?.message).toContain('reformer.kit.catalog');
-    expect(entry?.problem?.message).toContain('^2');
+    expect(entry?.problem?.message).toContain('^3');
     // «Поставь новее» и «поставь вообще» — разные ответы, и человеку нужен второй.
-    expect(entry?.problem?.message).toContain('1.1.0');
+    expect(entry?.problem?.message).toContain('2.0.0');
     expect(entry?.problem?.message).toContain(`«${KITS_PLUGIN_ID}»`);
     h.dispose();
   });
@@ -192,7 +192,7 @@ describe('внешний плагин с требованием к возмож�
     // Рабочую область, фокус текстового редактора и снимки вида даёт сама оболочка, и без
     // части «builder.host» в составе (`composer/compose`) это требование выглядело бы как
     // «никто не предоставляет» — у службы, которая заведена ровно для внешнего плагина.
-    const h = harness('^1', [{ id: 'reformer.workspace', range: '^1' }]);
+    const h = harness('^2', [{ id: 'reformer.workspace', range: '^1' }]);
     await h.catalog.refresh();
 
     expect(await h.catalog.enable('ext')).toBe(true);
@@ -200,7 +200,7 @@ describe('внешний плагин с требованием к возмож�
   });
 
   it('несовпадение версии возможности оболочки отказывает и называет оболочку', async () => {
-    const h = harness('^1', [{ id: 'reformer.workspace', range: '^2' }]);
+    const h = harness('^2', [{ id: 'reformer.workspace', range: '^2' }]);
     await h.catalog.refresh();
     await h.catalog.enable('ext');
 
@@ -211,8 +211,8 @@ describe('внешний плагин с требованием к возмож�
     h.dispose();
   });
 
-  it('тот же плагин с «^1» включается и работает', async () => {
-    const h = harness('^1');
+  it('тот же плагин с «^2» включается и работает', async () => {
+    const h = harness('^2');
     await h.catalog.refresh();
 
     expect(await h.catalog.enable('ext')).toBe(true);

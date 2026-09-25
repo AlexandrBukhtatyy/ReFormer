@@ -73,8 +73,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@reformer/builder-toolkit": "*",
-    "ajv": "^8.17.1"
+    "@reformer/builder-plugin-api": "*",
+    "@reformer/builder-toolkit": "*"
   },
   "peerDependencies": {
     "@reformer/core": "*",

@@ -35,6 +35,7 @@
  * @module @reformer/builder-plugin-api/services/validation/types
  */
 
+import type { Disposable } from '../../primitives/disposable.js';
 import { defineExtensionPoint } from '../../primitives/extension-point.js';
 import type { ResourceId, ResourceRef } from '../../primitives/resource.js';
 import type { Diagnostic } from '../diagnostics/types.js';
@@ -123,6 +124,19 @@ export interface ValidatorContribution {
    * которую валидатор продолжает делать в отменённом проходе, за него никто не остановит.
    */
   validateAsync?(ctx: ValidateContext, signal: AbortSignal): Promise<readonly Diagnostic[]>;
+
+  /**
+   * Подписка на смену ВХОДОВ проверки помимо самого документа: каталога кита, настроек, соседних
+   * файлов. Оркестратор перепроверяет по ней документы, к которым валидатор применим.
+   *
+   * Без неё находки, зависящие от внешнего, оставались бы устаревшими до следующей правки
+   * документа: так было с именами компонентов — документ, открытый раньше, чем доехал каталог
+   * кита, проверялся с пустым каталогом, и неизвестный компонент подсвечивался только после
+   * первого нажатия клавиши (ReFormer-3ybp).
+   *
+   * Необязателен: валидатору, чей ответ зависит только от документа, объявлять нечего.
+   */
+  onDidChangeInputs?(cb: () => void): Disposable;
 }
 
 /**

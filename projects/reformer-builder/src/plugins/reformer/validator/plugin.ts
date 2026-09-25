@@ -23,14 +23,20 @@
  * его `validateAsync`-ом было бы хуже, а не лучше: находки ушли бы вторым источником и под
  * другим именем. Цена названа честно: пока модуль в пути, проход не даёт находок мета-схемы.
  * Окно между активацией плагина и открытием первого документа человеком заведомо длиннее
- * одного динамического импорта, но нулём оно не становится, и притворяться иначе нечем.
+ * одного динамического импорта, но нулём оно не становится. Поэтому прибытие модуля объявлено
+ * сменой входа (`onDidChangeInputs`): документ, проверенный без мета-схемы, оркестратор
+ * перепроверяет сам, когда модуль доедет, — не дожидаясь правки.
  *
  * ## Каталог берётся ВОЗМОЖНОСТЬЮ, правила — параметром
  *
- * Каталог активного кита — состояние приложения (кит переключают), и приходит он теперь
- * из реестра служб по возможности `reformer.kit.catalog`, а не параметром от композиции. Объявление
- * структурное ({@link KitCatalogCapability}): плагины друг друга не импортируют, а реестр
- * ключуется строкой — тем же способом до него дотянется и внешний плагин из каталога проекта.
+ * Каталог активного кита — состояние приложения (кит переключают), и приходит он из реестра
+ * служб по возможности `reformer.kit.catalog` (`KitsCapability` SDK), а не параметром от
+ * композиции. Служба нейтральна и отдаёт СЫРОЙ каталог кита; записи, с которыми сверяется
+ * `$component(...)`, — ReFormer-проекция (`projectCatalog`): каталог кита плюс синтетика билдера.
+ *
+ * Смена кита — смена входа проверки: валидатор сообщает о ней оркестратору
+ * (`onDidChangeInputs`), и тот перепроверяет открытые схемы. Без этого документ, открытый раньше,
+ * чем доехал каталог, до первой правки проверялся с пустым каталогом (ReFormer-3ybp).
  *
  * В манифесте кит записан НЕОБЯЗАТЕЛЬНЫМ требованием, и это названная деградация, а не
  * забытое требование: без кита валидатор проверяет структуру схемы и молчит о компонентах —
@@ -48,14 +54,16 @@
  */
 
 import manifest from './manifest.json';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import type { FormRules } from '@reformer/builder-stack-reformer/form-model';
 import {
-  defineCapability,
   definePlugin,
+  KitsCapability,
   withUsableFixes,
   ValidatorPoint,
+  type CapabilityAccess,
   type CommandLookup,
+  type Disposable,
   type DocumentRef,
   type Plugin,
   type QuickFix,
@@ -68,30 +76,6 @@ import { SCHEMA_VALIDATOR_ID } from './codes';
 /** Идентификатор плагина: пространство имён во всех реестрах. */
 export const SCHEMA_VALIDATOR_PLUGIN_ID = manifest.id;
 
-/**
- * Активный кит в объёме, нужном валидатору: один вопрос — «с чем сверять».
- *
- * Структурная копия, а не импорт из плагина китов: `plugins/**` не импортируют друг друга
- * (проверяется линтером), и это не формальность — иначе выключенный кит утащил бы за собой
- * валидатор. Находит она ту же службу, потому что реестр ключуется СТРОКОЙ, а не объектом;
- * ровно так же до неё дотянется внешний плагин из каталога проекта.
- */
-export interface KitCatalogReader {
-  catalog(): readonly CatalogEntry[];
-}
-
-/**
- * Возможность «активный кит», объявленная средствами SDK.
- *
- * Версия та же, что у провайдера (`plugins/kits/registry`), и это проверяется не здесь: требование
- * объявлено в карте состава (`application/composer/builtin-plugins`) и сверяется резолвером
- * ДО загрузки кода. Здесь — только адрес.
- */
-export const KitCatalogCapability = defineCapability<KitCatalogReader>({
-  id: 'reformer.kit.catalog',
-  version: '1.0.0',
-});
-
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый проход. */
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
@@ -100,8 +84,8 @@ export interface SchemaValidatorOptions {
    * Каталог активного кита. Функция, а не список: кит переключают, и валидатор обязан
    * сравнивать с тем каталогом, который действует СЕЙЧАС, а не с тем, что был на активации.
    *
-   * Необязателен: плагин берёт каталог из реестра служб (`kits.active`), и это его штатный
-   * путь. Параметр остаётся для теста вклада в одиночку — там реестра нет вовсе.
+   * Необязателен: плагин берёт каталог из реестра служб (`reformer.kit.catalog`), и это его
+   * штатный путь. Параметр остаётся для теста вклада в одиночку — там реестра нет вовсе.
    */
   readonly catalog?: () => readonly CatalogEntry[];
   /** Правила-сайдкар документа, если тот, кто их держит, может их отдать. */
@@ -122,6 +106,15 @@ export interface SchemaValidatorOptions {
    * его всегда.
    */
   readonly hasCommand?: CommandLookup;
+  /**
+   * Подписка на смену каталога — вход проверки помимо документа
+   * ({@link ValidatorContribution.onDidChangeInputs}). По ней оркестратор перепроверяет
+   * открытые схемы, когда кит сменился или его каталог доехал позже документа.
+   *
+   * Необязательна по той же причине, что и {@link catalog}: плагин следит за службой китов сам,
+   * а тесту вклада в одиночку следить не за чем.
+   */
+  readonly onDidChangeInputs?: (cb: () => void) => Disposable;
 }
 
 /**
@@ -198,6 +191,43 @@ function createUnavailableFixReporter(): (fix: QuickFix) => void {
   };
 }
 
+/** Подписка, которую снимают сколько угодно раз, а действует снятие один. */
+function once(release: () => void): Disposable {
+  let released = false;
+  return {
+    dispose() {
+      if (released) return;
+      released = true;
+      release();
+    },
+  };
+}
+
+/**
+ * Следит за каталогом активного кита: и за сменой кита, и за появлением самой службы.
+ *
+ * Подписки на службу, взятую в момент вызова, мало: плагин китов вправе подняться позже
+ * валидатора (порядок активации незначим), а его выключают и включают. Поэтому наблюдается
+ * ВОЗМОЖНОСТЬ, и подписка на смену кита переезжает к каждому новому владельцу.
+ *
+ * Первое значение `observe` приходит сразу и сменой не считается: документ только что
+ * проверен именно с ним.
+ */
+function followKitCatalog(capabilities: CapabilityAccess, cb: () => void): Disposable {
+  let kit: Disposable | undefined;
+  let initial = true;
+  const observed = capabilities.observe(KitsCapability, (kits) => {
+    kit?.dispose();
+    kit = kits?.onDidChange(cb);
+    if (!initial) cb();
+  });
+  initial = false;
+  return once(() => {
+    observed.dispose();
+    kit?.dispose();
+  });
+}
+
 /** Вклад валидатора — отдельно от плагина, чтобы тест звал его без реестров. */
 export function createSchemaValidator(
   options: SchemaValidatorOptions,
@@ -213,6 +243,22 @@ export function createSchemaValidator(
       // для заказа нет: `applies` синхронна, зовётся раньше `validate` и уже знает ответ.
       if (mine) void deferred.load();
       return mine;
+    },
+    onDidChangeInputs(cb) {
+      // Мета-схема — тоже вход: документ, проверенный, пока модуль был в пути, получает её
+      // находки, когда модуль доедет, а не на следующем нажатии клавиши. Уже доехавшая
+      // подписки не требует — иначе каждый новый документ проверялся бы лишний раз.
+      let live = true;
+      if (deferred.get() === undefined) {
+        void deferred.load().then(() => {
+          if (live && deferred.get() !== undefined) cb();
+        });
+      }
+      const external = options.onDidChangeInputs?.(cb);
+      return once(() => {
+        live = false;
+        external?.dispose();
+      });
     },
     validate(ctx) {
       const found = checkForm(
@@ -260,9 +306,17 @@ export function createSchemaValidatorPlugin(options: SchemaValidatorOptions): Pl
         // на момент активации, то есть пустым.
         catalog:
           options.catalog ??
-          ((): readonly CatalogEntry[] =>
-            ctx.services.get(KitCatalogCapability)?.catalog() ?? NO_CATALOG),
+          ((): readonly CatalogEntry[] => {
+            const kits = ctx.services.get(KitsCapability);
+            return kits === undefined ? NO_CATALOG : projectCatalog(kits.catalogJson()).entries;
+          }),
         hasCommand: options.hasCommand ?? ((id) => ctx.commands.get(id) !== undefined),
+        // Следить за службой китов есть смысл, только когда каталог берётся из неё. Подписка
+        // заводится оркестратором на открытии документа, а не здесь: `activate` только
+        // регистрирует.
+        ...(options.onDidChangeInputs === undefined && options.catalog === undefined
+          ? { onDidChangeInputs: (cb: () => void) => followKitCatalog(ctx.capabilities, cb) }
+          : {}),
       };
       ctx.subscriptions.push(
         ctx.extensions.contribute(ValidatorPoint, createSchemaValidator(withCommands, deferred), {

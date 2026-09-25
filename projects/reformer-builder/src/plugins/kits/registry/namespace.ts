@@ -38,8 +38,7 @@
  * @module plugins/kits/registry/namespace
  */
 
-import type { Disposable } from '@reformer/builder-plugin-api';
-import type { KitNamespace } from '@reformer/builder-stack-reformer/kits';
+import type { Disposable, KitNamespace } from '@reformer/builder-plugin-api';
 
 export interface KitNamespaceLoader {
   /** Пространство имён либо `null`, если ещё не загружено. Первый вызов начинает загрузку. */

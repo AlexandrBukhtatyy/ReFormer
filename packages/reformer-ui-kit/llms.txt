@@ -7550,6 +7550,71 @@ function FieldError({
 
 _Source: src/components/field/variants/base/field-base.tsx_
 
+### FieldFrame
+
+**Kind:** `function`
+
+Рамка поля: подпись, контрол, описание и ошибки — та же разметка, что у {@link FormField},
+но без узла формы. `FormField` берёт всё это из `FieldNode` `@reformer/core`; рамке всё
+приходит пропсами, поэтому в неё можно положить контрол, которым управляет не ReFormer
+(тема RJSF строит на ней шаблон поля).
+
+`className` доходит до корневого элемента — по нему билдер находит узел кликом и подсвечивает
+выделенный.
+
+**Signature:**
+```typescript
+function FieldFrame({
+  id,
+  label,
+  description,
+  required,
+  errors,
+  inlineLabel,
+  hidden,
+  className,
+  children,
+}: FieldFrameProps)
+```
+
+_Source: src/components/field/variants/frame/field-frame.tsx_
+
+### FieldFrameProps
+
+**Kind:** `interface`
+
+Props компонента {@link FieldFrame}.
+
+Форма совпадает с контрактом рамки поля SDK билдера (`KitFieldFrameProps`, блок
+`kit.infra.fieldFrame` каталога): стек, который кладёт в рамку СВОЙ контрол, знает только эти
+пропсы. Импорта из SDK нет намеренно — кит не зависит от билдера, совпадение держит тест.
+
+**Signature:**
+```typescript
+export interface FieldFrameProps {
+  /** Идентификатор контрола — для `htmlFor` подписи. */
+  id?: string;
+  /** Подпись поля над контролом. */
+  label?: React.ReactNode;
+  /** Пояснение под контролом. */
+  description?: React.ReactNode;
+  /** Поле обязательно — к подписи добавляется `*`. */
+  required?: boolean;
+  /** Сообщения об ошибках; пусто — ошибок нет. */
+  errors?: readonly string[];
+  /** Контрол подписывает себя сам (чекбокс, переключатель) — верхняя подпись не рисуется. */
+  inlineLabel?: boolean;
+  /** Поле скрыто — рамка не рисует ничего. */
+  hidden?: boolean;
+  /** CSS-класс корневого элемента рамки. */
+  className?: string;
+  /** Контрол, который рамка обрамляет. */
+  children?: React.ReactNode;
+}
+```
+
+_Source: src/components/field/variants/frame/field-frame.tsx_
+
 ### FieldGroup
 
 **Kind:** `function`

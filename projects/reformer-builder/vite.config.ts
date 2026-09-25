@@ -190,6 +190,11 @@ export default defineConfig({
         __dirname,
         '../../packages/reformer-builder-plugin-api/src/internal.ts'
       ),
+      // Инструменты автора плагина (разбор манифеста, проверка каталога кита) — тем же приёмом.
+      '@reformer/builder-plugin-api/tooling': path.resolve(
+        __dirname,
+        '../../packages/reformer-builder-plugin-api/src/tooling.ts'
+      ),
       '@reformer/builder-plugin-api': path.resolve(
         __dirname,
         '../../packages/reformer-builder-plugin-api/src/index.ts'

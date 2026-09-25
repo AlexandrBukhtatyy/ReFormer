@@ -1,6 +1,6 @@
 /**
  * Сборка каталога `CatalogEntry[]` через контракт: поставленный catalog-JSON + синтетические
- * ({@link composeCatalogJson}) → дескриптор кита ({@link toDescriptor}) → записи с `makeNode`
+ * ({@link composeCatalogJson}) → дескриптор кита (`toDescriptor` SDK) → записи с `makeNode`
  * ({@link buildCatalogFromJson}). Так источник (клиент ui-kit vs иной) абстрагирован за одной
  * границей (спека §5).
  *
@@ -10,18 +10,24 @@
  * бы цикл `node-kind → catalog → make-node → node-kind`. Побочный эффект и был причиной, по
  * которой домен трогал состояние.
  *
- * В v2 цикла нет: `lib/form-model/node-kind` и `lib/catalog/make-node` берут множество листьев
- * ПАРАМЕТРОМ (дефолт — `lib/kits/legacy-reformer-ui-kit`), а не через посредника-состояние.
- * Поэтому сборка — чистая функция: дескриптор она ВОЗВРАЩАЕТ вместе с записями, а «какой кит
- * активен сейчас» держит сервис плагина (`plugins/kits/registry/`), который эту функцию и зовёт.
+ * В v2 цикла нет: `form-model/node-kind` и `catalog/make-node` берут множество листьев
+ * ПАРАМЕТРОМ (запасное — `kits/defaults`), а не через посредника-состояние. Поэтому сборка —
+ * чистая функция: дескриптор она ВОЗВРАЩАЕТ вместе с записями, а «какой кит активен сейчас»
+ * держит служба китов (возможность `reformer.kit.catalog` SDK).
+ *
+ * ## Проекция для читателей службы
+ *
+ * Служба китов нейтральна: она отдаёт СЫРОЙ каталог кита, а записи палитры с `makeNode`
+ * и синтетикой — забота ReFormer. Плагины стека получают их {@link projectCatalog}: та же
+ * сборка, но запомненная по каталогу, потому что её зовут из отрисовки на каждый кадр,
+ * а `useSyncExternalStore` требует одну и ту же ссылку, пока кит не сменился.
  *
  * @module @reformer/builder-stack-reformer/catalog/catalog
  */
 
-import type { KitDescriptor } from '../kits/types';
+import { toDescriptor, type KitDescriptor } from '@reformer/builder-plugin-api';
 import type { CatalogEntry, CatalogJson } from './types';
 import { buildCatalogFromJson, composeCatalogJson, type ComponentsFilter } from './contract';
-import { toDescriptor } from '../kits/descriptor';
 
 /** Настройки сборки — то, чем клиент может подвинуть состав и раскладку палитры. */
 export interface BuildCatalogOptions {
@@ -56,4 +62,34 @@ export function buildCatalog(supplied: CatalogJson, options?: BuildCatalogOption
     descriptor,
     json,
   };
+}
+
+/** Записи пустого каталога. Одна замороженная ссылка на всех: снимок обязан быть стабилен. */
+const NO_ENTRIES: CatalogEntry[] = [];
+Object.freeze(NO_ENTRIES);
+
+/** Проекции по каталогу. Слабые ключи: каталог, который служба отпустила, уходит вместе с ними. */
+const projections = new WeakMap<CatalogJson, BuiltCatalog>();
+
+/**
+ * Каталог кита глазами ReFormer — {@link buildCatalog}, запомненный по идентичности каталога.
+ *
+ * Один и тот же каталог даёт одну и ту же проекцию (те же ссылки на записи и дескриптор), новый —
+ * новую. Служба китов меняет каталог-объект ровно тогда, когда сменился кит или доехал его
+ * каталог, — поэтому снимки читателей стабильны между сменами без собственного кэша.
+ *
+ * **Каталог без записей — пустая проекция**, а не «синтетика билдера без записей кита»: пока
+ * каталог ленивого кита в пути, служба отдаёт его шапку без записей, и каталог из одних
+ * `$html`/`FormArray` был бы непуст для валидатора — тот пометил бы неизвестным каждый компонент
+ * открытой формы. Пустой отключает проверку имён целиком, пока сравнивать не с чем.
+ */
+export function projectCatalog(supplied: CatalogJson): BuiltCatalog {
+  const known = projections.get(supplied);
+  if (known !== undefined) return known;
+  const projection: BuiltCatalog =
+    supplied.components.length === 0
+      ? { entries: NO_ENTRIES, descriptor: toDescriptor(supplied), json: supplied }
+      : buildCatalog(supplied);
+  projections.set(supplied, projection);
+  return projection;
 }

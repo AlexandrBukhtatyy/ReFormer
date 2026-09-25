@@ -41,8 +41,7 @@ import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createProjectHost } from '@/shell/boot/project/project';
 import { schemaHostFromContext } from '@/plugins/reformer/editor/host-from-context';
 import { DocumentModelsCapability } from '@reformer/builder-plugin-api/internal';
-import { KitsServiceToken } from '@/plugins/kits/registry';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { KitsCapability, type CatalogJson } from '@reformer/builder-plugin-api/internal';
 
 let seq = 0;
 
@@ -238,13 +237,12 @@ describe('порт редактора схемы: смена каталога д
     // только по совпадению, потому что плагин китов заказывает загрузку при активации.
     const h = await harness();
     let notify: (() => void) | undefined;
-    let catalog: readonly CatalogEntry[] = [];
+    let catalog: CatalogJson = { version: '2.1', components: [], kit: { id: 'k' } };
 
-    h.services.register(KitsServiceToken, {
+    h.services.register(KitsCapability, {
       activeId: () => 'k',
       descriptor: () => ({ palette: { order: undefined } }) as never,
-      catalog: () => catalog,
-      catalogJson: () => ({}) as never,
+      catalogJson: () => catalog,
       available: () => [],
       activate: () => Promise.resolve(),
       onDidChange: (cb: () => void) => {
@@ -258,11 +256,15 @@ describe('порт редактора схемы: смена каталога д
     const off = host.onCatalogChange(() => (seen += 1));
 
     expect(host.catalog()).toEqual([]);
-    catalog = [{ name: 'Input' } as CatalogEntry];
+    catalog = {
+      ...catalog,
+      components: [{ name: 'Input', role: 'field', propsSchema: { type: 'object' } }],
+    };
     notify?.();
 
     expect(seen).toBe(1);
-    expect(host.catalog()).toHaveLength(1);
+    // Палитра получает ReFormer-проекцию: запись кита плюс синтетика билдера.
+    expect(host.catalog().map((entry) => entry.name)).toContain('Input');
 
     off.dispose();
     notify?.();

@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import type { KitNamespace } from '@reformer/builder-stack-reformer/kits';
+import type { KitNamespace } from '@reformer/builder-plugin-api';
 import { createKitNamespaceLoader } from './namespace';
 
 const KIT: KitNamespace = Object.freeze({ Input: () => null }) as unknown as KitNamespace;

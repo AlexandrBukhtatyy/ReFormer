@@ -13,9 +13,9 @@
  *
  * Множество листовых компонентов приходит НЕОБЯЗАТЕЛЬНЫМ параметром: в v1 оно бралось из
  * `getActiveDescriptor().leafComponents`, то есть из СОСТОЯНИЯ «какой кит активен сейчас», а домен
- * на состояние ссылаться не может. Дефолт — `LEAF_COMPONENT_NAMES` из `lib/kits`: пока переезжал
- * только `form-model`, константа временно жила здесь, теперь она у дизайн-систем, где ей и место
- * (это данные кита, а не правило вложенности). Здесь остался ровно шов.
+ * на состояние ссылаться не может. Запасное — `LEAF_COMPONENT_NAMES` из `kits/defaults` (листья
+ * встроенного кита, которые он объявляет и сам): это данные кита, а не правило вложенности, и
+ * здесь остался ровно шов.
  *
  * @module @reformer/builder-stack-reformer/form-model/node-kind
  */
@@ -30,7 +30,7 @@ import {
   type JsonNode,
 } from '@reformer/renderer-json';
 import type { JsonPath } from './paths';
-import { LEAF_COMPONENT_NAMES } from '../kits/legacy-reformer-ui-kit';
+import { LEAF_COMPONENT_NAMES } from '../kits/defaults';
 import { baseUtility, gridColumnsOf, isAxisToken, variantsOf } from './tw-tokens';
 
 /** Вид узла: лист / массив / контейнер. */

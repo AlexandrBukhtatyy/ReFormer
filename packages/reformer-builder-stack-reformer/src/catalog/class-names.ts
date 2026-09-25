@@ -9,7 +9,7 @@
  *
  * Кит может ограничить, ЧЕМ разрешено стилизовать конкретный компонент (`classGroups` записи или
  * `classGroupsByRole`): типовой случай — полю формы доступны только отступы, потому что его вид
- * задаёт дизайн-система. Разрешение уже посчитано в `lib/kits/descriptor` и лежит в
+ * задаёт дизайн-система. Разрешение уже посчитано в дескрипторе кита (`toDescriptor` SDK) и лежит в
  * `KitDescriptor.classGroupPolicy`.
  *
  * ЧТО ИЗМЕНИЛОСЬ ПРОТИВ v1. Там дескриптор брался из `kits/active` — module-level состояния,
@@ -24,7 +24,7 @@
  * @module @reformer/builder-stack-reformer/catalog/class-names
  */
 
-import type { KitDescriptor } from '../kits/types';
+import type { KitDescriptor } from '@reformer/builder-plugin-api';
 
 /**
  * Мемо, привязанное к дескриптору: словарь и политика внутри одного дескриптора неизменны, а

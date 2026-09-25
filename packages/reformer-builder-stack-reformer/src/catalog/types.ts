@@ -14,22 +14,13 @@
 
 import type { JsonNode } from '@reformer/renderer-json';
 import type { PropDoc, PropsSchema, PropWidget } from '@reformer/ui-kit/meta';
-import type { KitDescriptorJson, KitRecordPreview } from '../kits/types';
+import type { CatalogRole } from '@reformer/builder-plugin-api';
 
 /**
- * Текущая версия контракта каталога. `2.0` добавила опциональный блок `kit` (дескриптор кита) и
- * per-record поля `exportName`/`subpath`/`preview`/`leaf`/`classGroups`.
- *
- * Обе версии обрабатываются одинаково: всё добавленное опционально, каталог `1.0` достраивается
- * дефолтами билдера до «неявного кита» ({@link '../kits/descriptor'}).
+ * JSON-контракт каталога (`CatalogJson`, `CatalogRecord`, роли, версии) — в SDK: кит общий для
+ * всех стеков. Здесь его типы реэкспортируются, чтобы модули стека писались против одного имени.
  */
-export const CATALOG_CONTRACT_VERSION = '2.0';
-
-/** Версии контракта, которые билдер принимает. `1.0` поддерживается бессрочно. */
-export const SUPPORTED_CATALOG_CONTRACT_VERSIONS: readonly string[] = ['1.0', '2.0'];
-
-/** Роль записи каталога — определяет размещение узла (спека §5). */
-export type CatalogRole = 'field' | 'container' | 'array';
+export type { CatalogJson, CatalogRecord, CatalogRole } from '@reformer/builder-plugin-api';
 
 /** Секция инспектора (из `x-doc.group`). */
 export type PropGroup = PropDoc['group'];
@@ -59,56 +50,6 @@ export interface CatalogEntry {
   /** Subpath кита, за которым лежит символ, если его нет в barrel (контракт `2.0`). */
   subpath?: string;
   makeNode: () => JsonNode;
-}
-
-/**
- * Сериализуемая запись каталога (без builder-only `makeNode`) — ровно нормативная запись §5.
- * Из неё состоит каталог-JSON по контракту; билдер восстанавливает `makeNode` по `role`/`name`.
- */
-export interface CatalogRecord {
-  name: string;
-  role: CatalogRole;
-  category?: string;
-  propsSchema: PropsSchema;
-  variantGroup?: string;
-  variant?: string;
-  /** Корень compound'а, частью которого запись является (`AlertTitle` → `Alert`). */
-  compoundParent?: string;
-  /**
-   * Ниже — необязательные поля контракта `2.0`: то, что кит может рассказать о записи сверх
-   * нормативного минимума. Отсутствие любого = сегодняшнее поведение (дефолты билдера).
-   */
-  /** Имя символа в namespace кита, если оно отличается от `name` записи (`Checkbox` → `CheckboxWithLabel`). */
-  exportName?: string;
-  /** Subpath кита, за которым лежит символ (когда его нет в barrel). */
-  subpath?: string;
-  /** Ограничение живого превью — переносит `OVERLAY_LIMITED`/`SUBPATH_LIMITED` из билдера в кит. */
-  preview?: KitRecordPreview;
-  /** Компонент-лист: самодостаточный визуал, вложенных компонентов не держит. */
-  leaf?: boolean;
-  /**
-   * `false` — запись поставляется ради полноты метаданных (props для документации, инспектора и
-   * MCP), но узлом палитры не является: {@link '../catalog/contract'} отбрасывает такие при сборке.
-   * Отсутствие поля равно `true`.
-   */
-  palette?: boolean;
-  /**
-   * `id` групп `kit.styles.classNames`, которыми РАЗРЕШЕНО стилизовать компонент. Отсутствие поля —
-   * не то же, что `[]`: отсутствие = ограничений нет (или действует правило роли
-   * `kit.styles.classGroupsByRole`), `[]` = разрешённых групп нет и подсказок не будет.
-   */
-  classGroups?: string[];
-}
-
-/** Каталог-JSON по контракту `component-catalog.schema.json` (§5). */
-export interface CatalogJson {
-  version: string;
-  components: CatalogRecord[];
-  /**
-   * Дескриптор кита (контракт `2.0`, опционален). Отсутствие блока = «неявный кит»: билдер
-   * достраивает дескриптор своими дефолтами и ведёт себя ровно как до введения контракта.
-   */
-  kit?: KitDescriptorJson;
 }
 
 /**

@@ -11,7 +11,9 @@ const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
 // external — ПРЕДИКАТ, а не перечисление строк: Rollup сравнивает элементы массива `external`
 // со спецификатором ЦЕЛИКОМ, поэтому '@reformer/core' не покрывает '@reformer/core/signals'.
 // Здесь зависимостей почти нет, но правило то же, что у соседних пакетов, и по той же причине.
-const EXTERNAL: RegExp[] = [/^react($|\/)/, /^react-dom($|\/)/, /^@reformer\//];
+// ajv — зависимость проверки каталога кита: её грузят лениво (`kits/validator`), и в сборку
+// пакета она не вкладывается.
+const EXTERNAL: RegExp[] = [/^react($|\/)/, /^react-dom($|\/)/, /^@reformer\//, /^ajv($|\/)/];
 
 export default defineConfig({
   plugins: [dts({ insertTypesEntry: true, exclude: TEST_FILES })],

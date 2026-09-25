@@ -17,7 +17,7 @@ export {
 } from './plugin';
 
 export { PREVIEW_RUNTIME_MESSAGES } from './messages';
-export { previewHostFromContext, KitCapability, type KitReader } from './host-from-context';
+export { previewHostFromContext } from './host-from-context';
 
 export type {
   MessageSink,

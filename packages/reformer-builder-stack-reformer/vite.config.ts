@@ -11,7 +11,7 @@ const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
 
 // external — ПРЕДИКАТ, а не перечисление строк: Rollup сравнивает элементы массива `external`
 // со спецификатором ЦЕЛИКОМ, поэтому '@reformer/core' не покрывает '@reformer/core/signals'.
-const EXTERNAL: RegExp[] = [/^@reformer\//, /^ajv($|\/)/, /^eta($|\/)/];
+const EXTERNAL: RegExp[] = [/^@reformer\//, /^eta($|\/)/];
 
 /** Модули стека — по входу на каждый: потребитель импортирует модуль, а не файл. */
 const MODULES = [

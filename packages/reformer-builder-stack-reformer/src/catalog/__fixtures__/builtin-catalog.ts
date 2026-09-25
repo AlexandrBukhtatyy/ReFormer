@@ -12,7 +12,7 @@
 
 import builtin from '@reformer/ui-kit/catalog';
 import type { CatalogEntry, CatalogJson } from '../types';
-import type { KitDescriptor } from '../../kits/types';
+import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import { buildCatalog } from '../catalog';
 
 /** Каталог-JSON `@reformer/ui-kit` — ровно то, что кит поставляет о себе. */

@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`«неявный кит» на реальном каталоге > жёсткие запреты и причины «не нашлось» — два РАЗНЫХ множества 1`] = `
+exports[`встроенный кит объявляет себя сам > жёсткие запреты и причины «не нашлось» — два РАЗНЫХ множества 1`] = `
 {
   "limited": [
     "AlertDialog",
@@ -79,12 +79,12 @@ exports[`каталог: отпечаток не меняется > состав
   "CardFooter|container|Контейнеры|||Card|||8d0cb0c7|{"children":[],"component":"$component(CardFooter)"}",
   "CardHeader|container|Контейнеры|||Card|||8d0cb0c7|{"children":[],"component":"$component(CardHeader)"}",
   "CardTitle|container|Контейнеры|||Card|||8d0cb0c7|{"children":["Текст"],"component":"$component(CardTitle)"}",
-  "Carousel|container|Отображение||||||11292f27|{"children":[{"children":[{"children":[],"component":"$component(CarouselItem)"}],"component":"$component(CarouselContent)"},{"children":[],"component":"$component(CarouselPrevious)"},{"children":[],"component":"$component(CarouselNext)"}],"component":"$component(Carousel)"}",
+  "Carousel|container|Отображение|||||carousel|11292f27|{"children":[{"children":[{"children":[],"component":"$component(CarouselItem)"}],"component":"$component(CarouselContent)"},{"children":[],"component":"$component(CarouselPrevious)"},{"children":[],"component":"$component(CarouselNext)"}],"component":"$component(Carousel)"}",
   "CarouselContent|container|Отображение|||Carousel|||8d0cb0c7|{"children":[],"component":"$component(CarouselContent)"}",
   "CarouselItem|container|Отображение|||Carousel|||8d0cb0c7|{"children":[],"component":"$component(CarouselItem)"}",
   "CarouselNext|container|Отображение|||Carousel|||09024e72|{"children":[],"component":"$component(CarouselNext)"}",
   "CarouselPrevious|container|Отображение|||Carousel|||09024e72|{"children":[],"component":"$component(CarouselPrevious)"}",
-  "Chart|container|Отображение||||||741c1593|{"children":[],"component":"$component(Chart)","componentProps":{"className":"space-y-4"}}",
+  "Chart|container|Отображение|||||chart|741c1593|{"children":[],"component":"$component(Chart)","componentProps":{"className":"space-y-4"}}",
   "Checkbox|field|Выбор и переключатели||||CheckboxWithLabel||80055602|{"component":"$component(Checkbox)","componentProps":{"label":"Checkbox"},"value":"$model(newField)"}",
   "Collapsible|container|Контейнеры||||||e3ddf0ea|{"children":[{"children":["Показать"],"component":"$component(CollapsibleTrigger)"},{"children":[],"component":"$component(CollapsibleContent)"}],"component":"$component(Collapsible)"}",
   "CollapsibleContent|container|Контейнеры|||Collapsible|||0614fa68|{"children":[],"component":"$component(CollapsibleContent)"}",
@@ -93,11 +93,11 @@ exports[`каталог: отпечаток не меняется > состав
   "ComboboxMulti|field|Выбор и переключатели|Combobox|Несколько||||6413d777|{"component":"$component(ComboboxMulti)","componentProps":{"label":"ComboboxMulti"},"value":"$model(newField)"}",
   "ComboboxTree|field|Выбор и переключатели|Combobox|Дерево||||728a6d51|{"component":"$component(ComboboxTree)","componentProps":{"label":"ComboboxTree"},"value":"$model(newField)"}",
   "ComboboxTreeMulti|field|Выбор и переключатели|Combobox|Дерево, несколько||||3f0d0d92|{"component":"$component(ComboboxTreeMulti)","componentProps":{"label":"ComboboxTreeMulti"},"value":"$model(newField)"}",
-  "Command|container|Оверлеи||||||82aa3265|{"children":[],"component":"$component(Command)","componentProps":{"className":"space-y-4"}}",
+  "Command|container|Оверлеи|||||command|82aa3265|{"children":[],"component":"$component(Command)","componentProps":{"className":"space-y-4"}}",
   "ContextMenu|container|Навигация||||||386fc0e4|{"children":[],"component":"$component(ContextMenu)","componentProps":{"className":"space-y-4"}}",
   "DatePicker|field|Поля ввода||||||127c9a75|{"component":"$component(DatePicker)","componentProps":{"label":"DatePicker"},"value":"$model(newField)"}",
   "Dialog|container|Оверлеи||||||d93bab82|{"children":[],"component":"$component(Dialog)","componentProps":{"className":"space-y-4"}}",
-  "Drawer|container|Оверлеи||||||20397e6b|{"children":[],"component":"$component(Drawer)","componentProps":{"className":"space-y-4"}}",
+  "Drawer|container|Оверлеи|||||drawer|20397e6b|{"children":[],"component":"$component(Drawer)","componentProps":{"className":"space-y-4"}}",
   "DropdownMenu|container|Навигация||||||51d1efad|{"children":[],"component":"$component(DropdownMenu)","componentProps":{"className":"space-y-4"}}",
   "Empty|container|Отображение||||||959949f3|{"children":[{"children":[{"children":["Нет данных"],"component":"$component(EmptyTitle)"},{"children":["Здесь пока пусто"],"component":"$component(EmptyDescription)"}],"component":"$component(EmptyHeader)"},{"children":[],"component":"$component(EmptyContent)"}],"component":"$component(Empty)"}",
   "EmptyContent|container|Отображение|||Empty|||8d0cb0c7|{"children":[],"component":"$component(EmptyContent)"}",
@@ -146,7 +146,7 @@ exports[`каталог: отпечаток не меняется > состав
   "MessageFooter|container|Чат|||Message|||8d0cb0c7|{"children":[],"component":"$component(MessageFooter)"}",
   "MessageGroup|container|Чат|||Message|||8d0cb0c7|{"children":[],"component":"$component(MessageGroup)"}",
   "MessageHeader|container|Чат|||Message|||8d0cb0c7|{"children":[],"component":"$component(MessageHeader)"}",
-  "MessageScroller|container|Чат||||||910290a3|{"children":[],"component":"$component(MessageScroller)","componentProps":{"className":"space-y-4"}}",
+  "MessageScroller|container|Чат|||||message-scroller|910290a3|{"children":[],"component":"$component(MessageScroller)","componentProps":{"className":"space-y-4"}}",
   "MessageScrollerButton|container|Чат|||MessageScroller|||e7ae0599|{"children":[],"component":"$component(MessageScrollerButton)"}",
   "MessageScrollerContent|container|Чат|||MessageScroller|||bb53cbd8|{"children":[],"component":"$component(MessageScrollerContent)"}",
   "MessageScrollerItem|container|Чат|||MessageScroller|||9f6ffd2f|{"children":[],"component":"$component(MessageScrollerItem)"}",
@@ -164,7 +164,7 @@ exports[`каталог: отпечаток не меняется > состав
   "Popover|container|Оверлеи||||||5ceb5c71|{"children":[],"component":"$component(Popover)","componentProps":{"className":"space-y-4"}}",
   "Progress|container|Отображение||||||72726dc6|{"component":"$component(Progress)","componentProps":{}}",
   "RadioGroup|field|Выбор и переключатели||||RadioGroupOptions||e331565d|{"component":"$component(RadioGroup)","componentProps":{"label":"RadioGroup"},"value":"$model(newField)"}",
-  "Resizable|container|Контейнеры||||||4242e9b5|{"children":[],"component":"$component(Resizable)","componentProps":{"className":"space-y-4"}}",
+  "Resizable|container|Контейнеры|||||resizable|4242e9b5|{"children":[],"component":"$component(Resizable)","componentProps":{"className":"space-y-4"}}",
   "ResizableHandle|container|Контейнеры|||Resizable|||53b41afe|{"children":[],"component":"$component(ResizableHandle)"}",
   "ResizablePanel|container|Контейнеры|||Resizable|||82e92d1c|{"children":[],"component":"$component(ResizablePanel)"}",
   "ResizablePanelGroup|container|Контейнеры|||Resizable|||b68fb040|{"children":[],"component":"$component(ResizablePanelGroup)"}",
@@ -174,7 +174,7 @@ exports[`каталог: отпечаток не меняется > состав
   "SelectMulti|field|Выбор и переключатели|Select|Несколько||||a0f5aaf6|{"component":"$component(SelectMulti)","componentProps":{"label":"SelectMulti"},"value":"$model(newField)"}",
   "Separator|container|Отображение||||||90f61682|{"component":"$component(Separator)","componentProps":{}}",
   "Sheet|container|Оверлеи||||||ea7b29fd|{"children":[],"component":"$component(Sheet)","componentProps":{"className":"space-y-4"}}",
-  "Sidebar|container|Контейнеры||||||29ae17d4|{"children":[],"component":"$component(Sidebar)","componentProps":{"className":"space-y-4"}}",
+  "Sidebar|container|Контейнеры|||||sidebar|29ae17d4|{"children":[],"component":"$component(Sidebar)","componentProps":{"className":"space-y-4"}}",
   "Skeleton|container|Отображение||||||d27106b1|{"component":"$component(Skeleton)","componentProps":{}}",
   "Slider|field|Выбор и переключатели||||||62cf80c2|{"component":"$component(Slider)","componentProps":{"label":"Slider"},"value":"$model(newField)"}",
   "Spinner|container|Отображение||||||e322f675|{"component":"$component(Spinner)","componentProps":{}}",

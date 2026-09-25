@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { defaultPropSchemas } from '@reformer/ui-kit/meta';
-import { composeCatalogJson, buildCatalogFromJson, loadCatalogValidator } from './contract';
-import type { CatalogValidator } from './contract';
+import { loadCatalogValidator, type CatalogValidator } from '@reformer/builder-plugin-api/tooling';
+import { composeCatalogJson, buildCatalogFromJson } from './contract';
 import { kindOf } from '../form-model/node-kind';
 import { BUILTIN_CATALOG } from './__fixtures__/builtin-catalog';
 import type { CatalogJson } from './types';
@@ -50,134 +50,18 @@ describe('composeCatalogJson (каталог ui-kit + синтетические
   });
 });
 
+// Синтаксис контракта (версии, блок kit, поля записей) проверяют тесты SDK
+// (`@reformer/builder-plugin-api`, `kits/validator.test.ts`); здесь — что НАСТОЯЩИЙ каталог
+// встроенного кита вместе с синтетикой билдера этот контракт проходит.
 describe('validateCatalog (контракт)', () => {
+  it('каталог кита, как его поставляет ui-kit, проходит контракт', () => {
+    expect(validateCatalog(BUILTIN_CATALOG)).toEqual({ valid: true, errors: [] });
+  });
+
   it('поставляемый каталог проходит контракт (self-check)', () => {
     const res = validateCatalog(composed());
     expect(res.valid).toBe(true);
     expect(res.errors).toEqual([]);
-  });
-
-  it('битый каталог отклоняется', () => {
-    expect(validateCatalog({ components: [] }).valid).toBe(false); // нет version
-    expect(
-      validateCatalog({
-        version: '1.0',
-        components: [{ name: 'X', role: 'widget', propsSchema: {} }],
-      }).valid
-    ).toBe(false); // role вне enum
-    expect(
-      validateCatalog({ version: '1.0', components: [{ name: 'X', role: 'field' }] }).valid
-    ).toBe(false); // нет propsSchema
-  });
-});
-
-describe('validateCatalog: контракт 2.0 (блок kit + per-record поля)', () => {
-  const record = (extra: Record<string, unknown> = {}) => ({
-    name: 'X',
-    role: 'container',
-    propsSchema: {},
-    ...extra,
-  });
-  const withKit = (kit: unknown) => ({ version: '2.0', components: [record()], kit });
-
-  it('каталог 1.0 без блока kit по-прежнему валиден (обратная совместимость)', () => {
-    expect(validateCatalog({ version: '1.0', components: [record()] }).valid).toBe(true);
-  });
-
-  it('полный блок kit проходит контракт', () => {
-    const res = validateCatalog(
-      withKit({
-        id: 'acme',
-        label: 'Acme DS',
-        package: '@acme/ds',
-        version: '2.1.0',
-        peerRanges: { '@reformer/core': '^7' },
-        infra: { fieldWrapper: 'Field', asyncBoundary: 'Async', list: 'Repeater' },
-        adapters: { wizard: { symbol: 'Stepper', subpath: 'stepper' }, step: null },
-        palette: { categoryByName: { Btn: 'Действия' }, order: ['Действия'], glyphs: { Btn: 'B' } },
-        styles: { mode: 'standalone', href: 'https://cdn.example/acme.css' },
-        codegen: { importSpecifier: '@acme/ds', needsShim: ['Stepper'] },
-      })
-    );
-    expect(res.errors).toEqual([]);
-    expect(res.valid).toBe(true);
-  });
-
-  it('per-record поля 2.0 проходят контракт', () => {
-    const res = validateCatalog({
-      version: '2.0',
-      components: [
-        record({ exportName: 'ChartContainer', subpath: 'chart' }),
-        record({ name: 'Y', preview: { mode: 'limited', reason: 'нужен портал' } }),
-        record({ name: 'Z', leaf: true }),
-      ],
-    });
-    expect(res.errors).toEqual([]);
-    expect(res.valid).toBe(true);
-  });
-
-  it('словарь классов и политика групп проходят контракт', () => {
-    const res = validateCatalog({
-      version: '2.0',
-      components: [
-        record({ name: 'Input', role: 'field', classGroups: ['spacing'] }),
-        record({ name: 'Locked', classGroups: [] }),
-      ],
-      kit: {
-        styles: {
-          mode: 'tokens',
-          classNames: [
-            { id: 'spacing', label: 'Отступы', classes: ['gap-2', 'p-4'] },
-            { id: 'color', label: 'Цвета и токены темы', classes: ['bg-muted'] },
-          ],
-          classGroupsByRole: { field: ['spacing'], container: '*', array: '*' },
-        },
-      },
-    });
-    expect(res.errors).toEqual([]);
-    expect(res.valid).toBe(true);
-  });
-
-  it('группа словаря — закрытая форма: нужны id/label/classes и kebab-case id', () => {
-    const styles = (classNames: unknown) => withKit({ styles: { classNames } });
-    // Нет обязательного поля.
-    expect(validateCatalog(styles([{ id: 'spacing', label: 'Отступы' }])).valid).toBe(false);
-    expect(validateCatalog(styles([{ label: 'Отступы', classes: [] }])).valid).toBe(false);
-    // Мусор внутри группы.
-    expect(
-      validateCatalog(styles([{ id: 'spacing', label: 'X', classes: [], bogus: 1 }])).valid
-    ).toBe(false);
-    // id стабилен и ссылочен, поэтому форма жёсткая: только нижний kebab-case.
-    expect(validateCatalog(styles([{ id: 'Spacing', label: 'X', classes: [] }])).valid).toBe(false);
-    expect(validateCatalog(styles([{ id: '2col', label: 'X', classes: [] }])).valid).toBe(false);
-  });
-
-  it('classGroupsByRole принимает только "*" или список групп', () => {
-    expect(validateCatalog(withKit({ styles: { classGroupsByRole: { field: '*' } } })).valid).toBe(
-      true
-    );
-    expect(
-      validateCatalog(withKit({ styles: { classGroupsByRole: { field: 'spacing' } } })).valid
-    ).toBe(false);
-    expect(validateCatalog(withKit({ styles: { classGroupsByRole: { field: [1] } } })).valid).toBe(
-      false
-    );
-  });
-
-  it('additionalProperties: false по-прежнему ловит мусор — и в kit, и в записи', () => {
-    // В том числе в блоке styles, куда добавились classNames/classGroupsByRole.
-    expect(validateCatalog(withKit({ styles: { mode: 'tokens', bogus: 1 } })).valid).toBe(false);
-    expect(validateCatalog(withKit({ id: 'acme', bogus: 1 })).valid).toBe(false);
-    expect(validateCatalog({ version: '2.0', components: [record({ bogus: 1 })] }).valid).toBe(
-      false
-    );
-    // preview.mode — закрытый enum.
-    expect(
-      validateCatalog({ version: '2.0', components: [record({ preview: { mode: 'maybe' } })] })
-        .valid
-    ).toBe(false);
-    // adapters принимает объект с symbol либо null, но не произвольную строку.
-    expect(validateCatalog(withKit({ adapters: { wizard: 'Stepper' } })).valid).toBe(false);
   });
 });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createDiagnosticsService } from '@/shell/platform/services/diagnostics/service';
-import type { Diagnostic } from '@reformer/builder-plugin-api/internal';
+import type { Diagnostic, Disposable } from '@reformer/builder-plugin-api/internal';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
 import { makeResourceId, type ResourceRef } from '@reformer/builder-plugin-api/internal';
 import { createDocument } from '@/shell/platform/workspace/document';
@@ -265,6 +265,159 @@ describe('результаты источников', () => {
     handle.setText('{"root":{}}');
 
     expect(validator.calls.length - before).toBe(1);
+  });
+});
+
+describe('смена входов валидатора', () => {
+  /** Вход валидатора — как каталог кита: меняется сам по себе и сообщает об этом событием. */
+  function inputs() {
+    const listeners = new Set<() => void>();
+    return {
+      listeners: () => listeners.size,
+      change: () => {
+        for (const listener of [...listeners]) listener();
+      },
+      on(cb: () => void): Disposable {
+        listeners.add(cb);
+        return {
+          dispose: () => {
+            listeners.delete(cb);
+          },
+        };
+      },
+    };
+  }
+
+  /** Быстрый валидатор, чей ответ зависит от входа `source`. */
+  function inputAware(
+    id: string,
+    codes: () => readonly string[],
+    source: ReturnType<typeof inputs>,
+    applies: ValidatorContribution['applies'] = () => true
+  ): ValidatorContribution & { calls: ValidateContext[] } {
+    return { ...fastValidator(id, codes), applies, onDidChangeInputs: (cb) => source.on(cb) };
+  }
+
+  it('кит доехал после открытия документа — находка появляется без правки (ReFormer-3ybp)', () => {
+    // Каталог пуст — проверка имён молчит; доехал — неизвестный компонент виден сразу.
+    let catalogLoaded = false;
+    const kit = inputs();
+    const validator = inputAware(
+      'schema',
+      () => (catalogLoaded ? ['schema.unknown-component'] : []),
+      kit
+    );
+    const { orchestrator, codes } = setup([validator]);
+    const document = createDocument(schemaRef, '{}', false).document;
+    orchestrator.watch(document);
+    expect(codes(document)).toEqual([]);
+
+    catalogLoaded = true;
+    kit.change();
+
+    expect(codes(document)).toEqual(['schema.unknown-component']);
+    expect(validator.calls).toHaveLength(2);
+  });
+
+  it('перепроверяются только документы, за которые валидатор берётся', () => {
+    const kit = inputs();
+    const schema = inputAware(
+      'schema',
+      () => [],
+      kit,
+      (doc) => doc.ref.path.endsWith('.json')
+    );
+    const other = fastValidator('other', () => []);
+    const { orchestrator } = setup([schema, other]);
+    const form = createDocument(schemaRef, '{}', false).document;
+    const notes = createDocument(refFor('notes/readme.md', 'text/markdown'), '#', false).document;
+    orchestrator.watch(form);
+    orchestrator.watch(notes);
+    const seen = (document: Document): number =>
+      other.calls.filter((ctx) => ctx.doc.id === document.id).length;
+
+    kit.change();
+
+    expect(seen(form)).toBe(2);
+    expect(seen(notes)).toBe(1);
+  });
+
+  it('подписка одна на документ, сколько бы его ни правили, и уходит вместе с наблюдением', () => {
+    const kit = inputs();
+    const { orchestrator } = setup([inputAware('schema', () => [], kit)]);
+    const handle = createDocument(schemaRef, '{}', false);
+    const second = createDocument(refFor('forms/other.json'), '{}', false).document;
+
+    const watch = orchestrator.watch(handle.document);
+    handle.setText('{"a":1}');
+    handle.setText('{"a":2}');
+    expect(kit.listeners()).toBe(1);
+
+    orchestrator.watch(second);
+    expect(kit.listeners()).toBe(2);
+
+    watch.dispose();
+    expect(kit.listeners()).toBe(1);
+
+    orchestrator.dispose();
+    expect(kit.listeners()).toBe(0);
+  });
+
+  it('валидатор, переставший браться за документ, от его входов отписан', () => {
+    let applies = true;
+    const kit = inputs();
+    const { orchestrator } = setup([
+      inputAware(
+        'schema',
+        () => [],
+        kit,
+        () => applies
+      ),
+    ]);
+    const handle = createDocument(schemaRef, '{}', false);
+    orchestrator.watch(handle.document);
+    expect(kit.listeners()).toBe(1);
+
+    applies = false;
+    handle.setText('{"a":1}');
+
+    expect(kit.listeners()).toBe(0);
+  });
+
+  it('сигнал, догнавший снятое наблюдение в той же рассылке, находок не возвращает', () => {
+    const kit = inputs();
+    const validator = inputAware('schema', () => ['schema.invalid'], kit);
+    const { orchestrator, codes } = setup([validator]);
+    const document = createDocument(schemaRef, '{}', false).document;
+    // Первый подписчик снимает наблюдение, а подписка оркестратора уже попала в рассылку.
+    const held: { watch?: Disposable } = {};
+    kit.on(() => held.watch?.dispose());
+    held.watch = orchestrator.watch(document);
+
+    kit.change();
+
+    expect(codes(document)).toEqual([]);
+    expect(validator.calls).toHaveLength(1);
+  });
+
+  it('упавшая подписка не мешает проверке и не повторяется на каждой правке', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const broken: ValidatorContribution = {
+      ...fastValidator('schema', () => ['schema.invalid']),
+      onDidChangeInputs: () => {
+        throw new Error('подписаться не на что');
+      },
+    };
+    const { orchestrator, codes } = setup([broken]);
+    const handle = createDocument(schemaRef, '{}', false);
+
+    orchestrator.watch(handle.document);
+    handle.setText('{"a":1}');
+    handle.setText('{"a":2}');
+
+    expect(codes(handle.document)).toEqual(['schema.invalid']);
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });
 

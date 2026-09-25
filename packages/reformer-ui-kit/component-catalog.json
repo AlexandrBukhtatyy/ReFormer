@@ -1,8 +1,104 @@
 {
-  "$schema": "../../projects/reformer-builder/src/lib/catalog/component-catalog.schema.json",
-  "version": "2.0",
+  "$schema": "../reformer-builder-plugin-api/src/kits/component-catalog.schema.json",
+  "version": "2.1",
   "kit": {
+    "id": "reformer-ui-kit",
+    "label": "ReFormer UI Kit",
+    "package": "@reformer/ui-kit",
+    "infra": {
+      "fieldWrapper": "FormField",
+      "asyncBoundary": "AsyncBoundary",
+      "list": "List",
+      "fieldFrame": "FieldFrame"
+    },
+    "adapters": {
+      "wizard": {
+        "symbol": "FormWizard"
+      },
+      "step": null
+    },
+    "palette": {
+      "categoryByName": {
+        "Input": "Поля ввода",
+        "InputNumber": "Поля ввода",
+        "InputSuggest": "Поля ввода",
+        "InputPassword": "Поля ввода",
+        "InputMask": "Поля ввода",
+        "InputOTP": "Поля ввода",
+        "Textarea": "Поля ввода",
+        "DatePicker": "Поля ввода",
+        "Calendar": "Поля ввода",
+        "FileUpload": "Поля ввода",
+        "FileUploadAvatar": "Поля ввода",
+        "FileUploadDropzone": "Поля ввода",
+        "FileUploadInput": "Поля ввода",
+        "Select": "Выбор и переключатели",
+        "SelectMulti": "Выбор и переключатели",
+        "NativeSelect": "Выбор и переключатели",
+        "NativeSelectMulti": "Выбор и переключатели",
+        "Combobox": "Выбор и переключатели",
+        "ComboboxMulti": "Выбор и переключатели",
+        "ComboboxTree": "Выбор и переключатели",
+        "ComboboxTreeMulti": "Выбор и переключатели",
+        "RadioGroup": "Выбор и переключатели",
+        "Checkbox": "Выбор и переключатели",
+        "Switch": "Выбор и переключатели",
+        "Slider": "Выбор и переключатели",
+        "Toggle": "Выбор и переключатели",
+        "ToggleGroup": "Выбор и переключатели",
+        "ToggleGroupMulti": "Выбор и переключатели",
+        "Box": "Контейнеры",
+        "Section": "Контейнеры",
+        "Card": "Контейнеры",
+        "Accordion": "Контейнеры",
+        "Tabs": "Контейнеры",
+        "Collapsible": "Контейнеры",
+        "InputGroup": "Контейнеры",
+        "ButtonGroup": "Контейнеры",
+        "AspectRatio": "Контейнеры",
+        "ScrollArea": "Контейнеры",
+        "Resizable": "Контейнеры",
+        "Sidebar": "Контейнеры",
+        "Button": "Действия",
+        "Icon": "Отображение",
+        "Label": "Отображение",
+        "Badge": "Отображение",
+        "Avatar": "Отображение",
+        "Progress": "Отображение",
+        "Skeleton": "Отображение",
+        "Spinner": "Отображение",
+        "Table": "Отображение",
+        "Tree": "Отображение",
+        "Chart": "Отображение",
+        "Empty": "Отображение",
+        "Kbd": "Отображение",
+        "Marker": "Отображение",
+        "Alert": "Отображение",
+        "Separator": "Отображение",
+        "Carousel": "Отображение",
+        "Dialog": "Оверлеи",
+        "AlertDialog": "Оверлеи",
+        "Sheet": "Оверлеи",
+        "Drawer": "Оверлеи",
+        "Popover": "Оверлеи",
+        "HoverCard": "Оверлеи",
+        "Tooltip": "Оверлеи",
+        "Command": "Оверлеи",
+        "DropdownMenu": "Навигация",
+        "ContextMenu": "Навигация",
+        "Menubar": "Навигация",
+        "NavigationMenu": "Навигация",
+        "Breadcrumb": "Навигация",
+        "Pagination": "Навигация",
+        "Bubble": "Чат",
+        "Message": "Чат",
+        "MessageScroller": "Чат",
+        "Attachment": "Чат",
+        "Item": "Чат"
+      }
+    },
     "styles": {
+      "mode": "tokens",
       "classNames": [
         {
           "id": "layout",
@@ -840,6 +936,10 @@
         "container": "*",
         "array": "*"
       }
+    },
+    "codegen": {
+      "importSpecifier": "@reformer/ui-kit",
+      "needsShim": ["Wizard", "RendererFormWizard", "Step", "FormWizard"]
     }
   },
   "components": [
@@ -1208,6 +1308,10 @@
           "react": ["DOMAttributes"],
           "packages": ["@radix-ui/react-dialog"]
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -4349,7 +4453,8 @@
           ],
           "packages": []
         }
-      }
+      },
+      "subpath": "carousel"
     },
     {
       "name": "CarouselContent",
@@ -4577,7 +4682,8 @@
           ],
           "packages": []
         }
-      }
+      },
+      "subpath": "chart"
     },
     {
       "name": "ChartContainer",
@@ -6879,7 +6985,8 @@
           ],
           "packages": ["cmdk"]
         }
-      }
+      },
+      "subpath": "command"
     },
     {
       "name": "CommandDialog",
@@ -7368,6 +7475,10 @@
           "react": ["DOMAttributes"],
           "packages": ["@radix-ui/react-context-menu"]
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -8541,6 +8652,10 @@
           "react": ["DOMAttributes"],
           "packages": ["@radix-ui/react-dialog"]
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -9239,7 +9354,8 @@
           "react": ["DOMAttributes"],
           "packages": ["vaul"]
         }
-      }
+      },
+      "subpath": "drawer"
     },
     {
       "name": "DrawerClose",
@@ -9707,6 +9823,10 @@
           "react": ["DOMAttributes"],
           "packages": ["@radix-ui/react-dropdown-menu"]
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -11055,6 +11175,85 @@
             "HTMLAttributes",
             "RefAttributes"
           ],
+          "packages": []
+        }
+      },
+      "palette": false
+    },
+    {
+      "name": "FieldFrame",
+      "role": "container",
+      "propsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "className": {
+            "type": "string",
+            "description": "CSS-класс корневого элемента рамки.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "description": {
+            "description": "Пояснение под контролом.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "ReactNode",
+              "kind": "readonly"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "description": "Сообщения об ошибках; пусто — ошибок нет.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "readonly string[]"
+            }
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "Поле скрыто — рамка не рисует ничего.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "id": {
+            "type": "string",
+            "description": "Идентификатор контрола — для `htmlFor` подписи.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "string"
+            }
+          },
+          "inlineLabel": {
+            "type": "boolean",
+            "description": "Контрол подписывает себя сам (чекбокс, переключатель) — верхняя подпись не рисуется.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          },
+          "label": {
+            "description": "Подпись поля над контролом.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "ReactNode",
+              "kind": "readonly"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Поле обязательно — к подписи добавляется `*`.",
+            "x-doc": {
+              "group": "Behavior",
+              "type": "boolean"
+            }
+          }
+        },
+        "x-inherits": {
+          "react": ["DOMAttributes"],
           "packages": []
         }
       },
@@ -13025,6 +13224,10 @@
           "react": ["DOMAttributes"],
           "packages": ["@radix-ui/react-hover-card"]
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -13297,7 +13500,8 @@
             "minimum": 0.5
           }
         }
-      }
+      },
+      "leaf": true
     },
     {
       "name": "InfoHint",
@@ -15253,6 +15457,10 @@
           ],
           "packages": []
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -16466,7 +16674,8 @@
           ],
           "packages": []
         }
-      }
+      },
+      "subpath": "message-scroller"
     },
     {
       "name": "MessageScrollerButton",
@@ -17200,6 +17409,10 @@
           ],
           "packages": []
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -17886,6 +18099,10 @@
           "react": ["DOMAttributes"],
           "packages": ["@radix-ui/react-popover"]
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -18336,7 +18553,8 @@
           ],
           "packages": []
         }
-      }
+      },
+      "leaf": true
     },
     {
       "name": "RadioGroup",
@@ -18707,7 +18925,8 @@
           "react": ["AriaAttributes", "DOMAttributes", "HTMLAttributes"],
           "packages": ["react-resizable-panels"]
         }
-      }
+      },
+      "subpath": "resizable"
     },
     {
       "name": "ResizableHandle",
@@ -20234,7 +20453,8 @@
           ],
           "packages": []
         }
-      }
+      },
+      "leaf": true
     },
     {
       "name": "Sheet",
@@ -20283,6 +20503,10 @@
           "react": ["DOMAttributes"],
           "packages": ["@radix-ui/react-dialog"]
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -20774,7 +20998,8 @@
           ],
           "packages": []
         }
-      }
+      },
+      "subpath": "sidebar"
     },
     {
       "name": "SidebarContent",
@@ -21707,7 +21932,8 @@
           ],
           "packages": []
         }
-      }
+      },
+      "leaf": true
     },
     {
       "name": "Slider",
@@ -21951,7 +22177,8 @@
           ],
           "packages": []
         }
-      }
+      },
+      "leaf": true
     },
     {
       "name": "StepIndicator",
@@ -23587,6 +23814,10 @@
           "react": ["DOMAttributes"],
           "packages": ["@radix-ui/react-tooltip"]
         }
+      },
+      "preview": {
+        "mode": "limited",
+        "reason": "оверлей — нужен триггер/портал"
       }
     },
     {
@@ -24138,7 +24369,8 @@
           "react": ["AriaAttributes", "Attributes", "DOMAttributes", "RefAttributes"],
           "packages": []
         }
-      }
+      },
+      "leaf": true
     },
     {
       "name": "TypographyBlockquote",

@@ -34,8 +34,8 @@
 import { useCallback, useEffect, useMemo, useRef, type MouseEvent, type ReactNode } from 'react';
 import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
 import { ScrollArea } from '@reformer/ui-kit/scroll-area';
-import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
-import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
+import { toDescriptor } from '@reformer/builder-plugin-api';
+import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import type { PreviewContext, PreviewValues } from '@reformer/builder-plugin-api';
 import type { PreviewHost } from '../host';
 import { nodeAt } from '../schema/node-token';

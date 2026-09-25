@@ -10,3 +10,4 @@ export {
   FieldContent,
   FieldTitle,
 } from './variants/base/field-base';
+export { FieldFrame, type FieldFrameProps } from './variants/frame/field-frame';

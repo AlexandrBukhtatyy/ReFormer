@@ -16,32 +16,31 @@
  * не раньше, чем открыт файл формы. Динамический импорт уводит его в собственный чанк, и
  * оболочка стартует, не дожидаясь дизайн-системы.
  *
- * `then(m => m.default)` вместо `await`: {@link CatalogLoader} — функция, возвращающая промис
- * каталога, а не модуля, и разворачивать `default` обязан тот, кто знает, что источник — JSON.
+ * ## Почему шапка
  *
- * ## Почему шапки нет
- *
- * `KitSource.kit` объявляет личность кита до загрузки каталога. Встроенный кит её не объявляет,
- * и это не упущение: его `component-catalog.json` в блоке `kit` не называет ни `id`, ни
- * `label`, ни `package` — всё это приходит из дефолтов билдера («неявный кит», см.
- * `@reformer/builder-stack-reformer/kits`). Объявленная шапка была бы ВТОРЫМ источником тех же значений и
- * разъехалась бы с первым; отсутствие шапки даёт ровно те же id, label и package до загрузки
- * и после, а сервис это ещё и сверяет.
+ * Каталог ленивый, а представиться кит обязан ДО загрузки: список китов и ключ выбора нужны
+ * раньше, чем приедет каталог. Раньше шапки не было, и личность встроенного кита достраивали
+ * таблицы «неявного кита» билдера; теперь кит называет себя сам — в каталоге, — а шапка
+ * повторяет ровно имя, подпись и пакет. Служба сверяет имя шапки с загруженным каталогом, так
+ * что разойтись они не могут молча.
  *
  * ## Почему приведение типа
  *
  * JSON приходит в TypeScript структурным литеральным типом, и он ЧУЖОЙ контракту
  * {@link CatalogJson}: `role` в нём выведется как `string`, а не как объединение ролей.
- * Проверять его по-настоящему умеет `validateCatalog` (ajv по `component-catalog.schema.json`),
+ * Проверять его по-настоящему умеет проверка контракта (ajv по `component-catalog.schema.json`),
  * а не компилятор, поэтому приведение здесь — честная граница «данные снаружи», локализованная
  * в одном месте, а не рассыпанная по потребителям.
  *
  * @module plugins/kits/registry/builtin
  */
 
-import type { CatalogJson } from '@reformer/builder-stack-reformer/catalog';
-import type { KitNamespace } from '@reformer/builder-stack-reformer/kits';
-import type { CatalogLoader, KitSource } from './service';
+import type {
+  CatalogJson,
+  CatalogLoader,
+  KitNamespace,
+  KitSource,
+} from '@reformer/builder-plugin-api';
 
 /** Загрузчик каталога встроенного кита. Отдельный чанк — в этом весь смысл. */
 export const loadBuiltinCatalog: CatalogLoader = () =>
@@ -54,8 +53,13 @@ export const loadBuiltinCatalog: CatalogLoader = () =>
 export const loadBuiltinNamespace = (): Promise<KitNamespace> =>
   import('@reformer/ui-kit') as unknown as Promise<KitNamespace>;
 
-/** Каталог встроенного кита. Идентификатор и название приходят из него же — см. `toDescriptor`. */
+/** Встроенный кит: шапка для списка до загрузки, каталог и компоненты — загрузчиками. */
 export const BUILTIN_KIT: KitSource = Object.freeze({
+  kit: Object.freeze({
+    id: 'reformer-ui-kit',
+    label: 'ReFormer UI Kit',
+    package: '@reformer/ui-kit',
+  }),
   catalog: loadBuiltinCatalog,
   namespace: loadBuiltinNamespace,
 });

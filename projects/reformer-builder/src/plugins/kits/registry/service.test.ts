@@ -1,19 +1,34 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { CatalogJson } from '@reformer/builder-stack-reformer/catalog';
-import type { Disposable } from '@reformer/builder-plugin-api';
+import {
+  KitsCapability,
+  type CatalogJson,
+  type Disposable,
+  type KitNamespace,
+  type KitSource,
+} from '@reformer/builder-plugin-api';
+import type { CatalogValidator } from '@reformer/builder-plugin-api/tooling';
 import { BUILTIN_KIT } from './builtin';
 import type { KitsSettings } from './host';
-import { createKitsService, KIT_SETTINGS_KEY, KitsServiceToken, type KitSource } from './service';
+import {
+  createKitsService,
+  KIT_SETTINGS_KEY,
+  type ContributedKit,
+  type KitProblem,
+  type KitsServiceOptions,
+} from './service';
 
 /** Кит из одного поля — достаточно, чтобы отличить один каталог от другого. */
-function kit(id: string, label: string, component: string): KitSource {
-  const catalog: CatalogJson = {
-    version: '2.0',
+function catalogOf(id: string, label: string, component: string): CatalogJson {
+  return {
+    version: '2.1',
     kit: { id, label, package: `@vendor/${id}`, version: '1.2.3' },
     components: [{ name: component, role: 'field', propsSchema: { type: 'object' } }],
   };
-  return { catalog };
+}
+
+function kit(id: string, label: string, component: string): KitSource {
+  return { catalog: catalogOf(id, label, component) };
 }
 
 /**
@@ -65,35 +80,60 @@ function fakeSettings(seed: Record<string, unknown> = {}): KitsSettings & {
 
 const KIT_A = kit('kit-a', 'Кит А', 'Alpha');
 const KIT_B = kit('kit-b', 'Кит Б', 'Beta');
+const BUILTIN = { kind: 'builtin' } as const;
 
-describe('состав сервиса', () => {
-  it('токен один на всех: ключом служит строка, а не объект объявления', () => {
-    expect(KitsServiceToken.id).toBe('reformer.kit.catalog');
+const names = (json: CatalogJson): string[] => json.components.map((record) => record.name);
+
+describe('состав службы', () => {
+  it('возможность — из SDK, мажор 2: служба нейтральна и отдаёт сырой каталог', () => {
+    expect(KitsCapability.id).toBe('reformer.kit.catalog');
+    expect(KitsCapability.version).toBe('2.0.0');
   });
 
-  it('без китов сервиса не бывает: делать активным нечего', () => {
+  it('без китов службы не бывает: делать активным нечего', () => {
     expect(() => createKitsService({ sources: [] })).toThrow(/пуст/u);
   });
 
-  it('два кита под одним идентификатором — отказ, а не молчаливая замена', () => {
+  it('два встроенных кита под одним идентификатором — отказ, а не молчаливая замена', () => {
     expect(() => createKitsService({ sources: [KIT_A, kit('kit-a', 'Двойник', 'Gamma')] })).toThrow(
       /дважды/u
     );
   });
 
-  it('первый зарегистрированный кит — умолчание и активный, пока не выбрано иное', () => {
+  it('встроенный кит обязан себя назвать: идентификатор — ключ выбора', () => {
+    expect(() =>
+      createKitsService({ sources: [{ catalog: () => Promise.resolve(catalogOf('x', 'X', 'X')) }] })
+    ).toThrow(/не назвал/u);
+  });
+
+  it('первый встроенный кит — умолчание и активный, пока не выбрано иное', () => {
     const kits = createKitsService({ sources: [KIT_A, KIT_B] });
 
     expect(kits.defaultId).toBe('kit-a');
     expect(kits.activeId()).toBe('kit-a');
+    expect(kits.activeOrigin()).toEqual(BUILTIN);
   });
 
   it('список доступных отвечает и на «между чем выбирать», и на «что включено»', () => {
     const kits = createKitsService({ sources: [KIT_A, KIT_B] });
 
     expect(kits.available()).toEqual([
-      { id: 'kit-a', label: 'Кит А', package: '@vendor/kit-a', version: '1.2.3', active: true },
-      { id: 'kit-b', label: 'Кит Б', package: '@vendor/kit-b', version: '1.2.3', active: false },
+      {
+        id: 'kit-a',
+        label: 'Кит А',
+        package: '@vendor/kit-a',
+        version: '1.2.3',
+        active: true,
+        origin: BUILTIN,
+      },
+      {
+        id: 'kit-b',
+        label: 'Кит Б',
+        package: '@vendor/kit-b',
+        version: '1.2.3',
+        active: false,
+        origin: BUILTIN,
+      },
     ]);
   });
 });
@@ -102,45 +142,47 @@ describe('активный кит', () => {
   it('каталог и дескриптор — активного кита, а не первого попавшегося', async () => {
     const kits = createKitsService({ sources: [KIT_A, KIT_B] });
 
-    expect(kits.catalog().map((entry) => entry.name)).toContain('Alpha');
+    expect(names(kits.catalogJson())).toEqual(['Alpha']);
     expect(kits.descriptor().id).toBe('kit-a');
 
     await kits.activate('kit-b');
 
-    expect(kits.catalog().map((entry) => entry.name)).toContain('Beta');
-    expect(kits.catalog().map((entry) => entry.name)).not.toContain('Alpha');
+    expect(names(kits.catalogJson())).toEqual(['Beta']);
     expect(kits.descriptor().id).toBe('kit-b');
   });
 
-  it('каталог-JSON отдаётся после склейки с синтетикой: это источник правды диагностики', () => {
+  it('каталог отдаётся таким, каким его поставил кит: синтетика — дело стека', () => {
     const kits = createKitsService({ sources: [KIT_A] });
 
-    const names = kits.catalogJson().components.map((record) => record.name);
-    expect(names).toContain('Alpha');
-    // Синтетические записи билдера — часть каталога, иначе валидатор ругался бы на FormArray.
-    expect(names).toContain('FormArray');
+    // Служба нейтральна: записи палитры ReFormer (`$html`, `FormArray`) добавляет его проекция.
+    expect(names(kits.catalogJson())).not.toContain('FormArray');
   });
 
-  it('снимок стабилен между сменами и обновляется вместе с китом', async () => {
+  it('снимки стабильны между сменами и обновляются вместе с китом', async () => {
     const kits = createKitsService({ sources: [KIT_A, KIT_B] });
 
-    const before = kits.catalog();
-    expect(kits.catalog()).toBe(before);
+    const catalog = kits.catalogJson();
+    const descriptor = kits.descriptor();
+    expect(kits.catalogJson()).toBe(catalog);
+    expect(kits.descriptor()).toBe(descriptor);
     expect(kits.available()).toBe(kits.available());
 
     await kits.activate('kit-b');
 
-    expect(kits.catalog()).not.toBe(before);
+    expect(kits.catalogJson()).not.toBe(catalog);
+    expect(kits.descriptor()).not.toBe(descriptor);
   });
 
-  it('возврат к прежнему киту отдаёт ТУ ЖЕ сборку: пересобирать нечего', async () => {
+  it('возврат к прежнему киту отдаёт ТЕ ЖЕ объекты: пересобирать нечего', async () => {
     const kits = createKitsService({ sources: [KIT_A, KIT_B] });
-    const first = kits.catalog();
+    const catalog = kits.catalogJson();
+    const descriptor = kits.descriptor();
 
     await kits.activate('kit-b');
     await kits.activate('kit-a');
 
-    expect(kits.catalog()).toBe(first);
+    expect(kits.catalogJson()).toBe(catalog);
+    expect(kits.descriptor()).toBe(descriptor);
   });
 
   it('неизвестный кит активировать нельзя: каталога для него никто не поставил', async () => {
@@ -240,7 +282,7 @@ describe('выбор живёт в настройках', () => {
     expect(kits.activeId()).toBe('kit-a');
   });
 
-  it('правка настройки МИМО сервиса меняет активный кит', async () => {
+  it('правка настройки МИМО службы меняет активный кит', async () => {
     const settings = fakeSettings();
     const kits = createKitsService({ sources: [KIT_A, KIT_B], settings });
 
@@ -258,7 +300,7 @@ describe('выбор живёт в настройках', () => {
     expect(kits.activeId()).toBe('kit-a');
   });
 
-  it('без настроек сервис работает: выбор просто не переживёт перезагрузку', async () => {
+  it('без настроек служба работает: выбор просто не переживёт перезагрузку', async () => {
     const kits = createKitsService({ sources: [KIT_A, KIT_B] });
 
     await kits.activate('kit-b');
@@ -278,7 +320,7 @@ describe('выбор живёт в настройках', () => {
 });
 
 describe('встроенный кит', () => {
-  it('берётся из самого пакета, а не из копии в билдере', () => {
+  it('представляется шапкой ещё до загрузки каталога', () => {
     const kits = createKitsService({ sources: [BUILTIN_KIT] });
 
     expect(kits.activeId()).toBe('reformer-ui-kit');
@@ -289,25 +331,30 @@ describe('встроенный кит', () => {
     expect(typeof BUILTIN_KIT.catalog).toBe('function');
   });
 
-  it('до загрузки представляется тем же, чем и после: шапки у него нет по обе стороны', async () => {
+  it('шапка совпадает с тем, что кит объявляет о себе в каталоге', async () => {
     const kits = createKitsService({ sources: [BUILTIN_KIT] });
     const before = kits.available();
 
     await kits.whenReady();
 
     expect(kits.available()).toEqual(before);
-    expect(kits.descriptor().id).toBe('reformer-ui-kit');
-    expect(kits.descriptor().package).toBe('@reformer/ui-kit');
+    const descriptor = kits.descriptor();
+    expect(descriptor.id).toBe('reformer-ui-kit');
+    expect(descriptor.label).toBe('ReFormer UI Kit');
+    expect(descriptor.package).toBe('@reformer/ui-kit');
   });
 
-  it('его каталог не пуст — иначе валидатор молчит не потому, что схема верна', async () => {
+  it('каталог не пуст и объявляет всё, что раньше достраивал билдер', async () => {
     const kits = createKitsService({ sources: [BUILTIN_KIT] });
 
     await kits.whenReady();
 
-    const names = kits.catalog().map((entry) => entry.name);
-    expect(names.length).toBeGreaterThan(50);
-    expect(names).toContain('Input');
+    expect(names(kits.catalogJson()).length).toBeGreaterThan(50);
+    expect(names(kits.catalogJson())).toContain('Input');
+    const descriptor = kits.descriptor();
+    expect(descriptor.adapters.wizard).toEqual({ symbol: 'FormWizard' });
+    expect(descriptor.infra.fieldFrame).toBe('FieldFrame');
+    expect(descriptor.previewPolicy.get('Dialog')?.mode).toBe('limited');
   });
 
   it('словарь классов приезжает вместе с каталогом: до загрузки подсказывать нечем', async () => {
@@ -326,10 +373,10 @@ describe('встроенный кит', () => {
  * может проверить ОБА состояния — до и после, — а не только итоговое.
  */
 function lazyKit(id: string, component: string, loaded = id) {
-  const kit = { id, label: `Кит ${id}`, package: `@vendor/${id}`, version: '1.2.3' };
+  const header = { id, label: `Кит ${id}`, package: `@vendor/${id}`, version: '1.2.3' };
   const json: CatalogJson = {
-    version: '2.0',
-    kit: { ...kit, id: loaded },
+    version: '2.1',
+    kit: { ...header, id: loaded },
     components: [{ name: component, role: 'field', propsSchema: { type: 'object' } }],
   };
   let calls = 0;
@@ -340,7 +387,7 @@ function lazyKit(id: string, component: string, loaded = id) {
     refuse = reject;
   });
   const source: KitSource = {
-    kit,
+    kit: header,
     catalog: () => {
       calls += 1;
       return arrival;
@@ -364,86 +411,64 @@ describe('каталог приезжает позже кита', () => {
     const b = lazyKit('kit-b', 'Beta');
     const kits = createKitsService({ sources: [a.source, b.source] });
 
-    expect(kits.available()).toEqual([
-      { id: 'kit-a', label: 'Кит kit-a', package: '@vendor/kit-a', version: '1.2.3', active: true },
-      {
-        id: 'kit-b',
-        label: 'Кит kit-b',
-        package: '@vendor/kit-b',
-        version: '1.2.3',
-        active: false,
-      },
+    expect(kits.available().map(({ id, label, active }) => ({ id, label, active }))).toEqual([
+      { id: 'kit-a', label: 'Кит kit-a', active: true },
+      { id: 'kit-b', label: 'Кит kit-b', active: false },
     ]);
     expect(a.calls()).toBe(0);
     expect(b.calls()).toBe(0);
   });
 
-  it('до загрузки каталог ПУСТ, а не выдуман синтетикой билдера', () => {
+  it('до загрузки каталог — шапка без записей', () => {
     const a = lazyKit('kit-a', 'Alpha');
     const kits = createKitsService({ sources: [a.source] });
 
-    expect(kits.catalog()).toEqual([]);
-    // Ни одной записи: каталог из одной синтетики непуст для валидатора, и тот пометил бы
-    // неизвестным каждый компонент открытой формы.
     expect(kits.catalogJson().components).toEqual([]);
+    expect(kits.catalogJson().kit?.id).toBe('kit-a');
     expect(kits.descriptor().id).toBe('kit-a');
-  });
-
-  it('каталог доехал — палитре есть что показывать', async () => {
-    const a = lazyKit('kit-a', 'Alpha');
-    const kits = createKitsService({ sources: [a.source] });
-
-    const ready = kits.whenReady();
-    a.deliver();
-    await ready;
-
-    expect(kits.catalog().map((entry) => entry.name)).toContain('Alpha');
-    // Синтетика билдера приезжает вместе с каталогом кита, а не вместо него.
-    expect(kits.catalog().map((entry) => entry.name)).toContain('FormArray');
   });
 
   it('переход «пусто → загружено» доходит до подписчиков', async () => {
     const a = lazyKit('kit-a', 'Alpha');
     const kits = createKitsService({ sources: [a.source] });
-    const seen: number[] = [];
-    kits.onDidChange(() => seen.push(kits.catalog().length));
+    const seen: string[][] = [];
+    kits.onDidChange(() => seen.push(names(kits.catalogJson())));
 
     const ready = kits.whenReady();
     a.deliver();
     await ready;
 
-    expect(seen).toHaveLength(1);
     // Подписчика зовут ПОСЛЕ подстановки: перечитав, он видит новый каталог, а не старый.
-    expect(seen[0]).toBeGreaterThan(0);
+    expect(seen).toEqual([['Alpha']]);
   });
 
   it('снимок стабилен по обе стороны загрузки и меняется ровно один раз', async () => {
     const a = lazyKit('kit-a', 'Alpha');
     const kits = createKitsService({ sources: [a.source] });
 
-    const before = kits.catalog();
-    expect(kits.catalog()).toBe(before);
+    const before = kits.catalogJson();
+    expect(kits.catalogJson()).toBe(before);
 
     const ready = kits.whenReady();
     a.deliver();
     await ready;
 
-    const after = kits.catalog();
+    const after = kits.catalogJson();
     expect(after).not.toBe(before);
-    expect(kits.catalog()).toBe(after);
+    expect(kits.catalogJson()).toBe(after);
   });
 
   it('загрузчик зовут один раз, сколько бы ни спрашивали', async () => {
     const a = lazyKit('kit-a', 'Alpha');
     const kits = createKitsService({ sources: [a.source] });
 
-    kits.catalog();
+    kits.catalogJson();
     kits.descriptor();
     const ready = kits.whenReady();
     void kits.whenReady();
     a.deliver();
     await ready;
-    kits.catalog();
+    kits.catalogJson();
 
     expect(a.calls()).toBe(1);
   });
@@ -452,13 +477,13 @@ describe('каталог приезжает позже кита', () => {
     const a = lazyKit('kit-a', 'Alpha');
     const kits = createKitsService({ sources: [a.source] });
 
-    expect(kits.catalog()).toEqual([]);
+    expect(kits.catalogJson().components).toEqual([]);
     expect(a.calls()).toBe(1);
 
     a.deliver();
     await kits.whenReady();
 
-    expect(kits.catalog().map((entry) => entry.name)).toContain('Alpha');
+    expect(names(kits.catalogJson())).toEqual(['Alpha']);
   });
 
   it('отказ загрузки оставляет пустой каталог и не отвергает ожидание', async () => {
@@ -470,8 +495,8 @@ describe('каталог приезжает позже кита', () => {
     a.refuse();
     await expect(ready).resolves.toBeUndefined();
 
-    expect(kits.catalog()).toEqual([]);
-    expect(error).toHaveBeenCalledWith(expect.stringContaining('не загрузился'), expect.any(Error));
+    expect(kits.catalogJson().components).toEqual([]);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('load-failed'));
     error.mockRestore();
   });
 
@@ -484,8 +509,8 @@ describe('каталог приезжает позже кита', () => {
     a.refuse();
     await ready;
 
-    kits.catalog();
-    kits.catalog();
+    kits.catalogJson();
+    kits.catalogJson();
     await kits.whenReady();
 
     expect(a.calls()).toBe(1);
@@ -502,12 +527,24 @@ describe('каталог приезжает позже кита', () => {
     await ready;
 
     expect(kits.activeId()).toBe('kit-a');
-    expect(kits.catalog()).toEqual([]);
-    expect(error).toHaveBeenCalledWith(
-      expect.stringContaining('не загрузился'),
-      expect.objectContaining({ message: expect.stringContaining('зарегистрирован') })
-    );
+    expect(kits.catalogJson().components).toEqual([]);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('mismatch'));
     error.mockRestore();
+  });
+
+  it('каталог без имени получает имя шапки: ключ выбора — объявленный', async () => {
+    const json: CatalogJson = {
+      version: '2.1',
+      components: [{ name: 'Alpha', role: 'field', propsSchema: {} }],
+    };
+    const kits = createKitsService({
+      sources: [{ kit: { id: 'kit-a' }, catalog: () => Promise.resolve(json) }],
+    });
+
+    await kits.whenReady();
+
+    expect(names(kits.catalogJson())).toEqual(['Alpha']);
+    expect(kits.descriptor().id).toBe('kit-a');
   });
 
   it('переключение заводит загрузку нового кита и не ждёт её', async () => {
@@ -519,21 +556,21 @@ describe('каталог приезжает позже кита', () => {
 
     expect(kits.activeId()).toBe('kit-b');
     expect(b.calls()).toBe(1);
-    expect(kits.catalog()).toEqual([]);
+    expect(kits.catalogJson().components).toEqual([]);
 
     const ready = kits.whenReady();
     b.deliver();
     await ready;
 
-    expect(kits.catalog().map((entry) => entry.name)).toContain('Beta');
+    expect(names(kits.catalogJson())).toEqual(['Beta']);
   });
 
-  it('ленивый и поставленный значением уживаются в одном сервисе', async () => {
+  it('ленивый и поставленный значением уживаются в одной службе', async () => {
     const b = lazyKit('kit-b', 'Beta');
     const kits = createKitsService({ sources: [KIT_A, b.source] });
 
-    // Кит значением собирается синхронно — ждать ему нечего.
-    expect(kits.catalog().map((entry) => entry.name)).toContain('Alpha');
+    // Кит значением готов сразу — ждать ему нечего.
+    expect(names(kits.catalogJson())).toEqual(['Alpha']);
     await expect(kits.whenReady()).resolves.toBeUndefined();
     expect(b.calls()).toBe(0);
 
@@ -542,6 +579,200 @@ describe('каталог приезжает позже кита', () => {
     b.deliver();
     await ready;
 
-    expect(kits.catalog().map((entry) => entry.name)).toContain('Beta');
+    expect(names(kits.catalogJson())).toEqual(['Beta']);
+  });
+});
+
+/** Кит плагина: каталог значением, имя — блоком `kit`. */
+function contributed(id: string, component: string, pluginId = 'acme'): ContributedKit {
+  return { source: kit(id, `Кит ${id}`, component), pluginId };
+}
+
+/** Проверка контракта без ajv: годен всякий каталог, кроме помеченного `bogus`. */
+const fakeValidator: KitsServiceOptions['validator'] = () =>
+  Promise.resolve<CatalogValidator>((json) =>
+    (json as { bogus?: unknown }).bogus === undefined
+      ? { valid: true, errors: [] }
+      : { valid: false, errors: ['/ must NOT have additional properties'] }
+  );
+
+function withPlugins(options: Partial<KitsServiceOptions> = {}) {
+  const problems: KitProblem[] = [];
+  const kits = createKitsService({
+    sources: [KIT_A],
+    validator: fakeValidator,
+    onProblem: (problem) => problems.push(problem),
+    ...options,
+  });
+  return { kits, problems };
+}
+
+describe('киты плагинов', () => {
+  it('внесённый кит появляется в списке с происхождением, и об этом узнают', () => {
+    const { kits } = withPlugins();
+    const changed = vi.fn();
+    kits.onDidChangeAvailable(changed);
+
+    kits.syncContributed([contributed('hexa', 'Hexa')]);
+
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(kits.available().map(({ id, origin }) => ({ id, origin }))).toEqual([
+      { id: 'kit-a', origin: BUILTIN },
+      { id: 'hexa', origin: { kind: 'plugin', pluginId: 'acme' } },
+    ]);
+  });
+
+  it('тот же состав — ни одного уведомления: точку синхронизируют на каждое её изменение', () => {
+    const { kits } = withPlugins();
+    const hexa = contributed('hexa', 'Hexa');
+    kits.syncContributed([hexa]);
+    const changed = vi.fn();
+    kits.onDidChangeAvailable(changed);
+
+    kits.syncContributed([hexa]);
+
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it('каталог кита плагина сверяется с контрактом, прежде чем попасть к стекам', async () => {
+    const { kits } = withPlugins();
+    kits.syncContributed([contributed('hexa', 'Hexa')]);
+
+    const activation = kits.activate('hexa');
+    // Проверка асинхронна: до неё каталог — шапка без записей.
+    expect(kits.catalogJson().components).toEqual([]);
+    await activation;
+    expect(kits.activeOrigin()).toEqual({ kind: 'plugin', pluginId: 'acme' });
+
+    await kits.whenReady();
+
+    expect(names(kits.catalogJson())).toEqual(['Hexa']);
+  });
+
+  it('каталог, не прошедший контракт, — отказ и пустой каталог', async () => {
+    const { kits, problems } = withPlugins();
+    const source: KitSource = {
+      catalog: { ...catalogOf('hexa', 'Hexa', 'Hexa'), bogus: true } as CatalogJson,
+    };
+    kits.syncContributed([{ source, pluginId: 'acme' }]);
+
+    await kits.activate('hexa');
+    await kits.whenReady();
+
+    expect(kits.catalogJson().components).toEqual([]);
+    expect(problems).toEqual([
+      expect.objectContaining({ code: 'invalid-catalog', pluginId: 'acme', kitId: 'hexa' }),
+    ]);
+  });
+
+  it('кит без имени в список не попадает — и об отказе сообщают один раз', () => {
+    const { kits, problems } = withPlugins();
+    const nameless: ContributedKit = {
+      source: { catalog: () => Promise.resolve(catalogOf('x', 'X', 'X')) },
+      pluginId: 'acme',
+    };
+
+    kits.syncContributed([nameless]);
+    kits.syncContributed([nameless]);
+
+    expect(kits.available().map((summary) => summary.id)).toEqual(['kit-a']);
+    expect(problems).toEqual([{ code: 'no-id', pluginId: 'acme' }]);
+  });
+
+  it('занятое имя — отказ: встроенный побеждает, затем первый по порядку точки', () => {
+    const { kits, problems } = withPlugins();
+
+    kits.syncContributed([
+      contributed('kit-a', 'Самозванец', 'impostor'),
+      contributed('hexa', 'Hexa', 'first'),
+      contributed('hexa', 'Hexa2', 'second'),
+    ]);
+
+    expect(kits.available().map(({ id, origin }) => ({ id, origin }))).toEqual([
+      { id: 'kit-a', origin: BUILTIN },
+      { id: 'hexa', origin: { kind: 'plugin', pluginId: 'first' } },
+    ]);
+    expect(problems).toEqual([
+      { code: 'duplicate', pluginId: 'impostor', kitId: 'kit-a' },
+      { code: 'duplicate', pluginId: 'second', kitId: 'hexa' },
+    ]);
+  });
+
+  it('выбор, сделанный раньше, чем поднялся плагин, включается сам — настройка не пишется', () => {
+    const settings = fakeSettings({ [KIT_SETTINGS_KEY]: 'hexa' });
+    const { kits } = withPlugins({ settings });
+    const changed = vi.fn();
+    kits.onDidChange(changed);
+    expect(kits.activeId()).toBe('kit-a');
+
+    kits.syncContributed([contributed('hexa', 'Hexa')]);
+
+    expect(kits.activeId()).toBe('hexa');
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(settings.written).toEqual([]);
+  });
+
+  it('плагин выключили — на умолчание, а выбор цел; вернули — вернулся и выбор', () => {
+    const settings = fakeSettings({ [KIT_SETTINGS_KEY]: 'hexa' });
+    const { kits } = withPlugins({ settings });
+    const hexa = contributed('hexa', 'Hexa');
+    kits.syncContributed([hexa]);
+
+    kits.syncContributed([]);
+
+    expect(kits.activeId()).toBe('kit-a');
+    expect(kits.available().map((summary) => summary.id)).toEqual(['kit-a']);
+    expect(settings.get(KIT_SETTINGS_KEY)).toBe('hexa');
+
+    kits.syncContributed([hexa]);
+
+    expect(kits.activeId()).toBe('hexa');
+    expect(settings.written).toEqual([]);
+  });
+
+  it('тот же кит другим источником — для читателя смена кита', () => {
+    const { kits } = withPlugins();
+    kits.syncContributed([contributed('hexa', 'Hexa')]);
+    void kits.activate('hexa');
+    const changed = vi.fn();
+    kits.onDidChange(changed);
+
+    kits.syncContributed([contributed('hexa', 'Hexa v2')]);
+
+    expect(kits.activeId()).toBe('hexa');
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
+  it('кит, снятый во время проверки каталога, не возвращается', async () => {
+    const { kits } = withPlugins();
+    kits.syncContributed([contributed('hexa', 'Hexa')]);
+    await kits.activate('hexa');
+    const pending = kits.whenReady();
+
+    kits.syncContributed([]);
+    await pending;
+
+    expect(kits.activeId()).toBe('kit-a');
+    expect(names(kits.catalogJson())).toEqual(['Alpha']);
+  });
+
+  it('о пространстве имён кита, внесённого позже подписки, подписчик тоже узнаёт', async () => {
+    const { kits } = withPlugins();
+    const loaded = vi.fn();
+    kits.onDidLoadNamespace(loaded);
+    const namespace: KitNamespace = { Hexa: () => null };
+    kits.syncContributed([
+      {
+        source: { ...kit('hexa', 'Hexa', 'Hexa'), namespace: () => Promise.resolve(namespace) },
+        pluginId: 'acme',
+      },
+    ]);
+    await kits.activate('hexa');
+
+    expect(kits.namespace()).toBeNull();
+    await vi.waitFor(() => {
+      expect(loaded).toHaveBeenCalledTimes(1);
+    });
+    expect(kits.namespace()).toBe(namespace);
   });
 });

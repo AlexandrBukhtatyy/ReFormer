@@ -9,7 +9,7 @@
 import type { JsonNode } from '@reformer/renderer-json';
 import type { CatalogRole } from './types';
 import { htmlTagSpec } from './html-tags';
-import { LEAF_COMPONENT_NAMES } from '../kits/legacy-reformer-ui-kit';
+import { LEAF_COMPONENT_NAMES } from '../kits/defaults';
 
 export function fieldNode(name: string): JsonNode {
   return {
@@ -305,8 +305,8 @@ export function wizardNode(): JsonNode {
  *
  * В v1 обе величины брались из `getActiveDescriptor()` — из СОСТОЯНИЯ «какой кит активен сейчас».
  * В v2 это состояние живёт сервисом плагина (`plugins/kits/registry/`), домену не видно, поэтому оно
- * приходит ПАРАМЕТРОМ. Тот же шов, что и у `lib/form-model/node-kind.isLeafComponentRef`; без
- * параметра работает по дефолтам билдера («неявный кит»), то есть ровно как v1 до сборки каталога.
+ * приходит ПАРАМЕТРОМ. Тот же шов, что и у `form-model/node-kind.isLeafComponentRef`; без
+ * параметра действуют запасные значения стека (`kits/defaults`) — листья встроенного кита.
  */
 export interface MakeNodeKit {
   /** Листья кита; по умолчанию — {@link LEAF_COMPONENT_NAMES}. */

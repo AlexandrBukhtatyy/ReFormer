@@ -1,5 +1,10 @@
 {
   "palette.switch": "Kit: {label}",
   "palette.active": "Active",
-  "palette.detail": "{package} {version}"
+  "palette.detail": "{package} {version}",
+  "problem.no-id": "Plugin \"{plugin}\" contributed a kit without an id — the kit is not connected.",
+  "problem.duplicate": "Plugin \"{plugin}\" contributed kit \"{kit}\", but the name is taken — the kit is not connected.",
+  "problem.invalid-catalog": "The catalog of kit \"{kit}\" from plugin \"{plugin}\" failed validation: {detail}",
+  "problem.mismatch": "The catalog of kit \"{kit}\" from plugin \"{plugin}\" names itself differently: {detail}",
+  "problem.load-failed": "The catalog of kit \"{kit}\" from plugin \"{plugin}\" failed to load: {detail}"
 }

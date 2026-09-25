@@ -9,7 +9,8 @@
  * - документы и активная вкладка — `DocumentsService`;
  * - соседи, текст, путь от корня, права источника, правки файлов — `WorkspaceFilesService`;
  * - загрузчик модулей — `ModuleLoaderCapability`;
- * - кит — служба плагина китов, по структурной копии ({@link KitCapability}).
+ * - кит — служба китов (`KitsCapability` SDK) и ReFormer-проекция её сырого каталога
+ *   (`projectCatalog`): записи с узлами по умолчанию и дескриптор, собранный с синтетикой билдера.
  *
  * Службы спрашиваются на КАЖДЫЙ вызов, а не при сборке: кит и превью выключаемы на ходу, а без
  * проекта служба рабочей области отвечает пусто — и порт честно отвечает так же.
@@ -18,9 +19,9 @@
  */
 
 import {
-  defineCapability,
   DocumentModelsCapability,
   DocumentsServiceToken,
+  KitsCapability,
   ModuleLoaderCapability,
   useActiveDocument,
   useTranslate,
@@ -31,30 +32,8 @@ import {
   type ResourceId,
   type ResourceRef,
 } from '@reformer/builder-plugin-api';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
+import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import type { PreviewDocument, PreviewHost, Translate } from './host';
-
-/**
- * Служба китов в объёме превью — структурная копия `KitsService` плагина китов.
- *
- * Копия, а не импорт: плагины друг друга не импортируют, а реестр служб ключуется строкой,
- * поэтому копия находит ту же службу. Пространство имён необязательно: версия службы ниже 1.1
- * его не отдаёт, и превью тогда рисует подписанные заглушки.
- */
-export interface KitReader {
-  catalog(): readonly CatalogEntry[];
-  descriptor(): KitDescriptor;
-  onDidChange(cb: () => void): Disposable;
-  namespace?(): KitNamespace | null;
-  onDidLoadNamespace?(cb: () => void): Disposable;
-}
-
-/** Та же возможность, что объявляет плагин китов; версия — та, против которой писана копия. */
-export const KitCapability = defineCapability<KitReader>({
-  id: 'reformer.kit.catalog',
-  version: '1.1.0',
-});
 
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 const NO_SIBLINGS: readonly ResourceRef[] = Object.freeze([]);
@@ -69,7 +48,7 @@ const NO_DOCUMENTS: Pick<DocumentsService, 'activeResource' | 'onDidChange'> = O
 export function previewHostFromContext(ctx: Pick<PluginContext, 'services' | 'i18n'>): PreviewHost {
   const documents = () => ctx.services.get(DocumentsServiceToken);
   const files = () => ctx.services.get(WorkspaceFilesServiceToken);
-  const kit = () => ctx.services.get(KitCapability);
+  const kit = () => ctx.services.get(KitsCapability);
   const modules = ctx.services.get(ModuleLoaderCapability);
 
   // Именованные функции: правила хуков опознают хук по имени объявления.
@@ -109,9 +88,17 @@ export function previewHostFromContext(ctx: Pick<PluginContext, 'services' | 'i1
       return service === undefined ? null : { executesCode: service.executesCode(id) };
     },
 
-    catalog: () => kit()?.catalog() ?? NO_CATALOG,
-    kit: () => kit()?.descriptor() ?? null,
-    kitNamespace: () => kit()?.namespace?.() ?? null,
+    catalog: () => {
+      const service = kit();
+      return service === undefined ? NO_CATALOG : projectCatalog(service.catalogJson()).entries;
+    },
+    // Дескриптор ПРОЕКЦИИ, а не службы: он собран по каталогу вместе с синтетикой билдера, и
+    // политика превью и групп классов у записей `$html`/`FormArray` — та же, что у кодогена.
+    kit: () => {
+      const service = kit();
+      return service === undefined ? null : projectCatalog(service.catalogJson()).descriptor;
+    },
+    kitNamespace: () => kit()?.namespace() ?? null,
 
     // Два события, и оба означают «пересоберись»: сменился активный кит и догрузилось его
     // пространство имён. Подпишись только на первое — и форма, собранная до загрузки кита,
@@ -119,7 +106,7 @@ export function previewHostFromContext(ctx: Pick<PluginContext, 'services' | 'i1
     onDidChangeKit(cb: () => void): Disposable {
       const reader = kit();
       const onKit = reader?.onDidChange(cb) ?? NOOP;
-      const onLoad = reader?.onDidLoadNamespace?.(cb) ?? NOOP;
+      const onLoad = reader?.onDidLoadNamespace(cb) ?? NOOP;
       return {
         dispose(): void {
           onKit.dispose();

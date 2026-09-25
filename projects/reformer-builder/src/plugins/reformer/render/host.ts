@@ -36,7 +36,7 @@
  */
 
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
+import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import type {
   Disposable,
   DocumentKind,

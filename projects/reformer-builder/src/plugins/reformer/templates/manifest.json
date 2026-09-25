@@ -11,6 +11,10 @@
       {
         "id": "reformer.codegen.printer",
         "range": "^1"
+      },
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^2"
       }
     ]
   }

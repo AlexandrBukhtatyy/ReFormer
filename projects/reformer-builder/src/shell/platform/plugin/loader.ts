@@ -136,6 +136,14 @@ export interface PluginLoaderDeps {
    * нужен ли движок вообще.
    */
   readonly prepare?: (fileNames: readonly string[]) => Promise<void>;
+  /**
+   * Прогрев ЛЕНИВЫХ модулей оболочки, которые импортируют файлы плагина (`@reformer/cdk/*`,
+   * `@reformer/ui-kit`…). Реестр отдаёт такой модуль синхронно только после прогрева, а `require`
+   * исполняется синхронно: без этого шага верхнеуровневый импорт в коде плагина падал бы отказом
+   * `cold`, хотя модуль оболочке известен. Кит-плагин упирается в это первым — его обёртка поля
+   * стоит на `@reformer/cdk/form-field`.
+   */
+  readonly warm?: (files: ReadonlyMap<string, string>) => Promise<void>;
   /** Каталог плагинов. Параметр ради тестов. */
   readonly dir?: string;
   readonly fileLimit?: number;
@@ -348,14 +356,24 @@ export function createPluginLoader(deps: PluginLoaderDeps): PluginLoader {
         );
       }
 
-      try {
-        // Прогрев ДО линковки: внутри `require` асинхронного шага быть не может.
-        await deps.prepare?.([...files.keys()]);
-      } catch (error) {
-        return fail('code-failed', `движок транспиляции не готов: ${describe(error)}`, {
+      // Прогрев ДО линковки: внутри `require` асинхронного шага быть не может. Движок и модули
+      // оболочки греются параллельно — друг от друга они не зависят, а ждать приходится обоих.
+      const [engine, shared] = await Promise.allSettled([
+        deps.prepare?.([...files.keys()]),
+        deps.warm?.(files),
+      ]);
+      if (engine.status === 'rejected') {
+        return fail('code-failed', `движок транспиляции не готов: ${describe(engine.reason)}`, {
           file: entry,
-          cause: error,
+          cause: engine.reason,
         });
+      }
+      if (shared.status === 'rejected') {
+        return fail(
+          'code-failed',
+          `модули оболочки для плагина не прогреты: ${describe(shared.reason)}`,
+          { file: entry, cause: shared.reason }
+        );
       }
 
       const result = await deps.modules.load(files, entry);

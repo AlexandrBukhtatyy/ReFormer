@@ -1,70 +1,59 @@
 /**
  * Активный кит — состояние, которое обязано быть одним на всё приложение.
  *
- * ## Почему это сервис, а не значение в домене
+ * ## Почему служба, а не значение
  *
- * Дескрипторы китов уже переехали в `@reformer/builder-stack-reformer/kits` ЧИСТЫМИ ДАННЫМИ: домен умеет разобрать
- * catalog-JSON в {@link KitDescriptor} и собрать по нему палитру, но не имеет права помнить,
- * какой из китов выбран. Помнить это обязан кто-то один: редактор рисует палитру активного
- * кита, превью резолвит его компоненты, валидатор сверяет `$component(...)` с его каталогом —
- * и если у каждого свой ответ, то валидатор ругается на компонент, который человек только что
- * поставил из палитры.
+ * Редактор рисует палитру активного кита, превью резолвит его компоненты, валидатор сверяет
+ * `$component(...)` с его каталогом, тема RJSF строится по нему же — и если у каждого свой ответ,
+ * валидатор ругается на компонент, который человек только что поставил из палитры. Поэтому ответ
+ * держит одна служба, а остальные находят её по возможности `reformer.kit.catalog` (SDK).
  *
- * Отсюда форма: сервис с токеном, зарегистрированный плагином и найденный по токену всеми
- * остальными. Один токен — одна реализация (см. `host/primitives/service`), а значит вопрос
- * «какой кит активен» имеет ровно один ответ по построению, а не по договорённости.
+ * ## Служба нейтральна
  *
- * ## Переключение БЕЗ перезагрузки страницы
+ * Она отдаёт кит так, как его поставил кит: сырой каталог и дескриптор. Записи палитры с узлами
+ * по умолчанию — это ReFormer, тема RJSF — это RJSF, и выводит их каждый стек сам. Знай служба
+ * хоть один стек, второй пришлось бы вносить её правкой.
  *
- * В v1 смена кита требовала перезагрузки, и это был дефект, а не свойство: каталог собирался
- * на импорте модуля и мемоизировался на уровне модуля, поэтому «пересобрать под другой кит»
- * означало «перезапустить модульный граф». Здесь всё наоборот:
+ * ## Откуда киты
  *
- * - сборка каталога — ЧИСТАЯ функция (`buildCatalog`), её результат кэшируется в этом объекте
- *   по идентификатору кита, а не в модуле;
- * - смена активного кита — это смена одной переменной плюс оповещение подписчиков;
- * - возврат к прежнему киту бесплатен: его сборка осталась в кэше.
+ * Встроенные — параметром (`sources`); остальные вносят плагины в точку `reformer.kit.source`,
+ * и плагин передаёт их службе при каждом изменении точки ({@link OwnedKitsService.syncContributed}).
+ * Кит плагина — данные извне, поэтому он проходит проверки, которых у встроенного нет: он обязан
+ * себя назвать, не может занять чужой идентификатор, и его каталог сверяется с контрактом. Отказ
+ * не роняет ничего: кит просто не появляется в списке, а о причине служба сообщает.
  *
  * ## Каталог может приехать ПОЗЖЕ самого кита
  *
- * Каталог встроенного кита весит 864 кБ, и статический импорт клал их в главный чанк — за
- * первую отрисовку оболочки платили все, хотя нужен каталог не раньше открытого файла формы.
- * Поэтому источник кита ({@link KitSource}) отдаёт каталог либо значением, либо загрузчиком.
- *
- * Асинхронность при этом НЕ протекает в контракт: `catalog()`, `descriptor()`, `catalogJson()`
- * и `available()` остаются синхронными, потому что их зовут из отрисовки. До конца загрузки они
- * отдают ПУСТОЙ каталог — не заглушку и не исключение, а состояние с определённым поведением
- * (палитра пуста, инспектор пишет «компонента нет в каталоге», проверка имён отключена). Когда
- * каталог доехал, читатели узнают об этом через `onDidChange` — тем же событием, что и о смене
- * кита: для них это одно и то же «показанное устарело».
+ * Каталог встроенного кита весит 864 кБ, и статический импорт клал их в главный чанк. Поэтому
+ * источник отдаёт каталог значением или загрузчиком, а асинхронность НЕ протекает в контракт:
+ * читатели синхронны (их зовут из отрисовки) и до загрузки видят каталог без записей — шапку
+ * кита. Переход «пусто → загружено» приходит тем же `onDidChange`, что и смена кита.
  *
  * ## Стабильность снимков
  *
- * `catalog()`, `available()` и остальные читатели вызываются из `useSyncExternalStore`,
- * который сравнивает снимок ПО ССЫЛКЕ и падает с «The result of getSnapshot should be cached»
- * на новом объекте при каждом вызове. Поэтому между сменами кита все читатели возвращают
- * ту же ссылку, а новую — только после смены.
+ * Читателей зовёт `useSyncExternalStore`, который сравнивает снимок ПО ССЫЛКЕ. Поэтому между
+ * сменами все читатели возвращают те же объекты, а новые — только после смены.
  *
  * @module plugins/kits/registry/service
  */
 
 import {
-  buildCatalog,
-  type BuildCatalogOptions,
-  type BuiltCatalog,
-} from '@reformer/builder-stack-reformer/catalog';
-import {
   CATALOG_CONTRACT_VERSION,
-  type CatalogEntry,
+  declaredKitId,
+  toDescriptor,
   type CatalogJson,
-} from '@reformer/builder-stack-reformer/catalog';
-import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
-import type {
-  KitDescriptor,
-  KitDescriptorJson,
-  KitNamespace,
-} from '@reformer/builder-stack-reformer/kits';
-import { defineCapability, type Disposable } from '@reformer/builder-plugin-api';
+  type Disposable,
+  type KitDescriptor,
+  type KitDescriptorJson,
+  type KitFrameProps,
+  type KitOrigin,
+  type KitSource,
+  type KitsService,
+  type KitSummary,
+} from '@reformer/builder-plugin-api';
+import { loadCatalogValidator, type CatalogValidator } from '@reformer/builder-plugin-api/tooling';
+import type { ComponentType } from 'react';
+import { createKitFrame } from './frame';
 import type { KitsSettings } from './host';
 import { createKitNamespaceLoader, type KitNamespaceLoader } from './namespace';
 
@@ -74,299 +63,208 @@ import { createKitNamespaceLoader, type KitNamespaceLoader } from './namespace';
  */
 export const KIT_SETTINGS_KEY = 'plugin.kits.active';
 
-/**
- * Типизированное имя сервиса — структурная копия `ServiceToken` из `host/primitives/service`.
- *
- * `__type` существует только для вывода типов и в рантайме отсутствует; ключом служит `id`,
- * поэтому две копии объявления токена (встроенный плагин и плагин каталога, собранный своим
- * линкером) находят ОДИН И ТОТ ЖЕ сервис. Ровно то же свойство, ради которого `ValidatorPoint`
- * реэкспортируется из `@reformer/builder-plugin-api`, а не переобъявляется у потребителей.
- *
- * Место объявления здесь — вынужденное: `@reformer/builder-plugin-api` сдан, и токен кита в него ещё не внесён.
- * Как только внесут, этот модуль обязан реэкспортировать токен ОТТУДА, а не объявлять свой.
- */
-export interface ServiceTokenRef<T> {
-  readonly id: string;
-  readonly __type?: T;
-}
-
-/** Кит в списке доступных: всё, что нужно переключателю, и ничего из содержимого каталога. */
-export interface KitSummary {
-  readonly id: string;
-  readonly label: string;
-  readonly package: string;
-  readonly version: string;
-  readonly active: boolean;
+/** Кит, внесённый плагином: источник и тот, кто его внёс. */
+export interface ContributedKit {
+  readonly source: KitSource;
+  readonly pluginId: string;
 }
 
 /**
- * Загрузчик каталога: каталог приходит не с модулем кита, а по требованию.
+ * Отказ принять кит плагина. Служба сообщает о нём, а показывает — плагин китов, своим словарём.
  *
- * Существует ради ЦЕНЫ СТАРТА, и цена измерена: `@reformer/ui-kit/catalog` весит 864 кБ, и
- * статический импорт клал их в главный чанк — 1497 кБ вместо 659. Нужен он не раньше, чем
- * человек открыл файл формы, то есть заведомо позже первой отрисовки оболочки.
- *
- * Возвращать один и тот же промис не обязано: сервис зовёт загрузчик не более одного раза
- * на кит и сам держит результат.
+ * - `no-id` — кит себя не назвал: ни шапки, ни блока `kit` с `id` у каталога-значения;
+ * - `duplicate` — идентификатор занят встроенным китом или китом, внесённым раньше;
+ * - `invalid-catalog` — каталог не прошёл контракт `component-catalog.schema.json`;
+ * - `mismatch` — загруженный каталог назвал себя иначе, чем объявила шапка;
+ * - `load-failed` — каталог не загрузился.
  */
-export type CatalogLoader = () => Promise<CatalogJson>;
-
-/**
- * Кит на входе сервиса — только его каталог.
- *
- * Дескриптор из каталога выводится (`toDescriptor`), а не задаётся рядом: два источника
- * правды о том, как называется кит, разъехались бы на первом же обновлении пакета.
- *
- * ## Ленивый кит объявляет о себе ДО загрузки
- *
- * Когда каталог — {@link CatalogLoader}, вывести из него личность кита нечем: список доступных
- * обязан быть готов раньше, чем хоть один каталог загружен, а идентификатор служит ключом
- * выбора и попадает в настройки. Поэтому шапку ({@link KitSource.kit}) ленивый кит объявляет
- * заранее, а сервис после загрузки СВЕРЯЕТ её с загруженным каталогом и отказывает при
- * расхождении: иначе ключ выбора менялся бы под ногами.
- *
- * Шапку можно не объявлять — тогда личность берётся из дефолтов билдера («неявный кит»,
- * см. `@reformer/builder-stack-reformer/kits`). Это верно ровно для встроенного кита: его каталог `kit`-блока
- * с идентификатором не содержит и сам разрешается теми же дефолтами.
- */
-export interface KitSource {
-  /**
-   * Каталог по контракту `component-catalog.schema.json` (версии `1.0` и `2.0`) — значением
-   * либо загрузчиком.
-   */
-  readonly catalog: CatalogJson | CatalogLoader;
-  /**
-   * Шапка кита для ленивого источника: чем он представляется, пока каталога нет. Для источника
-   * значением игнорируется — там шапка приходит из самого каталога.
-   */
-  readonly kit?: KitDescriptorJson;
-  /** Ограничения набора и переопределения категорий от клиента. */
-  readonly options?: BuildCatalogOptions;
-  /**
-   * Пространство имён кита — сами компоненты: имя экспорта → значение. Только загрузчиком:
-   * это самый тяжёлый чанк приложения, и нужен он лишь тому, кто рисует форму по-настоящему.
-   *
-   * Объявляет его КИТ, а не превью: чем рисовать `$component(Input)` — утверждение
-   * дизайн-системы о себе. Без него превью рисует подписанные заглушки.
-   */
-  readonly namespace?: () => Promise<KitNamespace>;
+export interface KitProblem {
+  readonly code: 'no-id' | 'duplicate' | 'invalid-catalog' | 'mismatch' | 'load-failed';
+  readonly pluginId?: string;
+  readonly kitId?: string;
+  readonly detail?: string;
 }
 
 /**
- * То, что видят остальные плагины и оболочка.
+ * Служба вместе с тем, что принадлежит её владельцу — плагину китов.
  *
- * ## Три читателя синхронны, и это не оплошность
- *
- * `descriptor()`, `catalog()`, `catalogJson()` и `available()` зовутся из отрисовки, а у
- * ленивого кита каталога в этот момент может ещё не быть. Ждать они не могут (React не ждёт)
- * и бросать не должны (пустая палитра — не отказ), поэтому до конца загрузки они честно
- * отдают ПУСТОЙ каталог. Пустой каталог — состояние с определённым поведением, а не дыра:
- * палитра пуста, инспектор пишет «компонента нет в каталоге активного кита», проверка имён
- * в валидаторе отключается целиком (сравнивать не с чем).
- *
- * Переход «пусто → загружено» доходит до читателей через {@link KitsService.onDidChange} —
- * тем же способом, что и смена кита. Читатель, не подписанный на него, увидит пустой каталог
- * до ближайшей своей перерисовки по другой причине.
- */
-export interface KitsService {
-  /** Идентификатор активного кита. */
-  activeId(): string;
-  /**
-   * Дескриптор активного кита: политика превью, инфраструктурные имена, словарь классов.
-   *
-   * До загрузки ленивого каталога — дескриптор ПУСТОГО каталога: личность кита та же
-   * (её объявляет `KitSource.kit`), а всё, что выводится из записей, пусто.
-   */
-  descriptor(): KitDescriptor;
-  /**
-   * Каталог компонентов активного кита — то, чем валидатор сверяет `$component(...)`,
-   * а палитра наполняет свои разделы. До загрузки ленивого каталога пуст.
-   */
-  catalog(): readonly CatalogEntry[];
-  /** Каталог-JSON активного кита после склейки с синтетикой: источник правды для диагностики. */
-  catalogJson(): CatalogJson;
-  /** Между чем можно выбирать. Порядок регистрации; встроенный кит первый. */
-  available(): readonly KitSummary[];
-  /**
-   * Делает кит активным и сохраняет выбор.
-   *
-   * Активным он становится СРАЗУ, а промис относится к записи в настройки: иначе переключатель
-   * в интерфейсе ждал бы хранилище. Если запись отказала, служба настроек откатит значение
-   * и уведомит — и сервис вернётся к прежнему киту тем же путём, что и при правке настройки
-   * снаружи.
-   */
-  activate(id: string): Promise<void>;
-  /**
-   * Активный кит сменился ИЛИ его каталог доехал. Полезной нагрузки нет: подписчик
-   * перечитывает то, что ему нужно.
-   *
-   * Два повода в одном событии намеренно: для читателя это одно и то же — «то, что я показывал,
-   * устарело». Различать их пришлось бы каждому, а пользы от различия нет ни у кого.
-   */
-  onDidChange(cb: () => void): Disposable;
-  /**
-   * Пространство имён активного кита либо `null`: кит его не объявил или оно ещё едет.
-   * Первый вызов заводит загрузку — синхронный читатель ждать не может.
-   */
-  namespace(): KitNamespace | null;
-  /**
-   * Пространство имён доехало. Отдельно от {@link onDidChange}: «кит тот же, но теперь он есть» —
-   * другое событие, и опоздавший подписчик узнаёт о нём лично (см. `./namespace`).
-   */
-  onDidLoadNamespace(cb: () => void): Disposable;
-}
-
-/**
- * Возможность «активный кит»: токен службы плюс версия контракта.
- *
- * Объявлена средствами SDK (`defineCapability`), а не структурной копией, — и это первое место,
- * где обещание из шапки {@link ServiceTokenRef} исполнено: то, чего в `@reformer/builder-plugin-api` не было, теперь
- * там есть.
- *
- * **Идентификатор прежний — `kits.active`.** Соблазн переименовать его в `reformer.kit.catalog`
- * (как предлагает RFC) здесь отвергнут намеренно: `id` службы уже разошёлся по сохранённым
- * данным и по коду портов, и его смена — это МИГРАЦИЯ, а не переименование. Она отдельная
- * работа (фаза 7 плана v4), и делать её заодно значило бы спрятать миграцию внутри задачи
- * про версии.
- *
- * Версия `1.0.0` — исходная: контракт {@link KitsService} на момент объявления. Растить её
- * обязан тот, кто этот интерфейс меняет; минор — на добавление метода, мажор — на удаление
- * или смену смысла существующего.
- */
-export const KitsCapability = defineCapability<KitsService>({
-  id: 'reformer.kit.catalog',
-  // 1.1.0: пространство имён кита (`namespace`, `onDidLoadNamespace`) — раньше его грузила
-  // оболочка портом превью, и чем рисовать компоненты, решала она, а не кит.
-  version: '1.1.0',
-});
-
-/**
- * Токен сервиса. Один токен — одна реализация.
- *
- * ТОТ ЖЕ объект, что и {@link KitsCapability}: возможность расширяет токен службы, второго
- * реестра нет (см. `primitives/capability`). Имя оставлено, потому что им пользуются порты
- * композиции, и переименование ничего бы не дало — кроме дифа.
- */
-export const KitsServiceToken: ServiceTokenRef<KitsService> = KitsCapability;
-
-/**
- * Сервис вместе с тем, что принадлежит его владельцу.
- *
- * `dispose` и `defaultId` не в {@link KitsService} намеренно: подписку на настройки снимает
- * тот, кто её завёл, а умолчание объявляет тот, кто вносит настройку. Ни то ни другое не дело
- * потребителя, нашедшего сервис по токену.
+ * Ничего из этого нет в {@link KitsService}: умолчание объявляет тот, кто вносит настройку,
+ * «когда грузить» решает владелец, а киты плагинов приходят к службе из его точки расширения.
  */
 export interface OwnedKitsService extends KitsService, Disposable {
-  /** Кит, на котором инструмент открывается, пока не выбрано иное, — первый зарегистрированный. */
+  /** Кит, на котором инструмент открывается, пока не выбрано иное, — первый встроенный. */
   readonly defaultId: string;
   /**
-   * Дождаться каталога активного кита. Вызов её же загрузку и ЗАПУСКАЕТ — поэтому владелец
-   * решает, когда платить: сразу при активации плагина (тогда каталог едет параллельно
-   * оболочке) или позже.
-   *
-   * Не отвергается никогда: отказ загрузки — это пустой каталог плюс запись в консоль, а не
-   * исключение у того, кто просто ждал. У потребителя, нашедшего сервис по токену, этого метода
-   * нет намеренно — «когда грузить» решает владелец, а остальные узнают через `onDidChange`.
+   * Дождаться каталога активного кита. Вызов её же и ЗАПУСКАЕТ. Не отвергается никогда: отказ
+   * загрузки — это пустой каталог плюс отчёт, а не исключение у того, кто просто ждал.
    */
   whenReady(): Promise<void>;
+  /**
+   * Состав китов плагинов — текущее содержимое точки `reformer.kit.source` в её порядке.
+   * Зовётся на каждое изменение точки; кит, которого в составе больше нет, снимается.
+   */
+  syncContributed(kits: readonly ContributedKit[]): void;
 }
 
 export interface KitsServiceOptions {
-  /** Киты, между которыми можно выбирать. Первый — встроенный, он же умолчание. */
+  /** Встроенные киты. Первый — умолчание. Нужен хотя бы один. */
   readonly sources: readonly KitSource[];
-  /** Где живёт выбор. Без настроек сервис работает, но выбор не переживёт перезагрузку. */
+  /** Где живёт выбор. Без настроек служба работает, но выбор не переживёт перезагрузку. */
   readonly settings?: KitsSettings;
+  /**
+   * Проверка каталога кита из плагина. По умолчанию — проверка контракта из SDK; параметр — для
+   * тестов, которым не нужен настоящий ajv.
+   */
+  readonly validator?: () => Promise<CatalogValidator>;
+  /** Кит плагина отвергнут. Без обработчика отказ пишется в консоль. */
+  readonly onProblem?: (problem: KitProblem) => void;
 }
 
-/** Записи пустого каталога. Одна замороженная ссылка на всех: снимок обязан быть стабилен. */
-const NO_ENTRIES: CatalogEntry[] = [];
-Object.freeze(NO_ENTRIES);
+/** Кит в службе: источник, откуда он, и что о нём известно сейчас. */
+interface KitEntry {
+  readonly id: string;
+  readonly source: KitSource;
+  readonly origin: KitOrigin;
+  /** Шапка без записей: чем кит представляется, пока каталога нет. */
+  readonly header: CatalogJson;
+  readonly summary: Omit<KitSummary, 'active'>;
+  /** Каталог после загрузки и проверки; до них — `undefined`. */
+  loaded: CatalogJson | undefined;
+  /** Загрузка каталога. Одна попытка за жизнь записи — даже после отказа. */
+  loading: Promise<void> | undefined;
+  readonly namespace: KitNamespaceLoader | undefined;
+}
 
-/**
- * Каталог кита, который ещё не загрузился: ни одной записи и шапка, которую кит объявил о себе.
- *
- * Именно ПУСТОЙ, а не «синтетика билдера без записей кита»: каталог из одних `$html`/`FormArray`
- * непуст с точки зрения валидатора, и тот пометил бы неизвестным каждый компонент открытой
- * формы. Пустой отключает проверку имён целиком — единственное честное поведение, пока
- * сравнивать не с чем.
- */
-function emptyCatalogJson(kit: KitDescriptorJson | undefined): CatalogJson {
+/** Шапка кита как каталог без записей. Заморожена: снимок обязан быть стабилен. */
+function headerCatalog(id: string, kit: KitDescriptorJson | undefined): CatalogJson {
   return Object.freeze({
     version: CATALOG_CONTRACT_VERSION,
     components: [],
-    ...(kit !== undefined ? { kit } : {}),
+    kit: { ...kit, id },
   });
+}
+
+/** Шапка источника: объявленная, иначе блок `kit` каталога-значения. */
+function declaredHeader(source: KitSource): KitDescriptorJson | undefined {
+  return source.kit ?? (typeof source.catalog === 'function' ? undefined : source.catalog.kit);
+}
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export function createKitsService(options: KitsServiceOptions): OwnedKitsService {
   const { settings } = options;
   if (options.sources.length === 0) {
-    throw new Error('kits: список китов пуст — сервису нечего сделать активным');
+    throw new Error('kits: список китов пуст — службе нечего сделать активным');
   }
+  const validator = options.validator ?? loadCatalogValidator;
+  const report =
+    options.onProblem ??
+    ((problem: KitProblem): void => {
+      console.error('[kits] кит плагина отвергнут', problem);
+    });
 
-  /**
-   * Сводка кита. Считается СРАЗУ и по сырому каталогу: список доступных обязан быть готов
-   * до того, как хоть один кит собран, — иначе «между чем выбирать» стоило бы сборки всех
-   * каталогов на старте. Поля сводки приходят из блока `kit`, а он от склейки с синтетикой
-   * не зависит, поэтому ответ тот же, что дал бы полный дескриптор.
-   *
-   * У ленивого кита каталога на этот момент нет вовсе, и сводка берётся из объявленной шапки.
-   * Расхождение шапки с загруженным каталогом ловится при загрузке ({@link adopt}).
-   */
-  const sources = new Map<string, KitSource>();
-  const info = new Map<string, Omit<KitSummary, 'active'>>();
-  /** Состояние ленивого кита до загрузки. Только у ленивых: у остальных каталог уже на руках. */
-  const empty = new Map<string, BuiltCatalog>();
+  /** Все киты в порядке списка: встроенные, затем внесённые плагинами. */
+  const entries = new Map<string, KitEntry>();
+  /** Дескрипторы по каталогу: один каталог — один дескриптор, пока каталог тот же. */
+  const descriptors = new WeakMap<CatalogJson, KitDescriptor>();
+  const listeners = new Set<() => void>();
+  const availableListeners = new Set<() => void>();
+  /** Подписки на «пространство имён доехало» — у каждой своя по каждому загрузчику. */
+  const namespaceSubscribers = new Set<Map<KitNamespaceLoader, Disposable>>();
+  const namespaceCallbacks = new WeakMap<Map<KitNamespaceLoader, Disposable>, () => void>();
+
+  const createEntry = (id: string, source: KitSource, origin: KitOrigin): KitEntry => {
+    const header = headerCatalog(id, declaredHeader(source));
+    const descriptor = toDescriptor(header);
+    const namespace =
+      source.namespace === undefined ? undefined : createKitNamespaceLoader(source.namespace);
+    if (namespace !== undefined) {
+      for (const subscriptions of namespaceSubscribers) {
+        subscriptions.set(namespace, namespace.onDidLoad(namespaceCallbacks.get(subscriptions)!));
+      }
+    }
+    return {
+      id,
+      source,
+      origin,
+      header,
+      summary: Object.freeze({
+        id,
+        label: descriptor.label,
+        package: descriptor.package,
+        version: descriptor.version,
+        origin,
+      }),
+      loaded: undefined,
+      loading: undefined,
+      namespace,
+    };
+  };
+
+  const dropEntry = (entry: KitEntry): void => {
+    entries.delete(entry.id);
+    if (entry.namespace === undefined) return;
+    for (const subscriptions of namespaceSubscribers) {
+      subscriptions.get(entry.namespace)?.dispose();
+      subscriptions.delete(entry.namespace);
+    }
+  };
+
+  const BUILTIN: KitOrigin = Object.freeze({ kind: 'builtin' });
   for (const source of options.sources) {
-    const lazy = typeof source.catalog === 'function';
-    const json = lazy ? emptyCatalogJson(source.kit) : (source.catalog as CatalogJson);
-    const descriptor = toDescriptor(json);
-    if (sources.has(descriptor.id)) {
+    const id = declaredKitId(source);
+    if (id === undefined) {
       throw new Error(
-        `kits: кит «${descriptor.id}» зарегистрирован дважды. Идентификатор — ключ выбора: ` +
-          'два кита под одним именем означали бы, что активный зависит от порядка регистрации'
+        'kits: встроенный кит себя не назвал. Идентификатор — ключ выбора: кит с ленивым ' +
+          'каталогом объявляет его шапкой (`KitSource.kit.id`), с каталогом-значением — блоком `kit`'
       );
     }
-    sources.set(descriptor.id, source);
-    if (lazy) empty.set(descriptor.id, Object.freeze({ entries: NO_ENTRIES, descriptor, json }));
-    info.set(descriptor.id, {
-      id: descriptor.id,
-      label: descriptor.label,
-      package: descriptor.package,
-      version: descriptor.version,
-    });
+    if (entries.has(id)) {
+      throw new Error(
+        `kits: кит «${id}» зарегистрирован дважды. Идентификатор — ключ выбора: два кита под ` +
+          'одним именем означали бы, что активный зависит от порядка регистрации'
+      );
+    }
+    const entry = createEntry(id, source, BUILTIN);
+    // Встроенный кит проверен своей сборкой: каталог-значение принимается сразу.
+    if (typeof source.catalog !== 'function') entry.loaded = source.catalog;
+    entries.set(id, entry);
   }
-
-  const defaultId = [...sources.keys()][0]!;
-  /** Собранные каталоги по идентификатору кита — то, что делает переключение бесплатным. */
-  const built = new Map<string, BuiltCatalog>();
-  const listeners = new Set<() => void>();
+  const builtinIds = new Set(entries.keys());
+  const defaultId = [...entries.keys()][0]!;
 
   /**
-   * Прочитанный из настроек выбор, если такой кит установлен.
-   *
-   * Незнакомый идентификатор НЕ переписывается умолчанием: кит могли временно выключить,
-   * и затирание выбора означало бы, что после его возвращения человек оказался не там, где
-   * оставил, без единого следа почему.
+   * Выбор из настроек, если такой кит сейчас есть. Незнакомый идентификатор НЕ переписывается
+   * умолчанием: кит могли временно выключить (или его плагин ещё не поднялся), и затирание
+   * выбора означало бы, что после его возвращения человек оказался не там, где оставил.
    */
   const stored = (): string | null => {
     const value = settings?.get<unknown>(KIT_SETTINGS_KEY);
-    return typeof value === 'string' && sources.has(value) ? value : null;
+    return typeof value === 'string' && entries.has(value) ? value : null;
   };
 
-  let activeId = stored() ?? defaultId;
-  /** Снимок списка доступных. Пересобирается только вместе с активным китом. */
+  /** Какой кит должен быть активен: выбор, иначе прежний, если он ещё есть, иначе умолчание. */
+  const resolveActive = (current: string): string =>
+    stored() ?? (entries.has(current) ? current : defaultId);
+
+  let activeId = resolveActive(defaultId);
+  /** Снимок списка доступных. Пересобирается вместе с активным китом и составом. */
   let summaries: readonly KitSummary[] | null = null;
 
-  const notify = (): void => {
-    for (const listener of [...listeners]) {
+  const notifyAll = (set: Set<() => void>, what: string): void => {
+    for (const listener of [...set]) {
       try {
         listener();
       } catch (error) {
         // Политика всех хранилищ оболочки: упавший подписчик не мешает остальным.
-        console.error('[kits] подписчик смены кита упал', error);
+        console.error(`[kits] подписчик «${what}» упал`, error);
       }
     }
+  };
+  const notify = (): void => {
+    notifyAll(listeners, 'смена кита');
   };
 
   const setActive = (id: string): void => {
@@ -376,146 +274,221 @@ export function createKitsService(options: KitsServiceOptions): OwnedKitsService
     notify();
   };
 
+  const activeEntry = (): KitEntry => entries.get(activeId)!;
+
   /**
-   * Принять загруженный каталог: собрать и, если кит всё ещё активен, оповестить.
+   * Каталог кита не принят — он остаётся пустым. О ките плагина сообщается как об отказе
+   * (его покажет плагин китов); встроенный — ошибка сборки, и ей место в консоли.
+   */
+  const refuse = (entry: KitEntry, code: KitProblem['code'], detail: string): void => {
+    if (entry.origin.kind === 'plugin') {
+      report({ code, pluginId: entry.origin.pluginId, kitId: entry.id, detail });
+      return;
+    }
+    console.error(`[kits] каталог встроенного кита «${entry.id}» не принят (${code}): ${detail}`);
+  };
+
+  /**
+   * Принять загруженный каталог: сверить имя, проверить контракт (у кита плагина) и, если кит
+   * всё ещё тот же и активен, оповестить.
    *
-   * Сверка идентификатора — не церемония: под ним кит уже попал в список доступных и, возможно,
+   * Сверка идентификатора — не церемония: под ним кит уже попал в список и, возможно,
    * в настройки. Каталог, объявляющий другой кит, означал бы, что ключ выбора поменялся после
-   * того, как выбор сделан, — молча и необратимо. Отказ громче и чинится.
+   * того, как выбор сделан, — молча и необратимо.
    */
-  const adopt = (id: string, json: CatalogJson): void => {
-    const source = sources.get(id)!;
-    const result = buildCatalog(json, source.options);
-    const announced = empty.get(id)!.descriptor.id;
-    if (result.descriptor.id !== announced) {
-      throw new Error(
-        `kits: загруженный каталог объявляет кит «${result.descriptor.id}», а зарегистрирован ` +
-          `он как «${announced}». Идентификатор — ключ выбора, и менять его после регистрации ` +
-          'значит потерять уже сделанный выбор'
-      );
+  const adopt = async (entry: KitEntry, json: CatalogJson): Promise<void> => {
+    const named = json.kit?.id;
+    if (named !== undefined && named !== entry.id) {
+      refuse(entry, 'mismatch', `каталог называет себя «${named}»`);
+      return;
     }
-    built.set(id, result);
-    // Пустой каталог сменился настоящим — для читателя это ровно то же, что смена кита.
-    if (id === activeId) notify();
+    if (entry.origin.kind === 'plugin') {
+      const check = (await validator())(json);
+      if (!check.valid) {
+        refuse(entry, 'invalid-catalog', check.errors.slice(0, 5).join('; '));
+        return;
+      }
+    }
+    // Запись могли снять, пока каталог ехал: плагин выключили — принимать некуда.
+    if (entries.get(entry.id) !== entry) return;
+    // Каталог без имени получает имя шапки: ключ выбора — объявленный, иначе дескриптор
+    // остался бы безымянным.
+    entry.loaded = named === undefined ? { ...json, kit: { ...json.kit, id: entry.id } } : json;
+    if (entry.id === activeId) notify();
   };
 
-  /**
-   * Загрузки каталогов по идентификатору кита.
-   *
-   * Одна попытка на кит за сессию, и промис остаётся в карте ДАЖЕ ПОСЛЕ ОТКАЗА. Иначе синхронные
-   * читатели (их зовут из отрисовки) повторяли бы неудачный запрос на каждый кадр. Цена названа
-   * честно: сорвавшаяся загрузка чинится перезагрузкой страницы, а не сама собой.
-   */
-  const loading = new Map<string, Promise<void>>();
-
-  const load = (id: string): Promise<void> => {
-    const started = loading.get(id);
-    if (started !== undefined) return started;
-    const loader = sources.get(id)!.catalog;
-    // Каталог значением грузить нечего — он уже здесь.
-    if (typeof loader !== 'function') return Promise.resolve();
-    // Загрузчик зовётся СИНХРОННО (тело асинхронной функции идёт до первого `await` в том же
-    // такте): «загрузка заведена» обязано стать правдой сразу после вызова, иначе наблюдать
-    // это состояние было бы нечем, а синхронное исключение загрузчика улетело бы в отрисовку.
-    const task = (async (): Promise<void> => {
-      adopt(id, await loader());
+  const load = (entry: KitEntry): Promise<void> => {
+    if (entry.loaded !== undefined) return Promise.resolve();
+    if (entry.loading !== undefined) return entry.loading;
+    const { catalog } = entry.source;
+    // Загрузчик зовётся СИНХРОННО (тело до первого `await` идёт в том же такте): «загрузка
+    // заведена» обязано стать правдой сразу после вызова, а синхронное исключение загрузчика
+    // иначе улетело бы в отрисовку.
+    entry.loading = (async (): Promise<void> => {
+      await adopt(entry, typeof catalog === 'function' ? await catalog() : catalog);
     })().catch((error: unknown) => {
-      // Отказ не роняет оболочку: каталог остаётся пустым, а пустой каталог — состояние
-      // с определённым поведением (палитра пуста, проверка имён отключена).
-      console.error(`[kits] каталог кита «${id}» не загрузился`, error);
+      // Отказ не роняет оболочку: каталог остаётся пустым — состояние с определённым
+      // поведением (палитра пуста, проверка имён отключена).
+      refuse(entry, 'load-failed', describe(error));
     });
-    loading.set(id, task);
-    return task;
+    return entry.loading;
   };
 
-  const activeBuilt = (): BuiltCatalog => {
-    const cached = built.get(activeId);
-    if (cached !== undefined) return cached;
-    // `sources` содержит активный кит по построению: `activeId` присваивается только из
-    // ключей карты (умолчание, проверенная запись настроек, `activate`).
-    const source = sources.get(activeId)!;
-    if (typeof source.catalog === 'function') {
-      // Читатель синхронен и ждать не может — отдаём пустой каталог и заводим загрузку.
-      // Страховка на случай, если владелец её не завёл: без неё каталог не приехал бы никогда.
-      void load(activeId);
-      return empty.get(activeId)!;
-    }
-    const result = buildCatalog(source.catalog, source.options);
-    built.set(activeId, result);
-    return result;
+  /** Каталог записи сейчас: загруженный, иначе шапка. Чтение заводит загрузку — страховка. */
+  const catalogOf = (entry: KitEntry): CatalogJson => {
+    if (entry.loaded !== undefined) return entry.loaded;
+    void load(entry);
+    return entry.header;
   };
 
-  /**
-   * Загрузчики пространств имён — по одному на кит, объявивший его. Заводятся сразу: сам
-   * загрузчик ничего не грузит до первого `get`, а подписка на «доехало» обязана существовать
-   * раньше, чем кит станет активным.
-   */
-  const namespaces = new Map<string, KitNamespaceLoader>();
-  for (const [id, source] of sources) {
-    if (source.namespace !== undefined) {
-      namespaces.set(id, createKitNamespaceLoader(source.namespace));
+  const descriptorOf = (json: CatalogJson): KitDescriptor => {
+    let descriptor = descriptors.get(json);
+    if (descriptor === undefined) {
+      descriptor = toDescriptor(json);
+      descriptors.set(json, descriptor);
     }
-  }
+    return descriptor;
+  };
 
-  // Правка настройки мимо сервиса (панель настроек, второе окно) — такая же смена кита,
-  // как нажатие в переключателе. Без этой подписки записанное и действующее разъехались бы.
+  /** Отказы по киту — по одному на источник: состав синхронизируется на каждое изменение точки. */
+  const reported = new WeakSet<KitSource>();
+  const reportOnce = (source: KitSource, problem: KitProblem): void => {
+    if (reported.has(source)) return;
+    reported.add(source);
+    report(problem);
+  };
+
+  const syncContributed = (kits: readonly ContributedKit[]): void => {
+    // Кто должен быть в списке: первый по порядку точки под каждым свободным именем.
+    const accepted = new Map<string, ContributedKit>();
+    for (const kit of kits) {
+      const id = declaredKitId(kit.source);
+      if (id === undefined) {
+        reportOnce(kit.source, { code: 'no-id', pluginId: kit.pluginId });
+        continue;
+      }
+      if (builtinIds.has(id) || accepted.has(id)) {
+        reportOnce(kit.source, { code: 'duplicate', pluginId: kit.pluginId, kitId: id });
+        continue;
+      }
+      accepted.set(id, kit);
+    }
+
+    let changed = false;
+    let activeReplaced = false;
+    for (const entry of [...entries.values()]) {
+      if (entry.origin.kind !== 'plugin') continue;
+      const next = accepted.get(entry.id);
+      if (next?.source === entry.source && next.pluginId === entry.origin.pluginId) continue;
+      dropEntry(entry);
+      changed = true;
+      if (entry.id === activeId) activeReplaced = true;
+    }
+    for (const [id, kit] of accepted) {
+      if (entries.has(id)) continue;
+      entries.set(id, createEntry(id, kit.source, { kind: 'plugin', pluginId: kit.pluginId }));
+      changed = true;
+    }
+    if (!changed) return;
+
+    summaries = null;
+    notifyAll(availableListeners, 'список китов');
+    // Выбор человека появился (плагин внёс его кит) — переключиться, НЕ трогая настройку;
+    // активный кит ушёл (плагин выключили) — на умолчание, и настройка цела: вернётся плагин —
+    // вернётся и выбор.
+    const next = resolveActive(activeId);
+    if (next !== activeId) setActive(next);
+    // Тот же идентификатор, но другой источник: для читателя это смена кита.
+    else if (activeReplaced) notify();
+    else return;
+    void load(activeEntry());
+  };
+
+  // Правка настройки мимо службы (панель настроек, второе окно, умолчание организации) — такая
+  // же смена кита, как нажатие в переключателе. Без подписки записанное и действующее разъехались бы.
   const subscription = settings?.onDidChange((key) => {
     if (key !== KIT_SETTINGS_KEY) return;
     setActive(stored() ?? defaultId);
   });
 
-  return {
-    defaultId,
+  const onDidChange = (cb: () => void): Disposable => {
+    listeners.add(cb);
+    return {
+      dispose(): void {
+        listeners.delete(cb);
+      },
+    };
+  };
 
-    activeId: () => activeId,
-    descriptor: () => activeBuilt().descriptor,
-    catalog: () => activeBuilt().entries,
-    catalogJson: () => activeBuilt().json,
+  const onDidLoadNamespace = (cb: () => void): Disposable => {
+    const subscriptions = new Map<KitNamespaceLoader, Disposable>();
+    namespaceCallbacks.set(subscriptions, cb);
+    for (const entry of entries.values()) {
+      if (entry.namespace !== undefined) {
+        subscriptions.set(entry.namespace, entry.namespace.onDidLoad(cb));
+      }
+    }
+    namespaceSubscribers.add(subscriptions);
+    return {
+      dispose(): void {
+        for (const one of subscriptions.values()) one.dispose();
+        subscriptions.clear();
+        namespaceSubscribers.delete(subscriptions);
+      },
+    };
+  };
+
+  const reader = {
+    activeId: (): string => activeId,
+    activeOrigin: (): KitOrigin => activeEntry().origin,
+    catalogJson: (): CatalogJson => catalogOf(activeEntry()),
+    descriptor: (): KitDescriptor => descriptorOf(catalogOf(activeEntry())),
+    namespace: () => activeEntry().namespace?.get() ?? null,
+    onDidChange,
+    onDidLoadNamespace,
+  };
+  // Одна рамка на службу: компонент обязан быть стабилен, иначе смена кита размонтировала бы форму.
+  const Frame: ComponentType<KitFrameProps> = createKitFrame(reader);
+
+  return {
+    ...reader,
+    defaultId,
+    Frame,
 
     available() {
       if (summaries === null) {
         summaries = Object.freeze(
-          [...info.values()].map((kit) => Object.freeze({ ...kit, active: kit.id === activeId }))
+          [...entries.values()].map((entry) =>
+            Object.freeze({ ...entry.summary, active: entry.id === activeId })
+          )
         );
       }
       return summaries;
     },
 
     async activate(id) {
-      if (!sources.has(id)) {
+      const entry = entries.get(id);
+      if (entry === undefined) {
         throw new Error(
           `kits: кит «${id}» не установлен. Выбирать можно только из available(): ` +
             'иначе активным оказался бы кит, каталога которого никто не поставил'
         );
       }
       setActive(id);
-      // Загрузка заводится, но НЕ ожидается: промис `activate` относится к записи в настройки
-      // (см. контракт метода), и добавить в него сеть значило бы, что переключатель в интерфейсе
-      // ждёт 864 кБ, прежде чем отпустить нажатие. Каталог доедет и оповестит через onDidChange.
-      void load(id);
-      // Настроек нет — выбор живёт до конца сессии. Это штатная деградация, а не отказ:
-      // переключиться человек всё равно смог.
+      // Загрузка заводится, но НЕ ожидается: промис `activate` относится к записи в настройки,
+      // и добавить в него сеть значило бы, что переключатель ждёт каталог.
+      void load(entry);
       await settings?.set(KIT_SETTINGS_KEY, id);
     },
 
-    whenReady: () => load(activeId),
+    whenReady: () => load(activeEntry()),
+    syncContributed,
 
-    namespace: () => namespaces.get(activeId)?.get() ?? null,
-
-    onDidLoadNamespace(cb) {
-      const subscriptions = [...namespaces.values()].map((loader) => loader.onDidLoad(cb));
+    onDidChangeAvailable(cb) {
+      availableListeners.add(cb);
       return {
         dispose(): void {
-          for (const subscription of subscriptions) subscription.dispose();
-        },
-      };
-    },
-
-    onDidChange(cb) {
-      listeners.add(cb);
-      return {
-        dispose(): void {
-          listeners.delete(cb);
+          availableListeners.delete(cb);
         },
       };
     },
@@ -523,6 +496,11 @@ export function createKitsService(options: KitsServiceOptions): OwnedKitsService
     dispose() {
       subscription?.dispose();
       listeners.clear();
+      availableListeners.clear();
+      for (const subscriptions of namespaceSubscribers) {
+        for (const one of subscriptions.values()) one.dispose();
+      }
+      namespaceSubscribers.clear();
     },
   };
 }

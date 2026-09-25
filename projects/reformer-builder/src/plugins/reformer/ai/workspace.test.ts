@@ -12,14 +12,15 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import {
   DocumentsServiceToken,
+  KitsCapability,
+  type CatalogJson,
   WorkspaceFilesServiceToken,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
-import { aiWorkspace, KitCapability } from './workspace';
+import { aiWorkspace } from './workspace';
 
 const FORM = 'fs:forms/credit/form.json';
 
@@ -56,8 +57,9 @@ function harness(options: { readonly kit?: boolean; readonly project?: boolean }
     refresh: () => Promise.resolve(),
   };
 
-  const catalog: CatalogEntry[] = [];
-  const kits = { catalog: () => catalog, onDidChange: () => ({ dispose: () => {} }) };
+  // Сырой каталог службы — как у настоящего реестра китов: до загрузки шапка без записей.
+  let catalog: CatalogJson = { version: '2.1', components: [], kit: { id: 'kit-a' } };
+  const kits = { catalogJson: () => catalog, onDidChange: () => ({ dispose: () => {} }) };
 
   const ctx = {
     id: 'ai',
@@ -71,7 +73,7 @@ function harness(options: { readonly kit?: boolean; readonly project?: boolean }
     },
     services: {
       get: (token: { id: string }) =>
-        token.id === KitCapability.id && options.kit !== false ? kits : undefined,
+        token.id === KitsCapability.id && options.kit !== false ? kits : undefined,
       require: (token: { id: string }) => {
         if (token.id === DocumentsServiceToken.id) return documents;
         if (token.id === WorkspaceFilesServiceToken.id) return files;
@@ -80,7 +82,10 @@ function harness(options: { readonly kit?: boolean; readonly project?: boolean }
     },
   } as unknown as PluginContext;
 
-  return { ctx, writes, reads, catalog, document };
+  const arrive = (next: CatalogJson): void => {
+    catalog = next;
+  };
+  return { ctx, writes, reads, arrive, document };
 }
 
 describe('пометка происхождения доходит до рабочей области', () => {
@@ -116,9 +121,14 @@ describe('раскладка по службам', () => {
     const w = aiWorkspace(h.ctx);
 
     expect(w.catalog()).toEqual([]);
-    h.catalog.push({ name: 'Text' } as unknown as CatalogEntry);
+    h.arrive({
+      version: '2.1',
+      kit: { id: 'kit-a' },
+      components: [{ name: 'Text', role: 'container', propsSchema: {} }],
+    });
 
-    expect(w.catalog().map((entry) => entry.name)).toEqual(['Text']);
+    // Записи — ReFormer-проекция: запись кита плюс синтетика билдера.
+    expect(w.catalog().map((entry) => entry.name)).toContain('Text');
   });
 
   it('без плагина китов каталог пуст, а не отсутствует', () => {

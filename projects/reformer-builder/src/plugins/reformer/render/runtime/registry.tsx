@@ -27,7 +27,7 @@ import {
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import { INFRA_NAMES } from '@reformer/builder-stack-reformer/kits';
-import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
+import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import { collectOperatorNames } from '@reformer/builder-stack-reformer/form-model';
 import { classifyEntry, isRegistrable, resolveInfra } from './policy';
 import { classifyDataSources, mockOptions } from './mock';

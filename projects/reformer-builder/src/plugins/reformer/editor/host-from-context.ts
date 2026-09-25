@@ -8,7 +8,8 @@
  *
  * - ручка модели — `DocumentModelsCapability`, сужение по идентификатору СВОЕГО провайдера;
  * - активная вкладка — `DocumentsService`;
- * - каталог и порядок палитры — служба китов по структурной копии ({@link KitCatalogCapability});
+ * - каталог и порядок палитры — служба китов (`KitsCapability` SDK) и ReFormer-проекция её
+ *   сырого каталога (`projectCatalog`): записи палитры с узлами по умолчанию и синтетикой билдера;
  * - перевод кодов находок и заголовков исправлений — словарь оболочки (`HostMessagesCapability`).
  *
  * Службы спрашиваются на КАЖДЫЙ вызов: кит переключают, проект закрывают, а порт живёт с плагином.
@@ -17,35 +18,19 @@
  */
 
 import {
-  defineCapability,
   DocumentModelsCapability,
   DocumentsServiceToken,
   HostMessagesCapability,
+  KitsCapability,
   useTranslate,
   type Disposable,
   type HostMessagesService,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
+import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import { SCHEMA_MODEL_PROVIDER_ID } from './contract';
 import type { SchemaEditorHost, SchemaModelHandle, Translate } from './host';
-
-/**
- * Служба китов в объёме палитры и инспектора — структурная копия `KitsService` плагина китов.
- * Копия, а не импорт: плагины друг друга не импортируют, а реестр служб ключуется строкой.
- */
-export interface KitCatalogReader {
-  catalog(): readonly CatalogEntry[];
-  descriptor(): KitDescriptor;
-  onDidChange(cb: () => void): Disposable;
-}
-
-export const KitCatalogCapability = defineCapability<KitCatalogReader>({
-  id: 'reformer.kit.catalog',
-  version: '1.0.0',
-});
 
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 const NOOP: Disposable = Object.freeze({ dispose: () => {} });
@@ -60,7 +45,7 @@ const NO_MESSAGES: HostMessagesService = Object.freeze({
 export function schemaHostFromContext(
   ctx: Pick<PluginContext, 'services' | 'i18n'>
 ): SchemaEditorHost {
-  const kits = () => ctx.services.get(KitCatalogCapability);
+  const kits = () => ctx.services.get(KitsCapability);
   const messages = () => ctx.services.get(HostMessagesCapability);
 
   // Именованные функции: правила хуков опознают хук по имени объявления.
@@ -103,7 +88,10 @@ export function schemaHostFromContext(
 
     // Пустой каталог — не «кита нет», а «плагин китов ещё не активировался» или выключен:
     // палитра пуста, и перерисовать её придёт первое же изменение после подписки.
-    catalog: () => kits()?.catalog() ?? NO_CATALOG,
+    catalog: () => {
+      const service = kits();
+      return service === undefined ? NO_CATALOG : projectCatalog(service.catalogJson()).entries;
+    },
 
     // Порядок разделов палитры объявляет сам кит (`palette.order` его дескриптора): «Формы,
     // потом Раскладка» — утверждение дизайн-системы о себе.

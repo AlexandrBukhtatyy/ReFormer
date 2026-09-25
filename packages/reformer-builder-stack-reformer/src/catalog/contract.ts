@@ -1,15 +1,13 @@
 /**
- * Контракт каталога компонентов (спека §5, §15). Билдер ВЛАДЕЕТ JSON Schema контрактом
- * (`component-catalog.schema.json`); клиент (`@reformer/ui-kit`) генерирует под него валидный
- * catalog-JSON (`@reformer/ui-kit/catalog`, команда `generate:catalog`). Здесь: сборка каталога из
- * поставленного источника ({@link composeCatalogJson}), валидатор против контракта
- * ({@link validateCatalog}) и реконструкция `CatalogEntry[]` с `makeNode`
+ * Каталог кита глазами стека ReFormer. Сам контракт (`component-catalog.schema.json`, типы,
+ * дескриптор, проверка) — в SDK `@reformer/builder-plugin-api`: кит общий для всех стеков. Здесь —
+ * то, что из каталога следует для ReFormer: склейка с синтетикой билдера
+ * ({@link composeCatalogJson}) и реконструкция `CatalogEntry[]` с `makeNode`
  * ({@link buildCatalogFromJson}).
  *
- * Категория палитры назначается на загрузке по карте активного кита
- * (`descriptor.palette.categoryByName`; для «неявного кита» это дефолтная карта билдера), поверх
- * которой может лечь клиентский конфиг. Синтетические `$html`/array-записи добавляет билдер
- * (`synthetic-entries`).
+ * Категория палитры назначается на загрузке по карте кита (`descriptor.palette.categoryByName` —
+ * её объявляет сам кит), поверх которой может лечь клиентский конфиг. Синтетические
+ * `$html`/array-записи добавляет билдер (`synthetic-entries`).
  *
  * ЧТО ИЗМЕНИЛОСЬ ПРОТИВ v1. Там функция называлась `loadCatalogJson()` и САМА добывала источник:
  * читала `config/state.getClientCatalog()`, а иначе брала каталог выбранного кита
@@ -21,11 +19,11 @@
  * @module @reformer/builder-stack-reformer/catalog/contract
  */
 
+import type { PropsSchema } from '@reformer/ui-kit/meta';
+import { toDescriptor, type KitDescriptor } from '@reformer/builder-plugin-api';
 import type { CatalogEntry, CatalogJson, CatalogRecord, CatalogRole } from './types';
 import { syntheticRecords, type SyntheticOptions } from './synthetic-entries';
 import { makeNodeFor } from './make-node';
-import { toDescriptor } from '../kits/descriptor';
-import type { KitDescriptor } from '../kits/types';
 
 /**
  * Ограничение набора компонентов — СОБСТВЕННЫЙ входной контракт каталога (в v1 это был
@@ -125,11 +123,9 @@ export function buildCatalogFromJson(
   categoryOverrides?: Record<string, string>
 ): CatalogEntry[] {
   const categoryByName = descriptor.palette.categoryByName;
-  // Листья и композиции активного кита узел-по-умолчанию берёт из дескриптора, а не из состояния.
-  const kit = {
-    leafComponents: descriptor.leafComponents,
-    compoundTemplates: descriptor.compoundTemplates,
-  };
+  // Листья активного кита узел-по-умолчанию берёт из дескриптора, а не из состояния. Композиции
+  // compound'ов кит пока не поставляет — действуют встроенные шаблоны билдера.
+  const kit = { leafComponents: descriptor.leafComponents };
   return json.components.map((r) => ({
     name: r.name,
     role: r.role,
@@ -138,7 +134,9 @@ export function buildCatalogFromJson(
     category:
       r.category ??
       categoryOf(r.compoundParent ?? r.name, r.role, categoryByName, categoryOverrides),
-    propsSchema: r.propsSchema,
+    // Граница «данные снаружи»: контракт SDK описывает схему пропсов открыто (форму задаёт кит),
+    // а инспектор ReFormer читает её словарём `@reformer/ui-kit/meta` — сужение здесь, в одном месте.
+    propsSchema: r.propsSchema as PropsSchema,
     ...(r.variantGroup ? { variantGroup: r.variantGroup } : {}),
     ...(r.variant ? { variant: r.variant } : {}),
     ...(r.compoundParent ? { compoundParent: r.compoundParent } : {}),
@@ -148,51 +146,4 @@ export function buildCatalogFromJson(
     ...(r.subpath ? { subpath: r.subpath } : {}),
     makeNode: () => makeNodeFor(r.name, r.role, r.compoundParent, kit),
   }));
-}
-
-/** Итог проверки каталога: годен ли и что именно не так. */
-export interface CatalogCheck {
-  readonly valid: boolean;
-  readonly errors: readonly string[];
-}
-
-/** Проверка каталога-JSON против контракта. Синхронная — движок уже загружен. */
-export type CatalogValidator = (json: unknown) => CatalogCheck;
-
-/**
- * Загруженный движок и скомпилированная схема. Одна на приложение: компиляция схемы стоит
- * заметно дороже самой проверки, а схема не меняется.
- */
-let loading: Promise<CatalogValidator> | null = null;
-
-/**
- * Загрузить проверку каталога.
- *
- * Асинхронная, потому что ajv и схема грузятся **лениво**, и это не оптимизация про запас:
- * статический импорт клал в главный чанк `117.8 кБ` ради функции, которую не звала ни одна
- * строка продакшн-кода — только тесты. Замерено, а не предположено.
- *
- * Проверка нужна там, где каталог пришёл ИЗВНЕ: сторонний кит поставляет свой JSON, и до
- * сборки записей его надо сверить с контрактом. Встроенный кит проверен своей сборкой,
- * поэтому на горячем пути открытия проекта этого нет.
- *
- * Повторный вызов отдаёт ту же работу: параллельные вызовы не заведут двух движков.
- */
-export async function loadCatalogValidator(): Promise<CatalogValidator> {
-  loading ??= (async (): Promise<CatalogValidator> => {
-    const [{ default: Ajv }, schema] = await Promise.all([
-      import('ajv'),
-      import('./component-catalog.schema.json'),
-    ]);
-    const ajv = new Ajv({ allErrors: true, strict: false });
-    const validate = ajv.compile((schema.default ?? schema) as object);
-    return (json: unknown): CatalogCheck => {
-      const valid = validate(json);
-      const errors = (validate.errors ?? []).map((e) =>
-        `${e.instancePath || '/'} ${e.message ?? ''}`.trim()
-      );
-      return { valid: Boolean(valid), errors };
-    };
-  })();
-  return loading;
 }

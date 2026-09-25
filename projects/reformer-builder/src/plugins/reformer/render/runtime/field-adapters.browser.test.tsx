@@ -20,7 +20,7 @@ import { userEvent } from 'vitest/browser';
 import * as uiKit from '@reformer/ui-kit';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { builtinCatalog } from '@reformer/builder-stack-reformer/testing';
-import type { KitNamespace } from '@reformer/builder-stack-reformer/kits';
+import type { KitNamespace } from '@reformer/builder-plugin-api';
 import type {
   Disposable,
   DocumentRef,

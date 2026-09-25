@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
+import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import { classifyEntry, isComponentLike, isRegistrable, resolveInfra } from './policy';
 
 function entry(patch: Partial<CatalogEntry> = {}): CatalogEntry {
@@ -116,7 +116,12 @@ describe('classifyEntry', () => {
 describe('resolveInfra', () => {
   it('ключи реестра постоянны, значения приходят по именам дескриптора', () => {
     const kit = descriptor({
-      infra: { fieldWrapper: 'Field', asyncBoundary: 'Suspense', list: 'Stack' },
+      infra: {
+        fieldWrapper: 'Field',
+        asyncBoundary: 'Suspense',
+        list: 'Stack',
+        fieldFrame: 'Frame',
+      },
     });
     expect(resolveInfra(kit, { Field: Component })).toEqual({
       FormField: Component,

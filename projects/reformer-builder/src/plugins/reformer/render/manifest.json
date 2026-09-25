@@ -13,7 +13,7 @@
       },
       {
         "id": "reformer.kit.catalog",
-        "range": "^1.1"
+        "range": "^2"
       }
     ]
   }

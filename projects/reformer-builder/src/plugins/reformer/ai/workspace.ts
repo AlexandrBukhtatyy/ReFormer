@@ -33,15 +33,14 @@
  * @module plugins/reformer/ai/workspace
  */
 
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import {
-  defineCapability,
+  KitsCapability,
   DocumentModelsCapability,
   DocumentsServiceToken,
   useTranslate,
   WorkspaceFilesServiceToken,
-  type Disposable,
   type ModelDocumentHandle,
   type PluginContext,
   type ResourceId,
@@ -49,18 +48,6 @@ import {
 import { parseSchemaText, printSchemaText } from './model/schema-text';
 import type { AiDocument, AiHost, WriteMark } from './host';
 import type { PackageFiles } from './knowledge';
-
-/** Активный кит в объёме, нужном ассистенту: только каталог. */
-export interface KitReader {
-  catalog(): readonly CatalogEntry[];
-  onDidChange(cb: () => void): Disposable;
-}
-
-/** Возможность «активный кит» — структурная копия с тем же идентификатором, что у провайдера. */
-export const KitCapability = defineCapability<KitReader>({
-  id: 'reformer.kit.catalog',
-  version: '1.0.0',
-});
 
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
 
@@ -124,7 +111,11 @@ export function aiWorkspace(ctx: PluginContext): AiHost {
         : Promise.reject(new Error(`форма не принимает правку: ${outcome.reason}`));
     },
 
-    catalog: () => ctx.services.get(KitCapability)?.catalog() ?? NO_CATALOG,
+    // Записи — ReFormer-проекция сырого каталога службы китов: служба нейтральна.
+    catalog: () => {
+      const kits = ctx.services.get(KitsCapability);
+      return kits === undefined ? NO_CATALOG : projectCatalog(kits.catalogJson()).entries;
+    },
 
     projectFiles: (): PackageFiles | undefined => {
       const root = files.projectRoot();

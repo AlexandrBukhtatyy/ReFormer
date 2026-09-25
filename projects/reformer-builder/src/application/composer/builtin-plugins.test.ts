@@ -35,7 +35,8 @@ import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
-import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits/registry';
+import { KITS_PLUGIN_ID } from '@/plugins/kits/registry';
+import { KitsCapability } from '@reformer/builder-plugin-api/internal';
 import { builderApplication } from '../builder-application';
 import { baseProfile } from '../profiles/builder';
 import { PROFILES } from '../profiles/registry';
@@ -178,7 +179,6 @@ describe('карта встроенных плагинов', () => {
     // идентификатор («что-то под этим именем зарегистрировано»), а ВЕРСИЯ разошлась бы молча —
     // резолвер обещал бы потребителю одну, а реестр служб держал бы другую.
     expect(BUILTIN_PLUGINS.get(KITS_PLUGIN_ID)?.manifest.provides).toEqual([KitsCapability]);
-    expect(KitsCapability.id).toBe(KitsServiceToken.id);
   });
 
   it('манифест ЕСТЬ у каждого, он встроенной поставки и назван своим каталогом', () => {

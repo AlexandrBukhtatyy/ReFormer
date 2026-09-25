@@ -2,12 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { validateFormSchema } from '@reformer/renderer-json/validate';
-import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
+import { BUILTIN_CATALOG, builtinEntries } from '@reformer/builder-stack-reformer/testing';
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 import { ensureNodeIds } from '@reformer/builder-stack-reformer/form-model';
 import { emptyRules, type FormRules } from '@reformer/builder-stack-reformer/form-model';
 import {
+  KitsCapability,
   ValidatorPoint,
+  type CatalogJson,
+  type KitsService,
   type DocumentRef,
   type PluginContext,
   type ValidateContext,
@@ -19,7 +22,6 @@ import {
   createSchemaValidator,
   createSchemaValidatorPlugin,
   isFormSchemaDocument,
-  KitCatalogCapability,
   SCHEMA_VALIDATOR_PLUGIN_ID,
 } from './plugin';
 import type { ValidateFormSchema } from './check';
@@ -223,7 +225,7 @@ describe('плагин', () => {
    */
   function fakeContext(
     commands: Set<string> = new Set(),
-    kits?: { catalog(): readonly CatalogEntry[] }
+    kits?: Pick<KitsService, 'catalogJson'>
   ): {
     ctx: PluginContext;
     contributed: { point: string; id: string | undefined; value: unknown }[];
@@ -244,7 +246,7 @@ describe('плагин', () => {
       // Реестр служб: возможность «активный кит» либо занята, либо нет. Второй случай —
       // состав без плагина китов, и он обязан работать.
       services: {
-        get: (token: { id: string }) => (token.id === KitCatalogCapability.id ? kits : undefined),
+        get: (token: { id: string }) => (token.id === KitsCapability.id ? kits : undefined),
       },
     } as unknown as PluginContext;
     return { ctx, contributed };
@@ -265,10 +267,8 @@ describe('плагин', () => {
   it('каталог берётся из СЛУЖБЫ и спрашивается на проходе, а не на активации', () => {
     // Порядок активации объявлен незначимым: плагин китов вправе подняться позже валидатора,
     // а кит — переключиться после. Захваченный на активации каталог остался бы прежним.
-    // Копия, а не сам список: `builtinEntries()` отдаёт массив встроенного каталога, и
-    // дописывание в него утекло бы в соседние тесты.
-    const entries: CatalogEntry[] = [...builtinEntries()];
-    const { ctx, contributed } = fakeContext(new Set(), { catalog: () => entries });
+    let catalog: CatalogJson = BUILTIN_CATALOG;
+    const { ctx, contributed } = fakeContext(new Set(), { catalogJson: () => catalog });
     createSchemaValidatorPlugin({}).activate(ctx);
     const validator = contributed[0].value as ValidatorContribution;
 
@@ -278,7 +278,11 @@ describe('плагин', () => {
     ]);
 
     // Кит переключили ПОСЛЕ активации — и находка обязана исчезнуть на следующем проходе.
-    entries.push({ ...entries[0], name: 'Inpt' });
+    const input = BUILTIN_CATALOG.components.find((record) => record.name === 'Input')!;
+    catalog = {
+      ...BUILTIN_CATALOG,
+      components: [...BUILTIN_CATALOG.components, { ...input, name: 'Inpt' }],
+    };
 
     expect(validator.validate?.(contextOf(schema))).toEqual([]);
   });
@@ -317,6 +321,138 @@ describe('плагин', () => {
     expect(after.flatMap((item) => item.fixes ?? [])).toHaveLength(1);
     warn.mockRestore();
   });
+});
+
+describe('плагин сообщает оркестратору о смене кита (ReFormer-3ybp)', () => {
+  /** Служба китов под управлением теста: каталог меняется, подписчики считаются. */
+  type KitReader = Pick<KitsService, 'catalogJson' | 'onDidChange'>;
+
+  function kit(catalog: CatalogJson = { version: '2.1', components: [] }): KitReader & {
+    change(): void;
+    listeners(): number;
+  } {
+    const listeners = new Set<() => void>();
+    return {
+      catalogJson: () => catalog,
+      onDidChange(cb) {
+        listeners.add(cb);
+        return { dispose: () => listeners.delete(cb) };
+      },
+      change: () => {
+        for (const listener of [...listeners]) listener();
+      },
+      listeners: () => listeners.size,
+    };
+  }
+
+  /**
+   * Контекст с настоящей семантикой `capabilities.observe`: зовёт сразу с текущим значением
+   * и потом — на каждую смену владельца. Служба появляется и уходит по команде теста.
+   */
+  function withKits() {
+    let current: KitReader | undefined;
+    const observers = new Set<(impl: KitReader | undefined) => void>();
+    const contributed: ValidatorContribution[] = [];
+    const ctx = {
+      id: SCHEMA_VALIDATOR_PLUGIN_ID,
+      subscriptions: [],
+      extensions: {
+        contribute: (_point: unknown, value: ValidatorContribution) => {
+          contributed.push(value);
+          return { dispose: () => {} };
+        },
+      },
+      commands: { get: () => undefined },
+      services: { get: () => current },
+      capabilities: {
+        observe: (_cap: unknown, listener: (impl: KitReader | undefined) => void) => {
+          observers.add(listener);
+          listener(current);
+          return { dispose: () => observers.delete(listener) };
+        },
+      },
+    } as unknown as PluginContext;
+    return {
+      ctx,
+      validator: () => contributed[0],
+      provide(next: KitReader | undefined) {
+        current = next;
+        for (const observer of [...observers]) observer(next);
+      },
+      observers: () => observers.size,
+    };
+  }
+
+  it('кит сменился — валидатор просит перепроверки; текущий кит сменой не считается', () => {
+    const host = withKits();
+    const first = kit();
+    host.provide(first);
+    createSchemaValidatorPlugin({}).activate(host.ctx);
+    const changed = vi.fn();
+
+    const subscription = host.validator().onDidChangeInputs!(changed);
+    expect(changed).not.toHaveBeenCalled();
+
+    // Каталог того же кита доехал — переход «пусто → загружено».
+    first.change();
+    expect(changed).toHaveBeenCalledTimes(1);
+
+    // Службу заменили: подписка переезжает к новой, со старой снимается.
+    const second = kit();
+    host.provide(second);
+    expect(changed).toHaveBeenCalledTimes(2);
+    expect(first.listeners()).toBe(0);
+    expect(second.listeners()).toBe(1);
+
+    subscription.dispose();
+    expect(second.listeners()).toBe(0);
+    expect(host.observers()).toBe(0);
+  });
+
+  it('служба китов поднялась ПОСЛЕ открытия документа — это тоже смена', () => {
+    // Порядок активации незначим: плагин китов вправе подняться позже валидатора.
+    const host = withKits();
+    createSchemaValidatorPlugin({}).activate(host.ctx);
+    const changed = vi.fn();
+    host.validator().onDidChangeInputs!(changed);
+
+    const late = kit(BUILTIN_CATALOG);
+    host.provide(late);
+    expect(changed).toHaveBeenCalledTimes(1);
+
+    late.change();
+    expect(changed).toHaveBeenCalledTimes(2);
+
+    // Плагин китов выключили — каталога больше нет, находки по именам уходят.
+    host.provide(undefined);
+    expect(changed).toHaveBeenCalledTimes(3);
+    expect(late.listeners()).toBe(0);
+  });
+
+  it('каталог передан снаружи — за службой китов не следят', () => {
+    // Контекст без `capabilities`: обращение к нему уронило бы подписку.
+    const { ctx, contributed } = fakeContextWithoutKits();
+    createSchemaValidatorPlugin({ catalog: () => [] }).activate(ctx);
+    const validator = contributed[0] as ValidatorContribution;
+
+    expect(() => validator.onDidChangeInputs!(() => {}).dispose()).not.toThrow();
+  });
+
+  function fakeContextWithoutKits() {
+    const contributed: unknown[] = [];
+    const ctx = {
+      id: SCHEMA_VALIDATOR_PLUGIN_ID,
+      subscriptions: [],
+      extensions: {
+        contribute: (_point: unknown, value: unknown) => {
+          contributed.push(value);
+          return { dispose: () => {} };
+        },
+      },
+      commands: { get: () => undefined },
+    } as unknown as PluginContext;
+    return { ctx, contributed };
+  }
 });
 
 describe('проверка по мета-схеме грузится по требованию', () => {
@@ -419,6 +555,61 @@ describe('проверка по мета-схеме грузится по тре
 
     const found = validator.validate!(ctxFor(brokenSchema));
     expect(found.length).toBeGreaterThan(0);
+  });
+
+  it('прибытие модуля — смена входа: проверенный без него документ перепроверят без правки', async () => {
+    const source = deferredLoader();
+    const deferred = createDeferredSchemaCheck(source.loader);
+    const validator = createSchemaValidator({ catalog: () => builtinEntries() }, deferred);
+    const changed = vi.fn();
+    validator.onDidChangeInputs!(changed);
+
+    const ready = deferred.load();
+    expect(changed).not.toHaveBeenCalled();
+    source.deliver();
+    await ready;
+    await Promise.resolve();
+
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
+  it('о модуле, который уже на месте или не доехал, сообщать нечего', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const arrived = deferredLoader();
+    const loaded = createDeferredSchemaCheck(arrived.loader);
+    const ready = loaded.load();
+    arrived.deliver();
+    await ready;
+    const refused = deferredLoader();
+    const failed = createDeferredSchemaCheck(refused.loader);
+    const changed = vi.fn();
+
+    // Уже доехал: иначе каждый новый документ проверялся бы на один раз больше.
+    createSchemaValidator({ catalog: () => [] }, loaded).onDidChangeInputs!(changed);
+    // Не доехал вовсе: находок мета-схемы не прибавилось, перепроверять нечего.
+    createSchemaValidator({ catalog: () => [] }, failed).onDidChangeInputs!(changed);
+    const failing = failed.load();
+    refused.refuse();
+    await failing;
+    await Promise.resolve();
+
+    expect(changed).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it('снятая подписка о прибытии модуля не сообщает', async () => {
+    const source = deferredLoader();
+    const deferred = createDeferredSchemaCheck(source.loader);
+    const validator = createSchemaValidator({ catalog: () => [] }, deferred);
+    const changed = vi.fn();
+
+    validator.onDidChangeInputs!(changed).dispose();
+    const ready = deferred.load();
+    source.deliver();
+    await ready;
+    await Promise.resolve();
+
+    expect(changed).not.toHaveBeenCalled();
   });
 
   it('загрузчик зовут один раз, сколько бы документов ни открыли', async () => {

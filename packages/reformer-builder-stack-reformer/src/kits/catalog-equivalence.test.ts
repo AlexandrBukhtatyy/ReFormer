@@ -17,13 +17,19 @@
  * `FileUploadDropzone`, `FileUploadInput`; 209 → 213), у `Input` ушли числовые пропсы, у
  * `FileUpload*` — `variant`.
  *
+ * Пересъёмка (осознанная) — при переносе контракта кита в SDK («киты — платформа»): таблицы
+ * «неявного кита» билдера ушли, и ui-kit объявил о себе всё сам. Разошлись ровно 7 строк — у
+ * записей, которых нет в главном входе кита (`Carousel`, `Chart`, `Command`, `Drawer`,
+ * `MessageScroller`, `Resizable`, `Sidebar`), появился настоящий подпуть; категории, узлы
+ * по умолчанию, состав и запреты превью не сдвинулись.
+ *
  * Снимок берётся с ФАКТИЧЕСКИ поставляемого каталога (`@reformer/ui-kit/catalog` + синтетика
  * билдера), поэтому покрывает и категории, и восстановленный `makeNode`, и порядок записей.
  */
 import { describe, expect, it } from 'vitest';
 import { builtinCatalog, BUILTIN_CATALOG } from '../catalog/__fixtures__/builtin-catalog';
 import { composeCatalogJson } from '../catalog/contract';
-import { CATEGORY_BY_NAME, LEAF_COMPONENT_NAMES, NEEDS_SHIM } from './legacy-reformer-ui-kit';
+import { LEAF_COMPONENT_NAMES } from './defaults';
 
 /** Стабильная сериализация JSON с сортировкой ключей — иначе снимок «дрожит» от порядка полей. */
 function canonical(value: unknown): string {
@@ -76,18 +82,26 @@ describe('каталог: отпечаток не меняется', () => {
   });
 });
 
-describe('«неявный кит» на реальном каталоге', () => {
+describe('встроенный кит объявляет себя сам', () => {
   const d = builtinCatalog().descriptor;
 
-  it('из блока kit каталог несёт ТОЛЬКО стили — остальное по-прежнему дефолты билдера', () => {
-    // Кит рассказывает о себе ровно одно: словарь классов и политику групп (их билдер вывести не
-    // может). Идентификация, версия, резолв и infra по-прежнему достраиваются дефолтами — то есть
-    // «неявный кит» никуда не делся, просто перестал быть буквально «каталогом без блока kit».
+  it('блок kit несёт всё, что билдер раньше достраивал «неявным китом»', () => {
+    // Раньше из блока kit каталог нёс ТОЛЬКО стили, а личность, инфраструктуру, адаптеры, категории
+    // и прослойки билдер брал из своих таблиц про @reformer/ui-kit. Таблиц больше нет: чужой кит,
+    // не назвавший себя, не должен притворяться встроенным.
     const json = composeCatalogJson(BUILTIN_CATALOG);
-    expect(Object.keys(json.kit ?? {})).toEqual(['styles']);
-    expect(Object.keys(json.kit!.styles!).sort()).toEqual(['classGroupsByRole', 'classNames']);
+    expect(Object.keys(json.kit ?? {}).sort()).toEqual(
+      ['adapters', 'codegen', 'id', 'infra', 'label', 'package', 'palette', 'styles'].sort()
+    );
+    expect(Object.keys(json.kit!.styles!).sort()).toEqual([
+      'classGroupsByRole',
+      'classNames',
+      'mode',
+    ]);
     expect(d.id).toBe('reformer-ui-kit');
+    expect(d.label).toBe('ReFormer UI Kit');
     expect(d.package).toBe('@reformer/ui-kit');
+    // Версию кит не называет: в этом репозитории версии в package.json недостоверны.
     expect(d.version).toBe('workspace');
     expect(d.styles.mode).toBe('tokens');
   });
@@ -101,11 +115,23 @@ describe('«неявный кит» на реальном каталоге', () 
     expect(d.classGroupPolicy.has('$html(div)')).toBe(false);
   });
 
-  it('дескриптор воспроизводит захардкоженные таблицы билдера один в один', () => {
-    expect(d.palette.categoryByName).toBe(CATEGORY_BY_NAME);
-    expect(d.codegen.needsShim).toBe(NEEDS_SHIM);
+  it('дескриптор воспроизводит прежние таблицы билдера', () => {
+    // Категории покрывает отпечаток записей выше; здесь — то, чего в нём нет.
+    expect(d.palette.categoryByName.Input).toBe('Поля ввода');
+    expect([...d.codegen.needsShim].sort()).toEqual(
+      ['FormWizard', 'RendererFormWizard', 'Step', 'Wizard'].sort()
+    );
+    // Запасные листья стека совпадают с тем, что кит объявляет о себе: без дескриптора стек
+    // ведёт себя так же, как со встроенным китом.
     expect([...d.leafComponents].sort()).toEqual([...LEAF_COMPONENT_NAMES].sort());
-    expect(d.infra.fieldWrapper).toBe('FormField');
+    expect(d.infra).toEqual({
+      fieldWrapper: 'FormField',
+      asyncBoundary: 'AsyncBoundary',
+      list: 'List',
+      fieldFrame: 'FieldFrame',
+    });
+    expect(d.adapters).toEqual({ wizard: { symbol: 'FormWizard' }, step: null });
+    expect(d.codegen.importSpecifier).toBe('@reformer/ui-kit');
   });
 
   it('жёсткие запреты и причины «не нашлось» — два РАЗНЫХ множества', () => {

@@ -55,11 +55,19 @@
  * @module shell/platform/plugin/styles
  */
 
-import { toDisposable, type Disposable } from '@reformer/builder-plugin-api/internal';
+import {
+  PLUGIN_SCOPE_ATTRIBUTE,
+  toDisposable,
+  type Disposable,
+} from '@reformer/builder-plugin-api/internal';
 import type { PluginProblem } from '@reformer/builder-plugin-api/internal';
 
-/** Атрибут контейнера плагина. Его ставит тот, кто рисует поддерево плагина. */
-export const PLUGIN_SCOPE_ATTRIBUTE = 'data-rb-plugin';
+/**
+ * Атрибут контейнера плагина. Его ставит тот, кто рисует поддерево плагина: оболочка — у панелей
+ * и вкладов, превью — у поддерева кита, пришедшего плагином. Объявлен в SDK, потому что ставят
+ * его и плагины; здесь — реэкспорт, чтобы литерал был один.
+ */
+export { PLUGIN_SCOPE_ATTRIBUTE };
 
 /** Селектор контейнера плагина. */
 export function pluginScopeSelector(pluginId: string): string {

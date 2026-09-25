@@ -1,5 +1,10 @@
 {
   "palette.switch": "Кит: {label}",
   "palette.active": "Активен",
-  "palette.detail": "{package} {version}"
+  "palette.detail": "{package} {version}",
+  "problem.no-id": "Плагин «{plugin}» внёс кит без идентификатора — кит не подключён.",
+  "problem.duplicate": "Плагин «{plugin}» внёс кит «{kit}», но это имя уже занято — кит не подключён.",
+  "problem.invalid-catalog": "Каталог кита «{kit}» из плагина «{plugin}» не прошёл проверку: {detail}",
+  "problem.mismatch": "Каталог кита «{kit}» из плагина «{plugin}» называет себя иначе: {detail}",
+  "problem.load-failed": "Каталог кита «{kit}» из плагина «{plugin}» не загрузился: {detail}"
 }

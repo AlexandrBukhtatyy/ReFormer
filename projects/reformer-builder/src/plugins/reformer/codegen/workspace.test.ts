@@ -14,16 +14,17 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
 import {
   DocumentsServiceToken,
+  KitsCapability,
+  toDescriptor,
+  type CatalogJson,
   WorkspaceFilesServiceToken,
   WorkspaceSaveServiceToken,
   type PluginContext,
   type ResourceId,
 } from '@reformer/builder-plugin-api';
-import { codegenWorkspace, KitCapability } from './workspace';
+import { codegenWorkspace } from './workspace';
 
 const FORM = 'fs:forms/credit/form.json';
 
@@ -86,11 +87,11 @@ function harness(
     canWrite: () => true,
   };
 
-  const catalog: CatalogEntry[] = [];
-  const descriptor = { id: 'kit-a' } as unknown as KitDescriptor;
+  // Сырой каталог службы — как у настоящего реестра китов: до загрузки шапка без записей.
+  let catalog: CatalogJson = { version: '2.1', components: [], kit: { id: 'kit-a' } };
   const kits = {
-    catalog: () => catalog,
-    descriptor: () => descriptor,
+    catalogJson: () => catalog,
+    descriptor: () => toDescriptor(catalog),
     onDidChange: () => ({ dispose: () => {} }),
   };
 
@@ -105,7 +106,7 @@ function harness(
     },
     services: {
       get: (token: { id: string }) => {
-        if (token.id === KitCapability.id) return options.kit !== false ? kits : undefined;
+        if (token.id === KitsCapability.id) return options.kit !== false ? kits : undefined;
         if (token.id === WorkspaceSaveServiceToken.id) {
           return options.save === undefined ? undefined : { save: options.save };
         }
@@ -122,7 +123,9 @@ function harness(
   return {
     ctx,
     calls,
-    catalog,
+    arrive: (next: CatalogJson) => {
+      catalog = next;
+    },
     document,
     model,
     layout,
@@ -187,9 +190,15 @@ describe('кит спрашивается в момент вопроса', () =>
     const w = codegenWorkspace(h.ctx);
 
     expect(w.catalog()).toEqual([]);
-    h.catalog.push({ name: 'Text' } as unknown as CatalogEntry);
+    h.arrive({
+      version: '2.1',
+      kit: { id: 'kit-a' },
+      components: [{ name: 'Text', role: 'container', propsSchema: {} }],
+    });
 
-    expect(w.catalog().map((entry) => entry.name)).toEqual(['Text']);
+    // Записи — ReFormer-проекция: запись кита плюс синтетика билдера.
+    expect(w.catalog().map((entry) => entry.name)).toContain('Text');
+    expect(w.kit()?.id).toBe('kit-a');
   });
 
   it('без плагина китов: пустой каталог, дескриптора нет, подписка безвредна', () => {

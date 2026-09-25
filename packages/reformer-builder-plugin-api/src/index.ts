@@ -273,6 +273,10 @@ export type { PluginPermission } from './plugin/permissions.js';
 // Активная вкладка как React-значение: подписка на службу документов, без которой панель
 // показывала бы документ, с которого ушли.
 export { useActiveDocument } from './ui/useActiveDocument.js';
+// Скоуп стилей плагина. Нужен тому, кто рисует содержимое ЧУЖОГО плагина: превью рисует
+// компоненты кита, пришедшего плагином, и помечает контейнер скоупом владельца кита, чтобы его
+// стили действовали только там. Литерал атрибута один на платформу.
+export { PLUGIN_SCOPE_ATTRIBUTE, pluginScopeAttributes } from './ui/plugin-scope.js';
 export type { DocumentsService, OpenDocumentOptions } from './services/documents.js';
 export type { Document } from './workspace/document.js';
 export type { WriteOptions } from './workspace/write-options.js';
@@ -359,6 +363,46 @@ export type {
   DecomposedModel,
   DocumentComposition,
 } from './workspace/model/provider.js';
+
+// ── Киты: дизайн-системы, общие для всех стеков ─────────────────────────────────
+//
+// Кит — не под-ось одного стека: его каталог читают палитра ReFormer, тема RJSF и рамка превью,
+// а ставит его плагин, который видит только SDK. Поэтому здесь весь контракт: данные каталога,
+// дескриптор, точка источников, служба активного кита и пропсы рамки поля. Проверка каталога
+// против схемы — во входе `./tooling` (она тянет ajv и нужна не каждому).
+export { CATALOG_CONTRACT_VERSION, SUPPORTED_CATALOG_CONTRACT_VERSIONS } from './kits/catalog.js';
+export type {
+  CatalogJson,
+  CatalogPropsSchema,
+  CatalogRecord,
+  CatalogRole,
+  KitAdapter,
+  KitAdapters,
+  KitClassGroup,
+  KitClassGroupsByRole,
+  KitCodegen,
+  KitDescriptorJson,
+  KitInfra,
+  KitNamespace,
+  KitPalette,
+  KitPeerRanges,
+  KitRecordPreview,
+  KitRenderers,
+  KitRjsfRenderers,
+  KitStyles,
+} from './kits/catalog.js';
+export {
+  CONVENTIONAL_KIT_INFRA,
+  exportNameFor,
+  toDescriptor,
+  UNKNOWN_KIT_VERSION,
+} from './kits/descriptor.js';
+export type { KitDescriptor } from './kits/descriptor.js';
+export { declaredKitId, KitSourcePoint } from './kits/source.js';
+export type { CatalogLoader, KitSource } from './kits/source.js';
+export { KitsCapability } from './kits/service.js';
+export type { KitFrameProps, KitOrigin, KitsService, KitSummary } from './kits/service.js';
+export type { KitFieldFrameProps } from './kits/field-frame.js';
 
 // Модели открытых документов, загрузчик модулей и словарь оболочки — возможности ОБОЛОЧКИ,
 // которыми плагин стека берёт то, что раньше ему собирал порт в композиции. Порт знал стек:

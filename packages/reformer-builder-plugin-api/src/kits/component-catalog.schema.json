@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reformer.dev/schemas/component-catalog.schema.json",
   "title": "ReFormer component catalog",
-  "description": "Контракт каталога компонентов (спека §5). Владелец — reformer-builder; клиенты (напр. @reformer/ui-kit) генерируют валидный catalog-JSON со списком своих компонентов. Билдер грузит его в палитру/инспектор.",
+  "description": "Контракт каталога кита. Владелец — SDK плагинов билдера (@reformer/builder-plugin-api); киты (напр. @reformer/ui-kit) поставляют валидный catalog-JSON со списком своих компонентов и блоком kit о себе. Версии: 1.0 — только записи; 2.0 — блок kit и поля записей exportName/subpath/preview/leaf/palette/classGroups; 2.1 — kit.infra.fieldFrame и kit.renderers.",
   "type": "object",
   "required": ["version", "components"],
   "additionalProperties": false,
@@ -93,7 +93,7 @@
     "kit": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Контракт 2.0. Дескриптор кита — то, что дизайн-система рассказывает о себе сама. Блок целиком опционален: каталог без него трактуется как «неявный кит» и достраивается дефолтами билдера (поведение 1:1 как до введения контракта).",
+      "description": "Контракт 2.0. Дескриптор кита — то, что дизайн-система рассказывает о себе сама. Для разбора блок необязателен (каталог 1.0 его не несёт), но кит без id реестр китов не примет: идентификатор — ключ выбора. Недостающее достраивается общими умолчаниями платформы, а не таблицами какого-либо кита.",
       "properties": {
         "id": {
           "type": "string",
@@ -124,7 +124,11 @@
               "description": "Враппер поля (он же FIELD_WRAPPER реестра renderer-json)."
             },
             "asyncBoundary": { "type": "string", "description": "Граница асинхронной загрузки." },
-            "list": { "type": "string", "description": "Обёртка display-списка для array-узлов." }
+            "list": { "type": "string", "description": "Обёртка display-списка для array-узлов." },
+            "fieldFrame": {
+              "type": "string",
+              "description": "Контракт 2.1. Рамка поля: подпись, описание, отметка обязательности и ошибки вокруг произвольного контрола (пропсы — KitFieldFrameProps SDK). На ней стеки строят шаблон поля для своих контролов, например тема RJSF."
+            }
           }
         },
         "adapters": {
@@ -145,7 +149,7 @@
             "categoryByName": {
               "type": "object",
               "additionalProperties": { "type": "string" },
-              "description": "Имя компонента → категория палитры. Если задано, ЗАМЕЩАЕТ карту билдера целиком: смешивать категории чужого кита с картой ui-kit бессмысленно."
+              "description": "Имя компонента → раздел палитры. Своей карты у платформы нет: компонент, которого здесь нет, стек кладёт в раздел по умолчанию."
             },
             "order": {
               "type": "array",
@@ -223,6 +227,47 @@
               "type": "array",
               "items": { "type": "string" },
               "description": "Символы, которым нужен shim вместо прямого импорта."
+            }
+          }
+        },
+        "renderers": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Контракт 2.1. Подсказки стекам, которые рисуют кит своими средствами. Без блока стек строит сопоставление по умолчанию; блок его уточняет.",
+          "properties": {
+            "rjsf": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Тема RJSF из компонентов кита.",
+              "properties": {
+                "widgets": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string", "minLength": 1 },
+                  "description": "Виджет RJSF → имя компонента кита (TextWidget → Input)."
+                },
+                "templates": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Шаблоны RJSF → имя компонента кита.",
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Шаблон поля; по умолчанию — kit.infra.fieldFrame."
+                    },
+                    "object": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Шаблон объекта."
+                    },
+                    "submit": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Кнопка отправки."
+                    }
+                  }
+                }
+              }
             }
           }
         }

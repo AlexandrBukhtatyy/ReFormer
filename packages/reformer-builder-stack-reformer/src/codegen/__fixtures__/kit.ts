@@ -15,8 +15,7 @@ import { containerNode, fieldNode } from '../../catalog/make-node';
 import type { CatalogEntry } from '../../catalog/types';
 import type { FormRules } from '../../form-model/rules';
 import { joinFormSchema, STEP_SCHEMA_MARKER, type StepOrigins } from '../../form-model/composite';
-import { toDescriptor } from '../../kits/descriptor';
-import type { KitDescriptor } from '../../kits/types';
+import { toDescriptor, type KitDescriptor } from '@reformer/builder-plugin-api';
 import type { KitView } from '../components';
 import { sampleSchema } from '../../form-model/__fixtures__/sample-schema';
 

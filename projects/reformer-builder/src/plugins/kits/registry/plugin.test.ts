@@ -1,9 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import type { CatalogJson } from '@reformer/builder-stack-reformer/catalog';
 import {
+  KitsCapability,
+  KitSourcePoint,
   PaletteItemsPoint,
+  type CatalogJson,
   type Disposable,
+  type KitSource,
+  type KitsService,
   type PluginContext,
   type WhenContext,
 } from '@reformer/builder-plugin-api';
@@ -15,11 +19,11 @@ import {
   KITS_PLUGIN_ID,
 } from './plugin';
 import { KITS_MESSAGES } from './messages';
-import { createKitsService, KIT_SETTINGS_KEY, KitsServiceToken, type KitSource } from './service';
+import { createKitsService, KIT_SETTINGS_KEY } from './service';
 
 function kit(id: string, label: string, component: string): KitSource {
   const catalog: CatalogJson = {
-    version: '2.0',
+    version: '2.1',
     kit: { id, label, package: `@vendor/${id}`, version: '1.2.3' },
     components: [{ name: component, role: 'field', propsSchema: { type: 'object' } }],
   };
@@ -61,14 +65,22 @@ function fakeSettings(): KitsSettings & { defaults: Map<string, unknown> } {
   };
 }
 
-/** Контекст плагина в объёме, который нужен активации: сервисы, вклады и список подписок. */
-function fakeContext(): {
-  ctx: PluginContext;
-  services: Map<string, unknown>;
-  contributed: { point: string; id: string | undefined; value: unknown }[];
-} {
+interface FakeContribution {
+  readonly id: string;
+  readonly pluginId: string;
+  readonly order: number;
+  readonly value: unknown;
+}
+
+/**
+ * Контекст плагина в объёме, который нужен активации: службы, вклады, наблюдение за точкой
+ * источников китов и список подписок. Кит «вносит» другой плагин — {@link contributeKit}.
+ */
+function fakeContext() {
   const services = new Map<string, unknown>();
   const contributed: { point: string; id: string | undefined; value: unknown }[] = [];
+  const sources: FakeContribution[] = [];
+  const observers = new Set<() => void>();
   const ctx = {
     id: KITS_PLUGIN_ID,
     subscriptions: [],
@@ -88,9 +100,29 @@ function fakeContext(): {
         contributed.push({ point: point.id, id: meta?.id, value });
         return { dispose: () => {} };
       },
+      get: (point: { id: string }) => (point.id === KitSourcePoint.id ? [...sources] : []),
+      observe: (point: { id: string }, cb: () => void) => {
+        if (point.id === KitSourcePoint.id) observers.add(cb);
+        return { dispose: () => observers.delete(cb) };
+      },
     },
   } as unknown as PluginContext;
-  return { ctx, services, contributed };
+
+  /** Как `contribute` чужого плагина: вклад появился, наблюдатели точки узнали сразу. */
+  const contributeKit = (pluginId: string, value: unknown): Disposable => {
+    const contribution = { id: `${pluginId}#${sources.length}`, pluginId, order: 0, value };
+    sources.push(contribution);
+    for (const observer of [...observers]) observer();
+    return {
+      dispose: () => {
+        sources.splice(sources.indexOf(contribution), 1);
+        for (const observer of [...observers]) observer();
+      },
+    };
+  };
+
+  const kits = (): KitsService => services.get(KitsCapability.id) as KitsService;
+  return { ctx, services, contributed, contributeKit, kits };
 }
 
 describe('плагин', () => {
@@ -98,55 +130,110 @@ describe('плагин', () => {
     expect(createKitsPlugin({}).id).toBe(KITS_PLUGIN_ID);
   });
 
-  it('регистрирует сервис под токеном: у «какой кит активен» один ответ на всех', () => {
-    const plugin = createKitsPlugin({ sources: [KIT_A, KIT_B] });
-    const { ctx, services } = fakeContext();
+  it('регистрирует службу под возможностью SDK: у «какой кит активен» один ответ на всех', () => {
+    const { ctx, kits } = fakeContext();
 
-    plugin.activate(ctx);
+    createKitsPlugin({ sources: [KIT_A, KIT_B] }).activate(ctx);
 
-    const kits = services.get(KitsServiceToken.id) as { activeId(): string } | undefined;
-    expect(kits?.activeId()).toBe('kit-a');
+    expect(kits().activeId()).toBe('kit-a');
   });
 
-  it('объявляет умолчание настройки — встроенный кит', () => {
+  it('объявляет умолчание настройки — первый встроенный кит', () => {
     const settings = fakeSettings();
-    const plugin = createKitsPlugin({ settings, sources: [KIT_A, KIT_B] });
     const { ctx } = fakeContext();
 
-    plugin.activate(ctx);
+    createKitsPlugin({ settings, sources: [KIT_A, KIT_B] }).activate(ctx);
 
     expect(settings.defaults.get(KIT_SETTINGS_KEY)).toBe('kit-a');
   });
 
   it('вносит поставщика пунктов палитры', () => {
-    const plugin = createKitsPlugin({ sources: [KIT_A] });
     const { ctx, contributed } = fakeContext();
 
-    plugin.activate(ctx);
+    createKitsPlugin({ sources: [KIT_A] }).activate(ctx);
 
     expect(contributed).toEqual([
       { point: PaletteItemsPoint.id, id: KITS_PALETTE_PROVIDER_ID, value: expect.anything() },
     ]);
   });
 
-  it('всё снятое кладётся в подписки: сервис, умолчание, пункты и подписка на настройки', () => {
-    const plugin = createKitsPlugin({ settings: fakeSettings(), sources: [KIT_A] });
+  it('всё снятое кладётся в подписки: служба, умолчание, наблюдение, пункты и сама служба', () => {
     const { ctx, services } = fakeContext();
 
-    plugin.activate(ctx);
-    expect(ctx.subscriptions).toHaveLength(4);
+    createKitsPlugin({ settings: fakeSettings(), sources: [KIT_A] }).activate(ctx);
+    expect(ctx.subscriptions).toHaveLength(5);
 
     for (const subscription of ctx.subscriptions) subscription.dispose();
-    expect(services.has(KitsServiceToken.id)).toBe(false);
+    expect(services.has(KitsCapability.id)).toBe(false);
   });
 
   it('без настроек умолчание не объявляется, но плагин работает', () => {
-    const plugin = createKitsPlugin({ sources: [KIT_A] });
     const { ctx } = fakeContext();
 
-    plugin.activate(ctx);
+    createKitsPlugin({ sources: [KIT_A] }).activate(ctx);
 
-    expect(ctx.subscriptions).toHaveLength(3);
+    expect(ctx.subscriptions).toHaveLength(4);
+  });
+});
+
+describe('киты из точки reformer.kit.source', () => {
+  it('кит, внесённый ДО активации реестра, в списке сразу: порядок активации незначим', () => {
+    const { ctx, contributeKit, kits } = fakeContext();
+    contributeKit('kit-hexa-ui', kit('hexa', 'HexaUI', 'Hexa'));
+
+    createKitsPlugin({ sources: [KIT_A] }).activate(ctx);
+
+    expect(
+      kits()
+        .available()
+        .map((summary) => summary.id)
+    ).toEqual(['kit-a', 'hexa']);
+  });
+
+  it('кит, внесённый ПОСЛЕ активации, подхватывается, а снятый — уходит', () => {
+    const { ctx, contributeKit, kits } = fakeContext();
+    createKitsPlugin({ sources: [KIT_A] }).activate(ctx);
+
+    const contribution = contributeKit('kit-hexa-ui', kit('hexa', 'HexaUI', 'Hexa'));
+    expect(
+      kits()
+        .available()
+        .map(({ id, origin }) => ({ id, origin }))
+    ).toEqual([
+      { id: 'kit-a', origin: { kind: 'builtin' } },
+      { id: 'hexa', origin: { kind: 'plugin', pluginId: 'kit-hexa-ui' } },
+    ]);
+
+    contribution.dispose();
+    expect(
+      kits()
+        .available()
+        .map((summary) => summary.id)
+    ).toEqual(['kit-a']);
+  });
+
+  it('отказ приходит уведомлением из словаря плагина', () => {
+    const { ctx, services, contributeKit } = fakeContext();
+    const warning = vi.fn();
+    services.set('reformer.notifications', { warning });
+    createKitsPlugin({ sources: [KIT_A] }).activate(ctx);
+
+    contributeKit('impostor', kit('kit-a', 'Самозванец', 'X'));
+
+    expect(warning).toHaveBeenCalledWith(`${KITS_PLUGIN_ID}:problem.duplicate`, {
+      params: { plugin: 'impostor', kit: 'kit-a', detail: '' },
+    });
+  });
+
+  it('сбой разбора состава не выходит наружу: наблюдатель зовётся внутри чужого contribute', () => {
+    const { ctx, contributeKit, kits } = fakeContext();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    createKitsPlugin({ sources: [KIT_A] }).activate(ctx);
+
+    expect(() => contributeKit('broken', null)).not.toThrow();
+    expect(error).toHaveBeenCalled();
+    expect(kits().activeId()).toBe('kit-a');
+    error.mockRestore();
   });
 });
 
@@ -179,7 +266,7 @@ describe('пункты палитры', () => {
     await items[1]!.run();
 
     expect(kits.activeId()).toBe('kit-b');
-    expect(kits.catalog().map((entry) => entry.name)).toContain('Beta');
+    expect(kits.catalogJson().components.map((record) => record.name)).toEqual(['Beta']);
   });
 
   it('подпись активного кита пересчитывается после переключения', async () => {
@@ -202,13 +289,18 @@ describe('словарь', () => {
     expect(ru).toEqual(en);
     expect(ru).toContain('palette.switch');
   });
+
+  it('на каждый отказ принять кит есть сообщение', () => {
+    for (const code of ['no-id', 'duplicate', 'invalid-catalog', 'mismatch', 'load-failed']) {
+      expect(KITS_MESSAGES.ru![`problem.${code}`]).toBeDefined();
+    }
+  });
 });
 
-describe('настройки приходят из реестра сервисов — путь внешнего плагина', () => {
+describe('настройки приходят из реестра служб — путь внешнего плагина', () => {
   it('плагин находит настройки сам, без параметра', () => {
     // Единственный путь, доступный плагину ИЗ КАТАЛОГА: композиция о нём не знает
-    // и передать ему ничего не может. Пока встроенные получали настройки параметром,
-    // путь оставался непроверенным — а другого у внешнего нет.
+    // и передать ему ничего не может.
     const { ctx, services } = fakeContext();
     const settings = fakeSettings();
     services.set('reformer.settings', settings);

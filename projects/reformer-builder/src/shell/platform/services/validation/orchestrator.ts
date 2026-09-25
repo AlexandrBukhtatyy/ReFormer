@@ -111,8 +111,12 @@ export interface ValidationOrchestrator {
    *
    * Существует потому, что находка зависит не только от документа: сменился кит — сменился
    * каталог компонентов, включился плагин — появился валидатор. Ни то ни другое не приходит
-   * событием документа, и без этого вызова красное подчёркивание держалось бы до следующего
-   * нажатия клавиши. Зовёт тот, кто мир и поменял.
+   * событием документа, и без перепроверки красное подчёркивание держалось бы до следующего
+   * нажатия клавиши.
+   *
+   * Смену входов ОДНОГО валидатора (каталог кита у валидатора схемы) оркестратор ловит сам —
+   * через {@link ValidatorContribution.onDidChangeInputs} — и перепроверяет только документы,
+   * за которые тот берётся. Этот вызов — для остального: зовёт тот, кто мир и поменял.
    */
   revalidate(): void;
 
@@ -137,7 +141,15 @@ interface WatchState {
   cancelPending: (() => void) | undefined;
   /** Идущий дорогой проход. Отменяется следующей правкой. */
   controller: AbortController | undefined;
+  /**
+   * Подписки на смену входов ({@link ValidatorContribution.onDidChangeInputs}) — по одной
+   * на валидатор, который берётся за документ. Сверяются с составом на каждом проходе.
+   */
+  readonly inputs: Map<ValidatorContribution, Disposable>;
 }
+
+/** Заглушка на место подписки, которую валидатор не смог дать: повторять попытку незачем. */
+const NO_SUBSCRIPTION: Disposable = { dispose() {} };
 
 const defaultSchedule: Schedule = (run, ms) => {
   const timer = setTimeout(run, ms);
@@ -305,13 +317,69 @@ export function createValidationOrchestrator(
     }, delay);
   };
 
+  /**
+   * Полный проход по документу, который сам не менялся: сменился вход валидатора.
+   *
+   * Память прохода сбрасывается — без этого проход счёлся бы повторным и не дал бы ничего.
+   * Документ, наблюдение за которым уже снято, не трогается: подписка могла сработать
+   * в той же рассылке, в которой её сняли.
+   */
+  const refresh = (id: ResourceId, state: WatchState): void => {
+    if (watched.get(id) !== state) return;
+    state.lastText = undefined;
+    state.lastModel = undefined;
+    state.rerun();
+  };
+
+  /**
+   * Сверяет подписки на смену входов с составом валидаторов документа: новому — подписка,
+   * ушедшему — отписка.
+   *
+   * По составу последнего прохода, а не по всей точке: валидатор, который за документ
+   * не берётся, перепроверять его не просит. Упавшая подписка не мешает остальным и не
+   * повторяется на каждой правке — иначе сломанный плагин писал бы в консоль на каждое нажатие.
+   */
+  const followInputs = (
+    id: ResourceId,
+    state: WatchState,
+    known: readonly ValidatorContribution[]
+  ): void => {
+    const current = new Set(known);
+    for (const [validator, subscription] of state.inputs) {
+      if (current.has(validator)) continue;
+      state.inputs.delete(validator);
+      subscription.dispose();
+    }
+    for (const validator of known) {
+      if (validator.onDidChangeInputs === undefined || state.inputs.has(validator)) continue;
+      let subscription = NO_SUBSCRIPTION;
+      try {
+        subscription = validator.onDidChangeInputs(() => {
+          refresh(id, state);
+        });
+      } catch (err) {
+        console.error(
+          `[validation] валидатор «${validator.id}» упал на onDidChangeInputs; смена его входов документ не перепроверит`,
+          err
+        );
+      }
+      state.inputs.set(validator, subscription);
+    }
+  };
+
+  const release = (id: ResourceId, state: WatchState): void => {
+    cancelAsync(state);
+    for (const subscription of state.subscriptions) subscription.dispose();
+    for (const subscription of state.inputs.values()) subscription.dispose();
+    state.inputs.clear();
+    for (const source of state.sources) diagnostics.publish(id, source, []);
+  };
+
   const unwatch = (document: Document): void => {
     const state = watched.get(document.id);
     if (state === undefined) return;
     watched.delete(document.id);
-    cancelAsync(state);
-    for (const subscription of state.subscriptions) subscription.dispose();
-    for (const source of state.sources) diagnostics.publish(document.id, source, []);
+    release(document.id, state);
   };
 
   return {
@@ -331,13 +399,15 @@ export function createValidationOrchestrator(
         fast: [],
         cancelPending: undefined,
         controller: undefined,
+        inputs: new Map(),
       };
       watched.set(document.id, state);
 
       const revalidate = (): void => {
-        // Состав валидаторов считается ОДИН раз на правку и достаётся обоим уровням:
-        // `applies` обязан быть дешёвым, но звать его дважды на каждое нажатие — уже не «дёшево».
+        // Состав валидаторов считается ОДИН раз на правку и достаётся всем, кому он нужен:
+        // `applies` обязан быть дешёвым, но звать его трижды на каждое нажатие — уже не «дёшево».
         const known = validatorsFor(document);
+        followInputs(document.id, state, known);
         runFast(document, state, known);
         scheduleAsync(document, state, known);
       };
@@ -359,21 +429,13 @@ export function createValidationOrchestrator(
     },
 
     revalidate() {
-      for (const state of [...watched.values()]) {
-        // Память прохода сбрасывается: документ не менялся, и без сброса проход счёлся бы
-        // повторным и не дал бы ничего.
-        state.lastText = undefined;
-        state.lastModel = undefined;
-        state.rerun();
-      }
+      for (const [id, state] of [...watched]) refresh(id, state);
     },
 
     dispose() {
       for (const [id, state] of [...watched]) {
         watched.delete(id);
-        cancelAsync(state);
-        for (const subscription of state.subscriptions) subscription.dispose();
-        for (const source of state.sources) diagnostics.publish(id, source, []);
+        release(id, state);
       }
     },
   };

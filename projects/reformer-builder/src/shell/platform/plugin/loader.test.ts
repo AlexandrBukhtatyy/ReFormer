@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import * as sdkModule from '@reformer/builder-plugin-api';
 import { createModuleLoader, type ModuleLoader } from '@/shell/platform/modules/loader';
-import { ModuleRegistryError } from '@/shell/platform/modules/registry';
+import {
+  createModuleRegistry,
+  lazyBuiltin,
+  ModuleRegistryError,
+} from '@/shell/platform/modules/registry';
+import { collectBareSpecifiers } from '@/shell/platform/modules/specifiers';
 import { createMemorySource, type MemorySource } from '@/shell/platform/source/memory';
 import type { Source } from '@/shell/platform/source/types';
 import { createPluginLoader, type PluginLoader } from './loader';
@@ -221,6 +226,59 @@ describe('загрузка кода плагина', () => {
       'панель Acme'
     );
     expect(result.ok && result.loaded.files).toEqual(['main.js', 'panel.js']);
+  });
+});
+
+/**
+ * Ленивый модуль оболочки в коде плагина.
+ *
+ * Реестр отдаёт ленивый модуль синхронно только после прогрева, а `require` исполняется синхронно.
+ * Кит-плагин упирается в это первым: его обёртка поля стоит на `@reformer/cdk/form-field`, а cdk
+ * в реестре оболочки — ленивый. Без прогрева загрузка такого плагина падала «cold», хотя модуль
+ * оболочке известен.
+ */
+describe('ленивые модули оболочки', () => {
+  const files = {
+    [dir('acme-kit', 'manifest.json')]: manifestOf({ id: 'acme-kit' }),
+    [dir('acme-kit', 'main.js')]: `
+      const { marker } = require('acme-shared/lazy');
+      module.exports = { id: 'acme-kit', marker, activate() {} };
+    `,
+  };
+
+  function harness(withWarm: boolean): Harness {
+    const { source, memory } = projectSource(files);
+    const registry = createModuleRegistry([
+      ['acme-shared/lazy', lazyBuiltin(() => Promise.resolve({ marker: 'прогрет' }))],
+    ]);
+    const modules = createModuleLoader({ registry });
+    const loader = createPluginLoader({
+      source: () => source,
+      modules,
+      ...(withWarm ? { warm: (all) => registry.warm(collectBareSpecifiers(all)) } : {}),
+    });
+    return { loader, modules, memory };
+  }
+
+  const load = async (h: Harness) => {
+    const found = (await h.loader.discover()).find((f) => f.id === 'acme-kit');
+    expect(found).toBeDefined();
+    return h.loader.load(found!);
+  };
+
+  it('с прогревом верхнеуровневый require ленивого модуля проходит', async () => {
+    const result = await load(harness(true));
+    expect(result.ok).toBe(true);
+    expect(result.ok && (result.loaded.plugin as unknown as { marker: string }).marker).toBe(
+      'прогрет'
+    );
+  });
+
+  it('без прогрева тот же плагин отказывает «cold» — ради этого прогрев и заведён', async () => {
+    const result = await load(harness(false));
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.problem.code).toBe('code-failed');
+    expect(!result.ok && result.problem.message).toMatch(/cold|прогрет/);
   });
 });
 

@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
 import { ensureNodeIds, newNodeId } from '@reformer/builder-stack-reformer/form-model';
-import { toDescriptor } from '@reformer/builder-stack-reformer/kits';
+import { toDescriptor } from '@reformer/builder-plugin-api';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { NODE_CLASS_PREFIX } from '../schema/node-token';
 import { deepMerge } from '@reformer/builder-stack-reformer/form-fixture';

@@ -26,10 +26,11 @@
  * @module plugins/reformer/codegen/workspace
  */
 
-import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { KitDescriptor } from '@reformer/builder-stack-reformer/kits';
+import { projectCatalog, type CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
+import type { KitDescriptor } from '@reformer/builder-plugin-api';
 import {
   defineCapability,
+  KitsCapability,
   DocumentsServiceToken,
   useActiveDocument,
   useTranslate,
@@ -42,24 +43,6 @@ import {
   type ResourceId,
 } from '@reformer/builder-plugin-api';
 import type { CodegenDocument, CodegenHost, CodegenSourceCapabilities } from './host';
-
-/**
- * Активный кит в объёме, нужном генерации: каталог, дескриптор и «он сменился».
- *
- * Структурная копия, а не импорт из плагина китов: `plugins/**` не импортируют друг друга.
- * Находит она ту же службу, потому что реестр ключуется СТРОКОЙ.
- */
-export interface KitReader {
-  catalog(): readonly CatalogEntry[];
-  descriptor(): KitDescriptor;
-  onDidChange(cb: () => void): Disposable;
-}
-
-/** Возможность «активный кит» — тот же идентификатор, что у провайдера. */
-export const KitCapability = defineCapability<KitReader>({
-  id: 'reformer.kit.catalog',
-  version: '1.0.0',
-});
 
 /** Пустой каталог: одна замороженная ссылка вместо нового массива на каждый вызов. */
 const NO_CATALOG: readonly CatalogEntry[] = Object.freeze([]);
@@ -139,7 +122,13 @@ export function asCodegenDocument(document: Document): CodegenDocument {
 export function codegenWorkspace(ctx: PluginContext, gaps: CodegenGaps = {}): CodegenHost {
   const documents = ctx.services.require(DocumentsServiceToken);
   const files = ctx.services.require(WorkspaceFilesServiceToken);
-  const kit = (): KitReader | undefined => ctx.services.get(KitCapability);
+  // Кит — служба китов SDK; записи и дескриптор — ReFormer-проекция её сырого каталога:
+  // служба нейтральна, а узлы по умолчанию и синтетика билдера — знание стека.
+  const kit = () => ctx.services.get(KitsCapability);
+  const projection = () => {
+    const service = kit();
+    return service === undefined ? undefined : projectCatalog(service.catalogJson());
+  };
 
   return {
     // Именованные функции: правила хуков опознают хук по имени объявления, а метод
@@ -161,8 +150,8 @@ export function codegenWorkspace(ctx: PluginContext, gaps: CodegenGaps = {}): Co
     sourceOf: (id: ResourceId): CodegenSourceCapabilities | null =>
       documents.hasProject() ? { write: files.canWrite(id) } : null,
 
-    catalog: () => kit()?.catalog() ?? NO_CATALOG,
-    kit: (): KitDescriptor | null => kit()?.descriptor() ?? null,
+    catalog: () => projection()?.entries ?? NO_CATALOG,
+    kit: (): KitDescriptor | null => projection()?.descriptor ?? null,
     onDidChangeKit: (cb: () => void): Disposable => kit()?.onDidChange(cb) ?? { dispose: () => {} },
 
     parentOf: files.parentOf,

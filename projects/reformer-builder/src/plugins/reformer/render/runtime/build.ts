@@ -24,7 +24,7 @@ import {
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
+import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 import { annotateSchema } from '../schema/annotate';
 import type { PreviewMock, PreviewProblem } from '@reformer/builder-plugin-api';
 import { mergeFormData, type FormFixture } from '@reformer/builder-stack-reformer/form-fixture';

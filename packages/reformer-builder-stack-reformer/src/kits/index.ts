@@ -1,12 +1,10 @@
 /**
- * Дескриптор UI-кита — ДАННЫЕ, которые кит поставляет о себе (блок `kit` в catalog-JSON),
- * и дефолты «неявного кита» для `@reformer/ui-kit`.
+ * Кит глазами стека ReFormer: запасные значения для вызовов без дескриптора активного кита.
  *
- * Выбор активного кита — СОСТОЯНИЕ и живёт сервисом плагина китов, а не здесь.
+ * Контракт кита (каталог, дескриптор, источник, служба) — в SDK `@reformer/builder-plugin-api`:
+ * кит общий для всех стеков. Выбор активного кита — СОСТОЯНИЕ и живёт службой плагина китов.
  *
  * @module @reformer/builder-stack-reformer/kits
  */
 
-export * from './descriptor';
-export * from './legacy-reformer-ui-kit';
-export * from './types';
+export * from './defaults';

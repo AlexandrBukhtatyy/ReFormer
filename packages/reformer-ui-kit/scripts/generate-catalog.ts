@@ -1,9 +1,10 @@
 #!/usr/bin/env tsx
 /**
  * Генерирует `component-catalog.json` — каталог ВСЕХ компонентов ui-kit по контракту билдера
- * (`component-catalog.schema.json`, живёт в reformer-builder). Клиент (ui-kit) поставляет валидный
- * JSON со списком компонентов; билдер грузит его в палитру/инспектор. Цель — «все компоненты
- * доступны в билдере»: в каталог попадает КАЖДЫЙ визуальный компонент из `src/components/*`.
+ * (`component-catalog.schema.json`, живёт в SDK плагинов `@reformer/builder-plugin-api`). Клиент
+ * (ui-kit) поставляет валидный JSON со списком компонентов; билдер грузит его в палитру/инспектор.
+ * Цель — «все компоненты доступны в билдере»: в каталог попадает КАЖДЫЙ визуальный компонент
+ * из `src/components/*`.
  *
  * ## Откуда берётся НАБОР пропсов
  *
@@ -31,10 +32,12 @@
  *    части оверлеев и меню, инфраструктурные каталоги. Записи несут `palette: false` — данные
  *    для документации/MCP/инспектора есть, а палитру билдера они не меняют.
  *
- * Категорию и синтетические `$html`/array-записи добавляет билдер.
+ * Синтетические `$html`/array-записи добавляет билдер.
  *
- * Помимо компонентов файл несёт блок `kit.styles` со словарём классов ({@link CLASS_GROUPS}) —
- * из него билдер строит автодополнение `className`, своего списка у него нет.
+ * Помимо компонентов файл несёт блок `kit` — всё, что кит рассказывает о себе: личность,
+ * инфраструктуру, адаптеры, категории палитры, словарь классов ({@link CLASS_GROUPS}) и кодоген
+ * (данные — `./catalog-kit`). Записи получают флаги превью, листьев и подпутей оттуда же. Своих
+ * таблиц про этот кит у билдера больше нет.
  *
  * Запуск: `npm run generate:catalog` (в цепочке `generate:barrels` после `generate:meta`).
  *
@@ -53,6 +56,17 @@ import {
   type IntrospectedComponent,
   type IntrospectedProp,
 } from './introspect-props';
+import {
+  CATEGORY_BY_NAME,
+  KIT_ADAPTERS,
+  KIT_CODEGEN,
+  KIT_IDENTITY,
+  KIT_INFRA,
+  LEAVES,
+  OVERLAY_REASON,
+  OVERLAYS,
+  SUBPATHS,
+} from './catalog-kit';
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const componentsDir = join(pkgRoot, 'src/components');
@@ -188,6 +202,12 @@ type Record = {
   compoundParent?: string;
   /** `false` — запись существует ради полноты пропсов, но узлом палитры не является. */
   palette?: boolean;
+  /** Подпуть кита, за которым лежит символ, — его нет в главном входе. */
+  subpath?: string;
+  /** Запрет живого превью (оверлеи). */
+  preview?: { mode: 'limited'; reason: string };
+  /** Лист: детей не держит. */
+  leaf?: boolean;
 };
 
 /** Именованные value-экспорты `index.ts` (типы отбрасываются): `export { Alert, AlertTitle } from …`. */
@@ -506,26 +526,59 @@ const extra: Record[] = [...introspected.values()]
     };
   });
 
-const components = [...rich, ...minimal, ...parts, ...extra].sort((a, b) =>
+const sorted = [...rich, ...minimal, ...parts, ...extra].sort((a, b) =>
   a.name.localeCompare(b.name)
 );
-// $schema — ссылка на контракт билдера (владелец схемы) для валидации/подсказок в IDE.
+
+// ── флаги записей из `./catalog-kit` ───────────────────────────────────────────
+// Имя из таблицы, не нашедшее ПАЛИТРОВОЙ записи, — ошибка генерации, а не тихий пропуск:
+// переименованный компонент иначе терял бы категорию или запрет превью, и заметили бы это
+// только по невидимому узлу на канвасе.
+const byName = new Map(sorted.map((r) => [r.name, r]));
+function requirePaletteRecord(name: string, table: string): void {
+  const record = byName.get(name);
+  if (record === undefined || record.palette === false) {
+    throw new Error(
+      `${table}: '${name}' — нет палитровой записи с таким именем. Поправьте scripts/catalog-kit.ts.`
+    );
+  }
+}
+for (const name of Object.keys(CATEGORY_BY_NAME)) requirePaletteRecord(name, 'CATEGORY_BY_NAME');
+for (const name of OVERLAYS) requirePaletteRecord(name, 'OVERLAYS');
+for (const name of LEAVES) requirePaletteRecord(name, 'LEAVES');
+for (const name of Object.keys(SUBPATHS)) requirePaletteRecord(name, 'SUBPATHS');
+
+const overlays = new Set(OVERLAYS);
+const leaves = new Set(LEAVES);
+const components: Record[] = sorted.map((r) => ({
+  ...r,
+  ...(SUBPATHS[r.name] ? { subpath: SUBPATHS[r.name] } : {}),
+  ...(overlays.has(r.name)
+    ? { preview: { mode: 'limited' as const, reason: OVERLAY_REASON } }
+    : {}),
+  ...(leaves.has(r.name) ? { leaf: true } : {}),
+}));
+
+// $schema — ссылка на контракт (владелец — SDK плагинов билдера) для подсказок в IDE.
 // Относительный путь от расположения этого файла (packages/reformer-ui-kit/) до схемы.
-const SCHEMA_REF = '../../projects/reformer-builder/src/lib/catalog/component-catalog.schema.json';
-// Блок `kit` — то, что кит рассказывает о себе сам. Пока это только стили: словарь классов для
-// автодополнения `className` в билдере (своего списка билдер НЕ держит) и дефолт «чем разрешено
-// стилизовать» по роли — полю можно править расположение в форме, но не вид. Остальные поля
-// дескриптора (id/infra/…) намеренно не пишем: билдер достраивает их своими дефолтами,
-// и дублировать их здесь значило бы завести второй источник правды. Имя символа — исключение:
-// это данные записи (`exportName`), а не дефолт билдера, и угадать его консумент не может.
+const SCHEMA_REF = '../reformer-builder-plugin-api/src/kits/component-catalog.schema.json';
+// Блок `kit` — то, что кит рассказывает о себе сам. Словарь классов (своего списка у билдера
+// нет) и дефолт «чем разрешено стилизовать» по роли: полю можно править расположение в форме,
+// но не вид. Остальное — из `./catalog-kit`.
 const kit = {
+  ...KIT_IDENTITY,
+  infra: KIT_INFRA,
+  adapters: KIT_ADAPTERS,
+  palette: { categoryByName: CATEGORY_BY_NAME },
   styles: {
+    mode: 'tokens',
     classNames: CLASS_GROUPS,
     classGroupsByRole: { field: FIELD_CLASS_GROUPS, container: '*', array: '*' },
   },
+  codegen: KIT_CODEGEN,
 };
-// Версия контракта, а не пакета: `2.0` = файл использует блок `kit` и per-record поля 2.0.
-const catalog = { $schema: SCHEMA_REF, version: '2.0', kit, components };
+// Версия контракта, а не пакета: `2.1` = файл использует `kit.infra.fieldFrame`.
+const catalog = { $schema: SCHEMA_REF, version: '2.1', kit, components };
 
 const cfg = await resolveConfig(outFile);
 const json = await format(JSON.stringify(catalog, null, 2), { ...cfg, parser: 'json' });

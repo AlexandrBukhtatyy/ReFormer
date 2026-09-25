@@ -27,8 +27,8 @@
  */
 
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
-import { exportNameFor } from '@reformer/builder-stack-reformer/kits';
-import type { KitDescriptor, KitNamespace } from '@reformer/builder-stack-reformer/kits';
+import { exportNameFor } from '@reformer/builder-plugin-api';
+import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
 
 /** Решение политики для одной записи каталога. */
 export type EntryPolicy =
