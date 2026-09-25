@@ -47,5 +47,5 @@
 | `check`      | пустое имя, дубликат имени, выбор без вариантов                                    |
 | `print-form` | печать `Form.tsx` через печатник `@reformer/builder-toolkit`                       |
 
-Плагин стека — `projects/reformer-builder/src/plugins/plain` (идентификатор `reformer.plain`),
+Плагин стека — `projects/reformer-builder/src/plugins/plain/demo` (идентификатор `reformer.plain`),
 профиль — `plain.builder` (основа билдера плюс этот плагин).

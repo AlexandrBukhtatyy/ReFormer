@@ -2,7 +2,7 @@
  * Порт плагина файлов, собранный из платформы.
  *
  * Здесь и только здесь встречаются две стороны: структурные типы, которые объявил плагин
- * (`plugins/files/host`), и настоящие вещи Host — дерево, рабочая область, вкладки, словарь.
+ * (`plugins/base/files/host`), и настоящие вещи Host — дерево, рабочая область, вкладки, словарь.
  * Компиляция этого модуля и есть проверка того, что копии не разошлись с оригиналами:
  * разойдись `PanelContribution` со своей структурной копией — ошибка будет тут, в одном месте,
  * а не в плагине, который про оболочку ничего не знает.
@@ -27,8 +27,8 @@ import type { WhenContextStore } from '@/shell/platform/ui/state/when-context-st
 import { actionTargets, flattenTree } from '@/shell/platform/ui/state/resource-tree';
 import type { ExtensionReader } from '@/shell/platform/ui/chrome/usePanels';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
-import type { FilesDocument, FilesHost, Translate } from '@/plugins/files';
-import { FILES_PLUGIN_ID } from '@/plugins/files/contract';
+import type { FilesDocument, FilesHost, Translate } from '@/plugins/base/files';
+import { FILES_PLUGIN_ID } from '@/plugins/base/files/contract';
 import { makeUseDiagnosticMessage, makeUseHostMessage } from './monaco';
 import { ProjectTree } from '@/shell/boot/project/ProjectTree';
 import type { ProjectHost } from '@/shell/boot/project/project';

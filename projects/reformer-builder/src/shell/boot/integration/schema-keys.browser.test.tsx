@@ -25,21 +25,24 @@ import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { installKeybindings } from '@/shell/platform/ui/keyboard/keybindings';
 import { createKeymapService } from '@/shell/platform/ui/keyboard/keymap';
 import type { WhenContext } from '@reformer/builder-plugin-api/internal';
-import { schemaEditorCommands, type CommandAccess } from '@/plugins/editor-schema/editing/commands';
+import {
+  schemaEditorCommands,
+  type CommandAccess,
+} from '@/plugins/reformer/editor/editing/commands';
 import {
   createQuickAddStore,
   type QuickAddStore,
-} from '@/plugins/editor-schema/session/quick-add-store';
-import { QuickAddDialog } from '@/plugins/editor-schema/ui/QuickAddDialog';
-import { createDragSession } from '@/plugins/editor-schema/session/drag-session';
-import { indexNodes } from '@/plugins/editor-schema/model/node-index';
+} from '@/plugins/reformer/editor/session/quick-add-store';
+import { QuickAddDialog } from '@/plugins/reformer/editor/ui/QuickAddDialog';
+import { createDragSession } from '@/plugins/reformer/editor/session/drag-session';
+import { indexNodes } from '@/plugins/reformer/editor/model/node-index';
 import {
   createSessionRegistry,
   type SessionRegistry,
-} from '@/plugins/editor-schema/session/sessions';
-import { createFakeSchemaHost } from '@/plugins/editor-schema/testing';
-import { SchematicView } from '@/plugins/editor-schema/ui/SchematicView';
-import { useActiveSession, useSessionState } from '@/plugins/editor-schema/ui/useSession';
+} from '@/plugins/reformer/editor/session/sessions';
+import { createFakeSchemaHost } from '@/plugins/reformer/editor/testing';
+import { SchematicView } from '@/plugins/reformer/editor/ui/SchematicView';
+import { useActiveSession, useSessionState } from '@/plugins/reformer/editor/ui/useSession';
 
 const DOCUMENT = 'fake:form.json';
 

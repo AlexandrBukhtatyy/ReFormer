@@ -46,18 +46,18 @@ import { FALLBACK_LOCALE } from '@/shell/platform/services/i18n/i18n';
 import { parseMessage, type MessagePattern } from '@/shell/platform/services/i18n/message-format';
 import hostEn from '@/shell/platform/services/i18n/locales/en.json';
 import hostRu from '@/shell/platform/services/i18n/locales/ru.json';
-import { AI_MESSAGES } from '@/plugins/ai/messages';
-import { CODEGEN_MESSAGES } from '@/plugins/codegen/messages';
-import { MARKDOWN_MESSAGES } from '@/plugins/editor-markdown';
-import { MONACO_MESSAGES } from '@/plugins/editor-monaco/messages';
-import { SCHEMA_EDITOR_MESSAGES } from '@/plugins/editor-schema/messages';
-import { FILES_MESSAGES } from '@/plugins/files';
-import { KITS_MESSAGES } from '@/plugins/kits/messages';
-import { PLUGIN_MANAGER_MESSAGES } from '@/plugins/plugin-manager';
-import { PLAIN_MESSAGES } from '@/plugins/plain/messages';
-import { PREVIEW_MESSAGES } from '@/plugins/preview/messages';
-import { PREVIEW_RUNTIME_MESSAGES } from '@/plugins/preview-runtime/messages';
-import { TEMPLATES_MESSAGES } from '@/plugins/templates/messages';
+import { AI_MESSAGES } from '@/plugins/reformer/ai/messages';
+import { CODEGEN_MESSAGES } from '@/plugins/reformer/codegen/messages';
+import { MARKDOWN_MESSAGES } from '@/plugins/base/editor-markdown';
+import { MONACO_MESSAGES } from '@/plugins/base/editor-monaco/messages';
+import { SCHEMA_EDITOR_MESSAGES } from '@/plugins/reformer/editor/messages';
+import { FILES_MESSAGES } from '@/plugins/base/files';
+import { KITS_MESSAGES } from '@/plugins/kits/registry/messages';
+import { PLUGIN_MANAGER_MESSAGES } from '@/plugins/base/plugin-manager';
+import { PLAIN_MESSAGES } from '@/plugins/plain/demo/messages';
+import { PREVIEW_MESSAGES } from '@/plugins/base/preview/messages';
+import { PREVIEW_RUNTIME_MESSAGES } from '@/plugins/reformer/render/messages';
+import { TEMPLATES_MESSAGES } from '@/plugins/reformer/templates/messages';
 
 /** Словарь одного владельца: локаль → ключ → сообщение. */
 type Dictionary = Readonly<Record<string, Readonly<Record<string, string>>>>;
@@ -73,23 +73,23 @@ const HOST_MESSAGES: Dictionary = { ru: hostRu, en: hostEn };
 /**
  * Все словари приложения.
  *
- * Имя владельца — то, под которым словарь регистрируется (для плагинов это их `pluginId`),
- * потому что именно его называет отчёт о промахе.
+ * Имя владельца плагина — его путь `домен/плагин` в `src/plugins`: по нему отчёт о промахе
+ * ведёт прямо к файлу, и по нему же сверка ниже находит плагин со словарём.
  */
 const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['host', HOST_MESSAGES],
-  ['ai', AI_MESSAGES],
-  ['codegen', CODEGEN_MESSAGES],
-  ['editor-markdown', MARKDOWN_MESSAGES],
-  ['editor-monaco', MONACO_MESSAGES],
-  ['editor-schema', SCHEMA_EDITOR_MESSAGES],
-  ['files', FILES_MESSAGES],
-  ['kits', KITS_MESSAGES],
-  ['plain', PLAIN_MESSAGES],
-  ['plugin-manager', PLUGIN_MANAGER_MESSAGES],
-  ['preview', PREVIEW_MESSAGES],
-  ['preview-runtime', PREVIEW_RUNTIME_MESSAGES],
-  ['templates', TEMPLATES_MESSAGES],
+  ['reformer/ai', AI_MESSAGES],
+  ['reformer/codegen', CODEGEN_MESSAGES],
+  ['base/editor-markdown', MARKDOWN_MESSAGES],
+  ['base/editor-monaco', MONACO_MESSAGES],
+  ['reformer/editor', SCHEMA_EDITOR_MESSAGES],
+  ['base/files', FILES_MESSAGES],
+  ['kits/registry', KITS_MESSAGES],
+  ['plain/demo', PLAIN_MESSAGES],
+  ['base/plugin-manager', PLUGIN_MANAGER_MESSAGES],
+  ['base/preview', PREVIEW_MESSAGES],
+  ['reformer/render', PREVIEW_RUNTIME_MESSAGES],
+  ['reformer/templates', TEMPLATES_MESSAGES],
 ];
 
 /** Локали, в которых обязан быть каждый ключ. Резервная — первой, потому что за ней нет никого. */
@@ -198,11 +198,18 @@ describe('словари: список проверяемых не отстаё�
   function pluginsWithMessages(): string[] {
     const root = fileURLToPath(new URL('../../../plugins', import.meta.url));
     const found: string[] = [];
-    for (const name of readdirSync(root)) {
-      const directory = `${root}/${name}`;
-      if (!statSync(directory).isDirectory()) continue;
-      const entries = readdirSync(directory);
-      if (entries.includes('locales') || entries.includes('messages.ts')) found.push(name);
+    // Плагины разложены по доменам: `plugins/<домен>/<плагин>`. Ядро домена (`core`) плагином
+    // не является и словаря не несёт.
+    for (const domain of readdirSync(root)) {
+      if (!statSync(`${root}/${domain}`).isDirectory()) continue;
+      for (const name of readdirSync(`${root}/${domain}`)) {
+        const directory = `${root}/${domain}/${name}`;
+        if (!statSync(directory).isDirectory()) continue;
+        const entries = readdirSync(directory);
+        if (entries.includes('locales') || entries.includes('messages.ts')) {
+          found.push(`${domain}/${name}`);
+        }
+      }
     }
     return found.sort();
   }

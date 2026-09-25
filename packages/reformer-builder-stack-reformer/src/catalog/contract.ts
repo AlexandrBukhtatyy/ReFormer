@@ -15,7 +15,7 @@
  * читала `config/state.getClientCatalog()`, а иначе брала каталог выбранного кита
  * (`kits/registry` + `kits/selection` + `localStorage`). Это состояние приложения, и домену его
  * знать нельзя — источник и конфиг теперь ПАРАМЕТРЫ, а выбор источника остаётся вызывающему
- * (плагин `plugins/kits/`). Отсюда и другое имя: «compose», а не «load» — функция ничего не
+ * (плагин `plugins/kits/registry/`). Отсюда и другое имя: «compose», а не «load» — функция ничего не
  * загружает, она склеивает поставленное с синтетикой билдера.
  *
  * @module @reformer/builder-stack-reformer/catalog/contract

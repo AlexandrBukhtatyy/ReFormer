@@ -26,7 +26,7 @@
  * Порядок несущий: `flush` сам спрашивает этот реестр и при живом фокусе отложит перерисовку
  * снова — редактор, зовущий его до `setFocused(id, false)`, оставит буфер отставшим до
  * следующего повода. Образец — обработчики `onDidFocusEditorText`/`onDidBlurEditorText`
- * в `plugins/editor-monaco/ui/MonacoEditor.tsx`.
+ * в `plugins/base/editor-monaco/ui/MonacoEditor.tsx`.
  *
  * ## Зачем реестр, а не флаг в компоненте
  *

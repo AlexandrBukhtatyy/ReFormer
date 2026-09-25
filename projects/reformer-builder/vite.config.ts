@@ -24,15 +24,20 @@ import tailwindcss from '@tailwindcss/vite';
 const WINDOWS_SEPARATOR = String.fromCharCode(92);
 const norm = (id: string): string => id.split(WINDOWS_SEPARATOR).join('/');
 
-/** Чей это модуль: `…/src/plugins/<id>/…` → `<id>`. */
+/**
+ * Чей это модуль: `…/src/plugins/<домен>/<плагин>/…` → `<домен>-<плагин>`.
+ *
+ * Ядро домена (`<домен>/core`) — общий код плагинов домена, а не плагин: его модули владельца
+ * не дают и в чанк плагина попадают попутчиками, как код пакетов.
+ */
 const pluginOf = (id: string): string | undefined => {
   const marker = '/src/plugins/';
   const s = norm(id);
   const at = s.lastIndexOf(marker);
   if (at === -1) return undefined;
-  const rest = s.slice(at + marker.length);
-  const slash = rest.indexOf('/');
-  return slash === -1 ? undefined : rest.slice(0, slash);
+  const [domain, plugin, rest] = s.slice(at + marker.length).split('/', 3);
+  if (rest === undefined || plugin === 'core') return undefined;
+  return `${domain}-${plugin}`;
 };
 
 /** Словари оболочки: свой каталог, потому что их читают по одному и глазами. */
@@ -139,8 +144,8 @@ export default defineConfig({
           const owned = own.filter((id) => pluginOf(id) !== undefined).length;
           if (owners.size === 1 && owned * 2 >= own.length) {
             const owner = [...owners][0];
-            // У бареля `[name]` — всегда `index`, и `plugins/ai-index` ничего не добавляет
-            // к `plugins/ai`. У остальных имя несёт смысл и остаётся.
+            // У бареля `[name]` — всегда `index`, и `plugins/reformer-ai-index` ничего
+            // не добавляет к `plugins/reformer-ai`. У остальных имя несёт смысл и остаётся.
             return chunk.name === 'index'
               ? `assets/plugins/${owner}-[hash].js`
               : `assets/plugins/${owner}-[name]-[hash].js`;

@@ -9,7 +9,7 @@
  * в любом случае.
  *
  * Рабочая область здесь собирается ТЕМ ЖЕ способом, что в приложении: службы регистрируются
- * в реестре, а плагин достаёт их оттуда (`plugins/templates/workspace`) — включая сохранение:
+ * в реестре, а плагин достаёт их оттуда (`plugins/reformer/templates/workspace`) — включая сохранение:
  * порта у шаблонов больше нет, дверь наружу стала привилегированной службой.
  *
  * @module shell/boot/integration/templates-port.test
@@ -31,12 +31,12 @@ import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceFilesServiceToken } from '@reformer/builder-plugin-api/internal';
 import { WorkspaceSaveServiceToken } from '@reformer/builder-plugin-api/internal';
 import type { PluginContext } from '@reformer/builder-plugin-api/internal';
-import type { FormTemplate } from '@/plugins/templates';
+import type { FormTemplate } from '@/plugins/reformer/templates';
 import {
   generateFormFromTemplate,
   TEMPLATES_PLUGIN_ID,
   templatesWorkspace,
-} from '@/plugins/templates';
+} from '@/plugins/reformer/templates';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createWorkspaceFilesService } from '@/shell/boot/ports/workspace-files';
 import {

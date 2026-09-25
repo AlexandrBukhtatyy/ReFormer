@@ -105,7 +105,7 @@ npm install --save-dev @reformer/builder-plugin-api
 того стека, чей документ, с условием по виду документа: `activeResourceKind == <provider-id>`.
 Оболочка своих команд отмены не заводит: у текстового документа своя отмена у Monaco, у каждого
 стека — свой вид документа, и условие по нему делает сочетания стеков непересекающимися. Образцы —
-`plugins/editor-schema` (`form.schema`) и `plugins/plain` (`plain.form`).
+`plugins/reformer/editor` (`form.schema`) и `plugins/plain/demo` (`plain.form`).
 
 ## Контракт словаря
 

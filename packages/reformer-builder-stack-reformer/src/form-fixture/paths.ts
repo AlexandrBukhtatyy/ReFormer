@@ -13,7 +13,7 @@
  *
  * Фикстура НЕ сайдкар: она подставляет модули формы (`./api`), и попади она в один граф
  * с сайдкарами — `api.ts` исполнился бы дважды, а форма получила бы два разных объекта под
- * одним именем (см. `plugins/preview/compiling/fixture`). Разделение графов держится на имени
+ * одним именем (см. `plugins/base/preview/compiling/fixture`). Разделение графов держится на имени
  * файла: отбор сайдкаров исключает {@link FIXTURE_FILE} явно ({@link isFixturePath}).
  *
  * @module @reformer/builder-stack-reformer/form-fixture/paths

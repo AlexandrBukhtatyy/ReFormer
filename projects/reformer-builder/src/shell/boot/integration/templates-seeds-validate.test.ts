@@ -14,7 +14,7 @@
  * ## Почему тест лежит в композиции, а не рядом с затравками
  *
  * Он сверяет ДВА плагина: затравки шаблонов проверяются проверкой редактора схемы
- * (`plugins/validator-schema`) против каталога кита. Плагину чужой плагин не виден — это
+ * (`plugins/reformer/validator`) против каталога кита. Плагину чужой плагин не виден — это
  * держит линтер, — поэтому единственное место, где обе стороны встречаются, есть композиция.
  * Лёжа рядом с затравками, тест два месяца валил `npm run lint` пакета двумя ошибками
  * `no-restricted-imports`, и это было видно только в полном прогоне линтера.
@@ -26,14 +26,14 @@ import { describe, expect, it } from 'vitest';
 
 import { validateFormSchema } from '@reformer/renderer-json/validate';
 import { builtinEntries } from '@reformer/builder-stack-reformer/testing';
-import { checkForm } from '@/plugins/validator-schema/check';
-import { CODES } from '@/plugins/validator-schema/codes';
+import { checkForm } from '@/plugins/reformer/validator/check';
+import { CODES } from '@/plugins/reformer/validator/codes';
 import {
   simpleSeed,
   simpleRules,
   wizardSeed,
   wizardRules,
-} from '@/plugins/templates/stores/builtin';
+} from '@/plugins/reformer/templates/stores/builtin';
 
 const PROPERTY_CODES: string[] = [CODES.UNKNOWN_PROPERTY, CODES.UNKNOWN_COMPONENT];
 

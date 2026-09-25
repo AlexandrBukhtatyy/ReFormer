@@ -224,7 +224,7 @@ export function extractContract(modules: ReadonlyMap<string, unknown>): FormCont
   const initial = pick('model.ts', 'initialFormModel');
   // Имена фабрики исторически три: кодоген билдера печатает `createJsonRenderBehavior`,
   // шаблон визарда — `createRenderBehavior`, ранние формы — готовую `formRenderBehavior`.
-  // Разбор тот же, что в билдере (`plugins/preview/compiling/exports`), и по той же причине:
+  // Разбор тот же, что в билдере (`plugins/base/preview/compiling/exports`), и по той же причине:
   // различаем по ИМЕНИ экспорта, а не по арности — обе функции одного аргумента.
   const renderBehavior =
     pick('renderer.behavior.ts', 'createJsonRenderBehavior') ??

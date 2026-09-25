@@ -158,23 +158,28 @@ projects/reformer-builder/
 │   │       └── capability-resolver.ts  кто что даёт, чего не хватает, кто спорит за слот —
 │   │                          ДО загрузки кода; отказ здесь данные, а не исключение
 │   │
-│   ├── plugins/               ВСЯ ПРЕДМЕТНАЯ ЛОГИКА (анатомия — в разделе ниже)
-│   │   ├── editor-schema/       визуальный редактор: model/ session/ canvas/ schematic/
-│   │   │                        live/ editing/ palette/ ui/
-│   │   ├── editor-monaco/       runtime/ sync/ diagnostics/ ui/
-│   │   ├── editor-markdown/     render/ state/ ui/
-│   │   ├── validator-schema/    валидатор схемы (флат — размер позволяет)
-│   │   ├── preview/             ХОСТ превью, общий для стеков: live/ state/ surface/ schema/
-│   │   ├── preview-runtime/     поверхности формы ReFormer и панель модели: compiling/
-│   │   │                        runtime/ schema/ surface/ ui/
-│   │   ├── codegen/             pipeline/ (+ __golden__) commands/ ui/
-│   │   ├── templates/           content/ render/ commands/ stores/ ui/
-│   │   ├── files/               ui/
-│   │   ├── kits/                активный кит как сервис (флат)
-│   │   ├── plugin-manager/      управление плагинами каталога из палитры (флат)
-│   │   ├── plain/               демо-стек: провайдер, поверхность, валидатор, редактор, команды
-│   │   └── ai/                  model/ loop/ tools/ session/ knowledge/ providers/ ui/
-│   │                            (каталога core/ нет: имя не сообщало ничего и притягивало всё)
+│   ├── plugins/               ВСЯ ПРЕДМЕТНАЯ ЛОГИКА — по доменам: plugins/<домен>/<плагин>
+│   │   │                      (анатомия плагина — в разделе ниже; id плагинов с раскладкой
+│   │   │                      не связаны: reformer.editor-schema лежит в reformer/editor)
+│   │   ├── base/                нужно любому конструктору, какой бы стек ни стоял
+│   │   │   ├── files/             ui/
+│   │   │   ├── editor-monaco/     runtime/ sync/ diagnostics/ ui/
+│   │   │   ├── editor-markdown/   render/ state/ ui/
+│   │   │   ├── plugin-manager/    управление плагинами каталога из палитры (флат)
+│   │   │   └── preview/           ХОСТ превью, общий для стеков: live/ state/ surface/ schema/
+│   │   ├── kits/
+│   │   │   └── registry/          активный кит как сервис (флат)
+│   │   ├── reformer/            стек ReFormer
+│   │   │   ├── editor/            визуальный редактор: model/ session/ canvas/ schematic/
+│   │   │   │                      live/ editing/ palette/ ui/
+│   │   │   ├── render/            поверхности формы ReFormer и панель модели: compiling/
+│   │   │   │                      runtime/ schema/ surface/ ui/
+│   │   │   ├── validator/         валидатор схемы (флат — размер позволяет)
+│   │   │   ├── codegen/           pipeline/ (+ __golden__) commands/ ui/
+│   │   │   ├── templates/         content/ render/ commands/ stores/ ui/
+│   │   │   └── ai/                model/ loop/ tools/ session/ knowledge/ providers/ ui/
+│   │   └── plain/
+│   │       └── demo/              демо-стек: провайдер, поверхность, валидатор, редактор, команды
 │   │
 │   ├── testing/               browser-setup (зашит в vitest.browser.config), render
 │   ├── main.tsx  App.tsx  index.css
@@ -197,8 +202,8 @@ projects/reformer-builder/
 
 Пример на активном ките: дескрипторы и типы китов — `@reformer/builder-stack-reformer/kits`
 (чистые данные, импортируются кем угодно), а «какой кит активен сейчас» — сервис плагина
-`plugins/kits/`. Второй пример — кодоген: `@reformer/builder-stack-reformer/codegen` — машина
-печати (шаблоны, сборка контекста), а решение «какие файлы производить» — вклады в `plugins/codegen`.
+`plugins/kits/registry/`. Второй пример — кодоген: `@reformer/builder-stack-reformer/codegen` — машина
+печати (шаблоны, сборка контекста), а решение «какие файлы производить» — вклады в `plugins/reformer/codegen`.
 
 Вторая ось — **стек**. Общий чистый код лежит не «в билдере вообще», а в пакете того стека,
 на языке которого он говорит: модель схемы ReFormer нужна плагинам стека ReFormer и не нужна
@@ -238,7 +243,7 @@ projects/reformer-builder/
 ## Устройство плагина
 
 ```text
-plugins/editor-schema/
+plugins/reformer/editor/
 ├── index.ts          единственный экспорт наружу — обязателен у каждого плагина
 ├── plugin.ts         definePlugin + activate: регистрация вкладов   (+ plugin.test.ts)
 ├── host.ts           порт платформы: структурная копия интерфейса, который плагин
@@ -269,8 +274,13 @@ plugins/editor-schema/
   импортирует плагины только через их `index.ts`.
 - **Словари везёт плагин.** Иначе платформа снова начнёт знать предметные строки.
   Пространство имён словаря — идентификатор плагина.
-- **Именование каталогов плагинов по роли**: `editor-*`, `validator-*`. Роль видна в дереве
-  без открытия файлов.
+- **Каталог плагина — `<домен>/<роль>`**: `reformer/editor`, `reformer/render`,
+  `reformer/validator`. Домен — чей это язык (стек ReFormer, основа, киты), роль — что плагин
+  делает; оба видны в дереве без открытия файлов. В папке домена — только плагины (манифест
+  и `index.ts`) и необязательное ядро домена `core/`; это проверяет `structure.test.ts`.
+- **Идентификатор плагина от каталога не зависит.** Он persisted-ключ (словари, настройки,
+  хранилище, поправки конфига), и переезд папки его не трогает. Соответствие «идентификатор →
+  каталог» записано явно в `builtinPluginDirectory` и сверено тестом состава.
 - **`application/composer/builtin-plugins.ts` — единственное место со списком плагинов.**
   В оболочке его нет и быть не может: она получает состав параметром. Список — карта
   «идентификатор → запись», а КАКИЕ из записей собирать, говорит профиль
@@ -319,24 +329,29 @@ plugins/editor-schema/
 Перемещая файлы, помни про места, которые компилятор не проверяет:
 
 - `application/composer/builtin-plugins.test.ts` — динамический импорт
-  ``import(`../../plugins/${id}/locales/ru.json`)`` с путём относительно файла теста, и обход
-  храповика `new URL('../..', import.meta.url)`: оба держатся на глубине файла от `src/`;
-- `shell/boot/integration/i18n-completeness.test.ts` — `new URL('../../../plugins', import.meta.url)`;
-- `plugins/ai/loop/prompt.test.ts` — читает собственный исходник `./prompt.ts` через `readFileSync`;
-- `plugins/codegen/pipeline/golden.test.ts` — `toMatchFileSnapshot('./__golden__/…')`:
+  ``import(`../../plugins/${domain}/${plugin}/locales/ru.json`)`` с путём относительно файла
+  теста (две подстановки: у Vite каждая — один сегмент glob'а), и обход храповика
+  `new URL('../..', import.meta.url)`: оба держатся на глубине файла от `src/`;
+- `shell/boot/integration/i18n-completeness.test.ts` — `new URL('../../../plugins', import.meta.url)`
+  и обход в два уровня `домен/плагин`;
+- `plugins/reformer/ai/loop/prompt.test.ts` — читает собственный исходник `./prompt.ts` через `readFileSync`;
+- `plugins/reformer/codegen/pipeline/golden.test.ts` — `toMatchFileSnapshot('./__golden__/…')`:
   голдены живут в каталоге теста и переезжают только вместе с ним;
 - `package.json` (`generate:knowledge`) и `.gitignore` монорепо — путь
-  `src/plugins/ai/knowledge/generated`;
+  `src/plugins/reformer/ai/knowledge/generated`;
 - `vitest.browser.config.ts` — `setupFiles: ['./src/testing/browser-setup.ts']`;
 - `src/index.css` — относительный `@source` до `packages/reformer-ui-kit`;
-- `vite.config.ts` — раскладка `dist/assets` разбирает путь модуля строками: `/src/plugins/<id>/`
-  решает, в какой файл `assets/plugins/` уедет чанк, `/src/shell/platform/services/i18n/locales/`
-  отправляет словари в `assets/i18n/`. Переименование этих каталогов молча сложит всё в `assets/js/`;
-- `application/composer/builtin-plugins.ts` — шесть литеральных `import('@/plugins/<id>')`
-  внутри ленивых записей карты: сборщику нужен литерал, переменной путь не задать. Профиль
-  называет плагин СТРОКОЙ, и превращает строку в литерал только эта карта — поэтому ключ
-  ленивой записи обязан совпадать и с каталогом плагина, и с его `plugin.id`; совпадение
-  проверяет тест состава. `LAZY_PLUGIN_IDS` выводится из карты, отдельным списком не живёт.
+- `vite.config.ts` — раскладка `dist/assets` разбирает путь модуля строками:
+  `/src/plugins/<домен>/<плагин>/` решает, в какой файл `assets/plugins/<домен>-<плагин>-*`
+  уедет чанк (ядро домена `core/` владельца не даёт),
+  `/src/shell/platform/services/i18n/locales/` отправляет словари в `assets/i18n/`.
+  Переименование этих каталогов молча сложит всё в `assets/js/`;
+- `application/composer/builtin-plugins.ts` — литеральные `import('@/plugins/<домен>/<плагин>')`
+  внутри ленивых записей карты (сборщику нужен литерал, переменной путь не задать) и карта
+  каталогов `builtinPluginDirectory`. Профиль называет плагин СТРОКОЙ, и превращает строку
+  в литерал только эта карта — поэтому ключ ленивой записи обязан совпадать с `plugin.id`,
+  а каталог из карты — с каталогом манифеста; оба совпадения проверяет тест состава.
+  `LAZY_PLUGIN_IDS` выводится из карты, отдельным списком не живёт.
 
 ## Соглашения
 
@@ -348,8 +363,8 @@ plugins/editor-schema/
   ([structure.test.ts](../src/structure.test.ts)), а не памятью. Тесты в счёт не идут: `ops.test.ts`
   ищут не сам по себе, а вместе с `ops.ts`, и считать файлы значило бы наказывать за покрытие.
   Каталог сверх порога либо делится по темам (образцы — `shell/platform/workspace/`,
-  `plugins/preview/`), либо получает именованное исключение с причиной. Исключение сейчас одно:
-  `plugins/ai/tools`, где по файлу на инструмент — это и есть поверхность, которую видит модель.
+  `plugins/base/preview/`), либо получает именованное исключение с причиной. Исключение сейчас одно:
+  `plugins/reformer/ai/tools`, где по файлу на инструмент — это и есть поверхность, которую видит модель.
 
 ## Каталог рядом с проектом
 
@@ -387,23 +402,23 @@ plugins/editor-schema/
 а `shell/boot` — `app`). `stack-reformer/` — пакет `@reformer/builder-stack-reformer`
 (до 2026-09-18 — каталог `src/lib`).
 
-| v1                                 | v2                                                     |
-| ---------------------------------- | ------------------------------------------------------ |
-| `model/`                           | `stack-reformer/form-model/`                           |
-| `catalog/`                         | `stack-reformer/catalog/`                              |
-| `kits/` (дескрипторы)              | `stack-reformer/kits/`                                 |
-| `kits/` (активный кит)             | `plugins/kits/`                                        |
-| `preview-runtime/live/`            | `shell/platform/modules/` + `plugins/preview-runtime/` |
-| `codegen/`                         | `stack-reformer/codegen/` + `plugins/codegen/`         |
-| `templates/`, `app/*-templates.ts` | `plugins/templates/`                                   |
-| `canvas/`, `panels/`               | `plugins/editor-*/`                                    |
-| `agent/core/`                      | `plugins/ai/`                                          |
-| `io/fs-*`, `discovery`             | `shell/platform/source/`                               |
-| `io/opfs`, `io/idb`, `draft-store` | `shell/platform/workspace/storage/`                    |
-| `app/EditorLayout.tsx`             | `shell/platform/ui/Shell.tsx` + вклады                 |
-| `store/reducers.ts`                | `shell/platform/workspace/` + `plugins/editor-schema/` |
+| v1                                 | v2                                                       |
+| ---------------------------------- | -------------------------------------------------------- |
+| `model/`                           | `stack-reformer/form-model/`                             |
+| `catalog/`                         | `stack-reformer/catalog/`                                |
+| `kits/` (дескрипторы)              | `stack-reformer/kits/`                                   |
+| `kits/` (активный кит)             | `plugins/kits/registry/`                                 |
+| `preview-runtime/live/`            | `shell/platform/modules/` + `plugins/reformer/render/`   |
+| `codegen/`                         | `stack-reformer/codegen/` + `plugins/reformer/codegen/`  |
+| `templates/`, `app/*-templates.ts` | `plugins/reformer/templates/`                            |
+| `canvas/`, `panels/`               | `plugins/editor-*/`                                      |
+| `agent/core/`                      | `plugins/reformer/ai/`                                   |
+| `io/fs-*`, `discovery`             | `shell/platform/source/`                                 |
+| `io/opfs`, `io/idb`, `draft-store` | `shell/platform/workspace/storage/`                      |
+| `app/EditorLayout.tsx`             | `shell/platform/ui/Shell.tsx` + вклады                   |
+| `store/reducers.ts`                | `shell/platform/workspace/` + `plugins/reformer/editor/` |
 
 Порты стека, которые собирал `shell/boot/ports` (`schema`, `preview`, мосты `live-surface`
 и `kit-namespace`), сняты в 2026-09 (ось стеков, Ф2–Ф3): живой вид стал возможностью плагина
-превью, загрузчик пространства имён кита уехал в `plugins/kits`, а редактор схемы и поверхности
+превью, загрузчик пространства имён кита уехал в `plugins/kits/registry`, а редактор схемы и поверхности
 превью собирают свои порты из возможностей оболочки (`host-from-context.ts`).

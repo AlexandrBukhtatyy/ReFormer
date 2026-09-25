@@ -36,9 +36,9 @@ import type { Plugin } from '@reformer/builder-plugin-api/internal';
 // стирает такой импорт целиком, графа он не создаёт. Плагинов стека здесь нет ни одного: всё,
 // что им нужно от оболочки, они берут возможностями из реестра служб (`reformer.workspace.models`,
 // `reformer.modules`, словарь оболочки), — иначе оболочка собирала бы порты для всех стеков сразу.
-import type { FilesHost } from '@/plugins/files';
-import type { MonacoHost } from '@/plugins/editor-monaco';
-import type { MarkdownHost } from '@/plugins/editor-markdown';
+import type { FilesHost } from '@/plugins/base/files';
+import type { MonacoHost } from '@/plugins/base/editor-monaco';
+import type { MarkdownHost } from '@/plugins/base/editor-markdown';
 
 /**
  * Состав приложения — двумя фазами, ровно теми, что нужны запуску.

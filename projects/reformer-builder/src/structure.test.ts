@@ -46,7 +46,7 @@ const MODULE_LIMIT = 15;
  * запас на рост, но падать, если каталог поедет дальше без разговора.
  */
 const EXCEPTIONS: Readonly<Record<string, { readonly limit: number; readonly why: string }>> = {
-  'plugins/ai/tools': {
+  'plugins/reformer/ai/tools': {
     limit: 25,
     why:
       'по файлу на инструмент агента — сам НАБОР и есть поверхность, которую видит модель; ' +
@@ -137,9 +137,41 @@ describe('устройство плагина', () => {
   const DOMAIN_IN_ROOT_LIMIT = 6;
 
   const pluginsDir = `${ROOT.replace(/[\\/]$/, '')}/plugins`;
-  const plugins = readdirSync(pluginsDir).filter((name) =>
-    statSync(`${pluginsDir}/${name}`).isDirectory()
+  const isDir = (path: string): boolean => statSync(path).isDirectory();
+
+  /**
+   * Ядро домена — не плагин: общий чистый код плагинов своего домена (`plugins/<домен>/core`).
+   * Плагины домена видят его, соседи по домену друг друга — нет (линтер).
+   */
+  const DOMAIN_CORE = 'core';
+
+  /** Домены — первый уровень: `base`, `kits`, `reformer`, … */
+  const domains = readdirSync(pluginsDir).filter((name) => isDir(`${pluginsDir}/${name}`));
+
+  /** Плагины — второй уровень, `домен/плагин`; ядро домена в их число не входит. */
+  const plugins = domains.flatMap((domain) =>
+    readdirSync(`${pluginsDir}/${domain}`)
+      .filter((name) => name !== DOMAIN_CORE && isDir(`${pluginsDir}/${domain}/${name}`))
+      .map((name) => `${domain}/${name}`)
   );
+
+  it('в папке домена — только плагины и необязательное ядро', () => {
+    // Плагин узнаётся по манифесту и барелю. Файл прямо в папке домена или каталог без них —
+    // это код без хозяина: не плагин, который можно включить, и не ядро, которое видят плагины.
+    const stray = domains.flatMap((domain) =>
+      readdirSync(`${pluginsDir}/${domain}`)
+        .filter((name) => name !== DOMAIN_CORE)
+        .filter((name) => {
+          const path = `${pluginsDir}/${domain}/${name}`;
+          if (!isDir(path)) return true;
+          const entries = readdirSync(path);
+          return !entries.includes('manifest.json') || !entries.includes('index.ts');
+        })
+        .map((name) => `${domain}/${name}`)
+    );
+
+    expect(stray).toEqual([]);
+  });
 
   it('каждый плагин отдаёт наружу index.ts', () => {
     const without = plugins.filter(
@@ -185,7 +217,8 @@ describe('устройство плагина', () => {
     expect(crowded).toEqual([]);
   });
 
-  it('проверка не пуста: плагины найдены', () => {
+  it('проверка не пуста: домены и плагины найдены', () => {
+    expect(domains.length).toBeGreaterThanOrEqual(4);
     expect(plugins.length).toBeGreaterThanOrEqual(10);
   });
 });

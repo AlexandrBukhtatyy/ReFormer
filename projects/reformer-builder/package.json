@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "dev": "vite",
-    "generate:knowledge": "node ../../packages/reformer-mcp/scripts/build-knowledge-bundle.mjs --out src/plugins/ai/knowledge/generated",
+    "generate:knowledge": "node ../../packages/reformer-mcp/scripts/build-knowledge-bundle.mjs --out src/plugins/reformer/ai/knowledge/generated",
     "build": "npm run generate:knowledge && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

@@ -125,8 +125,8 @@ import {
 } from '@/shell/platform/workspace/storage/purge';
 import { createJournalRelief } from '@/shell/platform/workspace/journal/journal';
 import type { Journal } from '@/shell/platform/workspace/journal/journal';
-import { FILES_MESSAGES } from '@/plugins/files/messages';
-import { FILES_PLUGIN_ID } from '@/plugins/files/contract';
+import { FILES_MESSAGES } from '@/plugins/base/files/messages';
+import { FILES_PLUGIN_ID } from '@/plugins/base/files/contract';
 import { createFilesHost } from '@/shell/boot/ports/files';
 import { createMarkdownHost } from '@/shell/boot/ports/markdown';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';

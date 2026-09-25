@@ -35,7 +35,7 @@ const COMMENTABLE = new Set(['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'mts', 'cts
  * и модуль, отданный человеку.
  *
  * Потери от пропуска маркера нет: перезапись производных файлов маркером не управляется —
- * их доставка переписывает всегда (см. `plugins/codegen/deliver`), а спрашивают его только
+ * их доставка переписывает всегда (см. `plugins/reformer/codegen/deliver`), а спрашивают его только
  * у авторских, и все они `.ts`.
  */
 export function acceptsMarker(path: string): boolean {

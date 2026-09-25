@@ -40,7 +40,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('applicationFromRuntime', () => {
+// Полный профиль собирается с ленивыми плагинами, и на холодном кэше трансформации (первый прогон
+// после переезда файлов) первый такой тест не укладывается в 5 с умолчания — как и
+// builtin-plugins с keybindings-wiring (29a2d5d9). Таймаут на блок: холодным оказывается любой
+// первый по порядку, а порядок меняет фильтр `-t`.
+describe('applicationFromRuntime', { timeout: 30_000 }, () => {
   it('без конфига — полный профиль', async () => {
     await expect(idsOf(applicationFromRuntime({}))).resolves.toEqual(FULL);
   });

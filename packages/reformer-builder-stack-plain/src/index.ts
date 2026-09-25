@@ -6,7 +6,7 @@
  * `Form.tsx` без единой библиотеки форм. Ни `@reformer/renderer-json`, ни `@reformer/core`,
  * ни пакета стека ReFormer здесь нет — и тест пакета это проверяет.
  *
- * Плагин стека живёт в билдере (`plugins/plain`), а здесь — его чистая часть.
+ * Плагин стека живёт в билдере (`plugins/plain/demo`), а здесь — его чистая часть.
  *
  * @module @reformer/builder-stack-plain
  */

@@ -286,7 +286,7 @@ export type { WriteOptions } from './workspace/write-options.js';
 // область догнала буфер по модели (встроенный Monaco зовёт тот же глагол своим портом).
 // Порядок несущий: `flush` спрашивает этот же реестр и при живом фокусе отложит перерисовку
 // снова.
-// Образец — обработчики фокуса в `plugins/editor-monaco/ui/MonacoEditor.tsx`.
+// Образец — обработчики фокуса в `plugins/base/editor-monaco/ui/MonacoEditor.tsx`.
 // Токен, а не фабрика: реестр один на приложение — это возможность ОБОЛОЧКИ
 // (`platform/services/host-capabilities`), и заводит её запуск, а не плагин.
 export { TextEditorFocusToken } from './workspace/model/text-editor-focus.js';

@@ -29,19 +29,19 @@ import {
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
 import { sampleSchema } from '@reformer/builder-stack-reformer/testing';
-import { createSchemaModelProvider } from '@/plugins/editor-schema/model/provider';
+import { createSchemaModelProvider } from '@/plugins/reformer/editor/model/provider';
 import {
   MONACO_EDITOR_ID,
   monacoEditorContribution,
   viewStatesOver,
-} from '@/plugins/editor-monaco';
+} from '@/plugins/base/editor-monaco';
 import { createEditorViewStates } from '@/shell/platform/workspace/model/editor-view-states';
 import { createTextEditorFocusRegistry } from '@/shell/platform/workspace/model/text-editor-focus';
 import { createMonacoHost } from '@/shell/boot/ports/monaco';
 import { createProjectHost } from '@/shell/boot/project/project';
-import { schemaHostFromContext } from '@/plugins/editor-schema/host-from-context';
+import { schemaHostFromContext } from '@/plugins/reformer/editor/host-from-context';
 import { DocumentModelsCapability } from '@reformer/builder-plugin-api/internal';
-import { KitsServiceToken } from '@/plugins/kits';
+import { KitsServiceToken } from '@/plugins/kits/registry';
 import type { CatalogEntry } from '@reformer/builder-stack-reformer/catalog';
 
 let seq = 0;

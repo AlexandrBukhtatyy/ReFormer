@@ -35,7 +35,7 @@ import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
-import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits';
+import { KITS_PLUGIN_ID, KitsCapability, KitsServiceToken } from '@/plugins/kits/registry';
 import { builderApplication } from '../builder-application';
 import { baseProfile } from '../profiles/builder';
 import { PROFILES } from '../profiles/registry';
@@ -61,13 +61,15 @@ const PLAIN_PLUGIN = 'reformer.plain';
  * никто не помнит. Русский, а не английский, потому что он основная локаль, а совпадение
  * наборов ключей между локалями проверяет отдельный тест.
  *
- * Каталог берётся у {@link builtinPluginDirectory}: он зовётся `ai`, а плагин — `reformer.ai`,
- * и с фазы 7 это РАЗНЫЕ строки.
+ * Каталог берётся у {@link builtinPluginDirectory}: он зовётся `reformer/ai`, а плагин —
+ * `reformer.ai`, и это РАЗНЫЕ строки.
  */
 async function loadPluginLocale(id: string): Promise<Record<string, string> | null> {
-  const directory = builtinPluginDirectory(id);
+  const [domain, plugin] = builtinPluginDirectory(id).split('/');
   try {
-    const mod = (await import(`../../plugins/${directory}/locales/ru.json`)) as {
+    // Две подстановки, а не одна: `import()` с шаблоном Vite превращает в glob, где каждая
+    // подстановка — ОДИН сегмент пути, и `plugins/${'домен/плагин'}/…` не нашёл бы ничего.
+    const mod = (await import(`../../plugins/${domain}/${plugin}/locales/ru.json`)) as {
       default: Record<string, string>;
     };
     return mod.default;
@@ -112,6 +114,30 @@ describe('карта встроенных плагинов', () => {
     // то есть один плагин исчез бы из состава, а профиль, называющий его, остался бы зелёным.
     expect(BUILTIN_PLUGINS.size).toBe([...BUILTIN_PLUGINS.keys()].length);
     expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(11);
+  });
+
+  it('каталог каждого встроенного плагина — `домен/плагин` с его же манифестом', () => {
+    // Каталог записан явно (`builtinPluginDirectory`), а не выводится из идентификатора: перепутай
+    // строку — словарь не найдётся, а храповики, адресующие папку, замолчат на пустом множестве.
+    const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+    const wrong: string[] = [];
+    for (const id of BUILTIN_PLUGINS.keys()) {
+      const directory = builtinPluginDirectory(id);
+      if (directory.split('/').length !== 2) {
+        wrong.push(`${id}: «${directory}» — не «домен/плагин»`);
+        continue;
+      }
+      try {
+        const manifest = JSON.parse(
+          readFileSync(`${root}/plugins/${directory}/manifest.json`, 'utf8')
+        ) as { id?: unknown };
+        if (manifest.id !== id)
+          wrong.push(`${id}: в ${directory} манифест «${String(manifest.id)}»`);
+      } catch {
+        wrong.push(`${id}: нет ${directory}/manifest.json`);
+      }
+    }
+    expect(wrong).toEqual([]);
   });
 
   it('ключ карты — настоящий идентификатор плагина, а не соседнее имя', async () => {
@@ -568,7 +594,7 @@ describe('две фазы: что едет в entry, а что своим фай
         if (!/\.tsx?$/.test(entry) || /\.test\.tsx?$/.test(entry)) continue;
         const text = readFileSync(full, 'utf8');
         for (const id of LAZY_PLUGIN_IDS) {
-          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/ai`, а плагин
+          // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/reformer/ai`, а плагин
           // зовётся `reformer.ai`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
           // и храповик молча перестал бы стеречь.
           const directory = builtinPluginDirectory(id);
@@ -599,7 +625,7 @@ describe('две фазы: что едет в entry, а что своим фай
  * ХРАПОВИК границы «оболочка не знает стека».
  *
  * Плагины стека берут от оболочки всё возможностями, а не портами, — и держится это ровно до
- * первого импорта: одна строка `import { KitsServiceToken } from '@/plugins/kits'` в `boot`
+ * первого импорта: одна строка `import { KitsServiceToken } from '@/plugins/kits/registry'` в `boot`
  * возвращает порт, а вместе с ним знание о стеке. Пакеты стеков стережёт линтер; плагины стека
  * — этот тест, потому что их список не пишется руками, а выводится из профиля `builder.base`:
  * что в основе — нейтрально, остальное — чей-то стек.
@@ -630,7 +656,7 @@ describe('оболочка не знает стека', () => {
         files += 1;
         const text = readFileSync(full, 'utf8');
         for (const directory of stackDirectories) {
-          // Барель и любой подмодуль: `@/plugins/kits`, `@/plugins/kits/manifest.json`.
+          // Барель и любой подмодуль: `@/plugins/kits/registry`, `@/plugins/kits/registry/manifest.json`.
           const pattern = new RegExp("from '@/plugins/" + directory + "(/[^']*)?'");
           if (pattern.test(text)) offenders.push(full.slice(root.length) + ' → ' + directory);
         }
@@ -648,7 +674,12 @@ describe('оболочка не знает стека', () => {
     // Сломайся путь или выведи профиль основы весь набор — проверка выше осталась бы зелёной.
     expect(scan().files).toBeGreaterThan(100);
     expect(stackDirectories).toEqual(
-      expect.arrayContaining(['kits', 'editor-schema', 'preview-runtime', 'codegen'])
+      expect.arrayContaining([
+        'kits/registry',
+        'reformer/editor',
+        'reformer/render',
+        'reformer/codegen',
+      ])
     );
   });
 });

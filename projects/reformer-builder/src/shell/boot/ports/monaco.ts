@@ -23,8 +23,8 @@ import {
 import type { DiagnosticsService } from '@reformer/builder-plugin-api/internal';
 import type { RootI18nService } from '@/shell/platform/services/i18n/i18n';
 import { useLocale } from '@reformer/builder-plugin-api/internal';
-import type { MonacoDocument, MonacoHost, Translate } from '@/plugins/editor-monaco';
-import { MONACO_PLUGIN_ID } from '@/plugins/editor-monaco/contract';
+import type { MonacoDocument, MonacoHost, Translate } from '@/plugins/base/editor-monaco';
+import { MONACO_PLUGIN_ID } from '@/plugins/base/editor-monaco/contract';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface MonacoHostDeps {

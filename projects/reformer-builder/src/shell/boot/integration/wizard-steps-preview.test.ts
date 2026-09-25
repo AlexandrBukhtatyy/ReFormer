@@ -14,11 +14,11 @@
 import { describe, expect, it } from 'vitest';
 import { builtinKit, wizardSchema } from '@reformer/builder-stack-reformer/testing';
 import type { ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
-import { BUILTIN_TARGETS, generateModule } from '@/plugins/codegen';
-import type { PreviewHost, PreviewModules } from '@/plugins/preview-runtime/host';
-import { compileForm } from '@/plugins/preview-runtime/compiling/compile';
-import { extractContract } from '@/plugins/preview-runtime/compiling/exports';
-import { readSidecars } from '@/plugins/preview-runtime/compiling/read';
+import { BUILTIN_TARGETS, generateModule } from '@/plugins/reformer/codegen';
+import type { PreviewHost, PreviewModules } from '@/plugins/reformer/render/host';
+import { compileForm } from '@/plugins/reformer/render/compiling/compile';
+import { extractContract } from '@/plugins/reformer/render/compiling/exports';
+import { readSidecars } from '@/plugins/reformer/render/compiling/read';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
 
 const ROOT = 'fake:form';

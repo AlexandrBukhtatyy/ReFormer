@@ -188,7 +188,7 @@ jobs:
 
       - name: Run @reformer/builder tests
         # Юниты билдера в CI не гонялись вовсе, и это оставляло без охраны храповик
-        # `TOOL_SURFACE_BUDGET` (src/plugins/ai/model/types.ts, тест src/plugins/ai/tools/
+        # `TOOL_SURFACE_BUDGET` (src/plugins/reformer/ai/model/types.ts, тест src/plugins/reformer/ai/tools/
         # tool-surface.test.ts): поверхность инструментов уходит в запрос модели на каждом шаге
         # хода, её рост стоит токенов в каждом ходе каждого пользователя. Требует собранного
         # @reformer/mcp — билдер берёт оттуда ядро знаний.

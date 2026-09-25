@@ -19,7 +19,7 @@
  */
 
 import { makeResourceId, type ResourceId } from '@reformer/builder-plugin-api/internal';
-import type { MarkdownDocument, MarkdownHost } from '@/plugins/editor-markdown';
+import type { MarkdownDocument, MarkdownHost } from '@/plugins/base/editor-markdown';
 import type { ProjectHost } from '@/shell/boot/project/project';
 
 export interface MarkdownHostDeps {

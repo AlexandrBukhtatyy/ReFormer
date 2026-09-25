@@ -1,0 +1,315 @@
+/**
+ * Реестр состояний превью: по одному на документ, плюс ответ на вопрос «на что смотрят сейчас».
+ *
+ * ## Почему состояние по документу, а не по панели
+ *
+ * Панель превью одна, а документов много. Держи она состояние у себя — переключение вкладки
+ * теряло бы и выбор поверхности, и находки сборки, и человек возвращался бы к форме, которую
+ * только что смотрел, в другом режиме. Это ровно тот дефект v1, из-за которого состояние
+ * вида в v2 адресуется парой «редактор + документ».
+ *
+ * ## Активного документа реестр больше не знает
+ *
+ * Знал — потому что панель превью, отрисовавшись, сообщала ему, на что смотрит, а команде
+ * переключения поверхности нужен был документ, которого у неё нет. Ушли обе, и вместе с ними
+ * ушёл вопрос: живой вид редактора схемы всегда знает свой документ и спрашивает состояние
+ * по адресу. Реестр остался тем, чем и был по сути, — картой «документ → состояние».
+ *
+ * ## Выделение ходит через канал отсюда, а не из панели — и в обе стороны
+ *
+ * Клик по превью обязан дойти до канваса, а выбранный на канвасе узел — подсветиться здесь;
+ * канвас — в чужом плагине, куда импорта нет.
+ * Мост — служба выделения платформы, и подключается он ЗДЕСЬ по одной причине: реестр —
+ * единственное место, которое знает и адрес документа, и его состояние. У поверхности есть
+ * состояние, но нет адреса (`ctx.select(ids)` его не несёт), у панели есть адрес, но она
+ * размонтирована, как только человек ушёл на другую вкладку, — а выбор, сделанный до ухода,
+ * обязан остаться прочитанным. Подписка на стор ловит ВСЕХ, кто меняет выделение, а не только
+ * `ctx.select`: команда, правящая состояние документа мимо панели, публиковалась бы иначе
+ * по отдельному правилу, и правила разошлись бы.
+ *
+ * @module plugins/base/preview/state/sessions
+ */
+
+import type {
+  DiagnosticsService,
+  Disposable,
+  ResourceId,
+  SelectionService,
+} from '@reformer/builder-plugin-api';
+import { BUILD_DIAGNOSTICS_SOURCE, groupByResource } from './problem-diagnostics';
+import { createPreviewStore, type PreviewStore } from './store';
+
+/**
+ * Служба диагностик в объёме, которым пользуется превью: только запись.
+ *
+ * Читать свод превью незачем — оно его ПОПОЛНЯЕТ находками сборки, а показывают их
+ * редактор, панель проблем и дерево. Сужение делает это видимым в типе.
+ */
+export type DiagnosticsSink = Pick<DiagnosticsService, 'publish'>;
+
+/**
+ * Канал выделения в объёме, которым пользуется превью: читать, писать, следить.
+ *
+ * Здесь стояла только запись, и довод был верный ровно до тех пор, пока читать было некому:
+ * подсветку превью рисует по своему состоянию, и `get` без потребителя означал бы второй
+ * источник истины. Потребитель появился — редактор схемы публикует выбранный на канвасе узел,
+ * и подсветить его превью может только прочитав канал. Отсюда и три половины: `get` — потому
+ * что состояние документа могло родиться ПОСЛЕ чужого щелчка и обязано прочитать текущее,
+ * а не ждать следующего; `onDidChange` — потому что обе панели живут одновременно; `set` —
+ * как и раньше.
+ */
+export type SelectionChannel = Pick<SelectionService, 'get' | 'set' | 'onDidChange'>;
+
+export interface PreviewSessions {
+  /** Состояние документа; создаётся при первом обращении. */
+  storeFor(id: ResourceId): PreviewStore;
+  /**
+   * Связывает выделение всех документов с общим каналом — в ОБЕ стороны.
+   *
+   * Зовётся из `activate`, потому что раньше службы просто нет: реестр создаётся вместе
+   * с плагином, а сервисы приходят с контекстом. Возвращённый `Disposable` кладут
+   * в `ctx.subscriptions` — деактивация плагина обязана перестать писать в чужой канал.
+   *
+   * Подключение задним числом покрывает и уже созданные состояния: панель могла отрисоваться
+   * раньше, чем композиция дошла до регистрации службы, и сделанный до этого выбор не должен
+   * пропасть.
+   */
+  connectSelection(channel: SelectionChannel): Disposable;
+  /**
+   * Отдаёт находки сборки всех документов в общий свод диагностик — под адресом того файла,
+   * где чинить (см. `./problem-diagnostics`).
+   *
+   * Зовётся из `activate` по той же причине, что и {@link connectSelection}: служба приходит
+   * с контекстом. Подключение задним числом покрывает уже созданные состояния. Снятие
+   * подписки и {@link forget} СНИМАЮТ опубликованное: находка, которую никто не обновляет,
+   * — это ровно тот случай «исправленная ошибка висит», ради которого `publish` замещает.
+   */
+  connectDiagnostics(sink: DiagnosticsSink): Disposable;
+  /**
+   * Файлы изменились: их находки сборки снимаются до следующей сборки.
+   *
+   * Находка с позицией относится к тексту, которого после правки уже нет, — подчёркивание
+   * осталось бы стоять на чужом месте. Следующая публикация ({@link PreviewStore.onDidReport})
+   * возвращает находки, даже если сборка нашла ровно то же: снятие — не «чисто», а «не знаю».
+   * Адреса, под которыми превью не публиковало, не трогаются.
+   */
+  invalidate(resources: readonly ResourceId[]): void;
+  /** Документы, у которых есть состояние. Нужен тому, кто следит за вкладками и зовёт {@link forget}. */
+  ids(): readonly ResourceId[];
+  /** Забыть документ: вкладку закрыли, помнить её режим больше незачем. */
+  forget(id: ResourceId): void;
+  dispose(): void;
+}
+
+export function createPreviewSessions(): PreviewSessions {
+  const stores = new Map<ResourceId, PreviewStore>();
+  /** Подписка «стор → канал» по документу. Пусто, пока канал не подключён. */
+  const publishing = new Map<ResourceId, Disposable>();
+  let channel: SelectionChannel | null = null;
+  /** Подписка «канал → стор». Одна на все документы: канал называет ресурс в событии. */
+  let watching: Disposable | null = null;
+
+  /**
+   * Отправляет выделение документа в канал.
+   *
+   * Служба сама гасит повтор совпадающего значения, поэтому подписка на ВЕСЬ снимок стора
+   * (а он меняется и от находок сборки) не даёт лишних уведомлений снаружи — только лишний
+   * вызов, который дешевле второго правила «на что публиковать».
+   */
+  const publish = (id: ResourceId, store: PreviewStore): void => {
+    channel?.set(id, store.get().selection);
+  };
+
+  /**
+   * Принимает выделение, пришедшее в канал снаружи — с канваса редактора схемы.
+   *
+   * Отражение здесь не зацикливается по двум независимым причинам, и обе принадлежат не
+   * этому месту: стор не уведомляет о совпадающем по содержимому выборе, а служба не
+   * уведомляет о совпадающей по содержимому записи. Поэтому «принял → опубликовал то же
+   * самое → услышал своё» затухает на первом же круге.
+   */
+  const adopt = (id: ResourceId): void => {
+    const store = stores.get(id);
+    if (channel === null || store === undefined) return;
+    store.select(channel.get(id));
+  };
+
+  /**
+   * Согласование при появлении состояния или канала.
+   *
+   * Направление решает наличие записи: чужой выбор старше (человек щёлкнул на канвасе,
+   * а превью открыл после), своё уходит наружу, только когда в канале ничего нет.
+   */
+  const reconcile = (id: ResourceId, store: PreviewStore): void => {
+    if (channel === null) return;
+    if (channel.get(id).length > 0) adopt(id);
+    else publish(id, store);
+  };
+
+  /** Начинает следить за состоянием документа, если канал подключён. */
+  const attach = (id: ResourceId, store: PreviewStore): void => {
+    if (channel === null || publishing.has(id)) return;
+    publishing.set(
+      id,
+      store.subscribe(() => {
+        publish(id, store);
+      })
+    );
+  };
+
+  const detach = (id: ResourceId): void => {
+    publishing.get(id)?.dispose();
+    publishing.delete(id);
+  };
+
+  /** Свод диагностик; `null`, пока композиция его не подключила. */
+  let sink: DiagnosticsSink | null = null;
+  /** Подписка «стор → свод» по документу. */
+  const reporting = new Map<ResourceId, Disposable>();
+  /** Под какими адресами документ уже публиковал: их и снимать, когда находки ушли. */
+  const published = new Map<ResourceId, Set<ResourceId>>();
+  /** Список находок последней публикации: стор меняет ссылку только на новом составе. */
+  const reported = new Map<ResourceId, unknown>();
+
+  const publishProblems = (id: ResourceId, store: PreviewStore): void => {
+    if (sink === null) return;
+    const problems = store.get().problems;
+    // Тот же список, что уже опубликован, — заново не публикуется: служба диагностик
+    // уведомляет на каждую запись, и панель проблем перерисовывалась бы на каждую пересборку,
+    // ничего не меняя. Память сбрасывает `invalidate`: после неё тот же список публикуется снова.
+    if (reported.get(id) === problems) return;
+    reported.set(id, problems);
+
+    const groups = groupByResource(id, problems);
+    const previous = published.get(id) ?? new Set<ResourceId>();
+    for (const resource of previous) {
+      if (!groups.has(resource)) sink.publish(resource, BUILD_DIAGNOSTICS_SOURCE, []);
+    }
+    for (const [resource, items] of groups) sink.publish(resource, BUILD_DIAGNOSTICS_SOURCE, items);
+    published.set(id, new Set(groups.keys()));
+  };
+
+  const attachDiagnostics = (id: ResourceId, store: PreviewStore): void => {
+    if (sink === null || reporting.has(id)) return;
+    // На публикации, а не на снимок: снимок молчит о повторе того же состава, а после
+    // `invalidate` вернуть находки обязана и сборка, нашедшая ровно то же самое.
+    reporting.set(
+      id,
+      store.onDidReport(() => {
+        publishProblems(id, store);
+      })
+    );
+    // Догоняющая публикация: находки могли появиться до того, как свод подключили.
+    publishProblems(id, store);
+  };
+
+  const invalidate = (resources: readonly ResourceId[]): void => {
+    if (sink === null || resources.length === 0) return;
+    const changed = new Set(resources);
+    for (const [id, published] of publishedByDocument()) {
+      let touched = false;
+      for (const resource of published) {
+        if (!changed.has(resource)) continue;
+        sink.publish(resource, BUILD_DIAGNOSTICS_SOURCE, []);
+        published.delete(resource);
+        touched = true;
+      }
+      // Память публикации сбрасывается, чтобы следующая — с тем же списком — прошла.
+      if (touched) reported.delete(id);
+    }
+  };
+
+  const publishedByDocument = (): Iterable<[ResourceId, Set<ResourceId>]> => published;
+
+  const clearDiagnostics = (id: ResourceId): void => {
+    reporting.get(id)?.dispose();
+    reporting.delete(id);
+    reported.delete(id);
+    const resources = published.get(id);
+    published.delete(id);
+    if (sink === null || resources === undefined) return;
+    for (const resource of resources) sink.publish(resource, BUILD_DIAGNOSTICS_SOURCE, []);
+  };
+
+  return {
+    storeFor(id) {
+      let store = stores.get(id);
+      if (store === undefined) {
+        store = createPreviewStore();
+        stores.set(id, store);
+        attach(id, store);
+        attachDiagnostics(id, store);
+        // Состояние родилось позже щелчка по канвасу: прочитать текущее выделение —
+        // единственный способ подсветить узел, выбранный до того, как форму показали.
+        reconcile(id, store);
+      }
+      return store;
+    },
+
+    ids: () => [...stores.keys()],
+
+    invalidate,
+
+    connectDiagnostics(next) {
+      // Прежний свод отпускается вместе со своими записями: две службы диагностик в одном
+      // приложении не бывает, а записи в отключённой висели бы навсегда.
+      for (const id of [...published.keys()]) clearDiagnostics(id);
+      for (const id of [...reporting.keys()]) clearDiagnostics(id);
+      sink = next;
+      for (const [id, store] of stores) attachDiagnostics(id, store);
+      return {
+        dispose(): void {
+          if (sink !== next) return;
+          for (const id of [...stores.keys()]) clearDiagnostics(id);
+          sink = null;
+        },
+      };
+    },
+
+    connectSelection(next) {
+      watching?.dispose();
+      channel = next;
+      watching = next.onDidChange((resource) => {
+        adopt(resource);
+      });
+      for (const [id, store] of stores) {
+        attach(id, store);
+        // Догоняющее согласование: выбор, сделанный до подключения канала, иначе остался бы
+        // виден только внутри превью, и «клик не дошёл до канваса» вернулось бы — просто
+        // в редком порядке запуска, то есть в самом дорогом для отладки виде.
+        reconcile(id, store);
+      }
+      return {
+        dispose(): void {
+          if (channel !== next) return;
+          watching?.dispose();
+          watching = null;
+          channel = null;
+          for (const id of [...publishing.keys()]) detach(id);
+        },
+      };
+    },
+
+    forget(id) {
+      if (!stores.delete(id)) return;
+      detach(id);
+      // Запись в канале НЕ снимается: там уже может лежать выделение, поставленное редактором
+      // схемы, а закрытие вкладки — не повод стирать чужой выбор. Владелец записи — тот,
+      // кто владеет жизнью ресурса, а не одна из показывающих его сторон.
+      //
+      // Находки сборки — наоборот, снимаются: их владелец — превью, и после закрытия вкладки
+      // обновлять их некому. Оставшаяся запись показывала бы ошибку, которой, возможно, уже нет.
+      clearDiagnostics(id);
+    },
+
+    dispose() {
+      for (const id of [...publishing.keys()]) detach(id);
+      for (const id of [...stores.keys()]) clearDiagnostics(id);
+      sink = null;
+      watching?.dispose();
+      watching = null;
+      channel = null;
+      stores.clear();
+    },
+  };
+}

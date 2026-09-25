@@ -1,7 +1,7 @@
 /**
  * Поверхности стека ReFormer встречаются с правилом выбора превью-хоста.
  *
- * Правило (`plugins/preview`) и поверхности (`plugins/preview-runtime`) живут в разных
+ * Правило (`plugins/base/preview`) и поверхности (`plugins/reformer/render`) живут в разных
  * плагинах, а плагины друг друга не импортируют. Встречаются они только в собранном
  * приложении — поэтому и проверка здесь, в интеграционных тестах сборки.
  *
@@ -9,13 +9,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { chooseSurface } from '@/plugins/preview';
+import { chooseSurface } from '@/plugins/base/preview';
 import {
   builtinSurfaces,
   COMPILING_SURFACE_ID,
   RUNTIME_SURFACE_ID,
-} from '@/plugins/preview-runtime';
-import { createFakeHost, fakeRef } from '@/plugins/preview-runtime/testing';
+} from '@/plugins/reformer/render';
+import { createFakeHost, fakeRef } from '@/plugins/reformer/render/testing';
 
 const DOC = {
   id: 'fake:form.json',

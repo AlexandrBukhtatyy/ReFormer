@@ -13,8 +13,8 @@
 import { describe, expect, it } from 'vitest';
 import { MODULE_FILES, STEPS_INDEX } from '@reformer/builder-stack-reformer/codegen';
 import { builtinKit } from '@reformer/builder-stack-reformer/testing';
-import { BUILTIN_TARGETS, generateModule } from '@/plugins/codegen';
-import { looksLikeFormSchema } from '@/plugins/editor-schema/model/provider';
+import { BUILTIN_TARGETS, generateModule } from '@/plugins/reformer/codegen';
+import { looksLikeFormSchema } from '@/plugins/reformer/editor/model/provider';
 import {
   createBuiltinStore,
   materializeFiles,
@@ -22,7 +22,7 @@ import {
   WIZARD_TEMPLATE_ID,
   TOKENS,
   type ModulePrinter,
-} from '@/plugins/templates';
+} from '@/plugins/reformer/templates';
 
 /** Тот же переходник к кодогену, что собирает композиция в `./boot`. */
 function printer(): ModulePrinter {
