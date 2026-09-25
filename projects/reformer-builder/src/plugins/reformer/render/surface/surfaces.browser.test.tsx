@@ -19,10 +19,18 @@
  * @module plugins/reformer/render/surface/surfaces.browser.test
  */
 
+import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { JsonFormSchema } from '@reformer/renderer-json';
 import { sampleSchema } from '@/plugins/reformer/core/testing';
-import type { Disposable, DocumentRef, NodeId } from '@reformer/builder-plugin-api';
+import {
+  toDescriptor,
+  type Disposable,
+  type DocumentRef,
+  type KitFrameProps,
+  type KitNamespace,
+  type NodeId,
+} from '@reformer/builder-plugin-api';
 import type {
   PreviewContext,
   PreviewProblem,
@@ -304,5 +312,124 @@ describe('выбор узла кликом по рантайм-поверхно�
     area?.dispatchEvent(click());
     // Пустой массив, а не отсутствие вызова: «здесь узла нет» — это ответ.
     expect(chosen).toEqual([[]]);
+  });
+});
+
+/**
+ * Форма кита, внесённого плагином, рисуется в рамке кита: в скоупе стилей владельца и под
+ * провайдером кита. Рамку даёт служба китов; здесь — её двойник того же устройства, что у
+ * настоящей (`plugins/kits/registry/frame`): атрибут скоупа, внутри провайдер.
+ */
+describe('форма в рамке кита', () => {
+  const OWNER = 'fixture-kit';
+
+  function pluginFrame(): ComponentType<KitFrameProps> {
+    return function FixtureKitFrame({ children }: KitFrameProps): ReactNode {
+      return (
+        <div data-rb-plugin={OWNER} style={{ display: 'contents' }}>
+          <section data-kit-provider="">{children}</section>
+        </div>
+      );
+    };
+  }
+
+  /** Модули-двойник: компиляция «удалась», исполнять нечего. Запоминает опции загрузки. */
+  function recordingModules(): PreviewModules & {
+    readonly seen: (ReadonlyMap<string, unknown> | undefined)[];
+  } {
+    const seen: (ReadonlyMap<string, unknown> | undefined)[] = [];
+    return {
+      seen,
+      load: (_files, _entry, options) => {
+        seen.push(options?.overrides);
+        return Promise.resolve({ entry: {}, modules: new Map(), errors: [] });
+      },
+    };
+  }
+
+  /** Сайдкар нужен, чтобы компиляции было что делать: без файлов загрузчик не зовут вовсе. */
+  const SIBLINGS = { 'model.ts': 'module.exports.initialFormModel = {};' };
+
+  const surfaceOf = (id: string, options: Parameters<typeof createFakeHost>[0]) => {
+    const surface = builtinSurfaces(createFakeHost(options), (key) => key).find(
+      (candidate) => candidate.id === id
+    );
+    if (surface === undefined) throw new Error(`поверхность «${id}» не зарегистрирована`);
+    return surface;
+  };
+
+  it.each([RUNTIME_SURFACE_ID, COMPILING_SURFACE_ID])(
+    '«%s»: форма — внутри скоупа владельца и провайдера кита, оболочка превью — снаружи',
+    async (id) => {
+      const surface = surfaceOf(id, {
+        frame: pluginFrame(),
+        origin: { kind: 'plugin', pluginId: OWNER },
+        modules: recordingModules(),
+      });
+
+      const element = await mounted(surface, fakeContext(sampleSchema()));
+
+      const provider = await vi.waitFor(() => {
+        const found = element.querySelector(`[data-rb-plugin="${OWNER}"] [data-kit-provider]`);
+        expect(found?.textContent?.trim()).toBeTruthy();
+        return found;
+      });
+      // Полоса прокрутки и подсветка — оформление билдера: в скоупе кита им не место.
+      expect(
+        element.querySelector('[data-slot="scroll-area"]')?.closest('[data-rb-plugin]')
+      ).toBeNull();
+      expect(provider?.closest('[data-slot="scroll-area"]')).not.toBeNull();
+    }
+  );
+
+  it.each([RUNTIME_SURFACE_ID, COMPILING_SURFACE_ID])(
+    '«%s»: без рамки (встроенный кит, службы нет) скоупа плагина нет',
+    async (id) => {
+      const element = await mounted(
+        surfaceOf(id, { modules: recordingModules() }),
+        fakeContext(sampleSchema())
+      );
+
+      expect(element.querySelector('[data-rb-plugin]')).toBeNull();
+    }
+  );
+
+  it('пакет кита плагина доходит до загрузчика модулей его namespace', async () => {
+    const namespace: KitNamespace = { Button: () => null };
+    const modules = recordingModules();
+    const surface = surfaceOf(COMPILING_SURFACE_ID, {
+      origin: { kind: 'plugin', pluginId: OWNER },
+      descriptor: toDescriptor({
+        version: '2.1',
+        kit: { id: 'fixture', label: 'Fixture', package: '@vendor/fixture-kit' },
+        components: [],
+      }),
+      namespace,
+      modules,
+      siblings: SIBLINGS,
+    });
+
+    await mounted(surface, fakeContext(sampleSchema()));
+
+    await vi.waitFor(() => {
+      expect(modules.seen.length).toBeGreaterThan(0);
+    });
+    expect(modules.seen[0]?.get('@vendor/fixture-kit')).toBe(namespace);
+  });
+
+  it('у встроенного кита подстановок нет: его пакет отдаёт реестр модулей оболочки', async () => {
+    const modules = recordingModules();
+    const surface = surfaceOf(COMPILING_SURFACE_ID, {
+      namespace: { Button: () => null },
+      modules,
+      siblings: SIBLINGS,
+    });
+
+    await mounted(surface, fakeContext(sampleSchema()));
+
+    await vi.waitFor(() => {
+      expect(modules.seen.length).toBeGreaterThan(0);
+    });
+    expect(modules.seen[0]).toBeUndefined();
   });
 });

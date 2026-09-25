@@ -40,6 +40,7 @@ import type { PreviewContext, PreviewValues } from '@reformer/builder-plugin-api
 import type { PreviewHost } from '../host';
 import { nodeAt } from '../schema/node-token';
 import { Highlight } from '../ui/Highlight';
+import { KitFrame } from '../ui/KitFrame';
 import { Notice } from '../ui/Notice';
 import { useKitVersion, usePreviewSchema, usePreviewSelection } from '../ui/hooks';
 import { buildRuntimeBundle } from './build';
@@ -148,9 +149,11 @@ export function RuntimeView({ ctx, host }: RuntimeViewProps): ReactNode {
           прокрутки внутри поля, а нижний отступ перестал бы уезжать вместе с формой. */}
       <div className="p-4">
         <Highlight selection={selection} />
-        <JsonRendererProvider settings={{ registry: bundle.form.registry }}>
-          <JsonFormRenderer form={bundle.form} />
-        </JsonRendererProvider>
+        <KitFrame frame={host.kitFrame()}>
+          <JsonRendererProvider settings={{ registry: bundle.form.registry }}>
+            <JsonFormRenderer form={bundle.form} />
+          </JsonRendererProvider>
+        </KitFrame>
       </div>
     </ScrollArea>
   );

@@ -12,9 +12,15 @@
  * @module plugins/reformer/render/testing
  */
 
+import type { ComponentType } from 'react';
 import { toDescriptor } from '@reformer/builder-plugin-api';
 import type { CatalogEntry } from '@/plugins/reformer/core/catalog';
-import type { KitDescriptor, KitNamespace } from '@reformer/builder-plugin-api';
+import type {
+  KitDescriptor,
+  KitFrameProps,
+  KitNamespace,
+  KitOrigin,
+} from '@reformer/builder-plugin-api';
 import type {
   Disposable,
   DocumentKind,
@@ -29,6 +35,7 @@ import type {
 } from './host';
 
 const NOOP: Disposable = Object.freeze({ dispose: () => undefined });
+const BUILTIN: KitOrigin = Object.freeze({ kind: 'builtin' });
 
 export interface FakeHostOptions {
   readonly text?: string;
@@ -38,6 +45,10 @@ export interface FakeHostOptions {
   readonly catalog?: readonly CatalogEntry[];
   readonly descriptor?: KitDescriptor;
   readonly namespace?: KitNamespace | null;
+  /** Происхождение кита; по умолчанию — встроенный. */
+  readonly origin?: KitOrigin | null;
+  /** Рамка кита; по умолчанию её нет — форма рисуется как есть. */
+  readonly frame?: ComponentType<KitFrameProps> | null;
   readonly source?: PreviewSourceCapabilities | null;
   readonly modules?: PreviewModules;
   /** Соседние файлы каталога формы: имя → текст. */
@@ -79,6 +90,8 @@ export function createFakeHost(options: FakeHostOptions = {}): PreviewHost {
     catalog: () => options.catalog ?? [],
     kit: () => options.descriptor ?? toDescriptor({ version: '1.0', components: [] }),
     kitNamespace: () => options.namespace ?? null,
+    kitOrigin: () => (options.origin === undefined ? BUILTIN : options.origin),
+    kitFrame: () => options.frame ?? null,
     onDidChangeKit: () => NOOP,
     siblings: () =>
       Promise.resolve(Object.keys(siblings).map((name) => fakeRef(`fake:form/${name}`))),

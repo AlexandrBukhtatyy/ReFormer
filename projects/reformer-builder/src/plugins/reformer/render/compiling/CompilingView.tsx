@@ -53,12 +53,14 @@ import type { PreviewHost } from '../host';
 import { nodeAt } from '../schema/node-token';
 import { buildRuntimeBundle, type RuntimeBundle } from '../runtime/build';
 import { Highlight } from '../ui/Highlight';
+import { KitFrame } from '../ui/KitFrame';
 import { Notice } from '../ui/Notice';
 import { useFilesVersion, useKitVersion, usePreviewSchema, usePreviewSelection } from '../ui/hooks';
 import type { ComponentRegistry } from '@reformer/renderer-json';
 import { createAmbient, type FormFixture } from '@/plugins/reformer/core/form-fixture';
 import { compileForm } from './compile';
 import { loadFixture } from './fixture';
+import { kitImportOverrides, mergeOverrides } from './kit-imports';
 import {
   appliedArtifacts,
   extractContract,
@@ -147,6 +149,17 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     };
   }, [host, kitVersion]);
 
+  // Пакет кита плагина — его namespace (см. `./kit-imports`). Карта стабильна, пока кит и его
+  // namespace те же: у встроенного кита она пуста всегда и компиляцию не трогает.
+  const kitImports = useMemo(() => {
+    void kitVersion;
+    return kitImportOverrides({
+      origin: host.kitOrigin(),
+      descriptor: host.kit(),
+      namespace: host.kitNamespace(),
+    });
+  }, [host, kitVersion]);
+
   // Сайдкары: от схемы НЕ зависят вовсе. Их правят в соседних вкладках, и об этом сообщает
   // `filesVersion`, а не изменение модели документа.
   useEffect(() => {
@@ -167,10 +180,8 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
       // а общий граф исполнил бы `./api` дважды — один раз для неё, другой для формы.
       const loaded = await loadFixture(host, modules, documentId, schemaPath);
       const isolation = {
-        overrides:
-          loaded.fixture?.modules === undefined
-            ? undefined
-            : new Map(Object.entries(loaded.fixture.modules)),
+        // Пакет кита плагина и подстановки фикстуры — одной картой; фикстура побеждает.
+        overrides: mergeOverrides(kitImports, loaded.fixture?.modules),
         ambient: createAmbient(loaded.fixture),
       };
 
@@ -212,7 +223,7 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
     return () => {
       cancelled = true;
     };
-  }, [host, documentId, schemaPath, modules, filesVersion]);
+  }, [host, documentId, schemaPath, modules, filesVersion, kitImports]);
 
   // Форма: синхронная сборка по схеме и уже исполненным сайдкарам. Правка схемы доходит
   // сюда и никуда больше — компилятор она не трогает.
@@ -307,9 +318,11 @@ export function CompilingView({ ctx, host }: CompilingViewProps): ReactNode {
             прокрутки внутри поля, а нижний отступ перестал бы уезжать вместе с формой. */}
         <div className="p-4">
           <Highlight selection={selection} />
-          <JsonRendererProvider settings={{ registry: bundle.form.registry }}>
-            <JsonFormRenderer form={bundle.form} />
-          </JsonRendererProvider>
+          <KitFrame frame={host.kitFrame()}>
+            <JsonRendererProvider settings={{ registry: bundle.form.registry }}>
+              <JsonFormRenderer form={bundle.form} />
+            </JsonRendererProvider>
+          </KitFrame>
         </div>
       </ScrollArea>
     </div>
