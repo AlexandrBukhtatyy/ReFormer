@@ -40,6 +40,13 @@
       "target": "core",
       "queries": ["show step only when condition", "conditional wizard step", "hidden step"],
       "expectAny": ["setHidden", "hideWhen"]
+    },
+    {
+      "id": "wizard/render-node-body",
+      "task": "отрисовать тело шага визарда как поддерево render-схемы",
+      "target": "renderer-react",
+      "queries": ["wizard step body render node", "многошаговая форма renderer-react тело шага"],
+      "expectAny": ["renderStepBody"]
     }
   ]
 }

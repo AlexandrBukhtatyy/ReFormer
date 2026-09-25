@@ -1,8 +1,8 @@
 {
   "strategy": "v6-choose",
   "serverVersion": "6.0.0",
-  "startupMs": 2963,
-  "tasks": 54,
+  "startupMs": 225,
+  "tasks": 55,
   "static": {
     "tools/list": 2432,
     "resources/list": 549,
@@ -19,11 +19,11 @@
     "tokens": 715
   },
   "hitRate": 1,
-  "firstPassRate": 0.944,
+  "firstPassRate": 0.945,
   "tokensPerTask": {
     "median": 386,
     "p95": 3524,
-    "total": 51222
+    "total": 52491
   },
   "callsPerTask": {
     "median": 1,
@@ -55,16 +55,16 @@
       "tokens": 4193
     },
     "wizard": {
-      "total": 5,
-      "hit": 5,
-      "firstPass": 5,
-      "tokens": 5363
+      "total": 6,
+      "hit": 6,
+      "firstPass": 6,
+      "tokens": 6555
     },
     "renderers": {
       "total": 10,
       "hit": 10,
       "firstPass": 8,
-      "tokens": 13697
+      "tokens": 13774
     },
     "layout": {
       "total": 5,

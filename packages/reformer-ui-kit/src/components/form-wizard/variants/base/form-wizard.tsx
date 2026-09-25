@@ -169,9 +169,10 @@ function isComponentType<T>(value: unknown): value is ComponentType<{ control: F
  * Тело шага можно отрисовать не зная, что это. Порядок дискриминации: готовый element →
  * component reference → пользовательская стратегия (`custom`) → ReactNode-фолбэк.
  *
- * Ветка `custom` — единственное место, куда попадает всё «чужое» (узел RenderSchema и т.п.).
- * Плоский объект без `$$typeof` для React невалиден как ReactNode, поэтому без стратегии
- * такое тело просто ничего не отрисует — это ожидаемо, стратегию обязан дать вызывающий.
+ * Ветка `custom` — единственное место, куда попадает всё «чужое» (узел RenderSchema, массив
+ * таких узлов и т.п.). Без стратегии чужое тело — адресная ошибка: отданный React'у плоский
+ * объект уронил бы рендер невнятным «Objects are not valid as a React child», а error boundary
+ * ни ui-kit, ни рендерер не ставят — гас бы весь корень приложения.
  */
 function resolveStepBody<T, TBody>(
   body: FormWizardStepBody<T, TBody>,
@@ -185,13 +186,25 @@ function resolveStepBody<T, TBody>(
     const Comp = body as ComponentType<{ control: FormProxy<T> }>;
     return <Comp control={form} />;
   }
-  // Всё остальное — во внешнюю стратегию (например RenderNode → RenderNodeComponent).
-  // Массив — валидный ReactNode (список элементов), его в стратегию не отдаём.
-  if (custom && body !== null && typeof body === 'object' && !Array.isArray(body)) {
-    return custom(body as TBody, form);
+  // Всё остальное «чужое» — во внешнюю стратегию (например RenderNode → RenderNodeComponent).
+  // Массив React-узлов — валидный ReactNode (список элементов), чужим не считается.
+  if (isForeignBody(body)) {
+    if (custom) return custom(body as TBody, form);
+    throw new Error(
+      '[ui-kit] FormWizard: step.body — не ReactNode и не ComponentType (похоже на RenderNode). ' +
+        'Передайте renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />} ' +
+        '— ui-kit не зависит от рендерера и обернуть узел сам не может.'
+    );
   }
   // Fallback ReactNode (текст, число, null, и т.д.)
   return body as ReactNode;
+}
+
+/** Объект, который React не отрисует сам: не element и не массив React-узлов. */
+function isForeignBody(body: unknown): boolean {
+  if (body === null || typeof body !== 'object') return false;
+  if (Array.isArray(body)) return body.some(isForeignBody);
+  return !isValidElement(body as ReactElement);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -301,6 +314,19 @@ type FormWizardCompound = typeof FormWizardForwarded & {
  *     />
  *   );
  * }
+ * ```
+ *
+ * @example renderer-react / renderer-json: тело шага — `RenderNode`, стратегия обязательна
+ * ```tsx
+ * import { RenderNodeComponent } from '@reformer/renderer-react';
+ *
+ * // Без renderStepBody такое тело — ошибка с подсказкой: ui-kit не зависит от рендерера.
+ * <FormWizard
+ *   form={form}
+ *   config={bundle.validation}
+ *   steps={[{ number: 1, title: 'Данные', body: stepNode }]}
+ *   renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
+ * />
  * ```
  *
  * @see {@link FormWizardStep} — форма элемента `steps`.

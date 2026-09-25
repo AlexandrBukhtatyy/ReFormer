@@ -120,7 +120,8 @@ Wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`: форма
 
 | Export                                                                           | Purpose                                                    |
 | -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `FormRenderer`                                                                   | Главный React-компонент, отрисовывающий форму по схеме.    |
+| `createReactForm`, `useReactForm`                                                | Сборка бандла одним вызовом (модель, форма, render-схема). |
+| `FormRenderer`                                                                   | Рендер формы. Пропы: `{ form }` (бандл) ЛИБО `{ render }`. |
 | `RenderNodeComponent`                                                            | Рекурсивный рендер одного узла (для ручной композиции).    |
 | `RenderModelNode`, `RenderModelArray`                                            | Низкоуровневый рендер узла/массива M1-схемы.               |
 | `RenderContextProvider`, `useRenderContext`                                      | Контекст рендеринга: `form`, `settings`.                   |

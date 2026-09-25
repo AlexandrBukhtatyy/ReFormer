@@ -213,7 +213,7 @@ useRenderContext must be used within RenderContextProvider (FormRenderer)
 
 `RenderNodeComponent` (которым FormWizard рендерит body) использует context — без провайдера контекст не найден.
 
-**Canonical mounting** для renderer-react:
+**Монтирование под renderer-react** (низкоуровневый путь; канон — бандл `createReactForm`, см. `@reformer/renderer-react` · 01-overview.md):
 
 ```tsx
 import { FormRenderer } from '@reformer/renderer-react';

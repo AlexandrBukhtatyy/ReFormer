@@ -2762,7 +2762,7 @@ useRenderContext must be used within RenderContextProvider (FormRenderer)
 
 `RenderNodeComponent` (которым FormWizard рендерит body) использует context — без провайдера контекст не найден.
 
-**Canonical mounting** для renderer-react:
+**Монтирование под renderer-react** (низкоуровневый путь; канон — бандл `createReactForm`, см. `@reformer/renderer-react` · 01-overview.md):
 
 ```tsx
 import { FormRenderer } from '@reformer/renderer-react';
@@ -8364,6 +8364,19 @@ onSubmit={onSubmit}
 />
 );
 }
+```
+
+renderer-react / renderer-json: тело шага — `RenderNode`, стратегия обязательна
+```tsx
+import { RenderNodeComponent } from '@reformer/renderer-react';
+
+// Без renderStepBody такое тело — ошибка с подсказкой: ui-kit не зависит от рендерера.
+<FormWizard
+form={form}
+config={bundle.validation}
+steps={[{ number: 1, title: 'Данные', body: stepNode }]}
+renderStepBody={(body, form) => <RenderNodeComponent node={body} form={form} />}
+/>
 ```
 
 **See also:**

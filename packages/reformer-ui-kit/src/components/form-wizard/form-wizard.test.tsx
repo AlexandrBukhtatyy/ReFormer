@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
+import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import type { FormProxy } from '@reformer/core';
 import type {
   FormWizardActionsRenderProps,
   FormWizardIndicatorRenderProps,
   FormWizardIndicatorStepWithState,
   FormWizardProgressRenderProps,
 } from '@reformer/cdk/form-wizard';
-import { FormWizardActions, FormWizardProgress, StepIndicator } from './index';
+import { FormWizard, FormWizardActions, FormWizardProgress, StepIndicator } from './index';
 
 const noop = () => {};
 
@@ -172,5 +174,49 @@ describe('StepIndicator', () => {
       <StepIndicator {...indicatorProps([step()])} navAriaLabel="Этапы заявки" />
     );
     expect(html).toContain('aria-label="Этапы заявки"');
+  });
+});
+
+// --- FormWizard: тело шага -------------------------------------------------
+
+describe('FormWizard: тело шага', () => {
+  // Для первого рендера визарду от формы нужен только флаг отправки.
+  const form = { submitting: { value: false } } as unknown as FormProxy<Record<string, unknown>>;
+  const node = { component: 'Input', componentProps: {}, children: [] };
+  const wizard = (body: unknown, renderStepBody?: (body: unknown) => ReactNode): string =>
+    renderToStaticMarkup(
+      <FormWizard<Record<string, unknown>, unknown>
+        form={form}
+        config={{}}
+        onSubmit={() => {}}
+        steps={[{ number: 1, title: 'Шаг', body: body as never }]}
+        renderStepBody={renderStepBody}
+      />
+    );
+
+  it('объектное тело без renderStepBody — адресная ошибка, а не «Objects are not valid»', () => {
+    expect(() => wizard(node)).toThrow(/renderStepBody/);
+  });
+
+  it('объектное тело со стратегией отрисовано', () => {
+    expect(wizard(node, () => <i data-testid="by-strategy" />)).toContain('by-strategy');
+  });
+
+  it('тело-компонент рисуется без стратегии', () => {
+    const Body = () => <i data-testid="by-component" />;
+    expect(wizard(Body)).toContain('by-component');
+  });
+
+  it('массив узлов уходит в стратегию целиком', () => {
+    const seen: unknown[] = [];
+    wizard([node, node], (body) => {
+      seen.push(body);
+      return null;
+    });
+    expect(seen).toEqual([[node, node]]);
+  });
+
+  it('массив React-элементов — обычный ReactNode, стратегия не нужна', () => {
+    expect(wizard([<i key="a" data-testid="el-a" />, 'текст'])).toContain('el-a');
   });
 });
