@@ -69,6 +69,7 @@ import type { Diagnostic, NodeId, ResourceId } from '@reformer/builder-plugin-ap
 import { carriesSchemaNode, DRAG_MIME, type DragSession } from '../session/drag-session';
 import { createLiveContext } from '../live/live-context';
 import { elementOf, hitAt } from '../live/live-hit';
+import { watchNodeTokens } from '../live/live-sentry';
 import { worstByNode } from '../live/live-problems';
 import { hoverCss, liveCss } from '../live/live-style';
 import { gripBox, indicatorFor, type Indicator } from '../live/live-zone';
@@ -377,22 +378,20 @@ export function LiveView({
     if (!import.meta.env.DEV) return;
     const surface = mountPoint.current;
     if (surface === null || !selectable || order.length === 0) return;
-    // После кадра: поверхность рисует своим корнем React, и до коммита её DOM ещё пуст.
-    const frame = requestAnimationFrame(() => {
-      const marked = order.some((id) => elementOf(surface, id) !== null);
-      if (marked) return;
-      // Сообщаем только про «ни одного», а не про каждый ненайденный: узлы неактивных шагов
-      // визарда законно отсутствуют в DOM, и список с ними шумел бы на каждой форме. А вот
-      // отсутствие ВСЕХ означает ровно одно — класс-токен до DOM не доехал, потому что
-      // компонент кита не пробросил `className` на свой корень. В первой версии билдера
-      // этот сторож завели не от хорошей жизни: без него «узел не выделяется» ищут часами.
+    // Сообщаем только про «ни одного», а не про каждый ненайденный: узлы неактивных шагов
+    // визарда законно отсутствуют в DOM, и список с ними шумел бы на каждой форме. А вот
+    // отсутствие ВСЕХ на нарисованной форме означает ровно одно — класс-токен до DOM не доехал,
+    // потому что компонент кита не пробросил `className` на свой корень. В первой версии билдера
+    // этот сторож завели не от хорошей жизни: без него «узел не выделяется» ищут часами. Решает
+    // он, когда форма уже нарисована, а не через кадр (см. `../live/live-sentry`).
+    const sentry = watchNodeTokens(surface, order, () => {
       console.warn(
         '[editor-schema] живой вид: ни один узел формы не помечен классом-токеном — ' +
           'скорее всего компоненты кита не пробрасывают className на корневой элемент'
       );
     });
     return () => {
-      cancelAnimationFrame(frame);
+      sentry.dispose();
     };
   }, [order, selectable, surfaceId]);
 
