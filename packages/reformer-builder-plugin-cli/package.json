@@ -4,7 +4,7 @@
   "description": "Command-line tools for ReFormer Builder plugin authors: scaffold, validate, build, develop and pack a plugin",
   "type": "module",
   "bin": {
-    "reformer-plugin": "./dist/cli.js"
+    "reformer-plugin": "./bin/reformer-plugin.mjs"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -43,6 +43,7 @@
   },
   "files": [
     "dist",
+    "bin",
     "README.md",
     "LICENSE"
   ],
