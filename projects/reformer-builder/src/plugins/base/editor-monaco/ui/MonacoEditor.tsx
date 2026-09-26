@@ -30,7 +30,7 @@
  * `value`), а не `setValue`: первый — правка поверх стека, второй сносит стек целиком.
  * Подменить историю значило бы получить двойную отмену — одно нажатие снимает две правки.
  *
- * @module plugins/editor-monaco/ui/MonacoEditor
+ * @module plugins/base/editor-monaco/ui/MonacoEditor
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
@@ -119,9 +119,6 @@ function EmptyState({ title, description }: { title: string; description?: strin
 function LoadingSkeleton({ label }: { label: string }): ReactElement {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 p-3" role="status" aria-label={label}>
-      <Skeleton className="h-3 w-1/3" />
-      <Skeleton className="h-3 w-2/3" />
-      <Skeleton className="h-3 w-1/2" />
       <Skeleton className="min-h-0 flex-1" />
     </div>
   );
