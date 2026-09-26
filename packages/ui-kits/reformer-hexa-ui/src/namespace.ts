@@ -24,13 +24,15 @@ import {
   Tag,
 } from '@kaspersky/hexa-ui';
 import { CheckboxWithLabel, Input, InputNumber, InputPassword, Select, Textarea } from './fields';
+import { FieldFrame } from './field-frame';
 import { FormField } from './form-field';
 import { Box, KitProvider, Section } from './provider';
 
 /** Namespace кита HexaUI. */
 export const HEXA_UI_NAMESPACE: Record<string, unknown> = {
-  // Обёртка поля и провайдер темы — инфраструктура кита.
+  // Обёртка поля, рамка поля и провайдер темы — инфраструктура кита.
   FormField,
+  FieldFrame,
   KitProvider,
 
   // Поля — канонические имена `@reformer/ui-kit`. Диалект контрола — статика `reformerAdapter`;

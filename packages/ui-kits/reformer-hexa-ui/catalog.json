@@ -1,6 +1,6 @@
 {
-  "$schema": "../../projects/reformer-builder/src/lib/catalog/component-catalog.schema.json",
-  "version": "2.0",
+  "$schema": "../../reformer-builder-plugin-api/src/kits/component-catalog.schema.json",
+  "version": "2.1",
   "kit": {
     "id": "hexa-ui",
     "label": "Kaspersky HexaUI",
@@ -9,7 +9,7 @@
     "peerRanges": {
       "react": "16.x || 17.x || 18.x"
     },
-    "infra": { "fieldWrapper": "FormField" },
+    "infra": { "fieldWrapper": "FormField", "fieldFrame": "FieldFrame" },
     "adapters": {
       "wizard": null,
       "step": null,

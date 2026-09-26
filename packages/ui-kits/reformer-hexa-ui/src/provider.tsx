@@ -1,7 +1,12 @@
 /**
  * Провайдер кита: HexaUI — это styled-components со своей темой, поэтому поддерево превью надо
  * обернуть в `ConfigProvider` и вставить `GlobalStyle`. Билдер находит этот компонент в namespace
- * кита по имени из `descriptor.adapters.provider.symbol` и оборачивает им превью.
+ * кита по имени из `descriptor.adapters.provider.symbol` и кладёт его в рамку кита.
+ *
+ * Готового CSS дизайн-системы здесь нет. В билдере его приносит манифест плагина
+ * (`src/builder-plugin.css`), и оболочка ставит его с изоляцией `scoped` — под атрибутом
+ * `[data-rb-plugin="kit-hexa-ui"]`, который вешает рамка кита. Своего контейнера-скоупа провайдеру
+ * поэтому не нужно. Вне билдера CSS подключает вход пакета (`src/index.ts`).
  *
  * Контейнеры и простые примитивы (`Box`/`Section`) живут здесь же: в HexaUI их нет — это
  * layout-заготовки ReFormer, и киту достаточно отдать честный `div` с `className`.
@@ -11,9 +16,6 @@
 
 import * as React from 'react';
 import { ConfigProvider, GlobalStyle } from '@kaspersky/hexa-ui/design-system';
-// Готовый CSS дизайн-системы. Импортируем ЗДЕСЬ, а не в билдере: кит самодостаточен, и его стили
-// приезжают тем же чанком, что и компоненты, — только когда кит реально активирован.
-import '@kaspersky/hexa-ui/design-system/global-style/styles.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -45,18 +47,7 @@ export function KitProvider({ children }: { children?: React.ReactNode }) {
   return (
     <Provider theme={dark ? 'dark' : 'light'}>
       <GlobalStyle />
-      {/*
-        Контейнер-скоуп. Таблица стилей HexaUI несёт ресет antd — правила на `html`, `body` и `*`,
-        которые иначе перекрашивают оболочку билдера (замер: из 5465 правил глобальных 9, решающее —
-        `* { font-family: … }`). Сборка билдера переписывает эти селекторы под `.rb-kit-scope`
-        (`vite-plugins/scope-kit-css.ts`), поэтому кит обязан такой контейнер предоставить.
-
-        `display: contents` — чтобы обёртка не создавала бокс и не влияла на раскладку формы:
-        наследование свойств и селекторы-потомки через неё работают, а лишнего блока в разметке нет.
-      */}
-      <div className="rb-kit-scope" style={{ display: 'contents' }}>
-        {children}
-      </div>
+      {children}
     </Provider>
   );
 }

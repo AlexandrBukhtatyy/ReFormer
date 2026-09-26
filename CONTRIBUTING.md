@@ -84,6 +84,7 @@ Package scopes:
 Project scopes (не публикуются в npm):
 
 - `reformer-builder`, `react-playground`, `react-playground-e2e`
+- `reformer-hexa-ui` — кит HexaUI и внешний плагин билдера (`packages/ui-kits/reformer-hexa-ui`)
 
 Other scopes:
 

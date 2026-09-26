@@ -42,6 +42,7 @@ import {
   type PluginContext,
 } from '@reformer/builder-plugin-api';
 import { BUILTIN_KIT } from './builtin';
+import { KITS_MESSAGES } from './messages';
 import type { KitsSettings, Translate } from './host';
 import { createKitsService, KIT_SETTINGS_KEY, type KitProblem } from './service';
 
@@ -116,6 +117,11 @@ export function createKitsPlugin(options: KitsPluginOptions): Plugin {
   return definePlugin({
     id: KITS_PLUGIN_ID,
     activate(ctx) {
+      // Словарь — первым делом: им переводятся пункты палитры и уведомления об отказах китов.
+      for (const [locale, messages] of Object.entries(KITS_MESSAGES)) {
+        ctx.i18n.contribute(locale, messages);
+      }
+
       // Настройки — из реестра, с запасным параметром для тестов. Отсутствие службы
       // не отказ: кит переключается, просто выбор не переживёт перезагрузку.
       const settings = options.settings ?? ctx.services.get(SettingsServiceToken);

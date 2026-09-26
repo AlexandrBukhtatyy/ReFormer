@@ -1,6 +1,6 @@
 {
   "name": "@reformer/kit-hexa-ui",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "ReFormer-кит поверх дизайн-системы Kaspersky HexaUI: адаптеры полей, обёртка поля, провайдер темы и каталог компонентов",
@@ -10,8 +10,16 @@
   },
   "files": [
     "src",
-    "catalog.json"
+    "catalog.json",
+    "manifest.json"
   ],
+  "scripts": {
+    "test": "node ../../../scripts/run-vitest.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "plugin:validate": "reformer-plugin validate",
+    "plugin:build": "reformer-plugin build",
+    "plugin:dev": "reformer-plugin dev"
+  },
   "dependencies": {
     "@kaspersky/hexa-ui": "^6.387.4",
     "@kaspersky/hexa-ui-icons": "^2.19.0"
@@ -21,5 +29,11 @@
     "@reformer/core": "*",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@reformer/builder-plugin-api": "*",
+    "@reformer/builder-plugin-cli": "*",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
   }
 }

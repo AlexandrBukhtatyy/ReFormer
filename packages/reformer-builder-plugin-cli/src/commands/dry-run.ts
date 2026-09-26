@@ -7,6 +7,11 @@
  * - **`provides-unregistered`** — оболочка после `activate` смотрит, занят ли в реестре служб
  *   слот каждой объявленной возможности. Здесь то же: реестр служб контекста записывает,
  *   под какими идентификаторами плагин что-то зарегистрировал.
+ * - **киты** — вклад в точку `reformer.kit.source` реестр китов проверяет при включении плагина
+ *   и отвергает уведомлением. Здесь те же правила и та же проверка каталога
+ *   (`loadCatalogValidator` контракта): кит обязан назвать себя (`kit-no-id`), каталог — пройти
+ *   контракт (`kit-invalid-catalog`) и назвать себя так же, как шапка (`kit-mismatch`).
+ *   Пространство имён кита не грузится: это сами компоненты, и вне оболочки им нужен DOM.
  *
  * ## Что настоящее, а что нет
  *
@@ -24,7 +29,9 @@
  * @module @reformer/builder-plugin-cli/commands/dry-run
  */
 
+import type { KitSource } from '@reformer/builder-plugin-api';
 import {
+  loadCatalogValidator,
   pluginFromExports,
   PLUGIN_RUNTIME_MODULES,
   type PluginManifestBase,
@@ -63,6 +70,72 @@ function createStub(): unknown {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Сколько ошибок контракта каталога показывать: автору нужен повод, а не простыня. */
+const CATALOG_ERRORS_SHOWN = 3;
+
+/**
+ * Проверяет киты, внесённые плагином, по правилам реестра китов.
+ *
+ * Каталог-загрузчик зовётся: реестр зовёт его так же при первом выборе кита, и каталог, который
+ * не загружается вне оболочки (читает DOM), — заметка «не проверено», а не отказ.
+ */
+async function checkKits(
+  sources: readonly KitSource[],
+  declaredKitId: (source: KitSource) => string | undefined
+): Promise<{ findings: Finding[]; notices: string[] }> {
+  const findings: Finding[] = [];
+  const notices: string[] = [];
+  if (sources.length === 0) return { findings, notices };
+  const validate = await loadCatalogValidator();
+
+  for (const source of sources) {
+    const id = declaredKitId(source);
+    if (id === undefined) {
+      findings.push({
+        code: 'kit-no-id',
+        message:
+          'кит не назвал себя: нет ни шапки «kit», ни блока «kit» у каталога-значения — ' +
+          'реестр китов такой кит не примет',
+        file: 'main.js',
+      });
+    }
+    const name = id ?? 'без имени';
+
+    let catalog: unknown;
+    try {
+      catalog = typeof source.catalog === 'function' ? await source.catalog() : source.catalog;
+    } catch (error) {
+      notices.push(
+        `каталог кита «${name}» не загрузился вне оболочки (${describe(error)}) — не проверен`
+      );
+      continue;
+    }
+
+    const check = validate(catalog);
+    if (!check.valid) {
+      const shown = check.errors.slice(0, CATALOG_ERRORS_SHOWN).join('; ');
+      const more = check.errors.length > CATALOG_ERRORS_SHOWN ? '; …' : '';
+      findings.push({
+        code: 'kit-invalid-catalog',
+        message: `каталог кита «${name}» не проходит контракт каталога: ${shown}${more}`,
+        file: 'main.js',
+      });
+      continue;
+    }
+
+    const own = (catalog as { kit?: { id?: string } }).kit?.id;
+    const header = source.kit?.id;
+    if (header !== undefined && own !== undefined && own !== header) {
+      findings.push({
+        code: 'kit-mismatch',
+        message: `шапка кита называет его «${header}», а каталог — «${own}»: ключ выбора менялся бы под ногами`,
+        file: 'main.js',
+      });
+    }
+  }
+  return { findings, notices };
 }
 
 /**
@@ -126,9 +199,11 @@ export async function dryActivate(
   }
 
   const provides: NonNullable<PluginManifestBase['provides']> = manifest.provides ?? [];
-  if (provides.length === 0) return { findings: [], notices: [] };
+  const kitPointId = (pluginApi.KitSourcePoint as { id: string }).id;
+  const declaredKitId = pluginApi.declaredKitId as (source: KitSource) => string | undefined;
 
   const registered = new Set<string>();
+  const kits: KitSource[] = [];
   const disposable = { dispose: () => undefined };
   const services = {
     register: (token: { id: string }) => {
@@ -140,8 +215,22 @@ export async function dryActivate(
     onDidChange: () => disposable,
   };
   const stub = createStub() as Record<string, unknown>;
+  // Точки расширения — настоящие только в одном: вклад в точку китов запоминается. Остальное
+  // (наблюдение, чтение чужих вкладов) — заглушка, как весь контекст.
+  const extensions = new Proxy(
+    {
+      contribute: (point: { id?: unknown } | undefined, value: unknown) => {
+        if (point?.id === kitPointId) kits.push(value as KitSource);
+        return disposable;
+      },
+    },
+    {
+      get: (target, key) =>
+        key in target ? target[key as keyof typeof target] : stub[key as never],
+    }
+  );
   const ctx = new Proxy(
-    { id: manifest.id, services, subscriptions: [] as unknown[] },
+    { id: manifest.id, services, extensions, subscriptions: [] as unknown[] },
     {
       get: (target, key) =>
         key in target ? target[key as keyof typeof target] : stub[key as never],
@@ -153,23 +242,25 @@ export async function dryActivate(
   } catch (error) {
     return {
       findings: [],
-      notices: [`activate упал вне оболочки (${describe(error)}) — «provides» не проверен`],
+      notices: [
+        `activate упал вне оболочки (${describe(error)}) — «provides» и каталоги китов не проверены`,
+      ],
     };
   }
 
+  const findings: Finding[] = [];
   const missing = provides.filter((item) => !registered.has(item.id));
-  if (missing.length === 0) return { findings: [], notices: [] };
-  const names = missing.map((item) => `«${item.id}» версии ${item.version}`).join(', ');
-  return {
-    findings: [
-      {
-        code: 'provides-unregistered',
-        message:
-          `манифест обещает ${names}, но activate это не зарегистрировал. ` +
-          'Оболочка выключит такой плагин при включении',
-        file: 'manifest.json',
-      },
-    ],
-    notices: [],
-  };
+  if (missing.length > 0) {
+    const names = missing.map((item) => `«${item.id}» версии ${item.version}`).join(', ');
+    findings.push({
+      code: 'provides-unregistered',
+      message:
+        `манифест обещает ${names}, но activate это не зарегистрировал. ` +
+        'Оболочка выключит такой плагин при включении',
+      file: 'manifest.json',
+    });
+  }
+
+  const checked = await checkKits(kits, declaredKitId);
+  return { findings: [...findings, ...checked.findings], notices: checked.notices };
 }

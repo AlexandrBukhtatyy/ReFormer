@@ -49,7 +49,7 @@ npx reformer-plugin pack
 Коды отказов — коды оболочки (`manifest-invalid`, `api-version`, `entry-missing`,
 `messages-invalid`, `provides-unregistered`…). Свои коды у CLI — для того, чего оболочка не видит:
 `package-version`, `build-failed`, `module-unavailable`, `css-from-code`, `output-not-ours`,
-`pack-failed`.
+`pack-failed` и три кода кита (`kit-no-id`, `kit-invalid-catalog`, `kit-mismatch`, см. `build`).
 
 Соответствие `provides` регистрации и потолок числа файлов `validate` не проверяет: первое
 требует исполнить код, второе относится к собранному каталогу. Обе проверки делает `build`.
@@ -70,7 +70,10 @@ npx reformer-plugin pack
 На выходе сборка проходит то, что пройдёт у оболочки: разбор манифеста поставки `project`, потолок
 числа файлов кода и **«сухую» активацию** — `main.js` исполняется под Node с настоящим пакетом
 контракта и заглушками остального. Так ловятся `not-a-plugin`, `id-mismatch` и
-`provides-unregistered`. Если код падает на заглушке (например, `activate` трогает DOM), это
+`provides-unregistered`. Кит, внесённый в точку `reformer.kit.source`, проверяется теми же правилами,
+что у реестра китов билдера: кит назвал себя (`kit-no-id`), каталог проходит контракт
+`component-catalog.schema.json` (`kit-invalid-catalog`) и называет себя так же, как шапка
+(`kit-mismatch`). Каталог-загрузчик вызывается, пространство имён кита — нет: это сами компоненты. Если код падает на заглушке (например, `activate` трогает DOM), это
 не отказ, а заметка `! … не проверено`: вне оболочки так ведут себя и рабочие плагины.
 
 Каталог вывода очищается, только если он пуст или содержит сборку этого же плагина; иначе —

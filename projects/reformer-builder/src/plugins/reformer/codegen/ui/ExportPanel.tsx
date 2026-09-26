@@ -92,6 +92,28 @@ interface ExportForProps extends ExportPanelProps {
   readonly documentId: string;
 }
 
+/**
+ * Активный кит — с подпиской на его смену.
+ *
+ * Подпись «Кит: …» говорит, чем напечатается модуль, и обязана следовать смене кита сама, а не
+ * ждать чужой перерисовки: кит, внесённый плагином, появляется и исчезает вместе с плагином, и
+ * без подписки панель показывала бы прежний кит, а печатала — новым. Снимок стабилен между сменами:
+ * дескриптор — из проекции, которая памятует по каталогу.
+ */
+function useActiveKit(host: Pick<CodegenHost, 'kit' | 'onDidChangeKit'>) {
+  const subscribe = useCallback(
+    (cb: () => void) => {
+      const subscription = host.onDidChangeKit(cb);
+      return () => {
+        subscription.dispose();
+      };
+    },
+    [host]
+  );
+  const snapshot = useCallback(() => host.kit(), [host]);
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
+}
+
 function useCodegenState(store: CodegenStore): CodegenState {
   return useSyncExternalStore(
     (cb) => {
@@ -116,7 +138,7 @@ function ExportFor({
   const store = sessions.storeFor(documentId);
   const state = useCodegenState(store);
   const document = host.documentOf(documentId);
-  const kit = host.kit();
+  const kit = useActiveKit(host);
 
   const [name, setName] = useState(
     () => state.formName || (document === null ? '' : defaultFormName(document))

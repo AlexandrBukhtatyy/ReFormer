@@ -1,0 +1,19 @@
+{
+  "id": "kit-hexa-ui",
+  "name": "Kaspersky HexaUI",
+  "version": "0.1.0",
+  "apiVersion": "^1",
+  "main": "src/builder-plugin.ts",
+  "styles": {
+    "file": "src/builder-plugin.css",
+    "isolation": "scoped"
+  },
+  "requires": {
+    "required": [
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^2"
+      }
+    ]
+  }
+}

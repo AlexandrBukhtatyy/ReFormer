@@ -81,9 +81,17 @@ function fakeContext() {
   const contributed: { point: string; id: string | undefined; value: unknown }[] = [];
   const sources: FakeContribution[] = [];
   const observers = new Set<() => void>();
+  /** Словарь, внесённый плагином: локаль → ключ → текст. */
+  const dictionary = new Map<string, Readonly<Record<string, string>>>();
   const ctx = {
     id: KITS_PLUGIN_ID,
     subscriptions: [],
+    i18n: {
+      contribute: (locale: string, messages: Readonly<Record<string, string>>) => {
+        dictionary.set(locale, { ...dictionary.get(locale), ...messages });
+      },
+      t: (key: string) => dictionary.get('ru')?.[key] ?? `⟦${key}⟧`,
+    },
     services: {
       register: (token: { id: string }, impl: unknown) => {
         services.set(token.id, impl);
@@ -122,7 +130,7 @@ function fakeContext() {
   };
 
   const kits = (): KitsService => services.get(KitsCapability.id) as KitsService;
-  return { ctx, services, contributed, contributeKit, kits };
+  return { ctx, services, contributed, contributeKit, kits, dictionary };
 }
 
 describe('плагин', () => {
@@ -145,6 +153,19 @@ describe('плагин', () => {
     createKitsPlugin({ settings, sources: [KIT_A, KIT_B] }).activate(ctx);
 
     expect(settings.defaults.get(KIT_SETTINGS_KEY)).toBe('kit-a');
+  });
+
+  it('вносит свой словарь: пункты палитры переводятся им, а не маркером промаха', () => {
+    const { ctx, contributed, dictionary } = fakeContext();
+
+    createKitsPlugin({ sources: [KIT_A] }).activate(ctx);
+
+    expect(dictionary.get('ru')).toEqual(KITS_MESSAGES.ru);
+    expect(dictionary.get('en')).toEqual(KITS_MESSAGES.en);
+    const provider = contributed.find((entry) => entry.point === PaletteItemsPoint.id)?.value as {
+      provide(context: WhenContext): readonly { title: string }[];
+    };
+    expect(provider.provide(NEUTRAL)[0]?.title).not.toContain('⟦');
   });
 
   it('вносит поставщика пунктов палитры', () => {

@@ -22,7 +22,13 @@ export type CliFindingCode =
   /** Каталог вывода не пуст и не содержит сборку этого же плагина. */
   | 'output-not-ours'
   /** `npm pack` отказал. */
-  | 'pack-failed';
+  | 'pack-failed'
+  /** Кит, внесённый в точку `reformer.kit.source`, не назвал себя — реестр китов его не примет. */
+  | 'kit-no-id'
+  /** Каталог кита не проходит контракт каталога (`component-catalog.schema.json`). */
+  | 'kit-invalid-catalog'
+  /** Шапка кита и блок `kit` его каталога называют кит по-разному. */
+  | 'kit-mismatch';
 
 export type Finding =
   | PluginProblem

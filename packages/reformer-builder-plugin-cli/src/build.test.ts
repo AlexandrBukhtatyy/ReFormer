@@ -149,7 +149,69 @@ describe('build', () => {
       const result = await buildPlugin({ dir });
 
       expect(result.ok).toBe(true);
-      expect(result.ok && result.notices[0]).toContain('«provides» не проверен');
+      expect(result.ok && result.notices[0]).toContain('«provides» и каталоги китов не проверены');
+    });
+  });
+
+  describe('кит, внесённый плагином', () => {
+    /** Плагин, вносящий в точку китов источник, записанный выражением. */
+    const kitPlugin = (source: string) =>
+      main(
+        `import { definePlugin, KitSourcePoint } from '@reformer/builder-plugin-api';\n` +
+          `export default definePlugin({\n` +
+          `  id: 'acme-hello',\n` +
+          `  activate(ctx) {\n` +
+          `    ctx.subscriptions.push(ctx.extensions.contribute(KitSourcePoint, ${source}));\n` +
+          `  },\n` +
+          `});\n`
+      );
+
+    const VALID_RECORD = { name: 'Input', role: 'field', propsSchema: {} };
+    const kit = (id: string) => ({ id, label: id, package: `@acme/${id}` });
+    const catalog = (id: string, components: unknown[] = [VALID_RECORD]) =>
+      JSON.stringify({ version: '2.1', kit: kit(id), components });
+
+    it('каталог по контракту — сборка проходит, пространство имён не грузится', async () => {
+      // Загрузчик пространства имён бросает: вызови его сухая активация — сборка упала бы.
+      await kitPlugin(
+        `{ catalog: ${catalog('acme')}, namespace: () => { throw new Error('DOM нужен'); } }`
+      );
+
+      expect(await buildPlugin({ dir })).toMatchObject({ ok: true, notices: [] });
+    });
+
+    it('каталог, не проходящий контракт, — отказ той же проверкой, что у реестра китов', async () => {
+      await kitPlugin(`{ catalog: ${catalog('acme', [{ name: 'Input' }])} }`);
+
+      const result = await buildPlugin({ dir });
+
+      expect(codes(result)).toEqual(['kit-invalid-catalog']);
+      expect(result.ok || result.findings[0]?.message).toContain('«acme»');
+    });
+
+    it('ленивый каталог без шапки — кит без имени, реестр его не примет', async () => {
+      await kitPlugin(`{ catalog: () => Promise.resolve(${catalog('acme')}) }`);
+
+      expect(codes(await buildPlugin({ dir }))).toEqual(['kit-no-id']);
+    });
+
+    it('шапка и каталог называют кит по-разному — отказ', async () => {
+      await kitPlugin(
+        `{ kit: ${JSON.stringify(kit('a'))}, catalog: () => Promise.resolve(${catalog('b')}) }`
+      );
+
+      expect(codes(await buildPlugin({ dir }))).toEqual(['kit-mismatch']);
+    });
+
+    it('каталог, не загрузившийся вне оболочки, — заметка «не проверен», а не отказ', async () => {
+      await kitPlugin(
+        `{ kit: ${JSON.stringify(kit('acme'))}, catalog: () => Promise.reject(new Error('нужен fetch')) }`
+      );
+
+      const result = await buildPlugin({ dir });
+
+      expect(result.ok).toBe(true);
+      expect(result.ok && result.notices[0]).toContain('каталог кита «acme» не загрузился');
     });
   });
 });

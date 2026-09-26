@@ -170,6 +170,14 @@ jobs:
       - name: Run @reformer/builder-plugin-cli tests
         run: npm run test -w @reformer/builder-plugin-cli
 
+      # Кит HexaUI — внешний плагин билдера (приватный пакет, в выпуск не входит). Собирается тем же
+      # CLI, что у автора плагина: разбор манифеста, сухая активация, каталог кита по контракту SDK.
+      - name: Run @reformer/kit-hexa-ui tests
+        run: npm run test -w @reformer/kit-hexa-ui
+
+      - name: Build @reformer/kit-hexa-ui builder plugin
+        run: npm run plugin:build -w @reformer/kit-hexa-ui
+
       - name: Build @reformer/builder
         run: npm run build -w @reformer/builder
 
