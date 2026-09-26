@@ -8,6 +8,8 @@
  * @module application/profiles/registry.test
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { fromProfile } from '../composer/compose';
 import { builderProfile, rjsfProfile } from './builder';
@@ -38,5 +40,21 @@ describe('реестр профилей', () => {
     for (const profile of PROFILES.values()) {
       expect(() => fromProfile(profile)).not.toThrow();
     }
+  });
+});
+
+describe('схема конфига запуска называет встроенные профили', () => {
+  it('описание «preset» перечисляет каждый профиль реестра', () => {
+    // Описание — то, что человек видит подсказкой IDE, когда пишет `preset`. Профиль, которого
+    // там нет, существует только для того, кто читает код.
+    const schema = JSON.parse(
+      readFileSync(
+        fileURLToPath(new URL('../../../runtime-config.schema.json', import.meta.url)),
+        'utf8'
+      )
+    ) as { properties: { preset: { description: string } } };
+    const description = schema.properties.preset.description;
+
+    expect([...PROFILES.keys()].filter((id) => !description.includes(id))).toEqual([]);
   });
 });

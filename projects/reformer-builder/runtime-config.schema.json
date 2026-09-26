@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reformer.dev/schemas/reformer-builder-config",
   "title": "ReFormer Builder config",
-  "description": "Конфиг билдера из .ui_builder/config.json: уровень запуска (читает лаунчер) и уровень проекта (читается при открытии; defaults, preset и plugins действуют только на уровне запуска). Все секции опциональны; отсутствие — встроенные дефолты.",
+  "description": "Конфиг билдера из .ui_builder/config.json: уровень запуска (читает лаунчер) и уровень проекта (читается при открытии; defaults, preset, profiles и plugins действуют только на уровне запуска). Все секции опциональны; отсутствие — встроенные дефолты.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -32,13 +32,50 @@
           "type": "string",
           "enum": ["light", "dark", "system"],
           "description": "Тема до первого выбора."
+        },
+        "settings": {
+          "type": "object",
+          "propertyNames": { "minLength": 1 },
+          "description": "Умолчания любых настроек: ключ настройки → значение. Действуют, пока человек не выбрал своё, поверх умолчаний плагинов. Пример: {\"plugin.kits.active\": \"hexa-ui\"} — кит организации."
         }
       }
     },
     "preset": {
       "type": "string",
       "minLength": 1,
-      "description": "Профиль состава: из каких плагинов собрать приложение. Известные имена: reformer.builder (умолчание), minimal, ai-builder. Применяется только на уровне запуска; неизвестное имя — предупреждение и полный профиль."
+      "description": "Профиль состава: из каких плагинов собрать приложение. Встроенные: reformer.builder (умолчание), builder.base, plain.builder, rjsf.builder, minimal, ai-builder; или id своего профиля из profiles. Применяется только на уровне запуска; неизвестное имя — предупреждение и полный профиль."
+    },
+    "profiles": {
+      "type": "array",
+      "description": "Свои профили состава — на выбор в preset. Применяются только на уровне запуска; id не может совпадать со встроенным профилем.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "plugins"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Имя профиля для preset и extends."
+          },
+          "name": { "type": "string", "minLength": 1, "description": "Имя для человека." },
+          "extends": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Основа: встроенный профиль (например rjsf.builder) или другой свой."
+          },
+          "plugins": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "Встроенные плагины профиля — идут после плагинов основы."
+          },
+          "providers": {
+            "type": "object",
+            "additionalProperties": { "type": "string", "minLength": 1 },
+            "description": "Выбор провайдера: возможность → плагин, когда возможность дают двое."
+          }
+        }
+      }
     },
     "plugins": {
       "type": "object",
@@ -54,6 +91,18 @@
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
           "description": "Убрать из состава профиля."
+        }
+      }
+    },
+    "marketplace": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Каталог плагинов, которые предлагается ставить.",
+      "properties": {
+        "registry": {
+          "type": "string",
+          "format": "uri",
+          "description": "Адрес каталога-JSON (http или https)."
         }
       }
     }

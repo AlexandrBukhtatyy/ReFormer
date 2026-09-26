@@ -418,8 +418,11 @@ export function boot(options: BootOptions): BuilderApp {
   // (IndexedDB) остаётся читаемым, пока файла нет, и принимает запись, когда источник
   // её не принимает (см. `services/settings-layers`).
   const projectSettings = createProjectSettingsBackend();
+  // Умолчания организации (`defaults.settings` конфига запуска) — слоем над умолчаниями
+  // плагинов: ключ объявляет плагин, а действует слово организации, пока человек не выбрал сам.
   const settings = createSettingsService(
-    createLayeredSettingsBackend({ browser: settingsStore, project: projectSettings })
+    createLayeredSettingsBackend({ browser: settingsStore, project: projectSettings }),
+    { launchDefaults: launchConfig.defaults?.settings }
   );
   const i18n = createI18nService();
   // Словарь оболочки на чтение: коды диагностик (`errors.<code>`) и заголовки исправлений
@@ -871,6 +874,9 @@ export function boot(options: BootOptions): BuilderApp {
           // означало бы перезапуск приложения на открытии папки.
           ...(parsed?.config.preset !== undefined
             ? ['«preset» действует только на уровне запуска — задайте его в конфиге лаунчера']
+            : []),
+          ...(parsed?.config.profiles !== undefined
+            ? ['«profiles» действуют только на уровне запуска — задайте их в конфиге лаунчера']
             : []),
           ...(parsed?.config.plugins !== undefined
             ? ['«plugins» действуют только на уровне запуска — задайте их в конфиге лаунчера']

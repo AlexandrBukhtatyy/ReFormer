@@ -54,14 +54,18 @@ import {
  * ровно то, чем отвечает резолвер профилей, — и на состав, который не собирается
  * по возможностям (невыполненное требование, двое провайдеров без выбора). Тот, кто собирает
  * приложение по КОНФИГУ, обязан этот отказ поймать: имя в конфиге пишет человек.
+ *
+ * @param lookup где искать основы профиля по `extends`. По умолчанию — реестр встроенных; свои
+ * профили конфига запуска добавляет к нему тот, кто собирает приложение по конфигу.
  */
 export function fromProfile(
   profile: ApplicationProfile,
-  overrides?: PluginOverrides
+  overrides?: PluginOverrides,
+  lookup: (id: string) => ApplicationProfile | undefined = findProfile
 ): ApplicationComposition {
   const ids = resolveProfile({
     profile,
-    lookup: findProfile,
+    lookup,
     known: BUILTIN_PLUGINS.keys(),
     // Поправки приходят из конфига, который пишет и хранит человек, поэтому прежние имена
     // плагинов приводятся к нынешним ЗДЕСЬ. Список профиля через ту же таблицу не гоняется:
@@ -91,7 +95,7 @@ export function fromProfile(
     { id: HOST_PROVIDER_ID, provides: HOST_CAPABILITIES },
     ...entries.map((entry) => entry.manifest),
   ];
-  const chosen = resolveProviders({ profile, lookup: findProfile });
+  const chosen = resolveProviders({ profile, lookup });
   const capabilities = resolveCapabilities({ parts, chosen });
   rejectEmptyChoices(profile, chosen, parts);
   const problems = describeCapabilityProblems(capabilities);

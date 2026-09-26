@@ -327,3 +327,58 @@ describe('hydrate({ forget })', () => {
     expect(seen).toEqual(['workspace.k']);
   });
 });
+
+describe('умолчания запуска: слово организации между записью человека и умолчанием вклада', () => {
+  const launch = { 'plugin.kits.active': 'hexa-ui' };
+
+  it('перекрывают умолчание вклада — и объявленное раньше них, и позже', () => {
+    const settings = createSettingsService(createInMemorySettingsBackend(), {
+      launchDefaults: launch,
+    });
+
+    // Плагин ещё не поднялся, а слово организации уже действует.
+    expect(settings.get('plugin.kits.active')).toBe('hexa-ui');
+    const changed = vi.fn();
+    settings.onDidChange(changed);
+    settings.registerDefault('plugin.kits.active', 'reformer-ui-kit');
+
+    expect(settings.get('plugin.kits.active')).toBe('hexa-ui');
+    // Действующее значение не изменилось — и уведомления нет.
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it('выбор человека сильнее, а его снятие возвращает к слову организации', async () => {
+    const settings = createSettingsService(createInMemorySettingsBackend(), {
+      launchDefaults: launch,
+    });
+    settings.registerDefault('plugin.kits.active', 'reformer-ui-kit');
+
+    await settings.set('plugin.kits.active', 'reformer-ui-kit');
+    expect(settings.get('plugin.kits.active')).toBe('reformer-ui-kit');
+    expect(settings.scopeOf('plugin.kits.active')).toBe('user');
+
+    await settings.set('plugin.kits.active', undefined);
+    expect(settings.get('plugin.kits.active')).toBe('hexa-ui');
+  });
+
+  it('для человека это умолчание: выбора он не делал', () => {
+    const settings = createSettingsService(createInMemorySettingsBackend(), {
+      launchDefaults: { 'host.flag': false },
+    });
+
+    expect(settings.scopeOf('host.flag')).toBe('default');
+    // `false` — законное значение, а не «нет значения».
+    expect(settings.get('host.flag')).toBe(false);
+  });
+
+  it('записи хранилища после загрузки сильнее умолчаний запуска', async () => {
+    const settings = createSettingsService(
+      createInMemorySettingsBackend({ user: { 'plugin.kits.active': 'reformer-ui-kit' } }),
+      { launchDefaults: launch }
+    );
+
+    expect(settings.get('plugin.kits.active')).toBe('hexa-ui');
+    await settings.hydrate();
+    expect(settings.get('plugin.kits.active')).toBe('reformer-ui-kit');
+  });
+});

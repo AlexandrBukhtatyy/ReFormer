@@ -15,6 +15,8 @@ import {
   mergeRuntimeConfig,
   parseRuntimeConfig,
   readProjectRuntimeConfig,
+  RUNTIME_CONFIG_KEYS,
+  RUNTIME_PROFILE_KEYS,
 } from './runtime-config';
 
 describe('parseRuntimeConfig', () => {
@@ -101,6 +103,75 @@ describe('parseRuntimeConfig', () => {
     ]);
   });
 
+  it('свои профили и умолчания настроек организации разбираются', () => {
+    const { config, problems } = parseRuntimeConfig({
+      preset: 'acme',
+      profiles: [
+        {
+          id: 'acme',
+          name: 'Формы Acme',
+          extends: 'rjsf.builder',
+          plugins: ['reformer.editor-markdown'],
+          providers: { 'reformer.kit.catalog': 'reformer.kits' },
+        },
+        { id: 'acme-lite', extends: 'acme', plugins: [] },
+      ],
+      defaults: { settings: { 'plugin.kits.active': 'hexa-ui', 'host.flag': false } },
+    });
+
+    expect(problems).toEqual([]);
+    expect(config.profiles).toEqual([
+      {
+        id: 'acme',
+        name: 'Формы Acme',
+        extends: 'rjsf.builder',
+        plugins: ['reformer.editor-markdown'],
+        providers: { 'reformer.kit.catalog': 'reformer.kits' },
+      },
+      { id: 'acme-lite', extends: 'acme', plugins: [] },
+    ]);
+    // Значение `false` — законное умолчание, а не «нет значения».
+    expect(config.defaults?.settings).toEqual({
+      'plugin.kits.active': 'hexa-ui',
+      'host.flag': false,
+    });
+  });
+
+  it('битый профиль пропускается целиком, соседи применяются, причина названа', () => {
+    const { config, problems } = parseRuntimeConfig({
+      profiles: [
+        { id: 'ok', plugins: ['reformer.files'] },
+        { id: '', plugins: 'reformer.files' },
+        'строка',
+        { id: 'ok', plugins: [] },
+        { id: 'extra', plugins: [], color: 'red', providers: { x: 1 } },
+      ],
+    });
+
+    expect(config.profiles?.map((profile) => profile.id)).toEqual(['ok']);
+    expect(problems).toEqual([
+      '«profiles[1]» пропущен: id — непустая строка, plugins — список непустых строк',
+      '«profiles[2]» должен быть объектом',
+      '«profiles[3]» пропущен: профиль «ok» уже описан выше',
+      'неизвестное поле «profiles[4]».color',
+      '«profiles[4]» пропущен: providers — объект «возможность → плагин»',
+    ]);
+    expect(parseRuntimeConfig({ profiles: {} }).problems).toEqual([
+      '«profiles» должен быть списком профилей',
+    ]);
+  });
+
+  it('умолчания настроек — объект с непустыми ключами', () => {
+    expect(parseRuntimeConfig({ defaults: { settings: ['x'] } }).problems).toEqual([
+      '«defaults.settings» должен быть объектом «ключ настройки → значение»',
+    ]);
+    const { config, problems } = parseRuntimeConfig({
+      defaults: { settings: { ' ': 1, 'plugin.kits.active': 'hexa-ui' } },
+    });
+    expect(problems).toEqual(['«defaults.settings»: пустой ключ настройки']);
+    expect(config.defaults?.settings).toEqual({ 'plugin.kits.active': 'hexa-ui' });
+  });
+
   it('«plugins» не объектом и пустые строки в списке — проблема, а не молчание', () => {
     expect(parseRuntimeConfig({ plugins: ['ai'] }).problems).toEqual([
       '«plugins» должен быть объектом',
@@ -124,6 +195,20 @@ describe('mergeRuntimeConfig', () => {
       branding: { title: 'Запуск' },
       defaults: { locale: 'ru', theme: 'dark' },
     });
+  });
+
+  it('умолчания настроек сливаются по ключу, профили — уровнем целиком', () => {
+    const merged = mergeRuntimeConfig(
+      {
+        defaults: { locale: 'ru', settings: { a: 1, b: 2 } },
+        profiles: [{ id: 'base', plugins: [] }],
+      },
+      { defaults: { settings: { b: 3 } }, profiles: [{ id: 'over', plugins: [] }] }
+    );
+
+    expect(merged.defaults).toEqual({ locale: 'ru', settings: { a: 1, b: 3 } });
+    // Слить списки по имени значило бы собрать профиль, которого не писал никто.
+    expect(merged.profiles).toEqual([{ id: 'over', plugins: [] }]);
   });
 
   it('пустые уровни дают пустой результат без фиктивных секций', () => {
@@ -205,22 +290,30 @@ describe('схема для IDE согласована с разбором', () 
       'utf8'
     )
   ) as {
-    properties: Record<string, { properties?: Record<string, { enum?: string[] }> }>;
+    properties: Record<
+      string,
+      {
+        properties?: Record<string, { enum?: string[] }>;
+        items?: { properties?: Record<string, unknown>; required?: string[] };
+      }
+    >;
   };
 
   it('состав полей совпадает', () => {
-    expect(Object.keys(schema.properties).sort()).toEqual([
-      '$schema',
-      'branding',
-      'defaults',
-      'plugins',
-      'preset',
-    ]);
+    // Корень — с набором самого разбора, а не со списком, написанным рядом: так схема
+    // однажды уже разошлась с разбором на `marketplace`, и тест этого не видел.
+    expect(Object.keys(schema.properties).sort()).toEqual([...RUNTIME_CONFIG_KEYS].sort());
     expect(Object.keys(schema.properties.branding.properties ?? {})).toEqual(['title']);
     expect(Object.keys(schema.properties.defaults.properties ?? {}).sort()).toEqual([
       'locale',
+      'settings',
       'theme',
     ]);
+    expect(Object.keys(schema.properties.profiles.items?.properties ?? {}).sort()).toEqual(
+      [...RUNTIME_PROFILE_KEYS].sort()
+    );
+    expect(schema.properties.profiles.items?.required?.sort()).toEqual(['id', 'plugins']);
+    expect(Object.keys(schema.properties.marketplace.properties ?? {})).toEqual(['registry']);
     expect(Object.keys(schema.properties.plugins.properties ?? {}).sort()).toEqual([
       'disable',
       'enable',

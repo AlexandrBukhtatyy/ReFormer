@@ -26,8 +26,9 @@
  *
  * ## Что действует только на уровне запуска
  *
- * {@link RuntimeConfig.defaults}, {@link RuntimeConfig.preset} и {@link RuntimeConfig.plugins}
- * разбираются на обоих уровнях, а применяются только на уровне запуска. Разбор общий намеренно:
+ * {@link RuntimeConfig.defaults}, {@link RuntimeConfig.preset}, {@link RuntimeConfig.profiles} и
+ * {@link RuntimeConfig.plugins} разбираются на обоих уровнях, а применяются только на уровне
+ * запуска. Разбор общий намеренно:
  * у двух уровней не может быть двух пониманий формата, и «поле, о котором проектный конфиг
  * не знает вовсе» превратилось бы в «неизвестное поле» — сообщение, уводящее в сторону от
  * настоящей причины. Поэтому поле разбирается, а `boot` говорит словами, что оно не применено
@@ -62,6 +63,14 @@ export interface RuntimeConfig {
     readonly locale?: string;
     /** Тема до первого выбора человеком: light | dark | system. */
     readonly theme?: ThemePreference;
+    /**
+     * Умолчания любых настроек — ключ настройки → значение: слой «умолчания запуска» службы
+     * настроек, между записью человека и умолчанием плагина. Так организация выбирает кит
+     * (`"plugin.kits.active": "hexa-ui"`) или включает плагины, не трогая их код. Значение
+     * не сверяется с плагином: плагинов при разборе ещё нет, а незнакомый ключ просто никто
+     * не прочтёт.
+     */
+    readonly settings?: Readonly<Record<string, unknown>>;
   };
   /**
    * Имя профиля состава (`application/profiles`): из каких плагинов собрать приложение.
@@ -74,6 +83,15 @@ export interface RuntimeConfig {
    * Неизвестное имя не роняет запуск: предупреждение и полный профиль.
    */
   readonly preset?: string;
+  /**
+   * Свои профили состава — те же данные, что у встроенных (`application/profiles`): имя,
+   * основа, плагины, выбор провайдеров. Организация описывает сборку под себя здесь и называет
+   * её в {@link preset}. Уровень запуска по той же причине, что у `preset`.
+   *
+   * Разбор проверяет форму; имена плагинов и основы сверяет тот, кто собирает состав: профили
+   * и плагины — знание приложения, а не оболочки.
+   */
+  readonly profiles?: readonly RuntimeProfile[];
   /**
    * Поправки к составу профиля. Уровень тот же и по той же причине, что у {@link preset}.
    *
@@ -101,6 +119,18 @@ export interface RuntimeConfig {
   };
 }
 
+/** Профиль состава из конфига запуска — форма `ApplicationProfile` приложения. */
+export interface RuntimeProfile {
+  readonly id: string;
+  /** Имя для человека; нет — показывается `id`. */
+  readonly name?: string;
+  /** Основа — имя встроенного или другого своего профиля. */
+  readonly extends?: string;
+  readonly plugins: readonly string[];
+  /** Выбор провайдера: возможность → плагин. */
+  readonly providers?: Readonly<Record<string, string>>;
+}
+
 export interface ParsedRuntimeConfig {
   readonly config: RuntimeConfig;
   /** Что в файле не так — по полю на строку. Пустой список = файл чистый. */
@@ -109,14 +139,28 @@ export interface ParsedRuntimeConfig {
 
 const THEME_VALUES: readonly string[] = ['light', 'dark', 'system'];
 
-/** Что вообще бывает в корне конфига. `$schema` — подсказка IDE, а не поле формата. */
-const TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
+/**
+ * Что вообще бывает в корне конфига. `$schema` — подсказка IDE, а не поле формата.
+ * Экспорт — для сверки со схемой `runtime-config.schema.json`: список один, и схема обязана
+ * описывать ровно его.
+ */
+export const RUNTIME_CONFIG_KEYS: ReadonlySet<string> = new Set([
   '$schema',
   'branding',
   'defaults',
   'preset',
+  'profiles',
   'plugins',
   'marketplace',
+]);
+
+/** Поля профиля в `profiles`. */
+export const RUNTIME_PROFILE_KEYS: ReadonlySet<string> = new Set([
+  'id',
+  'name',
+  'extends',
+  'plugins',
+  'providers',
 ]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -142,6 +186,7 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
     branding?: RuntimeConfig['branding'];
     defaults?: RuntimeConfig['defaults'];
     preset?: string;
+    profiles?: RuntimeConfig['profiles'];
     plugins?: RuntimeConfig['plugins'];
     marketplace?: RuntimeConfig['marketplace'];
   } = {};
@@ -151,7 +196,7 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
   }
 
   for (const key of Object.keys(value)) {
-    if (!TOP_LEVEL_KEYS.has(key)) problems.push(`неизвестное поле «${key}»`);
+    if (!RUNTIME_CONFIG_KEYS.has(key)) problems.push(`неизвестное поле «${key}»`);
   }
 
   if (value.branding !== undefined) {
@@ -195,9 +240,13 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
     if (!isRecord(value.defaults)) {
       problems.push('«defaults» должен быть объектом');
     } else {
-      const defaults: { locale?: string; theme?: ThemePreference } = {};
+      const defaults: {
+        locale?: string;
+        theme?: ThemePreference;
+        settings?: Readonly<Record<string, unknown>>;
+      } = {};
       for (const key of Object.keys(value.defaults)) {
-        if (key !== 'locale' && key !== 'theme')
+        if (key !== 'locale' && key !== 'theme' && key !== 'settings')
           problems.push(`неизвестное поле «defaults.${key}»`);
       }
       const locale = value.defaults.locale;
@@ -216,7 +265,24 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
           problems.push(`«defaults.theme» должен быть одним из: ${THEME_VALUES.join(', ')}`);
         }
       }
-      if (defaults.locale !== undefined || defaults.theme !== undefined) {
+      const settings = value.defaults.settings;
+      if (settings !== undefined) {
+        if (!isRecord(settings)) {
+          problems.push('«defaults.settings» должен быть объектом «ключ настройки → значение»');
+        } else {
+          const accepted: Record<string, unknown> = {};
+          for (const [key, setting] of Object.entries(settings)) {
+            if (key.trim() === '') problems.push('«defaults.settings»: пустой ключ настройки');
+            else accepted[key] = setting;
+          }
+          if (Object.keys(accepted).length > 0) defaults.settings = Object.freeze(accepted);
+        }
+      }
+      if (
+        defaults.locale !== undefined ||
+        defaults.theme !== undefined ||
+        defaults.settings !== undefined
+      ) {
         config.defaults = defaults;
       }
     }
@@ -231,6 +297,11 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
     } else {
       problems.push('«preset» должен быть непустой строкой');
     }
+  }
+
+  if (value.profiles !== undefined) {
+    const profiles = parseProfiles(value.profiles, problems);
+    if (profiles.length > 0) config.profiles = profiles;
   }
 
   if (value.plugins !== undefined) {
@@ -263,6 +334,66 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim() !== '';
 
 /**
+ * Свои профили: форма каждого и уникальность имён. Битый профиль пропускается целиком —
+ * собранный наполовину состав хуже названного отказа, — а соседи применяются.
+ */
+function parseProfiles(value: unknown, problems: string[]): readonly RuntimeProfile[] {
+  if (!Array.isArray(value)) {
+    problems.push('«profiles» должен быть списком профилей');
+    return [];
+  }
+  const profiles: RuntimeProfile[] = [];
+  const seen = new Set<string>();
+  value.forEach((entry: unknown, index) => {
+    const at = `«profiles[${index}]»`;
+    if (!isRecord(entry)) {
+      problems.push(`${at} должен быть объектом`);
+      return;
+    }
+    for (const key of Object.keys(entry)) {
+      if (!RUNTIME_PROFILE_KEYS.has(key)) problems.push(`неизвестное поле ${at}.${key}`);
+    }
+    const { id, name, extends: base, plugins, providers } = entry;
+    const broken: string[] = [];
+    if (!isNonEmptyString(id)) broken.push('id — непустая строка');
+    if (name !== undefined && !isNonEmptyString(name)) broken.push('name — непустая строка');
+    if (base !== undefined && !isNonEmptyString(base)) broken.push('extends — непустая строка');
+    if (!Array.isArray(plugins) || !plugins.every(isNonEmptyString)) {
+      broken.push('plugins — список непустых строк');
+    }
+    const choices =
+      providers === undefined
+        ? undefined
+        : isRecord(providers) && Object.values(providers).every(isNonEmptyString)
+          ? (providers as Record<string, string>)
+          : null;
+    if (choices === null) broken.push('providers — объект «возможность → плагин»');
+    if (broken.length > 0) {
+      problems.push(`${at} пропущен: ${broken.join(', ')}`);
+      return;
+    }
+    const profileId = (id as string).trim();
+    if (seen.has(profileId)) {
+      problems.push(`${at} пропущен: профиль «${profileId}» уже описан выше`);
+      return;
+    }
+    seen.add(profileId);
+    profiles.push(
+      Object.freeze({
+        id: profileId,
+        ...(name !== undefined ? { name: name as string } : {}),
+        ...(base !== undefined ? { extends: (base as string).trim() } : {}),
+        plugins: Object.freeze([...(plugins as string[])]),
+        ...(choices !== undefined && choices !== null
+          ? { providers: Object.freeze({ ...choices }) }
+          : {}),
+      })
+    );
+  });
+  return profiles;
+}
+
+/**
  * Слияние уровней: проект перекрывает запуск по полю, а не по секции.
  *
  * Сливаются ВСЕ поля, включая те, что применяются только на уровне запуска. Слияние отвечает
@@ -271,14 +402,28 @@ const isNonEmptyString = (value: unknown): value is string =>
  */
 export function mergeRuntimeConfig(base: RuntimeConfig, over: RuntimeConfig): RuntimeConfig {
   const preset = over.preset ?? base.preset;
+  // Профили — списком уровня целиком: слить два списка по имени значило бы собрать профиль,
+  // которого не писал никто.
+  const profiles = over.profiles ?? base.profiles;
+  const settings =
+    base.defaults?.settings !== undefined || over.defaults?.settings !== undefined
+      ? { ...base.defaults?.settings, ...over.defaults?.settings }
+      : undefined;
   return {
     ...(base.branding !== undefined || over.branding !== undefined
       ? { branding: { ...base.branding, ...over.branding } }
       : {}),
     ...(base.defaults !== undefined || over.defaults !== undefined
-      ? { defaults: { ...base.defaults, ...over.defaults } }
+      ? {
+          defaults: {
+            ...base.defaults,
+            ...over.defaults,
+            ...(settings !== undefined ? { settings } : {}),
+          },
+        }
       : {}),
     ...(preset !== undefined ? { preset } : {}),
+    ...(profiles !== undefined ? { profiles } : {}),
     ...(base.plugins !== undefined || over.plugins !== undefined
       ? { plugins: { ...base.plugins, ...over.plugins } }
       : {}),

@@ -46,3 +46,7 @@ coverage/
 
 # report_issue MCP output (REFORMER_ISSUE_REPORTS_DIR)
 .reformer/
+
+# Конфиг запуска разработчика для `npm run dev` билдера (dev-эндпоинт runtime.json в vite.config):
+# у каждого свой состав и свои умолчания — в репозиторий не едет.
+projects/reformer-builder/.ui_builder/

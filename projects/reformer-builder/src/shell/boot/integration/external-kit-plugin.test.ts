@@ -41,6 +41,10 @@ import { createPluginLoader } from '@/shell/platform/plugin/loader';
 import { createPluginRegistry } from '@/shell/platform/plugin/registry';
 import { createMemoryStorageBackend } from '@/shell/platform/plugin/storage';
 import { createDiagnosticsService } from '@/shell/platform/services/diagnostics/service';
+import {
+  createInMemorySettingsBackend,
+  createSettingsService,
+} from '@/shell/platform/services/settings';
 import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import { createSourceRegistry } from '@/shell/platform/source/registry';
@@ -148,7 +152,7 @@ function createSettings(): KitsSettings {
   };
 }
 
-function harness(options: { withKits?: boolean } = {}) {
+function harness(options: { withKits?: boolean; settings?: KitsSettings } = {}) {
   const withKits = options.withKits ?? true;
   seq += 1;
   const { factory } = createMemoryIndexedDb();
@@ -204,7 +208,7 @@ function harness(options: { withKits?: boolean } = {}) {
   if (withKits) {
     plugins.register(
       createKitsPlugin({
-        settings: createSettings(),
+        settings: options.settings ?? createSettings(),
         sources: [
           {
             catalog: {
@@ -341,6 +345,38 @@ describe('кит внешним плагином каталога проекта
       PLUGIN_ID,
       expect.objectContaining({ code: 'requires-unsatisfied' })
     );
+    h.dispose();
+  });
+});
+
+describe('кит организации — умолчанием конфига запуска', () => {
+  /** Настоящая служба настроек со словом организации: `defaults.settings` конфига лаунчера. */
+  const orgSettings = () =>
+    createSettingsService(createInMemorySettingsBackend(), {
+      launchDefaults: { 'plugin.kits.active': KIT_ID },
+    });
+
+  it('кит плагина становится активным, как только плагин его внёс, — без выбора человека', async () => {
+    const h = harness({ settings: orgSettings() });
+
+    // Плагина ещё нет — названный кит недоступен, действует встроенный.
+    expect(h.kits().activeId()).toBe('builtin');
+    expect(await h.start()).toBe(true);
+
+    expect(h.kits().activeId()).toBe(KIT_ID);
+    expect(h.kits().activeOrigin()).toEqual({ kind: 'plugin', pluginId: PLUGIN_ID });
+    h.dispose();
+  });
+
+  it('выбор человека сильнее слова организации', async () => {
+    const settings = orgSettings();
+    const h = harness({ settings });
+    await h.start();
+
+    await h.kits().activate('builtin');
+
+    expect(h.kits().activeId()).toBe('builtin');
+    expect(settings.scopeOf('plugin.kits.active')).toBe('user');
     h.dispose();
   });
 });

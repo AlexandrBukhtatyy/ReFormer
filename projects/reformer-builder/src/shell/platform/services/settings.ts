@@ -1,13 +1,21 @@
 /**
- * Настройки — три области видимости и одно правило разрешения.
+ * Настройки — области видимости и одно правило разрешения.
  *
- * Значение одного и того же ключа может лежать в двух местах и быть объявлено в третьем:
+ * Значение одного и того же ключа может лежать в двух местах и быть объявлено ещё в двух:
  *
  * ```text
  * workspace   запись рабочей области   перекрывает всё
- * user        глобальная запись        перекрывает умолчание
- * default     умолчание вклада         последнее слово, если не записано ничего
+ * user        глобальная запись        перекрывает умолчания
+ * launch      умолчание запуска        умолчание организации из конфига запуска
+ * default     умолчание вклада         последнее слово, если не сказано ничего
  * ```
+ *
+ * **Почему умолчание запуска — слоем, а не вторым `registerDefault`.** Умолчание ключа объявляет
+ * один вклад, и второе объявление бросает. Организация же хочет сказать «наш кит — hexa-ui»
+ * про ключ, который объявляет чужой плагин, и сказать ДО его активации. Поэтому её слово —
+ * отдельный слой над умолчанием вклада: плагин объявляет своё умолчание как обычно, а действует
+ * слово организации, пока человек не выбрал сам. Для человека это тоже умолчание: `scopeOf`
+ * отвечает `'default'`, и «вернуть по умолчанию» возвращает к нему.
  *
  * **Почему умолчания регистрируются, а не зашиты в вызывающем.** Без реестра умолчаний `get`
  * до первой записи возвращает `undefined`, и каждый потребитель дописывает свой `?? 'system'`.
@@ -137,11 +145,26 @@ function slotOf(scope: SettingsScope, key: string): string {
  * Возвращает {@link HostSettingsService}; в реестр сервисов кладётся тот же объект под токеном
  * {@link SettingsServiceToken}, типизированным более узким {@link SettingsService}.
  */
-export function createSettingsService(backend: SettingsBackend): HostSettingsService {
+/** Как собрать службу. */
+export interface SettingsServiceOptions {
+  /**
+   * Умолчания запуска — `defaults.settings` конфига лаунчера. Неизменны всё время работы:
+   * конфиг запуска читается один раз, до сборки приложения.
+   */
+  readonly launchDefaults?: Readonly<Record<string, unknown>>;
+}
+
+export function createSettingsService(
+  backend: SettingsBackend,
+  options: SettingsServiceOptions = {}
+): HostSettingsService {
   const stores: Record<SettingsScope, Map<string, unknown>> = {
     user: new Map(),
     workspace: new Map(),
   };
+  const launch = new Map(
+    Object.entries(options.launchDefaults ?? {}).filter(([, value]) => value !== undefined)
+  );
   const defaults = new Map<string, unknown>();
   /** Слоты, записанные в этой сессии: их `hydrate` не трогает. */
   const written = new Set<string>();
@@ -153,6 +176,7 @@ export function createSettingsService(backend: SettingsBackend): HostSettingsSer
   const effective = (key: string): unknown => {
     if (stores.workspace.has(key)) return stores.workspace.get(key);
     if (stores.user.has(key)) return stores.user.get(key);
+    if (launch.has(key)) return launch.get(key);
     return defaults.get(key);
   };
 
@@ -178,7 +202,8 @@ export function createSettingsService(backend: SettingsBackend): HostSettingsSer
       // ровно то значение, которое вернёт `get`.
       if (stores.workspace.has(key)) return 'workspace';
       if (stores.user.has(key)) return 'user';
-      return defaults.has(key) ? 'default' : undefined;
+      // Умолчание запуска для человека — тоже умолчание: выбора он не делал.
+      return launch.has(key) || defaults.has(key) ? 'default' : undefined;
     },
 
     async set<T>(key: string, value: T, scope: SettingsScope = scopeForKey(key)): Promise<void> {

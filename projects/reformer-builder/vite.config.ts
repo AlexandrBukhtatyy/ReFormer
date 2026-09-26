@@ -1,9 +1,53 @@
 /// <reference types="vite/client" />
 
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFile } from 'node:fs/promises';
 import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
+
+/** Адрес конфига запуска — тот же, что у лаунчера (`bin/reformer-builder.mjs`) и SPA. */
+const RUNTIME_BUNDLE_PATH = '/__reformer-builder/runtime.json';
+
+/**
+ * Конфиг запуска в `npm run dev` — то, что в сборке отдаёт лаунчер.
+ *
+ * Без этого dev-сервер отвечал на адрес конфига страницей SPA, SPA читала «конфига нет», и
+ * `preset`, свои профили и умолчания организации проверялись только собранным билдером.
+ * Конфиг ищется как у лаунчера: файл из `REFORMER_BUILDER_CONFIG`, иначе
+ * `<cwd>/.ui_builder/config.json`. Читается на каждый запрос — правка файла видна после
+ * перезагрузки страницы, без перезапуска сервера. Формат не проверяется и здесь: разбор со
+ * словами о каждом поле — у SPA.
+ */
+function devRuntimeConfig(): Plugin {
+  return {
+    name: 'reformer-builder:dev-runtime-config',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(RUNTIME_BUNDLE_PATH, (_request, response) => {
+        const explicit = process.env.REFORMER_BUILDER_CONFIG;
+        const file = path.resolve(process.cwd(), explicit ?? '.ui_builder/config.json');
+        void readFile(file, 'utf8')
+          .then((text) => JSON.parse(text) as unknown)
+          .catch((error: NodeJS.ErrnoException) => {
+            // Нет файла по умолчанию — норма: билдер работает на вшитых дефолтах. Явно названный
+            // и битый — ошибка, о которой разработчик узнаёт в терминале, а не догадкой.
+            if (explicit !== undefined || error.code !== 'ENOENT') {
+              server.config.logger.error(
+                `[runtime.json] конфиг «${file}» не прочитан: ${error.message}`
+              );
+            }
+            return null;
+          })
+          .then((config) => {
+            response.setHeader('Content-Type', 'application/json; charset=utf-8');
+            response.setHeader('Cache-Control', 'no-cache');
+            response.end(JSON.stringify({ config }));
+          });
+      });
+    },
+  };
+}
 
 /**
  * Раскладка вывода сборки.
@@ -89,7 +133,7 @@ export default defineConfig({
   // Prod-сборка для GitHub Pages идёт в подкаталог /ReFormer/builder/, поэтому base
   // задаётся через env (BUILDER_BASE) в CI. Локально (dev, preview) остаётся «/».
   base: process.env.BUILDER_BASE ?? '/',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), devRuntimeConfig()],
   server: {
     // 5173 занят react-playground (и e2e ждёт его именно там), поэтому билдер живёт на 5174.
     // strictPort — чтобы порт не уезжал молча: адрес билдера должен быть предсказуем.
