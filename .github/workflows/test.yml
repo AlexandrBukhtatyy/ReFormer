@@ -178,6 +178,15 @@ jobs:
       - name: Build @reformer/kit-hexa-ui builder plugin
         run: npm run plugin:build -w @reformer/kit-hexa-ui
 
+      # Тема RJSF из кита — рантайм домена rjsf билдера (приватный пакет). Билдер резолвит её в
+      # исходники и dist не ждёт, но «Dist deps ↔ manifest» и «Exports ↔ dist» ниже сканируют
+      # dist/ всех packages/*. Идёт после @reformer/core: тема берёт адаптеры полей из его dist.
+      - name: Build @reformer/rjsf-kit-theme
+        run: npm run build -w @reformer/rjsf-kit-theme
+
+      - name: Run @reformer/rjsf-kit-theme tests
+        run: npm run test -w @reformer/rjsf-kit-theme
+
       - name: Build @reformer/builder
         run: npm run build -w @reformer/builder
 

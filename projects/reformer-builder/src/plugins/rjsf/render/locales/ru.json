@@ -1,0 +1,10 @@
+{
+  "surface.title": "RJSF в ките",
+  "surface.invalid": "Схема не разбирается как форма RJSF.",
+  "surface.loading": "Загружается RJSF…",
+  "surface.failed": "Форма не нарисовалась: {message}",
+  "theme.summary": "Тема из кита: стандартного RJSF — {count}",
+  "theme.widget-default": "Виджет {widget}: в ките нет подходящего поля — стандартный RJSF.",
+  "theme.template-default": "Шаблон {template}: в ките нет компонента — стандартный.",
+  "theme.component-missing": "Для {target} кит назвал «{component}», а такого компонента в нём нет."
+}

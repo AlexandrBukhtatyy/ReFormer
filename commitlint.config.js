@@ -35,6 +35,8 @@ export default {
         'reformer-builder-toolkit',
         // Кит HexaUI — внешний плагин билдера (packages/ui-kits/reformer-hexa-ui), в npm не публикуется.
         'reformer-hexa-ui',
+        // Тема RJSF из кита (packages/rjsf-kit-theme) — рантайм домена rjsf билдера, пока приватный.
+        'rjsf-kit-theme',
         'react-playground',
         'react-playground-e2e',
         'docs',

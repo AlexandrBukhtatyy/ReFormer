@@ -74,6 +74,8 @@ import pluginManagerManifest from '@/plugins/base/plugin-manager/manifest.json';
 import plainManifest from '@/plugins/plain/demo/manifest.json';
 import previewManifest from '@/plugins/base/preview/manifest.json';
 import previewRuntimeManifest from '@/plugins/reformer/render/manifest.json';
+import rjsfEditorManifest from '@/plugins/rjsf/editor/manifest.json';
+import rjsfRenderManifest from '@/plugins/rjsf/render/manifest.json';
 import schemaEditorManifest from '@/plugins/reformer/editor/manifest.json';
 import templatesManifest from '@/plugins/reformer/templates/manifest.json';
 import validatorManifest from '@/plugins/reformer/validator/manifest.json';
@@ -258,6 +260,16 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
     const plain = await import('@/plugins/plain/demo');
     return plain.createPlainPlugin();
   }),
+  // Домен RJSF: форма react-jsonschema-form, нарисованная темой из активного кита. В полный
+  // профиль ReFormer не входит — его собирает профиль `rjsf.builder` поверх основы и китов.
+  lazyBuiltin(rjsfEditorManifest, async () => {
+    const editor = await import('@/plugins/rjsf/editor');
+    return editor.createRjsfEditorPlugin();
+  }),
+  lazyBuiltin(rjsfRenderManifest, async () => {
+    const render = await import('@/plugins/rjsf/render');
+    return render.createRjsfRenderPlugin();
+  }),
 ]);
 
 /**
@@ -332,6 +344,8 @@ const BUILTIN_DIRECTORIES: ReadonlyMap<string, string> = new Map([
   ['reformer.templates', 'reformer/templates'],
   ['reformer.ai', 'reformer/ai'],
   ['reformer.plain', 'plain/demo'],
+  ['reformer.rjsf.editor', 'rjsf/editor'],
+  ['reformer.rjsf.render', 'rjsf/render'],
 ]);
 
 /**

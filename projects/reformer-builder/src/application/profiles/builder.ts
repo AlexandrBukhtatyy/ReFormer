@@ -68,3 +68,19 @@ export const plainProfile = defineProfile({
   extends: BASE_PROFILE_ID,
   plugins: ['reformer.plain'],
 });
+
+export const RJSF_PROFILE_ID = 'rjsf.builder';
+
+/**
+ * Домен RJSF поверх основы: формы react-jsonschema-form, нарисованные активным китом.
+ *
+ * Киты — платформа, а не часть стека ReFormer, поэтому `reformer.kits` здесь свой: тема RJSF
+ * строится из того же активного кита, что рисует формы ReFormer, и кит, внесённый внешним
+ * плагином, работает в обоих доменах без правки. Ни одного плагина стека ReFormer.
+ */
+export const rjsfProfile = defineProfile({
+  id: RJSF_PROFILE_ID,
+  name: 'RJSF Builder',
+  extends: BASE_PROFILE_ID,
+  plugins: ['reformer.kits', 'reformer.rjsf.editor', 'reformer.rjsf.render'],
+});

@@ -12,7 +12,7 @@
  * @module application/profiles/registry
  */
 
-import { baseProfile, builderProfile, plainProfile } from './builder';
+import { baseProfile, builderProfile, plainProfile, rjsfProfile } from './builder';
 import { aiBuilderProfile, minimalProfile } from './presets';
 import type { ApplicationProfile } from './profile';
 
@@ -20,6 +20,7 @@ const ALL: readonly ApplicationProfile[] = Object.freeze([
   baseProfile,
   builderProfile,
   plainProfile,
+  rjsfProfile,
   minimalProfile,
   aiBuilderProfile,
 ]);

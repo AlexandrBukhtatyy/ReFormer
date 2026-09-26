@@ -1,0 +1,16 @@
+{
+  "id": "reformer.rjsf.render",
+  "name": "RJSF: превью формы в ките",
+  "apiVersion": "^1",
+  "builtin": {
+    "loading": "lazy"
+  },
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^2"
+      }
+    ]
+  }
+}

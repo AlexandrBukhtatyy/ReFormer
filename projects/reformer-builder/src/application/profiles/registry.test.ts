@@ -10,13 +10,14 @@
 
 import { describe, expect, it } from 'vitest';
 import { fromProfile } from '../composer/compose';
-import { builderProfile } from './builder';
+import { builderProfile, rjsfProfile } from './builder';
 import { aiBuilderProfile, minimalProfile } from './presets';
 import { findProfile, PROFILES } from './registry';
 
 describe('реестр профилей', () => {
-  it('все три профиля находятся по своему имени', () => {
+  it('профили находятся по своему имени', () => {
     expect(findProfile('reformer.builder')).toBe(builderProfile);
+    expect(findProfile('rjsf.builder')).toBe(rjsfProfile);
     expect(findProfile('minimal')).toBe(minimalProfile);
     expect(findProfile('ai-builder')).toBe(aiBuilderProfile);
   });
@@ -28,7 +29,7 @@ describe('реестр профилей', () => {
   });
 
   it('имена уникальны: профиль не может перекрыть соседний', () => {
-    expect(PROFILES.size).toBe(5);
+    expect(PROFILES.size).toBe(6);
   });
 
   it('КАЖДЫЙ профиль реестра собирается — имена в нём настоящие', () => {

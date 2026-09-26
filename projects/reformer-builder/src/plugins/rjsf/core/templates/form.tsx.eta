@@ -1,0 +1,24 @@
+import Form from '@rjsf/core';
+import type { RJSFSchema, UiSchema } from '@rjsf/utils';
+import validator from '@rjsf/validator-ajv8';
+
+export interface <%= it.name %>Values {
+<% it.fields.forEach(function (field) { -%>
+  <%= field.key %><%= field.optional ? '?' : '' %>: <%= field.tsType %>;
+<% }) -%>
+}
+
+export const <%= it.name %>Schema: RJSFSchema = <%= it.schema %>;
+
+export const <%= it.name %>UiSchema: UiSchema = <%= it.uiSchema %>;
+
+export function <%= it.name %>(props: { onSubmit?: (values: <%= it.name %>Values) => void }) {
+  return (
+    <Form
+      schema={<%= it.name %>Schema}
+      uiSchema={<%= it.name %>UiSchema}
+      validator={validator}
+      onSubmit={({ formData }) => props.onSubmit?.(formData as <%= it.name %>Values)}
+    />
+  );
+}

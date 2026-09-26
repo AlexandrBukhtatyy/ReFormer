@@ -186,9 +186,13 @@ projects/reformer-builder/
 │   │   │   ├── codegen/           pipeline/ (+ __golden__) commands/ ui/
 │   │   │   ├── templates/         content/ render/ commands/ stores/ ui/
 │   │   │   └── ai/                model/ loop/ tools/ session/ knowledge/ providers/ ui/
-│   │   └── plain/
-│   │       ├── core/              ЯДРО демо-стека: формат plain-form/1, операции, проверки, печать
-│   │       └── demo/              демо-стек: провайдер, поверхность, валидатор, редактор, команды
+│   │   ├── plain/
+│   │   │   ├── core/              ЯДРО демо-стека: формат plain-form/1, операции, проверки, печать
+│   │   │   └── demo/              демо-стек: провайдер, поверхность, валидатор, редактор, команды
+│   │   └── rjsf/                стек RJSF: формы react-jsonschema-form в активном ките
+│   │       ├── core/              ЯДРО: формат rjsf-form/1, операции, проверки, печать Form.tsx
+│   │       ├── editor/            провайдер, валидатор, редактор (поля + инспектор), команды
+│   │       └── render/            поверхность превью: тема из кита (@reformer/rjsf-kit-theme)
 │   │
 │   ├── testing/               browser-setup (зашит в vitest.browser.config), render
 │   ├── main.tsx  App.tsx  index.css
@@ -245,14 +249,15 @@ projects/reformer-builder/
 Стек — набор плагинов со своим форматом схемы: провайдер модели (`document.model`), поверхность
 превью (`preview.surface`), валидатор, редактор, кодоген. Документ стека узнаётся по
 `DocumentRef.providerId` — провайдеру, который его разобрал, — а не по расширению: `.json`
-бывает схемой любого стека. Сегодня стеков два:
+бывает схемой любого стека. Сегодня стеков три:
 
 | Стек                | Ядро                    | Плагины                                                                        | Профиль            |
 | ------------------- | ----------------------- | ------------------------------------------------------------------------------ | ------------------ |
 | ReFormer            | `plugins/reformer/core` | kits, validator-schema, editor-schema, preview-runtime, ai, codegen, templates | `reformer.builder` |
 | демо `plain-form/1` | `plugins/plain/core`    | plain                                                                          | `plain.builder`    |
+| RJSF `rjsf-form/1`  | `plugins/rjsf/core`     | kits, rjsf.editor, rjsf.render                                                 | `rjsf.builder`     |
 
-Оба профиля наследуют `builder.base` — файлы, Monaco, markdown, управление плагинами и хост
+Все три профиля наследуют `builder.base` — файлы, Monaco, markdown, управление плагинами и хост
 превью. Основа поднимается без единого плагина стека, и это проверено интеграционным тестом.
 
 Что стеку нужно от оболочки, он берёт возможностями, а не портами:

@@ -1,0 +1,54 @@
+{
+  "name": "@reformer/rjsf-kit-theme",
+  "version": "0.0.0",
+  "private": true,
+  "description": "RJSF theme from any ReFormer UI kit: widgets and field/object/submit templates built from the kit's own components",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build",
+    "test": "node ../../scripts/run-vitest.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "keywords": [
+    "reformer",
+    "rjsf",
+    "react-jsonschema-form",
+    "theme",
+    "ui-kit"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@reformer/core": "*",
+    "@rjsf/core": "^6.10.1",
+    "@rjsf/utils": "^6.10.1",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@reformer/core": "*",
+    "@rjsf/core": "^6.10.1",
+    "@rjsf/utils": "^6.10.1",
+    "@rjsf/validator-ajv8": "^6.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.8"
+  }
+}

@@ -39,6 +39,8 @@
       ],
       // Нейтральные помощники печати стеков — тем же доводом.
       "@reformer/builder-toolkit": ["../../packages/reformer-builder-toolkit/src/index.ts"],
+      // Тема RJSF из кита — тем же доводом.
+      "@reformer/rjsf-kit-theme": ["../../packages/rjsf-kit-theme/src/index.ts"],
       // `vitest/browser` (пакет `vitest` в корне монорепо) реэкспортирует контекст
       // из `@vitest/browser-playwright/context` под `@ts-ignore`, а сам провайдер npm положил
       // НЕ в корень, а в node_modules этого проекта. Из корневого файла он не резолвится,

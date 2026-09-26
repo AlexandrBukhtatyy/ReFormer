@@ -38,7 +38,7 @@ import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
 import { KITS_PLUGIN_ID } from '@/plugins/kits/registry';
 import { KitsCapability } from '@reformer/builder-plugin-api/internal';
 import { builderApplication } from '../builder-application';
-import { baseProfile } from '../profiles/builder';
+import { baseProfile, builderProfile, plainProfile, rjsfProfile } from '../profiles/builder';
 import { PROFILES } from '../profiles/registry';
 import {
   builtinPluginDirectory,
@@ -51,8 +51,18 @@ import {
 import { composeAll, fromProfile } from './compose';
 import { stubBuiltinOptions, stubHostCapabilities } from './testing';
 
-/** Демо-стек: в карте есть, в полный профиль ReFormer не входит. */
-const PLAIN_PLUGIN = 'reformer.plain';
+/**
+ * Плагины других стеков: в карте есть, в полный профиль ReFormer не входят.
+ *
+ * Выводятся из профилей этих стеков — их собственные списки без основы и без общего с ReFormer
+ * (киты — платформа, их берёт и RJSF), — а не перечисляются здесь: новый стек добавляет свой
+ * профиль, и исключение появляется само.
+ */
+const OTHER_STACK_PLUGINS: ReadonlySet<string> = new Set(
+  [plainProfile, rjsfProfile]
+    .flatMap((profile) => profile.plugins)
+    .filter((id) => !builderProfile.plugins.includes(id))
+);
 
 /**
  * Русский словарь плагина или `null`, если словаря у него нет.
@@ -522,9 +532,9 @@ describe('две фазы: что едет в entry, а что своим фай
   it('ленивая фаза полного профиля отдаёт ровно тех, кто объявлен ленивым', async () => {
     const lazy = await builderApplication.lazy(stubBuiltinOptions());
 
-    // Демо-стек в полный профиль ReFormer не входит — см. тест ниже.
+    // Другие стеки в полный профиль ReFormer не входят — см. тест ниже.
     expect(lazy.map((composed) => composed.plugin.id).sort()).toEqual(
-      LAZY_PLUGIN_IDS.filter((id) => id !== PLAIN_PLUGIN).sort()
+      LAZY_PLUGIN_IDS.filter((id) => !OTHER_STACK_PLUGINS.has(id)).sort()
     );
   });
 
@@ -554,13 +564,14 @@ describe('две фазы: что едет в entry, а что своим фай
     expect([...used].sort()).toEqual([...BUILTIN_PLUGINS.keys()].sort());
   });
 
-  it('полный профиль ReFormer — вся карта, кроме демо-стека', async () => {
-    // Демо-стек — ДРУГОЙ стек: его собирает `plain.builder` поверх основы, а в состав ReFormer
-    // он не входит. Попади он туда — у `.json` появилось бы два предметных редактора.
+  it('полный профиль ReFormer — вся карта, кроме других стеков', async () => {
+    // Демо-стек и RJSF — ДРУГИЕ стеки: их собирают `plain.builder` и `rjsf.builder` поверх
+    // основы, а в состав ReFormer они не входят. Попади туда хоть один — у `.json` появилось бы
+    // два предметных редактора.
     const all = await composeAll(builderApplication, stubBuiltinOptions());
 
     expect(all.map((composed) => composed.plugin.id).sort()).toEqual(
-      [...BUILTIN_PLUGINS.keys()].filter((id) => id !== PLAIN_PLUGIN).sort()
+      [...BUILTIN_PLUGINS.keys()].filter((id) => !OTHER_STACK_PLUGINS.has(id)).sort()
     );
   });
 

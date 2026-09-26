@@ -1,0 +1,10 @@
+{
+  "surface.title": "RJSF in the kit",
+  "surface.invalid": "The schema does not parse as an RJSF form.",
+  "surface.loading": "Loading RJSF…",
+  "surface.failed": "The form failed to render: {message}",
+  "theme.summary": "Theme from the kit: standard RJSF parts — {count}",
+  "theme.widget-default": "Widget {widget}: the kit has no matching field — standard RJSF.",
+  "theme.template-default": "Template {template}: the kit has no component — standard.",
+  "theme.component-missing": "For {target} the kit named \"{component}\", but it has no such component."
+}

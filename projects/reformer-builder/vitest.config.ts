@@ -42,6 +42,11 @@ export default defineConfig({
         __dirname,
         '../../packages/reformer-builder-toolkit/src/index.ts'
       ),
+      // Тема RJSF из кита — рантайм домена rjsf, в исходники тем же доводом.
+      '@reformer/rjsf-kit-theme': path.resolve(
+        __dirname,
+        '../../packages/rjsf-kit-theme/src/index.ts'
+      ),
     },
   },
   test: { environment: 'node', include: ['src/**/*.test.ts'] },

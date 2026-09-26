@@ -16,7 +16,7 @@
 import { describe, expect, it } from 'vitest';
 import { defineProfile } from '../profiles/profile';
 import { aiBuilderProfile, minimalProfile } from '../profiles/presets';
-import { builderProfile } from '../profiles/builder';
+import { builderProfile, plainProfile, rjsfProfile } from '../profiles/builder';
 import { BUILTIN_PLUGINS } from './builtin-plugins';
 import { composeAll, fromProfile } from './compose';
 import { stubBuiltinOptions } from './testing';
@@ -91,12 +91,18 @@ describe('fromProfile', () => {
     ]);
   });
 
-  it('полный профиль собирает всю карту, кроме демо-стека', async () => {
-    // Демо-стек — другой стек: в состав ReFormer он не входит, его собирает `plain.builder`.
+  it('полный профиль собирает всю карту, кроме других стеков', async () => {
+    // Демо-стек и RJSF — другие стеки: в состав ReFormer они не входят, их собирают
+    // `plain.builder` и `rjsf.builder`. Исключение — из их профилей, без общего с ReFormer.
     const ids = await idsOf(fromProfile(builderProfile));
+    const others = new Set(
+      [plainProfile, rjsfProfile]
+        .flatMap((profile) => profile.plugins)
+        .filter((id) => !builderProfile.plugins.includes(id))
+    );
 
     expect([...ids].sort()).toEqual(
-      [...BUILTIN_PLUGINS.keys()].filter((id) => id !== 'reformer.plain').sort()
+      [...BUILTIN_PLUGINS.keys()].filter((id) => !others.has(id)).sort()
     );
   });
 
