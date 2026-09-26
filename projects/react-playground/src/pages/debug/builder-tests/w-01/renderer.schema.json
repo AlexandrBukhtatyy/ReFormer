@@ -1,0 +1,96 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "$nodeId": "rt8yan6z",
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "$nodeId": "arfybmes",
+        "component": "$component(Wizard)",
+        "componentProps": {
+          "steps": [
+            {
+              "$nodeId": "4n9kbchc",
+              "component": "$component(Step)",
+              "componentProps": {
+                "title": "Данные"
+              },
+              "children": [
+                {
+                  "$nodeId": "gcal52zk",
+                  "component": "$html(div)",
+                  "componentProps": {
+                    "className": "flex gap-4"
+                  },
+                  "children": [
+                    {
+                      "$nodeId": "ta5oi9pf",
+                      "value": "$model(lastName)",
+                      "component": "$component(Input)",
+                      "componentProps": {
+                        "label": "Фамилия",
+                        "required": true
+                      }
+                    },
+                    {
+                      "$nodeId": "84l3nldk",
+                      "value": "$model(firstName)",
+                      "component": "$component(Input)",
+                      "componentProps": {
+                        "label": "Имя",
+                        "required": true
+                      }
+                    }
+                  ]
+                },
+                {
+                  "$nodeId": "rqss49pz",
+                  "value": "$model(fullName)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Полное имя",
+                    "readOnly": true
+                  }
+                }
+              ],
+              "selector": "dannye-section"
+            },
+            {
+              "$nodeId": "h6mu7qbr",
+              "component": "$component(Step)",
+              "componentProps": {
+                "title": "Контакты"
+              },
+              "children": [
+                {
+                  "$nodeId": "c2jy2o34",
+                  "value": "$model(city)",
+                  "component": "$component(Select)",
+                  "componentProps": {
+                    "label": "Город",
+                    "options": "$dataSource(CITY_LIST)"
+                  }
+                },
+                {
+                  "$nodeId": "deytu5cj",
+                  "value": "$model(email)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Электронная почта",
+                    "required": true
+                  }
+                }
+              ],
+              "selector": "kontakty-section"
+            }
+          ]
+        },
+        "selector": "wizard"
+      }
+    ]
+  }
+}
