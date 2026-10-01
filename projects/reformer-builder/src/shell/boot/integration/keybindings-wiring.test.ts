@@ -33,7 +33,6 @@ import { readWhenContext } from '@/shell/platform/services/context-keys';
 import { shouldDispatch } from '@/shell/platform/ui/keyboard/keybindings';
 import { whenContext } from '@reformer/builder-plugin-api/internal';
 import { builderApplication } from '@/application/builder-application';
-import { composeAll } from '@/application/composer/compose';
 import { stubBuiltinOptions } from '@/application/composer/testing';
 
 /** Команды всех встроенных плагинов — ровно те, что получит собранное приложение. */
@@ -48,11 +47,10 @@ async function builtinCommands(): Promise<readonly CommandContribution[]> {
     onError: vi.fn(),
   });
 
-  // Ждём ОБЕ фазы: сочетания ленивых плагинов обязаны попадать в проверку так же,
-  // как сочетания тех, что едут в entry. Состав берётся ПОЛНЫЙ и тем же значением, что уходит
+  // Состав берётся ПОЛНЫЙ и тем же значением, что уходит
   // в `boot` из `main.tsx`: раскладка, проверенная на другом наборе, ничего не значила бы —
   // конфликт сочетаний живёт ровно между плагинами, которых собрали вместе.
-  for (const composed of await composeAll(builderApplication, stubBuiltinOptions())) {
+  for (const composed of await builderApplication.load(stubBuiltinOptions())) {
     plugins.register(composed.plugin, composed.provides);
   }
   plugins.activateAll();

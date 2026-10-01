@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { defineProfile } from '../profiles/profile';
 import { builtinProfile } from '../profiles/registry';
 import { BUILTIN_PLUGINS } from './builtin-plugins';
-import { composeAll, fromProfile } from './compose';
+import { fromProfile } from './compose';
 import { stubBuiltinOptions } from './testing';
 
 const builderProfile = builtinProfile('reformer.builder');
@@ -28,7 +28,7 @@ const aiBuilderProfile = builtinProfile('ai-builder');
 
 /** Идентификаторы собранного состава — в том порядке, в каком их отдала композиция. */
 async function idsOf(composition: ReturnType<typeof fromProfile>): Promise<readonly string[]> {
-  const built = await composeAll(composition, stubBuiltinOptions());
+  const built = await composition.load(stubBuiltinOptions());
   return built.map((composed) => composed.plugin.id);
 }
 
@@ -43,22 +43,6 @@ describe('fromProfile', () => {
     ]);
     expect(ids).not.toContain('reformer.preview');
     expect(ids).not.toContain('reformer.editor-schema');
-  });
-
-  it('способ доставки берётся из карты, а не из профиля', async () => {
-    // Редактор кода приезжает своим файлом ВЕЗДЕ, включая минимальный профиль: ленивость —
-    // свойство плагина (Monaco весит больше всего остального состава), и короткий профиль
-    // не вправе втянуть его в стартовый граф ради круглого «ленивая фаза пуста».
-    const composition = fromProfile(minimalProfile);
-    const lazy = await composition.lazy(stubBuiltinOptions());
-
-    expect(lazy.map((composed) => composed.plugin.id).sort()).toEqual([
-      'reformer.editor-monaco',
-      'reformer.files',
-    ]);
-    expect(composition.eager(stubBuiltinOptions()).map((composed) => composed.plugin.id)).toEqual([
-      'reformer.validator-schema',
-    ]);
   });
 
   it('ai-builder добавляет ассистента к минимальному — и только его', async () => {
@@ -78,22 +62,6 @@ describe('fromProfile', () => {
     const ids = await idsOf(fromProfile(aiBuilderProfile));
 
     expect(ids.indexOf('reformer.ai')).toBe(ids.length - 1);
-  });
-
-  it('ассистент приезжает своим файлом и в коротком профиле тоже', async () => {
-    // Профиль меняет СОСТАВ, а не способ доставки: «ленивый» — свойство плагина, записанное
-    // в карте, и короткий профиль не вправе втянуть его в стартовый граф.
-    const composition = fromProfile(aiBuilderProfile);
-    const lazy = await composition.lazy(stubBuiltinOptions());
-
-    expect(lazy.map((composed) => composed.plugin.id).sort()).toEqual([
-      'reformer.ai',
-      'reformer.editor-monaco',
-      'reformer.files',
-    ]);
-    expect(composition.eager(stubBuiltinOptions()).map((composed) => composed.plugin.id)).toEqual([
-      'reformer.validator-schema',
-    ]);
   });
 
   it('полный профиль собирает всю карту, кроме других стеков', async () => {
@@ -198,8 +166,7 @@ describe('fromProfile', () => {
     // состав без него — унаследованных троих в приложении не было бы вовсе.
     const composition = fromProfile(aiBuilderProfile);
 
-    // Четверо унаследованных и своих: один статический и трое своими файлами.
-    expect(composition.eager(stubBuiltinOptions()).length).toBe(1);
-    expect((await composition.lazy(stubBuiltinOptions())).length).toBe(3);
+    // Трое унаследованных и один свой.
+    expect((await composition.load(stubBuiltinOptions())).length).toBe(4);
   });
 });

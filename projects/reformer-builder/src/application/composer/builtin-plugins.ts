@@ -48,22 +48,22 @@
  * (см. `shell/platform/plugin/registry`) и проверяет это тестом «порядок активации ничего
  * не значит». Фактический порядок сборки задаёт профиль, а не эта карта.
  *
- * ## Две фазы, и почему граница проходит именно здесь
+ * ## Каждый плагин приезжает своим файлом — статических нет
  *
- * Плагины делятся на СТАТИЧЕСКИХ и ЛЕНИВЫХ, и это деление про СБОРКУ, а не про поведение:
- * оба набора встают до первой отрисовки, потому что ленивые дожидаются внутри `ready`
- * (см. `boot`). Контракт «набор вкладов полон и детерминирован к моменту отрисовки»
- * (plugin-and-shell, «Последовательность запуска», шаги 5-6) остаётся в силе дословно.
+ * Код ни одного плагина не лежит в стартовом файле: все барели — отложенные импорты, и каждый
+ * становится своим файлом сборки. Иначе добиться этого нельзя: попытка через `manualChunks`
+ * измерена и отвергнута (см. `vite.config.ts` — ручной чанк стягивает в себя общий вендор
+ * и утяжеляет стартовый граф на полмегабайта).
  *
- * Смысл деления — в том, что иначе весь код плагинов лежит внутри entry одним файлом.
- * Отдельный файл даёт только динамический импорт: попытка добиться того же через
- * `manualChunks` измерена и отвергнута (см. `vite.config.ts` — ручной чанк стягивает
- * в себя общий вендор и утяжеляет стартовый граф на полмегабайта).
+ * На поведение это не влияет: все плагины встают до первой отрисовки, потому что запуск
+ * дожидается их внутри `ready` (см. `boot`), и активируются они разом, после загрузки.
+ * Контракт «набор вкладов полон и детерминирован к моменту отрисовки» (plugin-and-shell,
+ * «Последовательность запуска») остаётся в силе дословно.
  *
- * Ленивость — умолчание: плагин, найденный обходом, приезжает своим файлом. Статических двое,
- * и только они записаны руками ({@link EAGER_FACTORIES}): статический импорт шаблоном не
- * выразить, не затащив в стартовый граф всех. Причина у каждого — В ЕГО МАНИФЕСТЕ, полем
- * `builtin.reason`, и разбор требует её у каждого `eager`.
+ * Прежде двое — киты и валидатор схемы — ехали в стартовом файле с доводом «`activate`
+ * заказывает тяжёлую загрузку, пусть идёт параллельно оболочке». Довод не действовал:
+ * активация и статических шла после загрузки ленивых. Исключений поэтому не осталось, а с ними
+ * ушли ручные импорты и вторая фаза состава. Манифест, объявивший `eager`, карта отвергает.
  *
  * @module application/composer/builtin-plugins
  */
@@ -77,10 +77,7 @@ import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { BUILDER_VERSION } from '@/shell/platform/version';
 
-// Код — только статических: их значения нужны композиции при сборке, и довод у каждого в его
-// манифесте. Ленивых здесь нет ВОВСЕ — ни значением, ни типом: их код приезжает обходом ниже.
-import createKitsPlugin from '@/plugins/kits/registry';
-import createSchemaValidatorPlugin from '@/plugins/reformer/validator';
+// Кода плагинов здесь нет ВОВСЕ — ни значением, ни типом: он приезжает обходом ниже.
 
 /**
  * Что получает фабрика состава: порты оболочки и точки расширения.
@@ -114,7 +111,7 @@ export function builtinPluginPorts(options: BuiltinPluginsOptions): BuiltinPlugi
 type BuiltinPluginFactory = (ports: BuiltinPluginPorts) => Plugin;
 
 /**
- * Манифесты ВСЕХ встроенных, включая ленивых: JSON — лист, кода плагина за ним нет.
+ * Манифесты всех встроенных — статически: JSON — лист, кода плагина за ним нет.
  * Папка с манифестом и есть плагин; ядро домена (`core/`) манифеста не имеет.
  */
 const MANIFESTS = import.meta.glob<unknown>('../../plugins/*/*/manifest.json', {
@@ -123,30 +120,15 @@ const MANIFESTS = import.meta.glob<unknown>('../../plugins/*/*/manifest.json', {
 });
 
 /**
- * Барели ленивых — отложенными импортами: каждый становится своим файлом сборки.
+ * Барели плагинов — отложенными импортами: каждый становится своим файлом сборки.
  *
- * Исключения — отрицательными шаблонами, и оба вида нужны. Ядра доменов — не плагины, а без
- * исключения их барели стали бы отдельными точками входа. Статические импортированы выше, и
- * отложенный импорт того же модуля ничего бы не отделил — сборка лишь предупредила бы об этом.
+ * Ядра доменов исключены: это не плагины, а без исключения их барели стали бы отдельными
+ * точками входа.
  */
-const LAZY_MODULES = import.meta.glob<{ readonly default: BuiltinPluginFactory }>([
+const MODULES = import.meta.glob<{ readonly default: BuiltinPluginFactory }>([
   '../../plugins/*/*/index.ts',
   '!../../plugins/*/core/index.ts',
-  '!../../plugins/kits/registry/index.ts',
-  '!../../plugins/reformer/validator/index.ts',
 ]);
-
-/**
- * Фабрики статических плагинов — по каталогу.
- *
- * Единственное, что здесь записано руками, и записано дважды: каталог стоит ещё и в исключениях
- * {@link LAZY_MODULES}. Шаблон обхода обязан быть литералом, поэтому вывести одно из другого
- * нельзя; расхождение ловит сборка карты ниже — каталог, попавший в оба набора, бросает.
- */
-const EAGER_FACTORIES: Readonly<Record<string, BuiltinPluginFactory>> = {
-  'kits/registry': createKitsPlugin,
-  'reformer/validator': createSchemaValidatorPlugin,
-};
 
 /** `…/plugins/<домен>/<плагин>/<файл>` → `<домен>/<плагин>`. */
 function directoryOf(file: string): string {
@@ -156,41 +138,24 @@ function directoryOf(file: string): string {
 }
 
 /**
- * Общее у всех записей — манифест плагина и каталог, где он лежит.
+ * Запись карты: чей манифест, где плагин лежит и как создаётся.
  *
- * Объявления в записи НЕТ ни одного: `provides`, `requires`, имя и способ доставки читаются
- * из манифеста, и другого их места не существует.
+ * Объявления в записи НЕТ ни одного: `provides`, `requires` и имя читаются из манифеста,
+ * и другого их места не существует.
  */
-interface BuiltinPluginBase {
+export interface BuiltinPluginEntry {
   readonly manifest: BuiltinPluginManifest;
   /** Каталог внутри `src/plugins`: `домен/плагин`. */
   readonly directory: string;
-}
-
-/**
- * Плагин, приезжающий в стартовом графе вместе с оболочкой.
- *
- * Фабрика синхронна намеренно: значение такого плагина композиции уже нужно, ждать нечего.
- */
-export interface EagerBuiltinPlugin extends BuiltinPluginBase {
-  readonly loading: 'eager';
-  readonly create: (options: BuiltinPluginsOptions) => Plugin;
-}
-
-/**
- * Плагин, приезжающий своим файлом.
- *
- * Фабрика начинает `import()` в тот же миг, когда её позвали (тело `async`-функции выполняется
- * синхронно до первого `await`), — поэтому вызов всех ленивых фабрик подряд даёт столько же
- * параллельных запросов, сколько плагинов, а не цепочку.
- */
-export interface LazyBuiltinPlugin extends BuiltinPluginBase {
-  readonly loading: 'lazy';
+  /**
+   * Загружает файл плагина и создаёт плагин.
+   *
+   * Фабрика начинает `import()` в тот же миг, когда её позвали (тело `async`-функции
+   * выполняется синхронно до первого `await`), — поэтому вызов всех фабрик подряд даёт столько
+   * же параллельных запросов, сколько плагинов, а не цепочку.
+   */
   readonly create: (options: BuiltinPluginsOptions) => Promise<Plugin>;
 }
-
-/** Запись карты: чей манифест, каким файлом приезжает и как создаётся. */
-export type BuiltinPluginEntry = EagerBuiltinPlugin | LazyBuiltinPlugin;
 
 /**
  * Разбирает манифест встроенного ТЕМ ЖЕ разбором, что и манифест плагина каталога.
@@ -215,40 +180,24 @@ function builtinManifest(raw: unknown, directory: string): BuiltinPluginManifest
 }
 
 /**
- * Запись плагина по его каталогу: манифест сведён с тем, как приезжает код.
+ * Запись плагина по его каталогу: манифест и барель из одной папки.
  *
- * Сверка — ради того, что компилятор связать не может: `builtin.loading` приезжает из JSON
- * строкой, а способ доставки — это то, в каком наборе оказался барель. Разойдись они, состав
- * получил бы промис там, где его не ждут, либо обещание отдельного файла, которого нет.
+ * Манифест, объявивший `eager`, отвергается: формат манифеста такой способ доставки знает,
+ * а состав — нет, и обещание «еду в стартовом файле» осталось бы невыполненным молча.
  */
 function builtinEntry(directory: string, raw: unknown): BuiltinPluginEntry {
   const manifest = builtinManifest(raw, directory);
-  const eager = EAGER_FACTORIES[directory];
-  const load = LAZY_MODULES[`../../plugins/${directory}/index.ts`];
-  if (eager !== undefined && load !== undefined) {
-    throw new Error(`«${manifest.id}»: статический плагин не исключён из обхода ленивых`);
-  }
-  if (eager !== undefined) {
-    if (manifest.builtin.loading !== 'eager') {
-      throw new Error(
-        `«${manifest.id}»: манифест объявляет «lazy», а плагин импортирован статически`
-      );
-    }
-    return {
-      manifest,
-      directory,
-      loading: 'eager',
-      create: (options) => eager(builtinPluginPorts(options)),
-    };
-  }
+  const load = MODULES[`../../plugins/${directory}/index.ts`];
   if (load === undefined) throw new Error(`«${manifest.id}»: в ${directory} нет бареля index.ts`);
   if (manifest.builtin.loading !== 'lazy') {
-    throw new Error(`«${manifest.id}»: манифест объявляет «eager», а плагин грузится файлом`);
+    throw new Error(
+      `«${manifest.id}»: манифест объявляет «eager», а статических плагинов нет — ` +
+        'каждый приезжает своим файлом'
+    );
   }
   return {
     manifest,
     directory,
-    loading: 'lazy',
     create: async (options) => {
       const module = await load();
       return module.default(builtinPluginPorts(options));
@@ -263,11 +212,8 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze(
 );
 
 // Обратная сверка: папка с барелем, но без манифеста, — плагин, который не попадёт в состав
-// никогда и молча. Статического без манифеста ловит та же проверка.
-for (const directory of [
-  ...Object.keys(LAZY_MODULES).map(directoryOf),
-  ...Object.keys(EAGER_FACTORIES),
-]) {
+// никогда и молча.
+for (const directory of Object.keys(MODULES).map(directoryOf)) {
   if (!ENTRIES.some((entry) => entry.directory === directory)) {
     throw new Error(`в «plugins/${directory}» есть барель плагина, но нет manifest.json`);
   }
@@ -299,17 +245,6 @@ if (BUILTIN_PLUGINS.size !== ENTRIES.length) {
  */
 export const BUILTIN_MANIFESTS: readonly BuiltinPluginManifest[] = Object.freeze(
   ENTRIES.map((entry) => entry.manifest)
-);
-
-/**
- * Плагины, приезжающие отдельным файлом.
- *
- * Список нужен храповику «стартовый граф не импортирует барель ленивого плагина значением»
- * (`builtin-plugins.test`): статический импорт любого из этих барелей возвращает плагин
- * в стартовый граф целиком, и заметить это можно только по составу чанков сборки.
- */
-export const LAZY_PLUGIN_IDS: readonly string[] = Object.freeze(
-  ENTRIES.filter((entry) => entry.loading === 'lazy').map((entry) => entry.manifest.id)
 );
 
 /**

@@ -16,9 +16,8 @@ import { stubBuiltinOptions } from './composer/testing';
 import type { ApplicationComposition } from '@/shell/boot/composition';
 
 async function idsOf(composition: ApplicationComposition): Promise<readonly string[]> {
-  const options = stubBuiltinOptions();
-  const lazy = await composition.lazy(options);
-  return [...composition.eager(options), ...lazy].map((composed) => composed.plugin.id).sort();
+  const loaded = await composition.load(stubBuiltinOptions());
+  return loaded.map((composed) => composed.plugin.id).sort();
 }
 
 const FULL = [

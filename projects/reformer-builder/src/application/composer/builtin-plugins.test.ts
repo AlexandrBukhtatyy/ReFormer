@@ -51,10 +51,9 @@ import {
   BUILTIN_PLUGIN_NAMESPACE,
   BUILTIN_PLUGINS,
   canonicalPluginId,
-  LAZY_PLUGIN_IDS,
   type BuiltinPluginPorts,
 } from './builtin-plugins';
-import { composeAll, fromProfile } from './compose';
+import { fromProfile } from './compose';
 import { stubBuiltinOptions, stubHostCapabilities } from './testing';
 
 const builderProfile = builtinProfile('reformer.builder');
@@ -148,7 +147,7 @@ async function harness() {
   });
 
   // Ждём ОБЕ фазы: состав проверяется целиком, а не только той половиной, что едет в entry.
-  const composed = await composeAll(builderApplication, stubBuiltinOptions());
+  const composed = await builderApplication.load(stubBuiltinOptions());
   const built = composed.map((entry) => entry.plugin);
 
   /** Регистрация как в `boot`: вместе с плагином уходит то, что он ОБЕЩАЛ дать остальным. */
@@ -262,7 +261,6 @@ describe('карта встроенных плагинов', () => {
     for (const [id, entry] of BUILTIN_PLUGINS) {
       expect(entry.manifest.id).toBe(id);
       expect(entry.manifest.source).toEqual({ kind: 'builtin' });
-      expect(entry.manifest.builtin.loading).toBe(entry.loading);
     }
 
     expect(BUILTIN_MANIFESTS.map((manifest) => manifest.id).sort()).toEqual(
@@ -270,20 +268,16 @@ describe('карта встроенных плагинов', () => {
     );
   });
 
-  it('статический объясняет себя, ленивый — нет', () => {
-    // Требование разбора, и проверяется оно тут на НАСТОЯЩЕМ составе: правило без предмета
-    // проходит на выдуманном манифесте и молчит о том, что у половины состава довод потерян.
+  it('статических плагинов нет: каждый манифест объявляет доставку своим файлом', () => {
+    // Формат манифеста знает и `eager`, а состав — нет: карта на такой манифест бросает при
+    // загрузке. Здесь то же утверждается на собранном значении — и без довода, которому
+    // пришлось бы верить на слово.
     for (const entry of BUILTIN_PLUGINS.values()) {
-      const reason = entry.manifest.builtin.reason;
-      if (entry.loading === 'eager') {
-        expect(reason?.length ?? 0).toBeGreaterThan(40);
-      } else {
-        expect(reason).toBeUndefined();
-      }
+      expect(entry.manifest.builtin).toEqual({ loading: 'lazy' });
     }
   });
 
-  it('объявленное в карте действительно регистрируется при активации', () => {
+  it('объявленное в карте действительно регистрируется при активации', async () => {
     // Рантайм проверяет это сам (фаза `provides`), поэтому достаточно поднять состав:
     // невыполненное обещание переводит плагин в `failed`, а не проходит молча.
     const services = createServiceRegistry();
@@ -296,9 +290,9 @@ describe('карта встроенных плагинов', () => {
       onError: vi.fn(),
     });
     const entry = BUILTIN_PLUGINS.get(KITS_PLUGIN_ID);
-    if (entry === undefined || entry.loading !== 'eager') throw new Error('киты не в карте');
+    if (entry === undefined) throw new Error('киты не в карте');
 
-    registry.register(entry.create(stubBuiltinOptions()), entry.manifest.provides);
+    registry.register(await entry.create(stubBuiltinOptions()), entry.manifest.provides);
 
     expect(registry.activate(KITS_PLUGIN_ID)).toBe(true);
     expect(services.get(KitsCapability)).toBeDefined();
@@ -631,35 +625,14 @@ describe('канал выделения насквозь: настоящая с�
   });
 });
 
-describe('две фазы: что едет в entry, а что своим файлом', () => {
-  it('ленивая фаза полного профиля отдаёт ровно тех, кто объявлен ленивым', async () => {
-    const lazy = await builderApplication.lazy(stubBuiltinOptions());
-
-    // Другие стеки в полный профиль ReFormer не входят — см. тест ниже.
-    expect(lazy.map((composed) => composed.plugin.id).sort()).toEqual(
-      LAZY_PLUGIN_IDS.filter((id) => !OTHER_STACK_PLUGINS.has(id)).sort()
-    );
-  });
-
-  it('фазы не пересекаются и вместе дают весь набор', async () => {
-    const options = stubBuiltinOptions();
-    const eager = builderApplication.eager(options).map((composed) => composed.plugin.id);
-    const lazy = (await builderApplication.lazy(options)).map((composed) => composed.plugin.id);
-    const all = (await composeAll(builderApplication, options)).map(
-      (composed) => composed.plugin.id
-    );
-
-    expect(eager.filter((id) => lazy.includes(id))).toEqual([]);
-    expect([...eager, ...lazy].sort()).toEqual([...all].sort());
-  });
-
+describe('состав и карта: каждый плагин своим файлом', () => {
   it('ни одна запись карты не осталась невостребованной: её собирает хоть один профиль', async () => {
     // Карта и профили — разные списки, и разъехаться они могут в обе стороны. Плагин,
     // добавленный в карту и забытый во всех профилях, не попал бы в приложение вовсе, а тест
     // состава остался бы зелёным: он проверяет то, что собралось.
     const used = new Set<string>();
     for (const profile of PROFILES.values()) {
-      for (const composed of await composeAll(fromProfile(profile), stubBuiltinOptions())) {
+      for (const composed of await fromProfile(profile).load(stubBuiltinOptions())) {
         used.add(composed.plugin.id);
       }
     }
@@ -671,7 +644,7 @@ describe('две фазы: что едет в entry, а что своим фай
     // Демо-стек и RJSF — ДРУГИЕ стеки: их собирают `plain.builder` и `rjsf.builder` поверх
     // основы, а в состав ReFormer они не входят. Попади туда хоть один — у `.json` появилось бы
     // два предметных редактора.
-    const all = await composeAll(builderApplication, stubBuiltinOptions());
+    const all = await builderApplication.load(stubBuiltinOptions());
 
     expect(all.map((composed) => composed.plugin.id).sort()).toEqual(
       [...BUILTIN_PLUGINS.keys()].filter((id) => !OTHER_STACK_PLUGINS.has(id)).sort()
@@ -679,9 +652,9 @@ describe('две фазы: что едет в entry, а что своим фай
   });
 
   /**
-   * ХРАПОВИК, ради которого затевалось разделение.
+   * ХРАПОВИК, ради которого плагины и приезжают своими файлами.
    *
-   * Ленивый плагин приезжает своим файлом ровно до тех пор, пока ни один модуль стартового
+   * Плагин приезжает своим файлом ровно до тех пор, пока ни один модуль стартового
    * графа не импортирует его барель ЗНАЧЕНИЕМ: один такой импорт возвращает плагин в этот граф
    * целиком, и заметить это можно только сравнив размеры сборки. Именно так и случилось —
    * шесть портов тянули идентификаторы из барелей, и первая же сборка показала, что из шести
@@ -689,12 +662,13 @@ describe('две фазы: что едет в entry, а что своим фай
    * и подмодуль `contract` (лист без импортов значений), но не барель.
    *
    * Обходятся ДВЕ зоны, и вторая появилась вместе с `application/`: состав уехал из оболочки,
-   * а вместе с ним уехала и возможность промахнуться. Статический импорт бареля ленивого
-   * плагина сегодня естественнее всего написать именно здесь — рядом с картой, по образцу двух
-   * статических. Обходи храповик один `shell/`, он стерёг бы то место, где ошибку уже никто
-   * не сделает.
+   * а вместе с ним уехала и возможность промахнуться. Статический импорт бареля плагина
+   * сегодня естественнее всего написать именно здесь — рядом с картой. Обходи храповик один
+   * `shell/`, он стерёг бы то место, где ошибку уже никто не сделает.
+   *
+   * Стережёт он ВСЕ плагины: статических нет, и исключений у правила тоже.
    */
-  it('стартовый граф не импортирует барель ленивого плагина значением', () => {
+  it('стартовый граф не импортирует барель плагина значением', () => {
     const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
     const offenders: string[] = [];
 
@@ -707,7 +681,7 @@ describe('две фазы: что едет в entry, а что своим фай
         }
         if (!/\.tsx?$/.test(entry) || /\.test\.tsx?$/.test(entry)) continue;
         const text = readFileSync(full, 'utf8');
-        for (const id of LAZY_PLUGIN_IDS) {
+        for (const id of BUILTIN_PLUGINS.keys()) {
           // По КАТАЛОГУ, а не по идентификатору: путь импорта — `@/plugins/reformer/ai`, а плагин
           // зовётся `reformer.ai`. Подставь сюда идентификатор — шаблон не совпал бы ни с чем
           // и храповик молча перестал бы стеречь.
@@ -729,9 +703,9 @@ describe('две фазы: что едет в entry, а что своим фай
     expect(offenders).toEqual([]);
   });
 
-  it('храповик не пуст: зоны обойдены и ленивые плагины у него есть', () => {
+  it('храповик не пуст: зоны обойдены и плагины у него есть', () => {
     // Сломайся обход путём — проверка выше осталась бы зелёной на пустом множестве файлов.
-    expect(LAZY_PLUGIN_IDS.length).toBeGreaterThanOrEqual(6);
+    expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(11);
   });
 });
 
