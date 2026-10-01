@@ -8,6 +8,7 @@
  * (`?raw`, `?worker`) не разрешаются никогда. Имя пакета в спецификаторе есть всегда,
  * поэтому граф не зависит от того, собран ли монорепозиторий.
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import { cruise } from 'dependency-cruiser';
 import extractTSConfig from 'dependency-cruiser/config-utl/extract-ts-config';
@@ -156,8 +157,66 @@ export function collect(ws, workspaces, result, { withTests }) {
         dynamic: Boolean(dep.dynamic),
       });
     }
+    for (const found of globImports(ws, m.source)) {
+      const target = byPath(ws, workspaces, found.file);
+      if (target.kind === 'own' && target.path === m.source) continue;
+      if (target.kind === 'own' && excluded.some((re) => re.test(target.path))) continue;
+      edges.push({ from: m.source, target, typeOnly: false, dynamic: !found.eager });
+    }
   }
   return { files: own.map((m) => m.source), edges, cycles: moduleCycles(result) };
+}
+
+/** Начало вызова `import.meta.glob(` — до первого аргумента, мимо параметров типа. */
+const GLOB_CALL = /import\.meta\.glob\b[\s\S]{0,400}?\(\s*(?=[['"`])/g;
+const STRING = /(['"`])((?:\\.|(?!\1).)*)\1/g;
+
+/**
+ * Импорты шаблоном (`import.meta.glob` Vite): dependency-cruiser их не видит.
+ *
+ * Для него это вызов функции со строкой, а для сборки — импорт каждого совпавшего файла.
+ * Без этого модуль, собирающий плагины обходом папок, выглядел бы на схеме ни от кого
+ * не зависящим. Разбираются литеральные шаблоны — относительные и от корня проекта;
+ * `!шаблон` исключает, `eager: true` делает импорт статическим, иначе он отложенный.
+ *
+ * @returns {{ file: string, eager: boolean }[]} совпавшие файлы — абсолютными путями
+ */
+function globImports(ws, source) {
+  if (!isCode(source)) return [];
+  const file = path.join(ws.dir, source);
+  let text;
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch {
+    return [];
+  }
+  if (!text.includes('import.meta.glob')) return [];
+  const found = [];
+  for (const call of text.matchAll(GLOB_CALL)) {
+    const start = call.index + call[0].length;
+    // Первый аргумент — строка или массив строк; дальше до конца вызова могут идти опции.
+    const end = text[start] === '[' ? text.indexOf(']', start) : start;
+    const first = text.slice(start, text[start] === '[' ? end + 1 : text.indexOf('\n', start));
+    const patterns = [...first.matchAll(STRING)].map((match) => match[2]);
+    const options = text.slice(end, text.indexOf(')', end) + 1);
+    const eager = /eager\s*:\s*true/.test(options);
+    const base = (pattern) => (pattern.startsWith('/') ? ws.dir : path.dirname(file));
+    const expand = (pattern) =>
+      /^(\.{1,2})?\//.test(pattern)
+        ? fs
+            .globSync(pattern.replace(/^\//, ''), { cwd: base(pattern) })
+            .map((match) => path.resolve(base(pattern), match))
+        : [];
+    const excluded = new Set(
+      patterns.filter((p) => p.startsWith('!')).flatMap((p) => expand(p.slice(1)))
+    );
+    for (const pattern of patterns.filter((p) => !p.startsWith('!'))) {
+      for (const match of expand(pattern)) {
+        if (!excluded.has(match)) found.push({ file: match, eager });
+      }
+    }
+  }
+  return found;
 }
 
 /**
