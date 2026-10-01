@@ -25,6 +25,8 @@
  * @module application/profiles/profile
  */
 
+import type { RuntimeProfile } from '@/shell/boot/runtime-config';
+
 export interface ApplicationProfile {
   /**
    * Идентификатор профиля: им профиль называют в конфиге запуска (`preset`) и в `extends`.
@@ -72,5 +74,38 @@ export function defineProfile(profile: ApplicationProfile): ApplicationProfile {
     ...(profile.providers === undefined
       ? {}
       : { providers: Object.freeze({ ...profile.providers }) }),
+  });
+}
+
+/**
+ * Профиль приложения из профиля формата конфига запуска.
+ *
+ * Путь один и для встроенных профилей (`./builtin.config.json`), и для своих профилей
+ * организации: формат у них общий, и второе преобразование означало бы второе его понимание.
+ * Различает их только `canonical` — таблица прежних имён плагинов. Конфиг организации пишет и
+ * хранит человек, и прежнее имя в нём обязано работать; встроенный файл — наш код, и прежнее
+ * имя в нём — забытая правка, которую отвергнет резолвер.
+ *
+ * @param canonical нынешнее имя плагина по написанному; по умолчанию имя берётся как есть.
+ */
+export function profileFromConfig(
+  profile: RuntimeProfile,
+  canonical: (id: string) => string = (id) => id
+): ApplicationProfile {
+  return defineProfile({
+    id: profile.id,
+    name: profile.name ?? profile.id,
+    ...(profile.extends !== undefined ? { extends: profile.extends } : {}),
+    plugins: profile.plugins.map(canonical),
+    ...(profile.providers !== undefined
+      ? {
+          providers: Object.fromEntries(
+            Object.entries(profile.providers).map(([capability, plugin]) => [
+              capability,
+              canonical(plugin),
+            ])
+          ),
+        }
+      : {}),
   });
 }

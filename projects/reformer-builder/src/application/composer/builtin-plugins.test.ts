@@ -38,8 +38,7 @@ import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
 import { KITS_PLUGIN_ID } from '@/plugins/kits/registry';
 import { KitsCapability } from '@reformer/builder-plugin-api/internal';
 import { builderApplication } from '../builder-application';
-import { baseProfile, builderProfile, plainProfile, rjsfProfile } from '../profiles/builder';
-import { PROFILES } from '../profiles/registry';
+import { builtinProfile, PROFILES } from '../profiles/registry';
 import {
   builtinPluginDirectory,
   BUILTIN_MANIFESTS,
@@ -50,6 +49,11 @@ import {
 } from './builtin-plugins';
 import { composeAll, fromProfile } from './compose';
 import { stubBuiltinOptions, stubHostCapabilities } from './testing';
+
+const builderProfile = builtinProfile('reformer.builder');
+const baseProfile = builtinProfile('builder.base');
+const plainProfile = builtinProfile('plain.builder');
+const rjsfProfile = builtinProfile('rjsf.builder');
 
 /**
  * Плагины других стеков: в карте есть, в полный профиль ReFormer не входят.

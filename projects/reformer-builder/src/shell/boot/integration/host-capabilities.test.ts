@@ -28,8 +28,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { builderApplication } from '@/application/builder-application';
 import { fromProfile } from '@/application/composer/compose';
-import { builderProfile } from '@/application/profiles/builder';
-import { minimalProfile } from '@/application/profiles/presets';
+import { builtinProfile } from '@/application/profiles/registry';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import { definePlugin } from '@reformer/builder-plugin-api/internal';
 import { PluginsCatalogCapability } from '@reformer/builder-plugin-api/internal';
@@ -39,6 +38,9 @@ import type { PluginPermission } from '@reformer/builder-plugin-api/internal';
 import { HOST_CAPABILITIES, HOST_PROVIDER_ID } from '@/shell/platform/services/host-capabilities';
 import { DocumentsServiceToken } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
+
+const builderProfile = builtinProfile('reformer.builder');
+const minimalProfile = builtinProfile('minimal');
 
 /** Окружение браузера в объёме, который трогает `boot` при сборке (как в `./minimal-profile`). */
 function stubBrowser(): void {

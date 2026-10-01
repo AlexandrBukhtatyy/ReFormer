@@ -21,13 +21,15 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fromProfile } from '@/application/composer/compose';
-import { minimalProfile } from '@/application/profiles/presets';
+import { builtinProfile } from '@/application/profiles/registry';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import type { ExtensionPoint } from '@reformer/builder-plugin-api/internal';
 import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
+
+const minimalProfile = builtinProfile('minimal');
 
 /**
  * Окружение браузера в объёме, который трогает `boot` при сборке.

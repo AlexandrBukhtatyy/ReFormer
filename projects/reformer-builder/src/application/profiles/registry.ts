@@ -1,33 +1,62 @@
 /**
- * Профили, доступные по имени: `extends` и конфиг запуска обращаются сюда.
+ * Встроенные профили, доступные по имени: `extends` и конфиг запуска обращаются сюда.
  *
  * Реестр нужен ровно потому, что профиль ссылается на основу ИМЕНЕМ (см. `./profile`):
  * имя без места, где его разрешить, — это просто строка. Второй потребитель — `preset`
  * из конфига лаунчера: там имя приходит из JSON и не может быть ничем, кроме строки.
  *
- * Карта строится из перечисленных ЗДЕСЬ профилей, а не собирается автообходом каталога:
- * профиль — публичное имя, которым инструмент запускают, и появление нового имени обязано
- * быть видно в diff'е этого файла. Автообход добавлял бы профиль молча, вместе с файлом.
+ * ## Профили — данные формата конфига запуска
+ *
+ * Список лежит в `./builtin.config.json` — том же формате, которым организация описывает свои
+ * профили в `.ui_builder/config.json`, — и проходит ТОТ ЖЕ разбор (`parseRuntimeConfig`). Формат
+ * профиля поэтому один: встроенный отличается от своего только тем, что вшит в сборку. `preset`
+ * этого файла называет профиль по умолчанию — тот, что собирается без конфига.
+ *
+ * Отказ разбора — исключение, а не `problems`. У конфига организации битое поле — обычное
+ * состояние файла, который человек правит руками; здесь это НАША сборка, и «встроенный профиль
+ * не разобрался» означает сломанное приложение. Падает оно при загрузке модуля, то есть в первом
+ * же тесте (тот же приём, что у манифестов встроенных плагинов в `composer/builtin-plugins`).
+ *
+ * Появление нового профиля — правка этого JSON и видна в его diff'е: профиль — публичное имя,
+ * которым инструмент запускают.
+ *
+ * ## Что в файле и почему
+ *
+ * Состав собран из двух частей, и граница между ними — СТЕК. `builder.base` — то, что нужно
+ * любому конструктору форм, каким бы форматом схемы и способом отрисовки он ни работал: дерево
+ * файлов, редакторы текста и markdown, управление плагинами и превью-хост (правило выбора
+ * поверхности и живой вид — но ни одной поверхности). `reformer.builder` добавляет к ней стек
+ * ReFormer: киты, валидатор схемы, визуальный редактор, поверхности формы, ассистента, генерацию
+ * кода и шаблоны. Он же — умолчание запуска, и список его полный по определению: любое сокращение
+ * видно в тесте состава поимённо, а не числом.
+ *
+ * Другой стек собирается так же — своим профилем с `extends: builder.base`, — и основе при этом
+ * не нужно ни строчки правки. `plain.builder` — демо-стек, доказывающий это одним плагином.
+ * `rjsf.builder` — домен RJSF; киты в нём свои, потому что киты — платформа, а не часть стека
+ * ReFormer: тема RJSF строится из того же активного кита, что рисует формы ReFormer.
+ *
+ * `minimal` и `ai-builder` заведены ради проверок, но живут здесь, а не в тестовом каталоге:
+ * профиль выбирается конфигом запуска, и существующий только в тесте не проверял бы путь «строка
+ * в конфиге → собранное приложение». `minimal` — нижняя граница работоспособного инструмента
+ * (дерево файлов, редактор кода, валидатор схемы): всё за ней обязано деградировать названно.
+ * `ai-builder` — тот же минимум плюс ассистент, ради `extends`: единственный профиль, у которого
+ * собственный список короче унаследованного, то есть проверка склейки «основа, потом своё».
  *
  * @module application/profiles/registry
  */
 
-import { baseProfile, builderProfile, plainProfile, rjsfProfile } from './builder';
-import { aiBuilderProfile, minimalProfile } from './presets';
-import type { ApplicationProfile } from './profile';
+import { parseRuntimeConfig } from '@/shell/boot/runtime-config';
+import builtinConfig from './builtin.config.json';
+import { profileFromConfig, type ApplicationProfile } from './profile';
 
-const ALL: readonly ApplicationProfile[] = Object.freeze([
-  baseProfile,
-  builderProfile,
-  plainProfile,
-  rjsfProfile,
-  minimalProfile,
-  aiBuilderProfile,
-]);
+const parsed = parseRuntimeConfig(builtinConfig);
+if (parsed.problems.length > 0) {
+  throw new Error(`встроенные профили не разбираются: ${parsed.problems.join('; ')}`);
+}
 
-/** Все известные профили по идентификатору. */
+/** Все встроенные профили по идентификатору. */
 export const PROFILES: ReadonlyMap<string, ApplicationProfile> = new Map(
-  ALL.map((profile) => [profile.id, profile])
+  (parsed.config.profiles ?? []).map((profile) => [profile.id, profileFromConfig(profile)])
 );
 
 /**
@@ -41,3 +70,18 @@ export const PROFILES: ReadonlyMap<string, ApplicationProfile> = new Map(
 export function findProfile(id: string): ApplicationProfile | undefined {
   return PROFILES.get(id);
 }
+
+/**
+ * Встроенный профиль по имени — для кода, который называет его сам.
+ *
+ * Бросает на неизвестное имя: в отличие от {@link findProfile}, имя здесь написано в коде, и
+ * отсутствие профиля — не чужая опечатка, а переименование, о котором забыли.
+ */
+export function builtinProfile(id: string): ApplicationProfile {
+  const profile = PROFILES.get(id);
+  if (profile === undefined) throw new Error(`встроенного профиля «${id}» нет`);
+  return profile;
+}
+
+/** Профиль по умолчанию — `preset` встроенного файла: состав, собираемый без конфига. */
+export const defaultProfile: ApplicationProfile = builtinProfile(parsed.config.preset ?? '');

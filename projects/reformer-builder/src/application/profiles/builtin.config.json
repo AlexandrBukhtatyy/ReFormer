@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../runtime-config.schema.json",
+  "preset": "reformer.builder",
+  "profiles": [
+    {
+      "id": "builder.base",
+      "name": "Основа конструктора",
+      "plugins": [
+        "reformer.files",
+        "reformer.editor-monaco",
+        "reformer.editor-markdown",
+        "reformer.plugin-manager",
+        "reformer.preview"
+      ]
+    },
+    {
+      "id": "reformer.builder",
+      "name": "ReFormer Builder",
+      "extends": "builder.base",
+      "plugins": [
+        "reformer.validator-schema",
+        "reformer.kits",
+        "reformer.editor-schema",
+        "reformer.preview-runtime",
+        "reformer.ai",
+        "reformer.codegen",
+        "reformer.templates"
+      ]
+    },
+    {
+      "id": "plain.builder",
+      "name": "Простая форма (демо-стек)",
+      "extends": "builder.base",
+      "plugins": ["reformer.plain"]
+    },
+    {
+      "id": "rjsf.builder",
+      "name": "RJSF Builder",
+      "extends": "builder.base",
+      "plugins": ["reformer.kits", "reformer.rjsf.editor", "reformer.rjsf.render"]
+    },
+    {
+      "id": "minimal",
+      "name": "Минимальный",
+      "plugins": ["reformer.files", "reformer.editor-monaco", "reformer.validator-schema"]
+    },
+    {
+      "id": "ai-builder",
+      "name": "Минимальный с ассистентом",
+      "extends": "minimal",
+      "plugins": ["reformer.ai"]
+    }
+  ]
+}

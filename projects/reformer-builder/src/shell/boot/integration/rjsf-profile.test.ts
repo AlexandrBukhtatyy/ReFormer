@@ -14,7 +14,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fromProfile } from '@/application/composer/compose';
-import { builderProfile, rjsfProfile } from '@/application/profiles/builder';
+import { builtinProfile } from '@/application/profiles/registry';
 import { defineProfile } from '@/application/profiles/profile';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import type { ExtensionPoint, ResourceRef } from '@reformer/builder-plugin-api/internal';
@@ -29,6 +29,9 @@ import { printRjsfForm, sampleForm as sampleRjsfForm } from '@/plugins/rjsf/core
 import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
 import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
+
+const builderProfile = builtinProfile('reformer.builder');
+const rjsfProfile = builtinProfile('rjsf.builder');
 
 /** Окружение браузера в объёме, который трогает `boot` при сборке (см. `base-profile.test`). */
 function stubBrowser(): void {

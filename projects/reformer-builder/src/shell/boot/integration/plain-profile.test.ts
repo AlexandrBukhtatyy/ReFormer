@@ -10,7 +10,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fromProfile } from '@/application/composer/compose';
-import { baseProfile, plainProfile } from '@/application/profiles/builder';
+import { builtinProfile } from '@/application/profiles/registry';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import type {
   ExtensionPoint,
@@ -29,6 +29,9 @@ import { printPlainForm, sampleForm } from '@/plugins/plain/core';
 import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
 import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
+
+const baseProfile = builtinProfile('builder.base');
+const plainProfile = builtinProfile('plain.builder');
 
 /** Окружение браузера в объёме, который трогает `boot` при сборке (см. `base-profile.test`). */
 function stubBrowser(): void {

@@ -10,9 +10,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { defineProfile } from './profile';
-import { builderProfile } from './builder';
-import { aiBuilderProfile, minimalProfile } from './presets';
+import { defineProfile, profileFromConfig } from './profile';
+import { PROFILES } from './registry';
 
 describe('defineProfile', () => {
   it('профиль и его список заморожены', () => {
@@ -36,9 +35,34 @@ describe('defineProfile', () => {
 
   it('профили приложения объявлены этой же функцией, а не литералами мимо неё', () => {
     // Иначе заморозка была бы свойством функции, а не свойством профилей.
-    for (const profile of [builderProfile, minimalProfile, aiBuilderProfile]) {
+    for (const profile of PROFILES.values()) {
       expect(Object.isFrozen(profile)).toBe(true);
       expect(Object.isFrozen(profile.plugins)).toBe(true);
     }
+  });
+});
+
+describe('profileFromConfig', () => {
+  it('профиль формата конфига становится профилем приложения; имя по умолчанию — id', () => {
+    expect(profileFromConfig({ id: 'acme', extends: 'minimal', plugins: ['reformer.ai'] })).toEqual(
+      { id: 'acme', name: 'acme', extends: 'minimal', plugins: ['reformer.ai'] }
+    );
+    expect(profileFromConfig({ id: 'acme', name: 'Формы Acme', plugins: [] }).name).toBe(
+      'Формы Acme'
+    );
+  });
+
+  it('таблица прежних имён применяется и к плагинам, и к выбранным провайдерам', () => {
+    const profile = profileFromConfig(
+      { id: 'acme', plugins: ['ai', 'reformer.files'], providers: { 'x.capability': 'kits' } },
+      (id) => (id.startsWith('reformer.') ? id : `reformer.${id}`)
+    );
+
+    expect(profile.plugins).toEqual(['reformer.ai', 'reformer.files']);
+    expect(profile.providers).toEqual({ 'x.capability': 'reformer.kits' });
+  });
+
+  it('без таблицы имена берутся как есть — так читаются встроенные профили', () => {
+    expect(profileFromConfig({ id: 'p', plugins: ['ai'] }).plugins).toEqual(['ai']);
   });
 });

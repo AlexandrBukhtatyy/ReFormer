@@ -14,7 +14,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fromProfile } from '@/application/composer/compose';
-import { baseProfile } from '@/application/profiles/builder';
+import { builtinProfile } from '@/application/profiles/registry';
 import { boot, type BuilderApp } from '@/shell/boot/boot';
 import type { ExtensionPoint, PreviewLiveService } from '@reformer/builder-plugin-api/internal';
 import {
@@ -27,6 +27,8 @@ import {
   ValidatorPoint,
 } from '@reformer/builder-plugin-api/internal';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
+
+const baseProfile = builtinProfile('builder.base');
 
 /** Окружение браузера в объёме, который трогает `boot` при сборке (см. `minimal-profile.test`). */
 function stubBrowser(): void {

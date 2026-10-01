@@ -361,3 +361,69 @@ editor, render, validator, codegen, templates, ai берут `catalog()`/скл�
 5. Конфиг запуска заранее доверяет плагинам каталога/npm — решение о границе доверия.
 6. `reformer-plugin create --template kit|domain`; раздел настроек «Киты»; MCP `generate_form` под
    другие киты; `npm deprecate` пакета `@reformer/builder-stack-reformer` (с согласия владельца).
+
+---
+
+## Ф9. Встроенные профили — данными конфига (дополнение 2026-10-01)
+
+Ф0–Ф8 выше выполнены и запушены; этот раздел — отдельная небольшая фаза поверх Ф7.
+
+### Контекст
+
+Состав билдера уже задаётся конфигом запуска (`preset`, `profiles`, `plugins.enable/disable`), но
+встроенные профили описаны вторым форматом — TypeScript-модулями `application/profiles/builder.ts`
+и `presets.ts`, а профили из конфига приводятся к нему отдельным преобразованием
+(`configProfiles` в `builder-application.ts`). Цель — один формат: встроенные профили и профиль
+по умолчанию лежат в JSON-файле формата конфига запуска, вшитом в сборку, и проходят тот же разбор,
+что конфиг организации.
+
+Что НЕ меняется: карта «имя → код плагина» (`composer/builtin-plugins.ts`) и резолверы. Код
+встроенных плагинов упакован в сборку, и `import()` обязан быть литералом в коде — в конфиг это
+не переносится. Поведение, набор профилей и их состав остаются прежними.
+
+### Изменения (всё в `projects/reformer-builder/`)
+
+1. **Новый `src/application/profiles/builtin.config.json`** — формат `runtime-config.schema.json`:
+   `"$schema": "../../../runtime-config.schema.json"`, `"preset": "reformer.builder"` (профиль по
+   умолчанию) и `profiles` — шесть нынешних профилей один в один (`builder.base`,
+   `reformer.builder`, `plain.builder`, `rjsf.builder`, `minimal`, `ai-builder`: те же `id`, `name`,
+   `extends`, `plugins` в том же порядке).
+2. **`src/application/profiles/profile.ts`** — добавить `profileFromConfig(profile: RuntimeProfile,
+   canonical = (id) => id): ApplicationProfile`: тело переезжает из `configProfiles` (имя по
+   умолчанию — `id`, `defineProfile`, отображение имён плагинов и провайдеров через `canonical`).
+3. **`src/application/profiles/registry.ts`** — читает JSON через `parseRuntimeConfig`
+   (`shell/boot/runtime-config.ts`, тот же разбор, что у конфига организации). Непустой `problems`
+   или `preset`, которого нет среди профилей, — исключение при загрузке модуля: это наша сборка, а
+   не чужой файл (тот же приём, что `builtinManifest` в `builtin-plugins.ts`). Экспорт: `PROFILES`,
+   `findProfile` (как сейчас), `builtinProfile(id)` — бросает на неизвестное имя,
+   `defaultProfile`. Встроенные имена через `canonical` не гоняются: прежнее имя в нашем файле —
+   забытая правка. Обоснования из шапок `builder.ts`/`presets.ts` (основа и стек, зачем `minimal` и
+   `ai-builder`) переезжают в шапку `registry.ts` — в JSON комментариев нет.
+4. **Удалить** `src/application/profiles/builder.ts` и `presets.ts`.
+5. **`src/application/builder-application.ts`** — `builderApplication = fromProfile(defaultProfile)`;
+   `configProfiles` зовёт `profileFromConfig(profile, canonicalPluginId)`; `applicationFromRuntime`
+   берёт `defaultProfile` вместо `builderProfile`.
+6. **Тесты** — импорты именованных профилей заменить на `builtinProfile('<id>')`:
+   `application/composer/{compose,builtin-plugins}.test.ts`,
+   `application/profiles/{profile,registry}.test.ts`,
+   `shell/boot/integration/{base,plain,rjsf,minimal}-profile.test.ts`, `host-capabilities.test.ts`.
+   В `registry.test.ts` добавить: вшитый файл разбирается без проблем, `preset` называет
+   существующий профиль; остаются «профилей шесть», «каждый собирается», «описание `preset` в
+   схеме перечисляет все».
+7. **Документы** — `docs/composition.md` (встроенные профили лежат в `builtin.config.json`, формат
+   тот же, что у своего профиля), `docs/project-structure.md`, `docs/plugin-and-shell.md` (по одному
+   упоминанию `application/profiles`), запись в `docs/decisions-log.md` «Встроенные профили —
+   данными конфига» (почему карта плагинов остаётся кодом).
+8. **beads** — задача под эпиком `ReFormer-tbbt`; в конце `bd export -o .beads/issues.jsonl`.
+   Коммит и пуш — только по явной просьбе.
+
+### Проверка
+
+Из каталога `projects/reformer-builder`: `npx tsc -b`, `npm test`, `npm run lint`, `npm run build`
+(набор чанков `dist/assets` прежний — JSON встраивается в стартовый файл); из корня —
+`npx prettier --check projects/reformer-builder`.
+
+Вживую (`npm run dev -w @reformer/builder`, логи в `.tmp/dev-logs/`): без конфига собирается полный
+состав; с `REFORMER_BUILDER_CONFIG` → `{ "preset": "rjsf.builder" }` — состав RJSF; свой профиль с
+`"extends": "rjsf.builder"` собирается; неизвестный `preset` — предупреждение в консоли и полный
+состав.

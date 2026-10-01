@@ -18,12 +18,11 @@ import type { ApplicationComposition } from '@/shell/boot/composition';
 import type { RuntimeConfig } from '@/shell/boot/runtime-config';
 import { canonicalPluginId } from './composer/builtin-plugins';
 import { fromProfile } from './composer/compose';
-import { builderProfile } from './profiles/builder';
-import { defineProfile, type ApplicationProfile } from './profiles/profile';
-import { findProfile } from './profiles/registry';
+import { profileFromConfig, type ApplicationProfile } from './profiles/profile';
+import { defaultProfile, findProfile } from './profiles/registry';
 
 /** Полный состав: то, что получает человек, открывший инструмент без конфига. */
-export const builderApplication: ApplicationComposition = fromProfile(builderProfile);
+export const builderApplication: ApplicationComposition = fromProfile(defaultProfile);
 
 /**
  * Свои профили конфига запуска как профили приложения.
@@ -31,7 +30,8 @@ export const builderApplication: ApplicationComposition = fromProfile(builderPro
  * Имя, совпавшее со встроенным, — предупреждение и пропуск, а не подмена: встроенный профиль —
  * публичное имя, и тихо переопределить его из конфига значило бы, что `preset: "rjsf.builder"`
  * собирает не то, что о нём написано. Имена плагинов проходят ту же таблицу прежних имён, что и
- * поправки: профиль в конфиге тоже пишет и хранит человек.
+ * поправки: профиль в конфиге тоже пишет и хранит человек. Само преобразование — то же, что у
+ * встроенных профилей (`profiles/registry`): формат у них один.
  */
 export function configProfiles(
   profiles: RuntimeConfig['profiles']
@@ -44,25 +44,7 @@ export function configProfiles(
       );
       continue;
     }
-    own.set(
-      profile.id,
-      defineProfile({
-        id: profile.id,
-        name: profile.name ?? profile.id,
-        ...(profile.extends !== undefined ? { extends: profile.extends } : {}),
-        plugins: profile.plugins.map(canonicalPluginId),
-        ...(profile.providers !== undefined
-          ? {
-              providers: Object.fromEntries(
-                Object.entries(profile.providers).map(([capability, plugin]) => [
-                  capability,
-                  canonicalPluginId(plugin),
-                ])
-              ),
-            }
-          : {}),
-      })
-    );
+    own.set(profile.id, profileFromConfig(profile, canonicalPluginId));
   }
   return own;
 }
@@ -88,10 +70,10 @@ export function applicationFromRuntime(config: RuntimeConfig): ApplicationCompos
   const own = configProfiles(config.profiles);
   const lookup = (id: string): ApplicationProfile | undefined => own.get(id) ?? findProfile(id);
   const presetId = config.preset;
-  const profile = presetId === undefined ? builderProfile : lookup(presetId);
+  const profile = presetId === undefined ? defaultProfile : lookup(presetId);
   if (profile === undefined) {
     console.warn(
-      `[application] профиль «${presetId ?? ''}» неизвестен — собираю «${builderProfile.id}»`
+      `[application] профиль «${presetId ?? ''}» неизвестен — собираю «${defaultProfile.id}»`
     );
     return builderApplication;
   }

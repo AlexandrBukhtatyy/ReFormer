@@ -11,17 +11,16 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { parseRuntimeConfig } from '@/shell/boot/runtime-config';
 import { fromProfile } from '../composer/compose';
-import { builderProfile, rjsfProfile } from './builder';
-import { aiBuilderProfile, minimalProfile } from './presets';
-import { findProfile, PROFILES } from './registry';
+import builtinConfig from './builtin.config.json';
+import { builtinProfile, defaultProfile, findProfile, PROFILES } from './registry';
 
 describe('реестр профилей', () => {
   it('профили находятся по своему имени', () => {
-    expect(findProfile('reformer.builder')).toBe(builderProfile);
-    expect(findProfile('rjsf.builder')).toBe(rjsfProfile);
-    expect(findProfile('minimal')).toBe(minimalProfile);
-    expect(findProfile('ai-builder')).toBe(aiBuilderProfile);
+    for (const id of ['reformer.builder', 'rjsf.builder', 'minimal', 'ai-builder']) {
+      expect(findProfile(id)?.id).toBe(id);
+    }
   });
 
   it('неизвестное имя — undefined, а не исключение', () => {
@@ -30,8 +29,27 @@ describe('реестр профилей', () => {
     expect(findProfile('нет такого')).toBeUndefined();
   });
 
+  it('имя, написанное в коде, обязано существовать: builtinProfile бросает', () => {
+    expect(builtinProfile('minimal')).toBe(findProfile('minimal'));
+    expect(() => builtinProfile('нет такого')).toThrow('встроенного профиля «нет такого» нет');
+  });
+
   it('имена уникальны: профиль не может перекрыть соседний', () => {
     expect(PROFILES.size).toBe(6);
+  });
+
+  it('встроенный файл — чистый конфиг запуска: тот же разбор, ни одной проблемы', () => {
+    // Формат профиля один. Дубль имени, незнакомое поле или битый профиль разбор назвал бы
+    // в `problems` и пропустил — а реестр на это бросает при загрузке; здесь то же сказано явно.
+    const parsed = parseRuntimeConfig(builtinConfig);
+
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.config.profiles?.map((profile) => profile.id)).toEqual([...PROFILES.keys()]);
+  });
+
+  it('профиль по умолчанию — «preset» встроенного файла, и это полный состав ReFormer', () => {
+    expect(defaultProfile).toBe(findProfile(builtinConfig.preset));
+    expect(defaultProfile.id).toBe('reformer.builder');
   });
 
   it('КАЖДЫЙ профиль реестра собирается — имена в нём настоящие', () => {

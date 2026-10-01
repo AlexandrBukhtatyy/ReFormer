@@ -15,11 +15,16 @@
 
 import { describe, expect, it } from 'vitest';
 import { defineProfile } from '../profiles/profile';
-import { aiBuilderProfile, minimalProfile } from '../profiles/presets';
-import { builderProfile, plainProfile, rjsfProfile } from '../profiles/builder';
+import { builtinProfile } from '../profiles/registry';
 import { BUILTIN_PLUGINS } from './builtin-plugins';
 import { composeAll, fromProfile } from './compose';
 import { stubBuiltinOptions } from './testing';
+
+const builderProfile = builtinProfile('reformer.builder');
+const plainProfile = builtinProfile('plain.builder');
+const rjsfProfile = builtinProfile('rjsf.builder');
+const minimalProfile = builtinProfile('minimal');
+const aiBuilderProfile = builtinProfile('ai-builder');
 
 /** Идентификаторы собранного состава — в том порядке, в каком их отдала композиция. */
 async function idsOf(composition: ReturnType<typeof fromProfile>): Promise<readonly string[]> {

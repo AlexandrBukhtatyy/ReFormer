@@ -152,10 +152,12 @@ projects/reformer-builder/
 │   │   │   └── testing.ts   опции-пустышки для трёх проверок состава
 │   │   ├── profiles/        профиль = ДАННЫЕ: имя, список плагинов, необязательный
 │   │   │                    `extends`, выбор провайдера (`providers`) там, где одну
-│   │   │                    возможность объявили двое. builder.base (основа без стека),
-│   │   │                    reformer.builder (основа + стек ReFormer), plain.builder
-│   │   │                    (основа + демо-стек), minimal, ai-builder; registry.ts
-│   │   │                    разрешает имя в профиль
+│   │   │                    возможность объявили двое. Встроенные лежат в
+│   │   │                    builtin.config.json — формат конфига запуска, тот же разбор:
+│   │   │                    builder.base (основа без стека), reformer.builder (основа +
+│   │   │                    стек ReFormer, умолчание), plain.builder (основа + демо-стек),
+│   │   │                    rjsf.builder (основа + киты + RJSF), minimal, ai-builder;
+│   │   │                    registry.ts читает файл и разрешает имя в профиль
 │   │   └── resolver/
 │   │       ├── profile-resolver.ts  `extends` цепочкой, дедупликация с порядком,
 │   │       │                  enable/disable, склейка `providers` по цепочке,
