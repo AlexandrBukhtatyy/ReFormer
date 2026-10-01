@@ -60,14 +60,13 @@ describe('манифест встроенного плагина', () => {
    * Встроенная поставка ПРОХОДИТ тот же разбор, что и плагин каталога, — в этом и состоит
    * утверждение «один контракт». Отличий ровно два, и оба проверяются здесь: у встроенного
    * нет каталога (значит, нечему совпадать с идентификатором) и нет точки входа (его код
-   * уже в бандле), зато есть способ доставки.
+   * уже в бандле).
    */
   const builtin = { kind: 'builtin' } as const;
   const lazy = {
     id: 'reformer.ai',
     name: 'Ассистент',
     apiVersion: '^1',
-    builtin: { loading: 'lazy' },
   };
 
   it('разбирается без каталога и без точки входа', () => {
@@ -81,7 +80,6 @@ describe('манифест встроенного плагина', () => {
         version: '0.0.0',
         apiVersion: '^1',
         source: { kind: 'builtin' },
-        builtin: { loading: 'lazy' },
       },
     });
   });
@@ -99,37 +97,23 @@ describe('манифест встроенного плагина', () => {
     expect(!result.ok && result.problem.message).toContain('main');
   });
 
-  it('способ доставки обязателен и должен быть известным', () => {
-    expect(parsePluginManifestValue({ ...lazy, builtin: undefined }, builtin).ok).toBe(false);
-    expect(parsePluginManifestValue({ ...lazy, builtin: { loading: 'соон' } }, builtin).ok).toBe(
-      false
-    );
+  it('секции «builtin» больше нет: способ доставки один, и объявлять его нечем', () => {
+    // Секция различала плагины стартового файла и отдельных файлов. Теперь каждый встроенный
+    // приезжает своим файлом, и манифест с ней обещал бы выбор, которого нет, — поэтому она
+    // отвергается, а не игнорируется, в том числе в прежнем законном виде.
+    for (const section of [{ loading: 'lazy' }, { loading: 'eager', reason: 'довод' }]) {
+      const result = parsePluginManifestValue({ ...lazy, builtin: section }, builtin);
+
+      expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+      expect(!result.ok && result.problem.message).toContain('«builtin»');
+    }
   });
 
-  it('статический обязан объяснить себя, ленивый — не вправе', () => {
-    // Ленивость — умолчание, и объяснять надо ОТСТУПЛЕНИЕ от него. Необязательная причина
-    // у `eager` означала бы, что через полгода запись без довода не отличить от забытой.
-    expect(parsePluginManifestValue({ ...lazy, builtin: { loading: 'eager' } }, builtin).ok).toBe(
-      false
-    );
-    expect(
-      parsePluginManifestValue(
-        { ...lazy, builtin: { loading: 'eager', reason: 'его словарь вносит композиция' } },
-        builtin
-      ).ok
-    ).toBe(true);
-    expect(
-      parsePluginManifestValue(
-        { ...lazy, builtin: { loading: 'lazy', reason: 'просто так' } },
-        builtin
-      ).ok
-    ).toBe(false);
-  });
-
-  it('плагин каталога способа доставки не объявляет: им распоряжается не он', () => {
+  it('плагин каталога способа доставки тоже не объявляет', () => {
     const result = parse({ ...good, builtin: { loading: 'eager', reason: 'хочу' } });
 
     expect(!result.ok && result.problem.code).toBe('manifest-invalid');
+    expect(!result.ok && result.problem.message).toContain('«builtin»');
   });
 });
 

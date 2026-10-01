@@ -2,9 +2,6 @@
   "id": "reformer.codegen",
   "name": "Генерация кода",
   "apiVersion": "^1",
-  "builtin": {
-    "loading": "lazy"
-  },
   "provides": [
     {
       "id": "reformer.codegen.printer",

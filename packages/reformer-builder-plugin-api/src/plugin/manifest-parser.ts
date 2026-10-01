@@ -68,7 +68,6 @@ import { isPluginPermission, PLUGIN_PERMISSIONS, type PluginPermission } from '.
 import {
   BUILDER_API_VERSION,
   PLUGIN_MANIFEST_FILE,
-  type BuiltinDelivery,
   type DeclaredKeybinding,
   type ManifestOf,
   type ManifestParseResult,
@@ -195,10 +194,10 @@ export function parsePluginSourceManifest(
       { file: PLUGIN_MANIFEST_FILE }
     );
   }
-  // У стадии `source` разбор поставки отдаёт точку входа, а не способ доставки; сужение —
-  // для вывода типов, ветвь «без main» недостижима.
+  // У стадии `source` разбор поставки отдаёт точку входа; сужение — для вывода типов,
+  // ветвь «без main» недостижима.
   const { manifest } = parsed;
-  return 'main' in manifest
+  return manifest.main !== undefined
     ? { ok: true, manifest }
     : problem('manifest-invalid', 'в манифесте нет поля «main» или оно не строка', {
         file: PLUGIN_MANIFEST_FILE,
@@ -233,11 +232,12 @@ export interface ShellVersions {
 type ManifestStage = PluginSource | { readonly kind: 'source' };
 
 /** Манифест без `source`: его приписывает тот, кто знает поставку. */
-type StagedManifest = PluginManifestBase &
-  (
-    | { readonly main: string; readonly styles?: PluginStyles }
-    | { readonly builtin: BuiltinDelivery }
-  );
+type StagedManifest = PluginManifestBase & StagedEntry;
+
+/** То, что у поставок разное: точка входа со стилями — или ничего, у встроенного. */
+type StagedEntry =
+  | { readonly main: string; readonly styles?: PluginStyles }
+  | { readonly main?: undefined };
 
 function parseStage(
   raw: unknown,
@@ -333,21 +333,31 @@ function parseStage(
 }
 
 /**
- * Разбирает то, что у двух поставок РАЗНОЕ: точку входа со стилями против способа доставки.
+ * Разбирает то, что у двух поставок РАЗНОЕ: точка входа со стилями есть только у плагина
+ * каталога.
  *
  * Лишнее поле здесь отвергается, а не игнорируется. Манифест — то, во что верит резолвер
- * до исполнения кода, и `"main"` у встроенного или `"builtin": { "loading": "lazy" }`
- * у плагина каталога значат, что автор ошибся поставкой: первый объявил файл, которого никто
- * не будет грузить, второй — способ доставки, которым никто не распоряжается. Промолчи
- * разбор — поле осталось бы в файле как рабочее указание, ни на что не влияющее.
+ * до исполнения кода, и `"main"` у встроенного значит, что автор ошибся поставкой: объявил
+ * файл, которого никто не будет грузить. Промолчи разбор — поле осталось бы в файле как рабочее
+ * указание, ни на что не влияющее.
+ *
+ * По той же причине отвергается `"builtin"` — у любой поставки. Секция объявляла способ
+ * доставки встроенного плагина (`loading`, `reason`); способ теперь один, и манифест, где она
+ * осталась, обещал бы выбор, которого нет.
  */
 function parseEntry(
   fields: Record<string, unknown>,
   source: ManifestStage
-):
-  | { readonly main: string; readonly styles?: PluginStyles }
-  | { readonly builtin: BuiltinDelivery }
-  | { ok: false; problem: PluginProblem } {
+): StagedEntry | { ok: false; problem: PluginProblem } {
+  if (fields.builtin !== undefined) {
+    return problem(
+      'manifest-invalid',
+      'поля «builtin» в манифесте больше нет: оно объявляло способ доставки встроенного ' +
+        'плагина, а способ теперь один — каждый приезжает своим файлом',
+      { file: PLUGIN_MANIFEST_FILE }
+    );
+  }
+
   if (source.kind === 'builtin') {
     if (fields.main !== undefined) {
       return problem(
@@ -357,18 +367,7 @@ function parseEntry(
         { file: PLUGIN_MANIFEST_FILE }
       );
     }
-    const builtin = parseBuiltin(fields.builtin);
-    if ('ok' in builtin) return builtin;
-    return { builtin: builtin.builtin };
-  }
-
-  if (fields.builtin !== undefined) {
-    return problem(
-      'manifest-invalid',
-      'поле «builtin» объявляет способ доставки встроенного плагина, и у плагина каталога ' +
-        'его быть не может: как он приезжает, решает не он',
-      { file: PLUGIN_MANIFEST_FILE }
-    );
+    return {};
   }
 
   const mainRaw = stringField(fields, 'main');
@@ -391,57 +390,6 @@ function parseEntry(
   if (styles !== undefined && 'ok' in styles) return styles;
 
   return { main, ...(styles === undefined ? {} : { styles: styles.styles }) };
-}
-
-/**
- * Разбирает способ доставки встроенного.
- *
- * Причина обязательна у СТАТИЧЕСКОГО и запрещена у ленивого. Ленивость — умолчание, и её
- * объяснять нечем; а статический плагин утяжеляет стартовый граф, и запись без довода через
- * полгода не отличить от забытой. Это единственное место, где манифест требует прозы,
- * и требует он её ровно там, где без неё принимается молчаливое решение.
- */
-function parseBuiltin(
-  raw: unknown
-): { builtin: BuiltinDelivery } | { ok: false; problem: PluginProblem } {
-  const fields = objectFields(raw);
-  if (fields === undefined) {
-    return problem(
-      'manifest-invalid',
-      'в манифесте встроенного плагина нет поля «builtin» или оно не объект: ' +
-        'способ доставки читается ДО загрузки кода и умолчания не имеет',
-      { file: PLUGIN_MANIFEST_FILE }
-    );
-  }
-
-  const loading = stringField(fields, 'loading');
-  if (loading !== 'eager' && loading !== 'lazy') {
-    return problem(
-      'manifest-invalid',
-      `«builtin.loading» должен быть «eager» или «lazy», а не «${loading ?? ''}»`,
-      { file: PLUGIN_MANIFEST_FILE }
-    );
-  }
-
-  const reason = stringField(fields, 'reason');
-  if (loading === 'eager' && reason === undefined) {
-    return problem(
-      'manifest-invalid',
-      'статический плагин обязан объяснить себя полем «builtin.reason»: он едет в стартовом ' +
-        'графе, и запись без довода через полгода не отличить от забытой',
-      { file: PLUGIN_MANIFEST_FILE }
-    );
-  }
-  if (loading === 'lazy' && reason !== undefined) {
-    return problem(
-      'manifest-invalid',
-      'у ленивого плагина «builtin.reason» лишний: ленивость — умолчание, объяснять надо ' +
-        'отступление от него',
-      { file: PLUGIN_MANIFEST_FILE }
-    );
-  }
-
-  return { builtin: { loading, ...(reason === undefined ? {} : { reason }) } };
 }
 
 /**

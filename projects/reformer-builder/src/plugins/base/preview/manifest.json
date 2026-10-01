@@ -2,9 +2,6 @@
   "id": "reformer.preview",
   "name": "Предпросмотр",
   "apiVersion": "^1",
-  "builtin": {
-    "loading": "lazy"
-  },
   "provides": [
     {
       "id": "reformer.preview.live",

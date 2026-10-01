@@ -63,7 +63,8 @@
  * Прежде двое — киты и валидатор схемы — ехали в стартовом файле с доводом «`activate`
  * заказывает тяжёлую загрузку, пусть идёт параллельно оболочке». Довод не действовал:
  * активация и статических шла после загрузки ленивых. Исключений поэтому не осталось, а с ними
- * ушли ручные импорты и вторая фаза состава. Манифест, объявивший `eager`, карта отвергает.
+ * ушли ручные импорты, вторая фаза состава и секция `builtin` манифеста, объявлявшая способ
+ * доставки: объявлять стало нечего.
  *
  * @module application/composer/builtin-plugins
  */
@@ -179,22 +180,11 @@ function builtinManifest(raw: unknown, directory: string): BuiltinPluginManifest
   return parsed.manifest;
 }
 
-/**
- * Запись плагина по его каталогу: манифест и барель из одной папки.
- *
- * Манифест, объявивший `eager`, отвергается: формат манифеста такой способ доставки знает,
- * а состав — нет, и обещание «еду в стартовом файле» осталось бы невыполненным молча.
- */
+/** Запись плагина по его каталогу: манифест и барель из одной папки. */
 function builtinEntry(directory: string, raw: unknown): BuiltinPluginEntry {
   const manifest = builtinManifest(raw, directory);
   const load = MODULES[`../../plugins/${directory}/index.ts`];
   if (load === undefined) throw new Error(`«${manifest.id}»: в ${directory} нет бареля index.ts`);
-  if (manifest.builtin.loading !== 'lazy') {
-    throw new Error(
-      `«${manifest.id}»: манифест объявляет «eager», а статических плагинов нет — ` +
-        'каждый приезжает своим файлом'
-    );
-  }
   return {
     manifest,
     directory,

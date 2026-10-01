@@ -2,8 +2,5 @@
   "id": "reformer.files",
   "name": "Файлы",
   "apiVersion": "^1",
-  "builtin": {
-    "loading": "lazy"
-  },
   "permissions": ["workspace.resources"]
 }

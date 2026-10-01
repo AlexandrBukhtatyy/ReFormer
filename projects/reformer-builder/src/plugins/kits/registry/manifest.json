@@ -2,9 +2,6 @@
   "id": "reformer.kits",
   "name": "Киты",
   "apiVersion": "^1",
-  "builtin": {
-    "loading": "lazy"
-  },
   "provides": [
     {
       "id": "reformer.kit.catalog",

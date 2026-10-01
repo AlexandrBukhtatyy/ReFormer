@@ -2,9 +2,6 @@
   "id": "reformer.ai",
   "name": "Ассистент",
   "apiVersion": "^1",
-  "builtin": {
-    "loading": "lazy"
-  },
   "requires": {
     "optional": [
       {

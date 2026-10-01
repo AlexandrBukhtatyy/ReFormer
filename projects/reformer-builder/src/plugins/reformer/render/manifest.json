@@ -2,9 +2,6 @@
   "id": "reformer.preview-runtime",
   "name": "Предпросмотр формы ReFormer",
   "apiVersion": "^1",
-  "builtin": {
-    "loading": "lazy"
-  },
   "requires": {
     "optional": [
       {

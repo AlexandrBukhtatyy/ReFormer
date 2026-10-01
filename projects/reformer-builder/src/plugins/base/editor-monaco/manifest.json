@@ -2,9 +2,6 @@
   "id": "reformer.editor-monaco",
   "name": "Редактор кода",
   "apiVersion": "^1",
-  "builtin": {
-    "loading": "lazy"
-  },
   "provides": [
     {
       "id": "reformer.editor",

@@ -2,9 +2,6 @@
   "id": "reformer.editor-markdown",
   "name": "Markdown",
   "apiVersion": "^1",
-  "builtin": {
-    "loading": "lazy"
-  },
   "requires": {
     "optional": [
       {

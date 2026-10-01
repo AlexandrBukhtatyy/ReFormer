@@ -41,7 +41,6 @@ export { pluginFromExports } from './plugin/plugin-exports.js';
 export {
   BUILDER_API_VERSION,
   PLUGIN_MANIFEST_FILE,
-  type BuiltinDelivery,
   type BuiltinPluginManifest,
   type DeclaredKeybinding,
   type ManifestOf,

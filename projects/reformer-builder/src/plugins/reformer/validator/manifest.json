@@ -2,9 +2,6 @@
   "id": "reformer.validator-schema",
   "name": "Проверка схемы",
   "apiVersion": "^1",
-  "builtin": {
-    "loading": "lazy"
-  },
   "requires": {
     "optional": [
       {
