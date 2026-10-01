@@ -26,6 +26,9 @@
  * @module plugins/base/editor-monaco/index
  */
 
+import { createMonacoEditorPlugin } from './plugin';
+import type { MonacoHost } from './host';
+
 export { createMonacoEditorPlugin, monacoEditorContribution } from './plugin';
 export { MONACO_EDITOR_ID, MONACO_PLUGIN_ID, type MonacoEditorPluginOptions } from './plugin';
 export { MONACO_EDITOR_PRIORITY } from './runtime/language';
@@ -35,3 +38,13 @@ export { viewStatesOver, type ViewStateRegistry } from './sync/view-state';
 // схемы), а плагины друг друга не импортируют.
 export { TextEditorCapability, type TextEditorProvider } from './plugin';
 export type { MessageSink, MonacoDiagnostics, MonacoDocument, MonacoHost, Translate } from './host';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Плагину нужен порт редактора кода. Реестр фокуса и хранилище снимков вида — возможности
+ * оболочки, их плагин берёт из `ctx.services` сам.
+ */
+export default function builtin(ports: { readonly monaco: MonacoHost }) {
+  return createMonacoEditorPlugin({ host: ports.monaco });
+}

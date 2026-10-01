@@ -10,6 +10,8 @@
  * @module plugins/base/preview
  */
 
+import { createPreviewPlugin } from './plugin';
+
 export { createPreviewPlugin, PREVIEW_PLUGIN_ID, type PreviewPluginOptions } from './plugin';
 export type { LiveDocument, PreviewHostPort, PreviewSourceCapabilities } from './host';
 export { PREVIEW_MESSAGES } from './messages';
@@ -20,3 +22,12 @@ export { PREVIEW_MESSAGES } from './messages';
  */
 export { chooseSurface, surfaceRank } from './surface/selection';
 export type { SurfaceChoice, SurfaceFallback, SurfaceOption } from './surface/selection';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Портов оболочки плагину не нужно: всё он берёт возможностями в `activate`.
+ */
+export default function builtin() {
+  return createPreviewPlugin();
+}

@@ -44,6 +44,8 @@
  * @module plugins/reformer/codegen/index
  */
 
+import { createCodegenPlugin } from './plugin';
+
 export {
   createCodegenPlugin,
   codegenCommands,
@@ -102,3 +104,12 @@ export type {
 // названные дыры (`CodegenGaps`) — см. шапку `./workspace`.
 export { codegenWorkspace } from './workspace';
 export type { CodegenGaps } from './workspace';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Портов оболочки плагину не нужно: всё он берёт возможностями в `activate`.
+ */
+export default function builtin() {
+  return createCodegenPlugin();
+}

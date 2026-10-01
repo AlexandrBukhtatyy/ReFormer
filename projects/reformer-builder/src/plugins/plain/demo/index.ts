@@ -4,6 +4,8 @@
  * @module plugins/plain/demo
  */
 
+import { createPlainPlugin } from './plugin';
+
 export { createPlainPlugin, PLAIN_EDITOR_PRIORITY, PLAIN_PLUGIN_ID } from './plugin';
 export {
   PLAIN_ADD_FIELD_COMMAND_ID,
@@ -18,3 +20,12 @@ export {
 } from './contract';
 export { PLAIN_MESSAGES } from './messages';
 export type { ExportOutcome, PlainServices } from './commands';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Портов оболочки плагину не нужно: всё он берёт возможностями в `activate`.
+ */
+export default function builtin() {
+  return createPlainPlugin();
+}

@@ -51,6 +51,8 @@
  * @module plugins/reformer/templates/index
  */
 
+import { createTemplatesPlugin } from './plugin';
+
 export {
   createTemplatesPlugin,
   panelVisible,
@@ -149,3 +151,12 @@ export type {
   TemplatesSourceCapabilities,
   Translate,
 } from './host';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Портов оболочки плагину не нужно: всё он берёт возможностями в `activate`.
+ */
+export default function builtin() {
+  return createTemplatesPlugin();
+}

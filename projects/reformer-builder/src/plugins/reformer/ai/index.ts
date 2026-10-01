@@ -10,6 +10,8 @@
  * @module plugins/reformer/ai/index
  */
 
+import { createAiPlugin } from './plugin';
+
 export { AI_MESSAGES } from './messages';
 export {
   AI_PANEL_ID,
@@ -97,3 +99,12 @@ export type { AiMessage, AiProvider, AiStop } from './providers/types';
 
 // Корпус знаний: мост отдаёт ему чтение файлов проекта.
 export { createKnowledgeLoader, type KnowledgeLoader, type PackageFiles } from './knowledge';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Портов оболочки плагину не нужно: всё он берёт возможностями в `activate`.
+ */
+export default function builtin() {
+  return createAiPlugin();
+}

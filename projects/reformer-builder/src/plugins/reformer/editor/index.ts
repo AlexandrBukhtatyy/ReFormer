@@ -14,6 +14,8 @@
  * @module plugins/reformer/editor/index
  */
 
+import { createSchemaEditorPlugin, type SchemaEditorPluginOptions } from './plugin';
+
 export { createSchemaEditorPlugin, SCHEMA_EDITOR_ID, SCHEMA_EDITOR_PLUGIN_ID } from './plugin';
 export type { SchemaEditorPluginOptions } from './plugin';
 export { SCHEMA_MODEL_PROVIDER_ID } from './model/provider';
@@ -28,3 +30,15 @@ export type {
   SchemaModelProviderSpec,
   Translate,
 } from './host';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Плагину нужна точка расширения моделей документов: её он объявил структурно, настоящая
+ * приходит параметром.
+ */
+export default function builtin(ports: {
+  readonly modelPoint: SchemaEditorPluginOptions['modelPoint'];
+}) {
+  return createSchemaEditorPlugin({ modelPoint: ports.modelPoint });
+}

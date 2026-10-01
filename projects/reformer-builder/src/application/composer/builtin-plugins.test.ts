@@ -24,7 +24,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createCommandRegistry } from '@/shell/platform/primitives/command';
 import { createEventBus } from '@/shell/platform/primitives/event';
 import { createExtensionRegistry } from '@/shell/platform/primitives/extension-point';
-import type { ExtensionPoint } from '@reformer/builder-plugin-api/internal';
+import type { ExtensionPoint, Plugin } from '@reformer/builder-plugin-api/internal';
 import { createServiceRegistry } from '@/shell/platform/primitives/service';
 import { createSelectionService } from '@/shell/platform/services/selection';
 import { SelectionServiceToken } from '@reformer/builder-plugin-api/internal';
@@ -36,16 +36,23 @@ import { EditorPoint } from '@reformer/builder-plugin-api/internal';
 import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { PreviewSurfacePoint } from '@reformer/builder-plugin-api/internal';
 import { KITS_PLUGIN_ID } from '@/plugins/kits/registry';
+// Только ТИПЫ фабрик состава — для сверки с набором портов ниже; код плагинов сюда не едет.
+import type filesBuiltin from '@/plugins/base/files';
+import type monacoBuiltin from '@/plugins/base/editor-monaco';
+import type markdownBuiltin from '@/plugins/base/editor-markdown';
+import type schemaEditorBuiltin from '@/plugins/reformer/editor';
 import { KitsCapability } from '@reformer/builder-plugin-api/internal';
 import { builderApplication } from '../builder-application';
 import { builtinProfile, PROFILES } from '../profiles/registry';
 import {
   builtinPluginDirectory,
+  builtinPluginPorts,
   BUILTIN_MANIFESTS,
   BUILTIN_PLUGIN_NAMESPACE,
   BUILTIN_PLUGINS,
   canonicalPluginId,
   LAZY_PLUGIN_IDS,
+  type BuiltinPluginPorts,
 } from './builtin-plugins';
 import { composeAll, fromProfile } from './compose';
 import { stubBuiltinOptions, stubHostCapabilities } from './testing';
@@ -54,6 +61,35 @@ const builderProfile = builtinProfile('reformer.builder');
 const baseProfile = builtinProfile('builder.base');
 const plainProfile = builtinProfile('plain.builder');
 const rjsfProfile = builtinProfile('rjsf.builder');
+
+/** Фабрика состава — `export default` бареля встроенного плагина. */
+type BuiltinFactory = (ports: BuiltinPluginPorts) => Plugin;
+type FitsPorts<F> = F extends BuiltinFactory ? true : false;
+
+/**
+ * Плагины, чья фабрика состава ЧИТАЕТ набор портов, — и сверка их типов с этим набором.
+ *
+ * Карта находит барели обходом папок, а обход типов не несёт: фабрику она зовёт как функцию от
+ * набора портов, не зная, что та из него возьмёт. Статическая сверка поэтому живёт здесь —
+ * `true satisfies …` не скомпилируется, как только порт или точка расширения разойдутся
+ * с тем, что объявил плагин. Список сверяется с настоящим поведением тестом ниже: фабрика,
+ * начавшая читать порты, обязана появиться здесь.
+ */
+const PORT_READERS: Readonly<Record<string, true>> = {
+  'base/files': true satisfies FitsPorts<typeof filesBuiltin>,
+  'base/editor-monaco': true satisfies FitsPorts<typeof monacoBuiltin>,
+  'base/editor-markdown': true satisfies FitsPorts<typeof markdownBuiltin>,
+  'reformer/editor': true satisfies FitsPorts<typeof schemaEditorBuiltin>,
+};
+
+/**
+ * Барели всех встроенных плагинов — тем же обходом папок, что у карты, но СВОИМ шаблоном:
+ * совпадение найденного с картой и есть проверка, а общий шаблон сверял бы себя с собой.
+ */
+const BARRELS = import.meta.glob<{ readonly default: BuiltinFactory }>([
+  '../../plugins/*/*/index.ts',
+  '!../../plugins/*/core/index.ts',
+]);
 
 /**
  * Плагины других стеков: в карте есть, в полный профиль ReFormer не входят.
@@ -125,15 +161,39 @@ async function harness() {
 
 describe('карта встроенных плагинов', () => {
   it('идентификаторы в карте уникальны: запись не может перекрыть соседнюю', () => {
-    // Карта строится из массива записей, а `new Map` на повторный ключ молча перезаписывает —
-    // то есть один плагин исчез бы из состава, а профиль, называющий его, остался бы зелёным.
+    // Идентификатор приезжает из манифеста, и два манифеста с одним именем дали бы карту, где
+    // один плагин молча перекрыл другой. Карта на это бросает при загрузке; здесь то же
+    // утверждается на собранном значении.
     expect(BUILTIN_PLUGINS.size).toBe([...BUILTIN_PLUGINS.keys()].length);
     expect(BUILTIN_PLUGINS.size).toBeGreaterThanOrEqual(11);
   });
 
+  it('в карте — каждая папка с манифестом, и ни одной другой', () => {
+    // Карта собрана обходом папок, а не списком, поэтому проверяется сам обход: шаблон, который
+    // перестал совпадать (переехал файл карты, сменилась глубина каталогов), дал бы пустую
+    // карту и зелёные тесты состава на ней. Диск читается здесь напрямую, мимо шаблона.
+    const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+    const onDisk = readdirSync(`${root}/plugins`)
+      .filter((domain) => statSync(`${root}/plugins/${domain}`).isDirectory())
+      .flatMap((domain) =>
+        readdirSync(`${root}/plugins/${domain}`)
+          .filter((plugin) => {
+            const dir = `${root}/plugins/${domain}/${plugin}`;
+            return statSync(dir).isDirectory() && readdirSync(dir).includes('manifest.json');
+          })
+          .map((plugin) => `${domain}/${plugin}`)
+      );
+
+    expect([...BUILTIN_PLUGINS.values()].map((entry) => entry.directory).sort()).toEqual(
+      onDisk.sort()
+    );
+    expect(onDisk.length).toBeGreaterThanOrEqual(11);
+  });
+
   it('каталог каждого встроенного плагина — `домен/плагин` с его же манифестом', () => {
-    // Каталог записан явно (`builtinPluginDirectory`), а не выводится из идентификатора: перепутай
-    // строку — словарь не найдётся, а храповики, адресующие папку, замолчат на пустом множестве.
+    // Каталог — путь, по которому найден манифест (`builtinPluginDirectory`), а не производная
+    // идентификатора: `reformer.editor-schema` лежит в `reformer/editor`. Ошибись он — словарь
+    // не найдётся, а храповики, адресующие папку, замолчат на пустом множестве.
     const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
     const wrong: string[] = [];
     for (const id of BUILTIN_PLUGINS.keys()) {
@@ -156,9 +216,9 @@ describe('карта встроенных плагинов', () => {
   });
 
   it('ключ карты — настоящий идентификатор плагина, а не соседнее имя', async () => {
-    // У ленивых записей идентификатор написан СТРОКОЙ: константа лежит в барели, и её импорт
-    // вернул бы плагин в стартовый граф. Значит расхождение строки с `plugin.id` возможно,
-    // и ловится оно только здесь — сборкой настоящих плагинов из карты.
+    // Ключ карты — идентификатор из МАНИФЕСТА, а плагин называет себя сам (`plugin.id`).
+    // Разойтись они могут, и ловится это только здесь — сборкой настоящих плагинов из карты:
+    // заодно проверяется, что у каждой найденной папки фабрика состава есть и отдаёт плагин.
     const options = stubBuiltinOptions();
     const mismatched: string[] = [];
     for (const [id, entry] of BUILTIN_PLUGINS) {
@@ -243,6 +303,45 @@ describe('карта встроенных плагинов', () => {
     expect(registry.activate(KITS_PLUGIN_ID)).toBe(true);
     expect(services.get(KitsCapability)).toBeDefined();
   });
+});
+
+describe('фабрика состава', () => {
+  it('у каждого плагина она есть и берёт из набора портов только то, что в нём лежит', async () => {
+    // Набор портов один на всех, и плагин берёт из него своё по имени. Опечатка в имени
+    // (`ports.filez`) компилируется — параметр фабрики объявляет сам плагин — и дала бы
+    // `undefined` вместо порта. Здесь набор обёрнут: чтение имени, которого в нём нет, записывается.
+    const ports = builtinPluginPorts(stubBuiltinOptions());
+    const unknown: string[] = [];
+    const readers: string[] = [];
+    const found: string[] = [];
+
+    for (const [file, load] of Object.entries(BARRELS)) {
+      const directory = /\/plugins\/([^/]+\/[^/]+)\/index\.ts$/.exec(file)?.[1] ?? file;
+      found.push(directory);
+      let read = false;
+      const recording = new Proxy(ports, {
+        get(target, key, receiver) {
+          if (typeof key === 'string') {
+            read = true;
+            if (!(key in target)) unknown.push(`${directory}: ${key}`);
+          }
+          return Reflect.get(target, key, receiver) as unknown;
+        },
+      });
+
+      const plugin = (await load()).default(recording);
+
+      expect(builtinPluginDirectory(plugin.id)).toBe(directory);
+      if (read) readers.push(directory);
+    }
+
+    expect(unknown).toEqual([]);
+    // Читающие порты плагины сверены с набором ТИПАМИ (`PORT_READERS`): новый читатель обязан
+    // появиться в том списке, иначе его параметры проверял бы только этот тест.
+    expect(readers.sort()).toEqual(Object.keys(PORT_READERS).sort());
+    // Обход теста и обход карты нашли одно и то же.
+    expect(found.sort()).toEqual([...BUILTIN_PLUGINS.values()].map((e) => e.directory).sort());
+  }, 30_000);
 });
 
 describe('состав встроенных плагинов', () => {
@@ -591,9 +690,9 @@ describe('две фазы: что едет в entry, а что своим фай
    *
    * Обходятся ДВЕ зоны, и вторая появилась вместе с `application/`: состав уехал из оболочки,
    * а вместе с ним уехала и возможность промахнуться. Статический импорт бареля ленивого
-   * плагина сегодня естественнее всего написать именно здесь — рядом со списком, в двух строках
-   * от литеральных `import()`. Обходи храповик один `shell/`, он стерёг бы то место, где ошибку
-   * уже никто не сделает.
+   * плагина сегодня естественнее всего написать именно здесь — рядом с картой, по образцу двух
+   * статических. Обходи храповик один `shell/`, он стерёг бы то место, где ошибку уже никто
+   * не сделает.
    */
   it('стартовый граф не импортирует барель ленивого плагина значением', () => {
     const root = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');

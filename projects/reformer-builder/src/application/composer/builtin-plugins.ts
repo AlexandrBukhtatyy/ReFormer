@@ -1,11 +1,23 @@
 /**
- * Единственное место со списком встроенных плагинов — КАРТОЙ, а не двумя списками.
+ * Встроенные плагины приложения — картой «идентификатор → запись», собранной ПО ПАПКАМ.
  *
  * Место это — в `application/`, а не в оболочке, и разница не в адресе файла. Состав приложения
  * оболочке НЕИЗВЕСТЕН: она объявляет форму композиции (`shell/boot/composition`) и получает её
  * параметром, а «какие плагины образуют ReFormer Builder» отвечают отсюда. Поэтому и тип опций
  * импортируется из оболочки, а не объявляется здесь: опции — это то, что `boot` умеет ДАТЬ,
  * а список — то, что он получает.
+ *
+ * ## Списка плагинов здесь нет — есть правило, как их найти
+ *
+ * Встроенный плагин — папка `plugins/<домен>/<плагин>` с `manifest.json` и барелем `index.ts`.
+ * Карта собирается обходом этих папок (`import.meta.glob`), а не перечислением: новый плагин —
+ * новая папка и его имя в профиле, без правки этого файла. Прежде каждый плагин был записан
+ * здесь трижды — импорт манифеста, запись с фабрикой, строка в таблице каталогов, — и три списка
+ * обязаны были совпасть.
+ *
+ * Шаблон обхода — литерал, и это требование сборки: по нему Vite заранее знает, какие файлы
+ * станут отдельными чанками. Собрать состав по имени из конфига можно, а взять по имени КОД
+ * нельзя — код упакован заранее.
  *
  * ## Почему карта, а не две функции «создай статических» и «загрузи ленивых»
  *
@@ -18,22 +30,23 @@
  *
  * Всё объявленное (идентификатор, имя, `provides`, `requires`, способ доставки) живёт
  * в `plugins/<каталог>/manifest.json` — том же файле и том же формате, что у плагина каталога
- * проекта, и проходит ТОТ ЖЕ разбор (`parsePluginManifestValue`). Здесь остаётся ровно то,
- * чего в JSON быть не может: фабрика с её аргументами и `import()` ленивого.
+ * проекта, и проходит ТОТ ЖЕ разбор (`parsePluginManifestValue`). Манифесты приезжают статически,
+ * и это листы: JSON не тянет за собой ни строчки кода плагина. Иначе объявление ленивого было бы
+ * нечитаемо до его загрузки, а отвечать «собирается ли состав» надо раньше.
  *
- * Манифест приезжает статическим импортом JSON, и это лист: он не тянет за собой ни строчки
- * кода плагина. Иначе объявление ленивого было бы нечитаемо до его загрузки, а отвечать
- * «собирается ли состав» надо раньше.
+ * Создаёт плагин его ФАБРИКА СОСТАВА — `export default` бареля. Контракт у всех один: функция
+ * от набора портов ({@link BuiltinPluginPorts}), из которого плагин берёт своё по имени. Раньше
+ * фабрики звались по-разному и аргументы каждой собирались здесь — поэтому найти плагин по папке
+ * было нельзя: надо было знать, как его создать.
  *
  * Каталогу идентификатор НЕ равен: плагин зовётся `reformer.ai`, а лежит в `plugins/reformer/ai`.
  * Пространство имён (`BUILTIN_PLUGIN_NAMESPACE`) разводит встроенных с плагинами каталога
- * проекта, у которых имя — имя папки в `.ui_builder/plugins`; каталог поэтому пишется отдельно,
- * литералом `import()`, и выводится из идентификатора {@link builtinPluginDirectory}.
+ * проекта, у которых имя — имя папки в `.ui_builder/plugins`. Идентификатор берётся из
+ * манифеста, каталог — из пути, по которому манифест найден ({@link builtinPluginDirectory}).
  *
  * Порядок записей на поведение не влияет — рантайм плагинов не строит графа зависимостей
  * (см. `shell/platform/plugin/registry`) и проверяет это тестом «порядок активации ничего
- * не значит». Держать его читаемым стоит только ради вывода диагностики; фактический порядок
- * сборки задаёт профиль, а не эта карта.
+ * не значит». Фактический порядок сборки задаёт профиль, а не эта карта.
  *
  * ## Две фазы, и почему граница проходит именно здесь
  *
@@ -47,9 +60,10 @@
  * `manualChunks` измерена и отвергнута (см. `vite.config.ts` — ручной чанк стягивает
  * в себя общий вендор и утяжеляет стартовый граф на полмегабайта).
  *
- * Причина, по которой каждый из пятерых статических остался статическим, записана
- * В ЕГО МАНИФЕСТЕ полем `builtin.reason`, и разбор требует её у каждого `eager`: ленивость —
- * умолчание, объяснять надо отступление от него.
+ * Ленивость — умолчание: плагин, найденный обходом, приезжает своим файлом. Статических двое,
+ * и только они записаны руками ({@link EAGER_FACTORIES}): статический импорт шаблоном не
+ * выразить, не затащив в стартовый граф всех. Причина у каждого — В ЕГО МАНИФЕСТЕ, полем
+ * `builtin.reason`, и разбор требует её у каждого `eager`.
  *
  * @module application/composer/builtin-plugins
  */
@@ -63,39 +77,94 @@ import { PanelPoint } from '@reformer/builder-plugin-api/internal';
 import { DocumentModelPoint } from '@reformer/builder-plugin-api/internal';
 import { BUILDER_VERSION } from '@/shell/platform/version';
 
-// Манифесты — ВСЕХ встроенных, включая ленивых: JSON это лист, кода плагина за ним нет.
-import aiManifest from '@/plugins/reformer/ai/manifest.json';
-import codegenManifest from '@/plugins/reformer/codegen/manifest.json';
-import filesManifest from '@/plugins/base/files/manifest.json';
-import kitsManifest from '@/plugins/kits/registry/manifest.json';
-import markdownManifest from '@/plugins/base/editor-markdown/manifest.json';
-import monacoManifest from '@/plugins/base/editor-monaco/manifest.json';
-import pluginManagerManifest from '@/plugins/base/plugin-manager/manifest.json';
-import plainManifest from '@/plugins/plain/demo/manifest.json';
-import previewManifest from '@/plugins/base/preview/manifest.json';
-import previewRuntimeManifest from '@/plugins/reformer/render/manifest.json';
-import rjsfEditorManifest from '@/plugins/rjsf/editor/manifest.json';
-import rjsfRenderManifest from '@/plugins/rjsf/render/manifest.json';
-import schemaEditorManifest from '@/plugins/reformer/editor/manifest.json';
-import templatesManifest from '@/plugins/reformer/templates/manifest.json';
-import validatorManifest from '@/plugins/reformer/validator/manifest.json';
-
-// Код — только статических: их значения нужны композиции, и довод у каждого в его манифесте.
-// Ленивых здесь нет ВОВСЕ — ни значением, ни типом: их код приезжает литеральными `import()`
-// внутри их же записей, а типы нужны только опциям, то есть оболочке.
-import { createKitsPlugin } from '@/plugins/kits/registry';
-import { createSchemaValidatorPlugin } from '@/plugins/reformer/validator';
+// Код — только статических: их значения нужны композиции при сборке, и довод у каждого в его
+// манифесте. Ленивых здесь нет ВОВСЕ — ни значением, ни типом: их код приезжает обходом ниже.
+import createKitsPlugin from '@/plugins/kits/registry';
+import createSchemaValidatorPlugin from '@/plugins/reformer/validator';
 
 /**
- * Общее у всех записей — манифест плагина.
+ * Что получает фабрика состава: порты оболочки и точки расширения.
+ *
+ * Порты — то, что `boot` умеет дать ({@link BuiltinPluginsOptions}). Точки подставляются ЗДЕСЬ:
+ * плагин объявляет их структурно, потому что публичный SDK панелей, редакторов и моделей
+ * документов не отдаёт, а импортировать `@/shell` плагину нельзя.
+ *
+ * Плагин берёт из набора своё ПО ИМЕНИ и объявляет нужное сам, типом параметра фабрики. Набор
+ * один на всех — поэтому фабрику можно позвать, не зная, какой это плагин.
+ */
+export interface BuiltinPluginPorts extends BuiltinPluginsOptions {
+  readonly panelPoint: typeof PanelPoint;
+  readonly editorPoint: typeof EditorPoint;
+  readonly modelPoint: typeof DocumentModelPoint;
+}
+
+/** Набор портов для фабрик состава из опций, собранных оболочкой. */
+export function builtinPluginPorts(options: BuiltinPluginsOptions): BuiltinPluginPorts {
+  return {
+    files: options.files,
+    monaco: options.monaco,
+    markdown: options.markdown,
+    panelPoint: PanelPoint,
+    editorPoint: EditorPoint,
+    modelPoint: DocumentModelPoint,
+  };
+}
+
+/** Фабрика состава — `export default` бареля встроенного плагина. */
+type BuiltinPluginFactory = (ports: BuiltinPluginPorts) => Plugin;
+
+/**
+ * Манифесты ВСЕХ встроенных, включая ленивых: JSON — лист, кода плагина за ним нет.
+ * Папка с манифестом и есть плагин; ядро домена (`core/`) манифеста не имеет.
+ */
+const MANIFESTS = import.meta.glob<unknown>('../../plugins/*/*/manifest.json', {
+  eager: true,
+  import: 'default',
+});
+
+/**
+ * Барели ленивых — отложенными импортами: каждый становится своим файлом сборки.
+ *
+ * Исключения — отрицательными шаблонами, и оба вида нужны. Ядра доменов — не плагины, а без
+ * исключения их барели стали бы отдельными точками входа. Статические импортированы выше, и
+ * отложенный импорт того же модуля ничего бы не отделил — сборка лишь предупредила бы об этом.
+ */
+const LAZY_MODULES = import.meta.glob<{ readonly default: BuiltinPluginFactory }>([
+  '../../plugins/*/*/index.ts',
+  '!../../plugins/*/core/index.ts',
+  '!../../plugins/kits/registry/index.ts',
+  '!../../plugins/reformer/validator/index.ts',
+]);
+
+/**
+ * Фабрики статических плагинов — по каталогу.
+ *
+ * Единственное, что здесь записано руками, и записано дважды: каталог стоит ещё и в исключениях
+ * {@link LAZY_MODULES}. Шаблон обхода обязан быть литералом, поэтому вывести одно из другого
+ * нельзя; расхождение ловит сборка карты ниже — каталог, попавший в оба набора, бросает.
+ */
+const EAGER_FACTORIES: Readonly<Record<string, BuiltinPluginFactory>> = {
+  'kits/registry': createKitsPlugin,
+  'reformer/validator': createSchemaValidatorPlugin,
+};
+
+/** `…/plugins/<домен>/<плагин>/<файл>` → `<домен>/<плагин>`. */
+function directoryOf(file: string): string {
+  const match = /\/plugins\/([^/]+\/[^/]+)\/[^/]+$/.exec(file);
+  if (match?.[1] === undefined) throw new Error(`«${file}» — не файл встроенного плагина`);
+  return match[1];
+}
+
+/**
+ * Общее у всех записей — манифест плагина и каталог, где он лежит.
  *
  * Объявления в записи НЕТ ни одного: `provides`, `requires`, имя и способ доставки читаются
- * из манифеста, и другого их места не существует. До этой фазы они жили здесь, и довод был
- * тот же, что у манифеста плагина каталога («объявление обязано читаться до того, как код
- * исполнится»), — а значит, вторым форматом ради того же довода. Теперь формат один.
+ * из манифеста, и другого их места не существует.
  */
 interface BuiltinPluginBase {
   readonly manifest: BuiltinPluginManifest;
+  /** Каталог внутри `src/plugins`: `домен/плагин`. */
+  readonly directory: string;
 }
 
 /**
@@ -113,7 +182,7 @@ export interface EagerBuiltinPlugin extends BuiltinPluginBase {
  *
  * Фабрика начинает `import()` в тот же миг, когда её позвали (тело `async`-функции выполняется
  * синхронно до первого `await`), — поэтому вызов всех ленивых фабрик подряд даёт столько же
- * параллельных запросов, сколько давал общий `Promise.all` до появления карты, а не цепочку.
+ * параллельных запросов, сколько плагинов, а не цепочку.
  */
 export interface LazyBuiltinPlugin extends BuiltinPluginBase {
   readonly loading: 'lazy';
@@ -135,142 +204,74 @@ export type BuiltinPluginEntry = EagerBuiltinPlugin | LazyBuiltinPlugin;
  * руками; здесь это НАША сборка, и «плагин из состава не разобрался» означает не плохие
  * данные, а сломанное приложение. Падает оно при загрузке модуля, то есть в первом же тесте.
  */
-function builtinManifest(raw: unknown): BuiltinPluginManifest {
+function builtinManifest(raw: unknown, directory: string): BuiltinPluginManifest {
   const parsed = parsePluginManifestValue(raw, { kind: 'builtin' }, { builder: BUILDER_VERSION });
   if (!parsed.ok) {
-    const id = (raw as { id?: unknown }).id;
     throw new Error(
-      `манифест встроенного плагина «${typeof id === 'string' ? id : '?'}» не разбирается: ` +
-        parsed.problem.message
+      `манифест встроенного плагина «${directory}» не разбирается: ${parsed.problem.message}`
     );
   }
   return parsed.manifest;
 }
 
 /**
- * Собирает запись статического плагина, сверив способ доставки с манифестом.
+ * Запись плагина по его каталогу: манифест сведён с тем, как приезжает код.
  *
- * Конструктор, а не литерал, ровно ради этой сверки: синхронность фабрики и слово `eager`
- * в манифесте — одно и то же утверждение, и разойдись они, состав получил бы либо промис
- * там, где его не ждут, либо обещание отдельного файла, которого нет. Компилятор связать их
- * не может: `builtin.loading` приезжает из JSON строкой.
+ * Сверка — ради того, что компилятор связать не может: `builtin.loading` приезжает из JSON
+ * строкой, а способ доставки — это то, в каком наборе оказался барель. Разойдись они, состав
+ * получил бы промис там, где его не ждут, либо обещание отдельного файла, которого нет.
  */
-function eagerBuiltin(
-  raw: unknown,
-  create: (options: BuiltinPluginsOptions) => Plugin
-): EagerBuiltinPlugin {
-  const manifest = builtinManifest(raw);
-  if (manifest.builtin.loading !== 'eager') {
-    throw new Error(`«${manifest.id}»: манифест объявляет «lazy», а запись создаёт синхронно`);
+function builtinEntry(directory: string, raw: unknown): BuiltinPluginEntry {
+  const manifest = builtinManifest(raw, directory);
+  const eager = EAGER_FACTORIES[directory];
+  const load = LAZY_MODULES[`../../plugins/${directory}/index.ts`];
+  if (eager !== undefined && load !== undefined) {
+    throw new Error(`«${manifest.id}»: статический плагин не исключён из обхода ленивых`);
   }
-  return { manifest, loading: 'eager', create };
-}
-
-/** То же для ленивого: фабрика обязана быть асинхронной, манифест — говорить `lazy`. */
-function lazyBuiltin(
-  raw: unknown,
-  create: (options: BuiltinPluginsOptions) => Promise<Plugin>
-): LazyBuiltinPlugin {
-  const manifest = builtinManifest(raw);
+  if (eager !== undefined) {
+    if (manifest.builtin.loading !== 'eager') {
+      throw new Error(
+        `«${manifest.id}»: манифест объявляет «lazy», а плагин импортирован статически`
+      );
+    }
+    return {
+      manifest,
+      directory,
+      loading: 'eager',
+      create: (options) => eager(builtinPluginPorts(options)),
+    };
+  }
+  if (load === undefined) throw new Error(`«${manifest.id}»: в ${directory} нет бареля index.ts`);
   if (manifest.builtin.loading !== 'lazy') {
-    throw new Error(`«${manifest.id}»: манифест объявляет «eager», а запись грузит файлом`);
+    throw new Error(`«${manifest.id}»: манифест объявляет «eager», а плагин грузится файлом`);
   }
-  return { manifest, loading: 'lazy', create };
+  return {
+    manifest,
+    directory,
+    loading: 'lazy',
+    create: async (options) => {
+      const module = await load();
+      return module.default(builtinPluginPorts(options));
+    },
+  };
 }
 
-const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[]>([
-  // Точки расширения подставляются ЗДЕСЬ: плагин объявил их структурно (`plugins/base/files/host`),
-  // потому что `@reformer/builder-plugin-api` панелей и редакторов не отдаёт, а импортировать `@/shell` ему нельзя.
-  // Панель файлов приезжает своим файлом: композиции от неё нужны только идентификатор
-  // и словарь, и оба живут листами (`files/contract`, `files/messages`).
-  lazyBuiltin(filesManifest, async (options) => {
-    const files = await import('@/plugins/base/files');
-    return files.createFilesPlugin({
-      host: options.files,
-      panelPoint: PanelPoint,
-      editorPoint: EditorPoint,
-    });
-  }),
-  // Каталог кита плагин берёт из реестра служб сам; параметров здесь не осталось вовсе.
-  eagerBuiltin(validatorManifest, () => createSchemaValidatorPlugin({})),
-  // Приоритет 10 против 1 у временного `textarea` в плагине файлов: Monaco его вытесняет,
-  // но уступает структурному редактору схемы (100). Сам `TextEditor.tsx` при этом остаётся
-  // запасным путём — на случай, когда движок не загрузился. Ни реестра фокуса, ни хранилища
-  // снимков вида здесь нет: оба — возможности оболочки, и плагин берёт их из `ctx.services`.
-  // Редактор кода — самый тяжёлый плагин состава (Monaco целиком), и держало его в стартовом
-  // графе не поведение, а один импорт значения: порт брал идентификатор из бареля. Довод снят
-  // выносом идентификатора в `contract.ts`.
-  lazyBuiltin(monacoManifest, async (options) => {
-    const monaco = await import('@/plugins/base/editor-monaco');
-    return monaco.createMonacoEditorPlugin({ host: options.monaco });
-  }),
-  // Настройки выбора кита плагин берёт из реестра служб сам; параметров не осталось.
-  eagerBuiltin(kitsManifest, () => createKitsPlugin({})),
-  // Превью — два плагина. Хост (`preview`) знает, КАК показывать документ: правило выбора
-  // поверхности, состояния, живой вид; он общий для стеков. Поверхности формы ReFormer
-  // (`preview-runtime`) — знание стека. Портов у них нет: документы, записи рабочей области,
-  // загрузчик модулей и кит оба берут возможностями.
-  lazyBuiltin(previewManifest, async () => {
-    const preview = await import('@/plugins/base/preview');
-    return preview.createPreviewPlugin();
-  }),
-  lazyBuiltin(previewRuntimeManifest, async () => {
-    const previewRuntime = await import('@/plugins/reformer/render');
-    return previewRuntime.createPreviewRuntimePlugin();
-  }),
-  // Приоритет 50: markdown забирает свои файлы у Monaco (10), потому что рендер — это то,
-  // зачем .md открывают чаще всего. Порядок сборки на исход не влияет и влиять не должен:
-  // при РАВНОМ приоритете победил бы зарегистрированный раньше, то есть Monaco, и предметный
-  // редактор не получил бы ни одного файла.
-  lazyBuiltin(markdownManifest, async (options) => {
-    const markdown = await import('@/plugins/base/editor-markdown');
-    return markdown.createMarkdownPlugin({ host: options.markdown });
-  }),
-  // Приоритет 100: структурный редактор забирает файл формы у Monaco, а Monaco остаётся
-  // для всего остального текста. Оба отвечают `canOpen` по содержимому пробы, а не по
-  // расширению, — потому и уживаются на одном `.json` без ветвления по имени файла.
-  lazyBuiltin(schemaEditorManifest, async () => {
-    const schemaEditor = await import('@/plugins/reformer/editor');
-    return schemaEditor.createSchemaEditorPlugin({ modelPoint: DocumentModelPoint });
-  }),
-  lazyBuiltin(pluginManagerManifest, async () => {
-    const pluginManager = await import('@/plugins/base/plugin-manager');
-    // Опций не осталось: каталог плагинов плагин берёт ПРИВИЛЕГИРОВАННОЙ службой из
-    // `ctx.services`, объявив право `plugins.manage` манифестом.
-    return pluginManager.createPluginManagerPlugin();
-  }),
-  // Опций нет ВОВСЕ: рабочую область ассистент собирает из возможностей сам, и порта
-  // у него не осталось ни одного члена.
-  lazyBuiltin(aiManifest, async () => {
-    const ai = await import('@/plugins/reformer/ai');
-    return ai.createAiPlugin();
-  }),
-  // Опций нет ни у кодогена, ни у шаблонов: сохранение уехало в привилегированную службу.
-  lazyBuiltin(codegenManifest, async () => {
-    const codegen = await import('@/plugins/reformer/codegen');
-    return codegen.createCodegenPlugin();
-  }),
-  lazyBuiltin(templatesManifest, async () => {
-    const templates = await import('@/plugins/reformer/templates');
-    return templates.createTemplatesPlugin();
-  }),
-  // Демо-стек: другой формат схемы, другой рендер, свой экспорт. В полный профиль ReFormer
-  // не входит — его собирает профиль `plain.builder` поверх основы.
-  lazyBuiltin(plainManifest, async () => {
-    const plain = await import('@/plugins/plain/demo');
-    return plain.createPlainPlugin();
-  }),
-  // Домен RJSF: форма react-jsonschema-form, нарисованная темой из активного кита. В полный
-  // профиль ReFormer не входит — его собирает профиль `rjsf.builder` поверх основы и китов.
-  lazyBuiltin(rjsfEditorManifest, async () => {
-    const editor = await import('@/plugins/rjsf/editor');
-    return editor.createRjsfEditorPlugin();
-  }),
-  lazyBuiltin(rjsfRenderManifest, async () => {
-    const render = await import('@/plugins/rjsf/render');
-    return render.createRjsfRenderPlugin();
-  }),
-]);
+const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze(
+  Object.entries(MANIFESTS)
+    .map(([file, raw]) => builtinEntry(directoryOf(file), raw))
+    .sort((a, b) => a.directory.localeCompare(b.directory))
+);
+
+// Обратная сверка: папка с барелем, но без манифеста, — плагин, который не попадёт в состав
+// никогда и молча. Статического без манифеста ловит та же проверка.
+for (const directory of [
+  ...Object.keys(LAZY_MODULES).map(directoryOf),
+  ...Object.keys(EAGER_FACTORIES),
+]) {
+  if (!ENTRIES.some((entry) => entry.directory === directory)) {
+    throw new Error(`в «plugins/${directory}» есть барель плагина, но нет manifest.json`);
+  }
+}
 
 /**
  * Встроенный набор, адресуемый ИМЕНЕМ: из него собирает состав `compose.fromProfile`.
@@ -282,6 +283,10 @@ const ENTRIES: readonly BuiltinPluginEntry[] = Object.freeze<BuiltinPluginEntry[
 export const BUILTIN_PLUGINS: ReadonlyMap<string, BuiltinPluginEntry> = new Map(
   ENTRIES.map((entry) => [entry.manifest.id, entry])
 );
+if (BUILTIN_PLUGINS.size !== ENTRIES.length) {
+  // `new Map` на повторный ключ молча перезаписывает — один плагин исчез бы из состава.
+  throw new Error('два встроенных плагина объявили один идентификатор');
+}
 
 /**
  * Манифесты состава — каталог встроенных, каким его видит всё, что не создаёт плагины.
@@ -298,10 +303,6 @@ export const BUILTIN_MANIFESTS: readonly BuiltinPluginManifest[] = Object.freeze
 
 /**
  * Плагины, приезжающие отдельным файлом.
- *
- * ВЫВОДИТСЯ из карты, а не перечисляется рядом: прежняя редакция держала второй список
- * руками, и разойтись он мог молча — списком пользуются проверки, а грузит плагины тело
- * фабрик. Теперь расхождение невыразимо.
  *
  * Список нужен храповику «стартовый граф не импортирует барель ленивого плагина значением»
  * (`builtin-plugins.test`): статический импорт любого из этих барелей возвращает плагин
@@ -322,53 +323,28 @@ export const LAZY_PLUGIN_IDS: readonly string[] = Object.freeze(
 export const BUILTIN_PLUGIN_NAMESPACE = 'reformer.';
 
 /**
- * Каталог каждого встроенного плагина внутри `src/plugins`: `домен/плагин`.
- *
- * Пока плагины лежали плоско, каталог выводился из идентификатора снятием префикса. С раскладкой
- * по доменам это правило кончилось: `reformer.editor-schema` лежит в `reformer/editor`, а
- * `reformer.preview` — в `base/preview`, и никакое преобразование строки этого не знает. Поэтому
- * каталог записан явно — рядом с картой, где стоят литералы `import()` тех же каталогов, — а тест
- * сверяет, что в каждом лежит манифест ровно с этим идентификатором.
- */
-const BUILTIN_DIRECTORIES: ReadonlyMap<string, string> = new Map([
-  ['reformer.files', 'base/files'],
-  ['reformer.editor-monaco', 'base/editor-monaco'],
-  ['reformer.editor-markdown', 'base/editor-markdown'],
-  ['reformer.plugin-manager', 'base/plugin-manager'],
-  ['reformer.preview', 'base/preview'],
-  ['reformer.kits', 'kits/registry'],
-  ['reformer.editor-schema', 'reformer/editor'],
-  ['reformer.preview-runtime', 'reformer/render'],
-  ['reformer.validator-schema', 'reformer/validator'],
-  ['reformer.codegen', 'reformer/codegen'],
-  ['reformer.templates', 'reformer/templates'],
-  ['reformer.ai', 'reformer/ai'],
-  ['reformer.plain', 'plain/demo'],
-  ['reformer.rjsf.editor', 'rjsf/editor'],
-  ['reformer.rjsf.render', 'rjsf/render'],
-]);
-
-/**
  * Каталог плагина по его идентификатору: `reformer.ai` → `reformer/ai`.
  *
+ * Никакое преобразование строки этого не знает: `reformer.editor-schema` лежит в
+ * `reformer/editor`, а `reformer.preview` — в `base/preview`. Каталог — это путь, по которому
+ * найден манифест с таким идентификатором.
+ *
  * Всё, что адресует ПАПКУ — словарь локали, храповик стартового графа, границу «оболочка не
- * знает стека», — берёт её здесь, а не копией у каждого зовущего: вторая запись отстала бы
- * от первой на следующем переезде.
+ * знает стека», — берёт её здесь, а не копией у каждого зовущего.
  *
  * Незнакомое имя возвращается как есть: у плагина каталога проекта идентификатор и папка
  * совпадают.
  */
 export function builtinPluginDirectory(id: string): string {
-  return BUILTIN_DIRECTORIES.get(id) ?? id;
+  return BUILTIN_PLUGINS.get(id)?.directory ?? id;
 }
 
 /**
  * Прежние имена встроенных плагинов → нынешние.
  *
- * ВЫВОДИТСЯ из карты, а не перечисляется руками, и это то же решение, что у {@link LAZY_PLUGIN_IDS}:
- * переименование было механическим (`ai` → `reformer.ai`), значит второй, написанный от руки
- * список разошёлся бы с первым молча — а «молча» здесь означает состав, собранный не тот,
- * который человек описал в конфиге.
+ * ВЫВОДИТСЯ из карты, а не перечисляется руками: переименование было механическим
+ * (`ai` → `reformer.ai`), значит второй, написанный от руки список разошёлся бы с первым молча —
+ * а «молча» здесь означает состав, собранный не тот, который человек описал в конфиге.
  *
  * Что все встроенные живут в пространстве имён — утверждение ТЕСТА рядом, а не догадка,
  * поэтому пересечься с нынешним именем псевдоним не может. Отбор по префиксу тут не страховка

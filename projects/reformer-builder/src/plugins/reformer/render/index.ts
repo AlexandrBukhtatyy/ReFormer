@@ -9,6 +9,8 @@
  * @module plugins/reformer/render
  */
 
+import { createPreviewRuntimePlugin } from './plugin';
+
 export {
   builtinSurfaces,
   createPreviewRuntimePlugin,
@@ -33,3 +35,12 @@ export type {
 export { COMPILING_SURFACE_ID } from './compiling/surface';
 export { RUNTIME_SURFACE_ID } from './runtime/surface';
 export { MODEL_PANEL_ID } from './ui/ModelPanel';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Портов оболочки плагину не нужно: всё он берёт возможностями в `activate`.
+ */
+export default function builtin() {
+  return createPreviewRuntimePlugin();
+}

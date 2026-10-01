@@ -23,6 +23,9 @@
  * @module plugins/base/editor-markdown/index
  */
 
+import { createMarkdownPlugin } from './plugin';
+import type { MarkdownHost } from './host';
+
 export {
   createMarkdownPlugin,
   MARKDOWN_EDITOR_ID,
@@ -34,3 +37,12 @@ export type { MarkdownDocument, MarkdownHost } from './host';
 export { isMarkdown, MARKDOWN_MEDIA_TYPE } from './render/markdown';
 export { MARKDOWN_VIEW_SETTING, type MarkdownView } from './state/view';
 export { MARKDOWN_MESSAGES } from './messages';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Плагину нужен порт предпросмотра markdown.
+ */
+export default function builtin(ports: { readonly markdown: MarkdownHost }) {
+  return createMarkdownPlugin({ host: ports.markdown });
+}

@@ -8,6 +8,8 @@
  * @module plugins/kits/registry/index
  */
 
+import { createKitsPlugin } from './plugin';
+
 export { createKitsPlugin, KITS_PLUGIN_ID } from './plugin';
 export type { KitsPluginOptions } from './plugin';
 export { createKitsService, KIT_SETTINGS_KEY } from './service';
@@ -15,3 +17,12 @@ export type { ContributedKit, KitProblem, KitsServiceOptions, OwnedKitsService }
 export { createKitFrame } from './frame';
 export { BUILTIN_KIT, loadBuiltinCatalog } from './builtin';
 export type { KitsSettings, Translate } from './host';
+
+/**
+ * Фабрика состава: так плагин создаётся при сборке приложения. Её находит по папке
+ * `application/composer/builtin-plugins` и зовёт с набором портов оболочки.
+ * Портов оболочки плагину не нужно: всё он берёт возможностями в `activate`.
+ */
+export default function builtin() {
+  return createKitsPlugin({});
+}
