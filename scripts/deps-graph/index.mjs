@@ -38,15 +38,17 @@ const HELP = `Граф зависимостей монорепозитория �
   npm run deps:graph [-- <проект>...] [опции]
 
 Без проекта — весь монорепозиторий: узел — воркспейс, ребро — импорты из одного
-в другой. С проектом — его устройство: узел — папка до заданной глубины, плюс
-пакеты монорепозитория, от которых он зависит. Проект задаётся именем пакета
+в другой. С проектом — его устройство: узел — папка до заданной глубины, пакеты
+монорепозитория, от которых она зависит, — синим в узле. Проект задаётся именем пакета
 (@reformer/builder), путём (projects/reformer-builder) или именем каталога.
 
 Опции:
   --depth <n>      глубина папок-узлов от корня проекта (по умолчанию ${DEFAULT_DEPTH}, у билдера 4)
   --focus <regex>  оставить узлы, чей путь или имя совпали, и их соседей
-  --npm            показать пакеты npm и встроенные модули Node
+  --npm            учитывать пакеты npm и встроенные модули Node
   --with-tests     учитывать тесты: *.test.*, testing/, каталоги tests/ рядом с src
+  --detailed       для проекта — без упрощений: пакеты узлами со стрелками, каждое
+                   ребро отдельно, группы из одних ресурсов
   --modules        для проекта — ещё и граф по отдельным модулям (крупный; --focus
                    действует и на него)
   --json           сохранить сырой результат dependency-cruiser
@@ -70,6 +72,7 @@ try {
       focus: { type: 'string' },
       npm: { type: 'boolean', default: false },
       'with-tests': { type: 'boolean', default: false },
+      detailed: { type: 'boolean', default: false },
       modules: { type: 'boolean', default: false },
       json: { type: 'boolean', default: false },
       out: { type: 'string' },
@@ -200,7 +203,14 @@ async function project(ws) {
   for (const warning of warnings) console.log(`  ! ${warning}`);
   if (values.json) writeJson(path.join(dir, 'cruise.json'), result);
 
-  const graph = projectGraph({ workspaces, collected: data, depth, npm: values.npm, focus });
+  const graph = projectGraph({
+    workspaces,
+    collected: data,
+    depth,
+    npm: values.npm,
+    detailed: values.detailed,
+    focus,
+  });
   const modules = data.files.filter(isCode).length;
   const groups = graph.nodes.filter((n) => !n.cluster?.startsWith('ext:')).length;
   const subtitle = [
