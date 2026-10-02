@@ -1,23 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  applyRjsfOp,
   parseRjsfForm,
   printRjsfForm,
   RJSF_PROVIDER_ID,
   sampleForm,
   type RjsfForm,
-  type RjsfOp,
   type RjsfProblemCode,
 } from '@/plugins/rjsf/core';
 import {
   splitDiagnosticCode,
-  type CatalogJson,
-  type DocumentModelsService,
-  type DocumentsService,
   type KitsService,
-  type ModelDocumentHandle,
-  type ResourceId,
-  type WorkspaceFilesService,
+  type WhenContext,
 } from '@reformer/builder-plugin-api';
 import {
   addRjsfField,
@@ -25,120 +18,51 @@ import {
   createRjsfForm,
   exportRjsfForm,
   rjsfCommands,
-  type RjsfServices,
 } from './commands';
-import { RJSF_EDITOR_PLUGIN_ID, RJSF_REDO_COMMAND_ID, RJSF_UNDO_COMMAND_ID } from './contract';
+import {
+  RJSF_EDITOR_PLUGIN_ID,
+  RJSF_INSPECTOR_PANEL_ID,
+  RJSF_REDO_COMMAND_ID,
+  RJSF_UNDO_COMMAND_ID,
+} from './contract';
 import { RJSF_EDITOR_MESSAGES } from './messages';
+import { rjsfInspectorPanel, rjsfPanelVisible } from './plugin';
 import { createRjsfModelProvider, isRjsfResource } from './provider';
+import {
+  createFakeKits,
+  createFakeRjsfHandle,
+  createFakeRjsfWorkspace,
+  fakeKitRecord,
+  fakeProbe,
+  fakeRef,
+} from './testing';
 import { availableWidgets, createRjsfValidator, locateNames } from './validator';
+import { createRjsfViewStore, rjsfViewCommands, rjsfViewMenuItems } from './view';
 
-const ref = (name: string, mediaType = 'application/json') => ({
-  id: `mem:${name}`,
-  sourceId: 'mem',
-  path: name,
-  name,
-  kind: 'file' as const,
-  mediaType,
-});
-const peek = (text: string) => ({ text: () => Promise.resolve(text), peek: () => text });
+const DOCUMENT = 'mem:contact.rjsf.json';
 
-/** Ручка модели в объёме команд: модель, `apply` через операции домена, история. */
-function fakeHandle(initial: RjsfForm, name = 'contact.rjsf.json') {
-  let model = initial;
-  const undone: RjsfForm[] = [];
-  const history: RjsfForm[] = [];
-  const handle = {
-    document: { providerId: RJSF_PROVIDER_ID, ref: ref(name), getModel: () => model },
-    apply: (op: RjsfOp) => {
-      history.push(model);
-      model = applyRjsfOp(model, op).model;
-      undone.length = 0;
-      return { status: 'applied' };
-    },
-    canUndo: () => history.length > 0,
-    canRedo: () => undone.length > 0,
-    undo: () => {
-      const previous = history.pop();
-      if (previous === undefined) return false;
-      undone.push(model);
-      model = previous;
-      return true;
-    },
-    redo: () => {
-      const next = undone.pop();
-      if (next === undefined) return false;
-      history.push(model);
-      model = next;
-      return true;
-    },
-  };
-  return { handle: handle as unknown as ModelDocumentHandle<unknown>, model: () => model };
-}
-
-function fakeServices(handle: ModelDocumentHandle<unknown> | null = null) {
-  const written = new Map<ResourceId, string>();
-  const opened: ResourceId[] = [];
-  const save = vi.fn(() => Promise.resolve(true));
-  const documents = {
-    activeResource: () => (handle === null ? null : 'mem:contact.rjsf.json'),
-    writeText: (id: ResourceId, text: string) => {
-      written.set(id, text);
-      return Promise.resolve();
-    },
-    open: (id: ResourceId) => {
-      opened.push(id);
-      return Promise.resolve();
-    },
-  } as unknown as DocumentsService;
-  const files = {
-    projectRoot: () => 'mem:',
-    parentOf: () => 'mem:',
-    resolve: (dir: string, name: string) => `${dir}${name}`,
-    exists: (id: ResourceId) => Promise.resolve(id === 'mem:contact.rjsf.json'),
-    canWrite: () => true,
-    refresh: () => Promise.resolve(),
-  } as unknown as WorkspaceFilesService;
-  const models = { handleOf: () => handle } as DocumentModelsService;
-  const services: RjsfServices = {
-    documents: () => documents,
-    files: () => files,
-    models: () => models,
-    save: () => ({ save }),
-  };
-  return { services, written, opened, save };
-}
-
-/** Служба китов в объёме валидатора: каталог и подписка на смену. */
-function fakeKits(components: CatalogJson['components']) {
-  const listeners = new Set<() => void>();
-  let catalog: CatalogJson = { version: '2.1', components };
-  const kits = {
-    catalogJson: () => catalog,
-    onDidChange: (cb: () => void) => {
-      listeners.add(cb);
-      return { dispose: () => listeners.delete(cb) };
-    },
-  } as unknown as KitsService;
+function context(activeResourceKind: string | null): WhenContext {
   return {
-    kits,
-    load(next: CatalogJson['components']): void {
-      catalog = { version: '2.1', components: next };
-      for (const cb of listeners) cb();
-    },
+    focus: 'none',
+    activeEditorId: DOCUMENT,
+    activeResourceKind,
+    hasSelection: false,
+    previewMode: null,
   };
 }
-
-const record = (name: string, role = 'field') =>
-  ({ name, role, propsSchema: {} }) as CatalogJson['components'][number];
 
 describe('провайдер модели', () => {
   it('берётся за форму домена по содержимому, а не по расширению', () => {
     const text = printRjsfForm(sampleForm());
 
-    expect(isRjsfResource(ref('form.json'), peek(text))).toBe(true);
-    expect(isRjsfResource(ref('form.json'), peek('{"version":"1.0","root":{}}'))).toBe(false);
-    expect(isRjsfResource(ref('form.json'), peek('{"$schema":"plain-form/1"}'))).toBe(false);
-    expect(isRjsfResource(ref('notes.md', 'text/markdown'), peek(text))).toBe(false);
+    expect(isRjsfResource(fakeRef('form.json'), fakeProbe(text))).toBe(true);
+    expect(isRjsfResource(fakeRef('form.json'), fakeProbe('{"version":"1.0","root":{}}'))).toBe(
+      false
+    );
+    expect(isRjsfResource(fakeRef('form.json'), fakeProbe('{"$schema":"plain-form/1"}'))).toBe(
+      false
+    );
+    expect(isRjsfResource(fakeRef('notes.md', 'text/markdown'), fakeProbe(text))).toBe(false);
   });
 
   it('печать разбора — тот же текст', () => {
@@ -147,13 +71,23 @@ describe('провайдер модели', () => {
 
     expect(provider.print(provider.parse(text))).toBe(text);
   });
+
+  it('операция называет, куда переехало выделение: платформа берёт это из результата', () => {
+    const provider = createRjsfModelProvider();
+    const added = provider.apply(sampleForm(), {
+      type: 'add-field',
+      params: { name: 'email', field: { type: 'string' } },
+    });
+
+    expect(added.focus).toBe('email');
+  });
 });
 
 describe('валидатор', () => {
   const validate = (form: RjsfForm, kits?: KitsService) => {
     const text = printRjsfForm(form);
     const found = createRjsfValidator(() => kits).validate!({
-      doc: { ...ref('form.json'), kind: 'model', providerId: RJSF_PROVIDER_ID } as never,
+      doc: { ...fakeRef('form.json'), kind: 'model', providerId: RJSF_PROVIDER_ID } as never,
       text: () => text,
       model: () => parseRjsfForm(text),
     });
@@ -210,12 +144,12 @@ describe('валидатор', () => {
       ...sampleForm(),
       uiSchema: { agree: { 'ui:widget': 'Switch' }, age: { 'ui:widget': 'Knob' } },
     };
-    const fake = fakeKits([]);
+    const fake = createFakeKits([]);
     const codes = () =>
       validate(form, fake.kits).found.map((d) => splitDiagnosticCode(d.code).code);
 
     expect(codes()).toEqual([]);
-    fake.load([record('Switch'), record('Box', 'container')]);
+    fake.load([fakeKitRecord('Switch'), fakeKitRecord('Box', 'container')]);
     expect(codes()).toEqual(['widget-unknown']);
     // Контейнер кита виджетом не бывает.
     expect(availableWidgets(fake.kits)?.has('Box')).toBe(false);
@@ -224,12 +158,12 @@ describe('валидатор', () => {
   });
 
   it('смена кита перепроверяет документы', () => {
-    const fake = fakeKits([]);
+    const fake = createFakeKits([]);
     const validator = createRjsfValidator(() => fake.kits);
     const changed = vi.fn();
     validator.onDidChangeInputs!(changed);
 
-    fake.load([record('Switch')]);
+    fake.load([fakeKitRecord('Switch')]);
 
     expect(changed).toHaveBeenCalledTimes(1);
   });
@@ -273,7 +207,7 @@ describe('пути имён в тексте', () => {
 
 describe('команды', () => {
   it('новая форма ложится под свободным именем и открывается', async () => {
-    const { services, written, opened } = fakeServices();
+    const { services, written, opened } = createFakeRjsfWorkspace();
     const id = await createRjsfForm(services);
 
     expect(id).toBe('mem:contact-2.rjsf.json');
@@ -282,26 +216,39 @@ describe('команды', () => {
   });
 
   it('новое поле — операцией через ручку модели, со свободным именем', () => {
-    const fake = fakeHandle(sampleForm());
-    const { services } = fakeServices(fake.handle);
+    const fake = createFakeRjsfHandle(sampleForm());
+    const { services } = createFakeRjsfWorkspace({ handles: [fake.handle] });
 
-    expect(addRjsfField(services, 'mem:contact.rjsf.json')).toBe('field1');
+    expect(addRjsfField(services, DOCUMENT)).toBe('field1');
     expect(Object.keys(fake.model().schema.properties).at(-1)).toBe('field1');
   });
 
+  it('новое поле становится выбранным, а отмена возвращает прежний выбор', () => {
+    const fake = createFakeRjsfHandle(sampleForm());
+    const { services } = createFakeRjsfWorkspace({ handles: [fake.handle] });
+    fake.handle.setSelection(['age']);
+
+    addRjsfField(services, DOCUMENT);
+    // Выделение переносит сама операция (`focus`): панель свойств сразу показывает новое поле.
+    expect(fake.selection()).toEqual(['field1']);
+
+    fake.handle.undo();
+    expect(fake.selection()).toEqual(['age']);
+  });
+
   it('экспорт пишет Form.tsx рядом и сохраняет его привилегированной службой', async () => {
-    const fake = fakeHandle(sampleForm());
-    const { services, written, save } = fakeServices(fake.handle);
-    const outcome = await exportRjsfForm(services, 'mem:contact.rjsf.json');
+    const fake = createFakeRjsfHandle(sampleForm());
+    const { services, written, saved } = createFakeRjsfWorkspace({ handles: [fake.handle] });
+    const outcome = await exportRjsfForm(services, DOCUMENT);
 
     expect(outcome).toEqual({ status: 'written', id: 'mem:Form.tsx', saved: true });
     expect(written.get('mem:Form.tsx')).toContain('export function ContactForm(');
     expect(written.get('mem:Form.tsx')).toContain("from '@rjsf/core'");
-    expect(save).toHaveBeenCalledWith(['mem:Form.tsx']);
+    expect(saved).toEqual([['mem:Form.tsx']]);
   });
 
   it('чужой документ не экспортируется', async () => {
-    const { services } = fakeServices(null);
+    const { services } = createFakeRjsfWorkspace();
 
     expect(await exportRjsfForm(services, 'mem:x.json')).toEqual({
       status: 'refused',
@@ -310,14 +257,14 @@ describe('команды', () => {
   });
 
   it('отмена и повтор идут через историю ручки активного документа', () => {
-    const fake = fakeHandle(sampleForm());
-    const { services } = fakeServices(fake.handle);
+    const fake = createFakeRjsfHandle(sampleForm());
+    const { services } = createFakeRjsfWorkspace({ handles: [fake.handle] });
     const commands = new Map(rjsfCommands(services).map((command) => [command.id, command]));
     const undo = commands.get(RJSF_UNDO_COMMAND_ID)!;
     const redo = commands.get(RJSF_REDO_COMMAND_ID)!;
 
     expect(undo.enabled?.({} as never)).toBe(false);
-    addRjsfField(services, 'mem:contact.rjsf.json');
+    addRjsfField(services, DOCUMENT);
     expect(undo.run()).toBe(true);
     expect(fake.model().schema.properties.field1).toBeUndefined();
     expect(redo.run()).toBe(true);
@@ -329,5 +276,54 @@ describe('команды', () => {
   it('имя компонента из имени файла', () => {
     expect(componentNameOf('contact.rjsf.json')).toBe('ContactForm');
     expect(componentNameOf('sign-up.rjsf.json')).toBe('SignUpForm');
+  });
+});
+
+describe('панель свойств поля', () => {
+  const { services } = createFakeRjsfWorkspace();
+  const panel = rjsfInspectorPanel({
+    services,
+    kits: () => undefined,
+    useTranslate: () => (k) => k,
+  });
+
+  it('стоит в правом доке под своим именем', () => {
+    expect(panel.id).toBe(RJSF_INSPECTOR_PANEL_ID);
+    expect(panel.slot).toBe('panel.right');
+    // Значок обязателен: без него рейл рисует первую букву заголовка.
+    expect(panel.icon).toBeDefined();
+    expect(panel.when).toBe(rjsfPanelVisible);
+  });
+
+  it('видна только на форме домена: на чужом JSON и на markdown её нет', () => {
+    expect(rjsfPanelVisible(context(RJSF_PROVIDER_ID))).toBe(true);
+    expect(rjsfPanelVisible(context('form.schema'))).toBe(false);
+    expect(rjsfPanelVisible(context('application/json'))).toBe(false);
+    expect(rjsfPanelVisible(context(null))).toBe(false);
+  });
+});
+
+describe('словарь: подписи команд, кнопок и панели', () => {
+  it('каждый ключ заголовка есть на обеих локалях', () => {
+    // Проверка состава поднимает только профиль ReFormer, и забытый ключ домена RJSF доехал бы
+    // до человека маркером промаха при зелёном прогоне.
+    const { services } = createFakeRjsfWorkspace();
+    const view = createRjsfViewStore({ hasLive: () => true });
+    const deps = { view, hasLive: () => true, activeIsRjsf: () => true };
+    const keys = [
+      ...rjsfCommands(services).map((command) => command.titleKey),
+      ...rjsfViewCommands(deps).map((command) => command.titleKey),
+      ...rjsfViewMenuItems(deps).map((item) =>
+        item.value.kind === 'item' ? item.value.titleKey : undefined
+      ),
+      rjsfInspectorPanel({ services, kits: () => undefined, useTranslate: () => (k) => k })
+        .titleKey,
+    ];
+
+    expect(keys.every((key) => typeof key === 'string')).toBe(true);
+    for (const key of keys) {
+      expect(RJSF_EDITOR_MESSAGES.ru![key!], `ru: ${key}`).toBeDefined();
+      expect(RJSF_EDITOR_MESSAGES.en![key!], `en: ${key}`).toBeDefined();
+    }
   });
 });

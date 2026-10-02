@@ -189,6 +189,24 @@ describe('операции', () => {
     expectRoundTrip(model, { type: 'set-title', params: { title: 'Анкета' } });
   });
 
+  it('выделение переносят только операции, после которых прежний адрес не годится', () => {
+    const focusOf = (op: RjsfOp) => applyRjsfOp(form, op).focus;
+
+    // Новое поле и новое имя — адреса, которых до операции не было.
+    expect(
+      focusOf({ type: 'add-field', params: { name: 'email', field: { type: 'string' } } })
+    ).toBe('email');
+    expect(focusOf({ type: 'rename-field', params: { name: 'name', to: 'fullName' } })).toBe(
+      'fullName'
+    );
+    // Остальные молчат: выделение остаётся там, где его поставил человек.
+    expect(focusOf({ type: 'rename-field', params: { name: 'name', to: 'name' } })).toBeUndefined();
+    expect(focusOf({ type: 'remove-field', params: { name: 'age' } })).toBeUndefined();
+    expect(focusOf({ type: 'move-field', params: { name: 'age', index: 0 } })).toBeUndefined();
+    expect(focusOf({ type: 'set-field', params: { name: 'age', required: true } })).toBeUndefined();
+    expect(focusOf({ type: 'set-title', params: { title: 'Анкета' } })).toBeUndefined();
+  });
+
   it('отказы называют причину', () => {
     expect(() =>
       applyRjsfOp(form, { type: 'add-field', params: { name: 'name', field: { type: 'string' } } })

@@ -72,6 +72,12 @@ export type RjsfOp =
 export interface RjsfApplyResult {
   readonly model: RjsfForm;
   readonly inverse: RjsfOp;
+  /**
+   * Куда переехало выделение — имя поля. Называют его только операции, после которых прежний
+   * адрес не годится: добавление родило поле, переименование сменило ему имя. Остальные молчат,
+   * и выделение остаётся где было.
+   */
+  readonly focus?: string;
 }
 
 const ORDER_KEY = 'ui:order';
@@ -190,7 +196,7 @@ export function applyRjsfOp(form: RjsfForm, op: RjsfOp): RjsfApplyResult {
         ...(ui !== undefined ? { fields: { [name]: ui } } : {}),
         ...(joinsOrder ? { order: insertAt(order ?? [], at?.order, name) } : {}),
       });
-      return { model, inverse: { type: 'remove-field', params: { name } } };
+      return { model, inverse: { type: 'remove-field', params: { name } }, focus: name };
     }
 
     case 'remove-field': {
@@ -250,7 +256,11 @@ export function applyRjsfOp(form: RjsfForm, op: RjsfOp): RjsfApplyResult {
         ...(ui !== undefined ? { fields: { [name]: null, [to]: ui } } : {}),
         ...(order !== undefined ? { order: order.map((key) => (key === name ? to : key)) } : {}),
       });
-      return { model, inverse: { type: 'rename-field', params: { name: to, to: name } } };
+      return {
+        model,
+        inverse: { type: 'rename-field', params: { name: to, to: name } },
+        focus: to,
+      };
     }
 
     case 'move-field': {

@@ -1,5 +1,5 @@
 /**
- * Редактор домена RJSF: провайдер модели, валидатор, редактор формы и команды.
+ * Редактор домена RJSF: провайдер модели, валидатор, редактор формы, панель свойств поля и команды.
  *
  * @module plugins/rjsf/editor
  */
@@ -11,8 +11,13 @@ export {
   RJSF_ADD_FIELD_COMMAND_ID,
   RJSF_EDITOR_ID,
   RJSF_EXPORT_COMMAND_ID,
+  RJSF_FORM_ITEM_ID,
+  RJSF_INSPECTOR_PANEL_ID,
   RJSF_NEW_COMMAND_ID,
   RJSF_REDO_COMMAND_ID,
+  RJSF_SHOW_FORM_COMMAND_ID,
+  RJSF_SHOW_STRUCTURE_COMMAND_ID,
+  RJSF_STRUCTURE_ITEM_ID,
   RJSF_UNDO_COMMAND_ID,
   RJSF_VALIDATOR_ID,
 } from './contract';

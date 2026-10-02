@@ -2,7 +2,8 @@
  * Домен RJSF поверх основы (`rjsf.builder`) — настоящим `boot`.
  *
  * Основа, реестр китов и два плагина домена: редактор (провайдер модели, валидатор, редактор,
- * команды) и рендер (поверхность превью с темой из кита). Ни одного плагина стека ReFormer:
+ * панель свойств поля, команды) и рендер (поверхность превью с темой из кита). Ни одного плагина
+ * стека ReFormer:
  * киты — платформа, и RJSF берёт тот же активный кит, что рисует формы ReFormer.
  *
  * Отдельно — совмещённый состав: ReFormer, демо-стек и RJSF в одном приложении. Три формата
@@ -20,12 +21,26 @@ import { boot, type BuilderApp } from '@/shell/boot/boot';
 import type { ExtensionPoint, ResourceRef } from '@reformer/builder-plugin-api/internal';
 import {
   DocumentModelPoint,
+  EDITOR_TITLE_MENU,
   EditorPoint,
+  MenuPoint,
+  PanelPoint,
   PreviewSurfacePoint,
   ValidatorPoint,
+  type DocumentModelProvider,
 } from '@reformer/builder-plugin-api/internal';
 import { printPlainForm, sampleForm as samplePlainForm } from '@/plugins/plain/core';
-import { printRjsfForm, sampleForm as sampleRjsfForm } from '@/plugins/rjsf/core';
+import { printRjsfForm, sampleForm as sampleRjsfForm, type RjsfForm } from '@/plugins/rjsf/core';
+import {
+  RJSF_EDITOR_PLUGIN_ID,
+  RJSF_FORM_ITEM_ID,
+  RJSF_INSPECTOR_PANEL_ID,
+  RJSF_SHOW_FORM_COMMAND_ID,
+  RJSF_SHOW_STRUCTURE_COMMAND_ID,
+  RJSF_STRUCTURE_ITEM_ID,
+} from '@/plugins/rjsf/editor';
+import { createDocument } from '@/shell/platform/workspace/document';
+import { createModelDocument } from '@/shell/platform/workspace/model/model-document';
 import { createEditorProbe } from '@/shell/platform/workspace/model/provider';
 import { resolveEditor } from '@/shell/platform/ui/contributions/editors';
 import { createMemoryIndexedDb } from '@/shell/platform/workspace/storage/testing';
@@ -104,6 +119,42 @@ describe('boot на профиле rjsf.builder', () => {
     expect(owners(PreviewSurfacePoint)).toEqual(['reformer.rjsf.render']);
   });
 
+  it('свойства поля — панелью правого дока; справа в этом составе она единственная', async () => {
+    const started = await start();
+    const panels = started.extensions.get(PanelPoint);
+
+    const right = panels.filter((contribution) => contribution.value.slot === 'panel.right');
+    expect(right.map((contribution) => [contribution.pluginId, contribution.value.id])).toEqual([
+      [RJSF_EDITOR_PLUGIN_ID, RJSF_INSPECTOR_PANEL_ID],
+    ]);
+    // Вне формы домена панели нет — а с ней и правого рейла: показывать в нём нечего.
+    const visible = (activeResourceKind: string | null) =>
+      right[0]!.value.when?.({ ...started.whenContext.get(), activeResourceKind });
+    expect(visible('rjsf.form')).toBe(true);
+    expect(visible('text/markdown')).toBe(false);
+  });
+
+  it('переключатель вида — двумя кнопками полосы вкладок, и команды у них есть', async () => {
+    const started = await start();
+    // Ряд действий делят с основой: кнопки markdown стоят там же, но над своим редактором.
+    const items = started.extensions
+      .get(MenuPoint)
+      .filter(
+        (contribution) =>
+          contribution.pluginId === RJSF_EDITOR_PLUGIN_ID &&
+          contribution.value.kind === 'item' &&
+          contribution.value.menu === EDITOR_TITLE_MENU
+      );
+
+    expect(items.map((contribution) => contribution.id)).toEqual([
+      RJSF_STRUCTURE_ITEM_ID,
+      RJSF_FORM_ITEM_ID,
+    ]);
+    // Пункт без команды не рисуется вовсе — молча.
+    expect(started.commands.get(RJSF_SHOW_STRUCTURE_COMMAND_ID)).toBeDefined();
+    expect(started.commands.get(RJSF_SHOW_FORM_COMMAND_ID)).toBeDefined();
+  });
+
   it('форма RJSF открывается редактором домена, а не Monaco', async () => {
     const started = await start();
 
@@ -114,6 +165,63 @@ describe('boot на профиле rjsf.builder', () => {
         createEditorProbe(FORMATS.rjsf)
       )?.value.id
     ).toBe('rjsf.editor');
+  });
+});
+
+describe('выделение формы RJSF в НАСТОЯЩЕЙ ручке модели', () => {
+  /**
+   * Сквозная половина к двойнику `plugins/rjsf/editor/testing`: тот повторяет правила ручки
+   * («операция переносит выделение на `focus`, отмена возвращает его из снимка»), и только здесь
+   * видно, что настоящая ручка с настоящим провайдером домена ведёт себя так же.
+   */
+  async function open() {
+    const started = await start();
+    const provider = started.extensions.get(DocumentModelPoint)[0]!
+      .value as DocumentModelProvider<RjsfForm>;
+    const buffer = createDocument(ref('contact.rjsf.json'), FORMATS.rjsf, false).document;
+    return createModelDocument<RjsfForm>({ document: buffer, provider, writeText: () => {} });
+  }
+
+  it('новое поле и переименование переносят выделение, отмена возвращает прежнее', async () => {
+    const handle = await open();
+    handle.setSelection(['age']);
+
+    handle.apply({ type: 'add-field', params: { name: 'email', field: { type: 'string' } } });
+    expect(handle.document.getSelection()).toEqual(['email']);
+
+    handle.apply({ type: 'rename-field', params: { name: 'email', to: 'mail' } });
+    expect(handle.document.getSelection()).toEqual(['mail']);
+
+    expect(handle.undo()).toBe(true);
+    expect(handle.document.getSelection()).toEqual(['email']);
+    expect(handle.undo()).toBe(true);
+    expect(handle.document.getSelection()).toEqual(['age']);
+  });
+
+  it('удаление выделение не двигает — его снимает редактор, и отмена возвращает выбор', async () => {
+    const handle = await open();
+    handle.setSelection(['age']);
+
+    handle.apply({ type: 'remove-field', params: { name: 'age' } });
+    // Адрес повис: поля с таким именем больше нет. Редактор после удаления зовёт setSelection([]).
+    expect(handle.document.getSelection()).toEqual(['age']);
+    handle.setSelection([]);
+
+    expect(handle.undo()).toBe(true);
+    expect(handle.document.getModel().schema.properties.age).toBeDefined();
+    expect(handle.document.getSelection()).toEqual(['age']);
+  });
+
+  it('снимок выделения стабилен между изменениями: панель подписана на него ссылкой', async () => {
+    const handle = await open();
+    handle.setSelection(['age']);
+    const before = handle.document.getSelection();
+
+    // Правка без `focus` и повтор того же выделения ссылку не меняют.
+    handle.apply({ type: 'set-title', params: { title: 'Анкета' } });
+    handle.setSelection(['age']);
+
+    expect(handle.document.getSelection()).toBe(before);
   });
 });
 

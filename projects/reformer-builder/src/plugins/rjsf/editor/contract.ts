@@ -21,6 +21,15 @@ export const RJSF_ADD_FIELD_COMMAND_ID = 'rjsf.addField';
 export const RJSF_UNDO_COMMAND_ID = 'rjsf.undo';
 export const RJSF_REDO_COMMAND_ID = 'rjsf.redo';
 export const RJSF_EXPORT_COMMAND_ID = 'rjsf.export';
+export const RJSF_SHOW_STRUCTURE_COMMAND_ID = 'rjsf.showStructure';
+export const RJSF_SHOW_FORM_COMMAND_ID = 'rjsf.showForm';
+
+/** Кнопки переключателя вида в полосе вкладок. */
+export const RJSF_STRUCTURE_ITEM_ID = 'rjsf.title.structure';
+export const RJSF_FORM_ITEM_ID = 'rjsf.title.form';
+
+/** Панель свойств выбранного поля — в правом доке. */
+export const RJSF_INSPECTOR_PANEL_ID = 'rjsf.inspector';
 
 /** Имя файла новой формы и расширение, по которому её узнаёт дерево. */
 export const RJSF_FILE_SUFFIX = '.rjsf.json';
