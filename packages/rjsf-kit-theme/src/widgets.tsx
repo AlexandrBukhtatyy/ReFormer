@@ -20,40 +20,16 @@
  * - пустой ввод (`''`, `null`) — это «значения нет» (`options.emptyValue`): так обязательное
  *   поле остаётся незаполненным, а не заполненным пустой строкой.
  *
+ * Собственные пропсы контрола (`mask`, `rows`, `orientation`…) приходят из `ui:options` поля —
+ * те, что запись объявила в каталоге ({@link './resolve'.widgetOptionProps}). Всё, что мост
+ * досказывает сам, их перекрывает: схема и данные формы главнее подсказок отрисовки.
+ *
  * @module @reformer/rjsf-kit-theme/widgets
  */
 
 import { createElement, type ComponentType } from 'react';
 import { bindFieldProps, getFieldAdapter } from '@reformer/core';
 import { rangeSpec, type EnumOptionsType, type Widget, type WidgetProps } from '@rjsf/utils';
-
-/** Запись каталога, которой можно заменить виджет RJSF. */
-export interface KitWidgetCandidate {
-  /** Имя записи каталога. */
-  readonly component: string;
-  /** Пропсы, без которых запись в этой роли не годится (`Input` под паролем — `type: 'password'`). */
-  readonly props?: Readonly<Record<string, unknown>>;
-}
-
-/**
- * Виджет RJSF → записи каталога, которые его заменяют, по убыванию предпочтения. Сопоставление
- * по имени записи, а не экспорта: имя записи — общее у китов (`Checkbox`), экспорт — нет.
- */
-export const DEFAULT_WIDGET_CANDIDATES: Readonly<Record<string, readonly KitWidgetCandidate[]>> =
-  Object.freeze({
-    TextWidget: [{ component: 'Input' }],
-    PasswordWidget: [
-      { component: 'InputPassword' },
-      { component: 'Input', props: { type: 'password' } },
-    ],
-    TextareaWidget: [{ component: 'Textarea' }],
-    CheckboxWidget: [{ component: 'Checkbox' }, { component: 'Switch' }],
-    SelectWidget: [{ component: 'Select' }, { component: 'NativeSelect' }],
-    RadioWidget: [{ component: 'RadioGroup' }],
-    RangeWidget: [{ component: 'Slider' }],
-    UpDownWidget: [{ component: 'InputNumber' }],
-    DateWidget: [{ component: 'DatePicker' }],
-  });
 
 /** Контрол подписывает себя сам (чекбокс, переключатель) — маркер полей ReFormer. */
 export function isInlineLabel(component: unknown): boolean {
@@ -151,6 +127,11 @@ export interface KitWidgetOptions {
   readonly acceptsOptions?: boolean;
   /** Постоянные пропсы роли (`type: 'password'`). */
   readonly props?: Readonly<Record<string, unknown>>;
+  /**
+   * Пропсы контрола, которые поле берёт из `ui:options`, — по каталогу кита
+   * ({@link './resolve'.widgetOptionProps}). Не заданы — из `ui:options` контролу не уходит ничего.
+   */
+  readonly optionProps?: readonly string[];
 }
 
 /** Пустой ввод — «значения нет»: так RJSF отличает незаполненное обязательное поле. */
@@ -161,7 +142,7 @@ function emptyToValue(next: unknown, emptyValue: unknown): unknown {
 /** Виджет RJSF, который рисует поле кита. */
 export function kitWidget(
   Control: ComponentType<Record<string, unknown>>,
-  { name, slot, acceptsOptions, props: fixed }: KitWidgetOptions
+  { name, slot, acceptsOptions, props: fixed, optionProps = [] }: KitWidgetOptions
 ): Widget {
   const adapter = getFieldAdapter(Control);
   const inline = isInlineLabel(Control);
@@ -196,6 +177,11 @@ export function kitWidget(
       const unkeyed = keyed ? keyed.fromKey(next) : next;
       return bridge.codec ? bridge.codec.fromControl(unkeyed) : unkeyed;
     };
+    const own: Record<string, unknown> = {};
+    for (const key of optionProps) {
+      const option = (options as Record<string, unknown>)[key];
+      if (option !== undefined) own[key] = option;
+    }
     const bound = bindFieldProps(
       adapter,
       {
@@ -204,6 +190,7 @@ export function kitWidget(
         onBlur: () => onBlur(id, value),
       },
       {
+        ...own,
         ...fixed,
         ...bridge.props?.(props),
         id,

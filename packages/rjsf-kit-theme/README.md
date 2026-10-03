@@ -62,6 +62,34 @@ Peer-зависимости: `react`, `@rjsf/core`, `@rjsf/utils`, `@reformer/co
 
 У каждого контрола `data-testid="input-<имя поля>"` — как у форм ReFormer.
 
+**Свойства контрола — `ui:options`.** Собственные пропсы поля кита задаются подсказками отрисовки
+RJSF — теми, что запись объявила в `propsSchema` каталога:
+
+```json
+{
+  "phone": {
+    "ui:widget": "InputMask",
+    "ui:options": { "mask": "+7 (999) 999-99-99", "tooltip": "Мобильный" }
+  }
+}
+```
+
+Ключ, которого запись не объявляла, контролу не уходит. Не уходят и пропсы, которые ведёт форма
+(`FORM_OWNED_PROPS`): подпись, описание, обязательность и варианты — это `title`, `description`,
+`required` и `enum` схемы, подсказка в поле — `ui:placeholder`, значение — данные формы. Постоянный
+проп роли (`type: 'password'` у `Input` под `PasswordWidget`) и то, что мост берёт из схемы
+(`min`/`max`/`step` из `minimum`/`maximum`/`multipleOf`), подсказки не перекрывают.
+
+Редактору формы тот же ответ дают чистые функции над каталогом, без пространства имён:
+
+```ts
+import { kitWidgetTarget, registryWidgetName, widgetOptionProps } from '@reformer/rjsf-kit-theme';
+
+const widget = registryWidgetName(fieldSchema, uiSchema['ui:widget']); // 'TextWidget', 'Switch'…
+const target = widget && kitWidgetTarget(widget, { components: catalog.components });
+const editable = target ? widgetOptionProps(target.record, target.props) : [];
+```
+
 **Шаблоны.** Поле — рамка кита (`kit.infra.fieldFrame`, пропсы `KitFieldFrameProps`), объект —
 `Box`, отправка — `Button`. Кит без рамки получает минимальную собственную: стандартный шаблон RJSF
 подписал бы флажок кита дважды.

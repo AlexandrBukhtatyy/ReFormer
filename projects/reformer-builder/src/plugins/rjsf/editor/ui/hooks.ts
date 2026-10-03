@@ -1,6 +1,6 @@
 /**
  * Подписки React на то, чем живут тело редактора и панель свойств: ручка документа, модель,
- * выделение, вид и поля кита.
+ * выделение, вид и каталог кита.
  *
  * Общие, потому что читают их двое: тело вкладки знает свой документ, а панель в правом доке —
  * только то, что она панель, и находит документ по активной вкладке. Выделение у обоих одно —
@@ -12,9 +12,10 @@
  * @module plugins/rjsf/editor/ui/hooks
  */
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { RjsfForm } from '@/plugins/rjsf/core';
 import type {
+  CatalogJson,
   Disposable,
   KitsService,
   ModelDocumentHandle,
@@ -144,8 +145,12 @@ export function useLiveRevision(
   }, [live, documentId]);
 }
 
-/** Поля активного кита — виджеты под своими именами. Кита нет — пусто. */
-export function useKitFields(kits: KitsService | undefined): readonly string[] {
+/**
+ * Каталог активного кита: из него и имена полей-виджетов, и свойства каждого. Кита нет — `null`.
+ *
+ * Снимок — ссылка, которую служба китов меняет только на смене кита и на доезде его каталога.
+ */
+export function useKitCatalog(kits: KitsService | undefined): CatalogJson | null {
   const subscribe = useCallback(
     (onChange: () => void) => {
       const subscription = kits?.onDidChange(onChange) ?? NOOP;
@@ -156,14 +161,5 @@ export function useKitFields(kits: KitsService | undefined): readonly string[] {
     [kits]
   );
   const snapshot = useCallback(() => kits?.catalogJson() ?? null, [kits]);
-  const catalog = useSyncExternalStore(subscribe, snapshot, snapshot);
-  return useMemo(
-    () =>
-      catalog === null
-        ? []
-        : catalog.components
-            .filter((record) => record.role === 'field')
-            .map((record) => record.name),
-    [catalog]
-  );
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }

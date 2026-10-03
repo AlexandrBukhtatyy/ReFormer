@@ -10,6 +10,12 @@
  * не бывает, а к форме возвращают двое — строка формы в структуре и крошка «Форма» над
  * свойствами поля. Крошка нужна виду «форма»: структуры там нет, и выйти к форме больше нечем.
  *
+ * Свойства поля — в двух слоях. Сверху то, что поле значит (имя, тип, варианты, обязательность):
+ * это JSON Schema, и набор один на все виджеты. Под выбором виджета — свойства контрола, которым
+ * поле нарисовано: их объявляет запись каталога кита, и набор у каждого виджета свой
+ * (`../widget-props`). Списка свойств контрола у панели нет. Подсказка свойства — значком (i)
+ * у подписи, а не строкой под полем.
+ *
  * Шапки и прокрутки здесь нет: имя панели и область прокрутки даёт оболочка, одинаково для всех
  * вкладов.
  *
@@ -20,21 +26,36 @@
  * @module plugins/rjsf/editor/ui/RjsfInspector
  */
 
-import { useState, type ReactElement } from 'react';
+import { useId, useMemo, useState, type ReactElement } from 'react';
+import { InfoHint } from '@reformer/ui-kit/info-hint';
 import {
   RJSF_FIELD_TYPES,
+  type RjsfEnumValue,
   type RjsfFieldSchema,
   type RjsfFieldType,
   type RjsfFieldUi,
   type RjsfForm,
   type RjsfOp,
 } from '@/plugins/rjsf/core';
-import type { KitsService, ModelDocumentHandle, ResourceId } from '@reformer/builder-plugin-api';
+import type {
+  CatalogJson,
+  KitsService,
+  ModelDocumentHandle,
+  ResourceId,
+} from '@reformer/builder-plugin-api';
 import { exportRjsfForm, type ExportOutcome, type RjsfServices } from '../commands';
+import {
+  retargetUi,
+  WIDGET_PROP_GROUPS,
+  widgetPropsOf,
+  withWidgetOption,
+  type WidgetPropField,
+  type WidgetPropsModel,
+} from '../widget-props';
 import {
   selectedFieldOf,
   useActiveHandle,
-  useKitFields,
+  useKitCatalog,
   useModel,
   useSelection,
   type Translate,
@@ -90,7 +111,7 @@ function DocumentInspector(props: {
   const { handle, services, kits, t } = props;
   const form = useModel(handle);
   const selection = useSelection(handle);
-  const kitFields = useKitFields(kits);
+  const catalog = useKitCatalog(kits);
   const selected = selectedFieldOf(form, selection);
   const apply = (op: RjsfOp, mergeKey?: string) =>
     handle.apply(op, mergeKey === undefined ? undefined : { mergeKey }).status === 'applied';
@@ -113,7 +134,7 @@ function DocumentInspector(props: {
       key={selected}
       form={form}
       name={selected}
-      kitFields={kitFields}
+      catalog={catalog}
       apply={apply}
       onShowForm={() => {
         handle.setSelection([]);
@@ -203,19 +224,57 @@ function parseEnum(text: string, type: RjsfFieldType): (string | number)[] | und
   return values.length === 0 ? undefined : values;
 }
 
-/** Варианты выбора: текст по строкам, в модель — при уходе фокуса. */
-function EnumInput(props: {
-  name: string;
-  field: RjsfFieldSchema;
-  apply: (op: RjsfOp) => boolean;
+/** Адрес скрытого текста подсказки — на него ссылается `aria-describedby` контрола. */
+const hintIdOf = (controlId: string): string => `${controlId}-hint`;
+
+/**
+ * Подпись свойства и его подсказка — значком (i) рядом с подписью, тем же, что рисует
+ * `labelTooltip` у полей форм ReFormer. Строкой под полем подсказки не показаны: описания пропсов
+ * в каталоге кита длинные, и под каждым полем они растягивали бы панель в несколько раз.
+ *
+ * Значок стоит СНАРУЖИ `<label>`: внутри него щелчок по значку активировал бы контрол. Поэтому
+ * подпись связана с контролом через `htmlFor`, а не вложением.
+ */
+function PropLabel(props: {
+  controlId: string;
+  label: string;
+  hint?: string | undefined;
+  /** Подпись рядом с флажком — обычным начертанием, как у «Обязательное». */
+  plain?: boolean;
   t: Translate;
 }): ReactElement {
-  const { name, field, apply, t } = props;
+  const { controlId, label, hint, plain = false, t } = props;
+  return (
+    <span className="flex items-center gap-1.5">
+      <label htmlFor={controlId} className={plain ? undefined : 'font-medium'}>
+        {label}
+      </label>
+      {hint !== undefined && (
+        <InfoHint
+          content={hint}
+          descriptionId={hintIdOf(controlId)}
+          aria-label={t('inspector.hint', { label })}
+        />
+      )}
+    </span>
+  );
+}
+
+/** Варианты выбора: текст по строкам, в модель — при уходе фокуса. */
+function EnumInput(props: {
+  field: RjsfFieldSchema;
+  onCommit: (values: RjsfEnumValue[] | undefined) => void;
+  t: Translate;
+}): ReactElement {
+  const { field, onCommit, t } = props;
+  const id = useId();
   const [draft, setDraft] = useState((field.enum ?? []).join('\n'));
   return (
-    <label className="flex flex-col gap-1">
-      <span className="font-medium">{t('inspector.enum')}</span>
+    <div className="flex flex-col gap-1">
+      <PropLabel controlId={id} label={t('inspector.enum')} hint={t('inspector.enum.hint')} t={t} />
       <textarea
+        id={id}
+        aria-describedby={hintIdOf(id)}
         className={INPUT_CLASS}
         rows={3}
         data-testid="rjsf-field-enum"
@@ -225,25 +284,22 @@ function EnumInput(props: {
         }}
         onBlur={() => {
           const values = parseEnum(draft, field.type);
-          if (JSON.stringify(values) !== JSON.stringify(field.enum)) {
-            apply({ type: 'set-field', params: { name, field: fieldWith(field, 'enum', values) } });
-          }
+          if (JSON.stringify(values) !== JSON.stringify(field.enum)) onCommit(values);
         }}
       />
-      <span className="text-xs text-muted-foreground">{t('inspector.enum.hint')}</span>
-    </label>
+    </div>
   );
 }
 
 function FieldInspector(props: {
   form: RjsfForm;
   name: string;
-  kitFields: readonly string[];
+  catalog: CatalogJson | null;
   apply: (op: RjsfOp, mergeKey?: string) => boolean;
   onShowForm: () => void;
   t: Translate;
 }): ReactElement {
-  const { form, name, kitFields, apply, onShowForm, t } = props;
+  const { form, name, catalog, apply, onShowForm, t } = props;
   const field = form.schema.properties[name]!;
   const ui = form.uiSchema?.[name] as RjsfFieldUi | undefined;
   const required = (form.schema.required ?? []).includes(name);
@@ -252,8 +308,20 @@ function FieldInspector(props: {
   const widget = typeof ui?.['ui:widget'] === 'string' ? ui['ui:widget'] : '';
   const hasEnum = Array.isArray(field.enum) && field.type !== 'boolean';
   const rjsfWidgets = hasEnum ? RJSF_ENUM_WIDGETS : RJSF_WIDGET_CHOICES[field.type];
+  // Поля активного кита — виджеты под своими именами.
+  const kitFields = useMemo(
+    () =>
+      (catalog?.components ?? [])
+        .filter((record) => record.role === 'field')
+        .map((record) => record.name),
+    [catalog]
+  );
   // Виджет, которого нет в списках (написан руками), остаётся выбранным — иначе список его сотрёт.
   const known = widget === '' || rjsfWidgets.includes(widget) || kitFields.includes(widget);
+  const widgetProps = widgetPropsOf(field, ui, catalog);
+  /** Подсказки поля под новый виджет: пропсы прежнего контрола, чужие новому, уходят. */
+  const retarget = (nextField: RjsfFieldSchema, nextUi: RjsfFieldUi | null): RjsfFieldUi | null =>
+    retargetUi({ field, ui }, { field: nextField, ui: nextUi }, catalog);
 
   const rename = () => {
     const to = draftName.trim();
@@ -339,7 +407,11 @@ function FieldInspector(props: {
             };
             apply({
               type: 'set-field',
-              params: { name, field: next, ui: uiWith(ui, 'ui:widget', undefined) },
+              params: {
+                name,
+                field: next,
+                ui: retarget(next, uiWith(ui, 'ui:widget', undefined)),
+              },
             });
           }}
         >
@@ -365,9 +437,17 @@ function FieldInspector(props: {
         // Ключ — сами варианты: отмена и правка текстом меняют их, и черновик начинается заново.
         <EnumInput
           key={JSON.stringify(field.enum ?? [])}
-          name={name}
           field={field}
-          apply={apply}
+          onCommit={(values) => {
+            // Появление и исчезновение вариантов меняет виджет по умолчанию (текст ↔ выбор).
+            const next = fieldWith(field, 'enum', values);
+            const current = ui ?? null;
+            const kept = retarget(next, current);
+            apply({
+              type: 'set-field',
+              params: { name, field: next, ...(kept !== current ? { ui: kept } : {}) },
+            });
+          }}
           t={t}
         />
       )}
@@ -399,7 +479,7 @@ function FieldInspector(props: {
           onChange={(event) => {
             apply({
               type: 'set-field',
-              params: { name, ui: uiWith(ui, 'ui:widget', event.target.value) },
+              params: { name, ui: retarget(field, uiWith(ui, 'ui:widget', event.target.value)) },
             });
           }}
         >
@@ -423,6 +503,149 @@ function FieldInspector(props: {
           )}
         </select>
       </label>
+      {widgetProps !== null && widgetProps.sections.length > 0 && (
+        <WidgetProps
+          model={widgetProps}
+          onChange={(key, value, merge) => {
+            apply(
+              { type: 'set-field', params: { name, ui: withWidgetOption(ui, key, value) } },
+              merge ? `option.${key}@${name}` : undefined
+            );
+          }}
+          t={t}
+        />
+      )}
     </section>
+  );
+}
+
+/**
+ * Свойства контрола, которым нарисовано поле, — секциями каталога кита.
+ *
+ * Группы с подписью в словаре — общие для китов ReFormer (`x-doc.group`); свою группу кита
+ * панель показывает её именем: перевода для неё взять неоткуда.
+ */
+function WidgetProps(props: {
+  model: WidgetPropsModel;
+  onChange: (key: string, value: unknown, merge: boolean) => void;
+  t: Translate;
+}): ReactElement {
+  const { model, onChange, t } = props;
+  return (
+    <div className="flex flex-col gap-2 border-t pt-2" data-testid="rjsf-widget-props">
+      <span className="text-xs text-muted-foreground">
+        {t('inspector.kit', { name: model.component })}
+      </span>
+      {model.sections.map((section) => (
+        <div key={section.group} className="flex flex-col gap-2">
+          <span className="text-[11px] font-medium uppercase text-muted-foreground">
+            {WIDGET_PROP_GROUPS.includes(section.group)
+              ? t(`inspector.group.${section.group}`)
+              : section.group}
+          </span>
+          {section.fields.map((field) => (
+            <WidgetPropInput key={field.key} field={field} onChange={onChange} t={t} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Одно свойство контрола. Чем оно правится, решил каталог — см. `../widget-props`. */
+function WidgetPropInput(props: {
+  field: WidgetPropField;
+  onChange: (key: string, value: unknown, merge: boolean) => void;
+  t: Translate;
+}): ReactElement {
+  const { field, onChange, t } = props;
+  const id = useId();
+  const testId = `rjsf-option-${field.key}`;
+  const describedBy = field.description === undefined ? undefined : hintIdOf(id);
+
+  if (field.editor === 'checkbox') {
+    // Снятая галочка — не всегда «убрать свойство»: у пропа с умолчанием `true` это значение,
+    // и убрать надо то, что с умолчанием совпало.
+    const fallback = field.fallback === true;
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          id={id}
+          type="checkbox"
+          aria-describedby={describedBy}
+          data-testid={testId}
+          checked={typeof field.value === 'boolean' ? field.value : fallback}
+          onChange={(event) => {
+            const next = event.target.checked;
+            onChange(field.key, next === fallback ? undefined : next, false);
+          }}
+        />
+        <PropLabel controlId={id} label={field.label} hint={field.description} plain t={t} />
+      </div>
+    );
+  }
+
+  if (field.editor === 'select') {
+    const options = field.options ?? [];
+    const current = field.value === undefined ? '' : String(field.value);
+    return (
+      <div className="flex flex-col gap-1">
+        <PropLabel controlId={id} label={field.label} hint={field.description} t={t} />
+        <select
+          id={id}
+          aria-describedby={describedBy}
+          className={INPUT_CLASS}
+          data-testid={testId}
+          value={current}
+          onChange={(event) => {
+            const next = event.target.value;
+            // Тип возвращается тот же, что в каталоге: числовой вариант остаётся числом.
+            const original = options.find((option) => String(option) === next);
+            onChange(field.key, next === '' ? undefined : (original ?? next), false);
+          }}
+        >
+          <option value="">
+            {field.fallback === undefined
+              ? t('inspector.option.unset')
+              : t('inspector.option.default', { value: String(field.fallback) })}
+          </option>
+          {/* Значение, которого нет среди вариантов (написано руками), список не стирает. */}
+          {current !== '' && !options.some((option) => String(option) === current) && (
+            <option value={current}>{current}</option>
+          )}
+          {options.map((option) => (
+            <option key={String(option)} value={String(option)}>
+              {String(option)}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  const numeric = field.editor === 'number';
+  const shown = numeric ? typeof field.value === 'number' : typeof field.value === 'string';
+  return (
+    <div className="flex flex-col gap-1">
+      <PropLabel controlId={id} label={field.label} hint={field.description} t={t} />
+      <input
+        id={id}
+        aria-describedby={describedBy}
+        className={INPUT_CLASS}
+        data-testid={testId}
+        type={numeric ? 'number' : 'text'}
+        min={field.min}
+        max={field.max}
+        step={field.step}
+        placeholder={field.fallback === undefined ? undefined : String(field.fallback)}
+        value={shown ? String(field.value) : ''}
+        onChange={(event) => {
+          const next = event.target.value;
+          const value = !numeric ? next : next === '' ? undefined : Number(next);
+          if (typeof value === 'number' && !Number.isFinite(value)) return;
+          onChange(field.key, value, true);
+        }}
+      />
+    </div>
   );
 }

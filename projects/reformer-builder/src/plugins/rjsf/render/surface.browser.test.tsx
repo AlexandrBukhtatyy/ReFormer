@@ -183,6 +183,26 @@ describe('поверхность «rjsf.preview»', () => {
     });
   });
 
+  it('ui:options поля доходят до контрола ui-kit: объявленное записью — да, прочее — нет', async () => {
+    const form: RjsfForm = {
+      ...sampleForm(),
+      uiSchema: {
+        // `mask` объявила запись InputMask: контрол показывает шаблон подсказкой в поле.
+        name: { 'ui:widget': 'InputMask', 'ui:options': { mask: '+7 (999) 999-99-99' } },
+        // Виджет по умолчанию — Input кита; `mask` он не объявлял, `type` — объявлял.
+        age: { 'ui:options': { type: 'tel', mask: '99' } },
+      },
+    };
+    const element = await mount(fakeContext(form).ctx, await uiKit());
+
+    const name = field(element, '[data-testid="input-name"]') as HTMLInputElement;
+    const age = field(element, '[data-testid="input-age"]') as HTMLInputElement;
+    expect(name.placeholder).toBe('+7 (999) 999-99-99');
+    expect(age.type).toBe('tel');
+    expect(age.placeholder).toBe('');
+    expect(age.hasAttribute('mask')).toBe(false);
+  });
+
   it('тема ui-kit: роли и шаблоны — компоненты кита, кроме полей за подпутём', async () => {
     const kits = await uiKit();
     const catalog = kits.catalogJson();

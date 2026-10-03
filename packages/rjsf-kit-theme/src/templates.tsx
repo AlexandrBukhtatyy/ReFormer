@@ -20,6 +20,7 @@ import {
   type ObjectFieldTemplateProps,
   type SubmitButtonProps,
 } from '@rjsf/utils';
+import { registryWidgetName } from './resolve';
 import type { KitFieldFrameProps } from './types';
 
 type Frame = ComponentType<KitFieldFrameProps>;
@@ -64,20 +65,6 @@ export function PlainFieldFrame({
   );
 }
 
-/** Короткие имена `ui:widget`, у которых контрол может подписывать себя сам, — к имени виджета. */
-const WIDGET_ALIASES: Readonly<Record<string, string>> = {
-  checkbox: 'CheckboxWidget',
-  radio: 'RadioWidget',
-  select: 'SelectWidget',
-};
-
-/** Имя виджета поля в реестре: `ui:widget` или флажок по умолчанию у `boolean`. */
-function widgetName({ schema, uiSchema }: FieldTemplateProps): string | undefined {
-  const named = uiSchema?.['ui:widget'];
-  if (typeof named === 'string') return WIDGET_ALIASES[named] ?? named;
-  return schema.type === 'boolean' ? 'CheckboxWidget' : undefined;
-}
-
 /**
  * Шаблон поля на рамке кита.
  *
@@ -108,7 +95,7 @@ export function createFieldTemplate(
     // Объект и массив — контейнеры: подпись, описание и ошибки у них рисует свой шаблон.
     if (schema.type === 'object' || schema.type === 'array') return children;
     const additional = ADDITIONAL_PROPERTY_FLAG in schema;
-    const widget = widgetName(props);
+    const widget = registryWidgetName(schema, props.uiSchema?.['ui:widget']);
     const description = [rawDescription, rawHelp].filter(Boolean).join(' ');
     const framed = (
       <Frame

@@ -12,10 +12,15 @@
 export { createKitTheme, type KitTheme } from './theme';
 export {
   DEFAULT_WIDGET_CANDIDATES,
-  kitWidget,
+  FORM_OWNED_PROPS,
+  kitWidgetTarget,
+  registryWidgetName,
+  widgetOptionProps,
   type KitWidgetCandidate,
-  type KitWidgetOptions,
-} from './widgets';
+  type KitWidgetTarget,
+  type WidgetSchema,
+} from './resolve';
+export { kitWidget, type KitWidgetOptions } from './widgets';
 export {
   createFieldTemplate,
   createObjectTemplate,

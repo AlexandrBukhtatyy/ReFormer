@@ -18,8 +18,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { sampleForm } from '@/plugins/rjsf/core';
 import { renderReact } from '@/testing/render';
+import type { CatalogJson, KitsService } from '@reformer/builder-plugin-api';
 import { RJSF_EDITOR_MESSAGES } from '../messages';
 import {
+  createFakeKits,
   createFakeLive,
   createFakeRjsfHandle,
   createFakeRjsfWorkspace,
@@ -38,7 +40,7 @@ const t: Translate = (key, params) =>
   (RU[key] ?? key).replace(/\{(\w+)\}/g, (_match, name: string) => String(params?.[name] ?? ''));
 const useT = (): Translate => t;
 
-function mount(options: { live?: FakeLive; remembered?: RjsfView } = {}) {
+function mount(options: { live?: FakeLive; remembered?: RjsfView; kits?: KitsService } = {}) {
   const first = createFakeRjsfHandle(sampleForm());
   const second = createFakeRjsfHandle(sampleForm(), 'order.rjsf.json');
   const live = options.live ?? createFakeLive();
@@ -62,7 +64,11 @@ function mount(options: { live?: FakeLive; remembered?: RjsfView } = {}) {
         />
       </div>
       <aside style={{ width: 320 }}>
-        <RjsfInspector services={workspace.services} kits={() => undefined} useTranslate={useT} />
+        <RjsfInspector
+          services={workspace.services}
+          kits={() => options.kits}
+          useTranslate={useT}
+        />
       </aside>
     </div>
   );
@@ -266,6 +272,149 @@ describe('свойства выбранного поля — в панели', (
 
     workspace.setActive(first.id);
     await expect.element(page.getByTestId('rjsf-field-name')).toHaveValue('age');
+  });
+});
+
+/** Записи кита в форме настоящего каталога: свойства контрола — в `propsSchema`. */
+const KIT_RECORDS = [
+  {
+    name: 'Input',
+    role: 'field',
+    propsSchema: {
+      properties: {
+        label: { type: 'string', 'x-doc': { group: 'Textfield', type: 'string' } },
+        tooltip: { type: 'string', 'x-doc': { group: 'Textfield', type: 'string' } },
+      },
+    },
+  },
+  {
+    name: 'InputMask',
+    role: 'field',
+    propsSchema: {
+      properties: {
+        mask: {
+          type: 'string',
+          description: 'Шаблон маски: 9 — цифра.',
+          'x-doc': { group: 'Textfield', type: 'string' },
+        },
+        tooltip: { type: 'string', 'x-doc': { group: 'Textfield', type: 'string' } },
+        readOnly: { type: 'boolean', 'x-doc': { group: 'State', type: 'boolean' } },
+      },
+    },
+  },
+] as unknown as CatalogJson['components'];
+
+describe('свойства контрола — из каталога кита', () => {
+  const options = (): Element | null => document.querySelector('[data-testid="rjsf-widget-props"]');
+  const nameUi = (form: ReturnType<typeof sampleForm>) => form.uiSchema?.name;
+
+  it('у каждого виджета свои свойства: набор приходит из записи каталога', async () => {
+    mount({ kits: createFakeKits(KIT_RECORDS).kits });
+    await userEvent.click(page.getByRole('button', { name: /^name/ }));
+
+    // Виджет не выбран — строку рисует Input кита; подпись ведёт схема, её среди свойств нет.
+    await expect
+      .element(page.getByTestId('rjsf-widget-props'))
+      .toHaveTextContent('Свойства компонента Input');
+    await expect.element(page.getByTestId('rjsf-option-tooltip')).toBeVisible();
+    expect(options()?.querySelector('[data-testid="rjsf-option-label"]')).toBeNull();
+    expect(options()?.querySelector('[data-testid="rjsf-option-mask"]')).toBeNull();
+
+    await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'InputMask');
+
+    await expect
+      .element(page.getByTestId('rjsf-widget-props'))
+      .toHaveTextContent('Свойства компонента InputMask');
+    await expect.element(page.getByTestId('rjsf-option-mask')).toBeVisible();
+    await expect.element(page.getByTestId('rjsf-option-readOnly')).not.toBeChecked();
+  });
+
+  it('правка свойства пишет ui:options поля; стёртое свойство из документа уходит', async () => {
+    const { first } = mount({ kits: createFakeKits(KIT_RECORDS).kits });
+    await userEvent.click(page.getByRole('button', { name: /^name/ }));
+    await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'InputMask');
+
+    await userEvent.fill(page.getByTestId('rjsf-option-mask'), '+7 999');
+    await userEvent.click(page.getByTestId('rjsf-option-readOnly'));
+
+    expect(nameUi(first.model())).toEqual({
+      'ui:placeholder': 'Как к вам обращаться',
+      'ui:widget': 'InputMask',
+      'ui:options': { mask: '+7 999', readOnly: true },
+    });
+    await expect.element(page.getByTestId('rjsf-option-mask')).toHaveValue('+7 999');
+
+    await userEvent.clear(page.getByTestId('rjsf-option-mask'));
+    await userEvent.click(page.getByTestId('rjsf-option-readOnly'));
+
+    expect(nameUi(first.model())).toEqual({
+      'ui:placeholder': 'Как к вам обращаться',
+      'ui:widget': 'InputMask',
+    });
+  });
+
+  it('смена виджета уносит свойства прежнего контрола, общие с новым — остаются', async () => {
+    const { first } = mount({ kits: createFakeKits(KIT_RECORDS).kits });
+    await userEvent.click(page.getByRole('button', { name: /^name/ }));
+    await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'InputMask');
+    await userEvent.fill(page.getByTestId('rjsf-option-mask'), '+7 999');
+    await userEvent.fill(page.getByTestId('rjsf-option-tooltip'), 'Телефон');
+
+    await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'Input');
+
+    expect(nameUi(first.model())).toEqual({
+      'ui:placeholder': 'Как к вам обращаться',
+      'ui:widget': 'Input',
+      'ui:options': { tooltip: 'Телефон' },
+    });
+    await expect.element(page.getByTestId('rjsf-option-tooltip')).toHaveValue('Телефон');
+  });
+
+  it('подсказка свойства — значком у подписи: текст в тултипе и в описании контрола', async () => {
+    mount({ kits: createFakeKits(KIT_RECORDS).kits });
+    await userEvent.click(page.getByRole('button', { name: /^name/ }));
+    await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'InputMask');
+
+    const hint = page.getByRole('button', { name: 'Подсказка: Mask' });
+    await expect.element(hint).toBeVisible();
+    // Строкой под полем описания нет — оно раздвигало бы панель: в разметке только скрытый дубль
+    // для описания контрола. У свойства без описания нет и значка.
+    await expect.element(page.getByText('Шаблон маски: 9 — цифра.')).not.toBeVisible();
+    expect(page.getByRole('button', { name: 'Подсказка: Tooltip' }).elements()).toHaveLength(0);
+    await expect
+      .element(page.getByTestId('rjsf-option-mask'))
+      .toHaveAccessibleDescription('Шаблон маски: 9 — цифра.');
+
+    await userEvent.hover(hint);
+
+    await expect.element(page.getByRole('tooltip')).toHaveTextContent('Шаблон маски: 9 — цифра.');
+    // Значок — не часть подписи: щелчок по нему поле не активирует.
+    await userEvent.click(hint);
+    expect(document.activeElement).not.toBe(page.getByTestId('rjsf-option-mask').element());
+  });
+
+  it('подсказка вариантов выбора — тем же значком', async () => {
+    mount();
+    await userEvent.click(page.getByRole('button', { name: /^channel/ }));
+
+    await expect
+      .element(page.getByRole('button', { name: 'Подсказка: Варианты выбора' }))
+      .toBeVisible();
+    await expect
+      .element(page.getByTestId('rjsf-field-enum'))
+      .toHaveAccessibleDescription('По одному в строке; пусто — без выбора.');
+  });
+
+  it('кита нет — секции нет; каталог доехал — секция появилась без перевыбора поля', async () => {
+    const fake = createFakeKits([]);
+    mount({ kits: fake.kits });
+    await userEvent.click(page.getByRole('button', { name: /^name/ }));
+    await expect.element(page.getByTestId('rjsf-field-widget')).toBeVisible();
+    expect(options()).toBeNull();
+
+    fake.load(KIT_RECORDS);
+
+    await expect.element(page.getByTestId('rjsf-option-tooltip')).toBeVisible();
   });
 });
 

@@ -5,7 +5,15 @@ import { withTheme } from '@rjsf/core';
 import type { RJSFSchema, UiSchema, WidgetProps } from '@rjsf/utils';
 import validator from '@rjsf/validator-ajv8';
 import type { FieldAdapter } from '@reformer/core';
-import { createKitTheme, kitWidget, type KitFieldFrameProps, type KitThemeRecord } from './index';
+import {
+  createKitTheme,
+  kitWidget,
+  kitWidgetTarget,
+  registryWidgetName,
+  widgetOptionProps,
+  type KitFieldFrameProps,
+  type KitThemeRecord,
+} from './index';
 
 // ── Фикстурный кит: диалекты полей как у китов ReFormer ────────────────────────────────────────
 
@@ -120,7 +128,7 @@ function Button({ type, children }: Props) {
 }
 
 const components: KitThemeRecord[] = [
-  { name: 'Input', role: 'field', propsSchema: { properties: { placeholder: {} } } },
+  { name: 'Input', role: 'field', propsSchema: { properties: { placeholder: {}, type: {} } } },
   {
     name: 'Checkbox',
     role: 'field',
@@ -358,6 +366,124 @@ describe('мост поля', () => {
 
     expect(last()).toMatchObject({ min: 0, max: 10, step: 2, value: 4 });
   });
+
+  it('ui:options: контролу уходят объявленные пропсы, а что ведёт мост — не перекрывается', () => {
+    const { Probe, last } = probe();
+    const Widget = kitWidget(Probe, {
+      name: 'Slider',
+      slot: 'RangeWidget',
+      props: { type: 'range' },
+      optionProps: ['orientation', 'min', 'type', 'inverted'],
+    });
+
+    renderToStaticMarkup(
+      createElement(
+        Widget,
+        widgetProps({
+          schema: { type: 'integer', minimum: 0 },
+          options: { orientation: 'vertical', min: 5, type: 'text', rows: 3, emptyValue: '' },
+        })
+      )
+    );
+
+    expect(last().orientation).toBe('vertical');
+    // Границу называет схема, постоянный проп — роль: подсказка отрисовки их не меняет.
+    expect(last().min).toBe(0);
+    expect(last().type).toBe('range');
+    // Не объявлено записью — контролу не уходит; не задано в ui:options — пропа нет вовсе.
+    expect(last()).not.toHaveProperty('rows');
+    expect(last()).not.toHaveProperty('emptyValue');
+    expect(last()).not.toHaveProperty('inverted');
+  });
+
+  it('без списка пропсов из ui:options контролу не уходит ничего', () => {
+    const { Probe, last } = probe();
+    const Widget = kitWidget(Probe, { name: 'Input', slot: 'TextWidget' });
+
+    renderToStaticMarkup(createElement(Widget, widgetProps({ options: { mask: '99' } })));
+
+    expect(last()).not.toHaveProperty('mask');
+  });
+});
+
+describe('запись каталога под виджетом и её пропсы', () => {
+  const catalog: KitThemeRecord[] = [
+    {
+      name: 'Input',
+      role: 'field',
+      propsSchema: { properties: { label: {}, placeholder: {}, type: {}, tooltip: {} } },
+    },
+    { name: 'InputMask', role: 'field', propsSchema: { properties: { mask: {}, testId: {} } } },
+    { name: 'Switch', role: 'field' },
+    { name: 'Toggle', role: 'field', propsSchema: { properties: { size: {} } } },
+    { name: 'Select', role: 'container' },
+    { name: 'NativeSelect', role: 'field' },
+  ];
+
+  it('имя виджета в реестре: ui:widget либо умолчание по типу, вариантам и формату', () => {
+    expect(registryWidgetName({ type: 'string' })).toBe('TextWidget');
+    expect(registryWidgetName({ type: 'integer' })).toBe('TextWidget');
+    expect(registryWidgetName({ type: 'boolean' })).toBe('CheckboxWidget');
+    expect(registryWidgetName({ type: 'string', enum: ['a'] })).toBe('SelectWidget');
+    expect(registryWidgetName({ type: 'string', format: 'date' })).toBe('DateWidget');
+    expect(registryWidgetName({ type: 'string', format: 'unknown' })).toBe('TextWidget');
+    expect(registryWidgetName({ type: 'string' }, 'textarea')).toBe('TextareaWidget');
+    expect(registryWidgetName({ type: 'boolean' }, 'Switch')).toBe('Switch');
+    // Объект и массив рисует не виджет.
+    expect(registryWidgetName({ type: 'object' })).toBeUndefined();
+  });
+
+  it('роль RJSF — первым кандидатом каталога, имя записи — самой записью', () => {
+    expect(kitWidgetTarget('TextWidget', { components: catalog })?.record.name).toBe('Input');
+    // InputPassword в ките нет — роль берёт Input с постоянным `type`.
+    expect(kitWidgetTarget('PasswordWidget', { components: catalog })).toMatchObject({
+      record: { name: 'Input' },
+      props: { type: 'password' },
+    });
+    // Запись-контейнер роль не занимает — берётся следующий кандидат.
+    expect(kitWidgetTarget('SelectWidget', { components: catalog })?.record.name).toBe(
+      'NativeSelect'
+    );
+    expect(kitWidgetTarget('InputMask', { components: catalog })?.record.name).toBe('InputMask');
+    // Не поле и не роль — виджет остаётся стандартным.
+    expect(kitWidgetTarget('Select', { components: catalog })).toBeUndefined();
+    expect(kitWidgetTarget('ColorWidget', { components: catalog })).toBeUndefined();
+    expect(kitWidgetTarget('RadioWidget', { components: catalog })).toBeUndefined();
+  });
+
+  it('уточнение кита называет запись роли; названной записи нет — работают кандидаты', () => {
+    const widgets = { CheckboxWidget: 'Toggle', TextWidget: 'RichText', FileWidget: 'InputMask' };
+
+    expect(kitWidgetTarget('CheckboxWidget', { components: catalog, widgets })?.record.name).toBe(
+      'Toggle'
+    );
+    expect(kitWidgetTarget('TextWidget', { components: catalog, widgets })?.record.name).toBe(
+      'Input'
+    );
+    // Роль сверх умолчаний существует только уточнением кита.
+    expect(kitWidgetTarget('FileWidget', { components: catalog, widgets })?.record.name).toBe(
+      'InputMask'
+    );
+  });
+
+  it('из ui:options — объявленные пропсы без тех, что ведёт форма, и без постоянных пропсов роли', () => {
+    const [input, mask, bare] = catalog;
+
+    expect(widgetOptionProps(input)).toEqual(['type', 'tooltip']);
+    expect(widgetOptionProps(input, { type: 'password' })).toEqual(['tooltip']);
+    expect(widgetOptionProps(mask)).toEqual(['mask']);
+    expect(widgetOptionProps(bare)).toEqual([]);
+    expect(widgetOptionProps(undefined)).toEqual([]);
+  });
+
+  it('тема и каталог отвечают на вопрос «какая запись под ролью» одинаково', () => {
+    const { theme } = createKitTheme(kit);
+
+    for (const slot of ['TextWidget', 'PasswordWidget', 'CheckboxWidget', 'SelectWidget']) {
+      const target = kitWidgetTarget(slot, kit);
+      expect(theme.widgets?.[slot]?.displayName).toBe(`KitWidget(${target?.record.name})`);
+    }
+  });
 });
 
 describe('форма RJSF в ките', () => {
@@ -408,6 +534,20 @@ describe('форма RJSF в ките', () => {
     expect(
       render(schema, { uiSchema: { 'ui:submitButtonOptions': { norender: true } } })
     ).not.toContain('data-kit="Button"');
+  });
+
+  it('ui:options поля доходят до контрола кита, постоянный проп роли — нет', () => {
+    const options = { 'ui:options': { type: 'email', mask: '99' } };
+
+    const plain = render(schema, { uiSchema: { name: options } });
+    expect(plain).toMatch(/<input data-kit="Input"[^>]*type="email"/);
+    // `mask` запись не объявляла — в контрол он не попадает.
+    expect(plain).not.toContain('mask');
+
+    const password = render(schema, {
+      uiSchema: { name: { 'ui:widget': 'password', ...options } },
+    });
+    expect(password).toMatch(/<input data-kit="Input"[^>]*type="password"/);
   });
 
   it('свойство из additionalProperties: ключ правит обёртка RJSF, значение — поле кита в рамке', () => {

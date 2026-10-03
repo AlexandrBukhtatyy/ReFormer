@@ -8,6 +8,9 @@
  * Каждое поле кита — ещё и виджет под своим именем: `"ui:widget": "Switch"` в `uiSchema` рисует
  * переключатель кита, даже если флажком по умолчанию стал `Checkbox`.
  *
+ * Собственные пропсы поля кита задаются в `ui:options` — те, что запись объявила в `propsSchema`
+ * (`./resolve`).
+ *
  * Чего в ките не нашлось, остаётся стандартным RJSF — форма рисуется всегда, а расхождения
  * перечислены в `problems`.
  *
@@ -17,14 +20,9 @@
 import type { ComponentType } from 'react';
 import type { ThemeProps } from '@rjsf/core';
 import type { KitFieldFrameProps, KitThemeInput, KitThemeProblem, KitThemeRecord } from './types';
+import { DEFAULT_WIDGET_CANDIDATES, widgetOptionProps, type KitWidgetCandidate } from './resolve';
 import { createFieldTemplate, createObjectTemplate, createSubmitButton } from './templates';
-import {
-  DEFAULT_WIDGET_CANDIDATES,
-  isComponent,
-  isInlineLabel,
-  kitWidget,
-  type KitWidgetCandidate,
-} from './widgets';
+import { isComponent, isInlineLabel, kitWidget } from './widgets';
 
 type AnyComponent = ComponentType<Record<string, unknown>>;
 type Widgets = NonNullable<ThemeProps['widgets']>;
@@ -122,6 +120,7 @@ export function createKitTheme(input: KitThemeInput): KitTheme {
       slot,
       acceptsOptions: acceptsOptions(chosen.record),
       props: chosen.props,
+      optionProps: widgetOptionProps(chosen.record, chosen.props),
     });
     widgets[slot] = widget;
     if (isInlineLabel(chosen.component)) inlineWidgets.add(slot);
@@ -137,6 +136,7 @@ export function createKitTheme(input: KitThemeInput): KitTheme {
       name,
       slot,
       acceptsOptions: acceptsOptions(found.record),
+      optionProps: widgetOptionProps(found.record),
     });
     if (isInlineLabel(found.component)) inlineWidgets.add(slot);
   }
@@ -156,6 +156,7 @@ export function createKitTheme(input: KitThemeInput): KitTheme {
       kitWidget(found.component, {
         name: record.name,
         acceptsOptions: acceptsOptions(record),
+        optionProps: widgetOptionProps(record),
       });
     if (isInlineLabel(found.component)) inlineWidgets.add(record.name);
     componentWidgets.push(record.name);
