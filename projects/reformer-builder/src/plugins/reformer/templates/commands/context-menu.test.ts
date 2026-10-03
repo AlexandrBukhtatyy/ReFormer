@@ -8,13 +8,15 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import type { ResourceId } from '@reformer/builder-plugin-api';
+import { RESOURCE_CONTEXT_MENU, type ResourceId } from '@reformer/builder-plugin-api';
 import type { FormTemplate, TemplateStore } from '../contract';
 import {
   createTemplateSnapshot,
   templatesContextMenuItems,
   templatesMenuCommands,
+  CREATE_TEMPLATE_COMMAND_ID,
   GENERATE_FORM_COMMAND_ID,
+  TEMPLATES_APPLY_SUBMENU,
   TEMPLATES_CONTEXT_SUBMENU,
   type TemplateSnapshot,
 } from './context-menu';
@@ -85,6 +87,30 @@ describe('снимок списка шаблонов', () => {
 describe('вклады меню', () => {
   const items = templatesContextMenuItems(readySnapshot([template()]));
 
+  /** Вклады, положенные по одному адресу, — в порядке, в каком их покажет меню. */
+  const placedIn = (menu: string) =>
+    items
+      .filter((item) => item.value.kind !== 'root' && item.value.menu === menu)
+      .sort((a, b) => (a.value.order ?? 0) - (b.value.order ?? 0));
+
+  it('в корне меню дерева — один заголовок «Шаблоны», остальное внутри него', () => {
+    const inRoot = placedIn(RESOURCE_CONTEXT_MENU);
+
+    expect(inRoot.map((item) => item.id)).toEqual(['templates.context.submenu']);
+    expect(inRoot[0].value).toMatchObject({
+      kind: 'submenu',
+      submenu: TEMPLATES_CONTEXT_SUBMENU,
+      titleKey: 'menu.templates',
+    });
+  });
+
+  it('внутри «Шаблонов» создание шаблона идёт первым, список — за ним', () => {
+    expect(placedIn(TEMPLATES_CONTEXT_SUBMENU).map((item) => item.value)).toMatchObject([
+      { kind: 'item', command: CREATE_TEMPLATE_COMMAND_ID, titleKey: 'menu.templates.create' },
+      { kind: 'submenu', submenu: TEMPLATES_APPLY_SUBMENU, titleKey: 'menu.templates.apply' },
+    ]);
+  });
+
   it('заголовок гаснет на файле, а не исчезает: создают внутрь папок', () => {
     const submenu = items[0].value;
     if (submenu.kind !== 'submenu') throw new Error('первым вкладом обязан быть заголовок');
@@ -96,20 +122,21 @@ describe('вклады меню', () => {
     expect(at({ kind: 'file' })).toBe(false);
   });
 
-  it('«шаблон из каталога» по-прежнему СКРЫТ на файле: пункт не про эту цель', () => {
-    const item = items[2].value;
-    if (item.kind !== 'item') throw new Error('третьим вкладом обязан быть пункт');
+  it('«создать шаблон» СКРЫТ везде, кроме каталога: пункт не про эту цель', () => {
+    const item = items[1].value;
+    if (item.kind !== 'item') throw new Error('вторым вкладом обязан быть пункт');
 
     const at = (ref: { kind: string } | null): boolean =>
       item.when?.({} as never, { ref, dir: DIR, selection: [], rootId: DIR }) ?? true;
 
     expect(at({ kind: 'directory' })).toBe(true);
     expect(at({ kind: 'file' })).toBe(false);
+    expect(at(null)).toBe(false);
     expect(item.enabledWhen).toBeUndefined();
   });
 
   it('шаблоны приходят готовыми строками: их имена придумывает человек', () => {
-    const dynamic = items[1].value;
+    const dynamic = items[3].value;
     if (dynamic.kind !== 'dynamic') throw new Error('шаблоны обязаны быть динамической группой');
 
     expect(dynamic.items({} as never, { ref: null, dir: DIR, selection: [], rootId: DIR })).toEqual(
@@ -122,11 +149,11 @@ describe('вклады меню', () => {
         },
       ]
     );
-    expect(dynamic.menu).toBe(TEMPLATES_CONTEXT_SUBMENU);
+    expect(dynamic.menu).toBe(TEMPLATES_APPLY_SUBMENU);
   });
 
   it('без снимка группа пуста, и подменю не рисуется вовсе', () => {
-    const dynamic = templatesContextMenuItems()[1].value;
+    const dynamic = templatesContextMenuItems()[3].value;
     if (dynamic.kind !== 'dynamic') throw new Error('шаблоны обязаны быть динамической группой');
 
     expect(dynamic.items({} as never, { ref: null, dir: DIR, selection: [], rootId: DIR })).toEqual(

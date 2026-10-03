@@ -1,5 +1,5 @@
 /**
- * Шаблоны в контекстном меню дерева: команда «Создать шаблон из каталога» и её пункт.
+ * Шаблоны в контекстном меню дерева: подменю «Шаблоны», его пункты и команды за ними.
  *
  * ## Здесь закрывается потеря, названная в `./operations`
  *
@@ -48,14 +48,22 @@ export const CREATE_TEMPLATE_COMMAND_ID = 'templates.createFromDirectory';
 export const GENERATE_FORM_COMMAND_ID = 'templates.generateIntoDirectory';
 
 /**
- * Адрес подменю «Создать форму из шаблона».
+ * Адрес подменю «Шаблоны»: всё, что дерево умеет про шаблоны, лежит под одним заголовком.
+ *
+ * Один пункт в корне меню, а не два: «собрать шаблон» и «разложить шаблон» — две стороны
+ * одного дела, и порознь они занимали в меню дерева две строки там, где человек ищет одно слово.
+ */
+export const TEMPLATES_CONTEXT_SUBMENU = 'resource/context/templates';
+
+/**
+ * Адрес подменю «Создать по шаблону» — списка шаблонов внутри «Шаблонов».
  *
  * Подменю, а не пункт с диалогом выбора: выбор из списка — это и есть список, и рисовать его
  * второй раз в модальном окне значило бы завести диалог там, где меню уже умеет всё нужное.
  * Заодно у службы запросов не появляется третьего вида («выбери из списка»), которого у неё
  * сегодня нет и который понадобился бы ровно здесь.
  */
-export const TEMPLATES_CONTEXT_SUBMENU = 'resource/context/templates';
+export const TEMPLATES_APPLY_SUBMENU = `${TEMPLATES_CONTEXT_SUBMENU}/apply`;
 
 export interface TemplatesMenuDeps {
   readonly host: TemplatesHost;
@@ -251,13 +259,16 @@ export function templatesMenuCommands(
 }
 
 /**
- * Пункты меню: разложить шаблон в каталог и собрать шаблон из каталога.
+ * Подменю «Шаблоны»: собрать шаблон из каталога и разложить шаблон в каталог.
  *
- * Оба про каталог, но ведут себя на файле по-разному, и разница не случайна. «Создать форму
- * из шаблона» ГАСНЕТ: это создание, а создают внутрь папок, и человек, увидевший пункт на
- * папке и не нашедший его на файле, решил бы, что возможность пропала. «Создать шаблон из
- * каталога» СКРЫВАЕТСЯ: шаблон формы — это каталог формы, и на файле пункт не про эту цель
- * вовсе, а серый пункт обещал бы, что когда-нибудь станет доступен.
+ * Оба пункта про каталог, поэтому на файле ГАСНЕТ сам заголовок: человек, увидевший «Шаблоны»
+ * на папке и не нашедший их на файле, решил бы, что возможность пропала, — а открывать подменю
+ * ради единственной серой строки незачем.
+ *
+ * «Создать шаблон» сверх того СКРЫВАЕТСЯ везде, кроме каталога. Пустое место панели считается
+ * каталогом (цель дерева подставляет корень показа), и разложить форму в корень законно, но
+ * шаблон формы — это каталог формы, и на пустом месте пункт не про эту цель вовсе: серый
+ * обещал бы, что когда-нибудь станет доступен.
  */
 export function templatesContextMenuItems(snapshot?: TemplateSnapshot): readonly {
   readonly id: string;
@@ -269,16 +280,41 @@ export function templatesContextMenuItems(snapshot?: TemplateSnapshot): readonly
 
   return [
     {
-      id: 'templates.context.generateSubmenu',
+      id: 'templates.context.submenu',
       value: {
         kind: 'submenu',
         menu: RESOURCE_CONTEXT_MENU,
         submenu: TEMPLATES_CONTEXT_SUBMENU,
-        titleKey: 'menu.createForm',
-        // Та же группа, что у «Создать шаблон из каталога»: обе про шаблоны, и линия между
-        // ними была бы разделением одного на два.
+        titleKey: 'menu.templates',
+        // Группа отдельная от файловых: «сделать из этого заготовку» — не правка записи,
+        // и линия между ними появится сама.
         group: '5_templates',
         enabledWhen: overDirectory,
+      },
+    },
+    {
+      id: 'templates.context.createFromDirectory',
+      value: {
+        kind: 'item',
+        menu: TEMPLATES_CONTEXT_SUBMENU,
+        command: CREATE_TEMPLATE_COMMAND_ID,
+        // Короче заголовка команды: «из каталога» в палитре объясняет, откуда шаблон, а здесь
+        // каталог уже назван щелчком.
+        titleKey: 'menu.templates.create',
+        order: 10,
+        when: whenResource((target) => target.ref?.kind === 'directory'),
+        argsOf: argsOfResource((target) => ({ dir: target.ref?.id })),
+      },
+    },
+    {
+      id: 'templates.context.applySubmenu',
+      value: {
+        kind: 'submenu',
+        menu: TEMPLATES_CONTEXT_SUBMENU,
+        submenu: TEMPLATES_APPLY_SUBMENU,
+        titleKey: 'menu.templates.apply',
+        // Порядок назван числом: создание шаблона идёт первым, список — за ним.
+        order: 20,
         onDidChange: snapshot === undefined ? undefined : (cb) => snapshot.onDidChange(cb),
       },
     },
@@ -286,7 +322,7 @@ export function templatesContextMenuItems(snapshot?: TemplateSnapshot): readonly
       id: 'templates.context.templates',
       value: {
         kind: 'dynamic',
-        menu: TEMPLATES_CONTEXT_SUBMENU,
+        menu: TEMPLATES_APPLY_SUBMENU,
         items: (_ctx, menuTarget): readonly MenuDynamicItem[] => {
           const resource = asResourceTarget(menuTarget);
           if (resource === null || snapshot === undefined) return [];
@@ -300,20 +336,6 @@ export function templatesContextMenuItems(snapshot?: TemplateSnapshot): readonly
           }));
         },
         onDidChange: snapshot === undefined ? undefined : (cb) => snapshot.onDidChange(cb),
-      },
-    },
-    {
-      id: 'templates.context.createFromDirectory',
-      value: {
-        kind: 'item',
-        menu: RESOURCE_CONTEXT_MENU,
-        command: CREATE_TEMPLATE_COMMAND_ID,
-        // Группа отдельная от файловых: «сделать из этого заготовку» — не правка записи,
-        // и линия между ними появится сама.
-        group: '5_templates',
-        order: 10,
-        when: whenResource((target) => target.ref?.kind === 'directory'),
-        argsOf: argsOfResource((target) => ({ dir: target.ref?.id })),
       },
     },
   ];
