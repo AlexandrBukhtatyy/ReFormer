@@ -166,10 +166,10 @@ describe('плагин переключателя сочетаний', () => {
     const items = provider().provide('', NEUTRAL);
 
     expect(items.map((item) => [item.title, item.detail])).toEqual([
-      ['Сочетание: ReFormer + ReFormer UI Kit', 'Активно'],
-      ['Сочетание: ReFormer + Kaspersky HexaUI', undefined],
-      ['Сочетание: RJSF + ReFormer UI Kit', 'Перезагрузит конструктор'],
-      ['Сочетание: RJSF + Kaspersky HexaUI', 'Перезагрузит конструктор'],
+      ['Сочетание: ReFormer · ReFormer UI Kit', 'Активно'],
+      ['Сочетание: ReFormer · Kaspersky HexaUI', undefined],
+      ['Сочетание: RJSF · ReFormer UI Kit', 'Перезагрузит конструктор'],
+      ['Сочетание: RJSF · Kaspersky HexaUI', 'Перезагрузит конструктор'],
       // Возврат к конфигу — последним и без пометки: собран профиль запуска, перезапуска нет.
       ['Сочетание: как в конфиге запуска', undefined],
     ]);

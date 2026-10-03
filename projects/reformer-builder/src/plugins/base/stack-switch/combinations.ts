@@ -16,7 +16,14 @@
  *
  * Китов нет в составе без плагина китов (демо-стек), службы профилей — в приложении, которое
  * выбора не даёт. Оставшаяся ось показывается одна: переключатель одной оси лучше, чем его
- * отсутствие, а «+» с пустой половиной — хуже обоих.
+ * отсутствие, а разделитель с пустой половиной — хуже обоих.
+ *
+ * ## Подпись одна — и в ячейке, и в списке
+ *
+ * Движок и кит соединяет « · », одинаково в ячейке строки состояния, в пункте списка и в
+ * палитре. Знак выбран так, чтобы не встречаться в самих именах: имя профиля пишет человек,
+ * и «+» в нём — обычное дело («ReFormer + RJSF» у состава с обоими стеками). С плюсом
+ * в разделителе такая подпись читалась бы как три равные части вместо двух.
  *
  * @module plugins/base/stack-switch/combinations
  */
@@ -40,7 +47,7 @@ export interface Combination {
   readonly profile: ApplicationProfileInfo | null;
   /** Кит; `null` — оси китов нет. */
   readonly kit: KitSummary | null;
-  /** Подпись для человека: «ReFormer + Kaspersky HexaUI». */
+  /** Подпись для человека: «ReFormer · Kaspersky HexaUI». */
   readonly label: string;
   /** Это сочетание действует сейчас. */
   readonly active: boolean;
@@ -67,6 +74,13 @@ const ID_SEPARATOR = '|';
 
 const combinationId = (profile: ApplicationProfileInfo | null, kit: KitSummary | null): string =>
   `${profile?.id ?? ''}${ID_SEPARATOR}${kit?.id ?? ''}`;
+
+/** Разделитель движка и кита в подписи — см. шапку модуля. */
+const LABEL_SEPARATOR = ' · ';
+
+/** Подпись пары «движок · кит»; отсутствующая ось в подпись не входит. */
+const labelOf = (profile: ApplicationProfileInfo | null, kit: KitSummary | null): string =>
+  [profile?.name, kit?.label].filter((part) => part !== undefined).join(LABEL_SEPARATOR);
 
 /**
  * Движки по порядку: профиль запуска, затем предложенные, затем собранный.
@@ -113,17 +127,17 @@ export function describeSwitch(
         id: combinationId(profile, kit),
         profile,
         kit,
-        label: [profile?.name, kit?.label].filter((part) => part !== undefined).join(' + '),
+        label: labelOf(profile, kit),
         active: sameEngine && (kit === null || kit.active),
         restarts: !sameEngine,
       });
     }
   }
 
-  const parts = [current?.name, activeKit?.label].filter((part) => part !== undefined);
+  const label = labelOf(current, activeKit);
   return {
     combinations,
-    label: parts.length > 0 ? parts.join(' · ') : null,
+    label: label !== '' ? label : null,
     activeId: combinations.find((combination) => combination.active)?.id ?? null,
     resetRestarts: profiles !== undefined && current?.id !== profiles.launch().id,
   };

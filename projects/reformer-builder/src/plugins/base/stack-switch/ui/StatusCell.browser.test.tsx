@@ -35,13 +35,13 @@ const combination = (label: string, over: Partial<Combination> = {}): Combinatio
 
 const FOUR: SwitchState = {
   label: 'ReFormer · ReFormer UI Kit',
-  activeId: 'ReFormer + ReFormer UI Kit',
+  activeId: 'ReFormer · ReFormer UI Kit',
   resetRestarts: false,
   combinations: [
-    combination('ReFormer + ReFormer UI Kit', { active: true }),
-    combination('ReFormer + Kaspersky HexaUI'),
-    combination('RJSF + ReFormer UI Kit', { restarts: true }),
-    combination('RJSF + Kaspersky HexaUI', { restarts: true }),
+    combination('ReFormer · ReFormer UI Kit', { active: true }),
+    combination('ReFormer · Kaspersky HexaUI'),
+    combination('RJSF · ReFormer UI Kit', { restarts: true }),
+    combination('RJSF · Kaspersky HexaUI', { restarts: true }),
   ],
 };
 
@@ -90,7 +90,7 @@ describe('ячейка переключателя сочетаний', () => {
     );
 
     await userEvent.click(page.getByRole('button', { name: 'ReFormer · ReFormer UI Kit' }));
-    await userEvent.click(page.getByRole('menuitemradio', { name: /RJSF \+ Kaspersky HexaUI/ }));
+    await userEvent.click(page.getByRole('menuitemradio', { name: /RJSF · Kaspersky HexaUI/ }));
 
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect.mock.calls[0]?.[0]).toBe(FOUR.combinations[3]);

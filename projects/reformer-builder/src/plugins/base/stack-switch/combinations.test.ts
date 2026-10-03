@@ -41,16 +41,32 @@ describe('сочетания «движок × кит»', () => {
     const state = describeSwitch(profilesOf(REFORMER), kitsOf(UI_KIT, HEXA));
 
     expect(state.combinations.map((c) => c.label)).toEqual([
-      'ReFormer + ReFormer UI Kit',
-      'ReFormer + Kaspersky HexaUI',
-      'RJSF + ReFormer UI Kit',
-      'RJSF + Kaspersky HexaUI',
+      'ReFormer · ReFormer UI Kit',
+      'ReFormer · Kaspersky HexaUI',
+      'RJSF · ReFormer UI Kit',
+      'RJSF · Kaspersky HexaUI',
     ]);
     expect(state.combinations.filter((c) => c.active).map((c) => c.label)).toEqual([
-      'ReFormer + ReFormer UI Kit',
+      'ReFormer · ReFormer UI Kit',
     ]);
     expect(state.label).toBe('ReFormer · ReFormer UI Kit');
     expect(state.activeId).toBe(state.combinations[0]?.id);
+  });
+
+  it('плюс в имени профиля не сливается с разделителем: в подписи две части, а не три', () => {
+    // Имя профиля пишет человек, и состав с обоими стеками зовётся «ReFormer + RJSF». С плюсом
+    // в разделителе пункт читался бы «ReFormer + RJSF + ReFormer UI Kit» — три равные части.
+    const state = describeSwitch(profilesOf(ALL, ALL), kitsOf(UI_KIT));
+
+    expect(state.combinations[0]?.label).toBe('ReFormer + RJSF · ReFormer UI Kit');
+  });
+
+  it('подпись действующего пункта — та же строка, что в ячейке', () => {
+    // Одна строка в двух местах: человек ищет в списке то, что только что прочёл в ячейке.
+    const state = describeSwitch(profilesOf(RJSF, REFORMER), kitsOf(UI_KIT, HEXA));
+    const active = state.combinations.find((c) => c.active);
+
+    expect(active?.label).toBe(state.label);
   });
 
   it('перезапуска требуют только сочетания с другим движком', () => {
@@ -93,8 +109,8 @@ describe('сочетания «движок × кит»', () => {
     const state = describeSwitch(profilesOf(RJSF, RJSF, []), kitsOf(UI_KIT, HEXA));
 
     expect(state.combinations.map((c) => c.label)).toEqual([
-      'RJSF + ReFormer UI Kit',
-      'RJSF + Kaspersky HexaUI',
+      'RJSF · ReFormer UI Kit',
+      'RJSF · Kaspersky HexaUI',
     ]);
     expect(state.combinations.some((c) => c.restarts)).toBe(false);
   });

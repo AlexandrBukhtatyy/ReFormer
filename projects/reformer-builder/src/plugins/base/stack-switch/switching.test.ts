@@ -25,7 +25,7 @@ const combination = (over: Partial<Combination>): Combination => ({
   id: 'x',
   profile: { id: 'rjsf.builder', name: 'RJSF' },
   kit: kit('hexa-ui', false),
-  label: 'RJSF + hexa-ui',
+  label: 'RJSF · hexa-ui',
   active: false,
   restarts: false,
   ...over,
