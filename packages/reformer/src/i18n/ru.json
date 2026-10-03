@@ -1,0 +1,7 @@
+{
+  "format.fileSize.b": "{value} Б",
+  "format.fileSize.kb": "{value} КБ",
+  "format.fileSize.mb": "{value} МБ",
+  "format.fileSize.gb": "{value} ГБ",
+  "format.fileSize.tb": "{value} ТБ"
+}

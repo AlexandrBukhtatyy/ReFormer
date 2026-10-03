@@ -7,7 +7,8 @@
         "src/model/index.ts",
         "src/form/behaviors/index.ts",
         "src/form/validation/index.ts",
-        "src/form/validators/*.ts"
+        "src/form/validators/*.ts",
+        "src/locale/*.ts"
       ]
     }
   }

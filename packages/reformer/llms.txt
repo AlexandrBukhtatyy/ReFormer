@@ -38,6 +38,7 @@
 - 31-async-validator-debounce.md — async-validator-debounce
 - 32-async-options-loading.md — async-options-loading
 - 33-validation-strategy.md — useFormValidation — Единый выбор стратегии валидации
+- 34-i18n.md — i18n — локаль, загрузка словарей и провайдер
 - API Reference (auto-generated from JSDoc)
 
 ## 1. 1. API Reference
@@ -4495,7 +4496,220 @@ if (typeof window !== 'undefined') ctrl.start();
 - [31-async-validator-debounce.md](./31-async-validator-debounce.md) — async-правила и отмена устаревших прогонов
 - [13-multi-step.md](./13-multi-step.md) — per-step / полная валидация wizard (`validateStep` / `validateAll`)
 
-## 82. API Reference
+## 82. Purpose
+
+**i18n — локаль, загрузка словарей и провайдер**
+
+Подпуть `@reformer/core/i18n` — общий рантайм локализации для всех пакетов `@reformer/*`: объект
+локали, загрузка словарей, React-провайдер, перевод и форматирование. Язык задаётся провайдером,
+подгружается динамически и переключается на лету; узлы формы при этом не пересоздаются.
+
+Без провайдера всё работает на английском: у каждого пакета есть встроенная английская таблица.
+
+> Импорт всегда из `@reformer/core/i18n`. Из главной бочки `@reformer/core` этот модуль не
+> реэкспортируется: React-контекст локализации обязан существовать в одном экземпляре.
+
+## 83. Локаль — это данные
+
+```typescript
+interface FormLocale {
+  code: string;                        // BCP 47: 'en', 'ru', 'pt-BR' — по нему работают Intl и plural
+  messages: Record<string, string>;    // плоский словарь: ключ → сообщение ICU
+  weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  dateLocale?: unknown;                // необязательно: объект локали react-day-picker / date-fns
+  dateFormat?: string;                 // необязательно: токены date-fns для DatePicker
+}
+```
+
+Функций в локали нет, поэтому её можно положить JSON-файлом на сервер и получить по сети:
+
+```json
+{ "code": "ru", "weekStartsOn": 1, "messages": { "profile.title": "Профиль" } }
+```
+
+`extendLocale(base, patch)` возвращает новую локаль: словари сливаются (ключи из `patch` важнее),
+остальные поля заменяются.
+
+## 84. Формат сообщений — подмножество ICU
+
+| Конструкция | Пример |
+| --- | --- |
+| подстановка | `Открыт файл {name}` |
+| множественные формы | `{count, plural, one{# файл} few{# файла} many{# файлов} other{# файла}}` |
+| точное значение | `{count, plural, =0{файлов нет} other{# файлов}}` |
+| выбор | `{gender, select, male{он} female{она} other{оно}}` |
+| экранирование | `'{'` → `{`, `'}'` → `}`, `''` → `'` |
+
+- Ветка `other` обязательна. `#` внутри `plural` — число, отформатированное по языку.
+- Типы `number`, `date`, `time`, `selectordinal` не поддерживаются: числа и даты форматируйте
+  отдельно (`useI18n().number`, `.date`) и передавайте готовой строкой.
+- Категории (`one`/`few`/`many`) берутся из `Intl.PluralRules` языка локали.
+
+## 85. Загрузка локалей
+
+Откуда брать словарь, решает приложение: источник — функция `(code) => локаль | словарь`.
+
+```typescript
+import { createLocaleLoader, fetchMessages } from '@reformer/core/i18n';
+import { loadCoreLocale } from '@reformer/core/locale';
+
+export const loadLocale = createLocaleLoader([
+  loadCoreLocale,                                    // встроенные словари ядра — чанк нужного языка
+  fetchMessages((code) => `/locales/${code}.json`),  // ключи приложения и правки — с сервера
+]);
+```
+
+- Источники опрашиваются параллельно, сливаются по порядку: поздний перекрывает ранний.
+- Источник отдаёт локаль целиком (`{ code, messages, … }`) или голый словарь (`{ "a.b": "…" }`);
+  `null` означает «для этого языка у меня ничего нет» и ошибкой не считается.
+- Результат кэшируется по коду языка, идущий запрос не дублируется.
+- Отказ любого источника — отказ загрузки. Источник, которому можно промахнуться, оборачивайте:
+  `(code) => source(code).catch(() => null)`.
+- `loadLocale.peek(code)` — уже загруженная локаль или `undefined`; `loadLocale.preload(code)` — то
+  же, что вызов загрузчика.
+
+Ядро отдаёт свои локали в трёх видах:
+
+| Вид | Импорт | Для чего |
+| --- | --- | --- |
+| загрузчик | `loadCoreLocale` из `@reformer/core/locale` | основной путь: чанк языка по запросу |
+| JSON-файл | `@reformer/core/locale/ru.json` | выложить на свой сервер, править без пересборки |
+| синхронный модуль | `ru` из `@reformer/core/locale/ru` | SSR и тесты |
+
+Встроенные языки ядра — `en` и `ru`. Словарь ядра сейчас несёт единицы размера файла
+(`format.fileSize.b|kb|mb|gb|tb`).
+
+## 86. Провайдер
+
+```tsx
+import { I18nProvider } from '@reformer/core/i18n';
+
+function App() {
+  const [lang, setLang] = useState('ru');
+  return (
+    <I18nProvider lang={lang} load={loadLocale}>
+      <LangSwitch value={lang} onChange={setLang} />
+      <CreditForm />
+    </I18nProvider>
+  );
+}
+```
+
+| Проп | Назначение |
+| --- | --- |
+| `lang` + `load` | провайдер грузит локаль сам |
+| `fallback` | что показать, пока не загружена самая первая локаль; по умолчанию ничего |
+| `onError` | отказ загрузки `(error, lang)` |
+| `locale` | готовый объект вместо `lang` + `load` — SSR, тесты |
+
+Поведение при `lang` + `load`:
+
+- при смене `lang` на экране остаётся прежний язык, пока новый не загрузится;
+  `useI18n().pending` — для индикатора;
+- при быстром переключении применяется только последний запрос;
+- ошибка загрузки язык не меняет и попадает в `useI18n().error` и `onError`;
+- если локаль уже в кэше (`await loadLocale.preload(lang)` до монтирования), первый рендер
+  синхронный и `fallback` не показывается.
+
+SSR: эффекты на сервере не выполняются, поэтому там передавайте готовый объект —
+`<I18nProvider locale={ru}>` — либо заранее вызовите `preload`.
+
+Вложенный провайдер заменяет локаль для своего поддерева целиком.
+
+## 87. Хуки
+
+```typescript
+const { code, locale, pending, error, t, has, number, date, fileSize } = useI18n();
+
+t('profile.title');                              // ключ приложения
+t('cart.items', { count: 3 });                   // с подстановками
+t('cart.empty', undefined, 'Your cart is empty'); // английский текст на случай промаха
+number(1234.5);                                  // '1 234,5' в ru
+date(new Date(), { dateStyle: 'long' });         // '15 января 2024 г.' в ru
+fileSize(1536);                                  // '1,5 КБ' в ru, '1.5 KB' без провайдера
+```
+
+`useMessages(builtinEn)` — для авторов пакетов и китов: ищет ключ в локали провайдера, а при
+промахе берёт встроенную английскую таблицу пакета. Тип ключа выводится из таблицы.
+
+```tsx
+import en from './locale/en.json';
+
+function ClearButton() {
+  const t = useMessages(en);
+  return <button aria-label={t('kit.select.clear')} />;
+}
+```
+
+## 88. Что показывается, когда ключа нет
+
+| Ключ | Нет в локали | Сообщение не разбирается |
+| --- | --- | --- |
+| пакета (`useMessages`) | встроенный английский пакета | встроенный английский, `console.error` вне production |
+| приложения (`useI18n().t`) | `defaultMessage`, затем сам ключ; `console.warn` вне production | то же, `console.error` |
+
+Пропущенная подстановка выводится как `{name}`. Форма не падает ни в одном из случаев: неполный
+словарь, пришедший по сети, — законный сценарий.
+
+## 89. Проверка словаря в тестах
+
+```typescript
+import { validateLocale } from '@reformer/core/i18n';
+
+expect(validateLocale(ruJson, enJson)).toEqual([]);
+// находит: syntax (не разбирается), missing / extra (ключи), arguments (потерянная подстановка)
+```
+
+## 90. Описатели сообщений (низкий уровень)
+
+`msg(key, values?, defaultMessage?)` создаёт описатель сообщения, `defineMessages(appEn)` — `msg` с
+типизированными ключами, `resolveLocalized(value, i18n)` раскрывает описатели в объекте пропсов.
+
+> ⚠️ Рендереры и `FormField` описатели сами пока НЕ раскрывают. Не кладите `msg(...)` в
+> `componentProps` схемы: компонент получит объект вместо строки. До появления раскрытия в
+> рендерерах вызывайте `resolveLocalized` вручную или используйте `useI18n().t`.
+
+## 91. Anti-patterns
+
+```typescript
+// ❌ Импорт из главной бочки — i18n там нет, а второй путь импорта дал бы вторую копию контекста
+import { I18nProvider } from '@reformer/core';
+
+// ✅ Единственный путь импорта — подпуть i18n
+import { I18nProvider } from '@reformer/core/i18n';
+```
+
+```tsx
+// ❌ Новый загрузчик на каждый рендер: кэш теряется, локаль грузится заново, первый кадр — fallback
+<I18nProvider lang={lang} load={createLocaleLoader([loadCoreLocale])}>
+
+// ✅ Загрузчик — константа модуля: один кэш на приложение
+const loadLocale = createLocaleLoader([loadCoreLocale]);
+<I18nProvider lang={lang} load={loadLocale}>
+```
+
+```typescript
+// ❌ Число или дата типами ICU внутри сообщения — не поддерживается, сообщение не разберётся
+const message = 'Итого: {total, number}';
+
+// ✅ Отформатировать отдельно и передать готовой строкой
+t('cart.total', { total: number(total, { style: 'currency', currency: 'RUB' }) });
+```
+
+```typescript
+// ❌ Настройки локали без словаря: объект без поля messages принимается за словарь сообщений
+const source = () => ({ weekStartsOn: 1 });
+
+// ✅ Часть локали узнаётся по полю messages — отдавайте его хотя бы пустым
+const source = () => ({ weekStartsOn: 1, messages: {} });
+```
+
+## 92. See also
+
+- [28-submit-and-reset.md](./28-submit-and-reset.md) — жизненный цикл формы; смена языка его не затрагивает
+- [33-validation-strategy.md](./33-validation-strategy.md) — когда запускается валидация
+
+## 93. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -4962,6 +5176,35 @@ await v!.validateAll();     // все шаги + extras
 
 _Source: src/form/validation/config.ts_
 
+### bundledLocaleSource
+
+**Kind:** `function`
+
+Источник встроенных локалей пакета: по чанку на язык. Язык ищется точно, затем по основной части
+кода (`ru-RU` → `ru`). Языка нет — источник отдаёт `null`: подписи пакета останутся английскими,
+пока приложение не даст их своим источником.
+
+**Signature:**
+```typescript
+export function bundledLocaleSource(
+  loaders: Readonly<Record<string, () => Promise<FormLocale>>>
+): LocaleSource
+```
+
+**Parameters:**
+- `loaders` — - Код языка → ленивый импорт его локали.
+
+**Examples:**
+
+```ts
+export const loadKitLocale = bundledLocaleSource({
+  en: () => import('./en').then((m) => m.en),
+  ru: () => import('./ru').then((m) => m.ru),
+});
+```
+
+_Source: src/i18n/loader.ts_
+
 ### ChangeContext
 
 **Kind:** `interface`
@@ -5078,6 +5321,19 @@ copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail }
 ```
 
 _Source: src/model/behaviors-value.ts_
+
+### CORE_LOCALES
+
+**Kind:** `const`
+
+Языки, которые ядро поставляет само.
+
+**Signature:**
+```typescript
+export const CORE_LOCALES: readonly string[]
+```
+
+_Source: src/locale/index.ts_
 
 ### CORE_RUNTIME_TOKEN
 
@@ -5389,6 +5645,122 @@ dispose();
 
 _Source: src/form/validation/strategy.ts_
 
+### createI18n
+
+**Kind:** `function`
+
+Ручка для локали. Для одного и того же объекта локали возвращается один и тот же объект —
+ручку можно держать в зависимостях хуков.
+
+**Signature:**
+```typescript
+export function createI18n(locale: FormLocale): I18nHandle
+```
+
+**Parameters:**
+- `locale` — - Локаль; см. {@link FormLocale}.
+
+**Examples:**
+
+```ts
+const i18n = createI18n({ code: 'ru', messages: { 'cart.items': '{count, plural, one{# товар} few{# товара} other{# товаров}}' } });
+i18n.t('cart.items', { count: 3 });  // '3 товара'
+i18n.fileSize(1536);                 // '1,5 КБ'
+```
+
+_Source: src/i18n/translator.ts_
+
+### createLocaleLoader
+
+**Kind:** `function`
+
+Собирает загрузчик из источников. Источники опрашиваются параллельно, а сливаются по порядку:
+поздний перекрывает ранний. Результат кэшируется по коду языка, идущий запрос не дублируется.
+Отказ любого источника — отказ загрузки; из кэша такой запрос удаляется, и следующая попытка
+пойдёт заново. Источник, которому можно промахнуться, приложение оборачивает само:
+`(code) => source(code).catch(() => null)`.
+
+Код языка у результата — всегда запрошенный: по нему работает `Intl`, и он не должен зависеть
+от того, что написано внутри файла.
+
+**Signature:**
+```typescript
+export function createLocaleLoader(sources: readonly LocaleSource[]): LocaleLoader
+```
+
+**Parameters:**
+- `sources` — - Источники в порядке возрастания приоритета.
+
+**Examples:**
+
+```ts
+import { createLocaleLoader, fetchMessages } from '@reformer/core/i18n';
+import { loadKitLocale } from '@reformer/ui-kit/locale';
+
+export const loadLocale = createLocaleLoader([
+  loadKitLocale,                                    // подписи кита — чанк нужного языка
+  fetchMessages((code) => `/locales/${code}.json`), // ключи приложения и правки — с сервера
+]);
+```
+
+_Source: src/i18n/loader.ts_
+
+### createLocaleStore
+
+**Kind:** `function`
+
+Создаёт хранилище. Загрузка при создании НЕ начинается: начальное состояние считается чисто —
+из кэша загрузчика, если локаль там уже есть, — а запрос уходит на первый {@link LocaleStore.setLang}.
+Это позволяет создавать хранилище прямо в рендере.
+
+**Signature:**
+```typescript
+export function createLocaleStore(
+  load: LocaleLoad,
+  lang: string,
+  options: LocaleStoreOptions = {}
+): LocaleStore
+```
+
+**Parameters:**
+- `load` — - Загрузчик локалей.
+- `lang` — - Начальный язык.
+- `options` — - См. {@link LocaleStoreOptions}.
+
+_Source: src/i18n/locale-store.ts_
+
+### createMessageFormatter
+
+**Kind:** `function`
+
+Форматтер одной локали с кэшем разбора: сообщение разбирается один раз, на первый вызов.
+Это внутренность `I18nService.t()` — сам `t()` добавляет сверху поиск ключа в словаре, маркер
+пропущенного ключа и откат на резервную локаль.
+
+**Signature:**
+```typescript
+export function createMessageFormatter(
+  locale: string,
+  options: MessageFormatOptions = {}
+): (source: string, values?: MessageValues) => string
+```
+
+**Parameters:**
+- `locale` — - Локаль форматтера.
+- `options` — - Настройки; см. {@link MessageFormatOptions}.
+
+**Returns:** Функция `(сообщение, значения) => строка`.
+
+**Examples:**
+
+```ts
+const format = createMessageFormatter('ru');
+format('{count, plural, one{# файл} few{# файла} many{# файлов} other{# файла}}', { count: 5 });
+// '5 файлов'
+```
+
+_Source: src/i18n/message-format.ts_
+
 ### createModel
 
 **Kind:** `function`
@@ -5443,6 +5815,20 @@ export function cross<TSnapshot>(
 
 _Source: src/form/validation/operators.ts_
 
+### DEFAULT_LOCALE
+
+**Kind:** `const`
+
+Локаль «провайдера нет»: английский, пустой словарь. Каждый пакет при промахе по словарю берёт
+свою встроенную английскую таблицу, поэтому пустой словарь означает «всё по-английски».
+
+**Signature:**
+```typescript
+export const DEFAULT_LOCALE: FormLocale
+```
+
+_Source: src/i18n/locale.ts_
+
 ### defer
 
 **Kind:** `function`
@@ -5478,6 +5864,37 @@ export const myBehavior = defineFormBehavior<MyForm>(({ model, form }) => {
 ```
 
 _Source: src/form/behaviors/context.ts_
+
+### defineMessages
+
+**Kind:** `function`
+
+`msg` с типизированными ключами: принимает английский словарь приложения, проверяет ключ при
+компиляции и подставляет английский текст как `defaultMessage` — без провайдера и при промахе
+по локали форма покажет его, а не ключ.
+
+**Signature:**
+```typescript
+export function defineMessages<D extends Messages>(
+  defaults: D
+): {
+  msg(key: keyof D & string, values?: Readonly<Record<string, unknown>>): MessageDescriptor;
+}
+```
+
+**Parameters:**
+- `defaults` — - Английский словарь приложения.
+
+**Examples:**
+
+```ts
+import appEn from './locales/en.json';
+
+export const { msg } = defineMessages(appEn);
+msg('profile.email.label'); // опечатка в ключе — ошибка компиляции
+```
+
+_Source: src/i18n/descriptor.ts_
 
 ### defineValidationSchema
 
@@ -5767,6 +6184,59 @@ export function exclusiveFlag<TItem>(
 exclusiveFlag(model.$.contacts, (row) => row.$.primary);
 
 _Source: src/form/behaviors/collections.ts_
+
+### extendLocale
+
+**Kind:** `function`
+
+Новая локаль на основе существующей: словари сливаются (ключи из `patch` важнее), остальные
+поля заменяются. Исходный объект не меняется.
+
+**Signature:**
+```typescript
+export function extendLocale(base: FormLocale, patch: Partial<FormLocale>): FormLocale
+```
+
+**Parameters:**
+- `base` — - Локаль-основа, например поставляемая китом.
+- `patch` — - Свои ключи, переопределения китовых подписей и поля локали.
+
+**Examples:**
+
+```ts
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+const appRu = extendLocale(ru, {
+  messages: { 'profile.title': 'Профиль', 'kit.formWizard.submit': 'Отправить' },
+});
+```
+
+_Source: src/i18n/locale.ts_
+
+### fetchMessages
+
+**Kind:** `function`
+
+Источник локали по сети: забирает JSON по адресу, построенному из кода языка. Файл может быть
+словарём (`{ "profile.title": "Профиль" }`) или локалью целиком (`{ "code": "ru", "messages": … }`).
+Ответ не `2xx` — ошибка загрузки.
+
+**Signature:**
+```typescript
+export function fetchMessages(url: (code: string) => string, init?: RequestInit): LocaleSource
+```
+
+**Parameters:**
+- `url` — - Адрес файла для языка.
+- `init` — - Параметры запроса, передаются в `fetch` как есть.
+
+**Examples:**
+
+```ts
+fetchMessages((code) => `/locales/${code}.json`);
+```
+
+_Source: src/i18n/loader.ts_
 
 ### FIELD_WRAPPER_ONLY_PROPS
 
@@ -6317,6 +6787,33 @@ todos.forEach((item, i) => {
 
 _Source: src/form/types/form-proxy.ts_
 
+### formatPattern
+
+**Kind:** `function`
+
+Собирает строку из разобранного сообщения. Значения подставляются как текст и повторно
+не разбираются.
+
+**Signature:**
+```typescript
+export function formatPattern(
+  pattern: MessagePattern,
+  values: MessageValues,
+  locale: string,
+  options: MessageFormatOptions = {}
+): string
+```
+
+**Parameters:**
+- `pattern` — - Результат {@link parseMessage}.
+- `values` — - Значения аргументов.
+- `locale` — - Локаль для {@link Intl.PluralRules} и {@link Intl.NumberFormat} (`ru`, `en`, …).
+- `options` — - Настройки; см. {@link MessageFormatOptions}.
+
+**Returns:** Готовая строка интерфейса.
+
+_Source: src/i18n/message-format.ts_
+
 ### FormBehavior
 
 **Kind:** `interface`
@@ -6461,6 +6958,43 @@ try {
 ```
 
 _Source: src/form/validation/error-handler.ts_
+
+### FormLocale
+
+**Kind:** `interface`
+
+Локаль формы.
+
+**Signature:**
+```typescript
+export interface FormLocale {
+  /** Код языка BCP 47 (`en`, `ru`, `pt-BR`): по нему работают `Intl` и множественные формы. */
+  readonly code: string;
+  /** Словарь сообщений. Ключа нет — пакет подставит встроенный английский. */
+  readonly messages: Messages;
+  /** Первый день недели календаря. По умолчанию — воскресенье. */
+  readonly weekStartsOn?: WeekStart;
+  /**
+   * Необязательное переопределение: объект локали `react-day-picker` / `date-fns`. Для ядра
+   * непрозрачен. Без него даты форматируются через `Intl` по {@link FormLocale.code}.
+   */
+  readonly dateLocale?: unknown;
+  /** Необязательное переопределение: формат даты в токенах `date-fns` для DatePicker. */
+  readonly dateFormat?: string;
+}
+```
+
+**Examples:**
+
+```ts
+const ru: FormLocale = {
+  code: 'ru',
+  weekStartsOn: 1,
+  messages: { 'kit.selectMulti.selected': 'Выбрано: {count}' },
+};
+```
+
+_Source: src/i18n/locale.ts_
 
 ### FormModel
 
@@ -7043,6 +7577,163 @@ export interface GroupNodeConfig<T> {
 
 _Source: src/form/types/index.ts_
 
+### I18N_CONTEXT_MARKER
+
+**Kind:** `const`
+
+Имя контекста и одновременно маркер, по которому страж ищет его копии в сборках.
+
+**Signature:**
+```typescript
+export const I18N_CONTEXT_MARKER
+```
+
+_Source: src/platforms/react/i18n/context.ts_
+
+### I18nContextValue
+
+**Kind:** `interface`
+
+Что видит компонент: ручка активной локали и состояние её загрузки.
+
+**Signature:**
+```typescript
+export interface I18nContextValue extends I18nHandle {
+  /** Идёт загрузка другого языка; на экране пока прежний. Без загрузчика всегда `false`. */
+  readonly pending: boolean;
+  /** Ошибка последней загрузки языка. */
+  readonly error: unknown;
+}
+```
+
+_Source: src/platforms/react/i18n/context.ts_
+
+### I18nHandle
+
+**Kind:** `interface`
+
+Ручка локали: перевод и форматирование по одному языку.
+
+**Signature:**
+```typescript
+export interface I18nHandle {
+  /** Локаль, по которой работает ручка. */
+  readonly locale: FormLocale;
+  /** Код языка — то же, что `locale.code`. */
+  readonly code: string;
+  /** Есть ли ключ в словаре локали (встроенные английские таблицы не учитываются). */
+  has(key: string): boolean;
+  /**
+   * Перевод ключа приложения: словарь локали → `defaultMessage` → встроенная таблица ядра → ключ.
+   *
+   * @param key - Ключ сообщения.
+   * @param values - Значения подстановок.
+   * @param defaultMessage - Английский текст на случай, если ключа в локали нет.
+   */
+  t(key: string, values?: MessageValues, defaultMessage?: string): string;
+  /** Число по правилам языка. */
+  number(value: number, options?: Intl.NumberFormatOptions): string;
+  /** Дата по правилам языка. */
+  date(value: Date | number, options?: Intl.DateTimeFormatOptions): string;
+  /** Размер файла: `1536` → `1.5 KB` (`1,5 КБ` в русской локали). База — 1024. */
+  fileSize(bytes: number): string;
+}
+```
+
+_Source: src/i18n/translator.ts_
+
+### I18nLoadingProviderProps
+
+**Kind:** `interface`
+
+Режим «провайдер грузит сам».
+
+**Signature:**
+```typescript
+export interface I18nLoadingProviderProps {
+  /** Код языка. Смена кода запускает загрузку; до её конца на экране прежний язык. */
+  lang: string;
+  /** Загрузчик локалей — обычно результат `createLocaleLoader`. */
+  load: LocaleLoad;
+  /**
+   * Что показать, пока не загружена самая первая локаль. По умолчанию — ничего: иначе на кадр
+   * мелькнул бы встроенный английский. Если локаль уже в кэше загрузчика (`load.preload(lang)`
+   * до монтирования), первый рендер синхронный и `fallback` не показывается.
+   */
+  fallback?: ReactNode;
+  /** Отказ загрузки. Язык на экране при этом не меняется. */
+  onError?: (error: unknown, lang: string) => void;
+  children?: ReactNode;
+}
+```
+
+_Source: src/platforms/react/i18n/provider.ts_
+
+### I18nProvider
+
+**Kind:** `function`
+
+Провайдер локализации для подписей компонентов, ошибок валидации и авторских подписей формы.
+Без провайдера компоненты говорят встроенным английским.
+
+При смене `lang` на экране остаётся прежний язык, пока новый не загрузится (`useI18n().pending`
+— для индикатора). При быстром переключении применяется только последний запрос. Вложенный
+провайдер заменяет локаль для своего поддерева целиком.
+
+**Signature:**
+```typescript
+export function I18nProvider(props: I18nProviderProps): ReactElement | null
+```
+
+**Examples:**
+
+Провайдер грузит локаль сам
+```tsx
+const [lang, setLang] = useState('ru');
+
+<I18nProvider lang={lang} load={loadLocale}>
+<LangSwitch value={lang} onChange={setLang} />
+<CreditForm />
+</I18nProvider>
+```
+
+Готовая локаль — SSR и тесты
+```tsx
+import { ru } from '@reformer/ui-kit/locale/ru';
+
+<I18nProvider locale={ru}><CreditForm /></I18nProvider>
+```
+
+_Source: src/platforms/react/i18n/provider.ts_
+
+### I18nProviderProps
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type I18nProviderProps = I18nStaticProviderProps | I18nLoadingProviderProps;
+```
+
+_Source: src/platforms/react/i18n/provider.ts_
+
+### I18nStaticProviderProps
+
+**Kind:** `interface`
+
+Режим «готовая локаль».
+
+**Signature:**
+```typescript
+export interface I18nStaticProviderProps {
+  /** Локаль. Смена объекта переключает язык сразу. */
+  locale: FormLocale;
+  children?: ReactNode;
+}
+```
+
+_Source: src/platforms/react/i18n/provider.ts_
+
 ### integer
 
 **Kind:** `function`
@@ -7288,6 +7979,19 @@ if (isGroupNode(node)) {
 
 _Source: src/form/type-guards.ts_
 
+### isMessageDescriptor
+
+**Kind:** `function`
+
+Является ли значение описателем сообщения.
+
+**Signature:**
+```typescript
+export function isMessageDescriptor(value: unknown): value is MessageDescriptor
+```
+
+_Source: src/i18n/descriptor.ts_
+
 ### isModelContainerSignal
 
 **Kind:** `function`
@@ -7374,6 +8078,180 @@ isValueSignal(model.$.address); // false — группа
 ```
 
 _Source: src/model/model-signals-proxy.ts_
+
+### loadCoreLocale
+
+**Kind:** `const`
+
+Источник локалей ядра для `createLocaleLoader`: чанк нужного языка по запросу.
+
+**Signature:**
+```typescript
+export const loadCoreLocale
+```
+
+**Examples:**
+
+```ts
+const loadLocale = createLocaleLoader([loadCoreLocale, fetchMessages((code) => `/locales/${code}.json`)]);
+```
+
+_Source: src/locale/index.ts_
+
+### LocaleIssue
+
+**Kind:** `interface`
+
+Что не так со словарём.
+
+**Signature:**
+```typescript
+export interface LocaleIssue {
+  readonly key: string;
+  /**
+   * - `syntax` — сообщение не разбирается;
+   * - `missing` — ключ есть в образце, но его нет в словаре;
+   * - `extra` — ключа нет в образце;
+   * - `arguments` — набор подстановок не совпадает с образцом.
+   */
+  readonly kind: 'syntax' | 'missing' | 'extra' | 'arguments';
+  readonly message: string;
+}
+```
+
+_Source: src/i18n/locale.ts_
+
+### LocaleLoad
+
+**Kind:** `interface`
+
+Функция загрузки локали. `peek` — необязательный синхронный кэш (есть у `createLocaleLoader`).
+
+**Signature:**
+```typescript
+export interface LocaleLoad {
+  (code: string): Promise<FormLocale>;
+  peek?(code: string): FormLocale | undefined;
+}
+```
+
+_Source: src/i18n/locale-store.ts_
+
+### LocaleLoader
+
+**Kind:** `interface`
+
+Загрузчик локалей с кэшем.
+
+**Signature:**
+```typescript
+export interface LocaleLoader {
+  /** Загрузить локаль языка. Повторный вызов возвращает тот же промис и ту же локаль. */
+  (code: string): Promise<FormLocale>;
+  /** Уже загруженная локаль или `undefined`. Позволяет провайдеру отрисоваться синхронно. */
+  peek(code: string): FormLocale | undefined;
+  /** То же, что вызов загрузчика; имя для чтения в коде старта приложения. */
+  preload(code: string): Promise<FormLocale>;
+}
+```
+
+_Source: src/i18n/loader.ts_
+
+### LocaleSource
+
+**Kind:** `type`
+
+Источник локали. Получает код языка, отдаёт локаль или словарь — сразу или промисом.
+`null`/`undefined` означает «для этого языка у меня ничего нет» и ошибкой не считается.
+
+**Signature:**
+```typescript
+export type LocaleSource = (code: string) => LocaleSourceResult | Promise<LocaleSourceResult>;
+```
+
+_Source: src/i18n/loader.ts_
+
+### LocaleSourceResult
+
+**Kind:** `type`
+
+Что может вернуть источник: локаль целиком, её часть, голый словарь или ничего.
+
+**Signature:**
+```typescript
+export type LocaleSourceResult = Partial<FormLocale> | Messages | null | undefined;
+```
+
+_Source: src/i18n/loader.ts_
+
+### LocaleStore
+
+**Kind:** `interface`
+
+Хранилище активной локали.
+
+**Signature:**
+```typescript
+export interface LocaleStore {
+  getState(): LocaleStoreState;
+  subscribe(listener: () => void): () => void;
+  /** Запросить язык. Повторный запрос того же языка, пока он грузится или уже показан, — no-op. */
+  setLang(lang: string): void;
+}
+```
+
+_Source: src/i18n/locale-store.ts_
+
+### LocaleStoreOptions
+
+**Kind:** `interface`
+
+Настройки хранилища.
+
+**Signature:**
+```typescript
+export interface LocaleStoreOptions {
+  /** Вызывается при отказе загрузки языка, который всё ещё запрошен. */
+  readonly onError?: (error: unknown, lang: string) => void;
+}
+```
+
+_Source: src/i18n/locale-store.ts_
+
+### LocaleStoreState
+
+**Kind:** `interface`
+
+Состояние хранилища. Объект неизменяемый: новая ссылка — новое состояние.
+
+**Signature:**
+```typescript
+export interface LocaleStoreState {
+  /** Запрошенный язык. Пока `pending`, может отличаться от языка `locale`. */
+  readonly lang: string;
+  /** Локаль, которая сейчас на экране; `null` — ни одна ещё не загружена. */
+  readonly locale: FormLocale | null;
+  /** Идёт загрузка запрошенного языка. */
+  readonly pending: boolean;
+  /** Ошибка последней загрузки; сбрасывается следующей удачной. */
+  readonly error: unknown;
+}
+```
+
+_Source: src/i18n/locale-store.ts_
+
+### LocalizableText
+
+**Kind:** `type`
+
+Текст, который можно задать строкой или описателем.
+
+**Signature:**
+```typescript
+export type LocalizableText = string | MessageDescriptor;
+```
+
+_Source: src/i18n/descriptor.ts_
 
 ### makeElementFieldHandle
 
@@ -7728,6 +8606,164 @@ validate(model.$.documents, [maxTotalFileSize(20 * 1024 * 1024, { message: 'Су
 ```
 
 _Source: src/form/validators/max-total-file-size.ts_
+
+### MESSAGE_DESCRIPTOR
+
+**Kind:** `const`
+
+Бренд описателя. `Symbol.for` — чтобы описатель узнавался и через границу двух копий модуля
+(разные чанки, разные версии пакета на странице).
+
+**Signature:**
+```typescript
+export const MESSAGE_DESCRIPTOR: unique symbol
+```
+
+_Source: src/i18n/descriptor.ts_
+
+### messageArguments
+
+**Kind:** `function`
+
+Имена аргументов сообщения, включая те, что встречаются только внутри веток `plural`/`select`.
+
+**Signature:**
+```typescript
+export function messageArguments(
+  pattern: MessagePattern,
+  out: Set<string> = new Set()
+): Set<string>
+```
+
+**Parameters:**
+- `pattern` — - Результат `parseMessage`.
+
+_Source: src/i18n/locale.ts_
+
+### MessageBranches
+
+**Kind:** `type`
+
+Ветки `plural`/`select`: категория CLDR (`one`, `few`, …), точное совпадение (`=0`) или значение `select`.
+
+**Signature:**
+```typescript
+export type MessageBranches = ReadonlyMap<string, MessagePattern>;
+```
+
+_Source: src/i18n/message-format.ts_
+
+### MessageDescriptor
+
+**Kind:** `interface`
+
+Описатель сообщения. Намеренно без ключей `value`, `array`, `item`, `component`: обход схемы в
+`createForm` узнаёт по ним узел, а описатель узлом не является.
+
+**Signature:**
+```typescript
+export interface MessageDescriptor {
+  readonly [MESSAGE_DESCRIPTOR]: true;
+  /** Ключ сообщения в словаре приложения. */
+  readonly key: string;
+  /** Значения подстановок. */
+  readonly values?: Readonly<Record<string, unknown>>;
+  /** Английский текст на случай, если ключа в локали нет. */
+  readonly defaultMessage?: string;
+}
+```
+
+_Source: src/i18n/descriptor.ts_
+
+### MessageFormatOptions
+
+**Kind:** `interface`
+
+Настройки форматирования.
+
+**Signature:**
+```typescript
+export interface MessageFormatOptions {
+  /**
+   * Что подставить вместо аргумента, которого нет в значениях (или чьё значение не число там, где
+   * ожидалось число). По умолчанию — заметный маркер `⟦name⟧`, тот же приём, что и для пропущенного
+   * ключа: пропуск должен попадаться разработчику, а не пользователю.
+   */
+  readonly onMissingArgument?: (name: string) => string;
+}
+```
+
+_Source: src/i18n/message-format.ts_
+
+### MessageNode
+
+**Kind:** `type`
+
+Узел разобранного сообщения.
+
+**Signature:**
+```typescript
+export type MessageNode =
+  | { readonly kind: 'text'; readonly value: string }
+  | { readonly kind: 'arg'; readonly name: string }
+  | { readonly kind: 'number'; readonly name: string }
+  | { readonly kind: 'plural'; readonly name: string; readonly branches: MessageBranches }
+  | { readonly kind: 'select'; readonly name: string; readonly branches: MessageBranches };
+```
+
+_Source: src/i18n/message-format.ts_
+
+### MessagePattern
+
+**Kind:** `type`
+
+Разобранное сообщение — плоская последовательность узлов.
+
+**Signature:**
+```typescript
+export type MessagePattern = readonly MessageNode[];
+```
+
+_Source: src/i18n/message-format.ts_
+
+### Messages
+
+**Kind:** `type`
+
+Плоский словарь: ключ → сообщение в формате ICU (см. `message-format.ts`).
+
+**Signature:**
+```typescript
+export type Messages = Readonly<Record<string, string>>;
+```
+
+_Source: src/i18n/locale.ts_
+
+### MessageSyntaxError
+
+**Kind:** `class`
+
+Отказ разбора сообщения: синтаксис или отсутствие обязательной ветки `other`.
+
+**Signature:**
+```typescript
+export class MessageSyntaxError extends Error { /* … */ }
+```
+
+_Source: src/i18n/message-format.ts_
+
+### MessageValues
+
+**Kind:** `type`
+
+Значения аргументов сообщения.
+
+**Signature:**
+```typescript
+export type MessageValues = Readonly<Record<string, unknown>>;
+```
+
+_Source: src/i18n/message-format.ts_
 
 ### min
 
@@ -8236,6 +9272,34 @@ export type ModelValue<V> =
 
 _Source: src/model/types.ts_
 
+### msg
+
+**Kind:** `function`
+
+Создаёт описатель сообщения.
+
+**Signature:**
+```typescript
+export function msg(
+  key: string,
+  values?: Readonly<Record<string, unknown>>,
+  defaultMessage?: string
+): MessageDescriptor
+```
+
+**Parameters:**
+- `key` — - Ключ в словаре приложения.
+- `values` — - Значения подстановок.
+- `defaultMessage` — - Английский текст на случай, если ключа в локали нет.
+
+**Examples:**
+
+```ts
+{ value: model.$.email, component: Input, componentProps: { label: msg('profile.email.label') } }
+```
+
+_Source: src/i18n/descriptor.ts_
+
 ### multipleOf
 
 **Kind:** `function`
@@ -8451,6 +9515,31 @@ export function onDispose(cleanup: BehaviorCleanup): void
 ```
 
 _Source: src/form/behaviors/context.ts_
+
+### parseMessage
+
+**Kind:** `function`
+
+Разбирает сообщение в дерево. Бросает {@link MessageSyntaxError} на ошибке синтаксиса и на
+`plural`/`select` без ветки `other`.
+
+**Signature:**
+```typescript
+export function parseMessage(source: string): MessagePattern
+```
+
+**Parameters:**
+- `source` — - Текст сообщения из словаря.
+
+**Returns:** Разобранное сообщение для {@link formatPattern}.
+
+**Examples:**
+
+```ts
+parseMessage('{count, plural, one{# файл} few{# файла} many{# файлов} other{# файла}}');
+```
+
+_Source: src/i18n/message-format.ts_
 
 ### pastDate
 
@@ -8715,6 +9804,33 @@ resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: 
 ```
 
 _Source: src/model/behaviors-value.ts_
+
+### resolveLocalized
+
+**Kind:** `function`
+
+Заменяет описатели сообщений на строки по активной локали. Обходит массивы и простые
+объекты-литералы — подписи опций, заголовки шагов; сигналы, React-элементы, функции и
+экземпляры классов (узлы формы) возвращает как есть. Поддерево без описателей сохраняет ссылку:
+если раскрывать было нечего, возвращается тот же объект.
+
+**Signature:**
+```typescript
+export function resolveLocalized<T>(value: T, i18n: I18nHandle): T
+```
+
+**Parameters:**
+- `value` — - Пропсы, массив или одиночное значение.
+- `i18n` — - Ручка активной локали (`createI18n` / `useI18n`).
+
+**Examples:**
+
+```ts
+resolveLocalized({ label: msg('profile.email.label'), options: [{ value: 'a', label: msg('opt.a') }] }, i18n);
+// { label: 'Почта', options: [{ value: 'a', label: 'Вариант А' }] }
+```
+
+_Source: src/i18n/resolve-localized.ts_
 
 ### revalidateWhen
 
@@ -9079,6 +10195,32 @@ transformValue(model.$.promoCode, (v) => (v ?? '').toUpperCase());
 ```
 
 _Source: src/model/behaviors-value.ts_
+
+### translateBuiltin
+
+**Kind:** `function`
+
+Перевод ключа пакета: словарь локали, затем встроенная английская таблица пакета, затем сам
+ключ. Английская таблица форматируется по английским правилам — её множественные формы и
+группировка чисел не зависят от активного языка.
+
+**Signature:**
+```typescript
+export function translateBuiltin(
+  locale: FormLocale,
+  builtin: Messages,
+  key: string,
+  values?: MessageValues
+): string
+```
+
+**Parameters:**
+- `locale` — - Активная локаль.
+- `builtin` — - Встроенная английская таблица пакета-владельца ключа.
+- `key` — - Ключ сообщения.
+- `values` — - Значения подстановок.
+
+_Source: src/i18n/translator.ts_
 
 ### UnknownRecord
 
@@ -9771,6 +10913,67 @@ export interface UseFormValidationResult {
 
 _Source: src/platforms/react/hooks/use-form-validation.ts_
 
+### useI18n
+
+**Kind:** `function`
+
+Активная локаль: перевод ключей приложения, форматирование чисел, дат и размеров, состояние
+загрузки языка. Без провайдера — английский с пустым словарём.
+
+**Signature:**
+```typescript
+export function useI18n(): I18nContextValue
+```
+
+**Examples:**
+
+```tsx
+function LangBadge() {
+  const { code, pending, t } = useI18n();
+  return <span aria-busy={pending}>{t('app.language')}: {code}</span>;
+}
+```
+
+_Source: src/platforms/react/i18n/hooks.ts_
+
+### useMessages
+
+**Kind:** `function`
+
+Переводчик пакета: ищет ключ в локали провайдера, а при промахе берёт встроенную английскую
+таблицу этого пакета. Так пакет говорит по-английски без провайдера и не зависит от того, знает
+ли локаль его ключи. Тип ключа выводится из таблицы — опечатка в ключе не скомпилируется.
+
+`defaults` должен быть стабильной ссылкой (импорт JSON-модуля), иначе переводчик будет
+пересоздаваться на каждый рендер.
+
+**Signature:**
+```typescript
+export function useMessages<D extends Messages>(
+  defaults: D
+): (key: keyof D & string, values?: MessageValues) => string
+```
+
+**Parameters:**
+- `defaults` — - Встроенная английская таблица пакета.
+
+**Returns:** Функция `(ключ, значения?) => строка`; её идентичность меняется вместе с локалью.
+
+**Examples:**
+
+```tsx
+import en from './locale/en.json';
+
+const useKitMessages = () => useMessages(en);
+
+function ClearButton() {
+  const t = useKitMessages();
+  return <button aria-label={t('kit.select.clear')} />;
+}
+```
+
+_Source: src/platforms/react/i18n/hooks.ts_
+
 ### validate
 
 **Kind:** `function`
@@ -9819,6 +11022,34 @@ validateAsync(model.$.username, [async (v, { signal }) => {
 ```
 
 _Source: src/form/validation/operators.ts_
+
+### validateLocale
+
+**Kind:** `function`
+
+Проверяет словарь: каждое сообщение разбирается, а при заданном образце — набор ключей и имена
+подстановок совпадают с ним. Нужна там, где компилятор не поможет: словарь пришёл по сети или
+написан вне репозитория. В рантайме вызывать не обязательно — битое или пропущенное сообщение
+и так откатится на встроенный английский; проверка нужна тестам и CI.
+
+**Signature:**
+```typescript
+export function validateLocale(messages: Messages, reference?: Messages): LocaleIssue[]
+```
+
+**Parameters:**
+- `messages` — - Проверяемый словарь.
+- `reference` — - Образец, обычно английский словарь того же пакета.
+
+**Returns:** Список расхождений; пустой — словарь в порядке.
+
+**Examples:**
+
+```ts
+expect(validateLocale(ruJson, enJson)).toEqual([]);
+```
+
+_Source: src/i18n/locale.ts_
 
 ### validateModel
 
@@ -10029,3 +11260,16 @@ watchField(model.$.country, async (country) => {
 ```
 
 _Source: src/model/behaviors-value.ts_
+
+### WeekStart
+
+**Kind:** `type`
+
+День недели, с которого начинается календарь: `0` — воскресенье, `1` — понедельник.
+
+**Signature:**
+```typescript
+export type WeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+```
+
+_Source: src/i18n/locale.ts_

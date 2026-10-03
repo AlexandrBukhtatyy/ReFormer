@@ -15,6 +15,24 @@
       "types": "./dist/signals.d.ts",
       "import": "./dist/signals.js"
     },
+    "./i18n": {
+      "types": "./dist/i18n.d.ts",
+      "import": "./dist/i18n.js"
+    },
+    "./locale": {
+      "types": "./dist/locale.d.ts",
+      "import": "./dist/locale.js"
+    },
+    "./locale/en": {
+      "types": "./dist/locale/en.d.ts",
+      "import": "./dist/locale/en.js"
+    },
+    "./locale/ru": {
+      "types": "./dist/locale/ru.d.ts",
+      "import": "./dist/locale/ru.js"
+    },
+    "./locale/en.json": "./dist/locale/en.json",
+    "./locale/ru.json": "./dist/locale/ru.json",
     "./model": {
       "types": "./dist/model.d.ts",
       "import": "./dist/model.js"
@@ -172,12 +190,13 @@
     "use-sync-external-store": "^1.2.0"
   },
   "devDependencies": {
-    "@types/use-sync-external-store": "^0.0.6",
     "@types/node": "^24.10.1",
-    "tsx": "^4.19.2",
     "@types/react": "^19.2.7",
+    "@types/use-sync-external-store": "^0.0.6",
     "@vitest/coverage-v8": "~4.0.15",
+    "intl-messageformat": "^12.1.2",
     "react": "^19.2.1",
+    "tsx": "^4.19.2",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",
     "vite-plugin-dts": "^4.5.4",

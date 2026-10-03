@@ -10,6 +10,7 @@
     "strict": true,
     "moduleResolution": "bundler",
     "esModuleInterop": true,
+    "resolveJsonModule": true,
     "types": ["node", "vite/client", "vitest/globals"]
   },
   "include": ["src"]

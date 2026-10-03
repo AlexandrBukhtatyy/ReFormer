@@ -25,10 +25,12 @@ export default defineConfig({
         'react',
         'react-dom',
         'react/jsx-runtime',
-        '@reformer/core',
-        '@reformer/core/model',
-        '@reformer/core/validators',
-        '@reformer/core/signals',
+        // Правило, а не перечисление подпутей (как в cdk, ui-kit и renderer-json): rollup сравнивает
+        // строки списка со спецификатором ТОЧНО, и подпуть, которого в списке нет, попадает в dist
+        // второй копией модуля. Для `@reformer/core/i18n` это вторая копия React-контекста
+        // локализации — провайдер приложения перестал бы доходить до рендерера молча.
+        // Страж: scripts/check-i18n-singleton.mjs.
+        /^@reformer\//,
       ],
       output: {
         entryFileNames: '[name].js',

@@ -1,7 +1,8 @@
 /**
  * Сервис локализации: поиск ключа, откат на резервную локаль и словари плагинов.
  *
- * Форматирование сообщения живёт отдельно — в `./message-format`. Здесь ровно то, что форматтер
+ * Форматирование сообщения живёт отдельно — в `@reformer/core/i18n`: форматтер общий с подписями
+ * форм и переехал в ядро. Здесь ровно то, что форматтер
  * делать не обязан и не может: где взять сообщение по ключу, что показать, если его нет, и как
  * не дать двум плагинам перепутать одинаковые ключи.
  *
@@ -50,7 +51,7 @@ import {
   type Disposable,
   type PluginI18n,
 } from '@reformer/builder-plugin-api/internal';
-import { formatPattern, parseMessage, type MessagePattern } from './message-format';
+import { formatPattern, parseMessage, type MessagePattern } from '@reformer/core/i18n';
 
 /** Локаль, на которую откатывается сборка при промахе. Обоснование — в шапке модуля. */
 export const FALLBACK_LOCALE = 'en';

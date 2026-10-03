@@ -7,7 +7,7 @@ import {
   MessageSyntaxError,
   parseMessage,
   type MessageValues,
-} from './message-format';
+} from '../../src/i18n/message-format';
 
 const ru = createMessageFormatter('ru');
 const en = createMessageFormatter('en');

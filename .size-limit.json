@@ -20,6 +20,16 @@
     "limit": "2 kB"
   },
   {
+    "name": "@reformer/core (i18n only)",
+    "path": "packages/reformer/dist/i18n.js",
+    "limit": "4 kB"
+  },
+  {
+    "name": "@reformer/core (i18n: ICU + loader chunk)",
+    "path": "packages/reformer/dist/loader-*.js",
+    "limit": "4 kB"
+  },
+  {
     "name": "@reformer/cdk",
     "path": "packages/reformer-cdk/dist/index.js",
     "limit": "10 kB"

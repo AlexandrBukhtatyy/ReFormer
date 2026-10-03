@@ -178,4 +178,17 @@ export default defineConfig([
       ],
     },
   },
+
+  // i18n-слой и встроенные локали: данные и чистые функции, без рантайма React и без
+  // платформенных биндингов. React-привязка (контекст, провайдер, хуки) лежит в
+  // src/platforms/react/i18n, а сшивает слои бочка подпутя src/i18n.ts.
+  {
+    files: ['packages/reformer/src/i18n/**/*.ts', 'packages/reformer/src/locale/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        { patterns: [NO_PLATFORMS], paths: NO_REACT_PATHS },
+      ],
+    },
+  },
 ]);

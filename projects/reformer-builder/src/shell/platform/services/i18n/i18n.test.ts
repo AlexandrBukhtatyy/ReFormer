@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createI18nService, FALLBACK_LOCALE, type I18nServiceOptions } from './i18n';
-import { MessageSyntaxError } from './message-format';
+import { MessageSyntaxError } from '@reformer/core/i18n';
 
 /**
  * Словари Host для тестов. Настоящие `locales/*.json` проверяются отдельно — через загрузчик

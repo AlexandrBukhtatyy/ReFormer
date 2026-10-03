@@ -43,7 +43,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { FALLBACK_LOCALE } from '@/shell/platform/services/i18n/i18n';
-import { parseMessage, type MessagePattern } from '@/shell/platform/services/i18n/message-format';
+import { parseMessage, type MessagePattern } from '@reformer/core/i18n';
 import hostEn from '@/shell/platform/services/i18n/locales/en.json';
 import hostRu from '@/shell/platform/services/i18n/locales/ru.json';
 import { AI_MESSAGES } from '@/plugins/reformer/ai/messages';

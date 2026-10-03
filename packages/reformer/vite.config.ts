@@ -4,12 +4,17 @@
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import { resolve } from 'path';
+import { localeAssets } from '../../scripts/vite-locale-assets.mjs';
 
 // Тесты живут рядом с исходниками — в dist их декларации не нужны и уезжают в npm.
 const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
 
 export default defineConfig({
-  plugins: [dts({ insertTypesEntry: true, exclude: TEST_FILES })],
+  plugins: [
+    dts({ insertTypesEntry: true, exclude: TEST_FILES }),
+    // JSON-копии локалей (`./locale/<язык>.json`) — из собранных синхронных модулей.
+    localeAssets({ dist: resolve(__dirname, 'dist'), codes: ['en', 'ru'] }),
+  ],
   // NB: конфиг тестов (включая coverage) живёт в vitest.config.ts — `scripts/run-vitest.mjs`
   // спавнит `vitest run` без --config, и штатное разрешение отдаёт победу ему. Дубль `test:`
   // здесь ни на что не влиял: правка порогов в этом файле не давала эффекта.
@@ -31,6 +36,14 @@ export default defineConfig({
         // Декларативный контракт СХЕМЫ ВАЛИДАЦИИ (validateModel + операторы). Импортирует из index →
         // общий chunk (тот же реестр сигнал→нода, что и у форм/поведения).
         validation: resolve(__dirname, 'src/form/validation/index.ts'),
+        // Локализация: объект локали, загрузчик, провайдер, перевод и форматирование. Отдельный
+        // entry, из index не реэкспортируется — React-контекст существует в одном чанке, и остальные
+        // пакеты (cdk, ui-kit, рендереры) получают его как внешнюю зависимость.
+        i18n: resolve(__dirname, 'src/i18n.ts'),
+        // Встроенные локали ядра: загрузчик (чанк на язык) и синхронные модули по языкам.
+        locale: resolve(__dirname, 'src/locale/index.ts'),
+        'locale/en': resolve(__dirname, 'src/locale/en.ts'),
+        'locale/ru': resolve(__dirname, 'src/locale/ru.ts'),
         // Barrel каталога validators/: полный набор правил одним импортом.
         validators: resolve(__dirname, 'src/form/validators/index.ts'),
         // Granular validator exports for tree-shaking
