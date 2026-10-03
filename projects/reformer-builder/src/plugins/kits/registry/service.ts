@@ -481,6 +481,16 @@ export function createKitsService(options: KitsServiceOptions): OwnedKitsService
       await settings?.set(KIT_SETTINGS_KEY, id);
     },
 
+    async resetChoice() {
+      // Запись СНИМАЕТСЯ, а не заменяется умолчанием: что действует дальше, решают слои настроек
+      // — умолчание организации, затем встроенное. Активный кит пересчитывает подписка на
+      // настройку выше, тем же путём, что правку мимо службы. Без настроек выбор жил только
+      // в памяти, и «снять» его значит вернуться к умолчанию самому.
+      if (settings === undefined) setActive(defaultId);
+      else await settings.set(KIT_SETTINGS_KEY, undefined);
+      void load(activeEntry());
+    },
+
     whenReady: () => load(activeEntry()),
     syncContributed,
 

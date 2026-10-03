@@ -1,0 +1,15 @@
+{
+  "cell.title": "Engine and kit combination",
+  "cell.hint": "Combination: {label}. Click to change",
+  "menu.title": "Engine and kit",
+  "menu.restarts": "reloads the builder",
+  "menu.reset": "As in the launch config",
+  "palette.switch": "Combination: {label}",
+  "palette.reset": "Combination: as in the launch config",
+  "palette.active": "Active",
+  "palette.restarts": "Reloads the builder",
+  "confirm.title": "Switch the engine to “{engine}”?",
+  "confirm.description": "The builder will reload: the set of editors and previews will change. Edits to open files stay in the working copy.",
+  "confirm.accept": "Switch and reload",
+  "switch.failed": "Could not change the combination: {detail}"
+}

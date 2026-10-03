@@ -57,7 +57,9 @@ function fakeSettings(seed: Record<string, unknown> = {}): KitsSettings & {
     async set<T>(key: string, value: T): Promise<void> {
       written.push([key, value]);
       if (failure !== null) throw failure;
-      data.set(key, value);
+      // `undefined` СНИМАЕТ запись, и значение проваливается на умолчание — как у настоящей службы.
+      if (value === undefined) data.delete(key);
+      else data.set(key, value);
       for (const listener of [...listeners]) listener(key);
     },
     registerDefault<T>(key: string, value: T): Disposable {
@@ -88,7 +90,8 @@ const names = (json: CatalogJson): string[] => json.components.map((record) => r
 describe('состав службы', () => {
   it('возможность — из SDK, мажор 2: служба нейтральна и отдаёт сырой каталог', () => {
     expect(KitsCapability.id).toBe('reformer.kit.catalog');
-    expect(KitsCapability.version).toBe('2.0.0');
+    // Минор 1 — сброс выбора (`resetChoice`); мажор прежний, и `requires: ^2` внешнего кита цел.
+    expect(KitsCapability.version).toBe('2.1.0');
   });
 
   it('без китов службы не бывает: делать активным нечего', () => {
@@ -307,6 +310,40 @@ describe('выбор живёт в настройках', () => {
     await kits.activate('kit-b');
 
     expect(kits.activeId()).toBe('kit-b');
+  });
+
+  it('сброс выбора СНИМАЕТ запись, а не пишет умолчание', async () => {
+    const settings = fakeSettings({ [KIT_SETTINGS_KEY]: 'kit-b' });
+    const kits = createKitsService({ sources: [KIT_A, KIT_B], settings });
+
+    await kits.resetChoice();
+
+    // Запиши он `kit-a` — умолчание стало бы выбором, и смена кита организации в конфиге
+    // запуска человека бы уже не касалась.
+    expect(settings.written).toEqual([[KIT_SETTINGS_KEY, undefined]]);
+    expect(kits.activeId()).toBe('kit-a');
+  });
+
+  it('сброс возвращает к киту организации, когда умолчание задано слоем ниже', async () => {
+    const settings = fakeSettings({ [KIT_SETTINGS_KEY]: 'kit-a' });
+    settings.registerDefault(KIT_SETTINGS_KEY, 'kit-b');
+    const kits = createKitsService({ sources: [KIT_A, KIT_B], settings });
+    const listener = vi.fn();
+    kits.onDidChange(listener);
+
+    await kits.resetChoice();
+
+    expect(kits.activeId()).toBe('kit-b');
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('без настроек сброс возвращает умолчание сам: выбор жил только в памяти', async () => {
+    const kits = createKitsService({ sources: [KIT_A, KIT_B] });
+    await kits.activate('kit-b');
+
+    await kits.resetChoice();
+
+    expect(kits.activeId()).toBe('kit-a');
   });
 
   it('dispose снимает подписку на настройки', async () => {

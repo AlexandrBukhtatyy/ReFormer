@@ -14,7 +14,13 @@ import { describe, expect, it } from 'vitest';
 import { parseRuntimeConfig } from '@/shell/boot/runtime-config';
 import { fromProfile } from '../composer/compose';
 import builtinConfig from './builtin.config.json';
-import { builtinProfile, defaultProfile, findProfile, PROFILES } from './registry';
+import {
+  builtinProfile,
+  defaultPresetChoices,
+  defaultProfile,
+  findProfile,
+  PROFILES,
+} from './registry';
 
 describe('реестр профилей', () => {
   it('профили находятся по своему имени', () => {
@@ -50,6 +56,14 @@ describe('реестр профилей', () => {
   it('профиль по умолчанию — «preset» встроенного файла, и это полный состав ReFormer', () => {
     expect(defaultProfile).toBe(findProfile(builtinConfig.preset));
     expect(defaultProfile.id).toBe('reformer.builder');
+  });
+
+  it('переключатель по умолчанию предлагает существующие профили, и умолчание среди них', () => {
+    // Имя в списке — такая же строка, как в `preset`: опечатка в нём молча убрала бы движок
+    // из выбора. А умолчание вне списка означало бы выбор, из которого нельзя вернуться назад.
+    expect(defaultPresetChoices).toEqual(['reformer.builder', 'rjsf.builder']);
+    expect(defaultPresetChoices.filter((id) => findProfile(id) === undefined)).toEqual([]);
+    expect(defaultPresetChoices).toContain(defaultProfile.id);
   });
 
   it('КАЖДЫЙ профиль реестра собирается — имена в нём настоящие', () => {

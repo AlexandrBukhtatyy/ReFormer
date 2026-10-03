@@ -1,0 +1,13 @@
+{
+  "id": "reformer.stack-switch",
+  "name": "Переключатель сочетаний",
+  "apiVersion": "^1",
+  "requires": {
+    "optional": [
+      {
+        "id": "reformer.kit.catalog",
+        "range": "^2"
+      }
+    ]
+  }
+}

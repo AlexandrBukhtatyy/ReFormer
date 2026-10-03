@@ -41,6 +41,18 @@ import {
 import { BUILTIN_PLUGINS, canonicalPluginId } from './builtin-plugins';
 
 /**
+ * Состав, собранный по профилю: то же, что получает оболочка, плюс его плагины поимённо.
+ *
+ * Имена нужны приложению, а не оболочке — тому, кто решает, годится ли состав для выбора
+ * человеком (есть ли в нём переключатель, чтобы из него можно было вернуться). Оболочке список
+ * имён ни к чему, поэтому в {@link ApplicationComposition} его нет.
+ */
+export interface ProfileComposition extends ApplicationComposition {
+  /** Плагины состава в порядке резолвера — после `extends` и поправок. */
+  readonly pluginIds: readonly string[];
+}
+
+/**
  * Состав приложения по профилю.
  *
  * @throws Error на неизвестное имя плагина, неизвестную основу профиля, круг в `extends` —
@@ -55,7 +67,7 @@ export function fromProfile(
   profile: ApplicationProfile,
   overrides?: PluginOverrides,
   lookup: (id: string) => ApplicationProfile | undefined = findProfile
-): ApplicationComposition {
+): ProfileComposition {
   const ids = resolveProfile({
     profile,
     lookup,
@@ -100,6 +112,8 @@ export function fromProfile(
   }
 
   return Object.freeze({
+    profile: Object.freeze({ id: profile.id, name: profile.name }),
+    pluginIds: Object.freeze([...ids]),
     capabilities: capabilities.providers,
     // Все фабрики зовутся ДО первого `await`, поэтому их `import()` уходят в один тик —
     // столько параллельных запросов, сколько плагинов в составе, а не цепочка.

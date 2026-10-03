@@ -85,6 +85,9 @@ platform» читается из самого дерева, а слово «host
 ```text
 projects/reformer-builder/
 ├── docs/                           план, контракты этапов, журнал решений, этот файл
+├── presets/                        готовые конфиги запуска: движок × кит (см. composition.md)
+├── scripts/                        demo-project.mjs — проект с плагином HexaUI для проверки
+│                                   сочетаний, и его образцы форм
 │
 ├── src/
 │   ├── shell/
@@ -123,16 +126,20 @@ projects/reformer-builder/
 │   │   │       └── state/       tabs, status, resource-tree + ResourceTree, when-context-store
 │   │   └── boot/              СБОРКА. Платформа, порты, службы, последовательность запуска
 │   │       ├── boot.ts          сборка приложения, последовательность запуска
-│   │       ├── composition.ts   форма композиции: `ApplicationComposition` (загрузка плагинов
-│   │       │                    плюс объявленные возможности) и `BuiltinPluginsOptions` — то,
-│   │       │                    что оболочка умеет ДАТЬ составу
+│   │       ├── composition.ts   форма композиции: `ApplicationComposition` (загрузка плагинов,
+│   │       │                    объявленные возможности, имя собранного профиля),
+│   │       │                    `ProfileChoices` — между чем человек переключает состав —
+│   │       │                    и `BuiltinPluginsOptions` — то, что оболочка умеет ДАТЬ составу
+│   │       ├── stored-preset.ts  выбор профиля человеком: ключ `host.preset` и чтение ДО сборки
 │   │       ├── plugin-modules.ts  защищённые слоты реестра модулей
 │   │       ├── settings-sections.ts  состав окна настроек
 │   │       ├── settings/        форма настроек плагинов на renderer-json (UI-технология
 │   │       │                    самого билдера) и свой синтез начальных значений
 │   │       ├── ports/           адаптеры портов ТРЁХ нейтральных плагинов основы: files, monaco,
 │   │       │                    markdown; documents, workspace-files, workspace-resources
-│   │       │                    и workspace-save — службы рабочей области для ЛЮБОГО плагина.
+│   │       │                    и workspace-save — службы рабочей области для ЛЮБОГО плагина;
+│   │       │                    application-profiles — служба профилей состава: имена от
+│   │       │                    приложения, запись выбора и перезапуск — от оболочки.
 │   │       │                    Портов стека здесь нет: редактор схемы, превью, киты, кодоген
 │   │       │                    и шаблоны собирают себе всё из возможностей в `activate`
 │   │       ├── project/         project, workspace-session, document-models, opened-tabs,
@@ -143,7 +150,8 @@ projects/reformer-builder/
 │   ├── application/           СОСТАВ ПРИЛОЖЕНИЯ. Что именно собрано из оболочки и плагинов
 │   │   ├── builder-application.ts  «ReFormer Builder» как значение: состав, уходящий
 │   │   │                    в `boot({ application })` из main.tsx; здесь же выбор профиля
-│   │   │                    по конфигу запуска (`preset`, `plugins.enable/disable`)
+│   │   │                    по конфигу запуска (`preset`, `plugins.enable/disable`) и по
+│   │   │                    выбору человека в пределах `presetChoices` (`launchFromRuntime`)
 │   │   ├── composer/
 │   │   │   ├── builtin-plugins.ts  КАРТА встроенных, собранная обходом папок
 │   │   │   │                `plugins/<домен>/<плагин>`: манифест и фабрика состава
@@ -173,7 +181,9 @@ projects/reformer-builder/
 │   │   │   ├── editor-monaco/     runtime/ sync/ diagnostics/ ui/
 │   │   │   ├── editor-markdown/   render/ state/ ui/
 │   │   │   ├── plugin-manager/    управление плагинами каталога из палитры (флат)
-│   │   │   └── preview/           ХОСТ превью, общий для стеков: live/ state/ surface/ schema/
+│   │   │   ├── preview/           ХОСТ превью, общий для стеков: live/ state/ surface/ schema/
+│   │   │   └── stack-switch/      переключатель сочетаний «движок × кит»: ячейка строки
+│   │   │                          состояния и пункты палитры; ui/
 │   │   ├── kits/
 │   │   │   └── registry/          активный кит как сервис (флат)
 │   │   ├── reformer/            стек ReFormer
@@ -260,8 +270,9 @@ projects/reformer-builder/
 | демо `plain-form/1` | `plugins/plain/core`    | plain                                                                          | `plain.builder`    |
 | RJSF `rjsf-form/1`  | `plugins/rjsf/core`     | kits, rjsf.editor, rjsf.render                                                 | `rjsf.builder`     |
 
-Все три профиля наследуют `builder.base` — файлы, Monaco, markdown, управление плагинами и хост
-превью. Основа поднимается без единого плагина стека, и это проверено интеграционным тестом.
+Все три профиля наследуют `builder.base` — файлы, Monaco, markdown, управление плагинами, хост
+превью и переключатель сочетаний. Основа поднимается без единого плагина стека, и это проверено
+интеграционным тестом.
 
 Что стеку нужно от оболочки, он берёт возможностями, а не портами:
 

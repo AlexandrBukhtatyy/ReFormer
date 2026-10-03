@@ -26,9 +26,9 @@
  *
  * ## Что действует только на уровне запуска
  *
- * {@link RuntimeConfig.defaults}, {@link RuntimeConfig.preset}, {@link RuntimeConfig.profiles} и
- * {@link RuntimeConfig.plugins} разбираются на обоих уровнях, а применяются только на уровне
- * запуска. Разбор общий намеренно:
+ * {@link RuntimeConfig.defaults}, {@link RuntimeConfig.preset}, {@link RuntimeConfig.presetChoices},
+ * {@link RuntimeConfig.profiles} и {@link RuntimeConfig.plugins} разбираются на обоих уровнях,
+ * а применяются только на уровне запуска. Разбор общий намеренно:
  * у двух уровней не может быть двух пониманий формата, и «поле, о котором проектный конфиг
  * не знает вовсе» превратилось бы в «неизвестное поле» — сообщение, уводящее в сторону от
  * настоящей причины. Поэтому поле разбирается, а `boot` говорит словами, что оно не применено
@@ -83,6 +83,17 @@ export interface RuntimeConfig {
    * Неизвестное имя не роняет запуск: предупреждение и полный профиль.
    */
   readonly preset?: string;
+  /**
+   * Профили, между которыми человек может переключаться в интерфейсе, — именами, как
+   * {@link preset}. Свой выбор человек делает в строке состояния, и он сильнее `preset`
+   * (так же, как выбор кита сильнее умолчания организации), поэтому список — способ
+   * организации этот выбор ограничить: одно имя или пустой список оставляют только `preset`.
+   *
+   * Поля нет — действует список встроенного файла (`application/profiles`). Уровень запуска
+   * по той же причине, что у `preset`. Имена со списком известных не сверяются — их, как и
+   * `preset`, отвергает тот, кто собирает состав.
+   */
+  readonly presetChoices?: readonly string[];
   /**
    * Свои профили состава — те же данные, что у встроенных (`application/profiles`): имя,
    * основа, плагины, выбор провайдеров. Организация описывает сборку под себя здесь и называет
@@ -149,6 +160,7 @@ export const RUNTIME_CONFIG_KEYS: ReadonlySet<string> = new Set([
   'branding',
   'defaults',
   'preset',
+  'presetChoices',
   'profiles',
   'plugins',
   'marketplace',
@@ -186,6 +198,7 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
     branding?: RuntimeConfig['branding'];
     defaults?: RuntimeConfig['defaults'];
     preset?: string;
+    presetChoices?: readonly string[];
     profiles?: RuntimeConfig['profiles'];
     plugins?: RuntimeConfig['plugins'];
     marketplace?: RuntimeConfig['marketplace'];
@@ -299,6 +312,16 @@ export function parseRuntimeConfig(value: unknown): ParsedRuntimeConfig {
     }
   }
 
+  if (value.presetChoices !== undefined) {
+    // Пустой список — законное значение, а не мусор: «переключать не между чем».
+    const choices: unknown = value.presetChoices;
+    if (Array.isArray(choices) && choices.every(isNonEmptyString)) {
+      config.presetChoices = Object.freeze([...choices]);
+    } else {
+      problems.push('«presetChoices» должен быть списком непустых строк');
+    }
+  }
+
   if (value.profiles !== undefined) {
     const profiles = parseProfiles(value.profiles, problems);
     if (profiles.length > 0) config.profiles = profiles;
@@ -405,6 +428,9 @@ export function mergeRuntimeConfig(base: RuntimeConfig, over: RuntimeConfig): Ru
   // Профили — списком уровня целиком: слить два списка по имени значило бы собрать профиль,
   // которого не писал никто.
   const profiles = over.profiles ?? base.profiles;
+  // Выбор для переключателя — тоже списком уровня целиком: объединение двух списков вернуло бы
+  // профиль, который верхний уровень убрал намеренно.
+  const presetChoices = over.presetChoices ?? base.presetChoices;
   const settings =
     base.defaults?.settings !== undefined || over.defaults?.settings !== undefined
       ? { ...base.defaults?.settings, ...over.defaults?.settings }
@@ -423,6 +449,7 @@ export function mergeRuntimeConfig(base: RuntimeConfig, over: RuntimeConfig): Ru
         }
       : {}),
     ...(preset !== undefined ? { preset } : {}),
+    ...(presetChoices !== undefined ? { presetChoices } : {}),
     ...(profiles !== undefined ? { profiles } : {}),
     ...(base.plugins !== undefined || over.plugins !== undefined
       ? { plugins: { ...base.plugins, ...over.plugins } }

@@ -1,0 +1,7 @@
+{
+  "$schema": "../runtime-config.schema.json",
+  "preset": "rjsf.builder",
+  "defaults": {
+    "settings": { "plugin.kits.active": "hexa-ui" }
+  }
+}

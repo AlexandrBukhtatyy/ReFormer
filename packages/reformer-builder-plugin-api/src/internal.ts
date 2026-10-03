@@ -33,6 +33,7 @@ export * from './primitives/semver.js';
 export * from './primitives/service.js';
 export * from './primitives/when-context.js';
 export * from './primitives/when-expr.js';
+export * from './services/application-profiles.js';
 export * from './services/context-keys.js';
 export * from './services/diagnostics/fixes.js';
 export * from './services/diagnostics/service.js';

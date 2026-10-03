@@ -151,6 +151,7 @@ describe('boot на профиле rjsf.builder', () => {
       'reformer.preview',
       'reformer.rjsf.editor',
       'reformer.rjsf.render',
+      'reformer.stack-switch',
     ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });

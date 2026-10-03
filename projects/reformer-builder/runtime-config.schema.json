@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reformer.dev/schemas/reformer-builder-config",
   "title": "ReFormer Builder config",
-  "description": "Конфиг билдера из .ui_builder/config.json: уровень запуска (читает лаунчер) и уровень проекта (читается при открытии; defaults, preset, profiles и plugins действуют только на уровне запуска). Все секции опциональны; отсутствие — встроенные дефолты.",
+  "description": "Конфиг билдера из .ui_builder/config.json: уровень запуска (читает лаунчер) и уровень проекта (читается при открытии; defaults, preset, presetChoices, profiles и plugins действуют только на уровне запуска). Все секции опциональны; отсутствие — встроенные дефолты.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -44,6 +44,11 @@
       "type": "string",
       "minLength": 1,
       "description": "Профиль состава: из каких плагинов собрать приложение. Встроенные: reformer.builder (умолчание), builder.base, plain.builder, rjsf.builder, minimal, ai-builder; или id своего профиля из profiles. Применяется только на уровне запуска; неизвестное имя — предупреждение и полный профиль."
+    },
+    "presetChoices": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Профили, между которыми человек переключается в строке состояния: встроенные или свои из profiles. Выбор человека сильнее preset, поэтому список — способ его ограничить: одно имя или пустой список оставляют только preset. Без поля — reformer.builder и rjsf.builder. Применяется только на уровне запуска; профиль, который не собирается или не содержит переключателя, пропускается с предупреждением."
     },
     "profiles": {
       "type": "array",

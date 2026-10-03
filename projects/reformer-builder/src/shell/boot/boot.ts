@@ -171,7 +171,10 @@ import { createPluginModules } from './plugin-modules';
 import { CatalogPluginSettingsPoint } from '@reformer/builder-plugin-api/internal';
 import { createPluginSettings } from '@/shell/platform/services/plugin-settings';
 import { asFormSchema } from './settings/schema-guard';
-import type { ApplicationComposition, BuiltinPluginsOptions } from './composition';
+import type { ApplicationComposition, BuiltinPluginsOptions, ProfileChoices } from './composition';
+import { ApplicationProfilesServiceToken } from '@reformer/builder-plugin-api/internal';
+import { createApplicationProfilesService } from './ports/application-profiles';
+import { readStoredPreset } from './stored-preset';
 import {
   createProjectHost,
   type ProjectFailure,
@@ -365,6 +368,15 @@ export interface BootOptions {
    * называет состав сам; кроме `main.tsx` вызывают только тесты, а им это как раз и нужно.
    */
   readonly application: ApplicationComposition;
+  /**
+   * Между какими профилями человек может переключить состав — решение приложения, принятое
+   * вместе с выбором самого состава (`application/builder-application`).
+   *
+   * Необязательное, и умолчание здесь — «выбора нет», а не «выбор по умолчанию»: оболочка
+   * профилей не знает, и предложить ей нечего. Служба профилей при этом всё равно существует
+   * и честно называет собранный профиль.
+   */
+  readonly profileChoices?: ProfileChoices;
 }
 
 export function boot(options: BootOptions): BuilderApp {
@@ -461,6 +473,25 @@ export function boot(options: BootOptions): BuilderApp {
   services.register(SelectionServiceToken, selection);
   services.register(PromptServiceToken, prompt);
   services.register(ResourceClipboardServiceToken, clipboard);
+
+  // Перезапуск приложения — один на оба случая, когда он нужен: очистка хранилища и смена
+  // профиля состава. Оболочке звать его напрямую нельзя (в её тестах это перезапуск прогона),
+  // поэтому глагол живёт здесь и уходит портом.
+  const reload = (): void => {
+    window.location.reload();
+  };
+  // Профили состава: что собрано и на что можно пересобрать. Имена приходят от того, кто
+  // собрал состав; оболочка добавляет запись выбора и перезапуск.
+  services.register(
+    ApplicationProfilesServiceToken,
+    createApplicationProfilesService({
+      current: options.application.profile,
+      choices: options.profileChoices,
+      settings,
+      reload,
+      stored: readStoredPreset,
+    })
+  );
 
   // Умолчания настроек оболочки. Объявляет их тот, кто настройку вносит, — иначе каждый
   // потребитель дописывал бы свой `?? true`, и они бы разъехались. Локаль может задать
@@ -867,6 +898,11 @@ export function boot(options: BootOptions): BuilderApp {
           ...(parsed?.config.preset !== undefined
             ? ['«preset» действует только на уровне запуска — задайте его в конфиге лаунчера']
             : []),
+          ...(parsed?.config.presetChoices !== undefined
+            ? [
+                '«presetChoices» действует только на уровне запуска — задайте его в конфиге лаунчера',
+              ]
+            : []),
           ...(parsed?.config.profiles !== undefined
             ? ['«profiles» действуют только на уровне запуска — задайте их в конфиге лаунчера']
             : []),
@@ -1149,9 +1185,7 @@ export function boot(options: BootOptions): BuilderApp {
       // приложение поверх снесённого хранилища, и половину удалённого оно создаст заново
       // первой же записью. Заодно закрытие страницы доводит до конца отложенные
       // (`blocked`) удаления баз.
-      reload: () => {
-        window.location.reload();
-      },
+      reload,
     },
     plugins,
     projectPlugins,

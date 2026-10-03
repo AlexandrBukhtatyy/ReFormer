@@ -1,0 +1,54 @@
+{
+  "$schema": "./form-schema.schema.json",
+  "version": "1.0",
+  "root": {
+    "$nodeId": "demoroot",
+    "component": "$html(div)",
+    "componentProps": {
+      "className": "space-y-4"
+    },
+    "children": [
+      {
+        "$nodeId": "demoname",
+        "selector": "name",
+        "value": "$model(name)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Имя",
+          "placeholder": "Как к вам обращаться"
+        }
+      },
+      {
+        "$nodeId": "demomail",
+        "selector": "email",
+        "value": "$model(email)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Email"
+        }
+      },
+      {
+        "$nodeId": "demochan",
+        "selector": "channel",
+        "value": "$model(channel)",
+        "component": "$component(Select)",
+        "componentProps": {
+          "label": "Как связаться",
+          "options": [
+            { "value": "email", "label": "Email" },
+            { "value": "phone", "label": "Телефон" }
+          ]
+        }
+      },
+      {
+        "$nodeId": "demoagre",
+        "selector": "agree",
+        "value": "$model(agree)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Согласен на обработку данных"
+        }
+      }
+    ]
+  }
+}

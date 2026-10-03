@@ -59,6 +59,7 @@ import { PREVIEW_MESSAGES } from '@/plugins/base/preview/messages';
 import { PREVIEW_RUNTIME_MESSAGES } from '@/plugins/reformer/render/messages';
 import { RJSF_EDITOR_MESSAGES } from '@/plugins/rjsf/editor/messages';
 import { RJSF_RENDER_MESSAGES } from '@/plugins/rjsf/render/messages';
+import { STACK_SWITCH_MESSAGES } from '@/plugins/base/stack-switch/messages';
 import { TEMPLATES_MESSAGES } from '@/plugins/reformer/templates/messages';
 
 /** Словарь одного владельца: локаль → ключ → сообщение. */
@@ -91,6 +92,7 @@ const DICTIONARIES: ReadonlyArray<readonly [string, Dictionary]> = [
   ['base/plugin-manager', PLUGIN_MANAGER_MESSAGES],
   ['base/preview', PREVIEW_MESSAGES],
   ['reformer/render', PREVIEW_RUNTIME_MESSAGES],
+  ['base/stack-switch', STACK_SWITCH_MESSAGES],
   ['reformer/templates', TEMPLATES_MESSAGES],
   ['rjsf/editor', RJSF_EDITOR_MESSAGES],
   ['rjsf/render', RJSF_RENDER_MESSAGES],

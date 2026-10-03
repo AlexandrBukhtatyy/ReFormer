@@ -1,6 +1,7 @@
 {
   "$schema": "../../../runtime-config.schema.json",
   "preset": "reformer.builder",
+  "presetChoices": ["reformer.builder", "rjsf.builder"],
   "profiles": [
     {
       "id": "builder.base",
@@ -10,12 +11,13 @@
         "reformer.editor-monaco",
         "reformer.editor-markdown",
         "reformer.plugin-manager",
-        "reformer.preview"
+        "reformer.preview",
+        "reformer.stack-switch"
       ]
     },
     {
       "id": "reformer.builder",
-      "name": "ReFormer Builder",
+      "name": "ReFormer",
       "extends": "builder.base",
       "plugins": [
         "reformer.validator-schema",
@@ -35,7 +37,7 @@
     },
     {
       "id": "rjsf.builder",
-      "name": "RJSF Builder",
+      "name": "RJSF",
       "extends": "builder.base",
       "plugins": ["reformer.kits", "reformer.rjsf.editor", "reformer.rjsf.render"]
     },

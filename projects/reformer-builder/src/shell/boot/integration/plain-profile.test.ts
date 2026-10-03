@@ -83,6 +83,7 @@ describe('boot на профиле plain.builder', () => {
       'reformer.plain',
       'reformer.plugin-manager',
       'reformer.preview',
+      'reformer.stack-switch',
     ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });

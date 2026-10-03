@@ -26,7 +26,10 @@
  * @module shell/boot/composition
  */
 
-import type { CapabilityProvider } from '@reformer/builder-plugin-api/internal';
+import type {
+  ApplicationProfileInfo,
+  CapabilityProvider,
+} from '@reformer/builder-plugin-api/internal';
 import type {
   CapabilityDeclaration,
   PluginPermission,
@@ -81,6 +84,15 @@ export interface ComposedPlugin {
  * обязан лежать там же, где карта.
  */
 export interface ApplicationComposition {
+  /**
+   * Профиль, по которому состав собран, — именем, без единого сведения о его содержимом.
+   *
+   * Часть самого состава, а не соседний параметр `boot`: «что собрано» и «как это называется»
+   * обязаны относиться к одному набору. Приди имя отдельно — откат на другой профиль (опечатка
+   * в конфиге, несобравшийся выбор человека) оставил бы интерфейс с именем того, что собрать
+   * не удалось.
+   */
+  readonly profile: ApplicationProfileInfo;
   /** Плагины состава: файлы грузятся параллельно, их дожидается `ready`. */
   load(options: BuiltinPluginsOptions): Promise<readonly ComposedPlugin[]>;
   /**
@@ -96,6 +108,20 @@ export interface ApplicationComposition {
    * не ответит про версии — он хранит реализацию, а не паспорт.
    */
   readonly capabilities: readonly CapabilityProvider[];
+}
+
+/**
+ * Между чем человек может переключить состав — то, что приложение решило ДО сборки.
+ *
+ * Оболочка профилей не знает и разрешить имена не может, поэтому получает готовый ответ: какой
+ * профиль называет конфиг запуска и какие предложены к выбору. Проверены они тем же, кто собирает
+ * состав: каждый предложенный профиль собирается, иначе выбор приводил бы в отказ.
+ */
+export interface ProfileChoices {
+  /** Профиль конфига запуска — к нему возвращает отказ человека от своего выбора. */
+  readonly launch: ApplicationProfileInfo;
+  /** Профили на выбор. Меньше двух — переключать не между чем. */
+  readonly offered: readonly ApplicationProfileInfo[];
 }
 
 /**

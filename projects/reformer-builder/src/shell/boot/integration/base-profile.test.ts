@@ -68,6 +68,7 @@ describe('boot на профиле builder.base', () => {
       'reformer.files',
       'reformer.plugin-manager',
       'reformer.preview',
+      'reformer.stack-switch',
     ]);
     expect(statuses.filter((s) => s.state !== 'active')).toEqual([]);
   });
@@ -80,8 +81,9 @@ describe('boot на профиле builder.base', () => {
     expect(owners(PreviewSurfacePoint)).toEqual([]);
     expect(owners(DocumentModelPoint)).toEqual([]);
     expect(owners(ValidatorPoint)).toEqual([]);
-    // Панель модели формы — вклад стека; у основы панели только свои.
-    expect(owners(PanelPoint)).toEqual(['reformer.files']);
+    // Панель модели формы — вклад стека; у основы панели только свои: дерево файлов и ячейка
+    // переключателя сочетаний в строке состояния.
+    expect(owners(PanelPoint)).toEqual(['reformer.files', 'reformer.stack-switch']);
     expect(owners(EditorPoint)).toEqual([
       'reformer.editor-markdown',
       'reformer.editor-monaco',

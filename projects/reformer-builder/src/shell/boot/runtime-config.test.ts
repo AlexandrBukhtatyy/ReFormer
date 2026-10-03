@@ -103,6 +103,25 @@ describe('parseRuntimeConfig', () => {
     ]);
   });
 
+  it('список профилей для переключателя разбирается; пустой — законное значение', () => {
+    expect(parseRuntimeConfig({ presetChoices: ['reformer.builder', 'acme'] })).toEqual({
+      config: { presetChoices: ['reformer.builder', 'acme'] },
+      problems: [],
+    });
+    // «Переключать не между чем» — решение организации, а не недописанное поле: потеряйся
+    // пустой список, действовал бы встроенный, и человек получил бы выбор, который у него отняли.
+    expect(parseRuntimeConfig({ presetChoices: [] }).config).toEqual({ presetChoices: [] });
+  });
+
+  it('мусор в списке профилей для переключателя называется по полю', () => {
+    for (const presetChoices of ['rjsf.builder', ['rjsf.builder', ' '], [42]]) {
+      expect(parseRuntimeConfig({ presetChoices })).toEqual({
+        config: {},
+        problems: ['«presetChoices» должен быть списком непустых строк'],
+      });
+    }
+  });
+
   it('свои профили и умолчания настроек организации разбираются', () => {
     const { config, problems } = parseRuntimeConfig({
       preset: 'acme',
@@ -225,6 +244,15 @@ describe('mergeRuntimeConfig', () => {
     );
 
     expect(merged).toEqual({ preset: 'minimal', plugins: { disable: ['ai'] } });
+  });
+
+  it('список профилей для переключателя — уровнем целиком, и пустой перекрывает', () => {
+    const base = { presetChoices: ['reformer.builder', 'rjsf.builder'] };
+
+    expect(mergeRuntimeConfig(base, {}).presetChoices).toEqual(base.presetChoices);
+    expect(mergeRuntimeConfig(base, { presetChoices: ['acme'] }).presetChoices).toEqual(['acme']);
+    // Пустой список — не «ничего не сказано»: он убирает выбор, и объединение его бы вернуло.
+    expect(mergeRuntimeConfig(base, { presetChoices: [] }).presetChoices).toEqual([]);
   });
 });
 

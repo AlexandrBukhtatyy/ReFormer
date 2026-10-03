@@ -1,9 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { applicationFromRuntime } from './application/builder-application';
+import { launchFromRuntime } from './application/builder-application';
 import { boot } from './shell/boot/boot';
 import { fetchRuntimeConfig } from './shell/boot/runtime-config';
+import { readStoredPreset } from './shell/boot/stored-preset';
 import './index.css';
 
 // Бут синхронный — в отличие от v1, где он async из-за модульной мемоизации в графе
@@ -16,7 +17,11 @@ import './index.css';
 // приходится потому, что дефолты темы и локали применяются регистрацией умолчаний настроек —
 // она однократная и происходит при сборке. Заход один, на localhost, и отказ (нет лаунчера —
 // vite dev, чужой статик-сервер) — это штатный `null`: билдер работает на вшитых дефолтах.
-void fetchRuntimeConfig().then((runtime) => {
+//
+// Рядом с конфигом читается выбор профиля, сделанный человеком в строке состояния: он обязан
+// повлиять на сборку состава, а служба настроек появляется только внутри `boot`. Чтения
+// независимы и идут параллельно; отказ второго — тоже штатный `null`, «человек не выбирал».
+void Promise.all([fetchRuntimeConfig(), readStoredPreset()]).then(([runtime, storedPreset]) => {
   // Состав приложения приходит ОТСЮДА, а не изнутри оболочки. «Какие плагины образуют ReFormer
   // Builder» — вопрос приложения, а не механизма, который их поднимает: `boot` объявляет форму
   // композиции и получает её параметром. Знай он состав сам, второе приложение на той же оболочке
@@ -28,7 +33,12 @@ void fetchRuntimeConfig().then((runtime) => {
   // инструмента. Тот же уровень и по той же причине, что у `defaults`, — состав фиксируется
   // ЗДЕСЬ, при сборке приложения, и проектный конфиг, читаемый после открытия проекта,
   // изменить его уже не может.
-  const app = boot({ runtime, application: applicationFromRuntime(runtime?.config ?? {}) });
+  //
+  // Выбор человека сильнее `preset` — в пределах того, что конфиг предлагает (`presetChoices`).
+  // Вместе с составом приложение отдаёт и сам список: оболочка профилей не знает, а службе
+  // профилей нужно назвать их переключателю.
+  const { application, profileChoices } = launchFromRuntime(runtime?.config ?? {}, storedPreset);
+  const app = boot({ runtime, application, profileChoices });
   const root = createRoot(document.getElementById('root')!);
 
   // Отрисовка ждёт `ready` — шаги 2–3 последовательности запуска (настройки, словари, плагины).

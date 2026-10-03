@@ -230,6 +230,16 @@ export type { NotificationsService } from './services/notifications.js';
 export { DiagnosticsServiceToken } from './services/diagnostics/service.js';
 export type { DiagnosticsService } from './services/diagnostics/service.js';
 
+// Профили состава: какой собран и на какой можно пересобрать приложение. Плагину достаются
+// только имена и глагол «выбрать» — сами профили и сборка состава остаются знанием приложения.
+// Служба, а не возможность оболочки: приложение на той же оболочке вправе её не давать, и
+// потребитель обязан это пережить (`ctx.services.get` вернёт `undefined`).
+export { ApplicationProfilesServiceToken } from './services/application-profiles.js';
+export type {
+  ApplicationProfileInfo,
+  ApplicationProfilesService,
+} from './services/application-profiles.js';
+
 // Документы — рабочая область в объёме редактора: текст открытой вкладки, запись, активный
 // ресурс. Без этой службы внешний плагин из каталога проекта не может быть редактором кода:
 // его тело получает только `documentId`, а прочитать или записать текст средствами SDK было
