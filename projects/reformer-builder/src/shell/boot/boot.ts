@@ -633,7 +633,11 @@ export function boot(options: BootOptions): BuilderApp {
   // Реестр модулей поднят СЮДА, выше регистрации плагинов: движок нужен двоим — загрузчику
   // плагинов каталога (шаг 3а) и компилирующей поверхности превью, которая собирается прямо
   // здесь. Второй экземпляр означал бы второй чанк TypeScript на 3.5 МБ.
-  const pluginModules = createPluginModules({ cache: buildCacheOf });
+  const pluginModules = createPluginModules({
+    cache: buildCacheOf,
+    // Модули стека — от состава: оболочка своими держит только SDK и React.
+    modules: options.application.modules,
+  });
   // Загрузчик модулей — возможностью, а не портом превью: компилирующую поверхность вносит
   // плагин стека, и оболочка не должна знать, какой. Движок тот же, что у загрузчика плагинов.
   //

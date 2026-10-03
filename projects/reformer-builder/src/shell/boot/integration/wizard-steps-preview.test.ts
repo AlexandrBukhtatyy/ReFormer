@@ -20,6 +20,7 @@ import { compileForm } from '@/plugins/reformer/render/compiling/compile';
 import { extractContract } from '@/plugins/reformer/render/compiling/exports';
 import { readSidecars } from '@/plugins/reformer/render/compiling/read';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
+import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 
 const ROOT = 'fake:form';
 
@@ -86,7 +87,7 @@ describe('визард с папками шагов в компилирующе�
     expect(sources.files.has('steps/index.ts')).toBe(true);
     expect(sources.files.has('index.tsx')).toBe(false);
 
-    const plugin = createPluginModules();
+    const plugin = createPluginModules({ modules: RUNTIME_MODULES });
     const loader: PreviewModules = {
       load: plugin.modules.load,
       prepare: async (files) => {

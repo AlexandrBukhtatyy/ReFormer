@@ -57,6 +57,7 @@ import {
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
+import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 import { createDocumentsService } from '@/shell/boot/ports/documents';
 import { createProjectHost } from '@/shell/boot/project/project';
 
@@ -208,7 +209,7 @@ function harness() {
 
   // Реестр модулей — тот же, что собирает композиция: под именем `@builder/sdk` окажется
   // подлинный объект `@reformer/builder-plugin-api`, а не его двойник.
-  const pluginModules = createPluginModules();
+  const pluginModules = createPluginModules({ modules: RUNTIME_MODULES });
   // Установка стилей подменена, но ФОРМА ответа настоящая: каталог читает `ok` и держит
   // подписку, чтобы снять таблицу при выключении плагина.
   const installStyles = vi.fn(() => ({ ok: true as const, subscription: { dispose: () => {} } }));

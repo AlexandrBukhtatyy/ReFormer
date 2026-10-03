@@ -17,11 +17,12 @@ import { PLUGIN_RUNTIME_MODULES } from '@reformer/builder-plugin-api/internal';
 import { builtinKit, wizardSchema } from '@/plugins/reformer/core/testing';
 import { prepare } from '@/plugins/reformer/core/codegen';
 import { wizardShimOf } from '@/plugins/reformer/core/codegen';
-import { createPluginModules, PLUGIN_MODULE_SPECIFIERS } from '@/shell/boot/plugin-modules';
+import { createPluginModules } from '@/shell/boot/plugin-modules';
+import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 
 describe('модули, доступные плагину каталога', () => {
   it('под именем @builder/sdk лежит тот самый объект, что видит оболочка', () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     // Идентичность — весь смысл упражнения: второй экземпляр SDK означал бы плагин,
     // который регистрирует вклады в чужой пустой реестр и молча ничего не делает.
@@ -34,7 +35,7 @@ describe('модули, доступные плагину каталога', () 
     // здесь. Отдай мы ему второй экземпляр — точки расширения и токены служб оказались бы
     // копиями, и вклад ушёл бы в пустой реестр молча: ни отказа, ни исключения, просто
     // не появившаяся панель. Имя `@builder/sdk` остаётся, пока по нему написаны плагины.
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
     const registry = modules.modules.registry;
 
     expect(registry.resolve('@reformer/builder-plugin-api', 'main.js')).toBe(sdk);
@@ -47,7 +48,7 @@ describe('модули, доступные плагину каталога', () 
   it('имя пакета контракта плагин подменить не может', () => {
     // Защита у него не своя: `@reformer/` целиком закрыт префиксом (`PROTECTED_PREFIXES`),
     // поэтому подмена отсекается тем же правилом, что у `@reformer/core`.
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     expect(() =>
       modules.modules.registry.register('@reformer/builder-plugin-api', { evil: true })
@@ -60,7 +61,10 @@ describe('модули, доступные плагину каталога', () 
     // в реестре безвреден для сборки, но недостающий означает плагин, собранный «правильно»
     // и падающий на спецификаторе, которого оболочка не подставляет. Сверка в обе стороны:
     // разойтись молча списку и реестру нечем, кроме этого теста.
-    expect([...PLUGIN_MODULE_SPECIFIERS].sort()).toEqual([...PLUGIN_RUNTIME_MODULES].sort());
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
+
+    expect([...modules.specifiers].sort()).toEqual([...PLUGIN_RUNTIME_MODULES].sort());
+    modules.dispose();
   });
 
   it('спецификатор, который кодоген печатает для встроенного кита, реестр отдаёт', () => {
@@ -72,12 +76,15 @@ describe('модули, доступные плагину каталога', () 
       prepare({ schema: wizardSchema(), formName: 'Заявка', kit: builtinKit() })
     );
 
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
+
     expect(shim).not.toBeNull();
-    expect(PLUGIN_MODULE_SPECIFIERS).toContain(shim?.importFrom);
+    expect(modules.specifiers).toContain(shim?.importFrom);
+    modules.dispose();
   });
 
   it('React, его jsx-runtime и react-dom — те же, что у оболочки', () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
     const registry = modules.modules.registry;
 
     // Два React дают два дерева хуков, а транспилированный `.tsx` требует `react/jsx-runtime`
@@ -92,7 +99,7 @@ describe('модули, доступные плагину каталога', () 
   });
 
   it('занятые композицией имена плагин подменить не может', () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     for (const specifier of [
       '@builder/sdk',
@@ -110,7 +117,7 @@ describe('модули, доступные плагину каталога', () 
   });
 
   it('движок транспиляции появляется только под TypeScript', async () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     await modules.prepare(['main.js', 'panel.js']);
     expect(modules.modules.transpilers.list()).toEqual([]);
@@ -122,7 +129,7 @@ describe('модули, доступные плагину каталога', () 
   });
 
   it('prepare НЕ греет ленивые: плагину каталога кит не нужен, а чанк стоит секунд', async () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     await modules.prepare(['main.js']);
 
@@ -137,7 +144,7 @@ describe('модули, доступные плагину каталога', () 
 
 describe('модули, доступные коду формы', () => {
   it('отдаёт сайдкарам ТЕ ЖЕ экземпляры ядра и рендерера, что держит оболочка', () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
     const registry = modules.modules.registry;
 
     // Второй экземпляр ядра ломает `instanceof Signal` и поиск узла по сигналу — форма
@@ -155,7 +162,7 @@ describe('модули, доступные коду формы', () => {
   });
 
   it('линкует сайдкар, импортирующий @reformer/core/validation', async () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     // `.js`, а не `.ts`: движок транспиляции к резолву импортов отношения не имеет,
     // а тянуть настоящий tsc ради проверки реестра — лишняя секунда на каждом прогоне.
@@ -193,7 +200,7 @@ describe('модули, доступные коду формы', () => {
     });
     const files = new Map([['model.ts', 'export const initialFormModel = { a: 1 };']]);
 
-    const first = createPluginModules({ cache: () => cache });
+    const first = createPluginModules({ cache: () => cache, modules: RUNTIME_MODULES });
     const primed = await first.prepareCached(files);
     expect(primed.complete).toBe(false);
     // Промах — движок пришлось разбудить и транспилировать самим.
@@ -205,7 +212,7 @@ describe('модули, доступные коду формы', () => {
     first.dispose();
 
     // Второй сеанс — как перезагрузка страницы: тот же кэш, свежие модули.
-    const second = createPluginModules({ cache: () => cache });
+    const second = createPluginModules({ cache: () => cache, modules: RUNTIME_MODULES });
     const again = await second.prepareCached(files);
 
     expect(again.complete).toBe(true);
@@ -216,7 +223,7 @@ describe('модули, доступные коду формы', () => {
   });
 
   it('без кэша ведёт себя как раньше: движок будится всегда', async () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     const primed = await modules.prepareCached(new Map([['model.ts', 'export const a = 1;']]));
 
@@ -226,7 +233,7 @@ describe('модули, доступные коду формы', () => {
   });
 
   it('после warm отдаёт ленивый кит и подпуть cdk, которого нет в его бочке', async () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     await modules.warm(
       new Map([
@@ -251,7 +258,7 @@ describe('модули, доступные коду формы', () => {
   it('греет только то, что форма импортирует: остальное остаётся холодным', async () => {
     // Иначе форма с одним текстовым полем платила бы за `recharts`, `cmdk` и прочие
     // зависимости подпутей кита, которых в ней нет. Ленивыми они объявлены ровно за этим.
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     await modules.warm(
       new Map([['form/registry.ts', `import { ComboboxMulti } from '@reformer/ui-kit/combobox';`]])
@@ -271,7 +278,7 @@ describe('модули, доступные коду формы', () => {
   });
 
   it('подпуть, целиком лежащий в бочке, отдаётся ею — тем же объектом', async () => {
-    const modules = createPluginModules();
+    const modules = createPluginModules({ modules: RUNTIME_MODULES });
 
     await modules.warm(
       new Map([

@@ -1,5 +1,16 @@
 /**
- * Подпути кита, отдаваемые исполняемому коду.
+ * Модули кита, отдаваемые исполняемому коду: `@reformer/ui-kit`, `@reformer/cdk` и их подпути.
+ *
+ * Список лежит у плагина китов, а не в оболочке и не в составе приложения: какие пакеты
+ * образуют кит и как они нарезаны на подпути — знание о ките. Состав находит этот файл обходом
+ * папок плагинов (`application/composer/runtime-modules`) и сажает модули в реестр при его
+ * создании; ни оболочка, ни состав имён этих пакетов не знают.
+ *
+ * Все модули здесь ЛЕНИВЫЕ: `@reformer/ui-kit` вынесен в собственный чанк осознанно,
+ * `@reformer/cdk` в стартовом графе билдера отсутствует вовсе. Загрузчик — обычная функция
+ * с `import()`: обернуть её в обещание реестра — дело состава, плагину `@/shell` не виден.
+ *
+ * ## Подпути перечисляются поимённо
  *
  * Реестр резолвит ТОЧНЫМ совпадением, поэтому подпуть, которого здесь нет, — отказ загрузки
  * («модуль недоступен»), а не выпадение в корень. До этого модуля не было ни одного подпути,
@@ -20,19 +31,24 @@
  * у `carousel`), и общая загрузка тянула бы их все ради одного `combobox`.
  *
  * Факт покрытия держится не списком в голове, а тестом на НАСТОЯЩИХ модулях кита
- * (`./kit-modules.test.ts`): уедь символ из бочки в отдельный модуль — и алиас стал бы тем
+ * (`./runtime-modules.test.ts`): уедь символ из бочки в отдельный модуль — и алиас стал бы тем
  * самым молчаливым `undefined`, ради предотвращения которого всё это и разделено.
  *
- * @module shell/boot/kit-modules
+ * У `@reformer/cdk` та же ловушка с другой стороны: подпуть БОГАЧЕ корня (`Step`, `Slot`,
+ * `FormWizardPrev` есть в `./form-wizard`, но не в бочке), поэтому его подпути перечислены
+ * поимённо — их шесть, и они закрыты полностью.
+ *
+ * @module plugins/kits/registry/runtime-modules
  */
 
-import { lazyBuiltin } from '@/shell/platform/modules/registry';
+/** Ленивый модуль: спецификатор и то, как его достать. */
+type LazyModule = readonly [specifier: string, load: () => Promise<unknown>];
 
 /**
- * Один загрузчик бочки на все алиасы: тот же спецификатор в `import()` — тот же чанк,
- * а общий объект ещё и резолвится один раз.
+ * Один загрузчик бочки на все алиасы: тот же спецификатор в `import()` — тот же чанк
+ * и тот же объект модуля.
  */
-const kitBarrel = lazyBuiltin(() => import('@reformer/ui-kit'));
+const kitBarrel = (): Promise<unknown> => import('@reformer/ui-kit');
 
 /** Подпути, чьи экспорты целиком есть в бочке. */
 export const KIT_BARREL_SUBPATHS: readonly string[] = [
@@ -102,29 +118,42 @@ export const KIT_BARREL_SUBPATHS: readonly string[] = [
 ];
 
 /** Подпути со своим чанком: в бочке их нет, и за ними тянутся их зависимости. */
-const KIT_OWN_MODULES: readonly (readonly [string, unknown])[] = [
-  ['@reformer/ui-kit/calendar', lazyBuiltin(() => import('@reformer/ui-kit/calendar'))],
-  ['@reformer/ui-kit/carousel', lazyBuiltin(() => import('@reformer/ui-kit/carousel'))],
-  ['@reformer/ui-kit/chart', lazyBuiltin(() => import('@reformer/ui-kit/chart'))],
-  ['@reformer/ui-kit/combobox', lazyBuiltin(() => import('@reformer/ui-kit/combobox'))],
-  ['@reformer/ui-kit/command', lazyBuiltin(() => import('@reformer/ui-kit/command'))],
-  ['@reformer/ui-kit/date-picker', lazyBuiltin(() => import('@reformer/ui-kit/date-picker'))],
-  ['@reformer/ui-kit/drawer', lazyBuiltin(() => import('@reformer/ui-kit/drawer'))],
-  ['@reformer/ui-kit/fields', lazyBuiltin(() => import('@reformer/ui-kit/fields'))],
-  ['@reformer/ui-kit/input-otp', lazyBuiltin(() => import('@reformer/ui-kit/input-otp'))],
-  [
-    '@reformer/ui-kit/message-scroller',
-    lazyBuiltin(() => import('@reformer/ui-kit/message-scroller')),
-  ],
-  ['@reformer/ui-kit/meta', lazyBuiltin(() => import('@reformer/ui-kit/meta'))],
-  ['@reformer/ui-kit/resizable', lazyBuiltin(() => import('@reformer/ui-kit/resizable'))],
-  ['@reformer/ui-kit/sidebar', lazyBuiltin(() => import('@reformer/ui-kit/sidebar'))],
-  ['@reformer/ui-kit/sonner', lazyBuiltin(() => import('@reformer/ui-kit/sonner'))],
-  ['@reformer/ui-kit/table', lazyBuiltin(() => import('@reformer/ui-kit/table'))],
+const KIT_OWN_MODULES: readonly LazyModule[] = [
+  ['@reformer/ui-kit/calendar', () => import('@reformer/ui-kit/calendar')],
+  ['@reformer/ui-kit/carousel', () => import('@reformer/ui-kit/carousel')],
+  ['@reformer/ui-kit/chart', () => import('@reformer/ui-kit/chart')],
+  ['@reformer/ui-kit/combobox', () => import('@reformer/ui-kit/combobox')],
+  ['@reformer/ui-kit/command', () => import('@reformer/ui-kit/command')],
+  ['@reformer/ui-kit/date-picker', () => import('@reformer/ui-kit/date-picker')],
+  ['@reformer/ui-kit/drawer', () => import('@reformer/ui-kit/drawer')],
+  ['@reformer/ui-kit/fields', () => import('@reformer/ui-kit/fields')],
+  ['@reformer/ui-kit/input-otp', () => import('@reformer/ui-kit/input-otp')],
+  ['@reformer/ui-kit/message-scroller', () => import('@reformer/ui-kit/message-scroller')],
+  ['@reformer/ui-kit/meta', () => import('@reformer/ui-kit/meta')],
+  ['@reformer/ui-kit/resizable', () => import('@reformer/ui-kit/resizable')],
+  ['@reformer/ui-kit/sidebar', () => import('@reformer/ui-kit/sidebar')],
+  ['@reformer/ui-kit/sonner', () => import('@reformer/ui-kit/sonner')],
+  ['@reformer/ui-kit/table', () => import('@reformer/ui-kit/table')],
 ];
 
-/** Спецификатор → модуль. Порядок не значим: реестр строит из этого карту. */
-export const KIT_SUBPATH_MODULES: readonly (readonly [string, unknown])[] = [
+/** Подпути кита: спецификатор → загрузчик. */
+export const KIT_SUBPATH_MODULES: readonly LazyModule[] = [
   ...KIT_BARREL_SUBPATHS.map((specifier) => [specifier, kitBarrel] as const),
   ...KIT_OWN_MODULES,
+];
+
+/**
+ * Что плагин отдаёт исполняемому коду. Имя экспорта — соглашение обхода папок.
+ * Порядок не значим: реестр строит из этого карту.
+ */
+export const lazyModules: readonly LazyModule[] = [
+  ['@reformer/ui-kit', kitBarrel],
+  ['@reformer/cdk', () => import('@reformer/cdk')],
+  ['@reformer/cdk/async-boundary', () => import('@reformer/cdk/async-boundary')],
+  ['@reformer/cdk/file-upload', () => import('@reformer/cdk/file-upload')],
+  ['@reformer/cdk/form-array', () => import('@reformer/cdk/form-array')],
+  ['@reformer/cdk/form-field', () => import('@reformer/cdk/form-field')],
+  ['@reformer/cdk/form-wizard', () => import('@reformer/cdk/form-wizard')],
+  ['@reformer/cdk/list', () => import('@reformer/cdk/list')],
+  ...KIT_SUBPATH_MODULES,
 ];

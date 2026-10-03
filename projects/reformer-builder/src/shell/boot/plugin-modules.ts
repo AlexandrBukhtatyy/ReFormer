@@ -7,7 +7,7 @@
  * и настоящий `react/jsx-runtime` сажает сюда композиция — единственный слой, которому
  * можно всё, — и ровно поэтому подмена этих имён плагином невыразима, а не запрещена.
  *
- * ## Почему именно эти четыре
+ * ## Почему именно эти
  *
  * `@builder/sdk` — то, ради чего `sdk/` существует: буквально тот объект, который загрузчик
  * подставляет плагину. Второй экземпляр означал бы плагин, регистрирующий вклады в чужой
@@ -21,44 +21,14 @@
  * этих имён в реестре не было, внешнему плагину было нечем нарисовать форму вовсе: React он
  * получал, а смонтировать его не мог. Цена нулевая — пакет и так в графе оболочки.
  *
- * ## Почему `@reformer/*` здесь всё-таки появился
+ * ## Модулей стека здесь нет
  *
- * Список — цена платформы, и раньше здесь стояло «добавлять по требованию первого плагина,
- * которому они действительно нужны». Требование пришло не от плагина, а от компилирующей
- * поверхности превью: сайдкары формы импортируют `@reformer/core/validation`,
- * `@reformer/core/behaviors` и `@reformer/renderer-json` ВСЕГДА — это не выбор автора формы,
- * а способ, которым форма вообще пишется. Без них `validation.ts` любой настоящей формы падал
- * на фазе `resolve`, то есть исполняющая поверхность не собирала ни одной формы из проекта.
- *
- * Цена нулевая: `grep` по `src/` показывает, что всё из первой группы уже статически в графе
- * билдера (renderer-json — 116 импортов, core — 7, плюс подпути). Регистрация отдаёт коду формы
- * ТОТ ЖЕ объект модуля, который держит оболочка, — ради этого весь механизм и существует.
- *
- * ## Что ленивое и почему именно оно
- *
- * `@reformer/ui-kit` вынесен в собственный чанк (708 кБ) осознанно, `@reformer/cdk` в графе
- * билдера отсутствует вовсе. Обоим — {@link lazyBuiltin}: обещание вместо значения, разрешаемое
- * в фазе прогрева, до линковки.
- *
- * ## Подпути перечисляются поимённо, и «плоского пакета» здесь нет
- *
- * Соблазн велик: объявить корень «плоским» и отдавать бочку на любой подпуть. Так делал v1.
- * Ломается это ТИХО — бочка `@reformer/ui-kit` собрана из `export *` не по всем модулям кита,
- * и подпуть, вернувший бочку, отдал бы `undefined` вместо компонента, а рендерер нарисовал бы
- * пустоту: ровно тот класс дефектов, ради которого реестр и заводился.
- *
- * У `@reformer/cdk` та же ловушка с другой стороны: подпуть БОГАЧЕ корня (`Step`, `Slot`,
- * `FormWizardPrev` есть в `./form-wizard`, но не в бочке), поэтому его подпути перечислены
- * поимённо — их шесть, и они закрыты полностью.
- *
- * Подпути кита — все 77, списком в `./kit-modules`: там же объяснено, почему часть из них
- * отдаётся бочкой, а часть своим чанком, и почему выбор между этими двумя способами сделан
- * не на глаз, а проверяется тестом на настоящих модулях кита. До этого списка подпути кита
- * не отдавались вовсе, и форма с `import { FormWizard } from '@reformer/ui-kit/form-wizard'`
- * в билдере не поднималась, хотя у пользователя собиралась.
- *
- * Не покрыты и покрыты не будут `axios` и `lucide-react` из тех же примеров: это зависимости
- * приложения, а не оболочки, и отказ по ним честный.
+ * `@reformer/core`, рендереры, кит и их подпути исполняемому коду тоже отдаются — но какие
+ * именно, решает не оболочка. Что импортирует код формы — знание о стеке: списки лежат
+ * у плагинов, состав приложения собирает их обходом папок (`ApplicationComposition.modules`),
+ * а сюда они приходят параметром ({@link PluginModulesOptions.modules}). Привилегия при этом
+ * не размывается: модули состава садятся в реестр ЗДЕСЬ же, при его создании, вместе
+ * с модулями оболочки, и публичный `register` не дотягивается ни до тех, ни до других.
  *
  * @module shell/boot/plugin-modules
  */
@@ -67,87 +37,36 @@ import * as react from 'react';
 import * as jsxRuntime from 'react/jsx-runtime';
 import * as reactDom from 'react-dom';
 import * as reactDomClient from 'react-dom/client';
-import * as signalsCore from '@preact/signals-core';
-import * as reformerCore from '@reformer/core';
-import * as reformerBehaviors from '@reformer/core/behaviors';
-import * as reformerModel from '@reformer/core/model';
-import * as reformerSignals from '@reformer/core/signals';
-import * as reformerValidation from '@reformer/core/validation';
-import * as reformerValidators from '@reformer/core/validators';
-import * as rendererJson from '@reformer/renderer-json';
-import * as rendererReact from '@reformer/renderer-react';
 
 import type { CompileCache, PrimedCompile } from '@/shell/platform/modules/compile-cache';
 import { createModuleLoader, type ModuleLoader } from '@/shell/platform/modules/loader';
-import { createModuleRegistry, lazyBuiltin } from '@/shell/platform/modules/registry';
+import { createModuleRegistry } from '@/shell/platform/modules/registry';
 import { collectBareSpecifiers } from '@/shell/platform/modules/specifiers';
 import {
   createTypeScriptSupport,
   isTypeScriptFile,
   type TypeScriptSupport,
 } from '@/shell/platform/plugin/typescript-transpiler';
-import { KIT_SUBPATH_MODULES } from './kit-modules';
+import type { ComposedModule } from './composition';
 import type { Disposable } from '@reformer/builder-plugin-api/internal';
 import * as sdk from '@reformer/builder-plugin-api';
 
 /**
- * Модули оболочки, отдаваемые исполняемому коду.
+ * Собственные модули оболочки: то, без чего не соберётся ни плагин, ни `.tsx` формы.
  *
- * Порядок групп — по цене, а не по алфавиту: сперва то, что уже в графе, потом то, за что платят
- * отдельным чанком. Подпути перечислены поимённо, потому что реестр резолвит точным совпадением
- * (см. шапку модуля о том, почему «плоский пакет» здесь был бы тихой поломкой).
+ * ОДИН объект под двумя именами, и это переходный период, а не два слота. Имя `@builder/sdk`
+ * останется, пока по нему написаны плагины; новое — то, под которым контракт опубликован в npm
+ * и против которого плагин каталога компилируется у себя. Второй ЭКЗЕМПЛЯР здесь был бы
+ * плагином, регистрирующим вклады в чужой пустой реестр.
  */
-const BUILTINS: readonly (readonly [string, unknown])[] = [
-  // Оболочка и React — без них не соберётся ни плагин, ни `.tsx` формы.
-  // ОДИН объект под двумя именами, и это переходный период, а не два слота. Имя
-  // `@builder/sdk` останется, пока по нему написаны плагины; новое — то, под которым
-  // контракт опубликован в npm и против которого плагин каталога компилируется у себя.
-  // Второй ЭКЗЕМПЛЯР здесь был бы плагином, регистрирующим вклады в чужой пустой реестр.
+const HOST_MODULES: readonly ComposedModule[] = [
   ['@builder/sdk', sdk],
   ['@reformer/builder-plugin-api', sdk],
   ['react', react],
   ['react/jsx-runtime', jsxRuntime],
   ['react-dom', reactDom],
   ['react-dom/client', reactDomClient],
-
-  // Уже в графе билдера: регистрация бесплатна по чанкам.
-  ['@preact/signals-core', signalsCore],
-  ['@reformer/core', reformerCore],
-  ['@reformer/core/behaviors', reformerBehaviors],
-  ['@reformer/core/model', reformerModel],
-  ['@reformer/core/signals', reformerSignals],
-  ['@reformer/core/validation', reformerValidation],
-  ['@reformer/core/validators', reformerValidators],
-  ['@reformer/renderer-json', rendererJson],
-  ['@reformer/renderer-react', rendererReact],
-
-  // Отдельные чанки: платим только когда исполняется код, который их просит.
-  ['@reformer/form-registry', lazyBuiltin(() => import('@reformer/form-registry'))],
-  ['@reformer/form-registry/react', lazyBuiltin(() => import('@reformer/form-registry/react'))],
-  ['@reformer/form-registry/storage', lazyBuiltin(() => import('@reformer/form-registry/storage'))],
-  ['@reformer/ui-kit', lazyBuiltin(() => import('@reformer/ui-kit'))],
-  ['@reformer/cdk', lazyBuiltin(() => import('@reformer/cdk'))],
-  ['@reformer/cdk/async-boundary', lazyBuiltin(() => import('@reformer/cdk/async-boundary'))],
-  ['@reformer/cdk/file-upload', lazyBuiltin(() => import('@reformer/cdk/file-upload'))],
-  ['@reformer/cdk/form-array', lazyBuiltin(() => import('@reformer/cdk/form-array'))],
-  ['@reformer/cdk/form-field', lazyBuiltin(() => import('@reformer/cdk/form-field'))],
-  ['@reformer/cdk/form-wizard', lazyBuiltin(() => import('@reformer/cdk/form-wizard'))],
-  ['@reformer/cdk/list', lazyBuiltin(() => import('@reformer/cdk/list'))],
-
-  // Подпути кита — списком в соседнем модуле: их 77, и здесь они утопили бы всё остальное.
-  ...KIT_SUBPATH_MODULES,
 ];
-
-/**
- * Спецификаторы реестра — для сверки с обещанием пакета контракта (`PLUGIN_RUNTIME_MODULES`).
- *
- * Отдельным значением, потому что реестр загрузчика сужен до контракта и перечислить себя
- * не умеет. Совпадение проверяет тест: сборщик плагина выносит из сборки ровно список пакета,
- * и модуль, которого здесь нет, стал бы падением собранного «правильно» плагина.
- */
-export const PLUGIN_MODULE_SPECIFIERS: readonly string[] = Object.freeze(
-  BUILTINS.map(([specifier]) => specifier)
-);
 
 /** Загрузка кода плагинов: реестр модулей плюс прогретые по требованию транспиляторы. */
 export interface PluginModules extends Disposable {
@@ -188,9 +107,17 @@ export interface PluginModules extends Disposable {
   warm(files?: ReadonlyMap<string, string>): Promise<void>;
   /** Поддержка TypeScript. Наружу — ради тестов композиции и диагностики. */
   readonly typescript: TypeScriptSupport;
+  /**
+   * Спецификаторы реестра — для сверки с обещанием пакета контракта (`PLUGIN_RUNTIME_MODULES`).
+   *
+   * Отдельным полем, потому что реестр загрузчика сужен до контракта и перечислить себя
+   * не умеет. Совпадение проверяет тест сборки: сборщик плагина выносит из сборки ровно список
+   * пакета, и модуль, которого здесь нет, стал бы падением собранного «правильно» плагина.
+   */
+  readonly specifiers: readonly string[];
 }
 
-/** Настройки композиции модулей. Единственная — где кэшировать транспиляцию. */
+/** Настройки композиции модулей: модули состава и где кэшировать транспиляцию. */
 export interface PluginModulesOptions {
   /**
    * Куда складывать результат транспиляции — ФУНКЦИЯ, а не значение.
@@ -201,12 +128,19 @@ export interface PluginModulesOptions {
    * ключом. `null` — проекта сейчас нет, кэшировать некуда.
    */
   readonly cache?: () => CompileCache | null;
+  /**
+   * Модули состава приложения — садятся в реестр наравне с модулями оболочки.
+   *
+   * Спецификатор, совпавший с модулем оболочки, — отказ на старте, а не подмена: реестр
+   * не принимает один слот дважды, и состав не может переопределить React или SDK.
+   */
+  readonly modules?: readonly ComposedModule[];
 }
 
 export function createPluginModules(options: PluginModulesOptions = {}): PluginModules {
   // Реестр создаётся здесь, а не внутри загрузчика: прогрев ленивых — операция реестра,
   // а `ModuleLoader.registry` сужен до контракта и её не отдаёт.
-  const registry = createModuleRegistry(BUILTINS);
+  const registry = createModuleRegistry([...HOST_MODULES, ...(options.modules ?? [])]);
   const modules = createModuleLoader({ registry });
   const typescript = createTypeScriptSupport(modules.transpilers);
   const cacheOf = options.cache;
@@ -214,6 +148,7 @@ export function createPluginModules(options: PluginModulesOptions = {}): PluginM
   return {
     modules,
     typescript,
+    specifiers: registry.specifiers(),
     prepare: (fileNames) => typescript.ensure(fileNames),
     // Файлы, а не список имён: у вызывающего они уже есть, а спецификаторы из них читаются
     // одним проходом. Без файлов — прогрев всего: так зовут тесты композиции.

@@ -1,20 +1,20 @@
 /**
  * Подпути кита: полнота списка и правомерность алиасов — на настоящем ките, а не на списке.
  *
- * Оба утверждения `kit-modules` проверяются здесь, потому что ни одно из них не держится само:
+ * Оба утверждения `runtime-modules` проверяются здесь, потому что ни одно из них не держится само:
  * список подпутей стареет с выходом кита, а «все экспорты подпути есть в бочке» перестаёт быть
  * правдой ровно тогда, когда символ из бочки уезжает. Второе особенно коварно: алиас продолжит
  * резолвиться, но вернёт объект БЕЗ нужного имени — `undefined` вместо компонента и пустота
  * вместо отказа.
  *
- * @module shell/boot/kit-modules.test
+ * @module plugins/kits/registry/runtime-modules.test
  */
 
 import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { KIT_BARREL_SUBPATHS, KIT_SUBPATH_MODULES } from './kit-modules';
+import { KIT_BARREL_SUBPATHS, KIT_SUBPATH_MODULES } from './runtime-modules';
 
 /**
  * Подпути кита, за которыми лежит JS: `./styles` — CSS, `./catalog` — JSON.
@@ -23,7 +23,10 @@ import { KIT_BARREL_SUBPATHS, KIT_SUBPATH_MODULES } from './kit-modules';
  * и `import '@reformer/ui-kit/package.json'` у потребителя не резолвится вовсе.
  */
 function declaredSubpaths(): string[] {
-  const manifest = new URL('../../../../../packages/reformer-ui-kit/package.json', import.meta.url);
+  const manifest = new URL(
+    '../../../../../../packages/reformer-ui-kit/package.json',
+    import.meta.url
+  );
   const kitPackage = JSON.parse(readFileSync(manifest, 'utf8')) as {
     exports: Record<string, unknown>;
   };

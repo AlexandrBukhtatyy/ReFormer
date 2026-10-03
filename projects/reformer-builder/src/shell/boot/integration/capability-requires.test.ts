@@ -38,6 +38,7 @@ import { createI18nService } from '@/shell/platform/services/i18n/i18n';
 import { createMemorySource } from '@/shell/platform/source/memory';
 import type { Source } from '@/shell/platform/source/types';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
+import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 
 const dir = (file: string): string => `${PLUGIN_CATALOG_DIR}/ext/${file}`;
 
@@ -121,7 +122,7 @@ function harness(range: string, extra: readonly Requirement[] = []) {
   plugins.register(createKitsPlugin({ sources: [{ catalog: KIT_CATALOG }] }), [KitsCapability]);
   plugins.activate(KITS_PLUGIN_ID);
 
-  const pluginModules = createPluginModules();
+  const pluginModules = createPluginModules({ modules: RUNTIME_MODULES });
   const i18n = createI18nService({ dev: true, loadHostMessages: () => Promise.resolve({}) });
   const onProblem = vi.fn();
 

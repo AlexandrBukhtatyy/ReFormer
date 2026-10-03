@@ -39,6 +39,7 @@ import {
   type PluginOverrides,
 } from '../resolver/profile-resolver';
 import { BUILTIN_PLUGINS, canonicalPluginId } from './builtin-plugins';
+import { RUNTIME_MODULES } from './runtime-modules';
 
 /**
  * Состав, собранный по профилю: то же, что получает оболочка, плюс его плагины поимённо.
@@ -115,6 +116,7 @@ export function fromProfile(
     profile: Object.freeze({ id: profile.id, name: profile.name }),
     pluginIds: Object.freeze([...ids]),
     capabilities: capabilities.providers,
+    modules: RUNTIME_MODULES,
     // Все фабрики зовутся ДО первого `await`, поэтому их `import()` уходят в один тик —
     // столько параллельных запросов, сколько плагинов в составе, а не цепочка.
     load: async (options: BuiltinPluginsOptions): Promise<readonly ComposedPlugin[]> =>

@@ -57,6 +57,7 @@ import {
   createMemoryOpfs,
 } from '@/shell/platform/workspace/storage/testing';
 import { createPluginModules } from '@/shell/boot/plugin-modules';
+import { RUNTIME_MODULES } from '@/application/composer/runtime-modules';
 import { createProjectHost } from '@/shell/boot/project/project';
 import { createKitsPlugin, type KitsSettings } from '@/plugins/kits/registry';
 
@@ -224,7 +225,7 @@ function harness(options: { withKits?: boolean; settings?: KitsSettings } = {}) 
     plugins.activateAll();
   }
 
-  const pluginModules = createPluginModules();
+  const pluginModules = createPluginModules({ modules: RUNTIME_MODULES });
   const onProblem = vi.fn();
   const catalog = createProjectPluginCatalog({
     loader: createPluginLoader({
