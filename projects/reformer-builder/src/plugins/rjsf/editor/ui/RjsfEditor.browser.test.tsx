@@ -1,6 +1,6 @@
 /**
  * Тело вкладки и панель свойств формы RJSF — рядом, как в оболочке: структура или форма
- * во вкладке, свойства выбранного поля в панели.
+ * во вкладке, свойства выбранного поля или формы целиком в панели.
  *
  * Проверяется шов между ними. Связывает их только выделение ручки модели: щелчок по строке
  * ставит его в теле, панель читает его у активного документа, а операции (новое поле,
@@ -74,15 +74,36 @@ const structure = (): Element | null => document.querySelector('[data-testid="rj
 const surface = (): Element | null => document.querySelector('[data-testid="fake-surface"]');
 
 describe('вид вкладки: структура или форма', () => {
-  it('по умолчанию — структура: форма не смонтирована, свойства ждут выбора', async () => {
+  it('по умолчанию — структура: форма не смонтирована, в панели свойства формы', async () => {
     const { live } = mount();
 
     await expect.element(page.getByTestId('rjsf-structure')).toBeVisible();
     await expect.element(page.getByTestId('rjsf-row-name')).toBeVisible();
-    await expect.element(page.getByTestId('rjsf-inspector-empty')).toBeVisible();
-    // Свойств поля во вкладке больше нет — они в панели, и до выбора она пуста.
+    // Поле не выбрано — выбрана форма: пустой панель не бывает.
+    await expect.element(page.getByTestId('rjsf-form-inspector')).toBeVisible();
     expect(document.querySelector('[data-testid="rjsf-inspector"]')).toBeNull();
     expect(live.mounts()).toBe(0);
+  });
+
+  it('во вкладке только структура: заголовок и экспорт — в панели, новое поле — под списком', async () => {
+    mount();
+    await expect.element(page.getByTestId('rjsf-structure')).toBeVisible();
+
+    const body = structure()!;
+    const panel = document.querySelector('[data-testid="rjsf-form-inspector"]')!;
+    expect(body.querySelector('[data-testid="rjsf-title"]')).toBeNull();
+    expect(body.querySelector('[data-testid="rjsf-export"]')).toBeNull();
+    expect(panel.querySelector('[data-testid="rjsf-title"]')).not.toBeNull();
+    expect(panel.querySelector('[data-testid="rjsf-export"]')).not.toBeNull();
+
+    // Кнопка — последней в структуре; и она, и строка формы — во всю ширину вкладки без полей.
+    const add = body.querySelector<HTMLElement>('[data-testid="rjsf-add-field"]')!;
+    const row = body.querySelector<HTMLElement>('[data-testid="rjsf-row-form"]')!;
+    const style = getComputedStyle(body);
+    const inner = body.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    expect(body.lastElementChild).toBe(add);
+    expect(add.getBoundingClientRect().width).toBeCloseTo(inner, 0);
+    expect(row.getBoundingClientRect().width).toBeCloseTo(inner, 0);
   });
 
   it('переключение показывает форму на всю вкладку и возвращает структуру', async () => {
@@ -210,7 +231,7 @@ describe('свойства выбранного поля — в панели', (
 
     expect(first.model().schema.properties.age).toBeUndefined();
     expect(first.selection()).toEqual([]);
-    await expect.element(page.getByTestId('rjsf-inspector-empty')).toBeVisible();
+    await expect.element(page.getByTestId('rjsf-form-inspector')).toBeVisible();
 
     first.handle.undo();
 
@@ -234,7 +255,7 @@ describe('свойства выбранного поля — в панели', (
     await expect.element(page.getByTestId('rjsf-field-name')).toHaveValue('age');
 
     workspace.setActive(second.id);
-    await expect.element(page.getByTestId('rjsf-inspector-empty')).toBeVisible();
+    await expect.element(page.getByTestId('rjsf-form-inspector')).toBeVisible();
 
     second.handle.setSelection(['channel']);
     await expect.element(page.getByTestId('rjsf-field-name')).toHaveValue('channel');
@@ -245,5 +266,68 @@ describe('свойства выбранного поля — в панели', (
 
     workspace.setActive(first.id);
     await expect.element(page.getByTestId('rjsf-field-name')).toHaveValue('age');
+  });
+});
+
+describe('форма целиком — тоже выбор', () => {
+  it('строка формы снимает выделение поля, и панель показывает свойства формы', async () => {
+    const { first } = mount();
+    const formRow = page.getByTestId('rjsf-row-form');
+    // Пока поле не выбрано, выбранной показана сама форма.
+    await expect.element(formRow).toHaveAttribute('aria-pressed', 'true');
+    await expect.element(formRow).toHaveTextContent('Форма · Контакт');
+
+    await userEvent.click(page.getByRole('button', { name: /^age/ }));
+    await expect.element(formRow).toHaveAttribute('aria-pressed', 'false');
+    await expect.element(page.getByTestId('rjsf-field-name')).toHaveValue('age');
+
+    await userEvent.click(formRow);
+
+    expect(first.selection()).toEqual([]);
+    await expect.element(formRow).toHaveAttribute('aria-pressed', 'true');
+    await expect.element(page.getByTestId('rjsf-title')).toHaveValue('Контакт');
+    expect(document.querySelector('[data-testid="rjsf-inspector"]')).toBeNull();
+  });
+
+  it('заголовок правится в панели: модель, строка формы и одна запись в истории', async () => {
+    const { first } = mount();
+
+    await userEvent.fill(page.getByTestId('rjsf-title'), 'Анкета');
+
+    expect(first.model().schema.title).toBe('Анкета');
+    await expect.element(page.getByTestId('rjsf-row-form')).toHaveTextContent('Форма · Анкета');
+
+    // Стёртый заголовок из схемы уходит, а строка формы остаётся строкой формы.
+    await userEvent.clear(page.getByTestId('rjsf-title'));
+
+    expect(first.model().schema.title).toBeUndefined();
+    await expect.element(page.getByTestId('rjsf-row-form')).toHaveTextContent(/^Форма$/);
+  });
+
+  it('крошка «Форма» над свойствами поля возвращает к форме — и в виде «форма»', async () => {
+    const { first, view } = mount();
+    await userEvent.click(page.getByRole('button', { name: /^age/ }));
+
+    // Структуры в этом виде нет: кроме крошки, выйти к свойствам формы нечем.
+    view.setView('form');
+    await expect.element(page.getByTestId('fake-surface')).toBeVisible();
+    await expect.element(page.getByTestId('rjsf-field-name')).toHaveValue('age');
+
+    await userEvent.click(page.getByTestId('rjsf-inspector-form'));
+
+    expect(first.selection()).toEqual([]);
+    await expect.element(page.getByTestId('rjsf-title')).toHaveValue('Контакт');
+  });
+
+  it('экспорт — кнопкой в свойствах формы: Form.tsx записан, исход назван', async () => {
+    const { workspace } = mount();
+
+    await userEvent.click(page.getByTestId('rjsf-export'));
+
+    await expect
+      .element(page.getByTestId('rjsf-status'))
+      .toHaveTextContent('Form.tsx записан и сохранён.');
+    expect(workspace.written.get('mem:Form.tsx')).toContain('ContactForm');
+    expect(workspace.saved).toEqual([['mem:Form.tsx']]);
   });
 });

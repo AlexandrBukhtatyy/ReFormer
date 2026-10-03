@@ -28,7 +28,7 @@ export const RJSF_SHOW_FORM_COMMAND_ID = 'rjsf.showForm';
 export const RJSF_STRUCTURE_ITEM_ID = 'rjsf.title.structure';
 export const RJSF_FORM_ITEM_ID = 'rjsf.title.form';
 
-/** Панель свойств выбранного поля — в правом доке. */
+/** Панель свойств формы и её полей — в правом доке. */
 export const RJSF_INSPECTOR_PANEL_ID = 'rjsf.inspector';
 
 /** Имя файла новой формы и расширение, по которому её узнаёт дерево. */

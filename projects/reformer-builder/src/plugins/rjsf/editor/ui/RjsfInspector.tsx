@@ -1,10 +1,14 @@
 /**
- * Свойства выбранного поля формы RJSF — тело панели в правом доке.
+ * Свойства формы RJSF или её выбранного поля — тело панели в правом доке.
  *
  * Панель про свой документ не знает ничего, кроме того, что он на активной вкладке: оболочка
  * отдаёт ей только `panelId`. Поэтому документ она находит сама — по активной вкладке, — а
  * выбранное поле читает из выделения ручки модели: то самое, которое ставит щелчок по строке
  * в структуре и переносят операции (новое поле, переименование).
+ *
+ * Поле не выбрано — выбрана форма: панель показывает её заголовок и экспорт. Пустой панель
+ * не бывает, а к форме возвращают двое — строка формы в структуре и крошка «Форма» над
+ * свойствами поля. Крошка нужна виду «форма»: структуры там нет, и выйти к форме больше нечем.
  *
  * Шапки и прокрутки здесь нет: имя панели и область прокрутки даёт оболочка, одинаково для всех
  * вкладов.
@@ -25,8 +29,8 @@ import {
   type RjsfForm,
   type RjsfOp,
 } from '@/plugins/rjsf/core';
-import type { KitsService, ModelDocumentHandle } from '@reformer/builder-plugin-api';
-import type { RjsfServices } from '../commands';
+import type { KitsService, ModelDocumentHandle, ResourceId } from '@reformer/builder-plugin-api';
+import { exportRjsfForm, type ExportOutcome, type RjsfServices } from '../commands';
 import {
   selectedFieldOf,
   useActiveHandle,
@@ -57,25 +61,33 @@ export interface RjsfInspectorProps {
 export function RjsfInspector({ services, kits, useTranslate }: RjsfInspectorProps): ReactElement {
   const t = useTranslate();
   const handle = useActiveHandle(services);
-  if (handle === null) return <Hint text={t('inspector.empty')} />;
-  // Ключ — документ: черновики полей (имя, варианты) принадлежат полю своего документа.
-  return <DocumentInspector key={handle.document.id} handle={handle} kits={kits()} t={t} />;
-}
-
-function Hint({ text }: { text: string }): ReactElement {
+  // Формы домена на активной вкладке нет: оболочка панель в этот момент уже прячет (`when`).
+  if (handle === null) {
+    return (
+      <p className="p-3 text-xs text-muted-foreground" data-testid="rjsf-inspector-empty">
+        {t('editor.notRjsf')}
+      </p>
+    );
+  }
+  // Ключ — документ: черновики полей (имя, варианты) и исход экспорта принадлежат своему документу.
   return (
-    <p className="p-3 text-xs text-muted-foreground" data-testid="rjsf-inspector-empty">
-      {text}
-    </p>
+    <DocumentInspector
+      key={handle.document.id}
+      handle={handle}
+      services={services}
+      kits={kits()}
+      t={t}
+    />
   );
 }
 
 function DocumentInspector(props: {
   handle: ModelDocumentHandle<RjsfForm>;
+  services: RjsfServices;
   kits: KitsService | undefined;
   t: Translate;
 }): ReactElement {
-  const { handle, kits, t } = props;
+  const { handle, services, kits, t } = props;
   const form = useModel(handle);
   const selection = useSelection(handle);
   const kitFields = useKitFields(kits);
@@ -83,7 +95,17 @@ function DocumentInspector(props: {
   const apply = (op: RjsfOp, mergeKey?: string) =>
     handle.apply(op, mergeKey === undefined ? undefined : { mergeKey }).status === 'applied';
 
-  if (selected === null) return <Hint text={t('inspector.empty')} />;
+  if (selected === null) {
+    return (
+      <FormInspector
+        form={form}
+        documentId={handle.document.id}
+        services={services}
+        apply={apply}
+        t={t}
+      />
+    );
+  }
   // Ключ — имя поля: переименование переносит выделение (`focus` операции), и черновик имени
   // начинается с нового.
   return (
@@ -93,8 +115,62 @@ function DocumentInspector(props: {
       name={selected}
       kitFields={kitFields}
       apply={apply}
+      onShowForm={() => {
+        handle.setSelection([]);
+      }}
       t={t}
     />
+  );
+}
+
+function exportStatus(outcome: ExportOutcome, t: Translate): string {
+  if (outcome.status === 'refused') return t(`inspector.form.export.${outcome.reason}`);
+  return outcome.saved ? t('inspector.form.export.saved') : t('inspector.form.export.unsaved');
+}
+
+/** Свойства формы целиком: заголовок и экспорт. Показаны, пока не выбрано ни одно поле. */
+function FormInspector(props: {
+  form: RjsfForm;
+  documentId: ResourceId;
+  services: RjsfServices;
+  apply: (op: RjsfOp, mergeKey?: string) => boolean;
+  t: Translate;
+}): ReactElement {
+  const { form, documentId, services, apply, t } = props;
+  const [status, setStatus] = useState<string | null>(null);
+
+  return (
+    <section className="flex flex-col gap-2 p-3 text-sm" data-testid="rjsf-form-inspector">
+      <label className="flex flex-col gap-1">
+        <span className="font-medium">{t('inspector.form.title')}</span>
+        <input
+          className={INPUT_CLASS}
+          data-testid="rjsf-title"
+          value={form.schema.title ?? ''}
+          onChange={(event) => {
+            apply({ type: 'set-title', params: { title: event.target.value } }, 'title@form');
+          }}
+        />
+      </label>
+      <button
+        type="button"
+        className="rounded border px-2 py-1"
+        data-testid="rjsf-export"
+        onClick={() => {
+          void exportRjsfForm(services, documentId).then((outcome) => {
+            setStatus(exportStatus(outcome, t));
+          });
+        }}
+      >
+        {t('inspector.form.export')}
+      </button>
+      {status !== null && (
+        <span className="text-xs text-muted-foreground" role="status" data-testid="rjsf-status">
+          {status}
+        </span>
+      )}
+      <p className="text-xs text-muted-foreground">{t('inspector.form.hint')}</p>
+    </section>
   );
 }
 
@@ -164,9 +240,10 @@ function FieldInspector(props: {
   name: string;
   kitFields: readonly string[];
   apply: (op: RjsfOp, mergeKey?: string) => boolean;
+  onShowForm: () => void;
   t: Translate;
 }): ReactElement {
-  const { form, name, kitFields, apply, t } = props;
+  const { form, name, kitFields, apply, onShowForm, t } = props;
   const field = form.schema.properties[name]!;
   const ui = form.uiSchema?.[name] as RjsfFieldUi | undefined;
   const required = (form.schema.required ?? []).includes(name);
@@ -195,6 +272,18 @@ function FieldInspector(props: {
 
   return (
     <section className="flex flex-col gap-2 p-3 text-sm" data-testid="rjsf-inspector">
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <button
+          type="button"
+          className="underline underline-offset-2 hover:text-foreground"
+          data-testid="rjsf-inspector-form"
+          onClick={onShowForm}
+        >
+          {t('inspector.form')}
+        </button>
+        <span aria-hidden="true">›</span>
+        <span className="min-w-0 truncate font-mono text-foreground">{name}</span>
+      </div>
       <label className="flex flex-col gap-1">
         <span className="font-medium">{t('inspector.name')}</span>
         <input
