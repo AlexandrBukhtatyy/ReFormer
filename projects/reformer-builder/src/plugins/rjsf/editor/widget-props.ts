@@ -31,12 +31,14 @@ const OPTIONS_KEY = 'ui:options';
  */
 export type WidgetPropEditor = 'text' | 'checkbox' | 'number' | 'select';
 
-/** Свойство виджета вместе с текущим значением поля. */
+/** Свойство контрола вместе с текущим значением поля. */
 export interface WidgetPropField {
   /** Ключ пропа — он же ключ в `ui:options`. */
   readonly key: string;
   readonly label: string;
   readonly editor: WidgetPropEditor;
+  /** Группа каталога (`x-doc.group`). */
+  readonly group: string;
   readonly description?: string;
   /** Умолчание каталога. Показывается подсказкой, в документ не записывается. */
   readonly fallback?: unknown;
@@ -48,28 +50,104 @@ export interface WidgetPropField {
   readonly value: unknown;
 }
 
-/** Секция свойств — группа каталога (`x-doc.group`). */
-export interface WidgetPropSection {
-  readonly group: string;
-  readonly fields: readonly WidgetPropField[];
-}
-
 export interface WidgetPropsModel {
   /** Запись каталога, которую рисует виджет поля. */
   readonly component: string;
-  readonly sections: readonly WidgetPropSection[];
+  /** Правимые свойства записи — в порядке каталога. */
+  readonly fields: readonly WidgetPropField[];
 }
 
-/** Порядок секций — тот же, что у инспектора схемы ReFormer; группы сверх него идут следом. */
-export const WIDGET_PROP_GROUPS: readonly string[] = Object.freeze([
+const DEFAULT_GROUP = 'Control';
+
+/**
+ * Группы панели в порядке показа — от важного к второстепенному: что это за поле и как оно
+ * выглядит, что на нём написано, какие данные оно несёт, как себя ведёт, в каком состоянии.
+ *
+ * Имена — группы каталога китов ReFormer (`x-doc.group`), подписи к ним лежат в словаре. Свою
+ * группу кита панель показывает после них и под её собственным именем: перевода взять неоткуда.
+ */
+export const FIELD_GROUPS: readonly string[] = Object.freeze([
   'Control',
-  'Options',
   'Textfield',
+  'Options',
   'Behavior',
   'State',
 ]);
 
-const DEFAULT_GROUP = 'Control';
+/** Свойства поля, которые ведёт схема формы, а не каталог кита. */
+export type FieldRowId = 'name' | 'widget' | 'label' | 'placeholder' | 'type' | 'enum' | 'required';
+
+/** В какой группе стоит свойство схемы: рядом с родственными свойствами контрола. */
+const SCHEMA_ROW_GROUPS: Readonly<Record<FieldRowId, string>> = {
+  name: 'Control',
+  widget: 'Control',
+  label: 'Textfield',
+  placeholder: 'Textfield',
+  type: 'Options',
+  enum: 'Options',
+  required: 'State',
+};
+
+/**
+ * Свойства контрола, которым панель назначает группу сама. Вариант и размер кит относит
+ * к «Поведению» (так устроены его `cva`-пропсы), а по смыслу это внешний вид поля — и стоят они
+ * сразу за выбором виджета.
+ */
+const PROP_GROUP_OVERRIDES: Readonly<Record<string, string>> = {
+  variant: 'Control',
+  size: 'Control',
+};
+
+/**
+ * Порядок строк внутри группы — от важного к второстепенному. Свойства контрола, которых здесь
+ * нет, идут в своей группе следом, в порядке каталога.
+ *
+ * Свойству схемы и свойству контрола нужен общий порядок, а ключи у них пересекаются (`name`
+ * у поля — имя в данных, у ползунка — атрибут формы), поэтому адрес строки несёт слой.
+ */
+const ROW_ORDER: readonly string[] = [
+  'field:name',
+  'field:widget',
+  'prop:variant',
+  'prop:size',
+  'prop:className',
+  'field:label',
+  'prop:labelTooltip',
+  'prop:tooltip',
+  'field:placeholder',
+  'field:type',
+  'field:enum',
+  'field:required',
+];
+
+/**
+ * Группа свойства контрола в панели. «Основные» открывают панель, и стоит в них только
+ * названное в {@link ROW_ORDER}: прочее, что кит отнёс к своей группе `Control` (атрибуты
+ * HTML-формы `name` и `form`), — технические свойства, и рядом с «именем в данных» их приняли бы
+ * за главное. Их место — «Поведение».
+ */
+function groupOf(prop: WidgetPropField, address: string): string {
+  const assigned = PROP_GROUP_OVERRIDES[prop.key];
+  if (assigned !== undefined) return assigned;
+  return prop.group === 'Control' && !ROW_ORDER.includes(address) ? 'Behavior' : prop.group;
+}
+
+/** Строка панели свойств поля: свойство схемы либо свойство контрола. */
+export type FieldRow =
+  | { readonly kind: 'field'; readonly id: FieldRowId }
+  | { readonly kind: 'prop'; readonly prop: WidgetPropField };
+
+/** Группа панели со своими строками. */
+export interface FieldSection {
+  readonly group: string;
+  readonly rows: readonly FieldRow[];
+}
+
+export interface FieldPanelModel {
+  /** Запись каталога под виджетом поля; `null` — виджет рисует не кит. */
+  readonly component: string | null;
+  readonly sections: readonly FieldSection[];
+}
 
 type Json = Readonly<Record<string, unknown>>;
 
@@ -147,7 +225,7 @@ function optionsOf(ui: RjsfFieldUi | undefined | null): Json {
 
 /**
  * Свойства виджета поля; `null` — за виджетом нет записи кита (кита нет, каталог ещё едет или
- * виджет остался стандартным RJSF). Запись без правимых пропсов даёт модель без секций.
+ * виджет остался стандартным RJSF). Запись без правимых пропсов даёт модель без свойств.
  */
 export function widgetPropsOf(
   field: RjsfFieldSchema,
@@ -160,38 +238,86 @@ export function widgetPropsOf(
   const declared = isRecord(properties) ? properties : {};
   const values = optionsOf(ui);
 
-  const byGroup = new Map<string, WidgetPropField[]>();
+  const fields: WidgetPropField[] = [];
   for (const key of target.keys) {
     const prop = declared[key];
     if (!isRecord(prop)) continue;
     const editor = editorOf(key, prop);
     if (editor === null) continue;
     const doc = prop['x-doc'];
-    const group = isRecord(doc) && typeof doc.group === 'string' ? doc.group : DEFAULT_GROUP;
-    const choices = choicesOf(prop);
-    const fields = byGroup.get(group) ?? [];
     fields.push({
       key,
       label: humanize(key),
       editor,
+      group: isRecord(doc) && typeof doc.group === 'string' ? doc.group : DEFAULT_GROUP,
       ...(typeof prop.description === 'string' ? { description: prop.description } : {}),
       ...(prop.default !== undefined ? { fallback: prop.default } : {}),
-      ...(editor === 'select' ? { options: choices } : {}),
+      ...(editor === 'select' ? { options: choicesOf(prop) } : {}),
       ...(typeof prop.minimum === 'number' ? { min: prop.minimum } : {}),
       ...(typeof prop.maximum === 'number' ? { max: prop.maximum } : {}),
       ...(typeof prop.multipleOf === 'number' ? { step: prop.multipleOf } : {}),
       value: values[key],
     });
-    byGroup.set(group, fields);
   }
+  return { component: target.record.name, fields };
+}
 
-  const order = [
-    ...WIDGET_PROP_GROUPS.filter((group) => byGroup.has(group)),
-    ...[...byGroup.keys()].filter((group) => !WIDGET_PROP_GROUPS.includes(group)),
+/**
+ * Панель свойств поля: группы в порядке {@link FIELD_GROUPS}, внутри группы — {@link ROW_ORDER}.
+ *
+ * Свойства схемы и свойства контрола стоят в одних группах: человеку всё равно, где значение
+ * хранится, — подпись и подсказка в контроле для него соседи, хотя первая лежит в схеме,
+ * а вторая в `ui:options`. Отдельного блока «свойства компонента» поэтому нет.
+ *
+ * Свойства схемы есть у любого поля; подсказка в поле и варианты — у всех, кроме «да/нет»:
+ * флажку вписывать нечего и выбирать не из чего.
+ */
+export function fieldPanelOf(
+  field: RjsfFieldSchema,
+  ui: RjsfFieldUi | undefined,
+  catalog: CatalogJson | null
+): FieldPanelModel {
+  const props = widgetPropsOf(field, ui, catalog);
+  const ids: FieldRowId[] = ['name', 'widget', 'label', 'type', 'required'];
+  if (field.type !== 'boolean') ids.push('placeholder', 'enum');
+
+  interface Placed {
+    readonly address: string;
+    readonly group: string;
+    readonly row: FieldRow;
+  }
+  const placed: Placed[] = [
+    ...ids.map(
+      (id): Placed => ({
+        address: `field:${id}`,
+        group: SCHEMA_ROW_GROUPS[id],
+        row: { kind: 'field', id },
+      })
+    ),
+    ...(props?.fields ?? []).map((prop): Placed => {
+      const address = `prop:${prop.key}`;
+      return { address, group: groupOf(prop, address), row: { kind: 'prop', prop } };
+    }),
+  ];
+  const rank = (address: string): number => {
+    const at = ROW_ORDER.indexOf(address);
+    return at < 0 ? ROW_ORDER.length : at;
+  };
+  // Сортировка устойчива: свойства контрола без своего места остаются в порядке каталога.
+  placed.sort((a, b) => rank(a.address) - rank(b.address));
+
+  const groups = [
+    ...FIELD_GROUPS,
+    ...new Set(placed.map((entry) => entry.group).filter((group) => !FIELD_GROUPS.includes(group))),
   ];
   return {
-    component: target.record.name,
-    sections: order.map((group) => ({ group, fields: byGroup.get(group)! })),
+    component: props?.component ?? null,
+    sections: groups
+      .map((group) => ({
+        group,
+        rows: placed.filter((entry) => entry.group === group).map((entry) => entry.row),
+      }))
+      .filter((section) => section.rows.length > 0),
   };
 }
 

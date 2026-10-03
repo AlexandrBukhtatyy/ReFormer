@@ -305,28 +305,55 @@ const KIT_RECORDS = [
 ] as unknown as CatalogJson['components'];
 
 describe('свойства контрола — из каталога кита', () => {
-  const options = (): Element | null => document.querySelector('[data-testid="rjsf-widget-props"]');
+  const option = (key: string): Element | null =>
+    document.querySelector(`[data-testid="rjsf-option-${key}"]`);
+  /** Панель строками «группа: строки» — в том порядке, в каком они стоят на экране. */
+  const layout = (): string[] =>
+    [...document.querySelectorAll('[data-testid^="rjsf-group-"]')].map((group) => {
+      const rows = [
+        ...group.querySelectorAll('[data-testid^="rjsf-field-"], [data-testid^="rjsf-option-"]'),
+      ]
+        .map((row) => row.getAttribute('data-testid')!.replace(/^rjsf-(field|option)-/, ''))
+        .join(' ');
+      return `${group.querySelector(':scope > span')?.textContent}: ${rows}`;
+    });
   const nameUi = (form: ReturnType<typeof sampleForm>) => form.uiSchema?.name;
 
   it('у каждого виджета свои свойства: набор приходит из записи каталога', async () => {
     mount({ kits: createFakeKits(KIT_RECORDS).kits });
     await userEvent.click(page.getByRole('button', { name: /^name/ }));
 
-    // Виджет не выбран — строку рисует Input кита; подпись ведёт схема, её среди свойств нет.
-    await expect
-      .element(page.getByTestId('rjsf-widget-props'))
-      .toHaveTextContent('Свойства компонента Input');
+    // Виджет не выбран — строку рисует Input кита, и выбор виджета его называет. Подпись ведёт
+    // схема: второго поля для неё среди свойств контрола нет.
     await expect.element(page.getByTestId('rjsf-option-tooltip')).toBeVisible();
-    expect(options()?.querySelector('[data-testid="rjsf-option-label"]')).toBeNull();
-    expect(options()?.querySelector('[data-testid="rjsf-option-mask"]')).toBeNull();
+    await expect
+      .element(page.getByTestId('rjsf-field-widget').getByRole('option', { selected: true }))
+      .toHaveTextContent('по умолчанию — Input');
+    expect(option('label')).toBeNull();
+    expect(option('mask')).toBeNull();
 
     await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'InputMask');
 
-    await expect
-      .element(page.getByTestId('rjsf-widget-props'))
-      .toHaveTextContent('Свойства компонента InputMask');
     await expect.element(page.getByTestId('rjsf-option-mask')).toBeVisible();
     await expect.element(page.getByTestId('rjsf-option-readOnly')).not.toBeChecked();
+  });
+
+  it('один список в общих группах: свойства схемы и контрола рядом, от важного к второстепенному', async () => {
+    mount({ kits: createFakeKits(KIT_RECORDS).kits });
+    await userEvent.click(page.getByRole('button', { name: /^name/ }));
+    await userEvent.selectOptions(page.getByTestId('rjsf-field-widget'), 'InputMask');
+    await expect.element(page.getByTestId('rjsf-option-mask')).toBeVisible();
+
+    expect(layout()).toEqual([
+      'Основные: name widget',
+      'Текст: title tooltip placeholder mask',
+      'Значения: type enum',
+      'Состояние: required readOnly',
+    ]);
+    // Отдельного блока «свойства компонента» в панели нет.
+    expect(document.querySelector('[data-testid="rjsf-inspector"]')?.textContent).not.toContain(
+      'Свойства компонента'
+    );
   });
 
   it('правка свойства пишет ui:options поля; стёртое свойство из документа уходит', async () => {
@@ -405,16 +432,22 @@ describe('свойства контрола — из каталога кита',
       .toHaveAccessibleDescription('По одному в строке; пусто — без выбора.');
   });
 
-  it('кита нет — секции нет; каталог доехал — секция появилась без перевыбора поля', async () => {
+  it('кита нет — в группах одни свойства схемы; каталог доехал — свойства контрола встали в них', async () => {
     const fake = createFakeKits([]);
     mount({ kits: fake.kits });
     await userEvent.click(page.getByRole('button', { name: /^name/ }));
     await expect.element(page.getByTestId('rjsf-field-widget')).toBeVisible();
-    expect(options()).toBeNull();
+    expect(layout()).toEqual([
+      'Основные: name widget',
+      'Текст: title placeholder',
+      'Значения: type enum',
+      'Состояние: required',
+    ]);
 
     fake.load(KIT_RECORDS);
 
     await expect.element(page.getByTestId('rjsf-option-tooltip')).toBeVisible();
+    expect(layout()[1]).toBe('Текст: title tooltip placeholder');
   });
 });
 

@@ -3,8 +3,8 @@
  *
  * Проверяется то, из-за чего панель врала бы: чужая запись под виджетом, свойство, которое мост
  * до контрола не донесёт, второе место правки того, что ведёт схема, и мусор в `ui:options` после
- * смены виджета. Каталог здесь — фикстура в форме настоящего (`propsSchema` с `x-doc`); React и
- * DOM не нужны.
+ * смены виджета. И порядок строк панели: он задан правилом, а не разметкой, поэтому проверяется
+ * здесь. Каталог — фикстура в форме настоящего (`propsSchema` с `x-doc`); React и DOM не нужны.
  *
  * @module plugins/rjsf/editor/widget-props.test
  */
@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CatalogJson } from '@reformer/builder-plugin-api';
 import type { RjsfFieldSchema, RjsfFieldUi } from '@/plugins/rjsf/core';
-import { retargetUi, widgetPropsOf, withWidgetOption } from './widget-props';
+import { fieldPanelOf, retargetUi, widgetPropsOf, withWidgetOption } from './widget-props';
 
 type Record_ = CatalogJson['components'][number];
 
@@ -58,8 +58,27 @@ const CATALOG: CatalogJson = {
       defaultValue: { type: 'array', 'x-doc': { group: 'Control', type: 'number[]' } },
       marks: { type: 'array', 'x-doc': { group: 'Ticks', type: 'number[]' } },
       thumbLabel: text('Ticks'),
+      // Атрибут HTML-формы: кит относит его к своей группе Control.
+      name: text('Control'),
     }),
-    record('Checkbox', { label: text('Textfield') }),
+    record('Checkbox', {
+      label: text('Textfield'),
+      // Как в каталоге ui-kit: режим слота у флажка «только чтение» не помечен.
+      asChild: { type: 'boolean', 'x-doc': { group: 'Behavior', type: 'boolean' } },
+    }),
+    record('Toggle', {
+      className: text('Control'),
+      tooltip: text('Textfield'),
+      hint: text('Textfield'),
+      size: { type: 'string', enum: ['sm', 'lg'], 'x-doc': { group: 'Behavior', type: 'string' } },
+      variant: {
+        type: 'string',
+        enum: ['default', 'outline'],
+        'x-doc': { group: 'Behavior', type: 'string' },
+      },
+      loop: { type: 'boolean', 'x-doc': { group: 'Behavior', type: 'boolean' } },
+      readOnly: { type: 'boolean', 'x-doc': { group: 'State', type: 'boolean' } },
+    }),
     record('Box', { padding: text('Control') }, 'container'),
   ],
 };
@@ -68,8 +87,15 @@ const STRING: RjsfFieldSchema = { type: 'string' };
 const NUMBER: RjsfFieldSchema = { type: 'number' };
 
 const keys = (field: RjsfFieldSchema, ui?: RjsfFieldUi, catalog: CatalogJson | null = CATALOG) =>
-  widgetPropsOf(field, ui, catalog)?.sections.flatMap((section) =>
-    section.fields.map((item) => item.key)
+  widgetPropsOf(field, ui, catalog)?.fields.map((item) => item.key);
+
+/** Панель строками «группа: адреса» — так порядок читается глазами. */
+const layout = (field: RjsfFieldSchema, ui?: RjsfFieldUi, catalog: CatalogJson | null = CATALOG) =>
+  fieldPanelOf(field, ui, catalog).sections.map(
+    (section) =>
+      `${section.group}: ${section.rows
+        .map((row) => (row.kind === 'field' ? row.id : `.${row.prop.key}`))
+        .join(' ')}`
   );
 
 describe('какая запись стоит за виджетом поля', () => {
@@ -116,45 +142,36 @@ describe('какие свойства показаны и чем правятс�
     for (const owned of ['label', 'placeholder', 'required', 'testId']) {
       expect(shown).not.toContain(owned);
     }
-    // Флажок объявил одну подпись — секций у него нет вовсе.
-    expect(widgetPropsOf({ type: 'boolean' }, undefined, CATALOG)?.sections).toEqual([]);
+    // Флажок объявил подпись и режим слота: первую ведёт схема, второй оставил бы форму без
+    // флажка — свойств контрола у него нет вовсе.
+    expect(widgetPropsOf({ type: 'boolean' }, undefined, CATALOG)?.fields).toEqual([]);
   });
 
   it('редактор — по виду свойства; чего JSON не задаёт, того в панели нет', () => {
-    const fields = widgetPropsOf(NUMBER, { 'ui:widget': 'Slider' }, CATALOG)!.sections.flatMap(
-      (section) => section.fields
-    );
+    const fields = widgetPropsOf(NUMBER, { 'ui:widget': 'Slider' }, CATALOG)!.fields;
 
     expect(fields.map((field) => [field.key, field.editor])).toEqual([
       ['orientation', 'select'],
       ['step', 'number'],
       ['thumbLabel', 'text'],
+      ['name', 'text'],
     ]);
     expect(fields[0]).toMatchObject({ options: ['horizontal', 'vertical'] });
     expect(fields[1]).toMatchObject({ min: 0 });
   });
 
-  it('секции — в порядке групп каталога, своя группа кита — следом; класс правится строкой', () => {
-    const model = widgetPropsOf(STRING, undefined, CATALOG)!;
+  it('класс правится строкой, хотя кит пометил его «только чтение»', () => {
+    const fields = widgetPropsOf(STRING, undefined, CATALOG)!.fields;
 
-    expect(model.sections.map((section) => section.group)).toEqual([
-      'Control',
-      'Textfield',
-      'State',
-    ]);
-    expect(model.sections[0]?.fields).toMatchObject([{ key: 'className', editor: 'text' }]);
-    expect(
-      widgetPropsOf(NUMBER, { 'ui:widget': 'Slider' }, CATALOG)!.sections.map(
-        (section) => section.group
-      )
-    ).toEqual(['Behavior', 'Ticks']);
+    expect(fields.find((field) => field.key === 'className')).toMatchObject({
+      editor: 'text',
+      group: 'Control',
+    });
   });
 
   it('значение — из ui:options, умолчание каталога — отдельно и в значение не подставляется', () => {
     const ui = { 'ui:options': { tooltip: 'Как в паспорте' } };
-    const fields = widgetPropsOf(STRING, ui, CATALOG)!.sections.flatMap(
-      (section) => section.fields
-    );
+    const fields = widgetPropsOf(STRING, ui, CATALOG)!.fields;
     const at = (key: string) => fields.find((field) => field.key === key);
 
     expect(at('tooltip')).toMatchObject({
@@ -164,6 +181,53 @@ describe('какие свойства показаны и чем правятс�
     });
     expect(at('type')).toMatchObject({ value: undefined, fallback: 'text' });
     expect(at('readOnly')).toMatchObject({ label: 'Read Only', editor: 'checkbox' });
+  });
+});
+
+describe('порядок панели: общие группы, внутри — от важного к второстепенному', () => {
+  it('свойства схемы и свойства контрола стоят в одних группах, а не двумя блоками', () => {
+    expect(layout(STRING)).toEqual([
+      'Control: name widget .className',
+      'Textfield: label .tooltip placeholder .type',
+      'Options: type enum',
+      'State: required .readOnly',
+    ]);
+  });
+
+  it('вариант и размер — внешний вид поля: сразу за виджетом, а не в «Поведении» каталога', () => {
+    expect(layout({ type: 'boolean' }, { 'ui:widget': 'Toggle' })).toEqual([
+      'Control: name widget .variant .size .className',
+      // Подсказке в поле и вариантам у «да/нет» взяться неоткуда.
+      'Textfield: label .tooltip .hint',
+      'Options: type',
+      'Behavior: .loop',
+      'State: required .readOnly',
+    ]);
+  });
+
+  it('свойство контрола без своего места идёт в группе каталога, своя группа кита — последней', () => {
+    expect(layout(NUMBER, { 'ui:widget': 'Slider' })).toEqual([
+      'Control: name widget',
+      'Textfield: label placeholder',
+      'Options: type enum',
+      // Технический проп из группы Control каталога в «Основные» не попадает.
+      'Behavior: .orientation .step .name',
+      'State: required',
+      'Ticks: .thumbLabel',
+    ]);
+  });
+
+  it('кита нет — те же группы из одних свойств схемы; записи под виджетом нет', () => {
+    const panel = fieldPanelOf(STRING, undefined, null);
+
+    expect(panel.component).toBeNull();
+    expect(layout(STRING, undefined, null)).toEqual([
+      'Control: name widget',
+      'Textfield: label placeholder',
+      'Options: type enum',
+      'State: required',
+    ]);
+    expect(fieldPanelOf(STRING, undefined, CATALOG).component).toBe('Input');
   });
 });
 

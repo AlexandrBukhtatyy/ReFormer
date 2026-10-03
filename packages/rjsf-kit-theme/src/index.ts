@@ -12,7 +12,7 @@
 export { createKitTheme, type KitTheme } from './theme';
 export {
   DEFAULT_WIDGET_CANDIDATES,
-  FORM_OWNED_PROPS,
+  RESERVED_OPTION_PROPS,
   kitWidgetTarget,
   registryWidgetName,
   widgetOptionProps,

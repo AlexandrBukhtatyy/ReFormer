@@ -132,15 +132,21 @@ export function kitWidgetTarget(
 }
 
 /**
- * Пропсы контрола, которыми распоряжается форма, а не `ui:options`:
+ * Пропсы контрола, которые из `ui:options` не задаются.
+ *
+ * Большинством распоряжается форма:
  *
  * - подпись, описание, обязательность и варианты — это `title`, `description`, `required` и `enum`
  *   схемы; подсказка в поле — `ui:placeholder`;
  * - значение и его начальное состояние — данные формы и `default` схемы;
  * - `id`, блокировку и автофокус ставит RJSF;
  * - `testId` и `labelTooltip` — мета-пропсы обёртки поля ReFormer, рамка поля RJSF их не рисует.
+ *
+ * `asChild` стоит особняком: это режим слота — контрол рисует вместо себя дочерний элемент,
+ * а у подсказок отрисовки его нет. Поле с таким пропом молча исчезало бы с формы.
  */
-export const FORM_OWNED_PROPS: readonly string[] = Object.freeze([
+export const RESERVED_OPTION_PROPS: readonly string[] = Object.freeze([
+  'asChild',
   'label',
   'description',
   'required',
@@ -160,8 +166,8 @@ export const FORM_OWNED_PROPS: readonly string[] = Object.freeze([
 ]);
 
 /**
- * Пропсы записи, которые поле принимает из `ui:options`: объявленные в `propsSchema`, кроме тех,
- * что ведёт форма ({@link FORM_OWNED_PROPS}), и постоянных пропсов роли.
+ * Пропсы записи, которые поле принимает из `ui:options`: объявленные в `propsSchema`, кроме
+ * закрытых для подсказок ({@link RESERVED_OPTION_PROPS}) и постоянных пропсов роли.
  */
 export function widgetOptionProps(
   record: KitThemeRecord | undefined,
@@ -170,6 +176,6 @@ export function widgetOptionProps(
   const properties = record?.propsSchema?.properties;
   if (typeof properties !== 'object' || properties === null) return [];
   return Object.keys(properties).filter(
-    (key) => !FORM_OWNED_PROPS.includes(key) && !Object.hasOwn(fixed, key)
+    (key) => !RESERVED_OPTION_PROPS.includes(key) && !Object.hasOwn(fixed, key)
   );
 }

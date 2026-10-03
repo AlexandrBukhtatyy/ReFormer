@@ -367,28 +367,31 @@ describe('мост поля', () => {
     expect(last()).toMatchObject({ min: 0, max: 10, step: 2, value: 4 });
   });
 
-  it('ui:options: контролу уходят объявленные пропсы, а что ведёт мост — не перекрывается', () => {
+  it('ui:options: контролу уходят объявленные пропсы; граница схемы — умолчание, роль — нет', () => {
     const { Probe, last } = probe();
     const Widget = kitWidget(Probe, {
       name: 'Slider',
       slot: 'RangeWidget',
       props: { type: 'range' },
-      optionProps: ['orientation', 'min', 'type', 'inverted'],
+      optionProps: ['orientation', 'min', 'max', 'type', 'inverted'],
     });
 
     renderToStaticMarkup(
       createElement(
         Widget,
         widgetProps({
-          schema: { type: 'integer', minimum: 0 },
+          schema: { type: 'integer', minimum: 0, maximum: 10 },
           options: { orientation: 'vertical', min: 5, type: 'text', rows: 3, emptyValue: '' },
         })
       )
     );
 
     expect(last().orientation).toBe('vertical');
-    // Границу называет схема, постоянный проп — роль: подсказка отрисовки их не меняет.
-    expect(last().min).toBe(0);
+    // Заданное свойство перекрывает границу схемы — иначе оно молча не действовало бы;
+    // незаданное оставляет границу схемы.
+    expect(last().min).toBe(5);
+    expect(last().max).toBe(10);
+    // Постоянный проп роли подсказка отрисовки не меняет.
     expect(last().type).toBe('range');
     // Не объявлено записью — контролу не уходит; не задано в ui:options — пропа нет вовсе.
     expect(last()).not.toHaveProperty('rows');
@@ -413,7 +416,11 @@ describe('запись каталога под виджетом и её проп
       role: 'field',
       propsSchema: { properties: { label: {}, placeholder: {}, type: {}, tooltip: {} } },
     },
-    { name: 'InputMask', role: 'field', propsSchema: { properties: { mask: {}, testId: {} } } },
+    {
+      name: 'InputMask',
+      role: 'field',
+      propsSchema: { properties: { mask: {}, testId: {}, asChild: {} } },
+    },
     { name: 'Switch', role: 'field' },
     { name: 'Toggle', role: 'field', propsSchema: { properties: { size: {} } } },
     { name: 'Select', role: 'container' },
@@ -471,6 +478,7 @@ describe('запись каталога под виджетом и её проп
 
     expect(widgetOptionProps(input)).toEqual(['type', 'tooltip']);
     expect(widgetOptionProps(input, { type: 'password' })).toEqual(['tooltip']);
+    // Мета-проп обёртки и режим слота из подсказок отрисовки не задаются.
     expect(widgetOptionProps(mask)).toEqual(['mask']);
     expect(widgetOptionProps(bare)).toEqual([]);
     expect(widgetOptionProps(undefined)).toEqual([]);

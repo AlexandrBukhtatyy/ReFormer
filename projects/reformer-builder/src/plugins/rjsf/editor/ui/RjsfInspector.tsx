@@ -10,11 +10,12 @@
  * не бывает, а к форме возвращают двое — строка формы в структуре и крошка «Форма» над
  * свойствами поля. Крошка нужна виду «форма»: структуры там нет, и выйти к форме больше нечем.
  *
- * Свойства поля — в двух слоях. Сверху то, что поле значит (имя, тип, варианты, обязательность):
- * это JSON Schema, и набор один на все виджеты. Под выбором виджета — свойства контрола, которым
- * поле нарисовано: их объявляет запись каталога кита, и набор у каждого виджета свой
- * (`../widget-props`). Списка свойств контрола у панели нет. Подсказка свойства — значком (i)
- * у подписи, а не строкой под полем.
+ * У поля два рода свойств. Одни ведёт схема (имя, подпись, тип, варианты, обязательность) —
+ * набор один на все виджеты. Другие объявляет запись каталога кита, которой поле нарисовано, —
+ * набор у каждого виджета свой. На экране они не разделены: строки стоят в общих группах
+ * («Основные», «Текст», «Значения»…) от важного к второстепенному, а где какое значение хранится,
+ * знает модель панели (`../widget-props`). Списка свойств контрола у панели нет.
+ * Подсказка свойства — значком (i) у подписи, а не строкой под полем.
  *
  * Шапки и прокрутки здесь нет: имя панели и область прокрутки даёт оболочка, одинаково для всех
  * вкладов.
@@ -45,12 +46,12 @@ import type {
 } from '@reformer/builder-plugin-api';
 import { exportRjsfForm, type ExportOutcome, type RjsfServices } from '../commands';
 import {
+  FIELD_GROUPS,
+  fieldPanelOf,
   retargetUi,
-  WIDGET_PROP_GROUPS,
-  widgetPropsOf,
   withWidgetOption,
+  type FieldRowId,
   type WidgetPropField,
-  type WidgetPropsModel,
 } from '../widget-props';
 import {
   selectedFieldOf,
@@ -318,7 +319,7 @@ function FieldInspector(props: {
   );
   // Виджет, которого нет в списках (написан руками), остаётся выбранным — иначе список его сотрёт.
   const known = widget === '' || rjsfWidgets.includes(widget) || kitFields.includes(widget);
-  const widgetProps = widgetPropsOf(field, ui, catalog);
+  const { component, sections } = fieldPanelOf(field, ui, catalog);
   /** Подсказки поля под новый виджет: пропсы прежнего контрола, чужие новому, уходят. */
   const retarget = (nextField: RjsfFieldSchema, nextUi: RjsfFieldUi | null): RjsfFieldUi | null =>
     retargetUi({ field, ui }, { field: nextField, ui: nextUi }, catalog);
@@ -338,6 +339,188 @@ function FieldInspector(props: {
     apply({ type: 'rename-field', params: { name, to } });
   };
 
+  /** Строка свойства, которое ведёт схема формы. Её место в панели выбирает модель панели. */
+  const schemaRow = (id: FieldRowId): ReactElement => {
+    switch (id) {
+      case 'name':
+        return (
+          <label key="field:name" className="flex flex-col gap-1">
+            <span className="font-medium">{t('inspector.name')}</span>
+            <input
+              className={INPUT_CLASS}
+              data-testid="rjsf-field-name"
+              value={draftName}
+              onChange={(event) => {
+                setDraftName(event.target.value);
+                setNameError(null);
+              }}
+              onBlur={rename}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') rename();
+              }}
+            />
+            {nameError !== null && (
+              <span className="text-xs text-destructive" role="alert">
+                {nameError}
+              </span>
+            )}
+          </label>
+        );
+      case 'widget':
+        return (
+          <label key="field:widget" className="flex flex-col gap-1">
+            <span className="font-medium">{t('inspector.widget')}</span>
+            <select
+              className={INPUT_CLASS}
+              data-testid="rjsf-field-widget"
+              value={widget}
+              onChange={(event) => {
+                apply({
+                  type: 'set-field',
+                  params: {
+                    name,
+                    ui: retarget(field, uiWith(ui, 'ui:widget', event.target.value)),
+                  },
+                });
+              }}
+            >
+              {/* Виджет не выбран — поле рисует запись кита по типу значения: её и называем. */}
+              <option value="">
+                {widget === '' && component !== null
+                  ? t('inspector.widget.defaultOf', { name: component })
+                  : t('inspector.widget.default')}
+              </option>
+              {!known && <option value={widget}>{widget}</option>}
+              <optgroup label={t('inspector.widget.rjsf')}>
+                {rjsfWidgets.map((choice) => (
+                  <option key={choice} value={choice}>
+                    {choice}
+                  </option>
+                ))}
+              </optgroup>
+              {kitFields.length > 0 && (
+                <optgroup label={t('inspector.widget.kit')}>
+                  {kitFields.map((choice) => (
+                    <option key={choice} value={choice}>
+                      {choice}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </label>
+        );
+      case 'label':
+        return (
+          <label key="field:label" className="flex flex-col gap-1">
+            <span className="font-medium">{t('inspector.title')}</span>
+            <input
+              className={INPUT_CLASS}
+              data-testid="rjsf-field-title"
+              value={field.title ?? ''}
+              onChange={(event) => {
+                apply(
+                  {
+                    type: 'set-field',
+                    params: { name, field: fieldWith(field, 'title', event.target.value) },
+                  },
+                  `title@${name}`
+                );
+              }}
+            />
+          </label>
+        );
+      case 'placeholder':
+        return (
+          <label key="field:placeholder" className="flex flex-col gap-1">
+            <span className="font-medium">{t('inspector.placeholder')}</span>
+            <input
+              className={INPUT_CLASS}
+              data-testid="rjsf-field-placeholder"
+              value={typeof ui?.['ui:placeholder'] === 'string' ? ui['ui:placeholder'] : ''}
+              onChange={(event) => {
+                apply(
+                  {
+                    type: 'set-field',
+                    params: { name, ui: uiWith(ui, 'ui:placeholder', event.target.value) },
+                  },
+                  `placeholder@${name}`
+                );
+              }}
+            />
+          </label>
+        );
+      case 'type':
+        return (
+          <label key="field:type" className="flex flex-col gap-1">
+            <span className="font-medium">{t('inspector.type')}</span>
+            <select
+              className={INPUT_CLASS}
+              data-testid="rjsf-field-type"
+              value={field.type}
+              onChange={(event) => {
+                const type = event.target.value as RjsfFieldType;
+                // Смена типа — новая схема поля: ограничения и варианты старого типа к новому не
+                // подходят, а виджет старого типа мог бы не нарисовать новый.
+                const next: RjsfFieldSchema = {
+                  type,
+                  ...(field.title !== undefined ? { title: field.title } : {}),
+                  ...(field.description !== undefined ? { description: field.description } : {}),
+                };
+                apply({
+                  type: 'set-field',
+                  params: {
+                    name,
+                    field: next,
+                    ui: retarget(next, uiWith(ui, 'ui:widget', undefined)),
+                  },
+                });
+              }}
+            >
+              {RJSF_FIELD_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {t(`type.${type}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+        );
+      case 'enum':
+        return (
+          // Ключ — сами варианты: отмена и правка текстом меняют их, и черновик начинается заново.
+          <EnumInput
+            key={`field:enum:${JSON.stringify(field.enum ?? [])}`}
+            field={field}
+            onCommit={(values) => {
+              // Появление и исчезновение вариантов меняет виджет по умолчанию (текст ↔ выбор).
+              const next = fieldWith(field, 'enum', values);
+              const current = ui ?? null;
+              const kept = retarget(next, current);
+              apply({
+                type: 'set-field',
+                params: { name, field: next, ...(kept !== current ? { ui: kept } : {}) },
+              });
+            }}
+            t={t}
+          />
+        );
+      case 'required':
+        return (
+          <label key="field:required" className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              data-testid="rjsf-field-required"
+              checked={required}
+              onChange={(event) => {
+                apply({ type: 'set-field', params: { name, required: event.target.checked } });
+              }}
+            />
+            <span>{t('inspector.required')}</span>
+          </label>
+        );
+    }
+  };
+
   return (
     <section className="flex flex-col gap-2 p-3 text-sm" data-testid="rjsf-inspector">
       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -352,203 +535,38 @@ function FieldInspector(props: {
         <span aria-hidden="true">›</span>
         <span className="min-w-0 truncate font-mono text-foreground">{name}</span>
       </div>
-      <label className="flex flex-col gap-1">
-        <span className="font-medium">{t('inspector.name')}</span>
-        <input
-          className={INPUT_CLASS}
-          data-testid="rjsf-field-name"
-          value={draftName}
-          onChange={(event) => {
-            setDraftName(event.target.value);
-            setNameError(null);
-          }}
-          onBlur={rename}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') rename();
-          }}
-        />
-        {nameError !== null && (
-          <span className="text-xs text-destructive" role="alert">
-            {nameError}
-          </span>
-        )}
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="font-medium">{t('inspector.title')}</span>
-        <input
-          className={INPUT_CLASS}
-          data-testid="rjsf-field-title"
-          value={field.title ?? ''}
-          onChange={(event) => {
-            apply(
-              {
-                type: 'set-field',
-                params: { name, field: fieldWith(field, 'title', event.target.value) },
-              },
-              `title@${name}`
-            );
-          }}
-        />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="font-medium">{t('inspector.type')}</span>
-        <select
-          className={INPUT_CLASS}
-          data-testid="rjsf-field-type"
-          value={field.type}
-          onChange={(event) => {
-            const type = event.target.value as RjsfFieldType;
-            // Смена типа — новая схема поля: ограничения и варианты старого типа к новому не
-            // подходят, а виджет старого типа мог бы не нарисовать новый.
-            const next: RjsfFieldSchema = {
-              type,
-              ...(field.title !== undefined ? { title: field.title } : {}),
-              ...(field.description !== undefined ? { description: field.description } : {}),
-            };
-            apply({
-              type: 'set-field',
-              params: {
-                name,
-                field: next,
-                ui: retarget(next, uiWith(ui, 'ui:widget', undefined)),
-              },
-            });
-          }}
+      {sections.map((section, index) => (
+        <div
+          key={section.group}
+          className={`flex flex-col gap-2 ${index === 0 ? '' : 'border-t pt-2'}`}
+          data-testid={`rjsf-group-${section.group}`}
         >
-          {RJSF_FIELD_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {t(`type.${type}`)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          data-testid="rjsf-field-required"
-          checked={required}
-          onChange={(event) => {
-            apply({ type: 'set-field', params: { name, required: event.target.checked } });
-          }}
-        />
-        <span>{t('inspector.required')}</span>
-      </label>
-      {field.type !== 'boolean' && (
-        // Ключ — сами варианты: отмена и правка текстом меняют их, и черновик начинается заново.
-        <EnumInput
-          key={JSON.stringify(field.enum ?? [])}
-          field={field}
-          onCommit={(values) => {
-            // Появление и исчезновение вариантов меняет виджет по умолчанию (текст ↔ выбор).
-            const next = fieldWith(field, 'enum', values);
-            const current = ui ?? null;
-            const kept = retarget(next, current);
-            apply({
-              type: 'set-field',
-              params: { name, field: next, ...(kept !== current ? { ui: kept } : {}) },
-            });
-          }}
-          t={t}
-        />
-      )}
-      {field.type !== 'boolean' && (
-        <label className="flex flex-col gap-1">
-          <span className="font-medium">{t('inspector.placeholder')}</span>
-          <input
-            className={INPUT_CLASS}
-            data-testid="rjsf-field-placeholder"
-            value={typeof ui?.['ui:placeholder'] === 'string' ? ui['ui:placeholder'] : ''}
-            onChange={(event) => {
-              apply(
-                {
-                  type: 'set-field',
-                  params: { name, ui: uiWith(ui, 'ui:placeholder', event.target.value) },
-                },
-                `placeholder@${name}`
-              );
-            }}
-          />
-        </label>
-      )}
-      <label className="flex flex-col gap-1">
-        <span className="font-medium">{t('inspector.widget')}</span>
-        <select
-          className={INPUT_CLASS}
-          data-testid="rjsf-field-widget"
-          value={widget}
-          onChange={(event) => {
-            apply({
-              type: 'set-field',
-              params: { name, ui: retarget(field, uiWith(ui, 'ui:widget', event.target.value)) },
-            });
-          }}
-        >
-          <option value="">{t('inspector.widget.default')}</option>
-          {!known && <option value={widget}>{widget}</option>}
-          <optgroup label={t('inspector.widget.rjsf')}>
-            {rjsfWidgets.map((choice) => (
-              <option key={choice} value={choice}>
-                {choice}
-              </option>
-            ))}
-          </optgroup>
-          {kitFields.length > 0 && (
-            <optgroup label={t('inspector.widget.kit')}>
-              {kitFields.map((choice) => (
-                <option key={choice} value={choice}>
-                  {choice}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-      </label>
-      {widgetProps !== null && widgetProps.sections.length > 0 && (
-        <WidgetProps
-          model={widgetProps}
-          onChange={(key, value, merge) => {
-            apply(
-              { type: 'set-field', params: { name, ui: withWidgetOption(ui, key, value) } },
-              merge ? `option.${key}@${name}` : undefined
-            );
-          }}
-          t={t}
-        />
-      )}
-    </section>
-  );
-}
-
-/**
- * Свойства контрола, которым нарисовано поле, — секциями каталога кита.
- *
- * Группы с подписью в словаре — общие для китов ReFormer (`x-doc.group`); свою группу кита
- * панель показывает её именем: перевода для неё взять неоткуда.
- */
-function WidgetProps(props: {
-  model: WidgetPropsModel;
-  onChange: (key: string, value: unknown, merge: boolean) => void;
-  t: Translate;
-}): ReactElement {
-  const { model, onChange, t } = props;
-  return (
-    <div className="flex flex-col gap-2 border-t pt-2" data-testid="rjsf-widget-props">
-      <span className="text-xs text-muted-foreground">
-        {t('inspector.kit', { name: model.component })}
-      </span>
-      {model.sections.map((section) => (
-        <div key={section.group} className="flex flex-col gap-2">
+          {/* Подпись в словаре есть у групп каталога ReFormer; свою группу кита называем как есть. */}
           <span className="text-[11px] font-medium uppercase text-muted-foreground">
-            {WIDGET_PROP_GROUPS.includes(section.group)
+            {FIELD_GROUPS.includes(section.group)
               ? t(`inspector.group.${section.group}`)
               : section.group}
           </span>
-          {section.fields.map((field) => (
-            <WidgetPropInput key={field.key} field={field} onChange={onChange} t={t} />
-          ))}
+          {section.rows.map((row) =>
+            row.kind === 'field' ? (
+              schemaRow(row.id)
+            ) : (
+              <WidgetPropInput
+                key={`prop:${row.prop.key}`}
+                field={row.prop}
+                onChange={(key, value, merge) => {
+                  apply(
+                    { type: 'set-field', params: { name, ui: withWidgetOption(ui, key, value) } },
+                    merge ? `option.${key}@${name}` : undefined
+                  );
+                }}
+                t={t}
+              />
+            )
+          )}
         </div>
       ))}
-    </div>
+    </section>
   );
 }
 
