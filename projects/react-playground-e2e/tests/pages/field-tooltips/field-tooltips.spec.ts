@@ -62,8 +62,12 @@ test.describe('открытие и закрытие', () => {
     await po.controlHint('inn').hover();
     await expect(po.tooltip()).toHaveCount(1);
     await po.controlHint('comment').hover();
+    // Новый тултип ищется по тексту, и только потом считается общее число. Новый открывается с
+    // задержкой (150 мс), а прежний столько же доигрывает анимацию закрытия — на это время в DOM
+    // их два. Проверка «ровно один» прямо после hover проходила ещё на старом тултипе, а
+    // следующая, со строгим локатором, падала, если попадала в окно смены.
+    await expect(po.tooltip().filter({ hasText: 'Увидит только менеджер' })).toBeVisible();
     await expect(po.tooltip()).toHaveCount(1);
-    await expect(po.tooltip()).toContainText('Увидит только менеджер');
   });
 });
 
@@ -181,7 +185,9 @@ test.describe('renderer-react', () => {
     await po.labelHint('r-phone').hover();
     await expect(po.tooltip()).toContainText('Для связи курьера');
     await po.controlHint('r-phone').hover();
-    await expect(po.tooltip()).toContainText('В международном формате');
+    // По тексту, а не строгим локатором на все тултипы: пока прежний закрывается, в DOM их два.
+    await expect(po.tooltip().filter({ hasText: 'В международном формате' })).toBeVisible();
+    await expect(po.tooltip()).toHaveCount(1);
   });
 });
 
