@@ -35,8 +35,10 @@ import { printPlainForm, sampleForm as samplePlainForm } from '@/plugins/plain/c
 import { printRjsfForm, sampleForm as sampleRjsfForm, type RjsfForm } from '@/plugins/rjsf/core';
 import {
   RJSF_EDITOR_PLUGIN_ID,
+  RJSF_CODE_ITEM_ID,
   RJSF_FORM_ITEM_ID,
   RJSF_INSPECTOR_PANEL_ID,
+  RJSF_SHOW_CODE_COMMAND_ID,
   RJSF_SHOW_FORM_COMMAND_ID,
   RJSF_SHOW_STRUCTURE_COMMAND_ID,
   RJSF_STRUCTURE_ITEM_ID,
@@ -181,7 +183,7 @@ describe('boot на профиле rjsf.builder', () => {
     expect(visible('text/markdown')).toBe(false);
   });
 
-  it('переключатель вида — двумя кнопками полосы вкладок, и команды у них есть', async () => {
+  it('переключатель вида — тремя кнопками полосы вкладок, и команды у них есть', async () => {
     const started = await start();
     // Ряд действий делят с основой: кнопки markdown стоят там же, но над своим редактором.
     const items = started.extensions
@@ -196,10 +198,12 @@ describe('boot на профиле rjsf.builder', () => {
     expect(items.map((contribution) => contribution.id)).toEqual([
       RJSF_STRUCTURE_ITEM_ID,
       RJSF_FORM_ITEM_ID,
+      RJSF_CODE_ITEM_ID,
     ]);
     // Пункт без команды не рисуется вовсе — молча.
     expect(started.commands.get(RJSF_SHOW_STRUCTURE_COMMAND_ID)).toBeDefined();
     expect(started.commands.get(RJSF_SHOW_FORM_COMMAND_ID)).toBeDefined();
+    expect(started.commands.get(RJSF_SHOW_CODE_COMMAND_ID)).toBeDefined();
   });
 
   it('форма RJSF открывается редактором домена, а не Monaco', async () => {

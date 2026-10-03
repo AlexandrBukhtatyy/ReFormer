@@ -6,6 +6,10 @@
   "requires": {
     "optional": [
       {
+        "id": "reformer.editor",
+        "range": "^1"
+      },
+      {
         "id": "reformer.preview.live",
         "range": "^1"
       },

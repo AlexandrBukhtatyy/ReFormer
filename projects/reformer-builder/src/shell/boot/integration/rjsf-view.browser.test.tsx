@@ -1,5 +1,5 @@
 /**
- * Редактор RJSF целиком в настоящей полосе вкладок: кнопки «Структура» и «Форма» переключают
+ * Редактор RJSF целиком в настоящей полосе вкладок: кнопки «Структура», «Форма» и «Исходник» переключают
  * то, что нарисовано во вкладке.
  *
  * Отдельно от тестов плагина: те проверяют вклады как данные и тело редактора на двойниках,
@@ -45,6 +45,7 @@ import { createDocumentModels, type ModelsWorkspace } from '@/shell/boot/project
 import { renderReact } from '@/testing/render';
 import { printRjsfForm, RJSF_PROVIDER_ID, sampleForm } from '@/plugins/rjsf/core';
 import { createRjsfEditorPlugin } from '@/plugins/rjsf/editor';
+import { TextEditorCapability } from '@/plugins/rjsf/editor/plugin';
 import { createFakeLive } from '@/plugins/rjsf/editor/testing';
 
 const HOST_MESSAGES: Readonly<Record<string, string>> = {
@@ -122,7 +123,7 @@ function fakeWorkspace(
   };
 }
 
-async function mountWithPlugin(options: { withPreview?: boolean } = {}) {
+async function mountWithPlugin(options: { withPreview?: boolean; withTextEditor?: boolean } = {}) {
   const services = createServiceRegistry();
   const extensions = createExtensionRegistry();
   const whenContext = createWhenContextStore();
@@ -155,6 +156,12 @@ async function mountWithPlugin(options: { withPreview?: boolean } = {}) {
   // Поверхность превью — двойником: проверяется переключение вида, а не отрисовка RJSF.
   const live = createFakeLive();
   if (options.withPreview !== false) services.register(PreviewLiveCapability, live);
+  // Редактор кода — тоже двойником: проверяется, что вид «исходник» отдаёт ему тело вкладки.
+  if (options.withTextEditor === true) {
+    services.register(TextEditorCapability, {
+      TextEditor: ({ documentId }) => <div data-testid="fake-text-editor">{documentId}</div>,
+    });
+  }
 
   const plugins = createPluginRegistry({
     services,
@@ -192,6 +199,7 @@ async function mountWithPlugin(options: { withPreview?: boolean } = {}) {
 
 const structure = () => page.getByRole('button', { name: 'Структура', exact: true });
 const form = () => page.getByRole('button', { name: 'Форма', exact: true });
+const source = () => page.getByRole('button', { name: 'Исходник', exact: true });
 const pressed = (locator: ReturnType<typeof structure>): string | null =>
   locator.element().getAttribute('data-state');
 
@@ -234,6 +242,36 @@ describe('переключатель вида формы RJSF в полосе в
     await vi.waitFor(() => {
       expect(pressed(structure())).toBe('on');
     });
+
+    fixture.unmount();
+  });
+
+  it('«Исходник» отдаёт вкладку редактору кода, «Структура» возвращает список полей', async () => {
+    const fixture = await mountWithPlugin({ withTextEditor: true });
+    await expect.element(page.getByTestId('rjsf-structure')).toBeVisible();
+
+    await userEvent.click(source());
+
+    await expect.element(page.getByTestId('fake-text-editor')).toBeVisible();
+    expect(document.querySelector('[data-testid="rjsf-structure"]')).toBeNull();
+    await vi.waitFor(() => {
+      expect(pressed(source())).toBe('on');
+      expect(pressed(structure())).toBeNull();
+    });
+
+    await userEvent.click(structure());
+
+    await expect.element(page.getByTestId('rjsf-structure')).toBeVisible();
+    expect(document.querySelector('[data-testid="fake-text-editor"]')).toBeNull();
+
+    fixture.unmount();
+  });
+
+  it('без редактора кода кнопки «Исходник» нет', async () => {
+    const fixture = await mountWithPlugin();
+
+    await expect.element(structure()).toBeVisible();
+    expect(document.querySelector('button[aria-label="Исходник"]')).toBeNull();
 
     fixture.unmount();
   });

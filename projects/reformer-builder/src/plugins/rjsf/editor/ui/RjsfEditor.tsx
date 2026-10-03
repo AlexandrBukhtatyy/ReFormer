@@ -1,6 +1,6 @@
 /**
  * Редактор формы RJSF: тело вкладки показывает ЛИБО структуру (поля в порядке показа), ЛИБО
- * отрисованную форму — переключатель стоит в полосе вкладок (`../view`).
+ * отрисованную форму, ЛИБО исходный JSON — переключатель стоит в полосе вкладок (`../view`).
  *
  * Свойств здесь нет — ни поля, ни формы: они в панели правого дока (`./RjsfInspector`), там же
  * заголовок формы и её экспорт. Связывает их выделение ручки модели — щелчок по строке ставит
@@ -14,13 +14,16 @@
  * что в превью, — тема из активного кита. Нет поверхности — вида «форма» нет вовсе, и тело
  * показывает структуру.
  *
+ * Исходник рисует тело редактора кода — возможность соседа (`reformer.editor`). Это тот же
+ * документ, показанный иначе: ручка модели и выделение остаются на месте.
+ *
  * Каждая правка — операция ручки модели: отмена снимает её целиком, текст документа
  * перепечатывается сам.
  *
  * @module plugins/rjsf/editor/ui/RjsfEditor
  */
 
-import { useEffect, useMemo, useRef, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, type ComponentType, type ReactElement } from 'react';
 import { displayOrder, type RjsfForm, type RjsfOp } from '@/plugins/rjsf/core';
 import type {
   Disposable,
@@ -51,6 +54,8 @@ export interface RjsfEditorProps {
   readonly documentId: ResourceId;
   readonly services: RjsfServices;
   readonly live: () => PreviewLiveService | undefined;
+  /** Тело редактора кода для вида «исходник». Нет в составе — вида нет, как и кнопки. */
+  readonly textEditor?: () => ComponentType<{ documentId: ResourceId }> | undefined;
   /** Чем показана вкладка. Стор плагина: его же читают кнопки в полосе вкладок. */
   readonly view: RjsfViewStore;
   readonly useTranslate: () => Translate;
@@ -106,7 +111,7 @@ function LiveForm(props: {
 }
 
 export function RjsfEditor(props: RjsfEditorProps): ReactElement {
-  const { documentId, services, live, view, useTranslate } = props;
+  const { documentId, services, live, textEditor, view, useTranslate } = props;
   const t = useTranslate();
   const handle = useHandle(services, documentId);
   if (handle === null) {
@@ -117,6 +122,7 @@ export function RjsfEditor(props: RjsfEditorProps): ReactElement {
       documentId={documentId}
       services={services}
       live={live()}
+      TextEditor={textEditor?.()}
       view={view}
       handle={handle}
       t={t}
@@ -128,18 +134,23 @@ function RjsfEditorBody(props: {
   documentId: ResourceId;
   services: RjsfServices;
   live: PreviewLiveService | undefined;
+  TextEditor: ComponentType<{ documentId: ResourceId }> | undefined;
   view: RjsfViewStore;
   handle: ModelDocumentHandle<RjsfForm>;
   t: Translate;
 }): ReactElement {
-  const { documentId, services, live, view, handle, t } = props;
+  const { documentId, services, live, TextEditor, view, handle, t } = props;
   // Поверхность выключили — вид «форма» пропал вместе с кнопками, и тело обязано это увидеть.
   useLiveRevision(live, documentId);
   const mode = useRjsfView(view);
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="rjsf-editor" data-view={mode}>
-      {mode === 'form' ? (
+      {mode === 'code' && TextEditor !== undefined ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <TextEditor documentId={documentId} />
+        </div>
+      ) : mode === 'form' ? (
         <LiveForm documentId={documentId} handle={handle} live={live} t={t} />
       ) : (
         <StructureView documentId={documentId} services={services} handle={handle} t={t} />

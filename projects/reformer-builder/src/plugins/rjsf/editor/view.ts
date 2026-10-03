@@ -1,10 +1,11 @@
 /**
- * Чем показана форма RJSF: структурой или отрисованной формой — двумя кнопками в полосе вкладок.
+ * Чем показана форма RJSF: структурой, отрисованной формой или исходным JSON — кнопками в полосе
+ * вкладок.
  *
  * ## Положение вкладки, а не сплит
  *
  * Раньше вкладка держала всё сразу: список полей, свойства выбранного и живую форму рядом.
- * Теперь тело вкладки показывает одно из двух, а свойства поля уехали в правую панель оболочки —
+ * Теперь тело вкладки показывает одно из положений, а свойства поля уехали в правую панель оболочки —
  * та же раскладка, что у редактора схемы ReFormer, и переключатель стоит там же: в ряду действий
  * над документом, где отвечают на вопрос «чем показан этот файл».
  *
@@ -24,11 +25,18 @@
  * вовсе, а запомненное «форма» читается как «структура»: иначе вкладка осталась бы с пустым
  * телом и без кнопки, которой из него выходят.
  *
+ * ## Исходник — режим того же редактора, а не второй редактор
+ *
+ * Тот же довод, что у редактора схемы ReFormer: «покажи мне этот файл текстом» не должно стоить
+ * выделения и места в форме. Текст рисует тело редактора кода — возможность соседа
+ * (`reformer.editor`), выключаемая на ходу; без неё положения «исходник» нет на тех же правах,
+ * что «формы» без поверхности.
+ *
  * @module plugins/rjsf/editor/view
  */
 
 import { createElement, type ReactElement } from 'react';
-import { List, SquareMousePointer } from 'lucide-react';
+import { Braces, List, SquareMousePointer } from 'lucide-react';
 import {
   EDITOR_TITLE_MENU,
   whenEditor,
@@ -37,15 +45,17 @@ import {
   type MenuContribution,
 } from '@reformer/builder-plugin-api';
 import {
+  RJSF_CODE_ITEM_ID,
   RJSF_EDITOR_ID,
   RJSF_FORM_ITEM_ID,
+  RJSF_SHOW_CODE_COMMAND_ID,
   RJSF_SHOW_FORM_COMMAND_ID,
   RJSF_SHOW_STRUCTURE_COMMAND_ID,
   RJSF_STRUCTURE_ITEM_ID,
 } from './contract';
 
 /** Чем показана форма во вкладке. */
-export type RjsfView = 'structure' | 'form';
+export type RjsfView = 'structure' | 'form' | 'code';
 
 /** Ключ настройки. Область — `user`: способ смотреть принадлежит человеку. */
 export const RJSF_VIEW_SETTING = 'rjsf.editor.view';
@@ -59,7 +69,7 @@ export const DEFAULT_RJSF_VIEW: RjsfView = 'structure';
 
 /** Значение настройки → вид. Мусор трактуется как умолчание, а не как повод падать. */
 export function readRjsfView(value: unknown): RjsfView {
-  return value === 'structure' || value === 'form' ? value : DEFAULT_RJSF_VIEW;
+  return value === 'structure' || value === 'form' || value === 'code' ? value : DEFAULT_RJSF_VIEW;
 }
 
 /** Настройки в объёме, нужном виду. */
@@ -69,7 +79,7 @@ export interface RjsfViewSettings {
 }
 
 export interface RjsfViewStore extends Disposable {
-  /** Действующий вид: запомненная «форма» без поверхности читается как «структура». */
+  /** Действующий вид: запомненное положение, которое нечем показать, читается как «структура». */
   view(): RjsfView;
   setView(next: RjsfView): void;
   subscribe(listener: () => void): Disposable;
@@ -80,6 +90,18 @@ export interface RjsfViewStoreOptions {
   readonly settings?: RjsfViewSettings | null;
   /** Есть ли чем нарисовать форму. Спрашивается на каждый вопрос: превью выключаемо на ходу. */
   readonly hasLive: () => boolean;
+  /** Есть ли чем показать исходник. Не задано — редактора кода в составе нет. */
+  readonly hasTextEditor?: () => boolean;
+}
+
+/** Есть ли это положение вообще: форма — только с поверхностью, исходник — с редактором кода. */
+function available(
+  deps: Pick<RjsfViewStoreOptions, 'hasLive' | 'hasTextEditor'>,
+  mode: RjsfView
+): boolean {
+  if (mode === 'form') return deps.hasLive();
+  if (mode === 'code') return deps.hasTextEditor?.() === true;
+  return true;
 }
 
 export function createRjsfViewStore(options: RjsfViewStoreOptions): RjsfViewStore {
@@ -105,7 +127,7 @@ export function createRjsfViewStore(options: RjsfViewStoreOptions): RjsfViewStor
   return {
     view() {
       const view = stored();
-      return view === 'form' && !options.hasLive() ? 'structure' : view;
+      return available(options, view) ? view : 'structure';
     },
 
     setView(next) {
@@ -142,16 +164,14 @@ export interface RjsfViewDeps {
   readonly activeIsRjsf: () => boolean;
   /** Тот же ответ, что у стора: кнопка и команда обязаны считать доступность одинаково. */
   readonly hasLive: () => boolean;
-}
-
-/** Есть ли это положение вообще: форма — только с поверхностью. */
-function available(deps: RjsfViewDeps, mode: RjsfView): boolean {
-  return mode !== 'form' || deps.hasLive();
+  /** Есть ли редактор кода — тем же ответом, что у стора. Не задано — его нет. */
+  readonly hasTextEditor?: () => boolean;
 }
 
 /**
  * Команды переключателя — по одной на положение, как у видов редактора схемы: в палитре
- * «показать структуру» и «показать форму» — два разных ответа, а не «задать вид» с параметром.
+ * «показать структуру», «показать форму» и «показать исходник» — разные ответы, а не «задать вид»
+ * с параметром.
  *
  * Команда положения, в котором уже находишься, доступна и ничего не меняет — как и кнопка,
  * по которой нажали второй раз.
@@ -173,19 +193,21 @@ export function rjsfViewCommands(deps: RjsfViewDeps): readonly CommandContributi
   return [
     command(RJSF_SHOW_STRUCTURE_COMMAND_ID, 'command.showStructure', 'structure'),
     command(RJSF_SHOW_FORM_COMMAND_ID, 'command.showForm', 'form'),
+    command(RJSF_SHOW_CODE_COMMAND_ID, 'command.showCode', 'code'),
   ];
 }
 
 /** Значки положений. Обёртки ради размера: контракт объявляет значок компонентом без пропсов. */
 const StructureIcon = (): ReactElement => createElement(List, { className: 'size-4' });
 const FormIcon = (): ReactElement => createElement(SquareMousePointer, { className: 'size-4' });
+const CodeIcon = (): ReactElement => createElement(Braces, { className: 'size-4' });
 
 /**
- * Кнопки переключателя в полосе вкладок: видны обе, нажата ровно одна.
+ * Кнопки переключателя в полосе вкладок: видны все доступные положения, нажата ровно одна.
  *
  * Свою вкладку узнают по редактору, который её рисует: форму можно открыть и текстом, и над
- * Monaco переключать нечего. Без поверхности пропадают ОБЕ: одна кнопка из двух переключателем
- * не является.
+ * Monaco переключать нечего. Положения, которое нечем показать, в ряду нет; осталась одна
+ * «Структура» — пропадает и она: одна кнопка переключателем не является.
  */
 export function rjsfViewMenuItems(
   deps: RjsfViewDeps
@@ -206,7 +228,10 @@ export function rjsfViewMenuItems(
     order,
     titleKey,
     icon,
-    when: (ctx, target) => onRjsfTab(ctx, target) && deps.hasLive(),
+    when: (ctx, target) =>
+      onRjsfTab(ctx, target) &&
+      available(deps, mode) &&
+      (deps.hasLive() || deps.hasTextEditor?.() === true),
     toggled: () => deps.view.view() === mode,
     // Вид живёт в плагине, и ряд кнопок о его смене иначе не узнает.
     onDidChange: (cb) => deps.view.subscribe(cb),
@@ -226,6 +251,10 @@ export function rjsfViewMenuItems(
     {
       id: RJSF_FORM_ITEM_ID,
       value: position(RJSF_SHOW_FORM_COMMAND_ID, 'form', 'action.view.form', FormIcon, 10),
+    },
+    {
+      id: RJSF_CODE_ITEM_ID,
+      value: position(RJSF_SHOW_CODE_COMMAND_ID, 'code', 'action.view.code', CodeIcon, 20),
     },
   ];
 }

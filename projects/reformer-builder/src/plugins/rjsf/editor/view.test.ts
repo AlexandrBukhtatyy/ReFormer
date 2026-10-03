@@ -1,5 +1,5 @@
 /**
- * Переключатель «структура / форма»: стор вида, команды и кнопки полосы вкладок.
+ * Переключатель «структура / форма / исходник»: стор вида, команды и кнопки полосы вкладок.
  *
  * Проверяется то, из-за чего кнопка врёт: применимость (над чем работает и когда доступна),
  * нажатое положение и то, что без поверхности вида «форма» нет нигде сразу — ни кнопки, ни
@@ -12,8 +12,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MenuItemContribution, ResourceId, WhenContext } from '@reformer/builder-plugin-api';
 import {
+  RJSF_CODE_ITEM_ID,
   RJSF_EDITOR_ID,
   RJSF_FORM_ITEM_ID,
+  RJSF_SHOW_CODE_COMMAND_ID,
   RJSF_SHOW_FORM_COMMAND_ID,
   RJSF_SHOW_STRUCTURE_COMMAND_ID,
   RJSF_STRUCTURE_ITEM_ID,
@@ -263,5 +265,70 @@ describe('кнопки в полосе вкладок', () => {
     subscription?.dispose();
     d.view.setView('structure');
     expect(signals).toBe(1);
+  });
+});
+
+describe('положение «исходник»', () => {
+  /** Зависимости с редактором кода в составе; поверхность превью — по желанию. */
+  function withText(options: { withLive?: boolean } = {}) {
+    const state = { live: options.withLive !== false, text: true };
+    const hasLive = (): boolean => state.live;
+    const hasTextEditor = (): boolean => state.text;
+    const result: RjsfViewDeps = {
+      view: createRjsfViewStore({ hasLive, hasTextEditor }),
+      hasLive,
+      hasTextEditor,
+      activeIsRjsf: () => true,
+    };
+    return { deps: result, state };
+  }
+
+  it('команда ведёт в исходник, и нажата его кнопка', () => {
+    const { deps: d } = withText();
+
+    expect(commandOf(d, RJSF_SHOW_CODE_COMMAND_ID).run()).toBe(true);
+    expect(d.view.view()).toBe('code');
+    expect(pressed(d)).toBe(RJSF_CODE_ITEM_ID);
+    for (const id of [RJSF_STRUCTURE_ITEM_ID, RJSF_FORM_ITEM_ID, RJSF_CODE_ITEM_ID]) {
+      expect(itemOf(d, id).when?.(context(), target())).toBe(true);
+    }
+  });
+
+  it('без редактора кода исходника нет нигде: ни кнопки, ни команды, ни запомненного вида', () => {
+    const settings = createFakeViewSettings({ [RJSF_VIEW_SETTING]: 'code' });
+    const hasLive = (): boolean => true;
+    const d: RjsfViewDeps = {
+      view: createRjsfViewStore({ settings, hasLive }),
+      hasLive,
+      activeIsRjsf: () => true,
+    };
+    const code = commandOf(d, RJSF_SHOW_CODE_COMMAND_ID);
+
+    expect(readRjsfView('code')).toBe('code');
+    expect(d.view.view()).toBe('structure');
+    expect(code.enabled?.(context())).toBe(false);
+    expect(code.run()).toBe(false);
+    expect(itemOf(d, RJSF_CODE_ITEM_ID).when?.(context(), target())).toBe(false);
+    // Остальные два положения — на месте, как и до появления третьего.
+    expect(itemOf(d, RJSF_STRUCTURE_ITEM_ID).when?.(context(), target())).toBe(true);
+    expect(itemOf(d, RJSF_FORM_ITEM_ID).when?.(context(), target())).toBe(true);
+  });
+
+  it('без поверхности остаются «структура» и «исходник», а «формы» в ряду нет', () => {
+    const { deps: d } = withText({ withLive: false });
+
+    expect(itemOf(d, RJSF_STRUCTURE_ITEM_ID).when?.(context(), target())).toBe(true);
+    expect(itemOf(d, RJSF_CODE_ITEM_ID).when?.(context(), target())).toBe(true);
+    expect(itemOf(d, RJSF_FORM_ITEM_ID).when?.(context(), target())).toBe(false);
+  });
+
+  it('редактор кода выключили на ходу — вкладка возвращается к структуре', () => {
+    const { deps: d, state } = withText();
+    d.view.setView('code');
+
+    state.text = false;
+
+    expect(d.view.view()).toBe('structure');
+    expect(pressed(d)).toBe(RJSF_STRUCTURE_ITEM_ID);
   });
 });

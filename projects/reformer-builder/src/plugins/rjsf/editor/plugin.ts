@@ -2,8 +2,8 @@
  * Редактор домена RJSF: провайдер модели `rjsf-form/1`, валидатор, редактор формы, панель свойств
  * и команды.
  *
- * Раскладка та же, что у редактора схемы ReFormer: тело вкладки показывает структуру или
- * отрисованную форму (переключатель — кнопками в полосе вкладок, `./view`), а свойства
+ * Раскладка та же, что у редактора схемы ReFormer: тело вкладки показывает структуру,
+ * отрисованную форму или исходный JSON (переключатель — кнопками в полосе вкладок, `./view`), а свойства
  * выбранного поля или формы целиком — панель правого дока. Панель вносится один раз при
  * активации, а `when` управляет только видимостью: на вкладке другого вида её нет.
  *
@@ -17,10 +17,11 @@
  * @module plugins/rjsf/editor/plugin
  */
 
-import { createElement, type ReactElement } from 'react';
+import { createElement, type ComponentType, type ReactElement } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { RJSF_PROVIDER_ID } from '@/plugins/rjsf/core';
 import {
+  defineCapability,
   definePlugin,
   DocumentModelPoint,
   DocumentModelsCapability,
@@ -71,6 +72,20 @@ export { RJSF_EDITOR_PLUGIN_ID };
  */
 export const RJSF_EDITOR_PRIORITY = 100;
 
+/** Тело текстового редактора — возможность соседа: им вкладка показывает исходник формы. */
+export interface TextEditorProvider {
+  readonly TextEditor: ComponentType<{ documentId: ResourceId }>;
+}
+
+/**
+ * Возможность «тело текстового редактора» — структурная копия с тем же идентификатором,
+ * что у провайдера (плагин Monaco). Находит ту же службу: реестр ключуется строкой.
+ */
+export const TextEditorCapability = defineCapability<TextEditorProvider>({
+  id: 'reformer.editor',
+  version: '1.0.0',
+});
+
 /** Значок панели в рейле. Обёртка ради размера: контракт объявляет значок без пропсов. */
 const InspectorIcon = (): ReactElement => createElement(SlidersHorizontal, { className: 'size-4' });
 
@@ -117,21 +132,24 @@ export function createRjsfEditorPlugin(): Plugin {
         models: () => ctx.services.get(DocumentModelsCapability),
         save: () => ctx.services.get(WorkspaceSaveCapability),
       };
-      // Кит и превью выключаемы на ходу — возможности спрашиваются в момент обращения.
+      // Кит, превью и редактор кода выключаемы на ходу — возможности спрашиваются в момент обращения.
       const kits = () => ctx.services.get(KitsCapability);
       const live = () => ctx.services.get(PreviewLiveCapability);
+      const textEditor = () => ctx.services.get(TextEditorCapability)?.TextEditor;
 
       function useRjsfTranslate() {
         return useTranslate(ctx.i18n);
       }
 
-      // Чем показана вкладка — структурой или формой. Настройки берутся из реестра служб:
+      // Чем показана вкладка — структурой, формой или исходником. Настройки берутся из реестра служб:
       // способ смотреть принадлежит человеку. Без службы вид работает, но не переживает
       // перезагрузку.
       const hasLive = (): boolean => live()?.available() === true;
+      const hasTextEditor = (): boolean => textEditor() !== undefined;
       const view = createRjsfViewStore({
         settings: ctx.services.get(SettingsServiceToken) ?? null,
         hasLive,
+        hasTextEditor,
       });
       ctx.subscriptions.push({
         dispose: () => {
@@ -141,6 +159,7 @@ export function createRjsfEditorPlugin(): Plugin {
       const viewDeps: RjsfViewDeps = {
         view,
         hasLive,
+        hasTextEditor,
         // Спрашивается у ручки платформы: она заведена раньше, чем вкладка появилась на экране.
         activeIsRjsf: () => {
           const id = services.documents()?.activeResource() ?? null;
@@ -157,6 +176,7 @@ export function createRjsfEditorPlugin(): Plugin {
             documentId,
             services,
             live,
+            textEditor,
             view,
             useTranslate: useRjsfTranslate,
           }),
