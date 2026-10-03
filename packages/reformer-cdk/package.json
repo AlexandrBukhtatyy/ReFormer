@@ -42,7 +42,21 @@
     "./autocomplete": {
       "types": "./dist/autocomplete.d.ts",
       "import": "./dist/autocomplete.js"
-    }
+    },
+    "./locale": {
+      "types": "./dist/locale.d.ts",
+      "import": "./dist/locale.js"
+    },
+    "./locale/en": {
+      "types": "./dist/locale/en.d.ts",
+      "import": "./dist/locale/en.js"
+    },
+    "./locale/ru": {
+      "types": "./dist/locale/ru.d.ts",
+      "import": "./dist/locale/ru.js"
+    },
+    "./locale/en.json": "./dist/locale/en.json",
+    "./locale/ru.json": "./dist/locale/ru.json"
   },
   "sideEffects": false,
   "scripts": {

@@ -121,8 +121,8 @@ resolveValidationError(error, i18n), useValidationMessage()
 | Пакет | Ключи | Исходники |
 | --- | --- | --- |
 | core | `validation.<code>`, `format.fileSize.*` | `src/i18n/{en,ru}.json` |
-| cdk | `cdk.<компонент>.<имя>` | `src/locale/{en,ru}.json` |
-| ui-kit | `kit.<компонент>.<имя>` | `src/locale/{en,ru}.json` |
+| cdk | `cdk.<компонент>.<имя>` | `src/i18n/{en,ru}.json` |
+| ui-kit | `kit.<компонент>.<имя>` | `src/i18n/{en,ru}.json` |
 
 Каждый пакет отдаёт локаль накопительно (ui-kit = ядро + cdk + кит) в трёх видах:
 
@@ -133,6 +133,9 @@ resolveValidationError(error, i18n), useValidationMessage()
 | синхронный модуль | `@reformer/ui-kit/locale/ru` | SSR, тесты; его же импортирует загрузчик |
 
 У cdk и ядра — такие же три вида для тех, кто работает без кита. JSON-файлы собирает сборка пакета.
+Исходные словари лежат в `src/i18n/`, а не рядом с модулями локалей в `src/locale/`: иначе сборка
+кладёт декларацию плоского словаря (`ru.json.d.ts`) в `dist/locale/` рядом с накопительным
+`ru.json` другой формы, и импорт JSON-файла из пакета получает неверный тип.
 Язык, которого нет среди встроенных, `loadKitLocale` отдаёт пустым словарём: подписи кита остаются
 английскими, пока приложение не даст их своим источником.
 

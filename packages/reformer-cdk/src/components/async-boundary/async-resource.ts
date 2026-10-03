@@ -100,8 +100,22 @@ export function asyncResourceReducer<T, E>(
 }
 
 /**
- * Приведение неизвестного отказа промиса к человекочитаемой строке —
- * дефолт для `toError`, когда консумент не задал своё преобразование.
+ * Текст отказа промиса, если он у отказа есть: сообщение `Error` или непустая строка.
+ *
+ * @param e - Значение, с которым отклонился промис.
+ * @returns Текст либо `undefined`, когда из отказа его не достать.
+ */
+export function rejectionMessage(e: unknown): string | undefined {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'string' && e.length > 0) return e;
+  return undefined;
+}
+
+/**
+ * Приведение неизвестного отказа промиса к человекочитаемой строке. Функция чистая и языка не
+ * знает: отказ без текста даёт английское `Unknown error`. `useAsyncResource` без своего
+ * `toError` действует так же, но этот запасной текст берёт из словаря локали
+ * (`cdk.asyncBoundary.unknownError`).
  *
  * @param e - Значение, с которым отклонился промис.
  * @returns Сообщение об ошибке.
@@ -110,11 +124,9 @@ export function asyncResourceReducer<T, E>(
  * ```ts
  * defaultToError(new Error('Ошибка загрузки заявки')); // 'Ошибка загрузки заявки'
  * defaultToError('boom');                              // 'boom'
- * defaultToError({});                                  // 'Неизвестная ошибка'
+ * defaultToError({});                                  // 'Unknown error'
  * ```
  */
 export function defaultToError(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === 'string' && e.length > 0) return e;
-  return 'Неизвестная ошибка';
+  return rejectionMessage(e) ?? 'Unknown error';
 }

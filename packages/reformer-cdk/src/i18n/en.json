@@ -1,0 +1,13 @@
+{
+  "cdk.asyncBoundary.unknownError": "Unknown error",
+
+  "cdk.fileUpload.added": "{count, plural, =1{File {name} added} other{# files added}}",
+  "cdk.fileUpload.rejected": "{count, plural, =1{File {name} rejected} other{# files rejected}}",
+  "cdk.fileUpload.removed": "File {name} removed",
+  "cdk.fileUpload.cleared": "File list cleared",
+  "cdk.fileUpload.uploaded": "File {name} uploaded",
+  "cdk.fileUpload.uploadAborted": "Upload of {name} aborted",
+  "cdk.fileUpload.uploadFailed": "Failed to upload {name}",
+  "cdk.fileUpload.removeFile": "Remove file {name}",
+  "cdk.fileUpload.retryUpload": "Retry upload of {name}"
+}

@@ -81,13 +81,13 @@ function ctx(overrides: Partial<FileUploadContextValue> = {}): FileUploadContext
     getItemProps: (item) => ({ role: 'listitem', 'data-status': item.status }),
     getItemDeleteTriggerProps: (item) => ({
       type: 'button',
-      'aria-label': `Удалить файл ${item.status === 'uploaded' ? (item.file?.name ?? item.remote.name) : item.file.name}`,
+      'aria-label': `Remove file ${item.status === 'uploaded' ? (item.file?.name ?? item.remote.name) : item.file.name}`,
       disabled: false,
       onClick: () => {},
     }),
     getItemRetryTriggerProps: () => ({
       type: 'button',
-      'aria-label': 'Повторить',
+      'aria-label': 'Retry',
       onClick: () => {},
     }),
     getClearTriggerProps: () => ({
@@ -173,7 +173,7 @@ describe('FileUpload — слоты', () => {
       </>
     );
     expect(html).toContain('report.pdf');
-    expect(html).toContain('1.5 КБ');
+    expect(html).toContain('1.5 KB');
 
     const preloaded = renderItem(
       ctx(),
@@ -184,7 +184,8 @@ describe('FileUpload — слоты', () => {
       </>
     );
     expect(preloaded).toContain('contract.pdf');
-    expect(preloaded).not.toContain('КБ'); // size неизвестен — слот не рендерится
+    // size неизвестен — слот не рендерится: из двух <span> остаётся только имя
+    expect(preloaded.match(/<span/g)).toHaveLength(1);
   });
 
   it('ItemProgress — только в uploading, целые проценты в aria-valuenow', () => {
@@ -220,7 +221,7 @@ describe('FileUpload — слоты', () => {
       localItem,
       <FileUpload.ItemDeleteTrigger>×</FileUpload.ItemDeleteTrigger>
     );
-    expect(del).toContain('aria-label="Удалить файл report.pdf"');
+    expect(del).toContain('aria-label="Remove file report.pdf"');
 
     expect(
       renderItem(ctx(), localItem, <FileUpload.ItemRetryTrigger>↻</FileUpload.ItemRetryTrigger>)

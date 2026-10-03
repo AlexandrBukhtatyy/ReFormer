@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { I18nProvider } from '@reformer/core/i18n';
+import { ru } from '@reformer/cdk/locale/ru';
 import {
   FileUploadBase,
   FileUploadDropzone,
@@ -45,8 +47,18 @@ describe('FileUploadBase (button)', () => {
     const html = renderToStaticMarkup(<FileUploadBase value={[png]} multiple />);
     expect(html).toContain('data-slot="attachment"');
     expect(html).toContain('photo.png');
-    expect(html).toContain('1 КБ');
+    expect(html).toContain('1 KB');
     expect(html).toContain('data-status="local"');
+    expect(html).toContain('aria-label="Remove file photo.png"');
+  });
+
+  it('под русской локалью размер и подпись кнопки удаления — русские', () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider locale={ru}>
+        <FileUploadBase value={[png]} multiple />
+      </I18nProvider>
+    );
+    expect(html).toContain('1 КБ');
     expect(html).toContain('aria-label="Удалить файл photo.png"');
   });
 
@@ -59,7 +71,7 @@ describe('FileUploadBase (button)', () => {
       />
     );
     expect(html).toContain('contract.pdf');
-    expect(html).toContain('2 КБ');
+    expect(html).toContain('2 KB');
     expect(html).toContain('data-status="uploaded"');
   });
 });
@@ -132,6 +144,7 @@ describe('FileUploadAvatar', () => {
   it('shape=square и кнопка удаления при выбранном файле', () => {
     const html = renderToStaticMarkup(<FileUploadAvatar value={[png]} shape="square" />);
     expect(html).toContain('data-shape="square"');
+    // Подпись этой кнопки — собственная строка варианта, а не getter cdk.
     expect(html).toContain('aria-label="Удалить файл photo.png"');
   });
 

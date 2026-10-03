@@ -252,7 +252,8 @@ test.describe('FileUpload', { tag: ['@file-upload'] }, () => {
   test.describe('FU-006: доступность', () => {
     test('FU-006-A: aria-live регион объявляет добавление файла', async () => {
       await fu.selectFiles('documents', [pngFile('photo.png')]);
-      await expect(fu.liveRegion('documents')).toContainText('photo.png');
+      // Текст — из словаря cdk по языку playground (ru), а не зашитая строка.
+      await expect(fu.liveRegion('documents')).toHaveText('Файл photo.png добавлен');
     });
 
     test('FU-006-B: список — role=list, кнопки удаления имеют aria-label с именем', async () => {

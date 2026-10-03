@@ -5,12 +5,19 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import dts from 'vite-plugin-dts';
 import { resolve } from 'path';
+import { localeAssets } from '../../scripts/vite-locale-assets.mjs';
 
 // Тесты живут рядом с исходниками — в dist их декларации не нужны и уезжают в npm.
 const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
 
 export default defineConfig({
-  plugins: [react(), dts({ insertTypesEntry: true, exclude: TEST_FILES })],
+  plugins: [
+    react(),
+    dts({ insertTypesEntry: true, exclude: TEST_FILES }),
+    // JSON-копии локалей (`./locale/<язык>.json`) — из собранных синхронных модулей: словарь ядра
+    // плюс строки cdk. Ядро должно быть собрано раньше.
+    localeAssets({ dist: resolve(__dirname, 'dist'), codes: ['en', 'ru'] }),
+  ],
   build: {
     lib: {
       entry: {
@@ -23,6 +30,10 @@ export default defineConfig({
         'file-upload': resolve(__dirname, 'src/components/file-upload/index.ts'),
         'option-source': resolve(__dirname, 'src/components/option-source/index.ts'),
         autocomplete: resolve(__dirname, 'src/components/autocomplete/index.ts'),
+        // Встроенные локали cdk: загрузчик (чанк на язык) и синхронные модули по языкам.
+        locale: resolve(__dirname, 'src/locale/index.ts'),
+        'locale/en': resolve(__dirname, 'src/locale/en.ts'),
+        'locale/ru': resolve(__dirname, 'src/locale/ru.ts'),
       },
       formats: ['es'],
     },

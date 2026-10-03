@@ -9,6 +9,7 @@
  * @module reformer/cdk/file-upload/file-upload-core
  */
 
+import { createI18n, DEFAULT_LOCALE } from '@reformer/core/i18n';
 import { matchesFileAccept } from '@reformer/core/validators';
 import type {
   FileError,
@@ -364,27 +365,18 @@ export function fileItemKey(file: File, seq: number): string {
   return `${seq}:${file.name}:${file.size}:${file.lastModified ?? ''}`;
 }
 
-const SIZE_UNITS = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'] as const;
-
 /**
- * Человекочитаемый размер файла: `1024`-base, одна цифра после точки, без хвоста `.0`.
+ * Человекочитаемый размер файла по-английски: `1024`-base, одна цифра после точки, без хвоста
+ * `.0`. Функция чистая и языка не знает; размер по активной локали («1,5 КБ») даёт
+ * `useI18n().fileSize` из `@reformer/core/i18n` — им пользуется `FileUpload.ItemSize`.
  *
  * @example
  * ```ts
- * formatFileSize(512);        // '512 Б'
- * formatFileSize(1536);       // '1.5 КБ'
- * formatFileSize(5_242_880);  // '5 МБ'
+ * formatFileSize(512);        // '512 B'
+ * formatFileSize(1536);       // '1.5 KB'
+ * formatFileSize(5_242_880);  // '5 MB'
  * ```
  */
 export function formatFileSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return '';
-  let size = bytes;
-  let unit = 0;
-  while (size >= 1024 && unit < SIZE_UNITS.length - 1) {
-    size /= 1024;
-    unit += 1;
-  }
-  const rounded = unit === 0 ? size : Math.round(size * 10) / 10;
-  const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-  return `${text} ${SIZE_UNITS[unit]}`;
+  return createI18n(DEFAULT_LOCALE).fileSize(bytes);
 }

@@ -94,8 +94,8 @@ describe('defaultToError', () => {
   });
 
   it('на всё остальное даёт понятный fallback', () => {
-    expect(defaultToError({})).toBe('Неизвестная ошибка');
-    expect(defaultToError(null)).toBe('Неизвестная ошибка');
-    expect(defaultToError('')).toBe('Неизвестная ошибка');
+    expect(defaultToError({})).toBe('Unknown error');
+    expect(defaultToError(null)).toBe('Unknown error');
+    expect(defaultToError('')).toBe('Unknown error');
   });
 });

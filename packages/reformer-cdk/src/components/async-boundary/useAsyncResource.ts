@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCdkMessages } from '../../i18n/messages';
 import {
   asyncResourceReducer,
-  defaultToError,
   initialAsyncResourceState,
+  rejectionMessage,
   type AsyncResourceState,
 } from './async-resource';
 
@@ -33,7 +34,10 @@ export interface UseAsyncResourceOptions<T, E = string> {
   onSuccess?: (data: T) => void;
   /** Побочный эффект после ошибки — логирование, тост. */
   onError?: (error: E) => void;
-  /** Преобразование отказа промиса в отображаемую ошибку. @default {@link defaultToError} */
+  /**
+   * Преобразование отказа промиса в отображаемую ошибку. Без него берётся текст отказа (сообщение
+   * `Error` или строка), а для отказа без текста — «Unknown error» на языке активной локали.
+   */
   toError?: (e: unknown) => E;
 }
 
@@ -117,6 +121,11 @@ export function useAsyncResource<T, E = string>({
   onErrorRef.current = onError;
   toErrorRef.current = toError;
 
+  // Переводчик — тоже через ref: смена языка не должна перезапускать загрузку.
+  const t = useCdkMessages();
+  const tRef = useRef(t);
+  tRef.current = t;
+
   // Контроллер текущего запроса — чтобы abort() мог прервать его извне эффекта.
   const controllerRef = useRef<AbortController | null>(null);
 
@@ -153,7 +162,12 @@ export function useAsyncResource<T, E = string>({
       (e) => {
         // Отмена — не ошибка: экран не должен краснеть из-за собственного unmount'а.
         if (cancelled || controller.signal.aborted) return;
-        const error = (toErrorRef.current ?? (defaultToError as (e: unknown) => E))(e);
+        const mapError = toErrorRef.current;
+        // Без своего toError тип ошибки — строка (умолчание E): текст отказа либо запасная фраза
+        // на языке, активном в момент отказа.
+        const error = mapError
+          ? mapError(e)
+          : ((rejectionMessage(e) ?? tRef.current('cdk.asyncBoundary.unknownError')) as E);
         dispatch({ kind: 'load-error', error });
         onErrorRef.current?.(error);
       }

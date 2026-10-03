@@ -1,0 +1,13 @@
+{
+  "cdk.asyncBoundary.unknownError": "Неизвестная ошибка",
+
+  "cdk.fileUpload.added": "{count, plural, =1{Файл {name} добавлен} other{Добавлено файлов: #}}",
+  "cdk.fileUpload.rejected": "{count, plural, =1{Файл {name} отклонён} other{Отклонено файлов: #}}",
+  "cdk.fileUpload.removed": "Файл {name} удалён",
+  "cdk.fileUpload.cleared": "Список файлов очищен",
+  "cdk.fileUpload.uploaded": "Файл {name} загружен",
+  "cdk.fileUpload.uploadAborted": "Загрузка {name} прервана",
+  "cdk.fileUpload.uploadFailed": "Ошибка загрузки {name}",
+  "cdk.fileUpload.removeFile": "Удалить файл {name}",
+  "cdk.fileUpload.retryUpload": "Повторить загрузку файла {name}"
+}

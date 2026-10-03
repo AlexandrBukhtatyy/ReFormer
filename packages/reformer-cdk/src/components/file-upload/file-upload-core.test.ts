@@ -271,11 +271,13 @@ describe('утилиты', () => {
     expect(fileItemKey(f, 1)).not.toBe(fileItemKey(f, 2));
   });
 
-  it('formatFileSize', () => {
-    expect(formatFileSize(0)).toBe('0 Б');
-    expect(formatFileSize(512)).toBe('512 Б');
-    expect(formatFileSize(1536)).toBe('1.5 КБ');
-    expect(formatFileSize(5 * 1024 * 1024)).toBe('5 МБ');
+  it('formatFileSize — английские единицы, язык активной локали на неё не влияет', () => {
+    expect(formatFileSize(0)).toBe('0 B');
+    expect(formatFileSize(512)).toBe('512 B');
+    expect(formatFileSize(1536)).toBe('1.5 KB');
+    expect(formatFileSize(5 * 1024 * 1024)).toBe('5 MB');
+    expect(formatFileSize(3 * 1024 ** 3)).toBe('3 GB');
     expect(formatFileSize(-1)).toBe('');
+    expect(formatFileSize(Number.NaN)).toBe('');
   });
 });

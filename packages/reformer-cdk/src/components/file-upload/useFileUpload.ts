@@ -14,6 +14,8 @@ import {
   type KeyboardEvent,
   type Ref,
 } from 'react';
+import type { MessageValues } from '@reformer/core/i18n';
+import { useCdkMessages, type CdkMessageKey } from '../../i18n/messages';
 import {
   fileItemKey,
   fileUploadReducer,
@@ -89,7 +91,10 @@ export interface UseFileUploadReturn {
   maxFilesReached: boolean;
   /** Есть незавершённые загрузки (блокировка submit). */
   uploading: boolean;
-  /** Сообщение для aria-live региона (обновляется на выбор/загрузку/ошибки). */
+  /**
+   * Сообщение для aria-live региона (обновляется на выбор/загрузку/ошибки). Текст — на языке
+   * активной локали и переводится при её смене.
+   */
   liveMessage: string;
   ids: FileUploadIds;
 
@@ -135,6 +140,15 @@ export interface UseFileUploadReturn {
     'aria-live': 'polite';
     style: CSSProperties;
   };
+}
+
+/**
+ * Статус для live-региона. Хранится ключом и значениями, а не готовой строкой: текст получается
+ * при рендере, поэтому действия не зависят от языка и остаются стабильными.
+ */
+interface LiveStatus {
+  key: CdkMessageKey;
+  values?: MessageValues;
 }
 
 /** Имя элемента для aria-label и live-сообщений. */
@@ -217,7 +231,9 @@ export function useFileUpload(options: UseFileUploadOptions): UseFileUploadRetur
   );
   const [dragging, setDragging] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [liveMessage, setLiveMessage] = useState('');
+  const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
+  const t = useCdkMessages();
+  const liveMessage = liveStatus === null ? '' : t(liveStatus.key, liveStatus.values);
 
   // Опции читаются через ref: колбэки консумента — инлайновые стрелки, а действия
   // (addFiles/removeItem/…) должны быть стабильными (иначе контекст пересоздаётся).
@@ -303,7 +319,7 @@ export function useFileUpload(options: UseFileUploadOptions): UseFileUploadRetur
           const item = next.items.find((i) => i.key === key);
           if (item?.status === 'uploaded') {
             optionsRef.current.onUploadSuccess?.(item);
-            setLiveMessage(`Файл ${file.name} загружен`);
+            setLiveStatus({ key: 'cdk.fileUpload.uploaded', values: { name: file.name } });
             emit(next.items);
           }
         },
@@ -322,9 +338,10 @@ export function useFileUpload(options: UseFileUploadOptions): UseFileUploadRetur
           const item = next.items.find((i) => i.key === key);
           if (item?.status === 'error') {
             optionsRef.current.onUploadError?.(item);
-            setLiveMessage(
-              aborted ? `Загрузка ${file.name} прервана` : `Ошибка загрузки ${file.name}`
-            );
+            setLiveStatus({
+              key: aborted ? 'cdk.fileUpload.uploadAborted' : 'cdk.fileUpload.uploadFailed',
+              values: { name: file.name },
+            });
           }
         }
       );
@@ -376,19 +393,17 @@ export function useFileUpload(options: UseFileUploadOptions): UseFileUploadRetur
       const next = apply({ kind: 'add', accepted, keys, rejected, replace });
       if (accepted.length > 0) {
         opts.onAccept?.(accepted);
-        setLiveMessage(
-          accepted.length === 1
-            ? `Файл ${accepted[0].name} добавлен`
-            : `Добавлено файлов: ${accepted.length}`
-        );
+        setLiveStatus({
+          key: 'cdk.fileUpload.added',
+          values: { count: accepted.length, name: accepted[0].name },
+        });
       }
       if (rejected.length > 0) {
         opts.onReject?.(rejected);
-        setLiveMessage(
-          rejected.length === 1
-            ? `Файл ${rejected[0].file.name} отклонён`
-            : `Отклонено файлов: ${rejected.length}`
-        );
+        setLiveStatus({
+          key: 'cdk.fileUpload.rejected',
+          values: { count: rejected.length, name: rejected[0].file.name },
+        });
       }
       emit(next.items);
     },
@@ -403,7 +418,7 @@ export function useFileUpload(options: UseFileUploadOptions): UseFileUploadRetur
       revokePreview(key);
       const item = stateRef.current.items.find((i) => i.key === key);
       const next = apply({ kind: 'remove', key });
-      if (item) setLiveMessage(`Файл ${itemName(item)} удалён`);
+      if (item) setLiveStatus({ key: 'cdk.fileUpload.removed', values: { name: itemName(item) } });
       emit(next.items);
     },
     [apply, emit, revokePreview]
@@ -414,7 +429,7 @@ export function useFileUpload(options: UseFileUploadOptions): UseFileUploadRetur
     controllersRef.current.clear();
     for (const [key] of previewUrlsRef.current) revokePreview(key);
     const next = apply({ kind: 'clear' });
-    setLiveMessage('Список файлов очищен');
+    setLiveStatus({ key: 'cdk.fileUpload.cleared' });
     emit(next.items);
   }, [apply, emit, revokePreview]);
 
@@ -628,20 +643,20 @@ export function useFileUpload(options: UseFileUploadOptions): UseFileUploadRetur
   const getItemDeleteTriggerProps = useCallback(
     (item: FileUploadItem) => ({
       type: 'button' as const,
-      'aria-label': `Удалить файл ${itemName(item)}`,
+      'aria-label': t('cdk.fileUpload.removeFile', { name: itemName(item) }),
       disabled,
       onClick: () => removeItem(item.key),
     }),
-    [disabled, removeItem]
+    [disabled, removeItem, t]
   );
 
   const getItemRetryTriggerProps = useCallback(
     (item: FileUploadItem) => ({
       type: 'button' as const,
-      'aria-label': `Повторить загрузку файла ${itemName(item)}`,
+      'aria-label': t('cdk.fileUpload.retryUpload', { name: itemName(item) }),
       onClick: () => retry(item.key),
     }),
-    [retry]
+    [retry, t]
   );
 
   const getClearTriggerProps = useCallback(
