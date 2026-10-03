@@ -28,6 +28,7 @@
 
 import {
   RESOURCE_CONTEXT_MENU,
+  RESOURCE_GENERATE_MENU,
   argsOfResource,
   selectedIds,
   validateResourceName,
@@ -527,6 +528,36 @@ export function filesContextMenuItems(): readonly {
         order: 10,
         when: overResource,
         argsOf: args,
+      },
+    },
+  ];
+}
+
+/**
+ * Заголовок подменю «Сгенерировать» — общий для всех стеков.
+ *
+ * Вносится здесь, а не стеком: подменю одно на приложение, а стеков в составе бывает и два,
+ * и ни одного. Наполняют его домены — подразделами по адресу {@link RESOURCE_GENERATE_MENU};
+ * пустое подменю оболочка не рисует, так что состав без генерации его не увидит.
+ *
+ * Доступность по цели заголовок не объявляет: «во что можно генерировать» у каждого стека
+ * своё, и гасит себя подраздел, а не всё подменю.
+ */
+export function filesGenerateMenuItems(): readonly {
+  readonly id: string;
+  readonly value: MenuContribution;
+}[] {
+  return [
+    {
+      id: 'files.context.generate',
+      value: {
+        kind: 'submenu',
+        menu: RESOURCE_CONTEXT_MENU,
+        submenu: RESOURCE_GENERATE_MENU,
+        titleKey: 'menu.generate',
+        // Своя группа: генерация — не правка записи и не создание пустого файла, и линия
+        // между ними появится сама.
+        group: '4_generate',
       },
     },
   ];

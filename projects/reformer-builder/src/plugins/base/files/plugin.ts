@@ -51,7 +51,11 @@ import {
   WorkspaceResourcesServiceToken,
   type WorkspaceResourcesService,
 } from '@reformer/builder-plugin-api';
-import { filesContextMenuItems, filesOperationCommands } from './operations';
+import {
+  filesContextMenuItems,
+  filesGenerateMenuItems,
+  filesOperationCommands,
+} from './operations';
 import { OPEN_RECENT_COMMAND_ID, recentCommands, recentMenuItems } from './recent';
 import type { ExtensionPointRef, FilesEditorSpec, FilesHost, FilesPanelSpec } from './host';
 import { ProblemsBadge } from './ui/ProblemsBadge';
@@ -404,7 +408,11 @@ export function createFilesPlugin(options: FilesPluginOptions): Plugin {
         )
       );
 
-      for (const item of [...filesMenuItems(), ...filesContextMenuItems()]) {
+      for (const item of [
+        ...filesMenuItems(),
+        ...filesContextMenuItems(),
+        ...filesGenerateMenuItems(),
+      ]) {
         ctx.subscriptions.push(ctx.extensions.contribute(MenuPoint, item.value, { id: item.id }));
       }
 

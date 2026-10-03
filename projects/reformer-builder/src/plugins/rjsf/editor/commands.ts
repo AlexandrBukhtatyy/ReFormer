@@ -1,6 +1,8 @@
 /**
  * Команды редактора RJSF: новая форма, новое поле, отмена и повтор, экспорт `Form.tsx`.
  *
+ * В меню новая форма стоит в подразделе «RJSF» подменю «Сгенерировать» дерева (`./context-menu`).
+ *
  * Всё — возможностями оболочки, ни одного порта: рабочая область (`DocumentsService`,
  * `WorkspaceFilesService`), ручка модели (`DocumentModelsService`) и дверь наружу
  * (`WorkspaceSaveService`, право `workspace.save` в манифесте).
@@ -80,13 +82,32 @@ export function componentNameOf(fileName: string): string {
   return `${base.charAt(0).toUpperCase()}${base.slice(1)}Form`;
 }
 
-/** Создать форму из заготовки рядом с активным файлом (или в корне) и открыть её. */
-export async function createRjsfForm(services: RjsfServices): Promise<ResourceId | null> {
+/**
+ * Каталог из аргументов команды: его называет пункт меню дерева — тот, по чему щёлкнули.
+ *
+ * Проверяется, а не приводится типом: команду зовут из меню, из палитры и от ассистента.
+ */
+function dirOf(args: unknown): ResourceId | null {
+  if (typeof args !== 'object' || args === null) return null;
+  const value = (args as { dir?: unknown }).dir;
+  return typeof value === 'string' && value !== '' ? value : null;
+}
+
+/**
+ * Создать форму из заготовки и открыть её.
+ *
+ * Каталог называет тот, кто зовёт: пункт меню дерева — каталог щелчка. Без него (палитра,
+ * ассистент) форма ложится рядом с активным файлом, а если вкладок нет — в корень.
+ */
+export async function createRjsfForm(
+  services: RjsfServices,
+  into: ResourceId | null = null
+): Promise<ResourceId | null> {
   const documents = services.documents();
   const files = services.files();
   if (documents === undefined || files === undefined) return null;
   const active = documents.activeResource();
-  const dir = active !== null ? files.parentOf(active) : files.projectRoot();
+  const dir = into ?? (active !== null ? files.parentOf(active) : files.projectRoot());
   if (dir === null) return null;
   // Свободное имя: `contact.rjsf.json`, `contact-2.rjsf.json`, …
   let id = files.resolve(dir, `contact${RJSF_FILE_SUFFIX}`);
@@ -150,7 +171,7 @@ export function rjsfCommands(services: RjsfServices): readonly CommandContributi
       id: RJSF_NEW_COMMAND_ID,
       titleKey: 'command.new',
       enabled: () => services.files()?.projectRoot() != null,
-      run: () => createRjsfForm(services),
+      run: (args) => createRjsfForm(services, dirOf(args)),
     },
     {
       id: RJSF_ADD_FIELD_COMMAND_ID,

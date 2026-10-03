@@ -9,6 +9,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import type { NotificationsService, ResourceId, ResourceRef } from '@reformer/builder-plugin-api';
+import { RESOURCE_GENERATE_MENU } from '@reformer/builder-plugin-api';
 import {
   codegenContextMenuItems,
   findSchemaIn,
@@ -358,6 +359,17 @@ describe('исход говорится словами', () => {
 
 describe('вклады подменю', () => {
   const items = codegenContextMenuItems(targets);
+
+  it('заголовок — подраздел «ReFormer» общего «Сгенерировать», а не своё подменю в корне', () => {
+    expect(items[0].value).toMatchObject({
+      kind: 'submenu',
+      menu: RESOURCE_GENERATE_MENU,
+      submenu: CODEGEN_CONTEXT_SUBMENU,
+      titleKey: 'menu.generate.reformer',
+    });
+    // Адрес подраздела лежит ПОД общим: иначе пункты стека встали бы рядом с подразделами.
+    expect(CODEGEN_CONTEXT_SUBMENU.startsWith(`${RESOURCE_GENERATE_MENU}/`)).toBe(true);
+  });
 
   it('заголовок гаснет на файле и доступен на каталоге', () => {
     const submenu = items[0].value;

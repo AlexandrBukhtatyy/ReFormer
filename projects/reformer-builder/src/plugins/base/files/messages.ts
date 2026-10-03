@@ -71,6 +71,7 @@ export const FILES_MESSAGES: Readonly<Record<string, Readonly<Record<string, str
       'ops.name.too-long': 'Слишком длинное имя',
       'tree.problems.info':
         '{count, plural, one{# замечание} few{# замечания} many{# замечаний} other{# замечания}}',
+      'menu.generate': 'Сгенерировать',
       'menu.recent': 'Недавно открытые',
       'menu.recent.more': 'Ещё…',
       'recent.pick.title': 'Недавно открытые проекты',
@@ -130,6 +131,7 @@ export const FILES_MESSAGES: Readonly<Record<string, Readonly<Record<string, str
       'ops.name.reserved': 'This is a device name: Windows will not allow it',
       'ops.name.trailing': 'A trailing dot or space is dropped when saving',
       'ops.name.too-long': 'The name is too long',
+      'menu.generate': 'Generate',
       'menu.recent': 'Open Recent',
       'menu.recent.more': 'More…',
       'recent.pick.title': 'Recently opened projects',

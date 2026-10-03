@@ -42,7 +42,7 @@
   "error.failed": "Writing the module failed.",
   "command.create-fixture": "Create preview fixture",
   "command.generateInto": "Generate the form module into a directory",
-  "menu.generate": "Generate",
+  "menu.generate.reformer": "ReFormer",
   "menu.generate.all": "The whole module",
   "target.schema": "Form schema",
   "target.types": "Types",

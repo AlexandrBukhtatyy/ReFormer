@@ -21,6 +21,7 @@ export {
   RJSF_UNDO_COMMAND_ID,
   RJSF_VALIDATOR_ID,
 } from './contract';
+export { RJSF_GENERATE_SUBMENU } from './context-menu';
 export { RJSF_EDITOR_MESSAGES } from './messages';
 export type { ExportOutcome, RjsfServices } from './commands';
 

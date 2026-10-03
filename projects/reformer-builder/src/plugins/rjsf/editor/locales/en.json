@@ -6,6 +6,8 @@
   "command.redo": "RJSF form: redo",
   "command.showStructure": "RJSF form: show structure",
   "command.showForm": "RJSF form: show form",
+  "menu.generate.rjsf": "RJSF",
+  "menu.generate.new": "New form",
   "action.view.structure": "Structure",
   "action.view.form": "Form",
   "panel.inspector": "Properties",

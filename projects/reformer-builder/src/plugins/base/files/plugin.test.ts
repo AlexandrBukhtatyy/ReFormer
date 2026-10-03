@@ -319,6 +319,8 @@ describe('активация', () => {
         'menu:files.menu.openProject',
         'menu:files.menu.save',
         'menu:files.menu.saveAll',
+        // Заголовок общего подменю «Сгенерировать»: его наполняют стеки, а вносит основа.
+        'menu:files.context.generate',
         `resource.decoration:${FILES_DIAGNOSTICS_DECORATION_ID}`,
       ])
     );

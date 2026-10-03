@@ -6,6 +6,8 @@
   "command.redo": "Форма RJSF: повторить",
   "command.showStructure": "Форма RJSF: показать структуру",
   "command.showForm": "Форма RJSF: показать форму",
+  "menu.generate.rjsf": "RJSF",
+  "menu.generate.new": "Новая форма",
   "action.view.structure": "Структура",
   "action.view.form": "Форма",
   "panel.inspector": "Свойства",

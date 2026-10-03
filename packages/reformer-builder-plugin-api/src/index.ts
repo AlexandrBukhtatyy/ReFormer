@@ -472,8 +472,12 @@ export type {
 // динамическая группа (`kind: 'dynamic'`) получает её в `items`, а обёртки для `items`
 // не существует и быть не может — она возвращает СПИСОК, а не булево. Без сужения плагин
 // приводил бы `unknown` к своей форме `as`-ом, то есть доверял бы чужой строке.
+//
+// `RESOURCE_GENERATE_MENU` — подменю «Сгенерировать» того же меню: общее место, куда каждый
+// стек вносит свой подраздел.
 export {
   RESOURCE_CONTEXT_MENU,
+  RESOURCE_GENERATE_MENU,
   argsOfResource,
   asResourceTarget,
   selectedIds,

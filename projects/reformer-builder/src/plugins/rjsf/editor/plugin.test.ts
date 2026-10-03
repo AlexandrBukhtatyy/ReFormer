@@ -8,6 +8,7 @@ import {
   type RjsfProblemCode,
 } from '@/plugins/rjsf/core';
 import {
+  RESOURCE_GENERATE_MENU,
   splitDiagnosticCode,
   type KitsService,
   type WhenContext,
@@ -19,9 +20,11 @@ import {
   exportRjsfForm,
   rjsfCommands,
 } from './commands';
+import { RJSF_GENERATE_SUBMENU, rjsfGenerateMenuItems } from './context-menu';
 import {
   RJSF_EDITOR_PLUGIN_ID,
   RJSF_INSPECTOR_PANEL_ID,
+  RJSF_NEW_COMMAND_ID,
   RJSF_REDO_COMMAND_ID,
   RJSF_UNDO_COMMAND_ID,
 } from './contract';
@@ -215,6 +218,27 @@ describe('команды', () => {
     expect(opened).toEqual([id]);
   });
 
+  it('каталог называет тот, кто зовёт: форма ложится в него, а не рядом с активной вкладкой', async () => {
+    const fake = createFakeRjsfHandle(sampleForm());
+    const { services, written, opened } = createFakeRjsfWorkspace({ handles: [fake.handle] });
+    const id = await createRjsfForm(services, 'mem:forms/');
+
+    expect(id).toBe('mem:forms/contact.rjsf.json');
+    expect(parseRjsfForm(written.get(id!)!)).toEqual(sampleForm());
+    expect(opened).toEqual([id]);
+  });
+
+  it('команда берёт каталог из аргументов пункта меню, а чужому значению не верит', async () => {
+    const { services, opened } = createFakeRjsfWorkspace();
+    const create = rjsfCommands(services).find((command) => command.id === RJSF_NEW_COMMAND_ID)!;
+
+    await create.run({ dir: 'mem:forms/' });
+    // Не строка — не адрес: команда ведёт себя как из палитры и кладёт форму в корень.
+    await create.run({ dir: 42 });
+
+    expect(opened).toEqual(['mem:forms/contact.rjsf.json', 'mem:contact-2.rjsf.json']);
+  });
+
   it('новое поле — операцией через ручку модели, со свободным именем', () => {
     const fake = createFakeRjsfHandle(sampleForm());
     const { services } = createFakeRjsfWorkspace({ handles: [fake.handle] });
@@ -279,6 +303,43 @@ describe('команды', () => {
   });
 });
 
+describe('подраздел «RJSF» подменю «Сгенерировать»', () => {
+  const [header, create, ...rest] = rjsfGenerateMenuItems().map((item) => item.value);
+
+  it('заголовок встаёт в общее подменю дерева, а новая форма — в подраздел, не в «Файл»', () => {
+    expect(rest).toEqual([]);
+    expect(header).toMatchObject({
+      kind: 'submenu',
+      menu: RESOURCE_GENERATE_MENU,
+      submenu: RJSF_GENERATE_SUBMENU,
+      titleKey: 'menu.generate.rjsf',
+    });
+    expect(create).toMatchObject({
+      kind: 'item',
+      menu: RJSF_GENERATE_SUBMENU,
+      command: RJSF_NEW_COMMAND_ID,
+    });
+    // Адрес подраздела лежит ПОД общим: иначе пункт стека встал бы рядом с подразделами.
+    expect(RJSF_GENERATE_SUBMENU.startsWith(`${RESOURCE_GENERATE_MENU}/`)).toBe(true);
+  });
+
+  it('пункт называет каталог щелчка — у файла это каталог рядом с ним', () => {
+    const target = {
+      ref: fakeRef('forms/a.rjsf.json'),
+      dir: 'mem:forms/',
+      selection: [],
+      rootId: 'mem:',
+    };
+
+    expect(create?.kind === 'item' ? create.argsOf?.(target) : null).toEqual({ dir: 'mem:forms/' });
+  });
+
+  it('на файле не гаснет: форму можно положить рядом с любой строкой дерева', () => {
+    expect(header?.kind === 'submenu' ? header.enabledWhen : null).toBeUndefined();
+    expect(create?.kind === 'item' ? create.enabledWhen : null).toBeUndefined();
+  });
+});
+
 describe('панель свойств поля', () => {
   const { services } = createFakeRjsfWorkspace();
   const panel = rjsfInspectorPanel({
@@ -315,6 +376,11 @@ describe('словарь: подписи команд, кнопок и пане�
       ...rjsfViewCommands(deps).map((command) => command.titleKey),
       ...rjsfViewMenuItems(deps).map((item) =>
         item.value.kind === 'item' ? item.value.titleKey : undefined
+      ),
+      ...rjsfGenerateMenuItems().map((item) =>
+        item.value.kind === 'item' || item.value.kind === 'submenu'
+          ? item.value.titleKey
+          : undefined
       ),
       rjsfInspectorPanel({ services, kits: () => undefined, useTranslate: () => (k) => k })
         .titleKey,

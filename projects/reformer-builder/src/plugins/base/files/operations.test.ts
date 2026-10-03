@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { RESOURCE_CONTEXT_MENU, RESOURCE_GENERATE_MENU } from '@reformer/builder-plugin-api';
 import type { WhenContext } from '@reformer/builder-plugin-api';
 import type { WorkspaceBatchResult, WorkspaceResourcesService } from '@reformer/builder-plugin-api';
 import type { FilesHost } from './host';
+import { FILES_MESSAGES } from './messages';
 import {
   COPY_COMMAND_ID,
   CUT_COMMAND_ID,
@@ -12,6 +14,7 @@ import {
   PASTE_COMMAND_ID,
   RENAME_COMMAND_ID,
   filesContextMenuItems,
+  filesGenerateMenuItems,
   filesOperationCommands,
   nameOf,
   nameValidator,
@@ -376,5 +379,31 @@ describe('пункты контекстного меню', () => {
 
     expect(remove?.value.kind === 'item' ? remove.value.group : null).toBe('9_danger');
     expect(copy?.value.kind === 'item' ? copy.value.group : null).toBe('2_edit');
+  });
+});
+
+describe('подменю «Сгенерировать»', () => {
+  it('заголовок — общий: стеки вносят подразделы по его адресу, а не каждый своё подменю', () => {
+    const [header, ...rest] = filesGenerateMenuItems();
+
+    expect(rest).toEqual([]);
+    expect(header?.value).toMatchObject({
+      kind: 'submenu',
+      menu: RESOURCE_CONTEXT_MENU,
+      submenu: RESOURCE_GENERATE_MENU,
+      titleKey: 'menu.generate',
+      group: '4_generate',
+    });
+  });
+
+  it('по цели не гаснет: во что можно генерировать, решает подраздел стека', () => {
+    const header = filesGenerateMenuItems()[0]?.value;
+
+    expect(header?.kind === 'submenu' ? header.enabledWhen : null).toBeUndefined();
+  });
+
+  it('подпись есть на обеих локалях', () => {
+    expect(FILES_MESSAGES.ru?.['menu.generate']).toBeDefined();
+    expect(FILES_MESSAGES.en?.['menu.generate']).toBeDefined();
   });
 });

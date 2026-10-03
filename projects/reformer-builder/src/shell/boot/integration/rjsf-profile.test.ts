@@ -26,9 +26,11 @@ import {
   MenuPoint,
   PanelPoint,
   PreviewSurfacePoint,
+  RESOURCE_CONTEXT_MENU,
   ValidatorPoint,
   type DocumentModelProvider,
 } from '@reformer/builder-plugin-api/internal';
+import { buildMenu, type MenuSubmenuNode } from '@/shell/platform/ui/menu/menu';
 import { printPlainForm, sampleForm as samplePlainForm } from '@/plugins/plain/core';
 import { printRjsfForm, sampleForm as sampleRjsfForm, type RjsfForm } from '@/plugins/rjsf/core';
 import {
@@ -83,6 +85,50 @@ const ref = (name: string): ResourceRef => ({
   kind: 'file',
   mediaType: 'application/json',
 });
+
+/** Каталог дерева — цель щелчка, над которой собирается контекстное меню. */
+const DIRECTORY: ResourceRef = {
+  id: 'mem:forms',
+  sourceId: 'mem',
+  path: 'forms',
+  name: 'forms',
+  kind: 'directory',
+  mediaType: 'inode/directory',
+};
+
+/** Подраздел подменю «Сгенерировать»: подпись и подписи пунктов под ней. */
+type GenerateSection = readonly [title: string, items: readonly string[]];
+
+/**
+ * Подменю «Сгенерировать» так, как его соберёт оболочка по щелчку на каталоге: настоящими
+ * вкладами, настоящим реестром команд и словарями плагинов. Подменю нет — пустой список.
+ */
+async function generateSections(started: BuilderApp): Promise<readonly GenerateSection[]> {
+  await started.i18n.setLocale('ru');
+  const nodes = buildMenu(
+    {
+      entries: started.extensions.get(MenuPoint),
+      ctx: started.whenContext.get(),
+      target: { ref: DIRECTORY, dir: DIRECTORY.id, selection: [DIRECTORY], rootId: 'mem:' },
+      commands: started.commands,
+      translate: (key, owner) =>
+        owner?.pluginId === undefined
+          ? started.i18n.t(key)
+          : started.i18n.forPlugin(owner.pluginId).t(key),
+      execute: () => {},
+    },
+    RESOURCE_CONTEXT_MENU
+  );
+  const generate = nodes.find(
+    (node): node is MenuSubmenuNode => node.kind === 'submenu' && node.title === 'Сгенерировать'
+  );
+  if (generate === undefined) return [];
+  return generate.items.flatMap((node): GenerateSection[] =>
+    node.kind === 'submenu'
+      ? [[node.title, node.items.flatMap((item) => (item.kind === 'item' ? [item.title] : []))]]
+      : []
+  );
+}
 
 /** Три формата схемы — все в `.json`. */
 const FORMATS = {
@@ -166,6 +212,27 @@ describe('boot на профиле rjsf.builder', () => {
       )?.value.id
     ).toBe('rjsf.editor');
   });
+
+  it('«Сгенерировать» дерева есть и без стека ReFormer: подраздел «RJSF» с новой формой', async () => {
+    const started = await start();
+
+    // Заголовок подменю вносит основа, поэтому подразделу домена есть куда встать.
+    expect(await generateSections(started)).toEqual([['RJSF', ['Новая форма']]]);
+  });
+
+  it('в «Файл» домен ничего не вносит: там открывают и сохраняют, а не порождают формы', async () => {
+    const started = await start();
+    const inFile = started.extensions
+      .get(MenuPoint)
+      .filter(
+        (contribution) =>
+          contribution.pluginId === RJSF_EDITOR_PLUGIN_ID &&
+          contribution.value.kind !== 'root' &&
+          contribution.value.menu === 'file'
+      );
+
+    expect(inFile).toEqual([]);
+  });
 });
 
 describe('выделение формы RJSF в НАСТОЯЩЕЙ ручке модели', () => {
@@ -237,6 +304,18 @@ describe('совмещённый состав: ReFormer, демо-стек и RJ
     const started = await start(combined);
 
     expect(started.plugins.statuses().filter((s) => s.state !== 'active')).toEqual([]);
+  });
+
+  it('«Сгенерировать» дерева делится на подразделы стеков: «ReFormer» и «RJSF»', async () => {
+    const started = await start(combined);
+    const sections = await generateSections(started);
+
+    // Порядок назван вкладами, а не порядком активации плагинов.
+    expect(sections.map(([title]) => title)).toEqual(['ReFormer', 'RJSF']);
+    // Цели модуля ReFormer остались под своим подразделом — с «Весь модуль» во главе.
+    expect(sections[0]?.[1][0]).toBe('Весь модуль');
+    expect(sections[0]?.[1].length).toBeGreaterThan(1);
+    expect(sections[1]?.[1]).toEqual(['Новая форма']);
   });
 
   it('пробы форматов не пересекаются: у каждой схемы ровно один провайдер и свой редактор', async () => {

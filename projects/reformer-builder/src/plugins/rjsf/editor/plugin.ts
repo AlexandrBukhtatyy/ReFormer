@@ -43,11 +43,11 @@ import {
   type WhenContext,
 } from '@reformer/builder-plugin-api';
 import { rjsfCommands, rjsfHandleOf, type RjsfServices } from './commands';
+import { rjsfGenerateMenuItems } from './context-menu';
 import {
   RJSF_EDITOR_ID,
   RJSF_EDITOR_PLUGIN_ID,
   RJSF_INSPECTOR_PANEL_ID,
-  RJSF_NEW_COMMAND_ID,
   RJSF_VALIDATOR_ID,
 } from './contract';
 import { RJSF_EDITOR_MESSAGES } from './messages';
@@ -171,14 +171,10 @@ export function createRjsfEditorPlugin(): Plugin {
           id: RJSF_VALIDATOR_ID,
         }),
         ctx.extensions.contribute(EditorPoint, editor, { id: RJSF_EDITOR_ID }),
-        ctx.extensions.contribute(PanelPoint, inspector, { id: inspector.id }),
-        ctx.extensions.contribute(
-          MenuPoint,
-          { kind: 'item', menu: 'file', command: RJSF_NEW_COMMAND_ID, group: '1_new' },
-          { id: 'rjsf.menu.new' }
-        )
+        ctx.extensions.contribute(PanelPoint, inspector, { id: inspector.id })
       );
-      for (const item of rjsfViewMenuItems(viewDeps)) {
+      // Новая форма — в подразделе «RJSF» подменю «Сгенерировать» дерева, а не в «Файле».
+      for (const item of [...rjsfGenerateMenuItems(), ...rjsfViewMenuItems(viewDeps)]) {
         ctx.subscriptions.push(ctx.extensions.contribute(MenuPoint, item.value, { id: item.id }));
       }
       for (const command of [...rjsfCommands(services), ...rjsfViewCommands(viewDeps)]) {

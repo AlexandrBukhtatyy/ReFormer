@@ -8,10 +8,22 @@
 
 import type { ResourceId, ResourceRef } from '../../primitives/resource.js';
 import type { WhenContext } from '../../primitives/when-context.js';
-import type { ContextMenuId, MenuTarget } from './menu.js';
+import type { ContextMenuId, MenuPath, MenuTarget } from './menu.js';
 
 /** Адрес контекстного меню дерева: в него вносят пункты те, кому есть что предложить. */
 export const RESOURCE_CONTEXT_MENU: ContextMenuId = 'resource/context';
+
+/**
+ * Адрес подменю «Сгенерировать» в контекстном меню дерева — общий для всех стеков.
+ *
+ * Заголовок вносит плагин файлов: дерево его, и он есть в любом составе. Наполняют подменю
+ * домены — каждый стек заводит под этим адресом свой подраздел (`…/generate/<домен>`) и кладёт
+ * пункты в него. Адрес объявлен здесь, а не у одного из стеков: иначе подменю принадлежало бы
+ * ему, и в составе без него второму стеку было бы некуда вносить.
+ *
+ * Пока подразделов нет, подменю пустое и не рисуется — состав без генерации его не видит.
+ */
+export const RESOURCE_GENERATE_MENU: MenuPath = 'resource/context/generate';
 
 /** По чему щёлкнули в дереве. */
 export interface ResourceMenuTarget {

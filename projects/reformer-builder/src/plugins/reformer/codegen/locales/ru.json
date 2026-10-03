@@ -42,7 +42,7 @@
   "error.failed": "Записать модуль не удалось.",
   "command.create-fixture": "Создать фикстуру предпросмотра",
   "command.generateInto": "Сгенерировать код формы в каталог",
-  "menu.generate": "Сгенерировать",
+  "menu.generate.reformer": "ReFormer",
   "menu.generate.all": "Весь модуль",
   "target.schema": "Схема формы",
   "target.types": "Типы",
