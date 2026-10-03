@@ -109,7 +109,7 @@ test.describe('Множественный выбор', () => {
 
     await po.pickMany('countries', ['fr']);
     // Третье значение перешагнуло порог — чипы схлопнулись в сводку.
-    await expect(po.summary('countries')).toContainText('Выбрано: 3');
+    await expect(po.summary('countries')).toContainText('Selected: 3');
     await po.expectValue('countries', ['ru', 'de', 'fr']);
   });
 

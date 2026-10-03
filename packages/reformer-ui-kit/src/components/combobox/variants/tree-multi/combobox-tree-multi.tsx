@@ -34,7 +34,7 @@ import { TreeSearchField, expandedPathTo, findTreeNode } from '../tree/combobox-
 // а не чекбоксом — у строки дерева уже два значка слева (треугольник и тип узла), и третий
 // сделал бы уровень нечитаемым. Отметка поэтому справа, галочкой, и подкреплена заливкой строки.
 
-/** Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N». */
+/** Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Selected: N». */
 const DEFAULT_SUMMARY_THRESHOLD = 3;
 
 /** Сколько строк дерева показать в поповере до появления прокрутки. */
@@ -62,11 +62,11 @@ export interface ComboboxTreeMultiProps {
    * Что можно выбрать. По умолчанию `'leaf'` — выбор файлов: щелчок по каталогу его раскрывает.
    */
   selectable?: TreeSelectable;
-  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Выберите файлы...'`. */
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Select files...'`. */
   placeholder?: string;
-  /** Подсказка в поле поиска. По умолчанию `'Поиск...'`. */
+  /** Подсказка в поле поиска. По умолчанию `'Search...'`. */
   searchPlaceholder?: string;
-  /** Текст пустого состояния. По умолчанию `'Ничего не найдено'`. */
+  /** Текст пустого состояния. По умолчанию `'No results found.'`. */
   emptyText?: string;
   /** Показывать крестик сброса ВСЕГО выбора справа от триггера. */
   clearable?: boolean;
@@ -242,11 +242,11 @@ const ComboboxTreeMulti = React.forwardRef<ComboboxTreeMultiHandle, ComboboxTree
             >
               {selected.length === 0 ? (
                 <span className="truncate text-muted-foreground">
-                  {placeholder ?? 'Выберите файлы...'}
+                  {placeholder ?? 'Select files...'}
                 </span>
               ) : collapsed ? (
                 <span className="truncate" data-slot="combobox-tree-multi-summary">
-                  Выбрано: {selected.length}
+                  Selected: {selected.length}
                 </span>
               ) : (
                 // Чипы неинтерактивны намеренно: интерактивный элемент внутри `button` —
@@ -288,7 +288,7 @@ const ComboboxTreeMulti = React.forwardRef<ComboboxTreeMultiHandle, ComboboxTree
               isNodeDisabled={maxItems === undefined ? undefined : isNodeDisabled}
               search={search}
               maxRows={maxRows}
-              emptyText={emptyText ?? 'Ничего не найдено'}
+              emptyText={emptyText ?? 'No results found.'}
               data-testid={dataTestId === undefined ? undefined : `${dataTestId}-tree`}
               aria-labelledby={ariaLabelledBy}
               renderActions={(_node, state) =>

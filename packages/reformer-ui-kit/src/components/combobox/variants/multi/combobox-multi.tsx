@@ -26,7 +26,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/popover';
 import type { ComboboxOption } from '../base/combobox-base';
 
-/** Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N». */
+/** Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Selected: N». */
 const DEFAULT_SUMMARY_THRESHOLD = 3;
 
 /** Props компонента {@link ComboboxMulti}. */
@@ -55,7 +55,7 @@ export interface ComboboxMultiProps {
   tooltip?: string;
   /**
    * Creatable-режим: введённое значение, не совпавшее ни с одной опцией, добавляется в выбор
-   * пунктом «Создать». Лейблом для него служит само значение.
+   * пунктом «Create: …». Лейблом для него служит само значение.
    */
   creatable?: boolean;
   /**
@@ -226,7 +226,7 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
                 </span>
               ) : collapsed ? (
                 <span className="truncate" data-slot="combobox-multi-summary">
-                  Выбрано: {selected.length}
+                  Selected: {selected.length}
                 </span>
               ) : (
                 <span className="flex flex-wrap gap-1" data-slot="combobox-multi-chips">
@@ -290,7 +290,7 @@ const ComboboxMulti = React.forwardRef<ComboboxMultiHandle, ComboboxMultiProps>(
                     {/* value=search → cmdk не отфильтрует пункт; выбор добавляет введённое в массив. */}
                     <CommandItem value={trimmedSearch} onSelect={handleCreate} disabled={atLimit}>
                       <PlusIcon className="mr-2 size-4" />
-                      Создать: {trimmedSearch}
+                      Create: {trimmedSearch}
                     </CommandItem>
                   </CommandGroup>
                 )}

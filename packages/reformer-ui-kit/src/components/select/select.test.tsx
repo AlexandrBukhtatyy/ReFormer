@@ -104,7 +104,7 @@ describe('SelectMulti (вариант multi)', () => {
       <SelectMulti value={['a', 'b', 'c', 'd']} options={MANY} summaryThreshold={3} />
     );
     expect(html).toContain('data-slot="select-multi-summary"');
-    expect(html).toContain('Выбрано: 4');
+    expect(html).toContain('Selected: 4');
   });
 
   it('clearable даёт крестик сброса только при непустом выборе', () => {

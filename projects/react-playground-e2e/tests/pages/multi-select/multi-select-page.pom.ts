@@ -55,7 +55,7 @@ export class MultiSelectPage {
     return this.trigger(testId).locator('[data-slot$="-multi-chip"]');
   }
 
-  /** Сводка «Выбрано: N» вместо чипов, когда выбранных больше `summaryThreshold`. */
+  /** Сводка «Selected: N» вместо чипов, когда выбранных больше `summaryThreshold`. */
   summary(testId: string): Locator {
     return this.trigger(testId).locator('[data-slot$="-multi-summary"]');
   }

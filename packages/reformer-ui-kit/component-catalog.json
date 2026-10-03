@@ -6028,7 +6028,7 @@
           "creatable": {
             "type": "boolean",
             "default": false,
-            "description": "Разрешить ввести своё значение: при отсутствии совпадения — пункт «Создать «…»» (эмитит введённое как value).",
+            "description": "Разрешить ввести своё значение: при отсутствии совпадения — пункт «Create “…”» (эмитит введённое как value).",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -6203,7 +6203,7 @@
           "creatable": {
             "type": "boolean",
             "default": false,
-            "description": "Разрешить ввести своё значение: при отсутствии совпадения — пункт «Создать», добавляющий введённое в выбор. Лейблом для него служит само значение.",
+            "description": "Разрешить ввести своё значение: при отсутствии совпадения — пункт «Create: …», добавляющий введённое в выбор. Лейблом для него служит само значение.",
             "x-doc": {
               "group": "Behavior",
               "type": "boolean"
@@ -6310,7 +6310,7 @@
           },
           "summaryThreshold": {
             "type": "number",
-            "description": "Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N».",
+            "description": "Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Selected: N».",
             "x-doc": {
               "group": "Behavior",
               "type": "number"
@@ -6421,7 +6421,7 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Ничего не найдено"
+            "default": "No results found."
           },
           "id": {
             "type": "string",
@@ -6523,7 +6523,7 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Выберите файл..."
+            "default": "Select a file..."
           },
           "required": {
             "type": "boolean",
@@ -6541,7 +6541,7 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Поиск..."
+            "default": "Search..."
           },
           "selectable": {
             "type": "string",
@@ -6662,7 +6662,7 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Ничего не найдено"
+            "default": "No results found."
           },
           "id": {
             "type": "string",
@@ -6774,7 +6774,7 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Выберите файлы..."
+            "default": "Select files..."
           },
           "required": {
             "type": "boolean",
@@ -6792,7 +6792,7 @@
               "group": "Textfield",
               "type": "string"
             },
-            "default": "Поиск..."
+            "default": "Search..."
           },
           "selectable": {
             "type": "string",
@@ -6807,7 +6807,7 @@
           },
           "summaryThreshold": {
             "type": "number",
-            "description": "Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N».",
+            "description": "Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Selected: N».",
             "x-doc": {
               "group": "Behavior",
               "type": "number",
@@ -20111,7 +20111,7 @@
           },
           "summaryThreshold": {
             "type": "number",
-            "description": "Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N».",
+            "description": "Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Selected: N».",
             "x-doc": {
               "group": "Behavior",
               "type": "number"

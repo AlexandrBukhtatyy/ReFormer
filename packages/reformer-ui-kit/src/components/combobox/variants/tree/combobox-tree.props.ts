@@ -48,19 +48,19 @@ export const comboboxTreePropsSchema = {
     },
     placeholder: {
       type: 'string',
-      default: 'Выберите файл...',
+      default: 'Select a file...',
       description: 'Подсказка в триггере, пока ничего не выбрано.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     searchPlaceholder: {
       type: 'string',
-      default: 'Поиск...',
+      default: 'Search...',
       description: 'Подсказка в поле поиска над деревом.',
       'x-doc': { group: 'Textfield', type: 'string' },
     },
     emptyText: {
       type: 'string',
-      default: 'Ничего не найдено',
+      default: 'No results found.',
       description: 'Текст пустого состояния (по запросу ничего не совпало).',
       'x-doc': { group: 'Textfield', type: 'string' },
     },

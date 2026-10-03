@@ -62,7 +62,7 @@ export const comboboxBasePropsSchema = {
       type: 'boolean',
       default: false,
       description:
-        'Разрешить ввести своё значение: при отсутствии совпадения — пункт «Создать «…»» (эмитит введённое как value).',
+        'Разрешить ввести своё значение: при отсутствии совпадения — пункт «Create “…”» (эмитит введённое как value).',
       'x-doc': { group: 'Behavior', type: 'boolean' },
     },
   },

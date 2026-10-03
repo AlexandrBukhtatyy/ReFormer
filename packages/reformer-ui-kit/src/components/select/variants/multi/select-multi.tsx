@@ -19,7 +19,7 @@ import { Spinner } from '@/components/spinner';
 import { isNearBottom, type ResourceConfig, type NormalizedOption } from '../async/select-resource';
 import { useResourceOptions } from '../async/use-resource-options';
 
-/** Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N». */
+/** Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Selected: N». */
 const DEFAULT_SUMMARY_THRESHOLD = 3;
 
 /** Опция мультивыбора, заданная inline (сериализуемый источник для формы/DSL). */
@@ -298,7 +298,7 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
             {initialLoading ? (
               <span className="flex items-center gap-2 text-muted-foreground">
                 <Spinner className="size-4" />
-                Загрузка...
+                Loading...
               </span>
             ) : selected.length === 0 ? (
               <span className="truncate text-muted-foreground">
@@ -306,7 +306,7 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
               </span>
             ) : collapsed ? (
               <span className="truncate" data-slot="select-multi-summary">
-                Выбрано: {selected.length}
+                Selected: {selected.length}
               </span>
             ) : (
               <span className="flex flex-wrap gap-1" data-slot="select-multi-chips">
@@ -346,9 +346,7 @@ const SelectMulti = React.forwardRef<SelectMultiHandle, SelectMultiProps>(functi
             data-slot="select-multi-list"
           >
             {loadError && (
-              <div className="px-2 py-1.5 text-sm text-destructive">
-                Не удалось загрузить опции.
-              </div>
+              <div className="px-2 py-1.5 text-sm text-destructive">Failed to load options.</div>
             )}
             {!loadError && options.length === 0 && !ro.loadingMore && (
               <div className="px-2 py-1.5 text-sm text-muted-foreground">

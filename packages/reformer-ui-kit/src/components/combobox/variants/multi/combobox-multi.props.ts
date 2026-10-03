@@ -62,7 +62,7 @@ export const comboboxMultiPropsSchema = {
       type: 'boolean',
       default: false,
       description:
-        'Разрешить ввести своё значение: при отсутствии совпадения — пункт «Создать», добавляющий введённое в выбор. Лейблом для него служит само значение.',
+        'Разрешить ввести своё значение: при отсутствии совпадения — пункт «Create: …», добавляющий введённое в выбор. Лейблом для него служит само значение.',
       'x-doc': { group: 'Behavior', type: 'boolean' },
     },
     maxItems: {
@@ -77,7 +77,7 @@ export const comboboxMultiPropsSchema = {
       minimum: 1,
       default: 3,
       description:
-        'Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Выбрано: N».',
+        'Сколько чипов показать в триггере, прежде чем схлопнуть их в сводку «Selected: N».',
       'x-doc': { group: 'Behavior', type: 'number' },
     },
   },

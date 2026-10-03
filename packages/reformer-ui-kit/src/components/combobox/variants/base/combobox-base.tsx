@@ -55,7 +55,7 @@ export interface ComboboxProps {
   tooltip?: string;
   /**
    * Creatable-режим: разрешить ввести своё значение. Когда введённый текст не совпадает точно ни с
-   * одной опцией, в списке появляется пункт «Создать «…»» — выбор эмитит введённое значение как
+   * одной опцией, в списке появляется пункт «Create “…”» — выбор эмитит введённое значение как
    * `value` (label в триггере = само значение). По умолчанию `false`.
    */
   creatable?: boolean;
@@ -234,7 +234,7 @@ const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combob
                   {/* value=search → cmdk не отфильтрует пункт; выбор эмитит введённое значение. */}
                   <CommandItem value={trimmedSearch} onSelect={handleCreate}>
                     <PlusIcon className="mr-2 size-4" />
-                    Создать «{trimmedSearch}»
+                    Create “{trimmedSearch}”
                   </CommandItem>
                 </CommandGroup>
               )}

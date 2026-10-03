@@ -575,10 +575,10 @@ Subpath `./combobox` тянет опциональный peer `cmdk` — не р
   источника предков не знает никто, пока уровень не прочитан; нужные ветки перечисляют в
   `defaultExpandedIds`.
 
-Остальные пропы обоих вариантов: `placeholder` (`'Выберите файл...'` / `'Выберите файлы...'`),
-`searchPlaceholder` (`'Поиск...'`), `emptyText` (`'Ничего не найдено'`), `clearable` (`false`),
+Остальные пропы обоих вариантов: `placeholder` (`'Select a file...'` / `'Select files...'`),
+`searchPlaceholder` (`'Search...'`), `emptyText` (`'No results found.'`), `clearable` (`false`),
 `maxRows` (12 строк до прокрутки), у мульти ещё `summaryThreshold` (3 — дальше чипы схлопываются
-в «Выбрано: N»).
+в «Selected: N»).
 
 ### Common Patterns
 

@@ -104,7 +104,7 @@ export function TreeSearchField({
         spellCheck={false}
         data-testid={dataTestId}
         className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-        placeholder={placeholder ?? 'Поиск...'}
+        placeholder={placeholder ?? 'Search...'}
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
@@ -140,11 +140,11 @@ export interface ComboboxTreeProps {
    * `'all'` разрешает выбрать и каталог.
    */
   selectable?: TreeSelectable;
-  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Выберите файл...'`. */
+  /** Подсказка в триггере, пока ничего не выбрано. По умолчанию `'Select a file...'`. */
   placeholder?: string;
-  /** Подсказка в поле поиска. По умолчанию `'Поиск...'`. */
+  /** Подсказка в поле поиска. По умолчанию `'Search...'`. */
   searchPlaceholder?: string;
-  /** Текст пустого состояния. По умолчанию `'Ничего не найдено'`. */
+  /** Текст пустого состояния. По умолчанию `'No results found.'`. */
   emptyText?: string;
   /** Показывать ли крестик очистки справа от значения. По умолчанию `false`. */
   clearable?: boolean;
@@ -306,7 +306,7 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
               data-slot="combobox-tree-value"
               className={cn('truncate', selectedLabel === undefined && 'text-muted-foreground')}
             >
-              {selectedLabel ?? placeholder ?? 'Выберите файл...'}
+              {selectedLabel ?? placeholder ?? 'Select a file...'}
             </span>
             <ChevronsUpDownIcon
               className={cn('size-4 shrink-0 opacity-50', CHEVRON_RESERVE[trailingCount])}
@@ -334,7 +334,7 @@ const ComboboxTree = React.forwardRef<ComboboxTreeHandle, ComboboxTreeProps>(fun
             selectable={selectable}
             search={search}
             maxRows={maxRows}
-            emptyText={emptyText ?? 'Ничего не найдено'}
+            emptyText={emptyText ?? 'No results found.'}
             data-testid={dataTestId === undefined ? undefined : `${dataTestId}-tree`}
             aria-labelledby={ariaLabelledBy}
             onActivate={handleActivate}

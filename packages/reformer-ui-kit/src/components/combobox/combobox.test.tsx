@@ -52,7 +52,7 @@ describe('Combobox (вариант base)', () => {
   });
 
   it('creatable: значение вне options показывается в триггере как введённое', () => {
-    // Пункт «Создать «…»» рендерится в Popover-портале (в SSR отсутствует) — проверяем триггер:
+    // Пункт «Create “…”» рендерится в Popover-портале (в SSR отсутствует) — проверяем триггер:
     // созданное значение, которого нет в options, показывается как собственный label.
     const html = renderToStaticMarkup(<Combobox value="Своё значение" options={OPTS} creatable />);
     expect(html).toContain('Своё значение');
@@ -88,7 +88,7 @@ const MANY = [
 ];
 
 // Как и у одиночного варианта: список живёт в Portal и в SSR отсутствует — проверяем триггер.
-// Поведение списка (чекбоксы, потолок, «Создать») закрывается e2e.
+// Поведение списка (чекбоксы, потолок, «Create») закрывается e2e.
 describe('ComboboxMulti (вариант multi)', () => {
   it('пустой выбор показывает placeholder', () => {
     const html = renderToStaticMarkup(
@@ -115,7 +115,7 @@ describe('ComboboxMulti (вариант multi)', () => {
       <ComboboxMulti value={['a', 'b', 'c', 'd']} options={MANY} summaryThreshold={3} />
     );
     expect(html).toContain('data-slot="combobox-multi-summary"');
-    expect(html).toContain('Выбрано: 4');
+    expect(html).toContain('Selected: 4');
     expect(html).not.toContain('data-slot="combobox-multi-chip"');
   });
 
@@ -262,7 +262,7 @@ describe('ComboboxTreeMulti (вариант tree-multi)', () => {
       <ComboboxTreeMulti value={['a', 'b', 'c', 'd']} nodes={FILES} summaryThreshold={3} />
     );
     expect(html).toContain('data-slot="combobox-tree-multi-summary"');
-    expect(html).toContain('Выбрано: 4');
+    expect(html).toContain('Selected: 4');
   });
 
   it('clearable даёт крестик сброса только при непустом выборе', () => {
